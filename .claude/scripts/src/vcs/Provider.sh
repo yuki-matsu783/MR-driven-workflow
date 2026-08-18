@@ -196,13 +196,15 @@ add_empty_commit_for_draft_mr() {
 # ブランチを作成しcheckout、リモートへpushする（flow-id 1-3: 「issueからMRとブランチを作る」
 # 「作成したブランチをfetch, checkout」）。第2引数はslug化対象のテキストであり、生のissueタイトル
 # である必要はない（呼び出し元が英語の意訳フレーズ等を渡してよい。`.claude/skills/issue-mr-flow/
-# SKILL.md` の `start` サブコマンド参照。issue #22）。
+# SKILL.md` の `start` サブコマンド参照。issue #22）。第3引数（省略可）でベースブランチを上書き
+# できる。省略時は従来どおり `.mrworkflow.json` の `defaultBaseBranch` を使う（issue #15:
+# `start` サブコマンドが `AskUserQuestion` で確認した結果を渡す用途）。
 new_issue_branch() {
   local issue_number="$1" slug_source="$2"
   local config slug branch base_branch template
   config="$(get_workflow_config)"
   slug="$(to_slug "$slug_source")"
-  base_branch="$(printf '%s' "$config" | jq -r '.defaultBaseBranch')"
+  base_branch="${3:-$(printf '%s' "$config" | jq -r '.defaultBaseBranch')}"
   template="$(printf '%s' "$config" | jq -r '.branchPrefixTemplate')"
   branch="${template//\{issue\}/$issue_number}"
   branch="${branch//\{slug\}/$slug}"
