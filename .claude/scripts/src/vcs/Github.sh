@@ -136,6 +136,34 @@ github_set_mr_description() {
   gh pr edit "$mr_number" --body-file "$body_file" >/dev/null
 }
 
+# リポジトリの正規URL（フルパス）を取得する（issue #13フォローアップ: PRのURL文字列からの
+# 推測ではなく`gh`で取得し正確性を担保する）。
+github_get_repo_url() {
+  gh repo view --json url --jq '.url'
+}
+
+# 2つのref（ブランチ名・SHAいずれも可）間の差分を見れる「Compare changes」ページのURLを
+# 組み立てる（純粋関数。`gh`呼び出しを伴わない）。GitHubの`/compare/<from>...<to>`は
+# PR作成前から使われている汎用の比較ページであり、PR個別のサブタブ（Files changed等）より
+# 広く安定して存在する標準機能。issue #13フォローアップ。
+github_get_compare_url() {
+  local repo_url="$1" from="$2" to="$3"
+  printf '%s/compare/%s...%s\n' "$repo_url" "$from" "$to"
+}
+
+# PRの「defaultブランチとの差分」を見れるURLを組み立てる（純粋関数）。issue #13。
+github_get_mr_diff_url() {
+  local repo_url="$1" base_branch="$2" head_branch="$3"
+  github_get_compare_url "$repo_url" "$base_branch" "$head_branch"
+}
+
+# PRの「前回push時点(from_sha)から今回push時点(to_sha)までの差分」を見れるURLを組み立てる
+# （純粋関数）。issue #13。
+github_get_mr_diff_since_url() {
+  local repo_url="$1" from_sha="$2" to_sha="$3"
+  github_get_compare_url "$repo_url" "$from_sha" "$to_sha"
+}
+
 # MRへ新規コメントを1件投稿する（スレッド返信・レビューではない通常コメント）。
 github_add_mr_comment() {
   local mr_number="$1" body_file="$2"

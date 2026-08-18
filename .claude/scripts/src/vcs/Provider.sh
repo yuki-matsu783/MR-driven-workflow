@@ -173,6 +173,36 @@ set_mr_description() {
   esac
 }
 
+# リポジトリの正規URL（フルパス）を取得する（issue #13フォローアップ: MR/PRのURL文字列からの
+# 推測ではなく`gh repo view`/`glab repo view`で取得し正確性を担保する）。
+get_repo_url() {
+  case "$(get_provider)" in
+    github) github_get_repo_url ;;
+    gitlab) gitlab_get_repo_url ;;
+  esac
+}
+
+# MR/PRの「defaultブランチとの差分」を見れるURLを組み立てる（issue #13:
+# レビュー依頼メッセージに含める参照リンク用）。`repo_url`は`get_repo_url`で取得したものを渡す。
+get_mr_diff_url() {
+  local repo_url="$1" base_branch="$2" head_branch="$3"
+  case "$(get_provider)" in
+    github) github_get_mr_diff_url "$repo_url" "$base_branch" "$head_branch" ;;
+    gitlab) gitlab_get_mr_diff_url "$repo_url" "$base_branch" "$head_branch" ;;
+  esac
+}
+
+# MR/PRの「前回push時点(from_sha)から今回push時点(to_sha)までの差分」を見れるURLを組み立てる
+# （issue #13: レビュー指摘対応push時にレビュー依頼メッセージへ追加で含める参照リンク用）。
+# `repo_url`は`get_repo_url`で取得したものを渡す。
+get_mr_diff_since_url() {
+  local repo_url="$1" from_sha="$2" to_sha="$3"
+  case "$(get_provider)" in
+    github) github_get_mr_diff_since_url "$repo_url" "$from_sha" "$to_sha" ;;
+    gitlab) gitlab_get_mr_diff_since_url "$repo_url" "$from_sha" "$to_sha" ;;
+  esac
+}
+
 # MRへ新規コメントを1件投稿する（スレッド返信ではなく、レビューでもない通常コメント。
 # レビュー合否判定には影響しない）。呼び出し元想定: 対応工数レポート（post-push-usage-report.sh）。
 add_mr_comment() {

@@ -56,9 +56,9 @@ keywords: [ディレクトリ構成, claude, gemini, 配置方針, plans, worklo
 └── README.md
 ```
 
-`reports/日付_<全体計画名>_<内容>.html`（`.claude/skills/canvas-report/SKILL.md`参照）・`usage/`は、
-いずれもワークフロー実行中に動的に作成されるディレクトリのため、初期スケルトンには含まれない
-（作成・削除のタイミングは `.claude/rules/docs-workflow.md`・
+`reports/日付_<全体計画名>_<内容>.html`（`.claude/skills/canvas-report/SKILL.md`参照）・`usage/`・
+`.claude/state/`は、いずれもワークフロー実行中に動的に作成されるディレクトリのため、初期スケルトン
+には含まれない（作成・削除のタイミングは `.claude/rules/docs-workflow.md`・
 `.claude/skills/issue-mr-flow/SKILL.md` を参照）。
 
 `usage/` は対応工数レポート機能のローカル作業状態で、`.gitignore`対象（`/usage/`）。内訳は
@@ -68,6 +68,11 @@ keywords: [ディレクトリ構成, claude, gemini, 配置方針, plans, worklo
 `logs/push-<N>/` へpushのたびにセッションログ全文を保存する系統があったが、transcriptが追記専用で
 あることを確認したうえで廃止し `usage/` へ一本化した（詳細:
 `.claude/docs/ddr/0022-push断面の全文コピーをやめ行番号インデックスで表現する.md`）。
+
+`.claude/state/`は`post-push-compact-prompt.sh`がレビュー依頼メッセージの参照リンク組み立てに使う、
+前回push時点のHEAD SHAのローカル作業状態で、`.gitignore`対象（`/.claude/state/`）。責務分離のため
+`usage/`とは別ディレクトリにしている（詳細: `.claude/docs/spec/issue-mr-workflow.md`
+「/compact実施の呼びかけ」節、`.claude/docs/ddr/0023-レビュー依頼メッセージの参照リンクは前回pushSHAをローカル状態で保持して組み立てる.md`）。
 
 ## 配置の指針
 
