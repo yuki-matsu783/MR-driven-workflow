@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>調査結果: post-push-save-logs.sh 自動判定化</title>
+<script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-50 text-slate-800 leading-relaxed">
+<div class="max-w-4xl mx-auto px-6 py-10">
+
+  <header class="mb-10">
+    <p class="text-sm text-slate-500">issue <a class="text-sky-600 underline" href="https://github.com/yuki-matsu783/MR-driven-workflow/issues/3">#3</a> / PR <a class="text-sky-600 underline" href="https://github.com/yuki-matsu783/MR-driven-workflow/pull/5">#5</a></p>
+    <h1 class="text-2xl font-bold mt-1">post-push-save-logs.sh の Gemini CLI / Claude Code 自動判定化</h1>
+    <p class="text-slate-600 mt-2">調査結果まとめ（2026-08-18）</p>
+  </header>
+
+  <section class="mb-10">
+    <h2 class="text-lg font-semibold border-b border-slate-200 pb-2 mb-4">現状</h2>
+    <ul class="list-disc pl-6 space-y-2 text-slate-700">
+      <li><code class="bg-slate-100 px-1 rounded">.claude/hooks/post-push-save-logs.sh</code> はどちらのCLIのhooksにも未登録で、現状発火しない。</li>
+      <li>内部は <code class="bg-slate-100 px-1 rounded">tool_name</code> で <code class="bg-slate-100 px-1 rounded">run_shell_command</code>（Gemini CLI）と <code class="bg-slate-100 px-1 rounded">Bash</code>/<code class="bg-slate-100 px-1 rounded">PowerShell</code>（Claude Code）を判定できる下地があるが、ログ探索ロジックはGemini CLI構造専用。</li>
+      <li><code class="bg-slate-100 px-1 rounded">logs/</code> は <code class="bg-slate-100 px-1 rounded">.gitignore</code> 未登録（commitスキルの除外リストのみ存在）。</li>
+    </ul>
+  </section>
+
+  <section class="mb-10">
+    <h2 class="text-lg font-semibold border-b border-slate-200 pb-2 mb-4">調査結果サマリ</h2>
+    <div class="grid sm:grid-cols-2 gap-4">
+      <div class="bg-white rounded-lg border border-slate-200 p-4">
+        <h3 class="font-semibold text-slate-900 mb-2">① エンジン判定</h3>
+        <p class="text-sm text-slate-600"><code class="bg-slate-100 px-1 rounded">tool_name</code> を一次判定に使う。両CLIの値集合は重複しないため機械的に一意判定できる。環境変数はプロジェクトルート特定のフォールバックとして併用。</p>
+      </div>
+      <div class="bg-white rounded-lg border border-slate-200 p-4">
+        <h3 class="font-semibold text-slate-900 mb-2">② Claude Code側ログ収集</h3>
+        <p class="text-sm text-slate-600"><code class="bg-slate-100 px-1 rounded">UsageTracking.sh</code> の <code class="bg-slate-100 px-1 rounded">_usage_sync_session_logs</code> パターン（メイン transcript ＋ <code class="bg-slate-100 px-1 rounded">subagents/agent-*.jsonl</code> + <code class="bg-slate-100 px-1 rounded">.meta.json</code>）を転用する。</p>
+      </div>
+      <div class="bg-white rounded-lg border border-slate-200 p-4">
+        <h3 class="font-semibold text-slate-900 mb-2">③ Claude Code側hook登録</h3>
+        <p class="text-sm text-slate-600"><code class="bg-slate-100 px-1 rounded">.claude/settings.json</code> の <code class="bg-slate-100 px-1 rounded">PostToolUse</code> へ既存2エントリと同じパターン（matcher + if フィルタ）で追加登録できる。</p>
+      </div>
+      <div class="bg-white rounded-lg border border-slate-200 p-4">
+        <h3 class="font-semibold text-slate-900 mb-2">④ Gemini CLI側hook登録</h3>
+        <p class="text-sm text-slate-600"><code class="bg-slate-100 px-1 rounded">.gemini/settings.json</code> の <code class="bg-slate-100 px-1 rounded">hooks.AfterTool</code> に <code class="bg-slate-100 px-1 rounded">matcher: "run_shell_command"</code> + 単一シェル文字列の <code class="bg-slate-100 px-1 rounded">command</code> で登録可能（一次情報で確認）。</p>
+      </div>
+      <div class="bg-white rounded-lg border border-slate-200 p-4">
+        <h3 class="font-semibold text-slate-900 mb-2">⑤ .gitignore</h3>
+        <p class="text-sm text-slate-600"><code class="bg-slate-100 px-1 rounded">/usage/</code> と同様に <code class="bg-slate-100 px-1 rounded">/logs/</code> を追記する方針。</p>
+      </div>
+      <div class="bg-white rounded-lg border border-slate-200 p-4">
+        <h3 class="font-semibold text-slate-900 mb-2">⑥ 検証方法</h3>
+        <p class="text-sm text-slate-600"><code class="bg-slate-100 px-1 rounded">tests/</code> は未導入のため、<code class="bg-slate-100 px-1 rounded">bash -n</code> 構文チェック＋疑似hook入力JSONによる手動シミュレーションで代替する。</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="mb-10">
+    <h2 class="text-lg font-semibold border-b border-slate-200 pb-2 mb-4">Gemini CLI hook設定スキーマ（一次情報）</h2>
+    <pre class="bg-slate-900 text-slate-100 text-sm rounded-lg p-4 overflow-x-auto"><code>{
+  "hooks": {
+    "AfterTool": [
+      {
+        "matcher": "run_shell_command",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$GEMINI_PROJECT_DIR/.claude/hooks/post-push-save-logs.sh\"",
+            "name": "save-session-logs",
+            "timeout": 20000
+          }
+        ]
+      }
+    ]
+  }
+}</code></pre>
+    <p class="text-sm text-slate-500 mt-3">
+      出典:
+      <a class="text-sky-600 underline" href="https://geminicli.com/docs/hooks/reference/">Hooks reference</a>,
+      <a class="text-sky-600 underline" href="https://geminicli.com/docs/hooks/writing-hooks/">Writing hooks</a>,
+      <a class="text-sky-600 underline" href="https://geminicli.com/docs/tools/shell/">Shell tool</a>
+    </p>
+  </section>
+
+  <section class="mb-10">
+    <h2 class="text-lg font-semibold border-b border-slate-200 pb-2 mb-4">未検証・スコープ外とした懸念</h2>
+    <div class="bg-amber-50 border border-amber-200 rounded-lg p-4 text-sm text-amber-900">
+      <p><a class="underline" href="https://github.com/google-gemini/gemini-cli/issues/20258">GitHub Issue #20258</a> によれば、現行Gemini CLIではサブエージェントが親と同じセッションIDで動作するとの報告があり、既存スクリプトが前提とする「<code class="bg-amber-100 px-1 rounded">&lt;session_id&gt;/</code> ディレクトリにサブエージェント専用ログがある」という構造と実態がズレている可能性がある。</p>
+      <p class="mt-2">これは<strong>既存のGemini CLI分岐ロジック自体の問題</strong>であり、今回のissue（Claude Code対応の追加）のスコープには含めない。動作を変更せずそのまま残し、コードコメントに既知の懸念として記録するに留める。</p>
+    </div>
+  </section>
+
+  <footer class="text-xs text-slate-400 border-t border-slate-200 pt-4">
+    詳細は <code class="bg-slate-100 px-1 rounded">plans/jazzy-giggling-crescent.md</code> の「調査結果」節を参照。
+  </footer>
+
+</div>
+</body>
+</html>
