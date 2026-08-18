@@ -1,12 +1,12 @@
 ---
-title: 0024. frontmatterのindex.jsonlをGit管理から外しSessionStart hookで生成する
+title: 0025. frontmatterのindex.jsonlをGit管理から外しSessionStart hookで生成する
 type: ddr
 description: index.jsonlのGit管理除外とSessionStart hookでの自動再生成方式を採用し、create-commit.sh組み込み・専用hook新設・DDR0021却下案4の再評価を検討した理由
 tags: [ddr, extract-frontmatter, index-jsonl, session-start, gitignore]
 keywords: [index.jsonl, gitignore, SessionStart, create-commit, git-rm-cached, mtime, flow-id5-1, fail-open]
 ---
 
-# 0024. frontmatterのindex.jsonlをGit管理から外しSessionStart hookで生成する
+# 0025. frontmatterのindex.jsonlをGit管理から外しSessionStart hookで生成する
 
 issue #36。仕様は [.claude/docs/spec/extract-frontmatter.md](../spec/extract-frontmatter.md) を参照。
 

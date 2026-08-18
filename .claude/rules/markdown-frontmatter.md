@@ -60,7 +60,7 @@ description: <元のまま変更しない>
 `**/index.jsonl`対象）。`.claude/hooks/session-start.sh`（SessionStart hook）が**セッション開始の
 たびに自動で再生成する**ため、frontmatterを更新した際に手動で `extract-frontmatter.sh` を
 実行する必要はない（詳細:
-[.claude/docs/ddr/0024-frontmatterのindex.jsonlをGit管理から外しSessionStart-hookで生成する.md](../docs/ddr/0024-frontmatterのindex.jsonlをGit管理から外しSessionStart-hookで生成する.md)）。
+[.claude/docs/ddr/0025-frontmatterのindex.jsonlをGit管理から外しSessionStart-hookで生成する.md](../docs/ddr/0025-frontmatterのindex.jsonlをGit管理から外しSessionStart-hookで生成する.md)）。
 
 同一セッション内でfrontmatterを編集し、その場ですぐ最新の `index.jsonl` を参照したい場合や、
 自動再生成を待たず手元で確認したい場合は、以下を手動実行してもよい（必須ではない）。
