@@ -17,7 +17,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - issue: [#9 最初に全体作業計画を立て、その後、個別作業計画を立て、合意を得ながら進める](https://github.com/yuki-matsu783/MR-driven-workflow/issues/9)
 - ブランチ: `feature-9-stabilize-plan-tool-usage-flow`
 - Draft PR: [#10](https://github.com/yuki-matsu783/MR-driven-workflow/pull/10)
-- push回数: 5
+- push回数: 6
 
 | 進捗 | flow-id | ステップ | 担当 |
 |----|---|---|---|
@@ -42,10 +42,10 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 | [x] | 19 | レビュー内容を取得し、作業計画を修正する。対応が完了したコメントには対応内容を返信する（18〜19を合意まで繰り返す） | `comments` / `reply` |
 | [x] | 20 | 作業計画をもとにMR descriptionを更新する | `describe` |
 | [x] | 21 | 作業計画をもとに作業を進める、作業内容はworklogに更新する | エージェント |
-| [] | 22 | `commit`スキル経由でcommitし、push してレビュー依頼を行う | エージェント |
-| [] | 23 | 作業内容をもとにMR descriptionを更新する | `describe` |
-| [] | 24 | MRでレビュー・コメントする。レビュー済み連絡をするまで以降の作業は行わない。 | 人間 |
-| [] | 25 | レビュー内容を取得し、実装・ドキュメントを修正する。対応が完了したコメントには対応内容を返信する（21〜25の作業ループを合意まで繰り返す） | `comments` / `reply` |
+| [x] | 22 | `commit`スキル経由でcommitし、push してレビュー依頼を行う | エージェント |
+| [x] | 23 | 作業内容をもとにMR descriptionを更新する | `describe` |
+| [x] | 24 | MRでレビュー・コメントする。レビュー済み連絡をするまで以降の作業は行わない。 | 人間 |
+| [x] | 25 | レビュー内容を取得し、実装・ドキュメントを修正する。対応が完了したコメントには対応内容を返信する（21〜25の作業ループを合意まで繰り返す） | `comments` / `reply` |
 | [] | 26 | 設計反映: `plans/` `worklog/` の内容を `docs/spec/` `docs/ddr/` へ反映する | エージェント |
 | [] | 27 | AIアセット改善: 作業中に気づいたルール・スキルの不備があれば `.claude/rules/` `.claude/skills/` `CLAUDE.md` `AGENTS.md` に反映する | エージェント |
 | [] | 28 | `commit`スキル経由でcommitし、push してレビュー依頼を行う | エージェント |
@@ -82,13 +82,22 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
   - `issue-mr-flow/SKILL.md` を35ステップへ再構成＋「計画の2階層構造」節を新設
   - ルール群9ファイル＋`issue-mr-resume`エージェントを更新
 
+- flow-id 22〜23: 実装をcommit・pushし、MR descriptionを更新。
+- flow-id 24〜25: レビュー2件に対応（複数併記の判断基準を明確化／HANDOFF更新タイミングを
+  「flow-idが1つ進むごと・同じcommitに含める」へ具体化）。各スレッドへ返信済み。
+
 ## 次にやること
 
-- flow-id 22: commit・push（本push）。
-- flow-id 23: `describe` でMR descriptionを実装内容へ更新。
-- flow-id 24〜25: 人間によるMRレビュー待ち。
 - flow-id 26: 設計反映。`spec/issue-mr-workflow.md`の「仕様」節へ新方式を追記し「影響範囲」へ
   新規エントリを追加。**新規DDR（0019〜）**でplanツール利用の再設計とDDR 0009廃止の経緯を記録。
+- flow-id 27: AIアセット改善（下記「気づいた改善候補」を参照）。
+- flow-id 31: クリーンアップ時に**HANDOFF.mdの進捗表を35行化**する（重要・忘れやすい）。
+
+## 気づいた改善候補（flow-id 27で検討）
+
+- `.claude/hooks/*.sh` のヘッダコメントが `# 設計: plans/jazzy-giggling-crescent.md` のように
+  **flow-id 33で削除済みのplanファイル**を参照しており、参照先が存在しない。planの寿命
+  （push単位で削除）とコード内の恒久的な参照が噛み合っていない。別issue化が妥当か検討する。
 
 ## 判断を迷った内容
 
