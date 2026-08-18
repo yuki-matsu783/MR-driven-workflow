@@ -183,7 +183,8 @@
           <li>flow-id 4: 調査計画を作成</li>
           <li>flow-id 15: 作業計画を作成</li>
         </ul>
-        <p>セッションごとに planファイルは1つしか割り当てられないため、同一セッションで両方を行うと<strong>2つ目が1つ目を上書き</strong>する。これが issue #9 の「planが混ざる」の実体。</p>`,
+        <p>セッションごとに planファイルは1つしか割り当てられないため、同一セッションで両方を行うと<strong>2つ目が1つ目を上書き</strong>する。これが issue #9 の「planが混ざる」の実体。</p>
+        <p class="text-emerald-300"><strong>✅ レビュー確定（PR #10）</strong>: 全体作業計画は「セッションにつき1回」ではなく<strong>「issue（ブランチ）につき1回」</strong>と規定する。判定基準は<strong>「現在のブランチに既に全体作業計画があればPlanモードを利用しない」</strong>。既存有無は <code>get_branch_work_files</code> で機械的に判定できる。</p>`,
       mermaid: `graph TD\n  S[セッション開始] --> F4["flow-id 4<br/>調査計画"]\n  F4 --> P1["plans/自動命名.md"]\n  S --> F15["flow-id 15<br/>作業計画"]\n  F15 -->|同じパスが提示される| P1\n  P1 -.->|上書き衝突| X["計画が混ざる"]`,
     },
     {
@@ -200,7 +201,8 @@
       label: 'plans/', desc: '計画ファイル。名前が他の成果物の命名基準になるハブ',
       detailHtml: `
         <p><strong>命名連鎖のハブ</strong>。<code>plans/&lt;plan名&gt;.md</code> が「1タスク1ファイル」である前提に立ち、その名前が worklog・reports の命名基準になっている。</p>
-        <p class="text-amber-300">個別作業計画が<strong>複数ファイル</strong>になるとこの前提が崩れる。worklog / reports を何に紐づけるか（全体計画名 / 個別計画名 / ブランチ名）が作業計画で決めるべき論点。</p>`,
+        <p class="text-amber-300">個別作業計画が<strong>複数ファイル</strong>になるとこの前提が崩れる。worklog / reports を何に紐づけるか（全体計画名 / 個別計画名 / ブランチ名）が作業計画で決めるべき論点。</p>
+        <p class="text-emerald-300"><strong>✅ レビュー確定（PR #10）</strong>: 個別計画の囲み文字は ASCII の <code>[]</code> ではなく<strong>全角</strong>（<code>【調査】</code>等）を使う。全角はglob特殊文字ではないため、<code>plans/【調査】*.md</code> と<strong>未クォートで書いてもマッチする</strong>（実機確認済み）。クォート忘れという落とし穴が構造的に消える。</p>`,
       mermaid: `graph LR\n  P["plans/&lt;plan名&gt;.md"] -->|日付_&lt;plan名&gt;_pushN.md| W["worklog/"]\n  P -->|&lt;plan名&gt;.html| R["reports/"]`,
     },
     {
@@ -221,9 +223,10 @@
       detailHtml: `
         <p class="text-rose-300"><strong>調査3で見つかった最重要の不具合リスク</strong>。</p>
         <p><code>Provider.sh:261-262</code> は <code>git diff --name-only</code> / <code>git status --porcelain</code> の出力をそのまま使うが、<code>core.quotepath</code> の既定値 <code>true</code> により、gitは日本語ファイル名を<strong>8進エスケープ＋ダブルクォート</strong>で返す。</p>
-        <pre class="bg-slate-950 p-2 rounded text-[0.65rem] overflow-x-auto">"plans/[\\350\\252\\277\\346\\237\\273]...md"   ← 使えない
-plans/[調査]既存plan運用の棚卸し.md      ← -c core.quotepath=false なら正常</pre>
-        <p><code>[タスク種別]</code>（日本語）命名を導入すると <strong>resume / issue-mr-resume が壊れる</strong>。作業計画での修正必須。</p>
+        <pre class="bg-slate-950 p-2 rounded text-[0.65rem] overflow-x-auto">"plans/\\343\\200\\220\\350\\252\\277\\346\\237\\273\\343\\200\\221...md"  ← 使えない
+plans/【調査】既存plan運用の棚卸し.md   ← -c core.quotepath=false なら正常</pre>
+        <p>日本語を含む種別命名を導入すると <strong>resume / issue-mr-resume が壊れる</strong>。作業計画での修正必須。</p>
+        <p class="text-amber-300"><strong>この問題は囲み文字を全角へ変えても解消しない</strong>（原因は角括弧ではなく非ASCII文字を含むことそのもの）。<code>core.quotepath</code> 対応は囲み文字の選択とは独立に必要。</p>
         <p class="text-emerald-300">対照的に <code>extract-frontmatter.sh:206</code> は <code>git ls-files -z</code> を使っており元から安全（<code>-z</code> 指定時はgitがクォートしない）。同一リポジトリ内に正しい実装例がある。</p>`,
       mermaid: `graph TD\n  G["git status --porcelain"] -->|quotepath=true 既定| Q["8進エスケープ文字列"]\n  Q --> B["パスとして使えない"]\n  G2["git -c core.quotepath=false"] --> OK["生のパス"]\n  G3["git ls-files -z"] --> OK`,
     },
