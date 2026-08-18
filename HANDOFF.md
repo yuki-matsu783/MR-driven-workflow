@@ -17,7 +17,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - issue: [#11 extract-frontmatter.shのリポジトリルート一括実行を高速化し中断耐性を持たせる](https://github.com/yuki-matsu783/MR-driven-workflow/issues/11)
 - ブランチ: `feature-11-speed-up-frontmatter-index-build`
 - Draft PR: [#19](https://github.com/yuki-matsu783/MR-driven-workflow/pull/19)
-- push回数: 3
+- push回数: 4
 - 全体作業計画: `plans/lexical-stirring-peach.md`（flow-id 1-5で合意済み）
 
 進捗欄の記号: `[]` 未着手 / `[x]` 完了 / `[-]` 今回は実施しない（スキップ）
@@ -46,11 +46,11 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 | [x] | 3-4 | レビュー内容を取得し、作業計画を修正する。対応が完了したコメントには対応内容を返信する（3-3〜3-4を合意まで繰り返す） | `comments` / `reply` |
 | [x] | 3-5 | 作業計画をもとにMR descriptionを更新する | `describe` |
 | [x] | 3-6 | 作業計画をもとに作業を進める、作業内容はworklogに更新する | エージェント |
-| [] | 3-7 | `commit`スキル経由でcommitし、push してレビュー依頼を行う | エージェント |
+| [x] | 3-7 | `commit`スキル経由でcommitし、push してレビュー依頼を行う | エージェント |
 | [x] | 3-8 | MRでレビュー・コメントする。レビュー済み連絡をするまで以降の作業は行わない。 | 人間 |
 | [x] | 3-9 | レビュー内容を取得し、実装・ドキュメントを修正する。対応が完了したコメントには対応内容を返信する（3-6〜3-9の作業ループを合意まで繰り返す） | `comments` / `reply` |
-| [] | 3-10 | 作業内容をもとにMR descriptionを更新する | `describe` |
-| [] | 4-1 | **作業結果と`plans/` `worklog/` の内容をもとに**、個別反映計画`plans/【設計反映】【AIアセット反映】〜.md`等を**planツールを使わず**Write/Editで作成する | エージェント |
+| [x] | 3-10 | 作業内容をもとにMR descriptionを更新する | `describe` |
+| [x] | 4-1 | **作業結果と`plans/` `worklog/` の内容をもとに**、個別反映計画`plans/【設計反映】【AIアセット反映】〜.md`等を**planツールを使わず**Write/Editで作成する | エージェント |
 | [] | 4-2 | `commit`スキル経由でcommitし、push してレビュー依頼を行う | エージェント |
 | [] | 4-3 | MRで反映計画についてレビュー・コメントする。レビュー完了済み連絡をするまで以降の作業は行わない。 | 人間 |
 | [] | 4-4 | レビュー内容を取得し、反映計画を修正する。対応が完了したコメントには対応内容を返信する（4-3〜4-4を合意まで繰り返す） | `comments` / `reply` |
@@ -90,13 +90,20 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
   .gitignoreは除外」「MR直前のpushではindex.jsonlも消す」を受領。**現行実装のままで要求を満たして
   いる**ことを実機確認（`.gitignore` 対象の `/logs/` `/build/` に .md を置いても走査されない）ため、
   スクリプトの変更は不要と判断し、決定内容をworklog push3へ記録した。
+- flow-id 3-10（フェーズ3完了）: 未解決スレッド0件（自動投稿の対応工数レポート4件のみ）を再確認し、
+  PR #19 のdescriptionをフェーズ3完了時点の内容（対応方針・性能実測値・受け入れ条件との対応・
+  既知バグの結論・レビューで確定した運用）へ更新した。
+- flow-id 4-1（push4）: 個別反映計画
+  `plans/【設計反映】【AIアセット反映】extract-frontmatter高速化と中断耐性.md` と worklog push4 を作成。
+  反映元の確定事項をA〜Iに整理し、spec更新・DDR 0021新設・rules 2件/SKILL 1件/docs-workflow 1件への
+  追記に割り付けた。この過程で**既存specの記述誤り2件**（存在しないパス
+  `.claude/scripts/docs/spec/shell-scripts.md` への参照、および**このリポジトリに存在しない**
+  `ddr/0008-…` へのリンク2箇所）を発見し、反映対象に含めた。
 
 ## 次にやること
 
-- **flow-id 3-10**: 作業内容をもとにMR descriptionを更新する（その前に `comments all` で未解決
-  スレッドが残っていないことを再確認する）。
-- その後フェーズ4（反映）へ。flow-id 4-1で個別反映計画
-  `plans/【設計反映】【AIアセット反映】〜.md` を作成する。
+- **flow-id 4-2**: 個別反映計画・worklog push4・HANDOFF.md をcommitし、pushしてレビュー依頼（push4）。
+- レビュー合意後、flow-id 4-5（MR description更新）→ 4-6（反映作業の実施）へ進む。
 
 ## 判断を迷った内容
 
@@ -118,7 +125,12 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - **flow-id 5-1 の手順追記がフェーズ4のTODO**: `plans/*.md` を全削除しても、本スクリプトは
   「markdownが直下にあるディレクトリ」だけを出力対象にするため、`plans/index.jsonl` は再生成の
   対象外となり陳腐化したまま残る。5-1で**`plans/index.jsonl` も削除し `index.jsonl` 群を再生成する**
-  手順を `.claude/skills/issue-mr-flow/SKILL.md` と `.claude/rules/docs-workflow.md` へ追記する。
+  手順を `.claude/skills/issue-mr-flow/SKILL.md` と `.claude/rules/docs-workflow.md` へ追記する
+  （個別反映計画の 2-3 / 2-4 に反映済み。flow-id 4-6で実施する）。
+- **`index.jsonl` をコミット対象にしている運用上の副作用**: `HANDOFF.md` や worklog を編集するたびに
+  mtime 経由で `index.jsonl` が陳腐化するため、**commit直前に `extract-frontmatter.sh .` を1回流す**
+  必要がある（高速化した今なら1〜2秒）。specの懸念点として記載する方針（自動化はissue #11の
+  受け入れ条件外のため今回は行わない）。
 - 進捗表で使った `[-]`（今回は実施しない）は `.claude/rules/docs-workflow.md` の記号規約に未記載。
   issue #20 で明文化する予定。
 
