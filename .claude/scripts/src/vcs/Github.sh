@@ -136,6 +136,22 @@ github_set_mr_description() {
   gh pr edit "$mr_number" --body-file "$body_file" >/dev/null
 }
 
+# PRの「defaultブランチとの差分（Files changed）」を見れるURLを組み立てる（純粋関数。
+# `gh`呼び出しを伴わない）。issue #13: レビュー依頼メッセージに含める参照リンク用。
+github_get_mr_diff_url() {
+  local mr_url="$1"
+  printf '%s/files\n' "$mr_url"
+}
+
+# PRの「前回push時点(from_sha)から今回push時点(to_sha)までの差分」を見れるURLを組み立てる
+# （純粋関数）。GitHubのPR「Files changed」タブが対応するコミット範囲URL形式
+# （例: https://github.com/o/r/pull/1/files/<from>..<to>。PRのコミット一覧ドロップダウンで
+# 個別コミットを選んだ時に使われるものと同じ形式）に基づく。issue #13。
+github_get_mr_diff_since_url() {
+  local mr_url="$1" from_sha="$2" to_sha="$3"
+  printf '%s/files/%s..%s\n' "$mr_url" "$from_sha" "$to_sha"
+}
+
 # MRへ新規コメントを1件投稿する（スレッド返信・レビューではない通常コメント）。
 github_add_mr_comment() {
   local mr_number="$1" body_file="$2"

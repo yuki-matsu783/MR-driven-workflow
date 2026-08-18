@@ -173,6 +173,26 @@ set_mr_description() {
   esac
 }
 
+# MR/PRの「defaultブランチとの差分」を見れるURLを組み立てる（issue #13:
+# レビュー依頼メッセージに含める参照リンク用）。
+get_mr_diff_url() {
+  local mr_url="$1"
+  case "$(get_provider)" in
+    github) github_get_mr_diff_url "$mr_url" ;;
+    gitlab) gitlab_get_mr_diff_url "$mr_url" ;;
+  esac
+}
+
+# MR/PRの「前回push時点(from_sha)から今回push時点(to_sha)までの差分」を見れるURLを組み立てる
+# （issue #13: レビュー指摘対応push時にレビュー依頼メッセージへ追加で含める参照リンク用）。
+get_mr_diff_since_url() {
+  local mr_url="$1" from_sha="$2" to_sha="$3"
+  case "$(get_provider)" in
+    github) github_get_mr_diff_since_url "$mr_url" "$from_sha" "$to_sha" ;;
+    gitlab) gitlab_get_mr_diff_since_url "$mr_url" "$from_sha" "$to_sha" ;;
+  esac
+}
+
 # MRへ新規コメントを1件投稿する（スレッド返信ではなく、レビューでもない通常コメント。
 # レビュー合否判定には影響しない）。呼び出し元想定: 対応工数レポート（post-push-usage-report.sh）。
 add_mr_comment() {

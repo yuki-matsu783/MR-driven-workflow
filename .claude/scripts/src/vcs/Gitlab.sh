@@ -108,6 +108,25 @@ gitlab_set_mr_description() {
   glab mr update "$mr_number" --description "$description" >/dev/null
 }
 
+# MRの「defaultブランチとの差分（Changes）」を見れるURLを組み立てる（純粋関数。`glab`呼び出しを
+# 伴わない）。issue #13: レビュー依頼メッセージに含める参照リンク用。
+gitlab_get_mr_diff_url() {
+  local mr_url="$1"
+  printf '%s/diffs\n' "$mr_url"
+}
+
+# MRの「前回push時点(from_sha)以降の差分」を見れるURLを組み立てる（純粋関数）。
+# 【未検証】GitLabの「Compare versions」機能が使う`start_sha`クエリパラメータに基づく実装だが、
+# このリポジトリのremoteはGitHubのみのため実機確認できていない（他の`gitlab_*`関数と同じ制約。
+# ファイル冒頭コメント参照）。issue #13。
+gitlab_get_mr_diff_since_url() {
+  local mr_url="$1" from_sha="$2"
+  # shellcheck disable=SC2034 # to_sha はGitHub版とのインターフェース対称のため受け取るが、
+  # GitLabのstart_shaは「最新版との比較」を意味するため使わない。
+  local to_sha="${3:-}"
+  printf '%s/diffs?start_sha=%s\n' "$mr_url" "$from_sha"
+}
+
 # MRへ新規コメントを1件投稿する（スレッド返信・レビューではない通常コメント）。
 # 【未検証】このリポジトリのremoteはGitHubのみのため実機確認できていない。
 gitlab_add_mr_comment() {
