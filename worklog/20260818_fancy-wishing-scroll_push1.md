@@ -25,12 +25,20 @@ push回数: 1
   `get_mr_unresolved_comments 8 true`で未解決コメントの有無を確認した（工数レポートの自動投稿のみで
   レビューコメントは無かった）。
 - 調査結果を`reports/fancy-wishing-scroll.html`（TailwindCSS CDN方式の自己完結HTML）として作成した。
+- flow-id 11〜13完了後、再度「OK」を受け、`get_mr_unresolved_comments 8 true`で未解決コメント無しを
+  再確認した（工数レポート自動投稿のみ）。
+- `post-push-usage-report.sh`/`post-push-compact-prompt.sh`/`post-push-save-logs.sh`の3ファイルを
+  直接読み直し、行番号を再確認したうえで、具体的な作業計画（各ファイルのガード条件をどう書き換えるか、
+  `case`文・`project_dir`変数の追加箇所、`session-log-hooks.md`への追記方針）を
+  `plans/fancy-wishing-scroll.md`の「作業計画」章にまとめた。
 
 ## うまくいったこと
 
 - `post-push-save-logs.sh`のエンジン判定パターン（`tool_name`によるgemini/claude分岐、
   `${GEMINI_PROJECT_DIR:-${CLAUDE_PROJECT_DIR:-}}`によるプロジェクトルート取得）を、他2スクリプトへ
   移植する対応方針を固め、`plans/fancy-wishing-scroll.md`の調査計画としてユーザー承認を得た。
+- 作業計画（flow-id 15）もユーザー承認を得た。`post-push-usage-report.sh`314行目の署名文言
+  （「Claude Codeより」固定）を`${engine_label}より`に変える小さな追加改善も計画に含めた。
 
 ## ダメだったこと
 
@@ -38,10 +46,9 @@ push回数: 1
 
 ## 次の一歩
 
-- flow-id 11: 本worklog・`reports/fancy-wishing-scroll.html`をcommitスキル経由でcommit・pushし、
-  レビュー依頼を行う。
-- flow-id 12: 調査結果をもとにMR descriptionを更新する。
-- flow-id 13〜14: レビューを経て、flow-id 15（作業計画）→ flow-id 21（実装:
-  post-push-usage-report.sh / post-push-compact-prompt.shへのエンジン判定移植）へ進む。
+- flow-id 17: 本worklog・plan（作業計画章）をcommitスキル経由でcommit・pushし、レビュー依頼を行う。
+- flow-id 18〜19: レビューを経て、flow-id 20（describe）→ flow-id 21（実装:
+  post-push-usage-report.sh / post-push-compact-prompt.shへのエンジン判定移植、
+  session-log-hooks.mdの追記）へ進む。
 
 ---
