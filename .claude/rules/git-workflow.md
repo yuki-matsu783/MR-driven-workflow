@@ -49,6 +49,40 @@ keywords: [featureブランチ, ブランチ命名, worklog, squash-merge, draft
   - 経緯・却下案は
     `.claude/docs/ddr/0012-コミットはcommitスキル経由を機構的に強制する.md` を参照。
 
+## push検知hookの誤検知（AIエージェント向け注記）
+
+上記コミットhookと同じ「コマンド文字列の部分文字列マッチ」に起因する問題が、**push検知側にも
+ある**（issue #23で判明）。`.claude/settings.json` の `hooks.PostToolUse` に登録された
+`post-push-usage-report.sh` / `post-push-compact-prompt.sh` は、Bash/PowerShellツールへ渡された
+コマンド文字列に `git` と `push` が連続して現れると発火する。**前方一致ではなく部分一致**であり、
+実際にpushしたかどうかは確認されない。
+
+issue #23の作業中、次のようなケースで計3回、pushしていないのに発火した。
+
+- `cd /c/Users/... && ...` のように、コマンドが該当語で**始まっていない**場合
+- issue本文・MR descriptionをheredocで渡す際、その**地の文**に該当語が含まれていた場合
+
+発火すると対応工数の集計・カーソル前進・`/compact` の促しが走る（実害は限定的だが、
+意図しない状態変化が起きる）。
+
+**対策**: コミット側と同じく、`git` と `push` を半角スペース区切りで連続させない書き方に
+言い換える（例:「プッシュする」「リモートへ反映する」）。**長文を渡す場合は、コマンド文字列へ
+直接埋め込まずファイル経由にする**のが確実で、実機で発火しないことを確認済み。
+
+```bash
+# 悪い例（本文中の語でhookが発火する）
+gh issue comment 23 --body "$(cat <<'EOF'
+... git push のたびに ...
+EOF
+)"
+# 良い例（ファイル経由なら本文の中身はコマンド文字列に現れない）
+gh issue comment 23 --body-file /path/to/body.md
+```
+
+`Provider.sh` の `set_mr_description <n> <file>` も同じ理由でファイルパスを受け取る設計になっている。
+制約の詳細は `.claude/docs/spec/issue-mr-workflow.md`
+「制約: 検知は`tool_input.command`の文字列マッチに依存する」を参照。
+
 ## worklogの配置・命名
 
 `worklog/日付_<全体計画名>_<個別計画名>_push<N>.md` に記録する（配置・命名は `directory-structure.md`、ライフサイクルは
