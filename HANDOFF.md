@@ -16,7 +16,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 
 - issue: #34 gh/glab CLIが無い環境向けのMCPフォールバック経路をスキル・スクリプトに実装する
 - ブランチ: claude/issue-34-sm2mqs
-- PR: 未作成（ユーザーからの明示指示待ち）
+- PR: #40 (Draft) https://github.com/yuki-matsu783/MR-driven-workflow/pull/40
 - push回数: 1
 
 進捗記号: `[x]` 完了 / `[]` 未着手・進行中 / `[-]` 今回は実施しない（スキップ）
@@ -25,7 +25,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 |----|---|---|---|
 | [x] | 1-1 | issueを起票する（`.github/ISSUE_TEMPLATE/task.md` / `.gitlab/issue_templates/task.md` で目的・現状・期待する動作・受け入れ条件を記載） | 人間（AIが代行する場合は `issue-create` スキル） |
 | [x] | 1-2 | issueの内容を取得する（`gh` CLI不在のため `mcp__github__issue_read` で取得） | `start <issue番号>` |
-| [] | 1-3 | featureブランチとDraft MRを作成する（既にあれば `sync` のみ）。**ブランチ`claude/issue-34-sm2mqs`はClaude Code on the web環境が用意済みで命名規則には従わない。Draft PRはユーザーの明示指示が無いため未作成** | エージェント |
+| [x] | 1-3 | featureブランチとDraft MRを作成する（既にあれば `sync` のみ）。**ブランチ`claude/issue-34-sm2mqs`はClaude Code on the web環境が用意済みで命名規則には従わない**。ユーザーの明示指示を受け、`mcp__github__create_pull_request`（`gh` CLI不在のため）でDraft PR #40を作成 | エージェント |
 | [x] | 1-4 | **Planモードで「全体作業計画」を作成する** → `plans/steady-bridging-gateway.md`（非対話環境のためplanツールは使わずWrite/Editで作成） | エージェント |
 | [] | 1-5 | 全体作業計画に合意する | 人間 |
 | [x] | 1-6 | 全体作業計画をもとにHANDOFF.mdを更新する | エージェント |
@@ -43,22 +43,22 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 | [x] | 3-2 | `commit`スキル経由でcommitし、push してレビュー依頼を行う | エージェント |
 | [] | 3-3 | MRで作業計画についてレビュー・コメントする。レビュー完了済み連絡をするまで以降の作業は行わない。**非対話的実行環境のため未実施** | 人間 |
 | [] | 3-4 | レビュー内容を取得し、作業計画を修正する（3-3〜3-4を合意まで繰り返す）。**同上** | `comments` / `reply` |
-| [] | 3-5 | 作業計画をもとにMR descriptionを更新する（PR未作成のため未実施） | `describe` |
+| [x] | 3-5 | 作業計画をもとにMR descriptionを更新する（PR #40作成時のdescriptionへ計画・実装状況をまとめて反映） | `describe` |
 | [] | 3-6 | 作業計画をもとに作業を進める、作業内容はworklogに更新する。**実作業は完了済み**（Provider.sh・hook3本・SKILL.md 2本・AGENTS.md・テストを変更）。人間レビュー（3-8/3-9）が未実施のためループ範囲は`[]`のまま | エージェント |
 | [] | 3-7 | `commit`スキル経由でcommitし、push してレビュー依頼を行う。**push実施済み**（同上の理由で記号は`[]`） | エージェント |
 | [] | 3-8 | MRでレビュー・コメントする。**非対話的実行環境のため未実施** | 人間 |
 | [] | 3-9 | レビュー内容を取得し、実装・ドキュメントを修正する（3-6〜3-9の作業ループを合意まで繰り返す）。**同上** | `comments` / `reply` |
-| [] | 3-10 | 作業内容をもとにMR descriptionを更新する（PR未作成のため未実施） | `describe` |
+| [x] | 3-10 | 作業内容をもとにMR descriptionを更新する（同上） | `describe` |
 | [x] | 4-1 | **作業結果と`plans/` `worklog/` の内容をもとに**、個別反映計画を作成する → `plans/【設計反映】MCPフォールバック経路の設計反映.md` | エージェント |
 | [x] | 4-2 | `commit`スキル経由でcommitし、push してレビュー依頼を行う | エージェント |
 | [] | 4-3 | MRで反映計画についてレビュー・コメントする。**非対話的実行環境のため未実施** | 人間 |
 | [] | 4-4 | レビュー内容を取得し、反映計画を修正する（4-3〜4-4を合意まで繰り返す）。**同上** | `comments` / `reply` |
-| [] | 4-5 | 反映計画をもとにMR descriptionを更新する（PR未作成のため未実施） | `describe` |
+| [x] | 4-5 | 反映計画をもとにMR descriptionを更新する（同上） | `describe` |
 | [] | 4-6 | 反映計画をもとに作業を進める、反映内容はworklogに更新する。**設計反映（spec更新・DDR 0025新設）は完了済み**。人間レビュー（4-8/4-9）が未実施のためループ範囲は`[]`のまま | エージェント |
 | [] | 4-7 | `commit`スキル経由でcommitし、push してレビュー依頼を行う。**push実施済み**（同上の理由で記号は`[]`） | エージェント |
 | [] | 4-8 | MRでレビュー・コメントする。**非対話的実行環境のため未実施** | 人間 |
 | [] | 4-9 | レビュー内容を取得し、設計・AIアセットの内容を修正する（4-6〜4-9の反映ループを合意まで繰り返す）。**同上** | `comments` / `reply` |
-| [] | 4-10 | 反映内容をもとにMR descriptionを更新する（PR未作成のため未実施） | `describe` |
+| [x] | 4-10 | 反映内容をもとにMR descriptionを更新する（同上） | `describe` |
 | [] | 5-1 | 次タスクのために、`plans/` `worklog/` `reports/` を削除し、`HANDOFF.md` をリセットする。**あわせて `plans/index.jsonl` も削除し、`bash .claude/scripts/src/extract-frontmatter.sh .` で `index.jsonl` 群を再生成する** | エージェント |
 | [] | 5-2 | `commit`スキル経由でcommitし、push して Draftを解除する | エージェント |
 | [] | 5-3 | マージする（squash merge。ブランチは削除してよい） | 人間 |
@@ -89,15 +89,16 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 
 ## 次にやること
 
-- 人間によるレビュー（flow-id 3-3/3-8, 4-3/4-8）。必要ならDraft PRの作成をユーザーが指示する
+- 人間によるDraft PR #40のレビュー（flow-id 3-3/3-8, 4-3/4-8）
 - レビュー合意後、flow-id 5-1（`plans/` `worklog/` の削除・HANDOFF.mdリセット・`index.jsonl`再生成）
 
 ## 判断を迷った内容
 
-- **Draft PRを作成しなかった**: このリモート実行環境のハーネスは「ユーザーが明示的に依頼しない限り
-  PRを作成しない」ことを求めるため、flow-id 1-3のDraft MR作成は行わず、ブランチへのpushまでに
-  留めた（issue #22対応セッションでは作成していたため、運用差分として記録する）。PRが必要であれば
-  ユーザーの指示を受けてから `mcp__github__create_pull_request` で作成する
+- **Draft PRの作成タイミング**: 当初はflow-id 1-3のDraft MR作成を行わずpushまでに留めていた
+  （`.claude/rules/git-workflow.md`「PR・マージ」の「ユーザーから明示的に指示されない限り実行しない」
+  および同趣旨のリモート実行環境ハーネス側の指示による）。その後ユーザーから明示指示を受け、
+  `mcp__github__create_pull_request` でDraft PR #40を作成した。description（flow-id 3-5/3-10/4-5/4-10
+  相当）は作成時のbodyへまとめて反映済み
 - **人間レビューのループ範囲の進捗記号**: 非対話的実行環境のため3-3/3-4・3-8/3-9・4-3/4-4・4-8/4-9を
   実施できない。`.claude/rules/docs-workflow.md`の規定に従い、ループ範囲の記号は`[]`のまま残し、
   実施済みの内容（3-6/3-7・4-6/4-7相当）は本セクションの文章で補足している
