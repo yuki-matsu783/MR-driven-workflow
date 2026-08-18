@@ -10,9 +10,9 @@ keywords: [start, resume, sync, comments, reply, describe, draft-pr, 実装フ�
 # issue駆動 フロー（唯一のフロー定義）
 
 このファイルは `.claude/docs/spec/issue-mr-workflow.md` の実装であり、このプロジェクトにおける
-**issue起票からマージまでの唯一のフロー定義**である。新機能追加・既存動作の変更など、
-ごく小さな変更（誤字修正等。`.claude/rules/git-workflow.md` 参照）を除くあらゆるタスクは、
-このファイルの手順で進める。
+**issue起票からマージまでの唯一のフロー定義**である。適用要否の判定基準（除外してよい
+「ごく小さな変更」の定義）は `AGENTS.md` を参照する。対象となるタスクは、このファイルの
+手順で進める。
 
 裏側の実処理は `.claude/scripts/src/vcs/Provider.sh`（GitHub/GitLabの差異を吸収する共通関数群。bash版。
 設計: `.claude/docs/spec/shell-scripts.md`）に実装されている。各ステップの手順内で、必要に応じて
