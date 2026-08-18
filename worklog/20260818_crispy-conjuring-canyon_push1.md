@@ -279,6 +279,41 @@ PR #10 で2件の指摘を受け、対応した。
 中断時に不完全な状態で書き込まれる性質にあるため。高速化しても、この性質が残る限り同じ事故が
 起こりうると判断した。
 
+## DDRのfrontmatter更新ルール追加（追加指示, push9）
+
+ユーザーから「DDRの本文は変更不可だがfrontmatterだけは書き換えてよいことにする。無効化されたら
+`status: disabled` にして description に『DDR-XXXにより無効化』と書く。他にいい方法があれば提案を」
+という指示を受けた。
+
+### 採用した設計（ユーザー案から2点変更）
+
+| 論点 | ユーザー案 | 採用案 | 理由 |
+|---|---|---|---|
+| statusの値 | `disabled` | `superseded` / `deprecated` | DDRの元になったADRで広く使われる語彙に合わせた。初見でも意味が推測でき外部ツールとも揃う |
+| 置き換え先の書き方 | `description` に「DDR-XXXにより無効化」 | 専用キー `superseded_by: "0019"`、**descriptionは書き換えない** | descriptionは「そのDDRが何を決めたか」の要約で`index.jsonl`から一覧・検索に使われる。上書きすると**元の決定内容が読み取れなくなる**ため、両方の情報を残す形にした |
+
+`status`省略時は有効（`active`）とみなす運用にし、有効なDDRにはキー自体を書かない。
+
+### 効果の実証
+
+`extract-frontmatter.sh`で再生成したところ、`index.jsonl`に以下が反映された。
+**AIエージェントが機械的に「このDDRは無効」と判別できる**ようになり、descriptionも元のまま残った。
+
+```json
+{"status": "superseded", "superseded_by": "0019",
+ "desc": "同一セッション内でPlanモードへ複数回re-entryする際の計画ファイル衝突…"}
+```
+
+### 反映先
+
+- `.claude/rules/markdown-frontmatter.md`: キー定義表に`status`/`superseded_by`を追加し、
+  「DDRのstatus」節を新設（値の一覧・記述例・descriptionを書き換えない理由）
+- `.claude/rules/docs-workflow.md`: 運用表のDDR行を「本文は追記のみ・**frontmatterのみ更新可**」へ。
+  **「DDRは本文を一切変更せず」と書かれた別の箇所（56行目）も見つけて整合させた**
+- `.claude/docs/ddr/0009-*.md`: `status: superseded` / `superseded_by: "0019"` を付与
+- `.claude/docs/ddr/0019-*.md`: この運用を定めた理由・却下案を追記（まだマージ前のため変更可能）
+- `.claude/docs/README.md`: 0009の注記を新表記へ統一
+
 ## 次の一歩
 
 - flow-id 6: 調査計画をcommit・pushしてレビュー依頼（本push）。
