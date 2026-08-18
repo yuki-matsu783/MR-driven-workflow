@@ -133,6 +133,62 @@ PR #10 で2件の指摘を受け、対応した。
   AIアセット反映等の報告にも使える位置づけへ拡張（将来の拡張性を持たせるため）
 - 種別6種: `【調査】【設計】【実装】【テスト】【設計反映】【AIアセット改善】`
 
+## 実装フェーズ（flow-id 21〜23, push5）
+
+作業計画の実装ステップ1〜3をすべて実施した。
+
+### ステップ3: スクリプト（先に着手）
+
+- **`Provider.sh` の `core.quotepath` 修正**（最重要）: `get_branch_work_files` の
+  `git diff --name-only` / `git status --porcelain` に `-c core.quotepath=false` を付けた。
+  実機で修正前後を比較し、効果を確認した。
+
+  ```
+  修正前: "plans/\343\200\220\350\252\277\346\237\273\343\200\221検証用ダミー.md"
+  修正後: plans/【調査】検証用ダミー.md
+  ```
+
+  なぜ必要かをコメントとして関数の直前に残した（`git ls-files -z` なら影響を受けないが、
+  ここは行単位出力を使うため明示指定が要る、という判断の根拠も含めた）。
+- `archive-reentrant-plan.sh` を `git rm` で削除。
+- `apply-mr-workflow-to-project/SKILL.md:63` の配布対象リストから除去。
+
+### ステップ1: フロー定義（`issue-mr-flow/SKILL.md`）
+
+- フロー表を33→35ステップへ再構成（旧flow-id N≧4 は 新N+2 へスライド）。
+- 新設した「計画の2階層構造」節に、種別6種・全角`【】`の理由・`plans/【*.md`による機械的判別・
+  flow-id 4の判定方法をまとめた。
+- flow-id参照を一括更新（ループ範囲・commitポイント・レビュー完了合図・「マージされた場合の対処」）。
+- **`describe`/`comments` サブコマンドの手順が単一plan前提だった**ため、複数計画に対応させた
+  （`get_branch_work_files` で全体・個別を分けて読む形へ）。計画時に見落としていた箇所。
+
+### ステップ2: ルール群
+
+`docs-workflow.md`（運用表を2階層＋新命名へ）、`directory-structure.md`、`index.md`、
+`git-workflow.md`、`commit/SKILL.md`、`canvas-report/SKILL.md`（調査専用→報告全般へ拡張）、
+`worklog/TEMPLATE.md`、`AGENTS.md`、`plan-mode-safety.md`（全面改訂）を更新。
+
+**`issue-mr-resume` エージェントも更新**（計画時には対象に挙げていなかったが、
+「全体作業計画の有無」はflow-id 4の判定に直結するため、現在地サマリで分けて報告する必要があった）。
+
+### 検証
+
+| 項目 | 結果 |
+|---|---|
+| `bash -n Provider.sh` | ✅ |
+| `get_branch_work_files` の実機動作（日本語ファイル名） | ✅ 生パスが返る |
+| flow-id参照の更新漏れ | ✅ 残存なし |
+| `archive-reentrant` 参照残り | ✅ DDR 0009/0013・spec「影響範囲」節・`plan-mode-safety.md`の履歴節のみ（いずれも**残すのが正しい**） |
+
+### 意図的に変更しなかった箇所
+
+- **DDR 0009・0013の本文**: DDRは一度マージしたら不変。
+- **`spec/issue-mr-workflow.md:852`・`spec/shell-scripts.md:154`**: いずれも「## 影響範囲」節内の
+  過去changelogエントリ（point-in-timeの記録）。`docs-workflow.md`が「過去changelogを一括置換の
+  対象に含めない」と明示的に禁じている（issue #24で歴史を破壊しかけた実例あり）。
+- **`HANDOFF.md`の進捗表の35行化**: 本タスク自身が現行33ステップで進行中のため、flow-id 31
+  （クリーンアップ）で行う。
+
 ## 次の一歩
 
 - flow-id 6: 調査計画をcommit・pushしてレビュー依頼（本push）。

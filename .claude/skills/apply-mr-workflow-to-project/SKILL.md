@@ -60,7 +60,7 @@ bash .claude/skills/apply-mr-workflow-to-project/scripts/install-to-project.sh /
 - `.claude/rules/` 内の各共通規約（Goプロジェクトの場合は、さらに `go-applications.md` 特化ルールも有効化されます）。
 
 ### 2. コアスクリプト群（`.claude/scripts/`, `.gemini/scripts/`）
-- `create-issue.sh` / `create-commit.sh` / `extract-frontmatter.sh` / `archive-reentrant-plan.sh`：VCS、コミット、フロントマター処理の自動化。
+- `create-issue.sh` / `create-commit.sh` / `extract-frontmatter.sh`：VCS、コミット、フロントマター処理の自動化。
 - `vcs/Provider.sh`（および `Github.sh`, `Gitlab.sh`）：GitHubやGitLabのAPI差異を吸収し、ブランチやDraft MR/PR作成を自動化するラッパー。
 
 ### 3. フック群（`.claude/hooks/`, `.gemini/hooks/`）

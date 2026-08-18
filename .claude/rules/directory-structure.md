@@ -36,9 +36,11 @@ keywords: [ディレクトリ構成, claude, gemini, 配置方針, plans, worklo
 ├── .gitlab/
 │   └── issue_templates/         # GitLab用issueテンプレート（同上）
 ├── build/                      # ビルド成果物の出力先。`.gitignore`対象でコミットしない（通常は空）
-├── plans/                      # AIエージェントのplanモードが出力する計画ファイル。タスクごとに
+├── plans/                      # 計画ファイル。全体作業計画（planツールが出力する`<自動命名>.md`、
+│                                #   issueにつき1つ）と個別作業計画（`【種別】タスク内容.md`、
+│                                #   planツールを使わずWrite/Editで作成）の2階層。タスクごとに
 │                                #   新規生成しそのままコミットして履歴として残す
-├── worklog/                    # 実装中の詳細な試行錯誤ログ（`日付_<planファイル名>_push<N>.md`）
+├── worklog/                    # 実装中の詳細な試行錯誤ログ（`日付_<全体計画名>_<個別計画名>_push<N>.md`）
 │   └── TEMPLATE.md             # worklog作成時にコピーして使うテンプレート
 ├── .gitignore
 ├── .mrworkflow.json            # リポジトリ固有設定（ブランチ命名規則・plans/等の場所）
@@ -51,7 +53,7 @@ keywords: [ディレクトリ構成, claude, gemini, 配置方針, plans, worklo
 └── README.md
 ```
 
-`reports/<plan名>.html`（`.claude/skills/canvas-report/SKILL.md`参照）・`usage/`（対応工数レポートの
+`reports/日付_<全体計画名>_<内容>.html`（`.claude/skills/canvas-report/SKILL.md`参照）・`usage/`（対応工数レポートの
 ローカル作業状態）は、いずれもワークフロー実行中に動的に作成されるディレクトリのため、初期スケルトン
 には含まれない（作成・削除のタイミングは `.claude/rules/docs-workflow.md`・
 `.claude/skills/issue-mr-flow/SKILL.md` を参照）。`logs/`（`post-push-save-logs.sh`が`git push`時に
