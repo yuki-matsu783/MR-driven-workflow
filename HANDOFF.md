@@ -17,7 +17,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - issue: [#7](https://github.com/yuki-matsu783/MR-driven-workflow/issues/7) post-push-usage-report.sh/post-push-compact-prompt.shをGemini CLI/Claude Code両対応にする
 - ブランチ: feature-7-support-gemini-cli-for-usage-report-and-compact-pr
 - Draft PR: [#8](https://github.com/yuki-matsu783/MR-driven-workflow/pull/8)
-- push回数: 1
+- push回数: 2
 
 | 進捗 | flow-id | ステップ | 担当 |
 |----|---|---|---|
@@ -27,12 +27,12 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 | [x] | 4 | Planモードで**調査計画**を作成する（`plans/<plan名>.md`の「調査」章へ出力・コミット。このタイミングで `worklog/日付_<plan名>.md` を作成） | エージェント |
 | [x] | 5 | 調査計画に合意する | 人間 |
 | [x] | 6 | `commit`スキル経由でcommitし、push してレビュー依頼を行う | エージェント |
-| [] | 7 | MRで調査計画についてレビュー・コメントする。レビュー完了済み連絡をするまで以降の作業は行わない。 | 人間 |
-| [] | 8 | レビュー内容を取得し、調査計画を修正する。対応が完了したコメントには対応内容を返信する（7〜8を合意まで繰り返す） | `comments` / `reply` |
+| [x] | 7 | MRで調査計画についてレビュー・コメントする。レビュー完了済み連絡をするまで以降の作業は行わない。（「OK」を受け、`get_mr_unresolved_comments 8 true`で未解決コメント無しを確認済み） | 人間 |
+| [x] | 8 | レビュー内容を取得し、調査計画を修正する。対応が完了したコメントには対応内容を返信する（7〜8を合意まで繰り返す）（コメント無しのためスキップ） | `comments` / `reply` |
 | [x] | 9 | 調査計画をもとにMR descriptionを更新する（※本来7〜8の後だが、レビューしやすくするため先行実施） | `describe` |
-| [] | 10 | **調査を実施**し、結果を`plans/<plan名>.md`の「調査」章・worklogに記録する。あわせて調査結果を視覚的に分かりやすくまとめた自己完結HTML（TailwindCSS CDN方式）を`reports/<plan名>.html`として作成する（調査結果が複数要素間の関連・依存関係を主題とする場合は、`.claude/skills/canvas-report/SKILL.md`のcanvas形式テンプレートの利用を検討する） | エージェント |
-| [] | 11 | `commit`スキル経由でcommitし、push してレビュー依頼を行う | エージェント |
-| [] | 12 | 調査結果をもとにMR descriptionを更新する | `describe` |
+| [x] | 10 | **調査を実施**し、結果を`plans/<plan名>.md`の「調査」章・worklogに記録する。あわせて調査結果を視覚的に分かりやすくまとめた自己完結HTML（TailwindCSS CDN方式）を`reports/<plan名>.html`として作成する（調査結果が複数要素間の関連・依存関係を主題とする場合は、`.claude/skills/canvas-report/SKILL.md`のcanvas形式テンプレートの利用を検討する） | エージェント |
+| [x] | 11 | `commit`スキル経由でcommitし、push してレビュー依頼を行う | エージェント |
+| [x] | 12 | 調査結果をもとにMR descriptionを更新する | `describe` |
 | [] | 13 | MRで調査結果についてレビュー・コメントする。レビュー完了済み連絡をするまで以降の作業は行わない。 | 人間 |
 | [] | 14 | レビュー内容を取得し、調査結果を修正する。対応が完了したコメントには対応内容を返信する（`reports/<plan名>.html`も調査結果と同期して更新する。10〜14を合意まで繰り返す） | `comments` / `reply` |
 | [] | 15 | **調査結果をもとに**Planモードで**作業計画**を作成する（`plans/<plan名>.md`の「作業計画」章へ追記・コミット） | エージェント |
@@ -64,13 +64,16 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - `post-push-save-logs.sh`（既にGemini CLI対応済み）、`post-push-usage-report.sh`、
   `post-push-compact-prompt.sh`のガード条件・エンジン判定の詳細を調査し、`plans/fancy-wishing-scroll.md`
   に調査計画としてまとめ、ユーザー承認を得た。
-- worklogを作成し、commit・push、MR descriptionを更新した。
+- worklogを作成し、commit・push、MR descriptionを更新した（push1）。
+- レビューOKの合図を受け、`get_mr_unresolved_comments 8 true`で未解決コメント無しを確認（工数レポート
+  自動投稿のみ）。調査結果を`reports/fancy-wishing-scroll.html`にまとめ、commit・push（push2）、
+  MR descriptionを調査結果版に更新した。
 
 ## 次にやること
 
-- flow-id 7: MRで調査計画についてレビューをお願いする（人間待ち）。
-- レビューOKであれば flow-id 10（調査結果の確定）→ flow-id 15（作業計画）へ進み、
-  `post-push-usage-report.sh`/`post-push-compact-prompt.sh`へのエンジン判定移植の実装に着手する。
+- flow-id 13: MRで調査結果についてレビューをお願いする（人間待ち）。
+- レビューOKであれば flow-id 15（作業計画をPlanモードで作成）へ進み、
+  `post-push-usage-report.sh`/`post-push-compact-prompt.sh`へのエンジン判定移植の実装計画を立てる。
 
 ## 判断を迷った内容
 
