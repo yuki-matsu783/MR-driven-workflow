@@ -82,3 +82,32 @@ PR #30レビューOK（未解決コメント0件を`mcp__github__pull_request_re
   `commit`スキル経由でcommit・push（flow-id 3-7）。
 
 ---
+
+## push3（レビュー対応）
+
+別セッション（PR #30レビュー専用、ブランチ`claude/pr-30-review-complete-xlb66m`）がcode-review
+スキルでPR #30をレビューし、`HANDOFF.md`の「次にやること」欄がflow-id 3-7完了後も更新されて
+いない旨をインラインコメント（HANDOFF.md:78, スレッドID `PRRT_kwDOT7UgWc6aJY2w`）で指摘した
+（レビューはCOMMENTとして提出、ブロッキングではない）。
+
+### 試したこと
+
+- 本セッションで指摘内容を確認し、`docs-workflow.md`の規約（「やったこと」「次にやること」は
+  flow-idチェックボックスと同期させる）どおり、`HANDOFF.md`のフロー進捗表（3-8・3-9を`[x]`へ）と
+  「やったこと」「次にやること」を実態（flow-id 3-9まで完了、次は3-10）に合わせて修正した。
+
+### うまくいったこと
+
+- 指摘箇所は`HANDOFF.md`単体の記載ずれであり、`AGENTS.md`・`SKILL.md`・`git-workflow.md`側の
+  実装内容には影響が無いことを確認した。
+
+### ダメだったこと
+
+- 特になし。
+
+### 次の一歩
+
+- `reply`サブコマンドでレビュースレッドへ対応内容を返信し、`commit`スキル経由でcommit・push
+  （flow-id 3-9→3-10）。MR descriptionもあわせて更新する。
+
+---

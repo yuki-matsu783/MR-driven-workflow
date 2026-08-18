@@ -46,8 +46,8 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 | [x] | 3-5 | 作業計画をもとにMR descriptionを更新する | `describe` |
 | [x] | 3-6 | 作業計画をもとに作業を進める、作業内容はworklogに更新する。`AGENTS.md`・`SKILL.md`・`git-workflow.md`の3ファイルへ差分適用完了 | エージェント |
 | [x] | 3-7 | `commit`スキル経由でcommitし、push してレビュー依頼を行う | エージェント |
-| [] | 3-8 | MRでレビュー・コメントする。レビュー済み連絡をするまで以降の作業は行わない。 | 人間 |
-| [] | 3-9 | レビュー内容を取得し、実装・ドキュメントを修正する。対応が完了したコメントには対応内容を返信する（3-6〜3-9の作業ループを合意まで繰り返す） | `comments` / `reply` |
+| [x] | 3-8 | MRでレビュー・コメントする。レビュー済み連絡をするまで以降の作業は行わない。**別セッション（PR #30レビュー専用セッション、ブランチ`claude/pr-30-review-complete-xlb66m`）がcode-reviewスキルでPRをレビューし、HANDOFF.mdの「次にやること」欄の更新漏れを指摘するインラインコメント1件をCOMMENTとして投稿** | 人間（今回は上記セッションが代行） |
+| [x] | 3-9 | レビュー内容を取得し、実装・ドキュメントを修正する。対応が完了したコメントには対応内容を返信する（3-6〜3-9の作業ループを合意まで繰り返す）。指摘どおり本ファイルの「次にやること」欄を更新し、スレッドへ対応内容を返信済み。他に未解決コメント無し | `comments` / `reply` |
 | [] | 3-10 | 作業内容をもとにMR descriptionを更新する | `describe` |
 | [] | 4-1 | **作業結果と`plans/` `worklog/` の内容をもとに**、個別反映計画`plans/【設計反映】【AIアセット反映】〜.md`等を**planツールを使わず**Write/Editで作成する | エージェント |
 | [] | 4-2 | `commit`スキル経由でcommitし、push してレビュー依頼を行う | エージェント |
@@ -72,10 +72,12 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - Planモードで全体作業計画`plans/iterative-dreaming-yao.md`を作成・承認。issue本文に対象箇所・方針が明確なため、フェーズ2（調査）は省略しフェーズ3（作業計画）から着手すると判断
 - 個別作業計画`plans/【設計】判定基準の一元化.md`とworklogを作成し、commit・push・PR description更新（`mcp__github__update_pull_request`）してレビュー依頼
 - レビューOK確認（PR #30の未解決コメント・レビュー0件を`mcp__github__pull_request_read`で確認）後、`AGENTS.md`・`.claude/skills/issue-mr-flow/SKILL.md`・`.claude/rules/git-workflow.md`の3ファイルへ判定基準一元化の差分を適用。適用中に`git-workflow.md`側で判定基準の例示が帰結説明に残っていたことに気づき、完全削除するよう個別作業計画も含めて修正
+- 別セッション（PR #30レビュー専用、ブランチ`claude/pr-30-review-complete-xlb66m`）がcode-reviewスキルでPR #30をレビューし、本ファイルの「次にやること」欄がflow-id 3-7完了後も更新されていない旨をインラインコメントで指摘（レビューはCOMMENTとして提出）
+- 本セッション（ブランチ`claude/issue-22-zx5ge5`）で指摘に対応: 本ファイルの「次にやること」欄をflow-id 3-9完了時点の内容へ更新し、レビュースレッドへ対応内容を返信
 
 ## 次にやること
 
-- `commit`スキル経由でcommitし、push してレビュー依頼（flow-id 3-7）
+- 対応内容をもとにMR descriptionを更新する（flow-id 3-10）
 
 ## 判断を迷った内容
 
