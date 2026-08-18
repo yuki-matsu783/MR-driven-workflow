@@ -14,21 +14,27 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 
 ## フロー進捗状況
 
-- issue: （未着手）
-- ブランチ: （未着手）
-- PR: （未着手）
-- push回数: 0
+- issue: [#20](https://github.com/yuki-matsu783/MR-driven-workflow/issues/20) HANDOFF.mdの進捗更新をスクリプトで自動化する
+- ブランチ: claude/github-issue-20-85bvts（Claude Code on the webが自動作成。`feature-<issue>-<slug>`
+  命名規則とは異なるが、既に本ブランチで開発するよう指示されているためそのまま使用）
+- PR: [#31](https://github.com/yuki-matsu783/MR-driven-workflow/pull/31)（Draft）
+- push回数: 1
+
+なお、着手時点で前issue #13（PR #29, squash mergeで既にmain合流済み）のflow-id 5-1未実施分
+（`plans/` `worklog/` の残骸・`HANDOFF.md`未リセット）が本ブランチに残っていたため、
+本題着手前にこのブランチ上で片付けを実施した（コミット`chore: 前issue #13分のplans/worklogを
+削除しHANDOFF.mdを次タスク向けへリセット`）。
 
 進捗記号: `[x]` 完了 / `[]` 未着手・進行中 / `[-]` 今回は実施しない（スキップ）
 
 | 進捗 | flow-id | ステップ | 担当 |
 |----|---|---|---|
-| [] | 1-1 | issueを起票する（`.github/ISSUE_TEMPLATE/task.md` / `.gitlab/issue_templates/task.md` で目的・現状・期待する動作・受け入れ条件を記載） | 人間（AIが代行する場合は `issue-create` スキル） |
-| [] | 1-2 | issueの内容を取得する | `start <issue番号>` |
-| [] | 1-3 | featureブランチ（`feature-<issue番号>-<slug>`）とDraft MRを作成する（既にあれば `sync` のみ） | `start` |
-| [] | 1-4 | **Planモードで「全体作業計画」を作成する**（このissueをどう進めるか＝何を調査し何を実装するかの全体像。ハーネスが提示するパス `plans/<自動命名>.md` へ出力）。**現在のブランチに既に全体作業計画があれば新規作成せず、既存を読むだけにとどめる**（詳細は下記「計画の2階層構造」） | エージェント |
-| [] | 1-5 | 全体作業計画に合意する | 人間 |
-| [] | 1-6 | 全体作業計画をもとにHANDOFF.mdを更新する | エージェント |
+| [x] | 1-1 | issueを起票する（`.github/ISSUE_TEMPLATE/task.md` / `.gitlab/issue_templates/task.md` で目的・現状・期待する動作・受け入れ条件を記載） | 人間（AIが代行する場合は `issue-create` スキル） |
+| [x] | 1-2 | issueの内容を取得する | `start <issue番号>` |
+| [x] | 1-3 | featureブランチ（`feature-<issue番号>-<slug>`）とDraft MRを作成する（既にあれば `sync` のみ） | `start` — ブランチは`claude/github-issue-20-85bvts`として既に用意されていたため`new_issue_branch`は未使用。Draft PR #31は`gh`/`glab`が実行環境に無いためGitHub MCPツールで代替作成 |
+| [x] | 1-4 | **Planモードで「全体作業計画」を作成する**（このissueをどう進めるか＝何を調査し何を実装するかの全体像。ハーネスが提示するパス `plans/<自動命名>.md` へ出力）。**現在のブランチに既に全体作業計画があれば新規作成せず、既存を読むだけにとどめる**（詳細は下記「計画の2階層構造」） | エージェント |
+| [x] | 1-5 | 全体作業計画に合意する | 人間 |
+| [x] | 1-6 | 全体作業計画をもとにHANDOFF.mdを更新する | エージェント |
 | [] | 2-1 | **個別調査計画**`plans/【調査】〜.md`を**planツールを使わず**Write/Editで作成する。このタイミングで `worklog/日付_<全体計画名>_<個別計画名>_push<N>.md` を作成 | エージェント |
 | [] | 2-2 | `commit`スキル経由でcommitし、push してレビュー依頼を行う | エージェント |
 | [] | 2-3 | MRで調査計画についてレビュー・コメントする。レビュー完了済み連絡をするまで以降の作業は行わない。 | 人間 |
@@ -67,19 +73,36 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 
 ## やったこと
 
-（無し）
+- issue #20の内容を取得（`.claude/scripts/src/vcs/Provider.sh`の`gh`が実行環境に無いため、
+  AGENTS.mdの規定に従いGitHub MCPツール（`mcp__github__issue_read`等）で代替）。
+- 着手前に、前issue #13分の未リセット状態（`plans/` `worklog/`の残骸・`HANDOFF.md`未リセット）を
+  片付け（本ブランチ上で先に単独コミット）。
+- ブランチをpushし、Draft PR #31を作成（`create_pull_request`はGitHub MCPツールで代替）。
+- 全体作業計画（`plans/shiny-puzzling-umbrella.md`）を作成し承認を得た。
+  - 方針: フェーズ2（個別調査計画）は独立して設けず、既存のコードベース調査（Exploreエージェント
+    による`HANDOFF.md`構造・`Provider.sh`/`create-commit.sh`/`extract-frontmatter.sh`の実装
+    パターン・`docs-workflow.md`の記号規約調査）をもってフェーズ3（設計・実装・テスト）から
+    開始する。
 
 ## 次にやること
 
-（無し）
+- フェーズ3: 個別作業計画`plans/【設計】【実装】【テスト】HANDOFF進捗自動更新スクリプト.md`を
+  作成する（flow-id 3-1）。
 
 ## 判断を迷った内容
 
-（無し）
+- 前issue #13分の後始末（`plans/` `worklog/` 削除・`HANDOFF.md` リセット）を、
+  `.claude/skills/issue-mr-flow/SKILL.md` の推奨どおり専用の `chore/cleanup-*` ブランチで行うか、
+  issue #20用ブランチ内で先に片付けるか。→ 今回はissue #20専用ブランチが既に外部から用意されており
+  セッション1つでissue #20に対応する前提のため、別ブランチを新規に立てず、本ブランチの最初の
+  コミットとして片付けた（全体作業計画「副次的に発見した状態」参照）。
 
 ## 未解決の内容
 
-（無し）
+- 本実行環境（Claude Code on the webのリモート実行環境）には `gh`/`glab` CLIが存在しないため、
+  `Provider.sh` 経由のissue取得・PR作成が動作しない。AGENTS.mdの規定どおりGitHub MCPツールで
+  代替しているが、`comments`/`reply`/`describe`サブコマンド相当の操作も同様にMCPツールでの
+  代替が必要になる見込み。
 
 ## 守るべき条件・触ってはいけない範囲
 
