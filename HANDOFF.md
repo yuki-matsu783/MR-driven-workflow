@@ -45,16 +45,16 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 | [x] | 3-5 | 作業計画をもとにMR descriptionを更新する | `describe` |
 | [x] | 3-6 | 作業計画をもとに作業を進める、作業内容はworklogに更新する | エージェント |
 | [x] | 3-7 | `commit`スキル経由でcommitし、push してレビュー依頼を行う | エージェント |
-| [] | 3-8 | MRでレビュー・コメントする。レビュー済み連絡をするまで以降の作業は行わない。 | 人間 |
-| [] | 3-9 | レビュー内容を取得し、実装・ドキュメントを修正する。対応が完了したコメントには対応内容を返信する（3-6〜3-9の作業ループを合意まで繰り返す） | `comments` / `reply` |
-| [] | 3-10 | 作業内容をもとにMR descriptionを更新する | `describe` |
-| [] | 4-1 | **作業結果と`plans/` `worklog/` の内容をもとに**、個別反映計画`plans/【設計反映】【AIアセット反映】〜.md`等を**planツールを使わず**Write/Editで作成する | エージェント |
-| [] | 4-2 | `commit`スキル経由でcommitし、push してレビュー依頼を行う | エージェント |
-| [] | 4-3 | MRで反映計画についてレビュー・コメントする。レビュー完了済み連絡をするまで以降の作業は行わない。 | 人間 |
-| [] | 4-4 | レビュー内容を取得し、反映計画を修正する。対応が完了したコメントには対応内容を返信する（4-3〜4-4を合意まで繰り返す） | `comments` / `reply` |
-| [] | 4-5 | 反映計画をもとにMR descriptionを更新する | `describe` |
-| [] | 4-6 | 反映計画をもとに作業を進める、反映内容はworklogに更新する（**設計反映**: `plans/` `worklog/` の内容を `.claude/docs/spec/` `.claude/docs/ddr/`（アプリ本体があれば`docs/spec/` `docs/ddr/`）へ反映する／**AIアセット反映**: 作業中に気づいたルール・スキルの不備を `.claude/rules/` `.claude/skills/` `CLAUDE.md` `AGENTS.md` に反映する） | エージェント |
-| [] | 4-7 | `commit`スキル経由でcommitし、push してレビュー依頼を行う | エージェント |
+| [x] | 3-8 | MRでレビュー・コメントする。レビュー済み連絡をするまで以降の作業は行わない。 | 人間 |
+| [x] | 3-9 | レビュー内容を取得し、実装・ドキュメントを修正する。対応が完了したコメントには対応内容を返信する（3-6〜3-9の作業ループを合意まで繰り返す） | `comments` / `reply` |
+| [x] | 3-10 | 作業内容をもとにMR descriptionを更新する | `describe` |
+| [x] | 4-1 | **作業結果と`plans/` `worklog/` の内容をもとに**、個別反映計画`plans/【設計反映】【AIアセット反映】〜.md`等を**planツールを使わず**Write/Editで作成する | エージェント |
+| [x] | 4-2 | `commit`スキル経由でcommitし、push してレビュー依頼を行う | エージェント |
+| skip | 4-3 | MRで反映計画についてレビュー・コメントする。レビュー完了済み連絡をするまで以降の作業は行わない。 | 人間 |
+| skip | 4-4 | レビュー内容を取得し、反映計画を修正する。対応が完了したコメントには対応内容を返信する（4-3〜4-4を合意まで繰り返す） | `comments` / `reply` |
+| [x] | 4-5 | 反映計画をもとにMR descriptionを更新する | `describe` |
+| [x] | 4-6 | 反映計画をもとに作業を進める、反映内容はworklogに更新する（**設計反映**: `plans/` `worklog/` の内容を `.claude/docs/spec/` `.claude/docs/ddr/`（アプリ本体があれば`docs/spec/` `docs/ddr/`）へ反映する／**AIアセット反映**: 作業中に気づいたルール・スキルの不備を `.claude/rules/` `.claude/skills/` `CLAUDE.md` `AGENTS.md` に反映する） | エージェント |
+| [x] | 4-7 | `commit`スキル経由でcommitし、push してレビュー依頼を行う | エージェント |
 | [] | 4-8 | MRでレビュー・コメントする。レビュー済み連絡をするまで以降の作業は行わない。 | 人間 |
 | [] | 4-9 | レビュー内容を取得し、設計・AIアセットの内容を修正する。対応が完了したコメントには対応内容を返信する（4-6〜4-9の反映ループを合意まで繰り返す） | `comments` / `reply` |
 | [] | 4-10 | 反映内容をもとにMR descriptionを更新する | `describe` |
@@ -77,18 +77,23 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - 個別作業計画`plans/【実装】.mrworkflow.jsonキー説明をREADMEに追記.md`とworklogを作成。
 - README.mdの「セットアップ」節に`.mrworkflow.json`の各キー説明テーブルを追記し、`.mrworkflow.json`
   実値・`Provider.sh`実装との整合を確認。commit・push・MR description更新まで完了。
+- 人間から「レビューをした」と連絡を受け、`mcp__github__pull_request_read`
+  （`get_review_comments`/`get_reviews`/`get_comments`）でPR #25を再確認したところ、
+  レビュー・コメントは0件（未解決・解決済みとも無し）。フロー上の「レビュー完了合図の確認」
+  ルールに従い実際にゼロ件であることを確認したうえでflow-id 3-8〜3-10を完了扱いとした。
+- フェーズ4（反映）: 個別反映計画
+  `plans/【設計反映】【AIアセット反映】mrworkflow.json関連ドキュメント整合.md`を作成し、
+  （1）`.claude/docs/spec/issue-mr-workflow.md`「設定項目」節の陳腐化した`specDirs`/`ddrDirs`値を
+  現行`.mrworkflow.json`と一致するよう修正、（2）`AGENTS.md`の`gh`/`glab` CLIルールに、CLI不在の
+  実行環境向けMCPツールへのフォールバック注記を追加。commit・push・MR description更新まで完了。
 
 ## 次にやること
 
-1. Draft PR #25 (https://github.com/yuki-matsu783/MR-driven-workflow/pull/25) のレビューを
-   人間に依頼する。
-2. レビューコメントがあれば`comments`/`reply`相当の処理（GitHub MCPツール）で対応し、
-   `plans/【実装】.mrworkflow.jsonキー説明をREADMEに追記.md`・README.mdを必要に応じ修正する
-   （flow-id 3-8〜3-9）。
-3. レビュー完了後、MR descriptionを最終状態に更新する（flow-id 3-10）。
-4. フェーズ4（反映）へ進む: `.claude/docs/spec/issue-mr-workflow.md`「設定項目」節にある
-   `specDirs`/`ddrDirs`の古いサンプル値（移植元プロジェクト当時のもの）を現行値へ更新するかを
-   個別反映計画で検討する（worklogの「うまくいったこと」参照）。
+1. PR #25（フェーズ4のコミット含む）のレビューを人間に依頼する（flow-id 4-8）。
+2. レビュー完了の連絡を受けたら、`mcp__github__pull_request_read`で未解決コメントが実際に
+   0件であることを再確認してから（レビュー完了合図の確認ルール）flow-id 4-9〜4-10へ進む。
+3. その後flow-id 5-1（`plans/` `worklog/` `reports/` の削除・`HANDOFF.md`のリセット）へ進み、
+   commit・push・Draft解除（5-2）を行う。マージ（5-3）は人間が実施する。
 
 ## 判断を迷った内容
 
