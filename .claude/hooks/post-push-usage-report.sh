@@ -1,14 +1,18 @@
 #!/usr/bin/env bash
 #
-# Claude Code PostToolUse hook（git push検知、bash版）。
+# Gemini CLI / Claude Code 共通 AfterTool・PostToolUse hook（git push検知、bash版）。
 # 設計: plans/groovy-zooming-balloon.md（issue #15）→ .claude/docs/spec/issue-mr-workflow.md,
-#       .claude/docs/spec/shell-scripts.md（issue #6、bash化）
+#       .claude/docs/spec/shell-scripts.md（issue #6、bash化）→
+#       .claude/docs/spec/session-log-hooks.md（issue #7、Gemini CLI対応）
 #
-# .claude/settings.json 側で matcher: "Bash|PowerShell" と、各エントリの if フィールド
+# .claude/settings.json 側で matcher: "Bash|PowerShell"、.gemini/settings.json 側で
+# matcher: "run_shell_command|Bash|PowerShell" と、各エントリの if フィールド
 # （"Bash(git push*)" / "PowerShell(git push*)"）によって、tool_input のコマンドが
-# git push を含む場合のみ起動される（マッチしなければClaude Code側でプロセスが起動されず、
-# 通常のBash/PowerShell利用への性能影響は無い）。if フィルタはベストエフォートのため、
-# 本スクリプト側でも念のため command 文字列を正規表現で再チェックする。
+# git push を含む場合のみ起動される（マッチしなければプロセスが起動されず、通常のBash/
+# PowerShell/run_shell_command利用への性能影響は無い）。if フィルタはベストエフォートのため、
+# 本スクリプト側でも念のため command 文字列を正規表現で再チェックする。tool_name から実行中の
+# エンジン（Gemini CLI / Claude Code）を判定する方式は post-push-save-logs.sh と同じ
+# （詳細: .claude/docs/spec/session-log-hooks.md「エンジン判定」節）。
 #
 # 投稿前に、自分自身で .claude/hooks/lib/UsageTracking.sh の sync_usage_state を呼んで
 # 状態を最新化する（トークン数・ツール実行回数・assistant応答回数のいずれも、このタイミングで
@@ -63,13 +67,16 @@ main() {
   # 状態ファイル競合を避ける意味もある）
   [ -z "$agent_id" ] || exit 0
 
-  [ -n "${CLAUDE_PROJECT_DIR:-}" ] || exit 0
-
-  local tool_name
+  # tool_name から実行中のエンジンを判定する。該当しないtool_nameは対象外として即終了する
+  # （Gemini CLI: run_shell_command / Claude Code: Bash・PowerShell。post-push-save-logs.shと
+  # 同じ判定パターン）。
+  local tool_name engine engine_label
   tool_name="$(printf '%s' "$hook_input" | jq -r '.tool_name // empty')"
-  if [ "$tool_name" != "Bash" ] && [ "$tool_name" != "PowerShell" ]; then
-    exit 0
-  fi
+  case "$tool_name" in
+    run_shell_command) engine="gemini"; engine_label="Gemini CLI" ;;
+    Bash|PowerShell) engine="claude"; engine_label="Claude Code" ;;
+    *) exit 0 ;;
+  esac
 
   local command
   command="$(printf '%s' "$hook_input" | jq -r '.tool_input.command // empty')"
@@ -77,9 +84,11 @@ main() {
     exit 0
   fi
 
-  cd "$CLAUDE_PROJECT_DIR"
-  source "${CLAUDE_PROJECT_DIR}/.claude/scripts/src/vcs/Provider.sh"
-  source "${CLAUDE_PROJECT_DIR}/.claude/hooks/lib/UsageTracking.sh"
+  local project_dir="${GEMINI_PROJECT_DIR:-${CLAUDE_PROJECT_DIR:-}}"
+  [ -n "$project_dir" ] || exit 0
+  cd "$project_dir"
+  source "${project_dir}/.claude/scripts/src/vcs/Provider.sh"
+  source "${project_dir}/.claude/hooks/lib/UsageTracking.sh"
 
   local branch base_branch
   branch="$(git branch --show-current 2>/dev/null || true)"
@@ -311,7 +320,7 @@ main() {
     fi
     if [ "$is_first_post" = "true" ]; then
       echo "---"
-      echo "### Claude Codeより"
+      echo "### ${engine_label}より"
       echo "post-push-usage-report.sh による集計。"
       echo "セッション情報ログを解析した集計のため、目安として扱ってください。"
       echo "既知の過小カウント要因が報告されています。"
