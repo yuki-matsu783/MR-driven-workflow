@@ -1,0 +1,23 @@
+参考ディレクトリ
+
+# ビルド成果物
+/build/
+
+# エディタ
+.vscode/
+
+# ログ
+*.log
+
+# 対応工数レポート機能のローカル作業状態（ブランチ横断・非コミット対象）
+/usage/
+
+# .gemini/配下は.claude/への参照(シンボリックリンク/NTFSジャンクション)のみでGit管理下に置かない。
+# Gitはジャンクションをリンクとして認識せず中身をそのまま複製してしまうため（詳細:
+# .claude/docs/ddr/0017-gemini配下はGit管理下に置かずセットアップスクリプトで生成する.md）。
+# clone後は .claude/scripts/src/setup-gemini-links.sh を1度実行してリンクを作成する。
+/.gemini/docs
+/.gemini/hooks
+/.gemini/rules
+/.gemini/scripts
+/.gemini/skills
