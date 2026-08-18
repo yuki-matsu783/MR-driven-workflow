@@ -17,7 +17,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - issue: [#11 extract-frontmatter.shのリポジトリルート一括実行を高速化し中断耐性を持たせる](https://github.com/yuki-matsu783/MR-driven-workflow/issues/11)
 - ブランチ: `feature-11-speed-up-frontmatter-index-build`
 - Draft PR: [#19](https://github.com/yuki-matsu783/MR-driven-workflow/pull/19)
-- push回数: 2
+- push回数: 3
 - 全体作業計画: `plans/lexical-stirring-peach.md`（flow-id 1-5で合意済み）
 
 進捗欄の記号: `[]` 未着手 / `[x]` 完了 / `[-]` 今回は実施しない（スキップ）
@@ -47,8 +47,8 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 | [x] | 3-5 | 作業計画をもとにMR descriptionを更新する | `describe` |
 | [x] | 3-6 | 作業計画をもとに作業を進める、作業内容はworklogに更新する | エージェント |
 | [] | 3-7 | `commit`スキル経由でcommitし、push してレビュー依頼を行う | エージェント |
-| [] | 3-8 | MRでレビュー・コメントする。レビュー済み連絡をするまで以降の作業は行わない。 | 人間 |
-| [] | 3-9 | レビュー内容を取得し、実装・ドキュメントを修正する。対応が完了したコメントには対応内容を返信する（3-6〜3-9の作業ループを合意まで繰り返す） | `comments` / `reply` |
+| [x] | 3-8 | MRでレビュー・コメントする。レビュー済み連絡をするまで以降の作業は行わない。 | 人間 |
+| [x] | 3-9 | レビュー内容を取得し、実装・ドキュメントを修正する。対応が完了したコメントには対応内容を返信する（3-6〜3-9の作業ループを合意まで繰り返す） | `comments` / `reply` |
 | [] | 3-10 | 作業内容をもとにMR descriptionを更新する | `describe` |
 | [] | 4-1 | **作業結果と`plans/` `worklog/` の内容をもとに**、個別反映計画`plans/【設計反映】【AIアセット反映】〜.md`等を**planツールを使わず**Write/Editで作成する | エージェント |
 | [] | 4-2 | `commit`スキル経由でcommitし、push してレビュー依頼を行う | エージェント |
@@ -85,11 +85,18 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
   - **単体テスト**: `passed=17 failures=0`。
   - **既知バグ**（スコープ外への影響・重複行）は改修前後とも**再現せず**。差分の正体は
     「gitのcheckout/mergeによるmtime更新」と「陳腐化エントリの除去」だった。
+- flow-id 3-7（push2）: 実装一式をcommit・push（perf / test / chore / docs の4コミットに分割）。
+- flow-id 3-8〜3-9（push3）: レビュー指摘「フェーズ途中の一時ファイルはjsonl作成の対象にしてよい。
+  .gitignoreは除外」「MR直前のpushではindex.jsonlも消す」を受領。**現行実装のままで要求を満たして
+  いる**ことを実機確認（`.gitignore` 対象の `/logs/` `/build/` に .md を置いても走査されない）ため、
+  スクリプトの変更は不要と判断し、決定内容をworklog push3へ記録した。
 
 ## 次にやること
 
-- **flow-id 3-7**: `commit`スキル経由でcommitし、pushしてレビュー依頼（push2）。
-- その後 flow-id 3-8〜3-10（レビュー→修正→MR description更新）を経て、フェーズ4（反映）へ。
+- **flow-id 3-10**: 作業内容をもとにMR descriptionを更新する（その前に `comments all` で未解決
+  スレッドが残っていないことを再確認する）。
+- その後フェーズ4（反映）へ。flow-id 4-1で個別反映計画
+  `plans/【設計反映】【AIアセット反映】〜.md` を作成する。
 
 ## 判断を迷った内容
 
@@ -105,11 +112,13 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 
 ## 未解決の内容
 
-- **再生成された `index.jsonl` をどこまでコミットするかはレビュー判断待ち**。今回は「クリーンな
-  作業ツリーで実行すると差分が出ない」状態を保つため**すべてコミットする**方針にした。ただし
-  `plans/index.jsonl`（新規）と `worklog/index.jsonl`（worklogエントリが増える）は flow-id 5-1 で
-  削除される一時ファイルを指すため、**5-1の手順に「`plans/index.jsonl` の削除と `index.jsonl` 群の
-  再生成」を追加すべきか**を決める必要がある。
+- （解決済み）再生成された `index.jsonl` の扱いは、レビューで**「一時ファイル（`plans/` `worklog/`）も
+  jsonl作成の対象にしてよい。`.gitignore` は除外」「MR直前のpushでは `index.jsonl` も消す」**と確定した。
+  すべてコミット済み。
+- **flow-id 5-1 の手順追記がフェーズ4のTODO**: `plans/*.md` を全削除しても、本スクリプトは
+  「markdownが直下にあるディレクトリ」だけを出力対象にするため、`plans/index.jsonl` は再生成の
+  対象外となり陳腐化したまま残る。5-1で**`plans/index.jsonl` も削除し `index.jsonl` 群を再生成する**
+  手順を `.claude/skills/issue-mr-flow/SKILL.md` と `.claude/rules/docs-workflow.md` へ追記する。
 - 進捗表で使った `[-]`（今回は実施しない）は `.claude/rules/docs-workflow.md` の記号規約に未記載。
   issue #20 で明文化する予定。
 
