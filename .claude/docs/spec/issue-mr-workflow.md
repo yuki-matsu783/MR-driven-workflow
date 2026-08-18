@@ -72,12 +72,11 @@ MRとのやり取りだけを自動化する薄い層」として設計したが
   `jq` でフィールドを取り出す設計（例: `get_issue 6 | jq -r '.title'`）。
 - **`.mrworkflow.json`**（リポジトリ直下、Git管理下）: ブランチ命名規則やパス（`plans/` 等）など
   プロジェクト固有の値を切り出す。他リポジトリへ移植する場合はこのファイルの値を書き換えるだけで済む
-  ようにする。nagame-ahk用の値は以下「設定項目」に記載。
+  ようにする。
 - **`.claude/skills/issue-mr-flow/SKILL.md`**: issue起票からマージまでの**唯一の実装フロー定義**。
   現在のブランチ・issue番号・`plans/` `worklog/` `reports/` の有無・MRの有無などから「今どの段階か」を判定し、
   次に何をすべきかをAIエージェントに指示する。実処理は `Provider.sh` 経由のスクリプト呼び出しに
-  委譲し、設計ドキュメント作成・plan作成・実装の詳細手順（AHK機能実装の場合）は
-  `.claude/skills/ahk-implement/SKILL.md` に委ねる。
+  委譲
 
 ### 提供関数（`Provider.sh` 経由の共通インターフェース）
 
@@ -107,7 +106,7 @@ issue起票からマージまでの詳細な手順（担当・順序）は
 
 `/issue-mr-flow` のサブコマンドは `start` `comments` `reply` `describe` `sync` `resume` の6つに絞り、
 設計ドキュメント作成・plan作成・実装・設計反映・AIアセット改善そのものは
-`.claude/skills/issue-mr-flow/SKILL.md` の該当ステップ（スキル `ahk-implement` を含む）に委ねる。
+`.claude/skills/issue-mr-flow/SKILL.md` の該当ステップに委ねる。
 
 ### レビューコメントへの返信
 
@@ -596,7 +595,6 @@ issueはGitHubのUIからしか作成できず、標準4見出し（目的・現
   その後、docs-workflow.md/git-workflow.mdの実装フロー統合により全体フローの唯一の定義に変更）
 - `.claude/rules/docs-workflow.md` / `.claude/rules/git-workflow.md`（実装フロー部分を削除し、
   参照情報のみを残す形に縮小）
-- `.claude/skills/ahk-implement/SKILL.md`（issue-mr-flowから呼ばれるサブフローという位置づけに変更）
 - `AGENTS.md`（issue-mr-flow/SKILL.mdへのポインタを追加）
 
 新規（追加分）:
@@ -890,7 +888,7 @@ issueはGitHubのUIからしか作成できず、標準4見出し（目的・現
 
 ## 設定項目
 
-`.mrworkflow.json`（nagame-ahk向けの初期値）
+`.mrworkflow.json`
 
 ```jsonc
 {
@@ -983,17 +981,13 @@ issueはGitHubのUIからしか作成できず、標準4見出し（目的・現
   PowerShell版から変わっていない）はAPI仕様を調べた上での実装となり、実機での動作確認ができていない。
   GitLab側のテスト方法（別リポジトリ用意等）は今後の課題。
 - **他リポジトリへの移植性の検証**: `.mrworkflow.json` による切り出しで足りるか、実際に他リポジトリへ
-  導入してみないと確認できない。今回はnagame-ahk上での実装・検証にとどめる。
+  導入してみないと確認できない。
 - **（issue #22で対応済み）全角文字のみのissueタイトルのスラッグ化**: `to_slug`（旧
   `ConvertTo-Slug`）はASCII英数字のみを残す簡易実装のため、「開発フローを変える」のような全角文字
   のみのタイトルは空文字となり `issue` にフォールバックしていた（実機確認: issue #3 で確認済み）。
   `to_slug`自体は変更せず、`start`サブコマンド実行時にAIエージェントがissueタイトルの意味を汲んだ
   英語の意訳フレーズを生成し`new_issue_branch`へ渡す方式で対応した（詳細:
   [0010-ブランチslugの意訳生成はAIエージェントが行う.md](../ddr/0010-ブランチslugの意訳生成はAIエージェントが行う.md)）。
-- **`ahk-implement` スキルの非issueタスクでの扱い**: 今回の統合で `ahk-implement` は独立した
-  最上位エントリーポイントではなく `issue-mr-flow` から呼ばれるサブフローという位置づけに変更した。
-  「issueを起票しないごく小さな変更」は `git-workflow.md` の適用範囲の例外（main直接コミット許容）で
-  引き続き扱えるが、実際に非issueタスクの需要が残るかどうかは運用しながら見極める。
 - **`resume` の「現在地」判定の精度**: `get_branch_work_files` は `<defaultBaseBranch>` との差分で
   plan/worklogファイルを推定するヒューリスティックであり、複数issueを1ブランチで扱う等の
   変則的な運用では正しく機能しない可能性がある。本プロジェクトの通常運用（1ブランチ1issue）を

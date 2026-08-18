@@ -107,7 +107,7 @@ issue #6でリポジトリ内の開発補助スクリプトを全てPowerShell�
 ## git bashのパス変換の落とし穴
 
 `/in`のようなDOS形式の単一スラッシュ引数を、Windowsネイティブの非MSYS実行ファイル
-（`Ahk2Exe.exe`, `tasklist.exe`, `taskkill.exe`等）に渡すと、git bash（MSYS）が「POSIXパスらしき
+（`tasklist.exe`, `taskkill.exe`等）に渡すと、git bash（MSYS）が「POSIXパスらしき
 文字列」と誤認しWindowsパスへ自動変換してしまう既知の問題がある（実機確認: `/in`が
 `C:/Program Files/Git/in`に化け`Unrecognised parameter`エラーになった）。**先頭を`//`にする
 （`//in`）とこの自動変換を回避でき、ネイティブ側には`/in`として渡る。** DOS形式フラグを持つ
@@ -156,6 +156,6 @@ issue #6でリポジトリ内の開発補助スクリプトを全てPowerShell�
 
 - 副作用の無い純粋ロジック（文字列変換・正規表現マッチ等）は、外部コマンド呼び出しを伴わない
   単体テストスクリプトを`tests/`に置く（実例: `tests/test_vcs_provider.sh`）。
-- 実プロセス起動・TCP通信等の結合確認は、既存のAHKテストと同じ「`passed=N failures=N`を出力し
+- 実プロセス起動・TCP通信等の結合確認は、「`passed=N failures=N`を出力し
   失敗があれば終了コード1」という規約に合わせる（実例: `tests/test_external_command_server.sh`）。
 - 作成した`.sh`は最低限 `bash -n <file>` で構文チェックする。

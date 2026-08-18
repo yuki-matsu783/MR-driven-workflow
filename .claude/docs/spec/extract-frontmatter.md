@@ -92,7 +92,7 @@ jqの出力を直接ファイルへ書き出す箇所は`tr -d '\r'`でLF改行�
 - 新規（git管理下）: markdownを含む各ディレクトリの`index.jsonl`（`index.jsonl`, `docs/index.jsonl`,
   `docs/spec/index.jsonl`, `docs/ddr/index.jsonl`, `dev-tools/docs/index.jsonl`,
   `dev-tools/docs/spec/index.jsonl`, `dev-tools/docs/ddr/index.jsonl`, `.claude/agents/index.jsonl`,
-  `.claude/rules/index.jsonl`, `.claude/skills/ahk-implement/index.jsonl`,
+  `.claude/rules/index.jsonl`,
   `.claude/skills/issue-mr-flow/index.jsonl`, `plans/index.jsonl`, `tests/index.jsonl`,
   `worklog/index.jsonl`, `.github/ISSUE_TEMPLATE/index.jsonl`, `.gitlab/issue_templates/index.jsonl`）
 

@@ -10,8 +10,7 @@ keywords: [git-bash, jq, powershellからの移行, パス変換, bash化, フ�
 
 ## 背景・目的
 
-[issue #6](https://github.com/yuki-matsu783/nagame-ahk/issues/6)「スクリプトを可能な限りbashで記載する」
-への対応。PowerShellはWSL等の非Windows的なシェル環境から扱いにくいため、git bash経由で同等の
+PowerShellはWSL等の非Windows的なシェル環境から扱いにくいため、git bash経由で同等の
 ことが行えるスクリプトはbash化し、行えないものだけPowerShellのまま残す方針とした。
 
 実機で変換可否を検証した結果、リポジトリ内にあった全PowerShellスクリプト（issue-mr-flowの
@@ -28,7 +27,6 @@ keywords: [git-bash, jq, powershellからの移行, パス変換, bash化, フ�
 | `dev-tools/src/vcs/Provider.ps1` | `.claude/scripts/src/vcs/Provider.sh` | issue-mr-flowの中核。GitHub/GitLab差異吸収 |
 | `dev-tools/src/vcs/Github.ps1` | `.claude/scripts/src/vcs/Github.sh` | `gh` CLIラッパー |
 | `dev-tools/src/vcs/Gitlab.ps1` | `.claude/scripts/src/vcs/Gitlab.sh` | `glab` CLIラッパー（未検証。GitLab実remoteが無いため） |
-| `dev-tools/src/build.ps1` | `dev-tools/src/build.sh` | Ahk2Exeビルド |
 | `.claude/hooks/session-start.ps1` | `.claude/hooks/session-start.sh` | SessionStart hook |
 | `.claude/hooks/post-push-usage-report.ps1` | `.claude/hooks/post-push-usage-report.sh` | PostToolUse hook（使用量レポート） |
 | `.claude/hooks/lib/UsageTracking.ps1` | `.claude/hooks/lib/UsageTracking.sh` | 上記hookの共通集計ロジック |
@@ -44,14 +42,14 @@ keywords: [git-bash, jq, powershellからの移行, パス変換, bash化, フ�
 - git bash（Git for Windows付属のMSYS bash。既存の`git`利用が前提のため追加インストール不要）
 - `jq`（JSON操作。PowerShellの`ConvertFrom-Json`/`ConvertTo-Json`相当。**新規の外部依存として
   インストールが必要**）
-- 既存: `gh`/`glab` CLI、AutoHotkey v2（テスト対象アプリ）
+- 既存: `gh`/`glab` CLI（テスト対象アプリ）
 
 ### 実行環境の検証状況（開発機で確認済み、2026-08-16）
 
 - git bash: mingw64同梱bash 5.2、`/dev/tcp`（TCPソケット。`/dev/tcp/host/port`構文）対応、
   `ps -W`でWindowsプロセス一覧取得可
 - `jq` 1.6
-- `gh` CLI、AutoHotkey v2
+- `gh` CLI
 
 ### 設計方針
 
@@ -80,10 +78,8 @@ keywords: [git-bash, jq, powershellからの移行, パス変換, bash化, フ�
     受け取り、失敗時はフォールバックメッセージを出す）、`post-push-usage-report.sh`（`main`関数。
     失敗はすべて握りつぶしgit push自体はブロックしない）。
 - **git bashのパス変換**: `/in`のようなDOS形式の単一スラッシュ引数を、Windowsネイティブの
-  非MSYS実行ファイル（`Ahk2Exe.exe`, `tasklist.exe`, `taskkill.exe`等）に渡すと、git bash（MSYS）が
-  「POSIXパスらしき文字列」と誤認しWindowsパスへ自動変換してしまう既知の問題がある（実機確認:
-  `build.sh`の初期実装で`/in`が`C:/Program Files/Git/in`に化け、`Ahk2Exe.exe`が
-  `Unrecognised parameter`エラーダイアログを出して停止した）。先頭を`//`にする（`//in`）と
+  非MSYS実行ファイル（`tasklist.exe`, `taskkill.exe`等）に渡すと、git bash（MSYS）が
+  「POSIXパスらしき文字列」と誤認しWindowsパスへ自動変換してしまう既知の問題がある。先頭を`//`にする（`//in`）と
   MSYSの自動変換対象から外れ、ネイティブ側には`/in`として渡る。`build.sh`の`//in` `//out` `//base`
   `//icon`、`test_external_command_server.sh`の`tasklist`/`taskkill`の`//FI` `//IM` `//F`が実例。
 - **文字コード**: PowerShell版が必要としていたANSI/OEMコードページ対策
