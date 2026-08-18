@@ -162,7 +162,7 @@ main() {
     echo ""
     echo "- ブランチ: ${branch}"
     echo "- assistant応答回数: $(printf '%s' "$usage" | jq -r '.turns')"
-    echo "- 対応工数（目安・入力待ち時間を除く）: $(fmt_duration "$(printf '%s' "$usage" | jq -r '.activeSeconds // 0')")"
+    echo "- 対応時間（入力待ち時間を除く）: $(fmt_duration "$(printf '%s' "$usage" | jq -r '.activeSeconds // 0')")"
     echo ""
     echo "| モデル | Input | Output | Cache Write | Cache Read |"
     echo "|---|---:|---:|---:|---:|"
