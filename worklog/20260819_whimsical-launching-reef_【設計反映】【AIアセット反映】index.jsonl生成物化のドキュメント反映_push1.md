@@ -43,4 +43,20 @@ push回数: 1
 - レビュー後、計画に従いDDR 0024の新規作成・spec更新・SKILL.md/docs-workflow.md/README.mdの
   更新を実施（flow-id 4-6）
 
+## 追記（flow-id 4-3〜4-4: レビュー対応）
+
+- レビューで「設計反映とAIアセット反映は基本的に別タイミングでやるようにしてほしい。タスクの
+  種類や人間の認知の種類が大きく異なる」との指摘を受けた
+  （threadId=PRRT_kwDOT7UgWc6aS9t8）
+- `.claude/skills/issue-mr-flow/SKILL.md`「種別を複数併記する場合／分ける場合」の判断基準
+  （フェーズごとに個別の合意・レビューを挟みたい場合は分ける）に従い、併記していた
+  `plans/【設計反映】【AIアセット反映】index.jsonl生成物化のドキュメント反映.md`を削除し、
+  以下の2ファイルへ分割した
+  - `plans/【設計反映】index.jsonl生成物化の設計反映.md`（DDR 0024新規作成・spec更新・
+    README.md DDR一覧追記）
+  - `plans/【AIアセット反映】index.jsonl生成物化のAIアセット反映.md`（SKILL.md・
+    docs-workflow.md更新。directory-structure.mdは変更不要と結論）
+- **実施タイミングも分離**: まず設計反映のみを完了・レビューしてから、AIアセット反映の実施へ
+  着手する方針とした（AIアセット反映側の計画ファイルに「着手タイミング」として明記）
+
 ---

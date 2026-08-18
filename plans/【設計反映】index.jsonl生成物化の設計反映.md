@@ -1,14 +1,14 @@
 ---
-title: 【設計反映】【AIアセット反映】index.jsonl生成物化のドキュメント反映
+title: 【設計反映】index.jsonl生成物化の設計反映
 type: guide
-description: issue #36の実装内容をDDR・spec・ルール文書へ反映する個別反映計画
-tags: [frontmatter, index-jsonl, ddr, docs-workflow]
-keywords: [extract-frontmatter, index.jsonl, DDR0024, flow-id5-1, docs-workflow, SKILL.md, spec]
+description: issue #36の実装内容をDDR・specへ反映する個別反映計画（設計反映のみ）
+tags: [frontmatter, index-jsonl, ddr, spec]
+keywords: [extract-frontmatter, index.jsonl, DDR0024, spec, 却下案, 未決定事項]
 ---
 
-# 【設計反映】【AIアセット反映】index.jsonl生成物化のドキュメント反映
+# 【設計反映】index.jsonl生成物化の設計反映
 
-対象: issue #36 frontmatter index.jsonlをGit管理から外し生成物として扱う（flow-id 4-1）。
+対象: issue #36 frontmatter index.jsonlをGit管理から外し生成物として扱う（flow-id 4-1、設計反映のみ）。
 全体作業計画: `plans/whimsical-launching-reef.md`
 前段の個別作業計画: `plans/【設計】【実装】index.jsonl生成物化.md`（flow-id 3-6で実装済み）
 
@@ -21,8 +21,16 @@ flow-id 3-6で以下を実装済み（レビュー済み、未解決コメント
 - `.claude/hooks/session-start.sh`に`regenerate_frontmatter_index`関数を追加（fail-open）
 - `.claude/rules/markdown-frontmatter.md`の記述更新（実装済み・本計画の対象外）
 
-本計画では、この実装内容を「現在の正史」であるDDR・specへ記録し（設計反映）、実装によって
-陳腐化した運用ルール記述を新方針に合わせて更新する（AIアセット反映）。
+当初、本計画は「設計反映」「AIアセット反映」を1ファイルに併記していたが、レビューで
+「設計反映とAIアセット反映は基本的に別タイミングでやるようにしてほしい。タスクの種類や
+人間の認知の種類が大きく異なる」との指摘を受け、`.claude/skills/issue-mr-flow/SKILL.md`
+「種別を複数併記する場合／分ける場合」の判断基準（フェーズごとに個別の合意・レビューを
+挟みたい場合は分ける）に従い、本ファイル（設計反映）と
+`plans/【AIアセット反映】index.jsonl生成物化のAIアセット反映.md`（AIアセット反映）へ分割した。
+**実施タイミングも分離し、まず本計画（設計反映）を完了・レビューしてから、
+AIアセット反映の計画・実施に着手する。**
+
+本計画では、flow-id 3-6の実装内容を「現在の正史」であるDDR・specへ記録する。
 
 ## 設計反映
 
@@ -52,7 +60,8 @@ flow-id 3-6で以下を実装済み（レビュー済み、未解決コメント
     `index.jsonl`を静かに消す」副作用を持ち込むことに変わりはなく、Git管理の有無に関わらず
     「スコープ外のファイルを触らない」という走査スクリプトの安全設計原則に反する。加えて、
     Git管理から外れたことで`flow-id 5-1`の特殊対応（`plans/index.jsonl`の個別削除）自体が
-    不要になった（次項）ため、却下案4が解決しようとしていた問題自体の実害がなくなっている。
+    不要になった（AIアセット反映側で対応）ため、却下案4が解決しようとしていた問題自体の実害が
+    なくなっている。
 
 ### 2. `.claude/docs/spec/extract-frontmatter.md`の更新
 
@@ -64,46 +73,11 @@ flow-id 3-6で以下を実装済み（レビュー済み、未解決コメント
   既存15箇所の`git rm --cached`、`.claude/hooks/session-start.sh`への
   `regenerate_frontmatter_index`関数追加。過去のchangelogエントリ自体は書き換えない）。
 
-## AIアセット反映
-
-### 3. `.claude/skills/issue-mr-flow/SKILL.md`のflow-id 5-1特殊対応記述の除去
-
-- 全体フロー表の5-1行を簡略化する:
-  変更前「次タスクのために、`plans/` `worklog/` `reports/` を削除し、`HANDOFF.md` をリセットする。
-  **あわせて `plans/index.jsonl` も削除し、`bash .claude/scripts/src/extract-frontmatter.sh .` で
-  `index.jsonl` 群を再生成する**（下記「flow-id 5-1での `index.jsonl` の扱い」）」
-  → 変更後「次タスクのために、`plans/` `worklog/` `reports/` を削除し、`HANDOFF.md` をリセットする」
-- 「## flow-id 5-1での `index.jsonl` の扱い」見出しのセクション全体（`rm -f plans/index.jsonl`の
-  コマンド例を含む）を削除する。
-- 「## PRがflow-id 5-1実施前にマージされてしまった場合の対処」内、手順3の
-  「`plans/index.jsonl`の削除と`index.jsonl`群の再生成も含む。上記「flow-id 5-1での
-  `index.jsonl` の扱い」参照）」という言及を除去し、
-  「（内容はflow-id 5-1で行うものと同じ）」に簡略化する。
-
-### 4. `.claude/rules/docs-workflow.md`の更新
-
-- `plans/【種別】タスク内容.md`行の「運用」列末尾にある
-  「**flow-id 5-1では`plans/*.md`とあわせて`plans/index.jsonl`も削除し、`index.jsonl`群を再生成する**
-  （`extract-frontmatter.sh`はmarkdownが直下に存在するディレクトリのみを出力対象にするため、
-  再生成では消えず陳腐化したまま残る。詳細: `.claude/skills/issue-mr-flow/SKILL.md`「flow-id 5-1
-  での `index.jsonl` の扱い」）」という括弧書きを除去する。
-
-### 5. `.claude/rules/directory-structure.md`の確認
-
-grep調査の結果、`index.jsonl`への直接言及は無い（ヒットしたのは`usage/state/push-index.jsonl`
-という無関係の別ファイル）。矛盾なし、**変更不要**と結論する。
-
-### 6. `.claude/rules/markdown-frontmatter.md`
-
-flow-id 3-6で既に更新済み（本計画の対象外）。
-
-### 7. `.claude/docs/README.md`のDDR一覧への追記
+### 3. `.claude/docs/README.md`のDDR一覧への追記
 
 既存DDR一覧（0003〜0023）の末尾に0024のリンク行を追記する（新規DDR作成時の既存慣習）。
 
 ## 動作確認方法
 
-- `git grep -n "flow-id 5-1での" .claude` で参照切れが残っていないことを確認
-- `git grep -n "index.jsonl" .claude/skills/issue-mr-flow/SKILL.md .claude/rules/docs-workflow.md` で
-  除去漏れが無いことを確認
 - `.claude/docs/README.md`のDDR一覧に0024が追記されていることを確認
+- DDR本文が既存フォーマット（背景・決定・却下した案）に沿っていることを確認
