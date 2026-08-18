@@ -55,8 +55,15 @@ description: <元のまま変更しない>
 （Architecture Decision Record）で広く使われている語彙に合わせるため（読み手が初見でも意味を
 推測でき、外部ツールとも揃う）。
 
-frontmatterを更新したら `.claude/scripts/src/extract-frontmatter.sh <ディレクトリ>` で
-`index.jsonl` を再生成する（`status` が機械可読なインデックスにも反映される）。
+`index.jsonl`（`.claude/scripts/src/extract-frontmatter.sh` が生成するfrontmatterの機械可読
+インデックス）は**Git管理下に置かず、生成物として扱う**（issue #36。`.gitignore`の
+`**/index.jsonl`対象）。`.claude/hooks/session-start.sh`（SessionStart hook）が**セッション開始の
+たびに自動で再生成する**ため、frontmatterを更新した際に手動で `extract-frontmatter.sh` を
+実行する必要はない（詳細:
+[.claude/docs/ddr/0025-frontmatterのindex.jsonlをGit管理から外しSessionStart-hookで生成する.md](../docs/ddr/0025-frontmatterのindex.jsonlをGit管理から外しSessionStart-hookで生成する.md)）。
+
+同一セッション内でfrontmatterを編集し、その場ですぐ最新の `index.jsonl` を参照したい場合や、
+自動再生成を待たず手元で確認したい場合は、以下を手動実行してもよい（必須ではない）。
 
 ```bash
 bash .claude/scripts/src/extract-frontmatter.sh .
@@ -68,9 +75,6 @@ bash .claude/scripts/src/extract-frontmatter.sh .
 - **`--force` は通常不要。** スクリプト自身を変更した場合はキャッシュが自動で無効化される。
   `--force` を使うのは、mtimeを保ったままファイル内容が変わった等、キャッシュを信用できない
   特殊なケースに限る。
-- **`index.jsonl` はGit管理下にあるため、commitの直前に1回流す。** markdownを1ファイル編集する
-  だけで対応する `index.jsonl` の `mtime` が実際とずれるため、後から「`index.jsonl` だけを直す
-  追加コミット」が発生しやすい。
 - 仕様の詳細は
   [.claude/docs/spec/extract-frontmatter.md](../docs/spec/extract-frontmatter.md) を参照。
 あわせて `.claude/docs/README.md` のDDR一覧にも、置き換え先が分かる注記を添えるとよい。
