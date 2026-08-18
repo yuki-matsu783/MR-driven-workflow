@@ -59,3 +59,4 @@ DDRのうち0001・0002・0008・0015は持ち込んでいない**（連番に�
 - [0017-gemini配下はGit管理下に置かずセットアップスクリプトで生成する.md](ddr/0017-gemini配下はGit管理下に置かずセットアップスクリプトで生成する.md)
 - [0018-gemini-settings.jsonのhooksはレビュー提示スニペットのhooksセクションのみ採用する.md](ddr/0018-gemini-settings.jsonのhooksはレビュー提示スニペットのhooksセクションのみ採用する.md)
 - [0019-planツール利用を全体作業計画に限定し個別計画をファイル分離する.md](ddr/0019-planツール利用を全体作業計画に限定し個別計画をファイル分離する.md)
+- [0020-GitHub_GitLab情報取得はgh_glab-CLIを使いWebFetchは使わない.md](ddr/0020-GitHub_GitLab情報取得はgh_glab-CLIを使いWebFetchは使わない.md)

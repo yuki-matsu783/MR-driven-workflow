@@ -1,3 +1,11 @@
+---
+title: 開発者向けドキュメント
+type: guide
+description: このリポジトリの開発に参加する人向けの関連ドキュメントへの入り口をまとめたガイド
+tags: [developers, guide]
+keywords: [issue-mr-flow, ディレクトリ構成, mrworkflow, claude-code, gemini-cli]
+---
+
 # AIアセット開発者向けガイド
 
 ## 対象読者 (Intended Audience)
@@ -15,8 +23,9 @@
 
 ## 主要なディレクトリと役割 (Key Directories and Roles)
 
-* `/.claude/`: Claude AIアシスタントの設定、スキル、ルールが格納されており、Claudeの振る舞いを定義します。
-* `/.gemini/`: Gemini CLIの設定が格納されており、CLIエージェントの振る舞いをカスタマイズします。.claude/に対してシンボリックリンクを作成しています。
+各ディレクトリの役割説明は [index.md](index.md)（Repository Map）を正とする
+（重複記載による陳腐化を避けるため、本ファイルでは個別のディレクトリ一覧を持たない。
+詳細は [.claude/rules/directory-structure.md](.claude/rules/directory-structure.md) 参照）。
 
 ## 開発ワークフロー (Development Workflow)
 

@@ -3,7 +3,7 @@ title: AIエージェント共通ルール
 type: rule
 description: 複数のAIコーディングエージェント（Claude Code, Gemini CLI等）が共通で従うルール・プロジェクト概要・開発実行方法
 tags: [agents, rule]
-keywords: [issue-mr-flow, 計画, claude-code, gemini-cli]
+keywords: [issue-mr-flow, 計画, claude-code, gemini-cli, gh, glab, webfetch]
 ---
 
 ## ルール
@@ -19,6 +19,10 @@ keywords: [issue-mr-flow, 計画, claude-code, gemini-cli]
   - **個別作業計画**: `plans/【種別】タスク内容.md` として**planツールを使わず**作成する
 - 計画がユーザーに承認（Approve）されるまで、ファイルの書き換えやコマンドの実行を行ってはいけない
 - コーディング規約・ディレクトリ構成・ドキュメント運用などの詳細ルールは `.claude/rules/` 配下を参照する
+- GitHub/GitLabのissue・PR/MR・コメント等の情報を取得する際は、WebFetchツールやcurlではなく
+  `gh`/`glab` CLI（`.claude/scripts/src/vcs/Provider.sh` 経由）を使う。認証済みで構造化JSONが
+  得られ、`.claude/skills/issue-mr-flow/SKILL.md` の各サブコマンドとも一貫するため（詳細・却下案は
+  `.claude/docs/ddr/0020-GitHub_GitLab情報取得はgh_glab-CLIを使いWebFetchは使わない.md` 参照）
 
 ## プロジェクト概要
 
