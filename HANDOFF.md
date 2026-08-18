@@ -14,10 +14,10 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 
 ## フロー進捗状況
 
-- issue: #22 issue-mr-flow適用要否の判定基準をAGENTS.mdに一元化し、SKILL.md/git-workflow.mdの重複記載を整理する
-- ブランチ: claude/issue-22-zx5ge5
-- Draft PR: #30 https://github.com/yuki-matsu783/MR-driven-workflow/pull/30
-- push回数: 1
+- issue: （未着手）
+- ブランチ: （未着手）
+- PR: （未着手）
+- push回数: 0
 
 進捗記号: `[x]` 完了 / `[]` 未着手・進行中 / `[-]` 今回は実施しない（スキップ）
 

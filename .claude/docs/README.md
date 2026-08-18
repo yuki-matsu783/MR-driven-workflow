@@ -33,6 +33,7 @@ keywords: [正史仕様, 意思決定ログ, issue-mr-workflow, シェルスク�
 - [issue-mr-workflow.md](spec/issue-mr-workflow.md) ── issue駆動MRワークフロー支援
 - [shell-scripts.md](spec/shell-scripts.md) ── 開発補助スクリプトのシェル言語方針（bash採用の経緯）
 - [extract-frontmatter.md](spec/extract-frontmatter.md) ── frontmatter抽出スクリプト（index.jsonl生成）
+- [update-handoff-progress.md](spec/update-handoff-progress.md) ── HANDOFF.md進捗自動更新スクリプト
 
 ## ddr（意思決定ログ）
 
@@ -63,3 +64,4 @@ DDRのうち0001・0002・0008・0015は持ち込んでいない**（連番に�
 - [0021-frontmatter抽出は1ファイル1回のjq呼び出しとmtimeキャッシュで高速化する.md](ddr/0021-frontmatter抽出は1ファイル1回のjq呼び出しとmtimeキャッシュで高速化する.md)
 - [0022-push断面の全文コピーをやめ行番号インデックスで表現する.md](ddr/0022-push断面の全文コピーをやめ行番号インデックスで表現する.md)
 - [0023-レビュー依頼メッセージの参照リンクは前回pushSHAをローカル状態で保持して組み立てる.md](ddr/0023-レビュー依頼メッセージの参照リンクは前回pushSHAをローカル状態で保持して組み立てる.md)
+- [0024-HANDOFF進捗更新はMarkdownテーブル直接書き換えでループ範囲を一括操作する.md](ddr/0024-HANDOFF進捗更新はMarkdownテーブル直接書き換えでループ範囲を一括操作する.md)
