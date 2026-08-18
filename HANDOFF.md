@@ -17,7 +17,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - issue: [#11 extract-frontmatter.shのリポジトリルート一括実行を高速化し中断耐性を持たせる](https://github.com/yuki-matsu783/MR-driven-workflow/issues/11)
 - ブランチ: `feature-11-speed-up-frontmatter-index-build`
 - Draft PR: [#19](https://github.com/yuki-matsu783/MR-driven-workflow/pull/19)
-- push回数: 0
+- push回数: 2
 - 全体作業計画: `plans/lexical-stirring-peach.md`（flow-id 1-5で合意済み）
 
 進捗欄の記号: `[]` 未着手 / `[x]` 完了 / `[-]` 今回は実施しない（スキップ）
@@ -41,11 +41,11 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 | [-] | 2-9 | レビュー内容を取得し、調査結果を修正する。対応が完了したコメントには対応内容を返信する（`reports/`のHTMLも調査結果と同期して更新する。2-6〜2-9を合意まで繰り返す） | `comments` / `reply` |
 | [-] | 2-10 | 調査結果をもとにMR descriptionを更新する | `describe` |
 | [x] | 3-1 | **調査結果をもとに**、個別作業計画`plans/【設計】【実装】〜.md`等を**planツールを使わず**Write/Editで作成する | エージェント |
-| [] | 3-2 | `commit`スキル経由でcommitし、push してレビュー依頼を行う | エージェント |
-| [] | 3-3 | MRで作業計画についてレビュー・コメントする。レビュー完了済み連絡をするまで以降の作業は行わない。 | 人間 |
-| [] | 3-4 | レビュー内容を取得し、作業計画を修正する。対応が完了したコメントには対応内容を返信する（3-3〜3-4を合意まで繰り返す） | `comments` / `reply` |
-| [] | 3-5 | 作業計画をもとにMR descriptionを更新する | `describe` |
-| [] | 3-6 | 作業計画をもとに作業を進める、作業内容はworklogに更新する | エージェント |
+| [x] | 3-2 | `commit`スキル経由でcommitし、push してレビュー依頼を行う | エージェント |
+| [x] | 3-3 | MRで作業計画についてレビュー・コメントする。レビュー完了済み連絡をするまで以降の作業は行わない。 | 人間 |
+| [x] | 3-4 | レビュー内容を取得し、作業計画を修正する。対応が完了したコメントには対応内容を返信する（3-3〜3-4を合意まで繰り返す） | `comments` / `reply` |
+| [x] | 3-5 | 作業計画をもとにMR descriptionを更新する | `describe` |
+| [x] | 3-6 | 作業計画をもとに作業を進める、作業内容はworklogに更新する | エージェント |
 | [] | 3-7 | `commit`スキル経由でcommitし、push してレビュー依頼を行う | エージェント |
 | [] | 3-8 | MRでレビュー・コメントする。レビュー済み連絡をするまで以降の作業は行わない。 | 人間 |
 | [] | 3-9 | レビュー内容を取得し、実装・ドキュメントを修正する。対応が完了したコメントには対応内容を返信する（3-6〜3-9の作業ループを合意まで繰り返す） | `comments` / `reply` |
@@ -68,55 +68,60 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 
 ## やったこと
 
-- flow-id 1-2〜1-3: `start 11` でissue #11を取得（標準4見出しは過不足なし）。ベースブランチを
-  `AskUserQuestion` で確認し `main` のまま確定 → `feature-11-speed-up-frontmatter-index-build` と
-  Draft PR #19 を作成。
-- flow-id 1-4〜1-5: 全体作業計画 `plans/lexical-stirring-peach.md` を作成し合意を得た。
-  計画作成時にボトルネックを実測で特定済み（**git bashの外部プロセス起動が約95ms/回**。
-  `jq -nc '1'` を50回で4.73秒。現行実装はfrontmatterのキー・配列要素ごとにjqを起動しており
-  1ファイル約30回 × 43ファイル ≈ 約2分でタイムアウトしていた）。
-- flow-id 1-6: 本ファイルを更新（フェーズ1完了）。
-- flow-id 3-1: 個別作業計画
-  `plans/【設計】【実装】【テスト】extract-frontmatter高速化と中断耐性.md` と、worklog
-  `worklog/20260818_lexical-stirring-peach_【設計】【実装】【テスト】extract-frontmatter高速化と中断耐性_push1.md`
-  を作成した。
+- flow-id 1-2〜1-6（フェーズ1完了）: `start 11` でissue #11取得 → ベースブランチを `main` に確定 →
+  `feature-11-speed-up-frontmatter-index-build` と Draft PR #19 を作成 → 全体作業計画
+  `plans/lexical-stirring-peach.md` を作成し合意。
+- flow-id 3-1〜3-2（push1）: 個別作業計画
+  `plans/【設計】【実装】【テスト】extract-frontmatter高速化と中断耐性.md` と worklog push1 を作成しpush。
+- flow-id 3-3〜3-5: レビュー合意（未解決スレッド0件を `comments all` 相当で確認済み）→
+  MR description を更新。
+- flow-id 3-6（実装完了）: `.claude/scripts/src/extract-frontmatter.sh` を改修し、
+  `tests/test_extract_frontmatter.sh` を新設。詳細は worklog push2。
+  - **性能**: ルート指定 136秒 → **9.6〜11.8秒**（全再生成） / **1.5〜2.4秒**（差分なし）。
+    ddr単体 46.4秒 → 3.0秒。
+  - **回帰なし**: 改修前の出力（golden 15ファイル）とバイト単位で完全一致。
+  - **中断耐性**: `SIGINT` 中断でも全 `index.jsonl` のmd5が不変・一時ファイル残存なし
+    （改修前は同条件で16行→2行に破損することも実機で確認）。
+  - **単体テスト**: `passed=17 failures=0`。
+  - **既知バグ**（スコープ外への影響・重複行）は改修前後とも**再現せず**。差分の正体は
+    「gitのcheckout/mergeによるmtime更新」と「陳腐化エントリの除去」だった。
 
 ## 次にやること
 
-- **flow-id 3-2**: `commit`スキル経由でcommitし、pushしてレビュー依頼を行う（push1）。
-- レビュー合意（flow-id 3-3〜3-4）後、flow-id 3-5でMR descriptionを更新し、flow-id 3-6で実装に着手する。
-  実装着手時の最初の2作業は個別作業計画「実装手順」の1.（ベースライン計測）と2.（既知バグの再現確認）。
+- **flow-id 3-7**: `commit`スキル経由でcommitし、pushしてレビュー依頼（push2）。
+- その後 flow-id 3-8〜3-10（レビュー→修正→MR description更新）を経て、フェーズ4（反映）へ。
 
 ## 判断を迷った内容
 
-- **フェーズ2（調査）を実施するか**: ボトルネックが計画作成時の実測でほぼ特定できていたため、
-  ユーザ合意のうえ**フェーズ2はスキップ**しフェーズ3から着手する（進捗表では `[-]`）。
-  ベースライン実測は実装フェーズの冒頭で行いworklogへ記録する。
-- **specの既知バグを今回のスコープに含めるか**: ユーザ合意のうえ**含める**
-  （「ディレクトリを絞って実行するとスコープ外の`index.jsonl`まで変更され重複行が生じる」。
-  原因未特定のままspecの未決定事項に残っているもの）。
-- **HANDOFF更新の自動化依頼の扱い**: セッション途中で「HANDOFFの進捗を更新するスクリプトを作り
-  haikuサブエージェントで使いたい」という依頼を受けたが、issue #11 とは別主題のため
-  **issue #20 として起票し、issue #11 完了後に別ブランチで着手する**ことで合意した
-  （https://github.com/yuki-matsu783/MR-driven-workflow/issues/20 ）。今回のPR #19 には含めない。
+- **フェーズ2（調査）を実施するか**: ボトルネックが計画時点の実測で特定できていたため、
+  ユーザ合意のうえ**スキップ**（進捗表では `[-]`）。
+- **specの既知バグを今回のスコープに含めるか**: ユーザ合意のうえ**含めた**（結果は上記のとおり再現せず）。
+- **回帰検証の方法**: 個別作業計画では「`git diff -- '*index.jsonl'` が空」としていたが、
+  コミット済みの `index.jsonl` が陳腐化しており、かつ `mtime` がブランチ操作で変わるため**成立しない**と
+  判明。**ゴールデンファイル方式**（改修前の出力を退避してバイト比較）へ変更した。
+- **HANDOFF更新の自動化依頼の扱い**: issue #11 とは別主題のため **issue #20 として起票**し、
+  issue #11 完了後に別ブランチで着手する（https://github.com/yuki-matsu783/MR-driven-workflow/issues/20 ）。
+  今回のPR #19 には含めない。
 
 ## 未解決の内容
 
-- 既知バグ（ディレクトリを絞った実行がスコープ外の`index.jsonl`に影響する件）は、現在のクリーンな
-  作業ツリーでは**再現していない**（`git ls-files --cached --others` の出力に重複0件、ルート
-  `index.jsonl` にも重複行なしを確認済み）。実装フェーズでまず再現手順の確立から行う。
-  再現・解消できなければ、判明した再現条件をspecの未決定事項へ追記して残す。
+- **再生成された `index.jsonl` をどこまでコミットするかはレビュー判断待ち**。今回は「クリーンな
+  作業ツリーで実行すると差分が出ない」状態を保つため**すべてコミットする**方針にした。ただし
+  `plans/index.jsonl`（新規）と `worklog/index.jsonl`（worklogエントリが増える）は flow-id 5-1 で
+  削除される一時ファイルを指すため、**5-1の手順に「`plans/index.jsonl` の削除と `index.jsonl` 群の
+  再生成」を追加すべきか**を決める必要がある。
 - 進捗表で使った `[-]`（今回は実施しない）は `.claude/rules/docs-workflow.md` の記号規約に未記載。
   issue #20 で明文化する予定。
 
 ## 守るべき条件・触ってはいけない範囲
 
-- **`index.jsonl` の出力フォーマットを変更しない**。issueの受け入れ条件が「生成される内容が現行実装と
-  同一（回帰なし）」のため。回帰検証は「クリーンな作業ツリーで全再生成 → `git diff -- '*index.jsonl'`
-  が空」で行う。
-- **frontmatterの解析ロジック（行の正規表現・`trim`/`unquote`・`yq`優先パス）は変更しない**。
-  変更するのは「JSONの組み立て方」「ファイル情報の取得方法」「出力の書き方」の3点に限定する。
-- `.sh` は BOM無しUTF-8・LF改行で保存し、`set -euo pipefail` を維持する
-  （`.claude/rules/shell-script-style.md`）。
-- コミットは必ず `commit` スキル経由で行う（直接のコミット実行はPreToolUse hookでブロックされる）。
+- **`index.jsonl` の出力フォーマットは変更しない**（回帰なしが受け入れ条件）。検証はゴールデン
+  ファイル方式で行う（改修前の出力はスクラッチ領域に退避済み。セッションを跨ぐ場合は改修前の
+  実装 `git show <base>:.claude/scripts/src/extract-frontmatter.sh` から採取し直す）。
+- **frontmatterの解析ロジック（行の正規表現・値の分類・`yq`優先パス）は変更しない**。
+- **ホットパスでコマンド置換 `$(...)` を使わない**（サブシェルforkが1回あたり数十msかかる）。
+  `trim_unquote_to_reply` / `unquote_to_reply` のように `REPLY` へ返す形を使う。
+- **ループ内で `jq` を起動しない**（1ファイルあたり1回に集約する設計を壊さない）。
+- `.sh` は BOM無しUTF-8・LF改行で保存し、`set -euo pipefail` を維持する。
+- コミットは必ず `commit` スキル経由で行う。
 - issue #20（HANDOFF更新の自動化）の実装は、このブランチでは行わない。
