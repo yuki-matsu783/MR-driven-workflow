@@ -22,7 +22,11 @@ keywords: [issue-mr-flow, 計画, claude-code, gemini-cli, gh, glab, webfetch]
 - GitHub/GitLabのissue・PR/MR・コメント等の情報を取得する際は、WebFetchツールやcurlではなく
   `gh`/`glab` CLI（`.claude/scripts/src/vcs/Provider.sh` 経由）を使う。認証済みで構造化JSONが
   得られ、`.claude/skills/issue-mr-flow/SKILL.md` の各サブコマンドとも一貫するため（詳細・却下案は
-  `.claude/docs/ddr/0020-GitHub_GitLab情報取得はgh_glab-CLIを使いWebFetchは使わない.md` 参照）
+  `.claude/docs/ddr/0020-GitHub_GitLab情報取得はgh_glab-CLIを使いWebFetchは使わない.md` 参照）。
+  **`gh`/`glab` CLIが実行環境に存在しない場合**（例: Claude Code on the webのリモート実行環境。
+  issue #21対応時に実機確認）は、`Provider.sh`が動作しないため、同等の機能を持つGitHub/GitLab
+  公式のMCPサーバーツール（例: `mcp__github__*`）で代替してよい。WebFetchツールやcurlへは
+  フォールバックしない（この場合もDDR 0020の理由は変わらないため）。
 
 ## プロジェクト概要
 
