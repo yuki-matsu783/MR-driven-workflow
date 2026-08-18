@@ -157,6 +157,11 @@ flow-idなら同じループ範囲の全行をまとめて`[x]`にする。フ�
 
 呼び出しは `/issue-mr-flow <サブコマンド> [引数]` の形。
 
+**各サブコマンドは `gh`/`glab` CLIがある前提で書かれている。手順に入る前に必ず
+`get_vcs_access_mode`（`Provider.sh`）で経路を確認し、`mcp` が返る環境では
+「[`gh`/`glab` CLI不在時のMCPフォールバック](#ghglab-cli不在時のmcpフォールバック)」節の
+読み替えに従うこと**（issue #34）。
+
 ### `start <issue番号>` — issue取得・ブランチ/MR作成（全体フロー 1-2〜1-3）
 
 1. `get_issue <issue番号>` でissueのtitle/body/urlを取得し、内容をユーザーに提示する。
@@ -273,6 +278,80 @@ flow-idなら同じループ範囲の全行をまとめて`[x]`にする。フ�
 4. issue番号が特定できていればブランチ/MRの存在確認へ（`start` 手順2相当）、issueが特定できなければ
    ブランチ命名規則から外れている旨を伝えて `start <issue番号>` での対応を促す。
 
+## `gh`/`glab` CLI不在時のMCPフォールバック
+
+Claude Code on the webのリモート実行環境のように、`gh`/`glab` CLIが存在せず `git`・`jq` しか
+使えない環境がある（issue #21対応時に実機確認）。この場合 `Provider.sh` のプロバイダ依存関数は
+動かないため、GitHub公式のMCPサーバーツール（`mcp__github__*`）で代替する。**WebFetchツール・
+curlへはフォールバックしない**（理由はDDR 0020のまま変わらない。経緯: DDR 0025）。
+
+### 1. 経路の判定（各サブコマンドの最初に必ず行う）
+
+```bash
+source .claude/scripts/src/vcs/Provider.sh
+get_vcs_access_mode   # → cli / mcp
+```
+
+- `cli`: 各サブコマンドに書かれているとおり `Provider.sh` の関数をそのまま使う。
+- `mcp`: 下の対応表に従って読み替える。**その場の判断で別のツールを選ばない。**
+
+判定を忘れてCLI経路の関数を呼んだ場合も、`require_vcs_cli` ガードが
+「代替すべきMCPツール名・引数」をstderrへ出して失敗するため、そのメッセージに従えばよい
+（`gh: command not found` のような手がかりの乏しい失敗にはならない）。
+
+MCPツールが必須で要求する `owner` / `repo` は、CLIなしで次のように取得する。
+
+```bash
+get_repo_slug            # → {"host":...,"owner":...,"repo":...,"path":...,"url":...}
+get_repo_slug | jq -r '.owner, .repo'
+```
+
+### 2. Provider関数 → MCPツール対応表（GitHubのみ）
+
+| Provider関数（CLI経路） | MCPツール | 引数 | 補足 |
+|---|---|---|---|
+| `get_issue <n>` | `mcp__github__issue_read` | `method="get"`, `owner`, `repo`, `issue_number=<n>` | 返却JSONの `title`/`body`/`html_url` を、CLI版の `title`/`body`/`url` と読み替える |
+| `new_issue <title> <body>` | `mcp__github__issue_write` | `method="create"`, `owner`, `repo`, `title`, `body` | `issue-create` スキル（`create-issue.sh`）の代替。本文は `build_issue_body` 相当の4見出しで組み立てる |
+| `new_draft_merge_request <n> <branch> <title> [<base>]` | `mcp__github__create_pull_request` | `owner`, `repo`, `title`, `head=<branch>`, `base=<base>`, `draft=true`, `body="Closes #<n>\n\n(plan作成中。/issue-mr-flow describe で更新する)"` | baseとの差分が無いと失敗する制約はMCP経路でも同じ。失敗したら `source .claude/scripts/src/vcs/Provider.sh && add_empty_commit_for_draft_mr` を実行してから1回だけ再試行する |
+| `get_mr_for_branch <branch>` | `mcp__github__list_pull_requests` | `owner`, `repo`, `head="<owner>:<branch>"`, `state="open"` | 結果が空配列ならPRなし。`number`/`html_url`/`draft`/`title` を使う |
+| `get_mr_unresolved_comments <n> [true]` | `mcp__github__pull_request_read` | `method="get_review_comments"`, `owner`, `repo`, `pullNumber=<n>` | スレッドごとに `isResolved` が付くので、**既定では `isResolved=false` のスレッドだけを提示する**（CLI版の「解決済みは機械的に除外」に相当）。`all` 指定時は全件。通常コメントは `method="get_comments"` を追加で呼ぶ |
+| `add_mr_thread_reply <n> <threadId> <body>` | `mcp__github__add_reply_to_pull_request_comment` | `owner`, `repo`, `pullNumber=<n>`, `commentId=<返信先スレッドの先頭コメントの数値ID>`, `body` | **ID体系が違う。** CLI経路はGraphQLのthreadId（`PRRT_...`）を使うが、MCP経路は数値のcommentId（`#discussion_r...` の数字部分）を使う。`get_review_comments` の各スレッドに含まれるコメントのidを使うこと |
+| `set_mr_description <n> <file>` | `mcp__github__update_pull_request` | `owner`, `repo`, `pullNumber=<n>`, `body=<ファイルの内容>` | CLI版はファイルパスを渡すが、MCPは文字列で渡す。本文はReadツール等で読んでから渡す |
+| `add_mr_comment <n> <file>` | `mcp__github__add_issue_comment` | `owner`, `repo`, `issue_number=<PR番号>`, `body=<ファイルの内容>` | PR番号を `issue_number` に渡す（GitHub APIの仕様上、PRもissueとして扱える） |
+| `get_repo_url` | （MCP不要） | — | `git remote` からのローカル組み立てにフォールバックするため、MCP経路でもそのまま呼べる（`get_mr_diff_url` / `get_mr_diff_since_url` も同様） |
+| `new_issue_branch` / `sync_branch` / `get_branch_work_files` / `get_issue_number_from_branch` / `to_slug` / `test_issue_sections` | （MCP不要） | — | git操作・純粋ロジックのみでCLIに依存しないため、MCP経路でもそのまま呼べる |
+
+### 3. サブコマンドごとの読み替え
+
+| サブコマンド | MCP経路での差分 |
+|---|---|
+| `start <n>` | 手順1の `get_issue` を `mcp__github__issue_read` に置き換える。`test_issue_sections` はbody文字列を渡せばそのまま使える。手順2のブランチ検索（`git branch --list` / `git ls-remote`）と `new_issue_branch` は変更なし。Draft PR作成のみ `mcp__github__create_pull_request` に置き換える |
+| `comments [all]` | MR番号の取得を `mcp__github__list_pull_requests`、コメント取得を `mcp__github__pull_request_read` に置き換える。**未解決のみを既定で提示する絞り込みは、CLI版ではスクリプトが行っていた処理なので、MCP経路では自分で `isResolved` を見て行う** |
+| `reply <threadId> <対応内容>` | 返信先の指定が数値のcommentIdになる（上表の補足参照）。**`Claude Codeより:` の署名行を先頭に付ける規約はMCP経路でも同じ**（MCPサーバーもユーザーの認証情報で動くため、投稿者は人間のアカウントとして表示される） |
+| `describe` | descriptionを一時ファイルへ書く手順は同じでよいが、最後は `mcp__github__update_pull_request` の `body` へ文字列として渡す |
+| `sync` | 変更なし（git操作のみ） |
+| `resume` | サブエージェント（`issue-mr-resume`）はProvider.sh経由でのCLI利用を前提とするため、MCP経路ではissue/PR情報の取得部分が失敗する。その場合はサブエージェントの報告のうちgit・ファイル系（ブランチ・plans/worklog・HANDOFF.md）を採用し、issue/PR情報は呼び出し元が上表のMCPツールで補う |
+
+### 4. hookの挙動（CLI不在時）
+
+hookはMCPツールを呼べないため、以下のように非侵襲的に縮退する（詳細:
+`.claude/docs/spec/issue-mr-workflow.md`）。エージェント側で肩代わりが必要なものはその旨が
+メッセージに出る。
+
+| hook | CLI不在時 |
+|---|---|
+| `session-start.sh` | issue/PR情報の代わりに「経路はMCP」「ブランチ名から抽出したissue番号」「owner/repo」「本節への参照」を注入する |
+| `post-push-usage-report.sh` | 集計状態の更新のみ行い、対応工数レポートの自動投稿はスキップする（stderrへ1行） |
+| `post-push-compact-prompt.sh` | MRリンクだけを「MCPで取得すること」に差し替え、レビュー依頼メッセージと `/compact` の呼びかけは従来どおり行う |
+
+### 5. GitLabは対象外
+
+`glab` 不在時のGitLab向けMCP代替は**対象外**とする（このリポジトリでGitLab MCPサーバーの
+利用実績が無く、ツール名・引数を検証できないため。未検証の対応表は誤誘導になりうる）。
+GitLabリポジトリで `glab` が無い場合、`require_vcs_cli` はその旨を明示して失敗する。
+`glab` をインストール・認証して使うこと。将来GitLab MCPサーバーを実機検証できた時点で、
+本節に同じ形式の対応表を追加してよい（DDR 0025）。
+
 ## レビュー完了合図の確認（全体フロー 2-4・2-9・3-4・3-9・4-4・4-9）
 
 人間から「レビューOK」「合意」等、レビューループを終えて次のステップに進んでよいという合図を
@@ -349,6 +428,8 @@ PR #29のセッションで実際に発生）。この場合、タスク固有�
 ## 前提
 
 - `gh` CLI（GitHubの場合）または `glab` CLI（GitLabの場合）、および `jq` がインストール・認証済みであること。認証情報自体は各CLIの既存ログイン状態に依存し、本スキル側では管理しない。
+  **CLIが存在しない実行環境（Claude Code on the webのリモート実行環境等）では、GitHubに限り
+  MCPサーバーツールで代替できる**（上記「`gh`/`glab` CLI不在時のMCPフォールバック」節。GitLabは対象外）。
 - リポジトリ直下に `.mrworkflow.json` があること（無い場合は `.claude/scripts/src/vcs/Provider.sh` の既定値が使われる）。
 - issueは `.github/ISSUE_TEMPLATE/task.md`（GitHub）/ `.gitlab/issue_templates/Default.md`（GitLab）のテンプレートに沿って「目的・現状・期待する動作・受け入れ条件」を記載しておくことが望ましい
   （必須ではなく、`start` サブコマンドが欠落を警告する）。
