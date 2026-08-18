@@ -21,6 +21,10 @@ push回数: 1
   `post-push-usage-report.sh`、`post-push-compact-prompt.sh`の3ファイルの詳細（ガード条件の行番号・
   エンジン判定パターン・UsageTracking.shへの引数渡し）と、`.claude/settings.json`/`.gemini/settings.json`
   のhook登録差分を調査した。
+- flow-id 6完了後、MRレビューの合図（「OK」）を受けたが、フロー規約に従い先に
+  `get_mr_unresolved_comments 8 true`で未解決コメントの有無を確認した（工数レポートの自動投稿のみで
+  レビューコメントは無かった）。
+- 調査結果を`reports/fancy-wishing-scroll.html`（TailwindCSS CDN方式の自己完結HTML）として作成した。
 
 ## うまくいったこと
 
@@ -34,10 +38,10 @@ push回数: 1
 
 ## 次の一歩
 
-- flow-id 6: 本worklog・planをcommitスキル経由でcommit・pushし、レビュー依頼を行う。
-- flow-id 9: 調査計画をもとにMR descriptionを更新する。
-- flow-id 10: 実際にスクリプト修正を伴わない調査（今回は事前調査で完了）の記録を確定し、
-  レビューを経て作業計画（flow-id 15）→実装（flow-id 21: post-push-usage-report.sh /
-  post-push-compact-prompt.shへのエンジン判定移植）へ進む。
+- flow-id 11: 本worklog・`reports/fancy-wishing-scroll.html`をcommitスキル経由でcommit・pushし、
+  レビュー依頼を行う。
+- flow-id 12: 調査結果をもとにMR descriptionを更新する。
+- flow-id 13〜14: レビューを経て、flow-id 15（作業計画）→ flow-id 21（実装:
+  post-push-usage-report.sh / post-push-compact-prompt.shへのエンジン判定移植）へ進む。
 
 ---
