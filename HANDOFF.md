@@ -14,10 +14,10 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 
 ## フロー進捗状況
 
-- issue: #22 issue-mr-flow適用要否の判定基準をAGENTS.mdに一元化し、SKILL.md/git-workflow.mdの重複記載を整理する
-- ブランチ: claude/issue-22-zx5ge5
-- Draft PR: #30 https://github.com/yuki-matsu783/MR-driven-workflow/pull/30
-- push回数: 1
+- issue: #36 frontmatter index.jsonlをGit管理から外し生成物として扱う
+- ブランチ: feature-36-untrack-generated-frontmatter-index
+- Draft PR: #37 https://github.com/yuki-matsu783/MR-driven-workflow/pull/37
+- push回数: 0
 
 進捗記号: `[x]` 完了 / `[]` 未着手・進行中 / `[-]` 今回は実施しない（スキップ）
 
@@ -25,11 +25,11 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 |----|---|---|---|
 | [x] | 1-1 | issueを起票する（`.github/ISSUE_TEMPLATE/task.md` / `.gitlab/issue_templates/task.md` で目的・現状・期待する動作・受け入れ条件を記載） | 人間（AIが代行する場合は `issue-create` スキル） |
 | [x] | 1-2 | issueの内容を取得する | `start <issue番号>` |
-| [x] | 1-3 | featureブランチ（`feature-<issue番号>-<slug>`）とDraft MRを作成する（既にあれば `sync` のみ）。**ブランチはClaude Code on the web環境から `claude/issue-22-zx5ge5` として既に用意されており命名規則には従わないが、issue #22の作業ブランチとして使用**。コミット差分が無かったため空コミット→push後にDraft PR #30をGitHub MCPツールで作成（gh CLIが実行環境に無いため） | エージェント |
-| [x] | 1-4 | **Planモードで「全体作業計画」を作成する** → `plans/iterative-dreaming-yao.md` | エージェント |
+| [x] | 1-3 | featureブランチ（`feature-<issue番号>-<slug>`）とDraft MRを作成する（既にあれば `sync` のみ） | `start` |
+| [x] | 1-4 | **Planモードで「全体作業計画」を作成する** → `plans/whimsical-launching-reef.md` | エージェント |
 | [x] | 1-5 | 全体作業計画に合意する | 人間 |
-| [x] | 1-6 | 全体作業計画をもとにHANDOFF.mdを更新する | エージェント |
-| [-] | 2-1 | **個別調査計画**（全体作業計画で「対象箇所・方針がissue本文に明確なため調査フェーズは不要」と判断し省略） | エージェント |
+| [x] | 1-6 | 全体作業計画をもとにHANDOFF.mdを更新する。あわせて前タスク（issue #22, PR #30）がflow-id 5-1未実施のままマージされ`main`に残っていた`plans/`・`worklog/`の残骸を、ユーザー承認のもと本ブランチ内で削除・index.jsonl群を再生成した | エージェント |
+| [-] | 2-1 | **個別調査計画**（全体作業計画で「事前調査で判明済みのため調査フェーズは不要」と判断し省略） | エージェント |
 | [-] | 2-2 | （2-1を省略のため対象外） | エージェント |
 | [-] | 2-3 | （同上） | 人間 |
 | [-] | 2-4 | （同上） | `comments` / `reply` |
@@ -39,27 +39,27 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 | [-] | 2-8 | （同上） | 人間 |
 | [-] | 2-9 | （同上） | `comments` / `reply` |
 | [-] | 2-10 | （同上） | `describe` |
-| [x] | 3-1 | 個別作業計画`plans/【設計】判定基準の一元化.md`を**planツールを使わず**Write/Editで作成する | エージェント |
-| [x] | 3-2 | `commit`スキル経由でcommitし、push してレビュー依頼を行う | エージェント |
-| [x] | 3-3 | MRで作業計画についてレビュー・コメントする。レビュー完了済み連絡をするまで以降の作業は行わない。 | 人間 |
-| [x] | 3-4 | レビュー内容を取得し、作業計画を修正する。対応が完了したコメントには対応内容を返信する（3-3〜3-4を合意まで繰り返す）。PR #30の未解決コメント・レビュー・通常コメントいずれも0件で修正不要と確認 | `comments` / `reply` |
-| [x] | 3-5 | 作業計画をもとにMR descriptionを更新する | `describe` |
-| [x] | 3-6 | 作業計画をもとに作業を進める、作業内容はworklogに更新する。`AGENTS.md`・`SKILL.md`・`git-workflow.md`の3ファイルへ差分適用完了 | エージェント |
-| [x] | 3-7 | `commit`スキル経由でcommitし、push してレビュー依頼を行う | エージェント |
-| [x] | 3-8 | MRでレビュー・コメントする。レビュー済み連絡をするまで以降の作業は行わない。**別セッション（PR #30レビュー専用セッション、ブランチ`claude/pr-30-review-complete-xlb66m`）がcode-reviewスキルでPRをレビューし、HANDOFF.mdの「次にやること」欄の更新漏れを指摘するインラインコメント1件をCOMMENTとして投稿** | 人間（今回は上記セッションが代行） |
-| [x] | 3-9 | レビュー内容を取得し、実装・ドキュメントを修正する。対応が完了したコメントには対応内容を返信する（3-6〜3-9の作業ループを合意まで繰り返す）。指摘どおり本ファイルの「次にやること」欄を更新し、スレッドへ対応内容を返信済み。他に未解決コメント無し | `comments` / `reply` |
-| [x] | 3-10 | 作業内容をもとにMR descriptionを更新する | `describe` |
-| [x] | 4-1 | **作業結果と`plans/` `worklog/` の内容をもとに**、個別反映計画`plans/【設計反映】【AIアセット反映】〜.md`等を**planツールを使わず**Write/Editで作成する → `plans/【設計反映】判定基準一元化の反映要否確認.md`。`.claude/docs/spec/`・`.claude/docs/ddr/`・AIアセットいずれも追加反映は不要と結論 | エージェント |
-| [x] | 4-2 | `commit`スキル経由でcommitし、push してレビュー依頼を行う | エージェント |
-| [x] | 4-3 | MRで反映計画についてレビュー・コメントする。レビュー完了済み連絡をするまで以降の作業は行わない。人間から「オッケー」の合図あり | 人間 |
-| [x] | 4-4 | レビュー内容を取得し、反映計画を修正する。対応が完了したコメントには対応内容を返信する（4-3〜4-4を合意まで繰り返す）。`comments all`相当で未解決コメント・通常コメントいずれも0件を確認、修正不要 | `comments` / `reply` |
-| [x] | 4-5 | 反映計画をもとにMR descriptionを更新する | `describe` |
-| [x] | 4-6 | 反映計画をもとに作業を進める、反映内容はworklogに更新する（**設計反映**: `plans/` `worklog/` の内容を `.claude/docs/spec/` `.claude/docs/ddr/`（アプリ本体があれば`docs/spec/` `docs/ddr/`）へ反映する／**AIアセット反映**: 作業中に気づいたルール・スキルの不備を `.claude/rules/` `.claude/skills/` `CLAUDE.md` `AGENTS.md` に反映する）。4-1の結論（追加反映は不要）がレビューで承認されたため、これをもって反映完了とする | エージェント |
+| [x] | 3-1 | 個別作業計画`plans/【設計】【実装】index.jsonl生成物化.md`を**planツールを使わず**Write/Editで作成する | エージェント |
+| [] | 3-2 | `commit`スキル経由でcommitし、push してレビュー依頼を行う | エージェント |
+| [] | 3-3 | MRで作業計画についてレビュー・コメントする。レビュー完了済み連絡をするまで以降の作業は行わない。 | 人間 |
+| [] | 3-4 | レビュー内容を取得し、作業計画を修正する。対応が完了したコメントには対応内容を返信する（3-3〜3-4を合意まで繰り返す） | `comments` / `reply` |
+| [] | 3-5 | 作業計画をもとにMR descriptionを更新する | `describe` |
+| [] | 3-6 | 作業計画をもとに作業を進める、作業内容はworklogに更新する | エージェント |
+| [] | 3-7 | `commit`スキル経由でcommitし、push してレビュー依頼を行う | エージェント |
+| [] | 3-8 | MRでレビュー・コメントする。レビュー済み連絡をするまで以降の作業は行わない。 | 人間 |
+| [] | 3-9 | レビュー内容を取得し、実装・ドキュメントを修正する。対応が完了したコメントには対応内容を返信する（3-6〜3-9の作業ループを合意まで繰り返す） | `comments` / `reply` |
+| [] | 3-10 | 作業内容をもとにMR descriptionを更新する | `describe` |
+| [] | 4-1 | **作業結果と`plans/` `worklog/` の内容をもとに**、個別反映計画`plans/【設計反映】【AIアセット反映】〜.md`等を**planツールを使わず**Write/Editで作成する | エージェント |
+| [] | 4-2 | `commit`スキル経由でcommitし、push してレビュー依頼を行う | エージェント |
+| [] | 4-3 | MRで反映計画についてレビュー・コメントする。レビュー完了済み連絡をするまで以降の作業は行わない。 | 人間 |
+| [] | 4-4 | レビュー内容を取得し、反映計画を修正する。対応が完了したコメントには対応内容を返信する（4-3〜4-4を合意まで繰り返す） | `comments` / `reply` |
+| [] | 4-5 | 反映計画をもとにMR descriptionを更新する | `describe` |
+| [] | 4-6 | 反映計画をもとに作業を進める、反映内容はworklogに更新する | エージェント |
 | [] | 4-7 | `commit`スキル経由でcommitし、push してレビュー依頼を行う | エージェント |
 | [] | 4-8 | MRでレビュー・コメントする。レビュー済み連絡をするまで以降の作業は行わない。 | 人間 |
 | [] | 4-9 | レビュー内容を取得し、設計・AIアセットの内容を修正する。対応が完了したコメントには対応内容を返信する（4-6〜4-9の反映ループを合意まで繰り返す） | `comments` / `reply` |
 | [] | 4-10 | 反映内容をもとにMR descriptionを更新する | `describe` |
-| [] | 5-1 | 次タスクのために、`plans/` `worklog/` `reports/` を削除し、`HANDOFF.md` をリセットする。**あわせて `plans/index.jsonl` も削除し、`bash .claude/scripts/src/extract-frontmatter.sh .` で `index.jsonl` 群を再生成する** | エージェント |
+| [] | 5-1 | 次タスクのために、`plans/` `worklog/` `reports/` を削除し、`HANDOFF.md` をリセットする | エージェント |
 | [] | 5-2 | `commit`スキル経由でcommitし、push して Draftを解除する | エージェント |
 | [] | 5-3 | マージする（squash merge。ブランチは削除してよい） | 人間 |
 
@@ -67,24 +67,20 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 
 ## やったこと
 
-- issue #22の内容取得（GitHub MCPツール経由。gh CLIが実行環境に無いため`mcp__github__issue_read`で代替）
-- ブランチ`claude/issue-22-zx5ge5`（Claude Code on the web環境が用意した既存ブランチ、mainとの差分無し）で空コミットを作成しpush、Draft PR #30を`mcp__github__create_pull_request`で作成
-- Planモードで全体作業計画`plans/iterative-dreaming-yao.md`を作成・承認。issue本文に対象箇所・方針が明確なため、フェーズ2（調査）は省略しフェーズ3（作業計画）から着手すると判断
-- 個別作業計画`plans/【設計】判定基準の一元化.md`とworklogを作成し、commit・push・PR description更新（`mcp__github__update_pull_request`）してレビュー依頼
-- レビューOK確認（PR #30の未解決コメント・レビュー0件を`mcp__github__pull_request_read`で確認）後、`AGENTS.md`・`.claude/skills/issue-mr-flow/SKILL.md`・`.claude/rules/git-workflow.md`の3ファイルへ判定基準一元化の差分を適用。適用中に`git-workflow.md`側で判定基準の例示が帰結説明に残っていたことに気づき、完全削除するよう個別作業計画も含めて修正
-- 別セッション（PR #30レビュー専用、ブランチ`claude/pr-30-review-complete-xlb66m`）がcode-reviewスキルでPR #30をレビューし、本ファイルの「次にやること」欄がflow-id 3-7完了後も更新されていない旨をインラインコメントで指摘（レビューはCOMMENTとして提出）
-- 本セッション（ブランチ`claude/issue-22-zx5ge5`）で指摘に対応: 本ファイルの「次にやること」欄をflow-id 3-9完了時点の内容へ更新し、レビュースレッドへ対応内容を返信
-- PR #30のdescriptionを最新の実装状況へ更新（flow-id 3-10）
-- 個別反映計画`plans/【設計反映】判定基準一元化の反映要否確認.md`を作成。issue #22の変更対象（AGENTS.md/SKILL.md/git-workflow.md）自体がAIアセットの実体であるため、`.claude/docs/spec/`・`.claude/docs/ddr/`への追加反映、追加のAIアセット変更のいずれも不要と結論づけた（flow-id 4-1）
-- 個別反映計画をcommit・push・PR description更新してレビュー依頼（flow-id 4-2〜4-5）。人間から「オッケー」の合図を受け、`mcp__github__pull_request_read`で未解決コメント・通常コメントいずれも0件を確認（flow-id 4-3〜4-4）。4-1の結論（追加の設計反映・AIアセット反映は不要）がそのまま承認されたとみなし、反映完了と判断（flow-id 4-6）
+- issue #36の内容取得（`gh` CLI経由の`Provider.sh`）。標準4見出し（目的・現状・期待する動作・受け入れ条件）の欠落なしを確認
+- ベースブランチ`main`のまま、`feature-36-untrack-generated-frontmatter-index`ブランチとDraft PR #37を作成（空コミットによる自動リトライあり）
+- 事前調査（Exploreエージェント）で、`extract-frontmatter.sh`の出力単位・mtimeキャッシュの仕組み・性能特性、`create-commit.sh`の実装、既存15箇所の`index.jsonl`一覧、`.gitignore`の記述慣習、DDR 0021却下案4の前提、書き換え対象ドキュメントの一覧を把握
+- Plan agentによる設計検討を経て、Planモードで全体作業計画`plans/whimsical-launching-reef.md`を作成。ユーザーから「自動再生成はcreate-commit.shではなくSessionStart hookでセッション開始時に機械的に実施する」との方針決定を受け、この方針で計画を確定・承認（flow-id 1-4〜1-5）
+- 前タスク（issue #22, PR #30）がflow-id 5-1未実施のままマージされ、`main`に`plans/iterative-dreaming-yao.md`等・`worklog/`ファイル・古い`HANDOFF.md`が残っていたことが判明。ユーザーに対処方針を確認し「今回のissue #36ブランチ内で一緒に片付ける」の指示を受け、該当ファイルを削除・`git add`でindexへ反映・`extract-frontmatter.sh .`でindex.jsonl群を再生成した
+- 個別作業計画`plans/【設計】【実装】index.jsonl生成物化.md`とworklogを作成（flow-id 3-1）。全体作業計画の6論点（実装場所・失敗時挙動・.gitignoreパターン・DDR0021却下案4再評価・移行手順・flow-id5-1特殊対応の要否）を確定。`.claude/scripts/src/update-handoff-progress.sh`はPR #31（未マージ）にのみ存在しこのブランチでは使えないため、HANDOFF.mdの進捗表は手動編集で更新した
 
 ## 次にやること
 
-- `commit`スキル経由でcommitし、push してレビュー依頼（flow-id 4-7）
+- `commit`スキル経由でcommitし、push してレビュー依頼（flow-id 3-2）
 
 ## 判断を迷った内容
 
-- gh/glab CLIが実行環境に存在しなかったため、`Provider.sh`のPR作成関数（`github_new_draft_merge_request`）を使わず、GitHub MCPツール（`mcp__github__create_pull_request`）で直接Draft PRを作成した（AGENTS.md「GitHub/GitLabのissue・PR/MR・コメント等の情報を取得する際は」の規定に沿った代替）。空コミットの作成は`Provider.sh`の`add_empty_commit_for_draft_mr`関数をsource経由で呼び出し、hookのブロック対象文字列（`git commit`のBash文字列直書き）を避けた
+- 前タスクの残骸片付けを、SKILL.mdが推奨する別ブランチ（`chore/cleanup-...`）ではなく、今回のissue #36ブランチ内で一緒に行った（ユーザーの明示的指示による）。そのため今回のPR #37には、issue #36本来の変更に加えて前タスク残骸の削除分も混在する
 
 ## 未解決の内容
 
