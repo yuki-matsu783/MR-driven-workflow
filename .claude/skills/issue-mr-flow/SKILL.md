@@ -176,7 +176,15 @@ HANDOFF.mdとの矛盾など、ブランチ名だけでは分からない「こ�
      b. `new_issue_branch <n> "<a.で考えた英語フレーズ>"` でブランチを作成・checkout・push、
         続けて `new_draft_merge_request <n> "<branch>" "<issue.Title>"`
         （**Draft MRのタイトルには引き続き生のissueタイトルを使う。英語フレーズはブランチ名専用**）
-        でDraft MRを作成する。
+        でDraft MRを作成する。**この呼び出しの標準エラー出力に `gh pr create` /
+        `glab mr create` の失敗メッセージ（例:「No commits between ...」）が混ざっていても、
+        それだけで失敗と判断しない**（`new_issue_branch` 直後はbaseとの差分がまだ無いため
+        1回目の作成は必ず失敗する既知の制約で、内部の `add_empty_commit_for_draft_mr` が
+        空コミット+pushで自動的に1回だけリトライする設計。詳細:
+        `.claude/docs/spec/issue-mr-workflow.md`「Draft PR作成失敗時の自動リトライ」、
+        `.claude/docs/ddr/0005-DraftPR作成失敗時は空コミットで自動リトライする.md`）。
+        関数が最終的にPR/MR番号を標準出力へ返せば成功であり、それ以上の空コミット・push・
+        `commit`スキル呼び出しは不要。番号が返らずエラーで終了した場合のみ実際の失敗として対処する。
 3. 取得したissue内容をもとに、全体フロー 1-4（Planモードでの全体作業計画作成）に進む旨をユーザーに案内する。
 
 ### `comments [all]` — MRレビューコメントの取得（全体フロー 2-4・2-9・3-4・3-9・4-4・4-9）
