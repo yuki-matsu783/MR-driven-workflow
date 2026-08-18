@@ -22,8 +22,8 @@ mkdir -p build && mv apply-mr-workflow-to-project.skill build/
 ビルドした `.skill` パッケージを任意の Go リポジトリへ持ち運び、ワークフローを即座に自動展開することができます。
 
 ```bash
-# 対象の Go リポジトリのルートで Gemini CLI を使い、ビルドしたパッケージファイルをインポートして発動
-gemini-cli import --skill /path/to/mr-driven-develop/build/apply-mr-workflow-to-project.skill
+# 対象のリポジトリのルートで Gemini CLI を使い、ビルドしたパッケージファイルをインポートして発動
+gemini skills install /path/to/apply-mr-workflow-to-project.skill
 ```
 
 インポート完了後、AIエージェントが自律的に対象リポジトリへ `mr-driven-develop` のセットアップを完了させます。
