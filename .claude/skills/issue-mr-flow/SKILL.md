@@ -170,13 +170,23 @@ HANDOFF.mdとの矛盾など、ブランチ名だけでは分からない「こ�
    - 見つかった場合（セッション再開）: そのブランチ名をそのまま使い `sync_branch "<既存ブランチ名>"`
      でfetch・checkoutのみ行う。
    - 見つからない場合（新規作成）:
-     a. issueタイトルの意味を汲んだ、ブランチslug用の英語フレーズを考える（3〜6語程度、
+     a. **ベースブランチを確認する**（issue #15）: `get_workflow_config | jq -r '.defaultBaseBranch'`
+        で既定のベースブランチを取得し、`AskUserQuestion` でユーザに確認する。選択肢は次の方針で
+        組み立てる。
+        - 常に含める: `<defaultBaseBranch>のまま (Recommended)`
+        - `defaultBaseBranch` が `main` と異なる場合のみ追加: `main`
+        - 常に含める: `別のブランチを指定する`（選択された場合、`AskUserQuestion` は選択式が
+          主眼のため、続けて通常のプロンプトで具体的なブランチ名をユーザに尋ねる）
+        確定したブランチ名を以降 `<base_branch>` として使う。既定のまま選ばれた場合は
+        `<base_branch>` を指定せず、後続関数の省略時デフォルト（`defaultBaseBranch`）に委ねてよい。
+     b. issueタイトルの意味を汲んだ、ブランチslug用の英語フレーズを考える（3〜6語程度、
         スペース区切りの単語列でよい。kebab-case化・記号除去・小文字化は `to_slug` が行うため
         ここでは不要。直訳ではなく意訳でよい。例:「ブランチ名のslugをリッチにしたい」→
         `enrich branch slug`）。タイトルが元々英語主体の場合はタイトルをそのまま使ってよい。
-     b. `new_issue_branch <n> "<a.で考えた英語フレーズ>"` でブランチを作成・checkout・push、
-        続けて `new_draft_merge_request <n> "<branch>" "<issue.Title>"`
-        （**Draft MRのタイトルには引き続き生のissueタイトルを使う。英語フレーズはブランチ名専用**）
+     c. `new_issue_branch <n> "<b.で考えた英語フレーズ>" [<base_branch>]` でブランチを作成・
+        checkout・push、続けて `new_draft_merge_request <n> "<branch>" "<issue.Title>" [<base_branch>]`
+        （**Draft MRのタイトルには引き続き生のissueタイトルを使う。英語フレーズはブランチ名専用**。
+        `<base_branch>` は手順aで確定した値。既定のままなら省略）
         でDraft MRを作成する。**この呼び出しの標準エラー出力に `gh pr create` /
         `glab mr create` の失敗メッセージ（例:「No commits between ...」）や
         「baseとの差分が無いことによる既知の制約です。空コミットを1つ積んでリトライします」が
