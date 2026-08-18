@@ -57,6 +57,22 @@ description: <元のまま変更しない>
 
 frontmatterを更新したら `.claude/scripts/src/extract-frontmatter.sh <ディレクトリ>` で
 `index.jsonl` を再生成する（`status` が機械可読なインデックスにも反映される）。
+
+```bash
+bash .claude/scripts/src/extract-frontmatter.sh .
+```
+
+- **通常はリポジトリルート（`.`）を指定して1回流せばよい。** mtimeが変わっていないファイルは
+  前回の結果を再利用するため、差分が無ければ2秒未満で終わる（issue #11）。ディレクトリを絞る
+  必要は無い。
+- **`--force` は通常不要。** スクリプト自身を変更した場合はキャッシュが自動で無効化される。
+  `--force` を使うのは、mtimeを保ったままファイル内容が変わった等、キャッシュを信用できない
+  特殊なケースに限る。
+- **`index.jsonl` はGit管理下にあるため、commitの直前に1回流す。** markdownを1ファイル編集する
+  だけで対応する `index.jsonl` の `mtime` が実際とずれるため、後から「`index.jsonl` だけを直す
+  追加コミット」が発生しやすい。
+- 仕様の詳細は
+  [.claude/docs/spec/extract-frontmatter.md](../docs/spec/extract-frontmatter.md) を参照。
 あわせて `.claude/docs/README.md` のDDR一覧にも、置き換え先が分かる注記を添えるとよい。
 
 新規markdown作成時は原則このfrontmatterを付与する。既存のfrontmatterを持つファイル（後述）は

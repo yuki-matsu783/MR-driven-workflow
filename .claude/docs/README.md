@@ -60,3 +60,4 @@ DDRのうち0001・0002・0008・0015は持ち込んでいない**（連番に�
 - [0018-gemini-settings.jsonのhooksはレビュー提示スニペットのhooksセクションのみ採用する.md](ddr/0018-gemini-settings.jsonのhooksはレビュー提示スニペットのhooksセクションのみ採用する.md)
 - [0019-planツール利用を全体作業計画に限定し個別計画をファイル分離する.md](ddr/0019-planツール利用を全体作業計画に限定し個別計画をファイル分離する.md)
 - [0020-GitHub_GitLab情報取得はgh_glab-CLIを使いWebFetchは使わない.md](ddr/0020-GitHub_GitLab情報取得はgh_glab-CLIを使いWebFetchは使わない.md)
+- [0021-frontmatter抽出は1ファイル1回のjq呼び出しとmtimeキャッシュで高速化する.md](ddr/0021-frontmatter抽出は1ファイル1回のjq呼び出しとmtimeキャッシュで高速化する.md)
