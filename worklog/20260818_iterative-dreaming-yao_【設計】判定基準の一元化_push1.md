@@ -44,9 +44,41 @@ push回数: 1
 
 ## 次の一歩
 
-- 本計画をcommit・pushしレビュー依頼（flow-id 3-2）。
-- レビュー後、`AGENTS.md`・`.claude/skills/issue-mr-flow/SKILL.md`・
-  `.claude/rules/git-workflow.md`の3ファイルへ、`plans/【設計】判定基準の一元化.md`の
-  差分を適用する（flow-id 3-6）。
+- 特になし（完了）。
+
+---
+
+## push2（実装反映）
+
+PR #30レビューOK（未解決コメント0件を`mcp__github__pull_request_read`で確認済み）を受け、
+`plans/【設計】判定基準の一元化.md`の差分を実ファイルへ適用した。
+
+### 試したこと
+
+- `AGENTS.md`・`.claude/skills/issue-mr-flow/SKILL.md`・`.claude/rules/git-workflow.md`の
+  3ファイルへ、個別作業計画のBefore/Afterどおりに編集を適用した。
+- 適用後に`grep -r 誤字修正 --include=*.md`で判定基準の例示文言の重複有無を検証したところ、
+  当初の個別作業計画案どおりに`git-workflow.md`「適用範囲」節を編集すると、帰結の説明文中に
+  「誤字修正・軽微なドキュメント修正等」という判定基準の例示がそのまま残ってしまい、
+  AGENTS.mdとの重複が解消しきれていないことが判明した。
+
+## うまくいったこと
+
+- issue #22の受け入れ条件「判定基準（ごく小さな変更の定義・例示）の実体記載が重複していない」
+  を厳密に満たすため、`git-workflow.md`側の例示を完全に削除し、「フロー対象外と判定された
+  変更は、mainへの直接コミットも許容する」という帰結のみを残す形に修正した（個別作業計画の
+  該当箇所も実装結果に合わせて更新済み）。
+- `.claude/docs/spec/issue-mr-workflow.md`にも「ごく小さな変更を除く」という言及があるが、
+  これはPR #4当時の意思決定の経緯記録（point-in-timeのchangelog）であり具体的な例示を
+  含まないため、今回の一元化対象（実体記載の重複）には該当しないと判断し変更しなかった。
+
+## ダメだったこと
+
+- 特になし。
+
+## 次の一歩
+
+- `bash .claude/scripts/src/extract-frontmatter.sh .`でindex.jsonlを再生成し、
+  `commit`スキル経由でcommit・push（flow-id 3-7）。
 
 ---

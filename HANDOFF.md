@@ -41,10 +41,10 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 | [-] | 2-10 | （同上） | `describe` |
 | [x] | 3-1 | 個別作業計画`plans/【設計】判定基準の一元化.md`を**planツールを使わず**Write/Editで作成する | エージェント |
 | [x] | 3-2 | `commit`スキル経由でcommitし、push してレビュー依頼を行う | エージェント |
-| [] | 3-3 | MRで作業計画についてレビュー・コメントする。レビュー完了済み連絡をするまで以降の作業は行わない。 | 人間 |
-| [] | 3-4 | レビュー内容を取得し、作業計画を修正する。対応が完了したコメントには対応内容を返信する（3-3〜3-4を合意まで繰り返す） | `comments` / `reply` |
-| [] | 3-5 | 作業計画をもとにMR descriptionを更新する | `describe` |
-| [] | 3-6 | 作業計画をもとに作業を進める、作業内容はworklogに更新する | エージェント |
+| [x] | 3-3 | MRで作業計画についてレビュー・コメントする。レビュー完了済み連絡をするまで以降の作業は行わない。 | 人間 |
+| [x] | 3-4 | レビュー内容を取得し、作業計画を修正する。対応が完了したコメントには対応内容を返信する（3-3〜3-4を合意まで繰り返す）。PR #30の未解決コメント・レビュー・通常コメントいずれも0件で修正不要と確認 | `comments` / `reply` |
+| [x] | 3-5 | 作業計画をもとにMR descriptionを更新する | `describe` |
+| [x] | 3-6 | 作業計画をもとに作業を進める、作業内容はworklogに更新する。`AGENTS.md`・`SKILL.md`・`git-workflow.md`の3ファイルへ差分適用完了 | エージェント |
 | [] | 3-7 | `commit`スキル経由でcommitし、push してレビュー依頼を行う | エージェント |
 | [] | 3-8 | MRでレビュー・コメントする。レビュー済み連絡をするまで以降の作業は行わない。 | 人間 |
 | [] | 3-9 | レビュー内容を取得し、実装・ドキュメントを修正する。対応が完了したコメントには対応内容を返信する（3-6〜3-9の作業ループを合意まで繰り返す） | `comments` / `reply` |
@@ -70,11 +70,12 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - issue #22の内容取得（GitHub MCPツール経由。gh CLIが実行環境に無いため`mcp__github__issue_read`で代替）
 - ブランチ`claude/issue-22-zx5ge5`（Claude Code on the web環境が用意した既存ブランチ、mainとの差分無し）で空コミットを作成しpush、Draft PR #30を`mcp__github__create_pull_request`で作成
 - Planモードで全体作業計画`plans/iterative-dreaming-yao.md`を作成・承認。issue本文に対象箇所・方針が明確なため、フェーズ2（調査）は省略しフェーズ3（作業計画）から着手すると判断
-- 個別作業計画`plans/【設計】判定基準の一元化.md`とworklog`worklog/20260818_iterative-dreaming-yao_【設計】判定基準の一元化_push1.md`を作成
+- 個別作業計画`plans/【設計】判定基準の一元化.md`とworklogを作成し、commit・push・PR description更新（`mcp__github__update_pull_request`）してレビュー依頼
+- レビューOK確認（PR #30の未解決コメント・レビュー0件を`mcp__github__pull_request_read`で確認）後、`AGENTS.md`・`.claude/skills/issue-mr-flow/SKILL.md`・`.claude/rules/git-workflow.md`の3ファイルへ判定基準一元化の差分を適用。適用中に`git-workflow.md`側で判定基準の例示が帰結説明に残っていたことに気づき、完全削除するよう個別作業計画も含めて修正
 
 ## 次にやること
 
-- 個別作業計画・worklogをcommit・pushしレビュー依頼（flow-id 3-2）
+- `commit`スキル経由でcommitし、push してレビュー依頼（flow-id 3-7）
 
 ## 判断を迷った内容
 
