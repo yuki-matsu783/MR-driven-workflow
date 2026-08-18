@@ -112,3 +112,8 @@ hook入力の`tool_name`で実行中のエンジンを判定する。両エン�
   （[Hooks reference](https://geminicli.com/docs/hooks/reference/)）は`command`フィールドが
   `args`配列を持つか等、一部未文書化の挙動がある。実際にGemini CLI上で動作確認できていない
   （Claude Code環境での実装のため）。
+- **issue #7で移植した`post-push-usage-report.sh`/`post-push-compact-prompt.sh`もGemini CLI実機
+  未検証**: コードレビューベースの確認（`bash -n`構文チェック・`post-push-save-logs.sh`との
+  パターン一致確認）に留まり、実際にGemini CLI環境から`git push`をトリガーした動作確認は
+  実施していない。issue #7の受け入れ条件2（Gemini CLI環境での実行確認）は、ユーザー判断により
+  今回のスコープでは実施を見送った。

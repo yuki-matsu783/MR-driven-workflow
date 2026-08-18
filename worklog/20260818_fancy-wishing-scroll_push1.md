@@ -37,6 +37,15 @@ push回数: 1
   `post-push-save-logs.sh`と同じ`tool_name`のcase判定・`${GEMINI_PROJECT_DIR:-${CLAUDE_PROJECT_DIR:-}}`
   フォールバックへ書き換えた。ファイル冒頭コメントも「Claude Code専用」から「Gemini CLI/Claude Code
   共通」へ更新。`.claude/docs/spec/session-log-hooks.md`にこの2ファイルへの展開を追記した。
+- flow-id 22〜23完了後、「レビューOK.動作確認は不要で設計反映して」を受け、
+  `get_mr_unresolved_comments 8`で未解決コメント無しを確認した（工数レポート自動投稿のみ）。
+  ユーザーの明示的な判断により、Gemini CLI実機でのgit push動作確認（受け入れ条件2）は
+  今回のスコープでは実施しない方針で確定。
+- flow-id 26（設計反映）: `session-log-hooks.md`は実装（flow-id 21）時点で主要な仕様変更を
+  既に反映済みだったため、追加で「未決定事項・懸念点」節に、issue #7分（usage-report/
+  compact-prompt）もGemini CLI実機未検証のままである旨・受け入れ条件2を見送った旨を追記した。
+  DDR新設は見送った（既存パターンの再利用であり、却下案を伴う意思決定ではないため）。
+  flow-id 27（AIアセット改善）: 作業中に気づいたルール・スキルの不備は無かったため対応なし。
 
 ## うまくいったこと
 
@@ -57,9 +66,8 @@ push回数: 1
 
 ## 次の一歩
 
-- flow-id 22: 実装をcommitスキル経由でcommit・pushし、レビュー依頼を行う。
-- flow-id 23: 実装内容をもとにMR descriptionを更新する。
-- flow-id 24〜25: レビューを経て、可能であればGemini CLI実機でのgit push動作確認（受け入れ条件2）、
-  flow-id 26（設計反映）・27（AIアセット改善）へ進む。
+- flow-id 28: 設計反映（session-log-hooks.md追記）をcommitスキル経由でcommit・pushし、
+  レビュー依頼を行う。
+- flow-id 29〜30: レビューを経て、flow-id 31（plans/worklog/reportsの削除、HANDOFF.mdのリセット）へ進む。
 
 ---
