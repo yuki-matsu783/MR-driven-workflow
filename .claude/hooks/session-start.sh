@@ -7,8 +7,10 @@
 # セッション開始・resume・clear時（.claude/settings.jsonのmatcher参照）に、現在チェックアウトされて
 # いるブランチに紐づくissue/MRの状態を取得し、追加コンテキストとしてコンテキストに注入する。
 #
-# 前提: `gh` CLI・`jq` がインストール・認証済みであること（未認証・未インストールの場合は
-# 非侵襲的に失敗メッセージのみ返し、セッション開始はブロックしない）。
+# 前提: `gh` CLI・`jq` がインストール・認証済みであること（未認証の場合は非侵襲的に失敗
+# メッセージのみ返し、セッション開始はブロックしない）。`gh`/`glab` CLI自体が存在しない環境では、
+# issue/PR情報の代わりに「MCPフォールバック経路を使うこと」と、その際に必要な情報
+# （ブランチ名から抽出したissue番号・owner/repo）を注入する（issue #34）。
 #
 # 注意: SessionStart hookはTask tool経由のサブエージェント内でも発火する（公式ドキュメント確認済み）。
 # サブエージェント実行時はstdinのJSONに`agent_id`が含まれるため、これを見て即終了する
@@ -63,6 +65,28 @@ build_context() {
   local lines=()
   lines+=("## 現在の作業ブランチ情報 (SessionStart hook)")
   lines+=("- ブランチ: ${branch}")
+
+  # `gh`/`glab` CLIが無い実行環境（例: Claude Code on the webのリモート実行環境）では、
+  # issue/PR情報をhookから取得する手段が無い。「取得に失敗しました」や「PR: なし」のような
+  # 誤解を招く出力に代えて、経路がMCPであること・MCPツールを使う際に必要な情報
+  # （issue番号・owner/repo）・手順の参照先を注入する（issue #34）。
+  local access_mode
+  access_mode="$(get_vcs_access_mode)"
+  if [ "$access_mode" != "cli" ]; then
+    local slug issue_number_from_branch
+    slug="$(get_repo_slug)"
+    lines+=("- VCS情報取得経路: MCP（\`gh\`/\`glab\` CLIがこの実行環境に存在しないため、Provider.shのCLI経路は使えません）")
+    if issue_number_from_branch="$(get_issue_number_from_branch "$branch")"; then
+      lines+=("- issue: #${issue_number_from_branch}（ブランチ名から抽出。本文・タイトルはMCPツールで取得すること）")
+    else
+      lines+=("- issue: 特定できず（ブランチ名がissue命名規則に一致しません）")
+    fi
+    lines+=("- PR: 未取得（CLI不在のためhookからは判定できません。「PRなし」という意味ではありません）")
+    lines+=("- MCPツールに渡す owner=$(printf '%s' "$slug" | jq -r '.owner') / repo=$(printf '%s' "$slug" | jq -r '.repo')")
+    lines+=("- 手順: .claude/skills/issue-mr-flow/SKILL.md「\`gh\`/\`glab\` CLI不在時のMCPフォールバック」節を参照し、WebFetch・curlへはフォールバックしないこと")
+    printf '%s\n' "${lines[@]}"
+    return 0
+  fi
 
   local issue_number
   if issue_number="$(get_issue_number_from_branch "$branch")"; then
