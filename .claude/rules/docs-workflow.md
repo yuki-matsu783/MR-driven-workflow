@@ -44,12 +44,15 @@ keywords: [plans, handoff, worklog, 正史仕様, 意思決定ログ, ライフ�
 | **HANDOFF.md** | **現在のセッションの進捗記録** | ✗ いいえ | flow-idが進むごとに（頻繁） |
 
 - HANDOFF.md のテーブルは、各タスク開始時にテンプレート版へリセットされ、セッション中に各flow-idのチェックボックスを`[x]`に更新する
-- flow-id 5-1で `bash .claude/scripts/src/cleanup-task.sh` を実行すると、テンプレート版へ自動リセットされる
+- テンプレート本体は `.claude/scripts/templates/HANDOFF.md.template` として外部ファイル化されている。
+  flow-id 5-1で `bash .claude/scripts/src/cleanup-task.sh` を実行すると、このファイルが `HANDOFF.md`
+  へそのままコピーされてリセットされる（`cleanup-task.sh` 自体にテーブル本文は埋め込まない）
 - SKILL.md のみを編集対象にすることで、テーブルの二重管理を避ける
 
 **HANDOFF.md を SKILL.md と同期させるべき場面**:
-- SKILL.md の全体フロー（flow-id の数・順序・説明）を変更した場合、手動で cleanup-task.sh のテンプレート版も更新する必要がある
-  （現在は cleanup-task.sh に埋め込まれたテンプレート文字列を編集。自動同期は実装していない）
+- SKILL.md の全体フロー（flow-id の数・順序・説明）を変更した場合、`.claude/scripts/templates/HANDOFF.md.template`
+  のフロー進捗状況テーブルも手動で同期して更新する必要がある（自動同期の仕組みは実装していない。
+  テンプレートが独立ファイルのため、`cleanup-task.sh` を編集せずテンプレートファイルのみ直接編集すればよい）
 
 **コード・スクリプト内のコメントから `plans/` `worklog/` `reports/` のファイルを参照しない**
 （issue #9対応時に発覚: `.claude/hooks/`配下の5ファイルが `# 設計: plans/jazzy-giggling-crescent.md`

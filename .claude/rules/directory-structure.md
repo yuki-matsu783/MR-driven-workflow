@@ -23,8 +23,9 @@ keywords: [ディレクトリ構成, claude, gemini, 配置方針, plans, worklo
 │   ├── skills/                 # `/issue-mr-flow`（唯一の実装フロー定義）等のスキル定義
 │   ├── agents/                 # サブエージェント定義（issue-mr-flow途中引き継ぎ等）
 │   ├── scripts/                # AIエージェントが`.claude/skills/*`経由で能動的に実行するスクリプト一式
-│   │   └── src/
-│   │       └── vcs/            # GitHub/GitLabの差異を吸収するVCS抽象化層（Provider.sh）
+│   │   ├── src/
+│   │   │   └── vcs/            # GitHub/GitLabの差異を吸収するVCS抽象化層（Provider.sh）
+│   │   └── templates/          # スクリプトが生成するファイルのテンプレート本体（HANDOFF.md.template等）
 │   ├── hooks/                  # SessionStart/PostToolUse等のClaude Code hookスクリプト
 │   │   └── lib/                # 複数hookスクリプトで使い回す共通ロジック
 │   └── settings.json
@@ -71,7 +72,11 @@ keywords: [ディレクトリ構成, claude, gemini, 配置方針, plans, worklo
   アプリ本体を追加する場合は、そのアプリ専用の `docs/spec/` `docs/ddr/`（または人間専用ツール用の
   `dev-tools/docs/`）を新設し、`.mrworkflow.json` の `specDirs`/`ddrDirs` に追記することを検討する）。
   Claude Codeのplugin配布は`.claude/`配下一式をパッケージ化する想定のため、AIが実行時に必要とする
-  スクリプト・設計書は`.claude/`の外に置かない。
+  スクリプト・設計書は`.claude/`の外に置かない。スクリプトが生成・上書きするファイルのテンプレート
+  本体（例: `cleanup-task.sh`が使う`HANDOFF.md.template`）は、スクリプトへ直接埋め込まず
+  `.claude/scripts/templates/`に外部ファイルとして置く（テンプレート内容を`.claude/skills/*/SKILL.md`
+  等の他ドキュメントからも参照できるようにするため。実例:
+  `.claude/scripts/templates/HANDOFF.md.template`）。
 - 各`.claude/skills/<name>/`は`SKILL.md`単体が基本だが、スキルの実行に必須のバンドルリソース
   （テンプレート・補助スクリプト等）がある場合は`.claude/skills/<name>/templates/`のような
   サブディレクトリを追加してよい（実例: `canvas-report/templates/canvas-report.html`）。他に

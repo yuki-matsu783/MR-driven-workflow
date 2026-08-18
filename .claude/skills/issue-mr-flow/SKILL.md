@@ -86,7 +86,7 @@ MR description更新」という同じ形を繰り返す。
 | 4-8 | MRでレビュー・コメントする。レビュー済み連絡をするまで以降の作業は行わない。 | 人間 |
 | 4-9 | レビュー内容を取得し、設計・AIアセットの内容を修正する。対応が完了したコメントには対応内容を返信する（4-6〜4-9の反映ループを合意まで繰り返す） | `comments` / `reply` |
 | 4-10 | 反映内容をもとにMR descriptionを更新する | `describe` |
-| 5-1 | 次タスクのために、`plans/` `worklog/` `reports/` を削除し、`HANDOFF.md` をリセットする。**あわせて `plans/index.jsonl` も削除し、`bash .claude/scripts/src/extract-frontmatter.sh .` で `index.jsonl` 群を再生成する**（下記「flow-id 5-1での `index.jsonl` の扱い」） | エージェント |
+| 5-1 | 次タスクのために、`plans/` `worklog/` `reports/` を削除し、`HANDOFF.md` をリセットする。**あわせて `plans/index.jsonl` も削除し、`bash .claude/scripts/src/extract-frontmatter.sh .` で `index.jsonl` 群を再生成する**（下記「flow-id 5-1での `index.jsonl` の扱い」）。**`bash .claude/scripts/src/cleanup-task.sh` で自動化できる**（`--dry-run` で削除予定を確認可能。HANDOFF.mdのリセット先は `.claude/scripts/templates/HANDOFF.md.template`） | エージェント |
 | 5-2 | `commit`スキル経由でcommitし、push して Draftを解除する | エージェント |
 | 5-3 | マージする（squash merge。ブランチは削除してよい） | 人間 |
 
@@ -336,6 +336,10 @@ PR #29のセッションで実際に発生）。この場合、タスク固有�
 
 - ドキュメントの置き場所・ライフサイクル（`plans/` `worklog/` `.claude/docs/spec/` `.claude/docs/ddr/` `HANDOFF.md`）:
   `.claude/rules/docs-workflow.md` の「ドキュメント運用」表
+- `HANDOFF.md` の初期テンプレート本体: `.claude/scripts/templates/HANDOFF.md.template`
+  （flow-id 5-1で `cleanup-task.sh` がこのファイルをそのままコピーする。SKILL.mdのflow-idテーブルを
+  変更した場合はこのテンプレートも同期して更新する。詳細:
+  `.claude/rules/docs-workflow.md`「HANDOFF.md と SKILL.md の役割分担」）
 - ブランチ命名規則・squash mergeの方針・コミット運用（`commit`スキル必須使用・PreToolUse hookに
   よる技術的強制）: `.claude/rules/git-workflow.md`
 - bashスクリプトの規約（`set -euo pipefail`・jq前提・改行/エンコーディング等）:
