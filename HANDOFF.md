@@ -17,7 +17,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - issue: [#7](https://github.com/yuki-matsu783/MR-driven-workflow/issues/7) post-push-usage-report.sh/post-push-compact-prompt.shをGemini CLI/Claude Code両対応にする
 - ブランチ: feature-7-support-gemini-cli-for-usage-report-and-compact-pr
 - Draft PR: [#8](https://github.com/yuki-matsu783/MR-driven-workflow/pull/8)
-- push回数: 3
+- push回数: 4
 
 | 進捗 | flow-id | ステップ | 担当 |
 |----|---|---|---|
@@ -38,12 +38,12 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 | [x] | 15 | **調査結果をもとに**Planモードで**作業計画**を作成する（`plans/<plan名>.md`の「作業計画」章へ追記・コミット） | エージェント |
 | [x] | 16 | 作業計画に合意する | 人間 |
 | [x] | 17 | `commit`スキル経由でcommitし、push してレビュー依頼を行う | エージェント |
-| [] | 18 | MRで作業計画についてレビュー・コメントする。レビュー完了済み連絡をするまで以降の作業は行わない。 | 人間 |
-| [] | 19 | レビュー内容を取得し、作業計画を修正する。対応が完了したコメントには対応内容を返信する（18〜19を合意まで繰り返す） | `comments` / `reply` |
+| [x] | 18 | MRで作業計画についてレビュー・コメントする。レビュー完了済み連絡をするまで以降の作業は行わない。（「レビューOK」を受け、`get_mr_unresolved_comments 8`で未解決コメント無しを確認済み） | 人間 |
+| [x] | 19 | レビュー内容を取得し、作業計画を修正する。対応が完了したコメントには対応内容を返信する（18〜19を合意まで繰り返す）（コメント無しのためスキップ） | `comments` / `reply` |
 | [x] | 20 | 作業計画をもとにMR descriptionを更新する（※本来18〜19の後だが、レビューしやすくするため先行実施） | `describe` |
-| [] | 21 | 作業計画をもとに作業を進める、作業内容はworklogに更新する | エージェント |
-| [] | 22 | `commit`スキル経由でcommitし、push してレビュー依頼を行う | エージェント |
-| [] | 23 | 作業内容をもとにMR descriptionを更新する | `describe` |
+| [x] | 21 | 作業計画をもとに作業を進める、作業内容はworklogに更新する（post-push-usage-report.sh/post-push-compact-prompt.shをエンジン判定パターンへ書き換え、session-log-hooks.mdに追記） | エージェント |
+| [x] | 22 | `commit`スキル経由でcommitし、push してレビュー依頼を行う（feat/docsの2コミットに分割） | エージェント |
+| [x] | 23 | 作業内容をもとにMR descriptionを更新する | `describe` |
 | [] | 24 | MRでレビュー・コメントする。レビュー済み連絡をするまで以降の作業は行わない。 | 人間 |
 | [] | 25 | レビュー内容を取得し、実装・ドキュメントを修正する。対応が完了したコメントには対応内容を返信する（21〜25の作業ループを合意まで繰り返す） | `comments` / `reply` |
 | [] | 26 | 設計反映: `plans/` `worklog/` の内容を `docs/spec/` `docs/ddr/` へ反映する | エージェント |
@@ -72,12 +72,18 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
   具体的な作業計画（ガード条件の書き換え内容、`case`文・`project_dir`変数の追加箇所、署名文言の
   動的化、`session-log-hooks.md`への追記方針）をPlanモードでまとめ、ユーザー承認を得た。
   commit・push（push3）、MR descriptionを作業計画版に更新した。
+- 「レビューOK」を受け、未解決コメント無しを確認。`post-push-usage-report.sh`・
+  `post-push-compact-prompt.sh`のガード条件を`post-push-save-logs.sh`と同じエンジン判定パターン
+  （`tool_name`のcase判定・`${GEMINI_PROJECT_DIR:-${CLAUDE_PROJECT_DIR:-}}`）へ書き換え、
+  `session-log-hooks.md`に展開内容を追記した。`bash -n`で構文チェック済み。feat/docsの2コミットに
+  分けてcommit・push（push4）し、MR descriptionを実装内容版に更新した。
 
 ## 次にやること
 
-- flow-id 18: MRで作業計画についてレビューをお願いする（人間待ち）。
-- レビューOKであれば flow-id 21（実装）へ進み、`post-push-usage-report.sh`/`post-push-compact-prompt.sh`
-  へのエンジン判定移植・`session-log-hooks.md`への追記を行う。
+- flow-id 24: MRで実装内容についてレビューをお願いする（人間待ち）。
+- レビューOKであれば flow-id 25（必要なら修正）→ flow-id 26（設計反映: plans/worklogの内容を
+  spec/ddrへ反映）→ flow-id 27（AIアセット改善）へ進む。可能であればGemini CLI実機でのgit push
+  動作確認も行う（受け入れ条件2）。
 
 ## 判断を迷った内容
 
@@ -85,6 +91,9 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
   flow-id 18〜19より先に実行した。フロー定義上はレビュー後が本来の順だが、事前調査・計画が
   ほぼ完了していたためMR descriptionを先に整えた方がレビューしやすいと判断した。実害はないと
   考えるが、次回以降は素直にレビューステップを待ってから実行する方が定義に忠実。
+- `post-push-compact-prompt.sh`では計画段階で想定していた`engine`/`engine_label`変数を実装時に
+  省略した（メッセージ文言をエンジンで出し分けないため、変数として保持する意味が無いと判断）。
+  詳細はworklog参照。
 
 ## 未解決の内容
 
