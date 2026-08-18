@@ -42,6 +42,9 @@ keywords: [ディレクトリ構成, claude, gemini, 配置方針, plans, worklo
 │                                #   新規生成しそのままコミットして履歴として残す
 ├── worklog/                    # 実装中の詳細な試行錯誤ログ（`日付_<全体計画名>_<個別計画名>_push<N>.md`）
 │   └── TEMPLATE.md             # worklog作成時にコピーして使うテンプレート
+├── tests/                      # 副作用の無い純粋ロジックの単体テスト（`test_<対象>.sh`）。
+│                                #   `passed=N failures=N`を出力し失敗時は終了コード1
+│                                #   （詳細: `.claude/rules/shell-script-style.md`「テスト」）
 ├── .gitignore
 ├── .mrworkflow.json            # リポジトリ固有設定（ブランチ命名規則・plans/等の場所）
 ├── AGENTS.md                   # AIエージェント共通ルール・プロジェクト概要・開発実行方法
@@ -53,14 +56,23 @@ keywords: [ディレクトリ構成, claude, gemini, 配置方針, plans, worklo
 └── README.md
 ```
 
-`reports/日付_<全体計画名>_<内容>.html`（`.claude/skills/canvas-report/SKILL.md`参照）・`usage/`（対応工数レポートの
-ローカル作業状態）は、いずれもワークフロー実行中に動的に作成されるディレクトリのため、初期スケルトン
+`reports/日付_<全体計画名>_<内容>.html`（`.claude/skills/canvas-report/SKILL.md`参照）・`usage/`・
+`.claude/state/`は、いずれもワークフロー実行中に動的に作成されるディレクトリのため、初期スケルトン
 には含まれない（作成・削除のタイミングは `.claude/rules/docs-workflow.md`・
-`.claude/skills/issue-mr-flow/SKILL.md` を参照）。`logs/`（`post-push-save-logs.sh`が`git push`時に
-保存するセッションログ。詳細: `.claude/docs/spec/session-log-hooks.md`）、`.claude/state/`
-（`post-push-compact-prompt.sh`がレビュー依頼メッセージの参照リンク組み立てに使う、前回push時点の
-HEAD SHA。詳細: `.claude/docs/spec/issue-mr-workflow.md`「/compact実施の呼びかけ」節）も同様に
-動的作成・`.gitignore`対象（それぞれ`/logs/`・`/.claude/state/`）で、初期スケルトンには含まれない。
+`.claude/skills/issue-mr-flow/SKILL.md` を参照）。
+
+`usage/` は対応工数レポート機能のローカル作業状態で、`.gitignore`対象（`/usage/`）。内訳は
+`usage/session-logs/<sessionId>/`（セッションログのミラー）・`usage/state/<branch>.json`（集計状態）・
+`usage/state/session-cursors/<sessionId>.json`（処理済み行数カーソル）・
+`usage/state/push-index.jsonl`（push断面の行範囲）。issue #23以前は、これとは別に
+`logs/push-<N>/` へpushのたびにセッションログ全文を保存する系統があったが、transcriptが追記専用で
+あることを確認したうえで廃止し `usage/` へ一本化した（詳細:
+`.claude/docs/ddr/0022-push断面の全文コピーをやめ行番号インデックスで表現する.md`）。
+
+`.claude/state/`は`post-push-compact-prompt.sh`がレビュー依頼メッセージの参照リンク組み立てに使う、
+前回push時点のHEAD SHAのローカル作業状態で、`.gitignore`対象（`/.claude/state/`）。責務分離のため
+`usage/`とは別ディレクトリにしている（詳細: `.claude/docs/spec/issue-mr-workflow.md`
+「/compact実施の呼びかけ」節、`.claude/docs/ddr/0023-レビュー依頼メッセージの参照リンクは前回pushSHAをローカル状態で保持して組み立てる.md`）。
 
 ## 配置の指針
 

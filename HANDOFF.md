@@ -25,6 +25,8 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 1回のpushにまとめて実施した（詳細は個別作業計画「実行環境に関する注記」参照）。下表は目安として
 対応するflow-idにチェックを付けている。
 
+進捗記号: `[x]` 完了 / `[]` 未着手・進行中 / `[-]` 今回は実施しない（スキップ）
+
 | 進捗 | flow-id | ステップ | 担当 |
 |----|---|---|---|
 | [x] | 1-1 | issueを起票する（`.github/ISSUE_TEMPLATE/task.md` / `.gitlab/issue_templates/task.md` で目的・現状・期待する動作・受け入れ条件を記載） | 人間（AIが代行する場合は `issue-create` スキル） |
@@ -58,12 +60,12 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 | [] | 4-3 | MRで反映計画についてレビュー・コメントする。レビュー完了済み連絡をするまで以降の作業は行わない。 | 人間 |
 | [] | 4-4 | レビュー内容を取得し、反映計画を修正する。対応が完了したコメントには対応内容を返信する（4-3〜4-4を合意まで繰り返す） | `comments` / `reply` |
 | [] | 4-5 | 反映計画をもとにMR descriptionを更新する | `describe` |
-| [x] | 4-6 | 反映計画をもとに作業を進める、反映内容はworklogに更新する（**設計反映**: `plans/` `worklog/` の内容を `.claude/docs/spec/` `.claude/docs/ddr/`（アプリ本体があれば`docs/spec/` `docs/ddr/`）へ反映する／**AIアセット反映**: 作業中に気づいたルール・スキルの不備を `.claude/rules/` `.claude/skills/` `CLAUDE.md` `AGENTS.md` に反映する） | エージェント — spec更新・DDR 0022新設・`directory-structure.md`更新 |
+| [x] | 4-6 | 反映計画をもとに作業を進める、反映内容はworklogに更新する（**設計反映**: `plans/` `worklog/` の内容を `.claude/docs/spec/` `.claude/docs/ddr/`（アプリ本体があれば`docs/spec/` `docs/ddr/`）へ反映する／**AIアセット反映**: 作業中に気づいたルール・スキルの不備を `.claude/rules/` `.claude/skills/` `CLAUDE.md` `AGENTS.md` に反映する） | エージェント — spec更新・DDR 0023新設・`directory-structure.md`更新 |
 | [x] | 4-7 | `commit`スキル経由でcommitし、push してレビュー依頼を行う | エージェント（3-2と同一push） |
 | [] | 4-8 | MRでレビュー・コメントする。レビュー済み連絡をするまで以降の作業は行わない。 | 人間 |
 | [] | 4-9 | レビュー内容を取得し、設計・AIアセットの内容を修正する。対応が完了したコメントには対応内容を返信する（4-6〜4-9の反映ループを合意まで繰り返す） | `comments` / `reply` |
 | [] | 4-10 | 反映内容をもとにMR descriptionを更新する | `describe` |
-| [] | 5-1 | 次タスクのために、`plans/` `worklog/` `reports/` を削除し、`HANDOFF.md` をリセットする | エージェント |
+| [] | 5-1 | 次タスクのために、`plans/` `worklog/` `reports/` を削除し、`HANDOFF.md` をリセットする。**あわせて `plans/index.jsonl` も削除し、`bash .claude/scripts/src/extract-frontmatter.sh .` で `index.jsonl` 群を再生成する** | エージェント |
 | [] | 5-2 | `commit`スキル経由でcommitし、push して Draftを解除する | エージェント |
 | [] | 5-3 | マージする（squash merge。ブランチは削除してよい） | 人間 |
 
@@ -75,7 +77,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
   へ、MR/差分/コメント一覧の参照リンクを付与した。
 - `.claude/scripts/src/vcs/{Github,Gitlab}.sh`に純粋関数を追加し、`Provider.sh`から
   ディスパッチできるようにした。`tests/test_vcs_provider.sh`を新規作成し単体テストした。
-- 設計判断を`.claude/docs/ddr/0022-...md`に記録し、`.claude/docs/spec/issue-mr-workflow.md`
+- 設計判断を`.claude/docs/ddr/0023-...md`に記録し、`.claude/docs/spec/issue-mr-workflow.md`
   （提供関数表・/compact呼びかけ節・影響範囲・未決定事項）、`.claude/docs/README.md`（DDR一覧）、
   `.claude/rules/directory-structure.md`（`.claude/state/`の説明）を更新した。
 - 対話的セッションでないため、設計・実装・設計反映を1回のpushにまとめて実施した
@@ -85,7 +87,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
   「MR/PRのURL文字列へ`/files`等のsuffixを推測で付け足す」実装を撤回し、`get_repo_url`
   （`gh repo view` / `glab repo view`でリポジトリの正規URLを取得）を土台に、GitHub/GitLab
   いずれも持つ汎用の「Compare」ページ（`/compare/<from>...<to>`）を組み立てる方式へ変更した
-  （`get_mr_diff_url`/`get_mr_diff_since_url`のシグネチャ変更を含む）。DDR 0022・spec・
+  （`get_mr_diff_url`/`get_mr_diff_since_url`のシグネチャ変更を含む）。DDR 0023・spec・
   `tests/test_vcs_provider.sh`も追随して更新済み。
 
 ## 次にやること
@@ -98,12 +100,12 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 ## 判断を迷った内容
 
 - 「前回pushとの差分」判定用の状態ファイルの置き場所（`usage/state/`への相乗り vs 新規分離）。
-  → 責務分離のため`.claude/state/review-links/`へ新規分離した（DDR 0022参照）。
+  → 責務分離のため`.claude/state/review-links/`へ新規分離した（DDR 0023参照）。
 - 「コメント一覧(MR画面)」リンクを別URLとして組み立てるか、MRへのリンクをそのまま使うか。
   → GitHubのPRデフォルトビュー（Conversationタブ）がコメント一覧を兼ねるため、MRへのリンクを
   そのまま再掲する設計にした。
 - （push2）差分リンクの土台をPR/MRのURL文字列（推測suffix）にするか、`gh`/`glab`で取得した
-  リポジトリの正規URL（Compareページ）にするか。→ ユーザーの指摘どおり後者を採用（DDR 0022参照）。
+  リポジトリの正規URL（Compareページ）にするか。→ ユーザーの指摘どおり後者を採用（DDR 0023参照）。
 
 ## 未解決の内容
 

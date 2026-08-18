@@ -1,12 +1,12 @@
 ---
-title: 0022. レビュー依頼メッセージの参照リンクは前回pushSHAをローカル状態で保持して組み立てる
+title: 0023. レビュー依頼メッセージの参照リンクは前回pushSHAをローカル状態で保持して組み立てる
 type: ddr
 description: post-push-compact-prompt.shがレビュー依頼メッセージへ付与する参照リンク（差分・コメント一覧）の設計判断を記録したDDR
 tags: [review-links, github, hooks, ddr]
 keywords: [参照リンク, レビュー依頼, 前回push, 差分, コメント一覧, 状態ファイル, issue13]
 ---
 
-# 0022. レビュー依頼メッセージの参照リンクは前回pushSHAをローカル状態で保持して組み立てる
+# 0023. レビュー依頼メッセージの参照リンクは前回pushSHAをローカル状態で保持して組み立てる
 
 ## 背景
 
