@@ -48,7 +48,7 @@ architectureに限らない意思決定も記録対象とする（詳細は
 - [0006-対応工数レポートはtranscript自前パースで実装する.md](ddr/0006-対応工数レポートはtranscript自前パースで実装する.md)
 - [0007-hookのcommandはbashのPATH解決方式へ変更.md](ddr/0007-hookのcommandはbashのPATH解決方式へ変更.md)
 - [0008-frontmatter抽出スクリプトの設計判断.md](ddr/0008-frontmatter抽出スクリプトの設計判断.md)
-- [0009-Planモードre-entry時はgit checkout復元でなくarchiveスクリプトで対処する.md](ddr/0009-Planモードre-entry時はgit checkout復元でなくarchiveスクリプトで対処する.md)
+- [0009-Planモードre-entry時はgit checkout復元でなくarchiveスクリプトで対処する.md](ddr/0009-Planモードre-entry時はgit checkout復元でなくarchiveスクリプトで対処する.md)（**この方式はissue #9で廃止。DDR 0019参照**）
 - [0010-ブランチslugの意訳生成はAIエージェントが行う.md](ddr/0010-ブランチslugの意訳生成はAIエージェントが行う.md)
 - [0011-issue作成は独立スキルとして新設する.md](ddr/0011-issue作成は独立スキルとして新設する.md)
 - [0012-コミットはcommitスキル経由を機構的に強制する.md](ddr/0012-コミットはcommitスキル経由を機構的に強制する.md)
@@ -57,3 +57,5 @@ architectureに限らない意思決定も記録対象とする（詳細は
 - [0015-調査結果canvas形式スキルの技術選定.md](ddr/0015-調査結果canvas形式スキルの技術選定.md)
 - [0016-frontmatterスクリプトの走査方式にgit-ls-filesを採用する.md](ddr/0016-frontmatterスクリプトの走査方式にgit-ls-filesを採用する.md)
 - [0017-gemini配下はGit管理下に置かずセットアップスクリプトで生成する.md](ddr/0017-gemini配下はGit管理下に置かずセットアップスクリプトで生成する.md)
+- [0018-gemini-settings.jsonのhooksはレビュー提示スニペットのhooksセクションのみ採用する.md](ddr/0018-gemini-settings.jsonのhooksはレビュー提示スニペットのhooksセクションのみ採用する.md)
+- [0019-planツール利用を全体作業計画に限定し個別計画をファイル分離する.md](ddr/0019-planツール利用を全体作業計画に限定し個別計画をファイル分離する.md)

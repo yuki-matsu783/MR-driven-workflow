@@ -93,7 +93,7 @@ MRとのやり取りだけを自動化する薄い層」として設計したが
 | `test_issue_sections <body>` | issue本文に「目的／現状／期待する動作／受け入れ条件」の4見出しが揃っているか確認し、欠けている見出し名を1行1件でstdoutへ出力する（プロバイダ非依存） | — | — |
 | `get_issue_number_from_branch [<branch>]` | ブランチ名を `branchPrefixTemplate` に照らしてissue番号を抽出する（省略時は現在のブランチ）。マッチすればstdoutへ出力し終了コード0、マッチしなければ終了コード1（プロバイダ非依存） | — | — |
 | `get_mr_for_branch <branch>` | 指定ブランチに紐づくPR/MRの番号・URL・タイトル・Draft状態を取得する（JSON。無ければ何も出力せず終了コード0） | `gh pr view <branch>` | `glab mr view <branch>` |
-| `get_branch_work_files` | 現在のブランチ固有（`<defaultBaseBranch>` に無い）の `plans/` `worklog/` `reports/` ファイル一覧を返す（プロバイダ非依存） | — | — |
+| `get_branch_work_files` | 現在のブランチ固有（`<defaultBaseBranch>` に無い）の `plans/` `worklog/` `reports/` ファイル一覧を返す（プロバイダ非依存）。日本語を含むパスをそのまま返すため `-c core.quotepath=false` を指定している（issue #9。詳細は「計画の2階層構造」節） | — | — |
 | `build_issue_body <purpose> <current> <expected> <acceptance>` | 標準4見出し（目的・現状・期待する動作・受け入れ条件）に沿ってissue本文を組み立てる（プロバイダ非依存。issue #25） | — | — |
 | `new_issue <title> <body>` | タイトル・本文からissueを新規作成し、`get_issue`と同じ形（number/title/body/url/slug）のJSONを返す（issue #25） | `gh issue create` → URLから番号抽出 → `github_get_issue` | `glab issue create` → URLから番号抽出 → `gitlab_get_issue` |
 
@@ -107,6 +107,51 @@ issue起票からマージまでの詳細な手順（担当・順序）は
 `/issue-mr-flow` のサブコマンドは `start` `comments` `reply` `describe` `sync` `resume` の6つに絞り、
 設計ドキュメント作成・plan作成・実装・設計反映・AIアセット改善そのものは
 `.claude/skills/issue-mr-flow/SKILL.md` の該当ステップに委ねる。
+
+### 計画の2階層構造（issue #9）
+
+Claude Code / Gemini CLI は**セッションごとに1つのplanファイルしか割り当てない**
+（`.claude/settings.json` の `plansDirectory`、`.gemini/settings.json` の `general.plan.directory`。
+いずれも `./plans` を指す）。従来のフローは調査計画と作業計画の2箇所でPlanモードを使う設計だった
+ため、同一セッションで作業すると2つ目の計画が1つ目のファイルへ書き込まれ、計画が混ざっていた。
+
+この構造的な衝突を解消するため、計画を2階層に分離した。
+
+| 種類 | 作り方 | ファイル名 | 単位 |
+|---|---|---|---|
+| **全体作業計画** | **planツール**（Planモード）で作成 | ハーネス提示パス `plans/<自動命名>.md` | **issue（ブランチ）につき1回** |
+| **個別作業計画** | **planツールを使わない**（Write/Editで直接作成） | `plans/【種別】タスク内容.md` | フェーズごと・必要な数だけ |
+
+- **タスク種別**は `【調査】` `【設計】` `【実装】` `【テスト】` `【設計反映】` `【AIアセット改善】`
+  の6種。1ファイルへの複数併記を認める。併記するか分けるかの判断基準は
+  「その計画に対して人間の合意を1回で取るか、フェーズごとに分けて取るか」であり、迷ったら分ける
+  （詳細: `.claude/skills/issue-mr-flow/SKILL.md`「種別を複数併記する場合／分ける場合」）。
+- **囲み文字は全角 `【】` を使う**。ASCIIの `[]` はbashのglobで**文字クラス**として解釈されるため、
+  `plans/[調査]*.md` が意図どおりマッチしない（実機確認済み）。全角はglob特殊文字ではないため、
+  未クォートでも正しくマッチする。
+- **`plans/【*.md` で個別作業計画のみを機械的に列挙でき、それ以外が全体作業計画**になる。
+  この区別を、flow-id 4 の「既に全体作業計画があるか」の判定に使う。
+- **全体作業計画が既にあればPlanモードで新規作成しない**。新しいセッションではハーネスが新しい
+  planファイルパスを提示するため、これを規定しないとセッションを跨ぐたびに全体作業計画が増える。
+  `"defaultMode": "plan"` により新セッションは必ずPlanモードで始まるが、それは新規作成の理由に
+  ならない。
+- これに伴い全体フローは33ステップから**35ステップ**になった（先頭に全体作業計画の作成・合意を
+  追加し、旧flow-id N（N≧4）を新N+2へスライド）。worklogは
+  `worklog/日付_<全体計画名>_<個別計画名>_push<N>.md`、reportsは
+  `reports/日付_<全体計画名>_<内容を簡潔に>.html` へ命名を変更し、reportsは調査結果専用ではなく
+  設計・実装・AIアセット反映等の報告にも使える位置づけへ拡張した。
+- **廃止**: 従来のre-entry対策（`.claude/rules/plan-mode-safety.md` 規則6、
+  `archive-reentrant-plan.sh`）は、planツールの利用が1回に限定されたことで不要になったため削除した。
+  経緯・却下案は
+  [0019-planツール利用を全体作業計画に限定し個別計画をファイル分離する.md](../ddr/0019-planツール利用を全体作業計画に限定し個別計画をファイル分離する.md)
+  を参照。
+
+**日本語ファイル名を扱う際の注意（`core.quotepath`）**: gitは既定（`core.quotepath=true`）で
+非ASCII文字を含むパスを8進エスケープ＋ダブルクォートで囲んで出力する。`get_branch_work_files` は
+`git diff --name-only` / `git status --porcelain` の行単位出力を使うため、**`-c core.quotepath=false`
+の明示指定が必要**（指定しないと戻り値が使えない文字列になり `resume` が機能しない）。
+`git ls-files -z` のようなNUL区切り出力は元から影響を受けない（実装例:
+`.claude/scripts/src/extract-frontmatter.sh`）。
 
 ### レビューコメントへの返信
 
@@ -885,6 +930,43 @@ issueはGitHubのUIからしか作成できず、標準4見出し（目的・現
   `get_branch_work_files`説明、「途中引き継ぎ対応（resume）」節の手順5を更新、本エントリを追加）
 - `.claude/agents/issue-mr-resume.md`（手順6・手順8の説明ラベルに`reports`を追加）
 - 詳細な調査・作業計画は `plans/drifting-sniffing-clover.md` 参照。
+
+新規（追加分・issue #9 計画の2階層構造への再編）:
+- `.claude/docs/ddr/0019-planツール利用を全体作業計画に限定し個別計画をファイル分離する.md`
+
+変更（追加分・issue #9 計画の2階層構造への再編）:
+- `.claude/skills/issue-mr-flow/SKILL.md`（全体フロー表を33→35ステップへ再構成。先頭に
+  「全体作業計画をPlanモードで作成」「合意」の2ステップを追加し、旧flow-id N（N≧4）を新N+2へ
+  スライドさせた。「計画の2階層構造」節・「種別を複数併記する場合／分ける場合」節を新設。
+  `describe`/`comments`サブコマンドの手順を単一plan前提から複数計画対応へ変更。ループ範囲・
+  commitポイント（→8/13/19/24/30/34）・レビュー完了合図（→10・16・21・27・32）・
+  「PRがflow-id 33実施前にマージされてしまった場合の対処」のflow-id参照を更新）
+- `.claude/rules/plan-mode-safety.md`（**全面改訂**。冒頭に「planツールを使う場面」節を新設し、
+  規則6（re-entry時のarchiveスクリプト手順）を削除して「廃止した対処（履歴）」節へ経緯を移した。
+  規則2のarchive例外記述も削除）
+- `.claude/scripts/src/archive-reentrant-plan.sh`（**削除**。詳細はDDR 0019）
+- `.claude/scripts/src/vcs/Provider.sh`（`get_branch_work_files`の`git diff`/`git status`へ
+  `-c core.quotepath=false`を追加。日本語ファイル名が8進エスケープで返り`resume`が機能しなくなる
+  既存バグの修正）
+- `.claude/rules/docs-workflow.md`（ドキュメント運用表の`plans/`行を全体作業計画・個別作業計画の
+  2行へ分割、`worklog/`・`reports/`の命名を更新、`HANDOFF.md`行の更新タイミングを
+  「作業が終わるごと」から「flow-idが1つ進むごと・同じcommitに含める」へ具体化。ステップ数
+  （33→35）・ループ範囲の例示を更新）
+- `.claude/rules/directory-structure.md`・`index.md`（`plans/`の説明を2階層構造へ、`worklog/`・
+  `reports/`の命名を更新）
+- `.claude/rules/git-workflow.md`・`.claude/skills/commit/SKILL.md`（commitポイントのflow-id列挙を
+  「6/11/17/22/28/32」→「8/13/19/24/30/34」に更新）
+- `.claude/skills/canvas-report/SKILL.md`（`reports/`の命名を更新。「調査結果報告用」から
+  設計・実装・AIアセット反映等も含む「報告用」へ位置づけを拡張）
+- `.claude/skills/apply-mr-workflow-to-project/SKILL.md`（配布対象リストから
+  `archive-reentrant-plan.sh`を除去）
+- `.claude/agents/issue-mr-resume.md`（手順6で全体作業計画と個別作業計画を分けて列挙・報告する
+  よう変更。全体作業計画の有無がflow-id 4の判定に直結するため）
+- `AGENTS.md`（「計画はplansディレクトリ配下にセッション単位で保存する」を2階層構造の説明へ変更）
+- `worklog/TEMPLATE.md`（ヘッダコメント・見出しを新命名へ）
+- `.claude/docs/spec/issue-mr-workflow.md`（本ファイル。「計画の2階層構造」節を新設、
+  「提供関数」表の`get_branch_work_files`に`core.quotepath`の注記を追加、本エントリを追加）
+- 詳細な調査・作業計画は `plans/crispy-conjuring-canyon.md` 参照。
 
 ## 設定項目
 
