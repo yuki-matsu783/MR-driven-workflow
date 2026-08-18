@@ -39,6 +39,39 @@ push回数: 1
 
 - 特になし。
 
+## 調査フェーズ（flow-id 10）で試したこと
+
+- **実機検証（scratchpad）**: `plans/[調査]既存plan運用の棚卸し.md` 等を実際に作成し、glob・git・jqの
+  挙動を確認した。推測で決めず実行して確かめる方針が正解だった（結果2件が想定と違った）。
+  - 未クォートの `plans/[調査]*.md` は**マッチしない**（`[]`が文字クラスとして解釈される）。
+    しかも `nullglob` 無効時はパターン文字列そのものがループ変数に入る。
+  - `find_worklog_file` の `worklog/*"_${base}.md"` は**変数がクォート済みなので安全**だった。
+  - **`git status --porcelain` / `git diff --name-only` は日本語ファイル名を8進エスケープで返す**
+    （`core.quotepath` 既定 `true`）。`-c core.quotepath=false` で解決。
+  - `git ls-files -z` は元から安全（`-z` 指定時はgitがクォートしない）。
+- **ハーネス設定の発見**: `.claude/settings.json` の `plansDirectory`/`defaultMode: "plan"`、
+  `.gemini/settings.json` の `general.plan.directory` を発見。両CLIとも `plans/` へplanファイルを
+  生成する。Gemini CLIにもplan機構があることが確定した（調査7）。
+- **canvas形式レポート作成**: `reports/crispy-conjuring-canyon.html` を作成（11ノード・16エッジ）。
+  nodeでJSを評価してデータの参照整合性（dangling edge・未定義group/category）を検証した。
+
+## 調査フェーズでうまくいったこと
+
+- `get_branch_work_files`（`Provider.sh:261-262`）が `core.quotepath` 未対応であることを、
+  **命名規則を決める前に**発見できた。この順序でなければ、実装後に `resume` が壊れて原因究明に
+  時間を取られていた。
+- 同一リポジトリ内に安全な実装例（`extract-frontmatter.sh:206` の `git ls-files -z`）が既にあり、
+  修正方針をゼロから考える必要がなかった。
+
+## 調査フェーズでダメだった / 保留したこと
+
+- **Planモードre-entry時のハーネス挙動は未検証**。本セッションでは初回`EnterPlanMode`で
+  `plans/crispy-conjuring-canyon.md` が提示されたところまでしか観測していない。flow-id 15で
+  作業計画を作る際に自然に再突入するため、そこで実地確認する。
+- 調査4・5（フロー設計案・ユースケース）は、結論を出しきらず「作業計画で確定させる論点」として
+  整理するに留めた。特に**複数セッションにまたがる場合、新セッションでは新しいplanパスが提示される**
+  問題は、issue #9の方式でも自動解決しないため、レビューでの合意が必要と判断した。
+
 ## 次の一歩
 
 - flow-id 6: 調査計画をcommit・pushしてレビュー依頼（本push）。

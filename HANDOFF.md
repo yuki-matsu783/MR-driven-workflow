@@ -17,7 +17,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - issue: [#9 最初に全体作業計画を立て、その後、個別作業計画を立て、合意を得ながら進める](https://github.com/yuki-matsu783/MR-driven-workflow/issues/9)
 - ブランチ: `feature-9-stabilize-plan-tool-usage-flow`
 - Draft PR: [#10](https://github.com/yuki-matsu783/MR-driven-workflow/pull/10)
-- push回数: 1
+- push回数: 2
 
 | 進捗 | flow-id | ステップ | 担当 |
 |----|---|---|---|
@@ -27,10 +27,10 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 | [x] | 4 | Planモードで**調査計画**を作成する（`plans/<plan名>.md`の「調査」章へ出力・コミット。このタイミングで `worklog/日付_<plan名>.md` を作成） | エージェント |
 | [x] | 5 | 調査計画に合意する | 人間 |
 | [x] | 6 | `commit`スキル経由でcommitし、push してレビュー依頼を行う | エージェント |
-| [] | 7 | MRで調査計画についてレビュー・コメントする。レビュー完了済み連絡をするまで以降の作業は行わない。 | 人間 |
-| [] | 8 | レビュー内容を取得し、調査計画を修正する。対応が完了したコメントには対応内容を返信する（7〜8を合意まで繰り返す） | `comments` / `reply` |
-| [] | 9 | 調査計画をもとにMR descriptionを更新する | `describe` |
-| [] | 10 | **調査を実施**し、結果を`plans/<plan名>.md`の「調査」章・worklogに記録する。あわせて調査結果を視覚的に分かりやすくまとめた自己完結HTML（TailwindCSS CDN方式）を`reports/<plan名>.html`として作成する（調査結果が複数要素間の関連・依存関係を主題とする場合は、`.claude/skills/canvas-report/SKILL.md`のcanvas形式テンプレートの利用を検討する） | エージェント |
+| [x] | 7 | MRで調査計画についてレビュー・コメントする。レビュー完了済み連絡をするまで以降の作業は行わない。 | 人間 |
+| [x] | 8 | レビュー内容を取得し、調査計画を修正する。対応が完了したコメントには対応内容を返信する（7〜8を合意まで繰り返す） | `comments` / `reply` |
+| [x] | 9 | 調査計画をもとにMR descriptionを更新する | `describe` |
+| [x] | 10 | **調査を実施**し、結果を`plans/<plan名>.md`の「調査」章・worklogに記録する。あわせて調査結果を視覚的に分かりやすくまとめた自己完結HTML（TailwindCSS CDN方式）を`reports/<plan名>.html`として作成する（調査結果が複数要素間の関連・依存関係を主題とする場合は、`.claude/skills/canvas-report/SKILL.md`のcanvas形式テンプレートの利用を検討する） | エージェント |
 | [] | 11 | `commit`スキル経由でcommitし、push してレビュー依頼を行う | エージェント |
 | [] | 12 | 調査結果をもとにMR descriptionを更新する | `describe` |
 | [] | 13 | MRで調査結果についてレビュー・コメントする。レビュー完了済み連絡をするまで以降の作業は行わない。 | 人間 |
@@ -61,13 +61,19 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 
 - flow-id 1〜3: issue #9 を起点にブランチ `feature-9-stabilize-plan-tool-usage-flow` と Draft PR #10 を作成。
 - flow-id 4〜5: 調査計画 `plans/crispy-conjuring-canyon.md` を作成し、ユーザー承認を得た。
-- flow-id 6: worklog `worklog/20260818_crispy-conjuring-canyon_push1.md` を作成し、commit・push（本push）。
+- flow-id 6: worklog `worklog/20260818_crispy-conjuring-canyon_push1.md` を作成し、commit・push。
+- flow-id 7〜8: レビュー指摘なしで合意（`comments all` で未解決スレッド0件を確認済み）。
+- flow-id 9: MR descriptionを調査計画の内容へ更新。
+- flow-id 10: 調査1〜7を実施。結果を `plans/crispy-conjuring-canyon.md` の「調査結果」節と
+  `reports/crispy-conjuring-canyon.html`（canvas形式・11ノード16エッジ）に記録。
 
 ## 次にやること
 
-- flow-id 7: 人間によるMRレビュー待ち（調査計画について）。
-- flow-id 9: レビュー合意後 `describe` でMR descriptionを更新。
-- flow-id 10: 調査1〜7を実施（`plans/crispy-conjuring-canyon.md` の「調査」章参照）。
+- flow-id 11: 調査結果をcommit・push（本push）。
+- flow-id 12: `describe` でMR descriptionを調査結果の内容へ更新。
+- flow-id 13: 人間によるMRレビュー待ち（調査結果について）。
+- flow-id 15: 合意後、Planモードで作業計画を作成。**このとき同一セッション内の2回目の
+  Planモード突入になるため、ハーネスがどのパスを提示するかを観測し記録する**（調査6の未検証項目）。
 
 ## 判断を迷った内容
 
@@ -80,12 +86,20 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 
 ## 未解決の内容
 
-- `[タスク種別]` の値の集合が未定（調査3）。ファイル名の角括弧 `[]` はbashのglob特殊文字であり、
-  `archive-reentrant-plan.sh` の worklog探索globなどに影響しうるため実機確認が必要。
+- **`get_branch_work_files`（`Provider.sh:261-262`）が `core.quotepath` 未対応**。日本語ファイル名を
+  導入すると8進エスケープ文字列が返り `resume` が壊れる。作業計画での修正必須
+  （`-c core.quotepath=false` を付ける。安全な実装例は `extract-frontmatter.sh:206` の
+  `git ls-files -z`）。
+- `[タスク種別]` の値の集合が未定（調査3）。glob検証は完了しており、**未クォートの
+  `plans/[調査]*.md` は文字クラス解釈でマッチしない**点を新規実装時の注意として残す必要がある
+  （既存の `find_worklog_file` はクォート済みのため安全）。
 - 個別計画が複数になった場合、worklog（`日付_<plan名>_push<N>.md`）・reports（`<plan名>.html`）を
   何に紐づけるかが未定（調査2）。
-- 複数セッションにまたがる作業で、新セッションではハーネスが新しいplanファイルパスを提示する点を
-  どう扱うか（調査5の最大の論点）。
+- **複数セッションにまたがる場合、新セッションではハーネスが新しいplanファイルパスを提示する**
+  ため、「全体作業計画がセッションごとに増える」問題が残る（調査5の最大の論点）。推奨案は
+  「全体作業計画はセッションにつき1回ではなく**issue（ブランチ）につき1回**」と規定し、
+  2セッション目以降はハーネス提示パスを使わないこと。レビューでの合意が必要。
+- Planモードre-entry時のハーネス挙動が未検証（調査6）。flow-id 15で実地確認する。
 
 ## 守るべき条件・触ってはいけない範囲
 

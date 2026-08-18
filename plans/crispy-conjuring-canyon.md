@@ -159,6 +159,108 @@ issue #9 が求めるのは、この回避策の積み増しではなく**構造
   **canvas形式**（ノード・エッジ表現）の利用を第一候補とする
 - `worklog/<日付>_crispy-conjuring-canyon.md` へ試行錯誤を記録
 
+### 調査結果
+
+#### 結果1: 「plan」言及箇所の棚卸し（37ファイル）
+
+`git ls-files | xargs grep -ril plan` の全件を分類した結果、**実際に変更が必要なのは13ファイル**で、
+残りは「削除済みplanファイルへの設計コメント参照」など変更不要なものだった。
+
+| 分類 | ファイル | 変更要否 |
+|---|---|---|
+| **A. planツール機構** | `.claude/rules/plan-mode-safety.md`（30件）, `.claude/scripts/src/archive-reentrant-plan.sh`（30件）, `tests/test_archive_reentrant_plan.sh`, `CLAUDE.md`, `AGENTS.md`, DDR 0009, `.claude/docs/README.md` | **要**（廃止・改訂の主対象） |
+| **B. plans/ディレクトリ** | `.claude/settings.json`（`plansDirectory`）, `.gemini/settings.json`（`general.plan.directory`）, `.claude/rules/docs-workflow.md`, `directory-structure.md`, `index.md`, `.mrworkflow.json`, `Provider.sh`, `worklog/TEMPLATE.md` | **要** |
+| **C. フロー上の概念** | `.claude/skills/issue-mr-flow/SKILL.md`（22件）, `HANDOFF.md`, `.claude/agents/issue-mr-resume.md`, `.claude/docs/spec/issue-mr-workflow.md` | **要** |
+| **D. 偶然の一致・過去参照** | `.claude/hooks/*.sh` の設計コメント（`# 設計: plans/xxx.md`）, `Github.sh`/`Gitlab.sh` の`(plan作成中)`定型文, `canvas-report`, `extract-frontmatter.md`, 各`index.jsonl` | 原則不要 |
+
+**副次的な発見（D分類）**: `.claude/hooks/*.sh` のヘッダコメントは
+`# 設計: plans/jazzy-giggling-crescent.md（issue #3）` のように**flow-id 31で削除済みのplanファイル**を
+参照しており、参照先が既に存在しない。planの寿命（push単位で削除）と、コード内の恒久的な参照が
+噛み合っていない既存の運用矛盾。今回のスコープ外だが、AIアセット改善（flow-id 27）の候補。
+
+#### 結果2: plan名を基準にした命名連鎖
+
+`plans/<plan名>.md` が1タスク1ファイルである前提が、以下に波及していることを確認した。
+
+| 依存先 | 実装箇所 | 個別計画が複数になった場合の影響 |
+|---|---|---|
+| `worklog/` | `日付_<plan名>_push<N>.md` | **要再設計**。個別計画ごとに分けるか、ブランチで1本にまとめるか |
+| `reports/` | `<plan名>.html` | **要再設計**（同上） |
+| `archive-reentrant-plan.sh` | worklog探索glob `*"_${base}.md"` | 廃止すれば影響消滅 |
+| `describe` | 「`plans/<plan名>.md` を読む」 | **要改訂**（複数ファイルを読む必要） |
+| `get_branch_work_files` | `Provider.sh:261-262` | ディレクトリ単位のため**ファイル名非依存**。ただし結果3の別問題あり |
+| `issue-mr-resume` | 上記の出力を列挙 | 同上 |
+
+#### 結果3: ファイル命名の実機検証（最重要）
+
+scratchpadに `plans/[調査]既存plan運用の棚卸し.md` 等を実際に作成して検証した。
+
+**(a) bashのglob — 条件付きで安全**
+
+| パターン | 結果 |
+|---|---|
+| `for f in plans/*.md` | ✅ 正常にマッチ |
+| `matches=(worklog/*"_${base}.md")`（変数がクォート済み。`find_worklog_file`の実装） | ✅ 正常にマッチ（1件） |
+| `for f in plans/[調査]*.md`（**未クォート**） | ❌ **マッチせず、パターン文字列がそのまま返る** |
+| `for f in plans/'[調査]'*.md`（クォート済み） | ✅ 正常にマッチ |
+
+`[調査]` はglobの**文字クラス**（`調` または `査` の1文字）として解釈されるため、タスク種別で
+絞り込むglobを直感的に書くと動かない。既存コードは変数をクォートしているため無事だが、
+**新規に「種別で絞る」処理を書く際の落とし穴**として明記が必要。
+
+**(b) gitのパス出力 — 既存実装が壊れる**
+
+`core.quotepath` の既定値が `true` のため、gitは日本語ファイル名を8進エスケープ＋ダブルクォートで
+返す。
+
+```
+$ git status --porcelain -- plans | sed -E 's/^...//'
+"plans/[\350\252\277\346\237\273]\346\227\242\345\255\230plan...md"     ← 使えない
+$ git -c core.quotepath=false status --porcelain -- plans | sed -E 's/^...//'
+plans/[調査]既存plan運用の棚卸し.md                                      ← 正常
+```
+
+**`get_branch_work_files`（`Provider.sh:261-262`）は `-c core.quotepath=false` を付けていない**ため、
+日本語ファイル名を導入すると、この関数の戻り値が人間にもスクリプトにも使えない文字列になる。
+`resume`・`issue-mr-resume`エージェントが依存しているため影響は大きい。**作業計画での修正必須**。
+
+対照的に `extract-frontmatter.sh:206` は `git ls-files -z`（NUL区切り）を使っており、`-z` 指定時は
+gitがクォートしない仕様のため**元から安全**。同一リポジトリ内に安全な実装例がある。
+
+**(c) jq — 安全**。`--arg` 経由で角括弧・日本語とも正しく扱えた（`length=19`）。
+
+#### 結果4・5: フロー設計案とユースケース（作業計画で確定させる論点）
+
+**最大の論点＝複数セッションにまたがる場合**。新セッションではハーネスが**新しい**planファイルパスを
+提示するため、「全体作業計画はセッション冒頭1回」と規定すると、セッションを跨いだだけで
+全体作業計画が2つできてしまう。issue #9の方式でもこれは自動解決しない。
+
+推奨案: **「全体作業計画は*セッション*につき1回」ではなく「*issue（ブランチ）*につき1回」と規定する**。
+2セッション目以降は `resume` で既存の全体作業計画を読み、**ハーネスが新たに提示するplanパスは
+使わない**（＝Planモードで新規ファイルを作らない）。`get_branch_work_files` がブランチ固有の
+plansファイルを列挙できるため、既存の全体作業計画は機械的に特定可能。
+なお `.claude/settings.json` は `"defaultMode": "plan"` のため新セッションは必ずPlanモードで
+始まる点も、この規定に合わせた扱いの明文化が必要。
+
+#### 結果6: 既存re-entry対策の去就
+
+- `.claude/settings.json` の `plansDirectory: "./plans"`、`.gemini/settings.json` の
+  `general.plan.directory: "./plans"` により、**両CLIともplanファイルを `plans/` へ生成する**。
+  個別作業計画を同じ `plans/` に置くと、ハーネス自動生成ファイルと同居することになる
+  （命名で区別は可能）。
+- **ハーネス挙動の再確認は flow-id 15 で行う**: 本セッションでは初回`EnterPlanMode`で
+  `plans/crispy-conjuring-canyon.md`（新規名）が提示されたところまでを観測済み。再突入時に
+  同じパスが提示され続けるか（DDR 0009 のissue #7時点の観測が現在も有効か）は、flow-id 15で
+  作業計画を作る際に自然に再突入するため、そこで実地確認して記録する。
+
+#### 結果7: Gemini CLI・他プロジェクト展開
+
+- **Gemini CLIにもplan機構がある**（`.gemini/settings.json` の `general.plan.directory`）。
+  Claude Code と同じ前提でルールを書ける見込み。
+- `apply-mr-workflow-to-project`: `install-to-project.sh:140,165` が `plans/` と `.gitkeep` を作成。
+  `SKILL.md:63` が `archive-reentrant-plan.sh` を配布対象として明記しているため、**廃止する場合は
+  この2ファイルの更新も必要**。
+
 ## 対象外（この調査計画のスコープ外）
 
 - 実装（ルール・SKILL.md・スクリプトの実変更）は flow-id 15 の作業計画で扱う
