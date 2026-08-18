@@ -17,7 +17,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - issue: [#7](https://github.com/yuki-matsu783/MR-driven-workflow/issues/7) post-push-usage-report.sh/post-push-compact-prompt.shをGemini CLI/Claude Code両対応にする
 - ブランチ: feature-7-support-gemini-cli-for-usage-report-and-compact-pr
 - Draft PR: [#8](https://github.com/yuki-matsu783/MR-driven-workflow/pull/8)
-- push回数: 4
+- push回数: 5
 
 | 進捗 | flow-id | ステップ | 担当 |
 |----|---|---|---|
@@ -44,11 +44,11 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 | [x] | 21 | 作業計画をもとに作業を進める、作業内容はworklogに更新する（post-push-usage-report.sh/post-push-compact-prompt.shをエンジン判定パターンへ書き換え、session-log-hooks.mdに追記） | エージェント |
 | [x] | 22 | `commit`スキル経由でcommitし、push してレビュー依頼を行う（feat/docsの2コミットに分割） | エージェント |
 | [x] | 23 | 作業内容をもとにMR descriptionを更新する | `describe` |
-| [] | 24 | MRでレビュー・コメントする。レビュー済み連絡をするまで以降の作業は行わない。 | 人間 |
-| [] | 25 | レビュー内容を取得し、実装・ドキュメントを修正する。対応が完了したコメントには対応内容を返信する（21〜25の作業ループを合意まで繰り返す） | `comments` / `reply` |
-| [] | 26 | 設計反映: `plans/` `worklog/` の内容を `docs/spec/` `docs/ddr/` へ反映する | エージェント |
-| [] | 27 | AIアセット改善: 作業中に気づいたルール・スキルの不備があれば `.claude/rules/` `.claude/skills/` `CLAUDE.md` `AGENTS.md` に反映する | エージェント |
-| [] | 28 | `commit`スキル経由でcommitし、push してレビュー依頼を行う | エージェント |
+| [x] | 24 | MRでレビュー・コメントする。レビュー済み連絡をするまで以降の作業は行わない。（「レビューOK.動作確認は不要で設計反映して」を受け、未解決コメント無しを確認済み） | 人間 |
+| [x] | 25 | レビュー内容を取得し、実装・ドキュメントを修正する。対応が完了したコメントには対応内容を返信する（21〜25の作業ループを合意まで繰り返す）（コメント無しのためスキップ） | `comments` / `reply` |
+| [x] | 26 | 設計反映: `plans/` `worklog/` の内容を `docs/spec/` `docs/ddr/` へ反映する（`session-log-hooks.md`に未検証事項・受け入れ条件2見送りの旨を追記。DDR新設は見送り） | エージェント |
+| [x] | 27 | AIアセット改善: 作業中に気づいたルール・スキルの不備があれば `.claude/rules/` `.claude/skills/` `CLAUDE.md` `AGENTS.md` に反映する（不備なし、対応なし） | エージェント |
+| [x] | 28 | `commit`スキル経由でcommitし、push してレビュー依頼を行う | エージェント |
 | [] | 29 | MRでレビュー・コメントする。レビュー済み連絡をするまで以降の作業は行わない。 | 人間 |
 | [] | 30 | レビュー内容を取得し、設計反映・AIアセットの内容を修正する。対応が完了したコメントには対応内容を返信する（26〜30を合意まで繰り返す） | `comments` / `reply` |
 | [] | 31 | `plans/` `worklog/` `reports/` を削除し、`HANDOFF.md` を次タスクへリセットする | エージェント |
@@ -77,13 +77,16 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
   （`tool_name`のcase判定・`${GEMINI_PROJECT_DIR:-${CLAUDE_PROJECT_DIR:-}}`）へ書き換え、
   `session-log-hooks.md`に展開内容を追記した。`bash -n`で構文チェック済み。feat/docsの2コミットに
   分けてcommit・push（push4）し、MR descriptionを実装内容版に更新した。
+- 「レビューOK.動作確認は不要で設計反映して」を受け、未解決コメント無しを確認。ユーザー判断により
+  Gemini CLI実機での動作確認（受け入れ条件2）は実施せず、`session-log-hooks.md`「未決定事項・
+  懸念点」にその旨と、issue #7分の実機未検証事項を追記して設計反映を完了した。AIアセット改善
+  （flow-id 27）は不備なしのため対応なし。commit・push（push5）、MR descriptionを更新した。
 
 ## 次にやること
 
-- flow-id 24: MRで実装内容についてレビューをお願いする（人間待ち）。
-- レビューOKであれば flow-id 25（必要なら修正）→ flow-id 26（設計反映: plans/worklogの内容を
-  spec/ddrへ反映）→ flow-id 27（AIアセット改善）へ進む。可能であればGemini CLI実機でのgit push
-  動作確認も行う（受け入れ条件2）。
+- flow-id 29: MRで設計反映内容についてレビューをお願いする（人間待ち）。
+- レビューOKであれば flow-id 31（`plans/` `worklog/` `reports/` の削除、`HANDOFF.md`のリセット）→
+  flow-id 32（commit・push・Draft解除）へ進む。flow-id 33（マージ）はユーザーの明示的指示を待つ。
 
 ## 判断を迷った内容
 
@@ -97,7 +100,9 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 
 ## 未解決の内容
 
-（無し）
+- issue #7の受け入れ条件2（Gemini CLI環境での実機動作確認）は、ユーザー判断により未実施のまま
+  マージへ進む見込み。将来Gemini CLI実行環境で問題が見つかった場合は、別issueとして起票する
+  想定（`session-log-hooks.md`「未決定事項・懸念点」参照）。
 
 ## 守るべき条件・触ってはいけない範囲
 
