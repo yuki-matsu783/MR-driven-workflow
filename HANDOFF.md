@@ -17,7 +17,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - issue: [#15](https://github.com/yuki-matsu783/MR-driven-workflow/issues/15) issueからMRを作成するときにどれをベースにするかユーザに聞く
 - ブランチ: `feature-15-ask-user-for-mr-base-branch`
 - Draft PR: [#18](https://github.com/yuki-matsu783/MR-driven-workflow/pull/18)
-- push回数: 3
+- push回数: 4
 - レビュー依頼中: []
 
 全体作業計画（`plans/woolly-tickling-thimble.md`）の方針により、**フェーズ2（調査）は実施せず、
@@ -43,11 +43,11 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 | [x] | 3-9 | レビュー内容を取得し、実装・ドキュメントを修正する。対応が完了したコメントには対応内容を返信する（3-6〜3-9の作業ループを合意まで繰り返す） | `comments` / `reply` |
 | [x] | 3-10 | 作業内容をもとにMR descriptionを更新する | `describe` |
 | [x] | 4-1 | **作業結果と`plans/` `worklog/` の内容をもとに**、個別反映計画`plans/【設計反映】【AIアセット反映】〜.md`等を**planツールを使わず**Write/Editで作成する | エージェント |
-| [] | 4-2 | `commit`スキル経由でcommitし、push してレビュー依頼を行う | エージェント |
-| [] | 4-3 | MRで反映計画についてレビュー・コメントする。レビュー完了済み連絡をするまで以降の作業は行わない。 | 人間 |
-| [] | 4-4 | レビュー内容を取得し、反映計画を修正する。対応が完了したコメントには対応内容を返信する（4-3〜4-4を合意まで繰り返す） | `comments` / `reply` |
-| [] | 4-5 | 反映計画をもとにMR descriptionを更新する | `describe` |
-| [] | 4-6 | 反映計画をもとに作業を進める、反映内容はworklogに更新する（**設計反映**: `plans/` `worklog/` の内容を `.claude/docs/spec/` `.claude/docs/ddr/`（アプリ本体があれば`docs/spec/` `docs/ddr/`）へ反映する／**AIアセット反映**: 作業中に気づいたルール・スキルの不備を `.claude/rules/` `.claude/skills/` `CLAUDE.md` `AGENTS.md` に反映する） | エージェント |
+| [x] | 4-2 | `commit`スキル経由でcommitし、push してレビュー依頼を行う | エージェント |
+| [x] | 4-3 | MRで反映計画についてレビュー・コメントする。レビュー完了済み連絡をするまで以降の作業は行わない。 | 人間 |
+| [x] | 4-4 | レビュー内容を取得し、反映計画を修正する。対応が完了したコメントには対応内容を返信する（4-3〜4-4を合意まで繰り返す） | `comments` / `reply` |
+| [x] | 4-5 | 反映計画をもとにMR descriptionを更新する | `describe` |
+| [x] | 4-6 | 反映計画をもとに作業を進める、反映内容はworklogに更新する（**設計反映**: `plans/` `worklog/` の内容を `.claude/docs/spec/` `.claude/docs/ddr/`（アプリ本体があれば`docs/spec/` `docs/ddr/`）へ反映する／**AIアセット反映**: 作業中に気づいたルール・スキルの不備を `.claude/rules/` `.claude/skills/` `CLAUDE.md` `AGENTS.md` に反映する） | エージェント |
 | [] | 4-7 | `commit`スキル経由でcommitし、push してレビュー依頼を行う | エージェント |
 | [] | 4-8 | MRでレビュー・コメントする。レビュー済み連絡をするまで以降の作業は行わない。 | 人間 |
 | [] | 4-9 | レビュー内容を取得し、設計・AIアセットの内容を修正する。対応が完了したコメントには対応内容を返信する（4-6〜4-9の反映ループを合意まで繰り返す） | `comments` / `reply` |
@@ -78,9 +78,13 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
   `.claude/docs/spec/issue-mr-workflow.md`の「提供関数」表・「影響範囲」changelog・
   「未決定事項・懸念点」への反映を予定
 
+- commit・push（push回数3）してレビュー依頼。人間から「レビューOK」を受け、`comments all`で未解決スレッドが無いことを確認済み
+- `describe`でMR descriptionを更新した（flow-id 4-5）
+- `.claude/docs/spec/issue-mr-workflow.md`の3箇所（提供関数表・影響範囲changelog・未決定事項）を反映計画どおり更新（flow-id 4-6）。worklog（push4）に記録
+
 ## 次にやること
 
-- flow-id 4-2: `commit`スキル経由でcommitし、pushしてレビュー依頼を行う（反映計画へのレビューを待つ）
+- flow-id 4-7: `commit`スキル経由でcommitし、pushしてレビュー依頼を行う
 
 ## 判断を迷った内容
 

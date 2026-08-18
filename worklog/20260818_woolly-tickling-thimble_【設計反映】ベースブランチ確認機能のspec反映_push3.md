@@ -23,7 +23,7 @@ push回数: 3
 
 ## うまくいったこと
 
-（本push作成時点では反映計画の作成のみ。実施内容は次のworklogに追記予定）
+（本push作成時点では反映計画の作成のみ。実施内容はpush4のworklogに記録）
 
 ## ダメだったこと
 
@@ -31,7 +31,7 @@ push回数: 3
 
 ## 次の一歩
 
-- flow-id 4-2: commit・pushしてレビュー依頼
-- flow-id 4-6相当の反映作業: specの3箇所を更新
+- flow-id 4-2: commit・pushしてレビュー依頼（完了）
+- flow-id 4-6相当の反映作業: specの3箇所を更新（push4のworklogへ）
 
 ---
