@@ -111,3 +111,35 @@ PR #30レビューOK（未解決コメント0件を`mcp__github__pull_request_re
   （flow-id 3-9→3-10）。MR descriptionもあわせて更新する。
 
 ---
+
+## push4（反映計画・flow-id 4-1）
+
+`describe`でPR #30のdescriptionを最新の実装状況へ更新した（flow-id 3-10）のち、
+個別反映計画`plans/【設計反映】判定基準一元化の反映要否確認.md`を作成した。
+
+### 試したこと
+
+- `.claude/docs/spec/issue-mr-workflow.md`を`Grep`で確認し、「適用要否」「一元化」等、
+  今回変更した3ファイルの構造（一次情報／参照）に関する記載が無いことを確認した。
+- 28行目付近にPR #4当時のpoint-in-timeなchangelog文言（「ごく小さな変更を除く」方針の存在への
+  言及）があるが、判定基準の具体例や記載場所には触れておらず、`docs-workflow.md`の
+  「point-in-timeの記録は書き換え対象に含めない」原則に沿って変更不要と判断した。
+- 既存DDR（`.claude/docs/ddr/0013`〜`0022`）を確認し、issue #22の変更内容（重複記載の集約先を
+  AGENTS.mdにする）には検討過程で却下した代替案が無く、新規DDR化するほどの意思決定には
+  当たらないと判断した。
+
+### うまくいったこと
+
+- 「今回のissueは判定基準を記載する場所そのもの（AGENTS.md/SKILL.md/git-workflow.md）が変更
+  対象であり、これら自体がAIアセットの実体である」という整理により、flow-id 4-6で追加の
+  設計反映・AIアセット反映の作業が不要であることを明確化できた。
+
+### ダメだったこと
+
+- 特になし。
+
+### 次の一歩
+
+- 個別反映計画をHANDOFF.mdの更新と一緒にcommit・push（flow-id 4-2）してレビュー依頼。
+
+---
