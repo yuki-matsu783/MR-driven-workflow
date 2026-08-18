@@ -17,8 +17,8 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - issue: #21（.mrworkflow.jsonの各キーの説明をREADME等に追記する）
 - ブランチ: claude/issue-21-bf7mnd（注: `.mrworkflow.json`の`branchPrefixTemplate`規則`feature-<issue番号>-<slug>`とは異なるが、
   Claude Code on the web環境が指定したブランチ名のためこのまま使用する）
-- Draft PR: 未作成（次のステップで作成予定）
-- push回数: 0
+- Draft PR: #25 https://github.com/yuki-matsu783/MR-driven-workflow/pull/25
+- push回数: 1
 
 | 進捗 | flow-id | ステップ | 担当 |
 |----|---|---|---|
@@ -38,7 +38,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 | skip | 2-8 | MRで調査結果についてレビュー・コメントする。レビュー完了済み連絡をするまで以降の作業は行わない。 | 人間 |
 | skip | 2-9 | レビュー内容を取得し、調査結果を修正する。対応が完了したコメントには対応内容を返信する（`reports/`のHTMLも調査結果と同期して更新する。2-6〜2-9を合意まで繰り返す） | `comments` / `reply` |
 | skip | 2-10 | 調査結果をもとにMR descriptionを更新する | `describe` |
-| [] | 3-1 | **調査結果をもとに**、個別作業計画`plans/【設計】【実装】〜.md`等を**planツールを使わず**Write/Editで作成する | エージェント |
+| [x] | 3-1 | **調査結果をもとに**、個別作業計画`plans/【設計】【実装】〜.md`等を**planツールを使わず**Write/Editで作成する | エージェント |
 | [] | 3-2 | `commit`スキル経由でcommitし、push してレビュー依頼を行う | エージェント |
 | [] | 3-3 | MRで作業計画についてレビュー・コメントする。レビュー完了済み連絡をするまで以降の作業は行わない。 | 人間 |
 | [] | 3-4 | レビュー内容を取得し、作業計画を修正する。対応が完了したコメントには対応内容を返信する（3-3〜3-4を合意まで繰り返す） | `comments` / `reply` |
