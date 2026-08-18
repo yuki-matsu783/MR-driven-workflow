@@ -108,23 +108,35 @@ gitlab_set_mr_description() {
   glab mr update "$mr_number" --description "$description" >/dev/null
 }
 
-# MRの「defaultブランチとの差分（Changes）」を見れるURLを組み立てる（純粋関数。`glab`呼び出しを
-# 伴わない）。issue #13: レビュー依頼メッセージに含める参照リンク用。
-gitlab_get_mr_diff_url() {
-  local mr_url="$1"
-  printf '%s/diffs\n' "$mr_url"
+# リポジトリの正規URL（フルパス）を取得する（issue #13フォローアップ: MRのURL文字列からの
+# 推測ではなく`glab`で取得し正確性を担保する）。
+# 【未検証】このリポジトリのremoteはGitHubのみのため実機確認できていない。GitLab REST APIの
+# project オブジェクトが持つ `web_url` フィールドに基づく（`glab repo view`は内部的にこのAPIを
+# ラップしている）。
+gitlab_get_repo_url() {
+  glab repo view --output json --jq '.web_url'
 }
 
-# MRの「前回push時点(from_sha)以降の差分」を見れるURLを組み立てる（純粋関数）。
-# 【未検証】GitLabの「Compare versions」機能が使う`start_sha`クエリパラメータに基づく実装だが、
-# このリポジトリのremoteはGitHubのみのため実機確認できていない（他の`gitlab_*`関数と同じ制約。
-# ファイル冒頭コメント参照）。issue #13。
+# 2つのref（ブランチ名・SHAいずれも可）間の差分を見れる「Compare」ページのURLを組み立てる
+# （純粋関数。`glab`呼び出しを伴わない）。GitLabの`/-/compare/<from>...<to>`はMR作成前から
+# 使われている汎用の比較ページ。issue #13フォローアップ。
+# 【未検証】このリポジトリのremoteはGitHubのみのため実機確認できていない。
+gitlab_get_compare_url() {
+  local repo_url="$1" from="$2" to="$3"
+  printf '%s/-/compare/%s...%s\n' "$repo_url" "$from" "$to"
+}
+
+# MRの「defaultブランチとの差分」を見れるURLを組み立てる（純粋関数）。issue #13。
+gitlab_get_mr_diff_url() {
+  local repo_url="$1" base_branch="$2" head_branch="$3"
+  gitlab_get_compare_url "$repo_url" "$base_branch" "$head_branch"
+}
+
+# MRの「前回push時点(from_sha)から今回push時点(to_sha)までの差分」を見れるURLを組み立てる
+# （純粋関数）。issue #13。
 gitlab_get_mr_diff_since_url() {
-  local mr_url="$1" from_sha="$2"
-  # shellcheck disable=SC2034 # to_sha はGitHub版とのインターフェース対称のため受け取るが、
-  # GitLabのstart_shaは「最新版との比較」を意味するため使わない。
-  local to_sha="${3:-}"
-  printf '%s/diffs?start_sha=%s\n' "$mr_url" "$from_sha"
+  local repo_url="$1" from_sha="$2" to_sha="$3"
+  gitlab_get_compare_url "$repo_url" "$from_sha" "$to_sha"
 }
 
 # MRへ新規コメントを1件投稿する（スレッド返信・レビューではない通常コメント）。
