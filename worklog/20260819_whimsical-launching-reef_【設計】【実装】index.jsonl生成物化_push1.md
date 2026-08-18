@@ -24,6 +24,9 @@ push回数: 1
 
 - `.claude/hooks/session-start.sh`の既存実装（`build_context`関数・非侵襲的なfail-open方針・agent_idチェックによるサブエージェント除外）を読み、同じ設計方針をそのまま踏襲できることを確認
 - 残骸ファイルの削除は `rm` だけでなく `git add -A` でindexへ反映しないと、`extract-frontmatter.sh`が内部で使う`git ls-files --cached`が削除済みファイルを列挙し続けてしまう（`stat: cannot stat ...`エラー）ことを実機で確認。`git add -A plans/ worklog/` してから再実行することで解消
+- flow-id 3-6の実装（`.gitignore`に`**/index.jsonl`パターン追加、既存15箇所を`git rm --cached`、`session-start.sh`に`regenerate_frontmatter_index`関数を追加）を実施
+- 実機で動作確認: `plans/index.jsonl`を削除した状態でhookを実行すると再生成されること、既存のコンテキスト注入（issue/PR情報）が壊れないこと、`extract-frontmatter.sh`単体の異常終了（終了コード1）が`|| true`によりセッション開始をブロックしないこと、`git status --ignored`で15箇所が`.gitignore`に捕捉されていること、`tests/test_extract_frontmatter.sh`が引き続き`passed=17 failures=0`でパスすることをそれぞれ確認
+- `.claude/rules/markdown-frontmatter.md`の「commit直前に1回流す」という前提記述を、SessionStart自動化後の説明へ書き換え
 
 ## ダメだったこと
 
@@ -31,7 +34,7 @@ push回数: 1
 
 ## 次の一歩
 
-- 【設計】【実装】計画（`plans/【設計】【実装】index.jsonl生成物化.md`）に従い、`.gitignore`変更・`git rm --cached`・`session-start.sh`改修・関連ドキュメント更新を実施する（flow-id 3-6）
-- commit・push・レビュー依頼（flow-id 3-2、続けて3-7）
+- commit・push・レビュー依頼（flow-id 3-7）
+- レビュー完了後、フェーズ4（反映）で`.claude/skills/issue-mr-flow/SKILL.md`・`.claude/rules/docs-workflow.md`・`.claude/docs/spec/extract-frontmatter.md`の更新、新規DDR `0024-〜.md`の作成を行う
 
 ---

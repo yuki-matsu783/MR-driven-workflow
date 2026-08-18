@@ -40,11 +40,11 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 | [-] | 2-9 | （同上） | `comments` / `reply` |
 | [-] | 2-10 | （同上） | `describe` |
 | [x] | 3-1 | 個別作業計画`plans/【設計】【実装】index.jsonl生成物化.md`を**planツールを使わず**Write/Editで作成する | エージェント |
-| [] | 3-2 | `commit`スキル経由でcommitし、push してレビュー依頼を行う | エージェント |
-| [] | 3-3 | MRで作業計画についてレビュー・コメントする。レビュー完了済み連絡をするまで以降の作業は行わない。 | 人間 |
-| [] | 3-4 | レビュー内容を取得し、作業計画を修正する。対応が完了したコメントには対応内容を返信する（3-3〜3-4を合意まで繰り返す） | `comments` / `reply` |
-| [] | 3-5 | 作業計画をもとにMR descriptionを更新する | `describe` |
-| [] | 3-6 | 作業計画をもとに作業を進める、作業内容はworklogに更新する | エージェント |
+| [x] | 3-2 | `commit`スキル経由でcommitし、push してレビュー依頼を行う | エージェント |
+| [x] | 3-3 | MRで作業計画についてレビュー・コメントする。レビュー完了済み連絡をするまで以降の作業は行わない。人間から「レビューOK」の合図あり | 人間 |
+| [x] | 3-4 | レビュー内容を取得し、作業計画を修正する。対応が完了したコメントには対応内容を返信する（3-3〜3-4を合意まで繰り返す）。`comments all`で未解決コメント0件（対応工数レポート自動投稿のみ）を確認、修正不要 | `comments` / `reply` |
+| [x] | 3-5 | 作業計画をもとにMR descriptionを更新する | `describe` |
+| [x] | 3-6 | 作業計画をもとに作業を進める、作業内容はworklogに更新する。`.gitignore`に`**/index.jsonl`追加、既存15箇所を`git rm --cached`、`session-start.sh`に`regenerate_frontmatter_index`関数を追加、`markdown-frontmatter.md`の記述更新。実機確認済み | エージェント |
 | [] | 3-7 | `commit`スキル経由でcommitし、push してレビュー依頼を行う | エージェント |
 | [] | 3-8 | MRでレビュー・コメントする。レビュー済み連絡をするまで以降の作業は行わない。 | 人間 |
 | [] | 3-9 | レビュー内容を取得し、実装・ドキュメントを修正する。対応が完了したコメントには対応内容を返信する（3-6〜3-9の作業ループを合意まで繰り返す） | `comments` / `reply` |
@@ -73,10 +73,12 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - Plan agentによる設計検討を経て、Planモードで全体作業計画`plans/whimsical-launching-reef.md`を作成。ユーザーから「自動再生成はcreate-commit.shではなくSessionStart hookでセッション開始時に機械的に実施する」との方針決定を受け、この方針で計画を確定・承認（flow-id 1-4〜1-5）
 - 前タスク（issue #22, PR #30）がflow-id 5-1未実施のままマージされ、`main`に`plans/iterative-dreaming-yao.md`等・`worklog/`ファイル・古い`HANDOFF.md`が残っていたことが判明。ユーザーに対処方針を確認し「今回のissue #36ブランチ内で一緒に片付ける」の指示を受け、該当ファイルを削除・`git add`でindexへ反映・`extract-frontmatter.sh .`でindex.jsonl群を再生成した
 - 個別作業計画`plans/【設計】【実装】index.jsonl生成物化.md`とworklogを作成（flow-id 3-1）。全体作業計画の6論点（実装場所・失敗時挙動・.gitignoreパターン・DDR0021却下案4再評価・移行手順・flow-id5-1特殊対応の要否）を確定。`.claude/scripts/src/update-handoff-progress.sh`はPR #31（未マージ）にのみ存在しこのブランチでは使えないため、HANDOFF.mdの進捗表は手動編集で更新した
+- commit・push・MR description更新（flow-id 3-2〜3-5）。人間から「レビューOK」の合図を受け、`comments all`で未解決コメント0件（対応工数レポート自動投稿のみ）を確認
+- 個別作業計画に従い実装（flow-id 3-6）: `.gitignore`に`**/index.jsonl`追加、既存15箇所（`.claude/agents/`, `.claude/docs/`, `.claude/docs/ddr/`, `.claude/docs/spec/`, `.claude/rules/`, `.claude/skills/{apply-mr-workflow-to-project,canvas-report,commit,issue-create,issue-mr-flow}/`, `.github/ISSUE_TEMPLATE/`, `.gitlab/issue_templates/`, ルート, `plans/`, `worklog/`のそれぞれの`index.jsonl`）を`git rm --cached`、`.claude/hooks/session-start.sh`に`regenerate_frontmatter_index`関数を追加（fail-open・標準出力/dev/null）、`.claude/rules/markdown-frontmatter.md`の記述更新。実機で再生成・fail-open・`.gitignore`捕捉・既存単体テスト（`tests/test_extract_frontmatter.sh`、passed=17 failures=0）をいずれも確認
 
 ## 次にやること
 
-- `commit`スキル経由でcommitし、push してレビュー依頼（flow-id 3-2）
+- `commit`スキル経由でcommitし、push してレビュー依頼（flow-id 3-7）
 
 ## 判断を迷った内容
 
