@@ -170,7 +170,7 @@ if [ "${IS_GO_PROJECT}" = true ]; then
   echo "Injecting Go-specific rules..."
   # If AGENTS.md exists, append reference to go-applications.md
   if ! grep -q "go-applications.md" "${DEST_DIR}/AGENTS.md"; then
-    echo -e "\n- Goアプリケーションの開発規約については、 [.claude/rules/go-applications.md](.claude/rules/go-applications.md) を参照し、それに従[※この先、画像で文字が途切れています]"
+    echo -e "\n- Goアプリケーションの開発規約については、 [.claude/rules/go-applications.md](.claude/rules/go-applications.md) を参照し、それに従うこと " >> "${DEST_DIR}/AGENTS.md"
   fi
 else
   # Clean up Go-specific files on non-Go projects
