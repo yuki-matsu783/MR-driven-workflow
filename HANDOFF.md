@@ -17,9 +17,10 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - issue: #13 レビュー依頼にMRへのリンクをつける
 - ブランチ: claude/issue-13-ne7acm（Claude Code on the webが自動作成。`feature-<issue>-<slug>`
   命名規則とは異なるが、既に本ブランチで開発するよう指示されているためそのまま使用）
-- Draft PR: 未作成（人間から明示的な指示があるまでAIエージョンはPR作成操作を行わない方針
-  `.claude/rules/git-workflow.md`のため。ブランチへのpushのみ実施）
-- push回数: 2（予定）
+- PR: [#29](https://github.com/yuki-matsu783/MR-driven-workflow/pull/29)（ユーザーから明示的に
+  「作成して」と指示されたため作成。Draftではなく通常PR。作成時点で既にGitHub側に同一ブランチの
+  PRが存在していたため、`create_pull_request`は失敗し`update_pull_request`でdescriptionのみ更新）
+- push回数: 3
 
 対話的セッションでないため、通常の39ステップの複数ラウンド運用ではなく、設計・実装・設計反映を
 1回のpushにまとめて実施した（詳細は個別作業計画「実行環境に関する注記」参照）。下表は目安として
@@ -89,11 +90,19 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
   いずれも持つ汎用の「Compare」ページ（`/compare/<from>...<to>`）を組み立てる方式へ変更した
   （`get_mr_diff_url`/`get_mr_diff_since_url`のシグネチャ変更を含む）。DDR 0023・spec・
   `tests/test_vcs_provider.sh`も追随して更新済み。
+- **push3（PR作成指示）**: ユーザーから「作成して」と指示され、PRを作成しようとしたところ、
+  GitHub側に既に同一ブランチのPR #29が存在していた（Claude Code on the webが自動作成したと
+  見られる）ため、`update_pull_request`でdescriptionのみ更新。あわせて`main`が既に issue #23
+  （PR #24）を取り込んでおり、そちらも独立に`.claude/docs/ddr/0022-...md`を新設していたため
+  DDR番号が衝突していたことが判明（PRの`mergeable_state: dirty`で発覚）。自分のDDRを0022→0023へ
+  改番し、全参照箇所（spec/plan/worklog/HANDOFF/DDR本文/README）を追随。`origin/main`をmergeし、
+  `.claude/docs/README.md`・各`index.jsonl`・`.claude/docs/spec/issue-mr-workflow.md`（影響範囲の
+  changelog append）・`.claude/rules/directory-structure.md`・`.gitignore`の6ファイルのコンフリクトを
+  解消してpush。PR #29のdescriptionもDDR番号を0023へ修正済み。
 
 ## 次にやること
 
-- 人間によるレビュー（Draft PR作成含む）。AIエージェントはPR作成操作を明示的な指示無く行わない
-  方針のため、レビューを希望する場合はPR作成を指示してください。
+- 人間によるレビュー（PR #29）。
 - 実際のGitHub UI上での`get_mr_diff_since_url`（Compareページ）の表示確認、GitLab側の実機検証は
   未実施（spec「未決定事項・懸念点」に記載済み）。
 
