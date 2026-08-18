@@ -193,7 +193,7 @@ add_empty_commit_for_draft_mr() {
 }
 
 # issue番号・スラッグ生成用テキストから `.mrworkflow.json` の branchPrefixTemplate に沿った
-# ブランチを作成しcheckout、リモートへpushする（ステップ3・4: 「issueからMRとブランチを作る」
+# ブランチを作成しcheckout、リモートへpushする（flow-id 1-3: 「issueからMRとブランチを作る」
 # 「作成したブランチをfetch, checkout」）。第2引数はslug化対象のテキストであり、生のissueタイトル
 # である必要はない（呼び出し元が英語の意訳フレーズ等を渡してよい。`.claude/skills/issue-mr-flow/
 # SKILL.md` の `start` サブコマンド参照。issue #22）。
@@ -214,7 +214,7 @@ new_issue_branch() {
   printf '%s\n' "$branch"
 }
 
-# 新しいセッションで作業を再開するとき用（ステップ4の再開版）。
+# 新しいセッションで作業を再開するとき用（flow-id 1-3の再開版）。
 # ローカルにブランチが無ければ origin から作成し、あれば最新化する。
 sync_branch() {
   local branch="$1"

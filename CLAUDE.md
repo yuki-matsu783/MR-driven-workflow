@@ -11,5 +11,3 @@ keywords: [agents-md, 計画モード, claude-code, 固有ルール]
 @./AGENTS.md
 
 ## Claude Code固有ルール
-
-@./.claude/rules/plan-mode-safety.md
