@@ -992,10 +992,14 @@ issueはGitHubのUIからしか作成できず、標準4見出し（目的・現
   "plansDir": "plans",
   "worklogDir": "worklog",
   "reportsDir": "reports",
-  "specDirs": ["docs/spec", "dev-tools/docs/spec", ".claude/scripts/docs/spec"],
-  "ddrDirs": ["docs/ddr", "dev-tools/docs/ddr", ".claude/scripts/docs/ddr"]
+  "specDirs": [".claude/docs/spec"],
+  "ddrDirs": [".claude/docs/ddr"]
 }
 ```
+
+各キーの意味・デフォルト値・用途はREADME.md「セットアップ」節を参照（issue #21）。
+`specDirs`/`ddrDirs`は現時点で`Provider.sh`のどの関数からも読み出されておらず、ドキュメント上の
+配置場所指定（アプリ本体追加時の拡張ポイント）としてのみ使われる。
 
 ## 決定済み事項（旧・未決定事項）
 
