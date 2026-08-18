@@ -250,6 +250,13 @@ get_issue_number_from_branch() {
 
 # 現在のブランチ固有（<defaultBaseBranch> には無い）の plans/worklog/reports ファイル一覧を返す
 # （コミット済み差分＋作業ツリーの未コミット分をマージ・重複排除）。プロバイダ非依存。
+#
+# 注意（core.quotepath）: gitは既定（core.quotepath=true）で、非ASCII文字を含むパスを
+# 8進エスケープ＋ダブルクォートで囲んだ形（例: "plans/\343\200\220..."）で出力する。
+# 個別作業計画は `plans/【調査】〜.md` のように日本語を含む命名（issue #9）のため、既定のままだと
+# 戻り値が人間にもスクリプトにも使えない文字列になる。`-c core.quotepath=false` を付けて
+# 生のパスを出力させる（`git ls-files -z` のようなNUL区切り出力なら元から影響を受けないが、
+# ここでは --name-only / --porcelain の行単位出力を使うため明示指定が必要）。
 get_branch_work_files() {
   local config plans_dir worklog_dir reports_dir base_branch committed working
   config="$(get_workflow_config)"
@@ -258,8 +265,8 @@ get_branch_work_files() {
   reports_dir="$(printf '%s' "$config" | jq -r '.reportsDir')"
   base_branch="$(printf '%s' "$config" | jq -r '.defaultBaseBranch')"
 
-  committed="$(git diff --name-only "origin/${base_branch}...HEAD" -- "$plans_dir" "$worklog_dir" "$reports_dir" 2>/dev/null || true)"
-  working="$(git status --porcelain -- "$plans_dir" "$worklog_dir" "$reports_dir" | sed -E 's/^...//')"
+  committed="$(git -c core.quotepath=false diff --name-only "origin/${base_branch}...HEAD" -- "$plans_dir" "$worklog_dir" "$reports_dir" 2>/dev/null || true)"
+  working="$(git -c core.quotepath=false status --porcelain -- "$plans_dir" "$worklog_dir" "$reports_dir" | sed -E 's/^...//')"
 
   printf '%s\n%s\n' "$committed" "$working" | sed '/^$/d' | sort -u
 }
