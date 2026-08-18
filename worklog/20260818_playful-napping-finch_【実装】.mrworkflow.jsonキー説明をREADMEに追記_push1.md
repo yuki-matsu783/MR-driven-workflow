@@ -37,7 +37,9 @@ push回数: 1
 
 ## 次の一歩
 
-- README.mdのセットアップ節へ、個別作業計画にまとめたテーブルを実際に追記する（flow-id 3-6）。
-- 追記後、`.mrworkflow.json`の実値・`Provider.sh`実装との整合を再確認する。
+- README.mdのセットアップ節へ、個別作業計画にまとめたテーブルを実際に追記した（flow-id 3-6完了）。
+- `grep`で`.mrworkflow.json`の実値・`Provider.sh`実装との整合を再確認済み（差異なし）。
+- Draft PR #25へpushし、レビューを依頼する（flow-id 3-7）。人間のレビューコメント対応は
+  `subscribe_pr_activity`で待ち受ける。
 
 ---
