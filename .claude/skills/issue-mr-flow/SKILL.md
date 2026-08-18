@@ -7,10 +7,10 @@ tags: [issue-mr-flow, workflow, skill]
 keywords: [start, resume, sync, comments, reply, describe, draft-pr, 実装フロー, squash-merge, レビュー返信]
 ---
 
-# issue駆動 開発フロー（唯一の実装フロー定義）
+# issue駆動 フロー（唯一のフロー定義）
 
 このファイルは `.claude/docs/spec/issue-mr-workflow.md` の実装であり、このプロジェクトにおける
-**issue起票からマージまでの唯一の実装フロー定義**である。新機能追加・既存動作の変更など、
+**issue起票からマージまでの唯一のフロー定義**である。新機能追加・既存動作の変更など、
 ごく小さな変更（誤字修正等。`.claude/rules/git-workflow.md` 参照）を除くあらゆるタスクは、
 このファイルの手順で進める。
 
@@ -228,10 +228,9 @@ PR #29のセッションで実際に発生）。この場合、タスク固有�
 
 ## 前提
 
-- `gh` CLI（GitHubの場合）または `glab` CLI（GitLabの場合）、および `jq` がインストール・認証済みで
-  あること。認証情報自体は各CLIの既存ログイン状態に依存し、本スキル側では管理しない。
-- リポジトリ直下に `.mrworkflow.json` があること（無い場合は `.claude/scripts/src/vcs/Provider.sh` の
-  既定値が使われる）。
-- issueは `.github/ISSUE_TEMPLATE/task.md`（GitHub）/ `.gitlab/issue_templates/task.md`（GitLab）の
-  テンプレートに沿って「目的・現状・期待する動作・受け入れ条件」を記載しておくことが望ましい
+- `gh` CLI（GitHubの場合）または `glab` CLI（GitLabの場合）、および `jq` がインストール・認証済みであること。認証情報自体は各CLIの既存ログイン状態に依存し、本スキル側では管理しない。
+- リポジトリ直下に `.mrworkflow.json` があること（無い場合は `.claude/scripts/src/vcs/Provider.sh` の既定値が使われる）。
+- issueは `.github/ISSUE_TEMPLATE/task.md`（GitHub）/ `.gitlab/issue_templates/Default.md`（GitLab）のテンプレートに沿って「目的・現状・期待する動作・受け入れ条件」を記載しておくことが望ましい
   （必須ではなく、`start` サブコマンドが欠落を警告する）。
+- Claude Code/GeminiCLIのセッションとMRの関係性については、多:1の関係を許容する（1つのMRに対して複数セッションを切り替えて作業してもよい）。
+  ただし、1:多は想定しない。つまり、同一セッション内で複数MRを同時に扱うことはできない（`resume` は1つのMRに対してのみ現在地確認を行うため）。
