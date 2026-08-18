@@ -49,7 +49,6 @@ bash .claude/skills/apply-mr-workflow-to-project/scripts/install-to-project.sh /
 
 ### Step 3: 動作検証
 対象プロジェクトにて、VCS連携等の動作を確認します。
-- Goプロジェクトの場合：対象プロジェクトで `go test ./...` を実行し、既存のテストが問題なく通るか確認。
 - 一般のプロジェクトの場合：対象プロジェクトにエラーが起きず正常に動作することを確認します。
 
 ## 適用される主要なAI資産
