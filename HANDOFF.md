@@ -54,11 +54,11 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 | [x] | 4-3 | MRで反映計画についてレビュー・コメントする。レビュー完了済み連絡をするまで以降の作業は行わない。人間から「設計反映とAIアセット反映は別タイミングでやってほしい」との指摘あり | 人間 |
 | [x] | 4-4 | レビュー内容を取得し、反映計画を修正する。対応が完了したコメントには対応内容を返信する（4-3〜4-4を合意まで繰り返す）。併記していた計画を`【設計反映】〜.md`・`【AIアセット反映】〜.md`の2ファイルへ分割し、実施タイミングも分離する方針にした | `comments` / `reply` |
 | [x] | 4-5 | 反映計画をもとにMR descriptionを更新する | `describe` |
-| [x] | 4-6 | 反映計画をもとに作業を進める、反映内容はworklogに更新する（**設計反映**: 完了。新規DDR `.claude/docs/ddr/0024-〜.md`を作成し、`.claude/docs/spec/extract-frontmatter.md`の未決定事項解消・影響範囲追記、`.claude/docs/README.md`のDDR一覧追記を実施／**AIアセット反映**: レビュー指摘により実施タイミングを分離。設計反映のレビュー完了後に着手する） | エージェント |
-| [] | 4-7 | `commit`スキル経由でcommitし、push してレビュー依頼を行う | エージェント |
-| [] | 4-8 | MRでレビュー・コメントする。レビュー済み連絡をするまで以降の作業は行わない。 | 人間 |
-| [] | 4-9 | レビュー内容を取得し、設計・AIアセットの内容を修正する。対応が完了したコメントには対応内容を返信する（4-6〜4-9の反映ループを合意まで繰り返す） | `comments` / `reply` |
-| [] | 4-10 | 反映内容をもとにMR descriptionを更新する | `describe` |
+| [x][x] | 4-6 | 反映計画をもとに作業を進める、反映内容はworklogに更新する（**1周目=設計反映**: 完了。新規DDR `.claude/docs/ddr/0024-〜.md`を作成し、`.claude/docs/spec/extract-frontmatter.md`の未決定事項解消・影響範囲追記、`.claude/docs/README.md`のDDR一覧追記を実施／**2周目=AIアセット反映**: 完了。`.claude/skills/issue-mr-flow/SKILL.md`のflow-id 5-1特殊対応記述の除去、`.claude/rules/docs-workflow.md`の該当括弧書き除去を実施） | エージェント |
+| [x][] | 4-7 | `commit`スキル経由でcommitし、push してレビュー依頼を行う | エージェント |
+| [x][] | 4-8 | MRでレビュー・コメントする。レビュー済み連絡をするまで以降の作業は行わない。1周目（設計反映）は人間から「OK」の合図あり | 人間 |
+| [x][] | 4-9 | レビュー内容を取得し、設計・AIアセットの内容を修正する。対応が完了したコメントには対応内容を返信する（4-6〜4-9の反映ループを合意まで繰り返す）。1周目は`comments all`で未解決コメント0件を確認、修正不要 | `comments` / `reply` |
+| [x][] | 4-10 | 反映内容をもとにMR descriptionを更新する | `describe` |
 | [] | 5-1 | 次タスクのために、`plans/` `worklog/` `reports/` を削除し、`HANDOFF.md` をリセットする | エージェント |
 | [] | 5-2 | `commit`スキル経由でcommitし、push して Draftを解除する | エージェント |
 | [] | 5-3 | マージする（squash merge。ブランチは削除してよい） | 人間 |
@@ -80,11 +80,13 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - 個別反映計画`plans/【設計反映】【AIアセット反映】index.jsonl生成物化のドキュメント反映.md`とworklogを作成（flow-id 4-1）。DDR 0021・0023の既存フォーマットを踏まえ、新規DDR 0024の構成（決定・却下案）とspec/SKILL.md/docs-workflow.md/README.mdの具体的な変更内容を確定。`directory-structure.md`は`index.jsonl`への直接言及が無いことを確認し変更不要と結論
 - flow-id 4-3〜4-4: レビューで「設計反映とAIアセット反映は別タイミングでやってほしい」との指摘（`comments all`で確認、threadId=PRRT_kwDOT7UgWc6aS9t8）。併記計画を`plans/【設計反映】index.jsonl生成物化の設計反映.md`（DDR 0024新規作成・spec更新・README.md追記）と`plans/【AIアセット反映】index.jsonl生成物化のAIアセット反映.md`（SKILL.md・docs-workflow.md更新）の2ファイルへ分割し、worklogに追記。スレッドへ対応内容を返信
 - 人間から「レビューOK」の合図を受け、`comments all`で確認（該当スレッドはresolved済み、他は対応工数レポート自動投稿のみ）。未解決コメント0件
-- 設計反映を実施（flow-id 4-6）。新規DDR `.claude/docs/ddr/0024-frontmatterのindex.jsonlをGit管理から外しSessionStart-hookで生成する.md`を作成（背景・決定・却下した案3件、うちDDR 0021却下案4の再評価を含む。反映計画分割の経緯も補足として記載）。`.claude/docs/spec/extract-frontmatter.md`の未決定事項解消・影響範囲追記、`.claude/docs/README.md`のDDR一覧追記を実施。worklogに記録
+- 設計反映を実施（flow-id 4-6、1周目）。新規DDR `.claude/docs/ddr/0024-frontmatterのindex.jsonlをGit管理から外しSessionStart-hookで生成する.md`を作成（背景・決定・却下した案3件、うちDDR 0021却下案4の再評価を含む。反映計画分割の経緯も補足として記載）。`.claude/docs/spec/extract-frontmatter.md`の未決定事項解消・影響範囲追記、`.claude/docs/README.md`のDDR一覧追記を実施。worklogに記録
+- 設計反映のレビューで人間から「OK」の合図。`comments all`で未解決コメント0件を確認（flow-id 4-8〜4-9、1周目完了）
+- AIアセット反映を実施（flow-id 4-6、2周目）。`.claude/skills/issue-mr-flow/SKILL.md`の全体フロー表5-1行の簡略化・「flow-id 5-1でのindex.jsonlの扱い」見出しセクション全体の削除・マージ後対処手順内の該当言及除去、`.claude/rules/docs-workflow.md`のplans行括弧書き除去を実施。`git grep`で除去漏れが無いことを確認。worklogに記録
 
 ## 次にやること
 
-- 設計反映をcommit・push・レビュー依頼する（flow-id 4-7）。レビュー完了確認（`comments all`必須）を経てから、AIアセット反映（`plans/【AIアセット反映】index.jsonl生成物化のAIアセット反映.md`）に着手する
+- AIアセット反映をcommit・push・レビュー依頼する（flow-id 4-7、2周目）。レビュー完了確認（`comments all`必須）を経てフェーズ5（クローズ）へ進む
 
 ## 判断を迷った内容
 

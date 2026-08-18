@@ -86,7 +86,7 @@ MR description更新」という同じ形を繰り返す。
 | 4-8 | MRでレビュー・コメントする。レビュー済み連絡をするまで以降の作業は行わない。 | 人間 |
 | 4-9 | レビュー内容を取得し、設計・AIアセットの内容を修正する。対応が完了したコメントには対応内容を返信する（4-6〜4-9の反映ループを合意まで繰り返す） | `comments` / `reply` |
 | 4-10 | 反映内容をもとにMR descriptionを更新する | `describe` |
-| 5-1 | 次タスクのために、`plans/` `worklog/` `reports/` を削除し、`HANDOFF.md` をリセットする。**あわせて `plans/index.jsonl` も削除し、`bash .claude/scripts/src/extract-frontmatter.sh .` で `index.jsonl` 群を再生成する**（下記「flow-id 5-1での `index.jsonl` の扱い」） | エージェント |
+| 5-1 | 次タスクのために、`plans/` `worklog/` `reports/` を削除し、`HANDOFF.md` をリセットする | エージェント |
 | 5-2 | `commit`スキル経由でcommitし、push して Draftを解除する | エージェント |
 | 5-3 | マージする（squash merge。ブランチは削除してよい） | 人間 |
 
@@ -282,28 +282,6 @@ HANDOFF.mdとの矛盾など、ブランチ名だけでは分からない「こ�
   ステップには進まない（GitHub/GitLabのスレッド解決自体はレビュアー側の操作であり、`reply` は
   解決を行わないため、返信済みでも `unresolved` のまま残ることがある）。
 
-## flow-id 5-1での `index.jsonl` の扱い
-
-`plans/` `worklog/` `reports/` を削除する際は、**`plans/index.jsonl` も一緒に削除する**。そのうえで
-リポジトリルートで `index.jsonl` 群を再生成し、5-2のcommitに含める。
-
-```bash
-rm -f plans/index.jsonl
-bash .claude/scripts/src/extract-frontmatter.sh .
-```
-
-`extract-frontmatter.sh` は「markdownが直下に存在するディレクトリ」だけを出力対象にするため、
-`plans/*.md` を全削除すると `plans/index.jsonl` は**再生成の対象から外れ、削除済みの計画ファイルを
-指したまま残ってしまう**（スクリプト側での自動削除は、スコープ外のファイルを消しうるため採用して
-いない。詳細:
-`.claude/docs/ddr/0021-frontmatter抽出は1ファイル1回のjq呼び出しとmtimeキャッシュで高速化する.md`
-の却下案4）。`worklog/` は `TEMPLATE.md` が残るため、再生成すれば正しい状態になる。
-
-なお `index.jsonl` は各ファイルの `mtime` を持つため、`HANDOFF.md` や `plans/` `worklog/` を編集した
-flow-idでは毎回内容がずれる。**5-1に限らず、各commitの直前に
-`bash .claude/scripts/src/extract-frontmatter.sh .` を1回流しておく**とよい（差分が無ければ2秒未満で
-終わる。詳細: `.claude/rules/markdown-frontmatter.md`）。
-
 ## PRがflow-id 5-1実施前にマージされてしまった場合の対処
 
 人間がレビュー後にそのままMR/PRをマージするなど、flow-id 5-1（`plans/` `worklog/` `reports/`の
@@ -322,9 +300,7 @@ PR #29のセッションで実際に発生）。この場合、タスク固有�
    `.mrworkflow.json`の`branchPrefixTemplate`に従う必要はなく、`chore/cleanup-<簡潔な説明>`の
    ような分かりやすい名前でよい）。
 3. そのブランチ上で、該当する`plans/`・`worklog/`・`reports/`ファイルを削除し、`HANDOFF.md`を
-   次タスク向けの空テンプレートへリセットする（内容はflow-id 5-1で行うものと同じ。
-   `plans/index.jsonl`の削除と`index.jsonl`群の再生成も含む。上記「flow-id 5-1での
-   `index.jsonl` の扱い」参照）。
+   次タスク向けの空テンプレートへリセットする（内容はflow-id 5-1で行うものと同じ）。
 4. commit・pushし、`main`を対象にPRを作成する。PR作成・マージの実行は、他のPR操作と同様
    ユーザーから明示的な指示を受けてから行う（`.claude/rules/git-workflow.md`の原則どおり、
    マージ自体は人間が行う）。
