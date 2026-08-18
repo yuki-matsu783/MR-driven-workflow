@@ -1,7 +1,7 @@
 ---
 title: post-push-save-logs.shのGemini CLI/Claude Code自動判定化
 type: plan
-description: post-push-save-logs.shが実行中のCLI(Gemini CLI/Claude Code)を自動判定し、Claude Codeのセッションログもlogsディレクトリへ保存できるようにするための調査計画
+description: post-push-save-logs.shが実行中のCLI(Gemini CLI/Claude Code)を自動判定し、Claude Codeのセッションログもlogsディレクトリへ保存できるようにするための調査・作業計画
 tags: [hooks, session-logs, gemini-cli, claude-code]
 keywords: [post-push-save-logs, tool_name, run_shell_command, transcript_path, subagents, logs, gitignore, settings.json]
 ---
@@ -233,3 +233,76 @@ WebSearch/WebFetchでGemini CLI公式ドキュメント（[Hooks reference](http
   `echo '...' | GEMINI_PROJECT_DIR=... bash .claude/hooks/post-push-save-logs.sh` の形で2パターン
   （Gemini CLI相当・Claude Code相当）流し込み、`logs/push-<N>/`配下に期待通りのファイルが
   生成されることを確認する。
+
+## 作業計画
+
+### 変更対象ファイル
+
+1. **`.claude/hooks/post-push-save-logs.sh`**（本体の改修）
+   - ヘッダコメントを「Gemini CLI専用」から「Gemini CLI/Claude Code両対応」に更新し、
+     調査結果4で見つかった「サブエージェントが親と同じセッションIDで動作する可能性がある」
+     （[Issue #20258](https://github.com/google-gemini/gemini-cli/issues/20258)）という
+     未検証の懸念をコメントとして残す。
+   - `tool_name`から`engine`（`gemini`/`claude`）を決定する分岐を追加する
+     （`run_shell_command`→`gemini`、`Bash`/`PowerShell`→`claude`。この2値以外は既存の
+     早期exitで弾かれるため、追加のフォールバック分岐は不要）。
+   - ログ収集部分を`engine`で分岐:
+     - `gemini`: **既存ロジックを変更しない**（`chats_dir`/`session_id`ディレクトリを
+       そのまま`cp -R`。受け入れ条件「Gemini CLI上での既存の保存動作に回帰がないこと」を
+       満たすため、動作の変更は行わない）。
+     - `claude`: 新規に追加。`UsageTracking.sh`の`_usage_sync_session_logs`
+       （`.claude/hooks/lib/UsageTracking.sh:316-339`）と同じ探索パターンを、
+       `usage/session-logs/`向けではなく`push_dir`直下に置く形で実装する
+       （`_usage_sync_session_logs`自体は呼び出さず、パターンだけを踏襲した専用コードを書く。
+       対応工数レポート側の状態管理とは無関係のため関数を共用しない）:
+       1. `transcript_path`自体を`push_dir`直下へコピー（Gemini分岐の
+          `cp "$transcript_path" "$push_dir/"`と同じ扱い、ファイル名は保持）
+       2. `${transcript_path%.jsonl}/subagents/agent-*.jsonl`が存在すれば
+          `push_dir/subagents/`を作成し、各`agent-*.jsonl`と対応する`.meta.json`
+          （あれば）をコピーする
+   - 既存の`agent_id`ガード（サブエージェント内実行では何もしない）・失敗を握りつぶす
+     `( main ) || true; exit 0`構造はそのまま維持する。
+
+2. **`.claude/settings.json`**
+   - `hooks.PostToolUse`配列へ、既存の`post-push-usage-report.sh`/`post-push-compact-prompt.sh`
+     と同じ形（`matcher: "Bash|PowerShell"`、`if: "Bash(git push*)"` /
+     `"PowerShell(git push*)"`、`command: "bash"`,
+     `args: ["${CLAUDE_PROJECT_DIR}/.claude/hooks/post-push-save-logs.sh"]`, `timeout: 20`）
+     を2エントリ追加する。
+
+3. **`.gemini/settings.json`**
+   - `hooks`キーを新設し、調査結果4でレビュー確定した`SessionStart`/`BeforeTool`/`AfterTool`
+     一式（`session-start`, `block-direct-git-commit`, `post-push-usage-report`,
+     `post-push-compact-prompt`, `post-push-save-logs`）をそのまま追加する。
+   - **既存の`general.plan.directory`設定はそのまま維持する**（レビューで提示されたスニペット
+     冒頭の`"permissions": {"defaultMode": "plan"}, "plansDirectory": "./plans"`は
+     Claude Code側`.claude/settings.json`のキー形式であり、Gemini CLI側で同じキーが有効か
+     本タスクでは未検証。既存の動いている設定を壊さないよう、レビューコメントのうち
+     `hooks`セクションのみを採用し、それ以外はマージしない。この判断はレビュー時に
+     人間へ確認を求める）。
+
+4. **`.gitignore`**
+   - `/usage/`の行の近くに`/logs/`を追記する。
+
+### 実装しないこと
+
+- Gemini CLI側の既存ロジック（サブエージェント探索方法）自体の修正（issue #20258の懸念への対応）。
+- `.claude/docs/spec/`への反映（flow-id 26「設計反映」で別途行う。本タスクでは`.gemini/settings.json`の
+  `general.plan.directory`維持判断も含め、DDR化を検討する）。
+- 新規`tests/`ディレクトリの追加（調査結果6の判断どおり、手動検証で代替する）。
+
+### 検証方法
+
+1. `bash -n .claude/hooks/post-push-save-logs.sh` で構文チェック。
+2. `.claude/settings.json`, `.gemini/settings.json` を`jq .`に通してJSON構文を確認。
+3. 疑似hook入力JSONを使った手動シミュレーション（作業ディレクトリを一時退避してから実施）:
+   - Gemini CLI相当: `tool_name="run_shell_command"`, `tool_input.command="git push"`,
+     `GEMINI_PROJECT_DIR`を設定し、疑似`transcript_path`と同ディレクトリに`session_id`名の
+     ディレクトリ（ダミーファイル入り）を用意して実行 → `logs/push-1/`にメインログと
+     サブエージェント相当のディレクトリがコピーされることを確認。
+   - Claude Code相当: `tool_name="Bash"`, `tool_input.command="git push"`,
+     `CLAUDE_PROJECT_DIR`を設定し、疑似`transcript_path`と`${transcript_path%.jsonl}/subagents/`
+     配下にダミーの`agent-*.jsonl`＋`.meta.json`を用意して実行 → `logs/push-2/`（連番が進む）に
+     メインログと`subagents/`配下のファイルがコピーされることを確認。
+4. `git push`を含まないコマンド（例: `git status`）や`agent_id`付きペイロードでは何も起きない
+   （早期exitする）ことを確認する。
