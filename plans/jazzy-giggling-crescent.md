@@ -120,19 +120,91 @@ Claude Code）で判定を分岐できる下地がある。しかし：
 
 WebSearch/WebFetchでGemini CLI公式ドキュメント（[Hooks reference](https://geminicli.com/docs/hooks/reference/),
 [Writing hooks](https://geminicli.com/docs/hooks/writing-hooks/),
-[Shell tool](https://geminicli.com/docs/tools/shell/)）を確認した結果、以下が判明した。
+[Shell tool](https://geminicli.com/docs/tools/shell/)）を確認した結果、`.gemini/settings.json`の
+`hooks.AfterTool`配列に`matcher`＋`command`（単一シェル文字列）で登録できる、という大枠は
+特定できていた。加えて、**PR #5のレビュー（`plans/jazzy-giggling-crescent.md:50`スレッド）で
+リポジトリオーナーから、実際に使う`.gemini/settings.json`の完成形が提示された**ため、これを
+正とする（自前のWeb調査結果より優先する）。
 
-- `.gemini/settings.json`の`hooks.AfterTool`配列に、`matcher: "run_shell_command"`、
-  `hooks: [{type: "command", command: "<shellコマンド文字列>", name, timeout, description}]`
-  という形で登録できる（Claude Code側の`matcher`+`if`の2段フィルタと異なり、Gemini CLI側は
-  `matcher`（正規表現、ツール名に対して照合）のみで、コマンド内容でのフィルタは無い。
-  `post-push-save-logs.sh`内部の`git push`文字列チェックが唯一のフィルタになる）。
-- `command`フィールドは単一のシェルコマンド文字列であり、Claude Code側のような`args`配列に
-  相当するフィールドはドキュメント上確認できなかった。公式サンプルが
-  `"command": "$GEMINI_PROJECT_DIR/.gemini/hooks/hook-script.sh"`という形で環境変数展開を
-  前提にしていることから、`"command": "bash \"$GEMINI_PROJECT_DIR/.claude/hooks/post-push-save-logs.sh\""`
-  のような1本の文字列で登録できると見込む（`.gemini/hooks`は`.claude/hooks`へのローカルリンクのため
-  どちらのパスでも実体は同じ）。
+```json
+{
+  "permissions": {
+    "defaultMode": "plan"
+  },
+  "plansDirectory": "./plans",
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup|resume|clear",
+        "hooks": [
+          {
+            "name": "session-start",
+            "type": "command",
+            "command": "bash \"${GEMINI_PROJECT_DIR}/.gemini/hooks/session-start.sh\"",
+            "timeout": 30000
+          }
+        ]
+      }
+    ],
+    "BeforeTool": [
+      {
+        "matcher": "run_shell_command|Bash|PowerShell",
+        "hooks": [
+          {
+            "name": "block-direct-git-commit",
+            "type": "command",
+            "command": "bash \"${GEMINI_PROJECT_DIR}/.gemini/hooks/block-direct-git-commit.sh\"",
+            "timeout": 10000
+          }
+        ]
+      }
+    ],
+    "AfterTool": [
+      {
+        "matcher": "run_shell_command|Bash|PowerShell",
+        "hooks": [
+          {
+            "name": "post-push-usage-report",
+            "type": "command",
+            "command": "bash \"${GEMINI_PROJECT_DIR}/.gemini/hooks/post-push-usage-report.sh\"",
+            "timeout": 20000
+          },
+          {
+            "name": "post-push-compact-prompt",
+            "type": "command",
+            "command": "bash \"${GEMINI_PROJECT_DIR}/.gemini/hooks/post-push-compact-prompt.sh\"",
+            "timeout": 20000
+          },
+          {
+            "name": "post-push-save-logs",
+            "type": "command",
+            "command": "bash \"${GEMINI_PROJECT_DIR}/.gemini/hooks/post-push-save-logs.sh\"",
+            "timeout": 20000
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+これを踏まえた確定事項・スコープ変更:
+
+- パスは`.claude/hooks/`ではなく`.gemini/hooks/`経由で参照する（`.gemini/hooks`は`.claude/hooks`への
+  ローカルリンクのため実体は同じだが、`.gemini/settings.json`からは`.gemini/`側のパスで揃える）。
+  `${GEMINI_PROJECT_DIR}`は`"..."`で囲んでクォートする（Windows/パス中のスペース対策、
+  `.claude/settings.json`側の`args`配列を使わない代わりの安全策）。
+- `BeforeTool`/`AfterTool`の`matcher`は`"run_shell_command|Bash|PowerShell"`という**Gemini CLIと
+  Claude Code両方のtool_name**を含む形で統一されている（Gemini CLI自身が`Bash`/`PowerShell`という
+  tool_nameを発行することは無いはずだが、将来的な変更への耐性・`.claude/settings.json`側の
+  マッチャーとの見た目の統一を意図したものと解釈する。各hookスクリプト内部で`tool_name`による
+  絞り込みを別途行っているため、マッチャーを広めに取っても誤発火はしない）。
+- **スコープが「`post-push-save-logs.sh`の登録のみ」から「`.gemini/settings.json`に
+  `.claude/settings.json`相当のhooksセクション一式（`SessionStart`, `BeforeTool`の
+  `block-direct-git-commit`, `AfterTool`の3スクリプト）を新設する」に広がる**。現状
+  `.gemini/settings.json`にはhooks定義が一切無く、Gemini CLI利用時にセッション開始時コンテキスト
+  注入・直接`git commit`ブロック・対応工数レポート・compact促し・セッションログ保存のいずれも
+  機能していない状態のため、今回まとめて配線する。
 - `run_shell_command`の`tool_input.command`フィールド名は[Shell tool doc](https://geminicli.com/docs/tools/shell/)で
   確認済みで、既存スクリプトの`jq -r '.tool_input.command // empty'`と一致している（変更不要）。
 - **未検証・懸念点として残すこと**: [Issue #20258](https://github.com/google-gemini/gemini-cli/issues/20258)
@@ -140,11 +212,8 @@ WebSearch/WebFetchでGemini CLI公式ドキュメント（[Hooks reference](http
   Gemini CLIではサブエージェントが親と同じセッションIDで動作し、既存スクリプトが前提とする
   「`${chats_dir}/${session_id}/`配下にサブエージェント専用の別ディレクトリがある」という構造が
   実際の挙動と一致しない可能性がある。ただしこれは**既存のGemini CLI分岐のロジック自体の問題**であり、
-  今回のissueのスコープ（Claude Code対応の追加）には含めない。動作を変更せずそのまま残し、
+  今回のissueのスコープ（Claude Code対応の追加＋hooks配線）には含めない。動作を変更せずそのまま残し、
   スクリプトのコメントに「未検証の既知の懸念」として記録するに留める。
-- 上記を踏まえ、**Gemini CLI側の`.gemini/settings.json`への登録も今回のissueのスコープに含める**
-  （受け入れ条件「Gemini CLI上での既存の保存動作に回帰がないこと」を検証可能にするには、実際に
-  発火させて確認する必要があるため）。
 
 ### 5. `logs/`の`.gitignore`扱い
 

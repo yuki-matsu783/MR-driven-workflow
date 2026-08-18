@@ -41,7 +41,7 @@
       </div>
       <div class="bg-white rounded-lg border border-slate-200 p-4">
         <h3 class="font-semibold text-slate-900 mb-2">④ Gemini CLI側hook登録</h3>
-        <p class="text-sm text-slate-600"><code class="bg-slate-100 px-1 rounded">.gemini/settings.json</code> の <code class="bg-slate-100 px-1 rounded">hooks.AfterTool</code> に <code class="bg-slate-100 px-1 rounded">matcher: "run_shell_command"</code> + 単一シェル文字列の <code class="bg-slate-100 px-1 rounded">command</code> で登録可能（一次情報で確認）。</p>
+        <p class="text-sm text-slate-600">PRレビューでリポジトリオーナーから<code class="bg-slate-100 px-1 rounded">.gemini/settings.json</code>の完成形が提示された。<code class="bg-slate-100 px-1 rounded">SessionStart</code>/<code class="bg-slate-100 px-1 rounded">BeforeTool</code>/<code class="bg-slate-100 px-1 rounded">AfterTool</code>一式（既存の<code class="bg-slate-100 px-1 rounded">.claude/hooks/*.sh</code>全部）をまとめて配線する方針に拡大。</p>
       </div>
       <div class="bg-white rounded-lg border border-slate-200 p-4">
         <h3 class="font-semibold text-slate-900 mb-2">⑤ .gitignore</h3>
@@ -55,29 +55,39 @@
   </section>
 
   <section class="mb-10">
-    <h2 class="text-lg font-semibold border-b border-slate-200 pb-2 mb-4">Gemini CLI hook設定スキーマ（一次情報）</h2>
+    <h2 class="text-lg font-semibold border-b border-slate-200 pb-2 mb-4">.gemini/settings.json hooks設定（PRレビューでの確定版）</h2>
     <pre class="bg-slate-900 text-slate-100 text-sm rounded-lg p-4 overflow-x-auto"><code>{
   "hooks": {
+    "SessionStart": [
+      { "matcher": "startup|resume|clear", "hooks": [
+        { "name": "session-start", "type": "command",
+          "command": "bash \"${GEMINI_PROJECT_DIR}/.gemini/hooks/session-start.sh\"", "timeout": 30000 }
+      ] }
+    ],
+    "BeforeTool": [
+      { "matcher": "run_shell_command|Bash|PowerShell", "hooks": [
+        { "name": "block-direct-git-commit", "type": "command",
+          "command": "bash \"${GEMINI_PROJECT_DIR}/.gemini/hooks/block-direct-git-commit.sh\"", "timeout": 10000 }
+      ] }
+    ],
     "AfterTool": [
-      {
-        "matcher": "run_shell_command",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bash \"$GEMINI_PROJECT_DIR/.claude/hooks/post-push-save-logs.sh\"",
-            "name": "save-session-logs",
-            "timeout": 20000
-          }
-        ]
-      }
+      { "matcher": "run_shell_command|Bash|PowerShell", "hooks": [
+        { "name": "post-push-usage-report", "type": "command",
+          "command": "bash \"${GEMINI_PROJECT_DIR}/.gemini/hooks/post-push-usage-report.sh\"", "timeout": 20000 },
+        { "name": "post-push-compact-prompt", "type": "command",
+          "command": "bash \"${GEMINI_PROJECT_DIR}/.gemini/hooks/post-push-compact-prompt.sh\"", "timeout": 20000 },
+        { "name": "post-push-save-logs", "type": "command",
+          "command": "bash \"${GEMINI_PROJECT_DIR}/.gemini/hooks/post-push-save-logs.sh\"", "timeout": 20000 }
+      ] }
     ]
   }
 }</code></pre>
     <p class="text-sm text-slate-500 mt-3">
-      出典:
-      <a class="text-sky-600 underline" href="https://geminicli.com/docs/hooks/reference/">Hooks reference</a>,
+      出典: PR #5 レビューコメント（リポジトリオーナー提示）。当初のWeb一次情報
+      （<a class="text-sky-600 underline" href="https://geminicli.com/docs/hooks/reference/">Hooks reference</a>,
       <a class="text-sky-600 underline" href="https://geminicli.com/docs/hooks/writing-hooks/">Writing hooks</a>,
-      <a class="text-sky-600 underline" href="https://geminicli.com/docs/tools/shell/">Shell tool</a>
+      <a class="text-sky-600 underline" href="https://geminicli.com/docs/tools/shell/">Shell tool</a>）
+      は大枠（AfterTool + matcher + 単一シェル文字列command）の裏付けとして使う。
     </p>
   </section>
 
