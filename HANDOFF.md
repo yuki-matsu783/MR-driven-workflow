@@ -51,11 +51,11 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 | [x] | 3-9 | レビュー内容を取得し、実装・ドキュメントを修正する。対応が完了したコメントには対応内容を返信する（3-6〜3-9の作業ループを合意まで繰り返す） | `comments` / `reply` |
 | [x] | 3-10 | 作業内容をもとにMR descriptionを更新する | `describe` |
 | [x] | 4-1 | **作業結果と`plans/` `worklog/` の内容をもとに**、個別反映計画`plans/【設計反映】【AIアセット反映】〜.md`等を**planツールを使わず**Write/Editで作成する | エージェント |
-| [] | 4-2 | `commit`スキル経由でcommitし、push してレビュー依頼を行う | エージェント |
-| [] | 4-3 | MRで反映計画についてレビュー・コメントする。レビュー完了済み連絡をするまで以降の作業は行わない。 | 人間 |
-| [] | 4-4 | レビュー内容を取得し、反映計画を修正する。対応が完了したコメントには対応内容を返信する（4-3〜4-4を合意まで繰り返す） | `comments` / `reply` |
-| [] | 4-5 | 反映計画をもとにMR descriptionを更新する | `describe` |
-| [] | 4-6 | 反映計画をもとに作業を進める、反映内容はworklogに更新する（**設計反映**: `plans/` `worklog/` の内容を `.claude/docs/spec/` `.claude/docs/ddr/`（アプリ本体があれば`docs/spec/` `docs/ddr/`）へ反映する／**AIアセット反映**: 作業中に気づいたルール・スキルの不備を `.claude/rules/` `.claude/skills/` `CLAUDE.md` `AGENTS.md` に反映する） | エージェント |
+| [x] | 4-2 | `commit`スキル経由でcommitし、push してレビュー依頼を行う | エージェント |
+| [x] | 4-3 | MRで反映計画についてレビュー・コメントする。レビュー完了済み連絡をするまで以降の作業は行わない。 | 人間 |
+| [x] | 4-4 | レビュー内容を取得し、反映計画を修正する。対応が完了したコメントには対応内容を返信する（4-3〜4-4を合意まで繰り返す） | `comments` / `reply` |
+| [x] | 4-5 | 反映計画をもとにMR descriptionを更新する | `describe` |
+| [x] | 4-6 | 反映計画をもとに作業を進める、反映内容はworklogに更新する（**設計反映**: `plans/` `worklog/` の内容を `.claude/docs/spec/` `.claude/docs/ddr/`（アプリ本体があれば`docs/spec/` `docs/ddr/`）へ反映する／**AIアセット反映**: 作業中に気づいたルール・スキルの不備を `.claude/rules/` `.claude/skills/` `CLAUDE.md` `AGENTS.md` に反映する） | エージェント |
 | [] | 4-7 | `commit`スキル経由でcommitし、push してレビュー依頼を行う | エージェント |
 | [] | 4-8 | MRでレビュー・コメントする。レビュー済み連絡をするまで以降の作業は行わない。 | 人間 |
 | [] | 4-9 | レビュー内容を取得し、設計・AIアセットの内容を修正する。対応が完了したコメントには対応内容を返信する（4-6〜4-9の反映ループを合意まで繰り返す） | `comments` / `reply` |
@@ -99,11 +99,26 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
   追記に割り付けた。この過程で**既存specの記述誤り2件**（存在しないパス
   `.claude/scripts/docs/spec/shell-scripts.md` への参照、および**このリポジトリに存在しない**
   `ddr/0008-…` へのリンク2箇所）を発見し、反映対象に含めた。
+- flow-id 4-2〜4-5: 個別反映計画をpushしてレビュー合意（未解決スレッド0件を確認）→
+  MR descriptionへフェーズ4の内容を追記。
+- flow-id 4-6（反映の実施）:
+  - **設計反映**: `.claude/docs/spec/extract-frontmatter.md` に「差分スキップ（mtimeキャッシュ）」
+    「原子的更新と中断耐性」「性能」の3節を新設。影響範囲へissue #11エントリを**新規追記**
+    （過去changelogは書き換えず）。未決定事項の既知バグを「解消（再現せず）」へ書き換え、
+    `index.jsonl` の陳腐化を新しい懸念点として追加。**DDR 0021 を新設**（却下案4件）し
+    `.claude/docs/README.md` の一覧へ追加。
+  - **AIアセット反映**: `.claude/rules/shell-script-style.md` に「外部プロセス起動のコスト」節を新設／
+    `.claude/rules/markdown-frontmatter.md` に `--force` の使いどころとcommit直前実行を追記／
+    `.claude/skills/issue-mr-flow/SKILL.md` に「flow-id 5-1での `index.jsonl` の扱い」節を新設し
+    5-1の行とマージ先行時の対処手順を更新／`.claude/rules/docs-workflow.md` の `plans/` 行へ追記。
+  - **検証**: `tests/test_extract_frontmatter.sh` → `passed=17 failures=0`。
+    `extract-frontmatter.sh .` → `files=51 built=7 reused=44` / 6.4秒。相対リンク切れ0件。
+    `git diff` でspecの issue #24/#54 エントリと既存DDR本文が不変であることを確認。
 
 ## 次にやること
 
-- **flow-id 4-2**: 個別反映計画・worklog push4・HANDOFF.md をcommitし、pushしてレビュー依頼（push4）。
-- レビュー合意後、flow-id 4-5（MR description更新）→ 4-6（反映作業の実施）へ進む。
+- **flow-id 4-7**: 反映内容をcommitし、pushしてレビュー依頼（push4）。
+- レビュー合意後、flow-id 4-10（MR description更新）→ フェーズ5（5-1 片付け・5-2 Draft解除）へ。
 
 ## 判断を迷った内容
 
@@ -122,15 +137,13 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - （解決済み）再生成された `index.jsonl` の扱いは、レビューで**「一時ファイル（`plans/` `worklog/`）も
   jsonl作成の対象にしてよい。`.gitignore` は除外」「MR直前のpushでは `index.jsonl` も消す」**と確定した。
   すべてコミット済み。
-- **flow-id 5-1 の手順追記がフェーズ4のTODO**: `plans/*.md` を全削除しても、本スクリプトは
-  「markdownが直下にあるディレクトリ」だけを出力対象にするため、`plans/index.jsonl` は再生成の
-  対象外となり陳腐化したまま残る。5-1で**`plans/index.jsonl` も削除し `index.jsonl` 群を再生成する**
-  手順を `.claude/skills/issue-mr-flow/SKILL.md` と `.claude/rules/docs-workflow.md` へ追記する
-  （個別反映計画の 2-3 / 2-4 に反映済み。flow-id 4-6で実施する）。
-- **`index.jsonl` をコミット対象にしている運用上の副作用**: `HANDOFF.md` や worklog を編集するたびに
-  mtime 経由で `index.jsonl` が陳腐化するため、**commit直前に `extract-frontmatter.sh .` を1回流す**
-  必要がある（高速化した今なら1〜2秒）。specの懸念点として記載する方針（自動化はissue #11の
-  受け入れ条件外のため今回は行わない）。
+- （解決済み）flow-id 5-1 での `plans/index.jsonl` の扱いは、flow-id 4-6 で
+  `.claude/skills/issue-mr-flow/SKILL.md`（「flow-id 5-1での `index.jsonl` の扱い」節）と
+  `.claude/rules/docs-workflow.md` へ明文化した。**このブランチ自身の 5-1 でも実際に実行すること**。
+- （解決済み・懸念として記録）`index.jsonl` をコミット対象にしていることの副作用（`HANDOFF.md` や
+  worklog を編集するたびに mtime 経由で陳腐化する）は、`.claude/docs/spec/extract-frontmatter.md` の
+  未決定事項へ記載し、当面は「commit直前に `extract-frontmatter.sh .` を1回流す」運用とした
+  （git hook等での自動化はissue #11の受け入れ条件外のため行わない）。
 - 進捗表で使った `[-]`（今回は実施しない）は `.claude/rules/docs-workflow.md` の記号規約に未記載。
   issue #20 で明文化する予定。
 
