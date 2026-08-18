@@ -41,6 +41,25 @@ push回数: 1
   （最初期コミット`4ba0395`由来、issue #14とは無関係）。今回は修正せず、HANDOFF.mdの
   「未解決の内容」に記録し、別issue化を推奨するに留めた。
 
+## 試したこと（続き・scope追加分）
+
+- ユーザー指示により、発見済みの既存不整合（README.md/DEVELOPERS.mdのfrontmatter欠如・内容不一致）を
+  issue #14のscopeに含めて対応。
+  - `README.md`: frontmatter付与＋全面書き直し（`AGENTS.md`のプロジェクト概要・`index.md`の記載に
+    整合させ、AGENTS.md/index.md/DEVELOPERS.md/issue-mr-flow SKILL.mdへの導線を追加）。
+  - `DEVELOPERS.md`: frontmatter付与。「主要なディレクトリと役割」節を`index.md`へのポインタに
+    置き換え（`index.md`との重複・陳腐化を解消）。他の内容は概ね正しいため維持。
+  - `.gitignore`に`.claude/skills/apply-mr-workflow-to-project/assets/`を追加し、`DEVELOPERS.md`が
+    「assets/は.gitignore対象」と述べている記載を事実に合わせた（`git check-ignore -v`で確認済み）。
+  - root `index.jsonl`を再度`extract-frontmatter.sh .`で再生成→scope外の巻き込みを
+    `git checkout --`で除去、という同じ手順を再度実施。
+
+## うまくいったこと（続き）
+
+- root index.jsonlの再生成前に残っていた旧（規正前の）エントリの`description`が、実は
+  「あるべきREADME.md/DEVELOPERS.mdの内容」のヒントとして使えた（`4ba0395`「輸入」で
+  README.mdが上書きされる前の記述と一致）。それを手がかりに書き直し内容の妥当性を確認できた。
+
 ## 次の一歩
 
 - 特になし（完了）。commit・push（flow-id 3-7）へ進む。

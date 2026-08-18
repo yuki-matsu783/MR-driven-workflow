@@ -47,8 +47,32 @@ frontmatterの`keywords`に `gh`, `glab`, `webfetch` を追記する。他の既
 - `bash .claude/scripts/src/extract-frontmatter.sh .claude/docs/ddr` と
   `bash .claude/scripts/src/extract-frontmatter.sh .` を実行し `index.jsonl` を再生成する。
 
+### 4.（scope追加）`README.md`・`DEVELOPERS.md`のfrontmatter欠如・内容不整合の解消
+
+flow-id 3-6のindex.jsonl再生成時に発覚した既存の不整合（ユーザー指示によりissue #14のscopeに含める）。
+
+- **背景**: `README.md`・`DEVELOPERS.md`にfrontmatterが存在せず、`README.md`の中身も本リポジトリ
+  （issue駆動MRワークフロー機構のテンプレート）ではなく無関係な別テンプレート
+  「AI Asset Management Project」の内容のまま（最初期コミット`4ba0395`「輸入」由来）。
+  `DEVELOPERS.md`は内容自体は概ね本リポジトリに即した内容だが、frontmatterが無く、
+  ディレクトリ一覧が`index.md`（Repository Mapの正）と重複・不整合（`.claude/`
+  `.gemini/`しか記載が無く古い）。加えて「`assets/`は`.gitignore`対象」という記載が実際には
+  誤り（`.gitignore`に該当パターンが無いことを確認済み）。
+- **README.md**: `AGENTS.md`のプロジェクト概要・`index.md`の記載に合わせて全面的に書き直す。
+  frontmatter（`type: guide`）を付与し、`AGENTS.md`・`index.md`・`DEVELOPERS.md`・
+  `.claude/skills/issue-mr-flow/SKILL.md`への導線を用意する。
+- **DEVELOPERS.md**: frontmatterを付与する。「主要なディレクトリと役割」節は`index.md`と
+  重複し陳腐化していたため、`.claude/rules/directory-structure.md`と同じ方針
+  （役割説明はindex.mdを正とし重複記載しない）に倣い、`index.md`へのポインタに置き換える。
+  他の内容（開発指針・issue-mr-flowへの言及・スキルのビルド/配布手順）は概ね正しいため維持する。
+- **`.gitignore`**: `.claude/skills/apply-mr-workflow-to-project/assets/`
+  （`sync-assets.sh`が生成するビルド用一時ディレクトリ）が実際には除外されていなかったため、
+  `DEVELOPERS.md`の記載を事実に合わせるべく`.gitignore`にエントリを追加する。
+
 ## 完了条件
 
 - AGENTS.mdにルールが追記されている
 - DDR 0020が新規作成され、README.mdのDDR一覧に反映されている
 - ルート・`.claude/docs/ddr/`双方の`index.jsonl`が再生成されている
+- README.md・DEVELOPERS.mdにfrontmatterが付与され、内容が本リポジトリの実態と一致している
+- `.claude/skills/apply-mr-workflow-to-project/assets/`が`.gitignore`で実際に除外される

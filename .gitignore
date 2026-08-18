@@ -3,6 +3,9 @@
 # ビルド成果物
 /build/
 
+# apply-mr-workflow-to-projectスキルのsync-assets.shが生成するビルド用一時ディレクトリ
+/.claude/skills/apply-mr-workflow-to-project/assets/
+
 # エディタ
 .vscode/
 

@@ -68,6 +68,16 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
   再生成時に`extract-frontmatter.sh .`が想定よりリポジトリ全体を再帰的に対象にしてしまい、
   無関係な多数のディレクトリの`index.jsonl`まで巻き込んだため、それらは`git checkout --`で
   差分を破棄しscopeを本issueに関係する2ディレクトリ（ルート・`.claude/docs/ddr/`）分のみに絞った。
+- ユーザー指示により、上記で発見したREADME.md/DEVELOPERS.mdの不整合をissue #14のscopeに含めて
+  解消した（個別作業計画に「4.（scope追加）」として追記済み）。
+  - `README.md`: 「AI Asset Management Project」という無関係な内容から、本リポジトリ
+    （issue駆動MRワークフロー機構のテンプレート）の説明へ全面的に書き直し、frontmatterを付与。
+  - `DEVELOPERS.md`: frontmatterを付与。ディレクトリ一覧節は`index.md`（Repository Mapの正）と
+    重複・陳腐化していたため、ポインタへ置き換え。
+  - `.gitignore`: `DEVELOPERS.md`の「`assets/`は`.gitignore`対象」という記載を事実に合わせるため、
+    `.claude/skills/apply-mr-workflow-to-project/assets/`（`sync-assets.sh`のビルド用一時ディレクトリ）
+    を追加。`git check-ignore -v`で除外されることを確認済み。
+  - root `index.jsonl`を再度再生成し、今回もscope外の巻き込みは`git checkout --`で除去した。
 
 ## 次にやること
 
@@ -81,14 +91,9 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 
 ## 未解決の内容
 
-- **本issueとは無関係の既存不具合を発見**: root `index.jsonl`を再生成した際、`README.md`と
-  `DEVELOPERS.md`の実ファイルにfrontmatterが存在しないこと（`frontmatter: null`）が判明した。
-  実際の中身も、このリポジトリの説明（MR-driven-workflowテンプレート）ではなく
-  「AI Asset Management Project」という別テンプレートの内容になっている。
-  `git log --follow -- README.md`で調べたところ、リポジトリ最初期のコミット`4ba0395`（"輸入"）
-  で既にこの内容に置き換わっており、issue #14とは無関係の長期間放置された既存の不整合と判断した。
-  今回のscopeでは修正せず、**別issueとして起票することを推奨**する（README.md/DEVELOPERS.mdの
-  内容をこのリポジトリの実態に合わせて書き直し、frontmatterも付与する）。
+（無し。README.md/DEVELOPERS.mdの不整合はユーザー指示によりissue #14のscopeに含めて解消済み。
+経緯は`git log --follow -- README.md`で確認: リポジトリ最初期のコミット`4ba0395`「輸入」で
+無関係な別テンプレート内容に置き換わっていた）
 
 ## 守るべき条件・触ってはいけない範囲
 
