@@ -2,8 +2,8 @@
 #
 # Gemini CLI / Claude Code 共通 AfterTool・PostToolUse hook（git push検知、bash版）。
 # 設計: issue #15 → .claude/docs/spec/issue-mr-workflow.md,
-#       .claude/docs/spec/shell-scripts.md（issue #6、bash化）→
-#       .claude/docs/spec/session-log-hooks.md（issue #7、Gemini CLI対応）
+#       .claude/docs/spec/shell-scripts.md（issue #6、bash化）,
+#       issue #7（Gemini CLI対応）, issue #23（セッションログの一本化）
 #
 # .claude/settings.json 側で matcher: "Bash|PowerShell"、.gemini/settings.json 側で
 # matcher: "run_shell_command|Bash|PowerShell" と、各エントリの if フィールド
@@ -11,8 +11,10 @@
 # git push を含む場合のみ起動される（マッチしなければプロセスが起動されず、通常のBash/
 # PowerShell/run_shell_command利用への性能影響は無い）。if フィルタはベストエフォートのため、
 # 本スクリプト側でも念のため command 文字列を正規表現で再チェックする。tool_name から実行中の
-# エンジン（Gemini CLI / Claude Code）を判定する方式は post-push-save-logs.sh と同じ
-# （詳細: .claude/docs/spec/session-log-hooks.md「エンジン判定」節）。
+# エンジン（Gemini CLI / Claude Code）を判定する（両エンジンのtool_nameの値集合は重複しないため
+# 機械的に一意判定できる。詳細: .claude/docs/spec/issue-mr-workflow.md「エンジン判定」節）。
+# 判定した engine は、フッター署名（engine_label）に加えて sync_usage_state へ渡し、
+# サブエージェントログの探索方法の分岐と push-index.jsonl への記録に使う（issue #23）。
 #
 # 投稿前に、自分自身で .claude/hooks/lib/UsageTracking.sh の sync_usage_state を呼んで
 # 状態を最新化する（トークン数・ツール実行回数・assistant応答回数のいずれも、このタイミングで
@@ -68,7 +70,7 @@ main() {
   [ -z "$agent_id" ] || exit 0
 
   # tool_name から実行中のエンジンを判定する。該当しないtool_nameは対象外として即終了する
-  # （Gemini CLI: run_shell_command / Claude Code: Bash・PowerShell。post-push-save-logs.shと
+  # （Gemini CLI: run_shell_command / Claude Code: Bash・PowerShell。post-push-compact-prompt.shと
   # 同じ判定パターン）。
   local tool_name engine engine_label
   tool_name="$(printf '%s' "$hook_input" | jq -r '.tool_name // empty')"
@@ -107,8 +109,11 @@ main() {
 
   # 投稿判定の前に、その時点までtranscriptへ書き出し済みの内容を状態へ反映する
   # （ターンの途中でのpushでも、初回pushなどで記録漏れが起きないようにするための同期）
+  # engineは、サブエージェントログの探索方法の分岐（Claude Code / Gemini CLIで構造が異なる）と
+  # push-index.jsonlへの記録に使う（issue #23。それ以前はフッター署名のengine_labelにしか
+  # 使っていなかった）。
   if [ -n "$session_id" ] && [ -n "$transcript_path" ]; then
-    state="$(sync_usage_state "$repo_root" "$branch" "$session_id" "$transcript_path" || true)"
+    state="$(sync_usage_state "$repo_root" "$branch" "$session_id" "$transcript_path" "$engine" || true)"
   fi
 
   if [ -z "$state" ]; then
