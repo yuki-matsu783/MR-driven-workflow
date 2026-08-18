@@ -690,7 +690,7 @@ issueはGitHubのUIからしか作成できず、標準4見出し（目的・現
   gapベースの`activeSeconds`集計ロジック、`strptime`/`mktime`に依存しない自前実装
   `epoch_from_iso8601`を追加）
 - `.claude/hooks/post-push-usage-report.sh`（`fmt_duration`、レポート本文への
-  「対応工数（目安・入力待ち時間を除く）」行を追加。レビュー往復で、トークン数の既知の過小カウント
+  「対応時間（入力待ち時間を除く）」行を追加。レビュー往復で、トークン数の既知の過小カウント
   要因を説明するフッター文の追加、および`is_first_post`判定によるフッター表示の初回投稿限定化も追加）
 - `dev-tools/docs/spec/issue-mr-workflow.md`（本セクション「稼働時間の算出方法」を追加、
   「未決定事項・懸念点」に稼働時間の誤差要因・overlap dedup未対応・トークン数の過小カウント要因を

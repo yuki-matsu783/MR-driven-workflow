@@ -1,14 +1,18 @@
 #!/usr/bin/env bash
 #
-# Claude Code PostToolUse hook（git push検知、/compact実施を促すメッセージ注入）。
-# 設計: plans/silly-puzzling-ember.md（issue #11）→ .claude/docs/spec/issue-mr-workflow.md
+# Gemini CLI / Claude Code 共通 AfterTool・PostToolUse hook（git push検知、/compact実施を促す
+# メッセージ注入）。
+# 設計: plans/silly-puzzling-ember.md（issue #11）→ .claude/docs/spec/issue-mr-workflow.md →
+#       .claude/docs/spec/session-log-hooks.md（issue #7、Gemini CLI対応）
 #
-# .claude/settings.json 側で matcher: "Bash|PowerShell" と、各エントリの if フィールド
+# .claude/settings.json 側で matcher: "Bash|PowerShell"、.gemini/settings.json 側で
+# matcher: "run_shell_command|Bash|PowerShell" と、各エントリの if フィールド
 # （"Bash(git push*)" / "PowerShell(git push*)"）によって、tool_input のコマンドが
-# git push を含む場合のみ起動される（マッチしなければClaude Code側でプロセスが起動されず、
-# 通常のBash/PowerShell利用への性能影響は無い）。if フィルタはベストエフォートのため、
+# git push を含む場合のみ起動される（マッチしなければプロセスが起動されず、通常のBash/
+# PowerShell/run_shell_command利用への性能影響は無い）。if フィルタはベストエフォートのため、
 # 本スクリプト側でも念のため command 文字列を正規表現で再チェックする
-# （検知ロジックは post-push-usage-report.sh と同一パターン）。
+# （検知ロジックは post-push-usage-report.sh と同一パターン）。tool_nameによるエンジン判定・
+# プロジェクトルート取得も同様に post-push-save-logs.sh と同じパターンを使う。
 #
 # post-push-usage-report.sh と責務を分離した別スクリプト（使用量集計の投稿先はMRコメントだが、
 # 本スクリプトはユーザーへの直接的な呼びかけであり、伝達手段・関心事が異なるため）。
@@ -49,13 +53,15 @@ main() {
   # サブエージェント内実行では何もしない（post-push-usage-report.shと同じガード）
   [ -z "$agent_id" ] || exit 0
 
-  [ -n "${CLAUDE_PROJECT_DIR:-}" ] || exit 0
-
+  # tool_name から実行中のエンジンを判定する。該当しないtool_nameは対象外として即終了する
+  # （Gemini CLI: run_shell_command / Claude Code: Bash・PowerShell。post-push-save-logs.shと
+  # 同じ判定パターン）。
   local tool_name
   tool_name="$(printf '%s' "$hook_input" | jq -r '.tool_name // empty')"
-  if [ "$tool_name" != "Bash" ] && [ "$tool_name" != "PowerShell" ]; then
-    exit 0
-  fi
+  case "$tool_name" in
+    run_shell_command|Bash|PowerShell) ;;
+    *) exit 0 ;;
+  esac
 
   local command
   command="$(printf '%s' "$hook_input" | jq -r '.tool_input.command // empty')"
@@ -63,8 +69,10 @@ main() {
     exit 0
   fi
 
-  cd "$CLAUDE_PROJECT_DIR"
-  source "${CLAUDE_PROJECT_DIR}/.claude/scripts/src/vcs/Provider.sh"
+  local project_dir="${GEMINI_PROJECT_DIR:-${CLAUDE_PROJECT_DIR:-}}"
+  [ -n "$project_dir" ] || exit 0
+  cd "$project_dir"
+  source "${project_dir}/.claude/scripts/src/vcs/Provider.sh"
 
   local branch base_branch
   branch="$(git branch --show-current 2>/dev/null || true)"

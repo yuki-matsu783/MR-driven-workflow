@@ -5,7 +5,7 @@
 # 上書きしてしまう問題が起きる（詳細: .claude/rules/plan-mode-safety.md 規則6、issue #26）。
 #
 # 本スクリプトは、re-entry時にハーネス提示パスへ新しい計画を書き込む前に呼び出すことで、
-# そのパスに既にある1つ前の計画（存在する場合のみ）を `_actN` サフィックス付きの別名へ
+# そのパスに既にある1つ前の計画（存在する場合のみ）を `_pushN` サフィックス付きの別名へ
 # 退避する。これにより、ハーネス提示パスへ直接新しい計画を上書きしてよくなり、
 # 「一時的に上書き→git checkoutで復元」という手順（事故と隣り合わせだった旧手順）が不要になる。
 #
@@ -21,8 +21,8 @@
 #
 # 出力: 結果をJSON文字列でstdoutへ出力する（.claude/scripts/src/vcs/Provider.sh と同じ規約）。
 #   例: {"archived": true, "suffix": 1,
-#        "planArchivedTo": "plans/groovy-twirling-puffin_act1.md",
-#        "worklogArchivedTo": "worklog/20260815_groovy-twirling-puffin_act1.md"}
+#        "planArchivedTo": "plans/groovy-twirling-puffin_push1.md",
+#        "worklogArchivedTo": "worklog/20260815_groovy-twirling-puffin_push1.md"}
 #   planファイルがまだ存在しない（このセッション最初のre-entry）場合:
 #        {"archived": false, "reason": "plan file does not exist yet"}
 
@@ -32,7 +32,7 @@ set -euo pipefail
 next_archive_suffix() {
   local plan_dir="$1" base="$2"
   local n=1
-  while [[ -e "${plan_dir}/${base}_act${n}.md" ]]; do
+  while [[ -e "${plan_dir}/${base}_push${n}.md" ]]; do
     n=$((n + 1))
   done
   echo "$n"
@@ -68,13 +68,13 @@ archive_reentrant_plan() {
   local suffix
   suffix="$(next_archive_suffix "$plan_dir" "$base")"
 
-  local plan_archived_to="${plan_dir}/${base}_act${suffix}.md"
+  local plan_archived_to="${plan_dir}/${base}_push${suffix}.md"
   cp "$plan_file" "$plan_archived_to"
 
   local worklog_file worklog_archived_to="null"
   worklog_file="$(find_worklog_file "$worklog_dir" "$base")"
   if [[ -n "$worklog_file" ]]; then
-    local worklog_target="${worklog_file%.md}_act${suffix}.md"
+    local worklog_target="${worklog_file%.md}_push${suffix}.md"
     mv "$worklog_file" "$worklog_target"
     worklog_archived_to="\"${worklog_target}\""
   fi
