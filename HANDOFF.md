@@ -36,10 +36,10 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 | （省略） | 2-1〜2-10 | 個別調査。本issueは全体作業計画のContextで調査完了済みのため省略 | — |
 | [x] | 3-1 | **個別作業計画**`plans/【実装】【設計反映】〜.md`を**planツールを使わず**Write/Editで作成する。このタイミングで `worklog/日付_<全体計画名>_<個別計画名>_push<N>.md` を作成 | エージェント |
 | [x] | 3-2 | `commit`スキル経由でcommitし、push してレビュー依頼を行う | エージェント |
-| [] | 3-3 | MRで作業計画についてレビュー・コメントする。レビュー完了済み連絡をするまで以降の作業は行わない。 | 人間 |
-| [] | 3-4 | レビュー内容を取得し、作業計画を修正する。対応が完了したコメントには対応内容を返信する（3-3〜3-4を合意まで繰り返す） | `comments` / `reply` |
-| [] | 3-5 | 作業計画をもとにMR descriptionを更新する | `describe` |
-| [] | 3-6 | 作業計画をもとに作業を進める（AGENTS.mdへのルール追記・DDR新設・index.jsonl再生成）、作業内容はworklogに更新する | エージェント |
+| [x] | 3-3 | MRで作業計画についてレビュー・コメントする。レビュー完了済み連絡をするまで以降の作業は行わない。 | 人間 |
+| [x] | 3-4 | レビュー内容を取得し、作業計画を修正する。対応が完了したコメントには対応内容を返信する（3-3〜3-4を合意まで繰り返す）（`comments all`で確認、実質的なレビューコメントは無し） | `comments` / `reply` |
+| [x] | 3-5 | 作業計画をもとにMR descriptionを更新する | `describe` |
+| [x] | 3-6 | 作業計画をもとに作業を進める（AGENTS.mdへのルール追記・DDR新設・index.jsonl再生成）、作業内容はworklogに更新する | エージェント |
 | [] | 3-7 | `commit`スキル経由でcommitし、push してレビュー依頼を行う | エージェント |
 | [] | 3-8 | MRでレビュー・コメントする。レビュー済み連絡をするまで以降の作業は行わない。 | 人間 |
 | [] | 3-9 | レビュー内容を取得し、実装・ドキュメントを修正する。対応が完了したコメントには対応内容を返信する（3-6〜3-9の作業ループを合意まで繰り返す） | `comments` / `reply` |
@@ -61,12 +61,17 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
   `Github.sh`/`Gitlab.sh`のフォールバックメッセージを分かりやすく改善し、`SKILL.md`の`start`
   サブコマンド節にも注記を追加（コミット`3db75ca`, `e49bcaf`）。
 - 全体作業計画（`plans/elegant-puzzling-quasar.md`）を作成しユーザーの承認を得た（flow-id 1-4/1-5）。
+- flow-id 3-3/3-4: `comments all`で確認したが実質的なレビューコメントは無し（対応工数レポートの
+  自動投稿のみ）。flow-id 3-5でMR descriptionを更新。
+- flow-id 3-6: AGENTS.mdへルール追記、DDR 0020を新設、`.claude/docs/README.md`のDDR一覧に追記、
+  `.claude/docs/ddr/index.jsonl`とルート`index.jsonl`を再生成した。
+  再生成時に`extract-frontmatter.sh .`が想定よりリポジトリ全体を再帰的に対象にしてしまい、
+  無関係な多数のディレクトリの`index.jsonl`まで巻き込んだため、それらは`git checkout --`で
+  差分を破棄しscopeを本issueに関係する2ディレクトリ（ルート・`.claude/docs/ddr/`）分のみに絞った。
 
 ## 次にやること
 
-- flow-id 3-3: MRで個別作業計画（`plans/【実装】【設計反映】gh-glab優先ルールの明記.md`）について
-  人間のレビューを待つ。レビューOKの連絡があれば`comments all`で未解決スレッド無しを確認したうえで
-  flow-id 3-6（AGENTS.mdへのルール追記・DDR 0020新設・index.jsonl再生成）に進む。
+- flow-id 3-7: commitスキル経由でcommit・push、レビュー依頼。
 
 ## 判断を迷った内容
 
@@ -76,7 +81,14 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 
 ## 未解決の内容
 
-（無し）
+- **本issueとは無関係の既存不具合を発見**: root `index.jsonl`を再生成した際、`README.md`と
+  `DEVELOPERS.md`の実ファイルにfrontmatterが存在しないこと（`frontmatter: null`）が判明した。
+  実際の中身も、このリポジトリの説明（MR-driven-workflowテンプレート）ではなく
+  「AI Asset Management Project」という別テンプレートの内容になっている。
+  `git log --follow -- README.md`で調べたところ、リポジトリ最初期のコミット`4ba0395`（"輸入"）
+  で既にこの内容に置き換わっており、issue #14とは無関係の長期間放置された既存の不整合と判断した。
+  今回のscopeでは修正せず、**別issueとして起票することを推奨**する（README.md/DEVELOPERS.mdの
+  内容をこのリポジトリの実態に合わせて書き直し、frontmatterも付与する）。
 
 ## 守るべき条件・触ってはいけない範囲
 
