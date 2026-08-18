@@ -1,6 +1,6 @@
 ---
 name: canvas-report
-description: 調査結果報告のreports/<plan名>.html（自己完結HTML、TailwindCSS CDN方式）を執筆する際、内容が複数要素間の関連・依存関係を主題とする場合に、一覧・表形式に代えてノード・エッジで構成されるcanvas形式（パン・ズーム・連続セマンティックズーム・ホバーでの関連ハイライト・ミニマップ・詳細パネル対応）で表現するために使う。ファイル間の依存関係、機能同士の呼び出し関係、ドキュメント間の参照関係、モジュール構成など「複数の要素がどうつながっているか」が主題の調査結果では、必ずこのスキルの利用を検討すること。issue-mr-flowのflow-id 10（調査を実施）で調査結果をHTML化する際に、内容の性質に応じてこのスキルとTailwindCSS CDN通常版のどちらを使うか判断する。
+description: 報告用HTML reports/日付_<全体計画名>_<内容>.html（自己完結HTML、TailwindCSS CDN方式）を執筆する際、内容が複数要素間の関連・依存関係を主題とする場合に、一覧・表形式に代えてノード・エッジで構成されるcanvas形式（パン・ズーム・連続セマンティックズーム・ホバーでの関連ハイライト・ミニマップ・詳細パネル対応）で表現するために使う。ファイル間の依存関係、機能同士の呼び出し関係、ドキュメント間の参照関係、モジュール構成など「複数の要素がどうつながっているか」が主題の調査結果では、必ずこのスキルの利用を検討すること。issue-mr-flowのflow-id 12（調査を実施）で結果をHTML化する際に、内容の性質に応じてこのスキルとTailwindCSS CDN通常版のどちらを使うか判断する。
 title: 調査結果canvas表示
 type: skill
 tags: [issue-mr-flow, docs-workflow, reports, html, canvas]
@@ -9,7 +9,7 @@ keywords: [canvas, TailwindCSS, mermaid, ノード, エッジ, 依存関係, 関
 
 # canvas-report スキル
 
-調査結果報告用HTML（`reports/<plan名>.html`。運用は`.claude/rules/docs-workflow.md`参照）のうち、
+報告用HTML（`reports/日付_<全体計画名>_<内容を簡潔に>.html`。調査結果に限らず設計・実装・AIアセット反映等の報告に使う。運用は`.claude/rules/docs-workflow.md`参照）のうち、
 複数の要素同士の「関連・依存関係」を主題とする内容を、ノード（カード）とエッジ（線）で構成される
 canvas形式で表現するためのスキル。issue #58の調査・実装で、TailwindCSS CDNの通常レイアウト版
 （一覧・表形式）と比較したうえで採用した（詳細な比較検討の経緯は
@@ -42,7 +42,7 @@ canvas形式で表現するためのスキル。issue #58の調査・実装で�
 ## 生成手順
 
 1. `.claude/skills/canvas-report/templates/canvas-report.html`をコピーし、
-   `reports/<plan名>.html`として保存する。
+   `reports/日付_<全体計画名>_<内容を簡潔に>.html`として保存する。
 2. `NODES`配列を調査結果の内容に置き換える。ノードは4〜12個程度が見やすい目安
    （多すぎる場合はグルーピングやサブグラフへの分割を検討する）。
    - `group`: `GROUP_STYLE`のキーに対応させ、ノード種別ごとに形状・色・アイコンを描き分ける。
@@ -86,7 +86,7 @@ mermaid図を使わない調査結果では、この`<script>`タグ自体を削
 `detailHtml`はAI（このスキルの呼び出し元）が生成時点でHTMLへ変換して埋め込む方式を採用しており、
 marked.js等のクライアント側markdownパーサは使わない。理由は、外部ライブラリを追加で1つ増やす
 コストに見合うほどの利点（markdown文字列を差し替えるだけで内容更新できる柔軟性）が、
-`reports/<plan名>.html`のライフサイクル（push単位で作り直され、squash merge後は削除される
+`reports/`配下HTMLのライフサイクル（push単位で作り直され、squash merge後は削除される
 使い捨てドキュメント。`docs-workflow.md`参照）には見合わないため。
 
 ## 参考

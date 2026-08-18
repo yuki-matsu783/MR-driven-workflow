@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
 # Claude Code PreToolUse hook（`git commit`の直接実行をブロック、issue #39）。
-# 設計: plans/tranquil-strolling-shannon.md、
+# 設計: issue #39 →
 #       .claude/docs/ddr/0012-コミットはcommitスキル経由を機構的に強制する.md
 #
 # 目的: すべてのコミットを `.claude/skills/commit/SKILL.md`（`commit`スキル）経由で行わせる

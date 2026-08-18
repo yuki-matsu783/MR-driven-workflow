@@ -23,6 +23,41 @@ OKF（Open Knowledge Format、https://okf.md/spec/ ）のフィールド定義�
 | `resource` | 推奨 | 実リソース（外部URL・社内配布先・BigQueryテーブルURI等）を一意に識別するURI。抽象的な概念や、対応する実リソースが無いファイルではキー自体を省略してよい（空文字列は使わない） |
 | `tags` | 推奨 | 横断的カテゴリ分類用の文字列リスト（kebab-case、2〜4個程度。ディレクトリ・技術要素・工程等を表す） |
 | `keywords` | 推奨 | OKF標準にはない拡張フィールド。本文中の頻出語・特徴的な語を検索用途で3〜20個（文章量に応じて増減、平均的な長さの文章なら10個前後）リスト形式で記載する。日本語で書かれたファイルでは、英語の技術用語のみに偏らず日本語の単語もバランスよく含める |
+| `status` | DDRのみ・任意 | その意思決定が現在も有効かを表す（下記「DDRのstatus」参照）。省略時は有効（`active`）とみなす |
+| `superseded_by` | DDRのみ・条件付き必須 | `status: superseded` のときに、置き換えた側のDDR番号を書く（例: `"0019"`） |
+
+## DDRのstatus（後から無効になった意思決定の扱い）
+
+DDRは**本文を一度マージしたら変更しない**運用だが、**YAML frontmatterのみは後から更新してよい**
+（issue #9で決定）。後続の意思決定によって無効になったDDRに、その事実を機械可読な形で残すため。
+
+| `status` | 意味 | 併記するキー |
+|---|---|---|
+| （省略） / `active` | 現在も有効。**通常はキー自体を書かない** | — |
+| `superseded` | 後続のDDRによって置き換えられた | `superseded_by: "<番号>"` |
+| `deprecated` | 置き換え先を持たずに廃止された（その決定自体が不要になった等） | — |
+
+```yaml
+---
+title: 0009. Planモードre-entry時はgit checkout復元でなくarchiveスクリプトで対処する
+type: ddr
+status: superseded
+superseded_by: "0019"
+description: <元のまま変更しない>
+---
+```
+
+**`description` は書き換えない。** `description` は「そのDDRが何を決めたか」の要約であり、
+一覧・検索・`index.jsonl` から参照される。無効化の情報で上書きすると、元の決定内容が読み取れなく
+なってしまう。無効化の事実は `status` / `superseded_by` という専用キーで表現し、両方の情報を残す。
+
+値に `disabled` ではなく `superseded` / `deprecated` を使うのは、DDRの元になったADR
+（Architecture Decision Record）で広く使われている語彙に合わせるため（読み手が初見でも意味を
+推測でき、外部ツールとも揃う）。
+
+frontmatterを更新したら `.claude/scripts/src/extract-frontmatter.sh <ディレクトリ>` で
+`index.jsonl` を再生成する（`status` が機械可読なインデックスにも反映される）。
+あわせて `.claude/docs/README.md` のDDR一覧にも、置き換え先が分かる注記を添えるとよい。
 
 新規markdown作成時は原則このfrontmatterを付与する。既存のfrontmatterを持つファイル（後述）は
 既存キーを変更せず、不足しているキーのみを追記する。
