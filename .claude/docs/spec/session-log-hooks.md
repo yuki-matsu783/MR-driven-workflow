@@ -3,7 +3,7 @@ title: セッションログ保存hook（post-push-save-logs.sh）
 type: spec
 description: git push検知時にGemini CLI/Claude Codeのセッションログ（メイン＋サブエージェント）をlogs/push-<N>/へ保存するhookの仕様
 tags: [hooks, session-logs, gemini-cli, claude-code]
-keywords: [post-push-save-logs, tool_name, run_shell_command, transcript_path, subagents, logs, gitignore, AfterTool, PostToolUse]
+keywords: [post-push-save-logs, tool_name, run_shell_command, transcript_path, subagents, logs, gitignore, AfterTool, PostToolUse, post-push-usage-report, post-push-compact-prompt, engine_label, GEMINI_PROJECT_DIR, CLAUDE_PROJECT_DIR]
 ---
 
 # セッションログ保存hook（post-push-save-logs.sh）
@@ -17,7 +17,13 @@ keywords: [post-push-save-logs, tool_name, run_shell_command, transcript_path, s
 `logs/push-<N>/`は人間が直接参照する生ログのアーカイブ）。
 
 Gemini CLI向けの実装として追加された後、issue #3でClaude Code対応を追加し、両エンジンで
-共通に動作するようにした。
+共通に動作するようにした。issue #7では、本hookで確立した`tool_name`によるエンジン判定・
+`${GEMINI_PROJECT_DIR:-${CLAUDE_PROJECT_DIR:-}}`によるプロジェクトルート取得のパターンを、
+同じくpost-push系hookである`.claude/hooks/post-push-usage-report.sh`（対応工数レポート）・
+`.claude/hooks/post-push-compact-prompt.sh`（`/compact`実施の呼びかけ）へも展開し、この2つも
+Gemini CLI/Claude Code両対応にした（詳細は各スクリプトのファイル冒頭コメント参照。それまでは
+`CLAUDE_PROJECT_DIR`必須・`tool_name`が`Bash`/`PowerShell`限定のガードのみで、Gemini CLI実行時は
+処理冒頭で必ず終了していた）。
 
 ## 仕様
 
@@ -40,6 +46,11 @@ hook入力の`tool_name`で実行中のエンジンを判定する。両エン�
 
 プロジェクトルートは`${GEMINI_PROJECT_DIR:-${CLAUDE_PROJECT_DIR:-}}`で取得する（どちらも
 未設定なら終了）。
+
+同じ判定パターンは`post-push-usage-report.sh`・`post-push-compact-prompt.sh`にも採用されている
+（issue #7）。`post-push-usage-report.sh`は判定結果の`engine_label`をMRコメント末尾の署名
+（「${engine_label}より」）にも使う。`post-push-compact-prompt.sh`は絞り込みにのみ使い、
+`engine`/`engine_label`変数は保持しない（メッセージ文言自体はエンジンによらず共通のため）。
 
 ### 保存先ディレクトリ
 
@@ -81,6 +92,8 @@ hook入力の`tool_name`で実行中のエンジンを判定する。両エン�
 ## 影響範囲
 
 - `.claude/hooks/post-push-save-logs.sh`
+- `.claude/hooks/post-push-usage-report.sh`（issue #7でエンジン判定パターンを移植）
+- `.claude/hooks/post-push-compact-prompt.sh`（issue #7でエンジン判定パターンを移植）
 - `.claude/settings.json`
 - `.gemini/settings.json`
 - `.gitignore`

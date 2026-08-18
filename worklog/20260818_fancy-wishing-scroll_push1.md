@@ -31,6 +31,12 @@ push回数: 1
   直接読み直し、行番号を再確認したうえで、具体的な作業計画（各ファイルのガード条件をどう書き換えるか、
   `case`文・`project_dir`変数の追加箇所、`session-log-hooks.md`への追記方針）を
   `plans/fancy-wishing-scroll.md`の「作業計画」章にまとめた。
+- flow-id 17〜18完了後、「レビューOK」を受け、`get_mr_unresolved_comments 8`で未解決コメント無しを
+  確認した（工数レポート自動投稿のみ）。
+- flow-id 21: `post-push-usage-report.sh`・`post-push-compact-prompt.sh`のガード条件を
+  `post-push-save-logs.sh`と同じ`tool_name`のcase判定・`${GEMINI_PROJECT_DIR:-${CLAUDE_PROJECT_DIR:-}}`
+  フォールバックへ書き換えた。ファイル冒頭コメントも「Claude Code専用」から「Gemini CLI/Claude Code
+  共通」へ更新。`.claude/docs/spec/session-log-hooks.md`にこの2ファイルへの展開を追記した。
 
 ## うまくいったこと
 
@@ -39,16 +45,21 @@ push回数: 1
   移植する対応方針を固め、`plans/fancy-wishing-scroll.md`の調査計画としてユーザー承認を得た。
 - 作業計画（flow-id 15）もユーザー承認を得た。`post-push-usage-report.sh`314行目の署名文言
   （「Claude Codeより」固定）を`${engine_label}より`に変える小さな追加改善も計画に含めた。
+- `post-push-usage-report.sh`・`post-push-compact-prompt.sh`の修正、`bash -n`による構文チェックOK。
+  `session-log-hooks.md`への追記も完了。
 
 ## ダメだったこと
 
-- 特になし。
+- 計画では`post-push-compact-prompt.sh`にも`engine`/`engine_label`変数を持たせる想定だったが、
+  実装時にこのスクリプトではメッセージ文言をエンジンで出し分けないため変数として保持する意味が
+  無いと判断し、絞り込みのみの単純な`case`文（`run_shell_command|Bash|PowerShell) ;; *) exit 0 ;;`）に
+  留めた。計画からの軽微な逸脱だが、意図（tool_name判定パターンの統一）は変えていない。
 
 ## 次の一歩
 
-- flow-id 17: 本worklog・plan（作業計画章）をcommitスキル経由でcommit・pushし、レビュー依頼を行う。
-- flow-id 18〜19: レビューを経て、flow-id 20（describe）→ flow-id 21（実装:
-  post-push-usage-report.sh / post-push-compact-prompt.shへのエンジン判定移植、
-  session-log-hooks.mdの追記）へ進む。
+- flow-id 22: 実装をcommitスキル経由でcommit・pushし、レビュー依頼を行う。
+- flow-id 23: 実装内容をもとにMR descriptionを更新する。
+- flow-id 24〜25: レビューを経て、可能であればGemini CLI実機でのgit push動作確認（受け入れ条件2）、
+  flow-id 26（設計反映）・27（AIアセット改善）へ進む。
 
 ---
