@@ -37,6 +37,25 @@ issue #13「レビュー依頼にMRへのリンクをつける」。`post-push-c
 - 「コメント一覧（MR画面）」へのリンクは、GitHubのPRデフォルトビュー（Conversationタブ）が
   そのままコメント一覧を兼ねるため、追加のURL組み立ては行わずMRへのリンクをそのまま再掲する形にした。
 
+### 追記（同issue内フォローアップ: gh/glabでURLの正確性を担保する）
+
+初版では`get_mr_diff_url`/`get_mr_diff_since_url`が、MR/PRのURL文字列（`get_mr_for_branch`の
+`url`）へ`/files`（GitHub）・`/diffs`（GitLab）等のsuffixを推測で付け足す実装だった。レビューで
+「gh/glabを使ってURLの正確性を担保できないか」という指摘を受け、以下へ変更した。
+
+**`get_repo_url`（`gh repo view --json url` / `glab repo view --output json`の`.web_url`）で
+取得したリポジトリの正規URLを土台に、GitHub/GitLabいずれも持つ汎用の「Compare」ページ
+（`/compare/<from>...<to>` / `/-/compare/<from>...<to>`）を組み立てる方式に変更する。**
+`from`/`to`にはブランチ名・SHAのどちらも指定できるため、「defaultブランチとの差分」
+（`baseBranch`/`headBranch`というブランチ名同士）・「前回pushとの差分」（SHA同士）の両方を、
+同じ`github_get_compare_url` / `gitlab_get_compare_url`という共通ヘルパーで組み立てられる
+（`get_mr_diff_url`/`get_mr_diff_since_url`はこのヘルパーを呼ぶ薄いラッパーになった）。
+
+「Compare」ページはPR/MR作成前から存在するリポジトリの汎用機能であり、PRの個別サブタブ
+（当初案の「Files changed」タブが使う`/files/<from>..<to>`というコミット範囲URL）より
+存在が安定していると考えられる。ただし、いずれの案もこのセッションではブラウザでの実地表示
+確認まではできていない（「未決定事項・懸念点」に記載済み）。
+
 ## 却下した案
 
 - **GitHub/GitLab APIでコミット履歴を都度取得し「前回pushの区切り」を推定する**:
@@ -55,3 +74,9 @@ issue #13「レビュー依頼にMRへのリンクをつける」。`post-push-c
   受け入れ条件が「レビュー指摘対応push時のみ」の追加を明示しているため踏襲しなかった。加えて、
   初回pushでは「前回pushとの差分」が意味を持たない（比較対象が無い）ため、常時表示は
   かえって紛らわしいと判断した。
+- **（初版で採用したが同issue内フォローアップで撤回）MR/PRのURL文字列へsuffixを推測で付け足す**:
+  `<mrUrl>/files`（GitHub）・`<mrUrl>/diffs`（GitLab）、コミット範囲は`<mrUrl>/files/<from>..<to>`
+  （GitHub）・`<mrUrl>/diffs?start_sha=<from>`（GitLab）という実装だった。追加の`gh`/`glab`呼び出しが
+  不要というシンプルさはあったが、「gh/glabでURLの正確性を担保したい」という指摘のとおり、
+  PR個別のサブタブが使う内部的なURL形式への依存度が高く、確度の面で弱かった。上記「追記」の
+  Compareページ方式へ変更した。

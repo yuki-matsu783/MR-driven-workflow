@@ -19,7 +19,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
   命名規則とは異なるが、既に本ブランチで開発するよう指示されているためそのまま使用）
 - Draft PR: 未作成（人間から明示的な指示があるまでAIエージョンはPR作成操作を行わない方針
   `.claude/rules/git-workflow.md`のため。ブランチへのpushのみ実施）
-- push回数: 1（予定）
+- push回数: 2（予定）
 
 対話的セッションでないため、通常の39ステップの複数ラウンド運用ではなく、設計・実装・設計反映を
 1回のpushにまとめて実施した（詳細は個別作業計画「実行環境に関する注記」参照）。下表は目安として
@@ -73,20 +73,26 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 
 - issue #13対応。`post-push-compact-prompt.sh`（`git push`検知でレビュー依頼メッセージを促すhook）
   へ、MR/差分/コメント一覧の参照リンクを付与した。
-- `.claude/scripts/src/vcs/{Github,Gitlab}.sh`に純粋関数（`github_get_mr_diff_url`等）を追加し、
-  `Provider.sh`から`get_mr_diff_url` / `get_mr_diff_since_url`としてディスパッチできるようにした。
-- `tests/test_vcs_provider.sh`を新規作成し、上記の純粋関数を単体テストした（4件passed）。
+- `.claude/scripts/src/vcs/{Github,Gitlab}.sh`に純粋関数を追加し、`Provider.sh`から
+  ディスパッチできるようにした。`tests/test_vcs_provider.sh`を新規作成し単体テストした。
 - 設計判断を`.claude/docs/ddr/0022-...md`に記録し、`.claude/docs/spec/issue-mr-workflow.md`
   （提供関数表・/compact呼びかけ節・影響範囲・未決定事項）、`.claude/docs/README.md`（DDR一覧）、
   `.claude/rules/directory-structure.md`（`.claude/state/`の説明）を更新した。
 - 対話的セッションでないため、設計・実装・設計反映を1回のpushにまとめて実施した
   （詳細は個別作業計画の「実行環境に関する注記」参照）。
+- **push2（フォローアップ）**: ユーザーから「gh,glabを使ってフルパスにできる？」という指摘を受け、
+  `AskUserQuestion`で意図を確認（「URLの正確性をgh/glabで担保したい」を選択）。push1時点の
+  「MR/PRのURL文字列へ`/files`等のsuffixを推測で付け足す」実装を撤回し、`get_repo_url`
+  （`gh repo view` / `glab repo view`でリポジトリの正規URLを取得）を土台に、GitHub/GitLab
+  いずれも持つ汎用の「Compare」ページ（`/compare/<from>...<to>`）を組み立てる方式へ変更した
+  （`get_mr_diff_url`/`get_mr_diff_since_url`のシグネチャ変更を含む）。DDR 0022・spec・
+  `tests/test_vcs_provider.sh`も追随して更新済み。
 
 ## 次にやること
 
 - 人間によるレビュー（Draft PR作成含む）。AIエージェントはPR作成操作を明示的な指示無く行わない
   方針のため、レビューを希望する場合はPR作成を指示してください。
-- 実際のGitHub UI上での`get_mr_diff_since_url`（コミット範囲URL）の表示確認、GitLab側の実機検証は
+- 実際のGitHub UI上での`get_mr_diff_since_url`（Compareページ）の表示確認、GitLab側の実機検証は
   未実施（spec「未決定事項・懸念点」に記載済み）。
 
 ## 判断を迷った内容
@@ -96,12 +102,16 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - 「コメント一覧(MR画面)」リンクを別URLとして組み立てるか、MRへのリンクをそのまま使うか。
   → GitHubのPRデフォルトビュー（Conversationタブ）がコメント一覧を兼ねるため、MRへのリンクを
   そのまま再掲する設計にした。
+- （push2）差分リンクの土台をPR/MRのURL文字列（推測suffix）にするか、`gh`/`glab`で取得した
+  リポジトリの正規URL（Compareページ）にするか。→ ユーザーの指摘どおり後者を採用（DDR 0022参照）。
 
 ## 未解決の内容
 
-- `get_mr_diff_since_url`のGitHub URL形式（`/pull/<n>/files/<from>..<to>`）はブラウザでの実地
-  検証ができていない（既知のURL形式に基づく実装）。
-- GitLab実装（`gitlab_get_mr_diff_since_url`）は他の`gitlab_*`関数と同様、実機未検証。
+- `get_mr_diff_url`/`get_mr_diff_since_url`のCompareページURL形式（`/compare/<from>...<to>`）は
+  ブラウザでの実地検証ができていない（PR作成前から存在する標準機能に基づく実装で、push1時点の
+  PRサブタブ形式より確度は上がったと考えているが未検証である点は変わらない）。
+- GitLab実装（`gitlab_get_repo_url`/`gitlab_get_compare_url`等）は他の`gitlab_*`関数と同様、
+  実機未検証。
 
 ## 守るべき条件・触ってはいけない範囲
 
