@@ -46,12 +46,6 @@
                         "type": "command",
                         "command": "bash \"${GEMINI_PROJECT_DIR}/.gemini/hooks/post-push-compact-prompt.sh\"",
                         "timeout": 20000
-                    },
-                    {
-                        "name": "post-push-save-logs",
-                        "type": "command",
-                        "command": "bash \"${GEMINI_PROJECT_DIR}/.gemini/hooks/post-push-save-logs.sh\"",
-                        "timeout": 20000
                     }
                 ]
             }

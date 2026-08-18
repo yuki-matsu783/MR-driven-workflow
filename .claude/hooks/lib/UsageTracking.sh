@@ -47,6 +47,18 @@
 # 正しく補正できない。そのため activeSeconds の算出だけは _usage_aggregate_transcript
 # （全件再パース＋sessions[sessionId].lastActiveSeconds とのスナップショット差分）を維持する。
 #
+# 注意（issue #23: セッションログの一本化とpush断面のインデックス化）: 以前はこのライブラリの
+# ミラー（usage/session-logs/）とは別に、post-push-save-logs.sh という独立したhookが
+# logs/push-<N>/ へtranscript全文をpushのたびにコピーしていた。実データ検証により、各push断面が
+# 現物transcriptの先頭N行とバイト単位で完全一致すること（transcriptは追記専用で、`/compact` を
+# 挟んでもこの性質が保たれること）が確認されたため、全文コピーを廃止し「1本のミラー＋行範囲の
+# 記録」へ置き換えた。これに伴い本ファイルは次の変更を受けている。
+#   - ミラーの置き場所を usage/session-logs/<sessionId>/ へセッション単位化（カーソルのキー設計に
+#     揃えた。_usage_sync_session_logs のコメント参照）
+#   - サブエージェント探索のengine分岐（claude / gemini）を post-push-save-logs.sh から移植
+#   - push断面を usage/state/push-index.jsonl へ1行追記（_usage_append_push_index）
+#   - _usage_aggregate_and_merge_subagents の戻り値を {state, agents} へ変更
+#
 # 注意（PowerShell版との差分）: PowerShell版が持っていた ConvertTo-HashtableDeep は、
 # Windows PowerShell 5.1 の `ConvertFrom-Json` が `-AsHashtable` を持たないための回避策であり、
 # jqにはその制約が無いためbash版には存在しない（詳細: dev-tools/docs/shell-scripts.md）。
@@ -306,36 +318,105 @@ JQ
 }
 
 # git push検知時に、集計対象のtranscript（メイン＋サブエージェント）をリポジトリ内の
-# gitignore対象ディレクトリ（usage/session-logs/<safeBranch>/<sessionId>/）へコピーする
+# gitignore対象ディレクトリ（usage/session-logs/<sessionId>/）へコピーする
 # （非公開・ユーザープロファイル配下の揮発性のあるパスに集計処理が直接依存し続けるのを避け、
 # pushのたびにリポジトリ内へスナップショットを退避する）。
 # コピー先ディレクトリパスをstdoutへ返す。
 #
-# サブエージェントの発見: `${transcript_path%.jsonl}/subagents/agent-*.jsonl` のみを対象とする
-# （直接の子、spawnDepth 1相当）。
+# 注意（issue #23: セッション単位化）: コピー先は元々
+# `usage/session-logs/<safeBranch>/<sessionId>/` とブランチ単位だったが、issue #37でカーソル
+# （session-cursors/<sessionId>.json）がブランチ非依存のセッション単位へグローバル化されたのに対し、
+# ミラーだけがブランチ単位のまま残っていた。同一セッションが別ブランチへresumeされるたびに
+# 全文コピーがブランチ数だけ増殖するため、カーソルのキー設計へ揃えてセッション単位にした。
+# これに伴い `branch` 引数は不要になった（この関数は branch をコピー先パスの組み立てにしか
+# 使っておらず、集計側のブランチフィルタは _usage_aggregate_new_lines /
+# _usage_aggregate_transcript がそれぞれ独立に branch を受け取って行うため）。
+#
+# 注意（issue #23: engine分岐）: 旧 post-push-save-logs.sh（logs/push-<N>/ へ全文コピーしていた
+# 別hook。同issueで廃止）が持っていたGemini CLI向けのサブエージェント探索を本関数へ移植した。
+# サブエージェントのディレクトリ構造がエンジンごとに異なるため分岐する。
+#
+#   claude: `${transcript_path%.jsonl}/subagents/agent-*.jsonl`（＋対応する .meta.json）
+#           → `subagents/` 直下（直接の子、spawnDepth 1相当）
+#   gemini: `$(dirname "$transcript_path")/<session_id>/` をディレクトリごと
+#           → `subagents/<session_id>/`
+#
+# Gemini分を1階層下へ置くのは意図的である。集計側 _usage_aggregate_and_merge_subagents の
+# glob は `subagents/agent-*.jsonl` であり、`subagents/<session_id>/` というディレクトリには
+# マッチしない。「Geminiのログは保存するが対応工数の集計対象にはしない」というissue #23の
+# スコープ境界が、追加のガード条件を書かずに構造だけで保証される。
 _usage_sync_session_logs() {
-  local repo_root="$1" branch="$2" session_id="$3" transcript_path="$4"
+  local repo_root="$1" session_id="$2" transcript_path="$3" engine="${4:-claude}"
 
-  local safe_branch
-  safe_branch="$(_usage_safe_branch_name "$branch")"
-  local log_dir="${repo_root}/usage/session-logs/${safe_branch}/${session_id}"
+  local log_dir="${repo_root}/usage/session-logs/${session_id}"
   mkdir -p "${log_dir}/subagents"
   cp "$transcript_path" "${log_dir}/main.jsonl"
 
-  local session_dir="${transcript_path%.jsonl}"
-  if [ -d "${session_dir}/subagents" ]; then
-    local f meta
-    for f in "${session_dir}/subagents"/agent-*.jsonl; do
-      [ -e "$f" ] || continue
-      cp "$f" "${log_dir}/subagents/" 2>/dev/null || true
-      meta="${f%.jsonl}.meta.json"
-      if [ -f "$meta" ]; then
-        cp "$meta" "${log_dir}/subagents/" 2>/dev/null || true
-      fi
-    done
+  if [ "$engine" = "gemini" ]; then
+    local chats_dir subagents_src
+    chats_dir="$(dirname "$transcript_path")"
+    subagents_src="${chats_dir}/${session_id}"
+    if [ -n "$session_id" ] && [ -d "$subagents_src" ]; then
+      cp -R "$subagents_src" "${log_dir}/subagents/" 2>/dev/null || true
+    fi
+  else
+    local session_dir="${transcript_path%.jsonl}"
+    if [ -d "${session_dir}/subagents" ]; then
+      local f meta
+      for f in "${session_dir}/subagents"/agent-*.jsonl; do
+        [ -e "$f" ] || continue
+        cp "$f" "${log_dir}/subagents/" 2>/dev/null || true
+        meta="${f%.jsonl}.meta.json"
+        if [ -f "$meta" ]; then
+          cp "$meta" "${log_dir}/subagents/" 2>/dev/null || true
+        fi
+      done
+    fi
   fi
 
   printf '%s' "$log_dir"
+}
+
+# push断面（そのpushで新たに記録された行の範囲）を usage/state/push-index.jsonl へ1行追記する
+# （issue #23）。
+#
+# 背景: 旧 post-push-save-logs.sh は push のたびにtranscript全文を logs/push-<N>/ へコピーして
+# いたが、transcriptは追記専用であることが実データで確認された（各push断面が現物transcriptの
+# 先頭N行とバイト単位で完全一致。`/compact` を挟んでも成立する。compactは compact_boundary 行と
+# 要約行を追記するだけで過去の行を削除しないため）。したがって「push断面」は
+# 「1本のミラー＋行番号2つ」で完全に代替でき、全文コピーは冗長である。
+#
+# 行番号は1始まり・両端含む。基準は既存の集計と同じ「空行を除いた行数」
+# （_usage_aggregate_new_lines の `select(length > 0)`）に揃えているため、
+# `from = 前回カーソル値 + 1`, `to = totalLines` となる。
+#
+# push番号は行数ではなく既存エントリの `push` の最大値+1を使う（旧 post-push-save-logs.sh が
+# logs/push-<N>/ の連番決定で採っていた「常に最大値+1」と同じ方針。手動編集や末尾改行の欠落が
+# あっても壊れない）。
+_usage_append_push_index() {
+  local repo_root="$1" branch="$2" session_id="$3" engine="$4"
+  local main_from="$5" main_to="$6" agent_ranges="${7:-}"
+  # 二重引用符内では `\{` がバックスラッシュごと残るため、既定値は代入後に補う
+  [ -n "$agent_ranges" ] || agent_ranges='{}'
+
+  local state_dir="${repo_root}/usage/state"
+  local index_file="${state_dir}/push-index.jsonl"
+  mkdir -p "$state_dir"
+
+  local push_num=1
+  if [ -f "$index_file" ] && [ -s "$index_file" ]; then
+    push_num="$(jq -s '[.[].push // 0] | (max // 0) + 1' "$index_file" 2>/dev/null || printf '1')"
+  fi
+  [ -n "$push_num" ] || push_num=1
+
+  # `tr -d '\r'`: Windowsネイティブjqは出力をファイルへリダイレクトする際に行末へCRを付与する
+  # （.claude/rules/shell-script-style.md「文字コード」節）。
+  jq -c -n --argjson push "$push_num" --arg at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+    --arg branch "$branch" --arg sessionId "$session_id" --arg engine "$engine" \
+    --argjson from "$main_from" --argjson to "$main_to" --argjson agents "$agent_ranges" '
+    {push: $push, at: $at, branch: $branch, sessionId: $sessionId, engine: $engine,
+     main: {from: $from, to: $to}, agents: $agents}
+  ' | tr -d '\r' >> "$index_file"
 }
 
 # セッション横断（ブランチをまたいでも共有）のカーソルファイル
@@ -393,13 +474,22 @@ _usage_merge_agent_state() {
 # コピー済みディレクトリ（_usage_sync_session_logsの戻り値）配下のサブエージェントtranscriptを
 # 列挙し、agentId単位のセッションカーソル（usage/state/session-cursors/<agentId>.json）を使って
 # 新規行のみを集計→_usage_merge_agent_state で existing へ畳み込む。新規行が無いagentはスキップする。
-# サブエージェントが1件も無ければexistingをそのまま返す。
+#
+# 戻り値は `{state: <更新後の状態JSON>, agents: {<agentId>: {from, to}}}`（issue #23で変更）。
+# `agents` は push-index.jsonl へ記録するための行範囲で、実際に集計したagent（新規行があった
+# agent）のみが現れる。スキップしたagentは含まれない。行番号は1始まり・両端含む
+# （_usage_append_push_index と同じ基準）。
+#
+# 注意: Gemini CLIのサブエージェントは `subagents/<session_id>/` という1階層下へコピーされるため、
+# ここの glob `subagents/agent-*.jsonl` には意図的にマッチしない（保存はするが集計はしない。
+# _usage_sync_session_logs のコメント参照）。
 _usage_aggregate_and_merge_subagents() {
   local existing="$1" log_dir="$2" branch="$3" repo_root="$4"
   local subagents_dir="${log_dir}/subagents"
+  local ranges='{}'
 
   if [ ! -d "$subagents_dir" ]; then
-    printf '%s' "$existing"
+    jq -n --argjson state "$existing" '{state: $state, agents: {}}'
     return 0
   fi
 
@@ -436,10 +526,14 @@ _usage_aggregate_and_merge_subagents() {
 
     existing="$(_usage_merge_agent_state "$existing" "$agent_id" "$agent_type" "$description" "$delta" "$active_seconds" "$branch")"
 
+    ranges="$(printf '%s' "$ranges" | jq -c --arg id "$agent_id" \
+      --argjson from "$(( last_line_count + 1 ))" --argjson to "$total_lines" \
+      '.[$id] = {from: $from, to: $to}')"
+
     _usage_write_cursor "$repo_root" "$agent_id" "$total_lines"
   done
 
-  printf '%s' "$existing"
+  jq -n --argjson state "$existing" --argjson agents "$ranges" '{state: $state, agents: $agents}'
 }
 
 # 指定ブランチ・セッションのtranscriptを集計し、状態ファイル（usage/state/<branch>.json）の
@@ -449,11 +543,16 @@ _usage_aggregate_and_merge_subagents() {
 #
 # セッション横断のカーソル（usage/state/session-cursors/<sessionId>.json）を見て、前回処理済み
 # 行数以降に新規行が無ければ、session-logsへのコピー・状態更新をスキップし既存状態をそのまま返す
-# （issue #37「差分がなければコピーしない」対応）。新規行があれば、既存同様
-# usage/session-logs/ へメイン・サブエージェント両方のtranscriptをコピーし、新規行の集計
-# （tools/tokens/turns/詳細3種）とactiveSecondsの全件再パースをそれぞれ行う。
+# （issue #37「差分がなければコピーしない」対応。push-index.jsonlへの追記も行わない）。
+# 新規行があれば、usage/session-logs/<sessionId>/ へメイン・サブエージェント両方のtranscriptを
+# コピーし、新規行の集計（tools/tokens/turns/詳細3種）とactiveSecondsの全件再パースをそれぞれ
+# 行ったうえで、そのpushで記録された行範囲を usage/state/push-index.jsonl へ追記する。
+#
+# `engine`（第5引数、既定 "claude"）はサブエージェントログの探索方法の分岐に使い、
+# push-index.jsonl にも記録する（issue #23）。省略時に "claude" へ倒すのは、既存の呼び出し・
+# テストを壊さないため。
 sync_usage_state() {
-  local repo_root="$1" branch="$2" session_id="$3" transcript_path="$4"
+  local repo_root="$1" branch="$2" session_id="$3" transcript_path="$4" engine="${5:-claude}"
 
   if [ ! -f "$transcript_path" ]; then
     return 1
@@ -480,7 +579,7 @@ sync_usage_state() {
   fi
 
   local log_dir
-  log_dir="$(_usage_sync_session_logs "$repo_root" "$branch" "$session_id" "$transcript_path")"
+  log_dir="$(_usage_sync_session_logs "$repo_root" "$session_id" "$transcript_path" "$engine")"
 
   local delta active_seconds
   delta="$(printf '%s' "$agg_result" | jq -c 'del(.totalLines)')"
@@ -506,10 +605,19 @@ sync_usage_state() {
 
   local new_state
   new_state="$(_usage_merge_state "$existing" "$delta" "$active_seconds" "$session_id" "$branch")"
-  new_state="$(_usage_aggregate_and_merge_subagents "$new_state" "$log_dir" "$branch" "$repo_root")"
+
+  # サブエージェント集計の戻り値は {state, agents}（issue #23）。agents はそのpushで集計した
+  # agentIdごとの行範囲で、push-index.jsonl へそのまま載せる。
+  local subagent_result agent_ranges
+  subagent_result="$(_usage_aggregate_and_merge_subagents "$new_state" "$log_dir" "$branch" "$repo_root")"
+  new_state="$(printf '%s' "$subagent_result" | jq -c '.state')"
+  agent_ranges="$(printf '%s' "$subagent_result" | jq -c '.agents')"
 
   printf '%s' "$new_state" > "$state_file"
   printf '%s' "$new_state"
+
+  _usage_append_push_index "$repo_root" "$branch" "$session_id" "$engine" \
+    "$(( last_line_count + 1 ))" "$total_lines" "$agent_ranges"
 
   _usage_write_cursor "$repo_root" "$session_id" "$total_lines"
 }

@@ -2,8 +2,8 @@
 #
 # Gemini CLI / Claude Code 共通 AfterTool・PostToolUse hook（git push検知、/compact実施を促す
 # メッセージ注入）。
-# 設計: issue #11 → .claude/docs/spec/issue-mr-workflow.md →
-#       .claude/docs/spec/session-log-hooks.md（issue #7、Gemini CLI対応）
+# 設計: issue #11 → .claude/docs/spec/issue-mr-workflow.md,
+#       issue #7（Gemini CLI対応）
 #
 # .claude/settings.json 側で matcher: "Bash|PowerShell"、.gemini/settings.json 側で
 # matcher: "run_shell_command|Bash|PowerShell" と、各エントリの if フィールド
@@ -12,7 +12,7 @@
 # PowerShell/run_shell_command利用への性能影響は無い）。if フィルタはベストエフォートのため、
 # 本スクリプト側でも念のため command 文字列を正規表現で再チェックする
 # （検知ロジックは post-push-usage-report.sh と同一パターン）。tool_nameによるエンジン判定・
-# プロジェクトルート取得も同様に post-push-save-logs.sh と同じパターンを使う。
+# プロジェクトルート取得も同様に post-push-usage-report.sh と同じパターンを使う。
 #
 # post-push-usage-report.sh と責務を分離した別スクリプト（使用量集計の投稿先はMRコメントだが、
 # 本スクリプトはユーザーへの直接的な呼びかけであり、伝達手段・関心事が異なるため）。
@@ -54,7 +54,7 @@ main() {
   [ -z "$agent_id" ] || exit 0
 
   # tool_name から実行中のエンジンを判定する。該当しないtool_nameは対象外として即終了する
-  # （Gemini CLI: run_shell_command / Claude Code: Bash・PowerShell。post-push-save-logs.shと
+  # （Gemini CLI: run_shell_command / Claude Code: Bash・PowerShell。post-push-usage-report.shと
   # 同じ判定パターン）。
   local tool_name
   tool_name="$(printf '%s' "$hook_input" | jq -r '.tool_name // empty')"
