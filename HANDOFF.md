@@ -17,7 +17,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - issue: [#15](https://github.com/yuki-matsu783/MR-driven-workflow/issues/15) issueからMRを作成するときにどれをベースにするかユーザに聞く
 - ブランチ: `feature-15-ask-user-for-mr-base-branch`
 - Draft PR: [#18](https://github.com/yuki-matsu783/MR-driven-workflow/pull/18)
-- push回数: 1
+- push回数: 2
 
 全体作業計画（`plans/woolly-tickling-thimble.md`）の方針により、**フェーズ2（調査）は実施せず、
 フェーズ3（設計・実装）から着手する**。
@@ -36,7 +36,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 | [x] | 3-3 | MRで作業計画についてレビュー・コメントする。レビュー完了済み連絡をするまで以降の作業は行わない。 | 人間 |
 | [x] | 3-4 | レビュー内容を取得し、作業計画を修正する。対応が完了したコメントには対応内容を返信する（3-3〜3-4を合意まで繰り返す） | `comments` / `reply` |
 | [x] | 3-5 | 作業計画をもとにMR descriptionを更新する | `describe` |
-| [] | 3-6 | 作業計画をもとに作業を進める、作業内容はworklogに更新する | エージェント |
+| [x] | 3-6 | 作業計画をもとに作業を進める、作業内容はworklogに更新する | エージェント |
 | [] | 3-7 | `commit`スキル経由でcommitし、push してレビュー依頼を行う | エージェント |
 | [] | 3-8 | MRでレビュー・コメントする。レビュー済み連絡をするまで以降の作業は行わない。 | 人間 |
 | [] | 3-9 | レビュー内容を取得し、実装・ドキュメントを修正する。対応が完了したコメントには対応内容を返信する（3-6〜3-9の作業ループを合意まで繰り返す） | `comments` / `reply` |
@@ -64,12 +64,17 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - Planモードで全体作業計画（`plans/woolly-tickling-thimble.md`）を作成し合意を得た。フェーズ2（調査）はスキップし、フェーズ3（設計・実装）から着手する方針
 - 個別作業計画 `plans/【設計】【実装】ベースブランチ確認のAskUserQuestion化.md` を作成し、worklog（push1）を作成した
 - commit・pushしてレビュー依頼（push回数1）。人間から「レビューOK」を受け、`comments all`で未解決スレッドが無いことを確認済み（自動投稿の対応工数レポートのみ）
+- `describe`でMR descriptionを個別作業計画の内容に更新した
+- 実装完了: `Provider.sh`の`new_issue_branch`に第3引数（ベースブランチ上書き、省略可）を追加。
+  `SKILL.md`の`start`サブコマンドに、新規ブランチ作成前の`AskUserQuestion`ステップを追加。worklog（push2）に記録
+- commit・push（push回数2）。作業中、`.claude/skills/issue-mr-flow/SKILL.md`と`.claude/skills/commit/SKILL.md`に
+  ユーザーの並行編集（未コミット）が存在することに気づき、ユーザーに確認のうえ「一緒にコミットする」で合意し反映済み
+  （詳細はworklog push2参照）
 
 ## 次にやること
 
-- flow-id 3-5: `describe` でMR descriptionを個別作業計画の内容に更新する
-- flow-id 3-6: 個別作業計画に沿って実装する（`Provider.sh`の`new_issue_branch`に第3引数追加、`SKILL.md`の`start`手順にAskUserQuestionステップ追加）。worklogに作業内容を追記する
-  - 注意: `.claude/skills/issue-mr-flow/SKILL.md`は本セッション開始時点でユーザーが並行編集中と思われる未完成の編集（コミット対象からは除外済み）が作業ツリーに残っている。実装時にこの内容を上書きしないよう、編集前に現在の内容を確認すること
+- flow-id 3-7: `commit`スキル経由でcommitし、pushしてレビュー依頼を行う（HANDOFF.mdの本更新を含む）
+- flow-id 3-8: MRでのレビューを待つ（レビュー完了連絡まで以降の作業は行わない）
 
 ## 判断を迷った内容
 
