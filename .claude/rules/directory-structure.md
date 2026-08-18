@@ -54,7 +54,9 @@ keywords: [ディレクトリ構成, claude, gemini, 配置方針, plans, worklo
 `reports/<plan名>.html`（`.claude/skills/canvas-report/SKILL.md`参照）・`usage/`（対応工数レポートの
 ローカル作業状態）は、いずれもワークフロー実行中に動的に作成されるディレクトリのため、初期スケルトン
 には含まれない（作成・削除のタイミングは `.claude/rules/docs-workflow.md`・
-`.claude/skills/issue-mr-flow/SKILL.md` を参照）。
+`.claude/skills/issue-mr-flow/SKILL.md` を参照）。`logs/`（`post-push-save-logs.sh`が`git push`時に
+保存するセッションログ。詳細: `.claude/docs/spec/session-log-hooks.md`）も同様に動的作成・
+`.gitignore`対象（`/logs/`）で、初期スケルトンには含まれない。
 
 ## 配置の指針
 
