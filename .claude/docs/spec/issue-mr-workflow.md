@@ -331,11 +331,19 @@ Claude Codeの対応工数（モデル別トークン数・ツール実行回数
     を列挙することで発見する。
   - **session-logsローカルコピー方式**（PR #29レビュー指摘）: 集計対象を毎回`~/.claude/projects`
     配下の外部パスから直接読むのではなく、`git push`検知のたびにメイン・サブエージェント両方の
-    transcriptを`usage/session-logs/<safeBranch>/<sessionId>/`（gitignore対象）へコピーしてから、
+    transcriptを`usage/session-logs/<sessionId>/`（gitignore対象）へコピーしてから、
     そのローカルコピーを対象に集計する。`~/.claude/projects`という非公開・ユーザープロファイル配下の
     揮発性のあるパスへ直接依存し続けるのを避け、pushのたびにリポジトリ内へスナップショットを
     退避しておくことで、調査・デバッグ時に状態ファイル（`usage/state/`）と同じ場所で
     生ログを参照できるようにする狙い。
+    - **コピー先はセッション単位**（issue #23で変更）: 当初は
+      `usage/session-logs/<safeBranch>/<sessionId>/`とブランチ単位だったが、issue #37でカーソル
+      （`session-cursors/<sessionId>.json`）がブランチ非依存のセッション単位へグローバル化された
+      のに対し、ミラーだけがブランチ単位のまま残っていた。同一セッションが別ブランチへresumeされる
+      たびに全文コピーがブランチ数だけ増殖するため、カーソルのキー設計へ揃えた。これに伴い
+      `_usage_sync_session_logs`から`branch`引数を廃止した（この関数は`branch`をコピー先パスの
+      組み立てにしか使っておらず、集計側のブランチフィルタは`_usage_aggregate_new_lines`/
+      `_usage_aggregate_transcript`がそれぞれ独立に`branch`を受け取って行うため）。
   - **`usage/`ディレクトリへの移設**（issue #37）: `session-logs`/状態ファイルは元々`.claude/`配下
     （`.claude/session-logs/`, `.claude/usage-state/`）に置いていたが、`.claude/`はAIエージェント
     自体の設定・ルール置き場という性格が強く、対応工数レポートのローカル作業状態を置くのは
@@ -399,6 +407,67 @@ Claude Codeの対応工数（モデル別トークン数・ツール実行回数
     いるため、新規行diffには移行せず、既存の全件再パース＋スナップショット差分方式のまま維持した。
     1回のpushで「新規行diffの集計」と「全件再パースによる`activeSeconds`算出」の両方を行う
     ハイブリッド構成になる。
+- **push断面の記録（`usage/state/push-index.jsonl`）**（issue #23）: そのpushで新たに記録された
+  行の範囲を、1push1行のJSONLとして追記する。
+  ```json
+  {"push":1,"at":"2026-08-18T12:53:19Z","branch":"feature-23-...","sessionId":"ba52539d-...",
+   "engine":"claude","main":{"from":441,"to":692},"agents":{"<agentId>":{"from":1,"to":7}}}
+  ```
+  - **背景**: 以前は`post-push-save-logs.sh`という独立したhookが、pushのたびにtranscript全文を
+    `logs/push-<N>/`へコピーしていた。しかし**transcriptは追記専用**であり、各push断面が現物
+    transcriptの先頭N行とバイト単位で完全一致すること（`/compact`を挟んでも成立すること）が
+    実データで確認されたため、全文コピーを廃止し「1本のミラー＋行範囲の記録」へ置き換えた。
+    詳細・却下案は
+    [0022-push断面の全文コピーをやめ行番号インデックスで表現する.md](../ddr/0022-push断面の全文コピーをやめ行番号インデックスで表現する.md)
+    を参照。
+  - **行番号は1始まり・両端含む**。基準は既存の集計と同じ「**空行を除いた**行数」
+    （`_usage_aggregate_new_lines`の`select(length > 0)`）に揃えており、
+    `from = 前回カーソル値 + 1`、`to = totalLines`となる。
+  - `push`番号は行数ではなく既存エントリの`push`の**最大値+1**を使う（手動編集や末尾改行の欠落が
+    あっても壊れないようにするため）。
+  - **新規行が無いpushでは追記しない**（session-logsへのコピー・状態更新をスキップする既存の
+    早期リターンと同じ扱い）。
+  - `agents`には、そのpushで実際に集計したサブエージェント（新規行があったもの）の行範囲のみが
+    入る。この情報を得るため`_usage_aggregate_and_merge_subagents`の戻り値を
+    `{state, agents: {<agentId>: {from, to}}}`へ変更した。
+- **エンジン判定（Gemini CLI / Claude Code）**: hook入力の`tool_name`で実行中のエンジンを判定する。
+  両エンジンの`tool_name`の値集合は重複しないため、これだけで機械的に一意判定できる。
+
+  | `tool_name` | エンジン |
+  |---|---|
+  | `run_shell_command` | Gemini CLI |
+  | `Bash` / `PowerShell` | Claude Code |
+  | 上記以外 | 対象外として即終了 |
+
+  プロジェクトルートは`${GEMINI_PROJECT_DIR:-${CLAUDE_PROJECT_DIR:-}}`で取得する（どちらも
+  未設定なら終了）。この判定パターンは`post-push-usage-report.sh`・`post-push-compact-prompt.sh`が
+  共通で使う（issue #7で両対応にした。それ以前は`CLAUDE_PROJECT_DIR`必須・`tool_name`が
+  `Bash`/`PowerShell`限定のガードのみで、Gemini CLI実行時は処理冒頭で必ず終了していた）。
+  判定結果の`engine_label`はMRコメント末尾の署名（「${engine_label}より」）にも使う。
+  `post-push-compact-prompt.sh`は絞り込みにのみ使い、`engine`/`engine_label`変数は保持しない
+  （メッセージ文言自体はエンジンによらず共通のため）。
+  - **`engine`は`sync_usage_state`の第5引数として渡す**（issue #23。既定値は`claude`で、既存の
+    4引数呼び出しも壊れない）。サブエージェントログの探索方法の分岐と、上記push-indexへの記録に使う。
+
+    | engine | 探索元 | ミラー内のコピー先 |
+    |---|---|---|
+    | `claude` | `${transcript_path%.jsonl}/subagents/agent-*.jsonl`（＋対応する`.meta.json`） | `subagents/`直下 |
+    | `gemini` | `$(dirname "$transcript_path")/<session_id>/`（ディレクトリごと） | `subagents/<session_id>/` |
+
+  - **Gemini CLIはミラーへの保存のみ対応し、対応工数の集計対象には含めない**（issue #23）。
+    集計側`_usage_aggregate_and_merge_subagents`のglobは`subagents/agent-*.jsonl`であり、
+    Gemini分を`subagents/<session_id>/`という1階層下へ置くことで**構造的にマッチしない**。
+    追加のガード条件を書かずにスコープ境界が保証される（この不一致は
+    `tests/test_usage_tracking.sh`で明示的に検証している）。
+- **Gemini CLIのhook登録**: `.gemini/settings.json`の`hooks`キー配下（`SessionStart`/`BeforeTool`/
+  `AfterTool`）に`.claude/hooks/*.sh`一式を登録する。`BeforeTool`/`AfterTool`の`matcher`は
+  `"run_shell_command|Bash|PowerShell"`という両エンジンの`tool_name`を含む形にしている
+  （各hookスクリプト内部で`tool_name`により絞り込むため、マッチャーを広めに取っても誤発火はしない）。
+  `command`フィールドは単一のシェル文字列（`args`配列に相当するフィールドはGemini CLI側に無い）で、
+  `${GEMINI_PROJECT_DIR}`はダブルクォートで囲む。`.gemini/settings.json`の既存キー
+  （`general.plan.directory`）はそのまま維持する。採用経緯は
+  [0018-gemini-settings.jsonのhooksはレビュー提示スニペットのhooksセクションのみ採用する.md](../ddr/0018-gemini-settings.jsonのhooksはレビュー提示スニペットのhooksセクションのみ採用する.md)
+  参照。
 - **呼び出し・質問の詳細記録**（issue #37）: 上記の新規行diff方式への移行と合わせて、
   メインセッションのtranscriptの新規行から以下3種の詳細情報を抽出し、`sinceLastPush`へ配列として
   追記する（サブエージェント自身が呼び出した分・ネストしたサブエージェントは対象外）。
@@ -494,9 +563,16 @@ Claude Codeの対応工数（モデル別トークン数・ツール実行回数
     含める。テーブル描画で`agentId`・モデル名・配列インデックス等をfor変数として使うループには、
     Windowsネイティブjqのコマンド置換CR混入対策（`.claude/rules/shell-script-style.md`
     「文字コード」節参照）として`tr -d '\r'`を挟む。
+  - `.claude/scripts/src/show-push-log.sh`（issue #23で新設）: `usage/state/push-index.jsonl`の
+    行範囲を使って、push断面のログを取り出すCLI。引数なしでpush一覧、`<push番号>`でそのpushの
+    メインログ範囲、`--agents`を付けるとサブエージェント分もあわせて出力する。
+    行番号の基準が「空行を除いた行数」であるため、物理行番号で切る素の`sed -n 'N,Mp'`は使えず、
+    先に空行を落としてから範囲を取る（`extract_range`）。ミラーはgitignore対象のローカル状態の
+    ため、別マシンで記録されたpushは切り出せない（その旨をstderrへ出して終了コード1）。
   - `.claude/settings.json`: `hooks.PostToolUse` を追加。
   - `.gitignore`: `/usage/`（issue #37で`/.claude/usage-state/`, `/.claude/session-logs/`の2行から
-    統合。詳細は上記「`usage/`ディレクトリへの移設」参照）。
+    統合。詳細は上記「`usage/`ディレクトリへの移設」参照。issue #23で、旧`post-push-save-logs.sh`が
+    使っていた`/logs/`も廃止し`/usage/`へ一本化した）。
 - **`Stop` hookは使わない**: 当初は `Stop`（1ターン完了時に発火）でも同じ集計処理を呼び、
   ターン数カウント専用の役割を持たせていたが、(1) `post-push-usage-report.sh` 自身が呼ぶだけで
   十分、(2) `Stop`依存のカウントは「そのターンのStopがまだ発火していない状態でのpush」で
@@ -512,16 +588,30 @@ Claude Codeの対応工数（モデル別トークン数・ツール実行回数
   （状態ファイルの`lastPostedAt`の有無、投稿前時点の値で判定）で分岐し、初回投稿時のみ表示する。
   冒頭の「レビューの合否判定には使用しないでください」という短い注記は、投稿ごとの判別のために
   必要なため毎回表示する。
-- **制約: スクリプト経由の`git push`は検知されない**: 投稿トリガーの判定は、Bash/PowerShell
-  ツールへ渡された`tool_input.command`文字列が`git push`で始まるかどうかの前方一致マッチ
-  （`.claude/settings.json`の`if: "Bash(git push*)"` / `if: "PowerShell(git push*)"`）に依存する。
-  そのため、`git push`をラップしたスクリプト（`bash deploy.sh`等）や、gitのエイリアス、他言語の
-  subprocess経由でpushした場合は`tool_input.command`自体に`git push`という文字列が現れず、
-  hookプロセスが起動されないため検知できない。そのため、git pushをラップしたスクリプトを作成することやgit pushコマンドを前方一致マッチにHITしないような形式で実行することを**禁止**する。投稿対象は使用量レポート（参考情報）のみでpush
-  自体をブロックする機能ではないため、影響は該当push分の投稿が漏れることに留まる（次回、検知条件に
-  一致するpush時に`sinceLastPush`が繰り越されて投稿される）。より厳密な検知（`PreToolUse`と
-  `PostToolUse`のペアでref状態を比較する等）も検討可能だが、全Bash/PowerShell呼び出しへ処理が
-  追加され性能影響とのトレードオフになるため、対応しない。
+- **制約: 検知は`tool_input.command`の文字列マッチに依存する**: 投稿トリガーの判定は、
+  Bash/PowerShellツールへ渡された`tool_input.command`文字列に`git push`という語が現れるか
+  どうかに依存する（`.claude/settings.json`の`if: "Bash(git push*)"` /
+  `if: "PowerShell(git push*)"`によるフィルタと、各hookスクリプト内の
+  `grep -qiE 'git[[:space:]]+push'`による再チェック）。この文字列依存から、方向の異なる2つの
+  制約が生じる。
+  - **検知漏れ（pushしたのに発火しない）**: `git push`をラップしたスクリプト（`bash deploy.sh`等）や、
+    gitのエイリアス、他言語のsubprocess経由でpushした場合は`tool_input.command`自体に該当語が
+    現れず、hookプロセスが起動されないため検知できない。**そのため、pushをラップしたスクリプトを
+    作成することや、検知条件にHITしない形式でpushコマンドを実行することを禁止する。**
+    投稿対象は使用量レポート（参考情報）のみでpush自体をブロックする機能ではないため、影響は
+    該当push分の投稿が漏れることに留まる（次回、検知条件に一致するpush時に`sinceLastPush`が
+    繰り越されて投稿される）。
+  - **誤検知（pushしていないのに発火する）**: `if`フィールドは**前方一致ではなく部分一致**として
+    動作する（issue #23対応時に実機で計3回確認。`cd /c/Users/... && ...`のようにコマンドが該当語で
+    始まっていないケースや、heredocで渡すissue本文・MR descriptionの**地の文**に該当語が
+    含まれるだけのケースで発火した）。発火するとhookは実際のpushの有無を確認しないため、
+    対応工数の集計・カーソル前進・`/compact`促しが走る。実害は限定的だが、
+    **長文をコマンド文字列へ直接埋め込まずファイル経由で渡す**ことで回避できる
+    （`gh issue comment --body-file <file>`、`set_mr_description <n> <file>`。実機で発火しないことを
+    確認済み）。AIエージェント向けの一般的な注意は`.claude/rules/git-workflow.md`を参照。
+
+  より厳密な検知（`PreToolUse`と`PostToolUse`のペアでref状態を比較する等）も検討可能だが、
+  全Bash/PowerShell呼び出しへ処理が追加され性能影響とのトレードオフになるため、対応しない。
 - **設計判断の詳細・却下案**（`transcript` JSONL自前パースの採用理由、`gitBranch` フィルタの理由、
   `Stop` hookを廃止した経緯）は
   [0006-対応工数レポートはtranscript自前パースで実装する.md](../ddr/0006-対応工数レポートはtranscript自前パースで実装する.md)
@@ -555,8 +645,8 @@ issue #11「git pushイベントを検知してcompactする」への対応と�
   前例は`SessionStart`のみだったため実装後に実地検証した。実際の`git push`実行により、次のターンで
   `<system-reminder>PostToolUse:Bash hook additional context: ...</system-reminder>`が注入され
   期待通り動作することを確認済み（issue #11対応セッション）。
-- **制約は「対応工数レポート」節と共通**: 「スクリプト経由の`git push`は検知されない」制約が
-  同様に適用される（検知ロジックを流用しているため）。
+- **制約は「対応工数レポート」節と共通**: 「検知は`tool_input.command`の文字列マッチに依存する」
+  制約（検知漏れ・誤検知の両方向）が同様に適用される（検知ロジックを流用しているため）。
 
 ### ブランチ命名
 
@@ -981,6 +1071,42 @@ issueはGitHubのUIからしか作成できず、標準4見出し（目的・現
   「未決定事項・懸念点」に既定以外のベースブランチを選んだ場合の既知の制約を追加、本エントリを追加）
 - 詳細な調査・作業計画は `plans/woolly-tickling-thimble.md` 参照。
 
+新規（追加分・issue #23 セッションログの一本化とpush断面のインデックス化）:
+- `.claude/scripts/src/show-push-log.sh`（push断面のログを参照するCLI）
+- `tests/test_usage_tracking.sh`（`post-push-usage-report.sh`のコメントが参照していたが実在
+  しなかったため新設。33件）
+- `.claude/docs/ddr/0022-push断面の全文コピーをやめ行番号インデックスで表現する.md`
+
+変更（追加分・issue #23 セッションログの一本化とpush断面のインデックス化）:
+- `.claude/hooks/lib/UsageTracking.sh`（`_usage_sync_session_logs`のコピー先を
+  `usage/session-logs/<sessionId>/`へセッション単位化し`branch`引数を廃止、`engine`引数を追加して
+  Gemini CLI向けサブエージェント探索を旧`post-push-save-logs.sh`から移植。
+  `_usage_append_push_index`を新規追加。`_usage_aggregate_and_merge_subagents`の戻り値を
+  `{state, agents}`へ変更。`sync_usage_state`に`engine`（第5引数・既定`claude`）を追加し
+  push-index追記を組み込み）
+- `.claude/hooks/post-push-usage-report.sh`（`sync_usage_state`へ`engine`を引き渡し）
+- `.claude/hooks/post-push-compact-prompt.sh`（削除した`post-push-save-logs.sh`への参照を
+  コメントから解消）
+- `.claude/settings.json`（`hooks.PostToolUse`から`post-push-save-logs.sh`の2エントリを削除）
+- `.gemini/settings.json`（`AfterTool`から`post-push-save-logs`エントリを削除）
+- `.gitignore`（`/logs/`を削除し`/usage/`へ一本化）
+- `.claude/rules/git-workflow.md`（push検知hookの誤検知に関するAIエージェント向け注記を追加。
+  commit側には既にあったがpush側には無かった）
+- `.claude/rules/directory-structure.md`（動的作成ディレクトリの記述から`logs/`を削除、
+  `usage/`の説明を更新、ツリーへ`tests/`を追加）
+- `.claude/rules/shell-script-style.md`（bashの二重引用符内でのパラメータ既定値のバックスラッシュ
+  残り・CR検査での`grep`パターンの落とし穴を追記）
+- `.claude/docs/README.md`（DDR一覧へ0022を追加）
+- `.claude/docs/spec/issue-mr-workflow.md`（本ファイル。`session-log-hooks.md`の内容を統合＝
+  「エンジン判定」「Gemini CLIのhook登録」小節を新設、「session-logsローカルコピー方式」を更新、
+  「push断面の記録」小節を追加、「コンポーネント」へ`show-push-log.sh`を追加、
+  「制約」節を実挙動（部分一致）に合わせて全面改稿、「未決定事項・懸念点」へcompact検証結果と
+  Gemini関連の懸念を移設・追加、本エントリを追加）
+
+削除（追加分・issue #23 セッションログの一本化とpush断面のインデックス化）:
+- `.claude/hooks/post-push-save-logs.sh`
+- `.claude/docs/spec/session-log-hooks.md`（内容を本ファイルへ統合したため）
+
 ## 設定項目
 
 `.mrworkflow.json`
@@ -1068,6 +1194,13 @@ issueはGitHubのUIからしか作成できず、標準4見出し（目的・現
   却下案は
   [0006-対応工数レポートはtranscript自前パースで実装する.md](../ddr/0006-対応工数レポートはtranscript自前パースで実装する.md)
   の追記を参照。
+- **push断面の保存はtranscript全文のコピーではなく行範囲の記録で表現する**（issue #23）:
+  transcriptが追記専用であること（`/compact`を挟んでも各push断面が現物の先頭N行とバイト単位で
+  一致すること）を実データで確認したうえで、`logs/push-<N>/`への全文コピーを廃止し、
+  `usage/state/push-index.jsonl`の行範囲＋セッション単位のミラー1本へ統合した。設計判断の経緯・
+  却下案は
+  [0022-push断面の全文コピーをやめ行番号インデックスで表現する.md](../ddr/0022-push断面の全文コピーをやめ行番号インデックスで表現する.md)
+  参照。
 
 ## 未決定事項・懸念点
 
@@ -1110,6 +1243,31 @@ issueはGitHubのUIからしか作成できず、標準4見出し（目的・現
   あり、「重複した内容が新しい位置（カーソルより後ろ）に現れること」までは防げない（意図的な設計。
   上記「新規行diff方式への移行」参照）。実際にどの程度の頻度・規模で重複が発生するかは実データでの
   継続観測が必要。
+- **（issue #23で検証済み）`/compact`はtranscript JSONLを破壊しない**: カーソル方式・push断面の
+  行範囲記録は「transcriptが追記専用であること」を前提にしているため、`/compact`がディスク上の
+  ファイルを切り詰めるなら前提が崩れる。実機検証の結果、compactは
+  `{"type":"system","subtype":"compact_boundary","compactMetadata":{...}}`という境界行と、
+  要約本文を持つ`isCompactSummary: true`の行を**追記**するだけで、それより前の行を削除しないこと
+  を確認した。`compactMetadata`の`preTokens`/`postTokens`は「次回以降**モデルへ送る**コンテキスト」
+  の圧縮量であって、ディスク上のファイルサイズの話ではない。compact境界より前に記録されたpush断面が、
+  compact後の現物transcriptの先頭N行とバイト単位で一致することも確認済み。詳細は
+  [0022-push断面の全文コピーをやめ行番号インデックスで表現する.md](../ddr/0022-push断面の全文コピーをやめ行番号インデックスで表現する.md)
+  参照。
+- **Gemini CLI側のサブエージェント探索の前提が実態と合っていない可能性**（issue #3で判明、
+  issue #23で`UsageTracking.sh`へ移植した際も未検証のまま引き継いだ）: Gemini CLI本体の
+  [Issue #20258](https://github.com/google-gemini/gemini-cli/issues/20258)によれば、現行
+  バージョンのGemini CLIではサブエージェントが親と同じセッションIDで動作するとの報告がある。
+  これが事実であれば、「`transcript_path`のあるディレクトリ配下に`session_id`名のディレクトリで
+  サブエージェントログが格納される」という前提と実際の挙動がズレている可能性がある。既存の保存動作を
+  変更しない方針のため、この懸念への対応は見送っている。なおGemini分は対応工数の集計対象では
+  ないため（上記「エンジン判定」節参照）、ズレていてもレポートの数値には影響しない。
+- **`.gemini/settings.json`のスキーマは限定的にしか検証していない**: `hooks`セクションの内容は
+  PRレビューで提示された実物を採用したが、Gemini CLI公式ドキュメント側の記載
+  （[Hooks reference](https://geminicli.com/docs/hooks/reference/)）は`command`フィールドが
+  `args`配列を持つか等、一部未文書化の挙動がある。実際にGemini CLI上での動作確認はできていない
+  （Claude Code環境での実装のため）。issue #7で移植した`post-push-usage-report.sh`/
+  `post-push-compact-prompt.sh`のGemini CLI実機検証も同様に未実施で、コードレビューベースの確認
+  （`bash -n`構文チェック・パターン一致確認）に留まっている。
 - **transcript JSONLの非公開フォーマット依存**: 対応工数レポート機能は、Claude Code非公開の
   内部フォーマットである`transcript_path`のJSONLを自前パースしている。将来のバージョンで形式が
   変わった場合、集計が0件になる（ベストエフォート設計のため実害は対応工数が記録されなく

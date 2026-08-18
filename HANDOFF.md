@@ -50,11 +50,11 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 | [x] | 3-9 | レビュー内容を取得し、実装・ドキュメントを修正する。対応が完了したコメントには対応内容を返信する（3-6〜3-9の作業ループを合意まで繰り返す） | `comments` / `reply` |
 | [x] | 3-10 | 作業内容をもとにMR descriptionを更新する | `describe` |
 | [x] | 4-1 | **作業結果と`plans/` `worklog/` の内容をもとに**、個別反映計画`plans/【設計反映】【AIアセット反映】〜.md`等を**planツールを使わず**Write/Editで作成する | エージェント |
-| [] | 4-2 | `commit`スキル経由でcommitし、push してレビュー依頼を行う | エージェント |
-| [] | 4-3 | MRで反映計画についてレビュー・コメントする。レビュー完了済み連絡をするまで以降の作業は行わない。 | 人間 |
-| [] | 4-4 | レビュー内容を取得し、反映計画を修正する。対応が完了したコメントには対応内容を返信する（4-3〜4-4を合意まで繰り返す） | `comments` / `reply` |
-| [] | 4-5 | 反映計画をもとにMR descriptionを更新する | `describe` |
-| [] | 4-6 | 反映計画をもとに作業を進める、反映内容はworklogに更新する（**設計反映**: `plans/` `worklog/` の内容を `.claude/docs/spec/` `.claude/docs/ddr/`（アプリ本体があれば`docs/spec/` `docs/ddr/`）へ反映する／**AIアセット反映**: 作業中に気づいたルール・スキルの不備を `.claude/rules/` `.claude/skills/` `CLAUDE.md` `AGENTS.md` に反映する） | エージェント |
+| [x] | 4-2 | `commit`スキル経由でcommitし、push してレビュー依頼を行う | エージェント |
+| [x] | 4-3 | MRで反映計画についてレビュー・コメントする。レビュー完了済み連絡をするまで以降の作業は行わない。 | 人間 |
+| [x] | 4-4 | レビュー内容を取得し、反映計画を修正する。対応が完了したコメントには対応内容を返信する（4-3〜4-4を合意まで繰り返す） | `comments` / `reply` |
+| [x] | 4-5 | 反映計画をもとにMR descriptionを更新する | `describe` |
+| [x] | 4-6 | 反映計画をもとに作業を進める、反映内容はworklogに更新する（**設計反映**: `plans/` `worklog/` の内容を `.claude/docs/spec/` `.claude/docs/ddr/`（アプリ本体があれば`docs/spec/` `docs/ddr/`）へ反映する／**AIアセット反映**: 作業中に気づいたルール・スキルの不備を `.claude/rules/` `.claude/skills/` `CLAUDE.md` `AGENTS.md` に反映する） | エージェント |
 | [] | 4-7 | `commit`スキル経由でcommitし、push してレビュー依頼を行う | エージェント |
 | [] | 4-8 | MRでレビュー・コメントする。レビュー済み連絡をするまで以降の作業は行わない。 | 人間 |
 | [] | 4-9 | レビュー内容を取得し、設計・AIアセットの内容を修正する。対応が完了したコメントには対応内容を返信する（4-6〜4-9の反映ループを合意まで繰り返す） | `comments` / `reply` |
@@ -112,12 +112,27 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
   - `tests/` が `.claude/rules/directory-structure.md` のツリーに未記載（issue #11の追記漏れ）
   - `session-log-hooks.md` が `.claude/docs/README.md` のspec一覧に元々未掲載
 
+- 反映計画のレビューで3点の合意を得た（flow-id 4-3〜4-4）。DDR番号は**0022**、
+  `session-log-hooks.md` は**統合して削除**、bashの落とし穴は**汎用ルールへ記載**。
+- **反映作業を完了した（flow-id 4-6）**。
+  - 設計反映: DDR 0022新設／`session-log-hooks.md` を `issue-mr-workflow.md` へ統合し削除／
+    「push断面の記録」「エンジン判定」「Gemini CLIのhook登録」小節を新設／**「制約」節を
+    実挙動（部分一致）に合わせて全面改稿し、誤検知の方向も新規に明記**／未決定事項へcompact
+    検証結果を追加／影響範囲へissue #23エントリを新規追記／`docs/README.md` のDDR一覧更新。
+  - AIアセット反映: `git-workflow.md` へpush検知の誤検知注記を新設／
+    `directory-structure.md` の `logs/` 削除・`usage/` 内訳明記・`tests/` 追加／
+    `shell-script-style.md` へ「パラメータ展開の既定値」節新設とテスト節への追記。
+  - 検証: 残存参照が歴史的記述のみであること、**既存DDR本文の差分0件**、
+    **過去changelogエントリの削除行0件**を `git diff` で確認した。
+
 ## 次にやること
 
-- **flow-id 4-2**: 反映計画をcommitしpushしてレビュー依頼（push3）。
-- レビュー合意（flow-id 4-3〜4-4）後、flow-id 4-6 で反映作業に入る。実施順は個別反映計画の
-  「実施順」に従う（DDR 0022新設 → issue-mr-workflow.md更新 → session-log-hooks.md削除 →
-  docs/README.md → rules 3ファイル → index.jsonl再生成 → worklog push3）。
+- **flow-id 4-7**: 反映内容をcommitしpushしてレビュー依頼（push3）。
+- レビュー合意（flow-id 4-8〜4-9）後、flow-id 4-10 → フェーズ5へ。
+  - flow-id 5-1: `plans/` `worklog/` `reports/` と **`plans/index.jsonl`** を削除し、
+    `HANDOFF.md` をリセット、`bash .claude/scripts/src/extract-frontmatter.sh .` で
+    `index.jsonl` 群を再生成する。
+  - flow-id 5-2: commitしpushしてDraft解除（マージ自体は人間が実施）。
 
 ## 判断を迷った内容
 
