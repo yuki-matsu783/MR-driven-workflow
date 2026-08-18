@@ -57,7 +57,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 | [] | 4-8 | MRでレビュー・コメントする。レビュー済み連絡をするまで以降の作業は行わない。 | 人間 |
 | [] | 4-9 | レビュー内容を取得し、設計・AIアセットの内容を修正する。対応が完了したコメントには対応内容を返信する（4-6〜4-9の反映ループを合意まで繰り返す） | `comments` / `reply` |
 | [] | 4-10 | 反映内容をもとにMR descriptionを更新する | `describe` |
-| [] | 5-1 | 次タスクのために、`plans/` `worklog/` `reports/` を削除し、`HANDOFF.md` をリセットする | エージェント |
+| [] | 5-1 | 次タスクのために、`plans/` `worklog/` `reports/` を削除し、`plans/index.jsonl` も削除し、`bash .claude/scripts/src/extract-frontmatter.sh .` で `index.jsonl` 群を再生成し、`HANDOFF.md` をリセットする（`bash .claude/scripts/src/cleanup-task.sh` で自動化可能） | エージェント |
 | [] | 5-2 | `commit`スキル経由でcommitし、push して Draftを解除する | エージェント |
 | [] | 5-3 | マージする（squash merge。ブランチは削除してよい） | 人間 |
 

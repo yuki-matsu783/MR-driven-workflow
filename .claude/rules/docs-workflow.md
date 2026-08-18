@@ -33,6 +33,24 @@ keywords: [plans, handoff, worklog, 正史仕様, 意思決定ログ, ライフ�
 
 `HANDOFF.md` は空でも各見出し（現在地／次回やること等）だけを残した状態でルート直下に存在させておき、使うときに埋める運用とする（都度新規作成はしない）。
 
+### HANDOFF.md と SKILL.md の役割分担
+
+**HANDOFF.md のテーブル行は、`.claude/skills/issue-mr-flow/SKILL.md` のテーブル行と同一の構造を持ちますが、
+異なる役割を果たします**（issue #28対応で明確化）。
+
+| ファイル | 役割 | マスター定義か | 編集頻度 |
+|---|---|---|---|
+| **SKILL.md** | フロー全体の**唯一のフロー定義** | ✓ はい | 設計変更時のみ（稀） |
+| **HANDOFF.md** | **現在のセッションの進捗記録** | ✗ いいえ | flow-idが進むごとに（頻繁） |
+
+- HANDOFF.md のテーブルは、各タスク開始時にテンプレート版へリセットされ、セッション中に各flow-idのチェックボックスを`[x]`に更新する
+- flow-id 5-1で `bash .claude/scripts/src/cleanup-task.sh` を実行すると、テンプレート版へ自動リセットされる
+- SKILL.md のみを編集対象にすることで、テーブルの二重管理を避ける
+
+**HANDOFF.md を SKILL.md と同期させるべき場面**:
+- SKILL.md の全体フロー（flow-id の数・順序・説明）を変更した場合、手動で cleanup-task.sh のテンプレート版も更新する必要がある
+  （現在は cleanup-task.sh に埋め込まれたテンプレート文字列を編集。自動同期は実装していない）
+
 **コード・スクリプト内のコメントから `plans/` `worklog/` `reports/` のファイルを参照しない**
 （issue #9対応時に発覚: `.claude/hooks/`配下の5ファイルが `# 設計: plans/jazzy-giggling-crescent.md`
 のように**flow-id 5-1で削除済みのplanファイル**を参照しており、読み手が辿れない状態になっていた）。
