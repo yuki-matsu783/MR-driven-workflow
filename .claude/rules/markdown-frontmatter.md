@@ -113,6 +113,25 @@ bash .claude/scripts/src/extract-frontmatter.sh .
 いずれも既存のfrontmatterブロックは1つのまま、新キーを既存キーの下に追記する形にし、既存キーの
 値・順序は変更しない。
 
+## テンプレートファイルの命名規則（`.md.template`）
+
+スクリプト・エージェントが**別名へコピー／リネームしてから使うテンプレートファイル本体**
+（実例: `worklog/TEMPLATE.md.template`、`.claude/scripts/templates/HANDOFF.md.template`）は、
+拡張子を`.md`ではなく**`.md.template`**にする。理由は2つ：
+
+- `.claude/scripts/src/extract-frontmatter.sh`は`.md$`で終わるファイルのみを走査対象にするため
+  （`.claude/rules/shell-script-style.md`参照）、`.md.template`にするだけで自動的にfrontmatter
+  抽出・`index.jsonl`の対象外になる。テンプレート本体はコピー先の実ファイルとは別に「もう1つの
+  同種ドキュメント」として索引化される必要が無く、むしろ索引に混ざると紛らわしいため、この
+  対象外化は意図した挙動である
+- 「このファイルは直接編集して読む本文ではなく、コピーしてから使う雛形である」ことが拡張子から
+  一目で分かる
+
+このため、テンプレート本体のfrontmatterは本ファイルの「typeの値」表・「対象外・特殊対応ファイル」
+表のいずれにも該当しない（`.md`拡張子ではないため、抽出パイプラインの対象そのものに含まれない）。
+既存のfrontmatterキー（`title`/`type`/`description`等）は、コピー先ファイルと同じ値をそのまま
+残してよい（例: `worklog/TEMPLATE.md.template`は`type: log`のまま）。
+
 ## 新規ファイル作成時のフォーマット例
 
 ```yaml

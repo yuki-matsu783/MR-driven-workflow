@@ -297,7 +297,18 @@ bash .claude/scripts/src/extract-frontmatter.sh .
 指したまま残ってしまう**（スクリプト側での自動削除は、スコープ外のファイルを消しうるため採用して
 いない。詳細:
 `.claude/docs/ddr/0021-frontmatter抽出は1ファイル1回のjq呼び出しとmtimeキャッシュで高速化する.md`
-の却下案4）。`worklog/` は `TEMPLATE.md` が残るため、再生成すれば正しい状態になる。
+の却下案4）。`worklog/` は `cleanup-task.sh` がディレクトリごと `rm -rf` するため
+`worklog/index.jsonl` も一緒に消え、この問題は発生しない。
+
+**注意（実機で発生した事故）**: この「ディレクトリごと削除」を経由しない場面、例えば
+`worklog/TEMPLATE.md.template`（テンプレート本体。`.md`拡張子ではないため`extract-frontmatter.sh`の
+対象外。詳細: `.claude/rules/markdown-frontmatter.md`「テンプレートファイルの命名規則」）を
+リネームしただけのようなケースでは、ディレクトリ自体は残ったまま対象`.md`ファイルだけが0件になる。
+この場合、`extract-frontmatter.sh`は空の`index.jsonl`を書き直すのではなく**既存の`index.jsonl`に
+一切触れない**ため、リネーム前の古いエントリを指したまま残ってしまう（issue #28対応時に実機で
+発生）。**あるディレクトリの`.md`ファイルが全て無くなる変更をした場合は、そのディレクトリの
+`index.jsonl`が残っていないか確認し、残っていれば手動で削除する**（`plans/index.jsonl`の扱いと
+同じ考え方）。
 
 なお `index.jsonl` は各ファイルの `mtime` を持つため、`HANDOFF.md` や `plans/` `worklog/` を編集した
 flow-idでは毎回内容がずれる。**5-1に限らず、各commitの直前に

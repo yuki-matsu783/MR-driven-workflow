@@ -42,7 +42,9 @@ keywords: [ディレクトリ構成, claude, gemini, 配置方針, plans, worklo
 │                                #   planツールを使わずWrite/Editで作成）の2階層。タスクごとに
 │                                #   新規生成しそのままコミットして履歴として残す
 ├── worklog/                    # 実装中の詳細な試行錯誤ログ（`日付_<全体計画名>_<個別計画名>_push<N>.md`）
-│   └── TEMPLATE.md             # worklog作成時にコピーして使うテンプレート
+│   └── TEMPLATE.md.template    # worklog作成時にコピーして使うテンプレート（拡張子の意図は
+│                                #   `.claude/rules/markdown-frontmatter.md`「テンプレートファイルの
+│                                #   命名規則」参照）
 ├── .gitignore
 ├── .mrworkflow.json            # リポジトリ固有設定（ブランチ命名規則・plans/等の場所）
 ├── AGENTS.md                   # AIエージェント共通ルール・プロジェクト概要・開発実行方法
