@@ -51,10 +51,18 @@ push回数: 3
   `.claude/skills/issue-mr-flow/SKILL.md`または`.claude/rules/docs-workflow.md`へ明文化する
   価値がある（フェーズ4で検討）。
 
+- **再発**: フェーズ4の反映作業完了後、`mark-done 4-6`を実行したところ、上記と全く同じ理由
+  （4-6がループ範囲`4-6 4-7 4-8 4-9`に属する）で4-7/4-8/4-9まで一括`[x]`になってしまった。
+  今回は`mark-skip`で先に一部を`[-]`にしていなかったため`mark-done`はエラーにならず**黙って**
+  一括適用され、気づくのに一手遅れた。3-6のときに教訓を得ていたにもかかわらず踏んだのは、
+  「操作対象のflow-idがループ範囲に属するかどうかを事前に確認する」という運用側の注意が
+  仕組みとして徹底されていなかったため。`.claude/docs/spec/update-handoff-progress.md`の
+  「制約・設計判断」に明記したので、今後はこの仕様書を確認してから`mark-done`/`add-round`を
+  呼ぶこと。
+
 ## 次の一歩
 
-- フェーズ4（反映）: `.claude/rules/docs-workflow.md`への`[-]`記号規約明文化、
-  `.claude/skills/issue-mr-flow/SKILL.md`のHANDOFF更新手順委譲、新規spec作成、
-  上記「非対話的環境でのループ範囲運用」の注記追加。
+- 反映作業（spec/ルール/スキル/DDR）自体は完了。次はflow-id 4-7（commit・push）→
+  4-10相当（describe）→ flow-id 5-1（片付け・HANDOFF.mdリセット）へ進む。
 
 ---

@@ -18,7 +18,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - ブランチ: claude/github-issue-20-85bvts（Claude Code on the webが自動作成。`feature-<issue>-<slug>`
   命名規則とは異なるが、既に本ブランチで開発するよう指示されているためそのまま使用）
 - PR: [#31](https://github.com/yuki-matsu783/MR-driven-workflow/pull/31)（Draft）
-- push回数: 2
+- push回数: 5
 
 なお、着手時点で前issue #13（PR #29, squash mergeで既にmain合流済み）のflow-id 5-1未実施分
 （`plans/` `worklog/` の残骸・`HANDOFF.md`未リセット）が本ブランチに残っていたため、
@@ -60,7 +60,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 | [] | 4-3 | MRで反映計画についてレビュー・コメントする。レビュー完了済み連絡をするまで以降の作業は行わない。 | 人間 |
 | [] | 4-4 | レビュー内容を取得し、反映計画を修正する。対応が完了したコメントには対応内容を返信する（4-3〜4-4を合意まで繰り返す） | `comments` / `reply` |
 | [] | 4-5 | 反映計画をもとにMR descriptionを更新する | `describe` |
-| [] | 4-6 | 反映計画をもとに作業を進める、反映内容はworklogに更新する（**設計反映**: `plans/` `worklog/` の内容を `.claude/docs/spec/` `.claude/docs/ddr/`（アプリ本体があれば`docs/spec/` `docs/ddr/`）へ反映する／**AIアセット反映**: 作業中に気づいたルール・スキルの不備を `.claude/rules/` `.claude/skills/` `CLAUDE.md` `AGENTS.md` に反映する） | エージェント |
+| [] | 4-6 | 反映計画をもとに作業を進める、反映内容はworklogに更新する（**設計反映**: `plans/` `worklog/` の内容を `.claude/docs/spec/` `.claude/docs/ddr/`（アプリ本体があれば`docs/spec/` `docs/ddr/`）へ反映する／**AIアセット反映**: 作業中に気づいたルール・スキルの不備を `.claude/rules/` `.claude/skills/` `CLAUDE.md` `AGENTS.md` に反映する） | エージェント — 設計反映・AIアセット反映自体は完了（下記「やったこと」参照）。ループ範囲(4-6〜4-9)は4-8/4-9（人間レビュー）が非対話的環境のため未実施であり、範囲全体としては`[]`のまま残す（3-6と同じ理由。詳細はworklog参照） |
 | [] | 4-7 | `commit`スキル経由でcommitし、push してレビュー依頼を行う | エージェント |
 | [] | 4-8 | MRでレビュー・コメントする。レビュー済み連絡をするまで以降の作業は行わない。 | 人間 |
 | [] | 4-9 | レビュー内容を取得し、設計・AIアセットの内容を修正する。対応が完了したコメントには対応内容を返信する（4-6〜4-9の反映ループを合意まで繰り返す） | `comments` / `reply` |
@@ -94,12 +94,20 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - MR #31 descriptionを更新（flow-id 3-5相当）。
 
 - 個別反映計画（`plans/【設計反映】【AIアセット反映】HANDOFF進捗自動更新スクリプト.md`）を作成。
+- 反映作業を実施: 新規spec`.claude/docs/spec/update-handoff-progress.md`、
+  `.claude/rules/docs-workflow.md`への`[-]`記号規約・非対話的環境でのループ範囲運用ルールの明文化、
+  `.claude/skills/issue-mr-flow/SKILL.md`のHANDOFF更新手順委譲、DDR 0024の新設、
+  `.claude/docs/README.md`への参照追加。
+- **再度同じ罠を踏んだ**: `mark-done 4-6`を実行したところ、4-6はループ範囲(`4-6 4-7 4-8 4-9`)に
+  属するため4-7/4-8/4-9も一括で`[x]`になってしまった（3-6のときと同じ、今回はエラーにならず
+  黙って一括適用された）。4-7(commit)・4-8/4-9(人間レビュー)は未実施のため、4件とも`[]`へ手動で
+  戻した。この教訓もworklogへ記録した。
 
 ## 次にやること
 
-- flow-id 4-6: 個別反映計画に基づき、新規spec `.claude/docs/spec/update-handoff-progress.md`
-  の作成、`.claude/rules/docs-workflow.md`への`[-]`記号規約・非対話的環境でのループ範囲運用の
-  明文化、`.claude/skills/issue-mr-flow/SKILL.md`のHANDOFF更新手順委譲を行う。
+- flow-id 4-7: 反映内容をcommit・pushしてレビュー依頼を行う。
+- その後flow-id 4-10相当: MR descriptionを更新し、flow-id 5-1（片付け・HANDOFF.mdリセット）へ
+  進む。
 
 ## 判断を迷った内容
 
