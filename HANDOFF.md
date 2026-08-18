@@ -17,7 +17,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - issue: [#9 最初に全体作業計画を立て、その後、個別作業計画を立て、合意を得ながら進める](https://github.com/yuki-matsu783/MR-driven-workflow/issues/9)
 - ブランチ: `feature-9-stabilize-plan-tool-usage-flow`
 - Draft PR: [#10](https://github.com/yuki-matsu783/MR-driven-workflow/pull/10)
-- push回数: 6
+- push回数: 7
 
 | 進捗 | flow-id | ステップ | 担当 |
 |----|---|---|---|
@@ -46,9 +46,9 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 | [x] | 23 | 作業内容をもとにMR descriptionを更新する | `describe` |
 | [x] | 24 | MRでレビュー・コメントする。レビュー済み連絡をするまで以降の作業は行わない。 | 人間 |
 | [x] | 25 | レビュー内容を取得し、実装・ドキュメントを修正する。対応が完了したコメントには対応内容を返信する（21〜25の作業ループを合意まで繰り返す） | `comments` / `reply` |
-| [] | 26 | 設計反映: `plans/` `worklog/` の内容を `docs/spec/` `docs/ddr/` へ反映する | エージェント |
-| [] | 27 | AIアセット改善: 作業中に気づいたルール・スキルの不備があれば `.claude/rules/` `.claude/skills/` `CLAUDE.md` `AGENTS.md` に反映する | エージェント |
-| [] | 28 | `commit`スキル経由でcommitし、push してレビュー依頼を行う | エージェント |
+| [x] | 26 | 設計反映: `plans/` `worklog/` の内容を `docs/spec/` `docs/ddr/` へ反映する | エージェント |
+| [x] | 27 | AIアセット改善: 作業中に気づいたルール・スキルの不備があれば `.claude/rules/` `.claude/skills/` `CLAUDE.md` `AGENTS.md` に反映する | エージェント |
+| [x] | 28 | `commit`スキル経由でcommitし、push してレビュー依頼を行う | エージェント |
 | [] | 29 | MRでレビュー・コメントする。レビュー済み連絡をするまで以降の作業は行わない。 | 人間 |
 | [] | 30 | レビュー内容を取得し、設計反映・AIアセットの内容を修正する。対応が完了したコメントには対応内容を返信する（26〜30を合意まで繰り返す） | `comments` / `reply` |
 | [] | 31 | `plans/` `worklog/` `reports/` を削除し、`HANDOFF.md` を次タスクへリセットする | エージェント |
@@ -86,18 +86,24 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - flow-id 24〜25: レビュー2件に対応（複数併記の判断基準を明確化／HANDOFF更新タイミングを
   「flow-idが1つ進むごと・同じcommitに含める」へ具体化）。各スレッドへ返信済み。
 
+- flow-id 26: 設計反映完了。`spec`へ「計画の2階層構造」節を新設＋影響範囲へ新規エントリ追加、
+  **DDR 0019**を作成、`docs/README.md`のDDR一覧を更新（0018の追加漏れもあわせて修正）。
+- flow-id 27: AIアセット改善完了。`.claude/hooks/`配下5ファイルの**削除済みplan参照**を
+  issue番号＋spec/ddr参照へ修正し、再発防止ルールを`docs-workflow.md`へ明文化。
+
 ## 次にやること
 
-- flow-id 26: 設計反映。`spec/issue-mr-workflow.md`の「仕様」節へ新方式を追記し「影響範囲」へ
-  新規エントリを追加。**新規DDR（0019〜）**でplanツール利用の再設計とDDR 0009廃止の経緯を記録。
-- flow-id 27: AIアセット改善（下記「気づいた改善候補」を参照）。
+- flow-id 29〜30: 人間によるMRレビュー待ち（設計反映・AIアセット改善について）。
 - flow-id 31: クリーンアップ時に**HANDOFF.mdの進捗表を35行化**する（重要・忘れやすい）。
 
-## 気づいた改善候補（flow-id 27で検討）
+## 別issue化を提案したい事項
 
-- `.claude/hooks/*.sh` のヘッダコメントが `# 設計: plans/jazzy-giggling-crescent.md` のように
-  **flow-id 33で削除済みのplanファイル**を参照しており、参照先が存在しない。planの寿命
-  （push単位で削除）とコード内の恒久的な参照が噛み合っていない。別issue化が妥当か検討する。
+- **`.claude/docs/README.md` のDDRリンク切れ**: 0008・0015へのリンクがあるが実ファイルが無い
+  （0001・0002も同様に不在）。このリポジトリがテンプレートとして輸入された際に一部DDRを
+  持ってこなかったためと思われる。今回の`index.jsonl`再生成でこの乖離が可視化された。
+- **`extract-frontmatter.sh` のリポジトリルート一括実行が遅い**: `.`指定だと2分でタイムアウトし、
+  **中断時にindex.jsonlが不完全な状態で残る**（今回実際に`ddr/index.jsonl`が18→14行に壊れ、
+  `git checkout`で復元した）。ディレクトリ単体でも44秒かかる。中断耐性か高速化の検討が必要。
 
 ## 判断を迷った内容
 

@@ -2,7 +2,7 @@
 #
 # Gemini CLI / Claude Code 共通 AfterTool・PostToolUse hook（git push検知、/compact実施を促す
 # メッセージ注入）。
-# 設計: plans/silly-puzzling-ember.md（issue #11）→ .claude/docs/spec/issue-mr-workflow.md →
+# 設計: issue #11 → .claude/docs/spec/issue-mr-workflow.md →
 #       .claude/docs/spec/session-log-hooks.md（issue #7、Gemini CLI対応）
 #
 # .claude/settings.json 側で matcher: "Bash|PowerShell"、.gemini/settings.json 側で

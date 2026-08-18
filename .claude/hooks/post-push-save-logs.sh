@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
 # Gemini CLI / Claude Code 共通 AfterTool・PostToolUse hook（git push検知、セッションログ保存、bash版）。
-# 設計: plans/20260818-collect-gemini-session-logs.md, plans/jazzy-giggling-crescent.md（issue #3）
+# 設計: issue #3 → .claude/docs/spec/session-log-hooks.md
 #
 # AfterTool/PostToolUse（対象: run_shell_command（Gemini CLI）/ Bash・PowerShell（Claude Code））で
 # git push コマンドが実行されたことを検知して、該当プロジェクトの今回のセッションログ（サブエージェント

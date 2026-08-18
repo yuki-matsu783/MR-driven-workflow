@@ -33,6 +33,20 @@ keywords: [plans, handoff, worklog, 正史仕様, 意思決定ログ, ライフ�
 
 `HANDOFF.md` は空でも各見出し（現在地／次回やること等）だけを残した状態でルート直下に存在させておき、使うときに埋める運用とする（都度新規作成はしない）。
 
+**コード・スクリプト内のコメントから `plans/` `worklog/` `reports/` のファイルを参照しない**
+（issue #9対応時に発覚: `.claude/hooks/`配下の5ファイルが `# 設計: plans/jazzy-giggling-crescent.md`
+のように**flow-id 33で削除済みのplanファイル**を参照しており、読み手が辿れない状態になっていた）。
+これらは push単位・タスク単位で削除される寿命の短いファイルであり、コード側の恒久的な参照とは
+ライフサイクルが噛み合わない。**恒久的に参照してよいのは、issue番号（GitHub/GitLab上に残る）と
+`.claude/docs/spec/` `.claude/docs/ddr/` 配下のファイル**である。
+
+```bash
+# 悪い例（planは削除されるため参照が切れる）
+# 設計: plans/groovy-zooming-balloon.md（issue #15）
+# 良い例
+# 設計: issue #15 → .claude/docs/spec/issue-mr-workflow.md
+```
+
 **ファイル移動に伴うパス参照の一括置換は、`docs/ddr/*.md`の本文および`docs/spec/*.md`内の
 過去issueごとのchangelog（「影響範囲」節等、point-in-timeの記録として書かれた節）を対象に含めない**
 （issue #24対応時に実際に発生: `sed`による機械的なパス一括置換で、移動した仕様書の過去changelog

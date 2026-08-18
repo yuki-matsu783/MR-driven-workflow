@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
 # Gemini CLI / Claude Code 共通 AfterTool・PostToolUse hook（git push検知、bash版）。
-# 設計: plans/groovy-zooming-balloon.md（issue #15）→ .claude/docs/spec/issue-mr-workflow.md,
+# 設計: issue #15 → .claude/docs/spec/issue-mr-workflow.md,
 #       .claude/docs/spec/shell-scripts.md（issue #6、bash化）→
 #       .claude/docs/spec/session-log-hooks.md（issue #7、Gemini CLI対応）
 #
