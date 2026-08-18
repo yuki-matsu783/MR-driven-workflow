@@ -69,18 +69,26 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - issue #21の内容を取得（GitHub MCPツール `mcp__github__issue_read` 経由。この環境には`gh`/`glab`
   CLIが存在しないため、`Provider.sh`が前提とするCLI経由の取得は行えず、GitHub MCPツールで代替した）。
 - ブランチ`claude/issue-21-bf7mnd`（outer harnessが用意済み。`.mrworkflow.json`の命名規則とは
-  異なるがそのまま使用）で作業。Draft PRは未作成（次のステップでMCPツール経由で作成予定）。
+  異なるがそのまま使用）で作業。
 - Planモードで全体作業計画を作成し承認を得た（`plans/playful-napping-finch.md`）。
   フェーズ2（個別調査計画）は別立てせず、全体作業計画内に調査結果を集約しフェーズ3から直接進める
   方針で合意済み。
+- Draft PR #25を作成（`mcp__github__create_pull_request`）。
+- 個別作業計画`plans/【実装】.mrworkflow.jsonキー説明をREADMEに追記.md`とworklogを作成。
+- README.mdの「セットアップ」節に`.mrworkflow.json`の各キー説明テーブルを追記し、`.mrworkflow.json`
+  実値・`Provider.sh`実装との整合を確認。commit・push・MR description更新まで完了。
 
 ## 次にやること
 
-1. Draft PR/MRを作成する（`gh`/`glab` CLI不在のためGitHub MCPツール
-   `mcp__github__create_pull_request`で代替）。
-2. `plans/【実装】.mrworkflow.jsonキー説明をREADMEに追記.md`（個別作業計画）を作成する（flow-id 3-1）。
-3. `commit`スキル経由でcommit・pushしレビュー依頼（flow-id 3-2）。
-4. README.mdへの実際の追記作業（flow-id 3-6）。
+1. Draft PR #25 (https://github.com/yuki-matsu783/MR-driven-workflow/pull/25) のレビューを
+   人間に依頼する。
+2. レビューコメントがあれば`comments`/`reply`相当の処理（GitHub MCPツール）で対応し、
+   `plans/【実装】.mrworkflow.jsonキー説明をREADMEに追記.md`・README.mdを必要に応じ修正する
+   （flow-id 3-8〜3-9）。
+3. レビュー完了後、MR descriptionを最終状態に更新する（flow-id 3-10）。
+4. フェーズ4（反映）へ進む: `.claude/docs/spec/issue-mr-workflow.md`「設定項目」節にある
+   `specDirs`/`ddrDirs`の古いサンプル値（移植元プロジェクト当時のもの）を現行値へ更新するかを
+   個別反映計画で検討する（worklogの「うまくいったこと」参照）。
 
 ## 判断を迷った内容
 
