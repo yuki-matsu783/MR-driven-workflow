@@ -38,7 +38,10 @@ github_new_draft_merge_request() {
 
   if ! gh pr create --draft --base "$base_branch" --head "$branch" --title "$title" --body "$body" >/dev/null; then
     # baseとの差分（コミット）が無いブランチでは `gh pr create` が失敗する既知の制約
-    # （.claude/docs/spec/issue-mr-workflow.md参照）。空コミットで解消して1回だけリトライする。
+    # （.claude/docs/spec/issue-mr-workflow.md参照）。`gh`本体のエラーはそのまま表示した上で、
+    # これは想定内でありこれから空コミットにフォールバックする旨を明示する（失敗として
+    # 扱わせないため）。
+    echo "gh pr create が失敗しましたが、baseとの差分が無いことによる既知の制約です。空コミットを1つ積んでリトライします" >&2
     add_empty_commit_for_draft_mr
     if ! gh pr create --draft --base "$base_branch" --head "$branch" --title "$title" --body "$body" >/dev/null; then
       echo "gh pr create に失敗しました（空コミットでのリトライ後も失敗）" >&2

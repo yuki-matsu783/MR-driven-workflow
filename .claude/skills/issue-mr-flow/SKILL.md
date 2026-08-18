@@ -177,8 +177,9 @@ HANDOFF.mdとの矛盾など、ブランチ名だけでは分からない「こ�
         続けて `new_draft_merge_request <n> "<branch>" "<issue.Title>"`
         （**Draft MRのタイトルには引き続き生のissueタイトルを使う。英語フレーズはブランチ名専用**）
         でDraft MRを作成する。**この呼び出しの標準エラー出力に `gh pr create` /
-        `glab mr create` の失敗メッセージ（例:「No commits between ...」）が混ざっていても、
-        それだけで失敗と判断しない**（`new_issue_branch` 直後はbaseとの差分がまだ無いため
+        `glab mr create` の失敗メッセージ（例:「No commits between ...」）や
+        「baseとの差分が無いことによる既知の制約です。空コミットを1つ積んでリトライします」が
+        出ても、それだけで失敗と判断しない**（`new_issue_branch` 直後はbaseとの差分がまだ無いため
         1回目の作成は必ず失敗する既知の制約で、内部の `add_empty_commit_for_draft_mr` が
         空コミット+pushで自動的に1回だけリトライする設計。詳細:
         `.claude/docs/spec/issue-mr-workflow.md`「Draft PR作成失敗時の自動リトライ」、
