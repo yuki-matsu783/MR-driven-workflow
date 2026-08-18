@@ -83,7 +83,7 @@ MRとのやり取りだけを自動化する薄い層」として設計したが
 | 関数 | 内容 | GitHub実装 | GitLab実装 |
 |---|---|---|---|
 | `get_issue <n>` | issueのtitle/body/labelsを取得（JSON） | `gh issue view` | `glab issue view` |
-| `new_issue_branch <n> <slugSource>` | `<branchPrefixTemplate>` に従いブランチを作成しcheckout、リモートpush。`<slugSource>` はslug化対象のテキストであり、生issueタイトルである必要はない（`.claude/skills/issue-mr-flow/SKILL.md` の `start` サブコマンドではAIエージェントが生成した英語の意訳フレーズを渡す。詳細: [0010-ブランチslugの意訳生成はAIエージェントが行う.md](../ddr/0010-ブランチslugの意訳生成はAIエージェントが行う.md)） | `git switch -c` + `git push` | 同左 |
+| `new_issue_branch <n> <slugSource> [<base>]` | `<branchPrefixTemplate>` に従いブランチを作成しcheckout、リモートpush。`<slugSource>` はslug化対象のテキストであり、生issueタイトルである必要はない（`.claude/skills/issue-mr-flow/SKILL.md` の `start` サブコマンドではAIエージェントが生成した英語の意訳フレーズを渡す。詳細: [0010-ブランチslugの意訳生成はAIエージェントが行う.md](../ddr/0010-ブランチslugの意訳生成はAIエージェントが行う.md)）。`<base>`（省略可）でベースブランチを上書きできる。省略時は `.mrworkflow.json` の `defaultBaseBranch` を使う（issue #15: `start` サブコマンドが `AskUserQuestion` で確認した結果を渡す） | `git switch -c` + `git push` | 同左 |
 | `new_draft_merge_request <n> <branch> <title> [<base>]` | issueに紐づくDraft PR/MRを作成（bodyは仮テンプレート、後続の `set_mr_description` で上書き前提。`<title>` はissueタイトルをそのまま渡す） | `gh pr create --draft` | `glab mr create --draft` |
 | `get_mr_unresolved_comments <n> [true]` | レビューコメント／スレッドを取得しテキストへ整形（スレッドID・ファイルパス・行番号・diffを含む）。既定（第2引数省略）では未解決のスレッドのみを返し、対応済み（解決済み）スレッドは機械的に除外する。第2引数に `true` を渡すと解決済みも含めた全件を返す | `gh api graphql` (review threads) | `glab api` (discussions) |
 | `add_mr_thread_reply <n> <threadId> <text>` | 指定スレッドに対応内容を返信する（スレッドの解決＝resolvedはレビュアー側の操作のため本関数では行わない） | `gh api graphql`（reply mutation） | `glab api`（note追加） |
@@ -969,6 +969,18 @@ issueはGitHubのUIからしか作成できず、標準4見出し（目的・現
   「提供関数」表の`get_branch_work_files`に`core.quotepath`の注記を追加、本エントリを追加）
 - 詳細な調査・作業計画は `plans/crispy-conjuring-canyon.md` 参照。
 
+変更（追加分・issue #15 ベースブランチ確認のAskUserQuestion化）:
+- `.claude/scripts/src/vcs/Provider.sh`（`new_issue_branch`に第3引数`[<base>]`（ベースブランチ
+  上書き、省略可）を追加。省略時は従来どおり`defaultBaseBranch`を使う）
+- `.claude/skills/issue-mr-flow/SKILL.md`（`start`サブコマンド手順2「見つからない場合（新規作成）」の
+  先頭に、`AskUserQuestion`でベースブランチを確認する手順を追加。選択肢は「既定のベースブランチ
+  （Recommended）／`main`（既定と異なる場合のみ）／自由入力（自動提供の『その他』）」の3パターン。
+  既存のブランチslug用フレーズ生成・`new_issue_branch`/`new_draft_merge_request`呼び出し手順は
+  番号を繰り下げて維持）
+- `.claude/docs/spec/issue-mr-workflow.md`（本ファイル。「提供関数」表の`new_issue_branch`行を更新、
+  「未決定事項・懸念点」に既定以外のベースブランチを選んだ場合の既知の制約を追加、本エントリを追加）
+- 詳細な調査・作業計画は `plans/woolly-tickling-thimble.md` 参照。
+
 ## 設定項目
 
 `.mrworkflow.json`
@@ -1075,6 +1087,14 @@ issueはGitHubのUIからしか作成できず、標準4見出し（目的・現
   plan/worklogファイルを推定するヒューリスティックであり、複数issueを1ブランチで扱う等の
   変則的な運用では正しく機能しない可能性がある。本プロジェクトの通常運用（1ブランチ1issue）を
   前提とする。
+- **（issue #15）`AskUserQuestion`で既定以外のベースブランチを選んだ場合の`get_branch_work_files`/
+  `resume`とのズレ**: `new_issue_branch`は`start`サブコマンドの`AskUserQuestion`確認結果を
+  ベースブランチとして受け取れるようになった（上記「提供関数」表参照）が、`get_branch_work_files`は
+  常に`.mrworkflow.json`の`defaultBaseBranch`（設定ファイル固定値）との差分でplan/worklogファイルを
+  推定する設計のままである。そのため、あるブランチが`defaultBaseBranch`以外をベースに作成された
+  場合、`get_branch_work_files`（延いては`resume`のヒューリスティック）が実際のベースとズレた
+  差分を返す可能性がある。本issueのスコープでは`get_branch_work_files`自体の改修は行っておらず、
+  既定以外のベースブランチを選ぶ運用は上記の限界を許容できる場合に限る（今後の課題）。
 - **（issue #6でbash化に伴い解消）`github_get_issue` は `gh` 失敗時に分かりにくい例外を出す**:
   PowerShell版（`GitHub-GetIssue`）では `gh issue view` が失敗した場合の`$LASTEXITCODE`チェックが無く、
   `ConvertFrom-Json` に空入力が渡って`$issue`が`$null`のまま`ConvertTo-Slug -Text $issue.title`が
