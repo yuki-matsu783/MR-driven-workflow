@@ -93,6 +93,9 @@ MRとのやり取りだけを自動化する薄い層」として設計したが
 | `test_issue_sections <body>` | issue本文に「目的／現状／期待する動作／受け入れ条件」の4見出しが揃っているか確認し、欠けている見出し名を1行1件でstdoutへ出力する（プロバイダ非依存） | — | — |
 | `get_issue_number_from_branch [<branch>]` | ブランチ名を `branchPrefixTemplate` に照らしてissue番号を抽出する（省略時は現在のブランチ）。マッチすればstdoutへ出力し終了コード0、マッチしなければ終了コード1（プロバイダ非依存） | — | — |
 | `get_mr_for_branch <branch>` | 指定ブランチに紐づくPR/MRの番号・URL・タイトル・Draft状態を取得する（JSON。無ければ何も出力せず終了コード0） | `gh pr view <branch>` | `glab mr view <branch>` |
+| `get_repo_url` | リポジトリの正規URL（フルパス）を取得する。MR/PRのURL文字列からの推測ではなく`gh`/`glab`で取得することで正確性を担保する（issue #13フォローアップ） | `gh repo view --json url` | `glab repo view --output json`（`.web_url`） |
+| `get_mr_diff_url <repoUrl> <baseBranch> <headBranch>` | MR/PRの「defaultブランチとの差分」を見れるURLを組み立てる（純粋関数。`repoUrl`は`get_repo_url`の戻り値を渡す。issue #13） | `<repoUrl>/compare/<baseBranch>...<headBranch>` | `<repoUrl>/-/compare/<baseBranch>...<headBranch>` |
+| `get_mr_diff_since_url <repoUrl> <fromSha> <toSha>` | MR/PRの「前回push時点(`fromSha`)から今回push時点(`toSha`)までの差分」を見れるURLを組み立てる（純粋関数。issue #13） | `<repoUrl>/compare/<fromSha>...<toSha>` | `<repoUrl>/-/compare/<fromSha>...<toSha>` |
 | `get_branch_work_files` | 現在のブランチ固有（`<defaultBaseBranch>` に無い）の `plans/` `worklog/` `reports/` ファイル一覧を返す（プロバイダ非依存）。日本語を含むパスをそのまま返すため `-c core.quotepath=false` を指定している（issue #9。詳細は「計画の2階層構造」節） | — | — |
 | `build_issue_body <purpose> <current> <expected> <acceptance>` | 標準4見出し（目的・現状・期待する動作・受け入れ条件）に沿ってissue本文を組み立てる（プロバイダ非依存。issue #25） | — | — |
 | `new_issue <title> <body>` | タイトル・本文からissueを新規作成し、`get_issue`と同じ形（number/title/body/url/slug）のJSONを返す（issue #25） | `gh issue create` → URLから番号抽出 → `github_get_issue` | `glab issue create` → URLから番号抽出 → `gitlab_get_issue` |
@@ -632,8 +635,35 @@ issue #11「git pushイベントを検知してcompactする」への対応と�
   `hookSpecificOutput.additionalContext`方式（stdoutへJSON出力→コンテキストへ注入→エージェントが
   応答に反映）を使い、対話中のユーザーへ直接呼びかける。出力形式:
   `{"hookSpecificOutput":{"hookEventName":"PostToolUse","additionalContext":"<text>"}}`。
-  メッセージは固定文（「MRのレビューをお願いします。/compactを実施をしていただくと、レビュー中に
-  コンテキストを圧縮して今後の作業が効率化になる可能性があります」）で、動的な値は使わない。
+- **参照リンクの付与（issue #13）**: レビュー依頼メッセージにMRへのリンクが無いと、レビュアーが
+  見に行くまでに1段階ハードルがあるという指摘への対応として、`additionalContext`に固定文だけでなく
+  `get_mr_for_branch`/`get_repo_url`/`get_mr_diff_url`/`get_mr_diff_since_url`（「提供関数」表参照）
+  で組み立てた具体的なURLを含める。
+  - 常に含める: MRへのリンク（`get_mr_for_branch`の`url`）、defaultブランチとの差分
+    （`get_mr_diff_url`）へのリンク。
+  - このブランチで2回目以降のpush（＝レビュー指摘対応のpush）の場合のみ追加: 前回push時点から
+    今回push時点までの差分（`get_mr_diff_since_url`）へのリンク、コメント一覧（MR画面。MRへの
+    リンクと同一URL）へのリンク。
+  - **URL組み立ての方針（issue #13フォローアップ）**: 当初はMR/PRのURL文字列に`/files`等のsuffixを
+    推測で付け足す実装だったが、「gh/glabでURLの正確性を担保したい」という指摘を受け、
+    `get_repo_url`（`gh repo view --json url` / `glab repo view --output json`の`.web_url`）で
+    取得したリポジトリの正規URLを土台に、GitHub/GitLabいずれも持つ汎用の「Compare」ページ
+    （`/compare/<from>...<to>` / `/-/compare/<from>...<to>`。PR/MR作成前から存在する標準機能で、
+    PR個別のサブタブより広く安定）を組み立てる方式へ変更した。`from`/`to`にはブランチ名・SHAの
+    どちらも指定できるため、「defaultブランチとの差分」（ブランチ名同士）・「前回pushとの差分」
+    （SHA同士）のいずれも同じ`get_compare_url`系ヘルパー（`github_get_compare_url` /
+    `gitlab_get_compare_url`）で組み立てられる。詳細な却下案は
+    [0023-レビュー依頼メッセージの参照リンクは前回pushSHAをローカル状態で保持して組み立てる.md](../ddr/0023-レビュー依頼メッセージの参照リンクは前回pushSHAをローカル状態で保持して組み立てる.md)
+    参照。
+  - 「前回push時点」の判定は、`post-push-compact-prompt.sh`自身が`.claude/state/review-links/
+    <safeBranch>.txt`へ直前pushのHEAD SHA（`git rev-parse HEAD`）を保存し、次回push時に読み出す
+    形で行う。ファイルが無ければ「このブランチでの初回push」とみなし、前回pushとの差分・コメント
+    一覧の2リンクは省略する。状態ファイルは`usage/`と同じ「ブランチ横断・非コミット対象のローカル
+    作業状態」だが、責務分離のため対応工数レポート側（`usage/state/`）とは別ディレクトリ
+    （`.claude/state/review-links/`）に置く（`.gitignore`に`/.claude/state/`を追加）。
+    ブランチ名のファイル名サニタイズは`_usage_safe_branch_name`と同じ正規表現
+    （`[^a-zA-Z0-9_-]`を`_`へ置換）だが、`UsageTracking.sh`をsourceして共有はせず本スクリプト内に
+    複製している（1行の変換ロジックのために責務の異なるファイルへ依存を作らないため）。
 - **`post-push-usage-report.sh`とは別ファイル**（`.claude/hooks/post-push-compact-prompt.sh`）とし、
   責務を混在させない（使用量集計とcompact促しは関心事が異なる）。`.claude/settings.json`の
   `hooks.PostToolUse[0].hooks`へ、既存の対応工数レポート用エントリと並べて2エントリ
@@ -1107,6 +1137,38 @@ issueはGitHubのUIからしか作成できず、標準4見出し（目的・現
 - `.claude/hooks/post-push-save-logs.sh`
 - `.claude/docs/spec/session-log-hooks.md`（内容を本ファイルへ統合したため）
 
+変更（追加分・issue #13 レビュー依頼メッセージへの参照リンク付与）:
+- `.claude/scripts/src/vcs/Github.sh` / `Gitlab.sh`（`github_get_mr_diff_url` /
+  `github_get_mr_diff_since_url` / `gitlab_get_mr_diff_url` / `gitlab_get_mr_diff_since_url`を
+  純粋関数として追加）
+- `.claude/scripts/src/vcs/Provider.sh`（`get_mr_diff_url` / `get_mr_diff_since_url`
+  ディスパッチャを追加）
+- `.claude/hooks/post-push-compact-prompt.sh`（固定文だったメッセージに、MRへのリンク・
+  defaultブランチとの差分リンクを常に、前回push時との差分リンク・コメント一覧リンクを
+  レビュー指摘対応push時のみ追加。`.claude/state/review-links/`に前回pushのHEAD SHAを保存）
+- `.gitignore`（`/.claude/state/`を追加）
+- `tests/test_vcs_provider.sh`（新規。上記の純粋関数の単体テスト）
+- `.claude/docs/spec/issue-mr-workflow.md`（本ファイル。「提供関数」表に2関数を追加、
+  「/compact実施の呼びかけ」節を参照リンク付与の設計に更新、本エントリを追加）
+
+変更（追加分・issue #13 続き: gh/glabでURLの正確性を担保する方式へ変更）:
+- `.claude/scripts/src/vcs/Github.sh` / `Gitlab.sh`（`github_get_repo_url` /
+  `gitlab_get_repo_url`（`gh repo view` / `glab repo view`でリポジトリの正規URLを取得）と
+  `github_get_compare_url` / `gitlab_get_compare_url`（汎用の「Compare」ページURLを組み立てる
+  純粋関数）を新設。`github_get_mr_diff_url` / `github_get_mr_diff_since_url` /
+  `gitlab_get_mr_diff_url` / `gitlab_get_mr_diff_since_url`は、MR/PRのURL文字列へ`/files`等の
+  suffixを推測で付け足す実装から、`get_compare_url`系ヘルパーを呼ぶ実装へ変更）
+- `.claude/scripts/src/vcs/Provider.sh`（`get_repo_url`ディスパッチャを追加。`get_mr_diff_url` /
+  `get_mr_diff_since_url`の第1引数を`mrUrl`から`repoUrl`（`get_repo_url`の戻り値）へ変更、
+  `get_mr_diff_url`に`baseBranch`/`headBranch`引数を追加）
+- `.claude/hooks/post-push-compact-prompt.sh`（`get_repo_url`を呼び出し、`build_links_text`へ
+  `repo_url`を渡すよう変更）
+- `tests/test_vcs_provider.sh`（新設した`get_compare_url`系関数のテストへ更新。`get_repo_url`は
+  `gh`/`glab`呼び出しを伴うため対象外のまま）
+- `.claude/docs/spec/issue-mr-workflow.md`（本ファイル。「提供関数」表・「/compact実施の呼びかけ」節・
+  「未決定事項・懸念点」を更新、本エントリを追加）
+- `.claude/docs/ddr/0023-...md`（「決定」節に方式変更を追記、「却下した案」に当初のsuffix推測方式を追加）
+
 ## 設定項目
 
 `.mrworkflow.json`
@@ -1208,6 +1270,11 @@ issueはGitHubのUIからしか作成できず、標準4見出し（目的・現
 
 ## 未決定事項・懸念点
 
+- **（issue #13）`get_mr_diff_url`/`get_mr_diff_since_url`のURL形式は実機（ブラウザ）で未検証**:
+  GitHub実装（`<repoUrl>/compare/<from>...<to>`）はPR作成前から存在する汎用の「Compare changes」
+  ページの標準URL形式に基づいており、PR個別のサブタブ形式（当初案の`/files/<from>..<to>`）より
+  安定していると考えられるが、本対応ではブラウザでの表示確認まではできていない。GitLab実装
+  （`<repoUrl>/-/compare/<from>...<to>`）は下記「GitLab側の動作未検証」と同じ制約が適用される。
 - **GitLab側の動作未検証**: このリポジトリの実remoteはGitHubのみのため、`Gitlab.sh`（`gitlab_get_mr_unresolved_comments`
   の解決済み含む分岐、`gitlab_add_mr_thread_reply` を含む。issue #6でbash化したが未検証の構造は
   PowerShell版から変わっていない）はAPI仕様を調べた上での実装となり、実機での動作確認ができていない。

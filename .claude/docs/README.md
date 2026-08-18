@@ -62,3 +62,4 @@ DDRのうち0001・0002・0008・0015は持ち込んでいない**（連番に�
 - [0020-GitHub_GitLab情報取得はgh_glab-CLIを使いWebFetchは使わない.md](ddr/0020-GitHub_GitLab情報取得はgh_glab-CLIを使いWebFetchは使わない.md)
 - [0021-frontmatter抽出は1ファイル1回のjq呼び出しとmtimeキャッシュで高速化する.md](ddr/0021-frontmatter抽出は1ファイル1回のjq呼び出しとmtimeキャッシュで高速化する.md)
 - [0022-push断面の全文コピーをやめ行番号インデックスで表現する.md](ddr/0022-push断面の全文コピーをやめ行番号インデックスで表現する.md)
+- [0023-レビュー依頼メッセージの参照リンクは前回pushSHAをローカル状態で保持して組み立てる.md](ddr/0023-レビュー依頼メッセージの参照リンクは前回pushSHAをローカル状態で保持して組み立てる.md)
