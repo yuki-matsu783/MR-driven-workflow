@@ -54,8 +54,8 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 | [] | 3-7 | `commit`スキル経由でcommitし、push してレビュー依頼を行う | エージェント — 本push（push2）で実施済み |
 | [] | 3-8 | MRでレビュー・コメントする。レビュー済み連絡をするまで以降の作業は行わない。 | 人間 |
 | [] | 3-9 | レビュー内容を取得し、実装・ドキュメントを修正する。対応が完了したコメントには対応内容を返信する（3-6〜3-9の作業ループを合意まで繰り返す） | `comments` / `reply` |
-| [] | 3-10 | 作業内容をもとにMR descriptionを更新する | `describe` |
-| [] | 4-1 | **作業結果と`plans/` `worklog/` の内容をもとに**、個別反映計画`plans/【設計反映】【AIアセット反映】〜.md`等を**planツールを使わず**Write/Editで作成する | エージェント |
+| [x] | 3-10 | 作業内容をもとにMR descriptionを更新する | `describe` |
+| [x] | 4-1 | **作業結果と`plans/` `worklog/` の内容をもとに**、個別反映計画`plans/【設計反映】【AIアセット反映】〜.md`等を**planツールを使わず**Write/Editで作成する | エージェント |
 | [] | 4-2 | `commit`スキル経由でcommitし、push してレビュー依頼を行う | エージェント |
 | [] | 4-3 | MRで反映計画についてレビュー・コメントする。レビュー完了済み連絡をするまで以降の作業は行わない。 | 人間 |
 | [] | 4-4 | レビュー内容を取得し、反映計画を修正する。対応が完了したコメントには対応内容を返信する（4-3〜4-4を合意まで繰り返す） | `comments` / `reply` |
@@ -93,11 +93,13 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
   このスクリプトはまさにこの種の書き間違いを防ぐためのものであり、正しく機能した。
 - MR #31 descriptionを更新（flow-id 3-5相当）。
 
+- 個別反映計画（`plans/【設計反映】【AIアセット反映】HANDOFF進捗自動更新スクリプト.md`）を作成。
+
 ## 次にやること
 
-- フェーズ4（反映）: `.claude/rules/docs-workflow.md`への`[-]`記号規約・非対話的環境での
-  ループ範囲運用の明文化、`.claude/skills/issue-mr-flow/SKILL.md`のHANDOFF更新手順委譲、
-  新規spec `.claude/docs/spec/update-handoff-progress.md` の作成。
+- flow-id 4-6: 個別反映計画に基づき、新規spec `.claude/docs/spec/update-handoff-progress.md`
+  の作成、`.claude/rules/docs-workflow.md`への`[-]`記号規約・非対話的環境でのループ範囲運用の
+  明文化、`.claude/skills/issue-mr-flow/SKILL.md`のHANDOFF更新手順委譲を行う。
 
 ## 判断を迷った内容
 
