@@ -1,6 +1,6 @@
 ---
 name: issue-create
-description: issueをAIエージェントが起票（作成）したいときに使う。issue-mr-flowのflow-id 1（人間による起票）をAIが代行する手段。ユーザーからの依頼内容をもとに目的・現状・期待する動作・受け入れ条件の4見出しを組み立て、ユーザーの確認を得たうえで.claude/scripts/src/create-issue.shを呼び出しGitHub/GitLab上にissueを作成する。issueをUIを使わずAIから起票したい場合に使う。
+description: issueをAIエージェントが起票（作成）したいときに使う。issue-mr-flowのflow-id 1-1（人間による起票）をAIが代行する手段。ユーザーからの依頼内容をもとに目的・現状・期待する動作・受け入れ条件の4見出しを組み立て、ユーザーの確認を得たうえで.claude/scripts/src/create-issue.shを呼び出しGitHub/GitLab上にissueを作成する。issueをUIを使わずAIから起票したい場合に使う。
 title: issue起票（AI代行）
 type: skill
 tags: [issue, automation, github, gitlab]
@@ -9,9 +9,9 @@ keywords: [issue作成, create-issue.sh, 目的, 現状, 期待する動作, 受
 
 # issue起票（AI代行）
 
-`.claude/skills/issue-mr-flow/SKILL.md`（唯一の実装フロー定義）のflow-id 1「issueを起票する」は
+`.claude/skills/issue-mr-flow/SKILL.md`（唯一の実装フロー定義）のflow-id 1-1「issueを起票する」は
 本来人間の担当だが、本スキルはAIエージェントがそれを代行するための手順を定義する。issue取得後の
-ブランチ・Draft MR作成（flow-id 2〜3）は対象外であり、そこから先は通常どおり
+ブランチ・Draft MR作成（flow-id 1-2〜1-3）は対象外であり、そこから先は通常どおり
 `/issue-mr-flow start <issue番号>` を使う。
 
 ## 実行フロー

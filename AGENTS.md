@@ -13,7 +13,7 @@ keywords: [issue-mr-flow, 計画, claude-code, gemini-cli]
   （唯一の実装フロー定義）。ごく小さな変更を除き、全タスクはissueを起点に進める。
 - 特別なコンテキストなしで回答可能な簡易タスクを除き、いかなるタスク（調査、設計、コード作成、テスト、リファクタリングなど）も、**実作業を開始する前に必ず「計画（Plan）」を立ててユーザーに提示**する
 - 計画はplansディレクトリ配下に保存する。計画は2階層に分ける（詳細は
-  `.claude/rules/plan-mode-safety.md`・`.claude/skills/issue-mr-flow/SKILL.md`）
+  `.claude/skills/issue-mr-flow/SKILL.md`「計画の2階層構造」）
   - **全体作業計画**: planツール（Planモード）で作成。**issue（ブランチ）につき1回**だけ作り、
     既にあれば新規作成しない
   - **個別作業計画**: `plans/【種別】タスク内容.md` として**planツールを使わず**作成する
