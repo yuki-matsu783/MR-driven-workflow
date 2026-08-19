@@ -17,9 +17,10 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - issue: #95（markdown-frontmatter.mdの「typeの値」表に `plans/` の行を追加する）
 - ブランチ: `claude/markdown-frontmatter-plans-row-d6aroa`（ハーネス指定。`feature-<issue番号>-<slug>`
   規則ではない）
-- PR: 未作成（ハーネスの指示により、明示依頼が無い限り作成しない。
-  `.claude/rules/git-workflow.md`「ハーネスがPR作成を制限する環境での扱い」）
-- push回数: 1
+- PR: #98 https://github.com/yuki-matsu783/MR-driven-workflow/pull/98（ユーザーの明示依頼により作成）
+- 追従監視: 購読あり（`subscribe_pr_activity` で PR #98 を購読。セッション終了とともに止まるため、
+  次のセッションは `resume` で取り直す）
+- push回数: 2
 
 **非対話的なリモート実行環境（Claude Code on the web）のため、人間のレビュー往復を待つ
 ステップ（flow-id 2-3/2-4, 3-3/3-4, 3-8/3-9, 4-3/4-4, 4-8/4-9 等）を省略し、
@@ -39,10 +40,18 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - `.claude/docs/ddr/0041-plans配下のfrontmatter-typeはguideではなくplanを新設する.md` を新規作成し、
   `.claude/docs/README.md` のDDR一覧へ追記した。
 - 既存 `plans/*.md` の移行は不要（flow-id 5-1で削除済みのため main に1件も存在しない）。
+- main（issue #50 / PR #96）が先にDDR 0041を使用していたため、mainをマージしてDDR番号を
+  0041 → 0042 へ繰り下げた（`.claude/docs/README.md` の一覧・`markdown-frontmatter.md` 内の
+  リンクも追従。コンフリクトマーカー残存なし・DDR番号の重複なしを確認）。
+- PR #98 を作成した。
 
 ## 次にやること
 
-- （人間の判断）PRを作成するか。作成する場合はこのブランチから issue #95 に対するPRを起票する。
+- （人間）PR #98 のレビュー。
+- （人間）マージ。AIエージェントは明示指示があるまでマージしない
+  （`.claude/rules/git-workflow.md`「PR・マージ」）。
+- マージ前に flow-id 5-1（`plans/` `worklog/` `reports/` の削除とHANDOFF.mdのリセット）へ
+  戻る必要は無い（このブランチではいずれも作成していない）。
 
 ## 判断を迷った内容
 
