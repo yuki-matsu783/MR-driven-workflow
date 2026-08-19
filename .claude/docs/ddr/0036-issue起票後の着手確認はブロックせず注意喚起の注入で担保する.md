@@ -1,12 +1,12 @@
 ---
-title: 0035. issue起票後の着手確認はブロックせず注意喚起の注入で担保する
+title: 0036. issue起票後の着手確認はブロックせず注意喚起の注入で担保する
 type: ddr
 description: issue起票直後の自動着手を防ぐ機構として、PreToolUse hookによるブロックではなくPostToolUse hookによる注意喚起の注入を採用した理由と却下案を記録したDDR
 tags: [issue-create, hook, ddr, workflow]
 keywords: [着手確認, posttooluse, pretooluse, ブロック, 注意喚起, additionalContext, issue-create, issue-mr-flow, 多重防御]
 ---
 
-# 0035. issue起票後の着手確認はブロックせず注意喚起の注入で担保する
+# 0036. issue起票後の着手確認はブロックせず注意喚起の注入で担保する
 
 ## 背景
 

@@ -20,7 +20,7 @@ keywords: [issue-mr-flow, 計画, claude-code, gemini-cli, gh, glab, webfetch, �
   （どのissueにいつ着手するかの判断を人間が握るため。issue #39。詳細は
   `.claude/skills/issue-create/SKILL.md`「してはいけないこと」・
   `.claude/skills/issue-mr-flow/SKILL.md`「`start`」節、
-  `.claude/docs/ddr/0035-issue起票後の着手確認はブロックせず注意喚起の注入で担保する.md`）。
+  `.claude/docs/ddr/0036-issue起票後の着手確認はブロックせず注意喚起の注入で担保する.md`）。
 - 特別なコンテキストなしで回答可能な簡易タスクを除き、いかなるタスク（調査、設計、コード作成、テスト、リファクタリングなど）も、**実作業を開始する前に必ず「計画（Plan）」を立ててユーザーに提示**する
 - 計画はplansディレクトリ配下に保存する。計画は2階層に分ける（詳細は
   `.claude/skills/issue-mr-flow/SKILL.md`「計画の2階層構造」）
