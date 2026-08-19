@@ -146,6 +146,15 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
     1. `github_valid_lines_from_patch`（行を列挙）→ `github_valid_ranges_from_files_json`
        （範囲で返す・files JSON全体を1回のjqで処理）。
     2. 確度・重大度による投稿／報告の振り分けを、シェル関数ではなくスキルの手順として書いた。
+- **GitLab実機検証を実施した（flow-id 3-6の続き）**。`gitlab_add_mr_inline_comments` が
+  新規行・削除行・コンテキスト行の3ケースを position 付きで投稿でき、
+  `gitlab_get_mr_unresolved_comments` の出力に位置（`sample.txt:2` 等）が出ることを確認した。
+  - **検証中にサブエージェント定義の不足が見つかり修正した**。GitLabは行の種類ごとに指定すべき
+    キーが決まっている（追加行=`new_line`のみ／削除行=`old_line`のみ／コンテキスト行=**両方**）が、
+    `.claude/agents/adversarial-reviewer.md` にその対応表が無かった。誤ると
+    `400 line_code must be a valid line code` でその指摘だけ投稿されない。
+  - **`export MSYS_NO_PATHCONV=1` した状態ではネイティブjqがMSYS形式のパスを開けない**ことも
+    判明（docker操作用のexportを、jqを使う処理と同じシェルへ広げてはいけない）。
 
 ## 次にやること
 
@@ -154,9 +163,12 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - **GitHub実機での投稿確認（`add_mr_inline_comments` のend-to-end）が未実施。**
   提出済みレビューは削除できず、レビュー中のPR #80へbotのレビューが増えるため、
   **実行の可否をユーザーへ確認してから**行う。有効行の算出までは実データで確認済み。
-- **GitLab実機での確認も未実施**（`docker start gitlab` でフェーズ2のコンテナを再利用し、
-  テスト用MR `!3` に position 付き投稿ができること・`comments` 相当の出力に `path:line` が
-  出ることを確認する）。
+- **GitLab実機での確認は完了**（`docker start gitlab` でフェーズ2のコンテナを再利用。
+  `gitlab_add_mr_inline_comments` が `{"posted":3,"summarized":1}` を返し、新規行・削除行・
+  コンテキスト行の3ケースすべてが position 付きで投稿された。`gitlab_get_mr_unresolved_comments`
+  の出力に `sample.txt:2` のような位置が出ることも確認）。**投稿したdiscussionは、レビュー時に
+  確認できるよう削除せず残している**（MR: http://localhost:8929/root/issue45-verify/-/merge_requests/3 。
+  コンテナは起動したままなので、レビュー後に `docker stop gitlab` する）。
 - 合意後 flow-id 3-9 → 3-10（MR description更新）→ フェーズ4へ。
 - フェーズ4で忘れてはいけない点。
   - `type: review-points` を `.claude/rules/markdown-frontmatter.md` のtype表へ追記する

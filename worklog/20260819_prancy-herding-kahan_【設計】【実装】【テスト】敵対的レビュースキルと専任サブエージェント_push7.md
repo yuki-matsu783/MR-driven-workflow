@@ -80,11 +80,83 @@ push回数: 7
 - push6の教訓（差し込み前に `sed -n` で端点を確認する）は今回守れており、差し込みのずれは
   発生しなかった。
 
+## GitLab実機検証（flow-id 3-6の続き）
+
+フェーズ2で使ったコンテナ（`gitlab/gitlab-ce:18.5.4-ce.0`）を `docker start gitlab` で再開した
+（`Exited (137)` から約170秒で `healthy`）。テスト用MRは `root/issue45-verify` の `!3`。
+
+### 手順（フェーズ2と変えた点）
+
+フェーズ2はAPIを直接叩く形だったが、今回は `projects/:id/` を含む**実関数を通す**必要があるため、
+**remoteだけを持つ作業ディレクトリ**を用意した。`glab` はremote URLからプロジェクトを解決する
+ため、クローンは不要である（`glab repo clone` は `git_protocol: ssh` 設定のため失敗し、
+HTTP＋トークンでのcloneも `HTTP Basic: Access denied` になった。remoteを設定するだけで
+`projects/:id` が `1 root/issue45-verify` に解決することを確認した）。
+
+```bash
+mkdir gl-clone && cd gl-clone && git init -q .
+git remote add origin http://localhost:8929/root/issue45-verify.git
+export GITLAB_HOST=localhost:8929
+```
+
+`Provider.sh` のディスパッチは、このリポジトリのremoteがGitHubのため使えない。フェーズ2と同じく
+`gitlab_*` 関数を直接呼ぶ形で検証した（`get_provider` がself-hostedのGitLab URLを判定できない
+issue #45の制約は未解消）。
+
+### 確認できたこと
+
+- `gitlab_add_mr_inline_comments 3 <findings>` が `{"posted":3,"summarized":1}` を返した。
+  新規行・削除行・コンテキスト行の3ケースすべてが投稿され、diffに無いファイルへの指摘だけが
+  サマリ（通常コメント1件）へ回った。
+- **`gitlab_format_discussion_notes` の修正が効いていること**を実機で確認した。
+  `gitlab_get_mr_unresolved_comments 3` の出力が次のようになり、位置が出るようになった
+  （修正前は `[unresolved threadId=...]` のみで、どのファイルの何行目か分からなかった）。
+
+  ```
+  [unresolved threadId=3d843a... sample.txt:2] root: **[blocker / 確度: high / new-line]** 追加行への指摘
+  [unresolved threadId=14fb15... sample.txt:4] root: **[major / 確度: medium / deleted-line]** 削除行への指摘
+  [unresolved threadId=62b3c7... sample.txt:9] root: **[minor / 確度: high / context-line]** コンテキスト行への指摘
+  [unresolved threadId=0d55f8...] root: Claude Codeより: 敵対的レビュー（AIによる自動レビュー）の結果です。
+  ```
+
+- サマリ（通常コメント）の本文に、投稿できなかった指摘が件数付きで載ることを確認した。
+- 投稿したdiscussionは**削除せず残している**（レビュー時に確認したいというユーザーの指示）。
+  MR: http://localhost:8929/root/issue45-verify/-/merge_requests/3
+
+### ダメだったこと・詰まったこと（GitLab検証）
+
+- **1回目の実行が `{"posted":1,"summarized":3}` になった。原因はテストデータ側の誤り**で、
+  実装の欠陥ではなかった。APIの応答は
+  `400 Bad request - Note {:line_code=>["can't be blank", "must be a valid line code"]}`。
+  GitLabは**行の種類ごとに指定すべきキーが決まっている**。
+
+  | 指摘したい行 | 指定するキー |
+  |---|---|
+  | 追加行（`+`） | `new_line` のみ |
+  | 削除行（`-`） | `old_line` のみ |
+  | 変更のない行（コンテキスト行） | `new_line` と `old_line` の**両方** |
+
+  1回目は「コンテキスト行に `new_line` だけ」「追加行に両方」を渡しており、どちらも弾かれた。
+  `gitlab_build_discussion_body` は渡された値をそのまま position へ組むだけなので、
+  **正しく指定する責任はfindingsを作る側（サブエージェント）にある**。
+  `.claude/agents/adversarial-reviewer.md` にこの対応表が無かったため、**「行の種類ごとの指定」
+  節を追記した**（この検証で見つかった実際の不足）。
+- **`export MSYS_NO_PATHCONV=1` した状態では、ネイティブjqがMSYS形式のパス（`/tmp/...`・`/c/...`）を
+  開けず、`Could not open file` になる。** docker操作のために
+  `.claude/rules/shell-script-style.md` が推奨している設定だが、同じシェルでjqにファイルパスを
+  渡す関数を呼ぶと壊れる。**docker用のexportは、jqを使う処理と同じシェルへ広げないこと。**
+  今回は `MSYS_NO_PATHCONV` を外したシェルで関数を呼び直して解決した。
+- 既知の制限として、出力の `path:line` は新旧どちらの行番号かを区別しない（削除行の `:4` と
+  追加行の `:4` が同じ表記になる）。GitHub版も `.line` をそのまま出しており表記は揃っているため、
+  今回は変更していない。
+
 ## 次にやること
 
 - flow-id 3-7（commit・push）→ 3-8（人間のレビュー）。
 - **GitHub実機での投稿確認（`add_mr_inline_comments` のend-to-end）は未実施。**
   提出済みレビューは削除できず、レビュー中のPR #80へbotのレビューが増えるため、
-  実行の可否をユーザーへ確認してから行う。
+  実行の可否をユーザーへ確認してから行う。有効行の算出までは実データで確認済み。
 - フェーズ4で `type: review-points` を `.claude/rules/markdown-frontmatter.md` のtype表へ追記する
   （`【AIアセット反映】`）。
+- フェーズ4で、GitLab検証で分かった「行の種類ごとの指定」を
+  `.claude/docs/spec/adversarial-review.md` へ残す。
