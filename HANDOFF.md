@@ -15,7 +15,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - issue: #92 全体作業計画には調査フェーズ・反映フェーズを必ず含めるルールを追加する
 - ブランチ: claude/master-plan-rule-addition-gcw0t6
 - PR: 未作成（ハーネスがPR作成を制限する非対話的セッションのため。`.claude/rules/git-workflow.md`「ハーネスがPR作成を制限する環境での扱い」）
-- push回数: 0
+- push回数: 1
 - 追従監視: 未開始（PR未作成のため）
 
 ## フロー進捗状況
@@ -61,7 +61,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 | [] | 4-9 | レビュー内容を取得し、設計・AIアセットの内容を修正する。 | `comments` / `reply` |
 | [] | 4-10 | 反映内容をもとにMR descriptionを更新する | `describe` |
 | [] | 5-1 | 次タスクのために、`plans/` `worklog/` `reports/` を削除し、`HANDOFF.md` をリセットする | エージェント |
-| [] | 5-2 | **defaultブランチとのコンフリクトを検知し、あれば解消する**（`check-base-conflicts.sh` → `resolve-conflict` スキル） | エージェント（`resolve-conflict` スキル） |
+| [x] | 5-2 | **defaultブランチとのコンフリクトを検知し、あれば解消する**（`check-base-conflicts.sh` → `resolve-conflict` スキル） | エージェント（`resolve-conflict` スキル） |
 | [] | 5-3 | `commit`スキル経由でcommitし、リモートへ反映してDraftを解除する（解除は `set_mr_ready <MR番号>`） | エージェント |
 | [] | 5-4 | マージする（squash merge。ブランチは削除してよい） | 人間 |
 
