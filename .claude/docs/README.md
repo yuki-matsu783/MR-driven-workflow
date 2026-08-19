@@ -74,3 +74,4 @@ DDRのうち0001・0002・0008・0015は持ち込んでいない**（連番に�
 - [0029-defaultブランチとのコンフリクトは検知を機構化し解消手順をスキル化する.md](ddr/0029-defaultブランチとのコンフリクトは検知を機構化し解消手順をスキル化する.md)
 - [0030-create-commitは削除ステージ済みパスをgit-addの失敗時分類で吸収する.md](ddr/0030-create-commitは削除ステージ済みパスをgit-addの失敗時分類で吸収する.md)
 - [0031-機構自身の単体テストは.claude_scripts_test配下へ置く.md](ddr/0031-機構自身の単体テストは.claude_scripts_test配下へ置く.md)
+- [0032-compact後もSessionStart-hookで作業コンテキストを再注入する.md](ddr/0032-compact後もSessionStart-hookで作業コンテキストを再注入する.md)
