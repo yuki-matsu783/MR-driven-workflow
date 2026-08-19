@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>issue #92 調査報告 — 全体作業計画へのフェーズ必須化の記載箇所</title>
+<script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-50 text-slate-800">
+<div class="max-w-4xl mx-auto p-8">
+  <header class="mb-8 border-b border-slate-200 pb-4">
+    <p class="text-sm text-slate-500">issue #92 / フェーズ2〈調査〉 / 2026-08-19</p>
+    <h1 class="text-2xl font-bold mt-1">全体作業計画へのフェーズ必須化 — 記載箇所と差し込み位置の調査</h1>
+    <p class="mt-2 text-slate-600">「調査・反映の枠を必ず残す」ルールを、どのファイルのどの位置へ、既存記述と矛盾しない形で書けるかを確定した。</p>
+  </header>
+
+  <section class="mb-8">
+    <h2 class="text-lg font-bold mb-3">1. 現状の空白</h2>
+    <div class="grid md:grid-cols-2 gap-4">
+      <div class="bg-white rounded-lg shadow-sm p-4 border-l-4 border-amber-400">
+        <p class="font-semibold">SKILL.md（flow-id 1-4・計画の2階層構造）</p>
+        <p class="text-sm mt-1">規定しているのは「planツールで作る」「出力先」「既にあれば作らない」「issue分割の判定」の4点のみ。<span class="font-semibold">計画の中身（どのフェーズを節として置くか）は未規定</span>。</p>
+      </div>
+      <div class="bg-white rounded-lg shadow-sm p-4 border-l-4 border-amber-400">
+        <p class="font-semibold">docs-workflow.md（進捗記号 <code>[-]</code>）</p>
+        <p class="text-sm mt-1">「フェーズ単位・ループ範囲単位でまとめて」という<span class="font-semibold">粒度</span>の規定のみ。<span class="font-semibold">いつ決めてよいか</span>（タイミング）が無い。</p>
+      </div>
+    </div>
+    <p class="text-sm mt-3 text-slate-600">実例: 直近の issue #39 の HANDOFF.md は、着手時点で flow-id 1-4/1-5 とフェーズ2の全行が <code>[-]</code> になっていた。</p>
+  </section>
+
+  <section class="mb-8">
+    <h2 class="text-lg font-bold mb-3">2. 差し込み位置の判定</h2>
+    <table class="w-full text-sm bg-white rounded-lg shadow-sm overflow-hidden">
+      <thead class="bg-slate-100 text-left">
+        <tr><th class="p-3">候補位置</th><th class="p-3">直前の要素</th><th class="p-3">判定</th></tr>
+      </thead>
+      <tbody class="divide-y divide-slate-100">
+        <tr class="bg-emerald-50">
+          <td class="p-3 font-semibold">全体フロー表の直後（<code>### 計画の2階層構造</code> の直前）</td>
+          <td class="p-3">flow-id 表の最終行</td>
+          <td class="p-3 text-emerald-700 font-semibold">採用（表の直後で係り先が変わらない）</td>
+        </tr>
+        <tr>
+          <td class="p-3">「計画の2階層構造」節の末尾</td>
+          <td class="p-3">HANDOFF更新に関する地の文・箇条書き</td>
+          <td class="p-3 text-rose-700">不採用（issue #64 と同じ形）</td>
+        </tr>
+        <tr>
+          <td class="p-3">「issueが大きすぎる場合の分割提案」節の末尾</td>
+          <td class="p-3">分割時の運用に関する箇条書き</td>
+          <td class="p-3 text-rose-700">不採用（同上）</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section class="mb-8">
+    <h2 class="text-lg font-bold mb-3">3. 検出した矛盾（要調整）</h2>
+    <div class="bg-white rounded-lg shadow-sm p-4 border-l-4 border-rose-400">
+      <p class="text-sm">全体フロー節の一文「フェーズ1,4,5についてはこのフローを利用する際は必ず実施する」は、issue #92 の「反映対象が無ければ flow-id 4-1 でスキップ判断してよい」と表面上ぶつかる。</p>
+      <p class="text-sm mt-2 font-semibold">整理: フェーズ4は必ず<span class="underline">通る</span>（4-1で反映対象を洗い出す）／洗い出した結果が空なら以降をスキップしてよい。</p>
+    </div>
+  </section>
+
+  <section class="mb-4">
+    <h2 class="text-lg font-bold mb-3">4. フェーズ3への引き渡し</h2>
+    <ol class="list-decimal ml-6 text-sm space-y-1">
+      <li>SKILL.md の全体フロー表の直後へ <code>### 全体作業計画に必ず含めるフェーズ（issue #92）</code> を新設する。</li>
+      <li>全体フロー表の直前の一文と flow-id 1-4 の行へ、新節への参照を足して矛盾を解消する。</li>
+      <li>docs-workflow.md の <code>[-]</code> 段落の直後へ「<code>[-]</code> を決めてよいタイミング」を追記する。</li>
+      <li>反映（フェーズ4）の見込み: spec の仕様節・<code>## 影響範囲</code>、DDR 0040、README のDDR一覧。</li>
+    </ol>
+  </section>
+</div>
+</body>
+</html>
