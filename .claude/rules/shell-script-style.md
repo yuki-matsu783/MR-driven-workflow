@@ -139,6 +139,40 @@ issue #11の実例: `extract-frontmatter.sh` がfrontmatterのキー・配列要
   parse_block <<<"$block"              # OK
   ```
 
+- **標準出力へ返す関数をループの中で何度も呼ぶ必要がある場合は、ループ全体を1つのプロセス置換
+  `< <( ... )` の中へ入れる**（issue #42）。`$(...)` を要素ごとに書くとそのたびにforkするが、
+  同じ関数呼び出しでも、既にforkされたサブシェルの中で標準出力へ書く分には**追加のforkは
+  発生しない**。これにより「関数は標準出力へ返す」という既存のインターフェースを崩さないまま、
+  fork回数を要素数に依存しない定数へ抑えられる（`REPLY` へ返す形へ書き換えるのは、その関数が
+  他所から `$(...)` で使われていない場合に限られる）。
+
+  ```bash
+  # 悪い例（要素数 × 2 回forkする）
+  for p in "${paths[@]}"; do
+    blob="$(get_blob_url "$repo_url" "$ref" "$p")"
+    anchor="$(get_diff_anchor_url "$compare_url" "$p")"
+    ...
+  done
+  # 良い例（プロセス置換1回だけforkし、中の関数呼び出しはforkしない）
+  while IFS= read -r line; do urls+=("$line"); done < <(
+    for p in "${paths[@]}"; do
+      get_blob_url "$repo_url" "$ref" "$p"
+      get_diff_anchor_url "$compare_url" "$p"
+    done
+  )
+  ```
+
+  この形にすると出力は「1要素あたり固定行数」のフラットな配列になるため、**要素ごとに必ず同じ
+  行数を出すこと**（出さない項目がある場合は空行を出して埋める）。行数が可変だと添字と要素の
+  対応が崩れる。実例: `.claude/hooks/post-push-compact-prompt.sh` の `build_file_links_text`
+  （削除ファイルはblobリンクの代わりに空行を出している）。
+
+- **ディスパッチャの中で毎回外部コマンドを呼んでいないか確認する。** 上のように呼び出し側の
+  forkを消しても、呼ばれる関数自身がコマンド置換を含んでいれば意味が無い（issue #42の実例:
+  `get_blob_url` → `get_provider` → `$(git remote get-url origin)`）。プロセス内で結果が変わらない
+  判定はグローバル変数へメモ化する（`.claude/scripts/src/vcs/Provider.sh` の
+  `_PROVIDER_CACHE` が実例）。
+
 - 外部コマンドは、できるものからbash組み込みへ置き換える。
 
   | 外部コマンド | bash組み込みでの代替 |
