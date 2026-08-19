@@ -100,18 +100,59 @@ build_issue_body() {
     "$purpose" "$current" "$expected" "$acceptance"
 }
 
+# remote URLからホスト部分を取り出し、プロバイダ名（github / gitlab）を返す純粋関数。
+# 外部コマンド呼び出しを伴わないため tests/test_vcs_provider.sh から単体テストできる
+# （.claude/rules/shell-script-style.md「テスト」）。
+#
+# 判定規則: ホスト名に `github` を含めばGitHub、それ以外はGitLabとみなす。本ワークフローが
+# 対応するのはGitHub/GitLabの2つだけで、GitHubはSaaS（github.com）・GHEとも慣習的にホスト名へ
+# `github` を含むため、「GitHubでなければGitLab」で全ケースを賄える。ホスト名に `gitlab` を
+# 含まないself-hosted GitLab（git.example.co.jp / localhost:8929 等）を弾かないことが目的
+# （issue #45）。
+#
+# URL全体ではなくホスト部で判定するのが要点。旧実装は `*github.com*` を先に見ていたため、
+# https://gitlab.com/github-mirror/x.git のようにパスへ `github` を含むGitLab URLをGitHubと
+# 誤判定していた。
+#
+# 判定はremote URLの文字列のみに依存し、`gh`/`glab` の認証状態には依存しない（未ログインでも
+# 同じ結果になる）。
+#
+# 受け入れたトレードオフ: GitHub/GitLabのどちらでもないリモート（Bitbucket等、URLのtypo）にも
+# `gitlab` を返すため、旧実装の「サポート対象外のリモートです」という明快なエラーは出なくなり、
+# 後続の `glab` 側のエラーに変わる。対応プロバイダが2つしかない以上、self-hostedを弾かずに
+# 非対応だけを弾く判定は原理的に書けないため受け入れている（issue #45）。
+provider_from_remote_url() {
+  local url="$1" host
+  # scheme:// があれば除去（無ければそのまま）
+  host="${url#*://}"
+  # 最初の `/` 以降（パス）を除去。scp形式 git@host:path でも `/` 以降が落ちる
+  host="${host%%/*}"
+  # 認証情報 user@ を除去。パスを先に落としてからでないと、パスに `@` を含むURLで壊れる
+  host="${host#*@}"
+  # ポート（:8929）または scp形式のパス区切り（:foo）を除去
+  host="${host%%:*}"
+  host="${host,,}"
+
+  if [ -z "$host" ]; then
+    echo "remote URLからホスト名を取得できませんでした: $url" >&2
+    return 1
+  fi
+
+  case "$host" in
+    # 社内GitLab（Aslead）を明示的に先に判定する。既定規則（github以外はgitlab）でも同じ結果に
+    # なるが、ホスト名に `github` と `aslead` が同時に含まれる場合でもGitLabを優先させるため、
+    # GitHub判定より前に置く。
+    *aslead*) printf 'gitlab\n' ;;
+    *github*) printf 'github\n' ;;
+    *) printf 'gitlab\n' ;;
+  esac
+}
+
 # `git remote get-url origin` のホスト名からプロバイダを判定する
 get_provider() {
   local url
   url="$(git remote get-url origin)"
-  case "$url" in
-    *github.com*) printf 'github\n' ;;
-    *gitlab*) printf 'gitlab\n' ;;
-    *)
-      echo "サポート対象外のリモートです（GitHub/GitLabのみ対応）: $url" >&2
-      return 1
-      ;;
-  esac
+  provider_from_remote_url "$url"
 }
 
 get_issue() {
