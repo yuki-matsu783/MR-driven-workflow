@@ -62,7 +62,8 @@ usage: search-frontmatter.sh [オプション]
 
 出力・動作:
   --format <形式>   table（既定） | path | json | jsonl | detail | count
-  --dir <パス>      このディレクトリ配下だけを対象にする（既定: リポジトリルート）
+  --dir <パス>      このディレクトリ配下だけを対象にする（既定: リポジトリルート）。
+                    **相対パスはカレントではなくリポジトリルート基準**で解決する
   --no-refresh      extract-frontmatter.sh による index.jsonl の最新化を行わない
   --quiet, -q       件数サマリ（stderr）を出さない
   -h, --help        この使い方を表示する
@@ -137,6 +138,31 @@ sf_normalize_until_to_reply() {
   fi
 }
 
+# 値を取るオプションの引数を検証する。$2 には検証時点の `$#`、$3 には値（`${2-}`）を渡す。
+#
+# これが無いと2通りの形で無言の誤動作になる。
+#   (1) 値の省略（`--type` で終端）… `shift 2` が失敗し `set -e` でシェルごと終了するため、
+#       バリデーションにも `usage` にも到達せず、**何も出力しないまま exit 1** になる。
+#   (2) 値の位置に別のオプション（`--type --quiet`）… `--quiet` が値として食われ、
+#       `matched=0` の**正常終了**になる。タイプミスが「該当なし」と区別できない。
+#
+# 弾くのは `--` で始まる値だけにする。`--text -A` のように**ハイフン1つで始まる値**は
+# 実在する検索語（`keywords: [git add, -A, pathspec]` 等）のため通す。
+sf_validate_option_value() {
+  local opt="$1" argc="$2" value="${3-}"
+  if [ "$argc" -lt 2 ]; then
+    echo "error: $opt には値が必要です" >&2
+    return 1
+  fi
+  case "$value" in
+    --*)
+      echo "error: $opt の値がオプションのように見えます: $value（値を省略していませんか）" >&2
+      return 1
+      ;;
+  esac
+  return 0
+}
+
 # 並び替えキーの検証。不正なら使用可能な値を stderr へ出して 1 を返す。
 sf_validate_sort() {
   if sf_is_one_of "$1" "$SF_SORT_KEYS"; then
@@ -174,11 +200,26 @@ def dwidth: length + ([scan("[\u1100-\u115f\u2e80-\ua4cf\uac00-\ud7a3\uf900-\ufa
 def pad($w): . + (($w - dwidth) as $n | if $n > 0 then " " * $n else "" end);
 
 def fm: .frontmatter // {};
-def arr($k): (fm[$k] // []) | if type == "array" then map(tostring | ascii_downcase) else [tostring | ascii_downcase] end;
+# 配列キーへのアクセサ。frontmatterは `tags: workflow` のようにリストで書かれていないことが
+# ありえ（extract-frontmatter.sh はそれを文字列のままindexへ入れる）、本スクリプトは
+# 「frontmatter規約違反の洗い出し」も用途に掲げているため、**規約違反のレコードが混ざった状態で
+# 使われることが想定内**である。スカラーを配列へ包んで、どの出力形式でも落ちないようにする。
+def arr_raw($k): (fm[$k] // []) | if type == "array" then map(tostring) else [tostring] end;
+def arr($k): arr_raw($k) | map(ascii_downcase);
 def str($k): (fm[$k] // "") | tostring;
 
 def match_exact($needles; $haystack): ($needles | length) == 0 or any($needles[]; . as $n | $haystack | index($n) != null);
 def match_sub($needles; $hay): ($needles | length) == 0 or (($hay | ascii_downcase) as $h | any($needles[]; . as $n | $h | contains($n)));
+
+# `--text` の検索対象。レコードを `tostring` した**JSONテキスト全体**を対象にすると、値ではなく
+# **キー名**に当たってしまい、`--text description` や `--text mtime` のような普通に打ちうる語で
+# 実質全件がヒットする（しかも「それらしい件数」が返るため誤りに気づけない）。
+# concept_id・mtime と、frontmatter配下の**値**だけを連結して対象にする（`..` はキーではなく
+# 値をたどるため、ネストした配列の要素も拾える）。
+def searchable_text:
+  [(.concept_id // ""), (.mtime // "")]
+  + [fm | .. | scalars | select(. != null) | tostring]
+  | join(" ");
 
 [inputs]
 | unique_by(.concept_id)
@@ -189,7 +230,7 @@ def match_sub($needles; $hay): ($needles | length) == 0 or (($hay | ascii_downca
       and match_exact(vals($tags);     arr("tags"))
       and match_exact(vals($keywords); arr("keywords"))
       and match_sub(vals($paths); (.concept_id // ""))
-      and match_sub(vals($texts); tostring)
+      and match_sub(vals($texts); searchable_text)
       and ($since == "" or ((.mtime // "") >= $since))
       and ($until == "" or ((.mtime // "") <= $until))
     )
@@ -201,11 +242,18 @@ def match_sub($needles; $hay): ($needles | length) == 0 or (($hay | ascii_downca
     else [(.concept_id // "")] end
   )
 | (if $reverse == "1" then reverse else . end)
+# 絞り込みが「どれだけ効いたか」は --limit の打ち切り前の件数で数える。打ち切り後を matched と
+# して報告すると、--limit 10 を付けた瞬間に常に matched=10 になり、まだ他に候補があるのか
+# （もっと絞るべきか）を呼び出し側が判断できなくなる。
+| . as $matched
 | (if ($limit | tonumber) > 0 then .[0:($limit | tonumber)] else . end)
 | . as $hits
 | ($all | length) as $total
+| ($matched | length) as $nmatched
 | if $format == "count" then
-    "matched=\($hits | length) total=\($total)"
+    "matched=\($nmatched)"
+    + (if ($hits | length) != $nmatched then " shown=\($hits | length)" else "" end)
+    + " total=\($total)"
   elif $format == "path" then
     $hits[] | .concept_id
   elif $format == "jsonl" then
@@ -218,8 +266,8 @@ def match_sub($needles; $hay): ($needles | length) == 0 or (($hay | ascii_downca
       + "  type       : \(str("type"))\n"
       + "  title      : \(str("title"))\n"
       + "  description: \(str("description"))\n"
-      + "  tags       : \((fm["tags"] // []) | join(", "))\n"
-      + "  keywords   : \((fm["keywords"] // []) | join(", "))\n"
+      + "  tags       : \(arr_raw("tags") | join(", "))\n"
+      + "  keywords   : \(arr_raw("keywords") | join(", "))\n"
       + "  mtime      : \(.mtime // "")"
   else
     ($hits | map(str("type") | dwidth) | max // 0) as $tw
@@ -240,17 +288,25 @@ main() {
 
   while [[ $# -gt 0 ]]; do
     case "$1" in
-      --type) types+=("${2-}"); shift 2 ;;
-      --tag) tags+=("${2-}"); shift 2 ;;
-      --keyword) keywords+=("${2-}"); shift 2 ;;
-      --path) paths+=("${2-}"); shift 2 ;;
-      --text) texts+=("${2-}"); shift 2 ;;
-      --since) since_ts="${2-}"; shift 2 ;;
-      --until) until_ts="${2-}"; shift 2 ;;
-      --sort) sort_key="${2-}"; shift 2 ;;
-      --limit) limit="${2-}"; shift 2 ;;
-      --format) format="${2-}"; shift 2 ;;
-      --dir) target_dir="${2-}"; shift 2 ;;
+      # 値を取るオプションは、検証を1箇所へ寄せるため入れ子の case で振り分ける
+      --type | --tag | --keyword | --path | --text | --since | --until | --sort | --limit | \
+        --format | --dir)
+        sf_validate_option_value "$1" "$#" "${2-}" || return 1
+        case "$1" in
+          --type) types+=("$2") ;;
+          --tag) tags+=("$2") ;;
+          --keyword) keywords+=("$2") ;;
+          --path) paths+=("$2") ;;
+          --text) texts+=("$2") ;;
+          --since) since_ts="$2" ;;
+          --until) until_ts="$2" ;;
+          --sort) sort_key="$2" ;;
+          --limit) limit="$2" ;;
+          --format) format="$2" ;;
+          --dir) target_dir="$2" ;;
+        esac
+        shift 2
+        ;;
       -r | --reverse) reverse='1'; shift ;;
       --no-refresh) refresh=0; shift ;;
       -q | --quiet) quiet=1; shift ;;
@@ -286,7 +342,8 @@ main() {
   target_dir="${target_dir%/}"
   [ -n "$target_dir" ] || target_dir='.'
   if [ ! -d "$target_dir" ]; then
-    echo "error: ディレクトリが見つからない: $target_dir" >&2
+    echo "error: ディレクトリが見つかりません: $target_dir" >&2
+    echo "       （--dir はカレントではなくリポジトリルート $repo_root からの相対パスで解決します）" >&2
     return 1
   fi
 
@@ -311,13 +368,21 @@ main() {
   #    と書いても同じで、NUL指定が打ち消されるうえ `tr` の分だけforkが増える）。
   #    **ディレクトリ名に改行を含むリポジトリは対象外**という前提を明示して単純な形を採る
   #    （その場合はjqが開けないパスとして失敗するため、無言で誤った結果にはならない）。
+  # prune 条件は SF_EXCLUDED_DIRS から組み立てる。走査打ち切り（find）と除外判定
+  # （sf_filter_index_paths）でリストが二重管理になっていると、片方にだけ追記したときに
+  # 「除外は効くが走査は続く」「specに書いていないディレクトリが黙って外れる」のどちらかになる。
+  local dir
+  local -a prune_args=()
+  for dir in $SF_EXCLUDED_DIRS; do
+    [ "${#prune_args[@]}" -eq 0 ] || prune_args+=(-o)
+    prune_args+=(-name "$dir")
+  done
+
   local path
   while IFS= read -r path; do
     index_files+=("$path")
   done < <(
-    find "$target_dir" \
-      \( -name .git -o -name node_modules -o -name .gemini \) -prune -o \
-      -name index.jsonl -print |
+    find "$target_dir" \( "${prune_args[@]}" \) -prune -o -name index.jsonl -print |
       sf_filter_index_paths
   )
 
