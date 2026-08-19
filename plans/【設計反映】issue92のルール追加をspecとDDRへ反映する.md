@@ -3,7 +3,7 @@ title: 【設計反映】issue #92のルール追加をspecとDDRへ反映する
 type: log
 description: issue #92 の変更を .claude/docs/spec と DDR へ反映するための個別反映計画
 tags: [plan, design-reflection, issue-mr-flow]
-keywords: [設計反映, spec, DDR, 0040, 影響範囲, README, AIアセット反映]
+keywords: [設計反映, spec, DDR, 0041, 影響範囲, README, AIアセット反映]
 ---
 
 # 【設計反映】issue #92のルール追加をspecとDDRへ反映する
@@ -16,8 +16,8 @@ keywords: [設計反映, spec, DDR, 0040, 影響範囲, README, AIアセット�
 |---|---|---|---|
 | 設計反映 | `.claude/docs/spec/issue-mr-workflow.md`（仕様節） | 「全体作業計画に必ず含めるフェーズ」の位置づけを1節として記録する | **要** |
 | 設計反映 | `.claude/docs/spec/issue-mr-workflow.md`（`## 影響範囲`） | `### issue #92` エントリを時系列の末尾へ追加する | **要** |
-| 設計反映 | `.claude/docs/ddr/0040-....md` | 「枠を必ず残し、省略判断を各フェーズ直前へ遅らせる」意思決定と却下案を記録する | **要** |
-| 設計反映 | `.claude/docs/README.md` | DDR一覧へ 0040 を追加する | **要** |
+| 設計反映 | `.claude/docs/ddr/0041-....md` | 「枠を必ず残し、省略判断を各フェーズ直前へ遅らせる」意思決定と却下案を記録する | **要** |
+| 設計反映 | `.claude/docs/README.md` | DDR一覧へ 0041 を追加する | **要** |
 | AIアセット反映 | `.claude/rules/` `.claude/skills/` 等 | — | **不要**（後述） |
 
 **AIアセット反映が不要な理由**: 本issueの成果物そのものがAIアセット（`issue-mr-flow/SKILL.md`・
@@ -42,7 +42,7 @@ keywords: [設計反映, spec, DDR, 0040, 影響範囲, README, AIアセット�
 既存エントリ（最新は `### issue #88`）の直後、`## 設定項目` の直前へ `### issue #92` を追加する。
 新規・変更のファイル一覧を書く。
 
-### 3. DDR 0040
+### 3. DDR 0041
 
 タイトル: 「全体作業計画には調査・反映の枠を必ず残し省略判断は各フェーズ直前で行う」。
 
@@ -57,6 +57,6 @@ keywords: [設計反映, spec, DDR, 0040, 影響範囲, README, AIアセット�
 
 ## 検証
 
-- DDR番号 0040 が既存と重複しないこと（`ls .claude/docs/ddr/`）。
+- DDR番号 0041 が既存と重複しないこと（`ls .claude/docs/ddr/`）。
 - 追記位置の前後3行を目視し、空行の連続・見出し直前の空行を確認する。
 - `bash .claude/scripts/src/extract-frontmatter.sh .` が通ること。

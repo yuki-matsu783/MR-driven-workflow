@@ -1,9 +1,9 @@
 ---
 title: worklog 【設計反映】issue #92のルール追加をspecとDDRへ反映する
 type: log
-description: issue #92 の反映フェーズでの試行錯誤ログ（spec・DDR 0040・READMEへの反映）
+description: issue #92 の反映フェーズでの試行錯誤ログ（spec・DDR 0041・READMEへの反映）
 tags: [worklog, issue-mr-flow, design-reflection]
-keywords: [worklog, spec, DDR, 0040, 影響範囲, 一括置換, changelog, 反映]
+keywords: [worklog, spec, DDR, 0041, 影響範囲, 一括置換, changelog, 反映]
 ---
 
 # worklog: 【設計反映】issue #92のルール追加をspecとDDRへ反映する
@@ -17,11 +17,11 @@ push回数: 1
 
 - flow-id 4-1 で反映対象を洗い出し、設計反映4件・AIアセット反映0件と判定した（本issueの成果物
   そのものがAIアセットの改訂であり、フェーズ3で実施済みのため）。
-- `.claude/docs/ddr/0040-全体作業計画には調査・反映の枠を必ず残し省略判断は各フェーズ直前で行う.md`
+- `.claude/docs/ddr/0041-全体作業計画には調査・反映の枠を必ず残し省略判断は各フェーズ直前で行う.md`
   を新規作成し、却下案を4つ（省略を一切認めない／1-4 で調査を尽くす／注意書きだけ足す／
   判断基準をdocs-workflow.md側に置く）記録した。
 - `.claude/docs/spec/issue-mr-workflow.md` へ仕様節と `## 影響範囲` のエントリを追加し、
-  `.claude/docs/README.md` のDDR一覧へ0040を追加した。
+  `.claude/docs/README.md` のDDR一覧へ追加した（当初0040。flow-id 5-2 のコンフリクト解消で0041へ繰り下げ）。
 
 ## うまくいったこと
 
