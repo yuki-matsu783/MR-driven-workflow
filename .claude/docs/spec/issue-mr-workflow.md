@@ -101,7 +101,7 @@ MRとのやり取りだけを自動化する薄い層」として設計したが
 | `test_issue_sections <body>` | issue本文に「目的／現状／期待する動作／受け入れ条件」の4見出しが揃っているか確認し、欠けている見出し名を1行1件でstdoutへ出力する（プロバイダ非依存） | — | — |
 | `get_issue_number_from_branch [<branch>]` | ブランチ名を `branchPrefixTemplate` に照らしてissue番号を抽出する（省略時は現在のブランチ）。マッチすればstdoutへ出力し終了コード0、マッチしなければ終了コード1（プロバイダ非依存） | — | — |
 | `get_mr_for_branch <branch>` | 指定ブランチに紐づくPR/MRの番号・URL・タイトル・Draft状態を取得する（JSON。無ければ何も出力せず終了コード0） | `gh pr view <branch>` | `glab mr view <branch>` |
-| `get_repo_url` | リポジトリの正規URL（フルパス）を取得する。MR/PRのURL文字列からの推測ではなく`gh`/`glab`で取得することで正確性を担保する（issue #13フォローアップ） | `gh repo view --json url` | `glab repo view --output json`（`.web_url`） |
+| `get_repo_url` | リポジトリの正規URL（フルパス）を取得する。MR/PRのURL文字列からの推測ではなく、`git remote get-url origin` の値を `repo_url_from_remote_url` で正規化して導出する（**プロバイダ非依存**。issue #44。issue #13フォローアップ時点では`gh`/`glab`へディスパッチしていた） | — | — |
 | `get_mr_diff_url <repoUrl> <baseBranch> <headBranch>` | MR/PRの「defaultブランチとの差分」を見れるURLを組み立てる（純粋関数。`repoUrl`は`get_repo_url`の戻り値を渡す。issue #13） | `<repoUrl>/compare/<baseBranch>...<headBranch>` | `<repoUrl>/-/compare/<baseBranch>...<headBranch>` |
 | `get_mr_diff_since_url <repoUrl> <fromSha> <toSha>` | MR/PRの「前回push時点(`fromSha`)から今回push時点(`toSha`)までの差分」を見れるURLを組み立てる（純粋関数。issue #13） | `<repoUrl>/compare/<fromSha>...<toSha>` | `<repoUrl>/-/compare/<fromSha>...<toSha>` |
 | `get_branch_work_files` | 現在のブランチ固有（`<defaultBaseBranch>` に無い）の `plans/` `worklog/` `reports/` ファイル一覧を返す（プロバイダ非依存）。日本語を含むパスをそのまま返すため `-c core.quotepath=false` を指定している（issue #9。詳細は「計画の2階層構造」節） | — | — |
@@ -111,6 +111,7 @@ MRとのやり取りだけを自動化する薄い層」として設計したが
 | `get_vcs_access_mode` | 実行環境に該当プロバイダのCLIがあるかを判定し、`cli`（CLI経路）／`mcp`（MCPフォールバック経路）を返す（issue #34） | `command -v gh` | `command -v glab` |
 | `parse_repo_slug <remoteUrl>` | リモートURL（https / ssh(scp形式) / `ssh://`）から `{host, owner, repo, path, url}` のJSONを組み立てる（純粋関数。MCPツールが要求する `owner`/`repo` をCLIなしで得るため。issue #34） | — | — |
 | `get_repo_slug` | `git remote get-url origin` の値を `parse_repo_slug` へ渡す（issue #34） | — | — |
+| `repo_url_from_remote_url <remoteUrl>` | リモートURL（https / http / ssh(scp形式) / `ssh://`）からリポジトリの正規URLを導出する（純粋関数。`.git`サフィックス・末尾スラッシュの除去、scp形式→https変換、schemeとポートの扱いを含む。ホストまたはパスが取れない場合は終了コード1。issue #44） | — | — |
 | `mcp_tool_hint <funcName>` | Provider関数名に対応するGitHub MCPツールと主な引数を1行で返す（GitLabは対象外である旨を返す。issue #34） | — | — |
 | `require_vcs_cli <funcName>` | CLI経路が使えない場合に、代替すべきMCPツールを名指ししたメッセージをstderrへ出して終了コード1を返す。プロバイダ依存の各関数の先頭で呼ぶ（issue #34） | — | — |
 
@@ -399,8 +400,11 @@ Claude Code on the webのリモート実行環境のように、`gh`/`glab` CLI�
   「SKILL.mdの該当節」「WebFetch・curlへはフォールバックしないこと」をstderrへ出して失敗する。
   手順を読まずにCLI経路を呼んだ場合でも、同じ案内へ収束させることが狙い。
 - **例外（`get_repo_url`）**: リモートURLの取得は `git remote get-url origin` というローカル操作で
-  済むため、MCP経路では `get_repo_slug` から組み立てたURLを返す（失敗させない）。これにより
-  `get_mr_diff_url` / `get_mr_diff_since_url` がMCP経路でも動作する。
+  済むため、CLI経路・MCP経路のいずれでも同じ導出（`repo_url_from_remote_url` による正規化）で
+  URLを返す（失敗させない）。これにより `get_mr_diff_url` / `get_mr_diff_since_url` がMCP経路でも
+  動作する。issue #34の時点では「CLI経路では`gh`/`glab`、MCP経路では`get_repo_slug`」という
+  経路ごとの分岐だったが、issue #44で両者の戻り値が一致することを確認したうえで後者へ一本化し、
+  分岐自体を無くした（下記「リポジトリURLの導出（issue #44）」節）。
 - **hookの縮退**: hookはMCPツールを呼べないため、以下のように縮退する。
   - `session-start.sh`: 上記「セッション開始時の自動コンテキスト注入」節の記載どおり。
   - `post-push-usage-report.sh`: 集計状態の更新までは行い、MRコメントの自動投稿はスキップして
@@ -413,6 +417,49 @@ Claude Code on the webのリモート実行環境のように、`gh`/`glab` CLI�
   GitLabに対して「対象外」である旨を返す。詳細・却下案は
   [0027-gh_glab-CLI不在時はMCPフォールバック経路へ機構的に誘導する.md](../ddr/0027-gh_glab-CLI不在時はMCPフォールバック経路へ機構的に誘導する.md)
   参照。
+
+### リポジトリURLの導出（issue #44）
+
+`get_repo_url` は `gh repo view --json url` / `glab repo view --output json`（`.web_url`）への
+ディスパッチをやめ、`git remote get-url origin` の値を正規化して返す**プロバイダ非依存**の関数に
+した。実機で、両CLIの戻り値がremote URLと `.git` サフィックスの有無しか違わないことを確認した
+ためである（`https://github.com/yuki-matsu783/MR-driven-workflow.git` →
+`https://github.com/yuki-matsu783/MR-driven-workflow`）。
+
+- **効果**: プロバイダ依存関数が1つ減り、`Github.sh` / `Gitlab.sh` から repo URL 取得の関数が
+  消えた。pushのたびに走る `post-push-compact-prompt.sh` から外部CLIの起動（git bashで約95ms/回）と
+  API往復が1回ずつ無くなり、`gh`/`glab` 不在の環境（Claude Code on the web）でもCLI経路と同じ
+  導出で参照リンクを組み立てられる（issue #34で入れた経路ごとの分岐も不要になった）。
+- **正規化の規則**（純粋関数 `repo_url_from_remote_url`。土台の分解は `split_remote_url` が担う）:
+  - `.git` サフィックス・末尾スラッシュ・認証情報（`user@`）を除去し、ホスト名を小文字化する。
+  - scp形式SSH（`git@host:owner/repo.git`）・`ssh://` 形式は https へ変換する。
+  - schemeは `http` のときだけ `http` を保ち、それ以外は `https` にする（plain httpで立てた
+    self-hosted GitLabでリンクが壊れないようにするため）。
+  - ポートは **schemeが `http`/`https` のときだけ引き継ぐ**。`ssh://host:2222/o/r.git` の `2222` は
+    SSHの待ち受けポートでありWeb UIのポートではないため、引き継ぐとリンクが壊れる。
+  - ホストまたはパス（`owner/repo`）が取れない場合は、`https:///` のような壊れた値を返さず
+    終了コード1で失敗する。
+- **`parse_repo_slug` との整合**: `parse_repo_slug` が返す `.url` も同じ組み立て（`split_remote_url`
+  の結果から `build_repo_url_from_reply` で構成）を共有する。これにより両者の値が食い違わない。
+  issue #34時点の `.url` は常に `"https://" + host + "/" + path` だったため、**plain httpのリモート
+  および http/https のポート付きリモートで `.url` の値が変わる**（例:
+  `http://localhost:8929/g/r.git` の `.url` が `https://localhost:8929/g/r` → `http://localhost:8929/g/r`）。
+  消費側（`.claude/hooks/session-start.sh`）は `.owner`/`.repo` しか使っていないため実害はない。
+- **DDR 0023 との関係**: DDR 0023 が却下したのは「MR/PRの**URL文字列**へ `/files` 等のsuffixを
+  推測で付け足す」案である。remote URLからの導出はそれとは別物で、推測ではなく「リポジトリの
+  所在そのものを表す一次情報の変換」にあたる。DDR 0023 の判断軸（推測を避け正確性を担保する）は
+  維持される。
+- **正規URLと一致しないリスクケース**: いずれも「リンクが1本ずれる」だけで、フロー自体は止まらない。
+  実運用上の発生確率とコストが釣り合わないため、検知や `gh`/`glab` へのフォールバックは設けない
+  （詳細・却下案:
+  [0035-リポジトリURLはgh_glabではなくgit-remoteから導出する.md](../ddr/0035-リポジトリURLはgh_glabではなくgit-remoteから導出する.md)）。
+
+  | ケース | 挙動 | 判断 |
+  |---|---|---|
+  | `insteadOf` によるURL書き換え | `git remote get-url origin` は**書き換え前の設定値**を返すため、`https://…` を `ssh://…` へ書き換える一般的な用法では影響しない。一方、remoteに `gh:owner/repo` のような短縮エイリアスを設定している場合はホスト名が `gh` になり、導出URLが壊れる | 短縮エイリアス運用は非対応。壊れたリンクはその場で目視で分かる |
+  | カスタムポート | http/httpsのポートは引き継ぎ、SSHのポートは捨てる（上記の規則）。SSHポートとWeb UIポートが別のself-hosted構成では、ポート無しのURLになる | ポート付きWeb UIをSSH経由remoteだけで運用する構成は非対応 |
+  | リポジトリ名変更後の旧remote URL | GitHub/GitLabとも旧URLから新URLへリダイレクトするため、リンクとしては到達できる（`gh repo view` は新名称を返す点だけが異なる） | 実害なし |
+  | リモート名が `origin` でない | `git remote get-url origin` が失敗し `get_repo_url` も失敗する（従来の`gh`/`glab`経路にはこの制約が無かった） | 本ワークフローは他所でも `origin` 前提のため、新たな制約にはならない |
 
 ### Draft PR作成失敗時の自動リトライ
 
@@ -817,8 +864,8 @@ issue #11「git pushイベントを検知してcompactする」への対応と�
     リンクと同一URL）へのリンク。
   - **URL組み立ての方針（issue #13フォローアップ）**: 当初はMR/PRのURL文字列に`/files`等のsuffixを
     推測で付け足す実装だったが、「gh/glabでURLの正確性を担保したい」という指摘を受け、
-    `get_repo_url`（`gh repo view --json url` / `glab repo view --output json`の`.web_url`）で
-    取得したリポジトリの正規URLを土台に、GitHub/GitLabいずれも持つ汎用の「Compare」ページ
+    `get_repo_url` で取得したリポジトリの正規URLを土台に、GitHub/GitLabいずれも持つ汎用の
+    「Compare」ページ
     （`/compare/<from>...<to>` / `/-/compare/<from>...<to>`。PR/MR作成前から存在する標準機能で、
     PR個別のサブタブより広く安定）を組み立てる方式へ変更した。`from`/`to`にはブランチ名・SHAの
     どちらも指定できるため、「defaultブランチとの差分」（ブランチ名同士）・「前回pushとの差分」
@@ -1681,6 +1728,36 @@ flow-id 5-1（次タスクのための片付け）と食い違っていた。iss
 `.claude/docs/ddr/0004` `0006` の本文にも「設計反映時に削除」という記述があるが、DDRの本文は
 不変（`.claude/rules/docs-workflow.md`）であり、かつ当時の状況を記録した point-in-time の記述の
 ため変更していない。
+
+### issue #44（リポジトリURLをgh/glabではなくgit remoteから導出する）
+
+新規:
+- `.claude/docs/ddr/0035-リポジトリURLはgh_glabではなくgit-remoteから導出する.md`
+
+変更:
+- `.claude/scripts/src/vcs/Provider.sh`
+  - `get_repo_url` をプロバイダ非依存へ変更（`git remote get-url origin` の値を
+    `repo_url_from_remote_url` で正規化して返す。`gh`/`glab` へのディスパッチと、issue #34で
+    入れていた「MCP経路のときだけ `get_repo_slug` から組み立てる」分岐を削除）
+  - 純粋関数 `repo_url_from_remote_url`（remote URL → リポジトリの正規URL）と
+    `build_repo_url_from_reply`（`split_remote_url` の結果からURLを組み立てる内部ヘルパー）を追加
+  - `split_remote_url` が `REPLY_SCHEME` / `REPLY_PORT` も返すよう拡張（既存の
+    `REPLY_HOST` / `REPLY_PATH` は変更なし。追加のみのためプロセス起動ゼロも維持）
+  - `parse_repo_slug` の `.url` を `build_repo_url_from_reply` 経由へ変更し、`get_repo_url` と
+    同じ組み立て規則を共有させた（plain http・ポート付きURLでの値の変化は上記「リポジトリURLの
+    導出（issue #44）」節を参照）
+- `.claude/scripts/src/vcs/Github.sh`（`github_get_repo_url` を削除）
+- `.claude/scripts/src/vcs/Gitlab.sh`（`gitlab_get_repo_url` を削除）
+- `.claude/hooks/post-push-compact-prompt.sh`（コメントのみ。`get_repo_url` がCLIを呼ばなくなった
+  ことと、それによりpushごとの外部プロセス起動・API往復が1回ずつ減ったことを記載）
+- `.claude/scripts/test/test_vcs_provider.sh`（`repo_url_from_remote_url` の単体テスト16件と
+  `split_remote_url` のscheme/portテスト5件を追加。`passed=75 failures=0`）
+- `.claude/skills/issue-mr-flow/SKILL.md`（MCPフォールバックの対応表で、`get_repo_url` の
+  「フォールバックするため」という説明を「プロバイダ非依存の関数のため」へ更新）
+- `.claude/docs/README.md`（DDR一覧へ0035を追加）
+- `.claude/docs/spec/issue-mr-workflow.md`（本ファイル。「提供関数」表の `get_repo_url` 行を更新し
+  `repo_url_from_remote_url` 行を追加、「リポジトリURLの導出（issue #44）」節を新設、
+  MCPフォールバック節の「例外（`get_repo_url`）」と issue #13フォローアップの記述を更新、本エントリを追加）
 
 ## 設定項目
 
