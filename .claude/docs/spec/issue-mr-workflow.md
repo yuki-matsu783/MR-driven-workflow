@@ -1648,6 +1648,40 @@ DDRは新設していない（既存の`AskUserQuestion`確認・スキル分割
 スクリプト・hookの変更は行っていない（意味理解を要する判定を機構化しない、というDDR 0034の
 決定によるもの）。
 
+### issue #51（`worklog/` `reports/` の削除タイミングの記述統一）
+
+`.claude/rules/docs-workflow.md` の運用表が、`worklog/` `reports/` の削除を「PR作成前の設計反映で
+まとめて削除」と書いており、唯一の実装フロー定義（`.claude/skills/issue-mr-flow/SKILL.md`）の
+flow-id 5-1（次タスクのための片付け）と食い違っていた。issue #48 の作業中、反映計画を書く段階で
+どちらに従うか迷ったという実害が出たため、**SKILL.md を正として参照側の記述を揃えた**。
+同じ食い違いがリポジトリ内の他の4箇所にも波及していたため、あわせて修正した。
+
+- `.claude/rules/docs-workflow.md`
+  - `worklog/` `reports/` 行の「寿命」を「push単位」から「タスク（issue／ブランチ）単位
+    （flow-id 5-1でまとめて削除）」へ変更し、「運用」欄の削除タイミングも flow-id 5-1 へ改めた
+    （`worklog/` はファイル自体がpushごとに `_push<N>` で分かれる点を「寿命」欄に併記して、
+    「作成の単位」と「削除の単位」が別であることを明示した）
+  - 表の直後へ、`plans/` `worklog/` `reports/` の3つがまとめて flow-id 5-1 で削除されること、
+    設計反映（flow-id 4-6）で行うのは**内容**の spec/ddr への反映でありファイル削除ではないことを
+    示す注記を追加（`plans/` 行は既に flow-id 5-1 と整合していたため行自体は変更せず、3つの
+    ライフサイクルが同じであることを表の外の1段落で揃えた）
+  - `spec`/`ddr` 行の「plans／worklogの内容をMR作成時に反映する」を「flow-id 4-6（設計反映）で
+    反映する」へ変更（Draft MRの作成は flow-id 1-3 であり、反映のタイミングではない）
+  - 「コード・スクリプト内のコメントから参照しない」節の「push単位・タスク単位で削除される」を
+    「タスク単位（flow-id 5-1）で削除される」へ変更
+- `.claude/rules/git-workflow.md`（「PR・マージ」節の「設計反映時にworklogファイルを削除しておく
+  ことで」を「flow-id 5-1で`plans/` `worklog/` `reports/`を削除しておくことで」へ変更）
+- `index.md`（`worklog/` の説明を、内容の反映（flow-id 4-6）とファイルの削除（flow-id 5-1）に
+  分けた記述へ変更）
+- `.claude/skills/canvas-report/SKILL.md`（markdown事前変換の理由に書かれた `reports/` の
+  ライフサイクル「squash merge後は削除される」を「flow-id 5-1でタスクごとに削除される」へ変更。
+  実際には削除はマージ前に完了している）
+- `.claude/docs/spec/issue-mr-workflow.md`（本ドキュメント。本節）
+
+`.claude/docs/ddr/0004` `0006` の本文にも「設計反映時に削除」という記述があるが、DDRの本文は
+不変（`.claude/rules/docs-workflow.md`）であり、かつ当時の状況を記録した point-in-time の記述の
+ため変更していない。
+
 ## 設定項目
 
 `.mrworkflow.json`
