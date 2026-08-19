@@ -117,10 +117,14 @@ gitlab_new_draft_merge_request() {
 # 既定では resolved: false（未解決）のnoteのみを対象とし、対応済み（解決済み）は機械的に除外する。
 # include_resolved=true 指定時は解決済みも含めた全件を返す。
 # 個人メモ（individual_note）等 resolvable でないnoteは常に含める。
+# 第3引数 `mr_url`（省略可）を渡すと、各noteの公式パーマリンク `<mr_url>#note_<noteId>` を
+# `url=...` として行に含める（issue #42。GitHubのGraphQL `url` フィールドに相当するものが
+# GitLabのdiscussions APIには無いため、note `id` から組み立てる）。
 gitlab_format_discussion_notes() {
-  local discussions="$1" include_resolved="${2:-false}"
+  local discussions="$1" include_resolved="${2:-false}" mr_url="${3:-}"
 
-  printf '%s' "$discussions" | jq -r --argjson includeResolved "$include_resolved" '
+  printf '%s' "$discussions" | jq -r --argjson includeResolved "$include_resolved" \
+    --arg mrUrl "$mr_url" '
     [
       .[] as $d
       | $d.notes[]
@@ -129,24 +133,41 @@ gitlab_format_discussion_notes() {
       | ($n.resolvable and $n.resolved) as $isResolved
       | select(($isResolved | not) or $includeResolved)
       | "[" + (if $isResolved then "resolved" else "unresolved" end)
-        + " threadId=" + ($d.id | tostring) + "] " + $n.author.username + ": " + $n.body
+        + " threadId=" + ($d.id | tostring)
+        + (if ($mrUrl | length) > 0 then (" url=" + $mrUrl + "#note_" + ($n.id | tostring)) else "" end)
+        + "] " + $n.author.username + ": " + $n.body
     ] | join("\n\n")
   ' | tr -d '\r'
 }
 
 gitlab_get_mr_unresolved_comments() {
   local mr_number="$1" include_resolved="${2:-false}"
-  local discussions
+  local discussions repo_url="" mr_url=""
   discussions="$(glab api "projects/:id/merge_requests/${mr_number}/discussions")"
-  gitlab_format_discussion_notes "$discussions" "$include_resolved"
+  # コメントのパーマリンク（issue #42）用にMRのURLを求める。ここで失敗しても本体の
+  # コメント取得は成功させたいため、握りつぶしてurl無しの出力へ縮退する。
+  if repo_url="$(gitlab_get_repo_url 2>/dev/null)" && [ -n "$repo_url" ]; then
+    mr_url="$(gitlab_get_mr_url "$repo_url" "$mr_number")"
+  fi
+  gitlab_format_discussion_notes "$discussions" "$include_resolved" "$mr_url"
 }
 
 # 指定したdiscussion（スレッド）に対応内容を返信する。スレッドの解決（resolved）はレビュアー側の
 # 操作のためここでは行わない。
+#
+# 投稿した返信自身のパーマリンク（`<mrUrl>#note_<noteId>`）を標準出力へ返す（issue #42）。
+# POSTレスポンスのnote `id` から組み立てる。MRのURLを取得できなかった場合は何も出力しない。
 gitlab_add_mr_thread_reply() {
   local mr_number="$1" thread_id="$2" reply_body="$3"
-  glab api "projects/:id/merge_requests/${mr_number}/discussions/${thread_id}/notes" \
-    -X POST -f "body=${reply_body}" >/dev/null
+  local response note_id repo_url="" mr_url=""
+  response="$(glab api "projects/:id/merge_requests/${mr_number}/discussions/${thread_id}/notes" \
+    -X POST -f "body=${reply_body}")"
+  note_id="$(printf '%s' "$response" | jq -r '.id // empty' | tr -d '\r')"
+  [ -n "$note_id" ] || return 0
+  if repo_url="$(gitlab_get_repo_url 2>/dev/null)" && [ -n "$repo_url" ]; then
+    mr_url="$(gitlab_get_mr_url "$repo_url" "$mr_number")"
+    gitlab_get_note_url "$mr_url" "$note_id"
+  fi
 }
 
 # 指定ブランチに紐づくMRのJSONを返す（無ければ何も出力せず終了コード0）。途中引き継ぎ対応（resume）と、
@@ -197,6 +218,38 @@ gitlab_get_mr_diff_url() {
 gitlab_get_mr_diff_since_url() {
   local repo_url="$1" from_sha="$2" to_sha="$3"
   gitlab_get_compare_url "$repo_url" "$from_sha" "$to_sha"
+}
+
+# MR本体のページURLを組み立てる（純粋関数）。issue #42。noteのパーマリンクの土台に使う。
+gitlab_get_mr_url() {
+  local repo_url="$1" mr_number="$2"
+  printf '%s/-/merge_requests/%s\n' "$repo_url" "$mr_number"
+}
+
+# note（コメント）の公式パーマリンクを組み立てる（純粋関数）。issue #42。
+gitlab_get_note_url() {
+  local mr_url="$1" note_id="$2"
+  printf '%s#note_%s\n' "$mr_url" "$note_id"
+}
+
+# 特定ファイルの「そのref時点の本体」を開くblobページのURLを組み立てる（純粋関数）。issue #42。
+# `path`は呼び出し側でpercent-encode済みのものを渡す（`url_encode_path_to_reply`）。
+gitlab_get_blob_url() {
+  local repo_url="$1" ref="$2" path="$3"
+  printf '%s/-/blob/%s/%s\n' "$repo_url" "$ref" "$path"
+}
+
+# Compareページ内の特定ファイルの差分位置を指すアンカー付きURLを組み立てる（純粋関数）。issue #42。
+# GitLabの差分アンカーは `#<パス文字列のsha1>`（GitHubと違い `diff-` 接頭辞が付かない）。
+# 【未検証】このリポジトリにGitLab remoteが無いため実機確認できていない。
+gitlab_get_diff_anchor_url() {
+  local compare_url="$1" path_hash="$2"
+  printf '%s#%s\n' "$compare_url" "$path_hash"
+}
+
+# 差分アンカーのハッシュ算出に使うアルゴリズム名を返す（純粋関数）。issue #42。【未検証】
+gitlab_diff_anchor_algo() {
+  printf 'sha1\n'
 }
 
 # MRへ新規コメントを1件投稿する（スレッド返信・レビューではない通常コメント）。

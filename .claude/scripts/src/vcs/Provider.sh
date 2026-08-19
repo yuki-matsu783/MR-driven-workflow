@@ -260,11 +260,21 @@ repo_url_from_remote_url() {
   printf '%s\n' "$REPLY"
 }
 
-# `git remote get-url origin` のホスト名からプロバイダを判定する
+# `git remote get-url origin` のホスト名からプロバイダを判定する。
+#
+# 判定結果はプロセス内でメモ化する（issue #42）。`get_blob_url` / `get_diff_anchor_url` のような
+# ディスパッチ関数は変更ファイルの件数だけ繰り返し呼ばれ、そのたびに `$(git remote get-url origin)`
+# のコマンド置換でサブシェルをforkするため（git bashでは1回あたり約95ms。
+# `.claude/rules/shell-script-style.md`「外部プロセス起動のコスト」節）。同一プロセス内で
+# originのURLが変わることは想定しないため、キャッシュの無効化は用意しない。
+_PROVIDER_CACHE=""
 get_provider() {
-  local url
-  url="$(git remote get-url origin)"
-  provider_from_remote_url "$url"
+  if [ -z "$_PROVIDER_CACHE" ]; then
+    local url
+    url="$(git remote get-url origin)"
+    _PROVIDER_CACHE="$(provider_from_remote_url "$url")"
+  fi
+  printf '%s\n' "$_PROVIDER_CACHE"
 }
 
 # --- gh/glab CLI不在環境向けのMCPフォールバック経路（issue #34） --------------------------------
@@ -529,6 +539,87 @@ get_mr_diff_since_url() {
     github) github_get_mr_diff_since_url "$repo_url" "$from_sha" "$to_sha" ;;
     gitlab) gitlab_get_mr_diff_since_url "$repo_url" "$from_sha" "$to_sha" ;;
   esac
+}
+
+# 特定ファイルの「そのref時点の本体」を開くblobページのURLを組み立てる（issue #42:
+# レビュー依頼メッセージへ重点レビュー対象ファイルのリンクを含めるため）。`repo_url`は
+# `get_repo_url` で取得したものを、`path` は `url_encode_path_to_reply` でencode済みのものを渡す。
+get_blob_url() {
+  local repo_url="$1" ref="$2" path="$3"
+  case "$(get_provider)" in
+    github) github_get_blob_url "$repo_url" "$ref" "$path" ;;
+    gitlab) gitlab_get_blob_url "$repo_url" "$ref" "$path" ;;
+  esac
+}
+
+# Compareページ内の特定ファイルの差分位置を指すアンカー付きURLを組み立てる（issue #42）。
+# `compare_url` は `get_mr_diff_url` / `get_mr_diff_since_url` の戻り値を、`path_hash` は
+# `hash_paths "$(get_diff_anchor_algo)" <path>` の結果を渡す。
+get_diff_anchor_url() {
+  local compare_url="$1" path_hash="$2"
+  case "$(get_provider)" in
+    github) github_get_diff_anchor_url "$compare_url" "$path_hash" ;;
+    gitlab) gitlab_get_diff_anchor_url "$compare_url" "$path_hash" ;;
+  esac
+}
+
+# 差分アンカーのハッシュ算出に使うアルゴリズム名（`sha256` / `sha1`）を返す（issue #42）。
+# ハッシュの種類はプロバイダの非公開内部仕様であり、GitHubはパス文字列のsha256、GitLabはsha1。
+get_diff_anchor_algo() {
+  case "$(get_provider)" in
+    github) github_diff_anchor_algo ;;
+    gitlab) gitlab_diff_anchor_algo ;;
+  esac
+}
+
+# パスをURLへ埋め込める形へpercent-encodeし、結果を `REPLY` へ返す（issue #42）。
+# unreserved文字（`A-Za-z0-9-._~`）と、パス区切りである `/` はそのまま残し、それ以外は
+# UTF-8のバイト単位で `%XX` へ変換する（日本語ファイル名・空白を含むパスへの対応）。
+#
+# 標準出力ではなく `REPLY` へ返すのは、変更ファイルの件数だけ繰り返し呼ばれるため
+# （コマンド置換 `$(...)` はそのたびにサブシェルをforkする。
+# `.claude/rules/shell-script-style.md`「外部プロセス起動のコスト」節）。
+# `LC_ALL=C` をローカルに設定して `${s:i:1}` をバイト単位の切り出しにしている（ロケール依存で
+# 文字単位になるとマルチバイト文字を `%XX` へ分解できないため）。
+url_encode_path_to_reply() {
+  local s="$1" out="" i c
+  local LC_ALL=C
+  for ((i = 0; i < ${#s}; i++)); do
+    c="${s:i:1}"
+    case "$c" in
+      [a-zA-Z0-9._~/-]) out+="$c" ;;
+      *) printf -v c '%%%02X' "'$c"; out+="$c" ;;
+    esac
+  done
+  REPLY="$out"
+}
+
+# 渡した各パス文字列のハッシュを、引数と同じ順序で1行ずつ標準出力へ返す（issue #42。
+# 差分アンカー用）。ファイルの中身ではなく**パス文字列そのもの**のハッシュである点に注意。
+#
+# パスの件数に比例して `sha256sum` を起動しないよう、各パスを一時ファイルへ書き出して
+# **1回**の呼び出しでまとめて計算する（`sha256sum`/`sha1sum` は引数の順序どおりに出力する）。
+# 一時ファイル名は連番にしており、パスに改行・記号が含まれても影響を受けない
+# （`.claude/rules/shell-script-style.md`「外部プロセス起動のコスト」節）。
+hash_paths() {
+  local algo="$1"
+  shift
+  [ "$#" -gt 0 ] || return 0
+  local cmd
+  case "$algo" in
+    sha256) cmd="sha256sum" ;;
+    sha1) cmd="sha1sum" ;;
+    *) printf 'hash_paths: 未知のアルゴリズムです: %s\n' "$algo" >&2; return 1 ;;
+  esac
+  local tmpdir files=() i=0 p
+  tmpdir="$(mktemp -d)"
+  for p in "$@"; do
+    i=$((i + 1))
+    printf '%s' "$p" > "${tmpdir}/${i}"
+    files+=("${tmpdir}/${i}")
+  done
+  "$cmd" "${files[@]}" | awk '{print $1}'
+  rm -rf "$tmpdir"
 }
 
 # MRへ新規コメントを1件投稿する（スレッド返信ではなく、レビューでもない通常コメント。

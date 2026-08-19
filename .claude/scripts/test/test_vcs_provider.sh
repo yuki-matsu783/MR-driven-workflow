@@ -15,6 +15,12 @@
 # あわせてissue #34で追加した `parse_repo_slug`（リモートURLのパース）と `mcp_tool_hint`
 # （CLI不在時に提示するMCPツール名）も対象とする。後者は `get_provider` をテスト内で上書きして
 # プロバイダを固定する。
+# issue #42で追加した `github_get_blob_url` / `github_get_diff_anchor_url` /
+# `github_diff_anchor_algo` / `gitlab_get_blob_url` / `gitlab_get_diff_anchor_url` /
+# `gitlab_diff_anchor_algo` / `gitlab_get_mr_url` / `gitlab_get_note_url` / `url_encode_path_to_reply`
+# と、`hash_paths`（差分アンカー用にパス文字列のハッシュをまとめて計算する）も対象。
+# `hash_paths` だけは `sha256sum`/`sha1sum` を起動するが、`gh`/`glab` に依存せず入力から出力が
+# 一意に決まるため単体テストの対象に含めている。
 # issue #68で追加した `github_normalize_issue_search_results` /
 # `gitlab_normalize_issue_search_results`（CLIのissue検索出力を共通形式へ正規化）と
 # `merge_issue_search_results`（複数キーワードぶんの結果を重複排除して統合）も対象。
@@ -114,6 +120,18 @@ assert_eq "gitlab_format_discussion_notes: include_resolved=trueでは解決済�
 assert_eq "gitlab_format_discussion_notes: システムノートのbodyは全件取得時も出力に現れない" \
   "0" \
   "$(gitlab_format_discussion_notes "$gitlab_discussions_fixture" true | grep -c 'changed the description' || true)"
+
+# issue #42: 第3引数にMRのURLを渡すと、各noteの公式パーマリンクを url= として行に含める。
+assert_eq "gitlab_format_discussion_notes: mr_urlを渡すとnoteのパーマリンクをurl=として含める" \
+  "[unresolved threadId=d1 url=https://gitlab.example.com/o/r/-/merge_requests/42#note_1] reviewer: ここは修正してください
+
+[unresolved threadId=d4 url=https://gitlab.example.com/o/r/-/merge_requests/42#note_4] root: 通常コメント" \
+  "$(gitlab_format_discussion_notes "$gitlab_discussions_fixture" false \
+    "https://gitlab.example.com/o/r/-/merge_requests/42")"
+
+assert_eq "gitlab_format_discussion_notes: mr_urlが空ならurl=は付かない（従来どおりの出力）" \
+  "$(gitlab_format_discussion_notes "$gitlab_discussions_fixture")" \
+  "$(gitlab_format_discussion_notes "$gitlab_discussions_fixture" false "")"
 
 # resolvableでないnote（individual_note等）は resolved 扱いにせず常に含める。
 assert_eq "gitlab_format_discussion_notes: resolvableでないnoteはunresolvedとして扱う" \
@@ -454,6 +472,92 @@ assert_eq "merge_issue_search_results: 空配列だけを渡しても空配列" 
 assert_eq "merge_issue_search_results: 1件だけでもそのまま配列で返す" \
   '[{"number":68,"title":"b","state":"open","url":"u68"}]' \
   "$(merge_issue_search_results '[{"number":68,"title":"b","state":"open","url":"u68"}]')"
+
+# --- issue #42: blobリンク・差分アンカーリンク・パーマリンクの組み立て --------------------
+
+assert_eq "github_get_blob_url: リポジトリURLに/blob/<ref>/<path>を付与" \
+  "https://github.com/o/r/blob/aaa111/.claude/scripts/src/vcs/Github.sh" \
+  "$(github_get_blob_url "https://github.com/o/r" "aaa111" ".claude/scripts/src/vcs/Github.sh")"
+
+assert_eq "github_get_diff_anchor_url: CompareページURLに#diff-<hash>を付与" \
+  "https://github.com/o/r/compare/main...aaa111#diff-645d26f1" \
+  "$(github_get_diff_anchor_url "https://github.com/o/r/compare/main...aaa111" "645d26f1")"
+
+assert_eq "github_diff_anchor_algo: GitHubの差分アンカーはパスのsha256" \
+  "sha256" "$(github_diff_anchor_algo)"
+
+assert_eq "gitlab_get_blob_url: リポジトリURLに/-/blob/<ref>/<path>を付与" \
+  "https://gitlab.example.com/o/r/-/blob/aaa111/src/main.go" \
+  "$(gitlab_get_blob_url "https://gitlab.example.com/o/r" "aaa111" "src/main.go")"
+
+assert_eq "gitlab_get_diff_anchor_url: CompareページURLに#<hash>を付与（diff-接頭辞は付かない）" \
+  "https://gitlab.example.com/o/r/-/compare/main...aaa111#8ec9a00b" \
+  "$(gitlab_get_diff_anchor_url "https://gitlab.example.com/o/r/-/compare/main...aaa111" "8ec9a00b")"
+
+assert_eq "gitlab_diff_anchor_algo: GitLabの差分アンカーはパスのsha1" \
+  "sha1" "$(gitlab_diff_anchor_algo)"
+
+assert_eq "gitlab_get_mr_url: リポジトリURLとMR番号からMRページURLを組み立てる" \
+  "https://gitlab.example.com/o/r/-/merge_requests/42" \
+  "$(gitlab_get_mr_url "https://gitlab.example.com/o/r" "42")"
+
+assert_eq "gitlab_get_note_url: MRページURLとnote idからコメントのパーマリンクを組み立てる" \
+  "https://gitlab.example.com/o/r/-/merge_requests/42#note_12345" \
+  "$(gitlab_get_note_url "https://gitlab.example.com/o/r/-/merge_requests/42" "12345")"
+
+# --- url_encode_path_to_reply（issue #42） ----------------------------------------------
+# 結果は標準出力ではなく REPLY へ返るため、コマンド置換ではなく呼び出し後に $REPLY を読む。
+
+url_encode_path_to_reply ".claude/scripts/src/vcs/Github.sh"
+assert_eq "url_encode_path_to_reply: unreserved文字と/はそのまま残す" \
+  ".claude/scripts/src/vcs/Github.sh" "$REPLY"
+
+url_encode_path_to_reply "docs/a b.md"
+assert_eq "url_encode_path_to_reply: 空白は%20へ変換する" "docs/a%20b.md" "$REPLY"
+
+url_encode_path_to_reply "a#b?c"
+assert_eq "url_encode_path_to_reply: URL上で意味を持つ記号を変換する" "a%23b%3Fc" "$REPLY"
+
+url_encode_path_to_reply "plans/【実装】x.md"
+assert_eq "url_encode_path_to_reply: 日本語はUTF-8のバイト単位で%XXへ変換する" \
+  "plans/%E3%80%90%E5%AE%9F%E8%A3%85%E3%80%91x.md" "$REPLY"
+
+url_encode_path_to_reply ""
+assert_eq "url_encode_path_to_reply: 空文字列は空文字列のまま" "" "$REPLY"
+
+# --- hash_paths（issue #42） -------------------------------------------------------------
+# 期待値のうちsha256の2件は、GitHubのCompareページが遅延読込する
+# `/compare/file-list?range=<from>...<to>` の断片HTMLに出力される `id="diff-<hash>"` と
+# 一致することを本リポジトリで実機確認済み（issue #42の受け入れ条件）。
+
+assert_eq "hash_paths: sha256でパス文字列（ファイルの中身ではない）のハッシュを返す" \
+  "645d26f1a0efff8ca3cef055f31fd35cb9b6659de3c37add0dd34de217c74631" \
+  "$(hash_paths sha256 ".claude/scripts/src/vcs/Gitlab.sh")"
+
+assert_eq "hash_paths: sha1も選べる" \
+  "8ec9a00bfd09b3190ac6b22251dbb1aa95a0579d" \
+  "$(hash_paths sha1 "README.md")"
+
+assert_eq "hash_paths: 複数パスを渡すと引数と同じ順序で1行ずつ返す" \
+  "645d26f1a0efff8ca3cef055f31fd35cb9b6659de3c37add0dd34de217c74631
+b78bc8687755aab014029bb3c31f93b23b4c9dd0124f9a4b7ad9fd5d08501650" \
+  "$(hash_paths sha256 ".claude/scripts/src/vcs/Gitlab.sh" ".claude/scripts/src/vcs/Github.sh")"
+
+assert_eq "hash_paths: 空白・日本語を含むパスもそのままハッシュする" \
+  "46211776bb9388ae1f90d789ff6bb48b4cfa876d77b886425c0f840d20c79dd0
+4bc97450a8e98a31d5f7e6d1212a21eac9a0f6a8e25631ff77a7ecde56f3686c" \
+  "$(hash_paths sha256 "a b/c.md" "plans/【実装】x.md")"
+
+assert_eq "hash_paths: 引数が無ければ何も出力しない" "" "$(hash_paths sha256)"
+
+# 未知のアルゴリズムは失敗させる（`if` で受けるのは set -e 下でのサブシェル終了を避けるため。
+# .claude/rules/shell-script-style.md「テスト」節）
+if hash_paths md5 "README.md" >/dev/null 2>&1; then
+  unknown_algo_status=0
+else
+  unknown_algo_status=1
+fi
+assert_eq "hash_paths: 未知のアルゴリズム名は終了コード1で失敗する" "1" "$unknown_algo_status"
 
 echo "passed=$passed failures=$failures"
 [ "$failures" -eq 0 ]

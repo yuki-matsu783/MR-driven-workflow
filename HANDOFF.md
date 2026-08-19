@@ -44,6 +44,18 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - **main が残した issue #41 の `plans/` `worklog/`**: flow-id 5-1 が未実施のままマージされて
   いたため、本ブランチの flow-id 5-1 で自分のファイルとまとめて削除した（issue #64 で
   issue #63 の残置ファイルを処理したときと同じ扱い）。
+- **2回目のマージ（issue #42 / PR #83）**: Draft解除の直後に main がさらに進んだため、もう一度
+  取り込んだ。issue #42 は `Provider.sh` と `post-push-compact-prompt.sh` という本ブランチと
+  同じファイルを触っており、以下を統合した。
+  - `Provider.sh`: 本ブランチが `get_provider` の直前へ追加した2関数
+    （`build_repo_url_from_reply` / `repo_url_from_remote_url`）と、main側の `get_provider`
+    メモ化（`_PROVIDER_CACHE`）は目的が独立しているため両方を残した。`get_repo_url` 本体は
+    本ブランチ側（プロバイダ非依存）が正。
+  - `post-push-compact-prompt.sh`: `build_links_text` のコメントで、本ブランチの
+    「ローカル導出」という表現と、main側が足した `since_url` の説明の両方を残した。
+  - spec `## 影響範囲`: issue #42（先にマージ済み）→ issue #44 の順で両エントリを残した。
+  - `HANDOFF.md`: main側は issue #42 の作業状態が flow-id 5-1 未実施のまま残っていたため、
+    本ブランチのリセット済みの内容を採用した（1回目と同じ判断）。
 - 検証: コンフリクトマーカー無し／unmerged無し／DDR番号の重複無し／単体テスト6本すべて
   `failures=0`／`check-base-conflicts.sh` の `hasConflict` が `false`／CR混入なし。
 
