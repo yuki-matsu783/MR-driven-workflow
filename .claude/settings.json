@@ -80,6 +80,19 @@
             "timeout": 20
           }
         ]
+      },
+      {
+        "matcher": "Bash|PowerShell|mcp__github__issue_write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash",
+            "args": [
+              "${CLAUDE_PROJECT_DIR}/.claude/hooks/post-issue-create-notice.sh"
+            ],
+            "timeout": 10
+          }
+        ]
       }
     ]
   }
