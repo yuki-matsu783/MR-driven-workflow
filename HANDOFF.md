@@ -17,7 +17,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - issue: #77 MRへの敵対的レビューを行うスキル・専任サブエージェントを追加する
 - ブランチ: feature-77-adversarial-mr-review-skill
 - PR: #80 https://github.com/yuki-matsu783/MR-driven-workflow/pull/80（Draft）
-- push回数: 10
+- push回数: 11
 
 進捗記号: `[x]` 完了 / `[]` 未着手・進行中 / `[-]` 今回は実施しない（スキップ）
 
@@ -51,9 +51,9 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 | [x] | 3-10 | 作業内容をもとにMR descriptionを更新する | `describe` |
 | [x] | 4-1 | **作業結果と`plans/` `worklog/` の内容をもとに**、個別反映計画`plans/【設計反映】〜.md`・`plans/【AIアセット反映】〜.md`を**planツールを使わず**Write/Editで作成する | エージェント |
 | [x] | 4-2 | `commit`スキル経由でcommitし、push してレビュー依頼を行う | エージェント |
-| [] | 4-3 | MRで反映計画についてレビュー・コメントする。レビュー完了済み連絡をするまで以降の作業は行わない。 | 人間 |
-| [] | 4-4 | レビュー内容を取得し、反映計画を修正する。対応が完了したコメントには対応内容を返信する（4-3〜4-4を合意まで繰り返す） | `comments` / `reply` |
-| [] | 4-5 | 反映計画をもとにMR descriptionを更新する | `describe` |
+| [x] | 4-3 | MRで反映計画についてレビュー・コメントする。レビュー完了済み連絡をするまで以降の作業は行わない。 | 人間 |
+| [x] | 4-4 | レビュー内容を取得し、反映計画を修正する。対応が完了したコメントには対応内容を返信する（4-3〜4-4を合意まで繰り返す） | `comments` / `reply` |
+| [x] | 4-5 | 反映計画をもとにMR descriptionを更新する | `describe` |
 | [] | 4-6 | 反映計画をもとに作業を進める、反映内容はworklogに更新する（設計反映＝spec・DDR／AIアセット反映＝rules・skills） | エージェント |
 | [] | 4-7 | `commit`スキル経由でcommitし、push してレビュー依頼を行う | エージェント |
 | [] | 4-8 | MRでレビュー・コメントする。レビュー済み連絡をするまで以降の作業は行わない。 | 人間 |
@@ -183,15 +183,26 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - **`main` を先行して取り込んだ**（ユーザー指示。flow-id 5-2の前倒し）。`resolve-conflict` スキルの
   手順に沿って `git merge --no-ff --no-commit origin/main` で取り込み、4ファイルのコンフリクトを
   解消した。**DDR番号は 0040 / 0041 / 0042 で確定**（`main` は 0039 まで。重複チェックも空）。
+- **flow-id 4-3で「計画は合意」を得た**（4-3〜4-4のループを1周完了として `[x]`）。あわせて、
+  実装とは無関係に `main` 上で失敗していた `test_post_issue_create_notice.sh` を
+  **issue #94** として別issueに切り出した（Windowsネイティブjqのlineをコマンド置換で受けており
+  末尾にCRが残る。`| tr -d '\r'` の付け忘れ）。
+- **flow-id 4-5**: MR descriptionへ「フェーズ4（反映）」節と「`main` の取り込み」節を追加した。
+- **flow-id 4-6（設計反映）**: spec 1件・DDR 3件を書いた。
+  - `.claude/docs/spec/adversarial-review.md`（新規。背景／全体像／起動ポリシー／実施回数／観点表／
+    findingsスキーマ／投稿の振り分け／GitHub・GitLabの投稿／署名／MCP経路／影響範囲／設定項目／
+    未決定事項）
+  - `0040-敵対的レビューは専任サブエージェントで独立コンテキストに切り出す.md`
+  - `0041-レビュー観点はディレクトリごとのREVIEW-POINTSへ外だしする.md`
+  - `0042-インラインコメントの位置指定はプロバイダごとの制約に合わせて縮退させる.md`
+  - `.claude/docs/README.md`（spec一覧・DDR一覧）、`.claude/docs/spec/issue-mr-workflow.md`
+    （提供関数の表へ `add_mr_inline_comments` の1行と、`## 影響範囲` へissue #77のエントリ）
+  - `extract-frontmatter.sh .` は `built=4 reused=88 failed=0`。
 
 ## 次にやること
 
-- **flow-id 4-3（人間・修正後の再レビュー）**: DDRを3件へ増やした反映計画をレビューする。
-  合意連絡までAIは以降の作業を行わない。合意後は 4-5〈describe〉→ 4-6 へ進む。
-- 4-6 で spec（`.claude/docs/spec/adversarial-review.md`）とDDR **3件**を書く。
-  **番号は 0040 / 0041 / 0042 で確定済み**（`main` 取り込み後に重複が無いことを確認）。
-  以降 `main` がさらに進んだ場合のみ、マージ直前に再確認する。
-- **設計反映の完了後**、2セット目として `【AIアセット反映】` を 4-1 から回す。扱う候補:
+- **flow-id 4-8（人間）**: spec・DDR 3件をレビューする。合意連絡までAIは以降の作業を行わない。
+- 合意後、**2セット目**として `【AIアセット反映】` を 4-1 から回す。扱う候補:
   - `type: review-points` を `.claude/rules/markdown-frontmatter.md` のtype表へ追記する。
   - `.claude/rules/directory-structure.md` に `REVIEW-POINTS.md` の配置ルールを足すか検討する。
   - 下記「実装で踏んだ落とし穴」のうち恒久的に有用なものを
