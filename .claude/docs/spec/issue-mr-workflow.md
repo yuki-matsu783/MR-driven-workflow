@@ -2443,6 +2443,27 @@ MRの差分が影響する他のissueへ、マージ前に通知を残せるよ�
 - `.claude/docs/spec/issue-mr-workflow.md`（提供関数表・「起票前の類似・重複issueチェック」節・本項）
 - `.claude/docs/README.md`（DDR一覧に0033）
 
+### issue #67（作業開始・再開時のベースブランチ追従確認）
+
+新規:
+- `.claude/scripts/src/check-base-sync.sh`（作業ツリーを変更せず behind・未取り込みファイルを判定）
+- `.claude/scripts/test/test_check_base_sync.sh`（純粋関数の単体テスト29件。`passed=29 failures=0`）
+- `.claude/docs/spec/check-base-sync.md`
+- `.claude/docs/ddr/0050-作業開始時のベースブランチ追従確認は専用スクリプトで検知しユーザー確認を挟む.md`
+
+更新:
+- `.claude/skills/issue-mr-flow/SKILL.md`（「作業開始・再開時のベースブランチ追従確認（issue #67）」節を
+  「PR作成後のdefaultブランチ追従（監視）」節の直前へ新設。`start` 手順2の既存ブランチ検出時・`sync`・
+  `resume`（手順を1つ追加し以降を繰り下げ）から参照。**flow-idは増やしていない**）
+- `.claude/agents/issue-mr-resume.md`（手順7「ベースブランチとの差分を確認する」を新設し旧7・8を8・9へ
+  繰り下げ。現在地サマリへ `- ベースブランチとの差分:` を追加。`description` にも項目を追記）
+- `.claude/rules/git-workflow.md`（追従確認の入口と、rebaseを使わない方針）
+- `.claude/docs/README.md`（spec一覧に `check-base-sync.md`、DDR一覧に0050を追加）
+- `.claude/docs/spec/issue-mr-workflow.md`（本項）
+
+判定軸の違い: flow-id 5-2（issue #46）とPR作成後の追従監視（issue #88）はどちらも「衝突するか」を見るが、
+本対応は「遅れているか」を見る。ベースブランチ側でルール・仕様だけが追記された場合、前者は検知できない。
+
 ## 未決定事項・懸念点
 
 - **（issue #61）`gitlab_set_mr_ready` は実機未検証**: 本対応の実行環境（Claude Code on the web の
