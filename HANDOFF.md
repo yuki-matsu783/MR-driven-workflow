@@ -16,7 +16,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 
 - issue: #46 マージ依頼前にdefaultブランチとのコンフリクトを検知・解消するフローを整備する
 - ブランチ: claude/default-branch-conflict-detection-jdsimt
-- Draft PR: 未作成（非対話的実行環境のため、PR作成はユーザーの指示を待つ）
+- PR: Draft #65 https://github.com/yuki-matsu783/MR-driven-workflow/pull/65
 - push回数: 1
 
 進捗記号: `[x]` 完了 / `[]` 未着手・進行中 / `[-]` 今回は実施しない（スキップ）
@@ -30,7 +30,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 |----|---|---|---|
 | [x] | 1-1 | issueを起票する（issue #46。人間が起票済み） | 人間（AIが代行する場合は `issue-create` スキル） |
 | [x] | 1-2 | issueの内容を取得する（`mcp__github__issue_read`。標準4見出しすべて揃っている） | `start <issue番号>` |
-| [-] | 1-3 | featureブランチとDraft MRを作成する（ハーネスが `claude/default-branch-conflict-detection-jdsimt` を指定済みのため新規作成しない。命名規則 `feature-46-*` からは外れる） | `start` |
+| [x] | 1-3 | featureブランチとDraft MRを作成する（ブランチはハーネス指定の `claude/default-branch-conflict-detection-jdsimt` をそのまま使用。命名規則 `feature-46-*` からは外れる。Draft PR #65 は実装完了後にユーザー指示で作成） | `start` |
 | [x] | 1-4 | 全体作業計画 `plans/steady-merging-lantern.md`（Planモード非対話のため、planツールを使わずWrite/Editで作成） | エージェント |
 | [] | 1-5 | 全体作業計画に合意する | 人間 |
 | [x] | 1-6 | 全体作業計画をもとにHANDOFF.mdを更新する | エージェント |
@@ -127,6 +127,11 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
   `get_issue_number_from_branch` はissue番号を抽出できず、SessionStart hookも「issue: 特定できず」
   と表示する。過去にも同種のブランチ（`claude/issue-34-sm2mqs` 等）でマージされた実績があるため
   そのまま進めたが、命名規則との整合は未解決のままである。
+- **`update-handoff-progress.sh set-header --pr` が `- Draft PR:` 表記のヘッダ行を書き換えられない。**
+  スクリプトは `^- PR:` にのみマッチするが、過去のHANDOFF.mdには `- Draft PR: #52 …`（PR #52）と
+  `- PR: [#29](…)`（PR #29）の**両方の表記が混在**しており、前者では `set-header` が無言で
+  何もしない（エラーも出ない）。本ブランチでは `- PR:` 表記へ揃えて回避したが、表記の統一か
+  スクリプト側の許容パターン追加のどちらかが必要（issue #46の範囲外のため未対応）。
 - **`resolve-conflict` スキルは実運用でまだ1度も使われていない。** 検知側は過去2件の断面で
   再現確認済みだが、解消手順（類型A〜E）は過去実績からの抽出であり、実際にこのスキルを通して
   解消した実績はまだ無い。次にコンフリクトが起きたときが最初の適用機会になる。
