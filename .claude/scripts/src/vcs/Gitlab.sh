@@ -7,10 +7,18 @@
 # （Provider.sh が get_provider の判定結果に応じてこのファイルの関数へディスパッチする）。
 # 前提: `glab` CLIがインストール・認証済み（`glab auth login`）であること。
 #
-# 【未検証】このリポジトリのremoteはGitHubのみのため、以下は`glab`のドキュメントを元にした
-# 実装であり実機での動作確認ができていない（PowerShell版Gitlab.ps1と同様の制約を引き継ぐ。
-# .claude/docs/spec/issue-mr-workflow.md の「未決定事項・懸念点」参照）。GitLabリポジトリで
-# 実際に使う前に動作確認すること。
+# 検証状況（issue #48）: ローカルに立てたGitLab CE 18.5.4（Docker）に対し、`glab` 1.114.0から
+# 全13関数を実機実行して動作を確認済み。この検証で見つかった3件の不具合（システムノートの混入・
+# `glab mr note --message`の非推奨・空コミットフォールバックの前提誤り）は修正済み。
+# 以前あった「remoteがGitHubのみのため全関数が未検証」という制約は解消している。
+#
+# ただし次の3点は依然として未検証。詳細は
+# .claude/docs/spec/issue-mr-workflow.md の「未決定事項・懸念点」を参照。
+#   - `Provider.sh`経由のディスパッチ: `get_provider`がself-hostedのGitLab URLを判定できない
+#     （issue #45、未修正）ため、検証は`gitlab_*`関数を直接呼ぶ形で行った。
+#   - バージョン・エディション: 確認したのはCE 18.5.4のみ。gitlab.com（SaaS）・他バージョンは未確認。
+#   - プロジェクト構成: 単一プロジェクトでしか確認しておらず、サブグループ・ネストした
+#     namespaceでの`glab`のプロジェクト解決は未確認。
 
 gitlab_get_issue() {
   local number="$1"
@@ -24,7 +32,6 @@ gitlab_get_issue() {
 
 # タイトル・本文からissueを新規作成する。作成後は `gitlab_get_issue` で正規化した
 # JSON（number/title/body/url/slug）を返す（get_issueと同じ形にすることで呼び出し側の扱いを揃える）。
-# 【未検証】このリポジトリのremoteはGitHubのみのため実機確認できていない。
 gitlab_new_issue() {
   local title="$1" body="$2"
   local url number
@@ -103,7 +110,7 @@ gitlab_get_mr_unresolved_comments() {
 }
 
 # 指定したdiscussion（スレッド）に対応内容を返信する。スレッドの解決（resolved）はレビュアー側の
-# 操作のためここでは行わない。【未検証】このリポジトリのremoteはGitHubのみのため実機確認できていない。
+# 操作のためここでは行わない。
 gitlab_add_mr_thread_reply() {
   local mr_number="$1" thread_id="$2" reply_body="$3"
   glab api "projects/:id/merge_requests/${mr_number}/discussions/${thread_id}/notes" \
@@ -112,7 +119,6 @@ gitlab_add_mr_thread_reply() {
 
 # 指定ブランチに紐づくMRのJSONを返す（無ければ何も出力せず終了コード0）。途中引き継ぎ対応（resume）と、
 # comments/describeサブコマンドでの「現在のブランチのMR番号取得」の共通実装として使う。
-# 【未検証】このリポジトリのremoteはGitHubのみのため実機確認できていない。
 gitlab_get_mr_for_branch() {
   local branch="$1"
   local json
@@ -131,7 +137,7 @@ gitlab_set_mr_description() {
 
 # リポジトリの正規URL（フルパス）を取得する（issue #13フォローアップ: MRのURL文字列からの
 # 推測ではなく`glab`で取得し正確性を担保する）。
-# 【未検証】このリポジトリのremoteはGitHubのみのため実機確認できていない。GitLab REST APIの
+# GitLab REST APIの
 # project オブジェクトが持つ `web_url` フィールドに基づく（`glab repo view`は内部的にこのAPIを
 # ラップしている）。
 gitlab_get_repo_url() {
@@ -141,7 +147,6 @@ gitlab_get_repo_url() {
 # 2つのref（ブランチ名・SHAいずれも可）間の差分を見れる「Compare」ページのURLを組み立てる
 # （純粋関数。`glab`呼び出しを伴わない）。GitLabの`/-/compare/<from>...<to>`はMR作成前から
 # 使われている汎用の比較ページ。issue #13フォローアップ。
-# 【未検証】このリポジトリのremoteはGitHubのみのため実機確認できていない。
 gitlab_get_compare_url() {
   local repo_url="$1" from="$2" to="$3"
   printf '%s/-/compare/%s...%s\n' "$repo_url" "$from" "$to"
@@ -161,7 +166,6 @@ gitlab_get_mr_diff_since_url() {
 }
 
 # MRへ新規コメントを1件投稿する（スレッド返信・レビューではない通常コメント）。
-# 【未検証】このリポジトリのremoteはGitHubのみのため実機確認できていない。
 gitlab_add_mr_comment() {
   local mr_number="$1" body_file="$2"
   local body
