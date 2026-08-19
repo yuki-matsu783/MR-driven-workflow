@@ -20,9 +20,15 @@ keywords: [issue作成, create-issue.sh, 目的, 現状, 期待する動作, 受
    を埋められるか確認する。`.github/ISSUE_TEMPLATE/task.md` / `.gitlab/issue_templates/task.md`
    と同じ4見出し構成に対応する。情報が不足している場合は、AskUserQuestionまたは通常のチャットで
    ユーザーに質問して補う。**依頼内容から読み取れない項目を勝手に創作しない。**
-2. 組み立てたタイトルと4項目の内容をユーザーに提示し、issueとして作成してよいか確認を取る
-   （GitHub/GitLab上に公開される操作のため、他のissue-mr-flowサブコマンド同様、明示的な合図を
-   待ってから実行する）。
+2. 組み立てたタイトルと4項目の内容を、まず**通常のメッセージとして全文提示**する。そのうえで
+   `AskUserQuestion` で作成してよいか確認を取る（GitHub/GitLab上に公開される操作のため、他の
+   issue-mr-flowサブコマンド同様、明示的な合図を待ってから実行する）。**issue本文は長く選択肢に
+   収まらないため、`AskUserQuestion` は可否の選択だけに使い、本文そのものの提示には使わない。**
+   選択肢は次の方針で組み立てる。
+   - 常に含める: `この内容で作成する (Recommended)`
+   - 常に含める: `内容を修正する`（選択された場合、`AskUserQuestion` は選択式が主眼のため、
+     続けて通常のプロンプトで修正点をユーザーに尋ね、手順1へ戻る）
+   - 常に含める: `作成しない`（issueを作成せずにこのスキルを終了する）
 3. 承認を得たら、以下の形で `.claude/scripts/src/create-issue.sh` を実行する。
 
    ```bash
@@ -48,10 +54,17 @@ keywords: [issue作成, create-issue.sh, 目的, 現状, 期待する動作, 受
    3. `mcp__github__issue_write`（`method="create"`, `owner`, `repo`, `title`, `body`）で作成する。
    4. WebFetchツール・curlへはフォールバックしない（DDR 0020, DDR 0027）。
 
-4. 結果（issue番号・URL）をユーザーに提示する。続けてそのissueに着手するかどうかをユーザーに確認し、
-   着手する場合は `/issue-mr-flow start <issue番号>` に進む。
+4. 結果（issue番号・URL）をユーザーに提示する。**このスキルはここで終了し、`/issue-mr-flow
+   start <issue番号>` は新しいセッションで実行することを勧めるに留める**（同一セッションで
+   そのまま着手すると、進行中の別issueのブランチ・MRと作業コンテキストが混ざり、1つのMRへ
+   複数issueの変更が入るため）。**AIから着手を持ちかけない。** 着手するのは、ユーザーからの
+   明示的な指示があったときのみとする。
+   また、**このスキルでは `HANDOFF.md` を更新しない**。`HANDOFF.md` はブランチ単位の引継ぎメモ
+   であり、本スキルの時点ではまだブランチが存在しない（更新は `/issue-mr-flow start` 以降、
+   flow-id 1-6の担当）。
 
 ## してはいけないこと
 
 - ユーザーの明示的な確認なしに、いきなり `create-issue.sh` を実行しない。
+- ユーザーの明示的な指示なしに、同一セッションで `/issue-mr-flow start <issue番号>` へ進まない。
 - 4見出しの内容を、ユーザーの依頼から読み取れる範囲を超えて創作しない。
