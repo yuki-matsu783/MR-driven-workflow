@@ -17,7 +17,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - issue: #55 remote URLのホスト抽出が parse_repo_slug と provider_from_remote_url に二重実装されている
 - ブランチ: feature-55-unify-remote-url-host-extraction
 - Draft PR: #56 https://github.com/yuki-matsu783/MR-driven-workflow/pull/56
-- push回数: 1
+- push回数: 2
 
 進捗記号: `[x]` 完了 / `[]` 未着手・進行中 / `[-]` 今回は実施しない（スキップ）
 
@@ -40,10 +40,10 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 | [-] | 2-9 | （同上） | `comments` / `reply` |
 | [-] | 2-10 | （同上） | `describe` |
 | [x] | 3-1 | 個別作業計画`plans/【実装】【テスト】ホスト抽出の共通化.md`を**planツールを使わず**Write/Editで作成する | エージェント |
-| [] | 3-2 | `commit`スキル経由でcommitし、push してレビュー依頼を行う | エージェント |
-| [] | 3-3 | MRで作業計画についてレビュー・コメントする。レビュー完了済み連絡をするまで以降の作業は行わない。 | 人間 |
-| [] | 3-4 | レビュー内容を取得し、作業計画を修正する。対応が完了したコメントには対応内容を返信する（3-3〜3-4を合意まで繰り返す） | `comments` / `reply` |
-| [] | 3-5 | 作業計画をもとにMR descriptionを更新する | `describe` |
+| [x] | 3-2 | `commit`スキル経由でcommitし、push してレビュー依頼を行う | エージェント |
+| [x] | 3-3 | MRで作業計画についてレビュー・コメントする。レビュー完了済み連絡をするまで以降の作業は行わない。 | 人間 |
+| [x] | 3-4 | レビュー内容を取得し、作業計画を修正する。対応が完了したコメントには対応内容を返信する（3-3〜3-4を合意まで繰り返す） | `comments` / `reply` |
+| [x] | 3-5 | 作業計画をもとにMR descriptionを更新する | `describe` |
 | [] | 3-6 | 作業計画をもとに作業を進める、作業内容はworklogに更新する | エージェント |
 | [] | 3-7 | `commit`スキル経由でcommitし、push してレビュー依頼を行う | エージェント |
 | [] | 3-8 | MRでレビュー・コメントする。レビュー済み連絡をするまで以降の作業は行わない。 | 人間 |
@@ -70,19 +70,30 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - issue #45（PR #52）がマージ済み。その対応中に、mainへ先に入っていたissue #34の`parse_repo_slug`と、
   自分が追加した`provider_from_remote_url`とで**remote URLのホスト抽出が二重実装**になっていることに
   気づき、issue #55として起票した。
-- 10種類のURL形式で両実装のホスト抽出結果を突き合わせ、**差分は大文字小文字の扱いのみ**
-  （`https://GitHub.COM/...` に対し`parse_repo_slug`は`GitHub.COM`、パラメータ展開版は`github.com`）で
-  あることを確認した。現状の挙動そのものに不具合は無い。
-- コストを実測: `parse_repo_slug`は**285ms/回**（`sed`×2 + `jq`×1）、パラメータ展開は実質ゼロ。
-  `get_repo_slug`は`session-start.sh`（セッション開始のたび）から呼ばれる。
-- 方針として、パラメータ展開のみの純粋関数`split_remote_url`（`REPLY_HOST`/`REPLY_PATH`へ返す）を
-  新設し、両者がそれを使う形を採用した。`parse_repo_slug`の外部プロセス起動は3回→1回になる。
+- 10種類のURL形式で両実装のホスト抽出結果を突き合わせ、**差分は大文字小文字の扱いのみ**であることを
+  確認した。現状の挙動そのものに不具合は無い。
+- 作業計画のレビューで合意を得た（flow-id 3-3〜3-4完了）。`comments all`で未解決スレッドが
+  無いことも確認済み。MR descriptionを更新した（flow-id 3-5）。
+- **flow-id 3-6（実装）を完了した。**
+  - `Provider.sh`にパラメータ展開のみの純粋関数`split_remote_url`（`REPLY_HOST`/`REPLY_PATH`へ返す）を
+    新設し、`provider_from_remote_url`と`parse_repo_slug`を載せ替えた。
+  - `tests/test_vcs_provider.sh`に8件追加。**`passed=44 failures=0`**（既存36件は1件も変更していない）。
+  - **統合前後の出力diff**: 10種類のURLで比較し、差分は予定どおり`https://GitHub.COM/O/R.git`の
+    `.host`/`.url`の1件のみ。`.owner`/`.repo`/`.path`は`O/R`のまま。
+  - **コスト**: 旧実装を同一セッション内に再現して比較し、415ms/回 → **105ms/回（74%削減）**。
+    fork数 3→1。
+  - **`provider_from_remote_url`のfork数ゼロを維持**していることを、空関数をベースラインにした
+    200回計測で確認（空関数80ms / `split_remote_url` 93ms / `provider_from_remote_url` 132ms。
+    同条件で`jq`は1回138ms）。
+  - このリポジトリで`get_provider`/`get_repo_slug`/`get_repo_url`/`get_vcs_access_mode`/
+    `get_mr_for_branch`/`mcp_tool_hint`が従来どおり動くことも確認した。
 
 ## 次にやること
 
-- flow-id 3-1: 個別作業計画`plans/【実装】【テスト】ホスト抽出の共通化.md`とworklogを作成する。
-- flow-id 3-2: `commit`スキル経由でcommitし、リモートへ反映して作業計画のレビューを依頼する。
-- flow-id 3-3: 人間による作業計画のレビュー待ち。合意が取れるまで実装（flow-id 3-6）へ進まない。
+- flow-id 3-7: `commit`スキル経由でcommitし、リモートへ反映して実装のレビューを依頼する。
+- flow-id 3-8: 人間による実装のレビュー待ち。合意が取れるまでフェーズ4へ進まない。
+- flow-id 4-1: `【設計反映】`と`【AIアセット反映】`の個別反映計画を**分けて**作成する
+  （併記しない。`.claude/skills/issue-mr-flow/SKILL.md`「種別を複数併記する場合／分ける場合」）。
 
 ## 判断を迷った内容
 
@@ -93,6 +104,13 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - **DDRを新規作成するか**: 現時点では不要と考えている。DDR 0028が判定規則とfork制約の意思決定を
   既に記録しており、本issueはその制約を守ったままの内部整理で新しい意思決定を含まないため。
   フェーズ4のレビューで判断する。
+- **`split_remote_url`の配置**: 計画では`parse_repo_slug`の直前としていたが、実際には
+  `provider_from_remote_url`の手前（`build_issue_body`直後）へ置いた。先に定義されている
+  `provider_from_remote_url`から呼ぶため、計画どおりの位置だと上から読んだときに未定義の関数が
+  先に現れるため。bashは呼び出し時解決なので振る舞いへの影響は無い。**計画からの唯一の逸脱**。
+- **AIアセット反映の候補**: 「forkゼロを検証する計測は空関数をベースラインに取る」という知見が
+  `.claude/rules/shell-script-style.md`「外部プロセス起動のコスト」節に無い（同節は「起動を減らせ」
+  とは書いているが、減らせたことの確かめ方は書いていない）。今回実際に一度誤った結論へ飛びかけた。
 
 ## 未解決の内容
 
