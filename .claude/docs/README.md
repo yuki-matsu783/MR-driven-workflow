@@ -68,3 +68,4 @@ DDRのうち0001・0002・0008・0015は持ち込んでいない**（連番に�
 - [0025-frontmatterのindex.jsonlをGit管理から外しSessionStart-hookで生成する.md](ddr/0025-frontmatterのindex.jsonlをGit管理から外しSessionStart-hookで生成する.md)
 - [0026-空コミットフォールバックはGitHub固有の制約として残す.md](ddr/0026-空コミットフォールバックはGitHub固有の制約として残す.md)
 - [0027-gh_glab-CLI不在時はMCPフォールバック経路へ機構的に誘導する.md](ddr/0027-gh_glab-CLI不在時はMCPフォールバック経路へ機構的に誘導する.md)
+- [0028-プロバイダ判定はremote-URLのホスト部でgithub以外をgitlabとみなす.md](ddr/0028-プロバイダ判定はremote-URLのホスト部でgithub以外をgitlabとみなす.md)
