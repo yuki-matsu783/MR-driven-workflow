@@ -88,8 +88,14 @@ main() {
 
   while [ $# -gt 0 ]; do
     case "$1" in
-      --base) base="$2"; shift 2 ;;
-      --head) head_ref="$2"; shift 2 ;;
+      --base)
+        # $# を先に確認する（$2 を直接参照すると set -u 配下で
+        # 「$2: unbound variable」という原因の分からないエラーになる）
+        [ $# -ge 2 ] && [ -n "$2" ] || { echo "--base には値が必要です" >&2; return 1; }
+        base="$2"; shift 2 ;;
+      --head)
+        [ $# -ge 2 ] && [ -n "$2" ] || { echo "--head には値が必要です" >&2; return 1; }
+        head_ref="$2"; shift 2 ;;
       --no-fetch) do_fetch=0; shift ;;
       -h|--help)
         sed -n '2,35p' "${BASH_SOURCE[0]}"
