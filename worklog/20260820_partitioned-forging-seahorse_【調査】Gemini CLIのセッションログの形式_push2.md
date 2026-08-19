@@ -1,16 +1,16 @@
 ---
-title: worklog 【調査】Gemini CLIのセッションログとテレメトリの形式 push2
+title: worklog 【調査】Gemini CLIのセッションログの形式 push2
 type: log
 description: issue #97 の調査フェーズにおける試行錯誤の記録（push2時点）
 tags: [worklog, gemini-cli, usage-report]
 keywords: [セッションログ, JSONL, テレメトリ, 前提のズレ, gemini-insights, chatRecordingTypes]
 ---
 
-# worklog: 【調査】Gemini CLIのセッションログとテレメトリの形式
+# worklog: 【調査】Gemini CLIのセッションログの形式
 
 対象: 対応工数レポートのGemini CLI対応（issue #97）（2026-08-20）。
 全体作業計画: `plans/partitioned-forging-seahorse.md`
-個別作業計画: `plans/【調査】Gemini CLIのセッションログとテレメトリの形式.md`
+個別作業計画: `plans/【調査】Gemini CLIのセッションログの形式.md`
 push回数: 2
 
 ## 試したこと
@@ -58,7 +58,7 @@ push回数: 2
 
 ## 次の一歩
 
-- 個別調査計画 `plans/【調査】Gemini CLIのセッションログとテレメトリの形式.md` の調査項目
+- 個別調査計画 `plans/【調査】Gemini CLIのセッションログの形式.md` の調査項目
   A〜N を、A・B・L（事実確認）→ K（分岐点）→ C〜J・M（設計判断）→ N の順で実施する。
 - 結果は `reports/20260820_partitioned-forging-seahorse_Geminiセッションログとテレメトリの調査.md`
   へ記録する（本worklogと計画ファイルには結果を書かない）。
@@ -181,3 +181,34 @@ push回数: 2
   `plans/【調査】Gemini CLIのセッションログの形式.md` へ改名する（**忘れないこと**）。
 - issue #105 には**このセッションでは着手しない**（起票と実装を同じセッションに同居させない。
   `.claude/skills/issue-create/SKILL.md`）。
+
+---
+
+# 追記: レビュー1周目の完了と改名（flow-id 2-4 完了 → 2-5）
+
+## 試したこと
+
+- ユーザーの「レビューOK」を受け、`get_mr_unresolved_comments 101` で未解決スレッドを確認した
+  （**未解決0件・全8スレッド解決済み**）。
+- 保留していた改名を `git mv` で実施し、frontmatterの `title`・見出し・各ファイルからの参照パスを
+  `sed` で追従させた。
+
+## うまくいったこと
+
+- **「レビューOK」だけを根拠に次へ進まず、必ずスレッドを再取得して未解決0件を確認する**という
+  規約が機能した（`.claude/skills/issue-mr-flow/SKILL.md`「レビュー完了合図の確認」）。
+  今回は実際に0件だったが、`reply` は解決操作ではないため、返信済みでも未解決のまま残りうる。
+- 改名をレビュー1周目の完了まで遅らせたことで、レビュー中にスレッドがファイルから切り離される
+  事態を避けられた。
+
+## ダメだったこと
+
+- **`get_branch_work_files` は、ブランチ上で改名したファイルについて `"旧パス" -> "新パス"` という
+  行を出力する**（`git diff --name-only` 系のrename検出の表示がそのまま出ている）。この行は
+  そのままではパスとして使えないため、**出力をファイルパスの一覧として機械的に扱う処理は壊れる**。
+  今回は `describe` の手順1で目視確認して回避したが、改名を含むブランチでは注意が要る。
+  - 併せて、改名前の旧パスも一覧に残るため、**同じ内容のファイルが2回現れて見える**。
+
+## 次の一歩
+
+- flow-id 2-6（調査の実施）。worklogは `_push3` として新規に作る。

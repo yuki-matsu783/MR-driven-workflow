@@ -1,21 +1,16 @@
 ---
-title: 【調査】Gemini CLIのセッションログとテレメトリの形式
+title: 【調査】Gemini CLIのセッションログの形式
 type: plan
 description: 対応工数レポートをGemini CLIへ対応させるための、セッションログJSONL・既存集計経路の調査計画
 tags: [調査, gemini-cli, usage-report, session-log]
 keywords: [セッションログ, JSONL, chatRecordingTypes, toolCalls, tokens, rewindTo, UsageTracking, 二重計上, カーソル, 切り詰め]
 ---
 
-# 【調査】Gemini CLIのセッションログとテレメトリの形式
+# 【調査】Gemini CLIのセッションログの形式
 
 - issue: [#97](https://github.com/yuki-matsu783/MR-driven-workflow/issues/97)
 - 全体作業計画: `plans/partitioned-forging-seahorse.md`（flow-id 1-5でユーザー承認済み）
 - flow-id: 2-1（個別調査計画）／レビュー反映: flow-id 2-4（1周目）
-
-> **ファイル名・題名に「テレメトリ」が残っているが、テレメトリは本MRの対象外である**（下記 決-5）。
-> 改名しないのは、**PR #101 のレビュースレッド8件がこのパスに紐づいており、いま改名すると
-> レビュー中のスレッドがファイルから切り離される**ためである。レビュー1周目の合意が取れた時点で
-> `plans/【調査】Gemini CLIのセッションログの形式.md` へ改名する。
 
 ## 目的
 
