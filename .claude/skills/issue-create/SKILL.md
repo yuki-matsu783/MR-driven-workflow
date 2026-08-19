@@ -4,7 +4,7 @@ description: issueをAIエージェントが起票（作成）したいときに
 title: issue起票（AI代行）
 type: skill
 tags: [issue, automation, github, gitlab]
-keywords: [issue作成, create-issue.sh, 目的, 現状, 期待する動作, 受け入れ条件, テンプレート, issue-mr-flow]
+keywords: [issue作成, create-issue.sh, issue分割, 並列列挙, 目的, 現状, 期待する動作, 受け入れ条件, テンプレート, issue-mr-flow]
 ---
 
 # issue起票（AI代行）
@@ -20,10 +20,18 @@ keywords: [issue作成, create-issue.sh, 目的, 現状, 期待する動作, 受
    を埋められるか確認する。`.github/ISSUE_TEMPLATE/task.md` / `.gitlab/issue_templates/task.md`
    と同じ4見出し構成に対応する。情報が不足している場合は、AskUserQuestionまたは通常のチャットで
    ユーザーに質問して補う。**依頼内容から読み取れない項目を勝手に創作しない。**
-2. 組み立てたタイトルと4項目の内容をユーザーに提示し、issueとして作成してよいか確認を取る
+2. **起票する前に、issueが大きすぎないかを確認する。** 組み立てた「期待する動作」「受け入れ条件」
+   が**同型の成果物の並列列挙**（画面・機能／APIエンドポイント／CLIサブコマンド等が「AとBとCを
+   作る」と並ぶ形）になっていないかを見る。該当し、かつ分割しない条件（横断的変更／分割コストが
+   本体を上回る／共通部分の先行実装が必要）にも当たらない場合は、`AskUserQuestion` で
+   「1件のissueとして起票する」「成果物ごとに分けて起票する」を確認する。分けて起票する場合は、
+   **親issue（子issueをチェックリストで束ねる）→ 子issue** の順に作成する。**判定基準の詳細は
+   ここに再掲せず**、`.claude/skills/issue-mr-flow/SKILL.md` の
+   「issueが大きすぎる場合の分割提案」を参照する（二重管理を避けるため）。
+3. 組み立てたタイトルと4項目の内容をユーザーに提示し、issueとして作成してよいか確認を取る
    （GitHub/GitLab上に公開される操作のため、他のissue-mr-flowサブコマンド同様、明示的な合図を
    待ってから実行する）。
-3. 承認を得たら、以下の形で `.claude/scripts/src/create-issue.sh` を実行する。
+4. 承認を得たら、以下の形で `.claude/scripts/src/create-issue.sh` を実行する。
 
    ```bash
    .claude/scripts/src/create-issue.sh \
@@ -48,10 +56,11 @@ keywords: [issue作成, create-issue.sh, 目的, 現状, 期待する動作, 受
    3. `mcp__github__issue_write`（`method="create"`, `owner`, `repo`, `title`, `body`）で作成する。
    4. WebFetchツール・curlへはフォールバックしない（DDR 0020, DDR 0027）。
 
-4. 結果（issue番号・URL）をユーザーに提示する。続けてそのissueに着手するかどうかをユーザーに確認し、
+5. 結果（issue番号・URL）をユーザーに提示する。続けてそのissueに着手するかどうかをユーザーに確認し、
    着手する場合は `/issue-mr-flow start <issue番号>` に進む。
 
 ## してはいけないこと
 
 - ユーザーの明示的な確認なしに、いきなり `create-issue.sh` を実行しない。
 - 4見出しの内容を、ユーザーの依頼から読み取れる範囲を超えて創作しない。
+- ユーザーの決定を待たずに、issueを分割して子issueを起票しない（分割は提案までがAIの役割）。
