@@ -12,7 +12,7 @@ keywords: [update-handoff-progress, flow-id, 進捗表, ループ範囲, mark-do
 
 issue #20対応。`.claude/rules/docs-workflow.md`と`.claude/skills/issue-mr-flow/SKILL.md`は
 「flow-idが1つ進むごとに`HANDOFF.md`を更新し、commitより前に同じcommitへ含める」ことを求めているが、
-更新はメインエージェントの手作業に依存していた。進捗表は39行あり、記号の規則（ループ扱いのステップは
+更新はメインエージェントの手作業に依存していた。進捗表は40行あり、記号の規則（ループ扱いのステップは
 往復1回につき`[]`を1つ追加し、同じループ範囲内のステップは常に同数を保つ）も細かいため、書き間違い・
 更新漏れが起きやすい。これを解消するため、進捗表の記号・ヘッダ情報の更新を機械化した。
 
