@@ -284,8 +284,14 @@ resume・clear時に毎回、現在ブランチのissue/MR状態をコンテキ�
 
 - **コンポーネント**: `.claude/hooks/session-start.sh`（bash版。issue #6でPowerShell版から移行）＋
   `.claude/settings.json` の `hooks.SessionStart` 設定。
-- **matcher**: `startup|resume|clear` に限定する。`compact`（コンテキスト圧縮のたびに`gh` API
-  呼び出しが走るのを避ける）と `fork`（今回はスコープ外）は対象外とする。
+- **matcher**: `startup|resume|clear|compact`。`fork` は対象外（fork時は親セッションの
+  コンテキストがそのまま引き継がれ、要約による情報欠落が起きないため）。`compact` は当初
+  「コンテキスト圧縮のたびに`gh` API呼び出しが走るのを避ける」という理由で除外していたが、
+  **compactは要約内容を指定できず、作業継続に必須の現在地が要約の精度次第で失われる**ため、
+  issue #57 で追加した。除外理由の再評価（compactの発生頻度・MCP経路ではAPI呼び出しが
+  そもそも発生しないこと）と却下案は
+  [0032-compact後もSessionStart-hookで作業コンテキストを再注入する.md](../ddr/0032-compact後もSessionStart-hookで作業コンテキストを再注入する.md)
+  参照。
 - **実行シェル**: exec form（`args`指定）で `"bash"` を呼ぶ（フルパス直書きはしない。他環境への
   移植性を優先）。ただしこのマシンではPATHの優先順位次第で素の`"bash"`がWSL起動用スタブ
   （`C:\Windows\System32\bash.exe`）に解決されてしまうため、システム環境変数（`Machine`スコープ）
@@ -299,14 +305,34 @@ resume・clear時に毎回、現在ブランチのissue/MR状態をコンテキ�
 - **情報収集**: `resume`（`issue-mr-resume`サブエージェント）と同じ`Provider.sh`の関数
   （`get_issue_number_from_branch` / `get_issue` / `get_mr_for_branch` / `get_mr_unresolved_comments`）を
   再利用する。hookはサブエージェントを起動できないため、同種の情報収集ロジックを持つ独立スクリプト
-  として実装した。表示内容は「ブランチ／issue／PR（Draft状態含む）／未解決レビューコメント件数」に
-  絞り、`get_branch_work_files`によるplan/worklogファイル一覧や`HANDOFF.md`の内容表示は含めない
-  （それらは`resume`の役割のまま維持し、hookは軽量な自動通知に留める）。
+  として実装した。表示内容は「ブランチ／issue／PR（Draft状態含む）／未解決レビューコメント件数」
+  ＋「ブランチ固有の作業ファイル一覧（`get_branch_work_files`。**ファイル名のみ**）」
+  ＋「`HANDOFF.md` の『## 次にやること』節」。**ファイルの中身は注入しない**（`HANDOFF.md` も
+  「次にやること」節だけを抜き出し、全文・進捗表・「やったこと」等は含めない）。
+  当初は後ろ2項目を`resume`の役割として除外していたが、compactをmatcherへ加えた際に
+  「compactはセッション途中で自動的に起こり、その直後に`resume`が呼ばれる保証が無い」ため
+  最小限の現在地はhook側が持つ必要があると判断し、issue #57 で追加した（範囲の線引き・却下案:
+  [DDR 0032](../ddr/0032-compact後もSessionStart-hookで作業コンテキストを再注入する.md)）。
+  この拡張は起動要因によらず常に行う（要因ごとに内容を分岐させない）。
 - **出力形式**: `{"hookSpecificOutput":{"hookEventName":"SessionStart","additionalContext":"<text>"}}`
   形式のJSONをstdoutへ返す。
 - **フォールバック方針**: `main`ブランチ上（作業ブランチ未チェックアウト）では注入しない。
   `gh`未認証・API失敗等、情報収集に失敗した場合もセッション開始をブロックせず、短い失敗メッセージ
-  のみを返す（best-effort。詳細な原因調査は人間が手動で行う）。
+  のみを返す（best-effort。詳細な原因調査は人間が手動で行う）。作業ファイル一覧・`HANDOFF.md`
+  抜粋の取得に失敗した場合は、**その行自体を出さずに他の項目の注入を続ける**（fail-open。
+  追加項目の失敗がブランチ・issue・PR情報の注入を妨げてはならない）。
+- **注入量の肥大化検知（issue #57）**: 組み立てた`additionalContext`の**バイト数**
+  （文字数ではない。日本語はUTF-8で1文字3バイトのため3倍ずれる）を測り、しきい値
+  `CONTEXT_SIZE_WARN_BYTES`（既定8000バイト。環境変数で上書き可能）を**超えた場合のみ**、
+  末尾へ「ユーザーへ肥大化を警告し`HANDOFF.md`・`plans/`の整理を促すこと」という指示文を
+  追記する。**切り詰めは行わず全量を注入する**（切り詰めると、この機構が守ろうとしている現在地
+  そのものを失い、かつ失ったことがエージェント側から分からないため）。しきい値の根拠・
+  却下案は[DDR 0032](../ddr/0032-compact後もSessionStart-hookで作業コンテキストを再注入する.md)参照。
+- **構造とテスト（issue #57）**: 本体処理は`main`にまとめ、ファイル末尾の
+  `[ "${BASH_SOURCE[0]}" = "${0}" ]` ガードで直接実行時のみ呼ぶ。これにより
+  `.claude/scripts/test/test_session_start.sh` から`source`して、副作用の無い純粋関数
+  （`context_text_bytes` / `append_size_warning` / `extract_handoff_next_steps`）を単体テストできる
+  （ガードが無いと`source`時に`raw="$(cat)"`でstdin待ちのままハングする）。
 - **`gh`/`glab` CLI自体が無い環境での挙動（issue #34）**: 上記の一般的な失敗と区別し、
   `get_vcs_access_mode` が `mcp` を返す場合は専用の内容を注入する。具体的には
   「VCS情報取得経路: MCP」「ブランチ名から抽出したissue番号（本文・タイトルはMCPで取得すること）」
@@ -1423,6 +1449,28 @@ issueはGitHubのUIからしか作成できず、標準4見出し（目的・現
 （`.claude/rules/docs-workflow.md` の規定）。`tests/test_external_command_server.sh` を指す記述も、
 このリポジトリに実在せず移動していないため触れていない。
 
+### issue #57（compact後の作業コンテキスト再注入と注入量の肥大化検知）
+
+`/compact` 後に SessionStart hook が発火せず、ブランチ・issue/PR情報が再注入されなかった問題への
+対応。あわせて注入対象を広げ、注入量が膨らんだ場合の自己検知を追加した。
+
+- `.claude/settings.json`（`hooks.SessionStart` の matcher へ `compact` を追加）
+- `.claude/hooks/session-start.sh`
+  - 本体処理を `main()` へ移し、`[ "${BASH_SOURCE[0]}" = "${0}" ]` ガードで直接実行時のみ呼ぶ
+    構造へ変更（単体テストから `source` できるようにするため）
+  - `context_text_bytes` / `append_size_warning` / `extract_handoff_next_steps` /
+    `build_work_context` を追加
+  - 注入内容へ「ブランチ固有の作業ファイル一覧（ファイル名のみ）」と
+    「`HANDOFF.md` の『## 次にやること』節」を追加（CLI経路・MCP経路の双方）
+  - 組み立てた `additionalContext` がしきい値（既定8000バイト）を超えた場合のみ、末尾へ
+    整理を促す指示文を追記（切り詰めはしない）
+- `.claude/scripts/test/test_session_start.sh`（新規。35件）
+- `.claude/docs/ddr/0032-compact後もSessionStart-hookで作業コンテキストを再注入する.md`（新規）
+- `.claude/docs/README.md`（DDR一覧に0032を追加）
+
+本節より前の「セッション開始時の自動コンテキスト注入」節では、matcher・情報収集・
+フォールバック方針の**現在の状態を説明する記述のみ**を更新しており、過去エントリは変更していない。
+
 ## 設定項目
 
 `.mrworkflow.json`
@@ -1482,8 +1530,12 @@ issueはGitHubのUIからしか作成できず、標準4見出し（目的・現
   matcher（`startup`/`resume`/`clear`等）で区別してもTask tool経由のサブエージェント内で発火する
   ことが判明した。そのためmatcherでの抑止は不可能と判断し、スクリプト側でstdin JSONの`agent_id`
   フィールドの有無を見て早期終了する実装とした。
-- **SessionStart hookのmatcher範囲**: `startup|resume|clear` に限定し、`compact`（頻度が高く`gh` API
+- **SessionStart hookのmatcher範囲**（issue #57で`compact`の扱いを覆した過去の決定）:
+  `startup|resume|clear` に限定し、`compact`（頻度が高く`gh` API
   呼び出しのコストが無視できない）と `fork`（今回のissueのスコープ外）は対象外とした。
+  issue #57で`compact`を追加した（compactは要約内容を指定できず現在地が失われるため。
+  コスト面の再評価は[DDR 0032](../ddr/0032-compact後もSessionStart-hookで作業コンテキストを再注入する.md)）。
+  `fork`は引き続き対象外。
 - **Windows PowerShell 5.1の文字コード対策はルールでなくスクリプト側で強制する**（issue #6で
   `Provider.ps1`自体が`Provider.sh`へ置き換わったため、本項の対策は過去のものとなった。教訓・
   判断基準としての記録として残す）: issue #5対応中に、
@@ -1557,6 +1609,18 @@ issueはGitHubのUIからしか作成できず、標準4見出し（目的・現
     「ホストは小文字化・パスは保つ」ケースを追加して明示的に固定した。
 
 ## 未決定事項・懸念点
+
+- **（issue #57）`.gemini/settings.json` の SessionStart matcher は `startup|resume|clear` のまま**:
+  `.claude/settings.json` 側には `compact` を追加したが、Gemini CLI の SessionStart matcher が
+  `compact` という値を解釈するかを実機で確認できていないため、あえて揃えていない。未検証の
+  設定値を持ち込んで既存の動いている設定を壊さないという、[DDR 0018](../ddr/0018-gemini-settings.jsonのhooksはレビュー提示スニペットのhooksセクションのみ採用する.md)
+  と同じ判断による。Gemini CLI 側の対応値が確認でき次第、追加を検討する。
+- **（issue #57）注入量のしきい値8000バイトは実測1件（1,222バイト）に基づく暫定値**:
+  「通常運用では鳴らず、数倍に膨らめば鳴る」水準として置いたもので、他プロジェクトへ機構を
+  展開した際に適切かは未検証。`CONTEXT_SIZE_WARN_BYTES` 環境変数で上書きできるようにしてある。
+- **（issue #57）警告文が実際にユーザーへ伝わるかはエージェントの応答に依存する**:
+  `additionalContext` はエージェントへの指示であり、警告の表示を機構的に強制するものではない
+  （hookが直接UIへ出す手段が無いため、`post-push-compact-prompt.sh` と同じ制約）。
 
 - **（issue #13）`get_mr_diff_url`/`get_mr_diff_since_url`のURL形式は実機（ブラウザ）で未検証**:
   GitHub実装（`<repoUrl>/compare/<from>...<to>`）はPR作成前から存在する汎用の「Compare changes」
