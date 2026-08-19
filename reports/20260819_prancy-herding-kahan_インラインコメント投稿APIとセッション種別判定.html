@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>調査結果: インラインコメント投稿APIとセッション種別判定（issue #77）</title>
+<script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-100 text-slate-800">
+<div class="max-w-6xl mx-auto px-6 py-10">
+
+  <header class="mb-10">
+    <p class="text-sm text-slate-500 mb-1">issue #77 / PR #80 / フェーズ2 flow-id 2-6 / 2026-08-19</p>
+    <h1 class="text-3xl font-bold text-slate-900">インラインコメント投稿APIとセッション種別判定</h1>
+    <p class="mt-3 text-slate-600">敵対的レビュースキルの設計に入る前に、GitHub・GitLab・MCPの各経路でのインラインコメント投稿と、非対話セッションの機械的な判定方法を実機で確かめた。</p>
+  </header>
+
+  <section class="grid gap-4 md:grid-cols-2 mb-10">
+    <div class="bg-white rounded-lg shadow p-5 border-l-4 border-rose-500">
+      <p class="text-xs font-semibold text-rose-600 mb-1">調査1 GitHub — 最重要</p>
+      <p class="font-bold text-lg mb-2">1件でも不正な行があるとレビュー全体が失敗する</p>
+      <p class="text-sm text-slate-600">複数指摘を1レビューにまとめられる代わりに、投稿は<strong>原子的</strong>。有効な指摘まで巻き添えで落ちるため、<strong>投稿前の行検証が必須</strong>。</p>
+    </div>
+    <div class="bg-white rounded-lg shadow p-5 border-l-4 border-amber-500">
+      <p class="text-xs font-semibold text-amber-600 mb-1">調査1 GitHub — 承認モデルへの制約</p>
+      <p class="font-bold text-lg mb-2">提出済みレビューは取り消せない</p>
+      <p class="text-sm text-slate-600">インラインコメント個別は削除できるが、レビュー本体は削除不可（サマリ本文の書き換えのみ）。<strong>「投稿は元に戻せない」前提</strong>で承認モデルを設計する。</p>
+    </div>
+    <div class="bg-white rounded-lg shadow p-5 border-l-4 border-sky-500">
+      <p class="text-xs font-semibold text-sky-600 mb-1">調査3 実行モード判定</p>
+      <p class="font-bold text-lg mb-2"><code>AUTOMATION</code> は自動設定されない</p>
+      <p class="text-sm text-slate-600">対話・非対話のどちらでも未設定だった。ただし<strong>明示すれば子セッションのBashまで伝播する</strong>ため、「<code>AUTOMATION=1</code> なら非対話」という<strong>片方向の運用契約</strong>として成立する。</p>
+    </div>
+    <div class="bg-white rounded-lg shadow p-5 border-l-4 border-emerald-500">
+      <p class="text-xs font-semibold text-emerald-600 mb-1">調査2 GitLab</p>
+      <p class="font-bold text-lg mb-2"><code>diff_refs</code> だけで <code>position</code> を組める</p>
+      <p class="text-sm text-slate-600">新規行・削除行・コンテキスト行の3ケースとも投稿できた。ただし <code>glab api --input</code> は<strong>Content-Typeを自動で付けない</strong>（明示しないと415）。</p>
+    </div>
+  </section>
+
+  <section class="mb-10">
+    <h2 class="text-xl font-bold text-slate-900 mb-4 border-b-2 border-slate-300 pb-2">経路ごとの比較</h2>
+    <div class="overflow-x-auto bg-white rounded-lg shadow">
+      <table class="w-full text-sm">
+        <thead class="bg-slate-800 text-white">
+          <tr>
+            <th class="px-4 py-3 text-left font-semibold">観点</th>
+            <th class="px-4 py-3 text-left font-semibold">GitHub（<code>gh api</code>）</th>
+            <th class="px-4 py-3 text-left font-semibold">GitLab（<code>glab api</code>）</th>
+            <th class="px-4 py-3 text-left font-semibold">MCP（<code>mcp__github__*</code>）</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-200">
+          <tr>
+            <td class="px-4 py-3 font-medium">呼び出し単位</td>
+            <td class="px-4 py-3">全指摘を1リクエスト<br><span class="text-slate-500">POST <code>pulls/&lt;n&gt;/reviews</code></span></td>
+            <td class="px-4 py-3">指摘ごとに1リクエスト<br><span class="text-slate-500">POST <code>.../discussions</code></span></td>
+            <td class="px-4 py-3">3段階（create → 指摘ごとに追加 → submit）</td>
+          </tr>
+          <tr class="bg-slate-50">
+            <td class="px-4 py-3 font-medium">不正な行があったとき</td>
+            <td class="px-4 py-3 text-rose-700 font-semibold">全件が失敗（巻き添え）</td>
+            <td class="px-4 py-3 text-emerald-700">その1件のみ失敗</td>
+            <td class="px-4 py-3 text-emerald-700">その1件のみ失敗</td>
+          </tr>
+          <tr>
+            <td class="px-4 py-3 font-medium">エラーの識別</td>
+            <td class="px-4 py-3"><code>Path could not be resolved</code> / <code>Line could not be resolved</code> で区別できる</td>
+            <td class="px-4 py-3 text-rose-700">区別できない（どちらも同じ400 <code>line_code</code>）</td>
+            <td class="px-4 py-3">理由候補を並べたメッセージが返る</td>
+          </tr>
+          <tr class="bg-slate-50">
+            <td class="px-4 py-3 font-medium">レビュアーへの通知</td>
+            <td class="px-4 py-3">1回にまとまる</td>
+            <td class="px-4 py-3">指摘ごとに飛ぶ</td>
+            <td class="px-4 py-3">submit時に1回</td>
+          </tr>
+          <tr>
+            <td class="px-4 py-3 font-medium">ファイル単位コメント</td>
+            <td class="px-4 py-3">レビュー経由は不可（<code>subject_type</code> 非対応）</td>
+            <td class="px-4 py-3">今回は未検証</td>
+            <td class="px-4 py-3"><code>subjectType="FILE"</code> で可能</td>
+          </tr>
+          <tr class="bg-slate-50">
+            <td class="px-4 py-3 font-medium">ペイロードの渡し方</td>
+            <td class="px-4 py-3"><code>--input &lt;file&gt;</code></td>
+            <td class="px-4 py-3"><code>--input &lt;file&gt;</code> ＋ <code>-H "Content-Type: application/json"</code>（必須）</td>
+            <td class="px-4 py-3">ツール引数</td>
+          </tr>
+          <tr>
+            <td class="px-4 py-3 font-medium"><code>comments</code> からの見え方</td>
+            <td class="px-4 py-3 text-emerald-700">unresolved として拾える（<code>path:line</code> 付き）</td>
+            <td class="px-4 py-3">unresolved として拾えるが<strong>位置情報が出ない</strong></td>
+            <td class="px-4 py-3">スレッド単位で <code>isResolved</code> を持つ</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="mb-10">
+    <h2 class="text-xl font-bold text-slate-900 mb-4 border-b-2 border-slate-300 pb-2">調査1: 投稿できる行の範囲（GitHub）</h2>
+    <div class="grid gap-4 md:grid-cols-3">
+      <div class="bg-white rounded-lg shadow p-5">
+        <p class="text-emerald-600 font-bold mb-2">✓ 投稿できた</p>
+        <ul class="text-sm space-y-1 list-disc list-inside text-slate-700">
+          <li>追加行（新規ファイルを含む）</li>
+          <li><strong>hunk内のコンテキスト行</strong>（変更されていない行）</li>
+          <li><code>start_line</code>〜<code>line</code> の複数行指定</li>
+          <li>日本語を含むパス</li>
+        </ul>
+      </div>
+      <div class="bg-white rounded-lg shadow p-5">
+        <p class="text-rose-600 font-bold mb-2">✗ 422になった</p>
+        <ul class="text-sm space-y-1 list-disc list-inside text-slate-700">
+          <li>PRで変更していないファイル<br><span class="text-slate-500 text-xs">Path could not be resolved</span></li>
+          <li>変更ファイル内でもhunkの外の行<br><span class="text-slate-500 text-xs">Line could not be resolved</span></li>
+        </ul>
+      </div>
+      <div class="bg-white rounded-lg shadow p-5">
+        <p class="text-sky-600 font-bold mb-2">→ 事前検証できる</p>
+        <p class="text-sm text-slate-700"><code>pulls/&lt;n&gt;/files</code> の <code>patch</code> のhunkヘッダから有効行を算出。<code>HANDOFF.md</code> では <strong>14〜107 の94行</strong>と算出され、<code>line=5</code> の422・<code>line=15</code> の成功という実機結果と一致した。</p>
+      </div>
+    </div>
+    <p class="mt-4 text-sm text-slate-600 bg-amber-50 border border-amber-200 rounded p-4"><strong>注意:</strong> <code>patch</code> はファイルが大きい場合にAPIから省略される。その場合は有効行を算出できないため、当該ファイルの指摘はレビュー本文（サマリ）へ回す。</p>
+  </section>
+
+  <section class="mb-10">
+    <h2 class="text-xl font-bold text-slate-900 mb-4 border-b-2 border-slate-300 pb-2">調査3: 実行モードの判定材料</h2>
+    <div class="overflow-x-auto bg-white rounded-lg shadow">
+      <table class="w-full text-sm">
+        <thead class="bg-slate-800 text-white">
+          <tr>
+            <th class="px-4 py-3 text-left font-semibold">材料</th>
+            <th class="px-4 py-3 text-left font-semibold">対話（VSCode拡張）</th>
+            <th class="px-4 py-3 text-left font-semibold">非対話（<code>claude -p</code>）</th>
+            <th class="px-4 py-3 text-left font-semibold">判定に使うか</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-200">
+          <tr>
+            <td class="px-4 py-3 font-medium"><code>AUTOMATION</code></td>
+            <td class="px-4 py-3">unset</td>
+            <td class="px-4 py-3">unset（明示すれば伝播する）</td>
+            <td class="px-4 py-3 text-emerald-700 font-semibold">使う（唯一の材料）</td>
+          </tr>
+          <tr class="bg-slate-50">
+            <td class="px-4 py-3 font-medium"><code>CLAUDE_CODE_ENTRYPOINT</code></td>
+            <td class="px-4 py-3"><code>claude-vscode</code></td>
+            <td class="px-4 py-3"><code>sdk-cli</code></td>
+            <td class="px-4 py-3 text-slate-500">使わない（値の網羅性を保証できない）</td>
+          </tr>
+          <tr>
+            <td class="px-4 py-3 font-medium">TTYの有無</td>
+            <td class="px-4 py-3">非TTY</td>
+            <td class="px-4 py-3">非TTY</td>
+            <td class="px-4 py-3 text-rose-700">使えない（差が出ない）</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="mt-4 bg-sky-50 border border-sky-200 rounded p-5">
+      <p class="font-bold text-sky-900 mb-2">結論</p>
+      <p class="text-sm text-slate-700"><code>AUTOMATION=1</code> のときだけ非対話モードとして扱う。<strong>「非対話なら必ず <code>AUTOMATION=1</code>」は成立しない</strong>が、判定を誤ったときに「勝手に動く」側ではなく<strong>「動かない」側へ倒れる</strong>ため、この非対称性は許容する。未設定・他の値はすべて対話モード（＝AIからの自律起動を禁止）。</p>
+    </div>
+  </section>
+
+  <section class="mb-10">
+    <h2 class="text-xl font-bold text-slate-900 mb-4 border-b-2 border-slate-300 pb-2">フェーズ3の設計へ引き渡すこと</h2>
+    <div class="grid gap-3">
+      <div class="bg-white rounded-lg shadow p-4 flex gap-4 items-start">
+        <span class="shrink-0 w-8 h-8 rounded-full bg-slate-800 text-white grid place-items-center font-bold text-sm">1</span>
+        <p class="text-sm text-slate-700"><strong>投稿前の行検証を純粋関数として実装し、単体テストの対象にする。</strong> GitHubの巻き添え失敗を防ぐため必須。GitLabもエラーの原因を切り分けられないため同じ検証を通す。</p>
+      </div>
+      <div class="bg-white rounded-lg shadow p-4 flex gap-4 items-start">
+        <span class="shrink-0 w-8 h-8 rounded-full bg-slate-800 text-white grid place-items-center font-bold text-sm">2</span>
+        <p class="text-sm text-slate-700"><strong>共通インターフェースの戻り値を「投稿できた件数／できなかった指摘の一覧」に揃える。</strong> GitHub（全件巻き添え）とGitLab（1件のみ失敗）という失敗の粒度の差を、呼び出し側に意識させない。</p>
+      </div>
+      <div class="bg-white rounded-lg shadow p-4 flex gap-4 items-start">
+        <span class="shrink-0 w-8 h-8 rounded-full bg-slate-800 text-white grid place-items-center font-bold text-sm">3</span>
+        <p class="text-sm text-slate-700"><strong>行が特定できない指摘はレビュー本文（サマリ）へ集約する。</strong> ファイル単位コメントの別経路は通知が分散し、経路も二重になるため採らない。</p>
+      </div>
+      <div class="bg-white rounded-lg shadow p-4 flex gap-4 items-start">
+        <span class="shrink-0 w-8 h-8 rounded-full bg-slate-800 text-white grid place-items-center font-bold text-sm">4</span>
+        <p class="text-sm text-slate-700"><strong><code>gitlab_format_discussion_notes</code> に <code>position</code> の出力を足す改修を作業計画へ含める。</strong> GitHub版は <code>path:line</code> を出すのに対しGitLab版は位置情報を出しておらず、インライン投稿を入れるとこの差が実害になる。</p>
+      </div>
+      <div class="bg-white rounded-lg shadow p-4 flex gap-4 items-start">
+        <span class="shrink-0 w-8 h-8 rounded-full bg-slate-800 text-white grid place-items-center font-bold text-sm">5</span>
+        <p class="text-sm text-slate-700"><strong>MCP経路は「create → 全件追加 → 必ず submit_pending」を手順として明記する。</strong> pending reviewを提出せずに終えると中途半端な状態が残る。失敗時は <code>delete_pending</code> で片付ける。</p>
+      </div>
+      <div class="bg-white rounded-lg shadow p-4 flex gap-4 items-start">
+        <span class="shrink-0 w-8 h-8 rounded-full bg-slate-800 text-white grid place-items-center font-bold text-sm">6</span>
+        <p class="text-sm text-slate-700"><strong>スキルの手順1は <code>AUTOMATION</code> の判定に確定。</strong> 未設定は対話モード扱いとし、AIからの自律起動を禁止する。</p>
+      </div>
+    </div>
+  </section>
+
+  <footer class="text-xs text-slate-500 border-t border-slate-300 pt-4">
+    <p>詳細な試行錯誤は <code>worklog/20260819_prancy-herding-kahan_【調査】インラインコメント投稿APIとセッション種別判定_push2.md</code>、結論は <code>plans/【調査】インラインコメント投稿APIとセッション種別判定.md</code> の「調査結果」節を参照。</p>
+    <p class="mt-1">検証に使ったテスト投稿はGitHub・GitLabとも削除済み（GitHubの提出済みレビュー本文のみ、API上削除できないため注記へ書き換え）。GitLabコンテナは停止のみで削除していない（フェーズ3で再利用）。</p>
+  </footer>
+
+</div>
+</body>
+</html>
