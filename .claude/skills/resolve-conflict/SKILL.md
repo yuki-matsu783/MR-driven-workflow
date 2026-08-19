@@ -177,7 +177,7 @@ git diff --name-only --diff-filter=U
 bash -n <変更した.shファイル>
 
 # 4. 単体テストの実行
-for t in tests/test_*.sh; do bash "$t"; done
+for t in .claude/scripts/test/test_*.sh; do bash "$t"; done
 
 # 5. DDR番号の重複が解消されたこと（類型Aを解消した場合は必須）
 bash .claude/scripts/src/check-base-conflicts.sh --no-fetch | jq '.hasDuplicateDdrNumber'

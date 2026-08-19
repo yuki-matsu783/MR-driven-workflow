@@ -32,7 +32,7 @@ github_new_issue() {
 }
 
 # `gh issue list --search` の出力を共通形式（number/title/state/url）へ正規化する（issue #68）。
-# `gh` を呼ばない純粋関数（jqのみ）のため tests/test_vcs_provider.sh から単体テストできる
+# `gh` を呼ばない純粋関数（jqのみ）のため .claude/scripts/test/test_vcs_provider.sh から単体テストできる
 # （.claude/rules/shell-script-style.md「テスト」）。
 #
 # `state` はGitHub CLIが `OPEN`/`CLOSED` を返すのに対しGitLabは `opened`/`closed` を返すため、

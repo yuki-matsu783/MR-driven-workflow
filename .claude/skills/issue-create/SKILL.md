@@ -31,7 +31,7 @@ keywords: [issue作成, create-issue.sh, 目的, 現状, 期待する動作, 受
 
    1. **検索キーワードを3〜5個選ぶ。** 手順1で組み立てたタイトルと目的から、AIエージェント自身が
       選ぶ（`Provider.sh` 側にキーワード抽出は実装されていない。理由:
-      `.claude/docs/ddr/0031-issue起票前の重複チェックは検索をProvider層へ置きキーワード抽出はAIに委ねる.md`）。
+      `.claude/docs/ddr/0033-issue起票前の重複チェックは検索をProvider層へ置きキーワード抽出はAIに委ねる.md`）。
       粒度の指針:
       - **選ぶ**: そのissue固有の語（機能名・関数名・スクリプト名・ファイル名・固有名詞）。
         例: `search_issues` `create-issue.sh` `frontmatter` `Draft PR`

@@ -44,7 +44,7 @@ push回数: 1
   スキル側には粒度の指針（選ぶ語／選ばない語の例）を書いて再現性を持たせた。
 - **純粋関数として切り出せたのは正規化と統合の部分だった。** `github_normalize_issue_search_results`
   / `gitlab_normalize_issue_search_results` / `merge_issue_search_results` はいずれも
-  `gh`/`glab` を呼ばずjqだけで完結するため、`tests/test_vcs_provider.sh` から直接テストできる
+  `gh`/`glab` を呼ばずjqだけで完結するため、`.claude/scripts/test/test_vcs_provider.sh` から直接テストできる
   （`gitlab_format_discussion_notes` と同じ切り出し方）。単体テストは9件追加し、
   `passed=53 failures=0`。
 - **`state` の表記ゆれを共通形式で吸収した。** GitHub CLIは `OPEN`/`CLOSED`、GitLabは

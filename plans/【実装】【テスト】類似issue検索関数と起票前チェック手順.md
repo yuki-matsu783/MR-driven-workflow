@@ -112,7 +112,7 @@ MCPフォールバック対応表（「2. Provider関数 → MCPツール対応�
 既に `is:issue` にスコープされているため、CLI版のようなキーワードごとの繰り返し呼び出しは不要で、
 1回の呼び出しに複数キーワードを平文で並べてよい旨を補足に書く。
 
-## 7. `tests/test_vcs_provider.sh`
+## 7. `.claude/scripts/test/test_vcs_provider.sh`
 
 外部コマンド（`gh`/`glab`）を呼ばない純粋関数のみを対象にする（既存の
 `gitlab_format_discussion_notes` と同じ位置づけ）。

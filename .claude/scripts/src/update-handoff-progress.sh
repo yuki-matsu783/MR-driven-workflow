@@ -317,7 +317,7 @@ main() {
   esac
 }
 
-# 単体テスト（tests/test_update_handoff_progress.sh）からsourceして関数のみ再利用できるよう、
+# 単体テスト（.claude/scripts/test/test_update_handoff_progress.sh）からsourceして関数のみ再利用できるよう、
 # 直接実行された場合のみ main を呼ぶ（extract-frontmatter.shと同じガードパターン）。
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
   main "$@"

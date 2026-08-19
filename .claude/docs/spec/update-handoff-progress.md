@@ -86,9 +86,9 @@ bash .claude/scripts/src/update-handoff-progress.sh set-header [--issue <text>] 
 
 ### テスト
 
-`tests/test_update_handoff_progress.sh`が、簡略版HANDOFF.mdフィクスチャに対する各サブコマンドの
+`.claude/scripts/test/test_update_handoff_progress.sh`が、簡略版HANDOFF.mdフィクスチャに対する各サブコマンドの
 挙動（正常系・エラー系）を検証する（`.claude/rules/shell-script-style.md`「テスト」の
-`passed=N failures=N`規約）。`tests/test_vcs_provider.sh`と同様、スクリプトの関数を直接sourceして
+`passed=N failures=N`規約）。`.claude/scripts/test/test_vcs_provider.sh`と同様、スクリプトの関数を直接sourceして
 呼び出す方式で、外部プロセスの起動を伴わない。
 
 ## 影響範囲

@@ -18,18 +18,18 @@
 # `merge_issue_search_results`（複数キーワードぶんの結果を重複排除して統合）も対象。
 # 規約: passed=N failures=N を標準出力へ出し、失敗があれば終了コード1
 #       （.claude/rules/shell-script-style.md「テスト」）。
-# 実行: bash tests/test_vcs_provider.sh
+# 実行: bash .claude/scripts/test/test_vcs_provider.sh
 set -euo pipefail
 
 script_dir="${BASH_SOURCE[0]%/*}"
 [[ "$script_dir" == "${BASH_SOURCE[0]}" ]] && script_dir="."
-repo_root="$(cd "$script_dir/.." && pwd)"
+repo_root="$(cd "$script_dir/../../.." && pwd)"
 
-# shellcheck source=../.claude/scripts/src/vcs/Github.sh
+# shellcheck source=../../../.claude/scripts/src/vcs/Github.sh
 source "$repo_root/.claude/scripts/src/vcs/Github.sh"
-# shellcheck source=../.claude/scripts/src/vcs/Gitlab.sh
+# shellcheck source=../../../.claude/scripts/src/vcs/Gitlab.sh
 source "$repo_root/.claude/scripts/src/vcs/Gitlab.sh"
-# shellcheck source=../.claude/scripts/src/vcs/Provider.sh
+# shellcheck source=../../../.claude/scripts/src/vcs/Provider.sh
 source "$repo_root/.claude/scripts/src/vcs/Provider.sh"
 
 passed=0
@@ -299,7 +299,7 @@ assert_eq "split_remote_url: ホスト名が空でも失敗しない" "|" "$REPL
 #
 # キーワード抽出の関数は実装していないため、その単体テストも存在しない（抽出は
 # `issue-create` スキル側でAIエージェントが行う。理由:
-# .claude/docs/ddr/0031-issue起票前の重複チェックは検索をProvider層へ置きキーワード抽出はAIに委ねる.md）。
+# .claude/docs/ddr/0033-issue起票前の重複チェックは検索をProvider層へ置きキーワード抽出はAIに委ねる.md）。
 
 # GitHub CLIの `OPEN`/`CLOSED` を小文字へ揃え、キーを number/title/state/url に正規化する
 assert_eq "github_normalize_issue_search_results: stateを小文字化しキーを揃える" \

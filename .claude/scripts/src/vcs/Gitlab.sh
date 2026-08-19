@@ -45,7 +45,7 @@ gitlab_new_issue() {
 }
 
 # `glab issue list --search` の出力を共通形式（number/title/state/url）へ正規化する（issue #68）。
-# `glab` を呼ばない純粋関数（jqのみ）のため tests/test_vcs_provider.sh から単体テストできる。
+# `glab` を呼ばない純粋関数（jqのみ）のため .claude/scripts/test/test_vcs_provider.sh から単体テストできる。
 #
 # GitLab APIのキー名の違いを `gitlab_get_issue` と同じ方針で吸収する（`iid`→`number`、
 # `web_url`→`url`）。`state` はGitLabが `opened`/`closed` を返すため、GitHub側（`OPEN`/`CLOSED`を

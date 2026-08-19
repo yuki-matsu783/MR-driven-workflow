@@ -101,7 +101,7 @@ git -c core.quotepath=false merge-tree --write-tree --name-only --no-messages <h
   3桁以下の番号は対象外。
 - 作業ツリーではなく**両ブランチのツリー**を見るため、まだマージしていない段階で判定できる。
 - 実装は外部コマンドを呼ばない純粋関数（`ddr_number_to_reply` / `find_duplicate_ddr_numbers`）へ
-  分離し、`tests/test_check_base_conflicts.sh` で単体テストしている
+  分離し、`.claude/scripts/test/test_check_base_conflicts.sh` で単体テストしている
   （`.claude/rules/shell-script-style.md`「外部プロセス起動のコスト」に従い、ループ内で
   `jq` 等を起動しない）。
 

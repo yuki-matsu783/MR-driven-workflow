@@ -117,7 +117,7 @@ MRとのやり取りだけを自動化する薄い層」として設計したが
 （`Github.sh` / `Gitlab.sh`）の内部ヘルパーは含まない。issue #48で追加した
 `gitlab_format_discussion_notes`（discussions APIのJSONを受け取り整形済みテキストを返す純粋関数）は
 後者にあたる。`gitlab_get_mr_unresolved_comments` は `glab api` 呼び出しとこの関数の薄いラッパーで、
-外部コマンドを呼ばない整形ロジックだけを切り離すことで `tests/test_vcs_provider.sh` から
+外部コマンドを呼ばない整形ロジックだけを切り離すことで `.claude/scripts/test/test_vcs_provider.sh` から
 単体テストできるようにしている（`.claude/rules/shell-script-style.md`「テスト」）。
 issue #45で追加した `provider_from_remote_url`（remote URL文字列からプロバイダ名を返す純粋関数）も
 同じ位置づけで、`Provider.sh` 内にあるが上表には載らない。`get_provider` が
@@ -293,8 +293,14 @@ resume・clear時に毎回、現在ブランチのissue/MR状態をコンテキ�
 
 - **コンポーネント**: `.claude/hooks/session-start.sh`（bash版。issue #6でPowerShell版から移行）＋
   `.claude/settings.json` の `hooks.SessionStart` 設定。
-- **matcher**: `startup|resume|clear` に限定する。`compact`（コンテキスト圧縮のたびに`gh` API
-  呼び出しが走るのを避ける）と `fork`（今回はスコープ外）は対象外とする。
+- **matcher**: `startup|resume|clear|compact`。`fork` は対象外（fork時は親セッションの
+  コンテキストがそのまま引き継がれ、要約による情報欠落が起きないため）。`compact` は当初
+  「コンテキスト圧縮のたびに`gh` API呼び出しが走るのを避ける」という理由で除外していたが、
+  **compactは要約内容を指定できず、作業継続に必須の現在地が要約の精度次第で失われる**ため、
+  issue #57 で追加した。除外理由の再評価（compactの発生頻度・MCP経路ではAPI呼び出しが
+  そもそも発生しないこと）と却下案は
+  [0032-compact後もSessionStart-hookで作業コンテキストを再注入する.md](../ddr/0032-compact後もSessionStart-hookで作業コンテキストを再注入する.md)
+  参照。
 - **実行シェル**: exec form（`args`指定）で `"bash"` を呼ぶ（フルパス直書きはしない。他環境への
   移植性を優先）。ただしこのマシンではPATHの優先順位次第で素の`"bash"`がWSL起動用スタブ
   （`C:\Windows\System32\bash.exe`）に解決されてしまうため、システム環境変数（`Machine`スコープ）
@@ -308,14 +314,34 @@ resume・clear時に毎回、現在ブランチのissue/MR状態をコンテキ�
 - **情報収集**: `resume`（`issue-mr-resume`サブエージェント）と同じ`Provider.sh`の関数
   （`get_issue_number_from_branch` / `get_issue` / `get_mr_for_branch` / `get_mr_unresolved_comments`）を
   再利用する。hookはサブエージェントを起動できないため、同種の情報収集ロジックを持つ独立スクリプト
-  として実装した。表示内容は「ブランチ／issue／PR（Draft状態含む）／未解決レビューコメント件数」に
-  絞り、`get_branch_work_files`によるplan/worklogファイル一覧や`HANDOFF.md`の内容表示は含めない
-  （それらは`resume`の役割のまま維持し、hookは軽量な自動通知に留める）。
+  として実装した。表示内容は「ブランチ／issue／PR（Draft状態含む）／未解決レビューコメント件数」
+  ＋「ブランチ固有の作業ファイル一覧（`get_branch_work_files`。**ファイル名のみ**）」
+  ＋「`HANDOFF.md` の『## 次にやること』節」。**ファイルの中身は注入しない**（`HANDOFF.md` も
+  「次にやること」節だけを抜き出し、全文・進捗表・「やったこと」等は含めない）。
+  当初は後ろ2項目を`resume`の役割として除外していたが、compactをmatcherへ加えた際に
+  「compactはセッション途中で自動的に起こり、その直後に`resume`が呼ばれる保証が無い」ため
+  最小限の現在地はhook側が持つ必要があると判断し、issue #57 で追加した（範囲の線引き・却下案:
+  [DDR 0032](../ddr/0032-compact後もSessionStart-hookで作業コンテキストを再注入する.md)）。
+  この拡張は起動要因によらず常に行う（要因ごとに内容を分岐させない）。
 - **出力形式**: `{"hookSpecificOutput":{"hookEventName":"SessionStart","additionalContext":"<text>"}}`
   形式のJSONをstdoutへ返す。
 - **フォールバック方針**: `main`ブランチ上（作業ブランチ未チェックアウト）では注入しない。
   `gh`未認証・API失敗等、情報収集に失敗した場合もセッション開始をブロックせず、短い失敗メッセージ
-  のみを返す（best-effort。詳細な原因調査は人間が手動で行う）。
+  のみを返す（best-effort。詳細な原因調査は人間が手動で行う）。作業ファイル一覧・`HANDOFF.md`
+  抜粋の取得に失敗した場合は、**その行自体を出さずに他の項目の注入を続ける**（fail-open。
+  追加項目の失敗がブランチ・issue・PR情報の注入を妨げてはならない）。
+- **注入量の肥大化検知（issue #57）**: 組み立てた`additionalContext`の**バイト数**
+  （文字数ではない。日本語はUTF-8で1文字3バイトのため3倍ずれる）を測り、しきい値
+  `CONTEXT_SIZE_WARN_BYTES`（既定8000バイト。環境変数で上書き可能）を**超えた場合のみ**、
+  末尾へ「ユーザーへ肥大化を警告し`HANDOFF.md`・`plans/`の整理を促すこと」という指示文を
+  追記する。**切り詰めは行わず全量を注入する**（切り詰めると、この機構が守ろうとしている現在地
+  そのものを失い、かつ失ったことがエージェント側から分からないため）。しきい値の根拠・
+  却下案は[DDR 0032](../ddr/0032-compact後もSessionStart-hookで作業コンテキストを再注入する.md)参照。
+- **構造とテスト（issue #57）**: 本体処理は`main`にまとめ、ファイル末尾の
+  `[ "${BASH_SOURCE[0]}" = "${0}" ]` ガードで直接実行時のみ呼ぶ。これにより
+  `.claude/scripts/test/test_session_start.sh` から`source`して、副作用の無い純粋関数
+  （`context_text_bytes` / `append_size_warning` / `extract_handoff_next_steps`）を単体テストできる
+  （ガードが無いと`source`時に`raw="$(cat)"`でstdin待ちのままハングする）。
 - **`gh`/`glab` CLI自体が無い環境での挙動（issue #34）**: 上記の一般的な失敗と区別し、
   `get_vcs_access_mode` が `mcp` を返す場合は専用の内容を注入する。具体的には
   「VCS情報取得経路: MCP」「ブランチ名から抽出したissue番号（本文・タイトルはMCPで取得すること）」
@@ -578,7 +604,7 @@ Claude Codeの対応工数（モデル別トークン数・ツール実行回数
     集計側`_usage_aggregate_and_merge_subagents`のglobは`subagents/agent-*.jsonl`であり、
     Gemini分を`subagents/<session_id>/`という1階層下へ置くことで**構造的にマッチしない**。
     追加のガード条件を書かずにスコープ境界が保証される（この不一致は
-    `tests/test_usage_tracking.sh`で明示的に検証している）。
+    `.claude/scripts/test/test_usage_tracking.sh`で明示的に検証している）。
 - **Gemini CLIのhook登録**: `.gemini/settings.json`の`hooks`キー配下（`SessionStart`/`BeforeTool`/
   `AfterTool`）に`.claude/hooks/*.sh`一式を登録する。`BeforeTool`/`AfterTool`の`matcher`は
   `"run_shell_command|Bash|PowerShell"`という両エンジンの`tool_name`を含む形にしている
@@ -878,7 +904,7 @@ GitHub/GitLabのUIから起票する場合は入力中に類似issueがサジェ
 issueから意味のある語を選ぶには形態素解析が要り、bashの文字種判定はロケール依存で静かに劣化する。
 一方、`issue-create` スキルではAIが直前に自らタイトル・4見出しを組み立てており、そのissue固有の
 語がどれかを判断できる。詳細・却下案は
-[0031-issue起票前の重複チェックは検索をProvider層へ置きキーワード抽出はAIに委ねる.md](../ddr/0031-issue起票前の重複チェックは検索をProvider層へ置きキーワード抽出はAIに委ねる.md)
+[0033-issue起票前の重複チェックは検索をProvider層へ置きキーワード抽出はAIに委ねる.md](../ddr/0033-issue起票前の重複チェックは検索をProvider層へ置きキーワード抽出はAIに委ねる.md)
 を参照。
 
 #### `search_issues` の仕様
@@ -1453,6 +1479,60 @@ AIは候補を提示するに留め、**重複と断定して勝手に起票を�
 - `.claude/docs/spec/issue-mr-workflow.md`（本ファイル。全体フローのステップ数を40へ更新、
   本エントリを追加）
 
+変更（issue #63 機構自身の単体テストを`.claude/`配下へ移動）:
+- 単体テスト4本を `tests/` から `.claude/scripts/test/` へ `git mv` で移動（履歴保持）。
+  リポジトリ直下の `tests/` は廃止した
+  - `test_extract_frontmatter.sh` / `test_update_handoff_progress.sh` /
+    `test_usage_tracking.sh` / `test_vcs_provider.sh`
+  - 各ファイルの変更は `repo_root` 算出（`$script_dir/..` → `$script_dir/../../..`）と、
+    冒頭コメントの実行コマンド・`shellcheck source=` の相対パスのみ。アサーションは無変更で、
+    移動前後とも `passed` は 17 / 15 / 33 / 36（計101件）・`failures=0`
+  - 目的は、`apply-mr-workflow-to-project` の配布単位（`.claude/`）へテストを収めること。
+    `sync-assets.sh` は `.claude/` 配下をそのままコピーするため**スクリプト側の変更は不要**で、
+    かつ導入先プロジェクト本体の `tests/` と場所を取り合わなくなる（DDR 0031）
+- `.claude/scripts/src/extract-frontmatter.sh` / `update-handoff-progress.sh` /
+  `vcs/Provider.sh` / `.claude/hooks/post-push-usage-report.sh`（テストを指すコメントのパスを更新）
+- `.claude/rules/directory-structure.md`（ツリーの `tests/` を `.claude/scripts/test/` へ移動、
+  「配置の指針」へ `test/` の役割を追記）
+- `.claude/rules/shell-script-style.md`（「テスト」節の配置先を新パスへ）
+- `index.md`（Directory Structure へ `./.claude/scripts/test/` を追加）
+- `.claude/docs/spec/update-handoff-progress.md`・`shell-scripts.md`（「## 仕様」節内の
+  現在の状態を説明するパス参照のみ更新）
+- `.claude/docs/ddr/0031-機構自身の単体テストは.claude_scripts_test配下へ置く.md`（新規）
+- `.claude/docs/README.md`（DDR一覧に0031を追加）
+- mainマージ時の追随（issue #46・#60 が本ブランチと並行してマージされたため）
+  - `.claude/scripts/test/test_check_base_conflicts.sh`（issue #46 が `tests/` へ新規追加した
+    5本目のテスト。同じ規則で `.claude/scripts/test/` へ移し `repo_root` を調整）
+  - `.claude/skills/resolve-conflict/SKILL.md`（検証手順のテスト実行パス）
+  - `.claude/scripts/src/check-base-conflicts.sh`・`.claude/docs/spec/check-base-conflicts.md`
+    （テストを指す現在の記述のパス）
+
+なお、DDR本文および本「## 影響範囲」節の過去エントリは、変更当時の記録として書き換えていない
+（`.claude/rules/docs-workflow.md` の規定）。`tests/test_external_command_server.sh` を指す記述も、
+このリポジトリに実在せず移動していないため触れていない。
+
+### issue #57（compact後の作業コンテキスト再注入と注入量の肥大化検知）
+
+`/compact` 後に SessionStart hook が発火せず、ブランチ・issue/PR情報が再注入されなかった問題への
+対応。あわせて注入対象を広げ、注入量が膨らんだ場合の自己検知を追加した。
+
+- `.claude/settings.json`（`hooks.SessionStart` の matcher へ `compact` を追加）
+- `.claude/hooks/session-start.sh`
+  - 本体処理を `main()` へ移し、`[ "${BASH_SOURCE[0]}" = "${0}" ]` ガードで直接実行時のみ呼ぶ
+    構造へ変更（単体テストから `source` できるようにするため）
+  - `context_text_bytes` / `append_size_warning` / `extract_handoff_next_steps` /
+    `build_work_context` を追加
+  - 注入内容へ「ブランチ固有の作業ファイル一覧（ファイル名のみ）」と
+    「`HANDOFF.md` の『## 次にやること』節」を追加（CLI経路・MCP経路の双方）
+  - 組み立てた `additionalContext` がしきい値（既定8000バイト）を超えた場合のみ、末尾へ
+    整理を促す指示文を追記（切り詰めはしない）
+- `.claude/scripts/test/test_session_start.sh`（新規。35件）
+- `.claude/docs/ddr/0032-compact後もSessionStart-hookで作業コンテキストを再注入する.md`（新規）
+- `.claude/docs/README.md`（DDR一覧に0032を追加）
+
+本節より前の「セッション開始時の自動コンテキスト注入」節では、matcher・情報収集・
+フォールバック方針の**現在の状態を説明する記述のみ**を更新しており、過去エントリは変更していない。
+
 ## 設定項目
 
 `.mrworkflow.json`
@@ -1512,8 +1592,12 @@ AIは候補を提示するに留め、**重複と断定して勝手に起票を�
   matcher（`startup`/`resume`/`clear`等）で区別してもTask tool経由のサブエージェント内で発火する
   ことが判明した。そのためmatcherでの抑止は不可能と判断し、スクリプト側でstdin JSONの`agent_id`
   フィールドの有無を見て早期終了する実装とした。
-- **SessionStart hookのmatcher範囲**: `startup|resume|clear` に限定し、`compact`（頻度が高く`gh` API
+- **SessionStart hookのmatcher範囲**（issue #57で`compact`の扱いを覆した過去の決定）:
+  `startup|resume|clear` に限定し、`compact`（頻度が高く`gh` API
   呼び出しのコストが無視できない）と `fork`（今回のissueのスコープ外）は対象外とした。
+  issue #57で`compact`を追加した（compactは要約内容を指定できず現在地が失われるため。
+  コスト面の再評価は[DDR 0032](../ddr/0032-compact後もSessionStart-hookで作業コンテキストを再注入する.md)）。
+  `fork`は引き続き対象外。
 - **Windows PowerShell 5.1の文字コード対策はルールでなくスクリプト側で強制する**（issue #6で
   `Provider.ps1`自体が`Provider.sh`へ置き換わったため、本項の対策は過去のものとなった。教訓・
   判断基準としての記録として残す）: issue #5対応中に、
@@ -1583,12 +1667,13 @@ AIは候補を提示するに留め、**重複と断定して勝手に起票を�
     大文字は保つ必要がある。
   - 消費側（`.claude/hooks/session-start.sh`・`get_repo_url`）は`.owner`/`.repo`/`.url`しか
     使わず、いずれも実リポジトリのホストは元から小文字のため実害はない。
-  - `tests/test_vcs_provider.sh`に「ホストは小文字化・パスは保つ」ケースを追加して明示的に固定した。
+  - `.claude/scripts/test/test_vcs_provider.sh`（issue #63以前は `tests/test_vcs_provider.sh`）に
+    「ホストは小文字化・パスは保つ」ケースを追加して明示的に固定した。
 
 ### issue #68（起票前の類似・重複issueチェック）
 
 新規:
-- `.claude/docs/ddr/0031-issue起票前の重複チェックは検索をProvider層へ置きキーワード抽出はAIに委ねる.md`
+- `.claude/docs/ddr/0033-issue起票前の重複チェックは検索をProvider層へ置きキーワード抽出はAIに委ねる.md`
 
 更新:
 - `.claude/scripts/src/vcs/Provider.sh`（`search_issues` ディスパッチャ、`merge_issue_search_results`、
@@ -1598,21 +1683,33 @@ AIは候補を提示するに留め、**重複と断定して勝手に起票を�
 - `.claude/skills/issue-create/SKILL.md`（実行フローに手順2「類似・重複issueをチェックする」を追加し
   以降を繰り下げ。各手順に内容名を併記。「してはいけないこと」に2項目追加）
 - `.claude/skills/issue-mr-flow/SKILL.md`（MCPフォールバック対応表に `search_issues` の行）
-- `tests/test_vcs_provider.sh`（正規化・統合・`mcp_tool_hint` のテスト9件追加。`passed=53 failures=0`）
+- `.claude/scripts/test/test_vcs_provider.sh`（正規化・統合・`mcp_tool_hint` のテスト9件追加。`passed=53 failures=0`）
 - `.claude/docs/spec/issue-mr-workflow.md`（提供関数表・「起票前の類似・重複issueチェック」節・本項）
-- `.claude/docs/README.md`（DDR一覧に0031）
+- `.claude/docs/README.md`（DDR一覧に0033）
 
 ## 未決定事項・懸念点
 
+- **（issue #57）`.gemini/settings.json` の SessionStart matcher は `startup|resume|clear` のまま**:
+  `.claude/settings.json` 側には `compact` を追加したが、Gemini CLI の SessionStart matcher が
+  `compact` という値を解釈するかを実機で確認できていないため、あえて揃えていない。未検証の
+  設定値を持ち込んで既存の動いている設定を壊さないという、[DDR 0018](../ddr/0018-gemini-settings.jsonのhooksはレビュー提示スニペットのhooksセクションのみ採用する.md)
+  と同じ判断による。Gemini CLI 側の対応値が確認でき次第、追加を検討する。
+- **（issue #57）注入量のしきい値8000バイトは実測1件（1,222バイト）に基づく暫定値**:
+  「通常運用では鳴らず、数倍に膨らめば鳴る」水準として置いたもので、他プロジェクトへ機構を
+  展開した際に適切かは未検証。`CONTEXT_SIZE_WARN_BYTES` 環境変数で上書きできるようにしてある。
+- **（issue #57）警告文が実際にユーザーへ伝わるかはエージェントの応答に依存する**:
+  `additionalContext` はエージェントへの指示であり、警告の表示を機構的に強制するものではない
+  （hookが直接UIへ出す手段が無いため、`post-push-compact-prompt.sh` と同じ制約）。
 - **（issue #68）`search_issues`のCLI経路が実機未検証**: 本対応はClaude Code on the webの
   リモート実行環境（`gh`/`glab` CLIが存在しない）で行ったため、`gh issue list --search ...
   --state all --json number,title,state,url` と `glab issue list --search ... --all --per-page
   ... --output json` を実際に実行しての確認ができていない。検証済みなのは、
   (1) `require_vcs_cli`が`search_issues`に対し`mcp__github__search_issues`を名指しして失敗すること、
   (2) 正規化・統合の純粋関数がCLI出力形式を模したフィクスチャに対して期待どおり動くこと
-  （`tests/test_vcs_provider.sh`）の2点のみ。**特にGitLab側の`--all`フラグ（opened/closed
-  両方を対象にする指定）は`glab`のバージョンによって名称が異なる可能性がある**ため、
+  （`.claude/scripts/test/test_vcs_provider.sh`）の2点のみ。**特にGitLab側の`--all`フラグ
+  （opened/closed両方を対象にする指定）は`glab`のバージョンによって名称が異なる可能性がある**ため、
   `glab`が使える環境での最初の利用時に確認すること。
+
 - **（issue #13）`get_mr_diff_url`/`get_mr_diff_since_url`のURL形式は実機（ブラウザ）で未検証**:
   GitHub実装（`<repoUrl>/compare/<from>...<to>`）はPR作成前から存在する汎用の「Compare changes」
   ページの標準URL形式に基づいており、PR個別のサブタブ形式（当初案の`/files/<from>..<to>`）より

@@ -1,9 +1,9 @@
 ---
 title: 【設計反映】起票前重複チェックの仕様とDDR
 type: guide
-description: issue #68の個別反映計画。specの提供関数表・新規節への追記内容と、DDR 0031に記録する判断・却下案の骨子を定める
+description: issue #68の個別反映計画。specの提供関数表・新規節への追記内容と、DDR 0033に記録する判断・却下案の骨子を定める
 tags: [spec, ddr, issue-create, plan]
-keywords: [設計反映, DDR0031, 提供関数表, 未決定事項, search_issues, キーワード抽出]
+keywords: [設計反映, DDR0033, 提供関数表, 未決定事項, search_issues, キーワード抽出]
 ---
 
 # 個別反映計画: 起票前重複チェックの仕様とDDR（issue #68）
@@ -46,9 +46,9 @@ issue #68 の変更ファイルを新規/更新に分けて追記する（過去
 
 CLI経路（`gh issue list --search` / `glab issue list --search`）が実機未検証である旨を追記する。
 
-## 2. `.claude/docs/ddr/0031-...md`（新規）
+## 2. `.claude/docs/ddr/0033-...md`（新規）
 
-ファイル名: `0031-issue起票前の重複チェックは検索をProvider層へ置きキーワード抽出はAIに委ねる.md`
+ファイル名: `0033-issue起票前の重複チェックは検索をProvider層へ置きキーワード抽出はAIに委ねる.md`
 （`Provider.sh` と `issue-create/SKILL.md` から既にこのパスを参照しているため、名前を変えない）。
 
 記載する決定:
@@ -68,7 +68,7 @@ CLI経路（`gh issue list --search` / `glab issue list --search`）が実機未
 
 ## 3. `.claude/docs/README.md`
 
-DDR一覧に0031の行を追加する。
+DDR一覧に0033の行を追加する。
 
 ## 4. `HANDOFF.md`
 

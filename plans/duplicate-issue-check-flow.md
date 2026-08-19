@@ -83,9 +83,9 @@ GitHub/GitLabのissue検索はいずれも複数語をAND条件として扱う�
 | 3 | `.claude/scripts/src/vcs/Provider.sh` | `search_issues` ディスパッチャ、`merge_issue_search_results`（純粋関数）、`mcp_tool_hint` への行追加 |
 | 4 | `.claude/skills/issue-create/SKILL.md` | 実行フローに重複チェック手順を追加（最終確認の前）、「してはいけないこと」に追記 |
 | 5 | `.claude/skills/issue-mr-flow/SKILL.md` | MCPフォールバック対応表に `search_issues` の行を追加 |
-| 6 | `tests/test_vcs_provider.sh` | 正規化・マージ・`mcp_tool_hint` のテストを追加 |
+| 6 | `.claude/scripts/test/test_vcs_provider.sh` | 正規化・マージ・`mcp_tool_hint` のテストを追加 |
 | 7 | `.claude/docs/spec/issue-mr-workflow.md` | 提供関数表への追加と、重複チェックの仕様節を追加 |
-| 8 | `.claude/docs/ddr/0031-...md` | 判断方針（キーワード抽出をAI側に置く／closedを含める／最終判断は人間）と却下案を記録 |
+| 8 | `.claude/docs/ddr/0033-...md` | 判断方針（キーワード抽出をAI側に置く／closedを含める／最終判断は人間）と却下案を記録 |
 
 ## issue #59 / #64 との重なり（着手時に確認する）
 

@@ -23,8 +23,11 @@ keywords: [ディレクトリ構成, claude, gemini, 配置方針, plans, worklo
 │   ├── skills/                 # `/issue-mr-flow`（唯一の実装フロー定義）等のスキル定義
 │   ├── agents/                 # サブエージェント定義（issue-mr-flow途中引き継ぎ等）
 │   ├── scripts/                # AIエージェントが`.claude/skills/*`経由で能動的に実行するスクリプト一式
-│   │   └── src/
-│   │       └── vcs/            # GitHub/GitLabの差異を吸収するVCS抽象化層（Provider.sh）
+│   │   ├── src/
+│   │   │   └── vcs/            # GitHub/GitLabの差異を吸収するVCS抽象化層（Provider.sh）
+│   │   └── test/               # 副作用の無い純粋ロジックの単体テスト（`test_<対象>.sh`）。
+│   │                            #   `passed=N failures=N`を出力し失敗時は終了コード1
+│   │                            #   （詳細: `.claude/rules/shell-script-style.md`「テスト」）
 │   ├── hooks/                  # SessionStart/PostToolUse等のClaude Code hookスクリプト
 │   │   └── lib/                # 複数hookスクリプトで使い回す共通ロジック
 │   └── settings.json
@@ -42,9 +45,6 @@ keywords: [ディレクトリ構成, claude, gemini, 配置方針, plans, worklo
 │                                #   新規生成しそのままコミットして履歴として残す
 ├── worklog/                    # 実装中の詳細な試行錯誤ログ（`日付_<全体計画名>_<個別計画名>_push<N>.md`）
 │   └── TEMPLATE.md             # worklog作成時にコピーして使うテンプレート
-├── tests/                      # 副作用の無い純粋ロジックの単体テスト（`test_<対象>.sh`）。
-│                                #   `passed=N failures=N`を出力し失敗時は終了コード1
-│                                #   （詳細: `.claude/rules/shell-script-style.md`「テスト」）
 ├── .gitignore
 ├── .mrworkflow.json            # リポジトリ固有設定（ブランチ命名規則・plans/等の場所）
 ├── AGENTS.md                   # AIエージェント共通ルール・プロジェクト概要・開発実行方法
@@ -79,7 +79,8 @@ keywords: [ディレクトリ構成, claude, gemini, 配置方針, plans, worklo
 - 開発フロー全体（issue起票〜マージ）は `.claude/skills/issue-mr-flow/SKILL.md`
   （唯一の実装フロー定義）に従う。詳細は `AGENTS.md` を参照。
 - **AIエージェントが`.claude/skills/*`経由で能動的に実行するスクリプト**は `.claude/scripts/`
-  配下に置く。`.claude/scripts/src/` にスクリプト本体、`.claude/scripts/docs/` ではなく
+  配下に置く。`.claude/scripts/src/` にスクリプト本体、`.claude/scripts/test/` に
+  その単体テスト、`.claude/scripts/docs/` ではなく
   `.claude/docs/` に関連ドキュメント（`spec/`・`ddr/`）を置く（このリポジトリは移植元と異なり
   アプリ本体を持たないため、`dev-tools/` 等の人間専用ツール置き場との分離は行っていない。将来
   アプリ本体を追加する場合は、そのアプリ専用の `docs/spec/` `docs/ddr/`（または人間専用ツール用の

@@ -162,7 +162,7 @@ split_remote_url() {
 }
 
 # remote URLからホスト部分を取り出し、プロバイダ名（github / gitlab）を返す純粋関数。
-# 外部コマンド呼び出しを伴わないため tests/test_vcs_provider.sh から単体テストできる
+# 外部コマンド呼び出しを伴わないため .claude/scripts/test/test_vcs_provider.sh から単体テストできる
 # （.claude/rules/shell-script-style.md「テスト」）。
 # ホスト部の切り出しそのものは `split_remote_url` に委譲する（issue #55。`parse_repo_slug` と
 # 同じ規則が二重に書かれていた状態を解消したもの）。関数呼び出しであってコマンド置換ではない
@@ -329,7 +329,7 @@ SEARCH_ISSUES_MAX_KEYWORDS=5
 
 # 複数回の検索結果（正規化済みJSON配列）を1つの配列へまとめる純粋関数。
 # `number` で重複排除し、番号の降順（新しいissueが先）に並べる。
-# 外部の `gh`/`glab` を呼ばないため tests/test_vcs_provider.sh から単体テストできる。
+# 外部の `gh`/`glab` を呼ばないため .claude/scripts/test/test_vcs_provider.sh から単体テストできる。
 #
 # JSONは引数ではなく**標準入力経由で**jqへ渡す。検索結果の件数・本文長は呼び出し側で保証できず、
 # `--argjson` で渡すとコマンドライン長の上限に達して `jq: Argument list too long` で起動自体が
@@ -354,7 +354,7 @@ merge_issue_search_results() {
 # - キーワードの抽出そのものは**呼び出し側（AIエージェント）の責務**であり、この層では行わない。
 #   日本語主体のissueから意味のある語を選ぶには形態素解析が要り、bashの文字種判定では
 #   代替できないため（詳細・却下案:
-#   .claude/docs/ddr/0031-issue起票前の重複チェックは検索をProvider層へ置きキーワード抽出はAIに委ねる.md）。
+#   .claude/docs/ddr/0033-issue起票前の重複チェックは検索をProvider層へ置きキーワード抽出はAIに委ねる.md）。
 search_issues() {
   require_vcs_cli search_issues || return 1
   if [ $# -eq 0 ]; then

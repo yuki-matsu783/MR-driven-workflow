@@ -1,12 +1,12 @@
 ---
-title: 0031. issue起票前の重複チェックは検索をProvider層へ置きキーワード抽出はAIに委ねる
+title: 0033. issue起票前の重複チェックは検索をProvider層へ置きキーワード抽出はAIに委ねる
 type: ddr
 description: issue起票前の類似issueチェックを実装するにあたり、bashでのキーワード抽出・AND検索1回・自動中止の各案を却下し、検索と正規化のみをProvider.shへ置いてキーワード抽出と最終判断を人間側（AI・ユーザー）に残した判断を記録したDDR
 tags: [issue-create, vcs-provider, ddr, duplicate-check]
 keywords: [search_issues, キーワード抽出, 形態素解析, ロケール依存, AND検索, closed, 再現率, 最終判断は人間]
 ---
 
-# 0031. issue起票前の重複チェックは検索をProvider層へ置きキーワード抽出はAIに委ねる
+# 0033. issue起票前の重複チェックは検索をProvider層へ置きキーワード抽出はAIに委ねる
 
 ## 背景
 
