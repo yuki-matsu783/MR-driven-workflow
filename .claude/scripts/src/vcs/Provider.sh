@@ -107,7 +107,7 @@ build_issue_body() {
 }
 
 # remote URLからホスト部分を取り出し、プロバイダ名（github / gitlab）を返す純粋関数。
-# 外部コマンド呼び出しを伴わないため tests/test_vcs_provider.sh から単体テストできる
+# 外部コマンド呼び出しを伴わないため .claude/scripts/test/test_vcs_provider.sh から単体テストできる
 # （.claude/rules/shell-script-style.md「テスト」）。
 #
 # 判定規則: ホスト名に `github` を含めばGitHub、それ以外はGitLabとみなす。本ワークフローが

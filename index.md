@@ -26,6 +26,8 @@ keywords: [directory, repository-map, リポジトリマップ, ディレクト�
   - [./.claude/scripts/](./.claude/scripts/) AIエージェントが`.claude/skills/*`経由で能動的に実行するスクリプト一式。
     - [./.claude/scripts/src/](./.claude/scripts/src/) issue駆動MRワークフロー支援スクリプト等（bash）。
       - [./.claude/scripts/src/vcs/](./.claude/scripts/src/vcs/) GitHub/GitLabの差異を吸収するVCS抽象化層（`Provider.sh`）。
+    - [./.claude/scripts/test/](./.claude/scripts/test/) 副作用の無い純粋ロジックの単体テスト（`test_<対象>.sh`）。
+      `passed=N failures=N`を出力し失敗時は終了コード1。
   - [./.claude/hooks/](./.claude/hooks/) SessionStart/PostToolUse等のClaude Code hookスクリプト。
     - [./.claude/hooks/lib/](./.claude/hooks/lib/) 複数hookスクリプトで使い回す共通ロジック。
 - [./.gemini/](./.gemini/) Gemini CLI向け設定。`settings.json`のみGit管理。`docs/`・`hooks/`・
