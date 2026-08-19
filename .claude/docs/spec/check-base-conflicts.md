@@ -3,7 +3,7 @@ title: defaultブランチとのコンフリクト検知（check-base-conflicts.
 type: spec
 description: マージ依頼前にdefaultブランチとのコンフリクト有無を作業ツリーを変更せずに判定するスクリプトの仕様。テキストコンフリクトに加え、gitが検知できないDDR番号の重複も調べる
 tags: [conflict, script, workflow, spec]
-keywords: [check-base-conflicts, merge-tree, DDR番号, semantic conflict, defaultブランチ, hasConflict, resolve-conflict, flow-id-5-2, 追従監視]
+keywords: [check-base-conflicts, merge-tree, DDR番号, semantic conflict, defaultブランチ, hasConflict, resolve-conflict, flow-id-5-2, 追従監視, check-base-sync, 判定軸]
 ---
 
 # defaultブランチとのコンフリクト検知（check-base-conflicts.sh）
@@ -139,6 +139,26 @@ git -c core.quotepath=false merge-tree --write-tree --name-only --no-messages <h
 |---|---|
 | （本スクリプト） | 変更なし。監視から繰り返し呼ばれる用途に既存の設計がそのまま使えることを確認した |
 | `.claude/docs/spec/check-base-conflicts.md` | 本ファイル。「未決定事項・懸念点」のhookに関する記述を、監視での繰り返し実行と整合する形へ更新し、本エントリを追加 |
+
+### issue #67（判定軸の違うスクリプトの並存）
+
+| ファイル | 変更内容 |
+|---|---|
+| （本スクリプト） | **変更なし。** 「衝突するか」という判定軸も、fetchの失敗を `git fetch origin "$base" >/dev/null 2>&1 \|\| true` で握りつぶす扱いも維持する |
+| `.claude/docs/spec/check-base-conflicts.md` | 本ファイル。本エントリと、下記の相互参照を追加 |
+
+**「衝突しないこと」と「最新であること」は別である。** 本スクリプトの `hasConflict` が偽でも、
+ベースブランチ側でルール・仕様**だけ**が追記された場合は衝突もDDR番号の重複も起きないため、
+作業ブランチが遅れている事実は検知できない。この空白は、作業の開始・再開時に「遅れているか」
+（behindコミット数）を見る `check-base-sync.sh`（`.claude/docs/spec/check-base-sync.md`）が
+埋める。**本スクリプトの結果だけを見て「最新である」と判断しないこと。**
+
+**本スクリプトが fetch の失敗を `|| true` で握りつぶしているのは意図的であり、バグではない。**
+本スクリプトによるコンフリクト検知は flow-id 5-2 で必ずもう一度通るため、fetch漏れによる
+取りこぼしは後段で拾われる。一方 `check-base-sync.sh` は検知そのものが目的で後段に同じ検知が
+無いため、あちらだけは終了コードを `fetchOk` としてJSONへ出している（差を付けた理由の詳細:
+`.claude/docs/ddr/0050-作業開始時のベースブランチ追従確認は専用スクリプトで検知しユーザー確認を挟む.md`）。
+**どちらかへ揃えようとする前に、このDDRを読むこと。**
 
 ## 未決定事項・懸念点
 

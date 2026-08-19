@@ -392,13 +392,21 @@ resumeを省略してしまう事故が発生した）。そのため発動条�
 4. PR/MRがあれば `get_mr_unresolved_comments <n> true` で全件取得し、未解決件数を集計する。
 5. `get_branch_work_files` で、このブランチ固有の `plans/` `worklog/` `reports/` ファイルを列挙する
    （`<defaultBaseBranch>` との差分から求めるため、削除済み＝設計反映済みの判別にも使える）。
-6. `HANDOFF.md` の内容を読む。
-7. 1〜6を「現在地サマリ」としてまとめ、呼び出し元（メインのAIエージェント）に返す。**HANDOFF.mdの
+6. `check-base-sync.sh` で**ベースブランチとの差分**（behindコミット数・未取り込みの変更ファイル）を
+   取得する（issue #67。このスクリプトは `git fetch` を行うが、リモート追跡参照を更新するだけで
+   作業ツリー・ローカルブランチ・コミット履歴を変更しないため「読み取り専用」の規定に反しない。
+   **非0で終了した場合は「判定できなかった」として報告し、「追従済み」とは書かない**）。
+7. `HANDOFF.md` の内容を読む。
+8. 1〜7を「現在地サマリ」としてまとめ、呼び出し元（メインのAIエージェント）に返す。**HANDOFF.mdの
    記述と実際の状態（PR有無・未解決コメント件数等）に矛盾があれば、それも指摘する**
    （例: HANDOFF.mdは「PR未作成」と書いてあるが実際はPRが存在する、等）。
 
 呼び出し元は、このサマリをもとに全体フロー（5フェーズ・41ステップ）のうちどこから再開すべきかを判断し、
-人間に提案する（この判断自体はサブエージェントの役割ではなく、呼び出し元が行う）。
+人間に提案する（この判断自体はサブエージェントの役割ではなく、呼び出し元が行う）。**ベースブランチが
+遅れていた場合に取り込みの可否を `AskUserQuestion` で確認するのも呼び出し元の役割であり、
+サブエージェントは検知結果を報告するだけである**（issue #67。手順は
+`.claude/skills/issue-mr-flow/SKILL.md`「作業開始・再開時のベースブランチ追従確認」節が正。
+**呼び出し元はこのサマリの値を使い、`check-base-sync.sh` を再実行しない**）。
 
 `comments` / `describe` サブコマンドの「現在のブランチに紐づくMR番号を取得する」手順は、
 重複実装を避けるため `get_mr_for_branch` に統一する。
@@ -2447,7 +2455,8 @@ MRの差分が影響する他のissueへ、マージ前に通知を残せるよ�
 
 新規:
 - `.claude/scripts/src/check-base-sync.sh`（作業ツリーを変更せず behind・未取り込みファイルを判定）
-- `.claude/scripts/test/test_check_base_sync.sh`（純粋関数の単体テスト29件。`passed=29 failures=0`）
+- `.claude/scripts/test/test_check_base_sync.sh`（純粋関数の単体テストと、使い捨てgitリポジトリに対する
+  `main` の結合テスト。`passed=55 failures=0`）
 - `.claude/docs/spec/check-base-sync.md`
 - `.claude/docs/ddr/0050-作業開始時のベースブランチ追従確認は専用スクリプトで検知しユーザー確認を挟む.md`
 
@@ -2459,7 +2468,11 @@ MRの差分が影響する他のissueへ、マージ前に通知を残せるよ�
   繰り下げ。現在地サマリへ `- ベースブランチとの差分:` を追加。`description` にも項目を追記）
 - `.claude/rules/git-workflow.md`（追従確認の入口と、rebaseを使わない方針）
 - `.claude/docs/README.md`（spec一覧に `check-base-sync.md`、DDR一覧に0050を追加）
-- `.claude/docs/spec/issue-mr-workflow.md`（本項）
+- `.claude/docs/spec/check-base-conflicts.md`（判定軸の違う `check-base-sync.sh` が並存することと、
+  あちらの `git fetch ... || true` を意図的に維持することを相互参照として追記）
+- `.claude/skills/apply-mr-workflow-to-project/SKILL.md`（導入先向けのコアスクリプト一覧へ追加）
+- `.claude/docs/spec/issue-mr-workflow.md`（本項と、「途中引き継ぎ対応（resume）」節の手順一覧。
+  同節は現在の状態を説明する記述であり point-in-time の記録ではないため更新する）
 
 判定軸の違い: flow-id 5-2（issue #46）とPR作成後の追従監視（issue #88）はどちらも「衝突するか」を見るが、
 本対応は「遅れているか」を見る。ベースブランチ側でルール・仕様だけが追記された場合、前者は検知できない。

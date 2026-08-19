@@ -26,16 +26,15 @@ featureブランチで作業を開始・再開する時点で、ベースブラ�
 このリポジトリには既にdefaultブランチとの関係を見る機構が2つあるが、**どちらも判定軸が
 `hasConflict`** であり、本スクリプトが埋める空白とは別のものを見ている。
 
-| | 本スクリプト（issue #67） | PR作成後の追従監視（issue #88） | flow-id 5-2（issue #46） |
-|---|---|---|---|
-| いつ | **作業を開始・再開する時点** | PR作成〜マージの間、随時 | マージ依頼の直前（最終ゲート） |
-| 判定軸 | **遅れているか**（behindコミット数） | 衝突するか | 同左 |
-| 検知手段 | `check-base-sync.sh` | `check-base-conflicts.sh` | 同左 |
-| 遅れているが衝突しない状態 | **検知する** | 見逃す | 見逃す |
+PR作成後の追従監視（issue #88）と flow-id 5-2（issue #46）はどちらも `check-base-conflicts.sh` で
+`hasConflict` を見る。ベースブランチ側でルール・仕様**だけ**が追記された場合、テキスト
+コンフリクトもDDR番号の重複も起きないため両者の `hasConflict` は偽のままだが、作業ブランチは
+その追記を知らないまま実装・レビューを進めることになる。**3つは代替関係ではなく補完関係**である。
 
-ベースブランチ側でルール・仕様**だけ**が追記された場合、テキストコンフリクトもDDR番号の重複も
-起きないため既存2機構の `hasConflict` は偽のままだが、作業ブランチはその追記を知らないまま
-実装・レビューを進めることになる。**3つは代替関係ではなく補完関係**である。
+3機構の対比表（いつ・判定軸・検知手段）は
+`.claude/skills/issue-mr-flow/SKILL.md`「作業開始・再開時のベースブランチ追従確認」節の
+「既存2機構との役割の違い」が正であり、ここへは再掲しない（同じ表を2箇所で管理すると片方が
+古くなる。`.claude/REVIEW-POINTS.md`）。
 
 ## 仕様
 
@@ -91,6 +90,21 @@ bash .claude/scripts/src/check-base-sync.sh [--base <branch>] [--head <ref>] [--
 のみ非0。呼び出し側が `set -e` 配下でも、遅れの存在によってスクリプト全体が止まらないようにする
 ため（`check-base-conflicts.sh` と同じ）。
 
+非0になる代表ケースは次のとおり。
+
+| 状況 | 終了コード | 出力 |
+|---|---|---|
+| `--base` / `--head` に値が無い、または空文字列 | 1 | `--base には値が必要です`（stderr） |
+| 不明な引数 | 1 | `不明な引数です: <引数>`（stderr） |
+| `origin/<base>` が解決できない | 1 | 復旧コマンド（refspec形の `git fetch`）入りのメッセージ（stderr） |
+| `--head` に存在しないrefを渡した | 128 | `git rev-parse` の生の fatal（**このスクリプトは `--head` を検証していない**） |
+| `rev-list --left-right --count` の出力を解釈できない | 1 | 解釈できなかった文字列を添えたメッセージ（stderr） |
+
+**非0で終了した場合、呼び出し側は「判定できなかった」として扱い、`isBehind` を偽（＝追従済み）
+として扱わない。** JSONが1つも返らないため、`fetchOk` 等による識別もできない。読み取り専用の
+`issue-mr-resume` サブエージェントは、この場合に `behind` を報告せず「判定できなかった
+（<stderrの1行目>）」として報告する（`.claude/agents/issue-mr-resume.md` 手順7）。
+
 ### 判定順序（入れ替えない）
 
 1. 引数と `.mrworkflow.json` から `base` を決める。
@@ -129,13 +143,16 @@ bash .claude/scripts/src/check-base-sync.sh [--base <branch>] [--head <ref>] [--
 
 ### 判定が信頼できないことを示す3つのキー
 
-`isBehind` が `false` でも「追従済み」と断定できない状況が3つある。呼び出し側が識別できるよう、
-すべてJSONへ出す。
+`isBehind` が `false` でも「追従済み」と断定できない状況がある。呼び出し側が識別できるよう、
+すべてJSONへ出す。**この表は各キーの意味（何を表しているか）の正であり、遭遇したときに何をするか
+（ユーザーへどう伝え、取り込みを提案するか）は `.claude/skills/issue-mr-flow/SKILL.md`
+「作業開始・再開時のベースブランチ追従確認」節が正**である。同じ判断を2箇所で管理しないための
+切り分けであり、片方だけを読んで運用しない。
 
 | キー | 値 | 意味と対応 |
 |---|---|---|
 | `fetchOk` | `false` | fetchに失敗している（ネットワーク・認証・リモート名不一致）。古いリモート追跡参照を見ているため `behind` を過小評価しうる。`null` は `--no-fetch` で試していないことを表す |
-| `isShallow` | `true` | shallow clone。merge-base が取得済みの深さの外にあると、遅れているのに `behind` が0と出うる。`git fetch --unshallow origin` してから再実行する |
+| `isShallow` | `true` | shallow clone。merge-base が取得済みの深さの外にあると、遅れているのに `behind` が0と出うる。ただし **Claude Code on the web のリモート実行環境では常に真**であり（実測。`hasCommonHistory: true` かつ `behind` は正しい値が出る）、**単体では判定の不確かさを示さない**。`hasCommonHistory` が偽のとき、または `mergeBase` が `.git/shallow` に列挙されたSHAと一致するときに限り深さ不足を疑い、`git fetch --unshallow origin` してから再実行する |
 | `hasCommonHistory` | `false` | merge-base が無い。`changedFiles` は空になり `behind` も参考値でしかない |
 
 **`fetchOk` を持つのは本スクリプトだけで、`check-base-conflicts.sh` は fetch の失敗を
@@ -151,10 +168,15 @@ bash .claude/scripts/src/check-base-sync.sh [--base <branch>] [--head <ref>] [--
 | ファイル | 変更 |
 |---|---|
 | `.claude/scripts/src/check-base-sync.sh` | 新規 |
-| `.claude/scripts/test/test_check_base_sync.sh` | 新規（純粋関数の単体テスト29件） |
+| `.claude/scripts/test/test_check_base_sync.sh` | 新規（純粋関数の単体テストと、使い捨てgitリポジトリに対する `main` の結合テスト。`passed=55 failures=0`） |
 | `.claude/skills/issue-mr-flow/SKILL.md` | 「作業開始・再開時のベースブランチ追従確認」節を新設。`start`（既存ブランチ検出時）・`resume`・`sync` から参照。**flow-idは増やしていない**（DDR 0039 と同じ扱い） |
 | `.claude/agents/issue-mr-resume.md` | 手順7を新設（旧7・8は8・9へ）。現在地サマリへ `- ベースブランチとの差分:` を追加 |
-| `.claude/rules/git-workflow.md` | 追従確認の入口と、rebaseを使わない方針を追記 |
+| `.claude/rules/git-workflow.md` | 追従確認の入口と、rebaseを使わない方針を追記（frontmatterの `description`・`keywords` にも語を追加。DDR 0049 の探索経路で引けるようにするため） |
+| `.claude/docs/spec/issue-mr-workflow.md` | 「途中引き継ぎ対応（resume）」節の手順一覧へ追加（現在の状態を説明する節であり point-in-time の記録ではないため更新する）と、影響範囲エントリ |
+| `.claude/docs/spec/check-base-conflicts.md` | 判定軸の違う本スクリプトが並存すること・あちらの `git fetch ... \|\| true` を意図的に維持することを相互参照として追記 |
+| `.claude/docs/README.md` | spec一覧へ本ファイル、DDR一覧へ 0050 |
+| `.claude/skills/apply-mr-workflow-to-project/SKILL.md` | 導入先向けのコアスクリプト一覧へ追加 |
+| `.claude/docs/spec/check-base-sync.md` | 本ファイル（新規） |
 
 `Provider.sh` は変更していない。判定軸の違う機能を低レベル関数へ混ぜず、
 `check-base-conflicts.sh` と並ぶ独立したスクリプトとして切り出した（DDR 0050）。
@@ -164,6 +186,8 @@ bash .claude/scripts/src/check-base-sync.sh [--base <branch>] [--head <ref>] [--
 - **遅れがあった場合に取り込むかどうかは `AskUserQuestion` でユーザーへ確認する。AIエージェントが
   無断でマージ・リベースしない。** 選択肢と手順は `.claude/skills/issue-mr-flow/SKILL.md`
   「作業開始・再開時のベースブランチ追従確認」節が正。
+- **本スクリプトが非0で終了した場合は「判定できなかった」として扱い、追従済みとして扱わない**
+  （上記「終了コード」節）。JSONが返らないため `fetchOk` 等での識別もできない。
 - `issue-mr-resume` サブエージェントは**検知結果の報告のみ**を行い、確認も取り込みも行わない。
   同エージェントが `git fetch` を伴う本スクリプトを実行することは「読み取り専用」の規定に反しない
   （`git fetch` はリモート追跡参照を更新するだけで、作業ツリー・ローカルブランチ・コミット履歴を
