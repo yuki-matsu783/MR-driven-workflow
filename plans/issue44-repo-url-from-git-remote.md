@@ -3,7 +3,7 @@ title: 【全体作業計画】get_repo_urlをgh/glab呼び出しからgit remot
 type: log
 description: issue #44の全体作業計画。get_repo_urlのプロバイダ依存を解消し、git remoteの正規化だけでリポジトリURLを導出する方針と進め方
 tags: [plan, vcs-provider, url]
-keywords: [issue44, get_repo_url, repo_url_from_remote_url, git remote, プロバイダ非依存, DDR 0035, 単体テスト]
+keywords: [issue44, get_repo_url, repo_url_from_remote_url, git remote, プロバイダ非依存, DDR 0036, 単体テスト]
 ---
 
 # 【全体作業計画】issue #44: get_repo_urlをgit remote由来の導出へ置き換える
@@ -40,7 +40,7 @@ keywords: [issue44, get_repo_url, repo_url_from_remote_url, git remote, プロ�
 | 1（起票・準備） | 実施 | issueは起票済み。ブランチはセッション指定のものを使う。PRは指示があるまで作成しない |
 | 2（調査） | **省略** | 調査の結論はissue本文の「現状」に既に書かれている（両CLIの戻り値の一致、gitで解決できる差分が他に無いこと、DDR 0023との関係）。改めて調査すべき未知が無い |
 | 3（実装・テスト） | 実施 | `repo_url_from_remote_url` の実装、旧関数の削除、単体テストの追加 |
-| 4（設計反映） | 実施 | spec「提供関数」表・新節、DDR 0035、`.claude/docs/README.md` のDDR一覧 |
+| 4（設計反映） | 実施 | spec「提供関数」表・新節、DDR 0036、`.claude/docs/README.md` のDDR一覧 |
 | 5（片付け・マージ） | 一部 | `plans/` `worklog/` の削除・Draft解除・マージは人間の判断を要するため本セッションでは行わない |
 
 ## 受け入れ条件（issue #44）との対応
@@ -51,7 +51,7 @@ keywords: [issue44, get_repo_url, repo_url_from_remote_url, git remote, プロ�
 | 本リポジトリで戻り値が `gh repo view --json url --jq '.url'` の出力と一致する | フェーズ3（実行環境に`gh`が無いため、issue本文に記録された実測値との一致で確認する） |
 | 単体テストを追加し `passed=N failures=0` で通る | フェーズ3（`.claude/scripts/test/test_vcs_provider.sh`。issue本文の `tests/` はissue #63以前のパスで、現在の正しい配置は `.claude/scripts/test/`） |
 | `post-push-compact-prompt.sh` が従来どおり参照リンクを組み立てられる | フェーズ3（hookへ疑似ペイロードを与えた実行で確認） |
-| リスクケース（`insteadOf`・カスタムポート・リポジトリ名変更）の扱いを spec または DDR に明記 | フェーズ4（specの新節とDDR 0035の両方に記載） |
+| リスクケース（`insteadOf`・カスタムポート・リポジトリ名変更）の扱いを spec または DDR に明記 | フェーズ4（specの新節とDDR 0036の両方に記載） |
 
 ## 未決定事項
 

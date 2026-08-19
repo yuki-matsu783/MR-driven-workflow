@@ -36,7 +36,7 @@
 # `.claude/docs/ddr/0023-...md`参照）。`get_repo_url` 自体は当初 `gh repo view` / `glab repo view`
 # を呼んでいたが、issue #44で `git remote get-url origin` の正規化（プロバイダ非依存）へ置き換えた。
 # これにより、pushのたびに走る本hookから外部CLIの起動とAPI往復が1回ずつ無くなっている
-# （詳細: `.claude/docs/ddr/0035-...md`）。
+# （詳細: `.claude/docs/ddr/0036-...md`）。
 #
 # 注意（エラー方針）: 本体処理は `main` 関数にまとめ、`( main )` のように実サブシェル（丸括弧）の
 # 中で呼ぶことで、内部で失敗したコマンドの時点で確実にサブシェルごと終了させる（bashの

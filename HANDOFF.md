@@ -12,6 +12,11 @@ keywords: [フロー進捗, worklog, 引き継ぎ, plan, レビュー]
 AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現状」を表現する
 -->
 
+- issue: #41 PR/MR作成はAIエージェントが実施してよいものとし、マージのみ明示指示必須に統一する
+- ブランチ: claude/ai-agent-pr-mr-creation-52ve10
+- PR: #82 (Draft) https://github.com/yuki-matsu783/MR-driven-workflow/pull/82
+- push回数: 2
+
 ## フロー進捗状況
 
 - issue: #44 get_repo_urlをgh/glab呼び出しからgit remote由来の導出へ置き換える
@@ -115,8 +120,13 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 
 ## 未解決の内容
 
-（無し）
+- `.claude/rules/git-workflow.md` に書いた3ステップのうち、**ステップ2（`AskUserQuestion` で
+  1回だけ確認する）だけは実機で通していない**。本セッションでは確認を出せる状態になかったため
+  ステップ3（作らずに明示）へ落ち、その後ユーザーの明示指示でPRを作成した。対話可能な
+  Claude Code on the web セッションで flow-id 1-3 を通した際に確認したい。
 
 ## 守るべき条件・触ってはいけない範囲
 
-（無し）
+- **マージを実行しない**（flow-id 5-4）。本タスクは方針の文書化であり、マージ権限の行使ではない。
+- DDR本文は不変。spec `## 影響範囲` の過去エントリ（issue #51・#64 等）を書き換えない。
+- DDR番号は **0035** を使う（main側の最大が0034であることを確認済み。マージ前に再確認すること）。

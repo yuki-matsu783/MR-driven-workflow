@@ -1,12 +1,12 @@
 ---
-title: 0035. リポジトリURLはgh/glabではなくgit remoteから導出する
+title: 0036. リポジトリURLはgh/glabではなくgit remoteから導出する
 type: ddr
 description: get_repo_urlのプロバイダ依存を解消するにあたり、gh/glabの呼び出しを残す案・両者を突き合わせる案・設定ファイルへ持つ案を却下し、git remote get-url originの正規化だけで導出する方式を採用した判断を記録したDDR
 tags: [vcs-provider, url, hook, ddr]
 keywords: [get_repo_url, repo_url_from_remote_url, git remote, プロバイダ非依存, insteadOf, カスタムポート, scp形式, プロセス起動, DDR 0023]
 ---
 
-# 0035. リポジトリURLはgh/glabではなくgit remoteから導出する
+# 0036. リポジトリURLはgh/glabではなくgit remoteから導出する
 
 ## 背景
 
