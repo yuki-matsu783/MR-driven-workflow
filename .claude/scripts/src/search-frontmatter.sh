@@ -301,16 +301,23 @@ main() {
   # 2. index.jsonl を列挙する。`find` はGit管理の有無を見ないため、index.jsonl が
   #    Git管理下にある場合（issue #36以前）と .gitignore 対象の生成物である場合の双方で動く
   #    （`git ls-files` を使うと後者で1件も拾えない）。
-  #    パスにNULを含めないため -print0 で受け、`$(...)` では受けない
+  #
+  #    受け口はコマンド置換ではなくプロセス置換にする。`$(...)` はNULを保持できず警告だけ出して
+  #    捨てるため、この種の列挙をコマンド置換で受けてはいけない
   #    （.claude/rules/shell-script-style.md「コマンド置換とNULバイト」）。
+  #    ここでは `-print0` ではなく `-print`（改行区切り）を使う。`git ls-files` と違い `find` は
+  #    パスをクォート・8進エスケープしないため `-print0` の利点は「改行を含むパスを区別できる」
+  #    ことだけだが、その区別は結局 `read -r` の行単位受けで失われる（`-print0 | tr '\0' '\n'`
+  #    と書いても同じで、NUL指定が打ち消されるうえ `tr` の分だけforkが増える）。
+  #    **ディレクトリ名に改行を含むリポジトリは対象外**という前提を明示して単純な形を採る
+  #    （その場合はjqが開けないパスとして失敗するため、無言で誤った結果にはならない）。
   local path
   while IFS= read -r path; do
     index_files+=("$path")
   done < <(
     find "$target_dir" \
       \( -name .git -o -name node_modules -o -name .gemini \) -prune -o \
-      -name index.jsonl -print0 |
-      tr '\0' '\n' |
+      -name index.jsonl -print |
       sf_filter_index_paths
   )
 
