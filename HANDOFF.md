@@ -16,7 +16,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 
 - issue: #39 issue起票後にissue-mr-flowへ進む際は必ず人間の確認を挟む
 - ブランチ: claude/issue-mr-human-review-xasr3s
-- PR: 未作成（ユーザーからの明示指示があるまで作成しない）
+- PR: #81 https://github.com/yuki-matsu783/MR-driven-workflow/pull/81（レビュー可能・Draftではない）
 - push回数: 2
 
 進捗記号: `[x]` 完了 / `[]` 未着手・進行中 / `[-]` 今回は実施しない（スキップ）
@@ -25,7 +25,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 |----|---|---|---|
 | [x] | 1-1 | issueを起票する。issue #39 として起票済み | 人間（AIが代行する場合は `issue-create` スキル） |
 | [x] | 1-2 | issueの内容を取得する。`gh` CLI不在のため `mcp__github__search_issues` / `issue_read` 相当のMCP経路で取得（4見出しすべて揃っている） | `start <issue番号>` |
-| [x] | 1-3 | featureブランチを作成する。ブランチはハーネス指定の `claude/issue-mr-human-review-xasr3s`（`feature-<issue番号>-<slug>` 命名規則の対象外）。Draft PRは未作成（ユーザーの明示指示があるまで作成しない方針） | `start` |
+| [x] | 1-3 | featureブランチを作成する。ブランチはハーネス指定の `claude/issue-mr-human-review-xasr3s`（`feature-<issue番号>-<slug>` 命名規則の対象外）。PRはユーザーの明示指示を受けて実装完了後に作成（PR #81。チャットでレビュー合意済みのためDraftではなくレビュー可能な状態で作成した） | `start` |
 | [-] | 1-4 | **Planモードで「全体作業計画」を作成する**（非対話的なリモート実行セッションでPlanモードでの合意が取れないため省略し、issue #39の「期待する動作」「受け入れ条件」を計画として扱った） | エージェント |
 | [-] | 1-5 | 全体作業計画に合意する（1-4を省略のため対象外） | 人間 |
 | [x] | 1-6 | HANDOFF.mdを更新する | エージェント |
@@ -96,7 +96,7 @@ issue #39の受け入れ条件4件すべてに対応した。
 
 ## 次にやること
 
-- ユーザーによるPRのレビューとマージ（squash merge、flow-id 5-4）。
+- ユーザーによるPR #81 のレビューとマージ（squash merge、flow-id 5-4）。
 - マージ後、flow-id 5-1（`plans/` `worklog/` の削除・`HANDOFF.md` のリセット）。
 
 ## 判断を迷った内容
