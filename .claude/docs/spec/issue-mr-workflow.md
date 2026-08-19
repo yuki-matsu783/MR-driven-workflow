@@ -118,10 +118,32 @@ MRとのやり取りだけを自動化する薄い層」として設計したが
 後者にあたる。`gitlab_get_mr_unresolved_comments` は `glab api` 呼び出しとこの関数の薄いラッパーで、
 外部コマンドを呼ばない整形ロジックだけを切り離すことで `tests/test_vcs_provider.sh` から
 単体テストできるようにしている（`.claude/rules/shell-script-style.md`「テスト」）。
-issue #45で追加した `provider_from_remote_url`（remote URL文字列からホスト部を抽出しプロバイダ名を
-返す純粋関数）も同じ位置づけで、`Provider.sh` 内にあるが上表には載らない。`get_provider` が
+issue #45で追加した `provider_from_remote_url`（remote URL文字列からプロバイダ名を返す純粋関数）も
+同じ位置づけで、`Provider.sh` 内にあるが上表には載らない。`get_provider` が
 `git remote get-url origin` の結果をこの関数へ渡すだけの薄いラッパーになっており、切り出しの目的も
-上と同じく単体テスト可能にすることである。
+上と同じく単体テスト可能にすることである。ホスト部の抽出そのものは、issue #55以降は次の
+`split_remote_url` へ委譲している。
+
+issue #55で追加した `split_remote_url <remoteUrl>` も同じく上表に載らない内部ヘルパーで、remote URLを
+**ホスト部とパス部へ分解する**パラメータ展開のみの純粋関数である。`provider_from_remote_url`
+（ホスト部のみ使用）と `parse_repo_slug`（両方を使用）が、共通の土台としてこれを呼ぶ。それ以前は
+scheme除去・認証情報（`user@`）除去・ポート除去・scp形式（`git@host:path`）対応という同じ規則が、
+前者ではパラメータ展開・後者では `sed` 2回という**別々の方法で二重に実装**されており、片方だけ直すと
+もう片方とずれる状態だった（issue #34とissue #45が並行して進んだ結果生まれた重複）。
+この関数には次の2つの設計上の制約がある。
+
+- **結果を標準出力ではなくグローバル変数 `REPLY_HOST` / `REPLY_PATH` へ返す。** 標準出力にすると
+  呼び出し側がコマンド置換を強いられ、`provider_from_remote_url` の「1回あたりのプロセス起動ゼロ」
+  （DDR 0028の制約。12個のディスパッチャが `case "$(get_provider)" in` の形で呼ぶためメモ化が
+  効かない）を壊してしまう。**関数呼び出しはコマンド置換ではないため、これで起動数は増えない。**
+  返す値が2つあるため `REPLY` ではなく2変数に分けている
+  （`.claude/rules/shell-script-style.md`「ホットパスの小さなヘルパー関数は…`REPLY` へ返す」）。
+- **ホスト名が取れなくても失敗させない。** エラーとするかは呼び出し側の判断に委ねる。これにより
+  `provider_from_remote_url`（ホストが空なら終了コード1）と `parse_repo_slug`（空のままJSONを返す）
+  それぞれの従来の振る舞いを変えずに共通化できている。
+
+scp形式（`git@host:o/r.git`）とポート付きURL（`host:2222/o/r.git`）の区別は、`:` の後ろが
+**数字だけかどうか**で行う。これがパラメータ展開だけで書ける唯一の分岐点である。
 
 **`Provider.sh` 内の関数がすべて公開インターフェースとは限らない点に注意する。** 上表に載るのは
 呼び出し側（スキル・他スクリプト）が直接使う関数のみで、`provider_from_remote_url` のように
@@ -1324,6 +1346,27 @@ issueはGitHubのUIからしか作成できず、標準4見出し（目的・現
   `Provider.sh` 経由のディスパッチの項目を解消、本エントリを追加）
 - `.claude/docs/README.md`（DDR一覧に0027を追加）
 
+変更（追加分・issue #55 remote URLのホスト抽出の共通化）:
+- `.claude/scripts/src/vcs/Provider.sh`
+  - `split_remote_url` を純粋関数として新設（remote URLをホスト部・パス部へ分解し
+    `REPLY_HOST` / `REPLY_PATH` へ返す。パラメータ展開のみで、外部コマンド呼び出し・
+    コマンド置換・パイプを一切伴わない。上記「提供関数」表直後の段落を参照）
+  - `provider_from_remote_url` をホスト抽出のみ `split_remote_url` へ委譲する形へ変更。
+    判定規則（`aslead` → gitlab ／ `github` → github ／ それ以外 → gitlab の順序と結果）・
+    エラーメッセージ・終了コードはいずれも変更なし。**1回あたりのプロセス起動ゼロも維持**
+    （DDR 0028の制約。空関数をベースラインにした200回計測で、空関数80ms に対し
+    `split_remote_url` 93ms・`provider_from_remote_url` 132ms。同条件で `jq` は1回138ms）
+  - `parse_repo_slug` から `sed` 2回を除去し `split_remote_url` へ委譲。外部プロセス起動が
+    3回 → 1回（`jq` のみ）になり、実測で 415ms/回 → 105ms/回（74%削減）。
+    返すJSONのキー・構造（`{host, owner, repo, path, url}`）は変更なし。ホストを小文字化する
+    ようになった点のみ振る舞いが変わる（上記「決定済み事項」参照）
+- `tests/test_vcs_provider.sh`（`split_remote_url` の単体テストを8件追加。https形式・scp形式・
+  ポート付きssh・パスに `@` を含むURL・大文字ホスト・パス無し・ネストしたnamespace・
+  ホスト名が取れない場合を含む。**既存36件は1件も変更していない**。`passed=44 failures=0`）
+- `.claude/docs/spec/issue-mr-workflow.md`（本ファイル。「提供関数」表直後の段落へ
+  `split_remote_url` を追記し `provider_from_remote_url` の説明を新しい関係へ更新、
+  「決定済み事項」へ`parse_repo_slug`が返すホストの小文字化を追加、本エントリを追加）
+
 新規（追加分・issue #46 defaultブランチとのコンフリクト検知・解消フロー）:
 - `.claude/scripts/src/check-base-conflicts.sh`（テキストコンフリクト＋DDR番号重複の検知。
   仕様: `.claude/docs/spec/check-base-conflicts.md`）
@@ -1466,6 +1509,19 @@ issueはGitHubのUIからしか作成できず、標準4見出し（目的・現
   （GitHub/GitLabのどちらでもないリモートにも`gitlab`を返すため、旧実装の明快なエラーが出なくなる）は
   [0028-プロバイダ判定はremote-URLのホスト部でgithub以外をgitlabとみなす.md](../ddr/0028-プロバイダ判定はremote-URLのホスト部でgithub以外をgitlabとみなす.md)
   参照。
+- **（issue #55）`parse_repo_slug`が返すホストの大文字小文字**: 小文字へ正規化する。ホスト抽出を
+  `split_remote_url`へ共通化した際、`provider_from_remote_url`（元から小文字化していた）と
+  `parse_repo_slug`（入力のまま返していた）で挙動が割れていたため、**正規化する側へ揃えた**。
+  ホスト名はDNS上case-insensitiveであり、小文字化はURLの正規化として安全である。
+  これが本対応で**唯一の、外部から見た振る舞いの変更**にあたる。
+  - 具体例: `https://GitHub.COM/O/R.git` に対し `.host` が `GitHub.COM` → `github.com`、
+    `.url` が `https://GitHub.COM/O/R` → `https://github.com/O/R` へ変わる。
+  - **`.owner` / `.repo` / `.path` は小文字化しない**（上記例では `O` / `R` / `O/R` のまま）。
+    GitHub/GitLabともパス部はcase-sensitiveに扱われうるため、リポジトリ名・ネームスペース名の
+    大文字は保つ必要がある。
+  - 消費側（`.claude/hooks/session-start.sh`・`get_repo_url`）は`.owner`/`.repo`/`.url`しか
+    使わず、いずれも実リポジトリのホストは元から小文字のため実害はない。
+  - `tests/test_vcs_provider.sh`に「ホストは小文字化・パスは保つ」ケースを追加して明示的に固定した。
 
 ## 未決定事項・懸念点
 
