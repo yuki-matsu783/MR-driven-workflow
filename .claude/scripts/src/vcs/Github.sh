@@ -179,12 +179,6 @@ github_set_mr_ready() {
   gh pr ready "$mr_number" >/dev/null
 }
 
-# リポジトリの正規URL（フルパス）を取得する（issue #13フォローアップ: PRのURL文字列からの
-# 推測ではなく`gh`で取得し正確性を担保する）。
-github_get_repo_url() {
-  gh repo view --json url --jq '.url'
-}
-
 # 2つのref（ブランチ名・SHAいずれも可）間の差分を見れる「Compare changes」ページのURLを
 # 組み立てる（純粋関数。`gh`呼び出しを伴わない）。GitHubの`/compare/<from>...<to>`は
 # PR作成前から使われている汎用の比較ページであり、PR個別のサブタブ（Files changed等）より
