@@ -78,4 +78,5 @@ DDRのうち0001・0002・0008・0015は持ち込んでいない**（連番に�
 - [0033-issue起票前の重複チェックは検索をProvider層へ置きキーワード抽出はAIに委ねる.md](ddr/0033-issue起票前の重複チェックは検索をProvider層へ置きキーワード抽出はAIに委ねる.md)
 - [0034-issueの分割は並列列挙構造を主トリガーにAIが提案し人間が決定する.md](ddr/0034-issueの分割は並列列挙構造を主トリガーにAIが提案し人間が決定する.md)
 - [0035-PR_MR作成はAIエージェントに委ねマージのみ明示指示を必須にする.md](ddr/0035-PR_MR作成はAIエージェントに委ねマージのみ明示指示を必須にする.md)
-- [0036-リポジトリURLはgh_glabではなくgit-remoteから導出する.md](ddr/0036-リポジトリURLはgh_glabではなくgit-remoteから導出する.md)
+- [0036-GitLab-issueテンプレートは予約名Default.mdを正とし文書側を合わせる.md](ddr/0036-GitLab-issueテンプレートは予約名Default.mdを正とし文書側を合わせる.md)
+- [0037-リポジトリURLはgh_glabではなくgit-remoteから導出する.md](ddr/0037-リポジトリURLはgh_glabではなくgit-remoteから導出する.md)

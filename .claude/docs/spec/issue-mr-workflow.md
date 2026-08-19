@@ -27,8 +27,7 @@ MRとのやり取りだけを自動化する薄い層」として設計したが
 設計反映・PR・マージ）の**順序立ったフロー部分**を `.claude/skills/issue-mr-flow/SKILL.md` に統合し、
 そちらを**唯一の実装フロー定義**とした。今後はごく小さな変更を除くあらゆるタスクをissue起点で
 進める前提とする。`docs-workflow.md` / `git-workflow.md` はドキュメントの置き場所・ライフサイクルや
-ブランチ命名規則といった参照情報のみを残す。詳細は
-[.claude/scripts/docs/ddr/0002-issue-mr-flowへの実装フロー統合.md](../ddr/0002-issue-mr-flowへの実装フロー統合.md) 参照。
+ブランチ命名規則といった参照情報のみを残す。詳細は移植元のDDR 0002（`0002-issue-mr-flowへの実装フロー統合.md`）参照。このDDRは本テンプレートには持ち込んでいない（[.claude/docs/README.md](../README.md)「ddr（意思決定ログ）」の注記参照）。
 
 ## 仕様
 
@@ -45,7 +44,8 @@ MRとのやり取りだけを自動化する薄い層」として設計したが
 .github/ISSUE_TEMPLATE/
 └── task.md                         # GitHub用issueテンプレート（目的・現状・期待する動作・受け入れ条件）
 .gitlab/issue_templates/
-└── task.md                         # GitLab用issueテンプレート（同上）
+└── Default.md                      # GitLab用issueテンプレート（同上。GitLabが新規issueの説明へ
+                                    #   自動適用する予約名）
 .claude/scripts/src/vcs/
 ├── Provider.sh                     # git remote からGitHub/GitLabを判定し、共通関数をディスパッチ
 ├── Github.sh                       # gh CLIラッパー
@@ -173,7 +173,7 @@ issue #68で追加した3つの関数も同じく内部ヘルパーである。`
 issue起票からマージまでの詳細な手順（担当・順序）は
 [.claude/skills/issue-mr-flow/SKILL.md](../../skills/issue-mr-flow/SKILL.md)（唯一の実装フロー定義）
 に一本化した。本specとの内容重複・ドリフトを避けるため、ここでは表を持たない
-（詳細は[0002-issue-mr-flowへの実装フロー統合.md](../ddr/0002-issue-mr-flowへの実装フロー統合.md)参照）。
+（詳細は移植元のDDR 0002〈`0002-issue-mr-flowへの実装フロー統合.md`〉参照。本テンプレートには未同梱。[.claude/docs/README.md](../README.md)「ddr（意思決定ログ）」の注記参照）。
 
 `/issue-mr-flow` のサブコマンドは `start` `comments` `reply` `describe` `sync` `resume` の6つに絞り、
 設計ドキュメント作成・plan作成・実装・設計反映・AIアセット反映そのものは
@@ -983,8 +983,11 @@ issue本文の書き方を標準化し、ワークフローの起点（flow-id 1
 - **`.github/ISSUE_TEMPLATE/task.md`**: GitHubの[Issueテンプレート（Markdown形式）](https://docs.github.com/ja/communities/using-templates-to-encourage-useful-issues-and-pull-requests/manually-creating-a-single-issue-template-for-your-repository)。
   YAML front matter（`name` / `about`）＋4見出しの記入欄で構成する。GitHubのissue作成画面で
   テンプレートとして選択できる。
-- **`.gitlab/issue_templates/task.md`**: GitLabの[Description templates](https://docs.gitlab.com/user/project/description_templates/)。
-  front matter無しの同内容のMarkdown。GitLabのissue作成画面の「Choose a template」から選択できる。
+- **`.gitlab/issue_templates/Default.md`**: GitLabの[Description templates](https://docs.gitlab.com/user/project/description_templates/)。
+  front matter無しの同内容のMarkdown。GitLabのissue作成画面の「Choose a template」から選択できるほか、
+  **`Default.md` はGitLabの予約名であり、新規issueの説明欄へ自動的に適用される**（GitHub側には
+  この仕組みが無いため `task.md` のままでよい。両プロバイダで名前が異なるのは意図的である。詳細:
+  `.claude/docs/ddr/0036-GitLab-issueテンプレートは予約名Default.mdを正とし文書側を合わせる.md`）。
 - どちらもMarkdownテンプレートであり、必須項目としての強制はできない（GitHub Issue Formsの
   ような`required`指定は使わない。見出しごと削除して起票することも可能）。強制ではなく
   「標準の見出しを用意して迷わず書けるようにする」ことが目的。
@@ -1100,7 +1103,7 @@ AIは候補を提示するに留め、**重複と断定して勝手に起票を�
 - `.mrworkflow.json`（リポジトリ直下）
 - `.claude/skills/issue-mr-flow/SKILL.md`
 - `.github/ISSUE_TEMPLATE/task.md`（GitHub用issueテンプレート）
-- `.gitlab/issue_templates/task.md`（GitLab用issueテンプレート）
+- `.gitlab/issue_templates/Default.md`（GitLab用issueテンプレート）
 - `dev-tools/docs/spec/issue-mr-workflow.md`（本ドキュメント）
 
 変更:
@@ -1875,10 +1878,43 @@ DDRは新設していない（issue #13・DDR 0023で決めた「リポジトリ
 テキストフラグメント（`#:~:text=`）を採用しない判断はissue #42の起票時点で確定しており、
 ブラウザ側の機能で遅延読込・折りたたみに影響され、コメント編集で壊れることが理由。
 
+変更（issue #32 リポジトリ内の壊れている箇所4件の修正）:
+
+- **GitLab issueテンプレート名の記載を実体（`Default.md`）へ統一した**（9箇所）。`Default.md` は
+  GitLabが新規issueの説明欄へ自動適用する予約名であり、`task.md` へ改名すると起票者による
+  テンプレート選択が必須になるため、実体を正とした。GitHub側は `task.md` のままでよく、
+  **両プロバイダで名前が異なるのは意図的**である（詳細:
+  `.claude/docs/ddr/0036-GitLab-issueテンプレートは予約名Default.mdを正とし文書側を合わせる.md`）。
+  - `.claude/skills/issue-create/SKILL.md` / `.claude/skills/issue-mr-flow/SKILL.md`（2箇所）/
+    `.claude/scripts/src/vcs/Provider.sh`（コメント2箇所）/ `.claude/rules/markdown-frontmatter.md` /
+    本ドキュメント（ツリー図・「ファイル構成」節・本「影響範囲」節）
+  - 本「影響範囲」節の過去エントリ（`.gitlab/issue_templates/task.md`）も併せて訂正した。
+    通常、point-in-timeの記録として書かれた過去エントリは書き換えない運用だが、
+    `.gitlab/issue_templates/task.md` は**このリポジトリに一度も存在したことがない**
+    （`git log --diff-filter=A` で確認。初回の「輸入」コミット時点から `Default.md`）ため、
+    ファイル移動に伴うパスの追従ではなく、当初からの記載誤りの訂正にあたる。
+- **リンク切れ5件を解消した**（issue記載は2件。機械的走査で3件を追加検出）。
+  - 移植時に持ち込んでいないDDR `0002` への参照3箇所（本ドキュメント2箇所、
+    `.claude/docs/ddr/0019-...md` 本文1箇所）から、リンク記法を外して「移植元のDDR 0002。
+    本テンプレートには未同梱」の注記と `.claude/docs/README.md` への誘導へ置き換えた。
+    DDR 0019 の本文は不変原則（`.claude/rules/docs-workflow.md`）に従い、表示テキストを
+    変えずリンク記法のみを外し括弧書きを追記する範囲に留めた。
+  - `index.md` の `./plans/` `./build/` のリンクを外した。前者は flow-id 5-1 で削除される寿命、
+    後者は `.gitignore` の `/build/` 対象で、いずれもGit管理下に実体を持てないため。
+    各行に「なぜリンクにしていないか」を併記した。
+- **`.gitignore` 1行目の `参考ディレクトリ` をコメント化した。** `#` の無い裸の行だったため
+  ignoreパターンとして有効になっていた（初回の「輸入」コミット時点から。移植元プロジェクトの
+  参考資料ディレクトリの名残）。何が在ったかの痕跡を残すため、削除ではなくコメント化を選び、
+  経緯を併記した。
+- **NULバイト混入（issue の事象1）は対応不要だった。** `.claude/docs/spec/extract-frontmatter.md`
+  へのNULバイト混入は、issue #32 起票より前に**issue #69（PR #78）で既に解消済み**
+  （同specの「影響範囲」に記録あり）。本対応では、全追跡ファイルを `git ls-files -z` で走査し
+  NULバイトが1つも存在しないこと・`file` が全specを `UTF-8 text` と判定することを確認するに留めた。
+
 ### issue #44（リポジトリURLをgh/glabではなくgit remoteから導出する）
 
 新規:
-- `.claude/docs/ddr/0036-リポジトリURLはgh_glabではなくgit-remoteから導出する.md`
+- `.claude/docs/ddr/0037-リポジトリURLはgh_glabではなくgit-remoteから導出する.md`
 
 変更:
 - `.claude/scripts/src/vcs/Provider.sh`
@@ -1900,10 +1936,11 @@ DDRは新設していない（issue #13・DDR 0023で決めた「リポジトリ
   `split_remote_url` のscheme/portテスト5件を追加。`passed=75 failures=0`）
 - `.claude/skills/issue-mr-flow/SKILL.md`（MCPフォールバックの対応表で、`get_repo_url` の
   「フォールバックするため」という説明を「プロバイダ非依存の関数のため」へ更新）
-- `.claude/docs/README.md`（DDR一覧へ0036を追加）
+- `.claude/docs/README.md`（DDR一覧へ0037を追加）
 - `.claude/docs/spec/issue-mr-workflow.md`（本ファイル。「提供関数」表の `get_repo_url` 行を更新し
   `repo_url_from_remote_url` 行を追加、「リポジトリURLの導出（issue #44）」節を新設、
   MCPフォールバック節の「例外（`get_repo_url`）」と issue #13フォローアップの記述を更新、本エントリを追加）
+
 
 ## 設定項目
 

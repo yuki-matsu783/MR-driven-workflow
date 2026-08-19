@@ -43,7 +43,7 @@ source "${SCRIPT_DIR}/Github.sh"
 source "${SCRIPT_DIR}/Gitlab.sh"
 
 # issue本文に標準として求める見出し（.claude/docs/spec/issue-mr-workflow.md
-# 「Issueテンプレート標準化」参照。.github/ISSUE_TEMPLATE/task.md, .gitlab/issue_templates/task.md と対応）
+# 「Issueテンプレート標準化」参照。.github/ISSUE_TEMPLATE/task.md, .gitlab/issue_templates/Default.md と対応）
 REQUIRED_ISSUE_SECTIONS=("目的" "現状" "期待する動作" "受け入れ条件")
 
 get_repo_root() {
@@ -98,7 +98,7 @@ test_issue_sections() {
 }
 
 # 標準4見出し（目的・現状・期待する動作・受け入れ条件）に沿ってissue本文を組み立てる
-# （`.github/ISSUE_TEMPLATE/task.md`, `.gitlab/issue_templates/task.md` と同じ見出し構成）。
+# （`.github/ISSUE_TEMPLATE/task.md`, `.gitlab/issue_templates/Default.md` と同じ見出し構成）。
 # 外部コマンド呼び出しを伴わない純粋関数。プロバイダ非依存。
 build_issue_body() {
   local purpose="$1" current="$2" expected="$3" acceptance="$4"
@@ -515,7 +515,7 @@ set_mr_ready() {
 # DDR 0023 が却下したのは「MR/PRの**URL文字列**へsuffixを推測で付け足す」案であり、remote URLからの
 # 導出はそれとは別物（推測ではなく、リポジトリの所在そのものを表す一次情報の変換）である。
 # 正規URLと一致しないリスクケースの扱いは
-# .claude/docs/ddr/0036-リポジトリURLはgh_glabではなくgit-remoteから導出する.md 参照。
+# .claude/docs/ddr/0037-リポジトリURLはgh_glabではなくgit-remoteから導出する.md 参照。
 get_repo_url() {
   repo_url_from_remote_url "$(git remote get-url origin)"
 }
