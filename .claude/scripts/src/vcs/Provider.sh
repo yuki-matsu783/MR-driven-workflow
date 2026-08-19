@@ -347,6 +347,7 @@ mcp_tool_hint() {
     set_mr_description) printf 'mcp__github__update_pull_request (owner, repo, pullNumber, body=ファイル内容)\n' ;;
     set_mr_ready) printf 'mcp__github__update_pull_request (owner, repo, pullNumber, draft=false)\n' ;;
     add_mr_comment) printf 'mcp__github__add_issue_comment (owner, repo, issue_number=PR番号, body=ファイル内容)\n' ;;
+    add_issue_comment) printf 'mcp__github__add_issue_comment (owner, repo, issue_number=通知先issue番号, body=ファイル内容)\n' ;;
     *) printf '対応するMCPツールは .claude/skills/issue-mr-flow/SKILL.md の対応表を参照\n' ;;
   esac
 }
@@ -489,8 +490,8 @@ set_mr_description() {
   esac
 }
 
-# Draft PR/MRのDraft状態を解除し、レビュー・マージ可能な状態にする（flow-id 5-3。issue #61）。
-# Draft作成側（new_draft_merge_request）に対応する解除側で、これが無かったため flow-id 5-3 では
+# Draft PR/MRのDraft状態を解除し、レビュー・マージ可能な状態にする（flow-id 5-4。issue #61）。
+# Draft作成側（new_draft_merge_request）に対応する解除側で、これが無かったため当時の flow-id 5-3 では
 # AIエージェントが `gh pr ready` を直接呼ぶことになり、GitLab環境で動かず、CLI不在時の
 # MCPフォールバック経路（require_vcs_cli / mcp_tool_hint）にも乗らなかった。
 set_mr_ready() {
@@ -630,6 +631,26 @@ add_mr_comment() {
   case "$(get_provider)" in
     github) github_add_mr_comment "$mr_number" "$body_file" ;;
     gitlab) gitlab_add_mr_comment "$mr_number" "$body_file" ;;
+  esac
+}
+
+# 任意のissueへ新規コメントを1件投稿する（flow-id 5-3: マージ前の関連issue通知。issue #86）。
+# 宛先がPR/MRである `add_mr_comment` とは別関数である点に注意する。GitHub実装が `gh pr comment`
+# であるためPR以外へは投げられず、「今回のMRが影響する他のissue」への通知に流用できなかった。
+#
+# 本文は**ファイル経由**で受け取る（`add_mr_comment` / `set_mr_description` と同じ）。
+# コマンド文字列へ長文を埋め込むと、`git` と `push` が連続する語を含んだだけでpush検知hookが
+# 誤発火するため（`.claude/rules/git-workflow.md`「push検知hookの誤検知」）。
+#
+# 投稿先・本文の決定と**人間の承認**は呼び出し側（`.claude/skills/issue-mr-flow/SKILL.md`
+# 「マージ前の関連issue通知」節）の責務であり、この層では行わない
+# （経緯: .claude/docs/ddr/0041-マージ前の関連issue通知はDraft解除の直前に置き投稿前の人間承認を必須にする.md）。
+add_issue_comment() {
+  require_vcs_cli add_issue_comment || return 1
+  local issue_number="$1" body_file="$2"
+  case "$(get_provider)" in
+    github) github_add_issue_comment "$issue_number" "$body_file" ;;
+    gitlab) gitlab_add_issue_comment "$issue_number" "$body_file" ;;
   esac
 }
 

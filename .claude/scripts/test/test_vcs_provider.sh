@@ -21,6 +21,8 @@
 # と、`hash_paths`（差分アンカー用にパス文字列のハッシュをまとめて計算する）も対象。
 # `hash_paths` だけは `sha256sum`/`sha1sum` を起動するが、`gh`/`glab` に依存せず入力から出力が
 # 一意に決まるため単体テストの対象に含めている。
+# issue #86で追加した `add_issue_comment`（任意のissueへのコメント投稿）は `gh`/`glab` を呼ぶため
+# 関数本体は対象外で、`mcp_tool_hint` が返す代替ツール名のみを対象とする。
 # issue #68で追加した `github_normalize_issue_search_results` /
 # `gitlab_normalize_issue_search_results`（CLIのissue検索出力を共通形式へ正規化）と
 # `merge_issue_search_results`（複数キーワードぶんの結果を重複排除して統合）も対象。
@@ -200,6 +202,17 @@ assert_eq "mcp_tool_hint: search_issues（GitHub。issue #68）" \
 assert_eq "mcp_tool_hint: set_mr_ready（GitHub）" \
   "mcp__github__update_pull_request (owner, repo, pullNumber, draft=false)" \
   "$(mcp_tool_hint set_mr_ready)"
+
+# issue #86で追加した関連issue通知の関数。`add_mr_comment` と同じ
+# `mcp__github__add_issue_comment` を使うが、`issue_number` へ渡すのがPR番号ではなく
+# **通知先のissue番号**である点が違うため、その差分がヒント文に出ることを固定する
+assert_eq "mcp_tool_hint: add_issue_comment（GitHub。issue #86）" \
+  "mcp__github__add_issue_comment (owner, repo, issue_number=通知先issue番号, body=ファイル内容)" \
+  "$(mcp_tool_hint add_issue_comment)"
+
+assert_eq "mcp_tool_hint: add_mr_comment はPR番号を渡す旨のまま（add_issue_commentと混同しない）" \
+  "mcp__github__add_issue_comment (owner, repo, issue_number=PR番号, body=ファイル内容)" \
+  "$(mcp_tool_hint add_mr_comment)"
 
 assert_eq "mcp_tool_hint: 未知の関数名でも空にならずSKILL.mdの対応表へ誘導する" \
   "対応するMCPツールは .claude/skills/issue-mr-flow/SKILL.md の対応表を参照" \
