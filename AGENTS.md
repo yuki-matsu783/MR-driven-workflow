@@ -3,7 +3,7 @@ title: AIエージェント共通ルール
 type: rule
 description: 複数のAIコーディングエージェント（Claude Code, Gemini CLI等）が共通で従うルール・プロジェクト概要・開発実行方法
 tags: [agents, rule]
-keywords: [issue-mr-flow, 計画, claude-code, gemini-cli, gh, glab, webfetch]
+keywords: [issue-mr-flow, 計画, claude-code, gemini-cli, gh, glab, webfetch, 着手確認]
 ---
 
 ## ルール
@@ -13,6 +13,14 @@ keywords: [issue-mr-flow, 計画, claude-code, gemini-cli, gh, glab, webfetch]
   （唯一の実装フロー定義）。**誤字修正・軽微なドキュメント修正等、フロー自体を省略してよい
   ごく小さな変更を除き、全タスクはissueを起点に進める**（除外時はmainへの直接コミットも
   許容する。ブランチ運用の詳細は `.claude/rules/git-workflow.md`「適用範囲」参照）。
+- **issueを起票したこと自体は、そのissueに着手してよいという指示ではない**。issue起票
+  （`.claude/skills/issue-create/SKILL.md`）の直後に、同じセッションで
+  `/issue-mr-flow start <issue番号>` へ進んでよいのは、ユーザーから明示的な着手の指示があった
+  ときだけである。AIから着手を持ちかけず、新しいセッションでの実行を勧めるに留める
+  （どのissueにいつ着手するかの判断を人間が握るため。issue #39。詳細は
+  `.claude/skills/issue-create/SKILL.md`「してはいけないこと」・
+  `.claude/skills/issue-mr-flow/SKILL.md`「`start`」節、
+  `.claude/docs/ddr/0038-issue起票後の着手確認はブロックせず注意喚起の注入で担保する.md`）。
 - 特別なコンテキストなしで回答可能な簡易タスクを除き、いかなるタスク（調査、設計、コード作成、テスト、リファクタリングなど）も、**実作業を開始する前に必ず「計画（Plan）」を立ててユーザーに提示**する
 - 計画はplansディレクトリ配下に保存する。計画は2階層に分ける（詳細は
   `.claude/skills/issue-mr-flow/SKILL.md`「計画の2階層構造」）

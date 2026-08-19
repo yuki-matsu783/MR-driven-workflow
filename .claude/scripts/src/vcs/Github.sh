@@ -104,10 +104,10 @@ query($owner: String!, $repo: String!, $number: Int!) {
           isResolved
           path
           line
-          comments(first: 50) { nodes { author { login } body diffHunk } }
+          comments(first: 50) { nodes { author { login } body diffHunk url } }
         }
       }
-      comments(first: 100) { nodes { author { login } body } }
+      comments(first: 100) { nodes { author { login } body url } }
     }
   }
 }
@@ -126,12 +126,14 @@ EOF
           "[review " + (if $t.isResolved then "resolved" else "unresolved" end)
           + " threadId=" + $t.id
           + " " + (if $t.path then ($t.path + ":" + (($t.line // "") | tostring)) else "(場所不明)" end)
+          + (if .url then (" url=" + .url) else "" end)
           + "] " + .author.login + ": " + .body
         )
         + (if .diffHunk then ("\n--- diff ---\n" + .diffHunk) else "" end);
     def comment_lines:
       .data.repository.pullRequest.comments.nodes[]
-      | "[comment] " + .author.login + ": " + .body;
+      | "[comment" + (if .url then (" url=" + .url) else "" end) + "] "
+        + .author.login + ": " + .body;
     [thread_lines, comment_lines] | join("\n\n")
   '
 }
@@ -139,18 +141,23 @@ EOF
 # 指定したレビュースレッドに対応内容を返信する。スレッドの解決（resolved）はレビュアー側の
 # 操作のためここでは行わない。mr_numberはプロバイダ間のインターフェース統一のため受け取るが、
 # GitHub実装ではスレッドIDがグローバルに一意なため未使用。
+#
+# 投稿した返信自身のパーマリンク（`.../pull/<n>#discussion_r<id>`）を標準出力へ返す（issue #42:
+# レビュー依頼メッセージへ「前回の指摘にどう返信したか」のリンクを載せるため）。mutationの戻り値を
+# `comment { id }` から `comment { url }` へ変更している（`id`は呼び出し元で使っていなかった）。
 github_add_mr_thread_reply() {
   local mr_number="$1" thread_id="$2" reply_body="$3"
   local mutation
   mutation="$(cat <<'EOF'
 mutation($threadId: ID!, $body: String!) {
   addPullRequestReviewThreadReply(input: {pullRequestReviewThreadId: $threadId, body: $body}) {
-    comment { id }
+    comment { url }
   }
 }
 EOF
 )"
-  gh api graphql -F "threadId=$thread_id" -F "body=$reply_body" -f "query=$mutation" >/dev/null
+  gh api graphql -F "threadId=$thread_id" -F "body=$reply_body" -f "query=$mutation" \
+    | jq -r '.data.addPullRequestReviewThreadReply.comment.url // empty' | tr -d '\r'
 }
 
 # 指定ブランチに紐づくPRのJSONを返す（無ければ何も出力せず終了コード0）。途中引き継ぎ対応（resume）と、
@@ -179,12 +186,6 @@ github_set_mr_ready() {
   gh pr ready "$mr_number" >/dev/null
 }
 
-# リポジトリの正規URL（フルパス）を取得する（issue #13フォローアップ: PRのURL文字列からの
-# 推測ではなく`gh`で取得し正確性を担保する）。
-github_get_repo_url() {
-  gh repo view --json url --jq '.url'
-}
-
 # 2つのref（ブランチ名・SHAいずれも可）間の差分を見れる「Compare changes」ページのURLを
 # 組み立てる（純粋関数。`gh`呼び出しを伴わない）。GitHubの`/compare/<from>...<to>`は
 # PR作成前から使われている汎用の比較ページであり、PR個別のサブタブ（Files changed等）より
@@ -205,6 +206,30 @@ github_get_mr_diff_url() {
 github_get_mr_diff_since_url() {
   local repo_url="$1" from_sha="$2" to_sha="$3"
   github_get_compare_url "$repo_url" "$from_sha" "$to_sha"
+}
+
+# 特定ファイルの「そのref時点の本体」を開くblobページのURLを組み立てる（純粋関数）。issue #42。
+# `ref`はブランチ名・SHAどちらも指定できるが、レビュー依頼メッセージでは「該当push時点」を
+# 固定したいためSHAを渡す想定。`path`は呼び出し側でpercent-encode済みのものを渡す
+# （`url_encode_path_to_reply`）。
+github_get_blob_url() {
+  local repo_url="$1" ref="$2" path="$3"
+  printf '%s/blob/%s/%s\n' "$repo_url" "$ref" "$path"
+}
+
+# Compareページ内の特定ファイルの差分位置を指すアンカー付きURLを組み立てる（純粋関数）。issue #42。
+# GitHubの差分アンカーは `#diff-<パス文字列のsha256>`。この算出方法はGitHubの非公開内部仕様のため、
+# 実機で確認して採用した（Compareページが差分本体を遅延読込する
+# `/<owner>/<repo>/compare/file-list?range=<from>...<to>` の断片HTMLに、
+# `id="diff-<sha256(パス)>"` が出力されることを本リポジトリで確認済み）。
+github_get_diff_anchor_url() {
+  local compare_url="$1" path_hash="$2"
+  printf '%s#diff-%s\n' "$compare_url" "$path_hash"
+}
+
+# 差分アンカーのハッシュ算出に使うアルゴリズム名を返す（純粋関数）。issue #42。
+github_diff_anchor_algo() {
+  printf 'sha256\n'
 }
 
 # MRへ新規コメントを1件投稿する（スレッド返信・レビューではない通常コメント）。

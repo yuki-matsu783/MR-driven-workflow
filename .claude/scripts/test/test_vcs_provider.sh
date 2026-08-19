@@ -3,9 +3,11 @@
 # 伴わないURL組み立て・JSON整形・文字列判定関数）の単体テスト。issue #13対応で追加した
 # `github_get_compare_url` / `github_get_mr_diff_url` / `github_get_mr_diff_since_url` /
 # `gitlab_get_compare_url` / `gitlab_get_mr_diff_url` / `gitlab_get_mr_diff_since_url` が対象。
-# `github_get_repo_url` / `gitlab_get_repo_url`（`gh repo view` / `glab repo view`を呼ぶ）と
 # Provider.sh経由のディスパッチ（`get_mr_diff_url`等）は外部コマンド・`git remote get-url origin`
 # に依存し純粋ではないため対象外（Github.sh/Gitlab.sh の関数を直接呼ぶ）。
+# issue #44で `get_repo_url` をプロバイダ非依存化した際に切り出した `repo_url_from_remote_url`
+# （remote URLからリポジトリの正規URLを導出）も対象。`get_repo_url` 本体は
+# `git remote get-url origin` を呼ぶため対象外で、URL文字列を受け取る純粋関数側をテストしている。
 # issue #48対応で追加した `gitlab_format_discussion_notes`（discussions JSONの整形）も対象。
 # issue #45対応で追加した `provider_from_remote_url`（remote URLのホスト部からプロバイダを判定）も
 # 対象。`get_provider` 本体は `git remote get-url origin` を呼ぶため対象外で、URL文字列を
@@ -13,6 +15,12 @@
 # あわせてissue #34で追加した `parse_repo_slug`（リモートURLのパース）と `mcp_tool_hint`
 # （CLI不在時に提示するMCPツール名）も対象とする。後者は `get_provider` をテスト内で上書きして
 # プロバイダを固定する。
+# issue #42で追加した `github_get_blob_url` / `github_get_diff_anchor_url` /
+# `github_diff_anchor_algo` / `gitlab_get_blob_url` / `gitlab_get_diff_anchor_url` /
+# `gitlab_diff_anchor_algo` / `gitlab_get_mr_url` / `gitlab_get_note_url` / `url_encode_path_to_reply`
+# と、`hash_paths`（差分アンカー用にパス文字列のハッシュをまとめて計算する）も対象。
+# `hash_paths` だけは `sha256sum`/`sha1sum` を起動するが、`gh`/`glab` に依存せず入力から出力が
+# 一意に決まるため単体テストの対象に含めている。
 # issue #68で追加した `github_normalize_issue_search_results` /
 # `gitlab_normalize_issue_search_results`（CLIのissue検索出力を共通形式へ正規化）と
 # `merge_issue_search_results`（複数キーワードぶんの結果を重複排除して統合）も対象。
@@ -112,6 +120,18 @@ assert_eq "gitlab_format_discussion_notes: include_resolved=trueでは解決済�
 assert_eq "gitlab_format_discussion_notes: システムノートのbodyは全件取得時も出力に現れない" \
   "0" \
   "$(gitlab_format_discussion_notes "$gitlab_discussions_fixture" true | grep -c 'changed the description' || true)"
+
+# issue #42: 第3引数にMRのURLを渡すと、各noteの公式パーマリンクを url= として行に含める。
+assert_eq "gitlab_format_discussion_notes: mr_urlを渡すとnoteのパーマリンクをurl=として含める" \
+  "[unresolved threadId=d1 url=https://gitlab.example.com/o/r/-/merge_requests/42#note_1] reviewer: ここは修正してください
+
+[unresolved threadId=d4 url=https://gitlab.example.com/o/r/-/merge_requests/42#note_4] root: 通常コメント" \
+  "$(gitlab_format_discussion_notes "$gitlab_discussions_fixture" false \
+    "https://gitlab.example.com/o/r/-/merge_requests/42")"
+
+assert_eq "gitlab_format_discussion_notes: mr_urlが空ならurl=は付かない（従来どおりの出力）" \
+  "$(gitlab_format_discussion_notes "$gitlab_discussions_fixture")" \
+  "$(gitlab_format_discussion_notes "$gitlab_discussions_fixture" false "")"
 
 # resolvableでないnote（individual_note等）は resolved 扱いにせず常に含める。
 assert_eq "gitlab_format_discussion_notes: resolvableでないnoteはunresolvedとして扱う" \
@@ -296,6 +316,114 @@ assert_eq "split_remote_url: ネストしたnamespace" \
 # ホスト名が取れなくても失敗させない（エラーにするかは呼び出し側の判断に委ねる）
 split_remote_url 'https://'
 assert_eq "split_remote_url: ホスト名が空でも失敗しない" "|" "$REPLY_HOST|$REPLY_PATH"
+
+# scheme・ポートも返す（issue #44。`repo_url_from_remote_url` がWeb URLを組み立てる際に、
+# 「httpは維持する」「ポートはhttp/httpsのときだけ引き継ぐ」を判断するために使う）
+split_remote_url 'https://gitlab.example.com:8443/o/r.git'
+assert_eq "split_remote_url: httpsのschemeとポート" \
+  "https|8443" "$REPLY_SCHEME|$REPLY_PORT"
+
+split_remote_url 'ssh://git@ghe.example.com:2222/o/r.git'
+assert_eq "split_remote_url: ssh://のschemeとポート" "ssh|2222" "$REPLY_SCHEME|$REPLY_PORT"
+
+# scp形式は `://` を持たずポートも表現できない
+split_remote_url 'git@github.com:o/r.git'
+assert_eq "split_remote_url: scp形式はscheme・ポートとも空" "|" "$REPLY_SCHEME|$REPLY_PORT"
+
+split_remote_url 'https://github.com/o/r.git'
+assert_eq "split_remote_url: ポート指定が無ければ空" "https|" "$REPLY_SCHEME|$REPLY_PORT"
+
+# schemeは小文字化する（ホスト名と同じくURLの正規化として安全）
+split_remote_url 'HTTPS://github.com/o/r.git'
+assert_eq "split_remote_url: schemeは小文字化" "https|github.com" "$REPLY_SCHEME|$REPLY_HOST"
+
+# --- repo_url_from_remote_url（issue #44: リポジトリURLをgit remoteから導出） ---------------
+#
+# `gh repo view --json url` / `glab repo view --output json`（`.web_url`）の代わりに、
+# remote URLの正規化だけでリポジトリの正規URLを得る純粋関数。CLI・ネットワークに依存しないため
+# そのままテストできる。
+
+assert_eq "repo_url_from_remote_url: https形式（.git付き）" \
+  "https://github.com/o/r" \
+  "$(repo_url_from_remote_url 'https://github.com/o/r.git')"
+
+assert_eq "repo_url_from_remote_url: https形式（.git無し）" \
+  "https://github.com/o/r" \
+  "$(repo_url_from_remote_url 'https://github.com/o/r')"
+
+assert_eq "repo_url_from_remote_url: 末尾スラッシュを除去" \
+  "https://github.com/o/r" \
+  "$(repo_url_from_remote_url 'https://github.com/o/r/')"
+
+assert_eq "repo_url_from_remote_url: scp形式SSHはhttpsへ変換" \
+  "https://github.com/o/r" \
+  "$(repo_url_from_remote_url 'git@github.com:o/r.git')"
+
+assert_eq "repo_url_from_remote_url: ssh://形式もhttpsへ変換" \
+  "https://github.com/o/r" \
+  "$(repo_url_from_remote_url 'ssh://git@github.com/o/r.git')"
+
+# 本リポジトリの実際のremote URL。`gh repo view --json url --jq '.url'` の出力と一致すること
+# （issue #44の受け入れ条件。実機で確認済み）
+assert_eq "repo_url_from_remote_url: 本リポジトリのremote URL" \
+  "https://github.com/yuki-matsu783/MR-driven-workflow" \
+  "$(repo_url_from_remote_url 'https://github.com/yuki-matsu783/MR-driven-workflow.git')"
+
+# ホスト名は小文字化し、パス（owner/repo）の大文字は保つ（`split_remote_url` の規則をそのまま継ぐ）
+assert_eq "repo_url_from_remote_url: ホストは小文字化・パスは保つ" \
+  "https://github.com/O/R" \
+  "$(repo_url_from_remote_url 'https://GitHub.COM/O/R.git')"
+
+# GitLabのネストしたnamespaceはパスをそのまま保つ
+assert_eq "repo_url_from_remote_url: ネストしたnamespace" \
+  "https://gitlab.example.com/g/sub/r" \
+  "$(repo_url_from_remote_url 'https://gitlab.example.com/g/sub/r.git')"
+
+# SSHのポートはWeb UIのポートではないため引き継がない（引き継ぐとリンクが壊れる）
+assert_eq "repo_url_from_remote_url: ssh://のポートは引き継がない" \
+  "https://ghe.example.com/o/r" \
+  "$(repo_url_from_remote_url 'ssh://git@ghe.example.com:2222/o/r.git')"
+
+# http/httpsのポートはWeb UIのポートなので引き継ぐ（self-hosted GitLabのdocker構成等）
+assert_eq "repo_url_from_remote_url: httpsのポートは引き継ぐ" \
+  "https://gitlab.example.com:8443/o/r" \
+  "$(repo_url_from_remote_url 'https://gitlab.example.com:8443/o/r.git')"
+
+# plain httpのself-hosted GitLabは http のままにする（httpsへ寄せるとリンクが壊れる）
+assert_eq "repo_url_from_remote_url: httpはhttpのまま・ポートも保つ" \
+  "http://localhost:8929/g/r" \
+  "$(repo_url_from_remote_url 'http://localhost:8929/g/r.git')"
+
+# 認証情報 user@ は落とす（パス中の `@` へ誤爆しないことは split_remote_url 側でも固定済み）
+assert_eq "repo_url_from_remote_url: 認証情報は落とす" \
+  "https://gitlab.com:8080/foo/b@r" \
+  "$(repo_url_from_remote_url 'https://user@gitlab.com:8080/foo/b@r.git')"
+
+# ホスト・パスが取れない入力は `https:///` のような壊れたURLを返さず失敗させる。
+# 終了コードの検査は `$(func; echo $?)` ではなく `if` で受ける
+# （.claude/rules/shell-script-style.md「テスト」）
+if repo_url_from_remote_url 'https://' >/dev/null 2>&1; then
+  empty_repo_url_status=0
+else
+  empty_repo_url_status=1
+fi
+assert_eq "repo_url_from_remote_url: ホスト名が空なら終了コード1" "1" "$empty_repo_url_status"
+
+if repo_url_from_remote_url 'https://github.com' >/dev/null 2>&1; then
+  no_path_status=0
+else
+  no_path_status=1
+fi
+assert_eq "repo_url_from_remote_url: パスが空なら終了コード1" "1" "$no_path_status"
+
+# `parse_repo_slug` の `.url` は同じ組み立て規則を共有する（両者が食い違わないこと。issue #44）
+assert_eq "parse_repo_slug: .url は repo_url_from_remote_url と一致する（scp形式）" \
+  "$(repo_url_from_remote_url 'git@github.com:o/r.git')" \
+  "$(parse_repo_slug 'git@github.com:o/r.git' | jq -r '.url')"
+
+assert_eq "parse_repo_slug: .url は repo_url_from_remote_url と一致する（http・ポート付き）" \
+  "$(repo_url_from_remote_url 'http://localhost:8929/g/r.git')" \
+  "$(parse_repo_slug 'http://localhost:8929/g/r.git' | jq -r '.url')"
 
 # --- issue検索結果の正規化・統合（issue #68: 起票前の重複チェック） ------------------------
 # `github_search_issues` / `gitlab_search_issues` / `search_issues` 本体は `gh`/`glab` と
@@ -514,6 +642,92 @@ get_provider() { printf 'github\n'; }
 assert_eq "mcp_tool_hint: add_mr_inline_comments はレビュー作成ツールを案内する" \
   '1' \
   "$(mcp_tool_hint add_mr_inline_comments | grep -c 'pull_request_review_write')"
+
+# --- issue #42: blobリンク・差分アンカーリンク・パーマリンクの組み立て --------------------
+
+assert_eq "github_get_blob_url: リポジトリURLに/blob/<ref>/<path>を付与" \
+  "https://github.com/o/r/blob/aaa111/.claude/scripts/src/vcs/Github.sh" \
+  "$(github_get_blob_url "https://github.com/o/r" "aaa111" ".claude/scripts/src/vcs/Github.sh")"
+
+assert_eq "github_get_diff_anchor_url: CompareページURLに#diff-<hash>を付与" \
+  "https://github.com/o/r/compare/main...aaa111#diff-645d26f1" \
+  "$(github_get_diff_anchor_url "https://github.com/o/r/compare/main...aaa111" "645d26f1")"
+
+assert_eq "github_diff_anchor_algo: GitHubの差分アンカーはパスのsha256" \
+  "sha256" "$(github_diff_anchor_algo)"
+
+assert_eq "gitlab_get_blob_url: リポジトリURLに/-/blob/<ref>/<path>を付与" \
+  "https://gitlab.example.com/o/r/-/blob/aaa111/src/main.go" \
+  "$(gitlab_get_blob_url "https://gitlab.example.com/o/r" "aaa111" "src/main.go")"
+
+assert_eq "gitlab_get_diff_anchor_url: CompareページURLに#<hash>を付与（diff-接頭辞は付かない）" \
+  "https://gitlab.example.com/o/r/-/compare/main...aaa111#8ec9a00b" \
+  "$(gitlab_get_diff_anchor_url "https://gitlab.example.com/o/r/-/compare/main...aaa111" "8ec9a00b")"
+
+assert_eq "gitlab_diff_anchor_algo: GitLabの差分アンカーはパスのsha1" \
+  "sha1" "$(gitlab_diff_anchor_algo)"
+
+assert_eq "gitlab_get_mr_url: リポジトリURLとMR番号からMRページURLを組み立てる" \
+  "https://gitlab.example.com/o/r/-/merge_requests/42" \
+  "$(gitlab_get_mr_url "https://gitlab.example.com/o/r" "42")"
+
+assert_eq "gitlab_get_note_url: MRページURLとnote idからコメントのパーマリンクを組み立てる" \
+  "https://gitlab.example.com/o/r/-/merge_requests/42#note_12345" \
+  "$(gitlab_get_note_url "https://gitlab.example.com/o/r/-/merge_requests/42" "12345")"
+
+# --- url_encode_path_to_reply（issue #42） ----------------------------------------------
+# 結果は標準出力ではなく REPLY へ返るため、コマンド置換ではなく呼び出し後に $REPLY を読む。
+
+url_encode_path_to_reply ".claude/scripts/src/vcs/Github.sh"
+assert_eq "url_encode_path_to_reply: unreserved文字と/はそのまま残す" \
+  ".claude/scripts/src/vcs/Github.sh" "$REPLY"
+
+url_encode_path_to_reply "docs/a b.md"
+assert_eq "url_encode_path_to_reply: 空白は%20へ変換する" "docs/a%20b.md" "$REPLY"
+
+url_encode_path_to_reply "a#b?c"
+assert_eq "url_encode_path_to_reply: URL上で意味を持つ記号を変換する" "a%23b%3Fc" "$REPLY"
+
+url_encode_path_to_reply "plans/【実装】x.md"
+assert_eq "url_encode_path_to_reply: 日本語はUTF-8のバイト単位で%XXへ変換する" \
+  "plans/%E3%80%90%E5%AE%9F%E8%A3%85%E3%80%91x.md" "$REPLY"
+
+url_encode_path_to_reply ""
+assert_eq "url_encode_path_to_reply: 空文字列は空文字列のまま" "" "$REPLY"
+
+# --- hash_paths（issue #42） -------------------------------------------------------------
+# 期待値のうちsha256の2件は、GitHubのCompareページが遅延読込する
+# `/compare/file-list?range=<from>...<to>` の断片HTMLに出力される `id="diff-<hash>"` と
+# 一致することを本リポジトリで実機確認済み（issue #42の受け入れ条件）。
+
+assert_eq "hash_paths: sha256でパス文字列（ファイルの中身ではない）のハッシュを返す" \
+  "645d26f1a0efff8ca3cef055f31fd35cb9b6659de3c37add0dd34de217c74631" \
+  "$(hash_paths sha256 ".claude/scripts/src/vcs/Gitlab.sh")"
+
+assert_eq "hash_paths: sha1も選べる" \
+  "8ec9a00bfd09b3190ac6b22251dbb1aa95a0579d" \
+  "$(hash_paths sha1 "README.md")"
+
+assert_eq "hash_paths: 複数パスを渡すと引数と同じ順序で1行ずつ返す" \
+  "645d26f1a0efff8ca3cef055f31fd35cb9b6659de3c37add0dd34de217c74631
+b78bc8687755aab014029bb3c31f93b23b4c9dd0124f9a4b7ad9fd5d08501650" \
+  "$(hash_paths sha256 ".claude/scripts/src/vcs/Gitlab.sh" ".claude/scripts/src/vcs/Github.sh")"
+
+assert_eq "hash_paths: 空白・日本語を含むパスもそのままハッシュする" \
+  "46211776bb9388ae1f90d789ff6bb48b4cfa876d77b886425c0f840d20c79dd0
+4bc97450a8e98a31d5f7e6d1212a21eac9a0f6a8e25631ff77a7ecde56f3686c" \
+  "$(hash_paths sha256 "a b/c.md" "plans/【実装】x.md")"
+
+assert_eq "hash_paths: 引数が無ければ何も出力しない" "" "$(hash_paths sha256)"
+
+# 未知のアルゴリズムは失敗させる（`if` で受けるのは set -e 下でのサブシェル終了を避けるため。
+# .claude/rules/shell-script-style.md「テスト」節）
+if hash_paths md5 "README.md" >/dev/null 2>&1; then
+  unknown_algo_status=0
+else
+  unknown_algo_status=1
+fi
+assert_eq "hash_paths: 未知のアルゴリズム名は終了コード1で失敗する" "1" "$unknown_algo_status"
 
 echo "passed=$passed failures=$failures"
 [ "$failures" -eq 0 ]

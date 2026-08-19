@@ -27,8 +27,7 @@ MRとのやり取りだけを自動化する薄い層」として設計したが
 設計反映・PR・マージ）の**順序立ったフロー部分**を `.claude/skills/issue-mr-flow/SKILL.md` に統合し、
 そちらを**唯一の実装フロー定義**とした。今後はごく小さな変更を除くあらゆるタスクをissue起点で
 進める前提とする。`docs-workflow.md` / `git-workflow.md` はドキュメントの置き場所・ライフサイクルや
-ブランチ命名規則といった参照情報のみを残す。詳細は
-[.claude/scripts/docs/ddr/0002-issue-mr-flowへの実装フロー統合.md](../ddr/0002-issue-mr-flowへの実装フロー統合.md) 参照。
+ブランチ命名規則といった参照情報のみを残す。詳細は移植元のDDR 0002（`0002-issue-mr-flowへの実装フロー統合.md`）参照。このDDRは本テンプレートには持ち込んでいない（[.claude/docs/README.md](../README.md)「ddr（意思決定ログ）」の注記参照）。
 
 ## 仕様
 
@@ -45,7 +44,8 @@ MRとのやり取りだけを自動化する薄い層」として設計したが
 .github/ISSUE_TEMPLATE/
 └── task.md                         # GitHub用issueテンプレート（目的・現状・期待する動作・受け入れ条件）
 .gitlab/issue_templates/
-└── task.md                         # GitLab用issueテンプレート（同上）
+└── Default.md                      # GitLab用issueテンプレート（同上。GitLabが新規issueの説明へ
+                                    #   自動適用する予約名）
 .claude/scripts/src/vcs/
 ├── Provider.sh                     # git remote からGitHub/GitLabを判定し、共通関数をディスパッチ
 ├── Github.sh                       # gh CLIラッパー
@@ -58,6 +58,7 @@ MRとのやり取りだけを自動化する薄い層」として設計したが
 ├── session-start.sh                 # セッション開始時のissue/MR状態自動注入（SessionStart hook）
 ├── post-push-usage-report.sh        # git push検知時のトークン使用量集計＋MR自動コメント投稿（PostToolUse hook）
 ├── post-push-compact-prompt.sh      # git push検知時に/compact実施を促すメッセージ注入（PostToolUse hook）
+├── post-issue-create-notice.sh      # issue起票検知時に同一セッションでの着手を戒めるメッセージ注入（PostToolUse hook）
 └── lib/
     └── UsageTracking.sh              # 集計ロジック（sync_usage_state）
 ```
@@ -92,8 +93,8 @@ MRとのやり取りだけを自動化する薄い層」として設計したが
 | `get_issue <n>` | issueのtitle/body/labelsを取得（JSON） | `gh issue view` | `glab issue view` |
 | `new_issue_branch <n> <slugSource> [<base>]` | `<branchPrefixTemplate>` に従いブランチを作成しcheckout、リモートpush。`<slugSource>` はslug化対象のテキストであり、生issueタイトルである必要はない（`.claude/skills/issue-mr-flow/SKILL.md` の `start` サブコマンドではAIエージェントが生成した英語の意訳フレーズを渡す。詳細: [0010-ブランチslugの意訳生成はAIエージェントが行う.md](../ddr/0010-ブランチslugの意訳生成はAIエージェントが行う.md)）。`<base>`（省略可）でベースブランチを上書きできる。省略時は `.mrworkflow.json` の `defaultBaseBranch` を使う（issue #15: `start` サブコマンドが `AskUserQuestion` で確認した結果を渡す） | `git switch -c` + `git push` | 同左 |
 | `new_draft_merge_request <n> <branch> <title> [<base>]` | issueに紐づくDraft PR/MRを作成（bodyは仮テンプレート、後続の `set_mr_description` で上書き前提。`<title>` はissueタイトルをそのまま渡す） | `gh pr create --draft` | `glab mr create --draft` |
-| `get_mr_unresolved_comments <n> [true]` | レビューコメント／スレッドを取得しテキストへ整形（スレッドID・ファイルパス・行番号・diffを含む）。既定（第2引数省略）では未解決のスレッドのみを返し、対応済み（解決済み）スレッドは機械的に除外する。第2引数に `true` を渡すと解決済みも含めた全件を返す。GitLabはdiscussions APIが操作履歴を `system: true` のnoteとして同じ配列で返すため、これも機械的に除外する（issue #48） | `gh api graphql` (review threads) | `glab api` (discussions) |
-| `add_mr_thread_reply <n> <threadId> <text>` | 指定スレッドに対応内容を返信する（スレッドの解決＝resolvedはレビュアー側の操作のため本関数では行わない） | `gh api graphql`（reply mutation） | `glab api`（note追加） |
+| `get_mr_unresolved_comments <n> [true]` | レビューコメント／スレッドを取得しテキストへ整形（スレッドID・ファイルパス・行番号・diffを含む）。既定（第2引数省略）では未解決のスレッドのみを返し、対応済み（解決済み）スレッドは機械的に除外する。第2引数に `true` を渡すと解決済みも含めた全件を返す。GitLabはdiscussions APIが操作履歴を `system: true` のnoteとして同じ配列で返すため、これも機械的に除外する（issue #48）。各行には**そのコメントの公式パーマリンク**を `url=...` として含める（issue #42） | `gh api graphql` (review threads。GraphQLの `url` フィールド) | `glab api` (discussions。note `id` から `<mrUrl>#note_<id>` を組み立てる) |
+| `add_mr_thread_reply <n> <threadId> <text>` | 指定スレッドに対応内容を返信する（スレッドの解決＝resolvedはレビュアー側の操作のため本関数では行わない）。**投稿した返信自身のパーマリンクを標準出力へ返す**（issue #42。レビュー依頼メッセージへ「前回の指摘にどう返信したか」のリンクを載せるため） | `gh api graphql`（reply mutation。戻り値を `comment { url }` にした） | `glab api`（note追加。POSTレスポンスの `id` から組み立てる） |
 | `set_mr_description <n> <bodyFile>` | PR/MRのdescriptionを指定ファイル内容で上書き | `gh pr edit --body-file` | `glab mr update --description` |
 | `set_mr_ready <n>` | Draft PR/MRのDraft状態を解除し、レビュー・マージ可能な状態にする（全体フロー flow-id 5-3。Draft作成側の `new_draft_merge_request` に対応する解除側。issue #61） | `gh pr ready` | `glab mr update --ready` |
 | `add_mr_comment <n> <bodyFile>` | PR/MRへ新規コメントを1件投稿（スレッド返信・レビューではない通常コメント） | `gh pr comment --body-file` | `glab api`（notes追加） |
@@ -101,9 +102,14 @@ MRとのやり取りだけを自動化する薄い層」として設計したが
 | `test_issue_sections <body>` | issue本文に「目的／現状／期待する動作／受け入れ条件」の4見出しが揃っているか確認し、欠けている見出し名を1行1件でstdoutへ出力する（プロバイダ非依存） | — | — |
 | `get_issue_number_from_branch [<branch>]` | ブランチ名を `branchPrefixTemplate` に照らしてissue番号を抽出する（省略時は現在のブランチ）。マッチすればstdoutへ出力し終了コード0、マッチしなければ終了コード1（プロバイダ非依存） | — | — |
 | `get_mr_for_branch <branch>` | 指定ブランチに紐づくPR/MRの番号・URL・タイトル・Draft状態を取得する（JSON。無ければ何も出力せず終了コード0） | `gh pr view <branch>` | `glab mr view <branch>` |
-| `get_repo_url` | リポジトリの正規URL（フルパス）を取得する。MR/PRのURL文字列からの推測ではなく`gh`/`glab`で取得することで正確性を担保する（issue #13フォローアップ） | `gh repo view --json url` | `glab repo view --output json`（`.web_url`） |
+| `get_repo_url` | リポジトリの正規URL（フルパス）を取得する。MR/PRのURL文字列からの推測ではなく、`git remote get-url origin` の値を `repo_url_from_remote_url` で正規化して導出する（**プロバイダ非依存**。issue #44。issue #13フォローアップ時点では`gh`/`glab`へディスパッチしていた） | — | — |
 | `get_mr_diff_url <repoUrl> <baseBranch> <headBranch>` | MR/PRの「defaultブランチとの差分」を見れるURLを組み立てる（純粋関数。`repoUrl`は`get_repo_url`の戻り値を渡す。issue #13） | `<repoUrl>/compare/<baseBranch>...<headBranch>` | `<repoUrl>/-/compare/<baseBranch>...<headBranch>` |
 | `get_mr_diff_since_url <repoUrl> <fromSha> <toSha>` | MR/PRの「前回push時点(`fromSha`)から今回push時点(`toSha`)までの差分」を見れるURLを組み立てる（純粋関数。issue #13） | `<repoUrl>/compare/<fromSha>...<toSha>` | `<repoUrl>/-/compare/<fromSha>...<toSha>` |
+| `get_blob_url <repoUrl> <ref> <path>` | 特定ファイルの「その`ref`時点の本体」を開くblobページのURLを組み立てる（純粋関数。`path`は`url_encode_path_to_reply`でencode済みのものを渡す。issue #42） | `<repoUrl>/blob/<ref>/<path>` | `<repoUrl>/-/blob/<ref>/<path>` |
+| `get_diff_anchor_url <compareUrl> <pathHash>` | Compareページ内の特定ファイルの差分位置を指すアンカー付きURLを組み立てる（純粋関数。issue #42） | `<compareUrl>#diff-<pathHash>` | `<compareUrl>#<pathHash>` |
+| `get_diff_anchor_algo` | 差分アンカーのハッシュ算出に使うアルゴリズム名を返す（純粋関数。issue #42） | `sha256` | `sha1`（【未検証】） |
+| `url_encode_path_to_reply <path>` | パスをURLへ埋め込める形へpercent-encodeし、結果を`REPLY`へ返す（プロバイダ非依存の純粋関数。unreserved文字と`/`は残し、それ以外はUTF-8のバイト単位で`%XX`へ変換する。issue #42） | — | — |
+| `hash_paths <algo> <path>...` | 渡した各**パス文字列**（ファイルの中身ではない）のハッシュを引数と同じ順序で1行ずつ返す（差分アンカー用。issue #42）。件数に比例して`sha256sum`を起動しないよう一時ファイルへ書き出して1回で計算する | `sha256sum` | `sha1sum` |
 | `get_branch_work_files` | 現在のブランチ固有（`<defaultBaseBranch>` に無い）の `plans/` `worklog/` `reports/` ファイル一覧を返す（プロバイダ非依存）。日本語を含むパスをそのまま返すため `-c core.quotepath=false` を指定している（issue #9。詳細は「計画の2階層構造」節） | — | — |
 | `build_issue_body <purpose> <current> <expected> <acceptance>` | 標準4見出し（目的・現状・期待する動作・受け入れ条件）に沿ってissue本文を組み立てる（プロバイダ非依存。issue #25） | — | — |
 | `new_issue <title> <body>` | タイトル・本文からissueを新規作成し、`get_issue`と同じ形（number/title/body/url/slug）のJSONを返す（issue #25） | `gh issue create` → URLから番号抽出 → `github_get_issue` | `glab issue create` → URLから番号抽出 → `gitlab_get_issue` |
@@ -111,6 +117,7 @@ MRとのやり取りだけを自動化する薄い層」として設計したが
 | `get_vcs_access_mode` | 実行環境に該当プロバイダのCLIがあるかを判定し、`cli`（CLI経路）／`mcp`（MCPフォールバック経路）を返す（issue #34） | `command -v gh` | `command -v glab` |
 | `parse_repo_slug <remoteUrl>` | リモートURL（https / ssh(scp形式) / `ssh://`）から `{host, owner, repo, path, url}` のJSONを組み立てる（純粋関数。MCPツールが要求する `owner`/`repo` をCLIなしで得るため。issue #34） | — | — |
 | `get_repo_slug` | `git remote get-url origin` の値を `parse_repo_slug` へ渡す（issue #34） | — | — |
+| `repo_url_from_remote_url <remoteUrl>` | リモートURL（https / http / ssh(scp形式) / `ssh://`）からリポジトリの正規URLを導出する（純粋関数。`.git`サフィックス・末尾スラッシュの除去、scp形式→https変換、schemeとポートの扱いを含む。ホストまたはパスが取れない場合は終了コード1。issue #44） | — | — |
 | `mcp_tool_hint <funcName>` | Provider関数名に対応するGitHub MCPツールと主な引数を1行で返す（GitLabは対象外である旨を返す。issue #34） | — | — |
 | `require_vcs_cli <funcName>` | CLI経路が使えない場合に、代替すべきMCPツールを名指ししたメッセージをstderrへ出して終了コード1を返す。プロバイダ依存の各関数の先頭で呼ぶ（issue #34） | — | — |
 
@@ -167,11 +174,39 @@ issue #68で追加した3つの関数も同じく内部ヘルパーである。`
 issue起票からマージまでの詳細な手順（担当・順序）は
 [.claude/skills/issue-mr-flow/SKILL.md](../../skills/issue-mr-flow/SKILL.md)（唯一の実装フロー定義）
 に一本化した。本specとの内容重複・ドリフトを避けるため、ここでは表を持たない
-（詳細は[0002-issue-mr-flowへの実装フロー統合.md](../ddr/0002-issue-mr-flowへの実装フロー統合.md)参照）。
+（詳細は移植元のDDR 0002〈`0002-issue-mr-flowへの実装フロー統合.md`〉参照。本テンプレートには未同梱。[.claude/docs/README.md](../README.md)「ddr（意思決定ログ）」の注記参照）。
 
 `/issue-mr-flow` のサブコマンドは `start` `comments` `reply` `describe` `sync` `resume` の6つに絞り、
 設計ドキュメント作成・plan作成・実装・設計反映・AIアセット反映そのものは
 `.claude/skills/issue-mr-flow/SKILL.md` の該当ステップに委ねる。
+
+### PR/MR作成・マージの担当（issue #41）
+
+**PR/MRの作成・更新はAIエージェントが実施してよく、マージのみユーザーの明示指示を必須とする。**
+issue #41 以前は、flow-id 1-3（担当「エージェント」）と `.claude/rules/git-workflow.md`
+「PR作成・レビュー依頼・マージは人間が実施する」が同じ操作について逆のことを述べており、
+セッションごとにPRを作ったり作らなかったりしていた（issue #22 ではDraft PR #30を自ら作成、
+issue #34 ではPR作成を見送り後から明示指示でPR #40を作成）。
+
+線引きの基準は**その操作が取り消せるかどうか**である。PR/MRの作成・description更新・レビュー返信・
+Draft解除は、クローズ・書き直し・Draftへの差し戻しでいつでも取り消せ、`main` を変えない。マージは
+`main` の正史を書き換える不可逆な操作であり、本リポジトリはsquash mergeを採るため元のコミット粒度も
+失われる。人間の承認を要求する価値があるのは後者だけである。
+
+**ハーネス（実行基盤）のシステムプロンプトが「明示的に依頼されない限りPRを作成しない」と指示する
+環境**（Claude Code on the web のリモート実行環境等）では、ハーネス側の指示を優先する。リポジトリ内の
+ドキュメントでハーネスのシステムプロンプトを上書きすることはできず、リポジトリ方針を優先させると
+衝突の解釈をAIに都度委ねることになって、issue #41 が問題にした非再現性へ戻るためである。そのうえで、
+優先した先の振る舞いを「ブランチ作成までは通常どおり → `AskUserQuestion` で作成可否を1回だけ確認 →
+応答を待てない非対話的セッションではPRを作成せず、その事実を最終応答へ明示」と決め打ちにすることで
+再現性を確保している（再現性の要点は「必ず作る」ことではなく「毎回同じ判断になる」ことにある）。
+この確認はPRの**新規作成**のみが対象で、flow-id 5-3（Draft解除）・`describe`・`reply` は既存PRの
+更新のため対象外。
+
+担当表と手順の詳細は `.claude/rules/git-workflow.md`「PR・マージ」節が正であり、
+`.claude/skills/issue-mr-flow/SKILL.md`「PR/MR作成・マージの担当（flow-id 1-3・5-3・5-4）」節が
+フロー側からの入口になる。判断の理由・却下案は
+[0035-PR_MR作成はAIエージェントに委ねマージのみ明示指示を必須にする.md](../ddr/0035-PR_MR作成はAIエージェントに委ねマージのみ明示指示を必須にする.md)。
 
 ### 計画の2階層構造（issue #9）
 
@@ -314,6 +349,38 @@ PRで対処する（`main`はレビューを経ないままの直接変更を避
 `.claude/skills/issue-mr-flow/SKILL.md`の「PRがflow-id 5-1実施前にマージされてしまった場合の対処」
 節を参照。
 
+### PR作成後のdefaultブランチ追従（issue #88）
+
+flow-id 5-2（issue #46）はDraft解除の直前に1回だけコンフリクトを検知する設計で、**PR作成後〜
+マージまでの間にdefaultブランチが進む場合を扱っていない**。レビュー待ちが長いほど、また並行する
+PRが多いほど、この期間のコンフリクトを取りこぼす（実例: issue #39 のPR #81 で、PR作成後の短時間に
+`main` が4回進み、DDR番号を 0034→0035→0036→0038 と3回繰り下げた）。
+
+この追従を、**flow-idを持たないフェーズ横断の並行手順**として定義する。flow-id 1-3（PR作成）の
+直後に開始し、5-4（マージ）またはPRのクローズで停止する「期間」であり、進捗表の1行として完了を
+表せる性質のものではないため、flow-idは増やしていない。**flow-id 5-2 は「最終ゲート」として残す**
+（監視は実行環境の機能とセッションの寿命に依存するため、一度も動かないセッションがありうる）。
+
+| 観点 | 決めたこと |
+|---|---|
+| 検知のタイミング | 各pushの直後（flow-id 2-2/2-7/3-2/3-7/4-2/4-7）、監視イベントの受信時、flow-id 5-2（必須） |
+| 実行環境別の手段 | Claude Code on the web: `subscribe_pr_activity` の購読＋`send_later` の自己チェックイン（webhookの取りこぼしに備え両方使う）／ローカル（git bash）: `/resolve-conflict` の手動実行 |
+| 自動解消の範囲 | 解消方法が一意に決まる類型（`resolve-conflict` の類型A・B・D、および「両方残す」で足りる範囲のC）は承認を待たず解消。類型E（同じロジックの競合）と、Cのうち散文が矛盾する場合は人間へ確認 |
+| 停止条件 | PRが merged / closed になった（購読を解除する）・ユーザーの停止指示・セッション終了（次セッションの `resume` で取り直す） |
+| 検証・コミット | 自動解消でも `commit` スキル経由のコミットと `resolve-conflict` Step 5 の検証は省略しない |
+
+**購読・自己チェックインはセッションに紐づき、`.claude/` 配下には何も残らない**（issue #88 が
+問題視した点）。これを補うため、監視の状態は `HANDOFF.md` のヘッダ `- 追従監視:` 行へ記録し、
+`resume`（`issue-mr-resume` エージェントの現在地サマリ）にも項目として含める。PRが未マージのまま
+セッションをまたいだ場合は、`resume` の手順5で監視を取り直す。この行は
+`update-handoff-progress.sh` の `set-header` の対象外で、手で書き換える。
+
+手順の詳細は `.claude/skills/issue-mr-flow/SKILL.md`「PR作成後のdefaultブランチ追従（監視）」節と
+`.claude/skills/resolve-conflict/SKILL.md`（Step 2「監視モードでの例外」）が正。判断の理由・
+却下案（新flow-idの挿入・GitHubの "Update branch"・hookでの自動チェック・CIでの自動追従・
+常時rebase運用・DDR連番の廃止等）は
+[0039-PR作成後のdefaultブランチ追従は並行手順として定義し自動解消は一意に決まる類型に限る.md](../ddr/0039-PR作成後のdefaultブランチ追従は並行手順として定義し自動解消は一意に決まる類型に限る.md)。
+
 ### セッション開始時の自動コンテキスト注入（SessionStart hook）
 
 `resume` は人間・AIエージェントが明示的に呼び出す必要があり、機械的に実行されない
@@ -399,8 +466,11 @@ Claude Code on the webのリモート実行環境のように、`gh`/`glab` CLI�
   「SKILL.mdの該当節」「WebFetch・curlへはフォールバックしないこと」をstderrへ出して失敗する。
   手順を読まずにCLI経路を呼んだ場合でも、同じ案内へ収束させることが狙い。
 - **例外（`get_repo_url`）**: リモートURLの取得は `git remote get-url origin` というローカル操作で
-  済むため、MCP経路では `get_repo_slug` から組み立てたURLを返す（失敗させない）。これにより
-  `get_mr_diff_url` / `get_mr_diff_since_url` がMCP経路でも動作する。
+  済むため、CLI経路・MCP経路のいずれでも同じ導出（`repo_url_from_remote_url` による正規化）で
+  URLを返す（失敗させない）。これにより `get_mr_diff_url` / `get_mr_diff_since_url` がMCP経路でも
+  動作する。issue #34の時点では「CLI経路では`gh`/`glab`、MCP経路では`get_repo_slug`」という
+  経路ごとの分岐だったが、issue #44で両者の戻り値が一致することを確認したうえで後者へ一本化し、
+  分岐自体を無くした（下記「リポジトリURLの導出（issue #44）」節）。
 - **hookの縮退**: hookはMCPツールを呼べないため、以下のように縮退する。
   - `session-start.sh`: 上記「セッション開始時の自動コンテキスト注入」節の記載どおり。
   - `post-push-usage-report.sh`: 集計状態の更新までは行い、MRコメントの自動投稿はスキップして
@@ -413,6 +483,49 @@ Claude Code on the webのリモート実行環境のように、`gh`/`glab` CLI�
   GitLabに対して「対象外」である旨を返す。詳細・却下案は
   [0027-gh_glab-CLI不在時はMCPフォールバック経路へ機構的に誘導する.md](../ddr/0027-gh_glab-CLI不在時はMCPフォールバック経路へ機構的に誘導する.md)
   参照。
+
+### リポジトリURLの導出（issue #44）
+
+`get_repo_url` は `gh repo view --json url` / `glab repo view --output json`（`.web_url`）への
+ディスパッチをやめ、`git remote get-url origin` の値を正規化して返す**プロバイダ非依存**の関数に
+した。実機で、両CLIの戻り値がremote URLと `.git` サフィックスの有無しか違わないことを確認した
+ためである（`https://github.com/yuki-matsu783/MR-driven-workflow.git` →
+`https://github.com/yuki-matsu783/MR-driven-workflow`）。
+
+- **効果**: プロバイダ依存関数が1つ減り、`Github.sh` / `Gitlab.sh` から repo URL 取得の関数が
+  消えた。pushのたびに走る `post-push-compact-prompt.sh` から外部CLIの起動（git bashで約95ms/回）と
+  API往復が1回ずつ無くなり、`gh`/`glab` 不在の環境（Claude Code on the web）でもCLI経路と同じ
+  導出で参照リンクを組み立てられる（issue #34で入れた経路ごとの分岐も不要になった）。
+- **正規化の規則**（純粋関数 `repo_url_from_remote_url`。土台の分解は `split_remote_url` が担う）:
+  - `.git` サフィックス・末尾スラッシュ・認証情報（`user@`）を除去し、ホスト名を小文字化する。
+  - scp形式SSH（`git@host:owner/repo.git`）・`ssh://` 形式は https へ変換する。
+  - schemeは `http` のときだけ `http` を保ち、それ以外は `https` にする（plain httpで立てた
+    self-hosted GitLabでリンクが壊れないようにするため）。
+  - ポートは **schemeが `http`/`https` のときだけ引き継ぐ**。`ssh://host:2222/o/r.git` の `2222` は
+    SSHの待ち受けポートでありWeb UIのポートではないため、引き継ぐとリンクが壊れる。
+  - ホストまたはパス（`owner/repo`）が取れない場合は、`https:///` のような壊れた値を返さず
+    終了コード1で失敗する。
+- **`parse_repo_slug` との整合**: `parse_repo_slug` が返す `.url` も同じ組み立て（`split_remote_url`
+  の結果から `build_repo_url_from_reply` で構成）を共有する。これにより両者の値が食い違わない。
+  issue #34時点の `.url` は常に `"https://" + host + "/" + path` だったため、**plain httpのリモート
+  および http/https のポート付きリモートで `.url` の値が変わる**（例:
+  `http://localhost:8929/g/r.git` の `.url` が `https://localhost:8929/g/r` → `http://localhost:8929/g/r`）。
+  消費側（`.claude/hooks/session-start.sh`）は `.owner`/`.repo` しか使っていないため実害はない。
+- **DDR 0023 との関係**: DDR 0023 が却下したのは「MR/PRの**URL文字列**へ `/files` 等のsuffixを
+  推測で付け足す」案である。remote URLからの導出はそれとは別物で、推測ではなく「リポジトリの
+  所在そのものを表す一次情報の変換」にあたる。DDR 0023 の判断軸（推測を避け正確性を担保する）は
+  維持される。
+- **正規URLと一致しないリスクケース**: いずれも「リンクが1本ずれる」だけで、フロー自体は止まらない。
+  実運用上の発生確率とコストが釣り合わないため、検知や `gh`/`glab` へのフォールバックは設けない
+  （詳細・却下案:
+  [0035-リポジトリURLはgh_glabではなくgit-remoteから導出する.md](../ddr/0035-リポジトリURLはgh_glabではなくgit-remoteから導出する.md)）。
+
+  | ケース | 挙動 | 判断 |
+  |---|---|---|
+  | `insteadOf` によるURL書き換え | `git remote get-url origin` は**書き換え前の設定値**を返すため、`https://…` を `ssh://…` へ書き換える一般的な用法では影響しない。一方、remoteに `gh:owner/repo` のような短縮エイリアスを設定している場合はホスト名が `gh` になり、導出URLが壊れる | 短縮エイリアス運用は非対応。壊れたリンクはその場で目視で分かる |
+  | カスタムポート | http/httpsのポートは引き継ぎ、SSHのポートは捨てる（上記の規則）。SSHポートとWeb UIポートが別のself-hosted構成では、ポート無しのURLになる | ポート付きWeb UIをSSH経由remoteだけで運用する構成は非対応 |
+  | リポジトリ名変更後の旧remote URL | GitHub/GitLabとも旧URLから新URLへリダイレクトするため、リンクとしては到達できる（`gh repo view` は新名称を返す点だけが異なる） | 実害なし |
+  | リモート名が `origin` でない | `git remote get-url origin` が失敗し `get_repo_url` も失敗する（従来の`gh`/`glab`経路にはこの制約が無かった） | 本ワークフローは他所でも `origin` 前提のため、新たな制約にはならない |
 
 ### Draft PR作成失敗時の自動リトライ
 
@@ -817,8 +930,8 @@ issue #11「git pushイベントを検知してcompactする」への対応と�
     リンクと同一URL）へのリンク。
   - **URL組み立ての方針（issue #13フォローアップ）**: 当初はMR/PRのURL文字列に`/files`等のsuffixを
     推測で付け足す実装だったが、「gh/glabでURLの正確性を担保したい」という指摘を受け、
-    `get_repo_url`（`gh repo view --json url` / `glab repo view --output json`の`.web_url`）で
-    取得したリポジトリの正規URLを土台に、GitHub/GitLabいずれも持つ汎用の「Compare」ページ
+    `get_repo_url` で取得したリポジトリの正規URLを土台に、GitHub/GitLabいずれも持つ汎用の
+    「Compare」ページ
     （`/compare/<from>...<to>` / `/-/compare/<from>...<to>`。PR/MR作成前から存在する標準機能で、
     PR個別のサブタブより広く安定）を組み立てる方式へ変更した。`from`/`to`にはブランチ名・SHAの
     どちらも指定できるため、「defaultブランチとの差分」（ブランチ名同士）・「前回pushとの差分」
@@ -835,6 +948,40 @@ issue #11「git pushイベントを検知してcompactする」への対応と�
     ブランチ名のファイル名サニタイズは`_usage_safe_branch_name`と同じ正規表現
     （`[^a-zA-Z0-9_-]`を`_`へ置換）だが、`UsageTracking.sh`をsourceして共有はせず本スクリプト内に
     複製している（1行の変換ロジックのために責務の異なるファイルへ依存を作らないため）。
+- **重点レビュー対象ファイルのリンク（issue #42）**: 上記4リンクはいずれもMR/リポジトリ全体を
+  指すため、レビュアーは「どのファイルを重点的に見ればよいか」を自力で探す必要があった。今回push
+  の差分に含まれるファイルごとに2種のURLを組み立て、**候補として**`additionalContext`へ渡す。
+  - **blobリンク**（該当push時点のファイル本体）: `get_blob_url <repoUrl> <今回pushのHEAD SHA>
+    <encode済みパス>`。GitHub `/blob/<ref>/<path>`、GitLab `/-/blob/<ref>/<path>`。
+  - **差分アンカーリンク**（Compareページ内の該当ファイル位置）: `get_diff_anchor_url
+    <compareUrl> <pathHash>`。GitHub `#diff-<パスのsha256>`、GitLab `#<パスのsha1>`。
+    `compareUrl` は差分範囲と対になるもの（初回pushはdefaultブランチとの差分、2回目以降は
+    前回pushとの差分）を使う。
+  - **対象ファイルの範囲は既存の差分リンクと同じ意味論**にする。初回pushは
+    `origin/<defaultBaseBranch>...HEAD`、2回目以降は `<前回pushのSHA>...HEAD`
+    （どちらも`...`＝merge-base起点で、GitHub/GitLabのCompareページと意味が揃う）。前回SHAが
+    ローカルに存在しない場合（rebase・履歴書き換え）はdefaultブランチとの差分へフォールバックする。
+  - **選定はhookではなくエージェントが行う**。hookは候補ファイルとそのURLを供給するだけで、
+    どれを載せるか・blobと差分アンカーのどちらを載せるか（原則blob、「差分だけ見てほしい」場合のみ
+    差分アンカー）はエージェントが実装内容を踏まえて判断する旨を、指示文として同時に渡す。
+  - **供給件数の上限**は`MAX_REVIEW_FILES`（10件）。変更行数（追加＋削除）の多い順に並べて
+    上限で打ち切り、超過分は「（他N件は省略）」と件数だけ伝える。1ファイルにつき3行・URL2本を
+    出すため上限がそのまま注入量の上限になり、日本語ファイル名はpercent-encodeで3倍近くに
+    膨らむ。この上限で注入テキスト全体が最大6KB程度に収まる（15件では8KBを超えた）。
+    このhook自体がコンテキスト肥大への対処を兼ねている以上、供給側が肥大の原因になっては
+    本末転倒のため小さめに倒している。
+  - **このpushで削除されたファイル**は、HEAD時点のblobが存在せず404になるため、blobリンクを
+    出さず「（このpushで削除。本体のリンクは無し）」と注記して差分アンカーリンクのみを出す。
+  - **差分アンカーのハッシュ算出方法はプロバイダの非公開内部仕様**のため実機で確認した。
+    GitHubのCompareページは差分本体を`include-fragment src="/<owner>/<repo>/compare/file-list
+    ?range=<from>...<to>"` で遅延読込しており、この断片HTMLに `id="diff-<sha256(パス)>"` が
+    出力される。本リポジトリの75ファイルぶんの範囲で、ローカル計算した`sha256sum`の値と
+    GitHubが出力したアンカーが**全件一致**することを確認した（日本語ファイル名を含む）。
+    GitLab側（パスのsha1）は本リポジトリにGitLab remoteが無いため**【未検証】**。
+- **返信コメントへのリンク（issue #42）**: 2回目以降のpush（＝レビュー指摘対応のpush）では、
+  「このpushでレビュー指摘へ返信した場合はその返信コメントのURLも含める」旨の指示文を追加で渡す。
+  URLの入手元は`reply`サブコマンドの出力（`add_mr_thread_reply`の戻り値）または`comments`の
+  出力に含まれる`url=...`。
 - **`post-push-usage-report.sh`とは別ファイル**（`.claude/hooks/post-push-compact-prompt.sh`）とし、
   責務を混在させない（使用量集計とcompact促しは関心事が異なる）。`.claude/settings.json`の
   `hooks.PostToolUse[0].hooks`へ、既存の対応工数レポート用エントリと並べて2エントリ
@@ -869,8 +1016,11 @@ issue本文の書き方を標準化し、ワークフローの起点（flow-id 1
 - **`.github/ISSUE_TEMPLATE/task.md`**: GitHubの[Issueテンプレート（Markdown形式）](https://docs.github.com/ja/communities/using-templates-to-encourage-useful-issues-and-pull-requests/manually-creating-a-single-issue-template-for-your-repository)。
   YAML front matter（`name` / `about`）＋4見出しの記入欄で構成する。GitHubのissue作成画面で
   テンプレートとして選択できる。
-- **`.gitlab/issue_templates/task.md`**: GitLabの[Description templates](https://docs.gitlab.com/user/project/description_templates/)。
-  front matter無しの同内容のMarkdown。GitLabのissue作成画面の「Choose a template」から選択できる。
+- **`.gitlab/issue_templates/Default.md`**: GitLabの[Description templates](https://docs.gitlab.com/user/project/description_templates/)。
+  front matter無しの同内容のMarkdown。GitLabのissue作成画面の「Choose a template」から選択できるほか、
+  **`Default.md` はGitLabの予約名であり、新規issueの説明欄へ自動的に適用される**（GitHub側には
+  この仕組みが無いため `task.md` のままでよい。両プロバイダで名前が異なるのは意図的である。詳細:
+  `.claude/docs/ddr/0036-GitLab-issueテンプレートは予約名Default.mdを正とし文書側を合わせる.md`）。
 - どちらもMarkdownテンプレートであり、必須項目としての強制はできない（GitHub Issue Formsの
   ような`required`指定は使わない。見出しごと削除して起票することも可能）。強制ではなく
   「標準の見出しを用意して迷わず書けるようにする」ことが目的。
@@ -977,6 +1127,52 @@ AIは候補を提示するに留め、**重複と断定して勝手に起票を�
 平文で並べればよい。検索の仕組みが異なるため同じ入力でも候補の並びは一致しないが、
 候補の提示が目的で件数・順序に依存した自動判断は行わないため許容している。
 
+### issue起票後の着手確認（issue #39）
+
+起票（flow-id 1-1）から実装（flow-id 1-2以降）へ進む判断は**人間が握る**。AIエージェントがissueを
+起票した流れのまま `/issue-mr-flow start` まで進むと、どのissueにいつ着手するかを人間が決められず、
+進行中の別issueのブランチ・MRと作業コンテキストも混ざる。実際にissue #38の起票直後、確認を挟まない
+まま `start 38` へ進み、issue取得・既存ブランチ確認まで実行した事故が起きている（ユーザーの中断に
+より、ブランチ・Draft MR作成の手前で止まった）。
+
+issue #59で `issue-create` スキル側の導線は既に整えていたが、記載がそのスキル内に閉じており、
+`issue-mr-flow` の `start` 側・共通ルールからは辿れなかった。issue #39では次の2方向で補強した。
+
+- **ドキュメント（一次的な担保）**: `AGENTS.md` の共通ルールに「issueを起票したこと自体は着手の
+  指示ではない」を追加し、`issue-create` スキルの「してはいけないこと」に着手確認そのものを省略
+  しない旨（事故の実例つき）を、`issue-mr-flow` の `start` サブコマンド節冒頭に起票直後の連続実行の
+  前提を、それぞれ明記した。3ファイルのどこから読み始めても同じ結論に辿り着く形にしている。
+- **機構（多重防御）**: `.claude/hooks/post-issue-create-notice.sh`（PostToolUse hook）が起票を検知し、
+  上記と同じ注意を `hookSpecificOutput.additionalContext` でコンテキストへ注入する。
+
+#### 検知の条件
+
+| 経路 | 条件 |
+|---|---|
+| CLI | `tool_name` が `Bash` / `PowerShell` / `run_shell_command` で、コマンド文字列に `create-issue.sh` を含む |
+| MCP | `tool_name` が `mcp__github__issue_write` で、`tool_input.method` が `create`（`gh`/`glab` CLI不在時。issue #34） |
+
+判定は純粋関数 `is_issue_create_call` に切り出してあり、`.claude/scripts/test/test_post_issue_create_notice.sh`
+で単体テストしている。サブエージェント内実行（`agent_id` あり）では何もしないガードは、既存の
+push検知hookと同じ。**MCP経路も検知するため、CLI不在時にも縮退しない**（既存の3つのhookと異なる点）。
+
+#### ブロックではなく注意喚起に留めた理由
+
+コミットの直接実行禁止（DDR 0012）と同じ形のブロック（PreToolUse + exit code 2）は採用していない。
+`start` の実体が複数の汎用git操作とMCPツールに分かれていて文字列で一意に特定できないこと、
+「人間が明示的に着手を指示した」という正当ケースをhookが観測できず、解除手段が実質「hookを黙らせる」
+しか無くなることが理由。詳細・却下案は
+[0038-issue起票後の着手確認はブロックせず注意喚起の注入で担保する.md](../ddr/0038-issue起票後の着手確認はブロックせず注意喚起の注入で担保する.md)
+を参照。**hookは多重防御であり、注入が無かったことは着手してよい根拠にならない**（この点も両
+SKILL.mdに明記している）。
+
+#### 既知のトレードオフ
+
+既存のpush/commit検知hookと同じく部分文字列マッチのため、`create-issue.sh` という語をたまたま含む
+コマンド（該当ファイルを開く・検索する等）でも発火する。注入されるのは注意文だけで処理は妨げないため
+許容している（issue #39の実装セッション中に実際に発火することを確認済み。裏を返せば、注入経路が
+実環境で動作することの確認にもなっている）。
+
 ## 影響範囲
 
 新規:
@@ -986,7 +1182,7 @@ AIは候補を提示するに留め、**重複と断定して勝手に起票を�
 - `.mrworkflow.json`（リポジトリ直下）
 - `.claude/skills/issue-mr-flow/SKILL.md`
 - `.github/ISSUE_TEMPLATE/task.md`（GitHub用issueテンプレート）
-- `.gitlab/issue_templates/task.md`（GitLab用issueテンプレート）
+- `.gitlab/issue_templates/Default.md`（GitLab用issueテンプレート）
 - `dev-tools/docs/spec/issue-mr-workflow.md`（本ドキュメント）
 
 変更:
@@ -1648,6 +1844,226 @@ DDRは新設していない（既存の`AskUserQuestion`確認・スキル分割
 スクリプト・hookの変更は行っていない（意味理解を要する判定を機構化しない、というDDR 0034の
 決定によるもの）。
 
+### issue #51（`worklog/` `reports/` の削除タイミングの記述統一）
+
+`.claude/rules/docs-workflow.md` の運用表が、`worklog/` `reports/` の削除を「PR作成前の設計反映で
+まとめて削除」と書いており、唯一の実装フロー定義（`.claude/skills/issue-mr-flow/SKILL.md`）の
+flow-id 5-1（次タスクのための片付け）と食い違っていた。issue #48 の作業中、反映計画を書く段階で
+どちらに従うか迷ったという実害が出たため、**SKILL.md を正として参照側の記述を揃えた**。
+同じ食い違いがリポジトリ内の他の4箇所にも波及していたため、あわせて修正した。
+
+- `.claude/rules/docs-workflow.md`
+  - `worklog/` `reports/` 行の「寿命」を「push単位」から「タスク（issue／ブランチ）単位
+    （flow-id 5-1でまとめて削除）」へ変更し、「運用」欄の削除タイミングも flow-id 5-1 へ改めた
+    （`worklog/` はファイル自体がpushごとに `_push<N>` で分かれる点を「寿命」欄に併記して、
+    「作成の単位」と「削除の単位」が別であることを明示した）
+  - 表の直後へ、`plans/` `worklog/` `reports/` の3つがまとめて flow-id 5-1 で削除されること、
+    設計反映（flow-id 4-6）で行うのは**内容**の spec/ddr への反映でありファイル削除ではないことを
+    示す注記を追加（`plans/` 行は既に flow-id 5-1 と整合していたため行自体は変更せず、3つの
+    ライフサイクルが同じであることを表の外の1段落で揃えた）
+  - `spec`/`ddr` 行の「plans／worklogの内容をMR作成時に反映する」を「flow-id 4-6（設計反映）で
+    反映する」へ変更（Draft MRの作成は flow-id 1-3 であり、反映のタイミングではない）
+  - 「コード・スクリプト内のコメントから参照しない」節の「push単位・タスク単位で削除される」を
+    「タスク単位（flow-id 5-1）で削除される」へ変更
+- `.claude/rules/git-workflow.md`（「PR・マージ」節の「設計反映時にworklogファイルを削除しておく
+  ことで」を「flow-id 5-1で`plans/` `worklog/` `reports/`を削除しておくことで」へ変更）
+- `index.md`（`worklog/` の説明を、内容の反映（flow-id 4-6）とファイルの削除（flow-id 5-1）に
+  分けた記述へ変更）
+- `.claude/skills/canvas-report/SKILL.md`（markdown事前変換の理由に書かれた `reports/` の
+  ライフサイクル「squash merge後は削除される」を「flow-id 5-1でタスクごとに削除される」へ変更。
+  実際には削除はマージ前に完了している）
+- `.claude/docs/spec/issue-mr-workflow.md`（本ドキュメント。本節）
+
+`.claude/docs/ddr/0004` `0006` の本文にも「設計反映時に削除」という記述があるが、DDRの本文は
+不変（`.claude/rules/docs-workflow.md`）であり、かつ当時の状況を記録した point-in-time の記述の
+ため変更していない。
+
+### issue #41（PR/MR作成・マージの担当の統一）
+
+`.claude/skills/issue-mr-flow/SKILL.md` の flow-id 1-3 と `.claude/rules/git-workflow.md`
+「PR・マージ」節が、PR/MR作成の担当について逆のことを述べていた食い違いを解消した。方針は
+「PR/MRの作成・更新＝AIエージェント（都度の明示指示は不要）／マージ＝ユーザーの明示指示が必須」。
+
+- `.claude/rules/git-workflow.md`
+  - 「PR・マージ」節を書き換え、操作ごとの担当表（Draft PR/MR作成・description更新・レビュー依頼・
+    レビュー返信・Draft解除＝AIエージェント／レビュー＝人間／マージ＝人間）を追加した。
+    「PR作成・レビュー依頼・マージは人間が実施する」という従来の1行は削除した
+  - 判断の基準（取り消せるか）と、「レビューが終わった」等がマージの指示にはあたらないことを明記
+  - 「ハーネスがPR作成を制限する環境での扱い」小節を新設（ハーネス側の指示を優先し、
+    flow-id 1-3 の振る舞いを3ステップに決め打ちする）
+  - squash mergeの方針・マージ後のブランチ削除の記述は変更していない
+- `.claude/skills/issue-mr-flow/SKILL.md`
+  - flow-id 1-3 の担当欄を `start`（エージェント）へ改め、都度の明示指示が不要であることと
+    ハーネス制限時の例外への参照を追記
+  - flow-id 5-3 に「AIエージェントはここで止まる（マージへは進まない）」を追記
+  - flow-id 5-4 に「明示的に指示された場合に限りAIが実行してよい」を追記
+  - 「PR/MR作成・マージの担当（flow-id 1-3・5-3・5-4）」節を新設（`## サブコマンド` の直前）
+  - `start` サブコマンドの手順2に、Draft MR作成に都度の明示指示が不要であること・ハーネス制限時は
+    `AskUserQuestion` を1回挟むことを述べる項目を追加（既存の項目cはdへ繰り下げ）
+  - 「PRがflow-id 5-1実施前にマージされてしまった場合の対処」手順4の「PR作成・マージの実行は…
+    ユーザーから明示的な指示を受けてから行う」を、マージのみ明示指示必須とする記述へ変更
+  - 「詳細ルールへのポインタ」の `git-workflow.md` の項へ、PR/MR作成とマージの担当を追記
+- `.claude/docs/ddr/0035-PR_MR作成はAIエージェントに委ねマージのみ明示指示を必須にする.md`（新規）
+- `.claude/docs/README.md`（DDR一覧へ0035を追加）
+- `.claude/docs/spec/issue-mr-workflow.md`（本ドキュメント。「PR/MR作成・マージの担当（issue #41）」
+  節を新設し、本節を追加）
+
+flow-id 5-2（コンフリクト検知・解消）の担当は「エージェント」のままで、変更していない
+（`main` を書き換えない作業ブランチ上の操作であり、上記の線引きと既に整合しているため）。
+
+### issue #42（レビュー依頼メッセージへの重点レビュー対象ファイル・返信コメントリンクの追加）
+
+レビュー依頼メッセージに含まれる参照リンクが、いずれもMR/リポジトリ全体を指すもの（issue #13で
+追加した4リンク）だけだったため、レビュアーは「どのファイルを重点的に見ればよいか」「前回の指摘に
+どう返信されたか」をMR画面で自力で探す必要があった。ファイル単位・コメント単位のリンクを
+追加した。
+
+- `.claude/scripts/src/vcs/Github.sh`
+  - `github_get_blob_url` / `github_get_diff_anchor_url` / `github_diff_anchor_algo` を新設
+    （いずれも純粋関数）
+  - `github_get_mr_unresolved_comments` のGraphQLクエリへ `url` を追加し、出力の各行の角括弧内へ
+    `url=<パーマリンク>` を含めるようにした
+  - `github_add_mr_thread_reply` のmutation戻り値を `comment { id }` から `comment { url }` へ
+    変更し、投稿した返信自身のURLを標準出力へ返すようにした（`id` は呼び出し元で未使用だった）
+- `.claude/scripts/src/vcs/Gitlab.sh`（**【未検証】**。GitLab remoteが無く実機確認できていない）
+  - `gitlab_get_mr_url` / `gitlab_get_note_url` / `gitlab_get_blob_url` /
+    `gitlab_get_diff_anchor_url` / `gitlab_diff_anchor_algo` を新設（いずれも純粋関数）
+  - `gitlab_format_discussion_notes` へ第3引数 `mr_url` を追加し、渡された場合は各noteの
+    パーマリンク `<mrUrl>#note_<noteId>` を `url=` として含めるようにした
+  - `gitlab_add_mr_thread_reply` がPOSTレスポンスの note `id` から返信URLを組み立てて返すようにした
+- `.claude/scripts/src/vcs/Provider.sh`
+  - `get_blob_url` / `get_diff_anchor_url` / `get_diff_anchor_algo` のディスパッチャと、
+    プロバイダ非依存の `url_encode_path_to_reply`（パスのpercent-encode）・`hash_paths`
+    （パス文字列のハッシュを1回の`sha256sum`/`sha1sum`でまとめて計算）を追加
+  - `get_provider` の判定結果をプロセス内でメモ化した。上記ディスパッチャは変更ファイルの件数だけ
+    繰り返し呼ばれ、そのたびに `$(git remote get-url origin)` でサブシェルをforkしていたため
+- `.claude/hooks/post-push-compact-prompt.sh`
+  - 候補ファイルの列挙（`list_changed_files`）とリンクブロックの組み立て
+    （`build_file_links_text`）を追加。上限 `MAX_REVIEW_FILES=10` 件
+  - `build_links_text` の引数を `since_url` を受け取る形へ変更（前回push SHAの有効性判定を
+    重点ファイルの差分範囲と揃えるため、判定を呼び出し元の`main`へ移した）
+  - 選定方針の指示文（`FILE_LINKS_GUIDE_MESSAGE`）と、返信URLを含める指示文
+    （`REPLY_LINKS_GUIDE_MESSAGE`。2回目以降のpushでのみ付与）を追加
+- `.claude/scripts/test/test_vcs_provider.sh`（追加した純粋関数・`hash_paths`・
+  `gitlab_format_discussion_notes` のパーマリンク付与の単体テストを追加。`passed=75 failures=0`）
+- `.claude/skills/issue-mr-flow/SKILL.md`（`comments` / `reply` サブコマンドの定義へパーマリンクの
+  扱いを追記、MCP対応表の該当行を更新）
+- `.claude/docs/spec/issue-mr-workflow.md`（本ファイル。「提供関数」表へ5関数を追加し
+  `get_mr_unresolved_comments` / `add_mr_thread_reply` の行を更新、「/compact実施の呼びかけ」節へ
+  重点レビュー対象ファイル・返信リンクの仕様を追記、本エントリを追加）
+
+DDRは新設していない（issue #13・DDR 0023で決めた「リポジトリの正規URLを土台に汎用ページのURLを
+組み立てる」方針をファイル単位・コメント単位へ延長したものであり、方針自体の変更ではないため）。
+テキストフラグメント（`#:~:text=`）を採用しない判断はissue #42の起票時点で確定しており、
+ブラウザ側の機能で遅延読込・折りたたみに影響され、コメント編集で壊れることが理由。
+
+変更（issue #32 リポジトリ内の壊れている箇所4件の修正）:
+
+- **GitLab issueテンプレート名の記載を実体（`Default.md`）へ統一した**（9箇所）。`Default.md` は
+  GitLabが新規issueの説明欄へ自動適用する予約名であり、`task.md` へ改名すると起票者による
+  テンプレート選択が必須になるため、実体を正とした。GitHub側は `task.md` のままでよく、
+  **両プロバイダで名前が異なるのは意図的**である（詳細:
+  `.claude/docs/ddr/0036-GitLab-issueテンプレートは予約名Default.mdを正とし文書側を合わせる.md`）。
+  - `.claude/skills/issue-create/SKILL.md` / `.claude/skills/issue-mr-flow/SKILL.md`（2箇所）/
+    `.claude/scripts/src/vcs/Provider.sh`（コメント2箇所）/ `.claude/rules/markdown-frontmatter.md` /
+    本ドキュメント（ツリー図・「ファイル構成」節・本「影響範囲」節）
+  - 本「影響範囲」節の過去エントリ（`.gitlab/issue_templates/task.md`）も併せて訂正した。
+    通常、point-in-timeの記録として書かれた過去エントリは書き換えない運用だが、
+    `.gitlab/issue_templates/task.md` は**このリポジトリに一度も存在したことがない**
+    （`git log --diff-filter=A` で確認。初回の「輸入」コミット時点から `Default.md`）ため、
+    ファイル移動に伴うパスの追従ではなく、当初からの記載誤りの訂正にあたる。
+- **リンク切れ5件を解消した**（issue記載は2件。機械的走査で3件を追加検出）。
+  - 移植時に持ち込んでいないDDR `0002` への参照3箇所（本ドキュメント2箇所、
+    `.claude/docs/ddr/0019-...md` 本文1箇所）から、リンク記法を外して「移植元のDDR 0002。
+    本テンプレートには未同梱」の注記と `.claude/docs/README.md` への誘導へ置き換えた。
+    DDR 0019 の本文は不変原則（`.claude/rules/docs-workflow.md`）に従い、表示テキストを
+    変えずリンク記法のみを外し括弧書きを追記する範囲に留めた。
+  - `index.md` の `./plans/` `./build/` のリンクを外した。前者は flow-id 5-1 で削除される寿命、
+    後者は `.gitignore` の `/build/` 対象で、いずれもGit管理下に実体を持てないため。
+    各行に「なぜリンクにしていないか」を併記した。
+- **`.gitignore` 1行目の `参考ディレクトリ` をコメント化した。** `#` の無い裸の行だったため
+  ignoreパターンとして有効になっていた（初回の「輸入」コミット時点から。移植元プロジェクトの
+  参考資料ディレクトリの名残）。何が在ったかの痕跡を残すため、削除ではなくコメント化を選び、
+  経緯を併記した。
+- **NULバイト混入（issue の事象1）は対応不要だった。** `.claude/docs/spec/extract-frontmatter.md`
+  へのNULバイト混入は、issue #32 起票より前に**issue #69（PR #78）で既に解消済み**
+  （同specの「影響範囲」に記録あり）。本対応では、全追跡ファイルを `git ls-files -z` で走査し
+  NULバイトが1つも存在しないこと・`file` が全specを `UTF-8 text` と判定することを確認するに留めた。
+
+### issue #44（リポジトリURLをgh/glabではなくgit remoteから導出する）
+
+新規:
+- `.claude/docs/ddr/0037-リポジトリURLはgh_glabではなくgit-remoteから導出する.md`
+
+変更:
+- `.claude/scripts/src/vcs/Provider.sh`
+  - `get_repo_url` をプロバイダ非依存へ変更（`git remote get-url origin` の値を
+    `repo_url_from_remote_url` で正規化して返す。`gh`/`glab` へのディスパッチと、issue #34で
+    入れていた「MCP経路のときだけ `get_repo_slug` から組み立てる」分岐を削除）
+  - 純粋関数 `repo_url_from_remote_url`（remote URL → リポジトリの正規URL）と
+    `build_repo_url_from_reply`（`split_remote_url` の結果からURLを組み立てる内部ヘルパー）を追加
+  - `split_remote_url` が `REPLY_SCHEME` / `REPLY_PORT` も返すよう拡張（既存の
+    `REPLY_HOST` / `REPLY_PATH` は変更なし。追加のみのためプロセス起動ゼロも維持）
+  - `parse_repo_slug` の `.url` を `build_repo_url_from_reply` 経由へ変更し、`get_repo_url` と
+    同じ組み立て規則を共有させた（plain http・ポート付きURLでの値の変化は上記「リポジトリURLの
+    導出（issue #44）」節を参照）
+- `.claude/scripts/src/vcs/Github.sh`（`github_get_repo_url` を削除）
+- `.claude/scripts/src/vcs/Gitlab.sh`（`gitlab_get_repo_url` を削除）
+- `.claude/hooks/post-push-compact-prompt.sh`（コメントのみ。`get_repo_url` がCLIを呼ばなくなった
+  ことと、それによりpushごとの外部プロセス起動・API往復が1回ずつ減ったことを記載）
+- `.claude/scripts/test/test_vcs_provider.sh`（`repo_url_from_remote_url` の単体テスト16件と
+  `split_remote_url` のscheme/portテスト5件を追加。`passed=75 failures=0`）
+- `.claude/skills/issue-mr-flow/SKILL.md`（MCPフォールバックの対応表で、`get_repo_url` の
+  「フォールバックするため」という説明を「プロバイダ非依存の関数のため」へ更新）
+- `.claude/docs/README.md`（DDR一覧へ0037を追加）
+- `.claude/docs/spec/issue-mr-workflow.md`（本ファイル。「提供関数」表の `get_repo_url` 行を更新し
+  `repo_url_from_remote_url` 行を追加、「リポジトリURLの導出（issue #44）」節を新設、
+  MCPフォールバック節の「例外（`get_repo_url`）」と issue #13フォローアップの記述を更新、本エントリを追加）
+
+### issue #39（issue起票後の着手確認）
+
+issue起票からそのまま実装へ進むことを防ぐため、ドキュメントでの明示とPostToolUse hookによる
+注意喚起を追加した。仕様は「issue起票後の着手確認（issue #39）」節を参照。
+
+新規:
+- `.claude/hooks/post-issue-create-notice.sh`（issue起票検知・注意喚起の注入）
+- `.claude/scripts/test/test_post_issue_create_notice.sh`（`is_issue_create_call` 等の単体テスト）
+- `.claude/docs/ddr/0038-issue起票後の着手確認はブロックせず注意喚起の注入で担保する.md`
+
+変更:
+- `AGENTS.md`（共通ルールへ「起票は着手の指示ではない」を追加）
+- `.claude/skills/issue-create/SKILL.md`（手順6へhookによる補強の説明、「してはいけないこと」へ
+  着手確認を省略しない旨を追加）
+- `.claude/skills/issue-mr-flow/SKILL.md`（`start` 節冒頭へ起票直後の連続実行の前提、
+  「hookの挙動（CLI不在時）」表へ新hookの行を追加）
+- `.claude/settings.json` / `.gemini/settings.json`（新hookの登録）
+- `.claude/docs/spec/issue-mr-workflow.md`（本ファイル。コンポーネント構成のツリー、
+  「issue起票後の着手確認（issue #39）」節、本エントリ）
+- `.claude/docs/README.md`（DDR一覧へ0038を追加）
+
+### issue #88（PR作成後のdefaultブランチ追従監視）
+
+PR作成からマージまでの間のdefaultブランチ追従を、flow-idを増やさないフェーズ横断の並行手順として
+定義した。仕様は「PR作成後のdefaultブランチ追従（issue #88）」節を参照。
+
+新規:
+- `.claude/docs/ddr/0039-PR作成後のdefaultブランチ追従は並行手順として定義し自動解消は一意に決まる類型に限る.md`
+
+変更:
+- `.claude/skills/issue-mr-flow/SKILL.md`（「PR作成後のdefaultブランチ追従（監視）」節を新設。
+  フロー表の 1-3・5-2 の行と 5-2 節の冒頭へ相互参照を追加し、5-2を「最終ゲート」と位置づけ直した。
+  `resume` サブコマンドへ手順5〈監視の取り直し〉を追加）
+- `.claude/skills/resolve-conflict/SKILL.md`（呼び出しタイミングへ監視中の検知を追加。Step 2 へ
+  「監視モードでの例外」を新設し、Step 6・Step 7 へ監視モードでの扱いを追記）
+- `.claude/rules/git-workflow.md`（「PR・マージ」節へ「PR作成後のdefaultブランチ追従」を追加）
+- `.claude/rules/docs-workflow.md`（HANDOFF.mdのヘッダへ `- 追従監視:` 行を持たせること、
+  それが `set-header` の対象外であることを追記）
+- `.claude/agents/issue-mr-resume.md`（手順7・報告フォーマットへ「追従監視」を追加）
+- `.claude/docs/spec/check-base-conflicts.md`（「hookによる自動実行はしていない」の記述を、
+  監視での繰り返し実行と整合する形へ更新）
+- `.claude/docs/spec/issue-mr-workflow.md`（本ファイル。上記の節と本エントリ）
+- `.claude/docs/README.md`（DDR一覧へ0039を追加）
+
 ## 設定項目
 
 `.mrworkflow.json`
@@ -1978,6 +2394,17 @@ DDRは新設していない（既存の`AskUserQuestion`確認・スキル分割
   並行した場合の区間重複を除去する機能を持つが、本対応のスコープ（単一ブランチ・単一セッション）
   では扱わない。仮に同一ブランチで複数セッションを並行実行した場合、それぞれの`activeSeconds`が
   単純合算され、実際の稼働時間より過大になりうる。
+- **差分アンカーの「ブラウザで実際にスクロールするか」は未検証**（issue #42）: アンカーの算出方法
+  （GitHub: パスのsha256）が正しいことは、Compareページが遅延読込する`file-list`断片HTMLに
+  `id="diff-<sha256(パス)>"` が出力されることを75ファイルぶん照合して確認済み。ただし**差分本体が
+  非同期に挿入される**ため、ブラウザがページ読み込み時点でアンカーへスクロールできるかは、
+  GitHub側のクライアントスクリプトの挙動に依存する。今回の実行環境（Claude Code on the web）は
+  ChromiumがegressプロキシのCA証明書を信頼せず（`ERR_CERT_AUTHORITY_INVALID`）実ブラウザでの
+  確認ができなかったため、人間による1クリック確認を残している。開けないことが判明した場合は、
+  issue #42の受け入れ条件どおり「差分アンカーを諦めblobリンクのみとする」判断でよい。
+- **GitLab側の重点ファイルリンク・コメントパーマリンクは【未検証】**（issue #42）: 本リポジトリに
+  GitLab remoteが無いため、`gitlab_get_blob_url` / `gitlab_get_diff_anchor_url`（パスのsha1）/
+  `<mrUrl>#note_<noteId>` の各URLはコードレビューベースの確認に留まる。既存のGitLab実装と同じ扱い。
 - **（issue #48で解消）（issue #25で追加した`gitlab_new_issue`にも従来からの制約が引き継がれる）GitLab側の動作未検証**:
   `gitlab_new_issue`はissue #48でローカルGitLab CE 18.5.4に対し実機確認済み（issueが実際に作成され、
   `get_issue`と同じ形のJSON（number/title/body/url/slug）が返ることを確認した）。

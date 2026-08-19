@@ -43,7 +43,7 @@ source "${SCRIPT_DIR}/Github.sh"
 source "${SCRIPT_DIR}/Gitlab.sh"
 
 # issue本文に標準として求める見出し（.claude/docs/spec/issue-mr-workflow.md
-# 「Issueテンプレート標準化」参照。.github/ISSUE_TEMPLATE/task.md, .gitlab/issue_templates/task.md と対応）
+# 「Issueテンプレート標準化」参照。.github/ISSUE_TEMPLATE/task.md, .gitlab/issue_templates/Default.md と対応）
 REQUIRED_ISSUE_SECTIONS=("目的" "現状" "期待する動作" "受け入れ条件")
 
 get_repo_root() {
@@ -98,7 +98,7 @@ test_issue_sections() {
 }
 
 # 標準4見出し（目的・現状・期待する動作・受け入れ条件）に沿ってissue本文を組み立てる
-# （`.github/ISSUE_TEMPLATE/task.md`, `.gitlab/issue_templates/task.md` と同じ見出し構成）。
+# （`.github/ISSUE_TEMPLATE/task.md`, `.gitlab/issue_templates/Default.md` と同じ見出し構成）。
 # 外部コマンド呼び出しを伴わない純粋関数。プロバイダ非依存。
 build_issue_body() {
   local purpose="$1" current="$2" expected="$3" acceptance="$4"
@@ -109,13 +109,17 @@ build_issue_body() {
 # remote URLを「ホスト部」と「パス部」へ分解する純粋関数（issue #55）。
 # 外部コマンド・コマンド置換を伴わないため、呼び出しあたりのプロセス起動はゼロ。
 # 結果は標準出力ではなくグローバル変数へ返す（.claude/rules/shell-script-style.md
-# 「ホットパスの小さなヘルパー関数は…`REPLY` へ返す」。値が2つあるため `REPLY` ではなく
-# `REPLY_HOST` / `REPLY_PATH` を使う）。標準出力へ返すとコマンド置換が必要になり、
+# 「ホットパスの小さなヘルパー関数は…`REPLY` へ返す」。値が複数あるため `REPLY` ではなく
+# `REPLY_HOST` / `REPLY_PATH` / `REPLY_SCHEME` / `REPLY_PORT` を使う）。標準出力へ返すと
+# コマンド置換が必要になり、
 # `provider_from_remote_url` の「プロセス起動ゼロ」（DDR 0028）が守れなくなる。
 #
 #   REPLY_HOST … 小文字化したホスト名（scheme・認証情報・ポートを除く）
 #   REPLY_PATH … `owner/repo` 形式のパス（先頭スラッシュ・末尾の `.git`・末尾スラッシュを除く。
 #                 大文字小文字はそのまま保つ）
+#   REPLY_SCHEME … 小文字化したscheme（`https` / `http` / `ssh` / `git` 等。`://` を持たない
+#                 scp形式（`git@host:o/r.git`）では空文字列）
+#   REPLY_PORT … 明示されたポート番号（無ければ空文字列）。scp形式はポートを表現できないため常に空
 #
 # scp形式（`git@host:o/r.git`）とポート付きURL（`host:2222/o/r.git`）は、`:` の後ろが
 # **数字だけかどうか**で区別する。これがパラメータ展開だけで書ける唯一の分岐点である。
@@ -126,8 +130,15 @@ build_issue_body() {
 split_remote_url() {
   local url="$1" rest first tail
 
-  # scheme:// があれば除去（無ければそのまま）
+  # scheme:// があれば取り出して除去（無ければ scheme は空のままURLをそのまま使う）
+  if [ "$url" != "${url#*://}" ]; then
+    REPLY_SCHEME="${url%%://*}"
+    REPLY_SCHEME="${REPLY_SCHEME,,}"
+  else
+    REPLY_SCHEME=""
+  fi
   rest="${url#*://}"
+  REPLY_PORT=""
 
   # 認証情報 user@ を除去する。最初の `/` より前に `@` がある場合だけ落とすことで、
   # パスに `@` を含むURL（https://gitlab.com/foo/b@r.git）で誤爆しない
@@ -151,6 +162,7 @@ split_remote_url() {
         ;;
       *)
         # 数字のみ → ポート
+        REPLY_PORT="$tail"
         if [ "$rest" = "${rest#*/}" ]; then REPLY_PATH=""; else REPLY_PATH="${rest#*/}"; fi
         ;;
     esac
@@ -207,11 +219,62 @@ provider_from_remote_url() {
   esac
 }
 
-# `git remote get-url origin` のホスト名からプロバイダを判定する
+# `split_remote_url` が設定した `REPLY_*` から、リポジトリのWeb URLを組み立てる純粋関数
+# （issue #44）。外部コマンド・コマンド置換を伴わないためプロセス起動はゼロ。結果は `REPLY` へ返す。
+#
+# 組み立ての規則:
+#   - schemeは `http` のときだけ `http` を保ち、それ以外（`https` / `ssh` / `git` / scp形式）は
+#     `https` にする。self-hosted GitLabをplain httpで立てている構成（`http://localhost:8929/g/r.git`）
+#     でリンクが壊れるのを避けつつ、SSH系リモートからはWeb URLとして妥当な `https` を導く。
+#   - ポートは **schemeが `http`/`https` のときだけ引き継ぐ**。`ssh://host:2222/o/r.git` の `2222` は
+#     SSHの待ち受けポートであってWeb UIのポートではないため、引き継ぐとリンクが壊れる。
+#     scp形式はそもそもポートを表現できない（`REPLY_PORT` は常に空）。
+#   - `.git` サフィックス・末尾スラッシュの除去、ホスト名の小文字化は `split_remote_url` が済ませている。
+#
+# 入力が不正（ホスト・パスが取れない）場合の扱いは呼び出し側に委ねる（この関数は検証しない）。
+build_repo_url_from_reply() {
+  local scheme='https' authority="$REPLY_HOST"
+  case "$REPLY_SCHEME" in
+    http) scheme='http' ;;
+  esac
+  case "$REPLY_SCHEME" in
+    http|https) [ -n "$REPLY_PORT" ] && authority="$REPLY_HOST:$REPLY_PORT" ;;
+  esac
+  REPLY="$scheme://$authority/$REPLY_PATH"
+}
+
+# remote URL（https / http / ssh(scp形式) / `ssh://`）から、リポジトリの正規URLを導出する
+# 純粋関数（issue #44）。`gh repo view` / `glab repo view` の戻り値と同じ値を、CLI・ネットワーク
+# 無しで得るためのもの。外部コマンド呼び出しを伴わないため
+# .claude/scripts/test/test_vcs_provider.sh から単体テストできる。
+#
+# ホストまたはパス（`owner/repo`）が取れない場合は終了コード1を返す（URLを組み立てても
+# リンクとして機能しないため、`https:///` のような壊れた値を返さず明示的に失敗させる）。
+repo_url_from_remote_url() {
+  split_remote_url "$1"
+  if [ -z "$REPLY_HOST" ] || [ -z "$REPLY_PATH" ]; then
+    echo "remote URLからリポジトリURLを導出できませんでした: $1" >&2
+    return 1
+  fi
+  build_repo_url_from_reply
+  printf '%s\n' "$REPLY"
+}
+
+# `git remote get-url origin` のホスト名からプロバイダを判定する。
+#
+# 判定結果はプロセス内でメモ化する（issue #42）。`get_blob_url` / `get_diff_anchor_url` のような
+# ディスパッチ関数は変更ファイルの件数だけ繰り返し呼ばれ、そのたびに `$(git remote get-url origin)`
+# のコマンド置換でサブシェルをforkするため（git bashでは1回あたり約95ms。
+# `.claude/rules/shell-script-style.md`「外部プロセス起動のコスト」節）。同一プロセス内で
+# originのURLが変わることは想定しないため、キャッシュの無効化は用意しない。
+_PROVIDER_CACHE=""
 get_provider() {
-  local url
-  url="$(git remote get-url origin)"
-  provider_from_remote_url "$url"
+  if [ -z "$_PROVIDER_CACHE" ]; then
+    local url
+    url="$(git remote get-url origin)"
+    _PROVIDER_CACHE="$(provider_from_remote_url "$url")"
+  fi
+  printf '%s\n' "$_PROVIDER_CACHE"
 }
 
 # --- gh/glab CLI不在環境向けのMCPフォールバック経路（issue #34） --------------------------------
@@ -244,14 +307,19 @@ get_vcs_access_mode() {
 # MCPツールが必須引数として要求する `owner` / `repo` を、CLI不在環境でも機械的に得るために使う。
 # GitLabのネストしたnamespace（group/subgroup/repo）では、`owner` に `group/subgroup` が入る。
 parse_repo_slug() {
-  local host path owner repo
+  local host path owner repo url
   split_remote_url "$1"
   host="$REPLY_HOST"
   path="$REPLY_PATH"
   owner="${path%/*}"
   repo="${path##*/}"
+  # `.url` は `get_repo_url` と同じ組み立て規則を共有する（issue #44。plain httpのself-hosted
+  # GitLabやポート付きURLで両者の値が食い違わないようにするため）
+  build_repo_url_from_reply
+  url="$REPLY"
   jq -nc --arg host "$host" --arg owner "$owner" --arg repo "$repo" --arg path "$path" \
-    '{host: $host, owner: $owner, repo: $repo, path: $path, url: ("https://" + $host + "/" + $path)}'
+    --arg url "$url" \
+    '{host: $host, owner: $owner, repo: $repo, path: $path, url: $url}'
 }
 
 # `git remote get-url origin` の値を parse_repo_slug へ渡す（MCPツールの owner/repo 引数用）。
@@ -435,22 +503,22 @@ set_mr_ready() {
   esac
 }
 
-# リポジトリの正規URL（フルパス）を取得する（issue #13フォローアップ: MR/PRのURL文字列からの
-# 推測ではなく`gh repo view`/`glab repo view`で取得し正確性を担保する）。
+# リポジトリの正規URL（フルパス）を取得する。`git remote get-url origin` の値を
+# `repo_url_from_remote_url` で正規化して返す、**プロバイダ非依存**の関数（issue #44）。
 #
-# CLI不在時（issue #34）は、他のプロバイダ依存関数と異なり `require_vcs_cli` で失敗させず、
-# `get_repo_slug`（`git remote get-url origin` のパース）から組み立てたURLを返す。リモートURLの
-# 取得はローカルのgit操作でありCLI・ネットワークを必要としないため、MCPツールを介す必要が無く、
-# これによりURL組み立て系（`get_mr_diff_url` 等）はMCP経路でもそのまま動く。
+# issue #13フォローアップの当初実装は `gh repo view --json url` / `glab repo view --output json`
+# （`.web_url`）へディスパッチしていたが、実機で両者の戻り値がremote URLと `.git` サフィックスの
+# 有無しか違わないことを確認したため、gitだけで解決できる差分としてプロバイダ依存を解消した。
+# あわせて、pushのたびに走る `post-push-compact-prompt.sh` から外部CLIの起動（git bashで
+# 約95ms/回）とAPI往復が1回ずつ無くなり、`gh`/`glab` 不在の環境（Claude Code on the web）でも
+# CLI経路と同じ経路で動くようになる（issue #34で入れたMCP経路向けの分岐も不要になった）。
+#
+# DDR 0023 が却下したのは「MR/PRの**URL文字列**へsuffixを推測で付け足す」案であり、remote URLからの
+# 導出はそれとは別物（推測ではなく、リポジトリの所在そのものを表す一次情報の変換）である。
+# 正規URLと一致しないリスクケースの扱いは
+# .claude/docs/ddr/0037-リポジトリURLはgh_glabではなくgit-remoteから導出する.md 参照。
 get_repo_url() {
-  if [ "$(get_vcs_access_mode)" != "cli" ]; then
-    get_repo_slug | jq -r '.url'
-    return 0
-  fi
-  case "$(get_provider)" in
-    github) github_get_repo_url ;;
-    gitlab) gitlab_get_repo_url ;;
-  esac
+  repo_url_from_remote_url "$(git remote get-url origin)"
 }
 
 # MR/PRの「defaultブランチとの差分」を見れるURLを組み立てる（issue #13:
@@ -472,6 +540,87 @@ get_mr_diff_since_url() {
     github) github_get_mr_diff_since_url "$repo_url" "$from_sha" "$to_sha" ;;
     gitlab) gitlab_get_mr_diff_since_url "$repo_url" "$from_sha" "$to_sha" ;;
   esac
+}
+
+# 特定ファイルの「そのref時点の本体」を開くblobページのURLを組み立てる（issue #42:
+# レビュー依頼メッセージへ重点レビュー対象ファイルのリンクを含めるため）。`repo_url`は
+# `get_repo_url` で取得したものを、`path` は `url_encode_path_to_reply` でencode済みのものを渡す。
+get_blob_url() {
+  local repo_url="$1" ref="$2" path="$3"
+  case "$(get_provider)" in
+    github) github_get_blob_url "$repo_url" "$ref" "$path" ;;
+    gitlab) gitlab_get_blob_url "$repo_url" "$ref" "$path" ;;
+  esac
+}
+
+# Compareページ内の特定ファイルの差分位置を指すアンカー付きURLを組み立てる（issue #42）。
+# `compare_url` は `get_mr_diff_url` / `get_mr_diff_since_url` の戻り値を、`path_hash` は
+# `hash_paths "$(get_diff_anchor_algo)" <path>` の結果を渡す。
+get_diff_anchor_url() {
+  local compare_url="$1" path_hash="$2"
+  case "$(get_provider)" in
+    github) github_get_diff_anchor_url "$compare_url" "$path_hash" ;;
+    gitlab) gitlab_get_diff_anchor_url "$compare_url" "$path_hash" ;;
+  esac
+}
+
+# 差分アンカーのハッシュ算出に使うアルゴリズム名（`sha256` / `sha1`）を返す（issue #42）。
+# ハッシュの種類はプロバイダの非公開内部仕様であり、GitHubはパス文字列のsha256、GitLabはsha1。
+get_diff_anchor_algo() {
+  case "$(get_provider)" in
+    github) github_diff_anchor_algo ;;
+    gitlab) gitlab_diff_anchor_algo ;;
+  esac
+}
+
+# パスをURLへ埋め込める形へpercent-encodeし、結果を `REPLY` へ返す（issue #42）。
+# unreserved文字（`A-Za-z0-9-._~`）と、パス区切りである `/` はそのまま残し、それ以外は
+# UTF-8のバイト単位で `%XX` へ変換する（日本語ファイル名・空白を含むパスへの対応）。
+#
+# 標準出力ではなく `REPLY` へ返すのは、変更ファイルの件数だけ繰り返し呼ばれるため
+# （コマンド置換 `$(...)` はそのたびにサブシェルをforkする。
+# `.claude/rules/shell-script-style.md`「外部プロセス起動のコスト」節）。
+# `LC_ALL=C` をローカルに設定して `${s:i:1}` をバイト単位の切り出しにしている（ロケール依存で
+# 文字単位になるとマルチバイト文字を `%XX` へ分解できないため）。
+url_encode_path_to_reply() {
+  local s="$1" out="" i c
+  local LC_ALL=C
+  for ((i = 0; i < ${#s}; i++)); do
+    c="${s:i:1}"
+    case "$c" in
+      [a-zA-Z0-9._~/-]) out+="$c" ;;
+      *) printf -v c '%%%02X' "'$c"; out+="$c" ;;
+    esac
+  done
+  REPLY="$out"
+}
+
+# 渡した各パス文字列のハッシュを、引数と同じ順序で1行ずつ標準出力へ返す（issue #42。
+# 差分アンカー用）。ファイルの中身ではなく**パス文字列そのもの**のハッシュである点に注意。
+#
+# パスの件数に比例して `sha256sum` を起動しないよう、各パスを一時ファイルへ書き出して
+# **1回**の呼び出しでまとめて計算する（`sha256sum`/`sha1sum` は引数の順序どおりに出力する）。
+# 一時ファイル名は連番にしており、パスに改行・記号が含まれても影響を受けない
+# （`.claude/rules/shell-script-style.md`「外部プロセス起動のコスト」節）。
+hash_paths() {
+  local algo="$1"
+  shift
+  [ "$#" -gt 0 ] || return 0
+  local cmd
+  case "$algo" in
+    sha256) cmd="sha256sum" ;;
+    sha1) cmd="sha1sum" ;;
+    *) printf 'hash_paths: 未知のアルゴリズムです: %s\n' "$algo" >&2; return 1 ;;
+  esac
+  local tmpdir files=() i=0 p
+  tmpdir="$(mktemp -d)"
+  for p in "$@"; do
+    i=$((i + 1))
+    printf '%s' "$p" > "${tmpdir}/${i}"
+    files+=("${tmpdir}/${i}")
+  done
+  "$cmd" "${files[@]}" | awk '{print $1}'
+  rm -rf "$tmpdir"
 }
 
 # MRへ新規コメントを1件投稿する（スレッド返信ではなく、レビューでもない通常コメント。

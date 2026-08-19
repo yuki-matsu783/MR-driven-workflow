@@ -4,7 +4,7 @@ description: このプロジェクトの開発フロー全体（issue起票〜�
 title: issue駆動 開発フロー
 type: skill
 tags: [issue-mr-flow, workflow, skill]
-keywords: [start, resume, sync, comments, reply, describe, draft-pr, issue分割, 並列列挙, 実装フロー, squash-merge, レビュー返信]
+keywords: [start, resume, sync, comments, reply, describe, draft-pr, issue分割, 並列列挙, 実装フロー, squash-merge, レビュー返信, 着手確認]
 ---
 
 # issue駆動 フロー（唯一のフロー定義）
@@ -50,9 +50,9 @@ MR description更新」という同じ形を繰り返す。
 
 | flow-id | ステップ | 担当 |
 |---|---|---|
-| 1-1 | issueを起票する（`.github/ISSUE_TEMPLATE/task.md` / `.gitlab/issue_templates/task.md` で目的・現状・期待する動作・受け入れ条件を記載） | 人間（AIが代行する場合は `issue-create` スキル） |
+| 1-1 | issueを起票する（`.github/ISSUE_TEMPLATE/task.md` / `.gitlab/issue_templates/Default.md` で目的・現状・期待する動作・受け入れ条件を記載） | 人間（AIが代行する場合は `issue-create` スキル） |
 | 1-2 | issueの内容を取得する | `start <issue番号>` |
-| 1-3 | featureブランチ（`feature-<issue番号>-<slug>`）とDraft MRを作成する（既にあれば `sync` のみ） | `start` |
+| 1-3 | featureブランチ（`feature-<issue番号>-<slug>`）とDraft MRを作成する（既にあれば `sync` のみ）。**Draft MRの作成に都度の明示指示は要らない**（下記「PR/MR作成・マージの担当」。ハーネスがPR作成を制限する環境での例外も同節）。**作成後は「PR作成後のdefaultブランチ追従（監視）」節に従って追従監視を開始する** | `start`（エージェント） |
 | 1-4 | **Planモードで「全体作業計画」を作成する**（このissueをどう進めるか＝何を調査し何を実装するかの全体像。ハーネスが提示するパス `plans/<自動命名>.md` へ出力）。**現在のブランチに既に全体作業計画があれば新規作成せず、既存を読むだけにとどめる**（詳細は下記「計画の2階層構造」）。**作成前に、issueが大きすぎないか（同型の成果物が並列に列挙されていないか）を判定し、該当すれば分割を提案する**（下記「issueが大きすぎる場合の分割提案」） | エージェント |
 | 1-5 | 全体作業計画に合意する | 人間 |
 | 1-6 | 全体作業計画をもとにHANDOFF.mdを更新する | エージェント |
@@ -87,9 +87,9 @@ MR description更新」という同じ形を繰り返す。
 | 4-9 | レビュー内容を取得し、設計・AIアセットの内容を修正する。対応が完了したコメントには対応内容を返信する（4-6〜4-9の反映ループを合意まで繰り返す） | `comments` / `reply` |
 | 4-10 | 反映内容をもとにMR descriptionを更新する | `describe` |
 | 5-1 | 次タスクのために、`plans/` `worklog/` `reports/` を削除し、`HANDOFF.md` をリセットする | エージェント |
-| 5-2 | **defaultブランチとのコンフリクトを検知し、あれば解消する**（`bash .claude/scripts/src/check-base-conflicts.sh` で判定 → `hasConflict` が真なら `AskUserQuestion` でユーザーに確認 → 承認されたら `resolve-conflict` スキルで解消。詳細は下記「defaultブランチとのコンフリクト検知・解消」節） | エージェント（`resolve-conflict` スキル） |
-| 5-3 | `commit`スキル経由でcommitし、push して Draftを解除する（解除は `source .claude/scripts/src/vcs/Provider.sh && set_mr_ready <MR番号>` で行う。`gh pr ready` / `glab mr update --ready` を直接呼ばない。MR番号は `get_mr_for_branch` で取得できる） | エージェント |
-| 5-4 | マージする（squash merge。ブランチは削除してよい） | 人間 |
+| 5-2 | **defaultブランチとのコンフリクトを検知し、あれば解消する**（`bash .claude/scripts/src/check-base-conflicts.sh` で判定 → `hasConflict` が真なら `AskUserQuestion` でユーザーに確認 → 承認されたら `resolve-conflict` スキルで解消。詳細は下記「defaultブランチとのコンフリクト検知・解消」節）。PR作成後の継続的な追従（下記「PR作成後のdefaultブランチ追従（監視）」節）を行っていても、**このステップは最終ゲートとして必ず通る** | エージェント（`resolve-conflict` スキル） |
+| 5-3 | `commit`スキル経由でcommitし、push して Draftを解除する（解除は `source .claude/scripts/src/vcs/Provider.sh && set_mr_ready <MR番号>` で行う。`gh pr ready` / `glab mr update --ready` を直接呼ばない。MR番号は `get_mr_for_branch` で取得できる）。**AIエージェントはここで止まる**（マージへは進まない） | エージェント |
+| 5-4 | マージする（squash merge。ブランチは削除してよい）。**AIエージェントは、ユーザーから明示的に指示された場合に限り実行してよい**（下記「PR/MR作成・マージの担当」） | 人間 |
 
 ### 計画の2階層構造（issue #9）
 
@@ -244,6 +244,26 @@ AIエージェントは**兆候と分割案を提示するに留める**。勝�
 - **共通部分を含む1件目を先に完了**させてから残りに着手する。並走させると共通部分がコンフリクト
   しやすく、DDR番号の重複（下記「defaultブランチとのコンフリクト検知・解消」）も起きやすい。
 
+## PR/MR作成・マージの担当（flow-id 1-3・5-3・5-4）
+
+**PR/MRの作成・更新はAIエージェントが実施してよい。マージのみユーザーの明示指示を必須とする**
+（issue #41）。判断の根拠は「取り消せるか」で、PR/MRの作成・Draft解除・description更新はいつでも
+取り消せて `main` を変えないのに対し、マージは `main` の正史を書き換える不可逆な操作である。
+
+| 操作 | 担当 |
+|---|---|
+| Draft PR/MRの作成（flow-id 1-3）・description更新・レビュー依頼・レビュー返信・Draft解除（flow-id 5-3） | **AIエージェント**（都度の明示指示は不要） |
+| マージ（flow-id 5-4） | **人間**。AIエージェントは明示的に指示された場合に限り実行してよい |
+
+flow-id 5-3 を終えたAIエージェントは、フロー上マージが次の一手であっても**そこで止まる**。
+「レビューが終わった」「Draftを解除した」「コンフリクトを解消した」はいずれもマージの指示ではない。
+
+**ハーネス（実行基盤）のシステムプロンプトに「ユーザーが明示的に依頼しない限りPRを作成しない」
+旨の指示がある環境**（Claude Code on the web のリモート実行環境等）では、ハーネス側の指示が優先
+される。その場合の flow-id 1-3 の振る舞い（ブランチ作成まで進め、作成の可否を `AskUserQuestion` で
+1回だけ確認する。応答を待てない非対話的セッションではPRを作成せず、その事実を最終応答へ明示する）は
+`.claude/rules/git-workflow.md`「ハーネスがPR作成を制限する環境での扱い」が正である。
+
 ## 敵対的レビューの位置づけ（issue #77）
 
 `adversarial-review` スキル（`.claude/skills/adversarial-review/SKILL.md`）は、独立コンテキストの
@@ -279,10 +299,19 @@ AIエージェントは**兆候と分割案を提示するに留める**。勝�
 
 ### `start <issue番号>` — issue取得・ブランチ/MR作成（全体フロー 1-2〜1-3）
 
+**起票（flow-id 1-1）の直後に、同じセッションで続けて `start` を実行してよいのは、ユーザーから
+明示的な着手の指示があったときだけである**（issue #39）。`issue-create` スキルでAIが起票を代行した
+場合も同じで、起票したこと自体は着手の指示ではない。AIから「続けて着手しますか？」と持ちかけず、
+新しいセッションでの実行を勧めるに留める（起票と実装が同じセッションに同居すると、進行中の別issueの
+ブランチ・MRと作業コンテキストが混ざるため。詳細:
+`.claude/skills/issue-create/SKILL.md`「してはいけないこと」）。この前提は
+`.claude/hooks/post-issue-create-notice.sh`（PostToolUse hook）の注意喚起でも補強されるが、
+hookは多重防御であり、注入が無かったことは着手してよい根拠にならない。
+
 1. `get_issue <issue番号>` でissueのtitle/body/urlを取得し、内容をユーザーに提示する。
    続けて `test_issue_sections "$(get_issue <issue番号> | jq -r '.body')"` を呼び、標準4見出し
    （目的・現状・期待する動作・受け入れ条件。`.github/ISSUE_TEMPLATE/task.md` /
-   `.gitlab/issue_templates/task.md` 参照）の過不足を確認する。欠けている見出しがあれば
+   `.gitlab/issue_templates/Default.md` 参照）の過不足を確認する。欠けている見出しがあれば
    「issue本文に以下の見出しがありません: ...」とユーザーに警告する（処理は止めず、そのまま次へ進む）。
 2. issue番号をキーに、既存ブランチの有無を確認する。`.mrworkflow.json` の `branchPrefixTemplate` の
    `{issue}` をissue番号に置換し `{slug}` 以降を `*` に置き換えたパターン
@@ -306,7 +335,11 @@ AIエージェントは**兆候と分割案を提示するに留める**。勝�
         スペース区切りの単語列でよい。kebab-case化・記号除去・小文字化は `to_slug` が行うため
         ここでは不要。直訳ではなく意訳でよい。例:「ブランチ名のslugをリッチにしたい」→
         `enrich branch slug`）。タイトルが元々英語主体の場合はタイトルをそのまま使ってよい。
-     c. `new_issue_branch <n> "<b.で考えた英語フレーズ>" [<base_branch>]` でブランチを作成・
+     c. **Draft MRの作成に、ユーザーからの都度の明示指示は要らない**（issue #41。上記
+        「PR/MR作成・マージの担当」節）。ただし、ハーネスのシステムプロンプトが「明示的に依頼
+        されない限りPRを作成しない」と指示する環境では、ここで `AskUserQuestion` による確認を
+        1回だけ挟む（`.claude/rules/git-workflow.md`「ハーネスがPR作成を制限する環境での扱い」）。
+     d. `new_issue_branch <n> "<b.で考えた英語フレーズ>" [<base_branch>]` でブランチを作成・
         checkout・push、続けて `new_draft_merge_request <n> "<branch>" "<issue.Title>" [<base_branch>]`
         （**Draft MRのタイトルには引き続き生のissueタイトルを使う。英語フレーズはブランチ名専用**。
         `<base_branch>` は手順aで確定した値。既定のままなら省略）
@@ -329,6 +362,9 @@ AIエージェントは**兆候と分割案を提示するに留める**。勝�
    （ファイルパス・行番号・スレッドID・該当diffを含む）。対応済み（解決済み）のスレッドは既定で
    機械的に除外される。引数に `all` が指定された場合は `get_mr_unresolved_comments <n> true` で呼び、
    解決済みも含めた全件を取得する。
+   - 各行の角括弧内には `url=<コメントのパーマリンク>` が含まれる（issue #42）。**次のpush時の
+     レビュー依頼メッセージへ「前回の指摘にどう返信したか」のリンクを載せるために使うので、
+     返信したスレッドのURLは控えておくこと。**
 3. ユーザがプロンプトにおいて指摘を行った場合は、MRにコメントすることを促す。
 4. 提示した内容をもとに、該当する計画ファイル（全体作業計画または下位の個別計画）を修正する、
    または設計・実装を修正する
@@ -346,6 +382,9 @@ AIエージェントは**兆候と分割案を提示するに留める**。勝�
    そのまま渡す設計のため、署名の付与は呼び出し側であるこの手順の責務とする）。
 3. `add_mr_thread_reply <n> "<threadId>" "<署名付きの対応内容>"` で、
    指定したスレッドに返信する。`threadId` は `comments` の出力に含まれる `threadId=...` を使う。
+   - **本関数は投稿した返信自身のパーマリンクを標準出力へ返す**（issue #42）。この
+     URLをユーザーへ提示し、**次のpush時のレビュー依頼メッセージへ含める**
+     （`post-push-compact-prompt.sh` の指示文でも同じことを促される）。
 4. スレッドの解決（resolved）はレビュアー側の操作であり、本サブコマンドでは行わない。
 
 ### `describe` — MR descriptionの更新（全体フロー 2-5・2-10・3-5・3-10・4-5・4-10）
@@ -392,6 +431,10 @@ AIエージェントは**兆候と分割案を提示するに留める**。勝�
    次にすべきことを提案する（この判断はサブエージェントではなく呼び出し元が行う）。
 4. issue番号が特定できていればブランチ/MRの存在確認へ（`start` 手順2相当）、issueが特定できなければ
    ブランチ命名規則から外れている旨を伝えて `start <issue番号>` での対応を促す。
+5. **PRが存在し、まだマージ・クローズされていない場合は、defaultブランチの追従監視を取り直す**
+   （購読・自己チェックインはセッションに紐づき、前のセッションの終了とともに止まっているため。
+   手順は下記「PR作成後のdefaultブランチ追従（監視）」節。取り直した状態は `HANDOFF.md` の
+   ヘッダ `- 追従監視:` 行へ記録する）。
 
 ## `gh`/`glab` CLI不在時のMCPフォールバック
 
@@ -430,13 +473,13 @@ get_repo_slug | jq -r '.owner, .repo'
 | `search_issues <キーワード...>` | `mcp__github__search_issues` | `query="<キーワード（複数可）>"`, `owner`, `repo` | `issue-create` スキルの起票前重複チェック（issue #68）の代替。**CLI版と違い、キーワードごとに呼び分ける必要はない**（自然言語のセマンティック検索で、既に `is:issue` にスコープされている）。1回の `query` に複数キーワードを平文で並べる。closedのissueも対象にしたいので `state` で絞り込まないこと。返却の `number`/`title`/`state`/`html_url` を、CLI版の `number`/`title`/`state`/`url` と読み替える |
 | `new_draft_merge_request <n> <branch> <title> [<base>]` | `mcp__github__create_pull_request` | `owner`, `repo`, `title`, `head=<branch>`, `base=<base>`, `draft=true`, `body="Closes #<n>\n\n(plan作成中。/issue-mr-flow describe で更新する)"` | baseとの差分が無いと失敗する制約はMCP経路でも同じ。失敗したら `source .claude/scripts/src/vcs/Provider.sh && add_empty_commit_for_draft_mr` を実行してから1回だけ再試行する |
 | `get_mr_for_branch <branch>` | `mcp__github__list_pull_requests` | `owner`, `repo`, `head="<owner>:<branch>"`, `state="open"` | 結果が空配列ならPRなし。`number`/`html_url`/`draft`/`title` を使う |
-| `get_mr_unresolved_comments <n> [true]` | `mcp__github__pull_request_read` | `method="get_review_comments"`, `owner`, `repo`, `pullNumber=<n>` | スレッドごとに `isResolved` が付くので、**既定では `isResolved=false` のスレッドだけを提示する**（CLI版の「解決済みは機械的に除外」に相当）。`all` 指定時は全件。通常コメントは `method="get_comments"` を追加で呼ぶ |
-| `add_mr_thread_reply <n> <threadId> <body>` | `mcp__github__add_reply_to_pull_request_comment` | `owner`, `repo`, `pullNumber=<n>`, `commentId=<返信先スレッドの先頭コメントの数値ID>`, `body` | **ID体系が違う。** CLI経路はGraphQLのthreadId（`PRRT_...`）を使うが、MCP経路は数値のcommentId（`#discussion_r...` の数字部分）を使う。`get_review_comments` の各スレッドに含まれるコメントのidを使うこと |
+| `get_mr_unresolved_comments <n> [true]` | `mcp__github__pull_request_read` | `method="get_review_comments"`, `owner`, `repo`, `pullNumber=<n>` | スレッドごとに `isResolved` が付くので、**既定では `isResolved=false` のスレッドだけを提示する**（CLI版の「解決済みは機械的に除外」に相当）。`all` 指定時は全件。通常コメントは `method="get_comments"` を追加で呼ぶ。**コメントのパーマリンク（CLI版の `url=...`）は返却JSONの `html_url` を使う**（issue #42） |
+| `add_mr_thread_reply <n> <threadId> <body>` | `mcp__github__add_reply_to_pull_request_comment` | `owner`, `repo`, `pullNumber=<n>`, `commentId=<返信先スレッドの先頭コメントの数値ID>`, `body` | **ID体系が違う。** CLI経路はGraphQLのthreadId（`PRRT_...`）を使うが、MCP経路は数値のcommentId（`#discussion_r...` の数字部分）を使う。`get_review_comments` の各スレッドに含まれるコメントのidを使うこと。**投稿した返信のURL（CLI版の戻り値）は、返却JSONの `html_url` を使う**（issue #42） |
 | `set_mr_description <n> <file>` | `mcp__github__update_pull_request` | `owner`, `repo`, `pullNumber=<n>`, `body=<ファイルの内容>` | CLI版はファイルパスを渡すが、MCPは文字列で渡す。本文はReadツール等で読んでから渡す |
 | `set_mr_ready <n>` | `mcp__github__update_pull_request` | `owner`, `repo`, `pullNumber=<n>`, `draft=false` | `set_mr_description` と同じツールだが渡す引数が違う。`draft=false` が「Draftを解除しレビュー可能にする」の意味（flow-id 5-3。issue #61） |
 | `add_mr_comment <n> <file>` | `mcp__github__add_issue_comment` | `owner`, `repo`, `issue_number=<PR番号>`, `body=<ファイルの内容>` | PR番号を `issue_number` に渡す（GitHub APIの仕様上、PRもissueとして扱える） |
 | `add_mr_inline_comments <n> <file>` | `mcp__github__pull_request_review_write` | `method="create"` → 指摘ごとに `method="add_comment_to_pending_review"`（`owner`, `repo`, `pullNumber`, `path`, `line`, `side`, `body`）→ `method="submit_pending"`（`event="COMMENT"`） | 敵対的レビュー（issue #77）のインライン投稿。**3段構成で、`submit_pending` まで必ず実行する**（pendingのまま放置すると次回の `create` が失敗し続ける）。途中で失敗したら `method="delete_pending"` で片付ける。CLI版と違い有効行の事前検証が入らないため、diffに含まれない行を指定すると個別に失敗する |
-| `get_repo_url` | （MCP不要） | — | `git remote` からのローカル組み立てにフォールバックするため、MCP経路でもそのまま呼べる（`get_mr_diff_url` / `get_mr_diff_since_url` も同様） |
+| `get_repo_url` | （MCP不要） | — | `git remote get-url origin` の正規化だけでリポジトリの正規URLを導出するプロバイダ非依存の関数のため、MCP経路でもそのまま呼べる（`get_mr_diff_url` / `get_mr_diff_since_url` も同様。issue #44） |
 | `new_issue_branch` / `sync_branch` / `get_branch_work_files` / `get_issue_number_from_branch` / `to_slug` / `test_issue_sections` | （MCP不要） | — | git操作・純粋ロジックのみでCLIに依存しないため、MCP経路でもそのまま呼べる |
 
 ### 3. サブコマンドごとの読み替え
@@ -444,8 +487,8 @@ get_repo_slug | jq -r '.owner, .repo'
 | サブコマンド | MCP経路での差分 |
 |---|---|
 | `start <n>` | 手順1の `get_issue` を `mcp__github__issue_read` に置き換える。`test_issue_sections` はbody文字列を渡せばそのまま使える。手順2のブランチ検索（`git branch --list` / `git ls-remote`）と `new_issue_branch` は変更なし。Draft PR作成のみ `mcp__github__create_pull_request` に置き換える |
-| `comments [all]` | MR番号の取得を `mcp__github__list_pull_requests`、コメント取得を `mcp__github__pull_request_read` に置き換える。**未解決のみを既定で提示する絞り込みは、CLI版ではスクリプトが行っていた処理なので、MCP経路では自分で `isResolved` を見て行う** |
-| `reply <threadId> <対応内容>` | 返信先の指定が数値のcommentIdになる（上表の補足参照）。**`Claude Codeより:` の署名行を先頭に付ける規約はMCP経路でも同じ**（MCPサーバーもユーザーの認証情報で動くため、投稿者は人間のアカウントとして表示される） |
+| `comments [all]` | MR番号の取得を `mcp__github__list_pull_requests`、コメント取得を `mcp__github__pull_request_read` に置き換える。**未解決のみを既定で提示する絞り込みは、CLI版ではスクリプトが行っていた処理なので、MCP経路では自分で `isResolved` を見て行う。** コメントのパーマリンクは `html_url` から取る（issue #42） |
+| `reply <threadId> <対応内容>` | 返信先の指定が数値のcommentIdになる（上表の補足参照）。**`Claude Codeより:` の署名行を先頭に付ける規約はMCP経路でも同じ**（MCPサーバーもユーザーの認証情報で動くため、投稿者は人間のアカウントとして表示される）。投稿後に返る `html_url` が返信のパーマリンクで、次のpushのレビュー依頼メッセージへ含める（issue #42） |
 | `describe` | descriptionを一時ファイルへ書く手順は同じでよいが、最後は `mcp__github__update_pull_request` の `body` へ文字列として渡す |
 | `sync` | 変更なし（git操作のみ） |
 | `resume` | サブエージェント（`issue-mr-resume`）はProvider.sh経由でのCLI利用を前提とするため、MCP経路ではissue/PR情報の取得部分が失敗する。その場合はサブエージェントの報告のうちgit・ファイル系（ブランチ・plans/worklog・HANDOFF.md）を採用し、issue/PR情報は呼び出し元が上表のMCPツールで補う |
@@ -460,7 +503,8 @@ hookはMCPツールを呼べないため、以下のように非侵襲的に縮�
 |---|---|
 | `session-start.sh` | issue/PR情報の代わりに「経路はMCP」「ブランチ名から抽出したissue番号」「owner/repo」「本節への参照」を注入する |
 | `post-push-usage-report.sh` | 集計状態の更新のみ行い、対応工数レポートの自動投稿はスキップする（stderrへ1行） |
-| `post-push-compact-prompt.sh` | MRリンクだけを「MCPで取得すること」に差し替え、レビュー依頼メッセージと `/compact` の呼びかけは従来どおり行う |
+| `post-push-compact-prompt.sh` | MRリンクだけを「MCPで取得すること」に差し替え、レビュー依頼メッセージと `/compact` の呼びかけは従来どおり行う。重点レビュー対象ファイルのリンク（issue #42）は `get_repo_url` のローカル組み立てとgit操作だけで作れるため、CLI不在時もそのまま供給される |
+| `post-issue-create-notice.sh` | 縮退しない。CLI経路（`create-issue.sh` の実行）に加えMCP経路（`mcp__github__issue_write` の `method="create"`）も検知するため、CLI不在時も同じ注意喚起が出る（issue #39） |
 
 ### 5. GitLabは対象外
 
@@ -482,12 +526,106 @@ GitLabリポジトリで `glab` が無い場合、`require_vcs_cli` はその旨
   ステップには進まない（GitHub/GitLabのスレッド解決自体はレビュアー側の操作であり、`reply` は
   解決を行わないため、返信済みでも `unresolved` のまま残ることがある）。
 
+## PR作成後のdefaultブランチ追従（監視）（flow-id 1-3〜5-4を横断）
+
+flow-id 5-2 は**最後のゲート**であって、唯一の検知機会ではない。PR作成（flow-id 1-3）から
+マージ（5-4）までの間にdefaultブランチが進むと、レビューを待っている間にコンフリクトが生まれる
+（issue #88。実例: issue #39 のPR #81 では、PR作成後の短時間に `main` が4回進み、DDR番号を
+0034→0035→0036→0038 と3回繰り下げた。そのつどユーザーからの指摘で気づいていた）。
+本節は、その間の追従を**特定のflow-idに属さない並行手順**として定める（flow-idは増やさない。
+理由・却下案:
+`.claude/docs/ddr/0039-PR作成後のdefaultブランチ追従は並行手順として定義し自動解消は一意に決まる類型に限る.md`）。
+
+### 既存flow-idとの対応
+
+| タイミング | やること |
+|---|---|
+| flow-id 1-3 の直後（PR/MR作成後） | 監視を**開始**する（下記「実行環境別の手段」）。開始した事実と手段を `HANDOFF.md` のヘッダ `- 追従監視:` 行へ記録する |
+| 各pushの直後（flow-id 2-2/2-7/3-2/3-7/4-2/4-7） | `bash .claude/scripts/src/check-base-conflicts.sh` を1回実行する |
+| 監視イベントを受け取ったとき（PRイベント・定期チェックイン・人間からの指摘） | 同上。`hasConflict` が真なら下記「自動解消してよい範囲」に従って解消する |
+| flow-id 5-2 | **最終ゲート**。それまでに何度追従していても、Draft解除の前に必ずもう1回実行する |
+| flow-id 5-4（マージ）／PRのクローズ | 監視を**停止**する（下記「監視の停止条件」） |
+
+**flow-id 5-2 は監視があっても省略しない。** 監視は実行環境の機能とセッションの寿命に依存する
+ため（下記「制約」）、監視が一度も動かないまま進むセッションがありうる。必ず通るゲートを1つ
+残しておくことで、その場合でもコンフリクトを抱えたままDraft解除へ進むことはない。
+
+### 実行環境別の手段
+
+#### (a) Claude Code on the web（リモート実行環境）
+
+1. PR作成の直後に `subscribe_pr_activity`（`owner` / `repo` / `pullNumber`）でPRイベントを購読する。
+2. あわせて `send_later` で自己チェックイン（1時間後程度）を予約する。webhookはpush・CI成功・
+   マージ可否の遷移を取りこぼすことがあるため、**イベント購読だけに頼らない**。
+3. イベントまたはチェックインで起きたら `check-base-conflicts.sh` を実行し、`hasConflict` が真なら
+   解消する。**変化が無ければユーザーへ報告せず、次のチェックインを予約し直すだけにする**
+   （静かな見張りを繰り返し通知で埋めない）。
+4. PRが merged / closed になったら `unsubscribe_pr_activity` を呼び、チェックインの予約もやめる。
+
+#### (b) ローカル（git bash）
+
+購読・予約に相当する仕組みが無いため、**人手で `/resolve-conflict` を回す**。最低限、次の
+タイミングで実行する。
+
+- 各pushの直後（レビュー依頼を出した直後）
+- レビューコメントへ対応するために作業を再開したとき
+- flow-id 5-2（必須）
+
+`/resolve-conflict` は `hasConflict` が偽ならマージもコミットもせずに終了するため、空振りの
+コストは `git fetch` 1回分にとどまる。
+
+### 制約: 監視はセッションに紐づき、リポジトリ側には残らない
+
+`subscribe_pr_activity` / `send_later` は**そのセッションが生きている間だけ有効**で、`.claude/`
+配下には何も残らない。セッションが終われば監視は止まり、別セッション・別環境では再現しない。
+
+これを補うため、監視の状態は次の2箇所で引き継ぐ。
+
+- `HANDOFF.md` のヘッダへ1行で記録する。例:
+  - `- 追従監視: 購読あり（web。subscribe_pr_activity + 1時間ごとの自己チェックイン）`
+  - `- 追従監視: なし（ローカル。各pushとflow-id 5-2で手動確認する）`
+- `resume`（`issue-mr-resume` エージェント）の現在地サマリに「追従監視」を含める。**新しい
+  セッションでPRが未マージのまま引き継いだ場合は、監視を取り直してから作業を再開する。**
+
+### 自動解消してよい範囲
+
+監視で検知したコンフリクトは、**解消方法が一意に決まる（どちらの意図も失われない）類型に限り、
+ユーザーへの確認を待たずに解消してよい**。レビュー待ちの間に人間の応答を待つと、待っている間に
+defaultブランチがさらに進み、同じ解消をやり直すことになるためである。類型の定義と解消手順は
+`.claude/skills/resolve-conflict/SKILL.md` が正。
+
+| 類型 | 監視中の扱い |
+|---|---|
+| A: DDR番号の衝突 | **自動解消**（defaultブランチ側を正とし、作業ブランチ側を空き番号へ繰り下げる） |
+| B: Git管理外にした生成物の "deleted by us" | **自動解消**（管理外にした側の意図を採用する） |
+| C: 同じドキュメントの近接行（一覧・表・末尾への追記） | **自動解消**（両方を残す）。ただし散文が両側で書き換わり内容が矛盾する場合は類型Eとして扱う |
+| D: spec/DDRの過去changelog | **自動解消**（時系列順に両方のエントリを残す） |
+| E: 同じロジックを両ブランチが変更 | **人間へ確認**。解消せずに止め、`AskUserQuestion` で判断を仰ぐ |
+
+- 自動解消する場合も、**`commit` スキル経由でのコミットと `resolve-conflict` スキル Step 5 の検証
+  （コンフリクトマーカー・unmergedパス・`bash -n`・単体テスト・DDR番号重複の再確認）は省略しない。**
+- 解消した内容は `HANDOFF.md` の「判断を迷った内容」へ書き残し、PR上にも1回だけ報告する
+  （毎回の空振りは報告しない）。
+
+### 監視の停止条件
+
+- PRが **merged または closed** になった（`unsubscribe_pr_activity` を呼ぶ）
+- ユーザーが監視の停止を指示した
+- セッションが終了した（自動的に止まる。次のセッションが `resume` で取り直す）
+
+**類型Eで人間の判断待ちになった場合も、監視自体は止めない**（待っている間にもdefaultブランチは
+進むため）。判断が返ってきた時点で、最新の状態に対して検知からやり直す。
+
 ## defaultブランチとのコンフリクト検知・解消（flow-id 5-2）
 
 マージ依頼（Draft解除）へ進む前に、**必ずdefaultブランチとの間にコンフリクトが無いことを確認する**
 （issue #46）。過去4回、コンフリクトの存在に気づいたのが人間のマージ操作時になっており、
 その都度その場の判断で解消していた。手順は `resolve-conflict` スキル
 （`.claude/skills/resolve-conflict/SKILL.md`）を正とし、本節はフロー上の位置づけと分岐のみを定める。
+
+**本節は「最終ゲート」であり、唯一の検知機会ではない**（issue #88）。PR作成からマージまでの間の
+継続的な追従は、上記「PR作成後のdefaultブランチ追従（監視）」節が正である。監視で追従済みでも、
+このステップは省略しない（監視は実行環境・セッションに依存するため）。
 
 1. **検知**（作業ツリーを変更しない）
 
@@ -531,9 +669,9 @@ PR #29のセッションで実際に発生）。この場合、タスク固有�
    ような分かりやすい名前でよい）。
 3. そのブランチ上で、該当する`plans/`・`worklog/`・`reports/`ファイルを削除し、`HANDOFF.md`を
    次タスク向けの空テンプレートへリセットする（内容はflow-id 5-1で行うものと同じ）。
-4. commit・pushし、`main`を対象にPRを作成する。PR作成・マージの実行は、他のPR操作と同様
-   ユーザーから明示的な指示を受けてから行う（`.claude/rules/git-workflow.md`の原則どおり、
-   マージ自体は人間が行う）。
+4. commit・pushし、`main`を対象にPRを作成する。**PRの作成は他のPR操作と同様AIエージェントが
+   行ってよく、都度の明示指示は要らない**。**マージのみ**、ユーザーから明示的な指示を受けてから
+   実行する（上記「PR/MR作成・マージの担当」節、`.claude/rules/git-workflow.md`「PR・マージ」節）。
 
 ## 詳細ルールへのポインタ
 
@@ -543,7 +681,8 @@ PR #29のセッションで実際に発生）。この場合、タスク固有�
 - ドキュメントの置き場所・ライフサイクル（`plans/` `worklog/` `.claude/docs/spec/` `.claude/docs/ddr/` `HANDOFF.md`）:
   `.claude/rules/docs-workflow.md` の「ドキュメント運用」表
 - ブランチ命名規則・squash mergeの方針・コミット運用（`commit`スキル必須使用・PreToolUse hookに
-  よる技術的強制）: `.claude/rules/git-workflow.md`
+  よる技術的強制）・PR/MR作成とマージの担当（ハーネスがPR作成を制限する環境での扱いを含む）:
+  `.claude/rules/git-workflow.md`
 - bashスクリプトの規約（`set -euo pipefail`・jq前提・改行/エンコーディング等）:
   `.claude/rules/shell-script-style.md`
 - `Provider.sh`の設計・スクリプト言語選定方針（bash化できる/できない判断基準）:

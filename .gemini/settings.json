@@ -46,6 +46,12 @@
                         "type": "command",
                         "command": "bash \"${GEMINI_PROJECT_DIR}/.gemini/hooks/post-push-compact-prompt.sh\"",
                         "timeout": 20000
+                    },
+                    {
+                        "name": "post-issue-create-notice",
+                        "type": "command",
+                        "command": "bash \"${GEMINI_PROJECT_DIR}/.gemini/hooks/post-issue-create-notice.sh\"",
+                        "timeout": 10000
                     }
                 ]
             }

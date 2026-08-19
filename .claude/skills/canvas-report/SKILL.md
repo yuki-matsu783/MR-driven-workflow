@@ -86,7 +86,7 @@ mermaid図を使わない調査結果では、この`<script>`タグ自体を削
 `detailHtml`はAI（このスキルの呼び出し元）が生成時点でHTMLへ変換して埋め込む方式を採用しており、
 marked.js等のクライアント側markdownパーサは使わない。理由は、外部ライブラリを追加で1つ増やす
 コストに見合うほどの利点（markdown文字列を差し替えるだけで内容更新できる柔軟性）が、
-`reports/`配下HTMLのライフサイクル（push単位で作り直され、squash merge後は削除される
+`reports/`配下HTMLのライフサイクル（push単位で作り直され、flow-id 5-1でタスクごとに削除される
 使い捨てドキュメント。`docs-workflow.md`参照）には見合わないため。
 
 ## 参考

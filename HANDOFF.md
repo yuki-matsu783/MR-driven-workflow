@@ -17,7 +17,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - issue: #77 MRへの敵対的レビューを行うスキル・専任サブエージェントを追加する
 - ブランチ: feature-77-adversarial-mr-review-skill
 - PR: #80 https://github.com/yuki-matsu783/MR-driven-workflow/pull/80（Draft）
-- push回数: 9
+- push回数: 10
 
 進捗記号: `[x]` 完了 / `[]` 未着手・進行中 / `[-]` 今回は実施しない（スキップ）
 
@@ -180,13 +180,17 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
   `0042-インラインコメントの位置指定はプロバイダごとの制約に合わせて縮退させる.md` を計画へ追加した
   （specへ仕様として書くのに加え、採用理由と却下案をDDRへ残す）。指摘はチャットで受けたため、
   `reply` サブコマンドでの返信は行っていない。
+- **`main` を先行して取り込んだ**（ユーザー指示。flow-id 5-2の前倒し）。`resolve-conflict` スキルの
+  手順に沿って `git merge --no-ff --no-commit origin/main` で取り込み、4ファイルのコンフリクトを
+  解消した。**DDR番号は 0040 / 0041 / 0042 で確定**（`main` は 0039 まで。重複チェックも空）。
 
 ## 次にやること
 
 - **flow-id 4-3（人間・修正後の再レビュー）**: DDRを3件へ増やした反映計画をレビューする。
   合意連絡までAIは以降の作業を行わない。合意後は 4-5〈describe〉→ 4-6 へ進む。
 - 4-6 で spec（`.claude/docs/spec/adversarial-review.md`）とDDR **3件**を書く。
-  **DDR番号はマージ直前に `main` の最新と突き合わせて確定する**（暫定 0040 / 0041 / 0042）。
+  **番号は 0040 / 0041 / 0042 で確定済み**（`main` 取り込み後に重複が無いことを確認）。
+  以降 `main` がさらに進んだ場合のみ、マージ直前に再確認する。
 - **設計反映の完了後**、2セット目として `【AIアセット反映】` を 4-1 から回す。扱う候補:
   - `type: review-points` を `.claude/rules/markdown-frontmatter.md` のtype表へ追記する。
   - `.claude/rules/directory-structure.md` に `REVIEW-POINTS.md` の配置ルールを足すか検討する。
@@ -224,6 +228,24 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
   非対話=`sdk-cli`）でも判別できたが、**判定には使わない**ことにした。値の網羅性をこちらで
   保証できず、将来増えた値を「対話」と誤認する危険があるため。`AUTOMATION=1` の明示のみを
   根拠とする。
+- **`main` 取り込み時のコンフリクト解消（4ファイル）**: いずれも「両方の変更を残す」（類型C）で
+  統合した。片側採用はしていない。
+  - `.claude/scripts/src/vcs/Gitlab.sh`: `gitlab_format_discussion_notes` の出力行に、issue #77 の
+    位置（`path:line`）と issue #42 のパーマリンク（`url=...`）が**両方**載るようにした
+    （`[unresolved threadId=… path:line url=…]` の順）。関数のコメントも両方の説明を残した。
+  - `.claude/scripts/test/test_vcs_provider.sh`: 末尾へ追記された2つのテスト群（#77 / #42）を
+    どちらも残した（passed=129 failures=0）。
+  - `.claude/skills/issue-mr-flow/SKILL.md`: 同じ位置に新設された2つの節を両方残し、
+    **`## PR/MR作成・マージの担当`（main側）→ `## 敵対的レビューの位置づけ`（#77）** の順に並べた
+    （フロー本体の担当分けを先に読ませるため）。MCP対応表の `get_repo_url` 行は、issue #44 で
+    説明が更新された**main側の文言**を採用し、#77 で追加した `add_mr_inline_comments` 行は残した。
+  - `HANDOFF.md`: `main` 側は次タスク向けにリセット済みの状態だったため、**このブランチの内容を
+    そのまま採用**した（ブランチ単位の引継ぎメモであり、mainの空テンプレートで上書きすると
+    進捗が失われるため）。
+- **`test_post_issue_create_notice.sh` が1件失敗している**（`additionalContextへ注意文がそのまま
+  入る`）。**このブランチの変更が原因ではない**。当該hook・テスト・スキルは `git diff origin/main`
+  が空、つまり `main` と完全に同一で、取り込む前から `main` 上で失敗している。#77 の範囲外の
+  ため本ブランチでは直していない（別issueとして扱うのが妥当）。
 
 ## 未解決の内容
 

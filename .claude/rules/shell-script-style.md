@@ -68,6 +68,24 @@ issue #6でリポジトリ内の開発補助スクリプトを全てPowerShell�
     jqがエラーメッセージを一切出さず出力全体が`null`になるという実機確認済みの現象があった
     （原因調査が非常に困難だったため記録に残す）。日付変換を含むjqフィルタを`try/catch`と
     組み合わせる場合は、この現象を疑ってまず日付変換部分だけを単体で動作確認すること。
+- **`jq --args`へ可変長の値を位置引数として渡すときは、フィルタの直後に`--`を置く**（issue #69で
+  実際に踏んだ）。`--`が無いと、`-A`のように**ハイフンで始まる値**をjqがオプションとして解釈し
+  `jq: Unknown option -A`（終了コード2）で失敗する。値は自分で決めた固定文字列とは限らず、
+  markdownのfrontmatterやユーザー入力に由来しうるため、「今は先頭がハイフンの値が無い」ことを
+  前提にしてはいけない。
+
+  ```bash
+  # 悪い例（要素に -A があると jq: Unknown option -A で落ちる）
+  jq -nc --args '$ARGS.positional' "${items[@]}"
+  # 良い例（-- 以降はすべて位置引数として扱われる）
+  jq -nc --args '$ARGS.positional' -- "${items[@]}"
+  ```
+
+  **この失敗は気づきにくい**。`extract-frontmatter.sh`では、jqの失敗直後に`return 0`が書かれて
+  いたため終了コードが握りつぶされ、`index.jsonl`へ空行が1行入るだけで正常終了しており、
+  該当ファイルがインデックスから丸ごと欠落していた。**jqの終了コードを`return 0`等で捨てない**
+  こと（`status=0; jq ... || status=$?; return "$status"` のように伝播させる）。
+
 - **大きなJSONを`--argjson`/`--arg`等のコマンドライン引数としてjqへ渡さない**（issue #37対応時に
   実機確認: 対応工数レポートの集計で、外部ファイル・コマンド出力等に由来する可変長のJSON
   データを`jq -n --argjson entries "$data" ...`という形で渡していたところ、データが数十KB程度
@@ -138,6 +156,40 @@ issue #11の実例: `extract-frontmatter.sh` がfrontmatterのキー・配列要
   printf '%s' "$block" | parse_block   # NG: 代入がサブシェルに閉じる
   parse_block <<<"$block"              # OK
   ```
+
+- **標準出力へ返す関数をループの中で何度も呼ぶ必要がある場合は、ループ全体を1つのプロセス置換
+  `< <( ... )` の中へ入れる**（issue #42）。`$(...)` を要素ごとに書くとそのたびにforkするが、
+  同じ関数呼び出しでも、既にforkされたサブシェルの中で標準出力へ書く分には**追加のforkは
+  発生しない**。これにより「関数は標準出力へ返す」という既存のインターフェースを崩さないまま、
+  fork回数を要素数に依存しない定数へ抑えられる（`REPLY` へ返す形へ書き換えるのは、その関数が
+  他所から `$(...)` で使われていない場合に限られる）。
+
+  ```bash
+  # 悪い例（要素数 × 2 回forkする）
+  for p in "${paths[@]}"; do
+    blob="$(get_blob_url "$repo_url" "$ref" "$p")"
+    anchor="$(get_diff_anchor_url "$compare_url" "$p")"
+    ...
+  done
+  # 良い例（プロセス置換1回だけforkし、中の関数呼び出しはforkしない）
+  while IFS= read -r line; do urls+=("$line"); done < <(
+    for p in "${paths[@]}"; do
+      get_blob_url "$repo_url" "$ref" "$p"
+      get_diff_anchor_url "$compare_url" "$p"
+    done
+  )
+  ```
+
+  この形にすると出力は「1要素あたり固定行数」のフラットな配列になるため、**要素ごとに必ず同じ
+  行数を出すこと**（出さない項目がある場合は空行を出して埋める）。行数が可変だと添字と要素の
+  対応が崩れる。実例: `.claude/hooks/post-push-compact-prompt.sh` の `build_file_links_text`
+  （削除ファイルはblobリンクの代わりに空行を出している）。
+
+- **ディスパッチャの中で毎回外部コマンドを呼んでいないか確認する。** 上のように呼び出し側の
+  forkを消しても、呼ばれる関数自身がコマンド置換を含んでいれば意味が無い（issue #42の実例:
+  `get_blob_url` → `get_provider` → `$(git remote get-url origin)`）。プロセス内で結果が変わらない
+  判定はグローバル変数へメモ化する（`.claude/scripts/src/vcs/Provider.sh` の
+  `_PROVIDER_CACHE` が実例）。
 
 - 外部コマンドは、できるものからbash組み込みへ置き換える。
 
@@ -229,6 +281,32 @@ issue #11の実例: `extract-frontmatter.sh` がfrontmatterのキー・配列要
   if [ -n "$(git ls-files -- "$path")" ]; then ...
   # 良い例2（各パスを個別に使うなら read -d '' で受ける）
   while IFS= read -r -d '' f; do ...; done < <(git ls-files -z -- "$path")
+  ```
+
+- **`git ls-files` を全ファイル走査に使うときは、`-z` を「NULを保持したいから」ではなく
+  「パスがクォートされるのを避けるため」に付ける**（issue #32で実際に踏んだ）。gitは既定
+  （`core.quotePath=true`）で非ASCIIを含むパスを `"\343\203\254..."` のように**ダブルクォート＋
+  8進エスケープした文字列**として出力する。この行をそのままループ変数として受けてファイル操作へ
+  渡すと、実在するファイルに対して `No such file or directory` になる。`-z` を付けると
+  クォートは行われない（`while IFS= read -r -d ''` で受ける）。
+
+  ```bash
+  # 悪い例（日本語ファイル名が "\343\203\254..." のまま渡り、必ず失敗する）
+  git ls-files | while IFS= read -r f; do wc -c < "$f"; done
+  # 良い例
+  while IFS= read -r -d '' f; do wc -c < "$f"; done < <(git ls-files -z)
+  ```
+
+- **NULバイトの有無を `od -c` の目視で判定しない**（issue #32で実際に誤読しかけた）。`od -c` は
+  NULを `\0` と表示する一方、**印字可能文字はそのまま出す**ため、本文中の**数字の `0`**（例:
+  「要素0個なら」）が出力に現れると、区切りの空白込みで見たときにNULと見分けがつかない。
+  上記の「CR混入の検査」と同じく、**除去の前後でバイト数を比較する**のが確実。
+
+  ```bash
+  # 悪い例（本文中の数字の 0 をNULと読み違える）
+  sed -n '94p' "$f" | od -c
+  # 良い例（差が0ならNULは無い）
+  [ "$(wc -c < "$f")" = "$(tr -d '\0' < "$f" | wc -c)" ] && echo 'NULなし'
   ```
 
 ## 命名規則
