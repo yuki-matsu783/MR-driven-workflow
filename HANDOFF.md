@@ -15,14 +15,14 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - issue: #41 PR/MR作成はAIエージェントが実施してよいものとし、マージのみ明示指示必須に統一する
 - ブランチ: claude/ai-agent-pr-mr-creation-52ve10
 - PR: #82 (Draft) https://github.com/yuki-matsu783/MR-driven-workflow/pull/82
-- push回数: 3
+- push回数: 4
 
 ## フロー進捗状況
 
 - issue: #39 issue起票後にissue-mr-flowへ進む際は必ず人間の確認を挟む
 - ブランチ: claude/issue-mr-human-review-xasr3s
 - PR: #81 https://github.com/yuki-matsu783/MR-driven-workflow/pull/81（レビュー可能・Draftではない）
-- push回数: 3
+- push回数: 4
 
 進捗記号: `[x]` 完了 / `[]` 未着手・進行中 / `[-]` 今回は実施しない（スキップ）
 
@@ -94,10 +94,14 @@ issue #39の受け入れ条件4件すべてに対応した。
     影響範囲エントリを追加
   - `.claude/docs/README.md`: DDR一覧へ0036を追加
 
-**flow-id 5-2（mainマージ・コンフリクト解消、2回実施）**: `resolve-conflict` スキルで `origin/main`
-を2回マージした（1回目 `cff2aa1`＝issue #64/#51、2回目 `2e3bcf1`＝issue #41）。DDRは衝突のたびに
-0034→0035→0036へ繰り下げ、テキスト衝突（1回目5件・2回目3件。いずれも類型C/D）を両側の変更を残す形で
-統合した。あわせて、main側のissue #64が手順番号を繰り下げた際の追随漏れ（`issue-create/SKILL.md`
+**flow-id 5-2（mainマージ・コンフリクト解消、3回実施）**: `resolve-conflict` スキルで `origin/main`
+を3回マージした（1回目 `cff2aa1`＝issue #64/#51、2回目 `2e3bcf1`＝issue #41、3回目 `2a7a57c`＝issue #42）。
+DDRは衝突のたびに0034→0035→0036へ繰り下げ、テキスト衝突（1回目5件・2回目3件・3回目3件。いずれも
+類型C/D）を両側の変更を残す形で統合した。3回目は `issue-mr-flow/SKILL.md` の「hookの挙動（CLI不在時）」
+表で、main側が `post-push-compact-prompt.sh` 行へ issue #42 の追記をしたのと、本ブランチが
+`post-issue-create-notice.sh` 行を足したのが同じ位置で競合したため、main側の行を採用したうえで
+新hookの行を後ろへ足した。**mainの進みが速く、レビュー中に3回コンフリクトしている**（PR #81 の
+マージまではこの追従が続く見込み）。あわせて、main側のissue #64が手順番号を繰り下げた際の追随漏れ（`issue-create/SKILL.md`
 手順3内の「手順3へ進む」→正しくは手順4）も直した。
 
 ## 次にやること
