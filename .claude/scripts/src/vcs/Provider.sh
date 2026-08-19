@@ -271,6 +271,7 @@ mcp_tool_hint() {
   case "$func_name" in
     get_issue) printf 'mcp__github__issue_read (method="get", owner, repo, issue_number)\n' ;;
     new_issue) printf 'mcp__github__issue_write (method="create", owner, repo, title, body)\n' ;;
+    search_issues) printf 'mcp__github__search_issues (query, owner, repo)\n' ;;
     new_draft_merge_request) printf 'mcp__github__create_pull_request (owner, repo, title, head, base, draft=true, body)\n' ;;
     get_mr_for_branch) printf 'mcp__github__list_pull_requests (owner, repo, head="<owner>:<branch>", state="open")\n' ;;
     get_mr_unresolved_comments) printf 'mcp__github__pull_request_read (method="get_review_comments" / "get_comments", owner, repo, pullNumber)\n' ;;
@@ -314,6 +315,60 @@ new_issue() {
   case "$(get_provider)" in
     github) github_new_issue "$title" "$body" ;;
     gitlab) gitlab_new_issue "$title" "$body" ;;
+  esac
+}
+
+# --- 既存issueの検索（起票前の重複チェック用。issue #68） ---------------------------------------
+
+# 1キーワードあたりの取得件数。重複チェックの提示件数として現実的な上限。
+SEARCH_ISSUES_LIMIT=20
+# 1回の `search_issues` で受け付けるキーワードの最大数。キーワードごとにCLIを1回起動するため、
+# 起動回数（＝ネットワークI/O）を有界にする目的で設ける。超過分は切り捨てるが、
+# 無言では捨てず標準エラーへ通知する。
+SEARCH_ISSUES_MAX_KEYWORDS=5
+
+# 複数回の検索結果（正規化済みJSON配列）を1つの配列へまとめる純粋関数。
+# `number` で重複排除し、番号の降順（新しいissueが先）に並べる。
+# 外部の `gh`/`glab` を呼ばないため tests/test_vcs_provider.sh から単体テストできる。
+#
+# JSONは引数ではなく**標準入力経由で**jqへ渡す。検索結果の件数・本文長は呼び出し側で保証できず、
+# `--argjson` で渡すとコマンドライン長の上限に達して `jq: Argument list too long` で起動自体が
+# 失敗しうるため（.claude/rules/shell-script-style.md「JSON操作」）。
+#
+# 引数が0個のときは `[]` を返す。`printf '%s\n' "$@"` は引数が無いと空行を1つ出力し、
+# jqがパースエラーになるため、その前に打ち切る。
+merge_issue_search_results() {
+  if [ $# -eq 0 ]; then
+    printf '[]\n'
+    return 0
+  fi
+  printf '%s\n' "$@" | jq -c -s 'add // [] | unique_by(.number) | sort_by(.number) | reverse'
+}
+
+# キーワードで既存issueを検索し、`[{number, title, state, url}]` のJSON配列を返す。
+# `issue-create` スキルが起票前の重複チェックに使う（issue #68）。
+#
+# - **closedのissueも対象に含める。** 過去に見送られた提案が再提出されるのを検知するため。
+# - キーワードは最大 `SEARCH_ISSUES_MAX_KEYWORDS` 件。プロバイダ実装がキーワードごとに1回ずつ
+#   検索し、結果を `merge_issue_search_results` で統合する（AND検索1回では取りこぼすため）。
+# - キーワードの抽出そのものは**呼び出し側（AIエージェント）の責務**であり、この層では行わない。
+#   日本語主体のissueから意味のある語を選ぶには形態素解析が要り、bashの文字種判定では
+#   代替できないため（詳細・却下案:
+#   .claude/docs/ddr/0031-issue起票前の重複チェックは検索をProvider層へ置きキーワード抽出はAIに委ねる.md）。
+search_issues() {
+  require_vcs_cli search_issues || return 1
+  if [ $# -eq 0 ]; then
+    echo "search_issues: 検索キーワードを1つ以上指定してください" >&2
+    return 1
+  fi
+  if [ $# -gt "$SEARCH_ISSUES_MAX_KEYWORDS" ]; then
+    printf 'search_issues: キーワードが%s件指定されましたが、先頭%s件のみを使います（残りは無視）\n' \
+      "$#" "$SEARCH_ISSUES_MAX_KEYWORDS" >&2
+    set -- "${@:1:$SEARCH_ISSUES_MAX_KEYWORDS}"
+  fi
+  case "$(get_provider)" in
+    github) github_search_issues "$SEARCH_ISSUES_LIMIT" "$@" ;;
+    gitlab) gitlab_search_issues "$SEARCH_ISSUES_LIMIT" "$@" ;;
   esac
 }
 
