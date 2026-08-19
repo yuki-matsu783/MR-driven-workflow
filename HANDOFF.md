@@ -15,7 +15,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - issue: #67 作業開始・再開時にベースブランチの最新を取り込めているか確認するステップをフローへ追加する
 - ブランチ: claude/base-branch-sync-check-17vdvq
 - PR: #107 (Draft) https://github.com/yuki-matsu783/MR-driven-workflow/pull/107
-- push回数: 4
+- push回数: 5
 - 現在のループ: 3-6〜3-9 の1周目（進行中。人間レビューを待てない非対話セッションのため記号は[]のまま）
 - 追従監視: 購読あり（web。`subscribe_pr_activity` + セッション終了前に `send_later` で自己チェックインを予約）
 
@@ -137,6 +137,22 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
   - **AIアセット反映**: `.claude/rules/git-workflow.md`「ブランチ運用」へ、追従確認の入口と
     **rebaseを使わない方針**を追記（調査で `.claude/rules/` 配下に `rebase` の語が0件だと判明）。
   - 結果は `reports/20260819_base-branch-sync-check_反映結果.md` が正文。
+- **敵対的レビュー（フェーズ3・1回目／フェーズ4・1回目）の指摘を反映した**（実施回数は
+  フェーズ3が1回・フェーズ4が1回。上限3回）。各5件をPR #107 へインライン投稿し、残りは
+  レビュー本文へ報告した。主な修正:
+  - `AskUserQuestion` の選択肢から **`rebase で取り込む` を削除**（`resolve-conflict` の
+    「絶対ルール」と矛盾していたため。フェーズ3・4で独立に同じ指摘が挙がった）。
+  - **取り込み前の作業ツリー確認**（`git status --porcelain`）と、`git stash` を独断で
+    実行しないことを明記。`resume`・`sync` は編集途中の変更が残っている確率が高い経路のため。
+  - **`hasCommonHistory` が偽なら取り込みを提案せず止まる**手順を新設（共通祖先が無いと
+    `behind` がベース側の全コミット数になり、`changedFiles` は空という矛盾した報告になる）。
+  - `check-base-sync.sh` の `--base` / `--head` の値省略・空文字列を検証（`$#` を先に見る）。
+  - **`main` の結合テストを追加**（29件→55件）。merge-base 不在・切り詰めの境界・
+    `fetchOk: null`・異常系の終了コードを、使い捨てgitリポジトリに対して検証する。
+  - spec と SKILL.md の表の重複を解消し、「意味＝spec・対応＝SKILL」と分担を明記。
+    `check-base-conflicts.md` へ相互参照を追加。`git-workflow.md` の frontmatter も更新。
+  - 全12テストファイル・539件が `failures=0`。
+  - 詳細は `worklog/20260819_base-branch-sync-check_【設計反映】【AIアセット反映】敵対的レビュー指摘の反映_push5.md`。
 
 ## 次にやること
 

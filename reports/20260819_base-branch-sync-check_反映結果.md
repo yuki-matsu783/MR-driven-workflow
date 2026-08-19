@@ -76,3 +76,38 @@ $ grep -c 'rebase' .claude/rules/git-workflow.md
 | `AGENTS.md` / `CLAUDE.md` への追記 | `git-workflow.md` が既に参照されており、階層を増やさない |
 | `.claude/REVIEW-POINTS.md` への観点追加 | 今回新しく踏んだ罠は「ヘッダコメントを増やしたら `--help` の行範囲も直す」程度で、汎用の観点にするには弱い（specの「未決定事項」へ記録した） |
 | 未決定事項の解消（git bash実機確認等） | specの「未決定事項・懸念点」へ記録するに留めた |
+
+## 追記: 敵対的レビュー指摘の反映（フェーズ3・フェーズ4）
+
+フェーズ3（実装差分）で11件、フェーズ4（spec/DDR/rules）で8件の指摘が返り、投稿の振り分けは
+`.claude/skills/adversarial-review/SKILL.md` の「確度 × 重大度」マトリクスに従って各5件を
+PR #107 へインライン投稿した。実施回数はフェーズ3が1回・フェーズ4が1回（上限3回）。
+
+対応した主なもの（全件は
+`worklog/20260819_base-branch-sync-check_【設計反映】【AIアセット反映】敵対的レビュー指摘の反映_push5.md` の表）。
+
+| 反映先 | 内容 |
+|---|---|
+| `.claude/skills/issue-mr-flow/SKILL.md` | `AskUserQuestion` の選択肢から `rebase で取り込む` を**削除**（2択へ）／`hasCommonHistory` が偽なら取り込みを提案せず止まる手順を新設／取り込み前の `git status --porcelain` 確認と「`git stash` を独断で実行しない」／非0終了時は「判定できなかった」として扱う／`resume` での重複実行の禁止／`isShallow` は単体では警告条件にしない |
+| `.claude/scripts/src/check-base-sync.sh` | `--base` / `--head` の値省略・空文字列を検証（`$#` を先に見る） |
+| `.claude/scripts/test/test_check_base_sync.sh` | 使い捨てgitリポジトリに対する `main` の結合テストを追加（29件→**55件**）。merge-base 不在・切り詰めの境界・`fetchOk: null`・異常系の終了コードを検証 |
+| `.claude/agents/issue-mr-resume.md` | 非0終了時の報告文言／`isShallow` を警告条件から外す |
+| `.claude/docs/spec/check-base-sync.md` | 終了コードの代表ケース表／3キー表は「意味＝spec・対応＝SKILL」と分担を明記／対比表は SKILL.md へ寄せる／影響範囲表を実態へ |
+| `.claude/docs/spec/check-base-conflicts.md` | issue #67 エントリを追加し相互参照（`\|\| true` が意図的であることを含む） |
+| `.claude/docs/spec/issue-mr-workflow.md` | 「途中引き継ぎ対応（resume）」節の手順一覧を更新（現在仕様の節であり point-in-time 記録ではないため） |
+| `.claude/rules/git-workflow.md` | frontmatter の `description`・`keywords` へ追従確認・rebase の語を追加（DDR 0049 の探索経路で引けるようにするため） |
+| DDR 0050 | 「rebase を選択肢として出さない理由」へ書き換え／却下案C（スクリプトを作らず手順書へ直書き）を追加 |
+| `.claude/skills/apply-mr-workflow-to-project/SKILL.md` | 導入先向けのコアスクリプト一覧へ `check-base-sync.sh` を追加 |
+
+### 検証
+
+```
+$ for t in .claude/scripts/test/*.sh; do bash "$t" | tail -1; done
+（12ファイル・合計539件すべて failures=0。test_check_base_sync.sh は passed=55）
+
+$ bash .claude/scripts/src/check-base-sync.sh | jq -c '{behind,isBehind,fetchOk,hasCommonHistory}'
+{"behind":0,"isBehind":false,"fetchOk":true,"hasCommonHistory":true}
+
+$ bash .claude/scripts/src/check-base-conflicts.sh | jq -c '{hasConflict,duplicateDdrNumbers}'
+{"hasConflict":false,"duplicateDdrNumbers":[]}
+```
