@@ -17,7 +17,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - issue: #45 Provider.shのget_providerがself-hosted GitLabを判定できない
 - ブランチ: feature-45-detect-gitlab-provider-for-self-hosted
 - Draft PR: #52 https://github.com/yuki-matsu783/MR-driven-workflow/pull/52
-- push回数: 1
+- push回数: 2
 
 進捗記号: `[x]` 完了 / `[]` 未着手・進行中 / `[-]` 今回は実施しない（スキップ）
 
@@ -39,11 +39,11 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 | [-] | 2-8 | （同上） | 人間 |
 | [-] | 2-9 | （同上） | `comments` / `reply` |
 | [-] | 2-10 | （同上） | `describe` |
-| [] | 3-1 | 個別作業計画`plans/【実装】【テスト】get_providerのホスト判定化.md`を**planツールを使わず**Write/Editで作成する | エージェント |
-| [] | 3-2 | `commit`スキル経由でcommitし、push してレビュー依頼を行う | エージェント |
-| [] | 3-3 | MRで作業計画についてレビュー・コメントする。レビュー完了済み連絡をするまで以降の作業は行わない。 | 人間 |
-| [] | 3-4 | レビュー内容を取得し、作業計画を修正する。対応が完了したコメントには対応内容を返信する（3-3〜3-4を合意まで繰り返す） | `comments` / `reply` |
-| [] | 3-5 | 作業計画をもとにMR descriptionを更新する | `describe` |
+| [x] | 3-1 | 個別作業計画`plans/【実装】【テスト】get_providerのホスト判定化.md`を**planツールを使わず**Write/Editで作成する | エージェント |
+| [x] | 3-2 | `commit`スキル経由でcommitし、push してレビュー依頼を行う | エージェント |
+| [x] | 3-3 | MRで作業計画についてレビュー・コメントする。レビュー完了済み連絡をするまで以降の作業は行わない。 | 人間 |
+| [x] | 3-4 | レビュー内容を取得し、作業計画を修正する。対応が完了したコメントには対応内容を返信する（3-3〜3-4を合意まで繰り返す） | `comments` / `reply` |
+| [x] | 3-5 | 作業計画をもとにMR descriptionを更新する | `describe` |
 | [] | 3-6 | 作業計画をもとに作業を進める、作業内容はworklogに更新する | エージェント |
 | [] | 3-7 | `commit`スキル経由でcommitし、push してレビュー依頼を行う | エージェント |
 | [] | 3-8 | MRでレビュー・コメントする。レビュー済み連絡をするまで以降の作業は行わない。 | 人間 |
@@ -77,12 +77,28 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - ユーザー確認により`.mrworkflow.json`への`provider`キー追加は見送り（全ディスパッチで約190ms増のため）。
 - 未認証時の挙動を確認し、**本方式は認証状態に依存しない**（却下した3方式はいずれも
   「glabに登録済みのホストか」を見るため未ログインでは判定できない）ことを計画に明記した。
+- flow-id 3-3〜3-4: レビュー指摘は1件（「このトレードオフは受け入れる」）。計画の修正は不要で、
+  DDR 0027を作る場合に「却下した案」ではなく**「受け入れたトレードオフ」**として記録する旨を返信した。
+  `comments all`で再確認したところ、このスレッドは`unresolved`のままだが内容は承認であるため、
+  ユーザー確認のうえ次へ進んだ。
+- flow-id 3-5: MR descriptionを更新した。
+- flow-id 3-6: `Provider.sh`へ純粋関数`provider_from_remote_url`を新設し、`get_provider`を
+  薄いラッパーにした。パラメータ展開のみで実装し追加forkはゼロ。テストを15件追加し
+  **`passed=26 failures=0`**（計画の期待値25に対し、「ホスト名が空なら終了コード1」の1件を足した）。
+  `Gitlab.sh` / `Github.sh`は1行も変更していない。
+- flow-id 3-6の実機検証: `docker start gitlab`で環境を再開し、**`Provider.sh`のディスパッチ経由で**
+  `get_provider`/`get_issue`/`get_mr_for_branch`/`get_mr_unresolved_comments`/`get_repo_url`/
+  `add_mr_comment`/`set_mr_description`/`add_mr_thread_reply`/`get_mr_diff_url`/
+  `get_mr_diff_since_url`/`get_workflow_config`/`get_issue_number_from_branch`が全て通ることを確認した
+  （issue #48では`get_provider`に弾かれるため`gitlab_*`直接呼びで迂回していた部分）。
 
 ## 次にやること
 
-- flow-id 3-1: 個別作業計画`plans/【実装】【テスト】get_providerのホスト判定化.md`とworklogを作成する。
-- flow-id 3-2: `commit`スキル経由でcommitし、リモートへ反映して作業計画のレビューを依頼する。
-- flow-id 3-3: 人間による作業計画のレビュー待ち。合意が取れるまで実装（flow-id 3-6）へ進まない。
+- flow-id 3-7: `commit`スキル経由でcommitし、リモートへ反映して実装のレビューを依頼する。
+- flow-id 3-8: 人間による実装のレビュー待ち。合意が取れるまでフェーズ4へ進まない。
+- フェーズ4では`【設計反映】`と`【AIアセット反映】`を**別ファイル・別ループ**で回す。
+  DDR 0027を作成するかはレビューで判断する（作る場合は`provider_from_remote_url`のコメントへの
+  参照追記も同時に行う。現時点では意図的に参照を入れていない）。
 
 ## 判断を迷った内容
 
@@ -96,6 +112,10 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
   Bitbucket等やURLのtypoに対する`サポート対象外のリモートです`という明快なメッセージが出なくなり、
   glab側のエラーに変わる。対応プロバイダが2つしかない以上ホスト名だけでは区別できず、
   self-hostedが使えない実害の方が大きいため**受け入れたトレードオフ**として扱う。
+- **実装コメントにDDR 0027への参照を先に書くか**: 書かなかった。DDR 0027の作成はフェーズ4の
+  レビューで判断する未確定事項であり、作らなかった場合にコード側から辿れない参照が残るため
+  （`.claude/rules/docs-workflow.md`「コード・スクリプト内のコメントから…参照しない」と同じ趣旨）。
+  代わりに issue #45 への参照と「受け入れたトレードオフ」の説明を関数コメントへ直接書いた。
 
 ## 未解決の内容
 
@@ -109,7 +129,8 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - **`.claude/docs/spec/issue-mr-workflow.md`の「影響範囲」節にある過去issueのchangelogエントリを
   書き換えない。** issue #48分のエントリも含め、追記のみとする（`.claude/rules/docs-workflow.md`）。
 - **DDR 0005・0026は変更しない。** 空コミットフォールバックの判断は本issueと独立しており現在も有効。
-- **`Gitlab.sh` / `Github.sh`は原則変更しない。** 本issueの対象は`Provider.sh`の判定ロジックであり、
-  issue #48で検証済みのプロバイダ固有実装には手を入れない。
-- 検証環境のDockerコンテナ`gitlab`は停止状態で保持されている。flow-id 3-6の実機確認時に
-  `docker start gitlab`で再開する。`docker exec`を使う際は`export MSYS_NO_PATHCONV=1`が必要。
+- **`Gitlab.sh` / `Github.sh`は変更しない（実績としても1行も変更していない）。** 本issueの対象は
+  `Provider.sh`の判定ロジックであり、issue #48で検証済みのプロバイダ固有実装には手を入れない。
+- 検証環境のDockerコンテナ`gitlab`は**起動中**（flow-id 3-6の実機検証で`docker start`した）。
+  フェーズ4に入る前に`docker stop gitlab`で停止する。`docker exec`を使う際は
+  `export MSYS_NO_PATHCONV=1`が必要。検証用リポジトリはscratchpadの`issue45-verify`。

@@ -82,23 +82,123 @@ https://gitlab.com/github-mirror/x.git
 
 ### 実装
 
-<!-- flow-id 3-6（作業実施）で追記する -->
+計画どおり `Provider.sh` へ純粋関数 `provider_from_remote_url` を新設し、`get_provider` を
+`git remote get-url origin` の結果を渡すだけの薄いラッパーにした。パラメータ展開のみで実装し、
+外部コマンド・コマンド置換を一切使っていないため追加forkはゼロ。
+
+`tests/test_vcs_provider.sh` に `Provider.sh` のsourceを追加し、ケースを15件足した
+（**計画の14件＋「ホスト名が空なら終了コード1」の1件**。旧実装の唯一のエラー経路が
+新実装でどこへ移ったかを固定したかったため追加した）。既存11件と合わせて `passed=26 failures=0`。
+計画に書いた期待値は25だったので、**実績は26**である。
+
+### `set -e` 配下で終了コードを検査するテストの書き方
+
+「ホスト名が空なら終了コード1」の検査を、最初は次のように書いた。
+
+```bash
+"$(provider_from_remote_url 'https://' 2>/dev/null; echo $?)"
+```
+
+実行すると期待どおり `1` が返って通ったが、これは**偶然通っているだけの可能性がある書き方**
+だと判断して直した。テストスクリプトも `Provider.sh` も `set -euo pipefail` を宣言しており、
+コマンド置換のサブシェルは `-e` を引き継ぐ。関数が失敗した時点でサブシェルが終了すれば
+`echo $?` に到達せず、空文字列が返って別の理由で落ちる。環境や将来のbashの挙動に依存させたくない。
+
+`if` の条件式では `-e` が一時停止される（`.claude/rules/shell-script-style.md`「エラー方針」）ので、
+そちらへ寄せた。
+
+```bash
+if provider_from_remote_url 'https://' >/dev/null 2>&1; then
+  empty_host_status=0
+else
+  empty_host_status=1
+fi
+```
+
+### DDR参照を実装コメントへ先に書かなかった
+
+計画（個別作業計画の該当コード）では、`provider_from_remote_url` のコメントに
+`.claude/docs/ddr/0027-...md` への参照を含めていた。**実装では入れず、issue #45 への参照のみにした。**
+DDR 0027の作成はフェーズ4のレビューで判断する未確定事項であり、作らなかった場合に
+コード側へ辿れない参照が残ってしまうため（`.claude/rules/docs-workflow.md`「コード・スクリプト内の
+コメントから…参照しない」の趣旨と同じ問題）。DDR 0027を作ることが決まった時点で、
+フェーズ4で参照を追記する。
+
+なお「受け入れたトレードオフ」（非対応リモートにも `gitlab` を返すこと）は、DDRの有無に関わらず
+実装を読んだ人が最初に疑問に思う点なので、関数コメントへ直接書いた。
+
+### 検証結果
+
+| 検証 | 結果 |
+|---|---|
+| `bash -n .claude/scripts/src/vcs/Provider.sh` / `tests/test_vcs_provider.sh` | OK |
+| `bash tests/test_vcs_provider.sh` | `passed=26 failures=0` |
+| CR混入（バイト数比較） | 両ファイルとも raw == stripped |
+| このリポジトリ（GitHub）での退行 | `get_provider` → `github`、`get_mr_for_branch` → MR#52、`get_repo_url` → OK |
+
+### self-hosted GitLabでのend-to-end検証（本issueの本丸）
+
+`docker start gitlab`（healthyまで約4分）で検証環境を再開し、検証用リポジトリ
+（remote `http://localhost:8929/root/issue45-verify.git`、ブランチ `feature-2-reverify`）で
+`Provider.sh` を**そのままsourceして共通インターフェース関数を呼んだ**。
+issue #48 では `get_provider` に弾かれるため `gitlab_*` を直接呼んで迂回していた部分である。
+
+| 関数（ディスパッチ経由） | 結果 |
+|---|---|
+| `get_provider` | `gitlab`（**従来はここでエラー終了していた**） |
+| `get_repo_url` | `http://localhost:8929/root/issue45-verify` |
+| `get_issue 1` | `{"number":1,"title":"検証用issue",...}` |
+| `get_mr_for_branch feature-2-reverify` | `{"number":2,"url":".../merge_requests/2",...}` |
+| `get_mr_unresolved_comments 1` | 既存2件のnoteを整形して取得 |
+| `get_workflow_config` | `.mrworkflow.json` の内容 |
+| `add_mr_comment 2 <file>` | 投稿成功 |
+| `set_mr_description 2 <file>` | 更新成功 |
+| `add_mr_thread_reply 1 <threadId> <本文>` | 返信成功 |
+| `get_mr_diff_url` | `.../-/compare/main...feature-2-reverify` |
+| `get_mr_diff_since_url` | `.../-/compare/HEAD~1...HEAD` |
+| `get_issue_number_from_branch` | `2` |
+| `to_slug` | `detect-gitlab-provider` |
+
+**ディスパッチ経由でGitLabの全機能が通ることを確認できた**ため、
+`.claude/docs/spec/issue-mr-workflow.md`「未決定事項・懸念点」の「GitLab側の動作未検証」のうち
+**「`Provider.sh`経由のディスパッチが未検証」の項目は解消できる**（残る2点＝バージョン・エディション、
+プロジェクト構成は引き続き未検証）。
 
 ## うまくいったこと
 
 - 判定方式を「速度」だけでなく**「認証状態への依存」**という軸でも比較できた。速度だけで選んでいたら
   `config.yml` 直読み（0.1秒）を採っていた可能性があり、未ログイン環境で動かない実装になっていた。
 - 既存の `Gitlab.sh` には手を入れずに済む見通しが立った（issue #48で検証済みの実装を触らない）。
+- 実際に `Gitlab.sh` / `Github.sh` を1行も変更せずに済んだ。差分は `Provider.sh` の判定部分と
+  テストのみで、issue #48 で検証済みの実装に影響を与えていない。
+- 実機検証が**issue #48 でやり残した部分をちょうど埋める**形になった。#48 は「`gitlab_*` を直接
+  呼べば動く」ことまでしか示せておらず、#45 で初めて「ワークフローの入口から通る」ことを確認できた。
 
 ## ダメだったこと
 
-- （実装着手前のため、現時点では特になし。）
+- **検証スクリプトの呼び出し側を3か所間違え、実装の問題と紛らわしいNGを出した。** いずれも
+  `Provider.sh` 側の欠陥ではなく、こちらの引数・関数名の誤りだった。
+  - `add_mr_thread_reply 2 <threadId>`: threadIdは**MR#1**から取ったものなのにMR番号へ2を渡し、
+    `404 Discussion Not Found` になった。
+  - `get_compare_url`: `command not found`。`Provider.sh` にこの名前のディスパッチャは無く、
+    `github_get_compare_url` / `gitlab_get_compare_url` は各プロバイダ実装の**内部ヘルパー**で、
+    公開されているのは `get_mr_diff_url` / `get_mr_diff_since_url` の方である（設計どおり）。
+  - `get_mr_diff_url 2`: 実際のシグネチャは `(repo_url, base_branch, head_branch)` の3引数で、
+    `$2: unbound variable` になった。
+  - 教訓として、実機検証スクリプトはNGが出た時点で「実装の不具合」と決めつけず、
+    まず**呼び出し側のシグネチャを関数定義で確認する**こと。
 
 ## 次の一歩
 
-- flow-id 3-2: `commit`スキル経由でcommitし、リモートへ反映して作業計画のレビューを依頼する。
-- flow-id 3-6: `provider_from_remote_url` の新設と `get_provider` の薄いラッパー化、テスト11件の追加。
-- flow-id 3-6の検証で `docker start gitlab` を行い、**ディスパッチ経由**でGitLab関数が通ることを確認する
-  （issue #48では `get_provider` に弾かれるため直接呼びで迂回していた部分）。
+- flow-id 3-7: `commit`スキル経由でcommitし、リモートへ反映して実装のレビューを依頼する。
+- flow-id 4-1: 個別反映計画 `plans/【設計反映】〜.md` と `plans/【AIアセット反映】〜.md` を分けて作成する。
+  - 設計反映: `.claude/docs/spec/issue-mr-workflow.md` L69の`Provider.sh`説明の更新／
+    「未決定事項・懸念点」のディスパッチ未検証の項目を解消／「提供関数」表直後の内部ヘルパー段落へ
+    `provider_from_remote_url` を追記／「影響範囲」へ**新規エントリを追記**（過去のchangelogは書き換えない）／
+    DDR 0027の新規作成（作成するかはレビューで判断。作る場合は実装コメントへの参照追記も同時に行う）。
+  - AIアセット反映: 現時点で候補は「`set -e` 配下で終了コードを検査するテストの書き方」。
+    `.claude/rules/shell-script-style.md`「エラー方針」に近い内容が既にあるため、
+    重複にならない形で足せるかを反映計画で判断する。
+- 検証環境のDockerコンテナ `gitlab` は起動したままなので、フェーズ4に入る前に停止しておく。
 
 ---
