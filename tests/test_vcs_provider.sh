@@ -1,12 +1,15 @@
 #!/usr/bin/env bash
-# .claude/scripts/src/vcs/{Github,Gitlab}.sh の純粋ロジック（`gh`/`glab`呼び出しを伴わない
-# URL組み立て・JSON整形関数）の単体テスト。issue #13対応で追加した
+# .claude/scripts/src/vcs/{Github,Gitlab,Provider}.sh の純粋ロジック（`gh`/`glab`呼び出しを
+# 伴わないURL組み立て・JSON整形・文字列判定関数）の単体テスト。issue #13対応で追加した
 # `github_get_compare_url` / `github_get_mr_diff_url` / `github_get_mr_diff_since_url` /
 # `gitlab_get_compare_url` / `gitlab_get_mr_diff_url` / `gitlab_get_mr_diff_since_url` が対象。
 # `github_get_repo_url` / `gitlab_get_repo_url`（`gh repo view` / `glab repo view`を呼ぶ）と
 # Provider.sh経由のディスパッチ（`get_mr_diff_url`等）は外部コマンド・`git remote get-url origin`
 # に依存し純粋ではないため対象外（Github.sh/Gitlab.sh の関数を直接呼ぶ）。
 # issue #48対応で追加した `gitlab_format_discussion_notes`（discussions JSONの整形）も対象。
+# issue #45対応で追加した `provider_from_remote_url`（remote URLのホスト部からプロバイダを判定）も
+# 対象。`get_provider` 本体は `git remote get-url origin` を呼ぶため対象外で、URL文字列を
+# 受け取る純粋関数側を切り出してテストしている。
 # 規約: passed=N failures=N を標準出力へ出し、失敗があれば終了コード1
 #       （.claude/rules/shell-script-style.md「テスト」）。
 # 実行: bash tests/test_vcs_provider.sh
@@ -20,6 +23,8 @@ repo_root="$(cd "$script_dir/.." && pwd)"
 source "$repo_root/.claude/scripts/src/vcs/Github.sh"
 # shellcheck source=../.claude/scripts/src/vcs/Gitlab.sh
 source "$repo_root/.claude/scripts/src/vcs/Gitlab.sh"
+# shellcheck source=../.claude/scripts/src/vcs/Provider.sh
+source "$repo_root/.claude/scripts/src/vcs/Provider.sh"
 
 passed=0
 failures=0
@@ -114,6 +119,71 @@ gitlab_notes_output="$(gitlab_format_discussion_notes "$gitlab_discussions_fixtu
 assert_eq "gitlab_format_discussion_notes: 出力にCRが混入しない" \
   "$(printf '%s' "$gitlab_notes_output" | wc -c)" \
   "$(printf '%s' "$gitlab_notes_output" | tr -d '\r' | wc -c)"
+
+
+# --- provider_from_remote_url（issue #45） ------------------------------------------------
+# remote URLの「ホスト部」でプロバイダを判定する純粋関数。ホスト名に `github` を含めばGitHub、
+# それ以外はGitLabとみなす（ホスト名に `gitlab` を含まないself-hosted GitLabを弾かないため）。
+# `aslead` は社内GitLabの明示ケースでGitHub判定より先に評価される。
+
+assert_eq "provider_from_remote_url: github.com（https）" \
+  "github" "$(provider_from_remote_url 'https://github.com/foo/bar.git')"
+
+assert_eq "provider_from_remote_url: github.com（scp形式）" \
+  "github" "$(provider_from_remote_url 'git@github.com:foo/bar.git')"
+
+# GHEは慣習的にホスト名へ `github` を含むため、GitLab扱いにしない
+assert_eq "provider_from_remote_url: GHE（github.example.com）" \
+  "github" "$(provider_from_remote_url 'https://github.example.com/foo/bar.git')"
+
+assert_eq "provider_from_remote_url: gitlab.com（https）" \
+  "gitlab" "$(provider_from_remote_url 'https://gitlab.com/foo/bar.git')"
+
+assert_eq "provider_from_remote_url: gitlab.example.co.jp" \
+  "gitlab" "$(provider_from_remote_url 'https://gitlab.example.co.jp/foo/bar.git')"
+
+# 以下3件がissue #45の受け入れ条件（ホスト名に `gitlab` を含まないself-hosted GitLab）
+assert_eq "provider_from_remote_url: ホスト名にgitlabを含まないself-hosted（scp形式）" \
+  "gitlab" "$(provider_from_remote_url 'git@git.example.co.jp:foo/bar.git')"
+
+assert_eq "provider_from_remote_url: localhost:8929" \
+  "gitlab" "$(provider_from_remote_url 'http://localhost:8929/root/demo.git')"
+
+assert_eq "provider_from_remote_url: 127.0.0.1:8929" \
+  "gitlab" "$(provider_from_remote_url 'http://127.0.0.1:8929/root/demo.git')"
+
+assert_eq "provider_from_remote_url: ポート付きssh形式" \
+  "gitlab" "$(provider_from_remote_url 'ssh://git@gitlab.example.com:2222/foo/bar.git')"
+
+# 旧実装はURL文字列全体へ `*github.com*` を先にマッチさせていたため、パスに `github` を含む
+# GitLab URLを `github` と誤判定していた（回帰テスト）
+assert_eq "provider_from_remote_url: パスにgithubを含むGitLab URL" \
+  "gitlab" "$(provider_from_remote_url 'https://gitlab.com/github-mirror/x.git')"
+
+# パス→認証情報→ポートの順に除去する（逆順だとパス中の `@` にマッチしてホスト抽出が壊れる）
+assert_eq "provider_from_remote_url: パスに@を含む（抽出順序の検証）" \
+  "gitlab" "$(provider_from_remote_url 'https://user@gitlab.com:8080/foo/b@r.git')"
+
+assert_eq "provider_from_remote_url: 社内GitLab（aslead）" \
+  "gitlab" "$(provider_from_remote_url 'https://aslead.example.co.jp/foo/bar.git')"
+
+assert_eq "provider_from_remote_url: 社内GitLab（aslead・scp形式）" \
+  "gitlab" "$(provider_from_remote_url 'git@aslead-git.corp.local:foo/bar.git')"
+
+# `aslead` の判定を `github` より前に置いているため、両方を含むホストはGitLabになる
+assert_eq "provider_from_remote_url: asleadがgithubより優先される" \
+  "gitlab" "$(provider_from_remote_url 'https://github.aslead.example.com/foo/bar.git')"
+
+# ホスト名が空のときだけエラー（終了コード1）にする。`set -e` 配下でも確実に終了コードを
+# 拾えるよう、`if` の条件式（-e が一時停止される文脈）で判定する
+# （.claude/rules/shell-script-style.md「エラー方針」）。
+if provider_from_remote_url 'https://' >/dev/null 2>&1; then
+  empty_host_status=0
+else
+  empty_host_status=1
+fi
+assert_eq "provider_from_remote_url: ホスト名が空なら終了コード1" \
+  "1" "$empty_host_status"
 
 echo "passed=$passed failures=$failures"
 [ "$failures" -eq 0 ]
