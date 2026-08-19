@@ -349,6 +349,38 @@ PRで対処する（`main`はレビューを経ないままの直接変更を避
 `.claude/skills/issue-mr-flow/SKILL.md`の「PRがflow-id 5-1実施前にマージされてしまった場合の対処」
 節を参照。
 
+### PR作成後のdefaultブランチ追従（issue #88）
+
+flow-id 5-2（issue #46）はDraft解除の直前に1回だけコンフリクトを検知する設計で、**PR作成後〜
+マージまでの間にdefaultブランチが進む場合を扱っていない**。レビュー待ちが長いほど、また並行する
+PRが多いほど、この期間のコンフリクトを取りこぼす（実例: issue #39 のPR #81 で、PR作成後の短時間に
+`main` が4回進み、DDR番号を 0034→0035→0036→0038 と3回繰り下げた）。
+
+この追従を、**flow-idを持たないフェーズ横断の並行手順**として定義する。flow-id 1-3（PR作成）の
+直後に開始し、5-4（マージ）またはPRのクローズで停止する「期間」であり、進捗表の1行として完了を
+表せる性質のものではないため、flow-idは増やしていない。**flow-id 5-2 は「最終ゲート」として残す**
+（監視は実行環境の機能とセッションの寿命に依存するため、一度も動かないセッションがありうる）。
+
+| 観点 | 決めたこと |
+|---|---|
+| 検知のタイミング | 各pushの直後（flow-id 2-2/2-7/3-2/3-7/4-2/4-7）、監視イベントの受信時、flow-id 5-2（必須） |
+| 実行環境別の手段 | Claude Code on the web: `subscribe_pr_activity` の購読＋`send_later` の自己チェックイン（webhookの取りこぼしに備え両方使う）／ローカル（git bash）: `/resolve-conflict` の手動実行 |
+| 自動解消の範囲 | 解消方法が一意に決まる類型（`resolve-conflict` の類型A・B・D、および「両方残す」で足りる範囲のC）は承認を待たず解消。類型E（同じロジックの競合）と、Cのうち散文が矛盾する場合は人間へ確認 |
+| 停止条件 | PRが merged / closed になった（購読を解除する）・ユーザーの停止指示・セッション終了（次セッションの `resume` で取り直す） |
+| 検証・コミット | 自動解消でも `commit` スキル経由のコミットと `resolve-conflict` Step 5 の検証は省略しない |
+
+**購読・自己チェックインはセッションに紐づき、`.claude/` 配下には何も残らない**（issue #88 が
+問題視した点）。これを補うため、監視の状態は `HANDOFF.md` のヘッダ `- 追従監視:` 行へ記録し、
+`resume`（`issue-mr-resume` エージェントの現在地サマリ）にも項目として含める。PRが未マージのまま
+セッションをまたいだ場合は、`resume` の手順5で監視を取り直す。この行は
+`update-handoff-progress.sh` の `set-header` の対象外で、手で書き換える。
+
+手順の詳細は `.claude/skills/issue-mr-flow/SKILL.md`「PR作成後のdefaultブランチ追従（監視）」節と
+`.claude/skills/resolve-conflict/SKILL.md`（Step 2「監視モードでの例外」）が正。判断の理由・
+却下案（新flow-idの挿入・GitHubの "Update branch"・hookでの自動チェック・CIでの自動追従・
+常時rebase運用・DDR連番の廃止等）は
+[0039-PR作成後のdefaultブランチ追従は並行手順として定義し自動解消は一意に決まる類型に限る.md](../ddr/0039-PR作成後のdefaultブランチ追従は並行手順として定義し自動解消は一意に決まる類型に限る.md)。
+
 ### セッション開始時の自動コンテキスト注入（SessionStart hook）
 
 `resume` は人間・AIエージェントが明示的に呼び出す必要があり、機械的に実行されない
@@ -2008,6 +2040,29 @@ issue起票からそのまま実装へ進むことを防ぐため、ドキュメ
 - `.claude/docs/spec/issue-mr-workflow.md`（本ファイル。コンポーネント構成のツリー、
   「issue起票後の着手確認（issue #39）」節、本エントリ）
 - `.claude/docs/README.md`（DDR一覧へ0038を追加）
+
+### issue #88（PR作成後のdefaultブランチ追従監視）
+
+PR作成からマージまでの間のdefaultブランチ追従を、flow-idを増やさないフェーズ横断の並行手順として
+定義した。仕様は「PR作成後のdefaultブランチ追従（issue #88）」節を参照。
+
+新規:
+- `.claude/docs/ddr/0039-PR作成後のdefaultブランチ追従は並行手順として定義し自動解消は一意に決まる類型に限る.md`
+
+変更:
+- `.claude/skills/issue-mr-flow/SKILL.md`（「PR作成後のdefaultブランチ追従（監視）」節を新設。
+  フロー表の 1-3・5-2 の行と 5-2 節の冒頭へ相互参照を追加し、5-2を「最終ゲート」と位置づけ直した。
+  `resume` サブコマンドへ手順5〈監視の取り直し〉を追加）
+- `.claude/skills/resolve-conflict/SKILL.md`（呼び出しタイミングへ監視中の検知を追加。Step 2 へ
+  「監視モードでの例外」を新設し、Step 6・Step 7 へ監視モードでの扱いを追記）
+- `.claude/rules/git-workflow.md`（「PR・マージ」節へ「PR作成後のdefaultブランチ追従」を追加）
+- `.claude/rules/docs-workflow.md`（HANDOFF.mdのヘッダへ `- 追従監視:` 行を持たせること、
+  それが `set-header` の対象外であることを追記）
+- `.claude/agents/issue-mr-resume.md`（手順7・報告フォーマットへ「追従監視」を追加）
+- `.claude/docs/spec/check-base-conflicts.md`（「hookによる自動実行はしていない」の記述を、
+  監視での繰り返し実行と整合する形へ更新）
+- `.claude/docs/spec/issue-mr-workflow.md`（本ファイル。上記の節と本エントリ）
+- `.claude/docs/README.md`（DDR一覧へ0039を追加）
 
 ## 設定項目
 

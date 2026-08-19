@@ -1,10 +1,10 @@
 ---
 name: resolve-conflict
-description: 'Detect and resolve conflicts between the current feature branch and the default branch (main) before requesting a merge. Use whenever a merge/PR is about to be requested — both when the user explicitly invokes /resolve-conflict AND at issue-mr-flow flow-id 5-2, which requires this check before undrafting the PR. Covers the repo-specific hazards: DDR number collisions that git silently merges as clean, "deleted by us" conflicts on files that were untracked from Git (index.jsonl), and doc lines edited on both branches. Flow: check-base-conflicts.sh -> AskUserQuestion -> git merge (never rebase) -> per-category resolution -> verify -> commit skill.'
+description: 'Detect and resolve conflicts between the current feature branch and the default branch (main) before requesting a merge. Use whenever a merge/PR is about to be requested — both when the user explicitly invokes /resolve-conflict AND at issue-mr-flow flow-id 5-2, which requires this check before undrafting the PR. Covers the repo-specific hazards: DDR number collisions that git silently merges as clean, "deleted by us" conflicts on files that were untracked from Git (index.jsonl), and doc lines edited on both branches. Also used for the continuous base-branch follow-up after a PR is opened (issue-mr-flow "PR作成後のdefaultブランチ追従（監視）"), where categories with a single determined resolution (A/B/C/D) are resolved without waiting for approval and category E stops for the human. Flow: check-base-conflicts.sh -> AskUserQuestion -> git merge (never rebase) -> per-category resolution -> verify -> commit skill.'
 title: defaultブランチとのコンフリクト解消
 type: skill
 tags: [issue-mr-flow, workflow, skill, conflict]
-keywords: [コンフリクト, merge, DDR番号, 改番, deleted by us, index.jsonl, merge-tree, defaultブランチ, main追従]
+keywords: [コンフリクト, merge, DDR番号, 改番, deleted by us, index.jsonl, merge-tree, defaultブランチ, main追従, 追従監視, 監視モード]
 ---
 
 # /resolve-conflict スキル
@@ -19,6 +19,10 @@ keywords: [コンフリクト, merge, DDR番号, 改番, deleted by us, index.js
 - **`issue-mr-flow` の flow-id 5-2**（Draft解除の直前）。このステップはAIエージェントが必ず通る。
 - ユーザーが明示的に `/resolve-conflict` と入力した場合（フェーズを問わず、任意のタイミングで
   defaultブランチへ追従したいとき）。
+- **PR作成後の追従監視でコンフリクトを検知したとき**（issue #88。PRイベント・定期チェックイン・
+  各pushの直後。位置づけ:
+  `.claude/skills/issue-mr-flow/SKILL.md`「PR作成後のdefaultブランチ追従（監視）」節）。この
+  呼び出しは**監視モード**として扱い、Step 2 の承認の取り方だけが変わる（下記）。
 
 ## 絶対ルール
 
@@ -74,6 +78,27 @@ bash .claude/scripts/src/check-base-conflicts.sh
 | `解消する (Recommended)` | Step 3へ進む |
 | `内容だけ見たい` | 解消は行わず、Step 3以降の「解消方針」だけを提示して終了する |
 | `今回は解消しない` | 何もせず終了する。呼び出し元へ「コンフリクトが残ったままマージ依頼へ進む」旨を伝える |
+
+#### 監視モードでの例外（issue #88）
+
+PR作成後の追従監視から呼ばれた場合に限り、**解消方法が一意に決まる（どちらの意図も失われない）
+類型については、この承認を待たずに Step 3 へ進んでよい**。レビュー待ちの間に人間の応答を待つと、
+待っている間にdefaultブランチがさらに進み、同じ解消をやり直すことになるためである。
+
+| 類型 | 監視モードでの扱い |
+|---|---|
+| A: DDR番号の衝突 | **承認を待たず解消**（「defaultブランチ側を正とし作業ブランチ側を繰り下げる」と規則が確定している） |
+| B: 管理外にした生成物の "deleted by us" | **承認を待たず解消**（「管理外にした側を採用する」と規則が確定している） |
+| C: 同じドキュメントの近接行 | **承認を待たず解消**（両方を残す）。ただし散文が両側で書き換わり内容が矛盾する場合は類型Eとして扱う |
+| D: spec/DDRの過去changelog | **承認を待たず解消**（時系列順に両方残す） |
+| E: 同じロジックの競合 | **`AskUserQuestion` で確認する**。解消せずに止め、両側の意図を要約して判断を仰ぐ |
+
+- **省略してよいのは Step 2 の承認だけである。** Step 5 の検証と Step 6 の `commit` スキル経由の
+  コミットは、監視モードでも一切省略しない。
+- 検知結果に類型Eが1つでも含まれる場合は、**他の類型も解消せずに止めて確認を取る**（同じマージの
+  途中で一部だけ解消すると、作業ツリーがマージ途中のまま人間の応答を待つことになるため）。
+- ユーザーが対話可能な通常の呼び出し（`/resolve-conflict`・flow-id 5-2）では、この例外は使わない。
+  従来どおり Step 2 の承認を取る（DDR 0029 の決定6）。
 
 ### Step 3: マージの開始
 
@@ -211,6 +236,10 @@ bash .claude/scripts/src/create-commit.sh --message "chore: <base>をマージ�
 
 その後 `git push -u origin <branch>` でリモートへ反映する。
 
+**監視モード（issue #88）でも、この Step は一切変えない。** 承認を省略できるのは Step 2 だけで
+あり、コミットは `commit` スキル経由、メッセージは「何を」「どう」解消したかを書く、という規約は
+同じである（例: `chore: mainをマージしDDR番号を0039へ繰り下げてissue #88の変更と統合`）。
+
 ### Step 7: 報告
 
 解消した内容を、類型ごとに箇条書きでユーザーへ報告する。以下は必ず含める。
@@ -221,6 +250,11 @@ bash .claude/scripts/src/create-commit.sh --message "chore: <base>をマージ�
 
 **`HANDOFF.md` の「判断を迷った内容」へも同じ内容を書き残す**（レビュアーが差分だけを見ても、
 なぜその統合になったか分からないため。実績: PR #29のコミット c2bb66f）。
+
+**監視モードでは、報告先はPRのコメントも含める**（issue #88）。ユーザーが見ていない間に解消が
+進むため、「いつ・何を・どう解消したか」がPR上に残っていないと、レビュアーは差分の出所を追えない。
+一方で**空振り（`hasConflict` が偽だった回）は報告しない**。監視は静かに繰り返すものであり、
+変化の無い通知でPRとチャットを埋めない。
 
 ## 想定される失敗と対処
 
@@ -238,3 +272,6 @@ bash .claude/scripts/src/create-commit.sh --message "chore: <base>をマージ�
 - DDRの番号・frontmatter運用: `.claude/rules/markdown-frontmatter.md`, `.claude/rules/docs-workflow.md`
 - 検知スクリプトの仕様: `.claude/docs/spec/check-base-conflicts.md`
 - 意思決定の経緯・却下案: `.claude/docs/ddr/0029-defaultブランチとのコンフリクトは検知を機構化し解消手順をスキル化する.md`
+- 監視モード（PR作成後の追従・自動解消の線引き）の経緯・却下案:
+  `.claude/docs/ddr/0039-PR作成後のdefaultブランチ追従は並行手順として定義し自動解消は一意に決まる類型に限る.md`
+- 監視のフロー上の位置づけ: `.claude/skills/issue-mr-flow/SKILL.md`「PR作成後のdefaultブランチ追従（監視）」節
