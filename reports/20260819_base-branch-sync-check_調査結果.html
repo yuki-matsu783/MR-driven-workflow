@@ -30,15 +30,15 @@
       </div>
       <div class="bg-white rounded-lg shadow-sm p-5 border-t-4 border-sky-500">
         <p class="text-xs font-bold text-sky-700">2. 判定は1コマンドで足りる</p>
-        <p class="mt-2 text-sm"><code>git rev-list --left-right --count origin/&lt;base&gt;...HEAD</code> で behind・ahead 両方。変更ファイルは<strong>3点リーダ必須</strong>。</p>
+        <p class="mt-2 text-sm"><code>git rev-list --left-right --count origin/&lt;base&gt;...HEAD</code> で behind・ahead 両方。変更ファイルは<strong>3ドット記法必須</strong>。</p>
       </div>
       <div class="bg-white rounded-lg shadow-sm p-5 border-t-4 border-rose-500">
         <p class="text-xs font-bold text-rose-700">3. merge-base 無しで落ちる</p>
-        <p class="mt-2 text-sm">3点diff は <code>fatal</code>・終了コード128。<code>set -euo pipefail</code> 配下ではスクリプトごと停止するため<strong>事前判定が必須</strong>。</p>
+        <p class="mt-2 text-sm">3ドットdiff は <code>fatal</code>・終了コード128。<code>set -euo pipefail</code> 配下ではスクリプトごと停止するため<strong>事前判定が必須</strong>。</p>
       </div>
       <div class="bg-white rounded-lg shadow-sm p-5 border-t-4 border-amber-500">
-        <p class="text-xs font-bold text-amber-700">4. <code>resume</code> は fetch しない</p>
-        <p class="mt-2 text-sm">そのまま behind を足すと古い参照を見て「遅れていない」と報告する。<strong>fetch は新スクリプト側の責務にする</strong>。</p>
+        <p class="text-xs font-bold text-amber-700">4. サマリ組み立て時は未fetch</p>
+        <p class="mt-2 text-sm"><code>issue-mr-resume</code> が現在地サマリを作る時点ではまだ fetch されていない。そのまま behind を足すと古い参照を見て「遅れていない」と報告する。<strong>fetch は新スクリプト側の責務にする</strong>。</p>
       </div>
     </div>
   </section>
@@ -64,14 +64,30 @@
     <div class="grid gap-3 md:grid-cols-3">
       <div class="bg-emerald-50 border border-emerald-200 rounded-lg p-4"><p class="font-bold text-sm text-emerald-800"><code>start</code>（既存ブランチ検出）</p><p class="text-sm mt-1">する — <code>sync_branch()</code> の先頭</p></div>
       <div class="bg-emerald-50 border border-emerald-200 rounded-lg p-4"><p class="font-bold text-sm text-emerald-800"><code>sync</code></p><p class="text-sm mt-1">する — <code>sync_branch()</code> を呼ぶだけ</p></div>
-      <div class="bg-rose-50 border border-rose-200 rounded-lg p-4"><p class="font-bold text-sm text-rose-800"><code>resume</code></p><p class="text-sm mt-1"><strong>しない</strong> — エージェント定義に <code>git fetch</code> が0件。「読み取り専用」規定あり</p></div>
+      <div class="bg-rose-50 border border-rose-200 rounded-lg p-4"><p class="font-bold text-sm text-rose-800"><code>resume</code></p><p class="text-sm mt-1"><strong>サマリ組み立て時点ではしない</strong> — エージェント定義に <code>git fetch</code> が0件。「読み取り専用」規定あり（SKILL.md 手順4で <code>start</code> 手順2相当へ進めば fetch されるが、それは報告の後）</p></div>
     </div>
     <p class="mt-3 text-sm text-slate-700 bg-white rounded-lg shadow-sm p-4"><strong>設計への反映:</strong> fetch の責務は新スクリプト側へ置く（<code>check-base-conflicts.sh</code> と同じく既定でfetch・<code>--no-fetch</code> で抑止）。<code>git fetch</code> は作業ツリー・ローカルブランチを変えないため「読み取り専用」の規定とも矛盾しない。この解釈をサブエージェント定義へ明記する。</p>
   </section>
 
   <!-- 調査2 -->
   <section class="mb-10">
-    <h2 class="text-xl font-bold text-slate-900 mb-4 border-l-4 border-sky-600 pl-3">調査2: 既存2機構との役割の違い</h2>
+    <h2 class="text-xl font-bold text-slate-900 mb-4 border-l-4 border-sky-600 pl-3">調査2: 差し込み地点</h2>
+    <div class="overflow-x-auto bg-white rounded-lg shadow-sm mb-4">
+      <table class="min-w-full text-sm">
+        <thead class="bg-slate-100 text-slate-700">
+          <tr><th class="text-left px-4 py-3 font-semibold">地点</th><th class="text-left px-4 py-3 font-semibold">差し込むか</th><th class="text-left px-4 py-3 font-semibold">理由</th></tr>
+        </thead>
+        <tbody class="divide-y divide-slate-100">
+          <tr><td class="px-4 py-3"><code>start</code> 手順2（既存ブランチを検出）</td><td class="px-4 py-3 text-emerald-700 font-bold">する</td><td class="px-4 py-3">いつ作られたブランチか分からない</td></tr>
+          <tr><td class="px-4 py-3"><code>start</code> 手順2（新規作成）</td><td class="px-4 py-3 text-slate-500 font-bold">しない</td><td class="px-4 py-3"><code>&lt;base_branch&gt;</code> から切るため定義上その時点で追従済み</td></tr>
+          <tr><td class="px-4 py-3"><code>resume</code></td><td class="px-4 py-3 text-emerald-700 font-bold">する</td><td class="px-4 py-3">セッションを跨いだ引き継ぎ。issue #67 が挙げた実例がこの経路</td></tr>
+          <tr><td class="px-4 py-3"><code>sync</code></td><td class="px-4 py-3 text-emerald-700 font-bold">する</td><td class="px-4 py-3">ここだけ確認が無いと、<code>sync</code> で済ませたセッションが素通りする</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="mb-6 text-sm text-slate-700 bg-white rounded-lg shadow-sm p-4"><strong>flow-idは増やさない。</strong> issue #88（PR作成後のdefaultブランチ追従）が同じ判断をしており、「特定のflow-idに属さない並行手順」として節を立てる形が既にある。追従確認は <code>start</code>/<code>resume</code>/<code>sync</code> という<strong>サブコマンドの手順の一部</strong>であって、フローの新しい段ではない。</p>
+
+    <h3 class="text-base font-bold text-slate-900 mb-3">既存2機構との役割の違い</h3>
     <div class="overflow-x-auto bg-white rounded-lg shadow-sm">
       <table class="min-w-full text-sm">
         <thead class="bg-slate-100 text-slate-700">
@@ -91,10 +107,22 @@
   <section class="mb-10">
     <h2 class="text-xl font-bold text-slate-900 mb-4 border-l-4 border-sky-600 pl-3">調査3: gitコマンドの実測</h2>
 
-    <h3 class="text-base font-bold text-slate-900 mb-3">3点と2点の違い（フィクスチャ: main +4 / feat +1）</h3>
+    <h3 class="text-base font-bold text-slate-900 mb-3">3-1. behind / ahead の取り方</h3>
+    <div class="overflow-x-auto bg-white rounded-lg shadow-sm mb-6">
+      <table class="min-w-full text-sm">
+        <thead class="bg-slate-100 text-slate-700"><tr><th class="text-left px-4 py-3 font-semibold">コマンド</th><th class="text-left px-4 py-3 font-semibold">実測結果</th><th class="text-left px-4 py-3 font-semibold">判断</th></tr></thead>
+        <tbody class="divide-y divide-slate-100">
+          <tr><td class="px-4 py-3"><code>git rev-list --count HEAD..origin/main</code></td><td class="px-4 py-3"><code>4</code></td><td class="px-4 py-3">behind は取れるが ahead は別途もう1回起動が必要</td></tr>
+          <tr><td class="px-4 py-3"><code>git rev-list --count origin/main..HEAD</code></td><td class="px-4 py-3"><code>1</code></td><td class="px-4 py-3">同上</td></tr>
+          <tr class="bg-emerald-50"><td class="px-4 py-3 font-semibold"><code>git rev-list --left-right --count origin/main...HEAD</code></td><td class="px-4 py-3 font-bold"><code>4&nbsp;1</code></td><td class="px-4 py-3"><strong>採用</strong>。1プロセスで両方取れる</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3 class="text-base font-bold text-slate-900 mb-3">3-2. 3ドットと2ドットの違い（フィクスチャ: main +4 / feat +1）</h3>
     <div class="grid gap-4 md:grid-cols-2">
       <div class="bg-white rounded-lg shadow-sm p-5 border-l-4 border-emerald-500">
-        <p class="text-xs font-bold text-emerald-700 mb-2">採用: 3点 <code>HEAD...origin/main</code></p>
+        <p class="text-xs font-bold text-emerald-700 mb-2">採用: 3ドット <code>HEAD...origin/main</code></p>
         <pre class="text-xs bg-slate-900 text-slate-100 rounded p-3 overflow-x-auto">m1.txt
 m2.txt
 m3.txt
@@ -102,7 +130,7 @@ shared.txt</pre>
         <p class="text-sm mt-2">merge-base から見た<strong>ベース側の変更だけ</strong>。</p>
       </div>
       <div class="bg-white rounded-lg shadow-sm p-5 border-l-4 border-rose-500">
-        <p class="text-xs font-bold text-rose-700 mb-2">不採用: 2点 <code>HEAD..origin/main</code></p>
+        <p class="text-xs font-bold text-rose-700 mb-2">不採用: 2ドット <code>HEAD..origin/main</code></p>
         <pre class="text-xs bg-slate-900 text-slate-100 rounded p-3 overflow-x-auto"><span class="text-rose-400">f.txt</span>
 m1.txt
 m2.txt
@@ -112,7 +140,8 @@ shared.txt</pre>
       </div>
     </div>
 
-    <h3 class="text-base font-bold text-slate-900 mt-6 mb-3">境界条件（すべて実測）</h3>
+    <h3 class="text-base font-bold text-slate-900 mt-6 mb-3">3-3. 境界条件</h3>
+    <p class="text-sm text-slate-600 mb-3">印の無い行は実測。<span class="inline-block px-1.5 py-0.5 rounded bg-slate-200 text-slate-700 text-xs font-bold">未実測</span> の行は git の仕様からの推定で、数値としては確かめていない。</p>
     <div class="overflow-x-auto bg-white rounded-lg shadow-sm">
       <table class="min-w-full text-sm">
         <thead class="bg-slate-100 text-slate-700">
@@ -120,28 +149,78 @@ shared.txt</pre>
         </thead>
         <tbody class="divide-y divide-slate-100">
           <tr><td class="px-4 py-3"><code>origin/&lt;base&gt;</code> が存在しない</td><td class="px-4 py-3">終了コード <strong>128</strong>（<code>fatal: ambiguous argument</code>）</td><td class="px-4 py-3">事前に <code>rev-parse --verify --quiet</code> で確認し、明示メッセージで終了コード1</td></tr>
-          <tr class="bg-rose-50"><td class="px-4 py-3 font-semibold">merge-base が無い</td><td class="px-4 py-3"><code>merge-base</code>→終了コード1・出力空／<code>rev-list --left-right</code>→<strong>成功</strong>（<code>5&nbsp;1</code>）／<strong>3点diff→終了コード128</strong></td><td class="px-4 py-3"><strong>先に merge-base を判定</strong>し、無ければ3点diffを実行しない（<code>hasCommonHistory: false</code>）</td></tr>
-          <tr><td class="px-4 py-3">behind = 0（追従済み）</td><td class="px-4 py-3"><code>0&nbsp;0</code>、3点diff 0件</td><td class="px-4 py-3"><code>isBehind: false</code>。誤検知なし</td></tr>
-          <tr><td class="px-4 py-3">ahead &gt; 0（通常の作業中）</td><td class="px-4 py-3">behind とは独立に数えられる</td><td class="px-4 py-3">ahead を「遅れ」と誤判定しない</td></tr>
-          <tr class="bg-amber-50"><td class="px-4 py-3 font-semibold">shallow clone<br><span class="text-xs text-slate-500">このリポジトリ自身が該当</span></td><td class="px-4 py-3"><code>.git/shallow</code> 6件・293コミット保持。この状態でも merge-base / rev-list（<code>0&nbsp;2</code>）／3点diff は<strong>すべて正常</strong></td><td class="px-4 py-3"><code>isShallow</code> を出力へ含め、「shallowかつ0件」を呼び出し側が疑えるようにする</td></tr>
-          <tr class="bg-amber-50"><td class="px-4 py-3 font-semibold">single-branch clone<br><span class="text-xs text-slate-500"><code>--depth 1 --branch &lt;b&gt;</code></span></td><td class="px-4 py-3"><code>origin/&lt;base&gt;</code> の追跡参照が<strong>作られない</strong>ため <code>fetch origin &lt;base&gt;</code> しても現れず、後続がすべて128</td><td class="px-4 py-3">復旧コマンドをエラーメッセージへ。<code>git fetch origin '&lt;base&gt;:refs/remotes/origin/&lt;base&gt;'</code> で復旧できることを実測（<code>4&nbsp;1</code>・正しい3点diff）</td></tr>
+          <tr class="bg-rose-50"><td class="px-4 py-3 font-semibold">merge-base が無い</td><td class="px-4 py-3"><code>merge-base</code>→終了コード1・出力空／<code>rev-list --left-right</code>→<strong>成功</strong>（<code>5&nbsp;1</code>）／<strong>3ドットdiff→終了コード128</strong></td><td class="px-4 py-3"><strong>先に merge-base を判定</strong>し、無ければ3ドットdiffを実行しない（<code>hasCommonHistory: false</code>）</td></tr>
+          <tr><td class="px-4 py-3">behind = 0（追従済み）</td><td class="px-4 py-3"><code>0&nbsp;0</code>、3ドットdiff 0件</td><td class="px-4 py-3"><code>isBehind: false</code>。誤検知なし</td></tr>
+          <tr><td class="px-4 py-3">ahead &gt; 0（通常の作業中） <span class="inline-block px-1.5 py-0.5 rounded bg-slate-200 text-slate-700 text-xs font-bold">未実測</span></td><td class="px-4 py-3">behind とは独立に数えられる</td><td class="px-4 py-3">ahead を「遅れ」と誤判定しない</td></tr>
+          <tr class="bg-amber-50"><td class="px-4 py-3 font-semibold">shallow clone<br><span class="text-xs text-slate-500">このリポジトリ自身が該当</span></td><td class="px-4 py-3"><code>.git/shallow</code> 6件・293コミット保持。この状態でも merge-base / rev-list（<code>0&nbsp;2</code>）／3ドットdiff は<strong>すべて正常</strong></td><td class="px-4 py-3"><code>isShallow</code> を出力へ含め、「shallowかつ0件」を呼び出し側が疑えるようにする</td></tr>
+          <tr class="bg-amber-50"><td class="px-4 py-3 font-semibold">single-branch clone<br><span class="text-xs text-slate-500"><code>--depth 1 --branch &lt;b&gt;</code></span></td><td class="px-4 py-3"><code>origin/&lt;base&gt;</code> の追跡参照が<strong>作られない</strong>ため <code>fetch origin &lt;base&gt;</code> しても現れず、後続がすべて128</td><td class="px-4 py-3"><strong>既定のfetchでこのrefspec形</strong>（<code>+&lt;base&gt;:refs/remotes/origin/&lt;base&gt;</code>）<strong>を使い自動的に扱う</strong>。shallowのままでも正しく判定できることを実測（<code>4&nbsp;1</code>・正しい3ドットdiff）。通常のcloneでも同じ結果になる</td></tr>
         </tbody>
       </table>
     </div>
   </section>
 
+  <!-- 調査4 -->
+  <section class="mb-10">
+    <h2 class="text-xl font-bold text-slate-900 mb-4 border-l-4 border-sky-600 pl-3">調査4: 出力形式と既存スクリプトとの整合</h2>
+    <div class="overflow-x-auto bg-white rounded-lg shadow-sm">
+      <table class="min-w-full text-sm">
+        <thead class="bg-slate-100 text-slate-700"><tr><th class="text-left px-4 py-3 font-semibold">項目</th><th class="text-left px-4 py-3 font-semibold"><code>check-base-conflicts.sh</code></th><th class="text-left px-4 py-3 font-semibold">新スクリプト</th></tr></thead>
+        <tbody class="divide-y divide-slate-100">
+          <tr><td class="px-4 py-3">引数</td><td class="px-4 py-3"><code>--base</code> / <code>--head</code> / <code>--no-fetch</code> / <code>-h</code></td><td class="px-4 py-3">同じ</td></tr>
+          <tr class="bg-amber-50"><td class="px-4 py-3 font-semibold">fetch</td><td class="px-4 py-3"><code>git fetch origin "$base" ... || true</code></td><td class="px-4 py-3"><strong>変える。</strong>(1) refspec形 <code>+&lt;base&gt;:refs/remotes/origin/&lt;base&gt;</code> で single-branch clone を自動で扱う (2) <strong>握りつぶさず終了コードを <code>fetchOk</code> としてJSONへ出す</strong></td></tr>
+          <tr><td class="px-4 py-3">ベースref不在</td><td class="px-4 py-3">stderrへメッセージ・終了コード1</td><td class="px-4 py-3">同じ（復旧コマンドを添える）</td></tr>
+          <tr><td class="px-4 py-3">出力 / 終了コード</td><td class="px-4 py-3">JSONを1つ stdout へ／検査完了なら0</td><td class="px-4 py-3">同じ（<code>isBehind</code> はJSONで表す）</td></tr>
+          <tr><td class="px-4 py-3">jq / 改行 / テスト</td><td class="px-4 py-3">起動1回・可変長は標準入力／<code>tr -d '\r'</code>／<code>BASH_SOURCE</code> ガード</td><td class="px-4 py-3">同じ</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="mt-3 text-sm text-slate-700 bg-white rounded-lg shadow-sm p-4"><strong><code>fetch</code> だけ既存と変える理由:</strong> <code>check-base-conflicts.sh</code> がfetch失敗を握りつぶせるのは、コンフリクト検知は flow-id 5-2 でもう一度必ず通るため。<strong>本スクリプトは検知そのものが目的</strong>で、fetchに失敗して古い参照を読むと <code>isBehind: false</code> を返し、呼び出し側からは「遅れていない」と区別がつかない。</p>
+
+    <h3 class="text-base font-bold text-slate-900 mt-6 mb-3">出力JSONの完全な形</h3>
+    <pre class="text-xs bg-slate-900 text-slate-100 rounded-lg p-4 overflow-x-auto">{
+  "base": "main", "baseRef": "origin/main", "baseSha": "...",
+  "headRef": "HEAD", "headSha": "...", "mergeBase": "...",
+  "behind": 4, "ahead": 1,
+  "changedFiles": ["..."], "changedFilesTotal": 4, "changedFilesTruncated": false,
+  "hasCommonHistory": true, "isShallow": false, "fetchOk": true, "isBehind": true
+}</pre>
+    <p class="mt-3 text-sm text-slate-700 bg-white rounded-lg shadow-sm p-4"><strong>受け入れ条件の <code>tests/</code> について:</strong> issue #67 は「<code>tests/</code> に単体テストが追加されている」と書いているが、<strong>このリポジトリに <code>tests/</code> ディレクトリは存在しない</strong>。issue #63 で「機構自身のテストは <code>.claude/scripts/test/</code> へ置く」と決まっており、本issueもそれに従う。受け入れ条件を機械的に照合して <code>tests/</code> を新設しないこと。</p>
+  </section>
+
   <!-- 設計への反映 -->
   <section class="mb-10">
     <h2 class="text-xl font-bold text-slate-900 mb-4 border-l-4 border-sky-600 pl-3">設計への反映（フェーズ3への申し送り）</h2>
-    <ol class="bg-white rounded-lg shadow-sm p-6 space-y-2 text-sm list-decimal list-inside">
-      <li><code>.claude/scripts/src/check-base-sync.sh</code> を新設し <code>--base</code> / <code>--head</code> / <code>--no-fetch</code> を受ける。<strong>fetch は既定でこのスクリプトが行う</strong>。</li>
-      <li>behind・ahead は <code>rev-list --left-right --count</code> 1回で取る。</li>
-      <li>変更ファイルは3点リーダ。<strong>その前に merge-base の有無を必ず判定する。</strong></li>
-      <li><code>origin/&lt;base&gt;</code> 不在は終了コード1＋復旧コマンド入りメッセージ。</li>
-      <li>変更ファイルは50件で切り詰め、全件数と切り詰めフラグを併記（silent truncationにしない）。</li>
-      <li><code>isShallow</code> / <code>hasCommonHistory</code> を出力へ含める。</li>
-      <li>純粋関数を <code>BASH_SOURCE</code> ガードで分離し <code>.claude/scripts/test/test_check_base_sync.sh</code> から単体テストする。</li>
-    </ol>
+    <div class="grid gap-4 md:grid-cols-3">
+      <div class="bg-white rounded-lg shadow-sm p-5">
+        <p class="font-bold text-sm text-slate-900 mb-2">A. <code>check-base-sync.sh</code>（新設）</p>
+        <ul class="text-sm space-y-1 list-disc list-inside text-slate-700">
+          <li><code>--base</code> / <code>--head</code> / <code>--no-fetch</code>。<strong>fetchは既定でこのスクリプトが行う</strong>（refspec形・<code>fetchOk</code> を出力）</li>
+          <li>behind・ahead は <code>rev-list --left-right --count</code> 1回</li>
+          <li>変更ファイルは3ドット記法。<strong>その前に merge-base の有無を必ず判定</strong></li>
+          <li>50件（暫定値）で切り詰め、全件数と切り詰めフラグを併記</li>
+          <li><code>isShallow</code> / <code>hasCommonHistory</code> / <code>fetchOk</code> を出力</li>
+          <li>純粋関数を <code>BASH_SOURCE</code> ガードで分離し単体テスト</li>
+        </ul>
+      </div>
+      <div class="bg-white rounded-lg shadow-sm p-5">
+        <p class="font-bold text-sm text-slate-900 mb-2">B. <code>issue-mr-flow/SKILL.md</code><br><span class="text-xs font-normal text-slate-500">受け入れ条件 1・3・5</span></p>
+        <ul class="text-sm space-y-1 list-disc list-inside text-slate-700">
+          <li>新節を「PR作成後のdefaultブランチ追従（監視）」の<strong>直前</strong>へ（作業開始 → PR作成後 → マージ直前の順）</li>
+          <li>実施タイミング（<code>start</code> 既存ブランチ検出時・<code>resume</code>・<code>sync</code>）</li>
+          <li><strong>遅れがあれば <code>AskUserQuestion</code> で確認し、承認まで取り込まない</strong></li>
+          <li>issue #46・#88 との役割の違いの表</li>
+          <li>flow-idは増やさない</li>
+        </ul>
+      </div>
+      <div class="bg-white rounded-lg shadow-sm p-5">
+        <p class="font-bold text-sm text-slate-900 mb-2">C. <code>agents/issue-mr-resume.md</code><br><span class="text-xs font-normal text-slate-500">受け入れ条件 2</span></p>
+        <ul class="text-sm space-y-1 list-disc list-inside text-slate-700">
+          <li>手順を1つ追加し <code>check-base-sync.sh</code> を実行</li>
+          <li>現在地サマリへ <code>- ベースブランチとの差分:</code> の行を追加</li>
+          <li><strong>「読み取り専用」と <code>git fetch</code> の関係を1行明記</strong>（fetchは作業ツリーを変えないため規定に反しない）</li>
+        </ul>
+      </div>
+    </div>
   </section>
 
   <!-- 確かめられなかったこと -->
@@ -172,6 +251,37 @@ shared.txt</pre>
           <tr class="text-slate-600"><td class="px-4 py-3">（報告のみ）テスト範囲・<code>tests/</code> との差異</td><td class="px-4 py-3">フェーズ3-2へ純粋関数の候補と置き場所の理由を追記</td></tr>
           <tr class="text-slate-600"><td class="px-4 py-3">（報告のみ）命名規則外ブランチの影響</td><td class="px-4 py-3">調査計画の調査2へ調査項目を追加</td></tr>
           <tr class="text-slate-600"><td class="px-4 py-3">（報告のみ）検証手順とコミットブロックhookの衝突</td><td class="px-4 py-3">スクリプトファイル経由で使い捨てリポジトリを作ると明記</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="mb-10">
+    <h2 class="text-xl font-bold text-slate-900 mb-4 border-l-4 border-violet-600 pl-3">敵対的レビュー（フェーズ2・2回目）</h2>
+    <p class="text-sm mb-4">調査結果（md・HTML）を対象に実施。指摘12件のうち7件をインライン投稿、5件は報告に留めた。<strong>うち2件は実装そのものを変えた。</strong></p>
+    <div class="grid gap-4 md:grid-cols-2 mb-4">
+      <div class="bg-white rounded-lg shadow-sm p-5 border-l-4 border-rose-500">
+        <p class="text-xs font-bold text-rose-700">実装を変えた指摘 1</p>
+        <p class="mt-2 text-sm">fetchを <code>|| true</code> で握りつぶすと、検知が目的の本スクリプトでは「遅れていない」と誤報告する → <strong><code>fetchOk</code> を出力JSONへ追加</strong></p>
+      </div>
+      <div class="bg-white rounded-lg shadow-sm p-5 border-l-4 border-rose-500">
+        <p class="text-xs font-bold text-rose-700">実装を変えた指摘 2</p>
+        <p class="mt-2 text-sm">single-branch clone は refspec形fetchで<strong>自動回復できる</strong>のに、手動復旧を案内する設計だった → <strong>既定のfetchを <code>+&lt;base&gt;:refs/remotes/origin/&lt;base&gt;</code> へ</strong></p>
+      </div>
+    </div>
+    <div class="overflow-x-auto bg-white rounded-lg shadow-sm">
+      <table class="min-w-full text-sm">
+        <thead class="bg-slate-100 text-slate-700"><tr><th class="text-left px-4 py-3 font-semibold">その他の指摘</th><th class="text-left px-4 py-3 font-semibold">反映</th></tr></thead>
+        <tbody class="divide-y divide-slate-100">
+          <tr><td class="px-4 py-3">「<code>resume</code> の経路には fetch が1つも無い」は主張が広すぎる</td><td class="px-4 py-3">「サマリを組み立てる時点ではまだfetchされていない」へ精密化</td></tr>
+          <tr><td class="px-4 py-3">設計への反映がスクリプトのみで受け入れ条件1・2・3・5の申し送りが無い</td><td class="px-4 py-3">A/B/Cの3節へ分割し受け入れ条件との対応を明示</td></tr>
+          <tr><td class="px-4 py-3">出力JSONの完全なスキーマが無い（behind/aheadのキー名が未定義）</td><td class="px-4 py-3">調査4へ完全な例とキー説明表を追加</td></tr>
+          <tr><td class="px-4 py-3">存在しない規約（「silent truncation にしない」）を根拠に引いている</td><td class="px-4 py-3">本レポートでの設計判断と明示。50件が暫定値であることも明記</td></tr>
+          <tr><td class="px-4 py-3">未実測の行が「実測した挙動」の表に混ざる／HTMLは「すべて実測」と断言</td><td class="px-4 py-3">未実測の行へ印を付け、HTMLのラベルを外した</td></tr>
+          <tr><td class="px-4 py-3">HTML版にmd版の差し込み地点表・調査3-1・調査4が欠落</td><td class="px-4 py-3">3節を追加し節番号をmd版と一致させた</td></tr>
+          <tr class="text-slate-600"><td class="px-4 py-3">（報告のみ）「3点リーダ」は <code>A...B</code> の呼称として誤り</td><td class="px-4 py-3"><strong>3ドット記法</strong>へ統一（specへ転記されると恒久化するため）</td></tr>
+          <tr class="text-slate-600"><td class="px-4 py-3">（報告のみ）<code>tests/</code> と <code>.claude/scripts/test/</code> の差異が正文に無い</td><td class="px-4 py-3">調査4へ明記</td></tr>
+          <tr class="text-slate-600"><td class="px-4 py-3">（報告のみ）「先に3行」なのに項目が4つ／<code>tags</code> に日本語</td><td class="px-4 py-3">見出しを「結論（要点）」へ／tagsをkebab-caseへ</td></tr>
         </tbody>
       </table>
     </div>
