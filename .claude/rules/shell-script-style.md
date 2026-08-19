@@ -22,11 +22,6 @@ issue #6でリポジトリ内の開発補助スクリプトを全てPowerShell�
   で新規作成した時点で既にLFになっていることを前提にしており、そこに依存しない保証がほしい場合は
   `.gitattributes`に`*.sh text eol=lf`を追加する運用も検討できる（未導入）。
 - 先頭に `#!/usr/bin/env bash` を置く。
-- **その場かぎりのテキスト加工にも `python` を使わない**（issue #64で実際に踏んだ）。この環境の
-  `python` は **Python 2** で、`python - <<'EOF'` へ日本語を含むスクリプトを流すと
-  `SyntaxError: Non-ASCII character '\xe8' ... but no encoding declared` で失敗する。本リポジトリの
-  スクリプトはbash + jqで統一しており、加工が複雑に見えても `sed -n` による分割・連結（下記
-  「文字コード」節）で足りる。
 
 ## エラー方針
 
