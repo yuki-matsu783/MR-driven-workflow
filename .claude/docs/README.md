@@ -37,6 +37,7 @@ keywords: [正史仕様, 意思決定ログ, issue-mr-workflow, シェルスク�
 - [check-base-conflicts.md](spec/check-base-conflicts.md) ── defaultブランチとのコンフリクト検知スクリプト
 - [create-commit.md](spec/create-commit.md) ── コミット実行ラッパー（commitスキル専用）
 - [adversarial-review.md](spec/adversarial-review.md) ── 敵対的レビュー（専任サブエージェント・インラインコメント投稿）
+- [search-frontmatter.md](spec/search-frontmatter.md) ── ドキュメント横断検索スクリプト（index.jsonl検索）
 
 ## ddr（意思決定ログ）
 

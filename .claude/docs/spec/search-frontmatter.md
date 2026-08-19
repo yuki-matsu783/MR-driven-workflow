@@ -74,7 +74,7 @@ bash .claude/scripts/src/search-frontmatter.sh [オプション]
 | `--tag <値>` | `frontmatter.tags` の要素 | 完全一致 |
 | `--keyword <値>` | `frontmatter.keywords` の要素 | 完全一致 |
 | `--path <部分文字列>` | `concept_id` | 部分一致 |
-| `--text <部分文字列>` | レコード全体（`tostring`。title/description/tags/keywords/パス/mtimeを含む） | 部分一致 |
+| `--text <部分文字列>` | `concept_id` ＋ `mtime` ＋ **frontmatter配下のすべての値**（キー名は含まない） | 部分一致 |
 | `--since <ISO8601>` | `mtime` | 以上（文字列の辞書順比較） |
 | `--until <ISO8601>` | `mtime` | 以下（同上） |
 
@@ -112,7 +112,7 @@ bash .claude/scripts/src/search-frontmatter.sh [オプション]
 | `detail` | 1件を複数行で。type/title/description/tags/keywords/mtime |
 | `json` | 全件を1つのJSON配列で（整形済み） |
 | `jsonl` | 1行1JSON。さらにjqで加工する用途 |
-| `count` | `matched=<絞り込み後> total=<重複排除後の全件>` の1行のみ |
+| `count` | `matched=<絞り込み後・`--limit`打ち切り前> [shown=<実際の出力件数>] total=<重複排除後の全件>` の1行のみ。`shown=` は `--limit` で実際に打ち切られたときだけ付く |
 
 `table` の桁揃えは、jqの `length` が**Unicodeのコードポイント数**を返すため、そのまま使うと
 日本語（全角）を含む `title` / `concept_id` で列がずれる。CJK統合漢字・かな・ハングル・全角記号の
@@ -123,7 +123,7 @@ bash .claude/scripts/src/search-frontmatter.sh [オプション]
 
 | オプション | 意味 |
 |---|---|
-| `--dir <パス>` | このディレクトリ配下だけを対象にする（最新化・列挙の両方が絞られる） |
+| `--dir <パス>` | このディレクトリ配下だけを対象にする（最新化・列挙の両方が絞られる）。**相対パスはカレントディレクトリではなくリポジトリルート基準**で解決する（`main` が先に `cd "$repo_root"` するため） |
 | `--no-refresh` | `extract-frontmatter.sh` の呼び出しを省く |
 | `--quiet` / `-q` | 件数サマリ（stderr）を出さない |
 | `-h` / `--help` | 使い方を表示して終了する |
@@ -180,20 +180,56 @@ any($needles[]; . as $n | $h | contains($n))
 一見それらしい件数が返り**、気づきにくい。単体テストでは「部分一致で全件ヒットしないこと」を
 明示的に検証している。
 
+### 引数の検証を省くと、誤りが「該当0件」に化ける
+
+値を取るオプションを `--type) types+=("${2-}"); shift 2 ;;` とだけ書くと、2通りの形で**無言の
+誤動作**になる。
+
+| 誤り | 検証が無い場合の挙動 |
+|---|---|
+| 値の省略（`--type` で終端） | `shift 2` が失敗し `set -e` でシェルごと終了。バリデーションにも `usage` にも到達せず、**何も出力しないまま exit 1** |
+| 値の位置に別のオプション（`--type --quiet`） | `--quiet` が値として食われ、`matched=0` の**正常終了**になる |
+
+本スクリプトは「該当0件」を正常終了（exit 0）としているため、後者は**タイプミスと「該当なし」が
+区別できない**。呼び出し側（AIエージェント）は「ドキュメントが無い」と解釈して `grep` へ
+フォールバックしてしまう。`sf_validate_option_value` で両方を弾く。
+
+弾くのは `--` で始まる値だけにする。`--text -A` のように**ハイフン1つで始まる値**は実在の
+検索語（`keywords: [git add, -A, pathspec]` 等）のため通す。裏返しとして、`--` で始まる文字列
+そのものは `--text` の検索語にできない。
+
+### 規約違反のレコードが混ざっていても落ちない
+
+`tags: workflow` のようにリストで書かれていないfrontmatterは、`extract-frontmatter.sh` の
+パーサ上は文字列としてそのまま `index.jsonl` へ入る。本スクリプトは**規約違反の洗い出し**も
+用途に掲げている（`doc-search` スキルのjqレシピ）ため、**規約違反のレコードが混ざった状態で
+使われることが想定内**である。配列キーへのアクセサ（`arr_raw`）でスカラーを配列へ包み、
+どの出力形式でも落ちないようにする。
+
+jqはストリーミング出力するため、この種の型エラーは**途中まで出力したうえで落ちる**（部分的な
+結果とエラーが同時に出る）ことに注意する。
+
 ## 影響範囲
 
 - 新規: `.claude/scripts/src/search-frontmatter.sh`、`.claude/skills/doc-search/SKILL.md`、
   `.claude/scripts/test/test_search_frontmatter.sh`、本ファイル、
   [DDR 0048](../ddr/0048-ドキュメント探索はfrontmatterインデックス検索を第一手段にする.md)。
 - 変更: `AGENTS.md`（ドキュメント探索の第一手段を定めるルールを追加）、
-  `.claude/docs/README.md`（DDR一覧へ0045を追加）。
+  `.claude/rules/markdown-frontmatter.md`（`index.jsonl` を検索インデックスとして使う旨を追記）、
+  `.claude/docs/README.md`（spec一覧へ本ファイル、DDR一覧へ0048を追加）、
+  `index.md`（スキル一覧へ `/doc-search` を追加）、
+  `.claude/skills/apply-mr-workflow-to-project/SKILL.md`（展開されるAI資産の一覧へ追記）、
+  `HANDOFF.md`。
 - `extract-frontmatter.sh` および `index.jsonl` の形式は**変更していない**（読み取り専用で利用する）。
 
 ## 設定項目
 
 固有の設定ファイルは持たない。対象ディレクトリはリポジトリルート（`git rev-parse --show-toplevel`）
 から決まり、`--dir` で絞れる。探索から外すディレクトリはスクリプト冒頭の `SF_EXCLUDED_DIRS`
-（`.git node_modules build .gemini`）で定める。
+（`.git node_modules build .gemini`）で定める。`find` の `-prune` 条件はこの変数から組み立てる
+ため、**追加するときに書き換える場所は1箇所だけ**である（走査打ち切りと除外判定でリストが
+二重管理になっていると、片方にだけ追記したときに「除外は効くが走査は続く」または
+「specに書いていないディレクトリが黙って探索対象から外れる」のどちらかになる）。
 
 ## 未決定事項・懸念点
 
