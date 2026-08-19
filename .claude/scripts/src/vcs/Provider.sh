@@ -347,6 +347,7 @@ mcp_tool_hint() {
     set_mr_description) printf 'mcp__github__update_pull_request (owner, repo, pullNumber, body=ファイル内容)\n' ;;
     set_mr_ready) printf 'mcp__github__update_pull_request (owner, repo, pullNumber, draft=false)\n' ;;
     add_mr_comment) printf 'mcp__github__add_issue_comment (owner, repo, issue_number=PR番号, body=ファイル内容)\n' ;;
+    add_mr_inline_comments) printf 'mcp__github__pull_request_review_write (method="create" → 各指摘を "add_comment_to_pending_review" → "submit_pending"。owner, repo, pullNumber, path, line, side, body)\n' ;;
     add_issue_comment) printf 'mcp__github__add_issue_comment (owner, repo, issue_number=通知先issue番号, body=ファイル内容)\n' ;;
     *) printf '対応するMCPツールは .claude/skills/issue-mr-flow/SKILL.md の対応表を参照\n' ;;
   esac
@@ -742,4 +743,42 @@ get_branch_work_files() {
   working="$(git -c core.quotepath=false status --porcelain -- "$plans_dir" "$worklog_dir" "$reports_dir" | sed -E 's/^...//')"
 
   printf '%s\n%s\n' "$committed" "$working" | sed '/^$/d' | sort -u
+}
+
+# --- 敵対的レビュー: インラインコメントの投稿（issue #77） ---
+
+# インラインで示せなかった指摘の配列（標準入力）から、レビュー本文（サマリ）を組み立てる
+# 純粋関数。プロバイダに依存しないため Provider.sh 側に置く。
+# 指摘が0件でも本文は空にしない（GitHubのレビューは本文が空だと意味を成さないため）。
+format_findings_summary() {
+  jq -r '
+    "Claude Codeより: 敵対的レビュー（AIによる自動レビュー）の結果です。\n"
+    + (
+        if (length == 0) then
+          "\nすべての指摘をインラインコメントで示しています。"
+        else
+          "\n### インラインで示せなかった指摘（" + (length | tostring) + "件）\n\n"
+          + "対象がdiffに含まれないため、行を指定できませんでした。\n\n"
+          + ([
+              .[]
+              | "- **[" + (.severity // "minor") + " / 確度: " + (.confidence // "medium")
+                + (if .category then " / " + .category else "" end) + "]** `"
+                + (.path // "(パス不明)") + "` — " + (.title // "")
+                + "\n" + ((.body // "") | split("\n") | map("  " + .) | join("\n"))
+            ] | join("\n"))
+        end
+      )
+  ' | tr -d '\r'
+}
+
+# findings JSONファイルの指摘を、MRへインラインコメントとして投稿する。
+# findingsは必ずファイル経由で渡す（jqの引数長上限と、コマンド文字列へのhook誤検知語の
+# 混入を避けるため。.claude/rules/shell-script-style.md）。
+add_mr_inline_comments() {
+  require_vcs_cli add_mr_inline_comments || return 1
+  local mr_number="$1" findings_file="$2"
+  case "$(get_provider)" in
+    github) github_add_mr_inline_comments "$mr_number" "$findings_file" ;;
+    gitlab) gitlab_add_mr_inline_comments "$mr_number" "$findings_file" ;;
+  esac
 }

@@ -117,6 +117,9 @@ gitlab_new_draft_merge_request() {
 # 既定では resolved: false（未解決）のnoteのみを対象とし、対応済み（解決済み）は機械的に除外する。
 # include_resolved=true 指定時は解決済みも含めた全件を返す。
 # 個人メモ（individual_note）等 resolvable でないnoteは常に含める。
+# インラインコメント（`position` を持つnote）は、GitHub側（`path:line`）と揃えて位置を出力する。
+# 位置を出さないと「どのファイルの何行目への指摘か」がレビュー対応時に分からない（issue #77）。
+# 削除行への指摘は `new_line` が無く `old_line` のみを持つため、その場合は `old_path:old_line` を使う。
 # 第3引数 `mr_url`（省略可）を渡すと、各noteの公式パーマリンク `<mr_url>#note_<noteId>` を
 # `url=...` として行に含める（issue #42。GitHubのGraphQL `url` フィールドに相当するものが
 # GitLabのdiscussions APIには無いため、note `id` から組み立てる）。
@@ -132,8 +135,18 @@ gitlab_format_discussion_notes() {
       | select($n.system | not)
       | ($n.resolvable and $n.resolved) as $isResolved
       | select(($isResolved | not) or $includeResolved)
+      | (
+          if ($n.position // null) == null then null
+          elif ($n.position.new_line // null) != null
+            then ($n.position.new_path // "") + ":" + ($n.position.new_line | tostring)
+          elif ($n.position.old_line // null) != null
+            then ($n.position.old_path // "") + ":" + ($n.position.old_line | tostring)
+          else ($n.position.new_path // $n.position.old_path // null)
+          end
+        ) as $loc
       | "[" + (if $isResolved then "resolved" else "unresolved" end)
         + " threadId=" + ($d.id | tostring)
+        + (if $loc then " " + $loc else "" end)
         + (if ($mrUrl | length) > 0 then (" url=" + $mrUrl + "#note_" + ($n.id | tostring)) else "" end)
         + "] " + $n.author.username + ": " + $n.body
     ] | join("\n\n")
@@ -262,6 +275,87 @@ gitlab_add_mr_comment() {
   # 同ファイルの gitlab_add_mr_thread_reply と実装方式が揃う。
   glab api "projects/:id/merge_requests/${mr_number}/notes" \
     -X POST -f "body=${body}" >/dev/null
+}
+
+# --- 敵対的レビュー: インラインコメントの投稿（issue #77） ---
+#
+# GitLabは1リクエスト1指摘のため、GitHubのような「1件が不正だと全件失敗する」巻き添えは
+# 起きない。代わりに失敗理由をAPIが区別して返さないため、失敗した指摘はまとめてサマリへ回す。
+
+# finding 1件とMRの `diff_refs` から、`discussions` APIへPOSTするJSONボディを組み立てる（純粋関数）。
+# `position` の必須項目は `diff_refs`（base_sha / start_sha / head_sha）だけで揃う。
+#   - 新規行への指摘: `new_line` のみ
+#   - 削除行への指摘: `old_line` のみ（findingが `old_line` を持ち `line` を持たない場合）
+#   - コンテキスト行への指摘: 両方
+# `old_path` / `new_path` はGitLabが常に要求するため、片方しか無い場合は同じ値で埋める。
+gitlab_build_discussion_body() {
+  local finding="$1" diff_refs="$2"
+  printf '%s' "$finding" | jq -c --argjson refs "$diff_refs" '
+    . as $f
+    | {
+        body: ("Claude Codeより（敵対的レビュー）:\n\n"
+               + "**[" + ($f.severity // "minor") + " / 確度: " + ($f.confidence // "medium")
+               + (if $f.category then " / " + $f.category else "" end) + "]** "
+               + ($f.title // "") + "\n\n" + ($f.body // "")),
+        position: (
+          {
+            base_sha: $refs.base_sha,
+            start_sha: $refs.start_sha,
+            head_sha: $refs.head_sha,
+            position_type: "text",
+            old_path: ($f.old_path // $f.path),
+            new_path: ($f.path // $f.old_path)
+          }
+          + (if ($f.line // null) != null then {new_line: $f.line} else {} end)
+          + (if ($f.old_line // null) != null then {old_line: $f.old_line} else {} end)
+        )
+      }
+  ' | tr -d '\r'
+}
+
+# findings JSONファイルの指摘を、MRへインラインコメントとして投稿する。
+# 戻り値の形はGitHub版と揃える（呼び出し元にプロバイダ差を意識させない）。
+#
+# findingごとに `jq` を起動するが、1件ごとにHTTPリクエストが発生する経路であり、
+# 起動コストは無視できる（.claude/rules/shell-script-style.md「外部プロセス起動のコスト」は
+# ファイル数に比例して外部コマンドを起動するホットパスを対象とした指針）。
+gitlab_add_mr_inline_comments() {
+  local mr_number="$1" findings_file="$2"
+  local tmpdir diff_refs finding posted=0 summarized
+
+  tmpdir="$(mktemp -d)"
+  diff_refs="$(glab api "projects/:id/merge_requests/${mr_number}" | jq -c '.diff_refs')"
+  if [ -z "$diff_refs" ] || [ "$diff_refs" = "null" ]; then
+    # MR作成直後は diff_refs が null のことがある（issue #77 のフェーズ2で実機確認）。
+    sleep 5
+    diff_refs="$(glab api "projects/:id/merge_requests/${mr_number}" | jq -c '.diff_refs')"
+  fi
+  if [ -z "$diff_refs" ] || [ "$diff_refs" = "null" ]; then
+    printf 'gitlab_add_mr_inline_comments: MR %s の diff_refs を取得できませんでした\n' "$mr_number" >&2
+    rm -rf "$tmpdir"
+    return 1
+  fi
+
+  jq -c '(.findings // [])[]' "$findings_file" > "$tmpdir/findings.jsonl"
+  : > "$tmpdir/failed.jsonl"
+  while IFS= read -r finding; do
+    gitlab_build_discussion_body "$finding" "$diff_refs" > "$tmpdir/body.json"
+    if glab api "projects/:id/merge_requests/${mr_number}/discussions" \
+         -X POST -H "Content-Type: application/json" --input "$tmpdir/body.json" \
+         >/dev/null 2>&1 </dev/null; then
+      posted=$((posted + 1))
+    else
+      printf '%s\n' "$finding" >> "$tmpdir/failed.jsonl"
+    fi
+  done < "$tmpdir/findings.jsonl"
+
+  jq -s '.' "$tmpdir/failed.jsonl" | format_findings_summary > "$tmpdir/summary.md"
+  gitlab_add_mr_comment "$mr_number" "$tmpdir/summary.md"
+
+  summarized="$(jq -s 'length' "$tmpdir/failed.jsonl")"
+  rm -rf "$tmpdir"
+  jq -nc --argjson posted "$posted" --argjson summarized "$summarized" \
+    '{posted: $posted, summarized: $summarized}'
 }
 
 # 任意のissueへ新規コメントを1件投稿する（flow-id 5-3: マージ前の関連issue通知。issue #86）。【未検証】

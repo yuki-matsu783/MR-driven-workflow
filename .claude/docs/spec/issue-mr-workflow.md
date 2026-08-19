@@ -98,6 +98,7 @@ MRとのやり取りだけを自動化する薄い層」として設計したが
 | `set_mr_description <n> <bodyFile>` | PR/MRのdescriptionを指定ファイル内容で上書き | `gh pr edit --body-file` | `glab mr update --description` |
 | `set_mr_ready <n>` | Draft PR/MRのDraft状態を解除し、レビュー・マージ可能な状態にする（全体フロー flow-id 5-4。Draft作成側の `new_draft_merge_request` に対応する解除側。issue #61） | `gh pr ready` | `glab mr update --ready` |
 | `add_mr_comment <n> <bodyFile>` | PR/MRへ新規コメントを1件投稿（スレッド返信・レビューではない通常コメント） | `gh pr comment --body-file` | `glab api`（notes追加） |
+| `add_mr_inline_comments <n> <findingsFile>` | findings JSONファイルの指摘を、PR/MRへインラインコメントとして投稿する（敵対的レビュー用。issue #77）。投稿できなかった指摘はサマリへ回し、`{"posted":N,"summarized":M}` を返す。findingsは**必ずファイル経由で渡す**（引数長上限とhook誤検知の回避）。仕様は [adversarial-review.md](adversarial-review.md) を正とする | `gh api pulls/<n>/reviews`（1レビューへまとめて投稿。有効行を事前検証） | `glab api discussions`（1件ずつPOST。`position` を `diff_refs` から組み立てる） |
 | `add_issue_comment <n> <bodyFile>` | **任意のissue**へ新規コメントを1件投稿（全体フロー flow-id 5-3: マージ前の関連issue通知。issue #86）。宛先がPR/MRである `add_mr_comment` とは別関数で、GitHub実装が `gh pr comment` であるためPR以外へ投げられなかったのが分離の理由。本文はファイル経由（push検知hookの誤発火を避けるため）。投稿先・本文の決定と人間の承認は呼び出し側の責務 | `gh issue comment --body-file` | `glab api`（issues notes追加。【未検証】） |
 | `sync_branch <branch>` | 現在のブランチをfetch、必要ならcheckout（新しいセッションでの再開用） | `git fetch` + `git checkout` | 同左 |
 | `test_issue_sections <body>` | issue本文に「目的／現状／期待する動作／受け入れ条件」の4見出しが揃っているか確認し、欠けている見出し名を1行1件でstdoutへ出力する（プロバイダ非依存） | — | — |
@@ -2258,6 +2259,35 @@ MRの差分が影響する他のissueへ、マージ前に通知を残せるよ�
 「プロバイダ依存の8関数」として列挙していた一覧は、issue #68（`search_issues`）・issue #61
 （`set_mr_ready`）で関数が増えた際に更新されておらず、本対応の `add_issue_comment` を含めて
 **11関数**が正しい。
+
+### issue #77（敵対的レビュー）
+
+独立コンテキストの専任サブエージェントが意図的に欠陥を探し、指摘をMRへインラインコメントとして
+投稿する仕組みを追加した。**全体フロー表は変えていない**（flow-idを持たない任意の
+補助手順として、commit・pushの直後から人間のレビューまでの間に挟む）。仕様は
+[adversarial-review.md](adversarial-review.md) を正とする。
+
+新規:
+- `.claude/docs/spec/adversarial-review.md`
+- `.claude/docs/ddr/0045-敵対的レビューは専任サブエージェントで独立コンテキストに切り出す.md`
+- `.claude/docs/ddr/0046-レビュー観点はディレクトリごとのREVIEW-POINTSへ外だしする.md`
+- `.claude/docs/ddr/0047-インラインコメントの位置指定はプロバイダごとの制約に合わせて縮退させる.md`
+- `.claude/skills/adversarial-review/SKILL.md` / `.claude/skills/review-points/SKILL.md`
+- `.claude/agents/adversarial-reviewer.md`
+- `.claude/scripts/src/adversarial-review-count.sh` / `.claude/scripts/src/collect-review-points.sh`
+- `REVIEW-POINTS.md` / `.claude/REVIEW-POINTS.md` / `plans/REVIEW-POINTS.md` / `reports/REVIEW-POINTS.md`
+- `.claude/scripts/test/test_adversarial_review_count.sh` / `.claude/scripts/test/test_collect_review_points.sh`
+
+変更:
+- `.claude/scripts/src/vcs/Provider.sh`（`add_mr_inline_comments` のディスパッチ、`format_findings_summary`）
+- `.claude/scripts/src/vcs/Github.sh`（有効行の算出・振り分け・レビューJSONの組み立て・投稿）
+- `.claude/scripts/src/vcs/Gitlab.sh`（`position` の組み立て・投稿。`gitlab_format_discussion_notes` が
+  インラインコメントの位置（`path:line`）も出力するようにした）
+- `.claude/skills/issue-mr-flow/SKILL.md`（「敵対的レビューの位置づけ」節を新設。MCP対応表へ
+  `add_mr_inline_comments` の行を追加）
+- `.claude/scripts/test/test_vcs_provider.sh`（純粋関数のテストを追加）
+- `.claude/docs/spec/issue-mr-workflow.md`（本ファイル。提供関数の表と本エントリ）
+- `.claude/docs/README.md`（spec一覧へ adversarial-review.md、DDR一覧へ0045〜0047を追加）
 
 ## 設定項目
 
