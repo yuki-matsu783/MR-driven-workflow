@@ -77,3 +77,4 @@ DDRのうち0001・0002・0008・0015は持ち込んでいない**（連番に�
 - [0032-compact後もSessionStart-hookで作業コンテキストを再注入する.md](ddr/0032-compact後もSessionStart-hookで作業コンテキストを再注入する.md)
 - [0033-issue起票前の重複チェックは検索をProvider層へ置きキーワード抽出はAIに委ねる.md](ddr/0033-issue起票前の重複チェックは検索をProvider層へ置きキーワード抽出はAIに委ねる.md)
 - [0034-issueの分割は並列列挙構造を主トリガーにAIが提案し人間が決定する.md](ddr/0034-issueの分割は並列列挙構造を主トリガーにAIが提案し人間が決定する.md)
+- [0035-GitLab-issueテンプレートは予約名Default.mdを正とし文書側を合わせる.md](ddr/0035-GitLab-issueテンプレートは予約名Default.mdを正とし文書側を合わせる.md)
