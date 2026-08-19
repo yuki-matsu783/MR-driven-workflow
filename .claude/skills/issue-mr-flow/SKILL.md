@@ -52,7 +52,7 @@ MR description更新」という同じ形を繰り返す。
 |---|---|---|
 | 1-1 | issueを起票する（`.github/ISSUE_TEMPLATE/task.md` / `.gitlab/issue_templates/Default.md` で目的・現状・期待する動作・受け入れ条件を記載） | 人間（AIが代行する場合は `issue-create` スキル） |
 | 1-2 | issueの内容を取得する | `start <issue番号>` |
-| 1-3 | featureブランチ（`feature-<issue番号>-<slug>`）とDraft MRを作成する（既にあれば `sync` のみ） | `start` |
+| 1-3 | featureブランチ（`feature-<issue番号>-<slug>`）とDraft MRを作成する（既にあれば `sync` のみ）。**Draft MRの作成に都度の明示指示は要らない**（下記「PR/MR作成・マージの担当」。ハーネスがPR作成を制限する環境での例外も同節） | `start`（エージェント） |
 | 1-4 | **Planモードで「全体作業計画」を作成する**（このissueをどう進めるか＝何を調査し何を実装するかの全体像。ハーネスが提示するパス `plans/<自動命名>.md` へ出力）。**現在のブランチに既に全体作業計画があれば新規作成せず、既存を読むだけにとどめる**（詳細は下記「計画の2階層構造」）。**作成前に、issueが大きすぎないか（同型の成果物が並列に列挙されていないか）を判定し、該当すれば分割を提案する**（下記「issueが大きすぎる場合の分割提案」） | エージェント |
 | 1-5 | 全体作業計画に合意する | 人間 |
 | 1-6 | 全体作業計画をもとにHANDOFF.mdを更新する | エージェント |
@@ -88,8 +88,8 @@ MR description更新」という同じ形を繰り返す。
 | 4-10 | 反映内容をもとにMR descriptionを更新する | `describe` |
 | 5-1 | 次タスクのために、`plans/` `worklog/` `reports/` を削除し、`HANDOFF.md` をリセットする | エージェント |
 | 5-2 | **defaultブランチとのコンフリクトを検知し、あれば解消する**（`bash .claude/scripts/src/check-base-conflicts.sh` で判定 → `hasConflict` が真なら `AskUserQuestion` でユーザーに確認 → 承認されたら `resolve-conflict` スキルで解消。詳細は下記「defaultブランチとのコンフリクト検知・解消」節） | エージェント（`resolve-conflict` スキル） |
-| 5-3 | `commit`スキル経由でcommitし、push して Draftを解除する（解除は `source .claude/scripts/src/vcs/Provider.sh && set_mr_ready <MR番号>` で行う。`gh pr ready` / `glab mr update --ready` を直接呼ばない。MR番号は `get_mr_for_branch` で取得できる） | エージェント |
-| 5-4 | マージする（squash merge。ブランチは削除してよい） | 人間 |
+| 5-3 | `commit`スキル経由でcommitし、push して Draftを解除する（解除は `source .claude/scripts/src/vcs/Provider.sh && set_mr_ready <MR番号>` で行う。`gh pr ready` / `glab mr update --ready` を直接呼ばない。MR番号は `get_mr_for_branch` で取得できる）。**AIエージェントはここで止まる**（マージへは進まない） | エージェント |
+| 5-4 | マージする（squash merge。ブランチは削除してよい）。**AIエージェントは、ユーザーから明示的に指示された場合に限り実行してよい**（下記「PR/MR作成・マージの担当」） | 人間 |
 
 ### 計画の2階層構造（issue #9）
 
@@ -244,6 +244,26 @@ AIエージェントは**兆候と分割案を提示するに留める**。勝�
 - **共通部分を含む1件目を先に完了**させてから残りに着手する。並走させると共通部分がコンフリクト
   しやすく、DDR番号の重複（下記「defaultブランチとのコンフリクト検知・解消」）も起きやすい。
 
+## PR/MR作成・マージの担当（flow-id 1-3・5-3・5-4）
+
+**PR/MRの作成・更新はAIエージェントが実施してよい。マージのみユーザーの明示指示を必須とする**
+（issue #41）。判断の根拠は「取り消せるか」で、PR/MRの作成・Draft解除・description更新はいつでも
+取り消せて `main` を変えないのに対し、マージは `main` の正史を書き換える不可逆な操作である。
+
+| 操作 | 担当 |
+|---|---|
+| Draft PR/MRの作成（flow-id 1-3）・description更新・レビュー依頼・レビュー返信・Draft解除（flow-id 5-3） | **AIエージェント**（都度の明示指示は不要） |
+| マージ（flow-id 5-4） | **人間**。AIエージェントは明示的に指示された場合に限り実行してよい |
+
+flow-id 5-3 を終えたAIエージェントは、フロー上マージが次の一手であっても**そこで止まる**。
+「レビューが終わった」「Draftを解除した」「コンフリクトを解消した」はいずれもマージの指示ではない。
+
+**ハーネス（実行基盤）のシステムプロンプトに「ユーザーが明示的に依頼しない限りPRを作成しない」
+旨の指示がある環境**（Claude Code on the web のリモート実行環境等）では、ハーネス側の指示が優先
+される。その場合の flow-id 1-3 の振る舞い（ブランチ作成まで進め、作成の可否を `AskUserQuestion` で
+1回だけ確認する。応答を待てない非対話的セッションではPRを作成せず、その事実を最終応答へ明示する）は
+`.claude/rules/git-workflow.md`「ハーネスがPR作成を制限する環境での扱い」が正である。
+
 ## サブコマンド
 
 呼び出しは `/issue-mr-flow <サブコマンド> [引数]` の形。
@@ -282,7 +302,11 @@ AIエージェントは**兆候と分割案を提示するに留める**。勝�
         スペース区切りの単語列でよい。kebab-case化・記号除去・小文字化は `to_slug` が行うため
         ここでは不要。直訳ではなく意訳でよい。例:「ブランチ名のslugをリッチにしたい」→
         `enrich branch slug`）。タイトルが元々英語主体の場合はタイトルをそのまま使ってよい。
-     c. `new_issue_branch <n> "<b.で考えた英語フレーズ>" [<base_branch>]` でブランチを作成・
+     c. **Draft MRの作成に、ユーザーからの都度の明示指示は要らない**（issue #41。上記
+        「PR/MR作成・マージの担当」節）。ただし、ハーネスのシステムプロンプトが「明示的に依頼
+        されない限りPRを作成しない」と指示する環境では、ここで `AskUserQuestion` による確認を
+        1回だけ挟む（`.claude/rules/git-workflow.md`「ハーネスがPR作成を制限する環境での扱い」）。
+     d. `new_issue_branch <n> "<b.で考えた英語フレーズ>" [<base_branch>]` でブランチを作成・
         checkout・push、続けて `new_draft_merge_request <n> "<branch>" "<issue.Title>" [<base_branch>]`
         （**Draft MRのタイトルには引き続き生のissueタイトルを使う。英語フレーズはブランチ名専用**。
         `<base_branch>` は手順aで確定した値。既定のままなら省略）
@@ -506,9 +530,9 @@ PR #29のセッションで実際に発生）。この場合、タスク固有�
    ような分かりやすい名前でよい）。
 3. そのブランチ上で、該当する`plans/`・`worklog/`・`reports/`ファイルを削除し、`HANDOFF.md`を
    次タスク向けの空テンプレートへリセットする（内容はflow-id 5-1で行うものと同じ）。
-4. commit・pushし、`main`を対象にPRを作成する。PR作成・マージの実行は、他のPR操作と同様
-   ユーザーから明示的な指示を受けてから行う（`.claude/rules/git-workflow.md`の原則どおり、
-   マージ自体は人間が行う）。
+4. commit・pushし、`main`を対象にPRを作成する。**PRの作成は他のPR操作と同様AIエージェントが
+   行ってよく、都度の明示指示は要らない**。**マージのみ**、ユーザーから明示的な指示を受けてから
+   実行する（上記「PR/MR作成・マージの担当」節、`.claude/rules/git-workflow.md`「PR・マージ」節）。
 
 ## 詳細ルールへのポインタ
 
@@ -518,7 +542,8 @@ PR #29のセッションで実際に発生）。この場合、タスク固有�
 - ドキュメントの置き場所・ライフサイクル（`plans/` `worklog/` `.claude/docs/spec/` `.claude/docs/ddr/` `HANDOFF.md`）:
   `.claude/rules/docs-workflow.md` の「ドキュメント運用」表
 - ブランチ命名規則・squash mergeの方針・コミット運用（`commit`スキル必須使用・PreToolUse hookに
-  よる技術的強制）: `.claude/rules/git-workflow.md`
+  よる技術的強制）・PR/MR作成とマージの担当（ハーネスがPR作成を制限する環境での扱いを含む）:
+  `.claude/rules/git-workflow.md`
 - bashスクリプトの規約（`set -euo pipefail`・jq前提・改行/エンコーディング等）:
   `.claude/rules/shell-script-style.md`
 - `Provider.sh`の設計・スクリプト言語選定方針（bash化できる/できない判断基準）:
