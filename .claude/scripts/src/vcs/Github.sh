@@ -31,6 +31,39 @@ github_new_issue() {
   github_get_issue "$number"
 }
 
+# `gh issue list --search` の出力を共通形式（number/title/state/url）へ正規化する（issue #68）。
+# `gh` を呼ばない純粋関数（jqのみ）のため .claude/scripts/test/test_vcs_provider.sh から単体テストできる
+# （.claude/rules/shell-script-style.md「テスト」）。
+#
+# `state` はGitHub CLIが `OPEN`/`CLOSED` を返すのに対しGitLabは `opened`/`closed` を返すため、
+# 共通形式では小文字の `open`/`closed` へ揃える（呼び出し側がプロバイダごとの表記を知らずに
+# 判定できるようにするため）。
+github_normalize_issue_search_results() {
+  local raw="$1"
+  printf '%s' "$raw" | jq -c '[.[] | {number: .number, title: .title, state: (.state | ascii_downcase), url: .url}]'
+}
+
+# キーワードで既存issueを検索する（issue #68: 起票前の重複チェック用）。
+# 第1引数は1キーワードあたりの取得件数、第2引数以降が検索キーワード。
+#
+# **キーワードごとに1回ずつ検索する。** GitHubのissue検索は複数語をAND条件として扱うため、
+# キーワードを並べて1回で検索すると、語が増えるほどヒットしなくなる。重複チェックで欲しいのは
+# 再現率のため、1語ずつ検索して結果を `merge_issue_search_results` で統合する（OR相当）。
+#
+# `gh search issues` ではなく `gh issue list --search` を使うのは、後者がカレントリポジトリに
+# 限定され、かつPRを含まないため（`--repo` 指定もPR除外も不要）。`--state all` で
+# closedのissueも対象にする（過去に見送られた提案の再提出を検知するため）。
+github_search_issues() {
+  local limit="$1"
+  shift
+  local keyword results=()
+  for keyword in "$@"; do
+    results+=("$(github_normalize_issue_search_results \
+      "$(gh issue list --search "$keyword" --state all --limit "$limit" --json number,title,state,url)")")
+  done
+  merge_issue_search_results "${results[@]}"
+}
+
 github_new_draft_merge_request() {
   local issue_number="$1" branch="$2" base_branch="$3" title="$4"
   local body
