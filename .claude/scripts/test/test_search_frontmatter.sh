@@ -7,8 +7,12 @@
 #   2. 絞り込み・並び替え・整形を担う jq プログラム（SF_JQ_PROGRAM）。
 #      mktemp -d のフィクスチャ index.jsonl に対して直接 jq を回す
 #      （test_extract_frontmatter.sh / test_usage_tracking.sh と同じやり方。実リポジトリは汚さない）。
-#
-# main は git / find / extract-frontmatter.sh を呼ぶため対象外。
+#   3. main の結合テスト。mktemp -d + git init の使い捨てリポジトリに index.jsonl を置き、
+#      スクリプトを**実プロセスとして起動**して stdout / stderr / 終了コードを見る（末尾の節）。
+#      引数解析・find の除外・件数サマリは main にしか無く、合成フィクスチャだけでは検出できない
+#      （.claude/rules/shell-script-style.md「テスト」の「合成フィクスチャのテストだけで完了と
+#      しない」）。実際、この層に3件の不具合があった（値省略時の無言終了・値位置のフラグ食い・
+#      --limit の件数サマリへの波及）。
 # 規約: passed=N failures=N を標準出力へ出し、失敗があれば終了コード1
 #       （.claude/rules/shell-script-style.md「テスト」）。
 # 実行: bash .claude/scripts/test/test_search_frontmatter.sh
@@ -316,6 +320,45 @@ qreset
 Q_FORMAT='count' Q_TYPES='ddr'
 assert_eq "jq: --format count は matched と total を返す" "matched=1 total=5" "$(q)"
 
+# --limit は「絞り込みがどれだけ効いたか」を汚さない。打ち切りが起きたときだけ shown= が付く。
+qreset
+Q_FORMAT='count' Q_TYPES="$(printf 'ddr\nspec')" Q_LIMIT='1'
+assert_eq "jq: --format count は --limit の打ち切り前の件数を matched とする" \
+  "matched=2 shown=1 total=5" "$(q)"
+qreset
+Q_FORMAT='count' Q_LIMIT='99'
+assert_eq "jq: --limit が実際に効いていなければ shown= は付かない" "matched=5 total=5" "$(q)"
+
+# --- --text がJSONのキー名に当たらないこと（回帰テスト） -----------------
+# 以前は match_sub の haystack がレコードの `tostring`（キー名・区切り記号を含むJSONテキスト
+# 全体）だったため、`--text description` のような普通に打つ語で実質全件がヒットしていた。
+qreset
+Q_TEXTS='description'
+assert_eq "jq: --text はJSONのキー名に当たらない（description）" "" "$(q)"
+qreset
+Q_TEXTS='keywords'
+assert_eq "jq: --text はJSONのキー名に当たらない（keywords）" "" "$(q)"
+qreset
+Q_TEXTS='concept_id'
+assert_eq "jq: --text はJSONのキー名に当たらない（concept_id）" "" "$(q)"
+qreset
+Q_TEXTS='directory'
+assert_eq "jq: --text はJSONのキー名に当たらない（directory）" "" "$(q)"
+# 逆に、キー名と同じ綴りでも**値として**存在すれば当たる（キー名を消しただけで値は消していない）
+qreset
+Q_TEXTS='frontmatter'
+assert_eq "jq: キー名と同綴りでも keywords の値なら当たる" ".claude/docs/spec/beta" "$(q)"
+# 値の側は従来どおり当たる
+qreset
+Q_TEXTS='betaの仕様'
+assert_eq "jq: --text は description の値には当たる" ".claude/docs/spec/beta" "$(q)"
+qreset
+Q_TEXTS='JSONL'
+assert_eq "jq: --text は keywords の値には当たる" ".claude/docs/spec/beta" "$(q)"
+qreset
+Q_TEXTS='2026-08-20'
+assert_eq "jq: --text は mtime の値には当たる" ".claude/rules/gamma" "$(q)"
+
 # frontmatter が null のレコードでも各条件が例外なく評価できること
 qreset
 Q_TYPES='rule' 
@@ -323,6 +366,133 @@ assert_eq "jq: frontmatter が null の行があっても --type は動く" ".cl
 qreset
 Q_TEXTS='考えたこと'
 assert_eq "jq: frontmatter が null の行も --text で拾える" "考えたこと" "$(q)"
+
+# --- 規約違反レコード（tags/keywords がスカラー）でも落ちないこと --------
+# frontmatter が `tags: workflow` のようにリストで書かれていない場合、extract-frontmatter.sh は
+# それを文字列のまま index へ入れる。本スキルは「frontmatter規約違反の洗い出し」も用途に
+# 掲げているため、**規約違反のレコードが混ざった状態で使われるのが想定内**であり、そこで
+# jq ごと落ちてはいけない（以前は detail 形式が `Cannot iterate over string` で exit 5 になった）。
+scalar_fixture="$fixture_dir/scalar.jsonl"
+cat > "$scalar_fixture" <<'EOF'
+{"concept_id":"ok","directory":".","frontmatter":{"title":"OK","type":"spec","tags":["x"],"keywords":["k"]},"mtime":"2026-08-01T00:00:00"}
+{"concept_id":"scalar","directory":".","frontmatter":{"title":"Scalar","type":"spec","tags":"workflow","keywords":"single"},"mtime":"2026-08-02T00:00:00"}
+{"concept_id":"nofm","directory":".","frontmatter":null,"mtime":"2026-08-03T00:00:00"}
+EOF
+
+q_scalar() { # $1=format
+  jq -n -r \
+    --arg types '' --arg tags '' --arg keywords '' --arg paths '' --arg texts '' \
+    --arg since '' --arg until '' --arg sort path --arg reverse 0 --arg limit 0 --arg format "$1" \
+    "$SF_JQ_PROGRAM" "$scalar_fixture" 2>/dev/null | tr -d '\r'
+}
+
+for fmt in table path json jsonl detail count; do
+  if q_scalar "$fmt" >/dev/null 2>&1; then
+    scalar_status=0
+  else
+    scalar_status=1
+  fi
+  assert_eq "jq: tags/keywords がスカラーでも --format $fmt が落ちない" "0" "$scalar_status"
+done
+
+# 行番号で位置を決め打ちすると、出力の行数が変わるたびに壊れる。内容そのものを数える。
+assert_eq "jq: スカラーの tags は detail でそのまま表示される" "1" \
+  "$(q_scalar detail | grep -c '^  tags       : workflow$')"
+assert_eq "jq: スカラーの keywords は detail でそのまま表示される" "1" \
+  "$(q_scalar detail | grep -c '^  keywords   : single$')"
+assert_eq "jq: frontmatter が null でも detail が空欄で出る（nofm の1件だけ）" "1" \
+  "$(q_scalar detail | grep -c '^  tags       : $')"
+
+# --- sf_validate_option_value --------------------------------------------
+
+# 値が無い（`--type` で終端）
+assert_eq "sf_validate_option_value: 値が無ければ1" "1" \
+  "$(status_of sf_validate_option_value '--type' 1 '' 2>/dev/null)"
+# 値の位置に別のオプションが来た
+assert_eq "sf_validate_option_value: 値が -- で始まれば1" "1" \
+  "$(status_of sf_validate_option_value '--type' 2 '--quiet' 2>/dev/null)"
+# ハイフン1つで始まる値は通す（`keywords: [git add, -A, pathspec]` のような実在の検索語）
+assert_eq "sf_validate_option_value: ハイフン1つで始まる値は通す" "0" \
+  "$(status_of sf_validate_option_value '--text' 2 '-A' 2>/dev/null)"
+assert_eq "sf_validate_option_value: 通常の値は通す" "0" \
+  "$(status_of sf_validate_option_value '--type' 2 'ddr' 2>/dev/null)"
+# 空文字列そのものは値として認める（`--text ''` を弾く理由が無い）
+assert_eq "sf_validate_option_value: 空文字列は値として通す" "0" \
+  "$(status_of sf_validate_option_value '--text' 2 '' 2>/dev/null)"
+
+# --- main の結合テスト（実プロセス起動） ---------------------------------
+#
+# 引数解析・find の除外・件数サマリは main にしか無く、上の合成フィクスチャでは検出できない
+# （.claude/rules/shell-script-style.md「テスト」）。使い捨てのgitリポジトリを作り、
+# `--no-refresh` で extract-frontmatter.sh を外して実プロセスとして起動する。
+
+script="$repo_root/.claude/scripts/src/search-frontmatter.sh"
+itest="$fixture_dir/repo"
+mkdir -p "$itest/docs" "$itest/build/gen" "$itest/.gemini/rules"
+git -C "$itest" init -q 2>/dev/null || git -C "$itest" init >/dev/null 2>&1
+cat > "$itest/index.jsonl" <<'EOF'
+{"concept_id":"README","directory":".","frontmatter":{"title":"読み物","type":"guide","tags":["top"],"keywords":["入口"]},"mtime":"2026-08-01T00:00:00"}
+EOF
+cat > "$itest/docs/index.jsonl" <<'EOF'
+{"concept_id":"docs/alpha","directory":"docs","frontmatter":{"title":"アルファ","type":"spec","tags":["doc"],"keywords":["仕様"]},"mtime":"2026-08-02T00:00:00"}
+{"concept_id":"docs/beta","directory":"docs","frontmatter":{"title":"ベータ","type":"ddr","tags":["doc"],"keywords":["決定"]},"mtime":"2026-08-03T00:00:00"}
+EOF
+# 除外されるべきディレクトリ（build/ は find の prune、.gemini/ は .claude へのリンク相当）
+cat > "$itest/build/gen/index.jsonl" <<'EOF'
+{"concept_id":"build/gen/生成物","directory":"build/gen","frontmatter":{"title":"生成物","type":"spec"},"mtime":"2026-08-04T00:00:00"}
+EOF
+cat > "$itest/.gemini/rules/index.jsonl" <<'EOF'
+{"concept_id":".gemini/rules/リンク","directory":".gemini/rules","frontmatter":{"title":"リンク","type":"rule"},"mtime":"2026-08-05T00:00:00"}
+EOF
+
+# 実プロセスとして起動する。cd はサブシェルへ閉じ込め、テスト側のカレントを動かさない。
+run_main() { ( cd "$itest" && bash "$script" --no-refresh "$@" 2>"$fixture_dir/stderr.txt" ); }
+run_main_status() { if run_main "$@" >/dev/null; then echo 0; else echo 1; fi; }
+last_stderr() { cat "$fixture_dir/stderr.txt"; }
+
+assert_eq "main: 除外ディレクトリを除いた3件を返す" \
+  "$(printf '%s\n' 'README' 'docs/alpha' 'docs/beta')" "$(run_main --format path -q)"
+assert_eq "main: build/ 配下の index.jsonl は探索しない" "" "$(run_main --path 生成物 --format path -q)"
+assert_eq "main: .gemini/ 配下の index.jsonl は探索しない" "" "$(run_main --path リンク --format path -q)"
+
+assert_eq "main: 件数サマリを stderr へ出す（index数を含む）" \
+  "matched=3 total=3 indexes=2" "$(run_main --format path >/dev/null; last_stderr)"
+assert_eq "main: --quiet で件数サマリを出さない" "" "$(run_main --format path -q >/dev/null; last_stderr)"
+
+assert_eq "main: --dir でリポジトリルート基準に対象を絞る" \
+  "$(printf '%s\n' 'docs/alpha' 'docs/beta')" "$(run_main --dir docs --format path -q)"
+assert_eq "main: --dir が存在しなければ1" "1" "$(run_main_status --dir 存在しない)"
+assert_eq "main: --dir のエラーはリポジトリルート基準であることを示す" "1" \
+  "$(run_main --dir 存在しない >/dev/null 2>&1 || true; last_stderr | grep -c 'リポジトリルート')"
+
+# 引数エラーは「無言で終了」しないこと（以前は shift 2 の失敗で何も出さずexit 1になっていた）
+assert_eq "main: 未知のオプションは1" "1" "$(run_main_status --bogus)"
+assert_eq "main: 値を省略したオプションは1" "1" "$(run_main_status --type)"
+assert_eq "main: 値を省略したオプションはエラーを出す（無言で終わらない）" "1" \
+  "$(run_main --type >/dev/null 2>&1 || true; last_stderr | grep -c 'error:')"
+assert_eq "main: 値の位置にオプションが来たら1" "1" "$(run_main_status --type --quiet)"
+assert_eq "main: 値の位置にオプションが来たらエラーを出す" "1" \
+  "$(run_main --type --quiet >/dev/null 2>&1 || true; last_stderr | grep -c 'error:')"
+assert_eq "main: ハイフン1つで始まる値は受け付ける" "0" "$(run_main_status --text -A --format count)"
+assert_eq "main: 不正な --sort は1" "1" "$(run_main_status --sort bogus)"
+assert_eq "main: 不正な --format は1" "1" "$(run_main_status --format bogus)"
+assert_eq "main: 整数でない --limit は1" "1" "$(run_main_status --limit abc)"
+
+# 該当0件は「正常終了」（set -e 配下の呼び出し側が0件で止まらないようにするため）
+assert_eq "main: 該当0件でも終了コードは0" "0" "$(run_main_status --type 存在しない型)"
+assert_eq "main: 該当0件の出力は空" "" "$(run_main --type 存在しない型 --format path -q)"
+
+assert_eq "main: --limit は打ち切り前の件数を matched として報告する" \
+  "matched=3 shown=1 total=3" "$(run_main --limit 1 --format count -q)"
+assert_eq "main: --sort mtime --reverse で新しい順になる" \
+  "$(printf '%s\n' 'docs/beta' 'docs/alpha' 'README')" "$(run_main --sort mtime -r --format path -q)"
+assert_eq "main: -h は使い方を表示して0で終わる" "0" "$(run_main_status -h)"
+
+# index.jsonl が1件も無いディレクトリ
+mkdir -p "$itest/empty"
+assert_eq "main: index.jsonl が無くても終了コードは0" "0" "$(run_main_status --dir empty)"
+assert_eq "main: index.jsonl が無ければ警告を出す" "1" \
+  "$(run_main --dir empty >/dev/null 2>&1 || true; last_stderr | grep -c 'warning:')"
 
 echo "passed=$passed failures=$failures"
 [[ "$failures" -eq 0 ]]
