@@ -36,6 +36,7 @@ keywords: [正史仕様, 意思決定ログ, issue-mr-workflow, シェルスク�
 - [update-handoff-progress.md](spec/update-handoff-progress.md) ── HANDOFF.md進捗自動更新スクリプト
 - [check-base-conflicts.md](spec/check-base-conflicts.md) ── defaultブランチとのコンフリクト検知スクリプト
 - [create-commit.md](spec/create-commit.md) ── コミット実行ラッパー（commitスキル専用）
+- [cleanup-task.md](spec/cleanup-task.md) ── flow-id 5-1 後片付けの自動化スクリプト
 
 ## ddr（意思決定ログ）
 
@@ -86,3 +87,4 @@ DDRのうち0001・0002・0008・0015は持ち込んでいない**（連番に�
 - [0041-チャットで受けたレビュー判断はAIがMRの通常コメントへ記録する.md](ddr/0041-チャットで受けたレビュー判断はAIがMRの通常コメントへ記録する.md)
 - [0042-plans配下のfrontmatter-typeはguideではなくplanを新設する.md](ddr/0042-plans配下のfrontmatter-typeはguideではなくplanを新設する.md)
 - [0043-全体作業計画には調査・反映の枠を必ず残し省略判断は各フェーズ直前で行う.md](ddr/0043-全体作業計画には調査・反映の枠を必ず残し省略判断は各フェーズ直前で行う.md)
+- [0044-flow-id5-1の後片付けはスクリプト化しコミットは含めない.md](ddr/0044-flow-id5-1の後片付けはスクリプト化しコミットは含めない.md)
