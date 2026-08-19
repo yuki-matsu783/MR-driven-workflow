@@ -9,6 +9,10 @@
 #     --current "<現状>" --expected "<期待する動作>" --acceptance "<受け入れ条件>"
 #
 # 標準出力に、作成したissueのJSON（number/title/body/url/slug）を出力する。
+#
+# 前提: `gh`（GitHubの場合）/ `glab`（GitLabの場合）CLI。CLIが無い実行環境では内部の `new_issue` が
+# `require_vcs_cli` により失敗し、代替すべきMCPツール名（`mcp__github__issue_write`）を提示する
+# （issue #34。手順: .claude/skills/issue-create/SKILL.md 手順3の読み替え）。
 
 set -euo pipefail
 

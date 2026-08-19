@@ -19,6 +19,12 @@
 #
 # 前提: bash, git, jq, gh（GitHubの場合）または glab（GitLabの場合）。
 #
+# `gh`/`glab` が実行環境に存在しない場合（例: Claude Code on the webのリモート実行環境）は、
+# プロバイダ依存の関数は `require_vcs_cli` により「代替すべきMCPツール名」を提示して失敗する。
+# 呼び出し側（AIエージェント）はそのメッセージに従いMCPフォールバック経路へ切り替える
+# （経路判定は `get_vcs_access_mode`、手順は .claude/skills/issue-mr-flow/SKILL.md
+# 「`gh`/`glab` CLI不在時のMCPフォールバック」節。issue #34, DDR 0027）。
+#
 # 注意（文字コード）: PowerShell版はシステムのANSI/OEMコードページ対策として明示的な
 # UTF-8切り替えが必要だったが、git bash + gh/jq の組み合わせではこの問題が発生しない
 # （bashの標準入出力・パイプはコードページの影響を受けない）ため、本ファイルには
@@ -117,7 +123,7 @@ build_issue_body() {
 # 判定はremote URLの文字列のみに依存し、`gh`/`glab` の認証状態には依存しない（未ログインでも
 # 同じ結果になる）。
 # 詳細・却下案（glab由来の情報を使う3方式・`.mrworkflow.json`への`provider`キー追加）は
-# .claude/docs/ddr/0027-プロバイダ判定はremote-URLのホスト部でgithub以外をgitlabとみなす.md 参照。
+# .claude/docs/ddr/0028-プロバイダ判定はremote-URLのホスト部でgithub以外をgitlabとみなす.md 参照。
 #
 # 受け入れたトレードオフ: GitHub/GitLabのどちらでもないリモート（Bitbucket等、URLのtypo）にも
 # `gitlab` を返すため、旧実装の「サポート対象外のリモートです」という明快なエラーは出なくなり、
@@ -157,7 +163,99 @@ get_provider() {
   provider_from_remote_url "$url"
 }
 
+# --- gh/glab CLI不在環境向けのMCPフォールバック経路（issue #34） --------------------------------
+#
+# Claude Code on the webのリモート実行環境のように `gh`/`glab` CLIが存在しない環境では、
+# 以下の関数群が「どのMCPツールで代替するか」を機械的に決めるための土台になる。
+# 手順の正（サブコマンドごとの読み替え）は `.claude/skills/issue-mr-flow/SKILL.md`
+# 「`gh`/`glab` CLI不在時のMCPフォールバック」節。WebFetch/curlへはフォールバックしない
+# （DDR 0020, DDR 0027）。
+
+# 実行環境に該当プロバイダのCLIがあるかを判定し、`cli`（CLI経路）または `mcp`（MCPフォールバック
+# 経路）を標準出力へ返す。AIエージェントは各サブコマンドの冒頭でこれを呼び、経路を決める。
+get_vcs_access_mode() {
+  local provider cli
+  provider="$(get_provider)"
+  case "$provider" in
+    github) cli="gh" ;;
+    gitlab) cli="glab" ;;
+    *) cli="" ;;
+  esac
+  if [ -n "$cli" ] && command -v "$cli" >/dev/null 2>&1; then
+    printf 'cli\n'
+  else
+    printf 'mcp\n'
+  fi
+}
+
+# リモートURL（https / ssh(scp形式) / ssh:// のいずれも可）から
+# {host, owner, repo, path, url} のJSONを組み立てる純粋関数（外部の`gh`/`glab`に依存しない）。
+# MCPツールが必須引数として要求する `owner` / `repo` を、CLI不在環境でも機械的に得るために使う。
+# GitLabのネストしたnamespace（group/subgroup/repo）では、`owner` に `group/subgroup` が入る。
+parse_repo_slug() {
+  local url="$1"
+  local host path owner repo
+  host="$(printf '%s' "$url" | sed -E 's#^[a-zA-Z0-9+.-]+://##; s#^[^/@]+@##; s#^([^/:]+).*$#\1#')"
+  path="$(printf '%s' "$url" | sed -E '
+    s#^[a-zA-Z0-9+.-]+://##;
+    s#^[^/@]+@##;
+    s#^[^/:]+[:/]##;
+    s#^[0-9]+/##;
+    s#\.git$##;
+    s#/+$##')"
+  owner="${path%/*}"
+  repo="${path##*/}"
+  jq -nc --arg host "$host" --arg owner "$owner" --arg repo "$repo" --arg path "$path" \
+    '{host: $host, owner: $owner, repo: $repo, path: $path, url: ("https://" + $host + "/" + $path)}'
+}
+
+# `git remote get-url origin` の値を parse_repo_slug へ渡す（MCPツールの owner/repo 引数用）。
+get_repo_slug() {
+  parse_repo_slug "$(git remote get-url origin)"
+}
+
+# Provider関数名に対応するGitHub MCPツールと主な引数を1行で返す（require_vcs_cli の
+# メッセージ用。対応表の正はSKILL.mdの該当節で、ここはその要約）。
+# GitLabは対象外（DDR 0027「GitLab側は対象外とする」）。
+mcp_tool_hint() {
+  local func_name="$1"
+  if [ "$(get_provider)" != "github" ]; then
+    printf 'GitLab向けのMCPフォールバックは対象外です（DDR 0027）。glab CLIをインストール・認証してください\n'
+    return 0
+  fi
+  case "$func_name" in
+    get_issue) printf 'mcp__github__issue_read (method="get", owner, repo, issue_number)\n' ;;
+    new_issue) printf 'mcp__github__issue_write (method="create", owner, repo, title, body)\n' ;;
+    new_draft_merge_request) printf 'mcp__github__create_pull_request (owner, repo, title, head, base, draft=true, body)\n' ;;
+    get_mr_for_branch) printf 'mcp__github__list_pull_requests (owner, repo, head="<owner>:<branch>", state="open")\n' ;;
+    get_mr_unresolved_comments) printf 'mcp__github__pull_request_read (method="get_review_comments" / "get_comments", owner, repo, pullNumber)\n' ;;
+    add_mr_thread_reply) printf 'mcp__github__add_reply_to_pull_request_comment (owner, repo, pullNumber, commentId=スレッド先頭コメントの数値ID, body)\n' ;;
+    set_mr_description) printf 'mcp__github__update_pull_request (owner, repo, pullNumber, body=ファイル内容)\n' ;;
+    add_mr_comment) printf 'mcp__github__add_issue_comment (owner, repo, issue_number=PR番号, body=ファイル内容)\n' ;;
+    *) printf '対応するMCPツールは .claude/skills/issue-mr-flow/SKILL.md の対応表を参照\n' ;;
+  esac
+}
+
+# CLI経路が使えない場合に、代替すべきMCPツールを名指ししたメッセージをstderrへ出して失敗する。
+# 各Provider関数の先頭で `require_vcs_cli <自関数名> || return 1` の形で呼ぶ。
+# 目的は「CLI不在時にAIエージェントが即興でツールを選ぶ」状態をなくすこと（issue #34）。
+require_vcs_cli() {
+  local func_name="$1"
+  if [ "$(get_vcs_access_mode)" = "cli" ]; then
+    return 0
+  fi
+  {
+    printf '%s: gh/glab CLIがこの実行環境に存在しないため、CLI経路では実行できません。\n' "$func_name"
+    printf '  代替（MCPフォールバック経路）: %s\n' "$(mcp_tool_hint "$func_name")"
+    printf '  owner/repo は `get_repo_slug` で取得できます（例: get_repo_slug | jq -r ".owner, .repo"）。\n'
+    printf '  手順: .claude/skills/issue-mr-flow/SKILL.md 「`gh`/`glab` CLI不在時のMCPフォールバック」節\n'
+    printf '  WebFetchツール・curlへはフォールバックしないこと（DDR 0020, DDR 0027）。\n'
+  } >&2
+  return 1
+}
+
 get_issue() {
+  require_vcs_cli get_issue || return 1
   local number="$1"
   case "$(get_provider)" in
     github) github_get_issue "$number" ;;
@@ -166,6 +264,7 @@ get_issue() {
 }
 
 new_issue() {
+  require_vcs_cli new_issue || return 1
   local title="$1" body="$2"
   case "$(get_provider)" in
     github) github_new_issue "$title" "$body" ;;
@@ -174,6 +273,7 @@ new_issue() {
 }
 
 new_draft_merge_request() {
+  require_vcs_cli new_draft_merge_request || return 1
   local issue_number="$1" branch="$2" title="$3"
   local base_branch="${4:-$(get_workflow_config | jq -r '.defaultBaseBranch')}"
   case "$(get_provider)" in
@@ -183,6 +283,7 @@ new_draft_merge_request() {
 }
 
 get_mr_unresolved_comments() {
+  require_vcs_cli get_mr_unresolved_comments || return 1
   local mr_number="$1" include_resolved="${2:-false}"
   case "$(get_provider)" in
     github) github_get_mr_unresolved_comments "$mr_number" "$include_resolved" ;;
@@ -193,6 +294,7 @@ get_mr_unresolved_comments() {
 # 指定したレビュースレッドに対応内容を返信する（スレッドの解決＝resolvedはレビュアー側の操作のため
 # 行わない）。thread_idは get_mr_unresolved_comments の出力に含まれる threadId=... を使う。
 add_mr_thread_reply() {
+  require_vcs_cli add_mr_thread_reply || return 1
   local mr_number="$1" thread_id="$2" reply_body="$3"
   case "$(get_provider)" in
     github) github_add_mr_thread_reply "$mr_number" "$thread_id" "$reply_body" ;;
@@ -201,6 +303,7 @@ add_mr_thread_reply() {
 }
 
 get_mr_for_branch() {
+  require_vcs_cli get_mr_for_branch || return 1
   local branch="$1"
   case "$(get_provider)" in
     github) github_get_mr_for_branch "$branch" ;;
@@ -209,6 +312,7 @@ get_mr_for_branch() {
 }
 
 set_mr_description() {
+  require_vcs_cli set_mr_description || return 1
   local mr_number="$1" body_file="$2"
   case "$(get_provider)" in
     github) github_set_mr_description "$mr_number" "$body_file" ;;
@@ -218,7 +322,16 @@ set_mr_description() {
 
 # リポジトリの正規URL（フルパス）を取得する（issue #13フォローアップ: MR/PRのURL文字列からの
 # 推測ではなく`gh repo view`/`glab repo view`で取得し正確性を担保する）。
+#
+# CLI不在時（issue #34）は、他のプロバイダ依存関数と異なり `require_vcs_cli` で失敗させず、
+# `get_repo_slug`（`git remote get-url origin` のパース）から組み立てたURLを返す。リモートURLの
+# 取得はローカルのgit操作でありCLI・ネットワークを必要としないため、MCPツールを介す必要が無く、
+# これによりURL組み立て系（`get_mr_diff_url` 等）はMCP経路でもそのまま動く。
 get_repo_url() {
+  if [ "$(get_vcs_access_mode)" != "cli" ]; then
+    get_repo_slug | jq -r '.url'
+    return 0
+  fi
   case "$(get_provider)" in
     github) github_get_repo_url ;;
     gitlab) gitlab_get_repo_url ;;
@@ -249,6 +362,7 @@ get_mr_diff_since_url() {
 # MRへ新規コメントを1件投稿する（スレッド返信ではなく、レビューでもない通常コメント。
 # レビュー合否判定には影響しない）。呼び出し元想定: 対応工数レポート（post-push-usage-report.sh）。
 add_mr_comment() {
+  require_vcs_cli add_mr_comment || return 1
   local mr_number="$1" body_file="$2"
   case "$(get_provider)" in
     github) github_add_mr_comment "$mr_number" "$body_file" ;;

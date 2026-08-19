@@ -145,6 +145,15 @@ main() {
   # テーブル描画・稼働時間参考値等の表示処理はすべてこのフィルタ後の値に対して行う。
   subagent_usage="$(_usage_filter_nonzero_subagents "$subagent_usage")"
 
+  # `gh`/`glab` CLIが無い実行環境（例: Claude Code on the webのリモート実行環境）では、
+  # MRコメントの投稿手段がhookから使えない（hookはMCPツールを呼べない）。状態同期までは
+  # 従来どおり行ったうえで、ここでスキップした旨を1行だけ伝えて終了する。sinceLastPushは
+  # リセットしないため、CLIのある環境で次にpushしたときにまとめて投稿される（issue #34）。
+  if [ "$(get_vcs_access_mode)" != "cli" ]; then
+    echo "post-push-usage-report.sh: gh/glab CLI不在のため対応工数レポートの自動投稿をスキップしました（集計状態の更新のみ実施。issue #34）" >&2
+    exit 0
+  fi
+
   local mr
   mr="$(get_mr_for_branch "$branch")"
   [ -n "$mr" ] || exit 0

@@ -56,14 +56,25 @@ write_additional_context() {
 # 「前回pushとの差分」「コメント一覧」の2行を省略する（issue #13受け入れ条件）。
 # diff_url/repo_urlは、いずれもgh/glab由来の情報（PR/MRのURL・リポジトリの正規URL）から
 # 組み立てたものを渡す（issue #13フォローアップ: URL文字列からの推測を避け正確性を担保する）。
+# `gh`/`glab` CLI不在時（issue #34）は、MR/PRのURLをhookから取得できないため mr_url に空文字列を
+# 渡す。その場合はMRリンクの行を「MCPツールで取得すること」という指示に差し替える
+# （defaultブランチとの差分リンクは `get_repo_url` のローカル組み立てで得られるためそのまま出す）。
 build_links_text() {
   local mr_url="$1" diff_url="$2" repo_url="$3" prev_sha="$4" current_sha="$5"
-  local text
-  text="$(printf '参照リンク:\n- MR: %s\n- defaultブランチとの差分: %s' "$mr_url" "$diff_url")"
+  local text mr_line
+  if [ -n "$mr_url" ]; then
+    mr_line="$(printf -- '- MR: %s' "$mr_url")"
+  else
+    mr_line='- MR: (gh/glab CLI不在のため未取得。mcp__github__list_pull_requests で head="<owner>:<branch>" を指定して取得すること)'
+  fi
+  text="$(printf '参照リンク:\n%s\n- defaultブランチとの差分: %s' "$mr_line" "$diff_url")"
   if [ -n "$prev_sha" ] && [ "$prev_sha" != "$current_sha" ]; then
     local since_url
     since_url="$(get_mr_diff_since_url "$repo_url" "$prev_sha" "$current_sha")"
-    text="$(printf '%s\n- 前回push時との差分: %s\n- コメント一覧(MR画面): %s' "$text" "$since_url" "$mr_url")"
+    text="$(printf '%s\n- 前回push時との差分: %s' "$text" "$since_url")"
+    if [ -n "$mr_url" ]; then
+      text="$(printf '%s\n- コメント一覧(MR画面): %s' "$text" "$mr_url")"
+    fi
   fi
   printf '%s' "$text"
 }
@@ -110,12 +121,19 @@ main() {
   base_branch="$(get_workflow_config | jq -r '.defaultBaseBranch')"
   [ -n "$branch" ] && [ "$branch" != "$base_branch" ] || exit 0
 
-  local mr
-  mr="$(get_mr_for_branch "$branch")"
-  [ -n "$mr" ] || exit 0
+  # `gh`/`glab` CLI不在時（issue #34）はMR/PRのURLを取得できないが、`get_repo_url` は
+  # `git remote` からのローカル組み立てにフォールバックするため、Compare系のリンクは出せる。
+  # MRリンクだけをMCPでの取得指示に差し替えたうえで、レビュー依頼メッセージ自体は従来どおり促す
+  # （ここで終了してしまうと、CLIの無い環境ではレビュー依頼と/compactの呼びかけが一切
+  # 行われなくなるため）。
+  local mr mr_url=""
+  if [ "$(get_vcs_access_mode)" = "cli" ]; then
+    mr="$(get_mr_for_branch "$branch")"
+    [ -n "$mr" ] || exit 0
+    mr_url="$(printf '%s' "$mr" | jq -r '.url')"
+  fi
 
-  local mr_url repo_url diff_url
-  mr_url="$(printf '%s' "$mr" | jq -r '.url')"
+  local repo_url diff_url
   repo_url="$(get_repo_url)"
   diff_url="$(get_mr_diff_url "$repo_url" "$base_branch" "$branch")"
 

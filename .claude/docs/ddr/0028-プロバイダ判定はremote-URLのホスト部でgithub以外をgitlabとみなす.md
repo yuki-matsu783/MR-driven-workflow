@@ -1,12 +1,12 @@
 ---
-title: 0027. プロバイダ判定はremote URLのホスト部でgithub以外をgitlabとみなす
+title: 0028. プロバイダ判定はremote URLのホスト部でgithub以外をgitlabとみなす
 type: ddr
 description: self-hosted GitLabを判定できるようにするため、glab由来の情報を使う3案と設定ファイル案を却下し、remote URLのホスト部だけで判定する方式を採用した判断を記録したDDR
 tags: [vcs-provider, gitlab, github, ddr]
 keywords: [get_provider, provider_from_remote_url, self-hosted, ホスト判定, glab, 認証状態, メモ化, トレードオフ]
 ---
 
-# 0027. プロバイダ判定はremote URLのホスト部でgithub以外をgitlabとみなす
+# 0028. プロバイダ判定はremote URLのホスト部でgithub以外をgitlabとみなす
 
 ## 背景
 
