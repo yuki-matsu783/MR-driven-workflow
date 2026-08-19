@@ -30,19 +30,19 @@
 **注記の書式**: `【未検証】` に対応する `【検証済み】` のような新しい記号は導入しない
 （記号を増やすと意味の管理が要る）。散文で書く。
 
-## 2. `.claude/rules/shell-script-style.md` への追記（**要判断**）
+## 2. `.claude/rules/shell-script-style.md` への追記（レビューで**2-1・2-2とも追記すると決定**）
 
 既存の「git bashのパス変換の落とし穴」節・「テスト」節に、今回実際に踏んだものだけを足す。
 **踏んでいない一般論は書かない。**
 
-### 2-1. `docker exec` と `MSYS_NO_PATHCONV=1`（追記を推す）
+### 2-1. `docker exec` と `MSYS_NO_PATHCONV=1`（**追記する**）
 
 git bashから `docker exec gitlab cat /etc/gitlab/xxx` を実行すると、MSYSが `/etc/...` を
 `C:/Program Files/Git/etc/...` へ変換してしまう。既存節は `//in` のような**DOS形式フラグ**の
 回避策（先頭 `//`）を書いているが、**コンテナ内の絶対パスを渡すケースは別物**で、
 こちらは `export MSYS_NO_PATHCONV=1` が要る。既存節に並べて書く価値がある。
 
-### 2-2. `awk` / `sed` で `\r` を含む行を生成しない（追記を推す）
+### 2-2. `awk` / `sed` で `\r` を含む行を生成しない（**追記する**）
 
 `awk 'NR==95{print "... tr -d '\''\r'\''"}'` が、文字列リテラルの `\r` を**CR文字そのものへ展開**し、
 ソースへ生のCRバイトを混入させた（`tr -d ''` に見える行が出来た）。
@@ -57,11 +57,10 @@ git bashから `docker exec gitlab cat /etc/gitlab/xxx` を実行すると、MSY
 | glabがlocalhostをIPv6で解決して接続リセット | 同上。検証環境固有 |
 | git credential helper のチェーンを空文字で切る | 検証環境構築の手順であり、リポジトリの開発規約ではない |
 
-**判断が必要な点**: 2-1・2-2 は「ローカルGitLab検証」という**一度きりの作業**で踏んだものであり、
-今後再現するとは限らない。ルールに足すと `shell-script-style.md` が肥大する。
-**2-2は再現性が高い（コード生成は日常的）ため追記を推し、2-1は判断をレビューに委ねる。**
+**レビュー結果（flow-id 4-3〜4-4）**: 2-1・2-2とも追記することで合意した。
+「一度きりの作業で踏んだ知見だが、次に同じ環境へ触る担当者が同じ罠を踏む」という性質を重視した。
 
-## 3. `.claude/rules/docs-workflow.md` の記述矛盾（**発見事項・要判断**）
+## 3. `.claude/rules/docs-workflow.md` の記述矛盾（レビューで**別issueへ切り出すと決定**）
 
 ドキュメント運用表の `worklog/` 行に「PR作成前の設計反映でまとめて削除」とあるが、
 `.claude/skills/issue-mr-flow/SKILL.md` の全体フローでは削除は **flow-id 5-1**（フェーズ5）であり、
@@ -70,9 +69,9 @@ git bashから `docker exec gitlab cat /etc/gitlab/xxx` を実行すると、MSY
 本issueの作業中に、どちらに従うべきか実際に迷った。SKILL.md が「唯一の実装フロー定義」である以上、
 `docs-workflow.md` 側を **flow-id 5-1 に合わせて修正する**のが筋と考える。
 
-**判断が必要な点**: これは issue #48（Gitlab.shの不具合修正）とは無関係の発見であり、
-このMRに含めるか、別issueとして切り出すかを決めたい。**別issueへ切り出す案を推す**
-（スコープが混ざるとレビューの評価軸がぶれるため）。
+**レビュー結果（flow-id 4-3〜4-4）**: 別issueとして切り出すことで合意した。
+**issue [#51](https://github.com/yuki-matsu783/MR-driven-workflow/issues/51) として起票済み。**
+`docs-workflow.md` の修正そのものは本MRに含めない。
 
 ## 4. 反映しないと判断したもの
 
@@ -86,7 +85,7 @@ git bashから `docker exec gitlab cat /etc/gitlab/xxx` を実行すると、MSY
 
 1. `Gitlab.sh` の注記を更新する（1.）。
 2. レビューで合意が取れた範囲で `shell-script-style.md` へ追記する（2.）。
-3. 3. の扱い（このMRに含める／別issue）を決め、別issueなら起票のみ行う。
+3. `docs-workflow.md` の矛盾（3.）は issue #51 として起票済み。本MRでは修正しない。
 4. worklog へ反映内容を追記する。
 
 ## 検証方法
