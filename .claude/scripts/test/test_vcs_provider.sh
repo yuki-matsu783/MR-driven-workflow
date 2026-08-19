@@ -345,5 +345,165 @@ assert_eq "merge_issue_search_results: 1件だけでもそのまま配列で返�
   '[{"number":68,"title":"b","state":"open","url":"u68"}]' \
   "$(merge_issue_search_results '[{"number":68,"title":"b","state":"open","url":"u68"}]')"
 
+# --- 敵対的レビュー（issue #77）: インラインコメント投稿の純粋関数 ---
+
+fixture_files_json='[
+  {"filename":"new.sh","patch":"@@ -0,0 +1,3 @@\n+a\n+b\n+c"},
+  {"filename":"multi.md","patch":"@@ -1,5 +14,7 @@ ctx\n ...\n@@ -30,2 +100,3 @@\n x"},
+  {"filename":"binary.png"},
+  {"filename":"deleted-only.txt","patch":"@@ -1,2 +1,0 @@\n-x"},
+  {"filename":"one-line.txt","patch":"@@ -5 +7 @@\n-a\n+b"}
+]'
+
+assert_eq "github_valid_ranges_from_files_json: 新規ファイルは1行目から有効" \
+  '[[1,3]]' \
+  "$(printf '%s' "$fixture_files_json" | github_valid_ranges_from_files_json | jq -c '.["new.sh"]')"
+
+assert_eq "github_valid_ranges_from_files_json: 複数hunkを連結する" \
+  '[[14,20],[100,102]]' \
+  "$(printf '%s' "$fixture_files_json" | github_valid_ranges_from_files_json | jq -c '.["multi.md"]')"
+
+assert_eq "github_valid_ranges_from_files_json: patchが無いファイルは空" \
+  '[]' \
+  "$(printf '%s' "$fixture_files_json" | github_valid_ranges_from_files_json | jq -c '.["binary.png"]')"
+
+# 純粋な削除hunk（新ファイル側の行数が0）は、RIGHT側にコメントできる行を持たない
+assert_eq "github_valid_ranges_from_files_json: 新ファイル側0行のhunkは除外" \
+  '[]' \
+  "$(printf '%s' "$fixture_files_json" | github_valid_ranges_from_files_json | jq -c '.["deleted-only.txt"]')"
+
+# `@@ -a +c @@` のように行数を省略した形は1行を意味する
+assert_eq "github_valid_ranges_from_files_json: 行数省略形は1行として扱う" \
+  '[[7,7]]' \
+  "$(printf '%s' "$fixture_files_json" | github_valid_ranges_from_files_json | jq -c '.["one-line.txt"]')"
+
+assert_eq "github_valid_ranges_from_files_json: 空配列なら空オブジェクト" \
+  '{}' \
+  "$(printf '%s' '[]' | github_valid_ranges_from_files_json)"
+
+ranges_file="$(mktemp)"
+printf '%s' '{"new.sh":[[1,3]],"multi.md":[[14,20],[100,102]],"binary.png":[]}' > "$ranges_file"
+
+assert_eq "github_filter_findings_by_valid_lines: findingsが0件なら両方空" \
+  '{"post":[],"summary":[]}' \
+  "$(printf '%s' '{"findings":[]}' | github_filter_findings_by_valid_lines "$ranges_file")"
+
+assert_eq "github_filter_findings_by_valid_lines: 有効行内なら投稿対象" \
+  '2' \
+  "$(printf '%s' '{"findings":[{"path":"new.sh","line":2}]}' | github_filter_findings_by_valid_lines "$ranges_file" | jq -r '.post[0].line')"
+
+assert_eq "github_filter_findings_by_valid_lines: sideの既定はRIGHT" \
+  'RIGHT' \
+  "$(printf '%s' '{"findings":[{"path":"new.sh","line":2}]}' | github_filter_findings_by_valid_lines "$ranges_file" | jq -r '.post[0].side')"
+
+# ファイル全体にかかる指摘（line未指定）は、そのファイルの有効行の最小値へ寄せる。
+# 新規追加ファイルではhunkが `@@ -0,0 +1,N @@` になるため1行目に一致する。
+assert_eq "github_filter_findings_by_valid_lines: line未指定は有効行の最小値へ寄る" \
+  '1' \
+  "$(printf '%s' '{"findings":[{"path":"new.sh"}]}' | github_filter_findings_by_valid_lines "$ranges_file" | jq -r '.post[0].line')"
+
+assert_eq "github_filter_findings_by_valid_lines: 既存ファイルのline未指定は1ではなく最小有効行" \
+  '14' \
+  "$(printf '%s' '{"findings":[{"path":"multi.md"}]}' | github_filter_findings_by_valid_lines "$ranges_file" | jq -r '.post[0].line')"
+
+assert_eq "github_filter_findings_by_valid_lines: 有効行外はサマリ行き" \
+  '1' \
+  "$(printf '%s' '{"findings":[{"path":"multi.md","line":5}]}' | github_filter_findings_by_valid_lines "$ranges_file" | jq -r '.summary | length')"
+
+assert_eq "github_filter_findings_by_valid_lines: 2つ目のhunk内なら投稿対象" \
+  '101' \
+  "$(printf '%s' '{"findings":[{"path":"multi.md","line":101}]}' | github_filter_findings_by_valid_lines "$ranges_file" | jq -r '.post[0].line')"
+
+assert_eq "github_filter_findings_by_valid_lines: diffに無いパスはサマリ行き" \
+  '0 1' \
+  "$(printf '%s' '{"findings":[{"path":"not-in-diff.md","line":1}]}' | github_filter_findings_by_valid_lines "$ranges_file" | jq -r '"\(.post | length) \(.summary | length)"')"
+
+assert_eq "github_filter_findings_by_valid_lines: 有効行が空のファイルはサマリ行き" \
+  '0 1' \
+  "$(printf '%s' '{"findings":[{"path":"binary.png"}]}' | github_filter_findings_by_valid_lines "$ranges_file" | jq -r '"\(.post | length) \(.summary | length)"')"
+
+assert_eq "github_filter_findings_by_valid_lines: findingsキーが無くても落ちない" \
+  '{"post":[],"summary":[]}' \
+  "$(printf '%s' '{}' | github_filter_findings_by_valid_lines "$ranges_file")"
+
+review_body_file="$(mktemp)"
+printf 'レビュー本文' > "$review_body_file"
+
+assert_eq "github_build_review_payload: 投稿0件でも本文だけのレビューになる" \
+  'COMMENT 0 レビュー本文' \
+  "$(printf '%s' '[]' | github_build_review_payload "$review_body_file" | jq -r '"\(.event) \(.comments | length) \(.body)"')"
+
+assert_eq "github_build_review_payload: マルチバイトのパスをそのまま保つ" \
+  'plans/【設計】計画.md' \
+  "$(printf '%s' '[{"path":"plans/【設計】計画.md","line":1,"title":"T","body":"B"}]' | github_build_review_payload "$review_body_file" | jq -r '.comments[0].path')"
+
+assert_eq "github_build_review_payload: 重大度・確度・カテゴリを本文の先頭へ付ける" \
+  '**[major / 確度: high / shell-pitfall]** タイトル' \
+  "$(printf '%s' '[{"path":"a.sh","line":1,"severity":"major","confidence":"high","category":"shell-pitfall","title":"タイトル","body":"本文"}]' | github_build_review_payload "$review_body_file" | jq -r '.comments[0].body' | head -1)"
+
+assert_eq "format_findings_summary: 0件でも本文は空にしない" \
+  'すべての指摘をインラインコメントで示しています。' \
+  "$(printf '%s' '[]' | format_findings_summary | tail -1)"
+
+assert_eq "format_findings_summary: 件数を見出しに出す" \
+  '### インラインで示せなかった指摘（2件）' \
+  "$(printf '%s' '[{"path":"a.sh","title":"T1"},{"path":"b.sh","title":"T2"}]' | format_findings_summary | sed -n '3p')"
+
+# --- GitLab: position付き投稿 ---
+
+gitlab_refs='{"base_sha":"b1","start_sha":"s1","head_sha":"h1"}'
+
+assert_eq "gitlab_build_discussion_body: 新規行への指摘はnew_lineのみ" \
+  '{"base_sha":"b1","start_sha":"s1","head_sha":"h1","position_type":"text","old_path":"a.sh","new_path":"a.sh","new_line":10}' \
+  "$(gitlab_build_discussion_body '{"path":"a.sh","line":10}' "$gitlab_refs" | jq -c '.position')"
+
+assert_eq "gitlab_build_discussion_body: 削除行への指摘はold_lineのみ" \
+  '{"base_sha":"b1","start_sha":"s1","head_sha":"h1","position_type":"text","old_path":"a.sh","new_path":"a.sh","old_line":3}' \
+  "$(gitlab_build_discussion_body '{"old_path":"a.sh","old_line":3}' "$gitlab_refs" | jq -c '.position')"
+
+assert_eq "gitlab_build_discussion_body: コンテキスト行への指摘は両方" \
+  '10 8' \
+  "$(gitlab_build_discussion_body '{"path":"a.sh","line":10,"old_line":8}' "$gitlab_refs" | jq -r '"\(.position.new_line) \(.position.old_line)"')"
+
+assert_eq "gitlab_build_discussion_body: 本文の形式をGitHub版と揃える" \
+  '**[major / 確度: high / shell-pitfall]** タイトル' \
+  "$(gitlab_build_discussion_body '{"path":"a.sh","line":1,"severity":"major","confidence":"high","category":"shell-pitfall","title":"タイトル","body":"本文"}' "$gitlab_refs" | jq -r '.body' | head -1)"
+
+# gitlab_format_discussion_notes が position を出力すること（issue #77 で修正）。
+# 位置が出ないと「どのファイルの何行目への指摘か」がレビュー対応時に分からない。
+gitlab_notes_fixture='[
+  {"id":"abc","notes":[{"system":false,"resolvable":true,"resolved":false,"author":{"username":"u1"},"body":"新規行","position":{"new_path":"a.sh","new_line":10,"old_path":"a.sh"}}]},
+  {"id":"def","notes":[{"system":false,"resolvable":true,"resolved":false,"author":{"username":"u2"},"body":"削除行","position":{"old_path":"b.sh","old_line":3,"new_path":"b.sh","new_line":null}}]},
+  {"id":"ghi","notes":[{"system":false,"resolvable":false,"author":{"username":"u3"},"body":"通常コメント"}]},
+  {"id":"jkl","notes":[{"system":true,"author":{"username":"u4"},"body":"changed the description"}]},
+  {"id":"mno","notes":[{"system":false,"resolvable":true,"resolved":true,"author":{"username":"u5"},"body":"解決済み"}]}
+]'
+
+assert_eq "gitlab_format_discussion_notes: position付きはpath:lineを出す" \
+  '[unresolved threadId=abc a.sh:10] u1: 新規行' \
+  "$(gitlab_format_discussion_notes "$gitlab_notes_fixture" | sed -n '1p')"
+
+assert_eq "gitlab_format_discussion_notes: 削除行はold_path:old_lineを出す" \
+  '[unresolved threadId=def b.sh:3] u2: 削除行' \
+  "$(gitlab_format_discussion_notes "$gitlab_notes_fixture" | sed -n '3p')"
+
+assert_eq "gitlab_format_discussion_notes: position無しの通常コメントは従来どおり" \
+  '[unresolved threadId=ghi] u3: 通常コメント' \
+  "$(gitlab_format_discussion_notes "$gitlab_notes_fixture" | sed -n '5p')"
+
+assert_eq "gitlab_format_discussion_notes: systemノートと解決済みは除外されたまま" \
+  '3' \
+  "$(gitlab_format_discussion_notes "$gitlab_notes_fixture" | grep -c 'threadId=')"
+
+assert_eq "gitlab_format_discussion_notes: include_resolved=trueなら解決済みも出る" \
+  '4' \
+  "$(gitlab_format_discussion_notes "$gitlab_notes_fixture" true | grep -c 'threadId=')"
+
+# CLI不在時に提示するMCPツール名（mcp_tool_hint）へ、新しい関数を追加したか
+get_provider() { printf 'github\n'; }
+assert_eq "mcp_tool_hint: add_mr_inline_comments はレビュー作成ツールを案内する" \
+  '1' \
+  "$(mcp_tool_hint add_mr_inline_comments | grep -c 'pull_request_review_write')"
+
 echo "passed=$passed failures=$failures"
 [ "$failures" -eq 0 ]
