@@ -71,9 +71,17 @@ bash .claude/scripts/src/check-base-sync.sh
 
 出力JSONから `behind`（ベースブランチにあって作業ブランチに無いコミット数）・`changedFiles`
 （未取り込みの変更ファイル）・`changedFilesTotal`・`isBehind` を取り、報告に含める。
-`fetchOk` が偽・`isShallow` が真・`hasCommonHistory` が偽のいずれかなら、**判定が信頼できない
-可能性がある**旨も添える（判定の意味は
-`.claude/skills/issue-mr-flow/SKILL.md`「作業開始・再開時のベースブランチ追従確認」節が正）。
+`fetchOk` が偽・`hasCommonHistory` が偽のいずれかなら、**判定が信頼できない可能性がある**旨も
+添える（判定の意味は
+`.claude/skills/issue-mr-flow/SKILL.md`「作業開始・再開時のベースブランチ追従確認」節が正。
+`isShallow` は Claude Code on the web のリモート実行環境では常に真になるため、**単体では
+警告の条件にしない**）。
+
+**終了コードが非0だった場合は `behind` を報告せず、「ベースブランチとの差分: 判定できなかった
+（<stderrの1行目>）」として報告する。** 「追従済み」「遅れなし」とは書かない
+（`origin/<base>` が解決できない・リモート名が `origin` でない・ネットワークや認証の失敗で
+ここへ来る。誤って「遅れていない」と報告すると、呼び出し元は確認の機会そのものを失う）。
+再試行・取り込みの判断は呼び出し元の役割であり、このエージェントは事実だけを報告する。
 
 **このスクリプトは `git fetch` を行うが、「読み取り専用」の規定には反しない。** `git fetch` は
 リモートの内容をローカルのリモート追跡参照（`origin/<base>`）へ取り込むだけで、作業ツリー・
@@ -113,8 +121,9 @@ issue #58）と `- 追従監視:` 行（defaultブランチ追従監視の状態
 - 個別作業計画（`plans/【*.md`）: <ファイルパスの一覧> ／ なし
 - worklog/reportsファイル: <ファイルパスの一覧> ／ なし
 - ベースブランチとの差分: `<base>` から **<behind>コミット遅れ** ／ 追従済み（behind=0）
+  ／ **判定できなかった（<stderrの1行目>）**
   - 未取り込みの変更ファイル: <changedFiles の一覧。多い場合は件数と代表例>
-  - （`fetchOk: false` / `isShallow: true` / `hasCommonHistory: false` のいずれかなら
+  - （`fetchOk: false` / `hasCommonHistory: false` のいずれかなら
     「この判定は信頼できない可能性がある」と明記する）
 - 現在のループ: <HANDOFF.mdの `- 現在のループ:` 行の内容> ／ 記録なし
 - 追従監視: <HANDOFF.mdの `- 追従監視:` 行の内容> ／ 記録なし

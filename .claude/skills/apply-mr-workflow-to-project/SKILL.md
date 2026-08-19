@@ -62,6 +62,7 @@ bash .claude/skills/apply-mr-workflow-to-project/scripts/install-to-project.sh /
 ### 2. コアスクリプト群（`.claude/scripts/`, `.gemini/scripts/`）
 - `create-issue.sh` / `create-commit.sh` / `extract-frontmatter.sh`：VCS、コミット、フロントマター処理の自動化。
 - `check-base-conflicts.sh`：defaultブランチとのコンフリクト（テキスト＋DDR番号の重複）を作業ツリーを変更せずに検知。
+- `check-base-sync.sh`：作業開始・再開時に、ベースブランチの最新を取り込めているか（behindコミット数・未取り込みの変更ファイル）を作業ツリーを変更せずに判定。
 - `search-frontmatter.sh`：frontmatterの`index.jsonl`を結合し、type/tags/keywords/パス/フリーテキストでドキュメントを横断検索。
 - `vcs/Provider.sh`（および `Github.sh`, `Gitlab.sh`）：GitHubやGitLabのAPI差異を吸収し、ブランチやDraft MR/PR作成を自動化するラッパー。
 

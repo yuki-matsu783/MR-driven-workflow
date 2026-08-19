@@ -2,9 +2,9 @@
 alwaysApply: true
 title: Git運用（ブランチ・命名規則）
 type: rule
-description: featureブランチの命名規則・worklog配置・PR/マージ運用を定めたルール
+description: featureブランチの命名規則・worklog配置・PR/マージ運用と、ベースブランチ追従確認・取り込み方針（mergeを使いrebaseは使わない）を定めたルール
 tags: [git, branch, rule]
-keywords: [featureブランチ, ブランチ命名, worklog, squash-merge, draft-pr, issue-mr-flow, マージ運用, always-apply]
+keywords: [featureブランチ, ブランチ命名, worklog, squash-merge, draft-pr, issue-mr-flow, マージ運用, ベースブランチ, 追従確認, rebase, check-base-sync, always-apply]
 ---
 
 # Git運用（ブランチ・命名規則）
