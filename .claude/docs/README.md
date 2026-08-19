@@ -73,3 +73,4 @@ DDRのうち0001・0002・0008・0015は持ち込んでいない**（連番に�
 - [0028-プロバイダ判定はremote-URLのホスト部でgithub以外をgitlabとみなす.md](ddr/0028-プロバイダ判定はremote-URLのホスト部でgithub以外をgitlabとみなす.md)
 - [0029-defaultブランチとのコンフリクトは検知を機構化し解消手順をスキル化する.md](ddr/0029-defaultブランチとのコンフリクトは検知を機構化し解消手順をスキル化する.md)
 - [0030-create-commitは削除ステージ済みパスをgit-addの失敗時分類で吸収する.md](ddr/0030-create-commitは削除ステージ済みパスをgit-addの失敗時分類で吸収する.md)
+- [0031-issue起票前の重複チェックは検索をProvider層へ置きキーワード抽出はAIに委ねる.md](ddr/0031-issue起票前の重複チェックは検索をProvider層へ置きキーワード抽出はAIに委ねる.md)
