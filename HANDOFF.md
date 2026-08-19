@@ -17,7 +17,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - issue: #45 Provider.shのget_providerがself-hosted GitLabを判定できない
 - ブランチ: feature-45-detect-gitlab-provider-for-self-hosted
 - Draft PR: #52 https://github.com/yuki-matsu783/MR-driven-workflow/pull/52
-- push回数: 3
+- push回数: 4
 
 進捗記号: `[x]` 完了 / `[]` 未着手・進行中 / `[-]` 今回は実施しない（スキップ）
 
@@ -96,14 +96,24 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
   検証用Dockerコンテナ`gitlab`は`docker stop`で停止済み。
 - flow-id 4-1: 個別反映計画を**2ファイルに分けて**作成した
   （`plans/【設計反映】〜.md` / `plans/【AIアセット反映】〜.md`）。
+- flow-id 4-3〜4-5: レビューで**AIアセット反映の候補2・候補3は「反映なし」**と決定（候補1のみ反映する）。
+  2件のスレッドへ返信し、反映計画へ決定を記録。MR descriptionへ反映計画を追加した。
+  設計反映側のDDR 0027は異議なしのため**作成する**方針で確定。
+- flow-id 4-6（設計反映）: specの5箇所を更新し、DDR 0027を新規作成した。
+  `.claude/docs/README.md`のDDR一覧と`Provider.sh`のコメントへ参照を追加。
+  影響範囲は**新規エントリの追記のみ**で、過去のchangelogは一切変更していない。
+  反映後に`bash -n`とテストを再実行し`passed=26 failures=0`を確認済み。
+- 上記とあわせて、**ユーザーがステージしていた対応工数レポートの文言変更**
+  （`post-push-usage-report.sh`とspec L623。「このコメントはClaude Codeによる自動投稿です」を削除）を、
+  ユーザー判断によりissue #45のコミットへ含めた。issue #45とは独立した変更である。
 
 ## 次にやること
 
-- flow-id 4-2: `commit`スキル経由でcommitし、リモートへ反映して反映計画のレビューを依頼する。
-- flow-id 4-3: 人間による反映計画のレビュー待ち。**特にDDR 0027を作成するかの判断**を仰ぐ
-  （設計反映計画では「作るべき」と提案している）。AIアセット反映の候補2（spec記述と実装の
-  食い違いをルール化するか）も採否を判断してもらう。
-- flow-id 4-6以降は**設計反映 → レビュー → AIアセット反映 → レビュー**の順に2セット回す。
+- flow-id 4-7: `commit`スキル経由でcommitし、リモートへ反映して設計反映のレビューを依頼する。
+- flow-id 4-8〜4-9: 設計反映のレビュー待ち。
+- 合意後、**AIアセット反映の2周目**（flow-id 4-6〜4-9をもう1セット）へ入る。反映するのは
+  候補1（`set -e`配下で終了コードを検査するテストの書き方 →
+  `.claude/rules/shell-script-style.md`「テスト」節）のみ。
 
 ## 判断を迷った内容
 
