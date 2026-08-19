@@ -244,6 +244,30 @@ AIエージェントは**兆候と分割案を提示するに留める**。勝�
 - **共通部分を含む1件目を先に完了**させてから残りに着手する。並走させると共通部分がコンフリクト
   しやすく、DDR番号の重複（下記「defaultブランチとのコンフリクト検知・解消」）も起きやすい。
 
+## 敵対的レビューの位置づけ（issue #77）
+
+`adversarial-review` スキル（`.claude/skills/adversarial-review/SKILL.md`）は、独立コンテキストの
+専任サブエージェントに意図的な欠陥探しを行わせ、指摘をMRへインラインコメントとして投稿する。
+**上の全体フロー表には含まれない**（40ステップは変わらない）。人間のレビューを置き換えるもの
+ではなく、その前に挟む任意の補助だからである。
+
+| | 内容 |
+|---|---|
+| 位置 | commit・pushの直後（flow-id 2-2/2-7/3-2/3-7/4-2/4-7）、**人間のレビュー（2-3/2-8/3-3/3-8/4-3/4-8）の前** |
+| 起動 | **対話セッションではAIエージェントから自律的に起動しない。** 人間が `/adversarial-review` を呼んだときだけ実行する |
+| 例外 | 非対話セッション（`AUTOMATION=1`。人間のレビュー往復を待てない実行環境）でのみ、AIエージェントが自律的に起動してよい |
+| 回数 | 各フェーズ最大3回。`.claude/scripts/src/adversarial-review-count.sh` が機械的に強制する |
+| 進捗記号 | 実施しても `HANDOFF.md` の進捗表は動かさない（flow-idを持たないため）。実施した事実は「やったこと」へ文章で残す |
+
+対話セッションで自律起動を禁じるのは、レビューの主体が人間であるという前提を崩さないためで
+ある。AIが自分で書いて自分でレビューを起動し自分で直すと、人間がレビューする対象が
+「AIが既に納得したもの」になり、レビューの独立性が失われる。**AIから「敵対的レビューを
+実施しましょうか」と持ちかけることは構わないが、返事を待たずに実行してはならない。**
+
+なお、レビュー観点は本スキルにもこのSKILL.mdにも書かれていない。ディレクトリごとの
+`REVIEW-POINTS.md` に外だしされており、収集は `review-points` スキル
+（`.claude/skills/review-points/SKILL.md`）が担う。
+
 ## サブコマンド
 
 呼び出しは `/issue-mr-flow <サブコマンド> [引数]` の形。
@@ -411,6 +435,7 @@ get_repo_slug | jq -r '.owner, .repo'
 | `set_mr_description <n> <file>` | `mcp__github__update_pull_request` | `owner`, `repo`, `pullNumber=<n>`, `body=<ファイルの内容>` | CLI版はファイルパスを渡すが、MCPは文字列で渡す。本文はReadツール等で読んでから渡す |
 | `set_mr_ready <n>` | `mcp__github__update_pull_request` | `owner`, `repo`, `pullNumber=<n>`, `draft=false` | `set_mr_description` と同じツールだが渡す引数が違う。`draft=false` が「Draftを解除しレビュー可能にする」の意味（flow-id 5-3。issue #61） |
 | `add_mr_comment <n> <file>` | `mcp__github__add_issue_comment` | `owner`, `repo`, `issue_number=<PR番号>`, `body=<ファイルの内容>` | PR番号を `issue_number` に渡す（GitHub APIの仕様上、PRもissueとして扱える） |
+| `add_mr_inline_comments <n> <file>` | `mcp__github__pull_request_review_write` | `method="create"` → 指摘ごとに `method="add_comment_to_pending_review"`（`owner`, `repo`, `pullNumber`, `path`, `line`, `side`, `body`）→ `method="submit_pending"`（`event="COMMENT"`） | 敵対的レビュー（issue #77）のインライン投稿。**3段構成で、`submit_pending` まで必ず実行する**（pendingのまま放置すると次回の `create` が失敗し続ける）。途中で失敗したら `method="delete_pending"` で片付ける。CLI版と違い有効行の事前検証が入らないため、diffに含まれない行を指定すると個別に失敗する |
 | `get_repo_url` | （MCP不要） | — | `git remote` からのローカル組み立てにフォールバックするため、MCP経路でもそのまま呼べる（`get_mr_diff_url` / `get_mr_diff_since_url` も同様） |
 | `new_issue_branch` / `sync_branch` / `get_branch_work_files` / `get_issue_number_from_branch` / `to_slug` / `test_issue_sections` | （MCP不要） | — | git操作・純粋ロジックのみでCLIに依存しないため、MCP経路でもそのまま呼べる |
 
