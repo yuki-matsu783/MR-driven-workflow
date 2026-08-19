@@ -23,6 +23,15 @@ keywords: [featureブランチ, ブランチ命名, worklog, squash-merge, draft
 
 - フロー対象のタスクは、着手前に必ずfeatureブランチを作成する（mainへの直接コミットはしない）。
 - ブランチ名は `.mrworkflow.json` の `branchPrefixTemplate`（既定 `feature-<issue番号>-<slug>`）に従う。
+- **作業を開始・再開するときは、ベースブランチの最新を取り込めているかを確認する**（issue #67）。
+  対象は `start`（既存ブランチを検出した場合）・`resume`・`sync` の3地点で、
+  `bash .claude/scripts/src/check-base-sync.sh` の `isBehind` を見る。**遅れがある場合は
+  `AskUserQuestion` でユーザーの承認を得るまで取り込まない。** 手順・判定が信頼できない場合の
+  扱いは `.claude/skills/issue-mr-flow/SKILL.md`「作業開始・再開時のベースブランチ追従確認」節が正
+  （本ファイルは入口のみを示す。仕様: `.claude/docs/spec/check-base-sync.md`）。
+- **取り込みは `git merge` で行い、`git rebase` は使わない。** 作業ブランチは既にリモートへ
+  反映済みであり、履歴の書き換えは他の作業者のチェックアウトを壊すため。コンフリクトが出た場合の
+  類型別の解消手順は `.claude/skills/resolve-conflict/SKILL.md` が正。
 
 ## コミット運用
 
