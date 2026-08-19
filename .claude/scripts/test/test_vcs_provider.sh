@@ -15,18 +15,18 @@
 # プロバイダを固定する。
 # 規約: passed=N failures=N を標準出力へ出し、失敗があれば終了コード1
 #       （.claude/rules/shell-script-style.md「テスト」）。
-# 実行: bash tests/test_vcs_provider.sh
+# 実行: bash .claude/scripts/test/test_vcs_provider.sh
 set -euo pipefail
 
 script_dir="${BASH_SOURCE[0]%/*}"
 [[ "$script_dir" == "${BASH_SOURCE[0]}" ]] && script_dir="."
-repo_root="$(cd "$script_dir/.." && pwd)"
+repo_root="$(cd "$script_dir/../../.." && pwd)"
 
-# shellcheck source=../.claude/scripts/src/vcs/Github.sh
+# shellcheck source=../../../.claude/scripts/src/vcs/Github.sh
 source "$repo_root/.claude/scripts/src/vcs/Github.sh"
-# shellcheck source=../.claude/scripts/src/vcs/Gitlab.sh
+# shellcheck source=../../../.claude/scripts/src/vcs/Gitlab.sh
 source "$repo_root/.claude/scripts/src/vcs/Gitlab.sh"
-# shellcheck source=../.claude/scripts/src/vcs/Provider.sh
+# shellcheck source=../../../.claude/scripts/src/vcs/Provider.sh
 source "$repo_root/.claude/scripts/src/vcs/Provider.sh"
 
 passed=0

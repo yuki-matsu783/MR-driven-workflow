@@ -3,15 +3,15 @@
 # 実ファイルI/Oを伴うため、簡略版HANDOFF.mdフィクスチャを一時ファイルへ都度作成し、
 # スクリプトの関数を直接sourceして呼ぶ（外部プロセスとしての起動は行わない）。
 # 規約: passed=N failures=N を標準出力へ出し、失敗があれば終了コード1
-#       （.claude/rules/shell-script-style.md「テスト」。tests/test_vcs_provider.sh を雛形にした）。
-# 実行: bash tests/test_update_handoff_progress.sh
+#       （.claude/rules/shell-script-style.md「テスト」。.claude/scripts/test/test_vcs_provider.sh を雛形にした）。
+# 実行: bash .claude/scripts/test/test_update_handoff_progress.sh
 set -euo pipefail
 
 script_dir="${BASH_SOURCE[0]%/*}"
 [[ "$script_dir" == "${BASH_SOURCE[0]}" ]] && script_dir="."
-repo_root="$(cd "$script_dir/.." && pwd)"
+repo_root="$(cd "$script_dir/../../.." && pwd)"
 
-# shellcheck source=../.claude/scripts/src/update-handoff-progress.sh
+# shellcheck source=../../../.claude/scripts/src/update-handoff-progress.sh
 source "$repo_root/.claude/scripts/src/update-handoff-progress.sh"
 
 passed=0

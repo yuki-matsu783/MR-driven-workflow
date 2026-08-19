@@ -116,7 +116,7 @@ MRとのやり取りだけを自動化する薄い層」として設計したが
 （`Github.sh` / `Gitlab.sh`）の内部ヘルパーは含まない。issue #48で追加した
 `gitlab_format_discussion_notes`（discussions APIのJSONを受け取り整形済みテキストを返す純粋関数）は
 後者にあたる。`gitlab_get_mr_unresolved_comments` は `glab api` 呼び出しとこの関数の薄いラッパーで、
-外部コマンドを呼ばない整形ロジックだけを切り離すことで `tests/test_vcs_provider.sh` から
+外部コマンドを呼ばない整形ロジックだけを切り離すことで `.claude/scripts/test/test_vcs_provider.sh` から
 単体テストできるようにしている（`.claude/rules/shell-script-style.md`「テスト」）。
 issue #45で追加した `provider_from_remote_url`（remote URL文字列からプロバイダ名を返す純粋関数）も
 同じ位置づけで、`Provider.sh` 内にあるが上表には載らない。`get_provider` が
@@ -569,7 +569,7 @@ Claude Codeの対応工数（モデル別トークン数・ツール実行回数
     集計側`_usage_aggregate_and_merge_subagents`のglobは`subagents/agent-*.jsonl`であり、
     Gemini分を`subagents/<session_id>/`という1階層下へ置くことで**構造的にマッチしない**。
     追加のガード条件を書かずにスコープ境界が保証される（この不一致は
-    `tests/test_usage_tracking.sh`で明示的に検証している）。
+    `.claude/scripts/test/test_usage_tracking.sh`で明示的に検証している）。
 - **Gemini CLIのhook登録**: `.gemini/settings.json`の`hooks`キー配下（`SessionStart`/`BeforeTool`/
   `AfterTool`）に`.claude/hooks/*.sh`一式を登録する。`BeforeTool`/`AfterTool`の`matcher`は
   `"run_shell_command|Bash|PowerShell"`という両エンジンの`tool_name`を含む形にしている
@@ -1391,6 +1391,38 @@ issueはGitHubのUIからしか作成できず、標準4見出し（目的・現
 - `.claude/docs/spec/issue-mr-workflow.md`（本ファイル。全体フローのステップ数を40へ更新、
   本エントリを追加）
 
+変更（issue #63 機構自身の単体テストを`.claude/`配下へ移動）:
+- 単体テスト4本を `tests/` から `.claude/scripts/test/` へ `git mv` で移動（履歴保持）。
+  リポジトリ直下の `tests/` は廃止した
+  - `test_extract_frontmatter.sh` / `test_update_handoff_progress.sh` /
+    `test_usage_tracking.sh` / `test_vcs_provider.sh`
+  - 各ファイルの変更は `repo_root` 算出（`$script_dir/..` → `$script_dir/../../..`）と、
+    冒頭コメントの実行コマンド・`shellcheck source=` の相対パスのみ。アサーションは無変更で、
+    移動前後とも `passed` は 17 / 15 / 33 / 36（計101件）・`failures=0`
+  - 目的は、`apply-mr-workflow-to-project` の配布単位（`.claude/`）へテストを収めること。
+    `sync-assets.sh` は `.claude/` 配下をそのままコピーするため**スクリプト側の変更は不要**で、
+    かつ導入先プロジェクト本体の `tests/` と場所を取り合わなくなる（DDR 0031）
+- `.claude/scripts/src/extract-frontmatter.sh` / `update-handoff-progress.sh` /
+  `vcs/Provider.sh` / `.claude/hooks/post-push-usage-report.sh`（テストを指すコメントのパスを更新）
+- `.claude/rules/directory-structure.md`（ツリーの `tests/` を `.claude/scripts/test/` へ移動、
+  「配置の指針」へ `test/` の役割を追記）
+- `.claude/rules/shell-script-style.md`（「テスト」節の配置先を新パスへ）
+- `index.md`（Directory Structure へ `./.claude/scripts/test/` を追加）
+- `.claude/docs/spec/update-handoff-progress.md`・`shell-scripts.md`（「## 仕様」節内の
+  現在の状態を説明するパス参照のみ更新）
+- `.claude/docs/ddr/0031-機構自身の単体テストは.claude_scripts_test配下へ置く.md`（新規）
+- `.claude/docs/README.md`（DDR一覧に0031を追加）
+- mainマージ時の追随（issue #46・#60 が本ブランチと並行してマージされたため）
+  - `.claude/scripts/test/test_check_base_conflicts.sh`（issue #46 が `tests/` へ新規追加した
+    5本目のテスト。同じ規則で `.claude/scripts/test/` へ移し `repo_root` を調整）
+  - `.claude/skills/resolve-conflict/SKILL.md`（検証手順のテスト実行パス）
+  - `.claude/scripts/src/check-base-conflicts.sh`・`.claude/docs/spec/check-base-conflicts.md`
+    （テストを指す現在の記述のパス）
+
+なお、DDR本文および本「## 影響範囲」節の過去エントリは、変更当時の記録として書き換えていない
+（`.claude/rules/docs-workflow.md` の規定）。`tests/test_external_command_server.sh` を指す記述も、
+このリポジトリに実在せず移動していないため触れていない。
+
 ## 設定項目
 
 `.mrworkflow.json`
@@ -1521,7 +1553,8 @@ issueはGitHubのUIからしか作成できず、標準4見出し（目的・現
     大文字は保つ必要がある。
   - 消費側（`.claude/hooks/session-start.sh`・`get_repo_url`）は`.owner`/`.repo`/`.url`しか
     使わず、いずれも実リポジトリのホストは元から小文字のため実害はない。
-  - `tests/test_vcs_provider.sh`に「ホストは小文字化・パスは保つ」ケースを追加して明示的に固定した。
+  - `.claude/scripts/test/test_vcs_provider.sh`（issue #63以前は `tests/test_vcs_provider.sh`）に
+    「ホストは小文字化・パスは保つ」ケースを追加して明示的に固定した。
 
 ## 未決定事項・懸念点
 

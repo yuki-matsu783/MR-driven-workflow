@@ -183,7 +183,7 @@ main() {
         }' | tr -d '\r'
 }
 
-# 単体テスト（tests/test_check_base_conflicts.sh）からsourceして純粋関数のみ再利用できるよう、
+# 単体テスト（.claude/scripts/test/test_check_base_conflicts.sh）からsourceして純粋関数のみ再利用できるよう、
 # 直接実行された場合のみ main を呼ぶ（update-handoff-progress.shと同じガードパターン）。
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
   main "$@"

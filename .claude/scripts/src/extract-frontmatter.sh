@@ -489,7 +489,7 @@ main() {
   echo "files=${#files[@]} built=$built reused=$reused" >&2
 }
 
-# 単体テスト（tests/test_extract_frontmatter.sh）からsourceして関数のみ再利用できるよう、
+# 単体テスト（.claude/scripts/test/test_extract_frontmatter.sh）からsourceして関数のみ再利用できるよう、
 # 直接実行された場合のみ main を呼ぶ。
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
   main "$@"

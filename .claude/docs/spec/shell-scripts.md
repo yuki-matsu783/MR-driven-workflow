@@ -33,7 +33,8 @@ PowerShellはWSL等の非Windows的なシェル環境から扱いにくいため
 | `tests/test_external_command_server.ps1` | `tests/test_external_command_server.sh` | 結合スモークテスト |
 
 新規（PowerShell版に対応物が無い）:
-- `tests/test_vcs_provider.sh`: `Provider.sh` の純粋ロジック（`to_slug`, `test_issue_sections`,
+- `.claude/scripts/test/test_vcs_provider.sh`（新規作成当時は `tests/test_vcs_provider.sh`。
+  issue #63 で移動）: `Provider.sh` の純粋ロジック（`to_slug`, `test_issue_sections`,
   `get_issue_number_from_branch`）に対する単体テスト。受け入れ条件「スクリプトをテストするための
   スクリプトを作成する」に対応。
 

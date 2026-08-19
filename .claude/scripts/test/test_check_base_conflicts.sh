@@ -1,17 +1,17 @@
 #!/usr/bin/env bash
 # .claude/scripts/src/check-base-conflicts.sh の単体テスト（issue #46）。
 # 外部コマンド呼び出しを伴わない純粋関数（ddr_number_to_reply / find_duplicate_ddr_numbers）
-# のみを対象とする。git操作を伴うmainは対象外（tests/では実リポジトリを汚さない方針）。
+# のみを対象とする。git操作を伴うmainは対象外（.claude/scripts/test/では実リポジトリを汚さない方針）。
 # 規約: passed=N failures=N を標準出力へ出し、失敗があれば終了コード1
-#       （.claude/rules/shell-script-style.md「テスト」。tests/test_update_handoff_progress.sh を雛形にした）。
-# 実行: bash tests/test_check_base_conflicts.sh
+#       （.claude/rules/shell-script-style.md「テスト」。.claude/scripts/test/test_update_handoff_progress.sh を雛形にした）。
+# 実行: bash .claude/scripts/test/test_check_base_conflicts.sh
 set -euo pipefail
 
 script_dir="${BASH_SOURCE[0]%/*}"
 [[ "$script_dir" == "${BASH_SOURCE[0]}" ]] && script_dir="."
-repo_root="$(cd "$script_dir/.." && pwd)"
+repo_root="$(cd "$script_dir/../../.." && pwd)"
 
-# shellcheck source=../.claude/scripts/src/check-base-conflicts.sh
+# shellcheck source=../../../.claude/scripts/src/check-base-conflicts.sh
 source "$repo_root/.claude/scripts/src/check-base-conflicts.sh"
 
 passed=0

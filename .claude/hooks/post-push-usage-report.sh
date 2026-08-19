@@ -348,7 +348,7 @@ main() {
   # 投稿成功時のみ sinceLastPush をリセットする（失敗時は次回pushへ繰り越す。
   # add_mr_commentが失敗した場合はここに到達せず、set -e により main ごと中断される）。
   # リセットロジック本体は UsageTracking.sh の _usage_reset_since_last_push に切り出してある
-  # （tests/test_usage_tracking.sh から同じロジックで「2回目push」を再現できるようにするため）。
+  # （.claude/scripts/test/test_usage_tracking.sh から同じロジックで「2回目push」を再現できるようにするため）。
   local reset_state
   reset_state="$(_usage_reset_since_last_push "$state")"
   mkdir -p "$state_dir"

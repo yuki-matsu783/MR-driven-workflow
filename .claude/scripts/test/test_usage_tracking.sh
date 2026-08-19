@@ -4,14 +4,14 @@
 # 戻り値形・sync_usage_stateの一連の更新）を、mktemp -d のフィクスチャで検証する。
 # 規約: passed=N failures=N を標準出力へ出し、失敗があれば終了コード1
 #       （.claude/rules/shell-script-style.md「テスト」）。
-# 実行: bash tests/test_usage_tracking.sh
+# 実行: bash .claude/scripts/test/test_usage_tracking.sh
 set -euo pipefail
 
 script_dir="${BASH_SOURCE[0]%/*}"
 [[ "$script_dir" == "${BASH_SOURCE[0]}" ]] && script_dir="."
-repo_root="$(cd "$script_dir/.." && pwd)"
+repo_root="$(cd "$script_dir/../../.." && pwd)"
 
-# shellcheck source=../.claude/hooks/lib/UsageTracking.sh
+# shellcheck source=../../../.claude/hooks/lib/UsageTracking.sh
 source "$repo_root/.claude/hooks/lib/UsageTracking.sh"
 
 passed=0

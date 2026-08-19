@@ -162,7 +162,7 @@ split_remote_url() {
 }
 
 # remote URLからホスト部分を取り出し、プロバイダ名（github / gitlab）を返す純粋関数。
-# 外部コマンド呼び出しを伴わないため tests/test_vcs_provider.sh から単体テストできる
+# 外部コマンド呼び出しを伴わないため .claude/scripts/test/test_vcs_provider.sh から単体テストできる
 # （.claude/rules/shell-script-style.md「テスト」）。
 # ホスト部の切り出しそのものは `split_remote_url` に委譲する（issue #55。`parse_repo_slug` と
 # 同じ規則が二重に書かれていた状態を解消したもの）。関数呼び出しであってコマンド置換ではない
