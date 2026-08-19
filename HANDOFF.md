@@ -40,7 +40,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 | [x] | 2-9 | レビュー内容を反映する | `comments` / `reply` |
 | [x] | 2-10 | 調査結果をもとにMR descriptionを更新する | `describe` |
 | [x] | 3-1 | 個別作業計画を作成する | エージェント |
-| [] | 3-2 | commit・pushしてレビュー依頼 | エージェント |
+| [x] | 3-2 | commit・pushしてレビュー依頼 | エージェント |
 | [] | 3-3 | 作業計画のレビュー | 人間 |
 | [] | 3-4 | レビュー内容を反映する | `comments` / `reply` |
 | [] | 3-5 | 作業計画をもとにMR descriptionを更新する | `describe` |
@@ -161,14 +161,20 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
   変更対象は3ファイル（`UsageTracking.sh` / `post-push-usage-report.sh` / `test_usage_tracking.sh`）。
   **実装時に決めることを3点、計画上に明示して未確定のまま残した**（push-indexの扱い・
   `toolErrors` の表示位置・`epoch_from_iso8601` の共有方法）。
+- **flow-id 3-2（commit・pushしてレビュー依頼）を実施した。** あわせて push直後の追従チェックで
+  `main`（PR #104）とのコンフリクトを検知し、ユーザーの承認を得て解消した（マージコミット
+  `5ab07c8`）。詳細は「判断を迷った内容」を参照。
 
 ## 次にやること
 
-- **flow-id 3-2（commit・pushしてレビュー依頼）** へ進む。
-- レビュー（3-3）で合意が取れたら flow-id 3-5（MR description更新）→ 3-6（実装）へ。
+- **flow-id 3-3（作業計画のレビュー）** を待つ。人間のレビュー完了連絡があるまで実装へ進まない。
+- 合意が取れたら flow-id 3-5（MR description更新）→ 3-6（実装）へ。
 - 実装で新設する関数は `_usage_gemini_fold` / `_usage_gemini_merge_state` の2つ。
   **既存関数は `sync_usage_state` の分岐追加以外は触らない**（既存33ケースを1行も変えないことが
   「Claude Code側の集計結果が変わらない」ことの担保になる）。
+- 3-6の着手時に worklog
+  `worklog/日付_partitioned-forging-seahorse_【実装】【テスト】Gemini CLIセッションログの集計を追加する_push<N>.md`
+  を作成する。
 - DDRに残す判断: C・D・E・F・I・S（フェーズ4で採番する）。
 
 ## 判断を迷った内容
