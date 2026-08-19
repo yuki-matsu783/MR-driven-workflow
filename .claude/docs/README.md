@@ -38,6 +38,7 @@ keywords: [正史仕様, 意思決定ログ, issue-mr-workflow, シェルスク�
 - [create-commit.md](spec/create-commit.md) ── コミット実行ラッパー（commitスキル専用）
 - [adversarial-review.md](spec/adversarial-review.md) ── 敵対的レビュー（専任サブエージェント・インラインコメント投稿）
 - [cleanup-task.md](spec/cleanup-task.md) ── flow-id 5-1 後片付けの自動化スクリプト
+- [search-frontmatter.md](spec/search-frontmatter.md) ── ドキュメント横断検索スクリプト（index.jsonl検索）
 
 ## ddr（意思決定ログ）
 
@@ -93,3 +94,4 @@ DDRのうち0001・0002・0008・0015は持ち込んでいない**（連番に�
 - [0046-レビュー観点はディレクトリごとのREVIEW-POINTSへ外だしする.md](ddr/0046-レビュー観点はディレクトリごとのREVIEW-POINTSへ外だしする.md)
 - [0047-インラインコメントの位置指定はプロバイダごとの制約に合わせて縮退させる.md](ddr/0047-インラインコメントの位置指定はプロバイダごとの制約に合わせて縮退させる.md)
 - [0048-flow-id5-1の後片付けはスクリプト化しコミットは含めない.md](ddr/0048-flow-id5-1の後片付けはスクリプト化しコミットは含めない.md)
+- [0049-ドキュメント探索はfrontmatterインデックス検索を第一手段にする.md](ddr/0049-ドキュメント探索はfrontmatterインデックス検索を第一手段にする.md)

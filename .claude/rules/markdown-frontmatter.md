@@ -79,6 +79,15 @@ bash .claude/scripts/src/extract-frontmatter.sh .
   [.claude/docs/spec/extract-frontmatter.md](../docs/spec/extract-frontmatter.md) を参照。
 あわせて `.claude/docs/README.md` のDDR一覧にも、置き換え先が分かる注記を添えるとよい。
 
+**生成された `index.jsonl` は、ドキュメントを探すための検索インデックスとして使う**（issue #38）。
+`type` / `tags` / `keywords` / パス / フリーテキストでの絞り込みと、mtime等での並び替えが
+`bash .claude/scripts/src/search-frontmatter.sh` で行える（最新化も兼ねるため、上記の
+`extract-frontmatter.sh` を先に実行する必要はない）。**リポジトリ内のドキュメントを探すときは、
+`grep`/`find`による全文探索より先にこちらを使う**（`AGENTS.md`のルール。使い方・jqレシピは
+[.claude/skills/doc-search/SKILL.md](../skills/doc-search/SKILL.md)、仕様は
+[.claude/docs/spec/search-frontmatter.md](../docs/spec/search-frontmatter.md)）。
+ここで定める `description` / `keywords` の質が、そのまま検索の当たりやすさになる。
+
 新規markdown作成時は原則このfrontmatterを付与する。既存のfrontmatterを持つファイル（後述）は
 既存キーを変更せず、不足しているキーのみを追記する。
 
