@@ -199,15 +199,6 @@ gitlab_set_mr_ready() {
   glab mr update "$mr_number" --ready >/dev/null
 }
 
-# リポジトリの正規URL（フルパス）を取得する（issue #13フォローアップ: MRのURL文字列からの
-# 推測ではなく`glab`で取得し正確性を担保する）。
-# GitLab REST APIの
-# project オブジェクトが持つ `web_url` フィールドに基づく（`glab repo view`は内部的にこのAPIを
-# ラップしている）。
-gitlab_get_repo_url() {
-  glab repo view --output json --jq '.web_url'
-}
-
 # 2つのref（ブランチ名・SHAいずれも可）間の差分を見れる「Compare」ページのURLを組み立てる
 # （純粋関数。`glab`呼び出しを伴わない）。GitLabの`/-/compare/<from>...<to>`はMR作成前から
 # 使われている汎用の比較ページ。issue #13フォローアップ。

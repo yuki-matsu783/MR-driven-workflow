@@ -21,7 +21,7 @@ keywords: [issue作成, create-issue.sh, issue分割, 並列列挙, 目的, 現�
 
 1. **5項目を組み立てる** — ユーザーの依頼内容から、issueに必要な5項目（タイトル・目的・現状・
    期待する動作・受け入れ条件）を埋められるか確認する。
-   `.github/ISSUE_TEMPLATE/task.md` / `.gitlab/issue_templates/task.md`
+   `.github/ISSUE_TEMPLATE/task.md` / `.gitlab/issue_templates/Default.md`
    と同じ4見出し構成に対応する。情報が不足している場合は、AskUserQuestionまたは通常のチャットで
    ユーザーに質問して補う。**依頼内容から読み取れない項目を勝手に創作しない。**
 

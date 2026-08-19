@@ -3,9 +3,11 @@
 # 伴わないURL組み立て・JSON整形・文字列判定関数）の単体テスト。issue #13対応で追加した
 # `github_get_compare_url` / `github_get_mr_diff_url` / `github_get_mr_diff_since_url` /
 # `gitlab_get_compare_url` / `gitlab_get_mr_diff_url` / `gitlab_get_mr_diff_since_url` が対象。
-# `github_get_repo_url` / `gitlab_get_repo_url`（`gh repo view` / `glab repo view`を呼ぶ）と
 # Provider.sh経由のディスパッチ（`get_mr_diff_url`等）は外部コマンド・`git remote get-url origin`
 # に依存し純粋ではないため対象外（Github.sh/Gitlab.sh の関数を直接呼ぶ）。
+# issue #44で `get_repo_url` をプロバイダ非依存化した際に切り出した `repo_url_from_remote_url`
+# （remote URLからリポジトリの正規URLを導出）も対象。`get_repo_url` 本体は
+# `git remote get-url origin` を呼ぶため対象外で、URL文字列を受け取る純粋関数側をテストしている。
 # issue #48対応で追加した `gitlab_format_discussion_notes`（discussions JSONの整形）も対象。
 # issue #45対応で追加した `provider_from_remote_url`（remote URLのホスト部からプロバイダを判定）も
 # 対象。`get_provider` 本体は `git remote get-url origin` を呼ぶため対象外で、URL文字列を
@@ -314,6 +316,114 @@ assert_eq "split_remote_url: ネストしたnamespace" \
 # ホスト名が取れなくても失敗させない（エラーにするかは呼び出し側の判断に委ねる）
 split_remote_url 'https://'
 assert_eq "split_remote_url: ホスト名が空でも失敗しない" "|" "$REPLY_HOST|$REPLY_PATH"
+
+# scheme・ポートも返す（issue #44。`repo_url_from_remote_url` がWeb URLを組み立てる際に、
+# 「httpは維持する」「ポートはhttp/httpsのときだけ引き継ぐ」を判断するために使う）
+split_remote_url 'https://gitlab.example.com:8443/o/r.git'
+assert_eq "split_remote_url: httpsのschemeとポート" \
+  "https|8443" "$REPLY_SCHEME|$REPLY_PORT"
+
+split_remote_url 'ssh://git@ghe.example.com:2222/o/r.git'
+assert_eq "split_remote_url: ssh://のschemeとポート" "ssh|2222" "$REPLY_SCHEME|$REPLY_PORT"
+
+# scp形式は `://` を持たずポートも表現できない
+split_remote_url 'git@github.com:o/r.git'
+assert_eq "split_remote_url: scp形式はscheme・ポートとも空" "|" "$REPLY_SCHEME|$REPLY_PORT"
+
+split_remote_url 'https://github.com/o/r.git'
+assert_eq "split_remote_url: ポート指定が無ければ空" "https|" "$REPLY_SCHEME|$REPLY_PORT"
+
+# schemeは小文字化する（ホスト名と同じくURLの正規化として安全）
+split_remote_url 'HTTPS://github.com/o/r.git'
+assert_eq "split_remote_url: schemeは小文字化" "https|github.com" "$REPLY_SCHEME|$REPLY_HOST"
+
+# --- repo_url_from_remote_url（issue #44: リポジトリURLをgit remoteから導出） ---------------
+#
+# `gh repo view --json url` / `glab repo view --output json`（`.web_url`）の代わりに、
+# remote URLの正規化だけでリポジトリの正規URLを得る純粋関数。CLI・ネットワークに依存しないため
+# そのままテストできる。
+
+assert_eq "repo_url_from_remote_url: https形式（.git付き）" \
+  "https://github.com/o/r" \
+  "$(repo_url_from_remote_url 'https://github.com/o/r.git')"
+
+assert_eq "repo_url_from_remote_url: https形式（.git無し）" \
+  "https://github.com/o/r" \
+  "$(repo_url_from_remote_url 'https://github.com/o/r')"
+
+assert_eq "repo_url_from_remote_url: 末尾スラッシュを除去" \
+  "https://github.com/o/r" \
+  "$(repo_url_from_remote_url 'https://github.com/o/r/')"
+
+assert_eq "repo_url_from_remote_url: scp形式SSHはhttpsへ変換" \
+  "https://github.com/o/r" \
+  "$(repo_url_from_remote_url 'git@github.com:o/r.git')"
+
+assert_eq "repo_url_from_remote_url: ssh://形式もhttpsへ変換" \
+  "https://github.com/o/r" \
+  "$(repo_url_from_remote_url 'ssh://git@github.com/o/r.git')"
+
+# 本リポジトリの実際のremote URL。`gh repo view --json url --jq '.url'` の出力と一致すること
+# （issue #44の受け入れ条件。実機で確認済み）
+assert_eq "repo_url_from_remote_url: 本リポジトリのremote URL" \
+  "https://github.com/yuki-matsu783/MR-driven-workflow" \
+  "$(repo_url_from_remote_url 'https://github.com/yuki-matsu783/MR-driven-workflow.git')"
+
+# ホスト名は小文字化し、パス（owner/repo）の大文字は保つ（`split_remote_url` の規則をそのまま継ぐ）
+assert_eq "repo_url_from_remote_url: ホストは小文字化・パスは保つ" \
+  "https://github.com/O/R" \
+  "$(repo_url_from_remote_url 'https://GitHub.COM/O/R.git')"
+
+# GitLabのネストしたnamespaceはパスをそのまま保つ
+assert_eq "repo_url_from_remote_url: ネストしたnamespace" \
+  "https://gitlab.example.com/g/sub/r" \
+  "$(repo_url_from_remote_url 'https://gitlab.example.com/g/sub/r.git')"
+
+# SSHのポートはWeb UIのポートではないため引き継がない（引き継ぐとリンクが壊れる）
+assert_eq "repo_url_from_remote_url: ssh://のポートは引き継がない" \
+  "https://ghe.example.com/o/r" \
+  "$(repo_url_from_remote_url 'ssh://git@ghe.example.com:2222/o/r.git')"
+
+# http/httpsのポートはWeb UIのポートなので引き継ぐ（self-hosted GitLabのdocker構成等）
+assert_eq "repo_url_from_remote_url: httpsのポートは引き継ぐ" \
+  "https://gitlab.example.com:8443/o/r" \
+  "$(repo_url_from_remote_url 'https://gitlab.example.com:8443/o/r.git')"
+
+# plain httpのself-hosted GitLabは http のままにする（httpsへ寄せるとリンクが壊れる）
+assert_eq "repo_url_from_remote_url: httpはhttpのまま・ポートも保つ" \
+  "http://localhost:8929/g/r" \
+  "$(repo_url_from_remote_url 'http://localhost:8929/g/r.git')"
+
+# 認証情報 user@ は落とす（パス中の `@` へ誤爆しないことは split_remote_url 側でも固定済み）
+assert_eq "repo_url_from_remote_url: 認証情報は落とす" \
+  "https://gitlab.com:8080/foo/b@r" \
+  "$(repo_url_from_remote_url 'https://user@gitlab.com:8080/foo/b@r.git')"
+
+# ホスト・パスが取れない入力は `https:///` のような壊れたURLを返さず失敗させる。
+# 終了コードの検査は `$(func; echo $?)` ではなく `if` で受ける
+# （.claude/rules/shell-script-style.md「テスト」）
+if repo_url_from_remote_url 'https://' >/dev/null 2>&1; then
+  empty_repo_url_status=0
+else
+  empty_repo_url_status=1
+fi
+assert_eq "repo_url_from_remote_url: ホスト名が空なら終了コード1" "1" "$empty_repo_url_status"
+
+if repo_url_from_remote_url 'https://github.com' >/dev/null 2>&1; then
+  no_path_status=0
+else
+  no_path_status=1
+fi
+assert_eq "repo_url_from_remote_url: パスが空なら終了コード1" "1" "$no_path_status"
+
+# `parse_repo_slug` の `.url` は同じ組み立て規則を共有する（両者が食い違わないこと。issue #44）
+assert_eq "parse_repo_slug: .url は repo_url_from_remote_url と一致する（scp形式）" \
+  "$(repo_url_from_remote_url 'git@github.com:o/r.git')" \
+  "$(parse_repo_slug 'git@github.com:o/r.git' | jq -r '.url')"
+
+assert_eq "parse_repo_slug: .url は repo_url_from_remote_url と一致する（http・ポート付き）" \
+  "$(repo_url_from_remote_url 'http://localhost:8929/g/r.git')" \
+  "$(parse_repo_slug 'http://localhost:8929/g/r.git' | jq -r '.url')"
 
 # --- issue検索結果の正規化・統合（issue #68: 起票前の重複チェック） ------------------------
 # `github_search_issues` / `gitlab_search_issues` / `search_issues` 本体は `gh`/`glab` と

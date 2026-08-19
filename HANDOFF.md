@@ -15,14 +15,14 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - issue: #41 PR/MR作成はAIエージェントが実施してよいものとし、マージのみ明示指示必須に統一する
 - ブランチ: claude/ai-agent-pr-mr-creation-52ve10
 - PR: #82 (Draft) https://github.com/yuki-matsu783/MR-driven-workflow/pull/82
-- push回数: 4
+- push回数: 5
 
 ## フロー進捗状況
 
 - issue: #39 issue起票後にissue-mr-flowへ進む際は必ず人間の確認を挟む
 - ブランチ: claude/issue-mr-human-review-xasr3s
 - PR: #81 https://github.com/yuki-matsu783/MR-driven-workflow/pull/81（レビュー可能・Draftではない）
-- push回数: 4
+- push回数: 5
 
 進捗記号: `[x]` 完了 / `[]` 未着手・進行中 / `[-]` 今回は実施しない（スキップ）
 
@@ -88,19 +88,20 @@ issue #39の受け入れ条件4件すべてに対応した。
   - `.claude/scripts/test/test_post_issue_create_notice.sh`（新規単体テスト）: `passed=14 failures=0`
   - `.claude/settings.json` / `.gemini/settings.json` へhookを登録
 - **設計反映**
-  - `.claude/docs/ddr/0036-issue起票後の着手確認はブロックせず注意喚起の注入で担保する.md`（新規）:
+  - `.claude/docs/ddr/0038-issue起票後の着手確認はブロックせず注意喚起の注入で担保する.md`（新規）:
     PreToolUseブロックを却下し注意喚起に留めた理由・却下案を記録
   - `.claude/docs/spec/issue-mr-workflow.md`: コンポーネント構成・「issue起票後の着手確認（issue #39）」節・
     影響範囲エントリを追加
-  - `.claude/docs/README.md`: DDR一覧へ0036を追加
+  - `.claude/docs/README.md`: DDR一覧へ0038を追加
 
-**flow-id 5-2（mainマージ・コンフリクト解消、3回実施）**: `resolve-conflict` スキルで `origin/main`
-を3回マージした（1回目 `cff2aa1`＝issue #64/#51、2回目 `2e3bcf1`＝issue #41、3回目 `2a7a57c`＝issue #42）。
-DDRは衝突のたびに0034→0035→0036へ繰り下げ、テキスト衝突（1回目5件・2回目3件・3回目3件。いずれも
+**flow-id 5-2（mainマージ・コンフリクト解消、4回実施）**: `resolve-conflict` スキルで `origin/main`
+を4回マージした（1回目 `cff2aa1`＝issue #64/#51、2回目 `2e3bcf1`＝issue #41、3回目 `2a7a57c`＝issue #42、
+4回目 `139e7c5`＝issue #26/#32）。
+DDRは衝突のたびに0034→0035→0036へ繰り下げ、テキスト衝突（1回目5件・2回目3件・3回目3件・4回目3件。いずれも
 類型C/D）を両側の変更を残す形で統合した。3回目は `issue-mr-flow/SKILL.md` の「hookの挙動（CLI不在時）」
 表で、main側が `post-push-compact-prompt.sh` 行へ issue #42 の追記をしたのと、本ブランチが
 `post-issue-create-notice.sh` 行を足したのが同じ位置で競合したため、main側の行を採用したうえで
-新hookの行を後ろへ足した。**mainの進みが速く、レビュー中に3回コンフリクトしている**（PR #81 の
+新hookの行を後ろへ足した。**mainの進みが速く、レビュー中に4回コンフリクトしている**（自動監視の仕組み化を別issueとして検討中）（PR #81 の
 マージまではこの追従が続く見込み）。あわせて、main側のissue #64が手順番号を繰り下げた際の追随漏れ（`issue-create/SKILL.md`
 手順3内の「手順3へ進む」→正しくは手順4）も直した。
 
@@ -113,11 +114,11 @@ DDRは衝突のたびに0034→0035→0036へ繰り下げ、テキスト衝突�
 
 - **機構的な強制をどこまでやるか。** DDR 0012（コミットの直接実行をブロック）と同じ強度にするか
   迷ったが、「人間が明示的に着手を指示した」という正当ケースをhookが観測できず、ブロックすると
-  解除手段が実質「hookを黙らせる」しか無くなるため、注意喚起の注入に留めた（DDR 0036に却下案として記録）。
+  解除手段が実質「hookを黙らせる」しか無くなるため、注意喚起の注入に留めた（DDR 0038に却下案として記録）。
 - **hookの誤検知（`create-issue.sh` という語を含む無関係なコマンドでの発火）を許容するか。** 既存の
   push/commit検知hookと同じトレードオフであり、注入されるのが注意文だけで処理を妨げないため許容した。
 - **mainマージ時の統合判断（flow-id 5-2、2回実施）**: DDR番号が2度衝突したため、本ブランチのDDRを
-  **0034 → 0035 → 0036** へ繰り下げた（1回目はmain側に issue #64 の `0034-issueの分割は…`、
+  **0034 → 0035 → 0036 → 0038** へ繰り下げた（1回目はmain側に issue #64 の `0034-issueの分割は…`、
   2回目は issue #41 の `0035-PR_MR作成は…` が先に入ったため）。2回目のマージ（`2e3bcf1`）では
   `.claude/docs/README.md`・spec `## 影響範囲`（issue #41 のエントリと時系列順に並べる）・
   `HANDOFF.md`（本ブランチ側を採用）の3件を統合した。以下は1回目の記録。DDRを
@@ -131,7 +132,7 @@ DDRは衝突のたびに0034→0035→0036へ繰り下げ、テキスト衝突�
 ## 未解決の内容
 
 - 本リポジトリのissue番号と移植元リポジトリのissue番号が一致しない（DDR 0012の「issue #39」は
-  本タスクのissue #39とは別物）。今回はDDR 0036に注記を残すに留めた。ドキュメント全体の番号の
+  本タスクのissue #39とは別物）。今回はDDR 0038に注記を残すに留めた。ドキュメント全体の番号の
   棚卸しは行っていない。
 - `plans/nested-exploring-cloud.md` 等、issue #63対応時の`plans/`・`worklog/`がmainに残っている
   （flow-id 5-1の取り残し）。本タスクの対象外のため触っていない（対処するなら

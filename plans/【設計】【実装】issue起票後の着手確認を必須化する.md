@@ -23,7 +23,7 @@
      `hookSpecificOutput.additionalContext` で注意を注入する
    - 検知はCLI経路（`create-issue.sh`）とMCP経路（`mcp__github__issue_write` の `method="create"`）の2つ
    - 判定は純粋関数へ切り出し、`.claude/scripts/test/` に単体テストを置く
-3. **ブロック（PreToolUse + exit 2）は採用しない** → 理由と却下案をDDR 0036に記録する
+3. **ブロック（PreToolUse + exit 2）は採用しない** → 理由と却下案をDDR 0038に記録する
 4. spec（`issue-mr-workflow.md`）へ仕様と影響範囲を反映する
 
 ## 作業単位
@@ -31,7 +31,7 @@
 - [x] hook本体と単体テストの実装
 - [x] `.claude/settings.json` / `.gemini/settings.json` への登録
 - [x] ドキュメント3ファイル（AGENTS.md・両SKILL.md）の更新
-- [x] DDR 0036の作成と `.claude/docs/README.md` の一覧追記
+- [x] DDR 0038の作成と `.claude/docs/README.md` の一覧追記
 - [x] spec への反映（コンポーネント構成・新節・影響範囲）
 
 ## 受け入れ条件との対応
@@ -41,4 +41,4 @@
 | issue-create SKILL.mdに着手確認必須が「してはいけないこと」を含めて明記 | 手順5の補強＋「してはいけないこと」へ1項目追加 |
 | issue-mr-flow SKILL.mdのstartに起票直後の連続実行の前提を記載 | `start` 節冒頭に追加 |
 | AGENTS.md等の共通ルールから辿れる | `AGENTS.md` のルールへ追加（両SKILL.md・DDRへの参照つき） |
-| 機構的強制の可否を検討しDDRに記録 | DDR 0036（注意喚起を採用・ブロックは却下） |
+| 機構的強制の可否を検討しDDRに記録 | DDR 0038（注意喚起を採用・ブロックは却下） |

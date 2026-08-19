@@ -34,11 +34,11 @@ keywords: [directory, repository-map, リポジトリマップ, ディレクト�
   `rules/`・`scripts/`・`skills/`は`.claude/`配下の同名ディレクトリへのローカルリンクで、
   `.gitignore`対象（Git管理外。理由は`.claude/rules/directory-structure.md`参照）。
   clone後は`bash .claude/scripts/src/setup-gemini-links.sh`を1回実行してリンクを作成する。
-- [./plans/](./plans/) 計画ファイル。全体作業計画（planツールが出力する`<自動命名>.md`、issueにつき1つ）と個別作業計画（`【種別】タスク内容.md`、planツールを使わずWrite/Editで作成）の2階層。タスクごとに新規生成しそのままコミットして履歴として残す。
+- `./plans/` 計画ファイル。全体作業計画（planツールが出力する`<自動命名>.md`、issueにつき1つ）と個別作業計画（`【種別】タスク内容.md`、planツールを使わずWrite/Editで作成）の2階層。タスクごとに新規生成しそのままコミットして履歴として残す。**flow-id 5-1で削除するためディレクトリが存在しない期間があり、リンクにしていない**。
 - [./worklog/](./worklog/) 実装中の詳細な試行錯誤ログ（`日付_<全体計画名>_<個別計画名>_push<N>.md`）。内容は設計反映（flow-id 4-6）でspec/ddrへ反映し、ファイル自体はflow-id 5-1で`plans/` `reports/`とまとめて削除する。
 - [./.github/ISSUE_TEMPLATE/](./.github/ISSUE_TEMPLATE/) GitHub用issueテンプレート（目的・現状・期待する動作・受け入れ条件）。
 - [./.gitlab/issue_templates/](./.gitlab/issue_templates/) GitLab用issueテンプレート（同上）。
-- [./build/](./build/) ビルド成果物の出力先。`.gitignore` 対象でコミットしない（通常は空）。
+- `./build/` ビルド成果物の出力先。`.gitignore` 対象でコミットしない（通常は空）。**Git管理下に実体を持たないためリンクにしていない**（`.gitignore`の`/build/`対象で、ビルド時に動的に作成される）。
 
 `reports/日付_<全体計画名>_<内容>.html`（報告用の自己完結HTML）・`usage/`（対応工数レポートのローカル
 作業状態）は、いずれもワークフロー実行中に動的に作成されるディレクトリのため上記には含まれない
