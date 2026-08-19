@@ -14,19 +14,41 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 
 ## フロー進捗状況
 
-（次タスク着手時に記入する）
+- issue: #95（markdown-frontmatter.mdの「typeの値」表に `plans/` の行を追加する）
+- ブランチ: `claude/markdown-frontmatter-plans-row-d6aroa`（ハーネス指定。`feature-<issue番号>-<slug>`
+  規則ではない）
+- PR: 未作成（ハーネスの指示により、明示依頼が無い限り作成しない。
+  `.claude/rules/git-workflow.md`「ハーネスがPR作成を制限する環境での扱い」）
+- push回数: 1
+
+**非対話的なリモート実行環境（Claude Code on the web）のため、人間のレビュー往復を待つ
+ステップ（flow-id 2-3/2-4, 3-3/3-4, 3-8/3-9, 4-3/4-4, 4-8/4-9 等）を省略し、
+規約文書1ファイルの追記とDDR 1件の新規作成に圧縮して実施した。**そのため40ステップの進捗表は
+作成していない（実施内容は下記「やったこと」を参照）。`plans/` `worklog/` `reports/` も作成して
+いない。
 
 ## やったこと
 
-（無し）
+- issue #95 の調査: これまでにブランチ上へ作られた `plans/*.md` 20件の `type` を git 履歴から
+  集計し、`guide` 7件 / `log` 4件 / `plan` 4件 / 値なし5件と混在していることを確認した。
+- `type` の消費側を確認: 条件分岐に `type` を使っているコードは無く（`extract-frontmatter.sh` は
+  キーを値によらずJSON化するだけ、`.claude/hooks/lib/UsageTracking.sh` の `.type` はtranscriptの
+  エントリ種別で無関係）、新しい値を追加してもスクリプト変更は不要と判断した。
+- `.claude/rules/markdown-frontmatter.md`「typeの値」表へ `plan`（`plans/*.md`）の行を追加し、
+  `plan`・`log`・`report` と `guide` の区別（寿命の違い）を表の直後へ注記した。
+- `.claude/docs/ddr/0041-plans配下のfrontmatter-typeはguideではなくplanを新設する.md` を新規作成し、
+  `.claude/docs/README.md` のDDR一覧へ追記した。
+- 既存 `plans/*.md` の移行は不要（flow-id 5-1で削除済みのため main に1件も存在しない）。
 
 ## 次にやること
 
-（無し）
+- （人間の判断）PRを作成するか。作成する場合はこのブランチから issue #95 に対するPRを起票する。
 
 ## 判断を迷った内容
 
-（無し）
+- `plans/*.md` の `type` を、実態で最多だった `guide` に揃えるか、新しい値 `plan` を導入するか。
+  寿命（flow-id 5-1で削除される）が `guide` の対象（永続する案内ドキュメント）と異なる点と、
+  issue #87 で `report` を新設した前例に合わせ、`plan` の新設を採った。却下案は DDR 0041 に記載。
 
 ## 未解決の内容
 
