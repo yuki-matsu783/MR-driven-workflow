@@ -91,6 +91,7 @@ bash .claude/scripts/src/extract-frontmatter.sh .
 | `agent` | `.claude/agents/*.md` |
 | `skill` | `.claude/skills/*/SKILL.md` |
 | `log` | `worklog/*.md` |
+| `report` | `reports/*.md`（調査結果・作業結果・反映結果の正文。issue #87。同ディレクトリの`*.html`はfrontmatterを持たないため対象外） |
 | `guide` | `README.md`, `DEVELOPERS.md`, `.claude/docs/README.md`, `index.md` |
 | `handoff` | `HANDOFF.md` |
 | `spec` | `.claude/docs/spec/*.md` |
