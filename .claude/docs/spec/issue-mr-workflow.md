@@ -96,9 +96,10 @@ MRとのやり取りだけを自動化する薄い層」として設計したが
 | `get_mr_unresolved_comments <n> [true]` | レビューコメント／スレッドを取得しテキストへ整形（スレッドID・ファイルパス・行番号・diffを含む）。既定（第2引数省略）では未解決のスレッドのみを返し、対応済み（解決済み）スレッドは機械的に除外する。第2引数に `true` を渡すと解決済みも含めた全件を返す。GitLabはdiscussions APIが操作履歴を `system: true` のnoteとして同じ配列で返すため、これも機械的に除外する（issue #48）。各行には**そのコメントの公式パーマリンク**を `url=...` として含める（issue #42） | `gh api graphql` (review threads。GraphQLの `url` フィールド) | `glab api` (discussions。note `id` から `<mrUrl>#note_<id>` を組み立てる) |
 | `add_mr_thread_reply <n> <threadId> <text>` | 指定スレッドに対応内容を返信する（スレッドの解決＝resolvedはレビュアー側の操作のため本関数では行わない）。**投稿した返信自身のパーマリンクを標準出力へ返す**（issue #42。レビュー依頼メッセージへ「前回の指摘にどう返信したか」のリンクを載せるため） | `gh api graphql`（reply mutation。戻り値を `comment { url }` にした） | `glab api`（note追加。POSTレスポンスの `id` から組み立てる） |
 | `set_mr_description <n> <bodyFile>` | PR/MRのdescriptionを指定ファイル内容で上書き | `gh pr edit --body-file` | `glab mr update --description` |
-| `set_mr_ready <n>` | Draft PR/MRのDraft状態を解除し、レビュー・マージ可能な状態にする（全体フロー flow-id 5-3。Draft作成側の `new_draft_merge_request` に対応する解除側。issue #61） | `gh pr ready` | `glab mr update --ready` |
+| `set_mr_ready <n>` | Draft PR/MRのDraft状態を解除し、レビュー・マージ可能な状態にする（全体フロー flow-id 5-4。Draft作成側の `new_draft_merge_request` に対応する解除側。issue #61） | `gh pr ready` | `glab mr update --ready` |
 | `add_mr_comment <n> <bodyFile>` | PR/MRへ新規コメントを1件投稿（スレッド返信・レビューではない通常コメント） | `gh pr comment --body-file` | `glab api`（notes追加） |
 | `add_mr_inline_comments <n> <findingsFile>` | findings JSONファイルの指摘を、PR/MRへインラインコメントとして投稿する（敵対的レビュー用。issue #77）。投稿できなかった指摘はサマリへ回し、`{"posted":N,"summarized":M}` を返す。findingsは**必ずファイル経由で渡す**（引数長上限とhook誤検知の回避）。仕様は [adversarial-review.md](adversarial-review.md) を正とする | `gh api pulls/<n>/reviews`（1レビューへまとめて投稿。有効行を事前検証） | `glab api discussions`（1件ずつPOST。`position` を `diff_refs` から組み立てる） |
+| `add_issue_comment <n> <bodyFile>` | **任意のissue**へ新規コメントを1件投稿（全体フロー flow-id 5-3: マージ前の関連issue通知。issue #86）。宛先がPR/MRである `add_mr_comment` とは別関数で、GitHub実装が `gh pr comment` であるためPR以外へ投げられなかったのが分離の理由。本文はファイル経由（push検知hookの誤発火を避けるため）。投稿先・本文の決定と人間の承認は呼び出し側の責務 | `gh issue comment --body-file` | `glab api`（issues notes追加。【未検証】） |
 | `sync_branch <branch>` | 現在のブランチをfetch、必要ならcheckout（新しいセッションでの再開用） | `git fetch` + `git checkout` | 同左 |
 | `test_issue_sections <body>` | issue本文に「目的／現状／期待する動作／受け入れ条件」の4見出しが揃っているか確認し、欠けている見出し名を1行1件でstdoutへ出力する（プロバイダ非依存） | — | — |
 | `get_issue_number_from_branch [<branch>]` | ブランチ名を `branchPrefixTemplate` に照らしてissue番号を抽出する（省略時は現在のブランチ）。マッチすればstdoutへ出力し終了コード0、マッチしなければ終了コード1（プロバイダ非依存） | — | — |
@@ -201,11 +202,11 @@ Draft解除は、クローズ・書き直し・Draftへの差し戻しでいつ�
 優先した先の振る舞いを「ブランチ作成までは通常どおり → `AskUserQuestion` で作成可否を1回だけ確認 →
 応答を待てない非対話的セッションではPRを作成せず、その事実を最終応答へ明示」と決め打ちにすることで
 再現性を確保している（再現性の要点は「必ず作る」ことではなく「毎回同じ判断になる」ことにある）。
-この確認はPRの**新規作成**のみが対象で、flow-id 5-3（Draft解除）・`describe`・`reply` は既存PRの
+この確認はPRの**新規作成**のみが対象で、flow-id 5-4（Draft解除）・`describe`・`reply` は既存PRの
 更新のため対象外。
 
 担当表と手順の詳細は `.claude/rules/git-workflow.md`「PR・マージ」節が正であり、
-`.claude/skills/issue-mr-flow/SKILL.md`「PR/MR作成・マージの担当（flow-id 1-3・5-3・5-4）」節が
+`.claude/skills/issue-mr-flow/SKILL.md`「PR/MR作成・マージの担当（flow-id 1-3・5-4・5-5）」節が
 フロー側からの入口になる。判断の理由・却下案は
 [0035-PR_MR作成はAIエージェントに委ねマージのみ明示指示を必須にする.md](../ddr/0035-PR_MR作成はAIエージェントに委ねマージのみ明示指示を必須にする.md)。
 
@@ -243,7 +244,7 @@ Claude Code / Gemini CLI は**セッションごとに1つのplanファイルし
   `"defaultMode": "plan"` により新セッションは必ずPlanモードで始まるが、それは新規作成の理由に
   ならない。
 - これに伴い全体フローの先頭に全体作業計画の作成・合意を追加した（issue #9時点では33→35ステップ。
-  現在のflow-idは `<フェーズ番号>-<ステップ番号>` 形式の5フェーズ・40ステップで、最新の定義は
+  現在のflow-idは `<フェーズ番号>-<ステップ番号>` 形式の5フェーズ・41ステップで、最新の定義は
   `.claude/skills/issue-mr-flow/SKILL.md`「全体フロー」を正とする）。worklogは
   `worklog/日付_<全体計画名>_<個別計画名>_push<N>.md`、reportsは
   `reports/日付_<全体計画名>_<内容を簡潔に>.html` へ命名を変更し、reportsは調査結果専用ではなく
@@ -396,7 +397,7 @@ resumeを省略してしまう事故が発生した）。そのため発動条�
    記述と実際の状態（PR有無・未解決コメント件数等）に矛盾があれば、それも指摘する**
    （例: HANDOFF.mdは「PR未作成」と書いてあるが実際はPRが存在する、等）。
 
-呼び出し元は、このサマリをもとに全体フロー（5フェーズ・40ステップ）のうちどこから再開すべきかを判断し、
+呼び出し元は、このサマリをもとに全体フロー（5フェーズ・41ステップ）のうちどこから再開すべきかを判断し、
 人間に提案する（この判断自体はサブエージェントの役割ではなく、呼び出し元が行う）。
 
 `comments` / `describe` サブコマンドの「現在のブランチに紐づくMR番号を取得する」手順は、
@@ -425,7 +426,7 @@ PRが多いほど、この期間のコンフリクトを取りこぼす（実例
 `main` が4回進み、DDR番号を 0034→0035→0036→0038 と3回繰り下げた）。
 
 この追従を、**flow-idを持たないフェーズ横断の並行手順**として定義する。flow-id 1-3（PR作成）の
-直後に開始し、5-4（マージ）またはPRのクローズで停止する「期間」であり、進捗表の1行として完了を
+直後に開始し、5-5（マージ）またはPRのクローズで停止する「期間」であり、進捗表の1行として完了を
 表せる性質のものではないため、flow-idは増やしていない。**flow-id 5-2 は「最終ゲート」として残す**
 （監視は実行環境の機能とセッションの寿命に依存するため、一度も動かないセッションがありうる）。
 
@@ -448,6 +449,30 @@ PRが多いほど、この期間のコンフリクトを取りこぼす（実例
 却下案（新flow-idの挿入・GitHubの "Update branch"・hookでの自動チェック・CIでの自動追従・
 常時rebase運用・DDR連番の廃止等）は
 [0039-PR作成後のdefaultブランチ追従は並行手順として定義し自動解消は一意に決まる類型に限る.md](../ddr/0039-PR作成後のdefaultブランチ追従は並行手順として定義し自動解消は一意に決まる類型に限る.md)。
+
+### マージ前の関連issue通知（issue #86）
+
+**マージされる直前に、今回のMRが影響する他のissueを特定し、人間の承認を得てから当該issueへ
+コメントで通知する**ステップ（flow-id 5-3）を設けた。MRがマージされても、その変更で前提が変わる・
+一部が解決される・記述が矛盾する他のissueには何も残らず、後続タスクの担当者が影響に気づけない
+ためである。
+
+| 観点 | 決めたこと |
+|---|---|
+| 挿入位置 | **flow-id 5-2（コンフリクト解消）と旧5-3（Draft解除）の間**。旧5-3→5-4、旧5-4（マージ）→5-5へ繰り下げ、全40→41ステップ（issue #46が5-2を挿入したときと同じ扱い） |
+| 候補の特定 | MRの差分からAIエージェントがキーワードを最大5件抽出し、`search_issues` で検索する。キーワード抽出をAI側に置く理由は起票前の重複チェック（issue #68）と同じ（DDR 0033） |
+| 影響の判定 | 「前提が変わる」「一部が解決される」「記述が矛盾する」の3類型。どれにも当てはまらない候補へは投稿しない |
+| 投稿の可否 | **`AskUserQuestion` で投稿先issueとコメント本文の承認を得る。承認なしに外部へ投稿しない** |
+| 投稿手段 | `add_issue_comment <issue番号> <bodyFile>`（新設。本文はファイル経由） |
+| 影響先が無い場合 | **スキップしてよい**。ただし「影響先なし」と判断したことは `HANDOFF.md` へ残す |
+
+`add_mr_comment` を流用せず `add_issue_comment` を新設したのは、前者の宛先がPR/MRで、GitHub実装が
+`gh pr comment` であるためPR以外のissueへ投げられないからである（MCP経路では
+`mcp__github__add_issue_comment` という同一ツールに収束するが、`issue_number` へ渡す値の意味が
+PR番号か通知先issue番号かで異なる）。手順の正は
+`.claude/skills/issue-mr-flow/SKILL.md`「マージ前の関連issue通知（flow-id 5-3）」節。判断の理由・
+却下案（マージ後の通知・自動投稿・専用サブコマンド化等）は
+[0044-マージ前の関連issue通知はDraft解除の直前に置き投稿前の人間承認を必須にする.md](../ddr/0044-マージ前の関連issue通知はDraft解除の直前に置き投稿前の人間承認を必須にする.md)。
 
 ### セッション開始時の自動コンテキスト注入（SessionStart hook）
 
@@ -527,9 +552,10 @@ Claude Code on the webのリモート実行環境のように、`gh`/`glab` CLI�
   `.claude/skills/issue-mr-flow/SKILL.md`「`gh`/`glab` CLI不在時のMCPフォールバック」節に置く
   （本specは仕組みの説明に留め、対応表を二重管理しない）。`issue-create` スキル
   （`create-issue.sh`）についても同スキル側に読み替え手順を書く。
-- **機構的な誘導**: プロバイダ依存の8関数（`get_issue` / `new_issue` /
+- **機構的な誘導**: プロバイダ依存の11関数（`get_issue` / `new_issue` / `search_issues` /
   `new_draft_merge_request` / `get_mr_unresolved_comments` / `add_mr_thread_reply` /
-  `get_mr_for_branch` / `set_mr_description` / `add_mr_comment`）は先頭で `require_vcs_cli` を
+  `get_mr_for_branch` / `set_mr_description` / `set_mr_ready` / `add_mr_comment` /
+  `add_issue_comment`）は先頭で `require_vcs_cli` を
   呼び、CLI不在時は「代替すべきMCPツール名と引数」「`get_repo_slug` で owner/repo を得る方法」
   「SKILL.mdの該当節」「WebFetch・curlへはフォールバックしないこと」をstderrへ出して失敗する。
   手順を読まずにCLI経路を呼んだ場合でも、同じ案内へ収束させることが狙い。
@@ -2201,18 +2227,51 @@ flow-id 1-4 の全体作業計画からフェーズ2〈調査〉・フェーズ4
 - `.claude/docs/spec/issue-mr-workflow.md`（本ファイル。上記の節と本エントリ）
 - `.claude/docs/README.md`（DDR一覧へ0043を追加）
 
+### issue #86（マージ前の関連issue通知ステップの追加）
+
+MRの差分が影響する他のissueへ、マージ前に通知を残せるようにした。フェーズ5へ flow-id 5-3
+（関連issue通知）を新設し、旧5-3（Draft解除）→5-4、旧5-4（マージ）→5-5へ繰り下げ、
+**全40→41ステップ**とした。あわせて `Provider.sh` へ `add_issue_comment` を追加した。
+仕様は上記「マージ前の関連issue通知（issue #86）」節。
+
+新規:
+- `.claude/docs/ddr/0044-マージ前の関連issue通知はDraft解除の直前に置き投稿前の人間承認を必須にする.md`
+
+変更:
+- `.claude/scripts/src/vcs/Provider.sh`（`add_issue_comment` ディスパッチャ、`mcp_tool_hint` へ
+  `add_issue_comment` の行）
+- `.claude/scripts/src/vcs/Github.sh`（`github_add_issue_comment`。`gh issue comment --body-file`）
+- `.claude/scripts/src/vcs/Gitlab.sh`（`gitlab_add_issue_comment`。`glab api projects/:id/issues/<iid>/notes`。【未検証】）
+- `.claude/scripts/test/test_vcs_provider.sh`（`mcp_tool_hint` のテスト2件追加。`passed=98 failures=0`）
+- `.claude/skills/issue-mr-flow/SKILL.md`（全体フロー表へ新5-3を追加し旧5-3/5-4を繰り下げ、
+  ステップ数を41へ、「マージ前の関連issue通知（flow-id 5-3）」節を新設、MCPフォールバック対応表へ
+  `add_issue_comment` の行、flow-id 5-3/5-4を参照していた各記述を繰り下げ後の番号へ更新）
+- `.claude/skills/commit/SKILL.md` / `.claude/rules/docs-workflow.md`（コミットを行うflow-idの一覧を
+  `5-3` → `5-4` へ更新。後者はステップ数も41へ）
+- `.claude/rules/git-workflow.md`（担当表へ「関連issueへのマージ前通知（flow-id 5-3）」の行を追加。
+  Draft解除を5-4、マージを5-5へ繰り下げ。コミットを行うflow-idの一覧を更新）
+- `.claude/skills/resolve-conflict/SKILL.md`（flow-id 5-2の次が5-3〈関連issue通知〉であることを明示）
+- `.claude/docs/spec/issue-mr-workflow.md`（本ファイル。「提供関数」表へ `add_issue_comment` を追加、
+  「マージ前の関連issue通知（issue #86）」節を新設、ステップ数・flow-id参照の更新、本エントリ）
+- `.claude/docs/README.md`（DDR一覧へ0044を追加）
+
+**`require_vcs_cli` を呼ぶ関数の一覧が古かったため、あわせて現状へ合わせた。** MCPフォールバック節が
+「プロバイダ依存の8関数」として列挙していた一覧は、issue #68（`search_issues`）・issue #61
+（`set_mr_ready`）で関数が増えた際に更新されておらず、本対応の `add_issue_comment` を含めて
+**11関数**が正しい。
+
 ### issue #77（敵対的レビュー）
 
 独立コンテキストの専任サブエージェントが意図的に欠陥を探し、指摘をMRへインラインコメントとして
-投稿する仕組みを追加した。**全体フロー表（40ステップ）は変えていない**（flow-idを持たない任意の
+投稿する仕組みを追加した。**全体フロー表は変えていない**（flow-idを持たない任意の
 補助手順として、commit・pushの直後から人間のレビューまでの間に挟む）。仕様は
 [adversarial-review.md](adversarial-review.md) を正とする。
 
 新規:
 - `.claude/docs/spec/adversarial-review.md`
-- `.claude/docs/ddr/0044-敵対的レビューは専任サブエージェントで独立コンテキストに切り出す.md`
-- `.claude/docs/ddr/0045-レビュー観点はディレクトリごとのREVIEW-POINTSへ外だしする.md`
-- `.claude/docs/ddr/0046-インラインコメントの位置指定はプロバイダごとの制約に合わせて縮退させる.md`
+- `.claude/docs/ddr/0045-敵対的レビューは専任サブエージェントで独立コンテキストに切り出す.md`
+- `.claude/docs/ddr/0046-レビュー観点はディレクトリごとのREVIEW-POINTSへ外だしする.md`
+- `.claude/docs/ddr/0047-インラインコメントの位置指定はプロバイダごとの制約に合わせて縮退させる.md`
 - `.claude/skills/adversarial-review/SKILL.md` / `.claude/skills/review-points/SKILL.md`
 - `.claude/agents/adversarial-reviewer.md`
 - `.claude/scripts/src/adversarial-review-count.sh` / `.claude/scripts/src/collect-review-points.sh`
@@ -2228,7 +2287,7 @@ flow-id 1-4 の全体作業計画からフェーズ2〈調査〉・フェーズ4
   `add_mr_inline_comments` の行を追加）
 - `.claude/scripts/test/test_vcs_provider.sh`（純粋関数のテストを追加）
 - `.claude/docs/spec/issue-mr-workflow.md`（本ファイル。提供関数の表と本エントリ）
-- `.claude/docs/README.md`（spec一覧へ adversarial-review.md、DDR一覧へ0044〜0046を追加）
+- `.claude/docs/README.md`（spec一覧へ adversarial-review.md、DDR一覧へ0045〜0047を追加）
 
 ## 設定項目
 
@@ -2574,3 +2633,15 @@ flow-id 1-4 の全体作業計画からフェーズ2〈調査〉・フェーズ4
 - **（issue #48で解消）（issue #25で追加した`gitlab_new_issue`にも従来からの制約が引き継がれる）GitLab側の動作未検証**:
   `gitlab_new_issue`はissue #48でローカルGitLab CE 18.5.4に対し実機確認済み（issueが実際に作成され、
   `get_issue`と同じ形のJSON（number/title/body/url/slug）が返ることを確認した）。
+- **（issue #86）`add_issue_comment` のCLI経路が実機未検証**: 本対応はClaude Code on the webの
+  リモート実行環境（`gh`/`glab` CLIが存在しない）で行ったため、`gh issue comment <n> --body-file`
+  と `glab api projects/:id/issues/<iid>/notes -X POST -f body=...` を実際に実行しての確認が
+  できていない。検証済みなのは、(1) `require_vcs_cli` が `add_issue_comment` に対し
+  `mcp__github__add_issue_comment (owner, repo, issue_number=通知先issue番号, body=ファイル内容)` を
+  名指しして失敗すること、(2) プロバイダ判定に応じて `github_add_issue_comment` /
+  `gitlab_add_issue_comment` へ正しく委譲すること（プロバイダ固有関数をスタブへ差し替えて確認）、
+  (3) MCP経路（`mcp__github__add_issue_comment`）で実issueへ1件投稿できること、の3点である。
+  **GitLab実装は `gitlab_add_mr_comment`（issue #48でGitLab CE 18.5.4に対し実機確認済み）の
+  エンドポイントを `merge_requests` から `issues` へ替えただけ**だが、issue notes APIの
+  パラメータ名が同じである確認は公式APIドキュメントの参照に留まる。`gh`/`glab` が使える環境で
+  実行し確認できた時点で本項目を削除する。

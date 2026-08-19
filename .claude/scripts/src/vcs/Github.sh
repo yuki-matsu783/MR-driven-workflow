@@ -176,7 +176,7 @@ github_set_mr_description() {
   gh pr edit "$mr_number" --body-file "$body_file" >/dev/null
 }
 
-# Draft PR/MRのDraft状態を解除し、レビュー・マージ可能な状態にする（flow-id 5-3）。
+# Draft PR/MRのDraft状態を解除し、レビュー・マージ可能な状態にする（flow-id 5-4）。
 # `gh pr ready <number>` は、openかつDraftでないPRに対しては警告を出すだけで終了コード0を返す
 # （＝冪等に呼べる）。closed/mergedのPRに対してのみ失敗する（`gh`本体のソース
 # `pkg/cmd/pr/ready/ready.go` で確認）。
@@ -347,4 +347,12 @@ github_add_mr_inline_comments() {
   rm -rf "$tmpdir"
   jq -nc --argjson posted "$posted" --argjson summarized "$summarized" \
     '{posted: $posted, summarized: $summarized}'
+}
+
+# 任意のissueへ新規コメントを1件投稿する（flow-id 5-3: マージ前の関連issue通知。issue #86）。
+# 宛先がPR/MRである `github_add_mr_comment` とは別関数。`gh pr comment` はPRにしか投げられず、
+# 「今回のMRが影響する他のissue」へ通知する用途に使えないため。
+github_add_issue_comment() {
+  local issue_number="$1" body_file="$2"
+  gh issue comment "$issue_number" --body-file "$body_file" >/dev/null
 }
