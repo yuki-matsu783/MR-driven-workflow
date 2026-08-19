@@ -106,9 +106,67 @@ build_issue_body() {
     "$purpose" "$current" "$expected" "$acceptance"
 }
 
+# remote URLを「ホスト部」と「パス部」へ分解する純粋関数（issue #55）。
+# 外部コマンド・コマンド置換を伴わないため、呼び出しあたりのプロセス起動はゼロ。
+# 結果は標準出力ではなくグローバル変数へ返す（.claude/rules/shell-script-style.md
+# 「ホットパスの小さなヘルパー関数は…`REPLY` へ返す」。値が2つあるため `REPLY` ではなく
+# `REPLY_HOST` / `REPLY_PATH` を使う）。標準出力へ返すとコマンド置換が必要になり、
+# `provider_from_remote_url` の「プロセス起動ゼロ」（DDR 0028）が守れなくなる。
+#
+#   REPLY_HOST … 小文字化したホスト名（scheme・認証情報・ポートを除く）
+#   REPLY_PATH … `owner/repo` 形式のパス（先頭スラッシュ・末尾の `.git`・末尾スラッシュを除く。
+#                 大文字小文字はそのまま保つ）
+#
+# scp形式（`git@host:o/r.git`）とポート付きURL（`host:2222/o/r.git`）は、`:` の後ろが
+# **数字だけかどうか**で区別する。これがパラメータ展開だけで書ける唯一の分岐点である。
+#
+# ホスト名が取れない場合も失敗させず `REPLY_HOST` を空にして返す。エラーにするかは呼び出し側の
+# 判断に委ねることで、`provider_from_remote_url`（終了コード1）と `parse_repo_slug`（空のまま
+# JSONを返す）それぞれの従来の振る舞いを変えずに済む。
+split_remote_url() {
+  local url="$1" rest first tail
+
+  # scheme:// があれば除去（無ければそのまま）
+  rest="${url#*://}"
+
+  # 認証情報 user@ を除去する。最初の `/` より前に `@` がある場合だけ落とすことで、
+  # パスに `@` を含むURL（https://gitlab.com/foo/b@r.git）で誤爆しない
+  first="${rest%%/*}"
+  if [ "$first" != "${first#*@}" ]; then
+    rest="${rest#*@}"
+    first="${rest%%/*}"
+  fi
+
+  if [ "$first" = "${first%%:*}" ]; then
+    # `:` を含まない → ホストのみ
+    REPLY_HOST="$first"
+    if [ "$rest" = "${rest#*/}" ]; then REPLY_PATH=""; else REPLY_PATH="${rest#*/}"; fi
+  else
+    REPLY_HOST="${first%%:*}"
+    tail="${first#*:}"
+    case "$tail" in
+      ''|*[!0-9]*)
+        # 数字以外を含む → scp形式のパス区切り
+        REPLY_PATH="${rest#*:}"
+        ;;
+      *)
+        # 数字のみ → ポート
+        if [ "$rest" = "${rest#*/}" ]; then REPLY_PATH=""; else REPLY_PATH="${rest#*/}"; fi
+        ;;
+    esac
+  fi
+
+  REPLY_HOST="${REPLY_HOST,,}"
+  REPLY_PATH="${REPLY_PATH%.git}"
+  while [ "$REPLY_PATH" != "${REPLY_PATH%/}" ]; do REPLY_PATH="${REPLY_PATH%/}"; done
+}
+
 # remote URLからホスト部分を取り出し、プロバイダ名（github / gitlab）を返す純粋関数。
 # 外部コマンド呼び出しを伴わないため tests/test_vcs_provider.sh から単体テストできる
 # （.claude/rules/shell-script-style.md「テスト」）。
+# ホスト部の切り出しそのものは `split_remote_url` に委譲する（issue #55。`parse_repo_slug` と
+# 同じ規則が二重に書かれていた状態を解消したもの）。関数呼び出しであってコマンド置換ではない
+# ため、プロセス起動はゼロのまま。
 #
 # 判定規則: ホスト名に `github` を含めばGitHub、それ以外はGitLabとみなす。本ワークフローが
 # 対応するのはGitHub/GitLabの2つだけで、GitHubはSaaS（github.com）・GHEとも慣習的にホスト名へ
@@ -130,19 +188,12 @@ build_issue_body() {
 # 後続の `glab` 側のエラーに変わる。対応プロバイダが2つしかない以上、self-hostedを弾かずに
 # 非対応だけを弾く判定は原理的に書けないため受け入れている（issue #45）。
 provider_from_remote_url() {
-  local url="$1" host
-  # scheme:// があれば除去（無ければそのまま）
-  host="${url#*://}"
-  # 最初の `/` 以降（パス）を除去。scp形式 git@host:path でも `/` 以降が落ちる
-  host="${host%%/*}"
-  # 認証情報 user@ を除去。パスを先に落としてからでないと、パスに `@` を含むURLで壊れる
-  host="${host#*@}"
-  # ポート（:8929）または scp形式のパス区切り（:foo）を除去
-  host="${host%%:*}"
-  host="${host,,}"
+  local host
+  split_remote_url "$1"
+  host="$REPLY_HOST"
 
   if [ -z "$host" ]; then
-    echo "remote URLからホスト名を取得できませんでした: $url" >&2
+    echo "remote URLからホスト名を取得できませんでした: $1" >&2
     return 1
   fi
 
@@ -193,16 +244,10 @@ get_vcs_access_mode() {
 # MCPツールが必須引数として要求する `owner` / `repo` を、CLI不在環境でも機械的に得るために使う。
 # GitLabのネストしたnamespace（group/subgroup/repo）では、`owner` に `group/subgroup` が入る。
 parse_repo_slug() {
-  local url="$1"
   local host path owner repo
-  host="$(printf '%s' "$url" | sed -E 's#^[a-zA-Z0-9+.-]+://##; s#^[^/@]+@##; s#^([^/:]+).*$#\1#')"
-  path="$(printf '%s' "$url" | sed -E '
-    s#^[a-zA-Z0-9+.-]+://##;
-    s#^[^/@]+@##;
-    s#^[^/:]+[:/]##;
-    s#^[0-9]+/##;
-    s#\.git$##;
-    s#/+$##')"
+  split_remote_url "$1"
+  host="$REPLY_HOST"
+  path="$REPLY_PATH"
   owner="${path%/*}"
   repo="${path##*/}"
   jq -nc --arg host "$host" --arg owner "$owner" --arg repo "$repo" --arg path "$path" \
