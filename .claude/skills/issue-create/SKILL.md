@@ -4,7 +4,7 @@ description: issueをAIエージェントが起票（作成）したいときに
 title: issue起票（AI代行）
 type: skill
 tags: [issue, automation, github, gitlab]
-keywords: [issue作成, create-issue.sh, issue分割, 並列列挙, 目的, 現状, 期待する動作, 受け入れ条件, テンプレート, issue-mr-flow, 重複チェック, 類似issue, search_issues, AskUserQuestion, 最終確認]
+keywords: [issue作成, create-issue.sh, issue分割, 並列列挙, 目的, 現状, 期待する動作, 受け入れ条件, テンプレート, issue-mr-flow, 重複チェック, 類似issue, search_issues, AskUserQuestion, 最終確認, 着手確認, post-issue-create-notice]
 ---
 
 # issue起票（AI代行）
@@ -69,7 +69,7 @@ keywords: [issue作成, create-issue.sh, issue分割, 並列列挙, 目的, 現�
       WebFetchツール・curlへはフォールバックしない（DDR 0020, DDR 0027）。
    3. **結果を提示する。** 候補が1件以上あれば「番号・状態・タイトル」の一覧（URL付き）で示し、
       それぞれが今回の依頼とどう近いのか・どこが違うのかを一言添える。
-      候補が0件のときは「**類似issueは見つかりませんでした**」と明示したうえで手順3へ進む
+      候補が0件のときは「**類似issueは見つかりませんでした**」と明示したうえで手順4へ進む
       （検索したこと自体を黙らせない）。
    4. **判断はユーザーに委ねる。** 候補があった場合は `AskUserQuestion` で次を選んでもらう。
       - `新規にissueを起票する (Recommended)` — 候補はあるが別の関心事だと判断した場合
@@ -128,6 +128,12 @@ keywords: [issue作成, create-issue.sh, issue分割, 並列列挙, 目的, 現�
    時点ではまだissueに対応するブランチが存在しない。更新は `/issue-mr-flow start` 以降
    （flow-id 1-6）の担当である。
 
+   この手順は `.claude/hooks/post-issue-create-notice.sh`（PostToolUse hook）でも補強されている
+   （issue #39）。issueの起票（`create-issue.sh` の実行、またはMCP経路の
+   `mcp__github__issue_write` の `method="create"`）を検知すると、上記と同じ内容の注意が
+   コンテキストへ注入される。**hookは多重防御であり、注入が無かったことは着手してよい根拠に
+   ならない**（判断の根拠は常に本スキルと `issue-mr-flow` 側の記載である）。
+
 ## してはいけないこと
 
 - ユーザーの明示的な確認なしに、いきなり `create-issue.sh` を実行しない。
@@ -139,4 +145,11 @@ keywords: [issue作成, create-issue.sh, issue分割, 並列列挙, 目的, 現�
   その事実を明示する。
 - **ユーザーの明示的な指示なしに、同一セッションで `/issue-mr-flow start` へ進まない**（issue #59。
   起票と実装が同じセッションに同居すると、1つのMRに複数issueの作業が混ざるため）。
+- **起票したissueに着手するかどうかの確認そのものを省略しない**（issue #39）。「起票の流れで
+  そのまま着手する」「ユーザーが起票を依頼した時点で着手も依頼したものとみなす」といった解釈は
+  してはいけない。**どのissueにいつ着手するかを決めるのは人間である。** 起票直後のAIからの
+  持ちかけ（「続けて着手しますか？」）も行わず、手順6の案内に留める。
+  実際にissue #38の起票直後、AIエージェントが確認を挟まないまま `start 38` へ進み、issue取得・
+  既存ブランチ確認まで実行した事故がある（ユーザーの中断により、ブランチ・Draft MR作成の
+  手前で止まった）。
 - 本スキルの実行結果として `HANDOFF.md` を更新しない（更新はflow-id 1-6の担当）。

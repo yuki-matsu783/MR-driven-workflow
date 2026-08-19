@@ -4,7 +4,7 @@ description: このプロジェクトの開発フロー全体（issue起票〜�
 title: issue駆動 開発フロー
 type: skill
 tags: [issue-mr-flow, workflow, skill]
-keywords: [start, resume, sync, comments, reply, describe, draft-pr, issue分割, 並列列挙, 実装フロー, squash-merge, レビュー返信]
+keywords: [start, resume, sync, comments, reply, describe, draft-pr, issue分割, 並列列挙, 実装フロー, squash-merge, レビュー返信, 着手確認]
 ---
 
 # issue駆動 フロー（唯一のフロー定義）
@@ -275,6 +275,15 @@ flow-id 5-3 を終えたAIエージェントは、フロー上マージが次の
 
 ### `start <issue番号>` — issue取得・ブランチ/MR作成（全体フロー 1-2〜1-3）
 
+**起票（flow-id 1-1）の直後に、同じセッションで続けて `start` を実行してよいのは、ユーザーから
+明示的な着手の指示があったときだけである**（issue #39）。`issue-create` スキルでAIが起票を代行した
+場合も同じで、起票したこと自体は着手の指示ではない。AIから「続けて着手しますか？」と持ちかけず、
+新しいセッションでの実行を勧めるに留める（起票と実装が同じセッションに同居すると、進行中の別issueの
+ブランチ・MRと作業コンテキストが混ざるため。詳細:
+`.claude/skills/issue-create/SKILL.md`「してはいけないこと」）。この前提は
+`.claude/hooks/post-issue-create-notice.sh`（PostToolUse hook）の注意喚起でも補強されるが、
+hookは多重防御であり、注入が無かったことは着手してよい根拠にならない。
+
 1. `get_issue <issue番号>` でissueのtitle/body/urlを取得し、内容をユーザーに提示する。
    続けて `test_issue_sections "$(get_issue <issue番号> | jq -r '.body')"` を呼び、標準4見出し
    （目的・現状・期待する動作・受け入れ条件。`.github/ISSUE_TEMPLATE/task.md` /
@@ -466,6 +475,7 @@ hookはMCPツールを呼べないため、以下のように非侵襲的に縮�
 | `session-start.sh` | issue/PR情報の代わりに「経路はMCP」「ブランチ名から抽出したissue番号」「owner/repo」「本節への参照」を注入する |
 | `post-push-usage-report.sh` | 集計状態の更新のみ行い、対応工数レポートの自動投稿はスキップする（stderrへ1行） |
 | `post-push-compact-prompt.sh` | MRリンクだけを「MCPで取得すること」に差し替え、レビュー依頼メッセージと `/compact` の呼びかけは従来どおり行う。重点レビュー対象ファイルのリンク（issue #42）は `get_repo_url` のローカル組み立てとgit操作だけで作れるため、CLI不在時もそのまま供給される |
+| `post-issue-create-notice.sh` | 縮退しない。CLI経路（`create-issue.sh` の実行）に加えMCP経路（`mcp__github__issue_write` の `method="create"`）も検知するため、CLI不在時も同じ注意喚起が出る（issue #39） |
 
 ### 5. GitLabは対象外
 

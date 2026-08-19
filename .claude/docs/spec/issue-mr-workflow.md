@@ -58,6 +58,7 @@ MRとのやり取りだけを自動化する薄い層」として設計したが
 ├── session-start.sh                 # セッション開始時のissue/MR状態自動注入（SessionStart hook）
 ├── post-push-usage-report.sh        # git push検知時のトークン使用量集計＋MR自動コメント投稿（PostToolUse hook）
 ├── post-push-compact-prompt.sh      # git push検知時に/compact実施を促すメッセージ注入（PostToolUse hook）
+├── post-issue-create-notice.sh      # issue起票検知時に同一セッションでの着手を戒めるメッセージ注入（PostToolUse hook）
 └── lib/
     └── UsageTracking.sh              # 集計ロジック（sync_usage_state）
 ```
@@ -1094,6 +1095,52 @@ AIは候補を提示するに留め、**重複と断定して勝手に起票を�
 平文で並べればよい。検索の仕組みが異なるため同じ入力でも候補の並びは一致しないが、
 候補の提示が目的で件数・順序に依存した自動判断は行わないため許容している。
 
+### issue起票後の着手確認（issue #39）
+
+起票（flow-id 1-1）から実装（flow-id 1-2以降）へ進む判断は**人間が握る**。AIエージェントがissueを
+起票した流れのまま `/issue-mr-flow start` まで進むと、どのissueにいつ着手するかを人間が決められず、
+進行中の別issueのブランチ・MRと作業コンテキストも混ざる。実際にissue #38の起票直後、確認を挟まない
+まま `start 38` へ進み、issue取得・既存ブランチ確認まで実行した事故が起きている（ユーザーの中断に
+より、ブランチ・Draft MR作成の手前で止まった）。
+
+issue #59で `issue-create` スキル側の導線は既に整えていたが、記載がそのスキル内に閉じており、
+`issue-mr-flow` の `start` 側・共通ルールからは辿れなかった。issue #39では次の2方向で補強した。
+
+- **ドキュメント（一次的な担保）**: `AGENTS.md` の共通ルールに「issueを起票したこと自体は着手の
+  指示ではない」を追加し、`issue-create` スキルの「してはいけないこと」に着手確認そのものを省略
+  しない旨（事故の実例つき）を、`issue-mr-flow` の `start` サブコマンド節冒頭に起票直後の連続実行の
+  前提を、それぞれ明記した。3ファイルのどこから読み始めても同じ結論に辿り着く形にしている。
+- **機構（多重防御）**: `.claude/hooks/post-issue-create-notice.sh`（PostToolUse hook）が起票を検知し、
+  上記と同じ注意を `hookSpecificOutput.additionalContext` でコンテキストへ注入する。
+
+#### 検知の条件
+
+| 経路 | 条件 |
+|---|---|
+| CLI | `tool_name` が `Bash` / `PowerShell` / `run_shell_command` で、コマンド文字列に `create-issue.sh` を含む |
+| MCP | `tool_name` が `mcp__github__issue_write` で、`tool_input.method` が `create`（`gh`/`glab` CLI不在時。issue #34） |
+
+判定は純粋関数 `is_issue_create_call` に切り出してあり、`.claude/scripts/test/test_post_issue_create_notice.sh`
+で単体テストしている。サブエージェント内実行（`agent_id` あり）では何もしないガードは、既存の
+push検知hookと同じ。**MCP経路も検知するため、CLI不在時にも縮退しない**（既存の3つのhookと異なる点）。
+
+#### ブロックではなく注意喚起に留めた理由
+
+コミットの直接実行禁止（DDR 0012）と同じ形のブロック（PreToolUse + exit code 2）は採用していない。
+`start` の実体が複数の汎用git操作とMCPツールに分かれていて文字列で一意に特定できないこと、
+「人間が明示的に着手を指示した」という正当ケースをhookが観測できず、解除手段が実質「hookを黙らせる」
+しか無くなることが理由。詳細・却下案は
+[0038-issue起票後の着手確認はブロックせず注意喚起の注入で担保する.md](../ddr/0038-issue起票後の着手確認はブロックせず注意喚起の注入で担保する.md)
+を参照。**hookは多重防御であり、注入が無かったことは着手してよい根拠にならない**（この点も両
+SKILL.mdに明記している）。
+
+#### 既知のトレードオフ
+
+既存のpush/commit検知hookと同じく部分文字列マッチのため、`create-issue.sh` という語をたまたま含む
+コマンド（該当ファイルを開く・検索する等）でも発火する。注入されるのは注意文だけで処理は妨げないため
+許容している（issue #39の実装セッション中に実際に発火することを確認済み。裏を返せば、注入経路が
+実環境で動作することの確認にもなっている）。
+
 ## 影響範囲
 
 新規:
@@ -1941,6 +1988,26 @@ DDRは新設していない（issue #13・DDR 0023で決めた「リポジトリ
   `repo_url_from_remote_url` 行を追加、「リポジトリURLの導出（issue #44）」節を新設、
   MCPフォールバック節の「例外（`get_repo_url`）」と issue #13フォローアップの記述を更新、本エントリを追加）
 
+### issue #39（issue起票後の着手確認）
+
+issue起票からそのまま実装へ進むことを防ぐため、ドキュメントでの明示とPostToolUse hookによる
+注意喚起を追加した。仕様は「issue起票後の着手確認（issue #39）」節を参照。
+
+新規:
+- `.claude/hooks/post-issue-create-notice.sh`（issue起票検知・注意喚起の注入）
+- `.claude/scripts/test/test_post_issue_create_notice.sh`（`is_issue_create_call` 等の単体テスト）
+- `.claude/docs/ddr/0038-issue起票後の着手確認はブロックせず注意喚起の注入で担保する.md`
+
+変更:
+- `AGENTS.md`（共通ルールへ「起票は着手の指示ではない」を追加）
+- `.claude/skills/issue-create/SKILL.md`（手順6へhookによる補強の説明、「してはいけないこと」へ
+  着手確認を省略しない旨を追加）
+- `.claude/skills/issue-mr-flow/SKILL.md`（`start` 節冒頭へ起票直後の連続実行の前提、
+  「hookの挙動（CLI不在時）」表へ新hookの行を追加）
+- `.claude/settings.json` / `.gemini/settings.json`（新hookの登録）
+- `.claude/docs/spec/issue-mr-workflow.md`（本ファイル。コンポーネント構成のツリー、
+  「issue起票後の着手確認（issue #39）」節、本エントリ）
+- `.claude/docs/README.md`（DDR一覧へ0038を追加）
 
 ## 設定項目
 
