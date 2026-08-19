@@ -94,6 +94,7 @@ bash .claude/scripts/src/extract-frontmatter.sh .
 | `guide` | `README.md`, `DEVELOPERS.md`, `.claude/docs/README.md`, `index.md` |
 | `handoff` | `HANDOFF.md` |
 | `spec` | `.claude/docs/spec/*.md` |
+| `review-points` | `**/REVIEW-POINTS.md`（各ディレクトリ直下のレビュー観点表。issue #77） |
 
 アプリ本体を追加し、専用の`docs/spec/`・`docs/ddr/`・`docs/README.md`（必要なら`dev-tools/docs/`
 配下も）を新設した場合は、上表に対象パスを追記する。

@@ -17,7 +17,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - issue: #77 MRへの敵対的レビューを行うスキル・専任サブエージェントを追加する
 - ブランチ: feature-77-adversarial-mr-review-skill
 - PR: #80 https://github.com/yuki-matsu783/MR-driven-workflow/pull/80（Draft）
-- push回数: 12
+- push回数: 13
 
 進捗記号: `[x]` 完了 / `[]` 未着手・進行中 / `[-]` 今回は実施しない（スキップ）
 
@@ -51,13 +51,13 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 | [x] | 3-10 | 作業内容をもとにMR descriptionを更新する | `describe` |
 | [x] | 4-1 | **作業結果と`plans/` `worklog/` の内容をもとに**、個別反映計画`plans/【設計反映】〜.md`・`plans/【AIアセット反映】〜.md`を**planツールを使わず**Write/Editで作成する | エージェント |
 | [x] | 4-2 | `commit`スキル経由でcommitし、push してレビュー依頼を行う | エージェント |
-| [x][] | 4-3 | MRで反映計画についてレビュー・コメントする。レビュー完了済み連絡をするまで以降の作業は行わない。 | 人間 |
-| [x][] | 4-4 | レビュー内容を取得し、反映計画を修正する。対応が完了したコメントには対応内容を返信する（4-3〜4-4を合意まで繰り返す） | `comments` / `reply` |
+| [x][x] | 4-3 | MRで反映計画についてレビュー・コメントする。レビュー完了済み連絡をするまで以降の作業は行わない。 | 人間 |
+| [x][x] | 4-4 | レビュー内容を取得し、反映計画を修正する。対応が完了したコメントには対応内容を返信する（4-3〜4-4を合意まで繰り返す） | `comments` / `reply` |
 | [x] | 4-5 | 反映計画をもとにMR descriptionを更新する | `describe` |
-| [x] | 4-6 | 反映計画をもとに作業を進める、反映内容はworklogに更新する（設計反映＝spec・DDR／AIアセット反映＝rules・skills） | エージェント |
-| [x] | 4-7 | `commit`スキル経由でcommitし、push してレビュー依頼を行う | エージェント |
-| [x] | 4-8 | MRでレビュー・コメントする。レビュー済み連絡をするまで以降の作業は行わない。 | 人間 |
-| [x] | 4-9 | レビュー内容を取得し、設計・AIアセットの内容を修正する。対応が完了したコメントには対応内容を返信する（4-6〜4-9の反映ループを合意まで繰り返す） | `comments` / `reply` |
+| [x][] | 4-6 | 反映計画をもとに作業を進める、反映内容はworklogに更新する（設計反映＝spec・DDR／AIアセット反映＝rules・skills） | エージェント |
+| [x][] | 4-7 | `commit`スキル経由でcommitし、push してレビュー依頼を行う | エージェント |
+| [x][] | 4-8 | MRでレビュー・コメントする。レビュー済み連絡をするまで以降の作業は行わない。 | 人間 |
+| [x][] | 4-9 | レビュー内容を取得し、設計・AIアセットの内容を修正する。対応が完了したコメントには対応内容を返信する（4-6〜4-9の反映ループを合意まで繰り返す） | `comments` / `reply` |
 | [x] | 4-10 | 反映内容をもとにMR descriptionを更新する | `describe` |
 | [] | 5-1 | 次タスクのために、`plans/` `worklog/` `reports/` を削除し、`HANDOFF.md` をリセットする | エージェント |
 | [] | 5-2 | **defaultブランチとのコンフリクトを検知し、あれば解消する**（`check-base-conflicts.sh` → `resolve-conflict` スキル） | エージェント |
@@ -204,23 +204,33 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - **flow-id 4-1（2セット目）**: 個別反映計画
   `plans/【AIアセット反映】REVIEW-POINTSの運用ルールとshellの落とし穴.md` を作成した。
   反映候補は実地で裏取りしたうえで、**入れる／入れないを選別して理由を表に残した**。
+- **flow-id 4-4（2セット目）**: レビュー指摘1件（`REVIEW-POINTS.md` を削除しないでほしい）は
+  訂正コメントを含めて**計画の記載どおり**だったため、計画は変更せずスレッドへ返信した
+  （https://github.com/yuki-matsu783/MR-driven-workflow/pull/80#discussion_r3814820679 ）。
+- **flow-id 4-6（2セット目・AIアセット反映）**: 5ファイルへ反映した。
+  - `.claude/rules/docs-workflow.md`: ライフサイクル表へ `<ディレクトリ>/REVIEW-POINTS.md` の行と、
+    5-1の削除対象から外れる**唯一の例外**である旨の段落。
+  - `.claude/skills/issue-mr-flow/SKILL.md`: flow-id 5-1の行へ但し書き。
+  - `.claude/rules/directory-structure.md`: ツリー図3か所と「配置の指針」1項目。
+  - `.claude/rules/markdown-frontmatter.md`: `type` の表へ `review-points`。
+  - `.claude/rules/shell-script-style.md`: `MSYS_NO_PATHCONV=1` とネイティブjqの相互作用／
+    ツール経由でバックスラッシュが潰れる件／長文生成はWriteツールで行う件。
+  - **`sed` の `\n` の件は追記不要と判断した**（既存の `\r` の記述が本文で `\n` も含めて
+    書いていた）。計画では「1文追記」としていたが、実物を読んで取りやめた。
 
 ## 次にやること
 
-- **flow-id 4-3（人間・2セット目）**: AIアセット反映の計画をレビューする。合意連絡までAIは以降の
-  作業を行わない。合意後は 4-5〈describe〉→ 4-6 へ進む。
-- 4-6（2セット目）で反映するもの。
-  - `.claude/rules/docs-workflow.md`: ライフサイクル表へ `REVIEW-POINTS.md` の行を足し、
-    **flow-id 5-1の削除対象から外れる唯一の例外**であることを明記する（**最優先**。
-    書かないと次タスクの5-1で消える）。
-  - `.claude/skills/issue-mr-flow/SKILL.md`: flow-id 5-1の行へ但し書きを1行。
-  - `.claude/rules/directory-structure.md`: ツリー図と「配置の指針」へ配置ルール。
-  - `.claude/rules/markdown-frontmatter.md`: `type` の表へ `review-points`。
-  - `.claude/rules/shell-script-style.md`: 下記の落とし穴のうち3件（`sed` の `\n` は既存の
-    `\r` の記述へ1文追記に留め、節の差し込み手順は既出のため入れない）。
-- **`worklog/` `reports/` の削除はflow-id 5-1で行う**（`main` 取り込みで現行ルールを確認。
-  1セット目の計画を書いた時点のローカルの記述は「PR作成前の設計反映」だった）。
-  `plans/REVIEW-POINTS.md` と `reports/REVIEW-POINTS.md` は**削除しない**。
+- **flow-id 4-8（人間・2セット目）**: AIアセット反映（rules 4ファイル＋SKILL.md）をレビューする。
+  合意連絡までAIは以降の作業を行わない。合意後は 4-10〈describe〉→ フェーズ5へ。
+- **フェーズ5**。
+  - 5-1: `plans/` `worklog/` `reports/` を削除し `HANDOFF.md` をリセットする。
+    **`plans/REVIEW-POINTS.md` と `reports/REVIEW-POINTS.md` は削除しない。**
+    削除前に、内容がspec/ddr・rulesへ反映済みであることを確認する（レビューでの依頼）。
+  - 5-2: `main` とのコンフリクトを再確認する（4-4時点では `hasConflict: false`）。
+  - 5-3: Draft解除（`set_mr_ready 80`）。5-4: 人間がsquash merge。
+- **`.gitignore` の `参考ディレクトリ`**（コミット 73ea020）は、このままマージすると `main` の
+  issue #32（この行のコメント化）を巻き戻す。ローカルだけで無視したい場合は
+  `.git/info/exclude` へ移す選択肢がある。**扱いは人間の判断待ち。**
 - **片付け**: GitLabのMR（http://localhost:8929/root/issue45-verify/-/merge_requests/3 ）を
   確認し終えたら `docker stop gitlab` する。コンテナは検証のため起動したままにしてある。
 - **PR #80 に残した検証用レビュー**（`【issue #77 動作検証】` で始まる5件）は、レビュー時に

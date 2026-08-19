@@ -30,6 +30,7 @@ keywords: [ディレクトリ構成, claude, gemini, 配置方針, plans, worklo
 │   │                            #   （詳細: `.claude/rules/shell-script-style.md`「テスト」）
 │   ├── hooks/                  # SessionStart/PostToolUse等のClaude Code hookスクリプト
 │   │   └── lib/                # 複数hookスクリプトで使い回す共通ロジック
+│   ├── REVIEW-POINTS.md       # `.claude/`配下に適用するレビュー観点（`type: review-points`）
 │   └── settings.json
 ├── .gemini/                    # Gemini CLI向け設定。settings.jsonのみGit管理。docs/hooks/rules/
 │   │                            # scripts/skillsは.claude配下へのローカルリンクで.gitignore対象
@@ -43,6 +44,7 @@ keywords: [ディレクトリ構成, claude, gemini, 配置方針, plans, worklo
 │                                #   issueにつき1つ）と個別作業計画（`【種別】タスク内容.md`、
 │                                #   planツールを使わずWrite/Editで作成）の2階層。タスクごとに
 │                                #   新規生成しそのままコミットして履歴として残す
+│   └── REVIEW-POINTS.md        # `plans/`配下に適用するレビュー観点。**flow-id 5-1で削除しない**
 ├── worklog/                    # 実装中の詳細な試行錯誤ログ（`日付_<全体計画名>_<個別計画名>_push<N>.md`）
 │   └── TEMPLATE.md             # worklog作成時にコピーして使うテンプレート
 ├── .gitignore
@@ -53,7 +55,8 @@ keywords: [ディレクトリ構成, claude, gemini, 配置方針, plans, worklo
 ├── GEMINI.md                    # Gemini CLI固有ルールへのポインタ（AGENTS.mdを@import）
 ├── HANDOFF.md                   # セッション間・作業者間の軽量な引継ぎメモ
 ├── index.md                     # Repository Map
-└── README.md
+├── README.md
+└── REVIEW-POINTS.md            # リポジトリ全体に適用するレビュー観点
 ```
 
 `reports/日付_<全体計画名>_<内容>.html`（`.claude/skills/canvas-report/SKILL.md`参照）・`usage/`・
@@ -109,3 +112,11 @@ keywords: [ディレクトリ構成, claude, gemini, 配置方針, plans, worklo
   git bash経由で実行可能な範囲でbash（`.sh`）を使う。bash化できない場合のみPowerShell（`.ps1`）
   とする。bashスクリプトは`jq`（JSON操作）を前提とする。詳細な判断基準・規約は
   `.claude/docs/spec/shell-scripts.md`, `.claude/rules/shell-script-style.md` を参照。
+- **レビュー観点表 `REVIEW-POINTS.md` は、観点を適用したいディレクトリの直下に置く**（issue #77）。
+  1つの `REVIEW-POINTS.md` は**そのディレクトリ配下すべて（孫以下を含む）**に適用され、収集時は
+  対象ファイルのディレクトリからリポジトリルートまで祖先を遡って集めてマージする（浅い→深い）。
+  一般的な観点ほど上位へ置き、下位で重複して書かない。現在の配置はルート直下・`.claude/`・
+  `plans/`・`reports/` の4つ。収集アルゴリズム・frontmatterの詳細は
+  `.claude/docs/spec/adversarial-review.md`「レビュー観点（REVIEW-POINTS.md）」を参照する。
+  **`plans/REVIEW-POINTS.md` と `reports/REVIEW-POINTS.md` は、それらのディレクトリを片付ける
+  flow-id 5-1でも削除しない**（`.claude/rules/docs-workflow.md` のライフサイクル表が正）。
