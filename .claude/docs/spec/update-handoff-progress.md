@@ -3,7 +3,7 @@ title: HANDOFF進捗自動更新スクリプト（update-handoff-progress.sh）
 type: spec
 description: HANDOFF.mdの進捗表の記号・ヘッダ情報を機械的に更新するdev-toolスクリプトの仕様
 tags: [update-handoff-progress, handoff, spec]
-keywords: [update-handoff-progress, flow-id, 進捗表, ループ範囲, mark-done, mark-skip, add-round, set-header]
+keywords: [update-handoff-progress, flow-id, 進捗表, ループ範囲, 周回数, 現在のループ, mark-done, mark-skip, add-round, set-header]
 ---
 
 # HANDOFF進捗自動更新スクリプト（update-handoff-progress.sh）
@@ -25,7 +25,7 @@ bash .claude/scripts/src/update-handoff-progress.sh mark-done <flow-id> [--file 
 bash .claude/scripts/src/update-handoff-progress.sh mark-skip <flow-id> [<flow-id>...] [--file <path>]
 bash .claude/scripts/src/update-handoff-progress.sh add-round <flow-id> [--file <path>]
 bash .claude/scripts/src/update-handoff-progress.sh set-header [--issue <text>] [--branch <text>] \
-  [--pr <text>] [--push-count <n>] [--file <path>]
+  [--pr <text>] [--push-count <n>] [--loop <text>] [--file <path>]
 ```
 
 `--file <path>`は全サブコマンド共通のオプションで、操作対象ファイルを切り替える（省略時
@@ -58,10 +58,31 @@ bash .claude/scripts/src/update-handoff-progress.sh set-header [--issue <text>] 
 
 | サブコマンド | 挙動 | エラー条件 |
 |---|---|---|
-| `mark-done <flow-id>` | 対象行（ループ範囲なら範囲内の全flow-id行）の進捗列**末尾の`[]`**を`[x]`に置き換える | 対象行のいずれかで末尾が`[]`でない場合（既に完了済み等） |
+| `mark-done <flow-id>` | 対象行（ループ範囲なら範囲内の全flow-id行）の進捗列**末尾の`[]`**を`[x]`に置き換える。対象がループ範囲に属する場合はヘッダの`- 現在のループ:`行も追従させる（単発ステップでは触らない） | 対象行のいずれかで末尾が`[]`でない場合（既に完了済み等） |
 | `mark-skip <flow-id> [<flow-id>...]` | 指定した各flow-id行の進捗列を`[-]`へ丸ごと上書きする（複数指定可） | 指定flow-idの一部が表に見つからない場合 |
-| `add-round <flow-id>` | ループ範囲内の全flow-id行の進捗列**末尾に新しい`[]`を追記**する（次の往復が始まったことを表す） | 対象flow-idがループ範囲に属さない場合／対象行のいずれかで末尾が既に`[]`の場合（前回往復が未完了） |
-| `set-header` | `--issue`/`--branch`/`--pr`/`--push-count`のうち指定されたオプションのみ、対応するヘッダ行（`- issue: `等で始まる1行）を書き換える。未指定の項目は現状維持 | — |
+| `add-round <flow-id>` | ループ範囲内の全flow-id行の進捗列**末尾に新しい`[]`を追記**する（次の往復が始まったことを表す）。あわせてヘッダの`- 現在のループ:`行を追従させる | 対象flow-idがループ範囲に属さない場合／対象行のいずれかで末尾が既に`[]`の場合（前回往復が未完了） |
+| `set-header` | `--issue`/`--branch`/`--pr`/`--push-count`/`--loop`のうち指定されたオプションのみ、対応するヘッダ行（`- issue: `等で始まる1行）を書き換える。未指定の項目は現状維持 | `--loop`指定時に、行の挿入位置（ヘッダ項目／`## フロー進捗状況`見出し）が見つからない場合 |
+
+### ヘッダの「- 現在のループ:」行（issue #58）
+
+進捗表の`[x][x][]`という反復記号から周回数を読み取るには同一トークンの数え上げが要る。これはLLMが
+最も誤りやすい処理であり、往復が増えるほど誤読しやすい。そこで、周回数と進行状態を**数字と語で
+直接読める1行**をヘッダ項目（`- issue:`〜`- push回数:`）と同じブロックへ持たせる。
+
+```
+- 現在のループ: 3-6〜3-9 の3周目（進行中）
+```
+
+- 書式は`<開始flow-id>〜<終了flow-id> の<N>周目（進行中|完了）`。周回数は進捗列の`[`の個数、状態は
+  末尾が`[]`なら「進行中」・それ以外なら「完了」とする。
+- **値は常に進捗表から導出し、別カウンタは持たない。** `add-round`とループ範囲への`mark-done`が
+  更新後の進捗列からこの行を組み立て直すため、表とヘッダが食い違う状態を構造的に作らない。
+- 行が存在しない`HANDOFF.md`（この機能より前に書かれたもの、flow-id 5-1でリセットした直後のもの）
+  でも、次の`add-round`／`mark-done`で自動的に挿入される。挿入位置は、ヘッダ項目
+  （`- issue:`/`- ブランチ:`/`- PR:`/`- push回数:`）のうち最後の行の直後。ヘッダ項目が1つも
+  無ければ`## フロー進捗状況`見出しの直前へ、後ろに空行を1つ添えて挿入する。
+- `mark-skip`は追従の対象にしない（ループ範囲を丸ごと`[-]`にした場合、周回数という概念が当てはまら
+  ないため）。ループ範囲の外にいることを示すには`set-header --loop 'なし'`を使う。
 
 ### 制約・設計判断
 
@@ -74,12 +95,20 @@ bash .claude/scripts/src/update-handoff-progress.sh set-header [--issue <text>] 
   ことがこの過程で判明した）。
   - ループ範囲の一部だけ実施し残りを省略する場合（非対話的実行環境でのレビュー省略等）は、進捗記号を
     `[]`のまま残し、実施した内容は「やったこと」等の文章セクションで補足する運用とする。
-- ヘッダ各項目（issue/ブランチ/PR/push回数）は1行である前提で実装している。説明の補足等で2行目
-  以降に折り返している場合、`set-header`は1行目のみを書き換え、2行目以降はそのまま残る。
+- ヘッダ各項目（issue/ブランチ/PR/push回数/現在のループ）は1行である前提で実装している。説明の
+  補足等で2行目以降に折り返している場合、`set-header`は1行目のみを書き換え、2行目以降はそのまま残る。
 - 進捗表の書き換えは、Markdownテーブル行を正規表現でprefix（進捗列より前）・progress（進捗列の
   中身）・suffix（進捗列より後、flow-id列を含む）の3区画へ分解し、単純な文字列連結で再結合する
   方式を採る。bashのパターン置換（`${line/pattern/repl}`）は使わない。`[x]`のような進捗記号が
   globの文字クラスとして誤解釈される事故を避けるためである。
+- **ヘッダ行の追従に失敗しても`mark-done`/`add-round`自体は成功させる**（警告を標準エラーへ出し、
+  進捗表の更新はそのまま書き戻す）。記号の更新が主目的であり、ヘッダ行はそれを読みやすくするための
+  冗長な表現に過ぎないため、挿入位置を持たない変則的な`HANDOFF.md`で既存の挙動を後退させない。
+  一方、`set-header --loop`はユーザーが明示的にその行を求めているので、書けなければエラーにする。
+- **周回数は進捗表から導出し、ヘッダ行を正にはしない。** ヘッダへ数字を持つ以上、表との二重管理には
+  なるが、`add-round`実行時に必ず表から再計算するため、人手による更新漏れで食い違うことがない。
+  逆向き（ヘッダの数字を正として表を再構成する）にしなかったのは、レビュー往復の実体が
+  「範囲内の各ステップがどこまで進んだか」であり、表のほうが情報量が多いためである。
 - HANDOFF.mdを直接テキスト処理で書き換える方式を採用し、進捗状態を別のJSON/YAML等の構造化
   データへ移行する設計は採らなかった。既存の`HANDOFF.md`の構成（見出し・表の列）を人間にも読み
   やすいMarkdownのまま壊さない、という要件を素直に満たせるため。
@@ -93,10 +122,25 @@ bash .claude/scripts/src/update-handoff-progress.sh set-header [--issue <text>] 
 
 ## 影響範囲
 
+### issue #20（初版）
+
 - `.claude/skills/issue-mr-flow/SKILL.md`: 「flow-idが1つ進むごとに、必ず`HANDOFF.md`を更新する」
   手順から、本スクリプトの呼び出しへ委譲する記述を追加した。
 - `.claude/rules/docs-workflow.md`: `[-]`記号の正式ルール化、非対話的実行環境でのループ範囲運用
   ルールを追記した。
+
+### issue #58（2026-08-19）ヘッダへのループ周回数の明示
+
+- `- 現在のループ:`行の書式・自動追従・挿入位置を追加し、`set-header`へ`--loop`を追加した。
+- `.claude/rules/docs-workflow.md`: ヘッダ行の運用（書式・自動追従に任せること・既存
+  `HANDOFF.md`との互換）を追記し、ヘッダ情報の列挙へ「現在のループ」を加えた。
+- `.claude/skills/issue-mr-flow/SKILL.md`: `add-round`／`mark-done`の説明へ、ヘッダ行が自動で
+  追従することを追記した。
+- `.claude/agents/issue-mr-resume.md`: 現在地サマリへ`- 現在のループ:`行を含めるようにした
+  （周回数を表の記号から数えず、この行をそのまま引く）。
+- `.claude/scripts/test/test_update_handoff_progress.sh`: ヘッダ追従のテストを追加した
+  （純粋関数の書式組み立て・挿入位置・重複しないこと・単発ステップでは触らないこと・
+  挿入位置が無い場合の警告止まり）。
 
 ## 未決定事項・懸念点
 
