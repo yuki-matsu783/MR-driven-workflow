@@ -88,11 +88,21 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
     それが `set-header` の対象外であることを追記。
   - 検証: 単体テスト7本（passed合計229 / failures=0）と `extract-frontmatter.sh` の再生成が通ること、
     差し込み位置の前後で空行が崩れていないことを確認した。
+- flow-id 4-6（設計反映。人間レビューを挟めないため進捗記号は `[]` のまま）: 正史へ反映した。
+  - `.claude/docs/ddr/0039-PR作成後のdefaultブランチ追従は並行手順として定義し自動解消は一意に決まる類型に限る.md`（新規。
+    決定7点と却下案8件〈新flow-idの挿入・5-2の廃止・GitHubの "Update branch"・hookでの自動チェック・
+    CIでの自動追従・常時rebase・DDR連番の廃止等・検知結果のキャッシュ〉）
+  - `.claude/docs/spec/issue-mr-workflow.md`: 「PR作成後のdefaultブランチ追従（issue #88）」節と
+    影響範囲のエントリを追加
+  - `.claude/docs/spec/check-base-conflicts.md`: hookに関する記述を監視での繰り返し実行と整合する
+    形へ更新し、影響範囲のエントリを追加
+  - `.claude/docs/README.md`: DDR一覧へ0039を追加
 
 ## 次にやること
 
-- flow-id 4-6: DDR 0039・`.claude/docs/spec/issue-mr-workflow.md`・
-  `.claude/docs/spec/check-base-conflicts.md`・`.claude/docs/README.md` へ反映する。
+- flow-id 5-1: `plans/` `worklog/` を削除し、本ファイルを次タスク向けへリセットする。
+- flow-id 5-2: `check-base-conflicts.sh` でdefaultブランチとのコンフリクトを検知する
+  （DDR 0039 を採番したため、`main` 側で 0039 が使われていないかの確認を兼ねる）。
 
 ## 判断を迷った内容
 

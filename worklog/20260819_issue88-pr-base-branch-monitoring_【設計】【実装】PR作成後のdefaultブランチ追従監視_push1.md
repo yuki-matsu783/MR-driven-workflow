@@ -67,6 +67,23 @@ push回数: 1
   （pushのたびの `git fetch` はコストに見合わない・push検知hookは部分一致で誤発火する）が
   そのまま当てはまる。監視の頻度は「イベントが来たとき」であって「pushのたび」ではない。
 
+## 設計反映（フェーズ4）
+
+- DDR番号は `0039` が空き（最新は0038）であることを `ls .claude/docs/ddr/` で確認して採番した。
+  flow-id 5-2 の `check-base-conflicts.sh` で `hasDuplicateDdrNumber` を再確認する。
+- **DDR 0029 を `status: superseded` にはしなかった。** 無効化されるのは決定6（必ず承認を取る）の
+  うち監視モードに限った範囲で、DDR 0029 全体は有効なままだからである
+  （`.claude/rules/markdown-frontmatter.md` の `superseded` は全体が置き換わった場合の仕組み）。
+  代わりに新DDR側へ「どの決定をどの範囲で緩和したか」を明記した。
+- `.claude/docs/spec/check-base-conflicts.md` の「hookによる自動実行はしていない」は、
+  そのままだと「コンフリクトはマージ依頼の直前にだけ確認できればよい」という理由づけが本issueの
+  結論と矛盾するため、理由をコスト・誤発火に限定し、監視から繰り返し呼ばれる旨の項を足した。
+  **スクリプト自体は変更していない**（作業ツリーを変えず、何度でも実行でき、結果を終了コードでは
+  なく `hasConflict` で返す既存の設計が、そのまま繰り返し実行に使えたため）。
+- 検証: `extract-frontmatter.sh .`（`failed=0`）、単体テスト7本（`failures=0`）、
+  DDR番号の重複なし（`ls | uniq -d` が空）。
+
 ## 次の一歩
 
-- フェーズ4（設計反映）: DDR 0039 と spec 2件・`.claude/docs/README.md` へ反映する。
+- フェーズ5: `plans/` `worklog/` の削除・`HANDOFF.md` のリセット（flow-id 5-1）→
+  コンフリクト検知（5-2）→ リモートへ反映。
