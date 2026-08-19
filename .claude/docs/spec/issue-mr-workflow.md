@@ -92,8 +92,8 @@ MRとのやり取りだけを自動化する薄い層」として設計したが
 | `get_issue <n>` | issueのtitle/body/labelsを取得（JSON） | `gh issue view` | `glab issue view` |
 | `new_issue_branch <n> <slugSource> [<base>]` | `<branchPrefixTemplate>` に従いブランチを作成しcheckout、リモートpush。`<slugSource>` はslug化対象のテキストであり、生issueタイトルである必要はない（`.claude/skills/issue-mr-flow/SKILL.md` の `start` サブコマンドではAIエージェントが生成した英語の意訳フレーズを渡す。詳細: [0010-ブランチslugの意訳生成はAIエージェントが行う.md](../ddr/0010-ブランチslugの意訳生成はAIエージェントが行う.md)）。`<base>`（省略可）でベースブランチを上書きできる。省略時は `.mrworkflow.json` の `defaultBaseBranch` を使う（issue #15: `start` サブコマンドが `AskUserQuestion` で確認した結果を渡す） | `git switch -c` + `git push` | 同左 |
 | `new_draft_merge_request <n> <branch> <title> [<base>]` | issueに紐づくDraft PR/MRを作成（bodyは仮テンプレート、後続の `set_mr_description` で上書き前提。`<title>` はissueタイトルをそのまま渡す） | `gh pr create --draft` | `glab mr create --draft` |
-| `get_mr_unresolved_comments <n> [true]` | レビューコメント／スレッドを取得しテキストへ整形（スレッドID・ファイルパス・行番号・diffを含む）。既定（第2引数省略）では未解決のスレッドのみを返し、対応済み（解決済み）スレッドは機械的に除外する。第2引数に `true` を渡すと解決済みも含めた全件を返す。GitLabはdiscussions APIが操作履歴を `system: true` のnoteとして同じ配列で返すため、これも機械的に除外する（issue #48） | `gh api graphql` (review threads) | `glab api` (discussions) |
-| `add_mr_thread_reply <n> <threadId> <text>` | 指定スレッドに対応内容を返信する（スレッドの解決＝resolvedはレビュアー側の操作のため本関数では行わない） | `gh api graphql`（reply mutation） | `glab api`（note追加） |
+| `get_mr_unresolved_comments <n> [true]` | レビューコメント／スレッドを取得しテキストへ整形（スレッドID・ファイルパス・行番号・diffを含む）。既定（第2引数省略）では未解決のスレッドのみを返し、対応済み（解決済み）スレッドは機械的に除外する。第2引数に `true` を渡すと解決済みも含めた全件を返す。GitLabはdiscussions APIが操作履歴を `system: true` のnoteとして同じ配列で返すため、これも機械的に除外する（issue #48）。各行には**そのコメントの公式パーマリンク**を `url=...` として含める（issue #42） | `gh api graphql` (review threads。GraphQLの `url` フィールド) | `glab api` (discussions。note `id` から `<mrUrl>#note_<id>` を組み立てる) |
+| `add_mr_thread_reply <n> <threadId> <text>` | 指定スレッドに対応内容を返信する（スレッドの解決＝resolvedはレビュアー側の操作のため本関数では行わない）。**投稿した返信自身のパーマリンクを標準出力へ返す**（issue #42。レビュー依頼メッセージへ「前回の指摘にどう返信したか」のリンクを載せるため） | `gh api graphql`（reply mutation。戻り値を `comment { url }` にした） | `glab api`（note追加。POSTレスポンスの `id` から組み立てる） |
 | `set_mr_description <n> <bodyFile>` | PR/MRのdescriptionを指定ファイル内容で上書き | `gh pr edit --body-file` | `glab mr update --description` |
 | `set_mr_ready <n>` | Draft PR/MRのDraft状態を解除し、レビュー・マージ可能な状態にする（全体フロー flow-id 5-3。Draft作成側の `new_draft_merge_request` に対応する解除側。issue #61） | `gh pr ready` | `glab mr update --ready` |
 | `add_mr_comment <n> <bodyFile>` | PR/MRへ新規コメントを1件投稿（スレッド返信・レビューではない通常コメント） | `gh pr comment --body-file` | `glab api`（notes追加） |
@@ -104,6 +104,11 @@ MRとのやり取りだけを自動化する薄い層」として設計したが
 | `get_repo_url` | リポジトリの正規URL（フルパス）を取得する。MR/PRのURL文字列からの推測ではなく`gh`/`glab`で取得することで正確性を担保する（issue #13フォローアップ） | `gh repo view --json url` | `glab repo view --output json`（`.web_url`） |
 | `get_mr_diff_url <repoUrl> <baseBranch> <headBranch>` | MR/PRの「defaultブランチとの差分」を見れるURLを組み立てる（純粋関数。`repoUrl`は`get_repo_url`の戻り値を渡す。issue #13） | `<repoUrl>/compare/<baseBranch>...<headBranch>` | `<repoUrl>/-/compare/<baseBranch>...<headBranch>` |
 | `get_mr_diff_since_url <repoUrl> <fromSha> <toSha>` | MR/PRの「前回push時点(`fromSha`)から今回push時点(`toSha`)までの差分」を見れるURLを組み立てる（純粋関数。issue #13） | `<repoUrl>/compare/<fromSha>...<toSha>` | `<repoUrl>/-/compare/<fromSha>...<toSha>` |
+| `get_blob_url <repoUrl> <ref> <path>` | 特定ファイルの「その`ref`時点の本体」を開くblobページのURLを組み立てる（純粋関数。`path`は`url_encode_path_to_reply`でencode済みのものを渡す。issue #42） | `<repoUrl>/blob/<ref>/<path>` | `<repoUrl>/-/blob/<ref>/<path>` |
+| `get_diff_anchor_url <compareUrl> <pathHash>` | Compareページ内の特定ファイルの差分位置を指すアンカー付きURLを組み立てる（純粋関数。issue #42） | `<compareUrl>#diff-<pathHash>` | `<compareUrl>#<pathHash>` |
+| `get_diff_anchor_algo` | 差分アンカーのハッシュ算出に使うアルゴリズム名を返す（純粋関数。issue #42） | `sha256` | `sha1`（【未検証】） |
+| `url_encode_path_to_reply <path>` | パスをURLへ埋め込める形へpercent-encodeし、結果を`REPLY`へ返す（プロバイダ非依存の純粋関数。unreserved文字と`/`は残し、それ以外はUTF-8のバイト単位で`%XX`へ変換する。issue #42） | — | — |
+| `hash_paths <algo> <path>...` | 渡した各**パス文字列**（ファイルの中身ではない）のハッシュを引数と同じ順序で1行ずつ返す（差分アンカー用。issue #42）。件数に比例して`sha256sum`を起動しないよう一時ファイルへ書き出して1回で計算する | `sha256sum` | `sha1sum` |
 | `get_branch_work_files` | 現在のブランチ固有（`<defaultBaseBranch>` に無い）の `plans/` `worklog/` `reports/` ファイル一覧を返す（プロバイダ非依存）。日本語を含むパスをそのまま返すため `-c core.quotepath=false` を指定している（issue #9。詳細は「計画の2階層構造」節） | — | — |
 | `build_issue_body <purpose> <current> <expected> <acceptance>` | 標準4見出し（目的・現状・期待する動作・受け入れ条件）に沿ってissue本文を組み立てる（プロバイダ非依存。issue #25） | — | — |
 | `new_issue <title> <body>` | タイトル・本文からissueを新規作成し、`get_issue`と同じ形（number/title/body/url/slug）のJSONを返す（issue #25） | `gh issue create` → URLから番号抽出 → `github_get_issue` | `glab issue create` → URLから番号抽出 → `gitlab_get_issue` |
@@ -863,6 +868,40 @@ issue #11「git pushイベントを検知してcompactする」への対応と�
     ブランチ名のファイル名サニタイズは`_usage_safe_branch_name`と同じ正規表現
     （`[^a-zA-Z0-9_-]`を`_`へ置換）だが、`UsageTracking.sh`をsourceして共有はせず本スクリプト内に
     複製している（1行の変換ロジックのために責務の異なるファイルへ依存を作らないため）。
+- **重点レビュー対象ファイルのリンク（issue #42）**: 上記4リンクはいずれもMR/リポジトリ全体を
+  指すため、レビュアーは「どのファイルを重点的に見ればよいか」を自力で探す必要があった。今回push
+  の差分に含まれるファイルごとに2種のURLを組み立て、**候補として**`additionalContext`へ渡す。
+  - **blobリンク**（該当push時点のファイル本体）: `get_blob_url <repoUrl> <今回pushのHEAD SHA>
+    <encode済みパス>`。GitHub `/blob/<ref>/<path>`、GitLab `/-/blob/<ref>/<path>`。
+  - **差分アンカーリンク**（Compareページ内の該当ファイル位置）: `get_diff_anchor_url
+    <compareUrl> <pathHash>`。GitHub `#diff-<パスのsha256>`、GitLab `#<パスのsha1>`。
+    `compareUrl` は差分範囲と対になるもの（初回pushはdefaultブランチとの差分、2回目以降は
+    前回pushとの差分）を使う。
+  - **対象ファイルの範囲は既存の差分リンクと同じ意味論**にする。初回pushは
+    `origin/<defaultBaseBranch>...HEAD`、2回目以降は `<前回pushのSHA>...HEAD`
+    （どちらも`...`＝merge-base起点で、GitHub/GitLabのCompareページと意味が揃う）。前回SHAが
+    ローカルに存在しない場合（rebase・履歴書き換え）はdefaultブランチとの差分へフォールバックする。
+  - **選定はhookではなくエージェントが行う**。hookは候補ファイルとそのURLを供給するだけで、
+    どれを載せるか・blobと差分アンカーのどちらを載せるか（原則blob、「差分だけ見てほしい」場合のみ
+    差分アンカー）はエージェントが実装内容を踏まえて判断する旨を、指示文として同時に渡す。
+  - **供給件数の上限**は`MAX_REVIEW_FILES`（10件）。変更行数（追加＋削除）の多い順に並べて
+    上限で打ち切り、超過分は「（他N件は省略）」と件数だけ伝える。1ファイルにつき3行・URL2本を
+    出すため上限がそのまま注入量の上限になり、日本語ファイル名はpercent-encodeで3倍近くに
+    膨らむ。この上限で注入テキスト全体が最大6KB程度に収まる（15件では8KBを超えた）。
+    このhook自体がコンテキスト肥大への対処を兼ねている以上、供給側が肥大の原因になっては
+    本末転倒のため小さめに倒している。
+  - **このpushで削除されたファイル**は、HEAD時点のblobが存在せず404になるため、blobリンクを
+    出さず「（このpushで削除。本体のリンクは無し）」と注記して差分アンカーリンクのみを出す。
+  - **差分アンカーのハッシュ算出方法はプロバイダの非公開内部仕様**のため実機で確認した。
+    GitHubのCompareページは差分本体を`include-fragment src="/<owner>/<repo>/compare/file-list
+    ?range=<from>...<to>"` で遅延読込しており、この断片HTMLに `id="diff-<sha256(パス)>"` が
+    出力される。本リポジトリの75ファイルぶんの範囲で、ローカル計算した`sha256sum`の値と
+    GitHubが出力したアンカーが**全件一致**することを確認した（日本語ファイル名を含む）。
+    GitLab側（パスのsha1）は本リポジトリにGitLab remoteが無いため**【未検証】**。
+- **返信コメントへのリンク（issue #42）**: 2回目以降のpush（＝レビュー指摘対応のpush）では、
+  「このpushでレビュー指摘へ返信した場合はその返信コメントのURLも含める」旨の指示文を追加で渡す。
+  URLの入手元は`reply`サブコマンドの出力（`add_mr_thread_reply`の戻り値）または`comments`の
+  出力に含まれる`url=...`。
 - **`post-push-usage-report.sh`とは別ファイル**（`.claude/hooks/post-push-compact-prompt.sh`）とし、
   責務を混在させない（使用量集計とcompact促しは関心事が異なる）。`.claude/settings.json`の
   `hooks.PostToolUse[0].hooks`へ、既存の対応工数レポート用エントリと並べて2エントリ
@@ -1746,6 +1785,52 @@ flow-id 5-1（次タスクのための片付け）と食い違っていた。iss
 flow-id 5-2（コンフリクト検知・解消）の担当は「エージェント」のままで、変更していない
 （`main` を書き換えない作業ブランチ上の操作であり、上記の線引きと既に整合しているため）。
 
+### issue #42（レビュー依頼メッセージへの重点レビュー対象ファイル・返信コメントリンクの追加）
+
+レビュー依頼メッセージに含まれる参照リンクが、いずれもMR/リポジトリ全体を指すもの（issue #13で
+追加した4リンク）だけだったため、レビュアーは「どのファイルを重点的に見ればよいか」「前回の指摘に
+どう返信されたか」をMR画面で自力で探す必要があった。ファイル単位・コメント単位のリンクを
+追加した。
+
+- `.claude/scripts/src/vcs/Github.sh`
+  - `github_get_blob_url` / `github_get_diff_anchor_url` / `github_diff_anchor_algo` を新設
+    （いずれも純粋関数）
+  - `github_get_mr_unresolved_comments` のGraphQLクエリへ `url` を追加し、出力の各行の角括弧内へ
+    `url=<パーマリンク>` を含めるようにした
+  - `github_add_mr_thread_reply` のmutation戻り値を `comment { id }` から `comment { url }` へ
+    変更し、投稿した返信自身のURLを標準出力へ返すようにした（`id` は呼び出し元で未使用だった）
+- `.claude/scripts/src/vcs/Gitlab.sh`（**【未検証】**。GitLab remoteが無く実機確認できていない）
+  - `gitlab_get_mr_url` / `gitlab_get_note_url` / `gitlab_get_blob_url` /
+    `gitlab_get_diff_anchor_url` / `gitlab_diff_anchor_algo` を新設（いずれも純粋関数）
+  - `gitlab_format_discussion_notes` へ第3引数 `mr_url` を追加し、渡された場合は各noteの
+    パーマリンク `<mrUrl>#note_<noteId>` を `url=` として含めるようにした
+  - `gitlab_add_mr_thread_reply` がPOSTレスポンスの note `id` から返信URLを組み立てて返すようにした
+- `.claude/scripts/src/vcs/Provider.sh`
+  - `get_blob_url` / `get_diff_anchor_url` / `get_diff_anchor_algo` のディスパッチャと、
+    プロバイダ非依存の `url_encode_path_to_reply`（パスのpercent-encode）・`hash_paths`
+    （パス文字列のハッシュを1回の`sha256sum`/`sha1sum`でまとめて計算）を追加
+  - `get_provider` の判定結果をプロセス内でメモ化した。上記ディスパッチャは変更ファイルの件数だけ
+    繰り返し呼ばれ、そのたびに `$(git remote get-url origin)` でサブシェルをforkしていたため
+- `.claude/hooks/post-push-compact-prompt.sh`
+  - 候補ファイルの列挙（`list_changed_files`）とリンクブロックの組み立て
+    （`build_file_links_text`）を追加。上限 `MAX_REVIEW_FILES=10` 件
+  - `build_links_text` の引数を `since_url` を受け取る形へ変更（前回push SHAの有効性判定を
+    重点ファイルの差分範囲と揃えるため、判定を呼び出し元の`main`へ移した）
+  - 選定方針の指示文（`FILE_LINKS_GUIDE_MESSAGE`）と、返信URLを含める指示文
+    （`REPLY_LINKS_GUIDE_MESSAGE`。2回目以降のpushでのみ付与）を追加
+- `.claude/scripts/test/test_vcs_provider.sh`（追加した純粋関数・`hash_paths`・
+  `gitlab_format_discussion_notes` のパーマリンク付与の単体テストを追加。`passed=75 failures=0`）
+- `.claude/skills/issue-mr-flow/SKILL.md`（`comments` / `reply` サブコマンドの定義へパーマリンクの
+  扱いを追記、MCP対応表の該当行を更新）
+- `.claude/docs/spec/issue-mr-workflow.md`（本ファイル。「提供関数」表へ5関数を追加し
+  `get_mr_unresolved_comments` / `add_mr_thread_reply` の行を更新、「/compact実施の呼びかけ」節へ
+  重点レビュー対象ファイル・返信リンクの仕様を追記、本エントリを追加）
+
+DDRは新設していない（issue #13・DDR 0023で決めた「リポジトリの正規URLを土台に汎用ページのURLを
+組み立てる」方針をファイル単位・コメント単位へ延長したものであり、方針自体の変更ではないため）。
+テキストフラグメント（`#:~:text=`）を採用しない判断はissue #42の起票時点で確定しており、
+ブラウザ側の機能で遅延読込・折りたたみに影響され、コメント編集で壊れることが理由。
+
 変更（issue #32 リポジトリ内の壊れている箇所4件の修正）:
 
 - **GitLab issueテンプレート名の記載を実体（`Default.md`）へ統一した**（9箇所）。`Default.md` は
@@ -2109,6 +2194,17 @@ flow-id 5-2（コンフリクト検知・解消）の担当は「エージェン
   並行した場合の区間重複を除去する機能を持つが、本対応のスコープ（単一ブランチ・単一セッション）
   では扱わない。仮に同一ブランチで複数セッションを並行実行した場合、それぞれの`activeSeconds`が
   単純合算され、実際の稼働時間より過大になりうる。
+- **差分アンカーの「ブラウザで実際にスクロールするか」は未検証**（issue #42）: アンカーの算出方法
+  （GitHub: パスのsha256）が正しいことは、Compareページが遅延読込する`file-list`断片HTMLに
+  `id="diff-<sha256(パス)>"` が出力されることを75ファイルぶん照合して確認済み。ただし**差分本体が
+  非同期に挿入される**ため、ブラウザがページ読み込み時点でアンカーへスクロールできるかは、
+  GitHub側のクライアントスクリプトの挙動に依存する。今回の実行環境（Claude Code on the web）は
+  ChromiumがegressプロキシのCA証明書を信頼せず（`ERR_CERT_AUTHORITY_INVALID`）実ブラウザでの
+  確認ができなかったため、人間による1クリック確認を残している。開けないことが判明した場合は、
+  issue #42の受け入れ条件どおり「差分アンカーを諦めblobリンクのみとする」判断でよい。
+- **GitLab側の重点ファイルリンク・コメントパーマリンクは【未検証】**（issue #42）: 本リポジトリに
+  GitLab remoteが無いため、`gitlab_get_blob_url` / `gitlab_get_diff_anchor_url`（パスのsha1）/
+  `<mrUrl>#note_<noteId>` の各URLはコードレビューベースの確認に留まる。既存のGitLab実装と同じ扱い。
 - **（issue #48で解消）（issue #25で追加した`gitlab_new_issue`にも従来からの制約が引き継がれる）GitLab側の動作未検証**:
   `gitlab_new_issue`はissue #48でローカルGitLab CE 18.5.4に対し実機確認済み（issueが実際に作成され、
   `get_issue`と同じ形のJSON（number/title/body/url/slug）が返ることを確認した）。
