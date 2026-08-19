@@ -169,7 +169,7 @@ Claude Code / Gemini CLI は**セッションごとに1つのplanファイルし
   `"defaultMode": "plan"` により新セッションは必ずPlanモードで始まるが、それは新規作成の理由に
   ならない。
 - これに伴い全体フローの先頭に全体作業計画の作成・合意を追加した（issue #9時点では33→35ステップ。
-  現在のflow-idは `<フェーズ番号>-<ステップ番号>` 形式の5フェーズ・39ステップで、最新の定義は
+  現在のflow-idは `<フェーズ番号>-<ステップ番号>` 形式の5フェーズ・40ステップで、最新の定義は
   `.claude/skills/issue-mr-flow/SKILL.md`「全体フロー」を正とする）。worklogは
   `worklog/日付_<全体計画名>_<個別計画名>_push<N>.md`、reportsは
   `reports/日付_<全体計画名>_<内容を簡潔に>.html` へ命名を変更し、reportsは調査結果専用ではなく
@@ -233,7 +233,7 @@ resumeを省略してしまう事故が発生した）。そのため発動条�
    記述と実際の状態（PR有無・未解決コメント件数等）に矛盾があれば、それも指摘する**
    （例: HANDOFF.mdは「PR未作成」と書いてあるが実際はPRが存在する、等）。
 
-呼び出し元は、このサマリをもとに全体フロー（5フェーズ・39ステップ）のうちどこから再開すべきかを判断し、
+呼び出し元は、このサマリをもとに全体フロー（5フェーズ・40ステップ）のうちどこから再開すべきかを判断し、
 人間に提案する（この判断自体はサブエージェントの役割ではなく、呼び出し元が行う）。
 
 `comments` / `describe` サブコマンドの「現在のブランチに紐づくMR番号を取得する」手順は、
@@ -1323,6 +1323,30 @@ issueはGitHubのUIからしか作成できず、標準4見出し（目的・現
   プロバイダ判定の規則を追加、「未決定事項・懸念点」の「GitLab側の動作未検証」から
   `Provider.sh` 経由のディスパッチの項目を解消、本エントリを追加）
 - `.claude/docs/README.md`（DDR一覧に0027を追加）
+
+新規（追加分・issue #46 defaultブランチとのコンフリクト検知・解消フロー）:
+- `.claude/scripts/src/check-base-conflicts.sh`（テキストコンフリクト＋DDR番号重複の検知。
+  仕様: `.claude/docs/spec/check-base-conflicts.md`）
+- `tests/test_check_base_conflicts.sh`（純粋関数の単体テスト。`passed=13 failures=0`）
+- `.claude/skills/resolve-conflict/SKILL.md`（コンフリクト解消の標準手順。類型A〜E）
+- `.claude/docs/spec/check-base-conflicts.md`（検知スクリプトの仕様）
+- `.claude/docs/ddr/0029-defaultブランチとのコンフリクトは検知を機構化し解消手順をスキル化する.md`
+
+変更（追加分・issue #46）:
+- `.claude/skills/issue-mr-flow/SKILL.md`（**flow-id 5-2としてコンフリクト検知・解消ステップを
+  新設し、旧5-2→5-3・旧5-3→5-4へ繰り下げ。全39→40ステップ**。「defaultブランチとの
+  コンフリクト検知・解消（flow-id 5-2）」節を追加）
+- `.claude/skills/commit/SKILL.md` / `.claude/rules/git-workflow.md`（コミットを行うflow-idの
+  一覧を `5-2` → `5-3` へ更新）
+- `.claude/rules/docs-workflow.md`（ステップ数を40へ、コミットのflow-idを `5-3` へ更新）
+- `.claude/skills/apply-mr-workflow-to-project/SKILL.md` / `index.md`（新規スクリプト・
+  スキルを一覧へ追加）
+- `.gitignore`（`index.jsonl` の除外理由コメントが参照するDDR番号を `0024` → `0025` へ修正。
+  issue #36の改番時の更新漏れで、存在しないDDRを指したままになっていた。本issueが対象とする
+  「改番時の参照更新漏れ」の実例）
+- `.claude/docs/README.md`（spec一覧に `check-base-conflicts.md`、DDR一覧に0029を追加）
+- `.claude/docs/spec/issue-mr-workflow.md`（本ファイル。全体フローのステップ数を40へ更新、
+  本エントリを追加）
 
 ## 設定項目
 
