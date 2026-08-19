@@ -90,7 +90,9 @@ bash .claude/scripts/src/extract-frontmatter.sh .
 | `rule` | `.claude/rules/*.md`, `AGENTS.md`, `CLAUDE.md`, `GEMINI.md` |
 | `agent` | `.claude/agents/*.md` |
 | `skill` | `.claude/skills/*/SKILL.md` |
+| `plan` | `plans/*.md`（planツールが出力する全体作業計画・`【種別】`付きの個別計画の両方。issue #95） |
 | `log` | `worklog/*.md` |
+| `report` | `reports/*.md`（調査結果・作業結果・反映結果の正文。issue #87。同ディレクトリの`*.html`はfrontmatterを持たないため対象外） |
 | `guide` | `README.md`, `DEVELOPERS.md`, `.claude/docs/README.md`, `index.md` |
 | `handoff` | `HANDOFF.md` |
 | `spec` | `.claude/docs/spec/*.md` |
@@ -101,6 +103,13 @@ bash .claude/scripts/src/extract-frontmatter.sh .
 
 `type`の値は自動判定せず、ファイルごとに内容を見て個別に決定する。上表は現時点の割り当て例であり、
 新しいディレクトリ・用途が増えた場合はこの表に追記する。
+
+`plan`・`log`・`report` は、いずれもタスク（issue／ブランチ）単位で作られ flow-id 5-1 でまとめて
+削除される寿命の短いファイルに与える値であり、永続する案内ドキュメントの `guide` とは区別する
+（`.claude/rules/docs-workflow.md` のライフサイクル表と対応する）。issue #95以前は `plans/*.md`
+についての規定が無く、実際には `guide` / `log` / `plan` / frontmatter無しが混在していたため、
+専用の値 `plan` を新設して一意に定めた（経緯・却下案:
+[.claude/docs/ddr/0042-plans配下のfrontmatter-typeはguideではなくplanを新設する.md](../docs/ddr/0042-plans配下のfrontmatter-typeはguideではなくplanを新設する.md)）。
 
 ## 対象外・特殊対応ファイル
 
