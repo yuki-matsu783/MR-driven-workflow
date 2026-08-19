@@ -3,14 +3,14 @@
 # index.jsonl を実際に書き出す main() はテスト対象外（スクリプトをsourceして関数のみ再利用する）。
 # 規約: passed=N failures=N を標準出力へ出し、失敗があれば終了コード1
 #       （.claude/rules/shell-script-style.md「テスト」）。
-# 実行: bash tests/test_extract_frontmatter.sh
+# 実行: bash .claude/scripts/test/test_extract_frontmatter.sh
 set -euo pipefail
 
 script_dir="${BASH_SOURCE[0]%/*}"
 [[ "$script_dir" == "${BASH_SOURCE[0]}" ]] && script_dir="."
-repo_root="$(cd "$script_dir/.." && pwd)"
+repo_root="$(cd "$script_dir/../../.." && pwd)"
 
-# shellcheck source=../.claude/scripts/src/extract-frontmatter.sh
+# shellcheck source=../../../.claude/scripts/src/extract-frontmatter.sh
 source "$repo_root/.claude/scripts/src/extract-frontmatter.sh"
 
 passed=0
