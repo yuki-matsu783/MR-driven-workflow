@@ -249,6 +249,32 @@ issue #11の実例: `extract-frontmatter.sh` がfrontmatterのキー・配列要
   while IFS= read -r -d '' f; do ...; done < <(git ls-files -z -- "$path")
   ```
 
+- **`git ls-files` を全ファイル走査に使うときは、`-z` を「NULを保持したいから」ではなく
+  「パスがクォートされるのを避けるため」に付ける**（issue #32で実際に踏んだ）。gitは既定
+  （`core.quotePath=true`）で非ASCIIを含むパスを `"\343\203\254..."` のように**ダブルクォート＋
+  8進エスケープした文字列**として出力する。この行をそのままループ変数として受けてファイル操作へ
+  渡すと、実在するファイルに対して `No such file or directory` になる。`-z` を付けると
+  クォートは行われない（`while IFS= read -r -d ''` で受ける）。
+
+  ```bash
+  # 悪い例（日本語ファイル名が "\343\203\254..." のまま渡り、必ず失敗する）
+  git ls-files | while IFS= read -r f; do wc -c < "$f"; done
+  # 良い例
+  while IFS= read -r -d '' f; do wc -c < "$f"; done < <(git ls-files -z)
+  ```
+
+- **NULバイトの有無を `od -c` の目視で判定しない**（issue #32で実際に誤読しかけた）。`od -c` は
+  NULを `\0` と表示する一方、**印字可能文字はそのまま出す**ため、本文中の**数字の `0`**（例:
+  「要素0個なら」）が出力に現れると、区切りの空白込みで見たときにNULと見分けがつかない。
+  上記の「CR混入の検査」と同じく、**除去の前後でバイト数を比較する**のが確実。
+
+  ```bash
+  # 悪い例（本文中の数字の 0 をNULと読み違える）
+  sed -n '94p' "$f" | od -c
+  # 良い例（差が0ならNULは無い）
+  [ "$(wc -c < "$f")" = "$(tr -d '\0' < "$f" | wc -c)" ] && echo 'NULなし'
+  ```
+
 ## 命名規則
 
 - 関数名はsnake_caseにする（PowerShellの`Verb-Noun`規約から移植する場合は
