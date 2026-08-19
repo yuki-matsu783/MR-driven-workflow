@@ -28,7 +28,10 @@ keywords: [issue-mr-flow, 計画, claude-code, gemini-cli, gh, glab, webfetch]
   **`gh`/`glab` CLIが実行環境に存在しない場合**（例: Claude Code on the webのリモート実行環境。
   issue #21対応時に実機確認）は、`Provider.sh`が動作しないため、同等の機能を持つGitHub/GitLab
   公式のMCPサーバーツール（例: `mcp__github__*`）で代替してよい。WebFetchツールやcurlへは
-  フォールバックしない（この場合もDDR 0020の理由は変わらないため）。
+  フォールバックしない（この場合もDDR 0020の理由は変わらないため）。**経路の判定方法
+  （`get_vcs_access_mode`）と、Provider関数・サブコマンドごとのMCPツール対応表は
+  `.claude/skills/issue-mr-flow/SKILL.md`「`gh`/`glab` CLI不在時のMCPフォールバック」節が正**
+  （issue #34。GitLabは対象外）。
 
 ## プロジェクト概要
 

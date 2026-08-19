@@ -7,6 +7,9 @@
 # Provider.sh経由のディスパッチ（`get_mr_diff_url`等）は外部コマンド・`git remote get-url origin`
 # に依存し純粋ではないため対象外（Github.sh/Gitlab.sh の関数を直接呼ぶ）。
 # issue #48対応で追加した `gitlab_format_discussion_notes`（discussions JSONの整形）も対象。
+# あわせてissue #34で追加した `parse_repo_slug`（リモートURLのパース）と `mcp_tool_hint`
+# （CLI不在時に提示するMCPツール名）も対象とする。後者は `get_provider` をテスト内で上書きして
+# プロバイダを固定する。
 # 規約: passed=N failures=N を標準出力へ出し、失敗があれば終了コード1
 #       （.claude/rules/shell-script-style.md「テスト」）。
 # 実行: bash tests/test_vcs_provider.sh
@@ -114,6 +117,59 @@ gitlab_notes_output="$(gitlab_format_discussion_notes "$gitlab_discussions_fixtu
 assert_eq "gitlab_format_discussion_notes: 出力にCRが混入しない" \
   "$(printf '%s' "$gitlab_notes_output" | wc -c)" \
   "$(printf '%s' "$gitlab_notes_output" | tr -d '\r' | wc -c)"
+# --- parse_repo_slug / mcp_tool_hint（issue #34: gh/glab CLI不在時のMCPフォールバック） -------
+#
+# `parse_repo_slug` はリモートURL文字列だけを入力とする純粋関数のためそのままテストできる。
+# `mcp_tool_hint` は内部で `get_provider`（`git remote get-url origin`）を呼ぶため、テスト内で
+# `get_provider` を上書きしてプロバイダを固定する（Provider.shをsourceした後に定義することで、
+# 元の定義を差し替える）。
+
+# shellcheck source=../.claude/scripts/src/vcs/Provider.sh
+source "$repo_root/.claude/scripts/src/vcs/Provider.sh"
+
+assert_eq "parse_repo_slug: https形式（.git付き）" \
+  "github.com|o|r|o/r|https://github.com/o/r" \
+  "$(parse_repo_slug "https://github.com/o/r.git" | jq -r '[.host, .owner, .repo, .path, .url] | join("|")')"
+
+assert_eq "parse_repo_slug: https形式（.git無し・末尾スラッシュ）" \
+  "github.com|o|r|o/r|https://github.com/o/r" \
+  "$(parse_repo_slug "https://github.com/o/r/" | jq -r '[.host, .owner, .repo, .path, .url] | join("|")')"
+
+assert_eq "parse_repo_slug: ssh(scp形式)" \
+  "github.com|o|r|o/r|https://github.com/o/r" \
+  "$(parse_repo_slug "git@github.com:o/r.git" | jq -r '[.host, .owner, .repo, .path, .url] | join("|")')"
+
+assert_eq "parse_repo_slug: ssh://形式" \
+  "github.com|o|r|o/r|https://github.com/o/r" \
+  "$(parse_repo_slug "ssh://git@github.com/o/r.git" | jq -r '[.host, .owner, .repo, .path, .url] | join("|")')"
+
+assert_eq "parse_repo_slug: ssh://形式（ポート付き）" \
+  "ghe.example.com|o|r|o/r|https://ghe.example.com/o/r" \
+  "$(parse_repo_slug "ssh://git@ghe.example.com:2222/o/r.git" | jq -r '[.host, .owner, .repo, .path, .url] | join("|")')"
+
+assert_eq "parse_repo_slug: GitLabのネストしたnamespaceはownerにグループ階層が入る" \
+  "gitlab.example.com|g/sub|r|g/sub/r|https://gitlab.example.com/g/sub/r" \
+  "$(parse_repo_slug "https://gitlab.example.com/g/sub/r.git" | jq -r '[.host, .owner, .repo, .path, .url] | join("|")')"
+
+get_provider() { printf 'github\n'; }
+
+assert_eq "mcp_tool_hint: get_issue（GitHub）" \
+  "mcp__github__issue_read (method=\"get\", owner, repo, issue_number)" \
+  "$(mcp_tool_hint get_issue)"
+
+assert_eq "mcp_tool_hint: set_mr_description（GitHub）" \
+  "mcp__github__update_pull_request (owner, repo, pullNumber, body=ファイル内容)" \
+  "$(mcp_tool_hint set_mr_description)"
+
+assert_eq "mcp_tool_hint: 未知の関数名でも空にならずSKILL.mdの対応表へ誘導する" \
+  "対応するMCPツールは .claude/skills/issue-mr-flow/SKILL.md の対応表を参照" \
+  "$(mcp_tool_hint unknown_function)"
+
+get_provider() { printf 'gitlab\n'; }
+
+assert_eq "mcp_tool_hint: GitLabは対象外である旨を返す" \
+  "GitLab向けのMCPフォールバックは対象外です（DDR 0027）。glab CLIをインストール・認証してください" \
+  "$(mcp_tool_hint get_issue)"
 
 echo "passed=$passed failures=$failures"
 [ "$failures" -eq 0 ]

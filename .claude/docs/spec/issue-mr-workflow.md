@@ -99,6 +99,11 @@ MRとのやり取りだけを自動化する薄い層」として設計したが
 | `get_branch_work_files` | 現在のブランチ固有（`<defaultBaseBranch>` に無い）の `plans/` `worklog/` `reports/` ファイル一覧を返す（プロバイダ非依存）。日本語を含むパスをそのまま返すため `-c core.quotepath=false` を指定している（issue #9。詳細は「計画の2階層構造」節） | — | — |
 | `build_issue_body <purpose> <current> <expected> <acceptance>` | 標準4見出し（目的・現状・期待する動作・受け入れ条件）に沿ってissue本文を組み立てる（プロバイダ非依存。issue #25） | — | — |
 | `new_issue <title> <body>` | タイトル・本文からissueを新規作成し、`get_issue`と同じ形（number/title/body/url/slug）のJSONを返す（issue #25） | `gh issue create` → URLから番号抽出 → `github_get_issue` | `glab issue create` → URLから番号抽出 → `gitlab_get_issue` |
+| `get_vcs_access_mode` | 実行環境に該当プロバイダのCLIがあるかを判定し、`cli`（CLI経路）／`mcp`（MCPフォールバック経路）を返す（issue #34） | `command -v gh` | `command -v glab` |
+| `parse_repo_slug <remoteUrl>` | リモートURL（https / ssh(scp形式) / `ssh://`）から `{host, owner, repo, path, url}` のJSONを組み立てる（純粋関数。MCPツールが要求する `owner`/`repo` をCLIなしで得るため。issue #34） | — | — |
+| `get_repo_slug` | `git remote get-url origin` の値を `parse_repo_slug` へ渡す（issue #34） | — | — |
+| `mcp_tool_hint <funcName>` | Provider関数名に対応するGitHub MCPツールと主な引数を1行で返す（GitLabは対象外である旨を返す。issue #34） | — | — |
+| `require_vcs_cli <funcName>` | CLI経路が使えない場合に、代替すべきMCPツールを名指ししたメッセージをstderrへ出して終了コード1を返す。プロバイダ依存の各関数の先頭で呼ぶ（issue #34） | — | — |
 
 上表は `Provider.sh` 経由で公開する共通インターフェースであり、プロバイダ固有ファイル
 （`Github.sh` / `Gitlab.sh`）の内部ヘルパーは含まない。issue #48で追加した
@@ -262,6 +267,48 @@ resume・clear時に毎回、現在ブランチのissue/MR状態をコンテキ�
 - **フォールバック方針**: `main`ブランチ上（作業ブランチ未チェックアウト）では注入しない。
   `gh`未認証・API失敗等、情報収集に失敗した場合もセッション開始をブロックせず、短い失敗メッセージ
   のみを返す（best-effort。詳細な原因調査は人間が手動で行う）。
+- **`gh`/`glab` CLI自体が無い環境での挙動（issue #34）**: 上記の一般的な失敗と区別し、
+  `get_vcs_access_mode` が `mcp` を返す場合は専用の内容を注入する。具体的には
+  「VCS情報取得経路: MCP」「ブランチ名から抽出したissue番号（本文・タイトルはMCPで取得すること）」
+  「MCPツールに渡す owner/repo」「`.claude/skills/issue-mr-flow/SKILL.md`『`gh`/`glab` CLI不在時の
+  MCPフォールバック』節の参照とWebFetch・curlを使わない旨」の4点で、issue/PRの実データは取得しない
+  （hookはMCPツールを呼べないため）。**PR欄は「なし」ではなく「未取得」と表現する**: 変更前は
+  `gh` の失敗を握りつぶしていたため、PRが存在していても「PR: なし」と誤った情報が注入されていた。
+
+### `gh`/`glab` CLI不在時のMCPフォールバック経路（issue #34）
+
+Claude Code on the webのリモート実行環境のように、`gh`/`glab` CLIが存在せず `git`・`jq` しか
+使えない実行環境がある（issue #21対応時に実機確認。issue #34対応時にも再確認）。`AGENTS.md` は
+以前からこの場合にGitHub/GitLab公式のMCPサーバーツールで代替してよいと定めていたが、**具体的な
+対応手順が実装・文書化されておらず、AIエージェントが都度その場の判断でツールを選ぶ状態**だった。
+
+- **経路の判定**: `get_vcs_access_mode`（`cli` / `mcp`）。`.claude/skills/issue-mr-flow/SKILL.md`
+  の各サブコマンドは、手順に入る前にこれを呼んで経路を決める。
+- **手順の正**: Provider関数・サブコマンドごとのMCPツールと引数の対応表は
+  `.claude/skills/issue-mr-flow/SKILL.md`「`gh`/`glab` CLI不在時のMCPフォールバック」節に置く
+  （本specは仕組みの説明に留め、対応表を二重管理しない）。`issue-create` スキル
+  （`create-issue.sh`）についても同スキル側に読み替え手順を書く。
+- **機構的な誘導**: プロバイダ依存の8関数（`get_issue` / `new_issue` /
+  `new_draft_merge_request` / `get_mr_unresolved_comments` / `add_mr_thread_reply` /
+  `get_mr_for_branch` / `set_mr_description` / `add_mr_comment`）は先頭で `require_vcs_cli` を
+  呼び、CLI不在時は「代替すべきMCPツール名と引数」「`get_repo_slug` で owner/repo を得る方法」
+  「SKILL.mdの該当節」「WebFetch・curlへはフォールバックしないこと」をstderrへ出して失敗する。
+  手順を読まずにCLI経路を呼んだ場合でも、同じ案内へ収束させることが狙い。
+- **例外（`get_repo_url`）**: リモートURLの取得は `git remote get-url origin` というローカル操作で
+  済むため、MCP経路では `get_repo_slug` から組み立てたURLを返す（失敗させない）。これにより
+  `get_mr_diff_url` / `get_mr_diff_since_url` がMCP経路でも動作する。
+- **hookの縮退**: hookはMCPツールを呼べないため、以下のように縮退する。
+  - `session-start.sh`: 上記「セッション開始時の自動コンテキスト注入」節の記載どおり。
+  - `post-push-usage-report.sh`: 集計状態の更新までは行い、MRコメントの自動投稿はスキップして
+    その旨をstderrへ1行出す。`sinceLastPush`はリセットしないため、CLIのある環境で次にpushした
+    ときにまとめて投稿される。
+  - `post-push-compact-prompt.sh`: MR/PRのURLだけを「MCPツールで取得すること」という指示に
+    差し替え、Compare系リンク・レビュー依頼メッセージ・`/compact`の呼びかけは従来どおり行う。
+- **GitLabは対象外**: `glab` 不在時のGitLab向けMCP代替は対象外とする（利用実績が無く、ツール名・
+  引数を実機検証できないため）。判定・失敗メッセージの枠組みのみ共通で、`mcp_tool_hint` は
+  GitLabに対して「対象外」である旨を返す。詳細・却下案は
+  [0027-gh_glab-CLI不在時はMCPフォールバック経路へ機構的に誘導する.md](../ddr/0027-gh_glab-CLI不在時はMCPフォールバック経路へ機構的に誘導する.md)
+  参照。
 
 ### Draft PR作成失敗時の自動リトライ
 
@@ -1213,7 +1260,29 @@ issueはGitHubのUIからしか作成できず、標準4見出し（目的・現
   「issue作成（AIエージェント代行・スクリプト実行）」節のGitLab未検証注記を更新、
   「決定済み事項」へGitLabのシステムノートの扱いを追加、「未決定事項・懸念点」の
   「GitLab側の動作未検証」を部分解消の内容へ書き換え、本エントリを追加）
-- `.claude/docs/README.md`（DDR一覧に0026を追加）
+- `.claude/docs/README.md`（DDR一覧に0027を追加）
+変更（追加分・issue #34 gh/glab CLI不在時のMCPフォールバック経路）:
+- `.claude/scripts/src/vcs/Provider.sh`（`get_vcs_access_mode` / `parse_repo_slug` /
+  `get_repo_slug` / `mcp_tool_hint` / `require_vcs_cli` を追加。プロバイダ依存の8関数の先頭へ
+  `require_vcs_cli` ガードを挿入。`get_repo_url` はMCP経路で `get_repo_slug` から組み立てる
+  フォールバックを追加）
+- `.claude/hooks/session-start.sh`（CLI不在時に「経路はMCP」「ブランチ名から抽出したissue番号」
+  「owner/repo」「手順の参照先」を注入する分岐を追加。従来は`gh`の失敗を握りつぶし
+  「PR: なし」と誤表示していた）
+- `.claude/hooks/post-push-usage-report.sh`（CLI不在時はMRコメント投稿をスキップし、その旨を
+  stderrへ出力）
+- `.claude/hooks/post-push-compact-prompt.sh`（CLI不在時はMRリンク行をMCPでの取得指示に差し替え、
+  Compare系リンクとレビュー依頼メッセージは従来どおり出力）
+- `.claude/scripts/src/create-issue.sh`（CLI不在時の挙動をヘッダコメントへ明記）
+- `.claude/skills/issue-mr-flow/SKILL.md`（「`gh`/`glab` CLI不在時のMCPフォールバック」節を新設。
+  サブコマンド節冒頭・「前提」節から参照）
+- `.claude/skills/issue-create/SKILL.md`（手順3にMCP経路での読み替えを追加）
+- `AGENTS.md`（MCP代替の記述から、対応表の正であるSKILL.mdの該当節への参照を追加）
+- `tests/test_vcs_provider.sh`（`parse_repo_slug` / `mcp_tool_hint` の単体テストを追加）
+- `.claude/docs/spec/issue-mr-workflow.md`（本ファイル。「提供関数」表へ5関数を追加、
+  「セッション開始時の自動コンテキスト注入」のフォールバック方針を更新、
+  「`gh`/`glab` CLI不在時のMCPフォールバック経路」節を新設、本エントリを追加）
+- `.claude/docs/ddr/0027-gh_glab-CLI不在時はMCPフォールバック経路へ機構的に誘導する.md`（新規）
 
 ## 設定項目
 
