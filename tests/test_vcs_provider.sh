@@ -13,6 +13,9 @@
 # あわせてissue #34で追加した `parse_repo_slug`（リモートURLのパース）と `mcp_tool_hint`
 # （CLI不在時に提示するMCPツール名）も対象とする。後者は `get_provider` をテスト内で上書きして
 # プロバイダを固定する。
+# issue #68で追加した `github_normalize_issue_search_results` /
+# `gitlab_normalize_issue_search_results`（CLIのissue検索出力を共通形式へ正規化）と
+# `merge_issue_search_results`（複数キーワードぶんの結果を重複排除して統合）も対象。
 # 規約: passed=N failures=N を標準出力へ出し、失敗があれば終了コード1
 #       （.claude/rules/shell-script-style.md「テスト」）。
 # 実行: bash tests/test_vcs_provider.sh
@@ -168,6 +171,10 @@ assert_eq "mcp_tool_hint: set_mr_description（GitHub）" \
   "mcp__github__update_pull_request (owner, repo, pullNumber, body=ファイル内容)" \
   "$(mcp_tool_hint set_mr_description)"
 
+assert_eq "mcp_tool_hint: search_issues（GitHub。issue #68）" \
+  "mcp__github__search_issues (query, owner, repo)" \
+  "$(mcp_tool_hint search_issues)"
+
 assert_eq "mcp_tool_hint: 未知の関数名でも空にならずSKILL.mdの対応表へ誘導する" \
   "対応するMCPツールは .claude/skills/issue-mr-flow/SKILL.md の対応表を参照" \
   "$(mcp_tool_hint unknown_function)"
@@ -283,6 +290,54 @@ assert_eq "split_remote_url: ネストしたnamespace" \
 # ホスト名が取れなくても失敗させない（エラーにするかは呼び出し側の判断に委ねる）
 split_remote_url 'https://'
 assert_eq "split_remote_url: ホスト名が空でも失敗しない" "|" "$REPLY_HOST|$REPLY_PATH"
+
+# --- issue検索結果の正規化・統合（issue #68: 起票前の重複チェック） ------------------------
+# `github_search_issues` / `gitlab_search_issues` / `search_issues` 本体は `gh`/`glab` と
+# `get_provider` に依存するため対象外とし、CLI出力を受け取るだけの純粋関数
+# （`*_normalize_issue_search_results`）と、その結果を統合する `merge_issue_search_results` を
+# テストする（`gitlab_format_discussion_notes` と同じ切り出し方）。
+#
+# キーワード抽出の関数は実装していないため、その単体テストも存在しない（抽出は
+# `issue-create` スキル側でAIエージェントが行う。理由:
+# .claude/docs/ddr/0031-issue起票前の重複チェックは検索をProvider層へ置きキーワード抽出はAIに委ねる.md）。
+
+# GitHub CLIの `OPEN`/`CLOSED` を小文字へ揃え、キーを number/title/state/url に正規化する
+assert_eq "github_normalize_issue_search_results: stateを小文字化しキーを揃える" \
+  '[{"number":68,"title":"重複チェック","state":"open","url":"https://github.com/o/r/issues/68"},{"number":5,"title":"旧提案","state":"closed","url":"https://github.com/o/r/issues/5"}]' \
+  "$(github_normalize_issue_search_results '[{"number":68,"title":"重複チェック","state":"OPEN","url":"https://github.com/o/r/issues/68"},{"number":5,"title":"旧提案","state":"CLOSED","url":"https://github.com/o/r/issues/5"}]')"
+
+assert_eq "github_normalize_issue_search_results: 該当0件は空配列のまま" \
+  '[]' \
+  "$(github_normalize_issue_search_results '[]')"
+
+# GitLabは iid / web_url / opened というキー・値を返すため読み替える
+assert_eq "gitlab_normalize_issue_search_results: iid・web_url・openedを読み替える" \
+  '[{"number":7,"title":"検索関数の追加","state":"open","url":"https://gitlab.example.com/g/r/-/issues/7"}]' \
+  "$(gitlab_normalize_issue_search_results '[{"iid":7,"title":"検索関数の追加","state":"opened","web_url":"https://gitlab.example.com/g/r/-/issues/7"}]')"
+
+assert_eq "gitlab_normalize_issue_search_results: closedはそのまま" \
+  '[{"number":3,"title":"x","state":"closed","url":"https://gitlab.example.com/g/r/-/issues/3"}]' \
+  "$(gitlab_normalize_issue_search_results '[{"iid":3,"title":"x","state":"closed","web_url":"https://gitlab.example.com/g/r/-/issues/3"}]')"
+
+# 複数キーワードぶんの検索結果を、numberで重複排除しつつ番号の降順で統合する
+assert_eq "merge_issue_search_results: 連結・重複排除・番号の降順" \
+  '[{"number":68,"title":"b","state":"open","url":"u68"},{"number":12,"title":"c","state":"closed","url":"u12"},{"number":5,"title":"a","state":"open","url":"u5"}]' \
+  "$(merge_issue_search_results \
+    '[{"number":5,"title":"a","state":"open","url":"u5"},{"number":68,"title":"b","state":"open","url":"u68"}]' \
+    '[{"number":68,"title":"b","state":"open","url":"u68"},{"number":12,"title":"c","state":"closed","url":"u12"}]')"
+
+# 引数0個で `printf '%s\n' "$@"` の空行がjqのパースエラーになるのを防いでいること
+assert_eq "merge_issue_search_results: 引数0個なら空配列" \
+  '[]' \
+  "$(merge_issue_search_results)"
+
+assert_eq "merge_issue_search_results: 空配列だけを渡しても空配列" \
+  '[]' \
+  "$(merge_issue_search_results '[]' '[]')"
+
+assert_eq "merge_issue_search_results: 1件だけでもそのまま配列で返す" \
+  '[{"number":68,"title":"b","state":"open","url":"u68"}]' \
+  "$(merge_issue_search_results '[{"number":68,"title":"b","state":"open","url":"u68"}]')"
 
 echo "passed=$passed failures=$failures"
 [ "$failures" -eq 0 ]
