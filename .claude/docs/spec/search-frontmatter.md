@@ -20,7 +20,7 @@ issue #38対応。`.claude/scripts/src/extract-frontmatter.sh` が**ディレク
 このスクリプトは、**index.jsonlの最新化 → 全index.jsonlの結合 → 絞り込み・並び替え・整形**を
 1コマンドで完結させ、ドキュメント探索の第一手段を全文探索からインデックス検索へ移す
 （方針の位置づけ・却下案:
-[0048-ドキュメント探索はfrontmatterインデックス検索を第一手段にする.md](../ddr/0048-ドキュメント探索はfrontmatterインデックス検索を第一手段にする.md)）。
+[0049-ドキュメント探索はfrontmatterインデックス検索を第一手段にする.md](../ddr/0049-ドキュメント探索はfrontmatterインデックス検索を第一手段にする.md)）。
 
 呼び出し側（AIエージェント）向けの手順・jqレシピは `.claude/skills/doc-search/SKILL.md` が持つ。
 本ファイルはスクリプトの仕様のみを扱う。
@@ -213,7 +213,7 @@ jqはストリーミング出力するため、この種の型エラーは**途�
 
 - 新規: `.claude/scripts/src/search-frontmatter.sh`、`.claude/skills/doc-search/SKILL.md`、
   `.claude/scripts/test/test_search_frontmatter.sh`、本ファイル、
-  [DDR 0048](../ddr/0048-ドキュメント探索はfrontmatterインデックス検索を第一手段にする.md)。
+  [DDR 0049](../ddr/0049-ドキュメント探索はfrontmatterインデックス検索を第一手段にする.md)。
 - 変更: `AGENTS.md`（ドキュメント探索の第一手段を定めるルールを追加）、
   `.claude/rules/markdown-frontmatter.md`（`index.jsonl` を検索インデックスとして使う旨を追記）、
   `.claude/docs/README.md`（spec一覧へ本ファイル、DDR一覧へ0048を追加）、

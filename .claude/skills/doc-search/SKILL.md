@@ -11,7 +11,7 @@ keywords: [index.jsonl, frontmatter, 横断検索, type, tags, keywords, jq, gre
 
 リポジトリ内のmarkdownドキュメントを、**本文の全文探索ではなくfrontmatterのインデックス
 （`index.jsonl`）経由で**検索する（issue #38。経緯・却下案:
-`.claude/docs/ddr/0048-ドキュメント探索はfrontmatterインデックス検索を第一手段にする.md`）。
+`.claude/docs/ddr/0049-ドキュメント探索はfrontmatterインデックス検索を第一手段にする.md`）。
 
 実処理は `.claude/scripts/src/search-frontmatter.sh` にある（仕様:
 `.claude/docs/spec/search-frontmatter.md`）。

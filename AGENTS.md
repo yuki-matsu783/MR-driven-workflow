@@ -51,7 +51,7 @@ keywords: [issue-mr-flow, 計画, claude-code, gemini-cli, gh, glab, webfetch, �
   またはインデックス検索が0件だったときに限る。使い方・jqレシピは
   `.claude/skills/doc-search/SKILL.md`、仕様は `.claude/docs/spec/search-frontmatter.md`
   （issue #38。理由・却下案は
-  `.claude/docs/ddr/0048-ドキュメント探索はfrontmatterインデックス検索を第一手段にする.md`）。
+  `.claude/docs/ddr/0049-ドキュメント探索はfrontmatterインデックス検索を第一手段にする.md`）。
 
 ## プロジェクト概要
 

@@ -1,12 +1,12 @@
 ---
-title: 0048. ドキュメント探索はfrontmatterインデックス検索を第一手段にする
+title: 0049. ドキュメント探索はfrontmatterインデックス検索を第一手段にする
 type: ddr
 description: リポジトリ内のドキュメントを探す際、grep/findによる全文探索より先にindex.jsonlの横断検索を使う方針と、その入口をスクリプト＋スキルの2層で用意する判断
 tags: [doc-search, frontmatter, search, ddr]
 keywords: [index.jsonl, 横断検索, grep, 全文探索, search-frontmatter, doc-search, スキル, AGENTS.md, タグAND, jqレシピ]
 ---
 
-# 0048. ドキュメント探索はfrontmatterインデックス検索を第一手段にする
+# 0049. ドキュメント探索はfrontmatterインデックス検索を第一手段にする
 
 ## 背景
 
