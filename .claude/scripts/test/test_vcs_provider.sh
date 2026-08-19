@@ -243,5 +243,46 @@ fi
 assert_eq "provider_from_remote_url: ホスト名が空なら終了コード1" \
   "1" "$empty_host_status"
 
+# --- split_remote_url ---------------------------------------------------------------------
+#
+# remote URLをホスト部とパス部へ分解する純粋関数（issue #55）。`provider_from_remote_url` と
+# `parse_repo_slug` が共有する土台であり、両者の既存テスト（21件）が引き続き通ることが
+# 「共通化しても振る舞いが変わっていない」ことの主たる根拠になる。
+#
+# 結果はグローバル変数 `REPLY_HOST` / `REPLY_PATH` へ返るため、パイプ（右辺がサブシェルになり
+# 代入が呼び出し元へ伝わらない）ではなく直接呼ぶ
+# （.claude/rules/shell-script-style.md「`REPLY` へ返す関数はパイプではなく…」）。
+
+split_remote_url 'https://github.com/o/r.git'
+assert_eq "split_remote_url: https形式" "github.com|o/r" "$REPLY_HOST|$REPLY_PATH"
+
+split_remote_url 'git@github.com:o/r.git'
+assert_eq "split_remote_url: scp形式（:の後ろはパス）" "github.com|o/r" "$REPLY_HOST|$REPLY_PATH"
+
+split_remote_url 'ssh://git@ghe.example.com:2222/o/r.git'
+assert_eq "split_remote_url: ポート付きssh（:の後ろは数字＝ポート）" \
+  "ghe.example.com|o/r" "$REPLY_HOST|$REPLY_PATH"
+
+# 認証情報 user@ の除去がパス中の `@` へ誤爆しないこと（最初の `/` より前だけを見て判定する）
+split_remote_url 'https://user@gitlab.com:8080/foo/b@r.git'
+assert_eq "split_remote_url: パスに@を含む" "gitlab.com|foo/b@r" "$REPLY_HOST|$REPLY_PATH"
+
+# ホストのみ小文字化し、パス（owner/repo）の大文字は保つ。`parse_repo_slug` の唯一の
+# 振る舞い変更（issue #55）を明示的に固定する
+split_remote_url 'https://GitHub.COM/O/R.git'
+assert_eq "split_remote_url: ホストは小文字化・パスは保つ" "github.com|O/R" "$REPLY_HOST|$REPLY_PATH"
+
+split_remote_url 'https://github.com'
+assert_eq "split_remote_url: パス無し" "github.com|" "$REPLY_HOST|$REPLY_PATH"
+
+# GitLabのネストしたnamespace（group/subgroup/repo）
+split_remote_url 'https://gitlab.example.com/g/sub/r.git'
+assert_eq "split_remote_url: ネストしたnamespace" \
+  "gitlab.example.com|g/sub/r" "$REPLY_HOST|$REPLY_PATH"
+
+# ホスト名が取れなくても失敗させない（エラーにするかは呼び出し側の判断に委ねる）
+split_remote_url 'https://'
+assert_eq "split_remote_url: ホスト名が空でも失敗しない" "|" "$REPLY_HOST|$REPLY_PATH"
+
 echo "passed=$passed failures=$failures"
 [ "$failures" -eq 0 ]

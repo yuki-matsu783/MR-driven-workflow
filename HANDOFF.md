@@ -17,7 +17,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - issue: #63 ワークフロー機構の単体テストを tests/ から .claude/scripts/test/ へ移動する
 - ブランチ: claude/workflow-unit-tests-migration-ffdv02
 - PR: #71 https://github.com/yuki-matsu783/MR-driven-workflow/pull/71（Draft）
-- push回数: 1
+- push回数: 2
 
 進捗記号: `[x]` 完了 / `[]` 未着手・進行中 / `[-]` 今回は実施しない（スキップ）
 
@@ -79,7 +79,10 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
   `.claude/rules/shell-script-style.md`（「テスト」節）・`index.md`（Repository Map）・
   spec 3本の「現在の状態を説明する記述」を新パスへ更新し、
   `.claude/docs/spec/issue-mr-workflow.md` の「## 影響範囲」へ issue #63 のエントリを追記した。
-- DDR `0029-機構自身の単体テストは.claude_scripts_test配下へ置く.md` を新規作成し、
+- **mainマージ（`bf7973e`）とコンフリクト解消を実施**（`resolve-conflict` スキルの手順）。
+  詳細は下記「判断を迷った内容」参照。マージ後の全テストは
+  13 / 17 / 15 / 33 / 44（計122件）・`failures=0`。
+- DDR `0031-機構自身の単体テストは.claude_scripts_test配下へ置く.md`（当初0029。改番）を作成し、
   `.claude/docs/README.md` のDDR一覧へ追加した。却下案として「`tests/` のまま配布対象へ加える」
   「配布しない」「`.claude/tests/`」の3件を記録している。
 - `git diff -U0` の削除行のみを抽出し、DDR本文と spec の「## 影響範囲」過去エントリが1行も
@@ -98,6 +101,29 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - flow-id 5-1（`plans/` `worklog/` の削除とHANDOFFリセット）・5-2（Draft解除）は、レビュー合意後に実施する。
 
 ## 判断を迷った内容
+
+- **mainマージ時のコンフリクト解消（2026-08-19、`resolve-conflict` スキル Step 7の記録）**。
+  - **類型A: DDR番号の衝突**。main側に issue #46 の `0029` と issue #60 の `0030` が入ったため、
+    本ブランチの `0029` が重複した。**main側を正とし本ブランチ側を `0031` へ繰り下げ**た。
+    改番に伴い更新したのは、ファイル名／frontmatterの `title`／本文冒頭の見出し／
+    `.claude/docs/README.md` のDDR一覧／`.claude/docs/spec/issue-mr-workflow.md` の
+    「影響範囲」内の参照2箇所（`（DDR 0029）` と新規ファイル行）。`grep -rn "0029-"` で
+    参照漏れが無いことを確認した。
+  - **類型C: `.claude/docs/README.md` のDDR一覧**。両側の追加行をどちらも残し、番号順
+    （0029 → 0030 → 0031）に並べ直した。
+  - **類型D: `issue-mr-workflow.md` の「影響範囲」**。両側が末尾へ追記していた。
+    **main側（issue #55・#46）を先、本ブランチ（issue #63）を後**に置き、時系列順に統合した。
+    過去エントリの中身は書き換えていない。
+  - **ファイル位置の衝突**。issue #46 が `tests/test_check_base_conflicts.sh` を新規追加して
+    いたが、本PRは `tests/` を廃止する。他の4本と同じ規則で `.claude/scripts/test/` へ移し、
+    `repo_root` を `../../..` へ、冒頭コメント・`shellcheck source=` のパスを調整した。
+  - あわせて、main由来の「現在の状態を説明する記述」のうちテストのパスを指す4箇所
+    （`resolve-conflict/SKILL.md` の検証手順、`check-base-conflicts.sh` のコメント、
+    `check-base-conflicts.md`、`issue-mr-workflow.md` の「決定済み事項」）を新パスへ更新した。
+    **`create-commit.md` と `check-base-conflicts.md` の「影響範囲」内の記述は
+    point-in-time の記録として更新していない。**
+  - **`test_vcs_provider.sh` が 36件 → 44件になった**ことで、PR #56（issue #55）が追加した
+    8件が移動先ファイルへ正しく取り込まれたと判断した。
 
 - **`tests/test_external_command_server.sh` を指す3箇所を更新するか**（`shell-script-style.md`
   L188・L275、`shell-scripts.md` L33）。→ **更新しない**と判断した。このファイルはこのリポジトリに
@@ -118,11 +144,8 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 
 ## 未解決の内容
 
-- **PR #56（OPEN）との衝突**。#56 が `tests/test_vcs_provider.sh` と
-  `.claude/docs/spec/issue-mr-workflow.md` を変更しているため、本ブランチの rename と
-  マージ時に rename/modify conflict になる。**後からマージする側で解決が必要**で、
-  `.claude/scripts/test/test_vcs_provider.sh` へ #56 が追加した8件のテストを取り込む形になる見込み。
-  issue #63 の備考は「#56 マージ後の着手が望ましい」としていたが、依頼を受けて先行着手した。
+- ~~PR #56（OPEN）との衝突~~ **解消済み**。#56 はmainへマージされ、本ブランチへ取り込んだ
+  （`test_vcs_provider.sh` が44件になり、#56 の8件が移動先ファイルへ入ったことを確認）。
 - `describe`（MR description更新）は `gh` CLI不在のため未実行。PR #71 の description は
   MCPツール（`mcp__github__create_pull_request`）で直接設定した。
 - **`HANDOFF.md` のヘッダキー名がどこにも明文化されていない**。`update-handoff-progress.sh` は

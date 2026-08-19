@@ -35,5 +35,5 @@
 # インデックス。複数ブランチが並行してmarkdownのfrontmatterを編集すると生成物の近接行同士が
 # 競合していたため、issue #36でGit管理から外し生成物として扱う方針に変更した。SessionStart hook
 # （.claude/hooks/session-start.sh）がセッション開始のたびに自動再生成する（詳細:
-# .claude/docs/ddr/0024-frontmatterのindex.jsonlをGit管理から外しSessionStart-hookで生成する.md）。
+# .claude/docs/ddr/0025-frontmatterのindex.jsonlをGit管理から外しSessionStart-hookで生成する.md）。
 **/index.jsonl

@@ -1,6 +1,6 @@
 ---
 name: commit
-description: 'Generate a Japanese commit message with Conventional Commits prefix and create one or more atomic commits. Use whenever a commit needs to be made in this repository — both when the user explicitly invokes /commit AND whenever an AI agent commits autonomously as part of the issue-mr-flow (flow-id 2-2/2-7/3-2/3-7/4-2/4-7/5-2). All commits in this repo MUST go through this skill; direct git commit is blocked by a PreToolUse hook. Flow: git status → analyze diff → filter sensitive/junk files → .claude/scripts/src/create-commit.sh (NO Claude footer, no confirmation; multiple mixed prefixes are auto-split into separate commits)'
+description: 'Generate a Japanese commit message with Conventional Commits prefix and create one or more atomic commits. Use whenever a commit needs to be made in this repository — both when the user explicitly invokes /commit AND whenever an AI agent commits autonomously as part of the issue-mr-flow (flow-id 2-2/2-7/3-2/3-7/4-2/4-7/5-3). All commits in this repo MUST go through this skill; direct git commit is blocked by a PreToolUse hook. Flow: git status → analyze diff → filter sensitive/junk files → .claude/scripts/src/create-commit.sh (NO Claude footer, no confirmation; multiple mixed prefixes are auto-split into separate commits)'
 title: git commit標準化
 type: skill
 tags: [issue-mr-flow, workflow, skill]
@@ -18,7 +18,7 @@ keywords: [commit, コミット]
 
 - ユーザーが明示的に `/commit` と入力した場合
 - AIエージェントが本リポジトリでコミットを作成する場面全般
-  （`.claude/skills/issue-mr-flow/SKILL.md` の全体フローflow-id 2-2/2-7/3-2/3-7/4-2/4-7/5-2
+  （`.claude/skills/issue-mr-flow/SKILL.md` の全体フローflow-id 2-2/2-7/3-2/3-7/4-2/4-7/5-3
   「commit, push してレビュー依頼を行う」等）
 
 `git commit` の直接実行は `.claude/hooks/block-direct-git-commit.sh`（PreToolUse hook）により
@@ -34,6 +34,13 @@ hookの対象にならず正規に実行できる。
 - **`git commit --amend` は使わない**（常に新規コミット）
 - **失敗時に `git reset` などで自動ロールバックしない** — 状況を報告してユーザに判断を仰ぐ
 - **ステージングされていない変更（unstaged / untracked）はコミット対象に含めない** — ユーザに質問せず自動的に除外する。コミット対象は `git diff --cached` で確認できるステージング済み変更のみ
+
+**削除したファイルのパスは、他のファイルと同じように `--` の後ろへ並べてよい**（issue #60）。
+追跡済みファイルを削除しただけのパスは、ラッパーがそのまま「削除」としてステージする。
+**先に削除をステージしてから残りをラッパーへ渡す2段構えは不要**であり、むしろそれを行うと
+当該パスがindexから消えるため、後続の処理がpathspec不一致で失敗する。既に削除がステージ済みの
+パスを渡した場合は、冪等にスキップして通知するだけになる
+（仕様: `.claude/docs/spec/create-commit.md`、経緯: `.claude/docs/ddr/0030-create-commitは削除ステージ済みパスをgit-addの失敗時分類で吸収する.md`）。
 
 ## 実行フロー
 
@@ -90,6 +97,9 @@ hookの対象にならず正規に実行できる。
 - `*.pyc`, `*.class`, `*.o`
 - `*.log`, `logs/`
 - `tmp/`, `temp/`, `*.tmp`, `*.bak`, `*.orig`
+
+**削除されたファイルは除外対象ではない**（issue #60）。`git status` の `D`（deleted）で
+表れているパスも、通常の変更と同じようにコミット対象へ含めてよい。
 
 **除外したファイルがあれば**、コミット実行前にチャットに明示：
 ```
@@ -159,4 +169,3 @@ bash .claude/scripts/src/create-commit.sh --message "<prefix>: <日本語説明>
 ## してはいけないこと
 
 - TodoWrite / Agent ツールの使用
-- 機密ファイルが残っていてもユーザに警告せず除外（必ず明示する）
