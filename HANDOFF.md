@@ -16,7 +16,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 
 - issue: #61（Provider.sh にDraft解除の関数が無く、flow-id 5-2がGitHub専用の直接呼び出しになっている）
 - ブランチ: `claude/provider-draft-release-flow-id-996qdf`
-- PR: 未作成
+- PR: #76（Draft。https://github.com/yuki-matsu783/MR-driven-workflow/pull/76 ）
 - push回数: 1
 
 非対話的な実行環境（Claude Code on the web のリモート実行環境）での対応のため、人間のレビュー
@@ -47,10 +47,13 @@ issue #61 の受け入れ条件に沿って、Draft解除をVCS抽象化層（`P
 
 ## 次にやること
 
+- PR #76 のレビュー（人間が実施）
 - `gh` / `glab` が使えるローカル環境で、実PR/MRに対して `set_mr_ready` を実行し動作確認する
-  （issue #61 の受け入れ条件「GitHubの実PRで動作確認できている」に対応。確認できたら
-  `.claude/docs/spec/issue-mr-workflow.md`「未決定事項・懸念点」のissue #61の項目を削除する）
-- PR作成・レビュー・マージ（人間が実施）
+  （issue #61 の受け入れ条件「GitHubの実PRで動作確認できている」に対応。PR #76 自身を対象に
+  できる。確認できたら `.claude/docs/spec/issue-mr-workflow.md`「未決定事項・懸念点」の
+  issue #61 の項目を削除する）
+- flow-id 5-2（defaultブランチとのコンフリクト検知）→ 5-3（Draft解除。`set_mr_ready 76`）→
+  5-4（squash merge。人間が実施）
 
 ## 判断を迷った内容
 
