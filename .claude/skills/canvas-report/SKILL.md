@@ -10,6 +10,11 @@ keywords: [canvas, TailwindCSS, mermaid, ノード, エッジ, 依存関係, 関
 # canvas-report スキル
 
 報告用HTML（`reports/日付_<全体計画名>_<内容を簡潔に>.html`。調査結果に限らず設計・実装・AIアセット反映等の報告に使う。運用は`.claude/rules/docs-workflow.md`参照）のうち、
+
+**結果の正文は同名の`.md`側であり、このHTMLはその視覚化である**（issue #87。詳細:
+`.claude/skills/issue-mr-flow/SKILL.md`「計画と実施結果の分離」）。HTMLを書く前に、対応する
+`reports/…md` に結果が記録されていることを確認する。
+
 複数の要素同士の「関連・依存関係」を主題とする内容を、ノード（カード）とエッジ（線）で構成される
 canvas形式で表現するためのスキル。issue #58の調査・実装で、TailwindCSS CDNの通常レイアウト版
 （一覧・表形式）と比較したうえで採用した（詳細な比較検討の経緯は

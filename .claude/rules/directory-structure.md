@@ -56,10 +56,15 @@ keywords: [ディレクトリ構成, claude, gemini, 配置方針, plans, worklo
 └── README.md
 ```
 
-`reports/日付_<全体計画名>_<内容>.html`（`.claude/skills/canvas-report/SKILL.md`参照）・`usage/`・
-`.claude/state/`は、いずれもワークフロー実行中に動的に作成されるディレクトリのため、初期スケルトン
-には含まれない（作成・削除のタイミングは `.claude/rules/docs-workflow.md`・
+`reports/`・`usage/`・`.claude/state/`は、いずれもワークフロー実行中に動的に作成されるディレクトリの
+ため、初期スケルトンには含まれない（作成・削除のタイミングは `.claude/rules/docs-workflow.md`・
 `.claude/skills/issue-mr-flow/SKILL.md` を参照）。
+
+`reports/` には**mdとhtmlの2種類**を置く。`reports/日付_<全体計画名>_<内容を簡潔に>.md` が調査結果・
+作業結果・反映結果の**正文**で（個別計画へ結果を書かないための分離先。issue #87。詳細:
+`.claude/skills/issue-mr-flow/SKILL.md`「計画と実施結果の分離」）、
+`reports/日付_<全体計画名>_<内容を簡潔に>.html` はその内容を視覚的にまとめた自己完結HTMLである
+（`.claude/skills/canvas-report/SKILL.md` 参照）。両者は併存させ、flow-id 5-1でまとめて削除する。
 
 `usage/` は対応工数レポート機能のローカル作業状態で、`.gitignore`対象（`/usage/`）。内訳は
 `usage/session-logs/<sessionId>/`（セッションログのミラー）・`usage/state/<branch>.json`（集計状態）・
