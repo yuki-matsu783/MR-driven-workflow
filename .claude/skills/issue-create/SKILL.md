@@ -4,7 +4,7 @@ description: issueをAIエージェントが起票（作成）したいときに
 title: issue起票（AI代行）
 type: skill
 tags: [issue, automation, github, gitlab]
-keywords: [issue作成, create-issue.sh, 目的, 現状, 期待する動作, 受け入れ条件, テンプレート, issue-mr-flow]
+keywords: [issue作成, create-issue.sh, 目的, 現状, 期待する動作, 受け入れ条件, テンプレート, issue-mr-flow, 重複チェック, 類似issue, search_issues]
 ---
 
 # issue起票（AI代行）
@@ -16,14 +16,66 @@ keywords: [issue作成, create-issue.sh, 目的, 現状, 期待する動作, 受
 
 ## 実行フロー
 
-1. ユーザーの依頼内容から、issueに必要な5項目（タイトル・目的・現状・期待する動作・受け入れ条件）
-   を埋められるか確認する。`.github/ISSUE_TEMPLATE/task.md` / `.gitlab/issue_templates/task.md`
+各手順の見出しには番号と内容名を併記する。後から手順を追加・変更する際に、番号ではなく
+名前で位置を指せるようにするため。
+
+1. **5項目を組み立てる** — ユーザーの依頼内容から、issueに必要な5項目（タイトル・目的・現状・
+   期待する動作・受け入れ条件）を埋められるか確認する。
+   `.github/ISSUE_TEMPLATE/task.md` / `.gitlab/issue_templates/task.md`
    と同じ4見出し構成に対応する。情報が不足している場合は、AskUserQuestionまたは通常のチャットで
    ユーザーに質問して補う。**依頼内容から読み取れない項目を勝手に創作しない。**
-2. 組み立てたタイトルと4項目の内容をユーザーに提示し、issueとして作成してよいか確認を取る
-   （GitHub/GitLab上に公開される操作のため、他のissue-mr-flowサブコマンド同様、明示的な合図を
-   待ってから実行する）。
-3. 承認を得たら、以下の形で `.claude/scripts/src/create-issue.sh` を実行する。
+
+2. **類似・重複issueをチェックする**（issue #68） — 最終確認へ進む前に、組み立てた内容と近い
+   既存issueが無いかを検索して提示する。人間がUIから起票する場合は入力中に類似issueが
+   サジェストされるが、`create-issue.sh` 経由のAI代行ではそれが働かないため、この手順で補う。
+
+   1. **検索キーワードを3〜5個選ぶ。** 手順1で組み立てたタイトルと目的から、AIエージェント自身が
+      選ぶ（`Provider.sh` 側にキーワード抽出は実装されていない。理由:
+      `.claude/docs/ddr/0033-issue起票前の重複チェックは検索をProvider層へ置きキーワード抽出はAIに委ねる.md`）。
+      粒度の指針:
+      - **選ぶ**: そのissue固有の語（機能名・関数名・スクリプト名・ファイル名・固有名詞）。
+        例: `search_issues` `create-issue.sh` `frontmatter` `Draft PR`
+      - **選ばない**: 「追加」「修正」「対応」「改善」のような汎用語、`issue` `ワークフロー`
+        `SKILL.md` のようにこのリポジトリのほぼ全issueに現れる語。ヒットが多すぎて
+        重複の判定に使えないため。
+      - 語は短く区切る。長い複合句（「issue起票時の類似issueチェック」）は一致しにくいので、
+        「類似issue」「重複」のように分ける。
+   2. **検索する。**
+
+      ```bash
+      source .claude/scripts/src/vcs/Provider.sh
+      search_issues "<キーワード1>" "<キーワード2>" "<キーワード3>"
+      ```
+
+      `[{number, title, state, url}]` のJSON配列が返る。**closedのissueも含まれる**
+      （過去に見送られた提案の再提出を検知するため）。キーワードごとに1回ずつ検索した結果が
+      統合されており、上限は5キーワードである。
+
+      **`gh`/`glab` CLIが無い実行環境では**（`get_vcs_access_mode` が `mcp` を返す場合）、
+      `mcp__github__search_issues`（`query`, `owner`, `repo`）に読み替える。このMCPツールは
+      自然言語のセマンティック検索で既に `is:issue` にスコープされているため、CLI版のように
+      キーワードごとに呼び分けず、1回の `query` に複数キーワードを平文で並べてよい。
+      `owner`/`repo` は `get_repo_slug | jq -r '.owner, .repo'` で得る。
+      WebFetchツール・curlへはフォールバックしない（DDR 0020, DDR 0027）。
+   3. **結果を提示する。** 候補が1件以上あれば「番号・状態・タイトル」の一覧（URL付き）で示し、
+      それぞれが今回の依頼とどう近いのか・どこが違うのかを一言添える。
+      候補が0件のときは「**類似issueは見つかりませんでした**」と明示したうえで手順3へ進む
+      （検索したこと自体を黙らせない）。
+   4. **判断はユーザーに委ねる。** 候補があった場合は `AskUserQuestion` で次を選んでもらう。
+      - `新規にissueを起票する (Recommended)` — 候補はあるが別の関心事だと判断した場合
+      - `既存issue #<番号> へコメントを追記する` — 候補ごとに選択肢を作ってよい。選ばれた場合、
+        本スキルは起票を行わず、追記内容をまとめてユーザーに渡す（コメント投稿自体は本スキルの
+        対象外）
+      - `起票をやめる`
+
+      **AIは候補を提示するに留め、重複と断定して勝手に起票を中止しない**（似ているだけで、
+      粒度・観点が異なる別issueであることは珍しくないため）。
+
+3. **ユーザーへ最終確認する** — 組み立てたタイトルと4項目の内容をユーザーに提示し、issueとして
+   作成してよいか確認を取る（GitHub/GitLab上に公開される操作のため、他のissue-mr-flow
+   サブコマンド同様、明示的な合図を待ってから実行する）。
+
+4. **issueを作成する** — 承認を得たら、以下の形で `.claude/scripts/src/create-issue.sh` を実行する。
 
    ```bash
    .claude/scripts/src/create-issue.sh \
@@ -48,10 +100,14 @@ keywords: [issue作成, create-issue.sh, 目的, 現状, 期待する動作, 受
    3. `mcp__github__issue_write`（`method="create"`, `owner`, `repo`, `title`, `body`）で作成する。
    4. WebFetchツール・curlへはフォールバックしない（DDR 0020, DDR 0027）。
 
-4. 結果（issue番号・URL）をユーザーに提示する。続けてそのissueに着手するかどうかをユーザーに確認し、
-   着手する場合は `/issue-mr-flow start <issue番号>` に進む。
+5. **結果を提示する** — 結果（issue番号・URL）をユーザーに提示する。続けてそのissueに着手するか
+   どうかをユーザーに確認し、着手する場合は `/issue-mr-flow start <issue番号>` に進む。
 
 ## してはいけないこと
 
 - ユーザーの明示的な確認なしに、いきなり `create-issue.sh` を実行しない。
 - 4見出しの内容を、ユーザーの依頼から読み取れる範囲を超えて創作しない。
+- **類似issueが見つかったことだけを根拠に、ユーザーの判断を待たず起票を中止しない**（issue #68）。
+  重複かどうかを決めるのは人間であり、AIは候補の提示までを担当する。
+- **手順2（類似・重複issueのチェック）を省略して最終確認へ進まない。** 検索が0件だった場合も、
+  その事実を明示する。

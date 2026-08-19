@@ -107,6 +107,7 @@ MRとのやり取りだけを自動化する薄い層」として設計したが
 | `get_branch_work_files` | 現在のブランチ固有（`<defaultBaseBranch>` に無い）の `plans/` `worklog/` `reports/` ファイル一覧を返す（プロバイダ非依存）。日本語を含むパスをそのまま返すため `-c core.quotepath=false` を指定している（issue #9。詳細は「計画の2階層構造」節） | — | — |
 | `build_issue_body <purpose> <current> <expected> <acceptance>` | 標準4見出し（目的・現状・期待する動作・受け入れ条件）に沿ってissue本文を組み立てる（プロバイダ非依存。issue #25） | — | — |
 | `new_issue <title> <body>` | タイトル・本文からissueを新規作成し、`get_issue`と同じ形（number/title/body/url/slug）のJSONを返す（issue #25） | `gh issue create` → URLから番号抽出 → `github_get_issue` | `glab issue create` → URLから番号抽出 → `gitlab_get_issue` |
+| `search_issues <キーワード...>` | キーワードで既存issueを検索し `[{number, title, state, url}]` のJSON配列を返す（起票前の重複チェック用。issue #68）。**closedも対象**。キーワードごとに1回ずつ検索して統合する（最大5キーワード。超過分は標準エラーへ通知して切り捨て）。`state` は `open`/`closed` へ正規化する | `gh issue list --search`（キーワードごと） | `glab issue list --search`（キーワードごと） |
 | `get_vcs_access_mode` | 実行環境に該当プロバイダのCLIがあるかを判定し、`cli`（CLI経路）／`mcp`（MCPフォールバック経路）を返す（issue #34） | `command -v gh` | `command -v glab` |
 | `parse_repo_slug <remoteUrl>` | リモートURL（https / ssh(scp形式) / `ssh://`）から `{host, owner, repo, path, url}` のJSONを組み立てる（純粋関数。MCPツールが要求する `owner`/`repo` をCLIなしで得るため。issue #34） | — | — |
 | `get_repo_slug` | `git remote get-url origin` の値を `parse_repo_slug` へ渡す（issue #34） | — | — |
@@ -145,6 +146,14 @@ scheme除去・認証情報（`user@`）除去・ポート除去・scp形式（`
 
 scp形式（`git@host:o/r.git`）とポート付きURL（`host:2222/o/r.git`）の区別は、`:` の後ろが
 **数字だけかどうか**で行う。これがパラメータ展開だけで書ける唯一の分岐点である。
+
+issue #68で追加した3つの関数も同じく内部ヘルパーである。`github_normalize_issue_search_results` /
+`gitlab_normalize_issue_search_results`（`gh issue list --json` / `glab issue list --output json` の
+出力を共通形式 `{number, title, state, url}` へ正規化する）はプロバイダ固有ファイル側に、
+`merge_issue_search_results`（複数キーワードぶんの検索結果を `number` で重複排除し番号の降順で
+統合する）は `Provider.sh` 側にある。いずれも `gh`/`glab` を呼ばずjqだけで完結するため、
+`gitlab_format_discussion_notes` と同じ理由で切り出して単体テストの対象にしている。公開されているのは
+`search_issues` の方である。
 
 **`Provider.sh` 内の関数がすべて公開インターフェースとは限らない点に注意する。** 上表に載るのは
 呼び出し側（スキル・他スクリプト）が直接使う関数のみで、`provider_from_remote_url` のように
@@ -877,6 +886,59 @@ issueはGitHubのUIからしか作成できず、標準4見出し（目的・現
 - **実機検証（GitHub）**: `create-issue.sh`を実際に実行してissue #38を作成し、4見出し構成で
   正しく作成されることを確認した。検証用issueのため確認後にクローズ済み。
 
+### 起票前の類似・重複issueチェック（issue #68）
+
+上記のissue作成（AI代行）には、既存issueとの重複を起票前に検知する手順が無かった。人間が
+GitHub/GitLabのUIから起票する場合は入力中に類似issueがサジェストされるが、`create-issue.sh`
+経由のAI代行ではそれが働かない。結果として、**本来重複を作りにくいはずのAI経路のほうが重複を
+作りやすい**構造になっていた。1 issue = 1ブランチ = 1 MR という単位を保つため、
+`issue-create` スキルの最終確認の前に検索ステップを設けた。
+
+#### 責務の分割
+
+| 層 | 担当 |
+|---|---|
+| `issue-create` スキル（AIエージェント） | 検索キーワードの選定（3〜5個）、結果の提示、`AskUserQuestion` によるユーザーへの判断委譲 |
+| `Provider.sh`（`search_issues`） | 与えられたキーワードでの検索、プロバイダ差の吸収（キー名・`state` の表記）、複数結果の統合 |
+
+**キーワード抽出をスクリプト側へ実装していない**のが本機能の中心的な判断である。日本語主体の
+issueから意味のある語を選ぶには形態素解析が要り、bashの文字種判定はロケール依存で静かに劣化する。
+一方、`issue-create` スキルではAIが直前に自らタイトル・4見出しを組み立てており、そのissue固有の
+語がどれかを判断できる。詳細・却下案は
+[0033-issue起票前の重複チェックは検索をProvider層へ置きキーワード抽出はAIに委ねる.md](../ddr/0033-issue起票前の重複チェックは検索をProvider層へ置きキーワード抽出はAIに委ねる.md)
+を参照。
+
+#### `search_issues` の仕様
+
+- 戻り値は `[{number, title, state, url}]` のJSON配列。該当が無ければ空配列 `[]`
+  （何も出力しない、ではない。呼び出し側が `jq 'length'` で件数を判定できるようにするため）。
+- **closedのissueも対象に含める。** 過去に見送られた提案の再提出を検知するため。
+- `state` は `open` / `closed` の2値へ正規化する。GitHub CLIは `OPEN`/`CLOSED`、GitLabは
+  `opened`/`closed` を返すため、そのままでは呼び出し側が両方の表記を知る必要がある。
+- **キーワードごとに1回ずつ検索し、結果を統合する。** GitHub/GitLabのissue検索は複数語を
+  AND条件として扱うため、1回にまとめると語が増えるほどヒットしなくなる。重複チェックで欲しいのは
+  再現率のため、OR相当の挙動になるよう `merge_issue_search_results` で統合する
+  （`number` で重複排除し、番号の降順で返す）。
+- キーワードは最大5件（`SEARCH_ISSUES_MAX_KEYWORDS`）。CLI起動＝ネットワークI/Oの回数を
+  有界にするためで、超過分は**標準エラーへ通知したうえで**切り捨てる。
+- 1キーワードあたりの取得件数は20件（`SEARCH_ISSUES_LIMIT`）。
+
+#### 最終判断は人間が行う
+
+AIは候補を提示するに留め、**重複と断定して勝手に起票を中止しない**（スキルの
+「してはいけないこと」に明記）。似ているだけで粒度・観点が異なる別issueであることは珍しくなく、
+誤って中止した場合はユーザーが候補を見る機会そのものを失う。候補があった場合は
+`AskUserQuestion` で「新規に起票する／既存issueへコメントする／やめる」を選ばせる。
+候補が0件のときも「類似issueは見つかりませんでした」と明示する（検索したこと自体を黙らせない）。
+
+#### MCP経路での差分
+
+`gh`/`glab` CLIが無い環境では `mcp__github__search_issues`（`query`, `owner`, `repo`）へ
+読み替える。このMCPツールは自然言語のセマンティック検索で、既に `is:issue` にスコープされて
+いるため、CLI経路のようにキーワードごとに呼び分ける必要が無く、1回の `query` に複数キーワードを
+平文で並べればよい。検索の仕組みが異なるため同じ入力でも候補の並びは一致しないが、
+候補の提示が目的で件数・順序に依存した自動判断は行わないため許容している。
+
 ## 影響範囲
 
 新規:
@@ -1464,7 +1526,7 @@ CLI不在時のMCPフォールバック経路（issue #34）の双方でクロ�
 - `.claude/scripts/src/vcs/Github.sh`（`github_set_mr_ready`。`gh pr ready <n>`）
 - `.claude/scripts/src/vcs/Gitlab.sh`（`gitlab_set_mr_ready`。`glab mr update <n> --ready`。
   ヘッダの検証状況コメントへ、本関数だけが実機未検証である旨を追記）
-- `.claude/scripts/test/test_vcs_provider.sh`（`mcp_tool_hint set_mr_ready` の1件を追加。45件へ）
+- `.claude/scripts/test/test_vcs_provider.sh`（`mcp_tool_hint set_mr_ready` の1件を追加。mainのissue #68分と統合した結果54件）
 - `.claude/skills/issue-mr-flow/SKILL.md`
   - flow-id 5-3 を、CLIを直接叩くのではなく `set_mr_ready` を使う記述へ更新
   - 「`gh`/`glab` CLI不在時のMCPフォールバック」節の対応表へ `set_mr_ready` 行を追加
@@ -1634,6 +1696,23 @@ issue #46 でコンフリクト検知のステップが 5-2 として挿入さ�
   - `.claude/scripts/test/test_vcs_provider.sh`（issue #63以前は `tests/test_vcs_provider.sh`）に
     「ホストは小文字化・パスは保つ」ケースを追加して明示的に固定した。
 
+### issue #68（起票前の類似・重複issueチェック）
+
+新規:
+- `.claude/docs/ddr/0033-issue起票前の重複チェックは検索をProvider層へ置きキーワード抽出はAIに委ねる.md`
+
+更新:
+- `.claude/scripts/src/vcs/Provider.sh`（`search_issues` ディスパッチャ、`merge_issue_search_results`、
+  `SEARCH_ISSUES_LIMIT` / `SEARCH_ISSUES_MAX_KEYWORDS`、`mcp_tool_hint` への `search_issues` 行）
+- `.claude/scripts/src/vcs/Github.sh`（`github_search_issues` / `github_normalize_issue_search_results`）
+- `.claude/scripts/src/vcs/Gitlab.sh`（`gitlab_search_issues` / `gitlab_normalize_issue_search_results`）
+- `.claude/skills/issue-create/SKILL.md`（実行フローに手順2「類似・重複issueをチェックする」を追加し
+  以降を繰り下げ。各手順に内容名を併記。「してはいけないこと」に2項目追加）
+- `.claude/skills/issue-mr-flow/SKILL.md`（MCPフォールバック対応表に `search_issues` の行）
+- `.claude/scripts/test/test_vcs_provider.sh`（正規化・統合・`mcp_tool_hint` のテスト9件追加。`passed=53 failures=0`）
+- `.claude/docs/spec/issue-mr-workflow.md`（提供関数表・「起票前の類似・重複issueチェック」節・本項）
+- `.claude/docs/README.md`（DDR一覧に0033）
+
 ## 未決定事項・懸念点
 
 - **（issue #61）`gitlab_set_mr_ready` は実機未検証**: 本対応の実行環境（Claude Code on the web の
@@ -1666,6 +1745,15 @@ issue #46 でコンフリクト検知のステップが 5-2 として挿入さ�
 - **（issue #57）警告文が実際にユーザーへ伝わるかはエージェントの応答に依存する**:
   `additionalContext` はエージェントへの指示であり、警告の表示を機構的に強制するものではない
   （hookが直接UIへ出す手段が無いため、`post-push-compact-prompt.sh` と同じ制約）。
+- **（issue #68）`search_issues`のCLI経路が実機未検証**: 本対応はClaude Code on the webの
+  リモート実行環境（`gh`/`glab` CLIが存在しない）で行ったため、`gh issue list --search ...
+  --state all --json number,title,state,url` と `glab issue list --search ... --all --per-page
+  ... --output json` を実際に実行しての確認ができていない。検証済みなのは、
+  (1) `require_vcs_cli`が`search_issues`に対し`mcp__github__search_issues`を名指しして失敗すること、
+  (2) 正規化・統合の純粋関数がCLI出力形式を模したフィクスチャに対して期待どおり動くこと
+  （`.claude/scripts/test/test_vcs_provider.sh`）の2点のみ。**特にGitLab側の`--all`フラグ
+  （opened/closed両方を対象にする指定）は`glab`のバージョンによって名称が異なる可能性がある**ため、
+  `glab`が使える環境での最初の利用時に確認すること。
 
 - **（issue #13）`get_mr_diff_url`/`get_mr_diff_since_url`のURL形式は実機（ブラウザ）で未検証**:
   GitHub実装（`<repoUrl>/compare/<from>...<to>`）はPR作成前から存在する汎用の「Compare changes」

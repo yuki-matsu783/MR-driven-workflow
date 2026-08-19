@@ -47,6 +47,35 @@ gitlab_new_issue() {
   gitlab_get_issue "$number"
 }
 
+# `glab issue list --search` の出力を共通形式（number/title/state/url）へ正規化する（issue #68）。
+# `glab` を呼ばない純粋関数（jqのみ）のため .claude/scripts/test/test_vcs_provider.sh から単体テストできる。
+#
+# GitLab APIのキー名の違いを `gitlab_get_issue` と同じ方針で吸収する（`iid`→`number`、
+# `web_url`→`url`）。`state` はGitLabが `opened`/`closed` を返すため、GitHub側（`OPEN`/`CLOSED`を
+# 小文字化）と揃うよう `opened` のみ `open` へ読み替える（`closed` はそのまま）。
+gitlab_normalize_issue_search_results() {
+  local raw="$1"
+  printf '%s' "$raw" | jq -c \
+    '[.[] | {number: .iid, title: .title, state: (if .state == "opened" then "open" else .state end), url: .web_url}]'
+}
+
+# キーワードで既存issueを検索する（issue #68: 起票前の重複チェック用）。
+# 第1引数は1キーワードあたりの取得件数、第2引数以降が検索キーワード。
+# キーワードごとに1回ずつ検索して統合する理由は `github_search_issues` のコメントを参照。
+#
+# `glab issue list --search` はtitleとdescriptionを対象に検索する。`--all` を付けることで
+# opened/closedの両方を対象にする（closedを含めるのはissue #68の要求）。
+gitlab_search_issues() {
+  local limit="$1"
+  shift
+  local keyword results=()
+  for keyword in "$@"; do
+    results+=("$(gitlab_normalize_issue_search_results \
+      "$(glab issue list --search "$keyword" --all --per-page "$limit" --output json)")")
+  done
+  merge_issue_search_results "${results[@]}"
+}
+
 gitlab_new_draft_merge_request() {
   local issue_number="$1" branch="$2" base_branch="$3" title="$4"
   local description
