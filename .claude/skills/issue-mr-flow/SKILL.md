@@ -89,7 +89,7 @@ MR description更新」という同じ形を繰り返す。
 | 4-8 | MRでレビュー・コメントする。レビュー済み連絡をするまで以降の作業は行わない。 | 人間 |
 | 4-9 | レビュー内容を取得し、設計・AIアセットの内容を修正する。対応が完了したコメントには対応内容を返信する（結果側の記述の修正先は`reports/`のmdであり、個別反映計画ではない。4-6〜4-9の反映ループを合意まで繰り返す）。チャットで受けた判断はMRへ記録する（下記「チャットで受けたレビュー判断の記録」節） | `comments` / `reply` |
 | 4-10 | 反映内容をもとにMR descriptionを更新する | `describe` |
-| 5-1 | 次タスクのために、`plans/` `worklog/` `reports/`（md・htmlの両方）を削除し、`HANDOFF.md` をリセットする | エージェント |
+| 5-1 | 次タスクのために、`plans/` `worklog/` `reports/`（md・htmlの両方）を削除し、`HANDOFF.md` をリセットする（**`REVIEW-POINTS.md` だけは削除しない**。タスク単位の成果物ではなく、そのディレクトリに対する永続のレビュー観点であるため。詳細は `.claude/rules/docs-workflow.md` が正） | エージェント |
 | 5-2 | **defaultブランチとのコンフリクトを検知し、あれば解消する**（`bash .claude/scripts/src/check-base-conflicts.sh` で判定 → `hasConflict` が真なら `AskUserQuestion` でユーザーに確認 → 承認されたら `resolve-conflict` スキルで解消。詳細は下記「defaultブランチとのコンフリクト検知・解消」節）。PR作成後の継続的な追従（下記「PR作成後のdefaultブランチ追従（監視）」節）を行っていても、**このステップは最終ゲートとして必ず通る** | エージェント（`resolve-conflict` スキル） |
 | 5-3 | **今回のMRが影響する関連issueを特定し、承認を得てから当該issueへ通知する**（差分からキーワードを抽出 → `search_issues` で候補提示 → `AskUserQuestion` で対象issueとコメント本文の承認 → `add_issue_comment` で投稿）。**影響先が無ければスキップしてよい**。詳細は下記「マージ前の関連issue通知（flow-id 5-3）」節 | エージェント |
 | 5-4 | `commit`スキル経由でcommitし、push して Draftを解除する（解除は `source .claude/scripts/src/vcs/Provider.sh && set_mr_ready <MR番号>` で行う。`gh pr ready` / `glab mr update --ready` を直接呼ばない。MR番号は `get_mr_for_branch` で取得できる）。**AIエージェントはここで止まる**（マージへは進まない） | エージェント |
@@ -341,6 +341,30 @@ flow-id 5-4 を終えたAIエージェントは、フロー上マージが次の
 1回だけ確認する。応答を待てない非対話的セッションではPRを作成せず、その事実を最終応答へ明示する）は
 `.claude/rules/git-workflow.md`「ハーネスがPR作成を制限する環境での扱い」が正である。
 
+## 敵対的レビューの位置づけ（issue #77）
+
+`adversarial-review` スキル（`.claude/skills/adversarial-review/SKILL.md`）は、独立コンテキストの
+専任サブエージェントに意図的な欠陥探しを行わせ、指摘をMRへインラインコメントとして投稿する。
+**上の全体フロー表には含まれない**（flow-idを1つも増やしていない）。人間のレビューを置き換えるもの
+ではなく、その前に挟む任意の補助だからである。
+
+| | 内容 |
+|---|---|
+| 位置 | commit・pushの直後（flow-id 2-2/2-7/3-2/3-7/4-2/4-7）、**人間のレビュー（2-3/2-8/3-3/3-8/4-3/4-8）の前** |
+| 起動 | **対話セッションではAIエージェントから自律的に起動しない。** 人間が `/adversarial-review` を呼んだときだけ実行する |
+| 例外 | 非対話セッション（`AUTOMATION=1`。人間のレビュー往復を待てない実行環境）でのみ、AIエージェントが自律的に起動してよい |
+| 回数 | 各フェーズ最大3回。`.claude/scripts/src/adversarial-review-count.sh` が機械的に強制する |
+| 進捗記号 | 実施しても `HANDOFF.md` の進捗表は動かさない（flow-idを持たないため）。実施した事実は「やったこと」へ文章で残す |
+
+対話セッションで自律起動を禁じるのは、レビューの主体が人間であるという前提を崩さないためで
+ある。AIが自分で書いて自分でレビューを起動し自分で直すと、人間がレビューする対象が
+「AIが既に納得したもの」になり、レビューの独立性が失われる。**AIから「敵対的レビューを
+実施しましょうか」と持ちかけることは構わないが、返事を待たずに実行してはならない。**
+
+なお、レビュー観点は本スキルにもこのSKILL.mdにも書かれていない。ディレクトリごとの
+`REVIEW-POINTS.md` に外だしされており、収集は `review-points` スキル
+（`.claude/skills/review-points/SKILL.md`）が担う。
+
 ## サブコマンド
 
 呼び出しは `/issue-mr-flow <サブコマンド> [引数]` の形。
@@ -538,6 +562,7 @@ get_repo_slug | jq -r '.owner, .repo'
 | `set_mr_description <n> <file>` | `mcp__github__update_pull_request` | `owner`, `repo`, `pullNumber=<n>`, `body=<ファイルの内容>` | CLI版はファイルパスを渡すが、MCPは文字列で渡す。本文はReadツール等で読んでから渡す |
 | `set_mr_ready <n>` | `mcp__github__update_pull_request` | `owner`, `repo`, `pullNumber=<n>`, `draft=false` | `set_mr_description` と同じツールだが渡す引数が違う。`draft=false` が「Draftを解除しレビュー可能にする」の意味（flow-id 5-4。issue #61） |
 | `add_mr_comment <n> <file>` | `mcp__github__add_issue_comment` | `owner`, `repo`, `issue_number=<PR番号>`, `body=<ファイルの内容>` | PR番号を `issue_number` に渡す（GitHub APIの仕様上、PRもissueとして扱える） |
+| `add_mr_inline_comments <n> <file>` | `mcp__github__pull_request_review_write` | `method="create"` → 指摘ごとに `method="add_comment_to_pending_review"`（`owner`, `repo`, `pullNumber`, `path`, `line`, `side`, `body`）→ `method="submit_pending"`（`event="COMMENT"`） | 敵対的レビュー（issue #77）のインライン投稿。**3段構成で、`submit_pending` まで必ず実行する**（pendingのまま放置すると次回の `create` が失敗し続ける）。途中で失敗したら `method="delete_pending"` で片付ける。CLI版と違い有効行の事前検証が入らないため、diffに含まれない行を指定すると個別に失敗する |
 | `add_issue_comment <n> <file>` | `mcp__github__add_issue_comment` | `owner`, `repo`, `issue_number=<通知先のissue番号>`, `body=<ファイルの内容>` | **`add_mr_comment` と同じツールだが、`issue_number` へ渡すのがPR番号ではなく通知先のissue番号である**（flow-id 5-3の関連issue通知。issue #86）。CLI版はファイルパスを渡すが、MCPは文字列で渡すため本文はReadツール等で読んでから渡す |
 | `get_repo_url` | （MCP不要） | — | `git remote get-url origin` の正規化だけでリポジトリの正規URLを導出するプロバイダ非依存の関数のため、MCP経路でもそのまま呼べる（`get_mr_diff_url` / `get_mr_diff_since_url` も同様。issue #44） |
 | `new_issue_branch` / `sync_branch` / `get_branch_work_files` / `get_issue_number_from_branch` / `to_slug` / `test_issue_sections` | （MCP不要） | — | git操作・純粋ロジックのみでCLIに依存しないため、MCP経路でもそのまま呼べる |

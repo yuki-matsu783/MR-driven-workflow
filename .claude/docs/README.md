@@ -36,6 +36,7 @@ keywords: [正史仕様, 意思決定ログ, issue-mr-workflow, シェルスク�
 - [update-handoff-progress.md](spec/update-handoff-progress.md) ── HANDOFF.md進捗自動更新スクリプト
 - [check-base-conflicts.md](spec/check-base-conflicts.md) ── defaultブランチとのコンフリクト検知スクリプト
 - [create-commit.md](spec/create-commit.md) ── コミット実行ラッパー（commitスキル専用）
+- [adversarial-review.md](spec/adversarial-review.md) ── 敵対的レビュー（専任サブエージェント・インラインコメント投稿）
 
 ## ddr（意思決定ログ）
 
@@ -87,3 +88,6 @@ DDRのうち0001・0002・0008・0015は持ち込んでいない**（連番に�
 - [0042-plans配下のfrontmatter-typeはguideではなくplanを新設する.md](ddr/0042-plans配下のfrontmatter-typeはguideではなくplanを新設する.md)
 - [0043-全体作業計画には調査・反映の枠を必ず残し省略判断は各フェーズ直前で行う.md](ddr/0043-全体作業計画には調査・反映の枠を必ず残し省略判断は各フェーズ直前で行う.md)
 - [0044-マージ前の関連issue通知はDraft解除の直前に置き投稿前の人間承認を必須にする.md](ddr/0044-マージ前の関連issue通知はDraft解除の直前に置き投稿前の人間承認を必須にする.md)
+- [0045-敵対的レビューは専任サブエージェントで独立コンテキストに切り出す.md](ddr/0045-敵対的レビューは専任サブエージェントで独立コンテキストに切り出す.md)
+- [0046-レビュー観点はディレクトリごとのREVIEW-POINTSへ外だしする.md](ddr/0046-レビュー観点はディレクトリごとのREVIEW-POINTSへ外だしする.md)
+- [0047-インラインコメントの位置指定はプロバイダごとの制約に合わせて縮退させる.md](ddr/0047-インラインコメントの位置指定はプロバイダごとの制約に合わせて縮退させる.md)

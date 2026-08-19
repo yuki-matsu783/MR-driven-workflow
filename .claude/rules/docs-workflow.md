@@ -26,12 +26,18 @@ keywords: [plans, handoff, worklog, 正史仕様, 意思決定ログ, ライフ�
 | `reports/日付_<全体計画名>_<内容を簡潔に>.html` | AI専用（人間も参照可） | 同上 | 上記mdの内容を視覚的に分かりやすくまとめた自己完結HTML（TailwindCSS CDN方式）。**結果の正文はmd側であり、HTMLはその視覚化**（両者は併存させる） | flow-id 2-6で作成し、md側の内容と同期して更新する。**ファイルの削除はflow-id 5-1**で`plans/` `worklog/`とまとめて行う（削除自体もコミットに含める）。`.gitignore`には加えない（ブランチ上のコミット履歴として残すため）。squash mergeにより、mainには残さない。 |
 | `.claude/docs/spec/機能名.md` | 人間＋AI | 永続（最新状態） | 背景・目的／仕様／影響範囲／設定項目／未決定事項・懸念点 | 「現在の正史」。実装完了のたびに最新仕様へ上書きする。新規作成時の人間承認は必須。plans／worklogの内容はflow-id 4-6（設計反映）で反映する。 |
 | `.claude/docs/ddr/000N-タイトル.md` | 人間＋AI | 永続（本文は不変） | 「〇〇を検討したが✕✕を採用した」という意思決定の背景・却下案（DDR: Design Decision Record。architectureに限らない意思決定を対象とする） | 連番で管理し、一度マージしたら**本文**は追記のみ（変更不可）。ただし**YAML frontmatterのみは後から更新してよい**（後続のDDRで無効になった場合に`status: superseded` / `superseded_by`を付ける。詳細: `.claude/rules/markdown-frontmatter.md`「DDRのstatus」）。`spec` の未決定事項が解消したら記録し、spec側の該当項目は削除してよい。plans／worklogの内容はflow-id 4-6（設計反映）で反映する。 |
+| `<ディレクトリ>/REVIEW-POINTS.md` | 人間＋AI | 永続（最新状態） | そのディレクトリ配下すべて（孫以下を含む）に適用するレビュー観点（`type: review-points`） | 各ディレクトリ直下に置く。敵対的レビュー（`.claude/skills/adversarial-review/SKILL.md`）と `review-points` スキルが祖先方向へ遡って集めて使い、人間のレビューでも参照する。**`plans/` `reports/` 配下に置かれていてもflow-id 5-1の削除対象に含めない**（下記）。仕様: `.claude/docs/spec/adversarial-review.md`「レビュー観点（REVIEW-POINTS.md）」 |
 
 `plans/` `worklog/` `reports/` の3つは、いずれも**flow-id 5-1（次タスクのための片付け）でまとめて
 削除する**（`reports/` はmd・htmlの両方が対象。`.claude/skills/issue-mr-flow/SKILL.md`の全体フローが正）。設計反映（flow-id 4-6）で
 行うのは、これらの**内容**を`.claude/docs/spec/` `.claude/docs/ddr/`へ反映することであって、
 ファイルの削除ではない。削除済みの状態でPR作成〜squash mergeへ進むため、mainにはこれらのファイルは
 残らない。
+
+**唯一の例外が `REVIEW-POINTS.md` である。** `plans/REVIEW-POINTS.md` `reports/REVIEW-POINTS.md` は
+これらのディレクトリ配下にあるが、タスク単位の成果物ではなく**そのディレクトリに対するレビュー観点**
+であり、寿命は永続である（上表）。flow-id 5-1で `plans/` `worklog/` `reports/` を片付ける際は、
+**`REVIEW-POINTS.md` だけを残す**（issue #77）。
 
 上記の`spec`/`ddr`は、このリポジトリに同梱されたissue駆動MRワークフロー機構自体（`.claude/`配下）の
 ものである。アプリ本体を追加する場合は、そのアプリ専用の`docs/spec/`・`docs/ddr/`（必要なら人間専用
