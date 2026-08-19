@@ -127,16 +127,16 @@ assert_eq "mark-skip: 複数指定その1(1-1)が[-]になる" \
 assert_eq "mark-skip: 複数指定その2(5-1)が[-]になる" \
   "| [-] | 5-1 | スキップ対象 | エージェント |" "$(get_row "$fixture" 5-1)"
 
-# --- add-round: 正常系（ループ範囲の全行に[]が追記される） ------------------
+# --- add-round: 正常系（ループ範囲の全行が[]へ戻る。記号は連結しない） ------
 
 fixture="$TMP_DIR/handoff6.md"
 write_fixture "$fixture"
 cmd_mark_done "$fixture" "2-3"
 cmd_add_round "$fixture" "2-3"
-assert_eq "add-round: 2-3が[x][]になる" \
-  "| [x][] | 2-3 | ループ範囲1 | 人間 |" "$(get_row "$fixture" 2-3)"
-assert_eq "add-round: 同じ範囲の2-4も[x][]になる" \
-  "| [x][] | 2-4 | ループ範囲2 | エージェント |" "$(get_row "$fixture" 2-4)"
+assert_eq "add-round: 2-3が[]へ戻る（記号は増やさない）" \
+  "| [] | 2-3 | ループ範囲1 | 人間 |" "$(get_row "$fixture" 2-3)"
+assert_eq "add-round: 同じ範囲の2-4も[]へ戻る" \
+  "| [] | 2-4 | ループ範囲2 | エージェント |" "$(get_row "$fixture" 2-4)"
 
 # --- add-round: ループでないflow-idはエラー ----------------------------------
 
@@ -171,6 +171,181 @@ assert_eq "set-header: 未指定のブランチ行は現状維持" \
   "- ブランチ: （未着手）" "$(get_header "$fixture" ブランチ)"
 assert_eq "set-header: 未指定のPR行は現状維持" \
   "- PR: （未着手）" "$(get_header "$fixture" PR)"
+
+# --- ヘッダ「- 現在のループ:」行が周回数を持つ（issue #58） ------------------
+
+# "- 現在のループ:" 行そのものを取り出す（無ければ空文字列）。
+get_loop_header() {
+  local file="$1"
+  grep -F -- "- 現在のループ:" "$file" || true
+}
+
+# "- 現在のループ:" 行の出現回数（重複挿入していないことの確認に使う）。
+count_loop_header() {
+  local file="$1"
+  grep -c -F -- "- 現在のループ:" "$file" || true
+}
+
+# 書式組み立て・解析（ファイルI/Oを伴わない純粋関数）
+format_loop_status_to_reply "3-6 3-7 3-8 3-9" "3" "進行中"
+assert_eq "format_loop_status: 進行中の表記" "3-6〜3-9 の3周目（進行中）" "$REPLY"
+format_loop_status_to_reply "2-3 2-4" "1" "完了"
+assert_eq "format_loop_status: 完了の表記" "2-3〜2-4 の1周目（完了）" "$REPLY"
+
+if parse_loop_header_to_reply "- 現在のループ: 3-6〜3-9 の12周目（進行中）"; then
+  parse_status=0
+else
+  parse_status=1
+fi
+assert_eq "parse_loop_header: ヘッダ行を解析できる" "0" "$parse_status"
+assert_eq "parse_loop_header: 先頭flow-idを取り出す" "3-6" "$REPLY_LOOP_START_ID"
+assert_eq "parse_loop_header: 2桁の周回数を取り出す" "12" "$REPLY_LOOP_ROUNDS"
+if parse_loop_header_to_reply "- push回数: 3"; then
+  parse_status=0
+else
+  parse_status=1
+fi
+assert_eq "parse_loop_header: 別のヘッダ行にはマッチしない" "1" "$parse_status"
+
+# 進捗表の記号は増やさず、周回数はヘッダだけが持つ（受け入れ条件の中心）
+fixture="$TMP_DIR/handoff10.md"
+write_fixture "$fixture"
+cmd_mark_done "$fixture" "2-3"
+assert_eq "mark-done(ループ): ヘッダへ1周目（完了）が書かれる" \
+  "- 現在のループ: 2-3〜2-4 の1周目（完了）" "$(get_loop_header "$fixture")"
+assert_eq "mark-done(ループ): ヘッダ行はpush回数の直後へ挿入される" \
+  "- push回数: 0
+- 現在のループ: 2-3〜2-4 の1周目（完了）" "$(sed -n '4,5p' "$fixture")"
+
+cmd_add_round "$fixture" "2-3"
+assert_eq "add-round: ヘッダの周回数が1つ進む" \
+  "- 現在のループ: 2-3〜2-4 の2周目（進行中）" "$(get_loop_header "$fixture")"
+assert_eq "add-round: 進捗列は[]のまま（記号を連結しない）" \
+  "| [] | 2-3 | ループ範囲1 | 人間 |" "$(get_row "$fixture" 2-3)"
+assert_eq "add-round: ヘッダ行は増殖せず1行のまま" "1" "$(count_loop_header "$fixture")"
+
+cmd_mark_done "$fixture" "2-4"
+assert_eq "mark-done(2周目): 周回数は据え置きで完了になる" \
+  "- 現在のループ: 2-3〜2-4 の2周目（完了）" "$(get_loop_header "$fixture")"
+assert_eq "mark-done(2周目): 進捗列は記号1つのまま" \
+  "| [x] | 2-4 | ループ範囲2 | エージェント |" "$(get_row "$fixture" 2-4)"
+
+# 3周目まで進めても進捗表の記号は1つのまま
+cmd_add_round "$fixture" "2-3"
+cmd_mark_done "$fixture" "2-3"
+assert_eq "3周目まで進めてもヘッダだけが増える" \
+  "- 現在のループ: 2-3〜2-4 の3周目（完了）" "$(get_loop_header "$fixture")"
+assert_eq "3周目でも進捗列は記号1つ" \
+  "| [x] | 2-3 | ループ範囲1 | 人間 |" "$(get_row "$fixture" 2-3)"
+
+# 別のループ範囲へ移ったら1周目から数え直す
+fixture="$TMP_DIR/handoff11.md"
+cat >"$fixture" <<'FIXTURE_MULTI'
+- push回数: 0
+- 現在のループ: 2-3〜2-4 の3周目（完了）
+
+| 進捗 | flow-id | ステップ | 担当 |
+|----|---|---|---|
+| [x] | 2-3 | ループ範囲1 | 人間 |
+| [x] | 2-4 | ループ範囲2 | エージェント |
+| [] | 3-3 | 別ループ1 | 人間 |
+| [] | 3-4 | 別ループ2 | エージェント |
+FIXTURE_MULTI
+cmd_mark_done "$fixture" "3-3"
+assert_eq "別のループ範囲へ移ると1周目から数え直す" \
+  "- 現在のループ: 3-3〜3-4 の1周目（完了）" "$(get_loop_header "$fixture")"
+
+# 旧 [x][x][] 表記からの移行: 周回数をヘッダへ引き継ぎ、進捗列は記号1つへ畳む
+fixture="$TMP_DIR/handoff12.md"
+cat >"$fixture" <<'FIXTURE_LEGACY'
+- push回数: 0
+
+| 進捗 | flow-id | ステップ | 担当 |
+|----|---|---|---|
+| [x][x][] | 2-3 | ループ範囲1 | 人間 |
+| [x][x][] | 2-4 | ループ範囲2 | エージェント |
+FIXTURE_LEGACY
+cmd_mark_done "$fixture" "2-3"
+assert_eq "旧表記からの移行: 記号の個数が周回数としてヘッダへ移る" \
+  "- 現在のループ: 2-3〜2-4 の3周目（完了）" "$(get_loop_header "$fixture")"
+assert_eq "旧表記からの移行: 進捗列は記号1つへ畳まれる" \
+  "| [x] | 2-3 | ループ範囲1 | 人間 |" "$(get_row "$fixture" 2-3)"
+
+fixture="$TMP_DIR/handoff13.md"
+cat >"$fixture" <<'FIXTURE_LEGACY2'
+- push回数: 0
+
+| 進捗 | flow-id | ステップ | 担当 |
+|----|---|---|---|
+| [x][x] | 2-3 | ループ範囲1 | 人間 |
+| [x][x] | 2-4 | ループ範囲2 | エージェント |
+FIXTURE_LEGACY2
+cmd_add_round "$fixture" "2-3"
+assert_eq "旧表記からの移行: add-roundは個数+1をヘッダへ書く" \
+  "- 現在のループ: 2-3〜2-4 の3周目（進行中）" "$(get_loop_header "$fixture")"
+assert_eq "旧表記からの移行: add-roundでも進捗列は[]ひとつ" \
+  "| [] | 2-4 | ループ範囲2 | エージェント |" "$(get_row "$fixture" 2-4)"
+
+# 単発ステップのmark-done・mark-skipではヘッダ行を触らない
+fixture="$TMP_DIR/handoff14.md"
+write_fixture "$fixture"
+cmd_mark_done "$fixture" "1-1"
+assert_eq "mark-done(単発): ヘッダ行は追加されない" "0" "$(count_loop_header "$fixture")"
+cmd_mark_skip "$fixture" "5-1"
+assert_eq "mark-skip: ヘッダ行は追加されない" "0" "$(count_loop_header "$fixture")"
+
+# set-header --loop: 任意の文字列をそのまま書ける／未指定なら現状維持
+fixture="$TMP_DIR/handoff15.md"
+write_fixture "$fixture"
+cmd_set_header "$fixture" --loop "なし"
+assert_eq "set-header --loop: 指定文字列がそのまま入る" \
+  "- 現在のループ: なし" "$(get_loop_header "$fixture")"
+cmd_set_header "$fixture" --issue "#58 テストissue"
+assert_eq "set-header(--loop未指定): 既存のループ行は現状維持" \
+  "- 現在のループ: なし" "$(get_loop_header "$fixture")"
+cmd_set_header "$fixture" --loop "3-6〜3-9 の2周目（進行中）"
+assert_eq "set-header --loop: 既存行は置換され重複しない" "1" "$(count_loop_header "$fixture")"
+assert_eq "set-header --loop: 既存行が置換される" \
+  "- 現在のループ: 3-6〜3-9 の2周目（進行中）" "$(get_loop_header "$fixture")"
+
+# ヘッダ項目を持たないHANDOFF.md（flow-id 5-1直後）でも見出しの直前へ挿入できる
+fixture="$TMP_DIR/handoff16.md"
+cat >"$fixture" <<'FIXTURE_NOHEADER'
+# HANDOFF
+
+## フロー進捗状況
+
+| 進捗 | flow-id | ステップ | 担当 |
+|----|---|---|---|
+| [] | 2-3 | ループ範囲1 | 人間 |
+| [] | 2-4 | ループ範囲2 | エージェント |
+FIXTURE_NOHEADER
+cmd_mark_done "$fixture" "2-3"
+assert_eq "ヘッダ項目が無い場合は見出しの直前へ空行付きで挿入される" \
+  "- 現在のループ: 2-3〜2-4 の1周目（完了）
+
+## フロー進捗状況" "$(sed -n '3,5p' "$fixture")"
+
+# 挿入位置の基準が無い場合、進捗表の更新は成功させヘッダ行は警告に留める
+fixture="$TMP_DIR/handoff17.md"
+cat >"$fixture" <<'FIXTURE_BARE'
+| 進捗 | flow-id | ステップ | 担当 |
+|----|---|---|---|
+| [] | 2-3 | ループ範囲1 | 人間 |
+| [] | 2-4 | ループ範囲2 | エージェント |
+FIXTURE_BARE
+set +e
+cmd_mark_done "$fixture" "2-3" 2>/dev/null
+status=$?
+set -e
+assert_success "挿入位置が無くてもmark-done自体は成功する" "$status"
+assert_eq "挿入位置が無い場合でも進捗表は更新される" \
+  "| [x] | 2-3 | ループ範囲1 | 人間 |" "$(get_row "$fixture" 2-3)"
+set +e
+cmd_set_header "$fixture" --loop "なし" >/dev/null 2>&1
+status=$?
+set -e
+assert_failure "set-header --loop は挿入位置が無ければエラー" "$status"
 
 echo "passed=$passed failures=$failures"
 [ "$failures" -eq 0 ]

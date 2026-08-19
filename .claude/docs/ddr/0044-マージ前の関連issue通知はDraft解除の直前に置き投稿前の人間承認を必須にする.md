@@ -1,12 +1,12 @@
 ---
-title: 0043. マージ前の関連issue通知はDraft解除の直前に置き投稿前の人間承認を必須にする
+title: 0044. マージ前の関連issue通知はDraft解除の直前に置き投稿前の人間承認を必須にする
 type: ddr
 description: 今回のMRが影響する関連issueへの通知を、フェーズ5のDraft解除の直前（flow-id 5-3）に新設し、投稿前にAskUserQuestionでの人間承認を必須とした経緯を記録したDDR
 tags: [issue-mr-flow, notification, workflow, ddr]
 keywords: [add_issue_comment, flow-id-5-3, 関連issue, マージ前通知, AskUserQuestion, 人間承認, search_issues, Draft解除, 繰り下げ, 41ステップ]
 ---
 
-# 0043. マージ前の関連issue通知はDraft解除の直前に置き投稿前の人間承認を必須にする
+# 0044. マージ前の関連issue通知はDraft解除の直前に置き投稿前の人間承認を必須にする
 
 ## 背景
 

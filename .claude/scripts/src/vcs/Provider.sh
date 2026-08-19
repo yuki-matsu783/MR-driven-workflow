@@ -644,7 +644,7 @@ add_mr_comment() {
 #
 # 投稿先・本文の決定と**人間の承認**は呼び出し側（`.claude/skills/issue-mr-flow/SKILL.md`
 # 「マージ前の関連issue通知」節）の責務であり、この層では行わない
-# （経緯: .claude/docs/ddr/0043-マージ前の関連issue通知はDraft解除の直前に置き投稿前の人間承認を必須にする.md）。
+# （経緯: .claude/docs/ddr/0044-マージ前の関連issue通知はDraft解除の直前に置き投稿前の人間承認を必須にする.md）。
 add_issue_comment() {
   require_vcs_cli add_issue_comment || return 1
   local issue_number="$1" body_file="$2"
