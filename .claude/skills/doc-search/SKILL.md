@@ -56,7 +56,7 @@ bash .claude/scripts/src/search-frontmatter.sh [オプション]
 | `--tag <値>` | `frontmatter.tags` の要素 | 完全一致 |
 | `--keyword <値>` | `frontmatter.keywords` の要素 | 完全一致 |
 | `--path <部分文字列>` | `concept_id`（リポジトリルート基準の拡張子なしパス） | 部分一致 |
-| `--text <部分文字列>` | レコード全体（title/description/tags/keywords/パス/mtime） | 部分一致 |
+| `--text <部分文字列>` | `concept_id` ＋ `mtime` ＋ frontmatter配下の**すべての値**（キー名は含まない） | 部分一致 |
 | `--since <ISO8601>` | `mtime` | これ以上 |
 | `--until <ISO8601>` | `mtime` | これ以下（日付のみなら当日23:59:59まで） |
 
@@ -68,7 +68,7 @@ bash .claude/scripts/src/search-frontmatter.sh [オプション]
 | `--reverse` / `-r` | 逆順（`--sort mtime -r` で更新が新しい順） |
 | `--limit <N>` | 先頭N件のみ |
 | `--format table\|path\|json\|jsonl\|detail\|count` | 出力形式（既定 `table`） |
-| `--dir <パス>` | このディレクトリ配下だけを対象にする |
+| `--dir <パス>` | このディレクトリ配下だけを対象にする。**相対パスはカレントではなくリポジトリルート基準** |
 | `--no-refresh` | `index.jsonl` の最新化を省く（連続実行時） |
 | `--quiet` / `-q` | 件数サマリ（stderr）を出さない |
 
@@ -120,12 +120,22 @@ SF | jq -s -r 'group_by(.frontmatter.type // "(なし)") | map({type: .[0].front
 
 **frontmatterが無い／必須キーが欠けているファイルを洗い出す**（規約違反の検出）
 
+**`.claude/rules/markdown-frontmatter.md`「対象外・特殊対応ファイル」の表に載っているファイルを
+除いてから読むこと。** issueテンプレート（`.github/ISSUE_TEMPLATE/` `.gitlab/issue_templates/`）は
+**frontmatterを追加してはいけない**と規約が定めており、これを違反として扱うと
+「追加してはいけないfrontmatterを追加する」方向へ動いてしまう。
+
 ```bash
-# frontmatter そのものが無い
-SF | jq -r 'select(.frontmatter == null) | .concept_id'
-# 推奨キーが欠けている
-SF | jq -r 'select((.frontmatter // {}) | has("keywords") | not) | .concept_id'
+# 規約上の対象外（issueテンプレート）を除いたうえで、frontmatter そのものが無いものを探す
+SF | jq -r 'select(.concept_id | test("ISSUE_TEMPLATE|issue_templates") | not)
+          | select(.frontmatter == null) | .concept_id'
+# 推奨キーが欠けているもの（同じく対象外を除く）
+SF | jq -r 'select(.concept_id | test("ISSUE_TEMPLATE|issue_templates") | not)
+          | select((.frontmatter // {}) | has("keywords") | not) | .concept_id'
 ```
+
+`.claude/agents/*.md` と `.claude/skills/*/SKILL.md` は `description` を**追加しない**規約
+（既存のキーをそのまま使う）なので、`has("description")` での洗い出しにも同じ注意が要る。
 
 **タグの一覧と出現回数**（既存のタグ語彙に合わせたいとき）
 
