@@ -4,7 +4,7 @@ description: issueをAIエージェントが起票（作成）したいときに
 title: issue起票（AI代行）
 type: skill
 tags: [issue, automation, github, gitlab]
-keywords: [issue作成, create-issue.sh, issue分割, 並列列挙, 目的, 現状, 期待する動作, 受け入れ条件, テンプレート, issue-mr-flow, 重複チェック, 類似issue, search_issues]
+keywords: [issue作成, create-issue.sh, issue分割, 並列列挙, 目的, 現状, 期待する動作, 受け入れ条件, テンプレート, issue-mr-flow, 重複チェック, 類似issue, search_issues, AskUserQuestion, 最終確認]
 ---
 
 # issue起票（AI代行）
@@ -81,9 +81,17 @@ keywords: [issue作成, create-issue.sh, issue分割, 並列列挙, 目的, 現�
       **AIは候補を提示するに留め、重複と断定して勝手に起票を中止しない**（似ているだけで、
       粒度・観点が異なる別issueであることは珍しくないため）。
 
-4. **ユーザーへ最終確認する** — 組み立てたタイトルと4項目の内容をユーザーに提示し、issueとして
-   作成してよいか確認を取る（GitHub/GitLab上に公開される操作のため、他のissue-mr-flow
-   サブコマンド同様、明示的な合図を待ってから実行する）。
+4. **ユーザーへ最終確認する** — 組み立てたタイトルと4項目の内容を、**通常のメッセージとして
+   全文提示する**。そのうえで `AskUserQuestion` で作成可否を確認する（GitHub/GitLab上に公開される
+   操作のため、他のissue-mr-flowサブコマンド同様、明示的な合図を待ってから実行する）。選択肢は
+   次の方針で組み立てる。
+   - `この内容で作成する (Recommended)`
+   - `内容を修正する`（選択された場合、`AskUserQuestion` は選択式が主眼のため、続けて通常の
+     プロンプトで修正したい点をユーザーに尋ね、手順1へ戻る）
+   - `作成しない`（起票を中止し、本スキルを終了する）
+
+   **issue本文は長く `AskUserQuestion` の選択肢・説明文には収まらないため、内容の提示は
+   通常のメッセージで行い、`AskUserQuestion` は可否の選択だけに使う。**
 
 5. **issueを作成する** — 承認を得たら、以下の形で `.claude/scripts/src/create-issue.sh` を実行する。
 
@@ -110,8 +118,15 @@ keywords: [issue作成, create-issue.sh, issue分割, 並列列挙, 目的, 現�
    3. `mcp__github__issue_write`（`method="create"`, `owner`, `repo`, `title`, `body`）で作成する。
    4. WebFetchツール・curlへはフォールバックしない（DDR 0020, DDR 0027）。
 
-6. **結果を提示する** — 結果（issue番号・URL）をユーザーに提示する。続けてそのissueに着手するか
-   どうかをユーザーに確認し、着手する場合は `/issue-mr-flow start <issue番号>` に進む。
+6. **結果を提示する** — 結果（issue番号・URL）をユーザーに提示する。**そのうえで、着手する際は
+   新しいセッションで `/issue-mr-flow start <issue番号>` を実行することを勧めるに留める。**
+   起票したセッションでそのまま作業を続けると、進行中の別issueのブランチ・MRと作業コンテキストが
+   混ざり、1つのセッション・1つのMRに複数issueの変更が入りかねないため。**AIから着手を持ちかけず、
+   着手するのはユーザーからの明示的な指示があったときのみとする。**
+
+   **`HANDOFF.md` の更新は行わない。** `HANDOFF.md` はブランチ単位の引継ぎメモであり、本スキルの
+   時点ではまだissueに対応するブランチが存在しない。更新は `/issue-mr-flow start` 以降
+   （flow-id 1-6）の担当である。
 
 ## してはいけないこと
 
@@ -122,3 +137,6 @@ keywords: [issue作成, create-issue.sh, issue分割, 並列列挙, 目的, 現�
   重複かどうかを決めるのは人間であり、AIは候補の提示までを担当する。
 - **手順3（類似・重複issueのチェック）を省略して最終確認へ進まない。** 検索が0件だった場合も、
   その事実を明示する。
+- **ユーザーの明示的な指示なしに、同一セッションで `/issue-mr-flow start` へ進まない**（issue #59。
+  起票と実装が同じセッションに同居すると、1つのMRに複数issueの作業が混ざるため）。
+- 本スキルの実行結果として `HANDOFF.md` を更新しない（更新はflow-id 1-6の担当）。
