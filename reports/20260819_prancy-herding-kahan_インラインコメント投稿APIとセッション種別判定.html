@@ -90,7 +90,7 @@
           <tr>
             <td class="px-4 py-3 font-medium"><code>comments</code> からの見え方</td>
             <td class="px-4 py-3 text-emerald-700">unresolved として拾える（<code>path:line</code> 付き）</td>
-            <td class="px-4 py-3">unresolved として拾えるが<strong>位置情報が出ない</strong></td>
+            <td class="px-4 py-3">unresolved としては拾えるが、<strong>どのファイルの何行目への指摘なのかが出力されない</strong><br><span class="text-slate-500">GitLab APIの制約ではなく、<code>gitlab_format_discussion_notes</code> が <code>position</code> を出力していないため（フェーズ3で改修する）</span></td>
             <td class="px-4 py-3">スレッド単位で <code>isResolved</code> を持つ</td>
           </tr>
         </tbody>
@@ -178,7 +178,7 @@
       </div>
       <div class="bg-white rounded-lg shadow p-4 flex gap-4 items-start">
         <span class="shrink-0 w-8 h-8 rounded-full bg-slate-800 text-white grid place-items-center font-bold text-sm">3</span>
-        <p class="text-sm text-slate-700"><strong>行が特定できない指摘はレビュー本文（サマリ）へ集約する。</strong> ファイル単位コメントの別経路は通知が分散し、経路も二重になるため採らない。</p>
+        <p class="text-sm text-slate-700"><strong>ファイル全体にかかる指摘は、そのファイルのdiff上で最初に現れる有効行へ付ける。</strong> 新規追加ファイルなら1行目に一致する。既存ファイルの部分変更では1行目がdiffに含まれないことがあるため、実装は「1行目に固定」ではなく<strong>有効行集合の最小値</strong>とする。サマリへ回すのは、そのファイルがdiffに全く現れない場合のみ。<code>subject_type=file</code> の別経路は通知が分散し経路も二重になるため採らない。</p>
       </div>
       <div class="bg-white rounded-lg shadow p-4 flex gap-4 items-start">
         <span class="shrink-0 w-8 h-8 rounded-full bg-slate-800 text-white grid place-items-center font-bold text-sm">4</span>
