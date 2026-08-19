@@ -21,7 +21,7 @@ keywords: [directory, repository-map, リポジトリマップ, ディレクト�
     - [./.claude/docs/ddr/](./.claude/docs/ddr/) 意思決定ログ（DDR: Design Decision Record。追記のみ）。
   - [./.claude/rules/](./.claude/rules/) AI向け詳細ルール（コーディング規約・ディレクトリ構成・ドキュメント運用等）。
   - [./.claude/skills/](./.claude/skills/) `/issue-mr-flow`（唯一の実装フロー定義）・`/commit`
-    ・`/issue-create`・`/canvas-report` のスキル定義。
+    ・`/issue-create`・`/resolve-conflict`・`/canvas-report` のスキル定義。
   - [./.claude/agents/](./.claude/agents/) サブエージェント定義（issue-mr-flow途中引き継ぎ用）。
   - [./.claude/scripts/](./.claude/scripts/) AIエージェントが`.claude/skills/*`経由で能動的に実行するスクリプト一式。
     - [./.claude/scripts/src/](./.claude/scripts/src/) issue駆動MRワークフロー支援スクリプト等（bash）。

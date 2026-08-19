@@ -34,6 +34,7 @@ keywords: [正史仕様, 意思決定ログ, issue-mr-workflow, シェルスク�
 - [shell-scripts.md](spec/shell-scripts.md) ── 開発補助スクリプトのシェル言語方針（bash採用の経緯）
 - [extract-frontmatter.md](spec/extract-frontmatter.md) ── frontmatter抽出スクリプト（index.jsonl生成）
 - [update-handoff-progress.md](spec/update-handoff-progress.md) ── HANDOFF.md進捗自動更新スクリプト
+- [check-base-conflicts.md](spec/check-base-conflicts.md) ── defaultブランチとのコンフリクト検知スクリプト
 
 ## ddr（意思決定ログ）
 
@@ -69,3 +70,4 @@ DDRのうち0001・0002・0008・0015は持ち込んでいない**（連番に�
 - [0026-空コミットフォールバックはGitHub固有の制約として残す.md](ddr/0026-空コミットフォールバックはGitHub固有の制約として残す.md)
 - [0027-gh_glab-CLI不在時はMCPフォールバック経路へ機構的に誘導する.md](ddr/0027-gh_glab-CLI不在時はMCPフォールバック経路へ機構的に誘導する.md)
 - [0028-プロバイダ判定はremote-URLのホスト部でgithub以外をgitlabとみなす.md](ddr/0028-プロバイダ判定はremote-URLのホスト部でgithub以外をgitlabとみなす.md)
+- [0029-defaultブランチとのコンフリクトは検知を機構化し解消手順をスキル化する.md](ddr/0029-defaultブランチとのコンフリクトは検知を機構化し解消手順をスキル化する.md)
