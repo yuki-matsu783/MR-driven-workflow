@@ -1,12 +1,12 @@
 ---
-title: 0041. plans配下のfrontmatter typeはguideではなくplanを新設する
+title: 0042. plans配下のfrontmatter typeはguideではなくplanを新設する
 type: ddr
 description: plans/*.mdのfrontmatter typeに、既存のguideを流用せず専用の値planを新設して一意に定める決定
 tags: [markdown-frontmatter, docs-workflow, plans, type]
 keywords: [plans, type, plan, guide, frontmatter, ライフサイクル, index.jsonl, 全体作業計画, 個別計画, 規約]
 ---
 
-# 0041. `plans/` 配下のfrontmatter `type` は `guide` ではなく `plan` を新設する
+# 0042. `plans/` 配下のfrontmatter `type` は `guide` ではなく `plan` を新設する
 
 ## 背景
 

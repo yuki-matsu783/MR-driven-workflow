@@ -108,7 +108,7 @@ bash .claude/scripts/src/extract-frontmatter.sh .
 （`.claude/rules/docs-workflow.md` のライフサイクル表と対応する）。issue #95以前は `plans/*.md`
 についての規定が無く、実際には `guide` / `log` / `plan` / frontmatter無しが混在していたため、
 専用の値 `plan` を新設して一意に定めた（経緯・却下案:
-[.claude/docs/ddr/0041-plans配下のfrontmatter-typeはguideではなくplanを新設する.md](../docs/ddr/0041-plans配下のfrontmatter-typeはguideではなくplanを新設する.md)）。
+[.claude/docs/ddr/0042-plans配下のfrontmatter-typeはguideではなくplanを新設する.md](../docs/ddr/0042-plans配下のfrontmatter-typeはguideではなくplanを新設する.md)）。
 
 ## 対象外・特殊対応ファイル
 
