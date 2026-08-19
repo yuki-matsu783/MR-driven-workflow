@@ -155,14 +155,25 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
     `400 line_code must be a valid line code` でその指摘だけ投稿されない。
   - **`export MSYS_NO_PATHCONV=1` した状態ではネイティブjqがMSYS形式のパスを開けない**ことも
     判明（docker操作用のexportを、jqを使う処理と同じシェルへ広げてはいけない）。
+- **GitHub実機検証を実施した（ユーザー承認のうえPR #80へ投稿。レビューは残している）**。
+  `add_mr_inline_comments 80` が `{"posted":3,"summarized":2}` を返し、
+  **`line` 未指定のfindingが1行目ではなく有効行の最小値（`Gitlab.sh:117`）へ寄る**こと、
+  マルチバイトを含むパスにも正しく付くこと、有効行外・diff外の2件がサマリへ回ることを確認した。
+  投稿したスレッドは `get_mr_unresolved_comments 80` に位置つきの `unresolved` として現れる。
+  - **検証前に既存規約との不整合を1つ直した**。`gh`/`glab` は人間のアカウントで認証されるため、
+    AIの投稿には `Claude Codeより:` の署名を付けるのがこのリポジトリの規約
+    （`issue-mr-flow/SKILL.md` の `reply` 手順2）だが、インラインコメント本文に入っていなかった。
+    GitHub/GitLab両方の本文組み立てに `Claude Codeより（敵対的レビュー）:` を追加した
+    （GitLabはまとめ役のレビュー本文が無く、署名なしでは人間の指摘と区別できないため）。
 
 ## 次にやること
 
 - **flow-id 3-8（人間）**: MRで実装内容をレビューする。合意連絡までAIは以降の作業を行わない。
   特に見てほしいのは、上記「計画から2点変えた」の妥当性。
-- **GitHub実機での投稿確認（`add_mr_inline_comments` のend-to-end）が未実施。**
-  提出済みレビューは削除できず、レビュー中のPR #80へbotのレビューが増えるため、
-  **実行の可否をユーザーへ確認してから**行う。有効行の算出までは実データで確認済み。
+- **GitHub実機での確認は完了**（ユーザー承認のうえPR #80へ投稿。`{"posted":3,"summarized":2}`。
+  `line` 未指定が有効行の最小値へ寄ること・マルチバイトパス・有効行外/diff外のサマリ行きを確認）。
+  **投稿したレビューは、レビュー時に確認できるよう削除していない**（提出済みレビューはそもそも
+  削除できないが、インラインコメント個々も残している）。
 - **GitLab実機での確認は完了**（`docker start gitlab` でフェーズ2のコンテナを再利用。
   `gitlab_add_mr_inline_comments` が `{"posted":3,"summarized":1}` を返し、新規行・削除行・
   コンテキスト行の3ケースすべてが position 付きで投稿された。`gitlab_get_mr_unresolved_comments`
