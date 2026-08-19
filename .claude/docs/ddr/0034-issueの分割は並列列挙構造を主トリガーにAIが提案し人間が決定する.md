@@ -1,12 +1,12 @@
 ---
-title: 0032. issueの分割は並列列挙構造を主トリガーにAIが提案し人間が決定する
+title: 0034. issueの分割は並列列挙構造を主トリガーにAIが提案し人間が決定する
 type: ddr
 description: 大きすぎるissueの分割判定を、定量閾値や自動検知ではなく「同型の成果物が並列に列挙されているか」という構造的トリガーに置き、AIは提案までを担い決定は人間が行うとした判断を記録したDDR
 tags: [issue-mr-flow, issue分割, workflow, ddr]
 keywords: [issue分割, 並列列挙, 主トリガー, 定量閾値, 自動検知, AskUserQuestion, 親issue, 個別計画ファイル, 粒度]
 ---
 
-# 0032. issueの分割は並列列挙構造を主トリガーにAIが提案し人間が決定する
+# 0034. issueの分割は並列列挙構造を主トリガーにAIが提案し人間が決定する
 
 ## 背景
 

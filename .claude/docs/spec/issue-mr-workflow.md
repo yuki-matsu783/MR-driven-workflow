@@ -95,6 +95,7 @@ MRとのやり取りだけを自動化する薄い層」として設計したが
 | `get_mr_unresolved_comments <n> [true]` | レビューコメント／スレッドを取得しテキストへ整形（スレッドID・ファイルパス・行番号・diffを含む）。既定（第2引数省略）では未解決のスレッドのみを返し、対応済み（解決済み）スレッドは機械的に除外する。第2引数に `true` を渡すと解決済みも含めた全件を返す。GitLabはdiscussions APIが操作履歴を `system: true` のnoteとして同じ配列で返すため、これも機械的に除外する（issue #48） | `gh api graphql` (review threads) | `glab api` (discussions) |
 | `add_mr_thread_reply <n> <threadId> <text>` | 指定スレッドに対応内容を返信する（スレッドの解決＝resolvedはレビュアー側の操作のため本関数では行わない） | `gh api graphql`（reply mutation） | `glab api`（note追加） |
 | `set_mr_description <n> <bodyFile>` | PR/MRのdescriptionを指定ファイル内容で上書き | `gh pr edit --body-file` | `glab mr update --description` |
+| `set_mr_ready <n>` | Draft PR/MRのDraft状態を解除し、レビュー・マージ可能な状態にする（全体フロー flow-id 5-3。Draft作成側の `new_draft_merge_request` に対応する解除側。issue #61） | `gh pr ready` | `glab mr update --ready` |
 | `add_mr_comment <n> <bodyFile>` | PR/MRへ新規コメントを1件投稿（スレッド返信・レビューではない通常コメント） | `gh pr comment --body-file` | `glab api`（notes追加） |
 | `sync_branch <branch>` | 現在のブランチをfetch、必要ならcheckout（新しいセッションでの再開用） | `git fetch` + `git checkout` | 同左 |
 | `test_issue_sections <body>` | issue本文に「目的／現状／期待する動作／受け入れ条件」の4見出しが揃っているか確認し、欠けている見出し名を1行1件でstdoutへ出力する（プロバイダ非依存） | — | — |
@@ -106,6 +107,7 @@ MRとのやり取りだけを自動化する薄い層」として設計したが
 | `get_branch_work_files` | 現在のブランチ固有（`<defaultBaseBranch>` に無い）の `plans/` `worklog/` `reports/` ファイル一覧を返す（プロバイダ非依存）。日本語を含むパスをそのまま返すため `-c core.quotepath=false` を指定している（issue #9。詳細は「計画の2階層構造」節） | — | — |
 | `build_issue_body <purpose> <current> <expected> <acceptance>` | 標準4見出し（目的・現状・期待する動作・受け入れ条件）に沿ってissue本文を組み立てる（プロバイダ非依存。issue #25） | — | — |
 | `new_issue <title> <body>` | タイトル・本文からissueを新規作成し、`get_issue`と同じ形（number/title/body/url/slug）のJSONを返す（issue #25） | `gh issue create` → URLから番号抽出 → `github_get_issue` | `glab issue create` → URLから番号抽出 → `gitlab_get_issue` |
+| `search_issues <キーワード...>` | キーワードで既存issueを検索し `[{number, title, state, url}]` のJSON配列を返す（起票前の重複チェック用。issue #68）。**closedも対象**。キーワードごとに1回ずつ検索して統合する（最大5キーワード。超過分は標準エラーへ通知して切り捨て）。`state` は `open`/`closed` へ正規化する | `gh issue list --search`（キーワードごと） | `glab issue list --search`（キーワードごと） |
 | `get_vcs_access_mode` | 実行環境に該当プロバイダのCLIがあるかを判定し、`cli`（CLI経路）／`mcp`（MCPフォールバック経路）を返す（issue #34） | `command -v gh` | `command -v glab` |
 | `parse_repo_slug <remoteUrl>` | リモートURL（https / ssh(scp形式) / `ssh://`）から `{host, owner, repo, path, url}` のJSONを組み立てる（純粋関数。MCPツールが要求する `owner`/`repo` をCLIなしで得るため。issue #34） | — | — |
 | `get_repo_slug` | `git remote get-url origin` の値を `parse_repo_slug` へ渡す（issue #34） | — | — |
@@ -144,6 +146,14 @@ scheme除去・認証情報（`user@`）除去・ポート除去・scp形式（`
 
 scp形式（`git@host:o/r.git`）とポート付きURL（`host:2222/o/r.git`）の区別は、`:` の後ろが
 **数字だけかどうか**で行う。これがパラメータ展開だけで書ける唯一の分岐点である。
+
+issue #68で追加した3つの関数も同じく内部ヘルパーである。`github_normalize_issue_search_results` /
+`gitlab_normalize_issue_search_results`（`gh issue list --json` / `glab issue list --output json` の
+出力を共通形式 `{number, title, state, url}` へ正規化する）はプロバイダ固有ファイル側に、
+`merge_issue_search_results`（複数キーワードぶんの検索結果を `number` で重複排除し番号の降順で
+統合する）は `Provider.sh` 側にある。いずれも `gh`/`glab` を呼ばずjqだけで完結するため、
+`gitlab_format_discussion_notes` と同じ理由で切り出して単体テストの対象にしている。公開されているのは
+`search_issues` の方である。
 
 **`Provider.sh` 内の関数がすべて公開インターフェースとは限らない点に注意する。** 上表に載るのは
 呼び出し側（スキル・他スクリプト）が直接使う関数のみで、`provider_from_remote_url` のように
@@ -234,7 +244,7 @@ issue #24 対応では、スコープ外としていた範囲を作業の途中�
 「issueが大きすぎる場合の分割提案」**であり、本節はその位置づけの記録にとどめる（二重管理を
 避けるため、基準の詳細をここへ再掲しない）。`issue-create` スキル側も同節を参照するだけで、
 判定基準を持たない。定量閾値・自動検知・強制起票を採らなかった理由は
-[0032-issueの分割は並列列挙構造を主トリガーにAIが提案し人間が決定する.md](../ddr/0032-issueの分割は並列列挙構造を主トリガーにAIが提案し人間が決定する.md)
+[0034-issueの分割は並列列挙構造を主トリガーにAIが提案し人間が決定する.md](../ddr/0034-issueの分割は並列列挙構造を主トリガーにAIが提案し人間が決定する.md)
 を参照。
 
 ### レビューコメントへの返信
@@ -312,8 +322,14 @@ resume・clear時に毎回、現在ブランチのissue/MR状態をコンテキ�
 
 - **コンポーネント**: `.claude/hooks/session-start.sh`（bash版。issue #6でPowerShell版から移行）＋
   `.claude/settings.json` の `hooks.SessionStart` 設定。
-- **matcher**: `startup|resume|clear` に限定する。`compact`（コンテキスト圧縮のたびに`gh` API
-  呼び出しが走るのを避ける）と `fork`（今回はスコープ外）は対象外とする。
+- **matcher**: `startup|resume|clear|compact`。`fork` は対象外（fork時は親セッションの
+  コンテキストがそのまま引き継がれ、要約による情報欠落が起きないため）。`compact` は当初
+  「コンテキスト圧縮のたびに`gh` API呼び出しが走るのを避ける」という理由で除外していたが、
+  **compactは要約内容を指定できず、作業継続に必須の現在地が要約の精度次第で失われる**ため、
+  issue #57 で追加した。除外理由の再評価（compactの発生頻度・MCP経路ではAPI呼び出しが
+  そもそも発生しないこと）と却下案は
+  [0032-compact後もSessionStart-hookで作業コンテキストを再注入する.md](../ddr/0032-compact後もSessionStart-hookで作業コンテキストを再注入する.md)
+  参照。
 - **実行シェル**: exec form（`args`指定）で `"bash"` を呼ぶ（フルパス直書きはしない。他環境への
   移植性を優先）。ただしこのマシンではPATHの優先順位次第で素の`"bash"`がWSL起動用スタブ
   （`C:\Windows\System32\bash.exe`）に解決されてしまうため、システム環境変数（`Machine`スコープ）
@@ -327,14 +343,34 @@ resume・clear時に毎回、現在ブランチのissue/MR状態をコンテキ�
 - **情報収集**: `resume`（`issue-mr-resume`サブエージェント）と同じ`Provider.sh`の関数
   （`get_issue_number_from_branch` / `get_issue` / `get_mr_for_branch` / `get_mr_unresolved_comments`）を
   再利用する。hookはサブエージェントを起動できないため、同種の情報収集ロジックを持つ独立スクリプト
-  として実装した。表示内容は「ブランチ／issue／PR（Draft状態含む）／未解決レビューコメント件数」に
-  絞り、`get_branch_work_files`によるplan/worklogファイル一覧や`HANDOFF.md`の内容表示は含めない
-  （それらは`resume`の役割のまま維持し、hookは軽量な自動通知に留める）。
+  として実装した。表示内容は「ブランチ／issue／PR（Draft状態含む）／未解決レビューコメント件数」
+  ＋「ブランチ固有の作業ファイル一覧（`get_branch_work_files`。**ファイル名のみ**）」
+  ＋「`HANDOFF.md` の『## 次にやること』節」。**ファイルの中身は注入しない**（`HANDOFF.md` も
+  「次にやること」節だけを抜き出し、全文・進捗表・「やったこと」等は含めない）。
+  当初は後ろ2項目を`resume`の役割として除外していたが、compactをmatcherへ加えた際に
+  「compactはセッション途中で自動的に起こり、その直後に`resume`が呼ばれる保証が無い」ため
+  最小限の現在地はhook側が持つ必要があると判断し、issue #57 で追加した（範囲の線引き・却下案:
+  [DDR 0032](../ddr/0032-compact後もSessionStart-hookで作業コンテキストを再注入する.md)）。
+  この拡張は起動要因によらず常に行う（要因ごとに内容を分岐させない）。
 - **出力形式**: `{"hookSpecificOutput":{"hookEventName":"SessionStart","additionalContext":"<text>"}}`
   形式のJSONをstdoutへ返す。
 - **フォールバック方針**: `main`ブランチ上（作業ブランチ未チェックアウト）では注入しない。
   `gh`未認証・API失敗等、情報収集に失敗した場合もセッション開始をブロックせず、短い失敗メッセージ
-  のみを返す（best-effort。詳細な原因調査は人間が手動で行う）。
+  のみを返す（best-effort。詳細な原因調査は人間が手動で行う）。作業ファイル一覧・`HANDOFF.md`
+  抜粋の取得に失敗した場合は、**その行自体を出さずに他の項目の注入を続ける**（fail-open。
+  追加項目の失敗がブランチ・issue・PR情報の注入を妨げてはならない）。
+- **注入量の肥大化検知（issue #57）**: 組み立てた`additionalContext`の**バイト数**
+  （文字数ではない。日本語はUTF-8で1文字3バイトのため3倍ずれる）を測り、しきい値
+  `CONTEXT_SIZE_WARN_BYTES`（既定8000バイト。環境変数で上書き可能）を**超えた場合のみ**、
+  末尾へ「ユーザーへ肥大化を警告し`HANDOFF.md`・`plans/`の整理を促すこと」という指示文を
+  追記する。**切り詰めは行わず全量を注入する**（切り詰めると、この機構が守ろうとしている現在地
+  そのものを失い、かつ失ったことがエージェント側から分からないため）。しきい値の根拠・
+  却下案は[DDR 0032](../ddr/0032-compact後もSessionStart-hookで作業コンテキストを再注入する.md)参照。
+- **構造とテスト（issue #57）**: 本体処理は`main`にまとめ、ファイル末尾の
+  `[ "${BASH_SOURCE[0]}" = "${0}" ]` ガードで直接実行時のみ呼ぶ。これにより
+  `.claude/scripts/test/test_session_start.sh` から`source`して、副作用の無い純粋関数
+  （`context_text_bytes` / `append_size_warning` / `extract_handoff_next_steps`）を単体テストできる
+  （ガードが無いと`source`時に`raw="$(cat)"`でstdin待ちのままハングする）。
 - **`gh`/`glab` CLI自体が無い環境での挙動（issue #34）**: 上記の一般的な失敗と区別し、
   `get_vcs_access_mode` が `mcp` を返す場合は専用の内容を注入する。具体的には
   「VCS情報取得経路: MCP」「ブランチ名から抽出したissue番号（本文・タイトルはMCPで取得すること）」
@@ -877,6 +913,59 @@ issueはGitHubのUIからしか作成できず、標準4見出し（目的・現
   「未決定事項・懸念点」の「GitLab側の動作未検証」を参照）。
 - **実機検証（GitHub）**: `create-issue.sh`を実際に実行してissue #38を作成し、4見出し構成で
   正しく作成されることを確認した。検証用issueのため確認後にクローズ済み。
+
+### 起票前の類似・重複issueチェック（issue #68）
+
+上記のissue作成（AI代行）には、既存issueとの重複を起票前に検知する手順が無かった。人間が
+GitHub/GitLabのUIから起票する場合は入力中に類似issueがサジェストされるが、`create-issue.sh`
+経由のAI代行ではそれが働かない。結果として、**本来重複を作りにくいはずのAI経路のほうが重複を
+作りやすい**構造になっていた。1 issue = 1ブランチ = 1 MR という単位を保つため、
+`issue-create` スキルの最終確認の前に検索ステップを設けた。
+
+#### 責務の分割
+
+| 層 | 担当 |
+|---|---|
+| `issue-create` スキル（AIエージェント） | 検索キーワードの選定（3〜5個）、結果の提示、`AskUserQuestion` によるユーザーへの判断委譲 |
+| `Provider.sh`（`search_issues`） | 与えられたキーワードでの検索、プロバイダ差の吸収（キー名・`state` の表記）、複数結果の統合 |
+
+**キーワード抽出をスクリプト側へ実装していない**のが本機能の中心的な判断である。日本語主体の
+issueから意味のある語を選ぶには形態素解析が要り、bashの文字種判定はロケール依存で静かに劣化する。
+一方、`issue-create` スキルではAIが直前に自らタイトル・4見出しを組み立てており、そのissue固有の
+語がどれかを判断できる。詳細・却下案は
+[0033-issue起票前の重複チェックは検索をProvider層へ置きキーワード抽出はAIに委ねる.md](../ddr/0033-issue起票前の重複チェックは検索をProvider層へ置きキーワード抽出はAIに委ねる.md)
+を参照。
+
+#### `search_issues` の仕様
+
+- 戻り値は `[{number, title, state, url}]` のJSON配列。該当が無ければ空配列 `[]`
+  （何も出力しない、ではない。呼び出し側が `jq 'length'` で件数を判定できるようにするため）。
+- **closedのissueも対象に含める。** 過去に見送られた提案の再提出を検知するため。
+- `state` は `open` / `closed` の2値へ正規化する。GitHub CLIは `OPEN`/`CLOSED`、GitLabは
+  `opened`/`closed` を返すため、そのままでは呼び出し側が両方の表記を知る必要がある。
+- **キーワードごとに1回ずつ検索し、結果を統合する。** GitHub/GitLabのissue検索は複数語を
+  AND条件として扱うため、1回にまとめると語が増えるほどヒットしなくなる。重複チェックで欲しいのは
+  再現率のため、OR相当の挙動になるよう `merge_issue_search_results` で統合する
+  （`number` で重複排除し、番号の降順で返す）。
+- キーワードは最大5件（`SEARCH_ISSUES_MAX_KEYWORDS`）。CLI起動＝ネットワークI/Oの回数を
+  有界にするためで、超過分は**標準エラーへ通知したうえで**切り捨てる。
+- 1キーワードあたりの取得件数は20件（`SEARCH_ISSUES_LIMIT`）。
+
+#### 最終判断は人間が行う
+
+AIは候補を提示するに留め、**重複と断定して勝手に起票を中止しない**（スキルの
+「してはいけないこと」に明記）。似ているだけで粒度・観点が異なる別issueであることは珍しくなく、
+誤って中止した場合はユーザーが候補を見る機会そのものを失う。候補があった場合は
+`AskUserQuestion` で「新規に起票する／既存issueへコメントする／やめる」を選ばせる。
+候補が0件のときも「類似issueは見つかりませんでした」と明示する（検索したこと自体を黙らせない）。
+
+#### MCP経路での差分
+
+`gh`/`glab` CLIが無い環境では `mcp__github__search_issues`（`query`, `owner`, `repo`）へ
+読み替える。このMCPツールは自然言語のセマンティック検索で、既に `is:issue` にスコープされて
+いるため、CLI経路のようにキーワードごとに呼び分ける必要が無く、1回の `query` に複数キーワードを
+平文で並べればよい。検索の仕組みが異なるため同じ入力でも候補の並びは一致しないが、
+候補の提示が目的で件数・順序に依存した自動判断は行わないため許容している。
 
 ## 影響範囲
 
@@ -1451,6 +1540,53 @@ issueはGitHubのUIからしか作成できず、標準4見出し（目的・現
 （`.claude/rules/docs-workflow.md` の規定）。`tests/test_external_command_server.sh` を指す記述も、
 このリポジトリに実在せず移動していないため触れていない。
 
+### issue #61（Draft解除をProvider.sh経由にする）
+
+flow-id 5-3「Draftを解除する」が、`Provider.sh` に対応する関数を持たないため、AIエージェントが
+`gh pr ready` を直接呼ぶ運用になっていた（issue #55 のクローズ時に実際にそうした）。Draft **作成**側
+（`new_draft_merge_request`）だけが抽象化され**解除**側が欠けている非対称を解消し、GitLab環境と
+CLI不在時のMCPフォールバック経路（issue #34）の双方でクローズ工程が通るようにした。
+
+- `.claude/scripts/src/vcs/Provider.sh`
+  - `set_mr_ready <n>` を追加（先頭で `require_vcs_cli` を呼び、`get_provider` の結果で委譲する。
+    命名は既存の `set_mr_description` に倣った）
+  - `mcp_tool_hint` に `set_mr_ready` の分岐を追加
+- `.claude/scripts/src/vcs/Github.sh`（`github_set_mr_ready`。`gh pr ready <n>`）
+- `.claude/scripts/src/vcs/Gitlab.sh`（`gitlab_set_mr_ready`。`glab mr update <n> --ready`。
+  ヘッダの検証状況コメントへ、本関数だけが実機未検証である旨を追記）
+- `.claude/scripts/test/test_vcs_provider.sh`（`mcp_tool_hint set_mr_ready` の1件を追加。mainのissue #68分と統合した結果54件）
+- `.claude/skills/issue-mr-flow/SKILL.md`
+  - flow-id 5-3 を、CLIを直接叩くのではなく `set_mr_ready` を使う記述へ更新
+  - 「`gh`/`glab` CLI不在時のMCPフォールバック」節の対応表へ `set_mr_ready` 行を追加
+- `.claude/docs/spec/issue-mr-workflow.md`（本ドキュメント。「提供関数」表・本節・「未決定事項・懸念点」）
+
+**flow-idの番号について**: issue #61 の起票時点では対象を「flow-id 5-2」と記載しているが、
+issue #46 でコンフリクト検知のステップが 5-2 として挿入された結果、Draft解除は現在 **5-3** である
+（`.claude/docs/ddr/0029-defaultブランチとのコンフリクトは検知を機構化し解消手順をスキル化する.md`
+「全39→40ステップ」）。本対応では現行の番号である 5-3 を更新した。
+
+### issue #57（compact後の作業コンテキスト再注入と注入量の肥大化検知）
+
+`/compact` 後に SessionStart hook が発火せず、ブランチ・issue/PR情報が再注入されなかった問題への
+対応。あわせて注入対象を広げ、注入量が膨らんだ場合の自己検知を追加した。
+
+- `.claude/settings.json`（`hooks.SessionStart` の matcher へ `compact` を追加）
+- `.claude/hooks/session-start.sh`
+  - 本体処理を `main()` へ移し、`[ "${BASH_SOURCE[0]}" = "${0}" ]` ガードで直接実行時のみ呼ぶ
+    構造へ変更（単体テストから `source` できるようにするため）
+  - `context_text_bytes` / `append_size_warning` / `extract_handoff_next_steps` /
+    `build_work_context` を追加
+  - 注入内容へ「ブランチ固有の作業ファイル一覧（ファイル名のみ）」と
+    「`HANDOFF.md` の『## 次にやること』節」を追加（CLI経路・MCP経路の双方）
+  - 組み立てた `additionalContext` がしきい値（既定8000バイト）を超えた場合のみ、末尾へ
+    整理を促す指示文を追記（切り詰めはしない）
+- `.claude/scripts/test/test_session_start.sh`（新規。35件）
+- `.claude/docs/ddr/0032-compact後もSessionStart-hookで作業コンテキストを再注入する.md`（新規）
+- `.claude/docs/README.md`（DDR一覧に0032を追加）
+
+本節より前の「セッション開始時の自動コンテキスト注入」節では、matcher・情報収集・
+フォールバック方針の**現在の状態を説明する記述のみ**を更新しており、過去エントリは変更していない。
+
 ### issue #64（issueが大きすぎる場合の分割提案ルールの追加）
 
 変更:
@@ -1465,14 +1601,14 @@ issueはGitHubのUIからしか作成できず、標準4見出し（目的・現
   「してはいけないこと」へ「ユーザーの決定を待たずに子issueを起票しない」を追加）
 - `.claude/docs/spec/issue-mr-workflow.md`（本ドキュメント。「issueが大きすぎる場合の分割提案」
   節を追加）
-- `.claude/docs/README.md`（DDR一覧に0032を追加）
+- `.claude/docs/README.md`（DDR一覧に0034を追加）
 - `.claude/docs/spec/update-handoff-progress.md`（「背景・目的」節の「進捗表は39行あり」を40へ修正。
   issue #46 で flow-id 5-2 が追加された際の追随漏れで、現在の状態を説明する地の文のため書き換えた）
 
 新規:
-- `.claude/docs/ddr/0032-issueの分割は並列列挙構造を主トリガーにAIが提案し人間が決定する.md`
+- `.claude/docs/ddr/0034-issueの分割は並列列挙構造を主トリガーにAIが提案し人間が決定する.md`
 
-スクリプト・hookの変更は行っていない（意味理解を要する判定を機構化しない、というDDR 0032の
+スクリプト・hookの変更は行っていない（意味理解を要する判定を機構化しない、というDDR 0034の
 決定によるもの）。
 
 ## 設定項目
@@ -1534,8 +1670,12 @@ issueはGitHubのUIからしか作成できず、標準4見出し（目的・現
   matcher（`startup`/`resume`/`clear`等）で区別してもTask tool経由のサブエージェント内で発火する
   ことが判明した。そのためmatcherでの抑止は不可能と判断し、スクリプト側でstdin JSONの`agent_id`
   フィールドの有無を見て早期終了する実装とした。
-- **SessionStart hookのmatcher範囲**: `startup|resume|clear` に限定し、`compact`（頻度が高く`gh` API
+- **SessionStart hookのmatcher範囲**（issue #57で`compact`の扱いを覆した過去の決定）:
+  `startup|resume|clear` に限定し、`compact`（頻度が高く`gh` API
   呼び出しのコストが無視できない）と `fork`（今回のissueのスコープ外）は対象外とした。
+  issue #57で`compact`を追加した（compactは要約内容を指定できず現在地が失われるため。
+  コスト面の再評価は[DDR 0032](../ddr/0032-compact後もSessionStart-hookで作業コンテキストを再注入する.md)）。
+  `fork`は引き続き対象外。
 - **Windows PowerShell 5.1の文字コード対策はルールでなくスクリプト側で強制する**（issue #6で
   `Provider.ps1`自体が`Provider.sh`へ置き換わったため、本項の対策は過去のものとなった。教訓・
   判断基準としての記録として残す）: issue #5対応中に、
@@ -1608,7 +1748,64 @@ issueはGitHubのUIからしか作成できず、標準4見出し（目的・現
   - `.claude/scripts/test/test_vcs_provider.sh`（issue #63以前は `tests/test_vcs_provider.sh`）に
     「ホストは小文字化・パスは保つ」ケースを追加して明示的に固定した。
 
+### issue #68（起票前の類似・重複issueチェック）
+
+新規:
+- `.claude/docs/ddr/0033-issue起票前の重複チェックは検索をProvider層へ置きキーワード抽出はAIに委ねる.md`
+
+更新:
+- `.claude/scripts/src/vcs/Provider.sh`（`search_issues` ディスパッチャ、`merge_issue_search_results`、
+  `SEARCH_ISSUES_LIMIT` / `SEARCH_ISSUES_MAX_KEYWORDS`、`mcp_tool_hint` への `search_issues` 行）
+- `.claude/scripts/src/vcs/Github.sh`（`github_search_issues` / `github_normalize_issue_search_results`）
+- `.claude/scripts/src/vcs/Gitlab.sh`（`gitlab_search_issues` / `gitlab_normalize_issue_search_results`）
+- `.claude/skills/issue-create/SKILL.md`（実行フローに手順2「類似・重複issueをチェックする」を追加し
+  以降を繰り下げ。各手順に内容名を併記。「してはいけないこと」に2項目追加）
+- `.claude/skills/issue-mr-flow/SKILL.md`（MCPフォールバック対応表に `search_issues` の行）
+- `.claude/scripts/test/test_vcs_provider.sh`（正規化・統合・`mcp_tool_hint` のテスト9件追加。`passed=53 failures=0`）
+- `.claude/docs/spec/issue-mr-workflow.md`（提供関数表・「起票前の類似・重複issueチェック」節・本項）
+- `.claude/docs/README.md`（DDR一覧に0033）
+
 ## 未決定事項・懸念点
+
+- **（issue #61）`gitlab_set_mr_ready` は実機未検証**: 本対応の実行環境（Claude Code on the web の
+  リモート実行環境）には `gh`・`glab` のいずれも存在せず、issue #48 で使ったローカルGitLab CE も
+  再現できなかったため、`glab mr update <id> --ready` を実際に実行した確認はできていない。
+  実装の根拠にしたのは次の2つで、いずれも `--ready` フラグの存在と意味が一致している。
+  - 公式ドキュメント `docs/source/mr/update.md`（gitlab-org/cli, main）: `--ready` は
+    「Mark merge request as ready to be reviewed and merged.」、用例として `glab mr update 23 --ready`
+    が記載されている。
+  - 実装ソース `internal/commands/mr/update/mr_update.go`（同 main）: `--ready` 指定時に
+    `(?i)^(\s*(?:draft:|wip:)\s*)*` でタイトル先頭の `Draft:` / `WIP:` を除去した新タイトルを
+    更新APIへ送る（GitLabがDraftをタイトル接頭辞で表現するため）。接頭辞が無いMRに対しては
+    タイトルが変わらないだけでエラーにならず、冪等に呼べる。
+
+  あわせて、GitHub側の `github_set_mr_ready`（`gh pr ready`）も本環境では実行できていない。
+  確認できたのは、`Provider.sh` 経由の `set_mr_ready` が (a) CLI不在時に `require_vcs_cli` で
+  正しいMCPツール名（`mcp__github__update_pull_request` の `draft=false`）を提示して失敗すること、
+  (b) プロバイダ判定に応じて `github_set_mr_ready` / `gitlab_set_mr_ready` へ正しく委譲すること、
+  の2点である（後者はプロバイダ固有関数をスタブへ差し替えて確認した）。
+  `gh`/`glab` が使えるローカル環境で実PRに対して実行し、確認できた時点で本項目を削除する。
+
+- **（issue #57）`.gemini/settings.json` の SessionStart matcher は `startup|resume|clear` のまま**:
+  `.claude/settings.json` 側には `compact` を追加したが、Gemini CLI の SessionStart matcher が
+  `compact` という値を解釈するかを実機で確認できていないため、あえて揃えていない。未検証の
+  設定値を持ち込んで既存の動いている設定を壊さないという、[DDR 0018](../ddr/0018-gemini-settings.jsonのhooksはレビュー提示スニペットのhooksセクションのみ採用する.md)
+  と同じ判断による。Gemini CLI 側の対応値が確認でき次第、追加を検討する。
+- **（issue #57）注入量のしきい値8000バイトは実測1件（1,222バイト）に基づく暫定値**:
+  「通常運用では鳴らず、数倍に膨らめば鳴る」水準として置いたもので、他プロジェクトへ機構を
+  展開した際に適切かは未検証。`CONTEXT_SIZE_WARN_BYTES` 環境変数で上書きできるようにしてある。
+- **（issue #57）警告文が実際にユーザーへ伝わるかはエージェントの応答に依存する**:
+  `additionalContext` はエージェントへの指示であり、警告の表示を機構的に強制するものではない
+  （hookが直接UIへ出す手段が無いため、`post-push-compact-prompt.sh` と同じ制約）。
+- **（issue #68）`search_issues`のCLI経路が実機未検証**: 本対応はClaude Code on the webの
+  リモート実行環境（`gh`/`glab` CLIが存在しない）で行ったため、`gh issue list --search ...
+  --state all --json number,title,state,url` と `glab issue list --search ... --all --per-page
+  ... --output json` を実際に実行しての確認ができていない。検証済みなのは、
+  (1) `require_vcs_cli`が`search_issues`に対し`mcp__github__search_issues`を名指しして失敗すること、
+  (2) 正規化・統合の純粋関数がCLI出力形式を模したフィクスチャに対して期待どおり動くこと
+  （`.claude/scripts/test/test_vcs_provider.sh`）の2点のみ。**特にGitLab側の`--all`フラグ
+  （opened/closed両方を対象にする指定）は`glab`のバージョンによって名称が異なる可能性がある**ため、
+  `glab`が使える環境での最初の利用時に確認すること。
 
 - **（issue #13）`get_mr_diff_url`/`get_mr_diff_since_url`のURL形式は実機（ブラウザ）で未検証**:
   GitHub実装（`<repoUrl>/compare/<from>...<to>`）はPR作成前から存在する汎用の「Compare changes」
