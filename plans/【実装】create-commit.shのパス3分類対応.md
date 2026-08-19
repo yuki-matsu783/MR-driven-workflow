@@ -22,61 +22,51 @@ keywords: [create-commit, git add, ls-files, ls-tree, 3分類, ADD, SKIP, UNKNOW
 |---|---|---|
 | ADD | worktree に存在する、または index にエントリがある | `git add -- <ADD...>` へ渡す（通常変更・新規・**追跡済みの削除**） |
 | SKIP | worktree にも index にも無いが HEAD にはある | 削除が既にステージ済み。**何もせず成功扱い**（冪等）。1行だけ通知する |
-| UNKNOWN | いずれにも無い | 想定原因を添えてエラー終了（終了コード1）。タイプミス検知を維持する |
+| UNKNOWN | いずれにも無い | 事実のみを述べてエラー終了（終了コード1）。タイプミス検知を維持する |
 
 ## 変更対象
 
 `.claude/scripts/src/create-commit.sh` の1ファイルのみ（既存の引数パース・バリデーションは変更しない）。
 
-### 追加する処理（`git add` の直前）
+### 追加する処理
+
+**実装中に方針を修正した（flow-id 3-6）。** 当初案は「常に分類してから `git add` する」だったが、
+分類をパス文字列の一致で行うと、**ディレクトリごと削除された `reports/` をディレクトリ指定で
+渡すケースが UNKNOWN 扱いになり、現行動作からの機能後退になる**ことが検証で判明した
+（`git ls-files -- reports` が返すのは `reports/xxx.html` であって `reports` ではないため）。
+
+そこで、**まず現行どおり `git add` を試し、失敗したときだけ分類する**方式に変更した。
 
 ```bash
-# 追跡状態でパスを分類する。git の起動は ls-files / ls-tree の2回のみ（ループ内では起動しない）
-declare -A in_index=() in_head=()
-while IFS= read -r -d '' path; do in_index["$path"]=1; done < <(git ls-files -z -- "${files[@]}")
-if git rev-parse --verify -q HEAD >/dev/null; then
-  while IFS= read -r -d '' path; do in_head["$path"]=1; done \
-    < <(git ls-tree -r -z --name-only HEAD -- "${files[@]}")
+if ! add_error="$(git add -- "${files[@]}" 2>&1)"; then
+  classify_files "${files[@]}"          # add_files / skip_files / unknown_files を作る
+  ...                                    # unknown があればエラー、skip があれば通知して再試行
 fi
+```
 
-add=(); skip=(); unknown=()
-for f in "${files[@]}"; do
-  if [ -e "$f" ] || [ -n "${in_index[$f]:-}" ]; then
-    add+=("$f")
-  elif [ -n "${in_head[$f]:-}" ]; then
-    skip+=("$f")
+分類は pathspec ごとに git 自身へ問い合わせる（パスの正規化を自前で行わない）。
+
+```bash
+for path in "$@"; do
+  if [ -e "$path" ] || [ -n "$(git ls-files -- "$path")" ]; then
+    add_files+=("$path")
+  elif [ -n "$(git ls-tree -r --name-only HEAD -- "$path" 2>/dev/null || true)" ]; then
+    skip_files+=("$path")
   else
-    unknown+=("$f")
+    unknown_files+=("$path")
   fi
 done
 ```
 
-### 分類後の振る舞い
+この方式の利点:
 
-1. `unknown` が1件以上 → 全件を列挙し、想定原因を添えてエラー終了（`exit 1`）。
-   このとき `git add` は**一切実行しない**（一部だけステージされた中途半端な状態を作らない）。
-   メッセージ案:
-
-   ```
-   エラー: 次のパスは git が把握していません（ステージング・コミットは行いませんでした）:
-     - reports/20260819_report.html
-   想定される原因:
-     - 一度もコミットされないまま作成・削除された（未追跡ファイル）
-     - パスの綴り誤り、または `git status` の8進エスケープ表記（\343\200\220...）をそのまま渡した
-   ```
-
-2. `skip` が1件以上 → 1行で通知する（エラーではない）。
-
-   ```
-   注記: 次のパスは削除が既にステージ済みのため、そのままコミットに含めます: <パス...>
-   ```
-
-3. `add` が1件以上のときのみ `git add -- "${add[@]}"` を実行する。
-   **空配列を `git add --` へ渡さないためのガード**（現状は `-A` が無いため実害は無いが、
-   将来 `-A` を足された場合に無制限ステージングへ化けるのを構造的に防ぐ）。
-
-4. コミット実行は現行のまま。ステージ済みの変更が1つも無ければ `git commit` が
-   「nothing to commit」で失敗する（現行と同じ挙動。自動ロールバックはしない）。
+- **正常系のコストがゼロ**。`git add` の呼び出し方も従来と同一で、追加のgit起動は発生しない
+  （ループ内で `git` を呼ぶのは失敗時のみ。`shell-script-style.md`「外部プロセス起動のコスト」の
+  趣旨に沿う）
+- ディレクトリ指定・末尾スラッシュ・相対/絶対表記などの pathspec 解釈を**すべて git に委ねられる**
+- 「既存の使い方が従来どおり動作する」ことが構造的に保証される（正常系は同じコードを通る）
+- `git add` はpathspecを先に検証し、1つでも不一致なら何もステージせずに終了する（実測済み）ため、
+  失敗しても中途半端にステージされた状態にはならない
 
 ### コメントの更新
 
@@ -134,4 +124,25 @@ done
 
 ## 作業ログ
 
-（flow-id 3-6 で記入する）
+flow-id 3-6 実施（2026-08-19）。詳細は
+`worklog/20260819_cheeky-baking-lantern_【実装】create-commit.shのパス3分類対応_push3.md` を参照。
+
+- 当初案（常に分類してから `git add`）は、ディレクトリ指定のケースで機能後退することが検証で
+  判明したため、「まず現行どおり試し、失敗したときだけ分類する」方式へ変更した（上記「追加する処理」）
+- 分類の存在判定に `-z` を付けていたところ、コマンド置換がNULバイトを扱えず
+  `warning: command substitution: ignored null byte in input` が出たため除去した。出力の中身は
+  使わず「1件でもマッチしたか」だけを見るため、8進エスケープされても判定に影響しない
+- `bash -n` 通過。一時リポジトリでの検証は計画の6ケースに4ケースを追加し、**passed=29 failures=0**
+
+| # | ケース | 結果 |
+|---|---|---|
+| 1 | 通常変更のみ（従来の使い方） | 成功。`other/` の巻き込み無し |
+| 2 | 削除済み＋通常変更＋新規の混在 | 1回の呼び出しで成功。pathspec 外の変更は未ステージのまま |
+| 3 | `git rm` で削除をステージ済みのパスを再指定 | SKIP通知が出て成功（**現行はここで rc=128**） |
+| 4 | 未追跡のまま削除されたパス | rc=1。コミットもステージもされず、spec への参照が出る |
+| 5 | UNKNOWN と正常パスの混在 | rc=1。部分適用なし |
+| 6 | 引数不足のバリデーション | 現行どおり rc=1 |
+| 7 | SKIP のみ（ADD が空） | 成功。削除がコミットされる |
+| 8 | ディレクトリごと消えた `reports/` をディレクトリ指定 | 成功（当初案ではここが rc=1 だった） |
+| 9 | `.gitignore` 対象を混ぜた場合 | rc=1 で git のメッセージをそのまま表示（現行と同じ） |
+| 10 | HEAD が無い新規リポジトリでの初回コミット | 成功（`git ls-tree HEAD` を呼ばない経路を通る） |
