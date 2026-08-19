@@ -62,6 +62,7 @@ bash .claude/skills/apply-mr-workflow-to-project/scripts/install-to-project.sh /
 ### 2. コアスクリプト群（`.claude/scripts/`, `.gemini/scripts/`）
 - `create-issue.sh` / `create-commit.sh` / `extract-frontmatter.sh`：VCS、コミット、フロントマター処理の自動化。
 - `check-base-conflicts.sh`：defaultブランチとのコンフリクト（テキスト＋DDR番号の重複）を作業ツリーを変更せずに検知。
+- `search-frontmatter.sh`：frontmatterの`index.jsonl`を結合し、type/tags/keywords/パス/フリーテキストでドキュメントを横断検索。
 - `vcs/Provider.sh`（および `Github.sh`, `Gitlab.sh`）：GitHubやGitLabのAPI差異を吸収し、ブランチやDraft MR/PR作成を自動化するラッパー。
 
 ### 3. フック群（`.claude/hooks/`, `.gemini/hooks/`）
@@ -73,6 +74,7 @@ bash .claude/skills/apply-mr-workflow-to-project/scripts/install-to-project.sh /
 - `issue-create`：対話的なIssueの自動作成。
 - `issue-mr-flow`：起票からマージまでを完全ガイド・自律実行するメインワークフロー。
 - `resolve-conflict`：マージ依頼前のdefaultブランチとのコンフリクト検知・解消。
+- `doc-search`：ドキュメント探索をgrep/findの全文探索ではなくfrontmatterインデックス検索で行う。
 
 ---
 
