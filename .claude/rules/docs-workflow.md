@@ -32,12 +32,15 @@ keywords: [plans, handoff, worklog, 正史仕様, 意思決定ログ, ライフ�
 削除する**（`reports/` はmd・htmlの両方が対象。`.claude/skills/issue-mr-flow/SKILL.md`の全体フローが正）。設計反映（flow-id 4-6）で
 行うのは、これらの**内容**を`.claude/docs/spec/` `.claude/docs/ddr/`へ反映することであって、
 ファイルの削除ではない。削除済みの状態でPR作成〜squash mergeへ進むため、mainにはこれらのファイルは
-残らない。
+残らない。この削除と`HANDOFF.md`のリセットは`bash .claude/scripts/src/cleanup-task.sh`が行う
+（`worklog/TEMPLATE.md` と、下記の `REVIEW-POINTS.md` は削除対象から除外される。仕様:
+[.claude/docs/spec/cleanup-task.md](../docs/spec/cleanup-task.md)）。
 
 **唯一の例外が `REVIEW-POINTS.md` である。** `plans/REVIEW-POINTS.md` `reports/REVIEW-POINTS.md` は
 これらのディレクトリ配下にあるが、タスク単位の成果物ではなく**そのディレクトリに対するレビュー観点**
 であり、寿命は永続である（上表）。flow-id 5-1で `plans/` `worklog/` `reports/` を片付ける際は、
-**`REVIEW-POINTS.md` だけを残す**（issue #77）。
+**`REVIEW-POINTS.md` を残す**（issue #77）。worklogの雛形である `worklog/TEMPLATE.md` も同様に残す
+（`cleanup-task.sh` はこの2つを削除対象から除外する）。
 
 上記の`spec`/`ddr`は、このリポジトリに同梱されたissue駆動MRワークフロー機構自体（`.claude/`配下）の
 ものである。アプリ本体を追加する場合は、そのアプリ専用の`docs/spec/`・`docs/ddr/`（必要なら人間専用
