@@ -74,11 +74,26 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - flow-id 1-6: 本ファイルを更新した。
 - flow-id 3-1: 個別作業計画と worklog（push1）を作成した。監視の位置づけを3案（新flow-id挿入／
   flow-id 5-2の拡張／フェーズ横断の並行手順）で比較し、並行手順として定義する方針を確定した。
+- flow-id 3-6（実作業。人間レビューを挟めないため進捗記号は `[]` のまま）: 4つのAIアセットへ反映した。
+  - `.claude/skills/issue-mr-flow/SKILL.md`: 「PR作成後のdefaultブランチ追従（監視）」節を新設
+    （既存flow-idとの対応／実行環境別の手段／セッション依存の制約と引き継ぎ方／自動解消の線引き／
+    停止条件）。フロー表の 1-3・5-2 の行と 5-2 節の冒頭へ相互参照を追加し、5-2 を「最終ゲート」と
+    位置づけ直した。`resume` サブコマンドへ手順5（監視の取り直し）を追加。
+  - `.claude/skills/resolve-conflict/SKILL.md`: 呼び出しタイミングへ監視中の検知を追加し、
+    Step 2 へ「監視モードでの例外」（類型A/B/C/Dは承認を待たず解消、Eは止めて確認）を新設。
+    Step 6・Step 7 へ監視モードでの扱いを追記。
+  - `.claude/rules/git-workflow.md`: 「PR・マージ」節へサブ節「PR作成後のdefaultブランチ追従」を追加。
+  - `.claude/agents/issue-mr-resume.md`: 手順7・報告フォーマットへ「追従監視」を追加。
+  - `.claude/rules/docs-workflow.md`: HANDOFF.mdのヘッダに `- 追従監視:` 行を持たせること、
+    それが `set-header` の対象外であることを追記。
+  - 検証: 単体テスト7本（passed合計229 / failures=0）と `extract-frontmatter.sh` の再生成が通ること、
+    差し込み位置の前後で空行が崩れていないことを確認した。
 
 ## 次にやること
 
-- flow-id 3-6: 個別作業計画の「実装手順」に従い、`issue-mr-flow/SKILL.md`・
-  `resolve-conflict/SKILL.md`・`git-workflow.md`・`issue-mr-resume.md` へ反映する。
+- flow-id 4-1: 個別反映計画 `plans/【設計反映】PR作成後の追従監視をspec_DDRへ反映.md` を作成する。
+- flow-id 4-6: DDR 0039・`.claude/docs/spec/issue-mr-workflow.md`・
+  `.claude/docs/spec/check-base-conflicts.md`・`.claude/docs/README.md` へ反映する。
 
 ## 判断を迷った内容
 
