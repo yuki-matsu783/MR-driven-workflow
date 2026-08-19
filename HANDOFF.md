@@ -16,7 +16,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 
 - issue: #63 ワークフロー機構の単体テストを tests/ から .claude/scripts/test/ へ移動する
 - ブランチ: claude/workflow-unit-tests-migration-ffdv02
-- Draft PR: 未作成（ユーザーからの明示指示があるまで作成しない）
+- PR: #71 https://github.com/yuki-matsu783/MR-driven-workflow/pull/71（Draft）
 - push回数: 1
 
 進捗記号: `[x]` 完了 / `[]` 未着手・進行中 / `[-]` 今回は実施しない（スキップ）
@@ -25,7 +25,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 |----|---|---|---|
 | [x] | 1-1 | issueを起票する。issue #63 として起票済み | 人間（AIが代行する場合は `issue-create` スキル） |
 | [x] | 1-2 | issueの内容を取得する。`gh` CLI不在のため `mcp__github__issue_read` で取得（4見出しすべて揃っている） | `start <issue番号>` |
-| [] | 1-3 | featureブランチとDraft MRを作成する。ブランチはハーネス指定の `claude/workflow-unit-tests-migration-ffdv02`（`feature-<issue番号>-<slug>` 命名規則の対象外）で作業中。Draft PRは未作成 | `start` |
+| [x] | 1-3 | featureブランチとDraft MRを作成する。ブランチはハーネス指定の `claude/workflow-unit-tests-migration-ffdv02`（`feature-<issue番号>-<slug>` 命名規則の対象外）。Draft PR #71 をユーザー指示により作成（通常フローと異なり実装完了後の作成） | `start` |
 | [x] | 1-4 | **Planモードで「全体作業計画」を作成する** → `plans/nested-exploring-cloud.md` | エージェント |
 | [] | 1-5 | 全体作業計画に合意する（非対話セッションのため未実施） | 人間 |
 | [x] | 1-6 | 全体作業計画をもとにHANDOFF.mdを更新する | エージェント |
@@ -94,9 +94,8 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 
 ## 次にやること
 
-- PR作成はユーザーの明示指示待ち（`.claude/rules/git-workflow.md`「PR・マージ」）。
-- PR作成後は 3-3/3-8/4-3/4-8 の人間レビューと、`describe` によるMR description更新。
-- flow-id 5-1（`plans/` `worklog/` の削除とHANDOFFリセット）は、レビュー合意後に実施する。
+- Draft PR #71 のレビュー（flow-id 3-3/3-8/4-3/4-8）。
+- flow-id 5-1（`plans/` `worklog/` の削除とHANDOFFリセット）・5-2（Draft解除）は、レビュー合意後に実施する。
 
 ## 判断を迷った内容
 
@@ -108,6 +107,12 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - **`shell-scripts.md` の「対象スクリプト一覧」の扱い**。`## 仕様` 節にあるが内容は bash化当時の
   旧→新対応表である。パスをそのまま差し替えると「bash化時点で `.claude/scripts/test/` にあった」
   という誤った記録になるため、**当時のパスを残したまま「issue #63 で移動」と現在地を併記**した。
+- **`HANDOFF.md` のPR行のキー名**。過去のHANDOFF（issue #45時点、コミット `7f27825`）は
+  `- Draft PR: ` と書いていたが、`update-handoff-progress.sh` の `set-header --pr` が
+  書き換え対象にするのは `- PR: ` で始まる行である（`test_update_handoff_progress.sh` の
+  フィクスチャも `- PR: `）。`- Draft PR: ` のままだと **set-headerが何も書き換えずに終了コード0で
+  終わる**（無言の空振り）ため、スクリプト側の契約に合わせて `- PR: ` へ揃えた。
+  → 下記「未解決の内容」に、ドキュメント側でキー名を明文化する余地として記録する。
 - **ディレクトリ名を `test/` にするか `tests/` にするか**。`src/` の兄弟として並べたときの見た目で
   単数形の `test/` を採った（issue本文の指定どおり）。意味の差は無い。
 
@@ -118,7 +123,14 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
   マージ時に rename/modify conflict になる。**後からマージする側で解決が必要**で、
   `.claude/scripts/test/test_vcs_provider.sh` へ #56 が追加した8件のテストを取り込む形になる見込み。
   issue #63 の備考は「#56 マージ後の着手が望ましい」としていたが、依頼を受けて先行着手した。
-- Draft PR未作成のため、`describe` による MR description 更新が一度も行われていない。
+- `describe`（MR description更新）は `gh` CLI不在のため未実行。PR #71 の description は
+  MCPツール（`mcp__github__create_pull_request`）で直接設定した。
+- **`HANDOFF.md` のヘッダキー名がどこにも明文化されていない**。`update-handoff-progress.sh` は
+  `- issue: ` / `- ブランチ: ` / `- PR: ` / `- push回数: ` の4キーを前提にしているが、
+  `.claude/docs/spec/update-handoff-progress.md` にも `issue-mr-flow/SKILL.md` にも記載が無く、
+  実際に過去のHANDOFFは `- Draft PR: ` と書かれていて set-header が空振りしていた。
+  仕様側へキー名を明記するか、set-headerが対象行を見つけられなかった場合に警告を出すかの
+  どちらかを、別issueとして検討する余地がある。
 
 ## 守るべき条件・触ってはいけない範囲
 
