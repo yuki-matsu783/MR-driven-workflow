@@ -18,8 +18,8 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - ブランチ: `feature-97-support-gemini-cli-usage-report`
 - PR: #101 https://github.com/yuki-matsu783/MR-driven-workflow/pull/101 （Draft）
 - 追従監視: なし（ローカル。各pushとflow-id 5-2で手動確認する）
-- push回数: 3
-- 現在のループ: 2-6〜2-9 の1周目（進行中）
+- push回数: 4
+- 現在のループ: なし
 
 | 進捗 | flow-id | ステップ | 担当 |
 |---|---|---|---|
@@ -34,12 +34,12 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 | [x] | 2-3 | 調査計画のレビュー | 人間 |
 | [x] | 2-4 | レビュー内容を反映する | `comments` / `reply` |
 | [x] | 2-5 | 調査計画をもとにMR descriptionを更新する | `describe` |
-| [] | 2-6 | 調査を実施する | エージェント |
-| [] | 2-7 | commit・pushしてレビュー依頼 | エージェント |
-| [] | 2-8 | 調査結果のレビュー | 人間 |
-| [] | 2-9 | レビュー内容を反映する | `comments` / `reply` |
-| [] | 2-10 | 調査結果をもとにMR descriptionを更新する | `describe` |
-| [] | 3-1 | 個別作業計画を作成する | エージェント |
+| [x] | 2-6 | 調査を実施する | エージェント |
+| [x] | 2-7 | commit・pushしてレビュー依頼 | エージェント |
+| [x] | 2-8 | 調査結果のレビュー | 人間 |
+| [x] | 2-9 | レビュー内容を反映する | `comments` / `reply` |
+| [x] | 2-10 | 調査結果をもとにMR descriptionを更新する | `describe` |
+| [x] | 3-1 | 個別作業計画を作成する | エージェント |
 | [] | 3-2 | commit・pushしてレビュー依頼 | エージェント |
 | [] | 3-3 | 作業計画のレビュー | 人間 |
 | [] | 3-4 | レビュー内容を反映する | `comments` / `reply` |
@@ -143,13 +143,32 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
     cwdではないため、**ブランチ帰属には使えない**。
 - **合成フィクスチャ＋jqプロトタイプで検証1〜5を実行し、すべて期待どおりだった**（二重計上なし・
   切り詰め耐性・消失検知・空/不正入力で落ちない）。既存テストも `passed=33 failures=0`。
+- **flow-id 2-8〜2-9（調査結果のレビュー1周目）が完了した。** ユーザーの「レビューOK」を受けて
+  `get_mr_unresolved_comments 101` を確認したところ、**未解決のレビュースレッドは0件**だった
+  （PR上に残っているのはこちらから投稿した記録コメント・対応工数レポートのみ）。修正の必要は
+  無かったため `reports/` の内容は変更していない。
+- **既存のテスト失敗（`test_post_issue_create_notice.sh`）は issue #94 と同一事象だった。**
+  「別issueとして起票したい」というユーザーの判断を受けて `issue-create` スキルの重複チェックを
+  実行したところ、既報の **issue #94** が見つかり、ユーザーの選択により**新規起票せず #94 へ
+  補足コメントを追記**した（https://github.com/yuki-matsu783/MR-driven-workflow/issues/94 ）。
+  切り分けの要点: **本番コード（`jq -nc`）の出力は壊れておらず**、CRを入れているのは
+  テスト側が値を取り出す `jq -r` である（複数行の値でのみ表面化する）。この訂正は PR #101 へも
+  投稿済み。
+- **flow-id 2-10（MR description更新）**: フェーズ2の調査結果（確定した設計方針C・S・O・D・E・
+  F・G・H・I・K、想定が外れた点A-1・B、検証1〜5、未検証範囲）を反映した。
+- **flow-id 3-1（個別作業計画の作成）**: `plans/【実装】【テスト】Gemini CLIセッションログの集計を追加する.md`
+  を**planツールを使わず**Write/Editで作成した。実装とテストは合意を1回で取るため併記した。
+  変更対象は3ファイル（`UsageTracking.sh` / `post-push-usage-report.sh` / `test_usage_tracking.sh`）。
+  **実装時に決めることを3点、計画上に明示して未確定のまま残した**（push-indexの扱い・
+  `toolErrors` の表示位置・`epoch_from_iso8601` の共有方法）。
 
 ## 次にやること
 
-- **flow-id 2-7（commit・pushしてレビュー依頼）** へ進む。
-- 人間のレビュー（2-8）で合意が取れたら flow-id 2-10（MR description更新）→ フェーズ3（3-1）へ。
-- フェーズ3で新設する関数は `_usage_gemini_fold` / `_usage_gemini_merge_state` の2つ。
-  **既存関数は `sync_usage_state` の分岐追加以外は触らない。**
+- **flow-id 3-2（commit・pushしてレビュー依頼）** へ進む。
+- レビュー（3-3）で合意が取れたら flow-id 3-5（MR description更新）→ 3-6（実装）へ。
+- 実装で新設する関数は `_usage_gemini_fold` / `_usage_gemini_merge_state` の2つ。
+  **既存関数は `sync_usage_state` の分岐追加以外は触らない**（既存33ケースを1行も変えないことが
+  「Claude Code側の集計結果が変わらない」ことの担保になる）。
 - DDRに残す判断: C・D・E・F・I・S（フェーズ4で採番する）。
 
 ## 判断を迷った内容
@@ -193,10 +212,10 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
   同居させないため。`.claude/skills/issue-create/SKILL.md`）。着手は新しいセッションで
   `/issue-mr-flow start 105` から行う。
 - **`main` 上に既存のテスト失敗がある**（`test_post_issue_create_notice.sh`、`passed=13 failures=1`）。
-  Windows版jqが出力へCRを付与する既知の問題（`.claude/rules/shell-script-style.md`「文字コード」節）で、
-  期待901バイトに対し実際907バイト（注意文6行分のCR）。**マージ由来ではないことを別ワークツリーで
-  確認済み**（`origin/main` 単体でも再現）。本MRのスコープ外のため修正していない。PRコメントで報告済みで、
-  別issueとして起票するかはユーザーの判断待ち。
+  Windows版jqが**テスト側の `jq -r`** でCRを付与するために起きる（本番コードの出力は壊れていない）。
+  **マージ由来ではないことを別ワークツリーで確認済み**（`origin/main` 単体でも再現）。
+  **本MRのスコープ外のため修正しない。** 既報の **issue #94** へ切り分け結果を追記済みで、対応は
+  そちらの担当。
 
 ## 守るべき条件・触ってはいけない範囲
 
