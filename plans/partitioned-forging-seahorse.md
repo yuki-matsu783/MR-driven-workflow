@@ -26,9 +26,8 @@ transcript JSONL専用**である。結果として集計値はすべて0にな�
 集計対象には含めない」と明記されている（[.claude/docs/spec/issue-mr-workflow.md:839](.claude/docs/spec/issue-mr-workflow.md#L839)）。
 
 **この変更で目指す結果**: Gemini CLIで作業したときも、ツール実行回数・ツールエラー回数・応答回数・
-使用モデル・稼働時間・トークンを集計した対応工数レポートがMR/PRへ投稿される。あわせて、
-Gemini CLIのテレメトリをローカルへ出力してpush毎に集計し、レポートへ加える（下記
-「スコープ追加」）。Claude Code側の集計結果・レポート内容は一切変えない。
+使用モデル・稼働時間・トークンを集計した対応工数レポートがMR/PRへ投稿される。Claude Code側の
+集計結果・レポート内容は一切変えない。
 
 ## 着手時点で判明した、issue本文の前提のズレ
 
@@ -89,8 +88,10 @@ Gemini CLI **v0.39.0**（google-gemini/gemini-cli PR #23749）で、チャット
 - **`ToolCallRecord.agentId?` が存在する**ため、サブエージェント分の帰属（期待する動作6）は
   ディレクトリ構造ではなくこのフィールドで判定できる可能性がある。
 - **旧 `.json` 形式は Gemini CLI 本体側にフォールバックが残っている**（アップグレードしても履歴は
-  失われない）。したがって手元に両形式が混在しうる。**拡張子でディスパッチして両対応**にするのが
-  無難であり、`参考ディレクトリ/gemini-insights` は旧形式側の実装リファレンスとして引き続き有効。
+  失われない）。したがって手元に両形式が混在しうる。当初は「拡張子でディスパッチして両対応」を
+  検討したが、**flow-id 2-4 で「新形式のみを扱う」と決定した**（個別調査計画の 決-1）。
+  `参考ディレクトリ/gemini-insights` は、メッセージ1件のキー項目が新旧で同一のため、
+  実装リファレンスとしては引き続き有効。
 - **ブランチ帰属は取れない**（`gitBranch` に相当するものが無く、Gemini CLI は `cwd` をログへ
   記録しない）。期待する動作5の裏付け。
 
@@ -101,15 +102,22 @@ Gemini CLI **v0.39.0**（google-gemini/gemini-cli PR #23749）で、チャット
 | `~/.gemini/tmp/<hash>/logs.json` | プロセスレベルのユーザー入力ログ。今も `.json` で `chats/` とは別系統（セッションIDがズレる既知の不具合あり） | **対象外** |
 | `gemini -p --output-format stream-json` | ヘッドレス実行時の標準出力のイベントストリーム。JSONLだが**スキーマが別物** | **対象外** |
 
-## スコープ追加: Gemini CLIのテレメトリをローカルへ出力し、push毎に集計する
+## スコープから外した要件: Gemini CLIのテレメトリのローカル出力・push毎集計
 
-**issue #97 の本文には無い要件を、着手時のチャットで追加で受けた**（この判断はレビュー往復の
-際に `add_mr_comment` でMRへ記録する。`.claude/skills/issue-mr-flow/SKILL.md`
-「チャットで受けたレビュー判断の記録」）。
+**このMRでは扱わない**（flow-id 2-4・レビュー1周目でユーザーが決定）。
+
+経緯: issue #97 の本文には無いこの要件を、着手時のチャットで追加で受けて一度スコープへ入れたが、
+レビュー1周目で「テレメトリのスコープ追加はこのMRには含めない」との判断を受けたため除外した。
+判断はMRへ記録済み
+（[issuecomment-5348459529](https://github.com/yuki-matsu783/MR-driven-workflow/pull/101#issuecomment-5348459529)
+および flow-id 2-4 の記録コメント）。
+
+以下は**調査済みの事実として残す**（別issueへ切り出す際にそのまま使えるため）。**本MRの
+フェーズ2〜4では扱わない。**
 
 Gemini CLI には、セッションログ（`chats/*.jsonl`）とは**別系統**の OpenTelemetry ベースの
 テレメトリがあり、これを**ローカルファイルへ出力させて `usage/` 配下で管理し、push毎に集計して
-対応工数レポートへ加える**。
+対応工数レポートへ加える**、という要件だった。
 
 | 項目 | 内容 |
 |---|---|
@@ -118,7 +126,7 @@ Gemini CLI には、セッションログ（`chats/*.jsonl`）とは**別系統*
 | 出力先の決定 | `outfile` 指定時は `FileSpanExporter`/`FileLogExporter`/`FileMetricExporter` でそのファイルへ書き出す（`outfile` は `otlpEndpoint` より優先） |
 | 得られる指標 | イベント `gemini_cli.api_response`（属性: `model` / `input_token_count` / `output_token_count` / `cached_content_token_count` / `thoughts_token_count` / `tool_token_count` / `total_token_count` / `duration_ms` / `status_code` 等）、メトリクス `gemini_cli.token.usage`・`gen_ai.client.token.usage` ほか |
 
-**この追加で決めるべきこと（フェーズ2の論点）**
+**別issueへ切り出す場合に決めるべきこと（本MRでは決めない）**
 
 - **出力先パス**: `usage/` 配下（`.gitignore` 対象なのでコミットされない）へ置く。既存の
   `usage/session-logs/` `usage/state/` との責務分離をどうするか。
@@ -183,18 +191,11 @@ issue本文の前提が着手時点で覆っており、**上記の裏取りと�
    | 投稿要否のガード | 現行は「トークン合計0なら投稿しない」。トークンが取れるなら現行のままでよいか、ツール実行回数等も見るべきか |
    | ツールエラー | `status == "error"\|"failed"` を計上。`pending`/`running` の扱い（未完了として計上しない）を決める |
    | サブエージェント | 現行は `subagents/<session_id>/` へ保存のみ（構造的に集計外）。本体側が親セッションIDのディレクトリ配下へネストする仕様であることが裏付けられたため、そのネストを辿って集計するか、`ToolCallRecord.agentId` で親側から辿るか |
-   | 旧 `.json` 形式 | 拡張子でディスパッチして両対応にするか、新形式のみ対応にするか |
+   | 旧 `.json` 形式 | **flow-id 2-4 で「新形式のみ」と決定済み**（個別調査計画の 決-1）。論点としては閉じている |
 
-5. **テレメトリ（スコープ追加分）の調査**
-   - `outfile` へ実際に書き出される**ファイル形式**（1行1JSON か／追記型か／spans・logs・metrics が
-     同一ファイルに混在するか）を、`FileSpanExporter`/`FileLogExporter`/`FileMetricExporter` の
-     実装で確認する。
-   - `gemini_cli.api_response` イベントから、モデル別トークン・所要時間をどう取り出すかを決める。
-   - 上記「スコープ追加」節の論点（出力先パス・`logPrompts`・情報源の二重化・既定で有効にするか）を
-     整理して選択肢を出す。
-6. **既存テストの把握**
+5. **既存テストの把握**
    - `.claude/scripts/test/test_usage_tracking.sh` のフィクスチャの作り方・アサーションの型を確認し、
-     Gemini用フィクスチャ（リビジョン再送・`$set`・`$rewindTo`・テレメトリログ）を追加する形を決める。
+     Gemini用フィクスチャ（リビジョン再送・`$set`・`$rewindTo`・切り詰め）を追加する形を決める。
 
 成果物: `reports/日付_partitioned-forging-seahorse_Geminiセッションログ調査.md`（正文）と同名の `.html`。
 
@@ -205,15 +206,11 @@ issue本文の前提が着手時点で覆っており、**上記の裏取りと�
 1. `UsageTracking.sh` にGemini用の集計関数を追加し、`sync_usage_state` から engine で分岐させる
    （**Claude Code側の関数には手を入れない**＝既存の集計結果を変えないことを構造で担保する）。
 2. 差分の取り方を上記の決定に従って実装する（id単位の後勝ちマージ・`$set`・`$rewindTo` の扱いを含む）。
-3. **テレメトリのローカル出力を有効化する**（`.gemini/settings.json` の `telemetry` 設定。
-   出力先は `usage/` 配下、`target: "local"`、`logPrompts` は調査結果に従う）。その出力を
-   push毎に集計する経路を追加する。
-4. `post-push-usage-report.sh` のレポート組み立てを、Gemini側の指標（ツールエラー回数・
-   テレメトリ由来の値）とトークン列の対応づけに合わせる。**トークンが取れない場合でも
-   空テーブル・0の羅列にしない。**
-5. `.claude/scripts/test/test_usage_tracking.sh` にGeminiフィクスチャの単体テストを追加する
+3. `post-push-usage-report.sh` のレポート組み立てを、Gemini側の指標（ツールエラー回数等）と
+   トークン列の対応づけに合わせる。**トークンが取れない場合でも空テーブル・0の羅列にしない。**
+4. `.claude/scripts/test/test_usage_tracking.sh` にGeminiフィクスチャの単体テストを追加する
    （`passed=N failures=N` 形式。**同じ範囲を二重計上しないこと**の検証を必ず含む）。
-6. Claude Code側の既存テストが通ることを確認する。
+5. Claude Code側の既存テストが通ることを確認する。
 
 ## フェーズ4〈反映〉
 
@@ -222,26 +219,21 @@ issue本文の前提が着手時点で覆っており、**上記の裏取りと�
 - `.claude/docs/spec/issue-mr-workflow.md`
   - 「エンジン判定」節の「Gemini CLIはミラーへの保存のみ対応し、対応工数の集計対象には含めない」
     という現行記述の更新
-  - 「対応工数レポート」節へのGemini経路・**テレメトリ経路**の追記
+  - 「対応工数レポート」節へのGemini経路の追記
   - 「未決定事項・懸念点」へ、実機検証できなかった範囲・Gemini CLIのバージョン依存の明示。
     あわせて「サブエージェントが親と同じセッションIDで動作するのではないか」という既存の懸念が
     解消できていれば「決定済み事項」へ移す
-  - 「設定項目」節へ `.gemini/settings.json` の `telemetry` 設定を追記
 - `.claude/docs/ddr/` へのDDR新規作成（差分の取り方・`$rewindTo` の扱い・ブランチ帰属・
-  トークン列の対応づけ・サブエージェントの扱い・旧形式の対応可否・**テレメトリを有効化する
-  判断と `logPrompts` の既定**）
+  トークン列の対応づけ・サブエージェントの扱い・稼働時間の算出方式・行カーソルの扱い・
+  セッションファイル消失時の挙動）
   - **DDR番号は flow-id 4-6 の直前に `main` の最新を見て採番する**（`main` が進むと衝突するため）
-- `.claude/rules/directory-structure.md`（`usage/` の内訳にテレメトリログを追記）
-- AIアセット反映（`.claude/rules/` 等）のその他の要否は 4-1 で判断する
+- AIアセット反映（`.claude/rules/` 等）の要否は 4-1 で判断する
 
 ## 検証方法
 
 - `bash .claude/scripts/test/test_usage_tracking.sh` が `passed=N failures=0` で通ること
   （Gemini用の新規ケース・Claude Code用の既存ケースの両方）
 - `bash -n` で変更した `.sh` の構文チェック
-- `.gemini/settings.json` が有効なJSONであること（`jq . .gemini/settings.json`）と、
-  変更後もGemini CLIのスキーマ（`schemas/settings.schema.json` の `TelemetrySettings`）に
-  沿ったキーのみを使っていること
 - Claude Code側の集計結果が変わらないこと（既存テストのアサーションを変更しないことで担保する）
 - **実機（Gemini CLI）での検証は本リポジトリの開発機では行えない**（`~/.gemini` が存在しないことを
   確認済み）。合成フィクスチャでの検証にとどまるため、未検証の範囲は reports と spec の
@@ -251,8 +243,7 @@ issue本文の前提が着手時点で覆っており、**上記の裏取りと�
 
 - Claude Code側の集計ロジック・レポート内容の変更
 - Gemini CLI実機での動作確認（環境が無い。未検証として明示する）
-- テレメトリの `target: "gcp"` 対応（Google Cloudへの送信。**ローカル出力のみを対象とする**）
-- OTLPコレクター（Jaeger等）の構築・可視化（`outfile` によるファイル出力のみを使う）
+- **テレメトリ関連一式**（ローカル出力・push毎集計・`.gemini/settings.json` の変更）。flow-id 2-4でスコープ外と決定（上記「スコープから外した要件」）
 - `logs.json`・`--output-format stream-json` への対応（別系統。上記「混同しやすい別系統」）
 - GitLab向けの追加対応（本issueの対象外）
 - 参考実装（gemini-insights / 提示されたRustパーサ）のコードそのものの移植（**形式の情報源として
