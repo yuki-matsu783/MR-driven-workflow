@@ -15,7 +15,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - issue: #67 作業開始・再開時にベースブランチの最新を取り込めているか確認するステップをフローへ追加する
 - ブランチ: claude/base-branch-sync-check-17vdvq
 - PR: #107 (Draft) https://github.com/yuki-matsu783/MR-driven-workflow/pull/107
-- push回数: 1
+- push回数: 2
 - 現在のループ: なし
 - 追従監視: 購読あり（web。`subscribe_pr_activity` + セッション終了前に `send_later` で自己チェックインを予約）
 
@@ -86,13 +86,24 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - flow-id 2-1: 個別調査計画 `plans/【調査】ベースブランチ追従確認の差し込み地点と検知方法.md` と
   worklog を作成した。フェーズ2は省略しない（gitコマンドの境界条件・既存機構の守備範囲を
   実物で確かめる必要があるため）。
+- flow-id 2-2 の直後に **敵対的レビュー（フェーズ2・1回目）** を実施した（本セッションでは
+  ユーザーの指示により各フェーズのpush直後に自動実施する）。指摘9件のうち4件をPR #107 へ
+  インライン投稿し、5件は報告に留めた。**投稿した4件のうち3件は実機で裏取りが取れた**
+  （このリポジトリがshallow cloneであること・`.claude/rules/` に `rebase` の語が0件であること・
+  `issue-mr-resume` に `git fetch` が0件であること）。指摘はすべて計画・レポートへ反映済み。
+- flow-id 2-6: 調査を実施し、結果を `reports/20260819_base-branch-sync-check_調査結果.md`
+  （正文）と同名の `.html` へ記録した。使い捨てのgitリポジトリを作って境界条件を実測し、
+  確認後に削除した。主な結論は次の4点。
+  - 「コンフリクトは無いが遅れている」を検知する機構はこのリポジトリに1つも無い（前提は成立）
+  - behind・ahead は `git rev-list --left-right --count origin/<base>...HEAD` 1回で取れる
+  - 未取り込みファイルは3点リーダ必須。**merge-baseが無いと3点diffは終了コード128で落ちる**
+  - **`resume` は `git fetch` しない**ため、fetchの責務は新スクリプト側へ置く
 
 ## 次にやること
 
-- flow-id 2-2: コミット・リモートへ反映し、敵対的レビューを実施する（本セッションではユーザーの
-  指示により各フェーズのpush直後に自動実施する）。
-- flow-id 2-6: 調査を実施し、結果を `reports/20260819_base-branch-sync-check_調査結果.md` と
-  同名のHTMLへ記録する。
+- flow-id 3-1: 個別作業計画 `plans/【実装】【テスト】〜.md` を作成する。
+- flow-id 3-6: `check-base-sync.sh` と `.claude/scripts/test/test_check_base_sync.sh` を実装し、
+  SKILL.md・`issue-mr-resume.md` へ手順を追加する。
 
 ## 判断を迷った内容
 
