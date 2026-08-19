@@ -4,7 +4,7 @@ description: issueをAIエージェントが起票（作成）したいときに
 title: issue起票（AI代行）
 type: skill
 tags: [issue, automation, github, gitlab]
-keywords: [issue作成, create-issue.sh, 目的, 現状, 期待する動作, 受け入れ条件, テンプレート, issue-mr-flow, 重複チェック, 類似issue, search_issues, AskUserQuestion, 最終確認]
+keywords: [issue作成, create-issue.sh, issue分割, 並列列挙, 目的, 現状, 期待する動作, 受け入れ条件, テンプレート, issue-mr-flow, 重複チェック, 類似issue, search_issues, AskUserQuestion, 最終確認]
 ---
 
 # issue起票（AI代行）
@@ -25,7 +25,17 @@ keywords: [issue作成, create-issue.sh, 目的, 現状, 期待する動作, 受
    と同じ4見出し構成に対応する。情報が不足している場合は、AskUserQuestionまたは通常のチャットで
    ユーザーに質問して補う。**依頼内容から読み取れない項目を勝手に創作しない。**
 
-2. **類似・重複issueをチェックする**（issue #68） — 最終確認へ進む前に、組み立てた内容と近い
+2. **issueが大きすぎないかを確認する**（issue #64） — 組み立てた「期待する動作」「受け入れ条件」
+   が**同型の成果物の並列列挙**（画面・機能／APIエンドポイント／CLIサブコマンド等が「AとBとCを
+   作る」と並ぶ形）になっていないかを見る。該当し、かつ分割しない条件（横断的変更／分割コストが
+   本体を上回る／共通部分の先行実装が必要）にも当たらない場合は、`AskUserQuestion` で
+   「1件のissueとして起票する」「成果物ごとに分けて起票する」を確認する。分けて起票する場合は、
+   **親issue（子issueをチェックリストで束ねる）→ 子issue** の順に作成する。**判定基準の詳細は
+   ここに再掲せず**、`.claude/skills/issue-mr-flow/SKILL.md` の
+   「issueが大きすぎる場合の分割提案」を参照する（二重管理を避けるため）。
+   分割の要否が決まってから手順3の重複チェックへ進む（分割後の各issueについて検索するため）。
+
+3. **類似・重複issueをチェックする**（issue #68） — 最終確認へ進む前に、組み立てた内容と近い
    既存issueが無いかを検索して提示する。人間がUIから起票する場合は入力中に類似issueが
    サジェストされるが、`create-issue.sh` 経由のAI代行ではそれが働かないため、この手順で補う。
 
@@ -71,7 +81,7 @@ keywords: [issue作成, create-issue.sh, 目的, 現状, 期待する動作, 受
       **AIは候補を提示するに留め、重複と断定して勝手に起票を中止しない**（似ているだけで、
       粒度・観点が異なる別issueであることは珍しくないため）。
 
-3. **ユーザーへ最終確認する** — 組み立てたタイトルと4項目の内容を、**通常のメッセージとして
+4. **ユーザーへ最終確認する** — 組み立てたタイトルと4項目の内容を、**通常のメッセージとして
    全文提示する**。そのうえで `AskUserQuestion` で作成可否を確認する（GitHub/GitLab上に公開される
    操作のため、他のissue-mr-flowサブコマンド同様、明示的な合図を待ってから実行する）。選択肢は
    次の方針で組み立てる。
@@ -83,7 +93,7 @@ keywords: [issue作成, create-issue.sh, 目的, 現状, 期待する動作, 受
    **issue本文は長く `AskUserQuestion` の選択肢・説明文には収まらないため、内容の提示は
    通常のメッセージで行い、`AskUserQuestion` は可否の選択だけに使う。**
 
-4. **issueを作成する** — 承認を得たら、以下の形で `.claude/scripts/src/create-issue.sh` を実行する。
+5. **issueを作成する** — 承認を得たら、以下の形で `.claude/scripts/src/create-issue.sh` を実行する。
 
    ```bash
    .claude/scripts/src/create-issue.sh \
@@ -108,7 +118,7 @@ keywords: [issue作成, create-issue.sh, 目的, 現状, 期待する動作, 受
    3. `mcp__github__issue_write`（`method="create"`, `owner`, `repo`, `title`, `body`）で作成する。
    4. WebFetchツール・curlへはフォールバックしない（DDR 0020, DDR 0027）。
 
-5. **結果を提示する** — 結果（issue番号・URL）をユーザーに提示する。**そのうえで、着手する際は
+6. **結果を提示する** — 結果（issue番号・URL）をユーザーに提示する。**そのうえで、着手する際は
    新しいセッションで `/issue-mr-flow start <issue番号>` を実行することを勧めるに留める。**
    起票したセッションでそのまま作業を続けると、進行中の別issueのブランチ・MRと作業コンテキストが
    混ざり、1つのセッション・1つのMRに複数issueの変更が入りかねないため。**AIから着手を持ちかけず、
@@ -122,9 +132,10 @@ keywords: [issue作成, create-issue.sh, 目的, 現状, 期待する動作, 受
 
 - ユーザーの明示的な確認なしに、いきなり `create-issue.sh` を実行しない。
 - 4見出しの内容を、ユーザーの依頼から読み取れる範囲を超えて創作しない。
+- ユーザーの決定を待たずに、issueを分割して子issueを起票しない（分割は提案までがAIの役割）。
 - **類似issueが見つかったことだけを根拠に、ユーザーの判断を待たず起票を中止しない**（issue #68）。
   重複かどうかを決めるのは人間であり、AIは候補の提示までを担当する。
-- **手順2（類似・重複issueのチェック）を省略して最終確認へ進まない。** 検索が0件だった場合も、
+- **手順3（類似・重複issueのチェック）を省略して最終確認へ進まない。** 検索が0件だった場合も、
   その事実を明示する。
 - **ユーザーの明示的な指示なしに、同一セッションで `/issue-mr-flow start` へ進まない**（issue #59。
   起票と実装が同じセッションに同居すると、1つのMRに複数issueの作業が混ざるため）。
