@@ -1,12 +1,12 @@
 ---
-title: 0026. gh/glab CLI不在時はMCPフォールバック経路へ機構的に誘導する
+title: 0027. gh/glab CLI不在時はMCPフォールバック経路へ機構的に誘導する
 type: ddr
 description: gh/glab CLIが無い実行環境で、経路判定関数とProvider関数のガードによりMCPツールでの代替へ機構的に誘導する方式を採用し、GitLabを対象外とした経緯を記録したDDR
 tags: [mcp, provider, fallback, ddr]
 keywords: [get_vcs_access_mode, require_vcs_cli, mcp__github, Claude Code on the web, gh, glab, DDR0020, issue-34]
 ---
 
-# 0026. gh/glab CLI不在時はMCPフォールバック経路へ機構的に誘導する
+# 0027. gh/glab CLI不在時はMCPフォールバック経路へ機構的に誘導する
 
 ## 背景
 
@@ -43,6 +43,10 @@ issue #34「gh/glab CLIが無い環境向けのMCPフォールバック経路を
    サーバーの利用実績が無く、ツール名・引数を実機検証できないため対象外とする。判定と失敗
    メッセージの枠組みだけ共通化し、`mcp_tool_hint` はGitLabに対して「対象外」である旨を返す。
    将来実機検証できた時点でSKILL.mdへ同形式の表を追加すればよい。
+   - **issue #48（DDR 0026）でGitLab CE 18.5.4を用いた実機検証が行われたが、これは `glab` CLI
+     経路の検証であり、GitLab MCPサーバーの検証ではない。** 本DDRの「対象外」判断が対象と
+     しているのは後者であり、issue #48の成果によって覆るものではない（`glab` があるGitLab環境は
+     従来どおりCLI経路で動作する）。
 
 DDR 0020（GitHub/GitLab情報取得は`gh`/`glab` CLIを使い、WebFetch/curlは使わない）とは矛盾しない。
 DDR 0020が禁じているのは**HTMLスクレイピング・未認証アクセスという情報取得手段**であり、MCP

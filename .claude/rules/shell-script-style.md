@@ -187,6 +187,22 @@ issue #11の実例: `extract-frontmatter.sh` がfrontmatterのキー・配列要
 ネイティブコマンドを呼ぶ際は必ずこの対策を行う（`dev-tools/src/build.sh`の`//in` `//out` `//base`
 `//icon`、`tests/test_external_command_server.sh`の`//FI` `//IM` `//F`が実例）。
 
+**コンテナ内の絶対パスを渡す場合は`//`では回避できず、`MSYS_NO_PATHCONV=1`が必要**（issue #48で
+実際に踏んだ）。`docker exec <container> cat /etc/gitlab/gitlab.rb`のように、**引数がフラグでは
+なく純粋なPOSIX絶対パス**である場合、MSYSはそれをパスとみなして`C:/Program Files/Git/etc/gitlab/
+gitlab.rb`へ書き換えてしまう。この用途で先頭を`//`にするとパスの意味自体が変わるため使えない。
+
+```bash
+# 悪い例（コンテナ内のパスがWindowsパスへ化ける）
+docker exec gitlab cat /etc/gitlab/gitlab.rb
+# 良い例（そのスクリプト／セッション全体で自動変換を止める）
+export MSYS_NO_PATHCONV=1
+docker exec gitlab cat /etc/gitlab/gitlab.rb
+```
+
+`docker exec` / `docker run`・WSL経由のコマンド等、**git bashの外にあるファイルシステムのパスを
+引数で渡すコマンド**を扱うスクリプトでは、冒頭で`export MSYS_NO_PATHCONV=1`しておくとよい。
+
 ## 文字コード
 
 - git bashの標準入出力・パイプ・`jq`/`gh`とのやり取りはシステムのANSI/OEMコードページの影響を
@@ -210,6 +226,29 @@ issue #11の実例: `extract-frontmatter.sh` がfrontmatterのキー・配列要
     最後の要素以外は文字列不一致で`null`になる。要素が1件しかない場合は表面化しないため、
     複数要素を扱うループを新設・変更する際に見落としやすい（`.claude/hooks/post-push-usage-report.sh`
     で実例あり）。対策は同じく`| tr -d '\r'`を、`for`に渡す`$(...)`の直前に挟むこと。
+
+- **`awk`/`sed`の置換文字列で、`\r`を含むシェルコードを生成しない**（issue #48で実際に踏んだ）。
+  スクリプトへ`| tr -d '\r'`という行を差し込もうとして`awk 'NR==95{print "... tr -d '\''\r'\''"}'`と
+  書いたところ、**awkが文字列リテラル中の`\r`をCR文字そのものへ展開**し、ソースコードに生の
+  CRバイトが混入した（結果として`tr -d ''`に見える行が出来上がり、CR除去が無言で効かなくなる）。
+  `sed`の置換文字列でも同様に、処理系によって`\r`・`\n`・`\t`がエスケープとして解釈される。
+  **生成したい行はクォート済みヒアドキュメントで別ファイルへ書き出し、`sed -n`で分割した
+  前後と連結する**のが確実。
+
+  ```bash
+  # 悪い例（\r がCR文字へ展開されてソースに混入する）
+  awk -v n=95 'NR==n{print "  '\'' | tr -d '\''\r'\''"; next} {print}' f.sh > f.new
+  # 良い例（ヒアドキュメントの中身はそのままのバイト列で出る）
+  cat > line.txt <<'EOF'
+    ' | tr -d '\r'
+  EOF
+  { sed -n '1,94p' f.sh; cat line.txt; sed -n '96,$p' f.sh; } > f.new
+  ```
+
+  上の例の`EOF`は読みやすさのためインデントしているが、**実際に書くときは行頭（列0）に置く**こと
+  （インデントすると終端として認識されない）。混入したかどうかは、CR除去前後のバイト数比較で
+  確認する（下記「テスト」節のとおり
+  `grep -c $'\r'`は使わない）。
 
 ## Claude Code hookとして登録する場合
 

@@ -85,10 +85,10 @@ MRとのやり取りだけを自動化する薄い層」として設計したが
 | `get_issue <n>` | issueのtitle/body/labelsを取得（JSON） | `gh issue view` | `glab issue view` |
 | `new_issue_branch <n> <slugSource> [<base>]` | `<branchPrefixTemplate>` に従いブランチを作成しcheckout、リモートpush。`<slugSource>` はslug化対象のテキストであり、生issueタイトルである必要はない（`.claude/skills/issue-mr-flow/SKILL.md` の `start` サブコマンドではAIエージェントが生成した英語の意訳フレーズを渡す。詳細: [0010-ブランチslugの意訳生成はAIエージェントが行う.md](../ddr/0010-ブランチslugの意訳生成はAIエージェントが行う.md)）。`<base>`（省略可）でベースブランチを上書きできる。省略時は `.mrworkflow.json` の `defaultBaseBranch` を使う（issue #15: `start` サブコマンドが `AskUserQuestion` で確認した結果を渡す） | `git switch -c` + `git push` | 同左 |
 | `new_draft_merge_request <n> <branch> <title> [<base>]` | issueに紐づくDraft PR/MRを作成（bodyは仮テンプレート、後続の `set_mr_description` で上書き前提。`<title>` はissueタイトルをそのまま渡す） | `gh pr create --draft` | `glab mr create --draft` |
-| `get_mr_unresolved_comments <n> [true]` | レビューコメント／スレッドを取得しテキストへ整形（スレッドID・ファイルパス・行番号・diffを含む）。既定（第2引数省略）では未解決のスレッドのみを返し、対応済み（解決済み）スレッドは機械的に除外する。第2引数に `true` を渡すと解決済みも含めた全件を返す | `gh api graphql` (review threads) | `glab api` (discussions) |
+| `get_mr_unresolved_comments <n> [true]` | レビューコメント／スレッドを取得しテキストへ整形（スレッドID・ファイルパス・行番号・diffを含む）。既定（第2引数省略）では未解決のスレッドのみを返し、対応済み（解決済み）スレッドは機械的に除外する。第2引数に `true` を渡すと解決済みも含めた全件を返す。GitLabはdiscussions APIが操作履歴を `system: true` のnoteとして同じ配列で返すため、これも機械的に除外する（issue #48） | `gh api graphql` (review threads) | `glab api` (discussions) |
 | `add_mr_thread_reply <n> <threadId> <text>` | 指定スレッドに対応内容を返信する（スレッドの解決＝resolvedはレビュアー側の操作のため本関数では行わない） | `gh api graphql`（reply mutation） | `glab api`（note追加） |
 | `set_mr_description <n> <bodyFile>` | PR/MRのdescriptionを指定ファイル内容で上書き | `gh pr edit --body-file` | `glab mr update --description` |
-| `add_mr_comment <n> <bodyFile>` | PR/MRへ新規コメントを1件投稿（スレッド返信・レビューではない通常コメント） | `gh pr comment --body-file` | `glab mr note --message` |
+| `add_mr_comment <n> <bodyFile>` | PR/MRへ新規コメントを1件投稿（スレッド返信・レビューではない通常コメント） | `gh pr comment --body-file` | `glab api`（notes追加） |
 | `sync_branch <branch>` | 現在のブランチをfetch、必要ならcheckout（新しいセッションでの再開用） | `git fetch` + `git checkout` | 同左 |
 | `test_issue_sections <body>` | issue本文に「目的／現状／期待する動作／受け入れ条件」の4見出しが揃っているか確認し、欠けている見出し名を1行1件でstdoutへ出力する（プロバイダ非依存） | — | — |
 | `get_issue_number_from_branch [<branch>]` | ブランチ名を `branchPrefixTemplate` に照らしてissue番号を抽出する（省略時は現在のブランチ）。マッチすればstdoutへ出力し終了コード0、マッチしなければ終了コード1（プロバイダ非依存） | — | — |
@@ -104,6 +104,13 @@ MRとのやり取りだけを自動化する薄い層」として設計したが
 | `get_repo_slug` | `git remote get-url origin` の値を `parse_repo_slug` へ渡す（issue #34） | — | — |
 | `mcp_tool_hint <funcName>` | Provider関数名に対応するGitHub MCPツールと主な引数を1行で返す（GitLabは対象外である旨を返す。issue #34） | — | — |
 | `require_vcs_cli <funcName>` | CLI経路が使えない場合に、代替すべきMCPツールを名指ししたメッセージをstderrへ出して終了コード1を返す。プロバイダ依存の各関数の先頭で呼ぶ（issue #34） | — | — |
+
+上表は `Provider.sh` 経由で公開する共通インターフェースであり、プロバイダ固有ファイル
+（`Github.sh` / `Gitlab.sh`）の内部ヘルパーは含まない。issue #48で追加した
+`gitlab_format_discussion_notes`（discussions APIのJSONを受け取り整形済みテキストを返す純粋関数）は
+後者にあたる。`gitlab_get_mr_unresolved_comments` は `glab api` 呼び出しとこの関数の薄いラッパーで、
+外部コマンドを呼ばない整形ロジックだけを切り離すことで `tests/test_vcs_provider.sh` から
+単体テストできるようにしている（`.claude/rules/shell-script-style.md`「テスト」）。
 
 ### 全体フロー
 
@@ -300,16 +307,30 @@ Claude Code on the webのリモート実行環境のように、`gh`/`glab` CLI�
 - **GitLabは対象外**: `glab` 不在時のGitLab向けMCP代替は対象外とする（利用実績が無く、ツール名・
   引数を実機検証できないため）。判定・失敗メッセージの枠組みのみ共通で、`mcp_tool_hint` は
   GitLabに対して「対象外」である旨を返す。詳細・却下案は
-  [0026-gh_glab-CLI不在時はMCPフォールバック経路へ機構的に誘導する.md](../ddr/0026-gh_glab-CLI不在時はMCPフォールバック経路へ機構的に誘導する.md)
+  [0027-gh_glab-CLI不在時はMCPフォールバック経路へ機構的に誘導する.md](../ddr/0027-gh_glab-CLI不在時はMCPフォールバック経路へ機構的に誘導する.md)
   参照。
 
 ### Draft PR作成失敗時の自動リトライ
 
 `new_draft_merge_request` は `new_issue_branch` 直後（baseとの差分がまだ無い状態）で呼ぶと
-`gh pr create` / `glab mr create` が失敗する既知の制約があった。コマンドの失敗を検知した
-場合、共通処理 `add_empty_commit_for_draft_mr`（空コミット+push）を実行してから1回だけ自動リトライする
-（それでも失敗すればエラーを返す）。詳細・却下案は
+PR/MR作成が失敗することがある。失敗を検知した場合、共通処理 `add_empty_commit_for_draft_mr`
+（空コミット+リモートへの反映）を実行してから1回だけ自動リトライする（それでも失敗すれば
+エラーを返す）。詳細・却下案は
 [0005-DraftPR作成失敗時は空コミットで自動リトライする.md](../ddr/0005-DraftPR作成失敗時は空コミットで自動リトライする.md)
+参照。
+
+**この制約はGitHub（`gh pr create`）固有である**（issue #48で判明）。issue #48の対応時に、
+GitHubとGitLabの双方を同一セッション内で実測した。
+
+| プロバイダ | targetブランチと同一SHA（差分ゼロ）のブランチでのPR/MR作成 |
+|---|---|
+| GitHub（`gh pr create`） | **失敗する**（`No commits between main and feature-48-...`）。フォールバックが動作した |
+| GitLab CE 18.5.4（`glab mr create`） | **成功する**。フォールバックに到達しない |
+
+GitLab側の分岐を削除していないのは、実機確認できたのが CE 18.5.4 の1バージョンのみで、
+他バージョン・他設定でも必ず成功すると言い切れないため。GitLabでは通常到達しない安全網という
+位置づけになる。詳細・却下案は
+[0026-空コミットフォールバックはGitHub固有の制約として残す.md](../ddr/0026-空コミットフォールバックはGitHub固有の制約として残す.md)
 参照。
 
 ### 対応工数レポート（PostToolUse hook, git push検知）
@@ -784,8 +805,9 @@ issueはGitHubのUIからしか作成できず、標準4見出し（目的・現
   `issue-mr-flow`のサブコマンドとして追加しなかった理由・却下案は
   [0011-issue作成は独立スキルとして新設する.md](../ddr/0011-issue作成は独立スキルとして新設する.md)
   参照。
-- **GitHub/GitLab両実装**: 他の`gitlab_*`関数群と同様、GitLab側（`gitlab_new_issue`）はこのリポジトリの
-  remoteがGitHubのみのため実機未検証（「未決定事項・懸念点」の既存項目と同じ制約）。
+- **GitHub/GitLab両実装**: GitLab側（`gitlab_new_issue`）は、当初このリポジトリのremoteがGitHubのみで
+  実機未検証だったが、issue #48でローカルGitLab CE 18.5.4に対して実機確認済み（残る制約は
+  「未決定事項・懸念点」の「GitLab側の動作未検証」を参照）。
 - **実機検証（GitHub）**: `create-issue.sh`を実際に実行してissue #38を作成し、4見出し構成で
   正しく作成されることを確認した。検証用issueのため確認後にクローズ済み。
 
@@ -1216,6 +1238,29 @@ issueはGitHubのUIからしか作成できず、標準4見出し（目的・現
   「未決定事項・懸念点」を更新、本エントリを追加）
 - `.claude/docs/ddr/0023-...md`（「決定」節に方式変更を追記、「却下した案」に当初のsuffix推測方式を追加）
 
+新規（追加分・issue #48 GitLab実機検証で判明した3件の不具合修正）:
+- `.claude/docs/ddr/0026-空コミットフォールバックはGitHub固有の制約として残す.md`
+
+変更（追加分・issue #48 GitLab実機検証で判明した3件の不具合修正）:
+- `.claude/scripts/src/vcs/Gitlab.sh`
+  - `gitlab_format_discussion_notes` を純粋関数として新設（discussions APIのJSONを受け取り
+    整形済みテキストを返す）。jqフィルタへ `select($n.system | not)` を追加し、GitLabが自動生成する
+    システムノート（`changed the description` 等）をレビューコメントから除外。あわせてjq出力の
+    CRを `tr -d '\r'` で除去
+  - `gitlab_get_mr_unresolved_comments` を、`glab api` 呼び出しと上記関数の薄いラッパーへ変更
+  - `gitlab_add_mr_comment` を、非推奨の `glab mr note --message` から安定版REST API
+    （`glab api "projects/:id/merge_requests/<n>/notes" -X POST -f "body=..."`）へ置き換え
+  - `gitlab_new_draft_merge_request` の空コミットフォールバックのコメントを、GitHub固有の制約で
+    あることが分かる内容へ書き換え（コードは変更なし）
+- `tests/test_vcs_provider.sh`（`gitlab_format_discussion_notes` の単体テストを5件追加。
+  実レスポンス形状のフィクスチャで、システムノートの除外・解決済みの扱い・CR非混入を確認）
+- `.claude/docs/spec/issue-mr-workflow.md`（本ファイル。「Draft PR作成失敗時の自動リトライ」節を
+  GitHub固有の制約として訂正、「提供関数」表の `add_mr_comment` GitLab実装欄と
+  `get_mr_unresolved_comments` の説明を更新し内部ヘルパーに関する注記を追加、
+  「issue作成（AIエージェント代行・スクリプト実行）」節のGitLab未検証注記を更新、
+  「決定済み事項」へGitLabのシステムノートの扱いを追加、「未決定事項・懸念点」の
+  「GitLab側の動作未検証」を部分解消の内容へ書き換え、本エントリを追加）
+- `.claude/docs/README.md`（DDR一覧に0027を追加）
 変更（追加分・issue #34 gh/glab CLI不在時のMCPフォールバック経路）:
 - `.claude/scripts/src/vcs/Provider.sh`（`get_vcs_access_mode` / `parse_repo_slug` /
   `get_repo_slug` / `mcp_tool_hint` / `require_vcs_cli` を追加。プロバイダ依存の8関数の先頭へ
@@ -1237,7 +1282,7 @@ issueはGitHubのUIからしか作成できず、標準4見出し（目的・現
 - `.claude/docs/spec/issue-mr-workflow.md`（本ファイル。「提供関数」表へ5関数を追加、
   「セッション開始時の自動コンテキスト注入」のフォールバック方針を更新、
   「`gh`/`glab` CLI不在時のMCPフォールバック経路」節を新設、本エントリを追加）
-- `.claude/docs/ddr/0026-gh_glab-CLI不在時はMCPフォールバック経路へ機構的に誘導する.md`（新規）
+- `.claude/docs/ddr/0027-gh_glab-CLI不在時はMCPフォールバック経路へ機構的に誘導する.md`（新規）
 
 ## 設定項目
 
@@ -1267,6 +1312,12 @@ issueはGitHubのUIからしか作成できず、標準4見出し（目的・現
 - **未解決コメントの判定基準**: GitHubは `reviewThreads.isResolved`、GitLabは
   `discussion.notes[].resolved`（`resolvable` なnoteのみ対象）をそれぞれ真偽値として使う。
   `Get-MrUnresolvedComments` はこれを既定の除外条件、`-IncludeResolved` で無視する条件として使う。
+- **（issue #48）GitLabのシステムノートの扱い**: GitLabは「説明を変更した」等の操作履歴を、
+  レビューコメントと同じ discussions API から `system: true` のnoteとして返す（実機確認:
+  `changed the description`）。これをレビューコメントとして扱うと、未解決件数が実際より増え
+  レビュー往復の完了判定が狂うため、`resolvable`/`resolved` とは**別に** `system` で機械的に
+  除外する。`include_resolved=true`（全件取得）でも除外する（操作履歴はレビュー対象ではないため）。
+  GitHub側はGraphQLの `reviewThreads` を使っておりシステムイベントを返さないため、同種の対処は不要。
 - **返信本文のテンプレート**: `Add-MrThreadReply` の `-ReplyBody` は呼び出し側（AIエージェント）が
   組み立てた自由文をそのまま渡す。関数側で定型の接頭辞等は付けない。
 - **スレッドの解決（resolved）操作**: `Add-MrThreadReply` は返信のみ行い、解決マークは付けない
@@ -1344,11 +1395,20 @@ issueはGitHubのUIからしか作成できず、標準4見出し（目的・現
   GitHub実装（`<repoUrl>/compare/<from>...<to>`）はPR作成前から存在する汎用の「Compare changes」
   ページの標準URL形式に基づいており、PR個別のサブタブ形式（当初案の`/files/<from>..<to>`）より
   安定していると考えられるが、本対応ではブラウザでの表示確認まではできていない。GitLab実装
-  （`<repoUrl>/-/compare/<from>...<to>`）は下記「GitLab側の動作未検証」と同じ制約が適用される。
-- **GitLab側の動作未検証**: このリポジトリの実remoteはGitHubのみのため、`Gitlab.sh`（`gitlab_get_mr_unresolved_comments`
-  の解決済み含む分岐、`gitlab_add_mr_thread_reply` を含む。issue #6でbash化したが未検証の構造は
-  PowerShell版から変わっていない）はAPI仕様を調べた上での実装となり、実機での動作確認ができていない。
-  GitLab側のテスト方法（別リポジトリ用意等）は今後の課題。
+  （`<repoUrl>/-/compare/<from>...<to>`）についても、issue #48のGitLab実機検証で確認したのは
+  API経由の動作のみで、ブラウザでのCompareページ表示は確認していない。
+- **（issue #48で部分解消）GitLab側の動作未検証**: かつては「このリポジトリの実remoteはGitHubのみ」を
+  理由に`Gitlab.sh`全体が未検証だったが、issue #48でローカルにGitLab CE 18.5.4（Docker）を立て、
+  `glab` 1.114.0から**全13関数を実機実行して動作を確認した**（`gitlab_get_mr_unresolved_comments`の
+  解決済み含む分岐、`gitlab_add_mr_thread_reply`を含む）。この検証で3件の不具合が見つかり修正済み。
+  残る未検証範囲は次の3点。
+  - **`Provider.sh`経由のディスパッチ**: `get_provider`がself-hostedのGitLab URLを判定できない
+    （issue #45、未修正）ため、検証は`gitlab_*`関数を直接呼ぶ形で行った。ディスパッチャ経由の
+    経路は依然として未検証。
+  - **バージョン・エディション**: 確認したのはCE 18.5.4の1バージョンのみ。gitlab.com（SaaS）・
+    他バージョンでの挙動は未検証。
+  - **プロジェクト構成**: 単一プロジェクト（`root/issue45-verify`）でしか確認しておらず、
+    サブグループ・ネストしたnamespaceでの`glab`のプロジェクト解決は未検証。
 - **他リポジトリへの移植性の検証**: `.mrworkflow.json` による切り出しで足りるか、実際に他リポジトリへ
   導入してみないと確認できない。
 - **（issue #22で対応済み）全角文字のみのissueタイトルのスラッグ化**: `to_slug`（旧
@@ -1462,6 +1522,6 @@ issueはGitHubのUIからしか作成できず、標準4見出し（目的・現
   並行した場合の区間重複を除去する機能を持つが、本対応のスコープ（単一ブランチ・単一セッション）
   では扱わない。仮に同一ブランチで複数セッションを並行実行した場合、それぞれの`activeSeconds`が
   単純合算され、実際の稼働時間より過大になりうる。
-- **（issue #25で追加した`gitlab_new_issue`にも従来からの制約が引き継がれる）GitLab側の動作未検証**:
-  本ファイル冒頭の「GitLab側の動作未検証」と同じ制約（実remoteがGitHubのみのため未検証）が
-  `gitlab_new_issue`にもそのまま適用される。
+- **（issue #48で解消）（issue #25で追加した`gitlab_new_issue`にも従来からの制約が引き継がれる）GitLab側の動作未検証**:
+  `gitlab_new_issue`はissue #48でローカルGitLab CE 18.5.4に対し実機確認済み（issueが実際に作成され、
+  `get_issue`と同じ形のJSON（number/title/body/url/slug）が返ることを確認した）。

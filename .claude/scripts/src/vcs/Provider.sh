@@ -23,7 +23,7 @@
 # プロバイダ依存の関数は `require_vcs_cli` により「代替すべきMCPツール名」を提示して失敗する。
 # 呼び出し側（AIエージェント）はそのメッセージに従いMCPフォールバック経路へ切り替える
 # （経路判定は `get_vcs_access_mode`、手順は .claude/skills/issue-mr-flow/SKILL.md
-# 「`gh`/`glab` CLI不在時のMCPフォールバック」節。issue #34, DDR 0026）。
+# 「`gh`/`glab` CLI不在時のMCPフォールバック」節。issue #34, DDR 0027）。
 #
 # 注意（文字コード）: PowerShell版はシステムのANSI/OEMコードページ対策として明示的な
 # UTF-8切り替えが必要だったが、git bash + gh/jq の組み合わせではこの問題が発生しない
@@ -126,7 +126,7 @@ get_provider() {
 # 以下の関数群が「どのMCPツールで代替するか」を機械的に決めるための土台になる。
 # 手順の正（サブコマンドごとの読み替え）は `.claude/skills/issue-mr-flow/SKILL.md`
 # 「`gh`/`glab` CLI不在時のMCPフォールバック」節。WebFetch/curlへはフォールバックしない
-# （DDR 0020, DDR 0026）。
+# （DDR 0020, DDR 0027）。
 
 # 実行環境に該当プロバイダのCLIがあるかを判定し、`cli`（CLI経路）または `mcp`（MCPフォールバック
 # 経路）を標準出力へ返す。AIエージェントは各サブコマンドの冒頭でこれを呼び、経路を決める。
@@ -173,11 +173,11 @@ get_repo_slug() {
 
 # Provider関数名に対応するGitHub MCPツールと主な引数を1行で返す（require_vcs_cli の
 # メッセージ用。対応表の正はSKILL.mdの該当節で、ここはその要約）。
-# GitLabは対象外（DDR 0026「GitLab側は対象外とする」）。
+# GitLabは対象外（DDR 0027「GitLab側は対象外とする」）。
 mcp_tool_hint() {
   local func_name="$1"
   if [ "$(get_provider)" != "github" ]; then
-    printf 'GitLab向けのMCPフォールバックは対象外です（DDR 0026）。glab CLIをインストール・認証してください\n'
+    printf 'GitLab向けのMCPフォールバックは対象外です（DDR 0027）。glab CLIをインストール・認証してください\n'
     return 0
   fi
   case "$func_name" in
@@ -206,7 +206,7 @@ require_vcs_cli() {
     printf '  代替（MCPフォールバック経路）: %s\n' "$(mcp_tool_hint "$func_name")"
     printf '  owner/repo は `get_repo_slug` で取得できます（例: get_repo_slug | jq -r ".owner, .repo"）。\n'
     printf '  手順: .claude/skills/issue-mr-flow/SKILL.md 「`gh`/`glab` CLI不在時のMCPフォールバック」節\n'
-    printf '  WebFetchツール・curlへはフォールバックしないこと（DDR 0020, DDR 0026）。\n'
+    printf '  WebFetchツール・curlへはフォールバックしないこと（DDR 0020, DDR 0027）。\n'
   } >&2
   return 1
 }
