@@ -12,6 +12,11 @@ keywords: [フロー進捗, worklog, 引き継ぎ, plan, レビュー]
 AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現状」を表現する
 -->
 
+- issue: #41 PR/MR作成はAIエージェントが実施してよいものとし、マージのみ明示指示必須に統一する
+- ブランチ: claude/ai-agent-pr-mr-creation-52ve10
+- PR: #82 (Draft) https://github.com/yuki-matsu783/MR-driven-workflow/pull/82
+- push回数: 2
+
 ## フロー進捗状況
 
 - issue: #42 レビュー依頼メッセージに重点レビュー対象ファイルと返信コメントへのリンクを含められるようにする
@@ -60,8 +65,9 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 | [] | 4-9 | レビュー内容を取得し、設計・AIアセットの内容を修正する。対応が完了したコメントには対応内容を返信する（4-6〜4-9の反映ループを合意まで繰り返す） | `comments` / `reply` |
 | [x] | 4-10 | 反映内容をもとにMR descriptionを更新する（Draft PR #83 を実装完了後に作成したため、descriptionの初回作成が本ステップを兼ねる） | `describe` |
 | [] | 5-1 | 次タスクのために、`plans/` `worklog/` `reports/` を削除し、`HANDOFF.md` をリセットする | エージェント |
-| [] | 5-2 | `commit`スキル経由でcommitし、リモートへ反映してDraftを解除する | エージェント |
-| [] | 5-3 | マージする（squash merge。ブランチは削除してよい） | 人間 |
+| [x] | 5-2 | **defaultブランチとのコンフリクトを検知し、あれば解消する**（`check-base-conflicts.sh` で textual conflict 2件を検知し `resolve-conflict` スキルで解消） | エージェント（`resolve-conflict` スキル） |
+| [x] | 5-3 | `commit`スキル経由でcommitし、pushしてDraftを解除する（`set_mr_ready` 相当。`gh` CLI不在のため `mcp__github__update_pull_request` の `draft=false` で実施）。**AIエージェントはここで止まる** | エージェント |
+| [] | 5-4 | マージする（squash merge。ブランチは削除してよい）。AIエージェントはユーザーから明示的に指示された場合に限り実行してよい | 人間 |
 
 詳細についてはworklogを確認してください。
 
@@ -128,6 +134,18 @@ issue #42の「期待する動作」(1)(2)(3)をすべて実装した。
   肥大への対処を兼ねているため、10件（約5.9KB）まで下げた。
 - **`get_provider` のメモ化**。issue #42のスコープ外の変更だが、これをしないとディスパッチャが
   ファイル数ぶん `$(git remote get-url origin)` でforkするため、性能規約を満たすのに必要だった。
+- **mainマージ時のコンフリクト解消（flow-id 5-2）の統合方針**（`resolve-conflict` スキル Step 7）。
+  DDR番号の重複は無く（`hasDuplicateDdrNumber: false`）、textual conflictが2件だった。
+  - `.claude/docs/spec/issue-mr-workflow.md`（類型D: 過去changelogが両側で追記）: `## 影響範囲` へ
+    main側が追加した issue #64・#51・#41 のエントリと、本ブランチの issue #42 のエントリを
+    **両方とも時系列順に残した**。既存エントリの中身は書き換えていない。
+  - `HANDOFF.md`（類型外）: **本ブランチ側を全面採用した**。main側の内容は issue #41 の
+    ブランチ状態（PR #82）であり、`HANDOFF.md` は「常にこのブランチの現状を表現する」ファイル
+    （`.claude/rules/docs-workflow.md`）のため、統合ではなく置き換えが正しい。スキルの
+    「片側採用をしない」という規則は、両側の変更をどちらも残す必要があるファイルを対象とした
+    ものであり、このファイルの性質には当てはまらないと判断した。
+  - あわせて、main側（issue #41 / DDR 0035）が flow-id 5-x を 5-1〜5-4 へ再編したのに追従して
+    進捗表を更新した（5-2 コンフリクト解消 / 5-3 Draft解除 / 5-4 マージ）。
 
 ## 未解決の内容
 
