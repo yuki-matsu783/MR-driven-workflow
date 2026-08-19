@@ -1,11 +1,12 @@
 #!/usr/bin/env bash
 # .claude/scripts/src/vcs/{Github,Gitlab}.sh の純粋ロジック（`gh`/`glab`呼び出しを伴わない
-# URL組み立て関数）の単体テスト。issue #13対応で追加した
+# URL組み立て・JSON整形関数）の単体テスト。issue #13対応で追加した
 # `github_get_compare_url` / `github_get_mr_diff_url` / `github_get_mr_diff_since_url` /
 # `gitlab_get_compare_url` / `gitlab_get_mr_diff_url` / `gitlab_get_mr_diff_since_url` が対象。
 # `github_get_repo_url` / `gitlab_get_repo_url`（`gh repo view` / `glab repo view`を呼ぶ）と
 # Provider.sh経由のディスパッチ（`get_mr_diff_url`等）は外部コマンド・`git remote get-url origin`
 # に依存し純粋ではないため対象外（Github.sh/Gitlab.sh の関数を直接呼ぶ）。
+# issue #48対応で追加した `gitlab_format_discussion_notes`（discussions JSONの整形）も対象。
 # 規約: passed=N failures=N を標準出力へ出し、失敗があれば終了コード1
 #       （.claude/rules/shell-script-style.md「テスト」）。
 # 実行: bash tests/test_vcs_provider.sh
@@ -62,6 +63,57 @@ assert_eq "gitlab_get_mr_diff_url: defaultブランチとの比較URL（ブラ�
 assert_eq "gitlab_get_mr_diff_since_url: 前回push〜今回pushのSHA範囲の比較URL" \
   "https://gitlab.example.com/o/r/-/compare/aaa111...bbb222" \
   "$(gitlab_get_mr_diff_since_url "https://gitlab.example.com/o/r" "aaa111" "bbb222")"
+
+# --- gitlab_format_discussion_notes（issue #48） -------------------------------------------
+# GitLabのdiscussions APIは「説明を変更した」等の操作履歴を、レビューコメントと同じ配列で
+# `system: true` のnoteとして返す。これがレビュー往復の完了判定を狂わせないことを確認する。
+# フィクスチャはローカルGitLab CE 18.5.4の実レスポンス形状に合わせている
+# （`changed the description` は実機で実際に観測されたシステムノートのbody）。
+gitlab_discussions_fixture='[
+  {"id":"d1","individual_note":false,"notes":[
+    {"id":1,"body":"ここは修正してください","author":{"username":"reviewer"},
+     "system":false,"resolvable":true,"resolved":false}]},
+  {"id":"d2","individual_note":false,"notes":[
+    {"id":2,"body":"対応済みの指摘","author":{"username":"reviewer"},
+     "system":false,"resolvable":true,"resolved":true}]},
+  {"id":"d3","individual_note":true,"notes":[
+    {"id":3,"body":"changed the description","author":{"username":"root"},
+     "system":true,"resolvable":false}]},
+  {"id":"d4","individual_note":true,"notes":[
+    {"id":4,"body":"通常コメント","author":{"username":"root"},
+     "system":false,"resolvable":false}]}
+]'
+
+assert_eq "gitlab_format_discussion_notes: 既定では未解決のみ返し、システムノートと解決済みを除外する" \
+  "[unresolved threadId=d1] reviewer: ここは修正してください
+
+[unresolved threadId=d4] root: 通常コメント" \
+  "$(gitlab_format_discussion_notes "$gitlab_discussions_fixture")"
+
+assert_eq "gitlab_format_discussion_notes: include_resolved=trueでは解決済みを含むがシステムノートは除外する" \
+  "[unresolved threadId=d1] reviewer: ここは修正してください
+
+[resolved threadId=d2] reviewer: 対応済みの指摘
+
+[unresolved threadId=d4] root: 通常コメント" \
+  "$(gitlab_format_discussion_notes "$gitlab_discussions_fixture" true)"
+
+assert_eq "gitlab_format_discussion_notes: システムノートのbodyは全件取得時も出力に現れない" \
+  "0" \
+  "$(gitlab_format_discussion_notes "$gitlab_discussions_fixture" true | grep -c 'changed the description' || true)"
+
+# resolvableでないnote（individual_note等）は resolved 扱いにせず常に含める。
+assert_eq "gitlab_format_discussion_notes: resolvableでないnoteはunresolvedとして扱う" \
+  "[unresolved threadId=d4] root: 通常コメント" \
+  "$(gitlab_format_discussion_notes '[{"id":"d4","individual_note":true,"notes":[{"id":4,"body":"通常コメント","author":{"username":"root"},"system":false,"resolvable":false}]}]')"
+
+# Windowsネイティブjqは出力行末にCRを付与するため、関数側で除去している
+# （.claude/rules/shell-script-style.md「文字コード」）。CRの検査はバイト数比較で行う
+# （`grep -c $'\r'` は環境によって空パターン扱いになり全行にマッチするため使わない）。
+gitlab_notes_output="$(gitlab_format_discussion_notes "$gitlab_discussions_fixture" true)"
+assert_eq "gitlab_format_discussion_notes: 出力にCRが混入しない" \
+  "$(printf '%s' "$gitlab_notes_output" | wc -c)" \
+  "$(printf '%s' "$gitlab_notes_output" | tr -d '\r' | wc -c)"
 
 echo "passed=$passed failures=$failures"
 [ "$failures" -eq 0 ]
