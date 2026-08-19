@@ -188,7 +188,7 @@ gitlab_set_mr_description() {
   glab mr update "$mr_number" --description "$description" >/dev/null
 }
 
-# Draft MRのDraft状態を解除し、レビュー・マージ可能な状態にする（flow-id 5-3）。
+# Draft MRのDraft状態を解除し、レビュー・マージ可能な状態にする（flow-id 5-4）。
 # GitLabはDraftをタイトルの `Draft:` 接頭辞で表現するため、`glab mr update <id> --ready` は
 # タイトル先頭の `Draft:` / `WIP:`（大文字小文字・重複を問わない）を除去した新タイトルを
 # APIへ送る実装になっている（glab本体のソース `internal/commands/mr/update/mr_update.go` で確認）。
@@ -261,5 +261,18 @@ gitlab_add_mr_comment() {
   # 代替の`glab mr note create`はEXPERIMENTAL扱いのため採用しない。issue #48）。
   # 同ファイルの gitlab_add_mr_thread_reply と実装方式が揃う。
   glab api "projects/:id/merge_requests/${mr_number}/notes" \
+    -X POST -f "body=${body}" >/dev/null
+}
+
+# 任意のissueへ新規コメントを1件投稿する（flow-id 5-3: マージ前の関連issue通知。issue #86）。【未検証】
+# 宛先がMRである `gitlab_add_mr_comment` とは別関数（エンドポイントが `merge_requests` ではなく
+# `issues` になる）。同関数と同じく安定版のREST APIを直接叩く（`glab issue note --message` は
+# `glab mr note --message` と同様に非推奨の可能性があり、代替のサブコマンドはEXPERIMENTAL扱いの
+# ため採用しない。issue #48・issue #86）。`<issue番号>` はGitLabのiid（プロジェクト内番号）。
+gitlab_add_issue_comment() {
+  local issue_number="$1" body_file="$2"
+  local body
+  body="$(cat "$body_file")"
+  glab api "projects/:id/issues/${issue_number}/notes" \
     -X POST -f "body=${body}" >/dev/null
 }

@@ -12,7 +12,7 @@
 #
 # **コミットはしない。** このリポジトリのコミットは `commit` スキル経由に限られる
 # （`.claude/rules/git-workflow.md`「コミット運用」）。削除・リセット後の変更を
-# `commit` スキルへ渡すのは呼び出し側（flow-id 5-3）の責務。
+# `commit` スキルへ渡すのは呼び出し側（flow-id 5-4）の責務。
 #
 # 使い方:
 #   cleanup-task.sh [--dry-run] [--skip-index] [-h|--help]

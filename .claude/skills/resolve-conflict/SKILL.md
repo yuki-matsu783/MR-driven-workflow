@@ -61,7 +61,7 @@ bash .claude/scripts/src/check-base-conflicts.sh
 | `duplicateDdrNumbers` | 重複した番号と、その番号を持つファイル一覧 |
 
 **`hasConflict` が `false` なら、このスキルはここで終了する**（マージやコミットは行わない。
-呼び出し元の flow-id 5-2 はそのまま 5-3 へ進む）。
+呼び出し元の flow-id 5-2 はそのまま 5-3（関連issue通知）へ進む）。
 
 **`git status` や `git merge` の結果だけで「コンフリクト無し」と判断しない。** 類型Aは
 ファイル名が異なるためgitが無言でマージを成功させる。必ずこのスクリプトの `hasConflict` で判断する。

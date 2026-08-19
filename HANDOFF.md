@@ -45,7 +45,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - リセット後の `HANDOFF.md` が、過去に手作業で実施した flow-id 5-1 の結果とバイト単位で一致する
   ことを `diff` で確認した（651バイト）。
 - `.claude/docs/spec/cleanup-task.md` と
-  `.claude/docs/ddr/0044-flow-id5-1の後片付けはスクリプト化しコミットは含めない.md` を新規作成し、
+  `.claude/docs/ddr/0045-flow-id5-1の後片付けはスクリプト化しコミットは含めない.md` を新規作成し、
   `.claude/docs/README.md` の spec一覧・DDR一覧へ追記した。
 - `.claude/skills/issue-mr-flow/SKILL.md` の flow-id 5-1 行を本スクリプトの実行へ差し替え、
   `.claude/rules/docs-workflow.md` の該当注記にもスクリプトへの参照を追加した。
@@ -65,13 +65,13 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 
 - 削除対象を `Provider.sh` の `get_branch_work_files`（ブランチ差分）で決めるか、ディレクトリ配下
   の全ファイルから明示的な「残すパス」を除く形にするか。後者を採った（残す／消すの境界はブランチ
-  差分ではなくファイルの役割で決まり、未追跡ファイルの取りこぼしも無いため）。却下案は DDR 0044。
+  差分ではなくファイルの役割で決まり、未追跡ファイルの取りこぼしも無いため）。却下案は DDR 0045。
 - `HANDOFF.md` のテンプレートを別ファイルにするか、スクリプトへ埋め込むか。埋め込みを採った
   （人間が編集する雛形ではなくスクリプトの出力そのものであり、別ファイルにすると `index.jsonl`
-  への混入・frontmatterの `type` 判断・相対パス解決が増えるため）。同じく DDR 0044。
+  への混入・frontmatterの `type` 判断・相対パス解決が増えるため）。同じく DDR 0045。
 - `extract-frontmatter.sh` の失敗でスクリプト全体を失敗させるか。警告に留めた（削除と
   `HANDOFF.md` のリセットは既に成功しており、`index.jsonl` はSessionStart hookが再生成する生成物
-  のため）。同じく DDR 0044。
+  のため）。同じく DDR 0045。
 
 ## 未解決の内容
 

@@ -140,7 +140,7 @@ bash .claude/scripts/src/cleanup-task.sh [--dry-run] [--skip-index]
 - `.claude/scripts/test/test_cleanup_task.sh`（純粋関数 `is_safe_relative_dir` / `is_keep_path` /
   `is_handoff_template` と埋め込みテンプレートの内容を検証。実ファイルを削除する `main` は対象外）
 - `.claude/docs/spec/cleanup-task.md`（本ファイル）
-- `.claude/docs/ddr/0044-flow-id5-1の後片付けはスクリプト化しコミットは含めない.md`
+- `.claude/docs/ddr/0045-flow-id5-1の後片付けはスクリプト化しコミットは含めない.md`
 
 変更:
 - `.claude/skills/issue-mr-flow/SKILL.md`（flow-id 5-1 の手順を本スクリプトの実行へ差し替え）
