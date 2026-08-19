@@ -3,7 +3,7 @@ title: AIエージェント共通ルール
 type: rule
 description: 複数のAIコーディングエージェント（Claude Code, Gemini CLI等）が共通で従うルール・プロジェクト概要・開発実行方法
 tags: [agents, rule]
-keywords: [issue-mr-flow, 計画, claude-code, gemini-cli, gh, glab, webfetch, 着手確認]
+keywords: [issue-mr-flow, 計画, claude-code, gemini-cli, gh, glab, webfetch, 着手確認, doc-search, index.jsonl, ドキュメント探索]
 ---
 
 ## ルール
@@ -40,6 +40,18 @@ keywords: [issue-mr-flow, 計画, claude-code, gemini-cli, gh, glab, webfetch, �
   （`get_vcs_access_mode`）と、Provider関数・サブコマンドごとのMCPツール対応表は
   `.claude/skills/issue-mr-flow/SKILL.md`「`gh`/`glab` CLI不在時のMCPフォールバック」節が正**
   （issue #34。GitLabは対象外）。
+- **リポジトリ内のドキュメントを探すときは、`grep`/`rg`/`find`/Globによる全文探索より先に、
+  frontmatterインデックス（`index.jsonl`）の横断検索を使う**（`doc-search` スキル、実体は
+  `bash .claude/scripts/src/search-frontmatter.sh`）。「〜についてのDDRはどれか」「specの一覧」
+  「workflowタグのルール」のように**ドキュメントそのもの**を探す問いは、`type`/`title`/
+  `description`/`tags`/`keywords` を持つインデックスだけで答えられ、本文を開く必要が無い。
+  全文探索はヒット行しか返さないため、そのファイルが何のドキュメントかを判断するのに結局
+  ファイルを開くことになり、他ファイルからの参照リンクや変更履歴中の言及も同じ重みで混ざる。
+  **`grep`/`rg` を使うのは、本文中の特定の文字列（関数名・コード片・言い回し）を探すとき**、
+  またはインデックス検索が0件だったときに限る。使い方・jqレシピは
+  `.claude/skills/doc-search/SKILL.md`、仕様は `.claude/docs/spec/search-frontmatter.md`
+  （issue #38。理由・却下案は
+  `.claude/docs/ddr/0048-ドキュメント探索はfrontmatterインデックス検索を第一手段にする.md`）。
 
 ## プロジェクト概要
 
