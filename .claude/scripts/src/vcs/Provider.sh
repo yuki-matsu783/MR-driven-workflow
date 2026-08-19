@@ -277,6 +277,7 @@ mcp_tool_hint() {
     get_mr_unresolved_comments) printf 'mcp__github__pull_request_read (method="get_review_comments" / "get_comments", owner, repo, pullNumber)\n' ;;
     add_mr_thread_reply) printf 'mcp__github__add_reply_to_pull_request_comment (owner, repo, pullNumber, commentId=スレッド先頭コメントの数値ID, body)\n' ;;
     set_mr_description) printf 'mcp__github__update_pull_request (owner, repo, pullNumber, body=ファイル内容)\n' ;;
+    set_mr_ready) printf 'mcp__github__update_pull_request (owner, repo, pullNumber, draft=false)\n' ;;
     add_mr_comment) printf 'mcp__github__add_issue_comment (owner, repo, issue_number=PR番号, body=ファイル内容)\n' ;;
     *) printf '対応するMCPツールは .claude/skills/issue-mr-flow/SKILL.md の対応表を参照\n' ;;
   esac
@@ -417,6 +418,19 @@ set_mr_description() {
   case "$(get_provider)" in
     github) github_set_mr_description "$mr_number" "$body_file" ;;
     gitlab) gitlab_set_mr_description "$mr_number" "$body_file" ;;
+  esac
+}
+
+# Draft PR/MRのDraft状態を解除し、レビュー・マージ可能な状態にする（flow-id 5-3。issue #61）。
+# Draft作成側（new_draft_merge_request）に対応する解除側で、これが無かったため flow-id 5-3 では
+# AIエージェントが `gh pr ready` を直接呼ぶことになり、GitLab環境で動かず、CLI不在時の
+# MCPフォールバック経路（require_vcs_cli / mcp_tool_hint）にも乗らなかった。
+set_mr_ready() {
+  require_vcs_cli set_mr_ready || return 1
+  local mr_number="$1"
+  case "$(get_provider)" in
+    github) github_set_mr_ready "$mr_number" ;;
+    gitlab) gitlab_set_mr_ready "$mr_number" ;;
   esac
 }
 

@@ -175,6 +175,12 @@ assert_eq "mcp_tool_hint: search_issues（GitHub。issue #68）" \
   "mcp__github__search_issues (query, owner, repo)" \
   "$(mcp_tool_hint search_issues)"
 
+# issue #61で追加したDraft解除の関数。`set_mr_description` と同じ `update_pull_request` を使うが、
+# 渡す引数が `body` ではなく `draft=false`（＝ready for review）である点が異なる
+assert_eq "mcp_tool_hint: set_mr_ready（GitHub）" \
+  "mcp__github__update_pull_request (owner, repo, pullNumber, draft=false)" \
+  "$(mcp_tool_hint set_mr_ready)"
+
 assert_eq "mcp_tool_hint: 未知の関数名でも空にならずSKILL.mdの対応表へ誘導する" \
   "対応するMCPツールは .claude/skills/issue-mr-flow/SKILL.md の対応表を参照" \
   "$(mcp_tool_hint unknown_function)"

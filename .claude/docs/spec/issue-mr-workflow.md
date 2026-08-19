@@ -95,6 +95,7 @@ MRとのやり取りだけを自動化する薄い層」として設計したが
 | `get_mr_unresolved_comments <n> [true]` | レビューコメント／スレッドを取得しテキストへ整形（スレッドID・ファイルパス・行番号・diffを含む）。既定（第2引数省略）では未解決のスレッドのみを返し、対応済み（解決済み）スレッドは機械的に除外する。第2引数に `true` を渡すと解決済みも含めた全件を返す。GitLabはdiscussions APIが操作履歴を `system: true` のnoteとして同じ配列で返すため、これも機械的に除外する（issue #48） | `gh api graphql` (review threads) | `glab api` (discussions) |
 | `add_mr_thread_reply <n> <threadId> <text>` | 指定スレッドに対応内容を返信する（スレッドの解決＝resolvedはレビュアー側の操作のため本関数では行わない） | `gh api graphql`（reply mutation） | `glab api`（note追加） |
 | `set_mr_description <n> <bodyFile>` | PR/MRのdescriptionを指定ファイル内容で上書き | `gh pr edit --body-file` | `glab mr update --description` |
+| `set_mr_ready <n>` | Draft PR/MRのDraft状態を解除し、レビュー・マージ可能な状態にする（全体フロー flow-id 5-3。Draft作成側の `new_draft_merge_request` に対応する解除側。issue #61） | `gh pr ready` | `glab mr update --ready` |
 | `add_mr_comment <n> <bodyFile>` | PR/MRへ新規コメントを1件投稿（スレッド返信・レビューではない通常コメント） | `gh pr comment --body-file` | `glab api`（notes追加） |
 | `sync_branch <branch>` | 現在のブランチをfetch、必要ならcheckout（新しいセッションでの再開用） | `git fetch` + `git checkout` | 同左 |
 | `test_issue_sections <body>` | issue本文に「目的／現状／期待する動作／受け入れ条件」の4見出しが揃っているか確認し、欠けている見出し名を1行1件でstdoutへ出力する（プロバイダ非依存） | — | — |
@@ -1511,6 +1512,31 @@ AIは候補を提示するに留め、**重複と断定して勝手に起票を�
 （`.claude/rules/docs-workflow.md` の規定）。`tests/test_external_command_server.sh` を指す記述も、
 このリポジトリに実在せず移動していないため触れていない。
 
+### issue #61（Draft解除をProvider.sh経由にする）
+
+flow-id 5-3「Draftを解除する」が、`Provider.sh` に対応する関数を持たないため、AIエージェントが
+`gh pr ready` を直接呼ぶ運用になっていた（issue #55 のクローズ時に実際にそうした）。Draft **作成**側
+（`new_draft_merge_request`）だけが抽象化され**解除**側が欠けている非対称を解消し、GitLab環境と
+CLI不在時のMCPフォールバック経路（issue #34）の双方でクローズ工程が通るようにした。
+
+- `.claude/scripts/src/vcs/Provider.sh`
+  - `set_mr_ready <n>` を追加（先頭で `require_vcs_cli` を呼び、`get_provider` の結果で委譲する。
+    命名は既存の `set_mr_description` に倣った）
+  - `mcp_tool_hint` に `set_mr_ready` の分岐を追加
+- `.claude/scripts/src/vcs/Github.sh`（`github_set_mr_ready`。`gh pr ready <n>`）
+- `.claude/scripts/src/vcs/Gitlab.sh`（`gitlab_set_mr_ready`。`glab mr update <n> --ready`。
+  ヘッダの検証状況コメントへ、本関数だけが実機未検証である旨を追記）
+- `.claude/scripts/test/test_vcs_provider.sh`（`mcp_tool_hint set_mr_ready` の1件を追加。mainのissue #68分と統合した結果54件）
+- `.claude/skills/issue-mr-flow/SKILL.md`
+  - flow-id 5-3 を、CLIを直接叩くのではなく `set_mr_ready` を使う記述へ更新
+  - 「`gh`/`glab` CLI不在時のMCPフォールバック」節の対応表へ `set_mr_ready` 行を追加
+- `.claude/docs/spec/issue-mr-workflow.md`（本ドキュメント。「提供関数」表・本節・「未決定事項・懸念点」）
+
+**flow-idの番号について**: issue #61 の起票時点では対象を「flow-id 5-2」と記載しているが、
+issue #46 でコンフリクト検知のステップが 5-2 として挿入された結果、Draft解除は現在 **5-3** である
+（`.claude/docs/ddr/0029-defaultブランチとのコンフリクトは検知を機構化し解消手順をスキル化する.md`
+「全39→40ステップ」）。本対応では現行の番号である 5-3 を更新した。
+
 ### issue #57（compact後の作業コンテキスト再注入と注入量の肥大化検知）
 
 `/compact` 後に SessionStart hook が発火せず、ブランチ・issue/PR情報が再注入されなかった問題への
@@ -1688,6 +1714,25 @@ AIは候補を提示するに留め、**重複と断定して勝手に起票を�
 - `.claude/docs/README.md`（DDR一覧に0033）
 
 ## 未決定事項・懸念点
+
+- **（issue #61）`gitlab_set_mr_ready` は実機未検証**: 本対応の実行環境（Claude Code on the web の
+  リモート実行環境）には `gh`・`glab` のいずれも存在せず、issue #48 で使ったローカルGitLab CE も
+  再現できなかったため、`glab mr update <id> --ready` を実際に実行した確認はできていない。
+  実装の根拠にしたのは次の2つで、いずれも `--ready` フラグの存在と意味が一致している。
+  - 公式ドキュメント `docs/source/mr/update.md`（gitlab-org/cli, main）: `--ready` は
+    「Mark merge request as ready to be reviewed and merged.」、用例として `glab mr update 23 --ready`
+    が記載されている。
+  - 実装ソース `internal/commands/mr/update/mr_update.go`（同 main）: `--ready` 指定時に
+    `(?i)^(\s*(?:draft:|wip:)\s*)*` でタイトル先頭の `Draft:` / `WIP:` を除去した新タイトルを
+    更新APIへ送る（GitLabがDraftをタイトル接頭辞で表現するため）。接頭辞が無いMRに対しては
+    タイトルが変わらないだけでエラーにならず、冪等に呼べる。
+
+  あわせて、GitHub側の `github_set_mr_ready`（`gh pr ready`）も本環境では実行できていない。
+  確認できたのは、`Provider.sh` 経由の `set_mr_ready` が (a) CLI不在時に `require_vcs_cli` で
+  正しいMCPツール名（`mcp__github__update_pull_request` の `draft=false`）を提示して失敗すること、
+  (b) プロバイダ判定に応じて `github_set_mr_ready` / `gitlab_set_mr_ready` へ正しく委譲すること、
+  の2点である（後者はプロバイダ固有関数をスタブへ差し替えて確認した）。
+  `gh`/`glab` が使えるローカル環境で実PRに対して実行し、確認できた時点で本項目を削除する。
 
 - **（issue #57）`.gemini/settings.json` の SessionStart matcher は `startup|resume|clear` のまま**:
   `.claude/settings.json` 側には `compact` を追加したが、Gemini CLI の SessionStart matcher が

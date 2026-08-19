@@ -12,13 +12,16 @@
 # `glab mr note --message`の非推奨・空コミットフォールバックの前提誤り）は修正済み。
 # 以前あった「remoteがGitHubのみのため全関数が未検証」という制約は解消している。
 #
-# ただし次の3点は依然として未検証。詳細は
+# ただし次の4点は依然として未検証。詳細は
 # .claude/docs/spec/issue-mr-workflow.md の「未決定事項・懸念点」を参照。
 #   - `Provider.sh`経由のディスパッチ: `get_provider`がself-hostedのGitLab URLを判定できない
 #     （issue #45、未修正）ため、検証は`gitlab_*`関数を直接呼ぶ形で行った。
 #   - バージョン・エディション: 確認したのはCE 18.5.4のみ。gitlab.com（SaaS）・他バージョンは未確認。
 #   - プロジェクト構成: 単一プロジェクトでしか確認しておらず、サブグループ・ネストした
 #     namespaceでの`glab`のプロジェクト解決は未確認。
+#   - `gitlab_set_mr_ready`（issue #61で追加した14個目の関数）: 上記の実機検証より後に追加した
+#     ため、この検証には含まれていない。`glab`公式ドキュメントと実装ソースで`--ready`の仕様を
+#     確認したのみである。
 
 gitlab_get_issue() {
   local number="$1"
@@ -162,6 +165,17 @@ gitlab_set_mr_description() {
   local description
   description="$(cat "$body_file")"
   glab mr update "$mr_number" --description "$description" >/dev/null
+}
+
+# Draft MRのDraft状態を解除し、レビュー・マージ可能な状態にする（flow-id 5-3）。
+# GitLabはDraftをタイトルの `Draft:` 接頭辞で表現するため、`glab mr update <id> --ready` は
+# タイトル先頭の `Draft:` / `WIP:`（大文字小文字・重複を問わない）を除去した新タイトルを
+# APIへ送る実装になっている（glab本体のソース `internal/commands/mr/update/mr_update.go` で確認）。
+# 接頭辞が無い（＝既にDraftでない）MRに対しても、除去後のタイトルが元と同じになるだけで
+# エラーにはならないため冪等に扱える。
+gitlab_set_mr_ready() {
+  local mr_number="$1"
+  glab mr update "$mr_number" --ready >/dev/null
 }
 
 # リポジトリの正規URL（フルパス）を取得する（issue #13フォローアップ: MRのURL文字列からの
