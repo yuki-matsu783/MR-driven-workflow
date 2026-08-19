@@ -33,7 +33,7 @@ source .claude/scripts/src/vcs/Provider.sh
 担当列: 「人間」＝人間の作業／「サブコマンド」＝下記「サブコマンド」節の `/issue-mr-flow <名前>`／
 「エージェント」＝AIエージェントの通常操作（git操作・ファイル編集等）。
 
-flow-idは `<フェーズ番号>-<ステップ番号>` 形式で、全5フェーズ・40ステップからなる。
+flow-idは `<フェーズ番号>-<ステップ番号>` 形式で、全5フェーズ・41ステップからなる。
 
 | フェーズ | 範囲 | 内容 |
 |---|---|---|
@@ -41,7 +41,7 @@ flow-idは `<フェーズ番号>-<ステップ番号>` 形式で、全5フェー
 | 2 | 2-1〜2-10 | 調査（調査計画 → レビュー → 調査実施 → レビュー） |
 | 3 | 3-1〜3-10 | 作業（作業計画 → レビュー → 設計・実装 → レビュー） |
 | 4 | 4-1〜4-10 | 反映（反映計画 → レビュー → 設計反映・AIアセット反映 → レビュー） |
-| 5 | 5-1〜5-4 | クローズ（片付け・コンフリクト解消・Draft解除・マージ） |
+| 5 | 5-1〜5-5 | クローズ（片付け・コンフリクト解消・関連issue通知・Draft解除・マージ） |
 
 フェーズ2〜4は「計画 → commit/push → レビュー → 実施 → commit/push → レビュー →
 MR description更新」という同じ形を繰り返す。
@@ -88,8 +88,9 @@ MR description更新」という同じ形を繰り返す。
 | 4-10 | 反映内容をもとにMR descriptionを更新する | `describe` |
 | 5-1 | 次タスクのために、`plans/` `worklog/` `reports/`（md・htmlの両方）を削除し、`HANDOFF.md` をリセットする | エージェント |
 | 5-2 | **defaultブランチとのコンフリクトを検知し、あれば解消する**（`bash .claude/scripts/src/check-base-conflicts.sh` で判定 → `hasConflict` が真なら `AskUserQuestion` でユーザーに確認 → 承認されたら `resolve-conflict` スキルで解消。詳細は下記「defaultブランチとのコンフリクト検知・解消」節）。PR作成後の継続的な追従（下記「PR作成後のdefaultブランチ追従（監視）」節）を行っていても、**このステップは最終ゲートとして必ず通る** | エージェント（`resolve-conflict` スキル） |
-| 5-3 | `commit`スキル経由でcommitし、push して Draftを解除する（解除は `source .claude/scripts/src/vcs/Provider.sh && set_mr_ready <MR番号>` で行う。`gh pr ready` / `glab mr update --ready` を直接呼ばない。MR番号は `get_mr_for_branch` で取得できる）。**AIエージェントはここで止まる**（マージへは進まない） | エージェント |
-| 5-4 | マージする（squash merge。ブランチは削除してよい）。**AIエージェントは、ユーザーから明示的に指示された場合に限り実行してよい**（下記「PR/MR作成・マージの担当」） | 人間 |
+| 5-3 | **今回のMRが影響する関連issueを特定し、承認を得てから当該issueへ通知する**（差分からキーワードを抽出 → `search_issues` で候補提示 → `AskUserQuestion` で対象issueとコメント本文の承認 → `add_issue_comment` で投稿）。**影響先が無ければスキップしてよい**。詳細は下記「マージ前の関連issue通知（flow-id 5-3）」節 | エージェント |
+| 5-4 | `commit`スキル経由でcommitし、push して Draftを解除する（解除は `source .claude/scripts/src/vcs/Provider.sh && set_mr_ready <MR番号>` で行う。`gh pr ready` / `glab mr update --ready` を直接呼ばない。MR番号は `get_mr_for_branch` で取得できる）。**AIエージェントはここで止まる**（マージへは進まない） | エージェント |
+| 5-5 | マージする（squash merge。ブランチは削除してよい）。**AIエージェントは、ユーザーから明示的に指示された場合に限り実行してよい**（下記「PR/MR作成・マージの担当」） | 人間 |
 
 ### 計画の2階層構造（issue #9）
 
@@ -158,7 +159,7 @@ HANDOFF.mdとの矛盾など、ブランチ名だけでは分からない「こ�
 flow-idなら同じループ範囲の全行をまとめて`[x]`にする。フェーズ・ループ範囲を丸ごと省略する場合は
 `mark-skip <flow-id...>`で`[-]`にする。詳細・制約は`.claude/docs/spec/update-handoff-progress.md`
 参照）へ委譲し、それに続けて「やったこと」「次にやること」を書き換える。更新はcommit（flow-id
-2-2/2-7/3-2/3-7/4-2/4-7/5-3）より前に行い、**同じcommitに含める**（別commitに分けると、レビュー
+2-2/2-7/3-2/3-7/4-2/4-7/5-4）より前に行い、**同じcommitに含める**（別commitに分けると、レビュー
 時点の進捗表と実際の変更内容が食い違う）。
 
 **ただし、ループ範囲に属するflow-idでは記号を動かす条件が違う**（issue #64で実際に踏んだ。作業を
@@ -205,7 +206,7 @@ issue本文・受け入れ条件が「AとBとCを作る」という**同じ種�
 - **横断的変更**: 共通の型定義・スキーマ・認証基盤など、**同時に変えないと壊れるもの**。
   項目が並んで見えても単独でマージできないため、分割の対象ではない。
 - **分割コストが本体を上回る**: 1件あたりが極小の場合。このフローはissue 1件につき
-  **5フェーズ40ステップ**とレビュー往復という固定費がかかるため、分割すると本体の作業量より
+  **5フェーズ41ステップ**とレビュー往復という固定費がかかるため、分割すると本体の作業量より
   手続きのほうが大きくなることがある。
 - **共通部分の先行実装が必要**: この場合は均等に割らず、**「基盤issue → 機能ごとのissue」**と
   いう依存順に割る（分割はするが、割り方が変わる）。
@@ -270,7 +271,7 @@ flow-id 5-1 で `plans/` `worklog/` とまとめて削除する（`.claude/rules
 **見出し構成は本節では規定しない。** 計画・レポートの記述の型（見出し構成）のテンプレート化は
 issue #54 の担当であり、本節が決めるのは「どこへ書くか」だけである。
 
-## PR/MR作成・マージの担当（flow-id 1-3・5-3・5-4）
+## PR/MR作成・マージの担当（flow-id 1-3・5-4・5-5）
 
 **PR/MRの作成・更新はAIエージェントが実施してよい。マージのみユーザーの明示指示を必須とする**
 （issue #41）。判断の根拠は「取り消せるか」で、PR/MRの作成・Draft解除・description更新はいつでも
@@ -278,10 +279,10 @@ issue #54 の担当であり、本節が決めるのは「どこへ書くか」�
 
 | 操作 | 担当 |
 |---|---|
-| Draft PR/MRの作成（flow-id 1-3）・description更新・レビュー依頼・レビュー返信・Draft解除（flow-id 5-3） | **AIエージェント**（都度の明示指示は不要） |
-| マージ（flow-id 5-4） | **人間**。AIエージェントは明示的に指示された場合に限り実行してよい |
+| Draft PR/MRの作成（flow-id 1-3）・description更新・レビュー依頼・レビュー返信・Draft解除（flow-id 5-4） | **AIエージェント**（都度の明示指示は不要） |
+| マージ（flow-id 5-5） | **人間**。AIエージェントは明示的に指示された場合に限り実行してよい |
 
-flow-id 5-3 を終えたAIエージェントは、フロー上マージが次の一手であっても**そこで止まる**。
+flow-id 5-4 を終えたAIエージェントは、フロー上マージが次の一手であっても**そこで止まる**。
 「レビューが終わった」「Draftを解除した」「コンフリクトを解消した」はいずれもマージの指示ではない。
 
 **ハーネス（実行基盤）のシステムプロンプトに「ユーザーが明示的に依頼しない限りPRを作成しない」
@@ -429,7 +430,7 @@ hookは多重防御であり、注入が無かったことは着手してよい�
 2. サブエージェントが返す「現在地サマリ」（ブランチ・issue・PR/MR・未解決コメント件数・
    ブランチ固有のplan/worklogファイル・HANDOFF.mdの内容、および矛盾・注意点）をそのまま
    ユーザーに提示する。
-3. 提示した内容をもとに、全体フローの40ステップのうちどこから再開すべきかをAIエージェントが判断し、
+3. 提示した内容をもとに、全体フローの41ステップのうちどこから再開すべきかをAIエージェントが判断し、
    次にすべきことを提案する（この判断はサブエージェントではなく呼び出し元が行う）。
 4. issue番号が特定できていればブランチ/MRの存在確認へ（`start` 手順2相当）、issueが特定できなければ
    ブランチ命名規則から外れている旨を伝えて `start <issue番号>` での対応を促す。
@@ -478,8 +479,9 @@ get_repo_slug | jq -r '.owner, .repo'
 | `get_mr_unresolved_comments <n> [true]` | `mcp__github__pull_request_read` | `method="get_review_comments"`, `owner`, `repo`, `pullNumber=<n>` | スレッドごとに `isResolved` が付くので、**既定では `isResolved=false` のスレッドだけを提示する**（CLI版の「解決済みは機械的に除外」に相当）。`all` 指定時は全件。通常コメントは `method="get_comments"` を追加で呼ぶ。**コメントのパーマリンク（CLI版の `url=...`）は返却JSONの `html_url` を使う**（issue #42） |
 | `add_mr_thread_reply <n> <threadId> <body>` | `mcp__github__add_reply_to_pull_request_comment` | `owner`, `repo`, `pullNumber=<n>`, `commentId=<返信先スレッドの先頭コメントの数値ID>`, `body` | **ID体系が違う。** CLI経路はGraphQLのthreadId（`PRRT_...`）を使うが、MCP経路は数値のcommentId（`#discussion_r...` の数字部分）を使う。`get_review_comments` の各スレッドに含まれるコメントのidを使うこと。**投稿した返信のURL（CLI版の戻り値）は、返却JSONの `html_url` を使う**（issue #42） |
 | `set_mr_description <n> <file>` | `mcp__github__update_pull_request` | `owner`, `repo`, `pullNumber=<n>`, `body=<ファイルの内容>` | CLI版はファイルパスを渡すが、MCPは文字列で渡す。本文はReadツール等で読んでから渡す |
-| `set_mr_ready <n>` | `mcp__github__update_pull_request` | `owner`, `repo`, `pullNumber=<n>`, `draft=false` | `set_mr_description` と同じツールだが渡す引数が違う。`draft=false` が「Draftを解除しレビュー可能にする」の意味（flow-id 5-3。issue #61） |
+| `set_mr_ready <n>` | `mcp__github__update_pull_request` | `owner`, `repo`, `pullNumber=<n>`, `draft=false` | `set_mr_description` と同じツールだが渡す引数が違う。`draft=false` が「Draftを解除しレビュー可能にする」の意味（flow-id 5-4。issue #61） |
 | `add_mr_comment <n> <file>` | `mcp__github__add_issue_comment` | `owner`, `repo`, `issue_number=<PR番号>`, `body=<ファイルの内容>` | PR番号を `issue_number` に渡す（GitHub APIの仕様上、PRもissueとして扱える） |
+| `add_issue_comment <n> <file>` | `mcp__github__add_issue_comment` | `owner`, `repo`, `issue_number=<通知先のissue番号>`, `body=<ファイルの内容>` | **`add_mr_comment` と同じツールだが、`issue_number` へ渡すのがPR番号ではなく通知先のissue番号である**（flow-id 5-3の関連issue通知。issue #86）。CLI版はファイルパスを渡すが、MCPは文字列で渡すため本文はReadツール等で読んでから渡す |
 | `get_repo_url` | （MCP不要） | — | `git remote get-url origin` の正規化だけでリポジトリの正規URLを導出するプロバイダ非依存の関数のため、MCP経路でもそのまま呼べる（`get_mr_diff_url` / `get_mr_diff_since_url` も同様。issue #44） |
 | `new_issue_branch` / `sync_branch` / `get_branch_work_files` / `get_issue_number_from_branch` / `to_slug` / `test_issue_sections` | （MCP不要） | — | git操作・純粋ロジックのみでCLIに依存しないため、MCP経路でもそのまま呼べる |
 
@@ -527,10 +529,10 @@ GitLabリポジトリで `glab` が無い場合、`require_vcs_cli` はその旨
   ステップには進まない（GitHub/GitLabのスレッド解決自体はレビュアー側の操作であり、`reply` は
   解決を行わないため、返信済みでも `unresolved` のまま残ることがある）。
 
-## PR作成後のdefaultブランチ追従（監視）（flow-id 1-3〜5-4を横断）
+## PR作成後のdefaultブランチ追従（監視）（flow-id 1-3〜5-5を横断）
 
 flow-id 5-2 は**最後のゲート**であって、唯一の検知機会ではない。PR作成（flow-id 1-3）から
-マージ（5-4）までの間にdefaultブランチが進むと、レビューを待っている間にコンフリクトが生まれる
+マージ（5-5）までの間にdefaultブランチが進むと、レビューを待っている間にコンフリクトが生まれる
 （issue #88。実例: issue #39 のPR #81 では、PR作成後の短時間に `main` が4回進み、DDR番号を
 0034→0035→0036→0038 と3回繰り下げた。そのつどユーザーからの指摘で気づいていた）。
 本節は、その間の追従を**特定のflow-idに属さない並行手順**として定める（flow-idは増やさない。
@@ -545,7 +547,7 @@ flow-id 5-2 は**最後のゲート**であって、唯一の検知機会では�
 | 各pushの直後（flow-id 2-2/2-7/3-2/3-7/4-2/4-7） | `bash .claude/scripts/src/check-base-conflicts.sh` を1回実行する |
 | 監視イベントを受け取ったとき（PRイベント・定期チェックイン・人間からの指摘） | 同上。`hasConflict` が真なら下記「自動解消してよい範囲」に従って解消する |
 | flow-id 5-2 | **最終ゲート**。それまでに何度追従していても、Draft解除の前に必ずもう1回実行する |
-| flow-id 5-4（マージ）／PRのクローズ | 監視を**停止**する（下記「監視の停止条件」） |
+| flow-id 5-5（マージ）／PRのクローズ | 監視を**停止**する（下記「監視の停止条件」） |
 
 **flow-id 5-2 は監視があっても省略しない。** 監視は実行環境の機能とセッションの寿命に依存する
 ため（下記「制約」）、監視が一度も動かないまま進むセッションがありうる。必ず通るゲートを1つ
@@ -637,7 +639,7 @@ defaultブランチがさらに進み、同じ解消をやり直すことにな�
    判定結果のJSONの `hasConflict` を見る。**`git status` や `git merge` の結果で代用しない**
    （下記の理由により、gitが「コンフリクト無し」と報告する種類の衝突があるため）。
 
-2. **`hasConflict` が `false`**: そのまま flow-id 5-3（commit・push・Draft解除）へ進む。
+2. **`hasConflict` が `false`**: そのまま flow-id 5-3（関連issue通知）へ進む。
 
 3. **`hasConflict` が `true`**: `AskUserQuestion` で「コンフリクトがあるので解消してよいか」を
    ユーザーに確認する。質問文には検知内容（対象ファイル・重複したDDR番号）を具体的に含める。
@@ -650,6 +652,97 @@ defaultブランチがさらに進み、同じ解消をやり直すことにな�
 `check-base-conflicts.sh` はテキストコンフリクトとは別に**DDR番号の重複**を直接調べる
 （仕様: `.claude/docs/spec/check-base-conflicts.md`、経緯:
 `.claude/docs/ddr/0029-defaultブランチとのコンフリクトは検知を機構化し解消手順をスキル化する.md`）。
+
+## マージ前の関連issue通知（flow-id 5-3）
+
+Draft解除（flow-id 5-4）へ進む前に、**今回のMRが影響する他のissueを特定し、人間の承認を得てから
+当該issueへコメントで通知する**（issue #86）。MRがマージされても、その変更で前提が変わる・一部が
+解決される・記述が矛盾する他のissueには何も残らず、後続タスクの担当者が影響に気づけないため。
+
+**影響先が無ければスキップしてよい。** その場合も「影響先なし」と判断したことを `HANDOFF.md` の
+「やったこと」へ1行残し、flow-id 5-4 へ進む（判断を省いたのか、判断した結果なしだったのかを
+次のセッションが区別できるようにするため）。
+
+### 手順
+
+1. **差分を確認する。** マージされる内容そのものを起点にする（issue本文や計画ファイルではなく、
+   実際に何が変わったかを見る）。
+
+   ```bash
+   source .claude/scripts/src/vcs/Provider.sh
+   base="$(get_workflow_config | jq -r '.defaultBaseBranch')"
+   git diff --stat "origin/${base}...HEAD"
+   ```
+
+2. **AIエージェントが検索キーワードを抽出する。** 差分に現れた機能名・関数名・ファイル名・
+   概念語から、**最大5件**（`search_issues` の `SEARCH_ISSUES_MAX_KEYWORDS`）を選ぶ。
+   キーワード抽出をこの層でAIが担うのは、`issue-create` スキルの起票前重複チェックと同じ理由
+   （日本語主体のissueから意味のある語を選ぶには形態素解析が要り、bashでは代替できない。
+   DDR 0033）。
+
+3. **候補を検索する。**
+
+   ```bash
+   search_issues "<キーワード1>" "<キーワード2>" ...
+   ```
+
+   - **closedのissueも候補に含まれる**（`search_issues` の仕様）。closedのissueは通知先として
+     不適切なことが多いが、「その決定が今回の変更で覆る」ケースがあるため機械的には除外しない。
+   - **今回のissue自身と、そのPR/MRは候補から除く**（自分自身への通知になるため）。
+
+4. **影響の有無と種類を判定する。** 候補ごとに、今回の差分がそのissueへどう効くかを次の3類型で
+   分類する。どれにも当てはまらないものは通知しない（関連語が一致しただけのissueへ機械的に
+   投稿すると、通知そのものが無視されるようになる）。
+
+   | 類型 | 意味 |
+   |---|---|
+   | 前提が変わる | そのissueの「現状」の記述が今回の変更で成立しなくなる |
+   | 一部が解決される | そのissueの受け入れ条件の一部を今回の変更が満たす |
+   | 記述が矛盾する | そのissueの「期待する動作」が今回の変更と衝突する |
+
+5. **`AskUserQuestion` で承認を得る。** **承認なしに外部へ投稿しない**（経緯:
+   `.claude/docs/ddr/0041-マージ前の関連issue通知はDraft解除の直前に置き投稿前の人間承認を必須にする.md`）。
+   質問には、投稿先のissue番号・タイトル・上表の類型・**投稿する本文そのもの**を含める
+   （「投稿してよいか」だけを聞いて本文を見せない形にはしない）。投稿先が複数ある場合は
+   `multiSelect: true` で対象を選ばせる。
+
+6. **承認された分だけ投稿する。** 本文は**ファイルへ書き出してから**渡す（コマンド文字列へ
+   長文を埋め込むと、地の文に `git` と `push` が連続しただけでpush検知hookが誤発火する。
+   `.claude/rules/git-workflow.md`「push検知hookの誤検知」）。
+
+   ```bash
+   add_issue_comment <通知先issue番号> /tmp/notify-body.md
+   ```
+
+   本文の先頭には、`reply` サブコマンドと同じ **`Claude Codeより:` の署名行**を付ける。CLI・MCPの
+   どちらの経路でも人間のアカウントで投稿されるため、誰が書いたかを本文側で明示する必要がある。
+
+### 本文のテンプレート
+
+```markdown
+Claude Codeより: PR #<今回のPR番号>（issue #<今回のissue番号>）のマージ前通知です。
+
+## このissueへの影響
+
+<「前提が変わる」「一部が解決される」「記述が矛盾する」のどれかと、その理由を1〜3行で>
+
+## 該当箇所
+
+- `<ファイルパス>`: <何がどう変わったか>
+
+## 参照
+
+- PR: <PRのURL>
+- issue: <今回のissueのURL>
+```
+
+### `gh`/`glab` CLI不在時
+
+`add_issue_comment` は `mcp__github__add_issue_comment`（`owner`, `repo`,
+`issue_number=<通知先のissue番号>`, `body=<ファイルの内容>`）へ読み替える（上記
+「`gh`/`glab` CLI不在時のMCPフォールバック」節の対応表）。**`add_mr_comment` と同じツールだが、
+`issue_number` へ渡すのがPR番号ではなく通知先のissue番号である**点に注意する。候補の検索側
+（`search_issues`）も同じ表に従って `mcp__github__search_issues` へ読み替える。
 
 ## PRがflow-id 5-1実施前にマージされてしまった場合の対処
 
