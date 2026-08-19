@@ -267,7 +267,10 @@ docker exec gitlab cat /etc/gitlab/gitlab.rb
 ## テスト
 
 - 副作用の無い純粋ロジック（文字列変換・正規表現マッチ等）は、外部コマンド呼び出しを伴わない
-  単体テストスクリプトを`tests/`に置く（実例: `tests/test_vcs_provider.sh`）。
+  単体テストスクリプトを`.claude/scripts/test/`に置く（実例:
+  `.claude/scripts/test/test_vcs_provider.sh`）。機構自身のテストを`.claude/`配下（plugin配布
+  単位）へ収めることで、他プロジェクトへ導入したときに導入先本体の`tests/`と場所を取り合わない
+  （issue #63）。
 - 実プロセス起動・TCP通信等の結合確認は、「`passed=N failures=N`を出力し
   失敗があれば終了コード1」という規約に合わせる（実例: `tests/test_external_command_server.sh`）。
 - 作成した`.sh`は最低限 `bash -n <file>` で構文チェックする。
