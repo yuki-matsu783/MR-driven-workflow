@@ -161,9 +161,9 @@ main() {
   local tmp_file
   tmp_file="$(mktemp)"
   {
-    echo "## 対応工数レポート（自動投稿・前回pushからの差分）"
+    echo "## 対応工数レポート（前回pushからの差分）"
     echo ""
-    echo "> このコメントはClaude Codeによる自動投稿です。**レビューの合否判定には使用しないでください。**"
+    echo "> **このレポートはレビューの合否判定には使用しないでください。**"
     echo ""
     echo "- ブランチ: ${branch}"
     echo "- assistant応答回数: $(printf '%s' "$usage" | jq -r '.turns')"

@@ -66,10 +66,17 @@ MRとのやり取りだけを自動化する薄い層」として設計したが
 `dev-tools/`（AI・人間共用の開発補助ツール置き場）から`.claude/scripts/`（AI専用スクリプト置き場）へ
 移動した。設計方針・移行の経緯・git bash特有の注意点は [shell-scripts.md](shell-scripts.md) を参照。
 
-- **`Provider.sh`**: `git remote get-url origin` のホスト名（`github.com` / `gitlab.*`）でプロバイダを判定し、
+- **`Provider.sh`**: `git remote get-url origin` から**ホスト部を抽出**してプロバイダを判定し、
   共通インターフェース関数を `Github.sh` / `Gitlab.sh` の対応関数へディスパッチする。呼び出し側
   （スキル・他スクリプト）はプロバイダを意識しない。関数はJSON文字列をstdoutへ出力し、呼び出し側は
   `jq` でフィールドを取り出す設計（例: `get_issue 6 | jq -r '.title'`）。
+  判定規則は「ホスト名に `aslead` を含めばGitLab（社内GitLabの明示ケース）、`github` を含めばGitHub、
+  それ以外はGitLab」で、ホスト抽出と判定は純粋関数 `provider_from_remote_url` に切り出してある
+  （`get_provider` はその薄いラッパー）。**判定は `gh`/`glab` の認証状態に依存しない**。
+  詳細・却下案は
+  [0027-プロバイダ判定はremote-URLのホスト部でgithub以外をgitlabとみなす.md](../ddr/0027-プロバイダ判定はremote-URLのホスト部でgithub以外をgitlabとみなす.md)
+  参照（issue #45。それ以前はURL文字列全体への部分一致だったため、ホスト名に `gitlab` を含まない
+  self-hosted GitLabを弾いていた）。
 - **`.mrworkflow.json`**（リポジトリ直下、Git管理下）: ブランチ命名規則やパス（`plans/` 等）など
   プロジェクト固有の値を切り出す。他リポジトリへ移植する場合はこのファイルの値を書き換えるだけで済む
   ようにする。
@@ -106,6 +113,17 @@ MRとのやり取りだけを自動化する薄い層」として設計したが
 後者にあたる。`gitlab_get_mr_unresolved_comments` は `glab api` 呼び出しとこの関数の薄いラッパーで、
 外部コマンドを呼ばない整形ロジックだけを切り離すことで `tests/test_vcs_provider.sh` から
 単体テストできるようにしている（`.claude/rules/shell-script-style.md`「テスト」）。
+issue #45で追加した `provider_from_remote_url`（remote URL文字列からホスト部を抽出しプロバイダ名を
+返す純粋関数）も同じ位置づけで、`Provider.sh` 内にあるが上表には載らない。`get_provider` が
+`git remote get-url origin` の結果をこの関数へ渡すだけの薄いラッパーになっており、切り出しの目的も
+上と同じく単体テスト可能にすることである。
+
+**`Provider.sh` 内の関数がすべて公開インターフェースとは限らない点に注意する。** 上表に載るのは
+呼び出し側（スキル・他スクリプト）が直接使う関数のみで、`provider_from_remote_url` のように
+`Provider.sh` にありながら内部実装であるものも、`github_get_compare_url` / `gitlab_get_compare_url`
+のようにプロバイダ固有ファイル側の内部ヘルパーとしてのみ存在し `Provider.sh` にディスパッチャを
+持たないものもある（後者について公開されているのは `get_mr_diff_url` /
+`get_mr_diff_since_url` の方であり、これは意図した設計である）。
 
 ### 全体フロー
 
@@ -602,8 +620,7 @@ Claude Codeの対応工数（モデル別トークン数・ツール実行回数
   十分、(2) `Stop`依存のカウントは「そのターンのStopがまだ発火していない状態でのpush」で
   過少カウントになる、ことが分かったため廃止した。代わりに「assistant応答回数」を
   トークン・ツール回数と同じtranscript差分方式で算出する。
-- **投稿内容の位置づけ**: コメント本文冒頭に「このコメントはClaude Codeによる自動投稿です。
-  レビューの合否判定には使用しないでください。」と明記する（`add_mr_comment` は通常コメントであり
+- **投稿内容の位置づけ**: コメント本文冒頭に「このレポートはレビューの合否判定には使用しないでください。」と明記する（`add_mr_comment` は通常コメントであり
   レビューではないため、そもそも承認状態に影響しない。issue #15の受け入れ条件に対応）。
 - **フッターの免責事項説明文は初回投稿のみ表示**（issue #28, PR #29レビュー指摘）: 集計方法や
   既知の過小カウント要因（トークン数の項参照）を説明する詳しめのフッター文（`Claude Codeより:
@@ -1215,6 +1232,29 @@ issueはGitHubのUIからしか作成できず、標準4見出し（目的・現
   「GitLab側の動作未検証」を部分解消の内容へ書き換え、本エントリを追加）
 - `.claude/docs/README.md`（DDR一覧に0026を追加）
 
+新規（追加分・issue #45 get_providerのホスト判定化）:
+- `.claude/docs/ddr/0027-プロバイダ判定はremote-URLのホスト部でgithub以外をgitlabとみなす.md`
+
+変更（追加分・issue #45 get_providerのホスト判定化）:
+- `.claude/scripts/src/vcs/Provider.sh`
+  - `provider_from_remote_url` を純粋関数として新設（remote URL文字列からホスト部を抽出し
+    プロバイダ名を返す。パラメータ展開のみで外部コマンド呼び出し・コマンド置換を伴わない）
+  - `get_provider` を上記関数の薄いラッパーへ変更。URL文字列全体への部分一致をやめたことで、
+    ホスト名に `gitlab` を含まないself-hosted GitLab（`git@git.example.co.jp:...`、
+    `http://localhost:8929/...`）を判定できるようになった。副次的に、パスへ `github` を含む
+    GitLab URL（`https://gitlab.com/github-mirror/x.git`）の誤判定も解消
+  - 従来の「サポート対象外のリモートです」エラーは、ホスト名が空の場合のみ到達する
+    メッセージへ変更（受け入れたトレードオフ。DDR 0027参照）
+- `tests/test_vcs_provider.sh`（`Provider.sh` のsourceを追加し、`provider_from_remote_url` の
+  単体テストを15件追加。GHE・scp形式・ポート付きssh・パスに `@` を含むURL・`aslead` の優先順位・
+  ホスト名が空のときの終了コードを含む。`passed=26 failures=0`）
+- `.claude/docs/spec/issue-mr-workflow.md`（本ファイル。「コンポーネント」の `Provider.sh` の説明を
+  新しい判定方式へ更新、「提供関数」表直後の段落へ `provider_from_remote_url` と
+  「`Provider.sh` 内の関数がすべて公開インターフェースとは限らない」旨を追記、「決定済み事項」へ
+  プロバイダ判定の規則を追加、「未決定事項・懸念点」の「GitLab側の動作未検証」から
+  `Provider.sh` 経由のディスパッチの項目を解消、本エントリを追加）
+- `.claude/docs/README.md`（DDR一覧に0027を追加）
+
 ## 設定項目
 
 `.mrworkflow.json`
@@ -1319,6 +1359,20 @@ issueはGitHubのUIからしか作成できず、標準4見出し（目的・現
   却下案は
   [0022-push断面の全文コピーをやめ行番号インデックスで表現する.md](../ddr/0022-push断面の全文コピーをやめ行番号インデックスで表現する.md)
   参照。
+- **プロバイダ判定はremote URLの「ホスト部」で行い、GitHubでなければGitLabとみなす**（issue #45）:
+  `get_provider`はかつて`git remote get-url origin`の**URL文字列全体**への部分一致
+  （`*github.com*` / `*gitlab*`）で判定しており、ホスト名に`gitlab`を含まないself-hosted GitLab
+  （`git@git.example.co.jp:...`、`http://localhost:8929/...`）を「サポート対象外のリモートです」と
+  して弾いていた。ホスト部を抽出したうえで「`aslead`を含めばGitLab（社内GitLabの明示ケース。
+  GitHub判定より前に評価する）／`github`を含めばGitHub／それ以外はGitLab」と判定する方式へ変更した。
+  本ワークフローの対応プロバイダがGitHub/GitLabの2つに限られること、GitHubはSaaS（`github.com`）・
+  GHEとも慣習的にホスト名へ`github`を含むことが前提。**判定は`gh`/`glab`を呼ばないため認証状態に
+  依存しない**（未ログインでも同じ結果になる）。副次的に、パスへ`github`を含むGitLab URL
+  （`https://gitlab.com/github-mirror/x.git`）の誤判定も解消した。却下案（`glab auth status`等の
+  glab由来の情報を使う3方式・`.mrworkflow.json`への`provider`キー追加）と、受け入れたトレードオフ
+  （GitHub/GitLabのどちらでもないリモートにも`gitlab`を返すため、旧実装の明快なエラーが出なくなる）は
+  [0027-プロバイダ判定はremote-URLのホスト部でgithub以外をgitlabとみなす.md](../ddr/0027-プロバイダ判定はremote-URLのホスト部でgithub以外をgitlabとみなす.md)
+  参照。
 
 ## 未決定事項・懸念点
 
@@ -1328,14 +1382,17 @@ issueはGitHubのUIからしか作成できず、標準4見出し（目的・現
   安定していると考えられるが、本対応ではブラウザでの表示確認まではできていない。GitLab実装
   （`<repoUrl>/-/compare/<from>...<to>`）についても、issue #48のGitLab実機検証で確認したのは
   API経由の動作のみで、ブラウザでのCompareページ表示は確認していない。
-- **（issue #48で部分解消）GitLab側の動作未検証**: かつては「このリポジトリの実remoteはGitHubのみ」を
+- **（issue #48・#45で部分解消）GitLab側の動作未検証**: かつては「このリポジトリの実remoteはGitHubのみ」を
   理由に`Gitlab.sh`全体が未検証だったが、issue #48でローカルにGitLab CE 18.5.4（Docker）を立て、
   `glab` 1.114.0から**全13関数を実機実行して動作を確認した**（`gitlab_get_mr_unresolved_comments`の
   解決済み含む分岐、`gitlab_add_mr_thread_reply`を含む）。この検証で3件の不具合が見つかり修正済み。
-  残る未検証範囲は次の3点。
-  - **`Provider.sh`経由のディスパッチ**: `get_provider`がself-hostedのGitLab URLを判定できない
-    （issue #45、未修正）ため、検証は`gitlab_*`関数を直接呼ぶ形で行った。ディスパッチャ経由の
-    経路は依然として未検証。
+  ただしissue #48の時点では`get_provider`がself-hostedのGitLab URLを判定できなかったため、検証は
+  `gitlab_*`関数を直接呼ぶ形で迂回しており、ディスパッチャ経由の経路が未検証のまま残っていた。
+  **issue #45でこの判定を修正し、同じ環境で`Provider.sh`経由のディスパッチが通ることを確認した**
+  （`get_provider` / `get_repo_url` / `get_issue` / `get_mr_for_branch` /
+  `get_mr_unresolved_comments` / `add_mr_comment` / `set_mr_description` / `add_mr_thread_reply` /
+  `get_mr_diff_url` / `get_mr_diff_since_url` / `get_workflow_config` /
+  `get_issue_number_from_branch`）。残る未検証範囲は次の2点。
   - **バージョン・エディション**: 確認したのはCE 18.5.4の1バージョンのみ。gitlab.com（SaaS）・
     他バージョンでの挙動は未検証。
   - **プロジェクト構成**: 単一プロジェクト（`root/issue45-verify`）でしか確認しておらず、

@@ -116,6 +116,8 @@ build_issue_body() {
 #
 # 判定はremote URLの文字列のみに依存し、`gh`/`glab` の認証状態には依存しない（未ログインでも
 # 同じ結果になる）。
+# 詳細・却下案（glab由来の情報を使う3方式・`.mrworkflow.json`への`provider`キー追加）は
+# .claude/docs/ddr/0027-プロバイダ判定はremote-URLのホスト部でgithub以外をgitlabとみなす.md 参照。
 #
 # 受け入れたトレードオフ: GitHub/GitLabのどちらでもないリモート（Bitbucket等、URLのtypo）にも
 # `gitlab` を返すため、旧実装の「サポート対象外のリモートです」という明快なエラーは出なくなり、
