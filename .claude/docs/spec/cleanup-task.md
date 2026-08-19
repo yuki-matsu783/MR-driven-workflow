@@ -16,7 +16,8 @@ flow-id 5-1（次タスクのための片付け）は、`.claude/skills/issue-mr
 書かれているだけで、実行はAIエージェントの手作業だった。実際に行う操作は毎回同じ4つである。
 
 1. `plans/` `reports/` を削除する（md・htmlの両方）
-2. `worklog/` のタスク固有ファイルを削除する（**`worklog/TEMPLATE.md` は残す**）
+2. `worklog/` のタスク固有ファイルを削除する（**`worklog/TEMPLATE.md` は残す**）。どの階層に
+   あっても **`REVIEW-POINTS.md` は残す**（`plans/` `reports/` 配下を含む）
 3. frontmatterの機械可読インデックス（`index.jsonl`）を再生成する
 4. `HANDOFF.md` を次タスク向けのテンプレートへリセットする
 
@@ -50,15 +51,16 @@ bash .claude/scripts/src/cleanup-task.sh [--dry-run] [--skip-index]
 エラーにする**（絶対パス・`..` を含むパス・Windowsのドライブ表記・バックスラッシュ区切りを拒否する。
 設定ファイル由来の値をそのまま `rm -rf` へ渡さないためのガード）。
 
-各ディレクトリ配下の**ファイルをすべて**削除対象とし、次のパスだけを残す。
+各ディレクトリ配下の**ファイルをすべて**削除対象とし、次のものだけを残す。
 
-| 残すパス | 理由 |
-|---|---|
-| `worklog/TEMPLATE.md` | worklogを書き起こすときの雛形であり、タスクごとの成果物ではない（`.claude/rules/directory-structure.md`） |
+| 残すもの | 判定 | 理由 |
+|---|---|---|
+| `worklog/TEMPLATE.md` | パス完全一致（`KEEP_PATHS`） | worklogを書き起こすときの雛形であり、タスクごとの成果物ではない（`.claude/rules/directory-structure.md`） |
+| `REVIEW-POINTS.md` | ファイル名一致（`KEEP_BASENAMES`）。階層は問わない | `plans/REVIEW-POINTS.md` `reports/REVIEW-POINTS.md` は、そのディレクトリに対する永続のレビュー観点であってタスク単位の成果物ではない（issue #77。`.claude/rules/docs-workflow.md`「ドキュメント運用」表・`.claude/docs/spec/adversarial-review.md`） |
 
-- 残すパスを1つも含まないディレクトリは、**ディレクトリごと削除する**（`plans/` `reports/` は
-  リポジトリのスケルトンに存在しないため、通常はこちらになる）。残すパスがあるディレクトリ
-  （`worklog/`）はディレクトリ自体を残し、中の空になったサブディレクトリだけを畳む。
+- 残すものを1つも含まないディレクトリは、**ディレクトリごと削除する**。残すものがある
+  ディレクトリ（`worklog/` や、`REVIEW-POINTS.md` を置いた `plans/` `reports/`）は
+  ディレクトリ自体を残し、中の空になったサブディレクトリだけを畳む。
 - **Git管理下かどうかは問わない。** `index.jsonl`（`.gitignore` 対象の生成物）や `reports/*.html`
   のような未追跡ファイルも同じ扱いで消える。`plans/index.jsonl` を個別に指定する必要はない。
 - 非ASCIIのファイル名（`plans/【調査】〜.md` 等）を正しく扱うため、走査は `find -print0` で受ける。
@@ -100,6 +102,7 @@ bash .claude/scripts/src/cleanup-task.sh [--dry-run] [--skip-index]
   "repoRoot": "/path/to/repo",
   "targetDirs": ["plans", "worklog", "reports"],
   "keptPaths": ["worklog/TEMPLATE.md"],
+  "keptBasenames": ["REVIEW-POINTS.md"],
   "removedDirs": ["plans", "reports"],
   "deletedFiles": ["plans/【調査】〜.md", "worklog/2026-08-19_〜_push1.md"],
   "handoff": { "path": "HANDOFF.md", "reset": true, "alreadyTemplate": false, "created": false },
@@ -140,18 +143,23 @@ bash .claude/scripts/src/cleanup-task.sh [--dry-run] [--skip-index]
 - `.claude/scripts/test/test_cleanup_task.sh`（純粋関数 `is_safe_relative_dir` / `is_keep_path` /
   `is_handoff_template` と埋め込みテンプレートの内容を検証。実ファイルを削除する `main` は対象外）
 - `.claude/docs/spec/cleanup-task.md`（本ファイル）
-- `.claude/docs/ddr/0045-flow-id5-1の後片付けはスクリプト化しコミットは含めない.md`
+- `.claude/docs/ddr/0048-flow-id5-1の後片付けはスクリプト化しコミットは含めない.md`
 
 変更:
 - `.claude/skills/issue-mr-flow/SKILL.md`（flow-id 5-1 の手順を本スクリプトの実行へ差し替え）
 - `.claude/rules/docs-workflow.md`（flow-id 5-1 でまとめて削除する旨の注記へ、本スクリプトへの参照を追加）
 - `.claude/docs/README.md`（spec一覧・DDR一覧へ追記）
 
+本ブランチの作業中に `main` 側で issue #77（レビュー観点 `REVIEW-POINTS.md`）がマージされたため、
+`REVIEW-POINTS.md` を削除しない要件を `KEEP_BASENAMES` として取り込んだ（`plans/REVIEW-POINTS.md`
+`reports/REVIEW-POINTS.md` は追跡対象として `main` に存在する）。
+
 ## 未決定事項・懸念点
 
-- **残すパスの一覧はスクリプト内の定数（`KEEP_PATHS`）である。** 現在の対象は
-  `worklog/TEMPLATE.md` の1件だけで、`.mrworkflow.json` からは読まない。他プロジェクトへ移植した
-  際に残したいファイルが増えたら、設定ファイルへ逃がすか定数へ足すかを改めて判断する。
+- **残すものの一覧はスクリプト内の定数（`KEEP_PATHS`・`KEEP_BASENAMES`）である。** 現在の対象は
+  `worklog/TEMPLATE.md` と `REVIEW-POINTS.md` の2件だけで、`.mrworkflow.json` からは読まない。
+  他プロジェクトへ移植した際に残したいファイルが増えたら、設定ファイルへ逃がすか定数へ足すかを
+  改めて判断する。
 - **`main` の結合テストは持たない。** `.claude/scripts/test/` は実リポジトリを汚さない方針のため、
   削除・リセットの検証は一時ディレクトリへ作ったフィクスチャリポジトリでの手動確認で代えている
   （issue #28 対応時に、dry-run／実行／2回目の冪等性／`extract-frontmatter.sh` 不在・異常終了・

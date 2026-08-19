@@ -4,7 +4,8 @@
 # `.claude/skills/issue-mr-flow/SKILL.md` の flow-id 5-1 が手順として持っていた次の4操作を、
 # 手作業（消し忘れ・消しすぎ）を排して1コマンドへまとめる。
 #
-#   1. `plans/` `reports/` を丸ごと、`worklog/` を TEMPLATE.md だけ残して削除する
+#   1. `plans/` `worklog/` `reports/` を、下記「残すパス」以外すべて削除する
+#      （`worklog/TEMPLATE.md` と、どの階層にあっても `REVIEW-POINTS.md` は残す）
 #      （ディレクトリは .mrworkflow.json の plansDir / worklogDir / reportsDir から読む）
 #   2. 上記配下の index.jsonl（frontmatterの機械可読インデックス。Git管理外の生成物）も一緒に消える
 #   3. `.claude/scripts/src/extract-frontmatter.sh .` で残りの index.jsonl 群を再生成する
@@ -23,7 +24,7 @@
 # 出力: 実行内容のJSONをstdoutへ1つ出力する（check-base-conflicts.sh・Provider.sh と同じ規約）。
 #   {
 #     "dryRun": false, "repoRoot": "...", "targetDirs": ["plans","worklog","reports"],
-#     "keptPaths": ["worklog/TEMPLATE.md"],
+#     "keptPaths": ["worklog/TEMPLATE.md"], "keptBasenames": ["REVIEW-POINTS.md"],
 #     "removedDirs": ["plans","reports"],
 #     "deletedFiles": ["plans/....md"],
 #     "handoff": {"path":"HANDOFF.md","reset":true,"alreadyTemplate":false,"created":false},
@@ -47,6 +48,14 @@ set -euo pipefail
 # ディレクトリ自体を削除しない。
 readonly -a KEEP_PATHS=(
   "worklog/TEMPLATE.md"
+)
+
+# 同じく、**どの階層にあっても**消してはいけないファイル名。
+# `plans/REVIEW-POINTS.md` `reports/REVIEW-POINTS.md` は、これらのディレクトリ配下にあるが
+# タスク単位の成果物ではなく、そのディレクトリに対する永続のレビュー観点である（issue #77。
+# `.claude/rules/docs-workflow.md`「ドキュメント運用」表・`.claude/docs/spec/adversarial-review.md`）。
+readonly -a KEEP_BASENAMES=(
+  "REVIEW-POINTS.md"
 )
 
 # HANDOFF.mdのリセット後の内容（見出しだけを残した次タスク向けテンプレート）。
@@ -113,12 +122,17 @@ is_safe_relative_dir() {
   return 0
 }
 
-# リポジトリ相対パスが KEEP_PATHS に載っているか（＝削除してはいけないか）を判定する。
+# リポジトリ相対パスが KEEP_PATHS（完全一致）または KEEP_BASENAMES（ファイル名一致）に
+# 該当するか（＝削除してはいけないか）を判定する。
 # 外部コマンドを呼ばない純粋関数。
 is_keep_path() {
   local path="$1" keep
   for keep in "${KEEP_PATHS[@]}"; do
     [[ "$path" == "$keep" ]] && return 0
+  done
+  local base="${path##*/}"
+  for keep in "${KEEP_BASENAMES[@]}"; do
+    [[ "$base" == "$keep" ]] && return 0
   done
   return 1
 }
@@ -297,27 +311,33 @@ main() {
   # --- 実行内容のJSON -------------------------------------------------------
   # 可変長の一覧は --args の位置引数でまとめて渡し、フィルタの直後に `--` を置く
   # （ハイフンで始まる値をjqがオプションと誤認するのを防ぐ。`.claude/rules/shell-script-style.md`）。
-  local -a positional=("${target_dirs[@]}" "${KEEP_PATHS[@]}")
+  local -a positional=("${target_dirs[@]}" "${KEEP_PATHS[@]}" "${KEEP_BASENAMES[@]}")
   if [ "${#CLEANUP_REMOVED_DIRS[@]}" -gt 0 ]; then positional+=("${CLEANUP_REMOVED_DIRS[@]}"); fi
   if [ "${#CLEANUP_FILES[@]}" -gt 0 ]; then positional+=("${CLEANUP_FILES[@]}"); fi
 
   local counts
-  printf -v counts '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s' \
+  printf -v counts '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s' \
     "$dry_run" "$handoff_reset" "$handoff_already" "$handoff_created" \
-    "$index_ran" "$index_status" "${#target_dirs[@]}" "${#KEEP_PATHS[@]}" "${#CLEANUP_REMOVED_DIRS[@]}"
+    "$index_ran" "$index_status" "${#target_dirs[@]}" "${#KEEP_PATHS[@]}" \
+    "${#KEEP_BASENAMES[@]}" "${#CLEANUP_REMOVED_DIRS[@]}"
 
   jq -n --arg repoRoot "$repo_root" --arg counts "$counts" --args '
     ($counts | split("\t")) as $c
     | ($c[6] | tonumber) as $nDirs
     | ($c[7] | tonumber) as $nKeep
-    | ($c[8] | tonumber) as $nRemoved
+    | ($c[8] | tonumber) as $nKeepBase
+    | ($c[9] | tonumber) as $nRemoved
+    | ($nDirs + $nKeep) as $o1
+    | ($o1 + $nKeepBase) as $o2
+    | ($o2 + $nRemoved) as $o3
     | {
         dryRun: ($c[0] == "1"),
         repoRoot: $repoRoot,
         targetDirs: $ARGS.positional[0:$nDirs],
-        keptPaths: $ARGS.positional[$nDirs:$nDirs + $nKeep],
-        removedDirs: $ARGS.positional[$nDirs + $nKeep:$nDirs + $nKeep + $nRemoved],
-        deletedFiles: $ARGS.positional[$nDirs + $nKeep + $nRemoved:],
+        keptPaths: $ARGS.positional[$nDirs:$o1],
+        keptBasenames: $ARGS.positional[$o1:$o2],
+        removedDirs: $ARGS.positional[$o2:$o3],
+        deletedFiles: $ARGS.positional[$o3:],
         handoff: {
           path: "HANDOFF.md",
           reset: ($c[1] == "1"),

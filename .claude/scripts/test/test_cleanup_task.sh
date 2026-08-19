@@ -63,6 +63,12 @@ assert_eq "is_keep_path: worklog/TEMPLATE.md は残す" "0" "$(status_of is_keep
 assert_eq "is_keep_path: タスク固有のworklogは残さない" "1" "$(status_of is_keep_path "worklog/2026-08-19_計画_個別_push1.md")"
 assert_eq "is_keep_path: 別ディレクトリの同名ファイルは残さない" "1" "$(status_of is_keep_path "plans/TEMPLATE.md")"
 assert_eq "is_keep_path: 部分一致では残さない" "1" "$(status_of is_keep_path "worklog/TEMPLATE.md.bak")"
+# REVIEW-POINTS.md は plans/ reports/ 配下にあっても残す（issue #77。ファイル名で判定する）
+assert_eq "is_keep_path: plans/REVIEW-POINTS.md は残す" "0" "$(status_of is_keep_path "plans/REVIEW-POINTS.md")"
+assert_eq "is_keep_path: reports/REVIEW-POINTS.md は残す" "0" "$(status_of is_keep_path "reports/REVIEW-POINTS.md")"
+assert_eq "is_keep_path: サブディレクトリのREVIEW-POINTS.mdも残す" "0" "$(status_of is_keep_path "reports/sub/REVIEW-POINTS.md")"
+assert_eq "is_keep_path: 名前が似ているだけのファイルは残さない" "1" "$(status_of is_keep_path "plans/REVIEW-POINTS.md.bak")"
+assert_eq "is_keep_path: 接尾辞が一致するだけのファイルは残さない" "1" "$(status_of is_keep_path "plans/OLD-REVIEW-POINTS.md")"
 
 # --- is_handoff_template --------------------------------------------------
 
