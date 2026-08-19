@@ -3,7 +3,7 @@ title: defaultブランチとのコンフリクト検知（check-base-conflicts.
 type: spec
 description: マージ依頼前にdefaultブランチとのコンフリクト有無を作業ツリーを変更せずに判定するスクリプトの仕様。テキストコンフリクトに加え、gitが検知できないDDR番号の重複も調べる
 tags: [conflict, script, workflow, spec]
-keywords: [check-base-conflicts, merge-tree, DDR番号, semantic conflict, defaultブランチ, hasConflict, resolve-conflict, flow-id-5-2]
+keywords: [check-base-conflicts, merge-tree, DDR番号, semantic conflict, defaultブランチ, hasConflict, resolve-conflict, flow-id-5-2, 追従監視]
 ---
 
 # defaultブランチとのコンフリクト検知（check-base-conflicts.sh）
@@ -133,6 +133,13 @@ git -c core.quotepath=false merge-tree --write-tree --name-only --no-messages <h
 | `.claude/docs/spec/issue-mr-workflow.md` | ステップ数を40へ更新 |
 | `.gitignore` | `index.jsonl` の除外理由コメントが参照するDDR番号を `0024` → `0025` へ修正（issue #36の改番時に更新漏れしていた。本issueが対象とする「改番時の参照更新漏れ」の実例） |
 
+### issue #88（PR作成後の追従監視からの繰り返し実行）
+
+| ファイル | 変更内容 |
+|---|---|
+| （本スクリプト） | 変更なし。監視から繰り返し呼ばれる用途に既存の設計がそのまま使えることを確認した |
+| `.claude/docs/spec/check-base-conflicts.md` | 本ファイル。「未決定事項・懸念点」のhookに関する記述を、監視での繰り返し実行と整合する形へ更新し、本エントリを追加 |
+
 ## 未決定事項・懸念点
 
 - **DDR以外の連番リソースは対象外**。現状このリポジトリで連番を持つのはDDRのみのため。
@@ -140,6 +147,13 @@ git -c core.quotepath=false merge-tree --write-tree --name-only --no-messages <h
 - **「両ブランチが同じ内容の変更を別の書き方で行った」種類のsemantic conflictは検知できない**
   （例: 同じルールを別の節へ書いた）。これは機械的に判定できないため、`resolve-conflict`
   スキルの類型C・Eとして人間の判断へ委ねる。
-- **hookによる自動実行はしていない**。push検知hookで毎回走らせる案もあったが、コンフリクトは
-  マージ依頼の直前にだけ確認できればよく、pushのたびに `git fetch` を伴う判定を挟むのは
-  コストに見合わないと判断した（flow-id 5-2の手順として明示することで代替する）。
+- **hookによる自動実行はしていない**。push検知hookで毎回走らせる案もあったが、pushのたびに
+  `git fetch` を伴う判定を挟むのはコストに見合わず、push検知hookはコマンド文字列の部分一致で
+  誤発火する既知の問題も抱えている（`.claude/rules/git-workflow.md`「push検知hookの誤検知」）。
+  実行タイミングは**手順として明示する**方式を採る（flow-id 5-2、およびPR作成後の追従監視。
+  下記）。
+- **本スクリプトはPR作成後の追従監視から繰り返し呼ばれる**（issue #88）。作業ツリーを変更せず、
+  引数なしで何度でも実行でき、結果を終了コードではなく `hasConflict` で返す設計は、この繰り返し
+  実行にそのまま使える（スクリプト側の変更は不要だった）。監視の手順・自動解消の線引き・停止条件は
+  `.claude/skills/issue-mr-flow/SKILL.md`「PR作成後のdefaultブランチ追従（監視）」節、
+  経緯は `.claude/docs/ddr/0039-PR作成後のdefaultブランチ追従は並行手順として定義し自動解消は一意に決まる類型に限る.md` を参照。

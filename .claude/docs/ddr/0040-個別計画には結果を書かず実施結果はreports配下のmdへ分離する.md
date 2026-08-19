@@ -1,12 +1,12 @@
 ---
-title: 0039. 個別計画には結果を書かず実施結果はreports配下のmdへ分離する
+title: 0040. 個別計画には結果を書かず実施結果はreports配下のmdへ分離する
 type: ddr
 description: 個別計画（plans/【*】〜.md）を合意のスナップショットに保つため、調査結果・作業結果・反映結果をreports/配下のmarkdownへ分離する決定
 tags: [issue-mr-flow, docs-workflow, reports, plans]
 keywords: [個別計画, 実施結果, reports, 調査結果, 作業結果, 反映結果, ライフサイクル, レビュー, 正文, 視覚化]
 ---
 
-# 0039. 個別計画には結果を書かず、実施結果は `reports/` 配下のmdへ分離する
+# 0040. 個別計画には結果を書かず、実施結果は `reports/` 配下のmdへ分離する
 
 ## 背景
 

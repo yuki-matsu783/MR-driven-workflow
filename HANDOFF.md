@@ -14,8 +14,9 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 
 - issue: #87 個別計画に調査結果・作業結果を書かず、結果は `reports/` 配下のmarkdownへ分離する
 - ブランチ: claude/separate-results-from-plans-0n4kwm
-- PR: 未作成（ハーネスがPR作成に明示指示を求める環境、かつ非対話セッションのため。`.claude/rules/git-workflow.md`「ハーネスがPR作成を制限する環境での扱い」）
-- push回数: 1
+- PR: #91 (Draft) https://github.com/yuki-matsu783/MR-driven-workflow/pull/91
+- 追従監視: なし（web。未購読。次セッションで引き継ぐ場合は取り直すこと）
+- push回数: 2
 
 ## フロー進捗状況
 
@@ -54,13 +55,13 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 | [] | 4-3 | MRで反映計画についてレビュー・コメントする。レビュー完了済み連絡をするまで以降の作業は行わない。（非対話セッションのため未実施） | 人間 |
 | [] | 4-4 | レビュー内容を取得し、反映計画を修正する。対応が完了したコメントには対応内容を返信する（4-3〜4-4を合意まで繰り返す） | `comments` / `reply` |
 | [-] | 4-5 | 反映計画をもとにMR descriptionを更新する（PR未作成のため対象外） | `describe` |
-| [] | 4-6 | 反映計画をもとに作業を進める（**設計反映（spec・DDR 0039）は完了済み**。AIアセット反映（SKILL.md・rules 3本・index.md・canvas-report/SKILL.md）も実施済み。人間レビューを挟めずループが1周していないため記号は `[]` のまま） | エージェント |
+| [] | 4-6 | 反映計画をもとに作業を進める（**設計反映（spec・DDR 0040）は完了済み**。AIアセット反映（SKILL.md・rules 3本・index.md・canvas-report/SKILL.md）も実施済み。人間レビューを挟めずループが1周していないため記号は `[]` のまま） | エージェント |
 | [] | 4-7 | `commit`スキル経由でcommitし、リモートへ反映してレビュー依頼を行う（commit・反映は実施済み） | エージェント |
 | [] | 4-8 | MRでレビュー・コメントする。レビュー済み連絡をするまで以降の作業は行わない。（非対話セッションのため未実施） | 人間 |
 | [] | 4-9 | レビュー内容を取得し、設計・AIアセットの内容を修正する。対応が完了したコメントには対応内容を返信する（4-6〜4-9の反映ループを合意まで繰り返す） | `comments` / `reply` |
 | [-] | 4-10 | 反映内容をもとにMR descriptionを更新する（PR未作成のため対象外） | `describe` |
 | [] | 5-1 | 次タスクのために、`plans/` `worklog/` `reports/` を削除し、`HANDOFF.md` をリセットする | エージェント |
-| [] | 5-2 | **defaultブランチとのコンフリクトを検知し、あれば解消する**（`resolve-conflict` スキル） | エージェント（`resolve-conflict` スキル） |
+| [x] | 5-2 | **defaultブランチとのコンフリクトを検知し、あれば解消する**（main の PR #90 マージによりコンフリクトが発生したため解消済み。下記「判断を迷った内容」参照） | エージェント（`resolve-conflict` スキル） |
 | [] | 5-3 | `commit`スキル経由でcommitし、リモートへ反映してDraftを解除する | エージェント |
 | [] | 5-4 | マージする（squash merge。ブランチは削除してよい） | 人間 |
 
@@ -83,11 +84,11 @@ issue #87 の受け入れ条件5件すべてに対応した。実施結果の詳
   - `.claude/rules/markdown-frontmatter.md`: 「typeの値」表へ `report`（`reports/*.md`）を追加
   - `index.md` / `.claude/skills/canvas-report/SKILL.md`: 同趣旨の反映
 - **設計反映**
-  - `.claude/docs/ddr/0039-個別計画には結果を書かず実施結果はreports配下のmdへ分離する.md`（新規。
+  - `.claude/docs/ddr/0040-個別計画には結果を書かず実施結果はreports配下のmdへ分離する.md`（新規。
     却下した4案を記録）
   - `.claude/docs/spec/issue-mr-workflow.md`: 「仕様」節の計画2階層へ箇条書きを追加、「影響範囲」へ
     issue #87 のchangelogを追加
-  - `.claude/docs/README.md`: DDR一覧へ 0039 を追加
+  - `.claude/docs/README.md`: DDR一覧へ 0040 を追加
 - **検証**: `extract-frontmatter.sh` 成功（`files=69 failed=0`、`reports/index.jsonl` に
   `"type":"report"` を確認）／`.claude/scripts/test/` の単体テスト7本すべて `failures=0`（合計229）
 
@@ -99,6 +100,34 @@ issue #87 の受け入れ条件5件すべてに対応した。実施結果の詳
 - PRが必要な場合は、ユーザーからの明示指示を受けてから作成する。
 
 ## 判断を迷った内容
+
+### mainマージ時（flow-id 5-2）の統合判断
+
+main の PR #90（issue #88 PR作成後のdefaultブランチ追従監視）がマージされたことで、
+`check-base-conflicts.sh` が `hasConflict: true`（類型A＋類型C）を報告した。`git merge --no-ff
+--no-commit origin/main` で取り込み、以下のとおり解消した。**`git rebase` は使っていない。**
+
+- **類型A（DDR番号の衝突）**: 本ブランチの `0039-個別計画には結果を書かず…` を **0040** へ
+  繰り下げた（main側に issue #88 の 0039〈PR作成後のdefaultブランチ追従…〉が既に入っていたため。
+  mainは共有の正史であり、既にマージされた番号は動かさない）。更新したのはファイル名・
+  frontmatterの `title`・本文見出し `# 0040.`・`.claude/docs/README.md` のDDR一覧・
+  spec の issue #87 エントリ内の参照2箇所・`plans/` `worklog/` `reports/` `HANDOFF.md` の
+  参照。**main側の issue #88 エントリにある「DDR一覧へ0039を追加」は過去changelogのため
+  書き換えていない**（`.claude/rules/docs-workflow.md`「ファイル移動に伴うパス参照の一括置換は
+  …過去changelogを対象に含めない」）。
+- **類型C（同じ表の近接行を両ブランチが変更）**: いずれも**両方の変更を残した**。競合した2行が
+  「片方だけが変更した行」の組み合わせだったため、行単位で採用側を選べた。
+  - `.claude/rules/docs-workflow.md`: 個別計画行は本ブランチ側（実施結果を書かない旨）、
+    `HANDOFF.md` 行はmain側（`- 追従監視:` 行の説明）を採用。
+  - `.claude/skills/issue-mr-flow/SKILL.md`: flow-id 5-1 行は本ブランチ側（削除対象がmd・html
+    両方）、5-2 行はmain側（追従監視を行っていても5-2は最終ゲートとして必ず通る）を採用。
+  - `.claude/docs/README.md`: DDR一覧へ両方を**番号順**（0039 → 0040）で並べた。
+- **類型D（specの過去changelog）**: `## 影響範囲` は **issue #88（先にmainへマージ済み）→
+  issue #87** の時系列順で両エントリを残した。既存エントリの中身は変更していない。
+- **検証**: コンフリクトマーカー無し／DDR番号の重複無し（`ls | uniq -d` が空）／単体テスト7本
+  すべて `failures=0`（合計229）／`extract-frontmatter.sh` 成功（`files=70 failed=0`）／CR混入なし。
+
+### 実装時の判断
 
 - **`plans/*.md` の `type` を「typeの値」表へ追加するか**。本issueの受け入れ条件は `reports/*.md`
   のみを対象としているため**追加しなかった**。個別作業計画のfrontmatterは、既存の `plans/` 配下
