@@ -136,6 +136,16 @@ github_set_mr_description() {
   gh pr edit "$mr_number" --body-file "$body_file" >/dev/null
 }
 
+# Draft PR/MRのDraft状態を解除し、レビュー・マージ可能な状態にする（flow-id 5-3）。
+# `gh pr ready <number>` は、openかつDraftでないPRに対しては警告を出すだけで終了コード0を返す
+# （＝冪等に呼べる）。closed/mergedのPRに対してのみ失敗する（`gh`本体のソース
+# `pkg/cmd/pr/ready/ready.go` で確認）。
+# 成否のメッセージは`gh`が標準エラーへ出すため、`>/dev/null`（標準出力のみ）でも呼び出し側に見える。
+github_set_mr_ready() {
+  local mr_number="$1"
+  gh pr ready "$mr_number" >/dev/null
+}
+
 # リポジトリの正規URL（フルパス）を取得する（issue #13フォローアップ: PRのURL文字列からの
 # 推測ではなく`gh`で取得し正確性を担保する）。
 github_get_repo_url() {
