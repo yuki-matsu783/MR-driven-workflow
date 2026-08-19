@@ -85,6 +85,8 @@ Gemini CLI **v0.39.0**（google-gemini/gemini-cli PR #23749）で、チャット
 
 - **「トークン数はレポートから省略する」（期待する動作3）は前提が変わる。** `tokens` が実在する
   ため、issue本文の但し書き「取得できるフィールドが実在すれば計上する」に従い計上する方向で検討する。
+  **issue #97 の本文自体は修正しない**（flow-id 2-4 でユーザーが決定。個別調査計画の 決-6）。
+  前提が覆っている事実はこの節とMRの記録コメントに残す。
 - **`ToolCallRecord.agentId?` が存在する**ため、サブエージェント分の帰属（期待する動作6）は
   ディレクトリ構造ではなくこのフィールドで判定できる可能性がある。
 - **旧 `.json` 形式は Gemini CLI 本体側にフォールバックが残っている**（アップグレードしても履歴は
@@ -104,15 +106,19 @@ Gemini CLI **v0.39.0**（google-gemini/gemini-cli PR #23749）で、チャット
 
 ## スコープから外した要件: Gemini CLIのテレメトリのローカル出力・push毎集計
 
-**このMRでは扱わない**（flow-id 2-4・レビュー1周目でユーザーが決定）。
+**このMRでは扱わない**（flow-id 2-4・レビュー1周目でユーザーが決定）。**別issueとして
+[#105](https://github.com/yuki-matsu783/MR-driven-workflow/issues/105) を起票済み。**
 
 経緯: issue #97 の本文には無いこの要件を、着手時のチャットで追加で受けて一度スコープへ入れたが、
-レビュー1周目で「テレメトリのスコープ追加はこのMRには含めない」との判断を受けたため除外した。
-判断はMRへ記録済み
-（[issuecomment-5348459529](https://github.com/yuki-matsu783/MR-driven-workflow/pull/101#issuecomment-5348459529)
-および flow-id 2-4 の記録コメント）。
+レビュー1周目で「テレメトリのスコープ追加はこのMRには含めない」「別issueで起票」との判断を受け、
+本MRから外して #105 へ切り出した。判断はMRへ記録済み。
 
-以下は**調査済みの事実として残す**（別issueへ切り出す際にそのまま使えるため）。**本MRの
+なお、Claude Code側の同種の機構は
+[#103](https://github.com/yuki-matsu783/MR-driven-workflow/issues/103)（OTLP/HTTPを受ける
+ローカルの常駐リスナー）が扱っており、#105 は**出力先の配置・機微情報の扱い・ローテーション
+方針を #103 と揃える**ことを受け入れ条件に持つ。
+
+以下は**調査済みの事実として残す**（#105 の作業でそのまま使えるため）。**本MRの
 フェーズ2〜4では扱わない。**
 
 Gemini CLI には、セッションログ（`chats/*.jsonl`）とは**別系統**の OpenTelemetry ベースの
@@ -126,7 +132,7 @@ Gemini CLI には、セッションログ（`chats/*.jsonl`）とは**別系統*
 | 出力先の決定 | `outfile` 指定時は `FileSpanExporter`/`FileLogExporter`/`FileMetricExporter` でそのファイルへ書き出す（`outfile` は `otlpEndpoint` より優先） |
 | 得られる指標 | イベント `gemini_cli.api_response`（属性: `model` / `input_token_count` / `output_token_count` / `cached_content_token_count` / `thoughts_token_count` / `tool_token_count` / `total_token_count` / `duration_ms` / `status_code` 等）、メトリクス `gemini_cli.token.usage`・`gen_ai.client.token.usage` ほか |
 
-**別issueへ切り出す場合に決めるべきこと（本MRでは決めない）**
+**#105 で決めるべきこと（本MRでは決めない）**
 
 - **出力先パス**: `usage/` 配下（`.gitignore` 対象なのでコミットされない）へ置く。既存の
   `usage/session-logs/` `usage/state/` との責務分離をどうするか。
@@ -243,7 +249,7 @@ issue本文の前提が着手時点で覆っており、**上記の裏取りと�
 
 - Claude Code側の集計ロジック・レポート内容の変更
 - Gemini CLI実機での動作確認（環境が無い。未検証として明示する）
-- **テレメトリ関連一式**（ローカル出力・push毎集計・`.gemini/settings.json` の変更）。flow-id 2-4でスコープ外と決定（上記「スコープから外した要件」）
+- **テレメトリ関連一式**（ローカル出力・push毎集計・`.gemini/settings.json` の変更）。flow-id 2-4でスコープ外と決定し、issue #105 へ切り出した（上記「スコープから外した要件」）
 - `logs.json`・`--output-format stream-json` への対応（別系統。上記「混同しやすい別系統」）
 - GitLab向けの追加対応（本issueの対象外）
 - 参考実装（gemini-insights / 提示されたRustパーサ）のコードそのものの移植（**形式の情報源として
