@@ -46,7 +46,7 @@ keywords: [issue作成, create-issue.sh, 目的, 現状, 期待する動作, 受
    2. 本文は `build_issue_body "<目的>" "<現状>" "<期待する動作>" "<受け入れ条件>"` で組み立てる
       （4見出しの構成をスクリプトと揃えるため。この関数はCLIに依存しない）。
    3. `mcp__github__issue_write`（`method="create"`, `owner`, `repo`, `title`, `body`）で作成する。
-   4. WebFetchツール・curlへはフォールバックしない（DDR 0020, DDR 0025）。
+   4. WebFetchツール・curlへはフォールバックしない（DDR 0020, DDR 0026）。
 
 4. 結果（issue番号・URL）をユーザーに提示する。続けてそのissueに着手するかどうかをユーザーに確認し、
    着手する場合は `/issue-mr-flow start <issue番号>` に進む。

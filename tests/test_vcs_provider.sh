@@ -117,7 +117,7 @@ assert_eq "mcp_tool_hint: 未知の関数名でも空にならずSKILL.mdの対�
 get_provider() { printf 'gitlab\n'; }
 
 assert_eq "mcp_tool_hint: GitLabは対象外である旨を返す" \
-  "GitLab向けのMCPフォールバックは対象外です（DDR 0025）。glab CLIをインストール・認証してください" \
+  "GitLab向けのMCPフォールバックは対象外です（DDR 0026）。glab CLIをインストール・認証してください" \
   "$(mcp_tool_hint get_issue)"
 
 echo "passed=$passed failures=$failures"

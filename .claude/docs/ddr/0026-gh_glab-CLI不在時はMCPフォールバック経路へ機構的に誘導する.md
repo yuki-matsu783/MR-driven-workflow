@@ -1,12 +1,12 @@
 ---
-title: 0025. gh/glab CLI不在時はMCPフォールバック経路へ機構的に誘導する
+title: 0026. gh/glab CLI不在時はMCPフォールバック経路へ機構的に誘導する
 type: ddr
 description: gh/glab CLIが無い実行環境で、経路判定関数とProvider関数のガードによりMCPツールでの代替へ機構的に誘導する方式を採用し、GitLabを対象外とした経緯を記録したDDR
 tags: [mcp, provider, fallback, ddr]
 keywords: [get_vcs_access_mode, require_vcs_cli, mcp__github, Claude Code on the web, gh, glab, DDR0020, issue-34]
 ---
 
-# 0025. gh/glab CLI不在時はMCPフォールバック経路へ機構的に誘導する
+# 0026. gh/glab CLI不在時はMCPフォールバック経路へ機構的に誘導する
 
 ## 背景
 

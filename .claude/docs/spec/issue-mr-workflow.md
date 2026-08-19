@@ -300,7 +300,7 @@ Claude Code on the webのリモート実行環境のように、`gh`/`glab` CLI�
 - **GitLabは対象外**: `glab` 不在時のGitLab向けMCP代替は対象外とする（利用実績が無く、ツール名・
   引数を実機検証できないため）。判定・失敗メッセージの枠組みのみ共通で、`mcp_tool_hint` は
   GitLabに対して「対象外」である旨を返す。詳細・却下案は
-  [0025-gh_glab-CLI不在時はMCPフォールバック経路へ機構的に誘導する.md](../ddr/0025-gh_glab-CLI不在時はMCPフォールバック経路へ機構的に誘導する.md)
+  [0026-gh_glab-CLI不在時はMCPフォールバック経路へ機構的に誘導する.md](../ddr/0026-gh_glab-CLI不在時はMCPフォールバック経路へ機構的に誘導する.md)
   参照。
 
 ### Draft PR作成失敗時の自動リトライ
@@ -1237,7 +1237,7 @@ issueはGitHubのUIからしか作成できず、標準4見出し（目的・現
 - `.claude/docs/spec/issue-mr-workflow.md`（本ファイル。「提供関数」表へ5関数を追加、
   「セッション開始時の自動コンテキスト注入」のフォールバック方針を更新、
   「`gh`/`glab` CLI不在時のMCPフォールバック経路」節を新設、本エントリを追加）
-- `.claude/docs/ddr/0025-gh_glab-CLI不在時はMCPフォールバック経路へ機構的に誘導する.md`（新規）
+- `.claude/docs/ddr/0026-gh_glab-CLI不在時はMCPフォールバック経路へ機構的に誘導する.md`（新規）
 
 ## 設定項目
 

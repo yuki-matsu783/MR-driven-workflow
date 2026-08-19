@@ -21,6 +21,10 @@
 # ため、`set -e` の「if の条件式の中では-eが一時停止する」というbashの仕様の影響を受けず、
 # 内部で失敗したコマンドの時点で確実にサブシェルごと終了し、呼び出し元の if で失敗を検知できる。
 # 詳細: .claude/docs/spec/shell-scripts.md「bashでのtry/catch相当の書き方」節）。
+#
+# また、frontmatterのindex.jsonl（.claude/scripts/src/extract-frontmatter.shが生成、Git管理外の
+# 生成物）をセッション開始のたびに非侵襲的に再生成する（issue #36）。詳細:
+# .claude/docs/ddr/0024-frontmatterのindex.jsonlをGit管理から外しSessionStart-hookで生成する.md
 
 set -uo pipefail
 
@@ -44,6 +48,16 @@ fi
 if [ -z "${CLAUDE_PROJECT_DIR:-}" ]; then
   exit 0
 fi
+
+# frontmatterのindex.jsonl（Git管理外の生成物）をセッション開始時に再生成する。
+# hookの標準出力はJSON1行のみが期待される契約のため、extract-frontmatter.shの出力
+# （wrote: ...等）は標準出力・標準エラー出力ともに捨てる。失敗してもセッション開始・
+# コンテキスト注入はブロックしない（非侵襲的・fail-open。build_contextとは独立に実行する）。
+regenerate_frontmatter_index() {
+  bash "${CLAUDE_PROJECT_DIR}/.claude/scripts/src/extract-frontmatter.sh" "$CLAUDE_PROJECT_DIR" \
+    >/dev/null 2>&1
+}
+regenerate_frontmatter_index || true
 
 # リスクのある本体処理。失敗した場合はこの関数のexit codeが非ゼロになり呼び出し元へ伝わる。
 build_context() {
