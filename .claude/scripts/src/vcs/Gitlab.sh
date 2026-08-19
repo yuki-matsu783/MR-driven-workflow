@@ -44,11 +44,17 @@ gitlab_new_draft_merge_request() {
 
   if ! glab mr create --draft --source-branch "$branch" --target-branch "$base_branch" \
       --title "$title" --description "$description" --yes >/dev/null; then
-    # baseとの差分（コミット）が無いブランチでは `glab mr create` が失敗する既知の制約
-    # （.claude/docs/spec/issue-mr-workflow.md参照）。`glab`本体のエラーはそのまま表示した上で、
-    # これは想定内でありこれから空コミットにフォールバックする旨を明示する（失敗として
-    # 扱わせないため）。
-    # 【未検証】このリポジトリのremoteはGitHubのみのためGitLab側の実機確認はできていない。
+    # 差分（コミット）が無いブランチで`glab mr create`が失敗するかどうかは、プロバイダによって
+    # 異なる。issue #48でGitLab CE 18.5.4に対し実機確認したところ、targetブランチと同一SHAの
+    # ブランチでもMR作成は成功し、この分岐には到達しなかった。差分ゼロで失敗するのは
+    # `gh pr create`（GitHub）側の制約である（issue #48対応時、実際に
+    # `No commits between main and feature-48-...`が発生しフォールバックが動作した。
+    # 設計: .claude/docs/ddr/0005-DraftPR作成失敗時は空コミットで自動リトライする.md）。
+    #
+    # したがってこの分岐はGitLabでは通常到達しない安全網である。削除せず残しているのは、
+    # 実機確認できたのが18.5.4の1バージョンのみで、他バージョン・他設定でも必ず成功すると
+    # 言い切れないため。`glab`本体のエラーはそのまま表示した上で、想定内でありこれから
+    # 空コミットにフォールバックする旨を明示する（失敗として扱わせないため）。
     echo "glab mr create が失敗しましたが、baseとの差分が無いことによる既知の制約です。空コミットを1つ積んでリトライします" >&2
     add_empty_commit_for_draft_mr
     if ! glab mr create --draft --source-branch "$branch" --target-branch "$base_branch" \
@@ -60,25 +66,40 @@ gitlab_new_draft_merge_request() {
   glab mr view "$branch" --output json --jq '.iid'
 }
 
-# discussion内のnoteをまとめて返す。既定では resolved: false（未解決）のnoteのみを対象とし、
-# 対応済み（解決済み）は機械的に除外する。include_resolved=true 指定時は解決済みも含めた全件を返す。
+# discussion内のnoteを整形して返す純粋関数（`glab`呼び出しを伴わないため単体テストできる。
+# .claude/rules/shell-script-style.md「テスト」）。第1引数はGitLab REST APIの
+# `projects/:id/merge_requests/<n>/discussions` が返すJSON配列そのもの。
+#
+# GitLabは「説明を変更した」等の操作履歴を、レビューコメントと同じdiscussions APIから
+# `system: true` のnoteとして返す（issue #48で実機確認: `changed the description`）。
+# レビュー往復の完了判定を狂わせるため機械的に除外する。GitHub側（github_get_mr_unresolved_comments）は
+# GraphQLの`reviewThreads`を使っておりシステムイベントを返さないため、同種の問題は無い。
+#
+# 既定では resolved: false（未解決）のnoteのみを対象とし、対応済み（解決済み）は機械的に除外する。
+# include_resolved=true 指定時は解決済みも含めた全件を返す。
 # 個人メモ（individual_note）等 resolvable でないnoteは常に含める。
-gitlab_get_mr_unresolved_comments() {
-  local mr_number="$1" include_resolved="${2:-false}"
-  local discussions
-  discussions="$(glab api "projects/:id/merge_requests/${mr_number}/discussions")"
+gitlab_format_discussion_notes() {
+  local discussions="$1" include_resolved="${2:-false}"
 
   printf '%s' "$discussions" | jq -r --argjson includeResolved "$include_resolved" '
     [
       .[] as $d
       | $d.notes[]
       | . as $n
+      | select($n.system | not)
       | ($n.resolvable and $n.resolved) as $isResolved
       | select(($isResolved | not) or $includeResolved)
       | "[" + (if $isResolved then "resolved" else "unresolved" end)
         + " threadId=" + ($d.id | tostring) + "] " + $n.author.username + ": " + $n.body
     ] | join("\n\n")
-  '
+  ' | tr -d '\r'
+}
+
+gitlab_get_mr_unresolved_comments() {
+  local mr_number="$1" include_resolved="${2:-false}"
+  local discussions
+  discussions="$(glab api "projects/:id/merge_requests/${mr_number}/discussions")"
+  gitlab_format_discussion_notes "$discussions" "$include_resolved"
 }
 
 # 指定したdiscussion（スレッド）に対応内容を返信する。スレッドの解決（resolved）はレビュアー側の
@@ -145,5 +166,9 @@ gitlab_add_mr_comment() {
   local mr_number="$1" body_file="$2"
   local body
   body="$(cat "$body_file")"
-  glab mr note "$mr_number" --message "$body" >/dev/null
+  # 安定版のREST APIを直接叩く（`glab mr note --message`はglab 1.114.0で非推奨警告を出し、
+  # 代替の`glab mr note create`はEXPERIMENTAL扱いのため採用しない。issue #48）。
+  # 同ファイルの gitlab_add_mr_thread_reply と実装方式が揃う。
+  glab api "projects/:id/merge_requests/${mr_number}/notes" \
+    -X POST -f "body=${body}" >/dev/null
 }
