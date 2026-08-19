@@ -17,7 +17,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - issue: #77 MRへの敵対的レビューを行うスキル・専任サブエージェントを追加する
 - ブランチ: feature-77-adversarial-mr-review-skill
 - PR: #80 https://github.com/yuki-matsu783/MR-driven-workflow/pull/80（Draft）
-- push回数: 11
+- push回数: 12
 
 進捗記号: `[x]` 完了 / `[]` 未着手・進行中 / `[-]` 今回は実施しない（スキップ）
 
@@ -51,14 +51,14 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 | [x] | 3-10 | 作業内容をもとにMR descriptionを更新する | `describe` |
 | [x] | 4-1 | **作業結果と`plans/` `worklog/` の内容をもとに**、個別反映計画`plans/【設計反映】〜.md`・`plans/【AIアセット反映】〜.md`を**planツールを使わず**Write/Editで作成する | エージェント |
 | [x] | 4-2 | `commit`スキル経由でcommitし、push してレビュー依頼を行う | エージェント |
-| [x] | 4-3 | MRで反映計画についてレビュー・コメントする。レビュー完了済み連絡をするまで以降の作業は行わない。 | 人間 |
-| [x] | 4-4 | レビュー内容を取得し、反映計画を修正する。対応が完了したコメントには対応内容を返信する（4-3〜4-4を合意まで繰り返す） | `comments` / `reply` |
+| [x][] | 4-3 | MRで反映計画についてレビュー・コメントする。レビュー完了済み連絡をするまで以降の作業は行わない。 | 人間 |
+| [x][] | 4-4 | レビュー内容を取得し、反映計画を修正する。対応が完了したコメントには対応内容を返信する（4-3〜4-4を合意まで繰り返す） | `comments` / `reply` |
 | [x] | 4-5 | 反映計画をもとにMR descriptionを更新する | `describe` |
-| [] | 4-6 | 反映計画をもとに作業を進める、反映内容はworklogに更新する（設計反映＝spec・DDR／AIアセット反映＝rules・skills） | エージェント |
-| [] | 4-7 | `commit`スキル経由でcommitし、push してレビュー依頼を行う | エージェント |
-| [] | 4-8 | MRでレビュー・コメントする。レビュー済み連絡をするまで以降の作業は行わない。 | 人間 |
-| [] | 4-9 | レビュー内容を取得し、設計・AIアセットの内容を修正する。対応が完了したコメントには対応内容を返信する（4-6〜4-9の反映ループを合意まで繰り返す） | `comments` / `reply` |
-| [] | 4-10 | 反映内容をもとにMR descriptionを更新する | `describe` |
+| [x] | 4-6 | 反映計画をもとに作業を進める、反映内容はworklogに更新する（設計反映＝spec・DDR／AIアセット反映＝rules・skills） | エージェント |
+| [x] | 4-7 | `commit`スキル経由でcommitし、push してレビュー依頼を行う | エージェント |
+| [x] | 4-8 | MRでレビュー・コメントする。レビュー済み連絡をするまで以降の作業は行わない。 | 人間 |
+| [x] | 4-9 | レビュー内容を取得し、設計・AIアセットの内容を修正する。対応が完了したコメントには対応内容を返信する（4-6〜4-9の反映ループを合意まで繰り返す） | `comments` / `reply` |
+| [x] | 4-10 | 反映内容をもとにMR descriptionを更新する | `describe` |
 | [] | 5-1 | 次タスクのために、`plans/` `worklog/` `reports/` を削除し、`HANDOFF.md` をリセットする | エージェント |
 | [] | 5-2 | **defaultブランチとのコンフリクトを検知し、あれば解消する**（`check-base-conflicts.sh` → `resolve-conflict` スキル） | エージェント |
 | [] | 5-3 | `commit`スキル経由でcommitし、push して Draftを解除する | エージェント |
@@ -198,18 +198,29 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
   - `.claude/docs/README.md`（spec一覧・DDR一覧）、`.claude/docs/spec/issue-mr-workflow.md`
     （提供関数の表へ `add_mr_inline_comments` の1行と、`## 影響範囲` へissue #77のエントリ）
   - `extract-frontmatter.sh .` は `built=4 reused=88 failed=0`。
+- **flow-id 4-8で「続けて」の合意を得た**（4-6〜4-9のループを1周完了として `[x]`）。合意の前に
+  `comments all` で全スレッドを再取得し、**未解決0件**（検証用に投稿した5件も解決済み）を確認した。
+- **flow-id 4-10**: MR descriptionのフェーズ4節を「1セット目完了 / 2セット目へ」へ更新した。
+- **flow-id 4-1（2セット目）**: 個別反映計画
+  `plans/【AIアセット反映】REVIEW-POINTSの運用ルールとshellの落とし穴.md` を作成した。
+  反映候補は実地で裏取りしたうえで、**入れる／入れないを選別して理由を表に残した**。
 
 ## 次にやること
 
-- **flow-id 4-8（人間）**: spec・DDR 3件をレビューする。合意連絡までAIは以降の作業を行わない。
-- 合意後、**2セット目**として `【AIアセット反映】` を 4-1 から回す。扱う候補:
-  - `type: review-points` を `.claude/rules/markdown-frontmatter.md` のtype表へ追記する。
-  - `.claude/rules/directory-structure.md` に `REVIEW-POINTS.md` の配置ルールを足すか検討する。
-  - 下記「実装で踏んだ落とし穴」のうち恒久的に有用なものを
-    `.claude/rules/shell-script-style.md` へ反映するか検討する。
-- **worklog・reportsの削除は、AIアセット反映まで終えてから行う**（先に消すと2セット目で
-  参照したい記録が失われる）。`plans/REVIEW-POINTS.md` と `reports/REVIEW-POINTS.md` は
-  観点表であって成果物レポートではないため**削除しない**。
+- **flow-id 4-3（人間・2セット目）**: AIアセット反映の計画をレビューする。合意連絡までAIは以降の
+  作業を行わない。合意後は 4-5〈describe〉→ 4-6 へ進む。
+- 4-6（2セット目）で反映するもの。
+  - `.claude/rules/docs-workflow.md`: ライフサイクル表へ `REVIEW-POINTS.md` の行を足し、
+    **flow-id 5-1の削除対象から外れる唯一の例外**であることを明記する（**最優先**。
+    書かないと次タスクの5-1で消える）。
+  - `.claude/skills/issue-mr-flow/SKILL.md`: flow-id 5-1の行へ但し書きを1行。
+  - `.claude/rules/directory-structure.md`: ツリー図と「配置の指針」へ配置ルール。
+  - `.claude/rules/markdown-frontmatter.md`: `type` の表へ `review-points`。
+  - `.claude/rules/shell-script-style.md`: 下記の落とし穴のうち3件（`sed` の `\n` は既存の
+    `\r` の記述へ1文追記に留め、節の差し込み手順は既出のため入れない）。
+- **`worklog/` `reports/` の削除はflow-id 5-1で行う**（`main` 取り込みで現行ルールを確認。
+  1セット目の計画を書いた時点のローカルの記述は「PR作成前の設計反映」だった）。
+  `plans/REVIEW-POINTS.md` と `reports/REVIEW-POINTS.md` は**削除しない**。
 - **片付け**: GitLabのMR（http://localhost:8929/root/issue45-verify/-/merge_requests/3 ）を
   確認し終えたら `docker stop gitlab` する。コンテナは検証のため起動したままにしてある。
 - **PR #80 に残した検証用レビュー**（`【issue #77 動作検証】` で始まる5件）は、レビュー時に
