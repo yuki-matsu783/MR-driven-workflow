@@ -291,7 +291,8 @@ github_build_review_payload() {
             path: .path,
             line: .line,
             side: (.side // "RIGHT"),
-            body: ("**[" + (.severity // "minor") + " / 確度: " + (.confidence // "medium")
+            body: ("Claude Codeより（敵対的レビュー）:\n\n"
+                   + "**[" + (.severity // "minor") + " / 確度: " + (.confidence // "medium")
                    + (if .category then " / " + .category else "" end) + "]** "
                    + (.title // "") + "\n\n" + (.body // ""))
           }

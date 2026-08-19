@@ -437,9 +437,15 @@ assert_eq "github_build_review_payload: マルチバイトのパスをそのま�
   'plans/【設計】計画.md' \
   "$(printf '%s' '[{"path":"plans/【設計】計画.md","line":1,"title":"T","body":"B"}]' | github_build_review_payload "$review_body_file" | jq -r '.comments[0].path')"
 
-assert_eq "github_build_review_payload: 重大度・確度・カテゴリを本文の先頭へ付ける" \
+# gh/glab CLIは人間のアカウントで認証されているため、投稿者名では誰が書いたか判別できない。
+# 本文側に署名を入れる（issue-mr-flow の `reply` サブコマンド手順2と同じ理由）。
+assert_eq "github_build_review_payload: 本文の先頭にAIの署名を付ける" \
+  'Claude Codeより（敵対的レビュー）:' \
+  "$(printf '%s' '[{"path":"a.sh","line":1,"title":"タイトル","body":"本文"}]' | github_build_review_payload "$review_body_file" | jq -r '.comments[0].body' | head -1)"
+
+assert_eq "github_build_review_payload: 重大度・確度・カテゴリを署名の次の段落へ付ける" \
   '**[major / 確度: high / shell-pitfall]** タイトル' \
-  "$(printf '%s' '[{"path":"a.sh","line":1,"severity":"major","confidence":"high","category":"shell-pitfall","title":"タイトル","body":"本文"}]' | github_build_review_payload "$review_body_file" | jq -r '.comments[0].body' | head -1)"
+  "$(printf '%s' '[{"path":"a.sh","line":1,"severity":"major","confidence":"high","category":"shell-pitfall","title":"タイトル","body":"本文"}]' | github_build_review_payload "$review_body_file" | jq -r '.comments[0].body' | sed -n '3p')"
 
 assert_eq "format_findings_summary: 0件でも本文は空にしない" \
   'すべての指摘をインラインコメントで示しています。' \
@@ -465,9 +471,13 @@ assert_eq "gitlab_build_discussion_body: コンテキスト行への指摘は両
   '10 8' \
   "$(gitlab_build_discussion_body '{"path":"a.sh","line":10,"old_line":8}' "$gitlab_refs" | jq -r '"\(.position.new_line) \(.position.old_line)"')"
 
+assert_eq "gitlab_build_discussion_body: 本文の先頭にAIの署名を付ける" \
+  'Claude Codeより（敵対的レビュー）:' \
+  "$(gitlab_build_discussion_body '{"path":"a.sh","line":1,"title":"タイトル","body":"本文"}' "$gitlab_refs" | jq -r '.body' | head -1)"
+
 assert_eq "gitlab_build_discussion_body: 本文の形式をGitHub版と揃える" \
   '**[major / 確度: high / shell-pitfall]** タイトル' \
-  "$(gitlab_build_discussion_body '{"path":"a.sh","line":1,"severity":"major","confidence":"high","category":"shell-pitfall","title":"タイトル","body":"本文"}' "$gitlab_refs" | jq -r '.body' | head -1)"
+  "$(gitlab_build_discussion_body '{"path":"a.sh","line":1,"severity":"major","confidence":"high","category":"shell-pitfall","title":"タイトル","body":"本文"}' "$gitlab_refs" | jq -r '.body' | sed -n '3p')"
 
 # gitlab_format_discussion_notes が position を出力すること（issue #77 で修正）。
 # 位置が出ないと「どのファイルの何行目への指摘か」がレビュー対応時に分からない。

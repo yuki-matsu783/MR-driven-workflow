@@ -250,7 +250,8 @@ gitlab_build_discussion_body() {
   printf '%s' "$finding" | jq -c --argjson refs "$diff_refs" '
     . as $f
     | {
-        body: ("**[" + ($f.severity // "minor") + " / 確度: " + ($f.confidence // "medium")
+        body: ("Claude Codeより（敵対的レビュー）:\n\n"
+               + "**[" + ($f.severity // "minor") + " / 確度: " + ($f.confidence // "medium")
                + (if $f.category then " / " + $f.category else "" end) + "]** "
                + ($f.title // "") + "\n\n" + ($f.body // "")),
         position: (
