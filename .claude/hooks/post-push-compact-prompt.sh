@@ -37,10 +37,13 @@
 # 直前pushのHEAD SHAを保存し、次回push時に読み出す形で行う（`usage/`と同様、ブランチ横断・
 # 非コミット対象のローカル作業状態。責務分離のため対応工数レポート側の状態とは別ファイルにする）。
 # 差分系のURLは、MR/PRのURL文字列から`/files`等のsuffixを推測する方式ではなく、
-# `get_repo_url`（`gh repo view` / `glab repo view`）で取得したリポジトリの正規URLを土台に、
-# GitHub/GitLabいずれも持つ汎用の「Compare」ページ（`/compare/<from>...<to>`）を組み立てる方式にした
-# （issue #13フォローアップ:「gh/glabでURLの正確性を担保したい」という指摘への対応。詳細は
-# `.claude/docs/ddr/0023-...md`参照）。
+# `get_repo_url` で取得したリポジトリの正規URLを土台に、GitHub/GitLabいずれも持つ汎用の
+# 「Compare」ページ（`/compare/<from>...<to>`）を組み立てる方式にした（issue #13フォローアップ:
+# 「gh/glabでURLの正確性を担保したい」という指摘への対応。詳細は
+# `.claude/docs/ddr/0023-...md`参照）。`get_repo_url` 自体は当初 `gh repo view` / `glab repo view`
+# を呼んでいたが、issue #44で `git remote get-url origin` の正規化（プロバイダ非依存）へ置き換えた。
+# これにより、pushのたびに走る本hookから外部CLIの起動とAPI往復が1回ずつ無くなっている
+# （詳細: `.claude/docs/ddr/0037-...md`）。
 #
 # 注意（エラー方針）: 本体処理は `main` 関数にまとめ、`( main )` のように実サブシェル（丸括弧）の
 # 中で呼ぶことで、内部で失敗したコマンドの時点で確実にサブシェルごと終了させる（bashの
@@ -71,11 +74,11 @@ write_additional_context() {
 
 # 参照リンクのテキストブロックを組み立てる。prev_shaが空（このブランチでの初回push）の場合は
 # 「前回pushとの差分」「コメント一覧」の2行を省略する（issue #13受け入れ条件）。
-# diff_url/repo_urlは、いずれもgh/glab由来の情報（PR/MRのURL・リポジトリの正規URL）から
-# 組み立てたものを渡す（issue #13フォローアップ: URL文字列からの推測を避け正確性を担保する）。
+# diff_url/repo_urlは、いずれもURL文字列からの推測ではない情報（PR/MRのURLは`gh`/`glab`由来、
+# リポジトリの正規URLはremote URLの正規化由来）から組み立てたものを渡す。
 # `gh`/`glab` CLI不在時（issue #34）は、MR/PRのURLをhookから取得できないため mr_url に空文字列を
 # 渡す。その場合はMRリンクの行を「MCPツールで取得すること」という指示に差し替える
-# （defaultブランチとの差分リンクは `get_repo_url` のローカル組み立てで得られるためそのまま出す）。
+# （defaultブランチとの差分リンクは `get_repo_url` のローカル導出で得られるためそのまま出す）。
 # since_urlが空（このブランチでの初回push）の場合は「前回pushとの差分」「コメント一覧」の
 # 2行を省略する（issue #13受け入れ条件）。since_urlの算出（＝前回push SHAの有効性判定）は
 # 重点ファイルの差分範囲と揃える必要があるため、呼び出し元のmainで行い結果だけを受け取る
@@ -233,7 +236,8 @@ main() {
   [ -n "$branch" ] && [ "$branch" != "$base_branch" ] || exit 0
 
   # `gh`/`glab` CLI不在時（issue #34）はMR/PRのURLを取得できないが、`get_repo_url` は
-  # `git remote` からのローカル組み立てにフォールバックするため、Compare系のリンクは出せる。
+  # `git remote` から導出するプロバイダ非依存の関数（issue #44）でCLIに依存しないため、
+  # Compare系のリンクは出せる。
   # MRリンクだけをMCPでの取得指示に差し替えたうえで、レビュー依頼メッセージ自体は従来どおり促す
   # （ここで終了してしまうと、CLIの無い環境ではレビュー依頼と/compactの呼びかけが一切
   # 行われなくなるため）。

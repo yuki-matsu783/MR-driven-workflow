@@ -441,7 +441,7 @@ get_repo_slug | jq -r '.owner, .repo'
 | `set_mr_description <n> <file>` | `mcp__github__update_pull_request` | `owner`, `repo`, `pullNumber=<n>`, `body=<ファイルの内容>` | CLI版はファイルパスを渡すが、MCPは文字列で渡す。本文はReadツール等で読んでから渡す |
 | `set_mr_ready <n>` | `mcp__github__update_pull_request` | `owner`, `repo`, `pullNumber=<n>`, `draft=false` | `set_mr_description` と同じツールだが渡す引数が違う。`draft=false` が「Draftを解除しレビュー可能にする」の意味（flow-id 5-3。issue #61） |
 | `add_mr_comment <n> <file>` | `mcp__github__add_issue_comment` | `owner`, `repo`, `issue_number=<PR番号>`, `body=<ファイルの内容>` | PR番号を `issue_number` に渡す（GitHub APIの仕様上、PRもissueとして扱える） |
-| `get_repo_url` | （MCP不要） | — | `git remote` からのローカル組み立てにフォールバックするため、MCP経路でもそのまま呼べる（`get_mr_diff_url` / `get_mr_diff_since_url` も同様） |
+| `get_repo_url` | （MCP不要） | — | `git remote get-url origin` の正規化だけでリポジトリの正規URLを導出するプロバイダ非依存の関数のため、MCP経路でもそのまま呼べる（`get_mr_diff_url` / `get_mr_diff_since_url` も同様。issue #44） |
 | `new_issue_branch` / `sync_branch` / `get_branch_work_files` / `get_issue_number_from_branch` / `to_slug` / `test_issue_sections` | （MCP不要） | — | git操作・純粋ロジックのみでCLIに依存しないため、MCP経路でもそのまま呼べる |
 
 ### 3. サブコマンドごとの読み替え
