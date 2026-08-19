@@ -184,6 +184,7 @@ parse_frontmatter_block() {
 # FM_ITEMS を jq へ渡して、指定フィルタを1回だけ実行する。
 # フィルタ内では `items`（中間表現の配列）と `build_fm(...)` を参照できる。
 # $1: jqフィルタ。$2以降: jqへ渡す追加オプション（--arg 等）。
+# 戻り値: jqの終了コードをそのまま返す（失敗を握りつぶさない。下記「終了コード」参照）。
 run_fm_jq() {
   local filter="$1"
   shift
@@ -194,20 +195,26 @@ run_fm_jq() {
     total=$((total + ${#item} * 3 + 1))
   done
 
+  local status=0
   if [[ $total -le $ARGS_BYTES_LIMIT ]]; then
+    # フィルタの直後に `--` を置き、それ以降をすべて位置引数として扱わせる。これが無いと、
+    # `-A` のようにハイフンで始まる中間表現の要素をjqがオプションとして解釈し
+    # `jq: Unknown option -A` で失敗する（issue #69。`keywords: [git add, -A, pathspec]` で発生）。
     jq -nc "$@" --args "def items: \$ARGS.positional; ${JQ_FM_DEF} ${filter}" \
-      ${FM_ITEMS[@]+"${FM_ITEMS[@]}"}
-    return 0
+      -- ${FM_ITEMS[@]+"${FM_ITEMS[@]}"} || status=$?
+    return "$status"
   fi
 
-  # 引数長上限を超える巨大なfrontmatter向けのフォールバック（通常は通らない経路）
+  # 引数長上限を超える巨大なfrontmatter向けのフォールバック（通常は通らない経路）。
+  # 位置引数を使わないため、上記のハイフン問題の影響を受けない。
   local tmp
   tmp="$(mktemp)"
   TMP_FILES+=("$tmp")
   printf '%s\0' ${FM_ITEMS[@]+"${FM_ITEMS[@]}"} >"$tmp"
   jq -nc "$@" --rawfile fmraw "$tmp" \
-    "def items: (\$fmraw | split(\"\\u0000\") | .[0:-1]); ${JQ_FM_DEF} ${filter}"
+    "def items: (\$fmraw | split(\"\\u0000\") | .[0:-1]); ${JQ_FM_DEF} ${filter}" || status=$?
   rm -f "$tmp"
+  return "$status"
 }
 
 # FM_ITEMS をJSONオブジェクトへ変換する（jq 1回）。
@@ -440,7 +447,7 @@ main() {
 
   # 1ファイルずつ、キャッシュヒットなら既存行を再利用し、ミスならjqを1回だけ起動して生成する
   local concept_id mtime out
-  local reused=0 built=0
+  local reused=0 built=0 failed=0
   for ((i = 0; i < ${#files[@]}; i++)); do
     f="${files[$i]}"
     concept_id="${f%.md}"
@@ -453,7 +460,14 @@ main() {
       out="${cache_line[$concept_id]}"
       reused=$((reused + 1))
     else
-      out="$(build_index_line "$f" "$concept_id" "$dir" "$mtime")"
+      # 生成に失敗したファイルは空行を書かずスキップし、ファイル名を標準エラーへ出したうえで
+      # 最後に非ゼロ終了する（issue #69。以前はjqの失敗が握りつぶされ、index.jsonlへ空行が
+      # 1行入るだけで終了コード0のまま完了していたため、欠落に気づけなかった）。
+      if ! out="$(build_index_line "$f" "$concept_id" "$dir" "$mtime")"; then
+        echo "error: failed to build index line: $f" >&2
+        failed=$((failed + 1))
+        continue
+      fi
       # Windows版native jqバイナリは行末にCRを付与することがあるため取り除く（詳細:
       # .claude/rules/shell-script-style.md「文字コード」）
       out="${out//$'\r'/}"
@@ -486,7 +500,12 @@ main() {
     printf '%s\0' "${unchanged_files[@]}" | xargs -0 touch
   fi
 
-  echo "files=${#files[@]} built=$built reused=$reused" >&2
+  echo "files=${#files[@]} built=$built reused=$reused failed=$failed" >&2
+
+  # 1件でも生成に失敗していれば非ゼロで終了する（index.jsonl自体は生成できた分だけ書き出す）
+  if [[ $failed -gt 0 ]]; then
+    return 1
+  fi
 }
 
 # 単体テスト（.claude/scripts/test/test_extract_frontmatter.sh）からsourceして関数のみ再利用できるよう、

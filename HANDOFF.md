@@ -17,7 +17,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - issue: #39 issue起票後にissue-mr-flowへ進む際は必ず人間の確認を挟む
 - ブランチ: claude/issue-mr-human-review-xasr3s
 - PR: 未作成（ユーザーからの明示指示があるまで作成しない）
-- push回数: 1
+- push回数: 2
 
 進捗記号: `[x]` 完了 / `[]` 未着手・進行中 / `[-]` 今回は実施しない（スキップ）
 
@@ -60,7 +60,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 | [] | 4-9 | レビュー内容を取得し、設計・AIアセットの内容を修正する。対応が完了したコメントには対応内容を返信する（4-6〜4-9の反映ループを合意まで繰り返す） | `comments` / `reply` |
 | [-] | 4-10 | 反映内容をもとにMR descriptionを更新する（PR未作成のため対象外） | `describe` |
 | [] | 5-1 | 次タスクのために、`plans/` `worklog/` `reports/` を削除し、`HANDOFF.md` をリセットする | エージェント |
-| [] | 5-2 | **defaultブランチとのコンフリクトを検知し、あれば解消する**（`resolve-conflict` スキル） | エージェント（`resolve-conflict` スキル） |
+| [x] | 5-2 | **defaultブランチとのコンフリクトを検知し、あれば解消する**（`resolve-conflict` スキル） | エージェント（`resolve-conflict` スキル） |
 | [] | 5-3 | `commit`スキル経由でcommitし、リモートへ反映してDraftを解除する（解除は `set_mr_ready <MR番号>` で行う） | エージェント |
 | [] | 5-4 | マージする（squash merge。ブランチは削除してよい） | 人間 |
 
@@ -83,29 +83,41 @@ issue #39の受け入れ条件4件すべてに対応した。
   - `.claude/scripts/test/test_post_issue_create_notice.sh`（新規単体テスト）: `passed=14 failures=0`
   - `.claude/settings.json` / `.gemini/settings.json` へhookを登録
 - **設計反映**
-  - `.claude/docs/ddr/0034-issue起票後の着手確認はブロックせず注意喚起の注入で担保する.md`（新規）:
+  - `.claude/docs/ddr/0035-issue起票後の着手確認はブロックせず注意喚起の注入で担保する.md`（新規）:
     PreToolUseブロックを却下し注意喚起に留めた理由・却下案を記録
   - `.claude/docs/spec/issue-mr-workflow.md`: コンポーネント構成・「issue起票後の着手確認（issue #39）」節・
     影響範囲エントリを追加
-  - `.claude/docs/README.md`: DDR一覧へ0034を追加
+  - `.claude/docs/README.md`: DDR一覧へ0035を追加
+
+**flow-id 5-2（mainマージ・コンフリクト解消）**: `resolve-conflict` スキルで `origin/main`
+（cff2aa1）をマージした。DDRを0034→0035へ繰り下げ、テキスト衝突5件（類型C）を両側の変更を残す形で
+統合した。あわせて、main側のissue #64が手順番号を繰り下げた際の追随漏れ（`issue-create/SKILL.md`
+手順3内の「手順3へ進む」→正しくは手順4）も直した。
 
 ## 次にやること
 
-- 人間によるレビュー（flow-id 3-3/3-4, 3-8/3-9, 4-3/4-4, 4-8/4-9）。指摘があれば反映する。
-- レビュー後、必要であればPRの作成（ユーザーの明示指示待ち）→ flow-id 5-1〜5-4。
+- ユーザーによるPRのレビューとマージ（squash merge、flow-id 5-4）。
+- マージ後、flow-id 5-1（`plans/` `worklog/` の削除・`HANDOFF.md` のリセット）。
 
 ## 判断を迷った内容
 
 - **機構的な強制をどこまでやるか。** DDR 0012（コミットの直接実行をブロック）と同じ強度にするか
   迷ったが、「人間が明示的に着手を指示した」という正当ケースをhookが観測できず、ブロックすると
-  解除手段が実質「hookを黙らせる」しか無くなるため、注意喚起の注入に留めた（DDR 0034に却下案として記録）。
+  解除手段が実質「hookを黙らせる」しか無くなるため、注意喚起の注入に留めた（DDR 0035に却下案として記録）。
 - **hookの誤検知（`create-issue.sh` という語を含む無関係なコマンドでの発火）を許容するか。** 既存の
   push/commit検知hookと同じトレードオフであり、注入されるのが注意文だけで処理を妨げないため許容した。
+- **mainマージ時の統合判断（flow-id 5-2）**: DDR番号が衝突したため、本ブランチのDDRを
+  **0034 → 0035** へ繰り下げた（main側に issue #64 の `0034-issueの分割は…` が先に入ったため。
+  ファイル名・frontmatterの `title`・本文見出し・`.claude/docs/README.md`・spec内の参照・
+  hook冒頭コメント・plans/worklogの記述を更新）。spec `## 影響範囲` は issue #64 / #51 / #39 の
+  エントリを時系列順に両方残し、両SKILL.mdの `keywords` は両側の語を統合した。`HANDOFF.md` は
+  ブランチの現状を表すため本ブランチ側を採用した（main側に残っていた issue #64 ブランチの
+  統合メモは引き継いでいない）。
 
 ## 未解決の内容
 
 - 本リポジトリのissue番号と移植元リポジトリのissue番号が一致しない（DDR 0012の「issue #39」は
-  本タスクのissue #39とは別物）。今回はDDR 0034に注記を残すに留めた。ドキュメント全体の番号の
+  本タスクのissue #39とは別物）。今回はDDR 0035に注記を残すに留めた。ドキュメント全体の番号の
   棚卸しは行っていない。
 - `plans/nested-exploring-cloud.md` 等、issue #63対応時の`plans/`・`worklog/`がmainに残っている
   （flow-id 5-1の取り残し）。本タスクの対象外のため触っていない（対処するなら

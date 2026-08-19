@@ -189,6 +189,77 @@ assert_eq "build_index_lineはfrontmatter無しでnullを埋める" \
   '{"concept_id":"docs/plain","directory":"docs","frontmatter":null,"mtime":"2026-01-02T03:04:05"}' \
   "$(build_index_line "$f" "docs/plain" "docs" "2026-01-02T03:04:05")"
 
+# --- ハイフンで始まる要素（issue #69）----------------------------------------
+
+# jqへ位置引数として渡す中間表現に `-A` のようなハイフン始まりの要素が含まれると、jqが
+# それをオプションとして解釈して `jq: Unknown option -A` で失敗し、index.jsonlの行が
+# 丸ごと欠落していた回帰（`keywords: [git add, -A, pathspec]` で発生）。
+
+parse_frontmatter_block <<'MD'
+title: X
+keywords: [git add, -A, pathspec]
+MD
+assert_eq "フロー配列のハイフン始まり要素" \
+  '{"title":"X","keywords":["git add","-A","pathspec"]}' \
+  "$(frontmatter_items_to_json)"
+
+parse_frontmatter_block <<'MD'
+title: -A
+keywords:
+  - -A
+  - --force
+  - -
+MD
+assert_eq "ブロック配列・スカラーのハイフン始まり値" \
+  '{"title":"-A","keywords":["-A","--force","-"]}' \
+  "$(frontmatter_items_to_json)"
+
+# 引数長上限を超えて --rawfile 経路へフォールバックした場合も同じ結果になること
+FM_ITEMS=(s title X A keywords "")
+for i in $(seq 1 900); do
+  FM_ITEMS+=(a keywords "padding-padding-padding-padding-$i")
+done
+FM_ITEMS+=(a keywords "-A")
+assert_eq "--rawfile経路でもハイフン始まり要素を保持する" \
+  '["-A",901]' \
+  "$(frontmatter_items_to_json | jq -c '[.keywords[-1], (.keywords | length)]')"
+
+# jqが失敗した場合に run_fm_jq が失敗を握りつぶさないこと（index.jsonlへ空行が入り、
+# 終了コード0のまま完了してしまうのを防ぐ）。`set -e` 配下では `$(func; echo $?)` が
+# 使えないため if で受ける（.claude/rules/shell-script-style.md「テスト」）。
+FM_ITEMS=(s title X)
+if run_fm_jq 'this is not a valid jq filter' >/dev/null 2>&1; then
+  run_fm_jq_status=0
+else
+  run_fm_jq_status=1
+fi
+assert_eq "run_fm_jqはjqの失敗を非ゼロで返す" "1" "$run_fm_jq_status"
+
+# yq の有無にかかわらず同じ結果になること。yq不在の環境は、jq/mktemp だけを置いた
+# ディレクトリを PATH にすることで再現する（yq経路とフォールバック経路の両方を通す）。
+fake_bin="$fixture_dir/bin"
+mkdir -p "$fake_bin"
+ln -s "$(command -v jq)" "$fake_bin/jq"
+ln -s "$(command -v mktemp)" "$fake_bin/mktemp"
+
+f="$(make_md hyphen/sample.md <<'MD'
+---
+title: ハイフン始まり要素の確認
+type: log
+keywords: [git add, -A, pathspec]
+---
+
+本文
+MD
+)"
+hyphen_expected='{"concept_id":"docs/sample","directory":"docs","frontmatter":{"title":"ハイフン始まり要素の確認","type":"log","keywords":["git add","-A","pathspec"]},"mtime":"2026-01-02T03:04:05"}'
+assert_eq "build_index_lineはハイフン始まり要素の行を生成する" \
+  "$hyphen_expected" \
+  "$(build_index_line "$f" "docs/sample" "docs" "2026-01-02T03:04:05")"
+assert_eq "build_index_lineはyq不在でも同じ行を生成する" \
+  "$hyphen_expected" \
+  "$(PATH="$fake_bin"; build_index_line "$f" "docs/sample" "docs" "2026-01-02T03:04:05")"
+
 # --- 結果 --------------------------------------------------------------------
 
 echo "passed=$passed failures=$failures"
