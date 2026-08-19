@@ -12,13 +12,16 @@
 # `glab mr note --message`の非推奨・空コミットフォールバックの前提誤り）は修正済み。
 # 以前あった「remoteがGitHubのみのため全関数が未検証」という制約は解消している。
 #
-# ただし次の3点は依然として未検証。詳細は
+# ただし次の4点は依然として未検証。詳細は
 # .claude/docs/spec/issue-mr-workflow.md の「未決定事項・懸念点」を参照。
 #   - `Provider.sh`経由のディスパッチ: `get_provider`がself-hostedのGitLab URLを判定できない
 #     （issue #45、未修正）ため、検証は`gitlab_*`関数を直接呼ぶ形で行った。
 #   - バージョン・エディション: 確認したのはCE 18.5.4のみ。gitlab.com（SaaS）・他バージョンは未確認。
 #   - プロジェクト構成: 単一プロジェクトでしか確認しておらず、サブグループ・ネストした
 #     namespaceでの`glab`のプロジェクト解決は未確認。
+#   - `gitlab_set_mr_ready`（issue #61で追加した14個目の関数）: 上記の実機検証より後に追加した
+#     ため、この検証には含まれていない。`glab`公式ドキュメントと実装ソースで`--ready`の仕様を
+#     確認したのみである。
 
 gitlab_get_issue() {
   local number="$1"
@@ -42,6 +45,35 @@ gitlab_new_issue() {
     return 1
   fi
   gitlab_get_issue "$number"
+}
+
+# `glab issue list --search` の出力を共通形式（number/title/state/url）へ正規化する（issue #68）。
+# `glab` を呼ばない純粋関数（jqのみ）のため .claude/scripts/test/test_vcs_provider.sh から単体テストできる。
+#
+# GitLab APIのキー名の違いを `gitlab_get_issue` と同じ方針で吸収する（`iid`→`number`、
+# `web_url`→`url`）。`state` はGitLabが `opened`/`closed` を返すため、GitHub側（`OPEN`/`CLOSED`を
+# 小文字化）と揃うよう `opened` のみ `open` へ読み替える（`closed` はそのまま）。
+gitlab_normalize_issue_search_results() {
+  local raw="$1"
+  printf '%s' "$raw" | jq -c \
+    '[.[] | {number: .iid, title: .title, state: (if .state == "opened" then "open" else .state end), url: .web_url}]'
+}
+
+# キーワードで既存issueを検索する（issue #68: 起票前の重複チェック用）。
+# 第1引数は1キーワードあたりの取得件数、第2引数以降が検索キーワード。
+# キーワードごとに1回ずつ検索して統合する理由は `github_search_issues` のコメントを参照。
+#
+# `glab issue list --search` はtitleとdescriptionを対象に検索する。`--all` を付けることで
+# opened/closedの両方を対象にする（closedを含めるのはissue #68の要求）。
+gitlab_search_issues() {
+  local limit="$1"
+  shift
+  local keyword results=()
+  for keyword in "$@"; do
+    results+=("$(gitlab_normalize_issue_search_results \
+      "$(glab issue list --search "$keyword" --all --per-page "$limit" --output json)")")
+  done
+  merge_issue_search_results "${results[@]}"
 }
 
 gitlab_new_draft_merge_request() {
@@ -133,6 +165,17 @@ gitlab_set_mr_description() {
   local description
   description="$(cat "$body_file")"
   glab mr update "$mr_number" --description "$description" >/dev/null
+}
+
+# Draft MRのDraft状態を解除し、レビュー・マージ可能な状態にする（flow-id 5-3）。
+# GitLabはDraftをタイトルの `Draft:` 接頭辞で表現するため、`glab mr update <id> --ready` は
+# タイトル先頭の `Draft:` / `WIP:`（大文字小文字・重複を問わない）を除去した新タイトルを
+# APIへ送る実装になっている（glab本体のソース `internal/commands/mr/update/mr_update.go` で確認）。
+# 接頭辞が無い（＝既にDraftでない）MRに対しても、除去後のタイトルが元と同じになるだけで
+# エラーにはならないため冪等に扱える。
+gitlab_set_mr_ready() {
+  local mr_number="$1"
+  glab mr update "$mr_number" --ready >/dev/null
 }
 
 # リポジトリの正規URL（フルパス）を取得する（issue #13フォローアップ: MRのURL文字列からの

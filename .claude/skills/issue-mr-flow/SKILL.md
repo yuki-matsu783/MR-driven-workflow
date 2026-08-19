@@ -88,7 +88,7 @@ MR description更新」という同じ形を繰り返す。
 | 4-10 | 反映内容をもとにMR descriptionを更新する | `describe` |
 | 5-1 | 次タスクのために、`plans/` `worklog/` `reports/` を削除し、`HANDOFF.md` をリセットする | エージェント |
 | 5-2 | **defaultブランチとのコンフリクトを検知し、あれば解消する**（`bash .claude/scripts/src/check-base-conflicts.sh` で判定 → `hasConflict` が真なら `AskUserQuestion` でユーザーに確認 → 承認されたら `resolve-conflict` スキルで解消。詳細は下記「defaultブランチとのコンフリクト検知・解消」節） | エージェント（`resolve-conflict` スキル） |
-| 5-3 | `commit`スキル経由でcommitし、push して Draftを解除する | エージェント |
+| 5-3 | `commit`スキル経由でcommitし、push して Draftを解除する（解除は `source .claude/scripts/src/vcs/Provider.sh && set_mr_ready <MR番号>` で行う。`gh pr ready` / `glab mr update --ready` を直接呼ばない。MR番号は `get_mr_for_branch` で取得できる） | エージェント |
 | 5-4 | マージする（squash merge。ブランチは削除してよい） | 人間 |
 
 ### 計画の2階層構造（issue #9）
@@ -320,11 +320,13 @@ get_repo_slug | jq -r '.owner, .repo'
 |---|---|---|---|
 | `get_issue <n>` | `mcp__github__issue_read` | `method="get"`, `owner`, `repo`, `issue_number=<n>` | 返却JSONの `title`/`body`/`html_url` を、CLI版の `title`/`body`/`url` と読み替える |
 | `new_issue <title> <body>` | `mcp__github__issue_write` | `method="create"`, `owner`, `repo`, `title`, `body` | `issue-create` スキル（`create-issue.sh`）の代替。本文は `build_issue_body` 相当の4見出しで組み立てる |
+| `search_issues <キーワード...>` | `mcp__github__search_issues` | `query="<キーワード（複数可）>"`, `owner`, `repo` | `issue-create` スキルの起票前重複チェック（issue #68）の代替。**CLI版と違い、キーワードごとに呼び分ける必要はない**（自然言語のセマンティック検索で、既に `is:issue` にスコープされている）。1回の `query` に複数キーワードを平文で並べる。closedのissueも対象にしたいので `state` で絞り込まないこと。返却の `number`/`title`/`state`/`html_url` を、CLI版の `number`/`title`/`state`/`url` と読み替える |
 | `new_draft_merge_request <n> <branch> <title> [<base>]` | `mcp__github__create_pull_request` | `owner`, `repo`, `title`, `head=<branch>`, `base=<base>`, `draft=true`, `body="Closes #<n>\n\n(plan作成中。/issue-mr-flow describe で更新する)"` | baseとの差分が無いと失敗する制約はMCP経路でも同じ。失敗したら `source .claude/scripts/src/vcs/Provider.sh && add_empty_commit_for_draft_mr` を実行してから1回だけ再試行する |
 | `get_mr_for_branch <branch>` | `mcp__github__list_pull_requests` | `owner`, `repo`, `head="<owner>:<branch>"`, `state="open"` | 結果が空配列ならPRなし。`number`/`html_url`/`draft`/`title` を使う |
 | `get_mr_unresolved_comments <n> [true]` | `mcp__github__pull_request_read` | `method="get_review_comments"`, `owner`, `repo`, `pullNumber=<n>` | スレッドごとに `isResolved` が付くので、**既定では `isResolved=false` のスレッドだけを提示する**（CLI版の「解決済みは機械的に除外」に相当）。`all` 指定時は全件。通常コメントは `method="get_comments"` を追加で呼ぶ |
 | `add_mr_thread_reply <n> <threadId> <body>` | `mcp__github__add_reply_to_pull_request_comment` | `owner`, `repo`, `pullNumber=<n>`, `commentId=<返信先スレッドの先頭コメントの数値ID>`, `body` | **ID体系が違う。** CLI経路はGraphQLのthreadId（`PRRT_...`）を使うが、MCP経路は数値のcommentId（`#discussion_r...` の数字部分）を使う。`get_review_comments` の各スレッドに含まれるコメントのidを使うこと |
 | `set_mr_description <n> <file>` | `mcp__github__update_pull_request` | `owner`, `repo`, `pullNumber=<n>`, `body=<ファイルの内容>` | CLI版はファイルパスを渡すが、MCPは文字列で渡す。本文はReadツール等で読んでから渡す |
+| `set_mr_ready <n>` | `mcp__github__update_pull_request` | `owner`, `repo`, `pullNumber=<n>`, `draft=false` | `set_mr_description` と同じツールだが渡す引数が違う。`draft=false` が「Draftを解除しレビュー可能にする」の意味（flow-id 5-3。issue #61） |
 | `add_mr_comment <n> <file>` | `mcp__github__add_issue_comment` | `owner`, `repo`, `issue_number=<PR番号>`, `body=<ファイルの内容>` | PR番号を `issue_number` に渡す（GitHub APIの仕様上、PRもissueとして扱える） |
 | `get_repo_url` | （MCP不要） | — | `git remote` からのローカル組み立てにフォールバックするため、MCP経路でもそのまま呼べる（`get_mr_diff_url` / `get_mr_diff_since_url` も同様） |
 | `new_issue_branch` / `sync_branch` / `get_branch_work_files` / `get_issue_number_from_branch` / `to_slug` / `test_issue_sections` | （MCP不要） | — | git操作・純粋ロジックのみでCLIに依存しないため、MCP経路でもそのまま呼べる |

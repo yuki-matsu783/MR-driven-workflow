@@ -57,6 +57,28 @@ push回数: 1
 - **`create-issue.sh` / `Provider.sh` は変更しない。** 確認手段と起票後の案内はスキル側の責務で、
   スクリプトの入出力仕様は変わらないため。
 
+## push2: mainとのコンフリクト解消（flow-id 5-2）
+
+- `check-base-conflicts.sh` が `hasTextualConflict: true`（`.claude/skills/issue-create/SKILL.md`,
+  `HANDOFF.md`）を検知。`hasDuplicateDdrNumber` は `false`。
+- `origin/main` を `--no-ff --no-commit` でマージ（`resolve-conflict` スキルの絶対ルールどおり
+  rebase・force反映は使わない）。
+- **`issue-create/SKILL.md`（類型C）**: main側の issue #68 が手順2「類似・重複issueをチェックする」
+  を新設し、各手順へ見出し名を併記する形へ再構成していたため、本ブランチが変更した旧手順2・
+  旧手順4と競合した。**main側の構成・番号・見出しスタイルを正とし、issue #59 の変更内容を
+  新しい手順3〈ユーザーへ最終確認する〉・手順5〈結果を提示する〉へ載せ替えた。**
+  「してはいけないこと」は両側の4項目をすべて残し（issue #68分が先、issue #59分が後ろ）、
+  frontmatterの `keywords` も両側を統合した。
+- **`HANDOFF.md`**: main側は PR #76（issue #61）時点の内容。このファイルは「常にこのブランチの
+  現状」を表すため統合の意味が無く、本ブランチの内容を採用。ただしmain側（issue #46・#61）で
+  フェーズ5のflow-idが 5-2〈コンフリクト検知〉挿入・5-3〈Draft解除〉・5-4〈マージ〉へ
+  変わっていたため、進捗表をその番号へ追随させた。
+- **spec のissue #59エントリ**: 「手順2」「手順4」と書いていた箇所が、main側の再構成後は
+  手順3・手順5に当たるため番号を修正した。個別には正しい記述が組み合わせでずれる型で、
+  マージ時に見落としやすい。
+- 検証: マーカー残存なし・`git diff --check` クリーン・DDR番号重複なし・テスト6本すべて
+  `failures=0`（13/17/35/15/33/54＝167件。main側のissue #61/#68分でtest_vcs_providerが44→54件）。
+
 ## 次の一歩
 
 - 特になし（実装・設計反映とも完了）。人間レビューを挟めない非対話セッションのため、

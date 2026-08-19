@@ -17,7 +17,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - issue: #59 issue-createスキルの最終確認をAskUserQuestion化し、作成後は新セッションでの着手を勧めるに留める
 - ブランチ: claude/issue-create-skill-final-check-xbo2c7
 - PR: #75 https://github.com/yuki-matsu783/MR-driven-workflow/pull/75（Draft）
-- push回数: 1
+- push回数: 2
 
 進捗記号: `[x]` 完了 / `[]` 未着手・進行中 / `[-]` 今回は実施しない（スキップ）
 
@@ -60,8 +60,9 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 | [] | 4-9 | レビュー内容を取得し、設計・AIアセットの内容を修正する。対応が完了したコメントには対応内容を返信する（4-6〜4-9の反映ループを合意まで繰り返す） | `comments` / `reply` |
 | [x] | 4-10 | 反映内容をもとにMR descriptionを更新する（同上。PR #75 のdescriptionに反映済み） | `describe` |
 | [] | 5-1 | 次タスクのために、`plans/` `worklog/` `reports/` を削除し、`HANDOFF.md` をリセットする | エージェント |
-| [] | 5-2 | `commit`スキル経由でcommitし、リモートへ反映してDraftを解除する | エージェント |
-| [] | 5-3 | マージする（squash merge。ブランチは削除してよい） | 人間 |
+| [x] | 5-2 | **defaultブランチとのコンフリクトを検知し、あれば解消する**（`resolve-conflict` スキル。`origin/main` を `--no-ff` でマージし、`issue-create/SKILL.md`・`HANDOFF.md` の類型Cを統合。下記「判断を迷った内容」参照） | エージェント（`resolve-conflict` スキル） |
+| [] | 5-3 | `commit`スキル経由でcommitし、リモートへ反映してDraftを解除する（解除は `set_mr_ready <MR番号>` で行う） | エージェント |
+| [] | 5-4 | マージする（squash merge。ブランチは削除してよい） | 人間 |
 
 詳細についてはworklogを確認してください。
 
@@ -87,6 +88,11 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
   エントリを新規追加した（過去エントリは書き換えていない）。
 - **検証**: `.claude/scripts/test/` の6本を実行し `passed=157 failures=0` を確認
   （13/17/35/15/33/44）。今回は文書のみの変更のため回帰は想定していないが、確認として実施。
+- **flow-id 5-2（mainとのコンフリクト解消）を実施**。`check-base-conflicts.sh` が
+  `hasTextualConflict: true`（`.claude/skills/issue-create/SKILL.md`・`HANDOFF.md`）を検知したため、
+  `resolve-conflict` スキルに従い `origin/main` を `--no-ff --no-commit` でマージし、いずれも
+  類型C（同じ箇所を両ブランチが変更）として両方の変更を残す形で統合した。DDR番号の重複は無し
+  （`hasDuplicateDdrNumber: false`）。詳細は「判断を迷った内容」を参照。
 - **Draft PR #75 を作成**（ユーザー指示による。通常フローのflow-id 1-3ではなく実装完了後の作成）。
   リモートへの反映時にGitHub側で非DraftのPR #75 が自動作成されていたため、`create_pull_request` は
   422（既存PRあり）で失敗した。`mcp__github__update_pull_request` でタイトル・descriptionを整え、
@@ -94,7 +100,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 
 ## 次にやること
 
-- （実装・設計反映とも完了）Draft PR #75 のレビュー。レビュー完了後、flow-id 5-1（`plans/` `worklog/` の削除とHANDOFF.mdのリセット）→ 5-2（コンフリクト確認・Draft解除）へ進む。
+- （実装・設計反映とも完了）Draft PR #75 のレビュー。レビュー完了後、flow-id 5-1（`plans/` `worklog/` の削除とHANDOFF.mdのリセット）→ 5-3（Draft解除。`set_mr_ready 75`）→ 5-4（squash merge。人間が実施）へ進む。flow-id 5-2（コンフリクト解消）は実施済みだが、レビュー中にmainが進んだ場合は再度実施する。
 
 ## 判断を迷った内容
 
@@ -104,6 +110,22 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
   含まないため。判断の根拠は個別作業計画の「判断メモ」と worklog に記録済み。
 - **spec反映の要否**: 必要と判断した。当該節が本スキルの「現在の正史」を持っており、最終確認方式と
   起票後の導線が変わったため。
+- **mainとのコンフリクト（類型C）で `issue-create/SKILL.md` の手順番号をどう扱うか**: main側の
+  issue #68 が「手順2: 類似・重複issueをチェックする」を新設し、各手順へ見出し名を併記する形へ
+  再構成していたため、本ブランチが変更した旧手順2（最終確認）・旧手順4（結果提示）と競合した。
+  **main側の構成・番号・見出しスタイルを正とし、issue #59 の変更内容をそれぞれ新しい手順3・
+  手順5へ載せ替える**形で統合した（mainは共有の正史であり、統合の都合でマージ済みの構成を
+  崩さないため。結果としてmainに対する差分は、手順3・手順5の本文差し替えと
+  「してはいけないこと」への2項目追記に収まる）。「してはいけないこと」は両側の4項目をすべて
+  残し、issue #68 分を先・issue #59 分を後ろに置いた。frontmatterの `keywords` も両側を統合した。
+- **`HANDOFF.md` のコンフリクト**: main側は PR #76（issue #61）時点の内容のままだった。
+  `HANDOFF.md` は「常にこのブランチの現状」を表すファイルであり、両側の記述を統合する意味が無い
+  ため、**本ブランチ（issue #59）の内容を採用**した。ただしフェーズ5のflow-idはmain側
+  （issue #46・#61）で 5-2〈コンフリクト検知〉挿入・5-3〈Draft解除〉・5-4〈マージ〉へ変わって
+  いたため、進捗表をその番号へ追随させた。
+- **spec の issue #59 エントリが手順番号でずれた**: 「手順2」「手順4」と書いていた箇所が、
+  main側の再構成後は手順3・手順5に当たる。個別には正しい記述が組み合わせでずれる型のため、
+  マージに合わせて番号を修正した。
 
 ## 未解決の内容
 
