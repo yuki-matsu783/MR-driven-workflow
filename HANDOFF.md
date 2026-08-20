@@ -16,10 +16,10 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 
 - issue: #113
 - ブランチ: `claude/skill-md-reload-prompt-jy5z5i`
-- PR: （flow-id 1-3 で作成）
+- PR: #134（https://github.com/yuki-matsu783/MR-driven-workflow/pull/134 ）
 - push回数: 1
 - 現在のループ: なし
-- 追従監視: 未設定（PR作成後に開始する）
+- 追従監視: 購読あり（web。subscribe_pr_activity + 定期チェックイン）
 
 （進捗表は次タスク着手時に記入する）
 
@@ -65,7 +65,7 @@ issue #113（compact後もissue-mr-flow対象ブランチではSKILL.mdの再読
 
 ## 次にやること
 
-- PR のレビュー待ち。マージはユーザーの明示指示があるまで行わない。
+- PR #134 のレビュー待ち。マージはユーザーの明示指示があるまで行わない。
 - flow-id 5-1〜5-3（コンフリクト検知・関連issue通知・片付け）は、レビューが落ち着いてから行う。
 
 ## 判断を迷った内容
