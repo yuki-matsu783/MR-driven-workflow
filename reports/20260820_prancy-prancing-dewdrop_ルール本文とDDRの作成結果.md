@@ -1,9 +1,9 @@
 ---
 title: ルール本文とDDRの作成結果（issue #47 フェーズ3）
 type: report
-description: .claude/rules/ai-command-style.md と DDR 0061 を作成した結果と、受け入れ条件7項目との逐条突き合わせ・検証コマンドの実行結果（条件1の読み込み実測はユーザーが新セッションで確認）
+description: .claude/rules/ai-command-style.md と DDR 0066 を作成した結果と、受け入れ条件7項目との逐条突き合わせ・検証コマンドの実行結果（条件1の読み込み実測はユーザーが新セッションで確認）
 tags: [report, rule, ai-command, issue-47]
-keywords: [ai-command-style, DDR-0061, 受け入れ条件, 逐条, 検証, frontmatter, alwaysApply, 自動読み込み, allow, deny]
+keywords: [ai-command-style, DDR-0066, 受け入れ条件, 逐条, 検証, frontmatter, alwaysApply, 自動読み込み, allow, deny]
 ---
 
 # ルール本文とDDRの作成結果（flow-id 3-6）
@@ -22,7 +22,7 @@ keywords: [ai-command-style, DDR-0061, 受け入れ条件, 逐条, 検証, front
 | 4 1行目にコメントを書かない理由と良い例／悪い例 | 満たした | 同「複数行コマンドの1行目にコメントを書かない」節 |
 | 5 hook誤検知への注意をコメント記述の文脈で再掲 | 満たした | 同「コメント本文でのhook誤検知に注意する」節 |
 | 6 `markdown-frontmatter.md` に沿ったfrontmatter | 満たした | 同ファイル冒頭。`type: rule`、`alwaysApply` は付けない |
-| 7 判断の経緯をDDRとして記録 | 満たした | DDR 0061 の判断1〜4 |
+| 7 判断の経緯をDDRとして記録 | 満たした | DDR 0066 の判断1〜4 |
 
 **受け入れ条件7項目をすべて満たした。**
 
@@ -31,7 +31,7 @@ keywords: [ai-command-style, DDR-0061, 受け入れ条件, 逐条, 検証, front
 | ファイル | 種別 |
 |---|---|
 | `.claude/rules/ai-command-style.md` | 新規（ルール本文） |
-| `.claude/docs/ddr/0061-AIが渡すコマンド文字列の説明はdescriptionとコメントへ分けて置く.md` | 新規（DDR） |
+| `.claude/docs/ddr/0066-AIが渡すコマンド文字列の説明はdescriptionとコメントへ分けて置く.md` | 新規（DDR） |
 | `.claude/docs/README.md` | 既存・DDR一覧へ1行追記 |
 | `.claude/rules/shell-script-style.md` | 既存・冒頭へスコープの違いと相互リンクを3行追記 |
 
@@ -108,7 +108,7 @@ issue本文の例をそのまま採った（`description: 現在のブランチ�
 
 ### 条件7: DDR → 満たした
 
-DDR 0061 の判断1〜4が、条文が列挙する4つの経緯と1対1で対応する。
+DDR 0066 の判断1〜4が、条文が列挙する4つの経緯と1対1で対応する。
 
 | 条文の経緯 | DDR |
 |---|---|
@@ -126,10 +126,10 @@ DDR 0061 の判断1〜4が、条文が列挙する4つの経緯と1対1で対応
 | # | 検証 | 期待値 | 結果 |
 |---|---|---|---|
 | 2 | `--path ai-command-style` | `matched=1` | **`matched=1`** |
-| 2 | `--path 0061` | `matched=1` | **`matched=1`** |
-| 3 | `grep -c '](ddr/0061-' .claude/docs/README.md` | 1 | **1** |
+| 2 | `--path 0066` | `matched=1` | **`matched=1`** |
+| 3 | `grep -c '](ddr/0066-' .claude/docs/README.md` | 1 | **1** |
 | 5 | ルール本文・DDRへの2語連続の混入 | なし | **なし** |
-| 6 | `ls .claude/docs/ddr/0061-*.md \| wc -l` | 1 | **1** |
+| 6 | `ls .claude/docs/ddr/0066-*.md \| wc -l` | 1 | **1** |
 
 参考値（総件数）: 初回実行時は `--type rule` が 9 → **10**、`--type ddr` が 54 → **55**。
 **これは参考であり、合否の判定には使っていない**（`main` の取り込みで他のDDRが増えると

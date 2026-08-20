@@ -1,7 +1,7 @@
 ---
 title: 個別作業計画 AIコマンド文字列の規約ルールとDDR
 type: plan
-description: issue #47 のルール本文 .claude/rules/ai-command-style.md と DDR 0061 を作成する個別作業計画（何を書くか・受け入れ条件との対応・検証手順）
+description: issue #47 のルール本文 .claude/rules/ai-command-style.md と DDR 0066 を作成する個別作業計画（何を書くか・受け入れ条件との対応・検証手順）
 tags: [plan, rule, ai-command, issue-47]
 keywords: [ai-command-style, DDR, description, 日本語コメント, 1行目コメント, permissions, hook誤検知, frontmatter, 受け入れ条件, 検証]
 ---
@@ -22,9 +22,9 @@ AIエージェントがBash/PowerShellツールへ渡す**コマンド文字列�
 | ファイル | 種別 | 内容 |
 |---|---|---|
 | `.claude/rules/ai-command-style.md` | **新規** | ルール本文 |
-| `.claude/docs/ddr/0061-AIが渡すコマンド文字列の説明はdescriptionとコメントへ分けて置く.md` | **新規** | 判断の経緯（受け入れ条件7） |
+| `.claude/docs/ddr/0066-AIが渡すコマンド文字列の説明はdescriptionとコメントへ分けて置く.md` | **新規** | 判断の経緯（受け入れ条件7） |
 | `reports/20260820_prancy-prancing-dewdrop_ルール本文とDDRの作成結果.md` | **新規** | **フェーズ3の実施結果の正文**。検証1〜5の結果と受け入れ条件との突き合わせ結果を書く（計画へ結果を書かないための分離先。issue #87） |
-| `.claude/docs/README.md` | 既存 | **DDR一覧へ 0061 の1行を追記**。この目次は 0001〜 を網羅列挙する手動維持のもので、`extract-frontmatter.sh` は欠落を検出しない |
+| `.claude/docs/README.md` | 既存 | **DDR一覧へ 0066 の行を反映**。issue #135 以降この一覧は生成物なので、手書きせず `bash .claude/scripts/src/generate-ddr-list.sh` を実行する |
 | `.claude/rules/shell-script-style.md` | 既存 | 冒頭へスコープの違いと新ルールへのリンクを追記（規約の中身は変更しない） |
 
 `reports/` のHTMLは作らない。本レポートの内容は逐条のチェックリストであり、複数要素間の関連・
@@ -33,8 +33,9 @@ AIエージェントがBash/PowerShellツールへ渡す**コマンド文字列�
 
 DDR番号は本計画作成時点の空き番号が 0059（既存の最大は 0058）。`main` が進むと重複しうるため、
 flow-id 5-1 の `check-base-conflicts.sh` で確認し、必要なら繰り下げる。
-**（実際に重複した。`main` が 0059・0060 を使ったため、flow-id 4-6 のマージで 0061 へ繰り下げ済み。
-以下の検証コマンドは繰り下げ後の 0061 を対象にしている。）**
+**（実際に2回重複した。`main` が 0059・0060 を使ったため flow-id 4-6 のマージで 0061 へ、さらに
+0061〜0065 を使ったため flow-id 5-1 のマージで 0066 へ繰り下げた。以下の検証コマンドは
+最終的な 0066 を対象にしている。）**
 
 **既存ファイルへの追記ではなく新規ファイルにする**（調査4の結論）。`shell-script-style.md` は
 `.sh` として保存するスクリプトの規約であり、対象が「ツールへ渡す文字列」である本ルールとは
@@ -64,7 +65,7 @@ flow-id 5-1 の `check-base-conflicts.sh` で確認し、必要なら繰り下�
 | 4 | ルール本文「1行目にコメントを書かない」節 | 理由は**案B**（下記）。良い例／悪い例を併記 |
 | 5 | ルール本文「コメント本文でのhook誤検知」節 | 仕組みの説明は `git-workflow.md` を参照し、再掲にとどめる |
 | 6 | ルール本文のfrontmatter | `type: rule`。**`alwaysApply` は付けない**（調査4） |
-| 7 | DDR 0061 の判断1〜4 | 条文が列挙する4つの経緯が、DDRの判断1〜4に1対1で対応する |
+| 7 | DDR 0066 の判断1〜4 | 条文が列挙する4つの経緯が、DDRの判断1〜4に1対1で対応する |
 
 ## ルール本文の構成（何を書くか）
 
@@ -184,17 +185,17 @@ DDRへ書く（DDRの本質は「〇〇を検討したが✕✕を採用した�
 
    # 期待値: それぞれ matched=1
    bash .claude/scripts/src/search-frontmatter.sh --path ai-command-style
-   bash .claude/scripts/src/search-frontmatter.sh --path 0061
+   bash .claude/scripts/src/search-frontmatter.sh --path 0066
    ```
 
    総件数（`--type rule` / `--type ddr`）は**参考値**として控えるにとどめる。
 
-3. **DDR一覧（`.claude/docs/README.md`）へ 0061 の行があること。** この目次は手動維持で、
+3. **DDR一覧（`.claude/docs/README.md`）へ 0066 の行があること。** この目次は手動維持で、
    `extract-frontmatter.sh` は欠落を検出しない。
 
    ```bash
    # 期待値: 1
-   grep -c '](ddr/0061-' .claude/docs/README.md
+   grep -c '](ddr/0066-' .claude/docs/README.md
    ```
 
 4. **受け入れ条件1の実測（新規ファイルが自動で読み込まれるか）。**
@@ -209,7 +210,7 @@ DDRへ書く（DDRの本質は「〇〇を検討したが✕✕を採用した�
 
    ```bash
    # 期待値: 「なし」と表示される（マッチ行があればその行番号が出る）
-   grep -nE 'git[[:space:]]+(commit|push)' .claude/rules/ai-command-style.md .claude/docs/ddr/0061-*.md || echo 'なし'
+   grep -nE 'git[[:space:]]+(commit|push)' .claude/rules/ai-command-style.md .claude/docs/ddr/0066-*.md || echo 'なし'
    ```
 
    **この検査コマンド自体、パターンを `[[:space:]]+` で書くことで連続文字列になるのを避けている。**
@@ -220,7 +221,7 @@ DDRへ書く（DDRの本質は「〇〇を検討したが✕✕を採用した�
 
    ```bash
    # 期待値: 1
-   ls .claude/docs/ddr/0061-*.md | wc -l
+   ls .claude/docs/ddr/0066-*.md | wc -l
    ```
 
    最終確認は flow-id 5-1 の `check-base-conflicts.sh` で行う。

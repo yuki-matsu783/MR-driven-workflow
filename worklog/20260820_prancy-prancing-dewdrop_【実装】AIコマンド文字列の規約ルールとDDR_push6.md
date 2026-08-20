@@ -1,7 +1,7 @@
 ---
 title: worklog 20260820 AIコマンド文字列の規約ルールとDDR push6
 type: log
-description: issue #47 フェーズ3（ルール本文 ai-command-style.md と DDR 0061 の作成）の試行錯誤ログ
+description: issue #47 フェーズ3（ルール本文 ai-command-style.md と DDR 0066 の作成）の試行錯誤ログ
 tags: [log, rule, ai-command, issue-47]
 keywords: [ai-command-style, DDR, 受け入れ条件, 案B, allow, deny, frontmatter, 検証, worklog]
 ---

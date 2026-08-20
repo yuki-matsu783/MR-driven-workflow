@@ -38,8 +38,10 @@ keywords: [正史仕様, 意思決定ログ, issue-mr-workflow, シェルスク�
 - [check-base-sync.md](spec/check-base-sync.md) ── 作業開始・再開時のベースブランチ追従確認スクリプト
 - [create-commit.md](spec/create-commit.md) ── コミット実行ラッパー（commitスキル専用）
 - [adversarial-review.md](spec/adversarial-review.md) ── 敵対的レビュー（専任サブエージェント・インラインコメント投稿）
+- [distribution-assets.md](spec/distribution-assets.md) ── 配布テンプレート資産（PR/MRテンプレート・`.gitattributes`・VERSION）と配布経路での扱い
 - [cleanup-task.md](spec/cleanup-task.md) ── flow-id 5-3 後片付けの自動化スクリプト
 - [search-frontmatter.md](spec/search-frontmatter.md) ── ドキュメント横断検索スクリプト（index.jsonl検索）
+- [generate-ddr-list.md](spec/generate-ddr-list.md) ── DDR一覧生成スクリプト（README.mdのDDR一覧をfrontmatterから生成）
 
 ## ddr（意思決定ログ）
 
@@ -51,12 +53,18 @@ architectureに限らない意思決定も記録対象とする（この改称�
 DDRのうち0001・0002・0008・0015は持ち込んでいない**（連番に欠番があるのはこのため。
 欠番を埋め直すと既存DDR本文中の相互参照とずれるため、番号は移植元のまま維持する）。
 
+**この一覧は生成物である。手書きで行を足さない**（issue #135）。DDRを追加・変更したら
+`bash .claude/scripts/src/generate-ddr-list.sh` を実行し、出た差分をコミットする
+（仕様: [spec/generate-ddr-list.md](spec/generate-ddr-list.md)）。行の内容はDDRの
+frontmatter（`status` / `superseded_by` / `note`）だけから決まる。
+
+<!-- BEGIN GENERATED: ddr-list -->
 - [0003-レビュースレッド解決は自動化しない.md](ddr/0003-レビュースレッド解決は自動化しない.md)
 - [0004-AI返信は署名で識別しbotアカウント分離は見送る.md](ddr/0004-AI返信は署名で識別しbotアカウント分離は見送る.md)
 - [0005-DraftPR作成失敗時は空コミットで自動リトライする.md](ddr/0005-DraftPR作成失敗時は空コミットで自動リトライする.md)
 - [0006-対応工数レポートはtranscript自前パースで実装する.md](ddr/0006-対応工数レポートはtranscript自前パースで実装する.md)
 - [0007-hookのcommandはbashのPATH解決方式へ変更.md](ddr/0007-hookのcommandはbashのPATH解決方式へ変更.md)
-- [0009-Planモードre-entry時はgit checkout復元でなくarchiveスクリプトで対処する.md](ddr/0009-Planモードre-entry時はgit checkout復元でなくarchiveスクリプトで対処する.md) ── **`status: superseded`（0019により置き換え）**
+- [0009-Planモードre-entry時はgit checkout復元でなくarchiveスクリプトで対処する.md](<ddr/0009-Planモードre-entry時はgit checkout復元でなくarchiveスクリプトで対処する.md>) ── **`status: superseded`（0019により置き換え）**
 - [0010-ブランチslugの意訳生成はAIエージェントが行う.md](ddr/0010-ブランチslugの意訳生成はAIエージェントが行う.md)
 - [0011-issue作成は独立スキルとして新設する.md](ddr/0011-issue作成は独立スキルとして新設する.md)
 - [0012-コミットはcommitスキル経由を機構的に強制する.md](ddr/0012-コミットはcommitスキル経由を機構的に強制する.md)
@@ -94,7 +102,7 @@ DDRのうち0001・0002・0008・0015は持ち込んでいない**（連番に�
 - [0045-敵対的レビューは専任サブエージェントで独立コンテキストに切り出す.md](ddr/0045-敵対的レビューは専任サブエージェントで独立コンテキストに切り出す.md)
 - [0046-レビュー観点はディレクトリごとのREVIEW-POINTSへ外だしする.md](ddr/0046-レビュー観点はディレクトリごとのREVIEW-POINTSへ外だしする.md)
 - [0047-インラインコメントの位置指定はプロバイダごとの制約に合わせて縮退させる.md](ddr/0047-インラインコメントの位置指定はプロバイダごとの制約に合わせて縮退させる.md)
-- [0048-flow-id5-1の後片付けはスクリプト化しコミットは含めない.md](ddr/0048-flow-id5-1の後片付けはスクリプト化しコミットは含めない.md)（ファイル名の `flow-id5-1` は当時の番号。issue #112 の並べ替えにより、片付けは現在 flow-id 5-3。DDR 0056 参照）
+- [0048-flow-id5-1の後片付けはスクリプト化しコミットは含めない.md](ddr/0048-flow-id5-1の後片付けはスクリプト化しコミットは含めない.md)（ファイル名の `flow-id5-1` は当時の番号。issue #112 の並べ替えにより、片付けは現在 flow-id 5-3。DDR 0058 参照）
 - [0049-ドキュメント探索はfrontmatterインデックス検索を第一手段にする.md](ddr/0049-ドキュメント探索はfrontmatterインデックス検索を第一手段にする.md)
 - [0050-Gemini集計の差分はファイル全体の畳み込みと前回累計の差分で取る.md](ddr/0050-Gemini集計の差分はファイル全体の畳み込みと前回累計の差分で取る.md)
 - [0051-Gemini集計はrewindToを読み飛ばしメッセージを削らない.md](ddr/0051-Gemini集計はrewindToを読み飛ばしメッセージを削らない.md)
@@ -107,4 +115,10 @@ DDRのうち0001・0002・0008・0015は持ち込んでいない**（連番に�
 - [0058-フェーズ5は片付けをcommit直前へ移した順序に並べ替える.md](ddr/0058-フェーズ5は片付けをcommit直前へ移した順序に並べ替える.md)
 - [0059-issue-mr-flow対象ブランチではSKILL.mdの再読み込みを注入で促す.md](ddr/0059-issue-mr-flow対象ブランチではSKILL.mdの再読み込みを注入で促す.md)
 - [0060-レビューコメントのソース断面はコメント時点のshaを優先し現HEADへ縮退する.md](ddr/0060-レビューコメントのソース断面はコメント時点のshaを優先し現HEADへ縮退する.md)
-- [0061-AIが渡すコマンド文字列の説明はdescriptionとコメントへ分けて置く.md](ddr/0061-AIが渡すコマンド文字列の説明はdescriptionとコメントへ分けて置く.md)
+- [0061-配布物の版はVERSIONファイル1つで表しCHANGELOGを持たない.md](ddr/0061-配布物の版はVERSIONファイル1つで表しCHANGELOGを持たない.md)
+- [0062-配布テンプレートにLICENSEを同梱しない.md](ddr/0062-配布テンプレートにLICENSEを同梱しない.md)
+- [0063-gitattributesは配布先へ丸ごとコピーせず必要な行だけ追記する.md](ddr/0063-gitattributesは配布先へ丸ごとコピーせず必要な行だけ追記する.md)
+- [0064-敵対的レビュー由来のスレッドも人間の指摘と同列に返信を必須とする.md](ddr/0064-敵対的レビュー由来のスレッドも人間の指摘と同列に返信を必須とする.md)
+- [0065-DDR一覧は生成物にしつつGit管理下へ残す.md](ddr/0065-DDR一覧は生成物にしつつGit管理下へ残す.md)
+- [0066-AIが渡すコマンド文字列の説明はdescriptionとコメントへ分けて置く.md](ddr/0066-AIが渡すコマンド文字列の説明はdescriptionとコメントへ分けて置く.md)
+<!-- END GENERATED: ddr-list -->

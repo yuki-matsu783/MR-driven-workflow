@@ -25,6 +25,7 @@ OKF（Open Knowledge Format、https://okf.md/spec/ ）のフィールド定義�
 | `keywords` | 推奨 | OKF標準にはない拡張フィールド。本文中の頻出語・特徴的な語を検索用途で3〜20個（文章量に応じて増減、平均的な長さの文章なら10個前後）リスト形式で記載する。日本語で書かれたファイルでは、英語の技術用語のみに偏らず日本語の単語もバランスよく含める |
 | `status` | DDRのみ・任意 | その意思決定が現在も有効かを表す（下記「DDRのstatus」参照）。省略時は有効（`active`）とみなす |
 | `superseded_by` | DDRのみ・条件付き必須 | `status: superseded` のときに、置き換えた側のDDR番号を書く（例: `"0019"`） |
+| `note` | DDRのみ・任意 | `.claude/docs/README.md` のDDR一覧で、そのDDRの行の末尾へ添える散文の補足（下記「DDRのnote」）。1行で書く |
 
 ## DDRのstatus（後から無効になった意思決定の扱い）
 
@@ -55,6 +56,60 @@ description: <元のまま変更しない>
 （Architecture Decision Record）で広く使われている語彙に合わせるため（読み手が初見でも意味を
 推測でき、外部ツールとも揃う）。
 
+`status` / `superseded_by` を更新したら、**`bash .claude/scripts/src/generate-ddr-list.sh` を
+実行して `.claude/docs/README.md` のDDR一覧を再生成する**（一覧の注記はこの2キーから生成される。
+issue #135。手書きで注記を添えない）。
+
+## DDRのnote（一覧へ添える散文の補足）
+
+`.claude/docs/README.md` のDDR一覧は**生成物**であり、手書きで行を足さない（issue #135。
+生成: `bash .claude/scripts/src/generate-ddr-list.sh`、仕様:
+[.claude/docs/spec/generate-ddr-list.md](../docs/spec/generate-ddr-list.md)）。
+
+一覧の各行は、そのDDRのfrontmatterだけから決まる。`status` / `superseded_by` から導けない
+**散文の補足**を一覧へ出したい場合は、`note` キーへ書く。**READMEを直接編集しても次の生成で
+消える**ため、注記の置き場はここが唯一である。
+
+```yaml
+---
+title: 0022. push断面の全文コピーをやめ行番号インデックスで表現する
+type: ddr
+description: <元のまま変更しない>
+note: 'うち「Gemini CLI対応の扱い」は、issue #97でメインセッションのみ集計対象へ変更された。詳細は0054'
+---
+```
+
+- **値は1行で書く**（複数行のYAMLスカラーは読まない）。
+- `description` の代わりに使わない。`description` は「そのDDRが何を決めたか」の要約で、
+  `note` は「その後どう変わったか・読むときの注意」を添えるものである。
+- `status` 由来の注記と併記した場合、一覧では **status由来が先、`note` が後**に並ぶ。
+- `note` の追加・変更は frontmatter のみの更新であり、**DDR本文を変更しない**運用に反しない
+  （上記「DDRのstatus」と同じ扱い）。
+
+### 何を書くか
+
+一覧を読む人が**そのDDRを開く前に知っておくべきこと**のうち、**他のキーからは導けないもの**
+だけを書く。実際に使うのは次の類型である。
+
+| 類型 | 例 |
+|---|---|
+| **決定の一部だけが後で変わった**（全体の置き換えではないので `status: superseded` は使えない） | 「うち『Gemini CLI対応の扱い』は、issue #97でメインセッションのみ集計対象へ変更された。詳細は0054」（`0022`） |
+| **タイトル・ファイル名が現在の呼称と食い違う** | 「ファイル名の `flow-id5-1` は当時の番号。issue #112 の並べ替えにより、片付けは現在 flow-id 5-3。DDR 0058 参照」（`0048`） |
+| **本文を読むときの前提が変わった**（前提にしていた仕組み・用語が今は別物になっている等） | 「前提としていた〇〇は廃止済み。△△へ読み替えること」 |
+
+いずれも「**その後どう変わったか／読むときに注意すること**」であり、後続の変更を追った人が
+気づいた時点で足す。DDRを書いた本人が最初から埋めるキーではない。
+
+書かないもの:
+
+- **`status` / `superseded_by` で表せること**（「0019に置き換えられた」等）。一覧には
+  status由来の注記が自動で出るため重複する。
+- **そのDDRが何を決めたかの要約**。それは `description` の役割である（上記）。
+- **本文を読めば分かる詳細**。`note` は一覧の1行に収まる長さに留め、開くべきかの判断材料にする。
+- **やがて古くなる進捗**（「issue #NN で対応中」等）。DDRと同じく永続する前提で書く。
+
+## index.jsonl（frontmatterの機械可読インデックスと検索）
+
 `index.jsonl`（`.claude/scripts/src/extract-frontmatter.sh` が生成するfrontmatterの機械可読
 インデックス）は**Git管理下に置かず、生成物として扱う**（issue #36。`.gitignore`の
 `**/index.jsonl`対象）。`.claude/hooks/session-start.sh`（SessionStart hook）が**セッション開始の
@@ -77,7 +132,6 @@ bash .claude/scripts/src/extract-frontmatter.sh .
   特殊なケースに限る。
 - 仕様の詳細は
   [.claude/docs/spec/extract-frontmatter.md](../docs/spec/extract-frontmatter.md) を参照。
-あわせて `.claude/docs/README.md` のDDR一覧にも、置き換え先が分かる注記を添えるとよい。
 
 **生成された `index.jsonl` は、ドキュメントを探すための検索インデックスとして使う**（issue #38）。
 `type` / `tags` / `keywords` / パス / フリーテキストでの絞り込みと、mtime等での並び替えが
@@ -129,6 +183,8 @@ bash .claude/scripts/src/extract-frontmatter.sh .
 |---|---|---|
 | `.gitlab/issue_templates/Default.md` | **対象外**（frontmatter追加しない） | GitLabはissueテンプレートのfrontmatterを特別扱いしないため、追加すると issue作成のたびに本文へYAMLがそのまま挿入されてしまう |
 | `.github/ISSUE_TEMPLATE/task.md` | **対象外**（frontmatter追加しない） | GitHub仕様の`title`等の既存frontmatterと衝突・干渉するため。issueテンプレートにOKF frontmatterは不要と判断した |
+| `.github/pull_request_template.md` | **対象外**（frontmatter追加しない） | issueテンプレートと同じ理由。PR作成のたびに本文へYAMLがそのまま挿入されてしまう（issue #33） |
+| `.gitlab/merge_request_templates/Default.md` | **対象外**（frontmatter追加しない） | 同上（issue #33） |
 | `.claude/agents/*.md` | `title`/`type`/`tags`/`keywords`/（該当すれば`resource`）のみ追加。`description`は追加しない | 既存の`description`はClaude Codeがサブエージェント選択に使う実キーのため、重複させず流用する |
 | `.claude/skills/*/SKILL.md` | 同上 | 同上（skill選択に使う`description`を保持） |
 | `.claude/rules/*.md`のうち`alwaysApply: true`を持つファイル | 既存キーの下に新キーを追記する | `alwaysApply`はClaude Codeのルール常時適用設定として実際に使われるため、値・位置を変更しない |
