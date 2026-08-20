@@ -18,8 +18,8 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - ブランチ: `feature-127-verify-gitlab-functions-and-url-formats`
 - PR: #128 https://github.com/yuki-matsu783/MR-driven-workflow/pull/128 （Draft）
 - 追従監視: なし（ローカル。各pushとflow-id 5-1で手動確認する）
-- push回数: 4
-- 現在のループ: 2-3〜2-4 の1周目（進行中）
+- push回数: 5
+- 現在のループ: なし
 
 | 進捗 | flow-id | ステップ | 担当 |
 |---|---|---|---|
@@ -30,10 +30,10 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 | [x] | 1-5 | 全体作業計画に合意する | 人間 |
 | [x] | 1-6 | 全体作業計画をもとにHANDOFF.mdを更新する | エージェント |
 | [x] | 2-1 | 個別調査計画を作成する | エージェント |
-| [] | 2-2 | commit・pushしてレビュー依頼 | エージェント |
-| [] | 2-3 | 調査計画のレビュー | 人間 |
-| [] | 2-4 | レビュー内容を反映する | `comments` / `reply` |
-| [] | 2-5 | 調査計画をもとにMR descriptionを更新する | `describe` |
+| [x] | 2-2 | commit・pushしてレビュー依頼 | エージェント |
+| [x] | 2-3 | 調査計画のレビュー | 人間 |
+| [x] | 2-4 | レビュー内容を反映する | `comments` / `reply` |
+| [x] | 2-5 | 調査計画をもとにMR descriptionを更新する | `describe` |
 | [] | 2-6 | 調査を実施する | エージェント |
 | [] | 2-7 | commit・pushしてレビュー依頼 | エージェント |
 | [] | 2-8 | 調査結果のレビュー | 人間 |
@@ -139,10 +139,34 @@ issue #127（ローカルGitLab CEで、issue #48以降に `Gitlab.sh` へ追加
   - **`root/issue45-verify` は検証に使ってよい**（テスト用に作った使い捨てで、いつか消すもの）。
     「一切触らない」という保全方針は取り下げ、二重 `Draft:` 接頭辞のMRを #3 の入力に使う。
 
+- **flow-id 2-5**: 調査計画をもとにMR descriptionを更新した。
+- **flow-id 2-6（検証の実施）**: 13関数・URL系4種・サブグループ解決を実機検証した。結果の正文は
+  `reports/20260820_zippy-petting-crown_GitLab実機検証結果.md`（視覚化は同名 `.html`）。要点:
+  - **差分アンカーの `sha1` 前提は正しいと確定した。** `diff-` 接頭辞は付かない。GitLab 18.5 は
+    "rapid diffs" 方式で、Compareページの初期HTMLにハッシュは1件も無い。埋め込まれた
+    エンドポイント定義から `diffs_stream` 断片を特定して取得すると、接頭辞なしの40桁hexの
+    `id=` 属性が現れ、`hash_paths`・`sha1sum`・`diff_files_metadata` の `file_hash` と一致した。
+    **ハッシュ入力はpercent-encode前の生パス**で、encode必須のblobリンクとは逆。
+  - **不具合を1件検出**: `gitlab_get_repo_url` が未定義のまま `Gitlab.sh:162,180` から呼ばれて
+    おり、`get_mr_url` / `get_note_url` が到達不能（デッドコード）。`2>/dev/null` が
+    `command not found` を握りつぶすため無言でurl無しへ縮退する。
+    **`comments` の `url=` と `add_mr_thread_reply` の戻り値がGitLabで機能していない。**
+  - **その不具合が「13+13=26 ≠ 25」の正体でもあった**（消えた唯一の関数がこれ）。混入経路は
+    issue #42（呼び出し追加）と issue #44（定義削除）の**並行ブランチのsemantic conflict**。
+  - 他11関数は期待どおり。`set_mr_ready` は二重 `Draft:` も1回で除去。`search_issues` は
+    closed も返る（`--all` が 1.114.0 で機能）。`add_mr_inline_comments` は
+    run1 `{3,0}`/run2 `{2,1}` で `summary_post_kind` の両分岐を通した。
+  - サブグループ（3階層）も解決できた。`owner` に `grp127/sub127` が入る。
+  - 受け入れ条件8のための環境情報（`docker inspect`）を採取し、再現手順を reports に残した。
+
 ## 次にやること
 
-- **人間のレビュー（flow-id 2-3）の2周目待ち。** 合意できたら flow-id 2-5（MR description更新）→
-  2-6（検証の実施）へ進む。
+- **flow-id 2-7**: reports（md/html）・worklog・HANDOFFをコミットしリモートへ反映し、
+  **敵対的レビュー（フェーズ2・2回目）**を実施したうえでレビュー依頼を出す。
+- **ユーザーへブラウザ目視確認を依頼する**（URL系4種の代表1本ずつ）。自動確認は完了しているが、
+  受け入れ条件2は「ブラウザ表示確認結果が記録されている」ことを求めているため。
+- フェーズ3（flow-id 3-1〜）: `gitlab_get_repo_url` → `get_repo_url` の修正（2箇所）と、
+  `get_mr_url` / `get_note_url` のディスパッチャ追加。
 
 ## 判断を迷った内容
 
@@ -171,9 +195,10 @@ issue #127（ローカルGitLab CEで、issue #48以降に `Gitlab.sh` へ追加
 - **検証環境の再現手順の置き場所**（受け入れ条件8）。新規specファイルを作るなら人間の承認が
   必須のため、flow-id 4-1 で決める。**情報の採取自体はフェーズ2で行う**（コンテナが生きて
   いる間しか採れないため）。
-- **#48 で検証した13関数のうち1件が現在の `Gitlab.sh` に残っていない**（13+13=26 ≠ 25）。
-  どの関数が削除・改名されたのかをフェーズ2で特定する。受け入れ条件6（ヘッダが実態に合う）に
-  直結する。
+- **URL系4種のブラウザ目視確認**（受け入れ条件2）。自動確認は完了したが、目視はユーザー依頼待ち。
+- **`root/issue127-verify` を検証中に private → public へ変更した**（PATヘッダではWebページを
+  取得できず302になるため）。検証用の使い捨てプロジェクトなので戻さなくても実害は無いが、
+  この変更を行った事実は reports に記録済み。
 
 ## 守るべき条件・触ってはいけない範囲
 

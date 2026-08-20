@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GitLab側13関数とURL形式の実機検証結果（issue #127）</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  body { font-family: "Segoe UI", "Hiragino Kaku Gothic ProN", "Yu Gothic UI", Meiryo, sans-serif; }
+  code { font-family: "Cascadia Mono", Consolas, "Courier New", monospace; }
+</style>
+</head>
+<body class="bg-slate-50 text-slate-800">
+<div class="max-w-6xl mx-auto px-5 py-10">
+
+  <header class="mb-10">
+    <p class="text-sm font-semibold tracking-widest text-indigo-600 uppercase">issue #127 ・ flow-id 2-6</p>
+    <h1 class="mt-2 text-3xl font-bold text-slate-900">GitLab側13関数とURL形式の実機検証結果</h1>
+    <p class="mt-3 text-slate-600">ローカル GitLab CE 18.5.4（Docker）＋ <code>glab</code> 1.114.0 に対し、<code>Provider.sh</code> 経由で実機実行した結果。2026-08-20 実施。</p>
+  </header>
+
+  <!-- 結論 -->
+  <section class="mb-10 grid gap-4 md:grid-cols-3">
+    <div class="rounded-xl border border-emerald-200 bg-emerald-50 p-5">
+      <div class="text-xs font-bold text-emerald-700">結論 1 ／ 焦点</div>
+      <div class="mt-2 text-lg font-bold text-emerald-900">差分アンカーの <code>sha1</code> 前提は<span class="underline decoration-2">正しい</span></div>
+      <p class="mt-2 text-sm text-emerald-800"><code>diff-</code> 接頭辞は付かない。<code>diffs_stream</code> 断片HTMLの <code>id=</code> 属性と完全一致した。</p>
+    </div>
+    <div class="rounded-xl border border-rose-200 bg-rose-50 p-5">
+      <div class="text-xs font-bold text-rose-700">結論 2 ／ 不具合</div>
+      <div class="mt-2 text-lg font-bold text-rose-900"><code>gitlab_get_repo_url</code> が未定義</div>
+      <p class="mt-2 text-sm text-rose-800">2箇所から呼ばれるが定義が無い。<code>get_mr_url</code> / <code>get_note_url</code> が到達不能。</p>
+    </div>
+    <div class="rounded-xl border border-sky-200 bg-sky-50 p-5">
+      <div class="text-xs font-bold text-sky-700">結論 3 ／ その他</div>
+      <div class="mt-2 text-lg font-bold text-sky-900">残り11関数は期待どおり</div>
+      <p class="mt-2 text-sm text-sky-800">サブグループ（3階層namespace）での解決も通った。</p>
+    </div>
+  </section>
+
+  <!-- 13関数 -->
+  <section class="mb-12">
+    <h2 class="text-xl font-bold text-slate-900 mb-1">13関数の結果</h2>
+    <p class="text-sm text-slate-500 mb-4"><span class="font-semibold">直接</span>＝<code>Provider.sh</code> の公開関数をそのまま呼んだもの／<span class="font-semibold">間接</span>＝ディスパッチャが無く公開関数を踏み台にしたもの。</p>
+    <div class="overflow-x-auto rounded-lg border border-slate-200 bg-white">
+      <table class="min-w-full text-sm">
+        <thead class="bg-slate-100 text-slate-700">
+          <tr>
+            <th class="px-3 py-2 text-left font-semibold">#</th>
+            <th class="px-3 py-2 text-left font-semibold">関数</th>
+            <th class="px-3 py-2 text-left font-semibold">経路</th>
+            <th class="px-3 py-2 text-left font-semibold">判定</th>
+            <th class="px-3 py-2 text-left font-semibold">確認できたこと</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-100">
+          <tr><td class="px-3 py-2">1</td><td class="px-3 py-2"><code>search_issues</code></td><td class="px-3 py-2">直接</td><td class="px-3 py-2 text-emerald-700 font-bold">OK</td><td class="px-3 py-2">open/closed の両方が返る（<code>--all</code> が 1.114.0 で機能）</td></tr>
+          <tr><td class="px-3 py-2">2</td><td class="px-3 py-2"><code>normalize_issue_search_results</code></td><td class="px-3 py-2">間接</td><td class="px-3 py-2 text-emerald-700 font-bold">OK</td><td class="px-3 py-2"><code>iid→number</code> / <code>web_url→url</code> / <code>opened→open</code></td></tr>
+          <tr><td class="px-3 py-2">3</td><td class="px-3 py-2"><code>set_mr_ready</code></td><td class="px-3 py-2">直接</td><td class="px-3 py-2 text-emerald-700 font-bold">OK</td><td class="px-3 py-2">除去・冪等・<span class="font-semibold">二重接頭辞も1回で除去</span></td></tr>
+          <tr><td class="px-3 py-2">4</td><td class="px-3 py-2"><code>add_issue_comment</code></td><td class="px-3 py-2">直接</td><td class="px-3 py-2 text-emerald-700 font-bold">OK</td><td class="px-3 py-2">issue側へnoteが1件付いた</td></tr>
+          <tr class="bg-rose-50"><td class="px-3 py-2">5</td><td class="px-3 py-2"><code>gitlab_get_mr_url</code></td><td class="px-3 py-2">間接</td><td class="px-3 py-2 text-rose-700 font-bold">到達不能</td><td class="px-3 py-2">実装は正しい（GitLabの <code>noteable_note_url</code> と一致）が呼ばれない</td></tr>
+          <tr class="bg-rose-50"><td class="px-3 py-2">6</td><td class="px-3 py-2"><code>gitlab_get_note_url</code></td><td class="px-3 py-2">間接</td><td class="px-3 py-2 text-rose-700 font-bold">到達不能</td><td class="px-3 py-2">同上。<code>add_mr_thread_reply</code> の戻り値が空</td></tr>
+          <tr><td class="px-3 py-2">7</td><td class="px-3 py-2"><code>get_blob_url</code></td><td class="px-3 py-2">直接</td><td class="px-3 py-2 text-emerald-700 font-bold">OK</td><td class="px-3 py-2">HTTP 200。<span class="font-semibold">encode必須</span>（生パスは失敗）</td></tr>
+          <tr><td class="px-3 py-2">8</td><td class="px-3 py-2"><code>get_diff_anchor_url</code></td><td class="px-3 py-2">直接</td><td class="px-3 py-2 text-emerald-700 font-bold">OK</td><td class="px-3 py-2"><code>id=</code> 属性と一致（下記）</td></tr>
+          <tr><td class="px-3 py-2">9</td><td class="px-3 py-2"><code>get_diff_anchor_algo</code></td><td class="px-3 py-2">直接</td><td class="px-3 py-2 text-emerald-700 font-bold">OK</td><td class="px-3 py-2"><code>sha1</code> を返す</td></tr>
+          <tr><td class="px-3 py-2">10</td><td class="px-3 py-2"><code>gitlab_add_mr_thread</code></td><td class="px-3 py-2">間接</td><td class="px-3 py-2 text-emerald-700 font-bold">OK</td><td class="px-3 py-2">解決可能なスレッドとして投稿された</td></tr>
+          <tr><td class="px-3 py-2">11</td><td class="px-3 py-2"><code>gitlab_build_discussion_body</code></td><td class="px-3 py-2">間接</td><td class="px-3 py-2 text-emerald-700 font-bold">OK</td><td class="px-3 py-2">新規行・日本語パスとも正しい <code>position</code></td></tr>
+          <tr><td class="px-3 py-2">12</td><td class="px-3 py-2"><code>gitlab_summary_post_kind</code></td><td class="px-3 py-2">間接</td><td class="px-3 py-2 text-emerald-700 font-bold">OK</td><td class="px-3 py-2"><span class="font-semibold">両分岐を実行</span>（0件→note／1件以上→thread）</td></tr>
+          <tr><td class="px-3 py-2">13</td><td class="px-3 py-2"><code>add_mr_inline_comments</code></td><td class="px-3 py-2">直接</td><td class="px-3 py-2 text-emerald-700 font-bold">OK</td><td class="px-3 py-2">run1 <code>{3,0}</code> / run2 <code>{2,1}</code>、巻き添えなし</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- 差分アンカー -->
+  <section class="mb-12">
+    <h2 class="text-xl font-bold text-slate-900 mb-4">焦点だった差分アンカーの確定</h2>
+    <div class="grid gap-4 md:grid-cols-3">
+      <div class="rounded-lg border border-slate-200 bg-white p-4">
+        <div class="text-xs font-bold text-slate-500">1段目 ／ 実装内部の整合</div>
+        <p class="mt-2 text-sm"><code>hash_paths sha1</code> と <code>sha1sum</code> が一致。<span class="text-slate-500">これだけでは前提の証明にならない。</span></p>
+      </div>
+      <div class="rounded-lg border-2 border-emerald-300 bg-white p-4">
+        <div class="text-xs font-bold text-emerald-600">2段目 ／ 直接証拠</div>
+        <p class="mt-2 text-sm">初期HTMLにハッシュは<span class="font-semibold">1件も無い</span>（rapid diffs方式で遅延読込）。<code>diffs_stream</code> 断片を取ると接頭辞なしの40桁hex <code>id=</code> が出現し、一致した。</p>
+      </div>
+      <div class="rounded-lg border border-slate-200 bg-white p-4">
+        <div class="text-xs font-bold text-slate-500">3段目 ／ 目視</div>
+        <p class="mt-2 text-sm text-amber-700 font-semibold">ユーザーへ依頼中。</p>
+        <p class="mt-1 text-xs text-slate-500">ハッシュが正しくても遅延読込でスクロールしない失敗様態が残るため。</p>
+      </div>
+    </div>
+    <div class="mt-4 overflow-x-auto rounded-lg bg-slate-900 p-4 text-xs text-slate-100">
+<pre>README.md        → id="8ec9a00bfd09b3190ac6b22251dbb1aa95a0579d"   （sha1sum と一致）
+docs/検証 用.md  → id="dbd436723fcd58b281afcd60bbd2b93e33d9cbca"   （sha1sum と一致）</pre>
+    </div>
+    <div class="mt-4 grid gap-3 md:grid-cols-2">
+      <div class="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm">
+        <span class="font-bold text-amber-800">要注意の非対称性</span>
+        <p class="mt-1 text-amber-900">アンカーのハッシュ入力は <span class="font-semibold">percent-encode 前の生パス</span>。一方 blobリンクは <span class="font-semibold">encode 済み</span>を要求する。<span class="font-semibold">逆</span>なので取り違えない。</p>
+      </div>
+      <div class="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm">
+        <span class="font-bold text-amber-800">PATはWebページに効かない</span>
+        <p class="mt-1 text-amber-900"><code>PRIVATE-TOKEN</code> ヘッダを付けても <span class="font-semibold">302</span>（サインインへ）。有効なのは <code>/api/v4/</code> のみ。本検証は一時的にプロジェクトをpublicにして取得した。</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 不具合 -->
+  <section class="mb-12">
+    <h2 class="text-xl font-bold text-slate-900 mb-4">検出した不具合（フェーズ3で修正）</h2>
+    <div class="rounded-xl border border-rose-200 bg-white overflow-hidden">
+      <div class="bg-rose-100 px-5 py-3">
+        <span class="font-bold text-rose-900"><code>gitlab_get_repo_url</code> が未定義のまま呼ばれている</span>
+        <span class="ml-2 text-xs text-rose-700">Gitlab.sh:162, :180</span>
+      </div>
+      <div class="p-5 text-sm space-y-4">
+        <div class="overflow-x-auto rounded bg-slate-900 p-4 text-xs text-slate-100">
+<pre>if repo_url="$(gitlab_get_repo_url 2&gt;/dev/null)" &amp;&amp; [ -n "$repo_url" ]; then   # 常に偽
+  mr_url="$(gitlab_get_mr_url "$repo_url" "$mr_number")"                       # 到達しない
+fi</pre>
+        </div>
+        <p><code>2&gt;/dev/null</code> が <code>command not found</code> を握りつぶすため、<span class="font-semibold">エラーも出ずにurl無しへ縮退する</span>。「失敗しても本体は成功させたい」という意図の握りつぶしが、そのまま不具合を覆い隠していた。</p>
+        <div>
+          <div class="font-semibold mb-2">なぜ混入したか — 並行ブランチの semantic conflict</div>
+          <div class="overflow-x-auto rounded-lg border border-slate-200">
+            <table class="min-w-full text-xs">
+              <thead class="bg-slate-100"><tr><th class="px-3 py-2 text-left">コミット</th><th class="px-3 py-2 text-left">日時</th><th class="px-3 py-2 text-left">内容</th></tr></thead>
+              <tbody class="divide-y divide-slate-100">
+                <tr><td class="px-3 py-2"><code>91432db</code></td><td class="px-3 py-2">08-18 13:21</td><td class="px-3 py-2">定義を<span class="font-semibold">追加</span></td></tr>
+                <tr><td class="px-3 py-2"><code>7ebc615</code></td><td class="px-3 py-2">08-19 10:53</td><td class="px-3 py-2">issue #42。呼び出しを<span class="font-semibold">追加</span>（当時は定義があり正しい）</td></tr>
+                <tr><td class="px-3 py-2"><code>8d01fbb</code></td><td class="px-3 py-2">08-19 11:07</td><td class="px-3 py-2">issue #44。定義を<span class="font-semibold">削除</span>（当時そのブランチに呼び出しは無い）</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="mt-2">2つは<span class="font-semibold">直系ではなく並行ブランチ</span>（merge-base <code>7f089a5</code>）。どちらも単体では正しく、組み合わさったときだけ壊れる。ファイルの別々の場所のため、gitは無言でマージした。</p>
+        </div>
+        <div class="rounded-lg border border-indigo-200 bg-indigo-50 p-4">
+          <div class="font-bold text-indigo-900">「関数の数が合わない」問題の正体でもある</div>
+          <p class="mt-1 text-indigo-900">issueは「#48で13関数」「その後25関数へ増え13が未検証」と書き、13+13=26 で1件合わなかった。差分を取ると <span class="font-semibold">#48当時にあって現在無い唯一の関数が <code>gitlab_get_repo_url</code></span>。つまり <code>13 − 1 + 13 = 25</code> で閉じる。<span class="font-semibold">数の不一致と本不具合は同じ削除に由来する。</span></p>
+        </div>
+        <p class="text-slate-600"><span class="font-semibold">同種の点検:</span> 全関数呼び出しを定義一覧と突き合わせた結果、未定義の呼び出しは<span class="font-semibold">この1件のみ</span>。</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- URL4種 / サブグループ -->
+  <section class="mb-12 grid gap-6 md:grid-cols-2">
+    <div>
+      <h2 class="text-xl font-bold text-slate-900 mb-3">URL系4種</h2>
+      <div class="overflow-x-auto rounded-lg border border-slate-200 bg-white">
+        <table class="min-w-full text-sm">
+          <thead class="bg-slate-100"><tr><th class="px-3 py-2 text-left">種別</th><th class="px-3 py-2 text-left">自動確認</th><th class="px-3 py-2 text-left">目視</th></tr></thead>
+          <tbody class="divide-y divide-slate-100">
+            <tr><td class="px-3 py-2">blob</td><td class="px-3 py-2 text-emerald-700">HTTP 200</td><td class="px-3 py-2 text-amber-700">依頼中</td></tr>
+            <tr><td class="px-3 py-2">差分アンカー</td><td class="px-3 py-2 text-emerald-700"><code>id=</code> と一致</td><td class="px-3 py-2 text-amber-700">依頼中</td></tr>
+            <tr><td class="px-3 py-2">noteパーマリンク</td><td class="px-3 py-2 text-emerald-700"><code>noteable_note_url</code> と一致</td><td class="px-3 py-2 text-amber-700">依頼中</td></tr>
+            <tr><td class="px-3 py-2">Compare</td><td class="px-3 py-2 text-emerald-700">HTTP 200</td><td class="px-3 py-2 text-amber-700">依頼中</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div>
+      <h2 class="text-xl font-bold text-slate-900 mb-3">サブグループ（3階層）</h2>
+      <div class="rounded-lg border border-slate-200 bg-white p-4 text-sm space-y-2">
+        <p><code>grp127/sub127/issue127-verify-sub</code> で確認。<span class="font-semibold text-emerald-700">解決できた。</span></p>
+        <div class="overflow-x-auto rounded bg-slate-900 p-3 text-xs text-slate-100">
+<pre>owner = "grp127/sub127"
+repo  = "issue127-verify-sub"</pre>
+        </div>
+        <p><code>owner</code> が「末尾以外すべて」を保持するため、2階層前提の命名でも破綻しない。MCPフォールバックはGitHub専用のため影響なし。</p>
+        <p class="text-slate-500 text-xs">観察: <code>get_mr_for_branch</code> の <code>draft</code> は GitLab では <code>null</code>（<code>glab mr list</code> のJSONに含まれないため）。</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 解消した未決定事項 -->
+  <section class="mb-12">
+    <h2 class="text-xl font-bold text-slate-900 mb-3">spec の「未決定事項・懸念点」への効果</h2>
+    <div class="overflow-x-auto rounded-lg border border-slate-200 bg-white">
+      <table class="min-w-full text-sm">
+        <thead class="bg-slate-100"><tr><th class="px-3 py-2 text-left">項目</th><th class="px-3 py-2 text-left">結果</th></tr></thead>
+        <tbody class="divide-y divide-slate-100">
+          <tr><td class="px-3 py-2">(issue #61) <code>gitlab_set_mr_ready</code> は実機未検証</td><td class="px-3 py-2 text-emerald-700 font-semibold">解消（冪等性・二重接頭辞まで確認）</td></tr>
+          <tr><td class="px-3 py-2">(issue #68) <code>search_issues</code> のCLI経路が実機未検証／<code>--all</code> の名称差</td><td class="px-3 py-2 text-emerald-700 font-semibold">解消（1.114.0 で機能）</td></tr>
+          <tr><td class="px-3 py-2">(issue #48・#45) プロジェクト構成（サブグループ）</td><td class="px-3 py-2 text-emerald-700 font-semibold">解消</td></tr>
+          <tr><td class="px-3 py-2">(issue #13) URL形式のブラウザ未検証</td><td class="px-3 py-2 text-amber-700 font-semibold">一部（自動確認は完了、目視は依頼中）</td></tr>
+          <tr><td class="px-3 py-2">バージョン・エディション（gitlab.com / EE）</td><td class="px-3 py-2 text-slate-500">範囲外のまま</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <footer class="border-t border-slate-200 pt-6 text-xs text-slate-500">
+    <p>結果の正文は <code>reports/20260820_zippy-petting-crown_GitLab実機検証結果.md</code>。本HTMLはその視覚化。</p>
+    <p class="mt-1">範囲外: gitlab.com（SaaS）・CE 18.5.4 以外のバージョン・EE・ssh経由のgit操作。</p>
+  </footer>
+
+</div>
+</body>
+</html>
