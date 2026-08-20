@@ -277,8 +277,23 @@ build_usage_report_body() {
       echo "### ${engine_label}より"
       echo "post-push-usage-report.sh による集計。"
       echo "セッション情報ログを解析した集計のため、目安として扱ってください。"
-      echo "既知の過小カウント要因が報告されています。"
-      echo "詳細:https://gille.ai/en/blog/claude-code-jsonl-logs-undercount-tokens/"
+      # 既知の過小カウント（ストリーミング応答の開始時点で書かれたプレースホルダー値が更新されない）は
+      # Claude Codeのtranscript JSONLについて報告されているものであり、Gemini CLIのセッションログに
+      # ついては同種の報告が無い。そのため、この2行はClaude Code由来のトークンを含むレポートにだけ出す。
+      # 出すかどうかは**engineではなくデータで決める**（issue #97・DDR 0052のトークン列と同じ理由。
+      # 状態ファイルはブランチ単位で、投稿に成功するまで `sinceLastPush` が繰り越されるため、
+      # Gemini CLIからの投稿でもClaude Code由来のモデル行が載りうる。その場合は注記が必要になる）。
+      # 判定条件はトークンテーブルの行と揃える（thoughtsキーを持たない＝Claude Code由来、かつ
+      # 全項目0で除外されない行）。表に出ていない行を根拠に注記だけが出ることを避けるため。
+      local has_claude_tokens
+      has_claude_tokens="$(printf '%s' "$usage" | jq -r '
+        (.tokensByModel // {}) | to_entries
+        | map(select([.value[] | select(type == "number")] | any(. != 0)))
+        | any(.[]; .value | has("thoughts") | not)' | tr -d '\r')"
+      if [ "$has_claude_tokens" = "true" ]; then
+        echo "既知の過小カウント要因が報告されています。"
+        echo "詳細:https://gille.ai/en/blog/claude-code-jsonl-logs-undercount-tokens/"
+      fi
     fi
   }
 }
