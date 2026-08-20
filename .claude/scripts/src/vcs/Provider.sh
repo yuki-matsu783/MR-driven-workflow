@@ -722,15 +722,49 @@ get_issue_number_from_branch() {
   return 1
 }
 
+# `git status --porcelain -z` の出力（標準入力）を「1行＝1つの実在するパス」へ変換する純粋関数。
+# 改名・コピーされたエントリは**新パスのみ**を返す（旧パスは既に存在しないため捨てる。issue #115）。
+#
+# `-z` 形式を使う理由（行単位の `--porcelain` を `sed -E 's/^...//'` で削っていた旧実装の問題）:
+# - 改名は行単位形式では `R  <旧パス> -> <新パス>` の1行になるため、先頭3文字（XY＋空白）を
+#   落としても `<旧パス> -> <新パス>` という**どちらのパスとしても存在しない1行**が残る。
+#   そのままファイル操作へ渡すと `No such file or directory` になる（issue #97の作業中に2回踏み、
+#   2回とも目視で回避した。ASCIIのみのパスなら見逃していた可能性が高い）。
+# - パス自体が ` -> ` を含みうる以上、行単位形式は本質的に曖昧で、区切りを一意に決められない。
+# - `-z` 形式では改名エントリが `XY <新パス>\0<旧パス>\0` という**新パスが先**の2フィールドになり
+#   （行単位形式とは順序が逆）、パスのクォートも行われないため、曖昧さなく分解できる。
+# - コミット済み分（`git diff --name-only`）は改名を新パス1件として返すため、この問題は
+#   未コミット分にのみ現れる。
+#
+# NUL区切りの出力はコマンド置換で受けられない（`.claude/rules/shell-script-style.md`
+# 「コマンド置換とNULバイト」）。この関数がNULを吸収して改行区切りへ変換することで、呼び出し側は
+# 従来どおり `$(...)` で結果を受け取れる。
+porcelain_z_to_paths() {
+  local entry status origin
+  while IFS= read -r -d '' entry; do
+    [ -n "$entry" ] || continue
+    status="${entry:0:2}"
+    printf '%s\n' "${entry:3}"
+    # 改名（R）・コピー（C）は、インデックス側・作業ツリー側のどちらの桁に現れても、直後に
+    # 旧パスのフィールドが続く（`R ` / `RM` / ` R` 等）。読み捨てて次のエントリへ進む。
+    case "$status" in
+      [RC]?|?[RC]) IFS= read -r -d '' origin || break ;;
+    esac
+  done
+}
+
 # 現在のブランチ固有（<defaultBaseBranch> には無い）の plans/worklog/reports ファイル一覧を返す
 # （コミット済み差分＋作業ツリーの未コミット分をマージ・重複排除）。プロバイダ非依存。
+# 出力は常に「1行＝1つの実在するパス」であり、`while IFS= read -r f` で回してそのままファイル
+# 操作へ渡せる（改名の扱いは上記 `porcelain_z_to_paths` を参照。issue #115）。
 #
 # 注意（core.quotepath）: gitは既定（core.quotepath=true）で、非ASCII文字を含むパスを
 # 8進エスケープ＋ダブルクォートで囲んだ形（例: "plans/\343\200\220..."）で出力する。
 # 個別作業計画は `plans/【調査】〜.md` のように日本語を含む命名（issue #9）のため、既定のままだと
 # 戻り値が人間にもスクリプトにも使えない文字列になる。`-c core.quotepath=false` を付けて
-# 生のパスを出力させる（`git ls-files -z` のようなNUL区切り出力なら元から影響を受けないが、
-# ここでは --name-only / --porcelain の行単位出力を使うため明示指定が必要）。
+# 生のパスを出力させる（未コミット分は `--porcelain -z` のNUL区切り出力になったため元から影響を
+# 受けないが、コミット済み分の `--name-only` は行単位出力のため明示指定が必要。両方に付けて
+# 揃えている）。
 get_branch_work_files() {
   local config plans_dir worklog_dir reports_dir base_branch committed working
   config="$(get_workflow_config)"
@@ -740,7 +774,7 @@ get_branch_work_files() {
   base_branch="$(printf '%s' "$config" | jq -r '.defaultBaseBranch')"
 
   committed="$(git -c core.quotepath=false diff --name-only "origin/${base_branch}...HEAD" -- "$plans_dir" "$worklog_dir" "$reports_dir" 2>/dev/null || true)"
-  working="$(git -c core.quotepath=false status --porcelain -- "$plans_dir" "$worklog_dir" "$reports_dir" | sed -E 's/^...//')"
+  working="$(git -c core.quotepath=false status --porcelain -z -- "$plans_dir" "$worklog_dir" "$reports_dir" | porcelain_z_to_paths)"
 
   printf '%s\n%s\n' "$committed" "$working" | sed '/^$/d' | sort -u
 }
