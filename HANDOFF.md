@@ -16,10 +16,10 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 
 - issue: #111
 - ブランチ: `claude/final-report-pr-summary-k822hz`
-- PR: （作成前）
-- push回数: 0
+- PR: #144（https://github.com/yuki-matsu783/MR-driven-workflow/pull/144 ）
+- push回数: 1
 - 現在のループ: なし
-- 追従監視: 未開始（PR作成後に開始する）
+- 追従監視: 購読あり（web。subscribe_pr_activity + 定期チェックイン）
 
 （進捗表は次タスク着手時に記入する）
 
@@ -34,11 +34,15 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - `main`（PR #137: DDR識別子を連番から `i<issue番号>-<枝番2桁>` へ全面改名）を merge して取り込んだ。
   ユーザー承認済み。今回追加するDDRは新方式で `i0111-01-...` として採番する。
 - issue #111 の全体作業計画を `plans/mellow-drifting-lantern.md` として作成した（flow-id 1-4）。
+- Draft PR #144 を作成し、defaultブランチの追従監視を開始した（flow-id 1-3）。
+- 個別調査計画 `plans/【調査】フェーズ5の番号繰り下げ範囲と添付APIの実現可能性.md` と
+  対応するworklogを作成した（flow-id 2-1）。
 
 ## 次にやること
 
-- flow-id 1-3: Draft PRを作成し、追従監視を開始する。
-- flow-id 2-1: 個別調査計画 `plans/【調査】〜.md` を作成する。
+- flow-id 2-6: 調査を実施し、結果を `reports/` のmd（正文）とhtmlへ記録する。
+  調査対象は (1) flow-id繰り下げの波及範囲の分類、(2) GitHub添付APIの実現可能性、
+  (3) PR/MR通常コメントの種別識別方針。
 
 ## 判断を迷った内容
 
