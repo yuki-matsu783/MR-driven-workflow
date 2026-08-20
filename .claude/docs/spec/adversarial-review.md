@@ -329,9 +329,12 @@ issue #43 以降、この行に続けて**指摘行前後のソーススライ�
 - ルールの本文は `.claude/skills/issue-mr-flow/SKILL.md` の `comments` サブコマンド手順4と
   「レビュー完了合図の確認」節が正で、`.claude/skills/adversarial-review/SKILL.md` には参照の
   1文だけを置く（手順の二重管理を避けるため）。
-- **未返信スレッドを機械的に検出する専用の関数・スクリプトは設けない。** `comments all` の出力で
-  「同じ `threadId=` を持つ `[review ...]` 行が1本しか無い」ことが返信ゼロの判定条件であり、
-  CLI経路・MCP経路のどちらでも同じ基準がそのまま使えるため（詳細・却下案は DDR 0061）。
+- **未返信スレッドを機械的に検出する専用の関数・スクリプトは設けない。** 判定条件は経路によらず
+  「**スレッド内のコメントが1件だけ＝返信ゼロ**」であり、CLI経路では `comments all` の出力
+  （同じ `threadId=` を持つ `[review ...]` 行が1本しか無い）、MCP経路では
+  `mcp__github__pull_request_read` が返す各スレッドの `comments` 配列の件数で読む。
+  **出力形式が違うため読み方は2通り書く必要があるが、それはドキュメント上の追記で済む**
+  （詳細・却下案は DDR 0061）。
 
 スレッドの解決（resolve）はレビュアー側の操作であり、本機構では行わない。
 
@@ -397,6 +400,7 @@ issue #77 で追加・変更したもの。
 | `.claude/skills/adversarial-review/SKILL.md` | 手順8の末尾へ返信の担当を示す**参照の1文**を追加／「してはいけないこと」へ投稿直後の自己返信の禁止を追加（**返信手順自体は書かない**） |
 | `.claude/docs/spec/adversarial-review.md` | 本ドキュメント。「投稿されたスレッドの取得」節へ返信の扱いを追記 |
 | `.claude/docs/ddr/0061-敵対的レビュー由来のスレッドも人間の指摘と同列に返信を必須とする.md` | 新規 |
+| `.claude/docs/spec/issue-mr-workflow.md` | 「チャットで受けたレビュー判断の記録」節の、繰り下がった手順番号への追随（手順5→手順6） |
 | `.claude/docs/README.md` | DDR一覧へ0061を追加 |
 
 コード（`.claude/scripts/`）の変更は無い。`get_mr_unresolved_comments` は元から敵対的レビューの

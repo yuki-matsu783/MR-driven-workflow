@@ -58,6 +58,31 @@ keywords: [敵対的レビュー, 返信, comments, reply, スレッド, 明文�
 
 コンフリクト検知 → 関連issue通知 → 片付け → Draft解除。マージは行わない。
 
+## この計画で決めないこと（スコープ外）
+
+- **返信文そのものの書式・テンプレート化**。何を書けば十分な返信かの型は決めない（`reply`
+  サブコマンドが定める署名規約のみに従う）。
+- **既に返信ゼロのままマージされたPR（#104 等）の遡及的な返信**。本issueは今後の運用ルールを
+  定めるもので、過去分の埋め合わせは行わない。
+- **スレッドの解決（resolve）を誰がいつ行うか**。解決はレビュアー側の操作という既存の方針
+  （`reply` は解決しない）を変えない。
+- **敵対的レビューの起動ポリシー・実施回数の上限**。DDR 0045・0055 の決定をそのまま使う。
+- **未返信スレッドの機械的検出を「将来も作らない」と決めること**。今回は作らないという判断で
+  あり、明文化だけでは返信漏れが止まらないと分かった時点で再検討の余地を残す（DDR 0061 (f)）。
+
+## 検証
+
+```bash
+# 1. 既存の単体テストがすべて通ること（コードは変更しない想定なので、変わらないことの確認）
+for f in .claude/scripts/test/*.sh; do echo "$(basename "$f"): $(bash "$f" 2>&1 | tail -1)"; done
+
+# 2. 手順番号を繰り下げた場合に、同ファイル内・他ファイルからの相互参照が追随できているか
+grep -rn "comments.*手順[0-9]\|手順[0-9].*comments" .claude/ --include=*.md
+
+# 3. HANDOFF.mdの進捗表が update-handoff-progress.sh で操作できる形になっていること
+bash .claude/scripts/src/update-handoff-progress.sh mark-done 4-1 --file /tmp/HANDOFF-test.md
+```
+
 ## 制約
 
 - `.claude/docs/spec/adversarial-review.md` の「影響範囲」節は point-in-time 記録であり、
