@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>issue #43 調査結果 — レビューコメント出力仕様</title>
+<script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-50 text-slate-800">
+<div class="max-w-5xl mx-auto px-5 py-10">
+
+  <header class="mb-10">
+    <p class="text-xs tracking-widest text-slate-500 uppercase">issue #43 / flow-id 2-6</p>
+    <h1 class="text-3xl font-bold mt-1 text-slate-900">レビューコメント取得APIの返却フィールドと断面</h1>
+    <p class="mt-2 text-sm text-slate-600">diffHunk廃止・断面ソースの前後行スライス化にあたっての調査結果（正文は同名の <code class="bg-slate-200 px-1 rounded">.md</code>）</p>
+  </header>
+
+  <!-- 結論 -->
+  <section class="mb-10">
+    <h2 class="text-xl font-semibold mb-4 text-slate-900 border-l-4 border-sky-500 pl-3">結論</h2>
+    <div class="grid md:grid-cols-3 gap-4">
+      <div class="bg-white rounded-lg shadow-sm border border-slate-200 p-5">
+        <div class="text-3xl font-bold text-sky-600">1</div>
+        <p class="mt-2 text-sm">正規化JSONは <b>GitHub / GitLab 双方から埋められる</b>。位置は <code>path</code>＋<code>line</code>＋<code>originalLine</code>＋<code>isOutdated</code>、断面は <code>sha</code> の1キーで表現できる。</p>
+      </div>
+      <div class="bg-white rounded-lg shadow-sm border border-slate-200 p-5">
+        <div class="text-3xl font-bold text-sky-600">2</div>
+        <p class="mt-2 text-sm">断面のblobは <b>shallow clone でもローカルで解決できた</b>（depth 190 で実測）。保証は無いため事前判定＋4段階のフォールバックを置く。</p>
+      </div>
+      <div class="bg-white rounded-lg shadow-sm border border-slate-200 p-5">
+        <div class="text-3xl font-bold text-rose-600">3</div>
+        <p class="mt-2 text-sm"><b>行数だけでは上限にならない</b>。同一ファイルの ±10行で 684B〜8,971B（<b>13.1倍</b>）の開き。バイト上限の併用は必須。</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- D: 実測 -->
+  <section class="mb-10">
+    <h2 class="text-xl font-semibold mb-2 text-slate-900 border-l-4 border-rose-500 pl-3">D. 上限制御の実測</h2>
+    <p class="text-sm text-slate-600 mb-4"><code>.claude/rules/docs-workflow.md</code>（131行 / 18,441B、平均141B/行）で指摘行を変えて ±10行のバイト数を測った。</p>
+    <div class="bg-white rounded-lg shadow-sm border border-slate-200 p-5">
+      <table class="w-full text-sm">
+        <thead><tr class="text-left text-slate-500 border-b border-slate-200">
+          <th class="py-2 w-20">指摘行</th><th class="py-2 w-28">切り出し範囲</th><th class="py-2 w-24 text-right">バイト</th><th class="py-2">相対</th>
+        </tr></thead>
+        <tbody class="divide-y divide-slate-100">
+          <tr><td class="py-2">5</td><td>1-15</td><td class="text-right font-mono text-emerald-700 font-semibold">684</td><td class="pl-3"><div class="bg-emerald-500 h-3 rounded" style="width:7.6%"></div></td></tr>
+          <tr><td class="py-2">12</td><td>2-22</td><td class="text-right font-mono">3,133</td><td class="pl-3"><div class="bg-sky-500 h-3 rounded" style="width:34.9%"></div></td></tr>
+          <tr><td class="py-2">20</td><td>10-30</td><td class="text-right font-mono">8,394</td><td class="pl-3"><div class="bg-amber-500 h-3 rounded" style="width:93.6%"></div></td></tr>
+          <tr><td class="py-2">30</td><td>20-40</td><td class="text-right font-mono text-rose-700 font-semibold">8,971</td><td class="pl-3"><div class="bg-rose-500 h-3 rounded" style="width:100%"></div></td></tr>
+          <tr><td class="py-2">40</td><td>30-50</td><td class="text-right font-mono">2,143</td><td class="pl-3"><div class="bg-sky-500 h-3 rounded" style="width:23.9%"></div></td></tr>
+        </tbody>
+      </table>
+      <p class="mt-4 text-sm text-slate-600">比較: 1行の短い <code>.claude/scripts/src/vcs/Provider.sh</code> では ±10行が <b>984B〜1,038B</b> に収まる。<b>ファイル種別で1桁違う。</b></p>
+    </div>
+    <div class="mt-4 grid md:grid-cols-2 gap-4">
+      <div class="bg-sky-50 border border-sky-200 rounded-lg p-4">
+        <p class="text-xs text-sky-700 font-semibold">既定値: 前後行数</p>
+        <p class="text-2xl font-bold text-sky-900">10 行</p>
+        <p class="text-xs text-slate-600 mt-1">指摘行を含め最大21行。<code>REVIEW_SOURCE_CONTEXT_LINES</code> で上書き可。</p>
+      </div>
+      <div class="bg-sky-50 border border-sky-200 rounded-lg p-4">
+        <p class="text-xs text-sky-700 font-semibold">既定値: バイト上限</p>
+        <p class="text-2xl font-bold text-sky-900">2,000 B</p>
+        <p class="text-xs text-slate-600 mt-1">最大 8,971B を約1/4.5へ。スレッド10件でも約20KB。<code>REVIEW_SOURCE_MAX_BYTES</code> で上書き可。</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 現行との比較 -->
+  <section class="mb-10">
+    <h2 class="text-xl font-semibold mb-4 text-slate-900 border-l-4 border-emerald-500 pl-3">現行との比較</h2>
+    <div class="bg-white rounded-lg shadow-sm border border-slate-200 overflow-x-auto">
+      <table class="w-full text-sm min-w-[600px]">
+        <thead><tr class="text-left text-slate-500 border-b border-slate-200 bg-slate-50">
+          <th class="py-2 px-4"></th><th class="py-2 px-4">現行（diffHunk）</th><th class="py-2 px-4">新（±10行 / 2,000B上限）</th>
+        </tr></thead>
+        <tbody class="divide-y divide-slate-100">
+          <tr><td class="py-2 px-4 font-semibold">1スレッドあたり</td><td class="py-2 px-4 text-rose-700">342B 〜 9,189B（24倍の開き）</td><td class="py-2 px-4 text-emerald-700">最大 2,000B（予測可能）</td></tr>
+          <tr><td class="py-2 px-4 font-semibold">返信N件のスレッド</td><td class="py-2 px-4 text-rose-700">diffHunkが N 回重複</td><td class="py-2 px-4 text-emerald-700">スライスは 1 回</td></tr>
+          <tr><td class="py-2 px-4 font-semibold">行番号</td><td class="py-2 px-4 text-rose-700">無い（<code>@@</code> から自力で数える）</td><td class="py-2 px-4 text-emerald-700">絶対行番号付き</td></tr>
+          <tr><td class="py-2 px-4 font-semibold">指摘行より後ろ</td><td class="py-2 px-4 text-rose-700">取れない</td><td class="py-2 px-4 text-emerald-700">取れる</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- C: フォールバック -->
+  <section class="mb-10">
+    <h2 class="text-xl font-semibold mb-4 text-slate-900 border-l-4 border-amber-500 pl-3">C. 断面取得のフォールバック（4段階）</h2>
+    <div class="space-y-3">
+      <div class="bg-white rounded-lg border border-slate-200 p-4 flex gap-4 items-start">
+        <span class="shrink-0 w-7 h-7 rounded-full bg-emerald-500 text-white text-sm font-bold grid place-items-center">1</span>
+        <div><p class="font-semibold text-sm">ローカルのblob</p><p class="text-xs text-slate-600 mt-1"><code>git cat-file -e &lt;sha&gt;:&lt;path&gt;</code> で判定 → <code>git show &lt;sha&gt;:&lt;path&gt;</code>。出力への注記なし。</p></div>
+      </div>
+      <div class="bg-white rounded-lg border border-slate-200 p-4 flex gap-4 items-start">
+        <span class="shrink-0 w-7 h-7 rounded-full bg-sky-500 text-white text-sm font-bold grid place-items-center">2</span>
+        <div><p class="font-semibold text-sm">プロバイダ別ファイル取得API（同じ断面）</p><p class="text-xs text-slate-600 mt-1">GitHub <code>gh api repos/{owner}/{repo}/contents/&lt;path&gt;?ref=&lt;sha&gt;</code>（<code>.content</code> はbase64）／GitLab <code>glab api projects/:id/repository/files/&lt;encoded&gt;/raw?ref=&lt;sha&gt;</code>。注記なし。</p></div>
+      </div>
+      <div class="bg-white rounded-lg border border-slate-200 p-4 flex gap-4 items-start">
+        <span class="shrink-0 w-7 h-7 rounded-full bg-amber-500 text-white text-sm font-bold grid place-items-center">3</span>
+        <div><p class="font-semibold text-sm">現HEAD</p><p class="text-xs text-slate-600 mt-1"><code>git show HEAD:&lt;path&gt;</code>。出力へ <b>「断面 &lt;sha&gt; を取得できず現HEADを表示」</b> を明示。</p></div>
+      </div>
+      <div class="bg-white rounded-lg border border-slate-200 p-4 flex gap-4 items-start">
+        <span class="shrink-0 w-7 h-7 rounded-full bg-slate-400 text-white text-sm font-bold grid place-items-center">4</span>
+        <div><p class="font-semibold text-sm">取得不可</p><p class="text-xs text-slate-600 mt-1"><b>「（ソース取得不可）」</b>を添える。<b>コメント本文だけは必ず出す</b>（ソースが取れないことでコメントまで落としてはならない）。</p></div>
+      </div>
+    </div>
+    <div class="mt-4 bg-slate-100 rounded-lg p-4 text-xs font-mono whitespace-pre-wrap text-slate-700">$ git rev-parse --is-shallow-repository
+true
+$ wc -l .git/shallow
+10 .git/shallow
+$ git rev-list --count HEAD
+190
+$ for c in 4b8fb20 d48b698 846c536 88e03b9; do git cat-file -e "$c:.claude/rules/docs-workflow.md"; done
+→ 全て OK（shallowでも切断点より新しいcommitのblobは存在する）</div>
+  </section>
+
+  <!-- 判明した非対称 -->
+  <section class="mb-10">
+    <h2 class="text-xl font-semibold mb-4 text-slate-900 border-l-4 border-violet-500 pl-3">副次的に判明した不具合</h2>
+    <div class="bg-rose-50 border border-rose-200 rounded-lg p-5">
+      <p class="font-semibold text-rose-900 text-sm">GitLabリポジトリでは未解決レビューコメントが常に0件と表示される</p>
+      <p class="text-sm text-slate-700 mt-2">行頭ラベルが GitHub は <code class="bg-white px-1 rounded">[review unresolved threadId=…]</code>、GitLab は <code class="bg-white px-1 rounded">[unresolved threadId=…]</code> と<b>非対称</b>である。<code>session-start.sh:169</code> は <code>^\[review unresolved threadId=</code> で数えているため、GitLab側は1件も一致しない。</p>
+      <p class="text-sm text-slate-700 mt-2"><b>整形を共通化すれば副次的に解消する。</b>（issue本文の項目5「実装の非対称」の具体的な帰結）</p>
+    </div>
+  </section>
+
+  <!-- A: MCP経路 -->
+  <section class="mb-10">
+    <h2 class="text-xl font-semibold mb-4 text-slate-900 border-l-4 border-slate-400 pl-3">A. MCP経路の制約（実測）</h2>
+    <div class="bg-white rounded-lg shadow-sm border border-slate-200 p-5">
+      <p class="text-sm mb-3">PR #37 に対し <code>mcp__github__pull_request_read (method="get_review_comments")</code> を実行した結果:</p>
+      <div class="bg-slate-100 rounded p-3 text-xs font-mono overflow-x-auto whitespace-pre-wrap text-slate-700">{"review_threads":[{"id":"PRRT_kwDOT7UgWc6aS9t8","is_resolved":true,"is_outdated":true,
+ "is_collapsed":true,"comments":[{"body":"…","path":"plans/【設計反映】…md",
+ "author":"yuki-matsu783","html_url":"…#discussion_r3808796698"}],"total_count":2}],"totalCount":1}</div>
+      <div class="mt-4 grid md:grid-cols-2 gap-3 text-sm">
+        <div class="bg-emerald-50 border border-emerald-200 rounded p-3"><p class="font-semibold text-emerald-800">返る</p><p class="text-xs mt-1"><code>is_resolved</code> / <code>is_outdated</code> / <code>is_collapsed</code> / <code>path</code> / <code>html_url</code></p></div>
+        <div class="bg-rose-50 border border-rose-200 rounded p-3"><p class="font-semibold text-rose-800">返らない</p><p class="text-xs mt-1"><code>line</code> / <code>original_line</code> / commitのsha</p></div>
+      </div>
+      <p class="text-sm mt-4 text-slate-700"><b>MCP経路ではソーススライスを作れない。</b>これは GitHub MCPサーバー側の制約であり本issueでは変えられない。SKILL.mdの対応表へ注記するに留める。</p>
+    </div>
+  </section>
+
+  <!-- 未検証 -->
+  <section class="mb-10">
+    <h2 class="text-xl font-semibold mb-4 text-slate-900 border-l-4 border-amber-400 pl-3">確かめられなかったこと（【未検証】）</h2>
+    <ul class="space-y-2 text-sm">
+      <li class="bg-amber-50 border border-amber-200 rounded p-3"><b>GitHub GraphQL の実フィールド</b>：この環境に <code>gh</code> が無く実行できない（<code>get_vcs_access_mode</code> が <code>mcp</code>）。公開スキーマに基づく設計であり、実装側は「null で返っても壊れない」形にする。<code>gh</code> のある環境で <code>comments</code> を1回実行すれば確認できる。</li>
+      <li class="bg-amber-50 border border-amber-200 rounded p-3"><b>GitLab の <code>position</code> の実値</b>：remote が GitHub のみのため実機検証できない。issue #128（ローカルGitLab CEでの実機検証）の対象へ、本issueで追加する関数を加えてもらうのが自然。</li>
+    </ul>
+  </section>
+
+  <footer class="pt-6 border-t border-slate-200 text-xs text-slate-500">
+    <p>正文: <code>reports/2026-08-20_issue43-review-comment-source-slice_レビューコメント出力仕様の調査.md</code> ／ 個別調査計画: <code>plans/【調査】レビューコメント取得APIの返却フィールドと断面.md</code></p>
+    <p class="mt-1">本ファイルは flow-id 5-3 で <code>plans/</code> <code>worklog/</code> とまとめて削除される。恒久的に残す内容は flow-id 4-6 で <code>.claude/docs/spec/</code> <code>.claude/docs/ddr/</code> へ反映する。</p>
+  </footer>
+
+</div>
+</body>
+</html>
