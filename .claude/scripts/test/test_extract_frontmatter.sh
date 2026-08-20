@@ -34,6 +34,17 @@ assert_eq() {
   fi
 }
 
+# 部分一致の判定を 0/1 で返す。日本語を含む文字列は ${var:0:N} で切り出すとバイト単位で壊れるため、
+# 位置ではなくパターンで見る（.claude/rules/shell-script-style.md「テスト」）。
+status_of_contains() {
+  local haystack="$1" needle="$2"
+  if [[ "$haystack" == *"$needle"* ]]; then
+    printf '0'
+  else
+    printf '1'
+  fi
+}
+
 # フィクスチャのmarkdownを作り、そのパスを返す
 make_md() {
   local name="$1"
@@ -259,6 +270,56 @@ assert_eq "build_index_lineはハイフン始まり要素の行を生成する" 
 assert_eq "build_index_lineはyq不在でも同じ行を生成する" \
   "$hyphen_expected" \
   "$(PATH="$fake_bin"; build_index_line "$f" "docs/sample" "docs" "2026-01-02T03:04:05")"
+
+# --- 削除済みの追跡ファイル（issue #117）-------------------------------------
+
+# 列挙に使う `git ls-files --cached` は「削除したがまだステージしていない」追跡ファイルも返す。
+# 実体の無いパスをそのまま stat へ渡していたため、一括取得（xargs）と1件ずつの再取得の両方が
+# 倒れ、**走査全体が中断**していた（無関係なディレクトリの index.jsonl まで再生成されない）。
+# `cleanup-task.sh` はコミットせずに削除するため、この状態は異常系ではなく正常系として必ず起きる。
+# 列挙は main にしか無く純粋関数では再現できないため、使い捨てのgitリポジトリを作って実プロセスと
+# して起動する（test_search_frontmatter.sh と同じ切り分け）。
+# ステージするだけで `--cached` の列挙対象になるので、コミットは行わない。
+
+ef_script="$repo_root/.claude/scripts/src/extract-frontmatter.sh"
+del_repo="$fixture_dir/deleted-repo"
+mkdir -p "$del_repo/plans" "$del_repo/docs"
+git -C "$del_repo" init -q 2>/dev/null || git -C "$del_repo" init >/dev/null 2>&1
+printf '**/index.jsonl\n' >"$del_repo/.gitignore"
+printf -- '---\ntitle: 残るファイル\ntype: plan\n---\n\n本文\n' >"$del_repo/plans/keep.md"
+printf -- '---\ntitle: 消えるファイル\ntype: plan\n---\n\n本文\n' >"$del_repo/plans/gone.md"
+printf -- '---\ntitle: 無関係\ntype: spec\n---\n\n本文\n' >"$del_repo/docs/other.md"
+git -C "$del_repo" add -A >/dev/null 2>&1
+
+# 実プロセスとして起動する。cd はサブシェルへ閉じ込め、テスト側のカレントを動かさない。
+run_ef() { ( cd "$del_repo" && bash "$ef_script" "$@" 2>"$fixture_dir/ef-stderr.txt" ); }
+run_ef_status() { if run_ef "$@" >/dev/null; then echo 0; else echo 1; fi; }
+ef_stderr() { cat "$fixture_dir/ef-stderr.txt"; }
+
+assert_eq "削除前: 全ファイルを走査して成功する" "0" "$(run_ef_status .)"
+assert_eq "削除前: サマリのskippedは0" "files=3 built=3 reused=0 failed=0 skipped=0" \
+  "$(ef_stderr | tail -1)"
+# 残るファイルの行だけを控えておき、削除後も内容が一致する（行が作り直されない）ことを確かめる
+keep_line_before="$(grep -F -- '"concept_id":"plans/keep"' "$del_repo/plans/index.jsonl")"
+
+# 追跡されたまま削除する（ステージしない）。index.jsonl も一緒に消えるのは cleanup-task.sh と同じ。
+rm -f "$del_repo/plans/gone.md" "$del_repo/plans/index.jsonl"
+
+assert_eq "削除済みが混じっても成功する" "0" "$(run_ef_status .)"
+assert_eq "削除済みをスキップし、残り2件を走査する" "files=2 built=1 reused=1 failed=0 skipped=1" \
+  "$(ef_stderr | tail -1)"
+assert_eq "スキップした件数を警告として出す" "0" \
+  "$(status_of_contains "$(ef_stderr)" 'skipped 1 deleted file(s)')"
+assert_eq "削除済みファイルはインデックスから消える" "$keep_line_before" \
+  "$(cat "$del_repo/plans/index.jsonl")"
+assert_eq "無関係なディレクトリのindex.jsonlも再生成される" "1" \
+  "$(wc -l <"$del_repo/docs/index.jsonl")"
+
+# 対象ディレクトリのmarkdownが全滅した場合も、stat で落ちずに正常終了する
+rm -f "$del_repo/plans/keep.md" "$del_repo/plans/index.jsonl"
+assert_eq "対象が全滅しても成功する" "0" "$(run_ef_status plans)"
+assert_eq "対象が全滅したら走査対象なしとして終わる" "0" \
+  "$(status_of_contains "$(ef_stderr)" 'no markdown files found')"
 
 # --- 結果 --------------------------------------------------------------------
 

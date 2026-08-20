@@ -2465,13 +2465,13 @@ Draft解除 → 5-5 マージ** の順へ並べ替えた（旧 5-1 片付け →
 | 5-3 | `plans/` `worklog/` `reports/` を削除し `HANDOFF.md` をリセットする | 5-1 |
 
 並べ替えの理由（旧順序の4つの不整合）と却下案は
-[0057-フェーズ5は片付けをcommit直前へ移した順序に並べ替える.md](../ddr/0057-フェーズ5は片付けをcommit直前へ移した順序に並べ替える.md)。
+[0058-フェーズ5は片付けをcommit直前へ移した順序に並べ替える.md](../ddr/0058-フェーズ5は片付けをcommit直前へ移した順序に並べ替える.md)。
 関連issue通知（5-2）の手順に、キーワード抽出時 `plans/` `worklog/` `reports/` を差分から除外する
 （`git diff --stat "origin/${base}...HEAD" -- . ':(exclude)plans' …`）旨を追加した。新順序では
 これらがまだ削除されておらず差分に含まれるためである。
 
 新規:
-- `.claude/docs/ddr/0057-フェーズ5は片付けをcommit直前へ移した順序に並べ替える.md`
+- `.claude/docs/ddr/0058-フェーズ5は片付けをcommit直前へ移した順序に並べ替える.md`
 
 変更:
 - `.claude/skills/issue-mr-flow/SKILL.md`（全体フロー表の 5-1〜5-3 の並べ替え、フェーズ一覧の語順、
@@ -2495,7 +2495,7 @@ Draft解除 → 5-5 マージ** の順へ並べ替えた（旧 5-1 片付け →
   `.claude/docs/spec/create-commit.md` / `.claude/docs/spec/extract-frontmatter.md` /
   `.claude/docs/spec/update-handoff-progress.md`（現在の状態を説明する記述の flow-id）
 - `.claude/docs/spec/issue-mr-workflow.md`（本ファイル。仕様側の flow-id 参照と本エントリ）
-- `.claude/docs/README.md`（spec一覧の cleanup-task.md の説明、DDR一覧へ0057を追加）
+- `.claude/docs/README.md`（spec一覧の cleanup-task.md の説明、DDR一覧へ0058を追加）
 - `.claude/docs/spec/check-base-sync.md`（issue #67 が追加した判定軸の比較の flow-id）
 
 **mainのマージ（issue #67 / PR #107）で持ち込まれた記述の追随**: 同時期に入った

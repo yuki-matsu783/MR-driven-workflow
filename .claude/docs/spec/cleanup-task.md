@@ -87,6 +87,17 @@ bash .claude/scripts/src/cleanup-task.sh [--dry-run] [--skip-index]
 （削除したファイルの行が `index.jsonl` に残らないようにするため）。`--dry-run` / `--skip-index`
 のときは実行しない。
 
+このステップは本スクリプトが**コミットする前**（下記「コミットはしない」）に走るため、削除は
+ワーキングツリーにしか反映されていない。`extract-frontmatter.sh` は `git ls-files --cached` で
+対象を列挙するので、**削除済みだが追跡されたままのファイル**が列挙結果に混じる。この状態で
+実体の無いパスを `stat` しようとして、issue #117 以前は**追跡ファイルを1件でも削除した時点で
+必ず失敗していた**（`frontmatterIndex.exitCode: 1`。issue #97 の flow-id 5-1 で実際に発生）。
+
+対処は `extract-frontmatter.sh` 側で行った。列挙結果のうちワーキングツリーに実体が無いパスを
+スキップするため、本スクリプトの手順・順序は変えていない（詳細:
+[.claude/docs/spec/extract-frontmatter.md](extract-frontmatter.md)「削除済みの追跡ファイルの扱い」、
+[.claude/docs/ddr/0057-削除済み追跡ファイルの除外はextract-frontmatter側で行う.md](../ddr/0057-削除済み追跡ファイルの除外はextract-frontmatter側で行う.md)）。
+
 ### コミットはしない
 
 このリポジトリのコミットは `commit` スキル経由に限られる（`.claude/rules/git-workflow.md`
@@ -157,13 +168,32 @@ bash .claude/scripts/src/cleanup-task.sh [--dry-run] [--skip-index]
 `REVIEW-POINTS.md` を削除しない要件を `KEEP_BASENAMES` として取り込んだ（`plans/REVIEW-POINTS.md`
 `reports/REVIEW-POINTS.md` は追跡対象として `main` に存在する）。
 
+### issue #117（frontmatterインデックス再生成が必ず失敗する）
+
+本スクリプト自体は変更していない。原因は `extract-frontmatter.sh` が `git ls-files --cached` の
+列挙結果に含まれる削除済みファイルを `stat` していたことにあり、そちらで対処した（上記
+「frontmatterインデックスの再生成」）。
+
+変更:
+- `.claude/scripts/src/extract-frontmatter.sh`（削除済みパスのスキップ。詳細は
+  [.claude/docs/spec/extract-frontmatter.md](extract-frontmatter.md)「影響範囲」）
+- `.claude/scripts/test/test_cleanup_task.sh`（`main` の結合テストを追加。下記「未決定事項」の
+  該当項目が解消した）
+
+新規:
+- `.claude/docs/ddr/0057-削除済み追跡ファイルの除外はextract-frontmatter側で行う.md`
+
 ## 未決定事項・懸念点
 
 - **残すものの一覧はスクリプト内の定数（`KEEP_PATHS`・`KEEP_BASENAMES`）である。** 現在の対象は
   `worklog/TEMPLATE.md` と `REVIEW-POINTS.md` の2件だけで、`.mrworkflow.json` からは読まない。
   他プロジェクトへ移植した際に残したいファイルが増えたら、設定ファイルへ逃がすか定数へ足すかを
   改めて判断する。
-- **`main` の結合テストは持たない。** `.claude/scripts/test/` は実リポジトリを汚さない方針のため、
-  削除・リセットの検証は一時ディレクトリへ作ったフィクスチャリポジトリでの手動確認で代えている
-  （issue #28 対応時に、dry-run／実行／2回目の冪等性／`extract-frontmatter.sh` 不在・異常終了・
-  不正な引数・不正な設定の各経路を確認した）。フィクスチャを作る結合テストを常設するかは未決定。
+- **（解消）`main` の結合テストは持たない**: issue #117 で常設した。「実リポジトリを汚さない」方針は
+  変えず、`mktemp -d` + `git init` の使い捨てリポジトリの中で実プロセスとして起動する
+  （`test_search_frontmatter.sh` と同じ切り分け）。削除は実際に走るが対象はフィクスチャのみ。
+  常設したのは、issue #117 の不具合が「手順の順序」に起因し、`main` を通さない純粋関数テストでは
+  原理的に検出できなかったため。現在の対象は通常実行・`--dry-run`・`--skip-index` の3経路
+  （`frontmatterIndex.exitCode`・削除結果・`index.jsonl` の内容・`HANDOFF.md` のリセット）。
+  issue #28 対応時に手動確認していた 2回目の冪等性・`extract-frontmatter.sh` 不在・異常終了・
+  不正な引数・不正な設定の各経路は、引き続き手動確認のままで常設していない。
