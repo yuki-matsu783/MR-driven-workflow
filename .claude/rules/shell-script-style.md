@@ -342,6 +342,30 @@ issue #11の実例: `extract-frontmatter.sh` がfrontmatterのキー・配列要
   [ "$(wc -c < "$f")" = "$(tr -d '\0' < "$f" | wc -c)" ] && echo 'NULなし'
   ```
 
+- **`git status --porcelain` からパスを取り出すときは `-z` を付ける**（issue #115。issue #97の
+  作業中に2回踏んだ）。行単位形式は改名・コピーを `R  <旧パス> -> <新パス>` の**1行**で出すため、
+  先頭3文字（XY＋空白）を落とす `sed -E 's/^...//'` では、**どちらのパスとしても存在しない
+  1行**が残る。そのままファイル操作へ渡すと `No such file or directory` になる。
+  さらに空白を含むパスはダブルクォートで囲まれるため、アンクォート処理まで要る。
+  **パス自体が ` -> ` を含みうる以上、行単位形式は後段でどれだけ丁寧に分解しても曖昧**である。
+  `-z` なら改名エントリは `XY <新パス>\0<旧パス>\0` の2フィールド（**行単位形式とは順序が逆で
+  新パスが先**）になり、クォートも行われない。
+
+  ```bash
+  # 悪い例（改名があると "旧パス -> 新パス" という存在しない1行が混ざる）
+  git -c core.quotepath=false status --porcelain -- "$dir" | sed -E 's/^...//'
+  # 良い例（改名・コピーは新パスだけを採り、旧パスのフィールドは読み捨てる）
+  while IFS= read -r -d '' entry; do
+    printf '%s\n' "${entry:3}"
+    case "${entry:0:2}" in [RC]?|?[RC]) IFS= read -r -d '' _origin || break ;; esac
+  done < <(git -c core.quotepath=false status --porcelain -z -- "$dir")
+  ```
+
+  この分解は**純粋関数へ切り出して単体テストを書く**（実例: `Provider.sh` の
+  `porcelain_z_to_paths`）。NULを吸収して改行区切りへ変換する関数にしておけば、呼び出し側は
+  従来どおり `$(...)` で結果を受け取れる（上記「コマンド置換はNULバイトを保持できない」制約を
+  呼び出し側へ波及させずに済む）。
+
 ## 命名規則
 
 - 関数名はsnake_caseにする（PowerShellの`Verb-Noun`規約から移植する場合は

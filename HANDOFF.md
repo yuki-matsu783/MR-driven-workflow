@@ -17,7 +17,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - issue: #117
 - ブランチ: `claude/cleanup-task-frontmatter-index-8wjloa`
 - PR: #124（https://github.com/yuki-matsu783/MR-driven-workflow/pull/124 ）
-- push回数: 2
+- push回数: 3
 - 現在のループ: なし
 - 追従監視: 購読あり（web。subscribe_pr_activity + 定期チェックイン）
 
@@ -58,14 +58,14 @@ issue #117（`cleanup-task.sh` のfrontmatterインデックス再生成が、�
   - `.claude/docs/spec/extract-frontmatter.md` / `.claude/docs/spec/cleanup-task.md`
   - `.claude/docs/ddr/0057-削除済み追跡ファイルの除外はextract-frontmatter側で行う.md`（新規）
   - `.claude/docs/README.md`（DDR一覧）/ `.claude/rules/shell-script-style.md`（教訓を追記）
-- `.claude/scripts/test/` の全11スクリプトが `failures=0`（合計566ケース）。
+- `.claude/scripts/test/` の全12スクリプトが `failures=0`（mainのマージ後、合計633ケース）。
 
 ## 次にやること
 
 - PR #124 のレビュー待ち。マージはユーザーの明示指示があるまで行わない。
 - defaultブランチの追従を監視中（本セッション中のみ有効。セッションが終わったら次のセッションの
-  `resume` で取り直す）。作業中に main は2回進んだ（PR #107 → #122）。#107 とはDDR番号が衝突した
-  ため解消済み、#122 とはコンフリクト無し。
+  `resume` で取り直す）。作業中に main は3回進んだ（PR #107 → #122 → #123）。#107 とはDDR番号が
+  衝突したため解消済み、#122・#123 は `HANDOFF.md` のみの競合で解消済み。
 
 ## 判断を迷った内容
 
@@ -89,6 +89,10 @@ issue #117（`cleanup-task.sh` のfrontmatterインデックス再生成が、�
   コンフリクト解消記録・リセット済みの状態）は取り込まず、本ブランチ（issue #117）の内容を
   採用した**。コンフリクト部分だけでなく、自動マージで入り込む可能性のある箇所も
   `git diff HEAD -- HANDOFF.md` で通しで確認している。
+- 2回目のmainのマージ（PR #122・#123 の追従）では、競合したのは `HANDOFF.md` の
+  「判断を迷った内容」節のみだった（類型C）。main側はリセット済みの `（無し）`、本ブランチ側は
+  上記の記録であり、**「1ブランチ1状態」の原則から本ブランチ側を採用した**。今回はDDR番号の
+  衝突は無い（main側は0056までで、本ブランチの0057と重ならない）。
 
 ## 未解決の内容
 

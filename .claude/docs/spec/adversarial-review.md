@@ -3,7 +3,7 @@ title: 敵対的レビュー
 type: spec
 description: 独立コンテキストの専任サブエージェントが意図的に欠陥を探し、指摘をMRへインラインコメントとして投稿する敵対的レビュー機構の仕様
 tags: [adversarial-review, review, issue-mr-flow, spec]
-keywords: [敵対的レビュー, インラインコメント, findings, 実施回数, REVIEW-POINTS, 有効行, new_line, old_line, 確度, 重大度]
+keywords: [敵対的レビュー, インラインコメント, findings, 実施回数, REVIEW-POINTS, 有効行, new_line, old_line, 確度, 重大度, スレッド, discussions, サマリ]
 ---
 
 # 敵対的レビュー
@@ -206,7 +206,9 @@ add_mr_inline_comments <MR番号> <findings JSONファイル>   # → {"posted":
 **findingsは必ずファイル経由で渡す。** jqの引数長上限（`jq: Argument list too long`）と、
 コマンド文字列へのhook誤検知語の混入の両方を避けるため（`.claude/rules/shell-script-style.md`）。
 
-`summarized` は、対象がdiffに含まれず行を指定できなかったためレビュー本文（サマリ）へ回った件数。
+`summarized` は、対象がdiffに含まれず行を指定できなかったためサマリへ回った件数。サマリの出し方は
+プロバイダで異なり、GitHubは**レビュー本文**へ載せ、GitLabは**別コメント**として投稿する
+（指摘を含むならスレッドとして。後述「インライン以外のコメントもスレッドで投稿する」）。
 
 ### GitHubの投稿
 
@@ -253,7 +255,36 @@ add_mr_inline_comments <MR番号> <findings JSONファイル>   # → {"posted":
   無視できる（`.claude/rules/shell-script-style.md`「外部プロセス起動のコスト」は、ファイル数に
   比例して外部コマンドを起動するホットパスを対象とした指針である）。
 - GitHubと違い**まとめ役のレビュー本文が存在しない**ため、投稿できなかった指摘のサマリは
-  `gitlab_add_mr_comment` で通常コメントとして別途投稿する。
+  別の1コメントとして投稿する。**このサマリが指摘を1件でも含む場合は、単発noteではなく
+  `discussions`（スレッド）で投稿する**（下記）。
+
+#### インライン以外のコメントもスレッドで投稿する（issue #121）
+
+サマリの投稿先は `gitlab_summary_post_kind` が件数から決める（`thread` / `note`）。
+
+| サマリに含まれる指摘 | 投稿先 | 理由 |
+|---|---|---|
+| 1件以上 | `discussions`（`gitlab_add_mr_thread`） | インラインの指摘と同じく**対応を求める内容**であり、レビュアーが解決でき、`add_mr_thread_reply` で返信できる形にする必要がある |
+| 0件 | `notes`（`gitlab_add_mr_comment`） | 本文が「すべての指摘をインラインコメントで示しています」という通知でしかなく、スレッドにすると誰も解決しないまま未解決一覧に残り続ける |
+
+`notes` APIで作ったnoteはGitLab上で `individual_note: true` / `resolvable: false` になる。
+`gitlab_format_discussion_notes` は**resolvable でないnoteを常に「未解決」として出力する**ため
+（解決しようが無いので当然そうなる）、対応を求めるコメントを単発noteで投稿すると、対応済みに
+なっても `comments` サブコマンドの未解決一覧に残り続け、レビュー往復の完了判定を濁す。
+`discussions` APIで投稿すればレビュアーが解決でき、この問題が起きない。
+
+以下は採らなかった。
+
+- **サマリの指摘を1件ずつ別スレッドにする。** 解決の粒度は細かくなるが、`posted`（インラインで
+  示せた件数）と `summarized`（示せずサマリへ回った件数）という戻り値の意味が曖昧になる。
+  行を指定できなかった指摘は、そもそもレビュアーが「どこの話か」を本文から読み取る必要があり、
+  1つのスレッドにまとめて示すほうが読みやすい。
+- **`gitlab_add_mr_comment` 自体を `discussions` へ切り替える。** 同関数は対応工数レポート
+  （`post-push-usage-report.sh`）も使っており、そちらは**対応を求めない通知**である。
+  スレッド化すると上記と同じ理由で未解決一覧を汚す。用途が違うため関数を分けた。
+
+GitHub側は、インラインで示せなかった指摘を**レビュー本文**へ載せる形が既にまとめ役として
+機能しているため変更しない（GitLabにその受け皿が無いことが、この分岐の出発点である）。
 
 ### AIの署名
 
@@ -324,6 +355,16 @@ issue #77 で追加・変更したもの。
 新規（issue #106）:
 - `.claude/docs/ddr/0055-敵対的レビューの非対話判定は環境変数ではなくAIエージェントの判断に委ねる.md`
 
+### 追記: GitLabのサマリをスレッドで投稿する（issue #121）
+
+| ファイル | 内容 |
+|---|---|
+| `.claude/scripts/src/vcs/Gitlab.sh` | `gitlab_add_mr_thread`（`discussions` APIで非インラインのスレッドを立てる）／ `gitlab_summary_post_kind`（サマリの投稿先の判定）を追加、`gitlab_add_mr_inline_comments` のサマリ投稿を分岐 |
+| `.claude/scripts/test/test_vcs_provider.sh` | `gitlab_summary_post_kind` のテストを追加（3件） |
+| `.claude/docs/spec/adversarial-review.md` | 「インライン以外のコメントもスレッドで投稿する」節 |
+| `.claude/docs/spec/issue-mr-workflow.md` | Provider関数一覧の `add_mr_inline_comments` 行 |
+| `.claude/skills/adversarial-review/SKILL.md` | 手順7（issue #106以前は手順8）の戻り値の説明 |
+
 ## 設定項目
 
 | 項目 | 既定 | 変更方法 |
@@ -340,5 +381,10 @@ issue #77 で追加・変更したもの。
   深い階層に観点表が増えると、サブエージェントへ渡す観点表が長くなる。
 - **`/code-review` との併用方針。** 併用してよいとしているが、同じ欠陥が両方から指摘されたときの
   扱い（重複コメント）は運用で吸収している。
-- **サマリへ回った指摘の追跡。** レビュー本文（GitHub）・通常コメント（GitLab）に載るだけで、
-  スレッドとして解決状態を持たない。件数が増えた場合の扱いは未定。
+- **サマリへ回った指摘の追跡（GitHub）。** レビュー本文に載るだけで、スレッドとして解決状態を
+  持たない。件数が増えた場合の扱いは未定。GitLab側は `discussions` で1つのスレッドとして投稿する
+  ようにしたため解決状態を持つ（上記「インライン以外のコメントもスレッドで投稿する」）が、
+  スレッド内の指摘は個別には解決できない。
+- **非インラインのスレッド投稿は未検証。** このリポジトリにGitLab remoteが無く、
+  `gitlab_add_mr_thread` を実機で叩けていない（`position` を持たない `discussions` へのPOSTと、
+  それがMR上で解決可能なスレッドになることの確認）。同ファイルの他のGitLab関数と同じ扱い。
