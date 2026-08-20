@@ -536,6 +536,304 @@ _usage_aggregate_and_merge_subagents() {
   jq -n --argjson state "$existing" --argjson agents "$ranges" '{state: $state, agents: $agents}'
 }
 
+# --------------------------------------------------------------------------------------------
+# Gemini CLI のセッションログ（追記型JSONL）専用の集計（issue #97）
+# --------------------------------------------------------------------------------------------
+#
+# Claude Code の transcript と違い、Gemini CLI の chats/*.jsonl は「同じ id のメッセージが
+# 複数行にわたって再送される」（トークンの後埋め・ツールの status 遷移）。そのため
+# _usage_aggregate_new_lines のような「前回カーソル以降の新規行だけを足す」方式は使えず、
+# 同じメッセージを何度も数えてしまう。代わりに **毎回ファイル全体を id 単位で畳んで累計
+# スナップショットを作り、前回の累計との差分を取る**（設計判断C）。
+#
+# セッションログのレコードは3種類（Gemini CLI v0.39.0 以降）。
+#   - メッセージ本体（`id` を持つ）
+#   - `{"$set": {...}}`   メタデータの部分更新。`messages` を含む場合は全メッセージの再送
+#   - `{"$rewindTo": "<messageId>"}`  `/rewind` の記録。**集計からは外さない**（設計判断D。
+#     会話としては切り詰められても、課金とツール実行は実際に起きているため）
+
+# セッションJSONLを畳み込み、累計スナップショットをJSONでstdoutへ返す。
+#
+#   出力: {totalLines, turns, activeSeconds,
+#          tokens: {"<model>": {input, output, cached, thoughts, tool}},
+#          tools: {"<toolName>": <回数>},
+#          toolErrors: {"<toolName>": <回数>},
+#          models: ["<model>", ...]}
+#
+# 実装上の注意:
+#   - jqへはファイルパスを渡し `-R -n` + `inputs` で読ませる（ファイル内容を --argjson で運ぶと
+#     `Argument list too long` になる。.claude/rules/shell-script-style.md「JSON操作」）。
+#   - `def days_from_civil` / `def epoch_from_iso8601` は _usage_aggregate_transcript の
+#     jqプログラム内に定義されている同名defの **複製** である（あちらはシェル関数ではなく
+#     jqのdefなので外から呼べない）。共通化するとClaude Code側の関数へ手を入れることになり、
+#     「既存の集計結果を変えない」という担保が弱くなるため、意図的に複製している。
+#   - `tokens.total` は加算しない（内訳の合計であり、二重計上になる）。
+#   - activeSeconds は _usage_aggregate_transcript と同じ算出方式（設計判断Q）。**走査後の
+#     末尾セグメントを閉じる TAIL_BUFFER_SECONDS の加算まで含めて**同じにする。これを落とすと
+#     メッセージ1件のセッションが常に0秒になり、Claude Code経路と定義がずれる。
+_usage_gemini_fold() {
+  local jsonl_path="$1"
+  jq -R -n \
+    --argjson idleThreshold "$IDLE_GAP_THRESHOLD_SECONDS" \
+    --argjson tailBuffer "$TAIL_BUFFER_SECONDS" '
+    def zero_bucket: {input: 0, output: 0, cached: 0, thoughts: 0, tool: 0};
+    # グレゴリオ暦の年月日→エポック日数（1970-01-01を0とする）。strptime/mktimeに依存しない。
+    def days_from_civil($y; $m; $d):
+      (if $m <= 2 then $y - 1 else $y end) as $yAdj
+      | ($yAdj / 400 | floor) as $era
+      | ($yAdj - $era * 400) as $yoe
+      | ((153 * ($m + (if $m > 2 then -3 else 9 end)) + 2) / 5 | floor) as $doy
+      | ($yoe * 365 + ($yoe / 4 | floor) - ($yoe / 100 | floor) + $doy + $d - 1) as $doe
+      | ($era * 146097 + $doe - 719468);
+    # "YYYY-MM-DDTHH:MM:SS" で始まる文字列（末尾のミリ秒・Zは無視）をUTCエポック秒へ変換する。
+    def epoch_from_iso8601:
+      . as $s
+      | ($s[0:4]   | tonumber) as $Y
+      | ($s[5:7]   | tonumber) as $Mo
+      | ($s[8:10]  | tonumber) as $D
+      | ($s[11:13] | tonumber) as $H
+      | ($s[14:16] | tonumber) as $Mi
+      | ($s[17:19] | tonumber) as $S
+      | (days_from_civil($Y; $Mo; $D) * 86400 + $H * 3600 + $Mi * 60 + $S);
+
+    # 1行を0個以上のメッセージへ展開する。メタデータ行・$rewindTo は空を返す（読み飛ばす）。
+    def to_messages:
+      if type != "object" then empty
+      elif has("$rewindTo") then empty
+      elif has("$set") then (.["$set"].messages // [])[]
+      elif (.id != null) then .
+      else empty
+      end;
+
+    # 後勝ちマージ。ただし新しい版の tokens が null/欠落なら、前の版の tokens を引き継ぐ
+    # （実測で「tokens なしの版が後に来る」ことがあるため。設計判断F）。
+    def merge_message($prev; $new):
+      if $prev == null then $new
+      else $new + (if ($new.tokens // null) == null and ($prev.tokens // null) != null
+                   then {tokens: $prev.tokens} else {} end)
+      end;
+
+    reduce (inputs | select(length > 0)) as $line (
+      {byId: {}, totalLines: 0};
+      .totalLines += 1
+      | reduce (($line | (try fromjson catch empty)) | to_messages) as $msg (
+          .;
+          .byId[$msg.id] = merge_message(.byId[$msg.id]; $msg)
+        )
+    )
+    | .totalLines as $totalLines
+    | ([.byId[]] | sort_by(.timestamp // "")) as $msgs
+    | ($msgs | map(select(.type == "gemini"))) as $geminiMsgs
+    | {
+        totalLines: $totalLines,
+        turns: ($geminiMsgs | length),
+        models: ($geminiMsgs | map(.model // "unknown") | unique),
+        tokens: (reduce $geminiMsgs[] as $m ({};
+          if ($m.tokens // null) == null then .
+          else
+            ($m.model // "unknown") as $model
+            | .[$model] = ((.[$model] // zero_bucket)
+                | .input += ($m.tokens.input // 0)
+                | .output += ($m.tokens.output // 0)
+                | .cached += ($m.tokens.cached // 0)
+                | .thoughts += ($m.tokens.thoughts // 0)
+                | .tool += ($m.tokens.tool // 0))
+          end)),
+        # 実行回数は「完了した」ツール呼び出しのみ数える。`cancelled` は実行されたものとして
+        # 含め、未完了（validating/scheduled/executing/awaiting_approval）は実行回数にも
+        # エラーにも入れない（設計判断H。status の値集合は設計判断A-1）。
+        tools: (reduce ($msgs[] | (.toolCalls // [])[]
+                        | select(.name != null
+                                 and ((.status // "") | IN("success", "error", "cancelled")))) as $tc ({};
+          .[$tc.name] = ((.[$tc.name] // 0) + 1))),
+        toolErrors: (reduce ($msgs[] | (.toolCalls // [])[]
+                             | select(.name != null and .status == "error")) as $tc ({};
+          .[$tc.name] = ((.[$tc.name] // 0) + 1))),
+        activeSeconds: (
+          ($msgs | map(select(.timestamp != null) | (.timestamp | epoch_from_iso8601))) as $ts
+          | (reduce range(1; ($ts | length)) as $i (0;
+              (($ts[$i] - $ts[$i - 1]) as $gap
+               | if $gap < 0 then .
+                 elif $gap < $idleThreshold then . + $gap
+                 else . + $tailBuffer
+                 end)))
+            + (if ($ts | length) > 0 then $tailBuffer else 0 end))
+      }
+  ' "$jsonl_path"
+}
+
+# 累計スナップショットと前回累計を突き合わせ、差分を sinceLastPush へ加算した新しい状態を返す。
+#
+#   引数: <existing状態JSON> <snapshot> <prev_totals> <session_id> <branch>
+#   出力: {state: {...}, needsReset: <bool>, diffAllZero: <bool>}
+#
+# **前回累計を existing（ブランチ別の状態ファイル）から読まない。** 呼び出し元が
+# usage/state/gemini-totals/<sessionId>.json から読んで引数で渡す。ブランチ別に持つと、同じ
+# セッションのままブランチを切り替えたときに前回累計が見つからず、蓄積済みの全件が新ブランチの
+# 初回差分として再計上される（issue #37 がカーソルのグローバル化で直したのと同じ不具合）。
+#
+# needsReset / diffAllZero は **クランプ前（raw）の差分**で判定し、排他になる。
+#   - needsReset: 1指標でも負 → セッションファイルの消失（設計判断S）。呼び出し元は早期リターン
+#     せず gemini-totals を今回のスナップショットで必ず上書きする。
+#   - diffAllZero: すべて0 → 呼び出し元は状態ファイルを書かずに早期リターンしてよい（設計判断O）。
+# クランプ後の差分で早期リターンを判定すると、消失直後（全指標が負→0）に前回累計が古いまま残り、
+# 以後ずっと「差分0・書き込みなし」で計上が止まる。
+_usage_gemini_merge_state() {
+  local existing="$1" snapshot="$2" prev_totals="$3" session_id="$4" branch="$5"
+  local jq_program
+  jq_program="$(cat <<'JQ'
+def zero_bucket: {input: 0, output: 0, cacheCreate: 0, cacheRead: 0, thoughts: 0, tool: 0};
+def num($v): ($v // 0);
+
+# model別トークンの raw 差分（クランプしない）。
+def token_diff($cur; $prev):
+  reduce (($cur // {}) | keys[]) as $model ({};
+    (($prev // {})[$model] // {}) as $p
+    | ($cur[$model]) as $c
+    | .[$model] = {
+        input:    (num($c.input)    - num($p.input)),
+        output:   (num($c.output)   - num($p.output)),
+        cached:   (num($c.cached)   - num($p.cached)),
+        thoughts: (num($c.thoughts) - num($p.thoughts)),
+        tool:     (num($c.tool)     - num($p.tool))
+      });
+
+# 名前別カウンタの raw 差分。
+def count_diff($cur; $prev):
+  reduce (($cur // {}) | keys[]) as $k ({};
+    .[$k] = (num($cur[$k]) - num(($prev // {})[$k])));
+
+(token_diff($snapshot.tokens; $prevTotals.tokens)) as $tokenDiff
+| (count_diff($snapshot.tools; $prevTotals.tools)) as $toolDiff
+| (count_diff($snapshot.toolErrors; $prevTotals.toolErrors)) as $toolErrDiff
+| (num($snapshot.turns) - num($prevTotals.turns)) as $turnsDiff
+| (num($snapshot.activeSeconds) - num($prevTotals.activeSeconds)) as $activeDiff
+| ([$tokenDiff[] | .input, .output, .cached, .thoughts, .tool]
+   + [$toolDiff[]] + [$toolErrDiff[]] + [$turnsDiff, $activeDiff]) as $rawValues
+| (($rawValues | map(select(. < 0)) | length) > 0) as $needsReset
+| (($rawValues | map(select(. != 0)) | length) == 0) as $diffAllZero
+| ($existing.sinceLastPush // {tokensByModel: {}, toolCalls: {}, turns: 0, activeSeconds: 0,
+    skillCalls: [], agentCalls: [], askUserQuestions: []}) as $sincePrev
+| (reduce ($tokenDiff | keys[]) as $model ($sincePrev;
+    ($tokenDiff[$model]) as $d
+    | (.tokensByModel[$model] // zero_bucket) as $acc
+    | .tokensByModel[$model] = {
+        input:      ($acc.input      + ([0, $d.input]    | max)),
+        output:     ($acc.output     + ([0, $d.output]   | max)),
+        cacheCreate: num($acc.cacheCreate),
+        cacheRead:  (num($acc.cacheRead) + ([0, $d.cached] | max)),
+        thoughts:   (num($acc.thoughts)  + ([0, $d.thoughts] | max)),
+        tool:       (num($acc.tool)      + ([0, $d.tool]     | max))
+      })) as $sinceTokens
+| (reduce ($toolDiff | keys[]) as $t ($sinceTokens;
+    .toolCalls[$t] = (num(.toolCalls[$t]) + ([0, $toolDiff[$t]] | max)))) as $sinceTools
+| (reduce ($toolErrDiff | keys[]) as $t ($sinceTools;
+    .toolErrors[$t] = (num(.toolErrors[$t]) + ([0, $toolErrDiff[$t]] | max)))) as $sinceToolErrs
+| ($sinceToolErrs
+    | .turns = (num(.turns) + ([0, $turnsDiff] | max))
+    | .activeSeconds = (num(.activeSeconds) + ([0, $activeDiff] | max))
+    | .models = (((.models // []) + ($snapshot.models // [])) | unique)) as $newSince
+| {state: ({branch: $branch, sessions: ($existing.sessions // {}), sinceLastPush: $newSince}
+     + (if $existing.lastPostedAt then {lastPostedAt: $existing.lastPostedAt} else {} end)
+     + (if $existing.agents then {agents: $existing.agents} else {} end)),
+   needsReset: $needsReset,
+   diffAllZero: $diffAllZero}
+JQ
+)"
+  jq -nc --argjson existing "$existing" --argjson snapshot "$snapshot" \
+    --argjson prevTotals "$prev_totals" --arg sessionId "$session_id" --arg branch "$branch" \
+    "$jq_program" | tr -d '\r'
+}
+
+# gemini-totals/<sessionId>.json（ブランチ非依存の前回累計）を読む。
+# 壊れている（空文字列・不正JSON）場合は「累計なし」として `{}` を返す
+# （sync_usage_state の状態ファイル読み込みと同じ自己回復方針）。
+_usage_read_gemini_totals() {
+  local repo_root="$1" session_id="$2"
+  local totals_file="${repo_root}/usage/state/gemini-totals/${session_id}.json"
+  local content=""
+  if [ -f "$totals_file" ]; then
+    content="$(cat "$totals_file")"
+  fi
+  if [ -n "$content" ] && printf '%s' "$content" | jq -e . >/dev/null 2>&1; then
+    printf '%s' "$content"
+  else
+    printf '%s' '{}'
+  fi
+}
+
+# gemini-totals/<sessionId>.json へ今回の累計スナップショットを書く。
+# レポートに使わない派生値（models）は落として保存する。
+_usage_write_gemini_totals() {
+  local repo_root="$1" session_id="$2" snapshot="$3"
+  local totals_dir="${repo_root}/usage/state/gemini-totals"
+  mkdir -p "$totals_dir"
+  printf '%s' "$snapshot" | jq -c 'del(.models)' | tr -d '\r' \
+    > "${totals_dir}/${session_id}.json"
+}
+
+# sync_usage_state の Gemini CLI 経路（issue #97）。Claude Code経路の行は1行も動かさず、
+# 分岐先をこの関数へ丸ごと分けている（差分を読んだときに「既存経路は変わっていない」と一目で
+# 分かる形にするため）。
+#
+# Claude Code経路との違い:
+#   - 行カーソル（_usage_read_cursor / _usage_write_cursor）を使わない（設計判断O）。同じidの
+#     メッセージが再送されるため、行番号は「まだ数えていない量」を意味しない。
+#   - サブエージェントは集計しない（設計判断I。保存のみ）。
+#   - **早期リターンの位置が違う。** Claude Code経路は「新規行が無ければミラーもスキップ」だが、
+#     Gemini経路は内容ベースでしか判定できないため「ミラー → 畳み込み → 差分判定」の順になる。
+#     ミラーは冪等な上書きコピーなので実害は無い。
+#   - 前回累計はブランチ別の状態ファイルではなく usage/state/gemini-totals/<sessionId>.json
+#     （ブランチ非依存）に持つ。ブランチ別に持つと、同じセッションのままブランチを切り替えた
+#     ときに蓄積済みの全件が新ブランチの初回差分として再計上される。
+_sync_usage_state_gemini() {
+  local repo_root="$1" branch="$2" session_id="$3" transcript_path="$4"
+  local state_dir="$5" state_file="$6"
+
+  local log_dir
+  log_dir="$(_usage_sync_session_logs "$repo_root" "$session_id" "$transcript_path" "gemini")"
+
+  local snapshot
+  snapshot="$(_usage_gemini_fold "${log_dir}/main.jsonl" | tr -d '\r')"
+
+  # 状態ファイルが壊れている（空文字列・不正なJSON）場合は「状態なし」として扱う
+  # （Claude Code経路と同じ自己回復方針。理由はそちらのコメントを参照）。
+  local existing="{}"
+  if [ -f "$state_file" ]; then
+    local existing_content
+    existing_content="$(cat "$state_file")"
+    if [ -n "$existing_content" ] && printf '%s' "$existing_content" | jq -e . >/dev/null 2>&1; then
+      existing="$existing_content"
+    fi
+  fi
+
+  local prev_totals merged needs_reset diff_all_zero new_state
+  prev_totals="$(_usage_read_gemini_totals "$repo_root" "$session_id")"
+  merged="$(_usage_gemini_merge_state "$existing" "$snapshot" "$prev_totals" "$session_id" "$branch")"
+  needs_reset="$(printf '%s' "$merged" | jq -r '.needsReset')"
+  diff_all_zero="$(printf '%s' "$merged" | jq -r '.diffAllZero')"
+  new_state="$(printf '%s' "$merged" | jq -c '.state')"
+
+  if [ "$needs_reset" = "true" ]; then
+    # セッションファイルの消失・縮小を検知した（設計判断S）。**早期リターンしない。**
+    # 消失直後は全指標の差分が負→クランプ後すべて0になるため、クランプ後の差分で早期リターンを
+    # 判定すると前回累計が古いまま残り、以後ずっと計上が止まる。
+    echo "sync_usage_state: Gemini CLIのセッションログが縮小しました（sessionId=${session_id}）。前回累計をリセットし、次の断面から計上し直します（issue #97）" >&2
+  elif [ "$diff_all_zero" = "true" ]; then
+    # 差分なし: 状態ファイルも前回累計も書かず、既存状態をそのまま返す（設計判断O）。
+    if [ -f "$state_file" ]; then
+      cat "$state_file"
+    fi
+    return 0
+  fi
+
+  mkdir -p "$state_dir"
+  printf '%s' "$new_state" > "$state_file"
+  printf '%s' "$new_state"
+
+  _usage_write_gemini_totals "$repo_root" "$session_id" "$snapshot"
+}
+
 # 指定ブランチ・セッションのtranscriptを集計し、状態ファイル（usage/state/<branch>.json）の
 # sinceLastPush へ「前回pushからの新規分」を加算して保存する。更新後の状態JSONをstdoutへ出力する。
 # 呼び出し元は post-push-usage-report.sh（PostToolUse, git push検知）。
@@ -562,6 +860,12 @@ sync_usage_state() {
   local safe_branch state_file
   safe_branch="$(_usage_safe_branch_name "$branch")"
   state_file="${state_dir}/${safe_branch}.json"
+
+  if [ "$engine" = "gemini" ]; then
+    _sync_usage_state_gemini "$repo_root" "$branch" "$session_id" "$transcript_path" \
+      "$state_dir" "$state_file"
+    return $?
+  fi
 
   local last_line_count
   last_line_count="$(_usage_read_cursor "$repo_root" "$session_id")"
