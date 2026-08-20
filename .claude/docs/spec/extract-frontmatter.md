@@ -52,7 +52,7 @@ bash .claude/scripts/src/extract-frontmatter.sh [--force] <directory>
 **markdownが1つも無くなったディレクトリの`index.jsonl`は、出力対象から外れるだけで削除はされない**
 （走査対象が「markdownが直下に存在するディレクトリ」であるため）。スクリプトがスコープ外のファイルを
 消してしまう事故を避けるため、この削除は自動化せず**運用手順側で担保する**（例:
-`.claude/skills/issue-mr-flow/SKILL.md`のflow-id 5-1で、`plans/*.md`の削除とあわせて
+`.claude/skills/issue-mr-flow/SKILL.md`のflow-id 5-3で、`plans/*.md`の削除とあわせて
 `plans/index.jsonl`も削除する）。
 
 ### 出力フォーマット
