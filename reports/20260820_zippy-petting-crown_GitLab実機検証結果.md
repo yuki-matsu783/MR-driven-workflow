@@ -16,9 +16,15 @@ keywords: [GitLab CE, glab, Provider.sh, 差分アンカー, sha1, diffs_stream,
 1. **差分アンカーの `sha1` 前提は正しい。** `diff-` 接頭辞も付かない。GitLabが遅延読込する
    `diffs_stream` 断片HTMLの `id=` 属性と、`hash_paths` の値が完全一致した。
 2. **不具合を1件検出した。** `gitlab_get_repo_url` が**未定義のまま2箇所から呼ばれており**、
-   `get_mr_url` / `get_note_url` が到達不能（デッドコード）になっている。`add_mr_thread_reply` が
-   返すはずのパーマリンクが空で返る。
+   `gitlab_get_mr_url` / `gitlab_get_note_url` へ至る**実運用経路が到達不能**になっている
+   （単体テストからは直接呼ばれており、テストは通る）。`add_mr_thread_reply` が返すはずの
+   パーマリンクが空で返る。
 3. **それ以外の11関数は期待どおり動いた。** サブグループ配下でのプロジェクト解決も通った。
+
+**受け入れ条件1（`Provider.sh` 経由での実行）は、#5・#6 の2件について未達である。** 踏み台に
+するはずだった公開関数が上記の不具合で到達不能だったため、この2件は `gitlab_*` を直呼びして
+実装の正しさだけを確かめた。**フェーズ3でディスパッチャを追加したうえで再実行する**
+（flow-id 2-4 で決定済み。`plans/zippy-petting-crown.md`「フェーズ3〈作業〉」）。
 
 ## 検証環境
 
@@ -38,7 +44,7 @@ keywords: [GitLab CE, glab, Provider.sh, 差分アンカー, sha1, diffs_stream,
 - **ssh（port 2224）は使えない**: `Permission denied (publickey)`（公開鍵未登録）。
 - **素のhttpクローンは失敗する**: Git Credential Manager が介在し `fatal: helper error (143)`。
 - **採用**: `git -c credential.helper= clone "http://oauth2:<PAT>@localhost:8929/<path>.git"`。
-- **PATは `.git/config` に平文で残る**ため、クロード直後に
+- **PATは `.git/config` に平文で残る**ため、クローン直後に
   `git remote set-url origin http://localhost:8929/<path>.git` で外した。除去後の残存は0件
   （`grep -c 'glpat-' .git/config` → `0`）。
 
@@ -46,7 +52,7 @@ keywords: [GitLab CE, glab, Provider.sh, 差分アンカー, sha1, diffs_stream,
 
 | プロジェクト | 用途 |
 |---|---|
-| `root/issue127-verify`（id=4） | 本検証のメイン。`main` / `feat-127`、MR !1、issue !1〜!3 |
+| `root/issue127-verify`（id=4） | 本検証のメイン。`main` / `feat-127`、MR !1、issue #1〜#3 |
 | `grp127/sub127/issue127-verify-sub`（id=5） | サブグループ解決の確認（3階層namespace） |
 | `root/issue45-verify`（id=1） | `set_mr_ready` の二重 `Draft:` 接頭辞ケースの入力（flow-id 2-4 で利用を許可された） |
 
@@ -56,8 +62,14 @@ HTMLをPATヘッダで取得できず（後述）、未認証で取得する必�
 
 ## 13関数の結果
 
-「経路」列の**直接**は `Provider.sh` の公開関数をそのまま呼んだもの、**間接**は
-`Provider.sh` にディスパッチャが無いため公開関数を踏み台にしたもの。
+「経路」列の意味は次のとおり。`Provider.sh` に**その名前の公開関数が無い**ものは
+`gitlab_` 接頭辞付きで表記している（ディスパッチャが壊れているのではなく、最初から無い）。
+
+| 表記 | 意味 | 受け入れ条件1 |
+|---|---|---|
+| **直接** | `Provider.sh` の公開関数をそのまま呼んだ | 満たす |
+| **間接** | ディスパッチャが無いため、公開関数を踏み台にして通した | 満たす（`Provider.sh` 経由で実行されている） |
+| **直呼び** | 踏み台も到達不能だったため `gitlab_*` を直接呼んだ | **満たさない**（フェーズ3で再実行する） |
 
 | # | 関数 | 経路 | 結果 |
 |---|---|---|---|
@@ -65,8 +77,8 @@ HTMLをPATヘッダで取得できず（後述）、未認証で取得する必�
 | 2 | `normalize_issue_search_results` | 間接（`search_issues` 内部） | ✅ `iid`→`number`・`web_url`→`url`・`opened`→`open`・`closed` 維持 |
 | 3 | `set_mr_ready` | 直接 | ✅ `Draft:` 除去・冪等・**二重接頭辞も1回で除去** |
 | 4 | `add_issue_comment` | 直接 | ✅ issue側へnoteが1件付いた |
-| 5 | `gitlab_get_mr_url` | 間接 | ⚠️ **実装は正しいが到達不能**（下記「検出した不具合」） |
-| 6 | `gitlab_get_note_url` | 間接 | ⚠️ 同上 |
+| 5 | `gitlab_get_mr_url` | **直呼び** | ⚠️ 実装は正しいが**実運用経路が到達不能**。受け入れ条件1は未達（下記「検出した不具合」） |
+| 6 | `gitlab_get_note_url` | **直呼び** | ⚠️ 同上 |
 | 7 | `get_blob_url` | 直接 | ✅ 200。**percent-encode必須**（生パスは失敗） |
 | 8 | `get_diff_anchor_url` | 直接 | ✅ **sha1前提は正しい**（下記「差分アンカー」） |
 | 9 | `get_diff_anchor_algo` | 直接 | ✅ `sha1` を返した |
@@ -79,16 +91,23 @@ HTMLをPATヘッダで取得できず（後述）、未認証で取得する必�
 
 #### #1・#2 `search_issues` / `normalize_issue_search_results`
 
+実際の戻り値は `merge_issue_search_results` を通った**1行のJSON配列**である。以下は読みやすさの
+ため `jq -c '.[]'` で1件ずつ展開し、`url` を省略して掲げたもの（生出力そのままではない）。
+
 ```
-$ search_issues "検証用"
+$ search_issues "検証用" | jq -c '.[]'
 {"number":3,"title":"クローズ済みの検証用issue","state":"closed","url":".../-/issues/3"}
 {"number":2,"title":"検証用issue ベータ","state":"open","url":".../-/issues/2"}
 {"number":1,"title":"検証用issue アルファ","state":"open","url":".../-/issues/1"}
 ```
 
-**spec の未決定事項（issue #68）が解消した。** 「GitLab側の `--all` フラグは `glab` のバージョンに
-よって名称が異なる可能性がある」と書かれていたが、**`glab` 1.114.0 で機能し、closed のissueも
-返る**ことを確認した。
+並び（3→2→1）が `sort_by(.number) | reverse` と整合しており、統合処理も効いている。
+
+**spec の未決定事項（issue #68）は、GitLab側のみ解消した。** 「GitLab側の `--all` フラグは
+`glab` のバージョンによって名称が異なる可能性がある」と書かれていたが、**`glab` 1.114.0 で機能し、
+closed のissueも返る**ことを確認した。ただし同項目は
+**`gh issue list --search ... --state all --json ...` も未検証**だと書いており、そちらは本検証の
+対象外である。**フェーズ4では項目を削除せず、GitHub側だけが残るよう範囲を絞って更新する。**
 
 #### #3 `set_mr_ready`
 
@@ -100,7 +119,12 @@ $ search_issues "検証用"
 
 **二重接頭辞が1回の呼び出しで完全に除去された。** `glab` 側の除去正規表現
 `(?i)^(\s*(?:draft:|wip:)\s*)*` が繰り返しにマッチするという実装ソースの読みが裏付けられた。
-**spec の未決定事項（issue #61）が解消した。**
+
+**spec の未決定事項（issue #61）は、GitLab側のみ解消した。** 同項目は
+「あわせて、GitHub側の `github_set_mr_ready`（`gh pr ready`）も本環境では実行できていない」と
+明記しており、締めも「`gh`/`glab` が使えるローカル環境で実PRに対して実行し、確認できた時点で
+本項目を削除する」である。本検証で走らせたのは `glab mr update --ready` のみ。
+**フェーズ4では項目を削除せず、GitHub側だけが残るよう範囲を絞って更新する。**
 
 #### #7 `get_blob_url`
 
@@ -125,9 +149,18 @@ $ search_issues "検証用"
 
 **2段目（直接証拠）**
 
-Compareページの初期HTML（34,578バイト）には**ハッシュが1件も含まれていなかった**。GitLab 18.5 は
-"rapid diffs" 方式で差分を遅延読込しており、初期HTMLは器でしかない。HTML内に埋め込まれた
-エンドポイント定義から実体を特定した。
+Compareページの初期HTML（34,578バイト）には、**アンカー用のパスハッシュが1件も含まれていなかった**。
+40桁hexの文字列自体は27件（ユニーク18件）あるが、それらはコミットSHA等であって目的のものではない。
+
+```
+$ grep -oE '[0-9a-f]{40}' compare.html | wc -l                    # 27
+$ grep -oE '[0-9a-f]{40}' compare.html | sort -u | wc -l          # 18
+$ grep -c '8ec9a00bfd09b3190ac6b22251dbb1aa95a0579d' compare.html # 0  ← README.md のパスsha1
+$ grep -c 'dbd436723fcd58b281afcd60bbd2b93e33d9cbca' compare.html # 0  ← docs/検証 用.md
+```
+
+GitLab 18.5 は "rapid diffs" 方式で差分を遅延読込しており、初期HTMLは器でしかない。HTML内に
+埋め込まれたエンドポイント定義から実体を特定した。
 
 ```
 diffs_stream_url:      /-/compare/diffs_stream?from=main&to=feat-127&view=inline
@@ -171,12 +204,16 @@ gitlab_get_mr_url  → http://localhost:8929/root/issue127-verify/-/merge_reques
 gitlab_get_note_url → http://localhost:8929/root/issue127-verify/-/merge_requests/1#note_94
 ```
 
-**GitLab自身が返す値とバイト単位で一致した。** MRの `discussions.json` 断片に含まれる
-`noteable_note_url` フィールドが、まさにこの形式である。
+**同じnote（id=94）について、GitLab自身が返す値とバイト単位で一致した。** MRの
+`discussions.json` 断片に含まれる `noteable_note_url` フィールドが、まさにこの形式である。
 
 ```
-"noteable_note_url":"http://localhost:8929/root/issue127-verify/-/merge_requests/1#note_84"
+gitlab_get_note_url の出力  : http://localhost:8929/root/issue127-verify/-/merge_requests/1#note_94
+GitLabの noteable_note_url : http://localhost:8929/root/issue127-verify/-/merge_requests/1#note_94
 ```
+
+note 94 は検証で投稿した返信（`glab api projects/4/merge_requests/1/notes/94` で
+`system=false` を確認済み）。
 
 しかし**踏み台となる公開関数からは到達しない**（次節）。
 
@@ -234,7 +271,11 @@ url無しの出力へ縮退する**。設計上「失敗しても本体のコメ
   `issue-mr-flow` の `comments` サブコマンドは、この `url=` を「次のpushのレビュー依頼メッセージへ
   返信リンクを載せる」ために使うと定めており（issue #42）、GitLabではこれが機能しない。
 - `add_mr_thread_reply` が返信のパーマリンクを返さない（同じ用途）。
-- `gitlab_get_mr_url` / `gitlab_get_note_url` が**デッドコード**になっている。
+- `gitlab_get_mr_url` / `gitlab_get_note_url` が**実運用経路から到達しない**。
+  ただし `.claude/scripts/test/test_vcs_provider.sh:703-709` から直接呼ばれており、
+  **単体テストは通る**。「テストは緑なのに実運用経路が丸ごと壊れている」という状態であり、
+  これがこの不具合が見つからなかった理由でもある。純粋関数を単体で検証するテストは、
+  その関数へ**至る呼び出し経路**の健全性を何も保証しない。
 
 **なぜ混入したか（並行ブランチのsemantic conflict）**
 
@@ -265,14 +306,37 @@ gitlab_get_repo_url
 
 **同種の点検**
 
-`Gitlab.sh` / `Github.sh` の全関数呼び出しを定義済み一覧と突き合わせたところ、
-**未定義の呼び出しは `gitlab_get_repo_url` の1件のみ**だった
-（`Gitlab.sh:64` の `github_search_issues` はコメント中の参照で呼び出しではない）。
+同じ形の欠落が他に無いかを機械的に確かめた。
+
+```bash
+for f in .claude/scripts/src/vcs/Gitlab.sh .claude/scripts/src/vcs/Github.sh; do
+  defined="$(grep -oE '^[a-z_]+\(\)' "$f" .claude/scripts/src/vcs/Provider.sh \
+             | sed 's/.*://; s/()//' | sort -u)"
+  called="$(grep -oE '\b(gitlab|github)_[a-z_]+\b' "$f" | sort -u)"
+  for c in $called; do echo "$defined" | grep -qx "$c" || echo "未定義: $f: $c"; done
+done
+```
+
+- 検査範囲は **`Gitlab.sh` / `Github.sh` の2ファイル**、対象は **`gitlab_` / `github_` 接頭辞を
+  持つ参照のみ**（定義側は `Provider.sh` を含む3ファイルから集めた）。
+- 結果: 候補42件中、**未定義は `gitlab_get_repo_url` の1件のみ**。
+  `Gitlab.sh:64` に現れる `github_search_issues` はコメント中の参照であり、かつ `Github.sh` に
+  定義が存在するため候補から外れる。
+- **この検査は接頭辞付きの参照しか見ていない。** `Provider.sh` の非接頭辞関数
+  （`get_repo_url` / `hash_paths` 等）への呼び出しや、`8d01fbb` が同時に触った
+  `.claude/hooks/` 配下は対象外である。フェーズ3で恒久的な検出手段を検討する際は、
+  この範囲を広げることも含めて考える。
 
 **修正方針（フェーズ3）**
 
-`gitlab_get_repo_url` → `get_repo_url` に置き換える（2箇所）。あわせて、この種の
-「未定義関数の呼び出し」を機械的に検出する手段を持つか検討する。
+`gitlab_get_repo_url` → `get_repo_url` に置き換える（2箇所）。あわせて、再発防止として次の2つを
+検討する。**単体テストが緑のまま9日間見逃されたので、「関数を単体で検証するテスト」を足すだけ
+では防げない**という点が要点である。
+
+1. **未定義関数の呼び出しの静的検出**（上記「同種の点検」のスクリプトを常設化する。
+   接頭辞に限らない範囲へ広げるかも含めて検討する）。
+2. **呼び出し経路そのものを検証するテスト**（例: `get_mr_unresolved_comments` の出力に
+   `url=` が含まれること）。関数単体ではなく、経路の出力を見る。
 
 ## URL系4種
 
@@ -308,14 +372,28 @@ slug={"host":"localhost","owner":"grp127/sub127","repo":"issue127-verify-sub",
 
 ### 観察（不具合ではない）
 
-- `get_mr_for_branch` の戻り値の `draft` が **`null`** になる（GitHubは真偽値）。`glab mr list` の
-  JSONに `draft` が含まれないため。`set_mr_ready` はこの値に依存しないので実害は無いが、
-  `draft` を条件分岐に使うコードを将来書く場合は注意が要る。
+- `get_mr_for_branch` の戻り値で **Draft状態を表すキーは `draft` ではなく `isDraft`**
+  （`Gitlab.sh:194` / `Github.sh:171` とも同じ）。存在しない `.draft` を引けば当然 `null` に
+  なるが、**これはプロバイダ差ではない**。GitLab実装は `glab mr view <branch> --output json` の
+  `work_in_progress` を `isDraft` へ写しており、実測でも真偽値が返る。
+
+  ```
+  $ glab mr view feat-127 -R root/issue127-verify --output json \
+      | jq '{number: .iid, isDraft: .work_in_progress, draft: .draft}'
+  {"number":1,"isDraft":false,"draft":false}
+  ```
+
+  （本レポートの初版はここを「GitLabでは `draft` が `null` になる」と誤って書いていた。
+  存在しないキー名で問い合わせた結果を欠損と解釈したもので、敵対的レビューの指摘により訂正した。）
 - `new_issue`（`glab issue create`）は `- Creating issue in <project>` という進捗行を出すが、
   **stderrへ出ており stdout はJSONのみ**。`new_issue | jq` は安全に書ける。
   ただし `new_issue 2>&1 | jq` のように**stderrを混ぜるとjqが構文エラーになる**。
 
 ## 受け入れ条件8: 検証環境の再現手順
+
+> **この節はフェーズ4で `.claude/docs/spec/` 配下へ移す（置き場所は flow-id 4-1 で決める）。**
+> `reports/` は片付けのステップで削除されるため、ここに置いたままではmainに残らず、
+> 受け入れ条件8を満たさない。
 
 ```bash
 # 1. GitLab CE 18.5.4 を起動する
@@ -332,14 +410,24 @@ sidekiq['max_concurrency'] = 5" \
 # healthy になるまで数分待つ（docker ps の STATUS で確認）
 
 # 2. rootの初期パスワードを取り出し、UIでPersonal Access Token（api スコープ）を作る
-docker exec gitlab cat /etc/gitlab/initial_root_password   # MSYS_NO_PATHCONV=1 が必要
+#    MSYS_NO_PATHCONV=1 が無いと、git bashがコンテナ内パスを C:/Program Files/Git/etc/... へ
+#    変換して失敗する（.claude/rules/shell-script-style.md「git bashのパス変換の落とし穴」）
+MSYS_NO_PATHCONV=1 docker exec gitlab cat /etc/gitlab/initial_root_password
 
 # 3. glab を認証する（トークンはOSキーリングへ入る）
 glab auth login --hostname localhost:8929 --api-protocol http
-
-# 4. 検証用プロジェクトを作る
 export GITLAB_HOST=localhost:8929
+
+# 4a. 検証用プロジェクト（単一namespace）を作る
+#     差分アンカーの検証でHTMLをスクリプト取得する場合は visibility=public にする（下記の注記）
 glab api projects -X POST -f name=<name> -f path=<path> -f visibility=private
+
+# 4b. サブグループ検証用（3階層namespace）を作る
+gid="$(glab api groups -X POST -f name=grp127 -f path=grp127 -f visibility=public | jq -r '.id')"
+sgid="$(glab api groups -X POST -f name=sub127 -f path=sub127 -f visibility=public \
+        -f parent_id="$gid" | jq -r '.id')"
+glab api projects -X POST -f name=<name>-sub -f path=<path>-sub -f visibility=public \
+  -f namespace_id="$sgid" -f initialize_with_readme=true
 
 # 5. クローンする（PATをURLへ埋め、GCMを無効化し、直後にPATを外す）
 TOKEN="$(glab auth status --show-token 2>&1 | grep -oE 'glpat-[A-Za-z0-9._-]+' | head -1)"
@@ -347,13 +435,41 @@ git -c credential.helper= clone "http://oauth2:${TOKEN}@localhost:8929/<path>.gi
 cd clone && git remote set-url origin "http://localhost:8929/<path>.git"
 ```
 
-- `docker exec` へコンテナ内の絶対パスを渡すときは `MSYS_NO_PATHCONV=1` が要る
-  （`.claude/rules/shell-script-style.md`）。
-- **Webページ（HTML）をスクリプトから取得したい場合は、プロジェクトをpublicにする**。
-  PATヘッダはAPIにしか効かない。
+- **手順4aを `private` のままにすると、差分アンカーの検証（Compareページの
+  `diffs_stream` 断片の取得）ができない。** PATヘッダはWebページの認証に効かず302になるため、
+  HTMLをスクリプトから取得するにはプロジェクトを `public` にする必要がある。ブラウザで
+  ログイン済みなら `private` のままでも目視確認はできる。
+- `glab auth status` は `gitlab.com` 側の認証エラーに引きずられて**終了コード2を返す**。
+  `set -e` 配下でそのまま呼ばないこと（出力だけを使う）。
 
-## 範囲外（確認していないこと）
+## 未完了（範囲内だが、まだ終わっていないこと）
 
-- gitlab.com（SaaS）・CE 18.5.4 以外のバージョン・EE。
-- ssh経由のgit操作（公開鍵未登録のまま）。
-- ブラウザでの目視確認（ユーザーへ依頼中）。
+**次の作業へ引き継ぐ。「範囲外」と混同しないこと**（範囲外として spec へ書くと、必要な作業が
+落ちる）。
+
+- **URL系4種のブラウザ目視確認**（受け入れ条件2）。自動確認は完了しているが、目視はユーザーの
+  回答待ち。自動確認だけでは受け入れ条件2を満たさない。
+- **`gitlab_get_mr_url` / `gitlab_get_note_url` の `Provider.sh` 経由での実行**（受け入れ条件1）。
+  フェーズ3でディスパッチャを追加してから再実行する。
+
+## 範囲外（今回やらないと決めたこと）
+
+- **gitlab.com（SaaS）・CE 18.5.4 以外のバージョン・EE**。issue #127 の期待する動作7で明示的に
+  範囲外としたもの。spec にもその旨を残す。
+- **ssh経由のgit操作**。公開鍵が未登録で通らなかったが、鍵の登録は本issueの目的ではないと判断し、
+  http + PAT へ寄せた（`Gitlab.sh` の各関数は `glab` のAPI経由で動くため、gitのトランスポートは
+  検証結果に影響しない）。
+
+## 設計への反映（フェーズ4で行う）
+
+本検証の知見のうち恒久的に残すものと、その反映先。**`reports/` 配下は片付けのステップで削除
+されるため、ここに書いたままではmainに残らない。**
+
+| 反映先 | 内容 |
+|---|---|
+| `.claude/docs/spec/issue-mr-workflow.md`「未決定事項・懸念点」 | **#61・#68 は削除せず範囲を絞る**（GitLab側のみ解消、GitHub側は未検証のまま）。**#48・#45 の「プロジェクト構成（サブグループ）」は削除**（解消）。**#13（URL形式のブラウザ未検証）はGitLab側の自動確認結果を追記**し、目視の回答が得られた時点で削除を判断 |
+| `.claude/docs/spec/issue-mr-workflow.md`「提供関数」表 | 差分アンカーの GitLab 欄の **【未検証】表記を外す**（`#<パスのsha1>`・`diff-` 接頭辞なしを実機確認済み）。ハッシュ入力が**encode前の生パス**である旨を追記 |
+| `.claude/docs/spec/shell-scripts.md` | 「GitLab版の実機動作未検証」（165〜166行）と移植表の `Gitlab.sh`「（未検証。GitLab実remoteが無いため）」を更新 |
+| `.claude/scripts/src/vcs/Gitlab.sh` ヘッダ | issue #45 で解消済みなのに「未修正」と書いている記述を訂正。検証済み関数の数を実態へ（**#48当時13 − 1 + 今回13 = 25**）。未検証として残るのはバージョン・エディションのみ |
+| **新規の置き場所（flow-id 4-1 で決める）** | **「受け入れ条件8: 検証環境の再現手順」節を恒久化する。** 新規specファイルを作る場合は人間の承認が必須 |
+| DDR（要否は flow-id 4-1 で判断） | 「単体テストが緑でも呼び出し経路は保証されない」「並行ブランチのsemantic conflictをgitは報告しない」という教訓を残すか |

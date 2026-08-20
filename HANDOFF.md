@@ -18,7 +18,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - ブランチ: `feature-127-verify-gitlab-functions-and-url-formats`
 - PR: #128 https://github.com/yuki-matsu783/MR-driven-workflow/pull/128 （Draft）
 - 追従監視: なし（ローカル。各pushとflow-id 5-1で手動確認する）
-- push回数: 5
+- push回数: 6
 - 現在のループ: なし
 
 | 進捗 | flow-id | ステップ | 担当 |
@@ -158,6 +158,21 @@ issue #127（ローカルGitLab CEで、issue #48以降に `Gitlab.sh` へ追加
     run1 `{3,0}`/run2 `{2,1}` で `summary_post_kind` の両分岐を通した。
   - サブグループ（3階層）も解決できた。`owner` に `grp127/sub127` が入る。
   - 受け入れ条件8のための環境情報（`docker inspect`）を採取し、再現手順を reports に残した。
+- **敵対的レビュー（フェーズ2・2回目／最大3回）**: reports のmd/htmlを対象に実施。14件のうち
+  **8件をPR #128 へインライン投稿**（`{"posted":8,"summarized":0}`）、6件は報告のみ。
+  裏取りのうえ**全件を反映済み**。とくに次の2件は私（AI）の誤りだった。
+  - **`get_mr_for_branch` の `draft` が null という観察は誤りだった。** Draft状態のキーは
+    両プロバイダとも **`isDraft`**（`Gitlab.sh:194` / `Github.sh:171`）で、存在しない `.draft` を
+    引いた結果の null を欠損と解釈していた。実測では `work_in_progress` も `draft` も真偽値で
+    返る。**このまま spec へ反映していたら、存在しないプロバイダ差を正史に書き込んでいた。**
+  - **「#68・#61 の未決定事項が解消した」は範囲が広すぎた。** 両項目とも
+    `gh issue list --state all` / `gh pr ready` という**GitHub側の未検証**を含んでおり、
+    今回の検証はGitLabのみ。フェーズ4では項目を削除せず、GitHub側だけが残るよう範囲を絞る。
+  - 他: #5・#6 の経路表記を「間接」→「**直呼び**」へ改め**受け入れ条件1が未達**である旨を明記、
+    「初期HTMLにハッシュが1件も無い」を件数つき（40桁hexは27件／アンカー用sha1は0件）へ限定、
+    noteパーマリンクの証拠を同じnote id（94）で揃え、再現手順に `MSYS_NO_PATHCONV=1` を
+    コマンドへ入れサブグループ作成手順を追加、「範囲外」と「未完了」を別見出しへ分離、
+    md側に「設計への反映」節を新設（HTMLだけが持っていた情報を正文へ）。
 
 ## 次にやること
 
