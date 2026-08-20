@@ -109,6 +109,7 @@ frontmatter（`status` / `superseded_by` / `note`）だけから決まる。
 - [i0044-01-リポジトリURLはgh_glabではなくgit-remoteから導出する.md](ddr/i0044-01-リポジトリURLはgh_glabではなくgit-remoteから導出する.md)
 - [i0045-01-プロバイダ判定はremote-URLのホスト部でgithub以外をgitlabとみなす.md](ddr/i0045-01-プロバイダ判定はremote-URLのホスト部でgithub以外をgitlabとみなす.md)
 - [i0046-01-defaultブランチとのコンフリクトは検知を機構化し解消手順をスキル化する.md](ddr/i0046-01-defaultブランチとのコンフリクトは検知を機構化し解消手順をスキル化する.md)
+- [i0047-01-AIが渡すコマンド文字列の説明はdescriptionとコメントへ分けて置く.md](ddr/i0047-01-AIが渡すコマンド文字列の説明はdescriptionとコメントへ分けて置く.md)
 - [i0048-01-空コミットフォールバックはGitHub固有の制約として残す.md](ddr/i0048-01-空コミットフォールバックはGitHub固有の制約として残す.md)
 - [i0050-01-チャットで受けたレビュー判断はAIがMRの通常コメントへ記録する.md](ddr/i0050-01-チャットで受けたレビュー判断はAIがMRの通常コメントへ記録する.md)
 - [i0057-01-compact後もSessionStart-hookで作業コンテキストを再注入する.md](ddr/i0057-01-compact後もSessionStart-hookで作業コンテキストを再注入する.md)
