@@ -543,6 +543,31 @@ get_mr_diff_since_url() {
   esac
 }
 
+# MR/PR本体のページURLを組み立てる（issue #42、ディスパッチャ追加は issue #127）。
+# noteのパーマリンク・差分アンカーの土台に使う。`repo_url`は`get_repo_url`で取得したものを渡す。
+get_mr_url() {
+  local repo_url="$1" mr_number="$2"
+  case "$(get_provider)" in
+    github) github_get_mr_url "$repo_url" "$mr_number" ;;
+    gitlab) gitlab_get_mr_url "$repo_url" "$mr_number" ;;
+  esac
+}
+
+# note（レビューコメント）の公式パーマリンクを組み立てる（issue #42、ディスパッチャ追加は
+# issue #127）。`mr_url`は`get_mr_url`の戻り値を、`note_id`は投稿レスポンスのidを渡す。
+#
+# **本番経路でこの関数を使うのはGitLabだけである。** GitHubはGraphQLが `comment { url }` として
+# パーマリンクを返すため（`Github.sh` の `add_mr_thread_reply` / `get_mr_unresolved_comments`）、
+# 文字列を組み立てる必要がない。GitHub実装は、両プロバイダで同じ関数名を引けるようにするための
+# 対応物である。
+get_note_url() {
+  local mr_url="$1" note_id="$2"
+  case "$(get_provider)" in
+    github) github_get_note_url "$mr_url" "$note_id" ;;
+    gitlab) gitlab_get_note_url "$mr_url" "$note_id" ;;
+  esac
+}
+
 # 特定ファイルの「そのref時点の本体」を開くblobページのURLを組み立てる（issue #42:
 # レビュー依頼メッセージへ重点レビュー対象ファイルのリンクを含めるため）。`repo_url`は
 # `get_repo_url` で取得したものを、`path` は `url_encode_path_to_reply` でencode済みのものを渡す。
@@ -554,14 +579,37 @@ get_blob_url() {
   esac
 }
 
-# Compareページ内の特定ファイルの差分位置を指すアンカー付きURLを組み立てる（issue #42）。
-# `compare_url` は `get_mr_diff_url` / `get_mr_diff_since_url` の戻り値を、`path_hash` は
+# 差分アンカーの土台にするページのURLを返す（issue #127）。
+#
+# **同じハッシュでも、土台にするページによってアンカーが効くかどうかが変わる。** GitHubは
+# Compareページ上で機能する（issue #42 で実機確認）が、GitLabのCompareページは差分を非同期に
+# ストリーム描画するため機能せず、MRの差分ページ（`<mrUrl>/diffs`）でないと飛ばない。
+#
+# 土台が覆う範囲は、呼び出し元が作るファイル一覧の供給元（`diff_range`）と一致させる。
+# 一致していないと、一覧には載るのに土台ページには存在しないファイルが生じ、アンカーが
+# 着地先を失う（実例: 前のpushで追加し今回のpushで削除したファイル。ファイルの改名も
+# 差分上は削除＋追加なので同じ形になる）。
+#
+# - `compare_url`: `get_mr_diff_url` / `get_mr_diff_since_url` の戻り値（GitHubはこれをそのまま使う）
+# - `mr_url`: `get_mr_url` の戻り値。CLI経路でのみ得られ、MCP経路（issue #34）では空になる
+# - `mr_number`: MR/PR番号
+# - `since_sha`: 「前回pushとの差分」を出す場合の前回push SHA。初回pushでは空
+get_diff_anchor_base_url() {
+  local compare_url="$1" mr_url="$2" mr_number="$3" since_sha="$4"
+  case "$(get_provider)" in
+    github) github_get_diff_anchor_base_url "$compare_url" "$mr_url" "$mr_number" "$since_sha" ;;
+    gitlab) gitlab_get_diff_anchor_base_url "$compare_url" "$mr_url" "$mr_number" "$since_sha" ;;
+  esac
+}
+
+# 差分ページ内の特定ファイルの差分位置を指すアンカー付きURLを組み立てる（issue #42）。
+# `base_url` は `get_diff_anchor_base_url` の戻り値を、`path_hash` は
 # `hash_paths "$(get_diff_anchor_algo)" <path>` の結果を渡す。
 get_diff_anchor_url() {
-  local compare_url="$1" path_hash="$2"
+  local base_url="$1" path_hash="$2"
   case "$(get_provider)" in
-    github) github_get_diff_anchor_url "$compare_url" "$path_hash" ;;
-    gitlab) gitlab_get_diff_anchor_url "$compare_url" "$path_hash" ;;
+    github) github_get_diff_anchor_url "$base_url" "$path_hash" ;;
+    gitlab) gitlab_get_diff_anchor_url "$base_url" "$path_hash" ;;
   esac
 }
 

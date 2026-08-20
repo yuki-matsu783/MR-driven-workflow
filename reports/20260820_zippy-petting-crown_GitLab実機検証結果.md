@@ -27,10 +27,13 @@ keywords: [GitLab CE, glab, Provider.sh, 差分アンカー, sha1, diffs_stream,
    パーマリンクが空で返る。
 3. **それ以外の11関数は期待どおり動いた。** サブグループ配下でのプロジェクト解決も通った。
 
-**受け入れ条件1（`Provider.sh` 経由での実行）は、#5・#6 の2件について未達である。** 踏み台に
-するはずだった公開関数が上記の不具合で到達不能だったため、この2件は `gitlab_*` を直呼びして
-実装の正しさだけを確かめた。**フェーズ3でディスパッチャを追加したうえで再実行する**
-（flow-id 2-4 で決定済み。`plans/zippy-petting-crown.md`「フェーズ3〈作業〉」）。
+**受け入れ条件1（`Provider.sh` 経由での実行）は、フェーズ2終了時点では #5・#6 の2件について
+未達だった。** 踏み台にするはずだった公開関数が上記の不具合で到達不能だったため、この2件は
+`gitlab_*` を直呼びして実装の正しさだけを確かめている。**フェーズ3でディスパッチャを追加して
+再実行し、解消済み**（下記「フェーズ3の実施結果」）。
+
+**不具合2件はフェーズ3で修正済み**で、残るのは修正後のブラウザ目視確認（依頼中）である。
+修正の方針・却下案は同節と `plans/【設計】【実装】GitLab差分アンカーの土台と未定義関数呼び出しの修正.md` を参照。
 
 ## 検証環境
 
@@ -83,8 +86,8 @@ HTMLをPATヘッダで取得できず（後述）、未認証で取得する必�
 | 2 | `normalize_issue_search_results` | 間接（`search_issues` 内部） | ✅ `iid`→`number`・`web_url`→`url`・`opened`→`open`・`closed` 維持 |
 | 3 | `set_mr_ready` | 直接 | ✅ `Draft:` 除去・冪等・**二重接頭辞も1回で除去** |
 | 4 | `add_issue_comment` | 直接 | ✅ issue側へnoteが1件付いた |
-| 5 | `gitlab_get_mr_url` | **直呼び** | ⚠️ 実装は正しいが**実運用経路が到達不能**。受け入れ条件1は未達（下記「検出した不具合」） |
-| 6 | `gitlab_get_note_url` | **直呼び** | ⚠️ 同上 |
+| 5 | `get_mr_url` | 直接 | ✅ **フェーズ3でディスパッチャを追加して再実行し、受け入れ条件1を満たした**（下記「フェーズ3の実施結果」） |
+| 6 | `get_note_url` | 直接 | ✅ 同上 |
 | 7 | `get_blob_url` | 直接 | ✅ 200。**percent-encode必須**（生パスは失敗） |
 | 8 | `get_diff_anchor_url` | 直接 | ✅ **sha1前提は正しい**（下記「差分アンカー」） |
 | 9 | `get_diff_anchor_algo` | 直接 | ✅ `sha1` を返した |
@@ -581,16 +584,109 @@ URLを受け取っており文字列を組み立てないが、そのAPIが返�
 url=https://github.com/yuki-matsu783/MR-driven-workflow/pull/128#discussion_r3821657827
 ```
 
+## フェーズ3の実施結果（flow-id 3-6）
+
+計画: `plans/【設計】【実装】GitLab差分アンカーの土台と未定義関数呼び出しの修正.md`
+
+### 変更したファイル
+
+| ファイル | 変更 |
+|---|---|
+| `.claude/scripts/src/vcs/Provider.sh` | `get_diff_anchor_base_url` / `get_mr_url` / `get_note_url` の3ディスパッチャを追加。`get_diff_anchor_url` の引数名を `compare_url` → `base_url` へ |
+| `.claude/scripts/src/vcs/Gitlab.sh` | `gitlab_get_diff_anchor_base_url` / `gitlab_mr_has_version_head` を追加。未定義の `gitlab_get_repo_url` → `get_repo_url`（2箇所） |
+| `.claude/scripts/src/vcs/Github.sh` | `github_get_diff_anchor_base_url` / `github_get_mr_url` / `github_get_note_url` を追加 |
+| `.claude/hooks/post-push-compact-prompt.sh` | 土台URLの決定を `get_diff_anchor_base_url` へ委譲。`mr_number` を取得。`build_file_links_text` の引数名とコメントを実態へ |
+| `.claude/scripts/test/test_vcs_provider.sh` | 16ケース追加（下記） |
+
+### 不具合2の修正（`Provider.sh` 経由で確認）
+
+検証用クローンをcwdにして実行し、**`url=` が出力へ入るようになった**ことを確認した。
+修正前は `command not found` が `2>/dev/null` に握りつぶされ、無言でurl無しへ縮退していた。
+
+```
+[unresolved threadId=7e4e5d63… README.md:2 url=http://localhost:8929/root/issue127-verify/-/merge_requests/1#note_87] root: …
+```
+
+### 受け入れ条件1の未達だった2件（`Provider.sh` 経由で再実行）
+
+```
+get_provider  = gitlab
+get_mr_url    = http://localhost:8929/root/issue127-verify/-/merge_requests/1
+get_note_url  = http://localhost:8929/root/issue127-verify/-/merge_requests/1#note_94
+```
+
+### 不具合1の修正（`get_diff_anchor_base_url`）
+
+ローカルGitLabに対し、4通りの入力すべてが設計どおりに分岐することを確認した。
+
+| 入力 | 出力 |
+|---|---|
+| `since_sha` 空（初回push相当） | `<mrUrl>/diffs` |
+| `since_sha` がMRバージョンのhead | `<mrUrl>/diffs?start_sha=<sha>` |
+| `since_sha` がバージョンheadでない | `<mrUrl>/diffs`（縮退） |
+| `mr_url` 空（MCP経路相当） | `<repoUrl>/-/compare/…`（従来どおり） |
+
+### GitHub側の出力が変わっていないことの確認
+
+テストの追加だけでは、変更時点で生じた劣化を検出できない。**変更前（`a13f4aa`）と変更後の
+`build_file_links_text` を、同じ入力（本リポジトリ＝GitHub remote）に対して実行して
+突き合わせた。**
+
+```
+old: 2526 バイト / 15 行
+new: 2526 バイト / 15 行
+diff: 差分なし（完全一致）
+```
+
+出力が空でないこと（＝比較が空振りしていないこと）も、先頭3行を目視して確認している。
+
+### テスト
+
+`.claude/scripts/test/test_vcs_provider.sh` に16ケースを追加し、`passed=159 failures=0`。
+単体テスト12本すべてが `failures=0` で通る。
+
+- `get_diff_anchor_base_url` の両プロバイダぶん（GitLabは4通りの分岐＋`mr_number` 空）。
+  `glab` をシェル関数で差し替えて外部プロセスを使わずに検証している。
+- **呼び出し経路のテスト**: `gitlab_get_mr_unresolved_comments` の出力に、noteのパーマリンクが
+  **完全な形で**入ることを検証する（`url` の有無ではなく文字列の完全一致）。`glab` に加えて
+  `get_repo_url` も差し替える（この関数は `git remote get-url origin` を起動するため、
+  差し替えないと origin の無いチェックアウトで落ち、かつ本リポジトリのoriginはGitHubなので
+  実在しないGitLab形式のURLで通ってしまい検証にならない）。
+- **未定義の `github_*` / `gitlab_*` 呼び出しの静的検出**。修正後は「0件」が恒久的な期待値に
+  なり検証が空振りしうるため、(a) 参照件数・定義件数がそれぞれ1件以上あることを表明し、
+  (b) `gitlab_get_repo_url` を1箇所だけ書き戻した一時ツリーに対して**実際にその1件を検出できる**
+  ことまで確かめている。
+  - 実装時に1度失敗した: `mcp_tool_hint` が文字列として持つMCPツール名（`github__list_pull_requests`
+    のようにアンダースコア2つ）が識別子パターンに一致し、未定義の関数として9件検出された。
+    アンダースコア2つで始まる名前を除外して解決した。
+
+### ブラウザ目視確認（依頼中・未完了）
+
+自動確認では「スクロールするか」を判定できないため、次の4本をユーザーへ提示している。
+**いずれも、対象ファイルがそのページの差分に含まれていることをAPIで確認済み**（アンカーが
+効かなかった場合に「ファイルが無かっただけ」と紛れないようにするため）。
+
+| # | 目的 | 対象ファイル | ページ内の位置 |
+|---|---|---|---|
+| 1 | 通常の差分ファイル | `docs/aaa-01.md` | 1/32 |
+| 2 | 行数の多いファイル（402行） | `docs/zzz-折りたたみ確認.md` | 31/32 |
+| 3 | **前のpushで追加し今回のpushで削除**（案Aとの分かれ目） | `docs/mmm-大きい差分.md` | 31/33 |
+| 4 | 多数ファイルの後方（非同期描画の影響） | `docs/zzz-目的地 ファイル.md` | 32/32 |
+
+**2は「折りたたまれた差分」の確認にはなっていない。** 402行のファイルを置いても
+`collapsed` が立たなかったため（上記「未完了」）、長いファイルへのスクロールの確認に留まる。
+
 ## 未完了（範囲内だが、まだ終わっていないこと）
 
 **次の作業へ引き継ぐ。「範囲外」と混同しないこと**（範囲外として spec へ書くと、必要な作業が
 落ちる）。
 
-- **`gitlab_get_mr_url` / `gitlab_get_note_url` の `Provider.sh` 経由での実行**（受け入れ条件1）。
-  フェーズ3でディスパッチャを追加してから再実行する。
-- **折りたたまれた差分に対するアンカーの挙動**。GitLabが大きい差分を畳むことは分かったが、
-  Compareページがそもそも飛ばないため切り分けられていない。不具合1の修正方針が決まった時点で
-  （MR差分ページを土台にするなら）再確認する。
+- **修正後の差分アンカーのブラウザ目視確認**（4本。下記「フェーズ3の実施結果」）。自動確認では
+  「スクロールするか」を判定できないため、これが済むまで不具合1は解消と見なさない。
+- **折りたたまれた差分に対するアンカーの挙動**。402行のファイルを含む差分を作り直したが、
+  `diffs_batch.json` では `collapsed` が1件も立たず（32ファイル全件が展開された）、
+  **折りたたみを再現できていない**。畳まれる条件（ファイル単体の行数ではなく、ページ全体の
+  規模に依存すると思われる）が特定できていない。
 
 ## 範囲外（今回やらないと決めたこと）
 

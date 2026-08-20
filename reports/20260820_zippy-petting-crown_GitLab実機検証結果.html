@@ -243,6 +243,49 @@ repo  = "issue127-verify-sub"</pre>
     </div>
   </section>
 
+  <!-- フェーズ3の実施結果 -->
+  <section class="mb-12">
+    <h2 class="text-xl font-bold text-slate-900 mb-1">フェーズ3の実施結果（flow-id 3-6）</h2>
+    <p class="text-sm text-slate-600 mb-4">不具合2件を修正し、受け入れ条件1の未達だった2件を <code>Provider.sh</code> 経由で再実行した。残るのはブラウザ目視確認（依頼中）。</p>
+
+    <div class="grid gap-6 md:grid-cols-2 mb-6">
+      <div class="rounded-xl border border-emerald-200 bg-white p-5">
+        <h3 class="font-bold text-emerald-900 mb-3">修正の要点</h3>
+        <ul class="text-sm text-slate-700 space-y-2 list-disc pl-5">
+          <li><span class="font-semibold">不具合1</span>: 土台URLの決定を <code>get_diff_anchor_base_url</code> ディスパッチャへ委譲。GitHubは <code>compare_url</code> をそのまま返し、GitLabは <code>&lt;mrUrl&gt;/diffs</code>（初回push）／<code>?start_sha=</code>（2回目以降）を返す。</li>
+          <li><span class="font-semibold">不具合2</span>: <code>gitlab_get_repo_url</code> → <code>get_repo_url</code>（2箇所）。<code>url=</code> が出力へ入るようになったことを実機で確認。</li>
+          <li><span class="font-semibold">受け入れ条件1</span>: <code>get_mr_url</code> / <code>get_note_url</code> のディスパッチャ＋GitHub実装を追加し、GitLab実機でディスパッチャ経由の実行を確認。</li>
+        </ul>
+      </div>
+
+      <div class="rounded-xl border border-slate-200 bg-white p-5">
+        <h3 class="font-bold text-slate-900 mb-3">GitHub側が変わっていないことの確認</h3>
+        <p class="text-sm text-slate-600 mb-3">テストの追加だけでは変更時点の劣化を検出できないため、変更前（<code>a13f4aa</code>）と変更後の <code>build_file_links_text</code> を同じ入力で突き合わせた。</p>
+        <pre class="text-xs bg-slate-900 text-slate-100 rounded-lg p-3 overflow-x-auto">old: 2526 バイト / 15 行
+new: 2526 バイト / 15 行
+diff: 差分なし（完全一致）</pre>
+        <p class="text-sm text-slate-600 mt-3">出力が空でないこと（＝比較が空振りしていないこと）も確認済み。単体テストは <span class="font-semibold">12本すべて <code>failures=0</code></span>（<code>test_vcs_provider.sh</code> は16ケース追加で <code>passed=159</code>）。</p>
+      </div>
+    </div>
+
+    <div class="rounded-xl border border-amber-200 bg-white p-5">
+      <h3 class="font-bold text-amber-900 mb-3">ブラウザ目視確認（依頼中・4本）</h3>
+      <p class="text-sm text-slate-600 mb-3">いずれも<span class="font-semibold">対象ファイルがそのページの差分に含まれていることをAPIで確認済み</span>（効かなかった場合に「ファイルが無かっただけ」と紛れないようにするため）。</p>
+      <div class="overflow-x-auto rounded-lg border border-slate-200">
+        <table class="min-w-full text-xs">
+          <thead class="bg-slate-100"><tr><th class="px-3 py-2 text-left">#</th><th class="px-3 py-2 text-left">目的</th><th class="px-3 py-2 text-left">対象ファイル</th><th class="px-3 py-2 text-left">位置</th></tr></thead>
+          <tbody class="divide-y divide-slate-100">
+            <tr><td class="px-3 py-2">1</td><td class="px-3 py-2">通常の差分ファイル</td><td class="px-3 py-2"><code>docs/aaa-01.md</code></td><td class="px-3 py-2">1/32</td></tr>
+            <tr><td class="px-3 py-2">2</td><td class="px-3 py-2">行数の多いファイル（402行）</td><td class="px-3 py-2"><code>docs/zzz-折りたたみ確認.md</code></td><td class="px-3 py-2">31/32</td></tr>
+            <tr><td class="px-3 py-2">3</td><td class="px-3 py-2 font-semibold">前のpushで追加し今回削除（案Aとの分かれ目）</td><td class="px-3 py-2"><code>docs/mmm-大きい差分.md</code></td><td class="px-3 py-2">31/33</td></tr>
+            <tr><td class="px-3 py-2">4</td><td class="px-3 py-2">多数ファイルの後方（非同期描画の影響）</td><td class="px-3 py-2"><code>docs/zzz-目的地 ファイル.md</code></td><td class="px-3 py-2">32/32</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="text-sm text-rose-700 mt-3"><span class="font-semibold">2は「折りたたまれた差分」の確認にはなっていない。</span>402行のファイルを置いても <code>collapsed</code> が1件も立たなかったため、長いファイルへのスクロールの確認に留まる。折りたたみの再現は未完了。</p>
+    </div>
+  </section>
+
   <!-- 解消した未決定事項 -->
   <section class="mb-12">
     <h2 class="text-xl font-bold text-slate-900 mb-3">spec の「未決定事項・懸念点」への効果</h2>

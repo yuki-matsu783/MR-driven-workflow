@@ -159,7 +159,13 @@ gitlab_get_mr_unresolved_comments() {
   discussions="$(glab api "projects/:id/merge_requests/${mr_number}/discussions")"
   # コメントのパーマリンク（issue #42）用にMRのURLを求める。ここで失敗しても本体の
   # コメント取得は成功させたいため、握りつぶしてurl無しの出力へ縮退する。
-  if repo_url="$(gitlab_get_repo_url 2>/dev/null)" && [ -n "$repo_url" ]; then
+  #
+  # `get_repo_url` は Provider.sh 側のプロバイダ非依存な共有関数（`Gitlab.sh:31` の `to_slug` と
+  # 同じ形の依存）。issue #42 が呼んでいた `gitlab_get_repo_url` は issue #44 が定義を削除して
+  # この関数へ一本化しており、**呼び出し側だけが取り残されて未定義呼び出しになっていた**
+  # （並行ブランチのsemantic conflict。`2>/dev/null` が `command not found` を握りつぶすため、
+  # 無言でurl無しへ縮退していた。issue #127 で実機検証中に検出）。
+  if repo_url="$(get_repo_url 2>/dev/null)" && [ -n "$repo_url" ]; then
     mr_url="$(gitlab_get_mr_url "$repo_url" "$mr_number")"
   fi
   gitlab_format_discussion_notes "$discussions" "$include_resolved" "$mr_url"
@@ -177,7 +183,7 @@ gitlab_add_mr_thread_reply() {
     -X POST -f "body=${reply_body}")"
   note_id="$(printf '%s' "$response" | jq -r '.id // empty' | tr -d '\r')"
   [ -n "$note_id" ] || return 0
-  if repo_url="$(gitlab_get_repo_url 2>/dev/null)" && [ -n "$repo_url" ]; then
+  if repo_url="$(get_repo_url 2>/dev/null)" && [ -n "$repo_url" ]; then
     mr_url="$(gitlab_get_mr_url "$repo_url" "$mr_number")"
     gitlab_get_note_url "$mr_url" "$note_id"
   fi
@@ -252,12 +258,64 @@ gitlab_get_blob_url() {
   printf '%s/-/blob/%s/%s\n' "$repo_url" "$ref" "$path"
 }
 
-# Compareページ内の特定ファイルの差分位置を指すアンカー付きURLを組み立てる（純粋関数）。issue #42。
+# 指定SHAがMRのバージョン（push断面）のheadかを判定する。issue #127。
+# `gitlab_get_diff_anchor_base_url` が `?start_sha=` を付けてよいかの判定に使う。
+gitlab_mr_has_version_head() {
+  local mr_number="$1" sha="$2"
+  local versions
+  versions="$(glab api "projects/:id/merge_requests/${mr_number}/versions" 2>/dev/null)" || return 1
+  [ -n "$versions" ] || return 1
+  printf '%s' "$versions" \
+    | jq -e --arg sha "$sha" 'any(.[]; .head_commit_sha == $sha)' >/dev/null 2>&1
+}
+
+# 差分アンカーの土台にするページのURLを返す。issue #127。
+#
+# **GitLabのCompareページではアンカーが機能しない**（差分を非同期にストリーム描画するため、
+# ブラウザがフラグメントを解決する時点で対象要素がまだ存在しない）。MRの差分ページなら
+# 初回ロードから飛ぶことを実機の目視で確認した。
+#
+# 土台が覆う範囲は、呼び出し元のファイル一覧の供給元（`diff_range`）と一致させる。
+#
+# | pushの回 | `diff_range` | 土台URL |
+# |---|---|---|
+# | 初回（`since_sha` 無し） | `origin/<base>...HEAD` | `<mrUrl>/diffs` |
+# | 2回目以降 | `prev_sha...HEAD` | `<mrUrl>/diffs?start_sha=<prev_sha>` |
+#
+# MR全体の差分（`<mrUrl>/diffs`）を2回目以降にも使う案は採らなかった。前のpushで追加し今回の
+# pushで削除したファイル（**ファイルの改名も差分上は削除＋追加なので同じ形**）は、一覧には
+# 載るのにMR全体の差分には現れず、アンカーが着地先を失うため（実測: MR全体は30ファイル中0件、
+# `?start_sha=` は1ファイル中1件）。
+#
+# `start_sha` には**MRバージョンのheadでないSHAを渡してはいけない**。GitLabはエラーにせず
+# HTTP 200のまま0ファイルを返すため、無言で空の差分ページになる。呼び出し元の `prev_sha` は
+# pushを伴わないhookの誤検知でも上書きされうる（issue #23）ので、ここで検証して外れていたら
+# `<mrUrl>/diffs` へ縮退する。
+gitlab_get_diff_anchor_base_url() {
+  local compare_url="$1" mr_url="$2" mr_number="$3" since_sha="$4"
+  # MRのURLを取得できない経路（MCP経路等）では従来どおりCompareページへ縮退する。
+  # アンカーは機能しないが、壊れたURLを出すよりは現行の振る舞いを保つ。
+  if [ -z "$mr_url" ]; then
+    printf '%s\n' "$compare_url"
+    return 0
+  fi
+  if [ -z "$since_sha" ] || [ -z "$mr_number" ] \
+    || ! gitlab_mr_has_version_head "$mr_number" "$since_sha"; then
+    printf '%s/diffs\n' "$mr_url"
+    return 0
+  fi
+  printf '%s/diffs?start_sha=%s\n' "$mr_url" "$since_sha"
+}
+
+# 差分ページ内の特定ファイルの差分位置を指すアンカー付きURLを組み立てる（純粋関数）。issue #42。
 # GitLabの差分アンカーは `#<パス文字列のsha1>`（GitHubと違い `diff-` 接頭辞が付かない）。
-# 【未検証】このリポジトリにGitLab remoteが無いため実機確認できていない。
+# ハッシュの入力は**percent-encode前の生パス**（encodeが要るblobリンクとは逆）。
+# issue #127 でローカルGitLab CE 18.5.4 に対して実機確認済み。
+# `base_url` は `gitlab_get_diff_anchor_base_url` の戻り値を渡す（Compareページを渡すと
+# アンカーが機能しない。同関数のコメント参照）。
 gitlab_get_diff_anchor_url() {
-  local compare_url="$1" path_hash="$2"
-  printf '%s#%s\n' "$compare_url" "$path_hash"
+  local base_url="$1" path_hash="$2"
+  printf '%s#%s\n' "$base_url" "$path_hash"
 }
 
 # 差分アンカーのハッシュ算出に使うアルゴリズム名を返す（純粋関数）。issue #42。【未検証】

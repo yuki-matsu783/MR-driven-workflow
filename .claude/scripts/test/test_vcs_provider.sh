@@ -824,5 +824,148 @@ assert_eq "porcelain_z_to_paths: 改名エントリの旧パスが欠けてい�
   "plans/new.md" \
   "$(printf 'R  plans/new.md\0' | porcelain_z_to_paths)"
 
+# --- 差分アンカーの土台URL（issue #127） ---------------------------------------------------
+# 同じハッシュでも土台にするページによってアンカーが効くかが変わるため、土台の決定を
+# プロバイダへ委ねている。GitHubは従来どおりCompareページ、GitLabはMRの差分ページ。
+anchor_compare_url='https://github.com/o/r/compare/aaa...bbb'
+anchor_mr_url='http://gl.example/o/r/-/merge_requests/7'
+
+assert_eq "github_get_diff_anchor_base_url: compare_urlをそのまま返す（従来の挙動を変えない）" \
+  "$anchor_compare_url" \
+  "$(github_get_diff_anchor_base_url "$anchor_compare_url" "$anchor_mr_url" 7 'aaa111')"
+
+assert_eq "github_get_diff_anchor_base_url: since_shaが空でもcompare_urlをそのまま返す" \
+  "$anchor_compare_url" \
+  "$(github_get_diff_anchor_base_url "$anchor_compare_url" "$anchor_mr_url" 7 '')"
+
+# `glab` をシェル関数で差し替え、MRバージョン一覧を固定値にする（外部プロセス・ネットワークを
+# 使わない）。同名のシェル関数は実行ファイルより優先されるため、実装側に手を入れずに検証できる。
+glab() {
+  case "$*" in
+    'api projects/:id/merge_requests/7/versions')
+      printf '%s' '[{"id":11,"head_commit_sha":"aaa111"},{"id":10,"head_commit_sha":"bbb222"}]'
+      ;;
+    'api projects/:id/merge_requests/7/discussions')
+      printf '%s' "$gitlab_discussions_fixture"
+      ;;
+    *) return 1 ;;
+  esac
+}
+
+assert_eq "gitlab_get_diff_anchor_base_url: mr_urlが空ならcompare_urlへ縮退する（MCP経路）" \
+  "$anchor_compare_url" \
+  "$(gitlab_get_diff_anchor_base_url "$anchor_compare_url" '' 7 'aaa111')"
+
+assert_eq "gitlab_get_diff_anchor_base_url: since_shaが空ならMR全体の差分ページ（初回push）" \
+  "${anchor_mr_url}/diffs" \
+  "$(gitlab_get_diff_anchor_base_url "$anchor_compare_url" "$anchor_mr_url" 7 '')"
+
+assert_eq "gitlab_get_diff_anchor_base_url: since_shaがバージョンheadならstart_shaで絞り込む" \
+  "${anchor_mr_url}/diffs?start_sha=aaa111" \
+  "$(gitlab_get_diff_anchor_base_url "$anchor_compare_url" "$anchor_mr_url" 7 'aaa111')"
+
+# バージョンheadでないSHAを渡すとGitLabはHTTP 200のまま0ファイルを返す（無言で空の差分ページに
+# なる）ため、付けずにMR全体の差分ページへ縮退する
+assert_eq "gitlab_get_diff_anchor_base_url: since_shaがバージョンheadでなければ縮退する" \
+  "${anchor_mr_url}/diffs" \
+  "$(gitlab_get_diff_anchor_base_url "$anchor_compare_url" "$anchor_mr_url" 7 'zzz999')"
+
+assert_eq "gitlab_get_diff_anchor_base_url: mr_numberが空なら検証できないので縮退する" \
+  "${anchor_mr_url}/diffs" \
+  "$(gitlab_get_diff_anchor_base_url "$anchor_compare_url" "$anchor_mr_url" '' 'aaa111')"
+
+assert_eq "gitlab_mr_has_version_head: バージョンheadなら成功する" \
+  "0" \
+  "$(if gitlab_mr_has_version_head 7 'bbb222'; then echo 0; else echo 1; fi)"
+
+assert_eq "gitlab_mr_has_version_head: APIが失敗したら偽を返す（存在しないMR番号）" \
+  "1" \
+  "$(if gitlab_mr_has_version_head 999 'aaa111'; then echo 0; else echo 1; fi)"
+
+# --- MR/noteのURL組み立て（issue #127でディスパッチャを追加） -------------------------------
+assert_eq "github_get_mr_url: PRのページURLを組み立てる" \
+  "https://github.com/o/r/pull/7" \
+  "$(github_get_mr_url 'https://github.com/o/r' 7)"
+
+# 形式はGitHubのAPIが実際に返す値と一致する（本リポジトリのPR #128 の実コメントで確認済み）
+assert_eq "github_get_note_url: レビューコメントのパーマリンクを組み立てる" \
+  "https://github.com/o/r/pull/7#discussion_r3821657827" \
+  "$(github_get_note_url 'https://github.com/o/r/pull/7' 3821657827)"
+
+# --- 呼び出し経路のテスト（issue #127） ----------------------------------------------------
+# 静的検出（後述）は「定義があるか」しか見ないため、引数の受け渡しが壊れている形は拾えない。
+# `gitlab_get_mr_unresolved_comments` が実際にMRのURLを組み立ててコメントへ埋め込むところまでを、
+# `glab` と `get_repo_url` を差し替えて通す。
+# `get_repo_url` も差し替えるのは、この関数が `git remote get-url origin` を起動するため
+# （差し替えないと origin の無いチェックアウトで落ち、かつ本リポジトリのoriginはGitHubなので
+# 実在しないGitLab形式のURLで通ってしまい、検証として意味を成さない）。
+get_repo_url() {
+  printf 'http://gl.example/o/r\n'
+}
+
+assert_eq "gitlab_get_mr_unresolved_comments: noteのパーマリンクが完全な形で出力に入る" \
+  "[unresolved threadId=d1 url=http://gl.example/o/r/-/merge_requests/7#note_1] reviewer: ここは修正してください
+
+[unresolved threadId=d4 url=http://gl.example/o/r/-/merge_requests/7#note_4] root: 通常コメント" \
+  "$(gitlab_get_mr_unresolved_comments 7)"
+
+unset -f glab get_repo_url
+
+# --- 未定義の github_* / gitlab_* 呼び出しの静的検出（issue #127） --------------------------
+# issue #42（呼び出しの追加）と issue #44（定義の削除）が並行ブランチで行われ、gitがコンフリクト
+# と見なさなかったために `gitlab_get_repo_url` が未定義のまま呼ばれ続けていた。同じ形の混入を
+# 機械的に検出する。
+#
+# 注意: 修正後は「未定義0件」が恒久的な期待値になるため、抽出パターンが実データに合わなくなっても
+# 結果は同じ「0件」になる（常に成功する検証になってしまう）。参照件数・定義件数も併せて表明し、
+# さらに下で「意図的に壊した木では実際に検出できる」ことを確かめて空振りを潰す。
+vcs_identifiers() {
+  # 行頭・行末どちらのコメントも落としてから識別子を拾う（`foo  # gitlab_bar` を参照と誤認しない）
+  sed -E 's/#.*$//' "$1/Provider.sh" "$1/Github.sh" "$1/Gitlab.sh"
+}
+
+vcs_defined_names() {
+  vcs_identifiers "$1" | grep -oE '^(github|gitlab)_[a-z0-9_]+\(\)' | sed 's/()$//' | sort -u
+}
+
+vcs_referenced_names() {
+  # `github__list_pull_requests` のようなMCPツール名（アンダースコア2つ）は関数名ではないので除く
+  # （`mcp_tool_hint` が文字列として持っている）。これを除かないと未定義の関数として検出される。
+  vcs_identifiers "$1" \
+    | grep -oE '(github|gitlab)_[a-z0-9_]+' \
+    | grep -vE '^(github|gitlab)__' \
+    | sort -u
+}
+
+vcs_undefined_names() {
+  comm -23 <(vcs_referenced_names "$1") <(vcs_defined_names "$1")
+}
+
+vcs_dir="$repo_root/.claude/scripts/src/vcs"
+
+# 抽出そのものが空振りしていないことを先に確かめる（0件なら検出は常に成功してしまう）
+assert_eq "静的検出: 定義を1件以上抽出できている" \
+  "yes" \
+  "$([ "$(vcs_defined_names "$vcs_dir" | grep -c .)" -gt 0 ] && echo yes || echo no)"
+
+assert_eq "静的検出: 参照を1件以上抽出できている" \
+  "yes" \
+  "$([ "$(vcs_referenced_names "$vcs_dir" | grep -c .)" -gt 0 ] && echo yes || echo no)"
+
+assert_eq "静的検出: 定義の無い github_* / gitlab_* の呼び出しが存在しない" \
+  "" \
+  "$(vcs_undefined_names "$vcs_dir")"
+
+# 空振り防止: 意図的に未定義呼び出しを1件戻した木では、実際にその1件だけを検出できること
+vcs_broken_dir="$(mktemp -d)"
+cp "$vcs_dir/Provider.sh" "$vcs_dir/Github.sh" "$vcs_dir/Gitlab.sh" "$vcs_broken_dir/"
+sed -i '0,\|get_repo_url 2>/dev/null|s||gitlab_get_repo_url 2>/dev/null|' "$vcs_broken_dir/Gitlab.sh"
+
+assert_eq "静的検出: 未定義呼び出しを1件戻した木では、その1件を検出できる" \
+  "gitlab_get_repo_url" \
+  "$(vcs_undefined_names "$vcs_broken_dir")"
+
+rm -rf "$vcs_broken_dir"
+
 echo "passed=$passed failures=$failures"
 [ "$failures" -eq 0 ]
