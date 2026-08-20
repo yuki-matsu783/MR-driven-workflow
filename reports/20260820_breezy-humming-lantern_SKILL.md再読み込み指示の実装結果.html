@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>実装結果: issue #113 SKILL.md再読み込み指示の注入</title>
+<script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-50 text-slate-800">
+<div class="max-w-5xl mx-auto px-5 py-10">
+
+  <header class="mb-10">
+    <p class="text-xs tracking-widest text-sky-700 font-semibold mb-2">REPORT / 2026-08-20</p>
+    <h1 class="text-3xl font-bold text-slate-900 mb-3">
+      issue #113 SKILL.md再読み込み指示の注入
+    </h1>
+    <p class="text-slate-600 leading-relaxed">
+      SessionStart hook が注入する追加コンテキストの<strong>末尾</strong>へ、issue-mr-flow 対象ブランチと
+      判定できる場合にのみ「<code class="bg-slate-200 px-1 rounded">.claude/skills/issue-mr-flow/SKILL.md</code>
+      を読み直すこと」という指示を足した。対象外のブランチ・<code class="bg-slate-200 px-1 rounded">main</code>
+      ブランチでは注入内容が1バイトも変わらない。
+    </p>
+    <p class="text-xs text-slate-500 mt-3">
+      全体作業計画: plans/breezy-humming-lantern.md ／ 正文（md）: 同名の .md ファイル
+    </p>
+  </header>
+
+  <section class="mb-10">
+    <h2 class="text-xl font-bold text-slate-900 border-l-4 border-sky-600 pl-3 mb-4">解こうとしている問題</h2>
+    <div class="grid md:grid-cols-3 gap-4">
+      <div class="bg-white rounded-lg p-5 shadow-sm border border-slate-200">
+        <p class="text-3xl font-bold text-slate-900">1,100<span class="text-base font-normal text-slate-500">行超</span></p>
+        <p class="text-sm text-slate-600 mt-1">SKILL.md（唯一の実装フロー定義）の分量。compact の要約で手順理解が失われうる。</p>
+      </div>
+      <div class="bg-white rounded-lg p-5 shadow-sm border border-slate-200">
+        <p class="text-3xl font-bold text-slate-900">見えない</p>
+        <p class="text-sm text-slate-600 mt-1">「読んだ」事実は履歴に残るため、要約後のエージェントは細部を失ったことに気づけない。</p>
+      </div>
+      <div class="bg-white rounded-lg p-5 shadow-sm border border-slate-200">
+        <p class="text-3xl font-bold text-slate-900">現在地のみ</p>
+        <p class="text-sm text-slate-600 mt-1">DDR 0032 が再注入するのは現在地であって、手順を読み直させる指示ではなかった。</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="mb-10">
+    <h2 class="text-xl font-bold text-slate-900 border-l-4 border-sky-600 pl-3 mb-4">対象ブランチの判定材料（調査結果）</h2>
+    <div class="overflow-x-auto bg-white rounded-lg shadow-sm border border-slate-200">
+      <table class="w-full text-sm">
+        <thead class="bg-slate-100 text-slate-700">
+          <tr>
+            <th class="text-left px-4 py-3 font-semibold">候補</th>
+            <th class="text-left px-4 py-3 font-semibold">取りこぼし</th>
+            <th class="text-left px-4 py-3 font-semibold">取得コスト</th>
+            <th class="text-left px-4 py-3 font-semibold">採否</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-100">
+          <tr>
+            <td class="px-4 py-3">ブランチ名から issue 番号を抽出</td>
+            <td class="px-4 py-3 text-slate-600">命名規則から外れたブランチ（<code>claude/&lt;slug&gt;</code> 等）</td>
+            <td class="px-4 py-3 text-slate-600">文字列照合のみ</td>
+            <td class="px-4 py-3"><span class="bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded text-xs font-semibold">採用</span></td>
+          </tr>
+          <tr>
+            <td class="px-4 py-3">ブランチ固有の作業ファイル</td>
+            <td class="px-4 py-3 text-slate-600">flow-id 1-3 直後（plans/ 未作成）</td>
+            <td class="px-4 py-3 text-slate-600">既に取得済み。追加ゼロ</td>
+            <td class="px-4 py-3"><span class="bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded text-xs font-semibold">採用</span></td>
+          </tr>
+          <tr>
+            <td class="px-4 py-3">HANDOFF.md の進捗表の有無</td>
+            <td class="px-4 py-3 text-slate-600"><strong>フローの最初と最後</strong>（リセット直後・ブランチ作成直後）</td>
+            <td class="px-4 py-3 text-slate-600">ファイル読み取り1回</td>
+            <td class="px-4 py-3"><span class="bg-rose-100 text-rose-800 px-2 py-0.5 rounded text-xs font-semibold">却下</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="text-sm text-slate-600 mt-3 leading-relaxed">
+      上2つは取りこぼす場面が互いに補完的なため、<strong>いずれか一方でも成り立てば対象</strong>とした。
+      本ブランチ <code class="bg-slate-200 px-1 rounded">claude/skill-md-reload-prompt-jy5z5i</code> 自体が命名規則に
+      一致しないため、ブランチ名だけを材料にすると<strong>自分自身が対象外になる</strong>。取りこぼしは実在した。
+    </p>
+  </section>
+
+  <section class="mb-10">
+    <h2 class="text-xl font-bold text-slate-900 border-l-4 border-sky-600 pl-3 mb-4">結合確認（使い捨てリポジトリで hook を実行）</h2>
+    <div class="grid sm:grid-cols-2 gap-4">
+      <div class="bg-white rounded-lg p-4 shadow-sm border border-slate-200">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="bg-slate-200 text-slate-700 px-2 py-0.5 rounded text-xs font-mono">1</span>
+          <span class="font-semibold text-slate-900">main</span>
+        </div>
+        <p class="text-sm text-slate-600">期待: 何も注入されない → <span class="text-emerald-700 font-semibold">出力なし（exit 2）</span></p>
+      </div>
+      <div class="bg-white rounded-lg p-4 shadow-sm border border-slate-200">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="bg-slate-200 text-slate-700 px-2 py-0.5 rounded text-xs font-mono">2</span>
+          <span class="font-semibold text-slate-900">feature-113-skill-md-reload</span>
+        </div>
+        <p class="text-sm text-slate-600">期待: 指示あり → <span class="text-emerald-700 font-semibold">根拠に「issue #113」</span></p>
+      </div>
+      <div class="bg-white rounded-lg p-4 shadow-sm border border-slate-200">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="bg-slate-200 text-slate-700 px-2 py-0.5 rounded text-xs font-mono">3</span>
+          <span class="font-semibold text-slate-900">命名規則外・作業ファイル無し</span>
+        </div>
+        <p class="text-sm text-slate-600">期待: <strong>指示なし</strong>（既存挙動）→ <span class="text-emerald-700 font-semibold">指示なし。他項目は従来どおり</span></p>
+      </div>
+      <div class="bg-white rounded-lg p-4 shadow-sm border border-slate-200">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="bg-slate-200 text-slate-700 px-2 py-0.5 rounded text-xs font-mono">4</span>
+          <span class="font-semibold text-slate-900">命名規則外・plans/ に個別計画あり</span>
+        </div>
+        <p class="text-sm text-slate-600">期待: 指示あり → <span class="text-emerald-700 font-semibold">根拠に「作業ファイル」</span></p>
+      </div>
+    </div>
+  </section>
+
+  <section class="mb-10">
+    <h2 class="text-xl font-bold text-slate-900 border-l-4 border-sky-600 pl-3 mb-4">実際に注入される指示文</h2>
+    <pre class="bg-slate-900 text-slate-100 rounded-lg p-5 text-xs overflow-x-auto leading-relaxed">## issue-mr-flowの手順（SKILL.md）を読み直すこと
+
+このブランチはissue駆動MRワークフローの対象です（判定根拠: ブランチ名がissue命名規則に一致（issue #113））。作業を再開する前に
+`.claude/skills/issue-mr-flow/SKILL.md`（唯一の実装フロー定義）を読み直してください。
+**このセッションで既に読んでいる場合も読み直すこと**（compactの要約で、レビュー往復・
+`commit`スキル経由の強制・`HANDOFF.md`の進捗更新といった手順が失われている可能性があります）。</pre>
+    <p class="text-sm text-slate-600 mt-3">
+      要点は<strong>「このセッションで既に読んでいる場合も読み直すこと」</strong>を明示している点にある。
+      実測 <strong>603 バイト</strong>（判定根拠が2件そろう場合でも 690 バイト）で、肥大化検知のしきい値
+      8,000 バイトの 13 分の 1 未満。
+    </p>
+  </section>
+
+  <section class="mb-10">
+    <h2 class="text-xl font-bold text-slate-900 border-l-4 border-sky-600 pl-3 mb-4">テスト結果</h2>
+    <div class="bg-white rounded-lg p-5 shadow-sm border border-slate-200">
+      <div class="flex flex-wrap gap-6 mb-4">
+        <div>
+          <p class="text-2xl font-bold text-emerald-700">649</p>
+          <p class="text-xs text-slate-500">全単体テストのケース数（12スクリプト）</p>
+        </div>
+        <div>
+          <p class="text-2xl font-bold text-emerald-700">0</p>
+          <p class="text-xs text-slate-500">failures</p>
+        </div>
+        <div>
+          <p class="text-2xl font-bold text-slate-900">35 → 51</p>
+          <p class="text-xs text-slate-500">test_session_start.sh のケース数</p>
+        </div>
+      </div>
+      <p class="text-sm text-slate-600 leading-relaxed">
+        追加した16ケースは、判定の4パターン（両方空／issue番号のみ／作業ファイルのみ／両方）、
+        対象外で何も出力しないこと、指示文の内容（見出し・SKILL.md のパス・判定根拠の埋め込み・
+        「既に読んでいる場合も読み直すこと」・compact への言及）、および指示文が 1,000 バイト未満で
+        あることを固定する。
+      </p>
+    </div>
+  </section>
+
+  <section class="mb-10">
+    <h2 class="text-xl font-bold text-slate-900 border-l-4 border-sky-600 pl-3 mb-4">受け入れ条件との対応</h2>
+    <ul class="space-y-3">
+      <li class="bg-white rounded-lg p-4 shadow-sm border border-slate-200 text-sm">
+        <span class="text-emerald-700 font-bold mr-2">✓</span>
+        対象ブランチで compact 時に「SKILL.md を読み直すこと」が注入される
+        <span class="block text-slate-500 mt-1 ml-6">matcher は <code>compact</code> を含んだまま。結合確認 #2・#4</span>
+      </li>
+      <li class="bg-white rounded-lg p-4 shadow-sm border border-slate-200 text-sm">
+        <span class="text-emerald-700 font-bold mr-2">✓</span>
+        対象外では既存の挙動を壊さない
+        <span class="block text-slate-500 mt-1 ml-6">main は exit 2 のまま（#1）。命名規則外・作業ファイル無しでも足さない（#3）</span>
+      </li>
+      <li class="bg-white rounded-lg p-4 shadow-sm border border-slate-200 text-sm">
+        <span class="text-emerald-700 font-bold mr-2">✓</span>
+        既存テストが通り、新規テストを追加した
+        <span class="block text-slate-500 mt-1 ml-6">既存35ケース通過。16ケース追加し passed=51 failures=0</span>
+      </li>
+      <li class="bg-white rounded-lg p-4 shadow-sm border border-slate-200 text-sm">
+        <span class="text-emerald-700 font-bold mr-2">✓</span>
+        DDR 0032 の方針（しきい値監視・切り詰めない）と矛盾しない
+        <span class="block text-slate-500 mt-1 ml-6">指示文は有界で 603 バイト。切り詰めロジックは増やしていない</span>
+      </li>
+    </ul>
+  </section>
+
+  <section class="mb-4">
+    <h2 class="text-xl font-bold text-slate-900 border-l-4 border-amber-500 pl-3 mb-4">未解決・限界</h2>
+    <div class="bg-amber-50 border border-amber-200 rounded-lg p-5 text-sm text-slate-700 space-y-3">
+      <p><strong>人間のレビュー往復は実施できていない。</strong> 非対話セッションのため、該当ループ範囲
+      （flow-id 3-3/3-8・4-3/4-8）の進捗記号は <code>[]</code> のまま残している。</p>
+      <p><strong>実際の compact 発生時の挙動はこの環境では確認していない。</strong> 検証したのは hook の
+      出力内容であり、compact を起点に hook が発火することは issue #57（DDR 0032）で確認済みの
+      matcher 設定に依存する。今回 matcher は変更していないため、発火条件は変わらない。</p>
+      <p><strong>対象判定はヒューリスティックである。</strong> 「issue-mr-flow に乗せていないが plans/ を
+      作った」ブランチは対象と判定される。指示を1つ読ませるだけのコストなので、取りこぼす側より
+      安全な方向へ倒している。判定根拠を指示文へ埋め込んであるため、誤判定は出力を見れば分かる。</p>
+    </div>
+  </section>
+
+</div>
+</body>
+</html>
