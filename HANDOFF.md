@@ -14,10 +14,10 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 
 - issue: #33 配布テンプレートとして不足している資産（PR/MRテンプレート・LICENSE・.gitattributes・版管理）を整備する
 - ブランチ: claude/distribution-template-assets-oi4uai
-- PR: 未作成
-- push回数: 0
+- PR: #136 (Draft) https://github.com/yuki-matsu783/MR-driven-workflow/pull/136
+- push回数: 1
 - 現在のループ: なし
-- 追従監視: 未開始
+- 追従監視: 購読あり（subscribe_pr_activity で PR #136 を購読。セッション終了で止まるため、次セッションは resume で取り直す）
 
 ## フロー進捗状況
 
@@ -25,11 +25,11 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 |----|---|---|---|
 | [x] | 1-1 | issueを起票する（`.github/ISSUE_TEMPLATE/task.md` / `.gitlab/issue_templates/Default.md` で目的・現状・期待する動作・受け入れ条件を記載） | 人間（AIが代行する場合は `issue-create` スキル） |
 | [x] | 1-2 | issueの内容を取得する | `start <issue番号>` |
-| [] | 1-3 | featureブランチ（`feature-<issue番号>-<slug>`）とDraft MRを作成する（既にあれば `sync` のみ） | `start`（エージェント） |
+| [x] | 1-3 | featureブランチ（`feature-<issue番号>-<slug>`）とDraft MRを作成する（既にあれば `sync` のみ） | `start`（エージェント） |
 | [x] | 1-4 | Planモードで「全体作業計画」を作成する | エージェント |
 | [] | 1-5 | 全体作業計画に合意する | 人間 |
 | [x] | 1-6 | 全体作業計画をもとにHANDOFF.mdを更新する | エージェント |
-| [] | 2-1 | 個別調査計画`plans/【調査】〜.md`をplanツールを使わずWrite/Editで作成する | エージェント |
+| [x] | 2-1 | 個別調査計画`plans/【調査】〜.md`をplanツールを使わずWrite/Editで作成する | エージェント |
 | [] | 2-2 | `commit`スキル経由でcommitし、push してレビュー依頼を行う | エージェント |
 | [] | 2-3 | MRで調査計画についてレビュー・コメントする | 人間 |
 | [] | 2-4 | レビュー内容を取得し、調査計画を修正する | `comments` / `reply` |
