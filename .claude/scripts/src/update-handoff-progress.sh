@@ -25,6 +25,11 @@
 # add-round を実行した時点で自動的に移行する（記号の個数を周回数としてヘッダへ移し、進捗列は
 # 記号1つへ畳む）。
 #
+# ヘッダ行は "- <項目名>: <値>" の1行で、項目名は issue / ブランチ / PR / push回数 /
+# 現在のループ / 追従監視 の6つに固定する（"- Draft PR:" のような別名は使わない）。
+# **書き換えを求められた対象が見つからなければ、どのサブコマンドも書き戻さずに非0で終了する**
+# （issue #66。「呼び出しは成功したが、ファイルは期待した状態になっていない」状態を作らない）。
+#
 # 仕様: .claude/docs/spec/update-handoff-progress.md
 set -euo pipefail
 
@@ -126,25 +131,54 @@ resolve_loop_rounds_to_reply() {
   count_rounds_to_reply "$progress"
 }
 
+# 読み込み済みの LINES から「ヘッダブロック」の範囲を求め、以下をREPLY_*へ設定する（常に成功）。
+#   REPLY_BLOCK_END : ヘッダブロックの終端（この添字は含まない）
+#   REPLY_HEADING   : "## フロー進捗状況" 見出しの添字。無ければ -1
+# ヘッダブロックは「ファイル先頭から『## フロー進捗状況』節の終わり（同見出し以降で最初に現れる
+# 別の "## " 見出しの直前）まで」とする。見出しが無いファイルではファイル全体。
+#
+# 範囲を限定するのは2つの理由による（issue #66）。
+#   1. 「やったこと」節などで "- PR: ..." のように引用された行を、ヘッダ行と取り違えて
+#      書き換えないため。
+#   2. ヘッダブロックが見出しの**前**にある版と**後**にある版が履歴上どちらも存在するため
+#      （実測: 見出しの後23断面／前9断面）。両方を1つの範囲で拾う。
+resolve_header_block_to_reply() {
+  local i
+  REPLY_HEADING=-1
+  REPLY_BLOCK_END=${#LINES[@]}
+  for ((i = 0; i < ${#LINES[@]}; i++)); do
+    if [[ $REPLY_HEADING -lt 0 ]]; then
+      [[ "${LINES[$i]}" == '## フロー進捗状況'* ]] && REPLY_HEADING=$i
+      continue
+    fi
+    if [[ "${LINES[$i]}" == '## '* ]]; then
+      REPLY_BLOCK_END=$i
+      return 0
+    fi
+  done
+}
+
 # 行配列 LINES 内の "- 現在のループ:" 行を text で置き換える（読み込み・書き戻しは呼び出し側）。
-# 行が無い場合は、既存ヘッダ項目（issue/ブランチ/PR/push回数）のうち最後の行の直後へ挿入する。
-# ヘッダ項目が1つも無ければ "## フロー進捗状況" 見出しの直前へ、後ろに空行を1つ添えて挿入する
-# （flow-id 5-3でリセットした直後のHANDOFF.mdはヘッダ項目を持たないため）。
-# どちらの基準も見つからない場合は、メッセージを出さずに終了コード1を返す（扱いは呼び出し側が決める）。
+# 探索も挿入もヘッダブロック（resolve_header_block_to_reply）の中だけで行う。
+# 行が無い場合の挿入位置は次のとおり。
+#   1. ヘッダ項目（issue/ブランチ/PR/push回数）があれば、その最後の行の直後。
+#   2. 無ければ "## フロー進捗状況" 見出しの直後へ、前に空行を1つ添えて挿入する
+#      （flow-id 5-3でリセットした直後のHANDOFF.mdがヘッダ項目を持たない場合に備える）。
+#   3. どちらの基準も見つからない場合は、メッセージを出さずに終了コード1を返す
+#      （扱いは呼び出し側が決める）。
+# "- 追従監視:" は基準に含めない（"- 現在のループ:" より後ろに置く項目のため。issue #88）。
 set_loop_header_in_lines() {
   local text="$1"
-  local i last_header=-1 heading=-1
-  for ((i = 0; i < ${#LINES[@]}; i++)); do
+  resolve_header_block_to_reply
+  local block_end="$REPLY_BLOCK_END" heading="$REPLY_HEADING"
+  local i last_header=-1
+  for ((i = 0; i < block_end; i++)); do
     if [[ "${LINES[$i]}" =~ ^-[[:space:]]現在のループ: ]]; then
       LINES[$i]="- 現在のループ: ${text}"
       return 0
     fi
-    # 見出し以降に現れる "- issue: " 等（本文中の引用など）を挿入位置の基準にしない
-    if [[ $heading -lt 0 && "${LINES[$i]}" =~ ^-[[:space:]](issue|ブランチ|PR|push回数): ]]; then
+    if [[ "${LINES[$i]}" =~ ^-[[:space:]](issue|ブランチ|PR|push回数): ]]; then
       last_header=$i
-    fi
-    if [[ $heading -lt 0 && "${LINES[$i]}" == '## フロー進捗状況'* ]]; then
-      heading=$i
     fi
   done
 
@@ -153,8 +187,8 @@ set_loop_header_in_lines() {
   if [[ $last_header -ge 0 ]]; then
     at=$((last_header + 1))
   elif [[ $heading -ge 0 ]]; then
-    at=$heading
-    insert+=("")
+    at=$((heading + 1))
+    insert=("" "- 現在のループ: ${text}")
   else
     return 1
   fi
@@ -206,6 +240,9 @@ usage:
   --loop <text>   ヘッダの "- 現在のループ:" 行を <text> で書き換える（行が無ければ挿入する）。
                   例: --loop 'なし' / --loop '3-6〜3-9 の2周目（進行中）'
                   add-round・ループ範囲へのmark-doneは、この行を自動で追従させる
+
+  set-header は、指定した項目のヘッダ行がちょうど1件見つからなければ、ファイルを書き戻さずに
+  エラー終了する（--loop を除く。--loop は行が無ければ挿入する）。
 USAGE
 }
 
@@ -329,9 +366,36 @@ cmd_add_round() {
   write_lines_from_array "$file"
 }
 
+# 指定された項目のうち、ヘッダブロック内での一致件数が1でなかったものを列挙して報告する。
+# 1件も無ければ終了コード0（＝すべて正常）、1つでもあればメッセージを標準エラーへ出して1を返す。
+# 呼び出し側はこれが1を返したら**書き戻さずに**終了する（issue #66）。
+report_header_match_errors() {
+  local -a bad=("$@")
+  [[ ${#bad[@]} -eq 0 ]] && return 0
+  echo "error: set-header: ヘッダ行がちょうど1件見つからなかった項目があります（1件も書き換えていません）" >&2
+  local entry
+  for entry in "${bad[@]}"; do
+    echo "  ${entry}" >&2
+  done
+  cat >&2 <<'HINT'
+hint: HANDOFF.mdの「## フロー進捗状況」見出しの直下へ、次の6行をこの順で1行ずつ置いてください。
+        - issue: / - ブランチ: / - PR: / - push回数: / - 現在のループ: / - 追従監視:
+      「- Draft PR:」のような別名は使いません（Draftかどうかは値の側に書きます）。
+      表記の定義: .claude/docs/spec/update-handoff-progress.md「HANDOFF.mdのヘッダ行」
+HINT
+  return 1
+}
+
 # set-header: 指定されたオプションの項目のみヘッダ行（"- issue: " 等で始まる1行）を書き換える。
-# 未指定の項目は現状維持。ヘッダ各項目は1行である前提（説明の補足等で複数行に折り返している
-# 場合、2行目以降は書き換え対象にならず残るので注意）。
+# 未指定の項目は現状維持。探索範囲はヘッダブロック（resolve_header_block_to_reply）に限る
+# ため、「やったこと」節などで引用された "- PR: ..." のような行は書き換えない。
+#
+# 指定した項目の一致件数が1でなければ、**ファイルを書き戻さずに**エラー終了する（issue #66）。
+# 0件は「ヘッダ行が無い／表記が違う」、2件以上は「ヘッダ各項目は1行」という前提が崩れている
+# ことを表し、どちらも機械では正しい結果を決められないため。以前はどちらの場合も無言で成功し、
+# 呼び出し側（AIエージェント）が更新できたと誤認していた。
+# ヘッダ各項目は1行である前提（説明の補足等で複数行に折り返している場合、2行目以降は
+# 書き換え対象にならず残るので注意）。
 cmd_set_header() {
   local file="$1"
   shift
@@ -372,20 +436,45 @@ cmd_set_header() {
   done
 
   read_lines_to_array "$file"
+  resolve_header_block_to_reply
+  local block_end="$REPLY_BLOCK_END"
   local i line
-  for ((i = 0; i < ${#LINES[@]}; i++)); do
+  local n_issue=0 n_branch=0 n_pr=0 n_push_count=0
+  for ((i = 0; i < block_end; i++)); do
     line="${LINES[$i]}"
     if [[ $has_issue -eq 1 && "$line" =~ ^-[[:space:]]issue: ]]; then
       LINES[$i]="- issue: ${issue}"
+      n_issue=$((n_issue + 1))
     elif [[ $has_branch -eq 1 && "$line" =~ ^-[[:space:]]ブランチ: ]]; then
       LINES[$i]="- ブランチ: ${branch}"
+      n_branch=$((n_branch + 1))
     elif [[ $has_pr -eq 1 && "$line" =~ ^-[[:space:]]PR: ]]; then
       LINES[$i]="- PR: ${pr}"
+      n_pr=$((n_pr + 1))
     elif [[ $has_push_count -eq 1 && "$line" =~ ^-[[:space:]]push回数: ]]; then
       LINES[$i]="- push回数: ${push_count}"
+      n_push_count=$((n_push_count + 1))
     fi
   done
-  # "- 現在のループ:" だけは行が存在しないHANDOFF.mdもあるため、置換ではなく専用関数へ委ねる
+
+  # 指定した項目がちょうど1件ずつ見つかったかを検査する（1件でも外れたら何も書き戻さない）
+  local -a bad=()
+  if [[ $has_issue -eq 1 && $n_issue -ne 1 ]]; then
+    bad+=("issue: 一致 ${n_issue} 件（期待する行の書式: 「- issue: <値>」）")
+  fi
+  if [[ $has_branch -eq 1 && $n_branch -ne 1 ]]; then
+    bad+=("ブランチ: 一致 ${n_branch} 件（期待する行の書式: 「- ブランチ: <値>」）")
+  fi
+  if [[ $has_pr -eq 1 && $n_pr -ne 1 ]]; then
+    bad+=("PR: 一致 ${n_pr} 件（期待する行の書式: 「- PR: <値>」）")
+  fi
+  if [[ $has_push_count -eq 1 && $n_push_count -ne 1 ]]; then
+    bad+=("push回数: 一致 ${n_push_count} 件（期待する行の書式: 「- push回数: <値>」）")
+  fi
+  report_header_match_errors ${bad[@]+"${bad[@]}"} || return 1
+
+  # "- 現在のループ:" だけは行が存在しないHANDOFF.mdもあるため、置換ではなく専用関数へ委ねる。
+  # 上の検査を通ってから呼ぶ（落ちる呼び出しでこの行だけが変わる中途半端な状態を作らない）。
   if [[ $has_loop -eq 1 ]]; then
     set_loop_header_in_lines "$loop" || {
       echo "error: ヘッダ項目も「## フロー進捗状況」見出しも見つからないため「- 現在のループ:」行を挿入できません" >&2
