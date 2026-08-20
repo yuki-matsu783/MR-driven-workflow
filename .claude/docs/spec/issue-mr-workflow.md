@@ -813,7 +813,7 @@ Claude Code on the webのリモート実行環境のように、`gh`/`glab` CLI�
 - **正規URLと一致しないリスクケース**: いずれも「リンクが1本ずれる」だけで、フロー自体は止まらない。
   実運用上の発生確率とコストが釣り合わないため、検知や `gh`/`glab` へのフォールバックは設けない
   （詳細・却下案:
-  [0035-リポジトリURLはgh_glabではなくgit-remoteから導出する.md](../ddr/0035-リポジトリURLはgh_glabではなくgit-remoteから導出する.md)）。
+  [0037-リポジトリURLはgh_glabではなくgit-remoteから導出する.md](../ddr/0037-リポジトリURLはgh_glabではなくgit-remoteから導出する.md)）。
 
   | ケース | 挙動 | 判断 |
   |---|---|---|
