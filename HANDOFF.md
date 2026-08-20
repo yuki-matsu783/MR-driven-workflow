@@ -15,7 +15,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - issue: #33 配布テンプレートとして不足している資産（PR/MRテンプレート・LICENSE・.gitattributes・版管理）を整備する
 - ブランチ: claude/distribution-template-assets-oi4uai
 - PR: #136 (Draft) https://github.com/yuki-matsu783/MR-driven-workflow/pull/136
-- push回数: 5
+- push回数: 6
 - 現在のループ: 3-6〜3-9 の1周目（進行中・人間レビュー未実施）
 - 追従監視: 購読あり（subscribe_pr_activity で PR #136 を購読。セッション終了で止まるため、次セッションは resume で取り直す）
 
@@ -67,28 +67,62 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 
 ## やったこと
 
-- flow-id 1-2: issue #33 の内容をMCP（`mcp__github__issue_read`）で取得した（この実行環境には
-  `gh` CLIが無いため、`.claude/skills/issue-mr-flow/SKILL.md`「`gh`/`glab` CLI不在時のMCP
-  フォールバック」に従いMCP経路を使用）。
-- flow-id 1-4: 全体作業計画 `plans/配布テンプレート資産の整備.md` を作成した（Planモードを
-  既に抜けた状態で開始したため、planツールではなくWrite/Editで作成した。命名は
-  `【` で始まらない＝全体作業計画として識別できる形にしている）。
+- flow-id 1-2〜1-6: issue #33 の内容をMCP（`mcp__github__issue_read`）で取得し（この実行環境には
+  `gh` CLIが無いため、SKILL.md「`gh`/`glab` CLI不在時のMCPフォールバック」に従いMCP経路を使用）、
+  全体作業計画 `plans/配布テンプレート資産の整備.md` を作成、Draft PR #136 を作成した。
+  Planモードを既に抜けた状態で開始したため、全体作業計画はplanツールではなくWrite/Editで作成した
+  （命名は `【` で始まらない＝全体作業計画として識別できる形にしている）。
 - ユーザー判断: LICENSEの種別は「なし」（＝LICENSEファイルを追加しない）、版管理は
   「VERSIONファイルのみ採用（CHANGELOGなし）」に確定した。
+- flow-id 2-1〜2-2: 個別調査計画 `plans/【調査】配布経路と追加資産の設計判断.md` とworklogを作成し、
+  commit・pushした。
+- **flow-id 2-6相当（調査の実施）は完了している。** 結果は
+  `reports/20260820_配布テンプレート資産の整備_配布経路と追加資産の調査.md`（正文）と同名の `.html`。
+  使い捨ての空リポジトリへ `install-to-project.sh` を実際に適用する実機確認を含む。
+  **進捗記号 2-6〜2-9 が `[]` のままなのは「調査をしていない」からではなく、人間のレビュー往復
+  （2-8/2-9）をこのセッションでは待てないため**（`.claude/rules/docs-workflow.md` の非対話的
+  実行環境の規定に従い、ループ範囲の記号は `[]` のまま残す）。
+- flow-id 3-1〜3-2: 個別作業計画 `plans/【設計】【実装】配布テンプレート資産の追加.md` を作成し、
+  commit・pushした。
+- **flow-id 3-6相当（実装）は完了している。** 6つの成果物（PR/MRテンプレート2件・`.gitattributes`・
+  `.claude/VERSION`・配布スクリプト2本）と結合テスト `.claude/scripts/test/test_install_to_project.sh`
+  を追加した。結果は `reports/20260820_配布テンプレート資産の整備_実装結果.md` が正文。
+  3-6〜3-9 の記号が `[]` の理由は 2-6〜2-9 と同じ。
+- ベースブランチ追従: `check-base-sync.sh` が `behind=2` を報告したため、ユーザーの承認を得て
+  `git merge origin/main` で取り込んだ（main側のPR #131 / #134）。**DDR番号 0059・0060 が
+  main側で既に使われていたため、取り込みによって採番の衝突を事前に回避できた**（今回は0061から）。
+- **敵対的レビュー（フェーズ3・1回目）を実施した。** `adversarial-review` スキルで専任サブ
+  エージェントを起動し、検出11件のうち7件をPR #136 へインラインコメントとして投稿した
+  （実施回数カウンタは 1/3）。進捗表は動かさない（flow-idを持たないため）。指摘への対応は
+  フェーズ4の作業と同じコミット群で行っている。
+- flow-id 4-1: 個別反映計画2件（`【設計反映】` / `【AIアセット反映】`）を作成した。
 
 ## 次にやること
 
-- flow-id 2-1: 個別調査計画 `plans/【調査】配布経路と既存資産の棚卸し.md` を作成する。
+- flow-id 4-6の残り: `index.md`・`.claude/rules/directory-structure.md`・`README.md`・
+  `DEVELOPERS.md` への反映。
+- flow-id 5-1〜5-4: コンフリクト確認 → 関連issue（#26）への通知（**投稿前に承認が必須**）→
+  `cleanup-task.sh` での片付け → commit・push → Draft解除。**マージ（5-5）は行わない。**
 
 ## 判断を迷った内容
 
 - 受け入れ条件の「LICENSE ファイルが追加される」は、ユーザーが種別「なし」を選択したため
-  **意図的に満たさない**扱いとする。判断と影響（明示的な許諾が無い状態になること）はDDRへ残す。
+  **意図的に満たさない**扱いとする。判断と帰結（明示的な許諾が無い状態になること）は
+  `.claude/docs/ddr/0062-配布テンプレートにLICENSEを同梱しない.md` に残した。
+- `.gitattributes` を配布先へどう届けるか。全文コピーは配布先の `*.png binary` 等を壊すため、
+  `.gitignore` と同じ行追記にした（`.claude/docs/ddr/0063-...md`）。
 
 ## 未解決の内容
 
-- issue #26（配布方式のmanifest化）は未着手。本issueで追加する資産が、#26の層分け
-  （core/seed/merge/local）のどこに属するかは本issueでは決めず、#26側で決める。
+- **#26の層分けへの当てはめは調査で確定済み**（PR/MRテンプレート＝`seed`、`.gitattributes`＝
+  `merge`、`.claude/VERSION`＝`core`）。根拠つきで
+  `.claude/docs/spec/distribution-assets.md`「未決定事項・懸念点」へ移してある。issue #26 に
+  残るのは**層分け定義ファイル本体を作ること**であって、層の再検討ではない。
+- Windows実機（git bash）での改行挙動は未確認（この実行環境はLinuxコンテナ）。
+- 調査中に見つかった配布経路の範囲外の問題（`index.jsonl`・`.claude/state/` の混入、
+  追記される `.gitignore` の行が実態と食い違う、`.gitignore` 側の判定が部分一致のまま、
+  `HAS_WARNED` がサブシェルの外へ伝わらない）は、いずれも issue #26 の担当として
+  spec へ記録した。flow-id 5-2 で #26 へ通知する。
 
 ## 守るべき条件・触ってはいけない範囲
 
