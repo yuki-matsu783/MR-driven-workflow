@@ -17,7 +17,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - issue: #43 レビューコメント取得の出力仕様を見直す（diffHunk廃止・断面ソースの前後行スライス化）
 - ブランチ: claude/issue-43-snhmw7
 - PR: #131 https://github.com/yuki-matsu783/MR-driven-workflow/pull/131（Draft）
-- push回数: 6
+- push回数: 7
 - 現在のループ: 4-6〜4-9 の1周目（進行中）
 - 追従監視: 購読あり（web。subscribe_pr_activity + 定期チェックイン）
 
@@ -135,12 +135,20 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
   - `.claude/docs/spec/adversarial-review.md`: 現在の状態を説明する箇所の関数名と、投稿した
     スレッドにソーススライスが添えられる旨。
   - **過去changelog（issue #48 / #42 / #77 の節）は書き換えていない。**
+- flow-id 4-7（1周目）: 設計反映をcommitしてリモートへ反映した（push 6回目）。
+- flow-id 4-6（2周目・AIアセット反映）: `.claude/skills/issue-mr-flow/SKILL.md`（`comments` の
+  出力説明・見出しの注記の読み方・MCP経路ではスライスを作れない旨）と
+  `.claude/rules/shell-script-style.md`（`REPLY` へ返す動機に「戻り値が複数ある場合」を追加、
+  ソースコードへ生の制御文字を書かない注記）を更新した。
+- 検証: 全12テストスクリプトが `failures=0`、`extract-frontmatter.sh` が `failed=0`、
+  追跡ファイル全件に生の制御文字が無いことをバイト数比較で確認。
 
 ## 次にやること
 
-- flow-id 4-6（2周目）: AIアセット反映（`.claude/skills/issue-mr-flow/SKILL.md` の
-  `comments` 出力説明とMCP対応表の注記、`.claude/rules/shell-script-style.md` の
-  `REPLY` の動機と制御文字の注記）を実施する。
+- flow-id 4-10: MR descriptionを更新する。
+- フェーズ5: 5-1（コンフリクト検知。**DDR番号 0059 の衝突確認を含む**）→ 5-2（関連issue通知。
+  投稿前に `AskUserQuestion` で承認が必須）→ 5-3（片付け）→ 5-4（Draft解除）。
+  **5-5（マージ）はユーザーの明示指示があるまで実行しない。**
 
 ## 判断を迷った内容
 

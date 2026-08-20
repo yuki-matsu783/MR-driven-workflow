@@ -127,3 +127,36 @@ issue #43 以前のGitHub実装は `path` が null のとき ` (場所不明)` �
 - **MCP経路ではソーススライスを作れない**（`mcp__github__pull_request_read` が `line` も sha も
   返さない。GitHub MCPサーバー側の制約）。`mcp_tool_hint` にその旨を追記した。
 - 設計ドキュメント（spec / DDR / SKILL.md）への反映はフェーズ4で行う。
+
+## 反映結果（flow-id 4-6）
+
+### 設計反映
+
+| ファイル | 内容 |
+|---|---|
+| `.claude/docs/spec/issue-mr-workflow.md` | 提供関数表の書き換え（`get_mr_review_threads` / `read_file_at_ref` を追加）、内部ヘルパーの説明の更新、**新節「レビューコメントのソーススライス」**、`## 影響範囲` への issue #43 エントリ追記 |
+| `.claude/docs/ddr/0059-…` | 断面の選び方（コメント時点のsha優先・現HEADへ縮退）。却下案4件（常に現HEAD／取れなければ出さない／ファイル全体／diffHunk＋行番号）を含む |
+| `.claude/docs/README.md` | DDR一覧へ 0059 を追記 |
+| `.claude/docs/spec/adversarial-review.md` | 現在の状態を説明する箇所の関数名、投稿したスレッドにソーススライスが添えられる旨 |
+
+**過去changelog（`## 影響範囲` 配下の issue #48 / #42 / #77 の節）は書き換えていない。**
+`gitlab_format_discussion_notes` という名前がそこに残るのは当時の記録として正しい
+（`.claude/rules/docs-workflow.md`「ファイル移動に伴うパス参照の一括置換は…changelogを対象に
+含めない」と同じ理由）。反映対象9箇所のうち5箇所がこれに該当した。
+
+### AIアセット反映
+
+| ファイル | 内容 |
+|---|---|
+| `.claude/skills/issue-mr-flow/SKILL.md` | `comments` 手順2の出力説明（「該当diff」→「ソーススライス」）と、**見出しの注記の読み方**（`(断面 … を取得できず現HEADを表示)` が出たら断面がずれている）。MCP対応表へ「MCP経路ではスライスを作れない」注記 |
+| `.claude/rules/shell-script-style.md` | 「`REPLY` へ返す形が要るのは性能のためだけではない」（戻り値が複数ある関数）、「ソースコードへ生の制御文字を書かない」 |
+
+### 検証
+
+- `.claude/scripts/test/` の12スクリプト全てで `failures=0`。
+- `bash .claude/scripts/src/extract-frontmatter.sh .` → `failed=0`。
+  `search-frontmatter.sh --type ddr --text 断面` で 0059 が引ける。
+- DDR 0059 の相互リンクを `os.path.exists` で機械検査（当初 DDR 0027 のファイル名を誤っており、
+  この検査で気づいて修正した）。
+- 追跡ファイル全件について、生の制御文字（NUL・`\037`）が無いことをバイト数比較で確認。
+- 新節・changelogエントリの挿入位置の前後3行を目視し、空行の重複・不足が無いことを確認。

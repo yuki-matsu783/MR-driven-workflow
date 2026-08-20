@@ -44,6 +44,12 @@ push回数: 5
   リンク先の存在チェックを機械的に回して気づいた。**DDRへの相互リンクを書いたら必ず
   `os.path.exists` 相当で検査する**こと（`ls .claude/docs/ddr/ | grep '^00NN'` でもよい）。
 
+- AIアセット反映で `.claude/rules/shell-script-style.md` へ制御文字の注記を足す際、**その注記の
+  例文自体に生の0x1Fを書いてしまい**、`python` の `str.replace` が空文字列を探して空振りした
+  （`assert '\x1f' not in s` で検知）。注記が警告している失敗を、注記を書く操作で再現した形。
+  最終的に `s.replace('\x1f', '\\u001f')` で直した。**この種の混入は目視では絶対に見つからない**。
+
 ## 次の一歩
 
-- flow-id 4-7（commit・push）→ AIアセット反映（SKILL.md・shell-script-style.md）へ進む。
+- flow-id 4-10（MR description更新）→ フェーズ5（5-1 コンフリクト検知 → 5-2 関連issue通知 →
+  5-3 片付け → 5-4 Draft解除）へ進む。
