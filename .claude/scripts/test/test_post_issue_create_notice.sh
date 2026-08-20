@@ -80,11 +80,16 @@ assert_contains "注意文が新しいセッションでの実行を勧める" "
 assert_contains "注意文がHANDOFF.mdを更新しない旨に言及する" "$NOTICE_TEXT" 'HANDOFF.md'
 
 # --- 出力JSONの形 ---
+# 注意（`tr -d '\r'`）: Windowsネイティブjqは標準出力をテキストモードで開くため、`jq -r` が出力する
+# 各行の行末にCRが付く。コマンド置換が落とすのは末尾の `\r\n` だけなので、**取り出す値が複数行の
+# 場合、最終行以外のCRが残ったまま**assert_eqへ渡り、目視では同一に見える値で失敗する
+# （issue #94。`NOTICE_TEXT` はまさに複数行）。`jq -r` の結果は必ずCRを除去してから比較する
+# （.claude/rules/shell-script-style.md「文字コード」）。
 context_json="$(write_additional_context "$NOTICE_TEXT")"
 assert_eq "hookEventNameがPostToolUse" "PostToolUse" \
-  "$(printf '%s' "$context_json" | jq -r '.hookSpecificOutput.hookEventName')"
+  "$(printf '%s' "$context_json" | jq -r '.hookSpecificOutput.hookEventName' | tr -d '\r')"
 assert_eq "additionalContextへ注意文がそのまま入る" "$NOTICE_TEXT" \
-  "$(printf '%s' "$context_json" | jq -r '.hookSpecificOutput.additionalContext')"
+  "$(printf '%s' "$context_json" | jq -r '.hookSpecificOutput.additionalContext' | tr -d '\r')"
 
 echo "passed=$passed failures=$failures"
 [[ "$failures" -eq 0 ]]
