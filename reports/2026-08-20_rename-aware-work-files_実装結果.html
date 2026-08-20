@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>実装結果: get_branch_work_files の改名対応（issue #115）</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  body { font-family: "Segoe UI", "Hiragino Sans", "Noto Sans JP", sans-serif; }
+  .mono { font-family: "Cascadia Mono", Consolas, "Courier New", monospace; }
+</style>
+</head>
+<body class="bg-slate-50 text-slate-800">
+<div class="max-w-5xl mx-auto px-5 py-10">
+
+  <header class="mb-10">
+    <p class="text-sm text-slate-500">reports / 2026-08-20 / rename-aware-work-files</p>
+    <h1 class="text-3xl font-bold mt-1 text-slate-900">
+      <span class="mono">get_branch_work_files</span> の改名対応
+    </h1>
+    <p class="mt-2 text-slate-600">
+      issue #115 — 改名されたファイルが <span class="mono">&quot;旧パス&quot; -&gt; &quot;新パス&quot;</span> の1行で返り、
+      パス一覧として扱えない問題の修正結果
+    </p>
+    <div class="mt-4 flex flex-wrap gap-2 text-xs">
+      <span class="px-2 py-1 rounded bg-emerald-100 text-emerald-800 font-semibold">受け入れ条件 5/5 充足</span>
+      <span class="px-2 py-1 rounded bg-sky-100 text-sky-800 font-semibold mono">passed=140 failures=0</span>
+      <span class="px-2 py-1 rounded bg-slate-200 text-slate-700">単体テスト 131 → 140 ケース</span>
+      <span class="px-2 py-1 rounded bg-amber-100 text-amber-800">DDRは起こさない</span>
+    </div>
+  </header>
+
+  <!-- 結論 -->
+  <section class="mb-10">
+    <h2 class="text-xl font-bold text-slate-900 border-l-4 border-sky-500 pl-3 mb-4">結論</h2>
+    <div class="bg-white rounded-lg shadow-sm p-5 leading-relaxed">
+      未コミット分の取得を <span class="mono bg-slate-100 px-1 rounded">git status --porcelain</span>（行単位）から
+      <span class="mono bg-slate-100 px-1 rounded">--porcelain -z</span>（NUL区切り）へ移し、その分解を純粋関数
+      <span class="mono bg-slate-100 px-1 rounded">porcelain_z_to_paths</span> へ切り出した。出力は常に
+      <strong>「1行＝1つの実在するパス」</strong>になり、改名されたファイルは新パスのみが返る。
+      改名が無い場合の出力は従来と同一。
+    </div>
+  </section>
+
+  <!-- Before / After -->
+  <section class="mb-10">
+    <h2 class="text-xl font-bold text-slate-900 border-l-4 border-sky-500 pl-3 mb-4">Before / After（本リポジトリでの実機確認）</h2>
+    <p class="text-sm text-slate-600 mb-3">
+      コミット済みの <span class="mono">plans/REVIEW-POINTS.md</span> を一時的に日本語名へ
+      <span class="mono">git mv</span> して確認（確認後に元へ戻した）。
+    </p>
+    <div class="grid md:grid-cols-2 gap-4">
+      <div class="bg-white rounded-lg shadow-sm overflow-hidden">
+        <div class="bg-rose-50 border-b border-rose-200 px-4 py-2 text-sm font-semibold text-rose-800">Before（旧実装）</div>
+        <pre class="mono text-xs p-4 overflow-x-auto whitespace-pre">plans/REVIEW-POINTS.md -&gt; plans/【一時】改名検証.md
+plans/rename-aware-work-files.md
+plans/【AIアセット反映】改名パスの一覧化.md
+plans/【実装】【テスト】改名パスの一覧化.md
+plans/【設計反映】改名パスの一覧化.md
+worklog/2026-08-20_..._push1.md</pre>
+        <div class="px-4 pb-4 text-xs text-rose-700">
+          1行目は<strong>どちらのパスとしても存在しない</strong>。ファイル操作へ渡すと
+          <span class="mono">No such file or directory</span>。
+        </div>
+      </div>
+      <div class="bg-white rounded-lg shadow-sm overflow-hidden">
+        <div class="bg-emerald-50 border-b border-emerald-200 px-4 py-2 text-sm font-semibold text-emerald-800">After（新実装）</div>
+        <pre class="mono text-xs p-4 overflow-x-auto whitespace-pre">plans/rename-aware-work-files.md
+plans/【AIアセット反映】改名パスの一覧化.md
+plans/【一時】改名検証.md
+plans/【実装】【テスト】改名パスの一覧化.md
+plans/【設計反映】改名パスの一覧化.md
+worklog/2026-08-20_..._push1.md</pre>
+        <div class="px-4 pb-4 text-xs text-emerald-700">
+          新パスのみ。全行が <span class="mono">[ -e "$f" ]</span> で実在することを確認した。
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- なぜ -z か -->
+  <section class="mb-10">
+    <h2 class="text-xl font-bold text-slate-900 border-l-4 border-sky-500 pl-3 mb-4">なぜ <span class="mono">-z</span> なのか（行単位形式は原理的に曖昧）</h2>
+    <div class="bg-white rounded-lg shadow-sm p-5">
+      <p class="mb-3 text-sm leading-relaxed">
+        パス自体が <span class="mono bg-slate-100 px-1 rounded">&nbsp;-&gt;&nbsp;</span> を含む改名を実機で作ると、行単位形式は次のようになる。
+      </p>
+      <pre class="mono text-xs bg-slate-900 text-slate-100 p-4 rounded overflow-x-auto whitespace-pre">$ git -c core.quotepath=false status --porcelain -- plans | sed -E 's/^...//'
+"plans/arrow -&gt; old.md" -&gt; "plans/arrow -&gt; new.md"   ← ` -&gt; ` が3回。さらにクォートされる
+
+$ git -c core.quotepath=false status --porcelain -z -- plans | porcelain_z_to_paths
+plans/arrow -&gt; new.md</pre>
+      <ul class="mt-4 space-y-2 text-sm list-disc list-inside">
+        <li>「最後の <span class="mono">-&gt;</span> で分割」「最初の <span class="mono">-&gt;</span> で分割」の<strong>どちらの自作パーサも壊れる</strong>。</li>
+        <li>空白を含むパスは<strong>ダブルクォートで囲まれる</strong>ため、アンクォート処理まで必要になる。</li>
+        <li><span class="mono">-z</span> なら改名エントリは <span class="mono">XY &lt;新パス&gt;\0&lt;旧パス&gt;\0</span> の2フィールド。
+          <strong>行単位形式とは順序が逆で新パスが先</strong>、クォートも無い（<span class="mono">od -c</span> で実機確認）。</li>
+      </ul>
+      <p class="mt-4 text-xs text-slate-500">
+        この「クォートされる」「<span class="mono">-&gt;</span> はパスにも現れうる」はissue本文に無かった追加の発見で、
+        <span class="mono">-z</span> へ移す判断の決め手になった。
+      </p>
+    </div>
+  </section>
+
+  <!-- 変更点 -->
+  <section class="mb-10">
+    <h2 class="text-xl font-bold text-slate-900 border-l-4 border-sky-500 pl-3 mb-4">変更点</h2>
+    <div class="bg-white rounded-lg shadow-sm overflow-hidden">
+      <table class="w-full text-sm">
+        <thead class="bg-slate-100 text-slate-700">
+          <tr><th class="text-left px-4 py-2 font-semibold">ファイル</th><th class="text-left px-4 py-2 font-semibold">変更</th></tr>
+        </thead>
+        <tbody class="divide-y divide-slate-100">
+          <tr><td class="px-4 py-3 mono text-xs align-top">.claude/scripts/src/vcs/Provider.sh</td>
+              <td class="px-4 py-3"><span class="mono">porcelain_z_to_paths</span> を新設。<span class="mono">get_branch_work_files</span> の <span class="mono">working=</span> を <span class="mono">--porcelain -z | porcelain_z_to_paths</span> へ変更</td></tr>
+          <tr><td class="px-4 py-3 mono text-xs align-top">.claude/scripts/test/test_vcs_provider.sh</td>
+              <td class="px-4 py-3">フィクスチャによる単体テストを9ケース追加（131 → 140）</td></tr>
+          <tr><td class="px-4 py-3 mono text-xs align-top">.claude/docs/spec/issue-mr-workflow.md</td>
+              <td class="px-4 py-3">「提供関数」表・「改名されたファイルの扱い（issue #115）」節の新設・変更履歴エントリ</td></tr>
+          <tr><td class="px-4 py-3 mono text-xs align-top">.claude/rules/shell-script-style.md</td>
+              <td class="px-4 py-3">「コマンド置換とNULバイト」節へ「<span class="mono">git status --porcelain</span> は <span class="mono">-z</span> を付ける」を追加</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- 受け入れ条件 -->
+  <section class="mb-10">
+    <h2 class="text-xl font-bold text-slate-900 border-l-4 border-sky-500 pl-3 mb-4">受け入れ条件の充足状況</h2>
+    <div class="bg-white rounded-lg shadow-sm overflow-hidden">
+      <table class="w-full text-sm">
+        <thead class="bg-slate-100 text-slate-700">
+          <tr><th class="text-left px-4 py-2 font-semibold w-8">#</th><th class="text-left px-4 py-2 font-semibold">条件</th><th class="text-left px-4 py-2 font-semibold w-16">結果</th><th class="text-left px-4 py-2 font-semibold">根拠</th></tr>
+        </thead>
+        <tbody class="divide-y divide-slate-100">
+          <tr><td class="px-4 py-3">1</td><td class="px-4 py-3"><span class="mono">" -&gt; "</span> を含む行が出力されない</td><td class="px-4 py-3 text-emerald-600 font-bold">✅</td><td class="px-4 py-3 text-xs">実機（本リポジトリ）＋テスト</td></tr>
+          <tr><td class="px-4 py-3">2</td><td class="px-4 py-3"><span class="mono">R&nbsp;</span> / <span class="mono">RM</span> の両方で新パスが返る</td><td class="px-4 py-3 text-emerald-600 font-bold">✅</td><td class="px-4 py-3 text-xs">フィクスチャ＋実機（<span class="mono">RM</span>）</td></tr>
+          <tr><td class="px-4 py-3">3</td><td class="px-4 py-3">非ASCIIでも壊れない（<span class="mono">core.quotepath=false</span> の維持）</td><td class="px-4 py-3 text-emerald-600 font-bold">✅</td><td class="px-4 py-3 text-xs">実機で日本語名。コミット済み分の <span class="mono">--name-only</span> に必要なため指定は維持</td></tr>
+          <tr><td class="px-4 py-3">4</td><td class="px-4 py-3">単体テストが追加され <span class="mono">failures=0</span></td><td class="px-4 py-3 text-emerald-600 font-bold">✅</td><td class="px-4 py-3 text-xs mono">passed=140 failures=0</td></tr>
+          <tr><td class="px-4 py-3">5</td><td class="px-4 py-3">改名が無ければ既存呼び出し元の出力は従来どおり</td><td class="px-4 py-3 text-emerald-600 font-bold">✅</td><td class="px-4 py-3 text-xs"><span class="mono">git mv</span> を戻した後の出力が一致。呼び出し元のコードは未変更</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- 確かめられなかったこと -->
+  <section class="mb-10">
+    <h2 class="text-xl font-bold text-slate-900 border-l-4 border-amber-500 pl-3 mb-4">確かめられなかったこと</h2>
+    <div class="bg-amber-50 border border-amber-200 rounded-lg p-5 text-sm space-y-3">
+      <p><strong><span class="mono">resume</span> / SessionStart hook のエンドツーエンド表示</strong>: 改名がある状態での実表示は未確認。
+      両者が <span class="mono">get_branch_work_files</span> の出力をそのまま一覧として提示し、間に加工が無いことをコードで確認するに留めた。</p>
+      <p><strong>git bash（MSYS）実機</strong>: 本セッションはLinuxのリモート実行環境。追加したのはbash組み込みの
+      <span class="mono">read -d ''</span> とパラメータ展開のみで、Windowsネイティブ実行ファイルへパスを渡す処理は含まない。</p>
+      <p><strong><span class="mono">C</span>（コピー）ステータスの実機確認</strong>: gitは既定でコピー検出を行わないため、フィクスチャでの確認に留めた。</p>
+    </div>
+  </section>
+
+  <footer class="text-xs text-slate-500 border-t border-slate-200 pt-4">
+    正文は <span class="mono">reports/2026-08-20_rename-aware-work-files_実装結果.md</span>。本HTMLはその視覚化であり、内容は同期している。
+    両者とも flow-id 5-1 で <span class="mono">plans/</span> <span class="mono">worklog/</span> とまとめて削除する。
+  </footer>
+
+</div>
+</body>
+</html>
