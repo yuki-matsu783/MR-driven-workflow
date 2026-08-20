@@ -33,7 +33,12 @@
 # 注意（テスト可能性、issue #57）: 本体処理は `main` にまとめ、ファイル末尾で
 # 「直接実行されたときだけ `main` を呼ぶ」ガードを通す。これにより
 # .claude/scripts/test/test_session_start.sh から `source` して、副作用の無い純粋関数
-# （context_text_bytes / append_size_warning / extract_handoff_next_steps）だけを単体テストできる。
+# （context_text_bytes / append_size_warning / extract_handoff_next_steps /
+# issue_mr_flow_branch_reason / format_skill_reload_instruction）だけを単体テストできる。
+#
+# また、現在のブランチがissue-mr-flowの対象と判定できる場合は、注入テキストの末尾へ
+# 「.claude/skills/issue-mr-flow/SKILL.mdを読み直すこと」という指示を足す（issue #113。詳細:
+# .claude/docs/ddr/0059-issue-mr-flow対象ブランチではSKILL.mdの再読み込みを注入で促す.md）。
 
 set -uo pipefail
 
@@ -97,6 +102,51 @@ extract_handoff_next_steps() {
   printf '%s' "$section"
 }
 
+# 現在のブランチが issue-mr-flow（`.claude/skills/issue-mr-flow/SKILL.md` に定義された唯一の
+# 実装フロー）の対象かを判定し、対象なら**判定根拠**を標準出力へ返す。対象でなければ何も
+# 出力せず終了コード1を返す。外部コマンドを呼ばない純粋関数（引数だけで結果が決まる）。
+#
+# 第1引数: ブランチ名から抽出できたissue番号（抽出できなければ空文字列）
+# 第2引数: ブランチ固有の作業ファイル一覧（`get_branch_work_files` の結果。無ければ空文字列）
+#
+# 判定材料をこの2つに絞ったのは、どちらも「issue起点でフローに乗せた」ことの直接の痕跡であり、
+# かつhookから追加コストなしに得られるため（前者はブランチ名だけ、後者は build_work_context が
+# 既に取得済み）。**どちらか一方でも成り立てば対象**とする（フロー序盤はブランチ名だけ、
+# ブランチ名が命名規則から外れている場合は作業ファイルだけ、が成り立つため）。詳細・却下案:
+# .claude/docs/ddr/0059-issue-mr-flow対象ブランチではSKILL.mdの再読み込みを注入で促す.md
+issue_mr_flow_branch_reason() {
+  local issue_number="$1" work_files="$2"
+  local reasons=()
+  if [ -n "$issue_number" ]; then
+    reasons+=("ブランチ名がissue命名規則に一致（issue #${issue_number}）")
+  fi
+  if [ -n "$work_files" ]; then
+    reasons+=("このブランチ固有の作業ファイル（plans/ worklog/ reports/）がある")
+  fi
+  [ "${#reasons[@]}" -gt 0 ] || return 1
+  local joined="" r
+  for r in "${reasons[@]}"; do
+    if [ -z "$joined" ]; then joined="$r"; else joined="${joined}／${r}"; fi
+  done
+  printf '%s' "$joined"
+}
+
+# issue-mr-flow対象ブランチ向けの「SKILL.mdを読み直すこと」という指示文を組み立てる純粋関数。
+# compactは要約内容を指定できず、SKILL.md（1000行超）の手順理解が失われても、エージェント側から
+# 「失われたこと」が分からない（DDR 0032が注入量を切り詰めないと決めたのと同じ失敗モード）。
+# **既に読んだつもりでも読み直す**ことを明示するのが、この指示文の要点である（issue #113）。
+format_skill_reload_instruction() {
+  local reason="$1"
+  cat <<EOF
+## issue-mr-flowの手順（SKILL.md）を読み直すこと
+
+このブランチはissue駆動MRワークフローの対象です（判定根拠: ${reason}）。作業を再開する前に
+\`.claude/skills/issue-mr-flow/SKILL.md\`（唯一の実装フロー定義）を読み直してください。
+**このセッションで既に読んでいる場合も読み直すこと**（compactの要約で、レビュー往復・
+\`commit\`スキル経由の強制・\`HANDOFF.md\`の進捗更新といった手順が失われている可能性があります）。
+EOF
+}
+
 # リスクのある本体処理。失敗した場合はこの関数のexit codeが非ゼロになり呼び出し元へ伝わる。
 build_context() {
   set -euo pipefail
@@ -137,7 +187,7 @@ build_context() {
     lines+=("- MCPツールに渡す owner=$(printf '%s' "$slug" | jq -r '.owner') / repo=$(printf '%s' "$slug" | jq -r '.repo')")
     lines+=("- 手順: .claude/skills/issue-mr-flow/SKILL.md「\`gh\`/\`glab\` CLI不在時のMCPフォールバック」節を参照し、WebFetch・curlへはフォールバックしないこと")
     local work_context
-    work_context="$(build_work_context)"
+    work_context="$(build_work_context "$branch")"
     [ -z "$work_context" ] || lines+=("$work_context")
     printf '%s\n' "${lines[@]}"
     return 0
@@ -176,22 +226,26 @@ build_context() {
   fi
 
   local work_context
-  work_context="$(build_work_context)"
+  work_context="$(build_work_context "$branch")"
   [ -z "$work_context" ] || lines+=("$work_context")
   printf '%s\n' "${lines[@]}"
 }
 
 # 作業継続に必須のローカル情報（ブランチ固有のplans/worklog/reportsの**ファイル名一覧**と、
-# HANDOFF.mdの「次にやること」節）を組み立てて標準出力へ返す（issue #57）。該当が無ければ
+# HANDOFF.mdの「次にやること」節、issue-mr-flow対象ブランチならSKILL.mdの再読み込み指示）を
+# 組み立てて標準出力へ返す（issue #57、issue #113）。該当が無ければ
 # 何も出力しない。いずれもローカル操作のみで得られるため、CLI経路・MCP経路のどちらでも
 # 同じ内容を足す。**ファイルの中身は注入しない**（一覧はファイル名のみ、HANDOFF.mdは
 # 「次にやること」節のみ。詳細: DDR 0032）。
 # 取得できなかった項目は行自体を出さない（fail-open。ここでの失敗が
 # ブランチ・issue・PR情報の注入を妨げてはならない）。
+# 第1引数はブランチ名（issue-mr-flow対象かの判定に使う。省略時は判定材料が
+# 「作業ファイルの有無」だけになる）。
 build_work_context() {
+  local branch="${1:-}"
   local lines=()
 
-  local work_files
+  local work_files=""
   if work_files="$(get_branch_work_files 2>/dev/null)" && [ -n "$work_files" ]; then
     local joined="" f
     while IFS= read -r f; do
@@ -207,6 +261,18 @@ build_work_context() {
     lines+=("$next_steps")
     lines+=("")
     lines+=("（上記はHANDOFF.mdからの抜粋です。フロー進捗状況・やったこと等の全体は HANDOFF.md を読むこと）")
+  fi
+
+  # issue-mr-flow対象ブランチのときだけ、SKILL.mdの再読み込み指示を**末尾に**足す（issue #113）。
+  # 末尾に置くのは、この指示が「読んだあと何をするか」ではなく「作業を再開する前にすること」で
+  # あり、注入テキストの最後に置くほうがcompact直後のエージェントの目に留まりやすいため。
+  # 対象外のブランチ（issue-mr-flowに乗せていない軽微な変更を直接進めている場合）では
+  # 何も足さない（DDR 0032の「注入するものを事前に決める」方針に沿い、常時注入はしない）。
+  local issue_number="" flow_reason
+  issue_number="$(get_issue_number_from_branch "$branch" 2>/dev/null || true)"
+  if flow_reason="$(issue_mr_flow_branch_reason "$issue_number" "$work_files")"; then
+    lines+=("")
+    lines+=("$(format_skill_reload_instruction "$flow_reason")")
   fi
 
   [ "${#lines[@]}" -gt 0 ] || return 0

@@ -93,7 +93,9 @@ MRとのやり取りだけを自動化する薄い層」として設計したが
 | `get_issue <n>` | issueのtitle/body/labelsを取得（JSON） | `gh issue view` | `glab issue view` |
 | `new_issue_branch <n> <slugSource> [<base>]` | `<branchPrefixTemplate>` に従いブランチを作成しcheckout、リモートpush。`<slugSource>` はslug化対象のテキストであり、生issueタイトルである必要はない（`.claude/skills/issue-mr-flow/SKILL.md` の `start` サブコマンドではAIエージェントが生成した英語の意訳フレーズを渡す。詳細: [0010-ブランチslugの意訳生成はAIエージェントが行う.md](../ddr/0010-ブランチslugの意訳生成はAIエージェントが行う.md)）。`<base>`（省略可）でベースブランチを上書きできる。省略時は `.mrworkflow.json` の `defaultBaseBranch` を使う（issue #15: `start` サブコマンドが `AskUserQuestion` で確認した結果を渡す） | `git switch -c` + `git push` | 同左 |
 | `new_draft_merge_request <n> <branch> <title> [<base>]` | issueに紐づくDraft PR/MRを作成（bodyは仮テンプレート、後続の `set_mr_description` で上書き前提。`<title>` はissueタイトルをそのまま渡す） | `gh pr create --draft` | `glab mr create --draft` |
-| `get_mr_unresolved_comments <n> [true]` | レビューコメント／スレッドを取得しテキストへ整形（スレッドID・ファイルパス・行番号・diffを含む）。既定（第2引数省略）では未解決のスレッドのみを返し、対応済み（解決済み）スレッドは機械的に除外する。第2引数に `true` を渡すと解決済みも含めた全件を返す。GitLabはdiscussions APIが操作履歴を `system: true` のnoteとして同じ配列で返すため、これも機械的に除外する（issue #48）。各行には**そのコメントの公式パーマリンク**を `url=...` として含める（issue #42） | `gh api graphql` (review threads。GraphQLの `url` フィールド) | `glab api` (discussions。note `id` から `<mrUrl>#note_<id>` を組み立てる) |
+| `get_mr_unresolved_comments <n> [true]` | レビューコメント／スレッドを取得しテキストへ整形（スレッドID・ファイルパス・行番号・**指摘行前後のソーススライス**を含む。issue #43 で `diffHunk` から置き換えた。詳細は下記「レビューコメントのソーススライス」）。既定（第2引数省略）では未解決のスレッドのみを返し、対応済み（解決済み）スレッドは機械的に除外する。第2引数に `true` を渡すと解決済みも含めた全件を返す。GitLabはdiscussions APIが操作履歴を `system: true` のnoteとして同じ配列で返すため、これも機械的に除外する（issue #48）。各行には**そのコメントの公式パーマリンク**を `url=...` として含める（issue #42）。**プロバイダに依存しない共通実装**で、`get_mr_review_threads` の結果を整形するだけである（issue #43） | — | — |
+| `get_mr_review_threads <n> [true]` | レビュースレッド＋通常コメントを**正規化JSON**で返す（issue #43。テキスト整形を伴わないプロバイダ層の出力。スキーマは下記「レビューコメントのソーススライス」） | `gh api graphql` (review threads) | `glab api` (discussions) |
+| `read_file_at_ref <sha> <path>` | 指定commit時点のファイル内容を**プロバイダのファイル取得API**から読む（issue #43。ソーススライスの断面がローカルのblobで解決できないときのフォールバック。ローカルで解決できる場合はここへ来ない） | `gh api repos/{owner}/{repo}/contents/<path>?ref=<sha>`（base64） | `glab api projects/:id/repository/files/<encoded>/raw?ref=<sha>`（【未検証】） |
 | `add_mr_thread_reply <n> <threadId> <text>` | 指定スレッドに対応内容を返信する（スレッドの解決＝resolvedはレビュアー側の操作のため本関数では行わない）。**投稿した返信自身のパーマリンクを標準出力へ返す**（issue #42。レビュー依頼メッセージへ「前回の指摘にどう返信したか」のリンクを載せるため） | `gh api graphql`（reply mutation。戻り値を `comment { url }` にした） | `glab api`（note追加。POSTレスポンスの `id` から組み立てる） |
 | `set_mr_description <n> <bodyFile>` | PR/MRのdescriptionを指定ファイル内容で上書き | `gh pr edit --body-file` | `glab mr update --description` |
 | `set_mr_ready <n>` | Draft PR/MRのDraft状態を解除し、レビュー・マージ可能な状態にする（全体フロー flow-id 5-4。Draft作成側の `new_draft_merge_request` に対応する解除側。issue #61） | `gh pr ready` | `glab mr update --ready` |
@@ -125,11 +127,17 @@ MRとのやり取りだけを自動化する薄い層」として設計したが
 | `require_vcs_cli <funcName>` | CLI経路が使えない場合に、代替すべきMCPツールを名指ししたメッセージをstderrへ出して終了コード1を返す。プロバイダ依存の各関数の先頭で呼ぶ（issue #34） | — | — |
 
 上表は `Provider.sh` 経由で公開する共通インターフェースであり、プロバイダ固有ファイル
-（`Github.sh` / `Gitlab.sh`）の内部ヘルパーは含まない。issue #48で追加した
-`gitlab_format_discussion_notes`（discussions APIのJSONを受け取り整形済みテキストを返す純粋関数）は
-後者にあたる。`gitlab_get_mr_unresolved_comments` は `glab api` 呼び出しとこの関数の薄いラッパーで、
-外部コマンドを呼ばない整形ロジックだけを切り離すことで `.claude/scripts/test/test_vcs_provider.sh` から
-単体テストできるようにしている（`.claude/rules/shell-script-style.md`「テスト」）。
+（`Github.sh` / `Gitlab.sh`）の内部ヘルパーは含まない。issue #43で追加した
+`github_normalize_review_threads`（GraphQLのJSON → 正規化JSON）と
+`gitlab_normalize_discussions`（discussions APIのJSON → 正規化JSON）は後者にあたる。
+`github_get_mr_review_threads` / `gitlab_get_mr_review_threads` は `gh`/`glab` 呼び出しと
+これらの薄いラッパーで、外部コマンドを呼ばない変換ロジックだけを切り離すことで
+`.claude/scripts/test/test_vcs_provider.sh` から単体テストできるようにしている
+（`.claude/rules/shell-script-style.md`「テスト」）。issue #48〜#42 の時点ではGitLab側にのみ
+`gitlab_format_discussion_notes` という同種の関数があり、**GitHub側の整形にはテストが1件も
+無かった**（`gh` 依存で切り出せていなかったため、issue #94 のCR混入をテストで検知できなかった）。
+issue #43 で整形を共通層の `format_review_comments` へ寄せたことで、両プロバイダが同じテストで
+カバーされるようになった。
 issue #45で追加した `provider_from_remote_url`（remote URL文字列からプロバイダ名を返す純粋関数）も
 同じ位置づけで、`Provider.sh` 内にあるが上表には載らない。`get_provider` が
 `git remote get-url origin` の結果をこの関数へ渡すだけの薄いラッパーになっており、切り出しの目的も
@@ -162,7 +170,7 @@ issue #68で追加した3つの関数も同じく内部ヘルパーである。`
 出力を共通形式 `{number, title, state, url}` へ正規化する）はプロバイダ固有ファイル側に、
 `merge_issue_search_results`（複数キーワードぶんの検索結果を `number` で重複排除し番号の降順で
 統合する）は `Provider.sh` 側にある。いずれも `gh`/`glab` を呼ばずjqだけで完結するため、
-`gitlab_format_discussion_notes` と同じ理由で切り出して単体テストの対象にしている。公開されているのは
+`gitlab_normalize_discussions` と同じ理由で切り出して単体テストの対象にしている。公開されているのは
 `search_issues` の方である。
 
 **`Provider.sh` 内の関数がすべて公開インターフェースとは限らない点に注意する。** 上表に載るのは
@@ -348,6 +356,146 @@ issue #24 対応では、スコープ外としていた範囲を作業の途中�
   人間に再確認を取ってから次に進む（`reply` は返信のみで解決は行わないため、返信済みでも
   `unresolved` のまま残ることがある）。詳細は `.claude/skills/issue-mr-flow/SKILL.md` の
   「レビュー完了合図の確認」節を参照。
+
+### レビューコメントのソーススライス（issue #43）
+
+`get_mr_unresolved_comments` は、各レビュースレッドに**指摘行前後のソース（絶対行番号付き）**を
+添えて返す。issue #43 以前はGitHubの `diffHunk` をそのまま出していたが、次の問題があった。
+
+1. **コンテキスト量が予測できない**。`diffHunk` は「ハンク先頭から指摘行まで」を返すため長さが
+   ハンクサイズに依存する（PR #10 の実測で 342B〜9,189B と24倍の開き）。
+2. **同一 `diffHunk` が重複する**。スレッド内のコメントごとに出していたため、返信が付くと繰り返された。
+3. **指摘行より後ろの文脈が取れない**（`diffHunk` は指摘行で切れる）。
+4. **行番号が付かない**（`@@` ヘッダから自力で数える必要があった）。
+5. **GitHub固有機能への依存**。GitLabの `discussions` APIはハンクテキストを返さないため、
+   同等機能の実装が完全に非対称になっていた。
+
+#### 層の切り分け
+
+プロバイダ層は**正規化JSONを返すだけ**にし、テキスト整形とソース切り出しを共通層へ寄せている。
+
+```
+Provider.sh
+  get_mr_unresolved_comments <n> [true]        ← 共通（スライス付与＋整形）
+    ├─ github_get_mr_review_threads <n> [true] ← 正規化JSONを返すだけ
+    ├─ gitlab_get_mr_review_threads <n> [true] ← 正規化JSONを返すだけ
+    ├─ build_review_source_slices              ← (path,line,sha) → 行番号付きスライス
+    └─ format_review_comments                  ← 純粋関数（jqのみ）
+```
+
+正規化JSONのスキーマは次のとおり。
+
+```json
+{
+  "threads": [
+    {"threadId": "PRRT_...", "isResolved": false, "isOutdated": true,
+     "path": ".claude/scripts/src/vcs/Github.sh", "line": 91, "sha": "4b8fb20...",
+     "comments": [{"author": "...", "body": "...", "url": "..."}]}
+  ],
+  "comments": [{"author": "...", "body": "...", "url": "..."}]
+}
+```
+
+**`line` と `sha` はプロバイダ層で解決済みの値である。** GitHubは `line` が null のとき
+`originalLine` へ、断面も `commit.oid` から `originalCommit.oid` へ切り替える。GitLabは
+`position` の `new_line`/`head_sha`（追加・変更行）と `old_line`/`base_sha`（削除行）を使い分ける。
+**共通層はこの使い分けを知らない**（`originalLine` という概念が共通層に漏れない）。
+
+GitLabは解決状態が**note単位**（`resolvable`/`resolved`）である一方、GitHubは**スレッド単位**
+（`isResolved`）である。正規化ではスレッド単位へ寄せ、「resolvableなnoteが1つ以上あり、その
+すべてが解決済み」のときだけ解決済みとみなす（resolvableでないnoteしか無いスレッドは常に未解決扱い。
+issue #48 以来の挙動を維持している）。
+
+#### 出力書式
+
+```
+[review unresolved threadId=PRRT_... .claude/rules/docs-workflow.md:30 url=https://...] alice: 指摘
+
+--- source .claude/rules/docs-workflow.md @ 7895107 (バイト上限により切り詰め) ---
+    28 | ...
+>>> 30 | ...
+    31 | ...
+```
+
+- **行頭 `[review unresolved threadId=...]` は変えてはいけない。**
+  `.claude/hooks/session-start.sh` と `.claude/agents/issue-mr-resume.md` がこの書式で未解決件数を
+  数えている。issue #43 以前はGitLab側だけ `[unresolved ...]` で `review ` が無く、**GitLab
+  リポジトリでは未解決件数が常に0件と表示されていた**。整形の共通化で解消した。
+- **ソースブロックはスレッドにつき1回**、そのスレッドの全コメントを出力した後に置く。
+- 指摘行は `>>>` で示し、他の行は空白で揃える。行番号は範囲の最大行の桁数で右揃えする。
+- `path` が無いスレッドには**位置を一切出さない**。issue #43 以前は `(場所不明)` と出していたが、
+  GitHubのレビュースレッドは常に `path` を持つためこの分岐は事実上発火せず、一方でGitLabの
+  MR全体へのコメントは `position` を持たないのが**正常**であり、そこへ「場所不明」と出すのは
+  誤解を招くため。
+- 見出しの注記: `(outdated)` / `(バイト上限により切り詰め)` /
+  `(断面 <sha7> を取得できず現HEADを表示)` / `(断面が不明なため現HEADを表示)`。
+
+#### 断面の取得（フォールバック4段階）
+
+**コメント時点のshaを優先し、取得できない場合に現HEADへ縮退する**（判断の経緯・却下案:
+[0060-レビューコメントのソース断面はコメント時点のshaを優先し現HEADへ縮退する.md](../ddr/0060-レビューコメントのソース断面はコメント時点のshaを優先し現HEADへ縮退する.md)）。
+
+| 段階 | 手段 | 出力への注記 |
+|---|---|---|
+| 1 | ローカルのblob（`git cat-file -e <sha>:<path>` で事前判定 → `git show`） | なし |
+| 2 | プロバイダのファイル取得API（`read_file_at_ref`。同じ断面なので） | なし |
+| 3 | `git show HEAD:<path>` | `(断面 <sha7> を取得できず現HEADを表示)` |
+| 4 | すべて失敗 | ソースブロックを出さない（**コメント本文だけは必ず出す**） |
+
+判定に `git cat-file -e` を使うのは、`git show` が失敗時に標準エラーへ出力してしまうため。
+なおこのコマンドの失敗メッセージは
+`fatal: path '...' exists on disk, but not in '<sha>'` と、**ワーキングツリーに実体があることを
+先に言う**形になるので、判定は必ず終了コードで行う。
+
+**shallow cloneでも段階1で解決できることが多い。** Claude Code on the web のリモート実行環境
+（`isShallow: true` / depth 190）で過去4commitのblobを引けることを確認した。履歴の切断点より
+新しいcommitであれば存在するためで、レビューコメントが指す断面は通常この範囲に入る。
+
+#### 上限（行数とバイト数の併用）
+
+| 環境変数 | 既定 | 内容 |
+|---|---|---|
+| `REVIEW_SOURCE_CONTEXT_LINES` | `10` | 指摘行の前後行数（指摘行を含め最大21行） |
+| `REVIEW_SOURCE_MAX_BYTES` | `2000` | 1スレッドあたりのスライス本文のバイト上限 |
+
+**行数だけでは上限にならない。** `.claude/rules/docs-workflow.md`（131行 / 18,441B、1行平均141B、
+最長行 1,387B）で指摘行を変えながら ±10行のバイト数を測ると **684B〜8,971B（13.1倍）** ばらついた。
+一方 1行の短い `.claude/scripts/src/vcs/Provider.sh` では 984B〜1,038B に収まる。
+**ファイル種別で1桁違う**ため、バイト上限の併用が要る。
+
+上限を超えた場合は**指摘行から遠い側から1行ずつ落とす**（指摘行が落ちては意味が無い）。
+指摘行1行だけになってもなお超える場合は、その行自体を `truncate_bytes_to_reply` で切り詰める。
+この関数は `local LC_ALL=C` でバイト単位の `${#s}` / `${s:0:n}` を使いつつ、**UTF-8の文字境界まで
+戻してから返す**ため、多バイト文字の途中で切れて壊れることはない。
+
+適用後の実測（同じファイル、ソースブロック全体のバイト数）:
+
+| 指摘行 | 変更前（±10行の素の切り出し） | 変更後 |
+|---|---|---|
+| 5 | 684 | 875 |
+| 20 | 8,394 | 1,208 |
+| 30 | **8,971** | 1,979 |
+| 40 | 2,143 | **2,051** |
+
+`REVIEW_SOURCE_MAX_BYTES` は**スライス本文**にかかり、`--- source ... ---` の見出し行（約50B）は
+別枠のため、ブロック全体は上限を僅かに超えうる。
+
+#### 性能
+
+`build_review_source_slices` は **`jq` を2回しか起動しない**（位置情報の取り出しと、レコードの
+組み立て）。ループの中で起動するのは `git` のみで、同じ `(sha, path)` はメモ化して1回だけ読む
+（`.claude/rules/shell-script-style.md`「外部プロセス起動のコスト」）。
+中間表現には base64 ではなく「`\037`（unit separator）で始まるヘッダ行＋本文の行」という
+レコード形式を使っている。base64だとスレッド数に比例して `base64` をforkすることになり、
+TSVの1フィールドへ押し込むと本文中の改行・タブのエスケープが要るため。
+
+#### MCP経路では作れない
+
+`gh` 不在時のMCPフォールバック（`mcp__github__pull_request_read` の `get_review_comments`）は、
+スレッドの `is_resolved` / `is_outdated` とコメントの `path` / `html_url` は返すが、
+**`line` も commitのsha も返さない**（PR #37 に対する実行で確認）。したがってMCP経路では
+ソーススライスを作れず、`path` までが分かる従来どおりの情報に留まる。これはGitHub MCPサーバー側の
+制約であり、本機構では変えられない。`mcp_tool_hint` の該当行にもこの旨を記している。
 
 ### チャットで受けたレビュー判断の記録（issue #50）
 
@@ -543,6 +691,27 @@ resume・clear時に毎回、現在ブランチのissue/MR状態をコンテキ�
   最小限の現在地はhook側が持つ必要があると判断し、issue #57 で追加した（範囲の線引き・却下案:
   [DDR 0032](../ddr/0032-compact後もSessionStart-hookで作業コンテキストを再注入する.md)）。
   この拡張は起動要因によらず常に行う（要因ごとに内容を分岐させない）。
+- **issue-mr-flow対象ブランチでのSKILL.md再読み込み指示（issue #113）**: 現在のブランチが
+  issue-mr-flowの対象と判定できる場合、注入テキストの**末尾**へ
+  「`.claude/skills/issue-mr-flow/SKILL.md`（唯一の実装フロー定義）を読み直すこと」という指示を
+  足す。SKILL.mdは1,100行超であり、compactの要約で手順理解（レビュー往復・`commit`スキル経由の
+  強制・`HANDOFF.md`の進捗更新）が失われても、**エージェント側からは「読んだ」という認識だけが
+  残るため失われたことが分からない**。そのため指示文では
+  **「このセッションで既に読んでいる場合も読み直すこと」を明示する**。
+  - **対象判定**: (a) ブランチ名から `get_issue_number_from_branch` でissue番号を抽出できる、
+    (b) `get_branch_work_files` がブランチ固有の作業ファイルを返す、の**いずれか一方でも
+    成り立てば対象**とする。(a) はflow-id 1-3直後（`plans/`未作成）で、(b) はブランチ名が命名
+    規則から外れている場合（例: Claude Code on the web が生成する `claude/<slug>` 形式）で
+    それぞれ効く。判定は `issue_mr_flow_branch_reason`（外部コマンドを呼ばない純粋関数）が行い、
+    **判定根拠を指示文へ埋め込む**（誤判定時に原因が一目で分かるようにするため）。
+  - **対象外では何も足さない**（issue-mr-flowに乗せていない軽微な変更を直接進めている
+    ブランチが該当。`main`ブランチ上はこの判定より手前で `build_context` が何も注入しない）。
+  - 起動要因では分岐させない（上記と同じ方針）。指示文の長さは有界で入力サイズに依存しない
+    （実測603バイト。判定根拠が2件そろう場合でも690バイト）。肥大化検知のしきい値8000バイトに
+    対して十分小さい。判定材料の取得コストも増えない
+    （(a) は文字列照合のみ、(b) は既に取得済みの値の再利用）。設計判断・却下案は
+    [0059-issue-mr-flow対象ブランチではSKILL.mdの再読み込みを注入で促す.md](../ddr/0059-issue-mr-flow対象ブランチではSKILL.mdの再読み込みを注入で促す.md)
+    参照。
 - **出力形式**: `{"hookSpecificOutput":{"hookEventName":"SessionStart","additionalContext":"<text>"}}`
   形式のJSONをstdoutへ返す。
 - **フォールバック方針**: `main`ブランチ上（作業ブランチ未チェックアウト）では注入しない。
@@ -560,7 +729,8 @@ resume・clear時に毎回、現在ブランチのissue/MR状態をコンテキ�
 - **構造とテスト（issue #57）**: 本体処理は`main`にまとめ、ファイル末尾の
   `[ "${BASH_SOURCE[0]}" = "${0}" ]` ガードで直接実行時のみ呼ぶ。これにより
   `.claude/scripts/test/test_session_start.sh` から`source`して、副作用の無い純粋関数
-  （`context_text_bytes` / `append_size_warning` / `extract_handoff_next_steps`）を単体テストできる
+  （`context_text_bytes` / `append_size_warning` / `extract_handoff_next_steps` /
+  `issue_mr_flow_branch_reason` / `format_skill_reload_instruction`）を単体テストできる
   （ガードが無いと`source`時に`raw="$(cat)"`でstdin待ちのままハングする）。
 - **`gh`/`glab` CLI自体が無い環境での挙動（issue #34）**: 上記の一般的な失敗と区別し、
   `get_vcs_access_mode` が `mcp` を返す場合は専用の内容を注入する。具体的には
@@ -643,7 +813,7 @@ Claude Code on the webのリモート実行環境のように、`gh`/`glab` CLI�
 - **正規URLと一致しないリスクケース**: いずれも「リンクが1本ずれる」だけで、フロー自体は止まらない。
   実運用上の発生確率とコストが釣り合わないため、検知や `gh`/`glab` へのフォールバックは設けない
   （詳細・却下案:
-  [0035-リポジトリURLはgh_glabではなくgit-remoteから導出する.md](../ddr/0035-リポジトリURLはgh_glabではなくgit-remoteから導出する.md)）。
+  [0037-リポジトリURLはgh_glabではなくgit-remoteから導出する.md](../ddr/0037-リポジトリURLはgh_glabではなくgit-remoteから導出する.md)）。
 
   | ケース | 挙動 | 判断 |
   |---|---|---|
@@ -2519,6 +2689,89 @@ Draft解除 → 5-5 マージ** の順へ並べ替えた（旧 5-1 片付け →
 DDR 0044（関連issue通知）・0048（後片付けのスクリプト化）が本文で指す `5-3` `5-1` は、当時の番号の
 ままである。DDR 0048 はファイル名にも `flow-id5-1` を含むが、リンク切れを避けるためリネームしない。
 
+### issue #113（issue-mr-flow対象ブランチでのSKILL.md再読み込み指示）
+
+SessionStart hookが注入する追加コンテキストの**末尾**へ、
+「`.claude/skills/issue-mr-flow/SKILL.md` を読み直すこと」という指示を足した（対象ブランチと
+判定できる場合のみ）。compactの要約でフローの手順理解が失われても、エージェント側からは
+「読んだ」という認識だけが残って失われたことが分からないため、指示文では
+**「このセッションで既に読んでいる場合も読み直すこと」を明示する**。
+
+対象判定は「ブランチ名からissue番号を抽出できる」「ブランチ固有の作業ファイルがある」の
+**いずれか一方でも成り立てば対象**とし、判定根拠を指示文へ埋め込む。対象外のブランチでは
+何も足さない。詳細・却下案は
+[0059-issue-mr-flow対象ブランチではSKILL.mdの再読み込みを注入で促す.md](../ddr/0059-issue-mr-flow対象ブランチではSKILL.mdの再読み込みを注入で促す.md)。
+
+新規:
+- `.claude/docs/ddr/0059-issue-mr-flow対象ブランチではSKILL.mdの再読み込みを注入で促す.md`
+
+変更:
+- `.claude/hooks/session-start.sh`（純粋関数 `issue_mr_flow_branch_reason` /
+  `format_skill_reload_instruction` を追加。`build_work_context` が第1引数でブランチ名を受け取り、
+  組み立ての最後に指示文を足す。呼び出し元2箇所（CLI経路・MCP経路）はブランチ名を渡すだけの変更）
+- `.claude/scripts/test/test_session_start.sh`（35→51ケース。判定の4パターン・指示文の内容・
+  指示文が1000バイト未満であることを検証。実測は603バイト）
+- `.claude/docs/spec/issue-mr-workflow.md`（本ファイル。「セッション開始時の自動コンテキスト注入」
+  節へ判定・指示文の仕様、テスト対象の純粋関数一覧、本エントリ）
+- `.claude/docs/README.md`（DDR一覧へ0061を追加）
+
+**`.claude/settings.json` の matcher は変更していない**（`startup|resume|clear|compact` のまま）。
+注入の**内容**だけを増やす変更であり、起動要因による分岐も持たない。同じ理由で
+`.gemini/settings.json` も変更不要である（`session-start.sh` は `.claude/` へのローカルリンクで
+共有されているため、指示文の追加はGemini CLI側でもそのまま効く）。
+
+### issue #43（レビューコメント出力のソーススライス化）
+
+GitHub固有の `diffHunk` への依存をやめ、`(path, line, sha)` から共通ロジックで指摘行前後を
+切り出す方式へ移行した。詳細は上記「レビューコメントのソーススライス」、断面の選び方の経緯は
+[0060-レビューコメントのソース断面はコメント時点のshaを優先し現HEADへ縮退する.md](../ddr/0060-レビューコメントのソース断面はコメント時点のshaを優先し現HEADへ縮退する.md)。
+
+新規:
+- `.claude/docs/ddr/0060-レビューコメントのソース断面はコメント時点のshaを優先し現HEADへ縮退する.md`
+
+変更:
+- `.claude/scripts/src/vcs/Github.sh`
+  - `github_normalize_review_threads`（GraphQLのJSON → 正規化JSON。純粋関数）を新設
+  - `github_get_mr_review_threads` を新設（GraphQLクエリから `diffHunk` を除去し、
+    `isOutdated` / `originalLine` / `commit { oid }` / `originalCommit { oid }` を追加）
+  - `github_read_file_at_ref` を新設（`contents` APIのbase64をデコードして返す）
+  - `github_get_mr_unresolved_comments` を削除
+- `.claude/scripts/src/vcs/Gitlab.sh`
+  - `gitlab_normalize_discussions`（discussions APIのJSON → 正規化JSON。純粋関数）を新設。
+    解決状態がnote単位である点をスレッド単位へ吸収し、`position` から `path`/`line`/`sha` を解決する
+  - `gitlab_get_mr_review_threads` / `gitlab_read_file_at_ref` を新設
+  - `gitlab_format_discussion_notes` / `gitlab_get_mr_unresolved_comments` を削除
+- `.claude/scripts/src/vcs/Provider.sh`
+  - `truncate_bytes_to_reply` / `slice_source_lines`（純粋関数）を新設
+  - `read_file_at_ref`（プロバイダへのディスパッチ）/ `read_source_at_ref_to_reply`
+    （4段階のフォールバック）を新設
+  - `build_review_source_slices` / `format_review_comments` / `get_mr_review_threads` を新設
+  - `get_mr_unresolved_comments` を、プロバイダへのディスパッチから上記の合成へ変更
+  - `mcp_tool_hint` に `get_mr_review_threads` / `read_file_at_ref` を追加し、
+    **MCP経路ではソーススライスを作れない**旨を記載
+- `.claude/scripts/test/test_vcs_provider.sh`（`passed=153 → 177`。
+  `github_normalize_review_threads` / `gitlab_normalize_discussions` / `format_review_comments` /
+  `slice_source_lines` / `truncate_bytes_to_reply` の単体テストを追加。
+  **GitHub側の整形にテストが付いたのは本issueが初**）
+- `.claude/docs/spec/adversarial-review.md`（現在の状態を説明する箇所の関数名と、投稿した
+  スレッドにソーススライスが添えられる旨）
+- `.claude/skills/issue-mr-flow/SKILL.md`（`comments` サブコマンドの出力説明、MCPフォールバック
+  対応表の注記）
+- `.claude/rules/shell-script-style.md`（`REPLY` へ返す動機に「戻り値が複数ある場合」を追記、
+  jqフィルタへ生の制御文字を書かない注記）
+- `.claude/docs/README.md`（DDR一覧へ 0060 を追記）
+
+**副次的に直った不具合**: 行頭ラベルが GitHub `[review unresolved ...]` / GitLab
+`[unresolved ...]` と非対称で、`.claude/hooks/session-start.sh` の
+`^\[review unresolved threadId=` にGitLab側が一致せず、**GitLabリポジトリでは未解決レビュー
+コメントが常に0件と表示されていた**。整形の共通化で解消した。
+
+**【未検証】**: この対応を行った実行環境には `gh`/`glab` CLI が無く（`get_vcs_access_mode` が
+`mcp`）、GraphQL・discussions APIの実レスポンスに対しては動かしていない。実装は
+`// null` によるnull耐性を持たせてあり、フィールドが返らない場合はソース無しへ縮退する。
+プロバイダのファイル取得API（フォールバック段階2）も同じ理由で未検証である。GitLab側は
+remoteがGitHubのみのため従来どおり未検証で、issue #128 の実機検証の対象に加えるのが自然。
+
 ### issue #47（push検知hookの誤検知に関する環境差の併記）
 
 AIエージェントがBash/PowerShellツールへ渡すコマンド文字列の規約
@@ -2537,12 +2790,12 @@ issue #47 の観測を**環境差として併記**した。
 
 新規:
 - `.claude/rules/ai-command-style.md`
-- `.claude/docs/ddr/0059-AIが渡すコマンド文字列の説明はdescriptionとコメントへ分けて置く.md`
+- `.claude/docs/ddr/0061-AIが渡すコマンド文字列の説明はdescriptionとコメントへ分けて置く.md`
 
 変更:
 - `.claude/docs/spec/issue-mr-workflow.md`（本ファイル。「誤検知」項への環境差の併記と本エントリ）
 - `.claude/rules/shell-script-style.md`（冒頭へ `ai-command-style.md` とのスコープの違いと相互リンク）
-- `.claude/docs/README.md`（DDR一覧へ0059を追加）
+- `.claude/docs/README.md`（DDR一覧へ0061を追加）
 
 **既存の「誤検知」項の本文は1文字も変更していない**（`.claude/rules/docs-workflow.md` の
 point-in-time記録の扱い）。併記した段落は、項の末尾（回避策とAIエージェント向け注記への誘導という

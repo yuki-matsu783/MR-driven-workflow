@@ -1,7 +1,7 @@
 ---
 title: ルール本文とDDRの作成結果（issue #47 フェーズ3）
 type: report
-description: .claude/rules/ai-command-style.md と DDR 0059 を作成した結果と、受け入れ条件7項目との逐条突き合わせ・検証コマンドの実行結果
+description: .claude/rules/ai-command-style.md と DDR 0061 を作成した結果と、受け入れ条件7項目との逐条突き合わせ・検証コマンドの実行結果
 tags: [report, rule, ai-command, issue-47]
 keywords: [ai-command-style, DDR-0059, 受け入れ条件, 逐条, 検証, frontmatter, index.jsonl, allow, deny, 未確認]
 ---
@@ -22,7 +22,7 @@ keywords: [ai-command-style, DDR-0059, 受け入れ条件, 逐条, 検証, front
 | 4 1行目にコメントを書かない理由と良い例／悪い例 | 満たした | 同「複数行コマンドの1行目にコメントを書かない」節 |
 | 5 hook誤検知への注意をコメント記述の文脈で再掲 | 満たした | 同「コメント本文でのhook誤検知に注意する」節 |
 | 6 `markdown-frontmatter.md` に沿ったfrontmatter | 満たした | 同ファイル冒頭。`type: rule`、`alwaysApply` は付けない |
-| 7 判断の経緯をDDRとして記録 | 満たした | DDR 0059 の判断1〜4 |
+| 7 判断の経緯をDDRとして記録 | 満たした | DDR 0061 の判断1〜4 |
 
 **7項目中6項目を満たし、条件1のみ未達（未確認）である。**
 
@@ -31,7 +31,7 @@ keywords: [ai-command-style, DDR-0059, 受け入れ条件, 逐条, 検証, front
 | ファイル | 種別 |
 |---|---|
 | `.claude/rules/ai-command-style.md` | 新規（ルール本文） |
-| `.claude/docs/ddr/0059-AIが渡すコマンド文字列の説明はdescriptionとコメントへ分けて置く.md` | 新規（DDR） |
+| `.claude/docs/ddr/0061-AIが渡すコマンド文字列の説明はdescriptionとコメントへ分けて置く.md` | 新規（DDR） |
 | `.claude/docs/README.md` | 既存・DDR一覧へ1行追記 |
 | `.claude/rules/shell-script-style.md` | 既存・冒頭へスコープの違いと相互リンクを3行追記 |
 
@@ -103,7 +103,7 @@ issue本文の例をそのまま採った（`description: 現在のブランチ�
 
 ### 条件7: DDR → 満たした
 
-DDR 0059 の判断1〜4が、条文が列挙する4つの経緯と1対1で対応する。
+DDR 0061 の判断1〜4が、条文が列挙する4つの経緯と1対1で対応する。
 
 | 条文の経緯 | DDR |
 |---|---|

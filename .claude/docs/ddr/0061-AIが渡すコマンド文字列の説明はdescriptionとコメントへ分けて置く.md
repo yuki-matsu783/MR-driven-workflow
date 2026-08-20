@@ -1,12 +1,12 @@
 ---
-title: 0059. AIが渡すコマンド文字列の説明はdescriptionとコメントへ分けて置く
+title: 0061. AIが渡すコマンド文字列の説明はdescriptionとコメントへ分けて置く
 type: ddr
 description: descriptionが1行しか表示されない制約を前提に、複数行コマンドの各ブロックの意図を日本語コメントで書くことを必須とし、1行目にはコメントを置かないと決めた記録
 tags: [ddr, ai-command, review]
 keywords: [description, 1行表示, 日本語コメント, 複数行コマンド, 1行目, permissions, allow, deny, 承認, トークン, 試行運用, issue-47]
 ---
 
-# 0059. AIが渡すコマンド文字列の説明はdescriptionとコメントへ分けて置く
+# 0061. AIが渡すコマンド文字列の説明はdescriptionとコメントへ分けて置く
 
 issue #47。AIエージェントが Bash/PowerShell ツールへ渡すコマンド文字列の規約を
 `.claude/rules/ai-command-style.md` として新設した際の判断を記録する。

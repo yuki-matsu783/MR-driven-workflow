@@ -1,7 +1,7 @@
 ---
 title: 個別作業計画 AIコマンド文字列の規約ルールとDDR
 type: plan
-description: issue #47 のルール本文 .claude/rules/ai-command-style.md と DDR 0059 を作成する個別作業計画（何を書くか・受け入れ条件との対応・検証手順）
+description: issue #47 のルール本文 .claude/rules/ai-command-style.md と DDR 0061 を作成する個別作業計画（何を書くか・受け入れ条件との対応・検証手順）
 tags: [plan, rule, ai-command, issue-47]
 keywords: [ai-command-style, DDR, description, 日本語コメント, 1行目コメント, permissions, hook誤検知, frontmatter, 受け入れ条件, 検証]
 ---
@@ -22,7 +22,7 @@ AIエージェントがBash/PowerShellツールへ渡す**コマンド文字列�
 | ファイル | 種別 | 内容 |
 |---|---|---|
 | `.claude/rules/ai-command-style.md` | **新規** | ルール本文 |
-| `.claude/docs/ddr/0059-AIが渡すコマンド文字列の説明はdescriptionとコメントへ分けて置く.md` | **新規** | 判断の経緯（受け入れ条件7） |
+| `.claude/docs/ddr/0061-AIが渡すコマンド文字列の説明はdescriptionとコメントへ分けて置く.md` | **新規** | 判断の経緯（受け入れ条件7） |
 | `reports/20260820_prancy-prancing-dewdrop_ルール本文とDDRの作成結果.md` | **新規** | **フェーズ3の実施結果の正文**。検証1〜5の結果と受け入れ条件との突き合わせ結果を書く（計画へ結果を書かないための分離先。issue #87） |
 | `.claude/docs/README.md` | 既存 | **DDR一覧へ 0059 の1行を追記**。この目次は 0001〜 を網羅列挙する手動維持のもので、`extract-frontmatter.sh` は欠落を検出しない |
 | `.claude/rules/shell-script-style.md` | 既存 | 冒頭へスコープの違いと新ルールへのリンクを追記（規約の中身は変更しない） |
@@ -62,7 +62,7 @@ flow-id 5-1 の `check-base-conflicts.sh` で確認し、必要なら繰り下�
 | 4 | ルール本文「1行目にコメントを書かない」節 | 理由は**案B**（下記）。良い例／悪い例を併記 |
 | 5 | ルール本文「コメント本文でのhook誤検知」節 | 仕組みの説明は `git-workflow.md` を参照し、再掲にとどめる |
 | 6 | ルール本文のfrontmatter | `type: rule`。**`alwaysApply` は付けない**（調査4） |
-| 7 | DDR 0059 の判断1〜4 | 条文が列挙する4つの経緯が、DDRの判断1〜4に1対1で対応する |
+| 7 | DDR 0061 の判断1〜4 | 条文が列挙する4つの経緯が、DDRの判断1〜4に1対1で対応する |
 
 ## ルール本文の構成（何を書くか）
 

@@ -199,7 +199,7 @@ flow-id 2-2 のpush直後に `adversarial-review` スキルを起動した（ユ
 - **flow-id 3-2**: 個別作業計画をcommit・push。
 - **敵対的レビュー（フェーズ3・1回目 / 上限3回、残り2回）** を実施。指摘10件のうち9件をPR #132 へ
   インライン投稿し、**10件すべてを反映**した。
-- **flow-id 3-6**: ルール本文 `.claude/rules/ai-command-style.md` とDDR 0059 を作成。あわせて
+- **flow-id 3-6**: ルール本文 `.claude/rules/ai-command-style.md` とDDR 0061 を作成。あわせて
   `.claude/docs/README.md` のDDR一覧へ1行、`.claude/rules/shell-script-style.md` の冒頭へ
   スコープの違いと相互リンクを追記した。結果は
   `reports/20260820_prancy-prancing-dewdrop_ルール本文とDDRの作成結果.md` が正文。
@@ -250,7 +250,7 @@ flow-id 2-2 のpush直後に `adversarial-review` スキルを起動した（ユ
 「**確かめたことの射程**」を問う観点である。
 
 **push検知hookの食い違いは設計反映側でのみ扱う**（AIアセット反映側の「やらないこと」に明記）。
-同じ食い違いを2つの計画で別々に扱うと結論が割れるため。新しいDDRは作らない（DDR 0059 が
+同じ食い違いを2つの計画で別々に扱うと結論が割れるため。新しいDDRは作らない（DDR 0061 が
 既に記録済み。今回の2件は選択肢を比較した設計判断ではなく不備の穴埋め）。
 
 ### flow-id 4-2〜4-5・4-6（設計反映の実施）
