@@ -1,12 +1,12 @@
 ---
-title: 0056. フェーズ5は片付けをcommit直前へ移した順序に並べ替える
+title: 0057. フェーズ5は片付けをcommit直前へ移した順序に並べ替える
 type: ddr
 description: フェーズ5のステップ順を「コンフリクト解消 → 関連issue通知 → 片付け → commit・push・Draft解除」へ並べ替え、旧順序が抱えていた4つの不整合（HANDOFF.mdの書き戻し先の消失・先に片付ける利点の不在・汚れた作業ツリー上でのmerge・生成と確定の分離）を解いた経緯を記録したDDR
 tags: [workflow, ddr, phase5, issue-mr-flow]
 keywords: [フェーズ5, flow-id, 並べ替え, cleanup-task, HANDOFF, 関連issue通知, コンフリクト検知, DDR0044, DDR0048, issue108]
 ---
 
-# 0056. フェーズ5は片付けをcommit直前へ移した順序に並べ替える
+# 0057. フェーズ5は片付けをcommit直前へ移した順序に並べ替える
 
 ## 背景
 

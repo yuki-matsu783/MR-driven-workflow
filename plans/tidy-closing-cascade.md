@@ -48,7 +48,7 @@ keywords: [フェーズ5, flow-id, 並べ替え, cleanup-task, 関連issue通知
 - `.claude/docs/spec/issue-mr-workflow.md` `.claude/docs/spec/cleanup-task.md`
   `.claude/docs/spec/check-base-conflicts.md` 等へ反映し、影響範囲へ本issue分のエントリを追記する。
 - DDRを1本追加し、並べ替えの理由・却下案・DDR 0044/0048との関係・issue #108 との前後関係を記録する
-  （番号は 0056）。
+  （番号は 0057。main側が 0056 を使用済みのため繰り下げ）。
 
 ## この計画で決めないこと（スコープ外）
 

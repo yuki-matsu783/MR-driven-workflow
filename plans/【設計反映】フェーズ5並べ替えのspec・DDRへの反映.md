@@ -3,7 +3,7 @@ title: 【設計反映】フェーズ5並べ替えのspec・DDRへの反映
 type: plan
 description: issue #112 の個別反映計画。フェーズ5の並べ替えを .claude/docs/spec/ と新規DDRへ反映する範囲と、書き換えてはいけない過去の記録の線引き。
 tags: [plan, design-reflection, ddr, spec]
-keywords: [設計反映, DDR0056, issue-mr-workflow, cleanup-task, check-base-conflicts, 影響範囲, changelog, issue108]
+keywords: [設計反映, DDR0057, issue-mr-workflow, cleanup-task, check-base-conflicts, 影響範囲, changelog, issue108]
 ---
 
 # 【設計反映】フェーズ5並べ替えのspec・DDRへの反映（issue #112）
@@ -18,8 +18,8 @@ keywords: [設計反映, DDR0056, issue-mr-workflow, cleanup-task, check-base-co
 | `.claude/docs/spec/cleanup-task.md` | タイトル・description・keywords・H1・背景の flow-id を 5-3 へ。issue #28 のissue名は当時の番号のままとし、注記で対応づける |
 | `.claude/docs/spec/check-base-conflicts.md` | keywords と「実行タイミング」の flow-id を 5-1 へ |
 | `.claude/docs/spec/create-commit.md` / `extract-frontmatter.md` / `update-handoff-progress.md` | 現在の状態を説明する記述の flow-id を 5-3 へ |
-| `.claude/docs/ddr/0056-…md`（新規） | 並べ替えの理由・却下案・DDR 0044/0048 との関係・issue #108 との前後関係 |
-| `.claude/docs/README.md` | spec一覧の説明文、DDR一覧へ 0056 を追加、0048 のファイル名が旧番号である旨の注記 |
+| `.claude/docs/ddr/0057-…md`（新規） | 並べ替えの理由・却下案・DDR 0044/0048 との関係・issue #108 との前後関係 |
+| `.claude/docs/README.md` | spec一覧の説明文、DDR一覧へ 0057 を追加、0048 のファイル名が旧番号である旨の注記 |
 
 ## 書き換えない対象（線引き）
 

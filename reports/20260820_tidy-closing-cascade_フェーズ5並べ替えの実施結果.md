@@ -3,7 +3,7 @@ title: フェーズ5のステップ順の並べ替え 実施結果
 type: report
 description: issue #112 の実施結果。フェーズ5を 5-1コンフリクト解消 / 5-2関連issue通知 / 5-3片付け / 5-4commit へ並べ替えた範囲、書き換えなかった過去の記録の線引き、受け入れ条件との対応、検証結果。
 tags: [report, workflow, phase5, issue-mr-flow]
-keywords: [flow-id, 並べ替え, SKILL.md, DDR0056, cleanup-task, check-base-conflicts, HANDOFF, 除外, 受け入れ条件, 単体テスト]
+keywords: [flow-id, 並べ替え, SKILL.md, DDR0057, cleanup-task, check-base-conflicts, HANDOFF, 除外, 受け入れ条件, 単体テスト]
 ---
 
 # 実施結果: フェーズ5のステップ順の並べ替え（issue #112）
@@ -53,7 +53,7 @@ keywords: [flow-id, 並べ替え, SKILL.md, DDR0056, cleanup-task, check-base-co
 | スクリプト（コメントのみ） | `cleanup-task.sh` / `check-base-conflicts.sh` / `update-handoff-progress.sh` / `vcs/Provider.sh` / `vcs/Github.sh` / `vcs/Gitlab.sh` |
 | テスト | `.claude/scripts/test/test_update_handoff_progress.sh`（コメントのみ） |
 | spec | `issue-mr-workflow.md` / `cleanup-task.md` / `check-base-conflicts.md` / `create-commit.md` / `extract-frontmatter.md` / `update-handoff-progress.md` |
-| DDR（新規） | `0056-フェーズ5は片付けをcommit直前へ移した順序に並べ替える.md` |
+| DDR（新規） | `0057-フェーズ5は片付けをcommit直前へ移した順序に並べ替える.md` |
 
 **スクリプトのロジックは1行も変えていない**（変更はすべてコメント）。
 
@@ -72,7 +72,7 @@ git diff --stat "origin/${base}...HEAD" -- . ':(exclude)plans' ':(exclude)worklo
 
 - **DDR本文**（0044・0048 ほか）。`.claude/rules/docs-workflow.md`「本文は追記のみ」に従う。
   DDR 0048 はファイル名にも `flow-id5-1` を含むが、リンク切れを避けるためリネームしていない。
-  現在の番号との対応は DDR 0056 と `.claude/docs/spec/cleanup-task.md`「背景・目的」、
+  現在の番号との対応は DDR 0057 と `.claude/docs/spec/cleanup-task.md`「背景・目的」、
   `.claude/docs/README.md` のDDR一覧の注記で示した。
 - **spec の `## 影響範囲` 配下の過去issueごとのエントリ**（point-in-timeの記録）。今回分は
   末尾へ `### issue #112` として**追記**した。
@@ -89,8 +89,8 @@ git diff --stat "origin/${base}...HEAD" -- . ':(exclude)plans' ':(exclude)worklo
 | `HANDOFF.md` の進捗表テンプレートと `update-handoff-progress.sh` のテーブル | 済（進捗表の実体はSKILL.mdの全体フロー表のみ。`LOOP_RANGES` はフェーズ5を含まないため変更不要であることを確認し、コメントと単体テストの注記を更新） |
 | `docs-workflow.md` / `directory-structure.md` / `cleanup-task.md` / `adversarial-review.md` 等 | 済（`adversarial-review.md` は参照0件のため変更なし。他は上表のとおり） |
 | 差分から `plans/` `worklog/` `reports/` を除外する旨 | 済（新5-2の手順1・2、フロー表の5-2行） |
-| 並べ替えの理由と却下案のDDR | 済（DDR 0056。却下案4件を記録） |
-| issue #108 との関係の整理 | 済（DDR 0056 に専用の節。#112 が先に入るのが望ましい理由と、#108 側が使うべき番号） |
+| 並べ替えの理由と却下案のDDR | 済（DDR 0057。却下案4件を記録） |
+| issue #108 との関係の整理 | 済（DDR 0057 に専用の節。#112 が先に入るのが望ましい理由と、#108 側が使うべき番号） |
 
 ## 検証結果
 
