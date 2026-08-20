@@ -117,8 +117,13 @@ resolve_loop_rounds_to_reply() {
   local range="$1" progress="$2"
   local -a ids
   read -ra ids <<<"$range"
+  # 走査はヘッダブロック内に限る。「やったこと」節へ過去のヘッダを引用した行が残っていると、
+  # そこから周回数を拾ってしまうため（issue #66。周回数の記録場所はヘッダの1行だけなので、
+  # 誤って読んだ値がそのまま唯一の正になる）
+  resolve_header_block_to_reply
+  local block_end="$REPLY_BLOCK_END"
   local i
-  for ((i = 0; i < ${#LINES[@]}; i++)); do
+  for ((i = 0; i < block_end; i++)); do
     if parse_loop_header_to_reply "${LINES[$i]}"; then
       if [[ "$REPLY_LOOP_START_ID" == "${ids[0]}" ]]; then
         REPLY="$REPLY_LOOP_ROUNDS"
@@ -134,12 +139,13 @@ resolve_loop_rounds_to_reply() {
 # 読み込み済みの LINES から「ヘッダブロック」の範囲を求め、以下をREPLY_*へ設定する（常に成功）。
 #   REPLY_BLOCK_END : ヘッダブロックの終端（この添字は含まない）
 #   REPLY_HEADING   : "## フロー進捗状況" 見出しの添字。無ければ -1
-# ヘッダブロックは「ファイル先頭から『## フロー進捗状況』節の終わり（同見出し以降で最初に現れる
-# 別の "## " 見出しの直前）まで」とする。見出しが無いファイルではファイル全体。
+# ヘッダブロックは「ファイル先頭から、**最初に現れる『## フロー進捗状況』以外の "## " 見出し**の
+# 直前まで」とする。"## " 見出しが1つも無いファイル（テスト用の最小フィクスチャ等）では全体。
 #
 # 範囲を限定するのは2つの理由による（issue #66）。
 #   1. 「やったこと」節などで "- PR: ..." のように引用された行を、ヘッダ行と取り違えて
-#      書き換えないため。
+#      書き換えないため。**この打ち切りは "## フロー進捗状況" 見出しの有無に依らない**
+#      （見出しが無いときだけファイル全体へ広げると、まさに防ぎたい取り違えが残る）。
 #   2. ヘッダブロックが見出しの**前**にある版と**後**にある版が履歴上どちらも存在するため
 #      （実測: 見出しの後23断面／前9断面）。両方を1つの範囲で拾う。
 resolve_header_block_to_reply() {
@@ -147,15 +153,16 @@ resolve_header_block_to_reply() {
   REPLY_HEADING=-1
   REPLY_BLOCK_END=${#LINES[@]}
   for ((i = 0; i < ${#LINES[@]}; i++)); do
-    if [[ $REPLY_HEADING -lt 0 ]]; then
-      [[ "${LINES[$i]}" == '## フロー進捗状況'* ]] && REPLY_HEADING=$i
+    # "### " 等の深い見出しは前方一致しない（3文字目が空白であることまで見ている）
+    [[ "${LINES[$i]}" == '## '* ]] || continue
+    if [[ $REPLY_HEADING -lt 0 && "${LINES[$i]}" == '## フロー進捗状況'* ]]; then
+      REPLY_HEADING=$i
       continue
     fi
-    if [[ "${LINES[$i]}" == '## '* ]]; then
-      REPLY_BLOCK_END=$i
-      return 0
-    fi
+    REPLY_BLOCK_END=$i
+    return 0
   done
+  return 0
 }
 
 # 行配列 LINES 内の "- 現在のループ:" 行を text で置き換える（読み込み・書き戻しは呼び出し側）。
@@ -434,6 +441,15 @@ cmd_set_header() {
         ;;
     esac
   done
+
+  # 項目を1つも指定しない呼び出しは、必ず何も更新しない。成功として通すと issue #66 が
+  # 問題にした「成功したのに何も変わっていない」に戻るため、ここで止める
+  # （呼び出し側が値の有無でオプションを組み立てると、全部空＝引数なしになりうる）
+  if [[ $((has_issue + has_branch + has_pr + has_push_count + has_loop)) -eq 0 ]]; then
+    echo "error: set-header: 更新する項目が1つも指定されていません" >&2
+    usage
+    return 1
+  fi
 
   read_lines_to_array "$file"
   resolve_header_block_to_reply

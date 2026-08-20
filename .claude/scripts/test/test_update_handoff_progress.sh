@@ -535,5 +535,91 @@ assert_eq "「- 追従監視:」は挿入位置の基準にしない（その前
 - 現在のループ: 2-3〜2-4 の1周目（完了）
 - 追従監視: なし" "$(sed -n '4,6p' "$fixture")"
 
+# --- issue #66（敵対的レビュー指摘）: ヘッダブロックの打ち切りは見出しの有無に依らない ----
+
+# "## フロー進捗状況" 見出しが無くても、別の "## " 見出しでヘッダブロックは終わる。
+# 見出しが無いときだけファイル全体へ広げると、防ぎたかった取り違えがそのまま残る。
+fixture="$TMP_DIR/handoff26.md"
+cat >"$fixture" <<'FIXTURE_NO_HEADING'
+# HANDOFF
+
+- issue: #66
+- PR: #146
+
+## やったこと
+
+- PR: 本文中の引用（ヘッダ行ではない）
+FIXTURE_NO_HEADING
+cmd_set_header "$fixture" --pr '#999'
+assert_eq "見出し無し: ヘッダブロック内のPR行が変わる" "- PR: #999" "$(sed -n '4p' "$fixture")"
+assert_eq "見出し無し: 「やったこと」節の引用行は残る" "- PR: 本文中の引用（ヘッダ行ではない）" \
+  "$(tail -1 "$fixture")"
+
+# ヘッダ行が「やったこと」節にしか無いファイルは、一致0件としてエラーになる
+fixture="$TMP_DIR/handoff27.md"
+cat >"$fixture" <<'FIXTURE_BODY_ONLY'
+# HANDOFF
+
+## やったこと
+
+- PR: 本文中の引用（ヘッダ行ではない）
+FIXTURE_BODY_ONLY
+cp "$fixture" "$fixture.orig"
+set +e
+cmd_set_header "$fixture" --pr '#999' >/dev/null 2>&1
+status=$?
+set -e
+assert_failure "本文にしかヘッダ行が無ければエラー" "$status"
+assert_unchanged "本文にしかヘッダ行が無い場合も書き換えない" "$fixture.orig" "$fixture"
+
+# "### " のような深い見出しではヘッダブロックを打ち切らない
+fixture="$TMP_DIR/handoff28.md"
+cat >"$fixture" <<'FIXTURE_H3'
+## フロー進捗状況
+
+### 補足
+
+- PR: #146
+FIXTURE_H3
+cmd_set_header "$fixture" --pr '#999'
+assert_eq "「### 」ではヘッダブロックを打ち切らない" "- PR: #999" "$(tail -1 "$fixture")"
+
+# --- issue #66（敵対的レビュー指摘）: 周回数の読み取りもヘッダブロック内に限る ---------
+
+# ヘッダに "- 現在のループ:" が無く、「やったこと」節に過去の引用が残っている場合、
+# その引用から周回数を拾わない（周回数の記録場所はヘッダの1行だけなので誤読が唯一の正になる）
+fixture="$TMP_DIR/handoff29.md"
+cat >"$fixture" <<'FIXTURE_QUOTED_ROUNDS'
+## フロー進捗状況
+
+- push回数: 1
+
+| 進捗 | flow-id | ステップ | 担当 |
+|----|---|---|---|
+| [x] | 2-3 | ループ範囲1 | 人間 |
+| [x] | 2-4 | ループ範囲2 | エージェント |
+
+## やったこと
+
+- 現在のループ: 2-3〜2-4 の7周目（完了）
+FIXTURE_QUOTED_ROUNDS
+cmd_add_round "$fixture" "2-3"
+assert_eq "本文中の引用から周回数を拾わない" \
+  "- 現在のループ: 2-3〜2-4 の2周目（進行中）" "$(sed -n '4p' "$fixture")"
+assert_eq "本文中の引用行はそのまま残る" "- 現在のループ: 2-3〜2-4 の7周目（完了）" \
+  "$(tail -1 "$fixture")"
+
+# --- issue #66（敵対的レビュー指摘）: 項目を1つも指定しない set-header はエラー -------
+
+fixture="$TMP_DIR/handoff30.md"
+write_real_fixture "$fixture"
+cp "$fixture" "$fixture.orig"
+set +e
+cmd_set_header "$fixture" >/dev/null 2>&1
+status=$?
+set -e
+assert_failure "set-header: 項目を1つも指定しなければエラー" "$status"
+assert_unchanged "set-header: 項目未指定では書き戻さない" "$fixture.orig" "$fixture"
+
 echo "passed=$passed failures=$failures"
 [ "$failures" -eq 0 ]
