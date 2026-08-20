@@ -18,8 +18,8 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - ブランチ: `feature-97-support-gemini-cli-usage-report`
 - PR: #101 https://github.com/yuki-matsu783/MR-driven-workflow/pull/101 （Draft）
 - 追従監視: なし（ローカル。各pushとflow-id 5-2で手動確認する）
-- push回数: 7
-- 現在のループ: 4-6〜4-9 の1周目（進行中）
+- push回数: 8
+- 現在のループ: 4-6〜4-9 の2周目（進行中）
 
 | 進捗 | flow-id | ステップ | 担当 |
 |---|---|---|---|
@@ -253,21 +253,33 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
     (1) 採番チェックが既存DDRを全件「重複」と報告した（番号だけを `uniq -d` していた／
     `git ls-tree` が非ASCIIパスを8進エスケープする。`-c core.quotepath=false` が必要）。
     (2) `search-frontmatter.sh --query` は存在しない（正しくは `--text`）。
+- **flow-id 4-8（設計反映のレビュー・1周目）**: ユーザーから「オッケー」の連絡を受けて完了。
+  新規指摘なし。
+- **flow-id 4-6（AIアセット反映・2セット目）を実施した。**
+  - `.claude/rules/shell-script-style.md` へ4件（数値整形は数値と分かっている場所で／
+    `perl -0pi -e "..."` をダブルクォートで囲まない（既存項へ1文追加）／`grep` の `--`／
+    **Windows版jqにプロセス置換のパスを渡せない**（フェーズ2のworklogから回収））。
+  - `.claude/skills/resolve-conflict/SKILL.md` の Step 5 へ2件（**defaultブランチ側に既存の
+    テスト失敗がある場合の扱い**／**自動マージで入った行も確認する**）。
+  - **`REVIEW-POINTS.md`（ルート直下）へ「## 変えないはずのものが変わっていないか」を新設。**
+    計画では置き場所を実施時判断としていたが、内容がリポジトリ全体に効くためルートを選んだ。
+  - **反映しないと判断した6件も、出どころ（どのworklog）と理由を reports へ記録した。**
+- **ユーザーへの提案が1件ある**: `get_branch_work_files` が改名を `"旧" -> "新"` の1行で返す件
+  （2回踏んだ）。**ルールではなく `Provider.sh` の実装の問題**なので、別issueの起票を提案する。
+  **AIからは起票しない。**
 
 ## 次にやること
 
-- **flow-id 4-8（設計反映のレビュー）** を待つ。人間のレビュー完了連絡があるまで
-  AIアセット反映へ進まない。
-- 合意が取れたら **`【AIアセット反映】` で 4-6〜4-10 の2セット目**を回す
-  （`plans/【AIアセット反映】Gemini集計で得た教訓を反映する.md`）。
-  着手時に worklog
-  `worklog/日付_partitioned-forging-seahorse_【AIアセット反映】Gemini集計で得た教訓を反映する_push<N>.md`
-  を作成する。
-- **AIアセット反映で、`get_branch_work_files` の改名出力（`"旧" -> "新"`）について別issueの
-  起票をユーザーへ提案する**（`Provider.sh` の実装の問題であり、ルールで回避させる話ではない。
-  **AIから起票はしない**）。
-- 2セット目が終わったら flow-id 4-10（description更新）→ 5-1（片付け）→ 5-2（コンフリクト検知）
-  → 5-3（関連issue通知）→ 5-4（Draft解除）。**5-5（マージ）はユーザーの明示指示があるまで行わない。**
+- **flow-id 4-8（AIアセット反映のレビュー・2周目）** を待つ。
+- 合意が取れたら flow-id 4-10（MR description更新）→ フェーズ5へ。
+- **フェーズ5の手順**: 5-1（`cleanup-task.sh` で `plans/` `worklog/` `reports/` を削除し
+  HANDOFF.mdをリセット。**`REVIEW-POINTS.md` と `worklog/TEMPLATE.md` は残す**）→
+  5-2（`check-base-conflicts.sh` でコンフリクト検知。あれば `resolve-conflict`）→
+  5-3（関連issueへのマージ前通知。**投稿前に `AskUserQuestion` で承認必須**）→
+  5-4（`set_mr_ready` でDraft解除）。**5-5（マージ）はユーザーの明示指示があるまで行わない。**
+- **5-3の通知先候補**: issue #105（テレメトリ。本MRで `usage/state/gemini-totals/` を新設した
+  ことがトークンの情報源の二重化の判断に影響する）・issue #103・issue #94。
+- **ユーザーへ `get_branch_work_files` の別issue起票を提案する**（AIからは起票しない）。
 ## 判断を迷った内容
 
 - **セッションログの形式**: 当初はissue本文どおり「単一JSON」を前提に計画を書いたが、ユーザーの
