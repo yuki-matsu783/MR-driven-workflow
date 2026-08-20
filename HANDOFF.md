@@ -17,7 +17,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - issue: #47
 - ブランチ: `claude/multiline-command-japanese-comments-k8c2pr`
 - PR: #132（https://github.com/yuki-matsu783/MR-driven-workflow/pull/132 ）
-- push回数: 1
+- push回数: 2
 - 現在のループ: なし
 - 追従監視: 購読あり（web。subscribe_pr_activity + 定期チェックイン）
 
