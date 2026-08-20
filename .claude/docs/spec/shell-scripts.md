@@ -166,7 +166,7 @@ PowerShellはWSL等の非Windows的なシェル環境から扱いにくいため
   実remoteがGitHubのみのため未検証。GitLabリポジトリで実際に使う前に動作確認が必要。
 - **hook起動コマンドのPATH依存はマシンごとの手動セットアップが必要**: `"bash"`のみ・PATH解決方式を
   採用した経緯・却下案は
-  [dev-tools/docs/ddr/0007-hookのcommandはbashのPATH解決方式へ変更.md](../ddr/0007-hookのcommandはbashのPATH解決方式へ変更.md)
+  [dev-tools/docs/ddr/i0000-05-hookのcommandはbashのPATH解決方式へ変更.md](../ddr/i0000-05-hookのcommandはbashのPATH解決方式へ変更.md)
   参照。この対処（システム環境変数`Path`の変更、管理者権限が必要）はリポジトリ側のファイルには
   残らないため、新しい開発機でこのリポジトリを使い始める際は毎回手動セットアップが必要になる
   （自動化・簡略化の余地はあるが本issueのスコープ外）。

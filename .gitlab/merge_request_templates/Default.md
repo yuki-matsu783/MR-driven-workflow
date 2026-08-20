@@ -2,7 +2,7 @@
   issue駆動MRワークフローのMRテンプレート（GitLab用）。
   ファイル名 `Default.md` はGitLabが既定テンプレートとして特別扱いする予約名であり、MR作成時に
   自動でこの本文が入る（issueテンプレートで同じ判断をした経緯:
-  `.claude/docs/ddr/0036-GitLab-issueテンプレートは予約名Default.mdを正とし文書側を合わせる.md`）。
+  `.claude/docs/ddr/i0032-01-GitLab-issueテンプレートは予約名Default.mdを正とし文書側を合わせる.md`）。
   見出しの構成は `/issue-mr-flow describe` サブコマンドが生成するdescriptionと同一にしてある
   （`.claude/skills/issue-mr-flow/SKILL.md` の `describe` 節が正）。flow-id 2-5/2-10/3-5/3-10/
   4-5/4-10 で `describe` を実行すると、この本文は**全文置換**される。そのため見出しを増やさない

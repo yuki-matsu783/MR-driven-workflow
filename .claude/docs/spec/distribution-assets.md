@@ -18,7 +18,7 @@ issue #33。このリポジトリは他プロジェクトへワークフロー�
 - 配布物の版を識別する手段（配布先が「どの版の資産を導入したか」を判別できなかった）
 
 LICENSEも当初の対象だったが、**同梱しないと決めた**（
-[DDR 0062](../ddr/0062-配布テンプレートにLICENSEを同梱しない.md)）。
+[DDR i0033-02](../ddr/i0033-02-配布テンプレートにLICENSEを同梱しない.md)）。
 
 ## 仕様
 
@@ -27,7 +27,7 @@ LICENSEも当初の対象だったが、**同梱しないと決めた**（
 | ファイル | プロバイダ |
 |---|---|
 | `.github/pull_request_template.md` | GitHub |
-| `.gitlab/merge_request_templates/Default.md` | GitLab（`Default.md` は既定適用される予約名。DDR 0036と同じ理由） |
+| `.gitlab/merge_request_templates/Default.md` | GitLab（`Default.md` は既定適用される予約名。DDR i0032-01と同じ理由） |
 
 **両者の見出し構成は、`issue-mr-flow` の `describe` サブコマンドが生成するdescriptionと同一**に
 する（`Closes #<issue番号>` → `## Plan` → `## 実装状況`）。
@@ -70,7 +70,7 @@ LICENSEも当初の対象だったが、**同梱しないと決めた**（
 - **位置**: リポジトリルートではなく `.claude/` 配下（配布先が自分のアプリの版として `VERSION` を
   持つ場合に、それを上書きしないため）。
 - **CHANGELOGは持たない。** 変更内容はコミット履歴／PR一覧で辿る
-  （[DDR 0061](../ddr/0061-配布物の版はVERSIONファイル1つで表しCHANGELOGを持たない.md)）。
+  （[DDR i0033-01](../ddr/i0033-01-配布物の版はVERSIONファイル1つで表しCHANGELOGを持たない.md)）。
 - **更新のタイミング**: flow-id 4-6（AIアセット反映）。配布対象アセットに変更があった回だけ行う。
 - **増分の決め方**: AIエージェントが増分を**提案**し、**人間が決める**（AIが独断で上げない）。
 
@@ -96,7 +96,7 @@ LICENSEも当初の対象だったが、**同梱しないと決めた**（
 `install-to-project.sh` の `ALWAYS_OVERWRITE_RELPATHS` に列挙し、`.bak` も警告も出さずに上書きする。
 
 `.gitattributes` の行追記には次の性質がある（
-[DDR 0063](../ddr/0063-gitattributesは配布先へ丸ごとコピーせず必要な行だけ追記する.md)）。
+[DDR i0033-03](../ddr/i0033-03-gitattributesは配布先へ丸ごとコピーせず必要な行だけ追記する.md)）。
 
 - **冪等**: 何度適用しても行が増えない。
 - **行全体の一致で判定する**（`grep -Fxq`）。部分一致にすると、配布先が

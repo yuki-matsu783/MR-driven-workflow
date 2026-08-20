@@ -259,7 +259,7 @@ assert_eq "mcp_tool_hint: 未知の関数名でも空にならずSKILL.mdの対�
 get_provider() { printf 'gitlab\n'; }
 
 assert_eq "mcp_tool_hint: GitLabは対象外である旨を返す" \
-  "GitLab向けのMCPフォールバックは対象外です（DDR 0027）。glab CLIをインストール・認証してください" \
+  "GitLab向けのMCPフォールバックは対象外です（DDR i0034-01）。glab CLIをインストール・認証してください" \
   "$(mcp_tool_hint get_issue)"
 
 
@@ -484,7 +484,7 @@ assert_eq "parse_repo_slug: .url は repo_url_from_remote_url と一致する（
 #
 # キーワード抽出の関数は実装していないため、その単体テストも存在しない（抽出は
 # `issue-create` スキル側でAIエージェントが行う。理由:
-# .claude/docs/ddr/0033-issue起票前の重複チェックは検索をProvider層へ置きキーワード抽出はAIに委ねる.md）。
+# .claude/docs/ddr/i0068-01-issue起票前の重複チェックは検索をProvider層へ置きキーワード抽出はAIに委ねる.md）。
 
 # GitHub CLIの `OPEN`/`CLOSED` を小文字へ揃え、キーを number/title/state/url に正規化する
 assert_eq "github_normalize_issue_search_results: stateを小文字化しキーを揃える" \

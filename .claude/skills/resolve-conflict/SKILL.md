@@ -1,10 +1,10 @@
 ---
 name: resolve-conflict
-description: 'Detect and resolve conflicts between the current feature branch and the default branch (main) before requesting a merge. Use whenever a merge/PR is about to be requested — both when the user explicitly invokes /resolve-conflict AND at issue-mr-flow flow-id 5-1, which requires this check before undrafting the PR. Covers the repo-specific hazards: DDR number collisions that git silently merges as clean, "deleted by us" conflicts on files that were untracked from Git (index.jsonl), and doc lines edited on both branches. Also used for the continuous base-branch follow-up after a PR is opened (issue-mr-flow "PR作成後のdefaultブランチ追従（監視）"), where categories with a single determined resolution (A/B/C/D) are resolved without waiting for approval and category E stops for the human. Flow: check-base-conflicts.sh -> AskUserQuestion -> git merge (never rebase) -> per-category resolution -> verify -> commit skill.'
+description: 'Detect and resolve conflicts between the current feature branch and the default branch (main) before requesting a merge. Use whenever a merge/PR is about to be requested — both when the user explicitly invokes /resolve-conflict AND at issue-mr-flow flow-id 5-1, which requires this check before undrafting the PR. Covers the repo-specific hazards: DDR identifier collisions that git silently merges as clean, "deleted by us" conflicts on files that were untracked from Git (index.jsonl), and doc lines edited on both branches. Also used for the continuous base-branch follow-up after a PR is opened (issue-mr-flow "PR作成後のdefaultブランチ追従（監視）"), where categories with a single determined resolution (A/B/C/D) are resolved without waiting for approval and category E stops for the human. Flow: check-base-conflicts.sh -> AskUserQuestion -> git merge (never rebase) -> per-category resolution -> verify -> commit skill.'
 title: defaultブランチとのコンフリクト解消
 type: skill
 tags: [issue-mr-flow, workflow, skill, conflict]
-keywords: [コンフリクト, merge, DDR番号, 改番, deleted by us, index.jsonl, merge-tree, defaultブランチ, main追従, 追従監視, 監視モード, DDR一覧, 再生成]
+keywords: [コンフリクト, merge, DDR識別子, 改番, deleted by us, index.jsonl, merge-tree, defaultブランチ, main追従, 追従監視, 監視モード, DDR一覧, 再生成]
 ---
 
 # /resolve-conflict スキル
@@ -12,7 +12,7 @@ keywords: [コンフリクト, merge, DDR番号, 改番, deleted by us, index.js
 現在のfeatureブランチとdefaultブランチ（`.mrworkflow.json` の `defaultBaseBranch`。既定 `main`）の
 間のコンフリクトを、**検知 → ユーザー確認 → 類型別の解消 → 検証 → コミット**という決まった順序で
 処理する。マージ依頼のたびに同じ手順へ収束させ、その場の判断で解消方法が変わることを防ぐ
-（issue #46。経緯・却下案: `.claude/docs/ddr/0029-defaultブランチとのコンフリクトは検知を機構化し解消手順をスキル化する.md`）。
+（issue #46。経緯・却下案: `.claude/docs/ddr/i0046-01-defaultブランチとのコンフリクトは検知を機構化し解消手順をスキル化する.md`）。
 
 ## 呼び出しタイミング
 
@@ -61,8 +61,8 @@ bash .claude/scripts/src/check-base-conflicts.sh
 | `hasConflict` | 下2つのいずれかが真 |
 | `hasTextualConflict` | `git merge-tree` が報告する通常のコンフリクト |
 | `textualConflictFiles` | その対象ファイル一覧 |
-| `hasDuplicateDdrNumber` | **DDR番号の重複**（gitはコンフリクトと見なさない。下記「類型A」） |
-| `duplicateDdrNumbers` | 重複した番号と、その番号を持つファイル一覧 |
+| `hasDuplicateDdrNumber` | **DDR識別子の重複**（gitはコンフリクトと見なさない。下記「類型A」）。キー名は `Number` のままだが、値は連番（`0027`）とissue番号ベース（`i0133-01`）の両方を取る |
+| `duplicateDdrNumbers` | 重複した識別子と、その識別子を持つファイル一覧 |
 
 **`hasConflict` が `false` なら、このスキルはここで終了する**（マージやコミットは行わない。
 呼び出し元の flow-id 5-1 はそのまま 5-2（関連issue通知）へ進む）。
@@ -73,7 +73,7 @@ bash .claude/scripts/src/check-base-conflicts.sh
 ### Step 2: ユーザーへの確認（AskUserQuestion）
 
 `hasConflict` が `true` の場合、**解消作業に入る前に必ず `AskUserQuestion` でユーザーの承認を取る**。
-質問文には、検知した内容（類型・対象ファイル・重複したDDR番号）を具体的に含める。
+質問文には、検知した内容（類型・対象ファイル・重複したDDR識別子）を具体的に含める。
 
 選択肢は次の3つを標準とする。
 
@@ -91,7 +91,7 @@ PR作成後の追従監視から呼ばれた場合に限り、**解消方法が�
 
 | 類型 | 監視モードでの扱い |
 |---|---|
-| A: DDR番号の衝突 | **承認を待たず解消**（「defaultブランチ側を正とし作業ブランチ側を繰り下げる」と規則が確定している） |
+| A: DDR識別子の衝突 | **承認を待たず解消**（「defaultブランチ側を正とし作業ブランチ側を繰り下げる」と規則が確定している）。ただし**類型A-2（同一issueの並行作業）は類型Eと同じく人間へ確認する** |
 | B: 生成物（管理外にしたファイルの "deleted by us" ／ DDR一覧） | **承認を待たず解消**（「管理外にした側を採用する」／「統合せず再生成する」と規則が確定している） |
 | C: 同じドキュメントの近接行 | **承認を待たず解消**（両方を残す）。ただし散文が両側で書き換わり内容が矛盾する場合は類型Eとして扱う |
 | D: spec/DDRの過去changelog | **承認を待たず解消**（時系列順に両方残す） |
@@ -102,7 +102,7 @@ PR作成後の追従監視から呼ばれた場合に限り、**解消方法が�
 - 検知結果に類型Eが1つでも含まれる場合は、**他の類型も解消せずに止めて確認を取る**（同じマージの
   途中で一部だけ解消すると、作業ツリーがマージ途中のまま人間の応答を待つことになるため）。
 - ユーザーが対話可能な通常の呼び出し（`/resolve-conflict`・flow-id 5-1）では、この例外は使わない。
-  従来どおり Step 2 の承認を取る（DDR 0029 の決定6）。
+  従来どおり Step 2 の承認を取る（DDR i0046-01 の決定6）。
 
 ### Step 3: マージの開始
 
@@ -121,10 +121,29 @@ git merge --no-ff --no-commit "origin/$base"
 
 ### Step 4: 類型別の解消
 
-#### 類型A: DDR番号の衝突（最頻。過去4回すべてこれ）
+#### 類型A: DDR識別子の衝突（かつての最頻。issue #133以降は原則として起きない）
 
-両ブランチがそれぞれ新しいDDRを追加し、同じ連番になった状態。**ファイル名が異なるため
-`git status` には何も出ない**（PR #29 / #37 / #49 / #52 のすべてがこの形）。
+両ブランチがそれぞれ新しいDDRを追加し、同じ識別子になった状態。**ファイル名が異なるため
+`git status` には何も出ない**（PR #29 / #37 / #49 / #52 のすべてがこの形だった）。
+
+**issue #133で、新規DDRの識別子は連番（`0027-…`）からissue番号ベース（`i0133-01-…`）へ変わった。**
+issue番号はGitHub/GitLabが中央で採番するため、**別ブランチ同士で同じ識別子が生まれることは
+原理的に無い**。過去4回の形の衝突は、もう起きない（命名規則:
+`.claude/rules/markdown-frontmatter.md`「DDRの識別子」、経緯:
+`.claude/docs/ddr/i0133-01-DDR識別子はissue番号ベースにし連番採番をやめる.md`）。
+
+それでも `hasDuplicateDdrNumber` が真になった場合、原因は次の2つのどちらかである。**どちらかを
+先に見分けてから解消する**（解消のしかたが違う）。
+
+| 重複した識別子の形 | 原因 | 解消 |
+|---|---|---|
+| `0027` のような4桁連番 | **旧形式のDDR同士**。本リポジトリのDDRは issue #133 で全件改番したため通常は現れない。改番前に切られた古いブランチや、この機構を旧版のまま導入したリポジトリで起きる | 下記A-1（従来どおり繰り下げ改番する） |
+| `i0133-02` のようなissue番号ベース | **同一issueへの追加作業を2つのブランチで並行して行った**。枝番だけはローカルで決めるため、同じ値を採りうる | 下記A-2（枝番だけを繰り下げる） |
+
+**まず、作業ブランチが連番のDDRを新規に追加していないかを確認する。** 追加していれば、それ自体が
+規約違反である（新規は必ずissue番号ベース）。改番ではなく**新方式の識別子へ付け替える**のが正しい。
+
+##### A-1: 旧形式（4桁連番）のDDR同士が重複した場合
 
 **解消ルール: defaultブランチ側の番号を正とし、作業ブランチ側を空き番号へ繰り下げる。**
 mainは共有の正史であり、既にマージされた番号を動かすと他のブランチ・既存の相互参照が壊れるため。
@@ -139,13 +158,27 @@ mainは共有の正史であり、既にマージされた番号を動かすと�
 | `.claude/docs/README.md` のDDR一覧 | **手書きしない。** `bash .claude/scripts/src/generate-ddr-list.sh` を実行して再生成する（issue #135） |
 | **他ファイルからの参照** | `grep -rn "00NN-" --include='*.md' --include='*.sh' --include='*.json' .` |
 
+##### A-2: issue番号ベースの識別子が重複した場合（同一issueの並行作業）
+
+**解消ルール: issue番号は動かさず、枝番だけを空き番号へ繰り下げる。** defaultブランチ側を正と
+するのはA-1と同じ。更新対象もA-1と同じ5点で、`grep` のパターンだけが `i0133-02-` のような
+識別子になる。
+
+- **そもそも同一issueを2ブランチで並行して進めている状態そのものを疑う。** 枝番の衝突は
+  その症状であって原因ではない。改番して先へ進む前に、作業を分ける必要がないかをユーザーへ
+  一度確認する（監視モードでも、この確認は省略しない）。
+
+##### A-1 / A-2 に共通する注意
+
 - **DDR本文は変更しないという原則（`.claude/rules/docs-workflow.md`）の適用外**。まだマージ
-  されていない自分のDDRの、自分自身の番号表記を直すだけであり、確定した意思決定の書き換えではない。
+  されていない自分のDDRの、自分自身の識別子の表記を直すだけであり、確定した意思決定の
+  書き換えではない。
 - **`.gitignore` やスクリプトのコメントからの参照を忘れやすい。** 実際、issue #36で
   `0024-frontmatterのindex.jsonl...` が `0025-...` へ繰り下がった際に `.gitignore` のコメントが
   古い番号のまま残り、issue #46で修正するまで存在しないDDRを指していた。上表の `grep` を必ず流すこと。
+  **この参照追従の危うさこそが、issue #133で採番方式そのものを変えた理由である。**
 - **改番後は `check-base-conflicts.sh` を再実行し、`hasDuplicateDdrNumber` が `false` になることを
-  確認する。**
+  確認する。**（キー名は `Number` のままだが、値は連番・issue番号ベースの識別子の両方を取る。）
 
 #### 類型B: 生成物のコンフリクト（Git管理外の "deleted by us" / "deleted by them"、およびDDR一覧）
 
@@ -252,7 +285,7 @@ git add .claude/docs/README.md                      # 差分が出ていれば�
 # 5. 単体テストの実行
 for t in .claude/scripts/test/test_*.sh; do bash "$t"; done
 
-# 6. DDR番号の重複が解消されたこと（類型Aを解消した場合は必須）
+# 6. DDR識別子の重複が解消されたこと（類型Aを解消した場合は必須）
 bash .claude/scripts/src/check-base-conflicts.sh --no-fetch | jq '.hasDuplicateDdrNumber'
 ```
 
@@ -270,7 +303,7 @@ bash .claude/scripts/src/check-base-conflicts.sh --no-fetch | jq '.hasDuplicateD
 ではなく、作業ツリーの実ファイルを直接 `ls` して番号の重複が無いことを目視確認してもよい。
 
 ```bash
-ls .claude/docs/ddr/ | grep -oE '^[0-9]{4}' | sort | uniq -d   # 何も出なければ重複なし
+ls .claude/docs/ddr/ | grep -oE '^(i[0-9]+-[0-9]{2}|[0-9]{4})' | sort | uniq -d   # 何も出なければ重複なし
 ```
 
 #### 「1つでも落ちたらコミットしない」の例外: defaultブランチ側に既存の失敗がある場合
@@ -361,11 +394,12 @@ bash .claude/scripts/src/create-commit.sh --message "chore: ..." -- "${staged[@]
 
 - 全体フローにおける位置づけ（flow-id 5-1）: `.claude/skills/issue-mr-flow/SKILL.md`
 - ブランチ運用・squash merge・コミット運用: `.claude/rules/git-workflow.md`
-- DDRの番号・frontmatter運用: `.claude/rules/markdown-frontmatter.md`, `.claude/rules/docs-workflow.md`
+- DDRの識別子（issue番号ベースの命名・枝番）・frontmatter運用: `.claude/rules/markdown-frontmatter.md`「DDRの識別子」, `.claude/rules/docs-workflow.md`
+- 採番方式をissue番号ベースへ変えた経緯・却下案: `.claude/docs/ddr/i0133-01-DDR識別子はissue番号ベースにし連番採番をやめる.md`
 - 検知スクリプトの仕様: `.claude/docs/spec/check-base-conflicts.md`
 - DDR一覧の生成（類型Bで再生成に使う）: `.claude/docs/spec/generate-ddr-list.md`、経緯・却下案:
-  `.claude/docs/ddr/0065-DDR一覧は生成物にしつつGit管理下へ残す.md`
-- 意思決定の経緯・却下案: `.claude/docs/ddr/0029-defaultブランチとのコンフリクトは検知を機構化し解消手順をスキル化する.md`
+  `.claude/docs/ddr/i0135-01-DDR一覧は生成物にしつつGit管理下へ残す.md`
+- 意思決定の経緯・却下案: `.claude/docs/ddr/i0046-01-defaultブランチとのコンフリクトは検知を機構化し解消手順をスキル化する.md`
 - 監視モード（PR作成後の追従・自動解消の線引き）の経緯・却下案:
-  `.claude/docs/ddr/0039-PR作成後のdefaultブランチ追従は並行手順として定義し自動解消は一意に決まる類型に限る.md`
+  `.claude/docs/ddr/i0088-01-PR作成後のdefaultブランチ追従は並行手順として定義し自動解消は一意に決まる類型に限る.md`
 - 監視のフロー上の位置づけ: `.claude/skills/issue-mr-flow/SKILL.md`「PR作成後のdefaultブランチ追従（監視）」節

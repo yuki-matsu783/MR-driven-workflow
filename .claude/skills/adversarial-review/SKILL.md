@@ -188,7 +188,7 @@ get_vcs_access_mode   # → cli / mcp
    次回の `create` が失敗し続ける。
 5. 途中で失敗した場合は `method="delete_pending"` で片付けてから、原因を報告する。
 
-WebFetchツール・curlへはフォールバックしない（DDR 0020, DDR 0027）。
+WebFetchツール・curlへはフォールバックしない（DDR i0014-01, DDR i0034-01）。
 
 ## してはいけないこと
 

@@ -11,7 +11,7 @@ keywords: [index.jsonl, frontmatter, 横断検索, type, tags, keywords, jq, gre
 
 リポジトリ内のmarkdownドキュメントを、**本文の全文探索ではなくfrontmatterのインデックス
 （`index.jsonl`）経由で**検索する（issue #38。経緯・却下案:
-`.claude/docs/ddr/0049-ドキュメント探索はfrontmatterインデックス検索を第一手段にする.md`）。
+`.claude/docs/ddr/i0038-01-ドキュメント探索はfrontmatterインデックス検索を第一手段にする.md`）。
 
 実処理は `.claude/scripts/src/search-frontmatter.sh` にある（仕様:
 `.claude/docs/spec/search-frontmatter.md`）。
@@ -162,7 +162,7 @@ SF --type spec | jq -r '"| \(.frontmatter.title) | \(.frontmatter.description) |
 - **`index.jsonl` はGit管理外の生成物**（`.gitignore` の `**/index.jsonl`）。SessionStart hookが
   セッション開始のたびに再生成するが、このスクリプトも実行のたびに最新化するため、
   手動で `extract-frontmatter.sh` を叩く必要はない
-  （`.claude/docs/ddr/0025-frontmatterのindex.jsonlをGit管理から外しSessionStart-hookで生成する.md`）。
+  （`.claude/docs/ddr/i0036-01-frontmatterのindex.jsonlをGit管理から外しSessionStart-hookで生成する.md`）。
 - **検索できるのはfrontmatterの内容だけで、本文は対象外**。本文中の語を探すときは `grep` / `rg`
   を使う。逆に言えば、frontmatterの `description` / `keywords` の質がそのまま検索の質になる
   （新規markdown作成時は `.claude/rules/markdown-frontmatter.md` に従って必ず付与する）。

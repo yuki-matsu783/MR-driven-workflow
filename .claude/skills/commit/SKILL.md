@@ -40,7 +40,7 @@ hookの対象にならず正規に実行できる。
 **先に削除をステージしてから残りをラッパーへ渡す2段構えは不要**であり、むしろそれを行うと
 当該パスがindexから消えるため、後続の処理がpathspec不一致で失敗する。既に削除がステージ済みの
 パスを渡した場合は、冪等にスキップして通知するだけになる
-（仕様: `.claude/docs/spec/create-commit.md`、経緯: `.claude/docs/ddr/0030-create-commitは削除ステージ済みパスをgit-addの失敗時分類で吸収する.md`）。
+（仕様: `.claude/docs/spec/create-commit.md`、経緯: `.claude/docs/ddr/i0060-01-create-commitは削除ステージ済みパスをgit-addの失敗時分類で吸収する.md`）。
 
 ## 実行フロー
 

@@ -4,7 +4,7 @@
 # issue-mr-flow へ進まないよう注意を促すメッセージ注入）。
 # 設計: issue #39 →
 #       .claude/docs/spec/issue-mr-workflow.md「issue起票後の着手確認（issue #39）」,
-#       .claude/docs/ddr/0038-issue起票後の着手確認はブロックせず注意喚起の注入で担保する.md
+#       .claude/docs/ddr/i0039-01-issue起票後の着手確認はブロックせず注意喚起の注入で担保する.md
 #
 # 目的: AIエージェントがissueを起票した流れのまま、人間の確認なしにブランチ・Draft MR作成
 # （`/issue-mr-flow start`）まで進んでしまうのを防ぐ。どのissueにいつ着手するかの判断を
@@ -14,7 +14,7 @@
 # **ブロック（PreToolUse + exit 2）は行わない。** 「人間が明示的に着手を指示した」という正当な
 # ケースをhookからは観測できず、ブロックするとその解除手段が「hookを黙らせる」ことになって
 # しまうため。判断はエージェントに委ね、hookは起票の直後に一度だけ注意を注入する役割に留める
-# （却下案を含む詳細はDDR 0038参照）。
+# （却下案を含む詳細はDDR i0039-01参照）。
 #
 # 検知対象は2経路ある（`.claude/settings.json` の matcher で両方を受ける）。
 #   - CLI経路: Bash/PowerShell/run_shell_command のコマンド文字列に `create-issue.sh` を含む

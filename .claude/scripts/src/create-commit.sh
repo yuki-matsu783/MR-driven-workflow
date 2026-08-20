@@ -8,7 +8,7 @@
 # "git commit" という部分文字列を含まないことが目的。`.claude/hooks/block-direct-git-commit.sh`
 # （PreToolUse hook）は Bash/PowerShell ツールのコマンド文字列に "git commit" が含まれる場合を
 # ブロックするため、このラッパー経由のコミットはhookの対象外になり、commitスキルの正規の実行を
-# 妨げない（詳細: .claude/docs/ddr/0012-コミットはcommitスキル経由を機構的に強制する.md）。
+# 妨げない（詳細: .claude/docs/ddr/i0000-09-コミットはcommitスキル経由を機構的に強制する.md）。
 #
 # 使い方:
 #   .claude/scripts/src/create-commit.sh --message "<コミットメッセージ>" -- <file1> [file2 ...]
