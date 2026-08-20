@@ -64,7 +64,7 @@ REPLY_LINKS_GUIDE_MESSAGE='このpushでレビュー指摘へ返信した場合�
 # （15件では8KB超になった）。このhook自体がコンテキスト肥大への対処（/compactの呼びかけ）を
 # 兼ねている以上、供給側が肥大の原因になっては本末転倒のため小さめに倒している。
 MAX_REVIEW_FILES=10
-COMPACT_PROMPT_MESSAGE='メッセージ例: MRのレビューをお願いします。/compactを実施をしていただくと、レビュー中にコンテキストを圧縮して今後の作業が効率的になる可能性があります'
+COMPACT_PROMPT_MESSAGE='メッセージ例: MRのレビューをお願いします。/compactを実施をしていただくと、レビュー中にコンテキストを圧縮して今後の作業が効率的になる可能性があります。キャッシュが有効なうちにcompactすると費用面で有利です'
 
 write_additional_context() {
   local text="$1"
