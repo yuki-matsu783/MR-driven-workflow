@@ -112,7 +112,8 @@ MRとのやり取りだけを自動化する薄い層」として設計したが
 | `get_diff_anchor_algo` | 差分アンカーのハッシュ算出に使うアルゴリズム名を返す（純粋関数。issue #42） | `sha256` | `sha1`（【未検証】） |
 | `url_encode_path_to_reply <path>` | パスをURLへ埋め込める形へpercent-encodeし、結果を`REPLY`へ返す（プロバイダ非依存の純粋関数。unreserved文字と`/`は残し、それ以外はUTF-8のバイト単位で`%XX`へ変換する。issue #42） | — | — |
 | `hash_paths <algo> <path>...` | 渡した各**パス文字列**（ファイルの中身ではない）のハッシュを引数と同じ順序で1行ずつ返す（差分アンカー用。issue #42）。件数に比例して`sha256sum`を起動しないよう一時ファイルへ書き出して1回で計算する | `sha256sum` | `sha1sum` |
-| `get_branch_work_files` | 現在のブランチ固有（`<defaultBaseBranch>` に無い）の `plans/` `worklog/` `reports/` ファイル一覧を返す（プロバイダ非依存）。日本語を含むパスをそのまま返すため `-c core.quotepath=false` を指定している（issue #9。詳細は「計画の2階層構造」節） | — | — |
+| `get_branch_work_files` | 現在のブランチ固有（`<defaultBaseBranch>` に無い）の `plans/` `worklog/` `reports/` ファイル一覧を返す（プロバイダ非依存）。日本語を含むパスをそのまま返すため `-c core.quotepath=false` を指定している（issue #9。詳細は「計画の2階層構造」節）。**出力は常に「1行＝1つの実在するパス」**で、改名されたファイルは新パスのみを返す（issue #115。下記「日本語ファイル名を扱う際の注意」） | — | — |
+| `porcelain_z_to_paths` | `git status --porcelain -z` の出力（標準入力）を1行1パスへ変換する純粋関数（プロバイダ非依存。issue #115）。改名・コピーのエントリ（`XY <新パス>\0<旧パス>\0`）は新パスのみを返し、旧パスを読み捨てる。NUL区切りを改行区切りへ変換するため、呼び出し側は結果をコマンド置換で受け取れる | — | — |
 | `build_issue_body <purpose> <current> <expected> <acceptance>` | 標準4見出し（目的・現状・期待する動作・受け入れ条件）に沿ってissue本文を組み立てる（プロバイダ非依存。issue #25） | — | — |
 | `new_issue <title> <body>` | タイトル・本文からissueを新規作成し、`get_issue`と同じ形（number/title/body/url/slug）のJSONを返す（issue #25） | `gh issue create` → URLから番号抽出 → `github_get_issue` | `glab issue create` → URLから番号抽出 → `gitlab_get_issue` |
 | `search_issues <キーワード...>` | キーワードで既存issueを検索し `[{number, title, state, url}]` のJSON配列を返す（起票前の重複チェック用。issue #68）。**closedも対象**。キーワードごとに1回ずつ検索して統合する（最大5キーワード。超過分は標準エラーへ通知して切り捨て）。`state` は `open`/`closed` へ正規化する | `gh issue list --search`（キーワードごと） | `glab issue list --search`（キーワードごと） |
@@ -257,10 +258,25 @@ Claude Code / Gemini CLI は**セッションごとに1つのplanファイルし
 
 **日本語ファイル名を扱う際の注意（`core.quotepath`）**: gitは既定（`core.quotepath=true`）で
 非ASCII文字を含むパスを8進エスケープ＋ダブルクォートで囲んで出力する。`get_branch_work_files` は
-`git diff --name-only` / `git status --porcelain` の行単位出力を使うため、**`-c core.quotepath=false`
+コミット済み分の列挙に `git diff --name-only` の行単位出力を使うため、**`-c core.quotepath=false`
 の明示指定が必要**（指定しないと戻り値が使えない文字列になり `resume` が機能しない）。
 `git ls-files -z` のようなNUL区切り出力は元から影響を受けない（実装例:
-`.claude/scripts/src/extract-frontmatter.sh`）。
+`.claude/scripts/src/extract-frontmatter.sh`）。未コミット分の `git status` も issue #115 で
+`--porcelain -z` へ移したため元から影響を受けないが、指定は両方に付けたまま揃えている。
+
+**改名されたファイルの扱い（issue #115）**: `git status --porcelain` の行単位形式は、改名を
+`R  <旧パス> -> <新パス>` の1行として出力する。旧実装はこの行から先頭3文字（XY＋空白）だけを
+落としていたため、**どちらのパスとしても存在しない `<旧パス> -> <新パス>` という1行**が結果に
+混ざり、そのままファイル操作へ渡すと `No such file or directory` になっていた（issue #97 の作業中に
+2回踏み、日本語ファイル名で見た目が特徴的だったため目視で回避した）。パス自体が ` -> ` や空白を
+含みうる（後者は行単位形式ではダブルクォートで囲まれる）以上、行単位形式は本質的に曖昧である。
+そこで `--porcelain -z` のNUL区切り出力へ移した。`-z` では改名エントリが
+`XY <新パス>\0<旧パス>\0` という**新パスが先**の2フィールドになり（行単位形式とは順序が逆）、
+クォートも行われないため曖昧さなく分解できる。この分解は純粋関数 `porcelain_z_to_paths` が担い、
+`get_branch_work_files` の出力は常に「1行＝1つの実在するパス」になる。コミット済み分
+（`git diff --name-only`）は元から改名を新パス1件として返すため、この問題は未コミット分にのみ
+現れていた。削除されたファイルの扱いは従来どおりで、issue #115 では変更していない
+（削除済みパスも一覧に含まれる）。
 
 ### 全体作業計画に必ず含めるフェーズ（issue #92）
 
@@ -2634,6 +2650,33 @@ issue #97でレポートのフッター署名がengineごとに切り替わる�
   表から除外される全項目0の行を根拠にしないこと。81 → 90ケース）
 - `.claude/docs/spec/issue-mr-workflow.md`（「フッターの免責事項説明文は初回投稿のみ表示」へ
   この分岐と、初回投稿がGemini CLI単独だった場合に注記が出ない制約を追記、本項）
+
+### issue #115（`get_branch_work_files` が改名を新パス1件として返す）
+
+`get_branch_work_files` の未コミット分の列挙が `git status --porcelain`（行単位）＋
+`sed -E 's/^...//'` だったため、改名が絡むと `<旧パス> -> <新パス>` という**1行に2つのパスが
+混ざった、どちらのパスとしても存在しない行**を返していた。呼び出し元（`resume` の
+`issue-mr-resume` サブエージェント、SessionStart hookのコンテキスト注入）は結果を
+「このブランチの作業ファイル一覧」として提示するため、`while IFS= read -r f` で回して
+ファイル操作へ渡すという素直な使い方ができなかった。
+
+`--porcelain -z` のNUL区切り出力へ移し、その分解を純粋関数 `porcelain_z_to_paths` へ切り出した。
+`-z` では改名エントリが `XY <新パス>\0<旧パス>\0` の順（行単位形式とは逆）でクォートも無いため、
+パスが ` -> ` や空白を含んでいても曖昧さなく分解できる。詳細は上記「改名されたファイルの扱い
+（issue #115）」。追加・変更・削除の扱い、コミット済み分とのマージ、`sort -u` は変えていない
+（改名が無い場合の出力は従来と同一）。
+
+更新:
+- `.claude/scripts/src/vcs/Provider.sh`（`porcelain_z_to_paths` を新設。
+  `get_branch_work_files` の `working=` を `--porcelain -z | porcelain_z_to_paths` へ変更し、
+  ヘッダコメントの `core.quotepath` の説明を現状に合わせて更新）
+- `.claude/scripts/test/test_vcs_provider.sh`（`porcelain_z_to_paths` の単体テストを追加。
+  ステージ済みの改名 `R `・改名＋未ステージ変更 `RM`・未ステージ側の桁の改名 ` R`・コピー `C `・
+  未追跡 `??` ・非ASCIIパス・パス自体が ` -> ` を含む場合・空入力・旧パスのフィールドが欠けた
+  壊れた入力。131 → 140ケース）
+- `.claude/docs/spec/issue-mr-workflow.md`（「提供関数」表に `porcelain_z_to_paths` を追加し
+  `get_branch_work_files` の説明を更新、「改名されたファイルの扱い（issue #115）」節を追加、
+  「日本語ファイル名を扱う際の注意」を現状に合わせて更新、本項）
 
 ## 未決定事項・懸念点
 
