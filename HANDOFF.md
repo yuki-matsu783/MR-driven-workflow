@@ -119,6 +119,11 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
     （`SKILL.md` の役割比較表・「この確認は flow-id 5-1 を置き換えない」、
     `check-base-conflicts.md` の fetch握りつぶしの理由、`check-base-sync.md` の判定軸の比較）。
     自動マージで無言に入った行のため、コンフリクト箇所だけを見ていたら見落としていた。
+- **2回目のマージ（PR #122「敵対的レビューのGitLabサマリをスレッド投稿へ」）**: 1回目のマージ中に
+  mainがさらに進んだ。`.claude/docs/spec/issue-mr-workflow.md` の提供関数表で、main側が
+  `add_mr_inline_comments` の行を、本ブランチが隣接する `add_issue_comment` の行の flow-id を
+  それぞれ変更していた（類型C）。**両方を採用**し、`add_mr_inline_comments` はmain側の新しい説明、
+  `add_issue_comment` は本ブランチの `flow-id 5-2` を残した。
 
 ## 未解決の内容
 
