@@ -1,6 +1,6 @@
 ---
 name: resolve-conflict
-description: 'Detect and resolve conflicts between the current feature branch and the default branch (main) before requesting a merge. Use whenever a merge/PR is about to be requested — both when the user explicitly invokes /resolve-conflict AND at issue-mr-flow flow-id 5-2, which requires this check before undrafting the PR. Covers the repo-specific hazards: DDR number collisions that git silently merges as clean, "deleted by us" conflicts on files that were untracked from Git (index.jsonl), and doc lines edited on both branches. Also used for the continuous base-branch follow-up after a PR is opened (issue-mr-flow "PR作成後のdefaultブランチ追従（監視）"), where categories with a single determined resolution (A/B/C/D) are resolved without waiting for approval and category E stops for the human. Flow: check-base-conflicts.sh -> AskUserQuestion -> git merge (never rebase) -> per-category resolution -> verify -> commit skill.'
+description: 'Detect and resolve conflicts between the current feature branch and the default branch (main) before requesting a merge. Use whenever a merge/PR is about to be requested — both when the user explicitly invokes /resolve-conflict AND at issue-mr-flow flow-id 5-1, which requires this check before undrafting the PR. Covers the repo-specific hazards: DDR number collisions that git silently merges as clean, "deleted by us" conflicts on files that were untracked from Git (index.jsonl), and doc lines edited on both branches. Also used for the continuous base-branch follow-up after a PR is opened (issue-mr-flow "PR作成後のdefaultブランチ追従（監視）"), where categories with a single determined resolution (A/B/C/D) are resolved without waiting for approval and category E stops for the human. Flow: check-base-conflicts.sh -> AskUserQuestion -> git merge (never rebase) -> per-category resolution -> verify -> commit skill.'
 title: defaultブランチとのコンフリクト解消
 type: skill
 tags: [issue-mr-flow, workflow, skill, conflict]
@@ -16,7 +16,7 @@ keywords: [コンフリクト, merge, DDR番号, 改番, deleted by us, index.js
 
 ## 呼び出しタイミング
 
-- **`issue-mr-flow` の flow-id 5-2**（Draft解除の直前）。このステップはAIエージェントが必ず通る。
+- **`issue-mr-flow` の flow-id 5-1**（フェーズ5の先頭。Draft解除より前）。このステップはAIエージェントが必ず通る。
 - ユーザーが明示的に `/resolve-conflict` と入力した場合（フェーズを問わず、任意のタイミングで
   defaultブランチへ追従したいとき）。
 - **PR作成後の追従監視でコンフリクトを検知したとき**（issue #88。PRイベント・定期チェックイン・
@@ -61,7 +61,7 @@ bash .claude/scripts/src/check-base-conflicts.sh
 | `duplicateDdrNumbers` | 重複した番号と、その番号を持つファイル一覧 |
 
 **`hasConflict` が `false` なら、このスキルはここで終了する**（マージやコミットは行わない。
-呼び出し元の flow-id 5-2 はそのまま 5-3（関連issue通知）へ進む）。
+呼び出し元の flow-id 5-1 はそのまま 5-2（関連issue通知）へ進む）。
 
 **`git status` や `git merge` の結果だけで「コンフリクト無し」と判断しない。** 類型Aは
 ファイル名が異なるためgitが無言でマージを成功させる。必ずこのスクリプトの `hasConflict` で判断する。
@@ -97,7 +97,7 @@ PR作成後の追従監視から呼ばれた場合に限り、**解消方法が�
   コミットは、監視モードでも一切省略しない。
 - 検知結果に類型Eが1つでも含まれる場合は、**他の類型も解消せずに止めて確認を取る**（同じマージの
   途中で一部だけ解消すると、作業ツリーがマージ途中のまま人間の応答を待つことになるため）。
-- ユーザーが対話可能な通常の呼び出し（`/resolve-conflict`・flow-id 5-2）では、この例外は使わない。
+- ユーザーが対話可能な通常の呼び出し（`/resolve-conflict`・flow-id 5-1）では、この例外は使わない。
   従来どおり Step 2 の承認を取る（DDR 0029 の決定6）。
 
 ### Step 3: マージの開始
@@ -296,7 +296,7 @@ bash .claude/scripts/src/create-commit.sh --message "chore: <base>をマージ�
 
 ## 詳細ルールへのポインタ
 
-- 全体フローにおける位置づけ（flow-id 5-2）: `.claude/skills/issue-mr-flow/SKILL.md`
+- 全体フローにおける位置づけ（flow-id 5-1）: `.claude/skills/issue-mr-flow/SKILL.md`
 - ブランチ運用・squash merge・コミット運用: `.claude/rules/git-workflow.md`
 - DDRの番号・frontmatter運用: `.claude/rules/markdown-frontmatter.md`, `.claude/rules/docs-workflow.md`
 - 検知スクリプトの仕様: `.claude/docs/spec/check-base-conflicts.md`

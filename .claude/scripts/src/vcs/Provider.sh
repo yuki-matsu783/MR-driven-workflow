@@ -635,7 +635,7 @@ add_mr_comment() {
   esac
 }
 
-# 任意のissueへ新規コメントを1件投稿する（flow-id 5-3: マージ前の関連issue通知。issue #86）。
+# 任意のissueへ新規コメントを1件投稿する（flow-id 5-2: マージ前の関連issue通知。issue #86。当時のflow-idは 5-3。issue #112 でフェーズ5を並べ替え）。
 # 宛先がPR/MRである `add_mr_comment` とは別関数である点に注意する。GitHub実装が `gh pr comment`
 # であるためPR以外へは投げられず、「今回のMRが影響する他のissue」への通知に流用できなかった。
 #

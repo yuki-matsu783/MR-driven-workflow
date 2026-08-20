@@ -44,7 +44,7 @@ keywords: [ディレクトリ構成, claude, gemini, 配置方針, plans, worklo
 │                                #   issueにつき1つ）と個別作業計画（`【種別】タスク内容.md`、
 │                                #   planツールを使わずWrite/Editで作成）の2階層。タスクごとに
 │                                #   新規生成しそのままコミットして履歴として残す
-│   └── REVIEW-POINTS.md        # `plans/`配下に適用するレビュー観点。**flow-id 5-1で削除しない**
+│   └── REVIEW-POINTS.md        # `plans/`配下に適用するレビュー観点。**flow-id 5-3で削除しない**
 ├── worklog/                    # 実装中の詳細な試行錯誤ログ（`日付_<全体計画名>_<個別計画名>_push<N>.md`）
 │   └── TEMPLATE.md             # worklog作成時にコピーして使うテンプレート
 ├── .gitignore
@@ -67,7 +67,7 @@ keywords: [ディレクトリ構成, claude, gemini, 配置方針, plans, worklo
 作業結果・反映結果の**正文**で（個別計画へ結果を書かないための分離先。issue #87。詳細:
 `.claude/skills/issue-mr-flow/SKILL.md`「計画と実施結果の分離」）、
 `reports/日付_<全体計画名>_<内容を簡潔に>.html` はその内容を視覚的にまとめた自己完結HTMLである
-（`.claude/skills/canvas-report/SKILL.md` 参照）。両者は併存させ、flow-id 5-1でまとめて削除する。
+（`.claude/skills/canvas-report/SKILL.md` 参照）。両者は併存させ、flow-id 5-3でまとめて削除する。
 
 `usage/` は対応工数レポート機能のローカル作業状態で、`.gitignore`対象（`/usage/`）。内訳は
 `usage/session-logs/<sessionId>/`（セッションログのミラー）・`usage/state/<branch>.json`（集計状態）・
@@ -128,4 +128,4 @@ issue #97。ブランチ別に持つと、同じセッションのままブラ�
   `plans/`・`reports/` の4つ。収集アルゴリズム・frontmatterの詳細は
   `.claude/docs/spec/adversarial-review.md`「レビュー観点（REVIEW-POINTS.md）」を参照する。
   **`plans/REVIEW-POINTS.md` と `reports/REVIEW-POINTS.md` は、それらのディレクトリを片付ける
-  flow-id 5-1でも削除しない**（`.claude/rules/docs-workflow.md` のライフサイクル表が正）。
+  flow-id 5-3でも削除しない**（`.claude/rules/docs-workflow.md` のライフサイクル表が正）。
