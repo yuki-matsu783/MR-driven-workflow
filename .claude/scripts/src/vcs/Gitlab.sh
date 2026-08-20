@@ -277,6 +277,24 @@ gitlab_add_mr_comment() {
     -X POST -f "body=${body}" >/dev/null
 }
 
+# MRへ新規スレッド（discussion）を1件立てる。インラインではない（`position` を持たない）が、
+# `gitlab_add_mr_comment` の単発noteと違い**返信と解決（resolve）ができる**形になる。
+#
+# `notes` APIで作ったnoteはGitLab上で `individual_note: true` / `resolvable: false` となり、
+# `gitlab_format_discussion_notes` は resolvable でないnoteを常に「未解決」として出力する
+# （解決しようが無いため、レビュー往復の未解決一覧に残り続ける）。対応を求めるコメントは
+# `discussions` APIで投稿し、レビュアーが解決できる状態にする。
+#
+# 本文は `gitlab_add_mr_comment` と同じくファイル経由で受け取る（コマンド文字列へ長文を
+# 埋め込むとpush検知hookが誤発火するため。`.claude/rules/git-workflow.md`）。
+gitlab_add_mr_thread() {
+  local mr_number="$1" body_file="$2"
+  local body
+  body="$(cat "$body_file")"
+  glab api "projects/:id/merge_requests/${mr_number}/discussions" \
+    -X POST -f "body=${body}" >/dev/null
+}
+
 # --- 敵対的レビュー: インラインコメントの投稿（issue #77） ---
 #
 # GitLabは1リクエスト1指摘のため、GitHubのような「1件が不正だと全件失敗する」巻き添えは
@@ -311,6 +329,26 @@ gitlab_build_discussion_body() {
         )
       }
   ' | tr -d '\r'
+}
+
+# サマリ（インラインで示せなかった指摘のまとめ）を、スレッドと単発noteのどちらで投稿するかを
+# 決める純粋関数。`thread` / `note` のいずれかを出力する。
+#
+# GitHubと違いGitLabにはまとめ役のレビュー本文が無いため、サマリは別の1コメントとして投稿する。
+# このとき**指摘を1件でも含むなら `discussions`（スレッド）で投稿する**。インラインの指摘と同じく
+# 対応を求める内容であり、レビュアーが解決でき、`add_mr_thread_reply` で返信できる形にする必要が
+# あるため。
+#
+# 逆に**0件のとき（全件をインラインで示せたとき）は単発noteのままにする**。本文は
+# 「すべての指摘をインラインコメントで示しています」という通知でしか無く、スレッドにすると
+# 誰も解決しないまま未解決一覧に残り続けてレビュー往復の完了判定を濁す。
+gitlab_summary_post_kind() {
+  local summarized="$1"
+  if [ "$summarized" -gt 0 ]; then
+    printf 'thread\n'
+  else
+    printf 'note\n'
+  fi
 }
 
 # findings JSONファイルの指摘を、MRへインラインコメントとして投稿する。
@@ -350,9 +388,14 @@ gitlab_add_mr_inline_comments() {
   done < "$tmpdir/findings.jsonl"
 
   jq -s '.' "$tmpdir/failed.jsonl" | format_findings_summary > "$tmpdir/summary.md"
-  gitlab_add_mr_comment "$mr_number" "$tmpdir/summary.md"
+  # Windowsネイティブのjqはコマンド置換でも行末へCRを付ける（`.claude/rules/shell-script-style.md`
+  # 「文字コード」）。CRが残ると数値比較が `integer expression expected` で落ちるため取り除く。
+  summarized="$(jq -s 'length' "$tmpdir/failed.jsonl" | tr -d '\r')"
+  case "$(gitlab_summary_post_kind "$summarized")" in
+    thread) gitlab_add_mr_thread "$mr_number" "$tmpdir/summary.md" ;;
+    note) gitlab_add_mr_comment "$mr_number" "$tmpdir/summary.md" ;;
+  esac
 
-  summarized="$(jq -s 'length' "$tmpdir/failed.jsonl")"
   rm -rf "$tmpdir"
   jq -nc --argjson posted "$posted" --argjson summarized "$summarized" \
     '{posted: $posted, summarized: $summarized}'

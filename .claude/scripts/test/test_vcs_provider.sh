@@ -26,6 +26,9 @@
 # issue #68で追加した `github_normalize_issue_search_results` /
 # `gitlab_normalize_issue_search_results`（CLIのissue検索出力を共通形式へ正規化）と
 # `merge_issue_search_results`（複数キーワードぶんの結果を重複排除して統合）も対象。
+# 敵対的レビューのサマリをスレッドで投稿する変更で追加した `gitlab_summary_post_kind`
+# （サマリを `discussions`（スレッド）と `notes`（単発note）のどちらで投稿するかの判定）も対象。
+# `gitlab_add_mr_thread` 本体は `glab` を呼ぶため対象外で、投稿先を決める純粋関数側をテストする。
 # 規約: passed=N failures=N を標準出力へ出し、失敗があれば終了コード1
 #       （.claude/rules/shell-script-style.md「テスト」）。
 # 実行: bash .claude/scripts/test/test_vcs_provider.sh
@@ -595,6 +598,20 @@ assert_eq "format_findings_summary: 0件でも本文は空にしない" \
 assert_eq "format_findings_summary: 件数を見出しに出す" \
   '### インラインで示せなかった指摘（2件）' \
   "$(printf '%s' '[{"path":"a.sh","title":"T1"},{"path":"b.sh","title":"T2"}]' | format_findings_summary | sed -n '3p')"
+
+# --- GitLab: サマリの投稿先（スレッド or 単発note） ---
+
+assert_eq "gitlab_summary_post_kind: 指摘を含むサマリはスレッドで投稿する" \
+  'thread' \
+  "$(gitlab_summary_post_kind 1)"
+
+assert_eq "gitlab_summary_post_kind: 複数件でもスレッドで投稿する" \
+  'thread' \
+  "$(gitlab_summary_post_kind 5)"
+
+assert_eq "gitlab_summary_post_kind: 0件の通知はスレッドにしない（未解決一覧に残るため）" \
+  'note' \
+  "$(gitlab_summary_post_kind 0)"
 
 # --- GitLab: position付き投稿 ---
 
