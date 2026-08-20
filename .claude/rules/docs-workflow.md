@@ -25,7 +25,7 @@ keywords: [plans, handoff, worklog, 正史仕様, 意思決定ログ, ライフ�
 | `reports/日付_<全体計画名>_<内容を簡潔に>.md` | 人間＋AI | タスク（issue／ブランチ）単位（worklogと同様、flow-id 5-3でまとめて削除） | **実施結果の正文**。調査結果・作業結果・反映結果と、その結論・根拠・確認結果（計画ファイルへは書かない） | flow-id 2-6/3-6/4-6で作成し、レビュー往復（2-9/3-9/4-9）のたびに更新する。**個別計画（`plans/【*】〜.md`）へ結果を書かないための分離先**（詳細: `.claude/skills/issue-mr-flow/SKILL.md`「計画と実施結果の分離」）。見出し構成は規定しない（記述の型のテンプレート化はissue #54の担当）。内容はflow-id 4-6（設計反映）でspec/ddrへ反映し、**ファイルの削除はflow-id 5-1**で`plans/` `worklog/`とまとめて行う（削除自体もコミットに含める）。`.gitignore`には加えない。squash mergeにより、mainには残さない。 |
 | `reports/日付_<全体計画名>_<内容を簡潔に>.html` | AI専用（人間も参照可） | 同上 | 上記mdの内容を視覚的に分かりやすくまとめた自己完結HTML（TailwindCSS CDN方式）。**結果の正文はmd側であり、HTMLはその視覚化**（両者は併存させる） | flow-id 2-6で作成し、md側の内容と同期して更新する。**ファイルの削除はflow-id 5-1**で`plans/` `worklog/`とまとめて行う（削除自体もコミットに含める）。`.gitignore`には加えない（ブランチ上のコミット履歴として残すため）。squash mergeにより、mainには残さない。 |
 | `.claude/docs/spec/機能名.md` | 人間＋AI | 永続（最新状態） | 背景・目的／仕様／影響範囲／設定項目／未決定事項・懸念点 | 「現在の正史」。実装完了のたびに最新仕様へ上書きする。新規作成時の人間承認は必須。plans／worklogの内容はflow-id 4-6（設計反映）で反映する。 |
-| `.claude/docs/ddr/000N-タイトル.md` | 人間＋AI | 永続（本文は不変） | 「〇〇を検討したが✕✕を採用した」という意思決定の背景・却下案（DDR: Design Decision Record。architectureに限らない意思決定を対象とする） | 連番で管理し、一度マージしたら**本文**は追記のみ（変更不可）。ただし**YAML frontmatterのみは後から更新してよい**（後続のDDRで無効になった場合に`status: superseded` / `superseded_by`を付ける。詳細: `.claude/rules/markdown-frontmatter.md`「DDRのstatus」）。`spec` の未決定事項が解消したら記録し、spec側の該当項目は削除してよい。plans／worklogの内容はflow-id 4-6（設計反映）で反映する。 |
+| `.claude/docs/ddr/000N-タイトル.md` | 人間＋AI | 永続（本文は不変） | 「〇〇を検討したが✕✕を採用した」という意思決定の背景・却下案（DDR: Design Decision Record。architectureに限らない意思決定を対象とする） | 連番で管理し、一度マージしたら**本文**は追記のみ（変更不可）。ただし**YAML frontmatterのみは後から更新してよい**（後続のDDRで無効になった場合に`status: superseded` / `superseded_by`を付ける。詳細: `.claude/rules/markdown-frontmatter.md`「DDRのstatus」）。`spec` の未決定事項が解消したら記録し、spec側の該当項目は削除してよい。plans／worklogの内容はflow-id 4-6（設計反映）で反映する。**新規作成したら `.claude/docs/README.md` のDDR一覧へ番号順に1行追記する**（下記）。 |
 | `<ディレクトリ>/REVIEW-POINTS.md` | 人間＋AI | 永続（最新状態） | そのディレクトリ配下すべて（孫以下を含む）に適用するレビュー観点（`type: review-points`） | 各ディレクトリ直下に置く。敵対的レビュー（`.claude/skills/adversarial-review/SKILL.md`）と `review-points` スキルが祖先方向へ遡って集めて使い、人間のレビューでも参照する。**`plans/` `reports/` 配下に置かれていてもflow-id 5-3の削除対象に含めない**（下記）。仕様: `.claude/docs/spec/adversarial-review.md`「レビュー観点（REVIEW-POINTS.md）」 |
 
 `plans/` `worklog/` `reports/` の3つは、いずれも**flow-id 5-3（次タスクのための片付け）でまとめて
@@ -71,6 +71,22 @@ keywords: [plans, handoff, worklog, 正史仕様, 意思決定ログ, ライフ�
 （「## 仕様」等）のみ。移動そのものの記録は、changelogへの**新規エントリの追記**として残す。
 DDRは本文を一切変更せず、`git mv`による位置の移動のみを行う（frontmatterの`status`更新は
 この制限の対象外。上記のDDR行を参照）。
+
+**DDRを新規作成したら、`.claude/docs/README.md` のDDR一覧へ番号順に1行追記する**（issue #47対応時に
+発覚: DDRを作ったのに目次へ追記しておらず、敵対的レビューで指摘されるまで気づかなかった）。この目次は
+0001〜 を網羅列挙する**手動維持**のもので、`.claude/scripts/src/extract-frontmatter.sh` も
+`index.jsonl` も**目次の欠落を検出しない**（frontmatterのインデックスには載るため、件数の確認では
+代替できない）。慣習としては確立しており、`.claude/docs/spec/issue-mr-workflow.md` のchangelogには
+`- .claude/docs/README.md（DDR一覧へ00NN を追加）` というエントリが繰り返し現れるが、
+**追記を求めたルールがどこにも無かった**ため明文化する。
+
+- flow-id 5-1（またはPR作成後の追従）で`main`を取り込んだ結果**DDR番号が繰り下がった**場合は、
+  この一覧の**リンクのファイル名とテキストの両方**を追随させる（手順は
+  `.claude/skills/resolve-conflict/SKILL.md`「類型A」が正）。
+- **改番の一括置換を、上記の「過去changelog」へ当てないこと。** issue #47対応時に、`sed`で
+  `0059`→`0061`を当てた際に`main`由来の過去エントリまで書き換えた。改番後は
+  `git diff <ブランチ分岐点のSHA> -- .claude/` の**削除行がゼロ**であることで確認する
+  （引数なしの`git diff`は作業ツリー比較のため、以降のコミットを見ない）。
 
 **既存ドキュメントへ新しい見出しを差し込むときは、挿入位置の直前の節が「その節全体にかかる地の文」で
 終わっていないかを必ず確認する**（issue #64対応時に実際に発生）。終わっている場合、間に別の節を挟むと、
