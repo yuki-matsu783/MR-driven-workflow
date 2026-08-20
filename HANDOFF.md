@@ -16,11 +16,11 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 
 - issue: #94 Windows環境でnative jqのCR付与により単体テストが1件失敗する
 - ブランチ: claude/windows-jq-cr-failure-am1xig
-- PR: 未作成（ハーネスがPR作成を制限する環境のため。`.claude/rules/git-workflow.md`
-  「ハーネスがPR作成を制限する環境での扱い」に従い、明示指示があるまで作成しない）
+- PR: #126 (Draft) https://github.com/yuki-matsu783/MR-driven-workflow/pull/126
 - push回数: 1
 - 現在のループ: なし
-- 追従監視: なし（PR未作成のため）
+- 追従監視: あり（PRイベントの購読。Claude Code on the web のセッションに紐づくため、
+  セッション終了とともに止まる。次セッションは `resume` で取り直すこと）
 
 非対話セッションのため、人間のレビュー往復（flow-id 2-3/2-8, 3-3/3-8, 4-3/4-8）は実施していない。
 実施した内容は下記「やったこと」の文章で補足する。
@@ -48,7 +48,10 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 
 - Windows実機で `bash .claude/scripts/test/test_post_issue_create_notice.sh` を流し、
   `failures=0` を確認する（本セッションはスタブによる再現検証のみ）。
-- PRを作成する場合は、ユーザーからの明示指示を受けてから行う。
+- 人間のレビュー（flow-id 3-3/3-8 等）。特に「95箇所のうち2件だけ直す」という線引きの妥当性。
+- レビュー完了後: flow-id 5-1（`plans/` `worklog/` `reports/` の削除とHANDOFFリセット。
+  `bash .claude/scripts/src/cleanup-task.sh`）→ 5-2（コンフリクト確認）→ 5-3（関連issue通知）→
+  5-4（Draft解除）。**マージはユーザーの明示指示があるまで行わない。**
 
 ## 判断を迷った内容
 
