@@ -12,6 +12,10 @@ issue #6でリポジトリ内の開発補助スクリプトを全てPowerShell�
 設計方針・移行の経緯は [.claude/docs/spec/shell-scripts.md](../../.claude/docs/spec/shell-scripts.md)
 を参照（このファイルは規約のみを記載し、経緯の重複は避ける）。
 
+**対象は「`.sh` ファイルとして保存するスクリプト」である。** AIエージェントがBash/PowerShell
+ツールへ渡す**その場限りのコマンド文字列**と `description` の書き方は
+[ai-command-style.md](ai-command-style.md) が扱う（issue #47）。
+
 ## 前提・保存形式
 
 - 実行環境はgit bash（Git for Windows付属のMSYS bash）。WSL/Linux実機での動作確認は行っていない
