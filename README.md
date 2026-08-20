@@ -34,7 +34,11 @@ issueの起票からfeatureブランチ・Draft PR/MRの作成、レビュー往
    認証済みにする（`.claude/scripts/src/vcs/Provider.sh` がissue/PR/MR情報の取得に使う）。
 2. Gemini CLIも使う場合は `bash .claude/scripts/src/setup-gemini-links.sh` を1回実行し、
    `.gemini/` 配下に `.claude/` へのローカルリンクを作成する（clone直後に1回でよい）。
-3. リポジトリ固有のブランチ命名規則・`plans/`等の場所は [.mrworkflow.json](.mrworkflow.json) を
+3. 導入した資産の版は [.claude/VERSION](.claude/VERSION)（SemVer 1行）で確認できる。配布時は
+   この値がそのまま配布先へ入るため、「どの版の資産を導入したか」を配布先から判別できる
+   （更新規則・配布経路の詳細は
+   [.claude/docs/spec/distribution-assets.md](.claude/docs/spec/distribution-assets.md)）。
+4. リポジトリ固有のブランチ命名規則・`plans/`等の場所は [.mrworkflow.json](.mrworkflow.json) を
    参照・編集する。各キーの意味・デフォルト値・用途は以下の通り。
 
    | キー | デフォルト値 | 用途 |
