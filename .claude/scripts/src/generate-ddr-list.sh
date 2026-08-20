@@ -10,7 +10,7 @@
 # **生成結果はGit管理下に置きコミットする**（`index.jsonl` と違い `.gitignore` に加えない）。
 # GitHub上で人間が開く目次であり、Git管理外にするとブラウザで見えず、clone直後にも存在しない。
 # 加えてClaude CodeのGrepツール（ripgrep）は既定で `.gitignore` を尊重するため全文探索から消える。
-# 詳細・却下案: `.claude/docs/ddr/0064-DDR一覧は生成物にしつつGit管理下へ残す.md`
+# 詳細・却下案: `.claude/docs/ddr/0065-DDR一覧は生成物にしつつGit管理下へ残す.md`
 #
 # 使い方:
 #   generate-ddr-list.sh [--check] [--print] [--ddr-dir <パス>] [--readme <パス>]

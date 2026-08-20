@@ -118,5 +118,6 @@ frontmatter（`status` / `superseded_by` / `note`）だけから決まる。
 - [0061-配布物の版はVERSIONファイル1つで表しCHANGELOGを持たない.md](ddr/0061-配布物の版はVERSIONファイル1つで表しCHANGELOGを持たない.md)
 - [0062-配布テンプレートにLICENSEを同梱しない.md](ddr/0062-配布テンプレートにLICENSEを同梱しない.md)
 - [0063-gitattributesは配布先へ丸ごとコピーせず必要な行だけ追記する.md](ddr/0063-gitattributesは配布先へ丸ごとコピーせず必要な行だけ追記する.md)
-- [0064-DDR一覧は生成物にしつつGit管理下へ残す.md](ddr/0064-DDR一覧は生成物にしつつGit管理下へ残す.md)
+- [0064-敵対的レビュー由来のスレッドも人間の指摘と同列に返信を必須とする.md](ddr/0064-敵対的レビュー由来のスレッドも人間の指摘と同列に返信を必須とする.md)
+- [0065-DDR一覧は生成物にしつつGit管理下へ残す.md](ddr/0065-DDR一覧は生成物にしつつGit管理下へ残す.md)
 <!-- END GENERATED: ddr-list -->

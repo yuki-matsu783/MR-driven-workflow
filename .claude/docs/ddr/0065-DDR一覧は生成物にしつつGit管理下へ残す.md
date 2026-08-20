@@ -1,12 +1,12 @@
 ---
-title: 0064. DDR一覧は生成物にしつつGit管理下へ残す
+title: 0065. DDR一覧は生成物にしつつGit管理下へ残す
 type: ddr
 description: .claude/docs/README.md のDDR一覧を手書き維持からスクリプト生成へ移すにあたり、生成物でありながらGit管理下へコミットする方針と、生成先をREADME内のマーカー区間にした経緯を記録したDDR
 tags: [ddr, docs, generation, conflict]
 keywords: [generate-ddr-list, マーカー, Git管理下, index.jsonl, ripgrep, gitignore, 却下案, note, コンフリクト, 再生成]
 ---
 
-# 0064. DDR一覧は生成物にしつつGit管理下へ残す
+# 0065. DDR一覧は生成物にしつつGit管理下へ残す
 
 ## 背景
 

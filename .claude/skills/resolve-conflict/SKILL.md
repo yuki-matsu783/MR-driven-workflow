@@ -364,7 +364,7 @@ bash .claude/scripts/src/create-commit.sh --message "chore: ..." -- "${staged[@]
 - DDRの番号・frontmatter運用: `.claude/rules/markdown-frontmatter.md`, `.claude/rules/docs-workflow.md`
 - 検知スクリプトの仕様: `.claude/docs/spec/check-base-conflicts.md`
 - DDR一覧の生成（類型Bで再生成に使う）: `.claude/docs/spec/generate-ddr-list.md`、経緯・却下案:
-  `.claude/docs/ddr/0064-DDR一覧は生成物にしつつGit管理下へ残す.md`
+  `.claude/docs/ddr/0065-DDR一覧は生成物にしつつGit管理下へ残す.md`
 - 意思決定の経緯・却下案: `.claude/docs/ddr/0029-defaultブランチとのコンフリクトは検知を機構化し解消手順をスキル化する.md`
 - 監視モード（PR作成後の追従・自動解消の線引き）の経緯・却下案:
   `.claude/docs/ddr/0039-PR作成後のdefaultブランチ追従は並行手順として定義し自動解消は一意に決まる類型に限る.md`
