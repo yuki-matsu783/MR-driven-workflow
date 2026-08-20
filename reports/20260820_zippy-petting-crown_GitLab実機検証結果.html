@@ -41,7 +41,7 @@
   <!-- 13関数 -->
   <section class="mb-12">
     <h2 class="text-xl font-bold text-slate-900 mb-1">13関数の結果</h2>
-    <p class="text-sm text-slate-500 mb-4"><span class="font-semibold">直接</span>＝<code>Provider.sh</code> の公開関数をそのまま呼んだ（条件1を満たす）／<span class="font-semibold">間接</span>＝ディスパッチャが無く公開関数を踏み台にした（条件1を満たす）／<span class="font-semibold text-rose-700">直呼び</span>＝踏み台も到達不能で <code>gitlab_*</code> を直接呼んだ（<span class="font-semibold">条件1を満たさない</span>。フェーズ3で再実行）。</p>
+    <p class="text-sm text-slate-500 mb-4"><span class="font-semibold">直接</span>＝<code>Provider.sh</code> の公開関数をそのまま呼んだ（条件1を満たす）／<span class="font-semibold">間接</span>＝ディスパッチャが無く公開関数を踏み台にした（条件1を満たす）。フェーズ2の時点で <span class="font-semibold text-rose-700">直呼び</span>（踏み台も到達不能で <code>gitlab_*</code> を直接呼んだ）だった #5・#6 は、<span class="font-semibold">フェーズ3でディスパッチャを追加して再実行し解消済み</span>。</p>
     <div class="overflow-x-auto rounded-lg border border-slate-200 bg-white">
       <table class="min-w-full text-sm">
         <thead class="bg-slate-100 text-slate-700">
@@ -58,8 +58,8 @@
           <tr><td class="px-3 py-2">2</td><td class="px-3 py-2"><code>normalize_issue_search_results</code></td><td class="px-3 py-2">間接</td><td class="px-3 py-2 text-emerald-700 font-bold">OK</td><td class="px-3 py-2"><code>iid→number</code> / <code>web_url→url</code> / <code>opened→open</code></td></tr>
           <tr><td class="px-3 py-2">3</td><td class="px-3 py-2"><code>set_mr_ready</code></td><td class="px-3 py-2">直接</td><td class="px-3 py-2 text-emerald-700 font-bold">OK</td><td class="px-3 py-2">除去・冪等・<span class="font-semibold">二重接頭辞も1回で除去</span></td></tr>
           <tr><td class="px-3 py-2">4</td><td class="px-3 py-2"><code>add_issue_comment</code></td><td class="px-3 py-2">直接</td><td class="px-3 py-2 text-emerald-700 font-bold">OK</td><td class="px-3 py-2">issue側へnoteが1件付いた</td></tr>
-          <tr class="bg-rose-50"><td class="px-3 py-2">5</td><td class="px-3 py-2"><code>gitlab_get_mr_url</code></td><td class="px-3 py-2 font-semibold">直呼び</td><td class="px-3 py-2 text-rose-700 font-bold">条件1未達</td><td class="px-3 py-2">実装は正しい（同じnoteの <code>noteable_note_url</code> と一致）が実運用経路から呼ばれない</td></tr>
-          <tr class="bg-rose-50"><td class="px-3 py-2">6</td><td class="px-3 py-2"><code>gitlab_get_note_url</code></td><td class="px-3 py-2 font-semibold">直呼び</td><td class="px-3 py-2 text-rose-700 font-bold">条件1未達</td><td class="px-3 py-2">同上。<code>add_mr_thread_reply</code> の戻り値が空</td></tr>
+          <tr class="bg-emerald-50"><td class="px-3 py-2">5</td><td class="px-3 py-2"><code>get_mr_url</code></td><td class="px-3 py-2 font-semibold">直接</td><td class="px-3 py-2 text-emerald-700 font-bold">条件1を満たす</td><td class="px-3 py-2">フェーズ2では踏み台が到達不能で直呼びだったが、<span class="font-semibold">フェーズ3でディスパッチャを追加して再実行し解消</span></td></tr>
+          <tr class="bg-emerald-50"><td class="px-3 py-2">6</td><td class="px-3 py-2"><code>get_note_url</code></td><td class="px-3 py-2 font-semibold">直接</td><td class="px-3 py-2 text-emerald-700 font-bold">条件1を満たす</td><td class="px-3 py-2">同上。<code>add_mr_thread_reply</code> の戻り値も不具合2の修正で埋まるようになった</td></tr>
           <tr><td class="px-3 py-2">7</td><td class="px-3 py-2"><code>get_blob_url</code></td><td class="px-3 py-2">直接</td><td class="px-3 py-2 text-emerald-700 font-bold">OK</td><td class="px-3 py-2">HTTP 200。<span class="font-semibold">encode必須</span>（生パスは失敗）</td></tr>
           <tr><td class="px-3 py-2">8</td><td class="px-3 py-2"><code>get_diff_anchor_url</code></td><td class="px-3 py-2">直接</td><td class="px-3 py-2 text-emerald-700 font-bold">OK</td><td class="px-3 py-2"><code>id=</code> 属性と一致（下記）</td></tr>
           <tr><td class="px-3 py-2">9</td><td class="px-3 py-2"><code>get_diff_anchor_algo</code></td><td class="px-3 py-2">直接</td><td class="px-3 py-2 text-emerald-700 font-bold">OK</td><td class="px-3 py-2"><code>sha1</code> を返す</td></tr>
@@ -306,7 +306,7 @@ diff: 差分なし（完全一致）</pre>
   <footer class="border-t border-slate-200 pt-6 text-xs text-slate-500">
     <p>結果の正文は <code>reports/20260820_zippy-petting-crown_GitLab実機検証結果.md</code>。本HTMLはその視覚化。</p>
     <p class="mt-1"><span class="font-semibold">範囲外（やらないと決めた）</span>: gitlab.com（SaaS）・CE 18.5.4 以外のバージョン・EE・ssh経由のgit操作。</p>
-    <p class="mt-1"><span class="font-semibold">未完了（範囲内・引き継ぐ）</span>: <code>gitlab_get_mr_url</code>／<code>gitlab_get_note_url</code> の <code>Provider.sh</code> 経由での実行（フェーズ3でディスパッチャ追加後）、折りたたまれた差分に対するアンカーの挙動（不具合1の修正方針が決まってから）。</p>
+    <p class="mt-1"><span class="font-semibold">未完了（範囲内・引き継ぐ）</span>: <span class="font-semibold">修正後の差分アンカーのブラウザ目視確認（4本・依頼中）</span>、および折りたたまれた差分に対するアンカーの挙動（402行のファイルを置いても <code>collapsed</code> が1件も立たず、折りたたみ自体を再現できていない）。</p>
     <p class="mt-1">「受け入れ条件8: 検証環境の再現手順」は、フェーズ4で <code>.claude/docs/spec/</code> 配下へ移す（<code>reports/</code> は片付けで削除されるため）。</p>
   </footer>
 

@@ -899,17 +899,24 @@ assert_eq "github_get_note_url: レビューコメントのパーマリンクを
 # `get_repo_url` も差し替えるのは、この関数が `git remote get-url origin` を起動するため
 # （差し替えないと origin の無いチェックアウトで落ち、かつ本リポジトリのoriginはGitHubなので
 # 実在しないGitLab形式のURLで通ってしまい、検証として意味を成さない）。
-get_repo_url() {
-  printf 'http://gl.example/o/r\n'
-}
-
+# **`get_repo_url` の差し替えはサブシェルへ閉じ込める。** bashの関数定義はスタックしないため、
+# ここで再定義してから `unset -f` すると、スタブではなく `Provider.sh` の**実定義そのもの**が
+# 消える（以降のケースが `command not found` で落ち、原因が「前のテストが消したこと」だと
+# 気づきにくい失敗になる）。`glab` は元々関数ではないのでこの問題は無いが、揃えて閉じ込める。
 assert_eq "gitlab_get_mr_unresolved_comments: noteのパーマリンクが完全な形で出力に入る" \
   "[unresolved threadId=d1 url=http://gl.example/o/r/-/merge_requests/7#note_1] reviewer: ここは修正してください
 
 [unresolved threadId=d4 url=http://gl.example/o/r/-/merge_requests/7#note_4] root: 通常コメント" \
-  "$(gitlab_get_mr_unresolved_comments 7)"
+  "$(
+    get_repo_url() { printf 'http://gl.example/o/r\n'; }
+    gitlab_get_mr_unresolved_comments 7
+  )"
 
-unset -f glab get_repo_url
+assert_eq "テストの後片付け: get_repo_url の実定義が残っている（スタブで消していない）" \
+  "get_repo_url" \
+  "$(declare -F get_repo_url >/dev/null && echo get_repo_url)"
+
+unset -f glab
 
 # --- 未定義の github_* / gitlab_* 呼び出しの静的検出（issue #127） --------------------------
 # issue #42（呼び出しの追加）と issue #44（定義の削除）が並行ブランチで行われ、gitがコンフリクト
@@ -967,5 +974,36 @@ assert_eq "静的検出: 未定義呼び出しを1件戻した木では、その
 
 rm -rf "$vcs_broken_dir"
 
+
+# `github_*` / `gitlab_*` の接頭辞を持たない**共有関数**（`Provider.sh` 側に定義があり、
+# provider実装から呼ばれるもの）は、上の検出の対象外である。しかし issue #127 の不具合2は
+# まさにこの形（`Gitlab.sh` が `Provider.sh` の関数を呼ぶ）へ**修正した**ため、同型の再発
+# ——`Provider.sh` 側で改名・削除され、`2>/dev/null` に `command not found` が吸われて
+# 無言で縮退する——を落とせない。呼び出し側の握りつぶしは意図的に残しているので、ここで表明する。
+#
+# 一覧を明示にしているのは、jqのフィールド名（`new_path` / `head_sha` 等）とシェル関数呼び出しを
+# 静的に区別できないため（機械的に拾うと十数件の偽陽性が混ざる）。**provider実装から新しく
+# `Provider.sh` の関数を呼ぶときは、この一覧へ追加する。**
+vcs_shared_functions=(
+  to_slug
+  get_repo_url
+  add_empty_commit_for_draft_mr
+  merge_issue_search_results
+  format_findings_summary
+)
+
+vcs_provider_impl_text="$(sed -E 's/#.*$//' \
+  "$repo_root/.claude/scripts/src/vcs/Github.sh" "$repo_root/.claude/scripts/src/vcs/Gitlab.sh")"
+
+for shared_fn in "${vcs_shared_functions[@]}"; do
+  # 一覧が実態から乖離していないこと（呼ばれなくなった関数が残り続けると表明が形骸化する）
+  assert_eq "共有関数の一覧: $shared_fn は実際にprovider実装から呼ばれている" \
+    "yes" \
+    "$(case "$vcs_provider_impl_text" in *"$shared_fn"*) echo yes ;; *) echo no ;; esac)"
+  # 定義が消えていないこと（issue #127 の不具合2と同型の再発を落とす）
+  assert_eq "共有関数の定義: $shared_fn が定義されている" \
+    "$shared_fn" \
+    "$(declare -F "$shared_fn" >/dev/null && echo "$shared_fn")"
+done
 echo "passed=$passed failures=$failures"
 [ "$failures" -eq 0 ]

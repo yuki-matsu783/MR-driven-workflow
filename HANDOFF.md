@@ -19,7 +19,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - PR: #128 https://github.com/yuki-matsu783/MR-driven-workflow/pull/128 （Draft）
 - 追従監視: なし（ローカル。各pushとflow-id 5-1で手動確認する）
 - push回数: 11
-- 現在のループ: なし
+- 現在のループ: 3-6〜3-9 の1周目（進行中）
 
 | 進捗 | flow-id | ステップ | 担当 |
 |---|---|---|---|

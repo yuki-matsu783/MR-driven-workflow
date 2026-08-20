@@ -160,8 +160,9 @@ gitlab_get_mr_unresolved_comments() {
   # コメントのパーマリンク（issue #42）用にMRのURLを求める。ここで失敗しても本体の
   # コメント取得は成功させたいため、握りつぶしてurl無しの出力へ縮退する。
   #
-  # `get_repo_url` は Provider.sh 側のプロバイダ非依存な共有関数（`Gitlab.sh:31` の `to_slug` と
-  # 同じ形の依存）。issue #42 が呼んでいた `gitlab_get_repo_url` は issue #44 が定義を削除して
+  # `get_repo_url` は Provider.sh 側のプロバイダ非依存な共有関数（`gitlab_get_issue` が
+  # `to_slug` を呼んでいるのと同じ形の依存）。
+  # issue #42 が呼んでいた `gitlab_get_repo_url` は issue #44 が定義を削除して
   # この関数へ一本化しており、**呼び出し側だけが取り残されて未定義呼び出しになっていた**
   # （並行ブランチのsemantic conflict。`2>/dev/null` が `command not found` を握りつぶすため、
   # 無言でurl無しへ縮退していた。issue #127 で実機検証中に検出）。
@@ -291,6 +292,12 @@ gitlab_mr_has_version_head() {
 # HTTP 200のまま0ファイルを返すため、無言で空の差分ページになる。呼び出し元の `prev_sha` は
 # pushを伴わないhookの誤検知でも上書きされうる（issue #23）ので、ここで検証して外れていたら
 # `<mrUrl>/diffs` へ縮退する。
+#
+# **この縮退は、上の「範囲を一致させる」原則を満たせない意図的な妥協である。** 縮退先は却下した
+# 案Aと同じ形であり、呼び出し元の `diff_range` は `prev_sha...HEAD` のままなので、そのpushに
+# 「前のpushで追加され今回削除された（＝改名された）ファイル」が含まれていれば、そのアンカーは
+# 着地先を失う。0ファイルの空ページを出すよりはましだが、正しくはない。**根治するには
+# `prev_sha` が汚れる原因（issue #23 のhook誤検知）を直す必要がある**（本issueの範囲外）。
 gitlab_get_diff_anchor_base_url() {
   local compare_url="$1" mr_url="$2" mr_number="$3" since_sha="$4"
   # MRのURLを取得できない経路（MCP経路等）では従来どおりCompareページへ縮退する。
