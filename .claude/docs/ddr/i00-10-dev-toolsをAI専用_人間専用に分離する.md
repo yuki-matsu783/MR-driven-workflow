@@ -1,12 +1,12 @@
 ---
-title: 0013. dev-toolsをAI専用/人間専用に分離する
+title: i00-10. dev-toolsをAI専用/人間専用に分離する
 type: ddr
 description: AI専用スクリプト・設計書をdev-tools/から.claude/scripts/へ分離し、人間専用のビルド・配布ツールのみdev-tools/に残した経緯を記録したDDR
 tags: [dev-tools, directory-structure, plugin-distribution, ddr]
 keywords: [dev-tools, claude-scripts, plugin配布, git-mv, 歴史的記録, issue-mr-resume, issue-24]
 ---
 
-# 0013. dev-toolsをAI専用/人間専用に分離する
+# i00-10. dev-toolsをAI専用/人間専用に分離する
 
 ## 背景
 

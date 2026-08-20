@@ -1,12 +1,12 @@
 ---
-title: 0035. PR/MR作成はAIエージェントに委ねマージのみ明示指示を必須にする
+title: i41-01. PR/MR作成はAIエージェントに委ねマージのみ明示指示を必須にする
 type: ddr
 description: issue-mr-flowにおけるPR/MR作成・Draft解除をAIエージェントの担当とし、mainを書き換えるマージのみユーザーの明示指示を必須にした判断と、ハーネス側の制限との優先順位を記録したDDR
 tags: [issue-mr-flow, git-workflow, pr, ddr]
 keywords: [PR作成, マージ, 明示指示, 不可逆, Draft解除, ハーネス, システムプロンプト, 再現性, flow-id, AskUserQuestion]
 ---
 
-# 0035. PR/MR作成はAIエージェントに委ねマージのみ明示指示を必須にする
+# i41-01. PR/MR作成はAIエージェントに委ねマージのみ明示指示を必須にする
 
 ## 背景
 

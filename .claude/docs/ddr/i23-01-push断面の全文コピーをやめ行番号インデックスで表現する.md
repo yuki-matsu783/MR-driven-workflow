@@ -1,12 +1,12 @@
 ---
-title: 0022. push断面の全文コピーをやめ行番号インデックスで表現する
+title: i23-01. push断面の全文コピーをやめ行番号インデックスで表現する
 type: ddr
 description: セッションログの二重保存（logs/push-<N>/とusage/session-logs/）を解消し、push断面をpush-index.jsonlの行範囲で表現する方針を記録したDDR
 tags: [session-logs, usage-report, ddr]
 keywords: [push-index, session-logs, 追記専用, compact, prefix一致, ミラー統合, Gemini CLI, 行範囲, show-push-log]
 ---
 
-# 0022. push断面の全文コピーをやめ行番号インデックスで表現する
+# i23-01. push断面の全文コピーをやめ行番号インデックスで表現する
 
 ## 背景
 
@@ -116,10 +116,10 @@ issue #37でカーソルは `usage/state/session-cursors/<sessionId>.json` と**
   解消であるため却下した。
 - **ミラー自体をやめ、`~/.claude/projects` を直接読む**: 最も重複が少ないが、PR #29のレビューで
   「ユーザープロファイル配下の非公開・揮発性のあるパスへ集計処理が直接依存し続けるのは避ける」と
-  判断してミラーを導入した経緯（DDR 0006の追記参照）を覆すことになるため採らない。
+  判断してミラーを導入した経緯（DDR i00-04の追記参照）を覆すことになるため採らない。
 - **push断面をuuid等の内容ベースで識別する**: issue #37で「`uuid` は `parentUuid` チェーン上の
   ノード識別子であり、重複自体は異常ではない」という理由でuuidベースの重複排除が却下されている
-  （DDR 0006の追記）。同じ理由で、行の中身を判断基準にしない位置ベースの表現を維持する。
+  （DDR i00-04の追記）。同じ理由で、行の中身を判断基準にしない位置ベースの表現を維持する。
 
 ## 既知の限界
 

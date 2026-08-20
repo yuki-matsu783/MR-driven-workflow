@@ -1,12 +1,12 @@
 ---
-title: 0060. レビューコメントのソース断面はコメント時点のshaを優先し現HEADへ縮退する
+title: i43-01. レビューコメントのソース断面はコメント時点のshaを優先し現HEADへ縮退する
 type: ddr
 description: レビューコメントの出力からdiffHunkを廃し(path, line, sha)から共通ロジックでソースを切り出すにあたり、どのcommitの断面を切るか（コメント時点のsha優先・取得できなければ現HEADへ縮退し明示する）を決めた経緯と却下案を記録したDDR
 tags: [vcs, ddr, review, issue-mr-flow]
 keywords: [断面, sha, diffHunk, ソーススライス, originalLine, originalCommit, head_sha, shallow, フォールバック, バイト上限, issue43]
 ---
 
-# 0060. レビューコメントのソース断面はコメント時点のshaを優先し現HEADへ縮退する
+# i43-01. レビューコメントのソース断面はコメント時点のshaを優先し現HEADへ縮退する
 
 ## 背景
 
@@ -120,6 +120,6 @@ issue #48〜#42 の時点では、GitHub側とGitLab側がそれぞれ独立に�
 
 - issue #43
 - spec: [issue-mr-workflow.md](../spec/issue-mr-workflow.md)「レビューコメントのソーススライス」
-- DDR [0027](0027-gh_glab-CLI不在時はMCPフォールバック経路へ機構的に誘導する.md)
+- DDR [i34-01](i34-01-gh_glab-CLI不在時はMCPフォールバック経路へ機構的に誘導する.md)
   （MCP経路。`mcp__github__pull_request_read` は `line` も sha も返さないため、MCP経路では
   ソーススライスを作れない）

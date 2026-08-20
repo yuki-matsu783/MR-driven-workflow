@@ -20,7 +20,7 @@ issue #38対応。`.claude/scripts/src/extract-frontmatter.sh` が**ディレク
 このスクリプトは、**index.jsonlの最新化 → 全index.jsonlの結合 → 絞り込み・並び替え・整形**を
 1コマンドで完結させ、ドキュメント探索の第一手段を全文探索からインデックス検索へ移す
 （方針の位置づけ・却下案:
-[0049-ドキュメント探索はfrontmatterインデックス検索を第一手段にする.md](../ddr/0049-ドキュメント探索はfrontmatterインデックス検索を第一手段にする.md)）。
+[i38-01-ドキュメント探索はfrontmatterインデックス検索を第一手段にする.md](../ddr/i38-01-ドキュメント探索はfrontmatterインデックス検索を第一手段にする.md)）。
 
 呼び出し側（AIエージェント）向けの手順・jqレシピは `.claude/skills/doc-search/SKILL.md` が持つ。
 本ファイルはスクリプトの仕様のみを扱う。
@@ -58,7 +58,7 @@ bash .claude/scripts/src/search-frontmatter.sh [オプション]
 | `.git` | Gitの内部ディレクトリ |
 | `node_modules` | 依存パッケージ |
 | `build` | ビルド成果物（`.gitignore` 対象） |
-| `.gemini` | **配下が `.claude` 配下へのローカルリンク**（シンボリックリンク／NTFSジャンクション）であり、外さないと同じドキュメントが `.claude/...` と `.gemini/...` の2通りの `concept_id` で二重にヒットする（[0017](../ddr/0017-gemini配下はGit管理下に置かずセットアップスクリプトで生成する.md)） |
+| `.gemini` | **配下が `.claude` 配下へのローカルリンク**（シンボリックリンク／NTFSジャンクション）であり、外さないと同じドキュメントが `.claude/...` と `.gemini/...` の2通りの `concept_id` で二重にヒットする（[i00-13](../ddr/i00-13-gemini配下はGit管理下に置かずセットアップスクリプトで生成する.md)） |
 
 加えて、jq側で `unique_by(.concept_id)` により重複を1件へ畳む（上記のリンク以外の経路で同じ
 `concept_id` が二重に現れた場合の保険）。
@@ -213,7 +213,7 @@ jqはストリーミング出力するため、この種の型エラーは**途�
 
 - 新規: `.claude/scripts/src/search-frontmatter.sh`、`.claude/skills/doc-search/SKILL.md`、
   `.claude/scripts/test/test_search_frontmatter.sh`、本ファイル、
-  [DDR 0049](../ddr/0049-ドキュメント探索はfrontmatterインデックス検索を第一手段にする.md)。
+  [DDR i38-01](../ddr/i38-01-ドキュメント探索はfrontmatterインデックス検索を第一手段にする.md)。
 - 変更: `AGENTS.md`（ドキュメント探索の第一手段を定めるルールを追加）、
   `.claude/rules/markdown-frontmatter.md`（`index.jsonl` を検索インデックスとして使う旨を追記）、
   `.claude/docs/README.md`（spec一覧へ本ファイル、DDR一覧へ0048を追加）、

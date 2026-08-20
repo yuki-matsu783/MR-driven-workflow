@@ -159,7 +159,7 @@ bash .claude/scripts/src/check-base-sync.sh [--base <branch>] [--head <ref>] [--
 `|| true` で握りつぶしている。** 差を付けているのは、あちらのコンフリクト検知は flow-id 5-2 で
 必ずもう一度通るため取りこぼしても後段で拾われるのに対し、**本スクリプトは検知そのものが目的で
 あり、fetch失敗が「遅れていない」という誤報告になって誰にも拾われない**ためである
-（DDR 0056）。
+（DDR i67-01）。
 
 ## 影響範囲
 
@@ -169,9 +169,9 @@ bash .claude/scripts/src/check-base-sync.sh [--base <branch>] [--head <ref>] [--
 |---|---|
 | `.claude/scripts/src/check-base-sync.sh` | 新規 |
 | `.claude/scripts/test/test_check_base_sync.sh` | 新規（純粋関数の単体テストと、使い捨てgitリポジトリに対する `main` の結合テスト。`passed=55 failures=0`） |
-| `.claude/skills/issue-mr-flow/SKILL.md` | 「作業開始・再開時のベースブランチ追従確認」節を新設。`start`（既存ブランチ検出時）・`resume`・`sync` から参照。**flow-idは増やしていない**（DDR 0039 と同じ扱い） |
+| `.claude/skills/issue-mr-flow/SKILL.md` | 「作業開始・再開時のベースブランチ追従確認」節を新設。`start`（既存ブランチ検出時）・`resume`・`sync` から参照。**flow-idは増やしていない**（DDR i88-01 と同じ扱い） |
 | `.claude/agents/issue-mr-resume.md` | 手順7を新設（旧7・8は8・9へ）。現在地サマリへ `- ベースブランチとの差分:` を追加 |
-| `.claude/rules/git-workflow.md` | 追従確認の入口と、rebaseを使わない方針を追記（frontmatterの `description`・`keywords` にも語を追加。DDR 0049 の探索経路で引けるようにするため） |
+| `.claude/rules/git-workflow.md` | 追従確認の入口と、rebaseを使わない方針を追記（frontmatterの `description`・`keywords` にも語を追加。DDR i38-01 の探索経路で引けるようにするため） |
 | `.claude/docs/spec/issue-mr-workflow.md` | 「途中引き継ぎ対応（resume）」節の手順一覧へ追加（現在の状態を説明する節であり point-in-time の記録ではないため更新する）と、影響範囲エントリ |
 | `.claude/docs/spec/check-base-conflicts.md` | 判定軸の違う本スクリプトが並存すること・あちらの `git fetch ... \|\| true` を意図的に維持することを相互参照として追記 |
 | `.claude/docs/README.md` | spec一覧へ本ファイル、DDR一覧へ 0056 |
@@ -179,7 +179,7 @@ bash .claude/scripts/src/check-base-sync.sh [--base <branch>] [--head <ref>] [--
 | `.claude/docs/spec/check-base-sync.md` | 本ファイル（新規） |
 
 `Provider.sh` は変更していない。判定軸の違う機能を低レベル関数へ混ぜず、
-`check-base-conflicts.sh` と並ぶ独立したスクリプトとして切り出した（DDR 0056）。
+`check-base-conflicts.sh` と並ぶ独立したスクリプトとして切り出した（DDR i67-01）。
 
 ### 呼び出し側の責務
 

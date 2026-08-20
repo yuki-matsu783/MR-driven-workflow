@@ -1,12 +1,12 @@
 ---
-title: 0021. frontmatter抽出は1ファイル1回のjq呼び出しとmtimeキャッシュで高速化する
+title: i11-01. frontmatter抽出は1ファイル1回のjq呼び出しとmtimeキャッシュで高速化する
 type: ddr
 description: extract-frontmatter.shの高速化にあたり、yqの必須依存化・全ファイル一括jq処理・純bashでのjq排除を却下し、中間表現の1回渡しとmtimeキャッシュ・原子的更新を採用した理由
 tags: [ddr, extract-frontmatter, performance]
 keywords: [extract-frontmatter, jq, プロセス起動, MSYS, git bash, mtimeキャッシュ, 原子的更新, 中断耐性, yq, 中間表現, index.jsonl]
 ---
 
-# 0021. frontmatter抽出は1ファイル1回のjq呼び出しとmtimeキャッシュで高速化する
+# i11-01. frontmatter抽出は1ファイル1回のjq呼び出しとmtimeキャッシュで高速化する
 
 issue #11。仕様は [.claude/docs/spec/extract-frontmatter.md](../spec/extract-frontmatter.md) を参照。
 

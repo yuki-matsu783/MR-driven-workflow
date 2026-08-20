@@ -1,12 +1,12 @@
 ---
-title: 0050. Gemini集計の差分はファイル全体の畳み込みと前回累計の差分で取る
+title: i97-01. Gemini集計の差分はファイル全体の畳み込みと前回累計の差分で取る
 type: ddr
 description: Gemini CLIのセッションログは同一idのメッセージが再送されるため行カーソル方式が使えず、毎回全体をid単位で畳んで前回累計との差分を取る方式を採り、その前回累計をブランチ非依存のセッション単位ファイルに置く判断
 tags: [usage-report, gemini-cli, ddr, state]
 keywords: [畳み込み, 累計差分, 行カーソル, 二重計上, gemini-totals, ブランチ非依存, needsReset, diffAllZero, push-index, セッションログ]
 ---
 
-# 0050. Gemini集計の差分はファイル全体の畳み込みと前回累計の差分で取る
+# i97-01. Gemini集計の差分はファイル全体の畳み込みと前回累計の差分で取る
 
 ## 背景
 

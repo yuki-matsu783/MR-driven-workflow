@@ -1,12 +1,12 @@
 ---
-title: 0016. frontmatter抽出スクリプトの走査方式にgit ls-filesを採用する
+title: i00-12. frontmatter抽出スクリプトの走査方式にgit ls-filesを採用する
 type: ddr
 description: extract-frontmatter.shのファイル列挙を、findベースからgit ls-filesベースへ置き換え.gitignoreに対応した経緯を記録したDDR
 tags: [extract-frontmatter, gitignore, ddr]
 keywords: [git ls-files, find, git check-ignore, 参考ディレクトリ, index.jsonl, タイムアウト, issue-54, issue-43]
 ---
 
-# 0016. frontmatter抽出スクリプトの走査方式にgit ls-filesを採用する
+# i00-12. frontmatter抽出スクリプトの走査方式にgit ls-filesを採用する
 
 ## 背景
 

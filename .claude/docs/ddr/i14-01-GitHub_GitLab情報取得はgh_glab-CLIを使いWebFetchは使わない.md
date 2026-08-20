@@ -1,12 +1,12 @@
 ---
-title: 0020. GitHub/GitLabの情報取得はgh/glab CLIを使い、WebFetch/curlは使わない
+title: i14-01. GitHub/GitLabの情報取得はgh/glab CLIを使い、WebFetch/curlは使わない
 type: ddr
 description: AIエージェントがGitHub/GitLabのissue・PR/MR・コメント等の情報を取得する際、WebFetchツールやcurlではなくgh/glab CLI（Provider.sh経由）を使う方針をAGENTS.mdへ明記した経緯を記録したDDR
 tags: [gh, glab, webfetch, provider, ddr]
 keywords: [WebFetch, curl, gh, glab, Provider.sh, 認証, 構造化JSON, issue-14]
 ---
 
-# 0020. GitHub/GitLabの情報取得はgh/glab CLIを使い、WebFetch/curlは使わない
+# i14-01. GitHub/GitLabの情報取得はgh/glab CLIを使い、WebFetch/curlは使わない
 
 ## 背景
 
@@ -44,9 +44,9 @@ AIエージェントがWebFetchツールへ流れるリスクがあった。
 
 ## 却下した案
 
-- **hookによる機構的ブロック**: `block-direct-git-commit.sh`（DDR 0012）と同様に、WebFetchツールの
+- **hookによる機構的ブロック**: `block-direct-git-commit.sh`（DDR i00-09）と同様に、WebFetchツールの
   使用を検知しブロックするPreToolUse hookを新設する案。`git commit`の直接実行のような不可逆・
   検知しづらい操作と異なり、WebFetch使用は実害が限定的（誤った情報取得手段を使っただけで、
   データ破壊や意図しない副作用は伴わない）で、レビュー時にも気づきやすいため、hookによる
   機構的強制は現時点では過剰と判断し却下した。将来、同種の逸脱（WebFetchでのGitHub/GitLab情報
-  取得）が繰り返し発生するようであれば、DDR 0012と同じ設計方針で再検討してよい。
+  取得）が繰り返し発生するようであれば、DDR i00-09と同じ設計方針で再検討してよい。

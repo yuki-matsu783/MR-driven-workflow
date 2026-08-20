@@ -1,12 +1,12 @@
 ---
-title: 0028. プロバイダ判定はremote URLのホスト部でgithub以外をgitlabとみなす
+title: i45-01. プロバイダ判定はremote URLのホスト部でgithub以外をgitlabとみなす
 type: ddr
 description: self-hosted GitLabを判定できるようにするため、glab由来の情報を使う3案と設定ファイル案を却下し、remote URLのホスト部だけで判定する方式を採用した判断を記録したDDR
 tags: [vcs-provider, gitlab, github, ddr]
 keywords: [get_provider, provider_from_remote_url, self-hosted, ホスト判定, glab, 認証状態, メモ化, トレードオフ]
 ---
 
-# 0028. プロバイダ判定はremote URLのホスト部でgithub以外をgitlabとみなす
+# i45-01. プロバイダ判定はremote URLのホスト部でgithub以外をgitlabとみなす
 
 ## 背景
 
@@ -25,7 +25,7 @@ esac
 `http://localhost:8929/...`）は「サポート対象外のリモートです」として弾かれ、self-hosted GitLabで
 本ワークフローを使えなかった（issue #45）。
 
-[0026-空コミットフォールバックはGitHub固有の制約として残す.md](0026-空コミットフォールバックはGitHub固有の制約として残す.md)
+[i48-01-空コミットフォールバックはGitHub固有の制約として残す.md](i48-01-空コミットフォールバックはGitHub固有の制約として残す.md)
 の元になったissue #48で、ローカルGitLab CE 18.5.4に対し `Gitlab.sh` の全13関数が動作することは
 実機確認済みだった。ただしその検証は `get_provider` に弾かれるため `gitlab_*` を直接呼ぶ形で
 迂回しており、**残る障害は判定ロジックだけ**であることが分かっていた。

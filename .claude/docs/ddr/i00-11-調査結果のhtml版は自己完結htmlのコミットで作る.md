@@ -1,12 +1,12 @@
 ---
-title: 0014. 調査結果のHTML版はClaude Code Artifact機能ではなく自己完結HTMLのコミットで作る
+title: i00-11. 調査結果のHTML版はClaude Code Artifact機能ではなく自己完結HTMLのコミットで作る
 type: ddr
 description: issue-mr-flowの調査結果をHTMLでも残す仕組みを、Claude Code固有のArtifact公開機能ではなく外部リソース非依存の自己完結HTMLをリポジトリへ直接コミットする方式で実装した経緯を記録したDDR
 tags: [reports, html, issue-mr-flow, ddr]
 keywords: [Artifact, TailwindCSS, reports, worklog, 自己完結HTML, agents-md, claude-code固有機能, issue-48]
 ---
 
-# 0014. 調査結果のHTML版はClaude Code Artifact機能ではなく自己完結HTMLのコミットで作る
+# i00-11. 調査結果のHTML版はClaude Code Artifact機能ではなく自己完結HTMLのコミットで作る
 
 ## 背景
 

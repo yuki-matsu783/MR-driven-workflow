@@ -1,12 +1,12 @@
 ---
-title: 0052. 対応工数レポートのトークン列はengineではなくデータで決める
+title: i97-03. 対応工数レポートのトークン列はengineではなくデータで決める
 type: ddr
 description: 対応工数レポートのトークンテーブルの列構成を実行中のengineではなくtokensByModelの中身で決め、両エンジン由来のモデルが混在する場合は列の和集合を出す判断
 tags: [usage-report, gemini-cli, ddr, report]
 keywords: [トークン列, Cache Write, Thoughts, Tool, tokensByModel, 混在, sinceLastPush, 繰り越し, 空テーブル, build_usage_report_body]
 ---
 
-# 0052. 対応工数レポートのトークン列はengineではなくデータで決める
+# i97-03. 対応工数レポートのトークン列はengineではなくデータで決める
 
 ## 背景
 

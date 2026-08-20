@@ -75,7 +75,7 @@ MRとのやり取りだけを自動化する薄い層」として設計したが
   それ以外はGitLab」で、ホスト抽出と判定は純粋関数 `provider_from_remote_url` に切り出してある
   （`get_provider` はその薄いラッパー）。**判定は `gh`/`glab` の認証状態に依存しない**。
   詳細・却下案は
-  [0028-プロバイダ判定はremote-URLのホスト部でgithub以外をgitlabとみなす.md](../ddr/0028-プロバイダ判定はremote-URLのホスト部でgithub以外をgitlabとみなす.md)
+  [i45-01-プロバイダ判定はremote-URLのホスト部でgithub以外をgitlabとみなす.md](../ddr/i45-01-プロバイダ判定はremote-URLのホスト部でgithub以外をgitlabとみなす.md)
   参照（issue #45。それ以前はURL文字列全体への部分一致だったため、ホスト名に `gitlab` を含まない
   self-hosted GitLabを弾いていた）。
 - **`.mrworkflow.json`**（リポジトリ直下、Git管理下）: ブランチ命名規則やパス（`plans/` 等）など
@@ -91,7 +91,7 @@ MRとのやり取りだけを自動化する薄い層」として設計したが
 | 関数 | 内容 | GitHub実装 | GitLab実装 |
 |---|---|---|---|
 | `get_issue <n>` | issueのtitle/body/labelsを取得（JSON） | `gh issue view` | `glab issue view` |
-| `new_issue_branch <n> <slugSource> [<base>]` | `<branchPrefixTemplate>` に従いブランチを作成しcheckout、リモートpush。`<slugSource>` はslug化対象のテキストであり、生issueタイトルである必要はない（`.claude/skills/issue-mr-flow/SKILL.md` の `start` サブコマンドではAIエージェントが生成した英語の意訳フレーズを渡す。詳細: [0010-ブランチslugの意訳生成はAIエージェントが行う.md](../ddr/0010-ブランチslugの意訳生成はAIエージェントが行う.md)）。`<base>`（省略可）でベースブランチを上書きできる。省略時は `.mrworkflow.json` の `defaultBaseBranch` を使う（issue #15: `start` サブコマンドが `AskUserQuestion` で確認した結果を渡す） | `git switch -c` + `git push` | 同左 |
+| `new_issue_branch <n> <slugSource> [<base>]` | `<branchPrefixTemplate>` に従いブランチを作成しcheckout、リモートpush。`<slugSource>` はslug化対象のテキストであり、生issueタイトルである必要はない（`.claude/skills/issue-mr-flow/SKILL.md` の `start` サブコマンドではAIエージェントが生成した英語の意訳フレーズを渡す。詳細: [i00-07-ブランチslugの意訳生成はAIエージェントが行う.md](../ddr/i00-07-ブランチslugの意訳生成はAIエージェントが行う.md)）。`<base>`（省略可）でベースブランチを上書きできる。省略時は `.mrworkflow.json` の `defaultBaseBranch` を使う（issue #15: `start` サブコマンドが `AskUserQuestion` で確認した結果を渡す） | `git switch -c` + `git push` | 同左 |
 | `new_draft_merge_request <n> <branch> <title> [<base>]` | issueに紐づくDraft PR/MRを作成（bodyは仮テンプレート、後続の `set_mr_description` で上書き前提。`<title>` はissueタイトルをそのまま渡す） | `gh pr create --draft` | `glab mr create --draft` |
 | `get_mr_unresolved_comments <n> [true]` | レビューコメント／スレッドを取得しテキストへ整形（スレッドID・ファイルパス・行番号・**指摘行前後のソーススライス**を含む。issue #43 で `diffHunk` から置き換えた。詳細は下記「レビューコメントのソーススライス」）。既定（第2引数省略）では未解決のスレッドのみを返し、対応済み（解決済み）スレッドは機械的に除外する。第2引数に `true` を渡すと解決済みも含めた全件を返す。GitLabはdiscussions APIが操作履歴を `system: true` のnoteとして同じ配列で返すため、これも機械的に除外する（issue #48）。各行には**そのコメントの公式パーマリンク**を `url=...` として含める（issue #42）。**プロバイダに依存しない共通実装**で、`get_mr_review_threads` の結果を整形するだけである（issue #43） | — | — |
 | `get_mr_review_threads <n> [true]` | レビュースレッド＋通常コメントを**正規化JSON**で返す（issue #43。テキスト整形を伴わないプロバイダ層の出力。スキーマは下記「レビューコメントのソーススライス」） | `gh api graphql` (review threads) | `glab api` (discussions) |
@@ -154,7 +154,7 @@ scheme除去・認証情報（`user@`）除去・ポート除去・scp形式（`
 
 - **結果を標準出力ではなくグローバル変数 `REPLY_HOST` / `REPLY_PATH` へ返す。** 標準出力にすると
   呼び出し側がコマンド置換を強いられ、`provider_from_remote_url` の「1回あたりのプロセス起動ゼロ」
-  （DDR 0028の制約。12個のディスパッチャが `case "$(get_provider)" in` の形で呼ぶためメモ化が
+  （DDR i45-01の制約。12個のディスパッチャが `case "$(get_provider)" in` の形で呼ぶためメモ化が
   効かない）を壊してしまう。**関数呼び出しはコマンド置換ではないため、これで起動数は増えない。**
   返す値が2つあるため `REPLY` ではなく2変数に分けている
   （`.claude/rules/shell-script-style.md`「ホットパスの小さなヘルパー関数は…`REPLY` へ返す」）。
@@ -217,7 +217,7 @@ Draft解除は、クローズ・書き直し・Draftへの差し戻しでいつ�
 担当表と手順の詳細は `.claude/rules/git-workflow.md`「PR・マージ」節が正であり、
 `.claude/skills/issue-mr-flow/SKILL.md`「PR/MR作成・マージの担当（flow-id 1-3・5-4・5-5）」節が
 フロー側からの入口になる。判断の理由・却下案は
-[0035-PR_MR作成はAIエージェントに委ねマージのみ明示指示を必須にする.md](../ddr/0035-PR_MR作成はAIエージェントに委ねマージのみ明示指示を必須にする.md)。
+[i41-01-PR_MR作成はAIエージェントに委ねマージのみ明示指示を必須にする.md](../ddr/i41-01-PR_MR作成はAIエージェントに委ねマージのみ明示指示を必須にする.md)。
 
 ### 計画の2階層構造（issue #9）
 
@@ -238,7 +238,7 @@ Claude Code / Gemini CLI は**セッションごとに1つのplanファイルし
   同名の `.html` はその視覚化）。同居させると、レビューで計画と結果が区別できず、計画としての差分が
   結果の追記に埋もれ、ライフサイクル（計画＝合意のスナップショット／結果＝pushのたびに書き換わる）が
   食い違うため。詳細: `.claude/skills/issue-mr-flow/SKILL.md`「計画と実施結果の分離」、
-  `.claude/docs/ddr/0040-個別計画には結果を書かず実施結果はreports配下のmdへ分離する.md`。
+  `.claude/docs/ddr/i87-01-個別計画には結果を書かず実施結果はreports配下のmdへ分離する.md`。
 - **タスク種別**は `【調査】` `【設計】` `【実装】` `【テスト】` `【設計反映】` `【AIアセット反映】`
   の6種。1ファイルへの複数併記を認める。併記するか分けるかの判断基準は
   「その計画に対して人間の合意を1回で取るか、フェーズごとに分けて取るか」であり、迷ったら分ける
@@ -261,7 +261,7 @@ Claude Code / Gemini CLI は**セッションごとに1つのplanファイルし
 - **廃止**: 従来のre-entry対策（`.claude/rules/plan-mode-safety.md` 規則6、
   `archive-reentrant-plan.sh`）は、planツールの利用が1回に限定されたことで不要になったため削除した。
   経緯・却下案は
-  [0019-planツール利用を全体作業計画に限定し個別計画をファイル分離する.md](../ddr/0019-planツール利用を全体作業計画に限定し個別計画をファイル分離する.md)
+  [i9-01-planツール利用を全体作業計画に限定し個別計画をファイル分離する.md](../ddr/i9-01-planツール利用を全体作業計画に限定し個別計画をファイル分離する.md)
   を参照。
 
 **日本語ファイル名を扱う際の注意（`core.quotepath`）**: gitは既定（`core.quotepath=true`）で
@@ -308,13 +308,13 @@ Claude Code / Gemini CLI は**セッションごとに1つのplanファイルし
 であり、本節はその位置づけの記録にとどめる（二重管理を避けるため、基準の詳細をここへ再掲しない）。
 `.claude/rules/docs-workflow.md` は `[-]` を決めてよいタイミングの規定と、同節への参照を持つ。
 省略を一切認めない案・1-4 で調査を尽くす案を採らなかった理由は
-[0043-全体作業計画には調査・反映の枠を必ず残し省略判断は各フェーズ直前で行う.md](../ddr/0043-全体作業計画には調査・反映の枠を必ず残し省略判断は各フェーズ直前で行う.md)
+[i92-01-全体作業計画には調査・反映の枠を必ず残し省略判断は各フェーズ直前で行う.md](../ddr/i92-01-全体作業計画には調査・反映の枠を必ず残し省略判断は各フェーズ直前で行う.md)
 を参照。
 
 ### issueが大きすぎる場合の分割提案（issue #64）
 
 「1 issue = 1ブランチ = 1 MR」を単位としながら、**issue自体の粒度**に関する基準が無かったため、
-複数の独立した成果物を1つのissueへ束ねたまま着手しても軌道修正の契機が無かった（DDR 0013 の
+複数の独立した成果物を1つのissueへ束ねたまま着手しても軌道修正の契機が無かった（DDR i00-10 の
 issue #24 対応では、スコープ外としていた範囲を作業の途中で取り込み全面書き直しになった）。
 
 そこで、**同型の成果物が並列に列挙された構造**を主トリガーとして、AIエージェントが成果物ごとの
@@ -336,7 +336,7 @@ issue #24 対応では、スコープ外としていた範囲を作業の途中�
 「issueが大きすぎる場合の分割提案」**であり、本節はその位置づけの記録にとどめる（二重管理を
 避けるため、基準の詳細をここへ再掲しない）。`issue-create` スキル側も同節を参照するだけで、
 判定基準を持たない。定量閾値・自動検知・強制起票を採らなかった理由は
-[0034-issueの分割は並列列挙構造を主トリガーにAIが提案し人間が決定する.md](../ddr/0034-issueの分割は並列列挙構造を主トリガーにAIが提案し人間が決定する.md)
+[i64-01-issueの分割は並列列挙構造を主トリガーにAIが提案し人間が決定する.md](../ddr/i64-01-issueの分割は並列列挙構造を主トリガーにAIが提案し人間が決定する.md)
 を参照。
 
 ### レビューコメントへの返信
@@ -433,7 +433,7 @@ issue #48 以来の挙動を維持している）。
 #### 断面の取得（フォールバック4段階）
 
 **コメント時点のshaを優先し、取得できない場合に現HEADへ縮退する**（判断の経緯・却下案:
-[0060-レビューコメントのソース断面はコメント時点のshaを優先し現HEADへ縮退する.md](../ddr/0060-レビューコメントのソース断面はコメント時点のshaを優先し現HEADへ縮退する.md)）。
+[i43-01-レビューコメントのソース断面はコメント時点のshaを優先し現HEADへ縮退する.md](../ddr/i43-01-レビューコメントのソース断面はコメント時点のshaを優先し現HEADへ縮退する.md)）。
 
 | 段階 | 手段 | 出力への注記 |
 |---|---|---|
@@ -511,7 +511,7 @@ TSVの1フィールドへ押し込むと本文中の改行・タブのエスケ�
 - **記録先は通常コメント**（レビュースレッドではない）。したがって
   `get_mr_unresolved_comments` の未解決件数には現れず、「レビュー完了合図の確認」の判定に
   影響しない。記録先の比較検討・却下案は
-  [.claude/docs/ddr/0041-チャットで受けたレビュー判断はAIがMRの通常コメントへ記録する.md](../ddr/0041-チャットで受けたレビュー判断はAIがMRの通常コメントへ記録する.md)
+  [.claude/docs/ddr/i50-01-チャットで受けたレビュー判断はAIがMRの通常コメントへ記録する.md](../ddr/i50-01-チャットで受けたレビュー判断はAIがMRの通常コメントへ記録する.md)
   を参照。
 - **記録の単位はレビュー往復1回につき1コメント**。判断ごとに1件ずつ投稿するとMR画面が記録で
   埋まり、人間のレビューコメントが埋没するため。投稿タイミングはその往復の修正を済ませた後
@@ -526,7 +526,7 @@ TSVの1フィールドへ押し込むと本文中の改行・タブのエスケ�
   `.claude/skills/issue-mr-flow/SKILL.md`「チャットで受けたレビュー判断の記録」節が正である。
 - **署名は `reply` サブコマンドと同じ規約**とし、本文の先頭に `Claude Codeより:` を付ける
   （`gh`/`glab` CLIもMCPサーバーも人間の認証情報で動くため投稿者アカウントを分離できない。
-  DDR 0004）。記録コメントも `reply` と同じくAIが書いた文章であり、規約を分ける理由が無い。
+  DDR i00-02）。記録コメントも `reply` と同じくAIが書いた文章であり、規約を分ける理由が無い。
 - **本文は一時ファイルへ書き出して `add_mr_comment <n> <bodyFile>` へ渡す。** 本文中に `git` と
   `push` が連続して現れるとPostToolUse hookが誤発火するため（「制約: 検知は `tool_input.command`
   の文字列マッチに依存する」参照）。`add_mr_comment` がファイルパスを受け取る設計であることが
@@ -620,7 +620,7 @@ PRが多いほど、この期間のコンフリクトを取りこぼす（実例
 `.claude/skills/resolve-conflict/SKILL.md`（Step 2「監視モードでの例外」）が正。判断の理由・
 却下案（新flow-idの挿入・GitHubの "Update branch"・hookでの自動チェック・CIでの自動追従・
 常時rebase運用・DDR連番の廃止等）は
-[0039-PR作成後のdefaultブランチ追従は並行手順として定義し自動解消は一意に決まる類型に限る.md](../ddr/0039-PR作成後のdefaultブランチ追従は並行手順として定義し自動解消は一意に決まる類型に限る.md)。
+[i88-01-PR作成後のdefaultブランチ追従は並行手順として定義し自動解消は一意に決まる類型に限る.md](../ddr/i88-01-PR作成後のdefaultブランチ追従は並行手順として定義し自動解消は一意に決まる類型に限る.md)。
 
 ### マージ前の関連issue通知（issue #86）
 
@@ -632,7 +632,7 @@ PRが多いほど、この期間のコンフリクトを取りこぼす（実例
 | 観点 | 決めたこと |
 |---|---|
 | 挿入位置 | **flow-id 5-2（コンフリクト解消）と旧5-3（Draft解除）の間**。旧5-3→5-4、旧5-4（マージ）→5-5へ繰り下げ、全40→41ステップ（issue #46が5-2を挿入したときと同じ扱い） |
-| 候補の特定 | MRの差分からAIエージェントがキーワードを最大5件抽出し、`search_issues` で検索する。キーワード抽出をAI側に置く理由は起票前の重複チェック（issue #68）と同じ（DDR 0033） |
+| 候補の特定 | MRの差分からAIエージェントがキーワードを最大5件抽出し、`search_issues` で検索する。キーワード抽出をAI側に置く理由は起票前の重複チェック（issue #68）と同じ（DDR i68-01） |
 | 影響の判定 | 「前提が変わる」「一部が解決される」「記述が矛盾する」の3類型。どれにも当てはまらない候補へは投稿しない |
 | 投稿の可否 | **`AskUserQuestion` で投稿先issueとコメント本文の承認を得る。承認なしに外部へ投稿しない** |
 | 投稿手段 | `add_issue_comment <issue番号> <bodyFile>`（新設。本文はファイル経由） |
@@ -651,7 +651,7 @@ issue #86 当時の並び（5-1 片付け → 5-2 コンフリクト解消 → 5
 PR番号か通知先issue番号かで異なる）。手順の正は
 `.claude/skills/issue-mr-flow/SKILL.md`「マージ前の関連issue通知（flow-id 5-2）」節。判断の理由・
 却下案（マージ後の通知・自動投稿・専用サブコマンド化等）は
-[0044-マージ前の関連issue通知はDraft解除の直前に置き投稿前の人間承認を必須にする.md](../ddr/0044-マージ前の関連issue通知はDraft解除の直前に置き投稿前の人間承認を必須にする.md)。
+[i86-01-マージ前の関連issue通知はDraft解除の直前に置き投稿前の人間承認を必須にする.md](../ddr/i86-01-マージ前の関連issue通知はDraft解除の直前に置き投稿前の人間承認を必須にする.md)。
 
 ### セッション開始時の自動コンテキスト注入（SessionStart hook）
 
@@ -667,7 +667,7 @@ resume・clear時に毎回、現在ブランチのissue/MR状態をコンテキ�
   **compactは要約内容を指定できず、作業継続に必須の現在地が要約の精度次第で失われる**ため、
   issue #57 で追加した。除外理由の再評価（compactの発生頻度・MCP経路ではAPI呼び出しが
   そもそも発生しないこと）と却下案は
-  [0032-compact後もSessionStart-hookで作業コンテキストを再注入する.md](../ddr/0032-compact後もSessionStart-hookで作業コンテキストを再注入する.md)
+  [i57-01-compact後もSessionStart-hookで作業コンテキストを再注入する.md](../ddr/i57-01-compact後もSessionStart-hookで作業コンテキストを再注入する.md)
   参照。
 - **実行シェル**: exec form（`args`指定）で `"bash"` を呼ぶ（フルパス直書きはしない。他環境への
   移植性を優先）。ただしこのマシンではPATHの優先順位次第で素の`"bash"`がWSL起動用スタブ
@@ -689,7 +689,7 @@ resume・clear時に毎回、現在ブランチのissue/MR状態をコンテキ�
   当初は後ろ2項目を`resume`の役割として除外していたが、compactをmatcherへ加えた際に
   「compactはセッション途中で自動的に起こり、その直後に`resume`が呼ばれる保証が無い」ため
   最小限の現在地はhook側が持つ必要があると判断し、issue #57 で追加した（範囲の線引き・却下案:
-  [DDR 0032](../ddr/0032-compact後もSessionStart-hookで作業コンテキストを再注入する.md)）。
+  [DDR i57-01](../ddr/i57-01-compact後もSessionStart-hookで作業コンテキストを再注入する.md)）。
   この拡張は起動要因によらず常に行う（要因ごとに内容を分岐させない）。
 - **issue-mr-flow対象ブランチでのSKILL.md再読み込み指示（issue #113）**: 現在のブランチが
   issue-mr-flowの対象と判定できる場合、注入テキストの**末尾**へ
@@ -710,7 +710,7 @@ resume・clear時に毎回、現在ブランチのissue/MR状態をコンテキ�
     （実測603バイト。判定根拠が2件そろう場合でも690バイト）。肥大化検知のしきい値8000バイトに
     対して十分小さい。判定材料の取得コストも増えない
     （(a) は文字列照合のみ、(b) は既に取得済みの値の再利用）。設計判断・却下案は
-    [0059-issue-mr-flow対象ブランチではSKILL.mdの再読み込みを注入で促す.md](../ddr/0059-issue-mr-flow対象ブランチではSKILL.mdの再読み込みを注入で促す.md)
+    [i113-01-issue-mr-flow対象ブランチではSKILL.mdの再読み込みを注入で促す.md](../ddr/i113-01-issue-mr-flow対象ブランチではSKILL.mdの再読み込みを注入で促す.md)
     参照。
 - **出力形式**: `{"hookSpecificOutput":{"hookEventName":"SessionStart","additionalContext":"<text>"}}`
   形式のJSONをstdoutへ返す。
@@ -725,7 +725,7 @@ resume・clear時に毎回、現在ブランチのissue/MR状態をコンテキ�
   末尾へ「ユーザーへ肥大化を警告し`HANDOFF.md`・`plans/`の整理を促すこと」という指示文を
   追記する。**切り詰めは行わず全量を注入する**（切り詰めると、この機構が守ろうとしている現在地
   そのものを失い、かつ失ったことがエージェント側から分からないため）。しきい値の根拠・
-  却下案は[DDR 0032](../ddr/0032-compact後もSessionStart-hookで作業コンテキストを再注入する.md)参照。
+  却下案は[DDR i57-01](../ddr/i57-01-compact後もSessionStart-hookで作業コンテキストを再注入する.md)参照。
 - **構造とテスト（issue #57）**: 本体処理は`main`にまとめ、ファイル末尾の
   `[ "${BASH_SOURCE[0]}" = "${0}" ]` ガードで直接実行時のみ呼ぶ。これにより
   `.claude/scripts/test/test_session_start.sh` から`source`して、副作用の無い純粋関数
@@ -776,7 +776,7 @@ Claude Code on the webのリモート実行環境のように、`gh`/`glab` CLI�
 - **GitLabは対象外**: `glab` 不在時のGitLab向けMCP代替は対象外とする（利用実績が無く、ツール名・
   引数を実機検証できないため）。判定・失敗メッセージの枠組みのみ共通で、`mcp_tool_hint` は
   GitLabに対して「対象外」である旨を返す。詳細・却下案は
-  [0027-gh_glab-CLI不在時はMCPフォールバック経路へ機構的に誘導する.md](../ddr/0027-gh_glab-CLI不在時はMCPフォールバック経路へ機構的に誘導する.md)
+  [i34-01-gh_glab-CLI不在時はMCPフォールバック経路へ機構的に誘導する.md](../ddr/i34-01-gh_glab-CLI不在時はMCPフォールバック経路へ機構的に誘導する.md)
   参照。
 
 ### リポジトリURLの導出（issue #44）
@@ -806,14 +806,14 @@ Claude Code on the webのリモート実行環境のように、`gh`/`glab` CLI�
   および http/https のポート付きリモートで `.url` の値が変わる**（例:
   `http://localhost:8929/g/r.git` の `.url` が `https://localhost:8929/g/r` → `http://localhost:8929/g/r`）。
   消費側（`.claude/hooks/session-start.sh`）は `.owner`/`.repo` しか使っていないため実害はない。
-- **DDR 0023 との関係**: DDR 0023 が却下したのは「MR/PRの**URL文字列**へ `/files` 等のsuffixを
+- **DDR i13-01 との関係**: DDR i13-01 が却下したのは「MR/PRの**URL文字列**へ `/files` 等のsuffixを
   推測で付け足す」案である。remote URLからの導出はそれとは別物で、推測ではなく「リポジトリの
-  所在そのものを表す一次情報の変換」にあたる。DDR 0023 の判断軸（推測を避け正確性を担保する）は
+  所在そのものを表す一次情報の変換」にあたる。DDR i13-01 の判断軸（推測を避け正確性を担保する）は
   維持される。
 - **正規URLと一致しないリスクケース**: いずれも「リンクが1本ずれる」だけで、フロー自体は止まらない。
   実運用上の発生確率とコストが釣り合わないため、検知や `gh`/`glab` へのフォールバックは設けない
   （詳細・却下案:
-  [0037-リポジトリURLはgh_glabではなくgit-remoteから導出する.md](../ddr/0037-リポジトリURLはgh_glabではなくgit-remoteから導出する.md)）。
+  [i44-01-リポジトリURLはgh_glabではなくgit-remoteから導出する.md](../ddr/i44-01-リポジトリURLはgh_glabではなくgit-remoteから導出する.md)）。
 
   | ケース | 挙動 | 判断 |
   |---|---|---|
@@ -828,7 +828,7 @@ Claude Code on the webのリモート実行環境のように、`gh`/`glab` CLI�
 PR/MR作成が失敗することがある。失敗を検知した場合、共通処理 `add_empty_commit_for_draft_mr`
 （空コミット+リモートへの反映）を実行してから1回だけ自動リトライする（それでも失敗すれば
 エラーを返す）。詳細・却下案は
-[0005-DraftPR作成失敗時は空コミットで自動リトライする.md](../ddr/0005-DraftPR作成失敗時は空コミットで自動リトライする.md)
+[i00-03-DraftPR作成失敗時は空コミットで自動リトライする.md](../ddr/i00-03-DraftPR作成失敗時は空コミットで自動リトライする.md)
 参照。
 
 **この制約はGitHub（`gh pr create`）固有である**（issue #48で判明）。issue #48の対応時に、
@@ -842,7 +842,7 @@ GitHubとGitLabの双方を同一セッション内で実測した。
 GitLab側の分岐を削除していないのは、実機確認できたのが CE 18.5.4 の1バージョンのみで、
 他バージョン・他設定でも必ず成功すると言い切れないため。GitLabでは通常到達しない安全網という
 位置づけになる。詳細・却下案は
-[0026-空コミットフォールバックはGitHub固有の制約として残す.md](../ddr/0026-空コミットフォールバックはGitHub固有の制約として残す.md)
+[i48-01-空コミットフォールバックはGitHub固有の制約として残す.md](../ddr/i48-01-空コミットフォールバックはGitHub固有の制約として残す.md)
 参照。
 
 ### 対応工数レポート（PostToolUse hook, git push検知）
@@ -937,7 +937,7 @@ Claude Codeの対応工数（モデル別トークン数・ツール実行回数
     単調性保証が「毎回全件を時系列で走査し直す」ことを前提にしており、オフセット方式にすると
     単調性証明が崩れるリスクが大きいと判断したため）としていたが、issue #37でこの判断を一部覆した。
     詳細は下記「新規行diff方式への移行（issue #37）」および
-    [DDR 0006の追記](../ddr/0006-対応工数レポートはtranscript自前パースで実装する.md)を参照。
+    [DDR i00-04の追記](../ddr/i00-04-対応工数レポートはtranscript自前パースで実装する.md)を参照。
   - **`agentId`単位のスナップショット・表示**（issue #34で変更）: 累計スナップショットは`agentId`
     単位で状態ファイルの`agents[<agentId>]`に保存し、既存の`sessions[<sessionId>]`と全く同じ
     「current - prevSnapshot（下限0）」ロジックを適用する（バックグラウンドで複数pushをまたいで
@@ -984,7 +984,7 @@ Claude Codeの対応工数（モデル別トークン数・ツール実行回数
     検出して除外する仕組みではない）。カーソル方式が確実に防ぐのは「同じ行を同じ位置から二重に
     読むこと」のみである。設計判断の経緯（uuidベースの重複排除案を検討したが、`uuid`は
     `parentUuid`チェーン上のノード識別子であり重複自体は異常ではないという判断で不採用とした
-    こと）はDDR 0006の追記を参照。
+    こと）はDDR i00-04の追記を参照。
   - **`activeSeconds`のみ従来方式を維持**: 上記「稼働時間の算出方法」に記載の通り、
     `activeSeconds`はgapベースの単調非減少性が「毎回全件を時系列で走査し直す」ことを前提にして
     いるため、新規行diffには移行せず、既存の全件再パース＋スナップショット差分方式のまま維持した。
@@ -1001,7 +1001,7 @@ Claude Codeの対応工数（モデル別トークン数・ツール実行回数
     transcriptの先頭N行とバイト単位で完全一致すること（`/compact`を挟んでも成立すること）が
     実データで確認されたため、全文コピーを廃止し「1本のミラー＋行範囲の記録」へ置き換えた。
     詳細・却下案は
-    [0022-push断面の全文コピーをやめ行番号インデックスで表現する.md](../ddr/0022-push断面の全文コピーをやめ行番号インデックスで表現する.md)
+    [i23-01-push断面の全文コピーをやめ行番号インデックスで表現する.md](../ddr/i23-01-push断面の全文コピーをやめ行番号インデックスで表現する.md)
     を参照。
   - **行番号は1始まり・両端含む**。基準は既存の集計と同じ「**空行を除いた**行数」
     （`_usage_aggregate_new_lines`の`select(length > 0)`）に揃えており、
@@ -1047,7 +1047,7 @@ Claude Codeの対応工数（モデル別トークン数・ツール実行回数
       置くことで**構造的にマッチしない**。追加のガード条件を書かずにスコープ境界が保証される
       （この不一致は`.claude/scripts/test/test_usage_tracking.sh`で明示的に検証している）。
       集計しない理由・却下案は
-      [.claude/docs/ddr/0054-Gemini-CLIのサブエージェントは保存のみとし集計しない.md](../ddr/0054-Gemini-CLIのサブエージェントは保存のみとし集計しない.md)を参照。
+      [.claude/docs/ddr/i97-05-Gemini-CLIのサブエージェントは保存のみとし集計しない.md](../ddr/i97-05-Gemini-CLIのサブエージェントは保存のみとし集計しない.md)を参照。
 - **Gemini CLIのhook登録**: `.gemini/settings.json`の`hooks`キー配下（`SessionStart`/`BeforeTool`/
   `AfterTool`）に`.claude/hooks/*.sh`一式を登録する。`BeforeTool`/`AfterTool`の`matcher`は
   `"run_shell_command|Bash|PowerShell"`という両エンジンの`tool_name`を含む形にしている
@@ -1055,7 +1055,7 @@ Claude Codeの対応工数（モデル別トークン数・ツール実行回数
   `command`フィールドは単一のシェル文字列（`args`配列に相当するフィールドはGemini CLI側に無い）で、
   `${GEMINI_PROJECT_DIR}`はダブルクォートで囲む。`.gemini/settings.json`の既存キー
   （`general.plan.directory`）はそのまま維持する。採用経緯は
-  [0018-gemini-settings.jsonのhooksはレビュー提示スニペットのhooksセクションのみ採用する.md](../ddr/0018-gemini-settings.jsonのhooksはレビュー提示スニペットのhooksセクションのみ採用する.md)
+  [i3-01-gemini-settings.jsonのhooksはレビュー提示スニペットのhooksセクションのみ採用する.md](../ddr/i3-01-gemini-settings.jsonのhooksはレビュー提示スニペットのhooksセクションのみ採用する.md)
   参照。
 - **呼び出し・質問の詳細記録**（issue #37）: 上記の新規行diff方式への移行と合わせて、
   メインセッションのtranscriptの新規行から以下3種の詳細情報を抽出し、`sinceLastPush`へ配列として
@@ -1150,7 +1150,7 @@ Claude Codeの対応工数（モデル別トークン数・ツール実行回数
       進んだ状態を確認した）。`sync_usage_state`が状態ファイルを読む箇所で内容の妥当性を
       （空文字列チェック→`jq -e .`の順で）検証し、無効なら`{}`（状態なし）へフォールバックする
       自己回復ロジックを追加した。詳細な経緯は
-      [DDR 0006の追記](../ddr/0006-対応工数レポートはtranscript自前パースで実装する.md)を参照。
+      [DDR i00-04の追記](../ddr/i00-04-対応工数レポートはtranscript自前パースで実装する.md)を参照。
   - `.claude/hooks/post-push-usage-report.sh`（`PostToolUse` hook、bash版）: `.claude/settings.json` の
     matcher `Bash|PowerShell` と `if: "Bash(git push*)"` / `if: "PowerShell(git push*)"` により
     `git push` を含むコマンド実行後のみ発火する（マッチしなければプロセス起動自体が行われず、
@@ -1198,7 +1198,7 @@ Claude Codeの対応工数（モデル別トークン数・ツール実行回数
     transcript JSONLについて報告されているものであり（「未決定事項・懸念点」のトークン数の項参照）、
     Gemini CLIのセッションログについては同種の報告が無いため、Gemini CLIだけのレポートに載せると
     根拠の無い注記になる。**出す・出さないの判定はengineではなくデータで決める**（トークン列の
-    構成と同じ理由。[0052-対応工数レポートのトークン列はengineではなくデータで決める.md](../ddr/0052-対応工数レポートのトークン列はengineではなくデータで決める.md)）。
+    構成と同じ理由。[i97-03-対応工数レポートのトークン列はengineではなくデータで決める.md](../ddr/i97-03-対応工数レポートのトークン列はengineではなくデータで決める.md)）。
     状態ファイルはブランチ単位で`sinceLastPush`が投稿成功まで繰り越されるため、Gemini CLIからの
     投稿でもClaude Code由来のモデル行が載ることがあり、その場合はこの注記が必要になる。判定条件は
     トークンテーブルの行と揃える（`thoughts`キーを持たない＝Claude Code由来、かつ全項目0で除外
@@ -1232,7 +1232,7 @@ Claude Codeの対応工数（モデル別トークン数・ツール実行回数
   全Bash/PowerShell呼び出しへ処理が追加され性能影響とのトレードオフになるため、対応しない。
 - **設計判断の詳細・却下案**（`transcript` JSONL自前パースの採用理由、`gitBranch` フィルタの理由、
   `Stop` hookを廃止した経緯）は
-  [0006-対応工数レポートはtranscript自前パースで実装する.md](../ddr/0006-対応工数レポートはtranscript自前パースで実装する.md)
+  [i00-04-対応工数レポートはtranscript自前パースで実装する.md](../ddr/i00-04-対応工数レポートはtranscript自前パースで実装する.md)
   参照。
 
 #### Gemini CLI経路（issue #97）
@@ -1240,17 +1240,17 @@ Claude Codeの対応工数（モデル別トークン数・ツール実行回数
 `engine = gemini` のとき、`sync_usage_state` は `_sync_usage_state_gemini` へ委譲する。
 Claude Code経路とは**差分の取り方が根本的に違う**ため、経路ごと分けている。設計判断の詳細・
 却下案は DDR
-[0050](../ddr/0050-Gemini集計の差分はファイル全体の畳み込みと前回累計の差分で取る.md) /
-[0051](../ddr/0051-Gemini集計はrewindToを読み飛ばしメッセージを削らない.md) /
-[0052](../ddr/0052-対応工数レポートのトークン列はengineではなくデータで決める.md) /
-[0053](../ddr/0053-Gemini経路のブランチ帰属は断面時点のブランチとし限界を明示する.md) /
-[0054](../ddr/0054-Gemini-CLIのサブエージェントは保存のみとし集計しない.md) を参照。
+[i97-01](../ddr/i97-01-Gemini集計の差分はファイル全体の畳み込みと前回累計の差分で取る.md) /
+[i97-02](../ddr/i97-02-Gemini集計はrewindToを読み飛ばしメッセージを削らない.md) /
+[i97-03](../ddr/i97-03-対応工数レポートのトークン列はengineではなくデータで決める.md) /
+[i97-04](../ddr/i97-04-Gemini経路のブランチ帰属は断面時点のブランチとし限界を明示する.md) /
+[i97-05](../ddr/i97-05-Gemini-CLIのサブエージェントは保存のみとし集計しない.md) を参照。
 
 - **差分の取り方**: 毎回**ファイル全体を `id` 単位で畳み込んで**累計スナップショットを作り、
   前回累計との差分を計上する。Claude Code経路の行カーソル（`lastLineCount`）は**使わない**。
   Gemini CLIのセッションログは同じ `id` のメッセージが複数行にわたって再送される
   （トークンの後埋め・ツールの `status` 遷移）ため、「新規行だけを足す」方式は**同じメッセージを
-  何度も数える**（DDR 0050）。
+  何度も数える**（DDR i97-01）。
 - **前回累計の置き場所**: `usage/state/gemini-totals/<sessionId>.json`（**ブランチ非依存**。
   `.gitignore` 対象）。ブランチ別の状態ファイルへ置くと、同じセッションのままブランチを
   切り替えたときに蓄積済みの全件が新ブランチの初回差分として再計上される（issue #37 が
@@ -1263,7 +1263,7 @@ Claude Code経路とは**差分の取り方が根本的に違う**ため、経�
   | メッセージ本体（`id` を持つ） | 畳み込みへ流す。同じ `id` は**後勝ちマージ**。ただし新しい版の `tokens` が `null`／欠落なら前の版の `tokens` を引き継ぐ |
   | `{"$set": {...}}` に `messages` がある | 配列の各要素をメッセージとして畳み込みへ流す |
   | `{"$set": {...}}` の上記以外 | 無視 |
-  | `{"$rewindTo": "<messageId>"}` | **読み飛ばすだけ**（メッセージを削らない。DDR 0051） |
+  | `{"$rewindTo": "<messageId>"}` | **読み飛ばすだけ**（メッセージを削らない。DDR i97-02） |
   | パースできない行 | 捨てる（`fromjson?`。処理は止めない） |
 
 - **ツール実行回数・ツールエラー回数**: `toolCalls[].status` が `success` / `error` / `cancelled`
@@ -1299,7 +1299,7 @@ Claude Code経路とは**差分の取り方が根本的に違う**ため、経�
 - **ブランチ帰属**: 断面を取った時点の `git branch --show-current` へまとめて計上する
   （セッションログにブランチ情報が無いため）。**限界をレポート本文へ1行明示する**
   （「1つのセッション内でブランチを切り替えた場合、切り替え前の作業分もこのブランチの数値に
-  含まれます」）。DDR 0053。
+  含まれます」）。DDR i97-04。
 - **投稿要否ガード**: Gemini経路では「トークン合計・ツール実行回数・応答回数の**いずれか**が
   0より大きい」へ広げる。`tokens` が付かないリビジョンばかりのセッションではトークン合計が0に
   なりうるが、ツールを実行し応答も返っている以上、対応工数は発生しているため。
@@ -1307,7 +1307,7 @@ Claude Code経路とは**差分の取り方が根本的に違う**ため、経�
 - **トークンが取得できない場合の縮退**: 表示するモデル行が0件のときは、トークンテーブルを
   **ヘッダ行・区切り行を含めて出力しない**。使用モデルは上記の `- 使用モデル:` 行に残るため、
   「空のテーブル」も「0の羅列」も出ない（issue #97 の受け入れ条件）。
-- **トークン列の構成は engine ではなくデータで決める**（DDR 0052）。判別は各バケットが
+- **トークン列の構成は engine ではなくデータで決める**（DDR i97-03）。判別は各バケットが
   `thoughts` キーを持つかで行う。
 
   | 状態 | 列構成 |
@@ -1319,7 +1319,7 @@ Claude Code経路とは**差分の取り方が根本的に違う**ため、経�
   `sinceLastPush` は投稿に成功するまで繰り越されるため（`gh`/`glab` CLI不在環境では投稿が
   スキップされる。issue #34）、同じブランチの `tokensByModel` に両エンジン由来のモデルが
   同居しうる。engineで決めると混在時にどちらかの数値が無言で消える。
-- **サブエージェントは集計しない**（保存のみ。DDR 0054）。`_usage_aggregate_and_merge_subagents`
+- **サブエージェントは集計しない**（保存のみ。DDR i97-05）。`_usage_aggregate_and_merge_subagents`
   を呼ばない。
 
 ### /compact実施の呼びかけ（PostToolUse hook, git push検知）
@@ -1355,7 +1355,7 @@ issue #11「git pushイベントを検知してcompactする」への対応と�
     どちらも指定できるため、「defaultブランチとの差分」（ブランチ名同士）・「前回pushとの差分」
     （SHA同士）のいずれも同じ`get_compare_url`系ヘルパー（`github_get_compare_url` /
     `gitlab_get_compare_url`）で組み立てられる。詳細な却下案は
-    [0023-レビュー依頼メッセージの参照リンクは前回pushSHAをローカル状態で保持して組み立てる.md](../ddr/0023-レビュー依頼メッセージの参照リンクは前回pushSHAをローカル状態で保持して組み立てる.md)
+    [i13-01-レビュー依頼メッセージの参照リンクは前回pushSHAをローカル状態で保持して組み立てる.md](../ddr/i13-01-レビュー依頼メッセージの参照リンクは前回pushSHAをローカル状態で保持して組み立てる.md)
     参照。
   - 「前回push時点」の判定は、`post-push-compact-prompt.sh`自身が`.claude/state/review-links/
     <safeBranch>.txt`へ直前pushのHEAD SHA（`git rev-parse HEAD`）を保存し、次回push時に読み出す
@@ -1447,7 +1447,7 @@ issue本文の書き方を標準化し、ワークフローの起点（flow-id 1
   front matter無しの同内容のMarkdown。GitLabのissue作成画面の「Choose a template」から選択できるほか、
   **`Default.md` はGitLabの予約名であり、新規issueの説明欄へ自動的に適用される**（GitHub側には
   この仕組みが無いため `task.md` のままでよい。両プロバイダで名前が異なるのは意図的である。詳細:
-  `.claude/docs/ddr/0036-GitLab-issueテンプレートは予約名Default.mdを正とし文書側を合わせる.md`）。
+  `.claude/docs/ddr/i32-01-GitLab-issueテンプレートは予約名Default.mdを正とし文書側を合わせる.md`）。
 - どちらもMarkdownテンプレートであり、必須項目としての強制はできない（GitHub Issue Formsの
   ような`required`指定は使わない。見出しごと削除して起票することも可能）。強制ではなく
   「標準の見出しを用意して迷わず書けるようにする」ことが目的。
@@ -1483,7 +1483,7 @@ issueはGitHubのUIからしか作成できず、標準4見出し（目的・現
   作成（flow-id 1-2〜1-3）は対象外とし、`/issue-mr-flow start <issue番号>`に委ねる。
   `issue-mr-flow/SKILL.md`のflow-id 1-1担当セルに、このスキルへの導線を一言追記した。
   `issue-mr-flow`のサブコマンドとして追加しなかった理由・却下案は
-  [0011-issue作成は独立スキルとして新設する.md](../ddr/0011-issue作成は独立スキルとして新設する.md)
+  [i00-08-issue作成は独立スキルとして新設する.md](../ddr/i00-08-issue作成は独立スキルとして新設する.md)
   参照。
   - **最終確認は`AskUserQuestion`で行う**（issue #59）。組み立てた本文自体は通常のメッセージで
     全文提示し、`AskUserQuestion`は「この内容で作成する (Recommended)／内容を修正する／作成しない」
@@ -1520,7 +1520,7 @@ GitHub/GitLabのUIから起票する場合は入力中に類似issueがサジェ
 issueから意味のある語を選ぶには形態素解析が要り、bashの文字種判定はロケール依存で静かに劣化する。
 一方、`issue-create` スキルではAIが直前に自らタイトル・4見出しを組み立てており、そのissue固有の
 語がどれかを判断できる。詳細・却下案は
-[0033-issue起票前の重複チェックは検索をProvider層へ置きキーワード抽出はAIに委ねる.md](../ddr/0033-issue起票前の重複チェックは検索をProvider層へ置きキーワード抽出はAIに委ねる.md)
+[i68-01-issue起票前の重複チェックは検索をProvider層へ置きキーワード抽出はAIに委ねる.md](../ddr/i68-01-issue起票前の重複チェックは検索をProvider層へ置きキーワード抽出はAIに委ねる.md)
 を参照。
 
 #### `search_issues` の仕様
@@ -1585,11 +1585,11 @@ push検知hookと同じ。**MCP経路も検知するため、CLI不在時にも�
 
 #### ブロックではなく注意喚起に留めた理由
 
-コミットの直接実行禁止（DDR 0012）と同じ形のブロック（PreToolUse + exit code 2）は採用していない。
+コミットの直接実行禁止（DDR i00-09）と同じ形のブロック（PreToolUse + exit code 2）は採用していない。
 `start` の実体が複数の汎用git操作とMCPツールに分かれていて文字列で一意に特定できないこと、
 「人間が明示的に着手を指示した」という正当ケースをhookが観測できず、解除手段が実質「hookを黙らせる」
 しか無くなることが理由。詳細・却下案は
-[0038-issue起票後の着手確認はブロックせず注意喚起の注入で担保する.md](../ddr/0038-issue起票後の着手確認はブロックせず注意喚起の注入で担保する.md)
+[i39-01-issue起票後の着手確認はブロックせず注意喚起の注入で担保する.md](../ddr/i39-01-issue起票後の着手確認はブロックせず注意喚起の注入で担保する.md)
 を参照。**hookは多重防御であり、注入が無かったことは着手してよい根拠にならない**（この点も両
 SKILL.mdに明記している）。
 
@@ -1632,7 +1632,7 @@ SKILL.mdに明記している）。
   「レビュー完了合図の確認」節を追加）
 
 新規（設計反映時）:
-- `dev-tools/docs/ddr/0003-レビュースレッド解決は自動化しない.md`
+- `dev-tools/docs/ddr/i00-01-レビュースレッド解決は自動化しない.md`
 
 新規（追加分・途中引き継ぎ対応）:
 - `.claude/agents/issue-mr-resume.md`（状態調査サブエージェント）
@@ -1666,8 +1666,8 @@ SKILL.mdに明記している）。
 新規（追加分・issue #15 Draft PR自動リトライ＋対応工数レポート）:
 - `.claude/hooks/lib/UsageTracking.ps1`（集計ロジック）
 - `.claude/hooks/post-push-usage-report.ps1`（PostToolUse hook）
-- `dev-tools/docs/ddr/0005-DraftPR作成失敗時は空コミットで自動リトライする.md`
-- `dev-tools/docs/ddr/0006-対応工数レポートはtranscript自前パースで実装する.md`
+- `dev-tools/docs/ddr/i00-03-DraftPR作成失敗時は空コミットで自動リトライする.md`
+- `dev-tools/docs/ddr/i00-04-対応工数レポートはtranscript自前パースで実装する.md`
 
 変更（追加分・issue #15 Draft PR自動リトライ＋対応工数レポート）:
 - `dev-tools/src/vcs/Provider.ps1`（`Add-EmptyCommitForDraftMr`, `Add-MrComment` を追加）
@@ -1717,7 +1717,7 @@ SKILL.mdに明記している）。
 - `dev-tools/docs/spec/issue-mr-workflow.md`（本セクション「稼働時間の算出方法」を追加、
   「未決定事項・懸念点」に稼働時間の誤差要因・overlap dedup未対応・トークン数の過小カウント要因を
   追記、「投稿内容の位置づけ」にフッター初回投稿限定の挙動を追記）
-- `dev-tools/docs/ddr/0006-対応工数レポートはtranscript自前パースで実装する.md`（マージ済みDDRの
+- `dev-tools/docs/ddr/i00-04-対応工数レポートはtranscript自前パースで実装する.md`（マージ済みDDRの
   ため既存内容は変更せず、トークン数の過小カウント問題に関する「追記」セクションを追加）
 - `tests/README.md`（`test_usage_tracking.sh`の行を追加）
 - `.claude/rules/shell-script-style.md`（Windowsネイティブjqの`strptime`/`mktime`未実装という
@@ -1749,7 +1749,7 @@ SKILL.mdに明記している）。
 - `dev-tools/docs/spec/issue-mr-workflow.md`（本セクション「記録範囲」の更新、新規サブセクション
   「サブエージェントの使用量記録」追加、「コンポーネント」の関数一覧更新、「未決定事項・懸念点」の
   追記）
-- `dev-tools/docs/ddr/0006-対応工数レポートはtranscript自前パースで実装する.md`（マージ済みDDRの
+- `dev-tools/docs/ddr/i00-04-対応工数レポートはtranscript自前パースで実装する.md`（マージ済みDDRの
   ため既存内容は変更せず、session-logsコピー方式・`agentId`/`agentType`二段設計に関する
   「追記」セクションを追加）
 
@@ -1823,7 +1823,7 @@ SKILL.mdに明記している）。
   「### ユーザーへの質問」の3テーブルを追加。`state_dir`のパスを`usage/state`へ更新）
 - `.gitignore`（`/.claude/usage-state/`, `/.claude/session-logs/`の2行を`/usage/`1行へ統合）
 - `tests/test_usage_tracking.sh`（新方式に合わせて全面書き換え。66件）
-- `dev-tools/docs/ddr/0006-対応工数レポートはtranscript自前パースで実装する.md`（マージ済みDDRの
+- `dev-tools/docs/ddr/i00-04-対応工数レポートはtranscript自前パースで実装する.md`（マージ済みDDRの
   ため既存内容は変更せず、行オフセットベースの差分パースへの移行・`usage/`ディレクトリ移設に関する
   「追記」セクションを追加）
 - `.claude/rules/directory-structure.md`（ツリーへ`usage/`を追加）
@@ -1845,7 +1845,7 @@ SKILL.mdに明記している）。
   コマンドライン引数としてjqへ渡さない一般的な注意事項を追記）
 - `dev-tools/docs/spec/issue-mr-workflow.md`（本セクション「コンポーネント」に本バグ修正の
   詳細を追記、本エントリを追加）
-- `dev-tools/docs/ddr/0006-対応工数レポートはtranscript自前パースで実装する.md`（マージ済みDDRの
+- `dev-tools/docs/ddr/i00-04-対応工数レポートはtranscript自前パースで実装する.md`（マージ済みDDRの
   ため既存内容は変更せず、本バグ修正に関する追記セクションを追加）
 
 変更（追加分・issue #43 開発フローに「調査」サイクルを追加）:
@@ -1911,7 +1911,7 @@ SKILL.mdに明記している）。
 - 詳細な調査・作業計画は `plans/drifting-sniffing-clover.md` 参照。
 
 新規（追加分・issue #9 計画の2階層構造への再編）:
-- `.claude/docs/ddr/0019-planツール利用を全体作業計画に限定し個別計画をファイル分離する.md`
+- `.claude/docs/ddr/i9-01-planツール利用を全体作業計画に限定し個別計画をファイル分離する.md`
 
 変更（追加分・issue #9 計画の2階層構造への再編）:
 - `.claude/skills/issue-mr-flow/SKILL.md`（全体フロー表を33→35ステップへ再構成。先頭に
@@ -1923,7 +1923,7 @@ SKILL.mdに明記している）。
 - `.claude/rules/plan-mode-safety.md`（**全面改訂**。冒頭に「planツールを使う場面」節を新設し、
   規則6（re-entry時のarchiveスクリプト手順）を削除して「廃止した対処（履歴）」節へ経緯を移した。
   規則2のarchive例外記述も削除）
-- `.claude/scripts/src/archive-reentrant-plan.sh`（**削除**。詳細はDDR 0019）
+- `.claude/scripts/src/archive-reentrant-plan.sh`（**削除**。詳細はDDR i9-01）
 - `.claude/scripts/src/vcs/Provider.sh`（`get_branch_work_files`の`git diff`/`git status`へ
   `-c core.quotepath=false`を追加。日本語ファイル名が8進エスケープで返り`resume`が機能しなくなる
   既存バグの修正）
@@ -1963,7 +1963,7 @@ SKILL.mdに明記している）。
 - `.claude/scripts/src/show-push-log.sh`（push断面のログを参照するCLI）
 - `tests/test_usage_tracking.sh`（`post-push-usage-report.sh`のコメントが参照していたが実在
   しなかったため新設。33件）
-- `.claude/docs/ddr/0022-push断面の全文コピーをやめ行番号インデックスで表現する.md`
+- `.claude/docs/ddr/i23-01-push断面の全文コピーをやめ行番号インデックスで表現する.md`
 
 変更（追加分・issue #23 セッションログの一本化とpush断面のインデックス化）:
 - `.claude/hooks/lib/UsageTracking.sh`（`_usage_sync_session_logs`のコピー先を
@@ -2028,7 +2028,7 @@ SKILL.mdに明記している）。
 - `.claude/docs/ddr/0023-...md`（「決定」節に方式変更を追記、「却下した案」に当初のsuffix推測方式を追加）
 
 新規（追加分・issue #48 GitLab実機検証で判明した3件の不具合修正）:
-- `.claude/docs/ddr/0026-空コミットフォールバックはGitHub固有の制約として残す.md`
+- `.claude/docs/ddr/i48-01-空コミットフォールバックはGitHub固有の制約として残す.md`
 
 変更（追加分・issue #48 GitLab実機検証で判明した3件の不具合修正）:
 - `.claude/scripts/src/vcs/Gitlab.sh`
@@ -2071,10 +2071,10 @@ SKILL.mdに明記している）。
 - `.claude/docs/spec/issue-mr-workflow.md`（本ファイル。「提供関数」表へ5関数を追加、
   「セッション開始時の自動コンテキスト注入」のフォールバック方針を更新、
   「`gh`/`glab` CLI不在時のMCPフォールバック経路」節を新設、本エントリを追加）
-- `.claude/docs/ddr/0027-gh_glab-CLI不在時はMCPフォールバック経路へ機構的に誘導する.md`（新規）
+- `.claude/docs/ddr/i34-01-gh_glab-CLI不在時はMCPフォールバック経路へ機構的に誘導する.md`（新規）
 
 新規（追加分・issue #45 get_providerのホスト判定化）:
-- `.claude/docs/ddr/0028-プロバイダ判定はremote-URLのホスト部でgithub以外をgitlabとみなす.md`
+- `.claude/docs/ddr/i45-01-プロバイダ判定はremote-URLのホスト部でgithub以外をgitlabとみなす.md`
 
 変更（追加分・issue #45 get_providerのホスト判定化）:
 - `.claude/scripts/src/vcs/Provider.sh`
@@ -2085,7 +2085,7 @@ SKILL.mdに明記している）。
     `http://localhost:8929/...`）を判定できるようになった。副次的に、パスへ `github` を含む
     GitLab URL（`https://gitlab.com/github-mirror/x.git`）の誤判定も解消
   - 従来の「サポート対象外のリモートです」エラーは、ホスト名が空の場合のみ到達する
-    メッセージへ変更（受け入れたトレードオフ。DDR 0028参照）
+    メッセージへ変更（受け入れたトレードオフ。DDR i45-01参照）
 - `tests/test_vcs_provider.sh`（`Provider.sh` のsourceを追加し、`provider_from_remote_url` の
   単体テストを15件追加。GHE・scp形式・ポート付きssh・パスに `@` を含むURL・`aslead` の優先順位・
   ホスト名が空のときの終了コードを含む。`passed=26 failures=0`）
@@ -2104,7 +2104,7 @@ SKILL.mdに明記している）。
   - `provider_from_remote_url` をホスト抽出のみ `split_remote_url` へ委譲する形へ変更。
     判定規則（`aslead` → gitlab ／ `github` → github ／ それ以外 → gitlab の順序と結果）・
     エラーメッセージ・終了コードはいずれも変更なし。**1回あたりのプロセス起動ゼロも維持**
-    （DDR 0028の制約。空関数をベースラインにした200回計測で、空関数80ms に対し
+    （DDR i45-01の制約。空関数をベースラインにした200回計測で、空関数80ms に対し
     `split_remote_url` 93ms・`provider_from_remote_url` 132ms。同条件で `jq` は1回138ms）
   - `parse_repo_slug` から `sed` 2回を除去し `split_remote_url` へ委譲。外部プロセス起動が
     3回 → 1回（`jq` のみ）になり、実測で 415ms/回 → 105ms/回（74%削減）。
@@ -2123,7 +2123,7 @@ SKILL.mdに明記している）。
 - `tests/test_check_base_conflicts.sh`（純粋関数の単体テスト。`passed=13 failures=0`）
 - `.claude/skills/resolve-conflict/SKILL.md`（コンフリクト解消の標準手順。類型A〜E）
 - `.claude/docs/spec/check-base-conflicts.md`（検知スクリプトの仕様）
-- `.claude/docs/ddr/0029-defaultブランチとのコンフリクトは検知を機構化し解消手順をスキル化する.md`
+- `.claude/docs/ddr/i46-01-defaultブランチとのコンフリクトは検知を機構化し解消手順をスキル化する.md`
 
 変更（追加分・issue #46）:
 - `.claude/skills/issue-mr-flow/SKILL.md`（**flow-id 5-2としてコンフリクト検知・解消ステップを
@@ -2151,7 +2151,7 @@ SKILL.mdに明記している）。
     移動前後とも `passed` は 17 / 15 / 33 / 36（計101件）・`failures=0`
   - 目的は、`apply-mr-workflow-to-project` の配布単位（`.claude/`）へテストを収めること。
     `sync-assets.sh` は `.claude/` 配下をそのままコピーするため**スクリプト側の変更は不要**で、
-    かつ導入先プロジェクト本体の `tests/` と場所を取り合わなくなる（DDR 0031）
+    かつ導入先プロジェクト本体の `tests/` と場所を取り合わなくなる（DDR i63-01）
 - `.claude/scripts/src/extract-frontmatter.sh` / `update-handoff-progress.sh` /
   `vcs/Provider.sh` / `.claude/hooks/post-push-usage-report.sh`（テストを指すコメントのパスを更新）
 - `.claude/rules/directory-structure.md`（ツリーの `tests/` を `.claude/scripts/test/` へ移動、
@@ -2160,7 +2160,7 @@ SKILL.mdに明記している）。
 - `index.md`（Directory Structure へ `./.claude/scripts/test/` を追加）
 - `.claude/docs/spec/update-handoff-progress.md`・`shell-scripts.md`（「## 仕様」節内の
   現在の状態を説明するパス参照のみ更新）
-- `.claude/docs/ddr/0031-機構自身の単体テストは.claude_scripts_test配下へ置く.md`（新規）
+- `.claude/docs/ddr/i63-01-機構自身の単体テストは.claude_scripts_test配下へ置く.md`（新規）
 - `.claude/docs/README.md`（DDR一覧に0031を追加）
 - mainマージ時の追随（issue #46・#60 が本ブランチと並行してマージされたため）
   - `.claude/scripts/test/test_check_base_conflicts.sh`（issue #46 が `tests/` へ新規追加した
@@ -2195,7 +2195,7 @@ CLI不在時のMCPフォールバック経路（issue #34）の双方でクロ�
 
 **flow-idの番号について**: issue #61 の起票時点では対象を「flow-id 5-2」と記載しているが、
 issue #46 でコンフリクト検知のステップが 5-2 として挿入された結果、Draft解除は現在 **5-3** である
-（`.claude/docs/ddr/0029-defaultブランチとのコンフリクトは検知を機構化し解消手順をスキル化する.md`
+（`.claude/docs/ddr/i46-01-defaultブランチとのコンフリクトは検知を機構化し解消手順をスキル化する.md`
 「全39→40ステップ」）。本対応では現行の番号である 5-3 を更新した。
 
 ### issue #57（compact後の作業コンテキスト再注入と注入量の肥大化検知）
@@ -2214,7 +2214,7 @@ issue #46 でコンフリクト検知のステップが 5-2 として挿入さ�
   - 組み立てた `additionalContext` がしきい値（既定8000バイト）を超えた場合のみ、末尾へ
     整理を促す指示文を追記（切り詰めはしない）
 - `.claude/scripts/test/test_session_start.sh`（新規。35件）
-- `.claude/docs/ddr/0032-compact後もSessionStart-hookで作業コンテキストを再注入する.md`（新規）
+- `.claude/docs/ddr/i57-01-compact後もSessionStart-hookで作業コンテキストを再注入する.md`（新規）
 - `.claude/docs/README.md`（DDR一覧に0032を追加）
 
 本節より前の「セッション開始時の自動コンテキスト注入」節では、matcher・情報収集・
@@ -2266,9 +2266,9 @@ DDRは新設していない（既存の`AskUserQuestion`確認・スキル分割
   issue #46 で flow-id 5-2 が追加された際の追随漏れで、現在の状態を説明する地の文のため書き換えた）
 
 新規:
-- `.claude/docs/ddr/0034-issueの分割は並列列挙構造を主トリガーにAIが提案し人間が決定する.md`
+- `.claude/docs/ddr/i64-01-issueの分割は並列列挙構造を主トリガーにAIが提案し人間が決定する.md`
 
-スクリプト・hookの変更は行っていない（意味理解を要する判定を機構化しない、というDDR 0034の
+スクリプト・hookの変更は行っていない（意味理解を要する判定を機構化しない、というDDR i64-01の
 決定によるもの）。
 
 ### issue #51（`worklog/` `reports/` の削除タイミングの記述統一）
@@ -2330,7 +2330,7 @@ flow-id 5-1（次タスクのための片付け）と食い違っていた。iss
   - 「PRがflow-id 5-1実施前にマージされてしまった場合の対処」手順4の「PR作成・マージの実行は…
     ユーザーから明示的な指示を受けてから行う」を、マージのみ明示指示必須とする記述へ変更
   - 「詳細ルールへのポインタ」の `git-workflow.md` の項へ、PR/MR作成とマージの担当を追記
-- `.claude/docs/ddr/0035-PR_MR作成はAIエージェントに委ねマージのみ明示指示を必須にする.md`（新規）
+- `.claude/docs/ddr/i41-01-PR_MR作成はAIエージェントに委ねマージのみ明示指示を必須にする.md`（新規）
 - `.claude/docs/README.md`（DDR一覧へ0035を追加）
 - `.claude/docs/spec/issue-mr-workflow.md`（本ドキュメント。「PR/MR作成・マージの担当（issue #41）」
   節を新設し、本節を追加）
@@ -2379,7 +2379,7 @@ flow-id 5-2（コンフリクト検知・解消）の担当は「エージェン
   `get_mr_unresolved_comments` / `add_mr_thread_reply` の行を更新、「/compact実施の呼びかけ」節へ
   重点レビュー対象ファイル・返信リンクの仕様を追記、本エントリを追加）
 
-DDRは新設していない（issue #13・DDR 0023で決めた「リポジトリの正規URLを土台に汎用ページのURLを
+DDRは新設していない（issue #13・DDR i13-01で決めた「リポジトリの正規URLを土台に汎用ページのURLを
 組み立てる」方針をファイル単位・コメント単位へ延長したものであり、方針自体の変更ではないため）。
 テキストフラグメント（`#:~:text=`）を採用しない判断はissue #42の起票時点で確定しており、
 ブラウザ側の機能で遅延読込・折りたたみに影響され、コメント編集で壊れることが理由。
@@ -2390,7 +2390,7 @@ DDRは新設していない（issue #13・DDR 0023で決めた「リポジトリ
   GitLabが新規issueの説明欄へ自動適用する予約名であり、`task.md` へ改名すると起票者による
   テンプレート選択が必須になるため、実体を正とした。GitHub側は `task.md` のままでよく、
   **両プロバイダで名前が異なるのは意図的**である（詳細:
-  `.claude/docs/ddr/0036-GitLab-issueテンプレートは予約名Default.mdを正とし文書側を合わせる.md`）。
+  `.claude/docs/ddr/i32-01-GitLab-issueテンプレートは予約名Default.mdを正とし文書側を合わせる.md`）。
   - `.claude/skills/issue-create/SKILL.md` / `.claude/skills/issue-mr-flow/SKILL.md`（2箇所）/
     `.claude/scripts/src/vcs/Provider.sh`（コメント2箇所）/ `.claude/rules/markdown-frontmatter.md` /
     本ドキュメント（ツリー図・「ファイル構成」節・本「影響範囲」節）
@@ -2403,7 +2403,7 @@ DDRは新設していない（issue #13・DDR 0023で決めた「リポジトリ
   - 移植時に持ち込んでいないDDR `0002` への参照3箇所（本ドキュメント2箇所、
     `.claude/docs/ddr/0019-...md` 本文1箇所）から、リンク記法を外して「移植元のDDR 0002。
     本テンプレートには未同梱」の注記と `.claude/docs/README.md` への誘導へ置き換えた。
-    DDR 0019 の本文は不変原則（`.claude/rules/docs-workflow.md`）に従い、表示テキストを
+    DDR i9-01 の本文は不変原則（`.claude/rules/docs-workflow.md`）に従い、表示テキストを
     変えずリンク記法のみを外し括弧書きを追記する範囲に留めた。
   - `index.md` の `./plans/` `./build/` のリンクを外した。前者は flow-id 5-1 で削除される寿命、
     後者は `.gitignore` の `/build/` 対象で、いずれもGit管理下に実体を持てないため。
@@ -2420,7 +2420,7 @@ DDRは新設していない（issue #13・DDR 0023で決めた「リポジトリ
 ### issue #44（リポジトリURLをgh/glabではなくgit remoteから導出する）
 
 新規:
-- `.claude/docs/ddr/0037-リポジトリURLはgh_glabではなくgit-remoteから導出する.md`
+- `.claude/docs/ddr/i44-01-リポジトリURLはgh_glabではなくgit-remoteから導出する.md`
 
 変更:
 - `.claude/scripts/src/vcs/Provider.sh`
@@ -2455,7 +2455,7 @@ issue起票からそのまま実装へ進むことを防ぐため、ドキュメ
 新規:
 - `.claude/hooks/post-issue-create-notice.sh`（issue起票検知・注意喚起の注入）
 - `.claude/scripts/test/test_post_issue_create_notice.sh`（`is_issue_create_call` 等の単体テスト）
-- `.claude/docs/ddr/0038-issue起票後の着手確認はブロックせず注意喚起の注入で担保する.md`
+- `.claude/docs/ddr/i39-01-issue起票後の着手確認はブロックせず注意喚起の注入で担保する.md`
 
 変更:
 - `AGENTS.md`（共通ルールへ「起票は着手の指示ではない」を追加）
@@ -2474,7 +2474,7 @@ PR作成からマージまでの間のdefaultブランチ追従を、flow-idを�
 定義した。仕様は「PR作成後のdefaultブランチ追従（issue #88）」節を参照。
 
 新規:
-- `.claude/docs/ddr/0039-PR作成後のdefaultブランチ追従は並行手順として定義し自動解消は一意に決まる類型に限る.md`
+- `.claude/docs/ddr/i88-01-PR作成後のdefaultブランチ追従は並行手順として定義し自動解消は一意に決まる類型に限る.md`
 
 変更:
 - `.claude/skills/issue-mr-flow/SKILL.md`（「PR作成後のdefaultブランチ追従（監視）」節を新設。
@@ -2503,10 +2503,10 @@ flow-id 2-6 が「調査を実施し、結果を**個別調査計画**・worklog
 `reports/` にはmdとhtmlを併存させ、**mdを結果の正文、htmlをその視覚化**と位置づける。寿命は同じで、
 flow-id 5-1 で `plans/` `worklog/` とまとめて削除する。見出し構成は本対応では規定しない（記述の型の
 テンプレート化はissue #54の担当であり、本対応が決めたのは置き場所だけである）。経緯・却下案は
-`.claude/docs/ddr/0040-個別計画には結果を書かず実施結果はreports配下のmdへ分離する.md` を参照。
+`.claude/docs/ddr/i87-01-個別計画には結果を書かず実施結果はreports配下のmdへ分離する.md` を参照。
 
 新規:
-- `.claude/docs/ddr/0040-個別計画には結果を書かず実施結果はreports配下のmdへ分離する.md`
+- `.claude/docs/ddr/i87-01-個別計画には結果を書かず実施結果はreports配下のmdへ分離する.md`
 
 変更:
 - `.claude/skills/issue-mr-flow/SKILL.md`（flow-id 2-6/2-9/3-6/3-9/4-6/4-9 を「結果は `reports/` の
@@ -2532,7 +2532,7 @@ flow-id 5-1 で `plans/` `worklog/` とまとめて削除する。見出し構�
 仕様は「チャットで受けたレビュー判断の記録（issue #50）」節を参照。
 
 新規:
-- `.claude/docs/ddr/0041-チャットで受けたレビュー判断はAIがMRの通常コメントへ記録する.md`
+- `.claude/docs/ddr/i50-01-チャットで受けたレビュー判断はAIがMRの通常コメントへ記録する.md`
 
 変更:
 - `.claude/skills/issue-mr-flow/SKILL.md`（「チャットで受けたレビュー判断の記録」節を新設。
@@ -2549,7 +2549,7 @@ flow-id 1-4 の全体作業計画からフェーズ2〈調査〉・フェーズ4
 節を参照。
 
 新規:
-- `.claude/docs/ddr/0043-全体作業計画には調査・反映の枠を必ず残し省略判断は各フェーズ直前で行う.md`
+- `.claude/docs/ddr/i92-01-全体作業計画には調査・反映の枠を必ず残し省略判断は各フェーズ直前で行う.md`
 
 変更:
 - `.claude/skills/issue-mr-flow/SKILL.md`（「全体作業計画に必ず含めるフェーズ」節を全体フロー表の
@@ -2568,7 +2568,7 @@ MRの差分が影響する他のissueへ、マージ前に通知を残せるよ�
 仕様は上記「マージ前の関連issue通知（issue #86）」節。
 
 新規:
-- `.claude/docs/ddr/0044-マージ前の関連issue通知はDraft解除の直前に置き投稿前の人間承認を必須にする.md`
+- `.claude/docs/ddr/i86-01-マージ前の関連issue通知はDraft解除の直前に置き投稿前の人間承認を必須にする.md`
 
 変更:
 - `.claude/scripts/src/vcs/Provider.sh`（`add_issue_comment` ディスパッチャ、`mcp_tool_hint` へ
@@ -2602,9 +2602,9 @@ MRの差分が影響する他のissueへ、マージ前に通知を残せるよ�
 
 新規:
 - `.claude/docs/spec/adversarial-review.md`
-- `.claude/docs/ddr/0045-敵対的レビューは専任サブエージェントで独立コンテキストに切り出す.md`
-- `.claude/docs/ddr/0046-レビュー観点はディレクトリごとのREVIEW-POINTSへ外だしする.md`
-- `.claude/docs/ddr/0047-インラインコメントの位置指定はプロバイダごとの制約に合わせて縮退させる.md`
+- `.claude/docs/ddr/i77-01-敵対的レビューは専任サブエージェントで独立コンテキストに切り出す.md`
+- `.claude/docs/ddr/i77-02-レビュー観点はディレクトリごとのREVIEW-POINTSへ外だしする.md`
+- `.claude/docs/ddr/i77-03-インラインコメントの位置指定はプロバイダごとの制約に合わせて縮退させる.md`
 - `.claude/skills/adversarial-review/SKILL.md` / `.claude/skills/review-points/SKILL.md`
 - `.claude/agents/adversarial-reviewer.md`
 - `.claude/scripts/src/adversarial-review-count.sh` / `.claude/scripts/src/collect-review-points.sh`
@@ -2635,13 +2635,13 @@ Draft解除 → 5-5 マージ** の順へ並べ替えた（旧 5-1 片付け →
 | 5-3 | `plans/` `worklog/` `reports/` を削除し `HANDOFF.md` をリセットする | 5-1 |
 
 並べ替えの理由（旧順序の4つの不整合）と却下案は
-[0058-フェーズ5は片付けをcommit直前へ移した順序に並べ替える.md](../ddr/0058-フェーズ5は片付けをcommit直前へ移した順序に並べ替える.md)。
+[i112-01-フェーズ5は片付けをcommit直前へ移した順序に並べ替える.md](../ddr/i112-01-フェーズ5は片付けをcommit直前へ移した順序に並べ替える.md)。
 関連issue通知（5-2）の手順に、キーワード抽出時 `plans/` `worklog/` `reports/` を差分から除外する
 （`git diff --stat "origin/${base}...HEAD" -- . ':(exclude)plans' …`）旨を追加した。新順序では
 これらがまだ削除されておらず差分に含まれるためである。
 
 新規:
-- `.claude/docs/ddr/0058-フェーズ5は片付けをcommit直前へ移した順序に並べ替える.md`
+- `.claude/docs/ddr/i112-01-フェーズ5は片付けをcommit直前へ移した順序に並べ替える.md`
 
 変更:
 - `.claude/skills/issue-mr-flow/SKILL.md`（全体フロー表の 5-1〜5-3 の並べ替え、フェーズ一覧の語順、
@@ -2677,8 +2677,8 @@ Draft解除 → 5-5 マージ** の順へ並べ替えた（旧 5-1 片付け →
 `flow-id 5-2` のまま残している。
 
 **DDR本文と、本節の過去issueごとのエントリは書き換えていない**（`.claude/rules/docs-workflow.md`）。
-DDR 0044（関連issue通知）・0048（後片付けのスクリプト化）が本文で指す `5-3` `5-1` は、当時の番号の
-ままである。DDR 0048 はファイル名にも `flow-id5-1` を含むが、リンク切れを避けるためリネームしない。
+DDR i86-01（関連issue通知）・0048（後片付けのスクリプト化）が本文で指す `5-3` `5-1` は、当時の番号の
+ままである。DDR i28-01 はファイル名にも `flow-id5-1` を含むが、リンク切れを避けるためリネームしない。
 
 ### issue #113（issue-mr-flow対象ブランチでのSKILL.md再読み込み指示）
 
@@ -2691,10 +2691,10 @@ SessionStart hookが注入する追加コンテキストの**末尾**へ、
 対象判定は「ブランチ名からissue番号を抽出できる」「ブランチ固有の作業ファイルがある」の
 **いずれか一方でも成り立てば対象**とし、判定根拠を指示文へ埋め込む。対象外のブランチでは
 何も足さない。詳細・却下案は
-[0059-issue-mr-flow対象ブランチではSKILL.mdの再読み込みを注入で促す.md](../ddr/0059-issue-mr-flow対象ブランチではSKILL.mdの再読み込みを注入で促す.md)。
+[i113-01-issue-mr-flow対象ブランチではSKILL.mdの再読み込みを注入で促す.md](../ddr/i113-01-issue-mr-flow対象ブランチではSKILL.mdの再読み込みを注入で促す.md)。
 
 新規:
-- `.claude/docs/ddr/0059-issue-mr-flow対象ブランチではSKILL.mdの再読み込みを注入で促す.md`
+- `.claude/docs/ddr/i113-01-issue-mr-flow対象ブランチではSKILL.mdの再読み込みを注入で促す.md`
 
 変更:
 - `.claude/hooks/session-start.sh`（純粋関数 `issue_mr_flow_branch_reason` /
@@ -2715,10 +2715,10 @@ SessionStart hookが注入する追加コンテキストの**末尾**へ、
 
 GitHub固有の `diffHunk` への依存をやめ、`(path, line, sha)` から共通ロジックで指摘行前後を
 切り出す方式へ移行した。詳細は上記「レビューコメントのソーススライス」、断面の選び方の経緯は
-[0060-レビューコメントのソース断面はコメント時点のshaを優先し現HEADへ縮退する.md](../ddr/0060-レビューコメントのソース断面はコメント時点のshaを優先し現HEADへ縮退する.md)。
+[i43-01-レビューコメントのソース断面はコメント時点のshaを優先し現HEADへ縮退する.md](../ddr/i43-01-レビューコメントのソース断面はコメント時点のshaを優先し現HEADへ縮退する.md)。
 
 新規:
-- `.claude/docs/ddr/0060-レビューコメントのソース断面はコメント時点のshaを優先し現HEADへ縮退する.md`
+- `.claude/docs/ddr/i43-01-レビューコメントのソース断面はコメント時点のshaを優先し現HEADへ縮退する.md`
 
 変更:
 - `.claude/scripts/src/vcs/Github.sh`
@@ -2803,13 +2803,13 @@ remoteがGitHubのみのため従来どおり未検証で、issue #128 の実機
   （レビュアー側の操作という位置づけ）。かわりに、人間からの完了合図を受けた際は
   `Get-MrUnresolvedComments -IncludeResolved` で再確認してから次のステップへ進む運用にした。
   背景・却下案は
-  [.claude/scripts/docs/ddr/0003-レビュースレッド解決は自動化しない.md](../ddr/0003-レビュースレッド解決は自動化しない.md)
+  [.claude/scripts/docs/ddr/i00-01-レビュースレッド解決は自動化しない.md](../ddr/i00-01-レビュースレッド解決は自動化しない.md)
   参照。
 - **AI返信のアイデンティティ表示**: `Add-MrThreadReply` の投稿者アカウントはAI/人間で分離できない
   （`gh`/`glab` CLIは人間の認証情報を使うため）。かわりに返信本文の先頭に `Claude Codeより:` の
   署名行を必ず付ける運用ルールを `reply` サブコマンド手順に追加した。botアカウントによる
   投稿者分離は規模超過のため見送り。背景・却下案は
-  [.claude/scripts/docs/ddr/0004-AI返信は署名で識別しbotアカウント分離は見送る.md](../ddr/0004-AI返信は署名で識別しbotアカウント分離は見送る.md)
+  [.claude/scripts/docs/ddr/i00-02-AI返信は署名で識別しbotアカウント分離は見送る.md](../ddr/i00-02-AI返信は署名で識別しbotアカウント分離は見送る.md)
   参照。
 - **SessionStart hookの実装言語はPowerShell**（issue #6で覆した過去の決定）: issue #5対応時点では
   Bashスクリプトへの置き換え（`gh`/`git`/`jq`がUTF-8をそのまま扱えるため、Windows PowerShell 5.1
@@ -2826,7 +2826,7 @@ remoteがGitHubのみのため従来どおり未検証で、issue #128 の実機
   `startup|resume|clear` に限定し、`compact`（頻度が高く`gh` API
   呼び出しのコストが無視できない）と `fork`（今回のissueのスコープ外）は対象外とした。
   issue #57で`compact`を追加した（compactは要約内容を指定できず現在地が失われるため。
-  コスト面の再評価は[DDR 0032](../ddr/0032-compact後もSessionStart-hookで作業コンテキストを再注入する.md)）。
+  コスト面の再評価は[DDR i57-01](../ddr/i57-01-compact後もSessionStart-hookで作業コンテキストを再注入する.md)）。
   `fork`は引き続き対象外。
 - **Windows PowerShell 5.1の文字コード対策はルールでなくスクリプト側で強制する**（issue #6で
   `Provider.ps1`自体が`Provider.sh`へ置き換わったため、本項の対策は過去のものとなった。教訓・
@@ -2847,13 +2847,13 @@ remoteがGitHubのみのため従来どおり未検証で、issue #128 の実機
   `glab mr create`が失敗する（issue #5対応時に実機確認、当初は手動回避のみでissue #15対応まで
   未解消だった）。`$LASTEXITCODE`で失敗を検知し、空コミット+pushで1回だけ自動リトライする方式で
   解消した。背景・却下案は
-  [0005-DraftPR作成失敗時は空コミットで自動リトライする.md](../ddr/0005-DraftPR作成失敗時は空コミットで自動リトライする.md)
+  [i00-03-DraftPR作成失敗時は空コミットで自動リトライする.md](../ddr/i00-03-DraftPR作成失敗時は空コミットで自動リトライする.md)
   参照。
 - **対応工数のトークン集計方式**: transcript JSONLの自前パース以外に確実な取得手段が
   無いことを確認した上で採用した。非公開フォーマットへの依存リスクは、失敗の握りつぶし・
   「目安」である旨の明記で吸収する。`entry.gitBranch`でのフィルタにより、複数ブランチを跨いだ
   セッションでの他ブランチ分混入を防ぐ。詳細・却下案は
-  [0006-対応工数レポートはtranscript自前パースで実装する.md](../ddr/0006-対応工数レポートはtranscript自前パースで実装する.md)
+  [i00-04-対応工数レポートはtranscript自前パースで実装する.md](../ddr/i00-04-対応工数レポートはtranscript自前パースで実装する.md)
   参照。
 - **対応工数の集計方式（tools/tokens/turns）はセッション横断カーソルによる新規行diff方式**
   （issue #37）: 「毎回全件再パース＋前回累計との引き算」方式が抱えていた「セッションが新しい
@@ -2862,14 +2862,14 @@ remoteがGitHubのみのため従来どおり未検証で、issue #128 の実機
   `usage/state/session-cursors/<sessionId>.json`）による新規行diff＋単純加算方式を採用した。
   `activeSeconds`のみ単調非減少性を保つため従来の全件再パース方式を維持する。設計判断の経緯・
   却下案は
-  [0006-対応工数レポートはtranscript自前パースで実装する.md](../ddr/0006-対応工数レポートはtranscript自前パースで実装する.md)
+  [i00-04-対応工数レポートはtranscript自前パースで実装する.md](../ddr/i00-04-対応工数レポートはtranscript自前パースで実装する.md)
   の追記を参照。
 - **push断面の保存はtranscript全文のコピーではなく行範囲の記録で表現する**（issue #23）:
   transcriptが追記専用であること（`/compact`を挟んでも各push断面が現物の先頭N行とバイト単位で
   一致すること）を実データで確認したうえで、`logs/push-<N>/`への全文コピーを廃止し、
   `usage/state/push-index.jsonl`の行範囲＋セッション単位のミラー1本へ統合した。設計判断の経緯・
   却下案は
-  [0022-push断面の全文コピーをやめ行番号インデックスで表現する.md](../ddr/0022-push断面の全文コピーをやめ行番号インデックスで表現する.md)
+  [i23-01-push断面の全文コピーをやめ行番号インデックスで表現する.md](../ddr/i23-01-push断面の全文コピーをやめ行番号インデックスで表現する.md)
   参照。
 - **プロバイダ判定はremote URLの「ホスト部」で行い、GitHubでなければGitLabとみなす**（issue #45）:
   `get_provider`はかつて`git remote get-url origin`の**URL文字列全体**への部分一致
@@ -2883,7 +2883,7 @@ remoteがGitHubのみのため従来どおり未検証で、issue #128 の実機
   （`https://gitlab.com/github-mirror/x.git`）の誤判定も解消した。却下案（`glab auth status`等の
   glab由来の情報を使う3方式・`.mrworkflow.json`への`provider`キー追加）と、受け入れたトレードオフ
   （GitHub/GitLabのどちらでもないリモートにも`gitlab`を返すため、旧実装の明快なエラーが出なくなる）は
-  [0028-プロバイダ判定はremote-URLのホスト部でgithub以外をgitlabとみなす.md](../ddr/0028-プロバイダ判定はremote-URLのホスト部でgithub以外をgitlabとみなす.md)
+  [i45-01-プロバイダ判定はremote-URLのホスト部でgithub以外をgitlabとみなす.md](../ddr/i45-01-プロバイダ判定はremote-URLのホスト部でgithub以外をgitlabとみなす.md)
   参照。
 - **（issue #55）`parse_repo_slug`が返すホストの大文字小文字**: 小文字へ正規化する。ホスト抽出を
   `split_remote_url`へ共通化した際、`provider_from_remote_url`（元から小文字化していた）と
@@ -2903,7 +2903,7 @@ remoteがGitHubのみのため従来どおり未検証で、issue #128 の実機
 ### issue #68（起票前の類似・重複issueチェック）
 
 新規:
-- `.claude/docs/ddr/0033-issue起票前の重複チェックは検索をProvider層へ置きキーワード抽出はAIに委ねる.md`
+- `.claude/docs/ddr/i68-01-issue起票前の重複チェックは検索をProvider層へ置きキーワード抽出はAIに委ねる.md`
 
 更新:
 - `.claude/scripts/src/vcs/Provider.sh`（`search_issues` ディスパッチャ、`merge_issue_search_results`、
@@ -2920,11 +2920,11 @@ remoteがGitHubのみのため従来どおり未検証で、issue #128 の実機
 ### issue #97（対応工数レポートのGemini CLIセッションログ対応）
 
 新規:
-- `.claude/docs/ddr/0050-Gemini集計の差分はファイル全体の畳み込みと前回累計の差分で取る.md`
-- `.claude/docs/ddr/0051-Gemini集計はrewindToを読み飛ばしメッセージを削らない.md`
-- `.claude/docs/ddr/0052-対応工数レポートのトークン列はengineではなくデータで決める.md`
-- `.claude/docs/ddr/0053-Gemini経路のブランチ帰属は断面時点のブランチとし限界を明示する.md`
-- `.claude/docs/ddr/0054-Gemini-CLIのサブエージェントは保存のみとし集計しない.md`
+- `.claude/docs/ddr/i97-01-Gemini集計の差分はファイル全体の畳み込みと前回累計の差分で取る.md`
+- `.claude/docs/ddr/i97-02-Gemini集計はrewindToを読み飛ばしメッセージを削らない.md`
+- `.claude/docs/ddr/i97-03-対応工数レポートのトークン列はengineではなくデータで決める.md`
+- `.claude/docs/ddr/i97-04-Gemini経路のブランチ帰属は断面時点のブランチとし限界を明示する.md`
+- `.claude/docs/ddr/i97-05-Gemini-CLIのサブエージェントは保存のみとし集計しない.md`
 - `usage/state/gemini-totals/<sessionId>.json`（Gemini経路の前回累計。ブランチ非依存。
   `.gitignore` 対象の `usage/` 配下のため、リポジトリには現れない）
 
@@ -2970,7 +2970,7 @@ issue #97でレポートのフッター署名がengineごとに切り替わる�
 - `.claude/hooks/post-push-usage-report.sh`（`build_usage_report_body` のフッターで、
   `tokensByModel` にClaude Code由来の行（`thoughts` キーを持たず、全項目0でもない行）が
   1つ以上あるときだけ上記2行を出す。**engineではなくデータで判定する**点はトークン列と同じ
-  （DDR 0052）。関数のシグネチャは変えていない）
+  （DDR i97-03）。関数のシグネチャは変えていない）
 - `.claude/scripts/test/test_usage_tracking.sh`（Claude Code経路で注記が出ること、Gemini CLI単独・
   トークン0件では出ないこと、Gemini CLIからの投稿でも繰り越しでClaude Code由来の行があれば出ること、
   表から除外される全項目0の行を根拠にしないこと。81 → 90ケース）
@@ -2984,7 +2984,7 @@ issue #97でレポートのフッター署名がengineごとに切り替わる�
 - `.claude/scripts/test/test_check_base_sync.sh`（純粋関数の単体テストと、使い捨てgitリポジトリに対する
   `main` の結合テスト。`passed=55 failures=0`）
 - `.claude/docs/spec/check-base-sync.md`
-- `.claude/docs/ddr/0056-作業開始時のベースブランチ追従確認は専用スクリプトで検知しユーザー確認を挟む.md`
+- `.claude/docs/ddr/i67-01-作業開始時のベースブランチ追従確認は専用スクリプトで検知しユーザー確認を挟む.md`
 
 更新:
 - `.claude/skills/issue-mr-flow/SKILL.md`（「作業開始・再開時のベースブランチ追従確認（issue #67）」節を
@@ -3054,7 +3054,7 @@ issue #97でレポートのフッター署名がengineごとに切り替わる�
 - **（issue #57）`.gemini/settings.json` の SessionStart matcher は `startup|resume|clear` のまま**:
   `.claude/settings.json` 側には `compact` を追加したが、Gemini CLI の SessionStart matcher が
   `compact` という値を解釈するかを実機で確認できていないため、あえて揃えていない。未検証の
-  設定値を持ち込んで既存の動いている設定を壊さないという、[DDR 0018](../ddr/0018-gemini-settings.jsonのhooksはレビュー提示スニペットのhooksセクションのみ採用する.md)
+  設定値を持ち込んで既存の動いている設定を壊さないという、[DDR i3-01](../ddr/i3-01-gemini-settings.jsonのhooksはレビュー提示スニペットのhooksセクションのみ採用する.md)
   と同じ判断による。Gemini CLI 側の対応値が確認でき次第、追加を検討する。
 - **（issue #57）注入量のしきい値8000バイトは実測1件（1,222バイト）に基づく暫定値**:
   「通常運用では鳴らず、数倍に膨らめば鳴る」水準として置いたもので、他プロジェクトへ機構を
@@ -3100,7 +3100,7 @@ issue #97でレポートのフッター署名がengineごとに切り替わる�
   のみのタイトルは空文字となり `issue` にフォールバックしていた（実機確認: issue #3 で確認済み）。
   `to_slug`自体は変更せず、`start`サブコマンド実行時にAIエージェントがissueタイトルの意味を汲んだ
   英語の意訳フレーズを生成し`new_issue_branch`へ渡す方式で対応した（詳細:
-  [0010-ブランチslugの意訳生成はAIエージェントが行う.md](../ddr/0010-ブランチslugの意訳生成はAIエージェントが行う.md)）。
+  [i00-07-ブランチslugの意訳生成はAIエージェントが行う.md](../ddr/i00-07-ブランチslugの意訳生成はAIエージェントが行う.md)）。
 - **`resume` の「現在地」判定の精度**: `get_branch_work_files` は `<defaultBaseBranch>` との差分で
   plan/worklogファイルを推定するヒューリスティックであり、複数issueを1ブランチで扱う等の
   変則的な運用では正しく機能しない可能性がある。本プロジェクトの通常運用（1ブランチ1issue）を
@@ -3136,7 +3136,7 @@ issue #97でレポートのフッター署名がengineごとに切り替わる�
   を確認した。`compactMetadata`の`preTokens`/`postTokens`は「次回以降**モデルへ送る**コンテキスト」
   の圧縮量であって、ディスク上のファイルサイズの話ではない。compact境界より前に記録されたpush断面が、
   compact後の現物transcriptの先頭N行とバイト単位で一致することも確認済み。詳細は
-  [0022-push断面の全文コピーをやめ行番号インデックスで表現する.md](../ddr/0022-push断面の全文コピーをやめ行番号インデックスで表現する.md)
+  [i23-01-push断面の全文コピーをやめ行番号インデックスで表現する.md](../ddr/i23-01-push断面の全文コピーをやめ行番号インデックスで表現する.md)
   参照。
 - **Gemini CLI側のサブエージェント探索の前提が実態と合っていない可能性**（issue #3で判明、
   issue #23で`UsageTracking.sh`へ移植した際も未検証のまま引き継いだ）: Gemini CLI本体の
@@ -3154,7 +3154,7 @@ issue #97でレポートのフッター署名がengineごとに切り替わる�
     ディレクトリ構造を確認したわけではない**ため、未決定事項として残す（issue #97 でも
     実機検証はできていない。下記「Gemini CLI経路の実機検証」参照）。
   - なおGemini分のうち**サブエージェントは引き続き対応工数の集計対象ではない**ため
-    （上記「エンジン判定」節、DDR 0054）、ズレていてもレポートの数値には影響しない。
+    （上記「エンジン判定」節、DDR i97-05）、ズレていてもレポートの数値には影響しない。
     **メインセッションはissue #97で集計対象になったが、そのログの位置は
     `transcript_path` としてhookから直接渡されるため、この懸念の影響を受けない。**
 - **Gemini CLI経路の実機検証ができていない**（issue #97）: 開発機に `~/.gemini` が存在せず、
@@ -3176,7 +3176,7 @@ issue #97でレポートのフッター署名がengineごとに切り替わる�
   内部フォーマットである`transcript_path`のJSONLを自前パースしている。将来のバージョンで形式が
   変わった場合、集計が0件になる（ベストエフォート設計のため実害は対応工数が記録されなく
   なるのみ）。詳細は
-  [0006-対応工数レポートはtranscript自前パースで実装する.md](../ddr/0006-対応工数レポートはtranscript自前パースで実装する.md)
+  [i00-04-対応工数レポートはtranscript自前パースで実装する.md](../ddr/i00-04-対応工数レポートはtranscript自前パースで実装する.md)
   参照。
 - **トークン数（`tokensByModel`）は既知の過小カウント要因を持つ**（PR #29レビュー指摘、issue #28）:
   外部調査（[Claude Code JSONL logs undercount tokens](https://gille.ai/en/blog/claude-code-jsonl-logs-undercount-tokens/)）

@@ -1,12 +1,12 @@
 ---
-title: 0032. compact後もSessionStart hookで作業コンテキストを再注入する
+title: i57-01. compact後もSessionStart hookで作業コンテキストを再注入する
 type: ddr
 description: SessionStart hookのmatcherへcompactを追加し、注入対象へHANDOFF「次にやること」と作業ファイル一覧を加え、注入量がしきい値を超えたら切り詰めず警告のみを追記すると決めた
 tags: [ddr, session-start-hook, compact, context-injection]
 keywords: [compact, matcher, additionalContext, PreCompact, しきい値, 切り詰め, HANDOFF, 次にやること, 作業ファイル, fail-open]
 ---
 
-# 0032. compact後もSessionStart hookで作業コンテキストを再注入する
+# i57-01. compact後もSessionStart hookで作業コンテキストを再注入する
 
 issue #57。
 
@@ -122,7 +122,7 @@ compactを対象に加えたことで、この線引きの前提が変わる。`
 `.gemini/settings.json` の SessionStart matcher は `startup|resume|clear` のまま変更していない。
 Gemini CLI が `compact` というmatcher値を解釈するかを実機で確認できていないためで、未検証の
 設定値を持ち込んで既存の動いている設定を壊さないという
-[0018-gemini-settings.jsonのhooksはレビュー提示スニペットのhooksセクションのみ採用する.md](0018-gemini-settings.jsonのhooksはレビュー提示スニペットのhooksセクションのみ採用する.md)
+[i3-01-gemini-settings.jsonのhooksはレビュー提示スニペットのhooksセクションのみ採用する.md](i3-01-gemini-settings.jsonのhooksはレビュー提示スニペットのhooksセクションのみ採用する.md)
 と同じ判断による。`session-start.sh` 自体は `.gemini/` から `.claude/` へのローカルリンクで共有され
 ているため、注入内容の拡張・しきい値警告はGemini CLI側でもそのまま効く（起動要因が
 `startup|resume|clear` に限られる点だけが異なる）。

@@ -1,21 +1,21 @@
 ---
-title: 0057. 削除済み追跡ファイルの除外はextract-frontmatter側で行う
+title: i117-01. 削除済み追跡ファイルの除外はextract-frontmatter側で行う
 type: ddr
 description: cleanup-task.shのインデックス再生成が必ず失敗していた問題に対し、再生成の順序を動かすのではなく、git ls-filesが返す削除済みパスをextract-frontmatter.sh側でスキップする形で解いた経緯を記録したDDR
 tags: [extract-frontmatter, cleanup-task, ddr, workflow]
-keywords: [git ls-files, 削除済み, ステージ, stat, index.jsonl, cleanup-task, flow-id5-1, スキップ, 再生成, DDR0048]
+keywords: [git ls-files, 削除済み, ステージ, stat, index.jsonl, cleanup-task, flow-id5-1, スキップ, 再生成, DDR i28-01]
 ---
 
-# 0057. 削除済み追跡ファイルの除外はextract-frontmatter側で行う
+# i117-01. 削除済み追跡ファイルの除外はextract-frontmatter側で行う
 
 ## 背景
 
 issue #117。`cleanup-task.sh`（flow-id 5-1 の後片付け）は、`plans/` `worklog/` `reports/` を
 削除したあとに `extract-frontmatter.sh .` で `index.jsonl` 群を再生成する。しかしこのスクリプトは
-**コミットしない**（DDR 0048）ため、再生成の時点で削除はワーキングツリーにしか反映されていない。
+**コミットしない**（DDR i28-01）ため、再生成の時点で削除はワーキングツリーにしか反映されていない。
 
 `extract-frontmatter.sh` は対象の列挙に `git ls-files --cached --others --exclude-standard` を
-使っており（DDR 0016）、`--cached` は**削除済みだがまだステージされていない追跡ファイル**も返す。
+使っており（DDR i00-12）、`--cached` は**削除済みだがまだステージされていない追跡ファイル**も返す。
 実体の無いパスをそのまま `stat` へ渡すため、**追跡ファイルを1件でも削除した時点で必ず失敗する**。
 issue #97 の flow-id 5-1 で実際に発生した（削除14件すべてについて `stat: cannot stat`、
 `frontmatterIndex.exitCode: 1`）。
@@ -39,9 +39,9 @@ issue #97 の flow-id 5-1 で実際に発生した（削除14件すべてにつ�
   `skipped=<数>` を加える。無言でスキップすると、今度は「消えるはずのないファイルが消えた」異常を
   隠すことになる（issue #66 と同種の症状）。
 - **`cleanup-task.sh` の手順・順序は変えない。** 削除 → 再生成 → `HANDOFF.md` リセット の順、および
-  コミットしない方針（DDR 0048）はそのまま維持する。
+  コミットしない方針（DDR i28-01）はそのまま維持する。
 - **判定はbash組み込みで行い、forkを増やさない。** `[[ -f ]]` はサブシェルを起こさないため、
-  ファイル数に比例した外部プロセス起動を避ける設計（DDR 0021）を崩さない。
+  ファイル数に比例した外部プロセス起動を避ける設計（DDR i11-01）を崩さない。
 
 仕様の詳細は
 [.claude/docs/spec/extract-frontmatter.md](../spec/extract-frontmatter.md)「削除済みの追跡ファイルの扱い」節を正とする。
@@ -61,7 +61,7 @@ issue #97 の flow-id 5-1 で実際に発生した（削除14件すべてにつ�
 
 - **`git ls-files --cached` をやめ、`--others` のみ、あるいは `find` へ戻す。** 削除済みパスは
   そもそも列挙されなくなる。しかし `--others` だけでは追跡済みファイル（リポジトリ内の
-  ほとんどのmarkdown）が丸ごと対象外になり成立しない。`find` へ戻す案は、DDR 0016 が
+  ほとんどのmarkdown）が丸ごと対象外になり成立しない。`find` へ戻す案は、DDR i00-12 が
   `git ls-files` を採用した理由（`.gitignore` 対象ディレクトリの大量ファイルによるタイムアウトと
   `index.jsonl` 破損。issue #43）を再発させる。
 

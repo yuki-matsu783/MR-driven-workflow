@@ -1,12 +1,12 @@
 ---
-title: 0046. レビュー観点はディレクトリごとのREVIEW-POINTSへ外だしする
+title: i77-02. レビュー観点はディレクトリごとのREVIEW-POINTSへ外だしする
 type: ddr
 description: 敵対的レビューの観点をスキル本文へ直書きせず、各ディレクトリのREVIEW-POINTS.mdへ外だしし祖先方向へ遡って集める設計を採った経緯を記録したDDR
 tags: [adversarial-review, review-points, ddr]
 keywords: [レビュー観点, REVIEW-POINTS, 祖先, マージ, 変更単位, 二重管理, review-points, 和集合, type]
 ---
 
-# 0046. レビュー観点はディレクトリごとのREVIEW-POINTSへ外だしする
+# i77-02. レビュー観点はディレクトリごとのREVIEW-POINTSへ外だしする
 
 ## 背景
 

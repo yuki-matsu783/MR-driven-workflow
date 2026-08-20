@@ -1,12 +1,12 @@
 ---
-title: 0038. issue起票後の着手確認はブロックせず注意喚起の注入で担保する
+title: i39-01. issue起票後の着手確認はブロックせず注意喚起の注入で担保する
 type: ddr
 description: issue起票直後の自動着手を防ぐ機構として、PreToolUse hookによるブロックではなくPostToolUse hookによる注意喚起の注入を採用した理由と却下案を記録したDDR
 tags: [issue-create, hook, ddr, workflow]
 keywords: [着手確認, posttooluse, pretooluse, ブロック, 注意喚起, additionalContext, issue-create, issue-mr-flow, 多重防御]
 ---
 
-# 0038. issue起票後の着手確認はブロックせず注意喚起の注入で担保する
+# i39-01. issue起票後の着手確認はブロックせず注意喚起の注入で担保する
 
 ## 背景
 
@@ -17,14 +17,14 @@ issue取得・既存ブランチ確認まで実行した。ユーザーの中断
 止まったため実害は無かった）。
 
 **注記（issue番号の体系）**: 本DDRが参照する `issue #39` は、本リポジトリのissue #39である。
-DDR 0012（コミットはcommitスキル経由を機構的に強制する）が参照する「issue #39」は移植元
+DDR i00-09（コミットはcommitスキル経由を機構的に強制する）が参照する「issue #39」は移植元
 リポジトリの別issue（コミットSkillの利用をルール化するもの）であり、両者は別物である
 （本リポジトリのissue番号と移植元の番号は、初期のものほど一致しない）。
 
 issue #59で `issue-create` スキル側の導線（同一セッションでそのまま着手させない・新しいセッションでの
 実行を勧めるに留める）は既に整備されていたが、記載が `issue-create` スキル内に閉じており、
 `issue-mr-flow` の `start` 側・共通ルール（`AGENTS.md`）からは辿れなかった。またissueは、
-コミットの直接実行禁止（DDR 0012）と同様の機構的な強制が成立するかの検討も求めていた。
+コミットの直接実行禁止（DDR i00-09）と同様の機構的な強制が成立するかの検討も求めていた。
 
 ## 決定
 
@@ -47,9 +47,9 @@ issue #59で `issue-create` スキル側の導線（同一セッションでそ�
 
 ## 却下した案
 
-- **PreToolUse hookで `start` 相当の操作をブロックする（exit code 2）**: DDR 0012と同じ形の
+- **PreToolUse hookで `start` 相当の操作をブロックする（exit code 2）**: DDR i00-09と同じ形の
   機構的強制。次の2点が揃わないため採用しなかった。
-  - **禁止したい操作を文字列で一意に特定できない。** コミットの直接実行（DDR 0012）と違い、
+  - **禁止したい操作を文字列で一意に特定できない。** コミットの直接実行（DDR i00-09）と違い、
     `start` の実体は `new_issue_branch`（Bash）・`git checkout -b`・リモートへの反映・MCP経路の
     `mcp__github__create_pull_request` に分かれる。ブランチ作成・リモートへの反映は通常の開発操作でも
     日常的に使う汎用コマンドであり、文字列マッチでは取りこぼしと誤検知が同時に増える

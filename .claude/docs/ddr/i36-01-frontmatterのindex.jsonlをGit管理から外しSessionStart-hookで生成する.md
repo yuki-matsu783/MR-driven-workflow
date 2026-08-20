@@ -1,12 +1,12 @@
 ---
-title: 0025. frontmatterのindex.jsonlをGit管理から外しSessionStart hookで生成する
+title: i36-01. frontmatterのindex.jsonlをGit管理から外しSessionStart hookで生成する
 type: ddr
-description: index.jsonlのGit管理除外とSessionStart hookでの自動再生成方式を採用し、create-commit.sh組み込み・専用hook新設・DDR0021却下案4の再評価を検討した理由
+description: index.jsonlのGit管理除外とSessionStart hookでの自動再生成方式を採用し、create-commit.sh組み込み・専用hook新設・DDR i11-01却下案4の再評価を検討した理由
 tags: [ddr, extract-frontmatter, index-jsonl, session-start, gitignore]
 keywords: [index.jsonl, gitignore, SessionStart, create-commit, git-rm-cached, mtime, flow-id5-1, fail-open]
 ---
 
-# 0025. frontmatterのindex.jsonlをGit管理から外しSessionStart hookで生成する
+# i36-01. frontmatterのindex.jsonlをGit管理から外しSessionStart hookで生成する
 
 issue #36。仕様は [.claude/docs/spec/extract-frontmatter.md](../spec/extract-frontmatter.md) を参照。
 
@@ -68,7 +68,7 @@ commit経路のような機構的強制までは不要と判断した。
 「非侵襲的（失敗してもブロックしない）」という設計方針を持っており、同じ方針をそのまま踏襲できる
 `session-start.sh` への追記のほうが、新規hookファイルを増やすより実装・レビューコストが小さい。
 
-### 3. DDR 0021却下案4（markdownが無くなったディレクトリの `index.jsonl` をスクリプトが自動削除する）の再評価
+### 3. DDR i11-01却下案4（markdownが無くなったディレクトリの `index.jsonl` をスクリプトが自動削除する）の再評価
 
 却下を維持する。0021時点の却下理由は「`index.jsonl` がGit管理下にあるため、誤ってスコープ外まで
 削除するとGit履歴からの復旧に頼ることになり被害が大きい」という趣旨だったが、本issueでGit管理から

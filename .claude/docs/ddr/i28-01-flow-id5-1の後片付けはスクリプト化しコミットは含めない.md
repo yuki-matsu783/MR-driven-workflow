@@ -1,12 +1,12 @@
 ---
-title: 0048. flow-id 5-1の後片付けはスクリプト化しコミットは含めない
+title: i28-01. flow-id 5-1の後片付けはスクリプト化しコミットは含めない
 type: ddr
 description: flow-id 5-1（次タスクのための片付け）をcleanup-task.shへ委譲するにあたり、残すパスを明示リストで持つ・HANDOFF.mdのテンプレートをスクリプトへ埋め込む・コミットは行わない、と決めた経緯を記録したDDR
 tags: [workflow, script, cleanup, ddr]
 keywords: [cleanup-task, flow-id-5-1, HANDOFF, TEMPLATE.md, REVIEW-POINTS.md, KEEP_PATHS, dry-run, commitスキル, 却下案, DDR]
 ---
 
-# 0048. flow-id 5-1の後片付けはスクリプト化しコミットは含めない
+# i28-01. flow-id 5-1の後片付けはスクリプト化しコミットは含めない
 
 ## 背景
 
@@ -66,7 +66,7 @@ markdownが2つ並び、frontmatterの `type` をどう与えるか（`handoff` 
 ### (c) 片付けからコミットまでをスクリプトが行う
 
 flow-id 5-1 の直後は必ずコミットするため、一体にすれば手順が1つ減る。しかしこのリポジトリの
-コミットは `commit` スキル経由に限る決定（DDR 0012）があり、スキルを介さないコミットは
+コミットは `commit` スキル経由に限る決定（DDR i00-09）があり、スキルを介さないコミットは
 PreToolUse hookがブロックする。スクリプトの中でラッパー（`create-commit.sh`）を呼べば技術的には
 通るが、「どのタイミングでどの粒度のコミットを作るか」の判断を `commit` スキルから引き剥がす
 ことになる。片付けはワーキングツリーの変更まで、コミットは従来どおり `commit` スキル、と
@@ -77,7 +77,7 @@ PreToolUse hookがブロックする。スクリプトの中でラッパー（`c
 素直な `set -e` の挙動だが、**削除と `HANDOFF.md` のリセットは既に成功している**状態で終了コード
 1を返すことになり、呼び出し側からは「片付けが失敗した」と読めてしまう（実際にやり直すべきことは
 何も無い）。`index.jsonl` は `.gitignore` 対象の生成物で、SessionStart hookが毎セッション再生成
-する（DDR 0025）ため、ここでの失敗は次のセッションで自然に回復する。警告＋JSONの
+する（DDR i36-01）ため、ここでの失敗は次のセッションで自然に回復する。警告＋JSONの
 `frontmatterIndex.exitCode` で失敗を可視化したうえで、終了コードは成功のままにした。
 
 ### (e) 削除前に確認プロンプトを出す

@@ -1,14 +1,14 @@
 ---
-title: 0009. Planモードre-entry時はgit checkout復元でなくarchiveスクリプトで対処する
+title: i00-06. Planモードre-entry時はgit checkout復元でなくarchiveスクリプトで対処する
 type: ddr
 status: superseded
-superseded_by: "0019"
+superseded_by: "i9-01"
 description: 同一セッション内でPlanモードへ複数回re-entryする際の計画ファイル衝突対策を、一時上書き+git checkout復元からcp/mvによるarchiveスクリプトへ切り替えた経緯を記録したDDR
 tags: [plan-mode, claude-code, ddr]
 keywords: [exitplanmode, archive-reentrant-plan, act1, git checkout, plan-mode-safety, issue-26]
 ---
 
-# 0009. Planモードre-entry時はgit checkout復元でなくarchiveスクリプトで対処する
+# i00-06. Planモードre-entry時はgit checkout復元でなくarchiveスクリプトで対処する
 
 ## 背景
 

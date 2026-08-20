@@ -1,12 +1,12 @@
 ---
-title: 0037. リポジトリURLはgh/glabではなくgit remoteから導出する
+title: i44-01. リポジトリURLはgh/glabではなくgit remoteから導出する
 type: ddr
 description: get_repo_urlのプロバイダ依存を解消するにあたり、gh/glabの呼び出しを残す案・両者を突き合わせる案・設定ファイルへ持つ案を却下し、git remote get-url originの正規化だけで導出する方式を採用した判断を記録したDDR
 tags: [vcs-provider, url, hook, ddr]
-keywords: [get_repo_url, repo_url_from_remote_url, git remote, プロバイダ非依存, insteadOf, カスタムポート, scp形式, プロセス起動, DDR 0023]
+keywords: [get_repo_url, repo_url_from_remote_url, git remote, プロバイダ非依存, insteadOf, カスタムポート, scp形式, プロセス起動, DDR i13-01]
 ---
 
-# 0037. リポジトリURLはgh/glabではなくgit remoteから導出する
+# i44-01. リポジトリURLはgh/glabではなくgit remoteから導出する
 
 ## 背景
 
@@ -26,7 +26,7 @@ gh repo view --json url    → https://github.com/yuki-matsu783/MR-driven-workfl
 毎回CLIのプロセス起動（git bashで約95ms/回。`.claude/rules/shell-script-style.md`「外部プロセス
 起動のコスト」）とAPI往復のコストを払っていた。加えて `gh`/`glab` が存在しない実行環境
 （Claude Code on the web）ではこの経路が動かないため、issue #34では「MCP経路のときだけ
-`get_repo_slug` から組み立てる」という**経路ごとの分岐**を入れていた（DDR 0027）。同じ値を返す
+`get_repo_slug` から組み立てる」という**経路ごとの分岐**を入れていた（DDR i34-01）。同じ値を返す
 2つの実装が経路で切り替わっている状態である。
 
 なお、gitだけで解決できるプロバイダ差分は他に無いことも調査済みである（issue/MR/レビュー
@@ -43,16 +43,16 @@ Web UIの体系差でgitの管轄外、`get_mr_for_branch` は `refs/pull/*` / `
 正規化の規則と `parse_repo_slug` との整合は
 [../spec/issue-mr-workflow.md](../spec/issue-mr-workflow.md)「リポジトリURLの導出（issue #44）」節が正。
 
-### DDR 0023 との関係
+### DDR i13-01 との関係
 
-[0023-レビュー依頼メッセージの参照リンクは前回pushSHAをローカル状態で保持して組み立てる.md](0023-レビュー依頼メッセージの参照リンクは前回pushSHAをローカル状態で保持して組み立てる.md)
+[i13-01-レビュー依頼メッセージの参照リンクは前回pushSHAをローカル状態で保持して組み立てる.md](i13-01-レビュー依頼メッセージの参照リンクは前回pushSHAをローカル状態で保持して組み立てる.md)
 が却下したのは「MR/PRの**URL文字列**へ `/files` 等のsuffixを推測で付け足す」案である。これは
 「PRのURLに `/files` を足せばFiles changedタブになるはず」という**UIの構造に対する推測**であり、
 プロバイダのUI変更で壊れる。
 
 一方、remote URLからの導出は推測ではない。remote URLは「このリポジトリがどこにあるか」を表す
 一次情報であり、そこからWeb URLを得る変換は `.git` の除去とscp形式→https変換という**機械的で
-可逆な文字列操作**に閉じている。DDR 0023の判断軸（推測を避け正確性を担保する）はそのまま維持
+可逆な文字列操作**に閉じている。DDR i13-01の判断軸（推測を避け正確性を担保する）はそのまま維持
 される。当時この案が検討されていなかったのは、`gh`/`glab` が常に存在する前提だったためである。
 
 ## 却下した案
@@ -71,7 +71,7 @@ issue #34時点の実装そのもの。**却下理由**: 同じ値を返す実�
 
 ### 3. リポジトリURLを `.mrworkflow.json` に設定値として持つ
 
-**却下理由**: DDR 0028で `provider` キーの追加を却下したのと同じ理由。remoteから機械的に導出できる
+**却下理由**: DDR i45-01で `provider` キーの追加を却下したのと同じ理由。remoteから機械的に導出できる
 値を人手の設定に落とすと、fork・リポジトリ移設のたびに更新が必要な二重管理になり、更新漏れが
 「間違ったリポジトリへのリンク」という気づきにくい形で表面化する。
 

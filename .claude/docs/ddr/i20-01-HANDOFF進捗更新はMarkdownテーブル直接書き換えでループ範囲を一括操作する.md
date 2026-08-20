@@ -1,12 +1,12 @@
 ---
-title: 0024. HANDOFF進捗更新はMarkdownテーブル直接書き換えでループ範囲を一括操作する
+title: i20-01. HANDOFF進捗更新はMarkdownテーブル直接書き換えでループ範囲を一括操作する
 type: ddr
 description: update-handoff-progress.shの実装方式として、構造化データへの状態移行を却下しHANDOFF.mdのMarkdownテーブルを直接書き換える方式を採用し、ループ範囲は常に一括操作する制約を採用した理由
 tags: [ddr, update-handoff-progress, handoff]
 keywords: [update-handoff-progress, HANDOFF, ループ範囲, Markdownテーブル, 構造化データ, mark-skip, mark-done]
 ---
 
-# 0024. HANDOFF進捗更新はMarkdownテーブル直接書き換えでループ範囲を一括操作する
+# i20-01. HANDOFF進捗更新はMarkdownテーブル直接書き換えでループ範囲を一括操作する
 
 issue #20。仕様は
 [.claude/docs/spec/update-handoff-progress.md](../spec/update-handoff-progress.md) を参照。

@@ -1,12 +1,12 @@
 ---
-title: 0049. ドキュメント探索はfrontmatterインデックス検索を第一手段にする
+title: i38-01. ドキュメント探索はfrontmatterインデックス検索を第一手段にする
 type: ddr
 description: リポジトリ内のドキュメントを探す際、grep/findによる全文探索より先にindex.jsonlの横断検索を使う方針と、その入口をスクリプト＋スキルの2層で用意する判断
 tags: [doc-search, frontmatter, search, ddr]
 keywords: [index.jsonl, 横断検索, grep, 全文探索, search-frontmatter, doc-search, スキル, AGENTS.md, タグAND, jqレシピ]
 ---
 
-# 0049. ドキュメント探索はfrontmatterインデックス検索を第一手段にする
+# i38-01. ドキュメント探索はfrontmatterインデックス検索を第一手段にする
 
 ## 背景
 
@@ -43,7 +43,7 @@ Claude Codeがスキル選択に使う実キーである。`.claude/rules/markdo
   リンクや変更履歴中の言及も同じ重みで混ざる。frontmatterは1レコードで種別・要約・タグを
   持つため、話題ベースの問いにはこちらが直接答えられる。
 - **既にインデックスは存在し、鮮度も担保されている。** SessionStart hookがセッション開始の
-  たびに再生成し（DDR 0025）、検索スクリプト自身も実行のたびに最新化する。新たに維持コストを
+  たびに再生成し（DDR i36-01）、検索スクリプト自身も実行のたびに最新化する。新たに維持コストを
   払う必要が無い。
 - **「先にインデックス、外れたらgrep」は失敗しても安いフォールバックである。** インデックス
   検索は数百ms程度で、0件だった場合に `grep` へ落ちても損失は小さい。逆順（常にgrep）は、
@@ -83,7 +83,7 @@ Claude Codeがスキル選択に使う実キーである。`.claude/rules/markdo
 
 **却下理由**: issueの目的は「ドキュメントを探す」ことであり、本文検索は既に `grep` / `rg` が
 十分に担っている。本文を含めるとインデックスがリポジトリ全体の複製に近い大きさになり、
-`extract-frontmatter.sh` のmtimeキャッシュによる高速化（DDR 0021）の前提も崩れる。
+`extract-frontmatter.sh` のmtimeキャッシュによる高速化（DDR i11-01）の前提も崩れる。
 **役割を「ドキュメント単位の属性検索」に限定し、本文検索はgrepへ委ねる**という分担を明示した。
 
 ## 影響

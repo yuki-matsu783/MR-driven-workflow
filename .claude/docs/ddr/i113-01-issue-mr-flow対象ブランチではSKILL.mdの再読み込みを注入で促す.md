@@ -1,12 +1,12 @@
 ---
-title: 0059. issue-mr-flow対象ブランチではSKILL.mdの再読み込みを注入で促す
+title: i113-01. issue-mr-flow対象ブランチではSKILL.mdの再読み込みを注入で促す
 type: ddr
 description: SessionStart hookの注入テキスト末尾へ「issue-mr-flow SKILL.mdを読み直すこと」の指示を足し、対象判定はブランチ名のissue命名規則一致とブランチ固有作業ファイルの有無の2材料で行うと決めた
 tags: [ddr, session-start-hook, compact, issue-mr-flow]
 keywords: [compact, SKILL.md, 再読み込み, additionalContext, 対象ブランチ判定, 命名規則, 作業ファイル, fail-open, 注入量, しきい値]
 ---
 
-# 0059. issue-mr-flow対象ブランチではSKILL.mdの再読み込みを注入で促す
+# i113-01. issue-mr-flow対象ブランチではSKILL.mdの再読み込みを注入で促す
 
 issue #113。
 
@@ -17,14 +17,14 @@ issue #113。
 この手順理解を要約で失ったまま作業を続け、レビュー往復・`commit` スキル経由の強制・
 `HANDOFF.md` の進捗更新といったフローの手順を踏み外す事故が起こりうる。
 
-DDR 0032 で SessionStart hook の matcher へ `compact` を加え、`HANDOFF.md` の「次にやること」節・
+DDR i57-01 で SessionStart hook の matcher へ `compact` を加え、`HANDOFF.md` の「次にやること」節・
 ブランチ固有の作業ファイル一覧・issue/PR情報を再注入するようにした。しかしこれらは
 **「現在地」の再注入**であって、**「手順そのもの」を読み直させる指示ではない**。現在地だけが
 戻っても、手順を要約で失っていれば同じ事故が起きる。
 
 しかも、この失敗はエージェント側から見えない。SKILL.mdを読んだ事実は会話履歴に残っているため、
 要約後のエージェントは「もう読んだ」と認識したまま、細部を失った理解で作業を進める
-（DDR 0032が注入量の切り詰めを却下した理由と同じ失敗モードである）。
+（DDR i57-01が注入量の切り詰めを却下した理由と同じ失敗モードである）。
 
 ## 決定
 
@@ -41,7 +41,7 @@ DDR 0032 で SessionStart hook の matcher へ `compact` を加え、`HANDOFF.md
 **末尾に置く**のは、この指示が「読んだあと何をするか」ではなく「作業を再開する**前に**すること」
 であり、注入テキストの最後にあるほうがcompact直後のエージェントの目に留まりやすいためである。
 
-**この追加は起動要因（startup/resume/clear/compact）で分岐させない。** DDR 0032 が
+**この追加は起動要因（startup/resume/clear/compact）で分岐させない。** DDR i57-01 が
 「起動要因ごとに注入内容を変えると、検証すべき組み合わせが増える」として全要因で同じ内容を
 注入すると決めたのに従う。`compact` 以外の要因でも、SKILL.mdを読み直させて困ることは無い。
 
@@ -69,7 +69,7 @@ DDR 0032 で SessionStart hook の matcher へ `compact` を加え、`HANDOFF.md
 エージェント・人間のどちらから見ても原因が一目で分かるようにするため。両方の材料が成り立つ
 場合は両方を並べる。
 
-### 4. DDR 0032 の設計方針と矛盾させない
+### 4. DDR i57-01 の設計方針と矛盾させない
 
 - **切り詰めない**: 指示文の長さは有界で、入力サイズに依存しない（実測603バイト。判定根拠が
   2件そろう場合でも690バイト）。しきい値 `CONTEXT_SIZE_WARN_BYTES`（既定8000バイト）に対して
@@ -83,7 +83,7 @@ DDR 0032 で SessionStart hook の matcher へ `compact` を加え、`HANDOFF.md
 ## 却下した案
 
 - **SKILL.mdの中身（または要約）を注入する**。読み直させる確実さでは上回るが、1,100行を毎回
-  支払うことになり、DDR 0032 が `HANDOFF.md` 全文の注入を却下したのと同じ理由で過大である。
+  支払うことになり、DDR i57-01 が `HANDOFF.md` 全文の注入を却下したのと同じ理由で過大である。
   さらに要約を注入する場合は「注入用の要約」を本体と二重管理することになり、両者がずれたときに
   **誤った手順を正史として注入する**という、何もしないより悪い状態を作る。
 - **ブランチによらず常に注入する（判定を持たない）**。実装は最も単純だが、issue-mr-flowに
@@ -93,10 +93,10 @@ DDR 0032 で SessionStart hook の matcher へ `compact` を加え、`HANDOFF.md
   ブランチ名・作業ファイルより直接的だが、`HANDOFF.md` はリセット直後（flow-id 5-3 の直後）や
   ブランチ作成直後には空であり、**フローの最初と最後で取りこぼす**。また表の書式の変更に判定が
   引きずられる。上記2の2材料はどちらも書式に依存しない。
-- **`compact` のときだけ注入する**。動機（compactでの手順喪失）には最も忠実だが、DDR 0032 の
+- **`compact` のときだけ注入する**。動機（compactでの手順喪失）には最も忠実だが、DDR i57-01 の
   「起動要因ごとに内容を分岐させない」方針に反する。分岐させても節約できるのは他要因での
   約600バイトに過ぎない。
-- **`PreCompact` hookで手順を残す**。DDR 0032 で確認済みのとおり `additionalContext` を
+- **`PreCompact` hookで手順を残す**。DDR i57-01 で確認済みのとおり `additionalContext` を
   サポートせず、標準出力もコンテキストへ注入されないため、この用途には使えない。
 - **`AGENTS.md`／`CLAUDE.md` に「compact後はSKILL.mdを読み直す」と書くだけにする**。これらは
   セッション開始時に読み込まれるが、**compactの要約対象に入る**ため、失われうる点はSKILL.md

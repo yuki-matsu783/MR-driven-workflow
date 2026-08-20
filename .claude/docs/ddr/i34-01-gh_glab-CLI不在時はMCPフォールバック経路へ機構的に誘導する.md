@@ -1,12 +1,12 @@
 ---
-title: 0027. gh/glab CLI不在時はMCPフォールバック経路へ機構的に誘導する
+title: i34-01. gh/glab CLI不在時はMCPフォールバック経路へ機構的に誘導する
 type: ddr
 description: gh/glab CLIが無い実行環境で、経路判定関数とProvider関数のガードによりMCPツールでの代替へ機構的に誘導する方式を採用し、GitLabを対象外とした経緯を記録したDDR
 tags: [mcp, provider, fallback, ddr]
-keywords: [get_vcs_access_mode, require_vcs_cli, mcp__github, Claude Code on the web, gh, glab, DDR0020, issue-34]
+keywords: [get_vcs_access_mode, require_vcs_cli, mcp__github, Claude Code on the web, gh, glab, DDR i14-01, issue-34]
 ---
 
-# 0027. gh/glab CLI不在時はMCPフォールバック経路へ機構的に誘導する
+# i34-01. gh/glab CLI不在時はMCPフォールバック経路へ機構的に誘導する
 
 ## 背景
 
@@ -43,13 +43,13 @@ issue #34「gh/glab CLIが無い環境向けのMCPフォールバック経路を
    サーバーの利用実績が無く、ツール名・引数を実機検証できないため対象外とする。判定と失敗
    メッセージの枠組みだけ共通化し、`mcp_tool_hint` はGitLabに対して「対象外」である旨を返す。
    将来実機検証できた時点でSKILL.mdへ同形式の表を追加すればよい。
-   - **issue #48（DDR 0026）でGitLab CE 18.5.4を用いた実機検証が行われたが、これは `glab` CLI
+   - **issue #48（DDR i48-01）でGitLab CE 18.5.4を用いた実機検証が行われたが、これは `glab` CLI
      経路の検証であり、GitLab MCPサーバーの検証ではない。** 本DDRの「対象外」判断が対象と
      しているのは後者であり、issue #48の成果によって覆るものではない（`glab` があるGitLab環境は
      従来どおりCLI経路で動作する）。
 
-DDR 0020（GitHub/GitLab情報取得は`gh`/`glab` CLIを使い、WebFetch/curlは使わない）とは矛盾しない。
-DDR 0020が禁じているのは**HTMLスクレイピング・未認証アクセスという情報取得手段**であり、MCP
+DDR i14-01（GitHub/GitLab情報取得は`gh`/`glab` CLIを使い、WebFetch/curlは使わない）とは矛盾しない。
+DDR i14-01が禁じているのは**HTMLスクレイピング・未認証アクセスという情報取得手段**であり、MCP
 サーバーツールは認証済み・構造化JSONという点で `gh`/`glab` と同じ性質を持つ。本DDRは
 「CLIが使えない場合の代替は**MCPのみ**であり、WebFetch・curlへは引き続きフォールバックしない」
 ことを、実装（`require_vcs_cli` のメッセージ）とドキュメントの両方で明示する。
@@ -59,13 +59,13 @@ DDR 0020が禁じているのは**HTMLスクレイピング・未認証アクセ
 - **ドキュメントに対応表を書くだけで、スクリプトは変更しない**: issue #34の受け入れ条件は
   ドキュメントだけでも形式上は満たせる。しかし、既にAGENTS.mdに「MCPで代替してよい」と
   書かれていたにもかかわらず即興判断が発生した実績があり、**「読まれなければ機能しない」対策は
-  同じ失敗を繰り返す**と判断した。DDR 0012（コミットは`commit`スキル経由を機構的に強制する）と
+  同じ失敗を繰り返す**と判断した。DDR i00-09（コミットは`commit`スキル経由を機構的に強制する）と
   同じ考え方で、実行時に必ず目に入る失敗メッセージへ誘導を組み込む方式を採用した。
 - **`Provider.sh` 自体がMCPを呼ぶ（CLIとMCPを完全に透過化する）**: 呼び出し側を一切変えずに
   済むのが理想だが、MCPツールはAIエージェントのツール呼び出しとしてのみ発火し、bashスクリプトの
   プロセスからは呼べない。実現するにはMCPサーバーへHTTP/JSON-RPCで直接アクセスする独自
   クライアントが必要になり、認証情報の取り回しを含めて本issueの範囲を大きく超える（かつ、
-  それはDDR 0020が避けたかった「独自の生API呼び出し」に近づく）。よって却下した。
+  それはDDR i14-01が避けたかった「独自の生API呼び出し」に近づく）。よって却下した。
 - **CLI不在時にhookも含めて完全に無効化する（何も出力しない）**: 実装は最も単純だが、
   `post-push-compact-prompt.sh` のレビュー依頼メッセージのように、CLIが無くても大部分が
   成立する機能まで失われる。`get_repo_url` のローカルフォールバックによって成立する範囲は

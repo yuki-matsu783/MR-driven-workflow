@@ -1,12 +1,12 @@
 ---
-title: 0033. issue起票前の重複チェックは検索をProvider層へ置きキーワード抽出はAIに委ねる
+title: i68-01. issue起票前の重複チェックは検索をProvider層へ置きキーワード抽出はAIに委ねる
 type: ddr
 description: issue起票前の類似issueチェックを実装するにあたり、bashでのキーワード抽出・AND検索1回・自動中止の各案を却下し、検索と正規化のみをProvider.shへ置いてキーワード抽出と最終判断を人間側（AI・ユーザー）に残した判断を記録したDDR
 tags: [issue-create, vcs-provider, ddr, duplicate-check]
 keywords: [search_issues, キーワード抽出, 形態素解析, ロケール依存, AND検索, closed, 再現率, 最終判断は人間]
 ---
 
-# 0033. issue起票前の重複チェックは検索をProvider層へ置きキーワード抽出はAIに委ねる
+# i68-01. issue起票前の重複チェックは検索をProvider層へ置きキーワード抽出はAIに委ねる
 
 ## 背景
 
@@ -90,7 +90,7 @@ AIは候補を提示するに留め、重複と断定して起票を中止しな
 
 ## MCP経路との差
 
-`gh`/`glab` CLIが無い環境（Claude Code on the webのリモート実行環境。DDR 0027）では
+`gh`/`glab` CLIが無い環境（Claude Code on the webのリモート実行環境。DDR i34-01）では
 `mcp__github__search_issues` へ読み替える。このMCPツールは**自然言語のセマンティック検索**で、
 既に `is:issue` にスコープされているため、CLI経路のようにキーワードごとに呼び分ける必要が無く、
 1回の `query` に複数キーワードを平文で並べればよい。対応表は

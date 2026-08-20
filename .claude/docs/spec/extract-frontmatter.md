@@ -79,7 +79,7 @@ bash .claude/scripts/src/extract-frontmatter.sh [--force] <directory>
 - `yq`が無い、または変換に失敗した場合は、本リポジトリのfrontmatterスキーマ
   （単純なスカラー値・フロー配列`[a, b, c]`・ブロック配列`- item`のみ）に絞った自前の軽量パーサーへ
   フォールバックする。`yq`を新規の必須外部依存にはしない（経緯:
-  [0021-frontmatter抽出は1ファイル1回のjq呼び出しとmtimeキャッシュで高速化する.md](../ddr/0021-frontmatter抽出は1ファイル1回のjq呼び出しとmtimeキャッシュで高速化する.md)
+  [i11-01-frontmatter抽出は1ファイル1回のjq呼び出しとmtimeキャッシュで高速化する.md](../ddr/i11-01-frontmatter抽出は1ファイル1回のjq呼び出しとmtimeキャッシュで高速化する.md)
   の却下案1）。
 
 自前パーサーは、解析結果をいったん**中間表現**（`種別 キー 値`の3要素を1組とするシェル配列
@@ -195,7 +195,7 @@ gitリポジトリ内での実行を前提とする（`resolve_repo_root`が`git
 この状態は異常系ではなく**正常系として必ず発生する**。`cleanup-task.sh`（flow-id 5-3）は
 `plans/` `worklog/` `reports/` を削除したあと**コミットせずに**本スクリプトを呼ぶ設計であり
 （コミットは`commit`スキル経由に限るため。
-[.claude/docs/ddr/0048-flow-id5-1の後片付けはスクリプト化しコミットは含めない.md](../ddr/0048-flow-id5-1の後片付けはスクリプト化しコミットは含めない.md)）、対策前は**追跡ファイルを
+[.claude/docs/ddr/i28-01-flow-id5-1の後片付けはスクリプト化しコミットは含めない.md](../ddr/i28-01-flow-id5-1の後片付けはスクリプト化しコミットは含めない.md)）、対策前は**追跡ファイルを
 1件でも削除した時点で必ず失敗していた**。
 
 対策前の失敗の影響は、警告1つでは済まなかった。`stat`の一括取得（`xargs -0 stat`）が失敗すると
@@ -233,7 +233,7 @@ jqの出力を直接ファイルへ書き出す箇所は`tr -d '\r'`でLF改行�
   `git ls-files --cached --others --exclude-standard`ベースへ置き換えた。issue #43で判明していた
   「`参考ディレクトリ/`（`.gitignore`対象）配下の大量ファイルによるタイムアウト・`index.jsonl`
   破損」を根本解消した（詳細: 上記「走査方式」節）。
-- 新規: `.claude/scripts/docs/ddr/0016-frontmatterスクリプトの走査方式にgit-ls-filesを採用する.md`
+- 新規: `.claude/scripts/docs/ddr/i00-12-frontmatterスクリプトの走査方式にgit-ls-filesを採用する.md`
 
 変更（issue #11 リポジトリルート一括実行の高速化と中断耐性）:
 - `.claude/scripts/src/extract-frontmatter.sh`を改修した。jq呼び出しを1ファイル1回へ集約し、
@@ -243,7 +243,7 @@ jqの出力を直接ファイルへ書き出す箇所は`tr -d '\r'`でLF改行�
   frontmatterの解析ロジック（行の正規表現・値の分類・`yq`優先パス）と出力フォーマットは変更していない。
 - 新規: `tests/test_extract_frontmatter.sh`（`tests/`ディレクトリ自体がこのリポジトリに
   存在しなかったため新規作成し、上記「影響範囲」の記述と実体を一致させた）。`passed=17 failures=0`。
-- 新規: `.claude/docs/ddr/0021-frontmatter抽出は1ファイル1回のjq呼び出しとmtimeキャッシュで高速化する.md`
+- 新規: `.claude/docs/ddr/i11-01-frontmatter抽出は1ファイル1回のjq呼び出しとmtimeキャッシュで高速化する.md`
 - 追記: `.claude/rules/shell-script-style.md`「外部プロセス起動のコスト」節、
   `.claude/rules/markdown-frontmatter.md`の再生成手順、
   `.claude/skills/issue-mr-flow/SKILL.md`のflow-id 5-1、`.claude/rules/docs-workflow.md`の`plans/`行。
@@ -258,7 +258,7 @@ jqの出力を直接ファイルへ書き出す箇所は`tr -d '\r'`でLF改行�
   たびに本スクリプトを非侵襲的（fail-open）に実行する自動再生成の仕組みを導入した。
 - `.claude/skills/issue-mr-flow/SKILL.md`のflow-id 5-1にあった「`plans/index.jsonl`を個別削除し
   `index.jsonl`群を再生成する」特殊対応、および`.claude/rules/docs-workflow.md`の該当記述を除去した。
-- 新規: `.claude/docs/ddr/0025-frontmatterのindex.jsonlをGit管理から外しSessionStart-hookで生成する.md`
+- 新規: `.claude/docs/ddr/i36-01-frontmatterのindex.jsonlをGit管理から外しSessionStart-hookで生成する.md`
 
 変更（issue #69 ハイフン始まりのfrontmatter要素でjqに失敗しindex.jsonlから欠落する）:
 - `.claude/scripts/src/extract-frontmatter.sh`の`run_fm_jq`で、jqフィルタの直後に`--`を置き、
@@ -289,7 +289,7 @@ jqの出力を直接ファイルへ書き出す箇所は`tr -d '\r'`でLF改行�
 - `.claude/scripts/test/test_cleanup_task.sh`へ、`cleanup-task.sh`の`main`を同じく使い捨ての
   gitリポジトリで実行する結合テストを追加した（`frontmatterIndex.exitCode`が0になること、
   `--dry-run` / `--skip-index`の挙動が変わらないこと）。`passed=53 failures=0`。
-- 新規: `.claude/docs/ddr/0057-削除済み追跡ファイルの除外はextract-frontmatter側で行う.md`
+- 新規: `.claude/docs/ddr/i117-01-削除済み追跡ファイルの除外はextract-frontmatter側で行う.md`
 
 ## 設定項目
 
@@ -300,7 +300,7 @@ jqの出力を直接ファイルへ書き出す箇所は`tr -d '\r'`でLF改行�
 - **（解消）生成物の自動再生成は未導入**: issue #36で解消済み。`index.jsonl`は`.gitignore`対象化
   しGit管理から外し、`.claude/hooks/session-start.sh`（SessionStart hook）がセッション開始の
   たびに`extract-frontmatter.sh`を非侵襲的（fail-open）に再生成する（詳細:
-  [0025-frontmatterのindex.jsonlをGit管理から外しSessionStart-hookで生成する.md](../ddr/0025-frontmatterのindex.jsonlをGit管理から外しSessionStart-hookで生成する.md)）。
+  [i36-01-frontmatterのindex.jsonlをGit管理から外しSessionStart-hookで生成する.md](../ddr/i36-01-frontmatterのindex.jsonlをGit管理から外しSessionStart-hookで生成する.md)）。
   Git管理下でなくなったため「手動再生成の流し忘れによる追加コミット」という問題自体が構造的に
   発生しなくなっている。
 - **`yq`の動作検証は未実施**: 開発機に`yq`がインストールされていないため、`yq`優先パスの実機動作

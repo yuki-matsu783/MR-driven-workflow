@@ -1,12 +1,12 @@
 ---
-title: "0018. .gemini/settings.jsonへのhooks追加は、レビューで提示されたスニペットのhooksセクションのみ採用する"
+title: "i3-01. .gemini/settings.jsonへのhooks追加は、レビューで提示されたスニペットのhooksセクションのみ採用する"
 type: ddr
 description: post-push-save-logs.shのGemini CLI対応（issue #3）でのPRレビューコメントに含まれていた.gemini/settings.jsonのフルスニペットのうち、既存のgeneral.plan.directoryと衝突しうるpermissions/plansDirectory部分を採用せず、hooksセクションのみをマージした経緯を記録したDDR
 tags: [gemini, settings, hooks, ddr]
 keywords: [general.plan.directory, permissions, plansDirectory, レビュー提示スニペット, issue-3]
 ---
 
-# 0018. .gemini/settings.jsonへのhooks追加は、レビューで提示されたスニペットのhooksセクションのみ採用する
+# i3-01. .gemini/settings.jsonへのhooks追加は、レビューで提示されたスニペットのhooksセクションのみ採用する
 
 ## 背景
 

@@ -1,12 +1,12 @@
 ---
-title: 0042. plans配下のfrontmatter typeはguideではなくplanを新設する
+title: i95-01. plans配下のfrontmatter typeはguideではなくplanを新設する
 type: ddr
 description: plans/*.mdのfrontmatter typeに、既存のguideを流用せず専用の値planを新設して一意に定める決定
 tags: [markdown-frontmatter, docs-workflow, plans, type]
 keywords: [plans, type, plan, guide, frontmatter, ライフサイクル, index.jsonl, 全体作業計画, 個別計画, 規約]
 ---
 
-# 0042. `plans/` 配下のfrontmatter `type` は `guide` ではなく `plan` を新設する
+# i95-01. `plans/` 配下のfrontmatter `type` は `guide` ではなく `plan` を新設する
 
 ## 背景
 
@@ -56,7 +56,7 @@ issue #95。`.claude/rules/markdown-frontmatter.md` の「typeの値」表に `p
 
 寿命が同じであることを重視し、worklogと同じ `log` にまとめる案。**却下**。両者は読む目的が
 異なる。計画は**合意のスナップショット**（何をするかを事前に確定させたもの）であり、worklogは
-**試行錯誤の過程**のログである。issue #87（DDR 0040）で「計画」と「実施結果」を別ファイルへ
+**試行錯誤の過程**のログである。issue #87（DDR i87-01）で「計画」と「実施結果」を別ファイルへ
 分離したばかりであり、その直後に計画とログを同じ `type` へ畳むのは方向が逆になる。
 
 ### 案C: 全体作業計画と個別計画で値を分ける（例: `plan` と `subplan`）

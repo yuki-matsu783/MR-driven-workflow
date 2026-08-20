@@ -1,12 +1,12 @@
 ---
-title: 0012. コミットはcommitスキル経由を機構的に強制する
+title: i00-09. コミットはcommitスキル経由を機構的に強制する
 type: ddr
 description: すべてのコミットをcommitスキル経由で行わせるため、ドキュメント記載に加えラッパースクリプトとPreToolUse hookによる技術的な強制を導入した経緯を記録したDDR
 tags: [commit-skill, git-workflow, hook, ddr]
 keywords: [commit, コミット, pretooluse, permissions.deny, create-commit, ラッパースクリプト, issue-39]
 ---
 
-# 0012. コミットはcommitスキル経由を機構的に強制する
+# i00-09. コミットはcommitスキル経由を機構的に強制する
 
 ## 背景
 
@@ -49,7 +49,7 @@ AIエージェントの遵守にすべて依存しており、機構的な強制
   （意図的な文字列分割等）への対策も行わない。エージェントの既定動作を確実な方向へ倒すための
   仕組みであり、敵対的な安全境界を目的としたものではないため、許容することとした。
 
-`Provider.sh`内の`add_empty_commit_for_draft_mr`（DDR 0005: Draft MR作成失敗時の空コミット
+`Provider.sh`内の`add_empty_commit_for_draft_mr`（DDR i00-03: Draft MR作成失敗時の空コミット
 自動リトライ）は、関数内部から`git commit`を呼ぶだけであり、Bash/PowerShellツールへの
 呼び出し文字列そのものに`git commit`という文字列が現れないため、このhookの影響を受けない。
 

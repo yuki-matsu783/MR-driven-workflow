@@ -1,12 +1,12 @@
 ---
-title: 0010. ブランチslugの意訳生成はAIエージェントが行い、Provider.shは翻訳APIを持たない
+title: i00-07. ブランチslugの意訳生成はAIエージェントが行い、Provider.shは翻訳APIを持たない
 type: ddr
 description: 日本語issueタイトルからのブランチslug生成をAIエージェントの意訳に委ね、Provider.shはサニタイズ専任のまま維持した経緯を記録したDDR
 tags: [slug, branch-naming, ddr]
 keywords: [to_slug, new_issue_branch, 意訳, 翻訳api, ローマ字変換, 非決定性, issue-22]
 ---
 
-# 0010. ブランチslugの意訳生成はAIエージェントが行い、Provider.shは翻訳APIを持たない
+# i00-07. ブランチslugの意訳生成はAIエージェントが行い、Provider.shは翻訳APIを持たない
 
 ## 背景
 

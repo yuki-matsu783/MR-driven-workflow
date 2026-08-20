@@ -1,12 +1,12 @@
 ---
-title: 0011. issue作成は独立スキルとして新設し、issue-mr-flowのサブコマンドにはしない
+title: i00-08. issue作成は独立スキルとして新設し、issue-mr-flowのサブコマンドにはしない
 type: ddr
 description: AIエージェントによるissue起票代行の実装方式として、issue-mr-flowへのサブコマンド追加ではなく独立スキル（issue-create）を新設した経緯を記録したDDR
 tags: [issue-create, skill, ddr]
 keywords: [issue-mr-flow, サブコマンド, 独立スキル, create-issue.sh, issue-25]
 ---
 
-# 0011. issue作成は独立スキルとして新設し、issue-mr-flowのサブコマンドにはしない
+# i00-08. issue作成は独立スキルとして新設し、issue-mr-flowのサブコマンドにはしない
 
 ## 背景
 

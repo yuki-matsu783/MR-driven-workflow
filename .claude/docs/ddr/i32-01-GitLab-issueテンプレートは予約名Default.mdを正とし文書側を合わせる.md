@@ -1,12 +1,12 @@
 ---
-title: 0036. GitLab issueテンプレートは予約名Default.mdを正とし文書側を合わせる
+title: i32-01. GitLab issueテンプレートは予約名Default.mdを正とし文書側を合わせる
 type: ddr
 description: 実体Default.mdと文書上のtask.mdの不整合を、実体の改名ではなく文書側の統一で解消すると決めた記録
 tags: [ddr, gitlab, issue-template, docs]
 keywords: [Default.md, task.md, 予約名, description-templates, issueテンプレート, 自動適用, リンク切れ, 未同梱DDR]
 ---
 
-# 0036. GitLab issueテンプレートは予約名`Default.md`を正とし文書側を合わせる
+# i32-01. GitLab issueテンプレートは予約名`Default.md`を正とし文書側を合わせる
 
 issue #32。
 

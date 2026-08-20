@@ -1,17 +1,17 @@
 ---
-title: 0030. create-commitは削除ステージ済みパスをgit addの失敗時分類で吸収する
+title: i60-01. create-commitは削除ステージ済みパスをgit addの失敗時分類で吸収する
 type: ddr
 description: issue本文が提案した-Aへの書き換えを実測に基づいて却下し、git addを先に試して失敗時だけADD/SKIP/UNKNOWNに分類する方式を採用した判断を記録したDDR
 tags: [create-commit, commit-skill, git, ddr]
 keywords: [git add -A, pathspec, 削除ステージ済み, SKIP, UNKNOWN, 機能後退, ディレクトリ指定, flow-id 5-1]
 ---
 
-# 0030. create-commitは削除ステージ済みパスをgit addの失敗時分類で吸収する
+# i60-01. create-commitは削除ステージ済みパスをgit addの失敗時分類で吸収する
 
 ## 背景
 
 `.claude/scripts/src/create-commit.sh` は `commit` スキル専用のコミット実行ラッパーであり、
-このリポジトリで**唯一の正規コミット経路**である（DDR 0012）。issue #60は「削除済みファイルを
+このリポジトリで**唯一の正規コミット経路**である（DDR i00-09）。issue #60は「削除済みファイルを
 引数に取れない」として、次の書き換えを提案していた。
 
 ```bash

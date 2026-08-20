@@ -1,12 +1,12 @@
 ---
-title: "0017. .gemini/配下のリンク（docs/hooks/rules/scripts/skills）はGit管理下に置かず、セットアップスクリプトでローカル生成する"
+title: "i00-13. .gemini/配下のリンク（docs/hooks/rules/scripts/skills）はGit管理下に置かず、セットアップスクリプトでローカル生成する"
 type: ddr
 description: .gemini/配下を.claude/へのシンボリックリンクとして設計した際、Windows環境でNTFSジャンクションへフォールバックした結果Gitがリンクとして認識できず中身を複製してしまうことが判明し、Git管理下から外してセットアップスクリプトで生成する方式へ変更した経緯を記録したDDR
 tags: [gemini, symlink, junction, git, ddr]
 keywords: [ntfsジャンクション, シンボリックリンク, 開発者モード, git-status, 複製, セットアップスクリプト]
 ---
 
-# 0017. .gemini/配下のリンク（docs/hooks/rules/scripts/skills）はGit管理下に置かず、セットアップスクリプトでローカル生成する
+# i00-13. .gemini/配下のリンク（docs/hooks/rules/scripts/skills）はGit管理下に置かず、セットアップスクリプトでローカル生成する
 
 ## 背景
 
