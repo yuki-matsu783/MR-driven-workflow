@@ -179,7 +179,8 @@ gdl_die() {
 #
 # **awkの起動は全体で1回だけ**にする（`.claude/rules/shell-script-style.md`「外部プロセス起動の
 # コスト」。1ファイル1回の起動にすると、ファイル数に比例して所要時間が伸びる）。
-# 出力は1ファイル1行の、**US（0x1f）区切り**: <ファイル名>\x1f<status>\x1f<superseded_by>\x1f<note>
+# 出力は1ファイル1行の、**US（0x1f）区切り**:
+#   <ファイル名>\x1f<status>\x1f<superseded_by>\x1f<note>\x1f<frontmatterがあれば1>
 #
 # タブ区切りにしないのは、bashの `read` がタブを**IFS空白文字**として扱い、連続する区切りを
 # 1つへ畳んでしまうためである（実機確認: `printf 'A\t\t\tD' | IFS=$'\t' read -r a b c d` は
@@ -187,17 +188,23 @@ gdl_die() {
 # DDR（＝大多数）で note が status の位置へ入り込む、という形で表面化した。
 # 0x1f はIFS空白文字ではないため、連続しても空フィールドがそのまま保たれる。
 gdl_read_frontmatter() {
-  awk '
+  local bom
+  bom="$(printf '\357\273\277')"
+  # シングルクォートはawkプログラム（シングルクォートで囲む）の中へ直接書けないため変数で渡す。
+  awk -v bom="$bom" -v sq="'" '
     { sub(/\r$/, "") }
     function emit() {
-      if (name != "") printf "%s\037%s\037%s\037%s\n", name, status, superseded_by, note
+      if (name != "") printf "%s\037%s\037%s\037%s\037%s\n", name, status, superseded_by, note, has_fm
     }
     FNR == 1 {
       emit()
       name = FILENAME
       sub(/.*\//, "", name)
-      status = ""; superseded_by = ""; note = ""; in_fm = 0; closed = 0
-      if ($0 == "---") in_fm = 1
+      status = ""; superseded_by = ""; note = ""; in_fm = 0; closed = 0; has_fm = 0
+      # UTF-8 BOM を落としてから判定する。落とさないと1行目が "---" と一致せず、
+      # frontmatter を丸ごと見落として status を黙って捨てることになる。
+      if (substr($0, 1, 3) == bom) $0 = substr($0, 4)
+      if ($0 == "---") { in_fm = 1; has_fm = 1 }
       next
     }
     closed { next }
@@ -207,6 +214,23 @@ gdl_read_frontmatter() {
       sub(/[[:space:]]*:.*$/, "", key)
       value = $0
       sub(/^[^:]*:[[:space:]]*/, "", value)
+      # 行内コメントを落とす。YAMLでは空白に続く "#" 以降がコメントであり、
+      # `superseded_by: "0019"  # 理由` の "# 理由" が値へ混ざると注記が壊れる。
+      # クォート済みスカラーは閉じクォートまでを値とし、その後ろを捨てる
+      # （クォート内の "#" は本文である。実際に note が "issue #97" を含む）。
+      q = substr(value, 1, 1)
+      if (q == "\"" || q == sq) {
+        i = index(substr(value, 2), q)
+        if (i > 0) value = substr(value, 1, i + 1)
+      } else {
+        sub(/[[:space:]]+#.*$/, "", value)
+      }
+      # 末尾の空白を落とす。落とさないと "status: superseded   " が superseded の分岐へ
+      # 入らず、置き換え先の注記が消える（YAMLとしては正当な書き方であるため実際に起こる）。
+      sub(/[[:space:]]+$/, "", value)
+      # 複数行スカラー（note: | / note: > とその変種）は読まない。インジケータ文字だけが
+      # 残ると「（|）」という無意味な注記がREADMEへ出るため、空として扱う。
+      if (value ~ /^[|>][0-9+-]*$/) value = ""
       if (key == "status") status = value
       else if (key == "superseded_by") superseded_by = value
       else note = value
@@ -273,7 +297,12 @@ main() {
   # ddrDirs[0] を .mrworkflow.json から読む（無ければ既定値）。
   if [ -z "$ddr_dir" ]; then
     if [ -f .mrworkflow.json ]; then
-      ddr_dir="$(jq -r '.ddrDirs[0] // ".claude/docs/ddr"' .mrworkflow.json | tr -d '\r')"
+      # jq の失敗をそのまま `set -e` へ流すと、仕様に無い終了コード（jqの5）が返る。
+      # `--check` の呼び出し側は 0/1/2 以外を想定していないため、gdl_die（1）で受ける。
+      ddr_dir="$(jq -r '.ddrDirs[0] // ".claude/docs/ddr"' .mrworkflow.json 2>/dev/null | tr -d '\r')" ||
+        gdl_die '.mrworkflow.json の読み取りに失敗しました（JSONとして不正の可能性があります）'
+      [ -n "$ddr_dir" ] && [ "$ddr_dir" != 'null' ] ||
+        gdl_die '.mrworkflow.json の ddrDirs[0] を読めませんでした'
     else
       ddr_dir='.claude/docs/ddr'
     fi
@@ -306,10 +335,13 @@ main() {
 
   # frontmatterの読み取り（awk 1回）とmarkdown行の組み立て。
   # ループの中では外部コマンドを呼ばない（パラメータ展開と $REPLY のみ）。
-  local -a lines=()
-  local filename status superseded_by note
-  while IFS=$'\037' read -r filename status superseded_by note; do
+  local -a lines=() no_frontmatter=()
+  local -A seen=()
+  local filename status superseded_by note has_fm
+  while IFS=$'\037' read -r filename status superseded_by note has_fm; do
     [ -n "$filename" ] || continue
+    seen["$filename"]=1
+    [ "$has_fm" = '1' ] || no_frontmatter+=("$filename")
     gdl_unquote_to_reply "$status"
     status="$REPLY"
     gdl_unquote_to_reply "$superseded_by"
@@ -320,8 +352,24 @@ main() {
     lines+=("$REPLY")
   done < <(gdl_read_frontmatter "${ddr_files[@]}")
 
-  [ "${#lines[@]}" -eq "${#ddr_files[@]}" ] ||
-    gdl_die "frontmatterを読めたのは ${#lines[@]} 件で、対象の ${#ddr_files[@]} 件と一致しません"
+  # 件数が合わないときは、**どのファイルが落ちたか**まで出す。件数だけでは、DDRが数十件ある
+  # ディレクトリで原因を総当たりで探すことになる（0バイトのファイルがあると awk が
+  # FNR==1 のルールを実行せずレコードを出さない、というのが実際に起きた経路）。
+  if [ "${#lines[@]}" -ne "${#ddr_files[@]}" ]; then
+    local -a missing=() f base
+    for f in "${ddr_files[@]}"; do
+      base="${f##*/}"
+      [ -n "${seen[$base]:-}" ] || missing+=("$base")
+    done
+    gdl_die "frontmatterを読めたのは ${#lines[@]} 件で、対象の ${#ddr_files[@]} 件と一致しません（読めなかったファイル: ${missing[*]:-不明}）"
+  fi
+
+  # frontmatterを持たないファイルは注記無しの行になる。**無言でスキップしない**
+  # （`.claude/rules/shell-script-style.md`「スキップする場合は件数を必ず出す」）。
+  # status を持つはずのDDRがBOM・先頭空行で読めていない場合、これが唯一の手がかりになる。
+  if [ "${#no_frontmatter[@]}" -gt 0 ]; then
+    gdl_log "警告: frontmatterを検出できないファイルが ${#no_frontmatter[@]} 件あります（注記なしとして扱いました）: ${no_frontmatter[*]}"
+  fi
 
   local generated
   printf -v generated '%s\n' "${lines[@]}"
@@ -340,10 +388,18 @@ main() {
     gdl_die "終了マーカーが $readme にありません（開始マーカーより後に置いてください）: $GDL_END_MARKER"
 
   # マーカーの行自体は残し、その間だけを差し替える。
+  #
+  # 一時ファイルは **$readme と同じディレクトリ**へ作る。`mv` を同一ファイルシステム内に
+  # 収めて置き換えをアトミックにするためで、リダイレクト（`cat > "$readme"`）だと先に
+  # ファイルを切り詰めるため、中断・ディスクフルでREADME全体（spec一覧・由来の注記を含む）が
+  # 欠けた状態で残りうる。`--check` は「差分がある」としか言わないので、壊れたこと自体は
+  # 検知できない。
+  local readme_dir="${readme%/*}"
+  [ "$readme_dir" = "$readme" ] && readme_dir='.'
   local tmp
-  tmp="$(mktemp)"
+  tmp="$(mktemp "$readme_dir/.ddr-list.XXXXXX")"
   # shellcheck disable=SC2064
-  trap "rm -f '$tmp'" RETURN
+  trap "rm -f -- '$tmp'" RETURN
   {
     sed -n "1,${GDL_BEGIN_LINE}p" "$readme"
     printf '%s' "$generated"
@@ -355,7 +411,9 @@ main() {
 
   local written=0
   if [ "$check" -eq 0 ] && [ "$changed" -eq 1 ]; then
-    cat "$tmp" > "$readme"
+    # mktemp は 0600 で作るため、元のパーミッションを引き継ぐ。
+    chmod --reference="$readme" "$tmp" 2>/dev/null || chmod 644 "$tmp"
+    mv -f -- "$tmp" "$readme"
     written=1
   fi
 

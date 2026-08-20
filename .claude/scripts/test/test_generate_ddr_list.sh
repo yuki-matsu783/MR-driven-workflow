@@ -5,8 +5,13 @@
 # mktempで作った一時的なgitリポジトリを対象に `main` の生成・置換動作も確認する
 # （このリポジトリ自身を対象にすると、マーカー不在・DDR 0件といった異常系を作れないため）。
 #
-# 最後に**このリポジトリ自身へ `--check` を実行**し、コミット済みのDDR一覧が
+# 最後に**このリポジトリ自身へ `--check` を実行**し、`.claude/docs/README.md` のDDR一覧が
 # 生成結果と一致していることを検証する（issue #135 の受け入れ条件）。
+#
+# **これはワーキングツリーの検証であって、コミット済みかどうかは見ていない**
+# （`--check` は index にも HEAD にも触れない）。「再生成はしたがコミットし忘れた」状態でも
+# この検証は通る。コミット漏れまで見たい場合は `git show HEAD:.claude/docs/README.md` と
+# 突き合わせる別の検証が要る。
 #
 # 規約: passed=N failures=N を標準出力へ出し、失敗があれば終了コード1。
 # 実行: bash .claude/scripts/test/test_generate_ddr_list.sh
@@ -214,6 +219,26 @@ MD
 frontmatterが無いDDR。
 MD
 
+  # 以下は敵対的レビュー（issue #135）で判明した境界値の回帰テスト。
+  # いずれも「注記が黙って消える／壊れる」形で表面化し、エラーにはならない。
+
+  # 値の末尾に空白があると superseded の分岐へ入らず、置き換え先の注記が消えていた。
+  # あわせて行内コメント（YAMLでは空白に続く # 以降）が値へ混ざっていた。
+  printf -- '---\ntitle: 0005\ntype: ddr\nstatus: superseded   \nsuperseded_by: "0001"  # 理由\n---\n' \
+    > "$root/docs/ddr/0005-末尾空白と行内コメント.md"
+
+  # UTF-8 BOM があると1行目が "---" と一致せず、frontmatterを丸ごと見落としていた。
+  printf -- '\357\273\277---\ntitle: 0006\ntype: ddr\nstatus: deprecated\n---\n' \
+    > "$root/docs/ddr/0006-BOM付き.md"
+
+  # 複数行スカラーはインジケータ文字だけが残り「（|）」という注記が出ていた。
+  printf -- '---\ntitle: 0007\ntype: ddr\nnote: |\n  1行目\n  2行目\n---\n' \
+    > "$root/docs/ddr/0007-ブロックスカラー.md"
+
+  # クォート内の "#" は本文（実際に note が "issue #97" を含む）。コメントとして削ってはいけない。
+  printf -- '---\ntitle: 0008\ntype: ddr\nnote: '"'"'issue #97 を参照'"'"'\n---\n' \
+    > "$root/docs/ddr/0008-クォート内のシャープ.md"
+
   cat > "$root/docs/README.md" <<'MD'
 # 目次
 
@@ -236,8 +261,23 @@ print_out="$(cd "$fixture" && bash "$target" --print)"
 expected_print='- [0001-最初の決定.md](ddr/0001-最初の決定.md)
 - [0002-置き換えられた決定.md](ddr/0002-置き換えられた決定.md) ── **`status: superseded`（0003により置き換え）**
 - [0003-注記つきの決定.md](ddr/0003-注記つきの決定.md)（あとで一部が変わった。詳細は0004）
-- [0004-frontmatterなし.md](ddr/0004-frontmatterなし.md)'
-assert_eq "main --print: 4件を番号順に組み立てる" "$expected_print" "$print_out"
+- [0004-frontmatterなし.md](ddr/0004-frontmatterなし.md)
+- [0005-末尾空白と行内コメント.md](ddr/0005-末尾空白と行内コメント.md) ── **`status: superseded`（0001により置き換え）**
+- [0006-BOM付き.md](ddr/0006-BOM付き.md) ── **`status: deprecated`**
+- [0007-ブロックスカラー.md](ddr/0007-ブロックスカラー.md)
+- [0008-クォート内のシャープ.md](ddr/0008-クォート内のシャープ.md)（issue #97 を参照）'
+assert_eq "main --print: 8件を番号順に組み立てる" "$expected_print" "$print_out"
+
+# 上の一括比較は差分を全部出すが、どの境界値が壊れたかを名前で示すため個別にも見る
+# （いずれも敵対的レビューで判明し、実機で再現を確認した経路）。
+assert_contains "回帰: 値の末尾空白があってもsupersededの注記が出る" "$print_out" \
+  '- [0005-末尾空白と行内コメント.md](ddr/0005-末尾空白と行内コメント.md) ── **`status: superseded`（0001により置き換え）**'
+assert_contains "回帰: BOM付きでもfrontmatterを読める" "$print_out" \
+  '- [0006-BOM付き.md](ddr/0006-BOM付き.md) ── **`status: deprecated`**'
+assert_eq "回帰: ブロックスカラーはインジケータ文字を出さない" '' \
+  "$(printf '%s' "$print_out" | grep -F '（|）' || true)"
+assert_contains "回帰: クォート内の#はコメントとして削らない" "$print_out" \
+  '- [0008-クォート内のシャープ.md](ddr/0008-クォート内のシャープ.md)（issue #97 を参照）'
 
 # 差分がある状態では --check が終了コード2（＝失敗の1とは区別する）
 if (cd "$fixture" && bash "$target" --check >/dev/null 2>&1); then
@@ -254,7 +294,7 @@ assert_contains "main --check: READMEを書き換えない" \
 write_json="$(cd "$fixture" && bash "$target" 2>/dev/null)"
 assert_eq "main: 書き換えたらchanged=true" 'true' "$(printf '%s' "$write_json" | jq -r '.changed')"
 assert_eq "main: 書き換えたらwritten=true" 'true' "$(printf '%s' "$write_json" | jq -r '.written')"
-assert_eq "main: 件数を返す" '4' "$(printf '%s' "$write_json" | jq -r '.count')"
+assert_eq "main: 件数を返す" '8' "$(printf '%s' "$write_json" | jq -r '.count')"
 assert_eq "main: link_prefixを導出する" 'ddr/' "$(printf '%s' "$write_json" | jq -r '.linkPrefix')"
 
 readme_after="$(cat "$fixture/docs/README.md")"
@@ -312,13 +352,15 @@ fi
 assert_eq "main: --checkと--printの併用は終了コード1" '1' "$both_status"
 
 # --- このリポジトリ自身に対する検証（受け入れ条件） -----------------------------------
+#
+# 検証しているのは**ワーキングツリー**の状態である（上のファイル冒頭の注記を参照）。
 
 if (cd "$repo_root" && bash "$target" --check >/dev/null 2>&1); then
   self_check_status=0
 else
   self_check_status=$?
 fi
-assert_eq "自己検証: コミット済みのDDR一覧が生成結果と一致する" '0' "$self_check_status"
+assert_eq "自己検証: ワーキングツリーのDDR一覧が生成結果と一致する（未再生成なら要 generate-ddr-list.sh）" '0' "$self_check_status"
 
 echo "passed=$passed failures=$failures"
 [ "$failures" -eq 0 ]
