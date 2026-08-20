@@ -15,7 +15,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - issue: #135 .claude/docs/README.md のDDR一覧を生成スクリプト化し、手書き更新をやめる
 - ブランチ: claude/ddr-list-generation-script-58hl6j
 - PR: #139 (Draft) https://github.com/yuki-matsu783/MR-driven-workflow/pull/139
-- push回数: 3
+- push回数: 4
 - 現在のループ: なし（非対話セッションのためレビュー往復は未実施）
 - 追従監視: あり（PR #139 のイベント購読 + 定期チェックイン。セッション終了で止まるため次セッションは resume で取り直す）
 
@@ -77,6 +77,9 @@ issue #135（DDR一覧の生成スクリプト化）を、**フェーズ3〈実�
 - `.claude/rules/markdown-frontmatter.md`（`note` キー新設）・`.claude/rules/docs-workflow.md`
   （手書き禁止）・`.claude/skills/resolve-conflict/SKILL.md`（類型C→類型Bへ移動、検証手順追加）を更新。
 - 実施結果の正文は `reports/20260820_ddr-list-generation_DDR一覧生成スクリプトの実装結果.md`。
+- **敵対的レビュー（`adversarial-review`）を1回実施し、14件の指摘のうち12件を修正した。**
+  高確度の指摘は全て一時リポジトリで再現を確認してから対応（詳細はreports側の
+  「敵対的レビューの結果」節）。単体テストは `passed=48` → `passed=52`。
 - **DDR番号を 0060 → 0061 へ繰り下げた**（main側が先に0060を取ったため。類型Aのルールに従い
   main側の番号を正とした。参照8ファイルを更新し一覧を再生成）。
 - **Draft PR #139 を作成した**（ユーザーからの明示指示による）。
