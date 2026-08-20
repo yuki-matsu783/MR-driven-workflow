@@ -7,12 +7,21 @@
 #
 # 検知する2種類:
 #   1. テキストコンフリクト  ... `git merge-tree --write-tree` が報告する通常のコンフリクト。
-#   2. DDR番号の重複（semantic conflict）
-#      ... 両ブランチが「別々のファイル名で同じ連番のDDR」を追加した場合、ファイル名が
+#   2. DDR識別子の重複（semantic conflict）
+#      ... 両ブランチが「別々のファイル名で同じ識別子のDDR」を追加した場合、ファイル名が
 #          異なるためgitはコンフリクトと見なさず、無言でマージが成功してしまう。結果として
-#          同じ番号のDDRが2つ並ぶ。過去4回（PR #29 / #37 / #49 / #52）すべてこの形で、
+#          同じ識別子のDDRが2つ並ぶ。過去4回（PR #29 / #37 / #49 / #52）すべてこの形で、
 #          いずれも人手で気づいて改番していた。gitに任せていては検知できないため、
-#          このスクリプトが番号の重複を直接調べる。
+#          このスクリプトが識別子の重複を直接調べる。
+#
+#      issue #133で、新規DDRの識別子は連番（NNNN）から issue番号ベース（i<issue>-<枝番2桁>）へ
+#      変わった。issue番号は中央（GitHub/GitLab）が採番するため、別ブランチ同士で同じ識別子が
+#      生まれることは原理的に無い。それでも本検知を残しているのは、次の2つが残るため。
+#        (a) 既存の連番DDR（0003〜0059）同士。新規追加はされないが既存は残る。
+#        (b) 同一issueへの追加作業を別ブランチで並行して行った場合。枝番はローカルで決めるため、
+#            両ブランチが同じ枝番を採りうる。
+#      詳細: .claude/rules/markdown-frontmatter.md「DDRの識別子」、
+#            .claude/docs/spec/check-base-conflicts.md「検知2」
 #
 # 使い方:
 #   check-base-conflicts.sh [--base <branch>] [--head <ref>] [--no-fetch]
@@ -23,6 +32,9 @@
 #     "headRef": "HEAD", "headSha": "...", "ddrDirs": ["..."],
 #     "textualConflictFiles": ["..."],
 #     "duplicateDdrNumbers": [{"number":"0027","files":["...","..."]}],
+#     （キー名は "Number" のままだが、値は "0027" のような連番と "i133-01" のようなissue番号
+#       ベースの識別子の両方を取りうる。キーを改名しないのは、複数のスキル・specから参照される
+#       公開インターフェースであり、改名が参照の追従漏れを生むため。issue #133）
 #     "hasTextualConflict": true, "hasDuplicateDdrNumber": true, "hasConflict": true
 #   }
 #
@@ -37,11 +49,22 @@ set -euo pipefail
 # 制御文字を使うとシェルのコマンド文字列に混ざったとき目視できないため、通常の文字列にする。
 readonly CBC_SPLIT_MARK='@@CBC-SPLIT@@'
 
-# パスからDDRの連番（先頭4桁）をREPLYへ返す。DDRの命名（NNNN-タイトル.md）でなければ
-# REPLYを空にして終了コード1を返す。外部コマンドを呼ばない純粋関数。
-ddr_number_to_reply() {
+# パスからDDRの識別子をREPLYへ返す。次の2形式を受け付ける（issue #133）。
+#   - issue番号ベース（新方式）: i<issue番号>-<枝番2桁>-タイトル.md  → "i133-01"
+#   - 連番（旧方式・既存分のみ）: NNNN-タイトル.md                    → "0027"
+# どちらでもなければREPLYを空にして終了コード1を返す。外部コマンドを呼ばない純粋関数。
+#
+# 新方式を先に判定するのは、先頭が数字でない（`i`）ため両者が同時にマッチすることが無く、
+# 今後増えるのは新方式だけだからである。枝番をちょうど2桁に限定しているのは、
+# `i133-1-…`（1桁）や `i133-001-…`（3桁）のような揺れを「DDRではない」として弾き、
+# 表記の揺れが別々の識別子として通ってしまうのを防ぐため。
+ddr_identifier_to_reply() {
   local path="$1"
   local name="${path##*/}"
+  if [[ "$name" =~ ^(i[0-9]+-[0-9]{2})- ]]; then
+    REPLY="${BASH_REMATCH[1]}"
+    return 0
+  fi
   if [[ "$name" =~ ^([0-9]{4})- ]]; then
     REPLY="${BASH_REMATCH[1]}"
     return 0
@@ -50,11 +73,11 @@ ddr_number_to_reply() {
   return 1
 }
 
-# DDRファイルパスの改行区切り文字列を受け取り、同じ連番を持つ相異なるパスが2つ以上ある番号を
-# "番号<TAB>パス1<TAB>パス2..." の形式で1行ずつstdoutへ出力する（重複が無ければ何も出力しない）。
+# DDRファイルパスの改行区切り文字列を受け取り、同じ識別子を持つ相異なるパスが2つ以上ある識別子を
+# "識別子<TAB>パス1<TAB>パス2..." の形式で1行ずつstdoutへ出力する（重複が無ければ何も出力しない）。
 # 外部コマンドを呼ばない純粋関数（ループ内でjq等を起動しないための分離。
 # .claude/rules/shell-script-style.md「外部プロセス起動のコスト」）。
-find_duplicate_ddr_numbers() {
+find_duplicate_ddr_identifiers() {
   local list="$1"
   local -A seen=()
   local -a numbers=()
@@ -62,7 +85,7 @@ find_duplicate_ddr_numbers() {
 
   while IFS= read -r path; do
     [ -n "$path" ] || continue
-    ddr_number_to_reply "$path" || continue
+    ddr_identifier_to_reply "$path" || continue
     number="$REPLY"
     if [ -z "${seen[$number]+x}" ]; then
       seen[$number]="$path"
@@ -96,7 +119,9 @@ main() {
       --head) head_ref="$2"; shift 2 ;;
       --no-fetch) do_fetch=0; shift ;;
       -h|--help)
-        sed -n '2,30p' "${BASH_SOURCE[0]}"
+        # 先頭のコメントブロック（2行目〜最初の非コメント行の直前）をそのままヘルプとして出す。
+        # 行番号を直書きするとコメントを増減させたときに黙って範囲がずれるため使わない（issue #133）。
+        awk 'NR > 1 { if ($0 !~ /^#/) exit; print }' "${BASH_SOURCE[0]}"
         return 0
         ;;
       *)
@@ -152,12 +177,12 @@ main() {
     conflict_files="$(printf '%s\n' "$merge_out" | tail -n +2 | sed '/^$/d')"
   fi
 
-  # 2. DDR番号の重複（両ブランチのDDR一覧を合わせて番号ごとに数える）
+  # 2. DDR識別子の重複（両ブランチのDDR一覧を合わせて識別子ごとに数える）
   local ddr_paths duplicates
   ddr_paths="$(printf '%s\n%s\n' \
     "$(list_ddr_paths "$head_ref" "${ddr_dirs[@]}")" \
     "$(list_ddr_paths "$base_ref" "${ddr_dirs[@]}")" | sed '/^$/d' | sort -u)"
-  duplicates="$(find_duplicate_ddr_numbers "$ddr_paths")"
+  duplicates="$(find_duplicate_ddr_identifiers "$ddr_paths")"
 
   # JSONの組み立てはjq 1回で行う。可変長データは --args ではなく標準入力から読ませる
   # （.claude/rules/shell-script-style.md「大きなJSONを--argjson/--arg等の引数で渡さない」）。
