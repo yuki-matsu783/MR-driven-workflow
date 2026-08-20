@@ -39,7 +39,7 @@ keywords: [DDR, 識別子, issue番号, 枝番, 連番, 番号衝突, semantic c
   `markdown-frontmatter.md`、`docs-workflow.md`、`.claude/docs/README.md`）。
 - 既存58件のDDRへの参照（リポジトリ全体で約107箇所）が**変わらない**ことを確認する。
 
-結果は `reports/2026-08-20_DDR識別子をissue番号ベースへ変更する_調査結果.md` に記録する。
+結果は `reports/2026-08-20_ddr-identifier-issue-based_調査結果.md` に記録する。
 
 ## フェーズ3〈作業〉
 
