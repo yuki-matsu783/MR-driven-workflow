@@ -157,7 +157,7 @@ git -c core.quotepath=false merge-tree --write-tree --name-only --no-messages <h
 本スクリプトによるコンフリクト検知は flow-id 5-2 で必ずもう一度通るため、fetch漏れによる
 取りこぼしは後段で拾われる。一方 `check-base-sync.sh` は検知そのものが目的で後段に同じ検知が
 無いため、あちらだけは終了コードを `fetchOk` としてJSONへ出している（差を付けた理由の詳細:
-`.claude/docs/ddr/0050-作業開始時のベースブランチ追従確認は専用スクリプトで検知しユーザー確認を挟む.md`）。
+`.claude/docs/ddr/0056-作業開始時のベースブランチ追従確認は専用スクリプトで検知しユーザー確認を挟む.md`）。
 **どちらかへ揃えようとする前に、このDDRを読むこと。**
 
 ## 未決定事項・懸念点

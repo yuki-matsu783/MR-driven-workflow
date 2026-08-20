@@ -159,7 +159,7 @@ bash .claude/scripts/src/check-base-sync.sh [--base <branch>] [--head <ref>] [--
 `|| true` で握りつぶしている。** 差を付けているのは、あちらのコンフリクト検知は flow-id 5-2 で
 必ずもう一度通るため取りこぼしても後段で拾われるのに対し、**本スクリプトは検知そのものが目的で
 あり、fetch失敗が「遅れていない」という誤報告になって誰にも拾われない**ためである
-（DDR 0050）。
+（DDR 0056）。
 
 ## 影響範囲
 
@@ -174,12 +174,12 @@ bash .claude/scripts/src/check-base-sync.sh [--base <branch>] [--head <ref>] [--
 | `.claude/rules/git-workflow.md` | 追従確認の入口と、rebaseを使わない方針を追記（frontmatterの `description`・`keywords` にも語を追加。DDR 0049 の探索経路で引けるようにするため） |
 | `.claude/docs/spec/issue-mr-workflow.md` | 「途中引き継ぎ対応（resume）」節の手順一覧へ追加（現在の状態を説明する節であり point-in-time の記録ではないため更新する）と、影響範囲エントリ |
 | `.claude/docs/spec/check-base-conflicts.md` | 判定軸の違う本スクリプトが並存すること・あちらの `git fetch ... \|\| true` を意図的に維持することを相互参照として追記 |
-| `.claude/docs/README.md` | spec一覧へ本ファイル、DDR一覧へ 0050 |
+| `.claude/docs/README.md` | spec一覧へ本ファイル、DDR一覧へ 0056 |
 | `.claude/skills/apply-mr-workflow-to-project/SKILL.md` | 導入先向けのコアスクリプト一覧へ追加 |
 | `.claude/docs/spec/check-base-sync.md` | 本ファイル（新規） |
 
 `Provider.sh` は変更していない。判定軸の違う機能を低レベル関数へ混ぜず、
-`check-base-conflicts.sh` と並ぶ独立したスクリプトとして切り出した（DDR 0050）。
+`check-base-conflicts.sh` と並ぶ独立したスクリプトとして切り出した（DDR 0056）。
 
 ### 呼び出し側の責務
 

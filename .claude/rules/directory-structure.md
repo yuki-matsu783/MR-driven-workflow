@@ -71,8 +71,12 @@ keywords: [ディレクトリ構成, claude, gemini, 配置方針, plans, worklo
 
 `usage/` は対応工数レポート機能のローカル作業状態で、`.gitignore`対象（`/usage/`）。内訳は
 `usage/session-logs/<sessionId>/`（セッションログのミラー）・`usage/state/<branch>.json`（集計状態）・
-`usage/state/session-cursors/<sessionId>.json`（処理済み行数カーソル）・
-`usage/state/push-index.jsonl`（push断面の行範囲）。issue #23以前は、これとは別に
+`usage/state/session-cursors/<sessionId>.json`（処理済み行数カーソル。Claude Code経路のみ）・
+`usage/state/gemini-totals/<sessionId>.json`（**Gemini CLI経路の前回累計。ブランチ非依存**。
+issue #97。ブランチ別に持つと、同じセッションのままブランチを切り替えたときに蓄積済みの全件が
+新ブランチの初回差分として再計上されるため。詳細:
+`.claude/docs/ddr/0050-Gemini集計の差分はファイル全体の畳み込みと前回累計の差分で取る.md`）・
+`usage/state/push-index.jsonl`（push断面の行範囲。Claude Code経路のみ）。issue #23以前は、これとは別に
 `logs/push-<N>/` へpushのたびにセッションログ全文を保存する系統があったが、transcriptが追記専用で
 あることを確認したうえで廃止し `usage/` へ一本化した（詳細:
 `.claude/docs/ddr/0022-push断面の全文コピーをやめ行番号インデックスで表現する.md`）。

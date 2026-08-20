@@ -844,11 +844,17 @@ Claude Codeの対応工数（モデル別トークン数・ツール実行回数
     | `claude` | `${transcript_path%.jsonl}/subagents/agent-*.jsonl`（＋対応する`.meta.json`） | `subagents/`直下 |
     | `gemini` | `$(dirname "$transcript_path")/<session_id>/`（ディレクトリごと） | `subagents/<session_id>/` |
 
-  - **Gemini CLIはミラーへの保存のみ対応し、対応工数の集計対象には含めない**（issue #23）。
-    集計側`_usage_aggregate_and_merge_subagents`のglobは`subagents/agent-*.jsonl`であり、
-    Gemini分を`subagents/<session_id>/`という1階層下へ置くことで**構造的にマッチしない**。
-    追加のガード条件を書かずにスコープ境界が保証される（この不一致は
-    `.claude/scripts/test/test_usage_tracking.sh`で明示的に検証している）。
+  - **Gemini CLIは、メインセッションを集計対象に含め、サブエージェントは保存のみとする**
+    （issue #97。issue #23時点では**メイン・サブエージェントともに保存のみ**だったが、
+    issue #97でメインのみ集計対象へ変更した。両者を区別せずに書くと誤りになる）。
+    - **メインセッション**: ミラーした`main.jsonl`を`_usage_gemini_fold`が集計入力にする
+      （下記「対応工数レポート」節の「Gemini CLI経路」）。
+    - **サブエージェント**: 集計側`_usage_aggregate_and_merge_subagents`のglobは
+      `subagents/agent-*.jsonl`であり、Gemini分を`subagents/<session_id>/`という1階層下へ
+      置くことで**構造的にマッチしない**。追加のガード条件を書かずにスコープ境界が保証される
+      （この不一致は`.claude/scripts/test/test_usage_tracking.sh`で明示的に検証している）。
+      集計しない理由・却下案は
+      [.claude/docs/ddr/0054-Gemini-CLIのサブエージェントは保存のみとし集計しない.md](../ddr/0054-Gemini-CLIのサブエージェントは保存のみとし集計しない.md)を参照。
 - **Gemini CLIのhook登録**: `.gemini/settings.json`の`hooks`キー配下（`SessionStart`/`BeforeTool`/
   `AfterTool`）に`.claude/hooks/*.sh`一式を登録する。`BeforeTool`/`AfterTool`の`matcher`は
   `"run_shell_command|Bash|PowerShell"`という両エンジンの`tool_name`を含む形にしている
@@ -912,6 +918,23 @@ Claude Codeの対応工数（モデル別トークン数・ツール実行回数
     （全件再パース）自体はissue #37以降`activeSeconds`算出専用として無改造のまま維持している
     （呼び出し元は戻り値のうち`.activeSeconds`のみを使う）。`_usage_safe_branch_name`はブランチ名の
     サニタイズ（状態ファイル名・session-logsディレクトリ名に使用）を担う共通ヘルパー。
+    - **上記はすべて`engine = claude`の経路である**（issue #97）。`sync_usage_state`は冒頭で
+      engineを判定し、`gemini`のときは`_sync_usage_state_gemini`へ委譲して**上記の流れを一切
+      通らない**（行カーソルもサブエージェント集計も使わない）。Gemini経路が使う関数は
+      `_usage_gemini_fold`（セッションJSONLをid単位で畳んで累計スナップショットを返す）・
+      `_usage_gemini_merge_state`（前回累計との差分を`sinceLastPush`へ加算し
+      `{state, needsReset, diffAllZero}`を返す）・`_usage_read_gemini_totals` /
+      `_usage_write_gemini_totals`（`usage/state/gemini-totals/<sessionId>.json`の読み書き）の4本で、
+      **Claude Code経路の関数は1つも呼ばず、また1行も変更していない**。詳細は下記
+      「Gemini CLI経路（issue #97）」小節。
+  - `.claude/hooks/post-push-usage-report.sh`のレポート本文の組み立ては
+    `build_usage_report_body <usage> <branch> <is_first_post> <subagent_usage> <engine_label>`
+    （標準出力へ本文を書く）に切り出してある（issue #97）。切り出しの目的は**テスト可能にする
+    こと**で、それ以前は`main`内の無名ブロック`{ … } > "$tmp_file"`だったためレポート内容を
+    検証する単体テストが書けなかった。あわせてファイル末尾の`( main ) || true`を
+    `if [ "${BASH_SOURCE[0]}" = "${0}" ]; then … fi`のガードで包んでいる（`main`は冒頭で
+    `raw="$(cat)"`を実行するため、ガードが無いと`source`した時点でstdin待ちのままハングする。
+    `.claude/rules/shell-script-style.md`「テスト」）。
     - **重要な追加バグ修正（issue #37、PR #47マージ前に発覚）**: `_usage_aggregate_new_lines`は
       当初、新規行の切り出し（別関数`_usage_read_new_lines`）とその集計を2段階に分け、切り出した
       パース済みJSON配列をシェル変数へ格納したうえで`--argjson`のコマンドライン引数としてjqへ
@@ -977,6 +1000,19 @@ Claude Codeの対応工数（モデル別トークン数・ツール実行回数
   （状態ファイルの`lastPostedAt`の有無、投稿前時点の値で判定）で分岐し、初回投稿時のみ表示する。
   冒頭の「レビューの合否判定には使用しないでください」という短い注記は、投稿ごとの判別のために
   必要なため毎回表示する。
+  - **過小カウントの注記（「既知の過小カウント要因が報告されています。」＋詳細リンク）の2行は、
+    Claude Code由来のトークン行を含むレポートにだけ表示する**。この過小カウントはClaude Codeの
+    transcript JSONLについて報告されているものであり（「未決定事項・懸念点」のトークン数の項参照）、
+    Gemini CLIのセッションログについては同種の報告が無いため、Gemini CLIだけのレポートに載せると
+    根拠の無い注記になる。**出す・出さないの判定はengineではなくデータで決める**（トークン列の
+    構成と同じ理由。[0052-対応工数レポートのトークン列はengineではなくデータで決める.md](../ddr/0052-対応工数レポートのトークン列はengineではなくデータで決める.md)）。
+    状態ファイルはブランチ単位で`sinceLastPush`が投稿成功まで繰り越されるため、Gemini CLIからの
+    投稿でもClaude Code由来のモデル行が載ることがあり、その場合はこの注記が必要になる。判定条件は
+    トークンテーブルの行と揃える（`thoughts`キーを持たない＝Claude Code由来、かつ全項目0で除外
+    されない行が1つ以上あるか）。表に出ていない行を根拠に注記だけが出ることを避けるため。
+    フッター自体が初回投稿のみの表示であるため、**初回投稿がGemini CLI単独だった場合、その後に
+    Claude Code由来の行が載ってもこの注記は表示されない**（初回のみ表示という既存仕様との組み合わせ
+    による制約。過小カウントの説明は本仕様書側に残るため許容する）。
 - **制約: 検知は`tool_input.command`の文字列マッチに依存する**: 投稿トリガーの判定は、
   Bash/PowerShellツールへ渡された`tool_input.command`文字列に`git push`という語が現れるか
   どうかに依存する（`.claude/settings.json`の`if: "Bash(git push*)"` /
@@ -1005,6 +1041,93 @@ Claude Codeの対応工数（モデル別トークン数・ツール実行回数
   `Stop` hookを廃止した経緯）は
   [0006-対応工数レポートはtranscript自前パースで実装する.md](../ddr/0006-対応工数レポートはtranscript自前パースで実装する.md)
   参照。
+
+#### Gemini CLI経路（issue #97）
+
+`engine = gemini` のとき、`sync_usage_state` は `_sync_usage_state_gemini` へ委譲する。
+Claude Code経路とは**差分の取り方が根本的に違う**ため、経路ごと分けている。設計判断の詳細・
+却下案は DDR
+[0050](../ddr/0050-Gemini集計の差分はファイル全体の畳み込みと前回累計の差分で取る.md) /
+[0051](../ddr/0051-Gemini集計はrewindToを読み飛ばしメッセージを削らない.md) /
+[0052](../ddr/0052-対応工数レポートのトークン列はengineではなくデータで決める.md) /
+[0053](../ddr/0053-Gemini経路のブランチ帰属は断面時点のブランチとし限界を明示する.md) /
+[0054](../ddr/0054-Gemini-CLIのサブエージェントは保存のみとし集計しない.md) を参照。
+
+- **差分の取り方**: 毎回**ファイル全体を `id` 単位で畳み込んで**累計スナップショットを作り、
+  前回累計との差分を計上する。Claude Code経路の行カーソル（`lastLineCount`）は**使わない**。
+  Gemini CLIのセッションログは同じ `id` のメッセージが複数行にわたって再送される
+  （トークンの後埋め・ツールの `status` 遷移）ため、「新規行だけを足す」方式は**同じメッセージを
+  何度も数える**（DDR 0050）。
+- **前回累計の置き場所**: `usage/state/gemini-totals/<sessionId>.json`（**ブランチ非依存**。
+  `.gitignore` 対象）。ブランチ別の状態ファイルへ置くと、同じセッションのままブランチを
+  切り替えたときに蓄積済みの全件が新ブランチの初回差分として再計上される（issue #37 が
+  カーソルのグローバル化で直したのと同じ不具合）。
+- **レコード種別の扱い**（Gemini CLI v0.39.0 以降の追記型JSONL）:
+
+  | レコード | 扱い |
+  |---|---|
+  | 1行目のメタデータ（`sessionId`/`projectHash` を持ち `id` を持たない） | スキップ |
+  | メッセージ本体（`id` を持つ） | 畳み込みへ流す。同じ `id` は**後勝ちマージ**。ただし新しい版の `tokens` が `null`／欠落なら前の版の `tokens` を引き継ぐ |
+  | `{"$set": {...}}` に `messages` がある | 配列の各要素をメッセージとして畳み込みへ流す |
+  | `{"$set": {...}}` の上記以外 | 無視 |
+  | `{"$rewindTo": "<messageId>"}` | **読み飛ばすだけ**（メッセージを削らない。DDR 0051） |
+  | パースできない行 | 捨てる（`fromjson?`。処理は止めない） |
+
+- **ツール実行回数・ツールエラー回数**: `toolCalls[].status` が `success` / `error` / `cancelled`
+  の**完了したもの**だけを実行回数に数える。エラーに数えるのは `error` のみで、`cancelled` は
+  実行回数には入るがエラーには入らない。未完了（`validating` / `scheduled` / `executing` /
+  `awaiting_approval`）は**実行回数にもエラーにも入れない**。
+- **応答回数・使用モデル**: 畳み込み後の `type == "gemini"` のメッセージ数（ユニークid数）を
+  `turns` とし、その `model` の集合を `models` とする（欠落は `unknown` へ寄せる）。
+  `models` は `sinceLastPush.models` として和集合で保持し、レポートへ `- 使用モデル:` の1行で出す。
+- **稼働時間**: **算出方式はClaude Code経路と同一**（隣接gapが `IDLE_GAP_THRESHOLD_SECONDS`
+  未満ならその区間分、以上なら `TAIL_BUFFER_SECONDS` を積む。走査後、対象が1件以上あれば
+  末尾の未クローズなセグメントを閉じる分として `TAIL_BUFFER_SECONDS` をもう1回加算する）。
+  **違いは、畳み込み後に `timestamp` 昇順へ並べ直してから走査する点だけ**である
+  （同じ `id` の再送によって出現順が時系列と一致しないため）。上記「稼働時間の算出方法」の
+  記述はこの差を除いてそのまま当てはまる。
+- **トークン**: `{input, output, cached, thoughts, tool}` をモデル別に加算する。**`total` は
+  加算しない**（内訳の合計であり二重計上になる）。`cached` は `sinceLastPush.tokensByModel` の
+  `cacheRead` へ入れ、`cacheCreate` は常に0のままとする（Gemini側に Cache Write 相当が無い）。
+  `thoughts` / `tool` は同バケットへ新設のキーとして持つ。
+- **セッションログの消失・縮小**: 1指標でも差分が負なら `needsReset` を立て、前回累計を今回の
+  スナップショットで**必ず上書きする**（stderrへ1行出す）。負値は0へクランプするため
+  `sinceLastPush` は減らない。
+- **早期リターン**: **クランプ前（raw）の差分**がすべて0のときだけ、状態ファイルを書かずに
+  既存状態を返す（`diffAllZero`）。`needsReset` が立っているときは早期リターンしない。
+  クランプ後の値で判定すると、消失直後（全指標が負→0）に前回累計が古いまま残り、以後ずっと
+  計上が止まる。
+- **早期リターンの位置がClaude Code経路と違う**: Claude Code経路は「新規行が無ければミラーも
+  スキップ」だが、Gemini経路は内容ベースでしか判定できないため**ミラー → 畳み込み → 差分判定**の
+  順になる。ミラーは冪等な上書きコピーなので実害は無い。
+- **`push-index.jsonl` へ追記しない**（`_usage_append_push_index` を呼ばない）。`main: {from, to}`
+  は「空行を除いた行番号の範囲」という意味を持つが、Gemini経路では行番号が「まだ数えていない量」を
+  表さない。同じキーへ別の意味の値を入れると読む側が区別できないため、記録を見送っている。
+- **ブランチ帰属**: 断面を取った時点の `git branch --show-current` へまとめて計上する
+  （セッションログにブランチ情報が無いため）。**限界をレポート本文へ1行明示する**
+  （「1つのセッション内でブランチを切り替えた場合、切り替え前の作業分もこのブランチの数値に
+  含まれます」）。DDR 0053。
+- **投稿要否ガード**: Gemini経路では「トークン合計・ツール実行回数・応答回数の**いずれか**が
+  0より大きい」へ広げる。`tokens` が付かないリビジョンばかりのセッションではトークン合計が0に
+  なりうるが、ツールを実行し応答も返っている以上、対応工数は発生しているため。
+  **Claude Code経路の判定式は変更していない。**
+- **トークンが取得できない場合の縮退**: 表示するモデル行が0件のときは、トークンテーブルを
+  **ヘッダ行・区切り行を含めて出力しない**。使用モデルは上記の `- 使用モデル:` 行に残るため、
+  「空のテーブル」も「0の羅列」も出ない（issue #97 の受け入れ条件）。
+- **トークン列の構成は engine ではなくデータで決める**（DDR 0052）。判別は各バケットが
+  `thoughts` キーを持つかで行う。
+
+  | 状態 | 列構成 |
+  |---|---|
+  | 全バケットが `thoughts` を持たない | `Input / Output / Cache Write / Cache Read`（現行のまま） |
+  | 全バケットが `thoughts` を持つ | `Input / Output / Cache Read / Thoughts / Tool` |
+  | 混在 | 和集合 `Input / Output / Cache Write / Cache Read / Thoughts / Tool`（欠けている列は0） |
+
+  `sinceLastPush` は投稿に成功するまで繰り越されるため（`gh`/`glab` CLI不在環境では投稿が
+  スキップされる。issue #34）、同じブランチの `tokensByModel` に両エンジン由来のモデルが
+  同居しうる。engineで決めると混在時にどちらかの数値が無言で消える。
+- **サブエージェントは集計しない**（保存のみ。DDR 0054）。`_usage_aggregate_and_merge_subagents`
+  を呼ばない。
 
 ### /compact実施の呼びかけ（PostToolUse hook, git push検知）
 
@@ -1084,6 +1207,15 @@ issue #11「git pushイベントを検知してcompactする」への対応と�
   「このpushでレビュー指摘へ返信した場合はその返信コメントのURLも含める」旨の指示文を追加で渡す。
   URLの入手元は`reply`サブコマンドの出力（`add_mr_thread_reply`の戻り値）または`comments`の
   出力に含まれる`url=...`。
+- **レビュー依頼のターンでは`AskUserQuestion`（askツール）を使わせない**: 本hookが促す`/compact`は
+  ユーザーが自分で打つスラッシュコマンドだが、`AskUserQuestion`を出すと入力欄が選択肢への回答で
+  塞がり、その場で打てなくなる。「レビューをお願いします」という呼びかけに選択式の回答は要らない
+  ため、askツールを使わず通常のメッセージだけでターンを終える旨を`NO_ASK_TOOL_MESSAGE`として
+  `additionalContext`の末尾へ渡す。**禁止はレビュー依頼のターンに限る**（flow-id 5-2のコンフリクト
+  解消可否・5-3の関連issue通知の承認・`start`のベースブランチ確認のように、外部への影響が不可逆で
+  承認が必須の場面は従来どおり`AskUserQuestion`を使う。これらはpush直後ではなく、`/compact`を打つ
+  タイミングと競合しない）。運用ルールとしての正は
+  `.claude/skills/issue-mr-flow/SKILL.md`「レビュー依頼メッセージ」節。
 - **`post-push-usage-report.sh`とは別ファイル**（`.claude/hooks/post-push-compact-prompt.sh`）とし、
   責務を混在させない（使用量集計とcompact促しは関心事が異なる）。`.claude/settings.json`の
   `hooks.PostToolUse[0].hooks`へ、既存の対応工数レポート用エントリと並べて2エントリ
@@ -2451,6 +2583,66 @@ MRの差分が影響する他のissueへ、マージ前に通知を残せるよ�
 - `.claude/docs/spec/issue-mr-workflow.md`（提供関数表・「起票前の類似・重複issueチェック」節・本項）
 - `.claude/docs/README.md`（DDR一覧に0033）
 
+### issue #97（対応工数レポートのGemini CLIセッションログ対応）
+
+新規:
+- `.claude/docs/ddr/0050-Gemini集計の差分はファイル全体の畳み込みと前回累計の差分で取る.md`
+- `.claude/docs/ddr/0051-Gemini集計はrewindToを読み飛ばしメッセージを削らない.md`
+- `.claude/docs/ddr/0052-対応工数レポートのトークン列はengineではなくデータで決める.md`
+- `.claude/docs/ddr/0053-Gemini経路のブランチ帰属は断面時点のブランチとし限界を明示する.md`
+- `.claude/docs/ddr/0054-Gemini-CLIのサブエージェントは保存のみとし集計しない.md`
+- `usage/state/gemini-totals/<sessionId>.json`（Gemini経路の前回累計。ブランチ非依存。
+  `.gitignore` 対象の `usage/` 配下のため、リポジトリには現れない）
+
+更新:
+- `.claude/hooks/lib/UsageTracking.sh`（`_usage_gemini_fold` / `_usage_gemini_merge_state` /
+  `_usage_read_gemini_totals` / `_usage_write_gemini_totals` / `_sync_usage_state_gemini` を新設。
+  `sync_usage_state` へ engine 分岐と委譲を5行追加。`_usage_sync_session_logs` のコメントを
+  「Geminiのログは集計対象にしない」→「Geminiの**サブエージェント**は集計対象にしない」へ訂正。
+  **Claude Code用の集計関数は1行も変更していない**）
+- `.claude/hooks/post-push-usage-report.sh`（本文組み立てを `build_usage_report_body` へ切り出し、
+  末尾の `( main ) || true` を `BASH_SOURCE` ガードで包む。トークン列の構成をデータで決める形へ変更、
+  モデル行のスキップ判定を一般化、モデル行0件時のテーブル抑止、`- 使用モデル:` 行・
+  `**ツールエラー回数**` 行・ブランチ帰属の注記を追加、投稿ガードを `engine=gemini` のときだけ拡張）
+- `.claude/scripts/test/test_usage_tracking.sh`（Gemini集計とレポート本文のケースを追加。
+  33 → 81ケース。**既存33ケースのアサーションは1行も変更していない**）
+- `.claude/rules/directory-structure.md`（`usage/` の内訳へ `usage/state/gemini-totals/` を追加）
+- `.claude/docs/spec/issue-mr-workflow.md`（「エンジン判定」節のGemini記述をメイン／サブエージェントで
+  分割、「コンポーネント」へGemini経路の分岐と新設関数・`build_usage_report_body` を追記、
+  「Gemini CLI経路（issue #97）」小節を新設、「未決定事項・懸念点」へ実機未検証の4点を追加し
+  サブエージェント探索の懸念へ本体実装からの裏付けを追記、本項）
+- `.claude/docs/README.md`（DDR一覧に0050〜0054）
+
+### レビュー依頼のターンでのaskツール禁止（issue番号なし・ユーザーからの直接依頼）
+
+「レビュー依頼のときは`/compact`コマンドを打ちたいので、askツールは利用しない」というユーザーの
+依頼への対応。issueを起点にしないごく小さなAIアセットの改訂として直接反映した。
+
+更新:
+- `.claude/hooks/post-push-compact-prompt.sh`（`NO_ASK_TOOL_MESSAGE`を新設し
+  `additionalContext`の末尾へ追加。冒頭のヘッダコメントへ理由を追記）
+- `.claude/skills/issue-mr-flow/SKILL.md`（「レビュー依頼メッセージ（全体フロー 2-2・2-7・3-2・
+  3-7・4-2・4-7・5-4）」節を新設。compactのタイミングに関する既存の記述からこの節を参照）
+- `.claude/docs/spec/issue-mr-workflow.md`（「/compact実施の呼びかけ」節へ本挙動の項目を追加、本項）
+
+### 過小カウントの注記はClaude Code由来のトークンがある場合だけ出す（issue #97の後追い）
+
+issue #97でレポートのフッター署名がengineごとに切り替わるようになった一方、フッター末尾の
+「既知の過小カウント要因が報告されています。」＋詳細リンクの2行は**engineによらず初回投稿で常に
+出ていた**。この過小カウントはClaude Codeのtranscript JSONLについての報告であり、Gemini CLIの
+セッションログについては同種の報告が無いため、Gemini CLIだけのレポートでは根拠の無い注記になる。
+
+更新:
+- `.claude/hooks/post-push-usage-report.sh`（`build_usage_report_body` のフッターで、
+  `tokensByModel` にClaude Code由来の行（`thoughts` キーを持たず、全項目0でもない行）が
+  1つ以上あるときだけ上記2行を出す。**engineではなくデータで判定する**点はトークン列と同じ
+  （DDR 0052）。関数のシグネチャは変えていない）
+- `.claude/scripts/test/test_usage_tracking.sh`（Claude Code経路で注記が出ること、Gemini CLI単独・
+  トークン0件では出ないこと、Gemini CLIからの投稿でも繰り越しでClaude Code由来の行があれば出ること、
+  表から除外される全項目0の行を根拠にしないこと。81 → 90ケース）
+- `.claude/docs/spec/issue-mr-workflow.md`（「フッターの免責事項説明文は初回投稿のみ表示」へ
+  この分岐と、初回投稿がGemini CLI単独だった場合に注記が出ない制約を追記、本項）
+
 ### issue #67（作業開始・再開時のベースブランチ追従確認）
 
 新規:
@@ -2458,7 +2650,7 @@ MRの差分が影響する他のissueへ、マージ前に通知を残せるよ�
 - `.claude/scripts/test/test_check_base_sync.sh`（純粋関数の単体テストと、使い捨てgitリポジトリに対する
   `main` の結合テスト。`passed=55 failures=0`）
 - `.claude/docs/spec/check-base-sync.md`
-- `.claude/docs/ddr/0050-作業開始時のベースブランチ追従確認は専用スクリプトで検知しユーザー確認を挟む.md`
+- `.claude/docs/ddr/0056-作業開始時のベースブランチ追従確認は専用スクリプトで検知しユーザー確認を挟む.md`
 
 更新:
 - `.claude/skills/issue-mr-flow/SKILL.md`（「作業開始・再開時のベースブランチ追従確認（issue #67）」節を
@@ -2467,7 +2659,7 @@ MRの差分が影響する他のissueへ、マージ前に通知を残せるよ�
 - `.claude/agents/issue-mr-resume.md`（手順7「ベースブランチとの差分を確認する」を新設し旧7・8を8・9へ
   繰り下げ。現在地サマリへ `- ベースブランチとの差分:` を追加。`description` にも項目を追記）
 - `.claude/rules/git-workflow.md`（追従確認の入口と、rebaseを使わない方針）
-- `.claude/docs/README.md`（spec一覧に `check-base-sync.md`、DDR一覧に0050を追加）
+- `.claude/docs/README.md`（spec一覧に `check-base-sync.md`、DDR一覧に0056を追加）
 - `.claude/docs/spec/check-base-conflicts.md`（判定軸の違う `check-base-sync.sh` が並存することと、
   あちらの `git fetch ... || true` を意図的に維持することを相互参照として追記）
 - `.claude/skills/apply-mr-workflow-to-project/SKILL.md`（導入先向けのコアスクリプト一覧へ追加）
@@ -2591,8 +2783,27 @@ MRの差分が影響する他のissueへ、マージ前に通知を残せるよ�
   バージョンのGemini CLIではサブエージェントが親と同じセッションIDで動作するとの報告がある。
   これが事実であれば、「`transcript_path`のあるディレクトリ配下に`session_id`名のディレクトリで
   サブエージェントログが格納される」という前提と実際の挙動がズレている可能性がある。既存の保存動作を
-  変更しない方針のため、この懸念への対応は見送っている。なおGemini分は対応工数の集計対象では
-  ないため（上記「エンジン判定」節参照）、ズレていてもレポートの数値には影響しない。
+  変更しない方針のため、この懸念への対応は見送っている。
+  - **追記（issue #97）: 本体実装側からは前提を裏付けられた。** Gemini CLI本体の
+    `chatRecordingService.ts` を読んだところ、サブエージェントのセッションファイルは
+    `chats/<親sessionId>/` 配下へネストされ、ファイル名は**自分の完全な `sessionId`** になる
+    （メインは `session-<TIMESTAMP>-<sessionIdの先頭8文字>.jsonl`）。したがって
+    「サブエージェントが親と同じセッションIDで動作する」という報告は、現行バージョンの
+    記録実装とは整合しない。**ただしこれはコードレビューによる裏付けであり、実機で
+    ディレクトリ構造を確認したわけではない**ため、未決定事項として残す（issue #97 でも
+    実機検証はできていない。下記「Gemini CLI経路の実機検証」参照）。
+  - なおGemini分のうち**サブエージェントは引き続き対応工数の集計対象ではない**ため
+    （上記「エンジン判定」節、DDR 0054）、ズレていてもレポートの数値には影響しない。
+    **メインセッションはissue #97で集計対象になったが、そのログの位置は
+    `transcript_path` としてhookから直接渡されるため、この懸念の影響を受けない。**
+- **Gemini CLI経路の実機検証ができていない**（issue #97）: 開発機に `~/.gemini` が存在せず、
+  集計ロジックの検証は合成フィクスチャに留まっている。次の4点は実機で初めて確かめられる。
+  - hookが実際に渡す `transcript_path` が、想定どおり
+    `chats/session-<TIMESTAMP>-<sessionIdの先頭8文字>.jsonl` の実ファイルを指すか。
+  - `tokens` フィールドが実データでどの程度の頻度で付くか（付かないリビジョンばかりの
+    セッションが現実に起きるか。起きる場合、投稿ガードの拡張とトークンテーブルの抑止が効く）。
+  - `models` に `unknown` が混ざる頻度。
+  - Gemini CLI のバージョン差（v0.39.0未満の旧 `.json` 形式は対象外としている）。
 - **`.gemini/settings.json`のスキーマは限定的にしか検証していない**: `hooks`セクションの内容は
   PRレビューで提示された実物を採用したが、Gemini CLI公式ドキュメント側の記載
   （[Hooks reference](https://geminicli.com/docs/hooks/reference/)）は`command`フィールドが
@@ -2619,6 +2830,12 @@ MRの差分が影響する他のissueへ、マージ前に通知を残せるよ�
   transcriptの自前パースという設計方針自体を変えることになり、本機能のスコープ外）。レポート・
   ドキュメント双方で「目安」である旨を明記することで対応する（下記コンポーネント節、
   および`post-push-usage-report.sh`のコメント本文フッター参照）。
+  - **この報告はClaude Codeのtranscript JSONLについてのものであり、Gemini CLIのセッションログに
+    ついては同種の過小カウントは報告されていない**。そのため、レポートのフッターに出す注記
+    （「既知の過小カウント要因が報告されています。」＋詳細リンク）は、Claude Code由来のトークン行を
+    含むレポートにだけ表示する（上記「フッターの免責事項説明文は初回投稿のみ表示」参照）。
+    Gemini CLI側の集計精度そのものは別の未検証項目であり（本節のGemini CLI関連の項参照）、
+    「目安として扱ってください」という注記は両エンジンで共通に表示する。
 - **セッション（transcriptファイル）を跨いだ集計は未対応**: `/resume`等で新しいtranscriptファイルに
   切り替わった場合、旧セッション分の使用量との合算は行わない（新しい`session_id`として
   ゼロから集計が始まる）。
