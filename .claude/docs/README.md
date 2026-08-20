@@ -40,6 +40,7 @@ keywords: [正史仕様, 意思決定ログ, issue-mr-workflow, シェルスク�
 - [adversarial-review.md](spec/adversarial-review.md) ── 敵対的レビュー（専任サブエージェント・インラインコメント投稿）
 - [cleanup-task.md](spec/cleanup-task.md) ── flow-id 5-3 後片付けの自動化スクリプト
 - [search-frontmatter.md](spec/search-frontmatter.md) ── ドキュメント横断検索スクリプト（index.jsonl検索）
+- [generate-ddr-list.md](spec/generate-ddr-list.md) ── DDR一覧生成スクリプト（README.mdのDDR一覧をfrontmatterから生成）
 
 ## ddr（意思決定ログ）
 
@@ -51,12 +52,18 @@ architectureに限らない意思決定も記録対象とする（この改称�
 DDRのうち0001・0002・0008・0015は持ち込んでいない**（連番に欠番があるのはこのため。
 欠番を埋め直すと既存DDR本文中の相互参照とずれるため、番号は移植元のまま維持する）。
 
+**この一覧は生成物である。手書きで行を足さない**（issue #135）。DDRを追加・変更したら
+`bash .claude/scripts/src/generate-ddr-list.sh` を実行し、出た差分をコミットする
+（仕様: [spec/generate-ddr-list.md](spec/generate-ddr-list.md)）。行の内容はDDRの
+frontmatter（`status` / `superseded_by` / `note`）だけから決まる。
+
+<!-- BEGIN GENERATED: ddr-list -->
 - [0003-レビュースレッド解決は自動化しない.md](ddr/0003-レビュースレッド解決は自動化しない.md)
 - [0004-AI返信は署名で識別しbotアカウント分離は見送る.md](ddr/0004-AI返信は署名で識別しbotアカウント分離は見送る.md)
 - [0005-DraftPR作成失敗時は空コミットで自動リトライする.md](ddr/0005-DraftPR作成失敗時は空コミットで自動リトライする.md)
 - [0006-対応工数レポートはtranscript自前パースで実装する.md](ddr/0006-対応工数レポートはtranscript自前パースで実装する.md)
 - [0007-hookのcommandはbashのPATH解決方式へ変更.md](ddr/0007-hookのcommandはbashのPATH解決方式へ変更.md)
-- [0009-Planモードre-entry時はgit checkout復元でなくarchiveスクリプトで対処する.md](ddr/0009-Planモードre-entry時はgit checkout復元でなくarchiveスクリプトで対処する.md) ── **`status: superseded`（0019により置き換え）**
+- [0009-Planモードre-entry時はgit checkout復元でなくarchiveスクリプトで対処する.md](<ddr/0009-Planモードre-entry時はgit checkout復元でなくarchiveスクリプトで対処する.md>) ── **`status: superseded`（0019により置き換え）**
 - [0010-ブランチslugの意訳生成はAIエージェントが行う.md](ddr/0010-ブランチslugの意訳生成はAIエージェントが行う.md)
 - [0011-issue作成は独立スキルとして新設する.md](ddr/0011-issue作成は独立スキルとして新設する.md)
 - [0012-コミットはcommitスキル経由を機構的に強制する.md](ddr/0012-コミットはcommitスキル経由を機構的に強制する.md)
@@ -106,3 +113,5 @@ DDRのうち0001・0002・0008・0015は持ち込んでいない**（連番に�
 - [0057-削除済み追跡ファイルの除外はextract-frontmatter側で行う.md](ddr/0057-削除済み追跡ファイルの除外はextract-frontmatter側で行う.md)
 - [0058-フェーズ5は片付けをcommit直前へ移した順序に並べ替える.md](ddr/0058-フェーズ5は片付けをcommit直前へ移した順序に並べ替える.md)
 - [0059-issue-mr-flow対象ブランチではSKILL.mdの再読み込みを注入で促す.md](ddr/0059-issue-mr-flow対象ブランチではSKILL.mdの再読み込みを注入で促す.md)
+- [0060-DDR一覧は生成物にしつつGit管理下へ残す.md](ddr/0060-DDR一覧は生成物にしつつGit管理下へ残す.md)
+<!-- END GENERATED: ddr-list -->
