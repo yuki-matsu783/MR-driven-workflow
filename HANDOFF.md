@@ -16,7 +16,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - ブランチ: claude/distribution-template-assets-oi4uai
 - PR: #136 (Draft) https://github.com/yuki-matsu783/MR-driven-workflow/pull/136
 - push回数: 1
-- 現在のループ: なし
+- 現在のループ: 2-6〜2-9 の1周目（進行中・人間レビュー未実施）
 - 追従監視: 購読あり（subscribe_pr_activity で PR #136 を購読。セッション終了で止まるため、次セッションは resume で取り直す）
 
 ## フロー進捗状況
@@ -30,7 +30,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 | [] | 1-5 | 全体作業計画に合意する | 人間 |
 | [x] | 1-6 | 全体作業計画をもとにHANDOFF.mdを更新する | エージェント |
 | [x] | 2-1 | 個別調査計画`plans/【調査】〜.md`をplanツールを使わずWrite/Editで作成する | エージェント |
-| [] | 2-2 | `commit`スキル経由でcommitし、push してレビュー依頼を行う | エージェント |
+| [x] | 2-2 | `commit`スキル経由でcommitし、push してレビュー依頼を行う | エージェント |
 | [] | 2-3 | MRで調査計画についてレビュー・コメントする | 人間 |
 | [] | 2-4 | レビュー内容を取得し、調査計画を修正する | `comments` / `reply` |
 | [] | 2-5 | 調査計画をもとにMR descriptionを更新する | `describe` |

@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>調査結果: 配布経路と追加資産の設計判断（issue #33）</title>
+<script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-50 text-slate-800">
+<div class="max-w-5xl mx-auto px-6 py-10">
+
+  <header class="mb-10 border-b border-slate-200 pb-6">
+    <p class="text-sm font-semibold tracking-wide text-indigo-600">issue #33 / フェーズ2〈調査〉</p>
+    <h1 class="mt-2 text-3xl font-bold text-slate-900">配布経路と追加資産の設計判断</h1>
+    <p class="mt-3 text-slate-600">
+      結果の正文は <code class="rounded bg-slate-200 px-1 text-sm">reports/20260820_配布テンプレート資産の整備_配布経路と追加資産の調査.md</code>。
+      本ページはその視覚化。
+    </p>
+  </header>
+
+  <section class="mb-10">
+    <h2 class="text-xl font-bold text-slate-900 mb-4">実機確認: 使い捨てリポジトリへ実際に配布した</h2>
+    <p class="mb-4 text-slate-700">配布先が「元から持っている資産」を置いた状態で <code>sync-assets.sh</code> → <code>install-to-project.sh</code> を実行し、何が変わったかを観測した。</p>
+    <div class="grid gap-4 md:grid-cols-4">
+      <div class="rounded-lg border border-emerald-200 bg-emerald-50 p-4">
+        <p class="font-mono text-sm font-bold text-emerald-900">.gitattributes</p>
+        <p class="mt-2 text-2xl font-bold text-emerald-700">無変更</p>
+        <p class="mt-1 text-sm text-emerald-800">配布経路に載っていない</p>
+      </div>
+      <div class="rounded-lg border border-emerald-200 bg-emerald-50 p-4">
+        <p class="font-mono text-sm font-bold text-emerald-900">VERSION（ルート）</p>
+        <p class="mt-2 text-2xl font-bold text-emerald-700">1.2.3 のまま</p>
+        <p class="mt-1 text-sm text-emerald-800">同上</p>
+      </div>
+      <div class="rounded-lg border border-sky-200 bg-sky-50 p-4">
+        <p class="font-mono text-sm font-bold text-sky-900">.gitignore</p>
+        <p class="mt-2 text-2xl font-bold text-sky-700">行追記</p>
+        <p class="mt-1 text-sm text-sky-800">既存行は保たれた</p>
+      </div>
+      <div class="rounded-lg border border-sky-200 bg-sky-50 p-4">
+        <p class="font-mono text-sm font-bold text-sky-900">issueテンプレート</p>
+        <p class="mt-2 text-2xl font-bold text-sky-700">新規配置</p>
+        <p class="mt-1 text-sm text-sky-800">ディレクトリ単位コピー</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="mb-10">
+    <h2 class="text-xl font-bold text-slate-900 mb-4">追加資産ごとに必要な変更</h2>
+    <div class="overflow-x-auto rounded-lg border border-slate-200 bg-white">
+      <table class="min-w-full text-sm">
+        <thead class="bg-slate-100 text-slate-700">
+          <tr>
+            <th class="px-4 py-3 text-left font-semibold">追加資産</th>
+            <th class="px-4 py-3 text-left font-semibold">sync-assets.sh</th>
+            <th class="px-4 py-3 text-left font-semibold">install-to-project.sh</th>
+            <th class="px-4 py-3 text-left font-semibold">必要な変更</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-200">
+          <tr>
+            <td class="px-4 py-3 font-mono text-xs">.github/pull_request_template.md</td>
+            <td class="px-4 py-3">ディレクトリ丸ごと</td>
+            <td class="px-4 py-3">safe_copy_dir</td>
+            <td class="px-4 py-3"><span class="rounded bg-emerald-100 px-2 py-1 text-xs font-semibold text-emerald-800">不要</span></td>
+          </tr>
+          <tr>
+            <td class="px-4 py-3 font-mono text-xs">.gitlab/merge_request_templates/Default.md</td>
+            <td class="px-4 py-3">ディレクトリ丸ごと</td>
+            <td class="px-4 py-3">safe_copy_dir</td>
+            <td class="px-4 py-3"><span class="rounded bg-emerald-100 px-2 py-1 text-xs font-semibold text-emerald-800">不要</span></td>
+          </tr>
+          <tr class="bg-amber-50">
+            <td class="px-4 py-3 font-mono text-xs">.gitattributes</td>
+            <td class="px-4 py-3">対象外（ルートは6ファイルの列挙式）</td>
+            <td class="px-4 py-3">対象外</td>
+            <td class="px-4 py-3"><span class="rounded bg-amber-200 px-2 py-1 text-xs font-semibold text-amber-900">両方に必要</span></td>
+          </tr>
+          <tr>
+            <td class="px-4 py-3 font-mono text-xs">.claude/VERSION</td>
+            <td class="px-4 py-3">.claude/* のループに載る</td>
+            <td class="px-4 py-3">safe_copy_dir（find -type f）</td>
+            <td class="px-4 py-3"><span class="rounded bg-emerald-100 px-2 py-1 text-xs font-semibold text-emerald-800">不要</span></td>
+          </tr>
+          <tr>
+            <td class="px-4 py-3 font-mono text-xs">VERSION（ルートに置いた場合）</td>
+            <td class="px-4 py-3">列挙へ追加が必要</td>
+            <td class="px-4 py-3">safe_copy_file の追加が必要</td>
+            <td class="px-4 py-3"><span class="rounded bg-rose-100 px-2 py-1 text-xs font-semibold text-rose-800">両方＋衝突リスク</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="mb-10">
+    <h2 class="text-xl font-bold text-slate-900 mb-4">4つの設計判断</h2>
+    <div class="space-y-4">
+
+      <div class="rounded-lg border border-slate-200 bg-white p-5">
+        <div class="flex items-baseline gap-3">
+          <span class="rounded bg-indigo-600 px-2 py-1 text-xs font-bold text-white">Q1</span>
+          <h3 class="font-bold text-slate-900">PR/MRテンプレートの見出しは <code>## Plan</code> と <code>## 実装状況</code> だけにする</h3>
+        </div>
+        <p class="mt-3 text-sm text-slate-700">
+          <code>describe</code> サブコマンドは description を<strong>全文置換</strong>するため、テンプレートにしか無い見出しは
+          初回の <code>describe</code>（flow-id 2-5）で消える。記入ガイドはHTMLコメントで置き、消えても情報を失わない形にする。
+        </p>
+      </div>
+
+      <div class="rounded-lg border border-slate-200 bg-white p-5">
+        <div class="flex items-baseline gap-3">
+          <span class="rounded bg-indigo-600 px-2 py-1 text-xs font-bold text-white">Q3</span>
+          <h3 class="font-bold text-slate-900"><code>.gitattributes</code> は丸ごとコピーせず「行追記」で配る</h3>
+        </div>
+        <p class="mt-3 text-sm text-slate-700">
+          実機の配布先は <code>*.png binary</code>・<code>diff=markdown</code> のような自前の設定を持っていた。全文置換すると
+          バイナリのテキスト化など回復しにくい破損を招く。<code>.gitattributes</code> は<strong>後に書いた行が勝つ</strong>ため、
+          末尾追記は「配布先の既定を尊重しつつ必要な指定だけ上書きする」形になり意味論としても正しい。
+        </p>
+        <p class="mt-3 text-sm text-slate-700">
+          配るのは <code>*.sh text eol=lf</code> の1行だけ。<code>* text=auto</code>（リポジトリ全体の正規化方針）は本家に置くが配らない。
+        </p>
+      </div>
+
+      <div class="rounded-lg border border-slate-200 bg-white p-5">
+        <div class="flex items-baseline gap-3">
+          <span class="rounded bg-indigo-600 px-2 py-1 text-xs font-bold text-white">Q4</span>
+          <h3 class="font-bold text-slate-900">VERSIONはルートではなく <code>.claude/VERSION</code> に置く</h3>
+        </div>
+        <p class="mt-3 text-sm text-slate-700">
+          実機の配布先はアプリの版として <code>VERSION</code>（<code>1.2.3</code>）を持っていた。ルートへ配ると
+          「テンプレートを入れたらアプリの版が書き換わる」事故になる。<code>.claude/</code> はワークフロー機構が所有しており、
+          名前が衝突しないうえ、スクリプト変更なしで配布経路に載る。
+        </p>
+      </div>
+
+      <div class="rounded-lg border border-slate-200 bg-white p-5">
+        <div class="flex items-baseline gap-3">
+          <span class="rounded bg-indigo-600 px-2 py-1 text-xs font-bold text-white">Q5</span>
+          <h3 class="font-bold text-slate-900">版はSemVer 1行・初期値 <code>0.1.0</code>・更新は flow-id 4-6</h3>
+        </div>
+        <p class="mt-3 text-sm text-slate-700">
+          増分（MAJOR/MINOR/PATCH）はAIが提案し人間が決める。CHANGELOGは持たず、変更内容はコミット履歴／PR一覧で辿る（ユーザー判断）。
+          1.0.0 にしないのは、issue #26 が配布方式そのものを作り直す予定でインターフェースが安定していないため。
+        </p>
+      </div>
+
+    </div>
+  </section>
+
+  <section class="mb-10">
+    <h2 class="text-xl font-bold text-slate-900 mb-4">issue #26（配布方式のmanifest化）との整合</h2>
+    <div class="grid gap-4 md:grid-cols-3">
+      <div class="rounded-lg border border-slate-200 bg-white p-4">
+        <p class="text-xs font-semibold text-slate-500">seed（無ければ配置）</p>
+        <p class="mt-1 font-mono text-sm text-slate-900">PR/MRテンプレート</p>
+        <p class="mt-2 text-sm text-slate-600">#26 が issueテンプレートを seed に置いており、同じ性質</p>
+      </div>
+      <div class="rounded-lg border border-slate-200 bg-white p-4">
+        <p class="text-xs font-semibold text-slate-500">merge（構造マージ）</p>
+        <p class="mt-1 font-mono text-sm text-slate-900">.gitattributes</p>
+        <p class="mt-2 text-sm text-slate-600">#26 が <code>.gitignore</code> を行追記としており、今回の判断はその先取り</p>
+      </div>
+      <div class="rounded-lg border border-slate-200 bg-white p-4">
+        <p class="text-xs font-semibold text-slate-500">core（常に上書き）</p>
+        <p class="mt-1 font-mono text-sm text-slate-900">.claude/VERSION</p>
+        <p class="mt-2 text-sm text-slate-600">manifestのコミットSHAとは役割が重複しない（人間可読の粗い版）</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="mb-10">
+    <h2 class="text-xl font-bold text-slate-900 mb-4">範囲外として記録だけ残す問題（#26 へ通知する）</h2>
+    <ol class="list-decimal space-y-3 pl-6 text-sm text-slate-700">
+      <li><strong><code>.gitignore</code> 対象のローカル生成物が配布先へ混入する。</strong> 実機で <code>index.jsonl</code> が10件以上と <code>.claude/state/</code> が配置された。#26 の <code>local</code> 層の定義がそのままこの問題を指している。</li>
+      <li><strong>追記される <code>.gitignore</code> の行が実態と一致していない。</strong> 追記されるのは <code>/.claude/usage-state/</code> 等4行だが、本家が実際に使うのは <code>/usage/</code> と <code>/.claude/state/</code>（issue #23 の一本化に配布側が追従していない）。</li>
+    </ol>
+  </section>
+
+  <section class="rounded-lg border border-amber-200 bg-amber-50 p-5">
+    <h2 class="text-lg font-bold text-amber-900 mb-2">確かめられなかったこと</h2>
+    <p class="text-sm text-amber-900">
+      Windows実機（git bash / <code>core.autocrlf=true</code>）での挙動は確認していない。この実行環境はLinuxコンテナのため、
+      <code>.gitattributes</code> が無い状態でCRLFが混入する事象そのものを再現できない。確認できたのは
+      「配布経路が <code>.gitattributes</code> を運ばない」ことと「行追記で既存設定が保たれる」ことまでである。
+    </p>
+  </section>
+
+</div>
+</body>
+</html>
