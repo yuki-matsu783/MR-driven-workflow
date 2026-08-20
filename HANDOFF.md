@@ -56,11 +56,14 @@ issue #66（`update-handoff-progress.sh` の `set-header` が対象行を書き�
   （`set-header` の一致件数検査／ヘッダ行の探索範囲をヘッダブロックへ限定／`- 現在のループ:` 行の
   挿入位置／`HANDOFF_TEMPLATE` へヘッダ雛形6行）。`.claude/scripts/test/` の全14スクリプトが
   `failures=0`、かつ**修正前のスクリプトへ戻すと新規テストが23件失敗する**ことを確認した。
+- flow-id 4-1: 反映対象を洗い出し、個別反映計画2件を作成した
+  （`plans/【設計反映】〜.md` と `plans/【AIアセット反映】〜.md`。原則どおり分けた）。
+- 敵対的レビュー（`adversarial-review` スキル、フェーズ3の1回目）を実行中。
 
 ## 次にやること
 
-- `adversarial-review` スキルで敵対的レビューを受ける（人間のレビュー往復の代替）。
-- flow-id 4-1: 反映対象（spec / rules / DDR）を洗い出し、個別反映計画を作る。
+- 敵対的レビューの指摘に対応する。
+- flow-id 4-6: 設計反映（spec 2件・DDR `i0066-01` 新設・DDR一覧の再生成）→ AIアセット反映の順で行う。
 
 ## 判断を迷った内容
 
