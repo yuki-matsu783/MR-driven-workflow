@@ -17,7 +17,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - issue: #47
 - ブランチ: `claude/multiline-command-japanese-comments-k8c2pr`
 - PR: #132（https://github.com/yuki-matsu783/MR-driven-workflow/pull/132 ）
-- push回数: 10
+- push回数: 11
 - 現在のループ: 4-6〜4-9 の1周目（進行中・設計反映のラウンド）
 - 追従監視: 購読あり（web。subscribe_pr_activity + 定期チェックイン）
 
@@ -315,6 +315,30 @@ flow-id 4-5 でPRの状態を取得したところ `mergeable_state: dirty` に�
 - **進捗表をこのブランチで新規に組み立てた**。`cleanup-task.sh` が書き戻すHANDOFF.mdのテンプレートは
   進捗表を持たず「（次タスク着手時に記入する）」となっているため、`SKILL.md` のフロー表から機械的に
   生成した（手写しの転記ミスを避けるため）。ステップ列は最初の句点・括弧までに縮めている。
+- **【解消済み】`main` とのコンフリクト（DDR番号 0059 の衝突・README.mdのDDR一覧・specのchangelog）**。
+  追従監視の購読はしていたが、webhookでは気づけず、flow-id 4-5 で `pull_request_read` を呼んだ
+  ときの `mergeable_state: dirty` で初めて分かった。`main` は #131 / #134 で2コミット進み、
+  **DDR 0059 と 0060 を同時に使っていた**。
+  - 類型A（DDR番号の衝突）・C（一覧末尾への追記）・D（specの過去changelog）のみで、
+    類型E（同じロジックの競合）は無い。**監視モードで承認を待たず自動解消してよい範囲**のため、
+    `resolve-conflict` スキルの手順どおり解消した（`000142d`）。
+  - **DDR 0059 → 0061 へ繰り下げ**（`main` 側の番号を正とする規則）。追随させたのは、ファイル名・
+    frontmatterの `title`・本文冒頭の見出し・`.claude/docs/README.md` のリンク（**ファイル名と
+    テキストの両方**）・`.claude/rules/ai-command-style.md` の参照リンク・specのchangelog・
+    `plans/` `reports/` `worklog/` の言及。残存する `0059` はworklogの経緯説明2行のみ。
+  - specの `## 影響範囲` は、`main` 側のエントリ（`### issue #113` / `### issue #43`）を先、
+    こちらの `### issue #47` を後ろにして**時系列順に両方**残した。過去エントリの中身は
+    変更していない。
+  - 検証（`resolve-conflict` Step 5）はすべて通過。単体テスト12本が `failures=0`、
+    `hasDuplicateDdrNumber: false`、自動マージで入った行も `git diff HEAD -- HANDOFF.md` で
+    通しで確認済み（別タスクの記述は混ざっていない）。
+  - **PRコメントの記載ミス**: 解消報告のコメント（#issuecomment-5360787931）で、`main` 側の
+    changelogエントリを「`### issue #113` `### issue #128` 等」と書いたが、実際は
+    **`### issue #113` と `### issue #43`** である。GitHubのコメントは後から編集できないため、
+    次のPRコメントで訂正する。統合の中身（main側が先・こちらが後ろ）は記載どおりで誤りは無い。
+  - **教訓**: 各pushの直後に `check-base-conflicts.sh` を1回実行する決まり（`SKILL.md`
+    「PR作成後のdefaultブランチ追従（監視）」）を飛ばしていた。4-2 のpush直後に実行していれば、
+    設計反映を始める前に気づけた。webhookはマージ可否の遷移を取りこぼす。
 
 ## 未解決の内容
 
