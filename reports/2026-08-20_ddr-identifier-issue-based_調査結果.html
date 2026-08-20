@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>調査結果: DDR識別子をissue番号ベースへ変更する（issue #133）</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  body { font-family: system-ui, -apple-system, "Segoe UI", "Hiragino Kaku Gothic ProN", "Noto Sans JP", sans-serif; }
+  .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+</style>
+</head>
+<body class="bg-slate-50 text-slate-800">
+<div class="max-w-5xl mx-auto px-5 py-10">
+
+  <header class="mb-10">
+    <p class="text-sm text-slate-500 mb-1">調査結果 / 2026-08-20</p>
+    <h1 class="text-3xl font-bold text-slate-900">DDR識別子をissue番号ベースへ変更する</h1>
+    <p class="mt-2 text-slate-600">issue #133 — 並行開発時のDDR番号衝突を、検知・解消ではなく採番方式の変更で無くす</p>
+  </header>
+
+  <!-- 結論 -->
+  <section class="mb-10">
+    <h2 class="text-xl font-bold text-slate-900 border-l-4 border-indigo-500 pl-3 mb-4">結論</h2>
+    <div class="grid gap-4 md:grid-cols-3">
+      <div class="bg-white rounded-lg border border-slate-200 p-5">
+        <div class="text-xs font-semibold text-indigo-600 mb-2">新方式の識別子</div>
+        <div class="mono text-lg font-bold text-slate-900">i&lt;issue&gt;-&lt;枝番2桁&gt;</div>
+        <p class="text-sm text-slate-600 mt-2">例: <span class="mono">i133-01-…md</span>。先頭が数字でないため既存の4桁連番と正規表現1本で判別できる。</p>
+      </div>
+      <div class="bg-white rounded-lg border border-slate-200 p-5">
+        <div class="text-xs font-semibold text-indigo-600 mb-2">実装の変更対象</div>
+        <div class="text-lg font-bold text-slate-900">1箇所だけ</div>
+        <p class="text-sm text-slate-600 mt-2">4桁形式を前提にしているのは <span class="mono">check-base-conflicts.sh</span> の <span class="mono">ddr_number_to_reply</span> のみ。</p>
+      </div>
+      <div class="bg-white rounded-lg border border-slate-200 p-5">
+        <div class="text-xs font-semibold text-indigo-600 mb-2">既存DDRへの参照</div>
+        <div class="text-lg font-bold text-slate-900">262行 / 919回</div>
+        <p class="text-sm text-slate-600 mt-2">今回そのすべてを<strong>変更しない</strong>。改番を伴わないことが本方式の最大の利点。</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 現状の実測 -->
+  <section class="mb-10">
+    <h2 class="text-xl font-bold text-slate-900 border-l-4 border-indigo-500 pl-3 mb-4">1. 現状の実測</h2>
+    <div class="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-4 text-sm text-amber-900">
+      <strong>issue本文の件数（58件 / 54件）は実測と食い違う。</strong> 実測は <strong>55件</strong>（0003〜0059、欠番は 0001 / 0002 / 0008 / 0015）。以降のドキュメントは実測を正とする。
+    </div>
+    <div class="overflow-x-auto bg-white rounded-lg border border-slate-200">
+      <table class="w-full text-sm">
+        <thead class="bg-slate-100 text-slate-700">
+          <tr><th class="text-left px-4 py-2 font-semibold">項目</th><th class="text-left px-4 py-2 font-semibold">値</th><th class="text-left px-4 py-2 font-semibold">備考</th></tr>
+        </thead>
+        <tbody class="divide-y divide-slate-100">
+          <tr><td class="px-4 py-2">DDRファイル数</td><td class="px-4 py-2 font-bold">55件</td><td class="px-4 py-2 text-slate-600">issue本文とは一致しない</td></tr>
+          <tr><td class="px-4 py-2">番号の範囲</td><td class="px-4 py-2 mono">0003〜0059</td><td class="px-4 py-2 text-slate-600">欠番4つは移植時に持ち込まなかったもの</td></tr>
+          <tr><td class="px-4 py-2">番号の重複</td><td class="px-4 py-2">なし</td><td class="px-4 py-2 text-slate-600">現時点では解消済み</td></tr>
+          <tr><td class="px-4 py-2">番号参照を含む行</td><td class="px-4 py-2 font-bold">262行</td><td class="px-4 py-2 text-slate-600">うち ddr/ の外が251行</td></tr>
+          <tr><td class="px-4 py-2">番号参照の出現回数</td><td class="px-4 py-2 font-bold">919回</td><td class="px-4 py-2 text-slate-600">上位: issue-mr-workflow.md 130、README.md 111</td></tr>
+          <tr><td class="px-4 py-2">本文にissue番号を持つDDR</td><td class="px-4 py-2">53 / 55件</td><td class="px-4 py-2 text-slate-600">DDRとissueがほぼ1対1〜1対多で対応</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- 案の比較 -->
+  <section class="mb-10">
+    <h2 class="text-xl font-bold text-slate-900 border-l-4 border-indigo-500 pl-3 mb-4">2. 命名規則の3案比較</h2>
+    <div class="overflow-x-auto bg-white rounded-lg border border-slate-200">
+      <table class="w-full text-sm">
+        <thead class="bg-slate-100 text-slate-700">
+          <tr>
+            <th class="text-left px-4 py-2 font-semibold">観点</th>
+            <th class="text-left px-4 py-2 font-semibold bg-emerald-100">A: <span class="mono">i133-01</span>（採用）</th>
+            <th class="text-left px-4 py-2 font-semibold">B: <span class="mono">issue133-01</span></th>
+            <th class="text-left px-4 py-2 font-semibold">C: <span class="mono">0133-01</span></th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-100">
+          <tr><td class="px-4 py-2">既存連番と機械的に区別できるか</td><td class="px-4 py-2 bg-emerald-50 font-semibold text-emerald-800">できる</td><td class="px-4 py-2">できる</td><td class="px-4 py-2 text-rose-700 font-semibold">できない</td></tr>
+          <tr><td class="px-4 py-2">別ブランチ間で衝突しないか</td><td class="px-4 py-2 bg-emerald-50 font-semibold text-emerald-800">しない</td><td class="px-4 py-2">しない</td><td class="px-4 py-2">しない</td></tr>
+          <tr><td class="px-4 py-2">枝番の採番が同一ブランチ内で閉じるか</td><td class="px-4 py-2 bg-emerald-50 font-semibold text-emerald-800">閉じる</td><td class="px-4 py-2">閉じる</td><td class="px-4 py-2">閉じる</td></tr>
+          <tr><td class="px-4 py-2">issue番号との一致</td><td class="px-4 py-2 bg-emerald-50 font-semibold text-emerald-800">完全一致</td><td class="px-4 py-2">完全一致</td><td class="px-4 py-2">桁揃えの解釈が要る</td></tr>
+          <tr><td class="px-4 py-2">ファイル名の長さ</td><td class="px-4 py-2 bg-emerald-50 font-semibold text-emerald-800">短い</td><td class="px-4 py-2">+4文字</td><td class="px-4 py-2">短い</td></tr>
+          <tr><td class="px-4 py-2">辞書順＝番号順</td><td class="px-4 py-2 bg-emerald-50 text-slate-600">ならない（受容）</td><td class="px-4 py-2 text-slate-600">ならない</td><td class="px-4 py-2">なる</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="mt-4 bg-rose-50 border border-rose-200 rounded-lg p-4 text-sm text-rose-900">
+      <strong>Cは失格。</strong> <span class="mono">0133-01-…</span> は既存の <span class="mono">^[0-9]{4}-</span> にマッチしてしまい、「新旧を機械的に区別できる命名にする」というissueの要求を満たさない。
+    </div>
+    <div class="mt-3 bg-slate-100 border border-slate-200 rounded-lg p-4 text-sm">
+      <strong>AとBの差は表記の長さだけ。</strong> DDRのファイル名は既に日本語タイトルで長い（最長90文字超）ため、接頭辞の短いAを採用した。
+    </div>
+  </section>
+
+  <!-- 決めた細部 -->
+  <section class="mb-10">
+    <h2 class="text-xl font-bold text-slate-900 border-l-4 border-indigo-500 pl-3 mb-4">3. 決めた細部とその理由</h2>
+    <div class="space-y-3">
+      <div class="bg-white rounded-lg border border-slate-200 p-4">
+        <div class="font-semibold text-slate-900">枝番は1件のときも必須（<span class="mono">-01</span> を省略しない）</div>
+        <p class="text-sm text-slate-600 mt-1">後から2件目を足すときに1件目を改番せずに済む。「1件なら省略」だと、まさに今回無くそうとしている改番作業を再導入してしまう。</p>
+      </div>
+      <div class="bg-white rounded-lg border border-slate-200 p-4">
+        <div class="font-semibold text-slate-900">枝番は2桁ゼロ埋め</div>
+        <p class="text-sm text-slate-600 mt-1">同一issue内では辞書順＝作成順になる。同一issueで100件のDDRという規模は現実的でない。</p>
+      </div>
+      <div class="bg-white rounded-lg border border-slate-200 p-4">
+        <div class="font-semibold text-slate-900">issue番号はゼロ埋めしない</div>
+        <p class="text-sm text-slate-600 mt-1"><span class="mono">#133</span> とファイル名の数字が完全一致し、「何桁に揃えるか」という新たな転記ミスの余地を作らない。</p>
+      </div>
+      <div class="bg-white rounded-lg border border-slate-200 p-4">
+        <div class="font-semibold text-slate-900">ディレクトリの並び順が番号順にならないことは受け入れる</div>
+        <p class="text-sm text-slate-600 mt-1">DDRは番号順に通読するものではなく、<span class="mono">doc-search</span>（frontmatterインデックス）と <span class="mono">.claude/docs/README.md</span> の一覧から引く。README側はissue番号の<strong>数値順</strong>に並べて補う。</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 変更対象 -->
+  <section class="mb-10">
+    <h2 class="text-xl font-bold text-slate-900 border-l-4 border-indigo-500 pl-3 mb-4">4. 4桁連番を前提にしている箇所（全数）</h2>
+    <div class="grid gap-4 md:grid-cols-2">
+      <div class="bg-white rounded-lg border border-slate-200 p-5">
+        <div class="text-xs font-semibold text-rose-600 mb-3">変更する</div>
+        <ul class="space-y-2 text-sm">
+          <li class="mono text-slate-800">check-base-conflicts.sh <span class="text-slate-500 font-sans">（<span class="mono">ddr_number_to_reply</span> の正規表現）</span></li>
+          <li class="mono text-slate-800">test_check_base_conflicts.sh <span class="text-slate-500 font-sans">（新旧混在ケースを追加）</span></li>
+          <li class="mono text-slate-800">rules/markdown-frontmatter.md <span class="text-slate-500 font-sans">（命名規則の節を新設）</span></li>
+          <li class="mono text-slate-800">rules/docs-workflow.md <span class="text-slate-500 font-sans">（運用表のDDR行）</span></li>
+          <li class="mono text-slate-800">docs/README.md <span class="text-slate-500 font-sans">（DDR一覧の構成）</span></li>
+          <li class="mono text-slate-800">docs/spec/check-base-conflicts.md <span class="text-slate-500 font-sans">（検知2の仕様）</span></li>
+          <li class="mono text-slate-800">skills/resolve-conflict/SKILL.md <span class="text-slate-500 font-sans">（類型A）</span></li>
+          <li class="mono text-slate-800">skills/issue-mr-flow/SKILL.md <span class="text-slate-500 font-sans">（監視の類型A・flow-id 5-1）</span></li>
+        </ul>
+      </div>
+      <div class="bg-white rounded-lg border border-slate-200 p-5">
+        <div class="text-xs font-semibold text-emerald-600 mb-3">変更しない</div>
+        <ul class="space-y-2 text-sm">
+          <li><span class="mono text-slate-800">search-frontmatter.sh:134</span><br><span class="text-slate-500"><span class="mono">^[0-9]{4}-[0-9]{2}-[0-9]{2}$</span> は <span class="mono">--since</span> の<strong>日付</strong>判定。DDRとは無関係</span></li>
+          <li><span class="mono text-slate-800">spec/issue-mr-workflow.md</span><br><span class="text-slate-500">過去issueごとのchangelog（point-in-timeの記録）</span></li>
+          <li><span class="mono text-slate-800">各DDR本文</span><br><span class="text-slate-500">本文不変の原則。相互参照もそのまま</span></li>
+          <li><span class="mono text-slate-800">.claude/hooks/ 配下・Provider.sh 等</span><br><span class="text-slate-500">DDRをファイル名の形式で扱っている箇所が無い</span></li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- 検知ロジック -->
+  <section class="mb-10">
+    <h2 class="text-xl font-bold text-slate-900 border-l-4 border-indigo-500 pl-3 mb-4">5. 検知ロジックは残す</h2>
+    <p class="text-sm text-slate-700 mb-3">新方式でも重複が起きうる場合が2つ残るため、識別子の<strong>抽出だけを一般化</strong>し、重複判定のロジックはそのまま残す。</p>
+    <div class="grid gap-4 md:grid-cols-2">
+      <div class="bg-white rounded-lg border border-slate-200 p-4">
+        <div class="font-semibold text-slate-900 text-sm">① 既存の連番DDR同士</div>
+        <p class="text-sm text-slate-600 mt-1">今後は新規追加されないが、既存55件が消えるわけではない。</p>
+      </div>
+      <div class="bg-white rounded-lg border border-slate-200 p-4">
+        <div class="font-semibold text-slate-900 text-sm">② 同一issueの追加作業を別ブランチで並行実施</div>
+        <p class="text-sm text-slate-600 mt-1">枝番はローカルで決めるため、両ブランチが同じ枝番を採りうる。<strong>この残存リスクは新方式でも消えない</strong>（頻度は連番方式とは桁が違う）。</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- JSONキー -->
+  <section class="mb-4">
+    <h2 class="text-xl font-bold text-slate-900 border-l-4 border-indigo-500 pl-3 mb-4">6. JSON出力のキー名は据え置く</h2>
+    <div class="bg-white rounded-lg border border-slate-200 p-5 text-sm text-slate-700 space-y-3">
+      <p><span class="mono">duplicateDdrNumbers</span> / <span class="mono">hasDuplicateDdrNumber</span> は「番号」という語を含むが、値は今後 <span class="mono">i133-01</span> のような<strong>識別子</strong>にもなる。</p>
+      <p>しかしこのキー名は <span class="mono">resolve-conflict/SKILL.md</span>（4箇所）・<span class="mono">check-base-conflicts.md</span>（3箇所）から参照される公開インターフェースであり、<strong>改名すると「参照の追従漏れ」というこのissueが無くそうとしているリスクを自ら作り出す。</strong></p>
+      <p class="bg-slate-100 rounded p-3"><strong>結論:</strong> 内部の純粋関数名だけを実態に合わせて改名（<span class="mono">ddr_number_to_reply</span> → <span class="mono">ddr_identifier_to_reply</span> ほか）し、JSONのキー名は据え置く。関数名はスクリプト本体と単体テストの2ファイルしか参照していないため、追従漏れが起きない。</p>
+    </div>
+  </section>
+
+  <footer class="mt-12 pt-6 border-t border-slate-200 text-xs text-slate-500">
+    結果の正文は <span class="mono">reports/2026-08-20_ddr-identifier-issue-based_調査結果.md</span>。本HTMLはその視覚化。
+  </footer>
+
+</div>
+</body>
+</html>
