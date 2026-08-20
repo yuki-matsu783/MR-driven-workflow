@@ -112,6 +112,23 @@ DDR 0045の決定4のうち「判定手段」の部分だけを置き換える�
 4. `.claude/scripts/test/` 配下の既存単体テストを実行し（例: `bash .claude/scripts/test/test_vcs_provider.sh` 等、変更に関係しうるものだけで可）、すべて通ることを確認する（今回はドキュメントのみの変更のためコード側のテスト内容自体に変化は無い想定）。
 5. `bash .claude/scripts/src/extract-frontmatter.sh .` を実行し、frontmatterの構文エラーが無いことを確認する（`index.jsonl`はコミット対象外）。
 
+## Draft PRの作成（flow-id 1-3の後追い）
+
+このセッションはハーネスがPR作成を制限する環境（Claude Code on the web）のため、
+`.claude/rules/git-workflow.md`「ハーネスがPR作成を制限する環境での扱い」に従い、ユーザーへ
+1回だけ可否を確認したうえでDraft PRを作成する（**2026-08-20に承認を得た**）。
+
+- 事前確認済み: このブランチに紐づくopen PRは存在しない（`mcp__github__list_pull_requests` が
+  空配列）。base は `.mrworkflow.json` の `defaultBaseBranch` どおり `main`。
+  リポジトリにPRテンプレート（`.github/pull_request_template.md` 等）は無い。
+- `gh`/`glab` CLI不在環境のため、`new_draft_merge_request` の代わりに
+  `mcp__github__create_pull_request`（`draft=true`, `head=claude/remove-adversarial-review-automation-ip5z9i`,
+  `base=main`）を使う（SKILL.md「`gh`/`glab` CLI不在時のMCPフォールバック」対応表）。
+  既に差分がpush済みのため、空コミットでのリトライは不要な見込み。
+- タイトルはissue #106の生のタイトルを使う。本文は `describe` サブコマンドのテンプレート
+  （`Closes #106` ／ `## Plan` ／ `## 実装状況`）に沿って、作業が完了済みである旨を書く
+  （plan段階ではないため「未着手」ではなく実施済みの内容を要約する）。
+
 ## 作業の進め方
 
 本issueはドキュメント（SKILL.md・spec・DDR・issue-mr-flow）のみの変更であり、コード実装を伴わない。
