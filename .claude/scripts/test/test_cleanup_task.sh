@@ -116,7 +116,7 @@ assert_eq "HANDOFF_TEMPLATE: 進捗表の記号を含まない" "1" \
   "$(status_of test "${HANDOFF_TEMPLATE#*'[x]'}" != "$HANDOFF_TEMPLATE")"
 
 # --- main の結合テスト: 削除済みファイルが混じった状態（issue #117）-----------
-# 本スクリプトは**コミットしない**（DDR i28-01）ため、手順3（frontmatterインデックスの再生成）は
+# 本スクリプトは**コミットしない**（DDR i0028-01）ため、手順3（frontmatterインデックスの再生成）は
 # 常に「追跡ファイルが削除済みだが未ステージ」の状態で走る。`git ls-files --cached` はその
 # パスも返すため、実体の無いファイルを stat しようとして**通常の実行では必ず失敗していた**
 # （issue #97 の flow-id 5-1 で実際に発生。`frontmatterIndex.exitCode: 1`）。

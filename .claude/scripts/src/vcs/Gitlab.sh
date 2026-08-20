@@ -88,7 +88,7 @@ gitlab_new_draft_merge_request() {
     # ブランチでもMR作成は成功し、この分岐には到達しなかった。差分ゼロで失敗するのは
     # `gh pr create`（GitHub）側の制約である（issue #48対応時、実際に
     # `No commits between main and feature-48-...`が発生しフォールバックが動作した。
-    # 設計: .claude/docs/ddr/i00-03-DraftPR作成失敗時は空コミットで自動リトライする.md）。
+    # 設計: .claude/docs/ddr/i0000-03-DraftPR作成失敗時は空コミットで自動リトライする.md）。
     #
     # したがってこの分岐はGitLabでは通常到達しない安全網である。削除せず残しているのは、
     # 実機確認できたのが18.5.4の1バージョンのみで、他バージョン・他設定でも必ず成功すると

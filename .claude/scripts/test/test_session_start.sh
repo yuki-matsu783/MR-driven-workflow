@@ -295,7 +295,7 @@ assert_contains "判定根拠が本文へ埋め込まれる" "$instruction" "テ
 assert_contains "既読でも読み直すよう明示する" "$instruction" "既に読んでいる場合も読み直すこと"
 assert_contains "compactが原因であることに触れる" "$instruction" "compact"
 
-# 指示文はしきい値（8000バイト）に対して十分小さい。注入量の肥大化検知（DDR i57-01）を
+# 指示文はしきい値（8000バイト）に対して十分小さい。注入量の肥大化検知（DDR i0057-01）を
 # この追加だけで誤って発火させないことを、実測値で固定しておく。
 instruction_bytes="$(context_text_bytes "$instruction")"
 if [ "$instruction_bytes" -lt 1000 ]; then

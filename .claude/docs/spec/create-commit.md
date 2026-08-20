@@ -14,7 +14,7 @@ keywords: [create-commit, git add, pathspec, 削除済みパス, ステージ済
 
 issue #39で、このリポジトリのコミットは `commit` スキル（`.claude/skills/commit/SKILL.md`）経由に
 限定され、gitのコミットコマンドの直接実行は `.claude/hooks/block-direct-git-commit.sh`
-（PreToolUse hook）がコマンド文字列の部分一致でブロックするようになった（DDR i00-09）。
+（PreToolUse hook）がコマンド文字列の部分一致でブロックするようになった（DDR i0000-09）。
 
 このhookは「コマンド文字列にその2語が現れたらブロックする」という単純な仕組みであり、正規経路も
 例外ではない。そこで、**呼び出し文字列自体にその2語を含まないコミット手段**として本ラッパーを置く。
@@ -120,7 +120,7 @@ pathspec 不一致で失敗する（issue #60が「回避策」として挙げ�
 
 issue #60の本文は `git add -A -- "${files[@]}"` を提案していたが、採用しなかった。理由と
 却下の詳細は
-[i60-01-create-commitは削除ステージ済みパスをgit-addの失敗時分類で吸収する.md](../ddr/i60-01-create-commitは削除ステージ済みパスをgit-addの失敗時分類で吸収する.md)
+[i0060-01-create-commitは削除ステージ済みパスをgit-addの失敗時分類で吸収する.md](../ddr/i0060-01-create-commitは削除ステージ済みパスをgit-addの失敗時分類で吸収する.md)
 を参照。要点は、`-A` が症状を直さないこと（削除ステージ済みパスは `-A` でも失敗する）と、
 **pathspecが空のときリポジトリ全体をステージしてしまう**ことである。
 

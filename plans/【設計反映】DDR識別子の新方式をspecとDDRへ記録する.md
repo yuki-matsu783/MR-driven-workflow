@@ -15,7 +15,7 @@ keywords: [設計反映, spec, DDR, check-base-conflicts, 却下案, AIアセッ
 | 反映先 | 対象 | 要否 |
 |---|---|---|
 | `.claude/docs/spec/check-base-conflicts.md` | 「検知2」の仕様（受け付ける識別子の形式・判定順・残る重複ケース）と、issue #133 の影響範囲 | **要** |
-| `.claude/docs/ddr/`（新規） | 採用理由と却下案（採番の遅延／レンジ分割／ゼロ埋め／検知の廃止）、JSONキーを改名しなかった理由、受け入れたトレードオフ | **要**（新方式の第1号 `i133-01`） |
+| `.claude/docs/ddr/`（新規） | 採用理由と却下案（採番の遅延／レンジ分割／ゼロ埋め／検知の廃止）、JSONキーを改名しなかった理由、受け入れたトレードオフ | **要**（新方式の第1号 `i0133-01`） |
 | `.claude/rules/markdown-frontmatter.md` | 命名規則 | **作業フェーズ内で完了済み**（規約そのものが今回の成果物のため） |
 | `.claude/rules/docs-workflow.md` / `.claude/skills/*` | 運用表・スキルの手順 | **作業フェーズ内で完了済み**（同上） |
 | 他のspec（`issue-mr-workflow.md` 等） | 過去issueごとのchangelog | **不要**（point-in-timeの記録は書き換えない） |
@@ -33,7 +33,7 @@ keywords: [設計反映, spec, DDR, check-base-conflicts, 却下案, AIアセッ
    - 「JSONのキー名を改名していないこと」節を追加。
    - 「影響範囲」へ issue #133 のエントリを追記（**過去エントリは書き換えない**）。
    - 「未決定事項」の「DDR以外の連番リソースは対象外」を、新方式を踏まえた表現へ。
-2. `.claude/docs/ddr/i133-01-DDR識別子はissue番号ベースにし連番採番をやめる.md`（新規）
+2. `.claude/docs/ddr/i0133-01-DDR識別子はissue番号ベースにし連番採番をやめる.md`（新規）
    - 背景 / 決定7項目 / 却下した案4件 / JSONキーを改名しなかった理由 / 受け入れたトレードオフ。
 
 ## 検証

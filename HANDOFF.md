@@ -15,7 +15,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - issue: #133 DDRの識別子を連番からissue番号ベースへ変更し、並行開発時の番号衝突を原理的に無くす
 - ブランチ: claude/ddr-identifier-issue-based-vpskgp
 - PR: #137 (Draft) https://github.com/yuki-matsu783/MR-driven-workflow/pull/137
-- push回数: 5
+- push回数: 6
 - 現在のループ: 4-6〜4-9 の1周目（完了）
 - 追従監視: 購読あり（web。subscribe_pr_activity + 1時間ごとの自己チェックイン）
 
@@ -81,7 +81,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
   結果は `reports/2026-08-20_ddr-identifier-issue-based_作業結果.md`。
 - flow-id 4-1/4-6: 反映対象を洗い出し（spec 1件・DDR 1件新規）、
   `.claude/docs/spec/check-base-conflicts.md` の更新と
-  `.claude/docs/ddr/i133-01-DDR識別子はissue番号ベースにし連番採番をやめる.md` の新規作成を行った。
+  `.claude/docs/ddr/i0133-01-DDR識別子はissue番号ベースにし連番採番をやめる.md` の新規作成を行った。
   AIアセット（`.claude/rules/` `.claude/skills/`）の改訂は本issueの成果物そのもののため、
   フェーズ3の作業として実施済み。
 - **ユーザーの承認を得て `main`（behind=1）を `git merge` で取り込んだ。** コンフリクトは無く
@@ -92,13 +92,13 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - **ユーザーの指示により、既存の連番DDR全56件（`0003`〜`0060`）を新方式へ改番した**
   （当初は「改番しない」で実装を終えていた。方針転換のリスクは一度指摘したうえで指示が維持された）。
   対応issueを特定できた43件はそのissue番号へ、特定できなかった13件は予約番号 `i00`
-  （`i00-01`〜`i00-13`）へ割り当てた。個別作業計画は `plans/【実装】既存DDRの全件改番.md`、
+  （`i0000-01`〜`i0000-13`）へ割り当てた。個別作業計画は `plans/【実装】既存DDRの全件改番.md`、
   結果は作業結果レポート「追加対応: 既存DDRの全件改番」。
 - 改番に伴い `.claude/docs/README.md` の一覧をissue番号の数値順の単一構成へ作り直し、
   `markdown-frontmatter.md` へ「対応issueを持たないDDR（`i00`）」「旧方式（4桁連番）の扱い」を
   追加、`check-base-conflicts.md` / `resolve-conflict` / `issue-mr-flow` / `docs-workflow.md` の
   「既存の連番DDR同士」という前提を「旧形式を抱えた配布先・改番前のブランチ」へ書き換えた。
-  DDR `i133-01` にも決定5・却下案・トレードオフの修正と「全件改番へ方針を変えた経緯」を追記した。
+  DDR `i0133-01` にも決定5・却下案・トレードオフの修正と「全件改番へ方針を変えた経緯」を追記した。
 - 検証: 単体テスト全12件が `failures=0`（改番後の最終値で合計699アサーション。うち
   `test_check_base_conflicts.sh` は 13→29 アサーション）。`check-base-conflicts.sh --no-fetch` が
   `hasConflict=false`。`extract-frontmatter.sh` / `search-frontmatter.sh` から新DDRを引ける。
@@ -110,14 +110,27 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
   - コンフリクトは `.claude/docs/README.md` のDDR一覧1件（類型C）。両方を残す形で、一覧を
     ディレクトリから再生成して統合した。
   - **`main` 側が旧方式の連番DDRを4件追加していた**（`0061`〜`0064`）。本ブランチの決定に従い
-    `i33-01` / `i33-02` / `i33-03`（いずれもissue #33）・`i109-01`（issue #109）へ改番し、
+    `i0033-01` / `i0033-02` / `i0033-03`（いずれもissue #33）・`i0109-01`（issue #109）へ改番し、
     `.gitlab/merge_request_templates/Default.md`・`distribution-assets.md`・
     `adversarial-review.md`・`issue-mr-workflow.md` からの参照も追従させた。
   - `adversarial-review.md` の影響範囲表にあった「DDR一覧へ0061を追加」は、当時追加されたのは
-    `0064`（現 `i109-01`）であり**元から誤記**だったため、改番のついでに訂正した。
+    `0064`（現 `i0109-01`）であり**元から誤記**だったため、改番のついでに訂正した。
 - 検証（2回目のマージ後）: 単体テスト全13件が `failures=0`（合計721アサーション。`main` が
   `test_install_to_project.sh` を追加したため12→13件）。DDR識別子の重複なし。DDRリンク61件が
   すべて実ファイルへ解決。`extract-frontmatter.sh` は `failed=0`。
+
+- **`main` が issue #135（DDR一覧の生成スクリプト化）をマージし、本ブランチと正面から衝突した**
+  （類型E: 同じ対象を両ブランチが別々に作り変えた）。いったん止めてユーザーへ確認し、
+  **issue番号を4桁ゼロ埋めする**方針（`i0133-01`）で統合した。
+  - ゼロ埋めによりファイル名の辞書順が数値順と一致するため、**`generate-ddr-list.sh` を
+    1行も変えずにそのまま使える**。DDR一覧は生成物になり、手書きで行を足さない運用になった。
+  - 全62件を再改番。`check-base-conflicts.sh` の抽出正規表現を `^(i[0-9]{4,}-[0-9]{2})-` にし、
+    **ゼロ埋め漏れ（`i133-01`）を弾く**ようにした（同じDDRが2つの識別子を持つのを防ぐため）。
+  - `main` が追加した `0065` は `i0135-01` へ改番。競合4ファイル（README・docs-workflow・
+    markdown-frontmatter・resolve-conflict）は両側の変更を残して統合した。
+- 検証: 単体テスト全14件が `failures=0`（`main` が `test_generate_ddr_list.sh` を追加）。
+  `generate-ddr-list.sh --check` が終了コード0。DDR識別子の重複なし。README のDDRリンク全件が
+  実ファイルへ解決。`extract-frontmatter.sh` は `failed=0`。
 
 ## 次にやること
 
@@ -146,7 +159,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 
 ## 未解決の内容
 
-- **同一issueへの追加作業を2つのブランチで並行して行った場合、枝番（`i133-03` 等）はなお衝突しうる。**
+- **同一issueへの追加作業を2つのブランチで並行して行った場合、枝番（`i0133-03` 等）はなお衝突しうる。**
   新方式でも消えない唯一の経路であり、`check-base-conflicts.sh` の検知と `resolve-conflict`
   スキルの類型A-2で受けている（改番して先へ進む前に、並行作業自体の是非を人間へ確認する）。
 - 非対話的な実行環境のため、人間によるレビュー往復（2-3/2-4, 2-8/2-9, 3-3/3-4, 3-8/3-9,

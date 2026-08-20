@@ -23,7 +23,7 @@
 # プロバイダ依存の関数は `require_vcs_cli` により「代替すべきMCPツール名」を提示して失敗する。
 # 呼び出し側（AIエージェント）はそのメッセージに従いMCPフォールバック経路へ切り替える
 # （経路判定は `get_vcs_access_mode`、手順は .claude/skills/issue-mr-flow/SKILL.md
-# 「`gh`/`glab` CLI不在時のMCPフォールバック」節。issue #34, DDR i34-01）。
+# 「`gh`/`glab` CLI不在時のMCPフォールバック」節。issue #34, DDR i0034-01）。
 #
 # 注意（文字コード）: PowerShell版はシステムのANSI/OEMコードページ対策として明示的な
 # UTF-8切り替えが必要だったが、git bash + gh/jq の組み合わせではこの問題が発生しない
@@ -112,7 +112,7 @@ build_issue_body() {
 # 「ホットパスの小さなヘルパー関数は…`REPLY` へ返す」。値が複数あるため `REPLY` ではなく
 # `REPLY_HOST` / `REPLY_PATH` / `REPLY_SCHEME` / `REPLY_PORT` を使う）。標準出力へ返すと
 # コマンド置換が必要になり、
-# `provider_from_remote_url` の「プロセス起動ゼロ」（DDR i45-01）が守れなくなる。
+# `provider_from_remote_url` の「プロセス起動ゼロ」（DDR i0045-01）が守れなくなる。
 #
 #   REPLY_HOST … 小文字化したホスト名（scheme・認証情報・ポートを除く）
 #   REPLY_PATH … `owner/repo` 形式のパス（先頭スラッシュ・末尾の `.git`・末尾スラッシュを除く。
@@ -193,7 +193,7 @@ split_remote_url() {
 # 判定はremote URLの文字列のみに依存し、`gh`/`glab` の認証状態には依存しない（未ログインでも
 # 同じ結果になる）。
 # 詳細・却下案（glab由来の情報を使う3方式・`.mrworkflow.json`への`provider`キー追加）は
-# .claude/docs/ddr/i45-01-プロバイダ判定はremote-URLのホスト部でgithub以外をgitlabとみなす.md 参照。
+# .claude/docs/ddr/i0045-01-プロバイダ判定はremote-URLのホスト部でgithub以外をgitlabとみなす.md 参照。
 #
 # 受け入れたトレードオフ: GitHub/GitLabのどちらでもないリモート（Bitbucket等、URLのtypo）にも
 # `gitlab` を返すため、旧実装の「サポート対象外のリモートです」という明快なエラーは出なくなり、
@@ -283,7 +283,7 @@ get_provider() {
 # 以下の関数群が「どのMCPツールで代替するか」を機械的に決めるための土台になる。
 # 手順の正（サブコマンドごとの読み替え）は `.claude/skills/issue-mr-flow/SKILL.md`
 # 「`gh`/`glab` CLI不在時のMCPフォールバック」節。WebFetch/curlへはフォールバックしない
-# （DDR i14-01, DDR i34-01）。
+# （DDR i0014-01, DDR i0034-01）。
 
 # 実行環境に該当プロバイダのCLIがあるかを判定し、`cli`（CLI経路）または `mcp`（MCPフォールバック
 # 経路）を標準出力へ返す。AIエージェントは各サブコマンドの冒頭でこれを呼び、経路を決める。
@@ -329,11 +329,11 @@ get_repo_slug() {
 
 # Provider関数名に対応するGitHub MCPツールと主な引数を1行で返す（require_vcs_cli の
 # メッセージ用。対応表の正はSKILL.mdの該当節で、ここはその要約）。
-# GitLabは対象外（DDR i34-01「GitLab側は対象外とする」）。
+# GitLabは対象外（DDR i0034-01「GitLab側は対象外とする」）。
 mcp_tool_hint() {
   local func_name="$1"
   if [ "$(get_provider)" != "github" ]; then
-    printf 'GitLab向けのMCPフォールバックは対象外です（DDR i34-01）。glab CLIをインストール・認証してください\n'
+    printf 'GitLab向けのMCPフォールバックは対象外です（DDR i0034-01）。glab CLIをインストール・認証してください\n'
     return 0
   fi
   case "$func_name" in
@@ -367,7 +367,7 @@ require_vcs_cli() {
     printf '  代替（MCPフォールバック経路）: %s\n' "$(mcp_tool_hint "$func_name")"
     printf '  owner/repo は `get_repo_slug` で取得できます（例: get_repo_slug | jq -r ".owner, .repo"）。\n'
     printf '  手順: .claude/skills/issue-mr-flow/SKILL.md 「`gh`/`glab` CLI不在時のMCPフォールバック」節\n'
-    printf '  WebFetchツール・curlへはフォールバックしないこと（DDR i14-01, DDR i34-01）。\n'
+    printf '  WebFetchツール・curlへはフォールバックしないこと（DDR i0014-01, DDR i0034-01）。\n'
   } >&2
   return 1
 }
@@ -426,7 +426,7 @@ merge_issue_search_results() {
 # - キーワードの抽出そのものは**呼び出し側（AIエージェント）の責務**であり、この層では行わない。
 #   日本語主体のissueから意味のある語を選ぶには形態素解析が要り、bashの文字種判定では
 #   代替できないため（詳細・却下案:
-#   .claude/docs/ddr/i68-01-issue起票前の重複チェックは検索をProvider層へ置きキーワード抽出はAIに委ねる.md）。
+#   .claude/docs/ddr/i0068-01-issue起票前の重複チェックは検索をProvider層へ置きキーワード抽出はAIに委ねる.md）。
 search_issues() {
   require_vcs_cli search_issues || return 1
   if [ $# -eq 0 ]; then
@@ -863,10 +863,10 @@ set_mr_ready() {
 # 約95ms/回）とAPI往復が1回ずつ無くなり、`gh`/`glab` 不在の環境（Claude Code on the web）でも
 # CLI経路と同じ経路で動くようになる（issue #34で入れたMCP経路向けの分岐も不要になった）。
 #
-# DDR i13-01 が却下したのは「MR/PRの**URL文字列**へsuffixを推測で付け足す」案であり、remote URLからの
+# DDR i0013-01 が却下したのは「MR/PRの**URL文字列**へsuffixを推測で付け足す」案であり、remote URLからの
 # 導出はそれとは別物（推測ではなく、リポジトリの所在そのものを表す一次情報の変換）である。
 # 正規URLと一致しないリスクケースの扱いは
-# .claude/docs/ddr/i44-01-リポジトリURLはgh_glabではなくgit-remoteから導出する.md 参照。
+# .claude/docs/ddr/i0044-01-リポジトリURLはgh_glabではなくgit-remoteから導出する.md 参照。
 get_repo_url() {
   repo_url_from_remote_url "$(git remote get-url origin)"
 }
@@ -994,7 +994,7 @@ add_mr_comment() {
 #
 # 投稿先・本文の決定と**人間の承認**は呼び出し側（`.claude/skills/issue-mr-flow/SKILL.md`
 # 「マージ前の関連issue通知」節）の責務であり、この層では行わない
-# （経緯: .claude/docs/ddr/i86-01-マージ前の関連issue通知はDraft解除の直前に置き投稿前の人間承認を必須にする.md）。
+# （経緯: .claude/docs/ddr/i0086-01-マージ前の関連issue通知はDraft解除の直前に置き投稿前の人間承認を必須にする.md）。
 add_issue_comment() {
   require_vcs_cli add_issue_comment || return 1
   local issue_number="$1" body_file="$2"

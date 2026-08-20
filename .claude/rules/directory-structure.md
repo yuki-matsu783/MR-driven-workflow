@@ -80,16 +80,16 @@ keywords: [ディレクトリ構成, claude, gemini, 配置方針, plans, worklo
 `usage/state/gemini-totals/<sessionId>.json`（**Gemini CLI経路の前回累計。ブランチ非依存**。
 issue #97。ブランチ別に持つと、同じセッションのままブランチを切り替えたときに蓄積済みの全件が
 新ブランチの初回差分として再計上されるため。詳細:
-`.claude/docs/ddr/i97-01-Gemini集計の差分はファイル全体の畳み込みと前回累計の差分で取る.md`）・
+`.claude/docs/ddr/i0097-01-Gemini集計の差分はファイル全体の畳み込みと前回累計の差分で取る.md`）・
 `usage/state/push-index.jsonl`（push断面の行範囲。Claude Code経路のみ）。issue #23以前は、これとは別に
 `logs/push-<N>/` へpushのたびにセッションログ全文を保存する系統があったが、transcriptが追記専用で
 あることを確認したうえで廃止し `usage/` へ一本化した（詳細:
-`.claude/docs/ddr/i23-01-push断面の全文コピーをやめ行番号インデックスで表現する.md`）。
+`.claude/docs/ddr/i0023-01-push断面の全文コピーをやめ行番号インデックスで表現する.md`）。
 
 `.claude/state/`は`post-push-compact-prompt.sh`がレビュー依頼メッセージの参照リンク組み立てに使う、
 前回push時点のHEAD SHAのローカル作業状態で、`.gitignore`対象（`/.claude/state/`）。責務分離のため
 `usage/`とは別ディレクトリにしている（詳細: `.claude/docs/spec/issue-mr-workflow.md`
-「/compact実施の呼びかけ」節、`.claude/docs/ddr/i13-01-レビュー依頼メッセージの参照リンクは前回pushSHAをローカル状態で保持して組み立てる.md`）。
+「/compact実施の呼びかけ」節、`.claude/docs/ddr/i0013-01-レビュー依頼メッセージの参照リンクは前回pushSHAをローカル状態で保持して組み立てる.md`）。
 
 ## 配置の指針
 
@@ -114,7 +114,7 @@ issue #97。ブランチ別に持つと、同じセッションのままブラ�
   （`.gitignore`で除外。Gemini CLIとClaude Code間でルール・スキル・スクリプトの内容を二重管理
   しないための仕組みだが、NTFSジャンクションはGitがリンクとして認識できず中身をそのまま複製して
   コミットしてしまうため、リンク自体はGitに載せず各開発者のマシン上でローカルに生成する方針とした。
-  詳細: `.claude/docs/ddr/i00-13-gemini配下はGit管理下に置かずセットアップスクリプトで生成する.md`）。
+  詳細: `.claude/docs/ddr/i0000-13-gemini配下はGit管理下に置かずセットアップスクリプトで生成する.md`）。
   リンクの作成・再作成は `bash .claude/scripts/src/setup-gemini-links.sh` を実行する
   （clone直後に1回実行すればよい。既存のリンクがあれば何もしない）。実体は常に `.claude/` 側を編集する。
 - `.claude/hooks/` 配下のスクリプトは現在すべてbash（`.sh`）。新規`.ps1`を作成する場合のみ

@@ -2,7 +2,7 @@
 #
 # Claude Code PreToolUse hook（`git commit`の直接実行をブロック、issue #39）。
 # 設計: issue #39 →
-#       .claude/docs/ddr/i00-09-コミットはcommitスキル経由を機構的に強制する.md
+#       .claude/docs/ddr/i0000-09-コミットはcommitスキル経由を機構的に強制する.md
 #
 # 目的: すべてのコミットを `.claude/skills/commit/SKILL.md`（`commit`スキル）経由で行わせる
 # （issue #39の受け入れ条件）。ドキュメント上のルールだけではエージェントの遵守に依存するため、

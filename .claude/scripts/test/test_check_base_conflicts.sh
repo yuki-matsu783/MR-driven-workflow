@@ -102,25 +102,40 @@ assert_eq "find_duplicate_ddr_identifiers: 同一パスの重複入力は重複�
 # --- ddr_identifier_to_reply: issue番号ベース（新方式。issue #133） ----------
 
 REPLY=""
-ddr_identifier_to_reply ".claude/docs/ddr/i133-01-DDR識別子はissue番号ベースにし連番採番をやめる.md"
-assert_eq "ddr_identifier_to_reply: 新方式から i<issue>-<枝番> を取り出す" "i133-01" "$REPLY"
+ddr_identifier_to_reply ".claude/docs/ddr/i0133-01-DDR識別子はissue番号ベースにし連番採番をやめる.md"
+assert_eq "ddr_identifier_to_reply: 新方式から i<issue>-<枝番> を取り出す" "i0133-01" "$REPLY"
 
 REPLY=""
-ddr_identifier_to_reply ".claude/docs/ddr/i7-03-短いissue番号.md"
-assert_eq "ddr_identifier_to_reply: issue番号は桁数を問わない" "i7-03" "$REPLY"
+ddr_identifier_to_reply ".claude/docs/ddr/i0007-03-小さいissue番号.md"
+assert_eq "ddr_identifier_to_reply: 小さいissue番号もゼロ埋めされた4桁で扱う" "i0007-03" "$REPLY"
 
 REPLY=""
 ddr_identifier_to_reply ".claude/docs/ddr/i1234-12-四桁のissue番号.md"
 assert_eq "ddr_identifier_to_reply: 4桁のissue番号でも連番と混同しない" "i1234-12" "$REPLY"
 
-# `i00` は「対応するissueが無い」ことを表す予約番号（issue #133の全件改番で13件が該当）。
-# 他と同じ形なので特別扱いは要らないが、ゼロ埋め非対象という規則と紛らわしいため明示的に固定する。
+# issue番号が9999を超えても破綻させないため、5桁以上も受け付ける（issue #135）。
+# 4桁と5桁が混在しても、桁数が増える側が辞書順で必ず後ろに来るので一覧の並びは保たれる。
 REPLY=""
-ddr_identifier_to_reply ".claude/docs/ddr/i00-06-Planモードre-entry時はgit checkout復元でなくarchiveスクリプトで対処する.md"
-assert_eq "ddr_identifier_to_reply: 予約番号 i00 も新方式として扱う" "i00-06" "$REPLY"
+ddr_identifier_to_reply ".claude/docs/ddr/i10000-01-五桁のissue番号.md"
+assert_eq "ddr_identifier_to_reply: 5桁以上のissue番号も受け付ける" "i10000-01" "$REPLY"
+
+# **ゼロ埋め漏れは弾く。** 通してしまうと、同じDDRが `i0133-01` と `i0133-01` という2つの
+# 識別子を持ちうる（表記の揺れが別々の識別子として通る、という枝番の話と同じ問題）。
+if ddr_identifier_to_reply ".claude/docs/ddr/i133-01-ゼロ埋め漏れ.md"; then
+  unpadded_status=0
+else
+  unpadded_status=1
+fi
+assert_eq "ddr_identifier_to_reply: ゼロ埋めしていない3桁のissue番号は対象外" "1" "$unpadded_status"
+
+# `i0000` は「対応するissueが無い」ことを表す予約番号（issue #133の全件改番で13件が該当）。
+# 他と同じ形なので特別扱いは要らないが、規則上の例外と紛らわしいため明示的に固定する。
+REPLY=""
+ddr_identifier_to_reply ".claude/docs/ddr/i0000-06-Planモードre-entry時はgit checkout復元でなくarchiveスクリプトで対処する.md"
+assert_eq "ddr_identifier_to_reply: 予約番号 i0000 も新方式として扱う" "i0000-06" "$REPLY"
 
 # 枝番はちょうど2桁。1桁・3桁の揺れを別の識別子として通すと、同じDDRが二重に採番されうる。
-if ddr_identifier_to_reply ".claude/docs/ddr/i133-1-枝番が1桁.md"; then
+if ddr_identifier_to_reply ".claude/docs/ddr/i0133-1-枝番が1桁.md"; then
   branch_one_digit_status=0
 else
   branch_one_digit_status=1
@@ -128,7 +143,7 @@ fi
 assert_eq "ddr_identifier_to_reply: 枝番1桁は対象外" "1" "$branch_one_digit_status"
 
 REPLY="dirty"
-if ddr_identifier_to_reply ".claude/docs/ddr/i133-001-枝番が3桁.md"; then
+if ddr_identifier_to_reply ".claude/docs/ddr/i0133-001-枝番が3桁.md"; then
   branch_three_digit_status=0
 else
   branch_three_digit_status=1
@@ -136,21 +151,21 @@ fi
 assert_eq "ddr_identifier_to_reply: 枝番3桁は対象外" "1" "$branch_three_digit_status"
 assert_eq "ddr_identifier_to_reply: 枝番3桁は先頭2桁だけを識別子にしない" "" "$REPLY"
 
-if ddr_identifier_to_reply ".claude/docs/ddr/i133-タイトルのみ.md"; then
+if ddr_identifier_to_reply ".claude/docs/ddr/i0133-タイトルのみ.md"; then
   no_branch_status=0
 else
   no_branch_status=1
 fi
 assert_eq "ddr_identifier_to_reply: 枝番が無ければ対象外" "1" "$no_branch_status"
 
-if ddr_identifier_to_reply ".claude/docs/ddr/I133-01-大文字接頭辞.md"; then
+if ddr_identifier_to_reply ".claude/docs/ddr/I0133-01-大文字接頭辞.md"; then
   upper_status=0
 else
   upper_status=1
 fi
 assert_eq "ddr_identifier_to_reply: 大文字の接頭辞Iは対象外" "1" "$upper_status"
 
-if ddr_identifier_to_reply ".claude/docs/ddr/issue133-01-別の接頭辞.md"; then
+if ddr_identifier_to_reply ".claude/docs/ddr/issue0133-01-別の接頭辞.md"; then
   other_prefix_status=0
 else
   other_prefix_status=1
@@ -161,43 +176,43 @@ assert_eq "ddr_identifier_to_reply: 接頭辞issueは対象外" "1" "$other_pref
 
 # 別issue同士は、同じ枝番を持っていても衝突しない（本方式が衝突を無くす仕組みそのもの）。
 cross_issue="$(find_duplicate_ddr_identifiers "$(printf '%s\n' \
-  '.claude/docs/ddr/i133-01-a.md' \
-  '.claude/docs/ddr/i134-01-b.md' \
-  '.claude/docs/ddr/i135-01-c.md')")"
+  '.claude/docs/ddr/i0133-01-a.md' \
+  '.claude/docs/ddr/i0134-01-b.md' \
+  '.claude/docs/ddr/i0135-01-c.md')")"
 assert_eq "find_duplicate_ddr_identifiers: 別issueなら同じ枝番でも重複しない" "" "$cross_issue"
 
 # 同一issueを別ブランチで並行作業した場合だけは、新方式でも枝番がぶつかりうる。
 same_issue="$(find_duplicate_ddr_identifiers "$(printf '%s\n' \
-  '.claude/docs/ddr/i133-01-a.md' \
-  '.claude/docs/ddr/i133-02-b.md' \
-  '.claude/docs/ddr/i133-02-c.md')")"
-assert_eq "find_duplicate_ddr_identifiers: 同一issue内の枝番重複は検出する" "i133-02" \
+  '.claude/docs/ddr/i0133-01-a.md' \
+  '.claude/docs/ddr/i0133-02-b.md' \
+  '.claude/docs/ddr/i0133-02-c.md')")"
+assert_eq "find_duplicate_ddr_identifiers: 同一issue内の枝番重複は検出する" "i0133-02" \
   "$(printf '%s' "$same_issue" | cut -f1)"
 assert_eq "find_duplicate_ddr_identifiers: 同一issue内の枝番重複は2件を並べる" \
-  ".claude/docs/ddr/i133-02-b.md	.claude/docs/ddr/i133-02-c.md" \
+  ".claude/docs/ddr/i0133-02-b.md	.claude/docs/ddr/i0133-02-c.md" \
   "$(printf '%s' "$same_issue" | cut -f2-)"
 
 # 既存の連番DDRと新方式が同じディレクトリに混在しても、互いを取り違えない。
 mixed="$(find_duplicate_ddr_identifiers "$(printf '%s\n' \
   '.claude/docs/ddr/0058-a.md' \
   '.claude/docs/ddr/0059-b.md' \
-  '.claude/docs/ddr/i133-01-c.md' \
-  '.claude/docs/ddr/i133-02-d.md')")"
+  '.claude/docs/ddr/i0133-01-c.md' \
+  '.claude/docs/ddr/i0133-02-d.md')")"
 assert_eq "find_duplicate_ddr_identifiers: 新旧混在で重複が無ければ何も出さない" "" "$mixed"
 
 mixed_dup="$(find_duplicate_ddr_identifiers "$(printf '%s\n' \
   '.claude/docs/ddr/0027-a.md' \
   '.claude/docs/ddr/0027-b.md' \
-  '.claude/docs/ddr/i133-01-c.md' \
-  '.claude/docs/ddr/i133-01-d.md')")"
+  '.claude/docs/ddr/i0133-01-c.md' \
+  '.claude/docs/ddr/i0133-01-d.md')")"
 assert_eq "find_duplicate_ddr_identifiers: 新旧それぞれの重複を両方検出する" \
-  "$(printf '0027\ni133-01')" "$(printf '%s\n' "$mixed_dup" | cut -f1)"
+  "$(printf '0027\ni0133-01')" "$(printf '%s\n' "$mixed_dup" | cut -f1)"
 
 # 4桁のissue番号を持つ新方式が、同じ数字の連番DDRと同一視されないこと。
 digit_clash="$(find_duplicate_ddr_identifiers "$(printf '%s\n' \
   '.claude/docs/ddr/0133-連番の0133.md' \
-  '.claude/docs/ddr/i133-01-issue133のDDR.md')")"
-assert_eq "find_duplicate_ddr_identifiers: 0133 と i133-01 は別の識別子" "" "$digit_clash"
+  '.claude/docs/ddr/i0133-01-issue133のDDR.md')")"
+assert_eq "find_duplicate_ddr_identifiers: 0133 と i0133-01 は別の識別子" "" "$digit_clash"
 
 
 echo "passed=$passed failures=$failures"
