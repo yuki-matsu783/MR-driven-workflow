@@ -61,6 +61,25 @@ if [ "${FORCE}" = true ]; then
   echo "Force overwrite mode: Enabled"
 fi
 
+# 配布元が所有し、配布先でのカスタマイズを想定しないファイル（配布先ルートからの相対パス）。
+# 内容が違っても .bak 退避・警告を行わず常に上書きする（issue #33）。
+# `.claude/VERSION` は配布物の版そのもので、配布先が書き換える値ではない。ここを通常の
+# 「差分があれば .bak 退避して警告」の対象にすると、**版を上げた回は必ず**警告と .bak が出て、
+# 本当に手を入れるべき差分（AGENTS.md 等）の警告が埋もれる。
+declare -a ALWAYS_OVERWRITE_RELPATHS=(
+  ".claude/VERSION"
+)
+
+# コピー先が ALWAYS_OVERWRITE_RELPATHS に該当するかを判定する（外部コマンドを呼ばない）。
+is_always_overwrite() {
+  local rel="${1#${DEST_DIR}/}"
+  local path
+  for path in "${ALWAYS_OVERWRITE_RELPATHS[@]}"; do
+    [ "${rel}" = "${path}" ] && return 0
+  done
+  return 1
+}
+
 # 比較およびバックアップ付きコピー
 # ファイル比較・バックアップ付きコピー関数: safe_copy_file <コピー元> <コピー先>
 safe_copy_file() {
@@ -83,6 +102,9 @@ safe_copy_file() {
     # 内容が異なる場合
     if [ "${FORCE}" = true ]; then
       echo "🔄  Overwriting ${dest} (force option enabled)..."
+      cp -f "${src}" "${dest}"
+    elif is_always_overwrite "${dest}"; then
+      # 配布元が所有する値。配布先のカスタマイズではないので .bak も警告も出さない
       cp -f "${src}" "${dest}"
     else
       local backup="${dest}.bak"
@@ -199,6 +221,85 @@ for rule in "${ignore_rules[@]}"; do
     echo "${rule}" >> "${GITIGNORE}"
   fi
 done
+
+# 5. Update destination .gitattributes（issue #33）
+# 配布先の .gitattributes は**丸ごと置き換えない**。配布先が自前の正規化・diff/merge driver 設定
+# （例: `*.png binary`）を持つ場合、全文置換するとバイナリのテキスト化のような、履歴に残る形の
+# 破損を招くため。.gitattributes は後に書いた行が優先されるので、末尾への追記であれば
+# 「配布先の既定を尊重しつつ、配布したスクリプトに必要な指定だけを上書きする」形になる。
+#
+# **配る行の定義はこのスクリプトが持たない。** 本家の .gitattributes に置かれた
+# `# --- dist:begin ---` 〜 `# --- dist:end ---` の間の行だけを読んで配る（定義を1箇所に持たせ、
+# 本家を編集すれば配布内容も変わるようにするため）。
+echo "Updating .gitattributes..."
+GITATTRIBUTES="${DEST_DIR}/.gitattributes"
+readonly GITATTRIBUTES_HEADER="# mr-driven-develop workflow attributes"
+
+# 配布対象の .gitattributes 行（マーカーの間の、コメントと空行を除いた行）を標準出力へ返す。
+# WindowsネイティブのGitでチェックアウトされた場合に備え、CRを落としてから返す。
+read_dist_attribute_rules() {
+  local src="$1"
+  [ -f "${src}" ] || return 0
+  awk '
+    /^# --- dist:begin ---/ { in_block = 1; next }
+    /^# --- dist:end ---/   { in_block = 0; next }
+    in_block && $0 !~ /^[[:space:]]*#/ && NF { print }
+  ' "${src}" | tr -d '\r'
+}
+
+# 指定した行が無ければ .gitattributes の末尾へ追記する（何度実行しても増えない）。
+ensure_gitattributes_rules() {
+  local file="$1"
+  shift
+  local rule existing
+
+  [ -f "${file}" ] || : > "${file}"
+
+  # 判定の前にCRを落とす。Git for Windowsの既定（core.autocrlf=true）では配布先の
+  # .gitattributes が作業ツリーでCRLFになり、行全体の一致が `*.sh text eol=lf\r` と食い違う。
+  # 落とさないと「まだ無い」と判定され、適用のたびに同じ行が追記され続ける（issue #33）。
+  existing="$(tr -d '\r' < "${file}")"
+
+  for rule in "$@"; do
+    # 行全体の一致（-x）で判定する。部分一致にすると、配布先が `# *.sh text eol=lf を検討中` の
+    # ようにコメントとして言及しているだけの場合にも「もう有る」と誤判定し、必要な指定が
+    # 入らないまま無言で終わる（配布したスクリプトがCRLFで壊れても気づけない）。
+    if printf '%s\n' "${existing}" | grep -Fxq -- "${rule}"; then
+      continue
+    fi
+
+    # 末尾が改行で終わっていない場合、追記した行が直前の行と連結してしまうため改行を補う。
+    # コマンド置換は末尾の改行をすべて落とすので、最後の1バイトが改行なら結果は空文字列になる。
+    if [ -s "${file}" ] && [ -n "$(tail -c 1 "${file}")" ]; then
+      printf '\n' >> "${file}"
+    fi
+
+    if ! printf '%s\n' "${existing}" | grep -Fxq -- "${GITATTRIBUTES_HEADER}"; then
+      # 既存の内容があるときだけ、区切りの空行を挟む
+      if [ -s "${file}" ]; then
+        printf '\n' >> "${file}"
+      fi
+      printf '%s\n' "${GITATTRIBUTES_HEADER}" >> "${file}"
+      existing="${existing}"$'\n'"${GITATTRIBUTES_HEADER}"
+    fi
+
+    printf '%s\n' "${rule}" >> "${file}"
+    existing="${existing}"$'\n'"${rule}"
+  done
+}
+
+declare -a attribute_rules=()
+while IFS= read -r line; do
+  [ -n "${line}" ] && attribute_rules+=("${line}")
+done < <(read_dist_attribute_rules "${ASSETS_DIR}/.gitattributes")
+
+if [ "${#attribute_rules[@]}" -eq 0 ]; then
+  echo "⚠️  WARNING: ${ASSETS_DIR}/.gitattributes に配布対象行（# --- dist:begin --- 〜 # --- dist:end ---）が"
+  echo "   見つかりませんでした。.gitattributes の更新をスキップします（0 rules）。"
+else
+  ensure_gitattributes_rules "${GITATTRIBUTES}" "${attribute_rules[@]}"
+  echo "   ${#attribute_rules[@]} rule(s) ensured in ${GITATTRIBUTES}"
+fi
 
 echo "=== Setup Completed Successfully! ==="
 echo "The mr-driven-develop workflow assets have been applied to your repository."
