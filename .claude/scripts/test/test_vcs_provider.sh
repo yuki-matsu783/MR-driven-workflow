@@ -29,6 +29,9 @@
 # issue #121で追加した `gitlab_summary_post_kind`
 # （サマリを `discussions`（スレッド）と `notes`（単発note）のどちらで投稿するかの判定）も対象。
 # `gitlab_add_mr_thread` 本体は `glab` を呼ぶため対象外で、投稿先を決める純粋関数側をテストする。
+# issue #115で追加した `porcelain_z_to_paths`（`git status --porcelain -z` の出力を1行1パスへ
+# 変換し、改名・コピーの旧パスを捨てる）も対象。`get_branch_work_files` 本体は `git` を起動する
+# ため対象外で、その未コミット分の解釈を担う純粋関数側を切り出してテストしている。
 # 規約: passed=N failures=N を標準出力へ出し、失敗があれば終了コード1
 #       （.claude/rules/shell-script-style.md「テスト」）。
 # 実行: bash .claude/scripts/test/test_vcs_provider.sh
@@ -758,6 +761,68 @@ else
   unknown_algo_status=1
 fi
 assert_eq "hash_paths: 未知のアルゴリズム名は終了コード1で失敗する" "1" "$unknown_algo_status"
+
+# --- porcelain_z_to_paths（issue #115） ---------------------------------------------------
+# `git status --porcelain -z` の出力を模したフィクスチャを標準入力へ流し、「1行＝1つの実在する
+# パス」へ変換されることを確認する。gitは起動しない（純粋関数のため）。
+# フィクスチャはNULを含むため `$'...'`（bashの文字列はNULを保持できない）ではなく `printf` で
+# 都度書き出す。改名・コピーのエントリは `-z` 形式では `XY <新パス>\0<旧パス>\0` の順になる
+# （実機確認: git 2.x。行単位形式の `<旧パス> -> <新パス>` とは順序が逆）。
+
+# ステージ済みの改名（`R `）・改名＋未ステージ変更（`RM`）・通常の変更／追加／削除／未追跡を混ぜる
+porcelain_z_fixture() {
+  printf 'RM plans/ascii-new.md\0plans/ascii-old.md\0'
+  printf 'R  plans/【調査】新.md\0plans/【調査】旧.md\0'
+  printf ' M plans/keep.md\0'
+  printf 'A  reports/2026-08-20_x_調査結果.md\0'
+  printf ' D worklog/2026-08-20_x_y_push1.md\0'
+  printf '?? plans/【実装】未追跡.md\0'
+}
+
+assert_eq "porcelain_z_to_paths: 改名は新パスのみを1行として返し、旧パスは返さない" \
+  "plans/ascii-new.md
+plans/【調査】新.md
+plans/keep.md
+reports/2026-08-20_x_調査結果.md
+worklog/2026-08-20_x_y_push1.md
+plans/【実装】未追跡.md" \
+  "$(porcelain_z_fixture | porcelain_z_to_paths)"
+
+assert_eq "porcelain_z_to_paths: 出力に \" -> \" を含む行が現れない" \
+  "0" \
+  "$(porcelain_z_fixture | porcelain_z_to_paths | grep -c -F -- ' -> ' || true)"
+
+assert_eq "porcelain_z_to_paths: 非ASCIIのパスをそのまま返す（8進エスケープしない）" \
+  "1" \
+  "$(porcelain_z_fixture | porcelain_z_to_paths | grep -c -F -- 'plans/【調査】新.md')"
+
+assert_eq "porcelain_z_to_paths: 未ステージ側の桁に改名（\` R\`）が来ても新パスを返す" \
+  "plans/new.md" \
+  "$(printf ' R plans/new.md\0plans/old.md\0' | porcelain_z_to_paths)"
+
+assert_eq "porcelain_z_to_paths: コピー（C）も改名と同様に旧パスを読み捨てる" \
+  "plans/copy.md
+plans/next.md" \
+  "$(printf 'C  plans/copy.md\0plans/src.md\0 M plans/next.md\0' | porcelain_z_to_paths)"
+
+# パス自体が ` -> ` を含む場合、行単位形式では区切りを一意に決められないが、-z形式なら壊れない
+assert_eq "porcelain_z_to_paths: パスに\" -> \"が含まれていても新パスを正しく返す" \
+  "plans/a -> b.md" \
+  "$(printf 'R  plans/a -> b.md\0plans/old -> name.md\0' | porcelain_z_to_paths)"
+
+assert_eq "porcelain_z_to_paths: 未追跡（??）は改名扱いせず次のエントリを読み捨てない" \
+  "plans/x.md
+plans/y.md" \
+  "$(printf '?? plans/x.md\0?? plans/y.md\0' | porcelain_z_to_paths)"
+
+assert_eq "porcelain_z_to_paths: 入力が空なら何も出力しない" \
+  "" \
+  "$(printf '' | porcelain_z_to_paths)"
+
+# 旧パスのフィールドが欠けた壊れた入力でも、無限ループせず読めたところまでを返す
+assert_eq "porcelain_z_to_paths: 改名エントリの旧パスが欠けていても新パスまでは返す" \
+  "plans/new.md" \
+  "$(printf 'R  plans/new.md\0' | porcelain_z_to_paths)"
 
 echo "passed=$passed failures=$failures"
 [ "$failures" -eq 0 ]
