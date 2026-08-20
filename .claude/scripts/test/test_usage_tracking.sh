@@ -407,6 +407,10 @@ assert_eq "report(claude): 使用モデル行は出ない" "0" \
   "$(printf '%s' "$rp_body" | grep -cF -- '- 使用モデル:' || true)"
 assert_eq "report(claude): ツールエラー行は出ない" "0" \
   "$(printf '%s' "$rp_body" | grep -cF 'ツールエラー回数' || true)"
+assert_eq "report(claude): 初回投稿では過小カウントの注記が出る" "1" \
+  "$(printf '%s' "$rp_body" | grep -cF '既知の過小カウント要因が報告されています。')"
+assert_eq "report(claude): 過小カウントの詳細リンクが出る" "1" \
+  "$(printf '%s' "$rp_body" | grep -cF 'claude-code-jsonl-logs-undercount-tokens')"
 assert_eq "report(claude): ブランチ帰属の注記は出ない" "0" \
   "$(printf '%s' "$rp_body" | grep -cF 'ブランチ情報が無いため' || true)"
 
@@ -442,5 +446,33 @@ rp_body="$(build_usage_report_body "$rp_toolonly" "feature-x" "false" '{}' 'Gemi
 assert_eq "report: toolトークンのみ正のモデル行もスキップしない" \
   "| gemini-2.5-flash | 0 | 0 | 0 | 0 | 42 |" \
   "$(printf '%s' "$rp_body" | grep -F '| gemini-2.5-flash |')"
+
+# (f) 過小カウントの注記はClaude Code由来のトークンを含むレポートにだけ出す
+#     （Gemini CLIについては同種の報告が無いため。engineではなくデータで決める）
+rp_body="$(build_usage_report_body "$rp_gemini" "feature-x" "true" '{}' 'Gemini CLI')"
+assert_eq "report(gemini): 初回投稿でもフッター署名は出る" "1" \
+  "$(printf '%s' "$rp_body" | grep -cF '### Gemini CLIより')"
+assert_eq "report(gemini): 目安である旨の注記は出る" "1" \
+  "$(printf '%s' "$rp_body" | grep -cF '目安として扱ってください。')"
+assert_eq "report(gemini): 過小カウントの注記は出ない" "0" \
+  "$(printf '%s' "$rp_body" | grep -cF '既知の過小カウント要因が報告されています。' || true)"
+assert_eq "report(gemini): 過小カウントの詳細リンクも出ない" "0" \
+  "$(printf '%s' "$rp_body" | grep -cF 'claude-code-jsonl-logs-undercount-tokens' || true)"
+
+rp_body="$(build_usage_report_body "$rp_notokens" "feature-x" "true" '{}' 'Gemini CLI')"
+assert_eq "report(gemini/トークン無し): 過小カウントの注記は出ない" "0" \
+  "$(printf '%s' "$rp_body" | grep -cF '既知の過小カウント要因が報告されています。' || true)"
+
+# Gemini CLIからの投稿でも、繰り越しでClaude Code由来の行が載っていれば注記が要る
+rp_body="$(build_usage_report_body "$rp_mixed" "feature-x" "true" '{}' 'Gemini CLI')"
+assert_eq "report(混在): Gemini CLIからの投稿でも過小カウントの注記が出る" "1" \
+  "$(printf '%s' "$rp_body" | grep -cF '既知の過小カウント要因が報告されています。')"
+
+# 全項目0で表から除外されるClaude Code由来の行は、注記の根拠にしない
+rp_zeroclaude='{"tokensByModel":{"gemini-2.5-pro":{"input":150,"output":30,"cacheCreate":0,"cacheRead":5,"thoughts":7,"tool":3},"<synthetic>":{"input":0,"output":0,"cacheCreate":0,"cacheRead":0}},"toolCalls":{},"models":["gemini-2.5-pro"],"turns":1,"activeSeconds":30,"skillCalls":[],"agentCalls":[],"askUserQuestions":[]}'
+rp_body="$(build_usage_report_body "$rp_zeroclaude" "feature-x" "true" '{}' 'Gemini CLI')"
+assert_eq "report(0行のみClaude由来): 表に出ない行を根拠に注記を出さない" "0" \
+  "$(printf '%s' "$rp_body" | grep -cF '既知の過小カウント要因が報告されています。' || true)"
+
 echo "passed=$passed failures=$failures"
 [ "$failures" -eq 0 ]
