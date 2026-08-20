@@ -99,8 +99,9 @@ issue #127（ローカルGitLab CEで、issue #48以降に `Gitlab.sh` へ追加
     本issueの目的ではないので行わない。**
   - 素のhttpクローンは Git Credential Manager が介在して `helper error (143)`。
   - **`git -c credential.helper= clone "http://oauth2:<PAT>@localhost:8929/<path>.git"` で成功**。
-    これを検証環境の標準手段に決めた。PATは `glab auth status --show-token` から都度取り出し、
-    **ファイルへは書かない**。
+    これを検証環境の標準手段に決めた。PATは `glab auth status --show-token` から都度取り出す
+    （なお**この方法ではクローン先の `.git/config` にPATが残る**。敵対的レビューの指摘を受けて
+    運用を見直した。下記「守るべき条件・触ってはいけない範囲」）。
   - 素振りとして、そのクローンをcwdに `Provider.sh` を source して `get_provider` → `gitlab`、
     `get_repo_url` → `http://localhost:8929/root/issue45-verify`（**URLに埋めたPATは除去される**）、
     `get_workflow_config` が既定値で動くこと（検証用クローンに `.mrworkflow.json` が無くても
@@ -152,23 +153,30 @@ issue #127（ローカルGitLab CEで、issue #48以降に `Gitlab.sh` へ追加
 
 ## 未解決の内容
 
-- **差分アンカーの検証方法**。実装は `#<パスのsha1>`（`diff-` 接頭辞なし）を前提にしているが、
-  **ブラウザでの目視確認はAIにはできない**。HTTPステータス・GitLab APIが返すファイルハッシュ・
-  自前計算した sha1 の突き合わせで自動的に取れる証拠を集め、それでも決着しない項目だけを
-  URL一覧としてユーザーへ提示して開いてもらう方針（フェーズ2の終盤で一度にまとめて依頼する）。
+- **差分アンカーの `sha1` 前提が正しいか**。CompareページのHTMLを取得して `id=` 属性と
+  自前計算のsha1を照合する（issue #42 でGitHub側に使った方法）ことで直接証拠を取る方針だが、
+  **GitLabのCompareページが `id=` をどの形で出すかは未確認**。照合の結果にかかわらず、
+  ブラウザでの目視確認をユーザーへ依頼する（フェーズ2終盤で一度にまとめる）。
 - **検証環境の再現手順の置き場所**（受け入れ条件8）。新規specファイルを作るなら人間の承認が
-  必須のため、flow-id 4-1 で決める。
-- **`build_discussion_body`・`summary_post_kind` はディスパッチャ経由の公開関数を持たない**
-  （`add_mr_inline_comments` の内部でのみ使われる）。この2件は間接的な確認になる旨を
-  reports に明記する。
+  必須のため、flow-id 4-1 で決める。**情報の採取自体はフェーズ2で行う**（コンテナが生きて
+  いる間しか採れないため）。
+- **#48 で検証した13関数のうち1件が現在の `Gitlab.sh` に残っていない**（13+13=26 ≠ 25）。
+  どの関数が削除・改名されたのかをフェーズ2で特定する。受け入れ条件6（ヘッダが実態に合う）に
+  直結する。
 
 ## 守るべき条件・触ってはいけない範囲
 
-- **13関数は `gitlab_*` の直呼びではなく `Provider.sh` のディスパッチャ経由で実行する**。
-  これが issue #48 の検証との差分であり、期待する動作1の要点である。
+- **13関数は `gitlab_*` の直呼びではなく `Provider.sh` 経由で実行する**。これが issue #48 の
+  検証との差分であり、期待する動作1の要点である。**ただし5件（`get_mr_url` / `get_note_url` /
+  `add_mr_thread` / `build_discussion_body` / `summary_post_kind`）は `Provider.sh` に
+  ディスパッチャが無く、公開関数を踏み台にした間接確認になる**。この区別を `reports/` で
+  曖昧にしないこと。
 - **範囲外**: gitlab.com（SaaS）・CE 18.5.4 以外のバージョン・EE。範囲外である旨を spec に残す
   （期待する動作7）。
 - 検証で作る一時ファイル・クローンは**本リポジトリのツリーを汚さない**場所（スクラッチパッド配下）に
   置く。
-- GitLabコンテナ上の既存プロジェクト `root/issue45-verify` は、過去の検証記録として参照される
-  可能性があるため削除しない。
+- GitLabコンテナ上の既存プロジェクト `root/issue45-verify` には**一切触らない**（削除・改変だけで
+  なく、検証の入力にも使わない）。過去の検証記録として参照されうるため。必要な状態は
+  `root/issue127-verify` 側に自分で作る。
+- **PATはクローン先の `.git/config` へ平文で残る。** クローン直後に `git remote set-url origin` で
+  外し、記録へ貼る出力は接頭辞決め打ちでなく**トークンの値そのもの**を置換してマスクする。
