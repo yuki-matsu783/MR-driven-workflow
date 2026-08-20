@@ -10,7 +10,8 @@
 # （"Bash(git push*)" / "PowerShell(git push*)"）によって、tool_input のコマンドが
 # git push を含む場合のみ起動される（マッチしなければプロセスが起動されず、通常のBash/
 # PowerShell/run_shell_command利用への性能影響は無い）。if フィルタはベストエフォートのため、
-# 本スクリプト側でも念のため command 文字列を正規表現で再チェックする。tool_name から実行中の
+# 本スクリプト側でも念のため command 文字列を再チェックする。再チェックは
+# .claude/hooks/lib/CommandPosition.sh のコマンド位置判定で行う（issue #53）。tool_name から実行中の
 # エンジン（Gemini CLI / Claude Code）を判定する（両エンジンのtool_nameの値集合は重複しないため
 # 機械的に一意判定できる。詳細: .claude/docs/spec/issue-mr-workflow.md「エンジン判定」節）。
 # 判定した engine は、フッター署名（engine_label）に加えて sync_usage_state へ渡し、
@@ -328,8 +329,16 @@ main() {
 
   local command
   command="$(printf '%s' "$hook_input" | jq -r '.tool_input.command // empty')"
-  if [ -z "$command" ] || ! printf '%s' "$command" | grep -qiE 'git[[:space:]]+push'; then
-    exit 0
+  [ -n "$command" ] || exit 0
+  # 判定は .claude/hooks/lib/CommandPosition.sh へ委譲する（issue #53）。
+  # ライブラリを読めない場合だけ、従来どおりの部分一致へ落とす。
+  local cp_lib="${BASH_SOURCE[0]%/*}/lib/CommandPosition.sh"
+  if [ -r "$cp_lib" ]; then
+    # shellcheck source=lib/CommandPosition.sh
+    source "$cp_lib"
+    command_invokes_git_subcommand "$command" push || exit 0
+  else
+    printf '%s' "$command" | grep -qiE 'git[[:space:]]+push' || exit 0
   fi
 
   local project_dir="${GEMINI_PROJECT_DIR:-${CLAUDE_PROJECT_DIR:-}}"
