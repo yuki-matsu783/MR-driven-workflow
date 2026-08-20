@@ -35,6 +35,7 @@ keywords: [正史仕様, 意思決定ログ, issue-mr-workflow, シェルスク�
 - [extract-frontmatter.md](spec/extract-frontmatter.md) ── frontmatter抽出スクリプト（index.jsonl生成）
 - [update-handoff-progress.md](spec/update-handoff-progress.md) ── HANDOFF.md進捗自動更新スクリプト
 - [check-base-conflicts.md](spec/check-base-conflicts.md) ── defaultブランチとのコンフリクト検知スクリプト
+- [check-base-sync.md](spec/check-base-sync.md) ── 作業開始・再開時のベースブランチ追従確認スクリプト
 - [create-commit.md](spec/create-commit.md) ── コミット実行ラッパー（commitスキル専用）
 - [adversarial-review.md](spec/adversarial-review.md) ── 敵対的レビュー（専任サブエージェント・インラインコメント投稿）
 - [cleanup-task.md](spec/cleanup-task.md) ── flow-id 5-1 後片付けの自動化スクリプト
@@ -100,3 +101,5 @@ DDRのうち0001・0002・0008・0015は持ち込んでいない**（連番に�
 - [0052-対応工数レポートのトークン列はengineではなくデータで決める.md](ddr/0052-対応工数レポートのトークン列はengineではなくデータで決める.md)
 - [0053-Gemini経路のブランチ帰属は断面時点のブランチとし限界を明示する.md](ddr/0053-Gemini経路のブランチ帰属は断面時点のブランチとし限界を明示する.md)
 - [0054-Gemini-CLIのサブエージェントは保存のみとし集計しない.md](ddr/0054-Gemini-CLIのサブエージェントは保存のみとし集計しない.md)
+- [0055-敵対的レビューの非対話判定は環境変数ではなくAIエージェントの判断に委ねる.md](ddr/0055-敵対的レビューの非対話判定は環境変数ではなくAIエージェントの判断に委ねる.md)
+- [0056-作業開始時のベースブランチ追従確認は専用スクリプトで検知しユーザー確認を挟む.md](ddr/0056-作業開始時のベースブランチ追従確認は専用スクリプトで検知しユーザー確認を挟む.md)

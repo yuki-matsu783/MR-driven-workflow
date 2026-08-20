@@ -392,13 +392,21 @@ resumeを省略してしまう事故が発生した）。そのため発動条�
 4. PR/MRがあれば `get_mr_unresolved_comments <n> true` で全件取得し、未解決件数を集計する。
 5. `get_branch_work_files` で、このブランチ固有の `plans/` `worklog/` `reports/` ファイルを列挙する
    （`<defaultBaseBranch>` との差分から求めるため、削除済み＝設計反映済みの判別にも使える）。
-6. `HANDOFF.md` の内容を読む。
-7. 1〜6を「現在地サマリ」としてまとめ、呼び出し元（メインのAIエージェント）に返す。**HANDOFF.mdの
+6. `check-base-sync.sh` で**ベースブランチとの差分**（behindコミット数・未取り込みの変更ファイル）を
+   取得する（issue #67。このスクリプトは `git fetch` を行うが、リモート追跡参照を更新するだけで
+   作業ツリー・ローカルブランチ・コミット履歴を変更しないため「読み取り専用」の規定に反しない。
+   **非0で終了した場合は「判定できなかった」として報告し、「追従済み」とは書かない**）。
+7. `HANDOFF.md` の内容を読む。
+8. 1〜7を「現在地サマリ」としてまとめ、呼び出し元（メインのAIエージェント）に返す。**HANDOFF.mdの
    記述と実際の状態（PR有無・未解決コメント件数等）に矛盾があれば、それも指摘する**
    （例: HANDOFF.mdは「PR未作成」と書いてあるが実際はPRが存在する、等）。
 
 呼び出し元は、このサマリをもとに全体フロー（5フェーズ・41ステップ）のうちどこから再開すべきかを判断し、
-人間に提案する（この判断自体はサブエージェントの役割ではなく、呼び出し元が行う）。
+人間に提案する（この判断自体はサブエージェントの役割ではなく、呼び出し元が行う）。**ベースブランチが
+遅れていた場合に取り込みの可否を `AskUserQuestion` で確認するのも呼び出し元の役割であり、
+サブエージェントは検知結果を報告するだけである**（issue #67。手順は
+`.claude/skills/issue-mr-flow/SKILL.md`「作業開始・再開時のベースブランチ追従確認」節が正。
+**呼び出し元はこのサマリの値を使い、`check-base-sync.sh` を再実行しない**）。
 
 `comments` / `describe` サブコマンドの「現在のブランチに紐づくMR番号を取得する」手順は、
 重複実装を避けるため `get_mr_for_branch` に統一する。
@@ -992,6 +1000,19 @@ Claude Codeの対応工数（モデル別トークン数・ツール実行回数
   （状態ファイルの`lastPostedAt`の有無、投稿前時点の値で判定）で分岐し、初回投稿時のみ表示する。
   冒頭の「レビューの合否判定には使用しないでください」という短い注記は、投稿ごとの判別のために
   必要なため毎回表示する。
+  - **過小カウントの注記（「既知の過小カウント要因が報告されています。」＋詳細リンク）の2行は、
+    Claude Code由来のトークン行を含むレポートにだけ表示する**。この過小カウントはClaude Codeの
+    transcript JSONLについて報告されているものであり（「未決定事項・懸念点」のトークン数の項参照）、
+    Gemini CLIのセッションログについては同種の報告が無いため、Gemini CLIだけのレポートに載せると
+    根拠の無い注記になる。**出す・出さないの判定はengineではなくデータで決める**（トークン列の
+    構成と同じ理由。[0052-対応工数レポートのトークン列はengineではなくデータで決める.md](../ddr/0052-対応工数レポートのトークン列はengineではなくデータで決める.md)）。
+    状態ファイルはブランチ単位で`sinceLastPush`が投稿成功まで繰り越されるため、Gemini CLIからの
+    投稿でもClaude Code由来のモデル行が載ることがあり、その場合はこの注記が必要になる。判定条件は
+    トークンテーブルの行と揃える（`thoughts`キーを持たない＝Claude Code由来、かつ全項目0で除外
+    されない行が1つ以上あるか）。表に出ていない行を根拠に注記だけが出ることを避けるため。
+    フッター自体が初回投稿のみの表示であるため、**初回投稿がGemini CLI単独だった場合、その後に
+    Claude Code由来の行が載ってもこの注記は表示されない**（初回のみ表示という既存仕様との組み合わせ
+    による制約。過小カウントの説明は本仕様書側に残るため許容する）。
 - **制約: 検知は`tool_input.command`の文字列マッチに依存する**: 投稿トリガーの判定は、
   Bash/PowerShellツールへ渡された`tool_input.command`文字列に`git push`という語が現れるか
   どうかに依存する（`.claude/settings.json`の`if: "Bash(git push*)"` /
@@ -1186,6 +1207,15 @@ issue #11「git pushイベントを検知してcompactする」への対応と�
   「このpushでレビュー指摘へ返信した場合はその返信コメントのURLも含める」旨の指示文を追加で渡す。
   URLの入手元は`reply`サブコマンドの出力（`add_mr_thread_reply`の戻り値）または`comments`の
   出力に含まれる`url=...`。
+- **レビュー依頼のターンでは`AskUserQuestion`（askツール）を使わせない**: 本hookが促す`/compact`は
+  ユーザーが自分で打つスラッシュコマンドだが、`AskUserQuestion`を出すと入力欄が選択肢への回答で
+  塞がり、その場で打てなくなる。「レビューをお願いします」という呼びかけに選択式の回答は要らない
+  ため、askツールを使わず通常のメッセージだけでターンを終える旨を`NO_ASK_TOOL_MESSAGE`として
+  `additionalContext`の末尾へ渡す。**禁止はレビュー依頼のターンに限る**（flow-id 5-2のコンフリクト
+  解消可否・5-3の関連issue通知の承認・`start`のベースブランチ確認のように、外部への影響が不可逆で
+  承認が必須の場面は従来どおり`AskUserQuestion`を使う。これらはpush直後ではなく、`/compact`を打つ
+  タイミングと競合しない）。運用ルールとしての正は
+  `.claude/skills/issue-mr-flow/SKILL.md`「レビュー依頼メッセージ」節。
 - **`post-push-usage-report.sh`とは別ファイル**（`.claude/hooks/post-push-compact-prompt.sh`）とし、
   責務を混在させない（使用量集計とcompact促しは関心事が異なる）。`.claude/settings.json`の
   `hooks.PostToolUse[0].hooks`へ、既存の対応工数レポート用エントリと並べて2エントリ
@@ -2583,6 +2613,62 @@ MRの差分が影響する他のissueへ、マージ前に通知を残せるよ�
   サブエージェント探索の懸念へ本体実装からの裏付けを追記、本項）
 - `.claude/docs/README.md`（DDR一覧に0050〜0054）
 
+### レビュー依頼のターンでのaskツール禁止（issue番号なし・ユーザーからの直接依頼）
+
+「レビュー依頼のときは`/compact`コマンドを打ちたいので、askツールは利用しない」というユーザーの
+依頼への対応。issueを起点にしないごく小さなAIアセットの改訂として直接反映した。
+
+更新:
+- `.claude/hooks/post-push-compact-prompt.sh`（`NO_ASK_TOOL_MESSAGE`を新設し
+  `additionalContext`の末尾へ追加。冒頭のヘッダコメントへ理由を追記）
+- `.claude/skills/issue-mr-flow/SKILL.md`（「レビュー依頼メッセージ（全体フロー 2-2・2-7・3-2・
+  3-7・4-2・4-7・5-4）」節を新設。compactのタイミングに関する既存の記述からこの節を参照）
+- `.claude/docs/spec/issue-mr-workflow.md`（「/compact実施の呼びかけ」節へ本挙動の項目を追加、本項）
+
+### 過小カウントの注記はClaude Code由来のトークンがある場合だけ出す（issue #97の後追い）
+
+issue #97でレポートのフッター署名がengineごとに切り替わるようになった一方、フッター末尾の
+「既知の過小カウント要因が報告されています。」＋詳細リンクの2行は**engineによらず初回投稿で常に
+出ていた**。この過小カウントはClaude Codeのtranscript JSONLについての報告であり、Gemini CLIの
+セッションログについては同種の報告が無いため、Gemini CLIだけのレポートでは根拠の無い注記になる。
+
+更新:
+- `.claude/hooks/post-push-usage-report.sh`（`build_usage_report_body` のフッターで、
+  `tokensByModel` にClaude Code由来の行（`thoughts` キーを持たず、全項目0でもない行）が
+  1つ以上あるときだけ上記2行を出す。**engineではなくデータで判定する**点はトークン列と同じ
+  （DDR 0052）。関数のシグネチャは変えていない）
+- `.claude/scripts/test/test_usage_tracking.sh`（Claude Code経路で注記が出ること、Gemini CLI単独・
+  トークン0件では出ないこと、Gemini CLIからの投稿でも繰り越しでClaude Code由来の行があれば出ること、
+  表から除外される全項目0の行を根拠にしないこと。81 → 90ケース）
+- `.claude/docs/spec/issue-mr-workflow.md`（「フッターの免責事項説明文は初回投稿のみ表示」へ
+  この分岐と、初回投稿がGemini CLI単独だった場合に注記が出ない制約を追記、本項）
+
+### issue #67（作業開始・再開時のベースブランチ追従確認）
+
+新規:
+- `.claude/scripts/src/check-base-sync.sh`（作業ツリーを変更せず behind・未取り込みファイルを判定）
+- `.claude/scripts/test/test_check_base_sync.sh`（純粋関数の単体テストと、使い捨てgitリポジトリに対する
+  `main` の結合テスト。`passed=55 failures=0`）
+- `.claude/docs/spec/check-base-sync.md`
+- `.claude/docs/ddr/0056-作業開始時のベースブランチ追従確認は専用スクリプトで検知しユーザー確認を挟む.md`
+
+更新:
+- `.claude/skills/issue-mr-flow/SKILL.md`（「作業開始・再開時のベースブランチ追従確認（issue #67）」節を
+  「PR作成後のdefaultブランチ追従（監視）」節の直前へ新設。`start` 手順2の既存ブランチ検出時・`sync`・
+  `resume`（手順を1つ追加し以降を繰り下げ）から参照。**flow-idは増やしていない**）
+- `.claude/agents/issue-mr-resume.md`（手順7「ベースブランチとの差分を確認する」を新設し旧7・8を8・9へ
+  繰り下げ。現在地サマリへ `- ベースブランチとの差分:` を追加。`description` にも項目を追記）
+- `.claude/rules/git-workflow.md`（追従確認の入口と、rebaseを使わない方針）
+- `.claude/docs/README.md`（spec一覧に `check-base-sync.md`、DDR一覧に0056を追加）
+- `.claude/docs/spec/check-base-conflicts.md`（判定軸の違う `check-base-sync.sh` が並存することと、
+  あちらの `git fetch ... || true` を意図的に維持することを相互参照として追記）
+- `.claude/skills/apply-mr-workflow-to-project/SKILL.md`（導入先向けのコアスクリプト一覧へ追加）
+- `.claude/docs/spec/issue-mr-workflow.md`（本項と、「途中引き継ぎ対応（resume）」節の手順一覧。
+  同節は現在の状態を説明する記述であり point-in-time の記録ではないため更新する）
+
+判定軸の違い: flow-id 5-2（issue #46）とPR作成後の追従監視（issue #88）はどちらも「衝突するか」を見るが、
+本対応は「遅れているか」を見る。ベースブランチ側でルール・仕様だけが追記された場合、前者は検知できない。
+
 ## 未決定事項・懸念点
 
 - **（issue #61）`gitlab_set_mr_ready` は実機未検証**: 本対応の実行環境（Claude Code on the web の
@@ -2744,6 +2830,12 @@ MRの差分が影響する他のissueへ、マージ前に通知を残せるよ�
   transcriptの自前パースという設計方針自体を変えることになり、本機能のスコープ外）。レポート・
   ドキュメント双方で「目安」である旨を明記することで対応する（下記コンポーネント節、
   および`post-push-usage-report.sh`のコメント本文フッター参照）。
+  - **この報告はClaude Codeのtranscript JSONLについてのものであり、Gemini CLIのセッションログに
+    ついては同種の過小カウントは報告されていない**。そのため、レポートのフッターに出す注記
+    （「既知の過小カウント要因が報告されています。」＋詳細リンク）は、Claude Code由来のトークン行を
+    含むレポートにだけ表示する（上記「フッターの免責事項説明文は初回投稿のみ表示」参照）。
+    Gemini CLI側の集計精度そのものは別の未検証項目であり（本節のGemini CLI関連の項参照）、
+    「目安として扱ってください」という注記は両エンジンで共通に表示する。
 - **セッション（transcriptファイル）を跨いだ集計は未対応**: `/resume`等で新しいtranscriptファイルに
   切り替わった場合、旧セッション分の使用量との合算は行わない（新しい`session_id`として
   ゼロから集計が始まる）。
