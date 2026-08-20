@@ -31,14 +31,17 @@ keywords: [ディレクトリ構成, claude, gemini, 配置方針, plans, worklo
 │   ├── hooks/                  # SessionStart/PostToolUse等のClaude Code hookスクリプト
 │   │   └── lib/                # 複数hookスクリプトで使い回す共通ロジック
 │   ├── REVIEW-POINTS.md       # `.claude/`配下に適用するレビュー観点（`type: review-points`）
+│   ├── VERSION                 # 配布物の版（SemVer 1行）。更新規則は`.claude/docs/spec/distribution-assets.md`
 │   └── settings.json
 ├── .gemini/                    # Gemini CLI向け設定。settings.jsonのみGit管理。docs/hooks/rules/
 │   │                            # scripts/skillsは.claude配下へのローカルリンクで.gitignore対象
 │   └── settings.json
 ├── .github/
-│   └── ISSUE_TEMPLATE/          # GitHub用issueテンプレート（目的・現状・期待する動作・受け入れ条件）
+│   ├── ISSUE_TEMPLATE/          # GitHub用issueテンプレート（目的・現状・期待する動作・受け入れ条件）
+│   └── pull_request_template.md # GitHub用PRテンプレート（`describe`が生成するdescriptionと同一構成）
 ├── .gitlab/
-│   └── issue_templates/         # GitLab用issueテンプレート（同上）
+│   ├── issue_templates/         # GitLab用issueテンプレート（同上）
+│   └── merge_request_templates/ # GitLab用MRテンプレート（`Default.md`。PRテンプレートと同一内容）
 ├── build/                      # ビルド成果物の出力先。`.gitignore`対象でコミットしない（通常は空）
 ├── plans/                      # 計画ファイル。全体作業計画（planツールが出力する`<自動命名>.md`、
 │                                #   issueにつき1つ）と個別作業計画（`【種別】タスク内容.md`、
@@ -47,6 +50,8 @@ keywords: [ディレクトリ構成, claude, gemini, 配置方針, plans, worklo
 │   └── REVIEW-POINTS.md        # `plans/`配下に適用するレビュー観点。**flow-id 5-3で削除しない**
 ├── worklog/                    # 実装中の詳細な試行錯誤ログ（`日付_<全体計画名>_<個別計画名>_push<N>.md`）
 │   └── TEMPLATE.md             # worklog作成時にコピーして使うテンプレート
+├── .gitattributes              # 改行コードの正規化。`*.sh text eol=lf`が`.sh`のLFを保証する
+│                                #   （`dist:begin`〜`dist:end`の行のみ配布先へも追記される）
 ├── .gitignore
 ├── .mrworkflow.json            # リポジトリ固有設定（ブランチ命名規則・plans/等の場所）
 ├── AGENTS.md                   # AIエージェント共通ルール・プロジェクト概要・開発実行方法

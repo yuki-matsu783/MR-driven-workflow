@@ -38,6 +38,7 @@ keywords: [正史仕様, 意思決定ログ, issue-mr-workflow, シェルスク�
 - [check-base-sync.md](spec/check-base-sync.md) ── 作業開始・再開時のベースブランチ追従確認スクリプト
 - [create-commit.md](spec/create-commit.md) ── コミット実行ラッパー（commitスキル専用）
 - [adversarial-review.md](spec/adversarial-review.md) ── 敵対的レビュー（専任サブエージェント・インラインコメント投稿）
+- [distribution-assets.md](spec/distribution-assets.md) ── 配布テンプレート資産（PR/MRテンプレート・`.gitattributes`・VERSION）と配布経路での扱い
 - [cleanup-task.md](spec/cleanup-task.md) ── flow-id 5-3 後片付けの自動化スクリプト
 - [search-frontmatter.md](spec/search-frontmatter.md) ── ドキュメント横断検索スクリプト（index.jsonl検索）
 
@@ -49,7 +50,7 @@ architectureに限らない意思決定も記録対象とする（この改称�
 
 **識別子は `i<issue番号>-<枝番2桁>` である**（例: `i133-01`）。issue番号はGitHub/GitLabが中央で
 採番するため、別ブランチ同士で識別子が衝突しない。issue #133 でこの方式へ変更し、それ以前の
-4桁連番（`0003`〜`0060`）は**すべて新方式へ改番した**（本リポジトリに連番のDDRは残っていない）。
+4桁連番（`0003`〜`0064`）は**すべて新方式へ改番した**（本リポジトリに連番のDDRは残っていない）。
 命名規則は `.claude/rules/markdown-frontmatter.md`「DDRの識別子」が正。
 
 一覧は**issue番号の数値順**に並べる。issue番号をゼロ埋めしないため**ファイル名の辞書順とは
@@ -88,6 +89,9 @@ DDRのうち旧番号 0001・0002・0008・0015 の4件は持ち込んでいな�
 - [i23-01-push断面の全文コピーをやめ行番号インデックスで表現する.md](ddr/i23-01-push断面の全文コピーをやめ行番号インデックスで表現する.md)（うち「Gemini CLI対応の扱い」は、issue #97でメインセッションのみ集計対象へ変更された。サブエージェントを集計しない部分は引き続き有効。詳細は i97-05）
 - [i28-01-flow-id5-1の後片付けはスクリプト化しコミットは含めない.md](ddr/i28-01-flow-id5-1の後片付けはスクリプト化しコミットは含めない.md)（ファイル名の `flow-id5-1` は当時の番号。issue #112 の並べ替えにより、片付けは現在 flow-id 5-3。DDR i112-01 参照）
 - [i32-01-GitLab-issueテンプレートは予約名Default.mdを正とし文書側を合わせる.md](ddr/i32-01-GitLab-issueテンプレートは予約名Default.mdを正とし文書側を合わせる.md)
+- [i33-01-配布物の版はVERSIONファイル1つで表しCHANGELOGを持たない.md](ddr/i33-01-配布物の版はVERSIONファイル1つで表しCHANGELOGを持たない.md)
+- [i33-02-配布テンプレートにLICENSEを同梱しない.md](ddr/i33-02-配布テンプレートにLICENSEを同梱しない.md)
+- [i33-03-gitattributesは配布先へ丸ごとコピーせず必要な行だけ追記する.md](ddr/i33-03-gitattributesは配布先へ丸ごとコピーせず必要な行だけ追記する.md)
 - [i34-01-gh_glab-CLI不在時はMCPフォールバック経路へ機構的に誘導する.md](ddr/i34-01-gh_glab-CLI不在時はMCPフォールバック経路へ機構的に誘導する.md)
 - [i36-01-frontmatterのindex.jsonlをGit管理から外しSessionStart-hookで生成する.md](ddr/i36-01-frontmatterのindex.jsonlをGit管理から外しSessionStart-hookで生成する.md)
 - [i38-01-ドキュメント探索はfrontmatterインデックス検索を第一手段にする.md](ddr/i38-01-ドキュメント探索はfrontmatterインデックス検索を第一手段にする.md)
@@ -119,6 +123,7 @@ DDRのうち旧番号 0001・0002・0008・0015 の4件は持ち込んでいな�
 - [i97-04-Gemini経路のブランチ帰属は断面時点のブランチとし限界を明示する.md](ddr/i97-04-Gemini経路のブランチ帰属は断面時点のブランチとし限界を明示する.md)
 - [i97-05-Gemini-CLIのサブエージェントは保存のみとし集計しない.md](ddr/i97-05-Gemini-CLIのサブエージェントは保存のみとし集計しない.md)
 - [i106-01-敵対的レビューの非対話判定は環境変数ではなくAIエージェントの判断に委ねる.md](ddr/i106-01-敵対的レビューの非対話判定は環境変数ではなくAIエージェントの判断に委ねる.md)
+- [i109-01-敵対的レビュー由来のスレッドも人間の指摘と同列に返信を必須とする.md](ddr/i109-01-敵対的レビュー由来のスレッドも人間の指摘と同列に返信を必須とする.md)
 - [i112-01-フェーズ5は片付けをcommit直前へ移した順序に並べ替える.md](ddr/i112-01-フェーズ5は片付けをcommit直前へ移した順序に並べ替える.md)
 - [i113-01-issue-mr-flow対象ブランチではSKILL.mdの再読み込みを注入で促す.md](ddr/i113-01-issue-mr-flow対象ブランチではSKILL.mdの再読み込みを注入で促す.md)
 - [i117-01-削除済み追跡ファイルの除外はextract-frontmatter側で行う.md](ddr/i117-01-削除済み追跡ファイルの除外はextract-frontmatter側で行う.md)

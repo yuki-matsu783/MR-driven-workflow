@@ -193,3 +193,45 @@ issue記載をそのまま信じたためで、上表のような突き合わせ
 `test_extract_frontmatter.sh` が1件失敗する状態を経由している。フィクスチャの入力側
 （`superseded_by: "0019"`）だけが一括置換で `"i9-01"` になり、期待値が `"0019"` のまま
 残っていたためで、期待値を合わせて解消した。
+
+## 追従監視での2回目の `main` 取り込み
+
+PR作成後の追従監視（定期チェックイン）で `mergeable_state: dirty` を検知し、`main` を2回目の
+`git merge` で取り込んだ。監視モードのため、解消方法が一意に決まる類型（C）は承認を待たずに
+解消している（`.claude/skills/resolve-conflict/SKILL.md`「監視モードでの例外」）。
+
+- **コンフリクトは `.claude/docs/README.md` の1件のみ**（類型C: 同じドキュメントの近接行）。
+  両ブランチともDDR一覧を触っていたため。片側採用はせず、一覧を**ディレクトリの実体から再生成**
+  して統合した。
+- **`main` が旧方式の連番DDRを4件追加していた**（`0061`〜`0064`）。本ブランチの決定
+  （連番は残さない）に従って改番した。
+
+| 旧番号 | 新識別子 | 根拠 |
+|---|---|---|
+| `0061` 配布物の版はVERSIONファイル1つで表しCHANGELOGを持たない | `i33-01` | 本文冒頭が「issue #33。」 |
+| `0062` 配布テンプレートにLICENSEを同梱しない | `i33-02` | 同上 |
+| `0063` gitattributesは配布先へ丸ごとコピーせず必要な行だけ追記する | `i33-03` | 同上 |
+| `0064` 敵対的レビュー由来のスレッドも人間の指摘と同列に返信を必須とする | `i109-01` | PR #138 のコミットメッセージ・frontmatterの `keywords: [… issue109]` |
+
+参照の追従先は `.gitlab/merge_request_templates/Default.md`（新規ファイルが `0036-…md` を直接
+参照していた）・`.claude/docs/spec/distribution-assets.md`・`.claude/docs/spec/adversarial-review.md`・
+`.claude/docs/spec/issue-mr-workflow.md`・`i109-01` 本文（`DDR 0045・0055` → `i77-01・i106-01`）。
+
+**ついでに1件、`main` 側の誤記を訂正した。** `adversarial-review.md` の影響範囲表に
+「`.claude/docs/README.md` | DDR一覧へ0061を追加」とあったが、issue #109 が追加したDDRは `0064`
+（現 `i109-01`）である。番号だけを機械的に写すと誤った別のDDRを指すことになるため、
+訂正したうえで訂正した旨を同じ行へ書き添えた。
+
+### この取り込みの検証
+
+| # | 検証 | 結果 |
+|---|---|---|
+| 1 | コンフリクトマーカー・unmergedパス | なし |
+| 2 | DDR識別子の重複（作業ツリー実体） | なし |
+| 3 | `.claude/scripts/test/test_*.sh` **全13件** | 全件 `failures=0`（合計**721**アサーション。`main` が `test_install_to_project.sh` を追加したため12→13件） |
+| 4 | DDRリンクの解決 | README 61件を含め未解決0件 |
+| 5 | `extract-frontmatter.sh .` | `files=117 built=19 reused=98 failed=0` |
+| 6 | `HANDOFF.md` への自動マージ流入 | なし（`git diff HEAD -- HANDOFF.md` が空） |
+
+**これは「改番の方針を採った以上、`main` が連番DDRを追加するたびに同じ作業が要る」ことの実例
+でもある。** マージまでの間に `main` 側で新しいDDRが増えれば、そのつど改番と参照追従が必要になる。

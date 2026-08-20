@@ -28,6 +28,11 @@ keywords: [plans, handoff, worklog, 正史仕様, 意思決定ログ, ライフ�
 | `.claude/docs/ddr/i<issue番号>-<枝番2桁>-タイトル.md` | 人間＋AI | 永続（本文は不変） | 「〇〇を検討したが✕✕を採用した」という意思決定の背景・却下案（DDR: Design Decision Record。architectureに限らない意思決定を対象とする） | **issue番号ベースの識別子**で管理する（issue #133。旧方式の4桁連番は全件改番済みで、本リポジトリには残っていない。命名・枝番・`i00`（対応issueが無いDDR）の詳細は `.claude/rules/markdown-frontmatter.md`「DDRの識別子」が正）。一度マージしたら**本文**は追記のみ（変更不可）。ただし**YAML frontmatterのみは後から更新してよい**（後続のDDRで無効になった場合に`status: superseded` / `superseded_by`を付ける。詳細: `.claude/rules/markdown-frontmatter.md`「DDRのstatus」）。`spec` の未決定事項が解消したら記録し、spec側の該当項目は削除してよい。plans／worklogの内容はflow-id 4-6（設計反映）で反映する。 |
 | `<ディレクトリ>/REVIEW-POINTS.md` | 人間＋AI | 永続（最新状態） | そのディレクトリ配下すべて（孫以下を含む）に適用するレビュー観点（`type: review-points`） | 各ディレクトリ直下に置く。敵対的レビュー（`.claude/skills/adversarial-review/SKILL.md`）と `review-points` スキルが祖先方向へ遡って集めて使い、人間のレビューでも参照する。**`plans/` `reports/` 配下に置かれていてもflow-id 5-3の削除対象に含めない**（下記）。仕様: `.claude/docs/spec/adversarial-review.md`「レビュー観点（REVIEW-POINTS.md）」 |
 
+**`reports/` の `.html` が必須なのは flow-id 2-6（調査の実施）だけである**（issue #33）。
+flow-id 3-6・4-6 では「結果を視覚的にまとめる必要があれば作成する」（`.claude/skills/issue-mr-flow/SKILL.md`
+の全体フローが正）。したがって `reports/` に `.md` だけの回があってもよく、`.html` が無いこと自体は
+不整合ではない。**作った場合は必ず `.md` と内容を同期させる**（片方だけ更新しない）。
+
 `plans/` `worklog/` `reports/` の3つは、いずれも**flow-id 5-3（次タスクのための片付け）でまとめて
 削除する**（`reports/` はmd・htmlの両方が対象。`.claude/skills/issue-mr-flow/SKILL.md`の全体フローが正）。設計反映（flow-id 4-6）で
 行うのは、これらの**内容**を`.claude/docs/spec/` `.claude/docs/ddr/`へ反映することであって、

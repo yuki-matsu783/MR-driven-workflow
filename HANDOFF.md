@@ -15,7 +15,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - issue: #133 DDRの識別子を連番からissue番号ベースへ変更し、並行開発時の番号衝突を原理的に無くす
 - ブランチ: claude/ddr-identifier-issue-based-vpskgp
 - PR: #137 (Draft) https://github.com/yuki-matsu783/MR-driven-workflow/pull/137
-- push回数: 4
+- push回数: 5
 - 現在のループ: 4-6〜4-9 の1周目（完了）
 - 追従監視: 購読あり（web。subscribe_pr_activity + 1時間ごとの自己チェックイン）
 
@@ -104,6 +104,20 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
   `hasConflict=false`。`extract-frontmatter.sh` / `search-frontmatter.sh` から新DDRを引ける。
   **全ファイル中の `ddr/<名前>.md` 参照が実ファイルへ解決すること**を機械的に確認した
   （未解決はテスト用フィクスチャ・仕様書中の例示・持ち込んでいない `0002` のみ）。
+
+- **追従監視の定期チェックインで `main` の進行（PR #136 / #138）を検知し、2回目の `git merge` を
+  行った**（監視モードのため類型Cは承認を待たず解消。`.claude/skills/resolve-conflict/SKILL.md`）。
+  - コンフリクトは `.claude/docs/README.md` のDDR一覧1件（類型C）。両方を残す形で、一覧を
+    ディレクトリから再生成して統合した。
+  - **`main` 側が旧方式の連番DDRを4件追加していた**（`0061`〜`0064`）。本ブランチの決定に従い
+    `i33-01` / `i33-02` / `i33-03`（いずれもissue #33）・`i109-01`（issue #109）へ改番し、
+    `.gitlab/merge_request_templates/Default.md`・`distribution-assets.md`・
+    `adversarial-review.md`・`issue-mr-workflow.md` からの参照も追従させた。
+  - `adversarial-review.md` の影響範囲表にあった「DDR一覧へ0061を追加」は、当時追加されたのは
+    `0064`（現 `i109-01`）であり**元から誤記**だったため、改番のついでに訂正した。
+- 検証（2回目のマージ後）: 単体テスト全13件が `failures=0`（合計721アサーション。`main` が
+  `test_install_to_project.sh` を追加したため12→13件）。DDR識別子の重複なし。DDRリンク61件が
+  すべて実ファイルへ解決。`extract-frontmatter.sh` は `failed=0`。
 
 ## 次にやること
 

@@ -209,6 +209,8 @@ bash .claude/scripts/src/extract-frontmatter.sh .
 |---|---|---|
 | `.gitlab/issue_templates/Default.md` | **対象外**（frontmatter追加しない） | GitLabはissueテンプレートのfrontmatterを特別扱いしないため、追加すると issue作成のたびに本文へYAMLがそのまま挿入されてしまう |
 | `.github/ISSUE_TEMPLATE/task.md` | **対象外**（frontmatter追加しない） | GitHub仕様の`title`等の既存frontmatterと衝突・干渉するため。issueテンプレートにOKF frontmatterは不要と判断した |
+| `.github/pull_request_template.md` | **対象外**（frontmatter追加しない） | issueテンプレートと同じ理由。PR作成のたびに本文へYAMLがそのまま挿入されてしまう（issue #33） |
+| `.gitlab/merge_request_templates/Default.md` | **対象外**（frontmatter追加しない） | 同上（issue #33） |
 | `.claude/agents/*.md` | `title`/`type`/`tags`/`keywords`/（該当すれば`resource`）のみ追加。`description`は追加しない | 既存の`description`はClaude Codeがサブエージェント選択に使う実キーのため、重複させず流用する |
 | `.claude/skills/*/SKILL.md` | 同上 | 同上（skill選択に使う`description`を保持） |
 | `.claude/rules/*.md`のうち`alwaysApply: true`を持つファイル | 既存キーの下に新キーを追記する | `alwaysApply`はClaude Codeのルール常時適用設定として実際に使われるため、値・位置を変更しない |
