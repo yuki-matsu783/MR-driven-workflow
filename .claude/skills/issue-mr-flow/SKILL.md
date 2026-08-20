@@ -440,9 +440,17 @@ hookは多重防御であり、注入が無かったことは着手してよい�
 
 1. `get_mr_for_branch "$(git branch --show-current)"` で現在のブランチに紐づくMR番号を取得する。
 2. `get_mr_unresolved_comments <n>` で未解決コメントを取得し、そのまま提示する
-   （ファイルパス・行番号・スレッドID・該当diffを含む）。対応済み（解決済み）のスレッドは既定で
-   機械的に除外される。引数に `all` が指定された場合は `get_mr_unresolved_comments <n> true` で呼び、
-   解決済みも含めた全件を取得する。
+   （ファイルパス・行番号・スレッドID・**指摘行前後のソーススライス**を含む）。対応済み（解決済み）
+   のスレッドは既定で機械的に除外される。引数に `all` が指定された場合は
+   `get_mr_unresolved_comments <n> true` で呼び、解決済みも含めた全件を取得する。
+   - **ソーススライスはスレッドにつき1回**、そのスレッドの全コメントの後ろに置かれる（issue #43。
+     それ以前はGitHubの `diffHunk` をコメントごとに出しており、返信が付くと重複していた）。
+     指摘行は `>>>` で示され、絶対行番号が付く。**別途 `git show` 等でソースを取り直す必要はない。**
+   - 見出しの `@ <sha>` が**そのコメントが書かれた時点の断面**である。
+     `(断面 <sha> を取得できず現HEADを表示)` と出ている場合は**断面がずれている**ので、
+     指摘の対象が現在のコードに残っているかを確かめてから直すこと。
+     `(バイト上限により切り詰め)` は前後の文脈が削られた印で、必要なら該当ファイルを直接読む。
+   - 仕様は `.claude/docs/spec/issue-mr-workflow.md`「レビューコメントのソーススライス」が正。
    - 各行の角括弧内には `url=<コメントのパーマリンク>` が含まれる（issue #42）。**次のpush時の
      レビュー依頼メッセージへ「前回の指摘にどう返信したか」のリンクを載せるために使うので、
      返信したスレッドのURLは控えておくこと。**
@@ -573,7 +581,7 @@ get_repo_slug | jq -r '.owner, .repo'
 | `search_issues <キーワード...>` | `mcp__github__search_issues` | `query="<キーワード（複数可）>"`, `owner`, `repo` | `issue-create` スキルの起票前重複チェック（issue #68）の代替。**CLI版と違い、キーワードごとに呼び分ける必要はない**（自然言語のセマンティック検索で、既に `is:issue` にスコープされている）。1回の `query` に複数キーワードを平文で並べる。closedのissueも対象にしたいので `state` で絞り込まないこと。返却の `number`/`title`/`state`/`html_url` を、CLI版の `number`/`title`/`state`/`url` と読み替える |
 | `new_draft_merge_request <n> <branch> <title> [<base>]` | `mcp__github__create_pull_request` | `owner`, `repo`, `title`, `head=<branch>`, `base=<base>`, `draft=true`, `body="Closes #<n>\n\n(plan作成中。/issue-mr-flow describe で更新する)"` | baseとの差分が無いと失敗する制約はMCP経路でも同じ。失敗したら `source .claude/scripts/src/vcs/Provider.sh && add_empty_commit_for_draft_mr` を実行してから1回だけ再試行する |
 | `get_mr_for_branch <branch>` | `mcp__github__list_pull_requests` | `owner`, `repo`, `head="<owner>:<branch>"`, `state="open"` | 結果が空配列ならPRなし。`number`/`html_url`/`draft`/`title` を使う |
-| `get_mr_unresolved_comments <n> [true]` | `mcp__github__pull_request_read` | `method="get_review_comments"`, `owner`, `repo`, `pullNumber=<n>` | スレッドごとに `isResolved` が付くので、**既定では `isResolved=false` のスレッドだけを提示する**（CLI版の「解決済みは機械的に除外」に相当）。`all` 指定時は全件。通常コメントは `method="get_comments"` を追加で呼ぶ。**コメントのパーマリンク（CLI版の `url=...`）は返却JSONの `html_url` を使う**（issue #42） |
+| `get_mr_unresolved_comments <n> [true]` | `mcp__github__pull_request_read` | `method="get_review_comments"`, `owner`, `repo`, `pullNumber=<n>` | スレッドごとに `isResolved` が付くので、**既定では `isResolved=false` のスレッドだけを提示する**（CLI版の「解決済みは機械的に除外」に相当）。`all` 指定時は全件。通常コメントは `method="get_comments"` を追加で呼ぶ。**コメントのパーマリンク（CLI版の `url=...`）は返却JSONの `html_url` を使う**（issue #42）。**このツールは `line` も commitのsha も返さないため、CLI版が付ける指摘行前後のソーススライスは作れない**（`path` までは分かる。実測で確認。GitHub MCPサーバー側の制約であり本機構では変えられない。issue #43）。指摘箇所のコードが必要なら、`path` を頼りにReadツール等で**現在のファイル**を読む——**それは断面ではなく現HEADである**点に注意する |
 | `add_mr_thread_reply <n> <threadId> <body>` | `mcp__github__add_reply_to_pull_request_comment` | `owner`, `repo`, `pullNumber=<n>`, `commentId=<返信先スレッドの先頭コメントの数値ID>`, `body` | **ID体系が違う。** CLI経路はGraphQLのthreadId（`PRRT_...`）を使うが、MCP経路は数値のcommentId（`#discussion_r...` の数字部分）を使う。`get_review_comments` の各スレッドに含まれるコメントのidを使うこと。**投稿した返信のURL（CLI版の戻り値）は、返却JSONの `html_url` を使う**（issue #42） |
 | `set_mr_description <n> <file>` | `mcp__github__update_pull_request` | `owner`, `repo`, `pullNumber=<n>`, `body=<ファイルの内容>` | CLI版はファイルパスを渡すが、MCPは文字列で渡す。本文はReadツール等で読んでから渡す |
 | `set_mr_ready <n>` | `mcp__github__update_pull_request` | `owner`, `repo`, `pullNumber=<n>`, `draft=false` | `set_mr_description` と同じツールだが渡す引数が違う。`draft=false` が「Draftを解除しレビュー可能にする」の意味（flow-id 5-4。issue #61） |
