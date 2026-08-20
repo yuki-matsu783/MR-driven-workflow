@@ -105,55 +105,91 @@ gitlab_new_draft_merge_request() {
   glab mr view "$branch" --output json --jq '.iid'
 }
 
-# discussion内のnoteを整形して返す純粋関数（`glab`呼び出しを伴わないため単体テストできる。
-# .claude/rules/shell-script-style.md「テスト」）。第1引数はGitLab REST APIの
-# `projects/:id/merge_requests/<n>/discussions` が返すJSON配列そのもの。
+# --- レビューコメント取得（issue #43） -----------------------------------------------------
+#
+# 出力仕様の見直しにより、この層は**正規化JSONを返すだけ**になった（テキスト整形と、指摘行
+# 前後のソース切り出しは `Provider.sh` の共通の後段ロジックが行う）。issue #43 以前は
+# GitHub側とGitLab側がそれぞれ別々に整形しており、行頭ラベルが `[review unresolved ...]` /
+# `[unresolved ...]` と非対称だった。`.claude/hooks/session-start.sh` は
+# `^\[review unresolved threadId=` で未解決件数を数えているため、**GitLabリポジトリでは
+# 未解決件数が常に0件と表示されていた**（issue #43 の調査で判明）。整形を1箇所へ寄せることで
+# この種の非対称が構造的に起きなくなる。
+
+# discussions APIのJSONを、プロバイダ非依存の正規化JSONへ変換する純粋関数
+# （`glab`呼び出しを伴わないため単体テストできる。.claude/rules/shell-script-style.md「テスト」）。
+# 第1引数はGitLab REST APIの `projects/:id/merge_requests/<n>/discussions` が返すJSON配列そのもの。
 #
 # GitLabは「説明を変更した」等の操作履歴を、レビューコメントと同じdiscussions APIから
 # `system: true` のnoteとして返す（issue #48で実機確認: `changed the description`）。
-# レビュー往復の完了判定を狂わせるため機械的に除外する。GitHub側（github_get_mr_unresolved_comments）は
-# GraphQLの`reviewThreads`を使っておりシステムイベントを返さないため、同種の問題は無い。
+# レビュー往復の完了判定を狂わせるため機械的に除外する。GitHub側はGraphQLの`reviewThreads`を
+# 使っておりシステムイベントを返さないため、同種の問題は無い。
 #
-# 既定では resolved: false（未解決）のnoteのみを対象とし、対応済み（解決済み）は機械的に除外する。
-# include_resolved=true 指定時は解決済みも含めた全件を返す。
-# 個人メモ（individual_note）等 resolvable でないnoteは常に含める。
-# インラインコメント（`position` を持つnote）は、GitHub側（`path:line`）と揃えて位置を出力する。
-# 位置を出さないと「どのファイルの何行目への指摘か」がレビュー対応時に分からない（issue #77）。
-# 削除行への指摘は `new_line` が無く `old_line` のみを持つため、その場合は `old_path:old_line` を使う。
+# **解決状態の粒度が違う点をここで吸収する。** GitHubはスレッド単位（`isResolved`）だが、
+# GitLabはnote単位（`resolvable` / `resolved`）である。共通形式はスレッド単位のため、
+# 「resolvableなnoteが1つ以上あり、そのすべてが解決済み」のときだけスレッドを解決済みとみなす
+# （個人メモ（individual_note）等 resolvable でないnoteしか無いスレッドは常に未解決扱い。
+# 従来の挙動を維持している）。
+#
+# 位置と断面（`path` / `line` / `sha`）は `position` から解決する。
+#   - 追加・変更行への指摘: `new_path` / `new_line` / `head_sha`
+#   - 削除行への指摘（`new_line` が無い）: `old_path` / `old_line` / `base_sha`
+#     （削除された行は `head_sha` 側に存在しないため、断面はベース側を使う。issue #43）
 # 第3引数 `mr_url`（省略可）を渡すと、各noteの公式パーマリンク `<mr_url>#note_<noteId>` を
-# `url=...` として行に含める（issue #42。GitHubのGraphQL `url` フィールドに相当するものが
+# `url` として持たせる（issue #42。GitHubのGraphQL `url` フィールドに相当するものが
 # GitLabのdiscussions APIには無いため、note `id` から組み立てる）。
-gitlab_format_discussion_notes() {
+#
+# 通常コメント（`comments`）は常に空配列を返す。GitLabのdiscussions APIはインラインコメントと
+# MR全体へのコメントを同じ配列で返すため、後者も `path: null` のスレッドとして `threads` に
+# 含まれる（従来と同じ出力になる）。
+gitlab_normalize_discussions() {
   local discussions="$1" include_resolved="${2:-false}" mr_url="${3:-}"
 
-  printf '%s' "$discussions" | jq -r --argjson includeResolved "$include_resolved" \
+  printf '%s' "$discussions" | jq -c --argjson includeResolved "$include_resolved" \
     --arg mrUrl "$mr_url" '
-    [
-      .[] as $d
-      | $d.notes[]
-      | . as $n
-      | select($n.system | not)
-      | ($n.resolvable and $n.resolved) as $isResolved
-      | select(($isResolved | not) or $includeResolved)
-      | (
-          if ($n.position // null) == null then null
-          elif ($n.position.new_line // null) != null
-            then ($n.position.new_path // "") + ":" + ($n.position.new_line | tostring)
-          elif ($n.position.old_line // null) != null
-            then ($n.position.old_path // "") + ":" + ($n.position.old_line | tostring)
-          else ($n.position.new_path // $n.position.old_path // null)
-          end
-        ) as $loc
-      | "[" + (if $isResolved then "resolved" else "unresolved" end)
-        + " threadId=" + ($d.id | tostring)
-        + (if $loc then " " + $loc else "" end)
-        + (if ($mrUrl | length) > 0 then (" url=" + $mrUrl + "#note_" + ($n.id | tostring)) else "" end)
-        + "] " + $n.author.username + ": " + $n.body
-    ] | join("\n\n")
+    {
+      threads: [
+        .[] as $d
+        | [ ($d.notes // [])[] | select(.system | not) ] as $notes
+        | select(($notes | length) > 0)
+        | [ $notes[] | select(.resolvable == true) ] as $resolvable
+        | (($resolvable | length) > 0
+           and ([ $resolvable[] | select(.resolved != true) ] | length) == 0) as $isResolved
+        | select(($isResolved | not) or $includeResolved)
+        | ($notes[0].position // null) as $pos
+        | (($pos != null) and (($pos.new_line // null) != null)) as $useNew
+        | {
+            threadId: ($d.id | tostring),
+            isResolved: $isResolved,
+            isOutdated: false,
+            path: (if $pos == null then null
+                   elif $useNew then ($pos.new_path // $pos.old_path // null)
+                   elif ($pos.old_line // null) != null then ($pos.old_path // $pos.new_path // null)
+                   else ($pos.new_path // $pos.old_path // null) end),
+            line: (if $pos == null then null
+                   elif $useNew then $pos.new_line
+                   else ($pos.old_line // null) end),
+            sha: (if $pos == null then null
+                  elif $useNew then ($pos.head_sha // null)
+                  else ($pos.base_sha // $pos.start_sha // null) end),
+            comments: [
+              $notes[]
+              | {
+                  author: (.author.username // "(unknown)"),
+                  body: (.body // ""),
+                  url: (if ($mrUrl | length) > 0
+                        then ($mrUrl + "#note_" + (.id | tostring))
+                        else null end)
+                }
+            ]
+          }
+      ],
+      comments: []
+    }
   ' | tr -d '\r'
 }
 
-gitlab_get_mr_unresolved_comments() {
+# レビュースレッドを正規化JSONで返す（GitHub側 `github_get_mr_review_threads` の対応関数）。
+gitlab_get_mr_review_threads() {
   local mr_number="$1" include_resolved="${2:-false}"
   local discussions repo_url="" mr_url=""
   discussions="$(glab api "projects/:id/merge_requests/${mr_number}/discussions")"
@@ -162,7 +198,21 @@ gitlab_get_mr_unresolved_comments() {
   if repo_url="$(gitlab_get_repo_url 2>/dev/null)" && [ -n "$repo_url" ]; then
     mr_url="$(gitlab_get_mr_url "$repo_url" "$mr_number")"
   fi
-  gitlab_format_discussion_notes "$discussions" "$include_resolved" "$mr_url"
+  gitlab_normalize_discussions "$discussions" "$include_resolved" "$mr_url"
+}
+
+# 指定したcommit時点のファイル内容を標準出力へ返す（ローカルにblobが無い場合のフォールバック。
+# issue #43。GitHub側 `github_read_file_at_ref` の対応関数）。取得できなければ何も出力せず
+# 終了コード1を返す。【未検証】: このリポジトリのremoteはGitHubのみのため実機確認していない。
+#
+# GitLabのRepository files APIは、パスをpercent-encodeして**スラッシュも `%2F` へ**置き換える
+# 必要がある（`url_encode_path_to_reply` は `/` を残すため、ここで追加で置換する）。
+gitlab_read_file_at_ref() {
+  local sha="$1" path="$2"
+  local encoded
+  url_encode_path_to_reply "$path"
+  encoded="${REPLY//\//%2F}"
+  glab api "projects/:id/repository/files/${encoded}/raw?ref=${sha}" 2>/dev/null
 }
 
 # 指定したdiscussion（スレッド）に対応内容を返信する。スレッドの解決（resolved）はレビュアー側の
@@ -281,7 +331,7 @@ gitlab_add_mr_comment() {
 # 持たない）が、`gitlab_add_mr_comment` の単発noteと違い**返信と解決（resolve）ができる**形になる。
 #
 # `notes` APIで作ったnoteはGitLab上で `individual_note: true` / `resolvable: false` となり、
-# `gitlab_format_discussion_notes` は resolvable でないnoteを常に「未解決」として出力する
+# `gitlab_normalize_discussions` は resolvable でないnoteを常に「未解決」として出力する
 # （解決しようが無いため、レビュー往復の未解決一覧に残り続ける）。対応を求めるコメントは
 # `discussions` APIで投稿し、レビュアーが解決できる状態にする。
 #
