@@ -92,4 +92,7 @@ upload_attachment <file> [<content_type>]
    ことと、stderrに「層3はスキップしてよい」という案内が出ることを確認する。
 5. 繰り下げの検証: `git diff <分岐点SHA> -- .claude/docs/ddr/` の**削除行がゼロ**であること
    （DDR本文を書き換えていないことの確認。frontmatterの `note` 追加は追加行のみ）。
-6. `grep -rn 'flow-id 5-[1-6]'` を再実行し、残った旧番号が凍結対象の18行だけであることを確認する。
+6. **`5-N` という数字列を、changelog とDDR本文を除いて全件列挙し、1件ずつ現在の意味と突き合わせる。**
+   `grep -rn 'flow-id 5-[1-6]'` を数えるだけでは、(a) `flow-id` の語を伴わない裸の番号
+   （見出し・frontmatterの `keywords`・コミット地点の列挙）と、(b) 元から誤っていた番号を
+   構造的に検出できない（issue #111 の敵対的レビュー指摘）。

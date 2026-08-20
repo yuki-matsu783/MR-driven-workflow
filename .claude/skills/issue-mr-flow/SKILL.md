@@ -91,7 +91,7 @@ MR description更新」という同じ形を繰り返す。
 | 4-10 | 反映内容をもとにMR descriptionを更新する | `describe` |
 | 5-1 | **defaultブランチとのコンフリクトを検知し、あれば解消する**（`bash .claude/scripts/src/check-base-conflicts.sh` で判定 → `hasConflict` が真なら `AskUserQuestion` でユーザーに確認 → 承認されたら `resolve-conflict` スキルで解消。詳細は下記「defaultブランチとのコンフリクト検知・解消」節）。PR作成後の継続的な追従（下記「PR作成後のdefaultブランチ追従（監視）」節）を行っていても、**このステップは最終ゲートとして必ず通る** | エージェント（`resolve-conflict` スキル） |
 | 5-2 | **今回のMRが影響する関連issueを特定し、承認を得てから当該issueへ通知する**（差分からキーワードを抽出 → `search_issues` で候補提示 → `AskUserQuestion` で対象issueとコメント本文の承認 → `add_issue_comment` で投稿）。**キーワードの抽出時は `plans/` `worklog/` `reports/` を差分から除外する**（片付けは flow-id 5-4 で行うため、この時点ではこれらの計画・ログ・レポートがまだ差分に含まれる）。**影響先が無ければスキップしてよい**（その場合も「影響先なし」と判断した事実を、リセット前の `HANDOFF.md` へ1行残す）。詳細は下記「マージ前の関連issue通知（flow-id 5-2）」節 | エージェント |
-| 5-3 | **最終統括レポートを作成し、PR/MRへサマリコメントとして反映する**（`reports/日付_<全体計画名>_統括.md` を正文として作成 → `commit` スキル経由でcommit・push → サマリを `add_mr_comment` でPR/MRへ投稿 →（**任意**）HTMLを `upload_attachment` で添付し、**失敗したら警告のみでスキップしフローは止めない**）。**反映は3層のフォールバック構造**で、層3が壊れても層1・層2でレビューは成立する。詳細は下記「最終統括レポートとPR/MRへの反映（flow-id 5-3）」節 | エージェント |
+| 5-3 | **最終統括レポートを作成し、PR/MRへサマリコメントとして反映する**（`reports/日付_<全体計画名>_統括.md` を正文として作成 → `commit` スキル経由でcommit・push → （**任意**）HTMLを `upload_attachment` で添付し、**失敗したら警告のみでスキップ** → サマリを `add_mr_comment` でPR/MRへ1回投稿する）。**反映は3層のフォールバック構造**で、層3が壊れても層1・層2でレビューは成立する。詳細は下記「最終統括レポートとPR/MRへの反映（flow-id 5-3）」節 | エージェント |
 | 5-4 | 次タスクのために、`plans/` `worklog/` `reports/`（md・htmlの両方）を削除し、`HANDOFF.md` をリセットする（**`bash .claude/scripts/src/cleanup-task.sh` を実行する**。何を消し何を残すか（`worklog/TEMPLATE.md` と `REVIEW-POINTS.md` は残す。後者はタスク単位の成果物ではなく、そのディレクトリに対する永続のレビュー観点であるため。詳細は `.claude/rules/docs-workflow.md` が正）・`index.jsonl` の再生成・HANDOFF.mdのテンプレートはスクリプトが持つ。先に対象を確認したい場合は `--dry-run` を付ける。仕様: `.claude/docs/spec/cleanup-task.md`）。**スクリプトはコミットまでは行わない**ため、削除・リセットの結果は直後の flow-id 5-5 の `commit` スキル経由でコミットする（**このステップを commit の直前へ置く**のは、生成と確定の間に他のステップを挟まないため。issue #112） | エージェント |
 | 5-5 | `commit`スキル経由でcommitし、push して Draftを解除する（解除は `source .claude/scripts/src/vcs/Provider.sh && set_mr_ready <MR番号>` で行う。`gh pr ready` / `glab mr update --ready` を直接呼ばない。MR番号は `get_mr_for_branch` で取得できる）。**AIエージェントはここで止まる**（マージへは進まない） | エージェント |
 | 5-6 | マージする（squash merge。ブランチは削除してよい）。**AIエージェントは、ユーザーから明示的に指示された場合に限り実行してよい**（下記「PR/MR作成・マージの担当」） | 人間 |
@@ -206,7 +206,7 @@ HANDOFF.mdとの矛盾など、ブランチ名だけでは分からない「こ�
 flow-idなら同じループ範囲の全行をまとめて`[x]`にする。フェーズ・ループ範囲を丸ごと省略する場合は
 `mark-skip <flow-id...>`で`[-]`にする。詳細・制約は`.claude/docs/spec/update-handoff-progress.md`
 参照）へ委譲し、それに続けて「やったこと」「次にやること」を書き換える。更新はcommit（flow-id
-2-2/2-7/3-2/3-7/4-2/4-7/5-5）より前に行い、**同じcommitに含める**（別commitに分けると、レビュー
+2-2/2-7/3-2/3-7/4-2/4-7/5-3/5-5）より前に行い、**同じcommitに含める**（別commitに分けると、レビュー
 時点の進捗表と実際の変更内容が食い違う）。
 
 **ただし、ループ範囲に属するflow-idでは記号を動かす条件が違う**（issue #64で実際に踏んだ。作業を
@@ -611,7 +611,7 @@ get_repo_slug | jq -r '.owner, .repo'
 | `set_mr_ready <n>` | `mcp__github__update_pull_request` | `owner`, `repo`, `pullNumber=<n>`, `draft=false` | `set_mr_description` と同じツールだが渡す引数が違う。`draft=false` が「Draftを解除しレビュー可能にする」の意味（flow-id 5-5。issue #61） |
 | `add_mr_comment <n> <file>` | `mcp__github__add_issue_comment` | `owner`, `repo`, `issue_number=<PR番号>`, `body=<ファイルの内容>` | PR番号を `issue_number` に渡す（GitHub APIの仕様上、PRもissueとして扱える） |
 | `add_mr_inline_comments <n> <file>` | `mcp__github__pull_request_review_write` | `method="create"` → 指摘ごとに `method="add_comment_to_pending_review"`（`owner`, `repo`, `pullNumber`, `path`, `line`, `side`, `body`）→ `method="submit_pending"`（`event="COMMENT"`） | 敵対的レビュー（issue #77）のインライン投稿。**3段構成で、`submit_pending` まで必ず実行する**（pendingのまま放置すると次回の `create` が失敗し続ける）。途中で失敗したら `method="delete_pending"` で片付ける。CLI版と違い有効行の事前検証が入らないため、diffに含まれない行を指定すると個別に失敗する |
-| `add_issue_comment <n> <file>` | `mcp__github__add_issue_comment` | `owner`, `repo`, `issue_number=<通知先のissue番号>`, `body=<ファイルの内容>` | **`add_mr_comment` と同じツールだが、`issue_number` へ渡すのがPR番号ではなく通知先のissue番号である**（flow-id 5-4の関連issue通知。issue #86）。CLI版はファイルパスを渡すが、MCPは文字列で渡すため本文はReadツール等で読んでから渡す |
+| `add_issue_comment <n> <file>` | `mcp__github__add_issue_comment` | `owner`, `repo`, `issue_number=<通知先のissue番号>`, `body=<ファイルの内容>` | **`add_mr_comment` と同じツールだが、`issue_number` へ渡すのがPR番号ではなく通知先のissue番号である**（flow-id 5-2の関連issue通知。issue #86）。CLI版はファイルパスを渡すが、MCPは文字列で渡すため本文はReadツール等で読んでから渡す |
 | `upload_attachment <file> [<content_type>]` | **代替なし** | — | flow-id 5-3 の**層3（統括レポートHTMLの添付）**（issue #111）。**MCPにPR/issueへの添付に相当するツールは無い**（実測で確認）。この関数は `require_vcs_cli` により非0で終え、stderrへ「層3はスキップしてよい」旨を出す。**層1（`reports/` をリモートへ反映）と層2（`add_mr_comment` でのサマリ投稿）だけでレビューは成立するため、スキップして次へ進む** |
 | `get_repo_url` | （MCP不要） | — | `git remote get-url origin` の正規化だけでリポジトリの正規URLを導出するプロバイダ非依存の関数のため、MCP経路でもそのまま呼べる（`get_mr_diff_url` / `get_mr_diff_since_url` も同様。issue #44） |
 | `new_issue_branch` / `sync_branch` / `get_branch_work_files` / `get_issue_number_from_branch` / `to_slug` / `test_issue_sections` | （MCP不要） | — | git操作・純粋ロジックのみでCLIに依存しないため、MCP経路でもそのまま呼べる |
@@ -730,7 +730,7 @@ squash mergeによりmainにも残らないためである。
   無い場合でも、判断の内容と理由をこのコメント本文に書いておけば、これらがflow-id 5-4で削除された
   後もPR/MR画面から辿れる。
 
-## レビュー依頼メッセージ（全体フロー 2-2・2-7・3-2・3-7・4-2・4-7・5-5）
+## レビュー依頼メッセージ（全体フロー 2-2・2-7・3-2・3-7・4-2・4-7・5-3・5-5）
 
 pushしてレビュー依頼を出すターンでは、**`AskUserQuestion`（askツール）を使わず、通常の
 メッセージだけで応答を終える。**
@@ -1206,21 +1206,43 @@ TailwindCSS CDN方式の自己完結HTMLを手書きしてよい**（`.claude/sk
   公式APIだが実機未検証である。**加えて、`gh`/`glab` CLIが無い実行環境（Claude Code on the web）
   では、MCPに添付相当のツールが無いため必ず失敗する**（issue #111 の調査で実測）。
 
+#### 層の番号は「フォールバックの優先順位」であって、実行順ではない
+
+**実行順は 層1 → 層3 → 層2 である。**
+
+```
+レポート作成 → 層1（commit・push）→ 層3（添付を試す・任意）→ 層2（サマリを1回投稿）
+```
+
+**層3を層2より先に実行するのは、添付リンクをサマリ本文へ入れて1回で投稿するためである。**
+`Provider.sh` には**投稿済みコメントを編集する関数が無い**（あるのは `add_mr_comment` /
+`add_issue_comment` / `set_mr_description` で、いずれも新規投稿か description の上書き）。
+層2を先に投稿してしまうと、添付リンクを後から本文へ足す手段が無く、コメントを2回投稿するか
+CLIを直接叩くかの場当たり対応になる。
+
+**層3が失敗しても層2は必ず実行する。** 添付リンクの行が本文から落ちるだけで、他は変わらない。
+
 #### 層3の呼び出し方
 
 ```bash
 source .claude/scripts/src/vcs/Provider.sh
+
+# 層3（任意）。失敗しても続ける
+attachment_md=""
 if result="$(upload_attachment "reports/20260821_xxx_統括.html")"; then
-  # 成功したら .markdown をサマリコメント本文へ埋め込む
-  printf '%s' "$result" | jq -r '.markdown'
+  attachment_md="$(printf '%s' "$result" | jq -r '.markdown')"
 else
-  # 失敗しても続ける。層1・層2でレビューは成立する
-  echo "添付をスキップしました（任意ステップ）" >&2
+  echo "添付をスキップしました（任意ステップ。層1・層2でレビューは成立する）" >&2
 fi
+
+# 層2（必須）。添付できたときだけ末尾へ1行足し、本文をファイルへ書き出してから投稿する
+[ -z "$attachment_md" ] || printf '\n添付: %s\n' "$attachment_md" >> /tmp/summary.md
+add_mr_comment "$mr_number" /tmp/summary.md
 ```
 
 **成功を前提にした分岐を書かないこと。** 添付できたかどうかでサマリコメントの本質的な内容が
 変わってはいけない（添付は「あれば便利」であって、レビューに必要な情報の置き場ではない）。
+**変わってよいのは末尾の1行だけである。**
 
 ### サマリコメントの本文
 
@@ -1256,6 +1278,8 @@ Claude Codeより（最終統括レポート）: issue #<番号> / PR #<番号>
   コマンド文字列へ長文を埋め込むと、地の文に `git` と `push` が連続しただけでpush検知hookが
   誤発火する（`.claude/rules/git-workflow.md`「push検知hookの誤検知」）。
 - 層3が成功した場合は、`upload_attachment` が返した `markdown` を本文の末尾へ添える。
+  **層3は層2より先に実行する**（上記「層の番号は『フォールバックの優先順位』であって、実行順では
+  ない」）。投稿済みコメントを編集する手段が無いため、投稿は1回で完結させる。
 
 ### PR/MRの通常コメントの種別（issue #111）
 

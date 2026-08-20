@@ -471,9 +471,15 @@ gitlab_add_issue_comment() {
 # フィールドをそのまま本文へ埋め込める。
 # https://docs.gitlab.com/api/projects/#upload-a-file
 #
-# **未検証**: このリポジトリのremoteはGitHubで、GitLab実機での実行確認は行っていない
-# （Gitlab.sh 冒頭の検証状況と同じ扱い。実機検証は issue #127 が担当する）。実装は公式API
-# ドキュメントの仕様に沿って書いてある。
+# **未確認の設計上の疑い（issue #127 の検証項目。「実機が無い」とは別の話）**:
+# このエンドポイントは **multipart/form-data でのファイル送信**を要求するが、`glab api` の
+# `-F/--field` は（`gh api` と同様に）`@` 接頭辞を「**値をファイルから読む**」の意味で扱う
+# フラグである可能性がある。その場合、読んだ内容が通常のパラメータ値として送られ、サーバ側は
+# `file` パートを受け取れず400になるか、HTMLの中身が文字列として渡って壊れる。
+# **`glab` が multipart を生成できるかどうかを実機で確かめること。** 生成できない場合は、
+# `glab api` に multipart 用のオプションがあればそちらへ、無ければ別手段へ寄せる必要がある。
+# **この疑いは「GitLab実機が無いから未検証」で片付けてよいものではない**（呼び出し方が正しいか
+# の問題であり、実機差ではない）。
 #
 # 成功: {"url":"...","markdown":"...","provider":"gitlab"} をstdoutへ / 終了コード0
 # 失敗: 理由をstderrへ / 終了コード非0（呼び出し側はスキップする）
@@ -482,20 +488,35 @@ gitlab_add_issue_comment() {
 # シグネチャを `github_upload_attachment` と揃えるために引数だけ残している。
 gitlab_upload_attachment() {
   local file="$1" _content_type="${2:-}"
-  local response url markdown
+  local response path markdown host url
 
-  if ! response="$(glab api "projects/:id/uploads" -X POST -F "file=@${file}" 2>&1)"; then
-    printf 'gitlab_upload_attachment: アップロードに失敗しました（層3はスキップしてよい）: %s\n' "$response" >&2
+  # `timeout` を被せる理由は `github_upload_attachment` と同じ（ハングは非0終了にならず、
+  # 「壊れてもフローを止めない」という層3の設計意図が壊れる）。
+  if ! response="$(timeout 60 glab api "projects/:id/uploads" -X POST -F "file=@${file}" 2>&1)"; then
+    printf 'gitlab_upload_attachment: アップロードに失敗しました（層3はスキップしてよい）: %s\n' \
+      "$(printf '%s' "$response" | head -c 500)" >&2
     return 1
   fi
 
-  # `full_path` はインスタンス相対のパス、`url` はプロジェクト相対のパス。
-  # 埋め込みに使うのは `markdown` なので、URL側は full_path を優先して参考情報として返す。
-  url="$(printf '%s' "$response" | jq -r '.full_path // .url // empty' 2>/dev/null || true)"
   markdown="$(printf '%s' "$response" | jq -r '.markdown // empty' 2>/dev/null || true)"
   if [ -z "$markdown" ]; then
-    printf 'gitlab_upload_attachment: レスポンスから markdown を取得できませんでした（層3はスキップしてよい）\n' >&2
+    printf 'gitlab_upload_attachment: レスポンスから markdown を取得できませんでした（層3はスキップしてよい）: %s\n' \
+      "$(printf '%s' "$response" | head -c 500)" >&2
     return 1
+  fi
+
+  # **`url` は絶対URLで返す**（`github_upload_attachment` と型を揃えるため。issue #111 の
+  # 敵対的レビュー指摘）。GitLabが返す `full_path` はインスタンス相対パス
+  # （`/uploads/<hash>/<name>`）で、そのまま `url` に入れると同じキー名なのに
+  # GitHub側は絶対URL・GitLab側は相対パスという状態になり、呼び出し側が貼ったリンクが
+  # GitLab経路でだけ壊れる。VCS抽象化層は呼び出し元にプロバイダ差を見せないのが目的である。
+  path="$(printf '%s' "$response" | jq -r '.full_path // .url // empty' 2>/dev/null || true)"
+  host="$(get_repo_slug | jq -r '.host // empty')"
+  if [ -n "$path" ] && [ -n "$host" ] && [ "${path:0:1}" = "/" ]; then
+    url="https://${host}${path}"
+  else
+    # 既に絶対URLか、ホストを解決できなかった場合はそのまま返す（空になることもある）
+    url="$path"
   fi
 
   jq -nc --arg url "$url" --arg markdown "$markdown" \

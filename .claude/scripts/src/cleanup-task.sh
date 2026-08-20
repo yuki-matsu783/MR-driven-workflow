@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
-# flow-id 5-4（次タスクのための片付け）を自動化する（issue #28。当時のflow-idは 5-1。issue #112 で
-#   フェーズ5を並べ替え、現在は 5-3）。
+# flow-id 5-4（次タスクのための片付け）を自動化する（issue #28。当時のflow-idは 5-1。issue #112 の
+#   並べ替えで 5-3 になり、issue #111 の統括レポート追加で現在は 5-4）。
 # `.claude/skills/issue-mr-flow/SKILL.md` の flow-id 5-4 が手順として持っていた次の4操作を、
 # 手作業（消し忘れ・消しすぎ）を排して1コマンドへまとめる。
 #

@@ -425,20 +425,26 @@ github_add_issue_comment() {
 # 層2（サマリのMarkdownコメント）は公式APIだけで完結しており、この関数が失敗しても
 # レビューは成立する（.claude/docs/ddr/i0111-01-統括レポートの添付は任意層に置きフローを止めない.md）。
 #
+# **`curl` ではなく `gh api` を使う。** 理由は2つある（issue #111 の敵対的レビュー指摘）。
+#   1. `curl -H "Authorization: Bearer $token"` はトークンをプロセスのargvへ載せるため、
+#      同一マシンの他プロセスから `ps` / `/proc/<pid>/cmdline` で平文で読めてしまう。
+#      `gh api` は自身が保持する認証情報を使うので、トークンがargvに現れない。
+#   2. このリポジトリは「WebFetchツール・curlへはフォールバックしない」と定めている
+#      （DDR i0014-01, i0034-01）。`gh api` は完全なURLを受け取れるため、未ドキュメントの
+#      ホストが相手でもCLI経路のまま実行でき、規約に例外を作らずに済む。
+#
+# **未検証**: `gh api` がこのエンドポイントへ付ける認証ヘッダの形式（`token` か `Bearer` か）が
+# 受け付けられるかは、実機で確認できていない（issue #111 の調査環境には `gh` CLI が無い）。
+# 失敗した場合は層3をスキップするだけなので、フローへの影響は無い。
+#
 # 成功: {"url":"...","markdown":"...","provider":"github"} をstdoutへ / 終了コード0
 # 失敗: 理由をstderrへ / 終了コード非0（呼び出し側はスキップする）
 github_upload_attachment() {
   local file="$1" content_type="$2"
-  local token repo_id name response url
+  local repo_id name encoded_name response url
 
-  # `gh auth token` はCLIが認証済みであることを前提とする。`require_vcs_cli` を通っている
-  # 時点でCLIは存在するが、認証が切れている場合はここで空文字になる。
-  if ! token="$(gh auth token 2>/dev/null)" || [ -z "$token" ]; then
-    echo "github_upload_attachment: gh auth token を取得できません（gh auth login が必要）" >&2
-    return 1
-  fi
   if ! repo_id="$(gh api "repos/{owner}/{repo}" --jq '.id' 2>/dev/null)" || [ -z "$repo_id" ]; then
-    echo "github_upload_attachment: リポジトリIDを取得できません" >&2
+    echo "github_upload_attachment: リポジトリIDを取得できません（gh auth login が必要な可能性）" >&2
     return 1
   fi
 
@@ -446,23 +452,28 @@ github_upload_attachment() {
   # クエリ文字列へ入れるためURLエンコードする（日本語を含むレポート名を想定。
   # `REPLY` へ返す規約は .claude/rules/shell-script-style.md「外部プロセス起動のコスト」）。
   url_encode_path_to_reply "$name"
-  local encoded_name="$REPLY"
-  # `--data-binary @<path>` はファイルの中身をそのまま送る（コマンド文字列へ本文を載せない）。
-  # `--fail-with-body` を付けず、HTTPステータスは呼び出し後にレスポンスの形で判定する
-  # （このエンドポイントは失敗時にHTMLを返すことがあり、jqが落ちるより先に判定したい）。
-  if ! response="$(curl -sS \
+  encoded_name="$REPLY"
+
+  # `--input <file>` はファイルの中身をそのままリクエストボディへ載せる（コマンド文字列へ
+  # 本文を埋め込まない）。`timeout` を被せるのは、**ハングが非0終了にならない**ためである。
+  # 層3は「壊れてもフローを止めない」設計なので、応答しないエンドポイント・プロキシに
+  # 吸われるケースで無期限に待つと、設計意図そのものが壊れる（issue #111 の敵対的レビュー指摘）。
+  if ! response="$(timeout 60 gh api \
       "https://uploads.github.com/user-attachments/assets?name=${encoded_name}&content_type=${content_type}&repository_id=${repo_id}" \
-      -X POST \
-      -H "Authorization: Bearer ${token}" \
+      --method POST \
       -H "Accept: application/json" \
-      --data-binary "@${file}" 2>&1)"; then
-    printf 'github_upload_attachment: アップロードに失敗しました（未ドキュメントAPI。層3はスキップしてよい）: %s\n' "$response" >&2
+      --input "$file" 2>&1)"; then
+    printf 'github_upload_attachment: アップロードに失敗しました（未ドキュメントAPI。層3はスキップしてよい）: %s\n' \
+      "$(printf '%s' "$response" | head -c 500)" >&2
     return 1
   fi
 
   # 期待するレスポンスは `href`（署名付きの参照URL）を持つJSON。JSONでなければ失敗として扱う。
+  # **失敗時はレスポンス本文の先頭を添える。** 未ドキュメントAPIは壊れ方が予測できず、
+  # 「URLを取得できなかった」だけでは認証切れ・422・仕様変更のどれなのか切り分けられない。
   if ! url="$(printf '%s' "$response" | jq -r '.href // empty' 2>/dev/null)" || [ -z "$url" ]; then
-    printf 'github_upload_attachment: レスポンスからURLを取得できませんでした（未ドキュメントAPIの仕様変更の可能性。層3はスキップしてよい）\n' >&2
+    printf 'github_upload_attachment: レスポンスからURLを取得できませんでした（未ドキュメントAPIの仕様変更の可能性。層3はスキップしてよい）: %s\n' \
+      "$(printf '%s' "$response" | head -c 500)" >&2
     return 1
   fi
 
