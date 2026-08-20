@@ -17,8 +17,8 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - issue: #43 レビューコメント取得の出力仕様を見直す（diffHunk廃止・断面ソースの前後行スライス化）
 - ブランチ: claude/issue-43-snhmw7
 - PR: #131 https://github.com/yuki-matsu783/MR-driven-workflow/pull/131（Draft）
-- push回数: 2
-- 現在のループ: なし
+- push回数: 4
+- 現在のループ: 3-6〜3-9 の1周目（進行中）
 - 追従監視: 購読あり（web。subscribe_pr_activity + 定期チェックイン）
 
 進捗記号: `[x]` 完了 / `[]` 未着手・進行中 / `[-]` 今回は実施しない（スキップ）
@@ -108,12 +108,34 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - flow-id 3-1: 個別作業計画 `plans/【実装】【テスト】レビューコメント出力のソーススライス化.md` を
   作成した。`【実装】`と`【テスト】`を併記したのは、追加する関数の大半が純粋関数で、テストを
   同時に書かないと「テストできる形か」を確かめられず、合意の単位が分かれないため。
+- flow-id 3-2: 個別作業計画をcommitしてリモートへ反映した（push 3回目）。
+- flow-id 3-6: 実装・テストを完了した。結果は
+  `reports/2026-08-20_issue43-review-comment-source-slice_ソーススライス化の実装結果.md` に記録。
+  - `Github.sh` / `Gitlab.sh` は正規化JSONを返すだけにし、テキスト整形とソース切り出しを
+    `Provider.sh` の共通層へ寄せた（`slice_source_lines` / `format_review_comments` /
+    `build_review_source_slices` / `read_source_at_ref_to_reply` 等を新設）。
+  - 単体テストを追加し `passed=153 → 177 / failures=0`。**GitHub側の整形にテストが付いたのは初**。
+  - 実測でスライスが **最大8,971B → 2,051B**、ばらつき 13.1倍 → 2.3倍。
+  - `.claude/scripts/test/` の12スクリプト全てを実行し全て `failures=0`（合計 passed=667）。
+- flow-id 3-6（副次）: GitLabで未解決レビューコメントが常に0件と表示されていた不具合が、
+  行頭ラベルの共通化により直った。
 
 ## 次にやること
 
-- flow-id 3-6: 個別作業計画に沿って実装・テストを行う。
+- flow-id 4-1: 個別反映計画（設計反映）を作成する。反映対象の見込みは
+  `.claude/docs/spec/issue-mr-workflow.md`・DDR 0059・`.claude/skills/issue-mr-flow/SKILL.md`・
+  `.claude/docs/spec/adversarial-review.md`。AIアセット反映は別ファイルへ分ける。
 
 ## 判断を迷った内容
+
+- **`(場所不明)` の表示をやめるか**。GitHubの旧実装は `path` が null のとき `(場所不明)` と
+  出していたが、整形を共通化するとGitLabのMR全体へのコメント（`position` を持たないのが正常）
+  にも付いてしまう。「位置が出ていないこと自体が『位置を持たない』の表現になる」と判断して
+  やめた。GitHubのレビュースレッドは常に `path` を持つため実挙動は変わらない。
+- **GitLabの `position` を持たない非resolvableなnoteを `comments` 側へ移すか**。GitHubの
+  PR全体コメントと同じ位置づけであり `[comment ...]` として出すのが素直だが、**未解決件数の
+  意味が変わる**（現在は未解決として数えられている）。issue #43 の範囲を超え、かつGitLab実機で
+  検証できないため**今回は移さなかった**（`threads` に留めている）。
 
 - **ブランチ名が `branchPrefixTemplate`（`feature-43-*`）に従っていない**。ハーネスが
   `claude/issue-43-snhmw7` を指定しているため、そちらを優先した。`get_issue_number_from_branch`
