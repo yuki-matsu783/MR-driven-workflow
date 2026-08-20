@@ -15,7 +15,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - issue: #53 block-direct-git-commit.sh の誤検知を減らす（コマンド位置での判定）
 - ブランチ: claude/block-direct-git-commit-false-positives-mc1n43
 - PR: #147 (Draft) https://github.com/yuki-matsu783/MR-driven-workflow/pull/147
-- push回数: 1
+- push回数: 2
 - 現在のループ: なし
 - 追従監視: 購読あり（web。subscribe_pr_activity。定期チェックインは未予約）
 
@@ -69,20 +69,29 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 
 - flow-id 1-2: issue #53 の本文と3件のコメント（issue #94 からのCR申し送り・issue #47 の
   実測結果・issue #133 のDDR識別子改番）をMCP経路（`gh` CLI不在）で取得した。
-- flow-id 1-3: ブランチをリモートへ反映し、Draft PR #147 を作成した（ユーザーからPR作成の
-  明示指示あり）。あわせて `subscribe_pr_activity` で追従監視を開始した。
-- flow-id 1-4: 全体作業計画 `plans/hook-command-position-detection.md` を作成した。
-  **planツールは使っていない**（非対話セッションでPlanモードの承認を待てないため。計画本文に
-  その旨を明記）。
-- flow-id 1-5（全体作業計画への合意）は、非対話セッションのため `[-]` とした。ユーザーからは
+- flow-id 1-3: ブランチをリモートへ反映し、Draft PR #147 を作成した。あわせて
+  `subscribe_pr_activity` で追従監視を開始した。
+- flow-id 1-4: 全体作業計画 `plans/hook-command-position-detection.md` を作成した
+  （**planツールは使っていない**。非対話セッションでPlanモードの承認を待てないため）。
+- flow-id 1-5（全体作業計画への合意）は非対話セッションのため `[-]`。ユーザーからは
   「PRを作って対応して。敵対的レビューしながら進めて」という形で着手の指示を受けている。
-- flow-id 2-1: 個別調査計画 `plans/【調査】hook検知の誤検知類型と判定方式.md` と
-  worklog（push1）を作成した。
+- flow-id 2-1: 個別調査計画とworklog（push1）を作成した。
+- flow-id 2-6: 調査を実施し、`reports/2026-08-20_hook-command-position-detection_調査結果.md`
+  と同名の `.html` に記録した。主な結果は次のとおり。
+  - 20ケースの実測で、変更前は**誤検知6件・検知漏れ1件**（`git -C dir commit` が素通り）。
+  - クォートを判定対象から外すだけだと `bash -c` / `eval` / `$( )` / `xargs` / `find -exec` の
+    5類型が**新たに素通り**する。保守的フォールバックで塞ぐ設計にした。
+  - CRは `tr -d '\r'` ではなく判定側（`IFS` と区切り行の比較）で吸収する。スタブjqで検証済み。
+  - `${s:i:1}` の1文字走査は二乗で伸び、`LC_ALL=C` でも改善しない。行配列＋チャンク読み飛ばしへ。
+- **人間のレビュー（flow-id 2-3/2-8）は非対話セッションのため実施できていない。**
+  該当するループ範囲の進捗記号は `[]` のまま残してある。
 
 ## 次にやること
 
-- flow-id 2-2: commit・リモートへ反映し、敵対的レビューを実施する。
-- flow-id 2-6: 調査を実施して `reports/` へ記録する。
+- flow-id 3-1: 個別作業計画を作成する。
+- flow-id 3-6: 実装結果を `reports/` へ記録する（実装自体は調査と並行して着手済み）。
+- 実装のpush後に `adversarial-review` を実施する。
+
 ## 判断を迷った内容
 
 - **ブランチ名がリポジトリの命名規則に合わない。** `.mrworkflow.json` の
