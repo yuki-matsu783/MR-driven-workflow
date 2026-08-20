@@ -527,6 +527,60 @@ cd clone && git remote set-url origin "http://localhost:8929/<path>.git"
 - `glab auth status` は `gitlab.com` 側の認証エラーに引きずられて**終了コード2を返す**。
   `set -e` 配下でそのまま呼ばないこと（出力だけを使う）。
 
+## 追記: フェーズ3の計画時に追加で計測した結果
+
+不具合1（差分アンカーの土台）の修正方針を案A/B/Cから選ぶために、同じ検証環境
+（`root/issue127-verify` MR !1）で追加計測した結果。**方針の決定そのものはフェーズ3の
+個別作業計画で行う**（本節は計測結果のみ）。
+
+### GitLabのMR差分ページの絞り込み（`?start_sha=`）
+
+ページが実際に使う描画経路は `diffs_stream` ではなく **`diffs_batch.json`** である
+（初期HTMLの `data-endpoint-batch` 属性で確認。素の `/diffs` も同じ経路）。`diffs_stream` へ
+同じパラメータを渡しても無視される（パラメータ有無・不正SHAの3通りで応答が315,838バイトで完全一致）。
+
+```bash
+B="…/-/merge_requests/1/diffs_batch.json?diff_head=true&page=0&per_page=30"
+curl -s "$B"                          | jq '(.diff_files//[])|length'   # 30
+curl -s "$B&start_sha=<v10のhead>"    | jq '(.diff_files//[])|length'   # 1
+curl -s "$B&diff_id=11&start_sha=…"   | jq '(.diff_files//[])|length'   # 1
+```
+
+| 確認したこと | 結果 |
+|---|---|
+| `?start_sha=<SHA>` による絞り込み | **効く**。`diff_id` の併用は**不要**（`/versions` への追加API呼び出しは要らない） |
+| 絞り込み後のファイル集合 | 「そのSHA以降に変わったファイル」のみ |
+| 絞り込み後の `file_hash` | `sha1(パス)` と一致。`docs/mmm-大きい差分.md` → `79ca8e71bf25b4152f332b840fc896571d810b36`（`sha1sum` の出力と同値） |
+| **MRバージョンのheadでない `start_sha`** | **HTTP 200のまま0ファイル**。エラーにならず無言で空の差分ページになる（mainのbase commit・でたらめなSHAの2通りで確認） |
+
+最後の行が案Bの弱点になる。`prev_sha` は hook がローカルのHEADから記録する値であり、
+**pushを伴わない誤検知でも上書きされる**（`git` と `push` の部分文字列マッチ。issue #23で3回発生）。
+
+### 案Aの機能後退（前pushで追加し今回削除したファイル）
+
+`docs/mmm-大きい差分.md` を「前のpushで追加 → 今回のpushで削除」という状態にして、
+同じファイルが土台ページに存在するかを比較した（sha1 = `79ca8e71…`）。
+
+| 土台 | ページに載るファイル数 | 対象ファイルを含むか |
+|---|---|---|
+| 案A: MR全体の差分（`<mrUrl>/diffs`） | 30 | **0件（含まない）** |
+| 案B: `?start_sha=<前pushのhead>` | 1 | 1件（含む） |
+
+`build_file_links_text` は一覧を `diff_range = prev_sha...HEAD` から作り、**削除ファイルにも
+差分アンカーを必ず出す**ため、案Aでは**存在しない要素を指すアンカー**が生成される。
+現行のCompareページ（`prev_sha...HEAD`）ではこの形にならないので、**案Aは条件付きで現行より
+悪くなる**。ファイルの改名も差分上は削除＋追加になるため、同じ形に該当する。
+
+### GitHubのコメントURLの実形式
+
+`github_get_note_url` の形式（`<mrUrl>#discussion_r<id>`）が推測でないことを、本リポジトリの
+PR #128 の実コメントで確認した。`Github.sh` は本番経路ではGraphQLの `comment { url }` から
+URLを受け取っており文字列を組み立てないが、そのAPIが返す実値は次の形である。
+
+```
+url=https://github.com/yuki-matsu783/MR-driven-workflow/pull/128#discussion_r3821657827
+```
+
 ## 未完了（範囲内だが、まだ終わっていないこと）
 
 **次の作業へ引き継ぐ。「範囲外」と混同しないこと**（範囲外として spec へ書くと、必要な作業が

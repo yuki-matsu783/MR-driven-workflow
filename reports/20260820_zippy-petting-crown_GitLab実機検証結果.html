@@ -122,13 +122,13 @@ docs/検証 用.md  → id="dbd436723fcd58b281afcd60bbd2b93e33d9cbca"   （sha1s
           <table class="min-w-full text-xs">
             <thead class="bg-slate-100"><tr><th class="px-3 py-2 text-left">案</th><th class="px-3 py-2 text-left">内容</th><th class="px-3 py-2 text-left">問題点</th></tr></thead>
             <tbody class="divide-y divide-slate-100">
-              <tr><td class="px-3 py-2 font-semibold">A</td><td class="px-3 py-2">GitLabのアンカーは MR差分ページを土台にする</td><td class="px-3 py-2"><span class="font-semibold">「前回pushからの差分」の範囲指定が失われる</span></td></tr>
-              <tr><td class="px-3 py-2 font-semibold">B</td><td class="px-3 py-2">MR差分ページのバージョン指定（<code>?diff_id=&amp;start_sha=</code>）で範囲も保つ</td><td class="px-3 py-2">追加のAPI呼び出しが要り、GitHub側と非対称になる</td></tr>
+              <tr><td class="px-3 py-2 font-semibold">A</td><td class="px-3 py-2">GitLabのアンカーは MR差分ページ（<code>/diffs</code>）を土台にする</td><td class="px-3 py-2"><span class="font-semibold text-rose-700">前pushで追加し今回削除したファイルの着地先が消える（実測: 0件）。</span>改名も同じ形になる</td></tr>
+              <tr><td class="px-3 py-2 font-semibold">B</td><td class="px-3 py-2"><code>/diffs?start_sha=&lt;前pushのSHA&gt;</code> で範囲も保つ</td><td class="px-3 py-2">SHAがMRバージョンのheadでないと<span class="font-semibold">200のまま0ファイル</span>。検証に1回のAPI呼び出しが要る</td></tr>
               <tr><td class="px-3 py-2 font-semibold">C</td><td class="px-3 py-2">GitLabでは差分アンカーを出さずblobリンクのみ</td><td class="px-3 py-2">情報量は落ちる（が壊れたリンクよりはよい）</td></tr>
             </tbody>
           </table>
         </div>
-        <p class="text-slate-600"><code>get_diff_anchor_url(compare_url, path_hash)</code> はプロバイダ非依存の形で、<span class="font-semibold">どのページを土台にするかは呼び出し元が決めている</span>。修正は <code>Gitlab.sh</code> だけでは閉じない。設計判断は flow-id 3-1 で行う。</p>
+        <p class="text-slate-600"><code>get_diff_anchor_url(compare_url, path_hash)</code> はプロバイダ非依存の形で、<span class="font-semibold">どのページを土台にするかは呼び出し元が決めている</span>。修正は <code>Gitlab.sh</code> だけでは閉じない。設計判断は flow-id 3-3〜3-4 の合意で行う（計画上の推奨は<span class="font-semibold">案B</span>。土台が覆う範囲をファイル一覧の供給元 <code>diff_range</code> と一致させる、という原則で選んだ）。</p>
       </div>
     </div>
 
@@ -195,6 +195,51 @@ repo  = "issue127-verify-sub"</pre>
         <p><code>owner</code> が「末尾以外すべて」を保持するため、2階層前提の命名でも破綻しない。MCPフォールバックはGitHub専用のため影響なし。</p>
         <p class="text-slate-500 text-xs">観察: Draft状態のキーは <code>draft</code> ではなく <code>isDraft</code>（両プロバイダ共通）。<code>glab mr view --output json</code> の <code>work_in_progress</code> を写しており、実測でも真偽値が返る。<span class="text-rose-600">初版は「GitLabでは null になる」と誤記していた。</span></p>
       </div>
+    </div>
+  </section>
+
+  <!-- フェーズ3の計画時に追加で計測した結果 -->
+  <section class="mb-12">
+    <h2 class="text-xl font-bold text-slate-900 mb-1">追記: フェーズ3の計画時に追加で計測した結果</h2>
+    <p class="text-sm text-slate-600 mb-4">不具合1の修正方針を案A/B/Cから選ぶための追加計測。方針の決定そのものはフェーズ3の個別作業計画で行う。</p>
+
+    <div class="grid gap-6 md:grid-cols-2">
+      <div class="rounded-xl border border-slate-200 bg-white p-5">
+        <h3 class="font-bold text-slate-900 mb-3">MR差分ページの絞り込み（<code>?start_sha=</code>）</h3>
+        <p class="text-sm text-slate-600 mb-3">ページが実際に使う描画経路は <code>diffs_stream</code> ではなく <span class="font-semibold">
+        <code>diffs_batch.json</code></span>（初期HTMLの <code>data-endpoint-batch</code> 属性で確認）。<code>diffs_stream</code> は同じパラメータを無視する（3通りの入力で応答が315,838バイトで完全一致）。</p>
+        <div class="overflow-x-auto rounded-lg border border-slate-200">
+          <table class="min-w-full text-xs">
+            <thead class="bg-slate-100"><tr><th class="px-3 py-2 text-left">確認したこと</th><th class="px-3 py-2 text-left">結果</th></tr></thead>
+            <tbody class="divide-y divide-slate-100">
+              <tr><td class="px-3 py-2"><code>?start_sha=</code> による絞り込み</td><td class="px-3 py-2 text-emerald-700 font-semibold">効く。<code>diff_id</code> の併用は不要</td></tr>
+              <tr><td class="px-3 py-2">絞り込み後の <code>file_hash</code></td><td class="px-3 py-2"><code>sha1(パス)</code> と一致</td></tr>
+              <tr><td class="px-3 py-2">バージョンheadでない <code>start_sha</code></td><td class="px-3 py-2 text-rose-700 font-semibold">200のまま0ファイル（無言）</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="rounded-xl border border-rose-200 bg-white p-5">
+        <h3 class="font-bold text-rose-900 mb-3">案Aの機能後退（実測で確定）</h3>
+        <p class="text-sm text-slate-600 mb-3"><code>docs/mmm-大きい差分.md</code> を「前のpushで追加 → 今回のpushで削除」の状態にして比較した（sha1 = <code>79ca8e71…</code>）。</p>
+        <div class="overflow-x-auto rounded-lg border border-slate-200">
+          <table class="min-w-full text-xs">
+            <thead class="bg-slate-100"><tr><th class="px-3 py-2 text-left">土台</th><th class="px-3 py-2 text-left">ファイル数</th><th class="px-3 py-2 text-left">対象を含むか</th></tr></thead>
+            <tbody class="divide-y divide-slate-100">
+              <tr><td class="px-3 py-2">案A: <code>/diffs</code>（MR全体）</td><td class="px-3 py-2">30</td><td class="px-3 py-2 text-rose-700 font-semibold">0件</td></tr>
+              <tr><td class="px-3 py-2">案B: <code>?start_sha=</code></td><td class="px-3 py-2">1</td><td class="px-3 py-2 text-emerald-700 font-semibold">1件</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="text-sm text-slate-600 mt-3"><code>build_file_links_text</code> は削除ファイルにも<span class="font-semibold">差分アンカーを必ず出す</span>ため、案Aでは存在しない要素を指すアンカーが生成される。<span class="font-semibold">現行のCompareページでは起きない</span>＝案Aは条件付きで今より悪くなる。</p>
+      </div>
+    </div>
+
+    <div class="rounded-xl border border-slate-200 bg-white p-5 mt-6">
+      <h3 class="font-bold text-slate-900 mb-2">GitHubのコメントURLの実形式</h3>
+      <p class="text-sm text-slate-600"><code>github_get_note_url</code> の形式 <code>&lt;mrUrl&gt;#discussion_r&lt;id&gt;</code> が推測でないことを、本リポジトリのPR #128 の実コメントで確認した（<code>Github.sh</code> は本番経路ではGraphQLの <code>comment { url }</code> から受け取っており、文字列を組み立てていない）。</p>
+      <pre class="mt-3 text-xs bg-slate-900 text-slate-100 rounded-lg p-3 overflow-x-auto">url=https://github.com/yuki-matsu783/MR-driven-workflow/pull/128#discussion_r3821657827</pre>
     </div>
   </section>
 
