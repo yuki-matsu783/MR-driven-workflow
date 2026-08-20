@@ -311,3 +311,26 @@ gitは既定（`core.quotePath=true`）で非ASCIIパスを `"\343\203..."` と�
 | 5 | `.claude/docs/README.md` のDDRリンク | 全件が実ファイルへ解決 |
 | 6 | `extract-frontmatter.sh .` | `files=119 built=119 failed=0` |
 | 7 | 全ファイルの `ddr/<名前>.md` 参照 | 未解決は、テスト用フィクスチャ・仕様書中の例示・持ち込んでいない `0002` / `0008` のみ |
+
+## flow-id 5-2: 関連issueへの通知
+
+差分（`plans/` `worklog/` `reports/` を除外）を起点に候補を探し、**旧番号のDDRを本文で参照している
+open issue 5件**を「前提が変わる」類型として特定した。今回の改番でファイル名が変わるため、
+着手時に参照が切れる。ユーザーの承認を得たうえで、旧番号→新識別子の対応をコメントしている。
+
+| issue | 参照 | 改番後 | コメント |
+|---|---|---|---|
+| #143 | `DDR 0058` | `i0112-01` | [#issuecomment-5362964896](https://github.com/yuki-matsu783/MR-driven-workflow/issues/143#issuecomment-5362964896) |
+| #105 | `ddr/0006` | `i0000-04` | [#issuecomment-5362966123](https://github.com/yuki-matsu783/MR-driven-workflow/issues/105#issuecomment-5362966123) |
+| #103 | `DDR 0006` / `ddr/0006` | `i0000-04` | [#issuecomment-5362966911](https://github.com/yuki-matsu783/MR-driven-workflow/issues/103#issuecomment-5362966911) |
+| #53 | `DDR 0012` | `i0000-09` | [#issuecomment-5362967908](https://github.com/yuki-matsu783/MR-driven-workflow/issues/53#issuecomment-5362967908) |
+| #26 | `DDR 0017` | `i0000-13` | [#issuecomment-5362968949](https://github.com/yuki-matsu783/MR-driven-workflow/issues/26#issuecomment-5362968949) |
+
+- **issue本文そのものは書き換えていない。** issueは起票時点の記録であり、後から中身を差し替えると
+  「何を問題として立てたか」が読めなくなる。対応はコメントとして追記する。
+- #53 と #26 には、本PRとの関係で誤解しうる点を1文ずつ添えた（前者は
+  `block-direct-git-commit.sh` に触れているが判定ロジックは未変更であること、後者は配布先が
+  旧形式のDDRを抱えうるため識別子抽出が旧形式も受け付けていること）。
+- **通知先の判定には open issue の本文だけを使った。** 関連語が一致しただけのissueへ機械的に
+  投稿すると通知そのものが無視されるようになるため、「本文が実在のDDRファイルを指しており、
+  それが改番でリンク切れになる」という機械的に確かめられる基準に絞っている。
