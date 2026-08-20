@@ -18,25 +18,28 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 
 ## やったこと
 
-- 対応工数レポートのフッターにある過小カウントの注記（「既知の過小カウント要因が報告されています。」
-  ＋詳細リンク）を、Claude Code由来のトークン行を含むレポートにだけ出すようにした
-  （Gemini CLIのセッションログについては同種の報告が無いため）。判定はengineではなくデータで行う
-  （DDR 0052と同じ理由。繰り越しでGemini CLIからの投稿にClaude Code由来の行が載る場合に備える）。
-- `.claude/hooks/post-push-usage-report.sh` / `.claude/scripts/test/test_usage_tracking.sh`
-  （81→90ケース、`passed=90 failures=0`）／`.claude/docs/spec/issue-mr-workflow.md` を更新。
+（無し）
 
 ## 次にやること
 
-- PR #120（https://github.com/yuki-matsu783/MR-driven-workflow/pull/120 ）のレビュー待ち。
-- マージはユーザーの明示指示があるまで行わない。
+（無し）
 
 ## 判断を迷った内容
 
-- mainのマージ時、`.claude/docs/spec/issue-mr-workflow.md`「影響範囲」の末尾で、main側（PR #119
-  「レビュー依頼のターンでのaskツール禁止」）と本ブランチ側（「過小カウントの注記は…」）が
-  それぞれ別の `###` エントリを `## 未決定事項・懸念点` の直前へ追記して競合した（類型C/D）。
-  **両方のエントリを残し、既にmainへ入っている#119のエントリを先、本ブランチのエントリを後**の
-  時系列順に並べた（片方を捨てない・過去エントリの中身は書き換えないという規約に従う）。
+- mainのマージ（PR #107のコンフリクト解消）で、DDR番号がmain側の
+  `0050-Gemini集計の差分は…` と本ブランチ側の `0050-作業開始時のベースブランチ追従確認は…` で
+  重複した（類型A）。**mainを正とし本ブランチ側を 0050 → 0056 へ繰り下げた**（main側は
+  0050〜0055 まで埋まっていたため次の空き番号）。参照元（`.claude/docs/README.md`、
+  `.claude/docs/spec/check-base-sync.md`、`.claude/docs/spec/check-base-conflicts.md`、
+  `.claude/docs/spec/issue-mr-workflow.md`）もあわせて更新した。
+- `.claude/docs/README.md` のDDR一覧と `.claude/docs/spec/issue-mr-workflow.md`「影響範囲」の
+  末尾で、両ブランチが別々のエントリを追記して競合した（類型C/D）。**両方を残し**、README は
+  番号順、影響範囲は既にmainへ入っているエントリ（issue #97 ほか）を先・本ブランチの
+  issue #67 のエントリを後、という時系列順に並べた。
+- `HANDOFF.md` は「このブランチの現状」だけを表すファイルのため、**main側の記述（PR #120 の
+  作業内容・次にやること）は取り込まず、本ブランチのリセット済みの状態を採用した**。
+  コンフリクト部分だけでなく、自動マージで入り込んでいた「次にやること」「判断を迷った内容」も
+  同じ理由で本ブランチ側へ戻している。
 
 ## 未解決の内容
 
