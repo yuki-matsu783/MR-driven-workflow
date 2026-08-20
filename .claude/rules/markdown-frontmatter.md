@@ -113,7 +113,7 @@ bash .claude/scripts/src/extract-frontmatter.sh .
 `type`の値は自動判定せず、ファイルごとに内容を見て個別に決定する。上表は現時点の割り当て例であり、
 新しいディレクトリ・用途が増えた場合はこの表に追記する。
 
-`plan`・`log`・`report` は、いずれもタスク（issue／ブランチ）単位で作られ flow-id 5-1 でまとめて
+`plan`・`log`・`report` は、いずれもタスク（issue／ブランチ）単位で作られ flow-id 5-3 でまとめて
 削除される寿命の短いファイルに与える値であり、永続する案内ドキュメントの `guide` とは区別する
 （`.claude/rules/docs-workflow.md` のライフサイクル表と対応する）。issue #95以前は `plans/*.md`
 についての規定が無く、実際には `guide` / `log` / `plan` / frontmatter無しが混在していたため、

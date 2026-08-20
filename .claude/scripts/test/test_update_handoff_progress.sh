@@ -54,6 +54,9 @@ trap 'rm -rf "$TMP_DIR"' EXIT INT TERM
 
 # 簡略版HANDOFF.mdフィクスチャを新規作成する（ヘッダ4行＋単発ステップ・ループ範囲・
 # スキップ対象を1つずつ含む最小限のテーブル）。
+# フィクスチャ中のflow-idは行を識別するための値でしかなく、実際の全体フローの各ステップの
+# 内容（担当・省略可否）とは対応しない。フェーズ5の並べ替え（issue #112）のように全体フロー側の
+# 順序が変わってもこのフィクスチャは変更しない。
 write_fixture() {
   local file="$1"
   cat >"$file" <<'FIXTURE'
@@ -308,7 +311,7 @@ assert_eq "set-header --loop: 既存行は置換され重複しない" "1" "$(co
 assert_eq "set-header --loop: 既存行が置換される" \
   "- 現在のループ: 3-6〜3-9 の2周目（進行中）" "$(get_loop_header "$fixture")"
 
-# ヘッダ項目を持たないHANDOFF.md（flow-id 5-1直後）でも見出しの直前へ挿入できる
+# ヘッダ項目を持たないHANDOFF.md（flow-id 5-3直後）でも見出しの直前へ挿入できる
 fixture="$TMP_DIR/handoff16.md"
 cat >"$fixture" <<'FIXTURE_NOHEADER'
 # HANDOFF
