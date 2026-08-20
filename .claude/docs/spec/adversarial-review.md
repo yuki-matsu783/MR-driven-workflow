@@ -268,7 +268,8 @@ add_mr_inline_comments <MR番号> <findings JSONファイル>   # → {"posted":
 | 0件 | `notes`（`gitlab_add_mr_comment`） | 本文が「すべての指摘をインラインコメントで示しています」という通知でしかなく、スレッドにすると誰も解決しないまま未解決一覧に残り続ける |
 
 `notes` APIで作ったnoteはGitLab上で `individual_note: true` / `resolvable: false` になる。
-`gitlab_format_discussion_notes` は**resolvable でないnoteを常に「未解決」として出力する**ため
+`gitlab_normalize_discussions`（issue #43 以前は `gitlab_format_discussion_notes`）は
+**resolvable でないnoteを常に「未解決」として出力する**ため
 （解決しようが無いので当然そうなる）、対応を求めるコメントを単発noteで投稿すると、対応済みに
 なっても `comments` サブコマンドの未解決一覧に残り続け、レビュー往復の完了判定を濁す。
 `discussions` APIで投稿すればレビュアーが解決でき、この問題が起きない。
@@ -308,6 +309,11 @@ GitHub側は、インラインで示せなかった指摘を**レビュー本文
 GitLab側も同様に、`position` を持つnoteは `path:line` を出力する（削除行への指摘は `new_line` が
 無く `old_line` のみを持つため `old_path:old_line` を使う）。**敵対的レビューのために新しい取得
 経路を作る必要はない。**
+
+issue #43 以降、この行に続けて**指摘行前後のソーススライス（絶対行番号付き）**が
+スレッドにつき1回添えられる（`.claude/docs/spec/issue-mr-workflow.md`
+「レビューコメントのソーススライス」）。敵対的レビューが投稿したスレッドも例外ではなく、
+指摘した箇所のコードを再取得せずに読めるようになる。
 
 スレッドの解決（resolve）はレビュアー側の操作であり、本機構では行わない。
 

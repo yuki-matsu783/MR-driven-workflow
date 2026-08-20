@@ -113,5 +113,6 @@ frontmatter（`status` / `superseded_by` / `note`）だけから決まる。
 - [0057-削除済み追跡ファイルの除外はextract-frontmatter側で行う.md](ddr/0057-削除済み追跡ファイルの除外はextract-frontmatter側で行う.md)
 - [0058-フェーズ5は片付けをcommit直前へ移した順序に並べ替える.md](ddr/0058-フェーズ5は片付けをcommit直前へ移した順序に並べ替える.md)
 - [0059-issue-mr-flow対象ブランチではSKILL.mdの再読み込みを注入で促す.md](ddr/0059-issue-mr-flow対象ブランチではSKILL.mdの再読み込みを注入で促す.md)
+- [0060-レビューコメントのソース断面はコメント時点のshaを優先し現HEADへ縮退する.md](ddr/0060-レビューコメントのソース断面はコメント時点のshaを優先し現HEADへ縮退する.md)
 - [0061-DDR一覧は生成物にしつつGit管理下へ残す.md](ddr/0061-DDR一覧は生成物にしつつGit管理下へ残す.md)
 <!-- END GENERATED: ddr-list -->
