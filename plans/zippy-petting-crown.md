@@ -75,9 +75,13 @@ issue #45 で解消済みの制約を「未修正」と書いたまま古くな�
 
 ただし **13件のうち5件は `Provider.sh` にディスパッチャが無い**。`get_mr_url` / `get_note_url` /
 `add_mr_thread`（および内部専用の `build_discussion_body` / `summary_post_kind`）がそれで、
-`Provider.sh` にあるのは `add_mr_thread_reply` であって `add_mr_thread` ではない。これらは
-`get_mr_unresolved_comments` / `add_mr_thread_reply` / `add_mr_inline_comments` を踏み台にした
-**間接確認**になる。どの経路で踏むかは個別調査計画が固定し、間接である旨を `reports/` に明記する。
+`Provider.sh` にあるのは `add_mr_thread_reply` であって `add_mr_thread` ではない。
+**フェーズ2ではこれらを間接確認**（`get_mr_unresolved_comments` / `add_mr_thread_reply` /
+`add_mr_inline_comments` を踏み台にする）で押さえ、間接である旨を `reports/` に明記する。
+
+そのうえで **`get_mr_url` / `get_note_url` の2件は、フェーズ3でディスパッチャを追加して直接
+呼び直す**（flow-id 2-4 でユーザーが決定）。`add_mr_thread` は追加しない — GitHubはサマリを
+レビュー本文へ載せる設計で対応物が存在せず、揃えると振る舞い差が残るため。
 
 ## フェーズ2〈調査〉— 実施する
 
@@ -131,9 +135,15 @@ issue #45 で解消済みの制約を「未修正」と書いたまま古くな�
 ## フェーズ3〈作業〉— 実施する見込み
 
 検証で見つかった不具合の修正（受け入れ条件4）。issue #48 では3件見つかっており、今回も
-0件で終わる可能性は低い。
+0件で終わる可能性は低い。**加えて、検証結果によらず行う作業が1つ確定している。**
 
-- 修正対象は `.claude/scripts/src/vcs/Gitlab.sh`（必要なら `Provider.sh`）。
+- **`get_mr_url` / `get_note_url` のディスパッチャを `Provider.sh` へ追加する**
+  （flow-id 2-4 でユーザーが決定）。GitHub実装（`github_get_mr_url` = `<repoUrl>/pull/<n>`、
+  `github_get_note_url` = `<mr_url>#discussion_r<id>`）もあわせて書き、追加後に
+  **この2件をディスパッチャ経由で直接呼び直して確認する**。純粋関数なので
+  `.claude/scripts/test/test_vcs_provider.sh` へ両プロバイダぶんのケースを足す。
+  `add_mr_thread` は対象外（GitHubに対応物が無く、揃えると振る舞い差が残るため）。
+- 修正対象は `.claude/scripts/src/vcs/Gitlab.sh`（必要なら `Provider.sh`・`Github.sh`）。
 - 純粋関数の不具合は `.claude/scripts/test/test_vcs_provider.sh` へ**再発防止のケースを追加**する
   （既存のテスト構造に合わせる。`passed=N failures=N` 出力・失敗時 exit 1）。
 - **検証で見つかった不具合が0件だった場合**、フェーズ3は「再現手順の文書化」だけになる可能性が

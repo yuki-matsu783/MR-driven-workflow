@@ -29,7 +29,7 @@ keywords: [GitLab CE, glab, Provider.sh, 差分アンカー, sha1, サブグル�
 | GitLab | CE 18.5.4（Docker、コンテナ名 `gitlab`、`Up (healthy)`） |
 | エンドポイント | `http://localhost:8929`（API: `http://localhost:8929/api/v4/`） |
 | `glab` | 1.114.0。`localhost:8929` に `root` でログイン済み（トークンはOSキーリング） |
-| 既存プロジェクト | `root/issue45-verify`（id=1）。**本issueでは一切触らない**（下記「やらないこと」） |
+| 既存プロジェクト | `root/issue45-verify`（id=1）。**検証に使ってよい**（テスト用の使い捨てのため。flow-id 2-4 でユーザーが決定） |
 
 ### 接続手段は http + PAT に決めた（flow-id 2-1 で実測して切り分け）
 
@@ -109,13 +109,17 @@ glab auth status 2>&1 | mask
 
 副作用の無いものから進める（**純粋関数 → URL組み立て → CLI呼び出し**）。
 
-### `Provider.sh` に公開関数が無い3件がある（重要）
+### `Provider.sh` に公開関数が無い5件がある（重要）
 
 13関数のうち **#5 `get_mr_url` / #6 `get_note_url` / #10 `add_mr_thread` は、`Provider.sh` に
 ディスパッチャが存在しない**（`add_mr_thread_reply` はあるが `add_mr_thread` は無い）。
-`#11 build_discussion_body` / `#12 summary_post_kind` も同様である。これら5件は
-**公開関数を踏み台にした間接確認**になる。「直接呼べない」ことを承知のうえで、どの経路で
-踏むかを固定する。
+`#11 build_discussion_body` / `#12 summary_post_kind` も同様である。
+
+**フェーズ2ではこの5件を、公開関数を踏み台にした間接確認で押さえる**（下表）。そのうえで
+**#5・#6 についてはフェーズ3でディスパッチャを追加し、追加後に直接呼び直す**
+（flow-id 2-4 でユーザーが決定。下記「フェーズ3へ送る判断」）。
+
+「直接呼べない」ことを承知のうえで、フェーズ2でどの経路を踏むかを固定する。
 
 | # | 関数 | 踏み台にする公開関数 | 結果がどこに現れるか |
 |---|---|---|---|
@@ -127,6 +131,21 @@ glab auth status 2>&1 | mask
 
 **この事実は `reports/` に明記する。** 「ディスパッチャ経由で13関数すべてを直接呼べた」と
 書かないこと。
+
+#### フェーズ3へ送る判断（flow-id 2-4 でユーザーが決定）
+
+**`get_mr_url` / `get_note_url` の2件は、フェーズ3で `Provider.sh` へディスパッチャを追加する**
+（GitHub実装もあわせて書く。`github_get_mr_url` = `<repoUrl>/pull/<n>`、`github_get_note_url` =
+`<mr_url>#discussion_r<id>`）。追加後、**この2件はディスパッチャ経由で直接呼び直して確認する。**
+
+**`add_mr_thread` は追加しない。** GitHubはサマリを**レビュー本文**へ載せる設計
+（`github_build_review_payload`）で、GitLabのように「別コメントとして投稿する」対応物が存在しない。
+無理に揃えると「GitHubでは解決できない通常コメントになる」という振る舞い差が残るため、
+GitLab固有のまま間接確認に留める。
+
+この3件がGitHub側に無いのは作り忘れではなく、**GitLabのAPIがnoteのURLを返さない**ことへの
+補償実装だからである（GitHubは `addPullRequestReviewThreadReply` が `comment.url` を直接返すため
+組み立てる必要がない）。ディスパッチャ追加は、この差を `Provider.sh` の層で吸収し直す変更にあたる。
 
 ### グループA: 純粋関数
 
@@ -198,8 +217,10 @@ hash_paths "$(get_diff_anchor_algo)" 'docs/検証 用.md'   # → sha1
    - 本番前に、選んだ不正入力を `glab api ... discussions` で1件だけ直接叩き、**実際に拒否される
      ことを確かめてから**進む。
 
-`Draft: Draft: 検証MR` は `root/issue127-verify` 側に**自分で作って**入力にする
-（二重接頭辞は再現可能であり、既存プロジェクトに依存する必要がない）。
+#3 の入力に使うMRは次の2本。**`root/issue45-verify` に残る `Draft: Draft: 検証MR` を、二重接頭辞の
+ケースの入力として使ってよい**（flow-id 2-4 でユーザーが決定。同プロジェクトはテスト用に作った
+使い捨てであり、保全する必要はない）。通常の単一接頭辞・接頭辞なしのケースは
+`root/issue127-verify` 側に自分で作る。
 
 ### グループD: サブグループ解決
 
@@ -227,9 +248,8 @@ hash_paths "$(get_diff_anchor_algo)" 'docs/検証 用.md'   # → sha1
 
 - gitlab.com（SaaS）・CE 18.5.4 以外のバージョン・EE での確認（issue の期待する動作7で範囲外）。
 - ssh鍵の登録、コンテナの作り直し。
-- **見つかった不具合の修正**（フェーズ3で行う）。本フェーズでは事実の記録に留める。
-- **`root/issue45-verify` には一切触らない**（読み取りも含め、検証の入力に使わない）。過去の
-  検証記録として参照されうるため。必要な状態は `root/issue127-verify` 側に自分で作る。
+- **見つかった不具合の修正と、`get_mr_url` / `get_note_url` のディスパッチャ追加**（フェーズ3で
+  行う）。本フェーズでは事実の記録に留める。
 - issue #48 で検証済みの関数の**API経路の**再検証。ただし **Compareページのブラウザ表示だけは
   別**で、#48 が確認したのはAPI経路のみのため本計画の対象に含める（グループB）。
 
