@@ -18,6 +18,11 @@
 #   - mtimeが変わっていないファイルは既存のindex.jsonlの行をそのまま再利用する（--forceで無効化）。
 #   - 出力は全走査完了後に一時ファイルへ書き、mvで差し替える（中断しても既存を壊さない）。
 #
+# 削除済みファイルの扱い（issue #117）:
+#   列挙に使う `git ls-files --cached` は、削除したがまだステージしていない追跡ファイルも返す。
+#   ワーキングツリーに実体が無いパスは走査対象から外す（インデックスからも消える）。
+#   スキップ件数はサマリ行の skipped= に出る。
+#
 # 仕様: .claude/docs/spec/extract-frontmatter.md
 set -euo pipefail
 
@@ -374,10 +379,25 @@ main() {
   # 対象markdownの列挙（.gitignore対象は列挙されない。詳細:
   # .claude/docs/ddr/0016-frontmatterスクリプトの走査方式にgit-ls-filesを採用する.md）
   local -a files=()
-  local f
+  local f skipped=0
   while IFS= read -r -d '' f; do
+    # `--cached` は「削除したがまだステージしていない」追跡ファイルも列挙する。実体が無いまま
+    # 後続の stat へ渡すと `stat: cannot stat ...` で失敗し、xargs一括取得と1件ずつの再取得の
+    # 両方が倒れて**走査全体が中断**する（無関係なディレクトリのindex.jsonlまで再生成されない）。
+    # 削除済みのファイルはインデックスに載せるべきものでもないため、ここで落とす（issue #117。
+    # `cleanup-task.sh` はコミットせずに削除するため、この状態が正常系として必ず発生する）。
+    # `[[ -f ]]` はbash組み込みでforkを伴わない（`.claude/rules/shell-script-style.md`
+    # 「外部プロセス起動のコスト」）。
+    if [[ ! -f "$f" ]]; then
+      skipped=$((skipped + 1))
+      continue
+    fi
     files+=("$f")
   done < <(git ls-files --cached --others --exclude-standard -z -- "$target_rel" | grep -z '\.md$' | sort -z -u)
+
+  if [[ $skipped -gt 0 ]]; then
+    echo "skipped $skipped deleted file(s) not present in the working tree" >&2
+  fi
 
   if [[ ${#files[@]} -eq 0 ]]; then
     echo "no markdown files found under: $target_rel" >&2
@@ -500,7 +520,7 @@ main() {
     printf '%s\0' "${unchanged_files[@]}" | xargs -0 touch
   fi
 
-  echo "files=${#files[@]} built=$built reused=$reused failed=$failed" >&2
+  echo "files=${#files[@]} built=$built reused=$reused failed=$failed skipped=$skipped" >&2
 
   # 1件でも生成に失敗していれば非ゼロで終了する（index.jsonl自体は生成できた分だけ書き出す）
   if [[ $failed -gt 0 ]]; then
