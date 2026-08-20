@@ -342,7 +342,8 @@ mcp_tool_hint() {
     search_issues) printf 'mcp__github__search_issues (query, owner, repo)\n' ;;
     new_draft_merge_request) printf 'mcp__github__create_pull_request (owner, repo, title, head, base, draft=true, body)\n' ;;
     get_mr_for_branch) printf 'mcp__github__list_pull_requests (owner, repo, head="<owner>:<branch>", state="open")\n' ;;
-    get_mr_unresolved_comments) printf 'mcp__github__pull_request_read (method="get_review_comments" / "get_comments", owner, repo, pullNumber)\n' ;;
+    get_mr_unresolved_comments|get_mr_review_threads) printf 'mcp__github__pull_request_read (method="get_review_comments" / "get_comments", owner, repo, pullNumber)。**MCP経路は line も commitのsha も返さないため、指摘行前後のソーススライスは作れない**（path までは分かる。issue #43）\n' ;;
+    read_file_at_ref) printf 'mcp__github__get_file_contents (owner, repo, path, ref=<sha>)\n' ;;
     add_mr_thread_reply) printf 'mcp__github__add_reply_to_pull_request_comment (owner, repo, pullNumber, commentId=スレッド先頭コメントの数値ID, body)\n' ;;
     set_mr_description) printf 'mcp__github__update_pull_request (owner, repo, pullNumber, body=ファイル内容)\n' ;;
     set_mr_ready) printf 'mcp__github__update_pull_request (owner, repo, pullNumber, draft=false)\n' ;;
@@ -453,13 +454,361 @@ new_draft_merge_request() {
   esac
 }
 
+# --- レビューコメントの取得と、指摘行前後のソーススライス（issue #43） ----------------------
+#
+# プロバイダ層（Github.sh / Gitlab.sh）は「正規化JSONを返す」ところまでを担い、
+# **テキスト整形と、指摘行前後のソース切り出しはここ（共通層）で行う**。GitHub固有の
+# `diffHunk` に依存するのをやめ、GitHub/GitLab双方が持つ `(path, line, sha)` だけを
+# 共通項にすることで、実装の非対称と、コンテキスト量が予測できない問題を同時に解消する
+# （仕様: .claude/docs/spec/issue-mr-workflow.md「レビューコメントのソーススライス」）。
+#
+# 正規化JSONの形（プロバイダ層が返すもの）:
+#   {"threads":[{"threadId","isResolved","isOutdated","path","line","sha",
+#                "comments":[{"author","body","url"}]}],
+#    "comments":[{"author","body","url"}]}
+# `line` / `sha` は**プロバイダ層で解決済み**の値である（GitHubの `originalLine` /
+# `originalCommit` の使い分けは共通層からは見えない）。
+
+# 切り出す前後の行数。指摘行を含め最大 (2 * N + 1) 行になる。
+REVIEW_SOURCE_CONTEXT_LINES="${REVIEW_SOURCE_CONTEXT_LINES:-10}"
+# 1スレッドあたりのスライスのバイト上限。**行数だけでは上限にならない**ため併用する
+# （issue #43 の実測: 同一ファイル `.claude/rules/docs-workflow.md` の ±10行が、指摘行の位置に
+# よって 684B〜8,971B と13.1倍ばらついた。1行が1,387Bある表形式の行を含むため）。
+REVIEW_SOURCE_MAX_BYTES="${REVIEW_SOURCE_MAX_BYTES:-2000}"
+
+# 文字列を指定バイト数以下へ切り詰めて `REPLY` へ返す（純粋関数。forkしない）。
+# **UTF-8の文字境界まで戻してから返す**ため、多バイト文字の途中で切れて壊れることはない。
+# `local LC_ALL=C` により `${#s}` と `${s:0:n}` がバイト単位で働く（既定ロケールでは文字単位に
+# なり、バイト上限の制御にならない。`.claude/rules/shell-script-style.md`「テスト」の
+# 「日本語を含む文字列の先頭を `${var:0:N}` で切り出して比較しない」と同じ性質を、ここでは
+# **意図して**バイト単位に倒したうえで、境界の後始末を自前で行っている）。
+truncate_bytes_to_reply() {
+  local LC_ALL=C
+  local s="$1" max="$2" ord
+  if [ "${#s}" -le "$max" ]; then
+    REPLY="$s"
+    return 0
+  fi
+  s="${s:0:max}"
+  # 末尾が継続バイト（0x80-0xBF）である間は、文字の途中で切れているので戻す
+  while [ -n "$s" ]; do
+    printf -v ord '%d' "'${s: -1}"
+    [ "$ord" -ge 0 ] || ord=$((ord + 256))
+    if [ "$ord" -ge 128 ] && [ "$ord" -le 191 ]; then
+      s="${s%?}"
+    else
+      break
+    fi
+  done
+  # 戻した先が多バイト文字の先頭バイト（0xC0以上）なら、その文字ごと落とす
+  if [ -n "$s" ]; then
+    printf -v ord '%d' "'${s: -1}"
+    [ "$ord" -ge 0 ] || ord=$((ord + 256))
+    [ "$ord" -lt 192 ] || s="${s%?}"
+  fi
+  REPLY="$s"
+}
+
+# 標準入力のファイル内容から、指摘行の前後を**絶対行番号付き**で切り出して `REPLY` へ返す
+# （純粋関数。外部コマンドを呼ばない）。指摘行は `>>>` で示す。
+#   $1: 指摘行（1始まり）  $2: 前後の行数  $3: バイト上限
+# 切り詰めが起きた場合はグローバル `REVIEW_SLICE_TRUNCATED` を 1 にする（呼び出し側が出力へ
+# 明示するため）。入力が空なら終了コード1を返す。
+#
+# バイト上限を超えた場合は**指摘行から遠い側から1行ずつ落とす**（指摘行が落ちては意味が無い）。
+# 指摘行1行だけになってもなお超える場合は、その行自体を `truncate_bytes_to_reply` で切り詰める。
+#
+# **パイプではなくヒアストリングで呼ぶこと**（`REPLY` へ返す関数のため。パイプの右辺は
+# サブシェルで実行され代入が呼び出し元へ伝わらない。`.claude/rules/shell-script-style.md`）。
+slice_source_lines() {
+  local LC_ALL=C
+  local target="$1" context="$2" max_bytes="$3"
+  local -a lines=()
+  local line
+  while IFS= read -r line || [ -n "$line" ]; do
+    lines+=("$line")
+  done
+
+  REVIEW_SLICE_TRUNCATED=0
+  REPLY=""
+  local total=${#lines[@]}
+  [ "$total" -gt 0 ] || return 1
+
+  # 指摘行がファイルの範囲外なら範囲内へ丸める（断面が現HEADへ縮退したとき、行数が減っていて
+  # 指摘行が末尾を超えることがある）
+  local t="$target"
+  [ "$t" -ge 1 ] || t=1
+  [ "$t" -le "$total" ] || t="$total"
+
+  local start=$((t - context)) end=$((t + context))
+  [ "$start" -ge 1 ] || start=1
+  [ "$end" -le "$total" ] || end="$total"
+
+  local width=${#end}
+  local -a rendered=() blen=()
+  local i prefix sum=0 n=0
+  for ((i = start; i <= end; i++)); do
+    if [ "$i" -eq "$t" ]; then prefix=">>>"; else prefix="   "; fi
+    printf -v line '%s %*d | %s' "$prefix" "$width" "$i" "${lines[i - 1]}"
+    rendered[n]="$line"
+    blen[n]=$((${#line} + 1))
+    sum=$((sum + blen[n]))
+    n=$((n + 1))
+  done
+
+  local lo=0 hi=$((n - 1)) ti=$((t - start))
+  while [ "$sum" -gt "$max_bytes" ] && [ "$lo" -lt "$hi" ]; do
+    if [ $((ti - lo)) -ge $((hi - ti)) ]; then
+      sum=$((sum - blen[lo]))
+      lo=$((lo + 1))
+    else
+      sum=$((sum - blen[hi]))
+      hi=$((hi - 1))
+    fi
+    REVIEW_SLICE_TRUNCATED=1
+  done
+
+  if [ "$sum" -gt "$max_bytes" ]; then
+    # 残り1行でも上限を超える（1行が極端に長い）場合は、その行自体を切り詰める
+    truncate_bytes_to_reply "${rendered[lo]}" "$max_bytes"
+    rendered[lo]="$REPLY"
+    REVIEW_SLICE_TRUNCATED=1
+  fi
+
+  local out="${rendered[lo]}"
+  for ((i = lo + 1; i <= hi; i++)); do
+    out="${out}"$'\n'"${rendered[i]}"
+  done
+  REPLY="$out"
+}
+
+# 指定したcommit時点のファイル内容を、プロバイダのファイル取得APIから読む（ローカルにblobが
+# 無い場合のフォールバック）。issue #43。
+read_file_at_ref() {
+  require_vcs_cli read_file_at_ref || return 1
+  local sha="$1" path="$2"
+  case "$(get_provider)" in
+    github) github_read_file_at_ref "$sha" "$path" ;;
+    gitlab) gitlab_read_file_at_ref "$sha" "$path" ;;
+  esac
+}
+
+# 指摘行が指す断面のファイル内容を `REPLY` へ返す。取得できた経路に応じて
+# `REVIEW_SOURCE_REF`（出力の `@ ...` に出す表示名）と `REVIEW_SOURCE_NOTE`（縮退した旨の注記）
+# も設定する。どの経路でも取れなければ終了コード1を返す（**コメント本文だけは必ず出す**ため、
+# 呼び出し側はここでの失敗を握りつぶしてソース無しへ縮退する）。
+#
+# **標準出力ではなく `REPLY` へ返すのは、呼び出し側が3つのグローバルを同時に受け取るため**である。
+# `content="$(read_source_at_ref_to_reply ...)"` と書くとコマンド置換がサブシェルをforkし、
+# 関数内で設定した `REVIEW_SOURCE_REF` / `REVIEW_SOURCE_NOTE` が呼び出し元へ伝わらない
+# （`.claude/rules/shell-script-style.md`「ホットパスの小さなヘルパー関数は…`REPLY` へ返す」と
+# 同じ理由だが、ここでは性能ではなく**戻り値が3つある**ことが動機である）。
+#
+# 段階は次の4つ（issue #43 の調査で確定）。
+#   1. ローカルのblob（`git cat-file -e` で事前判定 → `git show`）。注記なし
+#   2. プロバイダのファイル取得API（同じ断面なので注記なし）
+#   3. 現HEAD（断面が違うため注記を付ける）
+#   4. すべて失敗（呼び出し側がソース無しへ縮退）
+#
+# 事前判定に `git cat-file -e` を使うのは、`git show` が失敗時に標準エラーへ出力してしまうため。
+# なお `git cat-file -e` の失敗メッセージは
+# `fatal: path '...' exists on disk, but not in '<sha>'` と、**ワーキングツリーに実体がある
+# ことを先に言う**形になる。判定は必ず終了コードで行う（issue #43 の調査で読み違えかけた）。
+read_source_at_ref_to_reply() {
+  local sha="$1" path="$2"
+  local content
+  REPLY=""
+  REVIEW_SOURCE_REF=""
+  REVIEW_SOURCE_NOTE=""
+
+  if [ -n "$sha" ] && git cat-file -e "${sha}:${path}" 2>/dev/null; then
+    if content="$(git show "${sha}:${path}" 2>/dev/null)"; then
+      REVIEW_SOURCE_REF="${sha:0:7}"
+      REPLY="$content"
+      return 0
+    fi
+  fi
+
+  if [ -n "$sha" ] && [ "$(get_vcs_access_mode)" = "cli" ]; then
+    if content="$(read_file_at_ref "$sha" "$path" 2>/dev/null)" && [ -n "$content" ]; then
+      REVIEW_SOURCE_REF="${sha:0:7}"
+      REPLY="$content"
+      return 0
+    fi
+  fi
+
+  if content="$(git show "HEAD:${path}" 2>/dev/null)"; then
+    REVIEW_SOURCE_REF="HEAD"
+    if [ -n "$sha" ]; then
+      REVIEW_SOURCE_NOTE="(断面 ${sha:0:7} を取得できず現HEADを表示)"
+    else
+      REVIEW_SOURCE_NOTE="(断面が不明なため現HEADを表示)"
+    fi
+    REPLY="$content"
+    return 0
+  fi
+
+  return 1
+}
+
+# 正規化JSON（$1のファイル）を読み、スレッドごとのソーススライスを $2 のファイルへJSONで書く。
+#   {"<threadId>": {"ref": "4b8fb20", "note": "", "text": "   81 | ...\n>>> 91 | ..."} , ...}
+#
+# **ループ内で `jq` を呼ばない**（`.claude/rules/shell-script-style.md`「外部プロセス起動の
+# コスト」）。位置情報の取り出しは jq 1回、組み立ても jq 1回で、ループの中で起動するのは
+# `git`（同じ `(sha, path)` はメモ化して1回だけ）に留めている。
+#
+# 中間表現は「`\037`（unit separator）で始まるヘッダ行 ＋ 本文の行」というレコード形式にした。
+# base64を挟むとスレッド数に比例して `base64` をforkすることになり、TSVの1フィールドへ
+# 押し込むと本文中の改行・タブのエスケープが要るため。`\037` はソースコードには現れない。
+build_review_source_slices() {
+  local normalized_file="$1" out_file="$2"
+  local records="${out_file}.records"
+  local locations
+
+  # threadId \t path \t line \t sha （位置が特定できないスレッドは出さない）
+  locations="$(jq -r '
+    (.threads // [])[]
+    | select((.path // null) != null and (.line // null) != null)
+    | [.threadId, .path, (.line | tostring), (.sha // "")] | @tsv
+  ' "$normalized_file" | tr -d '\r')"
+
+  : > "$records"
+  if [ -n "$locations" ]; then
+    local -A source_text=() source_ref=() source_note=()
+    local tid path line sha key note
+    {
+      while IFS=$'\t' read -r tid path line sha; do
+        [ -n "$tid" ] || continue
+        key="${sha}:${path}"
+        if [ -z "${source_ref[$key]+set}" ]; then
+          # コマンド置換で受けないこと（サブシェルへforkすると REVIEW_SOURCE_REF /
+          # REVIEW_SOURCE_NOTE が呼び出し元へ伝わらない）
+          if read_source_at_ref_to_reply "$sha" "$path"; then
+            source_text[$key]="$REPLY"
+            source_ref[$key]="$REVIEW_SOURCE_REF"
+            source_note[$key]="$REVIEW_SOURCE_NOTE"
+          else
+            source_text[$key]=""
+            source_ref[$key]=""
+            source_note[$key]=""
+          fi
+        fi
+        [ -n "${source_ref[$key]}" ] || continue
+        slice_source_lines "$line" "$REVIEW_SOURCE_CONTEXT_LINES" "$REVIEW_SOURCE_MAX_BYTES" \
+          <<<"${source_text[$key]}" || continue
+        note="${source_note[$key]}"
+        if [ "$REVIEW_SLICE_TRUNCATED" = "1" ]; then
+          if [ -n "$note" ]; then
+            note="$note (バイト上限により切り詰め)"
+          else
+            note="(バイト上限により切り詰め)"
+          fi
+        fi
+        printf '\037%s\t%s\t%s\n' "$tid" "${source_ref[$key]}" "$note"
+        printf '%s\n' "$REPLY"
+      done <<<"$locations"
+    } >> "$records"
+  fi
+
+  jq -R -n '
+    reduce inputs as $l ({cur: null, out: {}};
+      if ($l | startswith("\u001f")) then
+        (($l[1:]) | split("\t")) as $h
+        | .cur = $h[0]
+        | .out[$h[0]] = {ref: ($h[1] // ""), note: ($h[2] // ""), text: null}
+      elif .cur == null then .
+      else
+        .out[.cur].text = (if (.out[.cur].text) == null then $l else .out[.cur].text + "\n" + $l end)
+      end
+    )
+    | .out
+    | map_values(.text = (.text // ""))
+  ' "$records" | tr -d '\r' > "$out_file"
+  rm -f "$records"
+}
+
+# 正規化JSON（$1のファイル）とスライスJSON（$2のファイル）から、最終的なテキストを組み立てる
+# 純粋関数（jqのみ。外部状態に触れないため単体テストできる）。
+#
+# **引数ではなくファイルパスで受ける**のは、`--argjson` へ大きなJSONを渡すとコマンドライン長の
+# 上限で `jq: Argument list too long` になるため（`.claude/rules/shell-script-style.md`
+# 「JSON操作」。スライスはスレッド数 × 最大2,000Bまで膨らみうる）。
+#
+# 行頭の `[review unresolved threadId=...]` は**変えてはいけない**。
+# `.claude/hooks/session-start.sh` と `.claude/agents/issue-mr-resume.md` が
+# この書式で未解決件数を数えている。
+#
+# `path` が無いスレッドには**位置を一切出さない**（issue #43 以前のGitHub実装は `(場所不明)` と
+# 出していたが、GitHubのレビュースレッドは常に `path` を持つためこの分岐は事実上発火せず、
+# 一方でGitLabのMR全体へのコメントは `position` を持たないのが**正常**であり、そこへ
+# 「場所不明」と出すのは誤解を招く。位置が出ていないこと自体が「位置を持たない」の表現になる）。
+format_review_comments() {
+  local normalized_file="$1" slices_file="$2"
+  jq -r --slurpfile slices "$slices_file" '
+    def render_comment($t):
+      "[review " + (if $t.isResolved then "resolved" else "unresolved" end)
+      + " threadId=" + ($t.threadId | tostring)
+      + (if ($t.path // null) != null
+           then " " + $t.path + ":" + (($t.line // "") | tostring)
+           else "" end)
+      + (if (.url // null) != null then " url=" + .url else "" end)
+      + "] " + .author + ": " + .body;
+    def render_slice($t):
+      "--- source " + ($t.path // "?")
+      + " @ " + (.ref // "?")
+      + (if ($t.isOutdated // false) then " (outdated)" else "" end)
+      + (if ((.note // "") | length) > 0 then " " + .note else "" end)
+      + " ---\n" + (.text // "");
+    def thread_block($S):
+      . as $t
+      | ([ (.comments // [])[] | render_comment($t) ] | join("\n\n")) as $head
+      | ($S[$t.threadId] // null) as $s
+      | if $s == null then $head else $head + "\n\n" + ($s | render_slice($t)) end;
+    ($slices[0] // {}) as $S
+    | [ (.threads // [])[] | select(((.comments // []) | length) > 0) | thread_block($S) ]
+      + [ (.comments // [])[]
+          | "[comment" + (if (.url // null) != null then " url=" + .url else "" end) + "] "
+            + .author + ": " + .body ]
+    | join("\n\n")
+  ' "$normalized_file" | tr -d '\r'
+}
+
+# レビュースレッド＋通常コメントを正規化JSONで返す（プロバイダ層へのディスパッチ）。
+get_mr_review_threads() {
+  require_vcs_cli get_mr_review_threads || return 1
+  local mr_number="$1" include_resolved="${2:-false}"
+  case "$(get_provider)" in
+    github) github_get_mr_review_threads "$mr_number" "$include_resolved" ;;
+    gitlab) gitlab_get_mr_review_threads "$mr_number" "$include_resolved" ;;
+  esac
+}
+
+# レビュースレッド＋通常のissueコメントを、指摘行前後のソーススライス付きのテキストで返す。
+# 既定では未解決（isResolved: false）のスレッドのみを対象とし、対応済みは機械的に除外する。
+# 第2引数に true を渡すと解決済みも含めた全件を返す。
 get_mr_unresolved_comments() {
   require_vcs_cli get_mr_unresolved_comments || return 1
   local mr_number="$1" include_resolved="${2:-false}"
-  case "$(get_provider)" in
-    github) github_get_mr_unresolved_comments "$mr_number" "$include_resolved" ;;
-    gitlab) gitlab_get_mr_unresolved_comments "$mr_number" "$include_resolved" ;;
-  esac
+  local tmpdir status=0
+  tmpdir="$(mktemp -d)"
+  # 明示的なサブシェルで囲むことで、条件式の中でも `set -e` が効いた状態を保つ
+  # （`.claude/rules/shell-script-style.md`「エラー方針」）
+  if ( _get_mr_unresolved_comments_impl "$mr_number" "$include_resolved" "$tmpdir" ); then
+    status=0
+  else
+    status=1
+  fi
+  rm -rf "$tmpdir"
+  return "$status"
+}
+
+_get_mr_unresolved_comments_impl() {
+  local mr_number="$1" include_resolved="$2" tmpdir="$3"
+  local normalized_file="${tmpdir}/normalized.json" slices_file="${tmpdir}/slices.json"
+  get_mr_review_threads "$mr_number" "$include_resolved" > "$normalized_file"
+  build_review_source_slices "$normalized_file" "$slices_file"
+  format_review_comments "$normalized_file" "$slices_file"
 }
 
 # 指定したレビュースレッドに対応内容を返信する（スレッドの解決＝resolvedはレビュアー側の操作のため

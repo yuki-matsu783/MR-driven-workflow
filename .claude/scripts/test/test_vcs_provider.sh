@@ -8,7 +8,12 @@
 # issue #44で `get_repo_url` をプロバイダ非依存化した際に切り出した `repo_url_from_remote_url`
 # （remote URLからリポジトリの正規URLを導出）も対象。`get_repo_url` 本体は
 # `git remote get-url origin` を呼ぶため対象外で、URL文字列を受け取る純粋関数側をテストしている。
-# issue #48対応で追加した `gitlab_format_discussion_notes`（discussions JSONの整形）も対象。
+# issue #48対応で追加した discussions JSONの整形は、issue #43で `gitlab_normalize_discussions`
+# （discussions JSON → 正規化JSON）と共通層の `format_review_comments`（正規化JSON＋スライス
+# → テキスト）へ分割された。あわせてGitHub側の `github_normalize_review_threads`（GraphQL JSON
+# → 正規化JSON）と、`slice_source_lines` / `truncate_bytes_to_reply`（指摘行前後の切り出しと
+# バイト上限の適用）も対象。**GitHub側の整形に単体テストが付いたのはissue #43が初**である
+# （それまでは `gh` 依存で切り出せておらず、issue #94のCR混入をテストで検知できなかった）。
 # issue #45対応で追加した `provider_from_remote_url`（remote URLのホスト部からプロバイダを判定）も
 # 対象。`get_provider` 本体は `git remote get-url origin` を呼ぶため対象外で、URL文字列を
 # 受け取る純粋関数側を切り出してテストしている。
@@ -91,7 +96,24 @@ assert_eq "gitlab_get_mr_diff_since_url: 前回push〜今回pushのSHA範囲の�
   "https://gitlab.example.com/o/r/-/compare/aaa111...bbb222" \
   "$(gitlab_get_mr_diff_since_url "https://gitlab.example.com/o/r" "aaa111" "bbb222")"
 
-# --- gitlab_format_discussion_notes（issue #48） -------------------------------------------
+# --- レビューコメントの正規化と整形（issue #48, #77, #43） ---------------------------------
+# issue #43 で出力仕様を作り替え、プロバイダ層は「正規化JSONを返す」だけになった。
+# テキスト整形は共通層の `format_review_comments` が担う（GitHub/GitLab 双方が通る）。
+#
+# `format_review_comments` は正規化JSONとスライスJSONを**ファイルパス**で受け取る
+# （大きなJSONを `--argjson` で渡すと `jq: Argument list too long` になるため。
+# `.claude/rules/shell-script-style.md`「JSON操作」）。テストからは次のヘルパー経由で呼ぶ。
+render_comments() { # $1=正規化JSON $2=スライスJSON（省略時は空）
+  local normalized="$1" slices="${2:-}" tmp
+  # 既定値にバックスラッシュを書かない（`"${2:-\{\}}"` は `\{\}` という文字列になる。issue #23）
+  [ -n "$slices" ] || slices='{}'
+  tmp="$(mktemp -d)"
+  printf '%s' "$normalized" > "$tmp/n.json"
+  printf '%s' "$slices" > "$tmp/s.json"
+  format_review_comments "$tmp/n.json" "$tmp/s.json"
+  rm -rf "$tmp"
+}
+
 # GitLabのdiscussions APIは「説明を変更した」等の操作履歴を、レビューコメントと同じ配列で
 # `system: true` のnoteとして返す。これがレビュー往復の完了判定を狂わせないことを確認する。
 # フィクスチャはローカルGitLab CE 18.5.4の実レスポンス形状に合わせている
@@ -111,48 +133,58 @@ gitlab_discussions_fixture='[
      "system":false,"resolvable":false}]}
 ]'
 
-assert_eq "gitlab_format_discussion_notes: 既定では未解決のみ返し、システムノートと解決済みを除外する" \
-  "[unresolved threadId=d1] reviewer: ここは修正してください
+# issue #43: 行頭のラベルは GitHub/GitLab で共通の `[review ...]` になった。
+# それ以前はGitLab側だけ `[unresolved ...]` で、`.claude/hooks/session-start.sh` の
+# `^\[review unresolved threadId=` に一致せず、**未解決件数が常に0件**と表示されていた。
+assert_eq "format_review_comments(GitLab): 既定では未解決のみ返し、システムノートと解決済みを除外する" \
+  "[review unresolved threadId=d1] reviewer: ここは修正してください
 
-[unresolved threadId=d4] root: 通常コメント" \
-  "$(gitlab_format_discussion_notes "$gitlab_discussions_fixture")"
+[review unresolved threadId=d4] root: 通常コメント" \
+  "$(render_comments "$(gitlab_normalize_discussions "$gitlab_discussions_fixture")")"
 
-assert_eq "gitlab_format_discussion_notes: include_resolved=trueでは解決済みを含むがシステムノートは除外する" \
-  "[unresolved threadId=d1] reviewer: ここは修正してください
+assert_eq "format_review_comments(GitLab): include_resolved=trueでは解決済みを含むがシステムノートは除外する" \
+  "[review unresolved threadId=d1] reviewer: ここは修正してください
 
-[resolved threadId=d2] reviewer: 対応済みの指摘
+[review resolved threadId=d2] reviewer: 対応済みの指摘
 
-[unresolved threadId=d4] root: 通常コメント" \
-  "$(gitlab_format_discussion_notes "$gitlab_discussions_fixture" true)"
+[review unresolved threadId=d4] root: 通常コメント" \
+  "$(render_comments "$(gitlab_normalize_discussions "$gitlab_discussions_fixture" true)")"
 
-assert_eq "gitlab_format_discussion_notes: システムノートのbodyは全件取得時も出力に現れない" \
+assert_eq "gitlab_normalize_discussions: システムノートのbodyは全件取得時も出力に現れない" \
   "0" \
-  "$(gitlab_format_discussion_notes "$gitlab_discussions_fixture" true | grep -c 'changed the description' || true)"
+  "$(gitlab_normalize_discussions "$gitlab_discussions_fixture" true | grep -c 'changed the description' || true)"
 
 # issue #42: 第3引数にMRのURLを渡すと、各noteの公式パーマリンクを url= として行に含める。
-assert_eq "gitlab_format_discussion_notes: mr_urlを渡すとnoteのパーマリンクをurl=として含める" \
-  "[unresolved threadId=d1 url=https://gitlab.example.com/o/r/-/merge_requests/42#note_1] reviewer: ここは修正してください
+assert_eq "format_review_comments(GitLab): mr_urlを渡すとnoteのパーマリンクをurl=として含める" \
+  "[review unresolved threadId=d1 url=https://gitlab.example.com/o/r/-/merge_requests/42#note_1] reviewer: ここは修正してください
 
-[unresolved threadId=d4 url=https://gitlab.example.com/o/r/-/merge_requests/42#note_4] root: 通常コメント" \
-  "$(gitlab_format_discussion_notes "$gitlab_discussions_fixture" false \
-    "https://gitlab.example.com/o/r/-/merge_requests/42")"
+[review unresolved threadId=d4 url=https://gitlab.example.com/o/r/-/merge_requests/42#note_4] root: 通常コメント" \
+  "$(render_comments "$(gitlab_normalize_discussions "$gitlab_discussions_fixture" false \
+    "https://gitlab.example.com/o/r/-/merge_requests/42")")"
 
-assert_eq "gitlab_format_discussion_notes: mr_urlが空ならurl=は付かない（従来どおりの出力）" \
-  "$(gitlab_format_discussion_notes "$gitlab_discussions_fixture")" \
-  "$(gitlab_format_discussion_notes "$gitlab_discussions_fixture" false "")"
+assert_eq "gitlab_normalize_discussions: mr_urlが空ならurlはnull（従来どおりurl=が付かない）" \
+  "$(render_comments "$(gitlab_normalize_discussions "$gitlab_discussions_fixture")")" \
+  "$(render_comments "$(gitlab_normalize_discussions "$gitlab_discussions_fixture" false "")")"
 
 # resolvableでないnote（individual_note等）は resolved 扱いにせず常に含める。
-assert_eq "gitlab_format_discussion_notes: resolvableでないnoteはunresolvedとして扱う" \
-  "[unresolved threadId=d4] root: 通常コメント" \
-  "$(gitlab_format_discussion_notes '[{"id":"d4","individual_note":true,"notes":[{"id":4,"body":"通常コメント","author":{"username":"root"},"system":false,"resolvable":false}]}]')"
+assert_eq "gitlab_normalize_discussions: resolvableでないnoteはunresolvedとして扱う" \
+  "[review unresolved threadId=d4] root: 通常コメント" \
+  "$(render_comments "$(gitlab_normalize_discussions '[{"id":"d4","individual_note":true,"notes":[{"id":4,"body":"通常コメント","author":{"username":"root"},"system":false,"resolvable":false}]}]')")"
 
 # Windowsネイティブjqは出力行末にCRを付与するため、関数側で除去している
 # （.claude/rules/shell-script-style.md「文字コード」）。CRの検査はバイト数比較で行う
 # （`grep -c $'\r'` は環境によって空パターン扱いになり全行にマッチするため使わない）。
-gitlab_notes_output="$(gitlab_format_discussion_notes "$gitlab_discussions_fixture" true)"
-assert_eq "gitlab_format_discussion_notes: 出力にCRが混入しない" \
+# issue #43 以前、この検査はGitLab側にしか無く、GitHub側の同種の混入（issue #94）は
+# テストでは検知できなかった。整形が共通化されたことで両プロバイダがこの1件でカバーされる。
+gitlab_notes_output="$(render_comments "$(gitlab_normalize_discussions "$gitlab_discussions_fixture" true)")"
+assert_eq "format_review_comments: 出力にCRが混入しない" \
   "$(printf '%s' "$gitlab_notes_output" | wc -c)" \
   "$(printf '%s' "$gitlab_notes_output" | tr -d '\r' | wc -c)"
+
+gitlab_normalized_output="$(gitlab_normalize_discussions "$gitlab_discussions_fixture" true)"
+assert_eq "gitlab_normalize_discussions: 正規化JSONにCRが混入しない" \
+  "$(printf '%s' "$gitlab_normalized_output" | wc -c)" \
+  "$(printf '%s' "$gitlab_normalized_output" | tr -d '\r' | wc -c)"
 
 # --- parse_repo_slug / mcp_tool_hint（issue #34: gh/glab CLI不在時のMCPフォールバック） -------
 #
@@ -640,35 +672,52 @@ assert_eq "gitlab_build_discussion_body: 本文の形式をGitHub版と揃える
   '**[major / 確度: high / shell-pitfall]** タイトル' \
   "$(gitlab_build_discussion_body '{"path":"a.sh","line":1,"severity":"major","confidence":"high","category":"shell-pitfall","title":"タイトル","body":"本文"}' "$gitlab_refs" | jq -r '.body' | sed -n '3p')"
 
-# gitlab_format_discussion_notes が position を出力すること（issue #77 で修正）。
-# 位置が出ないと「どのファイルの何行目への指摘か」がレビュー対応時に分からない。
+# position から path / line / sha を解決すること（issue #77 で位置出力を追加、issue #43 で
+# 断面 sha の解決を追加）。位置が出ないと「どのファイルの何行目への指摘か」がレビュー対応時に
+# 分からない。
 gitlab_notes_fixture='[
-  {"id":"abc","notes":[{"system":false,"resolvable":true,"resolved":false,"author":{"username":"u1"},"body":"新規行","position":{"new_path":"a.sh","new_line":10,"old_path":"a.sh"}}]},
-  {"id":"def","notes":[{"system":false,"resolvable":true,"resolved":false,"author":{"username":"u2"},"body":"削除行","position":{"old_path":"b.sh","old_line":3,"new_path":"b.sh","new_line":null}}]},
-  {"id":"ghi","notes":[{"system":false,"resolvable":false,"author":{"username":"u3"},"body":"通常コメント"}]},
-  {"id":"jkl","notes":[{"system":true,"author":{"username":"u4"},"body":"changed the description"}]},
-  {"id":"mno","notes":[{"system":false,"resolvable":true,"resolved":true,"author":{"username":"u5"},"body":"解決済み"}]}
+  {"id":"abc","notes":[{"id":11,"system":false,"resolvable":true,"resolved":false,"author":{"username":"u1"},"body":"新規行","position":{"new_path":"a.sh","new_line":10,"old_path":"a.sh","head_sha":"aaaaaaa1111","base_sha":"bbbbbbb2222"}}]},
+  {"id":"def","notes":[{"id":12,"system":false,"resolvable":true,"resolved":false,"author":{"username":"u2"},"body":"削除行","position":{"old_path":"b.sh","old_line":3,"new_path":"b.sh","new_line":null,"head_sha":"aaaaaaa1111","base_sha":"bbbbbbb2222"}}]},
+  {"id":"ghi","notes":[{"id":13,"system":false,"resolvable":false,"author":{"username":"u3"},"body":"通常コメント"}]},
+  {"id":"jkl","notes":[{"id":14,"system":true,"author":{"username":"u4"},"body":"changed the description"}]},
+  {"id":"mno","notes":[{"id":15,"system":false,"resolvable":true,"resolved":true,"author":{"username":"u5"},"body":"解決済み"}]}
 ]'
 
-assert_eq "gitlab_format_discussion_notes: position付きはpath:lineを出す" \
-  '[unresolved threadId=abc a.sh:10] u1: 新規行' \
-  "$(gitlab_format_discussion_notes "$gitlab_notes_fixture" | sed -n '1p')"
+assert_eq "format_review_comments(GitLab): position付きはpath:lineを出す" \
+  '[review unresolved threadId=abc a.sh:10] u1: 新規行' \
+  "$(render_comments "$(gitlab_normalize_discussions "$gitlab_notes_fixture")" | sed -n '1p')"
 
-assert_eq "gitlab_format_discussion_notes: 削除行はold_path:old_lineを出す" \
-  '[unresolved threadId=def b.sh:3] u2: 削除行' \
-  "$(gitlab_format_discussion_notes "$gitlab_notes_fixture" | sed -n '3p')"
+assert_eq "format_review_comments(GitLab): 削除行はold_path:old_lineを出す" \
+  '[review unresolved threadId=def b.sh:3] u2: 削除行' \
+  "$(render_comments "$(gitlab_normalize_discussions "$gitlab_notes_fixture")" | sed -n '3p')"
 
-assert_eq "gitlab_format_discussion_notes: position無しの通常コメントは従来どおり" \
-  '[unresolved threadId=ghi] u3: 通常コメント' \
-  "$(gitlab_format_discussion_notes "$gitlab_notes_fixture" | sed -n '5p')"
+# position を持たないスレッド（MR全体へのコメント等）には位置を出さない。issue #43 以前の
+# GitHub実装は `(場所不明)` と出していたが、GitLabでは position が無いのが正常なため誤解を招く。
+assert_eq "format_review_comments(GitLab): position無しの通常コメントには位置を出さない" \
+  '[review unresolved threadId=ghi] u3: 通常コメント' \
+  "$(render_comments "$(gitlab_normalize_discussions "$gitlab_notes_fixture")" | sed -n '5p')"
 
-assert_eq "gitlab_format_discussion_notes: systemノートと解決済みは除外されたまま" \
+assert_eq "gitlab_normalize_discussions: systemノートと解決済みは除外されたまま" \
   '3' \
-  "$(gitlab_format_discussion_notes "$gitlab_notes_fixture" | grep -c 'threadId=')"
+  "$(render_comments "$(gitlab_normalize_discussions "$gitlab_notes_fixture")" | grep -c 'threadId=')"
 
-assert_eq "gitlab_format_discussion_notes: include_resolved=trueなら解決済みも出る" \
+assert_eq "gitlab_normalize_discussions: include_resolved=trueなら解決済みも出る" \
   '4' \
-  "$(gitlab_format_discussion_notes "$gitlab_notes_fixture" true | grep -c 'threadId=')"
+  "$(render_comments "$(gitlab_normalize_discussions "$gitlab_notes_fixture" true)" | grep -c 'threadId=')"
+
+# issue #43: 追加・変更行への指摘は head_sha、削除行への指摘は base_sha を断面にする
+# （削除された行は head_sha 側に存在しないため）。
+assert_eq "gitlab_normalize_discussions: 追加行への指摘の断面は head_sha" \
+  'a.sh|10|aaaaaaa1111' \
+  "$(gitlab_normalize_discussions "$gitlab_notes_fixture" | jq -r '.threads[] | select(.threadId=="abc") | [.path,(.line|tostring),.sha] | join("|")')"
+
+assert_eq "gitlab_normalize_discussions: 削除行への指摘の断面は base_sha" \
+  'b.sh|3|bbbbbbb2222' \
+  "$(gitlab_normalize_discussions "$gitlab_notes_fixture" | jq -r '.threads[] | select(.threadId=="def") | [.path,(.line|tostring),.sha] | join("|")')"
+
+assert_eq "gitlab_normalize_discussions: 通常コメント（comments）は常に空（threadsへ寄せる）" \
+  '0' \
+  "$(gitlab_normalize_discussions "$gitlab_notes_fixture" true | jq '.comments | length')"
 
 # CLI不在時に提示するMCPツール名（mcp_tool_hint）へ、新しい関数を追加したか
 get_provider() { printf 'github\n'; }
@@ -823,6 +872,224 @@ assert_eq "porcelain_z_to_paths: 入力が空なら何も出力しない" \
 assert_eq "porcelain_z_to_paths: 改名エントリの旧パスが欠けていても新パスまでは返す" \
   "plans/new.md" \
   "$(printf 'R  plans/new.md\0' | porcelain_z_to_paths)"
+
+
+# --- github_normalize_review_threads（issue #43） ------------------------------------------
+# GraphQLの返却JSONを正規化JSONへ変換する純粋関数。issue #43 以前、GitHub側の整形には単体
+# テストが1件も無く（`gh` 依存だったため）、issue #94 のCR混入をテストで検知できなかった。
+github_threads_fixture='{"data":{"repository":{"pullRequest":{
+  "reviewThreads":{"nodes":[
+    {"id":"PRRT_a","isResolved":false,"isOutdated":false,"path":"a.sh","line":12,"originalLine":9,
+     "comments":{"nodes":[
+       {"author":{"login":"alice"},"body":"ここ直して","url":"https://x/#discussion_r1",
+        "commit":{"oid":"1111111aaaa"},"originalCommit":{"oid":"2222222bbbb"}},
+       {"author":{"login":"bob"},"body":"了解","url":"https://x/#discussion_r2",
+        "commit":{"oid":"1111111aaaa"},"originalCommit":{"oid":"2222222bbbb"}}]}},
+    {"id":"PRRT_b","isResolved":true,"isOutdated":true,"path":"a.sh","line":null,"originalLine":3,
+     "comments":{"nodes":[
+       {"author":{"login":"alice"},"body":"outdatedな指摘","url":"https://x/#discussion_r3",
+        "commit":null,"originalCommit":{"oid":"2222222bbbb"}}]}},
+    {"id":"PRRT_c","isResolved":false,"isOutdated":false,"path":null,"line":null,"originalLine":null,
+     "comments":{"nodes":[
+       {"author":null,"body":"作者が削除されたコメント","url":null,
+        "commit":null,"originalCommit":null}]}}]},
+  "comments":{"nodes":[{"author":{"login":"dave"},"body":"通常コメント","url":"https://x/#issuecomment-1"}]}
+}}}}'
+
+assert_eq "github_normalize_review_threads: 既定は未解決スレッドのみ（通常コメントは常に含む）" \
+  'PRRT_a PRRT_c' \
+  "$(github_normalize_review_threads "$github_threads_fixture" | jq -r '[.threads[].threadId] | join(" ")')"
+
+assert_eq "github_normalize_review_threads: include_resolved=trueなら解決済みも含む" \
+  'PRRT_a PRRT_b PRRT_c' \
+  "$(github_normalize_review_threads "$github_threads_fixture" true | jq -r '[.threads[].threadId] | join(" ")')"
+
+# `line` が非nullならそれを使い、断面は `commit.oid`
+assert_eq "github_normalize_review_threads: lineがあればlineとcommit.oidを採る" \
+  '12|1111111aaaa' \
+  "$(github_normalize_review_threads "$github_threads_fixture" | jq -r '.threads[] | select(.threadId=="PRRT_a") | [(.line|tostring),.sha] | join("|")')"
+
+# outdatedスレッドは `line` が null で `originalLine` にしか値が無い（issue #43 の「現状」6）。
+# 断面も `originalCommit.oid` へ切り替える。
+assert_eq "github_normalize_review_threads: lineがnullならoriginalLineとoriginalCommit.oidへ落ちる" \
+  '3|2222222bbbb|true' \
+  "$(github_normalize_review_threads "$github_threads_fixture" true | jq -r '.threads[] | select(.threadId=="PRRT_b") | [(.line|tostring),.sha,(.isOutdated|tostring)] | join("|")')"
+
+assert_eq "github_normalize_review_threads: 位置も断面も無ければnullのまま" \
+  'null|null|null' \
+  "$(github_normalize_review_threads "$github_threads_fixture" | jq -r '.threads[] | select(.threadId=="PRRT_c") | [(.path|tostring),(.line|tostring),(.sha|tostring)] | join("|")')"
+
+# 退会・削除されたユーザーでは GraphQL の `author` が null になる
+assert_eq "github_normalize_review_threads: authorがnullでも落とさず(unknown)にする" \
+  '(unknown)' \
+  "$(github_normalize_review_threads "$github_threads_fixture" | jq -r '.threads[] | select(.threadId=="PRRT_c") | .comments[0].author')"
+
+assert_eq "github_normalize_review_threads: reviewThreadsが空でも壊れない" \
+  '0|0' \
+  "$(github_normalize_review_threads '{"data":{"repository":{"pullRequest":{}}}}' | jq -r '[(.threads|length|tostring),(.comments|length|tostring)] | join("|")')"
+
+github_normalized_output="$(github_normalize_review_threads "$github_threads_fixture" true)"
+assert_eq "github_normalize_review_threads: 正規化JSONにCRが混入しない" \
+  "$(printf '%s' "$github_normalized_output" | wc -c)" \
+  "$(printf '%s' "$github_normalized_output" | tr -d '\r' | wc -c)"
+
+# --- format_review_comments（issue #43） ---------------------------------------------------
+# ソーススライスは**スレッドにつき1回**だけ出す。issue #43 以前のGitHub実装は
+# スレッド内のコメントごとに diffHunk を出しており、返信が付いたスレッドで重複していた。
+github_slices_fixture='{"PRRT_a":{"ref":"1111111","note":"","text":"   11 | before\n>>> 12 | target\n   13 | after"}}'
+
+assert_eq "format_review_comments: ソーススライスはスレッドにつき1回だけ出る" \
+  '1' \
+  "$(render_comments "$(github_normalize_review_threads "$github_threads_fixture")" "$github_slices_fixture" \
+     | grep -c -- '--- source ')"
+
+assert_eq "format_review_comments: スレッド内の各コメントは行頭書式で出る（2件）" \
+  '2' \
+  "$(render_comments "$(github_normalize_review_threads "$github_threads_fixture")" "$github_slices_fixture" \
+     | grep -c '^\[review unresolved threadId=PRRT_a ')"
+
+assert_eq "format_review_comments: スライスは全コメントの後ろに1回だけ置かれる" \
+  "[review unresolved threadId=PRRT_a a.sh:12 url=https://x/#discussion_r1] alice: ここ直して
+
+[review unresolved threadId=PRRT_a a.sh:12 url=https://x/#discussion_r2] bob: 了解
+
+--- source a.sh @ 1111111 ---
+   11 | before
+>>> 12 | target
+   13 | after" \
+  "$(render_comments "$(github_normalize_review_threads "$github_threads_fixture")" "$github_slices_fixture" \
+     | sed -n '1,9p')"
+
+assert_eq "format_review_comments: スライスが無いスレッドはコメント行だけを出す" \
+  '[review unresolved threadId=PRRT_c] (unknown): 作者が削除されたコメント' \
+  "$(render_comments "$(github_normalize_review_threads "$github_threads_fixture")" "$github_slices_fixture" \
+     | grep 'threadId=PRRT_c')"
+
+assert_eq "format_review_comments: 通常コメントは [comment ...] で末尾に出る" \
+  '[comment url=https://x/#issuecomment-1] dave: 通常コメント' \
+  "$(render_comments "$(github_normalize_review_threads "$github_threads_fixture")" "$github_slices_fixture" | tail -1)"
+
+assert_eq "format_review_comments: outdatedスレッドの見出しへ (outdated) が付く" \
+  '--- source a.sh @ 2222222 (outdated) (断面 2222222 を取得できず現HEADを表示) ---' \
+  "$(render_comments "$(github_normalize_review_threads "$github_threads_fixture" true)" \
+     '{"PRRT_b":{"ref":"2222222","note":"(断面 2222222 を取得できず現HEADを表示)","text":">>> 3 | x"}}' \
+     | grep -- '--- source ')"
+
+assert_eq "format_review_comments: 出力にdiffHunkの見出しが残っていない" \
+  '0' \
+  "$(render_comments "$(github_normalize_review_threads "$github_threads_fixture" true)" "$github_slices_fixture" \
+     | grep -c -- '--- diff ---' || true)"
+
+# --- truncate_bytes_to_reply / slice_source_lines（issue #43） ------------------------------
+# 上限をバイトで見るのは、行数だけでは制御にならないため（issue #43 の実測: 同一ファイルの
+# ±10行が 684B〜8,971B と13.1倍ばらついた）。
+truncate_bytes_to_reply 'abcdef' 10
+assert_eq "truncate_bytes_to_reply: 上限以下ならそのまま返す" 'abcdef' "$REPLY"
+
+truncate_bytes_to_reply 'abcdef' 3
+assert_eq "truncate_bytes_to_reply: 上限を超えたら切り詰める" 'abc' "$REPLY"
+
+# 3バイト/文字のUTF-8を8バイトで切ると2文字目の途中に当たる。文字境界まで戻すこと
+# （戻さないと壊れたバイト列が出力へ混ざる）。
+truncate_bytes_to_reply 'あいう' 8
+assert_eq "truncate_bytes_to_reply: UTF-8の文字境界まで戻す（壊れた文字を残さない）" 'あい' "$REPLY"
+assert_eq "truncate_bytes_to_reply: 戻した結果は上限以下のバイト数になる" '6' \
+  "$(printf '%s' "$REPLY" | wc -c)"
+
+truncate_bytes_to_reply 'あいう' 2
+assert_eq "truncate_bytes_to_reply: 1文字も入らなければ空になる" '' "$REPLY"
+
+slice_source_lines 5 2 100000 <<'SLICE_SRC'
+l1
+l2
+l3
+l4
+l5
+l6
+l7
+l8
+SLICE_SRC
+assert_eq "slice_source_lines: 指摘行の前後を絶対行番号付きで切り出し >>> で示す" \
+  "    3 | l3
+    4 | l4
+>>> 5 | l5
+    6 | l6
+    7 | l7" "$REPLY"
+assert_eq "slice_source_lines: 上限内なら切り詰めフラグは立たない" '0' "$REVIEW_SLICE_TRUNCATED"
+
+slice_source_lines 1 3 100000 <<'SLICE_SRC'
+a
+b
+c
+SLICE_SRC
+assert_eq "slice_source_lines: ファイル先頭では前が足りなくても破綻しない" \
+  ">>> 1 | a
+    2 | b
+    3 | c" "$REPLY"
+
+# 行番号の桁が変わる境界（9→10）で桁揃えが崩れないこと
+slice_source_lines 10 2 100000 <<'SLICE_SRC'
+line1
+line2
+line3
+line4
+line5
+line6
+line7
+line8
+line9
+line10
+line11
+SLICE_SRC
+assert_eq "slice_source_lines: 行番号は最大行の桁数で右揃えされる" \
+  "     8 | line8
+     9 | line9
+>>> 10 | line10
+    11 | line11" "$REPLY"
+
+# 上限を超えたら指摘行から遠い側から落とす（指摘行は必ず残る）
+slice_source_lines 5 4 60 <<'SLICE_SRC'
+aaaaaaaaaa
+bbbbbbbbbb
+cccccccccc
+dddddddddd
+eeeeeeeeee
+ffffffffff
+gggggggggg
+hhhhhhhhhh
+iiiiiiiiii
+SLICE_SRC
+assert_eq "slice_source_lines: バイト上限を超えたら指摘行を中心に削る" \
+  "    4 | dddddddddd
+>>> 5 | eeeeeeeeee
+    6 | ffffffffff" "$REPLY"
+assert_eq "slice_source_lines: 切り詰めたらフラグが立つ" '1' "$REVIEW_SLICE_TRUNCATED"
+
+# 1行だけになってもなお超える場合は、その行自体をUTF-8境界で切り詰める
+slice_source_lines 1 0 20 <<'SLICE_SRC'
+あいうえおかきくけこ
+SLICE_SRC
+assert_eq "slice_source_lines: 1行が上限超なら行自体を切り詰める（バイト数は上限以下）" '1' \
+  "$([ "$(printf '%s' "$REPLY" | wc -c)" -le 20 ] && echo 1 || echo 0)"
+assert_eq "slice_source_lines: 行を切り詰めてもUTF-8として壊れない" '>>> 1 | あいう' "$REPLY"
+
+# 断面が現HEADへ縮退すると、行数が減っていて指摘行が末尾を超えることがある
+slice_source_lines 99 1 100000 <<'SLICE_SRC'
+a
+b
+c
+SLICE_SRC
+assert_eq "slice_source_lines: 指摘行がファイル範囲外なら範囲内へ丸める" \
+  "    2 | b
+>>> 3 | c" "$REPLY"
+
+# 空入力は終了コード1（呼び出し側はソース無しへ縮退する）
+if slice_source_lines 1 2 100 </dev/null; then
+  slice_empty_status=0
+else
+  slice_empty_status=1
+fi
+assert_eq "slice_source_lines: 入力が空なら終了コード1" '1' "$slice_empty_status"
 
 echo "passed=$passed failures=$failures"
 [ "$failures" -eq 0 ]

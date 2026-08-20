@@ -15,9 +15,9 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - issue: #133 DDRの識別子を連番からissue番号ベースへ変更し、並行開発時の番号衝突を原理的に無くす
 - ブランチ: claude/ddr-identifier-issue-based-vpskgp
 - PR: #137 (Draft) https://github.com/yuki-matsu783/MR-driven-workflow/pull/137
-- push回数: 2
+- push回数: 3
 - 現在のループ: 4-6〜4-9 の1周目（完了）
-- 追従監視: 購読あり（web。subscribe_pr_activity + 定期チェックイン）
+- 追従監視: 購読あり（web。subscribe_pr_activity + 1時間ごとの自己チェックイン）
 
 ## フロー進捗状況
 
@@ -84,7 +84,12 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
   `.claude/docs/ddr/i133-01-DDR識別子はissue番号ベースにし連番採番をやめる.md` の新規作成を行った。
   AIアセット（`.claude/rules/` `.claude/skills/`）の改訂は本issueの成果物そのもののため、
   フェーズ3の作業として実施済み。
-- 検証: 単体テスト全12件が `failures=0`（合計664アサーション。うち
+- **ユーザーの承認を得て `main`（behind=1）を `git merge` で取り込んだ。** コンフリクトは無く
+  （`hasConflict=false`）、自動マージの結果も通しで確認した。`main` 側が追加した連番DDR `0060` は
+  `.claude/docs/README.md` の連番ブロック末尾へ正しく入っている。あわせて、現在仕様として
+  「DDR番号」と書かれていた3箇所（`git-workflow.md`・`check-base-conflicts.md`・
+  `check-base-sync.md`）を「DDR識別子」へ揃えた（過去の実績・changelogの記述は変更していない）。
+- 検証: 単体テスト全12件が `failures=0`（`main` 取り込み後は合計698アサーション。うち
   `test_check_base_conflicts.sh` は 13→28 アサーション）。`check-base-conflicts.sh --no-fetch` が
   `hasConflict=false`。`extract-frontmatter.sh` / `search-frontmatter.sh` から新DDRを引ける。
 
@@ -110,12 +115,6 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 
 ## 未解決の内容
 
-- **`main` が1コミット進んでおり（behind=1）、そこで連番DDR `0060` が新規追加されている。**
-  テキストコンフリクトもDDR識別子の重複も無い（`check-base-conflicts.sh` は `hasConflict=false`）
-  が、`main` の取り込みには `.claude/rules/git-workflow.md` に従いユーザーの承認が要るため
-  **未取得**。件数の直書きはこの1件で陳腐化するため、規約・spec・README側からは件数を外し、
-  「一覧（`.claude/docs/README.md`）が正」とする形へ直した（DDR本文だけは作成時点の観測値として
-  55件を残している）。
 - **同一issueへの追加作業を2つのブランチで並行して行った場合、枝番（`i133-03` 等）はなお衝突しうる。**
   新方式でも消えない唯一の経路であり、`check-base-conflicts.sh` の検知と `resolve-conflict`
   スキルの類型A-2で受けている（改番して先へ進む前に、並行作業自体の是非を人間へ確認する）。
