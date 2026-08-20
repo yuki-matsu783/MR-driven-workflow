@@ -200,6 +200,59 @@ for rule in "${ignore_rules[@]}"; do
   fi
 done
 
+# 5. Update destination .gitattributes（issue #33）
+# 配布先の .gitattributes は**丸ごと置き換えない**。配布先が自前の正規化・diff/merge driver 設定
+# （例: `*.png binary`）を持つ場合、全文置換するとバイナリのテキスト化のような、履歴に残る形の
+# 破損を招くため。.gitattributes は後に書いた行が優先されるので、末尾への追記であれば
+# 「配布先の既定を尊重しつつ、配布したスクリプトに必要な指定だけを上書きする」形になる。
+#
+# 追記するのは配布したスクリプトの動作に必要な行だけで、本家の `.gitattributes` にある
+# `* text=auto`（リポジトリ全体の正規化方針）は**配らない**。全体方針は配布先が決めるべきもので、
+# 勝手に足すと配布先の既存ファイルが次のコミットで一斉に正規化されうる。
+echo "Updating .gitattributes..."
+GITATTRIBUTES="${DEST_DIR}/.gitattributes"
+readonly GITATTRIBUTES_HEADER="# mr-driven-develop workflow attributes"
+
+declare -a attribute_rules=(
+  "*.sh text eol=lf"
+)
+
+# 指定した行が無ければ .gitattributes の末尾へ追記する（何度実行しても増えない）。
+ensure_gitattributes_rules() {
+  local file="$1"
+  shift
+  local rule
+
+  [ -f "${file}" ] || : > "${file}"
+
+  for rule in "$@"; do
+    # 行全体の一致（-x）で判定する。部分一致にすると、配布先が `# *.sh text eol=lf を検討中` の
+    # ようにコメントとして言及しているだけの場合にも「もう有る」と誤判定し、必要な指定が
+    # 入らないまま無言で終わる（配布したスクリプトがCRLFで壊れても気づけない）。
+    if grep -Fxq -- "${rule}" "${file}"; then
+      continue
+    fi
+
+    # 末尾が改行で終わっていない場合、追記した行が直前の行と連結してしまうため改行を補う。
+    # コマンド置換は末尾の改行をすべて落とすので、最後の1バイトが改行なら結果は空文字列になる。
+    if [ -s "${file}" ] && [ -n "$(tail -c 1 "${file}")" ]; then
+      printf '\n' >> "${file}"
+    fi
+
+    if ! grep -Fxq -- "${GITATTRIBUTES_HEADER}" "${file}"; then
+      # 既存の内容があるときだけ、区切りの空行を挟む
+      if [ -s "${file}" ]; then
+        printf '\n' >> "${file}"
+      fi
+      printf '%s\n' "${GITATTRIBUTES_HEADER}" >> "${file}"
+    fi
+
+    printf '%s\n' "${rule}" >> "${file}"
+  done
+}
+
+ensure_gitattributes_rules "${GITATTRIBUTES}" "${attribute_rules[@]}"
+
 echo "=== Setup Completed Successfully! ==="
 echo "The mr-driven-develop workflow assets have been applied to your repository."
 echo ""

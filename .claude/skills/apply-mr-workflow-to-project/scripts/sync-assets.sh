@@ -83,6 +83,9 @@ cp -f "${PROJECT_ROOT}/GEMINI.md" "${ASSETS_DIR}/GEMINI.md" || true
 cp -f "${PROJECT_ROOT}/CLAUDE.md" "${ASSETS_DIR}/CLAUDE.md" || true
 cp -f "${PROJECT_ROOT}/HANDOFF.md" "${ASSETS_DIR}/HANDOFF.md" || true
 cp -f "${PROJECT_ROOT}/index.md" "${ASSETS_DIR}/index.md" || true
+# .gitattributes は配布先へ丸ごとコピーせず、install-to-project.sh が必要な行だけを追記する
+# （配布先の既存の正規化・diff/merge driver 設定を壊さないため。issue #33）。
+cp -f "${PROJECT_ROOT}/.gitattributes" "${ASSETS_DIR}/.gitattributes" || true
 
 # 6. スキル初期化時に生成された一時的なプレースホルダーファイルの削除
 rm -rf "${SKILL_DIR}/references/example_reference.md" \

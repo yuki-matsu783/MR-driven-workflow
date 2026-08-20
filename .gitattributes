@@ -1,0 +1,13 @@
+# 改行コードの正規化（issue #33）。
+#
+# `* text=auto` はこのリポジトリ全体の方針で、Gitがテキストと判定したファイルを
+# リポジトリ内部ではLFで保持する。作業ツリーの改行は各開発者の `core.autocrlf` に委ねる。
+# **この行は配布しない**（配布先の正規化方針は配布先が決めるべきもので、勝手に足すと
+# 配布先の既存ファイルが次のコミットで一斉に正規化されうるため）。
+* text=auto
+
+# `.sh` は作業ツリーでも必ずLFにする。CRLFで取り出されると、シバン行の解釈に失敗して
+# `bash: $'\r': command not found` となり、スクリプトが動かない。
+# **この行は配布対象**（`install-to-project.sh` が配布先の `.gitattributes` へ追記する）。
+# 規約: .claude/rules/shell-script-style.md「前提・保存形式」
+*.sh text eol=lf
