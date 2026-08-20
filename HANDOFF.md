@@ -15,8 +15,8 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - issue: #33 配布テンプレートとして不足している資産（PR/MRテンプレート・LICENSE・.gitattributes・版管理）を整備する
 - ブランチ: claude/distribution-template-assets-oi4uai
 - PR: #136 (Draft) https://github.com/yuki-matsu783/MR-driven-workflow/pull/136
-- push回数: 1
-- 現在のループ: 2-6〜2-9 の1周目（進行中・人間レビュー未実施）
+- push回数: 5
+- 現在のループ: 3-6〜3-9 の1周目（進行中・人間レビュー未実施）
 - 追従監視: 購読あり（subscribe_pr_activity で PR #136 を購読。セッション終了で止まるため、次セッションは resume で取り直す）
 
 ## フロー進捗状況
@@ -33,22 +33,22 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 | [x] | 2-2 | `commit`スキル経由でcommitし、push してレビュー依頼を行う | エージェント |
 | [] | 2-3 | MRで調査計画についてレビュー・コメントする | 人間 |
 | [] | 2-4 | レビュー内容を取得し、調査計画を修正する | `comments` / `reply` |
-| [] | 2-5 | 調査計画をもとにMR descriptionを更新する | `describe` |
+| [x] | 2-5 | 調査計画をもとにMR descriptionを更新する | `describe` |
 | [] | 2-6 | 調査を実施し、結果を`reports/日付_<全体計画名>_<内容を簡潔に>.md`とworklogに記録する | エージェント |
 | [] | 2-7 | `commit`スキル経由でcommitし、push してレビュー依頼を行う | エージェント |
 | [] | 2-8 | MRで調査結果についてレビュー・コメントする | 人間 |
 | [] | 2-9 | レビュー内容を取得し、調査結果を修正する | `comments` / `reply` |
-| [] | 2-10 | 調査結果をもとにMR descriptionを更新する | `describe` |
+| [x] | 2-10 | 調査結果をもとにMR descriptionを更新する | `describe` |
 | [x] | 3-1 | 調査結果をもとに、個別作業計画`plans/【設計】【実装】〜.md`等をplanツールを使わずWrite/Editで作成する | エージェント |
 | [x] | 3-2 | `commit`スキル経由でcommitし、push してレビュー依頼を行う | エージェント |
 | [] | 3-3 | MRで作業計画についてレビュー・コメントする | 人間 |
 | [] | 3-4 | レビュー内容を取得し、作業計画を修正する | `comments` / `reply` |
-| [] | 3-5 | 作業計画をもとにMR descriptionを更新する | `describe` |
+| [x] | 3-5 | 作業計画をもとにMR descriptionを更新する | `describe` |
 | [] | 3-6 | 作業計画をもとに作業を進める | エージェント |
 | [] | 3-7 | `commit`スキル経由でcommitし、push してレビュー依頼を行う | エージェント |
 | [] | 3-8 | MRでレビュー・コメントする | 人間 |
 | [] | 3-9 | レビュー内容を取得し、実装・ドキュメントを修正する | `comments` / `reply` |
-| [] | 3-10 | 作業内容をもとにMR descriptionを更新する | `describe` |
+| [x] | 3-10 | 作業内容をもとにMR descriptionを更新する | `describe` |
 | [] | 4-1 | 作業結果と`plans/` `worklog/` の内容をもとに、個別反映計画`plans/【設計反映】【AIアセット反映】〜.md`等をplanツールを使わずWrite/Editで作成する | エージェント |
 | [] | 4-2 | `commit`スキル経由でcommitし、push してレビュー依頼を行う | エージェント |
 | [] | 4-3 | MRで反映計画についてレビュー・コメントする | 人間 |
