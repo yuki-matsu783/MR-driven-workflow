@@ -343,8 +343,15 @@ JQ
 #
 # Gemini分を1階層下へ置くのは意図的である。集計側 _usage_aggregate_and_merge_subagents の
 # glob は `subagents/agent-*.jsonl` であり、`subagents/<session_id>/` というディレクトリには
-# マッチしない。「Geminiのログは保存するが対応工数の集計対象にはしない」というissue #23の
+# マッチしない。「Geminiの**サブエージェント**は保存するが対応工数の集計対象にはしない」という
 # スコープ境界が、追加のガード条件を書かずに構造だけで保証される。
+#
+# 注意（issue #97）: このスコープ境界は**サブエージェントについてのみ**成り立つ。issue #23時点では
+# Geminiのログ全体（メイン・サブエージェントとも）が集計対象外だったが、issue #97で
+# **メインセッションは集計対象になった**。この関数がコピーする `${log_dir}/main.jsonl` は
+# _sync_usage_state_gemini → _usage_gemini_fold の集計入力である。両者を区別せずに
+# 「Geminiのログは集計しない」と読まないこと（設計判断:
+# .claude/docs/ddr/0054-Gemini-CLIのサブエージェントは保存のみとし集計しない.md）。
 _usage_sync_session_logs() {
   local repo_root="$1" session_id="$2" transcript_path="$3" engine="${4:-claude}"
 
