@@ -15,7 +15,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - issue: #53 block-direct-git-commit.sh の誤検知を減らす（コマンド位置での判定）
 - ブランチ: claude/block-direct-git-commit-false-positives-mc1n43
 - PR: #147 (Draft) https://github.com/yuki-matsu783/MR-driven-workflow/pull/147
-- push回数: 2
+- push回数: 3
 - 現在のループ: なし
 - 追従監視: 購読あり（web。subscribe_pr_activity。定期チェックインは未予約）
 
@@ -39,7 +39,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 | [] | 2-8 | 調査結果のレビュー | 人間 |
 | [] | 2-9 | レビュー反映（2-6〜2-9を繰り返す） | サブコマンド |
 | [] | 2-10 | MR description更新 | サブコマンド |
-| [] | 3-1 | 個別作業計画の作成 | エージェント |
+| [x] | 3-1 | 個別作業計画の作成 | エージェント |
 | [] | 3-2 | commit・push・レビュー依頼 | エージェント |
 | [] | 3-3 | 作業計画のレビュー | 人間 |
 | [] | 3-4 | レビュー反映（3-3〜3-4を繰り返す） | サブコマンド |
@@ -85,12 +85,22 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
   - `${s:i:1}` の1文字走査は二乗で伸び、`LC_ALL=C` でも改善しない。行配列＋チャンク読み飛ばしへ。
 - **人間のレビュー（flow-id 2-3/2-8）は非対話セッションのため実施できていない。**
   該当するループ範囲の進捗記号は `[]` のまま残してある。
+- flow-id 3-1: 個別作業計画
+  `plans/【実装】【テスト】コマンド位置判定ライブラリとhookへの適用.md` を作成した。
+- flow-id 3-6: 実装した。`.claude/hooks/lib/CommandPosition.sh`（新規・約300行）へ判定を切り出し、
+  `block-direct-git-commit.sh` と push検知hook2本の判定を差し替えた。単体テスト54件を
+  `.claude/scripts/test/test_command_position.sh` へ追加。結果は
+  `reports/2026-08-20_hook-command-position-detection_実装結果.md` に記録した。
+  - 20ケースすべてが期待どおりになった（変更前は7件が食い違い）。
+  - 既存テスト15ファイル・計829件すべて `failures=0`（回帰なし）。
+  - CR混入下（スタブjq）でも結果が変わらないことを確認した。
+- **人間のレビュー（flow-id 3-3/3-8）は非対話セッションのため実施できていない。**
+  該当するループ範囲の進捗記号は `[]` のまま残してある。代わりに `adversarial-review` を実施する。
 
 ## 次にやること
 
-- flow-id 3-1: 個別作業計画を作成する。
-- flow-id 3-6: 実装結果を `reports/` へ記録する（実装自体は調査と並行して着手済み）。
-- 実装のpush後に `adversarial-review` を実施する。
+- 実装のpush後に `adversarial-review` を実施し、出た指摘へ対応する。
+- flow-id 4-1: 反映対象を洗い出し、個別反映計画を作成する。
 
 ## 判断を迷った内容
 
