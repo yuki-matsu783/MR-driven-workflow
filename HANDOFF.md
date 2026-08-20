@@ -18,8 +18,8 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - ブランチ: `feature-97-support-gemini-cli-usage-report`
 - PR: #101 https://github.com/yuki-matsu783/MR-driven-workflow/pull/101 （Draft）
 - 追従監視: なし（ローカル。各pushとflow-id 5-2で手動確認する）
-- push回数: 5
-- 現在のループ: 3-3〜3-4 の1周目（進行中）
+- push回数: 6
+- 現在のループ: 3-6〜3-9 の1周目（進行中）
 
 | 進捗 | flow-id | ステップ | 担当 |
 |---|---|---|---|
@@ -41,9 +41,9 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 | [x] | 2-10 | 調査結果をもとにMR descriptionを更新する | `describe` |
 | [x] | 3-1 | 個別作業計画を作成する | エージェント |
 | [x] | 3-2 | commit・pushしてレビュー依頼 | エージェント |
-| [] | 3-3 | 作業計画のレビュー | 人間 |
-| [] | 3-4 | レビュー内容を反映する | `comments` / `reply` |
-| [] | 3-5 | 作業計画をもとにMR descriptionを更新する | `describe` |
+| [x] | 3-3 | 作業計画のレビュー | 人間 |
+| [x] | 3-4 | レビュー内容を反映する | `comments` / `reply` |
+| [x] | 3-5 | 作業計画をもとにMR descriptionを更新する | `describe` |
 | [] | 3-6 | 作業計画をもとに作業を進める | エージェント |
 | [] | 3-7 | commit・pushしてレビュー依頼 | エージェント |
 | [] | 3-8 | 作業内容のレビュー | 人間 |
@@ -184,26 +184,42 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
     追加する**ことを計画へ追加した。既存33ケースは集計側のテストでレポート本文を1件も
     通っておらず、「レポート内容が変わらない」担保が成立していなかったため。
   返信は9スレッドすべてへ投稿済み。
+- **flow-id 3-5（MR description更新）**: フェーズ3の計画内容・レビューで設計が変わった3点・
+  進捗表を反映した。
+- **flow-id 3-6（実装）を実施した。** 変更は3ファイル。
+  - `UsageTracking.sh`: `_usage_gemini_fold` / `_usage_gemini_merge_state` /
+    `_usage_read_gemini_totals` / `_usage_write_gemini_totals` / `_sync_usage_state_gemini` を新設。
+    **`sync_usage_state` への追加は分岐と委譲の5行だけ**で、Claude Code経路の既存行は1行も動かない。
+  - `post-push-usage-report.sh`: 本文組み立てを `build_usage_report_body` へ切り出し、
+    `BASH_SOURCE` ガードを追加。トークン列をデータで切り替え、使用モデル行・ツールエラー行・
+    ブランチ帰属の注記を追加、投稿ガードを engine=gemini のときだけ拡張。
+  - `test_usage_tracking.sh`: 33 → 81ケース（既存33のアサーションは1行も変更していない）。
+  - **実装時に決めた**（計画で保留していた3点）: `_usage_append_push_index` はGemini経路で
+    **呼ばない**（行番号が「まだ数えていない量」を表さないため）／`toolErrors` 行は
+    `**ツール実行回数**` の直後／`def epoch_from_iso8601` は**複製**した。
+  - 結果の正文は `reports/20260820_partitioned-forging-seahorse_Gemini集計の実装.md`。
+    HTMLは作っていない（表主体で視覚化の必要が薄いため）。
+- **Claude Code側が変わらないことを2通りで機械的に確認した。**
+  (1) 変更前のテストファイルを新ライブラリに対して実行して `passed=33 failures=0`、
+  (2) 旧スクリプトの本文ブロックをラップして同じ引数で呼び、レポート本文が**バイト一致**すること。
+- **実装中に自分の不具合を1件見つけて直した**: `awaiting_approval`（未完了）を実行回数に
+  数えていた（決定H違反）。各statusを1件ずつ含むフィクスチャを最初に作ったことで露見した。
 
 ## 次にやること
 
-- **flow-id 3-3〜3-4（1周目）の合意待ち。** 敵対的レビューの指摘10件を反映した個別作業計画を
-  確認してもらい、合意が取れたら `mark-done 3-3` でループ範囲を完了にする。
-- 合意後は flow-id 3-5（MR description更新）→ 3-6（実装）へ。
-- 実装で新設する関数は `_usage_gemini_fold` / `_usage_gemini_merge_state` の2つ。
-  **`UsageTracking.sh` の既存関数は `sync_usage_state` の分岐追加以外は触らない**（既存33ケースを
-  1行も変えないことが「Claude Code側の**集計結果**が変わらない」ことの担保になる）。
-  ただし**レポート内容の担保はテストケース13の(a)が別途持つ**（既存33ケースは集計側のテストで
-  あり、レポート本文を1件も通っていないため。レビュー指摘で判明）。
-- `post-push-usage-report.sh` は本文組み立ての切り出し（`build_usage_report_body`）と
-  `BASH_SOURCE` ガードの追加を伴う。**Claude Code経路の出力バイト列が変わらないこと**を
-  ケース13の(a)で必ず確認する。
-- 3-6の着手時に worklog
-  `worklog/日付_partitioned-forging-seahorse_【実装】【テスト】Gemini CLIセッションログの集計を追加する_push<N>.md`
-  を作成する。
-- DDRに残す判断: C・D・E・F・I・S（フェーズ4で採番する）。**レビューで新たに決まった
-  「前回累計はブランチ非依存に持つ」「列構成はengineでなくデータで決める」も候補に加える。**
-
+- **flow-id 3-8（作業内容のレビュー）** を待つ。人間のレビュー完了連絡があるまでフェーズ4へ進まない。
+- 合意が取れたら flow-id 3-10（MR description更新）→ 4-1（個別反映計画）へ。
+- **フェーズ4でDDR化する判断**（採番は flow-id 4-6 の直前に `main` の最新を見て行う）:
+  - 調査で確定: C（累計差分方式）・D（`$rewindTo`）・E（ブランチ帰属）・F（トークン列）・
+    I（サブエージェント）・S（消失検知）
+  - レビューで決定: **前回累計はブランチ非依存に持つ**（`usage/state/gemini-totals/`）・
+    **トークン列の構成はengineではなくデータで決める**
+  - 実装で決定: **`_usage_append_push_index` はGemini経路で呼ばない**
+- **spec反映の候補**: `.claude/docs/spec/issue-mr-workflow.md` の
+  「Gemini CLIはミラーへの保存のみ対応し、対応工数の集計対象には含めない」という記述の更新、
+  「未検証として残る範囲」（実機検証をしていない4点。reportsに列挙済み）の追記。
+- **AIアセット反映の候補**: `resolve-conflict` スキルへ「自動マージで入った行も確認する」
+  （2回目のmainマージで得た教訓）。
 ## 判断を迷った内容
 
 - **セッションログの形式**: 当初はissue本文どおり「単一JSON」を前提に計画を書いたが、ユーザーの
