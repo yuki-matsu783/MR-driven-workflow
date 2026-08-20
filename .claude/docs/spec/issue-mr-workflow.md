@@ -102,6 +102,7 @@ MRとのやり取りだけを自動化する薄い層」として設計したが
 | `add_mr_comment <n> <bodyFile>` | PR/MRへ新規コメントを1件投稿（スレッド返信・レビューではない通常コメント） | `gh pr comment --body-file` | `glab api`（notes追加） |
 | `add_mr_inline_comments <n> <findingsFile>` | findings JSONファイルの指摘を、PR/MRへインラインコメントとして投稿する（敵対的レビュー用。issue #77）。投稿できなかった指摘はサマリへ回し、`{"posted":N,"summarized":M}` を返す。findingsは**必ずファイル経由で渡す**（引数長上限とhook誤検知の回避）。仕様は [adversarial-review.md](adversarial-review.md) を正とする | `gh api pulls/<n>/reviews`（1レビューへまとめて投稿。有効行を事前検証） | `glab api discussions`（1件ずつPOST。`position` を `diff_refs` から組み立てる。サマリも指摘を含むなら `position` 無しの `discussions` でスレッドとして投稿する） |
 | `add_issue_comment <n> <bodyFile>` | **任意のissue**へ新規コメントを1件投稿（全体フロー flow-id 5-2: マージ前の関連issue通知。issue #86）。宛先がPR/MRである `add_mr_comment` とは別関数で、GitHub実装が `gh pr comment` であるためPR以外へ投げられなかったのが分離の理由。本文はファイル経由（push検知hookの誤発火を避けるため）。投稿先・本文の決定と人間の承認は呼び出し側の責務 | `gh issue comment --body-file` | `glab api`（issues notes追加。【未検証】） |
+| `upload_attachment <file> [<contentType>]` | ファイルをPR/MR本文へ埋め込める形でアップロードし `{url, markdown, provider}` を返す（全体フロー flow-id 5-3 の**層3**。issue #111）。**失敗は正常系のひとつ**で、呼び出し側は非0を受けてスキップする | **未ドキュメントAPI**（`uploads.github.com/user-attachments/assets` へ `curl`。`gh` に添付用フラグが無い） | `glab api projects/:id/uploads -F file=@<path>`（公式API・**実機未検証**） |
 | `sync_branch <branch>` | 現在のブランチをfetch、必要ならcheckout（新しいセッションでの再開用） | `git fetch` + `git checkout` | 同左 |
 | `test_issue_sections <body>` | issue本文に「目的／現状／期待する動作／受け入れ条件」の4見出しが揃っているか確認し、欠けている見出し名を1行1件でstdoutへ出力する（プロバイダ非依存） | — | — |
 | `get_issue_number_from_branch [<branch>]` | ブランチ名を `branchPrefixTemplate` に照らしてissue番号を抽出する（省略時は現在のブランチ）。マッチすればstdoutへ出力し終了コード0、マッチしなければ終了コード1（プロバイダ非依存） | — | — |
@@ -215,7 +216,7 @@ Draft解除は、クローズ・書き直し・Draftへの差し戻しでいつ�
 更新のため対象外。
 
 担当表と手順の詳細は `.claude/rules/git-workflow.md`「PR・マージ」節が正であり、
-`.claude/skills/issue-mr-flow/SKILL.md`「PR/MR作成・マージの担当（flow-id 1-3・5-4・5-5）」節が
+`.claude/skills/issue-mr-flow/SKILL.md`「PR/MR作成・マージの担当（flow-id 1-3・5-5・5-6）」節が
 フロー側からの入口になる。判断の理由・却下案は
 [i0041-01-PR_MR作成はAIエージェントに委ねマージのみ明示指示を必須にする.md](../ddr/i0041-01-PR_MR作成はAIエージェントに委ねマージのみ明示指示を必須にする.md)。
 
@@ -599,7 +600,7 @@ PRが多いほど、この期間のコンフリクトを取りこぼす（実例
 `main` が4回進み、DDR番号を 0034→0035→0036→0038 と3回繰り下げた）。
 
 この追従を、**flow-idを持たないフェーズ横断の並行手順**として定義する。flow-id 1-3（PR作成）の
-直後に開始し、5-5（マージ）またはPRのクローズで停止する「期間」であり、進捗表の1行として完了を
+直後に開始し、5-6（マージ）またはPRのクローズで停止する「期間」であり、進捗表の1行として完了を
 表せる性質のものではないため、flow-idは増やしていない。**flow-id 5-1 は「最終ゲート」として残す**
 （監視は実行環境の機能とセッションの寿命に依存するため、一度も動かないセッションがありうる）。
 
@@ -640,9 +641,9 @@ PRが多いほど、この期間のコンフリクトを取りこぼす（実例
 | 影響先が無い場合 | **スキップしてよい**。ただし「影響先なし」と判断したことは `HANDOFF.md` へ残す |
 
 **現在のフェーズ5内の位置**: issue #112 でフェーズ5を並べ替えた結果、本ステップは
-**flow-id 5-2**（コンフリクト解消 5-1 の次、片付け 5-3 の前）である。上表の「挿入位置」は
+**flow-id 5-2**（コンフリクト解消 5-1 の次、統括レポート 5-3・片付け 5-4 の前）である。上表の「挿入位置」は
 issue #86 当時の並び（5-1 片付け → 5-2 コンフリクト解消 → 5-3 本ステップ）を指す。並べ替えにより、
-「影響先なし」の判断を書き戻す `HANDOFF.md` が、片付け（5-3）のリセット前に残っている状態になった。
+「影響先なし」の判断を書き戻す `HANDOFF.md` が、片付け（5-4）のリセット前に残っている状態になった。
 キーワード抽出時に `plans/` `worklog/` `reports/` を差分から除外するのも並べ替えに伴う変更である
 （issue #86 当時は片付けが先だったため、これらは既に差分から消えていた）。
 
@@ -653,6 +654,81 @@ PR番号か通知先issue番号かで異なる）。手順の正は
 `.claude/skills/issue-mr-flow/SKILL.md`「マージ前の関連issue通知（flow-id 5-2）」節。判断の理由・
 却下案（マージ後の通知・自動投稿・専用サブコマンド化等）は
 [i0086-01-マージ前の関連issue通知はDraft解除の直前に置き投稿前の人間承認を必須にする.md](../ddr/i0086-01-マージ前の関連issue通知はDraft解除の直前に置き投稿前の人間承認を必須にする.md)。
+
+### 最終統括レポートとPR/MRへの反映（issue #111）
+
+**タスク（issue／ブランチ）の完了時に、そのブランチで何をやったかを1枚にまとめた最終統括
+レポートを作成し、PR/MR上へ残す**ステップ（flow-id 5-3）を設けた。`plans/` `worklog/` `reports/`
+は片付け（flow-id 5-4）で削除され、squash mergeにより `main` にも残らないため、ブランチ全体を
+統括した成果を後から一望する手段が無かった。
+
+| 観点 | 決めたこと |
+|---|---|
+| 挿入位置 | **flow-id 5-2（関連issue通知）と旧5-3（片付け）の間**。旧5-3→5-4、旧5-4→5-5、旧5-5→5-6 へ繰り下げ、全41→42ステップ |
+| ステップの粒度 | **作成 → commit・push → サマリ投稿 →（任意）添付**を1ステップに含む複合ステップ。作るだけで片付けへ進むと、作成と削除が同じ作業ツリー上で相殺され**ブランチのコミット履歴にすら残らない** |
+| 成果物 | `reports/日付_<全体計画名>_統括.md`（正文・必須）と同名の `.html`（人間レビュー用ビュー） |
+| HTMLの土台 | `.claude/skills/issue-mr-flow/assets/reports.template.html`（**issue #54 の成果物。未作成の間は手書きへフォールバックする**） |
+| 反映の構造 | **3層のフォールバック**（下表）。層3が壊れても層1・層2でレビューは成立する |
+| サマリの1行目 | **`Claude Codeより（最終統括レポート）:`**。既存の通常コメント3種の書式は変更しない |
+| ライフサイクル | 統括レポート自体も **flow-id 5-4 の削除対象**。`main` に残るのはPR/MR上のコメントと `spec/` `ddr/` |
+
+#### 3層のフォールバック構造
+
+| 層 | 何をするか | 必須か | 依存する外部API |
+|---|---|---|---|
+| 層1 | レポート本体を `reports/` に載せ、`commit` スキル経由でリモートへ反映する | **必須** | 無し（git操作のみ） |
+| 層2 | サマリをMarkdownでPR/MRへコメント投稿する（`add_mr_comment`） | **必須** | **公式API**（GitHub/GitLab両対応） |
+| 層3 | HTMLを添付する（`upload_attachment`） | **任意** | GitHub: **未ドキュメントAPI** / GitLab: 公式API（実機未検証） |
+
+**未ドキュメントAPIへの依存は層3だけに閉じ込めてある。** GitHubにはPR/issueへの添付を行う公式
+APIが無く、`gh` にも添付用フラグが無い（要望はcli/cli#12960で「プラットフォームAPI待ち」）。
+Web UIのドラッグ＆ドロップと同じ `uploads.github.com/user-attachments/assets` を使う方法があるが、
+**予告なく壊れる前提で扱う必要がある**。層2が「ファイルが消えても残る」という要求を単独で
+満たしているため、層3はその上に載る利便性にすぎない。
+
+**`upload_attachment` の失敗は正常系のひとつである。** 呼び出し側は非0終了を受けて警告のみ出し、
+フローを続ける。**成功したかどうかでサマリコメントの本質的な内容が変わってはならない。**
+
+#### この実行環境では層3が動かないことの実測（issue #111 フェーズ2）
+
+| 確認内容 | 結果 |
+|---|---|
+| `gh` / `glab` CLI の有無 | **どちらも無し**（`curl` のみ） |
+| `GH_TOKEN` / `GITHUB_TOKEN` | 存在するが**14文字**で、GitHubのトークン形式（40文字／82文字以上）のいずれにも一致しない |
+| MCPの添付ツール | **該当なし**（返るのはリポジトリのファイル操作系のみ） |
+| `uploads.github.com` への到達性 | **403**（認証情報なしのPOST） |
+| 比較対照 `api.github.com` | **200** |
+
+**403の発信元（エージェントプロキシかGitHubか）は切り分けられていない**（レスポンスヘッダを
+取得するコマンドが実行環境の権限判定でブロックされた）。したがって言えるのは「**この環境では
+動かない**」までで、「このエンドポイントが壊れている」とは言えない。**1環境・1回の観測**であり、
+`gh` CLI のあるローカル（git bash）では結果が変わりうる。
+
+それでも設計上の含意は変わらない。未ドキュメントAPIが将来壊れるという想定以前に、**現時点で
+既に動かない環境が存在し、しかもそれがこの機構の主要な作業環境である**。
+
+#### PR/MRの通常コメントの種別
+
+`add_mr_comment` で投稿される通常コメント（レビュースレッドではないもの）は、本issueの追加で
+**4種類**になった。投稿者アカウントはCLI・MCPのどちらの経路でも人間のものとして表示されるため、
+**種別は本文の1行目で判別する**。
+
+| 種別 | 本文1行目 | 出どころ |
+|---|---|---|
+| チャットで受けたレビュー判断の記録 | `Claude Codeより: チャットで受けたレビュー判断の記録（…）` | DDR i0050-01 |
+| スレッドを持たない指摘への対応記録 | `Claude Codeより:` | DDR i0109-01 |
+| 対応工数レポート | `Claude Codeより: 自動投稿（post-push-usage-report.sh …）` | issue #15 |
+| **最終統括レポートのサマリ** | **`Claude Codeより（最終統括レポート）:`** | issue #111 |
+
+**括弧付きの種別ラベルには前例がある**（敵対的レビューのインラインコメント
+`Claude Codeより（敵対的レビュー）:`）。新しい1種だけがラベルを持てば「これは統括レポートか、
+それ以外か」を判別できるため、既存3種は書き換えていない。
+
+手順の正は `.claude/skills/issue-mr-flow/SKILL.md`「最終統括レポートとPR/MRへの反映（flow-id 5-3）」節。
+判断の理由・却下案（添付を必須にする・GitLabだけ対応する・レポートを `main` へ残す・
+MR descriptionへ書く・全種へラベルを付け直す）は
+[i0111-01-統括レポートの添付は任意層に置きフローを止めない.md](../ddr/i0111-01-統括レポートの添付は任意層に置きフローを止めない.md)
+を参照。
 
 ### セッション開始時の自動コンテキスト注入（SessionStart hook）
 
@@ -754,6 +830,11 @@ Claude Code on the webのリモート実行環境のように、`gh`/`glab` CLI�
   `.claude/skills/issue-mr-flow/SKILL.md`「`gh`/`glab` CLI不在時のMCPフォールバック」節に置く
   （本specは仕組みの説明に留め、対応表を二重管理しない）。`issue-create` スキル
   （`create-issue.sh`）についても同スキル側に読み替え手順を書く。
+- **代替が無い唯一の関数**: `upload_attachment`（issue #111）。MCPには**PR/issueへの添付に相当する
+  ツールが存在しない**（実測で確認）。`mcp_tool_hint` は読み替え先のツール名ではなく
+  「**flow-id 5-3 の層3（添付）はスキップしてよい**」という案内を返す。層1（`reports/` を
+  リモートへ反映）・層2（サマリコメント）だけでレビューが成立する設計にしてあるため、
+  ここでの失敗はフローを止めない（下記「最終統括レポートとPR/MRへの反映」）。
 - **機構的な誘導**: プロバイダ依存の11関数（`get_issue` / `new_issue` / `search_issues` /
   `new_draft_merge_request` / `get_mr_unresolved_comments` / `add_mr_thread_reply` /
   `get_mr_for_branch` / `set_mr_description` / `set_mr_ready` / `add_mr_comment` /
@@ -3104,6 +3185,59 @@ point-in-time記録のため書き換えていない**ので、そちらの「�
   「レビュー完了合図の確認」節の (1)(2) 分割、「敵対的レビューの位置づけ」表への返信の行、
   MCP読み替え表の `comments [all]` 行へ未返信判定の追記）
 - `.claude/docs/spec/issue-mr-workflow.md`（本ファイル。上記の手順番号追随と本エントリ）
+
+### issue #111: 最終統括レポートの作成とPR/MRへの反映（flow-id 5-3 の新設）
+
+タスク完了時の統括をPR/MR上へ残せるようにした。フェーズ5へ **flow-id 5-3「最終統括レポートの
+作成とPR/MRへの反映」** を新設し、片付け以降を繰り下げた（旧5-3→5-4、旧5-4→5-5、旧5-5→5-6。
+**全41→42ステップ**）。反映は3層のフォールバック構造とし、**未ドキュメントAPIへの依存を任意の
+層3だけに閉じ込めた**。決定の背景・却下案は
+[.claude/docs/ddr/i0111-01-統括レポートの添付は任意層に置きフローを止めない.md](../ddr/i0111-01-統括レポートの添付は任意層に置きフローを止めない.md)。
+
+**issueの本文が指す「flow-id 5-1（片付け）より前」は起票当時の番号である。** issue #112 の
+並べ替え（DDR i0112-01）により片付けは 5-3 になっていたため、「片付けより前」という**意図**を
+満たす位置として新 5-3 を選んだ（5-1・5-2 の参照を無傷に保てる位置でもある）。
+
+**番号繰り下げの適用範囲**（issue #47 が踏んだ「過去の記録まで一括置換する」事故を避けるため、
+事前に分類してから当てた）。
+
+| 群 | 行数 | 扱い |
+|---|---|---|
+| 書き換える | 68 | 現在の手順・状態の説明 |
+| 凍結（spec の過去changelog） | 9 | 本ファイルの `## 影響範囲` 以降。**触っていない** |
+| 凍結（DDR本文） | 9 | 本文は不変。新たに陳腐化した `i0028-01` `i0117-01` `i0113-01` へは frontmatter の `note` を足した |
+
+`i0041-01` `i0086-01` の flow-id 参照は issue #112 由来で既に陳腐化していたが、今回の変更が
+原因ではないため触っていない。
+
+**この環境では層3（添付）が動かない**ことをフェーズ2で実測した（`gh` CLI 無し／トークンが
+不正形式／MCPに添付ツール無し／`uploads.github.com` が認証前に403、`api.github.com` は200）。
+403の発信元は切り分けられておらず、結論は「この環境では動かない」に限定してある。詳細は
+上記「最終統括レポートとPR/MRへの反映（issue #111）」節。
+
+**受け入れ条件のうち「htmlが `reports.template.html` を使っている」は部分達成**である。依存する
+issue #54 が未完了でテンプレート実体が無いため、手順には参照だけ書き、無ければ手書きへ
+フォールバックする形にした（テンプレートの新設は #54 の担当のまま）。
+
+更新:
+- `.claude/skills/issue-mr-flow/SKILL.md`（全体フロー表への新 5-3 行、フェーズ表・ステップ数、
+  「最終統括レポートとPR/MRへの反映（flow-id 5-3）」節の新設、MCP対応表への `upload_attachment` 行、
+  番号繰り下げ）
+- `.claude/scripts/src/vcs/Provider.sh`（`upload_attachment` / `content_type_from_path_to_reply` の
+  新設、`mcp_tool_hint` への「代替が無い」分岐）
+- `.claude/scripts/src/vcs/Github.sh`（`github_upload_attachment`。未ドキュメントAPI依存を明記）
+- `.claude/scripts/src/vcs/Gitlab.sh`（`gitlab_upload_attachment`。公式APIだが実機未検証と明記）
+- `.claude/scripts/test/test_vcs_provider.sh`（`assert_contains` の新設、content-type推定と
+  `upload_attachment` の早期リターンのテスト。178→192件）
+- `.claude/docs/spec/issue-mr-workflow.md`（本ファイル。上記の節の新設、提供関数表への
+  `upload_attachment` 行、MCPフォールバック節への「代替が無い唯一の関数」、本エントリ）
+- `.claude/docs/ddr/i0111-01-統括レポートの添付は任意層に置きフローを止めない.md`（新規）
+- `.claude/rules/docs-workflow.md` / `git-workflow.md` / `directory-structure.md` /
+  `markdown-frontmatter.md`、`.claude/docs/spec/cleanup-task.md` / `create-commit.md` /
+  `extract-frontmatter.md` / `update-handoff-progress.md`、`.claude/scripts/src/cleanup-task.sh` /
+  `update-handoff-progress.sh`、`.claude/skills/commit/SKILL.md` / `canvas-report/SKILL.md` /
+  `doc-search/SKILL.md`、`index.md`、`reports/REVIEW-POINTS.md`（いずれも番号繰り下げ）
+- `.claude/docs/README.md`（DDR一覧の再生成）
 
 ## 未決定事項・懸念点
 
