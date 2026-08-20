@@ -38,6 +38,7 @@ keywords: [正史仕様, 意思決定ログ, issue-mr-workflow, シェルスク�
 - [check-base-sync.md](spec/check-base-sync.md) ── 作業開始・再開時のベースブランチ追従確認スクリプト
 - [create-commit.md](spec/create-commit.md) ── コミット実行ラッパー（commitスキル専用）
 - [adversarial-review.md](spec/adversarial-review.md) ── 敵対的レビュー（専任サブエージェント・インラインコメント投稿）
+- [distribution-assets.md](spec/distribution-assets.md) ── 配布テンプレート資産（PR/MRテンプレート・`.gitattributes`・VERSION）と配布経路での扱い
 - [cleanup-task.md](spec/cleanup-task.md) ── flow-id 5-3 後片付けの自動化スクリプト
 - [search-frontmatter.md](spec/search-frontmatter.md) ── ドキュメント横断検索スクリプト（index.jsonl検索）
 
@@ -107,4 +108,7 @@ DDRのうち0001・0002・0008・0015は持ち込んでいない**（連番に�
 - [0058-フェーズ5は片付けをcommit直前へ移した順序に並べ替える.md](ddr/0058-フェーズ5は片付けをcommit直前へ移した順序に並べ替える.md)
 - [0059-issue-mr-flow対象ブランチではSKILL.mdの再読み込みを注入で促す.md](ddr/0059-issue-mr-flow対象ブランチではSKILL.mdの再読み込みを注入で促す.md)
 - [0060-レビューコメントのソース断面はコメント時点のshaを優先し現HEADへ縮退する.md](ddr/0060-レビューコメントのソース断面はコメント時点のshaを優先し現HEADへ縮退する.md)
-- [0061-敵対的レビュー由来のスレッドも人間の指摘と同列に返信を必須とする.md](ddr/0061-敵対的レビュー由来のスレッドも人間の指摘と同列に返信を必須とする.md)
+- [0061-配布物の版はVERSIONファイル1つで表しCHANGELOGを持たない.md](ddr/0061-配布物の版はVERSIONファイル1つで表しCHANGELOGを持たない.md)
+- [0062-配布テンプレートにLICENSEを同梱しない.md](ddr/0062-配布テンプレートにLICENSEを同梱しない.md)
+- [0063-gitattributesは配布先へ丸ごとコピーせず必要な行だけ追記する.md](ddr/0063-gitattributesは配布先へ丸ごとコピーせず必要な行だけ追記する.md)
+- [0064-敵対的レビュー由来のスレッドも人間の指摘と同列に返信を必須とする.md](ddr/0064-敵対的レビュー由来のスレッドも人間の指摘と同列に返信を必須とする.md)

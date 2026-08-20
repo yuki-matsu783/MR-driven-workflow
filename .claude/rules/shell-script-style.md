@@ -18,9 +18,11 @@ issue #6でリポジトリ内の開発補助スクリプトを全てPowerShell�
   （`.claude/docs/spec/shell-scripts.md`の未決定事項参照）。
 - ファイルはUTF-8・**BOM無し**・LF改行で保存する（PowerShellの`.ps1`と異なり、BOMは不要かつ
   有害。シバン行`#!/usr/bin/env bash`の直前にBOMがあるとインタプリタ判定に失敗する処理系がある）。
-  このリポジトリは`core.autocrlf=input`のためコミット時にCRLFはLFへ変換されるが、Write/Editツール
-  で新規作成した時点で既にLFになっていることを前提にしており、そこに依存しない保証がほしい場合は
-  `.gitattributes`に`*.sh text eol=lf`を追加する運用も検討できる（未導入）。
+  **LF改行はリポジトリルートの`.gitattributes`が保証する**（issue #33で導入）。`*.sh text eol=lf`
+  により、各開発者の`core.autocrlf`設定に関係なく`.sh`は作業ツリーでもLFで取り出される
+  （CRLFで取り出されるとシバン行の解釈に失敗し`bash: $'\r': command not found`になる）。
+  この指定は他プロジェクトへの配布時にも配布先の`.gitattributes`へ追記される。配る行の定義・
+  追記の仕組みは[.claude/docs/spec/distribution-assets.md](../docs/spec/distribution-assets.md)を参照。
 - 先頭に `#!/usr/bin/env bash` を置く。
 
 ## エラー方針
