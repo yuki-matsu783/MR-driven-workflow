@@ -110,12 +110,12 @@ assert_eq "要素0個のリストキーは空配列" \
 f="$(make_md quoted.md <<'MD'
 ---
 status: superseded
-superseded_by: "0019"
+superseded_by: "i9-01"
 ---
 MD
 )"
 assert_eq "ダブルクォート付きの値はクォートを外した文字列" \
-  '{"status":"superseded","superseded_by":"0019"}' \
+  '{"status":"superseded","superseded_by":"i9-01"}' \
   "$(frontmatter_to_json "$f")"
 
 f="$(make_md boolean.md <<'MD'

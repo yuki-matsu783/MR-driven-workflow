@@ -41,7 +41,7 @@ keywords: [issue作成, create-issue.sh, issue分割, 並列列挙, 目的, 現�
 
    1. **検索キーワードを3〜5個選ぶ。** 手順1で組み立てたタイトルと目的から、AIエージェント自身が
       選ぶ（`Provider.sh` 側にキーワード抽出は実装されていない。理由:
-      `.claude/docs/ddr/0033-issue起票前の重複チェックは検索をProvider層へ置きキーワード抽出はAIに委ねる.md`）。
+      `.claude/docs/ddr/i68-01-issue起票前の重複チェックは検索をProvider層へ置きキーワード抽出はAIに委ねる.md`）。
       粒度の指針:
       - **選ぶ**: そのissue固有の語（機能名・関数名・スクリプト名・ファイル名・固有名詞）。
         例: `search_issues` `create-issue.sh` `frontmatter` `Draft PR`
@@ -66,7 +66,7 @@ keywords: [issue作成, create-issue.sh, issue分割, 並列列挙, 目的, 現�
       自然言語のセマンティック検索で既に `is:issue` にスコープされているため、CLI版のように
       キーワードごとに呼び分けず、1回の `query` に複数キーワードを平文で並べてよい。
       `owner`/`repo` は `get_repo_slug | jq -r '.owner, .repo'` で得る。
-      WebFetchツール・curlへはフォールバックしない（DDR 0020, DDR 0027）。
+      WebFetchツール・curlへはフォールバックしない（DDR i14-01, DDR i34-01）。
    3. **結果を提示する。** 候補が1件以上あれば「番号・状態・タイトル」の一覧（URL付き）で示し、
       それぞれが今回の依頼とどう近いのか・どこが違うのかを一言添える。
       候補が0件のときは「**類似issueは見つかりませんでした**」と明示したうえで手順4へ進む
@@ -116,7 +116,7 @@ keywords: [issue作成, create-issue.sh, issue分割, 並列列挙, 目的, 現�
    2. 本文は `build_issue_body "<目的>" "<現状>" "<期待する動作>" "<受け入れ条件>"` で組み立てる
       （4見出しの構成をスクリプトと揃えるため。この関数はCLIに依存しない）。
    3. `mcp__github__issue_write`（`method="create"`, `owner`, `repo`, `title`, `body`）で作成する。
-   4. WebFetchツール・curlへはフォールバックしない（DDR 0020, DDR 0027）。
+   4. WebFetchツール・curlへはフォールバックしない（DDR i14-01, DDR i34-01）。
 
 6. **結果を提示する** — 結果（issue番号・URL）をユーザーに提示する。**そのうえで、着手する際は
    新しいセッションで `/issue-mr-flow start <issue番号>` を実行することを勧めるに留める。**

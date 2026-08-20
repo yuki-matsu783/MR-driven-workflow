@@ -24,7 +24,7 @@ OKF（Open Knowledge Format、https://okf.md/spec/ ）のフィールド定義�
 | `tags` | 推奨 | 横断的カテゴリ分類用の文字列リスト（kebab-case、2〜4個程度。ディレクトリ・技術要素・工程等を表す） |
 | `keywords` | 推奨 | OKF標準にはない拡張フィールド。本文中の頻出語・特徴的な語を検索用途で3〜20個（文章量に応じて増減、平均的な長さの文章なら10個前後）リスト形式で記載する。日本語で書かれたファイルでは、英語の技術用語のみに偏らず日本語の単語もバランスよく含める |
 | `status` | DDRのみ・任意 | その意思決定が現在も有効かを表す（下記「DDRのstatus」参照）。省略時は有効（`active`）とみなす |
-| `superseded_by` | DDRのみ・条件付き必須 | `status: superseded` のときに、置き換えた側のDDRの識別子を書く（例: `"i133-01"`。既存の連番DDRを指す場合は `"0019"`。下記「DDRの識別子」参照） |
+| `superseded_by` | DDRのみ・条件付き必須 | `status: superseded` のときに、置き換えた側のDDRの識別子を書く（例: `"i133-01"`。下記「DDRの識別子」参照） |
 
 ## DDRの識別子（ファイル名・`title`）
 
@@ -67,26 +67,44 @@ DDRは**issue番号ベースの識別子**で識別する（issue #133。経緯�
   同じDDRが別の識別子として二重に採番されうる。`check-base-conflicts.sh` の
   `ddr_identifier_to_reply` も小文字の `i` ＋ 枝番ちょうど2桁だけを識別子として受け付ける。
 
-### 既存の連番DDR（`0003` 以降の4桁連番）の扱い
+### 対応issueを持たないDDR（`i00`）
 
-**改番しない。** 既存分のファイル名・本文・他ファイルからの参照（issue #133時点の実測で262行・
-919箇所）はそのまま維持する。改番の利益（見た目の統一）に対し、参照の追従漏れという実害
-（issue #36の改番で `.gitignore` のコメントが古い番号のまま残り、issue #46で直すまで存在しない
-DDRを指していた）のほうがはるかに大きいためである。
+**issue番号 `00` は「対応するissueが存在しない」ことを表す予約番号**である。issue #133 で既存の
+連番DDRを一括改番した際、次の13件がこれに該当した。
 
-- **連番のDDRを新しく追加しない。** 新規は必ずissue番号ベースで作る。
-- 既存の連番DDRを参照するときは、従来どおり番号（`0029`）で書く。
+- `i00-01` / `i00-02` — 移植元プロジェクトの **PR #4** から生まれた決定で、issueが存在しない。
+- `i00-03`〜`i00-12` — 本文が名乗るissue番号が**移植元プロジェクトのもの**で、本リポジトリの
+  同番号issueとは別物だった（例: 旧 `0014` は「issue #48: 調査結果をHTMLでも残す」と書いていたが、
+  本リポジトリの #48 は「Gitlab.shに実機検証で判明した3件の不具合がある」）。
+- `i00-13` — issue・PRのどちらも記載が無い。
+
+**`i00` の枝番だけは、issueごとではなくリポジトリ全体の通し番号である**（`i00-01`〜`i00-13`）。
+`i00` は特定のissueを指さないため「同一issue内で01から」という原則が働かないためである。
+
+- **新しく `i00` を採番しない。** 今後のDDRは必ずissueを起点とするフローの成果物なので、
+  issue番号を持つ（上記「決めごと」）。`i00` は移植時に持ち込んだ13件だけの、閉じた集合である。
+- `i00` のDDRを参照するときも、他と同じく識別子（`i00-06`）で書く。
+
+### 旧方式（4桁連番）の扱い
+
+**リポジトリ内に4桁連番のDDRはもう存在しない**（issue #133 で全56件を改番した）。ただし
+`check-base-conflicts.sh` の `ddr_identifier_to_reply` は**旧形式も引き続き受け付ける**。
+他プロジェクトへ配布したこの機構が旧形式のDDRを抱えている可能性と、改番前のブランチが
+残っている可能性があるためである。
+
 - 新旧は**先頭が数字かどうか**で機械的に区別できる（`^[0-9]{4}-` にマッチするのが旧、
   `^i[0-9]+-[0-9]{2}-` にマッチするのが新）。
-- `.claude/docs/README.md` のDDR一覧は、旧方式（番号順）と新方式（issue番号の数値順）を
-  別のブロックに分けて並べる。
+- **過去の記録として書かれた連番は書き換えない。** 具体的には、当時のコミットメッセージの引用
+  （`chore: mainをマージしDDR番号を0028へ繰り下げて…`）、過去に重複した番号の一覧、
+  `0034→0035→0036→0038` のような繰り下げの経過である。これらはファイルを指しておらず、
+  書き換えると当時何が起きたかが読めなくなる。
 
 ### 識別子が重複しうる残りのケース
 
 新方式でも、**同一issueへの追加作業を2つのブランチで並行して行った場合**は、どちらも同じ枝番
 （例: どちらも `i133-03`）を採りうる。枝番だけはローカルで決めるためである。頻度は連番方式とは
 桁が違うが、ゼロではない。このため `check-base-conflicts.sh` の重複検知と `resolve-conflict`
-スキルの類型Aは**廃止せず残している**（既存の連番DDR同士の重複を拾う役目もある）。
+スキルの類型Aは**廃止せず残している**（旧形式のDDRを抱えた配布先・改番前のブランチを拾う役目もある）。
 
 ## DDRのstatus（後から無効になった意思決定の扱い）
 
@@ -101,10 +119,10 @@ DDRは**本文を一度マージしたら変更しない**運用だが、**YAML 
 
 ```yaml
 ---
-title: 0009. Planモードre-entry時はgit checkout復元でなくarchiveスクリプトで対処する
+title: i00-06. Planモードre-entry時はgit checkout復元でなくarchiveスクリプトで対処する
 type: ddr
 status: superseded
-superseded_by: "0019"
+superseded_by: "i9-01"
 description: <元のまま変更しない>
 ---
 ```
@@ -122,7 +140,7 @@ description: <元のまま変更しない>
 `**/index.jsonl`対象）。`.claude/hooks/session-start.sh`（SessionStart hook）が**セッション開始の
 たびに自動で再生成する**ため、frontmatterを更新した際に手動で `extract-frontmatter.sh` を
 実行する必要はない（詳細:
-[.claude/docs/ddr/0025-frontmatterのindex.jsonlをGit管理から外しSessionStart-hookで生成する.md](../docs/ddr/0025-frontmatterのindex.jsonlをGit管理から外しSessionStart-hookで生成する.md)）。
+[.claude/docs/ddr/i36-01-frontmatterのindex.jsonlをGit管理から外しSessionStart-hookで生成する.md](../docs/ddr/i36-01-frontmatterのindex.jsonlをGit管理から外しSessionStart-hookで生成する.md)）。
 
 同一セッション内でfrontmatterを編集し、その場ですぐ最新の `index.jsonl` を参照したい場合や、
 自動再生成を待たず手元で確認したい場合は、以下を手動実行してもよい（必須ではない）。
@@ -180,7 +198,7 @@ bash .claude/scripts/src/extract-frontmatter.sh .
 （`.claude/rules/docs-workflow.md` のライフサイクル表と対応する）。issue #95以前は `plans/*.md`
 についての規定が無く、実際には `guide` / `log` / `plan` / frontmatter無しが混在していたため、
 専用の値 `plan` を新設して一意に定めた（経緯・却下案:
-[.claude/docs/ddr/0042-plans配下のfrontmatter-typeはguideではなくplanを新設する.md](../docs/ddr/0042-plans配下のfrontmatter-typeはguideではなくplanを新設する.md)）。
+[.claude/docs/ddr/i95-01-plans配下のfrontmatter-typeはguideではなくplanを新設する.md](../docs/ddr/i95-01-plans配下のfrontmatter-typeはguideではなくplanを新設する.md)）。
 
 ## 対象外・特殊対応ファイル
 

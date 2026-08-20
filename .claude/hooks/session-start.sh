@@ -9,7 +9,7 @@
 # 注入する。compactは当初「圧縮のたびに`gh` API呼び出しが走るのを避ける」という理由で対象外に
 # していたが、compactは要約内容を指定できず、作業継続に必須の現在地が要約の精度次第で失われる
 # ため、issue #57 でmatcherへ追加した（詳細・却下案:
-# .claude/docs/ddr/0032-compact後もSessionStart-hookで作業コンテキストを再注入する.md）。
+# .claude/docs/ddr/i57-01-compact後もSessionStart-hookで作業コンテキストを再注入する.md）。
 #
 # 前提: `gh` CLI・`jq` がインストール・認証済みであること（未認証の場合は非侵襲的に失敗
 # メッセージのみ返し、セッション開始はブロックしない）。`gh`/`glab` CLI自体が存在しない環境では、
@@ -28,7 +28,7 @@
 #
 # また、frontmatterのindex.jsonl（.claude/scripts/src/extract-frontmatter.shが生成、Git管理外の
 # 生成物）をセッション開始のたびに非侵襲的に再生成する（issue #36）。詳細:
-# .claude/docs/ddr/0025-frontmatterのindex.jsonlをGit管理から外しSessionStart-hookで生成する.md
+# .claude/docs/ddr/i36-01-frontmatterのindex.jsonlをGit管理から外しSessionStart-hookで生成する.md
 #
 # 注意（テスト可能性、issue #57）: 本体処理は `main` にまとめ、ファイル末尾で
 # 「直接実行されたときだけ `main` を呼ぶ」ガードを通す。これにより
@@ -38,7 +38,7 @@
 #
 # また、現在のブランチがissue-mr-flowの対象と判定できる場合は、注入テキストの末尾へ
 # 「.claude/skills/issue-mr-flow/SKILL.mdを読み直すこと」という指示を足す（issue #113。詳細:
-# .claude/docs/ddr/0059-issue-mr-flow対象ブランチではSKILL.mdの再読み込みを注入で促す.md）。
+# .claude/docs/ddr/i113-01-issue-mr-flow対象ブランチではSKILL.mdの再読み込みを注入で促す.md）。
 
 set -uo pipefail
 
@@ -67,7 +67,7 @@ context_text_bytes() {
 
 # 注入テキストのバイト数がしきい値を超える場合のみ、末尾へ警告用の指示文を追記して返す。
 # 超えない場合は入力をそのまま返す。**切り詰めは行わない**（切り詰めると、この機構が守ろうと
-# している「現在地」そのものを失う可能性があるため。詳細: DDR 0032）。
+# している「現在地」そのものを失う可能性があるため。詳細: DDR i57-01）。
 append_size_warning() {
   local text="$1"
   local limit="${2:-$CONTEXT_SIZE_WARN_BYTES}"
@@ -82,7 +82,7 @@ append_size_warning() {
 
 # HANDOFF.md から「## 次にやること」節（見出し行を含み、次の `## ` 見出しの手前まで）を抜き出す。
 # 末尾の空行は落とす。節が見つからない・ファイルが無い場合は非ゼロで返す（呼び出し側は
-# 行自体を出さない）。**HANDOFF.md全文は注入しない**（issue #57の設計判断。詳細: DDR 0032）。
+# 行自体を出さない）。**HANDOFF.md全文は注入しない**（issue #57の設計判断。詳細: DDR i57-01）。
 extract_handoff_next_steps() {
   local file="$1"
   [ -f "$file" ] || return 1
@@ -113,7 +113,7 @@ extract_handoff_next_steps() {
 # かつhookから追加コストなしに得られるため（前者はブランチ名だけ、後者は build_work_context が
 # 既に取得済み）。**どちらか一方でも成り立てば対象**とする（フロー序盤はブランチ名だけ、
 # ブランチ名が命名規則から外れている場合は作業ファイルだけ、が成り立つため）。詳細・却下案:
-# .claude/docs/ddr/0059-issue-mr-flow対象ブランチではSKILL.mdの再読み込みを注入で促す.md
+# .claude/docs/ddr/i113-01-issue-mr-flow対象ブランチではSKILL.mdの再読み込みを注入で促す.md
 issue_mr_flow_branch_reason() {
   local issue_number="$1" work_files="$2"
   local reasons=()
@@ -133,7 +133,7 @@ issue_mr_flow_branch_reason() {
 
 # issue-mr-flow対象ブランチ向けの「SKILL.mdを読み直すこと」という指示文を組み立てる純粋関数。
 # compactは要約内容を指定できず、SKILL.md（1000行超）の手順理解が失われても、エージェント側から
-# 「失われたこと」が分からない（DDR 0032が注入量を切り詰めないと決めたのと同じ失敗モード）。
+# 「失われたこと」が分からない（DDR i57-01が注入量を切り詰めないと決めたのと同じ失敗モード）。
 # **既に読んだつもりでも読み直す**ことを明示するのが、この指示文の要点である（issue #113）。
 format_skill_reload_instruction() {
   local reason="$1"
@@ -236,7 +236,7 @@ build_context() {
 # 組み立てて標準出力へ返す（issue #57、issue #113）。該当が無ければ
 # 何も出力しない。いずれもローカル操作のみで得られるため、CLI経路・MCP経路のどちらでも
 # 同じ内容を足す。**ファイルの中身は注入しない**（一覧はファイル名のみ、HANDOFF.mdは
-# 「次にやること」節のみ。詳細: DDR 0032）。
+# 「次にやること」節のみ。詳細: DDR i57-01）。
 # 取得できなかった項目は行自体を出さない（fail-open。ここでの失敗が
 # ブランチ・issue・PR情報の注入を妨げてはならない）。
 # 第1引数はブランチ名（issue-mr-flow対象かの判定に使う。省略時は判定材料が
@@ -267,7 +267,7 @@ build_work_context() {
   # 末尾に置くのは、この指示が「読んだあと何をするか」ではなく「作業を再開する前にすること」で
   # あり、注入テキストの最後に置くほうがcompact直後のエージェントの目に留まりやすいため。
   # 対象外のブランチ（issue-mr-flowに乗せていない軽微な変更を直接進めている場合）では
-  # 何も足さない（DDR 0032の「注入するものを事前に決める」方針に沿い、常時注入はしない）。
+  # 何も足さない（DDR i57-01の「注入するものを事前に決める」方針に沿い、常時注入はしない）。
   local issue_number="" flow_reason
   issue_number="$(get_issue_number_from_branch "$branch" 2>/dev/null || true)"
   if flow_reason="$(issue_mr_flow_branch_reason "$issue_number" "$work_files")"; then

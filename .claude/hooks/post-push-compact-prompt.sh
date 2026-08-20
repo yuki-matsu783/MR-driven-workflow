@@ -40,10 +40,10 @@
 # `get_repo_url` で取得したリポジトリの正規URLを土台に、GitHub/GitLabいずれも持つ汎用の
 # 「Compare」ページ（`/compare/<from>...<to>`）を組み立てる方式にした（issue #13フォローアップ:
 # 「gh/glabでURLの正確性を担保したい」という指摘への対応。詳細は
-# `.claude/docs/ddr/0023-...md`参照）。`get_repo_url` 自体は当初 `gh repo view` / `glab repo view`
+# `.claude/docs/ddr/i13-01-...md`参照）。`get_repo_url` 自体は当初 `gh repo view` / `glab repo view`
 # を呼んでいたが、issue #44で `git remote get-url origin` の正規化（プロバイダ非依存）へ置き換えた。
 # これにより、pushのたびに走る本hookから外部CLIの起動とAPI往復が1回ずつ無くなっている
-# （詳細: `.claude/docs/ddr/0037-...md`）。
+# （詳細: `.claude/docs/ddr/i44-01-...md`）。
 #
 # askツールの禁止: レビュー依頼のターンは、ユーザーがその場で `/compact` を打ちたいタイミング
 # でもある（このhook自身がそれを促している）。`AskUserQuestion`（askツール）を出すと入力欄が

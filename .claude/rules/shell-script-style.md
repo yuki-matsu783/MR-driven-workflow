@@ -138,7 +138,7 @@ issue #11の実例: `extract-frontmatter.sh` がfrontmatterのキー・配列要
 1ファイルあたり約30回 × 43ファイルでリポジトリルート一括実行が2分でタイムアウトしていた。
 起動回数を1ファイル1回へ減らすことで**136秒→約10秒**になった（詳細:
 [.claude/docs/spec/extract-frontmatter.md](../docs/spec/extract-frontmatter.md)「性能」、
-[.claude/docs/ddr/0021-frontmatter抽出は1ファイル1回のjq呼び出しとmtimeキャッシュで高速化する.md](../docs/ddr/0021-frontmatter抽出は1ファイル1回のjq呼び出しとmtimeキャッシュで高速化する.md)）。
+[.claude/docs/ddr/i11-01-frontmatter抽出は1ファイル1回のjq呼び出しとmtimeキャッシュで高速化する.md](../docs/ddr/i11-01-frontmatter抽出は1ファイル1回のjq呼び出しとmtimeキャッシュで高速化する.md)）。
 
 - **ループ内で`jq`等の外部コマンドを呼ばない。** 処理対象ごとに1回まで、可能なら実行あたり1回に
   集約する。JSONの組み立てなら、シェル配列へ中間表現を溜めて`jq --args`へまとめて渡し、jq側で
@@ -638,7 +638,7 @@ jq -s -c '...' "$tmp/normalized.jsonl"
     場合（`test_extract_frontmatter.sh`の`fake_bin`が実例。スタブが呼ぶ`sed`もPATHから消える）。
     どちらもスタブ側の限界であり、実機では失敗しない。
 - **合成フィクスチャのテストだけで完了としない**。ペイロードサイズやデータ構造のゆらぎなど、
-  実データでしか顕在化しない性質がある（DDR 0006「追記（issue #37 続き）」の教訓）。transcript等の
+  実データでしか顕在化しない性質がある（DDR i00-04「追記（issue #37 続き）」の教訓）。transcript等の
   実データを扱うロジックを変更したら、実際のファイルに対して関数を直接呼ぶ確認を併せて行う。
 - **終了コードを検査するテストで `"$(func; echo $?)"` の形を使わない**（issue #45で実際に書いた）。
   テストスクリプトも対象スクリプトも `set -euo pipefail` を宣言していることが多く、コマンド置換の

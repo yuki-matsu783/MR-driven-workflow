@@ -113,6 +113,12 @@ REPLY=""
 ddr_identifier_to_reply ".claude/docs/ddr/i1234-12-四桁のissue番号.md"
 assert_eq "ddr_identifier_to_reply: 4桁のissue番号でも連番と混同しない" "i1234-12" "$REPLY"
 
+# `i00` は「対応するissueが無い」ことを表す予約番号（issue #133の全件改番で13件が該当）。
+# 他と同じ形なので特別扱いは要らないが、ゼロ埋め非対象という規則と紛らわしいため明示的に固定する。
+REPLY=""
+ddr_identifier_to_reply ".claude/docs/ddr/i00-06-Planモードre-entry時はgit checkout復元でなくarchiveスクリプトで対処する.md"
+assert_eq "ddr_identifier_to_reply: 予約番号 i00 も新方式として扱う" "i00-06" "$REPLY"
+
 # 枝番はちょうど2桁。1桁・3桁の揺れを別の識別子として通すと、同じDDRが二重に採番されうる。
 if ddr_identifier_to_reply ".claude/docs/ddr/i133-1-枝番が1桁.md"; then
   branch_one_digit_status=0

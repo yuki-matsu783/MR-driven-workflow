@@ -351,7 +351,7 @@ JQ
 # **メインセッションは集計対象になった**。この関数がコピーする `${log_dir}/main.jsonl` は
 # _sync_usage_state_gemini → _usage_gemini_fold の集計入力である。両者を区別せずに
 # 「Geminiのログは集計しない」と読まないこと（設計判断:
-# .claude/docs/ddr/0054-Gemini-CLIのサブエージェントは保存のみとし集計しない.md）。
+# .claude/docs/ddr/i97-05-Gemini-CLIのサブエージェントは保存のみとし集計しない.md）。
 _usage_sync_session_logs() {
   local repo_root="$1" session_id="$2" transcript_path="$3" engine="${4:-claude}"
 

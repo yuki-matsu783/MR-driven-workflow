@@ -2,7 +2,7 @@
 #
 # .gemini/{docs,hooks,rules,scripts,skills} を .claude/ 配下の同名ディレクトリへのリンクとして
 # 作成する（Gemini CLIとClaude Codeでルール・スキル・スクリプトの内容を二重管理しないため）。
-# 設計: .claude/docs/ddr/0017-gemini配下はGit管理下に置かずセットアップスクリプトで生成する.md
+# 設計: .claude/docs/ddr/i00-13-gemini配下はGit管理下に置かずセットアップスクリプトで生成する.md
 #
 # .gemini/{docs,hooks,rules,scripts,skills} はGit管理下に置かない（.gitignore参照）。
 # NTFSジャンクションはGitがリンクとして認識できず、中身をそのまま複製してコミットしてしまうため

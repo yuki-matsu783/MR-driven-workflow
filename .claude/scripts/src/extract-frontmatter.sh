@@ -377,7 +377,7 @@ main() {
   fi
 
   # 対象markdownの列挙（.gitignore対象は列挙されない。詳細:
-  # .claude/docs/ddr/0016-frontmatterスクリプトの走査方式にgit-ls-filesを採用する.md）
+  # .claude/docs/ddr/i00-12-frontmatterスクリプトの走査方式にgit-ls-filesを採用する.md）
   local -a files=()
   local f skipped=0
   while IFS= read -r -d '' f; do
