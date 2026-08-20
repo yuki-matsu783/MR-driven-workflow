@@ -310,6 +310,26 @@ issue #11の実例: `extract-frontmatter.sh` がfrontmatterのキー・配列要
   while IFS= read -r -d '' f; do wc -c < "$f"; done < <(git ls-files -z)
   ```
 
+- **`git ls-files` の列挙結果を、ワーキングツリーに実体があるものとして扱わない**（issue #117で
+  実際に踏んだ）。`--cached`（既定）は**gitのindexの内容**を返すため、**削除したがまだステージ
+  していない追跡ファイル**も含まれる。列挙結果をそのまま `stat`・`cat`・`wc` 等へ渡すと
+  `No such file or directory` で失敗する。列挙とファイル操作の間に「実体があるか」の判定を挟む。
+
+  ```bash
+  # 悪い例（削除済み・未ステージのファイルで必ず失敗する）
+  while IFS= read -r -d '' f; do files+=("$f"); done < <(git ls-files -z)
+  printf '%s\0' "${files[@]}" | xargs -0 stat -c '%Y'
+  # 良い例（[[ -f ]] はbash組み込みなのでforkは増えない）
+  while IFS= read -r -d '' f; do [[ -f "$f" ]] || continue; files+=("$f"); done < <(git ls-files -z)
+  ```
+
+  **この失敗は「たまに起きる」ものではない。** コミット前に走るスクリプト（`cleanup-task.sh` の
+  frontmatterインデックス再生成、SessionStart hookでの再生成等）では、**追跡ファイルを1件でも
+  削除した時点で必ず**発生する。`extract-frontmatter.sh` では、`xargs stat` の失敗で件数が合わなく
+  なり、フォールバックの1件ずつ取り直すループが `set -e` 配下で倒れて**走査全体が中断**していた
+  （削除と無関係なディレクトリの `index.jsonl` まで再生成されない）。
+  スキップする場合は**件数を必ず出す**こと（無言のスキップは、今度は本当の欠落を隠す）。
+
 - **NULバイトの有無を `od -c` の目視で判定しない**（issue #32で実際に誤読しかけた）。`od -c` は
   NULを `\0` と表示する一方、**印字可能文字はそのまま出す**ため、本文中の**数字の `0`**（例:
   「要素0個なら」）が出力に現れると、区切りの空白込みで見たときにNULと見分けがつかない。
