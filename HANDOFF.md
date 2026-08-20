@@ -18,7 +18,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - ブランチ: `feature-127-verify-gitlab-functions-and-url-formats`
 - PR: #128 https://github.com/yuki-matsu783/MR-driven-workflow/pull/128 （Draft）
 - 追従監視: なし（ローカル。各pushとflow-id 5-1で手動確認する）
-- push回数: 6
+- push回数: 7
 - 現在のループ: なし
 
 | 進捗 | flow-id | ステップ | 担当 |
@@ -143,12 +143,12 @@ issue #127（ローカルGitLab CEで、issue #48以降に `Gitlab.sh` へ追加
 - **flow-id 2-6（検証の実施）**: 13関数・URL系4種・サブグループ解決を実機検証した。結果の正文は
   `reports/20260820_zippy-petting-crown_GitLab実機検証結果.md`（視覚化は同名 `.html`）。要点:
   - **差分アンカーの `sha1` 前提は正しいと確定した。** `diff-` 接頭辞は付かない。GitLab 18.5 は
-    "rapid diffs" 方式で、Compareページの初期HTMLにハッシュは1件も無い。埋め込まれた
+    "rapid diffs" 方式で、Compareページの初期HTMLに**アンカー用パスハッシュは0件**（40桁hex自体は27件あるがコミットSHA等）。埋め込まれた
     エンドポイント定義から `diffs_stream` 断片を特定して取得すると、接頭辞なしの40桁hexの
     `id=` 属性が現れ、`hash_paths`・`sha1sum`・`diff_files_metadata` の `file_hash` と一致した。
     **ハッシュ入力はpercent-encode前の生パス**で、encode必須のblobリンクとは逆。
   - **不具合を1件検出**: `gitlab_get_repo_url` が未定義のまま `Gitlab.sh:162,180` から呼ばれて
-    おり、`get_mr_url` / `get_note_url` が到達不能（デッドコード）。`2>/dev/null` が
+    おり、`gitlab_get_mr_url` / `gitlab_get_note_url` の**実運用経路が到達不能**（単体テストからは呼ばれておりテストは通る）。`2>/dev/null` が
     `command not found` を握りつぶすため無言でurl無しへ縮退する。
     **`comments` の `url=` と `add_mr_thread_reply` の戻り値がGitLabで機能していない。**
   - **その不具合が「13+13=26 ≠ 25」の正体でもあった**（消えた唯一の関数がこれ）。混入経路は
