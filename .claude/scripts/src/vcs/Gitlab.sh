@@ -401,7 +401,7 @@ gitlab_add_mr_inline_comments() {
     '{posted: $posted, summarized: $summarized}'
 }
 
-# 任意のissueへ新規コメントを1件投稿する（flow-id 5-3: マージ前の関連issue通知。issue #86）。【未検証】
+# 任意のissueへ新規コメントを1件投稿する（flow-id 5-2: マージ前の関連issue通知。issue #86。当時のflow-idは 5-3。issue #112 でフェーズ5を並べ替え）。【未検証】
 # 宛先がMRである `gitlab_add_mr_comment` とは別関数（エンドポイントが `merge_requests` ではなく
 # `issues` になる）。同関数と同じく安定版のREST APIを直接叩く（`glab issue note --message` は
 # `glab mr note --message` と同様に非推奨の可能性があり、代替のサブコマンドはEXPERIMENTAL扱いの

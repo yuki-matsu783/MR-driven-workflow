@@ -99,7 +99,7 @@ MRとのやり取りだけを自動化する薄い層」として設計したが
 | `set_mr_ready <n>` | Draft PR/MRのDraft状態を解除し、レビュー・マージ可能な状態にする（全体フロー flow-id 5-4。Draft作成側の `new_draft_merge_request` に対応する解除側。issue #61） | `gh pr ready` | `glab mr update --ready` |
 | `add_mr_comment <n> <bodyFile>` | PR/MRへ新規コメントを1件投稿（スレッド返信・レビューではない通常コメント） | `gh pr comment --body-file` | `glab api`（notes追加） |
 | `add_mr_inline_comments <n> <findingsFile>` | findings JSONファイルの指摘を、PR/MRへインラインコメントとして投稿する（敵対的レビュー用。issue #77）。投稿できなかった指摘はサマリへ回し、`{"posted":N,"summarized":M}` を返す。findingsは**必ずファイル経由で渡す**（引数長上限とhook誤検知の回避）。仕様は [adversarial-review.md](adversarial-review.md) を正とする | `gh api pulls/<n>/reviews`（1レビューへまとめて投稿。有効行を事前検証） | `glab api discussions`（1件ずつPOST。`position` を `diff_refs` から組み立てる。サマリも指摘を含むなら `position` 無しの `discussions` でスレッドとして投稿する） |
-| `add_issue_comment <n> <bodyFile>` | **任意のissue**へ新規コメントを1件投稿（全体フロー flow-id 5-3: マージ前の関連issue通知。issue #86）。宛先がPR/MRである `add_mr_comment` とは別関数で、GitHub実装が `gh pr comment` であるためPR以外へ投げられなかったのが分離の理由。本文はファイル経由（push検知hookの誤発火を避けるため）。投稿先・本文の決定と人間の承認は呼び出し側の責務 | `gh issue comment --body-file` | `glab api`（issues notes追加。【未検証】） |
+| `add_issue_comment <n> <bodyFile>` | **任意のissue**へ新規コメントを1件投稿（全体フロー flow-id 5-2: マージ前の関連issue通知。issue #86）。宛先がPR/MRである `add_mr_comment` とは別関数で、GitHub実装が `gh pr comment` であるためPR以外へ投げられなかったのが分離の理由。本文はファイル経由（push検知hookの誤発火を避けるため）。投稿先・本文の決定と人間の承認は呼び出し側の責務 | `gh issue comment --body-file` | `glab api`（issues notes追加。【未検証】） |
 | `sync_branch <branch>` | 現在のブランチをfetch、必要ならcheckout（新しいセッションでの再開用） | `git fetch` + `git checkout` | 同左 |
 | `test_issue_sections <body>` | issue本文に「目的／現状／期待する動作／受け入れ条件」の4見出しが揃っているか確認し、欠けている見出し名を1行1件でstdoutへ出力する（プロバイダ非依存） | — | — |
 | `get_issue_number_from_branch [<branch>]` | ブランチ名を `branchPrefixTemplate` に照らしてissue番号を抽出する（省略時は現在のブランチ）。マッチすればstdoutへ出力し終了コード0、マッチしなければ終了コード1（プロバイダ非依存） | — | — |
@@ -429,7 +429,7 @@ resumeを省略してしまう事故が発生した）。そのため発動条�
 
 ### マージ後の取り残しクリーンアップ
 
-人間がレビュー後にそのままMR/PRをマージするなど、flow-id 5-1（`plans/` `worklog/`の削除・
+人間がレビュー後にそのままMR/PRをマージするなど、flow-id 5-3（`plans/` `worklog/`の削除・
 `HANDOFF.md`のリセット）の実施前にマージが完了してしまうことがある（issue #28, PR #29の
 セッションで実際に発生）。この場合、タスク固有の`plans/`・`worklog/`ファイルと作業途中のままの
 `HANDOFF.md`が`main`へ残ってしまい、`docs-workflow.md`の運用（`worklog/`はsquash mergeで
@@ -439,24 +439,24 @@ resumeを省略してしまう事故が発生した）。そのため発動条�
 PRで対処する（`main`はレビューを経ないままの直接変更を避ける対象のため）。issue番号を持たない
 一回限りの対応のため、`.mrworkflow.json`のブランチ命名規則には従わず`chore/cleanup-<説明>`
 のような名前を使ってよい。手順の詳細は
-`.claude/skills/issue-mr-flow/SKILL.md`の「PRがflow-id 5-1実施前にマージされてしまった場合の対処」
+`.claude/skills/issue-mr-flow/SKILL.md`の「PRがflow-id 5-3実施前にマージされてしまった場合の対処」
 節を参照。
 
 ### PR作成後のdefaultブランチ追従（issue #88）
 
-flow-id 5-2（issue #46）はDraft解除の直前に1回だけコンフリクトを検知する設計で、**PR作成後〜
+flow-id 5-1（issue #46。当時は 5-2）はDraft解除より前に1回だけコンフリクトを検知する設計で、**PR作成後〜
 マージまでの間にdefaultブランチが進む場合を扱っていない**。レビュー待ちが長いほど、また並行する
 PRが多いほど、この期間のコンフリクトを取りこぼす（実例: issue #39 のPR #81 で、PR作成後の短時間に
 `main` が4回進み、DDR番号を 0034→0035→0036→0038 と3回繰り下げた）。
 
 この追従を、**flow-idを持たないフェーズ横断の並行手順**として定義する。flow-id 1-3（PR作成）の
 直後に開始し、5-5（マージ）またはPRのクローズで停止する「期間」であり、進捗表の1行として完了を
-表せる性質のものではないため、flow-idは増やしていない。**flow-id 5-2 は「最終ゲート」として残す**
+表せる性質のものではないため、flow-idは増やしていない。**flow-id 5-1 は「最終ゲート」として残す**
 （監視は実行環境の機能とセッションの寿命に依存するため、一度も動かないセッションがありうる）。
 
 | 観点 | 決めたこと |
 |---|---|
-| 検知のタイミング | 各pushの直後（flow-id 2-2/2-7/3-2/3-7/4-2/4-7）、監視イベントの受信時、flow-id 5-2（必須） |
+| 検知のタイミング | 各pushの直後（flow-id 2-2/2-7/3-2/3-7/4-2/4-7）、監視イベントの受信時、flow-id 5-1（必須） |
 | 実行環境別の手段 | Claude Code on the web: `subscribe_pr_activity` の購読＋`send_later` の自己チェックイン（webhookの取りこぼしに備え両方使う）／ローカル（git bash）: `/resolve-conflict` の手動実行 |
 | 自動解消の範囲 | 解消方法が一意に決まる類型（`resolve-conflict` の類型A・B・D、および「両方残す」で足りる範囲のC）は承認を待たず解消。類型E（同じロジックの競合）と、Cのうち散文が矛盾する場合は人間へ確認 |
 | 停止条件 | PRが merged / closed になった（購読を解除する）・ユーザーの停止指示・セッション終了（次セッションの `resume` で取り直す） |
@@ -477,7 +477,7 @@ PRが多いほど、この期間のコンフリクトを取りこぼす（実例
 ### マージ前の関連issue通知（issue #86）
 
 **マージされる直前に、今回のMRが影響する他のissueを特定し、人間の承認を得てから当該issueへ
-コメントで通知する**ステップ（flow-id 5-3）を設けた。MRがマージされても、その変更で前提が変わる・
+コメントで通知する**ステップ（flow-id 5-2。新設当時は 5-3）を設けた。MRがマージされても、その変更で前提が変わる・
 一部が解決される・記述が矛盾する他のissueには何も残らず、後続タスクの担当者が影響に気づけない
 ためである。
 
@@ -490,11 +490,18 @@ PRが多いほど、この期間のコンフリクトを取りこぼす（実例
 | 投稿手段 | `add_issue_comment <issue番号> <bodyFile>`（新設。本文はファイル経由） |
 | 影響先が無い場合 | **スキップしてよい**。ただし「影響先なし」と判断したことは `HANDOFF.md` へ残す |
 
+**現在のフェーズ5内の位置**: issue #112 でフェーズ5を並べ替えた結果、本ステップは
+**flow-id 5-2**（コンフリクト解消 5-1 の次、片付け 5-3 の前）である。上表の「挿入位置」は
+issue #86 当時の並び（5-1 片付け → 5-2 コンフリクト解消 → 5-3 本ステップ）を指す。並べ替えにより、
+「影響先なし」の判断を書き戻す `HANDOFF.md` が、片付け（5-3）のリセット前に残っている状態になった。
+キーワード抽出時に `plans/` `worklog/` `reports/` を差分から除外するのも並べ替えに伴う変更である
+（issue #86 当時は片付けが先だったため、これらは既に差分から消えていた）。
+
 `add_mr_comment` を流用せず `add_issue_comment` を新設したのは、前者の宛先がPR/MRで、GitHub実装が
 `gh pr comment` であるためPR以外のissueへ投げられないからである（MCP経路では
 `mcp__github__add_issue_comment` という同一ツールに収束するが、`issue_number` へ渡す値の意味が
 PR番号か通知先issue番号かで異なる）。手順の正は
-`.claude/skills/issue-mr-flow/SKILL.md`「マージ前の関連issue通知（flow-id 5-3）」節。判断の理由・
+`.claude/skills/issue-mr-flow/SKILL.md`「マージ前の関連issue通知（flow-id 5-2）」節。判断の理由・
 却下案（マージ後の通知・自動投稿・専用サブコマンド化等）は
 [0044-マージ前の関連issue通知はDraft解除の直前に置き投稿前の人間承認を必須にする.md](../ddr/0044-マージ前の関連issue通知はDraft解除の直前に置き投稿前の人間承認を必須にする.md)。
 
@@ -1227,8 +1234,8 @@ issue #11「git pushイベントを検知してcompactする」への対応と�
   ユーザーが自分で打つスラッシュコマンドだが、`AskUserQuestion`を出すと入力欄が選択肢への回答で
   塞がり、その場で打てなくなる。「レビューをお願いします」という呼びかけに選択式の回答は要らない
   ため、askツールを使わず通常のメッセージだけでターンを終える旨を`NO_ASK_TOOL_MESSAGE`として
-  `additionalContext`の末尾へ渡す。**禁止はレビュー依頼のターンに限る**（flow-id 5-2のコンフリクト
-  解消可否・5-3の関連issue通知の承認・`start`のベースブランチ確認のように、外部への影響が不可逆で
+  `additionalContext`の末尾へ渡す。**禁止はレビュー依頼のターンに限る**（flow-id 5-1のコンフリクト
+  解消可否・5-2の関連issue通知の承認・`start`のベースブランチ確認のように、外部への影響が不可逆で
   承認が必須の場面は従来どおり`AskUserQuestion`を使う。これらはpush直後ではなく、`/compact`を打つ
   タイミングと競合しない）。運用ルールとしての正は
   `.claude/skills/issue-mr-flow/SKILL.md`「レビュー依頼メッセージ」節。
@@ -2444,6 +2451,64 @@ MRの差分が影響する他のissueへ、マージ前に通知を残せるよ�
 - `.claude/scripts/test/test_vcs_provider.sh`（純粋関数のテストを追加）
 - `.claude/docs/spec/issue-mr-workflow.md`（本ファイル。提供関数の表と本エントリ）
 - `.claude/docs/README.md`（spec一覧へ adversarial-review.md、DDR一覧へ0045〜0047を追加）
+
+### issue #112（フェーズ5のステップ順の並べ替え）
+
+フェーズ5を **5-1 コンフリクト検知・解消 → 5-2 関連issue通知 → 5-3 片付け → 5-4 commit・push・
+Draft解除 → 5-5 マージ** の順へ並べ替えた（旧 5-1 片付け → 5-2 コンフリクト → 5-3 関連issue通知）。
+**ステップの内容・総数（41）は変えていない**。5-4・5-5 は番号・内容とも変更なし。
+
+| 新flow-id | 内容 | 旧flow-id |
+|---|---|---|
+| 5-1 | defaultブランチとのコンフリクトを検知し、あれば解消する | 5-2 |
+| 5-2 | 今回のMRが影響する関連issueを特定し、承認を得てから通知する | 5-3 |
+| 5-3 | `plans/` `worklog/` `reports/` を削除し `HANDOFF.md` をリセットする | 5-1 |
+
+並べ替えの理由（旧順序の4つの不整合）と却下案は
+[0058-フェーズ5は片付けをcommit直前へ移した順序に並べ替える.md](../ddr/0058-フェーズ5は片付けをcommit直前へ移した順序に並べ替える.md)。
+関連issue通知（5-2）の手順に、キーワード抽出時 `plans/` `worklog/` `reports/` を差分から除外する
+（`git diff --stat "origin/${base}...HEAD" -- . ':(exclude)plans' …`）旨を追加した。新順序では
+これらがまだ削除されておらず差分に含まれるためである。
+
+新規:
+- `.claude/docs/ddr/0058-フェーズ5は片付けをcommit直前へ移した順序に並べ替える.md`
+
+変更:
+- `.claude/skills/issue-mr-flow/SKILL.md`（全体フロー表の 5-1〜5-3 の並べ替え、フェーズ一覧の語順、
+  「defaultブランチとのコンフリクト検知・解消（flow-id 5-1）」「マージ前の関連issue通知
+  （flow-id 5-2）」「PRがflow-id 5-3実施前にマージされてしまった場合の対処」の各節見出しと本文、
+  監視節の最終ゲート表、レビュー依頼節の `AskUserQuestion` 例外の列挙）
+- `.claude/rules/docs-workflow.md` / `.claude/rules/directory-structure.md` /
+  `.claude/rules/markdown-frontmatter.md`（片付けの flow-id を 5-1 → 5-3 へ）
+- `.claude/rules/git-workflow.md`（関連issue通知 5-3 → 5-2、片付け 5-1 → 5-3、追従監視の
+  最終ゲート 5-2 → 5-1）
+- `.claude/skills/resolve-conflict/SKILL.md`（呼び出し元の flow-id 5-2 → 5-1、次のステップ 5-3 → 5-2）
+- `.claude/skills/canvas-report/SKILL.md` / `.claude/skills/doc-search/SKILL.md` / `index.md`
+  （削除タイミングの 5-1 → 5-3）
+- `.claude/scripts/src/cleanup-task.sh` / `check-base-conflicts.sh` / `update-handoff-progress.sh` /
+  `vcs/Provider.sh` / `vcs/Github.sh` / `vcs/Gitlab.sh`（コメントの flow-id。**ロジックの変更は無い**。
+  `update-handoff-progress.sh` の `LOOP_RANGES` はフェーズ2〜4の6範囲のみでフェーズ5を含まないため、
+  テーブル自体は変更していない）
+- `.claude/scripts/test/test_update_handoff_progress.sh`（フィクスチャのflow-idが行の識別子でしか
+  ないことをコメントで明示。フィクスチャ自体は変更なし）
+- `.claude/docs/spec/cleanup-task.md` / `.claude/docs/spec/check-base-conflicts.md` /
+  `.claude/docs/spec/create-commit.md` / `.claude/docs/spec/extract-frontmatter.md` /
+  `.claude/docs/spec/update-handoff-progress.md`（現在の状態を説明する記述の flow-id）
+- `.claude/docs/spec/issue-mr-workflow.md`（本ファイル。仕様側の flow-id 参照と本エントリ）
+- `.claude/docs/README.md`（spec一覧の cleanup-task.md の説明、DDR一覧へ0058を追加）
+- `.claude/docs/spec/check-base-sync.md`（issue #67 が追加した判定軸の比較の flow-id）
+
+**mainのマージ（issue #67 / PR #107）で持ち込まれた記述の追随**: 同時期に入った
+「作業開始・再開時のベースブランチ追従確認」は、コンフリクト検知のステップを `flow-id 5-2` として
+参照していた（`.claude/skills/issue-mr-flow/SKILL.md` の役割比較表と「この確認は flow-id 5-1 を
+置き換えない」、`check-base-conflicts.md` の fetch握りつぶしの理由、`check-base-sync.md` の
+判定軸の比較の4箇所）。いずれも現在の状態を説明する記述のため、並べ替え後の `5-1` へ更新した。
+一方、同マージで入った `## 決定済み事項` の「issue #67」エントリは point-in-time の記録のため、
+`flow-id 5-2` のまま残している。
+
+**DDR本文と、本節の過去issueごとのエントリは書き換えていない**（`.claude/rules/docs-workflow.md`）。
+DDR 0044（関連issue通知）・0048（後片付けのスクリプト化）が本文で指す `5-3` `5-1` は、当時の番号の
+ままである。DDR 0048 はファイル名にも `flow-id5-1` を含むが、リンク切れを避けるためリネームしない。
 
 ## 設定項目
 

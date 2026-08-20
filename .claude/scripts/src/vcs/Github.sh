@@ -135,7 +135,7 @@ EOF
       | "[comment" + (if .url then (" url=" + .url) else "" end) + "] "
         + .author.login + ": " + .body;
     [thread_lines, comment_lines] | join("\n\n")
-  '
+  ' | tr -d '\r'
 }
 
 # 指定したレビュースレッドに対応内容を返信する。スレッドの解決（resolved）はレビュアー側の
@@ -349,7 +349,7 @@ github_add_mr_inline_comments() {
     '{posted: $posted, summarized: $summarized}'
 }
 
-# 任意のissueへ新規コメントを1件投稿する（flow-id 5-3: マージ前の関連issue通知。issue #86）。
+# 任意のissueへ新規コメントを1件投稿する（flow-id 5-2: マージ前の関連issue通知。issue #86。当時のflow-idは 5-3。issue #112 でフェーズ5を並べ替え）。
 # 宛先がPR/MRである `github_add_mr_comment` とは別関数。`gh pr comment` はPRにしか投げられず、
 # 「今回のMRが影響する他のissue」へ通知する用途に使えないため。
 github_add_issue_comment() {

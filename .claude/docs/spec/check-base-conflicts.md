@@ -3,7 +3,7 @@ title: defaultブランチとのコンフリクト検知（check-base-conflicts.
 type: spec
 description: マージ依頼前にdefaultブランチとのコンフリクト有無を作業ツリーを変更せずに判定するスクリプトの仕様。テキストコンフリクトに加え、gitが検知できないDDR番号の重複も調べる
 tags: [conflict, script, workflow, spec]
-keywords: [check-base-conflicts, merge-tree, DDR番号, semantic conflict, defaultブランチ, hasConflict, resolve-conflict, flow-id-5-2, 追従監視, check-base-sync, 判定軸]
+keywords: [check-base-conflicts, merge-tree, DDR番号, semantic conflict, defaultブランチ, hasConflict, resolve-conflict, flow-id-5-1, 追従監視, check-base-sync, 判定軸]
 ---
 
 # defaultブランチとのコンフリクト検知（check-base-conflicts.sh）
@@ -154,7 +154,7 @@ git -c core.quotepath=false merge-tree --write-tree --name-only --no-messages <h
 埋める。**本スクリプトの結果だけを見て「最新である」と判断しないこと。**
 
 **本スクリプトが fetch の失敗を `|| true` で握りつぶしているのは意図的であり、バグではない。**
-本スクリプトによるコンフリクト検知は flow-id 5-2 で必ずもう一度通るため、fetch漏れによる
+本スクリプトによるコンフリクト検知は flow-id 5-1 で必ずもう一度通るため、fetch漏れによる
 取りこぼしは後段で拾われる。一方 `check-base-sync.sh` は検知そのものが目的で後段に同じ検知が
 無いため、あちらだけは終了コードを `fetchOk` としてJSONへ出している（差を付けた理由の詳細:
 `.claude/docs/ddr/0056-作業開始時のベースブランチ追従確認は専用スクリプトで検知しユーザー確認を挟む.md`）。
@@ -170,7 +170,7 @@ git -c core.quotepath=false merge-tree --write-tree --name-only --no-messages <h
 - **hookによる自動実行はしていない**。push検知hookで毎回走らせる案もあったが、pushのたびに
   `git fetch` を伴う判定を挟むのはコストに見合わず、push検知hookはコマンド文字列の部分一致で
   誤発火する既知の問題も抱えている（`.claude/rules/git-workflow.md`「push検知hookの誤検知」）。
-  実行タイミングは**手順として明示する**方式を採る（flow-id 5-2、およびPR作成後の追従監視。
+  実行タイミングは**手順として明示する**方式を採る（flow-id 5-1、およびPR作成後の追従監視。
   下記）。
 - **本スクリプトはPR作成後の追従監視から繰り返し呼ばれる**（issue #88）。作業ツリーを変更せず、
   引数なしで何度でも実行でき、結果を終了コードではなく `hasConflict` で返す設計は、この繰り返し

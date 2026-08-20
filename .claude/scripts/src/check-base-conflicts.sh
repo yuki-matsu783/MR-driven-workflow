@@ -2,7 +2,7 @@
 #
 # 現在のブランチとdefaultブランチ（.mrworkflow.json の defaultBaseBranch）の間に
 # コンフリクトがあるかを、作業ツリーを一切変更せずに判定する（issue #46）。
-# `.claude/skills/issue-mr-flow/SKILL.md` の flow-id 5-2（マージ依頼前のコンフリクト検知）と
+# `.claude/skills/issue-mr-flow/SKILL.md` の flow-id 5-1（マージ依頼前のコンフリクト検知）と
 # `.claude/skills/resolve-conflict/SKILL.md` のStep 1から呼び出す想定。
 #
 # 検知する2種類:
