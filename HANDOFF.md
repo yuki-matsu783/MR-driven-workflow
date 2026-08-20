@@ -17,7 +17,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - issue: #111
 - ブランチ: `claude/final-report-pr-summary-k822hz`
 - PR: #144（https://github.com/yuki-matsu783/MR-driven-workflow/pull/144 ）
-- push回数: 1
+- push回数: 2
 - 現在のループ: なし
 - 追従監視: 購読あり（web。subscribe_pr_activity + 定期チェックイン）
 
@@ -89,14 +89,21 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
     移動した。正しくは 5-2）。**全 `5-N` を changelog・DDR本文を除いて棚卸しし**、繰り下げ由来の
     取りこぼしに加え **issue #112 由来で残っていた古い番号3件**も見つけて直した。
   - 検証手順を「`flow-id 5-N` を数える」から「全 `5-N` を棚卸しする」へ改め、specへ記録した。
+- 敵対的レビューで投稿された**11件すべてのスレッドへ返信した**（flow-id 4-9 相当）。
+- **flow-id 5-1**: `check-base-conflicts.sh` で `hasConflict: false` を確認した（解消作業なし）。
+- **flow-id 5-3（今回新設したステップを自分自身へ適用）**: 最終統括レポート
+  `reports/20260821_mellow-drifting-lantern_統括.md`（正文）と同名の `.html` を作成した。
+  層1（リモートへ反映）→ 層3（添付を試行）→ 層2（サマリコメント投稿）の順で実施。
+  **層3はこの環境では想定どおり失敗するため、警告のみでスキップした**（設計どおりの挙動）。
 
 ## 次にやること
 
-- 敵対的レビューの結果を受け取り、指摘へ対応する。
 - **`.claude/VERSION` の増分をユーザーへ提案する**（現在 0.1.1。フローの拡張なので **MINOR** が
-  目安。`.claude/docs/spec/distribution-assets.md` により**AIが独断で上げない**）。
-- flow-id 5-1〜5-6（コンフリクト検知 → 関連issue通知 → **統括レポート（今回新設したステップを
-  自分自身に適用する）** → 片付け → Draft解除）。マージはユーザーの明示指示を待つ。
+  目安。`.claude/docs/spec/distribution-assets.md` により**AIが独断で上げない**）。**ユーザー判断待ち**。
+- **flow-id 5-2（関連issue通知）**: issue #127（GitLab添付の multipart 実機検証）へ通知する。
+  **投稿前に `AskUserQuestion` での承認が必須**（`.claude/rules/git-workflow.md`）。
+- **flow-id 5-4**（`cleanup-task.sh` で `plans/` `worklog/` `reports/` を片付け）→ **5-5**
+  （commit・push・Draft解除）。**5-6（マージ）はユーザーの明示指示を待つ**。
 
 ## 判断を迷った内容
 
