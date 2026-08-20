@@ -135,7 +135,7 @@ EOF
       | "[comment" + (if .url then (" url=" + .url) else "" end) + "] "
         + .author.login + ": " + .body;
     [thread_lines, comment_lines] | join("\n\n")
-  '
+  ' | tr -d '\r'
 }
 
 # 指定したレビュースレッドに対応内容を返信する。スレッドの解決（resolved）はレビュアー側の
