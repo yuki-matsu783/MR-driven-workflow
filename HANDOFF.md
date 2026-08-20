@@ -14,95 +14,130 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 
 ## フロー進捗状況
 
-- issue: #117
-- ブランチ: `claude/cleanup-task-frontmatter-index-8wjloa`
-- PR: #124（https://github.com/yuki-matsu783/MR-driven-workflow/pull/124 ）
-- push回数: 3
+- issue: #127（ローカルGitLab CEでissue #48以降に追加されたGitLab側13関数とURL形式を実機検証する）
+- ブランチ: `feature-127-verify-gitlab-functions-and-url-formats`
+- PR: #128 https://github.com/yuki-matsu783/MR-driven-workflow/pull/128 （Draft）
+- 追従監視: なし（ローカル。各pushとflow-id 5-2で手動確認する）
+- push回数: 2
 - 現在のループ: なし
-- 追従監視: 購読あり（web。subscribe_pr_activity + 定期チェックイン）
 
-（進捗表は次タスク着手時に記入する）
-
-<!--
-本ブランチは Claude Code on the web の非対話セッションで進めたため、人間担当のレビュー往復
-（flow-id 2-3/2-8, 3-3/3-8, 4-3/4-8）を待てない。`.claude/rules/docs-workflow.md` の規定に従い、
-該当ループ範囲の記号は付けず、実施内容は下記「やったこと」に文章で残す。
--->
+| 進捗 | flow-id | ステップ | 担当 |
+|---|---|---|---|
+| [x] | 1-1 | issueを起票する | 人間 |
+| [x] | 1-2 | issueの内容を取得する | `start` |
+| [x] | 1-3 | featureブランチとDraft MRを作成する | `start`（エージェント） |
+| [x] | 1-4 | Planモードで「全体作業計画」を作成する | エージェント |
+| [x] | 1-5 | 全体作業計画に合意する | 人間 |
+| [x] | 1-6 | 全体作業計画をもとにHANDOFF.mdを更新する | エージェント |
+| [x] | 2-1 | 個別調査計画を作成する | エージェント |
+| [] | 2-2 | commit・pushしてレビュー依頼 | エージェント |
+| [] | 2-3 | 調査計画のレビュー | 人間 |
+| [] | 2-4 | レビュー内容を反映する | `comments` / `reply` |
+| [] | 2-5 | 調査計画をもとにMR descriptionを更新する | `describe` |
+| [] | 2-6 | 調査を実施する | エージェント |
+| [] | 2-7 | commit・pushしてレビュー依頼 | エージェント |
+| [] | 2-8 | 調査結果のレビュー | 人間 |
+| [] | 2-9 | レビュー内容を反映する | `comments` / `reply` |
+| [] | 2-10 | 調査結果をもとにMR descriptionを更新する | `describe` |
+| [] | 3-1 | 個別作業計画を作成する | エージェント |
+| [] | 3-2 | commit・pushしてレビュー依頼 | エージェント |
+| [] | 3-3 | 作業計画のレビュー | 人間 |
+| [] | 3-4 | レビュー内容を反映する | `comments` / `reply` |
+| [] | 3-5 | 作業計画をもとにMR descriptionを更新する | `describe` |
+| [] | 3-6 | 作業計画をもとに作業を進める | エージェント |
+| [] | 3-7 | commit・pushしてレビュー依頼 | エージェント |
+| [] | 3-8 | 作業内容のレビュー | 人間 |
+| [] | 3-9 | レビュー内容を反映する | `comments` / `reply` |
+| [] | 3-10 | 作業内容をもとにMR descriptionを更新する | `describe` |
+| [] | 4-1 | 個別反映計画を作成する | エージェント |
+| [] | 4-2 | commit・pushしてレビュー依頼 | エージェント |
+| [] | 4-3 | 反映計画のレビュー | 人間 |
+| [] | 4-4 | レビュー内容を反映する | `comments` / `reply` |
+| [] | 4-5 | 反映計画をもとにMR descriptionを更新する | `describe` |
+| [] | 4-6 | 設計反映・AIアセット反映を行う | エージェント |
+| [] | 4-7 | commit・pushしてレビュー依頼 | エージェント |
+| [] | 4-8 | 反映内容のレビュー | 人間 |
+| [] | 4-9 | レビュー内容を反映する | `comments` / `reply` |
+| [] | 4-10 | 反映内容をもとにMR descriptionを更新する | `describe` |
+| [] | 5-1 | plans/ worklog/ reports/ を削除しHANDOFF.mdをリセットする | エージェント |
+| [] | 5-2 | defaultブランチとのコンフリクトを検知・解消する | エージェント |
+| [] | 5-3 | 関連issueを特定しマージ前の通知を投稿する | エージェント |
+| [] | 5-4 | commit・pushしてDraftを解除する | エージェント |
+| [] | 5-5 | マージする | 人間 |
 
 ## やったこと
 
-issue #117（`cleanup-task.sh` のfrontmatterインデックス再生成が、削除がステージされていないため
-必ず失敗する）に対応した。
+issue #127（ローカルGitLab CEで、issue #48以降に `Gitlab.sh` へ追加された13関数とURL形式を
+`Provider.sh` 経由で実機検証する）に着手した。フェーズ1が完了した状態。
 
-- **原因の確認**: 使い捨てリポジトリで再現した。`extract-frontmatter.sh` は
-  `git ls-files --cached` で対象を列挙するが、`--cached` はgitのindexの内容を返すため
-  **削除済みだが未ステージの追跡ファイル**も含む。`cleanup-task.sh` はコミットしない（DDR 0048）
-  ので、再生成の時点で必ずこの状態になる。
-- **issueの記述より影響が大きいことが分かった**: 警告1つでは済まず、**走査全体が中断**していた。
-  `xargs -0 stat` が失敗して件数が合わなくなり、フォールバックの1件ずつ取り直すループが
-  `set -e` 配下で倒れるため、削除と無関係なディレクトリの `index.jsonl` まで再生成されない。
-- **対処**: issueが挙げた2案のうち **`extract-frontmatter.sh` 側でスキップする**案を採った
-  （DDR 0057）。列挙ループで `[[ -f "$f" ]]`（bash組み込みなのでforkは増えない）を判定し、
-  実体の無いパスを対象から外す。スキップ件数は警告とサマリ行の `skipped=` で可視化する。
-  `cleanup-task.sh` の手順・順序・コミットしない方針は変えていない。
-- **検証**: 使い捨てリポジトリで `cleanup-task.sh` を通常実行し、`frontmatterIndex.exitCode` が
-  `0` になること・削除したファイルがインデックスから消えること・残った行が変わらないこと・
-  `--dry-run` / `--skip-index` の挙動が変わらないことを確認した。
-  修正前のスクリプトへ戻すと新規テストが失敗する（`test_extract_frontmatter.sh` で7件、
-  `test_cleanup_task.sh` で4件）ことも確認済み。
-- **変更したファイル**:
-  - `.claude/scripts/src/extract-frontmatter.sh`（列挙時のスキップ、サマリへ `skipped=` 追加）
-  - `.claude/scripts/test/test_extract_frontmatter.sh`（23→32ケース、`passed=32 failures=0`）
-  - `.claude/scripts/test/test_cleanup_task.sh`（37→53ケース、`passed=53 failures=0`。
-    `main` の結合テストを常設した）
-  - `.claude/docs/spec/extract-frontmatter.md` / `.claude/docs/spec/cleanup-task.md`
-  - `.claude/docs/ddr/0057-削除済み追跡ファイルの除外はextract-frontmatter側で行う.md`（新規）
-  - `.claude/docs/README.md`（DDR一覧）/ `.claude/rules/shell-script-style.md`（教訓を追記）
-- `.claude/scripts/test/` の全12スクリプトが `failures=0`（mainのマージ後、合計633ケース）。
+- **flow-id 1-2〜1-3**: issue #127 を取得（標準4見出しは充足）。`main`（`e3a9d81`）から
+  `feature-127-verify-gitlab-functions-and-url-formats` を作成し、Draft PR #128 を作成した。
+  `new_draft_merge_request` の1回目は「No commits between」で失敗したが、これは既知の制約で、
+  内部の空コミットフォールバックが自動リトライして成功している。
+- **flow-id 1-4 の事前調査（軽め）**: 検証環境が使える状態にあることを確認した。
+  - GitLab CE コンテナ `gitlab` が `Up 20 hours (healthy)`、`0.0.0.0:8929->8929/tcp`・
+    `0.0.0.0:2224->22/tcp`。
+  - `glab` 1.114.0 が `localhost:8929` に `root` でログイン済み（keyring）。
+    ただし **git操作は ssh プロトコル設定**（port 2224）。
+  - 既存プロジェクト `root/issue45-verify`（id=1）が残存。他2件は削除予約済み。
+  - `Gitlab.sh` は現在 **25関数**。issueが挙げる未検証13関数の内訳を確認済み。
+  - **検証環境の再現手順はリポジトリ内に存在しない**（`docker run` / `glab auth login` を
+    grep して不在を確認）。受け入れ条件8は実作業になる。
+  - ローカルの検証用クローンは見つからず、作り直しが必要。
+- **flow-id 1-4〜1-5**: 全体作業計画 `plans/zippy-petting-crown.md` を作成し、承認を得た。
+- **スコープの判断**: issue #127 を分割するかをユーザーに確認し、**「このまま1件で進める」**が
+  選ばれた。13関数は並列に作る成果物ではなく1つの検証キャンペーンのチェック項目であり、
+  成果物は `reports/` 1本 + 不具合修正 + spec更新に収束する。GitLab CEコンテナ・`glab` 認証・
+  テストプロジェクト作成という共通の固定費が大きく、分割すると5フェーズ41ステップの手続きコストが
+  本体を上回るため。
+- **進め方の取り決め**: ユーザーの明示指示により、**各pushの直後に敵対的レビューを実施する**
+  （flow-id 2-2/2-7/3-2/3-7/4-2/4-7 の直後、人間のレビューの前）。
+- **flow-id 2-1**: 個別調査計画 `plans/【調査】GitLab13関数とURL形式の実機検証.md` と
+  worklog を作成した。計画を書くにあたり、**検証環境への接続手段を切り分けた**（クローンできないと
+  `Provider.sh` 経由の検証自体が成立しないため）。
+  - ssh（port 2224）は公開鍵が未登録で `Permission denied (publickey)`。**ssh鍵の登録は
+    本issueの目的ではないので行わない。**
+  - 素のhttpクローンは Git Credential Manager が介在して `helper error (143)`。
+  - **`git -c credential.helper= clone "http://oauth2:<PAT>@localhost:8929/<path>.git"` で成功**。
+    これを検証環境の標準手段に決めた。PATは `glab auth status --show-token` から都度取り出し、
+    **ファイルへは書かない**。
+  - 素振りとして、そのクローンをcwdに `Provider.sh` を source して `get_provider` → `gitlab`、
+    `get_repo_url` → `http://localhost:8929/root/issue45-verify`（**URLに埋めたPATは除去される**）、
+    `get_workflow_config` が既定値で動くこと（検証用クローンに `.mrworkflow.json` が無くても
+    影響しないこと）を確認した。
 
 ## 次にやること
 
-- PR #124 のレビュー待ち。マージはユーザーの明示指示があるまで行わない。
-- defaultブランチの追従を監視中（本セッション中のみ有効。セッションが終わったら次のセッションの
-  `resume` で取り直す）。作業中に main は3回進んだ（PR #107 → #122 → #123）。#107 とはDDR番号が
-  衝突したため解消済み、#122・#123 は `HANDOFF.md` のみの競合で解消済み。
+- **flow-id 2-2**: 個別調査計画・worklog・HANDOFF.mdをコミットしてリモートへ反映し、
+  **敵対的レビュー**を実施したうえでレビュー依頼を出す。
+- そのあと人間のレビュー（flow-id 2-3）待ち。合意できたら flow-id 2-5（MR description更新）→
+  2-6（検証の実施）へ進む。
 
 ## 判断を迷った内容
 
-- **修正箇所をどちらに置くか**（issueが2案を提示していた）。`cleanup-task.sh` から再生成を外して
-  flow-id 5-4 へ移す案は、`extract-frontmatter.sh` に触れずに済む一方、コミット前に同スクリプトを
-  呼ぶ**他の経路**（SessionStart hook、`search-frontmatter.sh` の自動更新、`resolve-conflict`
-  スキルが案内する手動実行）に同じ失敗が残る。とくにSessionStart hookは「ファイルを消した直後の
-  セッション開始」で日常的に踏みうるため、原因のある側で直す案を選んだ（DDR 0057に却下案を記録）。
-- **スキップを無言で行うか**。削除済みファイルをインデックスから外すのは正しい結果だが、無言だと
-  今度は本当の欠落を隠す（issue #66と同種）。件数を警告とサマリ行へ出す形にした。
-- mainのマージ（PR #107がマージされたことによる追従）で、DDR番号がmain側の
-  `0056-作業開始時のベースブランチ追従確認は…` と本ブランチ側の
-  `0056-削除済み追跡ファイルの除外は…` で重複した（類型A）。**mainを正とし本ブランチ側を
-  0056 → 0057 へ繰り下げた**。参照元（`.claude/docs/README.md`、
-  `.claude/docs/spec/extract-frontmatter.md`、`.claude/docs/spec/cleanup-task.md`、
-  本ファイル）もあわせて更新した。main側の 0056 とその参照元
-  （`spec/check-base-sync.md` 等）には手を触れていない。
-- `.claude/docs/README.md` のDDR一覧末尾で、両ブランチが別々のエントリを追記して競合した
-  （類型C）。**両方を残し**、番号順（0056 → 0057）に並べた。
-- `HANDOFF.md` は「このブランチの現状」だけを表すファイルのため、**main側の記述（PR #107 の
-  コンフリクト解消記録・リセット済みの状態）は取り込まず、本ブランチ（issue #117）の内容を
-  採用した**。コンフリクト部分だけでなく、自動マージで入り込む可能性のある箇所も
-  `git diff HEAD -- HANDOFF.md` で通しで確認している。
-- 2回目のmainのマージ（PR #122・#123 の追従）では、競合したのは `HANDOFF.md` の
-  「判断を迷った内容」節のみだった（類型C）。main側はリセット済みの `（無し）`、本ブランチ側は
-  上記の記録であり、**「1ブランチ1状態」の原則から本ブランチ側を採用した**。今回はDDR番号の
-  衝突は無い（main側は0056までで、本ブランチの0057と重ならない）。
+- **issueを分割するか**。「13関数」という並びは分割提案の主トリガー（同型の成果物の並列列挙）に
+  見えるが、13関数は検証対象であって成果物ではなく、単独マージできる独立した成果物が並んでいる
+  わけではないと判断した。念のため `AskUserQuestion` で提示し、ユーザーが「このまま1件」を選んだ。
 
 ## 未解決の内容
 
-- `test_cleanup_task.sh` に常設した `main` の結合テストは、通常実行・`--dry-run`・`--skip-index`
-  の3経路のみを対象にしている。issue #28 対応時に手動確認していた2回目の冪等性・
-  `extract-frontmatter.sh` 不在／異常終了・不正な引数／設定の各経路は手動確認のままで、
-  常設していない（`.claude/docs/spec/cleanup-task.md`「未決定事項・懸念点」に記載）。
+- **差分アンカーの検証方法**。実装は `#<パスのsha1>`（`diff-` 接頭辞なし）を前提にしているが、
+  **ブラウザでの目視確認はAIにはできない**。HTTPステータス・GitLab APIが返すファイルハッシュ・
+  自前計算した sha1 の突き合わせで自動的に取れる証拠を集め、それでも決着しない項目だけを
+  URL一覧としてユーザーへ提示して開いてもらう方針（フェーズ2の終盤で一度にまとめて依頼する）。
+- **検証環境の再現手順の置き場所**（受け入れ条件8）。新規specファイルを作るなら人間の承認が
+  必須のため、flow-id 4-1 で決める。
+- **`build_discussion_body`・`summary_post_kind` はディスパッチャ経由の公開関数を持たない**
+  （`add_mr_inline_comments` の内部でのみ使われる）。この2件は間接的な確認になる旨を
+  reports に明記する。
 
 ## 守るべき条件・触ってはいけない範囲
 
-- **`cleanup-task.sh` がコミットしない方針（DDR 0048）は変えない**（issueの明示要件）。
-- `extract-frontmatter.sh` の性能設計（1ファイル1回のjq呼び出し・ホットパスでforkしない。
-  DDR 0021）を崩さない。列挙ループへ外部コマンドを持ち込まないこと。
+- **13関数は `gitlab_*` の直呼びではなく `Provider.sh` のディスパッチャ経由で実行する**。
+  これが issue #48 の検証との差分であり、期待する動作1の要点である。
+- **範囲外**: gitlab.com（SaaS）・CE 18.5.4 以外のバージョン・EE。範囲外である旨を spec に残す
+  （期待する動作7）。
+- 検証で作る一時ファイル・クローンは**本リポジトリのツリーを汚さない**場所（スクラッチパッド配下）に
+  置く。
+- GitLabコンテナ上の既存プロジェクト `root/issue45-verify` は、過去の検証記録として参照される
+  可能性があるため削除しない。
