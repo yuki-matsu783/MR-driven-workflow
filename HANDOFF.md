@@ -17,8 +17,8 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - issue: #43 レビューコメント取得の出力仕様を見直す（diffHunk廃止・断面ソースの前後行スライス化）
 - ブランチ: claude/issue-43-snhmw7
 - PR: #131 https://github.com/yuki-matsu783/MR-driven-workflow/pull/131（Draft）
-- push回数: 4
-- 現在のループ: 3-6〜3-9 の1周目（進行中）
+- push回数: 5
+- 現在のループ: なし
 - 追従監視: 購読あり（web。subscribe_pr_activity + 定期チェックイン）
 
 進捗記号: `[x]` 完了 / `[]` 未着手・進行中 / `[-]` 今回は実施しない（スキップ）
@@ -51,7 +51,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 | [] | 3-8 | MRでレビュー・コメントする | 人間 |
 | [] | 3-9 | レビュー内容を取得し、実装・ドキュメントを修正する（3-6〜3-9を合意まで繰り返す） | `comments` / `reply` |
 | [] | 3-10 | 作業内容をもとにMR descriptionを更新する | `describe` |
-| [] | 4-1 | 個別反映計画を作成する（まず反映対象を洗い出す） | エージェント |
+| [x] | 4-1 | 個別反映計画を作成する（まず反映対象を洗い出す） | エージェント |
 | [] | 4-2 | `commit`スキル経由でcommitし、リモートへ反映してレビュー依頼を行う | エージェント |
 | [] | 4-3 | MRで反映計画についてレビュー・コメントする | 人間 |
 | [] | 4-4 | レビュー内容を取得し、反映計画を修正する（4-3〜4-4を合意まで繰り返す） | `comments` / `reply` |
@@ -119,12 +119,16 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
   - `.claude/scripts/test/` の12スクリプト全てを実行し全て `failures=0`（合計 passed=667）。
 - flow-id 3-6（副次）: GitLabで未解決レビューコメントが常に0件と表示されていた不具合が、
   行頭ラベルの共通化により直った。
+- flow-id 3-7: 実装・テスト・結果レポートをcommitしてリモートへ反映した（push 4回目、3コミット）。
+- flow-id 3-10: PR #131 のdescriptionを実装状況・実測値つきで更新した。
+- flow-id 4-1: 反映対象を洗い出し、**9箇所が該当**した。うち5箇所は過去changelogのため
+  対象外と判別した（`.claude/rules/docs-workflow.md` の「changelogを一括置換の対象に
+  含めない」に該当）。個別反映計画を2本作成した（設計反映とAIアセット反映は分ける）。
 
 ## 次にやること
 
-- flow-id 4-1: 個別反映計画（設計反映）を作成する。反映対象の見込みは
-  `.claude/docs/spec/issue-mr-workflow.md`・DDR 0059・`.claude/skills/issue-mr-flow/SKILL.md`・
-  `.claude/docs/spec/adversarial-review.md`。AIアセット反映は別ファイルへ分ける。
+- flow-id 4-6: 設計反映（spec / DDR 0059 / README.md / adversarial-review.md）を実施する。
+  完了後にAIアセット反映（SKILL.md / shell-script-style.md）へ進む。
 
 ## 判断を迷った内容
 
