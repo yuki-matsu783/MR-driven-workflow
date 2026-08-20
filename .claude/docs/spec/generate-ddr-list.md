@@ -27,7 +27,7 @@ keywords: [generate-ddr-list, マーカー, note, superseded, awk, --check, --pr
 
 **生成結果はGit管理下に置きコミットする**（`index.jsonl` と異なり `.gitignore` に加えない）。
 理由と却下案は
-[.claude/docs/ddr/0061-DDR一覧は生成物にしつつGit管理下へ残す.md](../ddr/0061-DDR一覧は生成物にしつつGit管理下へ残す.md)。
+[.claude/docs/ddr/0064-DDR一覧は生成物にしつつGit管理下へ残す.md](../ddr/0064-DDR一覧は生成物にしつつGit管理下へ残す.md)。
 
 ## 仕様
 

@@ -23,7 +23,7 @@ DDR一覧の生成スクリプト化を完了した。issue #135 の受け入れ
 | `resolve-conflict` に再生成で解消してよい旨を記載 | ✅ | 類型Bへ移動（類型Cから除外） |
 | 単体テストが `passed=N failures=0` で通る | ✅ | `passed=48 failures=0` |
 | 仕様が `spec/` にあり README のspec一覧に載っている | ✅ | `spec/generate-ddr-list.md` |
-| 採用理由と却下案を記録したDDR | ✅ | `ddr/0061-…md`（却下案6件を表で記載） |
+| 採用理由と却下案を記録したDDR | ✅ | `ddr/0064-…md`（却下案6件を表で記載） |
 
 ## 成果物
 
@@ -32,7 +32,7 @@ DDR一覧の生成スクリプト化を完了した。issue #135 の受け入れ
 | `.claude/scripts/src/generate-ddr-list.sh` | 新規。生成本体 |
 | `.claude/scripts/test/test_generate_ddr_list.sh` | 新規。単体テスト52件 |
 | `.claude/docs/spec/generate-ddr-list.md` | 新規。仕様 |
-| `.claude/docs/ddr/0061-DDR一覧は生成物にしつつGit管理下へ残す.md` | 新規。意思決定 |
+| `.claude/docs/ddr/0064-DDR一覧は生成物にしつつGit管理下へ残す.md` | 新規。意思決定 |
 | `.claude/docs/README.md` | 一覧をマーカーで囲み、生成物である旨を明記。spec一覧へ追加 |
 | `.claude/docs/ddr/0022-…md` / `0048-…md` | 散文の注記を frontmatter の `note` へ移動（**本文は不変**） |
 | `.claude/rules/markdown-frontmatter.md` | `note` キーの定義・「DDRのnote」節を追加。古い記述を1件修正 |
@@ -47,7 +47,7 @@ DDR一覧の生成スクリプト化を完了した。issue #135 の受け入れ
 | 実行方法 | AIの明示的な実行（`--check` で検証可能） | 出力がGit管理下にあるため、hookでの自動生成は意図しない差分を常時生む |
 | 散文注記の置き場 | DDRのfrontmatterへ `note` キーを新設 | サイドカーは同期の手間とコンフリクトが戻る。捨てるのは情報欠落 |
 
-却下案の詳細は DDR 0061 の表を参照。
+却下案の詳細は DDR 0064 の表を参照。
 
 ## 等価性の検証
 
@@ -57,7 +57,7 @@ DDR一覧の生成スクリプト化を完了した。issue #135 の受け入れ
 - **1行だけ差分が出た**（0009）。これは後述の既存不具合の修正であり、退行ではない。
 
 その後 `--check` が終了コード0を返すこと（＝コミット済みの内容と生成結果が一致すること）を
-単体テストにも組み込んだ。DDR 0061 を追加したあと再実行したところ、**56件へ自動で増えた**
+単体テストにも組み込んだ。DDR 0064 を追加したあと再実行したところ、**56件へ自動で増えた**
 （手書き更新が不要になったことの実地確認）。
 
 その後、ユーザー承認を得て `0048` の `note` の誤記（「DDR 0056 参照」→「DDR 0058 参照」）も

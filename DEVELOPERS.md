@@ -48,6 +48,10 @@ keywords: [issue-mr-flow, ディレクトリ構成, mrworkflow, claude-code, gem
 
 ```bash
 # 1. 変更したコアアセットをスキル一時アセットディレクトリに同期（assets/ は .gitignore 対象）
+#    .claude/ 一式・.github/ .gitlab/ のテンプレート・ルート設定に加え、.gitattributes も対象。
+#    .gitattributes は配布先へ丸ごとコピーされず、`# --- dist:begin ---` 〜 `# --- dist:end ---`
+#    の間の行だけが配布先の .gitattributes へ追記される
+#    （詳細: .claude/docs/spec/distribution-assets.md）。
 bash .claude/skills/apply-mr-workflow-to-project/scripts/sync-assets.sh
 
 # 2. スキルフォルダをビルドして .skill バイナリをコンパイル
