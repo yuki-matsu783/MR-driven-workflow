@@ -16,8 +16,8 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 
 - issue: #66
 - ブランチ: `claude/set-header-silent-failure-p3izl0`
-- PR: （未作成）
-- push回数: 0
+- PR: #146（https://github.com/yuki-matsu783/MR-driven-workflow/pull/146 ）
+- push回数: 1
 - 現在のループ: なし
 - 追従監視: なし
 
@@ -43,11 +43,17 @@ issue #66（`update-handoff-progress.sh` の `set-header` が対象行を書き�
   理由は同ファイル冒頭に明記）。
 - flow-id 2-1: 個別調査計画
   `plans/【調査】set-headerの無言成功とヘッダ表記の実態.md` と worklog を作成した。
+- flow-id 1-3: Draft PR #146 を作成した（ユーザーから明示指示あり。ブランチ作成より後になったのは、
+  GitHubがPR作成に差分を要求するため）。
+- flow-id 2-6: 調査を実施し、`reports/2026-08-20_set-header-silent-failure_調査結果.md`（正文）と
+  同名の `.html`（視覚化）へ結果を書いた。**報告された欠陥の再現に加え、`- 現在のループ:` 行の
+  挿入位置が実物のHANDOFF.mdと噛み合っていない2件目の欠陥を見つけた。** issue #140 は別issueの
+  まま残すと結論した（理由は調査結果を参照）。
 
 ## 次にやること
 
-- flow-id 2-2: commit・リモートへ反映し、Draft PRを作成する（ユーザーから明示指示あり）。
-- flow-id 2-6: 調査を実施し `reports/` へ結果を書く。
+- flow-id 3-1: 個別作業計画 `plans/【実装】【テスト】〜.md` を作成する。
+- flow-id 3-6: 実装・テストを行い、`adversarial-review` スキルで敵対的レビューを受ける。
 
 ## 判断を迷った内容
 
@@ -57,8 +63,7 @@ issue #66（`update-handoff-progress.sh` の `set-header` が対象行を書き�
 
 ## 未解決の内容
 
-- issue #140（`mark-skip` がループ範囲の一部だけを `[-]` にできる）を本issueへ取り込むか、
-  別issueのまま残すか。フェーズ2の調査で結論を出す。
+- 特になし（issue #140 を取り込むかは、flow-id 2-6 の調査で「別issueのまま残す」と結論した）。
 
 ## 守るべき条件・触ってはいけない範囲
 
