@@ -258,7 +258,7 @@ add_mr_inline_comments <MR番号> <findings JSONファイル>   # → {"posted":
   別の1コメントとして投稿する。**このサマリが指摘を1件でも含む場合は、単発noteではなく
   `discussions`（スレッド）で投稿する**（下記）。
 
-#### インライン以外のコメントもスレッドで投稿する
+#### インライン以外のコメントもスレッドで投稿する（issue #121）
 
 サマリの投稿先は `gitlab_summary_post_kind` が件数から決める（`thread` / `note`）。
 
@@ -344,7 +344,7 @@ issue #77 で追加・変更したもの。
 | `.claude/scripts/test/test_adversarial_review_count.sh` | 新規（22件） |
 | `.claude/scripts/test/test_collect_review_points.sh` | 新規（17件） |
 
-### 追記: GitLabのサマリをスレッドで投稿する
+### 追記: GitLabのサマリをスレッドで投稿する（issue #121）
 
 | ファイル | 内容 |
 |---|---|
