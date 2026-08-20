@@ -55,6 +55,16 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
   `extract-frontmatter.sh .` が failed=0 で完走。
 - 2回に分けてリモートへ反映し（実装分・計画ファイル追記分）、ユーザーの承認を得てDraft PR #118 を
   作成した（`gh` CLI不在のため `mcp__github__create_pull_request` 経路）。
+- flow-id 5-2（コンフリクト検知）: `check-base-conflicts.sh` が `hasConflict: false`（テキスト競合・DDR
+  番号重複ともになし）。`origin/main`（f655e07, PR #119）をマージで取り込み、単体テスト532件が
+  failures=0 であることを再確認した。
+- flow-id 5-3（関連issue通知）: **#109 と #112 の2件へ通知した**（投稿前にユーザー承認済み）。
+  - #109: 同じ2ファイル（adversarial-review の SKILL.md / spec.md）を触るため、手順番号の
+    繰り上げ対応表・「影響範囲」節末尾が唯一の競合点であること・DDR番号は0056以降を使うことを伝えた。
+    https://github.com/yuki-matsu783/MR-driven-workflow/issues/109#issuecomment-5354241793
+  - #112: spec/adversarial-review.md に flow-id 5-x の参照が0件で受け入れ条件の対象外にできること、
+    および本PRで提案順（5-2→5-3→5-1→5-4）を実適用した結果を伝えた。
+    https://github.com/yuki-matsu783/MR-driven-workflow/issues/112#issuecomment-5354245588
 
 ## 次にやること
 
