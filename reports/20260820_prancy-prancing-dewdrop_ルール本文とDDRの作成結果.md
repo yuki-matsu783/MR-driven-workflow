@@ -3,7 +3,7 @@ title: ルール本文とDDRの作成結果（issue #47 フェーズ3）
 type: report
 description: .claude/rules/ai-command-style.md と DDR 0061 を作成した結果と、受け入れ条件7項目との逐条突き合わせ・検証コマンドの実行結果
 tags: [report, rule, ai-command, issue-47]
-keywords: [ai-command-style, DDR-0059, 受け入れ条件, 逐条, 検証, frontmatter, index.jsonl, allow, deny, 未確認]
+keywords: [ai-command-style, DDR-0061, 受け入れ条件, 逐条, 検証, frontmatter, index.jsonl, allow, deny, 未確認]
 ---
 
 # ルール本文とDDRの作成結果（flow-id 3-6）
@@ -114,17 +114,22 @@ DDR 0061 の判断1〜4が、条文が列挙する4つの経緯と1対1で対応
 
 ## 検証コマンドの実行結果
 
+**DDR番号は当初 0059 だったが、flow-id 4-6 の `main` マージで 0061 へ繰り下がった**
+（`main` が 0059・0060 を使用済みだったため）。下表は**繰り下げ後の 0061 で再実行した結果**で、
+初回実行（0059 の時点）でも同じ値だった。
+
 | # | 検証 | 期待値 | 結果 |
 |---|---|---|---|
 | 2 | `--path ai-command-style` | `matched=1` | **`matched=1`** |
-| 2 | `--path 0059` | `matched=1` | **`matched=1`** |
-| 3 | `grep -c '](ddr/0059-' .claude/docs/README.md` | 1 | **1** |
+| 2 | `--path 0061` | `matched=1` | **`matched=1`** |
+| 3 | `grep -c '](ddr/0061-' .claude/docs/README.md` | 1 | **1** |
 | 5 | ルール本文・DDRへの2語連続の混入 | なし | **なし** |
-| 6 | `ls .claude/docs/ddr/0059-*.md \| wc -l` | 1 | **1** |
+| 6 | `ls .claude/docs/ddr/0061-*.md \| wc -l` | 1 | **1** |
 
-参考値（総件数）: `--type rule` は 9 → **10**、`--type ddr` は 54 → **55**。
+参考値（総件数）: 初回実行時は `--type rule` が 9 → **10**、`--type ddr` が 54 → **55**。
 **これは参考であり、合否の判定には使っていない**（`main` の取り込みで他のDDRが増えると
-期待値がずれるため。敵対的レビューの指摘を受けて `--path` による直接確認へ変更した）。
+期待値がずれるため。敵対的レビューの指摘を受けて `--path` による直接確認へ変更した。実際に
+`main` のマージでDDRが2件増えており、総件数で判定していれば誤判定していた）。
 
 ### 検証5で実際にhookへブロックされた
 

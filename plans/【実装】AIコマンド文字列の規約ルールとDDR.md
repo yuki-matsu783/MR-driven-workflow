@@ -24,7 +24,7 @@ AIエージェントがBash/PowerShellツールへ渡す**コマンド文字列�
 | `.claude/rules/ai-command-style.md` | **新規** | ルール本文 |
 | `.claude/docs/ddr/0061-AIが渡すコマンド文字列の説明はdescriptionとコメントへ分けて置く.md` | **新規** | 判断の経緯（受け入れ条件7） |
 | `reports/20260820_prancy-prancing-dewdrop_ルール本文とDDRの作成結果.md` | **新規** | **フェーズ3の実施結果の正文**。検証1〜5の結果と受け入れ条件との突き合わせ結果を書く（計画へ結果を書かないための分離先。issue #87） |
-| `.claude/docs/README.md` | 既存 | **DDR一覧へ 0059 の1行を追記**。この目次は 0001〜 を網羅列挙する手動維持のもので、`extract-frontmatter.sh` は欠落を検出しない |
+| `.claude/docs/README.md` | 既存 | **DDR一覧へ 0061 の1行を追記**。この目次は 0001〜 を網羅列挙する手動維持のもので、`extract-frontmatter.sh` は欠落を検出しない |
 | `.claude/rules/shell-script-style.md` | 既存 | 冒頭へスコープの違いと新ルールへのリンクを追記（規約の中身は変更しない） |
 
 `reports/` のHTMLは作らない。本レポートの内容は逐条のチェックリストであり、複数要素間の関連・
@@ -33,6 +33,8 @@ AIエージェントがBash/PowerShellツールへ渡す**コマンド文字列�
 
 DDR番号は本計画作成時点の空き番号が 0059（既存の最大は 0058）。`main` が進むと重複しうるため、
 flow-id 5-1 の `check-base-conflicts.sh` で確認し、必要なら繰り下げる。
+**（実際に重複した。`main` が 0059・0060 を使ったため、flow-id 4-6 のマージで 0061 へ繰り下げ済み。
+以下の検証コマンドは繰り下げ後の 0061 を対象にしている。）**
 
 **既存ファイルへの追記ではなく新規ファイルにする**（調査4の結論）。`shell-script-style.md` は
 `.sh` として保存するスクリプトの規約であり、対象が「ツールへ渡す文字列」である本ルールとは
@@ -182,17 +184,17 @@ DDRへ書く（DDRの本質は「〇〇を検討したが✕✕を採用した�
 
    # 期待値: それぞれ matched=1
    bash .claude/scripts/src/search-frontmatter.sh --path ai-command-style
-   bash .claude/scripts/src/search-frontmatter.sh --path 0059
+   bash .claude/scripts/src/search-frontmatter.sh --path 0061
    ```
 
    総件数（`--type rule` / `--type ddr`）は**参考値**として控えるにとどめる。
 
-3. **DDR一覧（`.claude/docs/README.md`）へ 0059 の行があること。** この目次は手動維持で、
+3. **DDR一覧（`.claude/docs/README.md`）へ 0061 の行があること。** この目次は手動維持で、
    `extract-frontmatter.sh` は欠落を検出しない。
 
    ```bash
    # 期待値: 1
-   grep -c '](ddr/0059-' .claude/docs/README.md
+   grep -c '](ddr/0061-' .claude/docs/README.md
    ```
 
 4. **受け入れ条件1の実測（新規ファイルが自動で読み込まれるか）。**
@@ -207,7 +209,7 @@ DDRへ書く（DDRの本質は「〇〇を検討したが✕✕を採用した�
 
    ```bash
    # 期待値: 「なし」と表示される（マッチ行があればその行番号が出る）
-   grep -nE 'git[[:space:]]+(commit|push)' .claude/rules/ai-command-style.md .claude/docs/ddr/0059-*.md || echo 'なし'
+   grep -nE 'git[[:space:]]+(commit|push)' .claude/rules/ai-command-style.md .claude/docs/ddr/0061-*.md || echo 'なし'
    ```
 
    **この検査コマンド自体、パターンを `[[:space:]]+` で書くことで連続文字列になるのを避けている。**
@@ -218,7 +220,7 @@ DDRへ書く（DDRの本質は「〇〇を検討したが✕✕を採用した�
 
    ```bash
    # 期待値: 1
-   ls .claude/docs/ddr/0059-*.md | wc -l
+   ls .claude/docs/ddr/0061-*.md | wc -l
    ```
 
    最終確認は flow-id 5-1 の `check-base-conflicts.sh` で行う。
