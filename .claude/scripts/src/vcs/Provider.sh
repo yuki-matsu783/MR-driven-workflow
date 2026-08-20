@@ -350,6 +350,10 @@ mcp_tool_hint() {
     add_mr_comment) printf 'mcp__github__add_issue_comment (owner, repo, issue_number=PR番号, body=ファイル内容)\n' ;;
     add_mr_inline_comments) printf 'mcp__github__pull_request_review_write (method="create" → 各指摘を "add_comment_to_pending_review" → "submit_pending"。owner, repo, pullNumber, path, line, side, body)\n' ;;
     add_issue_comment) printf 'mcp__github__add_issue_comment (owner, repo, issue_number=通知先issue番号, body=ファイル内容)\n' ;;
+    # 唯一「代替が無い」分岐（issue #111）。他の関数と違い読み替え先を案内できないため、
+    # スキップしてよいことを名指しで返す。添付は flow-id 5-3 の任意層であり、
+    # 層1（reports/ をリモートへ反映）と層2（サマリコメント）でレビューは成立する。
+    upload_attachment) printf '対応するMCPツールはありません（PR/issueへの添付に相当するツールが提供されていない）。**flow-id 5-3 の層3（添付）はスキップしてよい**。層1・層2だけでレビューは成立します\n' ;;
     *) printf '対応するMCPツールは .claude/skills/issue-mr-flow/SKILL.md の対応表を参照\n' ;;
   esac
 }
@@ -840,7 +844,7 @@ set_mr_description() {
   esac
 }
 
-# Draft PR/MRのDraft状態を解除し、レビュー・マージ可能な状態にする（flow-id 5-4。issue #61）。
+# Draft PR/MRのDraft状態を解除し、レビュー・マージ可能な状態にする（flow-id 5-5。issue #61）。
 # Draft作成側（new_draft_merge_request）に対応する解除側で、これが無かったため当時の flow-id 5-3 では
 # AIエージェントが `gh pr ready` を直接呼ぶことになり、GitLab環境で動かず、CLI不在時の
 # MCPフォールバック経路（require_vcs_cli / mcp_tool_hint）にも乗らなかった。
@@ -1001,6 +1005,77 @@ add_issue_comment() {
   case "$(get_provider)" in
     github) github_add_issue_comment "$issue_number" "$body_file" ;;
     gitlab) gitlab_add_issue_comment "$issue_number" "$body_file" ;;
+  esac
+}
+
+# --- 最終統括レポートの添付（flow-id 5-3・層3。issue #111） ---
+
+# 拡張子から Content-Type を推定する（純粋関数。REPLYへ返す）。
+# 添付APIは Content-Type をクエリ／multipart で要求するが、`file` コマンドはHTMLを
+# text/plain と判定するなど当てにならず、そもそも外部プロセスの起動を1回増やす
+# （.claude/rules/shell-script-style.md「外部プロセス起動のコスト」）。
+# 統括レポートの添付で扱うのは自分たちが生成した md / html だけなので、拡張子で足りる。
+#
+# 拡張子は小文字化して比較する（`REPORT.HTML` のようなパスを取りこぼさないため）。
+# 未知の拡張子・拡張子なしは application/octet-stream にフォールバックする（失敗させない。
+# 添付は任意ステップであり、ここで落とすと層3の失敗理由が分かりにくくなるため）。
+content_type_from_path_to_reply() {
+  local path="${1:-}" ext=""
+  local base="${path##*/}"
+  # ドットを含まないファイル名（`README`）では ${base##*.} が名前全体を返すため、
+  # 「ドットがあるか」を先に判定する。
+  if [[ "$base" == *.* ]]; then
+    ext="${base##*.}"
+    ext="${ext,,}"
+  fi
+  case "$ext" in
+    html|htm) REPLY="text/html" ;;
+    md|markdown) REPLY="text/markdown" ;;
+    txt) REPLY="text/plain" ;;
+    json) REPLY="application/json" ;;
+    csv) REPLY="text/csv" ;;
+    png) REPLY="image/png" ;;
+    jpg|jpeg) REPLY="image/jpeg" ;;
+    svg) REPLY="image/svg+xml" ;;
+    pdf) REPLY="application/pdf" ;;
+    *) REPLY="application/octet-stream" ;;
+  esac
+}
+
+# ファイルをPR/MRの本文へ埋め込める形でアップロードする（flow-id 5-3 の層3）。
+#
+#   upload_attachment <file> [<content_type>]
+#     成功: {"url":"...","markdown":"...","provider":"github|gitlab"} をstdoutへ / 終了コード0
+#     失敗: 理由をstderrへ / 終了コード非0
+#
+# **この関数の失敗は正常系のひとつである。** 呼び出し側（flow-id 5-3）は非0終了を受け取ったら
+# 警告だけ出して層3をスキップし、フローを続ける。層1（reports/ へ載せてリモートへ反映）と
+# 層2（サマリをMarkdownでコメント投稿）だけでレビューは成立する設計になっている
+# （.claude/docs/ddr/i0111-01-統括レポートの添付は任意層に置きフローを止めない.md）。
+#
+# 呼び出し側が成功を前提にした分岐を書かないよう、**成功時も失敗時もフローの続きは変わらない**。
+upload_attachment() {
+  # `set -u` 配下で引数なしの呼び出しが「unbound variable」でシェルごと落ちるのを避けるため、
+  # 第1引数も `${1:-}` で受ける（引数の不足は下の検証で扱う。issue #111 の単体テストで実際に踏んだ）。
+  local file="${1:-}" content_type="${2:-}"
+  if [ -z "$file" ]; then
+    echo "upload_attachment: 添付するファイルのパスを指定してください" >&2
+    return 1
+  fi
+  if [ ! -f "$file" ]; then
+    echo "upload_attachment: ファイルが見つかりません: $file" >&2
+    return 1
+  fi
+  if [ -z "$content_type" ]; then
+    content_type_from_path_to_reply "$file"
+    content_type="$REPLY"
+  fi
+  # CLI不在（MCP経路）ではここで落ちる。**これは想定内の失敗**で、MCPには添付に相当する
+  # ツールが存在しない（issue #111 の調査で実測。`mcp_tool_hint` がその旨を返す）。
+  require_vcs_cli upload_attachment || return 1
+  case "$(get_provider)" in
+    github) github_upload_attachment "$file" "$content_type" ;;
+    gitlab) gitlab_upload_attachment "$file" "$content_type" ;;
   esac
 }
 

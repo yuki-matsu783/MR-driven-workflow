@@ -251,7 +251,7 @@ gitlab_set_mr_description() {
   glab mr update "$mr_number" --description "$description" >/dev/null
 }
 
-# Draft MRのDraft状態を解除し、レビュー・マージ可能な状態にする（flow-id 5-4）。
+# Draft MRのDraft状態を解除し、レビュー・マージ可能な状態にする（flow-id 5-5）。
 # GitLabはDraftをタイトルの `Draft:` 接頭辞で表現するため、`glab mr update <id> --ready` は
 # タイトル先頭の `Draft:` / `WIP:`（大文字小文字・重複を問わない）を除去した新タイトルを
 # APIへ送る実装になっている（glab本体のソース `internal/commands/mr/update/mr_update.go` で確認）。
@@ -462,4 +462,42 @@ gitlab_add_issue_comment() {
   body="$(cat "$body_file")"
   glab api "projects/:id/issues/${issue_number}/notes" \
     -X POST -f "body=${body}" >/dev/null
+}
+
+# --- 最終統括レポートの添付（flow-id 5-3・層3。issue #111） ---
+#
+# GitLabは**公式APIで添付を提供する**（`POST /projects/:id/uploads`）。GitHubの
+# `github_upload_attachment` と違い未ドキュメントAPIへの依存は無く、レスポンスの `markdown`
+# フィールドをそのまま本文へ埋め込める。
+# https://docs.gitlab.com/api/projects/#upload-a-file
+#
+# **未検証**: このリポジトリのremoteはGitHubで、GitLab実機での実行確認は行っていない
+# （Gitlab.sh 冒頭の検証状況と同じ扱い。実機検証は issue #127 が担当する）。実装は公式API
+# ドキュメントの仕様に沿って書いてある。
+#
+# 成功: {"url":"...","markdown":"...","provider":"gitlab"} をstdoutへ / 終了コード0
+# 失敗: 理由をstderrへ / 終了コード非0（呼び出し側はスキップする）
+#
+# 第2引数のcontent_typeは受け取るが使わない（GitLabはmultipartのファイル名から判定するため）。
+# シグネチャを `github_upload_attachment` と揃えるために引数だけ残している。
+gitlab_upload_attachment() {
+  local file="$1" _content_type="${2:-}"
+  local response url markdown
+
+  if ! response="$(glab api "projects/:id/uploads" -X POST -F "file=@${file}" 2>&1)"; then
+    printf 'gitlab_upload_attachment: アップロードに失敗しました（層3はスキップしてよい）: %s\n' "$response" >&2
+    return 1
+  fi
+
+  # `full_path` はインスタンス相対のパス、`url` はプロジェクト相対のパス。
+  # 埋め込みに使うのは `markdown` なので、URL側は full_path を優先して参考情報として返す。
+  url="$(printf '%s' "$response" | jq -r '.full_path // .url // empty' 2>/dev/null || true)"
+  markdown="$(printf '%s' "$response" | jq -r '.markdown // empty' 2>/dev/null || true)"
+  if [ -z "$markdown" ]; then
+    printf 'gitlab_upload_attachment: レスポンスから markdown を取得できませんでした（層3はスキップしてよい）\n' >&2
+    return 1
+  fi
+
+  jq -nc --arg url "$url" --arg markdown "$markdown" \
+    '{url: $url, markdown: $markdown, provider: "gitlab"}'
 }

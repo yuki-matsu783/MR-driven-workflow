@@ -98,7 +98,7 @@ MRとのやり取りだけを自動化する薄い層」として設計したが
 | `read_file_at_ref <sha> <path>` | 指定commit時点のファイル内容を**プロバイダのファイル取得API**から読む（issue #43。ソーススライスの断面がローカルのblobで解決できないときのフォールバック。ローカルで解決できる場合はここへ来ない） | `gh api repos/{owner}/{repo}/contents/<path>?ref=<sha>`（base64） | `glab api projects/:id/repository/files/<encoded>/raw?ref=<sha>`（【未検証】） |
 | `add_mr_thread_reply <n> <threadId> <text>` | 指定スレッドに対応内容を返信する（スレッドの解決＝resolvedはレビュアー側の操作のため本関数では行わない）。**投稿した返信自身のパーマリンクを標準出力へ返す**（issue #42。レビュー依頼メッセージへ「前回の指摘にどう返信したか」のリンクを載せるため） | `gh api graphql`（reply mutation。戻り値を `comment { url }` にした） | `glab api`（note追加。POSTレスポンスの `id` から組み立てる） |
 | `set_mr_description <n> <bodyFile>` | PR/MRのdescriptionを指定ファイル内容で上書き | `gh pr edit --body-file` | `glab mr update --description` |
-| `set_mr_ready <n>` | Draft PR/MRのDraft状態を解除し、レビュー・マージ可能な状態にする（全体フロー flow-id 5-4。Draft作成側の `new_draft_merge_request` に対応する解除側。issue #61） | `gh pr ready` | `glab mr update --ready` |
+| `set_mr_ready <n>` | Draft PR/MRのDraft状態を解除し、レビュー・マージ可能な状態にする（全体フロー flow-id 5-5。Draft作成側の `new_draft_merge_request` に対応する解除側。issue #61） | `gh pr ready` | `glab mr update --ready` |
 | `add_mr_comment <n> <bodyFile>` | PR/MRへ新規コメントを1件投稿（スレッド返信・レビューではない通常コメント） | `gh pr comment --body-file` | `glab api`（notes追加） |
 | `add_mr_inline_comments <n> <findingsFile>` | findings JSONファイルの指摘を、PR/MRへインラインコメントとして投稿する（敵対的レビュー用。issue #77）。投稿できなかった指摘はサマリへ回し、`{"posted":N,"summarized":M}` を返す。findingsは**必ずファイル経由で渡す**（引数長上限とhook誤検知の回避）。仕様は [adversarial-review.md](adversarial-review.md) を正とする | `gh api pulls/<n>/reviews`（1レビューへまとめて投稿。有効行を事前検証） | `glab api discussions`（1件ずつPOST。`position` を `diff_refs` から組み立てる。サマリも指摘を含むなら `position` 無しの `discussions` でスレッドとして投稿する） |
 | `add_issue_comment <n> <bodyFile>` | **任意のissue**へ新規コメントを1件投稿（全体フロー flow-id 5-2: マージ前の関連issue通知。issue #86）。宛先がPR/MRである `add_mr_comment` とは別関数で、GitHub実装が `gh pr comment` であるためPR以外へ投げられなかったのが分離の理由。本文はファイル経由（push検知hookの誤発火を避けるため）。投稿先・本文の決定と人間の承認は呼び出し側の責務 | `gh issue comment --body-file` | `glab api`（issues notes追加。【未検証】） |
@@ -211,7 +211,7 @@ Draft解除は、クローズ・書き直し・Draftへの差し戻しでいつ�
 優先した先の振る舞いを「ブランチ作成までは通常どおり → `AskUserQuestion` で作成可否を1回だけ確認 →
 応答を待てない非対話的セッションではPRを作成せず、その事実を最終応答へ明示」と決め打ちにすることで
 再現性を確保している（再現性の要点は「必ず作る」ことではなく「毎回同じ判断になる」ことにある）。
-この確認はPRの**新規作成**のみが対象で、flow-id 5-4（Draft解除）・`describe`・`reply` は既存PRの
+この確認はPRの**新規作成**のみが対象で、flow-id 5-5（Draft解除）・`describe`・`reply` は既存PRの
 更新のため対象外。
 
 担当表と手順の詳細は `.claude/rules/git-workflow.md`「PR・マージ」節が正であり、
@@ -253,7 +253,7 @@ Claude Code / Gemini CLI は**セッションごとに1つのplanファイルし
   `"defaultMode": "plan"` により新セッションは必ずPlanモードで始まるが、それは新規作成の理由に
   ならない。
 - これに伴い全体フローの先頭に全体作業計画の作成・合意を追加した（issue #9時点では33→35ステップ。
-  現在のflow-idは `<フェーズ番号>-<ステップ番号>` 形式の5フェーズ・41ステップで、最新の定義は
+  現在のflow-idは `<フェーズ番号>-<ステップ番号>` 形式の5フェーズ・42ステップで、最新の定義は
   `.claude/skills/issue-mr-flow/SKILL.md`「全体フロー」を正とする）。worklogは
   `worklog/日付_<全体計画名>_<個別計画名>_push<N>.md`、reportsは
   `reports/日付_<全体計画名>_<内容を簡潔に>.html` へ命名を変更し、reportsは調査結果専用ではなく
@@ -566,7 +566,7 @@ resumeを省略してしまう事故が発生した）。そのため発動条�
    記述と実際の状態（PR有無・未解決コメント件数等）に矛盾があれば、それも指摘する**
    （例: HANDOFF.mdは「PR未作成」と書いてあるが実際はPRが存在する、等）。
 
-呼び出し元は、このサマリをもとに全体フロー（5フェーズ・41ステップ）のうちどこから再開すべきかを判断し、
+呼び出し元は、このサマリをもとに全体フロー（5フェーズ・42ステップ）のうちどこから再開すべきかを判断し、
 人間に提案する（この判断自体はサブエージェントの役割ではなく、呼び出し元が行う）。**ベースブランチが
 遅れていた場合に取り込みの可否を `AskUserQuestion` で確認するのも呼び出し元の役割であり、
 サブエージェントは検知結果を報告するだけである**（issue #67。手順は
@@ -578,7 +578,7 @@ resumeを省略してしまう事故が発生した）。そのため発動条�
 
 ### マージ後の取り残しクリーンアップ
 
-人間がレビュー後にそのままMR/PRをマージするなど、flow-id 5-3（`plans/` `worklog/`の削除・
+人間がレビュー後にそのままMR/PRをマージするなど、flow-id 5-4（`plans/` `worklog/`の削除・
 `HANDOFF.md`のリセット）の実施前にマージが完了してしまうことがある（issue #28, PR #29の
 セッションで実際に発生）。この場合、タスク固有の`plans/`・`worklog/`ファイルと作業途中のままの
 `HANDOFF.md`が`main`へ残ってしまい、`docs-workflow.md`の運用（`worklog/`はsquash mergeで
@@ -588,7 +588,7 @@ resumeを省略してしまう事故が発生した）。そのため発動条�
 PRで対処する（`main`はレビューを経ないままの直接変更を避ける対象のため）。issue番号を持たない
 一回限りの対応のため、`.mrworkflow.json`のブランチ命名規則には従わず`chore/cleanup-<説明>`
 のような名前を使ってよい。手順の詳細は
-`.claude/skills/issue-mr-flow/SKILL.md`の「PRがflow-id 5-3実施前にマージされてしまった場合の対処」
+`.claude/skills/issue-mr-flow/SKILL.md`の「PRがflow-id 5-4実施前にマージされてしまった場合の対処」
 節を参照。
 
 ### PR作成後のdefaultブランチ追従（issue #88）
