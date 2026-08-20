@@ -289,7 +289,7 @@ jqの出力を直接ファイルへ書き出す箇所は`tr -d '\r'`でLF改行�
 - `.claude/scripts/test/test_cleanup_task.sh`へ、`cleanup-task.sh`の`main`を同じく使い捨ての
   gitリポジトリで実行する結合テストを追加した（`frontmatterIndex.exitCode`が0になること、
   `--dry-run` / `--skip-index`の挙動が変わらないこと）。`passed=53 failures=0`。
-- 新規: `.claude/docs/ddr/0056-削除済み追跡ファイルの除外はextract-frontmatter側で行う.md`
+- 新規: `.claude/docs/ddr/0057-削除済み追跡ファイルの除外はextract-frontmatter側で行う.md`
 
 ## 設定項目
 

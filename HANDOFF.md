@@ -35,7 +35,7 @@ issue #117（`cleanup-task.sh` のfrontmatterインデックス再生成が、�
   `xargs -0 stat` が失敗して件数が合わなくなり、フォールバックの1件ずつ取り直すループが
   `set -e` 配下で倒れるため、削除と無関係なディレクトリの `index.jsonl` まで再生成されない。
 - **対処**: issueが挙げた2案のうち **`extract-frontmatter.sh` 側でスキップする**案を採った
-  （DDR 0056）。列挙ループで `[[ -f "$f" ]]`（bash組み込みなのでforkは増えない）を判定し、
+  （DDR 0057）。列挙ループで `[[ -f "$f" ]]`（bash組み込みなのでforkは増えない）を判定し、
   実体の無いパスを対象から外す。スキップ件数は警告とサマリ行の `skipped=` で可視化する。
   `cleanup-task.sh` の手順・順序・コミットしない方針は変えていない。
 - **検証**: 使い捨てリポジトリで `cleanup-task.sh` を通常実行し、`frontmatterIndex.exitCode` が
@@ -49,7 +49,7 @@ issue #117（`cleanup-task.sh` のfrontmatterインデックス再生成が、�
   - `.claude/scripts/test/test_cleanup_task.sh`（37→53ケース、`passed=53 failures=0`。
     `main` の結合テストを常設した）
   - `.claude/docs/spec/extract-frontmatter.md` / `.claude/docs/spec/cleanup-task.md`
-  - `.claude/docs/ddr/0056-削除済み追跡ファイルの除外はextract-frontmatter側で行う.md`（新規）
+  - `.claude/docs/ddr/0057-削除済み追跡ファイルの除外はextract-frontmatter側で行う.md`（新規）
   - `.claude/docs/README.md`（DDR一覧）/ `.claude/rules/shell-script-style.md`（教訓を追記）
 - `.claude/scripts/test/` の全11スクリプトが `failures=0`（合計566ケース）。
 
@@ -63,9 +63,22 @@ issue #117（`cleanup-task.sh` のfrontmatterインデックス再生成が、�
   flow-id 5-4 へ移す案は、`extract-frontmatter.sh` に触れずに済む一方、コミット前に同スクリプトを
   呼ぶ**他の経路**（SessionStart hook、`search-frontmatter.sh` の自動更新、`resolve-conflict`
   スキルが案内する手動実行）に同じ失敗が残る。とくにSessionStart hookは「ファイルを消した直後の
-  セッション開始」で日常的に踏みうるため、原因のある側で直す案を選んだ（DDR 0056に却下案を記録）。
+  セッション開始」で日常的に踏みうるため、原因のある側で直す案を選んだ（DDR 0057に却下案を記録）。
 - **スキップを無言で行うか**。削除済みファイルをインデックスから外すのは正しい結果だが、無言だと
   今度は本当の欠落を隠す（issue #66と同種）。件数を警告とサマリ行へ出す形にした。
+- mainのマージ（PR #107がマージされたことによる追従）で、DDR番号がmain側の
+  `0056-作業開始時のベースブランチ追従確認は…` と本ブランチ側の
+  `0056-削除済み追跡ファイルの除外は…` で重複した（類型A）。**mainを正とし本ブランチ側を
+  0056 → 0057 へ繰り下げた**。参照元（`.claude/docs/README.md`、
+  `.claude/docs/spec/extract-frontmatter.md`、`.claude/docs/spec/cleanup-task.md`、
+  本ファイル）もあわせて更新した。main側の 0056 とその参照元
+  （`spec/check-base-sync.md` 等）には手を触れていない。
+- `.claude/docs/README.md` のDDR一覧末尾で、両ブランチが別々のエントリを追記して競合した
+  （類型C）。**両方を残し**、番号順（0056 → 0057）に並べた。
+- `HANDOFF.md` は「このブランチの現状」だけを表すファイルのため、**main側の記述（PR #107 の
+  コンフリクト解消記録・リセット済みの状態）は取り込まず、本ブランチ（issue #117）の内容を
+  採用した**。コンフリクト部分だけでなく、自動マージで入り込む可能性のある箇所も
+  `git diff HEAD -- HANDOFF.md` で通しで確認している。
 
 ## 未解決の内容
 

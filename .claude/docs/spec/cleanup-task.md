@@ -93,7 +93,7 @@ bash .claude/scripts/src/cleanup-task.sh [--dry-run] [--skip-index]
 対処は `extract-frontmatter.sh` 側で行った。列挙結果のうちワーキングツリーに実体が無いパスを
 スキップするため、本スクリプトの手順・順序は変えていない（詳細:
 [.claude/docs/spec/extract-frontmatter.md](extract-frontmatter.md)「削除済みの追跡ファイルの扱い」、
-[.claude/docs/ddr/0056-削除済み追跡ファイルの除外はextract-frontmatter側で行う.md](../ddr/0056-削除済み追跡ファイルの除外はextract-frontmatter側で行う.md)）。
+[.claude/docs/ddr/0057-削除済み追跡ファイルの除外はextract-frontmatter側で行う.md](../ddr/0057-削除済み追跡ファイルの除外はextract-frontmatter側で行う.md)）。
 
 ### コミットはしない
 
@@ -178,7 +178,7 @@ bash .claude/scripts/src/cleanup-task.sh [--dry-run] [--skip-index]
   該当項目が解消した）
 
 新規:
-- `.claude/docs/ddr/0056-削除済み追跡ファイルの除外はextract-frontmatter側で行う.md`
+- `.claude/docs/ddr/0057-削除済み追跡ファイルの除外はextract-frontmatter側で行う.md`
 
 ## 未決定事項・懸念点
 
