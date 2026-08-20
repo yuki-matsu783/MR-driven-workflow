@@ -35,6 +35,10 @@ keywords: [コンフリクト, merge, DDR番号, 改番, deleted by us, index.js
 - **`git checkout --ours` / `--theirs` でファイル単位に片側を丸ごと採用しない。** 過去の事例は
   いずれも「両ブランチの変更をどちらも残す必要がある」ものだった。片側採用は、もう一方の
   ブランチの変更を無言で捨てる。
+  - **唯一の例外は、競合がマーカーで囲まれた生成物の区間だけに収まっている場合**（類型B。
+    現在は `.claude/docs/README.md` のDDR一覧のみ）。**捨てた側を機械的に作り直せる**ため、
+    無言で失われる変更が無い。この例外を使うには、**マーカー外に差分が無いことを先に確認する**
+    （手順は類型Bの節にある。確認せずに `--ours` を打つと、相手側の手書き変更が消える）。
 - **`git merge --abort` による撤退は、ユーザーへ報告してから行う。** 自動で元に戻さない
   （`commit` スキルの「失敗時に自動ロールバックしない」と同じ方針）。
 - **コミットは `commit` スキル経由で行う**（gitの直接のコミット実行はPreToolUse hookでブロック
@@ -166,17 +170,34 @@ git rm --cached -- <path>   # 管理から外す側の意図を採用（作業�
 `<!-- END GENERATED: ddr-list -->` の区間は生成物なので、**両側の行を突き合わせて番号順へ
 並べ直す必要は無い**（それが手書き時代の類型Cの手作業だった）。
 
+**手順は「確認 → 片側採用 → 再生成」の順で行う。** 片側採用は上記「絶対ルール」の例外であり、
+先に確認を済ませていることがその前提になる。
+
 ```bash
-git checkout --ours -- .claude/docs/README.md   # どちら側でもよい。次の行で作り直す
-bash .claude/scripts/src/generate-ddr-list.sh   # 両ブランチのDDRファイルから一覧を再生成
+# 1. マーカー**外**（spec一覧・由来の注記・欠番の説明）に差分が無いことを確認する。
+#    差分があれば片側採用してはいけない（下記）。
+git show :2:.claude/docs/README.md > /tmp/ours.md
+git show :3:.claude/docs/README.md > /tmp/theirs.md
+diff <(sed '/BEGIN GENERATED: ddr-list/,/END GENERATED: ddr-list/d' /tmp/ours.md) \
+     <(sed '/BEGIN GENERATED: ddr-list/,/END GENERATED: ddr-list/d' /tmp/theirs.md)
+
+# 2. マーカーのある側を採る（下記の「移行期間」に注意）
+git checkout --ours -- .claude/docs/README.md
+
+# 3. 両ブランチのDDRファイルから一覧を作り直す
+bash .claude/scripts/src/generate-ddr-list.sh
 git add .claude/docs/README.md
 ```
 
-- **どちら側を採るかは問わない。** 一覧はDDRファイルの集合から決まり、マージ後のワーキング
-  ツリーには両ブランチのDDRが揃っているため、再生成すれば必ず両方が載る。
-- **ただしREADMEのマーカー**外**（spec一覧・由来の注記・欠番の説明）が両側で変わっている場合は、
-  そちらは類型Cとして統合する。** `--ours` で丸ごと採ると相手側の手書き変更を落とすため、
-  マーカー外に差分があるときは通常どおりコンフリクトを解消してから再生成する。
+- **手順1に差分が出たら、片側採用はしない。** その差分は手書き部分であり、機械的に作り直せない。
+  通常どおりコンフリクトマーカーを解消して両側を統合し（類型C）、そのうえで手順3の再生成を行う。
+- **手順1が差分なしなら、どちら側を採るかは結果に影響しない。** 一覧はDDRファイルの集合から
+  決まり、マージ後のワーキングツリーには両ブランチのDDRが揃っているため、再生成すれば必ず
+  両方が載る。
+- **移行期間の例外**: issue #135 がdefaultブランチへマージされるまでの間、default側の
+  `.claude/docs/README.md` にはマーカーが無い。マーカーの無い側を採ると再生成が
+  「開始マーカーがありません」（終了コード1）で止まるため、**マーカーのある側を採る**。
+  マージ後はどちら側にもマーカーがあるので、この注意は不要になる。
 - 再生成後に `bash .claude/scripts/src/generate-ddr-list.sh --check` が終了コード0を返すことを
   確認する（仕様: `.claude/docs/spec/generate-ddr-list.md`）。
 
@@ -223,26 +244,28 @@ git diff --name-only --diff-filter=U
 # 3. 変更した .sh の構文チェック
 bash -n <変更した.shファイル>
 
-# 4. 単体テストの実行
+# 4. 生成物を作り直す（**単体テストより先に行う**。理由は下記）
+bash .claude/scripts/src/extract-frontmatter.sh .   # index.jsonl（Git管理外。コミット対象外）
+bash .claude/scripts/src/generate-ddr-list.sh       # DDR一覧（Git管理下。**コミット対象**）
+git add .claude/docs/README.md                      # 差分が出ていれば同じコミットへ含める
+
+# 5. 単体テストの実行
 for t in .claude/scripts/test/test_*.sh; do bash "$t"; done
 
-# 5. DDR番号の重複が解消されたこと（類型Aを解消した場合は必須）
+# 6. DDR番号の重複が解消されたこと（類型Aを解消した場合は必須）
 bash .claude/scripts/src/check-base-conflicts.sh --no-fetch | jq '.hasDuplicateDdrNumber'
-
-# 6. frontmatterインデックスの再生成（生成物なのでコミット対象ではない）
-bash .claude/scripts/src/extract-frontmatter.sh .
-
-# 7. DDR一覧が最新であること（**こちらは生成物だがコミット対象**。issue #135）
-bash .claude/scripts/src/generate-ddr-list.sh --check   # 終了コード2なら次行で再生成しadd する
 ```
 
-手順7が終了コード2を返すのは、DDR一覧が最新でないときである。`generate-ddr-list.sh`（`--check`
-無し）を実行して `.claude/docs/README.md` を再生成し、**同じコミットへ含める**。
-**類型A（DDR番号の衝突）を解消した直後は必ずここに該当する**（ファイル名を繰り下げた結果、
-一覧の行も変わるため）。手順6の `index.jsonl` と違い、DDR一覧はGit管理下にあるので
-add を忘れないこと。
+**手順4を手順5より先に置くのは、`test_generate_ddr_list.sh` がリポジトリ自身へ
+`generate-ddr-list.sh --check` を実行する自己検証を持つためである。** DDR一覧が古いままだと
+この1件が落ち、`passed=N failures=1` を見て「スクリプトが壊れた」と誤診することになる。
+**類型A（DDR番号の衝突）を解消した直後は必ずこれに該当する**（ファイル名を繰り下げた結果、
+一覧の行も変わるため）。先に作り直しておけば、手順5の失敗は本物の失敗だけになる。
 
-手順5は**マージの途中（作業ツリーにマージ結果が載っている状態）で実行する**。この状態では
+`index.jsonl` はGit管理外の生成物なのでコミット対象ではないが、**DDR一覧はGit管理下**なので
+`git add` を忘れないこと（issue #135）。
+
+手順6は**マージの途中（作業ツリーにマージ結果が載っている状態）で実行する**。この状態では
 `HEAD` はまだマージ前を指しているため、`--head` を省略した既定（`HEAD` とdefaultブランチの比較）
 ではなく、作業ツリーの実ファイルを直接 `ls` して番号の重複が無いことを目視確認してもよい。
 
@@ -252,7 +275,7 @@ ls .claude/docs/ddr/ | grep -oE '^[0-9]{4}' | sort | uniq -d   # 何も出なけ
 
 #### 「1つでも落ちたらコミットしない」の例外: defaultブランチ側に既存の失敗がある場合
 
-手順4の単体テストが、**マージとは無関係にdefaultブランチ側で既に失敗している**ことがある
+手順5の単体テストが、**マージとは無関係にdefaultブランチ側で既に失敗している**ことがある
 （issue #97対応時に実際に発生: `main` 上で `test_post_issue_create_notice.sh` が
 `passed=13 failures=1` だった）。この場合、上の原則をそのまま適用するとマージを永久にコミット
 できない。次の順で判断する。
@@ -323,7 +346,16 @@ bash .claude/scripts/src/create-commit.sh --message "chore: <base>をマージ�
 | `check-base-conflicts.sh` が `origin/<base> が見つかりません` で失敗する | `git fetch origin <base>` が届いていない。ネットワーク失敗時は指数バックオフ（2s/4s/8s/16s）で最大4回まで再試行する |
 | `hasConflict` が `false` なのに、人間のマージ操作でコンフリクトが出た | defaultブランチが検知後に進んだ可能性がある。`--no-fetch` を付けずに再実行して最新で判定し直す |
 | マージ後にテストが落ちる | 両ブランチの変更が**個別には正しいが組み合わせると壊れる**（semantic conflict）。テストが指す箇所を直してから同じマージコミットに含める。テストを無効化して通さない |
-| `create-commit.sh` が「コミット対象ファイルを1件以上指定してください」で失敗する | マージで自動ステージされたファイルもパスとして明示的に渡す（`git diff --cached --name-only` で列挙できる） |
+| `create-commit.sh` が「コミット対象ファイルを1件以上指定してください」で失敗する | マージで自動ステージされたファイルもパスとして明示的に渡す（列挙方法は下記） |
+| `create-commit.sh` が「次のパスは git が把握していません」で失敗する（パスが `"\346\226\207..."` のように見える） | **`git diff --cached --name-only` を `-z` 無しで使った。** gitは既定（`core.quotePath=true`）で非ASCIIパスをダブルクォート＋8進エスケープして出すため、そのまま渡すと実在するファイルに対して失敗する（issue #135 で実際に踏んだ。`.claude/rules/shell-script-style.md`「コマンド置換とNULバイト」）。下記の `-z` 版で取り直す |
+
+マージで自動ステージされたパスの列挙は、**必ず `-z` を使う**（このリポジトリはDDR・plans等の
+ファイル名が日本語であり、`-z` 無しでは必ずクォートされる）。
+
+```bash
+staged=(); while IFS= read -r -d '' f; do staged+=("$f"); done < <(git diff --cached --name-only -z)
+bash .claude/scripts/src/create-commit.sh --message "chore: ..." -- "${staged[@]}"
+```
 
 ## 詳細ルールへのポインタ
 

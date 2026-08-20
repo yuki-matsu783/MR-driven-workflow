@@ -86,6 +86,8 @@ note: 'うち「Gemini CLI対応の扱い」は、issue #97でメインセッシ
 - `note` の追加・変更は frontmatter のみの更新であり、**DDR本文を変更しない**運用に反しない
   （上記「DDRのstatus」と同じ扱い）。
 
+## index.jsonl（frontmatterの機械可読インデックスと検索）
+
 `index.jsonl`（`.claude/scripts/src/extract-frontmatter.sh` が生成するfrontmatterの機械可読
 インデックス）は**Git管理下に置かず、生成物として扱う**（issue #36。`.gitignore`の
 `**/index.jsonl`対象）。`.claude/hooks/session-start.sh`（SessionStart hook）が**セッション開始の
