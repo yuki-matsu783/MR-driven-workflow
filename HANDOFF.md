@@ -17,7 +17,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - issue: #66
 - ブランチ: `claude/set-header-silent-failure-p3izl0`
 - PR: #146（https://github.com/yuki-matsu783/MR-driven-workflow/pull/146 ）
-- push回数: 1
+- push回数: 2
 - 現在のループ: なし
 - 追従監視: なし
 
@@ -49,11 +49,18 @@ issue #66（`update-handoff-progress.sh` の `set-header` が対象行を書き�
   同名の `.html`（視覚化）へ結果を書いた。**報告された欠陥の再現に加え、`- 現在のループ:` 行の
   挿入位置が実物のHANDOFF.mdと噛み合っていない2件目の欠陥を見つけた。** issue #140 は別issueの
   まま残すと結論した（理由は調査結果を参照）。
+- flow-id 3-1: 個別作業計画 `plans/【実装】【テスト】set-headerの失敗検知とヘッダ表記の確定.md` を
+  作成した。
+- flow-id 3-6: 実装・テストを行い、結果を
+  `reports/2026-08-20_set-header-silent-failure_実装結果.md` へ書いた。変更は4点
+  （`set-header` の一致件数検査／ヘッダ行の探索範囲をヘッダブロックへ限定／`- 現在のループ:` 行の
+  挿入位置／`HANDOFF_TEMPLATE` へヘッダ雛形6行）。`.claude/scripts/test/` の全14スクリプトが
+  `failures=0`、かつ**修正前のスクリプトへ戻すと新規テストが23件失敗する**ことを確認した。
 
 ## 次にやること
 
-- flow-id 3-1: 個別作業計画 `plans/【実装】【テスト】〜.md` を作成する。
-- flow-id 3-6: 実装・テストを行い、`adversarial-review` スキルで敵対的レビューを受ける。
+- `adversarial-review` スキルで敵対的レビューを受ける（人間のレビュー往復の代替）。
+- flow-id 4-1: 反映対象（spec / rules / DDR）を洗い出し、個別反映計画を作る。
 
 ## 判断を迷った内容
 
