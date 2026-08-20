@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # .claude/hooks/session-start.sh の単体テスト（issue #57で新設）。
 # gh/git・ネットワークを伴わない純粋関数（context_text_bytes / append_size_warning /
-# extract_handoff_next_steps）と、「sourceしても本体が実行されない」ことを検証する。
+# extract_handoff_next_steps / issue_mr_flow_branch_reason / format_skill_reload_instruction）と、
+# 「sourceしても本体が実行されない」ことを検証する。
 # 規約: passed=N failures=N を標準出力へ出し、失敗があれば終了コード1
 #       （.claude/rules/shell-script-style.md「テスト」。.claude/scripts/test/test_update_handoff_progress.sh を雛形にした）。
 # 実行: bash .claude/scripts/test/test_session_start.sh
@@ -244,6 +245,65 @@ if [ -f "$repo_root/HANDOFF.md" ]; then
   assert_eq "実物からの抜粋は見出し行で始まる" \
     "## 次にやること" "$(printf '%s' "$section" | head -1)"
 fi
+
+# --- issue_mr_flow_branch_reason: issue-mr-flow対象ブランチの判定 --------------
+
+# 判定材料が両方とも無い＝issue-mr-flowに乗せていないブランチ（軽微な変更を直接進めている等）。
+# ここで「対象」と判定されると、対象外ブランチへ不要な指示が注入されることになる（issue #113の
+# 受け入れ条件「既存の挙動を壊さない」に対応）。
+if reason="$(issue_mr_flow_branch_reason '' '')"; then
+  status=0
+else
+  status=1
+fi
+assert_failure "issue番号も作業ファイルも無ければ対象外" "$status"
+assert_eq "対象外のときは何も出力しない" "" "$(issue_mr_flow_branch_reason '' '' || true)"
+
+# ブランチ名だけが根拠になるケース（フロー序盤。plans/ をまだ作っていない flow-id 1-3 直後）
+reason="$(issue_mr_flow_branch_reason '113' '')"
+assert_contains "issue番号だけでも対象と判定する" "$reason" "issue命名規則"
+assert_contains "根拠にissue番号が入る" "$reason" "#113"
+assert_not_contains "作業ファイルが無ければその根拠は挙げない" "$reason" "作業ファイル"
+
+# 作業ファイルだけが根拠になるケース（ブランチ名が命名規則から外れている場合。
+# 例: Claude Code on the web が自動生成する claude/<slug> 形式のブランチ）
+reason="$(issue_mr_flow_branch_reason '' 'plans/【実装】x.md')"
+assert_contains "作業ファイルだけでも対象と判定する" "$reason" "作業ファイル"
+assert_not_contains "issue番号が無ければその根拠は挙げない" "$reason" "issue命名規則"
+
+# 両方そろう場合は両方を根拠として挙げる
+reason="$(issue_mr_flow_branch_reason '113' 'plans/【実装】x.md')"
+assert_contains "両方そろえば1つ目の根拠が入る" "$reason" "issue命名規則"
+assert_contains "両方そろえば2つ目の根拠が入る" "$reason" "作業ファイル"
+
+# 改行しか無い入力を「作業ファイルあり」と誤判定しないこと（get_branch_work_files は
+# 該当が無ければ空文字列を返すが、呼び出し側の変更で改行だけが残る事故を防ぐ）。
+# ここでは -n 判定の仕様として「改行1文字も非空」であることを明示的に固定する。
+assert_contains "改行のみでも非空として扱われる（-n の仕様を明示）" \
+  "$(issue_mr_flow_branch_reason '' $'\n')" "作業ファイル"
+
+# --- format_skill_reload_instruction: SKILL.md再読み込みの指示文 ---------------
+
+instruction="$(format_skill_reload_instruction 'テスト用の根拠')"
+assert_eq "指示文は見出し行で始まる" \
+  "## issue-mr-flowの手順（SKILL.md）を読み直すこと" \
+  "$(printf '%s' "$instruction" | head -1)"
+assert_contains "読み直すファイルのパスを明示する" \
+  "$instruction" ".claude/skills/issue-mr-flow/SKILL.md"
+assert_contains "判定根拠が本文へ埋め込まれる" "$instruction" "テスト用の根拠"
+# compact対策の要は「既に読んだつもりでも読み直す」ことを明示する点にある（issue #113）
+assert_contains "既読でも読み直すよう明示する" "$instruction" "既に読んでいる場合も読み直すこと"
+assert_contains "compactが原因であることに触れる" "$instruction" "compact"
+
+# 指示文はしきい値（8000バイト）に対して十分小さい。注入量の肥大化検知（DDR 0032）を
+# この追加だけで誤って発火させないことを、実測値で固定しておく。
+instruction_bytes="$(context_text_bytes "$instruction")"
+if [ "$instruction_bytes" -lt 1000 ]; then
+  status=0
+else
+  status=1
+fi
+assert_success "指示文は1000バイト未満（しきい値8000に対して十分小さい）" "$status"
 
 echo "passed=$passed failures=$failures"
 [ "$failures" -eq 0 ]
