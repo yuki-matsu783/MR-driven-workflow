@@ -62,6 +62,14 @@ issue #113（compact後もissue-mr-flow対象ブランチではSKILL.mdの再読
   - `.claude/docs/README.md`
 - **変更していないファイル**: `.claude/settings.json` / `.gemini/settings.json`（matcher は
   `startup|resume|clear|compact` のまま。注入の**内容**だけを増やす変更のため）。
+- **flow-id 5-1（コンフリクト検知）**: `check-base-conflicts.sh` で `hasConflict: false`
+  （textualConflictFiles・duplicateDdrNumbers ともに空）。解消作業は不要だった。
+- **flow-id 5-2（関連issue通知）**: 差分（`plans/` `worklog/` `reports/` を除く）から候補を検索し、
+  **issue #129 のみが「前提が変わる」に該当**すると判断してユーザー承認のうえ通知した
+  （https://github.com/yuki-matsu783/MR-driven-workflow/issues/129#issuecomment-5356414031 ）。
+  #129 は `issue-mr-flow/SKILL.md` を `references/` へ分割する計画であり、分割後は
+  「SKILL.md を読み直せ」という指示文の文言を見直す必要がある。issue #57（closed。DDR 0032）は
+  **今回の変更が決定を覆すのではなく拡張する**関係のため通知対象から外した。
 
 ## 次にやること
 
