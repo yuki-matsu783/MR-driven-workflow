@@ -19,7 +19,7 @@ issue #135 / 全体作業計画: `plans/ddr-list-generation.md`
 | 対象 | 反映内容 |
 |---|---|
 | `.claude/docs/spec/generate-ddr-list.md`（新規） | オプション・終了コード・マーカー・並び順・注記の組み立て規則・性能上の制約 |
-| `.claude/docs/ddr/0060-…md`（新規） | 「生成物だがGit管理下へ残す」判断と却下案6件 |
+| `.claude/docs/ddr/0061-…md`（新規） | 「生成物だがGit管理下へ残す」判断と却下案6件 |
 | `.claude/docs/README.md` のspec一覧 | 上記specへのリンクを追加 |
 
 ### AIアセット反映（rules / skills）

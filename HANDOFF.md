@@ -72,7 +72,7 @@ issue #135（DDR一覧の生成スクリプト化）を、**フェーズ3〈実�
 - `.claude/scripts/src/generate-ddr-list.sh` を新設（マーカー区間の置換・`--check`・`--print`）。
 - `.claude/scripts/test/test_generate_ddr_list.sh` を新設（`passed=48 failures=0`）。既存の
   単体テスト12本も全て `failures=0` で退行なし。
-- `.claude/docs/spec/generate-ddr-list.md`（仕様）・`.claude/docs/ddr/0060-…md`（意思決定・却下案6件）
+- `.claude/docs/spec/generate-ddr-list.md`（仕様）・`.claude/docs/ddr/0061-…md`（意思決定・却下案6件）
   を追加。
 - `.claude/rules/markdown-frontmatter.md`（`note` キー新設）・`.claude/rules/docs-workflow.md`
   （手書き禁止）・`.claude/skills/resolve-conflict/SKILL.md`（類型C→類型Bへ移動、検証手順追加）を更新。
