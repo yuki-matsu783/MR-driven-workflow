@@ -1186,6 +1186,15 @@ issue #11「git pushイベントを検知してcompactする」への対応と�
   「このpushでレビュー指摘へ返信した場合はその返信コメントのURLも含める」旨の指示文を追加で渡す。
   URLの入手元は`reply`サブコマンドの出力（`add_mr_thread_reply`の戻り値）または`comments`の
   出力に含まれる`url=...`。
+- **レビュー依頼のターンでは`AskUserQuestion`（askツール）を使わせない**: 本hookが促す`/compact`は
+  ユーザーが自分で打つスラッシュコマンドだが、`AskUserQuestion`を出すと入力欄が選択肢への回答で
+  塞がり、その場で打てなくなる。「レビューをお願いします」という呼びかけに選択式の回答は要らない
+  ため、askツールを使わず通常のメッセージだけでターンを終える旨を`NO_ASK_TOOL_MESSAGE`として
+  `additionalContext`の末尾へ渡す。**禁止はレビュー依頼のターンに限る**（flow-id 5-2のコンフリクト
+  解消可否・5-3の関連issue通知の承認・`start`のベースブランチ確認のように、外部への影響が不可逆で
+  承認が必須の場面は従来どおり`AskUserQuestion`を使う。これらはpush直後ではなく、`/compact`を打つ
+  タイミングと競合しない）。運用ルールとしての正は
+  `.claude/skills/issue-mr-flow/SKILL.md`「レビュー依頼メッセージ」節。
 - **`post-push-usage-report.sh`とは別ファイル**（`.claude/hooks/post-push-compact-prompt.sh`）とし、
   責務を混在させない（使用量集計とcompact促しは関心事が異なる）。`.claude/settings.json`の
   `hooks.PostToolUse[0].hooks`へ、既存の対応工数レポート用エントリと並べて2エントリ
@@ -2582,6 +2591,18 @@ MRの差分が影響する他のissueへ、マージ前に通知を残せるよ�
   「Gemini CLI経路（issue #97）」小節を新設、「未決定事項・懸念点」へ実機未検証の4点を追加し
   サブエージェント探索の懸念へ本体実装からの裏付けを追記、本項）
 - `.claude/docs/README.md`（DDR一覧に0050〜0054）
+
+### レビュー依頼のターンでのaskツール禁止（issue番号なし・ユーザーからの直接依頼）
+
+「レビュー依頼のときは`/compact`コマンドを打ちたいので、askツールは利用しない」というユーザーの
+依頼への対応。issueを起点にしないごく小さなAIアセットの改訂として直接反映した。
+
+更新:
+- `.claude/hooks/post-push-compact-prompt.sh`（`NO_ASK_TOOL_MESSAGE`を新設し
+  `additionalContext`の末尾へ追加。冒頭のヘッダコメントへ理由を追記）
+- `.claude/skills/issue-mr-flow/SKILL.md`（「レビュー依頼メッセージ（全体フロー 2-2・2-7・3-2・
+  3-7・4-2・4-7・5-4）」節を新設。compactのタイミングに関する既存の記述からこの節を参照）
+- `.claude/docs/spec/issue-mr-workflow.md`（「/compact実施の呼びかけ」節へ本挙動の項目を追加、本項）
 
 ## 未決定事項・懸念点
 

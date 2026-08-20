@@ -45,6 +45,12 @@
 # これにより、pushのたびに走る本hookから外部CLIの起動とAPI往復が1回ずつ無くなっている
 # （詳細: `.claude/docs/ddr/0037-...md`）。
 #
+# askツールの禁止: レビュー依頼のターンは、ユーザーがその場で `/compact` を打ちたいタイミング
+# でもある（このhook自身がそれを促している）。`AskUserQuestion`（askツール）を出すと入力欄が
+# 選択肢への回答で塞がり、スラッシュコマンドを打てなくなるため、レビュー依頼のターンでは
+# askツールを使わない旨を NO_ASK_TOOL_MESSAGE として最後に渡す（`.claude/skills/issue-mr-flow/
+# SKILL.md`「レビュー依頼メッセージ」節が正）。
+#
 # 注意（エラー方針）: 本体処理は `main` 関数にまとめ、`( main )` のように実サブシェル（丸括弧）の
 # 中で呼ぶことで、内部で失敗したコマンドの時点で確実にサブシェルごと終了させる（bashの
 # 「if/||の条件式の中では-eが一時停止する」という仕様の影響を受けないようにするため。詳細:
@@ -65,6 +71,7 @@ REPLY_LINKS_GUIDE_MESSAGE='このpushでレビュー指摘へ返信した場合�
 # 兼ねている以上、供給側が肥大の原因になっては本末転倒のため小さめに倒している。
 MAX_REVIEW_FILES=10
 COMPACT_PROMPT_MESSAGE='メッセージ例: MRのレビューをお願いします。/compactを実施をしていただくと、レビュー中にコンテキストを圧縮して今後の作業が効率的になる可能性があります。キャッシュが有効なうちにcompactすると費用面で有利です'
+NO_ASK_TOOL_MESSAGE='レビュー依頼のターンは通常のメッセージだけで終えてください。AskUserQuestion（askツール）を使ってはいけません（選択肢への回答でユーザーの入力欄が塞がり、その場で /compact を打てなくなるため）。確認したいことがある場合も選択式にせず、レビュー依頼メッセージの本文の中で問いかけてください。'
 
 write_additional_context() {
   local text="$1"
@@ -300,7 +307,8 @@ main() {
   if [ -n "$since_url" ]; then
     text="$(printf '%s\n\n%s' "$text" "$REPLY_LINKS_GUIDE_MESSAGE")"
   fi
-  write_additional_context "$(printf '%s\n\n%s' "$text" "$COMPACT_PROMPT_MESSAGE")"
+  write_additional_context "$(printf '%s\n\n%s\n\n%s' \
+    "$text" "$COMPACT_PROMPT_MESSAGE" "$NO_ASK_TOOL_MESSAGE")"
 }
 
 ( main ) || true
