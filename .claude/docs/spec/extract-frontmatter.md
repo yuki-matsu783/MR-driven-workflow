@@ -34,7 +34,7 @@ bash .claude/scripts/src/extract-frontmatter.sh [--force] <directory>
 | `-h` / `--help` | 使い方を表示して終了する |
 
 標準エラー出力へ、`index.jsonl`ごとの結果（`wrote:` / `unchanged:`）と、実行全体のサマリ
-`files=<走査したmarkdown数> built=<再解析した数> reused=<キャッシュを再利用した数> failed=<行の生成に失敗した数>`を出力する。
+`files=<走査したmarkdown数> built=<再解析した数> reused=<キャッシュを再利用した数> failed=<行の生成に失敗した数> skipped=<削除済みとしてスキップした数>`を出力する。
 標準出力は使わない（生成物はファイルへ直接書き出す）。
 
 行の生成に失敗したファイルは、`error: failed to build index line: <パス>`を標準エラーへ出したうえで
@@ -180,6 +180,29 @@ gitリポジトリ内での実行を前提とする（`resolve_repo_root`が`git
 `logs/`・`build/`等はmarkdownを含んでいても列挙自体が発生せず、`index.jsonl`も作られない
 （issue #11対応時に実機確認済み）。
 
+### 削除済みの追跡ファイルの扱い
+
+`git ls-files --cached` は、**削除したがまだステージしていない追跡ファイル**も列挙する。列挙結果を
+そのまま`stat`へ渡すと`stat: cannot stat '<パス>': No such file or directory`で失敗するため、
+**ワーキングツリーに実体が無いパスは走査対象から外す**（issue #117）。スキップした件数は
+`skipped 3 deleted file(s) not present in the working tree`という警告とサマリ行の`skipped=`で分かる。
+
+削除済みのファイルはインデックスに載せるべきものではないので、スキップは「取りこぼし」ではなく
+**正しい結果**である。該当ファイルの行は`index.jsonl`から消え、残ったファイルの行は変わらない。
+
+判定は`[[ -f "$f" ]]`（bash組み込み）で行うためforkを伴わず、上記「性能」の前提を崩さない。
+
+この状態は異常系ではなく**正常系として必ず発生する**。`cleanup-task.sh`（flow-id 5-1）は
+`plans/` `worklog/` `reports/` を削除したあと**コミットせずに**本スクリプトを呼ぶ設計であり
+（コミットは`commit`スキル経由に限るため。
+[.claude/docs/ddr/0048-flow-id5-1の後片付けはスクリプト化しコミットは含めない.md](../ddr/0048-flow-id5-1の後片付けはスクリプト化しコミットは含めない.md)）、対策前は**追跡ファイルを
+1件でも削除した時点で必ず失敗していた**。
+
+対策前の失敗の影響は、警告1つでは済まなかった。`stat`の一括取得（`xargs -0 stat`）が失敗すると
+取得できたmtimeの数がファイル数と合わなくなり、フォールバックの1件ずつ取り直すループが`set -e`
+配下で最初の欠損ファイルに当たって**走査全体を中断**する。その結果、削除とは無関係な
+ディレクトリの`index.jsonl`まで再生成されないまま終わっていた。
+
 ### 文字コード
 
 jqの出力を直接ファイルへ書き出す箇所は`tr -d '\r'`でLF改行に統一している（Windows版native jq
@@ -249,6 +272,24 @@ jqの出力を直接ファイルへ書き出す箇所は`tr -d '\r'`でLF改行�
   `yq`不在をPATHで再現した`build_index_line`）。`passed=23 failures=0`。
 - 本ドキュメント内に紛れ込んでいた生のNULバイト1個（`split("...")`の説明箇所）を、意図どおりの
   `\u0000`というエスケープ表記へ直した（`grep`がこのファイルをバイナリ扱いしていたため）。
+
+変更（issue #117 削除済みの追跡ファイルで走査全体が失敗する）:
+- `.claude/scripts/src/extract-frontmatter.sh`の`main()`のファイル列挙で、`git ls-files --cached`が
+  返したパスのうち**ワーキングツリーに実体が無いもの（削除済みだが未ステージ）をスキップ**する
+  ようにした（詳細: 上記「削除済みの追跡ファイルの扱い」）。判定はbash組み込みの`[[ -f ]]`で行い、
+  forkは増やしていない。
+- サマリ行へ`skipped=<スキップした数>`を加え、1件以上あれば
+  `skipped <N> deleted file(s) not present in the working tree`を標準エラーへ出すようにした。
+  サマリ行は人間向けのstderr出力で、機械的に解釈している呼び出し元は無い（`session-start.sh`・
+  `search-frontmatter.sh`・`cleanup-task.sh`はいずれもstderrを捨てるか素通ししている）。
+- `.claude/scripts/test/test_extract_frontmatter.sh`へ、使い捨てのgitリポジトリで実プロセスとして
+  起動する結合テストを追加した（削除前後のサマリ、残った行が変わらないこと、無関係な
+  ディレクトリの`index.jsonl`も再生成されること、対象ディレクトリのmarkdownが全滅した場合）。
+  `passed=32 failures=0`。
+- `.claude/scripts/test/test_cleanup_task.sh`へ、`cleanup-task.sh`の`main`を同じく使い捨ての
+  gitリポジトリで実行する結合テストを追加した（`frontmatterIndex.exitCode`が0になること、
+  `--dry-run` / `--skip-index`の挙動が変わらないこと）。`passed=53 failures=0`。
+- 新規: `.claude/docs/ddr/0057-削除済み追跡ファイルの除外はextract-frontmatter側で行う.md`
 
 ## 設定項目
 
