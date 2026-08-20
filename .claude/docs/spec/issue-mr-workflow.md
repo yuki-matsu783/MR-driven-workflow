@@ -433,7 +433,7 @@ issue #48 以来の挙動を維持している）。
 #### 断面の取得（フォールバック4段階）
 
 **コメント時点のshaを優先し、取得できない場合に現HEADへ縮退する**（判断の経緯・却下案:
-[0059-レビューコメントのソース断面はコメント時点のshaを優先し現HEADへ縮退する.md](../ddr/0059-レビューコメントのソース断面はコメント時点のshaを優先し現HEADへ縮退する.md)）。
+[0060-レビューコメントのソース断面はコメント時点のshaを優先し現HEADへ縮退する.md](../ddr/0060-レビューコメントのソース断面はコメント時点のshaを優先し現HEADへ縮退する.md)）。
 
 | 段階 | 手段 | 出力への注記 |
 |---|---|---|
@@ -691,6 +691,27 @@ resume・clear時に毎回、現在ブランチのissue/MR状態をコンテキ�
   最小限の現在地はhook側が持つ必要があると判断し、issue #57 で追加した（範囲の線引き・却下案:
   [DDR 0032](../ddr/0032-compact後もSessionStart-hookで作業コンテキストを再注入する.md)）。
   この拡張は起動要因によらず常に行う（要因ごとに内容を分岐させない）。
+- **issue-mr-flow対象ブランチでのSKILL.md再読み込み指示（issue #113）**: 現在のブランチが
+  issue-mr-flowの対象と判定できる場合、注入テキストの**末尾**へ
+  「`.claude/skills/issue-mr-flow/SKILL.md`（唯一の実装フロー定義）を読み直すこと」という指示を
+  足す。SKILL.mdは1,100行超であり、compactの要約で手順理解（レビュー往復・`commit`スキル経由の
+  強制・`HANDOFF.md`の進捗更新）が失われても、**エージェント側からは「読んだ」という認識だけが
+  残るため失われたことが分からない**。そのため指示文では
+  **「このセッションで既に読んでいる場合も読み直すこと」を明示する**。
+  - **対象判定**: (a) ブランチ名から `get_issue_number_from_branch` でissue番号を抽出できる、
+    (b) `get_branch_work_files` がブランチ固有の作業ファイルを返す、の**いずれか一方でも
+    成り立てば対象**とする。(a) はflow-id 1-3直後（`plans/`未作成）で、(b) はブランチ名が命名
+    規則から外れている場合（例: Claude Code on the web が生成する `claude/<slug>` 形式）で
+    それぞれ効く。判定は `issue_mr_flow_branch_reason`（外部コマンドを呼ばない純粋関数）が行い、
+    **判定根拠を指示文へ埋め込む**（誤判定時に原因が一目で分かるようにするため）。
+  - **対象外では何も足さない**（issue-mr-flowに乗せていない軽微な変更を直接進めている
+    ブランチが該当。`main`ブランチ上はこの判定より手前で `build_context` が何も注入しない）。
+  - 起動要因では分岐させない（上記と同じ方針）。指示文の長さは有界で入力サイズに依存しない
+    （実測603バイト。判定根拠が2件そろう場合でも690バイト）。肥大化検知のしきい値8000バイトに
+    対して十分小さい。判定材料の取得コストも増えない
+    （(a) は文字列照合のみ、(b) は既に取得済みの値の再利用）。設計判断・却下案は
+    [0059-issue-mr-flow対象ブランチではSKILL.mdの再読み込みを注入で促す.md](../ddr/0059-issue-mr-flow対象ブランチではSKILL.mdの再読み込みを注入で促す.md)
+    参照。
 - **出力形式**: `{"hookSpecificOutput":{"hookEventName":"SessionStart","additionalContext":"<text>"}}`
   形式のJSONをstdoutへ返す。
 - **フォールバック方針**: `main`ブランチ上（作業ブランチ未チェックアウト）では注入しない。
@@ -708,7 +729,8 @@ resume・clear時に毎回、現在ブランチのissue/MR状態をコンテキ�
 - **構造とテスト（issue #57）**: 本体処理は`main`にまとめ、ファイル末尾の
   `[ "${BASH_SOURCE[0]}" = "${0}" ]` ガードで直接実行時のみ呼ぶ。これにより
   `.claude/scripts/test/test_session_start.sh` から`source`して、副作用の無い純粋関数
-  （`context_text_bytes` / `append_size_warning` / `extract_handoff_next_steps`）を単体テストできる
+  （`context_text_bytes` / `append_size_warning` / `extract_handoff_next_steps` /
+  `issue_mr_flow_branch_reason` / `format_skill_reload_instruction`）を単体テストできる
   （ガードが無いと`source`時に`raw="$(cat)"`でstdin待ちのままハングする）。
 - **`gh`/`glab` CLI自体が無い環境での挙動（issue #34）**: 上記の一般的な失敗と区別し、
   `get_vcs_access_mode` が `mcp` を返す場合は専用の内容を注入する。具体的には
@@ -2658,14 +2680,45 @@ Draft解除 → 5-5 マージ** の順へ並べ替えた（旧 5-1 片付け →
 DDR 0044（関連issue通知）・0048（後片付けのスクリプト化）が本文で指す `5-3` `5-1` は、当時の番号の
 ままである。DDR 0048 はファイル名にも `flow-id5-1` を含むが、リンク切れを避けるためリネームしない。
 
+### issue #113（issue-mr-flow対象ブランチでのSKILL.md再読み込み指示）
+
+SessionStart hookが注入する追加コンテキストの**末尾**へ、
+「`.claude/skills/issue-mr-flow/SKILL.md` を読み直すこと」という指示を足した（対象ブランチと
+判定できる場合のみ）。compactの要約でフローの手順理解が失われても、エージェント側からは
+「読んだ」という認識だけが残って失われたことが分からないため、指示文では
+**「このセッションで既に読んでいる場合も読み直すこと」を明示する**。
+
+対象判定は「ブランチ名からissue番号を抽出できる」「ブランチ固有の作業ファイルがある」の
+**いずれか一方でも成り立てば対象**とし、判定根拠を指示文へ埋め込む。対象外のブランチでは
+何も足さない。詳細・却下案は
+[0059-issue-mr-flow対象ブランチではSKILL.mdの再読み込みを注入で促す.md](../ddr/0059-issue-mr-flow対象ブランチではSKILL.mdの再読み込みを注入で促す.md)。
+
+新規:
+- `.claude/docs/ddr/0059-issue-mr-flow対象ブランチではSKILL.mdの再読み込みを注入で促す.md`
+
+変更:
+- `.claude/hooks/session-start.sh`（純粋関数 `issue_mr_flow_branch_reason` /
+  `format_skill_reload_instruction` を追加。`build_work_context` が第1引数でブランチ名を受け取り、
+  組み立ての最後に指示文を足す。呼び出し元2箇所（CLI経路・MCP経路）はブランチ名を渡すだけの変更）
+- `.claude/scripts/test/test_session_start.sh`（35→51ケース。判定の4パターン・指示文の内容・
+  指示文が1000バイト未満であることを検証。実測は603バイト）
+- `.claude/docs/spec/issue-mr-workflow.md`（本ファイル。「セッション開始時の自動コンテキスト注入」
+  節へ判定・指示文の仕様、テスト対象の純粋関数一覧、本エントリ）
+- `.claude/docs/README.md`（DDR一覧へ0059を追加）
+
+**`.claude/settings.json` の matcher は変更していない**（`startup|resume|clear|compact` のまま）。
+注入の**内容**だけを増やす変更であり、起動要因による分岐も持たない。同じ理由で
+`.gemini/settings.json` も変更不要である（`session-start.sh` は `.claude/` へのローカルリンクで
+共有されているため、指示文の追加はGemini CLI側でもそのまま効く）。
+
 ### issue #43（レビューコメント出力のソーススライス化）
 
 GitHub固有の `diffHunk` への依存をやめ、`(path, line, sha)` から共通ロジックで指摘行前後を
 切り出す方式へ移行した。詳細は上記「レビューコメントのソーススライス」、断面の選び方の経緯は
-[0059-レビューコメントのソース断面はコメント時点のshaを優先し現HEADへ縮退する.md](../ddr/0059-レビューコメントのソース断面はコメント時点のshaを優先し現HEADへ縮退する.md)。
+[0060-レビューコメントのソース断面はコメント時点のshaを優先し現HEADへ縮退する.md](../ddr/0060-レビューコメントのソース断面はコメント時点のshaを優先し現HEADへ縮退する.md)。
 
 新規:
-- `.claude/docs/ddr/0059-レビューコメントのソース断面はコメント時点のshaを優先し現HEADへ縮退する.md`
+- `.claude/docs/ddr/0060-レビューコメントのソース断面はコメント時点のshaを優先し現HEADへ縮退する.md`
 
 変更:
 - `.claude/scripts/src/vcs/Github.sh`
@@ -2697,7 +2750,7 @@ GitHub固有の `diffHunk` への依存をやめ、`(path, line, sha)` から共
   対応表の注記）
 - `.claude/rules/shell-script-style.md`（`REPLY` へ返す動機に「戻り値が複数ある場合」を追記、
   jqフィルタへ生の制御文字を書かない注記）
-- `.claude/docs/README.md`（DDR一覧へ 0059 を追記）
+- `.claude/docs/README.md`（DDR一覧へ 0060 を追記）
 
 **副次的に直った不具合**: 行頭ラベルが GitHub `[review unresolved ...]` / GitLab
 `[unresolved ...]` と非対称で、`.claude/hooks/session-start.sh` の

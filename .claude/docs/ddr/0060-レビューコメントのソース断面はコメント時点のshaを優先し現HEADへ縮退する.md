@@ -1,12 +1,12 @@
 ---
-title: 0059. レビューコメントのソース断面はコメント時点のshaを優先し現HEADへ縮退する
+title: 0060. レビューコメントのソース断面はコメント時点のshaを優先し現HEADへ縮退する
 type: ddr
 description: レビューコメントの出力からdiffHunkを廃し(path, line, sha)から共通ロジックでソースを切り出すにあたり、どのcommitの断面を切るか（コメント時点のsha優先・取得できなければ現HEADへ縮退し明示する）を決めた経緯と却下案を記録したDDR
 tags: [vcs, ddr, review, issue-mr-flow]
 keywords: [断面, sha, diffHunk, ソーススライス, originalLine, originalCommit, head_sha, shallow, フォールバック, バイト上限, issue43]
 ---
 
-# 0059. レビューコメントのソース断面はコメント時点のshaを優先し現HEADへ縮退する
+# 0060. レビューコメントのソース断面はコメント時点のshaを優先し現HEADへ縮退する
 
 ## 背景
 
