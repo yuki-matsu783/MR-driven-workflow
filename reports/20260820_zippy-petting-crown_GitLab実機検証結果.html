@@ -23,18 +23,18 @@
   <section class="mb-10 grid gap-4 md:grid-cols-3">
     <div class="rounded-xl border border-emerald-200 bg-emerald-50 p-5">
       <div class="text-xs font-bold text-emerald-700">結論 1 ／ 焦点</div>
-      <div class="mt-2 text-lg font-bold text-emerald-900">差分アンカーの <code>sha1</code> 前提は<span class="underline decoration-2">正しい</span></div>
-      <p class="mt-2 text-sm text-emerald-800"><code>diff-</code> 接頭辞は付かない。<code>diffs_stream</code> 断片HTMLの <code>id=</code> 属性と完全一致した。</p>
+      <div class="mt-2 text-lg font-bold text-emerald-900">ハッシュは<span class="underline decoration-2">正しい</span>が、付け先が誤り</div>
+      <p class="mt-2 text-sm text-emerald-800"><code>sha1</code>・<code>diff-</code> 接頭辞なしは実機で確定。しかし<span class="font-semibold">Compareページではアンカーが機能しない</span>（右の不具合1）。</p>
     </div>
     <div class="rounded-xl border border-rose-200 bg-rose-50 p-5">
-      <div class="text-xs font-bold text-rose-700">結論 2 ／ 不具合</div>
-      <div class="mt-2 text-lg font-bold text-rose-900"><code>gitlab_get_repo_url</code> が未定義</div>
-      <p class="mt-2 text-sm text-rose-800">2箇所から呼ばれるが定義が無い。<code>gitlab_get_mr_url</code> / <code>gitlab_get_note_url</code> の<span class="font-semibold">実運用経路が到達不能</span>（単体テストは通る）。</p>
+      <div class="text-xs font-bold text-rose-700">結論 2 ／ 不具合 2件</div>
+      <div class="mt-2 text-lg font-bold text-rose-900">アンカーの付け先 ／ 未定義関数</div>
+      <p class="mt-2 text-sm text-rose-800"><span class="font-semibold">1.</span> Compareページ土台のアンカーはブラウザで飛ばない（MR差分ページなら飛ぶ）。<br><span class="font-semibold">2.</span> <code>gitlab_get_repo_url</code> が未定義のまま2箇所から呼ばれ、実運用経路が到達不能（単体テストは通る）。</p>
     </div>
     <div class="rounded-xl border border-sky-200 bg-sky-50 p-5">
       <div class="text-xs font-bold text-sky-700">結論 3 ／ その他</div>
       <div class="mt-2 text-lg font-bold text-sky-900">残り11関数は期待どおり</div>
-      <p class="mt-2 text-sm text-sky-800">サブグループ（3階層namespace）での解決も通った。</p>
+      <p class="mt-2 text-sm text-sky-800">サブグループ（3階層namespace）での解決も通った。URL系4種の目視確認も完了。</p>
     </div>
   </section>
 
@@ -84,10 +84,10 @@
         <div class="text-xs font-bold text-emerald-600">2段目 ／ 直接証拠</div>
         <p class="mt-2 text-sm">初期HTMLに<span class="font-semibold">アンカー用パスハッシュは0件</span>（40桁hex自体は27件あるが、いずれもコミットSHA等）。rapid diffs方式で遅延読込しているため。<code>diffs_stream</code> 断片を取ると接頭辞なしの40桁hex <code>id=</code> が出現し、一致した。</p>
       </div>
-      <div class="rounded-lg border border-slate-200 bg-white p-4">
-        <div class="text-xs font-bold text-slate-500">3段目 ／ 目視</div>
-        <p class="mt-2 text-sm text-amber-700 font-semibold">ユーザーへ依頼中。</p>
-        <p class="mt-1 text-xs text-slate-500">ハッシュが正しくても遅延読込でスクロールしない失敗様態が残るため。</p>
+      <div class="rounded-lg border-2 border-rose-300 bg-white p-4">
+        <div class="text-xs font-bold text-rose-600">3段目 ／ 目視 — <span class="underline">ここで結論が変わった</span></div>
+        <p class="mt-2 text-sm"><span class="font-semibold text-rose-700">Compareページでは飛ばない。</span> 同じハッシュを <code>/-/merge_requests/1/diffs</code> へ付けると<span class="font-semibold text-emerald-700">初回から飛ぶ</span>。</p>
+        <p class="mt-1 text-xs text-slate-500">自動確認だけなら「アンカーは正しい」と誤結論していた。</p>
       </div>
     </div>
     <div class="mt-4 overflow-x-auto rounded-lg bg-slate-900 p-4 text-xs text-slate-100">
@@ -109,9 +109,32 @@ docs/検証 用.md  → id="dbd436723fcd58b281afcd60bbd2b93e33d9cbca"   （sha1s
   <!-- 不具合 -->
   <section class="mb-12">
     <h2 class="text-xl font-bold text-slate-900 mb-4">検出した不具合（フェーズ3で修正）</h2>
+
+    <div class="rounded-xl border border-rose-200 bg-white overflow-hidden mb-6">
+      <div class="bg-rose-100 px-5 py-3">
+        <span class="font-bold text-rose-900">1. 差分アンカーの付け先がCompareページで、GitLabでは機能しない</span>
+        <span class="ml-2 text-xs text-rose-700">post-push-compact-prompt.sh:292-296</span>
+      </div>
+      <div class="p-5 text-sm space-y-3">
+        <p>アンカーの土台は呼び出し元が渡しており、<span class="font-semibold">常にCompareページのURL</span>（<code>get_mr_diff_url</code> / <code>get_mr_diff_since_url</code>）である。GitLab 18.5.4 のCompareページは rapid diffs 方式で差分を非同期描画するため、この土台ではアンカーが効かない。<span class="font-semibold">GitHub側は同じ構造で issue #42 のときに実機確認済み</span>で、これはGitLab固有の問題。</p>
+        <p><span class="font-semibold">影響:</span> 「重点レビュー対象ファイル」の差分リンクが、GitLabリポジトリでは用をなさない（blobリンクは正常）。</p>
+        <div class="overflow-x-auto rounded-lg border border-slate-200">
+          <table class="min-w-full text-xs">
+            <thead class="bg-slate-100"><tr><th class="px-3 py-2 text-left">案</th><th class="px-3 py-2 text-left">内容</th><th class="px-3 py-2 text-left">問題点</th></tr></thead>
+            <tbody class="divide-y divide-slate-100">
+              <tr><td class="px-3 py-2 font-semibold">A</td><td class="px-3 py-2">GitLabのアンカーは MR差分ページを土台にする</td><td class="px-3 py-2"><span class="font-semibold">「前回pushからの差分」の範囲指定が失われる</span></td></tr>
+              <tr><td class="px-3 py-2 font-semibold">B</td><td class="px-3 py-2">MR差分ページのバージョン指定（<code>?diff_id=&amp;start_sha=</code>）で範囲も保つ</td><td class="px-3 py-2">追加のAPI呼び出しが要り、GitHub側と非対称になる</td></tr>
+              <tr><td class="px-3 py-2 font-semibold">C</td><td class="px-3 py-2">GitLabでは差分アンカーを出さずblobリンクのみ</td><td class="px-3 py-2">情報量は落ちる（が壊れたリンクよりはよい）</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="text-slate-600"><code>get_diff_anchor_url(compare_url, path_hash)</code> はプロバイダ非依存の形で、<span class="font-semibold">どのページを土台にするかは呼び出し元が決めている</span>。修正は <code>Gitlab.sh</code> だけでは閉じない。設計判断は flow-id 3-1 で行う。</p>
+      </div>
+    </div>
+
     <div class="rounded-xl border border-rose-200 bg-white overflow-hidden">
       <div class="bg-rose-100 px-5 py-3">
-        <span class="font-bold text-rose-900"><code>gitlab_get_repo_url</code> が未定義のまま呼ばれている</span>
+        <span class="font-bold text-rose-900">2. <code>gitlab_get_repo_url</code> が未定義のまま呼ばれている</span>
         <span class="ml-2 text-xs text-rose-700">Gitlab.sh:162, :180</span>
       </div>
       <div class="p-5 text-sm space-y-4">
@@ -152,10 +175,11 @@ fi</pre>
         <table class="min-w-full text-sm">
           <thead class="bg-slate-100"><tr><th class="px-3 py-2 text-left">種別</th><th class="px-3 py-2 text-left">自動確認</th><th class="px-3 py-2 text-left">目視</th></tr></thead>
           <tbody class="divide-y divide-slate-100">
-            <tr><td class="px-3 py-2">blob</td><td class="px-3 py-2 text-emerald-700">HTTP 200</td><td class="px-3 py-2 text-amber-700">依頼中</td></tr>
-            <tr><td class="px-3 py-2">差分アンカー</td><td class="px-3 py-2 text-emerald-700"><code>id=</code> と一致</td><td class="px-3 py-2 text-amber-700">依頼中</td></tr>
-            <tr><td class="px-3 py-2">noteパーマリンク</td><td class="px-3 py-2 text-emerald-700"><code>noteable_note_url</code> と一致</td><td class="px-3 py-2 text-amber-700">依頼中</td></tr>
-            <tr><td class="px-3 py-2">Compare</td><td class="px-3 py-2 text-emerald-700">HTTP 200</td><td class="px-3 py-2 text-amber-700">依頼中</td></tr>
+            <tr><td class="px-3 py-2">blob</td><td class="px-3 py-2 text-emerald-700">HTTP 200</td><td class="px-3 py-2 text-emerald-700 font-semibold">✅ 動作</td></tr>
+            <tr class="bg-rose-50"><td class="px-3 py-2">差分アンカー（Compare土台）</td><td class="px-3 py-2 text-emerald-700"><code>id=</code> と一致</td><td class="px-3 py-2 text-rose-700 font-bold">❌ 飛ばない</td></tr>
+            <tr class="bg-emerald-50"><td class="px-3 py-2">（参考）同ハッシュ＋MR差分ページ</td><td class="px-3 py-2 text-slate-400">—</td><td class="px-3 py-2 text-emerald-700 font-semibold">✅ 初回から飛ぶ</td></tr>
+            <tr><td class="px-3 py-2">noteパーマリンク</td><td class="px-3 py-2 text-emerald-700"><code>noteable_note_url</code> と一致</td><td class="px-3 py-2 text-emerald-700 font-semibold">✅ 動作</td></tr>
+            <tr><td class="px-3 py-2">Compare</td><td class="px-3 py-2 text-emerald-700">HTTP 200</td><td class="px-3 py-2 text-emerald-700 font-semibold">✅ 動作</td></tr>
           </tbody>
         </table>
       </div>
@@ -194,7 +218,7 @@ repo  = "issue127-verify-sub"</pre>
   <footer class="border-t border-slate-200 pt-6 text-xs text-slate-500">
     <p>結果の正文は <code>reports/20260820_zippy-petting-crown_GitLab実機検証結果.md</code>。本HTMLはその視覚化。</p>
     <p class="mt-1"><span class="font-semibold">範囲外（やらないと決めた）</span>: gitlab.com（SaaS）・CE 18.5.4 以外のバージョン・EE・ssh経由のgit操作。</p>
-    <p class="mt-1"><span class="font-semibold">未完了（範囲内・引き継ぐ）</span>: URL系4種のブラウザ目視確認、<code>gitlab_get_mr_url</code>／<code>gitlab_get_note_url</code> の <code>Provider.sh</code> 経由での実行（フェーズ3でディスパッチャ追加後）。</p>
+    <p class="mt-1"><span class="font-semibold">未完了（範囲内・引き継ぐ）</span>: <code>gitlab_get_mr_url</code>／<code>gitlab_get_note_url</code> の <code>Provider.sh</code> 経由での実行（フェーズ3でディスパッチャ追加後）、折りたたまれた差分に対するアンカーの挙動（不具合1の修正方針が決まってから）。</p>
     <p class="mt-1">「受け入れ条件8: 検証環境の再現手順」は、フェーズ4で <code>.claude/docs/spec/</code> 配下へ移す（<code>reports/</code> は片付けで削除されるため）。</p>
   </footer>
 

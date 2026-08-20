@@ -18,7 +18,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - ブランチ: `feature-127-verify-gitlab-functions-and-url-formats`
 - PR: #128 https://github.com/yuki-matsu783/MR-driven-workflow/pull/128 （Draft）
 - 追従監視: なし（ローカル。各pushとflow-id 5-1で手動確認する）
-- push回数: 7
+- push回数: 8
 - 現在のループ: なし
 
 | 進捗 | flow-id | ステップ | 担当 |
@@ -174,14 +174,30 @@ issue #127（ローカルGitLab CEで、issue #48以降に `Gitlab.sh` へ追加
     コマンドへ入れサブグループ作成手順を追加、「範囲外」と「未完了」を別見出しへ分離、
     md側に「設計への反映」節を新設（HTMLだけが持っていた情報を正文へ）。
 
+- **ブラウザ目視確認（受け入れ条件2）が完了し、2件目の不具合が判明した。**
+  - blob・noteパーマリンク・Compareの3種は**予定どおり動作**。
+  - **差分アンカーはCompareページでは飛ばない。** 同じハッシュを
+    `/-/merge_requests/<iid>/diffs#<sha1>` へ付けると**初回から飛ぶ**。
+    つまり**ハッシュは正しく、土台にするページが誤っている**。
+  - 呼び出し元は `.claude/hooks/post-push-compact-prompt.sh:292-296` で、
+    `anchor_compare_url` として**常にCompareページのURL**を渡している。
+    `get_diff_anchor_url(compare_url, path_hash)` はプロバイダ非依存の形のため、
+    **修正は `Gitlab.sh` だけでは閉じない**（案A/B/Cを reports に記載。判断は flow-id 3-1）。
+  - **自動確認だけなら誤った結論を出していた。** 敵対的レビューがブラウザ確認を
+    「決着しない場合のみ」から「必須」へ変えさせた指摘が、実際に結論を変えた。
+  - 副次的に判明: **GitLabは大きい差分を既定で折りたたむ**（400行のファイルは `diffs_stream` に
+    本文が出ない）。スクロール確認用のデータは「大きいファイル数個」ではなく
+    「小さいファイル多数」で作る必要があった。
+
 ## 次にやること
 
-- **flow-id 2-7**: reports（md/html）・worklog・HANDOFFをコミットしリモートへ反映し、
-  **敵対的レビュー（フェーズ2・2回目）**を実施したうえでレビュー依頼を出す。
-- **ユーザーへブラウザ目視確認を依頼する**（URL系4種の代表1本ずつ）。自動確認は完了しているが、
-  受け入れ条件2は「ブラウザ表示確認結果が記録されている」ことを求めているため。
-- フェーズ3（flow-id 3-1〜）: `gitlab_get_repo_url` → `get_repo_url` の修正（2箇所）と、
-  `get_mr_url` / `get_note_url` のディスパッチャ追加。
+- **人間のレビュー（flow-id 2-8）待ち。** 合意できたら flow-id 2-10（MR description更新）→
+  フェーズ3へ進む。
+- フェーズ3（flow-id 3-1〜）でやること:
+  1. **不具合1**: 差分アンカーの土台を案A/B/Cから決めて修正する（設計判断が要る）。
+  2. **不具合2**: `gitlab_get_repo_url` → `get_repo_url`（2箇所）。
+  3. `get_mr_url` / `get_note_url` のディスパッチャ追加（flow-id 2-4 の決定）と、追加後の再実行。
+  4. 再発防止（未定義呼び出しの静的検出／呼び出し経路を見るテスト）。
 
 ## 判断を迷った内容
 
