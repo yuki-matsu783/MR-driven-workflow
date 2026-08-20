@@ -17,8 +17,8 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - issue: #43 レビューコメント取得の出力仕様を見直す（diffHunk廃止・断面ソースの前後行スライス化）
 - ブランチ: claude/issue-43-snhmw7
 - PR: #131 https://github.com/yuki-matsu783/MR-driven-workflow/pull/131（Draft）
-- push回数: 5
-- 現在のループ: なし
+- push回数: 6
+- 現在のループ: 4-6〜4-9 の1周目（進行中）
 - 追従監視: 購読あり（web。subscribe_pr_activity + 定期チェックイン）
 
 進捗記号: `[x]` 完了 / `[]` 未着手・進行中 / `[-]` 今回は実施しない（スキップ）
@@ -124,11 +124,23 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - flow-id 4-1: 反映対象を洗い出し、**9箇所が該当**した。うち5箇所は過去changelogのため
   対象外と判別した（`.claude/rules/docs-workflow.md` の「changelogを一括置換の対象に
   含めない」に該当）。個別反映計画を2本作成した（設計反映とAIアセット反映は分ける）。
+- flow-id 4-2: 個別反映計画をcommitしてリモートへ反映した（push 5回目）。
+- flow-id 4-6（1周目・設計反映）: 次を実施した。
+  - `.claude/docs/spec/issue-mr-workflow.md`: 提供関数表の書き換え（`get_mr_review_threads` /
+    `read_file_at_ref` を追加）、内部ヘルパーの説明の更新、**新節「レビューコメントの
+    ソーススライス」**（正規化JSON・出力書式・断面の4段階・上限の根拠・性能・MCPの制約）、
+    `## 影響範囲` への issue #43 のchangelogエントリ追記。
+  - `.claude/docs/ddr/0059-レビューコメントのソース断面はコメント時点のshaを優先し現HEADへ縮退する.md`
+    を新規作成（却下案4つを含む）。`.claude/docs/README.md` のDDR一覧へ追記。
+  - `.claude/docs/spec/adversarial-review.md`: 現在の状態を説明する箇所の関数名と、投稿した
+    スレッドにソーススライスが添えられる旨。
+  - **過去changelog（issue #48 / #42 / #77 の節）は書き換えていない。**
 
 ## 次にやること
 
-- flow-id 4-6: 設計反映（spec / DDR 0059 / README.md / adversarial-review.md）を実施する。
-  完了後にAIアセット反映（SKILL.md / shell-script-style.md）へ進む。
+- flow-id 4-6（2周目）: AIアセット反映（`.claude/skills/issue-mr-flow/SKILL.md` の
+  `comments` 出力説明とMCP対応表の注記、`.claude/rules/shell-script-style.md` の
+  `REPLY` の動機と制御文字の注記）を実施する。
 
 ## 判断を迷った内容
 
