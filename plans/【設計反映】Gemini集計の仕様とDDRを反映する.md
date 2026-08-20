@@ -155,17 +155,22 @@ DDR一覧へ、新規作成した5本を**採番後の番号で**追記する。
 #    ローカルの重複（自分が付けた番号どうし）
 ls .claude/docs/ddr/ | grep -oE '^[0-9]{4}' | sort | uniq -d   # 何も出なければ重複なし
 #    main側との重複。check-base-conflicts.sh は未コミットの新規ファイルを見られないため
-#    （git ls-tree でパスを列挙する実装）、この時点では origin/main を直接引く
+#    （git ls-tree でパスを列挙する実装）、この時点では origin/main を直接引く。
+#    **番号だけを集めて uniq -d すると、両者に存在する既存DDRが全件「重複」になる。**
+#    ファイル名で先に sort -u し、そのうえで番号が2回現れる＝別ファイルが同じ番号を使っている
+#    という形にする。`-c core.quotepath=false` が無いと日本語ファイル名が8進エスケープされ、
+#    `ls` の出力と一致せず**やはり全件が重複扱いになる**（.claude/rules/shell-script-style.md）。
 git fetch origin main
-{ ls .claude/docs/ddr/ | grep -oE '^[0-9]{4}';
-  git ls-tree -r --name-only origin/main -- .claude/docs/ddr \
-    | grep -oE '[0-9]{4}' ; } | sort | uniq -d   # 何も出なければ重複なし
+{ ls .claude/docs/ddr/ ;
+  git -c core.quotepath=false ls-tree -r --name-only origin/main -- .claude/docs/ddr \
+    | sed 's|.*/||' ; } | sort -u | grep -oE '^[0-9]{4}' | sort | uniq -d   # 何も出なければ重複なし
 
 # 2. frontmatterインデックスが再生成できること（新規DDRのfrontmatterが妥当か）
 bash .claude/scripts/src/extract-frontmatter.sh .
 
 # 3. 新規DDRがインデックスに載り、type/description/keywords を持つこと
-bash .claude/scripts/src/search-frontmatter.sh --type ddr --query gemini
+#    フリーテキスト検索のオプションは `--text`（`--query` は存在しない）
+bash .claude/scripts/src/search-frontmatter.sh --type ddr --text gemini
 
 # 4. README.mdのDDR一覧のリンク切れが無いこと
 #    リンクは `](ddr/00NN-....md)` 形式（`./` は付かない）。件数も出して「0件マッチ」を検知する
