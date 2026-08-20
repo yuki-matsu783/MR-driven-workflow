@@ -22,7 +22,7 @@ keywords: [DDR, 識別子, 命名規則, check-base-conflicts, 単体テスト, 
 | 2 | `.claude/scripts/src/check-base-conflicts.sh` | `ddr_number_to_reply` → `ddr_identifier_to_reply` へ改名し、`^([0-9]{4})-` に加えて `^(i[0-9]+-[0-9]{2})-` を受け付ける。`find_duplicate_ddr_numbers` → `find_duplicate_ddr_identifiers`。**JSONのキー名は据え置く** |
 | 3 | `.claude/scripts/test/test_check_base_conflicts.sh` | 関数名の追従に加え、新方式単独・新旧混在・不正形式（枝番なし・枝番1桁・大文字 `I`）のケースを追加する |
 | 4 | `.claude/skills/resolve-conflict/SKILL.md` | 類型Aを「新方式では衝突しない」「重複が出るのは既存連番と、同一issueを別ブランチで並行作業した場合」「既存連番は従来どおり改番する」の3点が分かる形へ書き換える |
-| 5 | `.claude/docs/README.md` | DDR一覧を「連番（0003〜0059、新規追加しない）」と「issue番号ベース（新規はこちら）」の2ブロックへ分け、後者はissue番号の数値順に並べる |
+| 5 | `.claude/docs/README.md` | DDR一覧を「連番（新規追加しない）」と「issue番号ベース（新規はこちら）」の2ブロックへ分け、後者はissue番号の数値順に並べる |
 | 6 | `.claude/rules/docs-workflow.md` | ドキュメント運用表のDDR行のファイル名例・「連番で管理し」の記述を更新する |
 | 7 | `.claude/skills/issue-mr-flow/SKILL.md` | 監視の類型A行と flow-id 5-1 節の説明を、新方式を踏まえた表現へ更新する |
 
@@ -38,5 +38,8 @@ keywords: [DDR, 識別子, 命名規則, check-base-conflicts, 単体テスト, 
 ## やらないこと
 
 - 既存55件のDDRの改番・本文変更・参照更新。
+  → **この項目は後から覆った。** ユーザーの判断で全件改番することになり、別の個別作業計画
+  `plans/【実装】既存DDRの全件改番.md` として立てている（本計画の作業項目5・
+  「やらないこと」のこの行は、その時点で上書きされる）。
 - `duplicateDdrNumbers` / `hasDuplicateDdrNumber` というJSONキーの改名（調査結果 第5節）。
 - `search-frontmatter.sh` の日付判定の正規表現（DDRとは無関係）。

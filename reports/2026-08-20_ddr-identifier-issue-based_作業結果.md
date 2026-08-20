@@ -1,15 +1,16 @@
 ---
 title: 作業結果 DDR識別子をissue番号ベースへ変更する
 type: report
-description: issue #133 の作業結果。命名規則の規約化・check-base-conflicts.shの識別子抽出の一般化・単体テスト追加・スキルとDDR一覧の更新と、その検証結果
+description: issue #133 の作業結果。命名規則の規約化・check-base-conflicts.shの識別子抽出の一般化・単体テスト追加・スキルとDDR一覧の更新、および既存DDR全56件の新方式への改番と、その検証結果
 tags: [ddr, report, conflict, workflow]
-keywords: [DDR識別子, issue番号, 枝番, check-base-conflicts, 単体テスト, resolve-conflict, 類型A, README, 検証結果]
+keywords: [DDR識別子, issue番号, 枝番, check-base-conflicts, 単体テスト, resolve-conflict, 類型A, README, 検証結果, 全件改番, i00]
 ---
 
 # 作業結果: DDR識別子をissue番号ベースへ変更する（issue #133）
 
 対象issue: [#133](https://github.com/yuki-matsu783/MR-driven-workflow/issues/133)
-個別作業計画: `plans/【実装】【テスト】DDR識別子の新方式への対応.md`
+個別作業計画: `plans/【実装】【テスト】DDR識別子の新方式への対応.md` /
+`plans/【実装】既存DDRの全件改番.md`
 調査結果: `reports/2026-08-20_ddr-identifier-issue-based_調査結果.md`
 
 ## 変更したもの
@@ -18,9 +19,9 @@ keywords: [DDR識別子, issue番号, 枝番, check-base-conflicts, 単体テス
 |---|---|---|
 | 1 | `.claude/rules/markdown-frontmatter.md` | 「DDRの識別子」節を新設。命名・枝番・`title` / `superseded_by` の書式・既存連番の扱い・残る重複ケースを明記。`superseded_by` の説明を「番号」→「識別子」へ |
 | 2 | `.claude/scripts/src/check-base-conflicts.sh` | `ddr_number_to_reply` → `ddr_identifier_to_reply`（`^(i[0-9]+-[0-9]{2})-` を追加）、`find_duplicate_ddr_numbers` → `find_duplicate_ddr_identifiers`。**JSON出力のキー名は据え置き**。`--help` の出力方式を変更（下記） |
-| 3 | `.claude/scripts/test/test_check_base_conflicts.sh` | 関数名の追従＋新方式単独・新旧混在・不正形式のケースを追加（13→**28** アサーション） |
+| 3 | `.claude/scripts/test/test_check_base_conflicts.sh` | 関数名の追従＋新方式単独・新旧混在・不正形式のケースを追加（13→**29** アサーション。うち1件は後述の `i00`） |
 | 4 | `.claude/skills/resolve-conflict/SKILL.md` | 類型Aを **A-1（既存連番の重複）／A-2（同一issueの枝番重複）** へ分割。監視モードの表・検証コマンド・参照リンクも追従 |
-| 5 | `.claude/docs/README.md` | DDR一覧を「issue番号ベース（新規はこちら）」「連番（新規追加しない）」の2ブロックへ分割 |
+| 5 | `.claude/docs/README.md` | DDR一覧をissue番号の数値順の単一一覧へ再構成し、`i00`（対応issueが無いDDR）の意味を明記（下記「追加対応」） |
 | 6 | `.claude/rules/docs-workflow.md` | ドキュメント運用表のDDR行（ファイル名例・「連番で管理し」） |
 | 7 | `.claude/skills/issue-mr-flow/SKILL.md` | 監視の類型A行、flow-id 5-1 節の「gitが検知できない衝突」の説明、その他「DDR番号」→「DDR識別子」 |
 | 8 | `.claude/skills/apply-mr-workflow-to-project/SKILL.md` | スクリプト紹介の1行 |
@@ -37,7 +38,9 @@ keywords: [DDR識別子, issue番号, 枝番, check-base-conflicts, 単体テス
 ```
 
 `title` と本文冒頭の見出しは `i133-01. <タイトル>`、`superseded_by` は `"i133-01"`。
-既存の連番DDR 55件（0003〜0059）は**改番せず**、参照も一切変更していない。
+
+既存の連番DDRについては、当初「改番しない（新旧2方式の併存）」で実装したが、**その後ユーザーの
+判断で全件改番へ方針が変わった**。経緯と結果は下記「追加対応: 既存DDRの全件改番」を参照。
 
 ## 予定になかった修正
 
@@ -58,8 +61,8 @@ awk 'NR > 1 { if ($0 !~ /^#/) exit; print }' "${BASH_SOURCE[0]}"
 | # | 検証 | 結果 |
 |---|---|---|
 | 1 | `bash -n` （変更した `.sh` 2件） | OK |
-| 2 | `bash .claude/scripts/test/test_check_base_conflicts.sh` | **`passed=28 failures=0`** |
-| 3 | `.claude/scripts/test/test_*.sh` 全12件 | 全件 `failures=0`（合計664アサーション） |
+| 2 | `bash .claude/scripts/test/test_check_base_conflicts.sh` | **`passed=29 failures=0`** |
+| 3 | `.claude/scripts/test/test_*.sh` 全12件 | 全件 `failures=0`（合計**699**アサーション。改番後に再実行した最終値） |
 | 4 | `check-base-conflicts.sh --no-fetch` | 正常なJSONを返し `hasConflict=false` / `hasDuplicateDdrNumber=false` |
 | 5 | `extract-frontmatter.sh .` | `files=104 built=13 reused=91 failed=0`。新DDRが `index.jsonl` に入った |
 | 6 | `search-frontmatter.sh --type ddr --text "issue番号ベース"` | 新DDRを1件で引ける（`doc-search` から到達できる） |
@@ -92,8 +95,6 @@ awk 'NR > 1 { if ($0 !~ /^#/) exit; print }' "${BASH_SOURCE[0]}"
 
 ## やらなかったこと（意図的）
 
-- **既存55件のDDRの改番。** issueの期待する動作どおり、ファイル名・本文・他ファイルからの参照
-  （262行・919箇所）を一切変更していない。
 - **JSONキー `duplicateDdrNumbers` / `hasDuplicateDdrNumber` の改名。** 理由は
   `.claude/docs/ddr/i133-01-…md`「JSONキーを改名しなかった理由」。
 - **`search-frontmatter.sh:134` の `^[0-9]{4}-[0-9]{2}-[0-9]{2}$`。** `--since` の日付判定であり
@@ -106,8 +107,89 @@ awk 'NR > 1 { if ($0 !~ /^#/) exit; print }' "${BASH_SOURCE[0]}"
 | issueの受け入れ条件 | 状況 |
 |---|---|
 | 新方式の命名規則が `markdown-frontmatter.md` に明記されている | 済（「DDRの識別子」節） |
-| 既存58件（実測55件）のファイル名・本文・参照が変更されていない | 済（差分に既存DDRは1件も含まれない） |
+| 既存58件（実測56件）のファイル名・本文・参照が変更されていない | **意図的に逸脱**。ユーザーの明示指示により全件改番した（下記「追加対応」）。参照の追従はリンク解決の機械検証で担保 |
 | `check-base-conflicts.sh` が新方式を正しく扱い、単体テストが新旧混在を含めて通る | 済（`passed=28 failures=0`） |
 | `resolve-conflict` 類型Aに新方式で衝突が起きないこと・既存連番は従来どおり改番することが記載 | 済（A-1 / A-2 へ分割） |
 | 採用理由と却下案（採番の遅延／レンジ分割）を記録したDDRがある | 済（`i133-01-…md`。却下案は4件記載） |
-| `.claude/docs/README.md` のDDR一覧が破綻なく並んでいる | 済（2ブロック構成。新方式はissue番号の数値順） |
+| `.claude/docs/README.md` のDDR一覧が破綻なく並んでいる | 済（issue番号の数値順の単一一覧。全57件のリンクが実ファイルへ解決することを確認） |
+
+## 追加対応: 既存DDRの全件改番
+
+**当初は「既存の連番DDRは改番しない」で実装を終えていた**（issueの受け入れ条件もそうなっていた）。
+その後ユーザーから「既存のものもDDR番号を今回のルールに合わせて変更してほしい」との指示があり、
+**旧番号 `0003`〜`0060` の全56件を新方式へ改番した**。
+
+方針転換で参照の追従漏れリスクを引き受けることになる点は一度指摘したうえで、指示が維持された
+ため実施している。経緯と、引き受けたリスクへの対処は
+`.claude/docs/ddr/i133-01-…md`「全件改番へ方針を変えた経緯」に記録した。
+
+### 対応issueの特定（ここが本作業の山だった）
+
+**本文が名乗るissue番号を機械的に信用すると誤る。** このリポジトリはワークフロー機構の
+テンプレートとして別プロジェクトから切り出されたもので、古いDDRは**移植元プロジェクトの
+issue番号**を書いている。番号だけは本リポジトリのissueとも一致してしまうため、素朴な抽出では
+無関係なissueへ紐づく。
+
+| 旧番号 | 本文が名乗るissue | 本リポジトリの同番号issue | 判定 |
+|---|---|---|---|
+| `0014` | #48「調査結果をHTMLでも残す」 | 「Gitlab.shに実機検証で判明した3件の不具合がある」 | **別物** → `i00-11` |
+
+git履歴も使えなかった（shallow cloneであり、かつ移植は単一の一括コミット `3f30159` として
+入っている）。最終的に、**本リポジトリのissue 78件をすべて取得し、DDRのタイトルと突き合わせて
+1件ずつ判定**した。結果は根拠つきの一覧としてユーザーへ提示し、承認を得ている。
+
+- **43件**は本リポジトリのissueへ対応づけできた（例: `0021` → `i11-01`、`0045`〜`0047` → `i77-01`〜`i77-03`）。
+- **13件**は対応するissueを特定できなかった。
+
+なお、この特定作業では**一度「3件」と誤って報告し、その後13件へ訂正**している。最初は本文の
+issue記載をそのまま信じたためで、上表のような突き合わせを行って初めて誤りが分かった。
+
+### 対応issueを持たない13件（`i00`）
+
+ユーザーの指示により、**`i00` を「対応するissueが無い」ことを表す予約番号**とし、
+`i00-01`〜`i00-13` を振った。**`i00` の枝番だけは、issueごとではなくリポジトリ全体の通し番号**
+である（`i00` は特定のissueを指さないため「同一issue内で01から」という原則が働かない）。
+
+内訳は、移植元のPRから生まれてissueが存在しないもの2件、本文が移植元のissue番号を名乗っていて
+本リポジトリでは特定できないもの10件、issue・PRのどちらも記載が無いもの1件。
+**新しく `i00-*` を作ることはない**（今後のDDRは必ずissueを起点とするため）。
+
+### 書き換えなかったもの（意図的）
+
+**過去の事実の記録に現れる連番は、ファイルを指す参照ではない**ため一括置換の対象から外した。
+
+- 過去のコミットメッセージの引用（`chore: mainをマージしDDR番号を0028へ繰り下げて…`）。
+- 過去に重複した番号の一覧、`0034→0035→0036→0038` のような繰り下げの経過。
+- `.claude/docs/spec/*.md` のissueごとのchangelogエントリ。
+- 移植時に持ち込んでいないDDR（旧番号 0001・0002・0008・0015）への言及。
+
+### 改番作業で踏んだ問題
+
+**一括置換が単体テストのフィクスチャを壊した。** `test_check_base_conflicts.sh` には
+`0027-gh_glab-CLI不在時…` と `0027-プロバイダ判定…` という2つのパスがあり、これは
+**PR #52 で実際に起きた衝突を再現している**もの。一括置換で片方だけが新識別子へ変わった結果、
+「同じ識別子を持つ2ファイル」ではなくなり、**テストは通ったまま意図だけが失われた**。
+
+`git checkout -- <file>` で差し戻し、以降このファイルを一括置換の対象から丸ごと除外した。
+**「テストが緑だから壊れていない」が成立しない壊し方**であり、リネーム作業ではフィクスチャを
+本物のファイル名と同じ扱いにしてはいけない、という教訓として残す。
+
+あわせて次の2件も後から見つけて直した。いずれも**リンク先だけが置換され、表示ラベルが
+古い番号のまま残る**という形だった（`[0050](../ddr/i97-01-….md)` など）。
+
+- `.claude/docs/spec/issue-mr-workflow.md` / `search-frontmatter.md` / `i43-01-….md` のリンクラベル。
+- `.claude/hooks/post-push-compact-prompt.sh` のコメント内のDDRパス（`ddr/0023-...md` 等）。
+
+### 追加対応の検証
+
+| # | 検証 | 結果 |
+|---|---|---|
+| 1 | 全ファイル中の `ddr/<名前>.md` 形式の参照が実ファイルへ解決するか | **未解決は0件**（残るのはテスト用フィクスチャ・仕様書中の例示・持ち込んでいない `0002` のみ） |
+| 2 | `.claude/docs/README.md` のDDRリンク57件 | 全件が実ファイルへ解決 |
+| 3 | `.claude/scripts/test/test_*.sh` 全12件 | 全件 `failures=0`（合計699アサーション） |
+| 4 | `extract-frontmatter.sh .` | 終了コード0。新ファイル名で `index.jsonl` を再生成 |
+| 5 | `check-base-conflicts.sh --help` | 先頭コメントブロック全体が出る（改番でコメントを書き換えた後も途中で切れない） |
+
+`test_extract_frontmatter.sh` が1件失敗する状態を経由している。フィクスチャの入力側
+（`superseded_by: "0019"`）だけが一括置換で `"i9-01"` になり、期待値が `"0019"` のまま
+残っていたためで、期待値を合わせて解消した。
