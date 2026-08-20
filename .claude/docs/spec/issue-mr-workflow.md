@@ -1058,6 +1058,15 @@ Claude Codeの対応工数（モデル別トークン数・ツール実行回数
     （`gh issue comment --body-file <file>`、`set_mr_description <n> <file>`。実機で発火しないことを
     確認済み）。AIエージェント向けの一般的な注意は`.claude/rules/git-workflow.md`を参照。
 
+    **ただし、この観測が全ての環境で成り立つとは確認できていない。** issue #47 の調査
+    （Claude Code on the web / Linux、2026-08-20）では、上と同じ「地の文に該当語を含むだけ」の
+    構成で**発火しなかった**（3ケースと、heredocでの追試1ケースの計4ケースを実測）。上記
+    issue #23 の計3回は、このリポジトリが前提とする常用環境（Windows / git bash。
+    `.claude/rules/shell-script-style.md`「前提・保存形式」）での観測である。**どちらが現行かを
+    決める材料は無く**、Claude Codeのバージョン差かプラットフォーム差かの切り分けもできていない
+    （Windows実機での再測が要る）。**したがって上記の回避策は変えない。** 発火しない環境がある
+    ことは、発火する環境で回避策が不要になる理由にはならないためである。
+
   より厳密な検知（`PreToolUse`と`PostToolUse`のペアでref状態を比較する等）も検討可能だが、
   全Bash/PowerShell呼び出しへ処理が追加され性能影響とのトレードオフになるため、対応しない。
 - **設計判断の詳細・却下案**（`transcript` JSONL自前パースの採用理由、`gitBranch` フィルタの理由、
@@ -2509,6 +2518,35 @@ Draft解除 → 5-5 マージ** の順へ並べ替えた（旧 5-1 片付け →
 **DDR本文と、本節の過去issueごとのエントリは書き換えていない**（`.claude/rules/docs-workflow.md`）。
 DDR 0044（関連issue通知）・0048（後片付けのスクリプト化）が本文で指す `5-3` `5-1` は、当時の番号の
 ままである。DDR 0048 はファイル名にも `flow-id5-1` を含むが、リンク切れを避けるためリネームしない。
+
+### issue #47（push検知hookの誤検知に関する環境差の併記）
+
+AIエージェントがBash/PowerShellツールへ渡すコマンド文字列の規約
+（`.claude/rules/ai-command-style.md`）を新設した際の調査で、上記「誤検知（pushしていないのに
+発火する）」に記録された issue #23 の観測と**逆の結果**を得た。issue #23 の記録は変更せず、
+issue #47 の観測を**環境差として併記**した。
+
+| issue | 環境 | 観測 |
+|---|---|---|
+| #23 | Windows / git bash（常用環境） | 地の文に該当語が含まれるだけで発火した（計3回） |
+| #47 | Claude Code on the web / Linux（2026-08-20） | 同じ構成で発火しなかった（計4ケース） |
+
+**どちらが現行かは切り分けていない**（Windows実機での再測が要る）。したがって回避策
+（長文をファイル経由で渡す）は変更していない。新設したルールの側でも、push検知hookについては
+結論を書かず両論併記にとどめ、「安全側に倒して該当2語を連続させない」という結論だけを共有する。
+
+新規:
+- `.claude/rules/ai-command-style.md`
+- `.claude/docs/ddr/0059-AIが渡すコマンド文字列の説明はdescriptionとコメントへ分けて置く.md`
+
+変更:
+- `.claude/docs/spec/issue-mr-workflow.md`（本ファイル。「誤検知」項への環境差の併記と本エントリ）
+- `.claude/rules/shell-script-style.md`（冒頭へ `ai-command-style.md` とのスコープの違いと相互リンク）
+- `.claude/docs/README.md`（DDR一覧へ0059を追加）
+
+**既存の「誤検知」項の本文は1文字も変更していない**（`.claude/rules/docs-workflow.md` の
+point-in-time記録の扱い）。併記した段落は、項の末尾（回避策とAIエージェント向け注記への誘導という
+節全体にかかる地の文）の**後ろ**へ置いてある。
 
 ## 設定項目
 
