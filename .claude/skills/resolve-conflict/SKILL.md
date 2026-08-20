@@ -4,7 +4,7 @@ description: 'Detect and resolve conflicts between the current feature branch an
 title: defaultブランチとのコンフリクト解消
 type: skill
 tags: [issue-mr-flow, workflow, skill, conflict]
-keywords: [コンフリクト, merge, DDR番号, 改番, deleted by us, index.jsonl, merge-tree, defaultブランチ, main追従, 追従監視, 監視モード]
+keywords: [コンフリクト, merge, DDR番号, 改番, deleted by us, index.jsonl, merge-tree, defaultブランチ, main追従, 追従監視, 監視モード, DDR一覧, 再生成]
 ---
 
 # /resolve-conflict スキル
@@ -88,7 +88,7 @@ PR作成後の追従監視から呼ばれた場合に限り、**解消方法が�
 | 類型 | 監視モードでの扱い |
 |---|---|
 | A: DDR番号の衝突 | **承認を待たず解消**（「defaultブランチ側を正とし作業ブランチ側を繰り下げる」と規則が確定している） |
-| B: 管理外にした生成物の "deleted by us" | **承認を待たず解消**（「管理外にした側を採用する」と規則が確定している） |
+| B: 生成物（管理外にしたファイルの "deleted by us" ／ DDR一覧） | **承認を待たず解消**（「管理外にした側を採用する」／「統合せず再生成する」と規則が確定している） |
 | C: 同じドキュメントの近接行 | **承認を待たず解消**（両方を残す）。ただし散文が両側で書き換わり内容が矛盾する場合は類型Eとして扱う |
 | D: spec/DDRの過去changelog | **承認を待たず解消**（時系列順に両方残す） |
 | E: 同じロジックの競合 | **`AskUserQuestion` で確認する**。解消せずに止め、両側の意図を要約して判断を仰ぐ |
@@ -132,7 +132,7 @@ mainは共有の正史であり、既にマージされた番号を動かすと�
 | ファイル名 | `git mv .claude/docs/ddr/00NN-旧.md .claude/docs/ddr/00MM-旧.md` |
 | frontmatterの `title` 先頭の番号 | `title: 00MM. ...` |
 | 本文冒頭の見出し `# 00NN. ...` | `# 00MM. ...` |
-| `.claude/docs/README.md` のDDR一覧 | リンクのファイル名とテキストの両方 |
+| `.claude/docs/README.md` のDDR一覧 | **手書きしない。** `bash .claude/scripts/src/generate-ddr-list.sh` を実行して再生成する（issue #135） |
 | **他ファイルからの参照** | `grep -rn "00NN-" --include='*.md' --include='*.sh' --include='*.json' .` |
 
 - **DDR本文は変更しないという原則（`.claude/rules/docs-workflow.md`）の適用外**。まだマージ
@@ -143,7 +143,7 @@ mainは共有の正史であり、既にマージされた番号を動かすと�
 - **改番後は `check-base-conflicts.sh` を再実行し、`hasDuplicateDdrNumber` が `false` になることを
   確認する。**
 
-#### 類型B: Git管理外にした生成物の "deleted by us" / "deleted by them"
+#### 類型B: 生成物のコンフリクト（Git管理外の "deleted by us" / "deleted by them"、およびDDR一覧）
 
 作業ブランチ側でGit管理から外したファイルを、defaultブランチ側がまだ管理下で更新している
 （またはその逆）状態。issue #36（PR #37）で `index.jsonl` が7ファイル分この形になった。
@@ -161,11 +161,33 @@ git rm --cached -- <path>   # 管理から外す側の意図を採用（作業�
 - 生成物そのものの中身をコンフリクトマーカー付きで手直ししない。生成スクリプト
   （`.claude/scripts/src/extract-frontmatter.sh` 等）を流し直せば正しい内容が得られる。
 
+**Git管理下に置いた生成物（`.claude/docs/README.md` のDDR一覧）も、同じく「統合せず再生成」で
+解消する**（issue #135）。マーカー `<!-- BEGIN GENERATED: ddr-list -->` 〜
+`<!-- END GENERATED: ddr-list -->` の区間は生成物なので、**両側の行を突き合わせて番号順へ
+並べ直す必要は無い**（それが手書き時代の類型Cの手作業だった）。
+
+```bash
+git checkout --ours -- .claude/docs/README.md   # どちら側でもよい。次の行で作り直す
+bash .claude/scripts/src/generate-ddr-list.sh   # 両ブランチのDDRファイルから一覧を再生成
+git add .claude/docs/README.md
+```
+
+- **どちら側を採るかは問わない。** 一覧はDDRファイルの集合から決まり、マージ後のワーキング
+  ツリーには両ブランチのDDRが揃っているため、再生成すれば必ず両方が載る。
+- **ただしREADMEのマーカー**外**（spec一覧・由来の注記・欠番の説明）が両側で変わっている場合は、
+  そちらは類型Cとして統合する。** `--ours` で丸ごと採ると相手側の手書き変更を落とすため、
+  マーカー外に差分があるときは通常どおりコンフリクトを解消してから再生成する。
+- 再生成後に `bash .claude/scripts/src/generate-ddr-list.sh --check` が終了コード0を返すことを
+  確認する（仕様: `.claude/docs/spec/generate-ddr-list.md`）。
+
 #### 類型C: 同じドキュメントの近接行を両ブランチが変更した
 
-`.claude/docs/README.md` のDDR一覧末尾、`.claude/rules/docs-workflow.md` の運用表、
-`.claude/skills/issue-mr-flow/SKILL.md` のフロー表など、**末尾や表へ追記していく形のファイル**で
-起きる。過去の事例では `README.md` が毎回この形になっている。
+`.claude/rules/docs-workflow.md` の運用表、`.claude/skills/issue-mr-flow/SKILL.md` の
+フロー表など、**末尾や表へ追記していく形のファイル**で起きる。
+
+**`.claude/docs/README.md` のDDR一覧は、issue #135 以降この類型ではない**（生成物になったため
+類型Bで再生成して解消する）。同じファイルでも、マーカー外の手書き部分（spec一覧等）が両側で
+変わっている場合はこの類型として統合する。
 
 **解消ルール: 両方の変更を残して統合する。片方を捨てない。**
 
@@ -209,7 +231,16 @@ bash .claude/scripts/src/check-base-conflicts.sh --no-fetch | jq '.hasDuplicateD
 
 # 6. frontmatterインデックスの再生成（生成物なのでコミット対象ではない）
 bash .claude/scripts/src/extract-frontmatter.sh .
+
+# 7. DDR一覧が最新であること（**こちらは生成物だがコミット対象**。issue #135）
+bash .claude/scripts/src/generate-ddr-list.sh --check   # 終了コード2なら次行で再生成しadd する
 ```
+
+手順7が終了コード2を返すのは、DDR一覧が最新でないときである。`generate-ddr-list.sh`（`--check`
+無し）を実行して `.claude/docs/README.md` を再生成し、**同じコミットへ含める**。
+**類型A（DDR番号の衝突）を解消した直後は必ずここに該当する**（ファイル名を繰り下げた結果、
+一覧の行も変わるため）。手順6の `index.jsonl` と違い、DDR一覧はGit管理下にあるので
+add を忘れないこと。
 
 手順5は**マージの途中（作業ツリーにマージ結果が載っている状態）で実行する**。この状態では
 `HEAD` はまだマージ前を指しているため、`--head` を省略した既定（`HEAD` とdefaultブランチの比較）
@@ -300,6 +331,8 @@ bash .claude/scripts/src/create-commit.sh --message "chore: <base>をマージ�
 - ブランチ運用・squash merge・コミット運用: `.claude/rules/git-workflow.md`
 - DDRの番号・frontmatter運用: `.claude/rules/markdown-frontmatter.md`, `.claude/rules/docs-workflow.md`
 - 検知スクリプトの仕様: `.claude/docs/spec/check-base-conflicts.md`
+- DDR一覧の生成（類型Bで再生成に使う）: `.claude/docs/spec/generate-ddr-list.md`、経緯・却下案:
+  `.claude/docs/ddr/0060-DDR一覧は生成物にしつつGit管理下へ残す.md`
 - 意思決定の経緯・却下案: `.claude/docs/ddr/0029-defaultブランチとのコンフリクトは検知を機構化し解消手順をスキル化する.md`
 - 監視モード（PR作成後の追従・自動解消の線引き）の経緯・却下案:
   `.claude/docs/ddr/0039-PR作成後のdefaultブランチ追従は並行手順として定義し自動解消は一意に決まる類型に限る.md`
