@@ -109,6 +109,29 @@ assert_eq "pushの地の文（ヒアドキュメント）" "miss" \
 assert_eq "pushの地の文（コメント）" "miss" "$(detect "ls  # git push の話" push)"
 assert_eq "pushとcommitを取り違えない" "miss" "$(detect 'git push origin main' commit)"
 
+# --- 旧実装が拾えていた形を落としていないか（敵対的レビューでの指摘） ---------
+# いずれも部分一致では当たっていた入力で、位置ベースにした際に素通りしうる。
+assert_eq "行継続の先にコマンド位置がある" "hit" "$(detect "cd src && \\${NL}git commit -m x")"
+assert_eq "行継続で引数が続くだけなら誤検知しない" "miss" "$(detect "echo \\${NL}git commit")"
+assert_eq "行継続をまたぐgitとサブコマンド" "hit" "$(detect "git \\${NL}commit -m x")"
+assert_eq "エイリアスを迂回する \\git" "hit" "$(detect '\git commit -m x')"
+assert_eq "エスケープされた区切り文字は区切りにしない" "miss" "$(detect 'echo \;git commit')"
+assert_eq "絶対パスでの起動" "hit" "$(detect '/usr/bin/git commit -m x')"
+assert_eq "相対パスでの起動" "hit" "$(detect './git commit -m x')"
+assert_eq "Windowsの実行ファイル名" "hit" "$(detect 'git.exe commit -m x')"
+assert_eq "パス末尾がgitでもコマンド位置でなければ拾わない" "miss" "$(detect 'ls /srv/git commit')"
+assert_eq "値を別トークンで取る --git-dir" "hit" "$(detect 'git --git-dir /x/.git commit -m x')"
+assert_eq "値を = で繋ぐ --git-dir" "hit" "$(detect 'git --git-dir=/x/.git commit -m x')"
+assert_eq "値を別トークンで取る --work-tree" "hit" "$(detect 'git --work-tree /x commit')"
+assert_eq "値を別トークンで取る --namespace（push）" "hit" \
+  "$(detect 'git --namespace ns push origin main' push)"
+assert_eq "コマンド前のリダイレクト（演算子と先が連結）" "hit" "$(detect '>out.txt git commit -m x')"
+assert_eq "コマンド前のリダイレクト（演算子と先が別トークン）" "hit" "$(detect '2> err git commit')"
+assert_eq "算術左シフトを含む行の次行を捨てない" "hit" \
+  "$(detect "echo \$((1<<2))${NL}git commit -m x")"
+assert_eq "プロセス置換の中" "hit" "$(detect 'diff <(git commit) x')"
+assert_eq "ブレースグループの中" "hit" "$(detect '{ git commit; }')"
+
 # --- 正規化そのものの確認 ---------------------------------------------------
 normalize_shell_command_to_reply 'echo "abc"'
 assert_eq "ダブルクォートはプレースホルダへ潰れる" "echo _" "$(printf '%s' "$REPLY")"
@@ -133,22 +156,47 @@ normalize_shell_command_to_reply "cat <<EOF${NL}body"
 assert_eq "閉じないヒアドキュメントは末尾まで本文とみなす" "cat _${NL}_" \
   "$(printf '%s' "$REPLY")"
 
-# --- 性能: ヒアドキュメントが大きくても線形時間で終わること -------------------
+# --- 極端に長い入力（性能の上限） -------------------------------------------
+# 壁時計の閾値はマシン負荷で揺れるため、**空関数をベースラインに取った差**で見る
+# （.claude/rules/shell-script-style.md「テスト」）。ここで確かめたいのは
+# 「入力サイズに対して破綻しない」ことであって、絶対値ではない。
+bench_ms() { # $1=回数 $2=入力
+  local i start end
+  start=$(date +%s%3N)
+  for ((i = 0; i < $1; i++)); do command_invokes_git_subcommand "$2" commit || true; done
+  end=$(date +%s%3N)
+  printf '%s' "$((end - start))"
+}
+
 big_body=''
 for ((i = 0; i < 400; i++)); do
   big_body+="この hook は該当語を検知してブロックする。説明文がここに続く。${NL}"
 done
 big="cat > body.md <<'EOF'${NL}${big_body}EOF"
-start=$(date +%s%3N)
-normalize_shell_command_to_reply "$big"
-end=$(date +%s%3N)
-elapsed=$((end - start))
-if ((elapsed < 500)); then
+baseline_ms="$(bench_ms 10 'ls -la')"
+heredoc_ms="$(bench_ms 10 "$big")"
+# 空に近い入力の10倍を超えないこと（実測では18KBのヒアドキュメントで数十ms）
+if ((heredoc_ms - baseline_ms < 2000)); then
   passed=$((passed + 1))
 else
   failures=$((failures + 1))
-  echo "FAIL: 大きなヒアドキュメントの正規化が遅すぎる（${elapsed}ms）"
+  echo "FAIL: 大きなヒアドキュメントの判定が遅すぎる（${heredoc_ms}ms - ${baseline_ms}ms / 10回）"
 fi
+
+# 1行が極端に長い入力は、正規化を諦めて部分一致へ落ちる（_CP_MAX_LINE_LENGTH）。
+# 行内の走査は関心文字の数に対して二乗になるため、ここで頭打ちにしておかないと
+# hookの遅延として現れる。
+long_line='echo "x" '
+while ((${#long_line} < 20000)); do long_line+='echo "x" '; done
+long_ms="$(bench_ms 10 "$long_line")"
+if ((long_ms - baseline_ms < 2000)); then
+  passed=$((passed + 1))
+else
+  failures=$((failures + 1))
+  echo "FAIL: 極端に長い1行の判定が遅すぎる（${long_ms}ms - ${baseline_ms}ms / 10回）"
+fi
+assert_eq "上限超えの行があっても実行は検知する" "hit" "$(detect "${long_line}${NL}git commit -m x")"
+assert_eq "上限超えの行だけで該当語が無ければ検知しない" "miss" "$(detect "$long_line")"
 
 echo "passed=$passed failures=$failures"
 [[ "$failures" -eq 0 ]]
