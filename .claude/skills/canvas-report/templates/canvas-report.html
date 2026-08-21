@@ -4,7 +4,10 @@
   使い方:
     1. このファイルを reports/日付_<全体計画名>_<内容を簡潔に>.html としてコピーする。
     2. 「データ部」の CANVAS_DATA / EDGE_KINDS を調査結果のデータへ差し替える
-       （座標・色クラス・HTML断片は書かない。文字列はエンジンが全て自動エスケープする）。
+       （座標・色クラス・HTML断片は書かない。文字列はエンジンがDOM挿入時に自動エスケープする）。
+       注意: エンジンのエスケープが効くのはDOM挿入時のみで、データ部そのものは <script> 内の
+       JSリテラルである。値に "</script"（大小無視）を含めるときは "<\/script" と書き、
+       バックスラッシュとクォートはJS文字列としてエスケープすること（しないとページごと壊れる）。
     3. <title> とヘッダーのタイトルは meta.title / meta.subtitle から自動反映される。
     4. 「エンジン部」（ENGINE BEGIN 以降）は変更不要。
     5. mermaid図（クラスノードの mermaid フィールド）を1つも使わない場合は、mermaid.js の
@@ -563,10 +566,40 @@ function renderErrors() {
 let worldW = 0, worldH = 0;
 
 function estimateL1Height(cls) {
-  // ヘッダ（名前・パス・説明）＋メンバ行の概算高さ。実測はDOM生成後にredrawEdgesが行う
+  // ヘッダ（名前・パス・説明）＋メンバ行の概算高さ。長いラベルの折り返しを反映できないため、
+  // DOM生成後に measureHeights() で実測し、実測値で layout() をやり直す（下記boot手順）
   const headH = 34 + (cls.raw.path ? 15 : 0) + (cls.raw.desc ? 18 : 0);
   const memH = cls.members.length > 0 ? 12 + cls.members.length * 22 : 0;
   return headH + memH + 8;
+}
+
+// レイアウトに使う高さ。実測済み（measureHeights後）ならoffsetHeightの実測値を優先する
+function heightForLayout(cls) {
+  return cls.measH || estimateL1Height(cls);
+}
+
+// L1（メンバ一覧表示）状態でのクラス箱の実高さを一括測定する。
+// renderClasses直後（globalLOD=1・override無し）に呼ぶこと
+function measureHeights() {
+  for (const cls of model.classes) {
+    if (cls.el) cls.measH = cls.el.offsetHeight;
+  }
+}
+
+// layout()の再計算結果を生成済みDOM（帯・クラス箱の位置とサイズ）へ反映する
+function syncLayoutDom() {
+  for (const layer of model.layers) {
+    if (!layer.el) continue;
+    layer.el.style.left = layer.x + 'px';
+    layer.el.style.top = layer.y + 'px';
+    layer.el.style.width = layer.w + 'px';
+    layer.el.style.height = layer.h + 'px';
+  }
+  for (const cls of model.classes) {
+    if (!cls.el) continue;
+    cls.el.style.left = cls.x + 'px';
+    cls.el.style.top = cls.y + 'px';
+  }
 }
 
 function orderByBarycenter() {
@@ -606,7 +639,7 @@ function layout() {
     layer.x = WORLD_PAD; layer.y = y;
     let cx = 0, cy = 0, rowMaxH = 0, bandW = 0;
     for (const cls of layer.classes) {
-      const h = estimateL1Height(cls);
+      const h = heightForLayout(cls);
       if (cx > 0 && cx + CLASS_W > WRAP_W) {         // 行の折返し
         cx = 0; cy += rowMaxH + GAP_Y; rowMaxH = 0;
       }
@@ -1167,19 +1200,33 @@ function contentBounds() {
   return { x0, y0, x1, y1 };
 }
 
-function fit() {
+function computeFit() {
   const b = contentBounds();
   const bw = Math.max(b.x1 - b.x0, 1), bh = Math.max(b.y1 - b.y0, 1);
   const vw = viewport.clientWidth, vh = viewport.clientHeight;
   scale = clamp(Math.min(vw / bw, vh / bh) * 0.92, SCALE_MIN, 1.6);
   panX = (vw - bw * scale) / 2 - b.x0 * scale;
   panY = (vh - bh * scale) / 2 - b.y0 * scale;
+}
+function fit() {
+  // 2パスで確定する: 1パス目のscaleでLODが変わるとクラス箱の高さ（offsetHeight）が
+  // 変わるため、切り替え後の高さで外接矩形を取り直す（クラス数が少ないレポートで
+  // fit後のscaleがLOD_L2を越えるとコード片の展開ではみ出す問題への対処）
+  computeFit();
+  applyTransform();
+  computeFit();
   applyTransform();
 }
 
 function jumpTo(cls, mem) {
   const vw = viewport.clientWidth, vh = viewport.clientHeight;
   scale = Math.max(scale, 1.3);
+  // ジャンプ後のscaleでのLOD・折りたたみ解除を先にDOMへ確定させてから行位置を測る
+  // （古いLODのoffsetTop/offsetHeightで計算すると、直後のLOD切替で着地点がずれる）
+  if (overrides.get(cls.id) === 0) overrides.delete(cls.id);
+  globalLOD = lodForScale(scale);
+  applyLevels();
+  redrawEdges();
   let cy = cls.y + boxH(cls) / 2;
   if (mem && mem.el && effLevel(cls) >= 1) cy = cls.y + mem.el.offsetTop + mem.el.offsetHeight / 2;
   const cx = cls.x + CLASS_W / 2;
@@ -1231,6 +1278,7 @@ let mmDrag = false;
 minimap.addEventListener('pointerdown', (ev) => { mmDrag = true; minimap.setPointerCapture(ev.pointerId); mmJump(ev); });
 minimap.addEventListener('pointermove', (ev) => { if (mmDrag) mmJump(ev); });
 minimap.addEventListener('pointerup', () => { mmDrag = false; });
+minimap.addEventListener('pointercancel', () => { mmDrag = false; });
 
 // ---------- 検索 ----------
 const searchInput = $('search'), searchResults = $('search-results');
@@ -1472,9 +1520,12 @@ try {
   renderErrors();
   model.layers.forEach(l => layerVisible.set(l.id, true));
   Object.keys(EDGE_KINDS).forEach(k => kindVisible.set(k, true));
-  layout();
+  layout();            // 1回目: 概算高さで仮配置（帯サイズの算出に必要）
   renderLayers();
   renderClasses();
+  measureHeights();    // L1状態の実高さを測定（ラベル折り返し等の概算とのずれを吸収）
+  layout();            // 2回目: 実測高さで配置し直す（重なり防止）
+  syncLayoutDom();
   renderPanel();
   buildSearchIndex();
   fit();               // ここでglobalLODも確定する
