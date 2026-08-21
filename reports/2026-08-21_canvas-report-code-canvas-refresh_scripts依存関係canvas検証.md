@@ -10,13 +10,14 @@ keywords: [Code Canvas, セマンティックズーム, 自動レイアウト, �
 
 issue #141「canvas-reportテンプレートを階層セマンティックズーム対応のCode Canvas形式へ
 全面刷新する」の作業結果。個別作業計画は
-`plans/【設計】【実装】【テスト】canvas-reportテンプレート全面刷新.md`、視覚化は同名の
-`.html`（このmdが正文）。
+`plans/【設計】【実装】【テスト】canvas-reportテンプレート全面刷新.md`。
+**同名の `.html` は本検証で生成したサンプル成果物**（scriptsの依存関係を新テンプレートで
+描いたもの）であり、この検証結果自体の図解ではない（このmdが結果の正文）。
 
 ## 実施した内容
 
 1. `.claude/skills/canvas-report/templates/canvas-report.html`（468行）を全面刷新した
-   （データ部＋エンジン部の自己完結HTML。約1,080行）。
+   （データ部＋エンジン部の自己完結HTML。敵対的レビュー対応後の実測で1,542行。`wc -l`）。
 2. `.claude/skills/canvas-report/SKILL.md` を新データモデル・抽出手順・規模指針・mermaidの
    位置づけ変更に合わせて書き換えた。
 3. SKILL.mdの抽出手順どおりに `.claude/hooks/`・`.claude/scripts/` の実依存関係を抽出し、
@@ -68,13 +69,14 @@ issue #141「canvas-reportテンプレートを階層セマンティックズー
 未定義layerを含むデータで、**赤字のエラーパネルに全類型が列挙され、妥当なノードだけで
 描画が続行される**ことを確認した。
 
-### 実データ版（このディレクトリの同名.html）: 15/15 pass
+### 実データ版（このディレクトリの同名.html）: 16/16 pass（敵対的レビュー対応後の再実行）
 
 | 項目 | 結果 |
 |---|---|
 | クラス29＋メンバ41＝70ノードが `x`/`y` 手打ちなしで重なりなく配置 | ok |
-| world 1560×2878（旧固定1000超のy領域にもエッジ描画） | ok |
+| world 1560×2997（SVGのwidth/height属性の実測値。旧固定1000超のy領域にもエッジ描画） | ok |
 | 検索「sync_usage_state」でL2のコード片までジャンプ | ok |
+| ジャンプ着地精度: 選択メンバ行が画面中央±150px以内（LOD切替後の高さで算出） | ok |
 | 選択メンバの上流（amber）ハイライト | ok |
 | L1→L0でエッジ38本→33本へ集約 | ok |
 | 実変更バッジ（CommandPosition.sh +590 等。mainのHEAD~3..HEADのnumstat） | ok |
@@ -110,6 +112,30 @@ node verify_report.js reports/2026-08-21_..._scripts依存関係canvas検証.htm
 | 10 | ノード上からパン不可 | pointerイベント＋移動閾値4pxでパンとクリックを両立 |
 | 11 | mermaid多重描画 | 描画済みSVGキャッシュ＋busyガード＋await |
 | 12 | トラックパッド非対応 | Ctrl+wheel=ズーム、小デルタwheel=パンのヒューリスティック（タッチ・ピンチは初版対象外） |
+
+## 敵対的レビュー（1回目）と対応
+
+`adversarial-review` スキルによりフェーズ3対象（diff全体）で実施（14件検出、うち10件を
+PR #150へインライン投稿・4件は報告のみ）。**全14件へ対応し、上記の全検証を再実行して
+パスを確認済み**。主な対応:
+
+- **jumpToのLOD順序**（major）: scale確定→`applyLevels()`→行位置測定の順へ修正し、
+  折りたたみoverrideも解除するようにした。着地精度の機械検証（±150px）を追加。
+- **レイアウトの実測詰め直し**（major）: DOM生成後に `measureHeights()` でoffsetHeightを
+  一括測定し、実測値で `layout()` をやり直す2パス構成へ変更（ラベル折り返しによる
+  見積もり超過での重なりを防止）。`fit()` も同様にLOD切替後の高さで取り直す2パス化。
+- **エスケープ仕様の明確化**（major）: エンジンの自動エスケープはDOM挿入時のみ効く。
+  `</script`（→`<\/script`）とJS文字列のクォート・バックスラッシュは生成側の責務として
+  SKILL.md・テンプレート冒頭コメントに明記した。
+- **HANDOFF進捗表**（major）: 41ステップの進捗表を記入し、以降の更新を
+  `update-handoff-progress.sh` で行える状態にした。
+- そのほか: メンバ`desc`の仕様削除、plansへの実装後変更の追記、本mdの実測値修正
+  （行数1,542・world 1560×2997）、サンプルHTMLのエッジ誤り修正
+  （`get_vcs_access_mode` の呼び出し元は `build_context`）、未使用mermaidタグと
+  雛形コメントの除去（SKILL.md手順5へ再発防止の手順を追記）、minimapの `pointercancel` 対応。
+- **反証により棄却した指摘1件**: 「world幅1560はWRAP_W定数の書き写しで実際は1510」は、
+  再現計算が座標上書きパスの `cls.x + CLASS_W + WORLD_PAD` 項を見落としたもので、
+  ブラウザ実測（SVGのwidth属性）は修正前後とも1560だった（1560はWRAP_Wとの偶然の一致）。
 
 ## 既知の限界（初版スコープ）
 

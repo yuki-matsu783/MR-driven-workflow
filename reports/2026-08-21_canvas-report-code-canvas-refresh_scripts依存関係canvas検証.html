@@ -1,23 +1,9 @@
 <!--
-  canvas-report テンプレート（Code Canvas形式。.claude/skills/canvas-report/SKILL.md 参照。issue #141）
-
-  使い方:
-    1. このファイルを reports/日付_<全体計画名>_<内容を簡潔に>.html としてコピーする。
-    2. 「データ部」の CANVAS_DATA / EDGE_KINDS を調査結果のデータへ差し替える
-       （座標・色クラス・HTML断片は書かない。文字列はエンジンが全て自動エスケープする）。
-    3. <title> とヘッダーのタイトルは meta.title / meta.subtitle から自動反映される。
-    4. 「エンジン部」（ENGINE BEGIN 以降）は変更不要。
-    5. mermaid図（クラスノードの mermaid フィールド）を1つも使わない場合は、mermaid.js の
-       <script> タグを削除してよい（残してもオフライン時は自動でソース文字列表示に退避する）。
-
-  データの階層モデル: レイヤ > クラス > メンバ の3層。
-    - layers:   帯として縦に積まれる（配列順＝上から下）。
-    - クラス:   parentを持たないノード。layer必須。
-    - メンバ:   parent=クラスid を持つノード（メソッド・関数など）。コード片を持てる。
-  エッジはクラスidまたはメンバidを端点にできる。折りたたみ中のクラスへ繋がるメンバ単位の
-  エッジは（クラスペア, 種別）単位で1本へ集約され、太さが本数を表す。
-
-  外部依存: mermaid.js（任意）のみ。スタイル・エンジンは自己完結でオフライン閲覧できる。
+  issue-mr-flow機構のスクリプト依存関係（issue #141 canvas-reportテンプレート刷新の実データ検証）。
+  .claude/hooks・.claude/scripts の実際のsource/呼び出し/データアクセス関係を
+  .claude/skills/canvas-report/SKILL.md「依存関係の抽出手順」に従って抽出したもの。
+  正文（検証結果の記録）は同名の .md を参照。
+  mermaid未使用のためCDNタグは削除済み（完全オフラインで閲覧可能）。
 -->
 <!DOCTYPE html>
 <html lang="ja">
@@ -25,7 +11,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>調査結果canvas</title>
-<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
 <style>
   /* ==================== 基本 ==================== */
   * { box-sizing: border-box; }
@@ -323,12 +308,6 @@
 
 <script>
 // =====================================================================
-// データ部: CANVAS_DATA / EDGE_KINDS を調査結果ごとに差し替える。
-// 以下はデータモデルの構成を示すサンプル（架空の注文サービス）。
-// 座標・色クラス・HTML断片は書かないこと（文字列はエンジンが全て自動エスケープする）。
-// =====================================================================
-
-// =====================================================================
 // データ部: issue-mr-flow機構スクリプト群の実依存関係（issue #141 サンプル検証）
 // 抽出手順は .claude/skills/canvas-report/SKILL.md「依存関係の抽出手順」のとおり。
 // 変更バッジは main の直近3コミット（HEAD~3..HEAD）の numstat 実測値。
@@ -526,7 +505,7 @@ const CANVAS_DATA = {
     { from: 'compact-prompt.main', to: 'Provider.get_mr_for_branch', kind: 'call' },
     { from: 'compact-prompt.main', to: 'Provider.get_repo_url', kind: 'call' },
     { from: 'compact-prompt.build_file_links_text', to: 'Provider.get_blob_url', kind: 'call' },
-    { from: 'session-start.build_work_context', to: 'Provider.get_vcs_access_mode', kind: 'call' },
+    { from: 'session-start.build_context', to: 'Provider.get_vcs_access_mode', kind: 'call' },
     { from: 'session-start.main', to: 'session-start.regenerate_frontmatter_index', kind: 'call', label: 'fail-openで実行' },
     { from: 'session-start.regenerate_frontmatter_index', to: 'extract-frontmatter.main', kind: 'call', label: 'bash実行' },
     { from: 'cleanup-task.main', to: 'extract-frontmatter.main', kind: 'call', label: '片付け後の再生成' },
@@ -722,10 +701,40 @@ function renderErrors() {
 let worldW = 0, worldH = 0;
 
 function estimateL1Height(cls) {
-  // ヘッダ（名前・パス・説明）＋メンバ行の概算高さ。実測はDOM生成後にredrawEdgesが行う
+  // ヘッダ（名前・パス・説明）＋メンバ行の概算高さ。長いラベルの折り返しを反映できないため、
+  // DOM生成後に measureHeights() で実測し、実測値で layout() をやり直す（下記boot手順）
   const headH = 34 + (cls.raw.path ? 15 : 0) + (cls.raw.desc ? 18 : 0);
   const memH = cls.members.length > 0 ? 12 + cls.members.length * 22 : 0;
   return headH + memH + 8;
+}
+
+// レイアウトに使う高さ。実測済み（measureHeights後）ならoffsetHeightの実測値を優先する
+function heightForLayout(cls) {
+  return cls.measH || estimateL1Height(cls);
+}
+
+// L1（メンバ一覧表示）状態でのクラス箱の実高さを一括測定する。
+// renderClasses直後（globalLOD=1・override無し）に呼ぶこと
+function measureHeights() {
+  for (const cls of model.classes) {
+    if (cls.el) cls.measH = cls.el.offsetHeight;
+  }
+}
+
+// layout()の再計算結果を生成済みDOM（帯・クラス箱の位置とサイズ）へ反映する
+function syncLayoutDom() {
+  for (const layer of model.layers) {
+    if (!layer.el) continue;
+    layer.el.style.left = layer.x + 'px';
+    layer.el.style.top = layer.y + 'px';
+    layer.el.style.width = layer.w + 'px';
+    layer.el.style.height = layer.h + 'px';
+  }
+  for (const cls of model.classes) {
+    if (!cls.el) continue;
+    cls.el.style.left = cls.x + 'px';
+    cls.el.style.top = cls.y + 'px';
+  }
 }
 
 function orderByBarycenter() {
@@ -765,7 +774,7 @@ function layout() {
     layer.x = WORLD_PAD; layer.y = y;
     let cx = 0, cy = 0, rowMaxH = 0, bandW = 0;
     for (const cls of layer.classes) {
-      const h = estimateL1Height(cls);
+      const h = heightForLayout(cls);
       if (cx > 0 && cx + CLASS_W > WRAP_W) {         // 行の折返し
         cx = 0; cy += rowMaxH + GAP_Y; rowMaxH = 0;
       }
@@ -1326,19 +1335,33 @@ function contentBounds() {
   return { x0, y0, x1, y1 };
 }
 
-function fit() {
+function computeFit() {
   const b = contentBounds();
   const bw = Math.max(b.x1 - b.x0, 1), bh = Math.max(b.y1 - b.y0, 1);
   const vw = viewport.clientWidth, vh = viewport.clientHeight;
   scale = clamp(Math.min(vw / bw, vh / bh) * 0.92, SCALE_MIN, 1.6);
   panX = (vw - bw * scale) / 2 - b.x0 * scale;
   panY = (vh - bh * scale) / 2 - b.y0 * scale;
+}
+function fit() {
+  // 2パスで確定する: 1パス目のscaleでLODが変わるとクラス箱の高さ（offsetHeight）が
+  // 変わるため、切り替え後の高さで外接矩形を取り直す（クラス数が少ないレポートで
+  // fit後のscaleがLOD_L2を越えるとコード片の展開ではみ出す問題への対処）
+  computeFit();
+  applyTransform();
+  computeFit();
   applyTransform();
 }
 
 function jumpTo(cls, mem) {
   const vw = viewport.clientWidth, vh = viewport.clientHeight;
   scale = Math.max(scale, 1.3);
+  // ジャンプ後のscaleでのLOD・折りたたみ解除を先にDOMへ確定させてから行位置を測る
+  // （古いLODのoffsetTop/offsetHeightで計算すると、直後のLOD切替で着地点がずれる）
+  if (overrides.get(cls.id) === 0) overrides.delete(cls.id);
+  globalLOD = lodForScale(scale);
+  applyLevels();
+  redrawEdges();
   let cy = cls.y + boxH(cls) / 2;
   if (mem && mem.el && effLevel(cls) >= 1) cy = cls.y + mem.el.offsetTop + mem.el.offsetHeight / 2;
   const cx = cls.x + CLASS_W / 2;
@@ -1390,6 +1413,7 @@ let mmDrag = false;
 minimap.addEventListener('pointerdown', (ev) => { mmDrag = true; minimap.setPointerCapture(ev.pointerId); mmJump(ev); });
 minimap.addEventListener('pointermove', (ev) => { if (mmDrag) mmJump(ev); });
 minimap.addEventListener('pointerup', () => { mmDrag = false; });
+minimap.addEventListener('pointercancel', () => { mmDrag = false; });
 
 // ---------- 検索 ----------
 const searchInput = $('search'), searchResults = $('search-results');
@@ -1631,9 +1655,12 @@ try {
   renderErrors();
   model.layers.forEach(l => layerVisible.set(l.id, true));
   Object.keys(EDGE_KINDS).forEach(k => kindVisible.set(k, true));
-  layout();
+  layout();            // 1回目: 概算高さで仮配置（帯サイズの算出に必要）
   renderLayers();
   renderClasses();
+  measureHeights();    // L1状態の実高さを測定（ラベル折り返し等の概算とのずれを吸収）
+  layout();            // 2回目: 実測高さで配置し直す（重なり防止）
+  syncLayoutDom();
   renderPanel();
   buildSearchIndex();
   fit();               // ここでglobalLODも確定する
