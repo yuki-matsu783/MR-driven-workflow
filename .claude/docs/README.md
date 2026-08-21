@@ -93,7 +93,7 @@ frontmatter（`status` / `superseded_by` / `note`）だけから決まる。
 - [i0011-01-frontmatter抽出は1ファイル1回のjq呼び出しとmtimeキャッシュで高速化する.md](ddr/i0011-01-frontmatter抽出は1ファイル1回のjq呼び出しとmtimeキャッシュで高速化する.md)
 - [i0013-01-レビュー依頼メッセージの参照リンクは前回pushSHAをローカル状態で保持して組み立てる.md](ddr/i0013-01-レビュー依頼メッセージの参照リンクは前回pushSHAをローカル状態で保持して組み立てる.md)
 - [i0014-01-GitHub_GitLab情報取得はgh_glab-CLIを使いWebFetchは使わない.md](ddr/i0014-01-GitHub_GitLab情報取得はgh_glab-CLIを使いWebFetchは使わない.md)
-- [i0020-01-HANDOFF進捗更新はMarkdownテーブル直接書き換えでループ範囲を一括操作する.md](ddr/i0020-01-HANDOFF進捗更新はMarkdownテーブル直接書き換えでループ範囲を一括操作する.md)
+- [i0020-01-HANDOFF進捗更新はMarkdownテーブル直接書き換えでループ範囲を一括操作する.md](ddr/i0020-01-HANDOFF進捗更新はMarkdownテーブル直接書き換えでループ範囲を一括操作する.md)（うち「mark-skipで作った不整合は後段のmark-done/add-roundで表面化する」は、issue #140でmark-skip自身がその場で拒否する形へ変更された。詳細はi0140-01）
 - [i0023-01-push断面の全文コピーをやめ行番号インデックスで表現する.md](ddr/i0023-01-push断面の全文コピーをやめ行番号インデックスで表現する.md)（うち「Gemini CLI対応の扱い」は、issue #97でメインセッションのみ集計対象へ変更された。サブエージェントを集計しない部分は引き続き有効。詳細は i0097-05）
 - [i0028-01-flow-id5-1の後片付けはスクリプト化しコミットは含めない.md](ddr/i0028-01-flow-id5-1の後片付けはスクリプト化しコミットは含めない.md)（ファイル名の `flow-id5-1` は当時の番号。issue #112 の並べ替えにより、片付けは現在 flow-id 5-3。DDR i0112-01 参照）
 - [i0032-01-GitLab-issueテンプレートは予約名Default.mdを正とし文書側を合わせる.md](ddr/i0032-01-GitLab-issueテンプレートは予約名Default.mdを正とし文書側を合わせる.md)
@@ -116,7 +116,7 @@ frontmatter（`status` / `superseded_by` / `note`）だけから決まる。
 - [i0060-01-create-commitは削除ステージ済みパスをgit-addの失敗時分類で吸収する.md](ddr/i0060-01-create-commitは削除ステージ済みパスをgit-addの失敗時分類で吸収する.md)
 - [i0063-01-機構自身の単体テストは.claude_scripts_test配下へ置く.md](ddr/i0063-01-機構自身の単体テストは.claude_scripts_test配下へ置く.md)
 - [i0064-01-issueの分割は並列列挙構造を主トリガーにAIが提案し人間が決定する.md](ddr/i0064-01-issueの分割は並列列挙構造を主トリガーにAIが提案し人間が決定する.md)
-- [i0066-01-HANDOFFのヘッダ表記を1つに定めset-headerは見つからなければ失敗させる.md](ddr/i0066-01-HANDOFFのヘッダ表記を1つに定めset-headerは見つからなければ失敗させる.md)
+- [i0066-01-HANDOFFのヘッダ表記を1つに定めset-headerは見つからなければ失敗させる.md](ddr/i0066-01-HANDOFFのヘッダ表記を1つに定めset-headerは見つからなければ失敗させる.md)（却下3で「正しい挙動が決まっていない」としたissue #140は、i0140-01で決着した（mark-skip自身がその場で拒否する））
 - [i0067-01-作業開始時のベースブランチ追従確認は専用スクリプトで検知しユーザー確認を挟む.md](ddr/i0067-01-作業開始時のベースブランチ追従確認は専用スクリプトで検知しユーザー確認を挟む.md)
 - [i0068-01-issue起票前の重複チェックは検索をProvider層へ置きキーワード抽出はAIに委ねる.md](ddr/i0068-01-issue起票前の重複チェックは検索をProvider層へ置きキーワード抽出はAIに委ねる.md)
 - [i0077-01-敵対的レビューは専任サブエージェントで独立コンテキストに切り出す.md](ddr/i0077-01-敵対的レビューは専任サブエージェントで独立コンテキストに切り出す.md)
