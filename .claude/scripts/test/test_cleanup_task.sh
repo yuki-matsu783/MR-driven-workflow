@@ -115,6 +115,46 @@ assert_eq "HANDOFF_TEMPLATE: 末尾の改行は2つ以上にならない" "1" \
 assert_eq "HANDOFF_TEMPLATE: 進捗表の記号を含まない" "1" \
   "$(status_of test "${HANDOFF_TEMPLATE#*'[x]'}" != "$HANDOFF_TEMPLATE")"
 
+# ヘッダ行の雛形6行を持つ（issue #66。タスクごとの書き起こしによる表記ゆらぎを防ぐため）。
+# 表記の定義は .claude/docs/spec/update-handoff-progress.md「HANDOFF.mdのヘッダ行」が正。
+for header in \
+  "- issue: " \
+  "- ブランチ: " \
+  "- PR: " \
+  "- push回数: " \
+  "- 現在のループ: " \
+  "- 追従監視: "
+do
+  if [[ "$HANDOFF_TEMPLATE" == *$'\n'"$header"* ]]; then
+    passed=$((passed + 1))
+  else
+    failures=$((failures + 1))
+    echo "FAIL: HANDOFF_TEMPLATE にヘッダ行「${header}」が無い"
+  fi
+done
+
+# "- Draft PR:" のような別名を持ち込まない（set-header が見つけられなくなる）
+assert_eq "HANDOFF_TEMPLATE: 「- Draft PR:」表記を含まない" "1" \
+  "$(status_of test "${HANDOFF_TEMPLATE#*$'\n- Draft PR:'}" != "$HANDOFF_TEMPLATE")"
+
+# テンプレートに対して set-header がそのまま通ること（雛形と探索パターンの噛み合わせの確認）。
+# update-handoff-progress.sh を実プロセスとして呼ぶ（cleanup-task.sh とは別スクリプトのため
+# source すると関数名が衝突しうる）。
+# 後段の結合テストが trap を張り替えるため、この1ファイルだけは使い終えたその場で消す
+handoff_fixture="$(mktemp)"
+printf '%s' "$HANDOFF_TEMPLATE" >"$handoff_fixture"
+if bash "$repo_root/.claude/scripts/src/update-handoff-progress.sh" set-header \
+  --issue '#66' --branch 'claude/example' --pr '#146' --push-count '1' \
+  --file "$handoff_fixture" >/dev/null 2>&1; then
+  set_header_status=0
+else
+  set_header_status=1
+fi
+assert_eq "HANDOFF_TEMPLATE: set-header が全項目を書き換えられる" "0" "$set_header_status"
+assert_eq "HANDOFF_TEMPLATE: set-header 後のPR行" "- PR: #146" \
+  "$(grep -F -- '- PR:' "$handoff_fixture")"
+rm -f "$handoff_fixture"
+
 # --- main の結合テスト: 削除済みファイルが混じった状態（issue #117）-----------
 # 本スクリプトは**コミットしない**（DDR i0028-01）ため、手順3（frontmatterインデックスの再生成）は
 # 常に「追跡ファイルが削除済みだが未ステージ」の状態で走る。`git ls-files --cached` はその
