@@ -203,8 +203,10 @@ HANDOFF.mdとの矛盾など、ブランチ名だけでは分からない「こ�
 **flow-idが1つ進むごとに、必ず`HANDOFF.md`を更新する**。進捗表の記号更新は
 `.claude/scripts/src/update-handoff-progress.sh`（`mark-done <flow-id>`でその行を、ループ扱いの
 flow-idなら同じループ範囲の全行をまとめて`[x]`にする。フェーズ・ループ範囲を丸ごと省略する場合は
-`mark-skip <flow-id...>`で`[-]`にする。詳細・制約は`.claude/docs/spec/update-handoff-progress.md`
-参照）へ委譲し、それに続けて「やったこと」「次にやること」を書き換える。更新はcommit（flow-id
+`mark-skip <flow-id...>`で`[-]`にする。**`mark-skip`はループ範囲へ伝播しないので、範囲内の全
+flow-idを渡す**。一部だけ渡すとその場でエラーになり1件も書き換わらない（issue #140）。詳細・制約は
+`.claude/docs/spec/update-handoff-progress.md`参照）へ委譲し、それに続けて「やったこと」
+「次にやること」を書き換える。更新はcommit（flow-id
 2-2/2-7/3-2/3-7/4-2/4-7/5-4）より前に行い、**同じcommitに含める**（別commitに分けると、レビュー
 時点の進捗表と実際の変更内容が食い違う）。
 

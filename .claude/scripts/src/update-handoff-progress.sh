@@ -14,6 +14,8 @@
 # 進捗記号: [x] 完了 / [] 未着手・進行中 / [-] 今回は実施しない（スキップ）。
 # 進捗列は**どの行も記号1つ**であり、ループ扱いのflow-idも例外ではない。同じループ範囲内の
 # flow-idは常に同じ記号を保つため、範囲内の1つを操作したら範囲内の全flow-id行へ同じ操作を適用する。
+# mark-done / add-round はこれを自動で範囲へ広げ、**mark-skip は広げず、記号が揃わない指定を
+# その場でエラーにする**（issue #140。列挙したものだけを書き換えるインターフェースを保つため）。
 #
 # レビュー往復が**何周目か**は、進捗表ではなくヘッダの "- 現在のループ:" 行が持つ（issue #58）。
 #   - 現在のループ: 3-6〜3-9 の3周目（進行中）
@@ -250,6 +252,9 @@ usage:
 
   set-header は、指定した項目のヘッダ行がちょうど1件見つからなければ、ファイルを書き戻さずに
   エラー終了する（--loop を除く。--loop は行が無ければ挿入する）。
+
+  mark-skip は、書き換えた結果ループ範囲内の記号が揃わなくなる場合、ファイルを書き戻さずに
+  エラー終了する（範囲を丸ごと省略するなら範囲内の全flow-idを指定する）。
 USAGE
 }
 
@@ -309,7 +314,80 @@ cmd_mark_done() {
   write_lines_from_array "$file"
 }
 
+# 書き換え後の LINES を見て、targets が触れたループ範囲の記号が揃っているかを検査する（issue #140）。
+# 揃っていない範囲があれば内訳を標準エラーへ出して終了コード1を返す（呼び出し側は書き戻さない）。
+#
+# 検査するのは**指定flow-idが属する範囲だけ**である。全範囲を対象にすると、今回の操作と無関係な
+# 範囲に元から残っていた不整合まで拒否してしまい、直す手段が無くなる。
+# 引数ではなく書き換え後の状態を見るのは、判定したいのが「範囲内の全flow-idを列挙したか」ではなく
+# 「ファイルがルール（同じループ範囲内のflow-idは常に同じ記号）を満たすか」だからである。
+# 範囲内の一部が既に "[-]" のファイルに対して残りを指定した場合は、結果が揃うので通る。
+# 表に存在しないflow-idは検査に加えない（そのflow-idを指定すると上流の件数検査で弾かれるため、
+# 加えるとその範囲へ二度と mark-skip できなくなる）。
+verify_loop_ranges_in_lines() {
+  local -a ranges=() bad=() ids=() found=() absent=()
+  local t r range id i first detail uneven hit note
+  for t in "$@"; do
+    find_loop_range_to_reply "$t" || continue
+    range="$REPLY"
+    is_target "$range" ${ranges[@]+"${ranges[@]}"} || ranges+=("$range")
+  done
+  [[ ${#ranges[@]} -eq 0 ]] && return 0
+
+  for range in "${ranges[@]}"; do
+    read -ra ids <<<"$range"
+    first=""
+    detail=""
+    uneven=0
+    found=()
+    absent=()
+    for id in "${ids[@]}"; do
+      hit=0
+      for ((i = 0; i < ${#LINES[@]}; i++)); do
+        parse_table_row_to_reply "${LINES[$i]}" || continue
+        [[ "$REPLY_FLOW_ID" == "$id" ]] || continue
+        hit=1
+        found+=("$id")
+        detail+=" ${id}=${REPLY_PROGRESS}"
+        if [[ -z "$first" ]]; then
+          first="$REPLY_PROGRESS"
+        elif [[ "$REPLY_PROGRESS" != "$first" ]]; then
+          uneven=1
+        fi
+        break
+      done
+      if [[ $hit -eq 0 ]]; then
+        absent+=("$id")
+      fi
+    done
+    if [[ $uneven -eq 1 ]]; then
+      # 「指定し直す例」は**表に存在する行だけ**で組み立てる。範囲の全flow-idを並べると、
+      # 表に無い行を含む指定になり、貼り直しても上流の件数検査で必ず失敗する（issue #140の
+      # 敵対的レビュー指摘）
+      note=""
+      if [[ ${#absent[@]} -gt 0 ]]; then
+        note="（${absent[*]} は表に無いため検査から除外）"
+      fi
+      bad+=("範囲 ${ids[0]}〜${ids[$((${#ids[@]} - 1))]} は指定後の記号が揃いません:${detail}${note} → 指定し直す例: mark-skip ${found[*]}")
+    fi
+  done
+
+  [[ ${#bad[@]} -eq 0 ]] && return 0
+  echo "error: mark-skip: ループ範囲の一部だけを [-] にはできません（1件も書き換えていません）" >&2
+  for r in "${bad[@]}"; do
+    echo "  ${r}" >&2
+  done
+  cat >&2 <<'HINT'
+hint: 同じループ範囲内のflow-idは常に同じ記号を持ちます（.claude/rules/docs-workflow.md）。
+      範囲を丸ごと省略するなら、範囲内の全flow-idを指定してください。
+      範囲の一部だけを実施しない場合は記号を [] のまま残し、実施した内容は「やったこと」節へ
+      文章で補足します（.claude/docs/spec/update-handoff-progress.md「制約・設計判断」）。
+HINT
+  return 1
+}
+
 # mark-skip <flow-id> [<flow-id>...]: 指定した各flow-id行の進捗列を "[-]" へ上書きする。
+# 書き換えた結果、ループ範囲の記号が揃わなくなる場合は書き戻さずにエラー終了する（issue #140）。
 cmd_mark_skip() {
   local file="$1"
   shift
@@ -330,6 +408,7 @@ cmd_mark_skip() {
     echo "error: 指定flow-idの一部が見つかりませんでした（想定 ${#targets[@]} 件、実際 ${matched} 件）" >&2
     return 1
   fi
+  verify_loop_ranges_in_lines "${targets[@]}" || return 1
   write_lines_from_array "$file"
 }
 
