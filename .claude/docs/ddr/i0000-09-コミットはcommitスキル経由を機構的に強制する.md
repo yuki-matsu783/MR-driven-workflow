@@ -4,6 +4,7 @@ type: ddr
 description: すべてのコミットをcommitスキル経由で行わせるため、ドキュメント記載に加えラッパースクリプトとPreToolUse hookによる技術的な強制を導入した経緯を記録したDDR
 tags: [commit-skill, git-workflow, hook, ddr]
 keywords: [commit, コミット, pretooluse, permissions.deny, create-commit, ラッパースクリプト, issue-39]
+note: 'うち「部分一致のため無関係なコマンドも誤ってブロックされる」既知のトレードオフは、issue #53でコマンド位置判定へ置き換えた。詳細はi0053-01'
 ---
 
 # i0000-09. コミットはcommitスキル経由を機構的に強制する
