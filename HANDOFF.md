@@ -15,7 +15,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - issue: #53 block-direct-git-commit.sh の誤検知を減らす（コマンド位置での判定）
 - ブランチ: claude/block-direct-git-commit-false-positives-mc1n43
 - PR: #147 (Draft) https://github.com/yuki-matsu783/MR-driven-workflow/pull/147
-- push回数: 4
+- push回数: 5
 - 現在のループ: 4-6〜4-9 の1周目（進行中。人間レビュー4-8は非対話セッションのため未実施）
 - 追従監視: 購読あり（web。subscribe_pr_activity。定期チェックインは未予約）
 
@@ -58,8 +58,8 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 | [] | 4-7 | commit・push・レビュー依頼 | エージェント |
 | [] | 4-8 | 反映内容のレビュー | 人間 |
 | [] | 4-9 | レビュー反映（4-6〜4-9を繰り返す） | サブコマンド |
-| [] | 4-10 | MR description更新 | サブコマンド |
-| [] | 5-1 | defaultブランチとのコンフリクト検知・解消 | エージェント |
+| [x] | 4-10 | MR description更新 | サブコマンド |
+| [x] | 5-1 | defaultブランチとのコンフリクト検知・解消 | エージェント |
 | [] | 5-2 | 関連issueへのマージ前通知 | エージェント |
 | [] | 5-3 | plans/worklog/reportsの片付け・HANDOFFリセット | エージェント |
 | [] | 5-4 | commit・push・Draft解除 | エージェント |
@@ -121,6 +121,11 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
   - 実体側の対象は spec 4件（うち新規1）・DDR 3件（新規2 ＋ `i0000-09` の `note`）・
     rules 4件・skills 1件。
 
+- flow-id 5-1: mainが進み `HANDOFF.md` が競合したため、`git merge` で取り込んで解消した
+  （監視モードの例外。「1ブランチ1状態」のファイルなので作業ブランチ側を採用）。
+  `git diff HEAD -- HANDOFF.md` が空であることで、自動マージによる別タスクの記述の混入が
+  無いことも確認した。マージ後の全テストは **passed=887 failures=0**、DDR識別子の重複なし。
+- flow-id 4-10: MR descriptionをフェーズ4の内容まで反映して更新した。
 - flow-id 4-6: 設計反映とAIアセット反映を実施した。結果は
   `reports/2026-08-21_..._設計反映結果.md` と `..._AIアセット反映結果.md`。
   - 新規: `.claude/docs/spec/command-position.md`、DDR `i0053-01`。
@@ -136,11 +141,10 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 
 ## 次にやること
 
-- **mainが進みHANDOFF.mdがコンフリクトしている**（`check-base-conflicts.sh` で検知済み）。
-  監視モードの例外で承認を待たず解消してよい類型（HANDOFF.mdは「1ブランチ1状態」で解消が一意）。
-  **解消後は `git diff HEAD -- HANDOFF.md` を通しで読み、自動マージで入った別タスクの記述が
-  無いか確認する**（issue #97で踏んだ形）。
-- flow-id 5-1〜5-4: コンフリクト検知 → 関連issue通知 → 片付け → Draft解除。**マージはしない**。
+- flow-id 5-2: 関連issueへのマージ前通知（**投稿前に承認が必要**）。
+- flow-id 5-3: `bash .claude/scripts/src/cleanup-task.sh` で `plans/` `worklog/` `reports/` を
+  片付け、HANDOFF.mdをリセットする（`REVIEW-POINTS.md` と `worklog/TEMPLATE.md` は残る）。
+- flow-id 5-4: commit・push して `set_mr_ready` でDraft解除。**マージはしない**（人間の担当）。
 - `.claude/VERSION` の更新は**提案のみ**行い、決定は人間に委ねる（PATCH → 0.1.2 を想定。
   根拠は設計反映結果レポート）。
 
