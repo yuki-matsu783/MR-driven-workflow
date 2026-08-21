@@ -356,6 +356,48 @@ diff: 差分なし（完全一致）</pre>
     </div>
   </section>
 
+  <!-- フェーズ4 2セット目 -->
+  <section class="mb-12">
+    <h2 class="text-xl font-bold text-slate-900 mb-1">フェーズ4の実施結果（flow-id 4-6・2セット目: AIアセット反映）</h2>
+    <p class="text-sm text-slate-600 mb-4">計画: <code>plans/【AIアセット反映】検証中に気づいたルールの不備を反映する.md</code>。<span class="font-semibold">本issueで実際に踏んだ失敗のみ</span>を、ルール・レビュー観点・スキル定義へ反映した。</p>
+
+    <div class="overflow-x-auto rounded-lg border border-slate-200 bg-white mb-6">
+      <table class="min-w-full text-sm">
+        <thead class="bg-slate-100"><tr><th class="px-3 py-2 text-left">反映先</th><th class="px-3 py-2 text-left">内容</th></tr></thead>
+        <tbody class="divide-y divide-slate-100">
+          <tr><td class="px-3 py-2"><code>rules/shell-script-style.md</code><br><span class="text-xs text-slate-500">「テスト」節</span></td><td class="px-3 py-2">5項目。<span class="font-semibold">純粋関数のテストは呼び出し経路を保証しない</span>（不具合2の本質）／<span class="font-semibold"><code>unset -f</code> は実定義を消す</span>（関数定義はスタックしない）／<code>declare -F &lt;名前&gt;</code> は名前だけを出力する／接頭辞での静的検出はMCPツール名・jqのフィールド名を巻き込む／「異常が無ければ何も出ない」検出は空振りする</td></tr>
+          <tr class="bg-emerald-50"><td class="px-3 py-2 font-semibold text-emerald-900"><code>rules/shell-script-style.md</code><br><span class="text-xs font-normal">新設 <code>## 秘密情報の扱い</code></span></td><td class="px-3 py-2"><span class="font-semibold">マスクは、そのパターンが実データに当たることを確かめてから使う。</span>「テスト」節の話ではないため独立した節にした</td></tr>
+          <tr><td class="px-3 py-2"><code>skills/resolve-conflict/SKILL.md</code></td><td class="px-3 py-2"><span class="font-semibold">「マージ後もテストが緑のまま、後で壊れていたと分かる」</span>類型を追加。既存の「マージ後にテストが落ちる」と対になる。予防策は重複させず参照に留めた</td></tr>
+          <tr><td class="px-3 py-2"><code>reports/REVIEW-POINTS.md</code></td><td class="px-3 py-2"><span class="font-semibold">同期を「追記」だけで済ませていないか。</span>判定の目安（md側の差分が「追加のみ」でないならHTML側も追加のみでは同期していない）も添えた</td></tr>
+          <tr><td class="px-3 py-2"><code>plans/REVIEW-POINTS.md</code></td><td class="px-3 py-2">置き換え指示は前後の形を両方書く／同一計画内の別の作業が、ある作業の前提を崩していないか</td></tr>
+          <tr><td class="px-3 py-2"><code>rules/git-workflow.md</code></td><td class="px-3 py-2"><code>git status</code> の出力を機械的に全件渡さない（<code>bash.exe.stackdump</code> を1度コミットした）／新種の副産物を見つけたら <code>.gitignore</code> へ追加する</td></tr>
+          <tr><td class="px-3 py-2"><code>rules/docs-workflow.md</code></td><td class="px-3 py-2">ループ範囲へ<span class="font-semibold">「初めて」</span>入るときは <code>add-round</code> ではなく <code>set-header --loop</code>。<span class="text-slate-500">既にある2つの記述を具体例で結び付けただけで、新しい事実は足していない</span></td></tr>
+          <tr class="bg-amber-50"><td class="px-3 py-2 font-semibold text-amber-900"><code>REVIEW-POINTS.md</code>（ルート）<br><span class="text-xs font-normal">計画外の追加</span></td><td class="px-3 py-2">直前の敵対的レビューで判明した2件——<span class="font-semibold">「正」を2つ挙げない</span>／<span class="font-semibold">要約した記述を詳細側と突き合わせる</span>——を、既存の重複禁止の観点の下位項目として追加</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="grid gap-6 md:grid-cols-2">
+      <div class="rounded-xl border border-slate-200 bg-white p-5">
+        <h3 class="font-bold text-slate-900 mb-3">検証結果（計画の5項目）</h3>
+        <ul class="text-sm text-slate-700 space-y-2 list-disc pl-5">
+          <li>frontmatter再生成: <code>files=110 built=10 reused=100 failed=0</code></li>
+          <li>挿入位置の前後3行を4ファイルとも目視（地の文の係り先を壊していないこと）</li>
+          <li><span class="font-semibold">重複なし</span>: 5つの実例を <code>grep -rl</code> し、いずれも1ファイルにしか無いことを確認</li>
+          <li>単体テスト12本すべて <code>failures=0</code></li>
+          <li>設計反映側が委譲した2件とも受け取り済み</li>
+        </ul>
+      </div>
+      <div class="rounded-xl border border-slate-200 bg-white p-5">
+        <h3 class="font-bold text-slate-900 mb-3">反映しなかったもの・判断</h3>
+        <ul class="text-sm text-slate-700 space-y-2 list-disc pl-5">
+          <li>semantic conflict の教訓は既存記述があったが、<span class="font-semibold">「テストが落ちないため気づけない」という別の失敗様態</span>として1行足した（本issueの実例は緑のままだったため、既存の行ではカバーされない）</li>
+          <li><code>add-round</code> のスクリプト自体は変更していない（計画どおり、挙動の変更ではなく仕様の明文化に留めた）</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
   <!-- 解消した未決定事項 -->
   <section class="mb-12">
     <h2 class="text-xl font-bold text-slate-900 mb-3">spec の「未決定事項・懸念点」への効果</h2>
