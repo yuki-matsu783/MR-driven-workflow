@@ -396,6 +396,31 @@ diff: 差分なし（完全一致）</pre>
         </ul>
       </div>
     </div>
+
+    <div class="mt-6 rounded-xl border border-rose-200 bg-white p-5">
+      <h3 class="font-bold text-rose-900 mb-2">敵対的レビュー（フェーズ4・3回目／上限）の指摘と対応</h3>
+      <p class="text-sm text-slate-600 mb-3">11件の指摘のうち4件をMRへ投稿（<code>{"posted":4,"summarized":0}</code>）。<span class="font-semibold">11件すべてを実ファイル・実機で確かめ、全件を修正した。</span></p>
+      <div class="overflow-x-auto rounded-lg border border-slate-200 mb-4">
+        <table class="min-w-full text-xs">
+          <thead class="bg-slate-100"><tr><th class="px-3 py-2 text-left">指摘</th><th class="px-3 py-2 text-left">対応</th></tr></thead>
+          <tbody class="divide-y divide-slate-100">
+            <tr class="bg-rose-50"><td class="px-3 py-2 font-semibold">新ルール（1周目は <code>set-header</code>）が <code>issue-mr-flow/SKILL.md</code> と正面から矛盾し、SKILL.md 側が未更新</td><td class="px-3 py-2">SKILL.md へ1周目の入り方を追加し「だけ」を書き換え。<span class="text-slate-500">フロー実行中にAIが読むのはSKILL.mdの方</span></td></tr>
+            <tr class="bg-rose-50"><td class="px-3 py-2 font-semibold"><code>declare -F</code> の「良い例」の<span class="font-semibold">代入形</span>が <code>set -e</code> 配下で、検出したい異常のときだけスクリプトを中断させる</td><td class="px-3 py-2">実機確認（代入形 <code>exit=1</code> / 引数埋め込み <code>exit=0</code>）のうえ <code>assert_eq</code> の引数形へ</td></tr>
+            <tr><td class="px-3 py-2">サブシェル差し替えの例が値を外へ返さず、後片付けの表明が「異常時に何も出ない」検証</td><td class="px-3 py-2">コマンド置換で値を返す形へ。表明も <code>assert_eq</code> で包んだ</td></tr>
+            <tr><td class="px-3 py-2">「実運用経路が丸ごと到達不能」が、失敗点と到達不能点を取り違えている</td><td class="px-3 py-2"><code>gitlab_get_repo_url</code> の呼び出しには到達していた（未定義で失敗）。呼び出し側は2箇所。分けて書き直した</td></tr>
+            <tr class="bg-rose-50"><td class="px-3 py-2 font-semibold">新設「秘密情報の扱い」が spec の「PATの扱い」と重複し、しかも<span class="font-semibold">対処が食い違っている</span></td><td class="px-3 py-2">ルール側を正とし対処3点を統合。spec側は参照1行へ。<span class="text-rose-700 font-semibold">直前の回で自分が追加した「正を2つ挙げない」に自ら抵触していた</span></td></tr>
+            <tr><td class="px-3 py-2">新しい節を足したのに frontmatter が未更新で <code>index.jsonl</code> 検索から見つからない</td><td class="px-3 py-2">2ファイルの <code>description</code>/<code>keywords</code> を更新</td></tr>
+            <tr><td class="px-3 py-2">「呼び出し経路を保証しない」観点が <code>.claude/REVIEW-POINTS.md</code> へ波及していない</td><td class="px-3 py-2">「テスト」節へ1項目追加</td></tr>
+            <tr><td class="px-3 py-2">ルートへ足した「正は1箇所に決める」が <code>.claude/</code> 側の既存項目と二重持ち</td><td class="px-3 py-2"><code>.claude/</code> 側をルートへの参照形へ縮約</td></tr>
+            <tr><td class="px-3 py-2">「要約を詳細と突き合わせたか」が親項目（ファイル間の重複）の係り先と合っていない</td><td class="px-3 py-2">独立した項目へ格上げ</td></tr>
+            <tr><td class="px-3 py-2"><code>resolve-conflict</code> へ足した行に、その場で取れる対処が無い</td><td class="px-3 py-2">手当てを右列へ追加し、Step 5 へも「ファイルをまたいだ食い違い」の項を追加</td></tr>
+            <tr><td class="px-3 py-2"><code>.gitignore</code> だけでは、他プロジェクトへ配布される <code>commit</code> スキルに教訓が乗らない</td><td class="px-3 py-2">除外リストへ <code>*.stackdump</code> を追加し、役割の違いを明記</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="text-sm text-slate-700"><span class="font-semibold">この回の指摘は、直前の回で自分が追加したルールに自分が違反しているものを2件含んでいた。</span>ルールを書いた直後こそ、そのルールで自分の書いたものを検算する必要がある。</p>
+      <p class="text-xs text-slate-500 mt-3">修正後の再検証: frontmatterインデックス <code>files=111 built=11 reused=100 failed=0</code> ／ 単体テスト12本すべて <code>failures=0</code> ／ マスクの記述は <code>shell-script-style.md</code> のみ。<span class="font-semibold">敵対的レビューはこれでフェーズ4の上限（3回）に達した。</span></p>
+    </div>
   </section>
 
   <!-- 解消した未決定事項 -->

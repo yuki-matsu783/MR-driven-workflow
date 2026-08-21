@@ -96,8 +96,10 @@ cd clone && git remote set-url origin "http://localhost:8929/<path>.git"
 - **URLへ埋めたPATはクローン先の `.git/config` へ平文で残る。** 手順5のとおり、クローン直後に
   `git remote set-url origin` で外す（`grep -c 'glpat-' .git/config` が `0` になることを確認する）。
 - **PATをファイルへ書かない。** 必要になるたびに `glab auth status --show-token` から取り出す。
-- 記録・ログへ貼る出力をマスクする場合は、**トークンの値そのものを置換する**。`glpat-` のような
-  接頭辞は設定で変更できるため、接頭辞決め打ちの正規表現に頼らない。
+- 記録・ログへ貼る出力のマスクの仕方は
+  `.claude/rules/shell-script-style.md`「秘密情報の扱い」が正（値そのものを置換する・
+  パターンが実データに当たることを確かめる・そもそも値を出さない形にできないか先に考える）。
+  ここでは繰り返さない。
 - **検証用クローンはリポジトリのツリー外（スクラッチパッド配下など）に置き、終わったら消す。**
 
 ### `glab auth status` の終了コード

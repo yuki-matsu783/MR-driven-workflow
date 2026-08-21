@@ -1,9 +1,9 @@
 ---
 title: bashスクリプトの規約
 type: rule
-description: 開発補助bashスクリプトの保存形式・エラー方針・命名規則等を定めたルール
+description: 開発補助bashスクリプトの保存形式・エラー方針・命名規則・テストの書き方・秘密情報の扱いを定めたルール
 tags: [bash, shell-script, rule]
-keywords: [bashスクリプト, jq, サブシェル, 命名規則, パス変換, 文字コード, 改行コード, claude-code-hook]
+keywords: [bashスクリプト, jq, サブシェル, 命名規則, パス変換, 文字コード, 改行コード, claude-code-hook, テスト, 秘密情報, マスク, トークン]
 ---
 
 # bashスクリプトの規約
@@ -650,8 +650,10 @@ jq -s -c '...' "$tmp/normalized.jsonl"
 
 - **純粋関数の単体テストは、その関数へ至る呼び出し経路を何も保証しない**（issue #127で実際に
   踏んだ）。`gitlab_get_mr_url` / `gitlab_get_note_url` は単体テストから**直接**呼ばれていた
-  ためテストは緑のままで、**実運用経路（`get_mr_unresolved_comments` → `gitlab_get_repo_url`）が
-  丸ごと到達不能**になっていた（未定義の関数を呼んでおり、出力が無言で空へ縮退していた）。
+  ためテストは緑のままで、**実運用経路からは到達不能**になっていた。経路上の
+  `gitlab_get_mr_unresolved_comments` / `gitlab_add_mr_thread_reply` の**2箇所**が、既に定義の
+  消えていた `gitlab_get_repo_url` を呼んでおり、`2>/dev/null` が `command not found` を
+  握りつぶすため**無言で空へ縮退**して、その先の2関数まで進まなかった。
   **呼び出し経路を通すテストを併せて書く。** `glab`・`gh` のような外部コマンドはシェル関数で
   差し替えられるので、経路を通すこと自体は難しくない。
 
@@ -667,10 +669,20 @@ jq -s -c '...' "$tmp/normalized.jsonl"
   target_function
   unset -f get_repo_url
   # 良い例（サブシェルを抜ければ元の定義が残っている）
-  ( get_repo_url() { printf 'https://example.com/o/r\n'; }; target_function )
-  # 後片付けが効いていることも表明する
-  declare -F get_repo_url >/dev/null && echo '実定義が残っている'
+  assert_eq "経路を通す" "$expected" \
+    "$( get_repo_url() { printf 'https://example.com/o/r\n'; }; target_function )"
+  # 後片付けが効いていることも、失敗が数えられる形で表明する
+  assert_eq "実定義が残っている" "get_repo_url" \
+    "$(declare -F get_repo_url >/dev/null && echo get_repo_url)"
   ```
+
+  - **アサーションはサブシェルの外で行う。** `assert_eq` は `passed` / `failures` という
+    グローバル変数を加算するため、`( ...; assert_eq ... )` のように括弧の中へ入れると
+    **失敗しても `failures` が増えず、`failures=0` のまま緑になる**。サブシェルからは
+    コマンド置換で**値だけ**を持ち出す。
+  - 後片付けの表明を `declare -F x >/dev/null && echo x` の1行だけで済ませない。`a && b` の
+    左辺の失敗は `set -e` の対象外なので、**壊れていても何も出ずに通過する**（下記
+    「異常が無ければ何も出ない検証」と同じ罠）。
 
 - **`declare -F <名前>` は名前だけを出力する**（issue #127で実際に踏んだ）。定義本体を出す
   `declare -f <名前>` と紛らわしいが、`-F` の出力に `declare -f` のような接頭辞が付くのは
@@ -678,11 +690,19 @@ jq -s -c '...' "$tmp/normalized.jsonl"
   6件のケースが一斉に失敗した。**存在確認は終了コードで行う。**
 
   ```bash
-  # 悪い例（空文字列になる）
+  # 悪い例1（空文字列になる）
   actual="$(declare -F to_slug | awk '{print $3}')"
-  # 良い例
+  # 悪い例2（未定義のとき set -e でスクリプトごと落ちる。検出したい異常のときだけ落ちる）
   actual="$(declare -F to_slug >/dev/null && echo to_slug)"
+  # 良い例（単純コマンドの引数に置く。set -e は発火しない）
+  assert_eq "to_slugが定義されている" "to_slug" \
+    "$(declare -F to_slug >/dev/null && echo to_slug)"
   ```
+
+  **代入の形にしないこと。** 代入文の終了ステータスはコマンド置換のそれなので、`set -e` 配下では
+  関数が未定義のときにスクリプトが `passed=N failures=N` を出さずに終了コード1で落ちる
+  （実機確認済み）。同じコマンド置換でも、単純コマンドの**引数**に置けば `set -e` は発火しない。
+  下記「終了コードを検査するテストで `"$(func; echo $?)"` の形を使わない」と同根の罠である。
 
 - **「関数名らしい文字列」を正規表現で拾う静的検出は、同じ接頭辞を持つ別種の識別子を巻き込む**
   （issue #127で実際に踏んだ）。未定義の `github_*` / `gitlab_*` 呼び出しを検出するテストを
@@ -699,10 +719,17 @@ jq -s -c '...' "$tmp/normalized.jsonl"
 
 ## 秘密情報の扱い
 
-- **マスク（伏せ字）は、そのパターンが実データに当たることを確かめてから使う**（issue #127で
-  実際に踏んだ）。`glab auth status --show-token` の出力をログへ貼る際に
+秘密情報（トークン・パスワード等）を含む出力の扱いは、次の3つを守る。issue #127で
+`glab auth status --show-token` の出力を扱った際に実際に踏んだもので、具体的な経緯は
+[gitlab-verification-environment.md](../docs/spec/gitlab-verification-environment.md)「PATの扱い」
+にある（本節はbashスクリプト一般の規約、あちらはGitLab検証環境という個別の手順）。
+
+- **値そのものを置換する。** `glpat-` のような接頭辞は設定で変更できるため、接頭辞決め打ちの
+  正規表現に頼らない。
+- **マスク（伏せ字）は、そのパターンが実データに当たることを確かめてから使う。**
   `sed -E 's/(Token: ).*/\1<masked>/'` をかけたが、**実際の行は `Token found in operating system
   keyring: <値>`** でパターンに一致せず、トークンがそのまま出力に現れた。**当たらないマスクは
-  無いのと同じで、しかも「マスクした」という誤った安心を与える分たちが悪い。** 秘密情報を含む
-  出力は、マスク後の結果を**目で確かめる**か、そもそも値を出さない形（長さ・先頭数文字だけを
-  出す）にする。
+  無いのと同じで、しかも「マスクした」という誤った安心を与える分たちが悪い。**
+- **そもそも値を出さない形にできないかを先に考える。** 「取り出せたか」を確かめたいだけなら、
+  長さと先頭数文字だけを出せば足りる（`echo "長さ=${#tok} 先頭3文字=${tok:0:3}***"`）。
+- **秘密情報をファイルへ書かない。** 必要になるたびに取得元から取り出す。
