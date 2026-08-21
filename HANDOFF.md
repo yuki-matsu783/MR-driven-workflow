@@ -16,7 +16,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - ブランチ: claude/block-direct-git-commit-false-positives-mc1n43
 - PR: #147 (Draft) https://github.com/yuki-matsu783/MR-driven-workflow/pull/147
 - push回数: 4
-- 現在のループ: なし
+- 現在のループ: 4-6〜4-9 の1周目（進行中。人間レビュー4-8は非対話セッションのため未実施）
 - 追従監視: 購読あり（web。subscribe_pr_activity。定期チェックインは未予約）
 
 ## フロー進捗状況
@@ -121,16 +121,28 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
   - 実体側の対象は spec 4件（うち新規1）・DDR 3件（新規2 ＋ `i0000-09` の `note`）・
     rules 4件・skills 1件。
 
+- flow-id 4-6: 設計反映とAIアセット反映を実施した。結果は
+  `reports/2026-08-21_..._設計反映結果.md` と `..._AIアセット反映結果.md`。
+  - 新規: `.claude/docs/spec/command-position.md`、DDR `i0053-01`。
+  - `i0000-09` は**本文不変**で `note` のみ追加し、`generate-ddr-list.sh` を再実行した（64件）。
+  - AIアセット側は**回避策を削除せず「いつ必要か」を書き分けた**（`if` フィルタ未変更・縮退時は
+    部分一致のため、必要な場面が4つ残る）。同じ表を4ファイルへ置いた。
+  - 洗い出しで `.claude/skills/apply-mr-workflow-to-project/assets/` が大量にヒットしたが、
+    `sync-assets.sh` が生成するgitignore対象のミラーで既に同期済み。対象外。
+  - **人間のレビュー（4-8）は非対話セッションのため未実施。** ループ範囲の記号は `[]` のまま。
+- **`post-issue-create-notice.sh` の誤発火を3回踏んだ**（コマンド文字列にそのスクリプトの
+  ファイル名が語として含まれただけ）。issue #53 がスコープ外とした4本目のhookで、**別issueの
+  候補**。対応はしていない。
+
 ## 次にやること
 
-- flow-id 4-6: 個別反映計画に沿って反映する（**設計反映 → AIアセット反映の順**）。
-  - **`.claude/docs/spec/command-position.md` は作成必須**（3つのhookのコメントが既に参照している）。
-  - DDR `i0000-09` は**本文不変**。`note` のみ足し、`generate-ddr-list.sh` を再実行する。
-  - ルート `REVIEW-POINTS.md` は敵対的レビュアーが毎回読むため、更新漏れがレビュー品質へ直結する。
-  - AIアセット側の結論は「回避策の削除」ではなく「**いつ必要かの書き分け**」
-    （`if` フィルタ未変更・縮退時は部分一致のため、必要な状況が残る）。
+- **mainが進みHANDOFF.mdがコンフリクトしている**（`check-base-conflicts.sh` で検知済み）。
+  監視モードの例外で承認を待たず解消してよい類型（HANDOFF.mdは「1ブランチ1状態」で解消が一意）。
+  **解消後は `git diff HEAD -- HANDOFF.md` を通しで読み、自動マージで入った別タスクの記述が
+  無いか確認する**（issue #97で踏んだ形）。
 - flow-id 5-1〜5-4: コンフリクト検知 → 関連issue通知 → 片付け → Draft解除。**マージはしない**。
-- `.claude/VERSION` の更新は**提案のみ**行い、決定は人間に委ねる（PATCH → 0.1.2 を想定）。
+- `.claude/VERSION` の更新は**提案のみ**行い、決定は人間に委ねる（PATCH → 0.1.2 を想定。
+  根拠は設計反映結果レポート）。
 
 ## 判断を迷った内容
 
