@@ -139,4 +139,5 @@ frontmatter（`status` / `superseded_by` / `note`）だけから決まる。
 - [i0117-01-削除済み追跡ファイルの除外はextract-frontmatter側で行う.md](ddr/i0117-01-削除済み追跡ファイルの除外はextract-frontmatter側で行う.md)
 - [i0133-01-DDR識別子はissue番号ベースにし連番採番をやめる.md](ddr/i0133-01-DDR識別子はissue番号ベースにし連番採番をやめる.md)
 - [i0135-01-DDR一覧は生成物にしつつGit管理下へ残す.md](ddr/i0135-01-DDR一覧は生成物にしつつGit管理下へ残す.md)
+- [i0140-01-mark-skipはループ範囲の一部指定を書き換え後の状態で拒否する.md](ddr/i0140-01-mark-skipはループ範囲の一部指定を書き換え後の状態で拒否する.md)
 <!-- END GENERATED: ddr-list -->
