@@ -49,6 +49,20 @@ assert_failure() {
   fi
 }
 
+# 部分一致の検証（エラーメッセージの内容確認に使う）。日本語を含む文字列を ${var:0:N} で
+# 切り出して比較しない（.claude/rules/shell-script-style.md「テスト」）。
+assert_contains() {
+  local name="$1" haystack="$2" needle="$3"
+  if [[ "$haystack" == *"$needle"* ]]; then
+    passed=$((passed + 1))
+  else
+    failures=$((failures + 1))
+    echo "FAIL: $name"
+    echo "  期待する部分文字列: $needle"
+    echo "  実際: $haystack"
+  fi
+}
+
 TMP_DIR="$(mktemp -d)"
 trap 'rm -rf "$TMP_DIR"' EXIT INT TERM
 
@@ -72,6 +86,38 @@ write_fixture() {
 | [] | 2-4 | ループ範囲2 | エージェント |
 | [] | 5-1 | スキップ対象 | エージェント |
 FIXTURE
+}
+
+# 実物のHANDOFF.mdと同じ形のフィクスチャ（issue #66）。
+#   - "## フロー進捗状況" 見出しの**下**にヘッダ行が並ぶ（既存の write_fixture は見出しを持たない）
+#   - ヘッダ項目が6つ（"- 現在のループ:" "- 追従監視:" を含む）
+#   - 「やったこと」節に "- PR: ..." の引用がある（ヘッダ行と取り違えないことの検証用）
+# 引数で PR 行の項目名を差し替えられる（既定 "PR"。"Draft PR" を渡すと表記ゆらぎを再現する）。
+write_real_fixture() {
+  local file="$1" pr_label="${2:-PR}"
+  cat >"$file" <<FIXTURE_REAL
+# HANDOFF
+
+## フロー進捗状況
+
+- issue: #66
+- ブランチ: \`claude/example\`
+- ${pr_label}: #146 https://github.com/o/r/pull/146
+- push回数: 2
+- 現在のループ: なし
+- 追従監視: なし
+
+| 進捗 | flow-id | ステップ | 担当 |
+|----|---|---|---|
+| [] | 1-1 | 単発ステップ | 人間 |
+| [] | 2-3 | ループ範囲1 | 人間 |
+| [] | 2-4 | ループ範囲2 | エージェント |
+
+## やったこと
+
+- PR: 本文中の引用（ヘッダ行ではない）
+- issue: 本文中の引用（ヘッダ行ではない）
+FIXTURE_REAL
 }
 
 get_row() {
@@ -324,10 +370,11 @@ cat >"$fixture" <<'FIXTURE_NOHEADER'
 | [] | 2-4 | ループ範囲2 | エージェント |
 FIXTURE_NOHEADER
 cmd_mark_done "$fixture" "2-3"
-assert_eq "ヘッダ項目が無い場合は見出しの直前へ空行付きで挿入される" \
-  "- 現在のループ: 2-3〜2-4 の1周目（完了）
+# issue #66で「見出しの直前」から「見出しの直後」へ変更した（ヘッダブロックの中へ入れる）
+assert_eq "ヘッダ項目が無い場合は見出しの直後へ空行付きで挿入される" \
+  "## フロー進捗状況
 
-## フロー進捗状況" "$(sed -n '3,5p' "$fixture")"
+- 現在のループ: 2-3〜2-4 の1周目（完了）" "$(sed -n '3,5p' "$fixture")"
 
 # 挿入位置の基準が無い場合、進捗表の更新は成功させヘッダ行は警告に留める
 fixture="$TMP_DIR/handoff17.md"
@@ -349,6 +396,230 @@ cmd_set_header "$fixture" --loop "なし" >/dev/null 2>&1
 status=$?
 set -e
 assert_failure "set-header --loop は挿入位置が無ければエラー" "$status"
+
+# --- issue #66: set-header は対象行が見つからなければ書き戻さずに失敗する ----------
+
+# ファイルの内容が変わっていないことを確かめる（バイト列そのものを比較する）。
+assert_unchanged() {
+  local name="$1" before="$2" after="$3"
+  if cmp -s "$before" "$after"; then
+    passed=$((passed + 1))
+  else
+    failures=$((failures + 1))
+    echo "FAIL: $name (ファイルが書き換えられている)"
+    diff "$before" "$after" || true
+  fi
+}
+
+# 表記ゆらぎ（"- Draft PR:"）のファイルへ --pr を指定するとエラーになり、何も書き戻さない
+fixture="$TMP_DIR/handoff18.md"
+write_real_fixture "$fixture" "Draft PR"
+cp "$fixture" "$fixture.orig"
+set +e
+stderr="$(cmd_set_header "$fixture" --pr '#999' 2>&1 >/dev/null)"
+status=$?
+set -e
+assert_failure "set-header: 「- Draft PR:」表記ではエラー終了する" "$status"
+assert_unchanged "set-header: 失敗時はファイルを書き戻さない" "$fixture.orig" "$fixture"
+assert_contains "set-header: エラーに項目名と一致件数が出る" "$stderr" "PR: 一致 0 件"
+assert_contains "set-header: エラーに期待する行の書式が出る" "$stderr" "- PR: <値>"
+
+# 複数指定して片方だけ見つからない場合、見つかった側も書き換わらない
+fixture="$TMP_DIR/handoff19.md"
+write_real_fixture "$fixture" "Draft PR"
+cp "$fixture" "$fixture.orig"
+set +e
+cmd_set_header "$fixture" --issue '#999' --pr '#999' >/dev/null 2>&1
+status=$?
+set -e
+assert_failure "set-header: 一部の項目が見つからなければエラー" "$status"
+assert_unchanged "set-header: 一部失敗でも見つかった項目を書き換えない" "$fixture.orig" "$fixture"
+
+# --loop を同時指定しても、他項目の検査に落ちたら "- 現在のループ:" も書き換わらない
+fixture="$TMP_DIR/handoff20.md"
+write_real_fixture "$fixture" "Draft PR"
+cp "$fixture" "$fixture.orig"
+set +e
+cmd_set_header "$fixture" --pr '#999' --loop '2-3〜2-4 の1周目（進行中）' >/dev/null 2>&1
+status=$?
+set -e
+assert_failure "set-header: --loop 同時指定でも他項目が落ちればエラー" "$status"
+assert_unchanged "set-header: 失敗時は「- 現在のループ:」も書き換えない" "$fixture.orig" "$fixture"
+
+# 同じ項目がヘッダブロック内に2行あればエラー（どちらを正とすべきか決められないため）
+fixture="$TMP_DIR/handoff21.md"
+cat >"$fixture" <<'FIXTURE_DUP'
+## フロー進捗状況
+
+- issue: #66
+- issue: #67
+- push回数: 0
+FIXTURE_DUP
+cp "$fixture" "$fixture.orig"
+set +e
+stderr="$(cmd_set_header "$fixture" --issue '#999' 2>&1 >/dev/null)"
+status=$?
+set -e
+assert_failure "set-header: 同じ項目が2行あればエラー" "$status"
+assert_unchanged "set-header: 重複時もファイルを書き換えない" "$fixture.orig" "$fixture"
+assert_contains "set-header: エラーに一致件数2が出る" "$stderr" "issue: 一致 2 件"
+
+# 正常系（実物どおりの配置）は従来どおり成功する
+fixture="$TMP_DIR/handoff22.md"
+write_real_fixture "$fixture"
+set +e
+cmd_set_header "$fixture" --pr '#146（Draft）' --push-count '3'
+status=$?
+set -e
+assert_success "set-header: 実物どおりの配置では成功する" "$status"
+# get_header はファイル全体をgrepするため、本文中の引用行も拾ってしまう。ヘッダブロック内の
+# 行を位置で取り出して比較する（write_real_fixture の7行目がPR行、8行目がpush回数行）
+assert_eq "set-header: PR行が更新される" "- PR: #146（Draft）" "$(sed -n '7p' "$fixture")"
+assert_eq "set-header: push回数行が更新される" "- push回数: 3" "$(sed -n '8p' "$fixture")"
+
+# 「やったこと」節の引用行は書き換えない（探索範囲はヘッダブロックに限る）
+fixture="$TMP_DIR/handoff23.md"
+write_real_fixture "$fixture"
+cmd_set_header "$fixture" --issue '#999'
+assert_eq "set-header: ヘッダブロック内のissue行だけが変わる" "- issue: #999" \
+  "$(sed -n '5p' "$fixture")"
+assert_eq "set-header: 「やったこと」節の引用行は残る" "- issue: 本文中の引用（ヘッダ行ではない）" \
+  "$(tail -1 "$fixture")"
+
+# --- issue #66: 「- 現在のループ:」行の挿入位置 -------------------------------
+
+# 実物どおりの配置（見出しの下にヘッダ項目）で、最後のヘッダ項目の直後へ入る
+fixture="$TMP_DIR/handoff24.md"
+cat >"$fixture" <<'FIXTURE_REAL_NOLOOP'
+# HANDOFF
+
+## フロー進捗状況
+
+- issue: #66
+- ブランチ: `claude/example`
+- PR: #146 https://github.com/o/r/pull/146
+- push回数: 2
+
+| 進捗 | flow-id | ステップ | 担当 |
+|----|---|---|---|
+| [] | 2-3 | ループ範囲1 | 人間 |
+| [] | 2-4 | ループ範囲2 | エージェント |
+
+## やったこと
+
+（無し）
+FIXTURE_REAL_NOLOOP
+cmd_mark_done "$fixture" "2-3"
+assert_eq "見出しの下にヘッダがある場合、最後のヘッダ項目の直後へ入る" \
+  "- push回数: 2
+- 現在のループ: 2-3〜2-4 の1周目（完了）" "$(sed -n '8,9p' "$fixture")"
+assert_eq "その場合でもヘッダ行は1つだけ" "1" "$(count_loop_header "$fixture")"
+
+# 「- 追従監視:」行があっても、その前（= push回数の直後）へ入る
+fixture="$TMP_DIR/handoff25.md"
+cat >"$fixture" <<'FIXTURE_WATCH'
+## フロー進捗状況
+
+- issue: #66
+- push回数: 2
+- 追従監視: なし
+
+| 進捗 | flow-id | ステップ | 担当 |
+|----|---|---|---|
+| [] | 2-3 | ループ範囲1 | 人間 |
+| [] | 2-4 | ループ範囲2 | エージェント |
+FIXTURE_WATCH
+cmd_mark_done "$fixture" "2-3"
+assert_eq "「- 追従監視:」は挿入位置の基準にしない（その前へ入る）" \
+  "- push回数: 2
+- 現在のループ: 2-3〜2-4 の1周目（完了）
+- 追従監視: なし" "$(sed -n '4,6p' "$fixture")"
+
+# --- issue #66（敵対的レビュー指摘）: ヘッダブロックの打ち切りは見出しの有無に依らない ----
+
+# "## フロー進捗状況" 見出しが無くても、別の "## " 見出しでヘッダブロックは終わる。
+# 見出しが無いときだけファイル全体へ広げると、防ぎたかった取り違えがそのまま残る。
+fixture="$TMP_DIR/handoff26.md"
+cat >"$fixture" <<'FIXTURE_NO_HEADING'
+# HANDOFF
+
+- issue: #66
+- PR: #146
+
+## やったこと
+
+- PR: 本文中の引用（ヘッダ行ではない）
+FIXTURE_NO_HEADING
+cmd_set_header "$fixture" --pr '#999'
+assert_eq "見出し無し: ヘッダブロック内のPR行が変わる" "- PR: #999" "$(sed -n '4p' "$fixture")"
+assert_eq "見出し無し: 「やったこと」節の引用行は残る" "- PR: 本文中の引用（ヘッダ行ではない）" \
+  "$(tail -1 "$fixture")"
+
+# ヘッダ行が「やったこと」節にしか無いファイルは、一致0件としてエラーになる
+fixture="$TMP_DIR/handoff27.md"
+cat >"$fixture" <<'FIXTURE_BODY_ONLY'
+# HANDOFF
+
+## やったこと
+
+- PR: 本文中の引用（ヘッダ行ではない）
+FIXTURE_BODY_ONLY
+cp "$fixture" "$fixture.orig"
+set +e
+cmd_set_header "$fixture" --pr '#999' >/dev/null 2>&1
+status=$?
+set -e
+assert_failure "本文にしかヘッダ行が無ければエラー" "$status"
+assert_unchanged "本文にしかヘッダ行が無い場合も書き換えない" "$fixture.orig" "$fixture"
+
+# "### " のような深い見出しではヘッダブロックを打ち切らない
+fixture="$TMP_DIR/handoff28.md"
+cat >"$fixture" <<'FIXTURE_H3'
+## フロー進捗状況
+
+### 補足
+
+- PR: #146
+FIXTURE_H3
+cmd_set_header "$fixture" --pr '#999'
+assert_eq "「### 」ではヘッダブロックを打ち切らない" "- PR: #999" "$(tail -1 "$fixture")"
+
+# --- issue #66（敵対的レビュー指摘）: 周回数の読み取りもヘッダブロック内に限る ---------
+
+# ヘッダに "- 現在のループ:" が無く、「やったこと」節に過去の引用が残っている場合、
+# その引用から周回数を拾わない（周回数の記録場所はヘッダの1行だけなので誤読が唯一の正になる）
+fixture="$TMP_DIR/handoff29.md"
+cat >"$fixture" <<'FIXTURE_QUOTED_ROUNDS'
+## フロー進捗状況
+
+- push回数: 1
+
+| 進捗 | flow-id | ステップ | 担当 |
+|----|---|---|---|
+| [x] | 2-3 | ループ範囲1 | 人間 |
+| [x] | 2-4 | ループ範囲2 | エージェント |
+
+## やったこと
+
+- 現在のループ: 2-3〜2-4 の7周目（完了）
+FIXTURE_QUOTED_ROUNDS
+cmd_add_round "$fixture" "2-3"
+assert_eq "本文中の引用から周回数を拾わない" \
+  "- 現在のループ: 2-3〜2-4 の2周目（進行中）" "$(sed -n '4p' "$fixture")"
+assert_eq "本文中の引用行はそのまま残る" "- 現在のループ: 2-3〜2-4 の7周目（完了）" \
+  "$(tail -1 "$fixture")"
+
+# --- issue #66（敵対的レビュー指摘）: 項目を1つも指定しない set-header はエラー -------
+
+fixture="$TMP_DIR/handoff30.md"
+write_real_fixture "$fixture"
+cp "$fixture" "$fixture.orig"
+set +e
+cmd_set_header "$fixture" >/dev/null 2>&1
+status=$?
+set -e
+assert_failure "set-header: 項目を1つも指定しなければエラー" "$status"
+assert_unchanged "set-header: 項目未指定では書き戻さない" "$fixture.orig" "$fixture"
 
 echo "passed=$passed failures=$failures"
 [ "$failures" -eq 0 ]

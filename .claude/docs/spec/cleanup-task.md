@@ -70,9 +70,15 @@ bash .claude/scripts/src/cleanup-task.sh [--dry-run] [--skip-index]
 
 ### HANDOFF.mdのリセット
 
-`HANDOFF.md` を、スクリプトへ埋め込んだテンプレート（frontmatter＋6つの見出しだけを持ち、本文は
-`（無し）`／`（次タスク着手時に記入する）`）で上書きする。見出し構成は
-`.claude/rules/docs-workflow.md`「ドキュメント運用」表の `HANDOFF.md` 行に対応する。
+`HANDOFF.md` を、スクリプトへ埋め込んだテンプレート（frontmatter＋6つの見出し＋**ヘッダ行の
+雛形6行**を持ち、本文は `（無し）`／`（進捗表は次タスク着手時に記入する）`）で上書きする。
+見出し構成は `.claude/rules/docs-workflow.md`「ドキュメント運用」表の `HANDOFF.md` 行に対応する。
+
+- **ヘッダ行の雛形6行**（`- issue:` / `- ブランチ:` / `- PR:` / `- push回数:` / `- 現在のループ:` /
+  `- 追従監視:`）は issue #66 で追加した。タスクごとにAIエージェントが書き起こしていたことが
+  表記ゆらぎ（`- PR:` / `- Draft PR:`）を生み、`update-handoff-progress.sh set-header` が対象行を
+  見つけられなくなっていたため。表記の定義は
+  [update-handoff-progress.md](update-handoff-progress.md)「HANDOFF.mdのヘッダ行」が正。
 
 - 既にテンプレートと同じ内容なら書き込まない（JSONの `handoff.alreadyTemplate` が `true` になる）。
   末尾の改行の個数だけの差は同一とみなす。
