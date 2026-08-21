@@ -328,6 +328,32 @@ diff: 差分なし（完全一致）</pre>
         </ul>
       </div>
     </div>
+
+    <div class="mt-6 rounded-xl border border-rose-200 bg-white p-5">
+      <h3 class="font-bold text-rose-900 mb-2">敵対的レビュー（フェーズ4・2回目）の指摘と対応</h3>
+      <p class="text-sm text-slate-600 mb-3">12件の指摘のうち<span class="font-semibold">7件をMRへインラインコメントとして投稿</span>（<code>{"posted":7,"summarized":0}</code>）。<span class="font-semibold">投稿・報告の別によらず、実ファイルと突き合わせて正しいと確認できたものはすべて修正した</span>（12件中11件を修正、1件は仕様の限界として明記）。</p>
+      <div class="overflow-x-auto rounded-lg border border-slate-200 mb-4">
+        <table class="min-w-full text-xs">
+          <thead class="bg-slate-100"><tr><th class="px-3 py-2 text-left">指摘</th><th class="px-3 py-2 text-left">判定</th><th class="px-3 py-2 text-left">対応</th></tr></thead>
+          <tbody class="divide-y divide-slate-100">
+            <tr><td class="px-3 py-2">run1 の「サマリは投稿されない」が実装と矛盾</td><td class="px-3 py-2 text-rose-700 font-semibold">正しい</td><td class="px-3 py-2">0件でも単発noteが1件投稿される旨へ書き換え</td></tr>
+            <tr class="bg-rose-50"><td class="px-3 py-2 font-semibold">「全27関数を <code>Provider.sh</code> 経由で実機実行」が他記述と矛盾</td><td class="px-3 py-2 text-rose-700 font-semibold">正しい</td><td class="px-3 py-2">ディスパッチャを持つのは20関数。「20は直接／7は間接」へ（3ファイル）</td></tr>
+            <tr class="bg-rose-50"><td class="px-3 py-2 font-semibold">「残る未検証はバージョン・エディションの1点だけ」が同じ節の他項目と矛盾</td><td class="px-3 py-2 text-rose-700 font-semibold">正しい</td><td class="px-3 py-2">「API経路で動くこと」と「URLがブラウザで働くこと」を分離</td></tr>
+            <tr><td class="px-3 py-2">差分アンカーの説明に旧引数名 <code>compareUrl</code> が残存</td><td class="px-3 py-2 text-rose-700 font-semibold">正しい</td><td class="px-3 py-2"><code>&lt;baseUrl&gt;</code> へ直し、土台の決定者を明記</td></tr>
+            <tr><td class="px-3 py-2">新規specに <code>## 背景・目的</code> <code>## 未決定事項・懸念点</code> が無い</td><td class="px-3 py-2 text-rose-700 font-semibold">正しい</td><td class="px-3 py-2">両節を追加。折りたたみの未解決事項を移設</td></tr>
+            <tr><td class="px-3 py-2">手順5のPAT取得が、同ファイルの警告2点を自ら踏んでいる</td><td class="px-3 py-2 text-rose-700 font-semibold">正しい</td><td class="px-3 py-2">接頭辞非依存の取り出し＋<code>|| true</code>（実出力で動作確認）</td></tr>
+            <tr class="bg-rose-50"><td class="px-3 py-2 font-semibold">検証状況の「正」が2つ挙げられ、実際は4ファイルへ分散</td><td class="px-3 py-2 text-rose-700 font-semibold">正しい</td><td class="px-3 py-2">正を1箇所に決め、他3ファイルは参照のみへ</td></tr>
+            <tr><td class="px-3 py-2">issue #127 のchangelog表にドキュメント変更が無い</td><td class="px-3 py-2 text-rose-700 font-semibold">正しい</td><td class="px-3 py-2">新規2ファイルを含む7行を追加</td></tr>
+            <tr><td class="px-3 py-2">DDRだけ読むと採用形がブラウザ確認済みに読める</td><td class="px-3 py-2 text-rose-700 font-semibold">正しい</td><td class="px-3 py-2">確認済みはパラメータ無しまで、と明記</td></tr>
+            <tr><td class="px-3 py-2">原則「土台の範囲＝<code>diff_range</code>」はベース取り込みを挟むpushで未確認</td><td class="px-3 py-2 text-rose-700 font-semibold">正しい</td><td class="px-3 py-2">DDRへ限界と確かめ方を明記</td></tr>
+            <tr><td class="px-3 py-2">折りたたみ検証の32ファイルとDDRの30ファイルが合わない</td><td class="px-3 py-2 text-amber-700 font-semibold">断面が違う</td><td class="px-3 py-2">何を数えた値かを併記</td></tr>
+            <tr><td class="px-3 py-2"><code>get_mr_url</code>/<code>get_note_url</code> がGitHub側も #42 起源に読める</td><td class="px-3 py-2 text-rose-700 font-semibold">正しい</td><td class="px-3 py-2">「GitLab実装は #42、GitHub実装とディスパッチャは #127」へ</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="text-sm text-slate-700"><span class="font-semibold">最も重い3件（上表の赤帯）は、いずれも「同じ主張を複数ファイルへ複製したこと」に起因する。</span>今回の設計反映そのものが「ヘッダの記述が実態と合わなくなった」ことの訂正だったのに、<span class="font-semibold">訂正の過程で同じ構造を新たに作っていた</span>。正を1箇所に決めて他は参照にするところまでやらないと、同じ陳腐化が次のissueで再発する。</p>
+      <p class="text-xs text-slate-500 mt-3">修正後の再検証: frontmatterインデックス <code>files=109 built=7 reused=102 failed=0</code> ／ DDR番号の重複なし ／ <code>bash -n</code> OK ／ <code>grep -c '^gitlab_[a-z0-9_]*()'</code> = 27 ／ 単体テスト12本すべて <code>failures=0</code>。</p>
+    </div>
   </section>
 
   <!-- 解消した未決定事項 -->

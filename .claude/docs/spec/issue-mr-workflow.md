@@ -111,8 +111,8 @@ MRとのやり取りだけを自動化する薄い層」として設計したが
 | `get_diff_anchor_base_url <compareUrl> <mrUrl> <n> <sinceSha>` | 差分アンカーの**土台にするページ**のURLを返す（issue #127）。**同じハッシュでも土台にするページによってアンカーが効くかが変わる**ため、プロバイダごとに分ける。土台が覆う範囲は、呼び出し側が作るファイル一覧の供給元（`diff_range`）と一致させる。詳細・却下案は [DDR 0059](../ddr/0059-差分アンカーの土台はプロバイダごとに分けGitLabはMR差分ページを使う.md) | `<compareUrl>`（Compareページのまま。issue #42 で実機確認済み） | `<mrUrl>/diffs`（初回push）／`<mrUrl>/diffs?start_sha=<sinceSha>`（2回目以降）。**Compareページではアンカーが機能しない**。`sinceSha` がMRバージョンのheadでなければ前者へ縮退する（GitLabは不正なSHAをエラーにせず0ファイルを返すため） |
 | `get_diff_anchor_url <baseUrl> <pathHash>` | 差分ページ内の特定ファイルの差分位置を指すアンカー付きURLを組み立てる（純粋関数。issue #42）。`baseUrl` には `get_diff_anchor_base_url` の戻り値を渡す | `<baseUrl>#diff-<pathHash>` | `<baseUrl>#<pathHash>` |
 | `get_diff_anchor_algo` | 差分アンカーのハッシュ算出に使うアルゴリズム名を返す（純粋関数。issue #42）。**ハッシュの入力はpercent-encode前の生パス**（encodeが必要な `get_blob_url` とは逆） | `sha256` | `sha1`（issue #127 で実機確認済み。`diff-` 接頭辞は付かない） |
-| `get_mr_url <repoUrl> <n>` | MR/PR本体のページURLを組み立てる（純粋関数。issue #42、ディスパッチャ追加は issue #127） | `<repoUrl>/pull/<n>` | `<repoUrl>/-/merge_requests/<n>` |
-| `get_note_url <mrUrl> <noteId>` | レビューコメントの公式パーマリンクを組み立てる（純粋関数。issue #42、ディスパッチャ追加は issue #127）。**本番経路で使うのはGitLabだけ**で、GitHubはGraphQLが `comment { url }` を返すため組み立てる必要が無い（GitHub実装は名前を揃えるための対応物） | `<mrUrl>#discussion_r<noteId>` | `<mrUrl>#note_<noteId>` |
+| `get_mr_url <repoUrl> <n>` | MR/PR本体のページURLを組み立てる（純粋関数。**GitLab実装は issue #42**、**GitHub実装とディスパッチャは issue #127**） | `<repoUrl>/pull/<n>` | `<repoUrl>/-/merge_requests/<n>` |
+| `get_note_url <mrUrl> <noteId>` | レビューコメントの公式パーマリンクを組み立てる（純粋関数。**GitLab実装は issue #42**、**GitHub実装とディスパッチャは issue #127**）。**本番経路で使うのはGitLabだけ**で、GitHubはGraphQLが `comment { url }` を返すため組み立てる必要が無い（GitHub実装は名前を揃えるための対応物） | `<mrUrl>#discussion_r<noteId>` | `<mrUrl>#note_<noteId>` |
 | `url_encode_path_to_reply <path>` | パスをURLへ埋め込める形へpercent-encodeし、結果を`REPLY`へ返す（プロバイダ非依存の純粋関数。unreserved文字と`/`は残し、それ以外はUTF-8のバイト単位で`%XX`へ変換する。issue #42） | — | — |
 | `hash_paths <algo> <path>...` | 渡した各**パス文字列**（ファイルの中身ではない）のハッシュを引数と同じ順序で1行ずつ返す（差分アンカー用。issue #42）。件数に比例して`sha256sum`を起動しないよう一時ファイルへ書き出して1回で計算する | `sha256sum` | `sha1sum` |
 | `get_branch_work_files` | 現在のブランチ固有（`<defaultBaseBranch>` に無い）の `plans/` `worklog/` `reports/` ファイル一覧を返す（プロバイダ非依存）。日本語を含むパスをそのまま返すため `-c core.quotepath=false` を指定している（issue #9。詳細は「計画の2階層構造」節）。**出力は常に「1行＝1つの実在するパス」**で、改名されたファイルは新パスのみを返す（issue #115。下記「日本語ファイル名を扱う際の注意」） | — | — |
@@ -1205,9 +1205,11 @@ issue #11「git pushイベントを検知してcompactする」への対応と�
   - **blobリンク**（該当push時点のファイル本体）: `get_blob_url <repoUrl> <今回pushのHEAD SHA>
     <encode済みパス>`。GitHub `/blob/<ref>/<path>`、GitLab `/-/blob/<ref>/<path>`。
   - **差分アンカーリンク**（差分ページ内の該当ファイル位置。土台はプロバイダで異なる。下記）: `get_diff_anchor_url
-    <compareUrl> <pathHash>`。GitHub `#diff-<パスのsha256>`、GitLab `#<パスのsha1>`。
-    `compareUrl` は差分範囲と対になるもの（初回pushはdefaultブランチとの差分、2回目以降は
-    前回pushとの差分）を使う。
+    <baseUrl> <pathHash>`。GitHub `#diff-<パスのsha256>`、GitLab `#<パスのsha1>`。
+    **`baseUrl`（アンカーを付ける土台のページ）は `get_diff_anchor_base_url` が決める**。
+    GitHubはCompareページをそのまま使い、GitLabはMR差分ページを使う（GitLabではCompareページに
+    アンカーを付けても機能しない。詳細は下記「アンカーの土台にするページはプロバイダで異なる」・
+    [DDR 0059](../ddr/0059-差分アンカーの土台はプロバイダごとに分けGitLabはMR差分ページを使う.md)）。
   - **対象ファイルの範囲は既存の差分リンクと同じ意味論**にする。初回pushは
     `origin/<defaultBaseBranch>...HEAD`、2回目以降は `<前回pushのSHA>...HEAD`
     （どちらも`...`＝merge-base起点で、GitHub/GitLabのCompareページと意味が揃う）。前回SHAが
@@ -2819,9 +2821,15 @@ issue #48 の実機検証を受けていない13関数（issue #42・#61・#68�
 |---|---|
 | `.claude/scripts/src/vcs/Provider.sh` | `get_diff_anchor_base_url` / `get_mr_url` / `get_note_url` の3ディスパッチャを新設。`get_diff_anchor_url` の第1引数の意味を「CompareページのURL」から「土台ページのURL」へ変更（引数名も `base_url` へ） |
 | `.claude/scripts/src/vcs/Github.sh` | `github_get_diff_anchor_base_url`（恒等）/ `github_get_mr_url` / `github_get_note_url` を新設 |
-| `.claude/scripts/src/vcs/Gitlab.sh` | `gitlab_get_diff_anchor_base_url` / `gitlab_mr_has_version_head` を新設。未定義呼び出しを `get_repo_url` へ修正（2箇所） |
+| `.claude/scripts/src/vcs/Gitlab.sh` | `gitlab_get_diff_anchor_base_url` / `gitlab_mr_has_version_head` を新設。未定義呼び出しを `get_repo_url` へ修正（2箇所）。ヘッダの検証状況を #48/#45/#127 の3段構成へ書き換え、関数数を実測値（27）と数え方つきで明記。関数個別の【未検証】マーカー2件を除去 |
 | `.claude/hooks/post-push-compact-prompt.sh` | 土台URLの決定を `get_diff_anchor_base_url` へ委譲。`mr_number` を取得 |
 | `.claude/scripts/test/test_vcs_provider.sh` | 未定義の `github_*`/`gitlab_*` 呼び出しの静的検出、接頭辞を持たない共有関数の定義の表明、呼び出し経路を通すテスト、`get_diff_anchor_base_url` の分岐テストを追加 |
+| **新規** `.claude/docs/ddr/0059-差分アンカーの土台はプロバイダごとに分けGitLabはMR差分ページを使う.md` | 土台の決定をプロバイダへ委ねる意思決定。原則・却下案・残した妥協・DDR 0037 との関係 |
+| **新規** `.claude/docs/spec/gitlab-verification-environment.md` | 受け入れ条件8の検証環境の再現手順と、実際に踏んだ落とし穴 |
+| `.claude/docs/spec/issue-mr-workflow.md`（本ファイル） | 「未決定事項・懸念点」の #61・#68・#13・#86 をGitHub側のみへ範囲を絞り、#42（GitLab側の重点ファイルリンク）・#48/#45（サブグループ）の項目を削除。折りたたまれた差分でのアンカーの挙動を新規項目として追加。「提供関数」表へ3関数を追加し3関数の【未検証】を除去。差分アンカーの節へ土台の話を追記。本エントリを追加 |
+| `.claude/docs/spec/adversarial-review.md` | 「非インラインのスレッド投稿は未検証」を実機確認済みへ更新（run1/run2の実測値つき） |
+| `.claude/docs/spec/shell-scripts.md` | 移植表と「GitLab版の実機動作未検証」を、検証状況の正が本ファイルであることを示す形へ更新 |
+| `.claude/docs/README.md` | spec一覧へ新規specを、DDR一覧へ 0059 を追記 |
 
 **GitHub側の挙動は変えていない。** 変更前後の `build_file_links_text` を同一入力で実行して
 突き合わせ、出力が完全一致することを確認した（テストの追加だけでは、変更時点で生じた劣化を
@@ -2895,8 +2903,11 @@ issue #48 の実機検証を受けていない13関数（issue #42・#61・#68�
   `get_mr_diff_url` / `get_mr_diff_since_url` / `get_workflow_config` /
   `get_issue_number_from_branch`）。
   **issue #127 で、issue #48以降に追加された13関数も同じ環境で確認した**（詳細は下記）。
-  **残る未検証範囲は「バージョン・エディション」の1点だけ**である。確認したのはCE 18.5.4の
-  1バージョンのみで、gitlab.com（SaaS）・他バージョン・EEでの挙動は未検証。
+  **ここで確認できたのは「関数がAPI経路で期待どおり動くこと」までであり、「生成したURLが
+  ブラウザで意図どおり働くこと」は別の未検証項目として下に残っている**（差分アンカーの
+  修正後の目視確認・折りたたまれた差分での挙動）。関数の実機動作について残る未検証範囲は
+  **「バージョン・エディション」**である。確認したのはCE 18.5.4の1バージョンのみで、
+  gitlab.com（SaaS）・他バージョン・EEでの挙動は未検証。
   - **プロジェクト構成（サブグループ）は issue #127 で解消した。** 3階層namespace
     （`grp127/sub127/issue127-verify-sub`）へプロジェクトを作り、`glab` が解決できること・
     `get_repo_slug` の `owner` に `grp127/sub127` が入ることを確認した。

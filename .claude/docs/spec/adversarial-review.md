@@ -387,7 +387,10 @@ issue #77 で追加・変更したもの。
   スレッド内の指摘は個別には解決できない。
 - **非インラインのスレッド投稿は実機確認済み**（issue #127）。ローカルGitLab CE 18.5.4 に対し
   `add_mr_inline_comments` を2回実行し、`gitlab_summary_post_kind` の**両分岐を通した**。
-  - run1（有効な指摘3件・サマリ0件）→ `{"posted":3,"summarized":0}`。サマリは投稿されない。
+  - run1（有効な指摘3件・サマリ0件）→ `{"posted":3,"summarized":0}`。0件の分岐
+    （`gitlab_add_mr_comment` による**単発note**）を通った。**0件でも投稿は行われる**
+    （本文が「すべての指摘をインラインコメントで示しています」という通知になるだけで、
+    投稿そのものが省かれるわけではない。上記の表「0件 → `notes`」を参照）。
   - run2（有効2件・不正な行を指す1件）→ `{"posted":2,"summarized":1}`。サマリが
     `individual_note=false` / `resolvable=true` の**解決可能なスレッド**として投稿された
     （`position` を持たない `discussions` へのPOSTが通ることの確認を含む）。

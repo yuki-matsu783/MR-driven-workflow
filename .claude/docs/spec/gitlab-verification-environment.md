@@ -8,12 +8,20 @@ keywords: [GitLab CE, docker run, glab auth, Personal Access Token, サブグル
 
 # GitLab検証環境の再現手順
 
+## 背景・目的
+
 `.claude/scripts/src/vcs/Gitlab.sh` は、このリポジトリの実remoteがGitHubであるため、
-**ローカルに立てたGitLab CE に対してのみ実機検証できる**。その環境を再現するための手順を残す
+**ローカルに立てたGitLab CE に対してのみ実機検証できる**。issue #48・#45・#127 はいずれも
+そのつど環境を作り直しており、手順がリポジトリ内に残っていなかった（issue #127 の着手時に
+`docker run` / `glab auth login` の記載が1件も無いことを確認している）。次に `Gitlab.sh` を
+変更する人が同じ環境を作り直せるように、手順と**実際に踏んだ落とし穴**を残す
 （issue #127 の受け入れ条件8）。
 
-`Gitlab.sh` の現在の検証状況（どのissueで何を確認したか・残る未検証範囲）は同ファイルの
-ヘッダと [issue-mr-workflow.md](issue-mr-workflow.md)「未決定事項・懸念点」が正である。
+**`Gitlab.sh` の検証状況（どのissueで何を確認したか・残る未検証範囲）の正は
+[issue-mr-workflow.md](issue-mr-workflow.md)「未決定事項・懸念点」の1箇所である。**
+本ファイル・`Gitlab.sh` のヘッダ・[shell-scripts.md](shell-scripts.md) は、いずれも
+そこを参照するだけで、確認済み・未確認の一覧を再掲しない（同じ内容を複数箇所へ書くと、
+片方だけが更新されて食い違う。issue #127 の敵対的レビューで実際に食い違いが検出された）。
 
 ## 検証実績のある構成
 
@@ -59,7 +67,12 @@ glab api projects -X POST -f name=<name>-sub -f path=<path>-sub -f visibility=pu
   -f namespace_id="$sgid" -f initialize_with_readme=true
 
 # 5. クローンする（PATをURLへ埋め、GCMを無効化し、直後にPATを外す）
-TOKEN="$(glab auth status --show-token 2>&1 | grep -oE 'glpat-[A-Za-z0-9._-]+' | head -1)"
+#    `glab auth status` は gitlab.com 側の認証エラーで終了コード2を返しうるので `|| true` を添える
+#    （下記「`glab auth status` の終了コード」）。トークンの接頭辞は設定で変えられるため、
+#    `glpat-` 決め打ちではなく「対象ホストの節にある Token の行の末尾フィールド」を取り出す
+#    （実際の行は `✓ Token found in operating system keyring: <値>`）。
+TOKEN="$( { glab auth status --show-token 2>&1 || true; } \
+  | awk '/localhost:8929/{f=1} f && /oken/{print $NF; exit}')"
 git -c credential.helper= clone "http://oauth2:${TOKEN}@localhost:8929/<path>.git" clone
 cd clone && git remote set-url origin "http://localhost:8929/<path>.git"
 ```
@@ -112,9 +125,7 @@ GitLab 18.5 は差分を非同期に描画するため、**ページの初期HTM
   `start_sha` / `diff_id` を無視する。
 - **`start_sha` にMRバージョンのheadでないSHAを渡すと、エラーにならずHTTP 200のまま0ファイルを
   返す。** バージョンの一覧は `glab api projects/:id/merge_requests/<n>/versions` で得られる。
-- **折りたたみ（`collapsed`）を再現する条件は特定できていない。** 402行のファイルを含む
-  32ファイルの差分でも `collapsed` は1件も立たなかった（`diffs_stream` 経由では畳まれるのを
-  観測している）。ファイル単体の行数ではなくページ全体の規模に依存すると思われる。
+- **折りたたみ（`collapsed`）を再現する条件は特定できていない**（下記「未決定事項・懸念点」）。
 
 ### `glab` の出力の扱い
 
@@ -122,10 +133,27 @@ GitLab 18.5 は差分を非同期に描画するため、**ページの初期HTM
 **stdoutへ**出す。`2>&1` でまとめると `jq` が `parse error: Invalid numeric literal` で失敗し、
 **正常な関数を不具合と誤認する**。`2>/dev/null` にすればstdoutは純粋なJSONになる。
 
+## 未決定事項・懸念点
+
+- **折りたたまれた差分（`collapsed`）を再現する条件が特定できていない。** `diffs_batch.json`
+  経由では、402行のファイルを含む**32ファイル**（`diffs_batch.json` が1回の応答で返した
+  `diff_files` の件数。DDR 0059 が記録している「MR全体で30ファイル」とは断面が異なる）の
+  差分でも `collapsed` は1件も立たなかった
+  （`diffs_stream` 経由では畳まれるのを観測している）。ファイル単体の行数ではなくページ全体の
+  規模に依存すると思われるが、条件を絞り込めていない。**この条件を作れないため、折りたたまれた
+  ファイルへ差分アンカーが飛ぶかも検証できていない**（
+  [issue-mr-workflow.md](issue-mr-workflow.md)「未決定事項・懸念点」の同項目と対応する）。
+- **本ファイルの手順は、issue #127 の検証時点（2026-08-20〜21）の `glab` 1.114.0 /
+  GitLab CE 18.5.4 の出力形式に依存している。** とくに手順5のトークン取り出しは
+  `glab auth status --show-token` の出力行の形（`Token found in operating system keyring: <値>`）に
+  依存しており、`glab` の更新で変わりうる。動かなくなったら出力を直接見て合わせること。
+- 検証用プロジェクトの**後片付けは手順に含めていない**。ローカルGitLabのプロジェクト・グループ・
+  クローン先ディレクトリは、検証が終わったら手で削除する。
+
 ## 関連
 
-- `.claude/scripts/src/vcs/Gitlab.sh`（検証状況はヘッダを参照）
-- [issue-mr-workflow.md](issue-mr-workflow.md)「未決定事項・懸念点」（残る未検証範囲）
+- `.claude/scripts/src/vcs/Gitlab.sh`（`glab` CLIラッパー本体）
+- **[issue-mr-workflow.md](issue-mr-workflow.md)「未決定事項・懸念点」（`Gitlab.sh` の検証状況の正）**
 - [shell-scripts.md](shell-scripts.md)（bashスクリプト全般の設計方針）
 - `.claude/rules/shell-script-style.md`「git bashのパス変換の落とし穴」
   （`MSYS_NO_PATHCONV=1` が要る理由）
