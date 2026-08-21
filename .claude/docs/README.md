@@ -141,4 +141,6 @@ frontmatter（`status` / `superseded_by` / `note`）だけから決まる。
 - [i0133-01-DDR識別子はissue番号ベースにし連番採番をやめる.md](ddr/i0133-01-DDR識別子はissue番号ベースにし連番採番をやめる.md)
 - [i0135-01-DDR一覧は生成物にしつつGit管理下へ残す.md](ddr/i0135-01-DDR一覧は生成物にしつつGit管理下へ残す.md)
 - [i0140-01-mark-skipはループ範囲の一部指定を書き換え後の状態で拒否する.md](ddr/i0140-01-mark-skipはループ範囲の一部指定を書き換え後の状態で拒否する.md)
+- [i0141-01-canvasテンプレートはTailwind非依存の自己完結CSSにする.md](ddr/i0141-01-canvasテンプレートはTailwind非依存の自己完結CSSにする.md)
+- [i0141-02-canvasデータモデルはフラットなparent参照にする.md](ddr/i0141-02-canvasデータモデルはフラットなparent参照にする.md)
 <!-- END GENERATED: ddr-list -->
