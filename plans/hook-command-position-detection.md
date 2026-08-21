@@ -62,10 +62,21 @@ keywords: [block-direct-git-commit, コマンド位置, 誤検知, ヒアドキ�
 
 **反映対象は flow-id 4-1 で洗い出す。** 現時点の見込み（確定ではない）:
 
-- `.claude/docs/spec/` — hookの検知仕様（誤検知・検知漏れの制約が書かれている節）
+- `.claude/docs/spec/command-position.md` — **新規**。判定アルゴリズムの仕様。
+  3つのhookのコメントが既にこのパスを参照しているため、作成しない場合は参照側を直す
+- `.claude/docs/spec/issue-mr-workflow.md` — hookの検知仕様（誤検知・検知漏れの制約が
+  書かれている節）
 - `.claude/docs/ddr/` — 判定の線引きと、あえて対策しない範囲を決めた記録
+- `.claude/docs/ddr/i0000-09` — 「部分一致のため無関係なコマンドも誤ってブロックされる」と
+  既知のトレードオフを記録している。**DDR本文は不変**のため、`note`（または `status`）の
+  更新で対応する。更新後は `bash .claude/scripts/src/generate-ddr-list.sh` を再実行する
 - AIアセット — `.claude/rules/git-workflow.md`・`.claude/rules/ai-command-style.md` の
   「該当2語を連続させない」回避策が、今回の変更後にどこまで必要かの見直し
+- **ルート `REVIEW-POINTS.md`**（29行目付近）— 同じ回避策を観点として持っている。
+  敵対的レビューが毎回読む位置にあるため、更新漏れが直接レビュー品質へ響く
+
+**洗い出しの起点**は `grep -rn '部分一致' --include='*.md' .` とする（回避策の文言が
+複数ファイルへ分散しているため、見込みの列挙だけに頼らない）。
 
 ## フェーズ5〈クローズ〉
 

@@ -15,7 +15,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - issue: #53 block-direct-git-commit.sh の誤検知を減らす（コマンド位置での判定）
 - ブランチ: claude/block-direct-git-commit-false-positives-mc1n43
 - PR: #147 (Draft) https://github.com/yuki-matsu783/MR-driven-workflow/pull/147
-- push回数: 3
+- push回数: 4
 - 現在のループ: なし
 - 追従監視: 購読あり（web。subscribe_pr_activity。定期チェックインは未予約）
 
@@ -87,20 +87,37 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
   該当するループ範囲の進捗記号は `[]` のまま残してある。
 - flow-id 3-1: 個別作業計画
   `plans/【実装】【テスト】コマンド位置判定ライブラリとhookへの適用.md` を作成した。
-- flow-id 3-6: 実装した。`.claude/hooks/lib/CommandPosition.sh`（新規・約300行）へ判定を切り出し、
-  `block-direct-git-commit.sh` と push検知hook2本の判定を差し替えた。単体テスト54件を
+- flow-id 3-6: 実装した。`.claude/hooks/lib/CommandPosition.sh`（新規・590行）へ判定を切り出し、
+  `block-direct-git-commit.sh` と push検知hook2本の判定を差し替えた。単体テスト75件を
   `.claude/scripts/test/test_command_position.sh` へ追加。結果は
   `reports/2026-08-20_hook-command-position-detection_実装結果.md` に記録した。
   - 20ケースすべてが期待どおりになった（変更前は7件が食い違い）。
-  - 既存テスト15ファイル・計829件すべて `failures=0`（回帰なし）。
+  - 既存テスト15ファイル・計850件すべて `failures=0`（回帰なし）。
   - CR混入下（スタブjq）でも結果が変わらないことを確認した。
 - **人間のレビュー（flow-id 3-3/3-8）は非対話セッションのため実施できていない。**
-  該当するループ範囲の進捗記号は `[]` のまま残してある。代わりに `adversarial-review` を実施する。
+  該当するループ範囲の進捗記号は `[]` のまま残してある。代わりに `adversarial-review` を実施した。
+- **`adversarial-review`（フェーズ3・1回目、上限3回のうち1回目を消費）を実施した。**
+  9件の指摘のうち8件をインラインコメントとしてPR #147 へ投稿し、1件は会話への報告に留めた。
+  重大なものは次の3件で、いずれも**変更前より悪化していた（機能後退）**か、**hook全体を
+  無効化しうる**ものだった。
+  - 行継続（`git \`＋改行＋`commit`）と `\git commit` が素通りしていた。
+  - `git --git-dir /x/.git commit` 等、値を取るオプションを挟むと素通りしていた。
+  - ライブラリの `source` 失敗が `set -e` で exit 2 になり、**すべてのBash呼び出しが
+    ブロックされる**状態になりうる。
+  9件すべてへコードまたはドキュメントで対応済み（対応表は実装結果レポートに記載）。
+- 対応後に再検証した。単体テスト75件・既存全件850件・20ケース・読み込み失敗時の縮退9項目・
+  CRスタブ下の20ケース、いずれも期待どおり。
+- 本レポートの更新自体を、該当語を含むヒアドキュメントで書けたことで、修正が実地で効いている
+  ことを確認した（変更前ならこの操作自体がブロックされていた）。
 
 ## 次にやること
 
-- 実装のpush後に `adversarial-review` を実施し、出た指摘へ対応する。
+- flow-id 3-9: 投稿した8件のインラインコメントへ、対応内容を返信する（`comments` / `reply`）。
+- flow-id 3-10: MR descriptionを更新する。
 - flow-id 4-1: 反映対象を洗い出し、個別反映計画を作成する。
+  - **`.claude/docs/spec/command-position.md` は作成必須**（3つのhookのコメントが既に参照している）。
+  - DDR `i0000-09` の `note` 更新と `generate-ddr-list.sh` の再実行を忘れない。
+  - ルート `REVIEW-POINTS.md` の「該当2語を連続させない」観点も見直し対象。
 
 ## 判断を迷った内容
 
