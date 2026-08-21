@@ -204,8 +204,10 @@ HANDOFF.mdとの矛盾など、ブランチ名だけでは分からない「こ�
 **flow-idが1つ進むごとに、必ず`HANDOFF.md`を更新する**。進捗表の記号更新は
 `.claude/scripts/src/update-handoff-progress.sh`（`mark-done <flow-id>`でその行を、ループ扱いの
 flow-idなら同じループ範囲の全行をまとめて`[x]`にする。フェーズ・ループ範囲を丸ごと省略する場合は
-`mark-skip <flow-id...>`で`[-]`にする。詳細・制約は`.claude/docs/spec/update-handoff-progress.md`
-参照）へ委譲し、それに続けて「やったこと」「次にやること」を書き換える。更新はcommit（flow-id
+`mark-skip <flow-id...>`で`[-]`にする。**`mark-skip`はループ範囲へ伝播しないので、範囲内の全
+flow-idを渡す**。一部だけ渡すとその場でエラーになり1件も書き換わらない（issue #140）。詳細・制約は
+`.claude/docs/spec/update-handoff-progress.md`参照）へ委譲し、それに続けて「やったこと」
+「次にやること」を書き換える。更新はcommit（flow-id
 2-2/2-7/3-2/3-7/4-2/4-7/5-3/5-5）より前に行い、**同じcommitに含める**（別commitに分けると、レビュー
 時点の進捗表と実際の変更内容が食い違う）。
 
@@ -621,6 +623,21 @@ get_repo_slug | jq -r '.owner, .repo'
 | `upload_attachment <file> [<content_type>]` | **代替なし** | — | flow-id 5-3 の**層3（統括レポートHTMLの添付）**（issue #111）。**MCPにPR/issueへの添付に相当するツールは無い**（実測で確認）。この関数は `require_vcs_cli` により非0で終え、stderrへ「層3はスキップしてよい」旨を出す。**層1（`reports/` をリモートへ反映）と層2（`add_mr_comment` でのサマリ投稿）だけでレビューは成立するため、スキップして次へ進む** |
 | `get_repo_url` | （MCP不要） | — | `git remote get-url origin` の正規化だけでリポジトリの正規URLを導出するプロバイダ非依存の関数のため、MCP経路でもそのまま呼べる（`get_mr_diff_url` / `get_mr_diff_since_url` も同様。issue #44） |
 | `new_issue_branch` / `sync_branch` / `get_branch_work_files` / `get_issue_number_from_branch` / `to_slug` / `test_issue_sections` | （MCP不要） | — | git操作・純粋ロジックのみでCLIに依存しないため、MCP経路でもそのまま呼べる |
+
+### 2-b. MCP経路で踏んだ落とし穴
+
+CLI経路には無い、MCPツール固有の挙動。**いずれも失敗ではなく成功として返るため、呼び出し側で
+確認しないと気づけない。**
+
+- **`mcp__github__add_reply_to_pull_request_comment` は、`body` に不等号で始まる語が含まれると
+  そこで本文を切り捨てて投稿する**（issue #53 の作業中に実測。入力リダイレクトの記号を含む語を
+  書いたところ、その手前で本文が終わった状態で投稿された）。**エラーは返らず、`id` と `url` を
+  含む正常な結果が返る。**
+  - 対処: 投稿後に `mcp__github__pull_request_read`（`method="get_review_comments"`）で
+    **本文の末尾を確認する**。切れていたら、記号を避けて書き直した補足を追加で投稿する
+    （既に投稿したコメントは編集できないため、消すのではなく足す）。
+  - 予防: 本文に記号そのものを書かず、「入力リダイレクト」のように語で説明する。
+    コード例が要る場合はフェンス内へ入れる。
 
 ### 3. サブコマンドごとの読み替え
 

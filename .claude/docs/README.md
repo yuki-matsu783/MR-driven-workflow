@@ -83,7 +83,7 @@ frontmatter（`status` / `superseded_by` / `note`）だけから決まる。
 - [i0000-06-Planモードre-entry時はgit checkout復元でなくarchiveスクリプトで対処する.md](<ddr/i0000-06-Planモードre-entry時はgit checkout復元でなくarchiveスクリプトで対処する.md>) ── **`status: superseded`（i0009-01により置き換え）**
 - [i0000-07-ブランチslugの意訳生成はAIエージェントが行う.md](ddr/i0000-07-ブランチslugの意訳生成はAIエージェントが行う.md)
 - [i0000-08-issue作成は独立スキルとして新設する.md](ddr/i0000-08-issue作成は独立スキルとして新設する.md)
-- [i0000-09-コミットはcommitスキル経由を機構的に強制する.md](ddr/i0000-09-コミットはcommitスキル経由を機構的に強制する.md)
+- [i0000-09-コミットはcommitスキル経由を機構的に強制する.md](ddr/i0000-09-コミットはcommitスキル経由を機構的に強制する.md)（うち「部分一致のため無関係なコマンドも誤ってブロックされる」既知のトレードオフは、issue #53でコマンド位置判定へ置き換えた。詳細はi0053-01）
 - [i0000-10-dev-toolsをAI専用_人間専用に分離する.md](ddr/i0000-10-dev-toolsをAI専用_人間専用に分離する.md)
 - [i0000-11-調査結果のhtml版は自己完結htmlのコミットで作る.md](ddr/i0000-11-調査結果のhtml版は自己完結htmlのコミットで作る.md)
 - [i0000-12-frontmatterスクリプトの走査方式にgit-ls-filesを採用する.md](ddr/i0000-12-frontmatterスクリプトの走査方式にgit-ls-filesを採用する.md)
@@ -93,7 +93,7 @@ frontmatter（`status` / `superseded_by` / `note`）だけから決まる。
 - [i0011-01-frontmatter抽出は1ファイル1回のjq呼び出しとmtimeキャッシュで高速化する.md](ddr/i0011-01-frontmatter抽出は1ファイル1回のjq呼び出しとmtimeキャッシュで高速化する.md)
 - [i0013-01-レビュー依頼メッセージの参照リンクは前回pushSHAをローカル状態で保持して組み立てる.md](ddr/i0013-01-レビュー依頼メッセージの参照リンクは前回pushSHAをローカル状態で保持して組み立てる.md)
 - [i0014-01-GitHub_GitLab情報取得はgh_glab-CLIを使いWebFetchは使わない.md](ddr/i0014-01-GitHub_GitLab情報取得はgh_glab-CLIを使いWebFetchは使わない.md)
-- [i0020-01-HANDOFF進捗更新はMarkdownテーブル直接書き換えでループ範囲を一括操作する.md](ddr/i0020-01-HANDOFF進捗更新はMarkdownテーブル直接書き換えでループ範囲を一括操作する.md)
+- [i0020-01-HANDOFF進捗更新はMarkdownテーブル直接書き換えでループ範囲を一括操作する.md](ddr/i0020-01-HANDOFF進捗更新はMarkdownテーブル直接書き換えでループ範囲を一括操作する.md)（うち「mark-skipで作った不整合は後段のmark-done/add-roundで表面化する」は、issue #140でmark-skip自身がその場で拒否する形へ変更された。詳細はi0140-01）
 - [i0023-01-push断面の全文コピーをやめ行番号インデックスで表現する.md](ddr/i0023-01-push断面の全文コピーをやめ行番号インデックスで表現する.md)（うち「Gemini CLI対応の扱い」は、issue #97でメインセッションのみ集計対象へ変更された。サブエージェントを集計しない部分は引き続き有効。詳細は i0097-05）
 - [i0028-01-flow-id5-1の後片付けはスクリプト化しコミットは含めない.md](ddr/i0028-01-flow-id5-1の後片付けはスクリプト化しコミットは含めない.md)（ファイル名の `flow-id5-1` は当時の番号。片付けは issue #112 の並べ替えで 5-3 になり、issue #111 の統括レポート追加でさらに繰り下がって現在 flow-id 5-4。DDR i0112-01・i0111-01 参照）
 - [i0032-01-GitLab-issueテンプレートは予約名Default.mdを正とし文書側を合わせる.md](ddr/i0032-01-GitLab-issueテンプレートは予約名Default.mdを正とし文書側を合わせる.md)
@@ -112,11 +112,12 @@ frontmatter（`status` / `superseded_by` / `note`）だけから決まる。
 - [i0047-01-AIが渡すコマンド文字列の説明はdescriptionとコメントへ分けて置く.md](ddr/i0047-01-AIが渡すコマンド文字列の説明はdescriptionとコメントへ分けて置く.md)
 - [i0048-01-空コミットフォールバックはGitHub固有の制約として残す.md](ddr/i0048-01-空コミットフォールバックはGitHub固有の制約として残す.md)
 - [i0050-01-チャットで受けたレビュー判断はAIがMRの通常コメントへ記録する.md](ddr/i0050-01-チャットで受けたレビュー判断はAIがMRの通常コメントへ記録する.md)
+- [i0053-01-hookの検知は正規化とコマンド位置判定にし読めない実行体は部分一致へ縮退させる.md](ddr/i0053-01-hookの検知は正規化とコマンド位置判定にし読めない実行体は部分一致へ縮退させる.md)
 - [i0057-01-compact後もSessionStart-hookで作業コンテキストを再注入する.md](ddr/i0057-01-compact後もSessionStart-hookで作業コンテキストを再注入する.md)
 - [i0060-01-create-commitは削除ステージ済みパスをgit-addの失敗時分類で吸収する.md](ddr/i0060-01-create-commitは削除ステージ済みパスをgit-addの失敗時分類で吸収する.md)
 - [i0063-01-機構自身の単体テストは.claude_scripts_test配下へ置く.md](ddr/i0063-01-機構自身の単体テストは.claude_scripts_test配下へ置く.md)
 - [i0064-01-issueの分割は並列列挙構造を主トリガーにAIが提案し人間が決定する.md](ddr/i0064-01-issueの分割は並列列挙構造を主トリガーにAIが提案し人間が決定する.md)
-- [i0066-01-HANDOFFのヘッダ表記を1つに定めset-headerは見つからなければ失敗させる.md](ddr/i0066-01-HANDOFFのヘッダ表記を1つに定めset-headerは見つからなければ失敗させる.md)
+- [i0066-01-HANDOFFのヘッダ表記を1つに定めset-headerは見つからなければ失敗させる.md](ddr/i0066-01-HANDOFFのヘッダ表記を1つに定めset-headerは見つからなければ失敗させる.md)（却下3で「正しい挙動が決まっていない」としたissue #140は、i0140-01で決着した（mark-skip自身がその場で拒否する））
 - [i0067-01-作業開始時のベースブランチ追従確認は専用スクリプトで検知しユーザー確認を挟む.md](ddr/i0067-01-作業開始時のベースブランチ追従確認は専用スクリプトで検知しユーザー確認を挟む.md)
 - [i0068-01-issue起票前の重複チェックは検索をProvider層へ置きキーワード抽出はAIに委ねる.md](ddr/i0068-01-issue起票前の重複チェックは検索をProvider層へ置きキーワード抽出はAIに委ねる.md)
 - [i0077-01-敵対的レビューは専任サブエージェントで独立コンテキストに切り出す.md](ddr/i0077-01-敵対的レビューは専任サブエージェントで独立コンテキストに切り出す.md)
@@ -140,4 +141,5 @@ frontmatter（`status` / `superseded_by` / `note`）だけから決まる。
 - [i0117-01-削除済み追跡ファイルの除外はextract-frontmatter側で行う.md](ddr/i0117-01-削除済み追跡ファイルの除外はextract-frontmatter側で行う.md)（本文中の「flow-id 5-4」（削除をコミットする手順）は当時の番号。issue #111 の統括レポート追加により現在は flow-id 5-5。DDR i0111-01 参照）
 - [i0133-01-DDR識別子はissue番号ベースにし連番採番をやめる.md](ddr/i0133-01-DDR識別子はissue番号ベースにし連番採番をやめる.md)
 - [i0135-01-DDR一覧は生成物にしつつGit管理下へ残す.md](ddr/i0135-01-DDR一覧は生成物にしつつGit管理下へ残す.md)
+- [i0140-01-mark-skipはループ範囲の一部指定を書き換え後の状態で拒否する.md](ddr/i0140-01-mark-skipはループ範囲の一部指定を書き換え後の状態で拒否する.md)
 <!-- END GENERATED: ddr-list -->

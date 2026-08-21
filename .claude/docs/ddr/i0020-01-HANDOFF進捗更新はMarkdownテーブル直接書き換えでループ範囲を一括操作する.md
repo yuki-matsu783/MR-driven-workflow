@@ -1,6 +1,7 @@
 ---
 title: i0020-01. HANDOFF進捗更新はMarkdownテーブル直接書き換えでループ範囲を一括操作する
 type: ddr
+note: 'うち「mark-skipで作った不整合は後段のmark-done/add-roundで表面化する」は、issue #140でmark-skip自身がその場で拒否する形へ変更された。詳細はi0140-01'
 description: update-handoff-progress.shの実装方式として、構造化データへの状態移行を却下しHANDOFF.mdのMarkdownテーブルを直接書き換える方式を採用し、ループ範囲は常に一括操作する制約を採用した理由
 tags: [ddr, update-handoff-progress, handoff]
 keywords: [update-handoff-progress, HANDOFF, ループ範囲, Markdownテーブル, 構造化データ, mark-skip, mark-done]
