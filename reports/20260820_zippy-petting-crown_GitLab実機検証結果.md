@@ -676,6 +676,50 @@ diff: 差分なし（完全一致）
 **2は「折りたたまれた差分」の確認にはなっていない。** 402行のファイルを置いても
 `collapsed` が立たなかったため（上記「未完了」）、長いファイルへのスクロールの確認に留まる。
 
+## フェーズ4の実施結果 — 設計反映（flow-id 4-6・1セット目）
+
+計画: `plans/【設計反映】GitLab実機検証の結果をspecとDDRへ反映する.md`
+
+### 反映したもの
+
+| 反映先 | 内容 |
+|---|---|
+| `.claude/docs/spec/issue-mr-workflow.md`「未決定事項・懸念点」 | #61・#68・#13・#86 を**GitHub側のみ残す形へ範囲を絞った**。issue #42 の「GitLab側の重点ファイルリンク・コメントパーマリンクは【未検証】」は**前提そのものが成立しない**ため削除。#48・#45 の「プロジェクト構成（サブグループ）」も削除。差分アンカーの項目はGitLab側の結論（Compareページでは飛ばない）へ書き換え、**折りたたみの挙動を新規項目として追加** |
+| 同「提供関数」表 | `get_diff_anchor_url`（引数名 `<baseUrl>` へ）・`get_diff_anchor_algo`・`add_issue_comment` の【未検証】を除去。**新規3行**（`get_diff_anchor_base_url` / `get_mr_url` / `get_note_url`）を追加 |
+| 同 仕様本文 | 差分アンカーのハッシュ算出方法の節へ、GitLab側の実機確認結果と**「土台にするページはプロバイダで異なる」**を追記。「差分アンカーリンク（Compareページ内の…）」の表記も修正 |
+| 同「影響範囲」 | **`### issue #127` エントリを追加**（不具合2件・変更ファイル・GitHub側の非後退確認・受け入れ条件1の経緯） |
+| `.claude/docs/spec/adversarial-review.md` | 「非インラインのスレッド投稿は未検証」を、run1/run2 の実測値つきで**実機確認済みへ書き換え** |
+| **`.claude/docs/ddr/0059-…md`（新規）** | 差分アンカーの土台の決定。原則・却下案（案A/案C/案B'）・**残した妥協**・DDR 0037 との関係 |
+| `.claude/docs/spec/shell-scripts.md` | 移植表と「GitLab版の実機動作未検証」を、残る範囲（バージョン・エディション）へ絞った |
+| `.claude/scripts/src/vcs/Gitlab.sh` | ヘッダを issue #48/#45/#127 の3段構成へ書き換え。**関数数を 27 と明記**し数え方も残した。関数個別の【未検証】マーカー2件（`gitlab_diff_anchor_algo` / `gitlab_add_issue_comment`）を除去 |
+| **`.claude/docs/spec/gitlab-verification-environment.md`（新規）** | 受け入れ条件8の再現手順を恒久化（**flow-id 4-4 で作成の承認を得た**）。接続手段・PATの扱い・`glab auth status` の終了コード・Webページ取得にPATが効かないこと・差分の描画経路・`glab issue create` の stdout/stderr 分離まで含む |
+| `.claude/docs/README.md` | spec一覧へ新規specを、DDR一覧へ 0059 を追記 |
+
+### 検証結果
+
+| 検証 | 結果 |
+|---|---|
+| frontmatterインデックスの再生成 | `files=108 built=11 reused=97 failed=0`。新規2ファイルとも `index.jsonl` に載った |
+| DDR番号の重複 | 無し |
+| `Gitlab.sh` の関数数 | **27**（ヘッダの記述と一致） |
+| `bash -n .claude/scripts/src/vcs/Gitlab.sh` | 構文OK |
+| 単体テスト | `test_vcs_provider` 170 / `test_search_frontmatter` 114 / `test_extract_frontmatter` 32 / `test_collect_review_points` 17、いずれも `failures=0` |
+
+**「未検証」「未修正」「GitLab remote」の残存を、反映先4ファイルに対して洗い出した**（0件を
+期待するのではなく、1件ずつ分類した）。結果、**取り残しが1件見つかり修正した**。
+
+- **取り残し（修正済み）**: （issue #13）`get_mr_diff_url`/`get_mr_diff_since_url` のURL形式。
+  計画の表からこの項目が落ちていた。GitLabのCompareページはブラウザで表示確認済みなので、
+  GitHub側のみ残す形へ絞った。
+- **意図して残したもの**: GitHub側が未検証の項目（#61 `gh pr ready` / #68 `gh issue list` /
+  #86 `gh issue comment` / #13 GitHubのCompareページ / 差分アンカーのGitHub側スクロール）、
+  バージョン・エディション、折りたたみの挙動（新規追加）、および今回と無関係な項目
+  （Gemini CLI・対応工数レポート・サブエージェント関連）。
+- **触っていないもの**: `## 影響範囲` 配下の過去エントリ（issue #25 / #42 / #86 の変更ファイル
+  一覧に含まれる「【未検証】」の表記）。**point-in-timeの記録であり、書き換えると当時の状態が
+  失われる**（`.claude/rules/docs-workflow.md`）。一括置換を使わず、現在の仕様を説明している節
+  だけを個別に直した。
+
 ## 未完了（範囲内だが、まだ終わっていないこと）
 
 **次の作業へ引き継ぐ。「範囲外」と混同しないこと**（範囲外として spec へ書くと、必要な作業が

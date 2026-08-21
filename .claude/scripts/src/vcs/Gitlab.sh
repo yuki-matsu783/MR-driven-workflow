@@ -7,21 +7,30 @@
 # （Provider.sh が get_provider の判定結果に応じてこのファイルの関数へディスパッチする）。
 # 前提: `glab` CLIがインストール・認証済み（`glab auth login`）であること。
 #
-# 検証状況（issue #48）: ローカルに立てたGitLab CE 18.5.4（Docker）に対し、`glab` 1.114.0から
-# 全13関数を実機実行して動作を確認済み。この検証で見つかった3件の不具合（システムノートの混入・
-# `glab mr note --message`の非推奨・空コミットフォールバックの前提誤り）は修正済み。
-# 以前あった「remoteがGitHubのみのため全関数が未検証」という制約は解消している。
+# 検証状況: ローカルに立てたGitLab CE 18.5.4（Docker）に対し、`glab` 1.114.0から
+# **本ファイルの全関数を実機実行して動作を確認済み**。検証環境の再現手順は
+# .claude/docs/spec/gitlab-verification-environment.md を参照。
 #
-# ただし次の4点は依然として未検証。詳細は
+#   - issue #48: 当時の全13関数を実機実行。3件の不具合（システムノートの混入・
+#     `glab mr note --message`の非推奨・空コミットフォールバックの前提誤り）を修正した。
+#     ただし当時は`get_provider`がself-hostedのGitLab URLを判定できなかったため、
+#     `gitlab_*`関数を直接呼ぶ形で迂回している。
+#   - issue #45: その`get_provider`の判定を修正し、同じ環境で`Provider.sh`経由のディスパッチが
+#     通ることを確認した（**issue #48時点の「未修正」という制約は解消済み**）。
+#   - issue #127: issue #48以降に追加された13関数を`Provider.sh`経由で実機実行し、
+#     **サブグループ・ネストしたnamespaceでの`glab`のプロジェクト解決**（3階層
+#     `grp127/sub127/issue127-verify-sub`）も確認した。この検証で2件の不具合
+#     （差分アンカーの土台がCompareページで機能しない・`gitlab_get_repo_url`の未定義呼び出し）を
+#     検出し修正、あわせて`gitlab_get_diff_anchor_base_url` / `gitlab_mr_has_version_head`の
+#     2関数を追加してこれも確認した。
+#
+# 関数の数え方: issue #48当時13 − 1（`gitlab_get_repo_url`。issue #44が定義を削除し
+# `get_repo_url`へ一本化した）+ issue #127で検証した13 + 同issueで追加した2 = **27**。
+# `grep -c '^gitlab_[a-z0-9_]*()' <本ファイル>` と一致する。
+#
+# 未検証として残るのはバージョン・エディションのみ。確認したのはCE 18.5.4の1バージョンで、
+# gitlab.com（SaaS）・他バージョン・EEでの挙動は未確認である。詳細は
 # .claude/docs/spec/issue-mr-workflow.md の「未決定事項・懸念点」を参照。
-#   - `Provider.sh`経由のディスパッチ: `get_provider`がself-hostedのGitLab URLを判定できない
-#     （issue #45、未修正）ため、検証は`gitlab_*`関数を直接呼ぶ形で行った。
-#   - バージョン・エディション: 確認したのはCE 18.5.4のみ。gitlab.com（SaaS）・他バージョンは未確認。
-#   - プロジェクト構成: 単一プロジェクトでしか確認しておらず、サブグループ・ネストした
-#     namespaceでの`glab`のプロジェクト解決は未確認。
-#   - `gitlab_set_mr_ready`（issue #61で追加した14個目の関数）: 上記の実機検証より後に追加した
-#     ため、この検証には含まれていない。`glab`公式ドキュメントと実装ソースで`--ready`の仕様を
-#     確認したのみである。
 
 gitlab_get_issue() {
   local number="$1"
@@ -325,7 +334,7 @@ gitlab_get_diff_anchor_url() {
   printf '%s#%s\n' "$base_url" "$path_hash"
 }
 
-# 差分アンカーのハッシュ算出に使うアルゴリズム名を返す（純粋関数）。issue #42。【未検証】
+# 差分アンカーのハッシュ算出に使うアルゴリズム名を返す（純粋関数）。issue #42。issue #127 でローカルGitLab CE 18.5.4 に対し実機確認済み（`sha1` を返す）。
 gitlab_diff_anchor_algo() {
   printf 'sha1\n'
 }
@@ -466,7 +475,7 @@ gitlab_add_mr_inline_comments() {
     '{posted: $posted, summarized: $summarized}'
 }
 
-# 任意のissueへ新規コメントを1件投稿する（flow-id 5-2: マージ前の関連issue通知。issue #86。当時のflow-idは 5-3。issue #112 でフェーズ5を並べ替え）。【未検証】
+# 任意のissueへ新規コメントを1件投稿する（flow-id 5-2: マージ前の関連issue通知。issue #86。当時のflow-idは 5-3。issue #112 でフェーズ5を並べ替え）。issue #127 で実機確認済み
 # 宛先がMRである `gitlab_add_mr_comment` とは別関数（エンドポイントが `merge_requests` ではなく
 # `issues` になる）。同関数と同じく安定版のREST APIを直接叩く（`glab issue note --message` は
 # `glab mr note --message` と同様に非推奨の可能性があり、代替のサブコマンドはEXPERIMENTAL扱いの

@@ -286,6 +286,50 @@ diff: 差分なし（完全一致）</pre>
     </div>
   </section>
 
+  <!-- フェーズ4の実施結果 -->
+  <section class="mb-12">
+    <h2 class="text-xl font-bold text-slate-900 mb-1">フェーズ4の実施結果（flow-id 4-6・1セット目: 設計反映）</h2>
+    <p class="text-sm text-slate-600 mb-4">計画: <code>plans/【設計反映】GitLab実機検証の結果をspecとDDRへ反映する.md</code>。新規2ファイル（DDR 0059・検証環境spec）を含む9ファイルへ反映した。</p>
+
+    <div class="overflow-x-auto rounded-lg border border-slate-200 bg-white mb-6">
+      <table class="min-w-full text-sm">
+        <thead class="bg-slate-100"><tr><th class="px-3 py-2 text-left">反映先</th><th class="px-3 py-2 text-left">内容</th></tr></thead>
+        <tbody class="divide-y divide-slate-100">
+          <tr><td class="px-3 py-2"><code>spec/issue-mr-workflow.md</code><br><span class="text-xs text-slate-500">「未決定事項・懸念点」</span></td><td class="px-3 py-2">#61・#68・#13・#86 を<span class="font-semibold">GitHub側のみ残す形へ範囲を絞った</span>。issue #42 の「GitLab側の重点ファイルリンク…【未検証】」は<span class="font-semibold">前提そのものが成立しない</span>ため削除。#48・#45 のサブグループ項目も削除。差分アンカーはGitLab側の結論へ書き換え、<span class="font-semibold">折りたたみの挙動を新規項目として追加</span></td></tr>
+          <tr><td class="px-3 py-2"><code>spec/issue-mr-workflow.md</code><br><span class="text-xs text-slate-500">「提供関数」表・仕様本文</span></td><td class="px-3 py-2">3関数の【未検証】を除去し、<span class="font-semibold">新規3行</span>（<code>get_diff_anchor_base_url</code> / <code>get_mr_url</code> / <code>get_note_url</code>）を追加。ハッシュ算出方法の節へ<span class="font-semibold">「土台にするページはプロバイダで異なる」</span>を追記</td></tr>
+          <tr><td class="px-3 py-2"><code>spec/issue-mr-workflow.md</code><br><span class="text-xs text-slate-500">「影響範囲」</span></td><td class="px-3 py-2"><code>### issue #127</code> エントリを追加（不具合2件・変更ファイル・GitHub側の非後退確認・受け入れ条件1の経緯）</td></tr>
+          <tr class="bg-emerald-50"><td class="px-3 py-2 font-semibold text-emerald-900"><code>ddr/0059-…md</code><br><span class="text-xs font-normal">新規</span></td><td class="px-3 py-2">差分アンカーの土台の決定。原則（<span class="font-semibold">土台が覆う範囲を <code>diff_range</code> と一致させる</span>）・却下案A/C/B'・<span class="font-semibold">残した妥協</span>・DDR 0037 との関係</td></tr>
+          <tr class="bg-emerald-50"><td class="px-3 py-2 font-semibold text-emerald-900"><code>spec/gitlab-verification-environment.md</code><br><span class="text-xs font-normal">新規</span></td><td class="px-3 py-2">受け入れ条件8の再現手順を恒久化（<span class="font-semibold">flow-id 4-4 で作成の承認を得た</span>）。接続手段・PATの扱い・<code>glab auth status</code> の終了コード・Webページ取得にPATが効かないこと・差分の描画経路まで</td></tr>
+          <tr><td class="px-3 py-2"><code>spec/adversarial-review.md</code></td><td class="px-3 py-2">「非インラインのスレッド投稿は未検証」を run1/run2 の実測値つきで<span class="font-semibold">実機確認済みへ書き換え</span></td></tr>
+          <tr><td class="px-3 py-2"><code>spec/shell-scripts.md</code></td><td class="px-3 py-2">移植表と「GitLab版の実機動作未検証」を、残る範囲（バージョン・エディション）へ絞った</td></tr>
+          <tr><td class="px-3 py-2"><code>vcs/Gitlab.sh</code> ヘッダ</td><td class="px-3 py-2">#48/#45/#127 の3段構成へ書き換え。<span class="font-semibold">関数数を 27 と明記</span>し数え方も残した。関数個別の【未検証】マーカー2件を除去</td></tr>
+          <tr><td class="px-3 py-2"><code>docs/README.md</code></td><td class="px-3 py-2">spec一覧へ新規specを、DDR一覧へ 0059 を追記</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="grid gap-6 md:grid-cols-2">
+      <div class="rounded-xl border border-slate-200 bg-white p-5">
+        <h3 class="font-bold text-slate-900 mb-3">検証結果</h3>
+        <ul class="text-sm text-slate-700 space-y-2 list-disc pl-5">
+          <li>frontmatterインデックス再生成: <code>files=108 built=11 reused=97 failed=0</code>。新規2ファイルとも <code>index.jsonl</code> に載った</li>
+          <li>DDR番号の重複: 無し</li>
+          <li><code>Gitlab.sh</code> の関数数: <span class="font-semibold">27</span>（ヘッダの記述と一致）／<code>bash -n</code> 構文OK</li>
+          <li>単体テスト: <code>test_vcs_provider</code> 170 / <code>test_search_frontmatter</code> 114 / <code>test_extract_frontmatter</code> 32 / <code>test_collect_review_points</code> 17、いずれも <code>failures=0</code></li>
+        </ul>
+      </div>
+
+      <div class="rounded-xl border border-amber-200 bg-white p-5">
+        <h3 class="font-bold text-amber-900 mb-3">残存マーカーの洗い出し（0件を期待せず1件ずつ分類した）</h3>
+        <p class="text-sm text-slate-700 mb-2"><span class="font-semibold text-rose-700">取り残しが1件見つかり修正した</span> — （issue #13）<code>get_mr_diff_url</code>/<code>get_mr_diff_since_url</code> のURL形式。計画の表からこの項目が落ちていた。</p>
+        <ul class="text-sm text-slate-700 space-y-2 list-disc pl-5">
+          <li><span class="font-semibold">意図して残した</span>: GitHub側が未検証の項目・バージョン/エディション・折りたたみの挙動（新規追加）・今回と無関係な項目</li>
+          <li><span class="font-semibold">触っていない</span>: <code>## 影響範囲</code> 配下の過去エントリ。<span class="font-semibold">point-in-timeの記録であり書き換えると当時の状態が失われる</span>ため、一括置換を使わず現在の仕様を説明している節だけを個別に直した</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
   <!-- 解消した未決定事項 -->
   <section class="mb-12">
     <h2 class="text-xl font-bold text-slate-900 mb-3">spec の「未決定事項・懸念点」への効果</h2>
@@ -295,8 +339,12 @@ diff: 差分なし（完全一致）</pre>
         <tbody class="divide-y divide-slate-100">
           <tr><td class="px-3 py-2">(issue #61) <code>gitlab_set_mr_ready</code> は実機未検証</td><td class="px-3 py-2 text-amber-700 font-semibold">GitLab側のみ解消（<code>gh pr ready</code> は未検証のまま）</td></tr>
           <tr><td class="px-3 py-2">(issue #68) <code>search_issues</code> のCLI経路が実機未検証／<code>--all</code> の名称差</td><td class="px-3 py-2 text-amber-700 font-semibold">GitLab側のみ解消（<code>gh issue list --state all</code> は未検証のまま）</td></tr>
+          <tr><td class="px-3 py-2">(issue #86) <code>add_issue_comment</code> のCLI経路が実機未検証</td><td class="px-3 py-2 text-amber-700 font-semibold">GitLab側のみ解消（<code>gh issue comment</code> は未検証のまま）</td></tr>
+          <tr><td class="px-3 py-2">(issue #42) GitLab側の重点ファイルリンク・コメントパーマリンクは【未検証】</td><td class="px-3 py-2 text-emerald-700 font-semibold">解消（<span class="font-normal">前提「GitLab remoteが無い」自体が成立しないため項目ごと削除</span>）</td></tr>
           <tr><td class="px-3 py-2">(issue #48・#45) プロジェクト構成（サブグループ）</td><td class="px-3 py-2 text-emerald-700 font-semibold">解消</td></tr>
-          <tr><td class="px-3 py-2">(issue #13) URL形式のブラウザ未検証</td><td class="px-3 py-2 text-amber-700 font-semibold">一部（自動確認は完了、目視は依頼中）</td></tr>
+          <tr><td class="px-3 py-2">(issue #13) Compare URL形式のブラウザ未検証</td><td class="px-3 py-2 text-amber-700 font-semibold">GitLab側のみ解消（GitHubのCompareページは未検証のまま）</td></tr>
+          <tr><td class="px-3 py-2">(issue #42) 差分アンカーがブラウザでスクロールするか</td><td class="px-3 py-2 text-amber-700 font-semibold">GitLab側は結論が出た（土台がCompareページでは飛ばない）が、<span class="font-semibold">修正後の目視確認は未完了</span></td></tr>
+          <tr><td class="px-3 py-2 text-rose-700">(issue #127・新規) GitLabの折りたたまれた差分に対するアンカーの挙動</td><td class="px-3 py-2 text-rose-700 font-semibold">未検証項目として追加（再現条件が未特定）</td></tr>
           <tr><td class="px-3 py-2">バージョン・エディション（gitlab.com / EE）</td><td class="px-3 py-2 text-slate-500">範囲外のまま</td></tr>
         </tbody>
       </table>

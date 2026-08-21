@@ -26,7 +26,7 @@ PowerShellはWSL等の非Windows的なシェル環境から扱いにくいため
 |---|---|---|
 | `dev-tools/src/vcs/Provider.ps1` | `.claude/scripts/src/vcs/Provider.sh` | issue-mr-flowの中核。GitHub/GitLab差異吸収 |
 | `dev-tools/src/vcs/Github.ps1` | `.claude/scripts/src/vcs/Github.sh` | `gh` CLIラッパー |
-| `dev-tools/src/vcs/Gitlab.ps1` | `.claude/scripts/src/vcs/Gitlab.sh` | `glab` CLIラッパー（未検証。GitLab実remoteが無いため） |
+| `dev-tools/src/vcs/Gitlab.ps1` | `.claude/scripts/src/vcs/Gitlab.sh` | `glab` CLIラッパー（ローカルGitLab CE 18.5.4 に対し全27関数を実機検証済み。issue #48・#45・#127） |
 | `.claude/hooks/session-start.ps1` | `.claude/hooks/session-start.sh` | SessionStart hook |
 | `.claude/hooks/post-push-usage-report.ps1` | `.claude/hooks/post-push-usage-report.sh` | PostToolUse hook（使用量レポート） |
 | `.claude/hooks/lib/UsageTracking.ps1` | `.claude/hooks/lib/UsageTracking.sh` | 上記hookの共通集計ロジック |
@@ -162,8 +162,12 @@ PowerShellはWSL等の非Windows的なシェル環境から扱いにくいため
 
 ## 未決定事項・懸念点
 
-- **GitLab版の実機動作未検証**: `Gitlab.sh`はPowerShell版`Gitlab.ps1`と同様、このリポジトリの
-  実remoteがGitHubのみのため未検証。GitLabリポジトリで実際に使う前に動作確認が必要。
+- **GitLab版の未検証範囲はバージョン・エディションのみ**: かつては「このリポジトリの実remoteが
+  GitHubのみ」を理由に `Gitlab.sh` 全体が未検証だったが、ローカルに立てたGitLab CE 18.5.4
+  （Docker）＋ `glab` 1.114.0 に対し、issue #48・#45・#127 を通じて**全27関数を `Provider.sh`
+  経由で実機実行**し、サブグループ配下でのプロジェクト解決まで確認した（検証環境の再現手順は
+  [gitlab-verification-environment.md](gitlab-verification-environment.md)）。
+  **残るのは gitlab.com（SaaS）・CE 18.5.4 以外のバージョン・EE での挙動**である。
 - **hook起動コマンドのPATH依存はマシンごとの手動セットアップが必要**: `"bash"`のみ・PATH解決方式を
   採用した経緯・却下案は
   [dev-tools/docs/ddr/0007-hookのcommandはbashのPATH解決方式へ変更.md](../ddr/0007-hookのcommandはbashのPATH解決方式へ変更.md)

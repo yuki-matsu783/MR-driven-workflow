@@ -385,6 +385,10 @@ issue #77 で追加・変更したもの。
   持たない。件数が増えた場合の扱いは未定。GitLab側は `discussions` で1つのスレッドとして投稿する
   ようにしたため解決状態を持つ（上記「インライン以外のコメントもスレッドで投稿する」）が、
   スレッド内の指摘は個別には解決できない。
-- **非インラインのスレッド投稿は未検証。** このリポジトリにGitLab remoteが無く、
-  `gitlab_add_mr_thread` を実機で叩けていない（`position` を持たない `discussions` へのPOSTと、
-  それがMR上で解決可能なスレッドになることの確認）。同ファイルの他のGitLab関数と同じ扱い。
+- **非インラインのスレッド投稿は実機確認済み**（issue #127）。ローカルGitLab CE 18.5.4 に対し
+  `add_mr_inline_comments` を2回実行し、`gitlab_summary_post_kind` の**両分岐を通した**。
+  - run1（有効な指摘3件・サマリ0件）→ `{"posted":3,"summarized":0}`。サマリは投稿されない。
+  - run2（有効2件・不正な行を指す1件）→ `{"posted":2,"summarized":1}`。サマリが
+    `individual_note=false` / `resolvable=true` の**解決可能なスレッド**として投稿された
+    （`position` を持たない `discussions` へのPOSTが通ることの確認を含む）。
+  - 残る未検証はバージョン・エディション（gitlab.com・CE 18.5.4以外・EE）のみ。

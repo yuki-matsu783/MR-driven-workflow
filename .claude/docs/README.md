@@ -40,6 +40,7 @@ keywords: [正史仕様, 意思決定ログ, issue-mr-workflow, シェルスク�
 - [adversarial-review.md](spec/adversarial-review.md) ── 敵対的レビュー（専任サブエージェント・インラインコメント投稿）
 - [cleanup-task.md](spec/cleanup-task.md) ── flow-id 5-3 後片付けの自動化スクリプト
 - [search-frontmatter.md](spec/search-frontmatter.md) ── ドキュメント横断検索スクリプト（index.jsonl検索）
+- [gitlab-verification-environment.md](spec/gitlab-verification-environment.md) ── GitLab検証環境（Docker + glab）の再現手順
 
 ## ddr（意思決定ログ）
 
@@ -105,3 +106,4 @@ DDRのうち0001・0002・0008・0015は持ち込んでいない**（連番に�
 - [0056-作業開始時のベースブランチ追従確認は専用スクリプトで検知しユーザー確認を挟む.md](ddr/0056-作業開始時のベースブランチ追従確認は専用スクリプトで検知しユーザー確認を挟む.md)
 - [0057-削除済み追跡ファイルの除外はextract-frontmatter側で行う.md](ddr/0057-削除済み追跡ファイルの除外はextract-frontmatter側で行う.md)
 - [0058-フェーズ5は片付けをcommit直前へ移した順序に並べ替える.md](ddr/0058-フェーズ5は片付けをcommit直前へ移した順序に並べ替える.md)
+- [0059-差分アンカーの土台はプロバイダごとに分けGitLabはMR差分ページを使う.md](ddr/0059-差分アンカーの土台はプロバイダごとに分けGitLabはMR差分ページを使う.md)

@@ -99,7 +99,7 @@ MRとのやり取りだけを自動化する薄い層」として設計したが
 | `set_mr_ready <n>` | Draft PR/MRのDraft状態を解除し、レビュー・マージ可能な状態にする（全体フロー flow-id 5-4。Draft作成側の `new_draft_merge_request` に対応する解除側。issue #61） | `gh pr ready` | `glab mr update --ready` |
 | `add_mr_comment <n> <bodyFile>` | PR/MRへ新規コメントを1件投稿（スレッド返信・レビューではない通常コメント） | `gh pr comment --body-file` | `glab api`（notes追加） |
 | `add_mr_inline_comments <n> <findingsFile>` | findings JSONファイルの指摘を、PR/MRへインラインコメントとして投稿する（敵対的レビュー用。issue #77）。投稿できなかった指摘はサマリへ回し、`{"posted":N,"summarized":M}` を返す。findingsは**必ずファイル経由で渡す**（引数長上限とhook誤検知の回避）。仕様は [adversarial-review.md](adversarial-review.md) を正とする | `gh api pulls/<n>/reviews`（1レビューへまとめて投稿。有効行を事前検証） | `glab api discussions`（1件ずつPOST。`position` を `diff_refs` から組み立てる。サマリも指摘を含むなら `position` 無しの `discussions` でスレッドとして投稿する） |
-| `add_issue_comment <n> <bodyFile>` | **任意のissue**へ新規コメントを1件投稿（全体フロー flow-id 5-2: マージ前の関連issue通知。issue #86）。宛先がPR/MRである `add_mr_comment` とは別関数で、GitHub実装が `gh pr comment` であるためPR以外へ投げられなかったのが分離の理由。本文はファイル経由（push検知hookの誤発火を避けるため）。投稿先・本文の決定と人間の承認は呼び出し側の責務 | `gh issue comment --body-file` | `glab api`（issues notes追加。【未検証】） |
+| `add_issue_comment <n> <bodyFile>` | **任意のissue**へ新規コメントを1件投稿（全体フロー flow-id 5-2: マージ前の関連issue通知。issue #86）。宛先がPR/MRである `add_mr_comment` とは別関数で、GitHub実装が `gh pr comment` であるためPR以外へ投げられなかったのが分離の理由。本文はファイル経由（push検知hookの誤発火を避けるため）。投稿先・本文の決定と人間の承認は呼び出し側の責務 | `gh issue comment --body-file` | `glab api`（issues notes追加） |
 | `sync_branch <branch>` | 現在のブランチをfetch、必要ならcheckout（新しいセッションでの再開用） | `git fetch` + `git checkout` | 同左 |
 | `test_issue_sections <body>` | issue本文に「目的／現状／期待する動作／受け入れ条件」の4見出しが揃っているか確認し、欠けている見出し名を1行1件でstdoutへ出力する（プロバイダ非依存） | — | — |
 | `get_issue_number_from_branch [<branch>]` | ブランチ名を `branchPrefixTemplate` に照らしてissue番号を抽出する（省略時は現在のブランチ）。マッチすればstdoutへ出力し終了コード0、マッチしなければ終了コード1（プロバイダ非依存） | — | — |
@@ -108,8 +108,11 @@ MRとのやり取りだけを自動化する薄い層」として設計したが
 | `get_mr_diff_url <repoUrl> <baseBranch> <headBranch>` | MR/PRの「defaultブランチとの差分」を見れるURLを組み立てる（純粋関数。`repoUrl`は`get_repo_url`の戻り値を渡す。issue #13） | `<repoUrl>/compare/<baseBranch>...<headBranch>` | `<repoUrl>/-/compare/<baseBranch>...<headBranch>` |
 | `get_mr_diff_since_url <repoUrl> <fromSha> <toSha>` | MR/PRの「前回push時点(`fromSha`)から今回push時点(`toSha`)までの差分」を見れるURLを組み立てる（純粋関数。issue #13） | `<repoUrl>/compare/<fromSha>...<toSha>` | `<repoUrl>/-/compare/<fromSha>...<toSha>` |
 | `get_blob_url <repoUrl> <ref> <path>` | 特定ファイルの「その`ref`時点の本体」を開くblobページのURLを組み立てる（純粋関数。`path`は`url_encode_path_to_reply`でencode済みのものを渡す。issue #42） | `<repoUrl>/blob/<ref>/<path>` | `<repoUrl>/-/blob/<ref>/<path>` |
-| `get_diff_anchor_url <compareUrl> <pathHash>` | Compareページ内の特定ファイルの差分位置を指すアンカー付きURLを組み立てる（純粋関数。issue #42） | `<compareUrl>#diff-<pathHash>` | `<compareUrl>#<pathHash>` |
-| `get_diff_anchor_algo` | 差分アンカーのハッシュ算出に使うアルゴリズム名を返す（純粋関数。issue #42） | `sha256` | `sha1`（【未検証】） |
+| `get_diff_anchor_base_url <compareUrl> <mrUrl> <n> <sinceSha>` | 差分アンカーの**土台にするページ**のURLを返す（issue #127）。**同じハッシュでも土台にするページによってアンカーが効くかが変わる**ため、プロバイダごとに分ける。土台が覆う範囲は、呼び出し側が作るファイル一覧の供給元（`diff_range`）と一致させる。詳細・却下案は [DDR 0059](../ddr/0059-差分アンカーの土台はプロバイダごとに分けGitLabはMR差分ページを使う.md) | `<compareUrl>`（Compareページのまま。issue #42 で実機確認済み） | `<mrUrl>/diffs`（初回push）／`<mrUrl>/diffs?start_sha=<sinceSha>`（2回目以降）。**Compareページではアンカーが機能しない**。`sinceSha` がMRバージョンのheadでなければ前者へ縮退する（GitLabは不正なSHAをエラーにせず0ファイルを返すため） |
+| `get_diff_anchor_url <baseUrl> <pathHash>` | 差分ページ内の特定ファイルの差分位置を指すアンカー付きURLを組み立てる（純粋関数。issue #42）。`baseUrl` には `get_diff_anchor_base_url` の戻り値を渡す | `<baseUrl>#diff-<pathHash>` | `<baseUrl>#<pathHash>` |
+| `get_diff_anchor_algo` | 差分アンカーのハッシュ算出に使うアルゴリズム名を返す（純粋関数。issue #42）。**ハッシュの入力はpercent-encode前の生パス**（encodeが必要な `get_blob_url` とは逆） | `sha256` | `sha1`（issue #127 で実機確認済み。`diff-` 接頭辞は付かない） |
+| `get_mr_url <repoUrl> <n>` | MR/PR本体のページURLを組み立てる（純粋関数。issue #42、ディスパッチャ追加は issue #127） | `<repoUrl>/pull/<n>` | `<repoUrl>/-/merge_requests/<n>` |
+| `get_note_url <mrUrl> <noteId>` | レビューコメントの公式パーマリンクを組み立てる（純粋関数。issue #42、ディスパッチャ追加は issue #127）。**本番経路で使うのはGitLabだけ**で、GitHubはGraphQLが `comment { url }` を返すため組み立てる必要が無い（GitHub実装は名前を揃えるための対応物） | `<mrUrl>#discussion_r<noteId>` | `<mrUrl>#note_<noteId>` |
 | `url_encode_path_to_reply <path>` | パスをURLへ埋め込める形へpercent-encodeし、結果を`REPLY`へ返す（プロバイダ非依存の純粋関数。unreserved文字と`/`は残し、それ以外はUTF-8のバイト単位で`%XX`へ変換する。issue #42） | — | — |
 | `hash_paths <algo> <path>...` | 渡した各**パス文字列**（ファイルの中身ではない）のハッシュを引数と同じ順序で1行ずつ返す（差分アンカー用。issue #42）。件数に比例して`sha256sum`を起動しないよう一時ファイルへ書き出して1回で計算する | `sha256sum` | `sha1sum` |
 | `get_branch_work_files` | 現在のブランチ固有（`<defaultBaseBranch>` に無い）の `plans/` `worklog/` `reports/` ファイル一覧を返す（プロバイダ非依存）。日本語を含むパスをそのまま返すため `-c core.quotepath=false` を指定している（issue #9。詳細は「計画の2階層構造」節）。**出力は常に「1行＝1つの実在するパス」**で、改名されたファイルは新パスのみを返す（issue #115。下記「日本語ファイル名を扱う際の注意」） | — | — |
@@ -1201,7 +1204,7 @@ issue #11「git pushイベントを検知してcompactする」への対応と�
   の差分に含まれるファイルごとに2種のURLを組み立て、**候補として**`additionalContext`へ渡す。
   - **blobリンク**（該当push時点のファイル本体）: `get_blob_url <repoUrl> <今回pushのHEAD SHA>
     <encode済みパス>`。GitHub `/blob/<ref>/<path>`、GitLab `/-/blob/<ref>/<path>`。
-  - **差分アンカーリンク**（Compareページ内の該当ファイル位置）: `get_diff_anchor_url
+  - **差分アンカーリンク**（差分ページ内の該当ファイル位置。土台はプロバイダで異なる。下記）: `get_diff_anchor_url
     <compareUrl> <pathHash>`。GitHub `#diff-<パスのsha256>`、GitLab `#<パスのsha1>`。
     `compareUrl` は差分範囲と対になるもの（初回pushはdefaultブランチとの差分、2回目以降は
     前回pushとの差分）を使う。
@@ -1225,7 +1228,19 @@ issue #11「git pushイベントを検知してcompactする」への対応と�
     ?range=<from>...<to>"` で遅延読込しており、この断片HTMLに `id="diff-<sha256(パス)>"` が
     出力される。本リポジトリの75ファイルぶんの範囲で、ローカル計算した`sha256sum`の値と
     GitHubが出力したアンカーが**全件一致**することを確認した（日本語ファイル名を含む）。
-    GitLab側（パスのsha1）は本リポジトリにGitLab remoteが無いため**【未検証】**。
+    GitLab側（パスのsha1、`diff-` 接頭辞なし）も issue #127 でローカルGitLab CE 18.5.4 に対し
+    実機確認済みで、`diffs_stream` 断片の `id=` 属性・`diff_files_metadata` の `file_hash`・
+    `hash_paths` の値が一致した。**ハッシュの入力はpercent-encode前の生パス**であり、
+    encodeが必須の `get_blob_url` とは逆である点に注意する。
+  - **アンカーの土台にするページはプロバイダで異なる**（issue #127）。**同じハッシュでも、
+    土台にするページによって効く／効かないが変わる。** GitHubはCompareページ上で機能するが、
+    GitLabのCompareページは差分を非同期にストリーム描画するため機能せず、MRの差分ページ
+    （`/-/merge_requests/<iid>/diffs`）でないと飛ばない。土台の決定は
+    `get_diff_anchor_base_url` がプロバイダごとに行い、**土台が覆う範囲を上記の
+    「重点ファイルの差分範囲」（`diff_range`）と一致させる**（一致していないと、一覧には
+    載るのに土台ページには存在しないファイルが生じ、アンカーが着地先を失う）。
+    経緯・却下案は
+    [DDR 0059](../ddr/0059-差分アンカーの土台はプロバイダごとに分けGitLabはMR差分ページを使う.md)。
 - **返信コメントへのリンク（issue #42）**: 2回目以降のpush（＝レビュー指摘対応のpush）では、
   「このpushでレビュー指摘へ返信した場合はその返信コメントのURLも含める」旨の指示文を追加で渡す。
   URLの入手元は`reply`サブコマンドの出力（`add_mr_thread_reply`の戻り値）または`comments`の
@@ -2777,26 +2792,65 @@ issue #97でレポートのフッター署名がengineごとに切り替わる�
   `get_branch_work_files` の説明を更新、「改名されたファイルの扱い（issue #115）」節を追加、
   「日本語ファイル名を扱う際の注意」を現状に合わせて更新、本項）
 
+### issue #127（GitLab側13関数とURL形式の実機検証・差分アンカーの土台の修正）
+
+issue #48 の実機検証を受けていない13関数（issue #42・#61・#68・#77・#86・#121 で追加されたもの）を、
+ローカルGitLab CE 18.5.4 ＋ `glab` 1.114.0 に対し **`Provider.sh` 経由で**実機実行した。
+検証環境の再現手順は [gitlab-verification-environment.md](gitlab-verification-environment.md)。
+
+**不具合を2件検出し修正した。**
+
+1. **差分アンカーの土台がCompareページで、GitLabでは機能しない。** ハッシュ（パスのsha1）は
+   正しいが、GitLabのCompareページは差分を非同期にストリーム描画するため、ブラウザが
+   フラグメントを解決する時点で対象要素が存在しない。土台の決定を
+   `get_diff_anchor_base_url` へ委ね、GitLabはMR差分ページ＋前回push以降の絞り込みを使う形に
+   した（経緯・却下案:
+   [DDR 0059](../ddr/0059-差分アンカーの土台はプロバイダごとに分けGitLabはMR差分ページを使う.md)）。
+2. **`gitlab_get_repo_url` が未定義のまま2箇所から呼ばれていた。** issue #42 が呼び出しを足し、
+   issue #44 が定義を削除して `get_repo_url` へ一本化した際、**呼び出し側だけが取り残された**
+   （並行ブランチで、gitがコンフリクトと見なさない semantic conflict）。`2>/dev/null` が
+   `command not found` を握りつぶすため、`get_mr_unresolved_comments` の `url=` と
+   `add_mr_thread_reply` の戻り値が**無言で空になっていた**。単体テストは `gitlab_get_mr_url` /
+   `gitlab_get_note_url` を直接呼んでいたため緑のままだった。
+
+**変更したファイル**
+
+| ファイル | 変更 |
+|---|---|
+| `.claude/scripts/src/vcs/Provider.sh` | `get_diff_anchor_base_url` / `get_mr_url` / `get_note_url` の3ディスパッチャを新設。`get_diff_anchor_url` の第1引数の意味を「CompareページのURL」から「土台ページのURL」へ変更（引数名も `base_url` へ） |
+| `.claude/scripts/src/vcs/Github.sh` | `github_get_diff_anchor_base_url`（恒等）/ `github_get_mr_url` / `github_get_note_url` を新設 |
+| `.claude/scripts/src/vcs/Gitlab.sh` | `gitlab_get_diff_anchor_base_url` / `gitlab_mr_has_version_head` を新設。未定義呼び出しを `get_repo_url` へ修正（2箇所） |
+| `.claude/hooks/post-push-compact-prompt.sh` | 土台URLの決定を `get_diff_anchor_base_url` へ委譲。`mr_number` を取得 |
+| `.claude/scripts/test/test_vcs_provider.sh` | 未定義の `github_*`/`gitlab_*` 呼び出しの静的検出、接頭辞を持たない共有関数の定義の表明、呼び出し経路を通すテスト、`get_diff_anchor_base_url` の分岐テストを追加 |
+
+**GitHub側の挙動は変えていない。** 変更前後の `build_file_links_text` を同一入力で実行して
+突き合わせ、出力が完全一致することを確認した（テストの追加だけでは、変更時点で生じた劣化を
+検出できないため）。
+
+**受け入れ条件1（`Provider.sh` 経由での実行）は、`get_mr_url` / `get_note_url` の2件について
+当初未達だった。** 踏み台にするはずだった公開関数が不具合2で到達不能だったためで、
+ディスパッチャを追加して再実行し解消した。`add_mr_thread` はディスパッチャを追加していない
+（GitHubに対応物が無く、揃えると振る舞い差が残るため）。
+
 ## 未決定事項・懸念点
 
-- **（issue #61）`gitlab_set_mr_ready` は実機未検証**: 本対応の実行環境（Claude Code on the web の
-  リモート実行環境）には `gh`・`glab` のいずれも存在せず、issue #48 で使ったローカルGitLab CE も
-  再現できなかったため、`glab mr update <id> --ready` を実際に実行した確認はできていない。
-  実装の根拠にしたのは次の2つで、いずれも `--ready` フラグの存在と意味が一致している。
-  - 公式ドキュメント `docs/source/mr/update.md`（gitlab-org/cli, main）: `--ready` は
-    「Mark merge request as ready to be reviewed and merged.」、用例として `glab mr update 23 --ready`
-    が記載されている。
-  - 実装ソース `internal/commands/mr/update/mr_update.go`（同 main）: `--ready` 指定時に
-    `(?i)^(\s*(?:draft:|wip:)\s*)*` でタイトル先頭の `Draft:` / `WIP:` を除去した新タイトルを
-    更新APIへ送る（GitLabがDraftをタイトル接頭辞で表現するため）。接頭辞が無いMRに対しては
-    タイトルが変わらないだけでエラーにならず、冪等に呼べる。
+- **（issue #61）`set_mr_ready`: GitHub側のみ実機未検証**: issue #61 の対応時の実行環境
+  （Claude Code on the web のリモート実行環境）には `gh`・`glab` のいずれも存在せず、
+  ローカルGitLab CE も再現できなかったため、実行しての確認ができていなかった。
+  **GitLab側は issue #127 で解消した。** `glab` 1.114.0 / CE 18.5.4 に対し `set_mr_ready` を
+  `Provider.sh` 経由で実行し、次の3ケースを確認した。
+  - 単一接頭辞 `Draft: issue127 検証用MR` → `issue127 検証用MR`（`draft=false`）。
+  - 接頭辞なしのMRへ再実行しても変化なし・エラーなし（**冪等**）。
+  - **二重接頭辞 `Draft: Draft: 検証MR` が1回の呼び出しで完全に除去された**。`glab` 側の除去
+    正規表現 `(?i)^(\s*(?:draft:|wip:)\s*)*` が繰り返しにマッチするという実装ソースの読みが
+    実機で裏付けられた。
 
-  あわせて、GitHub側の `github_set_mr_ready`（`gh pr ready`）も本環境では実行できていない。
-  確認できたのは、`Provider.sh` 経由の `set_mr_ready` が (a) CLI不在時に `require_vcs_cli` で
-  正しいMCPツール名（`mcp__github__update_pull_request` の `draft=false`）を提示して失敗すること、
+  **GitHub側の `github_set_mr_ready`（`gh pr ready`）は未検証のまま残る。** 確認できているのは、
+  `Provider.sh` 経由の `set_mr_ready` が (a) CLI不在時に `require_vcs_cli` で正しいMCPツール名
+  （`mcp__github__update_pull_request` の `draft=false`）を提示して失敗すること、
   (b) プロバイダ判定に応じて `github_set_mr_ready` / `gitlab_set_mr_ready` へ正しく委譲すること、
   の2点である（後者はプロバイダ固有関数をスタブへ差し替えて確認した）。
-  `gh`/`glab` が使えるローカル環境で実PRに対して実行し、確認できた時点で本項目を削除する。
+  `gh` が使える環境で実PRに対して実行し、確認できた時点で本項目を削除する。
 
 - **（issue #57）`.gemini/settings.json` の SessionStart matcher は `startup|resume|clear` のまま**:
   `.claude/settings.json` 側には `compact` を追加したが、Gemini CLI の SessionStart matcher が
@@ -2815,16 +2869,20 @@ issue #97でレポートのフッター署名がengineごとに切り替わる�
   ... --output json` を実際に実行しての確認ができていない。検証済みなのは、
   (1) `require_vcs_cli`が`search_issues`に対し`mcp__github__search_issues`を名指しして失敗すること、
   (2) 正規化・統合の純粋関数がCLI出力形式を模したフィクスチャに対して期待どおり動くこと
-  （`.claude/scripts/test/test_vcs_provider.sh`）の2点のみ。**特にGitLab側の`--all`フラグ
-  （opened/closed両方を対象にする指定）は`glab`のバージョンによって名称が異なる可能性がある**ため、
-  `glab`が使える環境での最初の利用時に確認すること。
+  （`.claude/scripts/test/test_vcs_provider.sh`）の2点のみ。
+  **GitLab側は issue #127 で解消した。** `glab issue list --search ... --all --per-page ...
+  --output json` を `Provider.sh` 経由で実行し、`--all` が `glab` 1.114.0 で機能して
+  closed のissueも返ることを確認した（正規化後の並びが `sort_by(.number) | reverse` と
+  整合することも確認）。**`gh issue list --search ... --state all --json ...` は未検証のまま**
+  であり、`gh` が使える環境での最初の利用時に確認すること。
 
-- **（issue #13）`get_mr_diff_url`/`get_mr_diff_since_url`のURL形式は実機（ブラウザ）で未検証**:
+- **（issue #13）`get_mr_diff_url`/`get_mr_diff_since_url`のURL形式: GitHub側のみブラウザ未検証**:
   GitHub実装（`<repoUrl>/compare/<from>...<to>`）はPR作成前から存在する汎用の「Compare changes」
   ページの標準URL形式に基づいており、PR個別のサブタブ形式（当初案の`/files/<from>..<to>`）より
-  安定していると考えられるが、本対応ではブラウザでの表示確認まではできていない。GitLab実装
-  （`<repoUrl>/-/compare/<from>...<to>`）についても、issue #48のGitLab実機検証で確認したのは
-  API経由の動作のみで、ブラウザでのCompareページ表示は確認していない。
+  安定していると考えられるが、issue #13 の対応時点ではブラウザでの表示確認までできていない。
+  **GitLab実装（`<repoUrl>/-/compare/<from>...<to>`）は issue #127 で解消した。** 生成したURLを
+  ブラウザで開き、Compareページが意図した2ref間の差分を表示することを目視確認している
+  （**ただしこのページを土台にした差分アンカーは機能しない**。上記の差分アンカーの項目を参照）。
 - **（issue #48・#45で部分解消）GitLab側の動作未検証**: かつては「このリポジトリの実remoteはGitHubのみ」を
   理由に`Gitlab.sh`全体が未検証だったが、issue #48でローカルにGitLab CE 18.5.4（Docker）を立て、
   `glab` 1.114.0から**全13関数を実機実行して動作を確認した**（`gitlab_get_mr_unresolved_comments`の
@@ -2835,11 +2893,20 @@ issue #97でレポートのフッター署名がengineごとに切り替わる�
   （`get_provider` / `get_repo_url` / `get_issue` / `get_mr_for_branch` /
   `get_mr_unresolved_comments` / `add_mr_comment` / `set_mr_description` / `add_mr_thread_reply` /
   `get_mr_diff_url` / `get_mr_diff_since_url` / `get_workflow_config` /
-  `get_issue_number_from_branch`）。残る未検証範囲は次の2点。
-  - **バージョン・エディション**: 確認したのはCE 18.5.4の1バージョンのみ。gitlab.com（SaaS）・
-    他バージョンでの挙動は未検証。
-  - **プロジェクト構成**: 単一プロジェクト（`root/issue45-verify`）でしか確認しておらず、
-    サブグループ・ネストしたnamespaceでの`glab`のプロジェクト解決は未検証。
+  `get_issue_number_from_branch`）。
+  **issue #127 で、issue #48以降に追加された13関数も同じ環境で確認した**（詳細は下記）。
+  **残る未検証範囲は「バージョン・エディション」の1点だけ**である。確認したのはCE 18.5.4の
+  1バージョンのみで、gitlab.com（SaaS）・他バージョン・EEでの挙動は未検証。
+  - **プロジェクト構成（サブグループ）は issue #127 で解消した。** 3階層namespace
+    （`grp127/sub127/issue127-verify-sub`）へプロジェクトを作り、`glab` が解決できること・
+    `get_repo_slug` の `owner` に `grp127/sub127` が入ることを確認した。
+  - **issue #127 の13関数の確認の粒度**: 公開ディスパッチャを持つものは `Provider.sh` の
+    公開関数を**直接**呼んで確認した。`get_mr_url` / `get_note_url` は**同issueで
+    ディスパッチャを追加**したうえで直接呼んでいる。`add_mr_thread` /
+    `build_discussion_body` / `summary_post_kind` の3つは**ディスパッチャを持たず**、
+    `add_mr_inline_comments` 経由の**間接確認**である（`add_mr_thread` は意図的に
+    ディスパッチャを追加していない。GitHubはサマリをレビュー本文へ載せる設計で対応物が無く、
+    揃えると振る舞い差が残るため）。
 - **他リポジトリへの移植性の検証**: `.mrworkflow.json` による切り出しで足りるか、実際に他リポジトリへ
   導入してみないと確認できない。
 - **（issue #22で対応済み）全角文字のみのissueタイトルのスラッグ化**: `to_slug`（旧
@@ -2978,29 +3045,37 @@ issue #97でレポートのフッター署名がengineごとに切り替わる�
   並行した場合の区間重複を除去する機能を持つが、本対応のスコープ（単一ブランチ・単一セッション）
   では扱わない。仮に同一ブランチで複数セッションを並行実行した場合、それぞれの`activeSeconds`が
   単純合算され、実際の稼働時間より過大になりうる。
-- **差分アンカーの「ブラウザで実際にスクロールするか」は未検証**（issue #42）: アンカーの算出方法
-  （GitHub: パスのsha256）が正しいことは、Compareページが遅延読込する`file-list`断片HTMLに
-  `id="diff-<sha256(パス)>"` が出力されることを75ファイルぶん照合して確認済み。ただし**差分本体が
-  非同期に挿入される**ため、ブラウザがページ読み込み時点でアンカーへスクロールできるかは、
-  GitHub側のクライアントスクリプトの挙動に依存する。今回の実行環境（Claude Code on the web）は
-  ChromiumがegressプロキシのCA証明書を信頼せず（`ERR_CERT_AUTHORITY_INVALID`）実ブラウザでの
-  確認ができなかったため、人間による1クリック確認を残している。開けないことが判明した場合は、
-  issue #42の受け入れ条件どおり「差分アンカーを諦めblobリンクのみとする」判断でよい。
-- **GitLab側の重点ファイルリンク・コメントパーマリンクは【未検証】**（issue #42）: 本リポジトリに
-  GitLab remoteが無いため、`gitlab_get_blob_url` / `gitlab_get_diff_anchor_url`（パスのsha1）/
-  `<mrUrl>#note_<noteId>` の各URLはコードレビューベースの確認に留まる。既存のGitLab実装と同じ扱い。
-- **（issue #48で解消）（issue #25で追加した`gitlab_new_issue`にも従来からの制約が引き継がれる）GitLab側の動作未検証**:
-  `gitlab_new_issue`はissue #48でローカルGitLab CE 18.5.4に対し実機確認済み（issueが実際に作成され、
-  `get_issue`と同じ形のJSON（number/title/body/url/slug）が返ることを確認した）。
-- **（issue #86）`add_issue_comment` のCLI経路が実機未検証**: 本対応はClaude Code on the webの
-  リモート実行環境（`gh`/`glab` CLIが存在しない）で行ったため、`gh issue comment <n> --body-file`
-  と `glab api projects/:id/issues/<iid>/notes -X POST -f body=...` を実際に実行しての確認が
-  できていない。検証済みなのは、(1) `require_vcs_cli` が `add_issue_comment` に対し
+- **差分アンカーの「ブラウザで実際にスクロールするか」**（issue #42・#127）: **GitLab側は結論が
+  出た。** 算出方法（パスのsha1、`diff-` 接頭辞なし）が正しいことは実機確認できたが、
+  **Compareページを土台にしたアンカーはブラウザでスクロールしない**（差分を非同期に
+  ストリーム描画するため）。MR差分ページ（`/-/merge_requests/<iid>/diffs`）に同じハッシュを
+  付けると初回ロードから飛ぶ。issue #127 で土台をプロバイダごとに分ける修正を入れた
+  （[DDR 0059](../ddr/0059-差分アンカーの土台はプロバイダごとに分けGitLabはMR差分ページを使う.md)）。
+  **修正後の目視確認（通常の差分・長いファイル・前のpushで追加し今回削除したファイル・
+  ファイル数の多いMRの後方、の4本）は未完了である。**
+  - **GitHub側は未検証のまま残る。** 算出方法（パスのsha256）は75ファイルぶん照合済みだが、
+    Compareページの差分本体も非同期に挿入されるため、ブラウザがアンカーへスクロールできるかは
+    クライアントスクリプトの挙動に依存する。issue #42 の実行環境（Claude Code on the web）は
+    ChromiumがegressプロキシのCA証明書を信頼せず（`ERR_CERT_AUTHORITY_INVALID`）実ブラウザでの
+    確認ができなかった。**GitLabで「土台次第で効かない」実例が出たため、GitHub側も
+    「算出方法が正しい＝アンカーが機能する」とは限らない点に注意する。**
+- **GitLabの折りたたまれた差分に対するアンカーの挙動は未検証**（issue #127）: GitLabは大きい
+  差分を既定で折りたたむが、**折りたたみを再現する条件を特定できていない**。402行のファイルを
+  含む32ファイルの差分を作っても `diffs_batch.json` の `collapsed` は1件も立たなかった
+  （フェーズ2では `diffs_stream` 経由で畳まれるのを観測している）。ファイル単体の行数ではなく
+  ページ全体の規模に依存すると思われる。畳まれた要素へのアンカーが機能するかは未確認。
+- **（issue #86）`add_issue_comment` のCLI経路: GitHub側のみ未検証**: issue #86 の対応は
+  Claude Code on the webのリモート実行環境（`gh`/`glab` CLIが存在しない）で行ったため、
+  `gh issue comment <n> --body-file` を実際に実行しての確認ができていない。
+  **GitLab側（`glab api projects/:id/issues/<iid>/notes -X POST -f body=...`）は issue #127 で
+  `Provider.sh` 経由で実行し、issue側へnoteが1件付くことを確認済み**（issue notes APIの
+  パラメータ名が `merge_requests` 版と同じであることも、これで裏付けられた）。
+  issue #86 時点で検証済みだったのは、(1) `require_vcs_cli` が `add_issue_comment` に対し
   `mcp__github__add_issue_comment (owner, repo, issue_number=通知先issue番号, body=ファイル内容)` を
   名指しして失敗すること、(2) プロバイダ判定に応じて `github_add_issue_comment` /
   `gitlab_add_issue_comment` へ正しく委譲すること（プロバイダ固有関数をスタブへ差し替えて確認）、
   (3) MCP経路（`mcp__github__add_issue_comment`）で実issueへ1件投稿できること、の3点である。
-  **GitLab実装は `gitlab_add_mr_comment`（issue #48でGitLab CE 18.5.4に対し実機確認済み）の
-  エンドポイントを `merge_requests` から `issues` へ替えただけ**だが、issue notes APIの
-  パラメータ名が同じである確認は公式APIドキュメントの参照に留まる。`gh`/`glab` が使える環境で
-  実行し確認できた時点で本項目を削除する。
+  `gh` が使える環境で実行し確認できた時点で本項目を削除する。
+- **（issue #48で解消）（issue #25で追加した`gitlab_new_issue`にも従来からの制約が引き継がれる）GitLab側の動作未検証**:
+  `gitlab_new_issue`はissue #48でローカルGitLab CE 18.5.4に対し実機確認済み（issueが実際に作成され、
+  `get_issue`と同じ形のJSON（number/title/body/url/slug）が返ることを確認した）。
