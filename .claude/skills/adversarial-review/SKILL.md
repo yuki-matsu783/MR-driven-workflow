@@ -146,8 +146,10 @@ add_mr_inline_comments <MR番号> <findings JSONファイル>
 
 MR番号は `get_mr_for_branch "$(git branch --show-current)"` で取得する。
 
-- **findingsは必ずファイル経由で渡す**（jqの引数長上限と、コマンド文字列へのhook誤検知語の
-  混入を避けるため。`.claude/rules/shell-script-style.md`）。
+- **findingsは必ずファイル経由で渡す**（主たる理由は**jqの引数長上限**である。
+  `.claude/rules/shell-script-style.md`「JSON操作」。指摘本文のサイズは対象の差分次第で
+  可変・無制限になりうる）。副次的な理由だった「コマンド文字列へのhook誤検知語の混入」は、
+  issue #53 でhookの判定がコマンド位置ベースになったため弱まったが、**結論は変わらない**。
 - 戻り値は `{"posted":N,"summarized":M}`。`summarized` は、対象がdiffに含まれず行を指定
   できなかったためサマリへ回った件数。サマリの出し方はプロバイダで異なり、GitHubは
   **レビュー本文**へ載せ、GitLabは**別コメント**として投稿する。

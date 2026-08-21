@@ -83,7 +83,7 @@ frontmatter（`status` / `superseded_by` / `note`）だけから決まる。
 - [i0000-06-Planモードre-entry時はgit checkout復元でなくarchiveスクリプトで対処する.md](<ddr/i0000-06-Planモードre-entry時はgit checkout復元でなくarchiveスクリプトで対処する.md>) ── **`status: superseded`（i0009-01により置き換え）**
 - [i0000-07-ブランチslugの意訳生成はAIエージェントが行う.md](ddr/i0000-07-ブランチslugの意訳生成はAIエージェントが行う.md)
 - [i0000-08-issue作成は独立スキルとして新設する.md](ddr/i0000-08-issue作成は独立スキルとして新設する.md)
-- [i0000-09-コミットはcommitスキル経由を機構的に強制する.md](ddr/i0000-09-コミットはcommitスキル経由を機構的に強制する.md)
+- [i0000-09-コミットはcommitスキル経由を機構的に強制する.md](ddr/i0000-09-コミットはcommitスキル経由を機構的に強制する.md)（うち「部分一致のため無関係なコマンドも誤ってブロックされる」既知のトレードオフは、issue #53でコマンド位置判定へ置き換えた。詳細はi0053-01）
 - [i0000-10-dev-toolsをAI専用_人間専用に分離する.md](ddr/i0000-10-dev-toolsをAI専用_人間専用に分離する.md)
 - [i0000-11-調査結果のhtml版は自己完結htmlのコミットで作る.md](ddr/i0000-11-調査結果のhtml版は自己完結htmlのコミットで作る.md)
 - [i0000-12-frontmatterスクリプトの走査方式にgit-ls-filesを採用する.md](ddr/i0000-12-frontmatterスクリプトの走査方式にgit-ls-filesを採用する.md)
@@ -112,6 +112,7 @@ frontmatter（`status` / `superseded_by` / `note`）だけから決まる。
 - [i0047-01-AIが渡すコマンド文字列の説明はdescriptionとコメントへ分けて置く.md](ddr/i0047-01-AIが渡すコマンド文字列の説明はdescriptionとコメントへ分けて置く.md)
 - [i0048-01-空コミットフォールバックはGitHub固有の制約として残す.md](ddr/i0048-01-空コミットフォールバックはGitHub固有の制約として残す.md)
 - [i0050-01-チャットで受けたレビュー判断はAIがMRの通常コメントへ記録する.md](ddr/i0050-01-チャットで受けたレビュー判断はAIがMRの通常コメントへ記録する.md)
+- [i0053-01-hookの検知は正規化とコマンド位置判定にし読めない実行体は部分一致へ縮退させる.md](ddr/i0053-01-hookの検知は正規化とコマンド位置判定にし読めない実行体は部分一致へ縮退させる.md)
 - [i0057-01-compact後もSessionStart-hookで作業コンテキストを再注入する.md](ddr/i0057-01-compact後もSessionStart-hookで作業コンテキストを再注入する.md)
 - [i0060-01-create-commitは削除ステージ済みパスをgit-addの失敗時分類で吸収する.md](ddr/i0060-01-create-commitは削除ステージ済みパスをgit-addの失敗時分類で吸収する.md)
 - [i0063-01-機構自身の単体テストは.claude_scripts_test配下へ置く.md](ddr/i0063-01-機構自身の単体テストは.claude_scripts_test配下へ置く.md)
