@@ -20,20 +20,20 @@ keywords: [plans, handoff, worklog, 正史仕様, 意思決定ログ, ライフ�
 | `CLAUDE.md` / `.claude/rules/*.md` | AI専用 | 永続 | 規約・構成 | ルート直下・`.claude/rules/`。セッション開始時にAIが自動読込する。実装フローそのものは `.claude/skills/issue-mr-flow/SKILL.md` を参照。 |
 | `plans/<自動命名>.md`（**全体作業計画**） | 人間＋AI | 生成時点のスナップショットとして永続 | このissueをどう進めるかの全体像（何を調査し何を実装するか）・比較検討した案・承認記録。**フェーズ2〈調査〉・フェーズ4〈反映〉の節は必ず含める**（詳細: `.claude/skills/issue-mr-flow/SKILL.md`「全体作業計画に必ず含めるフェーズ」） | **planツール（Planモード）で作成**し、issue（ブランチ）につき1つだけ持つ。ファイル名はハーネスが提示する自動命名のまま使う。手動で使い回したり中身を空にしたりせず、そのままコミットして履歴に残す。詳細: `.claude/skills/issue-mr-flow/SKILL.md`「計画の2階層構造」 |
 | `plans/【種別】タスク内容.md`（**個別調査計画**（フェーズ2）／**個別作業計画**（フェーズ3）／**個別反映計画**（フェーズ4）） | 人間＋AI | 同上 | フェーズごとの詳細な計画（**「これから何をするか」のみ。実施した結果は書かず`reports/…md`へ分離する**。詳細: `.claude/skills/issue-mr-flow/SKILL.md`「計画と実施結果の分離」）。種別は`【調査】【設計】【実装】【テスト】【設計反映】【AIアセット反映】`の6種。**合意を1回で取るなら併記**（例`【実装】【テスト】`）、**フェーズごとに合意を挟むなら分ける**（迷ったら分ける。判断基準の詳細は`.claude/skills/issue-mr-flow/SKILL.md`「種別を複数併記する場合／分ける場合」） | **planツールは使わず**Write/Editで直接作成する。囲み文字は全角`【】`（ASCIIの`[]`はbashのglobで文字クラス扱いになり、`plans/[調査]*.md`が意図どおりマッチしないため使わない）。`plans/【*.md`で下位の個別計画（調査・作業・反映）のみを機械的に列挙できる。 |
-| `HANDOFF.md` | 人間＋AI | 短期（常に最新状態のみ） | `.claude/skills/issue-mr-flow/SKILL.md`の全体フロー（5フェーズ・41ステップ）に対応する進捗チェック表／現在地／次にやること／判断を迷った内容／未解決の内容／守るべき条件・触ってはいけない範囲 | Git管理下に置く。**flow-idが1つ進むごとに、完了したflow-idの行を`[x]`にし「やったこと」「次にやること」を書き換える**（更新はcommit（flow-id 2-2/2-7/3-2/3-7/4-2/4-7/5-4）より前に行い、同じcommitに含める）。進捗表の記号・ヘッダ情報（issue/ブランチ/PR/push回数/現在のループ）の更新は`.claude/scripts/src/update-handoff-progress.sh`（`mark-done`/`mark-skip`/`add-round`/`set-header`）で機械的に行う（**ヘッダ行の正しい表記は`.claude/docs/spec/update-handoff-progress.md`「HANDOFF.mdのヘッダ行」が正**。issue #66。ここには再掲しない）（PR作成後は`- 追従監視:`行もヘッダへ持たせ、こちらは手で書き換える。`set-header`の対象外。詳細: `.claude/skills/issue-mr-flow/SKILL.md`「PR作成後のdefaultブランチ追従（監視）」）（手作業でのテーブル編集を禁止するものではないが、記号の書き間違いを避けるため推奨する。詳細: `.claude/docs/spec/update-handoff-progress.md`）。詳細な試行錯誤は書かず `worklog/` に逃がす。flow-id 5-3で次のタスクへ向けてリセットする。 |
-| `worklog/日付_<全体計画名>_<個別計画名>_push<N>.md` | AI専用（人間も参照可） | タスク（issue／ブランチ）単位（flow-id 5-3でまとめて削除。ファイル自体はpushごとに`_push<N>`で分ける） | 「何を試した／うまくいった／ダメだったか」の詳細ログ | 個別作業計画の作成時に作り、同じセッションで作業する間に作業の節目ごとに頻繁に書き足す。内容はflow-id 4-6（設計反映）でspec/ddrへ反映し、**ファイルの削除はflow-id 5-3**で`plans/` `reports/`とまとめて行う（削除自体もコミットに含める）。`.gitignore`には加えない（ブランチ上のコミット履歴として残すため）。squash mergeにより、mainには残さない。 |
-| `reports/日付_<全体計画名>_<内容を簡潔に>.md` | 人間＋AI | タスク（issue／ブランチ）単位（worklogと同様、flow-id 5-3でまとめて削除） | **実施結果の正文**。調査結果・作業結果・反映結果と、その結論・根拠・確認結果（計画ファイルへは書かない） | flow-id 2-6/3-6/4-6で作成し、レビュー往復（2-9/3-9/4-9）のたびに更新する。**個別計画（`plans/【*】〜.md`）へ結果を書かないための分離先**（詳細: `.claude/skills/issue-mr-flow/SKILL.md`「計画と実施結果の分離」）。見出し構成は規定しない（記述の型のテンプレート化はissue #54の担当）。内容はflow-id 4-6（設計反映）でspec/ddrへ反映し、**ファイルの削除はflow-id 5-1**で`plans/` `worklog/`とまとめて行う（削除自体もコミットに含める）。`.gitignore`には加えない。squash mergeにより、mainには残さない。 |
-| `reports/日付_<全体計画名>_<内容を簡潔に>.html` | AI専用（人間も参照可） | 同上 | 上記mdの内容を視覚的に分かりやすくまとめた自己完結HTML（TailwindCSS CDN方式）。**結果の正文はmd側であり、HTMLはその視覚化**（両者は併存させる） | flow-id 2-6で作成し、md側の内容と同期して更新する。**ファイルの削除はflow-id 5-1**で`plans/` `worklog/`とまとめて行う（削除自体もコミットに含める）。`.gitignore`には加えない（ブランチ上のコミット履歴として残すため）。squash mergeにより、mainには残さない。 |
+| `HANDOFF.md` | 人間＋AI | 短期（常に最新状態のみ） | `.claude/skills/issue-mr-flow/SKILL.md`の全体フロー（5フェーズ・42ステップ）に対応する進捗チェック表／現在地／次にやること／判断を迷った内容／未解決の内容／守るべき条件・触ってはいけない範囲 | Git管理下に置く。**flow-idが1つ進むごとに、完了したflow-idの行を`[x]`にし「やったこと」「次にやること」を書き換える**（更新はcommit（flow-id 2-2/2-7/3-2/3-7/4-2/4-7/5-3/5-5）より前に行い、同じcommitに含める）。進捗表の記号・ヘッダ情報（issue/ブランチ/PR/push回数/現在のループ）の更新は`.claude/scripts/src/update-handoff-progress.sh`（`mark-done`/`mark-skip`/`add-round`/`set-header`）で機械的に行う（**ヘッダ行の正しい表記は`.claude/docs/spec/update-handoff-progress.md`「HANDOFF.mdのヘッダ行」が正**。issue #66。ここには再掲しない）（PR作成後は`- 追従監視:`行もヘッダへ持たせ、こちらは手で書き換える。`set-header`の対象外。詳細: `.claude/skills/issue-mr-flow/SKILL.md`「PR作成後のdefaultブランチ追従（監視）」）（手作業でのテーブル編集を禁止するものではないが、記号の書き間違いを避けるため推奨する。詳細: `.claude/docs/spec/update-handoff-progress.md`）。詳細な試行錯誤は書かず `worklog/` に逃がす。flow-id 5-4で次のタスクへ向けてリセットする。 |
+| `worklog/日付_<全体計画名>_<個別計画名>_push<N>.md` | AI専用（人間も参照可） | タスク（issue／ブランチ）単位（flow-id 5-4でまとめて削除。ファイル自体はpushごとに`_push<N>`で分ける） | 「何を試した／うまくいった／ダメだったか」の詳細ログ | 個別作業計画の作成時に作り、同じセッションで作業する間に作業の節目ごとに頻繁に書き足す。内容はflow-id 4-6（設計反映）でspec/ddrへ反映し、**ファイルの削除はflow-id 5-4**で`plans/` `reports/`とまとめて行う（削除自体もコミットに含める）。`.gitignore`には加えない（ブランチ上のコミット履歴として残すため）。squash mergeにより、mainには残さない。 |
+| `reports/日付_<全体計画名>_<内容を簡潔に>.md` | 人間＋AI | タスク（issue／ブランチ）単位（worklogと同様、flow-id 5-4でまとめて削除） | **実施結果の正文**。調査結果・作業結果・反映結果と、その結論・根拠・確認結果（計画ファイルへは書かない） | flow-id 2-6/3-6/4-6で作成し、レビュー往復（2-9/3-9/4-9）のたびに更新する。**個別計画（`plans/【*】〜.md`）へ結果を書かないための分離先**（詳細: `.claude/skills/issue-mr-flow/SKILL.md`「計画と実施結果の分離」）。見出し構成は規定しない（記述の型のテンプレート化はissue #54の担当）。内容はflow-id 4-6（設計反映）でspec/ddrへ反映し、**ファイルの削除はflow-id 5-4**で`plans/` `worklog/`とまとめて行う（削除自体もコミットに含める）。`.gitignore`には加えない。squash mergeにより、mainには残さない。 |
+| `reports/日付_<全体計画名>_<内容を簡潔に>.html` | AI専用（人間も参照可） | 同上 | 上記mdの内容を視覚的に分かりやすくまとめた自己完結HTML（TailwindCSS CDN方式）。**結果の正文はmd側であり、HTMLはその視覚化**（両者は併存させる） | flow-id 2-6で作成し、md側の内容と同期して更新する。**ファイルの削除はflow-id 5-4**で`plans/` `worklog/`とまとめて行う（削除自体もコミットに含める）。`.gitignore`には加えない（ブランチ上のコミット履歴として残すため）。squash mergeにより、mainには残さない。 |
 | `.claude/docs/spec/機能名.md` | 人間＋AI | 永続（最新状態） | 背景・目的／仕様／影響範囲／設定項目／未決定事項・懸念点 | 「現在の正史」。実装完了のたびに最新仕様へ上書きする。新規作成時の人間承認は必須。plans／worklogの内容はflow-id 4-6（設計反映）で反映する。 |
 | `.claude/docs/ddr/i<issue番号>-<枝番2桁>-タイトル.md` | 人間＋AI | 永続（本文は不変） | 「〇〇を検討したが✕✕を採用した」という意思決定の背景・却下案（DDR: Design Decision Record。architectureに限らない意思決定を対象とする） | **issue番号ベースの識別子**で管理する（issue #133。旧方式の4桁連番は全件改番済みで、本リポジトリには残っていない。命名・枝番・`i00`（対応issueが無いDDR）の詳細は `.claude/rules/markdown-frontmatter.md`「DDRの識別子」が正）。一度マージしたら**本文**は追記のみ（変更不可）。ただし**YAML frontmatterのみは後から更新してよい**（後続のDDRで無効になった場合に`status: superseded` / `superseded_by`を付ける。詳細: `.claude/rules/markdown-frontmatter.md`「DDRのstatus」）。`spec` の未決定事項が解消したら記録し、spec側の該当項目は削除してよい。plans／worklogの内容はflow-id 4-6（設計反映）で反映する。**DDRを追加・変更したら、`.claude/docs/README.md` のDDR一覧を手書きせず `bash .claude/scripts/src/generate-ddr-list.sh` を実行し、出た差分を同じコミットに含める**（一覧は生成物。行の内容はfrontmatterの`status`/`superseded_by`/`note`だけから決まる。issue #135。仕様: `.claude/docs/spec/generate-ddr-list.md`、経緯: `.claude/docs/ddr/i0135-01-DDR一覧は生成物にしつつGit管理下へ残す.md`）。 |
-| `<ディレクトリ>/REVIEW-POINTS.md` | 人間＋AI | 永続（最新状態） | そのディレクトリ配下すべて（孫以下を含む）に適用するレビュー観点（`type: review-points`） | 各ディレクトリ直下に置く。敵対的レビュー（`.claude/skills/adversarial-review/SKILL.md`）と `review-points` スキルが祖先方向へ遡って集めて使い、人間のレビューでも参照する。**`plans/` `reports/` 配下に置かれていてもflow-id 5-3の削除対象に含めない**（下記）。仕様: `.claude/docs/spec/adversarial-review.md`「レビュー観点（REVIEW-POINTS.md）」 |
+| `<ディレクトリ>/REVIEW-POINTS.md` | 人間＋AI | 永続（最新状態） | そのディレクトリ配下すべて（孫以下を含む）に適用するレビュー観点（`type: review-points`） | 各ディレクトリ直下に置く。敵対的レビュー（`.claude/skills/adversarial-review/SKILL.md`）と `review-points` スキルが祖先方向へ遡って集めて使い、人間のレビューでも参照する。**`plans/` `reports/` 配下に置かれていてもflow-id 5-4の削除対象に含めない**（下記）。仕様: `.claude/docs/spec/adversarial-review.md`「レビュー観点（REVIEW-POINTS.md）」 |
 
 **`reports/` の `.html` が必須なのは flow-id 2-6（調査の実施）だけである**（issue #33）。
 flow-id 3-6・4-6 では「結果を視覚的にまとめる必要があれば作成する」（`.claude/skills/issue-mr-flow/SKILL.md`
 の全体フローが正）。したがって `reports/` に `.md` だけの回があってもよく、`.html` が無いこと自体は
 不整合ではない。**作った場合は必ず `.md` と内容を同期させる**（片方だけ更新しない）。
 
-`plans/` `worklog/` `reports/` の3つは、いずれも**flow-id 5-3（次タスクのための片付け）でまとめて
+`plans/` `worklog/` `reports/` の3つは、いずれも**flow-id 5-4（次タスクのための片付け）でまとめて
 削除する**（`reports/` はmd・htmlの両方が対象。`.claude/skills/issue-mr-flow/SKILL.md`の全体フローが正）。設計反映（flow-id 4-6）で
 行うのは、これらの**内容**を`.claude/docs/spec/` `.claude/docs/ddr/`へ反映することであって、
 ファイルの削除ではない。削除済みの状態でPR作成〜squash mergeへ進むため、mainにはこれらのファイルは
@@ -43,7 +43,7 @@ flow-id 3-6・4-6 では「結果を視覚的にまとめる必要があれば�
 
 **唯一の例外が `REVIEW-POINTS.md` である。** `plans/REVIEW-POINTS.md` `reports/REVIEW-POINTS.md` は
 これらのディレクトリ配下にあるが、タスク単位の成果物ではなく**そのディレクトリに対するレビュー観点**
-であり、寿命は永続である（上表）。flow-id 5-3で `plans/` `worklog/` `reports/` を片付ける際は、
+であり、寿命は永続である（上表）。flow-id 5-4で `plans/` `worklog/` `reports/` を片付ける際は、
 **`REVIEW-POINTS.md` を残す**（issue #77）。worklogの雛形である `worklog/TEMPLATE.md` も同様に残す
 （`cleanup-task.sh` はこの2つを削除対象から除外する）。
 
@@ -56,8 +56,8 @@ flow-id 3-6・4-6 では「結果を視覚的にまとめる必要があれば�
 
 **コード・スクリプト内のコメントから `plans/` `worklog/` `reports/` のファイルを参照しない**
 （issue #9対応時に発覚: `.claude/hooks/`配下の5ファイルが `# 設計: plans/jazzy-giggling-crescent.md`
-のように**flow-id 5-3で削除済みのplanファイル**を参照しており、読み手が辿れない状態になっていた）。
-これらはタスク単位（flow-id 5-3）で削除される寿命の短いファイルであり、コード側の恒久的な参照とは
+のように**flow-id 5-4で削除済みのplanファイル**を参照しており、読み手が辿れない状態になっていた）。
+これらはタスク単位（flow-id 5-4）で削除される寿命の短いファイルであり、コード側の恒久的な参照とは
 ライフサイクルが噛み合わない。**恒久的に参照してよいのは、issue番号（GitHub/GitLab上に残る）と
 `.claude/docs/spec/` `.claude/docs/ddr/` 配下のファイル**である。
 

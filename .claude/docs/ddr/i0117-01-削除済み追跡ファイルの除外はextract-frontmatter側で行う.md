@@ -4,6 +4,7 @@ type: ddr
 description: cleanup-task.shのインデックス再生成が必ず失敗していた問題に対し、再生成の順序を動かすのではなく、git ls-filesが返す削除済みパスをextract-frontmatter.sh側でスキップする形で解いた経緯を記録したDDR
 tags: [extract-frontmatter, cleanup-task, ddr, workflow]
 keywords: [git ls-files, 削除済み, ステージ, stat, index.jsonl, cleanup-task, flow-id5-1, スキップ, 再生成, DDR i0028-01]
+note: '本文中の「flow-id 5-4」（削除をコミットする手順）は当時の番号。issue #111 の統括レポート追加により現在は flow-id 5-5。DDR i0111-01 参照'
 ---
 
 # i0117-01. 削除済み追跡ファイルの除外はextract-frontmatter側で行う

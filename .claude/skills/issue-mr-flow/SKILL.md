@@ -33,7 +33,7 @@ source .claude/scripts/src/vcs/Provider.sh
 担当列: 「人間」＝人間の作業／「サブコマンド」＝下記「サブコマンド」節の `/issue-mr-flow <名前>`／
 「エージェント」＝AIエージェントの通常操作（git操作・ファイル編集等）。
 
-flow-idは `<フェーズ番号>-<ステップ番号>` 形式で、全5フェーズ・41ステップからなる。
+flow-idは `<フェーズ番号>-<ステップ番号>` 形式で、全5フェーズ・42ステップからなる。
 
 | フェーズ | 範囲 | 内容 |
 |---|---|---|
@@ -41,7 +41,7 @@ flow-idは `<フェーズ番号>-<ステップ番号>` 形式で、全5フェー
 | 2 | 2-1〜2-10 | 調査（調査計画 → レビュー → 調査実施 → レビュー） |
 | 3 | 3-1〜3-10 | 作業（作業計画 → レビュー → 設計・実装 → レビュー） |
 | 4 | 4-1〜4-10 | 反映（反映計画 → レビュー → 設計反映・AIアセット反映 → レビュー） |
-| 5 | 5-1〜5-5 | クローズ（コンフリクト解消・関連issue通知・片付け・Draft解除・マージ） |
+| 5 | 5-1〜5-6 | クローズ（コンフリクト解消・関連issue通知・**最終統括レポート**・片付け・Draft解除・マージ） |
 
 フェーズ2〜4は「計画 → commit/push → レビュー → 実施 → commit/push → レビュー →
 MR description更新」という同じ形を繰り返す。
@@ -90,10 +90,11 @@ MR description更新」という同じ形を繰り返す。
 | 4-9 | レビュー内容を取得し、設計・AIアセットの内容を修正する。対応が完了したコメントには対応内容を返信する（結果側の記述の修正先は`reports/`のmdであり、個別反映計画ではない。4-6〜4-9の反映ループを合意まで繰り返す）。チャットで受けた判断はMRへ記録する（下記「チャットで受けたレビュー判断の記録」節） | `comments` / `reply` |
 | 4-10 | 反映内容をもとにMR descriptionを更新する | `describe` |
 | 5-1 | **defaultブランチとのコンフリクトを検知し、あれば解消する**（`bash .claude/scripts/src/check-base-conflicts.sh` で判定 → `hasConflict` が真なら `AskUserQuestion` でユーザーに確認 → 承認されたら `resolve-conflict` スキルで解消。詳細は下記「defaultブランチとのコンフリクト検知・解消」節）。PR作成後の継続的な追従（下記「PR作成後のdefaultブランチ追従（監視）」節）を行っていても、**このステップは最終ゲートとして必ず通る** | エージェント（`resolve-conflict` スキル） |
-| 5-2 | **今回のMRが影響する関連issueを特定し、承認を得てから当該issueへ通知する**（差分からキーワードを抽出 → `search_issues` で候補提示 → `AskUserQuestion` で対象issueとコメント本文の承認 → `add_issue_comment` で投稿）。**キーワードの抽出時は `plans/` `worklog/` `reports/` を差分から除外する**（片付けは flow-id 5-3 で行うため、この時点ではこれらの計画・ログ・レポートがまだ差分に含まれる）。**影響先が無ければスキップしてよい**（その場合も「影響先なし」と判断した事実を、リセット前の `HANDOFF.md` へ1行残す）。詳細は下記「マージ前の関連issue通知（flow-id 5-2）」節 | エージェント |
-| 5-3 | 次タスクのために、`plans/` `worklog/` `reports/`（md・htmlの両方）を削除し、`HANDOFF.md` をリセットする（**`bash .claude/scripts/src/cleanup-task.sh` を実行する**。何を消し何を残すか（`worklog/TEMPLATE.md` と `REVIEW-POINTS.md` は残す。後者はタスク単位の成果物ではなく、そのディレクトリに対する永続のレビュー観点であるため。詳細は `.claude/rules/docs-workflow.md` が正）・`index.jsonl` の再生成・HANDOFF.mdのテンプレートはスクリプトが持つ。先に対象を確認したい場合は `--dry-run` を付ける。仕様: `.claude/docs/spec/cleanup-task.md`）。**スクリプトはコミットまでは行わない**ため、削除・リセットの結果は直後の flow-id 5-4 の `commit` スキル経由でコミットする（**このステップを commit の直前へ置く**のは、生成と確定の間に他のステップを挟まないため。issue #112） | エージェント |
-| 5-4 | `commit`スキル経由でcommitし、push して Draftを解除する（解除は `source .claude/scripts/src/vcs/Provider.sh && set_mr_ready <MR番号>` で行う。`gh pr ready` / `glab mr update --ready` を直接呼ばない。MR番号は `get_mr_for_branch` で取得できる）。**AIエージェントはここで止まる**（マージへは進まない） | エージェント |
-| 5-5 | マージする（squash merge。ブランチは削除してよい）。**AIエージェントは、ユーザーから明示的に指示された場合に限り実行してよい**（下記「PR/MR作成・マージの担当」） | 人間 |
+| 5-2 | **今回のMRが影響する関連issueを特定し、承認を得てから当該issueへ通知する**（差分からキーワードを抽出 → `search_issues` で候補提示 → `AskUserQuestion` で対象issueとコメント本文の承認 → `add_issue_comment` で投稿）。**キーワードの抽出時は `plans/` `worklog/` `reports/` を差分から除外する**（片付けは flow-id 5-4 で行うため、この時点ではこれらの計画・ログ・レポートがまだ差分に含まれる）。**影響先が無ければスキップしてよい**（その場合も「影響先なし」と判断した事実を、リセット前の `HANDOFF.md` へ1行残す）。詳細は下記「マージ前の関連issue通知（flow-id 5-2）」節 | エージェント |
+| 5-3 | **最終統括レポートを作成し、PR/MRへサマリコメントとして反映する**（`reports/日付_<全体計画名>_統括.md` を正文として作成 → `commit` スキル経由でcommit・push → （**任意**）HTMLを `upload_attachment` で添付し、**失敗したら警告のみでスキップ** → サマリを `add_mr_comment` でPR/MRへ1回投稿する）。**反映は3層のフォールバック構造**で、層3が壊れても層1・層2でレビューは成立する。詳細は下記「最終統括レポートとPR/MRへの反映（flow-id 5-3）」節 | エージェント |
+| 5-4 | 次タスクのために、`plans/` `worklog/` `reports/`（md・htmlの両方）を削除し、`HANDOFF.md` をリセットする（**`bash .claude/scripts/src/cleanup-task.sh` を実行する**。何を消し何を残すか（`worklog/TEMPLATE.md` と `REVIEW-POINTS.md` は残す。後者はタスク単位の成果物ではなく、そのディレクトリに対する永続のレビュー観点であるため。詳細は `.claude/rules/docs-workflow.md` が正）・`index.jsonl` の再生成・HANDOFF.mdのテンプレートはスクリプトが持つ。先に対象を確認したい場合は `--dry-run` を付ける。仕様: `.claude/docs/spec/cleanup-task.md`）。**スクリプトはコミットまでは行わない**ため、削除・リセットの結果は直後の flow-id 5-5 の `commit` スキル経由でコミットする（**このステップを commit の直前へ置く**のは、生成と確定の間に他のステップを挟まないため。issue #112） | エージェント |
+| 5-5 | `commit`スキル経由でcommitし、push して Draftを解除する（解除は `source .claude/scripts/src/vcs/Provider.sh && set_mr_ready <MR番号>` で行う。`gh pr ready` / `glab mr update --ready` を直接呼ばない。MR番号は `get_mr_for_branch` で取得できる）。**AIエージェントはここで止まる**（マージへは進まない） | エージェント |
+| 5-6 | マージする（squash merge。ブランチは削除してよい）。**AIエージェントは、ユーザーから明示的に指示された場合に限り実行してよい**（下記「PR/MR作成・マージの担当」） | 人間 |
 
 ### 全体作業計画に必ず含めるフェーズ（issue #92）
 
@@ -207,7 +208,7 @@ flow-idなら同じループ範囲の全行をまとめて`[x]`にする。フ�
 flow-idを渡す**。一部だけ渡すとその場でエラーになり1件も書き換わらない（issue #140）。詳細・制約は
 `.claude/docs/spec/update-handoff-progress.md`参照）へ委譲し、それに続けて「やったこと」
 「次にやること」を書き換える。更新はcommit（flow-id
-2-2/2-7/3-2/3-7/4-2/4-7/5-4）より前に行い、**同じcommitに含める**（別commitに分けると、レビュー
+2-2/2-7/3-2/3-7/4-2/4-7/5-3/5-5）より前に行い、**同じcommitに含める**（別commitに分けると、レビュー
 時点の進捗表と実際の変更内容が食い違う）。
 
 **ただし、ループ範囲に属するflow-idでは記号を動かす条件が違う**（issue #64で実際に踏んだ。作業を
@@ -230,7 +231,7 @@ flow-idを渡す**。一部だけ渡すとその場でエラーになり1件も�
   書き戻さずに非0で終了する（issue #66）。その場合は`HANDOFF.md`の`## フロー進捗状況`見出しの
   直下へ、`- issue:` / `- ブランチ:` / `- PR:` / `- push回数:` / `- 現在のループ:` / `- 追従監視:`
   の6行をこの順で置いてから再実行する（`- Draft PR:`のような別名は使わない）。表記の定義は
-  `.claude/docs/spec/update-handoff-progress.md`「HANDOFF.mdのヘッダ行」が正。flow-id 5-3の
+  `.claude/docs/spec/update-handoff-progress.md`「HANDOFF.mdのヘッダ行」が正。flow-id 5-4の
   `cleanup-task.sh`を経たHANDOFF.mdには雛形として6行が入っているため、通常この失敗は起きない。
 - **今が何周目かは、`HANDOFF.md`ヘッダの`- 現在のループ:`行を読む**（例:
   `- 現在のループ: 3-6〜3-9 の3周目（進行中）`。issue #58）。**進捗表には周回数が入っていない**
@@ -271,7 +272,7 @@ issue本文・受け入れ条件が「AとBとCを作る」という**同じ種�
 - **横断的変更**: 共通の型定義・スキーマ・認証基盤など、**同時に変えないと壊れるもの**。
   項目が並んで見えても単独でマージできないため、分割の対象ではない。
 - **分割コストが本体を上回る**: 1件あたりが極小の場合。このフローはissue 1件につき
-  **5フェーズ41ステップ**とレビュー往復という固定費がかかるため、分割すると本体の作業量より
+  **5フェーズ42ステップ**とレビュー往復という固定費がかかるため、分割すると本体の作業量より
   手続きのほうが大きくなることがある。
 - **共通部分の先行実装が必要**: この場合は均等に割らず、**「基盤issue → 機能ごとのissue」**と
   いう依存順に割る（分割はするが、割り方が変わる）。
@@ -330,13 +331,13 @@ AIエージェントは**兆候と分割案を提示するに留める**。勝�
 
 **`reports/` にはmdとHTMLを併存させる。md が結果の正文であり、HTML（TailwindCSS CDN方式の
 自己完結HTML。`.claude/skills/canvas-report/SKILL.md`）はその視覚化である。** 両者の寿命は同じで、
-flow-id 5-3 で `plans/` `worklog/` とまとめて削除する（`.claude/rules/docs-workflow.md` の
+flow-id 5-4 で `plans/` `worklog/` とまとめて削除する（`.claude/rules/docs-workflow.md` の
 「ドキュメント運用」表）。
 
 **見出し構成は本節では規定しない。** 計画・レポートの記述の型（見出し構成）のテンプレート化は
 issue #54 の担当であり、本節が決めるのは「どこへ書くか」だけである。
 
-## PR/MR作成・マージの担当（flow-id 1-3・5-4・5-5）
+## PR/MR作成・マージの担当（flow-id 1-3・5-5・5-6）
 
 **PR/MRの作成・更新はAIエージェントが実施してよい。マージのみユーザーの明示指示を必須とする**
 （issue #41）。判断の根拠は「取り消せるか」で、PR/MRの作成・Draft解除・description更新はいつでも
@@ -344,10 +345,10 @@ issue #54 の担当であり、本節が決めるのは「どこへ書くか」�
 
 | 操作 | 担当 |
 |---|---|
-| Draft PR/MRの作成（flow-id 1-3）・description更新・レビュー依頼・レビュー返信・Draft解除（flow-id 5-4） | **AIエージェント**（都度の明示指示は不要） |
-| マージ（flow-id 5-5） | **人間**。AIエージェントは明示的に指示された場合に限り実行してよい |
+| Draft PR/MRの作成（flow-id 1-3）・description更新・レビュー依頼・レビュー返信・Draft解除（flow-id 5-5） | **AIエージェント**（都度の明示指示は不要） |
+| マージ（flow-id 5-6） | **人間**。AIエージェントは明示的に指示された場合に限り実行してよい |
 
-flow-id 5-4 を終えたAIエージェントは、フロー上マージが次の一手であっても**そこで止まる**。
+flow-id 5-5 を終えたAIエージェントは、フロー上マージが次の一手であっても**そこで止まる**。
 「レビューが終わった」「Draftを解除した」「コンフリクトを解消した」はいずれもマージの指示ではない。
 
 **ハーネス（実行基盤）のシステムプロンプトに「ユーザーが明示的に依頼しない限りPRを作成しない」
@@ -563,7 +564,7 @@ hookは多重防御であり、注入が無かったことは着手してよい�
    未解決コメント件数・ブランチ固有のplan/worklogファイル・**ベースブランチとの差分**・
    HANDOFF.mdの内容、および矛盾・注意点）。同じ列挙を2箇所で管理するとどちらかが古くなるため、
    項目を増やしたくなったらこの節ではなくサブエージェント定義側を編集する。
-3. 提示した内容をもとに、全体フローの41ステップのうちどこから再開すべきかをAIエージェントが判断し、
+3. 提示した内容をもとに、全体フローの42ステップのうちどこから再開すべきかをAIエージェントが判断し、
    次にすべきことを提案する（この判断はサブエージェントではなく呼び出し元が行う）。
 4. issue番号が特定できていればブランチ/MRの存在確認へ（`start` 手順2相当。ただし
    **ベースブランチの追従確認はここでは行わない**。手順5で1回だけ扱う）、issueが特定できなければ
@@ -620,10 +621,11 @@ get_repo_slug | jq -r '.owner, .repo'
 | `get_mr_unresolved_comments <n> [true]` | `mcp__github__pull_request_read` | `method="get_review_comments"`, `owner`, `repo`, `pullNumber=<n>` | スレッドごとに `isResolved` が付くので、**既定では `isResolved=false` のスレッドだけを提示する**（CLI版の「解決済みは機械的に除外」に相当）。`all` 指定時は全件。通常コメントは `method="get_comments"` を追加で呼ぶ。**コメントのパーマリンク（CLI版の `url=...`）は返却JSONの `html_url` を使う**（issue #42）。**このツールは `line` も commitのsha も返さないため、CLI版が付ける指摘行前後のソーススライスは作れない**（`path` までは分かる。実測で確認。GitHub MCPサーバー側の制約であり本機構では変えられない。issue #43）。指摘箇所のコードが必要なら、`path` を頼りにReadツール等で**現在のファイル**を読む——**それは断面ではなく現HEADである**点に注意する |
 | `add_mr_thread_reply <n> <threadId> <body>` | `mcp__github__add_reply_to_pull_request_comment` | `owner`, `repo`, `pullNumber=<n>`, `commentId=<返信先スレッドの先頭コメントの数値ID>`, `body` | **ID体系が違う。** CLI経路はGraphQLのthreadId（`PRRT_...`）を使うが、MCP経路は数値のcommentId（`#discussion_r...` の数字部分）を使う。`get_review_comments` の各スレッドに含まれるコメントのidを使うこと。**投稿した返信のURL（CLI版の戻り値）は、返却JSONの `html_url` を使う**（issue #42） |
 | `set_mr_description <n> <file>` | `mcp__github__update_pull_request` | `owner`, `repo`, `pullNumber=<n>`, `body=<ファイルの内容>` | CLI版はファイルパスを渡すが、MCPは文字列で渡す。本文はReadツール等で読んでから渡す |
-| `set_mr_ready <n>` | `mcp__github__update_pull_request` | `owner`, `repo`, `pullNumber=<n>`, `draft=false` | `set_mr_description` と同じツールだが渡す引数が違う。`draft=false` が「Draftを解除しレビュー可能にする」の意味（flow-id 5-4。issue #61） |
+| `set_mr_ready <n>` | `mcp__github__update_pull_request` | `owner`, `repo`, `pullNumber=<n>`, `draft=false` | `set_mr_description` と同じツールだが渡す引数が違う。`draft=false` が「Draftを解除しレビュー可能にする」の意味（flow-id 5-5。issue #61） |
 | `add_mr_comment <n> <file>` | `mcp__github__add_issue_comment` | `owner`, `repo`, `issue_number=<PR番号>`, `body=<ファイルの内容>` | PR番号を `issue_number` に渡す（GitHub APIの仕様上、PRもissueとして扱える） |
 | `add_mr_inline_comments <n> <file>` | `mcp__github__pull_request_review_write` | `method="create"` → 指摘ごとに `method="add_comment_to_pending_review"`（`owner`, `repo`, `pullNumber`, `path`, `line`, `side`, `body`）→ `method="submit_pending"`（`event="COMMENT"`） | 敵対的レビュー（issue #77）のインライン投稿。**3段構成で、`submit_pending` まで必ず実行する**（pendingのまま放置すると次回の `create` が失敗し続ける）。途中で失敗したら `method="delete_pending"` で片付ける。CLI版と違い有効行の事前検証が入らないため、diffに含まれない行を指定すると個別に失敗する |
-| `add_issue_comment <n> <file>` | `mcp__github__add_issue_comment` | `owner`, `repo`, `issue_number=<通知先のissue番号>`, `body=<ファイルの内容>` | **`add_mr_comment` と同じツールだが、`issue_number` へ渡すのがPR番号ではなく通知先のissue番号である**（flow-id 5-3の関連issue通知。issue #86）。CLI版はファイルパスを渡すが、MCPは文字列で渡すため本文はReadツール等で読んでから渡す |
+| `add_issue_comment <n> <file>` | `mcp__github__add_issue_comment` | `owner`, `repo`, `issue_number=<通知先のissue番号>`, `body=<ファイルの内容>` | **`add_mr_comment` と同じツールだが、`issue_number` へ渡すのがPR番号ではなく通知先のissue番号である**（flow-id 5-2の関連issue通知。issue #86）。CLI版はファイルパスを渡すが、MCPは文字列で渡すため本文はReadツール等で読んでから渡す |
+| `upload_attachment <file> [<content_type>]` | **代替なし** | — | flow-id 5-3 の**層3（統括レポートHTMLの添付）**（issue #111）。**MCPにPR/issueへの添付に相当するツールは無い**（実測で確認）。この関数は `require_vcs_cli` により非0で終え、stderrへ「層3はスキップしてよい」旨を出す。**層1（`reports/` をリモートへ反映）と層2（`add_mr_comment` でのサマリ投稿）だけでレビューは成立するため、スキップして次へ進む** |
 | `get_repo_url` | （MCP不要） | — | `git remote get-url origin` の正規化だけでリポジトリの正規URLを導出するプロバイダ非依存の関数のため、MCP経路でもそのまま呼べる（`get_mr_diff_url` / `get_mr_diff_since_url` も同様。issue #44） |
 | `new_issue_branch` / `sync_branch` / `get_branch_work_files` / `get_issue_number_from_branch` / `to_slug` / `test_issue_sections` | （MCP不要） | — | git操作・純粋ロジックのみでCLIに依存しないため、MCP経路でもそのまま呼べる |
 
@@ -681,7 +683,7 @@ GitLabリポジトリで `glab` が無い場合、`require_vcs_cli` はその旨
 必ずチャット側に来る。この判断と理由はGitHub/GitLab上に一切残らず、PR/MR画面から経緯を
 辿れなくなる（issue #50。issue #48のフェーズ4／PR #49で実際に発生し、AIが判断を仰いだ3点
 すべてがチャットで回答された結果、未解決スレッド0件のまま記録がどこにも残らなかった）。
-**計画ファイル（`plans/`）へ書くだけでは代わりにならない。** `plans/` はflow-id 5-3で削除され、
+**計画ファイル（`plans/`）へ書くだけでは代わりにならない。** `plans/` はflow-id 5-4で削除され、
 squash mergeによりmainにも残らないためである。
 
 **チャットでレビュー判断を受けたら、AIエージェント自身が `add_mr_comment` でMRへ記録を
@@ -753,10 +755,10 @@ squash mergeによりmainにも残らないためである。
   ```
 
 - 反映先には実際に修正したファイルパスを書く。反映先が `plans/` `worklog/` `reports/` 配下しか
-  無い場合でも、判断の内容と理由をこのコメント本文に書いておけば、これらがflow-id 5-3で削除された
+  無い場合でも、判断の内容と理由をこのコメント本文に書いておけば、これらがflow-id 5-4で削除された
   後もPR/MR画面から辿れる。
 
-## レビュー依頼メッセージ（全体フロー 2-2・2-7・3-2・3-7・4-2・4-7・5-4）
+## レビュー依頼メッセージ（全体フロー 2-2・2-7・3-2・3-7・4-2・4-7・5-3・5-5）
 
 pushしてレビュー依頼を出すターンでは、**`AskUserQuestion`（askツール）を使わず、通常の
 メッセージだけで応答を終える。**
@@ -934,10 +936,10 @@ featureブランチで作業を**開始・再開する時点**で、ベースブ
 ゲートとして機能している。スクリプトの仕様（出力キーの意味・判定順序・終了コード）は
 `.claude/docs/spec/check-base-sync.md` が正。
 
-## PR作成後のdefaultブランチ追従（監視）（flow-id 1-3〜5-5を横断）
+## PR作成後のdefaultブランチ追従（監視）（flow-id 1-3〜5-6を横断）
 
 flow-id 5-1 は**最後のゲート**であって、唯一の検知機会ではない。PR作成（flow-id 1-3）から
-マージ（5-5）までの間にdefaultブランチが進むと、レビューを待っている間にコンフリクトが生まれる
+マージ（5-6）までの間にdefaultブランチが進むと、レビューを待っている間にコンフリクトが生まれる
 （issue #88。実例: issue #39 のPR #81 では、PR作成後の短時間に `main` が4回進み、DDR番号を
 0034→0035→0036→0038 と3回繰り下げた。そのつどユーザーからの指摘で気づいていた）。
 本節は、その間の追従を**特定のflow-idに属さない並行手順**として定める（flow-idは増やさない。
@@ -952,7 +954,7 @@ flow-id 5-1 は**最後のゲート**であって、唯一の検知機会では�
 | 各pushの直後（flow-id 2-2/2-7/3-2/3-7/4-2/4-7） | `bash .claude/scripts/src/check-base-conflicts.sh` を1回実行する |
 | 監視イベントを受け取ったとき（PRイベント・定期チェックイン・人間からの指摘） | 同上。`hasConflict` が真なら下記「自動解消してよい範囲」に従って解消する |
 | flow-id 5-1 | **最終ゲート**。それまでに何度追従していても、Draft解除の前に必ずもう1回実行する |
-| flow-id 5-5（マージ）／PRのクローズ | 監視を**停止**する（下記「監視の停止条件」） |
+| flow-id 5-6（マージ）／PRのクローズ | 監視を**停止**する（下記「監視の停止条件」） |
 
 **flow-id 5-1 は監視があっても省略しない。** 監視は実行環境の機能とセッションの寿命に依存する
 ため（下記「制約」）、監視が一度も動かないまま進むセッションがありうる。必ず通るゲートを1つ
@@ -1032,7 +1034,7 @@ defaultブランチがさらに進み、同じ解消をやり直すことにな�
 （`.claude/skills/resolve-conflict/SKILL.md`）を正とし、本節はフロー上の位置づけと分岐のみを定める。
 
 **このステップをフェーズ5の先頭に置くのは、作業ツリーがまだ汚れていないうちに `git merge` を
-走らせるためである**（issue #112）。片付け（flow-id 5-3）は `plans/` `worklog/` `reports/` の削除と
+走らせるためである**（issue #112）。片付け（flow-id 5-4）は `plans/` `worklog/` `reports/` の削除と
 `HANDOFF.md` のリセットを未コミットのまま残すため、その後に解消すると、コンフリクト解消の結果と
 片付けの削除が同じ作業ツリーへ混ざる。逆に、片付けを先に済ませても検知の精度は上がらない
 （`check-base-conflicts.sh` は `git merge-tree` をコミット済みの `HEAD` に対して実行するため、
@@ -1075,15 +1077,15 @@ issue番号ベース（`i0133-01-…`）へ変わり、issue番号はGitHub/GitL
 
 ## マージ前の関連issue通知（flow-id 5-2）
 
-片付け（flow-id 5-3）・Draft解除（flow-id 5-4）へ進む前に、**今回のMRが影響する他のissueを特定し、
+片付け（flow-id 5-4）・Draft解除（flow-id 5-5）へ進む前に、**今回のMRが影響する他のissueを特定し、
 人間の承認を得てから当該issueへコメントで通知する**（issue #86）。MRがマージされても、その変更で
 前提が変わる・一部が解決される・記述が矛盾する他のissueには何も残らず、後続タスクの担当者が影響に
 気づけないため。
 
 **影響先が無ければスキップしてよい。** その場合も「影響先なし」と判断したことを `HANDOFF.md` の
-「やったこと」へ1行残し、flow-id 5-3 へ進む（判断を省いたのか、判断した結果なしだったのかを
-次のセッションが区別できるようにするため）。**このステップが片付け（flow-id 5-3）より前に置かれて
-いるのは、この1行の書き戻し先を残すためである**（issue #112。5-3 は `HANDOFF.md` を空テンプレートへ
+「やったこと」へ1行残し、flow-id 5-4 へ進む（判断を省いたのか、判断した結果なしだったのかを
+次のセッションが区別できるようにするため）。**このステップが片付け（flow-id 5-4）より前に置かれて
+いるのは、この1行の書き戻し先を残すためである**（issue #112。5-4 は `HANDOFF.md` を空テンプレートへ
 リセットするため、後に置くと書き戻す先が無くなる）。
 
 ### 手順
@@ -1098,7 +1100,7 @@ issue番号ベース（`i0133-01-…`）へ変わり、issue番号はGitHub/GitL
    ```
 
    **`plans/` `worklog/` `reports/` は差分から除外する**（issue #112）。これらの片付けは
-   flow-id 5-3 でこのステップより後に行うため、この時点ではタスク単位の計画・ログ・レポートが
+   flow-id 5-4 でこのステップより後に行うため、この時点ではタスク単位の計画・ログ・レポートが
    まだ差分に含まれている。除外しないと、マージ後には残らないファイルの語（個別計画の種別名・
    worklogの見出し等）がキーワード抽出へ混ざり、通知先の判定を歪める。上記のpathspecを付けずに
    `git diff --stat` を見た場合は、これらのパスの行を読み飛ばすこと。
@@ -1174,13 +1176,173 @@ Claude Codeより: PR #<今回のPR番号>（issue #<今回のissue番号>）の
 `issue_number` へ渡すのがPR番号ではなく通知先のissue番号である**点に注意する。候補の検索側
 （`search_issues`）も同じ表に従って `mcp__github__search_issues` へ読み替える。
 
-## PRがflow-id 5-3実施前にマージされてしまった場合の対処
+## 最終統括レポートとPR/MRへの反映（flow-id 5-3）
 
-人間がレビュー後にそのままMR/PRをマージするなど、flow-id 5-3（`plans/` `worklog/` `reports/`の
+片付け（flow-id 5-4）へ進む前に、**そのブランチで何をやったかを1枚にまとめた最終統括レポートを
+作成し、PR/MR上へ残す**（issue #111）。
+
+`plans/` `worklog/` `reports/` は flow-id 5-4 で削除され、squash mergeにより `main` にも残らない。
+統括をPR/MR上のコメントとして残すことで、**ファイルが消えてもレビュー時・マージ後の追跡に耐える**
+状態にする。
+
+### なぜ 5-2 と 5-4 の間なのか
+
+- **5-4（片付け）より前**である必要がある。統括レポートは `plans/` `worklog/` `reports/` の内容を
+  materialにして書くため、削除後には書けない。
+- **このステップ自身がcommit・pushまでを含む**。統括レポートを作るだけで 5-4 へ進むと、
+  作成と削除が同じ作業ツリー上で相殺され、**ブランチのコミット履歴にすら残らない**
+  （層1が成立しなくなる）。5-5 と同じく複合ステップにしてあるのはこのためである。
+- 5-1（コンフリクト解消）より後である必要もある。5-1 は作業ツリーがきれいなうちに `git merge` を
+  走らせるステップで、その前にファイルを作ると解消結果と混ざる（flow-id 5-1 の節を参照）。
+
+### 成果物
+
+| ファイル | 位置づけ | 必須か |
+|---|---|---|
+| `reports/日付_<全体計画名>_統括.md` | **正文** | **必須** |
+| `reports/日付_<全体計画名>_統括.html` | 人間レビュー用の視覚化 | 任意（下記） |
+
+内容は「**何を変えたか／なぜそうしたか／検証結果／spec・ddrへの反映先／残課題**」。
+個別の `reports/…md`（flow-id 2-6・3-6・4-6 の結果）を並べ直すのではなく、**ブランチ全体を
+1枚に統括する**。
+
+HTMLは `.claude/skills/issue-mr-flow/assets/reports.template.html` を土台にする。
+**このテンプレートは issue #54 の成果物であり、まだ存在しない。存在しない間は、従来どおり
+TailwindCSS CDN方式の自己完結HTMLを手書きしてよい**（`.claude/skills/canvas-report/SKILL.md` の
+判断基準は統括レポートにも当てはまる）。テンプレートが入った時点で、土台をそちらへ移す。
+
+**統括レポートも flow-id 5-4 の削除対象である**（md・htmlの両方）。`cleanup-task.sh` は
+`reports/` 配下を `REVIEW-POINTS.md` 以外すべて削除するため、スクリプト側の変更は要らない。
+`main` に残るのは**PR/MR上のコメント**と `.claude/docs/spec/` `.claude/docs/ddr/` である。
+
+### 反映は3層のフォールバック構造にする
+
+**層3が壊れても層1・層2でレビューが成立する**ことが、この構造の要点である
+（`.claude/docs/ddr/i0111-01-統括レポートの添付は任意層に置きフローを止めない.md`）。
+
+| 層 | 何をするか | 必須か | 壊れたとき |
+|---|---|---|---|
+| **層1** | レポート本体を `reports/` に載せ、`commit` スキル経由でcommitしてリモートへ反映する | **必須** | — |
+| **層2** | サマリをMarkdownでPR/MRへコメント投稿する（`add_mr_comment`） | **必須** | — |
+| **層3** | HTMLファイルを添付する（`upload_attachment`） | **任意** | **警告のみ出してスキップし、フローは止めない** |
+
+- **層1** はレビュアーがブランチをcheckoutすれば見られる状態にすること。squash mergeにより
+  `main` には残らないが、**PRのコミット一覧からは辿れる**。
+- **層2** が「ファイルが消えても残る」を担う実体である。GitHub/GitLabのどちらでも `add_mr_comment`
+  で確実に動く（公式APIのみ）。
+- **層3 は外部依存が最も弱い。** GitHubは未ドキュメントの内部エンドポイントに依存し、GitLabは
+  公式APIだが実機未検証である。**加えて、`gh`/`glab` CLIが無い実行環境（Claude Code on the web）
+  では、MCPに添付相当のツールが無いため必ず失敗する**（issue #111 の調査で実測）。
+
+#### 層の番号は「フォールバックの優先順位」であって、実行順ではない
+
+**実行順は 層1 → 層3 → 層2 である。**
+
+```
+レポート作成 → 層1（commit・push）→ 層3（添付を試す・任意）→ 層2（サマリを1回投稿）
+```
+
+**層3を層2より先に実行するのは、添付リンクをサマリ本文へ入れて1回で投稿するためである。**
+`Provider.sh` には**投稿済みコメントを編集する関数が無い**（あるのは `add_mr_comment` /
+`add_issue_comment` / `set_mr_description` で、いずれも新規投稿か description の上書き）。
+層2を先に投稿してしまうと、添付リンクを後から本文へ足す手段が無く、コメントを2回投稿するか
+CLIを直接叩くかの場当たり対応になる。
+
+**層3が失敗しても層2は必ず実行する。** 添付リンクの行が本文から落ちるだけで、他は変わらない。
+
+#### 層3の呼び出し方
+
+```bash
+source .claude/scripts/src/vcs/Provider.sh
+
+# 層3（任意）。失敗しても続ける
+attachment_md=""
+if result="$(upload_attachment "reports/20260821_xxx_統括.html")"; then
+  attachment_md="$(printf '%s' "$result" | jq -r '.markdown')"
+else
+  echo "添付をスキップしました（任意ステップ。層1・層2でレビューは成立する）" >&2
+fi
+
+# 層2（必須）。添付できたときだけ末尾へ1行足し、本文をファイルへ書き出してから投稿する
+[ -z "$attachment_md" ] || printf '\n添付: %s\n' "$attachment_md" >> /tmp/summary.md
+add_mr_comment "$mr_number" /tmp/summary.md
+```
+
+**成功を前提にした分岐を書かないこと。** 添付できたかどうかでサマリコメントの本質的な内容が
+変わってはいけない（添付は「あれば便利」であって、レビューに必要な情報の置き場ではない）。
+**変わってよいのは末尾の1行だけである。**
+
+### サマリコメントの本文
+
+**本文の1行目は `Claude Codeより（最終統括レポート）:` とする。** 括弧付きの種別ラベルは
+敵対的レビューのインラインコメント（`Claude Codeより（敵対的レビュー）:`）と同じ形である。
+
+```markdown
+Claude Codeより（最終統括レポート）: issue #<番号> / PR #<番号>
+
+## 何を変えたか
+
+- <変更の要点。ファイル単位ではなく、振る舞い・ルールの単位で書く>
+
+## なぜそうしたか
+
+- <採用した案と、却下した案。詳細はDDRへのリンクで示す>
+
+## 検証結果
+
+- <実行したコマンドと結果。テストの `passed=N failures=N` を含める>
+
+## spec・DDRへの反映先
+
+- `.claude/docs/spec/<ファイル>`: <何を書いたか>
+- `.claude/docs/ddr/<識別子>-<タイトル>.md`: <何を決めたか>
+
+## 残課題
+
+- <このPRで対応しなかったこと・別issueへ切り出したこと。無ければ「なし」>
+```
+
+- **本文はファイルへ書き出してから `add_mr_comment <n> <ファイル>` へ渡す。**
+  コマンド文字列へ長文を埋め込むと、地の文に `git` と `push` が連続しただけでpush検知hookが
+  誤発火する（`.claude/rules/git-workflow.md`「push検知hookの誤検知」）。
+- 層3が成功した場合は、`upload_attachment` が返した `markdown` を本文の末尾へ添える。
+  **層3は層2より先に実行する**（上記「層の番号は『フォールバックの優先順位』であって、実行順では
+  ない」）。投稿済みコメントを編集する手段が無いため、投稿は1回で完結させる。
+
+### PR/MRの通常コメントの種別（issue #111）
+
+`add_mr_comment` で投稿される**通常コメント**（レビュースレッドではないもの）は4種類ある。
+いずれも投稿者アカウントは人間のものとして表示されるため、**種別は本文の1行目で判別する**。
+
+| 種別 | 本文1行目 | いつ |
+|---|---|---|
+| チャットで受けたレビュー判断の記録 | `Claude Codeより: チャットで受けたレビュー判断の記録（…）` | レビュー往復ごと（`comments` 手順6） |
+| スレッドを持たない指摘への対応記録 | `Claude Codeより:` | レビュー往復ごと（`comments` 手順4） |
+| 対応工数レポート | `Claude Codeより: 自動投稿（post-push-usage-report.sh …）` | pushごと（hookが自動投稿） |
+| **最終統括レポートのサマリ** | **`Claude Codeより（最終統括レポート）:`** | **flow-id 5-3（ブランチにつき1回）** |
+
+**既存3種の1行目は変更しない。** 統括レポートだけが括弧付きラベルを持てば、読み手は
+「これは統括レポートか、それ以外か」を1行目で判別できる。全種の書式を揃え直すと、`SKILL.md` の
+複数箇所・spec・既に投稿済みのコメントへ波及する一方、得られるのは表記の統一だけである。
+
+### `gh`/`glab` CLI不在時
+
+| 層 | MCP経路での扱い |
+|---|---|
+| 層1 | 変更なし（git操作のみ） |
+| 層2 | `add_mr_comment` を `mcp__github__add_issue_comment`（`issue_number=<PR番号>`）へ読み替える |
+| 層3 | **対応するMCPツールが無いためスキップする。** `upload_attachment` は `require_vcs_cli` により非0で終え、stderrへ「スキップしてよい」旨を出す |
+
+**層3のスキップは異常ではない。** レポート本体（層1）とサマリコメント（層2）が揃っていれば、
+このステップは完了である。
+
+## PRがflow-id 5-4実施前にマージされてしまった場合の対処
+
+人間がレビュー後にそのままMR/PRをマージするなど、flow-id 5-4（`plans/` `worklog/` `reports/`の
 削除・`HANDOFF.md`のリセット）を実施する前に**先にマージが完了してしまう**ことがある（issue #28,
 PR #29のセッションで実際に発生）。この場合、タスク固有の`plans/`配下の計画ファイル（全体作業計画・
 下位の個別計画）・`worklog/`・`reports/`のファイル・作業途中のままの`HANDOFF.md`が、そのまま
-`main`へ残ってしまう（本来`worklog/`・`reports/`はsquash mergeの対象からflow-id 5-3で除外され
+`main`へ残ってしまう（本来`worklog/`・`reports/`はsquash mergeの対象からflow-id 5-4で除外され
 `main`に残らない設計であり、このズレはdocs-workflow.mdの運用と矛盾する）。
 
 マージ後にこのズレに気づいた場合、**`main`へ直接コミットせず**、以下の手順で対処する
@@ -1192,7 +1354,7 @@ PR #29のセッションで実際に発生）。この場合、タスク固有�
    `.mrworkflow.json`の`branchPrefixTemplate`に従う必要はなく、`chore/cleanup-<簡潔な説明>`の
    ような分かりやすい名前でよい）。
 3. そのブランチ上で、該当する`plans/`・`worklog/`・`reports/`ファイルを削除し、`HANDOFF.md`を
-   次タスク向けの空テンプレートへリセットする（内容はflow-id 5-3で行うものと同じ）。
+   次タスク向けの空テンプレートへリセットする（内容はflow-id 5-4で行うものと同じ）。
 4. commit・pushし、`main`を対象にPRを作成する。**PRの作成は他のPR操作と同様AIエージェントが
    行ってよく、都度の明示指示は要らない**。**マージのみ**、ユーザーから明示的な指示を受けてから
    実行する（上記「PR/MR作成・マージの担当」節、`.claude/rules/git-workflow.md`「PR・マージ」節）。
