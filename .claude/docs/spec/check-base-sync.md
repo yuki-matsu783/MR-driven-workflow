@@ -156,7 +156,7 @@ bash .claude/scripts/src/check-base-sync.sh [--base <branch>] [--head <ref>] [--
 | `hasCommonHistory` | `false` | merge-base が無い。`changedFiles` は空になり `behind` も参考値でしかない |
 
 **`fetchOk` を持つのは本スクリプトだけで、`check-base-conflicts.sh` は fetch の失敗を
-`|| true` で握りつぶしている。** 差を付けているのは、あちらのコンフリクト検知は flow-id 5-2 で
+`|| true` で握りつぶしている。** 差を付けているのは、あちらのコンフリクト検知は flow-id 5-1 で
 必ずもう一度通るため取りこぼしても後段で拾われるのに対し、**本スクリプトは検知そのものが目的で
 あり、fetch失敗が「遅れていない」という誤報告になって誰にも拾われない**ためである
 （DDR i0067-01）。

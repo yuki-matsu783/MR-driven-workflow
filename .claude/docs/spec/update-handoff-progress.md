@@ -93,7 +93,7 @@ bash .claude/scripts/src/update-handoff-progress.sh set-header [--issue <text>] 
 - `- 追従監視:` だけは `set-header` の対象外で、手で書き換える（issue #88。
   `.claude/docs/spec/issue-mr-workflow.md`「PR作成後のdefaultブランチ追従」）。
 
-この表記は `cleanup-task.sh` の `HANDOFF_TEMPLATE` が雛形として持つため、flow-id 5-3 のリセットを
+この表記は `cleanup-task.sh` の `HANDOFF_TEMPLATE` が雛形として持つため、flow-id 5-4 のリセットを
 経たHANDOFF.mdには必ず6行が揃っている。**タスクごとにAIエージェントが書き起こさない。**
 
 #### ヘッダブロック（探索範囲）
@@ -292,7 +292,7 @@ hint: 同じループ範囲内のflow-idは常に同じ記号を持ちます（.
   （変更前は無言で成功していた）。影響を受けるのは(1)この機構を配布済みのプロジェクト、
   (2)旧テンプレートでリセットされた状態から始まる次タスク、(3)進行中の他ブランチである。
   復旧は**1回だけ手で**、`## フロー進捗状況`見出しの直下へ上記6行を置けばよい（以降は
-  flow-id 5-3の`cleanup-task.sh`が雛形を維持する）。失敗時のメッセージにもこの手順を出している。
+  flow-id 5-4の`cleanup-task.sh`が雛形を維持する）。失敗時のメッセージにもこの手順を出している。
 
 ### issue #140（2026-08-21）mark-skipがループ範囲の一部指定をその場で拒否する
 

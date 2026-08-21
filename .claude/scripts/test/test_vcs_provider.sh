@@ -28,6 +28,10 @@
 # 一意に決まるため単体テストの対象に含めている。
 # issue #86で追加した `add_issue_comment`（任意のissueへのコメント投稿）は `gh`/`glab` を呼ぶため
 # 関数本体は対象外で、`mcp_tool_hint` が返す代替ツール名のみを対象とする。
+# issue #111で追加した `content_type_from_path_to_reply`（拡張子からContent-Typeを推定）も対象。
+# `upload_attachment` 本体・`github_upload_attachment` / `gitlab_upload_attachment` は
+# `gh`/`glab`・ネットワークを呼ぶため対象外で、引数検証の早期リターンと `mcp_tool_hint` が返す
+# 「MCPには代替が無い」という案内のみを対象とする。
 # issue #68で追加した `github_normalize_issue_search_results` /
 # `gitlab_normalize_issue_search_results`（CLIのissue検索出力を共通形式へ正規化）と
 # `merge_issue_search_results`（複数キーワードぶんの結果を重複排除して統合）も対象。
@@ -65,6 +69,20 @@ assert_eq() {
     echo "FAIL: $name"
     echo "  expected: $expected"
     echo "  actual  : $actual"
+  fi
+}
+
+# 長い案内文の一部だけを固定したいとき用（issue #111）。文言の全文を期待値に置くと、
+# 語尾の推敲のたびにテストが壊れるだけで、守りたい性質（何を案内しているか）は守れない。
+assert_contains() {
+  local name="$1" haystack="$2" needle="$3"
+  if [[ "$haystack" == *"$needle"* ]]; then
+    passed=$((passed + 1))
+  else
+    failures=$((failures + 1))
+    echo "FAIL: $name"
+    echo "  expected to contain: $needle"
+    echo "  actual            : $haystack"
   fi
 }
 
@@ -251,6 +269,17 @@ assert_eq "mcp_tool_hint: add_issue_comment（GitHub。issue #86）" \
 assert_eq "mcp_tool_hint: add_mr_comment はPR番号を渡す旨のまま（add_issue_commentと混同しない）" \
   "mcp__github__add_issue_comment (owner, repo, issue_number=PR番号, body=ファイル内容)" \
   "$(mcp_tool_hint add_mr_comment)"
+
+# issue #111で追加した添付関数。**MCPに代替が存在しない唯一の分岐**であり、他の関数のように
+# 読み替え先のツール名を返せない。代わりに「スキップしてよい」ことを名指しで返す
+# （層1・層2だけでレビューが成立する設計であるため）
+upload_hint="$(mcp_tool_hint upload_attachment)"
+assert_contains "mcp_tool_hint: upload_attachment はMCPに代替が無いと明示する（issue #111）" \
+  "$upload_hint" "対応するMCPツールはありません"
+assert_contains "mcp_tool_hint: upload_attachment はスキップしてよいと案内する（issue #111）" \
+  "$upload_hint" "スキップしてよい"
+assert_contains "mcp_tool_hint: upload_attachment は層1・層2で成立する旨を添える（issue #111）" \
+  "$upload_hint" "層1・層2"
 
 assert_eq "mcp_tool_hint: 未知の関数名でも空にならずSKILL.mdの対応表へ誘導する" \
   "対応するMCPツールは .claude/skills/issue-mr-flow/SKILL.md の対応表を参照" \
@@ -1091,5 +1120,63 @@ else
 fi
 assert_eq "slice_source_lines: 入力が空なら終了コード1" '1' "$slice_empty_status"
 
+
+# --- content_type_from_path_to_reply / upload_attachment（issue #111: 統括レポートの添付） ---
+#
+# 添付は flow-id 5-3 の**任意層**であり、失敗が正常系のひとつである。ここでテストするのは
+# 「ネットワークへ出る前に落ちること」と「落ち方が呼び出し側にとって扱えること」である。
+
+content_type_from_path_to_reply 'reports/20260821_x_統括.html'
+assert_eq "content_type: .html は text/html" 'text/html' "$REPLY"
+
+content_type_from_path_to_reply 'a.htm'
+assert_eq "content_type: .htm も text/html" 'text/html' "$REPLY"
+
+content_type_from_path_to_reply 'reports/20260821_x_統括.md'
+assert_eq "content_type: .md は text/markdown" 'text/markdown' "$REPLY"
+
+# 大文字の拡張子（Windows由来のファイル名で普通に起きる）
+content_type_from_path_to_reply 'REPORT.HTML'
+assert_eq "content_type: 拡張子は大文字でも判定する" 'text/html' "$REPLY"
+
+# 拡張子なし。`${base##*.}` はドットが無いとファイル名全体を返すため、
+# 判定を挟まないと `README` という拡張子として扱われてしまう
+content_type_from_path_to_reply 'README'
+assert_eq "content_type: 拡張子が無ければ octet-stream" 'application/octet-stream' "$REPLY"
+
+# ディレクトリ名にだけドットがあるケース（拡張子と誤認しないこと）
+content_type_from_path_to_reply '.claude/docs/README'
+assert_eq "content_type: ディレクトリ側のドットを拡張子と誤認しない" 'application/octet-stream' "$REPLY"
+
+# 日付を含むレポート名のようにドットが複数あるケースは、最後のドット以降を採る
+content_type_from_path_to_reply 'reports/2026.08.21_x.md'
+assert_eq "content_type: ドットが複数あれば最後のドット以降を採る" 'text/markdown' "$REPLY"
+
+content_type_from_path_to_reply 'x.unknown'
+assert_eq "content_type: 未知の拡張子は octet-stream（ここで失敗させない）" 'application/octet-stream' "$REPLY"
+
+# 引数の検証は `require_vcs_cli`（＝CLIの有無）より**前**に行う。CLIがある環境でも無い環境でも
+# 同じ理由で落ちてほしいため（CLIの有無で失敗理由が変わると、呼び出し側が原因を誤読する）
+if upload_attachment >/dev/null 2>&1; then
+  upload_noarg_status=0
+else
+  upload_noarg_status=1
+fi
+assert_eq "upload_attachment: 引数なしは非0で終える" '1' "$upload_noarg_status"
+
+upload_noarg_stderr="$(upload_attachment 2>&1 >/dev/null || true)"
+assert_contains "upload_attachment: 引数なしの理由がstderrに出る" \
+  "$upload_noarg_stderr" "ファイルのパスを指定してください"
+
+if upload_attachment '/nonexistent/path/to/report.html' >/dev/null 2>&1; then
+  upload_missing_status=0
+else
+  upload_missing_status=1
+fi
+assert_eq "upload_attachment: 存在しないファイルは非0で終える" '1' "$upload_missing_status"
+
+upload_missing_stderr="$(upload_attachment '/nonexistent/path/to/report.html' 2>&1 >/dev/null || true)"
+assert_contains "upload_attachment: 存在しないファイルの理由がstderrに出る" \
+  "$upload_missing_stderr" "ファイルが見つかりません"
 echo "passed=$passed failures=$failures"
 [ "$failures" -eq 0 ]
