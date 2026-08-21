@@ -12,7 +12,7 @@ keywords: [cleanup-task, flow-id-5-3, HANDOFF, plans, worklog, reports, index.js
 
 issue #28「flow-id 5-1 後片付けタスク自動化スクリプト（cleanup-task.sh）の実装」
 （**issue名の `5-1` は当時の番号**。issue #112 でフェーズ5を並べ替えた結果、片付けは現在
-**flow-id 5-3** である。DDR 0048 のファイル名に含まれる `flow-id5-1` も同じく当時の番号で、
+**flow-id 5-3** である。DDR i0028-01 のファイル名に含まれる `flow-id5-1` も同じく当時の番号で、
 リンク切れを避けるためリネームしていない）。
 
 flow-id 5-3（次タスクのための片付け）は、`.claude/skills/issue-mr-flow/SKILL.md` に手順として
@@ -70,9 +70,15 @@ bash .claude/scripts/src/cleanup-task.sh [--dry-run] [--skip-index]
 
 ### HANDOFF.mdのリセット
 
-`HANDOFF.md` を、スクリプトへ埋め込んだテンプレート（frontmatter＋6つの見出しだけを持ち、本文は
-`（無し）`／`（次タスク着手時に記入する）`）で上書きする。見出し構成は
-`.claude/rules/docs-workflow.md`「ドキュメント運用」表の `HANDOFF.md` 行に対応する。
+`HANDOFF.md` を、スクリプトへ埋め込んだテンプレート（frontmatter＋6つの見出し＋**ヘッダ行の
+雛形6行**を持ち、本文は `（無し）`／`（進捗表は次タスク着手時に記入する）`）で上書きする。
+見出し構成は `.claude/rules/docs-workflow.md`「ドキュメント運用」表の `HANDOFF.md` 行に対応する。
+
+- **ヘッダ行の雛形6行**（`- issue:` / `- ブランチ:` / `- PR:` / `- push回数:` / `- 現在のループ:` /
+  `- 追従監視:`）は issue #66 で追加した。タスクごとにAIエージェントが書き起こしていたことが
+  表記ゆらぎ（`- PR:` / `- Draft PR:`）を生み、`update-handoff-progress.sh set-header` が対象行を
+  見つけられなくなっていたため。表記の定義は
+  [update-handoff-progress.md](update-handoff-progress.md)「HANDOFF.mdのヘッダ行」が正。
 
 - 既にテンプレートと同じ内容なら書き込まない（JSONの `handoff.alreadyTemplate` が `true` になる）。
   末尾の改行の個数だけの差は同一とみなす。
@@ -96,7 +102,7 @@ bash .claude/scripts/src/cleanup-task.sh [--dry-run] [--skip-index]
 対処は `extract-frontmatter.sh` 側で行った。列挙結果のうちワーキングツリーに実体が無いパスを
 スキップするため、本スクリプトの手順・順序は変えていない（詳細:
 [.claude/docs/spec/extract-frontmatter.md](extract-frontmatter.md)「削除済みの追跡ファイルの扱い」、
-[.claude/docs/ddr/0057-削除済み追跡ファイルの除外はextract-frontmatter側で行う.md](../ddr/0057-削除済み追跡ファイルの除外はextract-frontmatter側で行う.md)）。
+[.claude/docs/ddr/i0117-01-削除済み追跡ファイルの除外はextract-frontmatter側で行う.md](../ddr/i0117-01-削除済み追跡ファイルの除外はextract-frontmatter側で行う.md)）。
 
 ### コミットはしない
 
@@ -157,7 +163,7 @@ bash .claude/scripts/src/cleanup-task.sh [--dry-run] [--skip-index]
 - `.claude/scripts/test/test_cleanup_task.sh`（純粋関数 `is_safe_relative_dir` / `is_keep_path` /
   `is_handoff_template` と埋め込みテンプレートの内容を検証。実ファイルを削除する `main` は対象外）
 - `.claude/docs/spec/cleanup-task.md`（本ファイル）
-- `.claude/docs/ddr/0048-flow-id5-1の後片付けはスクリプト化しコミットは含めない.md`
+- `.claude/docs/ddr/i0028-01-flow-id5-1の後片付けはスクリプト化しコミットは含めない.md`
 
 変更:
 - `.claude/skills/issue-mr-flow/SKILL.md`（flow-id 5-1 の手順を本スクリプトの実行へ差し替え）
@@ -181,7 +187,7 @@ bash .claude/scripts/src/cleanup-task.sh [--dry-run] [--skip-index]
   該当項目が解消した）
 
 新規:
-- `.claude/docs/ddr/0057-削除済み追跡ファイルの除外はextract-frontmatter側で行う.md`
+- `.claude/docs/ddr/i0117-01-削除済み追跡ファイルの除外はextract-frontmatter側で行う.md`
 
 ## 未決定事項・懸念点
 

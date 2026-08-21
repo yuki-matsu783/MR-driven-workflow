@@ -31,7 +31,7 @@ set -euo pipefail
 #
 # `.gemini` を外すのは、その配下（docs/hooks/rules/scripts/skills）が `.claude` 配下への
 # ローカルリンク（シンボリックリンク、Windowsでは NTFS ジャンクション）であるため
-# （.claude/docs/ddr/0017-gemini配下はGit管理下に置かずセットアップスクリプトで生成する.md）。
+# （.claude/docs/ddr/i0000-13-gemini配下はGit管理下に置かずセットアップスクリプトで生成する.md）。
 # ジャンクションは find からは通常のディレクトリに見えるため、外さないと同じドキュメントが
 # `.claude/...` と `.gemini/...` の2通りの concept_id で二重にヒットする。
 readonly SF_EXCLUDED_DIRS='.git node_modules build .gemini'

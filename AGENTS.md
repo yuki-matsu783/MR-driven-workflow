@@ -20,7 +20,7 @@ keywords: [issue-mr-flow, 計画, claude-code, gemini-cli, gh, glab, webfetch, �
   （どのissueにいつ着手するかの判断を人間が握るため。issue #39。詳細は
   `.claude/skills/issue-create/SKILL.md`「してはいけないこと」・
   `.claude/skills/issue-mr-flow/SKILL.md`「`start`」節、
-  `.claude/docs/ddr/0038-issue起票後の着手確認はブロックせず注意喚起の注入で担保する.md`）。
+  `.claude/docs/ddr/i0039-01-issue起票後の着手確認はブロックせず注意喚起の注入で担保する.md`）。
 - 特別なコンテキストなしで回答可能な簡易タスクを除き、いかなるタスク（調査、設計、コード作成、テスト、リファクタリングなど）も、**実作業を開始する前に必ず「計画（Plan）」を立ててユーザーに提示**する
 - 計画はplansディレクトリ配下に保存する。計画は2階層に分ける（詳細は
   `.claude/skills/issue-mr-flow/SKILL.md`「計画の2階層構造」）
@@ -32,11 +32,11 @@ keywords: [issue-mr-flow, 計画, claude-code, gemini-cli, gh, glab, webfetch, �
 - GitHub/GitLabのissue・PR/MR・コメント等の情報を取得する際は、WebFetchツールやcurlではなく
   `gh`/`glab` CLI（`.claude/scripts/src/vcs/Provider.sh` 経由）を使う。認証済みで構造化JSONが
   得られ、`.claude/skills/issue-mr-flow/SKILL.md` の各サブコマンドとも一貫するため（詳細・却下案は
-  `.claude/docs/ddr/0020-GitHub_GitLab情報取得はgh_glab-CLIを使いWebFetchは使わない.md` 参照）。
+  `.claude/docs/ddr/i0014-01-GitHub_GitLab情報取得はgh_glab-CLIを使いWebFetchは使わない.md` 参照）。
   **`gh`/`glab` CLIが実行環境に存在しない場合**（例: Claude Code on the webのリモート実行環境。
   issue #21対応時に実機確認）は、`Provider.sh`が動作しないため、同等の機能を持つGitHub/GitLab
   公式のMCPサーバーツール（例: `mcp__github__*`）で代替してよい。WebFetchツールやcurlへは
-  フォールバックしない（この場合もDDR 0020の理由は変わらないため）。**経路の判定方法
+  フォールバックしない（この場合もDDR i0014-01の理由は変わらないため）。**経路の判定方法
   （`get_vcs_access_mode`）と、Provider関数・サブコマンドごとのMCPツール対応表は
   `.claude/skills/issue-mr-flow/SKILL.md`「`gh`/`glab` CLI不在時のMCPフォールバック」節が正**
   （issue #34。GitLabは対象外）。
@@ -51,7 +51,7 @@ keywords: [issue-mr-flow, 計画, claude-code, gemini-cli, gh, glab, webfetch, �
   またはインデックス検索が0件だったときに限る。使い方・jqレシピは
   `.claude/skills/doc-search/SKILL.md`、仕様は `.claude/docs/spec/search-frontmatter.md`
   （issue #38。理由・却下案は
-  `.claude/docs/ddr/0049-ドキュメント探索はfrontmatterインデックス検索を第一手段にする.md`）。
+  `.claude/docs/ddr/i0038-01-ドキュメント探索はfrontmatterインデックス検索を第一手段にする.md`）。
 
 ## プロジェクト概要
 

@@ -31,14 +31,17 @@ keywords: [ディレクトリ構成, claude, gemini, 配置方針, plans, worklo
 │   ├── hooks/                  # SessionStart/PostToolUse等のClaude Code hookスクリプト
 │   │   └── lib/                # 複数hookスクリプトで使い回す共通ロジック
 │   ├── REVIEW-POINTS.md       # `.claude/`配下に適用するレビュー観点（`type: review-points`）
+│   ├── VERSION                 # 配布物の版（SemVer 1行）。更新規則は`.claude/docs/spec/distribution-assets.md`
 │   └── settings.json
 ├── .gemini/                    # Gemini CLI向け設定。settings.jsonのみGit管理。docs/hooks/rules/
 │   │                            # scripts/skillsは.claude配下へのローカルリンクで.gitignore対象
 │   └── settings.json
 ├── .github/
-│   └── ISSUE_TEMPLATE/          # GitHub用issueテンプレート（目的・現状・期待する動作・受け入れ条件）
+│   ├── ISSUE_TEMPLATE/          # GitHub用issueテンプレート（目的・現状・期待する動作・受け入れ条件）
+│   └── pull_request_template.md # GitHub用PRテンプレート（`describe`が生成するdescriptionと同一構成）
 ├── .gitlab/
-│   └── issue_templates/         # GitLab用issueテンプレート（同上）
+│   ├── issue_templates/         # GitLab用issueテンプレート（同上）
+│   └── merge_request_templates/ # GitLab用MRテンプレート（`Default.md`。PRテンプレートと同一内容）
 ├── build/                      # ビルド成果物の出力先。`.gitignore`対象でコミットしない（通常は空）
 ├── plans/                      # 計画ファイル。全体作業計画（planツールが出力する`<自動命名>.md`、
 │                                #   issueにつき1つ）と個別作業計画（`【種別】タスク内容.md`、
@@ -47,6 +50,8 @@ keywords: [ディレクトリ構成, claude, gemini, 配置方針, plans, worklo
 │   └── REVIEW-POINTS.md        # `plans/`配下に適用するレビュー観点。**flow-id 5-3で削除しない**
 ├── worklog/                    # 実装中の詳細な試行錯誤ログ（`日付_<全体計画名>_<個別計画名>_push<N>.md`）
 │   └── TEMPLATE.md             # worklog作成時にコピーして使うテンプレート
+├── .gitattributes              # 改行コードの正規化。`*.sh text eol=lf`が`.sh`のLFを保証する
+│                                #   （`dist:begin`〜`dist:end`の行のみ配布先へも追記される）
 ├── .gitignore
 ├── .mrworkflow.json            # リポジトリ固有設定（ブランチ命名規則・plans/等の場所）
 ├── AGENTS.md                   # AIエージェント共通ルール・プロジェクト概要・開発実行方法
@@ -75,16 +80,16 @@ keywords: [ディレクトリ構成, claude, gemini, 配置方針, plans, worklo
 `usage/state/gemini-totals/<sessionId>.json`（**Gemini CLI経路の前回累計。ブランチ非依存**。
 issue #97。ブランチ別に持つと、同じセッションのままブランチを切り替えたときに蓄積済みの全件が
 新ブランチの初回差分として再計上されるため。詳細:
-`.claude/docs/ddr/0050-Gemini集計の差分はファイル全体の畳み込みと前回累計の差分で取る.md`）・
+`.claude/docs/ddr/i0097-01-Gemini集計の差分はファイル全体の畳み込みと前回累計の差分で取る.md`）・
 `usage/state/push-index.jsonl`（push断面の行範囲。Claude Code経路のみ）。issue #23以前は、これとは別に
 `logs/push-<N>/` へpushのたびにセッションログ全文を保存する系統があったが、transcriptが追記専用で
 あることを確認したうえで廃止し `usage/` へ一本化した（詳細:
-`.claude/docs/ddr/0022-push断面の全文コピーをやめ行番号インデックスで表現する.md`）。
+`.claude/docs/ddr/i0023-01-push断面の全文コピーをやめ行番号インデックスで表現する.md`）。
 
 `.claude/state/`は`post-push-compact-prompt.sh`がレビュー依頼メッセージの参照リンク組み立てに使う、
 前回push時点のHEAD SHAのローカル作業状態で、`.gitignore`対象（`/.claude/state/`）。責務分離のため
 `usage/`とは別ディレクトリにしている（詳細: `.claude/docs/spec/issue-mr-workflow.md`
-「/compact実施の呼びかけ」節、`.claude/docs/ddr/0023-レビュー依頼メッセージの参照リンクは前回pushSHAをローカル状態で保持して組み立てる.md`）。
+「/compact実施の呼びかけ」節、`.claude/docs/ddr/i0013-01-レビュー依頼メッセージの参照リンクは前回pushSHAをローカル状態で保持して組み立てる.md`）。
 
 ## 配置の指針
 
@@ -109,7 +114,7 @@ issue #97。ブランチ別に持つと、同じセッションのままブラ�
   （`.gitignore`で除外。Gemini CLIとClaude Code間でルール・スキル・スクリプトの内容を二重管理
   しないための仕組みだが、NTFSジャンクションはGitがリンクとして認識できず中身をそのまま複製して
   コミットしてしまうため、リンク自体はGitに載せず各開発者のマシン上でローカルに生成する方針とした。
-  詳細: `.claude/docs/ddr/0017-gemini配下はGit管理下に置かずセットアップスクリプトで生成する.md`）。
+  詳細: `.claude/docs/ddr/i0000-13-gemini配下はGit管理下に置かずセットアップスクリプトで生成する.md`）。
   リンクの作成・再作成は `bash .claude/scripts/src/setup-gemini-links.sh` を実行する
   （clone直後に1回実行すればよい。既存のリンクがあれば何もしない）。実体は常に `.claude/` 側を編集する。
 - `.claude/hooks/` 配下のスクリプトは現在すべてbash（`.sh`）。新規`.ps1`を作成する場合のみ

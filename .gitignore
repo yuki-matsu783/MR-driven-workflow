@@ -25,7 +25,7 @@
 
 # .gemini/配下は.claude/への参照(シンボリックリンク/NTFSジャンクション)のみでGit管理下に置かない。
 # Gitはジャンクションをリンクとして認識せず中身をそのまま複製してしまうため（詳細:
-# .claude/docs/ddr/0017-gemini配下はGit管理下に置かずセットアップスクリプトで生成する.md）。
+# .claude/docs/ddr/i00-13-gemini配下はGit管理下に置かずセットアップスクリプトで生成する.md）。
 # clone後は .claude/scripts/src/setup-gemini-links.sh を1度実行してリンクを作成する。
 /.gemini/docs
 /.gemini/hooks
@@ -37,7 +37,7 @@
 # インデックス。複数ブランチが並行してmarkdownのfrontmatterを編集すると生成物の近接行同士が
 # 競合していたため、issue #36でGit管理から外し生成物として扱う方針に変更した。SessionStart hook
 # （.claude/hooks/session-start.sh）がセッション開始のたびに自動再生成する（詳細:
-# .claude/docs/ddr/0025-frontmatterのindex.jsonlをGit管理から外しSessionStart-hookで生成する.md）。
+# .claude/docs/ddr/i36-01-frontmatterのindex.jsonlをGit管理から外しSessionStart-hookで生成する.md）。
 **/index.jsonl
 # MSYS/git bashのクラッシュダンプ（作業中に生成されることがある）
 *.stackdump

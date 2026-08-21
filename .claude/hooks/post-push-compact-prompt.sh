@@ -10,8 +10,9 @@
 # （"Bash(git push*)" / "PowerShell(git push*)"）によって、tool_input のコマンドが
 # git push を含む場合のみ起動される（マッチしなければプロセスが起動されず、通常のBash/
 # PowerShell/run_shell_command利用への性能影響は無い）。if フィルタはベストエフォートのため、
-# 本スクリプト側でも念のため command 文字列を正規表現で再チェックする
-# （検知ロジックは post-push-usage-report.sh と同一パターン）。tool_nameによるエンジン判定・
+# 本スクリプト側でも念のため command 文字列を再チェックする。再チェックは
+# .claude/hooks/lib/CommandPosition.sh のコマンド位置判定で行う（issue #53。検知ロジックは
+# post-push-usage-report.sh と同一）。tool_nameによるエンジン判定・
 # プロジェクトルート取得も同様に post-push-usage-report.sh と同じパターンを使う。
 #
 # post-push-usage-report.sh と責務を分離した別スクリプト（使用量集計の投稿先はMRコメントだが、
@@ -41,10 +42,10 @@
 # `get_repo_url` で取得したリポジトリの正規URLを土台に、GitHub/GitLabいずれも持つ汎用の
 # 「Compare」ページ（`/compare/<from>...<to>`）を組み立てる方式にした（issue #13フォローアップ:
 # 「gh/glabでURLの正確性を担保したい」という指摘への対応。詳細は
-# `.claude/docs/ddr/0023-...md`参照）。`get_repo_url` 自体は当初 `gh repo view` / `glab repo view`
+# `.claude/docs/ddr/i0013-01-...md`参照）。`get_repo_url` 自体は当初 `gh repo view` / `glab repo view`
 # を呼んでいたが、issue #44で `git remote get-url origin` の正規化（プロバイダ非依存）へ置き換えた。
 # これにより、pushのたびに走る本hookから外部CLIの起動とAPI往復が1回ずつ無くなっている
-# （詳細: `.claude/docs/ddr/0037-...md`）。
+# （詳細: `.claude/docs/ddr/i0044-01-...md`）。
 #
 # askツールの禁止: レビュー依頼のターンは、ユーザーがその場で `/compact` を打ちたいタイミング
 # でもある（このhook自身がそれを促している）。`AskUserQuestion`（askツール）を出すと入力欄が
@@ -231,8 +232,20 @@ main() {
 
   local command
   command="$(printf '%s' "$hook_input" | jq -r '.tool_input.command // empty')"
-  if [ -z "$command" ] || ! printf '%s' "$command" | grep -qiE 'git[[:space:]]+push'; then
-    exit 0
+  [ -n "$command" ] || exit 0
+  # 判定は .claude/hooks/lib/CommandPosition.sh へ委譲する（issue #53）。
+  # ライブラリを使えない場合（壊れたファイル・bash 4.3未満）は従来どおりの部分一致へ落とす。
+  # `[ -r ]` だけでは読み込みの失敗を拾えず、`set -e` 配下では無言で終了して呼びかけが落ちる。
+  local cp_dir="${BASH_SOURCE[0]%/*}"
+  [ "$cp_dir" = "${BASH_SOURCE[0]}" ] && cp_dir='.'
+  local cp_lib="${cp_dir}/lib/CommandPosition.sh"
+  # shellcheck source=lib/CommandPosition.sh
+  if ((BASH_VERSINFO[0] > 4 || (BASH_VERSINFO[0] == 4 && BASH_VERSINFO[1] >= 3))) &&
+    [ -r "$cp_lib" ] && source "$cp_lib" 2>/dev/null &&
+    declare -F command_invokes_git_subcommand >/dev/null; then
+    command_invokes_git_subcommand "$command" push || exit 0
+  else
+    printf '%s' "$command" | grep -qiE 'git[[:space:]]+push' || exit 0
   fi
 
   local project_dir="${GEMINI_PROJECT_DIR:-${CLAUDE_PROJECT_DIR:-}}"

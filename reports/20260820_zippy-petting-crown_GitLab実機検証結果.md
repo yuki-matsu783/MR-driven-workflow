@@ -689,7 +689,7 @@ diff: 差分なし（完全一致）
 | 同 仕様本文 | 差分アンカーのハッシュ算出方法の節へ、GitLab側の実機確認結果と**「土台にするページはプロバイダで異なる」**を追記。「差分アンカーリンク（Compareページ内の…）」の表記も修正 |
 | 同「影響範囲」 | **`### issue #127` エントリを追加**（不具合2件・変更ファイル・GitHub側の非後退確認・受け入れ条件1の経緯） |
 | `.claude/docs/spec/adversarial-review.md` | 「非インラインのスレッド投稿は未検証」を、run1/run2 の実測値つきで**実機確認済みへ書き換え** |
-| **`.claude/docs/ddr/0059-…md`（新規）** | 差分アンカーの土台の決定。原則・却下案（案A/案C/案B'）・**残した妥協**・DDR 0037 との関係 |
+| **`.claude/docs/ddr/i0127-01-…md`（新規）** | 差分アンカーの土台の決定。原則・却下案（案A/案C/案B'）・**残した妥協**・DDR 0037 との関係 |
 | `.claude/docs/spec/shell-scripts.md` | 移植表と「GitLab版の実機動作未検証」を、残る範囲（バージョン・エディション）へ絞った |
 | `.claude/scripts/src/vcs/Gitlab.sh` | ヘッダを issue #48/#45/#127 の3段構成へ書き換え。**関数数を 27 と明記**し数え方も残した。関数個別の【未検証】マーカー2件（`gitlab_diff_anchor_algo` / `gitlab_add_issue_comment`）を除去 |
 | **`.claude/docs/spec/gitlab-verification-environment.md`（新規）** | 受け入れ条件8の再現手順を恒久化（**flow-id 4-4 で作成の承認を得た**）。接続手段・PATの扱い・`glab auth status` の終了コード・Webページ取得にPATが効かないこと・差分の描画経路・`glab issue create` の stdout/stderr 分離まで含む |

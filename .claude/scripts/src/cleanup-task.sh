@@ -59,9 +59,13 @@ readonly -a KEEP_BASENAMES=(
   "REVIEW-POINTS.md"
 )
 
-# HANDOFF.mdのリセット後の内容（見出しだけを残した次タスク向けテンプレート）。
+# HANDOFF.mdのリセット後の内容（見出しと、ヘッダ行の雛形だけを残した次タスク向けテンプレート）。
 # 見出し構成は `.claude/rules/docs-workflow.md`「ドキュメント運用」表の HANDOFF.md 行に対応する。
-# 変更する場合は同表と `.claude/docs/spec/cleanup-task.md` も合わせて更新すること。
+# ヘッダ行6行の雛形を持たせているのは、タスクごとにAIエージェントが書き起こすことで表記が
+# 揺れ（"- PR:" / "- Draft PR:"）、`update-handoff-progress.sh set-header` が対象行を
+# 見つけられなくなっていたため（issue #66）。表記の定義は
+# `.claude/docs/spec/update-handoff-progress.md`「HANDOFF.mdのヘッダ行」が正。
+# 変更する場合は同表・同仕様書と `.claude/docs/spec/cleanup-task.md` も合わせて更新すること。
 # `IFS=` を付けないと read が先頭・末尾の改行を落とす（末尾改行の有無が変わる）。
 IFS= read -r -d '' HANDOFF_TEMPLATE <<'EOF' || true
 ---
@@ -80,7 +84,14 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 
 ## フロー進捗状況
 
-（次タスク着手時に記入する）
+- issue: （未着手）
+- ブランチ: （未着手）
+- PR: （未着手）
+- push回数: 0
+- 現在のループ: なし
+- 追従監視: なし
+
+（進捗表は次タスク着手時に記入する）
 
 ## やったこと
 

@@ -146,8 +146,10 @@ add_mr_inline_comments <MR番号> <findings JSONファイル>
 
 MR番号は `get_mr_for_branch "$(git branch --show-current)"` で取得する。
 
-- **findingsは必ずファイル経由で渡す**（jqの引数長上限と、コマンド文字列へのhook誤検知語の
-  混入を避けるため。`.claude/rules/shell-script-style.md`）。
+- **findingsは必ずファイル経由で渡す**（主たる理由は**jqの引数長上限**である。
+  `.claude/rules/shell-script-style.md`「JSON操作」。指摘本文のサイズは対象の差分次第で
+  可変・無制限になりうる）。副次的な理由だった「コマンド文字列へのhook誤検知語の混入」は、
+  issue #53 でhookの判定がコマンド位置ベースになったため弱まったが、**結論は変わらない**。
 - 戻り値は `{"posted":N,"summarized":M}`。`summarized` は、対象がdiffに含まれず行を指定
   できなかったためサマリへ回った件数。サマリの出し方はプロバイダで異なり、GitHubは
   **レビュー本文**へ載せ、GitLabは**別コメント**として投稿する。
@@ -167,6 +169,11 @@ MR番号は `get_mr_for_branch "$(git branch --show-current)"` で取得する�
 - 打ち切った場合はその理由（上限到達）。
 - 観点表が空だった場合はその事実（観点表を追加すべきディレクトリの発見につながる）。
 
+**本スキルの担当はここまでで、投稿した指摘への対応と返信は担わない。** 投稿したスレッドは
+`issue-mr-flow` の `comments` / `reply` ループ（flow-id 2-4/2-9/3-4/3-9/4-4/4-9）が、人間の指摘と
+同列に扱って対応・返信する（issue #109。ルールは
+`.claude/skills/issue-mr-flow/SKILL.md` の `comments` サブコマンドが正）。
+
 ## `gh`/`glab` CLI不在時（`get_vcs_access_mode` が `mcp`）の読み替え
 
 ```bash
@@ -183,7 +190,7 @@ get_vcs_access_mode   # → cli / mcp
    次回の `create` が失敗し続ける。
 5. 途中で失敗した場合は `method="delete_pending"` で片付けてから、原因を報告する。
 
-WebFetchツール・curlへはフォールバックしない（DDR 0020, DDR 0027）。
+WebFetchツール・curlへはフォールバックしない（DDR i0014-01, DDR i0034-01）。
 
 ## してはいけないこと
 
@@ -193,4 +200,7 @@ WebFetchツール・curlへはフォールバックしない（DDR 0020, DDR 002
 - 観点の中身をこのSKILL.mdへ書き足すこと（`REVIEW-POINTS.md` へ書く）。
 - サブエージェントへ実装の経緯・設計意図を渡すこと。
 - スレッドの解決（resolve）操作を行うこと（レビュアー側の操作）。
+- **投稿した自分の指摘へ、その場で返信すること**（返信は `issue-mr-flow` の `comments` / `reply`
+  ループで行う。投稿と返信の間に人間のレビューを挟み、同じスレッドへ人間が判断を示す余地を
+  残すため。issue #109）。
 - 指摘が0件のときに、水増しして投稿すること。

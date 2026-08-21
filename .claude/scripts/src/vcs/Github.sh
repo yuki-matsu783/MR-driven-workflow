@@ -84,10 +84,56 @@ github_new_draft_merge_request() {
   gh pr view "$branch" --json number --jq '.number'
 }
 
-# レビュースレッド＋通常のissueコメントをまとめて返す。既定では未解決（isResolved: false）の
+# --- レビューコメント取得（issue #43） -----------------------------------------------------
+#
+# 出力仕様の見直しにより、この層は**正規化JSONを返すだけ**になった（テキスト整形と、指摘行
+# 前後のソース切り出しは `Provider.sh` の共通の後段ロジックが行う）。GitHub固有の `diffHunk` へ
+# 依存するのをやめ、`(path, line, sha)` だけをプロバイダ間の共通項として渡す
+# （詳細: .claude/docs/spec/issue-mr-workflow.md「レビューコメントのソーススライス」）。
+
+# GraphQLの返却JSON（文字列）を、プロバイダ非依存の正規化JSONへ変換する純粋関数
+# （`gh` を呼ばないため .claude/scripts/test/test_vcs_provider.sh から単体テストできる。
+# `.claude/rules/shell-script-style.md`「テスト」。issue #43 以前、GitHub側の整形には
+# 単体テストが1件も無く、issue #94 のCR混入をテストで検知できなかった）。
+#
+# 位置と断面の解決はこの層で済ませ、共通層へは解決後の `line` / `sha` だけを渡す
+#   - `line`: `.line` が非nullならそれ、nullなら `.originalLine`（outdatedスレッドはこちらしか
+#     値を持たない。issue #43 の「現状」6）
+#   - `sha`: `line` 側に合わせて `commit.oid` / `originalCommit.oid` を選ぶ
+# いずれも取得できなければ `null` を返し、共通層はソース無しへ縮退する。
+github_normalize_review_threads() {
+  local raw="$1" include_resolved="${2:-false}"
+  printf '%s' "$raw" | jq -c --argjson includeResolved "$include_resolved" '
+    def norm_comment:
+      {author: (.author.login // "(unknown)"), body: (.body // ""), url: (.url // null)};
+    {
+      threads: [
+        (.data.repository.pullRequest.reviewThreads.nodes // [])[]
+        | select((.isResolved | not) or $includeResolved)
+        | . as $t
+        | (($t.comments.nodes // [])[0] // {}) as $c0
+        | (($t.line // null) != null) as $useCurrent
+        | {
+            threadId: $t.id,
+            isResolved: ($t.isResolved // false),
+            isOutdated: ($t.isOutdated // false),
+            path: ($t.path // null),
+            line: (if $useCurrent then $t.line else ($t.originalLine // null) end),
+            sha: (if $useCurrent
+                    then ($c0.commit.oid // $c0.originalCommit.oid // null)
+                    else ($c0.originalCommit.oid // $c0.commit.oid // null) end),
+            comments: [ ($t.comments.nodes // [])[] | norm_comment ]
+          }
+      ],
+      comments: [ (.data.repository.pullRequest.comments.nodes // [])[] | norm_comment ]
+    }
+  ' | tr -d '\r'
+}
+
+# レビュースレッド＋通常のissueコメントを正規化JSONで返す。既定では未解決（isResolved: false）の
 # スレッドのみを対象とし、対応済み（解決済み）は機械的に除外する。include_resolved=true 指定時は
 # 解決済みスレッドも含めた全件を返す。resolved/unresolvedの概念を持たない通常コメントは常に含める。
-github_get_mr_unresolved_comments() {
+github_get_mr_review_threads() {
   local mr_number="$1" include_resolved="${2:-false}"
   local query result
 
@@ -102,9 +148,19 @@ query($owner: String!, $repo: String!, $number: Int!) {
         nodes {
           id
           isResolved
+          isOutdated
           path
           line
-          comments(first: 50) { nodes { author { login } body diffHunk url } }
+          originalLine
+          comments(first: 50) {
+            nodes {
+              author { login }
+              body
+              url
+              commit { oid }
+              originalCommit { oid }
+            }
+          }
         }
       }
       comments(first: 100) { nodes { author { login } body url } }
@@ -115,27 +171,25 @@ EOF
 )"
 
   result="$(gh api graphql -F "owner={owner}" -F "repo={repo}" -F "number=$mr_number" -f "query=$query")"
+  github_normalize_review_threads "$result" "$include_resolved"
+}
 
-  printf '%s' "$result" | jq -r --argjson includeResolved "$include_resolved" '
-    def thread_lines:
-      .data.repository.pullRequest.reviewThreads.nodes[]
-      | select((.isResolved | not) or $includeResolved)
-      | . as $t
-      | $t.comments.nodes[]
-      | (
-          "[review " + (if $t.isResolved then "resolved" else "unresolved" end)
-          + " threadId=" + $t.id
-          + " " + (if $t.path then ($t.path + ":" + (($t.line // "") | tostring)) else "(場所不明)" end)
-          + (if .url then (" url=" + .url) else "" end)
-          + "] " + .author.login + ": " + .body
-        )
-        + (if .diffHunk then ("\n--- diff ---\n" + .diffHunk) else "" end);
-    def comment_lines:
-      .data.repository.pullRequest.comments.nodes[]
-      | "[comment" + (if .url then (" url=" + .url) else "" end) + "] "
-        + .author.login + ": " + .body;
-    [thread_lines, comment_lines] | join("\n\n")
-  ' | tr -d '\r'
+# 指定したcommit時点のファイル内容を標準出力へ返す（ローカルにblobが無い場合のフォールバック。
+# issue #43）。`Provider.sh` の `read_file_at_ref` が、ローカルの `git show` に失敗したときだけ
+# ここへ落ちてくる。取得できなければ何も出力せず終了コード1を返す。
+#
+# GitHubの `contents` APIはファイル本体をbase64で返す（`.content`）。改行を含むbase64が返るため
+# `tr -d` で詰めてからデコードする。
+github_read_file_at_ref() {
+  local sha="$1" path="$2"
+  local encoded content
+  url_encode_path_to_reply "$path"
+  encoded="$REPLY"
+  if ! content="$(gh api "repos/{owner}/{repo}/contents/${encoded}?ref=${sha}" --jq '.content' 2>/dev/null)"; then
+    return 1
+  fi
+  [ -n "$content" ] || return 1
+  printf '%s' "$content" | tr -d '\r\n' | base64 -d 2>/dev/null
 }
 
 # 指定したレビュースレッドに対応内容を返信する。スレッドの解決（resolved）はレビュアー側の

@@ -10,7 +10,8 @@
 # （"Bash(git push*)" / "PowerShell(git push*)"）によって、tool_input のコマンドが
 # git push を含む場合のみ起動される（マッチしなければプロセスが起動されず、通常のBash/
 # PowerShell/run_shell_command利用への性能影響は無い）。if フィルタはベストエフォートのため、
-# 本スクリプト側でも念のため command 文字列を正規表現で再チェックする。tool_name から実行中の
+# 本スクリプト側でも念のため command 文字列を再チェックする。再チェックは
+# .claude/hooks/lib/CommandPosition.sh のコマンド位置判定で行う（issue #53）。tool_name から実行中の
 # エンジン（Gemini CLI / Claude Code）を判定する（両エンジンのtool_nameの値集合は重複しないため
 # 機械的に一意判定できる。詳細: .claude/docs/spec/issue-mr-workflow.md「エンジン判定」節）。
 # 判定した engine は、フッター署名（engine_label）に加えて sync_usage_state へ渡し、
@@ -280,7 +281,7 @@ build_usage_report_body() {
       # 既知の過小カウント（ストリーミング応答の開始時点で書かれたプレースホルダー値が更新されない）は
       # Claude Codeのtranscript JSONLについて報告されているものであり、Gemini CLIのセッションログに
       # ついては同種の報告が無い。そのため、この2行はClaude Code由来のトークンを含むレポートにだけ出す。
-      # 出すかどうかは**engineではなくデータで決める**（issue #97・DDR 0052のトークン列と同じ理由。
+      # 出すかどうかは**engineではなくデータで決める**（issue #97・DDR i0097-03のトークン列と同じ理由。
       # 状態ファイルはブランチ単位で、投稿に成功するまで `sinceLastPush` が繰り越されるため、
       # Gemini CLIからの投稿でもClaude Code由来のモデル行が載りうる。その場合は注記が必要になる）。
       # 判定条件はトークンテーブルの行と揃える（thoughtsキーを持たない＝Claude Code由来、かつ
@@ -328,8 +329,20 @@ main() {
 
   local command
   command="$(printf '%s' "$hook_input" | jq -r '.tool_input.command // empty')"
-  if [ -z "$command" ] || ! printf '%s' "$command" | grep -qiE 'git[[:space:]]+push'; then
-    exit 0
+  [ -n "$command" ] || exit 0
+  # 判定は .claude/hooks/lib/CommandPosition.sh へ委譲する（issue #53）。
+  # ライブラリを使えない場合（壊れたファイル・bash 4.3未満）は従来どおりの部分一致へ落とす。
+  # `[ -r ]` だけでは読み込みの失敗を拾えず、`set -e` 配下では無言で終了して集計が落ちる。
+  local cp_dir="${BASH_SOURCE[0]%/*}"
+  [ "$cp_dir" = "${BASH_SOURCE[0]}" ] && cp_dir='.'
+  local cp_lib="${cp_dir}/lib/CommandPosition.sh"
+  # shellcheck source=lib/CommandPosition.sh
+  if ((BASH_VERSINFO[0] > 4 || (BASH_VERSINFO[0] == 4 && BASH_VERSINFO[1] >= 3))) &&
+    [ -r "$cp_lib" ] && source "$cp_lib" 2>/dev/null &&
+    declare -F command_invokes_git_subcommand >/dev/null; then
+    command_invokes_git_subcommand "$command" push || exit 0
+  else
+    printf '%s' "$command" | grep -qiE 'git[[:space:]]+push' || exit 0
   fi
 
   local project_dir="${GEMINI_PROJECT_DIR:-${CLAUDE_PROJECT_DIR:-}}"

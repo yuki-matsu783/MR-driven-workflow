@@ -255,7 +255,7 @@ issue #127（ローカルGitLab CEで、issue #48以降に `Gitlab.sh` へ追加
   `【AIアセット反映】` は評価軸が混ざるため原則分ける）。
   - 設計反映: spec の未決定事項4項目（**削除ではなく範囲を絞る**。GitHub側は未検証のまま残る）、
     提供関数表（`get_diff_anchor_url` の説明・`get_diff_anchor_algo` の【未検証】除去・
-    新規3関数の追加）、**新規DDR 0059**（差分アンカーの土台。次の空き番号を確認済み）、
+    新規3関数の追加）、**新規DDR i0127-01**（差分アンカーの土台。次の空き番号を確認済み）、
     `shell-scripts.md` 2箇所、`Gitlab.sh` のヘッダ**と関数個別の【未検証】マーカー**、
     受け入れ条件8の再現手順の恒久化。
   - AIアセット反映: `shell-script-style.md`「テスト」節（`declare -F` の出力形式・
@@ -273,7 +273,7 @@ issue #127（ローカルGitLab CEで、issue #48以降に `Gitlab.sh` へ追加
   2件の教訓を追記した。人間のレビューで**新規spec `gitlab-verification-environment.md` の
   作成が承認され**（「オッケー。次に進んで」）、MR descriptionを更新した。
 - **flow-id 4-6（1セット目・設計反映）**: 計画の10節をすべて反映した。
-  - 反映先は9ファイル。**新規2ファイル**（`ddr/0059-差分アンカーの土台は…md`・
+  - 反映先は9ファイル。**新規2ファイル**（`ddr/i0127-01-差分アンカーの土台は…md`・
     `spec/gitlab-verification-environment.md`）と、`spec/issue-mr-workflow.md`（未決定事項・
     提供関数表・仕様本文・影響範囲の4箇所）・`spec/adversarial-review.md`・
     `spec/shell-scripts.md`・`Gitlab.sh` ヘッダ・`docs/README.md`。
@@ -306,7 +306,7 @@ issue #127（ローカルGitLab CEで、issue #48以降に `Gitlab.sh` へ追加
   - その他の修正: `adversarial-review.md` run1（0件でも単発noteは投稿される）、
     差分アンカーの説明の旧引数名 `compareUrl`、新規specへの `## 背景・目的` /
     `## 未決定事項・懸念点` の追加、手順5のPAT取得（接頭辞非依存＋`|| true`）、
-    issue #127 changelogへのドキュメント7行の追加、DDR 0059への限界2件の明記、
+    issue #127 changelogへのドキュメント7行の追加、DDR i0127-01への限界2件の明記、
     `get_mr_url`/`get_note_url` の出自表記。
   - 修正後の再検証: frontmatterインデックス `files=109 built=7 reused=102 failed=0` /
     DDR番号の重複なし / `bash -n` OK / `grep -c '^gitlab_[a-z0-9_]*()'` = 27 /
@@ -362,6 +362,42 @@ issue #127（ローカルGitLab CEで、issue #48以降に `Gitlab.sh` へ追加
   不要と判断されたら戻す（`commit/SKILL.md` の除外リストへの追加も同じ扱い）。
 
 ## 判断を迷った内容
+
+- **mainのマージ（2回目。ユーザーの指示で実施。`6b6aeaf` を取り込み）**。競合7ファイル。
+  - **類型C（両方残す）**: `.claude/skills/resolve-conflict/SKILL.md`（失敗表へ両側の行を残し、
+    main側の散文はその後ろへ）、`.claude/scripts/test/test_vcs_provider.sh`（main側の issue #43
+    ブロックとこちらの issue #127 ブロックは重複が無いので両方残した）、`.gitignore`
+    （main側のDDRパス表記を採り、こちらの `*.stackdump` を残した）、
+    `.claude/rules/git-workflow.md`（main側の新DDRパスを採り、こちらの2項目を残した）。
+  - **類型D（時系列順に両方残す）**: `.claude/docs/spec/issue-mr-workflow.md` の「影響範囲」。
+    main側の issue #109 エントリを先に、こちらの issue #127 エントリを後ろに置いた。
+  - **`.claude/docs/README.md` は main側を全面採用した。** main（issue #135）がDDR一覧を
+    `generate-ddr-list.sh` の生成物へ変えたため、こちらの手書き行を残す意味が無い。spec一覧の
+    行だけ両方を残し、DDR一覧は改名後に再生成した。
+  - **`HANDOFF.md` は本ブランチ側を全面採用した**（main側は次タスク用のリセット済みテンプレート。
+    このファイルは「1ブランチ1状態」を表すため）。
+- **DDRの識別子スキーム変更への追随（main の issue #137）**。mainがDDRを連番から
+  `i<issue番号>-<枝番>` へ全面改名したため、本ブランチの新規DDRを
+  `0059-…md` → **`i0127-01-…md`** へ改名した（frontmatterの `title`・本文見出し・
+  `spec/issue-mr-workflow.md`・`spec/gitlab-verification-environment.md`・`HANDOFF.md`・
+  `reports/` のmd/htmlの参照を追随）。**main側の過去changelogにある `0059` の記述
+  （`issue-mr-workflow.md` 2773行の issue #113 エントリ）は書き換えていない**
+  （point-in-timeの記録のため）。
+- **semantic conflict を1件検出し修正した。** mainの issue #43 が
+  `gitlab_get_mr_unresolved_comments` を `gitlab_get_mr_review_threads`（正規化JSONを返す）＋
+  `format_review_comments` の2段へ分けたため、issue #127 で追加した呼び出し経路のテストが
+  **関数ごと存在しなくなって**失敗した。テストを新しい2段の形へ書き換え、
+  「このケースが見ているのは整形結果ではなく経路である」ことをコメントで残した
+  （**テストを無効化していない**）。
+- **`Gitlab.sh` の関数数がマージで 27 → 28 になった。** 増えたのは issue #43 の
+  `gitlab_read_file_at_ref` で、**issue #127 の検証より後に入ったため未検証**である。
+  ヘッダ・`spec/shell-scripts.md`・`spec/issue-mr-workflow.md`「未決定事項」を
+  「検証済みは27、現在の関数数は28、差分の1件は未検証」と書き分けた。
+- **`test_command_position.sh` が `passed=74 failures=1` で失敗している。** `origin/main` を
+  worktreeへ取り出して単体で流しても同じ1件が落ちるため、**マージ由来ではない既存の失敗**である
+  （内容は「大きなヒアドキュメントの判定が遅すぎる」という性能アサーションで、マシン負荷に
+  依存する）。他11本と `test_install_to_project.sh`（単体では `passed=22 failures=0`。
+  一括実行時のタイムアウトは所要時間のため）はすべて `failures=0`。
 
 - **mainのマージ（push直後の追従監視で検知。類型C）**。`HANDOFF.md` が競合した。main側は
   リセット済みテンプレート、本ブランチ側は issue #127 の作業状態であり、

@@ -12,15 +12,21 @@ issue #6でリポジトリ内の開発補助スクリプトを全てPowerShell�
 設計方針・移行の経緯は [.claude/docs/spec/shell-scripts.md](../../.claude/docs/spec/shell-scripts.md)
 を参照（このファイルは規約のみを記載し、経緯の重複は避ける）。
 
+**対象は「`.sh` ファイルとして保存するスクリプト」である。** AIエージェントがBash/PowerShell
+ツールへ渡す**その場限りのコマンド文字列**と `description` の書き方は
+[ai-command-style.md](ai-command-style.md) が扱う（issue #47）。
+
 ## 前提・保存形式
 
 - 実行環境はgit bash（Git for Windows付属のMSYS bash）。WSL/Linux実機での動作確認は行っていない
   （`.claude/docs/spec/shell-scripts.md`の未決定事項参照）。
 - ファイルはUTF-8・**BOM無し**・LF改行で保存する（PowerShellの`.ps1`と異なり、BOMは不要かつ
   有害。シバン行`#!/usr/bin/env bash`の直前にBOMがあるとインタプリタ判定に失敗する処理系がある）。
-  このリポジトリは`core.autocrlf=input`のためコミット時にCRLFはLFへ変換されるが、Write/Editツール
-  で新規作成した時点で既にLFになっていることを前提にしており、そこに依存しない保証がほしい場合は
-  `.gitattributes`に`*.sh text eol=lf`を追加する運用も検討できる（未導入）。
+  **LF改行はリポジトリルートの`.gitattributes`が保証する**（issue #33で導入）。`*.sh text eol=lf`
+  により、各開発者の`core.autocrlf`設定に関係なく`.sh`は作業ツリーでもLFで取り出される
+  （CRLFで取り出されるとシバン行の解釈に失敗し`bash: $'\r': command not found`になる）。
+  この指定は他プロジェクトへの配布時にも配布先の`.gitattributes`へ追記される。配る行の定義・
+  追記の仕組みは[.claude/docs/spec/distribution-assets.md](../docs/spec/distribution-assets.md)を参照。
 - 先頭に `#!/usr/bin/env bash` を置く。
 
 ## エラー方針
@@ -138,7 +144,7 @@ issue #11の実例: `extract-frontmatter.sh` がfrontmatterのキー・配列要
 1ファイルあたり約30回 × 43ファイルでリポジトリルート一括実行が2分でタイムアウトしていた。
 起動回数を1ファイル1回へ減らすことで**136秒→約10秒**になった（詳細:
 [.claude/docs/spec/extract-frontmatter.md](../docs/spec/extract-frontmatter.md)「性能」、
-[.claude/docs/ddr/0021-frontmatter抽出は1ファイル1回のjq呼び出しとmtimeキャッシュで高速化する.md](../docs/ddr/0021-frontmatter抽出は1ファイル1回のjq呼び出しとmtimeキャッシュで高速化する.md)）。
+[.claude/docs/ddr/i0011-01-frontmatter抽出は1ファイル1回のjq呼び出しとmtimeキャッシュで高速化する.md](../docs/ddr/i0011-01-frontmatter抽出は1ファイル1回のjq呼び出しとmtimeキャッシュで高速化する.md)）。
 
 - **ループ内で`jq`等の外部コマンドを呼ばない。** 処理対象ごとに1回まで、可能なら実行あたり1回に
   集約する。JSONの組み立てなら、シェル配列へ中間表現を溜めて`jq --args`へまとめて渡し、jq側で
@@ -159,6 +165,26 @@ issue #11の実例: `extract-frontmatter.sh` がfrontmatterのキー・配列要
   trim_to_reply() { local s="$1"; ...; REPLY="$s"; }
   trim_to_reply "$line"
   value="$REPLY"
+  ```
+
+- **`REPLY` へ返す形が要るのは、性能のためだけではない。戻り値が複数ある関数（本体＋メタ情報）も
+  同じ形にする。** コマンド置換で受けるとサブシェルへforkするため、**関数内で設定した他の
+  グローバル変数が呼び出し元へ伝わらない**（issue #43で実際に踏んだ。断面のソースを返す
+  `read_source_at_ref` を `content="$(read_source_at_ref ...)"` で受けたところ、同時に設定して
+  いた `REVIEW_SOURCE_REF` / `REVIEW_SOURCE_NOTE` が空のままになり、`set -u` 配下で
+  `REVIEW_SOURCE_REF: unbound variable` として表面化した）。**ホットパスでないから標準出力で
+  よい、とは判断しないこと。** 戻り値が2つ以上なら `REPLY` ＋専用のグローバル変数へ返し、
+  関数名を `*_to_reply` にして呼び出し側へ示す（実例: `Provider.sh` の
+  `read_source_at_ref_to_reply`、`split_remote_url` の `REPLY_HOST` / `REPLY_PATH`）。
+
+  ```bash
+  # 悪い例（サブシェルへforkするため REVIEW_SOURCE_REF が呼び出し元へ伝わらない）
+  content="$(read_source_at_ref "$sha" "$path")"
+  ref="$REVIEW_SOURCE_REF"
+  # 良い例
+  read_source_at_ref_to_reply "$sha" "$path"
+  content="$REPLY"
+  ref="$REVIEW_SOURCE_REF"
   ```
 
 - **`REPLY`やその他のグローバル変数へ結果を返す関数は、パイプではなくヒアストリングで呼ぶ。**
@@ -474,6 +500,14 @@ jq -s -c '...' "$tmp/normalized.jsonl"
     残る。**判定をCRに依存しない書き方に保つ**ことで対処し、行の一致（`^...$`のような
     アンカー付き正規表現・完全一致）へ変更する場合にだけCR除去を入れる。
 
+    **issue #53で判定がコマンド位置ベース（トークン走査）へ変わったが、`tr -d '\r'` が不要と
+    いう結論は変わらない。ただし理由が変わった。** 部分一致ではなくなったため「どこにCRが
+    あっても影響しない」とは言えず、代わりに**判定側がCRを吸収する**設計にしている。
+    具体的には (1) トークン走査の`IFS`へ`\r`を含める、(2) ヒアドキュメント区切り語の比較前に
+    末尾の`\r`を落とす、の2点である（`.claude/hooks/lib/CommandPosition.sh`）。スタブ`jq`で
+    CRの有無により判定が1件も変わらないことを確認済み。**判定ロジックを変更する際は、この
+    2点が維持されているかを確認すること**（`tr`を足さずに済んでいる根拠がここにあるため）。
+
 - **`awk`/`sed`の置換文字列で、`\r`を含むシェルコードを生成しない**（issue #48で実際に踏んだ）。
   スクリプトへ`| tr -d '\r'`という行を差し込もうとして`awk 'NR==95{print "... tr -d '\''\r'\''"}'`と
   書いたところ、**awkが文字列リテラル中の`\r`をCR文字そのものへ展開**し、ソースコードに生の
@@ -514,6 +548,24 @@ jq -s -c '...' "$tmp/normalized.jsonl"
   ダブルクォートで囲まない**（issue #97で実際に踏んだ。置換文字列に含まれる`$(...)`をシェルが
   先に展開してしまい、意図しないコマンドが実行された）。シングルクォートで囲むか、
   **数行程度の修正ならEdit/Writeツールで直接行う**ほうが確実である。
+- **AIエージェント向け注記: ソースコードへ生の制御文字（NUL・`\037`等）を書かない。エスケープ
+  表記を使う**（issue #43で実際に踏んだ）。jqのフィルタで区切りを判定するために
+  `startswith("<0x1F の生バイト>")` と書いたところ、フィルタとしては正しく動くものの、
+  **Bashツールへ渡すコマンド文字列が「非表示の制御文字を含む」として弾かれ**、
+  Writeツールで書いた後もdiff・`grep`の出力には**見えないまま残る**（`od -c` で初めて分かる）。
+  jqなら`"\u001f"`、bashなら`printf '\037...'`のように、その言語のエスケープ表記で書く。
+  混入の検査は、除去の前後でバイト数を比較するのが確実（下記「テスト」節の
+  CR検査と同じやり方）。
+
+  ```bash
+  # 悪い例（フィルタは動くが、生の0x1Fがソースへ残りツール経由の編集で弾かれる）
+  jq -R -n 'if ($l | startswith("<0x1F>")) then ...'
+  # 良い例（jqのエスケープ表記。bash側は printf '\037%s\n' で出す）
+  jq -R -n 'if ($l | startswith("\u001f")) then ...'
+  # 検査（差が0なら生の制御文字は無い）
+  [ "$(wc -c < "$f")" = "$(tr -d '\037' < "$f" | wc -c)" ] && echo '制御文字なし'
+  ```
+
 - **AIエージェント向け注記: 長いスクリプト・長文ファイルの生成は、Bashツールのヒアドキュメント
   ではなくWriteツールで行う**（issue #77で実際に踏んだ）。150行規模のヒアドキュメントをBashツールへ
   渡すとコマンド文字列のパースに失敗することがあり、**失敗の仕方が「途中まで書かれたファイルが
@@ -600,7 +652,7 @@ jq -s -c '...' "$tmp/normalized.jsonl"
     場合（`test_extract_frontmatter.sh`の`fake_bin`が実例。スタブが呼ぶ`sed`もPATHから消える）。
     どちらもスタブ側の限界であり、実機では失敗しない。
 - **合成フィクスチャのテストだけで完了としない**。ペイロードサイズやデータ構造のゆらぎなど、
-  実データでしか顕在化しない性質がある（DDR 0006「追記（issue #37 続き）」の教訓）。transcript等の
+  実データでしか顕在化しない性質がある（DDR i0000-04「追記（issue #37 続き）」の教訓）。transcript等の
   実データを扱うロジックを変更したら、実際のファイルに対して関数を直接呼ぶ確認を併せて行う。
 - **終了コードを検査するテストで `"$(func; echo $?)"` の形を使わない**（issue #45で実際に書いた）。
   テストスクリプトも対象スクリプトも `set -euo pipefail` を宣言していることが多く、コマンド置換の

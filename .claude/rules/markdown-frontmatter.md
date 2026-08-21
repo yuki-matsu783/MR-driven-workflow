@@ -24,7 +24,93 @@ OKF（Open Knowledge Format、https://okf.md/spec/ ）のフィールド定義�
 | `tags` | 推奨 | 横断的カテゴリ分類用の文字列リスト（kebab-case、2〜4個程度。ディレクトリ・技術要素・工程等を表す） |
 | `keywords` | 推奨 | OKF標準にはない拡張フィールド。本文中の頻出語・特徴的な語を検索用途で3〜20個（文章量に応じて増減、平均的な長さの文章なら10個前後）リスト形式で記載する。日本語で書かれたファイルでは、英語の技術用語のみに偏らず日本語の単語もバランスよく含める |
 | `status` | DDRのみ・任意 | その意思決定が現在も有効かを表す（下記「DDRのstatus」参照）。省略時は有効（`active`）とみなす |
-| `superseded_by` | DDRのみ・条件付き必須 | `status: superseded` のときに、置き換えた側のDDR番号を書く（例: `"0019"`） |
+| `superseded_by` | DDRのみ・条件付き必須 | `status: superseded` のときに、置き換えた側のDDRの識別子を書く（例: `"i0133-01"`。下記「DDRの識別子」参照） |
+| `note` | DDRのみ・任意 | `.claude/docs/README.md` のDDR一覧で、そのDDRの行の末尾へ添える散文の補足（下記「DDRのnote」）。1行で書く |
+
+## DDRの識別子（ファイル名・`title`）
+
+DDRは**issue番号ベースの識別子**で識別する（issue #133。経緯・却下案:
+`.claude/docs/ddr/i0133-01-DDR識別子はissue番号ベースにし連番採番をやめる.md`）。
+
+```
+.claude/docs/ddr/i0133-01-DDR識別子はissue番号ベースにし連番採番をやめる.md
+                 ~~~~ ~~
+                 |    枝番: 2桁ゼロ埋め、01から。1件しか作らない場合も省略しない
+                 issue番号: GitHub/GitLabが採番した番号を4桁ゼロ埋め（#133 → 0133）
+```
+
+| 書く場所 | 書式 | 例 |
+|---|---|---|
+| ファイル名 | `i<issue番号>-<枝番2桁>-<タイトル>.md` | `i0133-01-DDR識別子はissue番号ベースにし連番採番をやめる.md` |
+| frontmatterの `title` | `i<issue番号>-<枝番2桁>. <タイトル>` | `title: i0133-01. DDR識別子はissue番号ベースにし連番採番をやめる` |
+| 本文冒頭の見出し | `# i<issue番号>-<枝番2桁>. <タイトル>` | `# i0133-01. DDR識別子はissue番号ベースにし連番採番をやめる` |
+| `superseded_by` | 置き換えた側の識別子（文字列） | `superseded_by: "i0133-01"` |
+
+**なぜissue番号なのか**: 以前は4桁の連番（`0027-…md`）だったが、分散したブランチ上で共有の
+単調増加カウンタを採番する方式のため、2つのブランチが同時に新しいDDRを追加すると**必ず**同じ番号に
+なった。ファイル名が異なるためgitはコンフリクトと見なさず無言でマージするので、検知する仕組み
+（`check-base-conflicts.sh`）と改番する手順（`resolve-conflict` スキルの類型A）を用意していたが、
+過去4回（PR #29 / #37 / #49 / #52）すべてこの形で発生していた。issue番号は
+**GitHub/GitLabが中央で採番する**ため、別ブランチ同士で同じ値になることが原理的に無い。
+
+### 決めごと
+
+- **枝番は1件しか作らない場合も必須**（`i0133-01`）。省略可にすると、後から2件目を足すときに
+  1件目の改番が要る。改番は「DDRの本文は一度マージしたら変更しない」原則と、参照の追従漏れという
+  今回無くしたリスクを、そのまま呼び戻してしまう。
+- **枝番は同一issue（＝同一ブランチ）内で 01 から順に振る。** 同じissueへの追加作業を後日別の
+  ブランチで行う場合は、defaultブランチに既にある最大の枝番の次から振る。
+- **issue番号は4桁へゼロ埋めする**（`#133` → `i0133-01`）。**ファイル名の辞書順を数値順と
+  一致させるため**である。`.claude/docs/README.md` のDDR一覧は `generate-ddr-list.sh` が
+  ファイル名の昇順（`LC_ALL=C`）で生成する（issue #135）ため、ゼロ埋めしないと `i99-01` が
+  `i133-01` より後ろに並ぶ。**issue番号が9999を超えたら5桁で書く**（桁数が増える側が辞書順で
+  必ず後ろに来るので、4桁と5桁が混在しても順序は保たれる）。`check-base-conflicts.sh` の
+  `ddr_identifier_to_reply` は**4桁未満を「DDRではない」として弾く**。ゼロ埋め漏れを通すと、
+  同じDDRが `i133-01` と `i0133-01` の2つの識別子を持ちうるためである。
+- **DDRはissueを起点とするフローの成果物なので、issue番号を持たないDDRは作らない。**
+  記録したい意思決定があってissueが無い場合は、先にissueを起票する（`issue-create` スキル）。
+- **接頭辞は小文字の `i` で固定**（`I133-01` や `issue133-01` は認めない）。表記の揺れを許すと、
+  同じDDRが別の識別子として二重に採番されうる。`check-base-conflicts.sh` の
+  `ddr_identifier_to_reply` も小文字の `i` ＋ 4桁以上のissue番号 ＋ 枝番ちょうど2桁だけを識別子として受け付ける。
+
+### 対応issueを持たないDDR（`i0000`）
+
+**issue番号 `0000` は「対応するissueが存在しない」ことを表す予約番号**である。issue #133 で既存の
+連番DDRを一括改番した際、次の13件がこれに該当した。
+
+- `i0000-01` / `i0000-02` — 移植元プロジェクトの **PR #4** から生まれた決定で、issueが存在しない。
+- `i0000-03`〜`i0000-12` — 本文が名乗るissue番号が**移植元プロジェクトのもの**で、本リポジトリの
+  同番号issueとは別物だった（例: 旧 `0014` は「issue #48: 調査結果をHTMLでも残す」と書いていたが、
+  本リポジトリの #48 は「Gitlab.shに実機検証で判明した3件の不具合がある」）。
+- `i0000-13` — issue・PRのどちらも記載が無い。
+
+**`i0000` の枝番だけは、issueごとではなくリポジトリ全体の通し番号である**（`i0000-01`〜`i0000-13`）。
+`i0000` は特定のissueを指さないため「同一issue内で01から」という原則が働かないためである。
+
+- **新しく `i0000` を採番しない。** 今後のDDRは必ずissueを起点とするフローの成果物なので、
+  issue番号を持つ（上記「決めごと」）。`i0000` は移植時に持ち込んだ13件だけの、閉じた集合である。
+- `i0000` のDDRを参照するときも、他と同じく識別子（`i0000-06`）で書く。
+
+### 旧方式（4桁連番）の扱い
+
+**リポジトリ内に4桁連番のDDRはもう存在しない**（issue #133 で全56件を改番した）。ただし
+`check-base-conflicts.sh` の `ddr_identifier_to_reply` は**旧形式も引き続き受け付ける**。
+他プロジェクトへ配布したこの機構が旧形式のDDRを抱えている可能性と、改番前のブランチが
+残っている可能性があるためである。
+
+- 新旧は**先頭が数字かどうか**で機械的に区別できる（`^[0-9]{4}-` にマッチするのが旧、
+  `^i[0-9]{4,}-[0-9]{2}-` にマッチするのが新）。
+- **過去の記録として書かれた連番は書き換えない。** 具体的には、当時のコミットメッセージの引用
+  （`chore: mainをマージしDDR番号を0028へ繰り下げて…`）、過去に重複した番号の一覧、
+  `0034→0035→0036→0038` のような繰り下げの経過である。これらはファイルを指しておらず、
+  書き換えると当時何が起きたかが読めなくなる。
+
+### 識別子が重複しうる残りのケース
+
+新方式でも、**同一issueへの追加作業を2つのブランチで並行して行った場合**は、どちらも同じ枝番
+（例: どちらも `i0133-03`）を採りうる。枝番だけはローカルで決めるためである。頻度は連番方式とは
+桁が違うが、ゼロではない。このため `check-base-conflicts.sh` の重複検知と `resolve-conflict`
+スキルの類型Aは**廃止せず残している**（旧形式のDDRを抱えた配布先・改番前のブランチを拾う役目もある）。
 
 ## DDRのstatus（後から無効になった意思決定の扱い）
 
@@ -34,15 +120,15 @@ DDRは**本文を一度マージしたら変更しない**運用だが、**YAML 
 | `status` | 意味 | 併記するキー |
 |---|---|---|
 | （省略） / `active` | 現在も有効。**通常はキー自体を書かない** | — |
-| `superseded` | 後続のDDRによって置き換えられた | `superseded_by: "<番号>"` |
+| `superseded` | 後続のDDRによって置き換えられた | `superseded_by: "<識別子>"` |
 | `deprecated` | 置き換え先を持たずに廃止された（その決定自体が不要になった等） | — |
 
 ```yaml
 ---
-title: 0009. Planモードre-entry時はgit checkout復元でなくarchiveスクリプトで対処する
+title: i0000-06. Planモードre-entry時はgit checkout復元でなくarchiveスクリプトで対処する
 type: ddr
 status: superseded
-superseded_by: "0019"
+superseded_by: "i0009-01"
 description: <元のまま変更しない>
 ---
 ```
@@ -55,12 +141,66 @@ description: <元のまま変更しない>
 （Architecture Decision Record）で広く使われている語彙に合わせるため（読み手が初見でも意味を
 推測でき、外部ツールとも揃う）。
 
+`status` / `superseded_by` を更新したら、**`bash .claude/scripts/src/generate-ddr-list.sh` を
+実行して `.claude/docs/README.md` のDDR一覧を再生成する**（一覧の注記はこの2キーから生成される。
+issue #135。手書きで注記を添えない）。
+
+## DDRのnote（一覧へ添える散文の補足）
+
+`.claude/docs/README.md` のDDR一覧は**生成物**であり、手書きで行を足さない（issue #135。
+生成: `bash .claude/scripts/src/generate-ddr-list.sh`、仕様:
+[.claude/docs/spec/generate-ddr-list.md](../docs/spec/generate-ddr-list.md)）。
+
+一覧の各行は、そのDDRのfrontmatterだけから決まる。`status` / `superseded_by` から導けない
+**散文の補足**を一覧へ出したい場合は、`note` キーへ書く。**READMEを直接編集しても次の生成で
+消える**ため、注記の置き場はここが唯一である。
+
+```yaml
+---
+title: 0022. push断面の全文コピーをやめ行番号インデックスで表現する
+type: ddr
+description: <元のまま変更しない>
+note: 'うち「Gemini CLI対応の扱い」は、issue #97でメインセッションのみ集計対象へ変更された。詳細は0054'
+---
+```
+
+- **値は1行で書く**（複数行のYAMLスカラーは読まない）。
+- `description` の代わりに使わない。`description` は「そのDDRが何を決めたか」の要約で、
+  `note` は「その後どう変わったか・読むときの注意」を添えるものである。
+- `status` 由来の注記と併記した場合、一覧では **status由来が先、`note` が後**に並ぶ。
+- `note` の追加・変更は frontmatter のみの更新であり、**DDR本文を変更しない**運用に反しない
+  （上記「DDRのstatus」と同じ扱い）。
+
+### 何を書くか
+
+一覧を読む人が**そのDDRを開く前に知っておくべきこと**のうち、**他のキーからは導けないもの**
+だけを書く。実際に使うのは次の類型である。
+
+| 類型 | 例 |
+|---|---|
+| **決定の一部だけが後で変わった**（全体の置き換えではないので `status: superseded` は使えない） | 「うち『Gemini CLI対応の扱い』は、issue #97でメインセッションのみ集計対象へ変更された。詳細は0054」（`0022`） |
+| **タイトル・ファイル名が現在の呼称と食い違う** | 「ファイル名の `flow-id5-1` は当時の番号。issue #112 の並べ替えにより、片付けは現在 flow-id 5-3。DDR 0058 参照」（`0048`） |
+| **本文を読むときの前提が変わった**（前提にしていた仕組み・用語が今は別物になっている等） | 「前提としていた〇〇は廃止済み。△△へ読み替えること」 |
+
+いずれも「**その後どう変わったか／読むときに注意すること**」であり、後続の変更を追った人が
+気づいた時点で足す。DDRを書いた本人が最初から埋めるキーではない。
+
+書かないもの:
+
+- **`status` / `superseded_by` で表せること**（「0019に置き換えられた」等）。一覧には
+  status由来の注記が自動で出るため重複する。
+- **そのDDRが何を決めたかの要約**。それは `description` の役割である（上記）。
+- **本文を読めば分かる詳細**。`note` は一覧の1行に収まる長さに留め、開くべきかの判断材料にする。
+- **やがて古くなる進捗**（「issue #NN で対応中」等）。DDRと同じく永続する前提で書く。
+
+## index.jsonl（frontmatterの機械可読インデックスと検索）
+
 `index.jsonl`（`.claude/scripts/src/extract-frontmatter.sh` が生成するfrontmatterの機械可読
 インデックス）は**Git管理下に置かず、生成物として扱う**（issue #36。`.gitignore`の
 `**/index.jsonl`対象）。`.claude/hooks/session-start.sh`（SessionStart hook）が**セッション開始の
 たびに自動で再生成する**ため、frontmatterを更新した際に手動で `extract-frontmatter.sh` を
 実行する必要はない（詳細:
-[.claude/docs/ddr/0025-frontmatterのindex.jsonlをGit管理から外しSessionStart-hookで生成する.md](../docs/ddr/0025-frontmatterのindex.jsonlをGit管理から外しSessionStart-hookで生成する.md)）。
+[.claude/docs/ddr/i0036-01-frontmatterのindex.jsonlをGit管理から外しSessionStart-hookで生成する.md](../docs/ddr/i0036-01-frontmatterのindex.jsonlをGit管理から外しSessionStart-hookで生成する.md)）。
 
 同一セッション内でfrontmatterを編集し、その場ですぐ最新の `index.jsonl` を参照したい場合や、
 自動再生成を待たず手元で確認したい場合は、以下を手動実行してもよい（必須ではない）。
@@ -77,7 +217,6 @@ bash .claude/scripts/src/extract-frontmatter.sh .
   特殊なケースに限る。
 - 仕様の詳細は
   [.claude/docs/spec/extract-frontmatter.md](../docs/spec/extract-frontmatter.md) を参照。
-あわせて `.claude/docs/README.md` のDDR一覧にも、置き換え先が分かる注記を添えるとよい。
 
 **生成された `index.jsonl` は、ドキュメントを探すための検索インデックスとして使う**（issue #38）。
 `type` / `tags` / `keywords` / パス / フリーテキストでの絞り込みと、mtime等での並び替えが
@@ -118,7 +257,7 @@ bash .claude/scripts/src/extract-frontmatter.sh .
 （`.claude/rules/docs-workflow.md` のライフサイクル表と対応する）。issue #95以前は `plans/*.md`
 についての規定が無く、実際には `guide` / `log` / `plan` / frontmatter無しが混在していたため、
 専用の値 `plan` を新設して一意に定めた（経緯・却下案:
-[.claude/docs/ddr/0042-plans配下のfrontmatter-typeはguideではなくplanを新設する.md](../docs/ddr/0042-plans配下のfrontmatter-typeはguideではなくplanを新設する.md)）。
+[.claude/docs/ddr/i0095-01-plans配下のfrontmatter-typeはguideではなくplanを新設する.md](../docs/ddr/i0095-01-plans配下のfrontmatter-typeはguideではなくplanを新設する.md)）。
 
 ## 対象外・特殊対応ファイル
 
@@ -129,6 +268,8 @@ bash .claude/scripts/src/extract-frontmatter.sh .
 |---|---|---|
 | `.gitlab/issue_templates/Default.md` | **対象外**（frontmatter追加しない） | GitLabはissueテンプレートのfrontmatterを特別扱いしないため、追加すると issue作成のたびに本文へYAMLがそのまま挿入されてしまう |
 | `.github/ISSUE_TEMPLATE/task.md` | **対象外**（frontmatter追加しない） | GitHub仕様の`title`等の既存frontmatterと衝突・干渉するため。issueテンプレートにOKF frontmatterは不要と判断した |
+| `.github/pull_request_template.md` | **対象外**（frontmatter追加しない） | issueテンプレートと同じ理由。PR作成のたびに本文へYAMLがそのまま挿入されてしまう（issue #33） |
+| `.gitlab/merge_request_templates/Default.md` | **対象外**（frontmatter追加しない） | 同上（issue #33） |
 | `.claude/agents/*.md` | `title`/`type`/`tags`/`keywords`/（該当すれば`resource`）のみ追加。`description`は追加しない | 既存の`description`はClaude Codeがサブエージェント選択に使う実キーのため、重複させず流用する |
 | `.claude/skills/*/SKILL.md` | 同上 | 同上（skill選択に使う`description`を保持） |
 | `.claude/rules/*.md`のうち`alwaysApply: true`を持つファイル | 既存キーの下に新キーを追記する | `alwaysApply`はClaude Codeのルール常時適用設定として実際に使われるため、値・位置を変更しない |

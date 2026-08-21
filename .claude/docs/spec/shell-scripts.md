@@ -26,7 +26,7 @@ PowerShellはWSL等の非Windows的なシェル環境から扱いにくいため
 |---|---|---|
 | `dev-tools/src/vcs/Provider.ps1` | `.claude/scripts/src/vcs/Provider.sh` | issue-mr-flowの中核。GitHub/GitLab差異吸収 |
 | `dev-tools/src/vcs/Github.ps1` | `.claude/scripts/src/vcs/Github.sh` | `gh` CLIラッパー |
-| `dev-tools/src/vcs/Gitlab.ps1` | `.claude/scripts/src/vcs/Gitlab.sh` | `glab` CLIラッパー（ローカルGitLab CE 18.5.4 に対し全27関数を実機実行済み。issue #48・#45・#127。検証状況の正は [issue-mr-workflow.md](issue-mr-workflow.md)「未決定事項・懸念点」） |
+| `dev-tools/src/vcs/Gitlab.ps1` | `.claude/scripts/src/vcs/Gitlab.sh` | `glab` CLIラッパー（ローカルGitLab CE 18.5.4 に対しissue #127 時点の27関数を実機実行済み。issue #48・#45・#127。検証状況の正は [issue-mr-workflow.md](issue-mr-workflow.md)「未決定事項・懸念点」） |
 | `.claude/hooks/session-start.ps1` | `.claude/hooks/session-start.sh` | SessionStart hook |
 | `.claude/hooks/post-push-usage-report.ps1` | `.claude/hooks/post-push-usage-report.sh` | PostToolUse hook（使用量レポート） |
 | `.claude/hooks/lib/UsageTracking.ps1` | `.claude/hooks/lib/UsageTracking.sh` | 上記hookの共通集計ロジック |
@@ -164,7 +164,7 @@ PowerShellはWSL等の非Windows的なシェル環境から扱いにくいため
 
 - **`Gitlab.sh` は「実remoteが無いため全体が未検証」ではなくなった**: かつては「このリポジトリの
   実remoteがGitHubのみ」を理由に `Gitlab.sh` 全体が未検証だったが、ローカルに立てた
-  GitLab CE 18.5.4（Docker）＋ `glab` 1.114.0 に対し、issue #48・#45・#127 を通じて**全27関数を
+  GitLab CE 18.5.4（Docker）＋ `glab` 1.114.0 に対し、issue #48・#45・#127 を通じて**issue #127 時点の27関数を
   実機実行**し、サブグループ配下でのプロジェクト解決まで確認した（うち**公開ディスパッチャを持つ
   20関数は `Provider.sh` 経由で直接**、残り7関数は上位関数経由の間接確認。検証環境の再現手順は
   [gitlab-verification-environment.md](gitlab-verification-environment.md)）。
@@ -173,7 +173,7 @@ PowerShellはWSL等の非Windows的なシェル環境から扱いにくいため
   （同じ内容を複数ファイルへ書くと、片方だけが更新されて食い違う）。
 - **hook起動コマンドのPATH依存はマシンごとの手動セットアップが必要**: `"bash"`のみ・PATH解決方式を
   採用した経緯・却下案は
-  [dev-tools/docs/ddr/0007-hookのcommandはbashのPATH解決方式へ変更.md](../ddr/0007-hookのcommandはbashのPATH解決方式へ変更.md)
+  [dev-tools/docs/ddr/i0000-05-hookのcommandはbashのPATH解決方式へ変更.md](../ddr/i0000-05-hookのcommandはbashのPATH解決方式へ変更.md)
   参照。この対処（システム環境変数`Path`の変更、管理者権限が必要）はリポジトリ側のファイルには
   残らないため、新しい開発機でこのリポジトリを使い始める際は毎回手動セットアップが必要になる
   （自動化・簡略化の余地はあるが本issueのスコープ外）。
