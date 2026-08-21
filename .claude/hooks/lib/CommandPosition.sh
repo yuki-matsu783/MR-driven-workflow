@@ -19,7 +19,8 @@
 #      プレースホルダ（`_`）へ潰す。ダブルクォート内の `$( )` と `` ` `` だけはコードとして
 #      展開し直す（`echo "$(git commit)"` を見逃さないため）。
 #   2. 走査: 正規化後の文字列をトークンへ割り、コマンド位置にある `git` の直後の
-#      非オプショントークンが目的のサブコマンドかを見る。
+#      非オプショントークンが目的のサブコマンドかを見る。コマンド名はパスの末尾で比べ、
+#      `.exe` は落とす（`/usr/bin/git` `./git` `git.exe` も同じ呼び出しであるため）。
 #
 # 位置判定で一致しなかった場合でも、**文字列をコードとして受け取りうる実行系**
 # （`eval` / `bash -c` / `xargs` / `find` 等）がコマンド位置にあり、かつ従来の部分一致が
@@ -28,6 +29,11 @@
 # 意図的な文字列分割（`git "commit"` 等）による回避には対応しない。これは敵対的な
 # 安全境界ではなく「既定動作を確実な方向へ倒す仕組み」であるため
 # （.claude/docs/ddr/i0000-09-コミットはcommitスキル経由を機構的に強制する.md）。
+#
+# **bash 4.3以上を必要とする**（`mapfile` / `${var,,}` / `${arr[-1]}` / `unset 'arr[-1]'`）。
+# 呼び出し側のhookは、バージョンと `source` の成否・関数の存在を確かめたうえで、満たさない
+# 場合は従来どおりの部分一致へ落とす責任を持つ（`set -e` 配下では `source` の失敗が
+# そのまま終了コードになり、PreToolUseでは無関係なコマンドまでブロックされるため）。
 
 # 改行・バックティックはリテラルとして書くと引用の解釈が絡んで読みにくいため定数へ逃がす。
 _CP_NL=$'\n'
@@ -36,7 +42,7 @@ _CP_BT='`'
 # パターンは `$'...'` で組み立ててから、パラメータ展開の中へ**クォートせず**展開する。
 # ダブルクォートの中へブラケット式を直接書くと、`\\` と `\'` の解釈がシェルとパターン照合で
 # 二重にかかり、意図した文字集合にならない（バックスラッシュが集合から落ちる）。
-_CP_CODE_CHARS=$'[\'"#\\\\`<()\n]'
+_CP_CODE_CHARS=$'[\'"#\\\\`<()$\n]'
 _CP_DQ_CHARS=$'["\\\\$`]'
 _CP_SQ_CHARS=$'[\']'
 
@@ -55,6 +61,20 @@ _CP_OPAQUE_WITH_OPT=' bash sh zsh ksh dash busybox python python3 perl ruby node
 
 # 上記の実行系に「コードを文字列で渡す」意味を与えるオプション。
 _CP_CODE_OPTS=' -c -e -E --command -command -encodedcommand '
+
+# 値を**別のトークン**で取るgitのグローバルオプション。これらは2トークン読み飛ばす。
+# `--git-dir=/x/.git` のように `=` で繋ぐ形は1トークンなのでここには載らない。
+# 判定は小文字化した文字列で行うため、`-c`（設定）と `-C`（ディレクトリ）は同じ項目になる。
+# どちらも値を1つ取るので区別する必要は無い。
+_CP_GIT_OPTS_WITH_VALUE=' -c --git-dir --work-tree --namespace --exec-path --super-prefix '
+
+# 正規化を行う1行あたりの長さの上限。
+# 行内の走査は「次の関心文字まで読み飛ばして残りを切り出す」形のため、**1行の中の
+# 関心文字の数に対して二乗**になる（行数に対しては線形）。特殊文字を多く含む極端に長い1行
+# （実測: 16KB・関心文字4000個で約1.2秒）では、毎ツール呼び出しで走るhookの遅延として
+# 現れる。上限を超える行がある場合は正規化を諦め、**従来どおりの部分一致**へ落とす
+# （誤検知は残るが、素通りもタイムアウトも起こさない側へ倒す）。
+_CP_MAX_LINE_LENGTH=8192
 
 # トークン走査中に、コード文字列を受け取りうる実行系を見つけたかどうか。
 # command_invokes_git_subcommand のフォールバック判定が読む。
@@ -77,6 +97,8 @@ normalize_shell_command_to_reply() {
   local out='' state='code' rest head c prev=''
   local li=0 nlines=${#lines[@]}
   local paren=0
+  # 行末のバックスラッシュ（行継続）で、次の行を同じ論理行として続けるかどうか。
+  local line_cont=0
   # ダブルクォート内から `$( )` / `` ` `` でコードへ入ったときの復帰先。
   local -a ret_states=() ret_parens=() ret_closes=()
   # 未回収のヒアドキュメント区切り語（1行に複数書ける）。
@@ -128,11 +150,42 @@ normalize_shell_command_to_reply() {
               esac
               ;;
             '\')
-              # エスケープされた1文字は、シェル上の意味を失うのでプレースホルダへ潰す。
-              # 行末のバックスラッシュ（行継続）もここで消える。
-              out+='_'
-              prev='_'
-              rest="${rest:2}"
+              if ((${#rest} == 1)); then
+                # 行末のバックスラッシュは行継続。区切りを作らずに次の行を連結する。
+                # `cd src && \` の次行はコマンド位置だが `echo \` の次行は引数の続きで、
+                # 連結すればどちらも正しく判定できる（区切りを入れると前者しか合わない）。
+                line_cont=1
+                rest=''
+              else
+                # エスケープされた1文字はシェル上の意味を失う。ただし `\git` のように語を
+                # 構成する文字はそのまま残す（`\git commit` はエイリアスを迂回してgitを
+                # 実行する定番の書式で、実行そのものは普通に行われるため）。区切りになりうる
+                # 文字はプレースホルダへ潰す（`echo \;git` の `;` を区切りとして読むと、
+                # 後続が誤ってコマンド位置になる）。
+                c="${rest:1:1}"
+                case "$c" in
+                  [A-Za-z0-9_./-]) out+="$c" ;;
+                  *)
+                    out+='_'
+                    c='_'
+                    ;;
+                esac
+                prev="$c"
+                rest="${rest:2}"
+              fi
+              ;;
+            '$')
+              # 算術式 `$((...))` の中の `<<` は左シフトであってヒアドキュメントではない。
+              if [[ "${rest:1:2}" == '((' ]]; then
+                _cp_skip_arithmetic_to_reply "$rest"
+                out+="$REPLY"
+                prev='_'
+                rest="$REPLY_CP_REST"
+              else
+                out+='$'
+                prev='$'
+                rest="${rest:1}"
+              fi
               ;;
             "$_CP_BT")
               # コード中のバックティックは、開き・閉じのどちらもセパレータとして扱えば
@@ -239,9 +292,8 @@ normalize_shell_command_to_reply() {
       esac
     done
 
-    # バックティックで開いたコード区間は、閉じのバックティックで dq へ戻す必要があるが、
-    # 上のループでは `` ` `` をセパレータとして出力しているため戻り先を失う。
-    # 実用上バックティックが行をまたぐことは無いので、行末で復帰させる。
+    # 閉じないバックティックで開いたコード区間は、行末でダブルクォートへ復帰させる
+    # （実用上バックティックが行をまたぐことは無い）。
     while ((${#ret_states[@]} > 0)) && [[ "${ret_closes[-1]}" == "$_CP_BT" ]]; do
       state="${ret_states[-1]}"
       paren="${ret_parens[-1]}"
@@ -249,8 +301,12 @@ normalize_shell_command_to_reply() {
     done
 
     li=$((li + 1))
-    out+="$_CP_NL"
-    prev="$_CP_NL"
+    if ((line_cont)); then
+      line_cont=0
+    else
+      out+="$_CP_NL"
+      prev="$_CP_NL"
+    fi
 
     # この行でヒアドキュメントが開いていたら、区切り行まで本文を読み飛ばす。
     if ((${#hd_delims[@]} > 0)); then
@@ -274,6 +330,38 @@ normalize_shell_command_to_reply() {
   done
 
   REPLY="$out"
+}
+
+# `$((` から始まる算術式を、対応する `))` まで読み飛ばす。
+# 算術式の中の `<<` は左シフトであってヒアドキュメントではない。これを取り違えると
+# 「区切り語が現れるまで残り全行を本文として捨てる」ため、以降のコマンドがまとめて
+# 素通りする（issue #53 の敵対的レビューで検出）。
+#
+# 引数: $1 = `$((` から始まる残り文字列
+# 戻り: REPLY = 出力すべき文字列 / REPLY_CP_REST = 消費後の残り
+_cp_skip_arithmetic_to_reply() {
+  local r="$1" i=1 depth=0 ch
+  local n=${#r}
+  while ((i < n)); do
+    ch="${r:i:1}"
+    case "$ch" in
+      '(') depth=$((depth + 1)) ;;
+      ')')
+        depth=$((depth - 1))
+        if ((depth == 0)); then
+          REPLY='_'
+          REPLY_CP_REST="${r:i+1}"
+          return 0
+        fi
+        ;;
+    esac
+    i=$((i + 1))
+  done
+  # 対応する `))` が同じ行に無い場合は、算術式と決めつけず `$` 1文字だけを消費する
+  # （残りをまとめて捨てると、その先のコマンドが検知対象から消えてしまう）。
+  REPLY='$'
+  REPLY_CP_REST="${r:1}"
+  return 0
 }
 
 # `<` から始まる並びを読み、ヒアドキュメントの開始なら区切り語を返す。
@@ -344,6 +432,15 @@ _cp_read_heredoc_open_to_reply() {
     esac
   done
 
+  # 区切り語が空、または数字だけの場合はヒアドキュメントとみなさない。算術式の取りこぼし
+  # （`$((1<<2))`）に対する二重の網である。誤ってヒアドキュメント扱いすると以降の行が
+  # まとめて素通りする方向へ倒れるため、ここは保守側へ寄せる。
+  if [[ -z "$delim" || "$delim" =~ ^[0-9]+$ ]]; then
+    REPLY='_'
+    REPLY_CP_REST="$r"
+    return 0
+  fi
+
   REPLY_CP_DELIM_SET='1'
   REPLY_CP_DELIM="$delim"
   REPLY='_'
@@ -370,7 +467,7 @@ _cp_scan_tokens() {
   local IFS=$' \t\r\n'
   read -ra tokens <<<"$norm" || true
 
-  local n=${#tokens[@]} i=0 j t u at_cmd=1 sticky=0 found=1
+  local n=${#tokens[@]} i=0 j t u base at_cmd=1 sticky=0 found=1
   while ((i < n)); do
     t="${tokens[i],,}"
     case "$t" in
@@ -381,17 +478,37 @@ _cp_scan_tokens() {
         continue
         ;;
     esac
+    # `/usr/bin/git` `./git` `git.exe` も同じ呼び出しなので、パスの末尾と `.exe` を落として
+    # 比べる（旧実装は部分一致だったためパス付きの起動もブロックしていた。ここを見ないと
+    # 機能後退になる）。
+    base="${t##*/}"
+    base="${base%.exe}"
 
     if ((at_cmd || sticky)); then
-      if [[ "$t" == 'git' ]]; then
+      # コマンドの前に置かれたリダイレクト（`>out.txt git commit` / `2> err git commit`）は、
+      # コマンド位置を保ったまま読み飛ばす。演算子だけのトークンなら、その次のトークン
+      # （リダイレクト先）も読み飛ばす。
+      if [[ "$t" =~ ^[0-9]*[\<\>]+ ]]; then
+        [[ "$t" =~ ^[0-9]*[\<\>]+$ ]] && i=$((i + 1))
+        i=$((i + 1))
+        continue
+      fi
+
+      if [[ "$base" == 'git' ]]; then
         j=$((i + 1))
         while ((j < n)); do
           u="${tokens[j],,}"
           case "$u" in
             ';' | '&' | '|' | '(' | ')' | '{' | '}' | "$_CP_BT") break ;;
-            '-c') j=$((j + 2)) ;;
-            -*) j=$((j + 1)) ;;
-            *) break ;;
+            *)
+              if [[ "$_CP_GIT_OPTS_WITH_VALUE" == *" $u "* ]]; then
+                j=$((j + 2))
+              elif [[ "$u" == -* ]]; then
+                j=$((j + 1))
+              else
+                break
+              fi
+              ;;
           esac
         done
         if ((j < n)) && [[ "${tokens[j],,}" == "$sub" ]]; then
@@ -400,14 +517,14 @@ _cp_scan_tokens() {
         at_cmd=0
       elif [[ "$t" =~ ^[A-Za-z_][A-Za-z0-9_]*= ]]; then
         : # 変数代入。コマンド位置は次のトークンへ持ち越す
-      elif [[ "$_CP_PREFIX_WORDS" == *" $t "* ]]; then
+      elif [[ "$_CP_PREFIX_WORDS" == *" $base "* ]]; then
         # 透過的なラッパー・予約語。次のセパレータまでコマンド位置を保ち続ける
         # （オプションとその引数が間に挟まる形へ対応するため）。
         sticky=1
       else
-        if [[ "$_CP_OPAQUE_WORDS" == *" $t "* ]]; then
+        if [[ "$_CP_OPAQUE_WORDS" == *" $base "* ]]; then
           _CP_OPAQUE_FOUND=1
-        elif [[ "$_CP_OPAQUE_WITH_OPT" == *" $t "* ]]; then
+        elif [[ "$_CP_OPAQUE_WITH_OPT" == *" $base "* ]]; then
           j=$((i + 1))
           while ((j < n)); do
             u="${tokens[j],,}"
@@ -430,6 +547,20 @@ _cp_scan_tokens() {
   return "$found"
 }
 
+# _CP_MAX_LINE_LENGTH を超える行が含まれるかを返す。
+# 戻り: 0 = 超える行がある / 1 = 無い
+_cp_has_overlong_line() {
+  # 全体が上限以下なら、どの行も上限以下である（行分割の前に安く弾く）。
+  ((${#1} > _CP_MAX_LINE_LENGTH)) || return 1
+  local -a lines=()
+  local line
+  mapfile -t lines <<<"$1"
+  for line in "${lines[@]}"; do
+    ((${#line} > _CP_MAX_LINE_LENGTH)) && return 0
+  done
+  return 1
+}
+
 # コマンド文字列が `git <サブコマンド>` を実行するかを判定する。
 #
 # 引数: $1 = コマンド文字列 / $2 = サブコマンド（commit / push 等）
@@ -437,6 +568,14 @@ _cp_scan_tokens() {
 command_invokes_git_subcommand() {
   local s="${1:-}" sub="${2:?サブコマンドを指定すること}"
   [[ -n $s ]] || return 1
+
+  local lower="${s,,}"
+  # 極端に長い行を含む場合は正規化を諦め、従来どおりの部分一致で判定する
+  # （上記 _CP_MAX_LINE_LENGTH の説明を参照）。
+  if _cp_has_overlong_line "$s"; then
+    [[ "$lower" =~ git[[:space:]]+${sub,,} ]] && return 0
+    return 1
+  fi
 
   normalize_shell_command_to_reply "$s"
   if _cp_scan_tokens "$REPLY" "$sub"; then
@@ -446,7 +585,6 @@ command_invokes_git_subcommand() {
   # 位置判定では一致しなかったが、文字列をコードとして受け取りうる実行系が
   # コマンド位置にある場合は、従来どおりの部分一致で保守的にブロックする。
   ((_CP_OPAQUE_FOUND)) || return 1
-  local lower="${s,,}"
   [[ "$lower" =~ git[[:space:]]+${sub,,} ]] || return 1
   return 0
 }

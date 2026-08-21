@@ -54,13 +54,22 @@ main() {
   [ -n "$command" ] || exit 0
 
   # 判定は .claude/hooks/lib/CommandPosition.sh へ委譲する（issue #53）。
-  # ライブラリを読めない場合だけ、従来どおりの部分一致で安全側へ倒す
+  # ライブラリを使えない場合だけ、従来どおりの部分一致で安全側へ倒す
   # （検知そのものが無効になるより、誤検知が残るほうがまし）。
-  local lib="${BASH_SOURCE[0]%/*}/lib/CommandPosition.sh"
+  local lib_dir="${BASH_SOURCE[0]%/*}"
+  # パスにディレクトリ成分が無い（`bash block-direct-git-commit.sh` のような起動）と
+  # `%/*` はファイル名をそのまま返すため、明示的にカレントへ倒す。
+  [ "$lib_dir" = "${BASH_SOURCE[0]}" ] && lib_dir='.'
+  local lib="${lib_dir}/lib/CommandPosition.sh"
+
+  # `[ -r ]` だけでは「読めるが読み込みに失敗する」（壊れたファイル・bash 4.3未満）を
+  # 拾えない。`set -e` 配下では source の失敗がそのまま終了コード2になり、gitと無関係な
+  # コマンドまでブロックされてしまうため、バージョン・source の成否・関数の存在まで確かめる。
   local blocked=1
-  if [ -r "$lib" ]; then
-    # shellcheck source=lib/CommandPosition.sh
-    source "$lib"
+  # shellcheck source=lib/CommandPosition.sh
+  if ((BASH_VERSINFO[0] > 4 || (BASH_VERSINFO[0] == 4 && BASH_VERSINFO[1] >= 3))) &&
+    [ -r "$lib" ] && source "$lib" 2>/dev/null &&
+    declare -F command_invokes_git_subcommand >/dev/null; then
     if command_invokes_git_subcommand "$command" commit; then
       blocked=0
     fi

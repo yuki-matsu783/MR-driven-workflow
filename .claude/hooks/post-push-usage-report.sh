@@ -331,11 +331,15 @@ main() {
   command="$(printf '%s' "$hook_input" | jq -r '.tool_input.command // empty')"
   [ -n "$command" ] || exit 0
   # 判定は .claude/hooks/lib/CommandPosition.sh へ委譲する（issue #53）。
-  # ライブラリを読めない場合だけ、従来どおりの部分一致へ落とす。
-  local cp_lib="${BASH_SOURCE[0]%/*}/lib/CommandPosition.sh"
-  if [ -r "$cp_lib" ]; then
-    # shellcheck source=lib/CommandPosition.sh
-    source "$cp_lib"
+  # ライブラリを使えない場合（壊れたファイル・bash 4.3未満）は従来どおりの部分一致へ落とす。
+  # `[ -r ]` だけでは読み込みの失敗を拾えず、`set -e` 配下では無言で終了して集計が落ちる。
+  local cp_dir="${BASH_SOURCE[0]%/*}"
+  [ "$cp_dir" = "${BASH_SOURCE[0]}" ] && cp_dir='.'
+  local cp_lib="${cp_dir}/lib/CommandPosition.sh"
+  # shellcheck source=lib/CommandPosition.sh
+  if ((BASH_VERSINFO[0] > 4 || (BASH_VERSINFO[0] == 4 && BASH_VERSINFO[1] >= 3))) &&
+    [ -r "$cp_lib" ] && source "$cp_lib" 2>/dev/null &&
+    declare -F command_invokes_git_subcommand >/dev/null; then
     command_invokes_git_subcommand "$command" push || exit 0
   else
     printf '%s' "$command" | grep -qiE 'git[[:space:]]+push' || exit 0
