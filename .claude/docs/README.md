@@ -42,6 +42,7 @@ keywords: [正史仕様, 意思決定ログ, issue-mr-workflow, シェルスク�
 - [cleanup-task.md](spec/cleanup-task.md) ── flow-id 5-4 後片付けの自動化スクリプト
 - [search-frontmatter.md](spec/search-frontmatter.md) ── ドキュメント横断検索スクリプト（index.jsonl検索）
 - [generate-ddr-list.md](spec/generate-ddr-list.md) ── DDR一覧生成スクリプト（README.mdのDDR一覧をfrontmatterから生成）
+- [gitlab-verification-environment.md](spec/gitlab-verification-environment.md) ── GitLab検証環境（Docker + glab）の再現手順
 
 ## ddr（意思決定ログ）
 
@@ -139,6 +140,7 @@ frontmatter（`status` / `superseded_by` / `note`）だけから決まる。
 - [i0112-01-フェーズ5は片付けをcommit直前へ移した順序に並べ替える.md](ddr/i0112-01-フェーズ5は片付けをcommit直前へ移した順序に並べ替える.md)
 - [i0113-01-issue-mr-flow対象ブランチではSKILL.mdの再読み込みを注入で促す.md](ddr/i0113-01-issue-mr-flow対象ブランチではSKILL.mdの再読み込みを注入で促す.md)（本文中の「flow-id 5-3」（HANDOFF.mdのリセット＝片付け）は当時の番号。issue #111 の統括レポート追加により現在は flow-id 5-4。DDR i0111-01 参照）
 - [i0117-01-削除済み追跡ファイルの除外はextract-frontmatter側で行う.md](ddr/i0117-01-削除済み追跡ファイルの除外はextract-frontmatter側で行う.md)（本文中の「flow-id 5-4」（削除をコミットする手順）は当時の番号。issue #111 の統括レポート追加により現在は flow-id 5-5。DDR i0111-01 参照）
+- [i0127-01-差分アンカーの土台はプロバイダごとに分けGitLabはMR差分ページを使う.md](ddr/i0127-01-差分アンカーの土台はプロバイダごとに分けGitLabはMR差分ページを使う.md)
 - [i0133-01-DDR識別子はissue番号ベースにし連番採番をやめる.md](ddr/i0133-01-DDR識別子はissue番号ベースにし連番採番をやめる.md)
 - [i0135-01-DDR一覧は生成物にしつつGit管理下へ残す.md](ddr/i0135-01-DDR一覧は生成物にしつつGit管理下へ残す.md)
 - [i0140-01-mark-skipはループ範囲の一部指定を書き換え後の状態で拒否する.md](ddr/i0140-01-mark-skipはループ範囲の一部指定を書き換え後の状態で拒否する.md)

@@ -124,6 +124,18 @@ DDR一覧そのものは生成物なので、`generate-ddr-list.sh` の再実行
 - この行は手で書き換えず、`update-handoff-progress.sh`の`add-round`（周回数を1つ進めて範囲の記号を
   `[]`へ戻す）／ループ範囲への`mark-done`（周回数は据え置いて状態を「完了」にする）に任せる。
   ループ範囲の外へ出たときなど、表から決まらない値を入れる場合だけ`set-header --loop <text>`を使う。
+- **ループ範囲の外から中へ「初めて」入るときも、`add-round`ではなく`set-header --loop`を使う**
+  （issue #127で実際に踏んだ）。そのループ範囲の進捗列はまだ`[]`のため、`add-round`は
+  「前回の往復が未完了の可能性」として拒否する（エラー条件の詳細は
+  `.claude/docs/spec/update-handoff-progress.md`が正）。**`add-round`は2周目以降へ進めるための
+  コマンドであり、1周目を開始するためのものではない。**
+
+  ```bash
+  # 1周目を開始する（フェーズ4の反映ループへ初めて入る）
+  bash .claude/scripts/src/update-handoff-progress.sh set-header --loop '4-6〜4-9 の1周目（進行中）'
+  # 2周目以降へ進む
+  bash .claude/scripts/src/update-handoff-progress.sh add-round 4-6
+  ```
 - 旧表記（`[x][x][]`）の`HANDOFF.md`は、次に`add-round`／`mark-done`を実行した時点で自動的に
   移行する（記号の個数を周回数としてヘッダへ移し、進捗列は記号1つへ畳む）。手作業での書き換えは要らない。
 

@@ -4,7 +4,7 @@ title: Git運用（ブランチ・命名規則）
 type: rule
 description: featureブランチの命名規則・worklog配置・PR/マージ運用と、ベースブランチ追従確認・取り込み方針（mergeを使いrebaseは使わない）を定めたルール
 tags: [git, branch, rule]
-keywords: [featureブランチ, ブランチ命名, worklog, squash-merge, draft-pr, issue-mr-flow, マージ運用, ベースブランチ, 追従確認, rebase, check-base-sync, always-apply]
+keywords: [featureブランチ, ブランチ命名, worklog, squash-merge, draft-pr, issue-mr-flow, マージ運用, ベースブランチ, 追従確認, rebase, check-base-sync, gitignore, 副産物, always-apply]
 ---
 
 # Git運用（ブランチ・命名規則）
@@ -68,6 +68,18 @@ keywords: [featureブランチ, ブランチ命名, worklog, squash-merge, draft
   冪等にスキップして通知するだけになる。仕様は
   `.claude/docs/spec/create-commit.md`、経緯は
   `.claude/docs/ddr/i0060-01-create-commitは削除ステージ済みパスをgit-addの失敗時分類で吸収する.md` を参照。
+- **`git status` の出力を機械的に全件 `commit` スキルへ渡さない**（issue #127で実際に踏んだ）。
+  `commit` スキルは開発環境の副産物を除外するリストを持つが、**呼び出し側が `git status` から
+  組み立てたパス配列をそのまま渡す**運用だと、**リストに無い新種の副産物が素通りする**。
+  実例では `bash.exe.stackdump`（MSYSのクラッシュダンプ）を1度コミットに含めてしまった。
+  渡す前に一覧へ目を通し、**そのタスクで自分が変更したファイルかどうか**を確認する。
+- **新種の副産物を見つけたら、`.gitignore` と `commit` スキルの除外リストの両方へ追加する。**
+  役割が違うので片方では足りない。`.gitignore` に入れれば `git status` にも出なくなり、上の
+  見落としの機会そのものが消える——ただし**このリポジトリ限定**である。`commit` スキルの
+  「ファイルフィルタ」節は `.claude/` ごと**他プロジェクトへ配布される**ため、そちらへ入れないと
+  配布先で同じ事故が繰り返される。
+  **ただしタスクと無関係な `.gitignore` の変更は、指示されていない変更としてユーザーへ明示する**
+  （不要と判断されたら戻せるようにするため）。
 
 ## push検知hookの誤検知（AIエージェント向け注記）
 

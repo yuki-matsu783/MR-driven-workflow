@@ -7,21 +7,39 @@
 # （Provider.sh が get_provider の判定結果に応じてこのファイルの関数へディスパッチする）。
 # 前提: `glab` CLIがインストール・認証済み（`glab auth login`）であること。
 #
-# 検証状況（issue #48）: ローカルに立てたGitLab CE 18.5.4（Docker）に対し、`glab` 1.114.0から
-# 全13関数を実機実行して動作を確認済み。この検証で見つかった3件の不具合（システムノートの混入・
-# `glab mr note --message`の非推奨・空コミットフォールバックの前提誤り）は修正済み。
-# 以前あった「remoteがGitHubのみのため全関数が未検証」という制約は解消している。
+# 検証状況: ローカルに立てたGitLab CE 18.5.4（Docker）に対し、`glab` 1.114.0から
+# **issue #127 時点の27関数を実機実行して動作を確認済み**（うち公開ディスパッチャを持つ20関数は
+# `Provider.sh`経由で直接、残り7関数は上位関数経由の間接確認）。検証環境の再現手順は
+# .claude/docs/spec/gitlab-verification-environment.md を参照。
 #
-# ただし次の4点は依然として未検証。詳細は
-# .claude/docs/spec/issue-mr-workflow.md の「未決定事項・懸念点」を参照。
-#   - `Provider.sh`経由のディスパッチ: `get_provider`がself-hostedのGitLab URLを判定できない
-#     （issue #45、未修正）ため、検証は`gitlab_*`関数を直接呼ぶ形で行った。
-#   - バージョン・エディション: 確認したのはCE 18.5.4のみ。gitlab.com（SaaS）・他バージョンは未確認。
-#   - プロジェクト構成: 単一プロジェクトでしか確認しておらず、サブグループ・ネストした
-#     namespaceでの`glab`のプロジェクト解決は未確認。
-#   - `gitlab_set_mr_ready`（issue #61で追加した14個目の関数）: 上記の実機検証より後に追加した
-#     ため、この検証には含まれていない。`glab`公式ドキュメントと実装ソースで`--ready`の仕様を
-#     確認したのみである。
+# **現在の関数数は28で、検証済みの27と1件ずれる。** 差分は issue #43 が追加した
+# `gitlab_read_file_at_ref` で、issue #127 の検証より後に入ったため未検証である
+# （当該関数に【未検証】マーカーが付いている）。**この行の数を、関数を足したときに
+# 更新すること**（issue #48当時の「全13関数」が実態と合わなくなったのと同じ陳腐化を繰り返さない）。
+#
+#   - issue #48: 当時の全13関数を実機実行。3件の不具合（システムノートの混入・
+#     `glab mr note --message`の非推奨・空コミットフォールバックの前提誤り）を修正した。
+#     ただし当時は`get_provider`がself-hostedのGitLab URLを判定できなかったため、
+#     `gitlab_*`関数を直接呼ぶ形で迂回している。
+#   - issue #45: その`get_provider`の判定を修正し、同じ環境で`Provider.sh`経由のディスパッチが
+#     通ることを確認した（**issue #48時点の「未修正」という制約は解消済み**）。
+#   - issue #127: issue #48以降に追加された13関数を`Provider.sh`経由で実機実行し、
+#     **サブグループ・ネストしたnamespaceでの`glab`のプロジェクト解決**（3階層
+#     `grp127/sub127/issue127-verify-sub`）も確認した。この検証で2件の不具合
+#     （差分アンカーの土台がCompareページで機能しない・`gitlab_get_repo_url`の未定義呼び出し）を
+#     検出し修正、あわせて`gitlab_get_diff_anchor_base_url` / `gitlab_mr_has_version_head`の
+#     2関数を追加してこれも確認した。
+#
+# 関数の数え方: issue #48当時13 − 1（`gitlab_get_repo_url`。issue #44が定義を削除し
+# `get_repo_url`へ一本化した）+ issue #127で検証した13 + 同issueで追加した2 = **27**（検証済み）。
+# これに issue #43 の `gitlab_read_file_at_ref` を足した **28** が
+# `grep -c '^gitlab_[a-z0-9_]*()' <本ファイル>` の値である。
+#
+# **どこまで確認できていて何が残っているかの正は
+# .claude/docs/spec/issue-mr-workflow.md の「未決定事項・懸念点」の1箇所である。**
+# ここへ一覧を再掲しない（同じ内容を複数箇所へ書くと片方だけが更新されて食い違う。issue #127）。
+# なお本ファイルで確認したのは「関数がAPI経路で期待どおり動くこと」までで、
+# 「生成したURLがブラウザで意図どおり働くこと」は上記の節に別項目として残っている。
 
 gitlab_get_issue() {
   local number="$1"
@@ -195,7 +213,14 @@ gitlab_get_mr_review_threads() {
   discussions="$(glab api "projects/:id/merge_requests/${mr_number}/discussions")"
   # コメントのパーマリンク（issue #42）用にMRのURLを求める。ここで失敗しても本体の
   # コメント取得は成功させたいため、握りつぶしてurl無しの出力へ縮退する。
-  if repo_url="$(gitlab_get_repo_url 2>/dev/null)" && [ -n "$repo_url" ]; then
+  #
+  # `get_repo_url` は Provider.sh 側のプロバイダ非依存な共有関数（`gitlab_get_issue` が
+  # `to_slug` を呼んでいるのと同じ形の依存）。
+  # issue #42 が呼んでいた `gitlab_get_repo_url` は issue #44 が定義を削除して
+  # この関数へ一本化しており、**呼び出し側だけが取り残されて未定義呼び出しになっていた**
+  # （並行ブランチのsemantic conflict。`2>/dev/null` が `command not found` を握りつぶすため、
+  # 無言でurl無しへ縮退していた。issue #127 で実機検証中に検出）。
+  if repo_url="$(get_repo_url 2>/dev/null)" && [ -n "$repo_url" ]; then
     mr_url="$(gitlab_get_mr_url "$repo_url" "$mr_number")"
   fi
   gitlab_normalize_discussions "$discussions" "$include_resolved" "$mr_url"
@@ -227,7 +252,7 @@ gitlab_add_mr_thread_reply() {
     -X POST -f "body=${reply_body}")"
   note_id="$(printf '%s' "$response" | jq -r '.id // empty' | tr -d '\r')"
   [ -n "$note_id" ] || return 0
-  if repo_url="$(gitlab_get_repo_url 2>/dev/null)" && [ -n "$repo_url" ]; then
+  if repo_url="$(get_repo_url 2>/dev/null)" && [ -n "$repo_url" ]; then
     mr_url="$(gitlab_get_mr_url "$repo_url" "$mr_number")"
     gitlab_get_note_url "$mr_url" "$note_id"
   fi
@@ -302,15 +327,73 @@ gitlab_get_blob_url() {
   printf '%s/-/blob/%s/%s\n' "$repo_url" "$ref" "$path"
 }
 
-# Compareページ内の特定ファイルの差分位置を指すアンカー付きURLを組み立てる（純粋関数）。issue #42。
-# GitLabの差分アンカーは `#<パス文字列のsha1>`（GitHubと違い `diff-` 接頭辞が付かない）。
-# 【未検証】このリポジトリにGitLab remoteが無いため実機確認できていない。
-gitlab_get_diff_anchor_url() {
-  local compare_url="$1" path_hash="$2"
-  printf '%s#%s\n' "$compare_url" "$path_hash"
+# 指定SHAがMRのバージョン（push断面）のheadかを判定する。issue #127。
+# `gitlab_get_diff_anchor_base_url` が `?start_sha=` を付けてよいかの判定に使う。
+gitlab_mr_has_version_head() {
+  local mr_number="$1" sha="$2"
+  local versions
+  versions="$(glab api "projects/:id/merge_requests/${mr_number}/versions" 2>/dev/null)" || return 1
+  [ -n "$versions" ] || return 1
+  printf '%s' "$versions" \
+    | jq -e --arg sha "$sha" 'any(.[]; .head_commit_sha == $sha)' >/dev/null 2>&1
 }
 
-# 差分アンカーのハッシュ算出に使うアルゴリズム名を返す（純粋関数）。issue #42。【未検証】
+# 差分アンカーの土台にするページのURLを返す。issue #127。
+#
+# **GitLabのCompareページではアンカーが機能しない**（差分を非同期にストリーム描画するため、
+# ブラウザがフラグメントを解決する時点で対象要素がまだ存在しない）。MRの差分ページなら
+# 初回ロードから飛ぶことを実機の目視で確認した。
+#
+# 土台が覆う範囲は、呼び出し元のファイル一覧の供給元（`diff_range`）と一致させる。
+#
+# | pushの回 | `diff_range` | 土台URL |
+# |---|---|---|
+# | 初回（`since_sha` 無し） | `origin/<base>...HEAD` | `<mrUrl>/diffs` |
+# | 2回目以降 | `prev_sha...HEAD` | `<mrUrl>/diffs?start_sha=<prev_sha>` |
+#
+# MR全体の差分（`<mrUrl>/diffs`）を2回目以降にも使う案は採らなかった。前のpushで追加し今回の
+# pushで削除したファイル（**ファイルの改名も差分上は削除＋追加なので同じ形**）は、一覧には
+# 載るのにMR全体の差分には現れず、アンカーが着地先を失うため（実測: MR全体は30ファイル中0件、
+# `?start_sha=` は1ファイル中1件）。
+#
+# `start_sha` には**MRバージョンのheadでないSHAを渡してはいけない**。GitLabはエラーにせず
+# HTTP 200のまま0ファイルを返すため、無言で空の差分ページになる。呼び出し元の `prev_sha` は
+# pushを伴わないhookの誤検知でも上書きされうる（issue #23）ので、ここで検証して外れていたら
+# `<mrUrl>/diffs` へ縮退する。
+#
+# **この縮退は、上の「範囲を一致させる」原則を満たせない意図的な妥協である。** 縮退先は却下した
+# 案Aと同じ形であり、呼び出し元の `diff_range` は `prev_sha...HEAD` のままなので、そのpushに
+# 「前のpushで追加され今回削除された（＝改名された）ファイル」が含まれていれば、そのアンカーは
+# 着地先を失う。0ファイルの空ページを出すよりはましだが、正しくはない。**根治するには
+# `prev_sha` が汚れる原因（issue #23 のhook誤検知）を直す必要がある**（本issueの範囲外）。
+gitlab_get_diff_anchor_base_url() {
+  local compare_url="$1" mr_url="$2" mr_number="$3" since_sha="$4"
+  # MRのURLを取得できない経路（MCP経路等）では従来どおりCompareページへ縮退する。
+  # アンカーは機能しないが、壊れたURLを出すよりは現行の振る舞いを保つ。
+  if [ -z "$mr_url" ]; then
+    printf '%s\n' "$compare_url"
+    return 0
+  fi
+  if [ -z "$since_sha" ] || [ -z "$mr_number" ] \
+    || ! gitlab_mr_has_version_head "$mr_number" "$since_sha"; then
+    printf '%s/diffs\n' "$mr_url"
+    return 0
+  fi
+  printf '%s/diffs?start_sha=%s\n' "$mr_url" "$since_sha"
+}
+
+# 差分ページ内の特定ファイルの差分位置を指すアンカー付きURLを組み立てる（純粋関数）。issue #42。
+# GitLabの差分アンカーは `#<パス文字列のsha1>`（GitHubと違い `diff-` 接頭辞が付かない）。
+# ハッシュの入力は**percent-encode前の生パス**（encodeが要るblobリンクとは逆）。
+# issue #127 でローカルGitLab CE 18.5.4 に対して実機確認済み。
+# `base_url` は `gitlab_get_diff_anchor_base_url` の戻り値を渡す（Compareページを渡すと
+# アンカーが機能しない。同関数のコメント参照）。
+gitlab_get_diff_anchor_url() {
+  local base_url="$1" path_hash="$2"
+  printf '%s#%s\n' "$base_url" "$path_hash"
+}
+
+# 差分アンカーのハッシュ算出に使うアルゴリズム名を返す（純粋関数）。issue #42。issue #127 でローカルGitLab CE 18.5.4 に対し実機確認済み（`sha1` を返す）。
 gitlab_diff_anchor_algo() {
   printf 'sha1\n'
 }
@@ -451,7 +534,7 @@ gitlab_add_mr_inline_comments() {
     '{posted: $posted, summarized: $summarized}'
 }
 
-# 任意のissueへ新規コメントを1件投稿する（flow-id 5-2: マージ前の関連issue通知。issue #86。当時のflow-idは 5-3。issue #112 でフェーズ5を並べ替え）。【未検証】
+# 任意のissueへ新規コメントを1件投稿する（flow-id 5-2: マージ前の関連issue通知。issue #86。当時のflow-idは 5-3。issue #112 でフェーズ5を並べ替え）。issue #127 で実機確認済み
 # 宛先がMRである `gitlab_add_mr_comment` とは別関数（エンドポイントが `merge_requests` ではなく
 # `issues` になる）。同関数と同じく安定版のREST APIを直接叩く（`glab issue note --message` は
 # `glab mr note --message` と同様に非推奨の可能性があり、代替のサブコマンドはEXPERIMENTAL扱いの

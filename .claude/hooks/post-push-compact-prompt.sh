@@ -29,8 +29,9 @@
 #     今回push時点までの差分へのリンク、コメント一覧（MR画面）へのリンク
 # 重点レビュー対象ファイルのリンク（issue #42）: 上記4リンクはいずれもMR/リポジトリ全体を指すため、
 # レビュアーは「どのファイルを重点的に見ればよいか」を自力で探す必要があった。今回pushの差分に
-# 含まれるファイルごとに「本体（blob）」「Compareページ内の該当ファイル位置（差分アンカー）」の
-# 2つのURLを組み立てて候補として供給する。**どのファイルを載せるか・blobと差分アンカーの
+# 含まれるファイルごとに「本体（blob）」「差分ページ内の該当ファイル位置（差分アンカー）」の
+# 2つのURLを組み立てて候補として供給する（アンカーの土台になるページはプロバイダで異なる。
+# GitHubはCompareページ、GitLabはMRの差分ページ。issue #127）。**どのファイルを載せるか・blobと差分アンカーの
 # どちらを載せるかはエージェントが判断する**（hookは候補の供給に徹し、選定はしない）。
 # コンテキストを圧迫しないよう供給件数には上限（MAX_REVIEW_FILES）を設け、超過分は件数だけ伝える。
 #
@@ -130,8 +131,10 @@ list_changed_files() {
 # 組み立てる（issue #42）。候補が1件も無い場合は何も出力しない。
 #
 # `ref` には今回pushのHEAD SHAを渡す（blobリンクを「該当push時点のファイル本体」に固定するため）。
-# `compare_url` は差分範囲と対になるCompareページのURL（初回pushならdefaultブランチとの差分、
-# 2回目以降なら前回pushとの差分）。
+# `base_url` は差分アンカーの土台にするページのURLで、`get_diff_anchor_base_url` の戻り値を渡す
+# （プロバイダによって何が土台になるかが違う。GitHubはCompareページ、GitLabはMRの差分ページ。
+# issue #127）。**土台が覆う範囲は `diff_range` と一致していなければならない**。一致していないと、
+# 一覧には載るのに土台ページには存在しないファイルが生じ、アンカーが着地先を失う。
 #
 # 性能上の注意: URL組み立ては1ファイルにつき2回の関数呼び出しが必要だが、`$(...)` を
 # ファイルごとに書くとそのたびにサブシェルをforkする（git bashでは約95ms/回）。
@@ -139,7 +142,7 @@ list_changed_files() {
 # 依存しない定数に抑えている（`.claude/rules/shell-script-style.md`「外部プロセス起動のコスト」節）。
 # `get_provider` がメモ化されていることも前提にしており、事前に1度呼んでキャッシュを温めておく。
 build_file_links_text() {
-  local repo_url="$1" compare_url="$2" ref="$3" diff_range="$4" max="$5"
+  local repo_url="$1" base_url="$2" ref="$3" diff_range="$4" max="$5"
   local files=() line
   while IFS= read -r line; do
     [ -n "$line" ] && files+=("$line")
@@ -178,7 +181,7 @@ build_file_links_text() {
         url_encode_path_to_reply "${shown[$i]}"
         get_blob_url "$repo_url" "$ref" "$REPLY"
       fi
-      get_diff_anchor_url "$compare_url" "${hashes[$i]}"
+      get_diff_anchor_url "$base_url" "${hashes[$i]}"
     done
   )
   [ "${#urls[@]}" -eq "$((shown_count * 2))" ] || return 0
@@ -261,11 +264,12 @@ main() {
   # MRリンクだけをMCPでの取得指示に差し替えたうえで、レビュー依頼メッセージ自体は従来どおり促す
   # （ここで終了してしまうと、CLIの無い環境ではレビュー依頼と/compactの呼びかけが一切
   # 行われなくなるため）。
-  local mr mr_url=""
+  local mr mr_url="" mr_number=""
   if [ "$(get_vcs_access_mode)" = "cli" ]; then
     mr="$(get_mr_for_branch "$branch")"
     [ -n "$mr" ] || exit 0
     mr_url="$(printf '%s' "$mr" | jq -r '.url')"
+    mr_number="$(printf '%s' "$mr" | jq -r '.number')"
   fi
 
   local repo_url diff_url
@@ -303,10 +307,20 @@ main() {
   get_provider >/dev/null
 
   local anchor_compare_url="$diff_url" file_links_text=""
-  [ -z "$since_url" ] || anchor_compare_url="$since_url"
+  local anchor_base_url="" anchor_since_sha=""
+  if [ -n "$since_url" ]; then
+    anchor_compare_url="$since_url"
+    anchor_since_sha="$prev_sha"
+  fi
+  # 差分アンカーが機能する土台はプロバイダで異なる（GitHubはCompareページ、GitLabはMRの差分
+  # ページ。issue #127）。土台が覆う範囲は下の `diff_range` と一致させる必要があるため、
+  # 「前回pushとの差分」を出すときは前回push SHAも渡す。取得に失敗したら従来の土台で続行する。
+  anchor_base_url="$(get_diff_anchor_base_url \
+    "$anchor_compare_url" "$mr_url" "$mr_number" "$anchor_since_sha" || true)"
+  [ -n "$anchor_base_url" ] || anchor_base_url="$anchor_compare_url"
   # 候補ファイルの供給に失敗しても、既存の参照リンクと/compactの呼びかけは従来どおり行う。
   file_links_text="$(build_file_links_text \
-    "$repo_url" "$anchor_compare_url" "$current_sha" "$diff_range" "$MAX_REVIEW_FILES" || true)"
+    "$repo_url" "$anchor_base_url" "$current_sha" "$diff_range" "$MAX_REVIEW_FILES" || true)"
 
   # 次回push時の「前回pushとの差分」計算のため、今回pushのHEAD SHAを保存する
   mkdir -p "$(dirname "$state_file")"

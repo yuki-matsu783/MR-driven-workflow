@@ -262,6 +262,28 @@ github_get_mr_diff_since_url() {
   github_get_compare_url "$repo_url" "$from_sha" "$to_sha"
 }
 
+# PR本体のページURLを組み立てる（純粋関数）。issue #127（`Gitlab.sh` 側にあった同名関数の
+# GitHub対応物）。noteのパーマリンク・差分アンカーの土台に使う。
+github_get_mr_url() {
+  local repo_url="$1" mr_number="$2"
+  printf '%s/pull/%s\n' "$repo_url" "$mr_number"
+}
+
+# レビューコメントの公式パーマリンクを組み立てる（純粋関数）。issue #127。
+#
+# **本番経路からは呼ばれない。** GitHubはGraphQLが `comment { url }` としてパーマリンクを
+# 返すため（同ファイルの `github_add_mr_thread_reply` / `github_get_mr_unresolved_comments`）、
+# 文字列を組み立てる必要がない。GitLab側は同等のフィールドがAPIから得られないため補償実装を
+# 持っており、`Provider.sh` の `get_note_url` を両プロバイダで引けるようにするためにこちらも置く。
+#
+# 形式は推測ではなく、GitHubのAPIが実際に返す値と一致することを確認して採用した
+# （本リポジトリのPR #128 の実コメントが
+# `https://github.com/<owner>/<repo>/pull/128#discussion_r3821657827`）。
+github_get_note_url() {
+  local mr_url="$1" note_id="$2"
+  printf '%s#discussion_r%s\n' "$mr_url" "$note_id"
+}
+
 # 特定ファイルの「そのref時点の本体」を開くblobページのURLを組み立てる（純粋関数）。issue #42。
 # `ref`はブランチ名・SHAどちらも指定できるが、レビュー依頼メッセージでは「該当push時点」を
 # 固定したいためSHAを渡す想定。`path`は呼び出し側でpercent-encode済みのものを渡す
@@ -271,14 +293,23 @@ github_get_blob_url() {
   printf '%s/blob/%s/%s\n' "$repo_url" "$ref" "$path"
 }
 
+# 差分アンカーの土台にするページのURLを返す（純粋関数）。issue #127。
+# GitHubはCompareページ上でアンカーが機能するため、渡された `compare_url` をそのまま返す
+# （＝この関数の導入で従来の挙動は変わらない）。残りの引数はGitLab側と署名を揃えるためのもので、
+# 使わない。
+github_get_diff_anchor_base_url() {
+  local compare_url="$1"
+  printf '%s\n' "$compare_url"
+}
+
 # Compareページ内の特定ファイルの差分位置を指すアンカー付きURLを組み立てる（純粋関数）。issue #42。
 # GitHubの差分アンカーは `#diff-<パス文字列のsha256>`。この算出方法はGitHubの非公開内部仕様のため、
 # 実機で確認して採用した（Compareページが差分本体を遅延読込する
 # `/<owner>/<repo>/compare/file-list?range=<from>...<to>` の断片HTMLに、
 # `id="diff-<sha256(パス)>"` が出力されることを本リポジトリで確認済み）。
 github_get_diff_anchor_url() {
-  local compare_url="$1" path_hash="$2"
-  printf '%s#diff-%s\n' "$compare_url" "$path_hash"
+  local base_url="$1" path_hash="$2"
+  printf '%s#diff-%s\n' "$base_url" "$path_hash"
 }
 
 # 差分アンカーのハッシュ算出に使うアルゴリズム名を返す（純粋関数）。issue #42。

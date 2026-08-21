@@ -39,3 +39,7 @@
 # （.claude/hooks/session-start.sh）がセッション開始のたびに自動再生成する（詳細:
 # .claude/docs/ddr/i36-01-frontmatterのindex.jsonlをGit管理から外しSessionStart-hookで生成する.md）。
 **/index.jsonl
+# MSYS/git bashのクラッシュダンプ（作業中に生成されることがある）
+*.stackdump
+# generate-ddr-list.sh の一時ファイル（実行が中断されると残ることがある。issue #127で1度コミットしてしまった）
+.claude/docs/.ddr-list.*

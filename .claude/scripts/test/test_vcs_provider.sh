@@ -1178,5 +1178,193 @@ assert_eq "upload_attachment: 存在しないファイルは非0で終える" '1
 upload_missing_stderr="$(upload_attachment '/nonexistent/path/to/report.html' 2>&1 >/dev/null || true)"
 assert_contains "upload_attachment: 存在しないファイルの理由がstderrに出る" \
   "$upload_missing_stderr" "ファイルが見つかりません"
+
+# --- 差分アンカーの土台URL（issue #127） ---------------------------------------------------
+# 同じハッシュでも土台にするページによってアンカーが効くかが変わるため、土台の決定を
+# プロバイダへ委ねている。GitHubは従来どおりCompareページ、GitLabはMRの差分ページ。
+anchor_compare_url='https://github.com/o/r/compare/aaa...bbb'
+anchor_mr_url='http://gl.example/o/r/-/merge_requests/7'
+
+assert_eq "github_get_diff_anchor_base_url: compare_urlをそのまま返す（従来の挙動を変えない）" \
+  "$anchor_compare_url" \
+  "$(github_get_diff_anchor_base_url "$anchor_compare_url" "$anchor_mr_url" 7 'aaa111')"
+
+assert_eq "github_get_diff_anchor_base_url: since_shaが空でもcompare_urlをそのまま返す" \
+  "$anchor_compare_url" \
+  "$(github_get_diff_anchor_base_url "$anchor_compare_url" "$anchor_mr_url" 7 '')"
+
+# `glab` をシェル関数で差し替え、MRバージョン一覧を固定値にする（外部プロセス・ネットワークを
+# 使わない）。同名のシェル関数は実行ファイルより優先されるため、実装側に手を入れずに検証できる。
+glab() {
+  case "$*" in
+    'api projects/:id/merge_requests/7/versions')
+      printf '%s' '[{"id":11,"head_commit_sha":"aaa111"},{"id":10,"head_commit_sha":"bbb222"}]'
+      ;;
+    'api projects/:id/merge_requests/7/discussions')
+      printf '%s' "$gitlab_discussions_fixture"
+      ;;
+    *) return 1 ;;
+  esac
+}
+
+assert_eq "gitlab_get_diff_anchor_base_url: mr_urlが空ならcompare_urlへ縮退する（MCP経路）" \
+  "$anchor_compare_url" \
+  "$(gitlab_get_diff_anchor_base_url "$anchor_compare_url" '' 7 'aaa111')"
+
+assert_eq "gitlab_get_diff_anchor_base_url: since_shaが空ならMR全体の差分ページ（初回push）" \
+  "${anchor_mr_url}/diffs" \
+  "$(gitlab_get_diff_anchor_base_url "$anchor_compare_url" "$anchor_mr_url" 7 '')"
+
+assert_eq "gitlab_get_diff_anchor_base_url: since_shaがバージョンheadならstart_shaで絞り込む" \
+  "${anchor_mr_url}/diffs?start_sha=aaa111" \
+  "$(gitlab_get_diff_anchor_base_url "$anchor_compare_url" "$anchor_mr_url" 7 'aaa111')"
+
+# バージョンheadでないSHAを渡すとGitLabはHTTP 200のまま0ファイルを返す（無言で空の差分ページに
+# なる）ため、付けずにMR全体の差分ページへ縮退する
+assert_eq "gitlab_get_diff_anchor_base_url: since_shaがバージョンheadでなければ縮退する" \
+  "${anchor_mr_url}/diffs" \
+  "$(gitlab_get_diff_anchor_base_url "$anchor_compare_url" "$anchor_mr_url" 7 'zzz999')"
+
+assert_eq "gitlab_get_diff_anchor_base_url: mr_numberが空なら検証できないので縮退する" \
+  "${anchor_mr_url}/diffs" \
+  "$(gitlab_get_diff_anchor_base_url "$anchor_compare_url" "$anchor_mr_url" '' 'aaa111')"
+
+assert_eq "gitlab_mr_has_version_head: バージョンheadなら成功する" \
+  "0" \
+  "$(if gitlab_mr_has_version_head 7 'bbb222'; then echo 0; else echo 1; fi)"
+
+assert_eq "gitlab_mr_has_version_head: APIが失敗したら偽を返す（存在しないMR番号）" \
+  "1" \
+  "$(if gitlab_mr_has_version_head 999 'aaa111'; then echo 0; else echo 1; fi)"
+
+# --- MR/noteのURL組み立て（issue #127でディスパッチャを追加） -------------------------------
+assert_eq "github_get_mr_url: PRのページURLを組み立てる" \
+  "https://github.com/o/r/pull/7" \
+  "$(github_get_mr_url 'https://github.com/o/r' 7)"
+
+# 形式はGitHubのAPIが実際に返す値と一致する（本リポジトリのPR #128 の実コメントで確認済み）
+assert_eq "github_get_note_url: レビューコメントのパーマリンクを組み立てる" \
+  "https://github.com/o/r/pull/7#discussion_r3821657827" \
+  "$(github_get_note_url 'https://github.com/o/r/pull/7' 3821657827)"
+
+# --- 呼び出し経路のテスト（issue #127） ----------------------------------------------------
+# 静的検出（後述）は「定義があるか」しか見ないため、引数の受け渡しが壊れている形は拾えない。
+# `gitlab_get_mr_unresolved_comments` が実際にMRのURLを組み立ててコメントへ埋め込むところまでを、
+# `glab` と `get_repo_url` を差し替えて通す。
+# `get_repo_url` も差し替えるのは、この関数が `git remote get-url origin` を起動するため
+# （差し替えないと origin の無いチェックアウトで落ち、かつ本リポジトリのoriginはGitHubなので
+# 実在しないGitLab形式のURLで通ってしまい、検証として意味を成さない）。
+# **`get_repo_url` の差し替えはサブシェルへ閉じ込める。** bashの関数定義はスタックしないため、
+# ここで再定義してから `unset -f` すると、スタブではなく `Provider.sh` の**実定義そのもの**が
+# 消える（以降のケースが `command not found` で落ち、原因が「前のテストが消したこと」だと
+# 気づきにくい失敗になる）。`glab` は元々関数ではないのでこの問題は無いが、揃えて閉じ込める。
+# issue #43 で `gitlab_get_mr_unresolved_comments` は `gitlab_get_mr_review_threads`（正規化JSONを
+# 返す）＋ `format_review_comments` の2段へ分かれた。**このケースが見ているのは整形結果ではなく
+# 「MRのURLを組み立ててnoteのパーマリンクへ届くか」という経路**なので、上の
+# `gitlab_normalize_discussions` を直接呼ぶケース群（mr_urlを引数で渡す）では代替できない。
+assert_eq "gitlab_get_mr_review_threads: noteのパーマリンクが完全な形で出力に入る" \
+  "[review unresolved threadId=d1 url=http://gl.example/o/r/-/merge_requests/7#note_1] reviewer: ここは修正してください
+
+[review unresolved threadId=d4 url=http://gl.example/o/r/-/merge_requests/7#note_4] root: 通常コメント" \
+  "$(
+    get_repo_url() { printf 'http://gl.example/o/r\n'; }
+    render_comments "$(gitlab_get_mr_review_threads 7)"
+  )"
+
+assert_eq "テストの後片付け: get_repo_url の実定義が残っている（スタブで消していない）" \
+  "get_repo_url" \
+  "$(declare -F get_repo_url >/dev/null && echo get_repo_url)"
+
+unset -f glab
+
+# --- 未定義の github_* / gitlab_* 呼び出しの静的検出（issue #127） --------------------------
+# issue #42（呼び出しの追加）と issue #44（定義の削除）が並行ブランチで行われ、gitがコンフリクト
+# と見なさなかったために `gitlab_get_repo_url` が未定義のまま呼ばれ続けていた。同じ形の混入を
+# 機械的に検出する。
+#
+# 注意: 修正後は「未定義0件」が恒久的な期待値になるため、抽出パターンが実データに合わなくなっても
+# 結果は同じ「0件」になる（常に成功する検証になってしまう）。参照件数・定義件数も併せて表明し、
+# さらに下で「意図的に壊した木では実際に検出できる」ことを確かめて空振りを潰す。
+vcs_identifiers() {
+  # 行頭・行末どちらのコメントも落としてから識別子を拾う（`foo  # gitlab_bar` を参照と誤認しない）
+  sed -E 's/#.*$//' "$1/Provider.sh" "$1/Github.sh" "$1/Gitlab.sh"
+}
+
+vcs_defined_names() {
+  vcs_identifiers "$1" | grep -oE '^(github|gitlab)_[a-z0-9_]+\(\)' | sed 's/()$//' | sort -u
+}
+
+vcs_referenced_names() {
+  # `github__list_pull_requests` のようなMCPツール名（アンダースコア2つ）は関数名ではないので除く
+  # （`mcp_tool_hint` が文字列として持っている）。これを除かないと未定義の関数として検出される。
+  vcs_identifiers "$1" \
+    | grep -oE '(github|gitlab)_[a-z0-9_]+' \
+    | grep -vE '^(github|gitlab)__' \
+    | sort -u
+}
+
+vcs_undefined_names() {
+  comm -23 <(vcs_referenced_names "$1") <(vcs_defined_names "$1")
+}
+
+vcs_dir="$repo_root/.claude/scripts/src/vcs"
+
+# 抽出そのものが空振りしていないことを先に確かめる（0件なら検出は常に成功してしまう）
+assert_eq "静的検出: 定義を1件以上抽出できている" \
+  "yes" \
+  "$([ "$(vcs_defined_names "$vcs_dir" | grep -c .)" -gt 0 ] && echo yes || echo no)"
+
+assert_eq "静的検出: 参照を1件以上抽出できている" \
+  "yes" \
+  "$([ "$(vcs_referenced_names "$vcs_dir" | grep -c .)" -gt 0 ] && echo yes || echo no)"
+
+assert_eq "静的検出: 定義の無い github_* / gitlab_* の呼び出しが存在しない" \
+  "" \
+  "$(vcs_undefined_names "$vcs_dir")"
+
+# 空振り防止: 意図的に未定義呼び出しを1件戻した木では、実際にその1件だけを検出できること
+vcs_broken_dir="$(mktemp -d)"
+cp "$vcs_dir/Provider.sh" "$vcs_dir/Github.sh" "$vcs_dir/Gitlab.sh" "$vcs_broken_dir/"
+sed -i '0,\|get_repo_url 2>/dev/null|s||gitlab_get_repo_url 2>/dev/null|' "$vcs_broken_dir/Gitlab.sh"
+
+assert_eq "静的検出: 未定義呼び出しを1件戻した木では、その1件を検出できる" \
+  "gitlab_get_repo_url" \
+  "$(vcs_undefined_names "$vcs_broken_dir")"
+
+rm -rf "$vcs_broken_dir"
+
+
+# `github_*` / `gitlab_*` の接頭辞を持たない**共有関数**（`Provider.sh` 側に定義があり、
+# provider実装から呼ばれるもの）は、上の検出の対象外である。しかし issue #127 の不具合2は
+# まさにこの形（`Gitlab.sh` が `Provider.sh` の関数を呼ぶ）へ**修正した**ため、同型の再発
+# ——`Provider.sh` 側で改名・削除され、`2>/dev/null` に `command not found` が吸われて
+# 無言で縮退する——を落とせない。呼び出し側の握りつぶしは意図的に残しているので、ここで表明する。
+#
+# 一覧を明示にしているのは、jqのフィールド名（`new_path` / `head_sha` 等）とシェル関数呼び出しを
+# 静的に区別できないため（機械的に拾うと十数件の偽陽性が混ざる）。**provider実装から新しく
+# `Provider.sh` の関数を呼ぶときは、この一覧へ追加する。**
+vcs_shared_functions=(
+  to_slug
+  get_repo_url
+  add_empty_commit_for_draft_mr
+  merge_issue_search_results
+  format_findings_summary
+)
+
+vcs_provider_impl_text="$(sed -E 's/#.*$//' \
+  "$repo_root/.claude/scripts/src/vcs/Github.sh" "$repo_root/.claude/scripts/src/vcs/Gitlab.sh")"
+
+for shared_fn in "${vcs_shared_functions[@]}"; do
+  # 一覧が実態から乖離していないこと（呼ばれなくなった関数が残り続けると表明が形骸化する）
+  assert_eq "共有関数の一覧: $shared_fn は実際にprovider実装から呼ばれている" \
+    "yes" \
+    "$(case "$vcs_provider_impl_text" in *"$shared_fn"*) echo yes ;; *) echo no ;; esac)"
+  # 定義が消えていないこと（issue #127 の不具合2と同型の再発を落とす）
+  assert_eq "共有関数の定義: $shared_fn が定義されている" \
+    "$shared_fn" \
+    "$(declare -F "$shared_fn" >/dev/null && echo "$shared_fn")"
+done
+
+
 echo "passed=$passed failures=$failures"
 [ "$failures" -eq 0 ]
