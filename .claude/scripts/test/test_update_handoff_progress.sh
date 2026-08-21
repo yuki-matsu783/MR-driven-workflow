@@ -736,5 +736,75 @@ assert_failure "mark-skip: 単発と部分範囲の混在指定はエラー" "$s
 assert_eq "mark-skip: 失敗時は同じ呼び出しの単発ステップも[]のまま" \
   "| [] | 1-1 | 単発ステップ | 人間 |" "$(get_row "$fixture" 1-1)"
 
+# --- issue #140（敵対的レビュー指摘）: 提示する「指定し直す例」は表にある行だけで組み立てる ---
+
+# 範囲の一部行しか持たない表。エラーが提示するコマンドをそのまま実行して通ることまで確認する
+# （範囲の全flow-idを並べると、表に無い行を含むため上流の件数検査で必ず失敗していた）
+fixture="$TMP_DIR/handoff39.md"
+cat >"$fixture" <<'FIXTURE_PARTIAL_TABLE'
+- push回数: 0
+
+| 進捗 | flow-id | ステップ | 担当 |
+|----|---|---|---|
+| [] | 2-6 | ループ範囲1 | エージェント |
+| [] | 2-7 | ループ範囲2 | エージェント |
+FIXTURE_PARTIAL_TABLE
+set +e
+stderr="$(cmd_mark_skip "$fixture" "2-6" 2>&1 >/dev/null)"
+status=$?
+set -e
+assert_failure "mark-skip: 表に無い行がある範囲でも部分指定はエラー" "$status"
+assert_contains "mark-skip: 表に無い行を検査から除外した旨を出す" "$stderr" \
+  "（2-8 2-9 は表に無いため検査から除外）"
+assert_contains "mark-skip: 指定し直す例は表にある行だけで組み立てる" "$stderr" \
+  "指定し直す例: mark-skip 2-6 2-7"
+# 提示された例をそのまま実行すれば回復できる
+cmd_mark_skip "$fixture" "2-6" "2-7"
+assert_eq "mark-skip: 提示された例をそのまま実行すると通る" \
+  "| [-] | 2-7 | ループ範囲2 | エージェント |" "$(get_row "$fixture" 2-7)"
+
+# --- issue #140（敵対的レビュー指摘）: 同一ループ範囲から複数指定しても範囲は1回だけ報告する ---
+
+fixture="$TMP_DIR/handoff40.md"
+cat >"$fixture" <<'FIXTURE_FULL_RANGE'
+- push回数: 0
+
+| 進捗 | flow-id | ステップ | 担当 |
+|----|---|---|---|
+| [] | 2-6 | ループ範囲1 | エージェント |
+| [] | 2-7 | ループ範囲2 | エージェント |
+| [] | 2-8 | ループ範囲3 | 人間 |
+| [] | 2-9 | ループ範囲4 | エージェント |
+FIXTURE_FULL_RANGE
+set +e
+stderr="$(cmd_mark_skip "$fixture" "2-6" "2-7" 2>&1 >/dev/null)"
+status=$?
+set -e
+assert_failure "mark-skip: 同一範囲から2件だけの指定はエラー" "$status"
+printf '%s\n' "$stderr" >"$TMP_DIR/stderr40.txt"
+# 検索パターンがハイフンで始まらなくても、grepには "--" を置く（規約どおりの書き方に揃える）
+assert_eq "mark-skip: 同じ範囲を重複して報告しない" "1" \
+  "$(grep -c -F -- '範囲 2-6〜2-9' "$TMP_DIR/stderr40.txt" || true)"
+assert_contains "mark-skip: 指定した2件が[-]、残り2件が[]として内訳に出る" "$stderr" \
+  "2-6=[-] 2-7=[-] 2-8=[] 2-9=[]"
+assert_contains "mark-skip: 全行が表にあるなら除外の注記は出ない" "$stderr" \
+  "2-9=[] → 指定し直す例: mark-skip 2-6 2-7 2-8 2-9"
+
+# 範囲が既に全て[-]なら、その一部だけを指定しても結果が揃うので通る（冪等）
+fixture="$TMP_DIR/handoff41.md"
+cat >"$fixture" <<'FIXTURE_ALL_SKIPPED'
+- push回数: 0
+
+| 進捗 | flow-id | ステップ | 担当 |
+|----|---|---|---|
+| [-] | 2-6 | ループ範囲1 | エージェント |
+| [-] | 2-7 | ループ範囲2 | エージェント |
+| [-] | 2-8 | ループ範囲3 | 人間 |
+| [-] | 2-9 | ループ範囲4 | エージェント |
+FIXTURE_ALL_SKIPPED
+cmd_mark_skip "$fixture" "2-6"
+assert_eq "mark-skip: 既に全て[-]の範囲への部分指定は通る（冪等）" \
+  "| [-] | 2-6 | ループ範囲1 | エージェント |" "$(get_row "$fixture" 2-6)"
+
 echo "passed=$passed failures=$failures"
 [ "$failures" -eq 0 ]

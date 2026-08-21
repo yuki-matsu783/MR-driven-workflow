@@ -325,8 +325,8 @@ cmd_mark_done() {
 # 表に存在しないflow-idは検査に加えない（そのflow-idを指定すると上流の件数検査で弾かれるため、
 # 加えるとその範囲へ二度と mark-skip できなくなる）。
 verify_loop_ranges_in_lines() {
-  local -a ranges=() bad=() ids=()
-  local t r range id i first detail uneven
+  local -a ranges=() bad=() ids=() found=() absent=()
+  local t r range id i first detail uneven hit note
   for t in "$@"; do
     find_loop_range_to_reply "$t" || continue
     range="$REPLY"
@@ -339,10 +339,15 @@ verify_loop_ranges_in_lines() {
     first=""
     detail=""
     uneven=0
+    found=()
+    absent=()
     for id in "${ids[@]}"; do
+      hit=0
       for ((i = 0; i < ${#LINES[@]}; i++)); do
         parse_table_row_to_reply "${LINES[$i]}" || continue
         [[ "$REPLY_FLOW_ID" == "$id" ]] || continue
+        hit=1
+        found+=("$id")
         detail+=" ${id}=${REPLY_PROGRESS}"
         if [[ -z "$first" ]]; then
           first="$REPLY_PROGRESS"
@@ -351,9 +356,19 @@ verify_loop_ranges_in_lines() {
         fi
         break
       done
+      if [[ $hit -eq 0 ]]; then
+        absent+=("$id")
+      fi
     done
     if [[ $uneven -eq 1 ]]; then
-      bad+=("範囲 ${ids[0]}〜${ids[$((${#ids[@]} - 1))]} は指定後の記号が揃いません:${detail} → 指定し直す例: mark-skip ${range}")
+      # 「指定し直す例」は**表に存在する行だけ**で組み立てる。範囲の全flow-idを並べると、
+      # 表に無い行を含む指定になり、貼り直しても上流の件数検査で必ず失敗する（issue #140の
+      # 敵対的レビュー指摘）
+      note=""
+      if [[ ${#absent[@]} -gt 0 ]]; then
+        note="（${absent[*]} は表に無いため検査から除外）"
+      fi
+      bad+=("範囲 ${ids[0]}〜${ids[$((${#ids[@]} - 1))]} は指定後の記号が揃いません:${detail}${note} → 指定し直す例: mark-skip ${found[*]}")
     fi
   done
 
