@@ -1,324 +1,588 @@
 #!/usr/bin/env bash
+#
+# issue駆動MRワークフロー機構のAIアセットを、他プロジェクトへ配布する（manifest方式。issue #26）。
+#
+# 何をどう配るかは本家の .claude/dist-layers.json が定める（5層）。
+#   core    … 常に上書きする（本家所有）
+#   seed    … 配布先に無ければ置く。あれば触らない（配布先所有）
+#   merge   … 構造的にマージする（lines-marker / json-keys）
+#   local   … 何もしない（配布先のローカル作業状態）
+#   exclude … 配らない（本家固有）
+#
+# 配布結果は配布先の .claude/.asset-manifest.json へ記録し、次回の再適用で
+# 「配布先が適用後に変更したファイル」を判定する材料にする。
+#
+# 使い方:
+#     bash install-to-project.sh [オプション] <配布先ディレクトリ>
+#
+#     --dry-run       配置せず、何が起きるかだけを出力する
+#     --force         改変済み core を .bak を残さず上書きする
+#     --allow-dirty   本家のワークツリーが dirty でも続行する（manifest の commit へ -dirty を付ける）
+#
+# **2パス構成**である。受け入れ条件4が「上書きの**前に**警告と対象一覧を出す」ことを求めており、
+# 配置しながら警告を出す1パスの形では満たせない。走査パス（手順4）→ 提示（手順5）→
+# 配置パス（手順6）の順で進む。
+
 set -euo pipefail
 
-# ロケールを UTF-8 に固定（日本語などのマルチバイトファイル名文字化け防止）
-export LANG=C.UTF-8
-export LC_ALL=C.UTF-8
-
-# Determine script and skill directories
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-SKILL_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
-ASSETS_DIR="${SKILL_DIR}/assets"
+UPSTREAM_ROOT="$(cd "${SCRIPT_DIR}/../../../.." && pwd)"
+readonly DEF_FILE="${UPSTREAM_ROOT}/.claude/dist-layers.json"
+readonly MANIFEST_REL='.claude/.asset-manifest.json'
+readonly MARKER_BEGIN='# --- dist:begin ---'
+readonly MARKER_END='# --- dist:end ---'
 
-# Output usage instruction
-show_usage() {
-  echo "Usage: $0 [-f|--force] [destination-directory]"
-  echo "Applies the mr-driven-develop workflow assets to the specified repository."
-  echo "Options:"
-  echo "  -f, --force    Forcefully overwrite existing files without warnings or backups."
+OPT_DRY_RUN=0
+OPT_FORCE=0
+OPT_ALLOW_DIRTY=0
+DEST_DIR=''
+
+usage() {
+  sed -n '3,26p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
 }
 
-FORCE=false
-DEST_DIR=""
-HAS_WARNED=false
+# ---- 小さなヘルパー --------------------------------------------------------
 
-while [ $# -gt 0 ]; do
-  case "$1" in
-    -f|--force)
-      FORCE=true
-      shift
-      ;;
-    -h|--help)
-      show_usage
-      exit 0
-      ;;
-    -*)
-      echo "❌ Error: Unknown option $1"
-      show_usage
-      exit 1
-      ;;
-    *)
-      if [ -z "${DEST_DIR}" ]; then
-        DEST_DIR="$1"
-      else
-        echo "❌ Error: Multiple destination directories specified."
-        show_usage
-        exit 1
+# LF正規化した内容の sha256 を REPLY へ返す。
+# 正規化するのは、Windowsの core.autocrlf=true で全ファイルが「配布先が変更した」と
+# 誤検知されるのを防ぐため（**Windows実機では未確認**。フェーズ4でspecの未決定事項へ残す）。
+sha256_lf_to_reply() {
+  local file="$1"
+  REPLY="$(tr -d '\r' < "$file" | sha256sum | cut -d' ' -f1)"
+}
+
+log_section() {
+  printf '\n=== %s ===\n' "$1"
+}
+
+# ---- 定義の読み込み --------------------------------------------------------
+
+# 定義を1エントリ1行のレコードへ落とす（jqの起動は1回）。
+# 区切りはタブではなく `\u001f`（US）。タブはIFSの空白文字で、空の列があると
+# bashの `read` が連続タブを畳んで列がずれる（.claude/rules/shell-script-style.md）。
+read_entries_records() {
+  jq -r '
+    .entries[]
+    | [ (.layer // ""),
+        (.path // ""),
+        (.source // ""),
+        (.strategy // ""),
+        ((.keys // []) | join(",")),
+        (.header // "") ]
+    | join("\u001f")
+  ' "$DEF_FILE" | tr -d '\r'
+}
+
+# 配布計画を組み立てる。**後に書いたエントリが勝つ**（.gitignore と同じ規約）ので、
+# 定義の順に上書きしていくだけで例外が表現できる。
+declare -A PLAN_LAYER=() PLAN_SRC=() PLAN_STRATEGY=() PLAN_KEYS=() PLAN_HEADER=()
+declare -a PLAN_PATHS=()
+
+build_plan() {
+  local layer path source strategy keys header f tmp_ls
+  local -A seen=()
+  tmp_ls="$(mktemp)"
+
+  while IFS=$'\037' read -r layer path source strategy keys header; do
+    [ -n "$layer" ] || continue
+
+    if [ -n "$path" ]; then
+      if ! git -C "$UPSTREAM_ROOT" ls-files -z -- "$path" > "$tmp_ls" 2>/dev/null; then
+        printf 'エラー: pathspec として解釈できません: %s\n' "$path" >&2
+        rm -f "$tmp_ls"
+        return 1
       fi
-      shift
-      ;;
-  esac
-done
+      local n=0
+      while IFS= read -r -d '' f; do
+        n=$((n + 1))
+        PLAN_LAYER["$f"]="$layer"
+        PLAN_SRC["$f"]="${source:-$f}"
+        PLAN_STRATEGY["$f"]="$strategy"
+        PLAN_KEYS["$f"]="$keys"
+        PLAN_HEADER["$f"]="$header"
+        [ -n "${seen[$f]+x}" ] || { seen["$f"]=1; PLAN_PATHS+=("$f"); }
+      done < "$tmp_ls"
 
-if [ -z "${DEST_DIR}" ]; then
-  DEST_DIR="."
-fi
-DEST_DIR="$(cd "${DEST_DIR}" && pwd)"
+      if [ -n "$source" ] && [ "$n" -gt 1 ]; then
+        printf 'エラー: source を持つエントリが複数ファイルに一致しました: %s\n' "$path" >&2
+        rm -f "$tmp_ls"
+        return 1
+      fi
+      # 本家に実体が無い seed（REVIEW-POINTS.local.md 等）は、path を配布先のパスとして扱う。
+      if [ "$n" -eq 0 ] && [ -n "$source" ]; then
+        PLAN_LAYER["$path"]="$layer"
+        PLAN_SRC["$path"]="$source"
+        PLAN_STRATEGY["$path"]="$strategy"
+        PLAN_KEYS["$path"]="$keys"
+        PLAN_HEADER["$path"]="$header"
+        [ -n "${seen[$path]+x}" ] || { seen["$path"]=1; PLAN_PATHS+=("$path"); }
+      fi
+    fi
+  done < <(read_entries_records)
 
-echo "=== Applying mr-driven-develop Workflow to Project ==="
-echo "Target directory: ${DEST_DIR}"
-if [ "${FORCE}" = true ]; then
-  echo "Force overwrite mode: Enabled"
-fi
+  rm -f "$tmp_ls"
+  return 0
+}
 
-# 配布元が所有し、配布先でのカスタマイズを想定しないファイル（配布先ルートからの相対パス）。
-# 内容が違っても .bak 退避・警告を行わず常に上書きする（issue #33）。
-# `.claude/VERSION` は配布物の版そのもので、配布先が書き換える値ではない。ここを通常の
-# 「差分があれば .bak 退避して警告」の対象にすると、**版を上げた回は必ず**警告と .bak が出て、
-# 本当に手を入れるべき差分（AGENTS.md 等）の警告が埋もれる。
-declare -a ALWAYS_OVERWRITE_RELPATHS=(
-  ".claude/VERSION"
-)
+# ---- 前提検証 --------------------------------------------------------------
 
-# コピー先が ALWAYS_OVERWRITE_RELPATHS に該当するかを判定する（外部コマンドを呼ばない）。
-is_always_overwrite() {
-  local rel="${1#${DEST_DIR}/}"
-  local path
-  for path in "${ALWAYS_OVERWRITE_RELPATHS[@]}"; do
-    [ "${rel}" = "${path}" ] && return 0
+# 配る内容がコミットと一致しない状態で配らないための判定（受け入れ条件6）。
+# 対象は core / seed（source 側パスを含む）/ merge のみ。exclude は配布先へ1バイトも
+# 配られないので、編集中でも manifest の再現性は損なわれない。
+check_upstream_clean() {
+  local -a specs=()
+  local p
+  for p in "${PLAN_PATHS[@]}"; do
+    case "${PLAN_LAYER[$p]}" in
+      core|seed|merge) ;;
+      *) continue ;;
+    esac
+    specs+=("$p")
+    [ "${PLAN_SRC[$p]}" = "$p" ] || specs+=("${PLAN_SRC[$p]}")
   done
+
+  local out n
+  out="$(git -C "$UPSTREAM_ROOT" status --porcelain -- "${specs[@]}")"
+  [ -n "$out" ] || return 0
+
+  n="$(printf '%s\n' "$out" | grep -c .)"
+  if [ "$OPT_ALLOW_DIRTY" -eq 1 ]; then
+    # 一覧までは出さない（--allow-dirty は承知のうえで進める指定であり、毎回全件を出すと
+    # 本当に読むべき警告が埋もれる）。件数だけを出して、追えるようにはしておく。
+    # 書式文字列が `--` で始まると bash の printf がオプションとして解釈するため、
+    # 本文は引数側へ回す（.claude/rules/shell-script-style.md の「先頭がハイフンの値」と同種）。
+    printf '%s\n' "注意: 本家に未コミットの変更が ${n} 件あります（--allow-dirty のため続行。manifest の commit へ -dirty を付けます）" >&2
+    return 0
+  fi
+  printf '本家のワークツリーに未コミットの変更が %s 件あります（配布対象のパスに限定して判定）:\n' "$n" >&2
+  printf '%s\n' "$out" >&2
+  printf '%s\n' 'コミットしてから再実行するか、--allow-dirty を付けてください。' >&2
   return 1
 }
 
-# 比較およびバックアップ付きコピー
-# ファイル比較・バックアップ付きコピー関数: safe_copy_file <コピー元> <コピー先>
-safe_copy_file() {
-  local src="$1"
-  local dest="$2"
+# ---- merge の2方式 ---------------------------------------------------------
 
-  if [ ! -f "${src}" ]; then
-    return 0
-  fi
+# 本家のファイルから、マーカーで囲まれた「配る行」（コメント・空行を除く）を標準出力へ出す。
+# **マーカーが1行も見つからない場合は失敗させる**（旧実装は警告のみで無言の空振りになっていた）。
+extract_marker_lines() {
+  local file="$1" line inside=0 found_begin=0
+  while IFS= read -r line || [ -n "$line" ]; do
+    line="${line//$'\r'/}"
+    if [ "$line" = "$MARKER_BEGIN" ]; then inside=1; found_begin=1; continue; fi
+    if [ "$line" = "$MARKER_END" ]; then inside=0; continue; fi
+    [ "$inside" -eq 1 ] || continue
+    case "$line" in ''|'#'*) continue ;; esac
+    printf '%s\n' "$line"
+  done < "$file"
+  [ "$found_begin" -eq 1 ]
+}
 
-  # コピー先の親ディレクトリが確実に存在するように作成
-  mkdir -p "$(dirname "${dest}")"
+# 配布先のファイルへ、未収録の行だけを追記する（冪等・行全体一致・末尾改行の補完）。
+# 追記した行数を REPLY へ返す。
+append_missing_lines() {
+  local src="$1" dst="$2" header="${3:-}" line added=0
+  local -a to_add=() candidates=()
 
-  if [ -f "${dest}" ]; then
-    if cmp -s "${src}" "${dest}"; then
-      # 内容が完全に同一の場合は何もしない
-      return 0
-    fi
+  # 配布先の読み手が「この行がどこから来たか」を追えるよう、先頭にヘッダコメントを置く
+  # （旧実装が持っていた挙動。落とすと配布先には由来の分からない行だけが残る）。
+  # 同じ「行全体一致で無ければ追記」の判定を通すので、再適用しても増えない。
+  [ -z "$header" ] || candidates+=("$header")
+  while IFS= read -r line; do
+    candidates+=("$line")
+  done < <(extract_marker_lines "$src")
 
-    # 内容が異なる場合
-    if [ "${FORCE}" = true ]; then
-      echo "🔄  Overwriting ${dest} (force option enabled)..."
-      cp -f "${src}" "${dest}"
-    elif is_always_overwrite "${dest}"; then
-      # 配布元が所有する値。配布先のカスタマイズではないので .bak も警告も出さない
-      cp -f "${src}" "${dest}"
-    else
-      local backup="${dest}.bak"
-      echo "⚠️  WARNING: ${dest} already exists and differs from the template."
-      echo "   Saving existing file to ${backup}"
-      cp -f "${dest}" "${backup}"
-
-      echo "✅  Applying template to ${dest} (existing customization preserved in ${backup})."
-      cp -f "${src}" "${dest}"
-      HAS_WARNED=true
-    fi
+  # **配布先のCRを落としてから突き合わせる。** Git for Windows の既定（core.autocrlf=true）では
+  # 配布先のファイルが作業ツリーでCRLFになり、行全体一致（grep -Fx）が必ず外れる。落とさないと
+  # 適用のたびに同じ行が追記され続ける（issue #33 の既存欠陥#1。作り直しで再発させたのを
+  # test_install_to_project.sh の「CRLFの配布先でも1行のまま」が捕まえた）。
+  local existing
+  existing="$(mktemp)"
+  if [ -f "$dst" ]; then
+    tr -d '\r' < "$dst" > "$existing"
   else
-    # 新規ファイル作成
-    cp -f "${src}" "${dest}"
-  fi
-}
-
-# ディレクトリ配下のファイルを安全に一括コピーする関数: safe_copy_dir <コピー元ディレクトリ> <コピー先ディレクトリ>
-safe_copy_dir() {
-  local src_dir="$1"
-  local dest_dir="$2"
-
-  if [ ! -d "${src_dir}" ]; then
-    return 0
+    : > "$existing"
   fi
 
-  # コピー元ディレクトリ配下のすべてのファイルを検索して安全にコピー（ヌル区切りで文字化けやスペース割れを完全防止）
-  find "${src_dir}" -type f -print0 | while IFS= read -r -d '' src_file; do
-    local rel_path="${src_file#${src_dir}/}"
-    local dest_file="${dest_dir}/${rel_path}"
-    safe_copy_file "${src_file}" "${dest_file}"
-  done
-}
-
-# 1. Validation
-if [ ! -d "${DEST_DIR}/.git" ]; then
-  echo "❌ Error: Target directory is not a Git repository (.git directory not found)."
-  echo "Git repository is required to use the Issue/MR driven workflow."
-  exit 1
-fi
-
-# Detect configurations for specific environments
-IS_GO_PROJECT=false
-if [ -f "${DEST_DIR}/go.mod" ]; then
-  echo "🔍  Go project configuration (go.mod) detected."
-  IS_GO_PROJECT=true
-fi
-
-# 2. Copy core workflow assets from skill's assets
-echo "Installing core configuration files..."
-
-# Ensure target directories exist
-mkdir -p "${DEST_DIR}/.claude"
-mkdir -p "${DEST_DIR}/.gemini"
-mkdir -p "${DEST_DIR}/plans"
-mkdir -p "${DEST_DIR}/worklog"
-
-# Copy configuration and rules safely
-safe_copy_dir "${ASSETS_DIR}/.claude" "${DEST_DIR}/.claude"
-safe_copy_dir "${ASSETS_DIR}/.gemini" "${DEST_DIR}/.gemini"
-safe_copy_file "${ASSETS_DIR}/.mrworkflow.json" "${DEST_DIR}/.mrworkflow.json"
-safe_copy_file "${ASSETS_DIR}/AGENTS.md" "${DEST_DIR}/AGENTS.md"
-safe_copy_file "${ASSETS_DIR}/GEMINI.md" "${DEST_DIR}/GEMINI.md"
-safe_copy_file "${ASSETS_DIR}/CLAUDE.md" "${DEST_DIR}/CLAUDE.md"
-safe_copy_file "${ASSETS_DIR}/HANDOFF.md" "${DEST_DIR}/HANDOFF.md"
-safe_copy_file "${ASSETS_DIR}/index.md" "${DEST_DIR}/index.md"
-
-# Copy git provider templates if they exist in assets safely
-if [ -d "${ASSETS_DIR}/.github" ]; then
-  echo "Setting up GitHub issue templates..."
-  safe_copy_dir "${ASSETS_DIR}/.github" "${DEST_DIR}/.github"
-fi
-
-if [ -d "${ASSETS_DIR}/.gitlab" ]; then
-  echo "Setting up GitLab issue templates..."
-  safe_copy_dir "${ASSETS_DIR}/.gitlab" "${DEST_DIR}/.gitlab"
-fi
-
-# Create placeholders for plan and worklog if they do not exist
-touch "${DEST_DIR}/plans/.gitkeep"
-touch "${DEST_DIR}/worklog/.gitkeep"
-
-# 3. Inject Language-specific rules if detected
-if [ "${IS_GO_PROJECT}" = true ]; then
-  echo "Injecting Go-specific rules..."
-  # If AGENTS.md exists, append reference to go-applications.md
-  if ! grep -q "go-applications.md" "${DEST_DIR}/AGENTS.md"; then
-    echo -e "\n- Goアプリケーションの開発規約については、 [.claude/rules/go-applications.md](.claude/rules/go-applications.md) を参照し、それに従うこと " >> "${DEST_DIR}/AGENTS.md"
-  fi
-else
-  # Clean up Go-specific files on non-Go projects
-  rm -f "${DEST_DIR}/.claude/rules/go-applications.md" \
-        "${DEST_DIR}/.gemini/rules/go-applications.md" || true
-fi
-
-# 4. Update destination .gitignore
-echo "Updating .gitignore..."
-GITIGNORE="${DEST_DIR}/.gitignore"
-touch "${GITIGNORE}"
-
-declare -a ignore_rules=(
-  ""
-  "# mr-driven-develop workflow ignores"
-  "/.claude/usage-state/"
-  "/.claude/session-logs/"
-  "/.gemini/usage-state/"
-  "/.gemini/session-logs/"
-)
-
-for rule in "${ignore_rules[@]}"; do
-  if [ -z "${rule}" ]; then
-    echo "" >> "${GITIGNORE}"
-  elif ! grep -Fq "${rule}" "${GITIGNORE}"; then
-    echo "${rule}" >> "${GITIGNORE}"
-  fi
-done
-
-# 5. Update destination .gitattributes（issue #33）
-# 配布先の .gitattributes は**丸ごと置き換えない**。配布先が自前の正規化・diff/merge driver 設定
-# （例: `*.png binary`）を持つ場合、全文置換するとバイナリのテキスト化のような、履歴に残る形の
-# 破損を招くため。.gitattributes は後に書いた行が優先されるので、末尾への追記であれば
-# 「配布先の既定を尊重しつつ、配布したスクリプトに必要な指定だけを上書きする」形になる。
-#
-# **配る行の定義はこのスクリプトが持たない。** 本家の .gitattributes に置かれた
-# `# --- dist:begin ---` 〜 `# --- dist:end ---` の間の行だけを読んで配る（定義を1箇所に持たせ、
-# 本家を編集すれば配布内容も変わるようにするため）。
-echo "Updating .gitattributes..."
-GITATTRIBUTES="${DEST_DIR}/.gitattributes"
-readonly GITATTRIBUTES_HEADER="# mr-driven-develop workflow attributes"
-
-# 配布対象の .gitattributes 行（マーカーの間の、コメントと空行を除いた行）を標準出力へ返す。
-# WindowsネイティブのGitでチェックアウトされた場合に備え、CRを落としてから返す。
-read_dist_attribute_rules() {
-  local src="$1"
-  [ -f "${src}" ] || return 0
-  awk '
-    /^# --- dist:begin ---/ { in_block = 1; next }
-    /^# --- dist:end ---/   { in_block = 0; next }
-    in_block && $0 !~ /^[[:space:]]*#/ && NF { print }
-  ' "${src}" | tr -d '\r'
-}
-
-# 指定した行が無ければ .gitattributes の末尾へ追記する（何度実行しても増えない）。
-ensure_gitattributes_rules() {
-  local file="$1"
-  shift
-  local rule existing
-
-  [ -f "${file}" ] || : > "${file}"
-
-  # 判定の前にCRを落とす。Git for Windowsの既定（core.autocrlf=true）では配布先の
-  # .gitattributes が作業ツリーでCRLFになり、行全体の一致が `*.sh text eol=lf\r` と食い違う。
-  # 落とさないと「まだ無い」と判定され、適用のたびに同じ行が追記され続ける（issue #33）。
-  existing="$(tr -d '\r' < "${file}")"
-
-  for rule in "$@"; do
-    # 行全体の一致（-x）で判定する。部分一致にすると、配布先が `# *.sh text eol=lf を検討中` の
-    # ようにコメントとして言及しているだけの場合にも「もう有る」と誤判定し、必要な指定が
-    # 入らないまま無言で終わる（配布したスクリプトがCRLFで壊れても気づけない）。
-    if printf '%s\n' "${existing}" | grep -Fxq -- "${rule}"; then
+  for line in "${candidates[@]}"; do
+    if grep -qFx -- "$line" "$existing"; then
       continue
     fi
-
-    # 末尾が改行で終わっていない場合、追記した行が直前の行と連結してしまうため改行を補う。
-    # コマンド置換は末尾の改行をすべて落とすので、最後の1バイトが改行なら結果は空文字列になる。
-    if [ -s "${file}" ] && [ -n "$(tail -c 1 "${file}")" ]; then
-      printf '\n' >> "${file}"
-    fi
-
-    if ! printf '%s\n' "${existing}" | grep -Fxq -- "${GITATTRIBUTES_HEADER}"; then
-      # 既存の内容があるときだけ、区切りの空行を挟む
-      if [ -s "${file}" ]; then
-        printf '\n' >> "${file}"
-      fi
-      printf '%s\n' "${GITATTRIBUTES_HEADER}" >> "${file}"
-      existing="${existing}"$'\n'"${GITATTRIBUTES_HEADER}"
-    fi
-
-    printf '%s\n' "${rule}" >> "${file}"
-    existing="${existing}"$'\n'"${rule}"
+    to_add+=("$line")
   done
+  rm -f "$existing"
+
+  if [ "${#to_add[@]}" -gt 0 ]; then
+    # 末尾に改行が無いファイルへ追記すると行が連結されるため、先に補う。
+    if [ -s "$dst" ] && [ "$(tail -c1 "$dst" | wc -l)" -eq 0 ]; then
+      printf '\n' >> "$dst"
+    fi
+    printf '%s\n' "${to_add[@]}" >> "$dst"
+    added="${#to_add[@]}"
+  fi
+  REPLY="$added"
 }
 
-declare -a attribute_rules=()
-while IFS= read -r line; do
-  [ -n "${line}" ] && attribute_rules+=("${line}")
-done < <(read_dist_attribute_rules "${ASSETS_DIR}/.gitattributes")
+# 指定したキーパスだけを本家の値で更新する。
+# 値が配列なら**和集合**（配布先が足した行を消さない）、それ以外は**全置換**。
+# permissions.deny が配列、hooks がオブジェクトなので、この規則だけで両方の要件を満たす。
+merge_json_keys() {
+  local src="$1" dst="$2" keys_csv="$3" key tmp
+  tmp="$(mktemp)"
+  local IFS=','
+  # shellcheck disable=SC2206
+  local -a keys=($keys_csv)
+  unset IFS
 
-if [ "${#attribute_rules[@]}" -eq 0 ]; then
-  echo "⚠️  WARNING: ${ASSETS_DIR}/.gitattributes に配布対象行（# --- dist:begin --- 〜 # --- dist:end ---）が"
-  echo "   見つかりませんでした。.gitattributes の更新をスキップします（0 rules）。"
-else
-  ensure_gitattributes_rules "${GITATTRIBUTES}" "${attribute_rules[@]}"
-  echo "   ${#attribute_rules[@]} rule(s) ensured in ${GITATTRIBUTES}"
-fi
+  for key in "${keys[@]}"; do
+    [ -n "$key" ] || continue
+    jq --slurpfile up "$src" --arg key "$key" '
+      ($key | split(".")) as $p
+      | ($up[0] | getpath($p)) as $v
+      | if $v == null then .
+        elif ($v | type) == "array" then
+          setpath($p; ((getpath($p) // []) + $v | unique))
+        else setpath($p; $v)
+        end
+    ' "$dst" > "$tmp"
+    tr -d '\r' < "$tmp" > "$dst"
+  done
+  rm -f "$tmp"
+}
 
-echo "=== Setup Completed Successfully! ==="
-echo "The mr-driven-develop workflow assets have been applied to your repository."
-echo ""
+# manifest へ記録する merge の指紋を返す（再適用時の変更検知に使う）。
+merge_fingerprint_json() {
+  local dst="$1" strategy="$2" keys_csv="$3"
+  if [ "$strategy" = 'lines-marker' ]; then
+    local h
+    h="$(tr -d '\r' < "$dst" | sha256sum | cut -d' ' -f1)"
+    jq -nc --arg s "$strategy" --arg h "$h" '{strategy:$s, lines:$h}'
+  else
+    # キーごとに値を取り出して sha256 を取る（値そのもの（例: hooks）は数KBになるため、
+    # manifest へは指紋だけを載せる）。キーは高々数個なので起動回数も抑えられる。
+    local key h
+    local -a pairs=()
+    local IFS=','
+    # shellcheck disable=SC2206
+    local -a keys=($keys_csv)
+    unset IFS
+    for key in "${keys[@]}"; do
+      [ -n "$key" ] || continue
+      h="$(jq -c --arg key "$key" 'getpath($key | split("."))' "$dst" | sha256sum | cut -d' ' -f1)"
+      pairs+=("$key" "$h")
+    done
+    # 位置引数はフィルタの直後の `--` 以降へ置く（先頭がハイフンの値をオプションと
+    # 解釈させないため。.claude/rules/shell-script-style.md）。
+    jq -nc --arg s "$strategy" --args '
+      {strategy:$s,
+       keys: ( $ARGS.positional
+               | [ range(0; length; 2) as $i | { ($ARGS.positional[$i]): $ARGS.positional[$i+1] } ]
+               | add // {} )}
+    ' -- "${pairs[@]}"
+  fi
+}
 
-if [ "${HAS_WARNED}" = true ]; then
-  echo "⚠️  ATTENTION: Some existing files differed from the template."
-  echo "   Their previous contents have been saved with a '.bak' extension."
-  echo "   Please review the differences and consult with your AI assistant to import"
-  echo "   or merge your prior customizations."
-  echo ""
-fi
+# ---- 走査パス（ファイルを一切変更しない） ----------------------------------
 
-echo "Next Steps:"
-echo "1. Check and customize '.mrworkflow.json' if needed."
-if [ "${IS_GO_PROJECT}" = true ]; then
-  echo "2. Verify that '.claude/rules/go-applications.md' exists in your project."
-  echo "3. Run your tests with 'go test ./...' and linter with 'golangci-lint run' to make sure your local environment is set up."
-  echo "4. Create an issue, then run '/issue-mr-flow start <issue-number>' to begin!"
-else
-  echo "2. Create an issue, then run '/issue-mr-flow start <issue-number>' to begin!"
+declare -a SCAN_CORE_NEW=() SCAN_CORE_SAME=() SCAN_CORE_MODIFIED=() SCAN_CORE_UNKNOWN=()
+declare -a SCAN_SEED_PLACE=() SCAN_SEED_KEEP=() SCAN_MERGE=()
+MANIFEST_EXISTS=0
+
+scan_pass() {
+  local manifest="${DEST_DIR}/${MANIFEST_REL}"
+  local -A prev_sha=()
+  local p dst_path src_abs recorded
+
+  if [ -f "$manifest" ] && jq -e . "$manifest" > /dev/null 2>&1; then
+    MANIFEST_EXISTS=1
+    local line f h
+    while IFS=$'\037' read -r f h; do
+      [ -n "$f" ] || continue
+      prev_sha["$f"]="$h"
+    done < <(jq -r '.files[]? | select(.sha256) | [.path, .sha256] | join("\u001f")' "$manifest" | tr -d '\r')
+  fi
+
+  for p in "${PLAN_PATHS[@]}"; do
+    dst_path="${DEST_DIR}/${p}"
+    src_abs="${UPSTREAM_ROOT}/${PLAN_SRC[$p]}"
+    case "${PLAN_LAYER[$p]}" in
+      core)
+        if [ ! -e "$dst_path" ]; then
+          SCAN_CORE_NEW+=("$p")
+        else
+          sha256_lf_to_reply "$dst_path"
+          recorded="${prev_sha[$p]:-}"
+          if [ -z "$recorded" ]; then
+            # 旧方式で適用済み・manifest を持たない配布先の初回再適用。
+            # 「改変済み」ではなく「差分を確認できない（移行）」として一覧へ出し、.bak は作る。
+            SCAN_CORE_UNKNOWN+=("$p")
+          elif [ "$REPLY" = "$recorded" ]; then
+            SCAN_CORE_SAME+=("$p")
+          else
+            SCAN_CORE_MODIFIED+=("$p")
+          fi
+        fi
+        ;;
+      seed)
+        if [ -e "$dst_path" ]; then
+          SCAN_SEED_KEEP+=("$p")
+        else
+          [ -f "$src_abs" ] || { printf 'エラー: seed の配布元がありません: %s\n' "$src_abs" >&2; return 1; }
+          SCAN_SEED_PLACE+=("$p")
+        fi
+        ;;
+      merge)
+        SCAN_MERGE+=("$p")
+        ;;
+    esac
+  done
+  return 0
+}
+
+# ---- 一覧の提示（受け入れ条件4・5） ----------------------------------------
+
+present_plan() {
+  log_section '配布計画'
+  printf '本家: %s\n配布先: %s\n' "$UPSTREAM_ROOT" "$DEST_DIR"
+  printf 'manifest: %s\n' \
+    "$([ "$MANIFEST_EXISTS" -eq 1 ] && echo '既存あり（差分を判定します）' || echo '無し（初回、または旧方式からの移行）')"
+
+  printf '\ncore  : 新規 %s / 変更なし %s / **適用後に変更された %s** / 判定不能 %s\n' \
+    "${#SCAN_CORE_NEW[@]}" "${#SCAN_CORE_SAME[@]}" "${#SCAN_CORE_MODIFIED[@]}" "${#SCAN_CORE_UNKNOWN[@]}"
+  printf 'seed  : 新規に置く %s / 既にあるので触らない %s\n' \
+    "${#SCAN_SEED_PLACE[@]}" "${#SCAN_SEED_KEEP[@]}"
+  printf 'merge : %s\n' "${#SCAN_MERGE[@]}"
+
+  if [ "${#SCAN_CORE_MODIFIED[@]}" -gt 0 ]; then
+    printf '\n警告: 次の core ファイルは適用後に配布先で変更されています。上書きします。\n'
+    printf '      （%s）\n' \
+      "$([ "$OPT_FORCE" -eq 1 ] && echo '--force のため .bak を作りません' || echo '元の内容は .bak として残します')"
+    printf '  - %s\n' "${SCAN_CORE_MODIFIED[@]}"
+  fi
+  if [ "${#SCAN_CORE_UNKNOWN[@]}" -gt 0 ]; then
+    printf '\n警告: 次の core ファイルは manifest が無いため差分を確認できません（旧方式からの移行）。\n'
+    printf '      上書きし、元の内容は .bak として残します。\n'
+    printf '  - %s\n' "${SCAN_CORE_UNKNOWN[@]}"
+  fi
+  if [ "${#SCAN_SEED_KEEP[@]}" -gt 0 ]; then
+    printf '\n触らない seed（配布先所有）:\n'
+    printf '  - %s\n' "${SCAN_SEED_KEEP[@]}"
+  fi
+  if [ "${#SCAN_MERGE[@]}" -gt 0 ]; then
+    printf '\nマージ対象:\n'
+    local p
+    for p in "${SCAN_MERGE[@]}"; do
+      printf '  - %s（%s）\n' "$p" "${PLAN_STRATEGY[$p]}"
+    done
+  fi
+}
+
+# ---- 配置パス --------------------------------------------------------------
+
+declare -a APPLIED_BAK=()
+MERGE_ADDED_TOTAL=0
+
+apply_pass() {
+  local p dst_path src_abs
+  local -a overwrite=()
+  overwrite+=("${SCAN_CORE_NEW[@]}" "${SCAN_CORE_SAME[@]}" "${SCAN_CORE_MODIFIED[@]}" "${SCAN_CORE_UNKNOWN[@]}")
+
+  for p in "${overwrite[@]}"; do
+    [ -n "$p" ] || continue
+    dst_path="${DEST_DIR}/${p}"
+    src_abs="${UPSTREAM_ROOT}/${PLAN_SRC[$p]}"
+    mkdir -p "$(dirname "$dst_path")"
+    # 改変済み・判定不能なら .bak を残す（--force のときは残さない）。
+    if [ -e "$dst_path" ] && [ "$OPT_FORCE" -eq 0 ]; then
+      if _in_list "$p" "${SCAN_CORE_MODIFIED[@]}" || _in_list "$p" "${SCAN_CORE_UNKNOWN[@]}"; then
+        cp "$dst_path" "${dst_path}.bak"
+        APPLIED_BAK+=("${p}.bak")
+      fi
+    fi
+    cp "$src_abs" "$dst_path"
+  done
+
+  for p in "${SCAN_SEED_PLACE[@]}"; do
+    [ -n "$p" ] || continue
+    dst_path="${DEST_DIR}/${p}"
+    mkdir -p "$(dirname "$dst_path")"
+    cp "${UPSTREAM_ROOT}/${PLAN_SRC[$p]}" "$dst_path"
+  done
+
+  for p in "${SCAN_MERGE[@]}"; do
+    [ -n "$p" ] || continue
+    dst_path="${DEST_DIR}/${p}"
+    src_abs="${UPSTREAM_ROOT}/${PLAN_SRC[$p]}"
+    case "${PLAN_STRATEGY[$p]}" in
+      lines-marker)
+        if ! extract_marker_lines "$src_abs" > /dev/null; then
+          printf 'エラー: %s に %s が見つかりません（配る行を特定できません）\n' \
+            "${PLAN_SRC[$p]}" "$MARKER_BEGIN" >&2
+          return 1
+        fi
+        [ -e "$dst_path" ] || { mkdir -p "$(dirname "$dst_path")"; : > "$dst_path"; }
+        append_missing_lines "$src_abs" "$dst_path" "${PLAN_HEADER[$p]}"
+        MERGE_ADDED_TOTAL=$((MERGE_ADDED_TOTAL + REPLY))
+        printf '  %s: %s 行を追記\n' "$p" "$REPLY"
+        ;;
+      json-keys)
+        if [ ! -e "$dst_path" ]; then
+          mkdir -p "$(dirname "$dst_path")"
+          cp "$src_abs" "$dst_path"
+          printf '  %s: 新規に配置\n' "$p"
+        else
+          merge_json_keys "$src_abs" "$dst_path" "${PLAN_KEYS[$p]}"
+          printf '  %s: キー %s を更新\n' "$p" "${PLAN_KEYS[$p]}"
+        fi
+        ;;
+      *)
+        printf 'エラー: 未知の strategy: %s（%s）\n' "${PLAN_STRATEGY[$p]}" "$p" >&2
+        return 1
+        ;;
+    esac
+  done
+  return 0
+}
+
+_in_list() {
+  local needle="$1"; shift
+  local x
+  for x in "$@"; do [ "$x" = "$needle" ] && return 0; done
+  return 1
+}
+
+# ---- manifest の書き出し ---------------------------------------------------
+
+write_manifest() {
+  local commit version url entries_file p dst_path
+  commit="$(git -C "$UPSTREAM_ROOT" rev-parse HEAD)"
+  [ "$OPT_ALLOW_DIRTY" -eq 0 ] || commit="${commit}-dirty"
+  version="$(tr -d '\r\n' < "${UPSTREAM_ROOT}/.claude/VERSION" 2>/dev/null || echo 'unknown')"
+  url="$(git -C "$UPSTREAM_ROOT" remote get-url origin 2>/dev/null || echo '')"
+
+  entries_file="$(mktemp)"
+  for p in "${PLAN_PATHS[@]}"; do
+    dst_path="${DEST_DIR}/${p}"
+    case "${PLAN_LAYER[$p]}" in
+      core)
+        sha256_lf_to_reply "$dst_path"
+        jq -nc --arg p "$p" --arg h "$REPLY" '{path:$p, layer:"core", sha256:$h}'
+        ;;
+      seed)
+        [ -e "$dst_path" ] || continue
+        sha256_lf_to_reply "$dst_path"
+        jq -nc --arg p "$p" --arg h "$REPLY" --argjson placed \
+          "$(_in_list "$p" "${SCAN_SEED_PLACE[@]}" && echo true || echo false)" \
+          '{path:$p, layer:"seed", sha256:$h, placed:$placed}'
+        ;;
+      merge)
+        merge_fingerprint_json "$dst_path" "${PLAN_STRATEGY[$p]}" "${PLAN_KEYS[$p]}" \
+          | jq -c --arg p "$p" '{path:$p, layer:"merge"} + .'
+        ;;
+      # local / exclude は書かない（書くと「配布した」と誤読される）。
+    esac
+  done > "$entries_file"
+
+  mkdir -p "$(dirname "${DEST_DIR}/${MANIFEST_REL}")"
+  # ファイル一覧は件数が可変なので、コマンドライン引数ではなくファイル経由でjqへ渡す
+  # （.claude/rules/shell-script-style.md「大きなJSONを引数として渡さない」）。
+  jq -s --arg commit "$commit" --arg version "$version" --arg url "$url" \
+        --arg at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" '
+    { schemaVersion: 1,
+      source: { url: $url, commit: $commit, version: $version },
+      appliedAt: $at,
+      files: . }
+  ' "$entries_file" | tr -d '\r' > "${DEST_DIR}/${MANIFEST_REL}"
+  rm -f "$entries_file"
+}
+
+# ---- 本体 ------------------------------------------------------------------
+
+main() {
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --dry-run) OPT_DRY_RUN=1; shift ;;
+      --force) OPT_FORCE=1; shift ;;
+      --allow-dirty) OPT_ALLOW_DIRTY=1; shift ;;
+      -h|--help) usage; return 0 ;;
+      -*) printf 'エラー: 不明なオプション %s\n' "$1" >&2; usage >&2; return 2 ;;
+      *) DEST_DIR="$1"; shift ;;
+    esac
+  done
+
+  if [ -z "$DEST_DIR" ]; then
+    printf 'エラー: 配布先ディレクトリを指定してください\n' >&2
+    usage >&2
+    return 2
+  fi
+  DEST_DIR="$(cd "$DEST_DIR" 2>/dev/null && pwd)" || {
+    printf 'エラー: 配布先が存在しません\n' >&2; return 2; }
+
+  # 手順2a: 配布先がgitリポジトリか
+  if ! git -C "$DEST_DIR" rev-parse --git-dir > /dev/null 2>&1; then
+    printf 'エラー: 配布先がgitリポジトリではありません: %s\n' "$DEST_DIR" >&2
+    return 2
+  fi
+  if [ "$DEST_DIR" = "$UPSTREAM_ROOT" ]; then
+    printf 'エラー: 配布先が本家と同じです\n' >&2
+    return 2
+  fi
+  [ -f "$DEF_FILE" ] || { printf 'エラー: 層分け定義がありません: %s\n' "$DEF_FILE" >&2; return 2; }
+
+  # 手順3: 定義の読み込み（dirty判定の対象を決めるため、検証より先に行う）
+  build_plan || return 1
+
+  # 手順2b: 本家の dirty 判定（受け入れ条件6）
+  check_upstream_clean || return 1
+
+  # 手順2c: 網羅性チェック（受け入れ条件1）
+  if ! bash "${UPSTREAM_ROOT}/.claude/scripts/src/check-dist-coverage.sh" > /dev/null 2>&1; then
+    printf 'エラー: 層分け定義の網羅性チェックに失敗しました。次を実行して内容を確認してください:\n' >&2
+    printf '  bash .claude/scripts/src/check-dist-coverage.sh\n' >&2
+    return 1
+  fi
+
+  # 手順4: 走査パス
+  scan_pass || return 1
+
+  # 手順5: 提示
+  present_plan
+  if [ "$OPT_DRY_RUN" -eq 1 ]; then
+    printf '\n--dry-run のためここで終了します（何も変更していません）。\n'
+    return 0
+  fi
+
+  # 手順6: 配置パス
+  log_section '配置'
+  apply_pass || return 1
+
+  # 手順7: 配布先で .gemini/ のリンクを作る（「local は触らない」の唯一の例外）
+  log_section '.gemini/ のセットアップ'
+  bash "${DEST_DIR}/.claude/scripts/src/setup-gemini-links.sh" || {
+    printf '警告: .gemini/ のセットアップに失敗しました。配布先で手動実行してください。\n' >&2; }
+
+  # 手順8: manifest
+  write_manifest
+
+  # 手順9: サマリ
+  log_section 'サマリ'
+  printf 'core を %s 件配置しました（うち .bak を残した %s 件）。\n' \
+    "$((${#SCAN_CORE_NEW[@]} + ${#SCAN_CORE_SAME[@]} + ${#SCAN_CORE_MODIFIED[@]} + ${#SCAN_CORE_UNKNOWN[@]}))" \
+    "${#APPLIED_BAK[@]}"
+  printf 'seed を %s 件配置し、%s 件は既存を残しました。\n' \
+    "${#SCAN_SEED_PLACE[@]}" "${#SCAN_SEED_KEEP[@]}"
+  printf 'merge %s 件（追記した行の合計 %s）。\n' "${#SCAN_MERGE[@]}" "$MERGE_ADDED_TOTAL"
+  printf 'manifest: %s\n' "${DEST_DIR}/${MANIFEST_REL}"
+  if [ "${#APPLIED_BAK[@]}" -gt 0 ]; then
+    printf '\n配布先で変更されていたファイルの元の内容は次に残しました:\n'
+    printf '  - %s\n' "${APPLIED_BAK[@]}"
+  fi
+  printf '\n次にやること:\n'
+  printf '  1. AGENTS.md の「プロジェクト概要」「開発・実行」を、このプロジェクトの内容で埋める。\n'
+  printf '  2. .mrworkflow.json のブランチ命名規則・ディレクトリ位置を確認する。\n'
+  printf '  3. 各ディレクトリの REVIEW-POINTS.local.md へ、このプロジェクト固有の観点を書く。\n'
+  return 0
+}
+
+if [ "${BASH_SOURCE[0]}" = "${0}" ]; then
+  main "$@"
 fi

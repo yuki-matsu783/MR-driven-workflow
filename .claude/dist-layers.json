@@ -1,0 +1,72 @@
+{
+  "schemaVersion": 1,
+  "upstream": true,
+  "entries": [
+    { "layer": "core", "path": ".claude",
+      "note": "機構本体。配布先が書き換えると本家の更新で壊れる。以下2件が例外" },
+    { "layer": "merge", "path": ".claude/settings.json", "strategy": "json-keys",
+      "keys": ["hooks", "permissions.deny"],
+      "note": "hooksは本家所有（全置換）、permissions.denyは和集合。plansDirectory等は配布先所有" },
+    { "layer": "exclude", "path": ".claude/skills/apply-mr-workflow-to-project",
+      "note": "配ると配布先が本家として再配布でき、版の系譜が分岐する" },
+
+    { "layer": "local", "path": ".gemini",
+      "note": "docs/hooks/rules/scripts/skillsはローカルリンク。受け入れ条件8はsetup-gemini-links.shが満たす" },
+    { "layer": "core", "path": ".gemini/settings.json",
+      "note": "リンク運用を前提とした設定。配布先が書き換える理由が無い" },
+
+    { "layer": "core", "path": ".github", "note": "issue/PRテンプレート。見出しがstart・describeと機能的に結合" },
+    { "layer": "core", "path": ".gitlab", "note": "同上" },
+
+    { "layer": "core", "path": "REVIEW-POINTS.md", "note": "観点表は本家所有。配布先固有は.local側" },
+    { "layer": "core", "path": "CLAUDE.md",
+      "note": "seedだとimportの書き方が変わったとき配布先へ届かず、共通ルールが無言で読まれなくなる" },
+    { "layer": "core", "path": "GEMINI.md", "note": "同上" },
+
+    { "layer": "seed", "path": "AGENTS.md",
+      "source": ".claude/skills/apply-mr-workflow-to-project/templates/AGENTS.md",
+      "note": "共通ルールのimport＋プロジェクト概要。概要は配布先が書くため汎用雛形を配る" },
+    { "layer": "seed", "path": "HANDOFF.md", "note": "受け入れ条件3が明示（再適用で上書きしない）" },
+    { "layer": "seed", "path": "index.md", "note": "Repository Map。配布先の構成を反映する" },
+    { "layer": "seed", "path": ".mrworkflow.json", "note": "ブランチ命名規則・ディレクトリ位置を配布先が書き換える" },
+
+    { "layer": "merge", "path": ".gitignore", "strategy": "lines-marker",
+      "header": "# mr-driven-develop workflow ignores" },
+    { "layer": "merge", "path": ".gitattributes", "strategy": "lines-marker",
+      "header": "# mr-driven-develop workflow attributes" },
+
+    { "layer": "exclude", "path": "README.md", "note": "本家（テンプレート）固有の説明" },
+    { "layer": "exclude", "path": "DEVELOPERS.md", "note": "同上" },
+    { "layer": "exclude", "path": "考えたこと.md", "note": "本家固有のメモ" },
+
+    { "layer": "local", "path": "plans", "note": "タスク単位の作業状態" },
+    { "layer": "core", "path": "plans/REVIEW-POINTS.md" },
+    { "layer": "local", "path": "worklog", "note": "同上" },
+    { "layer": "core", "path": "worklog/TEMPLATE.md", "note": "worklogの雛形。issue #26の受け入れ条件" },
+    { "layer": "local", "path": "reports", "note": "同上" },
+    { "layer": "core", "path": "reports/REVIEW-POINTS.md" },
+
+    { "layer": "seed", "path": "REVIEW-POINTS.local.md",
+      "source": ".claude/skills/apply-mr-workflow-to-project/templates/REVIEW-POINTS.local.md",
+      "note": "配布先固有の観点。空雛形を1回だけ置き、以後本家は触らない" },
+    { "layer": "seed", "path": ".claude/REVIEW-POINTS.local.md",
+      "source": ".claude/skills/apply-mr-workflow-to-project/templates/REVIEW-POINTS.local.md" },
+    { "layer": "seed", "path": "plans/REVIEW-POINTS.local.md",
+      "source": ".claude/skills/apply-mr-workflow-to-project/templates/REVIEW-POINTS.local.md" },
+    { "layer": "seed", "path": "reports/REVIEW-POINTS.local.md",
+      "source": ".claude/skills/apply-mr-workflow-to-project/templates/REVIEW-POINTS.local.md" },
+
+    { "layer": "local", "gitignorePattern": ".vscode/", "note": "配布先の好み。配る行には入れない" },
+    { "layer": "local", "gitignorePattern": "*.log", "note": "同上" },
+    { "layer": "local", "gitignorePattern": "/usage/", "note": "対応工数レポートのローカル作業状態" },
+    { "layer": "local", "gitignorePattern": "/.claude/state/", "note": "前回push時点のHEAD SHA" },
+    { "layer": "local", "gitignorePattern": "/.gemini/docs" },
+    { "layer": "local", "gitignorePattern": "/.gemini/hooks" },
+    { "layer": "local", "gitignorePattern": "/.gemini/rules" },
+    { "layer": "local", "gitignorePattern": "/.gemini/scripts" },
+    { "layer": "local", "gitignorePattern": "/.gemini/skills" },
+    { "layer": "local", "gitignorePattern": "**/index.jsonl", "note": "frontmatterインデックス（生成物）" },
+    { "layer": "local", "gitignorePattern": "*.stackdump", "note": "MSYSのクラッシュダンプ" },
+    { "layer": "local", "gitignorePattern": ".claude/docs/.ddr-list.*", "note": "DDR一覧のキャッシュ" }
+  ]
+}

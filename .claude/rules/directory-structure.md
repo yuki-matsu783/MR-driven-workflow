@@ -32,6 +32,7 @@ keywords: [ディレクトリ構成, claude, gemini, 配置方針, plans, worklo
 │   │   └── lib/                # 複数hookスクリプトで使い回す共通ロジック
 │   ├── REVIEW-POINTS.md       # `.claude/`配下に適用するレビュー観点（`type: review-points`）
 │   ├── VERSION                 # 配布物の版（SemVer 1行）。更新規則は`.claude/docs/spec/distribution-assets.md`
+│   ├── dist-layers.json        # 配布アセットの層分け定義（core/seed/merge/local/exclude）。**何をどう配るかの単一の正**
 │   └── settings.json
 ├── .gemini/                    # Gemini CLI向け設定。settings.jsonのみGit管理。docs/hooks/rules/
 │   │                            # scripts/skillsは.claude配下へのローカルリンクで.gitignore対象
@@ -42,7 +43,6 @@ keywords: [ディレクトリ構成, claude, gemini, 配置方針, plans, worklo
 ├── .gitlab/
 │   ├── issue_templates/         # GitLab用issueテンプレート（同上）
 │   └── merge_request_templates/ # GitLab用MRテンプレート（`Default.md`。PRテンプレートと同一内容）
-├── build/                      # ビルド成果物の出力先。`.gitignore`対象でコミットしない（通常は空）
 ├── plans/                      # 計画ファイル。全体作業計画（planツールが出力する`<自動命名>.md`、
 │                                #   issueにつき1つ）と個別作業計画（`【種別】タスク内容.md`、
 │                                #   planツールを使わずWrite/Editで作成）の2階層。タスクごとに
@@ -130,7 +130,10 @@ issue #97。ブランチ別に持つと、同じセッションのままブラ�
   1つの `REVIEW-POINTS.md` は**そのディレクトリ配下すべて（孫以下を含む）**に適用され、収集時は
   対象ファイルのディレクトリからリポジトリルートまで祖先を遡って集めてマージする（浅い→深い）。
   一般的な観点ほど上位へ置き、下位で重複して書かない。現在の配置はルート直下・`.claude/`・
-  `plans/`・`reports/` の4つ。収集アルゴリズム・frontmatterの詳細は
+  `plans/`・`reports/` の4つ。**同じディレクトリの `REVIEW-POINTS.local.md` は配布先が所有する**
+  （`REVIEW-POINTS.md` は配布元所有の `core`、`.local` は `seed`。issue #26）。収集時は
+  `REVIEW-POINTS.md` → `REVIEW-POINTS.local.md` の順に連結され、**`REVIEW-POINTS.md` が無い
+  ディレクトリに `.local` だけを置いてもよい**。収集アルゴリズム・frontmatterの詳細は
   `.claude/docs/spec/adversarial-review.md`「レビュー観点（REVIEW-POINTS.md）」を参照する。
   **`plans/REVIEW-POINTS.md` と `reports/REVIEW-POINTS.md` は、それらのディレクトリを片付ける
   flow-id 5-4でも削除しない**（`.claude/rules/docs-workflow.md` のライフサイクル表が正）。

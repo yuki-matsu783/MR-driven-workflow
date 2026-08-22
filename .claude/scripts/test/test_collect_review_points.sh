@@ -120,6 +120,35 @@ assert_eq "collect: 観点表の中身が見出しの下に続く" \
   '- abの観点' \
   "$(collect a/b/deep.sh | grep -- '- abの観点')"
 
+# --- REVIEW-POINTS.local.md（配布先所有の観点表。issue #26） --------------------------
+
+(
+  cd "$fixture_repo"
+  mkdir -p d/e
+  # 本家の観点表がある所へ .local を足す
+  printf '%s\n' '---' 'title: AL' '---' '' '# a.local' '' '- aのlocal観点' > a/REVIEW-POINTS.local.md
+  # **本家の観点表が無く .local だけ**あるディレクトリ（.local の最も典型的な使い方）
+  printf '%s\n' '---' 'title: DL' '---' '' '# d.local' '' '- dのlocal観点' > d/REVIEW-POINTS.local.md
+  : > d/e/f.sh
+)
+
+assert_eq "collect: .local は同じディレクトリの本家の観点表の直後に出る" \
+  $'## REVIEW-POINTS.md\n## a/REVIEW-POINTS.md\n## a/REVIEW-POINTS.local.md\n## a/b/REVIEW-POINTS.md' \
+  "$(collect a/b/deep.sh | grep '^## ')"
+
+# 現行実装はディレクトリ単位で `continue` していたため、このケースが丸ごと無視されていた。
+assert_eq "collect: 本家の観点表が無く .local だけあるディレクトリも拾う" \
+  $'## REVIEW-POINTS.md\n## d/REVIEW-POINTS.local.md' \
+  "$(collect d/e/f.sh | grep '^## ')"
+
+assert_eq "collect: .local の中身も見出しの下に続く" \
+  '- dのlocal観点' \
+  "$(collect d/e/f.sh | grep -- '- dのlocal観点')"
+
+# .local が無いディレクトリで空振りしても失敗しない（存在するのが普通の状態）
+assert_eq "collect: .local が無くても終了コード0" '0' \
+  "$(if collect c/other.sh >/dev/null 2>&1; then printf 0; else printf 1; fi)"
+
 # 観点表が1つも無い場合は、エラーではなく「無出力・終了コード0」
 empty_repo="$(mktemp -d)"
 (
