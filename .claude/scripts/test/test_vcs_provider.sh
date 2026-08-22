@@ -1123,7 +1123,7 @@ assert_eq "slice_source_lines: 入力が空なら終了コード1" '1' "$slice_e
 
 # --- content_type_from_path_to_reply / upload_attachment（issue #111: 統括レポートの添付） ---
 #
-# 添付は flow-id 5-3 の**任意層**であり、失敗が正常系のひとつである。ここでテストするのは
+# 添付は flow-id 5-4 の**任意層**であり、失敗が正常系のひとつである。ここでテストするのは
 # 「ネットワークへ出る前に落ちること」と「落ち方が呼び出し側にとって扱えること」である。
 
 content_type_from_path_to_reply 'reports/20260821_x_統括.html'

@@ -167,5 +167,5 @@ SF --type spec | jq -r '"| \(.frontmatter.title) | \(.frontmatter.description) |
   を使う。逆に言えば、frontmatterの `description` / `keywords` の質がそのまま検索の質になる
   （新規markdown作成時は `.claude/rules/markdown-frontmatter.md` に従って必ず付与する）。
 - **`plans/` `worklog/` `reports/` 配下のファイルもヒットする**。これらはタスク単位で
-  flow-id 5-4 に削除される寿命の短いファイルのため、恒久的な参照先として扱わない
+  flow-id 5-5 に削除される寿命の短いファイルのため、恒久的な参照先として扱わない
   （`.claude/rules/docs-workflow.md`）。除外したいときは `--dir .claude` で対象を絞る。

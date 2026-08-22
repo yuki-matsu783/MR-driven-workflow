@@ -351,9 +351,9 @@ mcp_tool_hint() {
     add_mr_inline_comments) printf 'mcp__github__pull_request_review_write (method="create" → 各指摘を "add_comment_to_pending_review" → "submit_pending"。owner, repo, pullNumber, path, line, side, body)\n' ;;
     add_issue_comment) printf 'mcp__github__add_issue_comment (owner, repo, issue_number=通知先issue番号, body=ファイル内容)\n' ;;
     # 唯一「代替が無い」分岐（issue #111）。他の関数と違い読み替え先を案内できないため、
-    # スキップしてよいことを名指しで返す。添付は flow-id 5-3 の任意層であり、
+    # スキップしてよいことを名指しで返す。添付は flow-id 5-4 の任意層であり、
     # 層1（reports/ をリモートへ反映）と層2（サマリコメント）でレビューは成立する。
-    upload_attachment) printf '対応するMCPツールはありません（PR/issueへの添付に相当するツールが提供されていない）。**flow-id 5-3 の層3（添付）はスキップしてよい**。層1・層2だけでレビューは成立します\n' ;;
+    upload_attachment) printf '対応するMCPツールはありません（PR/issueへの添付に相当するツールが提供されていない）。**flow-id 5-4 の層3（添付）はスキップしてよい**。層1・層2だけでレビューは成立します\n' ;;
     *) printf '対応するMCPツールは .claude/skills/issue-mr-flow/SKILL.md の対応表を参照\n' ;;
   esac
 }
@@ -844,7 +844,7 @@ set_mr_description() {
   esac
 }
 
-# Draft PR/MRのDraft状態を解除し、レビュー・マージ可能な状態にする（flow-id 5-5。issue #61）。
+# Draft PR/MRのDraft状態を解除し、レビュー・マージ可能な状態にする（flow-id 5-6。issue #61）。
 # Draft作成側（new_draft_merge_request）に対応する解除側で、これが無かったため当時の flow-id 5-3 では
 # AIエージェントが `gh pr ready` を直接呼ぶことになり、GitLab環境で動かず、CLI不在時の
 # MCPフォールバック経路（require_vcs_cli / mcp_tool_hint）にも乗らなかった。
@@ -1056,7 +1056,7 @@ add_issue_comment() {
   esac
 }
 
-# --- 最終統括レポートの添付（flow-id 5-3・層3。issue #111） ---
+# --- 最終統括レポートの添付（flow-id 5-4・層3。issue #111） ---
 
 # 拡張子から Content-Type を推定する（純粋関数。REPLYへ返す）。
 # 添付APIは Content-Type をクエリ／multipart で要求するが、`file` コマンドはHTMLを
@@ -1090,13 +1090,13 @@ content_type_from_path_to_reply() {
   esac
 }
 
-# ファイルをPR/MRの本文へ埋め込める形でアップロードする（flow-id 5-3 の層3）。
+# ファイルをPR/MRの本文へ埋め込める形でアップロードする（flow-id 5-4 の層3）。
 #
 #   upload_attachment <file> [<content_type>]
 #     成功: {"url":"...","markdown":"...","provider":"github|gitlab"} をstdoutへ / 終了コード0
 #     失敗: 理由をstderrへ / 終了コード非0
 #
-# **この関数の失敗は正常系のひとつである。** 呼び出し側（flow-id 5-3）は非0終了を受け取ったら
+# **この関数の失敗は正常系のひとつである。** 呼び出し側（flow-id 5-4）は非0終了を受け取ったら
 # 警告だけ出して層3をスキップし、フローを続ける。層1（reports/ へ載せてリモートへ反映）と
 # 層2（サマリをMarkdownでコメント投稿）だけでレビューは成立する設計になっている
 # （.claude/docs/ddr/i0111-01-統括レポートの添付は任意層に置きフローを止めない.md）。

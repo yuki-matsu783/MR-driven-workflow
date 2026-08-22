@@ -276,7 +276,7 @@ gitlab_set_mr_description() {
   glab mr update "$mr_number" --description "$description" >/dev/null
 }
 
-# Draft MRのDraft状態を解除し、レビュー・マージ可能な状態にする（flow-id 5-5）。
+# Draft MRのDraft状態を解除し、レビュー・マージ可能な状態にする（flow-id 5-6）。
 # GitLabはDraftをタイトルの `Draft:` 接頭辞で表現するため、`glab mr update <id> --ready` は
 # タイトル先頭の `Draft:` / `WIP:`（大文字小文字・重複を問わない）を除去した新タイトルを
 # APIへ送る実装になっている（glab本体のソース `internal/commands/mr/update/mr_update.go` で確認）。
@@ -547,7 +547,7 @@ gitlab_add_issue_comment() {
     -X POST -f "body=${body}" >/dev/null
 }
 
-# --- 最終統括レポートの添付（flow-id 5-3・層3。issue #111） ---
+# --- 最終統括レポートの添付（flow-id 5-4・層3。issue #111） ---
 #
 # GitLabは**公式APIで添付を提供する**（`POST /projects/:id/uploads`）。GitHubの
 # `github_upload_attachment` と違い未ドキュメントAPIへの依存は無く、レスポンスの `markdown`

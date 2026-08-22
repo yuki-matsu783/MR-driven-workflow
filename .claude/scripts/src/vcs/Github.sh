@@ -230,7 +230,7 @@ github_set_mr_description() {
   gh pr edit "$mr_number" --body-file "$body_file" >/dev/null
 }
 
-# Draft PR/MRのDraft状態を解除し、レビュー・マージ可能な状態にする（flow-id 5-5）。
+# Draft PR/MRのDraft状態を解除し、レビュー・マージ可能な状態にする（flow-id 5-6）。
 # `gh pr ready <number>` は、openかつDraftでないPRに対しては警告を出すだけで終了コード0を返す
 # （＝冪等に呼べる）。closed/mergedのPRに対してのみ失敗する（`gh`本体のソース
 # `pkg/cmd/pr/ready/ready.go` で確認）。
@@ -442,7 +442,7 @@ github_add_issue_comment() {
   gh issue comment "$issue_number" --body-file "$body_file" >/dev/null
 }
 
-# --- 最終統括レポートの添付（flow-id 5-3・層3。issue #111） ---
+# --- 最終統括レポートの添付（flow-id 5-4・層3。issue #111） ---
 #
 # **警告: このエンドポイントはGitHubの未ドキュメントな内部APIである。**
 # `uploads.github.com/user-attachments/assets` は Web UI のドラッグ＆ドロップが使う経路で、

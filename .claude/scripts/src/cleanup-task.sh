@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 #
-# flow-id 5-4（次タスクのための片付け）を自動化する（issue #28。当時のflow-idは 5-1。issue #112 の
-#   並べ替えで 5-3 になり、issue #111 の統括レポート追加で現在は 5-4）。
-# `.claude/skills/issue-mr-flow/SKILL.md` の flow-id 5-4 が手順として持っていた次の4操作を、
+# flow-id 5-5（次タスクのための片付け）を自動化する（issue #28。当時のflow-idは 5-1。issue #112 の
+#   並べ替えで 5-3 になり、issue #111 の統括レポート追加で 5-4、issue #70 の変換同期の新設で
+#   現在は 5-5）。
+# `.claude/skills/issue-mr-flow/SKILL.md` の flow-id 5-5 が手順として持っていた次の4操作を、
 # 手作業（消し忘れ・消しすぎ）を排して1コマンドへまとめる。
 #
 #   1. `plans/` `worklog/` `reports/` を、下記「残すパス」以外すべて削除する
@@ -14,7 +15,7 @@
 #
 # **コミットはしない。** このリポジトリのコミットは `commit` スキル経由に限られる
 # （`.claude/rules/git-workflow.md`「コミット運用」）。削除・リセット後の変更を
-# `commit` スキルへ渡すのは呼び出し側（flow-id 5-5）の責務。
+# `commit` スキルへ渡すのは呼び出し側（flow-id 5-6）の責務。
 #
 # 使い方:
 #   cleanup-task.sh [--dry-run] [--skip-index] [-h|--help]

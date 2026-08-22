@@ -1,21 +1,21 @@
 ---
-title: flow-id 5-4 後片付けの自動化（cleanup-task.sh）
+title: flow-id 5-5 後片付けの自動化（cleanup-task.sh）
 type: spec
-description: flow-id 5-4（次タスクのための片付け）の4操作――plans/ reports/ の削除、worklog/のTEMPLATE.md以外の削除、frontmatterインデックスの再生成、HANDOFF.mdのリセット――を1コマンドへまとめたスクリプトの仕様
+description: flow-id 5-5（次タスクのための片付け）の4操作――plans/ reports/ の削除、worklog/のTEMPLATE.md以外の削除、frontmatterインデックスの再生成、HANDOFF.mdのリセット――を1コマンドへまとめたスクリプトの仕様
 tags: [script, workflow, cleanup, spec]
 keywords: [cleanup-task, flow-id-5-4, HANDOFF, plans, worklog, reports, index.jsonl, dry-run, TEMPLATE.md, 後片付け]
 ---
 
-# flow-id 5-4 後片付けの自動化（cleanup-task.sh）
+# flow-id 5-5 後片付けの自動化（cleanup-task.sh）
 
 ## 背景・目的
 
 issue #28「flow-id 5-1 後片付けタスク自動化スクリプト（cleanup-task.sh）の実装」
 （**issue名の `5-1` は当時の番号**。片付けは issue #112 の並べ替えで 5-3 になり、issue #111 の
-統括レポート追加でさらに繰り下がって現在**flow-id 5-4** である。DDR i0028-01 のファイル名に含まれる `flow-id5-1` も同じく当時の番号で、
+統括レポート追加で 5-4、issue #70 の変換同期の新設でさらに繰り下がって現在**flow-id 5-5** である。DDR i0028-01 のファイル名に含まれる `flow-id5-1` も同じく当時の番号で、
 リンク切れを避けるためリネームしていない）。
 
-flow-id 5-4（次タスクのための片付け）は、`.claude/skills/issue-mr-flow/SKILL.md` に手順として
+flow-id 5-5（次タスクのための片付け）は、`.claude/skills/issue-mr-flow/SKILL.md` に手順として
 書かれているだけで、実行はAIエージェントの手作業だった。実際に行う操作は毎回同じ4つである。
 
 1. `plans/` `reports/` を削除する（md・htmlの両方）

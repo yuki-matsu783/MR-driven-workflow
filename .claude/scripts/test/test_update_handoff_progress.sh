@@ -357,7 +357,7 @@ assert_eq "set-header --loop: 既存行は置換され重複しない" "1" "$(co
 assert_eq "set-header --loop: 既存行が置換される" \
   "- 現在のループ: 3-6〜3-9 の2周目（進行中）" "$(get_loop_header "$fixture")"
 
-# ヘッダ項目を持たないHANDOFF.md（flow-id 5-4直後）でも見出しの直前へ挿入できる
+# ヘッダ項目を持たないHANDOFF.md（flow-id 5-5直後）でも見出しの直前へ挿入できる
 fixture="$TMP_DIR/handoff16.md"
 cat >"$fixture" <<'FIXTURE_NOHEADER'
 # HANDOFF

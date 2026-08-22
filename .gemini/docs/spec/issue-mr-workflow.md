@@ -98,11 +98,11 @@ MRとのやり取りだけを自動化する薄い層」として設計したが
 | `read_file_at_ref <sha> <path>` | 指定commit時点のファイル内容を**プロバイダのファイル取得API**から読む（issue #43。ソーススライスの断面がローカルのblobで解決できないときのフォールバック。ローカルで解決できる場合はここへ来ない） | `gh api repos/{owner}/{repo}/contents/<path>?ref=<sha>`（base64） | `glab api projects/:id/repository/files/<encoded>/raw?ref=<sha>`（【未検証】） |
 | `add_mr_thread_reply <n> <threadId> <text>` | 指定スレッドに対応内容を返信する（スレッドの解決＝resolvedはレビュアー側の操作のため本関数では行わない）。**投稿した返信自身のパーマリンクを標準出力へ返す**（issue #42。レビュー依頼メッセージへ「前回の指摘にどう返信したか」のリンクを載せるため） | `gh api graphql`（reply mutation。戻り値を `comment { url }` にした） | `glab api`（note追加。POSTレスポンスの `id` から組み立てる） |
 | `set_mr_description <n> <bodyFile>` | PR/MRのdescriptionを指定ファイル内容で上書き | `gh pr edit --body-file` | `glab mr update --description` |
-| `set_mr_ready <n>` | Draft PR/MRのDraft状態を解除し、レビュー・マージ可能な状態にする（全体フロー flow-id 5-5。Draft作成側の `new_draft_merge_request` に対応する解除側。issue #61） | `gh pr ready` | `glab mr update --ready` |
+| `set_mr_ready <n>` | Draft PR/MRのDraft状態を解除し、レビュー・マージ可能な状態にする（全体フロー flow-id 5-6。Draft作成側の `new_draft_merge_request` に対応する解除側。issue #61） | `gh pr ready` | `glab mr update --ready` |
 | `add_mr_comment <n> <bodyFile>` | PR/MRへ新規コメントを1件投稿（スレッド返信・レビューではない通常コメント） | `gh pr comment --body-file` | `glab api`（notes追加） |
 | `add_mr_inline_comments <n> <findingsFile>` | findings JSONファイルの指摘を、PR/MRへインラインコメントとして投稿する（敵対的レビュー用。issue #77）。投稿できなかった指摘はサマリへ回し、`{"posted":N,"summarized":M}` を返す。findingsは**必ずファイル経由で渡す**（引数長上限とhook誤検知の回避）。仕様は [adversarial-review.md](adversarial-review.md) を正とする | `gh api pulls/<n>/reviews`（1レビューへまとめて投稿。有効行を事前検証） | `glab api discussions`（1件ずつPOST。`position` を `diff_refs` から組み立てる。サマリも指摘を含むなら `position` 無しの `discussions` でスレッドとして投稿する） |
 | `add_issue_comment <n> <bodyFile>` | **任意のissue**へ新規コメントを1件投稿（全体フロー flow-id 5-2: マージ前の関連issue通知。issue #86）。宛先がPR/MRである `add_mr_comment` とは別関数で、GitHub実装が `gh pr comment` であるためPR以外へ投げられなかったのが分離の理由。本文はファイル経由（push検知hookの誤発火を避けるため）。投稿先・本文の決定と人間の承認は呼び出し側の責務 | `gh issue comment --body-file` | `glab api`（issues notes追加） |
-| `upload_attachment <file> [<contentType>]` | ファイルをPR/MR本文へ埋め込める形でアップロードし `{url, markdown, provider}` を返す（全体フロー flow-id 5-3 の**層3**。issue #111）。**失敗は正常系のひとつ**で、呼び出し側は非0を受けてスキップする | **未ドキュメントAPI**（`uploads.github.com/user-attachments/assets` へ `curl`。`gh` に添付用フラグが無い） | `glab api projects/:id/uploads -F file=@<path>`（公式API・**実機未検証**） |
+| `upload_attachment <file> [<contentType>]` | ファイルをPR/MR本文へ埋め込める形でアップロードし `{url, markdown, provider}` を返す（全体フロー flow-id 5-4 の**層3**。issue #111）。**失敗は正常系のひとつ**で、呼び出し側は非0を受けてスキップする | **未ドキュメントAPI**（`uploads.github.com/user-attachments/assets` へ `curl`。`gh` に添付用フラグが無い） | `glab api projects/:id/uploads -F file=@<path>`（公式API・**実機未検証**） |
 | `sync_branch <branch>` | 現在のブランチをfetch、必要ならcheckout（新しいセッションでの再開用） | `git fetch` + `git checkout` | 同左 |
 | `test_issue_sections <body>` | issue本文に「目的／現状／期待する動作／受け入れ条件」の4見出しが揃っているか確認し、欠けている見出し名を1行1件でstdoutへ出力する（プロバイダ非依存） | — | — |
 | `get_issue_number_from_branch [<branch>]` | ブランチ名を `branchPrefixTemplate` に照らしてissue番号を抽出する（省略時は現在のブランチ）。マッチすればstdoutへ出力し終了コード0、マッチしなければ終了コード1（プロバイダ非依存） | — | — |
@@ -215,11 +215,11 @@ Draft解除は、クローズ・書き直し・Draftへの差し戻しでいつ�
 優先した先の振る舞いを「ブランチ作成までは通常どおり → `AskUserQuestion` で作成可否を1回だけ確認 →
 応答を待てない非対話的セッションではPRを作成せず、その事実を最終応答へ明示」と決め打ちにすることで
 再現性を確保している（再現性の要点は「必ず作る」ことではなく「毎回同じ判断になる」ことにある）。
-この確認はPRの**新規作成**のみが対象で、flow-id 5-5（Draft解除）・`describe`・`reply` は既存PRの
+この確認はPRの**新規作成**のみが対象で、flow-id 5-6（Draft解除）・`describe`・`reply` は既存PRの
 更新のため対象外。
 
 担当表と手順の詳細は `.claude/rules/git-workflow.md`「PR・マージ」節が正であり、
-`.claude/skills/issue-mr-flow/SKILL.md`「PR/MR作成・マージの担当（flow-id 1-3・5-5・5-6）」節が
+`.claude/skills/issue-mr-flow/SKILL.md`「PR/MR作成・マージの担当（flow-id 1-3・5-6・5-7）」節が
 フロー側からの入口になる。判断の理由・却下案は
 [i0041-01-PR_MR作成はAIエージェントに委ねマージのみ明示指示を必須にする.md](../ddr/i0041-01-PR_MR作成はAIエージェントに委ねマージのみ明示指示を必須にする.md)。
 
@@ -261,7 +261,7 @@ Claude Code / Gemini CLI は**セッションごとに1つのplanファイルし
   `"defaultMode": "plan"` により新セッションは必ずPlanモードで始まるが、それは新規作成の理由に
   ならない。
 - これに伴い全体フローの先頭に全体作業計画の作成・合意を追加した（issue #9時点では33→35ステップ。
-  現在のflow-idは `<フェーズ番号>-<ステップ番号>` 形式の5フェーズ・42ステップで、最新の定義は
+  現在のflow-idは `<フェーズ番号>-<ステップ番号>` 形式の5フェーズ・43ステップで、最新の定義は
   `.claude/skills/issue-mr-flow/SKILL.md`「全体フロー」を正とする）。worklogは
   `worklog/日付_<全体計画名>_<個別計画名>_push<N>.md`、reportsは
   `reports/日付_<全体計画名>_<内容を簡潔に>.html` へ命名を変更し、reportsは調査結果専用ではなく
@@ -574,7 +574,7 @@ resumeを省略してしまう事故が発生した）。そのため発動条�
    記述と実際の状態（PR有無・未解決コメント件数等）に矛盾があれば、それも指摘する**
    （例: HANDOFF.mdは「PR未作成」と書いてあるが実際はPRが存在する、等）。
 
-呼び出し元は、このサマリをもとに全体フロー（5フェーズ・42ステップ）のうちどこから再開すべきかを判断し、
+呼び出し元は、このサマリをもとに全体フロー（5フェーズ・43ステップ）のうちどこから再開すべきかを判断し、
 人間に提案する（この判断自体はサブエージェントの役割ではなく、呼び出し元が行う）。**ベースブランチが
 遅れていた場合に取り込みの可否を `AskUserQuestion` で確認するのも呼び出し元の役割であり、
 サブエージェントは検知結果を報告するだけである**（issue #67。手順は
@@ -586,7 +586,7 @@ resumeを省略してしまう事故が発生した）。そのため発動条�
 
 ### マージ後の取り残しクリーンアップ
 
-人間がレビュー後にそのままMR/PRをマージするなど、flow-id 5-4（`plans/` `worklog/`の削除・
+人間がレビュー後にそのままMR/PRをマージするなど、flow-id 5-5（`plans/` `worklog/`の削除・
 `HANDOFF.md`のリセット）の実施前にマージが完了してしまうことがある（issue #28, PR #29の
 セッションで実際に発生）。この場合、タスク固有の`plans/`・`worklog/`ファイルと作業途中のままの
 `HANDOFF.md`が`main`へ残ってしまい、`docs-workflow.md`の運用（`worklog/`はsquash mergeで
@@ -596,7 +596,7 @@ resumeを省略してしまう事故が発生した）。そのため発動条�
 PRで対処する（`main`はレビューを経ないままの直接変更を避ける対象のため）。issue番号を持たない
 一回限りの対応のため、`.mrworkflow.json`のブランチ命名規則には従わず`chore/cleanup-<説明>`
 のような名前を使ってよい。手順の詳細は
-`.claude/skills/issue-mr-flow/SKILL.md`の「PRがflow-id 5-4実施前にマージされてしまった場合の対処」
+`.claude/skills/issue-mr-flow/SKILL.md`の「PRがflow-id 5-5実施前にマージされてしまった場合の対処」
 節を参照。
 
 ### PR作成後のdefaultブランチ追従（issue #88）
@@ -607,7 +607,7 @@ PRが多いほど、この期間のコンフリクトを取りこぼす（実例
 `main` が4回進み、DDR番号を 0034→0035→0036→0038 と3回繰り下げた）。
 
 この追従を、**flow-idを持たないフェーズ横断の並行手順**として定義する。flow-id 1-3（PR作成）の
-直後に開始し、5-6（マージ）またはPRのクローズで停止する「期間」であり、進捗表の1行として完了を
+直後に開始し、5-7（マージ）またはPRのクローズで停止する「期間」であり、進捗表の1行として完了を
 表せる性質のものではないため、flow-idは増やしていない。**flow-id 5-1 は「最終ゲート」として残す**
 （監視は実行環境の機能とセッションの寿命に依存するため、一度も動かないセッションがありうる）。
 
@@ -648,9 +648,9 @@ PRが多いほど、この期間のコンフリクトを取りこぼす（実例
 | 影響先が無い場合 | **スキップしてよい**。ただし「影響先なし」と判断したことは `HANDOFF.md` へ残す |
 
 **現在のフェーズ5内の位置**: issue #112 でフェーズ5を並べ替えた結果、本ステップは
-**flow-id 5-2**（コンフリクト解消 5-1 の次、統括レポート 5-3・片付け 5-4 の前）である。上表の「挿入位置」は
+**flow-id 5-2**（コンフリクト解消 5-1 の次、統括レポート 5-4・片付け 5-5 の前）である。上表の「挿入位置」は
 issue #86 当時の並び（5-1 片付け → 5-2 コンフリクト解消 → 5-3 本ステップ）を指す。並べ替えにより、
-「影響先なし」の判断を書き戻す `HANDOFF.md` が、片付け（5-4）のリセット前に残っている状態になった。
+「影響先なし」の判断を書き戻す `HANDOFF.md` が、片付け（5-5）のリセット前に残っている状態になった。
 キーワード抽出時に `plans/` `worklog/` `reports/` を差分から除外するのも並べ替えに伴う変更である
 （issue #86 当時は片付けが先だったため、これらは既に差分から消えていた）。
 
@@ -665,8 +665,8 @@ PR番号か通知先issue番号かで異なる）。手順の正は
 ### 最終統括レポートとPR/MRへの反映（issue #111）
 
 **タスク（issue／ブランチ）の完了時に、そのブランチで何をやったかを1枚にまとめた最終統括
-レポートを作成し、PR/MR上へ残す**ステップ（flow-id 5-3）を設けた。`plans/` `worklog/` `reports/`
-は片付け（flow-id 5-4）で削除され、squash mergeにより `main` にも残らないため、ブランチ全体を
+レポートを作成し、PR/MR上へ残す**ステップ（flow-id 5-4）を設けた。`plans/` `worklog/` `reports/`
+は片付け（flow-id 5-5）で削除され、squash mergeにより `main` にも残らないため、ブランチ全体を
 統括した成果を後から一望する手段が無かった。
 
 | 観点 | 決めたこと |
@@ -677,7 +677,7 @@ PR番号か通知先issue番号かで異なる）。手順の正は
 | HTMLの土台 | `.claude/skills/issue-mr-flow/assets/reports.template.html`（**issue #54 の成果物。未作成の間は手書きへフォールバックする**） |
 | 反映の構造 | **3層のフォールバック**（下表）。層3が壊れても層1・層2でレビューは成立する |
 | サマリの1行目 | **`Claude Codeより（最終統括レポート）:`**。既存の通常コメント3種の書式は変更しない |
-| ライフサイクル | 統括レポート自体も **flow-id 5-4 の削除対象**。`main` に残るのはPR/MR上のコメントと `spec/` `ddr/` |
+| ライフサイクル | 統括レポート自体も **flow-id 5-5 の削除対象**。`main` に残るのはPR/MR上のコメントと `spec/` `ddr/` |
 
 #### 3層のフォールバック構造
 
@@ -731,7 +731,7 @@ Web UIのドラッグ＆ドロップと同じ `uploads.github.com/user-attachmen
 `Claude Codeより（敵対的レビュー）:`）。新しい1種だけがラベルを持てば「これは統括レポートか、
 それ以外か」を判別できるため、既存3種は書き換えていない。
 
-手順の正は `.claude/skills/issue-mr-flow/SKILL.md`「最終統括レポートとPR/MRへの反映（flow-id 5-3）」節。
+手順の正は `.claude/skills/issue-mr-flow/SKILL.md`「最終統括レポートとPR/MRへの反映（flow-id 5-4）」節。
 判断の理由・却下案（添付を必須にする・GitLabだけ対応する・レポートを `main` へ残す・
 MR descriptionへ書く・全種へラベルを付け直す）は
 [i0111-01-統括レポートの添付は任意層に置きフローを止めない.md](../ddr/i0111-01-統括レポートの添付は任意層に置きフローを止めない.md)
@@ -839,7 +839,7 @@ Claude Code on the webのリモート実行環境のように、`gh`/`glab` CLI�
   （`create-issue.sh`）についても同スキル側に読み替え手順を書く。
 - **代替が無い唯一の関数**: `upload_attachment`（issue #111）。MCPには**PR/issueへの添付に相当する
   ツールが存在しない**（実測で確認）。`mcp_tool_hint` は読み替え先のツール名ではなく
-  「**flow-id 5-3 の層3（添付）はスキップしてよい**」という案内を返す。層1（`reports/` を
+  「**flow-id 5-4 の層3（添付）はスキップしてよい**」という案内を返す。層1（`reports/` を
   リモートへ反映）・層2（サマリコメント）だけでレビューが成立する設計にしてあるため、
   ここでの失敗はフローを止めない（下記「最終統括レポートとPR/MRへの反映」）。
 - **機構的な誘導**: プロバイダ依存の11関数（`get_issue` / `new_issue` / `search_issues` /
