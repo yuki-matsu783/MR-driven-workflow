@@ -62,17 +62,90 @@ enum 値の集合と突き合わせ、**全体を覆うなら `matcher` を落�
 複製する**。今回のClaude側の値はたまたま前者に当たる、という位置づけにしておかないと、
 `.claude/settings.json` 側が一部ソースだけを指定するよう変わったときに黙って壊れる。
 
-### 残った未決 — `args` の連結規則と `if` の写像
+### `args` の連結規則 — **決定（2026-08-22・flow-id 3-6）**
 
-**この2件は「差分があること」までは調査済み**（調査結果の写像表 `コマンド指定` 行・`if` 条件 行）
-だが、**どう変換するかは決まっていない。** 実装時に暗黙で決めないよう、ここへ明示して残す。
+**`bash $GEMINI_PROJECT_DIR/.claude/hooks/x.sh` の形へ連結する。** 要素を半角スペースで繋ぐだけで、
+**こちらでは引用符を付けない。変数は素の `$VAR` 形式で書き、波括弧を付けない。**
 
-| 未決 | 内容 |
+一次情報（`packages/core/src/hooks/hookRunner.ts` L519・L527、
+`packages/core/src/utils/shell-utils.ts` `escapeShellArg`。評価: S）:
+
+| 事実 | 帰結 |
 |---|---|
-| `args` の連結 | Claude の `{"command":"bash","args":["<path>"]}` を、Gemini の単一 `command` 文字列へどう連結するか。**パスに空白が含まれる場合の引用符付け**を決める必要がある |
-| `if` の写像 | Gemini の `CommandHookConfig` に `if` 相当が無い。落とすと PostToolUse の4エントリが**毎回**走る。落とす／hook側で自己判定させる／別の手段のいずれを採るか |
+| `escapedCwd = escapeShellArg(input.cwd, shellType)` を `$GEMINI_PROJECT_DIR` へ代入する。bashでは `quote([arg])`（shell-quote）でPOSIXクォート済みの文字列になる | **代入される値は既にクォートされている。** こちらで囲むと二重になる |
+| 置換は `.replace(/\$GEMINI_PROJECT_DIR/g, …)` | **`${GEMINI_PROJECT_DIR}` にはマッチしない**（波括弧形式は非対応） |
+| `GEMINI_PROJECT_DIR` はhookの子プロセス環境（L350）にのみ設定される | 波括弧形式は環境変数解決でも埋まらず、**リテラルのまま残って壊れる** |
 
-**どちらもゴールデンファイル（T9）の中身を決める。** 実装の直前に決めて、決めた内容をこの節へ書く。
+```
+悪い例1: bash "$GEMINI_PROJECT_DIR/.claude/hooks/x.sh"
+         → bash "'/c/My Dir'/.claude/hooks/x.sh"   ← 単一引用符がリテラル化して壊れる
+悪い例2: bash ${GEMINI_PROJECT_DIR}/.claude/hooks/x.sh
+         → 置換されずリテラルのまま残る
+良い例:  bash $GEMINI_PROJECT_DIR/.claude/hooks/x.sh
+         → bash '/c/My Dir'/.claude/hooks/x.sh     ← 妥当なシェル構文として解釈される
+```
+
+**空白を含むパスの引用符付けは、こちらの責務ではなくGemini側が持っている**、というのがこの決定の
+中身である。当初は「連結時にこちらでクォートする」と想定していたが、それは誤りだった。
+
+### `if` の写像 — **決定（2026-08-22のチャットで確定）**
+
+**`if` は落とす。落としたうえで、各hookスクリプトの冒頭へ「ゼロforkの前置フィルタ」を置く**
+（ユーザーの提案「共通チェックシェルでラップする」に対し、実測のうえ本案を採った。経緯は同日の
+worklog）。
+
+#### なぜ前置フィルタが要るのか — 空振り1回が14 fork
+
+`if` を落とすと、対象外のツール呼び出しでもスクリプトが起動して自己判定する。**その空振りが
+安くない。** 早期終了パスに `raw="$(cat)"` と `printf | jq` が4回あり、判定に辿り着く前の
+材料取り出しだけでこれだけのプロセスを生む（`strace` による実測。2026-08-22）。
+
+| 早期終了パスの計測（push以外のペイロード） | execve | clone |
+|---|---|---|
+| 空関数（ベースライン） | 1 | 0 |
+| `post-push-usage-report.sh` | 6 | 14 |
+| `post-push-compact-prompt.sh` | 6 | 14 |
+| `post-issue-create-notice.sh` | 7 | 17 |
+| `block-direct-git-commit.sh` | 5 | 10 |
+
+git bashの外部プロセス起動は約95ms/回（`.claude/rules/shell-script-style.md`「外部プロセス起動の
+コスト」）なので、空振り1回で数百ms規模になる。**加えて `if` を落とすとBash用・PowerShell用の
+2エントリが同一内容になるため、重複排除しないと同じスクリプトが2回ずつ走る。**
+
+#### 前置フィルタの形
+
+```bash
+IFS= read -r -d '' raw || true                 # $(cat) をやめる → fork 0
+[ -n "$raw" ] || exit 0
+case "$raw" in *push*) ;; *) exit 0 ;; esac    # jq を通さず生JSONで足切り → fork 0
+```
+
+- **`read` も `case` もbash組み込みなのでforkしない。** 実測で空関数と同じ（execve 1 / clone 0）。
+- **パターンは精密判定の超集合にする。** `*push*` は `git -C /x push` のように `git push` が連続
+  しない形も通す。**`git[[:space:]]+push` へ縮めてはいけない**（そちらは超集合ではなく、
+  取りこぼす）。
+- **緩い側へ倒す。** 空振りしても後段の `command_invokes_git_subcommand` が正しく落とすので、
+  前置フィルタの誤検知は無害である。逆に取りこぼすと機能が黙って死ぬ。
+
+#### 採らなかった案 — `.gemini/` 側にディスパッチャを置く
+
+同時に発火する2本を1本のラッパーで束ね、判定を1回で済ませる案。**実測では案の差はexecve 1回
+だけだった**（ディスパッチャ 13/27 対 前置フィルタ 14/27）。
+
+- **`.gemini/` にだけ存在する手書きスクリプトが増える。** issue #70 は「`.gemini/` を `.claude/` の
+  変換生成物にする」ことが目的なので、変換元を持たないファイルを足すと二重管理が形を変えて戻る。
+- **前置フィルタは `.claude/hooks/` 側の変更なので、Claude Codeにも効く。** `if` を持たず毎回
+  起動している `block-direct-git-commit.sh`・`post-issue-create-notice.sh` にも同じ手を入れると、
+  **現状の 12/27 が 4/0 になる**（ディスパッチャ案はここに届かない）。
+- push系hookが増えたときはディスパッチャが有利になる。そのときに移ればよい。
+
+#### 変換規則としての帰結
+
+| 規則 | 内容 |
+|---|---|
+| `if` キー | **出力しない**（Gemini の `CommandHookConfig` に無い） |
+| 重複エントリ | `if` を落とした結果**同一内容になったエントリは1つへ畳む**（4→2）。畳まないと同じスクリプトが2回走る |
+| 前置フィルタ | 変換で生成するものではなく、**`.claude/hooks/*.sh` 側へ恒久的に入れる**（`【実装】【テスト】` の変更対象へ追加する） |
 
 ---
 
