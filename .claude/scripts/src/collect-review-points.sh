@@ -74,7 +74,7 @@ strip_frontmatter_and_h1() {
 }
 
 main() {
-  local repo_root rel dir found=0 file
+  local repo_root rel dir found=0 file prefix base
   local -a dirs=()
   local -A seen=()
 
@@ -99,17 +99,25 @@ main() {
 
   # 浅い順（`/` の個数順）に並べ替える。ファイルを渡した順序に依存せず、常に
   # 「一般 → 具体」の順で出力するため。
+  # 同じディレクトリで、本家の観点表（REVIEW-POINTS.md）→ 配布先固有（REVIEW-POINTS.local.md）
+  # の順に出す。**スキップの単位はディレクトリではなくファイルである**（issue #26）。
+  # ディレクトリ単位で `continue` すると、本家の観点表が無く .local だけあるディレクトリ
+  # （配布先が src/ や internal/ へ自分の観点を置く、.local の最も典型的な使い方）が
+  # 丸ごと無視される。
   while IFS= read -r dir; do
     if [ "$dir" = "." ]; then
-      rel="REVIEW-POINTS.md"
+      prefix=""
     else
-      rel="$dir/REVIEW-POINTS.md"
+      prefix="$dir/"
     fi
-    [ -f "$rel" ] || continue
-    found=1
-    printf '## %s\n\n' "$rel"
-    strip_frontmatter_and_h1 "$rel"
-    printf '\n'
+    for base in "REVIEW-POINTS.md" "REVIEW-POINTS.local.md"; do
+      rel="${prefix}${base}"
+      [ -f "$rel" ] || continue
+      found=1
+      printf '## %s\n\n' "$rel"
+      strip_frontmatter_and_h1 "$rel"
+      printf '\n'
+    done
   done < <(printf '%s\n' "${dirs[@]}" | awk '{print gsub("/", "/") "\t" $0}' | sort -k1,1n -k2,2 | cut -f2-)
 
   [ "$found" -eq 1 ] || return 0

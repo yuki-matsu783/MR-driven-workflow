@@ -2,17 +2,18 @@
 # `#` の無い裸の行だったためignoreパターンとして有効になっていたのを、issue #32でコメント化した。
 # 参考ディレクトリ
 
-# ビルド成果物
-/build/
-
-# apply-mr-workflow-to-projectスキルのsync-assets.shが生成するビルド用一時ディレクトリ
-/.claude/skills/apply-mr-workflow-to-project/assets/
-
 # エディタ
 .vscode/
 
 # ログ
 *.log
+
+# --- dist:begin ---
+# ここから dist:end までの、コメント・空行を除く行が、他プロジェクトへの配布時に配布先の
+# .gitignore へ追記される（layer=merge / strategy=lines-marker。定義: .claude/dist-layers.json）。
+# 配る行の写しを別ファイルに持たず、本家の実状態そのものを正とする（issue #26。旧方式では
+# sync-assets.sh が集めた assets/.gitignore が実状態とずれても誰も気づけなかった）。
+# .vscode/ と *.log は配布先の好みなので、意図的にこの範囲の外へ置いている。
 
 # 対応工数レポート機能のローカル作業状態（セッションログのミラー・集計状態・push断面インデックス。
 # ブランチ横断・非コミット対象）。issue #23で、旧 post-push-save-logs.sh が使っていた /logs/ を
@@ -43,3 +44,4 @@
 *.stackdump
 # generate-ddr-list.sh の一時ファイル（実行が中断されると残ることがある。issue #127で1度コミットしてしまった）
 .claude/docs/.ddr-list.*
+# --- dist:end ---
