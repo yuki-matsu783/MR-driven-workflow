@@ -17,8 +17,8 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - issue: #54（https://github.com/yuki-matsu783/MR-driven-workflow/issues/54 ）
 - ブランチ: `claude/plan-report-html-template-024l0t`
 - PR: #156（Draft）（https://github.com/yuki-matsu783/MR-driven-workflow/pull/156 ）
-- push回数: 11
-- 現在のループ: 4-3〜4-4 の1周目（完了）
+- push回数: 12
+- 現在のループ: 4-6〜4-9 の1周目（進行中）
 - 追従監視: あり（PRイベント購読＋定期チェックイン。Claude Code on the web）
 
 | 進捗 | flow-id | ステップ | 担当 |
@@ -53,7 +53,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 | [x] | 4-2 | commit・pushしてレビュー依頼を行う | エージェント |
 | [x] | 4-3 | MRで反映計画についてレビュー・コメントする | 人間 |
 | [x] | 4-4 | レビュー内容を取得し反映計画を修正・返信する | サブコマンド |
-| [] | 4-5 | 反映計画をもとにMR descriptionを更新する | サブコマンド |
+| [x] | 4-5 | 反映計画をもとにMR descriptionを更新する | サブコマンド |
 | [] | 4-6 | 設計反映・AIアセット反映・実装反映を行う | エージェント |
 | [] | 4-7 | commit・pushしてレビュー依頼を行う | エージェント |
 | [] | 4-8 | MRでレビュー・コメントする | 人間 |
@@ -171,31 +171,32 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - flow-id 3-9（進捗表の是正）: 敵対的レビューの指摘どおり **3-2 を `[x]` へ直した**。
   ただし **3-6・3-7 が `[]` なのは正しい**（`3-6〜3-9` はループ範囲で、1周が完了して初めて
   `[x]` にできる）。3-3/3-4 は非対話セッションのため `[]` のまま残す。
+- flow-id 4-5: MR description を反映計画の内容へ更新した（`describe` 相当を MCP 経路で実施）。
+- flow-id 4-6: 反映を実施した。`spec/issue-mr-workflow.md` へ
+  `### 計画・レポートのHTMLビュー（issue #54）` を新設し、暫定記述（「未作成の間は手書きへ
+  フォールバック」）を解除、`## 影響範囲` へ changelog を追記。DDR
+  `i0054-01-計画レポートのHTMLビューはassets配下のテンプレートへ切り出す.md` を**SKILL.md が
+  既に参照している名前で**新規作成し、`i0000-11` / `i0141-01` へ `note` を**シングルクォート付きで**
+  追加、`generate-ddr-list.sh` で README のDDR一覧を再生成した（72件・`--check` は exit 0）。
+  あわせて `spec/create-commit.md` へ「渡したパスに加えてステージ済みの変更も同じコミットへ入る」
+  挙動を記録し、`rules/git-workflow.md` からそこを指す1項目を足した。
+  検証9項目はすべて期待どおりで、**既存DDR本文の削除行は0・spec の削除行は意図した1行だけ**。
+  結果は `reports/20260822_tidy-scoping-lantern_設計反映とAIアセット反映の結果.md` と
+  同名の `.html` に記録した。
 
 ## 次にやること
 
-- flow-id 4-5: MR descriptionを更新する。
-- flow-id 4-6: 反映を実施し、結果を `reports/` のmd・htmlへ記録する。
-  **`i0054-01-計画レポートのHTMLビューはassets配下のテンプレートへ切り出す.md` を、この
-  ファイル名で必ず作る**（`SKILL.md` が既にこの名前で参照しているため）。
-  **DDRの `note` はシングルクォートで囲む**（囲まないと ` #54` 以降が行内コメントとして落ち、
-  READMEの注記が途中で切れる。フェーズ4の敵対的レビューで判明）。
-  DDR追加後は `generate-ddr-list.sh` を実行し、差分を同じコミットへ含める。
-- flow-id 4-6: 反映を実施し、結果を `reports/` のmd・htmlへ記録する。
-  **`.claude/docs/ddr/i0054-01-計画レポートのHTMLビューはassets配下のテンプレートへ切り出す.md`
-  を、このファイル名で必ず作る**（`issue-mr-flow/SKILL.md` が既にこの名前で参照しているため。
-  2件に分けたくなった場合は2件目を `i0054-02` として足し、`i0054-01` の名前は変えない）。
-  DDRを追加したら `bash .claude/scripts/src/generate-ddr-list.sh` を実行し、差分を同じ
-  コミットへ含める。
-- フェーズ5: 5-1 コンフリクト検知 → 5-2 関連issue通知（**投稿前に `AskUserQuestion` が必須**）
-  → 5-3 統括レポート → 5-4 片付け（`cleanup-task.sh`）→ 5-5 Draft解除。**5-6（マージ）は行わない。**
-- **フェーズ4で必ず作る**:
-  `.claude/docs/ddr/i0054-01-計画レポートのHTMLビューはassets配下のテンプレートへ切り出す.md`
-  を**このファイル名で**作成する（`issue-mr-flow/SKILL.md` が既にこの名前で参照しているため。
-  2件に分けたくなった場合は2件目を `i0054-02` として足し、`i0054-01` の名前は変えない）。
-- フェーズ4: 個別反映計画 → spec（`spec/issue-mr-workflow.md:677` の暫定記述の解除を含む）・
-  新規DDR（Q1の方式変更と `assets` 語彙）・`i0000-11` / `i0141-01` への `note` 追加・
-  `generate-ddr-list.sh` の再実行・`.claude/VERSION` の増分**提案**。
+- flow-id 4-7: commit・push してレビュー依頼を行う（push 12）。
+- flow-id 4-8: 人間レビューの代替として敵対的レビューを実施する
+  （フェーズ4のカウンタは現在 **1**。次が2回目で、上限は3回）。
+- flow-id 4-9: 指摘へ対応し、スレッドへ返信する。1周が完全に終わってから
+  `update-handoff-progress.sh mark-done 4-6` でループ範囲 4-6〜4-9 を `[x]` にする
+  （**範囲の一部だけを先に `[x]` にしない**。今回いったん誤って進めて戻した）。
+- flow-id 4-10: 反映内容をもとに MR description を更新する。
+- フェーズ5: 5-1 コンフリクト検知（`check-base-conflicts.sh`）→ 5-2 関連issue通知
+  （**投稿前に `AskUserQuestion` が必須**）→ 5-3 統括レポート（md・html）→ 5-4 片付け
+  （`cleanup-task.sh`。`REVIEW-POINTS.md` と `worklog/TEMPLATE.md` は残る）→ 5-5 Draft解除。
+  **5-6（マージ）は行わない。** マージはユーザーの明示指示が必須である。
 
 ## 判断を迷った内容
 
