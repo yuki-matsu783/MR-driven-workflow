@@ -17,13 +17,18 @@ keywords: [層分け, core, seed, merge, local, REVIEW-POINTS, asset-manifest, s
 フェーズ3の個別作業計画（flow-id 3-1）を「どのパスをどの層に置き、manifestへ何を書き、
 インストーラをどう組み立てるか」まで確定した状態で書けるようにする。
 
-**この調査で決めきる**のは次の3点である。ここが決まらないとフェーズ3の実装方針が定まらない。
+**下記の調査項目7件すべてがこの調査の対象である。** そのうち**とくに人間の合意が要る**のは
+次の3点で、ここは調査結果の報告時に明示的に判断を仰ぐ。
 
 1. **層分けの網羅性** — 配布対象になりうるすべてのパスが、4層のいずれかへ漏れなく入るか。
    入らないものが出た場合、層を増やすのか、既存の層の定義を広げるのか。
-2. **`REVIEW-POINTS.md` の扱い**（全体計画の「未解決の内容」）。
+2. **`REVIEW-POINTS.md` の扱い**（`HANDOFF.md`「未解決の内容」）。
 3. **層分け定義の置き場所と形式** — 1枚の定義ファイルに集約するか、`.gitattributes` 方式
    （各ファイル自身がマーカーで配布範囲を持つ）にするか。
+
+残る4件（調査4 manifestの記録項目・調査5 既存欠陥・調査6 `AGENTS.md` の分割線・調査7 `.skill`
+廃止の影響範囲）も、**決まらなければフェーズ3の実装方針が定まらない**点は同じである
+（「余力があれば」の扱いにしない）。
 
 ## 調査項目
 
@@ -31,10 +36,29 @@ keywords: [層分け, core, seed, merge, local, REVIEW-POINTS, asset-manifest, s
 
 **やること**
 
-- `.claude/` 配下・リポジトリルート直下・`.github/` `.gitlab/` の**全ファイル**を列挙する
-  （`git ls-files -z` で追跡ファイルを、`.gitignore` 対象は別途 `git status --ignored` 等で）。
+- **リポジトリ内の全パス**（追跡ファイル＋`.gitignore` 対象）を列挙する。範囲を
+  `.claude/` 配下やルート直下へ絞らない。**`.gemini/` `plans/` `reports/` `worklog/` も
+  明示的に範囲へ含める**（現行の `sync-assets.sh` は `.gemini/` 配下を配布対象として丸ごと
+  コピーしており、範囲外にすると現行の配布対象を取りこぼす）。
 - 各パスへ `core` / `seed` / `merge` / `local` のいずれかを割り当て、**根拠を1行で添える**。
+- **配布対象外と判定したパスも、対象外である理由を1行付けて表に残す**（表から消さない）。
+  「定義に無い＝配布しない」という暗黙の既定値にすると、追記忘れが無言の欠落として現れる
+  （調査3が案Aの弱点として挙げているのと同じ失敗を、調査の入口で踏まないため）。
 - **どの層にも割り当てられないパスを、割り当てられない理由つきで抜き出す**。
+
+**列挙の方法**
+
+| 対象 | 方法 | 注意 |
+|---|---|---|
+| 追跡ファイル | `git ls-files -z` | パスのクォートを避けるため `-z` を使う |
+| `.gitignore` 対象（`local` 層の候補） | **`.gitignore` のパターンを正として導く** | 下記のとおり実在ファイルの列挙では漏れる |
+
+**`local` 層の一覧は `.gitignore` のパターンから導き、`git status --ignored` は突き合わせの
+補助に留める。** 実在ファイルの列挙は実行環境に依存し、**この環境では `/usage/`（未生成）と
+`.gemini/{docs,hooks,rules,scripts,skills}`（`setup-gemini-links.sh` 未実行のため実体なし）が
+1件も現れない**。加えて `git status --porcelain --ignored` はディレクトリ単位に畳むため、
+配下のファイルを見るには `--ignored=matching` が要る。各パターンについて「何のために存在するか」
+も併せて記録する。
 
 **判定の軸**（issue本文の層定義を、判定可能な問いへ言い換えたもの）
 
@@ -53,6 +77,15 @@ keywords: [層分け, core, seed, merge, local, REVIEW-POINTS, asset-manifest, s
 - `worklog/TEMPLATE.md`（issue本文は `core` としているが、`worklog/*.md` は `local`。
   同一ディレクトリで層が割れる場合に、定義ファイルがそれを表現できるか）
 - `.gemini/settings.json`（Git管理下にある唯一の `.gemini/` 配下ファイル）
+- **`.gemini/{docs,hooks,rules,scripts,skills}`**（受け入れ条件8が「実体コピーで配置済みの
+  リポジトリへ再適用すると、`.gemini/` 配下のコピー内容が最新の `.claude/` 配下と一致する」と
+  要求している一方、これらは `.gitignore` 対象で素直に読めば `local` 層に落ちる。受け入れ条件2
+  「`local` 層のファイルは作成も変更もされない」と**そのままでは両立しない**）。
+  - 決めること: 「`.gitignore` 対象だが**本家が内容を所有する生成物**」を4層のどれで表すか。
+    あるいはインストーラの対象外とし、`setup-gemini-links.sh` が単独で責任を持つ形にするか。
+  - 判断材料として、**リンクと実体コピーをどう見分けるか**（`[ -L ]` で足りるか）と、
+    **古くなった実体コピーをどう検出するか**を調べる。受け入れ条件2・8の両方を引用したうえで
+    結論を書く。
 
 **成果**: パス→層の対応表（`reports/…md`）。ここがそのまま層分け定義ファイルの原案になる。
 
@@ -70,6 +103,13 @@ keywords: [層分け, core, seed, merge, local, REVIEW-POINTS, asset-manifest, s
   何が足りないか（例: 本家が観点を追加しても配布先へ永久に届かない）。
 - 第5の層（`seed` だが更新の通知だけは行う、等）を作る必要があるか。**層を増やすコストと、
   増やさずに済ませたときの実害を比較して判断する。**
+
+**出口条件**: issue #26 の受け入れ条件1は「**4層**（core/seed/merge/local）のすべてのパスが
+分類されている」と層の数を固定している。したがって、
+
+1. **既存4層の定義を広げて吸収できないか**をまず検討する（こちらを優先する）。
+2. それでも第5の層が必要という結論になった場合は、**受け入れ条件1の更新をユーザーへ提案し、
+   合意を得てから先へ進む**。AIの判断で受け入れ条件を読み替えない。
 
 ### 調査3: 層分け定義の置き場所と形式
 
@@ -103,11 +143,20 @@ issue #26 のコメント（PR #136）が「配る行の定義をスクリプト
 - sha256の算出対象（改行コード正規化の要否）。Windowsで `core.autocrlf=true` の配布先では
   作業ツリーがCRLFになるため、**本家のLF基準で取ったsha256と必ず食い違う**。
   この扱いを決めないと「配布先が変更した」という誤検知が全ファイルで出る。
+- **コミットSHAを記録する前提として「dirty」をどう定義するか**（受け入れ条件6「本家の
+  ワークツリーがdirtyな状態では適用が中断する」の判定基準）。未追跡ファイルを含めるか、
+  無視ファイルを含めるか、配布対象パスに限定するかで、開発中の使い勝手が大きく変わる。
+  - **フェーズ3の実装中、本家のワークツリーは常にdirtyである**（`plans/` `worklog/` と
+    実装中のスクリプトが未コミットのため）。`test_install_to_project.sh` は
+    `install-to-project.sh` を実プロセスとして起動する結合テストなので、素直に中断ガードを
+    入れると**開発中はテストが1件も流せなくなる**。
+  - テスト用の逃げ道（`--allow-dirty` 等）を持たせるかどうかを、この調査の結論として示す
+    （実装自体はフェーズ3）。その場しのぎのバイパスが後から入るのを避けるため、**先に決める**。
 
-### 調査5: 既存欠陥4件の再現と、作り直しで消えるかの切り分け
+### 調査5: 既存欠陥5件の再現と、作り直しで消えるかの切り分け
 
 issue #26 のコメント（PR #136）と `.claude/docs/spec/distribution-assets.md`「未決定事項・懸念点」が
-記録している4件。**作り直しで自然に消えるものと、明示的に対処が要るものを分ける**
+記録している5件。**作り直しで自然に消えるものと、明示的に対処が要るものを分ける**
 （消えると思い込んで持ち越すのを防ぐ）。
 
 | # | 欠陥 | 確かめること |
@@ -116,6 +165,11 @@ issue #26 のコメント（PR #136）と `.claude/docs/spec/distribution-assets
 | 2 | 同判定が部分一致（`grep -Fq`、`--` 無し） | コメント行での誤検知を再現する |
 | 3 | 追記される行が本家の実状態ディレクトリ（`/usage/` `/.claude/state/`）と不一致 | 現在の `.gitignore` と突き合わせ、配るべき行を確定する |
 | 4 | `HAS_WARNED` が `safe_copy_dir` の外へ伝わらない（パイプライン起因のサブシェル） | 再現し、作り直し後の実装で同じ形を作らないことを確認する |
+| 5 | 配布先へ `.gitignore` 対象のローカル生成物が混入する（`index.jsonl` と `.claude/state/`） | 受け入れ条件2（`local` 層は作成も変更もしない）でカバーされる見込み。**層分け定義の側で消える根拠**を、対応関係として明記する |
+
+欠陥5は、現行 `sync-assets.sh` が `.claude/` を丸ごとコピーしている（`assets/.claude/**` へ
+`index.jsonl` が入る）ことに由来する。**新方式で再発したときに気づけるよう、消える根拠を
+受け入れ条件へ紐づけて書く**（件数を書く場合は何を数えたかを添える）。
 
 ### 調査6: `AGENTS.md` の分割線
 
@@ -128,8 +182,14 @@ issue #26 のコメント（PR #136）と `.claude/docs/spec/distribution-assets
 
 ### 調査7: `.skill` パッケージ廃止の影響範囲
 
-- `sync-assets.sh` / `.skill` / `package_skill.cjs` への参照を全文検索し、`DEVELOPERS.md` 以外に
-  参照が無いことを確かめる（`.gitignore` の `assets/` 除外行、`distribution-assets.md` の配布経路表を含む）。
+- `sync-assets.sh` / `.skill` / `package_skill.cjs` への参照を全文検索し、**現状を説明していて
+  書き換えが要る箇所**と、**過去の記録（DDR本文・specのchangelogエントリ）として書き換えては
+  いけない箇所**に分ける（`.gitignore` の `assets/` 除外行、`distribution-assets.md` の
+  配布経路表を含む）。
+- **`DEVELOPERS.md` は「参照が無いことを確かめる」対象ではなく、書き換えが必要な対象である**
+  （受け入れ条件10の後半）。実際に `.skill` パッケージ手順をコマンド付きで案内しているため、
+  どの節をどう書き換えるかまで洗い出す。書き換えの実施は全体作業計画のフェーズ3
+  `【AIアセット作成】`が担う。
 - **`.gitattributes` の配る行の読み出し元**（現行は `assets/.gitattributes`）を、新方式でどこへ
   移すかを決める（issue #26 のコメント（PR #136）が「移設漏れで静かに空振りする」と指摘した箇所）。
 
@@ -141,8 +201,10 @@ issue #26 のコメント（PR #136）と `.claude/docs/spec/distribution-assets
 - **`.claude/VERSION` の増分**。フェーズ4（`【AIアセット反映】`）で提案する。
 - **Windows実機での改行挙動の確認**。`.claude/docs/spec/distribution-assets.md` が未確認として
   記録しているとおり、この実行環境（Linuxコンテナ）では再現できない。調査4では「LF基準で
-  正規化してからsha256を取る」といった**実装で回避する方針**を決めるに留め、実機確認は
-  未決定事項として残す。
+  正規化してからsha256を取る」といった**実装で回避する方針**を決めるに留める。
+  **未確認であるという事実は、フェーズ4（`【設計反映】`）で新方式のspecの「未決定事項・懸念点」へ
+  記載する**（現行 `distribution-assets.md` の記述は旧方式の文脈で書かれているため、新specへ
+  写さないとリポジトリから消える）。
 
 ## 検証手順
 
@@ -156,17 +218,35 @@ git init "$tmp" >/dev/null
 bash .claude/skills/apply-mr-workflow-to-project/scripts/sync-assets.sh
 bash .claude/skills/apply-mr-workflow-to-project/scripts/install-to-project.sh "$tmp"
 cp "$tmp/.gitignore" "$tmp/.gitignore.1st"
-bash .claude/skills/apply-mr-workflow-to-project/scripts/install-to-project.sh "$tmp"
-diff "$tmp/.gitignore.1st" "$tmp/.gitignore"   # 空行が増えていれば欠陥1を再現
 
-# 検証2: 層の割り当て網羅性。全追跡ファイルを列挙し、割り当て表の行数と突き合わせる
-git ls-files -z | tr '\0' '\n' | wc -l
+# 欠陥2の発火条件を作る: 配布する行を「コメントとして含むだけ」の行を配布先へ仕込む
+printf '# %s は当面不要と判断した\n' '/.claude/session-logs/' >> "$tmp/.gitignore"
+
+# 欠陥4の発火条件を作る: safe_copy_dir 経由のファイルを配布先で改変する
+#   （ルート直下の HANDOFF.md は safe_copy_file 経由でATTENTIONが出てしまい再現にならない）
+printf '\n<!-- 配布先で改変 -->\n' >> "$tmp/.claude/rules/git-workflow.md"
+
+bash .claude/skills/apply-mr-workflow-to-project/scripts/install-to-project.sh "$tmp" \
+  > "$tmp/2nd.log" 2>&1
+diff "$tmp/.gitignore.1st" "$tmp/.gitignore"      # 空行が増えていれば欠陥1を再現
+grep -Fxq -- '/.claude/session-logs/' "$tmp/.gitignore" || echo '欠陥2を再現（実設定が入らない）'
+grep -c 'WARNING' "$tmp/2nd.log"                   # 1件以上出る
+grep -c 'ATTENTION' "$tmp/2nd.log"                 # 0件なら欠陥4を再現
+
+# 検証2: 層の割り当て網羅性。割り当て表と同じ範囲の追跡ファイルを数えて突き合わせる
+#   このタスク自身が増減させる plans/ worklog/ reports/ は分母から除き、除外件数も出す
+git ls-files -z -- . ':(exclude)plans' ':(exclude)worklog' ':(exclude)reports' \
+  | tr '\0' '\n' | grep -c .
+git ls-files -z -- plans worklog reports | tr '\0' '\n' | grep -c .   # 除外した件数
 ```
 
 - 検証1の実行時は、`.gitignore` 対象の `assets/` を生成することになるため、**調査後に片付ける**
   （`rm -rf .claude/skills/apply-mr-workflow-to-project/assets` と一時ディレクトリの削除）。
-- 検証2は、`.gitignore` 対象ファイル（`index.jsonl` 等）が追跡ファイルの列挙に出てこないため、
-  **`local` 層の網羅性はこれだけでは確認できない**。`local` 層は別途 `.gitignore` の内容から導く。
+- **検証1は欠陥3を対象にしない**（配る行と本家の実状態の突き合わせは読み取りで足りるため）。
+- 検証2の分母は**追跡ファイルのみ**である。`.gitignore` 対象（`index.jsonl` 等）は列挙に出て
+  こないため、**`local` 層の網羅性はこれだけでは確認できない**。`local` 層は調査1のとおり
+  `.gitignore` のパターンから導き、件数を別に出して突き合わせる。
+- **件数を報告するときは「何を数えたか」を必ず添える**（分母が違う数を並べても比較にならない）。
 
 ## 成果物
 

@@ -71,7 +71,9 @@ issue本文は起票時点（2026-08-18）のもので、その後のマージ�
 6. **`AGENTS.md` の分割線**。どこまでが共通ルール（本家所有）で、どこからがプロジェクト概要
    （配布先所有）か。`CLAUDE.md` / `GEMINI.md` の `@import` 記法が `.claude/rules/` 配下の
    ファイルに対しても機能するかの確認を含む。
-7. **`.skill` パッケージ廃止の影響範囲**（`DEVELOPERS.md` 以外に参照が無いか）。
+7. **`.skill` パッケージ廃止の影響範囲**。参照箇所を「書き換えが要る現状の説明」と
+   「書き換えてはいけない過去の記録（DDR本文・specのchangelog）」に分ける。
+   **`DEVELOPERS.md` は確認対象ではなく書き換え対象**（受け入れ条件10の後半）。
 
 ## フェーズ3〈作業〉
 
@@ -80,9 +82,11 @@ issue本文は起票時点（2026-08-18）のもので、その後のマージ�
 | 種別 | 内容（見込み） |
 |---|---|
 | `【設計】` | 層分け定義ファイルのスキーマ、manifestのスキーマ、インストーラの処理順序 |
-| `【実装】` | 層分け定義ファイルの新規作成／`install-to-project.sh` の作り直し（層ごとの配置・manifest生成・cleanガード・再適用時の警告）／`setup-gemini-links.sh` の実体コピーフォールバック／`AGENTS.md` の分割／`sync-assets.sh` 削除 |
-| `【テスト】` | `test_install_to_project.sh` の作り直し（受け入れ条件の各項目に対応するケース）／`setup-gemini-links.sh` のフォールバック検証 |
-| `【AIアセット作成】` | `apply-mr-workflow-to-project/SKILL.md` の全面改訂（`.skill` 前提の記述を削除し新方式へ）／`ai-asset:` prefix 運用規約の追加 |
+| `【実装】` | 層分け定義ファイルの新規作成／`install-to-project.sh` の作り直し（層ごとの配置・manifest生成・**dirty中断ガード**・再適用時の警告）／`setup-gemini-links.sh` の実体コピーフォールバック／`AGENTS.md` の分割／`sync-assets.sh` 削除 |
+| `【テスト】` | `test_install_to_project.sh` の作り直し（受け入れ条件の各項目に対応するケース）／**現行テストの表明の棚卸しと引き継ぎ**（受け入れ条件には現れないが守られている保証。PR/MRテンプレートの見出しが `describe` の生成物と一致する／`.gitattributes` の行追記が何度適用しても増えない（配布先がCRLFの場合を含む）／`.claude/VERSION` の更新が `.bak` と警告を生まない、等）／`setup-gemini-links.sh` のフォールバック検証 |
+| `【AIアセット作成】` | `apply-mr-workflow-to-project/SKILL.md` の全面改訂（`.skill` 前提の記述を削除し新方式へ）／**`DEVELOPERS.md` の書き換え**（`sync-assets.sh` 実行 → `package_skill.cjs` → `gemini skills install` の手順を新方式へ差し替える。受け入れ条件10の後半。フェーズ4ではなくここで行う）／`ai-asset:` prefix 運用規約の追加 |
+
+**`【テスト】`の作り直しでは、旧テストを新実装に対しても流して差分を見る**（受け入れ条件に対応するケースだけで書き直すと、上記の既存の保証が無言で失われるため）。
 
 ## フェーズ4〈反映〉
 
