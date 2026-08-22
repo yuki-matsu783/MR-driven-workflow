@@ -70,11 +70,11 @@ keywords: [plans.template.html, reports.template.html, assets, canvas-report, �
 - **必須／任意セクションを区別する。** 各 `<section>` の直前のHTMLコメントへ `[必須]` `[任意]` を
   書き、任意は「不要なら `<section>` ごと削除する」と明記する。
 - **プレースホルダはHTMLコメントで書く**（`worklog/TEMPLATE.md` と同じ方式）。文言は
-  「ここに書く: …」で統一し、`grep -c 'ここに書く' <出力>` が 0 であることを埋め忘れの検査に使う。
+  「ここに書く: …」で統一し、`grep -c '<!-- ここに書く' <出力>` が 0 であることを埋め忘れの検査に使う。
 - ライト／ダーク両対応（`prefers-color-scheme`）。表は `.tablewrap` の中で横スクロールさせ、
   ページ本体を横スクロールさせない。
 
-#### セクション構成の根拠
+### セクション構成の根拠（3つ）
 
 調査 Q2 のとおり、次の**3つ**から起こす。
 
@@ -177,6 +177,11 @@ keywords: [plans.template.html, reports.template.html, assets, canvas-report, �
   （flow-id 4-6）で行うが、**決めるのは人間**であり、AIが独断で上げない
   （`.claude/docs/spec/distribution-assets.md`）。
 - **spec/DDRへの反映**。フェーズ4（flow-id 4-6）で行う。
+- **既存の計画への遡及適用**。このブランチに先行して作られた `plans/tidy-scoping-lantern.md`
+  （全体作業計画）と `plans/【調査】HTMLビューの前提確定と参照箇所の洗い出し.md` には、
+  同名の `.html` を**遡って作らない**（テンプレートが存在しない時点の成果物であり、
+  HTMLビューの必須化は**新規作成分から適用**する）。`plans/REVIEW-POINTS.md` の
+  「HTML版」の観点も、この2ファイルには適用しない。
 
 ## 検証
 
@@ -191,9 +196,15 @@ for f in ['.claude/skills/issue-mr-flow/assets/plans.template.html',
     P().feed(io.open(f, encoding='utf-8').read()); print('parse ok:', f)
 PY
 
-# 2. 外部依存が無いこと（http/https を参照する行が0であること）
-grep -c 'https\?://' .claude/skills/issue-mr-flow/assets/plans.template.html
-grep -c 'https\?://' .claude/skills/issue-mr-flow/assets/reports.template.html
+# 2. 外部依存が無いこと（実際に外部を読みに行く記述が0件であること）
+#    https を含む行を数える形にしない（本文でのURL引用・SVG名前空間を誤検知するため）
+grep -nE '(src|href)="https?://|url\(https?://' \
+  .claude/skills/issue-mr-flow/assets/plans.template.html \
+  .claude/skills/issue-mr-flow/assets/reports.template.html
+
+# 2-b. 計画・レポートのmdとHTMLで節見出しが一致していること（同期漏れの検出）
+diff <(grep -oE '^#{2,3} .*' <対象>.md | sed -E 's/^#+ //') \
+     <(grep -oE '<h[23]>.*</h[23]>' <対象>.html | sed -E 's/<[^>]+>//g')
 
 # 3. ブラウザ実機で崩れないこと（同梱Chromiumでライト/ダーク両方をスクリーンショット）
 /opt/pw-browsers/chromium-1194/chrome-linux/chrome --headless --disable-gpu --no-sandbox \
