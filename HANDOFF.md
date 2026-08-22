@@ -18,7 +18,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - ブランチ: feature-103-collect-claude-code-otel-telemetry-into-usage
 - PR: #158 https://github.com/yuki-matsu783/MR-driven-workflow/pull/158
 - push回数: 1
-- 現在のループ: 2-6〜2-9 の1周目（進行中）
+- 現在のループ: なし
 - 追従監視: なし（ローカル。各pushとflow-id 5-1で手動で `/resolve-conflict` を確認する）
 
 | 進捗 | flow-id | ステップ | 担当 |
@@ -34,12 +34,12 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 | [x] | 2-3 | 調査計画をレビュー | 人間 |
 | [x] | 2-4 | レビュー内容を取得し調査計画を修正 | サブコマンド |
 | [x] | 2-5 | 調査計画をもとにMR descriptionを更新 | サブコマンド |
-| [] | 2-6 | 調査を実施しreports/へ記録 | エージェント |
-| [] | 2-7 | commitしpushしてレビュー依頼 | エージェント |
-| [] | 2-8 | 調査結果をレビュー | 人間 |
-| [] | 2-9 | レビュー内容を取得し調査結果を修正 | サブコマンド |
-| [] | 2-10 | 調査結果をもとにMR descriptionを更新 | サブコマンド |
-| [] | 3-1 | 個別作業計画を作成する | エージェント |
+| [x] | 2-6 | 調査を実施しreports/へ記録 | エージェント |
+| [x] | 2-7 | commitしpushしてレビュー依頼 | エージェント |
+| [x] | 2-8 | 調査結果をレビュー | 人間 |
+| [x] | 2-9 | レビュー内容を取得し調査結果を修正 | サブコマンド |
+| [x] | 2-10 | 調査結果をもとにMR descriptionを更新 | サブコマンド |
+| [x] | 3-1 | 個別作業計画を作成する | エージェント |
 | [] | 3-2 | commitしpushしてレビュー依頼 | エージェント |
 | [] | 3-3 | 作業計画をレビュー | 人間 |
 | [] | 3-4 | レビュー内容を取得し作業計画を修正 | サブコマンド |
@@ -105,14 +105,40 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
   同名html）へ記録した。フェーズ3への持ち越し事項4点（機構バージョンの不整合懸念・ローテーション
   方式・単体テスト出力形式・共有位置の具体パス）も明記した。
 
+- flow-id 2-7: `create-commit.sh`経由でコミット`530515a`（調査結果reports/2件・worklog・
+  HANDOFF.md）を作成し、リモートへ反映してレビュー依頼メッセージを送った。
+- flow-id 2-8: ユーザーから「レビューOK」の連絡を受けた（MR未解決コメント0件、
+  `get_mr_unresolved_comments 158`で再確認済み）。
+- flow-id 2-9: 対応が必要な指摘は無かった（コメント無しでの承認）。
+- flow-id 2-10: 調査結果（フェーズ2完了、7論点＋追加3点の結論）をもとにMR #158の
+  descriptionを更新した。
+
+- flow-id 3-1: 調査結果をもとに個別作業計画
+  `plans/【設計】【実装】【テスト】OTelリスナー機構の実装.md`を作成した。フェーズ2の
+  持ち越し事項4点（機構バージョン不整合対策として`schemaVersion`追加・日次ローテーション・
+  TAP形式単体テスト・共有位置の具体パス）を反映した。**計画作成中に新たな論点を発見**:
+  issue期待する動作5「WSLはWindows側の同一ポート番号を占有するため環境ごとに別ポートを
+  割り当てる」と、フェーズ2結論4「プロジェクトスコープの`.claude/settings.json`で完結可能」
+  が矛盾する（単一の共有設定ファイルではOS別にエンドポイントを分けられない）ことに気づき、
+  環境非依存の設定は`.claude/settings.json`、環境依存の`OTEL_EXPORTER_OTLP_ENDPOINT`等は
+  `.claude/settings.local.json`（Git管理外）に分離する方針を計画へ明記した。テストの置き場所
+  （`.claude/hooks/otel/test/` vs issue文言の`.claude/scripts/test/`）についても計画内で
+  レビュー確認事項として明示した。worklog
+  `worklog/20260823_humming-mapping-pie_【設計】【実装】【テスト】OTelリスナー機構の実装_push1.md`
+  も作成した。
+
 ## 次にやること
 
-- flow-id 2-7: `commit`スキル経由でcommitし、pushしてレビュー依頼を行う（調査結果
-  `reports/20260823_humming-mapping-pie_OTel設計論点調査.md`・`.html`とworklogが対象）。
+- flow-id 3-2: `commit`スキル経由でcommitし、pushしてレビュー依頼を行う（個別作業計画・
+  worklog・HANDOFF.mdが対象）。レビューでは特に「`.claude/settings.local.json`分離方針」と
+  「テストの置き場所」の2点について承認を得ること。
 
 ## 判断を迷った内容
 
-（無し）
+- テストの置き場所（`.claude/hooks/otel/test/` vs issue文言の`.claude/scripts/test/`）と、
+  `.claude/settings.local.json`への設定分離方針（issue期待する動作6の「リポジトリ内で完結」を
+  「プロジェクト直下（ユーザーホームではない）」と解釈し直す判断）は、いずれも個別作業計画に
+  明記し、flow-id 3-3のレビューで人間に確認してもらう予定。
 
 ## 未解決の内容
 
