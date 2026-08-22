@@ -406,14 +406,58 @@
         <li><strong>変換後の settings.json の hook が発火すること</strong>（同上）</li>
         <li><strong><code>model</code> に与えるべき具体的なモデル名</strong>（網羅リストが公式ドキュメントに無い。除去で回避する）</li>
         <li><strong>エラー添字 <code>tools.0</code> と、現行 <code>tools</code> が文字列である事実の食い違い</strong>（報告時の環境が不明。方針には影響しない）</li>
-        <li><strong>SessionStart の <code>matcher</code> で縦棒つなぎが有効か</strong>（無効なら hook が一度も発火しない。<code>packages/core/src/hooks/</code> の追加取得が要る）</li>
-        <li><strong><code>${GEMINI_PROJECT_DIR}</code> が未解決だったときの挙動</strong>（<code>resolveEnvVarsInObject</code> を追加取得する）</li>
-        <li><strong><code>general.plan.directory</code> のカスタム値に policy が要るか</strong></li>
+        <li><strong>SessionStart の <code>matcher</code> で縦棒つなぎが有効か</strong>（無効なら hook が一度も発火しない。<code>packages/core/src/hooks/</code> の追加取得が要る）<span class="ml-1 inline-block px-1.5 py-0.5 rounded bg-emerald-600 text-white text-[10px] font-bold align-middle">フェーズ3で解消</span></li>
+        <li><strong><code>${GEMINI_PROJECT_DIR}</code> が未解決だったときの挙動</strong>（<code>resolveEnvVarsInObject</code> を追加取得する）<span class="ml-1 inline-block px-1.5 py-0.5 rounded bg-emerald-600 text-white text-[10px] font-bold align-middle">フェーズ3で解消</span></li>
+        <li><strong><code>general.plan.directory</code> のカスタム値に policy が要るか</strong><span class="ml-1 inline-block px-1.5 py-0.5 rounded bg-emerald-600 text-white text-[10px] font-bold align-middle">フェーズ3で解消</span></li>
         <li><strong>policy engine を変換範囲に含めるか</strong>（<code>.gemini/policies/*.toml</code> は <code>settings.json</code> の外。スコープに入れるかがフェーズ3の論点）</li>
       </ol>
       <p class="mt-4 text-sm text-rose-900 font-semibold">
         1・2 は「ユーザーのローカル環境での確認」に委ねるか、別issueへ切り出す。
         フェーズ3では代わりに<strong>変換の入出力を単体テストで固定する</strong>（ゴールデンファイル比較・冪等性・<code>--check</code> の終了コード）。
+      </p>
+    </div>
+
+    <div class="mt-4 bg-emerald-50 border-l-4 border-emerald-500 p-5 rounded-r">
+      <h3 class="font-bold text-emerald-900 mb-2">5・6・7 は<strong>フェーズ3で追加取得して潰す</strong>（チャットで決定・2026-08-22）</h3>
+      <p class="text-sm text-emerald-900 mb-3">
+        この3件は<strong>Gemini CLI を起動できなくても答えが出る</strong>（「実行して確かめる」ではなく「実装を読めば分かる」種類のため）。
+        既存の sparse-checkout の範囲を広げるだけで済むので、U のまま受け入れず<strong>フェーズ3で確定させる</strong>。
+      </p>
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm border-collapse">
+          <thead>
+            <tr class="bg-emerald-100">
+              <th class="border border-emerald-300 px-3 py-2 text-left">#</th>
+              <th class="border border-emerald-300 px-3 py-2 text-left">論点</th>
+              <th class="border border-emerald-300 px-3 py-2 text-left">追加取得する範囲</th>
+              <th class="border border-emerald-300 px-3 py-2 text-left">未確認だと何が起きるか</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="border border-emerald-300 px-3 py-2 font-bold">5</td>
+              <td class="border border-emerald-300 px-3 py-2">SessionStart の <code>matcher</code> で <code>startup|resume|clear</code> が有効か</td>
+              <td class="border border-emerald-300 px-3 py-2"><code>packages/core/src/hooks/</code></td>
+              <td class="border border-emerald-300 px-3 py-2"><strong>無効なら hook が一度も発火しない。</strong>「動いているように見えて何もしていない」最悪の壊れ方</td>
+            </tr>
+            <tr class="bg-emerald-50/50">
+              <td class="border border-emerald-300 px-3 py-2 font-bold">6</td>
+              <td class="border border-emerald-300 px-3 py-2"><code>${GEMINI_PROJECT_DIR}</code> 未解決時の挙動</td>
+              <td class="border border-emerald-300 px-3 py-2"><code>settings.ts</code> の <code>resolveEnvVarsInObject</code></td>
+              <td class="border border-emerald-300 px-3 py-2">空文字へ落ちるかリテラルで残るかで、hookのパス解決の壊れ方が変わる</td>
+            </tr>
+            <tr>
+              <td class="border border-emerald-300 px-3 py-2 font-bold">7</td>
+              <td class="border border-emerald-300 px-3 py-2"><code>general.plan.directory</code> に policy が要るか</td>
+              <td class="border border-emerald-300 px-3 py-2"><code>docs/reference/policy-engine.md</code></td>
+              <td class="border border-emerald-300 px-3 py-2">policyが要るのに書かないと、Planモードで計画ファイルを書けない</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="mt-3 text-sm text-emerald-900">
+        <strong>取得の順序は 5 → 6 → 7。</strong> 5 が「無効」だった場合、matcher の表記だけでなく<strong>hookの登録単位そのもの</strong>を変える必要があり、Q3 の写像表とフェーズ3の実装範囲が変わるため。
+        <strong>8（policy engine を変換範囲に含めるか）は引き続きフェーズ3の論点として残す</strong>（一次情報の不足ではなくスコープの判断のため）。
       </p>
     </div>
   </section>
