@@ -222,16 +222,16 @@ issue #70 が挙げた10項目を、**現行2ファイルの実物**と**Gemini 
 | matcher（PostToolUse 第2グループ） | `Bash\|PowerShell\|mcp__github__issue_write` | （第1グループへ併合され、**`mcp__github__issue_write` が落ちている**） | **誤り**。`.claude/settings.json` の `PostToolUse` は**2グループ**あり、2つ目（`post-issue-create-notice.sh`）だけ matcher が違う。**下記「`if` の畳み込みで落ちるもの」参照** | R（`.claude/settings.json`） |
 | コマンド指定 | `command` + `args[]` | 単一シェル文字列 | **正しい**。Geminiの hook configuration は `type` / `command` / `name` / `timeout` / `description` のみで、**`args` は無い** | D |
 | timeout | 秒（`30` / `10` / `20`） | ミリ秒（`30000` / `10000` / `20000`） | **正しい**。「Execution timeout in milliseconds (default: 60000)」 | D |
-| 環境変数 | `${CLAUDE_PROJECT_DIR}` | `${GEMINI_PROJECT_DIR}` | **置換しなくても動く可能性が高い**。`docs/hooks/index.md` L144 に **`CLAUDE_PROJECT_DIR: (Alias) Provided for compatibility.`** がある。また `settings.json` の文字列値は**設定の読み込み時に**環境変数が解決される（`docs/reference/configuration.md` L63–L71、実装は `settings.ts` L804 の `resolveEnvVarsInObject`）。**「シェル実行時の展開である」という当初の断定は誤りだったので撤回する**（未解決時の挙動は **U**） | D |
-| plans設定 | `plansDirectory` | `general.plan.directory` | **キーの写像としては正しい**。`settingsSchema.ts` の `general`（L186）配下に `plan`（L319）があり、その `directory`（L338）。**ただし同じ L338 の description が「A custom directory requires a policy to allow write access in Plan Mode.」と書いており、`"./plans"` はカスタム値に当たる。policy の要否は U** | S（キー） / U（policy） |
+| 環境変数 | `${CLAUDE_PROJECT_DIR}` | `${GEMINI_PROJECT_DIR}` | **置換しなくても動く可能性が高い**。`docs/hooks/index.md` L144 に **`CLAUDE_PROJECT_DIR: (Alias) Provided for compatibility.`** がある。また `settings.json` の文字列値は**設定の読み込み時に**環境変数が解決される（`docs/reference/configuration.md` L63–L71、実装は `settings.ts` L804 の `resolveEnvVarsInObject`）。**「シェル実行時の展開である」という当初の断定は誤りだったので撤回する**。**未解決時の挙動は2026-08-22に確定**: `packages/cli/src/utils/envVarResolver.ts` の `resolveEnvVarsInString` は、未定義かつ既定値なしのとき `return match;`、すなわち**プレースホルダの文字列がそのまま残る**（空文字にはならず、ルート相対パスへ暴走しない）。さらに `${VAR:-DEFAULT}` 記法が使えるため `${GEMINI_PROJECT_DIR:-.}` と書ける。なお hook 実行時は `hookRunner.ts` L350 が `GEMINI_PROJECT_DIR: input.cwd` を渡し、L527 が `$GEMINI_PROJECT_DIR` をエスケープ済みcwdへ置換するため、**未定義になる経路は実質無い** | D / **S**（未解決時の挙動） |
+| plans設定 | `plansDirectory` | `general.plan.directory` | **キーの写像としては正しい**。`settingsSchema.ts` の `general`（L186）配下に `plan`（L319）があり、その `directory`（L338）。**ただし同じ L338 の description が「A custom directory requires a policy to allow write access in Plan Mode.」と書いており、`"./plans"` はカスタム値に当たる。**policy が要るかどうか自体は依然 U**（description 以上の裏取りが取れていない）。ただし **2026-08-22に判明した制約により、要ったとしてもリポジトリからは配れない**: policy engine の **Workspace 層（プロジェクト単位の `.gemini/policies`）は現在無効**で、置いても効果がゼロである（`docs/reference/policy-engine.md` L126–L130 の WARNING、優先度表 L144 の **(Currently disabled)**、upstream issue #18186）。**必要な場合の受け皿は User/Admin 層しかなく、それは利用者の手作業になる** | S（キー） / U（policyの要否） / **S**（Workspace層が無効であること） |
 | `if` 条件 | あり（4エントリ） | **無い**（2エントリへ集約済み） | **正しい**。hook definition は `matcher` / `sequential` / `hooks` のみ。**下記「`if` の畳み込みで落ちるもの」参照** | D |
-| `permissions` | `defaultMode` / `deny` | **無い** | **誤り。相当機能はある**（当初「無い」と断定していたのを訂正する）。`deny` 相当は **policy engine** で、`docs/reference/policy-engine.md` に `commandRegex = "git (commit\|push)"`（L325）＋ `decision = "deny"`（L33）があり、**`run_shell_command` のコマンド文字列に対する正規表現での拒否がそのまま書ける**。同 L112–L123 は「`deny` がツール除外の推奨手段であり `excludeTools` は内部的にdenyルールへ変換される」とも書いている。`defaultMode` 相当は `settingsSchema.ts` L228 の `defaultApprovalMode`（`'plan'` を値に持つ。L244）。**ただし置き場所は `settings.json` ではなく `.gemini/policies/*.toml`** | D（policy engine） / S（`defaultApprovalMode`） |
+| `permissions` | `defaultMode` / `deny` | **無い** | **誤り。相当機能はある**（当初「無い」と断定していたのを訂正する）。`deny` 相当は **policy engine** で、`docs/reference/policy-engine.md` に `commandRegex = "git (commit\|push)"`（L325）＋ `decision = "deny"`（L33）があり、**`run_shell_command` のコマンド文字列に対する正規表現での拒否がそのまま書ける**。同 L112–L123 は「`deny` がツール除外の推奨手段であり `excludeTools` は内部的にdenyルールへ変換される」とも書いている。`defaultMode` 相当は `settingsSchema.ts` L228 の `defaultApprovalMode`（`'plan'` を値に持つ。L244）。**ただし置き場所は `settings.json` ではなく `.gemini/policies/*.toml`**。**そして2026-08-22に、その置き場所が現在は機能しないことが確定した**: Workspace 層は **(Currently disabled)** であり（`docs/reference/policy-engine.md` L126–L130・L144、upstream issue #18186）、リポジトリへ `.gemini/policies/*.toml` を置いても**効果がゼロ**である。**したがって `permissions` を policy engine へ写像しないのは「選ばなかった」からではなく「今は動かない」から**である | D（policy engine） / S（`defaultApprovalMode`） / **S**（Workspace層が無効であること） |
 | `name` | 無し | あり（`session-start` 等） | **正しい**。`name` は任意フィールド（ログ・CLIでの識別用） | D |
 | SessionStart matcher（`compact` の除去） | `startup\|resume\|clear\|compact` | `startup\|resume\|clear` | **正しい**。`source` は `"startup" \| "resume" \| "clear"` の3値のみで、`compact` は無い（`docs/hooks/reference.md` L249） | D |
-| SessionStart matcher（縦棒つなぎの有効性） | — | `startup\|resume\|clear` | **未確認**。`docs/hooks/reference.md` L30 は matcher を「A regex (for tools) or **exact string (for lifecycle)**」と定義し、正規表現サポートの説明（L81–L90）も `BeforeTool` / `AfterTool` に限っている。`docs/hooks/writing-hooks.md` L261 の SessionStart 例は `"matcher": "startup"` と**単一値**。完全一致ならこの表記は**どの `source` にも一致せず、hookが一度も発火しない** | **U** |
+| SessionStart matcher（縦棒つなぎの有効性） | — | `startup\|resume\|clear` | **誤り（2026-08-22に一次ソースで確定）**。`hookPlanner.ts` の `matchesContext` は、`context.toolName` があれば `new RegExp(matcher).test(toolName)`（正規表現）、`context.trigger` があれば `matcher === trigger`（**完全一致**）と判定を使い分ける。SessionStart は `fireSessionStartEvent` が `{ trigger: source }` を渡す（`hookEventHandler.ts` L183）ため**完全一致**であり、縦棒つなぎはどの `source` にも一致せず**hookが一度も発火しない**。**対処は `matcher` を省略すること**（`!entry.matcher` は無条件 `true` = 全ソースで発火）。Claude側が全4値＝全ソースを覆っているため、省略が等価かつ最短である | **S** |
 
 **issue #70 が挙げた10観点のうち8つでは、現行の手書き `.gemini/settings.json` は正しかった。**
-残る2つ（`permissions` / SessionStart matcher の縦棒つなぎ）は上表のとおり**誤り・未確認**である。
+残る2つ（`permissions` / SessionStart matcher の縦棒つなぎ）は上表のとおり**どちらも誤り**である（縦棒つなぎは当初「未確認」としていたが、2026-08-22に一次ソースで**無効**と確定した。下記「5・6・7 の結果」）。
 
 **「10観点で正しい」から「ゴールデンファイルにできる」へは、そのままでは進めない。** 前者は
 issue #70 が列挙した観点の網羅であり、後者は**変換元の全キーが写像先に説明できていること**を
@@ -528,8 +528,8 @@ issue #133 の一括改番（4桁ゼロ埋め）のときに、コメント内�
 | `model` は**除去**する（`inherit` へ委ねる） | 同上。要フェーズ3レビュー |
 | `tools` は**YAML配列**として出力する | 同上 |
 | skills は**変換不要**、コピーのみ | 変換対象を1つ減らせる |
-| 現行の手書き `.gemini/settings.json` は **issue #70 の10観点のうち8つで正しい**（`permissions` は誤り・SessionStart matcher は未確認） | **そのままではゴールデンファイルにできない。** 先に `.claude/settings.json` の全キーを写像先へ対応づける |
-| `permissions.deny` に**相当する機能は Gemini にもある**（policy engine の `commandRegex` + `decision = "deny"`） | 写像しないなら**しない理由**を書く。コミット強制の多重防御がGemini経路だけ1枚になるため |
+| 現行の手書き `.gemini/settings.json` は **issue #70 の10観点のうち8つで正しい**（`permissions` と SessionStart matcher の**2つが誤り**。後者は2026-08-22に確定） | **そのままではゴールデンファイルにできない。** 先に `.claude/settings.json` の全キーを写像先へ対応づける |
+| `permissions.deny` に**相当する機能は Gemini にもある**（policy engine の `commandRegex` + `decision = "deny"`）。**ただし置き場所である Workspace 層は現在無効**（2026-08-22確定。upstream issue #18186） | 写像しない理由は「選ばなかった」ではなく**「リポジトリに置いても動かない」**と書く。コミット強制の多重防御がGemini経路だけ1枚になる点は変わらない |
 | `if` の畳み込みは**機能等価ではない**（性能が落ちる） | specとコメントへ明記する |
 | **`extract-frontmatter.sh` に `.gemini` 除外を足す**必要がある | Q4-B。grepでは見つからない、見落としやすい作業 |
 | `search-frontmatter.sh` の除外は**残し、理由コメントだけ直す** | Q6 |
@@ -542,11 +542,13 @@ issue #133 の一括改番（4桁ゼロ埋め）のときに、コメント内�
 3. **`model` に与えるべき具体的なモデル名**（網羅リストが公式ドキュメントに無い。除去で回避する）
 4. **issueのエラー添字 `tools.0` と、現行ファイルの `tools` が文字列である事実の食い違い**
    （報告時の環境が不明。方針には影響しない）
-5. **SessionStart の `matcher` で縦棒つなぎが有効か**（無効なら hook が一度も発火しない。
-   確かめるには `packages/core/src/hooks/` を sparse-checkout へ追加する）
-6. **`${GEMINI_PROJECT_DIR}` が未解決だったときの挙動**（`resolveEnvVarsInObject` を追加取得する）
-7. **`general.plan.directory` のカスタム値に policy が要るか**（`docs/reference/policy-engine.md` を
-   併せて読む。8 の `permissions` 相当の検討と同じ範囲）
+5. ~~**SessionStart の `matcher` で縦棒つなぎが有効か**~~ → **決着（2026-08-22）。無効。**
+   `matcher` を省略する（下記「5・6・7 の結果」）
+6. ~~**`${GEMINI_PROJECT_DIR}` が未解決だったときの挙動**~~ → **決着（2026-08-22）。プレースホルダが
+   そのまま残る**（空文字にならない）。かつ実運用では未定義になる経路が実質無い（同上）
+7. ~~**`general.plan.directory` のカスタム値に policy が要るか**~~ → **半分決着（2026-08-22）。**
+   policy の要否そのものは未確認のままだが、**要ったとしてもリポジトリからは配れない**ことが
+   確定した（Workspace 層が無効。同上）
 8. **policy engine を変換範囲に含めるか**（`.gemini/policies/*.toml` は `settings.json` の外にあり、
    本issueのスコープに入れるかどうかがフェーズ3の論点）
 
@@ -554,21 +556,34 @@ issue #133 の一括改番（4桁ゼロ埋め）のときに、コメント内�
 フェーズ3では、代わりに**変換の入出力を単体テストで固定する**（ゴールデンファイル比較・冪等性・
 `--check` の終了コード）。
 
-### 5・6・7 は**フェーズ3で追加取得して潰す**（チャットで決定・2026-08-22）
+### 5・6・7 の結果（フェーズ3・flow-id 3-6 で追加取得。2026-08-22）
 
-**この3件はGemini CLIを起動できなくても答えが出る**（いずれも「実行して確かめる」ではなく
-「実装を読めば分かる」種類のため）。既存のsparse-checkoutの範囲を広げるだけで済むので、
-U のまま受け入れず**フェーズ3で確定させる**。
+既存クローン（`5411f113`）の sparse-checkout へ `packages/core/src/hooks` と
+`packages/cli/src/utils` を追加して確認した。**クローンし直していない**（本レポートが引用して
+いる行番号がずれるため）。**3件とも一次ソースで確定した（S）。うち2件は見立てと違った。**
 
-| # | 論点 | 追加取得する範囲 | これが未確認だと何が起きるか |
-|---|---|---|---|
-| 5 | SessionStart の `matcher` で `startup\|resume\|clear` が有効か | `packages/core/src/hooks/` | **無効なら hook が一度も発火しない。** 変換結果が「動いているように見えて何もしていない」最悪の壊れ方をする |
-| 6 | `${GEMINI_PROJECT_DIR}` が未解決だったときの挙動 | `packages/core/src/config/settings.ts` の `resolveEnvVarsInObject`（`docs/reference/configuration.md` L63–L71 の裏取り） | 空文字へ落ちるのか、リテラルのまま残るのかでhookのパス解決の壊れ方が変わる |
-| 7 | `general.plan.directory` のカスタム値に policy が要るか | `docs/reference/policy-engine.md`（8 の検討と同じ範囲） | policyが要るのに書かないと、Planモードで計画ファイルを書けない |
+| # | 結論 | 一次ソース |
+|---|---|---|
+| 5 | **縦棒つなぎは無効。** ライフサイクル系イベントの matcher は完全一致（`matcher === trigger`）で、ツール系だけが正規表現。**対処は「単一値で複数エントリ登録」ではなく `matcher` の省略**（無指定は全ソースで発火し、Claude側の4値＝全ソースと等価） | `hookPlanner.ts` の `matchesContext` / `matchesToolName` / `matchesTrigger`、`hookEventHandler.ts` L183、`types.ts` L607 |
+| 6 | **未解決ならプレースホルダの文字列がそのまま残る**（空文字にならず、ルート相対パスへ暴走しない）。`${VAR:-DEFAULT}` 記法も使える。加えて hook 実行時は `GEMINI_PROJECT_DIR` が必ず注入されるため、**未定義になる経路は実質無い** | `packages/cli/src/utils/envVarResolver.ts` の `resolveEnvVarsInString`、`hookRunner.ts` L350・L527 |
+| 7 | **policy の要否そのものは未確認のまま。** ただし **Workspace 層（プロジェクト単位の `.gemini/policies`）が現在無効**であることが確定したため、**要ったとしてもリポジトリからは配れない**。受け皿は User/Admin 層＝利用者の手作業しかない | `docs/reference/policy-engine.md` L126–L130 の WARNING、優先度表 L144、upstream issue #18186 |
 
-**取得の順序は 5 → 6 → 7 とする。** 5 が「無効」だった場合、matcherの表記だけでなく
-**hookの登録単位そのものを変える**必要があり、Q3の写像表とフェーズ3の実装範囲が変わるため。
-6・7 は結果によって変換規則の細部が変わるだけで、構造には影響しない。
+**取得先の見立てが1件外れていた。** 6 の取得先を「`packages/core/src/config/settings.ts` の
+`resolveEnvVarsInObject`」と書いていたが、`settings.ts` は `packages/cli/src/config/` にあり、
+実体は `packages/cli/src/utils/envVarResolver.ts` だった。
+
+#### 5 の結果が写像表に与えた影響
+
+**当初のフォールバック案（`matcher` を単一値で複数エントリ登録）は採らない。** `matcher` の省略で
+足りるうえ、Gemini がソースを増やしても追随が要らないためである。ただし**変換規則としては
+一般形で書く**: Claude の `matcher` を `|` で分割し、Gemini の enum 値の集合と突き合わせて、
+**全体を覆うなら `matcher` を落とし、部分集合なら値ごとにエントリを複製する**。今回は前者に当たる。
+
+#### 7 の結果が B（policy engine の扱い）に与えた影響
+
+**B-1（本issueのスコープ外とする）の根拠が変わる。** 「変換しないと決めた」のではなく
+**「今のGemini CLIでは、リポジトリに置いた policy が動かない」**が正確である。フェーズ4で
+spec へ理由を書く際は、upstream issue #18186 を根拠として書く。
 
 **8（policy engine を変換範囲に含めるか）は引き続きフェーズ3の論点として残す**（こちらは
 一次情報の不足ではなく、スコープの判断のため）。
