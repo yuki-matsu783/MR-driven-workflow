@@ -20,7 +20,7 @@ keywords: [sync-gemini-assets, setup-gemini-links, extract-frontmatter, search-f
 
 `.gemini/` を `.claude/` からの変換生成物にするスクリプトを実装し、リンク運用の痕跡を除去する。
 
-## 変更対象（全8件）
+## 変更対象（全11件）
 
 | # | ファイル | 操作 | 内容 |
 |---|---|---|---|
@@ -32,6 +32,14 @@ keywords: [sync-gemini-assets, setup-gemini-links, extract-frontmatter, search-f
 | 6 | `.gemini/settings.json` | **性格の変更** | 手書きの実体 → 生成物（Git管理下には残す） |
 | 7 | `.claude/scripts/test/test_sync_gemini_assets.sh` | **新規** | 1 の単体テスト |
 | 8 | `.claude/scripts/test/test_search_frontmatter.sh` | **要確認** | `.gemini` 除外のテストが「リンクだから」を前提にしていないか |
+| 9 | `.claude/skills/apply-mr-workflow-to-project/scripts/sync-assets.sh` | **修正** | `.gemini/` の収集をやめる（配布物へ含めない） |
+| 10 | 同上 `scripts/install-to-project.sh` | **修正** | `.gemini/` のコピーをやめ、**配布先で生成**する |
+| 11 | 同上 `SKILL.md` | **修正** | `.gemini/` を「配布する資産」として説明している4箇所 |
+
+**9〜11 は当初スコープ外にしていたが、2026-08-22のレビューで「配布先で生成する」と決着した
+ため本計画へ取り込んだ**（下記「6. 配布アセット」）。外していた理由が「配布先で生成するか、
+生成済みを配るかという別の判断を含むため」だったので、その判断が付いた時点で保留の理由が消えた。
+**フェーズ4へ持ち越すと拾い忘れの穴になる**ため、関連するスクリプト改修と同じ計画で扱う。
 
 ## 方針
 
@@ -56,9 +64,11 @@ keywords: [sync-gemini-assets, setup-gemini-links, extract-frontmatter, search-f
 | **コピー** | `docs/` `rules/` `hooks/` `scripts/` `skills/` | そのまま。**skills は変換不要**（Q2） |
 | **除外** | `**/index.jsonl` `.claude/state/` | 生成物・ローカル状態 |
 
-**`.claude/scripts/test/` `VERSION` `REVIEW-POINTS.md` の扱いは、実装着手前に決める**
-（調査で「要判断」のまま残っている）。**既定は「コピーする」**とする——除くと `.gemini/scripts/`
-だけ構成が食い違い、`.gemini/` を見た人が「なぜここだけ欠けているのか」を毎回調べることになるため。
+**`.claude/scripts/test/` `VERSION` `REVIEW-POINTS.md` は「コピーする」で確定する。**
+除くと `.gemini/scripts/` だけ構成が食い違い、`.gemini/` を見た人が「なぜここだけ欠けているのか」を
+毎回調べることになる。**「配布先で生成する」と決まったことがこれを補強する**——生成先が
+配布先にも増える以上、`.gemini/` の中身が「`.claude/` から機械的に決まる」ほど説明が短くて済む。
+除外するのは**生成物とローカル状態だけ**（`index.jsonl` / `state/`）という単純な規則を保つ。
 
 #### 性能の制約（このリポジトリ固有）
 
@@ -105,12 +115,31 @@ L32–L36 の理由コメントが「ローカルリンクだから」「ジャ�
 **副産物として、存在しないDDR名 `i00-13` を指す参照も同時に消える**（`i36-01` の方は
 別ブロックに残る。扱いはフェーズ4で判断）。
 
+### 6. 配布アセット（`apply-mr-workflow-to-project`）— 配布先で生成する
+
+**2026-08-22のレビューで「配布先で生成する」と確定した。** 生成済みの `.gemini/` を配るのではなく、
+配布先が `.claude/` を受け取ってから `sync-gemini-assets.sh` を走らせる。
+
+| ファイル | 現状 | 変更後 |
+|---|---|---|
+| `scripts/sync-assets.sh` | `PROJECT_ROOT/.gemini/` を `ASSETS_DIR/.gemini/` へ収集する（L42–L61） | **収集ブロックごと削除**。生成物を配布物へ焼き込まない |
+| `scripts/install-to-project.sh` | `mkdir -p .gemini` / `safe_copy_dir .gemini` / 非Goプロジェクトでの `rm .gemini/rules/go-applications.md` | **削除**し、`.claude/` の配置後に `sync-gemini-assets.sh` を実行する |
+| 同上（`.gitignore` 追記） | `/.gemini/usage-state/` `/.gemini/session-logs/` を追記する | **削除**（このリポジトリの現行パスは `/usage/` であり、そもそも実在しないパスを配っている） |
+| `SKILL.md` | 「`.claude/scripts/`, `.gemini/scripts/`」のように**併記**して配布資産として説明（4箇所） | `.gemini/` は `.claude/` からの生成物である旨へ書き換える |
+
+**`sync-gemini-assets.sh` 自体は `.claude/scripts/src/` にあるため、既存の `.claude/` 配布に
+自動で乗る**（配布リストへの追加は不要）。ただし配布先での実行は `jq` に依存するため、
+**`jq` が無い環境では生成をスキップして警告する**（インストール全体を失敗させない）。
+
+**SKILL.md の書き換えを本計画に含める理由**: この3ファイルは1つのまとまった変更であり、
+skill文書だけを `【AIアセット作成】` 側へ分けると、**スクリプトと説明が食い違う期間ができる**。
+`【AIアセット作成】` 側の繰り下げで `.claude/scripts/` の参照を巻き取ったのと同じ判断である。
+
 ## やらないこと
 
 - **flow-id 5-3 の新設と繰り下げ** → `plans/【AIアセット作成】…` が扱う
-- **`.claude/skills/apply-mr-workflow-to-project/` の配布アセット対応** → 変更が必要なことは
-  調査で判明しているが、**本計画では扱わない**。配布は「配布先で生成するか、生成済みを配るか」
-  という別の判断を含むため、フェーズ4（または別issue）で扱う
+- **配布先での実際のインストール検証**（別リポジトリへ `install-to-project.sh` を流す）→
+  この環境では配布先を用意できない。`bash -n` と、変更箇所の読み合わせまでとする
 - **spec・DDR・README・`index.md` の更新** → フェーズ4
 - **Gemini CLI での実行検証** → CLI が無いため実施しない
 
@@ -160,3 +189,12 @@ L32–L36 の理由コメントが「ローカルリンクだから」「ジャ�
    （`git status --porcelain -z` で `.gemini` 配下の新規ファイルが出ないこと）。
 6. `git status` に**意図しない生成物が現れていない**こと（`.stackdump` 等の新種の副産物は
    `.gitignore` と `commit` スキルの除外リストの**両方**へ追加する）。
+7. **配布アセットに `.gemini` への言及が残っていないこと**（生成物である旨の説明を除く）。
+
+   ```bash
+   grep -rn '\.gemini' .claude/skills/apply-mr-workflow-to-project/ \
+     --include='*.sh' --include='*.md' | grep -v index.jsonl
+   ```
+
+   `sync-assets.sh` / `install-to-project.sh` は**0件**、`SKILL.md` は生成物としての説明のみ。
+8. `bash -n` が配布アセットの2スクリプトで通ること（実行はしない）。
