@@ -20,13 +20,13 @@
   <section class="mb-12">
     <h2 class="text-2xl font-bold mb-4">結論の要約</h2>
     <div class="grid gap-3 md:grid-cols-2">
-      <div class="bg-white rounded-lg border border-amber-300 p-4">
-        <p class="text-xs font-bold text-amber-700">1. 層分けの網羅性</p>
-        <p class="mt-1 text-sm">4層では<strong>足りない</strong>。本家固有で配らないパスが5件あり、明示的な <code>exclude</code> カテゴリが要る。<span class="text-amber-700 font-semibold">→ 人間の判断を仰ぐ</span></p>
-      </div>
       <div class="bg-white rounded-lg border border-emerald-300 p-4">
-        <p class="text-xs font-bold text-emerald-700">2. REVIEW-POINTS.md の層</p>
-        <p class="mt-1 text-sm"><code>core</code> ＋ 配布先所有の <code>REVIEW-POINTS.local.md</code>（<code>seed</code>）の併設。<strong>層は増やさずに済む</strong></p>
+        <p class="text-xs font-bold text-emerald-700">1. 層分けの網羅性</p>
+        <p class="mt-1 text-sm">4層では<strong>足りない</strong>。本家固有で配らないパスが4件あり、明示的な <code>exclude</code> カテゴリが要る。<span class="text-emerald-700 font-semibold">→ ユーザー承認済み</span></p>
+      </div>
+      <div class="bg-white rounded-lg border border-amber-300 p-4">
+        <p class="text-xs font-bold text-amber-700">2. REVIEW-POINTS.md の層</p>
+        <p class="mt-1 text-sm"><code>core</code> ＋ 配布先所有の <code>REVIEW-POINTS.local.md</code>（<code>seed</code>）の併設。層は増やさずに済むが、<strong>成立条件は <code>cleanup-task.sh</code> の変更</strong></p>
       </div>
       <div class="bg-white rounded-lg border border-emerald-300 p-4">
         <p class="text-xs font-bold text-emerald-700">3. 定義の置き場所</p>
@@ -38,11 +38,11 @@
       </div>
       <div class="bg-white rounded-lg border border-rose-300 p-4">
         <p class="text-xs font-bold text-rose-700">5. 既存欠陥</p>
-        <p class="mt-1 text-sm"><strong>5件すべて再現</strong>。自然に消えるのは3件、明示対処が要るのは1件。<strong>加えて未記録の欠陥を3件発見</strong></p>
+        <p class="mt-1 text-sm"><strong>5件すべて再現</strong>。作り直しで消えるのは<strong>4件</strong>、明示対処が要るのは<strong>1件（#3）</strong>。<strong>加えて未記録の欠陥を3件発見</strong></p>
       </div>
       <div class="bg-white rounded-lg border border-emerald-300 p-4">
         <p class="text-xs font-bold text-emerald-700">6・7. AGENTS.md / .skill 廃止</p>
-        <p class="mt-1 text-sm">「ルール」節8項目<strong>すべてが本家所有</strong>。<code>.skill</code> 廃止は書き換え4ファイル、<strong>書き換え禁止5箇所</strong></p>
+        <p class="mt-1 text-sm">「ルール」節<strong>9項目すべてが本家所有</strong>。<code>.skill</code> 廃止は書き換え6ファイル、<strong>書き換え禁止6箇所</strong></p>
       </div>
     </div>
   </section>
@@ -51,17 +51,23 @@
   <section class="mb-12">
     <h2 class="text-2xl font-bold mb-4">調査1: 棚卸し（何を数えたか）</h2>
     <div class="flex flex-wrap gap-4 mb-5">
-      <div class="bg-white border border-slate-300 rounded-lg px-5 py-3">
-        <p class="text-3xl font-bold text-slate-700">172</p><p class="text-xs text-slate-500">追跡ファイル全体</p>
-      </div>
-      <div class="bg-white border border-slate-300 rounded-lg px-5 py-3">
-        <p class="text-3xl font-bold text-slate-400">−7</p><p class="text-xs text-slate-500">plans/ worklog/ reports/（このタスク自身が増減）</p>
-      </div>
       <div class="bg-white border-2 border-indigo-400 rounded-lg px-5 py-3">
-        <p class="text-3xl font-bold text-indigo-700">165</p><p class="text-xs text-slate-500">突き合わせに使う分母</p>
+        <p class="text-3xl font-bold text-indigo-700">168</p><p class="text-xs text-slate-500">突き合わせに使う分母<br>（配布の検討対象になるパス）</p>
+      </div>
+      <div class="bg-white border border-slate-300 rounded-lg px-5 py-3">
+        <p class="text-3xl font-bold text-slate-400">−6</p><p class="text-xs text-slate-500">除いたタスク単位のファイル<br>（全体計画1・個別計画1・worklog 2・この報告 2）</p>
+      </div>
+      <div class="bg-white border border-emerald-300 rounded-lg px-5 py-3">
+        <p class="text-3xl font-bold text-emerald-700">+3</p><p class="text-xs text-slate-500">足し戻した永続ファイル<br><code>plans/</code>・<code>reports/</code> の REVIEW-POINTS.md、<code>worklog/TEMPLATE.md</code></p>
       </div>
     </div>
-    <p class="text-sm text-slate-600 mb-4">内訳: <code>.claude/</code> 148 ／ ルート直下 12 ／ <code>.gitlab/</code> 2 ／ <code>.github/</code> 2 ／ <code>.gemini/</code> 1。アプリ本体を持たないテンプレートリポジトリのため、追跡ファイルはすべて配布の検討対象に入る。</p>
+
+    <div class="mb-5 bg-white border-l-4 border-rose-400 p-4">
+      <p class="font-bold text-sm"><code>plans/</code> <code>worklog/</code> <code>reports/</code> をディレクトリ丸ごと落とさない</p>
+      <p class="text-sm mt-2">この3ディレクトリには <strong>flow-id 5-4 でも削除しない永続ファイルが3件</strong>あり、いずれもこの調査で <code>core</code> に割り当てている。丸ごと落とすと、<strong>下の未記録欠陥 #7・#8 で挙げた「配られていないファイル」がそのまま網羅性検査の対象外になり、定義への載せ忘れを検査が素通しする</strong>。</p>
+    </div>
+
+    <p class="text-sm text-slate-600 mb-4">分母168の内訳: <code>.claude/</code> 148 ／ ルート直下 12 ／ <code>.gitlab/</code> 2 ／ <code>.github/</code> 2 ／ <code>.gemini/</code> 1 ／ 永続3件。アプリ本体を持たないテンプレートリポジトリのため、追跡ファイルはすべて配布の検討対象に入る。</p>
 
     <h3 class="text-lg font-bold mt-6 mb-3">層の割り当て</h3>
     <div class="overflow-x-auto">
@@ -73,32 +79,37 @@
       </tr></thead>
       <tbody>
         <tr class="border-b border-slate-200"><td class="px-3 py-2 font-bold text-sky-700">core</td>
-          <td class="px-3 py-2"><code>.claude/</code> の agents・hooks・rules・scripts・docs・skills（apply-… を除く）・VERSION、<code>REVIEW-POINTS.md</code> 4件、<code>worklog/TEMPLATE.md</code>、<code>.gemini/settings.json</code></td>
-          <td class="px-3 py-2">機構本体。配布先が書き換えると本家の更新で壊れる</td></tr>
+          <td class="px-3 py-2"><code>.claude/</code> の agents・hooks・rules・scripts・docs・VERSION、<strong>skills 9件</strong>（apply-… を除く）、<code>REVIEW-POINTS.md</code> 4件、<code>worklog/TEMPLATE.md</code>、<code>.gemini/settings.json</code>、<strong><code>.github/</code>・<code>.gitlab/</code> テンプレート4件</strong>、<strong><code>CLAUDE.md</code>・<code>GEMINI.md</code></strong></td>
+          <td class="px-3 py-2">機構本体。配布先が書き換えると本家の更新で壊れる。skills は 9（core）＋3（exclude）＝12 で内訳と閉じる</td></tr>
         <tr class="border-b border-slate-200"><td class="px-3 py-2 font-bold text-emerald-700">seed</td>
-          <td class="px-3 py-2"><code>.mrworkflow.json</code>、<code>AGENTS.md</code>、<code>CLAUDE.md</code>、<code>GEMINI.md</code>、<code>HANDOFF.md</code>、<code>index.md</code>、<code>.github/</code>・<code>.gitlab/</code> テンプレート4件、各 <code>REVIEW-POINTS.local.md</code></td>
+          <td class="px-3 py-2"><code>.mrworkflow.json</code>、<code>AGENTS.md</code>、<code>HANDOFF.md</code>、<code>index.md</code>、各 <code>REVIEW-POINTS.local.md</code></td>
           <td class="px-3 py-2">配布先が育てる初期値。配置後は配布先が所有者</td></tr>
         <tr class="border-b border-slate-200"><td class="px-3 py-2 font-bold text-violet-700">merge</td>
           <td class="px-3 py-2"><code>.gitignore</code>、<code>.gitattributes</code>、<code>.claude/settings.json</code></td>
           <td class="px-3 py-2">本家と配布先の双方が同じファイルへ書く</td></tr>
         <tr class="border-b border-slate-200"><td class="px-3 py-2 font-bold text-slate-600">local</td>
-          <td class="px-3 py-2"><code>plans/ worklog/ reports/</code> の実ファイル、<code>usage/</code>、<code>.claude/state/</code>、<code>**/index.jsonl</code>、<code>build/</code>、<code>*.log</code>、<code>*.stackdump</code>、<code>.gemini/{docs,hooks,rules,scripts,skills}</code></td>
+          <td class="px-3 py-2"><code>plans/ worklog/ reports/</code> のタスク単位ファイル、<code>usage/</code>、<code>.claude/state/</code>、<code>**/index.jsonl</code>、<code>build/</code>、<code>*.log</code>、<code>*.stackdump</code>、<code>.gemini/{docs,hooks,rules,scripts,skills}</code></td>
           <td class="px-3 py-2">実行時生成・配布先固有。インストーラは触らない</td></tr>
-        <tr class="bg-amber-50"><td class="px-3 py-2 font-bold text-amber-700">exclude<br><span class="text-xs font-normal">（新設の提案）</span></td>
-          <td class="px-3 py-2"><code>README.md</code>、<code>DEVELOPERS.md</code>、<code>考えたこと.md</code>、<code>.claude/skills/apply-mr-workflow-to-project/</code></td>
-          <td class="px-3 py-2">本家固有の説明・メモ。配ると版の系譜が分岐する</td></tr>
+        <tr class="bg-amber-50"><td class="px-3 py-2 font-bold text-amber-700">exclude<br><span class="text-xs font-normal">（新設・承認済み）</span></td>
+          <td class="px-3 py-2"><strong>4件</strong>: <code>README.md</code>、<code>DEVELOPERS.md</code>、<code>考えたこと.md</code>、<code>.claude/skills/apply-mr-workflow-to-project/</code></td>
+          <td class="px-3 py-2">本家固有の説明・メモ。配ると版の系譜が分岐する。<code>assets/</code> は新方式で消滅するので分類の対象に数えない</td></tr>
       </tbody>
     </table>
     </div>
 
-    <div class="mt-5 bg-white border-l-4 border-indigo-400 p-4">
+    <div class="mt-5 bg-white border-l-4 border-amber-400 p-4">
+      <p class="font-bold text-sm"><code>CLAUDE.md</code> / <code>GEMINI.md</code> を <code>core</code> にするならセットで必要な変更</p>
+      <p class="text-sm mt-2">現状の2ファイルは末尾が空の見出し（<code>## Claude Code固有ルール</code>）で終わっている。これは「ここへ書いてください」という誘いであり、<code>core</code> のまま残すと配布先が書いた内容が再適用で消える。<strong>「プロジェクト固有のルールは <code>.claude/rules/&lt;名前&gt;.md</code> へ置く」というポインタへ置き換える。</strong> <code>.claude/rules/</code> は manifest に載っているファイルだけが <code>core</code> なので、配布先が新規に足したファイルは触られない。</p>
+    </div>
+
+    <div class="mt-3 bg-white border-l-4 border-indigo-400 p-4">
       <p class="font-bold text-sm">受け入れ条件2と8の衝突を、層を増やさずに解消する</p>
-      <p class="text-sm mt-2"><code>.gemini/{docs,…}</code> は <code>local</code>（インストーラは触らない）のままにし、<strong>受け入れ条件8は <code>setup-gemini-links.sh</code> が満たす</strong>。インストーラは適用の最後にそれを呼び出すだけ。同スクリプトには (1) 実体コピーへのフォールバック（条件7）、(2) 実体ディレクトリなら中身を最新へ入れ替える（条件8）の2点を足す。</p>
+      <p class="text-sm mt-2"><code>.gemini/{docs,…}</code> は <code>local</code>（インストーラは触らない）のままにし、<strong>受け入れ条件8は <code>setup-gemini-links.sh</code> が満たす</strong>。インストーラは適用の最後にそれを呼び出すだけ。同スクリプトには (1) 実体コピーへのフォールバック（条件7）、(2) 実体ディレクトリなら中身を最新へ入れ替える（条件8）の2点を足す。<span class="text-amber-700">リンクと実体の判別は <code>[ -L ]</code> では足りない（NTFSジャンクションはディレクトリに見える）。Windows実機でしか確認できない。</span></p>
     </div>
 
     <div class="mt-3 bg-white border-l-4 border-rose-400 p-4">
       <p class="font-bold text-sm"><code>local</code> 層は <code>.gitignore</code> のパターンから導く（実測で必要性を確認）</p>
-      <p class="text-sm mt-2"><code>git status --porcelain --ignored</code> は26件を返すが、<strong><code>/usage/</code>（この環境では未生成）と <code>.gemini/{docs,…}</code>（リンク未生成）は1件も現れない</strong>。<code>.claude/state/</code> はディレクトリ単位に畳まれ配下が見えない（<code>--ignored=matching</code> が要る）。実在ファイルの列挙に頼ると、条件2を検証するテストが「存在しないパス」に対して常に成功する。</p>
+      <p class="text-sm mt-2"><code>git status --porcelain --ignored</code> は25件（先に <code>sync-assets.sh</code> を流すと26件）を返すが、<strong><code>.gemini/{docs,…}</code> は1件も現れない</strong>（リンク未生成のため実体が無い）。<code>usage/</code> と <code>.claude/state/</code> は<strong>ディレクトリ単位に畳まれて1行になる</strong>（<code>!! usage/</code>）ため、配下のどのファイルが <code>local</code> かを取り出せない（<code>--ignored=matching</code> が要る）。実在ファイルの列挙に頼ると、条件2を検証するテストが不完全な一覧に対して回る。</p>
     </div>
   </section>
 
@@ -120,6 +131,7 @@
         <tr class="border-b border-slate-200"><td class="px-3 py-2">4</td><td class="px-3 py-2"><code>HAS_WARNED</code> がサブシェルで失われる</td><td class="px-3 py-2 text-rose-700 font-semibold">再現（WARNING=1 / ATTENTION=0）</td><td class="px-3 py-2 text-emerald-700">消える</td></tr>
         <tr class="border-b border-slate-200"><td class="px-3 py-2">5</td><td class="px-3 py-2">配布先へローカル生成物が混入</td><td class="px-3 py-2 text-rose-700 font-semibold">再現（<code>index.jsonl</code> <strong>18件</strong>＋<code>.claude/state/</code>）</td><td class="px-3 py-2 text-emerald-700">消える（条件2）</td></tr>
       </tbody>
+      <tfoot><tr class="bg-slate-100 font-semibold"><td class="px-3 py-2" colspan="3">合計</td><td class="px-3 py-2">消える <strong>4件</strong> ／ 明示対処 <strong>1件</strong></td></tr></tfoot>
     </table>
     </div>
 
@@ -148,6 +160,45 @@
     </div>
   </section>
 
+  <!-- REVIEW-POINTS -->
+  <section class="mb-12">
+    <h2 class="text-2xl font-bold mb-4">調査2: <code>REVIEW-POINTS.md</code> の層</h2>
+    <p class="text-sm mb-4">4件とも内容は「この機構をどう使うか」の観点であり、本家固有の業務知識ではない（＝ <code>core</code> 寄り）。一方で配布先も観点を育てる。<strong><code>core</code> ＋ 配布先所有の <code>REVIEW-POINTS.local.md</code>（<code>seed</code>）の併設</strong>で、層を増やさずに両立させる。</p>
+
+    <div class="bg-white border-l-4 border-rose-500 p-4 mb-4">
+      <p class="font-bold text-sm">成立条件: <code>cleanup-task.sh</code> の変更（波及先は1箇所ではない）</p>
+      <p class="text-sm mt-2"><code>cleanup-task.sh</code> は <code>KEEP_BASENAMES=("REVIEW-POINTS.md")</code> という<strong>ベース名の完全一致</strong>で残す対象を決めており、<code>test_cleanup_task.sh</code> がその完全一致を明示的に表明している。このまま <code>plans/REVIEW-POINTS.local.md</code> を置くと <strong>flow-id 5-4 で毎タスク削除される</strong>——配布先が育てた観点を守るための仕組みが、タスクを1つ回すたびに消える。</p>
+      <p class="text-sm mt-2">他の波及先: <code>collect-review-points.sh</code>／両テスト／<code>markdown-frontmatter.md</code> の type 表／<code>adversarial-review.md</code>／<code>docs-workflow.md</code>・<code>directory-structure.md</code> の「5-4で削除しない」記述。</p>
+    </div>
+
+    <div class="grid gap-3 md:grid-cols-3 text-sm">
+      <div class="bg-white border border-slate-300 rounded p-3"><p class="font-bold text-slate-600">却下: <code>seed</code> 単独</p><p class="mt-1">本家が観点を追加しても配布先へ永久に届かない</p></div>
+      <div class="bg-white border border-slate-300 rounded p-3"><p class="font-bold text-slate-600">却下: <code>core</code> 単独</p><p class="mt-1">配布先が育てた観点が再適用で消える</p></div>
+      <div class="bg-white border border-slate-300 rounded p-3"><p class="font-bold text-slate-600">却下: <code>merge</code> で散文をマージ</p><p class="mt-1">markdownの散文は行・見出しの重複を機械的に解けない</p></div>
+    </div>
+  </section>
+
+  <!-- 定義の形式 -->
+  <section class="mb-12">
+    <h2 class="text-2xl font-bold mb-4">調査3: 層分け定義の置き場所と形式</h2>
+    <div class="overflow-x-auto mb-4">
+    <table class="w-full text-sm bg-white border border-slate-300">
+      <thead class="bg-slate-100"><tr><th class="text-left px-3 py-2 border-b border-slate-300">案</th><th class="text-left px-3 py-2 border-b border-slate-300">判定</th><th class="text-left px-3 py-2 border-b border-slate-300">理由</th></tr></thead>
+      <tbody>
+        <tr class="border-b border-slate-200 bg-emerald-50"><td class="px-3 py-2">A: 定義ファイル1枚</td><td class="px-3 py-2 font-bold text-emerald-700">採用</td><td class="px-3 py-2">全パスを1箇所で見渡せ、網羅性を機械的に検査できる</td></tr>
+        <tr class="border-b border-slate-200"><td class="px-3 py-2">B: 各ファイルがマーカーで持つ</td><td class="px-3 py-2 text-slate-500">却下</td><td class="px-3 py-2">JSON（<code>.mrworkflow.json</code>・<code>settings.json</code>）にコメントを書けない。空ファイル・将来の画像にも書けない</td></tr>
+        <tr><td class="px-3 py-2">C: ディレクトリ単位の規約</td><td class="px-3 py-2 text-slate-500">却下</td><td class="px-3 py-2">例外（<code>worklog/TEMPLATE.md</code> だけ <code>core</code>、skills のうち1つだけ <code>exclude</code>）を表現できない</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <div class="bg-white border-l-4 border-indigo-400 p-4 mb-4">
+      <p class="font-bold text-sm">案Aの弱点（足し忘れが無言で漏れる）は検査で塞ぐ</p>
+      <p class="text-sm mt-2"><code>check-dist-coverage.sh</code>（仮）が<strong>分母168と同じ範囲</strong>を定義ファイルへ突き合わせ、どの層にも <code>exclude</code> にも該当しないパスを列挙して終了コード1を返す。<strong><code>exclude</code> を暗黙の既定値にしない</strong>——「定義に無い＝配らない」にすると、この検査が常に成功する。</p>
+    </div>
+    <h3 class="text-lg font-bold mb-2"><code>.claude/settings.json</code> の分割線</h3>
+    <p class="text-sm"><code>hooks</code> と <code>permissions.deny</code> の2行（コミット強制の多重防御・DDR i0000-09）は本家所有、<code>permissions</code> のそれ以外・<code>plansDirectory</code>・<code>autoCompactWindow</code> は配布先所有。<strong><code>merge</code> の粒度は「トップレベルのキー単位」では足りず「キーのパス単位」が要る。</strong></p>
+  </section>
+
   <!-- manifest -->
   <section class="mb-12">
     <h2 class="text-2xl font-bold mb-4">調査4: manifest の記録項目</h2>
@@ -174,32 +225,99 @@
       </div>
       <div class="bg-white border-l-4 border-indigo-400 p-4">
         <p class="font-bold text-sm">dirty は「配布対象パスに限定」＋ <code>--allow-dirty</code></p>
-        <p class="text-sm mt-2">追跡ファイルの変更と配布対象配下の未追跡ファイルは含める。無視ファイルと <code>plans/ worklog/ reports/</code> は含めない（含めると永久に適用できない）。フェーズ3の実装中は本家が常に dirty で、結合テストが流せなくなるため逃げ道を持たせ、<code>source.commit</code> に <code>-dirty</code> 接尾辞を付けて痕跡を残す。</p>
+        <p class="text-sm mt-2">追跡ファイルの変更と配布対象配下の未追跡ファイルは含める。無視ファイル（<code>usage/</code> <code>.claude/state/</code> <code>index.jsonl</code> は<strong>常に存在する</strong>）と <code>plans/ worklog/ reports/</code> のタスク単位ファイルは含めない。フェーズ3の実装中は本家が常に dirty で結合テストが流せなくなるため逃げ道を持たせ、<code>source.commit</code> に <code>-dirty</code> 接尾辞を付けて痕跡を残す。</p>
       </div>
     </div>
   </section>
 
-  <!-- 判断を仰ぐ -->
+  <!-- AGENTS.md -->
   <section class="mb-12">
-    <h2 class="text-2xl font-bold mb-4">人間の判断を仰ぐ点</h2>
+    <h2 class="text-2xl font-bold mb-4">調査6: <code>AGENTS.md</code> の分割線</h2>
+    <p class="text-sm mb-4">「ルール」節は<strong>9項目</strong>（<code>awk</code> で実測）。<strong>9項目すべてが本家所有</strong>で、<code>.claude/rules/agent-common.md</code> へ切り出す。9項目目は「ドキュメント探索は frontmatterインデックスの横断検索を第一手段にする」（<code>doc-search</code> スキル、issue #38）で、<strong>節で最も長い項目</strong>のため落とすと配布先で全文探索が既定に戻る。</p>
+    <div class="grid gap-3 md:grid-cols-2">
+      <div class="bg-white border-l-4 border-amber-400 p-4">
+        <p class="font-bold text-sm"><code>seed</code> の雛形にする際の注意</p>
+        <p class="text-sm mt-2"><code>## 開発・実行</code> は TODO コメントのみだが、<strong><code>## プロジェクト概要</code> には本家固有の本文が3行ある</strong>（「このリポジトリは……のテンプレートです」）。そのまま <code>seed</code> にすると<strong>どの配布先も本家を名乗った状態から始まる</strong>。汎用の文言へ差し替えることがフェーズ3の作業項目。</p>
+      </div>
+      <div class="bg-white border-l-4 border-indigo-400 p-4">
+        <p class="font-bold text-sm"><code>@import</code> の解決（実測と未確認）</p>
+        <p class="text-sm mt-2"><strong>実測</strong>: <code>.claude/rules/*.md</code> の7件すべてが project instructions として読み込まれた。frontmatter に <code>alwaysApply: true</code> を持つのは<strong>3件</strong>だけなので、読み込みは <code>alwaysApply</code> に依存していない。<br><strong>未確認</strong>: Gemini CLI 側の挙動と、<code>AGENTS.md</code> からの相対 <code>@</code> import の解決基準。安全側に倒して import も併せて張る。</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- .skill 廃止 -->
+  <section class="mb-12">
+    <h2 class="text-2xl font-bold mb-4">調査7: <code>.skill</code> パッケージ廃止の影響範囲</h2>
+
+    <div class="bg-white border-2 border-rose-500 rounded-lg p-4 mb-5">
+      <p class="font-bold text-rose-800">⚠ 書き換えてはいけない箇所（point-in-time の記録）</p>
+      <p class="text-sm mt-2"><code>sed</code> 等の一括置換をかけると、当時何が起きたかが読めなくなる（<code>docs-workflow.md</code>「changelogを対象に含めない」。issue #47・#24 で実際に踏んだ形）。</p>
+      <ul class="text-sm mt-3 list-disc pl-5 space-y-1">
+        <li><code>.claude/docs/ddr/i0033-01</code> / <code>i0033-02</code> / <code>i0033-03</code> / <code>i0063-01</code> の本文 — DDRは本文を一度マージしたら変更しない</li>
+        <li><code>.claude/docs/spec/issue-mr-workflow.md</code> <strong>2304行目</strong> — issue #63 のchangelogエントリ内</li>
+        <li><code>.claude/docs/spec/distribution-assets.md</code> <strong>120行目</strong> — <code>## 影響範囲 / ### issue #33（初版）</code> の中。<strong>同じファイルに「直す行」と「触ってはいけない行」が混在する</strong>ので、このファイルへ一括置換をかけない</li>
+      </ul>
+      <p class="text-sm mt-3"><code>.claude/rules/directory-structure.md</code> 110行目の <code>assets/</code> は<strong>スキルのバンドルリソース一般</strong>の話で、<code>sync-assets.sh</code> の <code>assets/</code> とは無関係。対象外。</p>
+    </div>
+
+    <h3 class="text-lg font-bold mb-2">書き換えるもの（6ファイル）</h3>
+    <div class="overflow-x-auto mb-4">
+    <table class="w-full text-sm bg-white border border-slate-300">
+      <thead class="bg-slate-100"><tr><th class="text-left px-3 py-2 border-b border-slate-300">ファイル</th><th class="text-left px-3 py-2 border-b border-slate-300">箇所と対応</th></tr></thead>
+      <tbody>
+        <tr class="border-b border-slate-200"><td class="px-3 py-2"><code>DEVELOPERS.md</code></td><td class="px-3 py-2">43・50〜70行目（<code>.skill</code> ビルド手順と <code>gemini skills install</code>、<code>build/</code> への移動）。受け入れ条件10の後半</td></tr>
+        <tr class="border-b border-slate-200"><td class="px-3 py-2"><code>.gitignore</code></td><td class="px-3 py-2">8〜9行目（<code>assets/</code> 除外）は削除。6行目（<code>/build/</code>）は下記の判断による</td></tr>
+        <tr class="border-b border-slate-200"><td class="px-3 py-2"><code>.claude/docs/spec/distribution-assets.md</code></td><td class="px-3 py-2"><strong>6行目</strong>（frontmatter <code>keywords</code>）・<strong>85〜91行目</strong>（配布経路の表）・<strong>111〜112行目</strong>（下記の仕様変更）。<strong>120行目は触らない</strong></td></tr>
+        <tr class="border-b border-slate-200"><td class="px-3 py-2"><code>.claude/scripts/test/test_install_to_project.sh</code></td><td class="px-3 py-2">11・23・62〜63行目。<strong>63行目が実際に <code>sync-assets.sh</code> を起動している</strong>ので作り直しが必須</td></tr>
+        <tr class="border-b border-slate-200"><td class="px-3 py-2"><code>index.md</code></td><td class="px-3 py-2">45行目（<code>./build/</code> の説明）</td></tr>
+        <tr><td class="px-3 py-2"><code>.claude/rules/directory-structure.md</code></td><td class="px-3 py-2">45行目（ツリー中の <code>build/</code>）</td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <div class="bg-white border-l-4 border-amber-400 p-4 mb-3">
+      <p class="font-bold text-sm"><code>build/</code> をどうするか決めて書く</p>
+      <p class="text-sm mt-2"><code>build/</code> は <code>.skill</code> のビルド成果物の置き場としてのみ存在している。ビルド工程が無くなるので、<strong>削除するのか将来の別用途のために残すのかを決める</strong>（決めずに放置すると、次の作業者には漏れと区別できない）。とくに <code>directory-structure.md</code> はセッションごとに読み込まれるルールなので、存在しない工程の記述が残り続ける。</p>
+    </div>
+
+    <div class="bg-white border-l-4 border-violet-400 p-4">
+      <p class="font-bold text-sm"><code>.gitattributes</code> の読み出し元の移設は<strong>仕様変更を伴う</strong></p>
+      <p class="text-sm mt-2">現行は <code>${ASSETS_DIR}/.gitattributes</code>（<code>install-to-project.sh</code> 294行目）。新方式では本家のワークツリーを直接読む。あわせて<strong>マーカーが1行も見つからない場合を「警告」から「失敗」へ変える</strong>が、現行 spec（<code>distribution-assets.md</code> 111〜112行目）は「件数付きの警告を出す」と明文化しているため、<strong>フェーズ4でその明文も更新する</strong>。<br><code>.gitignore</code> も同じマーカー方式へ揃えると、欠陥3（配る行が実状態と不一致）が構造的に解消する。</p>
+    </div>
+  </section>
+
+  <!-- ユーザー判断 -->
+  <section class="mb-12">
+    <h2 class="text-2xl font-bold mb-4">ユーザーの判断（チャットで受けたもの）</h2>
     <ol class="space-y-3 text-sm">
-      <li class="bg-white border border-amber-400 rounded-lg p-4">
-        <p class="font-bold text-amber-800">1. <code>exclude</code> カテゴリの新設（受け入れ条件1は「4層」で固定）</p>
-        <p class="mt-1">本家固有で配らないパスが5件実在する。<strong>推奨: <code>exclude</code> を明示的なカテゴリとして新設し、受け入れ条件1を「4層＋<code>exclude</code>」へ更新する。</strong>暗黙の既定値（定義に無い＝配らない）にすると、網羅性チェックが常に成功する形になる。</p>
+      <li class="bg-white border border-emerald-400 rounded-lg p-4">
+        <p class="font-bold text-emerald-800">1. <code>exclude</code> カテゴリの新設 — <span class="text-emerald-700">承認</span></p>
+        <p class="mt-1">受け入れ条件1を「4層＋<code>exclude</code>」へ更新する。<strong>issue本文は書き換えず、flow-id 5-2 の関連issue通知で issue #26 へコメントとして記録する</strong>（起票時点の条件が読めなくなるのを避けるため）。</p>
       </li>
-      <li class="bg-white border border-amber-400 rounded-lg p-4">
-        <p class="font-bold text-amber-800">2. <code>.github/</code> <code>.gitlab/</code> テンプレートを <code>seed</code> にするトレードオフ</p>
-        <p class="mt-1"><code>seed</code> だと本家が <code>describe</code> の見出し構成を変えても配布先へ届かない（現行テストはこの一致を表明している）。<code>core</code> だと配布先が足したチェックリストが消える。<strong><code>.local</code> 併設は使えない</strong>（GitHub/GitLab がファイル名を固定しているため）。</p>
+      <li class="bg-white border border-emerald-400 rounded-lg p-4">
+        <p class="font-bold text-emerald-800">2. <code>.github/</code> <code>.gitlab/</code> テンプレート4件 — <span class="text-emerald-700"><code>core</code></span></p>
+        <p class="mt-1">見出し構成が <code>test_issue_sections</code> と <code>describe</code> に機能的に結合している。配布先の追記は<strong>別テンプレートファイル</strong>で足せる。GitHubの既定PRテンプレートだけは単一ファイルなので、上書き時の警告＋<code>.bak</code> で受ける。</p>
       </li>
-      <li class="bg-white border border-amber-400 rounded-lg p-4">
-        <p class="font-bold text-amber-800">3. <code>CLAUDE.md</code> / <code>GEMINI.md</code> を <code>seed</code> にしてよいか</p>
-        <p class="mt-1">中身は <code>@./AGENTS.md</code> の1行と空の「固有ルール」節だけ。本家が更新する見込みは低いが、将来 import の書き方が変わると届かなくなる。</p>
+      <li class="bg-white border border-emerald-400 rounded-lg p-4">
+        <p class="font-bold text-emerald-800">3. <code>CLAUDE.md</code> / <code>GEMINI.md</code> — <span class="text-emerald-700"><code>core</code></span></p>
+        <p class="mt-1"><code>seed</code> だと import の書き方が変わったとき共通ルール一式が<strong>無言で読み込まれなくなる</strong>。<code>core</code> なら警告と <code>.bak</code> で気づける。空の「固有ルール」見出しを <code>.claude/rules/</code> へのポインタへ差し替えることとセット。</p>
       </li>
     </ol>
   </section>
 
+  <!-- 未確認 -->
+  <section class="mb-12">
+    <h2 class="text-2xl font-bold mb-4">残る未確認事項（フェーズ4で新方式の spec へ残す）</h2>
+    <ul class="text-sm list-disc pl-5 space-y-1 bg-white border border-slate-300 rounded-lg p-4">
+      <li><strong>sha256 の LF 正規化が Windows 実機で意図どおり効くか</strong>（この環境では確認できない）</li>
+      <li><strong><code>.gemini/</code> のリンクと実体コピーの判別</strong>。NTFSジャンクションは <code>[ -L ]</code> で区別できない</li>
+      <li><strong><code>AGENTS.md</code> からの <code>@</code> import が <code>.claude/rules/</code> 配下へ解決するか</strong>（フェーズ3の切り出し直後、次のセッション開始時に確認できる）</li>
+    </ul>
+  </section>
+
   <footer class="border-t border-slate-300 pt-6 text-xs text-slate-500">
-    <p>調査4項目の詳細（案の比較・却下理由・書き換え禁止箇所の一覧）は md 版を参照。片付け: 検証で生成した <code>.claude/skills/apply-mr-workflow-to-project/assets/</code> は削除済み。</p>
+    <p>本ページは md 版の全7調査項目を反映している。検証に使ったコマンド（分母の算出・欠陥の再現手順）と、層割り当ての全パス一覧は md 版を参照。片付け: 検証で生成した <code>.claude/skills/apply-mr-workflow-to-project/assets/</code> は削除済み。</p>
   </footer>
 
 </div>
