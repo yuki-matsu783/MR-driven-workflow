@@ -67,7 +67,8 @@ assert_eq "sf_is_excluded_path: .git 配下は除外" "0" "$(status_of sf_is_exc
 assert_eq "sf_is_excluded_path: node_modules 配下は除外" "0" \
   "$(status_of sf_is_excluded_path 'app/node_modules/pkg/index.jsonl')"
 assert_eq "sf_is_excluded_path: build 配下は除外" "0" "$(status_of sf_is_excluded_path 'build/index.jsonl')"
-# .gemini/ は .claude/ へのリンク（ジャンクション）のため、除外しないと同じドキュメントが二重に出る
+# .gemini/ は .claude/ からの変換生成物（issue #70）で実体が2つあるため、除外しないと
+# 同じドキュメントが二重に出る
 assert_eq "sf_is_excluded_path: .gemini 配下は除外" "0" \
   "$(status_of sf_is_excluded_path '.gemini/docs/ddr/index.jsonl')"
 assert_eq "sf_is_excluded_path: 空文字列は除外" "0" "$(status_of sf_is_excluded_path '')"
@@ -136,7 +137,7 @@ trap 'rm -rf "$fixture_dir"' EXIT
 fixture="$fixture_dir/index.jsonl"
 
 # 末尾に #1 と同じ concept_id の行を置き、unique_by による重複排除も併せて検証する
-# （.gemini/ のリンクを辿ってしまった場合に同じドキュメントが二重に出るのを防ぐ仕掛け）。
+# （.gemini/ 配下の生成物を拾ってしまった場合に同じドキュメントが二重に出るのを防ぐ仕掛け）。
 cat > "$fixture" <<'EOF'
 {"concept_id":".claude/docs/ddr/0001-alpha","directory":".claude/docs/ddr","frontmatter":{"title":"0001. Alphaの決定","type":"ddr","description":"最初の決定","tags":["workflow","conflict"],"keywords":["merge","DDR番号"]},"mtime":"2026-08-01T00:00:00"}
 {"concept_id":".claude/docs/spec/beta","directory":".claude/docs/spec","frontmatter":{"title":"Beta仕様","type":"spec","description":"betaの仕様","tags":["spec"],"keywords":["frontmatter","JSONL"]},"mtime":"2026-08-10T12:00:00"}
@@ -437,12 +438,12 @@ cat > "$itest/docs/index.jsonl" <<'EOF'
 {"concept_id":"docs/alpha","directory":"docs","frontmatter":{"title":"アルファ","type":"spec","tags":["doc"],"keywords":["仕様"]},"mtime":"2026-08-02T00:00:00"}
 {"concept_id":"docs/beta","directory":"docs","frontmatter":{"title":"ベータ","type":"ddr","tags":["doc"],"keywords":["決定"]},"mtime":"2026-08-03T00:00:00"}
 EOF
-# 除外されるべきディレクトリ（build/ は find の prune、.gemini/ は .claude へのリンク相当）
+# 除外されるべきディレクトリ（build/ は find の prune、.gemini/ は .claude からの生成物）
 cat > "$itest/build/gen/index.jsonl" <<'EOF'
 {"concept_id":"build/gen/生成物","directory":"build/gen","frontmatter":{"title":"生成物","type":"spec"},"mtime":"2026-08-04T00:00:00"}
 EOF
 cat > "$itest/.gemini/rules/index.jsonl" <<'EOF'
-{"concept_id":".gemini/rules/リンク","directory":".gemini/rules","frontmatter":{"title":"リンク","type":"rule"},"mtime":"2026-08-05T00:00:00"}
+{"concept_id":".gemini/rules/生成物","directory":".gemini/rules","frontmatter":{"title":"生成物","type":"rule"},"mtime":"2026-08-05T00:00:00"}
 EOF
 
 # 実プロセスとして起動する。cd はサブシェルへ閉じ込め、テスト側のカレントを動かさない。
@@ -453,7 +454,7 @@ last_stderr() { cat "$fixture_dir/stderr.txt"; }
 assert_eq "main: 除外ディレクトリを除いた3件を返す" \
   "$(printf '%s\n' 'README' 'docs/alpha' 'docs/beta')" "$(run_main --format path -q)"
 assert_eq "main: build/ 配下の index.jsonl は探索しない" "" "$(run_main --path 生成物 --format path -q)"
-assert_eq "main: .gemini/ 配下の index.jsonl は探索しない" "" "$(run_main --path リンク --format path -q)"
+assert_eq "main: .gemini/ 配下の index.jsonl は探索しない" "" "$(run_main --path 生成物 --format path -q)"
 
 assert_eq "main: 件数サマリを stderr へ出す（index数を含む）" \
   "matched=3 total=3 indexes=2" "$(run_main --format path >/dev/null; last_stderr)"
