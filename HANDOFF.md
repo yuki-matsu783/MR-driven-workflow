@@ -188,10 +188,39 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
   AIアセット反映（`directory-structure.md`・`shell-script-style.md`）は、この設計反映分の
   レビュー完了後に着手する（`docs-workflow.md`の方針）。
 
+- flow-id 4-7（1周目）: `create-commit.sh`経由でコミット`31d66e9`（DDR2件・spec1件・README.md・
+  reports・worklog・HANDOFF.md）を作成し、リモートへ反映してレビュー依頼メッセージを送った。
+- `/adversarial-review`（ユーザー明示呼び出し、flow-id 4-7直後・フェーズ4実施1回目）:
+  設計反映対象3ファイル（DDR2件・spec1件）を`adversarial-reviewer`サブエージェントへレビューさせ、
+  17件のfindingsを得た。確度・重大度マトリクスで major×high/medium の10件をMR #158へ
+  インラインコメントとして投稿した（`posted:10, summarized:0`）。投稿しなかった7件
+  （minor×high 4件・minor×medium 1件・対象外ファイル`listener.pl`の1件・重複扱いにした1件）は
+  下記「敵対的レビューで報告のみに留めた指摘」に記載。
+
+## 敵対的レビューで報告のみに留めた指摘（MR未投稿・確度or重大度が投稿基準未満）
+
+- `otel-listener.md:35`（minor/high）: 「session.id引けた分/引けなかった分」の記述が、実装の
+  ペイロード単位振り分け（1件でも解決できればペイロード全体を複製、1つも解決できなければunrouted）
+  と食い違う。
+- `otel-listener.md:111`（minor/high）: デタッチ起動の分岐条件を「uname相当の判定」としているが、
+  実装は`command -v setsid`の有無で判定している。
+- `otel-listener.md:92`（minor/high）: 対応表の切り詰め（500→300行）が、稼働中セッションの
+  エントリも行数だけで容赦なく捨てる副作用が既知の制限に無い。
+- `otel-listener.md:124`（minor/high）: 「既知の制限」3項目が`DEVELOPERS.md`と重複しており、
+  正が2つになっている。
+- `i0103-01...md:18`（minor/high）: コードスパンが行をまたいで折り返されており、レンダリング時に
+  パスへ空白が入る（`i0103-02`のL28-29・L38・L59にも同型あり）。
+- `otel-listener.md:38`（minor/medium）: 「ログにも`session.id`が付く」根拠として挙げている
+  `OTEL_METRICS_INCLUDE_SESSION_ID`はメトリクス専用の設定で、ログ側の根拠になっていない。
+- `listener.pl:8`他（major/high、ただし今回のレビュー対象外＝設計反映3ファイルの外）:
+  コード内コメントが`plans/`・`reports/`のファイルをflow-id 5-4で削除される前提のまま参照して
+  いる（`HttpMinimal.pm`・`session-start.sh`・`OtelRegistry.pm`にも同型あり）。issue #9で
+  過去に同種の事故があった箇所と同じパターン。対応は4-9または別途検討。
+
 ## 次にやること
 
-- flow-id 4-7（1周目）: `commit`スキル経由でcommitし、pushしてレビュー依頼を行う（DDR2件・
-  spec1件・README.md・reports・worklog・HANDOFF.mdが対象）。
+- flow-id 4-8: 上記の敵対的レビュー指摘（MR投稿分10件・報告のみ7件）を含め、設計反映のレビューを
+  依頼する（人間のレビュー待ち）。
 
 ## 判断を迷った内容
 

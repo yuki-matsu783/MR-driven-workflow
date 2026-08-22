@@ -57,4 +57,42 @@ push回数: 1
 - レビュー完了後、AIアセット反映（`directory-structure.md`・`shell-script-style.md`）に着手する
   （flow-id 4-6、2周目）。
 
+## flow-id 4-7〜/adversarial-review: commit・push・敵対的レビュー
+
+### できたこと
+
+- `create-commit.sh`経由でコミット`31d66e9`（DDR2件・spec1件・README.md・reports・worklog・
+  HANDOFF.md）を作成し、リモートへ反映してレビュー依頼メッセージを送った。
+- ユーザーから`/adversarial-review`が明示的に呼ばれたため実施した（対話セッションでのAI自律起動は
+  禁止だが、今回は人間の明示呼び出し）。フェーズ4の実施回数は0→1（上限3回）。
+- 対象は「設計反映」（DDR2件・spec1件）に絞った（`otel-listener.md`は本MRで唯一の変更ではあるが、
+  `listener.pl`等の実装ファイルはフェーズ3で既にレビュー済みのため対象外とした）。
+- `adversarial-reviewer`サブエージェントが17件のfindingsを返した。確度・重大度マトリクスで
+  major×high/mediumの10件が投稿基準に達し、`add_mr_inline_comments`でMR #158へ投稿
+  （`{"posted":10,"summarized":0}`）。
+
+### 投稿した10件の要旨
+
+1. WSL側リスナーの待受ポート（`OTEL_USAGE_PORT=4319`）を設定する経路がspec/テンプレート/導入手順の
+   どこにも無い（結線不能になりうる）。
+2. テスト配置の例外（`.claude/hooks/otel/test/`）をspec側だけで宣言しており、
+   `directory-structure.md`/`index.md`が未追随（正が2つ）。
+3. DDR i0103-01の出典参照が誤り（`shell-script-style.md`ではなく`shell-scripts.md`が正）。
+4. 「常駐プロセスならperl」の枝を規範側（`shell-scripts.md`）へ追記していない。
+5. 配布対象アセットが増えているのに`.claude/VERSION`が据え置き。
+6. 配布先での既定動作（テレメトリ既定ON・毎セッション常駐perl起動）がspecに未記載。
+7. 「既知の制限」の根拠がGit管理外の`参考ディレクトリ/otel/README.md`に丸投げ。
+8. specから`reports/…md`（flow-id 5-4で削除される）を参照している。
+9. 読み取りタイムアウト無しで1接続がacceptループを恒久停止させうる点が未記載。
+10. DDR i0103-02本文から`reports/…md`を参照している（本文は後から直せない）。
+
+### 報告のみに留めた7件
+
+`HANDOFF.md`「敵対的レビューで報告のみに留めた指摘」節に記載（minor×high 4件・minor×medium 1件・
+対象外ファイル`listener.pl`の参照切れ1件）。
+
+### 次の一歩
+
+- flow-id 4-8: 人間のレビュー待ち（MR投稿分10件・報告のみ7件を含めてレビュー依頼済み）。
+
 ---
