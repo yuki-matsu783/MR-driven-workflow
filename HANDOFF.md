@@ -18,7 +18,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - ブランチ: feature-103-collect-claude-code-otel-telemetry-into-usage
 - PR: #158 https://github.com/yuki-matsu783/MR-driven-workflow/pull/158
 - push回数: 1
-- 現在のループ: 3-6〜3-9 の1周目（進行中）
+- 現在のループ: なし
 - 追従監視: なし（ローカル。各pushとflow-id 5-1で手動で `/resolve-conflict` を確認する）
 
 | 進捗 | flow-id | ステップ | 担当 |
@@ -44,12 +44,12 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 | [x] | 3-3 | 作業計画をレビュー | 人間 |
 | [x] | 3-4 | レビュー内容を取得し作業計画を修正 | サブコマンド |
 | [x] | 3-5 | 作業計画をもとにMR descriptionを更新 | サブコマンド |
-| [] | 3-6 | 作業を実施しreports/へ記録 | エージェント |
-| [] | 3-7 | commitしpushしてレビュー依頼 | エージェント |
-| [] | 3-8 | 作業結果をレビュー | 人間 |
-| [] | 3-9 | レビュー内容を取得し実装・ドキュメントを修正 | サブコマンド |
-| [] | 3-10 | 作業内容をもとにMR descriptionを更新 | サブコマンド |
-| [] | 4-1 | 個別反映計画を作成する（反映対象の洗い出し） | エージェント |
+| [x] | 3-6 | 作業を実施しreports/へ記録 | エージェント |
+| [x] | 3-7 | commitしpushしてレビュー依頼 | エージェント |
+| [x] | 3-8 | 作業結果をレビュー | 人間 |
+| [x] | 3-9 | レビュー内容を取得し実装・ドキュメントを修正 | サブコマンド |
+| [x] | 3-10 | 作業内容をもとにMR descriptionを更新 | サブコマンド |
+| [x] | 4-1 | 個別反映計画を作成する（反映対象の洗い出し） | エージェント |
 | [] | 4-2 | commitしpushしてレビュー依頼 | エージェント |
 | [] | 4-3 | 反映計画をレビュー | 人間 |
 | [] | 4-4 | レビュー内容を取得し反映計画を修正 | サブコマンド |
@@ -148,10 +148,33 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
   **WSL実機でのe2e検証とClaude Code本体からの実際の結線確認は今回未実施**（フェーズ4または
   別途検証で埋める、reportsに明記）。
 
+- flow-id 3-7: `create-commit.sh`経由でコミット`faf2aba`（実装ファイル一式15件・
+  reports・worklog・個別作業計画・HANDOFF.md）を作成し、リモートへ反映してレビュー依頼
+  メッセージを送った。
+- flow-id 3-8: ユーザーから「どちらもユーザ側での検証で良い」の回答を受けた（WSL実機
+  検証・Claude Code本体からの結線確認の2点について。MR未解決コメント0件）。
+- flow-id 3-9: `reports/20260823_humming-mapping-pie_OTelリスナー機構の実装.md`の
+  「未検証・今回のスコープ外」節・「フェーズ4への持ち越し事項」節・受け入れ条件対応表を、
+  「ユーザー側での検証に委ねる（合意済み）」と明記する形に修正した。チャットで受けた判断
+  であるため`add_mr_comment`でMR #158へも記録コメントを投稿した
+  （`Claude Codeより: チャットで受けたレビュー判断の記録（flow-id 3-9・レビュー1回目）`）。
+
+- flow-id 3-10: 作業内容（フェーズ3完了、未検証2点はユーザー側検証に委ねる合意）をもとに
+  MR #158 のdescriptionを更新した。
+- flow-id 4-1: 反映対象を洗い出し、個別反映計画を2件作成した。
+  `plans/【設計反映】OTelリスナー機構のDDR_spec新設.md`（DDR2件`i0103-01`/`i0103-02`・
+  spec1件`.claude/docs/spec/otel-listener.md`）と
+  `plans/【AIアセット反映】OTelリスナー機構のルール反映.md`
+  （`directory-structure.md`・`shell-script-style.md`への追記）。`docs-workflow.md`の
+  方針に従い2ファイルへ分割し、AIアセット反映は設計反映の完了・レビュー後に着手する。
+  worklog
+  `worklog/20260823_humming-mapping-pie_【設計反映】OTelリスナー機構のDDR_spec新設_push1.md`
+  も作成した。
+
 ## 次にやること
 
-- flow-id 3-7: `commit`スキル経由でcommitし、pushしてレビュー依頼を行う（実装ファイル一式・
-  reports・worklog・HANDOFF.mdが対象）。
+- flow-id 4-2: `commit`スキル経由でcommitし、pushしてレビュー依頼を行う（個別反映計画2件・
+  worklog・HANDOFF.mdが対象）。
 
 ## 判断を迷った内容
 
