@@ -18,7 +18,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - ブランチ: feature-103-collect-claude-code-otel-telemetry-into-usage
 - PR: #158 https://github.com/yuki-matsu783/MR-driven-workflow/pull/158
 - push回数: 1
-- 現在のループ: なし
+- 現在のループ: 3-6〜3-9 の1周目（進行中）
 - 追従監視: なし（ローカル。各pushとflow-id 5-1で手動で `/resolve-conflict` を確認する）
 
 | 進捗 | flow-id | ステップ | 担当 |
@@ -40,10 +40,10 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 | [x] | 2-9 | レビュー内容を取得し調査結果を修正 | サブコマンド |
 | [x] | 2-10 | 調査結果をもとにMR descriptionを更新 | サブコマンド |
 | [x] | 3-1 | 個別作業計画を作成する | エージェント |
-| [] | 3-2 | commitしpushしてレビュー依頼 | エージェント |
-| [] | 3-3 | 作業計画をレビュー | 人間 |
-| [] | 3-4 | レビュー内容を取得し作業計画を修正 | サブコマンド |
-| [] | 3-5 | 作業計画をもとにMR descriptionを更新 | サブコマンド |
+| [x] | 3-2 | commitしpushしてレビュー依頼 | エージェント |
+| [x] | 3-3 | 作業計画をレビュー | 人間 |
+| [x] | 3-4 | レビュー内容を取得し作業計画を修正 | サブコマンド |
+| [x] | 3-5 | 作業計画をもとにMR descriptionを更新 | サブコマンド |
 | [] | 3-6 | 作業を実施しreports/へ記録 | エージェント |
 | [] | 3-7 | commitしpushしてレビュー依頼 | エージェント |
 | [] | 3-8 | 作業結果をレビュー | 人間 |
@@ -127,18 +127,36 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
   `worklog/20260823_humming-mapping-pie_【設計】【実装】【テスト】OTelリスナー機構の実装_push1.md`
   も作成した。
 
+- flow-id 3-2: `create-commit.sh`経由でコミット`d1856c8`（個別作業計画・worklog・HANDOFF.md）を
+  作成し、リモートへ反映してレビュー依頼メッセージを送った。
+- flow-id 3-3: ユーザーから「`.claude/settings.local.json`への設定分離方針→OK」
+  「単体テストの置き場所→OK」の連絡を受けた（MR未解決コメント0件）。
+- flow-id 3-4: チャットで受けた2件の判断を個別作業計画（設計判断1・3）へ「承認済み」として
+  反映し、`add_mr_comment`でMR #158へも記録コメントを投稿した
+  （`Claude Codeより: チャットで受けたレビュー判断の記録（flow-id 3-3・レビュー1回目）`）。
+
+- flow-id 3-5: 承認済みの個別作業計画（設計判断8点）をもとにMR #158 のdescriptionを更新した。
+- flow-id 3-6: `.claude/hooks/otel/`配下にperlによるHTTPリスナー本体（`listener.pl`・
+  `lib/SessionIdFinder.pm`・`lib/OtelRegistry.pm`・`lib/HttpMinimal.pm`）・SessionStart
+  フック拡張（`session-start.sh`）・単体テスト2本（`test/test_session_id_finder.pl`・
+  `test/test_otel_registry.pl`、TAP形式・全19件成功）を実装した。`.claude/settings.json`へ
+  `env`セクション新設とフック登録、`.claude/settings.local.json.example`新規作成、
+  `.gitignore`へ`/.claude/settings.local.json`追加、`DEVELOPERS.md`へ導入手順を追記した。
+  scratchpad配下の隔離環境でe2e実機検証（正常振り分け・unrouted退避・二重起動防止・
+  別ワークスペース分離・ベストエフォート方針・`.gitignore`対象）を行い、結果を
+  `reports/20260823_humming-mapping-pie_OTelリスナー機構の実装.md`へ記録した。
+  **WSL実機でのe2e検証とClaude Code本体からの実際の結線確認は今回未実施**（フェーズ4または
+  別途検証で埋める、reportsに明記）。
+
 ## 次にやること
 
-- flow-id 3-2: `commit`スキル経由でcommitし、pushしてレビュー依頼を行う（個別作業計画・
-  worklog・HANDOFF.mdが対象）。レビューでは特に「`.claude/settings.local.json`分離方針」と
-  「テストの置き場所」の2点について承認を得ること。
+- flow-id 3-7: `commit`スキル経由でcommitし、pushしてレビュー依頼を行う（実装ファイル一式・
+  reports・worklog・HANDOFF.mdが対象）。
 
 ## 判断を迷った内容
 
-- テストの置き場所（`.claude/hooks/otel/test/` vs issue文言の`.claude/scripts/test/`）と、
-  `.claude/settings.local.json`への設定分離方針（issue期待する動作6の「リポジトリ内で完結」を
-  「プロジェクト直下（ユーザーホームではない）」と解釈し直す判断）は、いずれも個別作業計画に
-  明記し、flow-id 3-3のレビューで人間に確認してもらう予定。
+（無し。テストの置き場所・`.claude/settings.local.json`分離方針は、いずれもflow-id 3-3の
+レビューで承認済み。判断内容はMR #158へコメントとして記録済み。）
 
 ## 未解決の内容
 
