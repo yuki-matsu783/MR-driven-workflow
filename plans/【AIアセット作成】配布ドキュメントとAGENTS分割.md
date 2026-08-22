@@ -43,7 +43,7 @@ keywords: [AGENTS, agent-common, CLAUDE, GEMINI, SKILL, DEVELOPERS, skill-packag
 | 3 | `CLAUDE.md` / `GEMINI.md` は **`core`**。空の「固有ルール」見出しはポインタへ差し替える（セットで必須） | ユーザー判断（flow-id 2-9 でMRへ記録済み） |
 | 4 | `.claude/rules/*.md` は Claude Code ではセッション開始時に自動で読み込まれる（`alwaysApply` に依存しない） | flow-id 2-6 の調査6（実測） |
 | 5 | Gemini CLI 側の挙動と `@` import の解決基準は**未確認**。安全側に倒し `AGENTS.md` からの import も併せて張る | 同上 |
-| 6 | `.skill` パッケージ手順の廃止で書き換えるのは6ファイル、**触ってはいけない**のは6箇所 | flow-id 2-6 の調査7 |
+| 6 | `.skill` パッケージ手順の廃止で書き換えるのは6ファイル、**触ってはいけない**のは6箇所（**敵対的レビュー1回目で `build/` 関連の2箇所を追加し8箇所**） | flow-id 2-6 の調査7 |
 
 ---
 
@@ -51,7 +51,26 @@ keywords: [AGENTS, agent-common, CLAUDE, GEMINI, SKILL, DEVELOPERS, skill-packag
 
 ### 切り出し
 
-- 新規 `.claude/rules/agent-common.md`（`type: rule`、`title: AIエージェント共通ルール`）。
+- 新規 `.claude/rules/agent-common.md`。**frontmatterは現行 `AGENTS.md` の1〜7行目を引き継ぐ**
+  （`title` はここが本体になるので、そのまま `AIエージェント共通ルール` を名乗ってよい）。
+
+  ```yaml
+  ---
+  title: AIエージェント共通ルール
+  type: rule
+  description: 複数のAIコーディングエージェント（Claude Code, Gemini CLI等）が共通で従うルール
+  tags: [agents, rule]
+  keywords: [issue-mr-flow, 計画, claude-code, gemini-cli, gh, glab, webfetch, 着手確認, doc-search, index.jsonl, ドキュメント探索]
+  ---
+  ```
+
+- **`AGENTS.md` 側のfrontmatterも同じコミットで書き換える**（敵対的レビュー1回目で検出）。
+  放置すると (a) `title` が同一のファイルが2つでき `doc-search` でどちらが本体か判別できない、
+  (b) ルールが1行も無いのに `doc-search` 等のkeywordsが残り中身と食い違う。
+- **見出し構成は `# AIエージェント共通ルール` → `## ルール` とし、9項目をその下に置く**
+  （敵対的レビュー1回目で検出）。検証1のawkが `## ルール` 節を数えるため、ここを別名にすると
+  「移し漏れ」と「見出し名違い」が出力から区別できなくなる。移動元と同じ見出し名を使うことで、
+  移動であって改訂ではないことも読み取れる。
 - 中身は現行 `AGENTS.md`「## ルール」節の**9項目をそのまま移す**。
   **文面を書き直さない**（この作業は移動であり改訂ではない。同時に書き換えると、レビューで
   「移動したのか変わったのか」が読めなくなる）。
@@ -61,6 +80,14 @@ keywords: [AGENTS, agent-common, CLAUDE, GEMINI, SKILL, DEVELOPERS, skill-packag
 ### 分割後の `AGENTS.md`
 
 ```markdown
+---
+title: エージェント向けの入口
+type: rule
+description: 共通ルールのimportと、このリポジトリ固有のプロジェクト概要・開発実行方法
+tags: [agents, rule]
+keywords: [agent-common, import, プロジェクト概要, 開発, 実行]
+---
+
 ## エージェント共通ルール
 
 @./.claude/rules/agent-common.md
@@ -78,7 +105,22 @@ keywords: [AGENTS, agent-common, CLAUDE, GEMINI, SKILL, DEVELOPERS, skill-packag
   配布先所有のプレースホルダなので**残す**（受け入れ条件が禁じているのは「共通ルールが
   `AGENTS.md` に居座ること」であって、配布先所有の節を減らすことではない）。
 - **`@` import の解決が未確認**（前提5）なので、`.claude/rules/` へ置くだけで読み込まれること
-  （前提4）と**二重の担保**にする。片方が効かなくても共通ルールは読まれる。
+  （前提4）と併せて担保する。**ただし二重になるのは Claude Code 経路だけである**
+  （敵対的レビュー1回目で検出）。
+
+  | 経路 | 担保(a) `.claude/rules/*.md` の自動読込 | 担保(b) `@` import |
+  |---|---|---|
+  | Claude Code | **効く**（前提4・実測） | 未確認 |
+  | Gemini CLI | **効かない**（`.gemini/rules` は `.claude/rules` へのリンクだが、読込規則は `.gemini/` 側が持つ） | 未確認 |
+
+- **リスク: Gemini CLI では共通ルールが1行も読まれない可能性がある。** しかも `GEMINI.md` が
+  `@./AGENTS.md` を、その `AGENTS.md` が `@./.claude/rules/agent-common.md` を import する
+  **入れ子import**になるため、解決可否は一段さらに不確かになる。
+- **確認手段**: 切り出した直後の次セッション開始時に、Gemini CLI で共通ルールの一節
+  （例: 項目9の `doc-search`）を参照できるかを実測する。
+- **効かなかった場合の代替**: `GEMINI.md` から `.claude/rules/agent-common.md` を**直接** import
+  する（入れ子を1段減らす）。それでも駄目なら `.gemini/` 側の読込規則に合わせた配置を検討する。
+  いずれもこの計画の完了判定には含めない（前提5のとおり次セッションまで確かめられないため）。
 
 ### `seed` の雛形（対の計画が置く空ファイルの中身をここで埋める）
 
@@ -154,7 +196,17 @@ keywords: [AGENTS, agent-common, CLAUDE, GEMINI, SKILL, DEVELOPERS, skill-packag
   そのとき必要な形で作り直せばよく、**存在しない工程の記述がセッションごとに読み込まれる
   ルールファイルに残り続ける**ほうが害が大きい。
 - ただし `.gitignore` の `/build/` 行は**対の計画が触る同じファイル**なので、実際の削除は
-  対の計画の項目10とまとめて行う（同じファイルへ2つの計画から別々に手を入れない）。
+  対の計画の項目10で行う（同じファイルへ2つの計画から別々に手を入れない）。**対の計画側は
+  「マーカーの中に入れない」としか書いておらず削除の指示になっていなかった**ため、
+  項目10へ「5〜6行目を削除する」という置き換え前後の形を明記した（敵対的レビュー1回目で検出）。
+  この計画が持つのは判断（削除する）だけで、編集は対の計画にある。
+- **`build/` への参照のうち、次の2箇所は point-in-time の記録なので触らない**（下記
+  「触ってはいけない箇所」の表にも追加した）。
+
+  | ファイル | 行 |
+  |---|---|
+  | `.claude/docs/ddr/i0032-01-….md` | 75〜76 |
+  | `.claude/docs/spec/issue-mr-workflow.md` | 2559〜2560 |
 - `commit` スキルの除外リストにある `build/` は**そのまま残す**（あちらは汎用の副産物リストで、
   このリポジトリに `build/` があるかどうかとは無関係）。
 
@@ -193,6 +245,8 @@ keywords: [AGENTS, agent-common, CLAUDE, GEMINI, SKILL, DEVELOPERS, skill-packag
 | `.claude/docs/ddr/i0033-01` `i0033-02` `i0033-03` `i0063-01` | 本文中の `sync-assets.sh` への言及（**DDR本文は変更しない**） |
 | `.claude/docs/spec/issue-mr-workflow.md` 2304行目 | issue #63 のchangelogエントリ内 |
 | `.claude/docs/spec/distribution-assets.md` 120行目 | `## 影響範囲 / ### issue #33（初版）` の中 |
+| `.claude/docs/ddr/i0032-01-….md` 75〜76行目 | `build/` への言及（**DDR本文は変更しない**。作業5に関連。敵対的レビュー1回目で追加） |
+| `.claude/docs/spec/issue-mr-workflow.md` 2559〜2560行目 | issue #32 のchangelog内の `build/` への言及（同上） |
 
 - **`.claude/docs/spec/distribution-assets.md` は同じファイルに「直す行」と「触ってはいけない行」が
   混在する。** `sed` の一括置換をこのファイルへかけない（直す作業自体はフェーズ4）。
@@ -203,8 +257,15 @@ keywords: [AGENTS, agent-common, CLAUDE, GEMINI, SKILL, DEVELOPERS, skill-packag
 
 ```bash
 # 1. 9項目がすべて agent-common.md へ移り、AGENTS.md 側に残っていないこと
-awk '/^## ルール/{f=1;next} /^## /{f=0} f && /^- /{c++} END{print c+0}' .claude/rules/agent-common.md
-awk '/^## ルール/{f=1;next} /^## /{f=0} f && /^- /{c++} END{print c+0}' AGENTS.md
+#    awk は `## ルール` 見出しを前提にする（作業1で見出し構成を固定済み）。見出し名を変えると
+#    「移し漏れ」と「見出し名違い」がどちらも 0 になり区別できないため、節に依存しない数え方を
+#    併記して突き合わせる。
+n_sec=$(awk '/^## ルール/{f=1;next} /^## /{f=0} f && /^- /{c++} END{print c+0}' .claude/rules/agent-common.md)
+n_all=$(grep -c '^- ' .claude/rules/agent-common.md)
+echo "agent-common.md: 節内=$n_sec ファイル全体=$n_all  （期待: どちらも 9）"
+[ "$n_sec" = 9 ] && [ "$n_all" = 9 ] && echo 'OK' || echo 'NG: 移し漏れか見出し名違い'
+n_agents=$(awk '/^## ルール/{f=1;next} /^## /{f=0} f && /^- /{c++} END{print c+0}' AGENTS.md)
+echo "AGENTS.md: $n_agents （期待: 0）"
 
 # 2. 落としやすい項目9（doc-search）が切り出し先にあること
 grep -c 'doc-search' .claude/rules/agent-common.md
@@ -225,13 +286,34 @@ grep -c 'issue駆動MRワークフロー機構' \
 # 6. CLAUDE.md / GEMINI.md の見出しが空で終わっていないこと
 tail -5 CLAUDE.md; tail -5 GEMINI.md
 
-# 7. .skill 手順への参照が残っていないこと（DDR本文・changelogを除く）
-grep -rn -e 'package_skill' -e 'gemini skills install' -e 'sync-assets' \
-  --include='*.md' . | grep -v '/.claude/docs/ddr/' | grep -v '/plans/' \
-  | grep -v '/reports/' | grep -v '/worklog/'
+# 7. .skill 手順への参照が残っていないこと
+#    この検索は「触ってはいけない箇所」と「フェーズ4送りの箇所」を必ず拾うので、**期待される
+#    出力は空ではない**。期待して残る4行を先に列挙し、それ以外が出たら消し漏れとして扱う。
+#      .claude/docs/spec/issue-mr-workflow.md:2304   issue #63 のchangelog（触ってはいけない）
+#      .claude/docs/spec/distribution-assets.md:6    frontmatterのkeywords（フェーズ4送り）
+#      .claude/docs/spec/distribution-assets.md:87   表（フェーズ4送り）
+#      .claude/docs/spec/distribution-assets.md:120  issue #33 のchangelog（触ってはいけない）
+#    `git grep` は既定（core.quotepath=true）で非ASCIIパスを "\343\203\254…" と**クォート**して出す
+#    ため、`-c core.quotepath=false` を付けないと `^\.claude/docs/ddr/` の除外が1件も効かない
+#    （実際に流して確認: 付けないと40件、付けると3件）。
+n=$(git -c core.quotepath=false grep -n \
+  -e 'package_skill' -e 'gemini skills install' -e 'sync-assets' -- '*.md' \
+  | grep -v '^\.claude/docs/ddr/' | grep -v '^plans/' | grep -v '^reports/' | grep -v '^worklog/' \
+  | grep -vc -e 'issue-mr-workflow\.md:2304:' -e 'distribution-assets\.md:6:' \
+             -e 'distribution-assets\.md:87:' -e 'distribution-assets\.md:120:')
+echo "消し漏れ: $n 件 （期待: 0。作業前に流すと DEVELOPERS.md の3件が出る）"
 
 # 8. 触ってはいけない箇所が変わっていないこと（削除行が0であること）
-git diff <ブランチ分岐点のSHA> -- .claude/docs/ddr/ | grep -c '^-[^-]' || echo 'DDRの削除行0'
+#    (1) 分岐点は git merge-base で求める（プレースホルダのままでは実行できない）。
+#    (2) grep -c はマッチ0件のときだけ終了コード1を返すので `|| echo` は正常時に発火してしまう。
+#        期待と結果を明示する形にする。
+#    (3) 範囲は .claude/ 全体で見る（ddr/ だけに絞ると、同じく触ってはいけない spec/ の2ファイルが
+#        検証の外に出る。ルート REVIEW-POINTS.md の観点）。
+base="$(git merge-base HEAD origin/main)"
+n=$(git diff "$base" -- .claude/docs/ddr/ .claude/docs/spec/ | grep -c '^-[^-]' || true)
+echo "ddr/ + spec/ の削除行: $n 件"
+[ "$n" = 0 ] && echo 'OK: 削除行0' || echo 'NG: point-in-time の記録を消している可能性'
+#    spec/ は本来フェーズ4で更新するため、この計画の完了時点では削除行0が期待値である。
 ```
 
 - **検証1で AGENTS.md 側が `0` になること**が受け入れ条件9の直接の確認である。

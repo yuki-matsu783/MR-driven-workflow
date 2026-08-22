@@ -40,7 +40,7 @@ keywords: [dist-layers, asset-manifest, install-to-project, check-dist-coverage,
 | 1 | 層は `core` / `seed` / `merge` / `local` ＋ **`exclude`**（明示。暗黙の既定値にしない） | flow-id 2-6 の調査3 ＋ **ユーザー承認**（flow-id 2-9 でMRへ記録済み） |
 | 2 | `REVIEW-POINTS.md` は `core`、配布先所有は `REVIEW-POINTS.local.md`（`seed`） | flow-id 2-6 の調査2 |
 | 3 | `.github/` `.gitlab/` テンプレート4件と `CLAUDE.md` `GEMINI.md` は `core` | ユーザー判断（flow-id 2-9 で記録済み） |
-| 4 | `.gemini/{docs,…}` は `local`。**インストーラは触らず**、受け入れ条件8は `setup-gemini-links.sh` が満たす | flow-id 2-6 の調査1 |
+| 4 | `.gemini/{docs,…}` は `local`。ただし**「`local` は触らない」の唯一の例外**として、インストーラは最後に `setup-gemini-links.sh` を**呼ぶ**（インストーラ自身は `.gemini/` を直接書かない）。受け入れ条件8が「再適用で `.gemini/` が最新の `.claude/` に一致する」ことを求める以上、インストーラ経由でしか満たせないため | flow-id 2-6 の調査1 ＋ **敵対的レビュー1回目**（前提4と手順7の矛盾として検出） |
 | 5 | dirty ＝「配布対象パスに限定した `git status --porcelain` が空でない」。`--allow-dirty` を持つ | flow-id 2-6 の調査4 |
 | 6 | 定義の形式は案A（定義ファイル1枚）＋網羅性チェック | flow-id 2-6 の調査3 |
 | 7 | 既存欠陥は5件中4件が作り直しで消え、**#3（配る行が実状態と不一致）だけ明示対処が要る** | flow-id 2-6 の調査5 |
@@ -133,6 +133,13 @@ keywords: [dist-layers, asset-manifest, install-to-project, check-dist-coverage,
 **受け入れ条件5の達成**: 再適用時（および `--dry-run`）に、manifestの `sha256` と配布先の実ファイルの
 sha256 を突き合わせ、食い違うものを「適用後に変更された」として列挙する。
 
+**manifest を持たない配布先（旧 `install-to-project.sh` で適用済み）の初回再適用**（敵対的レビュー
+1回目）: 比較対象が無いため、素直に実装すると全 `core` が「改変済み」に倒れて `.bak` が大量発生するか、
+「新規」に倒れて改変を無警告で踏み潰すかのどちらかになる。**前者へ倒す**が、警告文を分ける
+——「改変済み」ではなく「**manifest 不在のため差分を確認できない（移行）**」として一覧提示し、
+`.bak` は作る。受け入れ条件4（上書きの前に警告と一覧）は満たしたうえで、初回だけ理由が違うことを
+読み手へ示す。
+
 ## 4. インストーラの処理順序（`install-to-project.sh`）
 
 **2パス構成にする。** 受け入れ条件4が「上書きの**前に**警告と一覧を出す」ことを求めており、
@@ -156,7 +163,7 @@ sha256 を突き合わせ、食い違うものを「適用後に変更された�
    - core: 上書き（改変済みなら .bak を残す。--force なら .bak も作らない）
    - seed: 存在しなければ置く。存在すれば触らない
    - merge: strategy ごとの処理（下記）
-   - local / exclude: **何もしない**                                             … 受け入れ条件2
+   - local / exclude: **何もしない**（唯一の例外は手順7。前提4）                  … 受け入れ条件2
 7. dest で setup-gemini-links.sh を実行                                          … 受け入れ条件7・8
 8. manifest の書き出し
 9. サマリ（警告の有無を含む）
@@ -188,13 +195,17 @@ sha256 を突き合わせ、食い違うものを「適用後に変更された�
 ### dirty の判定（受け入れ条件6）
 
 ```
-git -C <本家> status --porcelain -z -- <非localエントリのpath...>
+git -C <本家> status --porcelain -z -- <core / seed（source側パスを含む）/ merge エントリのpath...>
 ```
 
 - 既定の `--untracked-files=normal` で未追跡ファイルは含まれ、無視ファイルは含まれない。
   これが調査4で決めた定義とそのまま一致する。
 - `plans/` `worklog/` `reports/` は `local` エントリなので pathspec に入らず、タスク作業中でも
   dirty にならない。
+- **`exclude` 層も pathspec に入れない**（敵対的レビュー1回目）。`exclude` は配布先へ1バイトも
+  配られないので、編集中でも manifest の再現性（`source.commit` と配布内容の対応）は損なわれない。
+  入れてしまうと `README.md` を書きかけただけで `--allow-dirty` が要る運用になる。受け入れ条件6の
+  趣旨は「**配る内容が**コミットと一致しない状態で配らない」ことである。
 
 ---
 
@@ -215,6 +226,44 @@ git -C <本家> status --porcelain -z -- <非localエントリのpath...>
 | 9 | `.claude/scripts/src/collect-review-points.sh` | 改修 | 下記 |
 | 10 | `.gitignore` | 改修 | マーカーの導入と `assets/` 行の削除 |
 | 11 | `.gitattributes` | 変更なし | マーカーは既にある |
+
+### 新規追加するファイル自身の層（敵対的レビュー1回目）
+
+検査1は**追跡ファイル全件**がどれかのエントリに一致することを要求するので、この計画が新規追加する
+4ファイルにも必ず層が要る。**定義への登録を忘れると、追加した瞬間に検査1が落ちる。**
+
+| 追加するファイル | 層 | 配布先での振る舞い |
+|---|---|---|
+| `.claude/dist-layers.json` | `core` | 配られる。**配布先で `check-dist-coverage.sh` を流すと、配布先の自前ソースが全件「未分類」になる** → 下記の但し書きで対処 |
+| `.claude/scripts/src/check-dist-coverage.sh` | `core` | 同上 |
+| `.claude/scripts/test/test_check_dist_coverage.sh` | `core` | 対象が本家前提のためスキップしうる |
+| `.claude/scripts/test/test_setup_gemini_links.sh` | `core` | 配布先でもそのまま意味がある |
+
+- **`check-dist-coverage.sh` は「本家（`dist-layers.json` を所有するリポジトリ）でのみ意味を持つ検査」
+  である。** 配布先で流したときに「未分類が大量にある」と報告するのは誤りなので、
+  **`.claude/dist-layers.json` に本家を示す印**（例: `"upstream": true`）を持たせ、印が無ければ
+  「このリポジトリは配布先なので検査をスキップした」と**件数付きで**出して終了コード0で終わる。
+  無言のスキップにはしない。
+- 新テスト2本にも、既存 `test_install_to_project.sh` の27〜32行目と同じ
+  **「対象が無い配布先ではスキップし、件数を出す」ガード**を持たせる。
+
+### Goプロジェクト自動検知の扱い（敵対的レビュー1回目）
+
+現行 `install-to-project.sh` は3箇所でGo検知を持つが、上記の処理順序には現れていなかった。
+**引き継がず、廃止する。**
+
+| 現行の行 | 処理 | 廃止の理由 |
+|---|---|---|
+| 151〜152 | `go.mod` を検知 | 下記2つが無くなるので不要 |
+| 193〜195 | `AGENTS.md` へ `go-applications.md` への参照行を追記 | `AGENTS.md` は `seed`。**受け入れ条件3（配布先が編集した seed を触らない）と衝突する** |
+| 199〜200 | 非Goプロジェクトで `go-applications.md` を削除 | `.claude/rules/go-applications.md` は**本リポジトリに存在しない**（`ls .claude/rules/` で0件）。現状すでに空振りしている |
+| 319 | Next Steps でGo向けの分岐を出す | 上記が無くなるため |
+
+- **対の計画（`【AIアセット作成】…`）の作業3の表が「Goプロジェクト自動検知 ｜ 現状の記述を維持する」と
+  書いているので、そちらも同時に直す**（SKILL.mdに機能として残ったまま実装から消えると食い違う）。
+  この相互依存は下記「自己点検」にも記す。
+- 配布先がGo規約を要るなら、`.claude/rules/` へ自分で置き、`AGENTS.md`（`seed`）へ自分で参照を
+  書けばよい。**配布先所有のファイルを本家が書き換える形をやめる**、というのがこの廃止の趣旨である。
 
 ## 個別の指示（置き換え前後）
 
@@ -240,15 +289,46 @@ readonly -a KEEP_BASENAMES=(
 
 ### 9. `collect-review-points.sh`
 
+**104〜106行目だけの置き換えでは実現できない**（敵対的レビュー1回目）。104〜106行目は `rel` への
+代入にすぎず、`.local` を出力するには**出力を担う108〜112行目まで含めて**書き換える必要がある。
+
 ```bash
-# 置き換え前（104〜106行目付近）
+# 置き換え前（102〜113行目）
+  while IFS= read -r dir; do
+    if [ "$dir" = "." ]; then
       rel="REVIEW-POINTS.md"
     else
       rel="$dir/REVIEW-POINTS.md"
-# 置き換え後（同じ位置で .local も続けて出す。本家 → 配布先の順）
+    fi
+    [ -f "$rel" ] || continue
+    found=1
+    printf '## %s\n\n' "$rel"
+    strip_frontmatter_and_h1 "$rel"
+    printf '\n'
+  done < <( ... )
+# 置き換え後（本家 → 配布先の順で、同じディレクトリの2ファイルを続けて出す）
+  while IFS= read -r dir; do
+    if [ "$dir" = "." ]; then
+      prefix=""
+    else
+      prefix="$dir/"
+    fi
+    for base in "REVIEW-POINTS.md" "REVIEW-POINTS.local.md"; do
+      rel="${prefix}${base}"
+      [ -f "$rel" ] || continue
+      found=1
+      printf '## %s\n\n' "$rel"
+      strip_frontmatter_and_h1 "$rel"
+      printf '\n'
+    done
+  done < <( ... )
 ```
 
-- 同じディレクトリで `REVIEW-POINTS.md` → `REVIEW-POINTS.local.md` の順に読む
+- **`continue` の単位がディレクトリからファイルへ変わる**のがこの書き換えの要点である。現行は
+  `REVIEW-POINTS.md` が無いと**ディレクトリごとスキップ**するため、**本家の観点表が無く `.local`
+  だけあるディレクトリ**（配布先が `src/` `internal/` 等へ自分の観点を置く、`.local` の**最も典型的な
+  使い方**）が丸ごと無視される（敵対的レビュー1回目）。
+- 同じディレクトリでは `REVIEW-POINTS.md` → `REVIEW-POINTS.local.md` の順に読む
   （祖先方向の「浅い→深い」の順序は変えない）。
 - **`.local` が無いディレクトリで空振りしても失敗にしない**（存在するのが普通の状態）。
 - **`rel` は出力にファイルパスとして現れる**ので、`.local` 側も同じ形式で出す
@@ -263,8 +343,21 @@ readonly -a KEEP_BASENAMES=(
 - 追加: `# --- dist:begin ---` 〜 `# --- dist:end ---`。**中に入れる**のは
   `/usage/` `/.claude/state/` `**/index.jsonl` `*.stackdump` `.claude/docs/.ddr-list.*`
   `/.gemini/docs` `/.gemini/hooks` `/.gemini/rules` `/.gemini/scripts` `/.gemini/skills`。
-- **入れない**のは `/build/`（本家のビルド成果物置き場。`build/` 自体の存廃は対の計画で決める）・
-  `.vscode/`・`*.log`（配布先の好み）。
+- **入れない**のは `.vscode/`・`*.log`（配布先の好み）。
+- **`/build/` は行ごと削除する**（`build/` を廃止するという対の計画の作業5の判断に対応する、
+  実際の編集。**どちらの計画にも削除の指示が無い状態だった**ため、こちらへ寄せた。
+  敵対的レビュー1回目で検出）。
+
+  ```
+  # 置き換え前（5〜6行目）
+  # ビルド成果物
+  /build/
+
+  # 置き換え後（2行とも削除。直後の空行も1つに詰める）
+  ```
+
+  `build/` への参照のうち `.claude/docs/ddr/i0032-01-….md` 75〜76行目と
+  `.claude/docs/spec/issue-mr-workflow.md` 2559〜2560行目は**point-in-timeの記録**なので触らない。
 - 既存のコメント（各行の由来を説明している段落）は**マーカーの中に残してよい**。
   `lines-marker` はコメント行と空行を落として配るため、配布先へは行だけが届く。
 - **既存の行の並び順を大きく動かさない。** マーカーで囲むために必要な最小限の移動に留める
@@ -312,13 +405,28 @@ readonly -a KEEP_BASENAMES=(
 **旧テストを新実装に対しても1度流し、9番以外が通ることを確かめてから書き直す**
 （受け入れ条件に対応するケースだけで書き直すと、上の保証が無言で失われる）。
 
+### テストが表明していない現行挙動（敵対的レビュー1回目）
+
+全面書き直しで失われるのは**テストのある挙動だけではない**。上の表はアサーションだけを対象に
+していたので、テストの無い生成物についても引き継ぎ判断を書く。
+
+| 現行の行 | 挙動 | 扱い |
+|---|---|---|
+| 160〜163 | `.claude` `.gemini` `plans` `worklog` を `mkdir -p` | `plans` `worklog` は新設計では `local`（「何もしない」）。**捨てる** |
+| 187〜188 | `plans/.gitkeep` `worklog/.gitkeep` を作成 | **捨てる。** 空ディレクトリの維持は配布先の関心事で、`local` を触らない方針と両立しない |
+
+- ルート `REVIEW-POINTS.md` の観点「既存の挙動を変えないはずの書き直しで、変えていないことを
+  機械的に確かめているか」に対応するため、**旧実装と新実装の生成物を突き合わせる**手順を検証節
+  （検証5b）へ入れる。上表の2つは意図的な差分なので、**期待する差分として**先に書いておく。
+
 ## 新規・追加するテスト
 
 | ファイル | ケース | 受け入れ条件 |
 |---|---|---|
 | `test_check_dist_coverage.sh`（新規） | 未分類が0件であること／**定義から1件わざと落とした一時ツリーで実際に検出できること**／`.gitignore` に未分類パターンを足すと落ちること | 1 |
-| `test_install_to_project.sh`（作り直し） | 新規配布先で `core`/`seed`/`merge` が配置され manifest が生成される／`local` のファイルが**1件も作られない**（`index.jsonl` 0件・`.claude/state/` 無し・`usage/` 無し） | 2 |
+| `test_install_to_project.sh`（作り直し） | 新規配布先で `core`/`seed`/`merge` が配置され manifest が生成される／`local` のファイルが**1件も作られない**（`index.jsonl` 0件・`.claude/state/` 無し・`usage/` 無し）。**`.gemini/{docs,…}` はこの列挙に含めない**（前提4の例外。作られることは受け入れ条件7・8のケースで確かめる） | 2 |
 | 〃 | `HANDOFF.md` を編集して再適用しても**上書きされない**（`seed`） | 3 |
+| 〃 | `plans/.gitkeep` `worklog/.gitkeep` が**作られない**（旧挙動を意図的に落としたことの表明） | 2 |
 | 〃 | `core` を編集して再適用すると、**上書きの前に**警告と対象ファイル一覧が出る／`.bak` が残る | 4 |
 | 〃 | 適用後にファイルを書き換えると `--dry-run` が「変更された」と列挙する／書き換えなければ0件 | 5 |
 | 〃 | 本家が dirty なら中断する（終了コード非0）／`--allow-dirty` で継続し `source.commit` に `-dirty` が付く | 6 |
@@ -351,14 +459,26 @@ jq -e . .claude/dist-layers.json > /dev/null && echo 'dist-layers.json OK'
 bash .claude/scripts/src/check-dist-coverage.sh
 
 # 3. 網羅性チェックが「実際に検出できる」ことの確認（異常が無ければ何も出ない検証にしない）
-tmp_def="$(mktemp)"; cp .claude/dist-layers.json "$tmp_def"
-jq '.entries |= map(select(.path != ".claude/rules"))' "$tmp_def" > .claude/dist-layers.json
+#    実物の .claude/dist-layers.json は書き換えない（中断すると壊れた定義が作業ツリーに残り、
+#    手順2bの dirty 判定の材料にもなってしまうため）。落とす対象も、実在保証の無い既存エントリ名
+#    ではなく、この検証が自分で足したファイル／エントリにする。
+tmp_def="$(mktemp)"
+: > .claude/__coverage_probe__.md
+git add -N .claude/__coverage_probe__.md
 if bash .claude/scripts/src/check-dist-coverage.sh > /dev/null 2>&1; then
-  echo 'NG: 未分類を検出できていない'
+  echo 'NG: 定義に無いファイルを未分類として検出できていない'
 else
   echo 'OK: 未分類を検出した'
 fi
-cp "$tmp_def" .claude/dist-layers.json
+jq '.entries += [{"layer":"exclude","path":".claude/__coverage_probe__.md","note":"検証3の使い捨て"}]' \
+  .claude/dist-layers.json > "$tmp_def"
+if bash .claude/scripts/src/check-dist-coverage.sh --def "$tmp_def" > /dev/null 2>&1; then
+  echo 'OK: 定義へ足せば被覆できた（検出が偶然でないことの確認）'
+else
+  echo 'NG: 定義に書いたのに未分類と言われた'
+fi
+git rm -q --cached .claude/__coverage_probe__.md
+rm -f .claude/__coverage_probe__.md
 
 # 4. 単体テスト・結合テスト（規約どおり passed=N failures=N を見る）
 for t in test_check_dist_coverage test_install_to_project test_setup_gemini_links \
@@ -366,12 +486,31 @@ for t in test_check_dist_coverage test_install_to_project test_setup_gemini_link
   echo "--- $t"; bash ".claude/scripts/test/$t.sh"
 done
 
-# 5. 旧テストの引き継ぎ確認（書き直す前に1度流す）
-git stash list > /dev/null  # 作業前に旧版を退避してから実行する
-bash .claude/scripts/test/test_install_to_project.sh || true
+# 5. 旧テストの引き継ぎ確認（棚卸し表1〜8が新実装でも通ること）
+#    旧テストは63行目で sync-assets.sh を set -e 配下で無条件に呼ぶため、削除後はその行で即死し
+#    以降のアサーションが1件も走らない。63行目を除いた写しを作って流す。
+#    || true は付けない（付けると何も検査されていないのに通ったように見える）。
+base="$(git merge-base HEAD origin/main)"
+old_test="$(mktemp)"
+#    `grep -v 'sync-assets'` では11・23行目の**コメント2行まで**落ちる（実際に確認: 3行一致）。
+#    実行行だけを固定文字列で落とす。
+git show "$base:.claude/scripts/test/test_install_to_project.sh" \
+  | grep -vF 'bash "${SKILL_SCRIPTS}/sync-assets.sh"' > "$old_test"
+bash "$old_test"   # 規約どおり passed=N failures=N を見る。failures=0 であること
 
-# 6. sync-assets.sh への参照が残っていないか（DDR本文・changelogを除く）
-grep -rn 'sync-assets' --include='*.sh' --include='*.json' . | grep -v '/.git/' || echo '参照なし'
+# 5b. テストが表明していない生成物の引き継ぎ確認（棚卸しの後半表に対応）
+#    新実装を空の一時配布先へ適用し、意図的に落とした生成物が「無い」ことを確かめる。
+d="$(mktemp -d)"; (cd "$d" && git init -q .)
+bash .claude/skills/apply-mr-workflow-to-project/scripts/install-to-project.sh --allow-dirty "$d"
+for f in plans/.gitkeep worklog/.gitkeep; do
+  [ -e "$d/$f" ] && echo "NG: $f が作られている（落とすと決めた生成物）" || echo "OK: $f は作られない"
+done
+
+# 6. sync-assets.sh への参照が残っていないか（DDR本文・changelogはmdなので対象外）
+#    grep -rn は usage/state/*.json（対応工数レポートのローカル状態。サブエージェントへの
+#    プロンプト全文が入っている）を必ず拾うため、永久に「参照なし」を出さない。追跡ファイルに限定する。
+git grep -n 'sync-assets' -- '*.sh' '*.json' || echo '参照なし'
+#    期待: 0件（test_install_to_project.sh の63行目を消したあと）
 ```
 
 ## この計画の中で互いの前提を崩していないか（自己点検）
@@ -381,6 +520,12 @@ grep -rn 'sync-assets' --include='*.sh' --include='*.json' . | grep -v '/.git/' 
 - **項目10（`.gitignore` のマーカー化）と項目5（インストーラ）はセットである。** 現行インストーラの
   `ignore_rules` 配列を消してマーカー読み出しへ移すため、片方だけ入れると `.gitignore` の
   更新が空振りする（**マーカー0件は失敗にする**という決めがこれを検出する）。
+- **Goプロジェクト自動検知の廃止は、対の計画の作業3とセットである。** こちらが実装から落とし、
+  対の計画がSKILL.mdの記述を落とす。片方だけだと「SKILL.mdにある機能が動かない」か
+  「動く機能が文書化されていない」のどちらかになる（敵対的レビュー1回目で検出）。
+- **`.gitignore` の `/build/` 行の削除は、この計画（項目10）が実施する。** 対の計画の作業5は
+  「削除する」という判断だけを持ち、実際の編集はこちらに寄せてある。**どちらの計画にも削除の
+  指示が無い状態だった**ため、項目10へ明記した（敵対的レビュー1回目で検出）。
 - **項目4（`templates/AGENTS.md`）の中身は対の計画が用意する。** こちらは定義への登録までを行う。
   対の計画が先にマージされる想定ではないので、**空の雛形を置いて定義を通し、中身は対の計画で
   埋める**（網羅性チェックは `source` を持つエントリに追跡ファイルの一致を要求しないため、
