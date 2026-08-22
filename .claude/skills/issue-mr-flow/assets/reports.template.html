@@ -1,0 +1,286 @@
+<!--
+  レポート（reports/）の人間レビュー用HTMLビュー テンプレート
+  （.claude/skills/issue-mr-flow/SKILL.md / .claude/rules/docs-workflow.md 参照。issue #54）
+
+  使い方:
+    1. このファイルを、対応するレポートmdと同じベース名でコピーする（拡張子だけ .html にする）。
+         reports/日付_<全体計画名>_<内容を簡潔に>.md → 同名の .html
+       flow-id 5-3 の最終統括レポート（reports/日付_<全体計画名>_統括.html）もこれを土台にする。
+    2. <title> とヘッダ帯（.band）の見出し・メタ情報を埋める。
+    3. 各 section に置いてある「ここに書く: …」で始まるHTMLコメントを、実際の内容へ置き換える。
+    4. 使わない任意セクションは <section> ごと削除する。必須セクションは削除しない。
+    5. **HTMLコメントのプレースホルダを1つも残さない。** 残っていると成果物に雛形の痕跡が残る。
+       確認: grep -c '<!-- ここに書く' <出力ファイル>  が 0 であること。
+       （`<!--` まで含めて数える。地の文で「ここに書く」という語に触れる成果物——たとえば
+        このテンプレート自身を説明する計画——を誤検知しないため。）
+    6. 冒頭のこのコメント（使い方）も削除し、このレポートが何かの説明へ置き換える。
+
+  必須／任意:
+    各 section の直前に、[必須] または [任意] を記したHTMLコメントを置いてある。
+    **任意セクションは、そのissueで書くことが無ければ削る。** 埋めるために内容を水増ししない。
+
+  計画を書かないこと:
+    レポートには「実施した結果」と、その結論・根拠・確認結果だけを書く。「これから何をするか」は
+    plans/ 配下の計画へ書く（.claude/skills/issue-mr-flow/SKILL.md「計画と実施結果の分離」）。
+
+  正文はどちらか:
+    レポートの正文は **md 側** で、このHTMLはその視覚化である。両者の内容は同期させる。
+    **同期を「追記」だけで済ませないこと。** md側の差分が「追加のみ」でないなら、HTML側も
+    「追加のみ」では同期していない（reports/REVIEW-POINTS.md）。
+
+  関連・依存関係が主題なら:
+    要素同士のつながりが主題の内容は、この一覧・表形式ではなく canvas 形式が向く。
+    .claude/skills/canvas-report/SKILL.md「いつcanvasを選ぶか」で判断する。
+
+  外部依存:
+    無し。スタイルは自己完結で、CDN・外部フォント・画像を1つも参照しない
+    （オフラインでも、外部通信が遮断された環境でも同じ見た目で開ける）。
+-->
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<!-- ここに書く: ページタイトル（例: HTMLビュー前提調査 — issue #54） -->
+<title>レポート</title>
+<style>
+  :root {
+    --bg: #f6f7f9;      --panel: #ffffff;   --ink: #1a1d21;     --muted: #5b636d;
+    --line: #dfe3e8;    --accent: #2563eb;  --accent-soft: #eaf0fe;
+    --ok: #1a7f4b;      --ok-soft: #e6f4ec; --warn: #a35a00;    --warn-soft: #fdf1e0;
+    --stop: #b3261e;    --stop-soft: #fdecea; --code-bg: #f0f2f5;
+    --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1216;    --panel: #161a20;   --ink: #e6e8eb;     --muted: #9aa3ad;
+      --line: #2a3038;  --accent: #7aa2f7;  --accent-soft: #1b2333;
+      --ok: #6ee7a8;    --ok-soft: #14261d; --warn: #f0b866;    --warn-soft: #2a2113;
+      --stop: #f2857c;  --stop-soft: #2b1614; --code-bg: #1d222a;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", system-ui, sans-serif;
+    line-height: 1.8; font-size: 15px;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 20px 80px; }
+
+  /* 共通ヘッダ帯 */
+  header.band {
+    background: linear-gradient(135deg, var(--accent-soft), var(--panel));
+    border-bottom: 1px solid var(--line); padding: 28px 20px 22px; margin-bottom: 28px;
+  }
+  header.band .inner { max-width: 1080px; margin: 0 auto; }
+  header.band .kind { font-size: 11px; letter-spacing: .18em; color: var(--accent); font-weight: 700; }
+  header.band h1 { margin: 6px 0 4px; font-size: 26px; line-height: 1.4; }
+  header.band .lead { margin: 0; color: var(--muted); }
+  .meta { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; padding: 0; list-style: none; }
+  .meta li {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 999px;
+    padding: 3px 12px; font-size: 12.5px; color: var(--muted); white-space: nowrap;
+  }
+  .meta li b { color: var(--ink); font-weight: 600; }
+
+  nav.toc {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 14px 20px; margin-bottom: 28px;
+  }
+  nav.toc h2 { margin: 0 0 8px; font-size: 13px; letter-spacing: .08em; color: var(--muted); border: 0; padding: 0; }
+  nav.toc ol { margin: 0; padding-left: 20px; }
+  nav.toc li { margin: 2px 0; }
+  a { color: var(--accent); }
+
+  section {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 8px 24px 22px; margin-bottom: 22px;
+  }
+  h2 { font-size: 20px; margin: 20px 0 10px; padding-bottom: 8px; border-bottom: 2px solid var(--line); }
+  h3 { font-size: 16px; margin: 22px 0 8px; color: var(--accent); }
+  p { margin: 10px 0; }
+  ul, ol { padding-left: 22px; }
+  li { margin: 4px 0; }
+  blockquote { margin: 10px 0; padding: 6px 14px; border-left: 3px solid var(--line); color: var(--muted); }
+
+  /* 表は自身の中で横スクロールする（ページ本体は横スクロールさせない） */
+  .tablewrap { overflow-x: auto; margin: 14px 0; }
+  table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 14px; }
+  th, td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: var(--accent-soft); font-weight: 600; white-space: nowrap; }
+  tbody tr:nth-child(even) td { background: color-mix(in srgb, var(--line) 22%, transparent); }
+
+  code {
+    background: var(--code-bg); border-radius: 5px; padding: 1px 5px; font-size: 13px;
+    font-family: "SFMono-Regular", Consolas, "Noto Sans Mono", monospace;
+  }
+  pre {
+    background: var(--code-bg); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 12px 14px; overflow-x: auto; font-size: 13px; line-height: 1.65;
+  }
+  pre code { background: none; padding: 0; }
+
+  /* 注意ボックス: info（既定）/ ok（決めたこと）/ warn（注意）/ stop（やらないこと・危険） */
+  .box { border-left: 4px solid var(--accent); background: var(--accent-soft);
+         border-radius: 0 var(--radius) var(--radius) 0; padding: 12px 16px; margin: 16px 0; }
+  .box > :first-child { margin-top: 0; } .box > :last-child { margin-bottom: 0; }
+  .box .label { font-size: 12px; font-weight: 700; letter-spacing: .06em; display: block; margin-bottom: 4px; }
+  .box.ok { border-color: var(--ok); background: var(--ok-soft); } .box.ok .label { color: var(--ok); }
+  .box.warn { border-color: var(--warn); background: var(--warn-soft); } .box.warn .label { color: var(--warn); }
+  .box.stop { border-color: var(--stop); background: var(--stop-soft); } .box.stop .label { color: var(--stop); }
+  .box.info .label { color: var(--accent); }
+
+  .tag { display: inline-block; border-radius: 999px; padding: 1px 9px; font-size: 12px; font-weight: 600; }
+  .tag.ok { background: var(--ok-soft); color: var(--ok); }
+  .tag.warn { background: var(--warn-soft); color: var(--warn); }
+  .tag.stop { background: var(--stop-soft); color: var(--stop); }
+
+  footer { color: var(--muted); font-size: 13px; text-align: center; padding-top: 10px; }
+</style></head>
+<body>
+
+<header class="band">
+  <div class="inner">
+    <!-- ここに書く: レポートの種別（例: 調査結果レポート / フェーズ2、作業結果レポート / フェーズ3、
+         反映結果レポート / フェーズ4、最終統括レポート / フェーズ5） -->
+    <div class="kind">レポート</div>
+    <!-- ここに書く: レポートの題名（mdのH1と同じにする） -->
+    <h1>レポートの題名</h1>
+    <!-- ここに書く: 1〜2文で「何をして、何が分かったか」。結論を先に置く -->
+    <p class="lead">何をして、何が分かったかを1〜2文で。</p>
+    <ul class="meta">
+      <!-- ここに書く: 以下のメタ情報。値の無い項目は li ごと削除する -->
+      <li><b>issue</b> #NN</li>
+      <li><b>ブランチ</b> feature-NN-xxxx</li>
+      <li><b>PR</b> #NN</li>
+      <li><b>フェーズ</b> N〈…〉 flow-id N-6</li>
+      <li><b>push回数</b> N</li>
+      <li><b>作成日</b> YYYY-MM-DD</li>
+      <li><b>正文</b> 同名の .md</li>
+    </ul>
+  </div>
+</header>
+
+<div class="wrap">
+
+<!-- [任意] 目次。節が5つ未満なら nav ごと削除してよい -->
+<nav class="toc">
+  <h2>目次</h2>
+  <ol>
+    <!-- ここに書く: 各 section の id へのリンク。使わない section の行は削除する -->
+    <li><a href="#summary">サマリ（結論の一覧）</a></li>
+    <li><a href="#conditions">実施条件（測った対象・環境）</a></li>
+    <li><a href="#findings">実施した内容と結果</a></li>
+    <li><a href="#unverified">確かめられなかったこと</a></li>
+    <li><a href="#next">設計への反映</a></li>
+    <li><a href="#surprises">想定と異なった点</a></li>
+    <li><a href="#todo">残課題</a></li>
+  </ol>
+</nav>
+
+<!-- [必須] サマリ（結論の一覧）。削除しない。
+     レビュアーがここだけで全体をつかめるようにする。各行から本文の該当節へリンクする -->
+<section id="summary">
+  <h2>サマリ（結論の一覧）</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>#</th><th>問い／やったこと</th><th>結論</th><th>根拠の性質</th></tr></thead>
+    <tbody>
+      <!-- ここに書く: 1行1結論。「根拠の性質」には 実測 / 実装の確認 / ドキュメントの読解 など、
+           その結論を何で支えているかを書く（公式ドキュメントの記述だけを根拠にしていないか） -->
+      <tr><td>1</td><td>…</td><td><b>…</b></td><td>…</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<!-- [任意]（実測・計測を含むなら必須） 実施条件。
+     「測った環境が結論に添えられているか」は reports/REVIEW-POINTS.md の観点。
+     1環境・1バージョンの観測を、全環境の事実として書かない -->
+<section id="conditions">
+  <h2>実施条件（測った対象・環境）</h2>
+  <!-- ここに書く: OS・実行環境・対象のバージョン・実施日・使ったコマンド。
+       結論の主語がこの条件と一致していることを、後段で確認できるようにする -->
+  <ul>
+    <li>実行環境: …</li>
+    <li>対象・バージョン: …</li>
+    <li>実施日: YYYY-MM-DD</li>
+  </ul>
+</section>
+
+<!-- [必須] 実施した内容と結果。削除しない。
+     結論ひとつごとに h3 を立て、根拠（実行したコマンド・返ってきた出力・参照した実装）を添える -->
+<section id="findings">
+  <h2>実施した内容と結果</h2>
+
+  <h3>1. …（結論の見出し）</h3>
+  <!-- ここに書く: 何をしたか -->
+  <p>…</p>
+  <!-- ここに書く: 根拠。実行したコマンドと、返ってきた出力をそのまま貼る -->
+  <pre><code>$ …
+…</code></pre>
+  <div class="box ok">
+    <span class="label">結論</span>
+    <!-- ここに書く: この項目の結論を1〜2文で -->
+    …
+  </div>
+
+  <!-- ここに書く: 項目の数だけ h3 を繰り返す。不要な見出しは削除する -->
+</section>
+
+<!-- [必須] 確かめられなかったこと。削除しない。
+     「確かめたこと」と区別して書くための専用の場所。無い場合も「無い」と明記する -->
+<section id="unverified">
+  <h2>確かめられなかったこと</h2>
+  <div class="box warn">
+    <span class="label">この結果が言っていないこと</span>
+    <!-- ここに書く: 測れなかった対象・環境、区別できなかった原因、範囲の限界。
+         「見えない」と「存在しない」を区別する -->
+    <ul>
+      <li>…</li>
+    </ul>
+  </div>
+</section>
+
+<!-- [必須] 設計への反映。削除しない。
+     この結果が後続フェーズの設計へどう効くかまで書く（reports/REVIEW-POINTS.md） -->
+<section id="next">
+  <h2>設計への反映</h2>
+  <!-- ここに書く: 後続フェーズで何を決める／何をするか。
+       恒久的に残すべき知見は .claude/docs/spec/ .claude/docs/ddr/ のどこへ反映するかも書く -->
+  <ol>
+    <li>…</li>
+  </ol>
+</section>
+
+<!-- [任意] 想定と異なった点。計画時の見込みと結果がずれた場合に書く -->
+<section id="surprises">
+  <h2>想定と異なった点</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>計画時の見込み</th><th>実際</th><th>どう扱ったか</th></tr></thead>
+    <tbody>
+      <!-- ここに書く -->
+      <tr><td>…</td><td>…</td><td>…</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<!-- [任意] 残課題。このフェーズで片付かなかったものがある場合だけ書く。
+     制約が「外部の制約」なのか「このリポジトリの実装の欠陥」なのかを取り違えない
+     （後者なら修正対象であり、制約として受け入れてはいけない） -->
+<section id="todo">
+  <h2>残課題</h2>
+  <!-- ここに書く: 何が残っているか、どのフェーズ／別issueで扱うか -->
+  <ul>
+    <li>…</li>
+  </ul>
+</section>
+
+<!-- ここに書く: フッタ。issue/PR番号と、正文がmd側であることを1行で -->
+<footer>issue #NN / PR #NN — 結果の正文は同名の <code>.md</code>。外部依存を持たない自己完結HTML。</footer>
+
+</div>
+</body>
+</html>
