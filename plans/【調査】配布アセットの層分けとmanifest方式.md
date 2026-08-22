@@ -216,11 +216,14 @@ issue #26 のコメント（PR #136）と `.claude/docs/spec/distribution-assets
 tmp="$(mktemp -d)"
 git init "$tmp" >/dev/null
 bash .claude/skills/apply-mr-workflow-to-project/scripts/sync-assets.sh
-bash .claude/skills/apply-mr-workflow-to-project/scripts/install-to-project.sh "$tmp"
-cp "$tmp/.gitignore" "$tmp/.gitignore.1st"
 
-# 欠陥2の発火条件を作る: 配布する行を「コメントとして含むだけ」の行を配布先へ仕込む
-printf '# %s は当面不要と判断した\n' '/.claude/session-logs/' >> "$tmp/.gitignore"
+# 欠陥2の発火条件は「**1回目の適用より前**」に作る。1回目で実設定が入ってしまうと、
+# 2回目は本物の行に一致するため再現しない（実測で確認）。
+printf '# %s は当面不要と判断した\n' '/.claude/session-logs/' > "$tmp/.gitignore"
+
+bash .claude/skills/apply-mr-workflow-to-project/scripts/install-to-project.sh "$tmp"
+grep -Fxq -- '/.claude/session-logs/' "$tmp/.gitignore" || echo '欠陥2を再現（実設定が入らない）'
+cp "$tmp/.gitignore" "$tmp/.gitignore.1st"
 
 # 欠陥4の発火条件を作る: safe_copy_dir 経由のファイルを配布先で改変する
 #   （ルート直下の HANDOFF.md は safe_copy_file 経由でATTENTIONが出てしまい再現にならない）
@@ -229,9 +232,12 @@ printf '\n<!-- 配布先で改変 -->\n' >> "$tmp/.claude/rules/git-workflow.md"
 bash .claude/skills/apply-mr-workflow-to-project/scripts/install-to-project.sh "$tmp" \
   > "$tmp/2nd.log" 2>&1
 diff "$tmp/.gitignore.1st" "$tmp/.gitignore"      # 空行が増えていれば欠陥1を再現
-grep -Fxq -- '/.claude/session-logs/' "$tmp/.gitignore" || echo '欠陥2を再現（実設定が入らない）'
 grep -c 'WARNING' "$tmp/2nd.log"                   # 1件以上出る
 grep -c 'ATTENTION' "$tmp/2nd.log"                 # 0件なら欠陥4を再現
+
+# 欠陥5: 配布先へ混入したローカル生成物
+find "$tmp" -name index.jsonl -not -path '*/.git/*' | wc -l
+[ -e "$tmp/.claude/state" ] && echo '.claude/state が混入'
 
 # 検証2: 層の割り当て網羅性。割り当て表と同じ範囲の追跡ファイルを数えて突き合わせる
 #   このタスク自身が増減させる plans/ worklog/ reports/ は分母から除き、除外件数も出す

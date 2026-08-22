@@ -17,8 +17,8 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - issue: #26 AIアセットの他プロジェクトへの配布をmanifest方式へ作り直し、配布アセットの層分けを定義する
 - ブランチ: claude/ai-asset-manifest-distribution-u2gn22
 - PR: #154 https://github.com/yuki-matsu783/MR-driven-workflow/pull/154
-- push回数: 3
-- 現在のループ: 2-3〜2-4 の1周目（完了）
+- push回数: 4
+- 現在のループ: 2-6〜2-9 の1周目（進行中）
 - 追従監視: 購読あり（web。subscribe_pr_activity + 自己チェックイン）
 
 | 進捗 | flow-id | ステップ | 担当 |
@@ -33,7 +33,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 | [x] | 2-2 | commitしpushしてレビュー依頼 | エージェント |
 | [x] | 2-3 | 調査計画をレビュー | 人間 |
 | [x] | 2-4 | レビュー内容を取得し調査計画を修正 | サブコマンド |
-| [] | 2-5 | 調査計画をもとにMR descriptionを更新 | サブコマンド |
+| [x] | 2-5 | 調査計画をもとにMR descriptionを更新 | サブコマンド |
 | [] | 2-6 | 調査を実施しreports/へ記録 | エージェント |
 | [] | 2-7 | commitしpushしてレビュー依頼 | エージェント |
 | [] | 2-8 | 調査結果をレビュー | 人間 |
@@ -94,11 +94,29 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
   - 全体作業計画へ `DEVELOPERS.md` の書き換え（`【AIアセット作成】`）と、現行テストの表明の
     棚卸し・引き継ぎ（`【テスト】`）を追加。
 
+- flow-id 2-5: `describe` 相当としてPR #154 のdescriptionを全面差し替えした（MCP経路: `mcp__github__update_pull_request`）。
+- flow-id 2-6: 調査7項目を実施し、`reports/20260822_ai-asset-manifest-distribution_配布アセットの層分け調査.md`
+  と同 `.html` へ記録した。主な結論は次のとおり。
+  - **4層では足りない**。本家固有で配らないパスが5件あり、明示的な `exclude` カテゴリが要る
+    （受け入れ条件1の更新をユーザーへ提案する。下記「未解決の内容」）。
+  - `REVIEW-POINTS.md` は **`core` ＋ 配布先所有の `REVIEW-POINTS.local.md`（`seed`）の併設**で、
+    層を増やさずに解決できる（`collect-review-points.sh` の1箇所を変更する）。
+  - `.gemini/{docs,…}` は `local` のままとし、**受け入れ条件8は `setup-gemini-links.sh` が満たす**
+    （インストーラは触らない）。これで受け入れ条件2との衝突が消える。
+  - 定義の形式は**案A（定義ファイル1枚）＋網羅性チェックスクリプト**。案B・案Cは却下。
+  - manifestは `core`/`seed` が sha256（LF正規化後）、`merge` は配った行の指紋、`local` は書かない。
+    dirtyは配布対象パスに限定し `--allow-dirty` を持たせる。
+  - 既存欠陥5件はすべて再現。**加えて未記録の欠陥を3件発見**（`HANDOFF.md` が上書き対象／
+    `REVIEW-POINTS.md` が4件中1件しか配られない／`worklog/TEMPLATE.md` が未配布）。
+  - 検証1の欠陥2の再現手順に順序の誤りがあり、計画側を実測に合わせて修正した。
+
 ## 次にやること
 
-- flow-id 2-5: 調査計画をもとにMR descriptionを更新する（`describe`）。
-- flow-id 2-6: 調査計画の7項目（棚卸し・REVIEW-POINTS・定義の形式・manifest項目・既存欠陥・
-  AGENTS分割・skill廃止）を実施し、`reports/` のmd・htmlへ記録する。
+- flow-id 2-7: commit・pushしてレビュー依頼を出す（人間のレビュー2-8の代わりに敵対的レビュー
+  2回目を実施する）。
+- **ユーザーへ判断を仰ぐ**: `exclude` カテゴリの新設（受け入れ条件1の更新）、`.github/`・`.gitlab/`
+  テンプレートの層、`CLAUDE.md`/`GEMINI.md` の層。詳細は `reports/…調査.md`「人間の判断を仰ぐ点」。
+- flow-id 3-1: 調査結果をもとに個別作業計画を作成する。
 
 ## 判断を迷った内容
 
@@ -120,8 +138,12 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - `.gemini/{docs,hooks,rules,scripts,skills}` の層。`.gitignore` 対象なので素直には `local` だが、
   受け入れ条件8（再適用で実体コピーを最新化）と受け入れ条件2（`local` は触らない）が
   そのままでは両立しない。flow-id 2-6 の調査1で決める。
-- 受け入れ条件6の「dirty」の定義。フェーズ3の実装中は本家が常にdirtyで、結合テストが
-  流せなくなる衝突がある。flow-id 2-6 の調査4で決める。
+- 受け入れ条件6の「dirty」の定義。→ **flow-id 2-6で決着**（配布対象パスに限定＋`--allow-dirty`）。
+- **`exclude` カテゴリを新設してよいか**（受け入れ条件1は「4層」で固定されている）。
+  本家固有で配らないパスが5件実在するため、ユーザーの判断が要る。
+- `.github/`・`.gitlab/` テンプレートを `seed` にするトレードオフ（本家の見出し変更が届かない）。
+- `.gemini/` のリンクと実体コピーの判別。NTFSジャンクションは `[ -L ]` で区別できず、
+  **Windows実機でしか確認できない**。
 
 ## 守るべき条件・触ってはいけない範囲
 
