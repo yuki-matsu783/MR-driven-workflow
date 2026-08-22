@@ -17,7 +17,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - issue: #54（https://github.com/yuki-matsu783/MR-driven-workflow/issues/54 ）
 - ブランチ: `claude/plan-report-html-template-024l0t`
 - PR: #156（Draft）（https://github.com/yuki-matsu783/MR-driven-workflow/pull/156 ）
-- push回数: 4
+- push回数: 5
 - 現在のループ: 3-6〜3-9 の1周目（進行中）
 - 追従監視: あり（PRイベント購読＋定期チェックイン。Claude Code on the web）
 
@@ -120,9 +120,23 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
   （HTMLパースOK／新設2本の外部依存0／`templates/` ディレクトリ0件／DDR本文への削除行0／
   frontmatterインデックス `failed=0`）。
 
+- flow-id 3-7: フェーズ3の成果をcommit・pushした（push 5回目、`6e77122`）。
+- flow-id 3-8（人間レビューの代替）: `adversarial-review` スキルを起動し、フェーズ3の
+  **1回目**（上限3回）のレビューをサブエージェントへ投げた。**結果は未受領**。
+
 ## 次にやること
 
-- flow-id 3-7: commit・pushし、作業結果に対する敵対的レビュー（フェーズ3の1回目）を実施する。
+- **セッション使用料の上限が近いため、1時間おきにリセットを確認する**（ユーザーの指示。
+  `send_later` で自己宛にスケジュール済み。リセットされていなければ都度60分後へ再スケジュールし、
+  リセットされたら作業を再開して以降の定期確認は行わない）。
+- flow-id 3-8 の続き: 敵対的レビューの結果を受け取る。受け取れていない場合は
+  `bash .claude/scripts/src/adversarial-review-count.sh get 3` でカウンタを見てから、
+  やり直すか判断する（**既に1なら再実行は2回目**になる）。
+- flow-id 3-9: 指摘へ対応し、投稿したスレッドへ返信する。
+- flow-id 3-10: MR descriptionを更新する。
+- フェーズ4: 個別反映計画 → spec（`spec/issue-mr-workflow.md:677` の暫定記述の解除を含む）・
+  新規DDR（Q1の方式変更と `assets` 語彙）・`i0000-11` / `i0141-01` への `note` 追加・
+  `generate-ddr-list.sh` の再実行・`.claude/VERSION` の増分**提案**。
 
 ## 判断を迷った内容
 
