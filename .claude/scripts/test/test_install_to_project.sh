@@ -1,16 +1,19 @@
 #!/usr/bin/env bash
-# install-to-project.sh の結合テスト（issue #33）。
+# install-to-project.sh の結合テスト（issue #33 → issue #26 でmanifest方式へ作り直し）。
 #
-# 対象は issue #33 で追加した配布資産まわりの挙動に絞る。
-#   - PR/MRテンプレート・.claude/VERSION が配布先へ配置されること
-#   - PR/MRテンプレートの見出しが `describe` サブコマンドの生成物と一致すること
-#   - .gitattributes は丸ごと置き換えず「行追記」で反映されること（配布先の既存設定を壊さない）
-#   - 何度適用しても追記行が増えないこと（冪等）。**配布先がCRLFの場合も含む**
-#   - .claude/VERSION の更新が .bak と警告を生まないこと
+# 2つの系統を持つ。
+#   A. issue #33 から**引き継いだ表明**（受け入れ条件には現れないが落としてはいけない挙動）
+#      - PR/MRテンプレート・.claude/VERSION が配布先へ配置される
+#      - PR/MRテンプレートの見出しが `describe` サブコマンドの生成物と一致する
+#      - .gitattributes は丸ごと置き換えず「行追記」で反映される（.bak を作らない）
+#      - 末尾に改行が無くても連結しない
+#      - 何度適用しても追記行が増えない（**配布先がCRLFの場合も含む**）
+#      - コメント中の言及を実設定と誤認しない
+#      - .claude/VERSION の更新が .bak と警告を生まない
+#   B. issue #26 の受け入れ条件2〜6
 #
-# 実プロセス（sync-assets.sh / install-to-project.sh）を起動する結合確認のため、
-# `passed=N failures=N` を出力し失敗があれば終了コード1を返す規約に従う
-# （.claude/rules/shell-script-style.md「テスト」）。
+# 実プロセスを起動する結合確認のため、`passed=N failures=N` を出力し失敗があれば終了コード1を
+# 返す規約に従う（.claude/rules/shell-script-style.md「テスト」）。
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -20,9 +23,9 @@ SKILL_SCRIPTS="${REPO_ROOT}/.claude/skills/apply-mr-workflow-to-project/scripts"
 passed=0
 failures=0
 
-# **配布先ではこのテストだけが存在し、テスト対象が存在しない**（sync-assets.sh は
-# apply-mr-workflow-to-project スキル自身を配布対象から除外する一方、.claude/scripts/test/ は
-# 丸ごと配布するため）。対象が無い環境では、規約どおり件数を出したうえでスキップする
+# **配布先ではこのテストだけが存在し、テスト対象が存在しない**（apply-mr-workflow-to-project は
+# layer=exclude で配布対象外の一方、.claude/scripts/test/ は core として丸ごと配布されるため）。
+# 対象が無い環境では、規約どおり件数を出したうえでスキップする
 # （無言でスキップすると、本当の欠落を隠してしまう）。
 if [ ! -f "${SKILL_SCRIPTS}/install-to-project.sh" ]; then
   echo "skipped: ${SKILL_SCRIPTS}/install-to-project.sh が無いためスキップします" \
@@ -41,11 +44,12 @@ assert_eq() {
   fi
 }
 
+exists() { [ -e "$1" ] && echo 1 || echo 0; }
+
 TMP_DIR="$(mktemp -d)"
 cleanup() { rm -rf "$TMP_DIR"; }
 trap cleanup EXIT
 
-# 配布先を1つ作る（Gitリポジトリであることが install-to-project.sh の前提）。
 make_dest() {
   local dir="$TMP_DIR/$1"
   mkdir -p "$dir"
@@ -53,23 +57,23 @@ make_dest() {
   printf '%s' "$dir"
 }
 
-# 配布を1回実行する。標準出力だけを捨て、**標準エラーは捨てない**
-# （捨てると失敗理由が見えず、無言で落ちる）。
+# **すべての適用呼び出しに --allow-dirty を付ける。** このテストが走るのは機構自身を開発して
+# いる最中であり、本家のワークツリーはほぼ常に dirty だからである。dirty ガードそのものを
+# 確かめるケースだけ、付けずに終了コードを見る（下記 B-6）。
 install_to() {
-  bash "${SKILL_SCRIPTS}/install-to-project.sh" "$1" >/dev/null
+  bash "${SKILL_SCRIPTS}/install-to-project.sh" --allow-dirty "$@" >/dev/null
 }
 
-# 配布物（assets/）を作り直す。ここが失敗するとテスト全体が意味を持たないため、失敗させる。
-bash "${SKILL_SCRIPTS}/sync-assets.sh" >/dev/null
+# =========================================================================
+# A. issue #33 から引き継いだ表明
+# =========================================================================
 
-# --- 1. 新規の配布先 -------------------------------------------------------
 dest_new="$(make_dest dest_new)"
 install_to "$dest_new"
 
 for rel in .github/pull_request_template.md .gitlab/merge_request_templates/Default.md \
            .claude/VERSION .gitattributes; do
-  if [ -f "$dest_new/$rel" ]; then found=1; else found=0; fi
-  assert_eq "新規配布先へ配置される: $rel" "1" "$found"
+  assert_eq "新規配布先へ配置される: $rel" "1" "$(exists "$dest_new/$rel")"
 done
 
 assert_eq "配布先のVERSIONが本家と一致する" \
@@ -79,7 +83,6 @@ assert_eq "配布先のVERSIONが本家と一致する" \
 # **2つのテンプレート同士を比べるだけでは足りない**（両方が同時にずれた場合に通ってしまう）。
 # 正である SKILL.md の `describe` 節から見出しを抜き出し、3者で突き合わせる。
 describe_headings() {
-  # テンプレートは番号付きリストの中にあるため、行頭に空白が付いている。落としてから比較する。
   awk '
     /^### `describe`/ { in_section = 1; next }
     /^### /           { in_section = 0 }
@@ -101,14 +104,14 @@ done
 
 assert_eq "配布先の.gitattributesへ*.shの指定が入る" \
   "1" "$(grep -cFx -- '*.sh text eol=lf' "$dest_new/.gitattributes")"
-
 assert_eq "本家だけの方針である* text=autoは配らない" \
   "0" "$(grep -cFx -- '* text=auto' "$dest_new/.gitattributes" || true)"
-
 assert_eq "マーカー行自体は配らない" \
   "0" "$(grep -cF -- 'dist:begin' "$dest_new/.gitattributes" || true)"
+assert_eq "本家のコメント（issue番号等）は配らない" \
+  "0" "$(grep -cF -- 'issue #33' "$dest_new/.gitattributes" || true)"
 
-# --- 2. 既存の .gitattributes を持つ配布先 ---------------------------------
+# --- 既存の .gitattributes を持つ配布先 ---
 # 末尾に改行が無い状態を意図的に作る（追記行が直前の行と連結しないことの確認）。
 dest_exist="$(make_dest dest_exist)"
 printf '%s\n%s\n%s' '# 配布先が元から持っている設定' '*.png binary' '*.md text eol=lf diff=markdown' \
@@ -120,9 +123,9 @@ assert_eq "配布先の既存3行がすべて残る" \
 assert_eq "末尾に改行が無くても直前の行と連結しない" \
   "1" "$(grep -cFx -- '*.md text eol=lf diff=markdown' "$dest_exist/.gitattributes")"
 assert_eq "全文置換ではないので.bakを作らない" \
-  "0" "$([ -f "$dest_exist/.gitattributes.bak" ] && echo 1 || echo 0)"
+  "0" "$(exists "$dest_exist/.gitattributes.bak")"
 
-# --- 3. 冪等性 -------------------------------------------------------------
+# --- 冪等性 ---
 install_to "$dest_exist"
 install_to "$dest_exist"
 assert_eq "3回適用しても*.shの指定は1行のまま" \
@@ -130,7 +133,7 @@ assert_eq "3回適用しても*.shの指定は1行のまま" \
 assert_eq "3回適用してもヘッダコメントは1行のまま" \
   "1" "$(grep -cFx -- '# mr-driven-develop workflow attributes' "$dest_exist/.gitattributes")"
 
-# --- 4. 配布先の .gitattributes がCRLFの場合の冪等性 -----------------------
+# --- 配布先の .gitattributes がCRLFの場合の冪等性 ---
 # Git for Windowsの既定（core.autocrlf=true）では配布先の .gitattributes が作業ツリーで
 # CRLFになる。CRを落とさずに行全体の一致で判定すると「まだ無い」と誤判定し、適用のたびに
 # 同じ行が追記され続ける。
@@ -154,7 +157,7 @@ assert_eq "CRLFの配布先でも*.shの指定は1行のまま" \
 assert_eq "CRLFの配布先でもヘッダコメントは1行のまま" \
   "1" "$(tr -d '\r' < "$dest_crlf/.gitattributes" | grep -cFx -- '# mr-driven-develop workflow attributes')"
 
-# --- 5. コメントで言及しているだけの配布先 ---------------------------------
+# --- コメントで言及しているだけの配布先 ---
 # 部分一致で判定していると「もう有る」と誤判定し、必要な指定が入らないまま無言で終わる。
 dest_comment="$(make_dest dest_comment)"
 printf '%s\n' '# *.sh text eol=lf を入れるか検討中' > "$dest_comment/.gitattributes"
@@ -162,21 +165,159 @@ install_to "$dest_comment"
 assert_eq "コメント中の言及を実設定と誤認しない" \
   "1" "$(grep -cFx -- '*.sh text eol=lf' "$dest_comment/.gitattributes")"
 
-# --- 6. .claude/VERSION の更新は .bak も警告も生まない ---------------------
-# VERSIONは配布元が所有する値であり「配布先のカスタマイズ」ではない。通常の
-# 「差分があれば .bak 退避して警告」の対象にすると、版を上げた回は必ず警告が出て、
-# 本当に手を入れるべき差分の警告が埋もれる。
+# 同じ検査を .gitignore にも行う（新方式で .gitignore も lines-marker になったため）。
+dest_ign="$(make_dest dest_ign)"
+printf '%s\n' '# /usage/ を無視するか検討中' > "$dest_ign/.gitignore"
+install_to "$dest_ign"
+assert_eq ".gitignore でもコメント中の言及を実設定と誤認しない" \
+  "1" "$(grep -cFx -- '/usage/' "$dest_ign/.gitignore")"
+install_to "$dest_ign"; install_to "$dest_ign"
+assert_eq ".gitignore も3回適用して行が増えない" \
+  "1" "$(grep -cFx -- '/usage/' "$dest_ign/.gitignore")"
+assert_eq ".gitignore にも由来のヘッダコメントが1行だけ入る" \
+  "1" "$(grep -cFx -- '# mr-driven-develop workflow ignores' "$dest_ign/.gitignore")"
+assert_eq "配布先の好みである.vscode/は配らない" \
+  "0" "$(grep -cFx -- '.vscode/' "$dest_ign/.gitignore" || true)"
+
+# --- .claude/VERSION の更新は .bak も警告も生まない ---
+# VERSIONは配布元が所有する値であり「配布先のカスタマイズ」ではない。
+# 新方式では manifest の sha256 と一致するため「変更なし」に分類され、警告の対象にならない。
 dest_ver="$(make_dest dest_ver)"
 install_to "$dest_ver"
-printf '%s\n' '0.0.1-old' > "$dest_ver/.claude/VERSION"
-install_output="$(bash "${SKILL_SCRIPTS}/install-to-project.sh" "$dest_ver")"
-
-assert_eq "版が違っても配布元の値で上書きされる" \
+install_output="$(bash "${SKILL_SCRIPTS}/install-to-project.sh" --allow-dirty "$dest_ver" 2>/dev/null)"
+assert_eq "再適用でVERSIONは本家の値のまま" \
   "$(cat "${REPO_ROOT}/.claude/VERSION")" "$(cat "$dest_ver/.claude/VERSION")"
-assert_eq "VERSIONの.bakを作らない" \
-  "0" "$([ -f "$dest_ver/.claude/VERSION.bak" ] && echo 1 || echo 0)"
+assert_eq "VERSIONの.bakを作らない" "0" "$(exists "$dest_ver/.claude/VERSION.bak")"
 assert_eq "VERSIONについて警告を出さない" \
-  "0" "$(printf '%s\n' "$install_output" | grep -cF -- 'VERSION already exists' || true)"
+  "0" "$(printf '%s\n' "$install_output" | grep -cF -- '.claude/VERSION' || true)"
+
+# =========================================================================
+# B. issue #26 の受け入れ条件
+# =========================================================================
+
+# --- B-2: core/seed/merge が配置され manifest が生成される。local は1件も作らない ---
+manifest="$dest_new/.claude/.asset-manifest.json"
+assert_eq "B-2: manifest が生成される" "1" "$(exists "$manifest")"
+assert_eq "B-2: manifest が有効なJSON" "0" \
+  "$(if jq -e . "$manifest" >/dev/null 2>&1; then printf 0; else printf 1; fi)"
+assert_eq "B-2: manifest に source.commit がある" "1" \
+  "$(jq -r '.source.commit | length > 0' "$manifest" | grep -c true)"
+assert_eq "B-2: local / exclude は manifest に書かない" "0" \
+  "$(jq '[.files[] | select(.layer=="local" or .layer=="exclude")] | length' "$manifest")"
+
+assert_eq "B-2: local の index.jsonl が作られない" "0" "$(find "$dest_new" -name index.jsonl | wc -l)"
+assert_eq "B-2: local の .claude/state/ が作られない" "0" "$(exists "$dest_new/.claude/state")"
+assert_eq "B-2: local の usage/ が作られない" "0" "$(exists "$dest_new/usage")"
+# `.gemini/{docs,…}` は local だが**唯一の例外**として手順7が作る。ここでは列挙せず、
+# 「作られること」を下の B-7 で確かめる。
+
+# 旧実装が作っていた .gitkeep は、plans/ worklog/ が local になったため意図的に落とした。
+assert_eq "B-2: plans/.gitkeep を作らない（旧挙動を意図的に落とした）" \
+  "0" "$(exists "$dest_new/plans/.gitkeep")"
+assert_eq "B-2: worklog/.gitkeep を作らない（同上）" \
+  "0" "$(exists "$dest_new/worklog/.gitkeep")"
+
+assert_eq "B-2: exclude の README.md は配らない" "0" "$(exists "$dest_new/README.md")"
+assert_eq "B-2: exclude の apply-mr-workflow-to-project は配らない" \
+  "0" "$(exists "$dest_new/.claude/skills/apply-mr-workflow-to-project")"
+
+assert_eq "B-2: core の REVIEW-POINTS.md が4件とも配られる" "4" \
+  "$(find "$dest_new" -name 'REVIEW-POINTS.md' | wc -l)"
+assert_eq "B-2: core の worklog/TEMPLATE.md が配られる" "1" "$(exists "$dest_new/worklog/TEMPLATE.md")"
+assert_eq "B-2: seed の REVIEW-POINTS.local.md が4件とも置かれる" "4" \
+  "$(find "$dest_new" -name 'REVIEW-POINTS.local.md' | wc -l)"
+
+# --- B-7: .gemini/ が用意される（local を触らない原則の唯一の例外） ---
+assert_eq "B-7: .gemini/rules が用意される" "1" \
+  "$([ -e "$dest_new/.gemini/rules" ] || [ -L "$dest_new/.gemini/rules" ] && echo 1 || echo 0)"
+
+# --- B-3: 編集した seed は再適用で上書きされない ---
+printf '%s\n' '配布先が書いた内容' > "$dest_new/HANDOFF.md"
+install_to "$dest_new"
+assert_eq "B-3: 編集した HANDOFF.md(seed) を上書きしない" \
+  '配布先が書いた内容' "$(cat "$dest_new/HANDOFF.md")"
+
+# --- B-4: 編集した core は「上書きの前に」警告と一覧を出し、.bak を残す ---
+printf '%s\n' '配布先が勝手に変えた' >> "$dest_new/.claude/rules/git-workflow.md"
+dry_out="$(bash "${SKILL_SCRIPTS}/install-to-project.sh" --allow-dirty --dry-run "$dest_new" 2>/dev/null)"
+assert_eq "B-4: --dry-run が警告を出す" "1" \
+  "$(printf '%s\n' "$dry_out" | grep -c '適用後に配布先で変更されています' || true)"
+assert_eq "B-4: --dry-run が対象ファイル名を列挙する" "1" \
+  "$(printf '%s\n' "$dry_out" | grep -cF -- '- .claude/rules/git-workflow.md' || true)"
+assert_eq "B-4: --dry-run では上書きしない" \
+  '配布先が勝手に変えた' "$(tail -1 "$dest_new/.claude/rules/git-workflow.md")"
+
+install_to "$dest_new"
+assert_eq "B-4: 適用すると .bak が残る" "1" \
+  "$(exists "$dest_new/.claude/rules/git-workflow.md.bak")"
+assert_eq "B-4: .bak に配布先の内容が入っている" \
+  '配布先が勝手に変えた' "$(tail -1 "$dest_new/.claude/rules/git-workflow.md.bak")"
+assert_eq "B-4: 本体は本家の内容へ戻る" \
+  "$(tr -d '\r' < "${REPO_ROOT}/.claude/rules/git-workflow.md" | sha256sum | cut -d' ' -f1)" \
+  "$(tr -d '\r' < "$dest_new/.claude/rules/git-workflow.md" | sha256sum | cut -d' ' -f1)"
+
+# --force なら .bak を作らない
+rm -f "$dest_new/.claude/rules/git-workflow.md.bak"
+printf '%s\n' 'また変えた' >> "$dest_new/.claude/rules/git-workflow.md"
+bash "${SKILL_SCRIPTS}/install-to-project.sh" --allow-dirty --force "$dest_new" >/dev/null 2>&1
+assert_eq "B-4: --force では .bak を作らない" "0" \
+  "$(exists "$dest_new/.claude/rules/git-workflow.md.bak")"
+
+# --- B-5: 書き換えなければ「変更された」は0件 ---
+clean_out="$(bash "${SKILL_SCRIPTS}/install-to-project.sh" --allow-dirty --dry-run "$dest_new" 2>/dev/null)"
+assert_eq "B-5: 書き換えなければ警告が出ない" "0" \
+  "$(printf '%s\n' "$clean_out" | grep -c '適用後に配布先で変更されています' || true)"
+
+# --- B-6: 本家が dirty なら中断する ---
+# このテストは本家のワークツリーが dirty な状態で走る前提なので、--allow-dirty を外して見る。
+# 万一クリーンな状態で走った場合に「中断しないこと」を失敗と数えないよう、先に dirty か調べる。
+if [ -n "$(git -C "$REPO_ROOT" status --porcelain -- .claude .github .gitlab AGENTS.md CLAUDE.md)" ]; then
+  if bash "${SKILL_SCRIPTS}/install-to-project.sh" --dry-run "$dest_new" >/dev/null 2>&1; then
+    dirty_status=0
+  else
+    dirty_status=1
+  fi
+  assert_eq "B-6: 本家が dirty なら中断する" "1" "$dirty_status"
+else
+  echo "note: 本家がクリーンなため B-6（dirty ガード）はスキップしました（1件）"
+fi
+
+# --- json-keys のマージ（配布先所有のキーが残り、本家所有が更新される） ---
+dest_json="$(make_dest dest_json)"
+install_to "$dest_json"
+jq '.plansDirectory = "my-plans" | .permissions.deny += ["Bash(rm -rf /)"] | .myOwnKey = 1' \
+  "$dest_json/.claude/settings.json" > "$dest_json/tmp.json"
+mv "$dest_json/tmp.json" "$dest_json/.claude/settings.json"
+install_to "$dest_json"
+assert_eq "json-keys: 配布先所有の plansDirectory が残る" "my-plans" \
+  "$(jq -r '.plansDirectory' "$dest_json/.claude/settings.json")"
+assert_eq "json-keys: 配布先が足した独自キーが残る" "1" \
+  "$(jq -r '.myOwnKey' "$dest_json/.claude/settings.json")"
+assert_eq "json-keys: 配列の deny は和集合になる" "1" \
+  "$(jq '[.permissions.deny[] | select(. == "Bash(rm -rf /)")] | length' "$dest_json/.claude/settings.json")"
+assert_eq "json-keys: 本家の deny も残る" "1" \
+  "$(jq '[.permissions.deny[] | select(. == "Bash(git commit*)")] | length' "$dest_json/.claude/settings.json")"
+assert_eq "json-keys: hooks は本家の値になる" \
+  "$(jq -cS '.hooks' "${REPO_ROOT}/.claude/settings.json")" \
+  "$(jq -cS '.hooks' "$dest_json/.claude/settings.json")"
+
+# --- 配布先が本家と同じ場合は中断する ---
+if bash "${SKILL_SCRIPTS}/install-to-project.sh" --allow-dirty --dry-run "$REPO_ROOT" >/dev/null 2>&1; then
+  self_status=0
+else
+  self_status=1
+fi
+assert_eq "配布先が本家と同じなら中断する" "1" "$self_status"
+
+# --- gitリポジトリでない配布先は中断する ---
+not_git="$TMP_DIR/not_git"
+mkdir -p "$not_git"
+if bash "${SKILL_SCRIPTS}/install-to-project.sh" --allow-dirty --dry-run "$not_git" >/dev/null 2>&1; then
+  notgit_status=0
+else
+  notgit_status=1
+fi
+assert_eq "gitリポジトリでない配布先は中断する" "1" "$notgit_status"
 
 echo "passed=$passed failures=$failures"
 [ "$failures" -eq 0 ]

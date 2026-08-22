@@ -69,6 +69,12 @@ assert_eq "is_keep_path: 部分一致では残さない" "1" "$(status_of is_kee
 assert_eq "is_keep_path: plans/REVIEW-POINTS.md は残す" "0" "$(status_of is_keep_path "plans/REVIEW-POINTS.md")"
 assert_eq "is_keep_path: reports/REVIEW-POINTS.md は残す" "0" "$(status_of is_keep_path "reports/REVIEW-POINTS.md")"
 assert_eq "is_keep_path: サブディレクトリのREVIEW-POINTS.mdも残す" "0" "$(status_of is_keep_path "reports/sub/REVIEW-POINTS.md")"
+# REVIEW-POINTS.local.md（配布先が所有する観点表）も同じ理由で残す（issue #26）。
+# ここへ載せ忘れると flow-id 5-4 で毎タスク消え、配布先が書いた観点が失われる。
+assert_eq "is_keep_path: REVIEW-POINTS.local.md は残す" "0" "$(status_of is_keep_path "REVIEW-POINTS.local.md")"
+assert_eq "is_keep_path: plans/REVIEW-POINTS.local.md は残す" "0" "$(status_of is_keep_path "plans/REVIEW-POINTS.local.md")"
+assert_eq "is_keep_path: reports/sub/REVIEW-POINTS.local.md も残す" "0" "$(status_of is_keep_path "reports/sub/REVIEW-POINTS.local.md")"
+assert_eq "is_keep_path: .local の .bak は残さない（完全一致の維持）" "1" "$(status_of is_keep_path "plans/REVIEW-POINTS.local.md.bak")"
 assert_eq "is_keep_path: 名前が似ているだけのファイルは残さない" "1" "$(status_of is_keep_path "plans/REVIEW-POINTS.md.bak")"
 assert_eq "is_keep_path: 接尾辞が一致するだけのファイルは残さない" "1" "$(status_of is_keep_path "plans/OLD-REVIEW-POINTS.md")"
 
