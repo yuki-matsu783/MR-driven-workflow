@@ -245,12 +245,13 @@
   <p><b><code>description</code> は書き換えない</b>（元の決定内容が読み取れなくなるため）。</p>
 
   <h3><code>.claude/VERSION</code> の増分提案（変更しない）</h3>
-  <p>現在 <code>0.1.2</code>。<b><code>0.2.0</code>（MINOR）を提案する。</b>
-  <code>.claude/docs/spec/distribution-assets.md</code> の表で <code>MINOR</code> は「資産の追加・フローの拡張」であり、
-  今回は配布対象へテンプレート2本が<b>増え</b>、flow-id 3-6・4-6 でのHTML作成が<b>必須になった</b>（フローの拡張）ため。</p>
-  <div class="box stop">
-    <span class="label">AIが値を上げない</span>
-    ユーザーの判断を待つ。提案はこの計画と反映結果レポート、および最終応答に書く。
+  <p>現在 <code>0.1.2</code>。AIからは <b><code>0.2.0</code>（MINOR）を提案した</b>
+  （<code>.claude/docs/spec/distribution-assets.md</code> の表で <code>MINOR</code> は「資産の追加・フローの拡張」であり、
+  今回は配布対象へテンプレート2本が<b>増え</b>、flow-id 3-6・4-6 でのHTML作成が<b>必須になった</b>ため）。</p>
+  <div class="box ok">
+    <span class="label">ユーザーの判断（チャットで受領・2026-08-22）</span>
+    <b><code>0.1.2</code> で良い。</b> したがって <code>.claude/VERSION</code> は<b>変更しない</b>。
+    この判断はMRへ記録する（<code>.claude/skills/issue-mr-flow/SKILL.md</code>「チャットで受けたレビュー判断の記録」）。
   </div>
 
   <h3><code>git-workflow.md</code> への追記（#8）</h3>
