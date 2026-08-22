@@ -17,8 +17,8 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - issue: #70（https://github.com/yuki-matsu783/MR-driven-workflow/issues/70 ）
 - ブランチ: `claude/gemini-to-claude-migration-jc64gu`
 - PR: #157（Draft。https://github.com/yuki-matsu783/MR-driven-workflow/pull/157 ）
-- push回数: 2
-- 現在のループ: なし
+- push回数: 3
+- 現在のループ: 2-6〜2-9 の1周目（進行中）
 - 追従監視: 購読あり（web。subscribe_pr_activity + 自己チェックイン）
 
 | 進捗 | flow-id | ステップ | 担当 |
@@ -73,12 +73,19 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - flow-id 1-4: 全体作業計画 `plans/nimble-syncing-lantern.md` を作成。issue分割は**しない**と判定（横断的変更に該当）
 - flow-id 1-6: HANDOFF.md の進捗表・ヘッダを記入
 - flow-id 2-1: 個別調査計画 `plans/【調査】gemini-cli記法と同期方式の確定.md` と worklog を作成。調査項目は Q1（agents frontmatterスキーマ）／Q2（skillsを読むか）／Q3（settings.json写像）／Q4（コピー対象・除外）／Q5（同期の実行位置・flow-id採番）／Q6（波及範囲の全件洗い出し）の6件
+- flow-id 2-6: 調査を実施。**`google-gemini/gemini-cli` のソースコードを取得してバリデーション実装そのものを読んだ**（コミット `5411f113`）。結果を `reports/20260822_nimble-syncing-lantern_gemini同期方式の調査.md` と `.html` に記録
+  - **Q1（本題）**: 現行agentsが弾かれる理由は3系統。(1) ツール名の語彙 (2) `tools` が配列でなく文字列 (3) `localAgentSchema` が `.strict()` で未知キー（`title`/`type`/`tags`/`keywords`）を拒否。**(3) はissue #70 が見落としていた欠陥**
+  - **Q2**: skillsのローダは `name`/`description` しか見ない寛容な実装。**skillsは変換不要（コピーのみ）**
+  - **Q3**: 現行の手書き `.gemini/settings.json` は**10項目すべて正しい**。ゴールデンファイルとして単体テストに固定できる。ただし `if` の畳み込みは機能等価でなく、**シェル1回あたり約190msの性能低下**
+  - **Q4**: `.gemini` をGit管理下に置くと **`extract-frontmatter.sh` の走査対象が倍増**する（新規に除外が必要。grepでは見つからない）
+  - **Q5**: flow-id繰り下げは**94箇所/14ファイル**（裸参照込みで217箇所）。**案C（flow-idを増やさない並行手順）を推奨**
+  - **Q6**: 波及範囲を全件判定。副産物として `.gitignore` のコメントが存在しないDDR名（`i36-01`）を指している欠陥を発見
 - **flow-id 1-5（全体作業計画への合意）は未取得**。この実行環境は人間のレビュー往復を待てないため、進捗記号は `[]` のまま残し、ユーザーの合意を待たずにフェーズ2へ進んでいる
 
 ## 次にやること
 
-- flow-id 2-6（調査の実施）。Q1〜Q6 を埋め、`reports/20260822_nimble-syncing-lantern_gemini同期方式の調査.md` と `.html` を作成する
-- あわせて敵対的レビュー（`adversarial-review`）を実施する（ユーザーからの明示指示による）
+- flow-id 2-7（commit・push）後、敵対的レビュー（`adversarial-review`）を実施する（ユーザーからの明示指示による）
+- flow-id 3-1（個別作業計画）。**Q5の案C（flow-idを増やさない）で進めてよいかの合意**を計画レビューで取る
 
 ## 判断を迷った内容
 
