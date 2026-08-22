@@ -17,8 +17,8 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - issue: #26 AIアセットの他プロジェクトへの配布をmanifest方式へ作り直し、配布アセットの層分けを定義する
 - ブランチ: claude/ai-asset-manifest-distribution-u2gn22
 - PR: #154 https://github.com/yuki-matsu783/MR-driven-workflow/pull/154
-- push回数: 8
-- 現在のループ: 3-3〜3-4 の1周目（進行中）
+- push回数: 9
+- 現在のループ: 3-6〜3-9 の1周目（進行中）
 - 追従監視: 購読あり（web。subscribe_pr_activity + 自己チェックイン）
 
 | 進捗 | flow-id | ステップ | 担当 |
@@ -41,9 +41,9 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 | [x] | 2-10 | 調査結果をもとにMR descriptionを更新 | サブコマンド |
 | [x] | 3-1 | 個別作業計画を作成する | エージェント |
 | [] | 3-2 | commitしpushしてレビュー依頼 | エージェント |
-| [] | 3-3 | 作業計画をレビュー | 人間 |
-| [] | 3-4 | レビュー内容を取得し作業計画を修正 | サブコマンド |
-| [] | 3-5 | 作業計画をもとにMR descriptionを更新 | サブコマンド |
+| [x] | 3-3 | 作業計画をレビュー | 人間 |
+| [x] | 3-4 | レビュー内容を取得し作業計画を修正 | サブコマンド |
+| [x] | 3-5 | 作業計画をもとにMR descriptionを更新 | サブコマンド |
 | [] | 3-6 | 作業を実施しreports/へ記録 | エージェント |
 | [] | 3-7 | commitしpushしてレビュー依頼 | エージェント |
 | [] | 3-8 | 作業結果をレビュー | 人間 |
@@ -169,10 +169,35 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
   - 設計計画・検証5: `grep -v 'sync-assets'` がコメント2行まで巻き込んでいた（固定文字列で
     実行行のみを落とす形へ変更し、除去行数が1になった）。
 
+### flow-id 3-6（実装）
+
+**受け入れ条件1〜10をすべて実装し、実際に動かして確認した**（11はフェーズ4のDDR）。
+結果の正文は `reports/20260822_ai-asset-manifest-distribution_manifest方式の実装結果.md`。
+
+- **新規7件**: `.claude/dist-layers.json`（層分け定義41エントリ）・`check-dist-coverage.sh`
+  （網羅性チェック4種）・`.claude/rules/agent-common.md`・雛形2件（`AGENTS.md`・
+  `REVIEW-POINTS.local.md`）・新テスト2本。
+- **全面書き直し**: `install-to-project.sh`（2パス構成・manifest・5層）。
+  `sync-assets.sh` は**削除**。
+- **改修**: `setup-gemini-links.sh`（実体コピーへのフォールバックと同期）・
+  `collect-review-points.sh`（`.local` の収集。スキップの単位をディレクトリ→ファイルへ）・
+  `cleanup-task.sh`・`.gitignore`（マーカー化、`/build/` 削除）。
+- **ドキュメント**: `AGENTS.md` 分割（9項目を `agent-common.md` へ）・`CLAUDE.md`/`GEMINI.md`
+  のポインタ化・`DEVELOPERS.md`/`SKILL.md` の配布手順置き換え・ルール3件・`commit` スキル・
+  `index.md`/`directory-structure.md`。
+- **テストは全17ファイル・1049件が通過**（新規48件、`install-to-project` は59件へ作り直し）。
+- **実装中に7件の不具合を作り、すべて実際に流して見つけて直した。** うち最も重いのは
+  **CRLF配布先での冪等性の再発**（issue #33 が既に直していた欠陥）。受け入れ条件には現れない
+  挙動なので、計画段階の「現行テストの表明の棚卸し」が回帰テストとして効いた。
+- リポジトリ規約に明記のある罠を3つ踏んだ（生の制御文字・`git grep` の `core.quotepath`・
+  先頭がハイフンの値）。詳細は worklog push9。
+
 ## 次にやること
 
-- **flow-id 3-3（人間のレビュー）待ち。** 2件の個別作業計画をレビューし、合意またはコメントを
-  もらう。合意が得られたら flow-id 3-5（`describe`）→ 3-6（実装）へ進む。
+- **flow-id 3-8（人間のレビュー）待ち。** 実装結果をレビューし、合意またはコメントをもらう。
+  合意が得られたら flow-id 3-10（`describe`）→ フェーズ4へ進む。
+- フェーズ4の予定: `distribution-assets.md` の更新、新方式のspec（未確認事項4件）、
+  方式選定のDDR（受け入れ条件11）、`generate-ddr-list.sh` の再実行、`.claude/VERSION` の更新提案。
 - 追加のレビューが要る場合、敵対的レビューはフェーズ3であと**2回**実施できる。
 
 ## 判断を迷った内容

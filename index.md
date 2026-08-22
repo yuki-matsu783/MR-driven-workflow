@@ -42,7 +42,7 @@ keywords: [directory, repository-map, リポジトリマップ, ディレクト�
 - [./.gitlab/merge_request_templates/](./.gitlab/merge_request_templates/) GitLab用MRテンプレート（`Default.md`。内容はGitHub用PRテンプレートと同一）。
 - [./.gitattributes](./.gitattributes) 改行コードの正規化。`*.sh text eol=lf`が`.sh`のLFを保証する（`# --- dist:begin ---`〜`# --- dist:end ---`の行だけが配布先へも追記される）。
 - [./.claude/VERSION](./.claude/VERSION) 配布物の版（SemVer 1行）。更新規則は`.claude/docs/spec/distribution-assets.md`。
-- `./build/` ビルド成果物の出力先。`.gitignore` 対象でコミットしない（通常は空）。**Git管理下に実体を持たないためリンクにしていない**（`.gitignore`の`/build/`対象で、ビルド時に動的に作成される）。
+- [./.claude/dist-layers.json](./.claude/dist-layers.json) 配布アセットの層分け定義（`core`/`seed`/`merge`/`local`/`exclude`）。**何をどう配るかの単一の正**。網羅性は`.claude/scripts/src/check-dist-coverage.sh`が検査する。
 
 `reports/`（`日付_<全体計画名>_<内容を簡潔に>.md` が調査結果・作業結果・反映結果の正文で、個別計画へ
 結果を書かないための分離先。同名の `.html` はその内容を視覚的にまとめた報告用の自己完結HTML）・

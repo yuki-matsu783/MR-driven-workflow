@@ -299,6 +299,7 @@ tail -5 CLAUDE.md; tail -5 GEMINI.md
 n=$(git -c core.quotepath=false grep -n \
   -e 'package_skill' -e 'gemini skills install' -e 'sync-assets' -- '*.md' \
   | grep -v '^\.claude/docs/ddr/' | grep -v '^plans/' | grep -v '^reports/' | grep -v '^worklog/' \
+  | grep -v '^HANDOFF\.md:' \
   | grep -vc -e 'issue-mr-workflow\.md:2304:' -e 'distribution-assets\.md:6:' \
              -e 'distribution-assets\.md:87:' -e 'distribution-assets\.md:120:')
 echo "消し漏れ: $n 件 （期待: 0。作業前に流すと DEVELOPERS.md の3件が出る）"

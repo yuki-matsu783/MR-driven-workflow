@@ -463,22 +463,24 @@ bash .claude/scripts/src/check-dist-coverage.sh
 #    手順2bの dirty 判定の材料にもなってしまうため）。落とす対象も、実在保証の無い既存エントリ名
 #    ではなく、この検証が自分で足したファイル／エントリにする。
 tmp_def="$(mktemp)"
-: > .claude/__coverage_probe__.md
-git add -N .claude/__coverage_probe__.md
+#    プローブは**ルート直下**へ置く。`.claude/` 配下だと広域の core エントリに被覆され、
+#    「未分類を検出できない」のに検証は通る（実際に踏んだ）。
+: > __coverage_probe__.md
+git add -N __coverage_probe__.md
 if bash .claude/scripts/src/check-dist-coverage.sh > /dev/null 2>&1; then
   echo 'NG: 定義に無いファイルを未分類として検出できていない'
 else
   echo 'OK: 未分類を検出した'
 fi
-jq '.entries += [{"layer":"exclude","path":".claude/__coverage_probe__.md","note":"検証3の使い捨て"}]' \
+jq '.entries += [{"layer":"exclude","path":"__coverage_probe__.md","note":"検証3の使い捨て"}]' \
   .claude/dist-layers.json > "$tmp_def"
 if bash .claude/scripts/src/check-dist-coverage.sh --def "$tmp_def" > /dev/null 2>&1; then
   echo 'OK: 定義へ足せば被覆できた（検出が偶然でないことの確認）'
 else
   echo 'NG: 定義に書いたのに未分類と言われた'
 fi
-git rm -q --cached .claude/__coverage_probe__.md
-rm -f .claude/__coverage_probe__.md
+git rm -q --cached __coverage_probe__.md
+rm -f __coverage_probe__.md
 
 # 4. 単体テスト・結合テスト（規約どおり passed=N failures=N を見る）
 for t in test_check_dist_coverage test_install_to_project test_setup_gemini_links \

@@ -38,36 +38,52 @@ keywords: [issue-mr-flow, ディレクトリ構成, mrworkflow, claude-code, gem
 * **新規テストの追加:** 必要に応じて、変更内容をカバーする新しいテストを追加してください。
 * **AI動作確認:** AIアシスタントの設定変更は、実際の対話を通じてその動作が意図通りであることを確認してください。
 
-## カスタムスキルの開発とパッケージング (Custom Skill Development & Packaging)
+## 他リポジトリへの配布 (Distribution)
 
-本リポジトリには、ワークフロー全体を他のリポジトリへ自動展開するための専用スキル `apply-mr-workflow-to-project` などが定義されています。これらのカスタムスキルはビルド（コンパイル）して配布用バイナリ `.skill` パッケージを生成する必要があります。
-
-### 1. 同期とビルドの流れ (Sync & Build Flow)
-
-開発時、本リポジトリのコアアセット（ルール、設定、フック等）を変更した後は、以下のコマンド群を用いてスキルにアセットを同期させ、配布パッケージをローカルビルドします。
+本リポジトリのAIアセット（`.claude/` 一式・issue/MRテンプレート・ルート設定）は、
+**インストーラを直接実行する**ことで他のリポジトリへ配布する。ビルド（`.skill` パッケージ）は
+不要である（issue #26 で廃止した）。
 
 ```bash
-# 1. 変更したコアアセットをスキル一時アセットディレクトリに同期（assets/ は .gitignore 対象）
-#    .claude/ 一式・.github/ .gitlab/ のテンプレート・ルート設定に加え、.gitattributes も対象。
-#    .gitattributes は配布先へ丸ごとコピーされず、`# --- dist:begin ---` 〜 `# --- dist:end ---`
-#    の間の行だけが配布先の .gitattributes へ追記される
-#    （詳細: .claude/docs/spec/distribution-assets.md）。
-bash .claude/skills/apply-mr-workflow-to-project/scripts/sync-assets.sh
-
-# 2. スキルフォルダをビルドして .skill バイナリをコンパイル
-node /usr/local/lib/node_modules/@google/gemini-cli/bundle/builtin/skill-creator/scripts/package_skill.cjs .claude/skills/apply-mr-workflow-to-project
-
-# 3. ビルド成果物を出力ディレクトリに整理（build/ は .gitignore 対象）
-mkdir -p build && mv apply-mr-workflow-to-project.skill build/
+# 配布先を指定して実行するだけでよい。まず --dry-run で何が起きるかを確認する。
+bash .claude/skills/apply-mr-workflow-to-project/scripts/install-to-project.sh --dry-run /path/to/target-repo
+bash .claude/skills/apply-mr-workflow-to-project/scripts/install-to-project.sh /path/to/target-repo
 ```
 
-### 2. 配布と他リポジトリへの適用方法
+### 何がどう配られるか
 
-ビルドした `.skill` パッケージを任意のリポジトリへ持ち運び、ワークフローを即座に自動展開することができます。
+配布対象と扱いは `.claude/dist-layers.json`（層分け定義）が**単一の正**として持つ。
+
+| 層 | 扱い | 例 |
+|---|---|---|
+| `core` | 常に上書きする（配布元所有） | `.claude/rules/` `.claude/scripts/` `REVIEW-POINTS.md` |
+| `seed` | 配布先に無ければ置く。あれば触らない（配布先所有） | `AGENTS.md` `HANDOFF.md` `.mrworkflow.json` `REVIEW-POINTS.local.md` |
+| `merge` | 構造的にマージする | `.gitignore` `.gitattributes`（行追記）・`.claude/settings.json`（キー単位） |
+| `local` | 何もしない | `plans/` `worklog/` `reports/` `usage/` |
+| `exclude` | 配らない | `README.md` `DEVELOPERS.md` `apply-mr-workflow-to-project/` |
+
+配布結果は配布先の `.claude/.asset-manifest.json` へ記録される（配布元のコミットSHA・版・
+ファイルごとの sha256）。再適用時はこれと突き合わせて、**配布先が適用後に変更した `core`
+ファイル**を上書き前に警告し、元の内容を `.bak` として残す。
+
+### 主なオプション
+
+| オプション | 意味 |
+|---|---|
+| `--dry-run` | 何も変更せず、配置・警告の内容だけを出力する |
+| `--force` | 改変済みの `core` を `.bak` を残さず上書きする |
+| `--allow-dirty` | 配布元のワークツリーが dirty でも続行する（manifest の commit へ `-dirty` が付く） |
+
+### 層分け定義を変えたとき
+
+追跡ファイルを追加・移動したら、**必ず網羅性チェックを流す**（未分類が1件でもあれば、
+インストーラは配布を始める前に中断する）。
 
 ```bash
-# 対象のリポジトリのルートで Gemini CLI を使い、ビルドしたパッケージファイルをインポートして発動
-gemini skills install /path/to/apply-mr-workflow-to-project.skill
+bash .claude/scripts/src/check-dist-coverage.sh
 ```
 
-インポート完了後、AIエージェントが自律的に対象リポジトリへ `mr-driven-develop` のセットアップを完了させます。
+### 配布先での初期セットアップ
+
+インストーラが `.gemini/` のリンク作成まで行う。symlink も NTFS ジャンクションも作れない環境では
+**実体コピーへフォールバックする**（再適用のたびに `.claude/` 側の最新へ入れ替わる）。
