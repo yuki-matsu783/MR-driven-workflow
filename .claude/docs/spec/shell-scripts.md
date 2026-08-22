@@ -125,6 +125,19 @@ PowerShellはWSL等の非Windows的なシェル環境から扱いにくいため
   `ConvertFrom-Json`が`-AsHashtable`を持たないための回避策）はjqのネイティブなJSON操作機能により
   不要になったため、bash版（`UsageTracking.sh`）には存在しない。
 
+### 例外: 常駐プロセスが必要な場合（perl）
+
+bash/PowerShellの二択は、どちらも**呼ばれるたびに起動して終了するスクリプト**を前提にしている。
+`accept`ループを回し続ける常駐HTTPサーバのように、**プロセスが起動したまま持続的に動き続ける
+必要がある**処理は、bashには実装手段が無く（`/dev/tcp`疑似デバイスは単発の接続確認にしか
+使えない）、PowerShellで書くとWindows専用実装とWSL/Linux用実装を別に持つ必要が生じ、コードの
+二重管理になる。
+
+この場合は、追加インストール不要でgit bash・WSL/Linux双方に同梱されるperlのコアモジュール
+（`IO::Socket::INET`・`JSON::PP`等）のみで実装する。CPANの追加モジュール（`HTTP::Daemon`等）は
+コア添付ではないため使わない。採用例・判断の詳細はOTelリスナー機構のDDR
+（[i0103-01](../ddr/i0103-01-perlを常駐プロセス実装の選択肢に加える理由.md)）を参照。
+
 ## 影響範囲
 
 新規:
@@ -155,6 +168,10 @@ PowerShellはWSL等の非Windows的なシェル環境から扱いにくいため
   `archive-reentrant-plan.sh`, `extract-frontmatter.sh` を `.claude/scripts/src/` へ、本ドキュメント含む
   AI専用spec/ddrを `.claude/scripts/docs/` へ移動（詳細: `.claude/scripts/docs/spec/issue-mr-workflow.md`
   「影響範囲」issue #24エントリ参照）。`dev-tools/src/build.sh`は人間専用のため`dev-tools/`に残した。
+
+変更（常駐プロセスが必要な場合の第三の選択肢としてperlを追加）:
+- 本ドキュメント（上記「例外: 常駐プロセスが必要な場合（perl）」を新設）。
+- `.claude/docs/ddr/i0103-01-perlを常駐プロセス実装の選択肢に加える理由.md`（新規。採用理由・却下案）。
 
 ## 設定項目
 
