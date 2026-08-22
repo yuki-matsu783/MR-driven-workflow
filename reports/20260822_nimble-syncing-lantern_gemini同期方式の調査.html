@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gemini CLIの記法と .gemini 同期方式の調査結果（issue #70）</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Hiragino Sans", "Noto Sans JP", sans-serif; }
+  code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+</style>
+</head>
+<body class="bg-slate-50 text-slate-800">
+<div class="max-w-6xl mx-auto px-6 py-10">
+
+  <header class="mb-10 border-b border-slate-300 pb-6">
+    <p class="text-sm text-slate-500 mb-1">issue #70 / PR #157 — フェーズ2〈調査〉結果</p>
+    <h1 class="text-3xl font-bold text-slate-900">Gemini CLI の記法と <code>.gemini/</code> 同期方式</h1>
+    <p class="mt-3 text-slate-600">結果の正文は <code>reports/20260822_nimble-syncing-lantern_gemini同期方式の調査.md</code>。このページはその視覚化。</p>
+  </header>
+
+  <!-- 根拠の限界 -->
+  <section class="mb-10">
+    <div class="bg-amber-50 border-l-4 border-amber-500 p-5 rounded-r">
+      <h2 class="font-bold text-amber-900 text-lg mb-2">⚠ この調査に「Gemini CLI を起動して確かめた」結論は1件も無い</h2>
+      <p class="text-amber-900 text-sm leading-relaxed">
+        Gemini CLI はこの実行環境にインストールされていない（<code>command -v gemini</code> が空）。
+        代わりに <strong>Gemini CLI のソースコードそのもの</strong>を取得して読んだ。公式ドキュメントより強い根拠だが、
+        <strong>実行時の挙動を観測したものではない</strong>。
+      </p>
+      <dl class="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+        <div class="bg-white/60 rounded p-2"><dt class="font-semibold text-amber-800">取得元</dt><dd class="font-mono break-all">google-gemini/gemini-cli</dd></div>
+        <div class="bg-white/60 rounded p-2"><dt class="font-semibold text-amber-800">コミット</dt><dd class="font-mono break-all">5411f113…（2026-08-21）</dd></div>
+        <div class="bg-white/60 rounded p-2"><dt class="font-semibold text-amber-800">version</dt><dd class="font-mono break-all">0.56.0-nightly</dd></div>
+      </dl>
+    </div>
+    <div class="mt-4 grid grid-cols-2 md:grid-cols-5 gap-3">
+      <div class="bg-emerald-100 border border-emerald-300 rounded p-3"><span class="font-bold text-emerald-900">S</span> <span class="text-xs text-emerald-800">Geminiのソースで確定</span></div>
+      <div class="bg-sky-100 border border-sky-300 rounded p-3"><span class="font-bold text-sky-900">D</span> <span class="text-xs text-sky-800">公式ドキュメント</span></div>
+      <div class="bg-teal-100 border border-teal-300 rounded p-3"><span class="font-bold text-teal-900">R</span> <span class="text-xs text-teal-800">本リポジトリのソースを読んだ</span></div>
+      <div class="bg-violet-100 border border-violet-300 rounded p-3"><span class="font-bold text-violet-900">M</span> <span class="text-xs text-violet-800">本リポジトリで<strong>実測</strong></span></div>
+      <div class="bg-rose-100 border border-rose-300 rounded p-3"><span class="font-bold text-rose-900">U</span> <span class="text-xs text-rose-800">未確認・推測</span></div>
+    </div>
+    <p class="mt-3 text-xs text-slate-500">M の測定環境: Linux 6.18.44-fc-v21 / bash 5.2.21 / jq-1.7 / git 2.43.0（2026-08-22）。<strong>Windows git bash ではない</strong>ため、<code>.claude/rules/shell-script-style.md</code> が載せる 95ms/回 等の値とは環境が異なる。</p>
+  </section>
+
+  <!-- Q1 -->
+  <section class="mb-10">
+    <h2 class="text-2xl font-bold text-slate-900 mb-1">Q1. agents frontmatter — 本issueの本題</h2>
+    <p class="text-lg text-rose-700 font-semibold mb-4">結論: 原因は <code>tools</code> だけではない。現行ファイルは<strong>3系統</strong>の理由で必ず弾かれる。</p>
+
+    <div class="grid md:grid-cols-3 gap-4 mb-6">
+      <div class="bg-white border border-slate-200 rounded-lg p-4 shadow-sm">
+        <div class="text-xs font-semibold text-rose-600 mb-1">理由 1 <span class="text-slate-400">（S）</span></div>
+        <div class="font-bold mb-2">ツール名が Gemini の語彙でない</div>
+        <code class="text-xs bg-slate-100 px-2 py-1 rounded block">Read, Grep, Glob, Bash</code>
+        <p class="text-xs text-slate-500 mt-2">issue #70 が把握していたのはこれだけ</p>
+      </div>
+      <div class="bg-white border border-slate-200 rounded-lg p-4 shadow-sm">
+        <div class="text-xs font-semibold text-rose-600 mb-1">理由 2 <span class="text-slate-400">（S+M）</span></div>
+        <div class="font-bold mb-2"><code>tools</code> が配列でない</div>
+        <code class="text-xs bg-slate-100 px-2 py-1 rounded block">tools: Read, Grep, …</code>
+        <p class="text-xs text-slate-500 mt-2">YAMLではスカラー文字列。<code>z.array()</code> を満たさない</p>
+      </div>
+      <div class="bg-white border-2 border-rose-400 rounded-lg p-4 shadow-sm">
+        <div class="text-xs font-semibold text-rose-600 mb-1">理由 3 <span class="text-slate-400">（S）</span></div>
+        <div class="font-bold mb-2"><code>.strict()</code> が未知キーを拒否</div>
+        <code class="text-xs bg-slate-100 px-2 py-1 rounded block">title / type / tags / keywords</code>
+        <p class="text-xs text-rose-700 mt-2 font-semibold">本issueが見落としていた欠陥</p>
+      </div>
+    </div>
+
+    <div class="bg-rose-50 border-l-4 border-rose-500 p-4 rounded-r mb-6">
+      <p class="text-sm text-rose-900">
+        <strong>ツール名だけを変換しても、<code>title</code> 等が残っている限りロードは失敗し続ける。</strong>
+        変換規則は「置換」ではなく<strong>「許可キーだけを通すホワイトリスト」</strong>でなければならない。
+        ブラックリストにすると、<code>.claude/rules/markdown-frontmatter.md</code> にキーが1つ増えるたびに Gemini 側が壊れる。
+      </p>
+    </div>
+
+    <h3 class="font-bold text-slate-800 mb-2">バリデーション実装（<code>packages/core/src/agents/agentLoader.ts</code> L91–L116）</h3>
+    <pre class="bg-slate-900 text-slate-100 text-xs p-4 rounded-lg overflow-x-auto mb-6"><code>const localAgentSchema = z
+  .object({
+    name: nameSchema,                       // /^[a-z0-9-_]+$/
+    description: z.string().min(1),
+    tools: z
+      .array(                               // ← 配列であることが必須
+        z.string().refine(
+          (val) =&gt; isValidToolName(val, { allowWildcards: true }),
+          { message: 'Invalid tool name' }, // ← issueのエラー文言はここ
+        ),
+      ).optional(),
+    model: z.string().optional(),
+    temperature / max_turns / timeout_mins / mcp_servers / display_name / kind
+  })
+  .strict();                                // ← 未知キーを拒否する</code></pre>
+
+    <h3 class="font-bold text-slate-800 mb-2">ツール名の対応表（S）</h3>
+    <div class="overflow-x-auto mb-4">
+      <table class="min-w-full text-sm bg-white rounded-lg overflow-hidden shadow-sm">
+        <thead class="bg-slate-800 text-white"><tr>
+          <th class="px-4 py-2 text-left">Claude Code</th><th class="px-4 py-2 text-left">Gemini CLI</th><th class="px-4 py-2 text-left">定数 / 行</th>
+        </tr></thead>
+        <tbody class="divide-y divide-slate-100">
+          <tr class="bg-yellow-50"><td class="px-4 py-2 font-mono">Read</td><td class="px-4 py-2 font-mono font-bold">read_file</td><td class="px-4 py-2 text-xs text-slate-500">READ_FILE_TOOL_NAME / L51</td></tr>
+          <tr class="bg-yellow-50"><td class="px-4 py-2 font-mono">Grep</td><td class="px-4 py-2 font-mono font-bold">grep_search</td><td class="px-4 py-2 text-xs text-slate-500">GREP_TOOL_NAME / L33</td></tr>
+          <tr class="bg-yellow-50"><td class="px-4 py-2 font-mono">Glob</td><td class="px-4 py-2 font-mono font-bold">glob</td><td class="px-4 py-2 text-xs text-slate-500">GLOB_TOOL_NAME / L30</td></tr>
+          <tr class="bg-yellow-50"><td class="px-4 py-2 font-mono">Bash</td><td class="px-4 py-2 font-mono font-bold">run_shell_command</td><td class="px-4 py-2 text-xs text-slate-500">SHELL_TOOL_NAME / L56</td></tr>
+          <tr><td class="px-4 py-2 font-mono">Write</td><td class="px-4 py-2 font-mono">write_file</td><td class="px-4 py-2 text-xs text-slate-500">WRITE_FILE_TOOL_NAME / L61</td></tr>
+          <tr><td class="px-4 py-2 font-mono">Edit</td><td class="px-4 py-2 font-mono">replace</td><td class="px-4 py-2 text-xs text-slate-500">EDIT_TOOL_NAME / L65</td></tr>
+          <tr><td class="px-4 py-2 font-mono">LS</td><td class="px-4 py-2 font-mono">list_directory</td><td class="px-4 py-2 text-xs text-slate-500">LS_TOOL_NAME / L47</td></tr>
+          <tr><td class="px-4 py-2 font-mono">WebFetch</td><td class="px-4 py-2 font-mono">web_fetch</td><td class="px-4 py-2 text-xs text-slate-500">WEB_FETCH_TOOL_NAME / L82</td></tr>
+          <tr><td class="px-4 py-2 font-mono">WebSearch</td><td class="px-4 py-2 font-mono">google_web_search</td><td class="px-4 py-2 text-xs text-slate-500">WEB_SEARCH_TOOL_NAME / L72</td></tr>
+          <tr><td class="px-4 py-2 font-mono">TodoWrite</td><td class="px-4 py-2 font-mono">write_todos</td><td class="px-4 py-2 text-xs text-slate-500">WRITE_TODOS_TOOL_NAME / L76</td></tr>
+          <tr><td class="px-4 py-2 font-mono">Task</td><td class="px-4 py-2 font-mono">invoke_agent</td><td class="px-4 py-2 text-xs text-slate-500">AGENT_TOOL_NAME / tool-names.ts L191</td></tr>
+        </tbody>
+      </table>
+      <p class="text-xs text-slate-500 mt-1">黄色の4行が現行2ファイルで実際に使われているもの（M）。</p>
+    </div>
+    <ul class="text-sm text-slate-700 space-y-2 mb-4 list-disc pl-5">
+      <li><strong>対応表に無いClaudeツール名が現れたら、変換スクリプトは黙って落とさずエラーにする。</strong>黙って落とすと、Gemini 側のエージェントが必要な権限を失ったまま静かに動く。</li>
+      <li class="text-amber-800"><strong>この表は Gemini 側の語彙を網羅したものではない。</strong>Claude側の現行2ファイルが使う4種を起点に広げたもので、当初 <code>TodoWrite</code> / <code>Task</code> を「相当が無い例」として挙げていたが <code>ALL_BUILTIN_TOOL_NAMES</code> に対応先があった。<strong>「表に無い」は「Geminiに無い」を意味しない。</strong>フェーズ3で <code>ALL_BUILTIN_TOOL_NAMES</code> 側から突き合わせ直し、網羅性を単体テストで固定する。</li>
+      <li><code>model</code> はスキーマ上 <code>z.string()</code> なので <code>sonnet</code>/<code>opus</code> は<strong>通ってしまう</strong>。弾かれないぶん、かえって危ない。<strong>変換ではなく除去</strong>して <code>inherit</code>（既定）に委ねるのが安全。</li>
+    </ul>
+
+    <div class="bg-slate-100 border border-slate-300 p-4 rounded text-sm">
+      <p class="font-semibold mb-1">エラー添字 <code>tools.0</code> との食い違い（U）</p>
+      <p class="text-slate-700">issueのエラーは <code>tools.0</code>＝<strong>配列として解釈されたうえで0番目が不正</strong>を示すが、現行ファイルの <code>tools</code> は文字列である。報告時の環境では YAML の配列記法で書かれていた可能性が高い。<strong>実機が無いため確定できないが、どちらでも上記3系統の変換は必要で方針は変わらない。</strong></p>
+    </div>
+  </section>
+
+  <!-- Q2 -->
+  <section class="mb-10">
+    <h2 class="text-2xl font-bold text-slate-900 mb-1">Q2. skills は読まれるか</h2>
+    <p class="text-lg text-emerald-700 font-semibold mb-4">結論: <strong>読む。かつ変換は不要（そのままコピーでよい）。</strong></p>
+    <div class="grid md:grid-cols-2 gap-4">
+      <div class="bg-rose-50 border border-rose-200 rounded-lg p-4">
+        <div class="font-bold text-rose-900 mb-2">agents — 厳しい</div>
+        <ul class="text-sm text-rose-800 space-y-1">
+          <li>スキーマ: <code>zod</code> + <code>.strict()</code></li>
+          <li>未知キー: <strong>拒否</strong></li>
+          <li>変換: <strong>必要</strong></li>
+        </ul>
+      </div>
+      <div class="bg-emerald-50 border border-emerald-200 rounded-lg p-4">
+        <div class="font-bold text-emerald-900 mb-2">skills — 寛容</div>
+        <ul class="text-sm text-emerald-800 space-y-1">
+          <li>スキーマ: 手書き（<code>name</code>/<code>description</code>のみ抽出）</li>
+          <li>未知キー: <strong>無視</strong></li>
+          <li>変換: <strong>不要</strong>（コピーのみ）</li>
+        </ul>
+      </div>
+    </div>
+    <p class="mt-4 text-sm text-slate-700 bg-slate-100 p-3 rounded">
+      <strong>この非対称は覚えておく価値がある。</strong>「Gemini は Claude の記法を受け付けない」と一括りにするのは誤りで、<strong>厳しいのは agents だけ</strong>。skills まで変換対象に含めると、情報を落とすだけで得るものが無い。現行 <code>.claude/skills/*/SKILL.md</code> 全9件が <code>name</code> と <code>description</code> の<strong>両方</strong>を持つことを確認済み（M）。ローダは両方が揃って初めてスキルとして成立させ、片方でも欠けると簡易パーサへ落ち、そこでも取れなければそのスキルは丸ごと捨てられる。
+    </p>
+  </section>
+
+  <!-- Q3 -->
+  <section class="mb-10">
+    <h2 class="text-2xl font-bold text-slate-900 mb-1">Q3. settings.json の写像</h2>
+    <p class="text-lg text-amber-700 font-semibold mb-4">結論: <strong>issue #70 の10観点のうち8つで正しい</strong>。<code>permissions</code> と SessionStart matcher の縦棒つなぎが<strong>いずれも誤り</strong>（後者は2026-08-22に一次ソースで確定）。<span class="text-rose-700">そのままではゴールデンファイルにできない。</span></p>
+    <div class="bg-amber-50 border-l-4 border-amber-500 p-4 rounded-r mb-5 text-sm text-amber-900">
+      <strong>「10観点で正しい」と「ゴールデンファイルにできる」は別の主張である。</strong>前者は issue #70 が列挙した観点の網羅、後者は<strong>変換元の全キーが写像先に説明できていること</strong>を要求する。次の3つは10観点の外にあり未判定のまま残っている:
+      <ul class="list-disc pl-5 mt-2 space-y-1 text-xs">
+        <li><code>autoCompactWindow: 600000</code> — 表のどこにも現れず <code>.gemini</code> 側にも無い</li>
+        <li><code>PostToolUse</code> の<strong>グループ構造</strong>（2グループ→1グループ）と <code>mcp__github__issue_write</code> の脱落</li>
+        <li><code>.gemini</code> 側 <code>AfterTool</code> の<strong>エントリ数（3）</strong>と、<code>if</code> 行の「2エントリへ集約」という記述の食い違い</li>
+      </ul>
+      <p class="mt-2">未判定を抱えたまま固定すると、<strong>変換スクリプトが情報を落としていることを単体テストが永久に緑で通す。</strong></p>
+    </div>
+    <div class="overflow-x-auto mb-6">
+      <table class="min-w-full text-sm bg-white rounded-lg overflow-hidden shadow-sm">
+        <thead class="bg-slate-800 text-white"><tr>
+          <th class="px-3 py-2 text-left">観点</th><th class="px-3 py-2 text-left">.claude</th><th class="px-3 py-2 text-left">.gemini</th><th class="px-3 py-2 text-left">検証</th><th class="px-3 py-2">根拠</th>
+        </tr></thead>
+        <tbody class="divide-y divide-slate-100 text-xs">
+          <tr><td class="px-3 py-2">hookイベント名</td><td class="px-3 py-2 font-mono">PreToolUse / PostToolUse</td><td class="px-3 py-2 font-mono">BeforeTool / AfterTool</td><td class="px-3 py-2 text-emerald-700">✓ 正しい</td><td class="px-3 py-2 text-center">D</td></tr>
+          <tr><td class="px-3 py-2">matcher（第1グループ）</td><td class="px-3 py-2 font-mono">Bash|PowerShell</td><td class="px-3 py-2 font-mono">run_shell_command|…</td><td class="px-3 py-2 text-emerald-700">✓ 正しい</td><td class="px-3 py-2 text-center">D</td></tr>
+          <tr class="bg-rose-50"><td class="px-3 py-2">matcher（<strong>第2グループ</strong>）</td><td class="px-3 py-2 font-mono">Bash|PowerShell|<strong>mcp__github__issue_write</strong></td><td class="px-3 py-2 font-mono">第1へ併合（<strong>脱落</strong>）</td><td class="px-3 py-2 text-rose-700 font-semibold">✗ MCP経路の起票で発火しない</td><td class="px-3 py-2 text-center">R</td></tr>
+          <tr><td class="px-3 py-2">コマンド指定</td><td class="px-3 py-2 font-mono">command + args[]</td><td class="px-3 py-2 font-mono">単一シェル文字列</td><td class="px-3 py-2 text-emerald-700">✓ <code>args</code> は無い</td><td class="px-3 py-2 text-center">D</td></tr>
+          <tr class="bg-yellow-50"><td class="px-3 py-2">timeout</td><td class="px-3 py-2 font-mono">秒（30）</td><td class="px-3 py-2 font-mono">ミリ秒（30000）</td><td class="px-3 py-2 text-emerald-700">✓ 既定60000ms</td><td class="px-3 py-2 text-center">D</td></tr>
+          <tr class="bg-yellow-50"><td class="px-3 py-2">環境変数</td><td class="px-3 py-2 font-mono">${CLAUDE_PROJECT_DIR}</td><td class="px-3 py-2 font-mono">${GEMINI_PROJECT_DIR}</td><td class="px-3 py-2 text-amber-800"><strong>置換しなくても動く可能性が高い</strong>。<code>CLAUDE_PROJECT_DIR</code> はエイリアスとして提供される（hooks/index.md L144）。解決は<strong>設定読み込み時</strong>（configuration.md L63–71）。「シェル実行時の展開」という当初の断定は撤回。<strong class="text-emerald-700">未解決時の挙動は2026-08-22に確定: プレースホルダがそのまま残る（空文字にならない）。<code>${VAR:-DEFAULT}</code> も使える。hook実行時は必ず注入されるため未定義になる経路は実質無い</strong></td><td class="px-3 py-2 text-center">D / <strong>S</strong></td></tr>
+          <tr><td class="px-3 py-2">plans設定</td><td class="px-3 py-2 font-mono">plansDirectory</td><td class="px-3 py-2 font-mono">general.plan.directory</td><td class="px-3 py-2 text-emerald-700">✓ キーの写像は正しい（L186/319/338）。<span class="text-amber-800">ただし L338 が「カスタムディレクトリは Plan Mode の書き込み許可に policy が要る」と書いており、<strong>要否は依然未確認</strong>。ただし2026-08-22に<strong class="text-rose-700">Workspace層（プロジェクト単位の policy）が現在無効</strong>と確定したため、<strong>要ったとしてもリポジトリからは配れない</strong>（upstream issue #18186）</span></td><td class="px-3 py-2 text-center">S / U / <strong>S</strong></td></tr>
+          <tr class="bg-rose-50"><td class="px-3 py-2 font-semibold"><code>if</code> 条件</td><td class="px-3 py-2 font-mono">あり（4エントリ）</td><td class="px-3 py-2 font-mono">無い（2へ集約）</td><td class="px-3 py-2 text-rose-700 font-semibold">✓ だが機能等価でない</td><td class="px-3 py-2 text-center">D</td></tr>
+          <tr class="bg-rose-100"><td class="px-3 py-2"><code>permissions</code></td><td class="px-3 py-2 font-mono">defaultMode / deny</td><td class="px-3 py-2 font-mono">無い（破棄）</td><td class="px-3 py-2 text-rose-800 font-semibold">✗ <strong>誤り。相当機能はある。</strong> policy engine に <code>commandRegex = "git (commit|push)"</code>（L325）＋ <code>decision = "deny"</code>（L33）。<code>defaultMode</code> 相当は <code>defaultApprovalMode</code>（settingsSchema L228/244）。置き場所は <code>.gemini/policies/*.toml</code>。<strong>ただし2026-08-22に、その Workspace 層が現在無効と確定した（upstream issue #18186）。写像しないのは「選ばなかった」からではなく「今は動かない」から</strong></td><td class="px-3 py-2 text-center">D / S / <strong>S</strong></td></tr>
+          <tr><td class="px-3 py-2"><code>name</code></td><td class="px-3 py-2 font-mono">無し</td><td class="px-3 py-2 font-mono">あり（生成）</td><td class="px-3 py-2 text-emerald-700">✓ 任意フィールド</td><td class="px-3 py-2 text-center">D</td></tr>
+          <tr><td class="px-3 py-2">SessionStart matcher（<code>compact</code> の除去）</td><td class="px-3 py-2 font-mono">…|clear|compact</td><td class="px-3 py-2 font-mono">…|clear</td><td class="px-3 py-2 text-emerald-700">✓ <code>source</code> は3値のみ</td><td class="px-3 py-2 text-center">D</td></tr>
+          <tr class="bg-rose-100"><td class="px-3 py-2">SessionStart matcher（<strong>縦棒つなぎの有効性</strong>）</td><td class="px-3 py-2 font-mono">—</td><td class="px-3 py-2 font-mono">startup|resume|clear</td><td class="px-3 py-2 text-rose-800 font-semibold">✗ <strong>誤り（2026-08-22に一次ソースで確定）。</strong> <code>hookPlanner.ts</code> の <code>matchesContext</code> は、ツール名なら <code>new RegExp(matcher).test()</code>、トリガーなら <code>matcher === trigger</code>（<strong>完全一致</strong>）と使い分ける。SessionStart はトリガー側（<code>hookEventHandler.ts</code> L183）なので<strong>どの source にも一致せず hook が一度も発火しない</strong>。<strong class="text-emerald-700">対処は「複数エントリ登録」ではなく <code>matcher</code> の省略</strong>（無指定は全ソースで発火し、Claude側の4値＝全ソースと等価）</td><td class="px-3 py-2 text-center"><strong>S</strong></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="bg-rose-50 border-l-4 border-rose-500 p-5 rounded-r">
+      <h3 class="font-bold text-rose-900 mb-2"><code>if</code> の畳み込みで落ちるもの — 機能等価ではない</h3>
+      <p class="text-sm text-rose-900 mb-3">
+        <code>.claude</code> 側は <code>post-push-*</code> の2本を <code>if: "Bash(git push*)"</code> が真のときだけ起動する。
+        Gemini には <code>if</code> が無いため、<strong>シェル呼び出しのたびに毎回この2本が起動する。</strong>
+      </p>
+      <p class="text-sm text-rose-900 mb-3">
+        <strong>ただし実害は限定的（R）。</strong>両スクリプトは自身でも <code>tool_input.command</code> を再チェックし（<code>command_invokes_git_subcommand</code>）、pushでなければ即 <code>exit 0</code> する。
+      </p>
+      <p class="text-sm text-rose-900 mb-3">
+        落ちるのは正しさではなく性能。ただし当初の<strong>「シェル1回あたり約190ms」は hook 1本＝プロセス1つと数えた誤り</strong>で、撤回する。
+        早期returnの経路でも各hookはコマンド置換とjqを回す（<code>.claude/rules/shell-script-style.md</code>「コマンド置換・パイプもサブシェルをforkする」）。
+      </p>
+      <div class="overflow-x-auto mb-3">
+        <table class="min-w-full text-xs bg-white/70 rounded">
+          <thead><tr class="text-left"><th class="px-2 py-1">毎回起動するhook</th><th class="px-2 py-1">早期returnまでの外部プロセス</th><th class="px-2 py-1">内訳</th></tr></thead>
+          <tbody class="divide-y divide-rose-100">
+            <tr><td class="px-2 py-1 font-mono">post-push-usage-report.sh</td><td class="px-2 py-1 text-center font-bold">5</td><td class="px-2 py-1">$(cat) L306 / jq×4（L310・L314・L323・L332）</td></tr>
+            <tr><td class="px-2 py-1 font-mono">post-push-compact-prompt.sh</td><td class="px-2 py-1 text-center font-bold">5</td><td class="px-2 py-1">同じ形（L212–235）</td></tr>
+            <tr class="bg-amber-50"><td class="px-2 py-1 font-mono">post-issue-create-notice.sh</td><td class="px-2 py-1 text-center font-bold">要計測</td><td class="px-2 py-1"><strong>当初の見積もりに入れていなかった3本目</strong></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="text-sm text-rose-900 font-semibold">
+        上乗せは「2プロセス」ではなく<strong>「10プロセス超」の桁</strong>。95ms/回（<strong>Windows git bash の値</strong>。この調査環境の値ではない）を当てるとシェル1回あたり1秒近くになりうる。
+        <strong>正確な値はフェーズ3で実測する</strong>（見積もりのまま spec へ転記しない）。「等価な変換」と書くと、将来スクリプト側の自己チェックを外した人が Gemini 側だけ静かに壊す。
+      </p>
+    </div>
+  </section>
+
+  <!-- Q4 -->
+  <section class="mb-10">
+    <h2 class="text-2xl font-bold text-slate-900 mb-4">Q4. コピー対象と、Git管理下へ置く副作用</h2>
+    <div class="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
+      <div class="bg-white border rounded p-3 text-center"><div class="text-2xl font-bold text-slate-800">148</div><div class="text-xs text-slate-500">.claude のファイル</div></div>
+      <div class="bg-white border rounded p-3 text-center"><div class="text-2xl font-bold text-slate-800">105</div><div class="text-xs text-slate-500">うち .md</div></div>
+      <div class="bg-white border rounded p-3 text-center"><div class="text-2xl font-bold text-slate-800">124</div><div class="text-xs text-slate-500">リポジトリ全体の .md</div></div>
+      <div class="bg-white border rounded p-3 text-center"><div class="text-2xl font-bold text-slate-800">2.8M</div><div class="text-xs text-slate-500">.claude のサイズ</div></div>
+      <div class="bg-white border rounded p-3 text-center"><div class="text-2xl font-bold text-slate-800">0.60s</div><div class="text-xs text-slate-500">frontmatter抽出（差分なし）</div></div>
+    </div>
+    <div class="overflow-x-auto mb-6">
+      <table class="min-w-full text-sm bg-white rounded-lg overflow-hidden shadow-sm">
+        <thead class="bg-slate-800 text-white"><tr><th class="px-3 py-2 text-left">#</th><th class="px-3 py-2 text-left">副作用</th><th class="px-3 py-2 text-left">対処</th></tr></thead>
+        <tbody class="divide-y divide-slate-100 text-xs">
+          <tr><td class="px-3 py-2 font-bold">A</td><td class="px-3 py-2"><code>rg</code>/<code>grep</code>/Glob が <code>.claude</code> と <code>.gemini</code> で<strong>二重ヒット</strong></td><td class="px-3 py-2">運用ルールで「<code>.gemini/</code> が出たら必ず <code>.claude/</code> 側を編集」と明文化</td></tr>
+          <tr class="bg-rose-50"><td class="px-3 py-2 font-bold text-rose-700">B</td><td class="px-3 py-2"><strong><code>extract-frontmatter.sh</code> の走査対象がほぼ倍増</strong>。<code>git ls-files</code> で列挙するため、Git管理下になった瞬間に <code>.gemini/</code> も対象になる（R: L396）</td><td class="px-3 py-2 font-semibold text-rose-700"><code>.gemini</code> を明示除外。<strong>フェーズ3の必須作業</strong>。しないと <code>.gemini/**/index.jsonl</code> まで生成される</td></tr>
+          <tr><td class="px-3 py-2 font-bold">C</td><td class="px-3 py-2"><code>search-frontmatter.sh</code> の二重ヒット</td><td class="px-3 py-2"><strong>既に対処済み</strong>（<code>SF_EXCLUDED_DIRS</code>。R: L37）。<strong>ただし理由コメント（L32–L36）が嘘になる</strong>ので書き換える。とくに L35–36 の「ジャンクションは find からは通常のディレクトリに見えるため二重にヒットする」は前提ごと成り立たなくなる（<strong>実体が2つあるから二重ヒットする</strong>へ）</td></tr>
+          <tr><td class="px-3 py-2 font-bold">D</td><td class="px-3 py-2">ファイル数・サイズが約2倍</td><td class="px-3 py-2">受け入れる（「検索に掛かる」という利点の裏返し）</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="bg-amber-50 border-l-4 border-amber-500 p-4 rounded-r text-sm text-amber-900">
+      <strong>B は静かに壊れる類の副作用である。</strong><code>extract-frontmatter.sh</code> は失敗しても <code>index.jsonl</code> が増えるだけで、エラーは出ない。<strong>気づくのは <code>doc-search</code> の結果が二重になってから。</strong>
+      なお除外は「<code>.gitignore</code> に載っているか」（<code>git check-ignore</code>）で機械的に決められ、除外リストの二重管理を避けられる。
+    </div>
+  </section>
+
+  <!-- Q5 -->
+  <section class="mb-10">
+    <h2 class="text-2xl font-bold text-slate-900 mb-1">Q5. 同期の実行位置（flow-id の採番）</h2>
+    <p class="text-lg text-emerald-700 font-semibold mb-4">結論: <strong>案A（新規 flow-id を新設し繰り下げる）</strong>。挿入位置は<strong>最終統括レポートの直前</strong> → 新設 <code>5-3</code>。</p>
+
+    <div class="bg-emerald-50 border-l-4 border-emerald-500 p-4 rounded-r mb-5 text-sm text-emerald-900">
+      <strong>チャットでのレビューで決着した（2026-08-22）。</strong>
+      ユーザーの指示は「flow-id は issue #111 に合わせて」、続けて「最終統括レポートの前が良いな」。
+      すなわち <strong>issue #111（統括レポートの追加）とまったく同じやり方で繰り下げる</strong>。当初の推奨だった案Cは取り下げる。
+      <span class="block mt-2 text-xs">issue #70 本文の「5-3（片付け）の直前」は、#111 以降の番号へ読み替えたうえで<strong>さらに1つ手前</strong>になる。</span>
+    </div>
+
+    <div class="overflow-x-auto mb-6">
+      <table class="min-w-full text-sm bg-white rounded-lg overflow-hidden shadow-sm">
+        <thead class="bg-slate-800 text-white"><tr><th class="px-3 py-2">変更前</th><th class="px-3 py-2">変更後</th><th class="px-3 py-2 text-left">ステップ</th></tr></thead>
+        <tbody class="divide-y divide-slate-100 text-xs">
+          <tr><td class="px-3 py-2 text-center font-mono">5-1</td><td class="px-3 py-2 text-center font-mono">5-1</td><td class="px-3 py-2">defaultブランチとのコンフリクト検知・解消</td></tr>
+          <tr><td class="px-3 py-2 text-center font-mono">5-2</td><td class="px-3 py-2 text-center font-mono">5-2</td><td class="px-3 py-2">関連issueへのマージ前通知</td></tr>
+          <tr class="bg-emerald-100"><td class="px-3 py-2 text-center font-mono">—</td><td class="px-3 py-2 text-center font-mono font-bold">5-3</td><td class="px-3 py-2 font-semibold"><code>.claude/</code> → <code>.gemini/</code> 変換同期（<strong>新設</strong>）</td></tr>
+          <tr class="bg-yellow-50"><td class="px-3 py-2 text-center font-mono">5-3</td><td class="px-3 py-2 text-center font-mono">5-4</td><td class="px-3 py-2">最終統括レポート作成とPR/MRへの反映</td></tr>
+          <tr class="bg-yellow-50"><td class="px-3 py-2 text-center font-mono">5-4</td><td class="px-3 py-2 text-center font-mono">5-5</td><td class="px-3 py-2">片付けとHANDOFF.mdリセット</td></tr>
+          <tr class="bg-yellow-50"><td class="px-3 py-2 text-center font-mono">5-5</td><td class="px-3 py-2 text-center font-mono">5-6</td><td class="px-3 py-2">commit・push してDraft解除</td></tr>
+          <tr class="bg-yellow-50"><td class="px-3 py-2 text-center font-mono">5-6</td><td class="px-3 py-2 text-center font-mono">5-7</td><td class="px-3 py-2">マージ</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="grid md:grid-cols-3 gap-4 mb-5">
+      <div class="bg-white border border-slate-200 rounded-lg p-4">
+        <div class="font-bold mb-1 text-sm">① 生成の直後に確定が来る</div>
+        <p class="text-xs text-slate-600">旧 5-3（統括レポート）は<strong>自前で commit・push する</strong>ステップなので、同期で生えた <code>.gemini/**</code> はその commit に載る。同期ステップ自体は commit を持たない（片付け → commit と同じ既存パターン）。片付けの直前へ挿す案では、生成と commit の間に片付けが挟まっていた。</p>
+      </div>
+      <div class="bg-white border border-slate-200 rounded-lg p-4">
+        <div class="font-bold mb-1 text-sm">② 統括レポートが最終形を書ける</div>
+        <p class="text-xs text-slate-600"><code>.gemini/</code> を再生成してからレポートを書くので、「このブランチで何が変わったか」に同期結果が含まれる。</p>
+      </div>
+      <div class="bg-white border border-slate-200 rounded-lg p-4">
+        <div class="font-bold mb-1 text-sm">③ mainからの取り込みを拾える</div>
+        <p class="text-xs text-slate-600">5-1 のコンフリクト解消で main から入った <code>.claude/</code> の変更を、確実に再変換できる。</p>
+      </div>
+    </div>
+
+    <div class="bg-sky-50 border-l-4 border-sky-500 p-4 rounded-r mb-6 text-sm text-sky-900">
+      <p><strong>issue #112 の制約を壊さない。</strong> SKILL.md は片付けについて「このステップを commit の直前へ置くのは、生成と確定の間に他のステップを挟まないため」と定めているが、新設ステップは片付けより前にあるため、<strong>片付けと commit は隣接したまま</strong>である。</p>
+      <p class="mt-2"><strong>依存関係:</strong> 同期を片付け（<code>cleanup-task.sh</code>）より前に置く以上、<strong>Q4-B の「<code>extract-frontmatter.sh</code> に <code>.gemini</code> 除外を足す」は必須の前提条件</strong>になる。片付けは <code>index.jsonl</code> を再生成するため、除外が無いとその最中に <code>.gemini/**/index.jsonl</code> が生える。</p>
+    </div>
+
+    <h3 class="text-lg font-bold text-slate-800 mb-3">繰り下げの作業量（M）</h3>
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+      <div class="bg-white border rounded p-3 text-center"><div class="text-2xl font-bold text-slate-800">109</div><div class="text-xs text-slate-500"><code>flow-id 5-[3-6]</code> の出現</div></div>
+      <div class="bg-white border rounded p-3 text-center"><div class="text-2xl font-bold text-slate-800">21</div><div class="text-xs text-slate-500">対象ファイル数</div></div>
+      <div class="bg-white border rounded p-3 text-center"><div class="text-2xl font-bold text-rose-700">226</div><div class="text-xs text-slate-500">裸の <code>5-3</code>〜<code>5-6</code> も含む（23ファイル）</div></div>
+      <div class="bg-white border rounded p-3 text-center"><div class="text-2xl font-bold text-sky-700">84</div><div class="text-xs text-slate-500">DDR本文（<strong>変更対象外</strong>）</div></div>
+    </div>
+    <p class="text-sm text-slate-700 mb-3">繰り下げ対象は <code>5-3</code>／<code>5-4</code>／<code>5-5</code>／<code>5-6</code> の<strong>4つ</strong>（片付けの直前へ挿す場合の3つより1つ多い）。参考として、issue #111（PR #144 / <code>e33b468</code>）は同じ形の繰り下げを<strong>28ファイル</strong>の変更で完了しており、規模は同程度である。</p>
+    <div class="bg-amber-50 border-l-4 border-amber-500 p-4 rounded-r mb-6 text-xs text-amber-900">
+      <strong>当初この節に書いていた「94箇所 / 14ファイル」「広い網 217箇所」は撤回する（敵対的レビューの指摘による）。</strong>
+      前者は直上に貼っていた実出力の合計（92）と一致せず、後者は数え方を示すコマンドが無く再現できなかった。上の数値は<strong>md版に貼ったコマンドの出力から機械的に出る値</strong>に揃えてある。
+    </div>
+
+    <h3 class="text-lg font-bold text-slate-800 mb-3">3案の比較（決定の経緯として残す）</h3>
+    <div class="grid md:grid-cols-3 gap-4 mb-5">
+      <div class="bg-emerald-50 border-2 border-emerald-400 rounded-lg p-4">
+        <div class="font-bold mb-1 text-emerald-900">案A. 新規 flow-id（<strong>採用</strong>）</div>
+        <div class="text-xs text-rose-700 font-semibold mb-2">繰り下げ: 109〜226箇所</div>
+        <p class="text-xs text-emerald-900">表に明示され飛ばしにくい。issue #111 に前例があり、やり方が確立している。1箇所の漏れで HANDOFF.md の進捗表と噛み合わなくなる点は、下記の条件で守る。</p>
+      </div>
+      <div class="bg-white border border-slate-200 rounded-lg p-4 opacity-70">
+        <div class="font-bold mb-1">案B. 片付けへ統合（不採用）</div>
+        <div class="text-xs text-emerald-700 font-semibold mb-2">繰り下げ: 無し</div>
+        <p class="text-xs text-slate-600">追加コスト最小。だが<strong>責務が違う</strong>——片付けは「タスク固有のファイルを消す」、同期は「<code>.claude</code>→<code>.gemini</code> を再生成する」。<code>--dry-run</code> の意味・失敗時の扱いが混ざる。</p>
+      </div>
+      <div class="bg-white border border-slate-200 rounded-lg p-4 opacity-70">
+        <div class="font-bold mb-1">案C. 並行手順（不採用）</div>
+        <div class="text-xs text-emerald-700 font-semibold mb-2">繰り下げ: 無し</div>
+        <p class="text-xs text-slate-600">先例が<strong>3つ</strong>（PR追従監視・ベース追従確認・敵対的レビュー）。<span class="text-amber-800">当初「4つ」として REVIEW-POINTS 収集も数えていたが、これは敵対的レビューの一部であり独立した先例ではないため訂正した。</span>調査時点の推奨だったが、レビューで案Aに決定。</p>
+      </div>
+    </div>
+
+    <div class="bg-slate-100 border border-slate-300 p-4 rounded text-sm mb-5">
+      <p class="font-semibold mb-2">繰り下げを安全に行うための条件（フェーズ3で守る）</p>
+      <ol class="list-decimal pl-5 space-y-1 text-slate-700 text-xs">
+        <li><strong><code>.claude/docs/ddr/</code> の本文は書き換えない</strong>（84箇所）。DDRは本文不変で、当時の番号のまま <code>note</code> で補足する運用が既にある（<code>i0028-01</code> が実例）。</li>
+        <li><strong><code>spec/</code> の過去issueごとの記録節（changelog）も書き換えない。</strong><code>.claude/rules/docs-workflow.md</code> が禁じており、issue #47 では実際に <code>sed</code> の一括置換で過去の記録を壊しかけている。</li>
+        <li><strong>置換後に <code>git diff &lt;ブランチ分岐点のSHA&gt; -- .claude/</code> の削除行を確認する。</strong>引数なしの <code>git diff</code> は作業ツリー比較のため使わない。</li>
+      </ol>
+    </div>
+
+    <div class="bg-amber-50 border-l-4 border-amber-500 p-4 rounded-r text-sm text-amber-900">
+      <p class="font-semibold mb-1"><code>--check</code> の実行位置は未決（フェーズ3の論点）</p>
+      <p class="text-xs">差分があれば非0で落とす <code>--check</code> を設ける方針は変わらないが、<strong>どこで走らせるかは決まっていない</strong>——push前（<code>create-commit.sh</code> 等の関門）なら<strong>止められる</strong>、push後（PostToolUse hook）なら<strong>気づかせるだけ</strong>になる。調査時点の記述はこの2つが同じ節の中で食い違っていた（敵対的レビューの指摘）。<strong>flow-id 5-3 の新設で <code>--check</code> は「忘れ防止の主役」ではなく補助になった</strong>ため、どちらを採るかはフェーズ3の個別作業計画で決める。</p>
+    </div>
+  </section>
+
+  <!-- Q6 -->
+  <section class="mb-10">
+    <h2 class="text-2xl font-bold text-slate-900 mb-4">Q6. 波及範囲（全件・判定付き）</h2>
+    <div class="overflow-x-auto mb-4">
+      <table class="min-w-full text-sm bg-white rounded-lg overflow-hidden shadow-sm">
+        <thead class="bg-slate-800 text-white"><tr><th class="px-3 py-2 text-left">ファイル</th><th class="px-3 py-2">件数</th><th class="px-3 py-2 text-left">判定</th></tr></thead>
+        <tbody class="divide-y divide-slate-100 text-xs">
+          <tr class="bg-rose-50"><td class="px-3 py-2 font-mono">.claude/scripts/src/setup-gemini-links.sh</td><td class="px-3 py-2 text-center">12</td><td class="px-3 py-2 font-semibold text-rose-700">削除</td></tr>
+          <tr class="bg-amber-50"><td class="px-3 py-2 font-mono">.gemini/settings.json</td><td class="px-3 py-2 text-center">5</td><td class="px-3 py-2"><strong>性格が変わる唯一のファイル</strong>（手書きの実体 → 生成物）。フェーズ3で (1) Git管理下に残すか (2) <code>--check</code> の比較対象（<strong>出力と実体が同じファイルだと自分自身を比較する構造になる</strong>）(3) ゴールデンファイルを別に置くか を分けて決める</td></tr>
+          <tr class="bg-amber-50"><td class="px-3 py-2 font-mono">.claude/scripts/src/extract-frontmatter.sh</td><td class="px-3 py-2 text-center">0</td><td class="px-3 py-2 font-semibold text-amber-800"><strong>変更が必要</strong>（<code>.gemini</code> 除外を新規追加）。<strong>grepで出てこないので見落としやすい</strong></td></tr>
+          <tr><td class="px-3 py-2 font-mono">.claude/scripts/src/search-frontmatter.sh</td><td class="px-3 py-2 text-center">3</td><td class="px-3 py-2">除外は<strong>残す</strong>。理由コメント（<strong>L32–L36</strong>）だけ書き換え。L35–36 の「ジャンクションだから二重ヒット」は前提ごと成り立たなくなる</td></tr>
+          <tr><td class="px-3 py-2 font-mono">.claude/scripts/test/test_search_frontmatter.sh</td><td class="px-3 py-2 text-center">11</td><td class="px-3 py-2">要確認（「リンクだから」を前提にしていないか）</td></tr>
+          <tr><td class="px-3 py-2 font-mono">apply-mr-workflow-to-project/scripts/sync-assets.sh</td><td class="px-3 py-2 text-center">10</td><td class="px-3 py-2">要変更（配布先で生成するか、生成済みを配るか）</td></tr>
+          <tr><td class="px-3 py-2 font-mono">apply-mr-workflow-to-project/scripts/install-to-project.sh</td><td class="px-3 py-2 text-center">5</td><td class="px-3 py-2">要変更</td></tr>
+          <tr><td class="px-3 py-2 font-mono">apply-mr-workflow-to-project/SKILL.md</td><td class="px-3 py-2 text-center">4</td><td class="px-3 py-2">要変更（上2件に追随）</td></tr>
+          <tr><td class="px-3 py-2 font-mono">.claude/docs/spec/issue-mr-workflow.md</td><td class="px-3 py-2 text-center">9</td><td class="px-3 py-2">要変更（Q5の結論に追随）</td></tr>
+          <tr><td class="px-3 py-2 font-mono">.claude/docs/spec/search-frontmatter.md</td><td class="px-3 py-2 text-center">2</td><td class="px-3 py-2">要変更（除外理由）</td></tr>
+          <tr><td class="px-3 py-2 font-mono">.claude/docs/spec/distribution-assets.md</td><td class="px-3 py-2 text-center">1</td><td class="px-3 py-2">要変更（配布行の定義）</td></tr>
+          <tr><td class="px-3 py-2 font-mono">.claude/rules/directory-structure.md</td><td class="px-3 py-2 text-center">3</td><td class="px-3 py-2">要変更（「リンク」→「生成物」）</td></tr>
+          <tr><td class="px-3 py-2 font-mono">README.md / index.md</td><td class="px-3 py-2 text-center">3 / 2</td><td class="px-3 py-2">要変更（clone後の手順 / Repository Map）</td></tr>
+          <tr><td class="px-3 py-2 font-mono">.gitignore</td><td class="px-3 py-2 text-center"><strong>9行</strong></td><td class="px-3 py-2">削除。パス5行（L30–34）<strong>だけでなく、その上のコメントブロック4行（L26–29）も</strong>。コメントは廃止した <code>setup-gemini-links.sh</code> の実行を案内しており、残すと嘘の手順になる</td></tr>
+          <tr class="bg-sky-50"><td class="px-3 py-2 font-mono">.claude/docs/ddr/i0000-13-…</td><td class="px-3 py-2 text-center">17</td><td class="px-3 py-2"><strong>frontmatterのみ</strong>（<code>status: superseded</code> / <code>superseded_by: "i0070-01"</code>）。本文不変</td></tr>
+          <tr class="bg-sky-50"><td class="px-3 py-2 font-mono">DDR 他8件 / hooks 2件</td><td class="px-3 py-2 text-center">各1〜7</td><td class="px-3 py-2">変更しない</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="bg-slate-100 border border-slate-300 p-4 rounded text-sm">
+      <p class="font-semibold mb-2">副産物: <code>.gitignore</code> に潜んでいた別の欠陥（M。本issueのスコープ外）</p>
+      <p class="text-slate-700"><code>.gitignore</code> のコメントが<strong>存在しないDDRファイル名</strong>を指している（<code>i00-13-</code> → 実際は <code>i0000-13-</code>、<code>i36-01-</code> → 実際は <code>i0036-01-</code>）。issue #133 の一括改番でコメント内の参照がゼロ埋め前の形で取り残されたものと見られる。<strong>当初「1件目は該当行の削除で自動的に消える」と書いていたが誤りだった</strong>——<code>i00-13</code> を含むのは L26–29 の<strong>コメントブロック</strong>で、削除対象に挙げていたパス5行ではない。上の表の判定を<strong>9行削除</strong>へ直したことで1件目は実際に消えるようになった。<strong>2件目（<code>i36-01</code>）は残る。</strong>本issueの差分に含めるか別issueにするかはフェーズ4で判断する。</p>
+    </div>
+  </section>
+
+  <!-- 設計への反映 -->
+  <section class="mb-10">
+    <h2 class="text-2xl font-bold text-slate-900 mb-4">設計への反映（フェーズ3で何が決まったか）</h2>
+    <div class="overflow-x-auto">
+      <table class="min-w-full text-sm bg-white rounded-lg overflow-hidden shadow-sm">
+        <thead class="bg-emerald-800 text-white"><tr><th class="px-3 py-2 text-left">決まったこと</th><th class="px-3 py-2 text-left">どこに効くか</th></tr></thead>
+        <tbody class="divide-y divide-slate-100 text-xs">
+          <tr><td class="px-3 py-2">agents の変換は<strong>ホワイトリスト方式</strong>（許可キーだけ通す）</td><td class="px-3 py-2">変換スクリプトの中核。ブラックリストにすると将来壊れる</td></tr>
+          <tr><td class="px-3 py-2">ツール名は<strong>11種の対応表</strong>で変換し、<strong>未知の名前はエラー</strong></td><td class="px-3 py-2">同上。黙って落とさない。<strong>対応表の網羅性そのものを単体テストで固定する</strong></td></tr>
+          <tr><td class="px-3 py-2"><code>model</code> は<strong>除去</strong>（<code>inherit</code> へ委ねる）</td><td class="px-3 py-2">同上。要フェーズ3レビュー</td></tr>
+          <tr><td class="px-3 py-2"><code>tools</code> は<strong>YAML配列</strong>として出力</td><td class="px-3 py-2">同上</td></tr>
+          <tr><td class="px-3 py-2">skills は<strong>変換不要</strong>、コピーのみ</td><td class="px-3 py-2">変換対象を1つ減らせる</td></tr>
+          <tr class="bg-amber-50"><td class="px-3 py-2">現行の手書き <code>.gemini/settings.json</code> は <strong>issue #70 の10観点のうち8つで正しい</strong></td><td class="px-3 py-2"><strong>そのままではゴールデンファイルにできない。</strong>先に <code>.claude/settings.json</code> の全キーを写像先へ対応づける</td></tr>
+          <tr class="bg-rose-50"><td class="px-3 py-2"><code>permissions.deny</code> に<strong>相当する機能は Gemini にもある</strong>（policy engine）</td><td class="px-3 py-2">写像しない理由は「選ばなかった」ではなく<strong>「リポジトリに置いても動かない」</strong>と書く（Workspace層が無効。issue #18186）。コミット強制の多重防御がGemini経路だけ1枚になる点は変わらない</td></tr>
+          <tr><td class="px-3 py-2"><code>if</code> の畳み込みは<strong>機能等価ではない</strong>（性能が落ちる）</td><td class="px-3 py-2">specとコメントへ明記</td></tr>
+          <tr class="bg-amber-50"><td class="px-3 py-2"><strong><code>extract-frontmatter.sh</code> に <code>.gemini</code> 除外を足す</strong></td><td class="px-3 py-2">Q4-B。grepでは見つからない、見落としやすい作業</td></tr>
+          <tr><td class="px-3 py-2"><code>search-frontmatter.sh</code> の除外は<strong>残し、理由コメントだけ直す</strong></td><td class="px-3 py-2">Q6</td></tr>
+          <tr class="bg-emerald-50"><td class="px-3 py-2">同期の実行位置は<strong>新規 flow-id 5-3（最終統括レポートの直前）</strong>。案A（繰り下げ）で決着</td><td class="px-3 py-2">Q5。チャットでのレビューで<strong>決定済み</strong></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- 未確認 -->
+  <section class="mb-6">
+    <h2 class="text-2xl font-bold text-slate-900 mb-4">未確認のまま残ったこと（受け入れ条件の未達候補）</h2>
+    <div class="bg-rose-50 border-l-4 border-rose-500 p-5 rounded-r">
+      <ol class="list-decimal pl-5 space-y-2 text-sm text-rose-900">
+        <li><strong>変換後の agents が実際にロードできること</strong>（Gemini CLI が無い）</li>
+        <li><strong>変換後の settings.json の hook が発火すること</strong>（同上）</li>
+        <li><strong><code>model</code> に与えるべき具体的なモデル名</strong>（網羅リストが公式ドキュメントに無い。除去で回避する）</li>
+        <li><strong>エラー添字 <code>tools.0</code> と、現行 <code>tools</code> が文字列である事実の食い違い</strong>（報告時の環境が不明。方針には影響しない）</li>
+        <li><del>SessionStart の <code>matcher</code> で縦棒つなぎが有効か</del> → <strong>無効。<code>matcher</code> を省略する</strong><span class="ml-1 inline-block px-1.5 py-0.5 rounded bg-emerald-700 text-white text-[10px] font-bold align-middle">決着</span></li>
+        <li><del><code>${GEMINI_PROJECT_DIR}</code> が未解決だったときの挙動</del> → <strong>プレースホルダがそのまま残る</strong>（空文字にならない）<span class="ml-1 inline-block px-1.5 py-0.5 rounded bg-emerald-700 text-white text-[10px] font-bold align-middle">決着</span></li>
+        <li><del><code>general.plan.directory</code> のカスタム値に policy が要るか</del> → <strong>半分決着。</strong>要否は未確認だが、<strong>要ってもリポジトリからは配れない</strong>（Workspace層が無効）<span class="ml-1 inline-block px-1.5 py-0.5 rounded bg-amber-600 text-white text-[10px] font-bold align-middle">半分決着</span></li>
+        <li><strong>policy engine を変換範囲に含めるか</strong>（<code>.gemini/policies/*.toml</code> は <code>settings.json</code> の外。スコープに入れるかがフェーズ3の論点）</li>
+      </ol>
+      <p class="mt-4 text-sm text-rose-900 font-semibold">
+        1・2 は「ユーザーのローカル環境での確認」に委ねるか、別issueへ切り出す。
+        フェーズ3では代わりに<strong>変換の入出力を単体テストで固定する</strong>（ゴールデンファイル比較・冪等性・<code>--check</code> の終了コード）。
+      </p>
+    </div>
+
+    <div class="mt-4 bg-emerald-50 border-l-4 border-emerald-500 p-5 rounded-r">
+      <h3 class="font-bold text-emerald-900 mb-2">5・6・7 の結果（flow-id 3-6 で追加取得・2026-08-22）</h3>
+      <p class="text-sm text-emerald-900 mb-3">
+        既存クローン（<code>5411f113</code>）の sparse-checkout へ <code>packages/core/src/hooks</code> と <code>packages/cli/src/utils</code> を追加して確認した。
+        <strong>クローンし直していない</strong>（本レポートが引用している行番号がずれるため）。
+        <strong>3件とも一次ソースで確定（S）。うち2件は見立てと違った。</strong>
+      </p>
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm border-collapse">
+          <thead>
+            <tr class="bg-emerald-100">
+              <th class="border border-emerald-300 px-3 py-2 text-left">#</th>
+              <th class="border border-emerald-300 px-3 py-2 text-left">結論</th>
+              <th class="border border-emerald-300 px-3 py-2 text-left">一次ソース</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="border border-emerald-300 px-3 py-2 font-bold">5</td>
+              <td class="border border-emerald-300 px-3 py-2"><strong class="text-rose-700">縦棒つなぎは無効。</strong> ライフサイクル系は完全一致（<code>matcher === trigger</code>）、ツール系だけが正規表現。<strong class="text-emerald-800">対処は「複数エントリ登録」ではなく <code>matcher</code> の省略</strong></td>
+              <td class="border border-emerald-300 px-3 py-2 font-mono text-xs">hookPlanner.ts の matchesContext / matchesToolName / matchesTrigger、hookEventHandler.ts L183、types.ts L607</td>
+            </tr>
+            <tr class="bg-emerald-50/50">
+              <td class="border border-emerald-300 px-3 py-2 font-bold">6</td>
+              <td class="border border-emerald-300 px-3 py-2"><strong>未解決ならプレースホルダがそのまま残る</strong>（空文字にならず、ルート相対へ暴走しない）。<code>${VAR:-DEFAULT}</code> も使える。hook実行時は必ず注入されるため<strong>未定義になる経路は実質無い</strong></td>
+              <td class="border border-emerald-300 px-3 py-2 font-mono text-xs">packages/cli/src/utils/envVarResolver.ts の resolveEnvVarsInString、hookRunner.ts L350・L527</td>
+            </tr>
+            <tr>
+              <td class="border border-emerald-300 px-3 py-2 font-bold">7</td>
+              <td class="border border-emerald-300 px-3 py-2"><strong>policy の要否そのものは未確認のまま。</strong> ただし <strong class="text-rose-700">Workspace 層が現在無効</strong>と確定したため、<strong>要ってもリポジトリからは配れない</strong>。受け皿は User/Admin 層＝利用者の手作業</td>
+              <td class="border border-emerald-300 px-3 py-2 font-mono text-xs">docs/reference/policy-engine.md L126–L130・L144、upstream issue #18186</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="mt-3 text-sm text-emerald-900">
+        <strong>取得先の見立てが1件外れていた。</strong> 6 を <code>packages/core/src/config/settings.ts</code> と書いていたが、<code>settings.ts</code> は <code>packages/cli/src/config/</code> にあり、実体は <code>packages/cli/src/utils/envVarResolver.ts</code> だった。
+      </p>
+      <p class="mt-2 text-sm text-emerald-900">
+        <strong>7 の結果が B（policy engine の扱い）を変える。</strong> B-1（スコープ外）の根拠は「変換しないと決めた」ではなく<strong>「今の Gemini CLI では、リポジトリに置いた policy が動かない」</strong>が正確である。
+        <strong>8（policy engine を変換範囲に含めるか）</strong>も、この事実を前提に判断する。
+      </p>
+    </div>
+  </section>
+
+  <footer class="border-t border-slate-300 pt-5 text-xs text-slate-500">
+    <p>結果の正文: <code>reports/20260822_nimble-syncing-lantern_gemini同期方式の調査.md</code>／個別調査計画: <code>plans/【調査】gemini-cli記法と同期方式の確定.md</code>／全体作業計画: <code>plans/nimble-syncing-lantern.md</code></p>
+    <p class="mt-1">issue #70・PR #157・flow-id 2-6。<code>reports/</code> は片付けのステップでまとめて削除される（現行 flow-id 5-4。本issueの繰り下げ後は <strong>5-5</strong>）。</p>
+  </footer>
+
+</div>
+</body>
+</html>

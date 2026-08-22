@@ -1,0 +1,13 @@
+---
+name: flow-agent
+display_name: フロー配列
+description: YAMLのフロー配列記法とクォート付きの要素。
+tools: [Write, "Edit", 'LS', WebFetch, WebSearch, TodoWrite, Task]
+temperature: 0.2
+max_turns: 5
+timeout_mins: 3
+model: sonnet
+type: agent
+---
+
+本文。
