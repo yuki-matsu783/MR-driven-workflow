@@ -18,7 +18,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - ブランチ: feature-103-collect-claude-code-otel-telemetry-into-usage
 - PR: #158 https://github.com/yuki-matsu783/MR-driven-workflow/pull/158
 - push回数: 1
-- 現在のループ: 4-6〜4-9 の1周目（進行中）
+- 現在のループ: 4-6〜4-9 の2周目（進行中）
 - 追従監視: なし（ローカル。各pushとflow-id 5-1で手動で `/resolve-conflict` を確認する）
 
 | 進捗 | flow-id | ステップ | 担当 |
@@ -237,10 +237,28 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
     「flow-id 4-9相当」節を参照。
   - `bash .claude/scripts/src/extract-frontmatter.sh .`で`failed=0`を確認済み。
 
+- flow-id 4-8（1周目・2回目）: ユーザーから「レビューOK」の連絡を受けた。設計反映3ファイル
+  （DDR2件・spec1件）への17件（投稿10件・報告7件）の修正、issue番号参照の削減、10スレッドへの
+  返信、判断記録コメントの投稿を含む修正内容が承認された。
+- flow-id 4-9（1周目・2回目）: 対応が必要な追加指摘は無かった（「レビューOK」のみでの承認）。
+  `mark-done 4-6`で4-6〜4-9ループの1周目を完了扱いにした。
+
+- flow-id 4-6（2周目・AIアセット反映分）: `plans/【AIアセット反映】OTelリスナー機構のルール反映.md`
+  の残タスクを完了させた。`.claude/rules/directory-structure.md`の`usage/`節へOTelリスナー機構が
+  出力する`usage/claude-otel-YYYYMMDD.jsonl`の存在を追記し、`.claude/rules/shell-script-style.md`
+  「テスト」節へ「`passed=N failures=N`規約はbash対象。perl製常駐プロセスの単体テストは
+  `Test::More`・TAP形式でよい」旨を追記した（`.claude/hooks/otel/`ツリー追加・「配置の指針」節への
+  常駐プロセステスト配置ルール追記・`index.md`更新・`.claude/docs/spec/shell-scripts.md`への
+  perl例外節新設は、設計反映レビューの指摘対応で既に先行実施済みだったため本ラウンドでは
+  行っていない）。結果を
+  `reports/20260823_humming-mapping-pie_OTelリスナー機構のAIアセット反映.md`へ記録し、
+  設計反映レポートの「フェーズ4への持ち越し事項」も完了扱いに更新した。
+  `bash .claude/scripts/src/extract-frontmatter.sh .`で`failed=0`を確認済み。
+
 ## 次にやること
 
-- 上記の修正内容をcommit・pushし、レビュー依頼を行う（flow-id 4-9相当の修正を終え、
-  再度4-8＝人間のレビュー待ちへ戻る）。
+- 上記のAIアセット反映（2周目）をcommit・pushし、レビュー依頼を行う
+  （flow-id 4-7、2周目）。
 
 ## 判断を迷った内容
 

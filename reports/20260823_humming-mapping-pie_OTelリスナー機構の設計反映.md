@@ -45,5 +45,6 @@ keywords: [DDR, spec, i0103, generate-ddr-list, 設計反映]
 
 ## フェーズ4への持ち越し事項
 
-- AIアセット反映（`plans/【AIアセット反映】OTelリスナー機構のルール反映.md`）は未着手。
-  設計反映（本レポート）の完了・レビュー後に着手する（`docs-workflow.md`の方針）。
+- AIアセット反映（`plans/【AIアセット反映】OTelリスナー機構のルール反映.md`）は、設計反映
+  （本レポート）のレビュー承認後に着手し完了した。結果は
+  `reports/20260823_humming-mapping-pie_OTelリスナー機構のAIアセット反映.md`を参照。

@@ -89,6 +89,12 @@ issue #97。ブランチ別に持つと、同じセッションのままブラ�
 あることを確認したうえで廃止し `usage/` へ一本化した（詳細:
 `.claude/docs/ddr/i0023-01-push断面の全文コピーをやめ行番号インデックスで表現する.md`）。
 
+`usage/`配下には、上記の対応工数レポート状態とは別に、OTelリスナー機構
+（`.claude/hooks/otel/`）が振り分け保存する`usage/claude-otel-YYYYMMDD.jsonl`も生成される
+（Claude Code公式のOpenTelemetryエクスポートをローカル受信したテレメトリの生データ。詳細:
+`.claude/docs/spec/otel-listener.md`）。こちらもワークフロー実行中に動的に作成されるファイルで、
+`/usage/`の`.gitignore`対象に含まれる。
+
 `.claude/state/`は`post-push-compact-prompt.sh`がレビュー依頼メッセージの参照リンク組み立てに使う、
 前回push時点のHEAD SHAのローカル作業状態で、`.gitignore`対象（`/.claude/state/`）。責務分離のため
 `usage/`とは別ディレクトリにしている（詳細: `.claude/docs/spec/issue-mr-workflow.md`
