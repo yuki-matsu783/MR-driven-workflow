@@ -39,27 +39,10 @@ for item in "${PROJECT_ROOT}/.claude/"*; do
   fi
 done
 
-# 2. .gemini ディレクトリの同期（無限ループや再帰処理を避けるため、このスキル自体を除く）
-echo "Syncing .gemini files..."
-mkdir -p "${ASSETS_DIR}/.gemini"
-for item in "${PROJECT_ROOT}/.gemini/"*; do
-  [ -e "${item}" ] || continue
-  name=$(basename "${item}")
-  if [ "${name}" = "skills" ]; then
-    mkdir -p "${ASSETS_DIR}/.gemini/skills"
-    for skill_item in "${PROJECT_ROOT}/.gemini/skills/"*; do
-      [ -e "${skill_item}" ] || continue
-      skill_name=$(basename "${skill_item}")
-      if [ "${skill_name}" != "apply-mr-workflow-to-project" ]; then
-        echo " -> Copying .gemini skill: ${skill_name}"
-        cp -R "${skill_item}" "${ASSETS_DIR}/.gemini/skills/"
-      fi
-    done
-  else
-    echo " -> Copying .gemini item: ${name}"
-    cp -R "${item}" "${ASSETS_DIR}/.gemini/"
-  fi
-done
+# 2. .gemini は**配布物へ含めない**（issue #70）
+# .gemini/ は .claude/ からの変換生成物であり、配布先で
+# `.claude/scripts/src/sync-gemini-assets.sh` を実行して作る（install-to-project.sh が行う）。
+# 生成物を配布物へ焼き込むと、配布元のスナップショットが配布先で二重管理として残る。
 
 # 3. .github テンプレートの同期
 if [ -d "${PROJECT_ROOT}/.github" ]; then

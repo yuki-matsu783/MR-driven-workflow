@@ -139,10 +139,28 @@ safe_copy_dir() {
   done
 }
 
-# 1. Validation
+# 1. Validation（前提チェック）
+# **ここより後ろで初めてファイルを書き込む。** 前提が欠けている場合は、1バイトも書かずに終える
+# （途中まで書いて止まると、壊れた状態のまま「インストール済み」に見えるため）。
 if [ ! -d "${DEST_DIR}/.git" ]; then
   echo "❌ Error: Target directory is not a Git repository (.git directory not found)."
   echo "Git repository is required to use the Issue/MR driven workflow."
+  exit 1
+fi
+
+# jq はこのワークフロー機構**全体**の前提である（Provider.sh・extract-frontmatter.sh・各hook・
+# .gemini/ の生成が依存する）。無い状態で配ると、インストールは成功したように見えて何も動かない。
+if ! command -v jq >/dev/null 2>&1; then
+  echo "❌ Error: 'jq' command not found."
+  echo "   The mr-driven-develop workflow requires jq (Provider.sh, hooks, and the .gemini/"
+  echo "   generator all depend on it). Nothing has been written to your repository."
+  echo ""
+  echo "   Install it and run this script again:"
+  echo "     Debian / Ubuntu : sudo apt-get install jq"
+  echo "     RHEL / Fedora   : sudo dnf install jq"
+  echo "     macOS           : brew install jq"
+  echo "     Windows         : winget install jqlang.jq"
+  echo "                       (or https://jqlang.github.io/jq/download/ )"
   exit 1
 fi
 
@@ -158,13 +176,11 @@ echo "Installing core configuration files..."
 
 # Ensure target directories exist
 mkdir -p "${DEST_DIR}/.claude"
-mkdir -p "${DEST_DIR}/.gemini"
 mkdir -p "${DEST_DIR}/plans"
 mkdir -p "${DEST_DIR}/worklog"
 
 # Copy configuration and rules safely
 safe_copy_dir "${ASSETS_DIR}/.claude" "${DEST_DIR}/.claude"
-safe_copy_dir "${ASSETS_DIR}/.gemini" "${DEST_DIR}/.gemini"
 safe_copy_file "${ASSETS_DIR}/.mrworkflow.json" "${DEST_DIR}/.mrworkflow.json"
 safe_copy_file "${ASSETS_DIR}/AGENTS.md" "${DEST_DIR}/AGENTS.md"
 safe_copy_file "${ASSETS_DIR}/GEMINI.md" "${DEST_DIR}/GEMINI.md"
@@ -196,9 +212,15 @@ if [ "${IS_GO_PROJECT}" = true ]; then
   fi
 else
   # Clean up Go-specific files on non-Go projects
-  rm -f "${DEST_DIR}/.claude/rules/go-applications.md" \
-        "${DEST_DIR}/.gemini/rules/go-applications.md" || true
+  # .gemini/ 側は後段の生成でそもそも作られない（.claude/ から作るため）。
+  rm -f "${DEST_DIR}/.claude/rules/go-applications.md" || true
 fi
+
+# 3-2. Generate .gemini/ from .claude/（issue #70）
+# .gemini/ は配布物ではなく **.claude/ からの変換生成物**である。Go向けルールの取り回し
+# （直前のブロック）が終わってから生成しないと、消したはずのファイルが .gemini/ 側に残る。
+echo "Generating .gemini/ from .claude/ ..."
+( cd "${DEST_DIR}" && bash ".claude/scripts/src/sync-gemini-assets.sh" )
 
 # 4. Update destination .gitignore
 echo "Updating .gitignore..."
@@ -210,8 +232,6 @@ declare -a ignore_rules=(
   "# mr-driven-develop workflow ignores"
   "/.claude/usage-state/"
   "/.claude/session-logs/"
-  "/.gemini/usage-state/"
-  "/.gemini/session-logs/"
 )
 
 for rule in "${ignore_rules[@]}"; do

@@ -1,6 +1,6 @@
 ---
 name: apply-mr-workflow-to-project
-description: あらゆるプロジェクトに対して、Issue/MR駆動開発プロセス（mr-driven-develop）のAI資産（.claude, .gemini, テンプレート, 共通ルール）を自動展開・適用します。ターゲットプロジェクトがGoの場合、Goに特化したルールを自動的に統合・適用します。Gitリポジトリでこのフレームワークをセットアップしたい時に使用します。
+description: あらゆるプロジェクトに対して、Issue/MR駆動開発プロセス（mr-driven-develop）のAI資産（.claude, テンプレート, 共通ルール）を自動展開・適用し、.gemini を .claude から生成します。ターゲットプロジェクトがGoの場合、Goに特化したルールを自動的に統合・適用します。Gitリポジトリでこのフレームワークをセットアップしたい時に使用します。
 ---
 
 # Apply mr-driven-develop Workflow to Projects
@@ -46,6 +46,7 @@ bash .claude/skills/apply-mr-workflow-to-project/scripts/install-to-project.sh /
 - `[DEST]/.mrworkflow.json`（ワークフロー基本設定）
 - `[DEST]/AGENTS.md` / `[DEST]/CLAUDE.md` / `[DEST]/GEMINI.md` / `[DEST]/HANDOFF.md` / `[DEST]/index.md`（各種基本ルール・引き継ぎ・インデックスポインタ）
 - `[DEST]/.gitignore`（各種一時状態ディレクトリ `/usage-state/`, `/session-logs/` が追記されているか）
+- `[DEST]/.gemini/`（`.claude/` から生成されているか。**配布物ではなく生成物**で、`install-to-project.sh` が `.claude/scripts/src/sync-gemini-assets.sh` を実行して作る。内容を直したいときは `.claude/` 側を編集して生成し直す）
 
 ### Step 3: 動作検証
 対象プロジェクトにて、VCS連携等の動作を確認します。
@@ -59,18 +60,19 @@ bash .claude/skills/apply-mr-workflow-to-project/scripts/install-to-project.sh /
 - `AGENTS.md` / `CLAUDE.md` / `GEMINI.md` / `HANDOFF.md` / `index.md`：AIアシスタントが遵守すべき最重要ルール、引き継ぎ情報、ポインタ。
 - `.claude/rules/` 内の各共通規約（Goプロジェクトの場合は、さらに `go-applications.md` 特化ルールも有効化されます）。
 
-### 2. コアスクリプト群（`.claude/scripts/`, `.gemini/scripts/`）
+### 2. コアスクリプト群（`.claude/scripts/`）
 - `create-issue.sh` / `create-commit.sh` / `extract-frontmatter.sh`：VCS、コミット、フロントマター処理の自動化。
 - `check-base-conflicts.sh`：defaultブランチとのコンフリクト（テキスト＋DDR識別子の重複）を作業ツリーを変更せずに検知。
 - `check-base-sync.sh`：作業開始・再開時に、ベースブランチの最新を取り込めているか（behindコミット数・未取り込みの変更ファイル）を作業ツリーを変更せずに判定。
 - `search-frontmatter.sh`：frontmatterの`index.jsonl`を結合し、type/tags/keywords/パス/フリーテキストでドキュメントを横断検索。
+- `sync-gemini-assets.sh`：`.gemini/` を `.claude/` から生成する（agentsのfrontmatter・settings.jsonをGemini CLIの記法へ変換し、残りはコピー）。`--check` で食い違いを検査できる。
 - `vcs/Provider.sh`（および `Github.sh`, `Gitlab.sh`）：GitHubやGitLabのAPI差異を吸収し、ブランチやDraft MR/PR作成を自動化するラッパー。
 
-### 3. フック群（`.claude/hooks/`, `.gemini/hooks/`）
+### 3. フック群（`.claude/hooks/`）
 - `block-direct-git-commit.sh`：コミット時、安全に `commit` スキルを経由させるためのブロックフック。
 - `session-start.sh` / `post-push-usage-report.sh` / `post-push-compact-prompt.sh`：セッション開始時やプッシュ時の自動的なユーセージ追跡とコンテキスト最適化。
 
-### 4. 組み込みスキル群（`.claude/skills/`, `.gemini/skills/`）
+### 4. 組み込みスキル群（`.claude/skills/`）
 - `commit`：Conventional Commitsに準拠したコミットの自動生成・分割コミット支援。
 - `issue-create`：対話的なIssueの自動作成。
 - `issue-mr-flow`：起票からマージまでを完全ガイド・自律実行するメインワークフロー。
