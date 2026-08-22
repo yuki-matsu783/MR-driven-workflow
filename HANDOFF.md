@@ -16,20 +16,20 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 
 - issue: #26 AIアセットの他プロジェクトへの配布をmanifest方式へ作り直し、配布アセットの層分けを定義する
 - ブランチ: claude/ai-asset-manifest-distribution-u2gn22
-- PR: （未作成）
-- push回数: 0
+- PR: #154 https://github.com/yuki-matsu783/MR-driven-workflow/pull/154
+- push回数: 2
 - 現在のループ: なし
-- 追従監視: なし
+- 追従監視: 購読あり（web。subscribe_pr_activity + 自己チェックイン）
 
 | 進捗 | flow-id | ステップ | 担当 |
 |---|---|---|---|
 | [x] | 1-1 | issueを起票する | 人間 |
 | [x] | 1-2 | issueの内容を取得する | サブコマンド |
-| [] | 1-3 | featureブランチとDraft MRを作成する | サブコマンド |
+| [x] | 1-3 | featureブランチとDraft MRを作成する | サブコマンド |
 | [x] | 1-4 | 全体作業計画を作成する | エージェント |
 | [x] | 1-5 | 全体作業計画に合意する | 人間 |
 | [x] | 1-6 | 全体作業計画をもとにHANDOFF.mdを更新する | エージェント |
-| [] | 2-1 | 個別調査計画を作成する | エージェント |
+| [x] | 2-1 | 個別調査計画を作成する | エージェント |
 | [] | 2-2 | commitしpushしてレビュー依頼 | エージェント |
 | [] | 2-3 | 調査計画をレビュー | 人間 |
 | [] | 2-4 | レビュー内容を取得し調査計画を修正 | サブコマンド |
@@ -74,11 +74,14 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - flow-id 1-4: 全体作業計画 `plans/ai-asset-manifest-distribution.md` を作成した。
   issue本文は起票時点のもので前提が5件動いているため、計画側に「前提の更新」表としてまとめた。
 - スコープ判定: **分割しない**と判断した（理由は下記「判断を迷った内容」）。
+- flow-id 1-3: Draft PR #154 を作成し、`subscribe_pr_activity` で追従監視を開始した。
+- flow-id 2-1: 個別調査計画 `plans/【調査】配布アセットの層分けとmanifest方式.md` と
+  worklog（push2）を作成した。
 
 ## 次にやること
 
-- flow-id 1-3: Draft PRを作成し、追従監視（`subscribe_pr_activity` + 自己チェックイン）を開始する。
-- flow-id 2-1: 個別調査計画 `plans/【調査】配布アセットの層分けとmanifest方式.md` と worklog を作成する。
+- flow-id 2-2: commit・pushしてレビュー依頼を出す。人間のレビュー（2-3）の代わりに敵対的レビューを実施する。
+- flow-id 2-6: 調査計画の7項目（棚卸し・REVIEW-POINTS・定義の形式・manifest項目・既存欠陥・AGENTS分割・skill廃止）を実施する。
 
 ## 判断を迷った内容
 
