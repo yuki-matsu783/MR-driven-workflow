@@ -17,7 +17,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - issue: #26 AIアセットの他プロジェクトへの配布をmanifest方式へ作り直し、配布アセットの層分けを定義する
 - ブランチ: claude/ai-asset-manifest-distribution-u2gn22
 - PR: #154 https://github.com/yuki-matsu783/MR-driven-workflow/pull/154
-- push回数: 4
+- push回数: 5
 - 現在のループ: 2-6〜2-9 の1周目（進行中）
 - 追従監視: 購読あり（web。subscribe_pr_activity + 自己チェックイン）
 
@@ -132,18 +132,45 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 
 ## 未解決の内容
 
-- `REVIEW-POINTS.md` の層をどう扱うか（`core` だと配布先の観点が消え、対象外だと初期セットが
-  配られない）。flow-id 2-6 の調査で決める。第5の層が必要という結論になった場合は、
-  受け入れ条件1（4層で固定）の更新をユーザーへ提案してから進める。
-- `.gemini/{docs,hooks,rules,scripts,skills}` の層。`.gitignore` 対象なので素直には `local` だが、
-  受け入れ条件8（再適用で実体コピーを最新化）と受け入れ条件2（`local` は触らない）が
-  そのままでは両立しない。flow-id 2-6 の調査1で決める。
-- 受け入れ条件6の「dirty」の定義。→ **flow-id 2-6で決着**（配布対象パスに限定＋`--allow-dirty`）。
-- **`exclude` カテゴリを新設してよいか**（受け入れ条件1は「4層」で固定されている）。
-  本家固有で配らないパスが5件実在するため、ユーザーの判断が要る。
-- `.github/`・`.gitlab/` テンプレートを `seed` にするトレードオフ（本家の見出し変更が届かない）。
+**flow-id 2-6 の調査で決着したもの**（詳細は `reports/…配布アセットの層分け調査.md`）
+
+- `REVIEW-POINTS.md` の層 → `core` ＋ 配布先所有の `REVIEW-POINTS.local.md`（`seed`）の併設。
+- `.gemini/{docs,…}` の層 → `local` のまま。受け入れ条件8は `setup-gemini-links.sh` が満たす。
+- 受け入れ条件6の「dirty」の定義 → 配布対象パスに限定＋`--allow-dirty`。
+
+**残っているもの**
+
 - `.gemini/` のリンクと実体コピーの判別。NTFSジャンクションは `[ -L ]` で区別できず、
-  **Windows実機でしか確認できない**。
+  **Windows実機でしか確認できない**。フェーズ4で新方式のspecの「未決定事項・懸念点」へ残す。
+- sha256のLF正規化がWindows実機で意図どおり効くか（同上）。
+- 敵対的レビュー2回目（フェーズ2）の指摘。実行中。
+
+## ユーザーの判断が下りた事項（flow-id 2-6 の調査結果に対して）
+
+チャットで受けた判断のため、**flow-id 2-9 でMRへ記録する**（`.claude/skills/issue-mr-flow/SKILL.md`
+「チャットで受けたレビュー判断の記録」）。`reports/` への反映は、実行中の敵対的レビュー2回目の
+指摘反映とまとめて行う（レビュー対象ファイルの行番号をずらさないため）。
+
+1. **`exclude` カテゴリを新設してよい**（承認）。受け入れ条件1は「4層＋`exclude`」へ更新する。
+   **issue本文は書き換えず、flow-id 5-2 の関連issue通知でissue #26 へコメントとして記録する**
+   （起票時点の条件が読めなくなるのを避けるため）。
+2. **`.github/`・`.gitlab/` テンプレート4件は `core` にする**（ユーザー提案。AIも賛成）。
+   - 根拠: 見出し構成が `start` の `test_issue_sections`（issue の4見出しの検査）と
+     `describe` の生成する description に機能的に結合している。
+   - 配布先が項目を足したい場合は**別ファイル**で足せる（`.github/ISSUE_TEMPLATE/`・
+     `.gitlab/issue_templates/`・`.gitlab/merge_request_templates/` は複数ファイルを置ける）。
+   - 唯一の弱点はGitHubの既定PRテンプレート（`pull_request_template.md`）が単一ファイルである点。
+     受け入れ条件4の警告＋`.bak` で受ける。
+3. **`CLAUDE.md` / `GEMINI.md` は `core` にする**（ユーザー提案。AIも賛成）。
+   - 根拠: `seed` だと将来 import の書き方が変わったときに配布先へ届かず、共通ルール一式が
+     **無言で読み込まれなくなる**。`core` なら警告と `.bak` で気づける。
+   - **セットで必須の変更**: 現状の末尾にある空の `## Claude Code固有ルール` /
+     `## geminiCLI固有ルール` の見出しは「ここへ書いてください」という誘いなので、`core` 化と
+     同時に「プロジェクト固有のルールは `.claude/rules/<名前>.md` へ置く」というポインタへ
+     置き換える。配布先が素直に書いた内容が再適用で消えるのを防ぐため。
+   - 配布先の書き足し先は `.claude/rules/` への新規ファイル（manifestに載らないのでインストーラが
+     触らない。`.claude/rules/*.md` が自動で読み込まれることは flow-id 2-6 で実測済み）と、
+     `AGENTS.md`（`seed`）のプロジェクト概要節。
 
 ## 守るべき条件・触ってはいけない範囲
 
