@@ -16,9 +16,18 @@ keywords: [i0054-01, note, generate-ddr-list, issue-mr-workflow, VERSION, git-wo
   （flow-id 3-6）の「設計への反映」4項目。
 - **flow-id 1-5・3-3・3-8 の人間合意は得ていない。** 本セッションは非対話的に進めており、
   結果確認工程は `adversarial-review` スキルで代替している。
-- 種別を `【設計反映】【AIアセット反映】` の**併記**にしたのは、2つの反映先へ**1回で合意を取る**
-  ためである。分量が小さく（spec 1節＋DDR 3件＋rules 1箇所）、判断も独立していない
-  （DDRが記録する方針変更が、そのままrules側の注意書きの前提になる）。
+- **ただし、DDR `i0054-01` が記録する決定1（自己完結CSS）は人間の承認を得ている**
+  （2026-08-22、チャットで受領。「自己完結CSSで良い」）。**DDR本文はマージ後に変更できない**ため、
+  未合意のまま恒久記録することは避ける必要があり、この承認が `i0054-01` を作る前提条件である。
+  判断はMRのコメントとして記録済み（`.claude/skills/issue-mr-flow/SKILL.md`
+  「チャットで受けたレビュー判断の記録」）。決定2（`assets` 語彙）は issue #54 本文が
+  Agent Skills の語彙を根拠として示しているため、本文の範囲内である。
+- 種別を `【設計反映】【AIアセット反映】` の**併記**にした理由は、**分量が小さいこと1点である**
+  （spec 2ファイル＋DDR 3件＋rules 1箇所）。**2つの反映先の判断は独立している**
+  （`【AIアセット反映】` の実体は `create-commit.sh` の挙動注意であり、HTMLテンプレートの方式変更とは
+  無関係な話である）。観点表は原則として分けることを求めているので、**分けずに1回で合意を取ってよいかは
+  人間が判断する**。分けるべきという判断であれば、`【AIアセット反映】` 側（変更対象 #8・#9）を
+  別の個別計画へ切り出す。
 
 ## この計画で何をするか
 
@@ -26,8 +35,9 @@ keywords: [i0054-01, note, generate-ddr-list, issue-mr-workflow, VERSION, git-wo
 `.claude/docs/spec/` `.claude/docs/ddr/` `.claude/rules/` へ反映する。
 
 **新規に決めることはしない。** すべて既に決まったこと（テンプレート2本の存在・方式の変更・
-`assets` 語彙の統一・検査コマンドの誤り）の記録である。唯一の例外が `.claude/VERSION` で、
-これは**増分の提案のみ**を行い、値を上げるかどうかは人間が決める。
+`assets` 語彙の統一・検査コマンドの誤り）の記録である。**方式の変更については、上記のとおり
+人間の承認を得たうえで記録する**（未合意のままDDRへ書かない）。`.claude/VERSION` も
+人間の判断（据え置き）を受けており、値は変更しない。
 
 ## 変更対象
 
@@ -40,11 +50,12 @@ keywords: [i0054-01, note, generate-ddr-list, issue-mr-workflow, VERSION, git-wo
 | 5 | `.claude/docs/ddr/i0000-11-調査結果のhtml版は自己完結htmlのコミットで作る.md` | 変更 | frontmatterへ `note` を1行足す（**本文は変更しない**） |
 | 6 | `.claude/docs/ddr/i0141-01-canvasテンプレートはTailwind非依存の自己完結CSSにする.md` | 変更 | 同上 |
 | 7 | `.claude/docs/README.md` | 変更 | `bash .claude/scripts/src/generate-ddr-list.sh` の**再生成結果**を同じコミットへ含める（手書きしない） |
-| 8 | `.claude/rules/git-workflow.md` | 変更 | 「コミット運用」節へ、`create-commit.sh` が既にステージ済みの変更も一緒にコミットする挙動を注意として足す |
-| — | `.claude/VERSION` | **変更しない** | 増分の**提案のみ**行う（下記「方針」）。決めるのは人間 |
+| 8 | `.claude/docs/spec/create-commit.md` | 変更 | **挙動の正史**として「渡していないステージ済み変更も同じコミットへ入る」を仕様へ書き、`## 影響範囲` へchangelogを追記する |
+| 9 | `.claude/rules/git-workflow.md` | 変更 | 「コミット運用」節へ**運用上の注意**を1〜2行足し、詳細は #8 を指す（仕様を二重に書かない） |
+| — | `.claude/VERSION` | **変更しない** | 人間の判断で `0.1.2` に据え置き（下記「方針」） |
 
-**触らない**（point-in-time の記録）: `.claude/docs/spec/issue-mr-workflow.md:2049` と `:3280`
-（どちらも `## 影響範囲`（1754行）より下）、および既存DDRの**本文**。#5・#6 で触るのは
+**触らない**（point-in-time の記録）: `.claude/docs/spec/issue-mr-workflow.md:2049` と
+`:3280-3282`（どちらも `## 影響範囲`（1754行）より下）、および既存DDRの**本文**。#5・#6 で触るのは
 frontmatter の `note` キーだけで、これは `.claude/rules/markdown-frontmatter.md` が明示的に
 許している（`status` / `superseded_by` と同じ扱い）。
 
@@ -52,19 +63,30 @@ frontmatter の `note` キーだけで、これは `.claude/rules/markdown-front
 
 ### spec へ新設する節の中身（#1）
 
-`### 全体作業計画に必ず含めるフェーズ（issue #92）` の直後へ置く。**SKILL.md の内容を写さず**、
-仕様として決まったことだけを書く。
+`### 全体作業計画に必ず含めるフェーズ（issue #92）` の直後へ置く。
 
-1. **テンプレートは2本で、置き場は `.claude/skills/issue-mr-flow/assets/`**（`plans.template.html`
-   / `reports.template.html`）。md 側のテンプレートは**持たない**。
-2. **記述の型の正はテンプレート側**にあり、SKILL.md は見出し構成を列挙せず参照するだけにする。
-3. **作成タイミング**: 計画は flow-id 1-4・2-1・3-1・4-1、レポートは 2-6・3-6・4-6・5-3。
-   **md を作るなら html も作る**（md 1本に html 1本）。
-4. **必須／任意の3値**（`[必須]` / `[任意]` / `[全体作業計画のみ必須]`）と、任意セクションは
-   節ごと削除するという扱い。
-5. **外部依存を持たない**（自己完結CSS）。**検査は「実際に外部を読みに行く記述」に限る**
-   （`https://` を含む行を数える形にしない理由も1行で）。
-6. **ライフサイクル**は md と同じ（flow-id 5-4 でまとめて削除、frontmatter の対象外）。
+**運用の詳細（見出し構成・必須／任意・作成タイミング・検査コマンド）は書かない。** それらは既に
+`.claude/skills/issue-mr-flow/SKILL.md:363-395`「計画・レポートのHTMLビュー」とテンプレート本体の
+冒頭コメントにあり、spec へ同じことを書くと**正が2つになる**。隣接する
+`### 全体作業計画に必ず含めるフェーズ（issue #92）` が末尾で「判断基準そのものの正は SKILL.md で
+あり、本節はその位置づけの記録にとどめる」と書いているのと同じ形にする。
+
+**正の所在**（新設節はこれを1つの表で示すことを主目的にする）:
+
+| 何の正か | どこ |
+|---|---|
+| 記述の型（見出し構成・必須／任意の区別・埋め忘れの検査） | **テンプレート本体**（`assets/plans.template.html` / `reports.template.html`）の冒頭コメント |
+| いつ作るか・作った後どう扱うか（flow-idごとの手順） | **`issue-mr-flow/SKILL.md`**「計画・レポートのHTMLビュー」 |
+| レビュー時に何を見るか | **`plans/REVIEW-POINTS.md` / `reports/REVIEW-POINTS.md`** |
+| ライフサイクル（いつ削除するか・frontmatterの対象外） | **`.claude/rules/docs-workflow.md`** のライフサイクル表 |
+
+そのうえで、**spec 側にしか書けないこと**を書く。
+
+1. **なぜテンプレートファイルへ切り出したのか**（記述の型の正が SKILL.md の散文に散っており、
+   導入先プロジェクトが自分の型へ差し替えるときに手を入れる場所が定まらなかった）。
+2. **なぜ2本なのか**（`plans/` と `reports/` で必須セクションが異なるため。md側のテンプレートは
+   持たない——型を固定する価値があるのは人間が繰り返し目を通すHTMLビューの側だけ）。
+3. **外部依存を持たない方式を採ったこと**と、その決定の経緯は DDR `i0054-01` にあること。
 
 ### 暫定記述の解除（#2）
 
@@ -77,14 +99,23 @@ frontmatter の `note` キーだけで、これは `.claude/rules/markdown-front
 > | HTMLの土台 | `.claude/skills/issue-mr-flow/assets/reports.template.html`（必須セクションの読み替えは同テンプレートの使い方コメントを参照） |
 
 **この行は `## 仕様` 配下（`### 最終統括レポートとPR/MRへの反映（issue #111）`）にあり、
-現在の設計を説明する記述である。** 同じ文面が `:3280` にもあるが、そちらは `## 影響範囲` 配下の
-changelog なので**触らない**。分かれ目は 1754行目より下かどうかであって、issue番号でも文面の
-似かたでもない（フェーズ3の計画にも同じ注意を書いている）。
+現在の設計を説明する記述である。** **類似の記述が 3280-3282行**（`## 影響範囲` 配下のchangelog）
+にもあるが、そちらは**触らない**。なお両者は同じ文面ではない（3280行は「受け入れ条件のうち…は
+部分達成である」で始まり、「無ければ手書きへフォールバックする形にした」は3281-3282行に跨る
+別の言い回しである）。**文字列一致で探すと見つからないので、行番号の範囲で押さえる。**
+分かれ目は 1754行目より下かどうかであって、issue番号でも文面の似かたでもない
+（フェーズ3の計画にも同じ注意を書いている）。
 
 ### 新規DDR `i0054-01` に記録する決定（#4）
 
 **1件にまとめる。** 2件へ分けない（`SKILL.md` が `i0054-01` という名前で既に参照しており、
 分けると参照が無言で切れる。フェーズ3の敵対的レビューの指摘）。記録する決定は2つある。
+
+**ファイル名は決定2（`assets` への切り出し）しか表していない**が、`SKILL.md` の既存参照に
+縛られるため変更しない。代わりに **`description` と `keywords` へ決定1（TailwindCSS CDN →
+自己完結CSS への方式変更）を必ず含める**。DDR一覧はファイル名で並ぶので、これが無いと
+「方式変更の決定」が一覧・`doc-search` から見つからない（`SKILL.md:388-390` がこのDDRを引いて
+いるのは、まさに「外部依存を持たせない」の経緯としてである）。
 
 | # | 決定 | 却下案 |
 |---|---|---|
@@ -113,6 +144,21 @@ changelog なので**触らない**。分かれ目は 1754行目より下かど�
 
 **`description` は書き換えない**（元の決定内容が読み取れなくなるため）。
 
+**`note` の値は必ずシングルクォートで囲む。** `generate-ddr-list.sh` は非クォートのスカラーに
+対して `sub(/[[:space:]]+#.*$/, "", value)` で行内コメントを落とすため、**値に含まれる ` #54` の
+手前で打ち切られる**。上の2件はどちらも「issue #54 で」という語を含むので、素で書くと
+「詳細は `i0054-01`」という肝心のポインタが消えたREADMEが生成される（再現確認済み）。
+`.claude/rules/markdown-frontmatter.md`「DDRのnote」の例も `note: '…'` の形になっている。
+
+```yaml
+# 悪い例（値が「… **方式のみ** issue」で切れる）
+note: 「html版を…」という決定自体は有効。**方式のみ** issue #54 で…
+# 良い例
+note: '「html版を…」という決定自体は有効。**方式のみ** issue #54 で…'
+```
+
+**この誤りは検証3（差分を見るだけ）では気づけない。** 生成物としては正常に出来上がるためである。
+
 ### `.claude/VERSION` の増分提案（変更しない）
 
 現在 `0.1.2`。AIからは **`0.2.0`（MINOR）を提案した**（`.claude/docs/spec/distribution-assets.md`
@@ -123,13 +169,19 @@ flow-id 3-6・4-6 でのHTML作成が**必須になった**ため）。
 **`.claude/VERSION` は変更しない。** この判断はMRへ記録する
 （`.claude/skills/issue-mr-flow/SKILL.md`「チャットで受けたレビュー判断の記録」）。
 
-### `git-workflow.md` への追記（#8）
+### `create-commit.sh` の挙動の記録（#8・#9）
 
-「コミット運用」節へ、次の趣旨を数行で足す。
+**仕様の正は `.claude/docs/spec/create-commit.md` に置き、`rules/git-workflow.md` はそこを指す。**
+運用注意だけを rules へ書くと、スクリプトの仕様書を読んだ人は誤った理解のまま残る。
 
-> `create-commit.sh` は、**渡したパスに加えて、既にステージ済みの変更も一緒にコミットする**
-> （`git add -- <files>` のあと、パス指定なしで gitのコミットコマンドを実行するため）。
-> 意図しない変更が混ざらないよう、呼ぶ前に `git status` でステージ済みのものが無いかを見る。
+`create-commit.sh:124` は `git commit -m "$message"` を**パス指定なしで**実行するため、
+**渡したパスに加えて、既にステージ済みの変更も同じコミットへ入る**。現行の仕様書は、削除済み
+パスがSKIPされる事例に触れているだけで、この挙動そのものを書いていない。
+
+| ファイル | 書くこと |
+|---|---|
+| `spec/create-commit.md` | 「実行方法」に挙動を1段落。あわせて `## 影響範囲` へ issue #54 のchangelogを追記する |
+| `rules/git-workflow.md` | 「コミット運用」節へ**運用上の注意**を1〜2行（呼ぶ前に `git status` でステージ済みのものが無いかを見る）。詳細は spec を指す |
 
 issue #54 のフェーズ3で実際に踏んだ（`git mv` でステージ済みだった改名が、別のコミットへ
 混ざった）。同一ブランチかつsquash mergeのため実害は無かったが、コミットメッセージと中身が
@@ -137,16 +189,20 @@ issue #54 のフェーズ3で実際に踏んだ（`git mv` でステージ済み
 
 ## やらないこと（スコープ外）
 
-- **`.claude/VERSION` の値の変更**（提案のみ。決めるのは人間）。
+- **`.claude/VERSION` の値の変更**。AIから `0.2.0`（MINOR）を提案したが、**ユーザーの判断で
+  `0.1.2` に据え置き**となった（MRへ記録済み）。
 - **`create-commit.sh` の挙動の変更**。ルールへ注意を書くに留める（挙動を変えると、削除の
   ステージ済みパスを吸収する `i0060-01` の設計と衝突しうるため、それ自体が独立した意思決定になる）。
 - **DDR本文の変更**（`note` の追加のみ）。
-- **`spec/issue-mr-workflow.md:2049` `:3280` の変更**（point-in-time の記録）。
+- **`spec/issue-mr-workflow.md:2049` と `:3280-3282` の変更**（point-in-time の記録）。
 - **markdownテンプレートの新設**（issue #54 本文が明示的に除外。全フェーズ共通のスコープ外）。
 
 ## 検証
 
 ```bash
+# 分岐点のSHAを取る（以降の「変えていないこと」の検証はすべてこれを基準にする）
+base=$(git merge-base origin/main HEAD)
+
 # 1. DDRのファイル名・title・見出しが識別子の規約に沿っていること
 ls .claude/docs/ddr/ | grep '^i0054-01-'
 head -20 .claude/docs/ddr/i0054-01-*.md
@@ -154,19 +210,51 @@ head -20 .claude/docs/ddr/i0054-01-*.md
 # 2. SKILL.md が参照しているDDRが実在すること（フェーズ3の指摘への最終確認）
 test -f "$(grep -o '\.claude/docs/ddr/i0054-01-[^)]*\.md' .claude/skills/issue-mr-flow/SKILL.md | head -1)"
 
-# 3. DDR一覧が生成物として最新であること（再生成して差分が出ないこと）
-bash .claude/scripts/src/generate-ddr-list.sh
-git diff --stat -- .claude/docs/README.md
+# 3. DDR一覧が生成物として最新であること（--check は差分なし=0 / 差分あり=2）
+bash .claude/scripts/src/generate-ddr-list.sh --check; echo "exit=$?"
 
-# 4. 既存DDRの本文を変更していないこと（frontmatterのみの差分であること）
-git diff -- .claude/docs/ddr/i0000-11-*.md .claude/docs/ddr/i0141-01-*.md
+# 3-b. noteがREADMEへ最後まで載っていること（行内コメント落ちの検出）
+grep -c -- 'i0054-01' .claude/docs/README.md
 
-# 5. specの過去changelogを書き換えていないこと（削除行が0であること）
-git diff <ブランチ分岐点のSHA> -- .claude/docs/spec/ | grep -c '^-[^-]'
+# 4. 既存DDR2件の変更がfrontmatterのnote行だけであること（本文を変えていないこと）
+git diff "$base" -- .claude/docs/ddr/i0000-11-*.md .claude/docs/ddr/i0141-01-*.md \
+  | grep -E '^[-+][^-+]' | grep -vc '^+note:'
 
-# 6. frontmatterインデックスが再生成できること
+# 5. specの過去changelogを書き換えていないこと
+#    削除行は「677行の表セル1行のみ」が期待値。0ではない（#2 が置き換えのため）
+git diff "$base" -- .claude/docs/spec/ | grep -- '^-[^-]'
+
+# 5-b. .claude/ 全体でも、意図しない削除が無いこと（内容を目視する）
+git diff "$base" -- .claude/ | grep -- '^-[^-]' | grep -v 'HTMLの土台'
+
+# 6. 暫定記述が仕様側から消え、changelog側には残っていること
+awk 'NR<1754'  .claude/docs/spec/issue-mr-workflow.md | grep -c -- '未作成の間は手書きへフォールバック'
+awk 'NR>=1754' .claude/docs/spec/issue-mr-workflow.md | grep -c -- 'フォールバックする形にした'
+
+# 7. 新設した節の見出しがちょうど1件であること
+grep -c -- '^### 計画・レポートのHTMLビュー（issue #54）' .claude/docs/spec/issue-mr-workflow.md
+
+# 8. create-commit.md の仕様追記と、git-workflow.md からの参照があること
+grep -c -- 'ステージ済み' .claude/docs/spec/create-commit.md
+grep -c -- 'create-commit.md' .claude/rules/git-workflow.md
+
+# 9. frontmatterインデックスが再生成できること
 bash .claude/scripts/src/extract-frontmatter.sh .
 ```
 
-合格条件: 1・2 が通り、3 の差分が0（生成済み）、4 が frontmatter の行だけ、5 が0、
-6 が `failed=0` であること。
+| # | 期待値 |
+|---|---|
+| 1・2 | 通ること（`i0054-01-` が1件・`test -f` が成功） |
+| 3 | `exit=0`（再生成しても差分が出ない） |
+| 3-b | **1以上**（`note` が途中で切れていれば0になる） |
+| 4 | **0**（追加された `note:` 行を除くと、増減した行が1つも無い） |
+| 5 | **`-| HTMLの土台 | …` の1行だけ**が出ること（件数ではなく中身を読む） |
+| 5-b | **何も出ない**こと（677行の置き換え以外に削除が無い） |
+| 6 | 1つ目が **0**、2つ目が **1**（仕様側から消え、changelog側は残っている） |
+| 7 | **1** |
+| 8 | どちらも **1以上** |
+| 9 | `failed=0` |
+
+**「何も出なければ成功」で済ませているのは 5-b だけで、それも 5 で中身を読んだうえでの二重確認
+である。** 他はすべて件数か終了コードを出す形にしてある（観点表「異常が無ければ何も出ない検証は
+常に成功する」）。
