@@ -18,7 +18,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - ブランチ: feature-103-collect-claude-code-otel-telemetry-into-usage
 - PR: #158 https://github.com/yuki-matsu783/MR-driven-workflow/pull/158
 - push回数: 1
-- 現在のループ: なし
+- 現在のループ: 4-6〜4-9 の1周目（進行中）
 - 追従監視: なし（ローカル。各pushとflow-id 5-1で手動で `/resolve-conflict` を確認する）
 
 | 進捗 | flow-id | ステップ | 担当 |
@@ -50,10 +50,10 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 | [x] | 3-9 | レビュー内容を取得し実装・ドキュメントを修正 | サブコマンド |
 | [x] | 3-10 | 作業内容をもとにMR descriptionを更新 | サブコマンド |
 | [x] | 4-1 | 個別反映計画を作成する（反映対象の洗い出し） | エージェント |
-| [] | 4-2 | commitしpushしてレビュー依頼 | エージェント |
-| [] | 4-3 | 反映計画をレビュー | 人間 |
-| [] | 4-4 | レビュー内容を取得し反映計画を修正 | サブコマンド |
-| [] | 4-5 | 反映計画をもとにMR descriptionを更新 | サブコマンド |
+| [x] | 4-2 | commitしpushしてレビュー依頼 | エージェント |
+| [x] | 4-3 | 反映計画をレビュー | 人間 |
+| [x] | 4-4 | レビュー内容を取得し反映計画を修正 | サブコマンド |
+| [x] | 4-5 | 反映計画をもとにMR descriptionを更新 | サブコマンド |
 | [] | 4-6 | 設計反映・AIアセット反映・実装反映を実施 | エージェント |
 | [] | 4-7 | commitしpushしてレビュー依頼 | エージェント |
 | [] | 4-8 | 反映結果をレビュー | 人間 |
@@ -171,10 +171,27 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
   `worklog/20260823_humming-mapping-pie_【設計反映】OTelリスナー機構のDDR_spec新設_push1.md`
   も作成した。
 
+- flow-id 4-2: `create-commit.sh`経由でコミット`77da832`（個別反映計画2件・worklog・
+  reports更新・HANDOFF.md）を作成し、リモートへ反映してレビュー依頼メッセージを送った。
+- flow-id 4-3: ユーザーから「レビューOK」の連絡を受けた（MR未解決コメント0件、
+  `get_mr_unresolved_comments 158`で再確認済み）。
+- flow-id 4-4: 対応が必要な指摘は無かった（コメント無しでの承認。設計反映・AIアセット反映の
+  2ファイル分割方針もそのまま確定）。
+
+- flow-id 4-5: 反映計画をもとにMR #158 のdescriptionを更新した。
+
+- flow-id 4-6（1周目・設計反映分）: DDR2件（`i0103-01`: perl採用理由、`i0103-02`:
+  `.claude/settings.local.json`分離理由）と spec1件（`.claude/docs/spec/otel-listener.md`）を
+  新設した。`bash .claude/scripts/src/generate-ddr-list.sh`でDDR一覧を再生成（73件）、
+  `.claude/docs/README.md`のspec一覧へも手動で1行追加した。結果を
+  `reports/20260823_humming-mapping-pie_OTelリスナー機構の設計反映.md`へ記録した。
+  AIアセット反映（`directory-structure.md`・`shell-script-style.md`）は、この設計反映分の
+  レビュー完了後に着手する（`docs-workflow.md`の方針）。
+
 ## 次にやること
 
-- flow-id 4-2: `commit`スキル経由でcommitし、pushしてレビュー依頼を行う（個別反映計画2件・
-  worklog・HANDOFF.mdが対象）。
+- flow-id 4-7（1周目）: `commit`スキル経由でcommitし、pushしてレビュー依頼を行う（DDR2件・
+  spec1件・README.md・reports・worklog・HANDOFF.mdが対象）。
 
 ## 判断を迷った内容
 
