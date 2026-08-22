@@ -1,0 +1,397 @@
+<!--
+  個別反映計画（issue #54 / フェーズ4）のHTMLビュー。
+  計画の正文は同名の .md であり、このHTMLはその視覚化である（両者は同期させる）。
+  土台: .claude/skills/issue-mr-flow/assets/plans.template.html
+  個別計画のため、テンプレートの [全体作業計画のみ必須] の2セクションは削除している。
+  外部依存: 無し（CDN・外部フォント・画像を1つも参照しない）。
+-->
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>【設計反映】【AIアセット反映】HTMLテンプレートの仕様とDDRへの反映 — issue #54</title>
+<style>
+  :root {
+    --bg: #f6f7f9;      --panel: #ffffff;   --ink: #1a1d21;     --muted: #5b636d;
+    --line: #dfe3e8;    --accent: #2563eb;  --accent-soft: #eaf0fe;
+    --ok: #1a7f4b;      --ok-soft: #e6f4ec; --warn: #a35a00;    --warn-soft: #fdf1e0;
+    --stop: #b3261e;    --stop-soft: #fdecea; --code-bg: #f0f2f5;
+    --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1216;    --panel: #161a20;   --ink: #e6e8eb;     --muted: #9aa3ad;
+      --line: #2a3038;  --accent: #7aa2f7;  --accent-soft: #1b2333;
+      --ok: #6ee7a8;    --ok-soft: #14261d; --warn: #f0b866;    --warn-soft: #2a2113;
+      --stop: #f2857c;  --stop-soft: #2b1614; --code-bg: #1d222a;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", system-ui, sans-serif;
+    line-height: 1.8; font-size: 15px;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 20px 80px; }
+
+  /* 共通ヘッダ帯 */
+  header.band {
+    background: linear-gradient(135deg, var(--accent-soft), var(--panel));
+    border-bottom: 1px solid var(--line); padding: 28px 20px 22px; margin-bottom: 28px;
+  }
+  header.band .inner { max-width: 1080px; margin: 0 auto; }
+  header.band .kind { font-size: 11px; letter-spacing: .18em; color: var(--accent); font-weight: 700; }
+  header.band h1 { margin: 6px 0 4px; font-size: 26px; line-height: 1.4; }
+  header.band .lead { margin: 0; color: var(--muted); }
+  .meta { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; padding: 0; list-style: none; }
+  .meta li {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 999px;
+    padding: 3px 12px; font-size: 12.5px; color: var(--muted); white-space: nowrap;
+  }
+  .meta li b { color: var(--ink); font-weight: 600; }
+
+  nav.toc {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 14px 20px; margin-bottom: 28px;
+  }
+  nav.toc h2 { margin: 0 0 8px; font-size: 13px; letter-spacing: .08em; color: var(--muted); border: 0; padding: 0; }
+  nav.toc ol { margin: 0; padding-left: 20px; }
+  nav.toc li { margin: 2px 0; }
+  a { color: var(--accent); }
+
+  section {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 8px 24px 22px; margin-bottom: 22px;
+  }
+  h2 { font-size: 20px; margin: 20px 0 10px; padding-bottom: 8px; border-bottom: 2px solid var(--line); }
+  h3 { font-size: 16px; margin: 22px 0 8px; color: var(--accent); }
+  p { margin: 10px 0; }
+  ul, ol { padding-left: 22px; }
+  li { margin: 4px 0; }
+  blockquote { margin: 10px 0; padding: 6px 14px; border-left: 3px solid var(--line); color: var(--muted); }
+
+  /* 表は自身の中で横スクロールする（ページ本体は横スクロールさせない） */
+  .tablewrap { overflow-x: auto; margin: 14px 0; }
+  table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 14px; }
+  th, td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: var(--accent-soft); font-weight: 600; white-space: nowrap; }
+  tbody tr:nth-child(even) td { background: color-mix(in srgb, var(--line) 22%, transparent); }
+
+  code {
+    background: var(--code-bg); border-radius: 5px; padding: 1px 5px; font-size: 13px;
+    font-family: "SFMono-Regular", Consolas, "Noto Sans Mono", monospace;
+  }
+  pre {
+    background: var(--code-bg); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 12px 14px; overflow-x: auto; font-size: 13px; line-height: 1.65;
+  }
+  pre code { background: none; padding: 0; }
+
+  /* 注意ボックス: info（既定）/ ok（決めたこと）/ warn（注意）/ stop（やらないこと・危険） */
+  .box { border-left: 4px solid var(--accent); background: var(--accent-soft);
+         border-radius: 0 var(--radius) var(--radius) 0; padding: 12px 16px; margin: 16px 0; }
+  .box > :first-child { margin-top: 0; } .box > :last-child { margin-bottom: 0; }
+  .box .label { font-size: 12px; font-weight: 700; letter-spacing: .06em; display: block; margin-bottom: 4px; }
+  .box.ok { border-color: var(--ok); background: var(--ok-soft); } .box.ok .label { color: var(--ok); }
+  .box.warn { border-color: var(--warn); background: var(--warn-soft); } .box.warn .label { color: var(--warn); }
+  .box.stop { border-color: var(--stop); background: var(--stop-soft); } .box.stop .label { color: var(--stop); }
+  .box.info .label { color: var(--accent); }
+
+  .tag { display: inline-block; border-radius: 999px; padding: 1px 9px; font-size: 12px; font-weight: 600; }
+  .tag.ok { background: var(--ok-soft); color: var(--ok); }
+  .tag.warn { background: var(--warn-soft); color: var(--warn); }
+  .tag.stop { background: var(--stop-soft); color: var(--stop); }
+
+  footer { color: var(--muted); font-size: 13px; text-align: center; padding-top: 10px; }
+</style>
+</head>
+<body>
+
+<header class="band">
+  <div class="inner">
+    <div class="kind">個別反映計画 / フェーズ4〈反映〉</div>
+    <h1>HTMLテンプレートの仕様とDDRへの反映</h1>
+    <p class="lead">フェーズ2〈調査〉・フェーズ3〈作業〉で得た知見のうち<b>恒久的に残すべきもの</b>を、
+    spec・DDR・rules へ反映する。新規に決めることはしない（方式の変更だけは人間の承認を得たうえで記録する）。</p>
+    <ul class="meta">
+      <li><b>issue</b> #54</li>
+      <li><b>ブランチ</b> claude/plan-report-html-template-024l0t</li>
+      <li><b>PR</b> #156</li>
+      <li><b>フェーズ</b> 4〈反映〉 flow-id 4-1</li>
+      <li><b>push回数</b> 8</li>
+      <li><b>作成日</b> 2026-08-22</li>
+      <li><b>全体作業計画</b> plans/tidy-scoping-lantern.md</li>
+      <li><b>正文</b> 同名の .md</li>
+    </ul>
+  </div>
+</header>
+
+<div class="wrap">
+
+<nav class="toc">
+  <h2>目次</h2>
+  <ol>
+    <li><a href="#premise">前提（合意状況）</a></li>
+    <li><a href="#goal">この計画で何をするか</a></li>
+    <li><a href="#target">変更対象</a></li>
+    <li><a href="#approach">方針</a></li>
+    <li><a href="#out-of-scope">やらないこと（スコープ外）</a></li>
+    <li><a href="#verify">検証</a></li>
+  </ol>
+</nav>
+
+<section id="premise">
+  <h2>前提（合意状況）</h2>
+  <ul>
+    <li>依拠する作業結果: <code>reports/20260822_tidy-scoping-lantern_HTMLテンプレート新設の作業結果.md</code>（flow-id 3-6）の「設計への反映」4項目。全体作業計画は <code>plans/tidy-scoping-lantern.md</code>。</li>
+    <li><b>flow-id 1-5・3-3・3-8 の人間合意は得ていない。</b> 本セッションは非対話的に進めており、結果確認工程は <code>adversarial-review</code> スキルで代替している。</li>
+    <li><b>ただし、DDR <code>i0054-01</code> が記録する決定1（自己完結CSS）は人間の承認を得ている</b>（2026-08-22、チャットで受領。「自己完結CSSで良い」）。
+      <b>DDR本文はマージ後に変更できない</b>ため、未合意のまま恒久記録することは避ける必要があり、この承認が <code>i0054-01</code> を作る前提条件である。
+      判断はMRのコメントとして記録済み。決定2（<code>assets</code> 語彙）は issue #54 本文が Agent Skills の語彙を根拠として示しているため、本文の範囲内である。</li>
+    <li>種別を <b>併記</b>にした理由は、<b>分量が小さいこと1点である</b>（spec 2ファイル＋DDR 3件＋rules 1箇所）。
+      <b>2つの反映先の判断は独立している</b>（<code>【AIアセット反映】</code> の実体は <code>create-commit.sh</code> の挙動注意であり、HTMLテンプレートの方式変更とは無関係な話である）。
+      観点表は原則として分けることを求めているので、<b>分けずに1回で合意を取ってよいかは人間が判断する</b>。分けるべきという判断であれば、<code>【AIアセット反映】</code> 側（変更対象 #8・#9）を別の個別計画へ切り出す。</li>
+  </ul>
+</section>
+
+<section id="goal">
+  <h2>この計画で何をするか</h2>
+  <p>フェーズ2〈調査〉・フェーズ3〈作業〉で得た知見のうち、<b>恒久的に残すべきもの</b>を
+  <code>.claude/docs/spec/</code>・<code>.claude/docs/ddr/</code>・<code>.claude/rules/</code> へ反映する。</p>
+  <div class="box info">
+    <span class="label">新規に決めることはしない</span>
+    すべて既に決まったこと（テンプレート2本の存在・方式の変更・<code>assets</code> 語彙の統一・検査コマンドの誤り）の記録である。
+    <b>方式の変更については、上記のとおり人間の承認を得たうえで記録する</b>（未合意のままDDRへ書かない）。
+    <code>.claude/VERSION</code> も人間の判断（据え置き）を受けており、値は変更しない。
+  </div>
+</section>
+
+<section id="target">
+  <h2>変更対象</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>#</th><th>ファイル</th><th>操作</th><th>何をするか</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td><code>spec/issue-mr-workflow.md</code></td><td>変更</td><td><code>### 計画・レポートのHTMLビュー（issue #54）</code> を <code>## 仕様</code> 配下へ新設（<code>### 全体作業計画に必ず含めるフェーズ（issue #92）</code> の直後）</td></tr>
+      <tr><td>2</td><td><code>spec/issue-mr-workflow.md:677</code></td><td>変更</td><td>暫定記述「issue #54 の成果物。未作成の間は手書きへフォールバックする」を解除する</td></tr>
+      <tr><td>3</td><td><code>spec/issue-mr-workflow.md</code></td><td>変更</td><td><code>## 影響範囲</code> 配下へ <code>### issue #54（…）</code> のchangelogエントリを<b>新規追記</b>する</td></tr>
+      <tr><td>4</td><td><code>ddr/i0054-01-計画レポートのHTMLビューはassets配下のテンプレートへ切り出す.md</code></td><td>新規</td><td><b>このファイル名で</b>作る（<code>issue-mr-flow/SKILL.md</code> が既にこの名前で参照している）</td></tr>
+      <tr><td>5</td><td><code>ddr/i0000-11-調査結果のhtml版は自己完結htmlのコミットで作る.md</code></td><td>変更</td><td>frontmatterへ <code>note</code> を1行足す（<b>本文は変更しない</b>）</td></tr>
+      <tr><td>6</td><td><code>ddr/i0141-01-canvasテンプレートはTailwind非依存の自己完結CSSにする.md</code></td><td>変更</td><td>同上</td></tr>
+      <tr><td>7</td><td><code>.claude/docs/README.md</code></td><td>変更</td><td><code>generate-ddr-list.sh</code> の<b>再生成結果</b>を同じコミットへ含める（手書きしない）</td></tr>
+      <tr><td>8</td><td><code>spec/create-commit.md</code></td><td>変更</td><td><b>挙動の正史</b>として「渡していないステージ済み変更も同じコミットへ入る」を仕様へ書き、<code>## 影響範囲</code> へchangelogを追記する</td></tr>
+      <tr><td>9</td><td><code>.claude/rules/git-workflow.md</code></td><td>変更</td><td>「コミット運用」節へ<b>運用上の注意</b>を1〜2行足し、詳細は #8 を指す（仕様を二重に書かない）</td></tr>
+      <tr><td>—</td><td><code>.claude/VERSION</code></td><td><b>変更しない</b></td><td>人間の判断で <code>0.1.2</code> に据え置き</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <div class="box stop">
+    <span class="label">触らない（point-in-time の記録）</span>
+    <code>spec/issue-mr-workflow.md:2049</code> と <code>:3280-3282</code>（どちらも <code>## 影響範囲</code>（1754行）より下）、および既存DDRの<b>本文</b>。
+    #5・#6 で触るのは frontmatter の <code>note</code> キーだけで、これは <code>.claude/rules/markdown-frontmatter.md</code> が明示的に許している。
+  </div>
+</section>
+
+<section id="approach">
+  <h2>方針</h2>
+
+  <h3>spec へ新設する節の中身（#1）</h3>
+  <p><code>### 全体作業計画に必ず含めるフェーズ（issue #92）</code> の直後へ置く。</p>
+  <div class="box warn">
+    <span class="label">運用の詳細は書かない（正を2つにしない）</span>
+    見出し構成・必須／任意・作成タイミング・検査コマンドは既に <code>issue-mr-flow/SKILL.md:363-395</code>「計画・レポートのHTMLビュー」とテンプレート本体の冒頭コメントにあり、
+    spec へ同じことを書くと<b>正が2つになる</b>。隣接する <code>### 全体作業計画に必ず含めるフェーズ（issue #92）</code> が末尾で
+    「判断基準そのものの正は SKILL.md であり、本節はその位置づけの記録にとどめる」と書いているのと同じ形にする。
+  </div>
+  <p><b>正の所在</b>（新設節はこれを1つの表で示すことを主目的にする）:</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>何の正か</th><th>どこ</th></tr></thead>
+    <tbody>
+      <tr><td>記述の型（見出し構成・必須／任意の区別・埋め忘れの検査）</td><td><b>テンプレート本体</b>（<code>assets/plans.template.html</code> / <code>reports.template.html</code>）の冒頭コメント</td></tr>
+      <tr><td>いつ作るか・作った後どう扱うか（flow-idごとの手順）</td><td><b><code>issue-mr-flow/SKILL.md</code></b>「計画・レポートのHTMLビュー」</td></tr>
+      <tr><td>レビュー時に何を見るか</td><td><b><code>plans/REVIEW-POINTS.md</code> / <code>reports/REVIEW-POINTS.md</code></b></td></tr>
+      <tr><td>ライフサイクル（いつ削除するか・frontmatterの対象外）</td><td><b><code>.claude/rules/docs-workflow.md</code></b> のライフサイクル表</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p>そのうえで、<b>spec 側にしか書けないこと</b>を書く。</p>
+  <ol>
+    <li><b>なぜテンプレートファイルへ切り出したのか</b>（記述の型の正が SKILL.md の散文に散っており、導入先プロジェクトが自分の型へ差し替えるときに手を入れる場所が定まらなかった）。</li>
+    <li><b>なぜ2本なのか</b>（<code>plans/</code> と <code>reports/</code> で必須セクションが異なるため。md側のテンプレートは持たない — 型を固定する価値があるのは人間が繰り返し目を通すHTMLビューの側だけ）。</li>
+    <li><b>外部依存を持たない方式を採ったこと</b>と、その決定の経緯は DDR <code>i0054-01</code> にあること。</li>
+  </ol>
+
+  <h3>暫定記述の解除（#2）</h3>
+  <p>置き換え前（677行目）:</p>
+  <blockquote>| HTMLの土台 | <code>.claude/skills/issue-mr-flow/assets/reports.template.html</code>（<b>issue #54 の成果物。未作成の間は手書きへフォールバックする</b>） |</blockquote>
+  <p>置き換え後（案）:</p>
+  <blockquote>| HTMLの土台 | <code>.claude/skills/issue-mr-flow/assets/reports.template.html</code>（必須セクションの読み替えは同テンプレートの使い方コメントを参照） |</blockquote>
+  <div class="box warn">
+    <span class="label">似た記述がもう1箇所あるが、扱いは逆になる</span>
+    この行は <code>## 仕様</code> 配下（<code>### 最終統括レポートとPR/MRへの反映（issue #111）</code>）にあり、現在の設計を説明する記述である。
+    <b>類似の記述が 3280-3282行</b>（<code>## 影響範囲</code> 配下のchangelog）にもあるが、そちらは<b>触らない</b>。
+    なお両者は同じ文面ではない（3280行は「受け入れ条件のうち…は部分達成である」で始まり、「無ければ手書きへフォールバックする形にした」は3281-3282行に跨る別の言い回しである）。
+    <b>文字列一致で探すと見つからないので、行番号の範囲で押さえる。</b>
+    分かれ目は 1754行目より下かどうかであって、issue番号でも文面の似かたでもない。
+  </div>
+
+  <h3>新規DDR <code>i0054-01</code> に記録する決定（#4）</h3>
+  <p><b>1件にまとめる。</b> 2件へ分けない（<code>SKILL.md</code> が <code>i0054-01</code> という名前で既に参照しており、分けると参照が無言で切れる。フェーズ3の敵対的レビューの指摘）。記録する決定は2つある。</p>
+  <div class="box warn">
+    <span class="label">ファイル名が決定1を表さない点への対処</span>
+    ファイル名は決定2（<code>assets</code> への切り出し）しか表していないが、<code>SKILL.md</code> の既存参照に縛られるため変更しない。
+    代わりに <b><code>description</code> と <code>keywords</code> へ決定1（TailwindCSS CDN → 自己完結CSS への方式変更）を必ず含める</b>。
+    DDR一覧はファイル名で並ぶので、これが無いと「方式変更の決定」が一覧・<code>doc-search</code> から見つからない
+    （<code>SKILL.md:388-390</code> がこのDDRを引いているのは、まさに「外部依存を持たせない」の経緯としてである）。
+  </div>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>#</th><th>決定</th><th>却下案</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td>レポート・計画のHTMLビューは<b>自己完結CSS</b>で書く（TailwindCSS CDN方式をやめる）</td><td>(a) CDN方式を維持する（issue本文の字面どおり）。(b) 共有CSSファイルへ切り出して2本から読む</td></tr>
+      <tr><td>2</td><td>スキル配下のバンドルリソースの語彙を <b><code>assets/</code></b> に統一する（<code>templates/</code> を使わない）</td><td>(a) <code>templates/</code> を使う。(b) <code>resources/</code> 等の第3の語彙を作る</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p>決定1の理由の核は「<b><code>i0000-11</code> がCDNを選んだ根拠(b)（出力トークン量と表現力の釣り合い）が、テンプレート化すると成り立たなくなる</b>」こと。CSSを書くのがテンプレート作成の1回だけになるため。
+  到達性（CDNが遮断されていること）は<b>主根拠にしない</b> — <code>i0141-01</code> は到達不可を知ったうえで <code>reports/</code> をCDN方式に据え置いており、同じ事実から逆の結論は出せない。</p>
+  <p>却下案 (b)（共有CSS）を採らない理由も書く: 共有ファイルを読むと「自己完結」でなくなり、<code>reports/</code> が flow-id 5-4 で削除されたときにHTMLだけが残ると開けなくなる。2本のCSSの重複は許容する。</p>
+
+  <h3>既存DDRへ添える <code>note</code>（#5・#6）</h3>
+  <div class="box ok">
+    <span class="label">status: superseded は使わない</span>
+    どちらも決定の<b>一部だけ</b>が変わっており、決定全体が置き換えられたわけではないため
+    （<code>.claude/rules/markdown-frontmatter.md</code>「DDRのnote」の類型「決定の一部だけが後で変わった」に当たる）。
+  </div>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>DDR</th><th><code>note</code> に書くこと</th></tr></thead>
+    <tbody>
+      <tr><td><code>i0000-11</code></td><td>「html版を自己完結HTMLのコミットで作る」という決定自体は有効。<b>方式のみ</b> issue #54 でTailwindCSS CDNから自己完結CSSへ変わった。詳細は <code>i0054-01</code></td></tr>
+      <tr><td><code>i0141-01</code></td><td>canvas形式をTailwind非依存にした決定は有効。issue #54 で<b>一覧・表形式も</b>自己完結になったため、「canvas形式だけが例外」という前提は成り立たない。詳細は <code>i0054-01</code></td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p><b><code>description</code> は書き換えない</b>（元の決定内容が読み取れなくなるため）。</p>
+  <div class="box stop">
+    <span class="label">note の値は必ずシングルクォートで囲む</span>
+    <code>generate-ddr-list.sh</code> は非クォートのスカラーに対して <code>sub(/[[:space:]]+#.*$/, "", value)</code> で行内コメントを落とすため、
+    <b>値に含まれる「 #54」の手前で打ち切られる</b>。上の2件はどちらも「issue #54 で」という語を含むので、素で書くと
+    「詳細は <code>i0054-01</code>」という肝心のポインタが消えたREADMEが生成される（再現確認済み）。
+    <b>この誤りは検証3（差分を見るだけ）では気づけない</b> — 生成物としては正常に出来上がるためである。
+  </div>
+  <pre><code># 悪い例（値が「… **方式のみ** issue」で切れる）
+note: 「html版を…」という決定自体は有効。**方式のみ** issue #54 で…
+# 良い例
+note: '「html版を…」という決定自体は有効。**方式のみ** issue #54 で…'</code></pre>
+
+  <h3><code>.claude/VERSION</code> の増分提案（変更しない）</h3>
+  <p>現在 <code>0.1.2</code>。AIからは <b><code>0.2.0</code>（MINOR）を提案した</b>
+  （<code>.claude/docs/spec/distribution-assets.md</code> の表で <code>MINOR</code> は「資産の追加・フローの拡張」であり、
+  今回は配布対象へテンプレート2本が<b>増え</b>、flow-id 3-6・4-6 でのHTML作成が<b>必須になった</b>ため）。</p>
+  <div class="box ok">
+    <span class="label">ユーザーの判断（チャットで受領・2026-08-22）</span>
+    <b><code>0.1.2</code> で良い。</b> したがって <code>.claude/VERSION</code> は<b>変更しない</b>。この判断はMRへ記録済み。
+  </div>
+
+  <h3><code>create-commit.sh</code> の挙動の記録（#8・#9）</h3>
+  <p><b>仕様の正は <code>.claude/docs/spec/create-commit.md</code> に置き、<code>rules/git-workflow.md</code> はそこを指す。</b>
+  運用注意だけを rules へ書くと、スクリプトの仕様書を読んだ人は誤った理解のまま残る。</p>
+  <p><code>create-commit.sh:124</code> は <code>git commit -m "$message"</code> を<b>パス指定なしで</b>実行するため、
+  <b>渡したパスに加えて、既にステージ済みの変更も同じコミットへ入る</b>。現行の仕様書は、削除済みパスがSKIPされる事例に触れているだけで、この挙動そのものを書いていない。</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>ファイル</th><th>書くこと</th></tr></thead>
+    <tbody>
+      <tr><td><code>spec/create-commit.md</code></td><td>「実行方法」に挙動を1段落。あわせて <code>## 影響範囲</code> へ issue #54 のchangelogを追記する</td></tr>
+      <tr><td><code>rules/git-workflow.md</code></td><td>「コミット運用」節へ<b>運用上の注意</b>を1〜2行（呼ぶ前に <code>git status</code> でステージ済みのものが無いかを見る）。詳細は spec を指す</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p>issue #54 のフェーズ3で実際に踏んだ（<code>git mv</code> でステージ済みだった改名が、別のコミットへ混ざった）。同一ブランチかつsquash mergeのため実害は無かったが、コミットメッセージと中身が食い違った。</p>
+</section>
+
+<section id="out-of-scope">
+  <h2>やらないこと（スコープ外）</h2>
+  <ul>
+    <li><b><code>.claude/VERSION</code> の値の変更。</b> AIから <code>0.2.0</code>（MINOR）を提案したが、<b>ユーザーの判断で <code>0.1.2</code> に据え置き</b>となった（MRへ記録済み）。</li>
+    <li><b><code>create-commit.sh</code> の挙動の変更。</b> 仕様書とルールへ記録するに留める（挙動を変えると、削除のステージ済みパスを吸収する <code>i0060-01</code> の設計と衝突しうるため、それ自体が独立した意思決定になる）。</li>
+    <li><b>DDR本文の変更</b>（<code>note</code> の追加のみ）。</li>
+    <li><b><code>spec/issue-mr-workflow.md:2049</code> と <code>:3280-3282</code> の変更</b>（point-in-time の記録）。</li>
+    <li><b>markdownテンプレートの新設</b>（issue #54 本文が明示的に除外。全フェーズ共通のスコープ外）。</li>
+  </ul>
+</section>
+
+<section id="verify">
+  <h2>検証</h2>
+  <pre><code># 分岐点のSHAを取る（以降の「変えていないこと」の検証はすべてこれを基準にする）
+base=$(git merge-base origin/main HEAD)
+
+# 1. DDRのファイル名・title・見出しが識別子の規約に沿っていること
+ls .claude/docs/ddr/ | grep '^i0054-01-'
+head -20 .claude/docs/ddr/i0054-01-*.md
+
+# 2. SKILL.md が参照しているDDRが実在すること（フェーズ3の指摘への最終確認）
+test -f "$(grep -o '\.claude/docs/ddr/i0054-01-[^)]*\.md' .claude/skills/issue-mr-flow/SKILL.md | head -1)"
+
+# 3. DDR一覧が生成物として最新であること（--check は差分なし=0 / 差分あり=2）
+bash .claude/scripts/src/generate-ddr-list.sh --check; echo "exit=$?"
+
+# 3-b. noteがREADMEへ最後まで載っていること（行内コメント落ちの検出）
+grep -c -- 'i0054-01' .claude/docs/README.md
+
+# 4. 既存DDR2件の変更がfrontmatterのnote行だけであること（本文を変えていないこと）
+git diff "$base" -- .claude/docs/ddr/i0000-11-*.md .claude/docs/ddr/i0141-01-*.md \
+  | grep -E '^[-+][^-+]' | grep -vc '^+note:'
+
+# 5. specの過去changelogを書き換えていないこと
+#    削除行は「677行の表セル1行のみ」が期待値。0ではない（#2 が置き換えのため）
+git diff "$base" -- .claude/docs/spec/ | grep -- '^-[^-]'
+
+# 5-b. .claude/ 全体でも、意図しない削除が無いこと（内容を目視する）
+git diff "$base" -- .claude/ | grep -- '^-[^-]' | grep -v 'HTMLの土台'
+
+# 6. 暫定記述が仕様側から消え、changelog側には残っていること
+awk 'NR&lt;1754'  .claude/docs/spec/issue-mr-workflow.md | grep -c -- '未作成の間は手書きへフォールバック'
+awk 'NR&gt;=1754' .claude/docs/spec/issue-mr-workflow.md | grep -c -- 'フォールバックする形にした'
+
+# 7. 新設した節の見出しがちょうど1件であること
+grep -c -- '^### 計画・レポートのHTMLビュー（issue #54）' .claude/docs/spec/issue-mr-workflow.md
+
+# 8. create-commit.md の仕様追記と、git-workflow.md からの参照があること
+grep -c -- 'ステージ済み' .claude/docs/spec/create-commit.md
+grep -c -- 'create-commit.md' .claude/rules/git-workflow.md
+
+# 9. frontmatterインデックスが再生成できること
+bash .claude/scripts/src/extract-frontmatter.sh .</code></pre>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>#</th><th>期待値</th></tr></thead>
+    <tbody>
+      <tr><td>1・2</td><td>通ること（<code>i0054-01-</code> が1件・<code>test -f</code> が成功）</td></tr>
+      <tr><td>3</td><td><code>exit=0</code>（再生成しても差分が出ない）</td></tr>
+      <tr><td>3-b</td><td><b>1以上</b>（<code>note</code> が途中で切れていれば0になる）</td></tr>
+      <tr><td>4</td><td><b>0</b>（追加された <code>note:</code> 行を除くと、増減した行が1つも無い）</td></tr>
+      <tr><td>5</td><td><b><code>-| HTMLの土台 | …</code> の1行だけ</b>が出ること（件数ではなく中身を読む）</td></tr>
+      <tr><td>5-b</td><td><b>何も出ない</b>こと（677行の置き換え以外に削除が無い）</td></tr>
+      <tr><td>6</td><td>1つ目が <b>0</b>、2つ目が <b>1</b>（仕様側から消え、changelog側は残っている）</td></tr>
+      <tr><td>7</td><td><b>1</b></td></tr>
+      <tr><td>8</td><td>どちらも <b>1以上</b></td></tr>
+      <tr><td>9</td><td><code>failed=0</code></td></tr>
+    </tbody>
+  </table>
+  </div>
+  <div class="box info">
+    <span class="label">「何も出なければ成功」に頼っていないこと</span>
+    そうしているのは 5-b だけで、それも 5 で中身を読んだうえでの二重確認である。
+    他はすべて件数か終了コードを出す形にしてある（観点表「異常が無ければ何も出ない検証は常に成功する」）。
+  </div>
+</section>
+
+<footer>issue #54 / PR #156 — 計画の正文は同名の <code>.md</code>。外部依存を持たない自己完結HTML。</footer>
+
+</div>
+</body>
+</html>

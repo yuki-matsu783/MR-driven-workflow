@@ -3,7 +3,7 @@ title: レビュー観点（reports配下）
 type: review-points
 description: 調査・作業結果のレポート（markdown版・HTML版）に適用されるレビュー観点。
 tags: [review, review-points, report]
-keywords: [レポート, 自己完結HTML, TailwindCSS, CDN, 同期, ライフサイクル, 根拠, 実機確認]
+keywords: [レポート, 自己完結HTML, テンプレート, reports.template.html, 埋め忘れ, 同期, ライフサイクル, 根拠, 実機確認]
 ---
 
 # レビュー観点（reports配下）
@@ -28,7 +28,20 @@ keywords: [レポート, 自己完結HTML, TailwindCSS, CDN, 同期, ライフ�
 
 ## HTML版
 
-- **自己完結**しているか（TailwindCSS CDN以外の外部依存・ローカル参照が無い）。
+- **自己完結**しているか（**外部依存・ローカル参照が1つも無い**。issue #54 以降、土台にする
+  `.claude/skills/issue-mr-flow/assets/reports.template.html` が外部依存を持たない自己完結CSSに
+  なったため、**CDNも例外ではなくなった**）。検査は「実際に外部を読みに行く記述」に限る。
+  `grep -nE '(src|href)="https?://|url\(https?://' <ファイル>` が **0件**であること。
+  **`https://` を含む行を数える検査にしないこと**（`<code>` の中でURLを引用しただけの
+  レポート——調査結果はURLを引用しがちである——と、`http://www.w3.org/2000/svg`
+  （`createElementNS` の名前空間。外部を読みに行かない）を必ず誤検知する）。
+  URLを本文で引用する場合は `<code>` の中でエスケープして書き、`src`/`href` にしない。
+  **canvas形式（`.claude/skills/canvas-report/SKILL.md`）でmermaidを使う場合は、CDNの
+  `<script src>` が1本入るため、この検査の対象外とする**（採否はレポートごとに判断する）。
+- **テンプレートの埋め忘れが無いか。** `grep -c '<!-- ここに書く' <ファイル>` が 0 であること
+  （`<!--` まで含めて数える。**地の文で「ここに書く」という語に触れる成果物**——テンプレート自身を
+  説明する計画・レポート——を誤検知しないため）。使わなかった `[任意]` の `section` は、
+  プレースホルダを残さず**節ごと削除**する。
 - markdown版とHTML版の**内容が同期**しているか（片方だけ更新されていないか）。
 - **同期を「追記」だけで済ませていないか。既存記述の更新まで含める。** md側で書き換えた記述が
   HTML側に古いまま残ると、**視覚版だけを見た読み手が、md側では既に否定された結論を読む**。
