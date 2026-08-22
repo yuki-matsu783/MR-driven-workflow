@@ -17,7 +17,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - issue: #70（https://github.com/yuki-matsu783/MR-driven-workflow/issues/70 ）
 - ブランチ: `claude/gemini-to-claude-migration-jc64gu`
 - PR: #157（Draft。https://github.com/yuki-matsu783/MR-driven-workflow/pull/157 ）
-- push回数: 10
+- push回数: 11
 - 現在のループ: 3-6〜3-9 の1周目（進行中）
 - 追従監視: 購読あり（web。subscribe_pr_activity + 自己チェックイン）
 
@@ -61,10 +61,11 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 | [] | 4-10 | 反映内容をもとにMR descriptionを更新 | サブコマンド |
 | [] | 5-1 | defaultブランチとのコンフリクト検知・解消 | エージェント |
 | [] | 5-2 | 関連issueへのマージ前通知 | エージェント |
-| [] | 5-3 | 最終統括レポート作成とPR/MRへの反映 | エージェント |
-| [] | 5-4 | plans/worklog/reportsの片付けとHANDOFF.mdリセット | エージェント |
-| [] | 5-5 | commit・pushしてDraft解除 | エージェント |
-| [] | 5-6 | マージ（squash merge） | 人間 |
+| [] | 5-3 | `.claude/` の変更を `.gemini/` へ変換同期 | エージェント |
+| [] | 5-4 | 最終統括レポート作成とPR/MRへの反映 | エージェント |
+| [] | 5-5 | plans/worklog/reportsの片付けとHANDOFF.mdリセット | エージェント |
+| [] | 5-6 | commit・pushしてDraft解除 | エージェント |
+| [] | 5-7 | マージ（squash merge） | 人間 |
 
 ## やったこと
 
@@ -170,27 +171,40 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - flow-id 3-6: **T11・T12の検出力を意図的に壊して確認**した（「異常が無ければ何も出ない」形の
   テストが空振りしていないことの裏付け）。T11はパターンを狭めると取りこぼし2件を検出、
   T12はpushペイロードならスタブ `jq` が呼ばれる
+- flow-id 3-6: **flow-id 5-3（`.claude/`→`.gemini/` 変換同期）を新設し、旧 5-3〜5-6 を 5-4〜5-7 へ
+  繰り下げた**（全42→43ステップ）。21ファイル・**機械置換125箇所＋手修正19箇所**。
+  `SKILL.md` へ新設ステップの詳細節も書いた（結果の正文:
+  `reports/20260822_nimble-syncing-lantern_flow-id5-3新設と繰り下げの結果.md`）
+- flow-id 3-6: **機械置換だけなら壊していた箇所が5類型あった**。(1) `.claude/docs/README.md` の
+  DDR一覧は**生成物**なので `note` frontmatter 側を直す (2) 「当時の番号」と「現在の番号」が
+  同じ行に同居する4件 (3) 節見出しの片割れ `5-2` が置換対象外で意味だけずれる
+  (4) `42ステップ` は `5-[3-7]` にマッチせず棚卸しから漏れる（6箇所）
+  (5) `## 影響範囲` の外（`## 仕様` 節の中）にも point-in-time の記録が4行あった
+- flow-id 3-6: **検証は「削除行がゼロ」ではなく「削除が説明できる」形にした。** 削除行・追加行を
+  `5-N` で伏せ字にして突き合わせ、相殺されずに残った19件がすべて意図した手修正であることを
+  確認した（125件の削除行を目で追う方法は実質不可能だった）
+- flow-id 3-6: 計画の手順5（`cleanup-task.sh` の HANDOFF 雛形へ新設行を足す）は**不要だった**
+  （雛形は進捗表を持たない）。`update-handoff-progress.sh` の `LOOP_RANGES` もフェーズ5を持たない
 
 ## 次にやること
 
-- **flow-id 3-6 の残り＝ flow-id 5-3 の新設と以降の繰り下げ**
-  （`plans/【AIアセット作成】flow-id5-3の新設と以降の繰り下げ.md`）。**前提条件だった
-  `extract-frontmatter.sh` の `.gemini` 除外は完了した**ので、着手できる
-- 繰り下げは**109箇所／21ファイル**。**降順（大きいflow-idから）に置換**し、新設行は最後に足す
-  （昇順だと置換後の値をさらに置換してしまう）
-- **`.gemini/` を触ったら `bash .claude/scripts/src/sync-gemini-assets.sh` を流し直す。**
-  `.claude/` を編集したのに `.gemini/` が古いままだと `--check` が落ちる
-  （SKILL.md・rules を書き換える繰り下げ作業は、ほぼ必ず `.gemini/` に差分を生む）
-- **`.gemini/` 側を直接編集しない。** 実体は `.claude/` 側で、`.gemini/` は上書きされる
-- フェーズ3の結果確認（flow-id 3-7 の直後）で**敵対的レビューを実施する**（ユーザーからの
-  常設指示。フェーズ3のカウンタは 0/3）
-- フェーズ4で拾うもの（今回は**意図的に手を付けていない**）:
-  - `README.md` L35 / `index.md` L36 / `.claude/rules/directory-structure.md` L118 が、
-    削除済みの `setup-gemini-links.sh` を指している
+- **flow-id 3-7（commit・push してレビュー依頼）まで完了。次はフェーズ3の結果確認で
+  敵対的レビューを実施する**（ユーザーからの常設指示。フェーズ3のカウンタは 0/3）
+- その後は**フェーズ4（反映）**。flow-id 4-1 で個別反映計画を作る。反映対象は次のとおり
+  （いずれもフェーズ3では**意図的に手を付けていない**）:
+  - **削除済みの `setup-gemini-links.sh` を指す参照が3箇所**残っている
+    （`README.md` L35 / `index.md` L36 / `.claude/rules/directory-structure.md` L118）
   - DDR `i0000-13`（gemini配下はGit管理下に置かない）を `status: superseded` /
     `superseded_by: "i0070-01"` にし、新しい `i0070-01` を書く → `generate-ddr-list.sh`
-  - `.claude/docs/spec/sync-gemini-assets.md` の新規作成（スクリプト冒頭がこのパスを指している）
+  - **`.claude/docs/spec/sync-gemini-assets.md` の新規作成**
+    （`sync-gemini-assets.sh` の冒頭がこのパスを「仕様」として指している）
+  - `.claude/docs/spec/issue-mr-workflow.md` の `## 影響範囲` へ、**今回の繰り下げの
+    changelog エントリを追記**する（過去の繰り下げと同じ形。本文側は今回すべて更新済み）
   - policy engine の Workspace 層が無効であること（upstream #18186）を spec へ残す
+  - `.gitignore` から消えた `i00-13` 参照の扱い（`i36-01` は別ブロックに残っている）
+- **`.claude/` を触ったら `bash .claude/scripts/src/sync-gemini-assets.sh` を流し直す**
+  （これが新設した flow-id 5-3 そのものだが、フェーズ4の作業中も `--check` が落ちないように
+  こまめに流す）。**`.gemini/` 側を直接編集しない**
 
 ## 判断を迷った内容
 
@@ -240,4 +254,4 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 
 - `.claude/docs/ddr/` の**本文**は変更しない（frontmatterの `status` / `superseded_by` のみ更新可）
 - コミットは必ず `commit` スキル経由（`git commit` の直接実行はhookがブロックする）
-- マージ（flow-id 5-6）は実行しない。Draft解除（5-5）で止まる
+- マージ（flow-id 5-7）は実行しない。Draft解除（5-6）で止まる
