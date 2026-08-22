@@ -161,10 +161,20 @@ mermaid.jsは唯一の外部CDN依存で、読み込めないオフライン環�
 限りTailwindを外した。
 
 **issue #54 以降、一覧・表形式のHTMLも自己完結CSSになった**（`reports/` `plans/` のHTMLビューの
-土台は `.claude/skills/issue-mr-flow/assets/` の2テンプレート）。したがって本スキルは
-もう例外ではなく、`reports/` 配下のHTMLはcanvas形式・一覧表形式のどちらも
-**外部依存を持たない**という点で揃っている（唯一の外部依存は、本スキルが任意で使う
-mermaid.jsだけである）。
+土台は `.claude/skills/issue-mr-flow/assets/` の2テンプレート）。したがって「CDN前提の一覧表形式に
+対し、canvas形式だけが自己完結」という以前の対比は、もう成り立たない。ただし**両者が完全に同じに
+なったわけではない**ので、次のように区別して扱う。
+
+| 形式 | 外部を読みに行く記述 |
+|---|---|
+| 一覧・表形式（`reports.template.html` / `plans.template.html`） | **無い**（`<script src>` も `<link href>` も持たない） |
+| canvas形式（本スキル） | **mermaidを使う場合に限り、CDNの `<script src>` を1本読む**。使わない場合はその `<script>` ごと削除すれば外部依存ゼロになる |
+
+**「URLを1文字も含まない」という意味での自己完結ではない点に注意する。** canvas形式は
+mermaidを外しても `http://www.w3.org/2000/svg`（`createElementNS` に渡すSVGの名前空間）を
+5箇所持つ。これは外部を読みに行く記述ではないため、`reports/REVIEW-POINTS.md` の自己完結の
+検査も「実際に外部を読みに行く記述」（`src`/`href`/`url()` に `https?://` が来る）だけを
+数える形にしてある。
 
 ## 参考
 
