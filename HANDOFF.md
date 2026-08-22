@@ -17,7 +17,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - issue: #70（https://github.com/yuki-matsu783/MR-driven-workflow/issues/70 ）
 - ブランチ: `claude/gemini-to-claude-migration-jc64gu`
 - PR: #157（Draft。https://github.com/yuki-matsu783/MR-driven-workflow/pull/157 ）
-- push回数: 8
+- push回数: 10
 - 現在のループ: 3-6〜3-9 の1周目（進行中）
 - 追従監視: 購読あり（web。subscribe_pr_activity + 自己チェックイン）
 
@@ -154,29 +154,43 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
   `.gemini/` へ手書きスクリプトを増やさない前置フィルタ案を採った
   （`block-direct-git-commit.sh`・`post-issue-create-notice.sh` への同じ適用は
   **Claude側 27 clone → 0** と効果が大きいが issue #70 の範囲外なので別issueへ）
+- flow-id 3-6: **実装を完了**（`【実装】【テスト】` の13件すべて）。`sync-gemini-assets.sh` を新設し、
+  `setup-gemini-links.sh` を削除、`extract-frontmatter.sh` へ `.gemini` 除外、`.gitignore` から9行削除、
+  配布アセット3ファイルを「配布先で生成する」形へ改修。`.gemini/` は148ファイルの生成物になった
+  （結果の正文: `reports/20260822_nimble-syncing-lantern_gemini変換スクリプトの実装結果.md`）
+- flow-id 3-6: 単体テスト `test_sync_gemini_assets.sh` を新設（**54件**、T1〜T12を網羅）。
+  リポジトリ内の全テスト16本・**1010件が緑**。`--check` が0を返す（`.claude/` と同期）
+- flow-id 3-6: **計画に無かった判断3件を決めた**。(1) hookのパスは `.claude/hooks/` のまま書き換えない
+  （同期を忘れても両経路が同じスクリプトを実行するため）。(2) `autoCompactWindow` は写像しない
+  （Gemini の `compressionThreshold` は使用率の分数で換算できない。**調査で未判定だった1件が決着**）。
+  (3) 未知のトップレベルキーはエラーで落とす（黙って落とすとテストが永久に緑で通るため）
+- flow-id 3-6: **新設テストが不具合3件を検出**。(1) 未知ツール名のエラーからツール名が消える
+  (2) ゴールデン比較が末尾改行で必ず落ちる (3) **フィクスチャがドキュメント索引に載る**
+  （`.md` は無条件に走査される。拡張子を `.md.fixture`/`.md.expected` にして解消）
+- flow-id 3-6: **T11・T12の検出力を意図的に壊して確認**した（「異常が無ければ何も出ない」形の
+  テストが空振りしていないことの裏付け）。T11はパターンを狭めると取りこぼし2件を検出、
+  T12はpushペイロードならスタブ `jq` が呼ばれる
 
 ## 次にやること
 
-- **flow-id 3-6 の残り＝実装に入る。未決は無くなった**（`args` の連結規則・`if` の写像は
-  2026-08-22に確定。`【設計】` の該当2節が正）
-- 実装の対象は**13件**（`【実装】【テスト】` の変更対象表。前置フィルタ2本を追加）。
-  テストは **T1〜T12**
-- **`args` は `bash $GEMINI_PROJECT_DIR/.claude/hooks/x.sh` の形。** こちらでクォートしない・
-  波括弧を付けない（Gemini側が `escapeShellArg` で代入前にクォート済み。波括弧形式は置換の
-  正規表現に一致しない）。**`${CLAUDE_PROJECT_DIR}` を機械的に変数名だけ差し替えると静かに壊れる**
-- **`if` は落とし、対象2本の `main()` 冒頭へゼロforkの前置フィルタを置く。**
-  パターンは**精密判定の超集合**にすること（`*push*`。`git[[:space:]]+push` へ縮めると
-  `git -C /x push` を取りこぼす）
-- **計画をまたぐ順序に注意**: `extract-frontmatter.sh` への `.gemini` 除外（`【実装】【テスト】`）は、
-  繰り下げ（`【AIアセット作成】`）の**前提条件**である（同期 5-3 が片付け 5-5 より前にあり、
-  片付けが `index.jsonl` を再生成するため）
-- **`matcher` は一般形で実装する。** Claude の `matcher` を `|` で分割して Gemini の enum 値と
-  突き合わせ、全体を覆うなら省略・部分集合なら複製。今回はたまたま前者に当たる、という形に
-  しておかないと、`.claude/settings.json` 側が一部ソースだけ指定するよう変わったときに黙って壊れる
-- **`if` を落とすと Bash用・PowerShell用の2エントリが同一内容になる。** 重複排除しないと
-  同じスクリプトが2回ずつ走る（変換規則として `【設計】` に明記済み）
+- **flow-id 3-6 の残り＝ flow-id 5-3 の新設と以降の繰り下げ**
+  （`plans/【AIアセット作成】flow-id5-3の新設と以降の繰り下げ.md`）。**前提条件だった
+  `extract-frontmatter.sh` の `.gemini` 除外は完了した**ので、着手できる
+- 繰り下げは**109箇所／21ファイル**。**降順（大きいflow-idから）に置換**し、新設行は最後に足す
+  （昇順だと置換後の値をさらに置換してしまう）
+- **`.gemini/` を触ったら `bash .claude/scripts/src/sync-gemini-assets.sh` を流し直す。**
+  `.claude/` を編集したのに `.gemini/` が古いままだと `--check` が落ちる
+  （SKILL.md・rules を書き換える繰り下げ作業は、ほぼ必ず `.gemini/` に差分を生む）
+- **`.gemini/` 側を直接編集しない。** 実体は `.claude/` 側で、`.gemini/` は上書きされる
 - フェーズ3の結果確認（flow-id 3-7 の直後）で**敵対的レビューを実施する**（ユーザーからの
   常設指示。フェーズ3のカウンタは 0/3）
+- フェーズ4で拾うもの（今回は**意図的に手を付けていない**）:
+  - `README.md` L35 / `index.md` L36 / `.claude/rules/directory-structure.md` L118 が、
+    削除済みの `setup-gemini-links.sh` を指している
+  - DDR `i0000-13`（gemini配下はGit管理下に置かない）を `status: superseded` /
+    `superseded_by: "i0070-01"` にし、新しい `i0070-01` を書く → `generate-ddr-list.sh`
+  - `.claude/docs/spec/sync-gemini-assets.md` の新規作成（スクリプト冒頭がこのパスを指している）
+  - policy engine の Workspace 層が無効であること（upstream #18186）を spec へ残す
 
 ## 判断を迷った内容
 
