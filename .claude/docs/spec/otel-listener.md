@@ -10,10 +10,10 @@ keywords: [OpenTelemetry, OTLP, session.id, listener, session-start, sessions.js
 
 ## 背景・目的
 
-issue #103。Claude Code公式のOpenTelemetry（OTLP）エクスポートをローカルで受信し、
-`session.id`属性からセッションの出力先ワークスペースを引いて`<ワークスペース>/usage/`配下へ
-振り分け保存する機構。参考資料（`参考ディレクトリ/otel/`、Git管理外のPython/PowerShell実装）
-を土台に、本リポジトリの言語方針に合わせてperlへ移植した。
+Claude Code公式のOpenTelemetry（OTLP）エクスポートをローカルで受信し、`session.id`属性から
+セッションの出力先ワークスペースを引いて`<ワークスペース>/usage/`配下へ振り分け保存する機構。
+移植元実装（Git管理外の当時のローカル資料にあったPython/PowerShell実装）を土台に、本リポジトリの
+言語方針に合わせてperlへ移植した。
 
 **既存の対応工数レポート機構**（`.claude/hooks/post-push-usage-report.sh` /
 `.claude/hooks/lib/UsageTracking.sh`）は`transcript_path`が指すJSONLの自前パースに依存しており、
@@ -21,7 +21,7 @@ issue #103。Claude Code公式のOpenTelemetry（OTLP）エクスポートをロ
 [i0000-04](../ddr/i0000-04-対応工数レポートはtranscript自前パースで実装する.md)に記録済みである。
 本機構は、この非公開フォーマット依存に対して**Claude Code公式のテレメトリ経路（OTLP）を
 並行して確保する土台**であり、**対応工数レポートの集計元をtranscriptパースからテレメトリへ
-置き換えるものではない**（issue #103期待する動作9で明示的にスコープ外）。
+置き換えるものではない**（明示的にスコープ外）。
 
 ## 仕組み
 
@@ -30,14 +30,18 @@ issue #103。Claude Code公式のOpenTelemetry（OTLP）エクスポートをロ
 2. フックがこれを対応表（共有位置の`sessions.jsonl`）へ追記し、リスナーが起動していなければ
    デタッチ起動する。
 3. リスナー（`.claude/hooks/otel/listener.pl`）は受信したOTLP/JSONペイロードを再帰的に全走査
-   して`session.id`属性を拾い（`.claude/hooks/otel/lib/SessionIdFinder.pm`）、対応表から
-   出力先ワークスペースを引く（`.claude/hooks/otel/lib/OtelRegistry.pm`）。
-4. 引けた分は`<cwd>/usage/claude-otel-YYYYMMDD.jsonl`へ、引けなかった分は共有位置の
-   `unrouted-YYYYMMDD.jsonl`へ追記する。
+   して`session.id`属性をすべて拾い（`.claude/hooks/otel/lib/SessionIdFinder.pm`）、対応表から
+   session.idごとの出力先ワークスペースを引く（`.claude/hooks/otel/lib/OtelRegistry.pm`）。
+4. **1つ以上引けた場合**は、引けた出力先ワークスペースの重複を除いたうえで、それぞれの
+   `<cwd>/usage/claude-otel-YYYYMMDD.jsonl`へペイロード全体（1件）をそのまま追記する
+   （複数のワークスペースが同じペイロードから引かれた場合は、その数だけ複製して書く）。
+   **1つも引けなかった場合のみ**、共有位置の`unrouted-YYYYMMDD.jsonl`へ追記する。
 
-`session.id`はメトリクスにもログにも付く標準属性（`OTEL_METRICS_INCLUDE_SESSION_ID`の既定が
-true）。ネストの深さがシグナル種別（メトリクス/ログ/トレース）によって異なるため、リスナーは
-構造を決め打ちせずJSON全体を全走査する。
+`session.id`はresource属性・イベント属性としてOTLPペイロードのどこかに付与される想定だが、
+ネストの深さがシグナル種別（メトリクス/ログ/トレース）によって異なるため、リスナーは構造を
+決め打ちせずJSON全体を全走査する。`OTEL_METRICS_INCLUDE_SESSION_ID`はメトリクス側の
+`session.id`属性を含めるかどうかの設定であり、ログ側にも同様に付与されるかは未確認である
+（未確認のまま構造非依存の全走査設計にしている、という前提は変わらない）。
 
 ## 配置
 
@@ -54,28 +58,32 @@ true）。ネストの深さがシグナル種別（メトリクス/ログ/ト�
     └── test_otel_registry.pl
 ```
 
-`.claude/scripts/test/`（`.claude/scripts/src/`配下スクリプト専用、
-`.claude/rules/directory-structure.md`）ではなく`.claude/hooks/otel/test/`にテストを置く。
-本機構は`.claude/hooks/`配下の常駐プロセスであり、`.claude/scripts/src/`配下のAIエージェント
-能動実行スクリプトとは性質が異なるため。
+配置・テスト置き場の判断基準は`.claude/rules/directory-structure.md`のツリーと「配置の指針」を
+正とする（本specはそちらへの重複記載を避ける）。要点のみ記すと、`.claude/scripts/test/`
+（`.claude/scripts/src/`配下の、AIエージェントが能動的に実行するスクリプト専用）ではなく
+`.claude/hooks/otel/test/`にテストを置く。本機構は`.claude/hooks/`配下の常駐プロセスであり、
+`.claude/scripts/src/`配下のスクリプトとは性質が異なるため。
 
 ## 設定項目
 
 | ファイル | 管理 | 内容 |
 |---|---|---|
 | `.claude/settings.json` | Git管理下（共有） | `hooks.SessionStart`のフック登録、環境非依存の`env`（`CLAUDE_CODE_ENABLE_TELEMETRY`・`OTEL_METRICS_EXPORTER`・`OTEL_LOGS_EXPORTER`・`OTEL_EXPORTER_OTLP_PROTOCOL`・`OTEL_METRIC_EXPORT_INTERVAL`・`OTEL_METRICS_INCLUDE_ENTRYPOINT`） |
-| `.claude/settings.local.json` | Git管理外（`.gitignore`対象） | 環境依存の`env`（`OTEL_EXPORTER_OTLP_ENDPOINT`・`OTEL_RESOURCE_ATTRIBUTES`）。Windows/WSLで異なるポート・属性値を持つため分離している（理由・却下案: [i0103-02](../ddr/i0103-02-OTelエンドポイント設定をsettings.local.jsonへ分離する理由.md)） |
+| `.claude/settings.local.json` | Git管理外（`.gitignore`対象） | 環境依存の`env`（`OTEL_EXPORTER_OTLP_ENDPOINT`・`OTEL_RESOURCE_ATTRIBUTES`・`OTEL_USAGE_PORT`）。Windows/WSLで異なるポート・属性値を持つため分離している（理由・却下案: [i0103-02](../ddr/i0103-02-OTelエンドポイント設定をsettings.local.jsonへ分離する理由.md)） |
 | `.claude/settings.local.json.example` | Git管理下（テンプレート） | 上記のコピー元。導入手順（`DEVELOPERS.md`）から参照する |
 
 環境変数（リスナー・フックのプロセス環境）:
 
 | 変数 | 既定値 | 意味 |
 |---|---|---|
-| `OTEL_USAGE_PORT` | `4318` | リスナーの待受ポート |
+| `OTEL_USAGE_PORT` | `4318` | リスナーの待受ポート。**`.claude/settings.local.json`の`env.OTEL_USAGE_PORT`で明示的に設定する値**（既定値のままではWindows/WSLの両方が4318を使おうとし、後から起動した側は結線できない） |
 | `CLAUDE_OTEL_SHARED_DIR` | Windows: `%USERPROFILE%\.claude-otel\`、WSL/Linux: `~/.claude-otel/` | 対応表・未振り分けファイル・リスナーログの共有位置 |
 
 Windows/WSL間でポート番号（4318/4319）を分けるのは、両者が127.0.0.1を共有しつつも別プロセス
-空間で動くため、同じポートで両方のリスナーを同時に立てられないため（issue #103期待する動作5）。
+空間で動くため、同じポートで両方のリスナーを同時に立てられないためである。
+`.claude/settings.local.json`の`env`に`OTEL_EXPORTER_OTLP_ENDPOINT`（送信先）と
+`OTEL_USAGE_PORT`（リスナーの待受先）の**両方**を、実際に起動する環境向けの値で揃える必要が
+ある（`OTEL_USAGE_PORT`だけが未設定だと、送信先とリスナーの待受ポートが食い違い結線できない）。
 
 ## 出力形式
 
@@ -89,7 +97,9 @@ session_id → cwd の対応表。1行1エントリのJSONL。
 
 `schemaVersion`は、複数リポジトリ・複数バージョンの本機構を同時運用したときに、対応表の行が
 どのバージョンで書かれたか判別できるようにするために付与している（一致しない行はリスナー側で
-無視される）。500行を超えたら直近300行へ切り詰める。
+無視される）。500行を超えたら直近300行へ切り詰める。**この切り詰めは行数だけで機械的に行う**
+ため、稼働中のセッションのエントリであっても古い方から容赦なく捨てられうる（切り詰め後にそのcwdの
+セッションからOTLPが届くと、対応表を引けず`unrouted`側へ振り分けられる）。
 
 ### セッション出力（`<cwd>/usage/claude-otel-YYYYMMDD.jsonl`）
 
@@ -108,10 +118,10 @@ session_id → cwd の対応表。1行1エントリのJSONL。
 
 - 多重起動防止: `/dev/tcp/127.0.0.1/${PORT}`への接続試行（bash組み込み、外部コマンド不要）。
   既に待受中ならリスナーを起動せず終了する。
-- デタッチ起動: `uname`相当の判定で環境分岐する。
-  - WSL/Linux: `setsid nohup perl listener.pl >listener.log 2>&1 </dev/null & disown`
-  - Windows(git bash/MSYS): `nohup perl listener.pl >listener.log 2>&1 </dev/null & disown`
-    （`setsid`が存在しないため省く）
+- デタッチ起動: `command -v setsid`の有無で環境分岐する（Windows(git bash/MSYS)には`setsid`が
+  無いため）。
+  - `setsid`あり（WSL/Linux）: `setsid nohup perl listener.pl >listener.log 2>&1 </dev/null & disown`
+  - `setsid`なし（Windows/git bash/MSYS）: `nohup perl listener.pl >listener.log 2>&1 </dev/null & disown`
 
 ## ベストエフォート方針
 
@@ -121,23 +131,45 @@ session_id → cwd の対応表。1行1エントリのJSONL。
 
 ## 既知の制限
 
-参考実装（`参考ディレクトリ/otel/README.md`）の制限をそのまま踏襲する。
-
 - セッション開始直後の数秒間は、リスナー起動前のエクスポートを取りこぼす。
 - セッション中に`cwd`が変わっても対応表は追従しない（`CwdChanged`フックでの更新は本機構の
   スコープ外）。
 - 出力ファイル（`usage/claude-otel-YYYYMMDD.jsonl`）は日次ローテーションのみで、古いファイルの
   自動削除は行わない。
 - リスナーはClaude Code終了後も常駐する。ログオン時の自動起動は本機構のスコープ外。
+- 対応表（`sessions.jsonl`）は500行を超えると直近300行へ機械的に切り詰められるため、稼働中の
+  セッションのエントリが古い順に消え、以後そのセッションのOTLPが`unrouted`側へ振り分けられる
+  ことがある（上記「出力形式」参照）。
+- **リスナーは単一プロセス・逐次acceptで動作し、受信側に読み取りタイムアウトを持たない。**
+  接続だけして本文を送らないクライアント、または`Content-Length`が実際のbody長より大きい
+  リクエストが1本でも来ると、そのリクエストの読み取りでブロックしたままacceptループが進まなく
+  なり、以後のテレメトリをすべて取りこぼす。ポート自体は掴んだままのため、多重起動防止の判定は
+  「既に待受中」と見なしてリスナーを再起動しない。この状態からの回復は、リスナープロセスを
+  手動で終了させ、次回セッション開始時の起動判定に任せる以外に手段が無い。
 
 ## 導入手順
 
 `DEVELOPERS.md`「OpenTelemetryリスナーの導入」節を参照（前提・設定手順・動作確認・単体テスト
 実行方法を記載。本specでは重複記載しない）。
 
+## 配布時の扱い
+
+`.claude/settings.json`・`.claude/hooks/otel/`一式は配布対象アセットに含まれる
+（`.claude/docs/spec/distribution-assets.md`）。導入済みの配布先では、次の2点が**利用者側の
+追加設定なしに既定で有効**になる。
+
+- テレメトリ送信（`env.CLAUDE_CODE_ENABLE_TELEMETRY=1`ほか）が既定でONになる。
+- `hooks.SessionStart`に本機構のフックが登録されているため、`.claude/settings.local.json`の
+  有無に関わらず、毎セッションでperlの常駐プロセス起動を試みる。
+
+perlが実行できない環境では、この起動試行は「ベストエフォート方針」により無言で失敗し
+（`session-start.sh`は常にexit 0）、セッション開始自体は妨げない。テレメトリ送信・リスナー
+起動を無効化する明示的なオプトアウト手段は、本specの時点では用意していない（下記
+「未決定事項・懸念点」）。
+
 ## 影響範囲
 
-### issue #103（新規追加）
+### 新規追加
 
 新規:
 - `.claude/hooks/otel/listener.pl`
@@ -152,20 +184,22 @@ session_id → cwd の対応表。1行1エントリのJSONL。
 変更:
 - `.claude/settings.json`（`env`セクション新設、`hooks.SessionStart`へフック登録）
 - `.gitignore`（`/.claude/settings.local.json`を追加）
+- `.claude/VERSION`（配布対象アセットの追加に伴う版上げ）
 - `DEVELOPERS.md`（導入手順を追記）
 
 ## 未決定事項・懸念点
 
-- **WSL実機でのe2e検証・Claude Code本体からの実際のOTLPエクスポート結線確認は、issue #103の
-  MRでは実施していない**。単体テスト（TAP形式、全19件成功）とWindows実機でのe2e検証
-  （scratchpad上の隔離環境、curl等での模擬リクエスト）は実施済みだが、実際のWSL環境での起動・
-  Claude Code本体を起動した状態での結線は、導入時にユーザー側で確認する方針で合意済み
-  （flow-id 3-8レビュー）。
+- **WSL実機でのe2e検証・Claude Code本体からの実際のOTLPエクスポート結線確認は未実施**。
+  単体テスト（TAP形式、全19件成功）とWindows実機でのe2e検証（隔離環境、curl等での模擬
+  リクエスト）は実施済みだが、実際のWSL環境での起動・Claude Code本体を起動した状態での結線は、
+  導入時にユーザー側で確認する方針で合意済み。
 - **対応表・未振り分けファイルの共有位置（`%USERPROFILE%\.claude-otel\` / `~/.claude-otel/`）は、
   複数リポジトリ間で共有される。** 複数のワークスペースを同時に開く場合、対応表は1つのファイルに
-  複数ワークスペース分のエントリが混在するが、`session_id`をキーに引くため混線はしない
-  （実機検証で確認済み、`reports/20260823_humming-mapping-pie_OTelリスナー機構の実装.md`）。
+  複数ワークスペース分のエントリが混在するが、`session_id`は生成時にワークスペースをまたいで
+  衝突しないため、対応表からcwdを引く際に混線はしない。
 - **リスナーのバージョン不整合**: 複数のリポジトリ（本機構の異なるバージョンを持つ）が同じ
   マシン上で同じ共有位置を使う場合、先に起動したリスナーのバージョンが後から開いたリポジトリの
   リスナー起動を防いでしまう可能性がある（多重起動防止はポート単位のため）。`schemaVersion`は
   対応表の行の互換性チェックには使えるが、リスナープロセス自体のバージョン管理は行っていない。
+- **配布先でのテレメトリ既定ON・常駐プロセス既定起動を望まない場合のオプトアウト手段が未定義**
+  （上記「配布時の扱い」参照）。

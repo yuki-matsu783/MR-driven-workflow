@@ -30,6 +30,9 @@ keywords: [directory, repository-map, リポジトリマップ, ディレクト�
       `passed=N failures=N`を出力し失敗時は終了コード1。
   - [./.claude/hooks/](./.claude/hooks/) SessionStart/PostToolUse等のClaude Code hookスクリプト。
     - [./.claude/hooks/lib/](./.claude/hooks/lib/) 複数hookスクリプトで使い回す共通ロジック。
+    - [./.claude/hooks/otel/](./.claude/hooks/otel/) OTelリスナー機構（Claude Code公式の
+      OpenTelemetry出力をローカルで受信し`usage/`配下へ振り分け保存する常駐プロセス。詳細:
+      `.claude/docs/spec/otel-listener.md`）。
 - [./.gemini/](./.gemini/) Gemini CLI向け設定。`settings.json`のみGit管理。`docs/`・`hooks/`・
   `rules/`・`scripts/`・`skills/`は`.claude/`配下の同名ディレクトリへのローカルリンクで、
   `.gitignore`対象（Git管理外。理由は`.claude/rules/directory-structure.md`参照）。
