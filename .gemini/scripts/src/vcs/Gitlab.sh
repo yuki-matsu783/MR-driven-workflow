@@ -1,0 +1,607 @@
+#!/usr/bin/env bash
+#
+# GitLab固有の処理（`glab` CLIラッパー、bash版）。
+# 設計: .claude/docs/spec/issue-mr-workflow.md, .claude/docs/spec/shell-scripts.md
+#
+# 単体でsourceせず、必ず .claude/scripts/src/vcs/Provider.sh 経由で使う
+# （Provider.sh が get_provider の判定結果に応じてこのファイルの関数へディスパッチする）。
+# 前提: `glab` CLIがインストール・認証済み（`glab auth login`）であること。
+#
+# 検証状況: ローカルに立てたGitLab CE 18.5.4（Docker）に対し、`glab` 1.114.0から
+# **issue #127 時点の27関数を実機実行して動作を確認済み**（うち公開ディスパッチャを持つ20関数は
+# `Provider.sh`経由で直接、残り7関数は上位関数経由の間接確認）。検証環境の再現手順は
+# .claude/docs/spec/gitlab-verification-environment.md を参照。
+#
+# **現在の関数数は28で、検証済みの27と1件ずれる。** 差分は issue #43 が追加した
+# `gitlab_read_file_at_ref` で、issue #127 の検証より後に入ったため未検証である
+# （当該関数に【未検証】マーカーが付いている）。**この行の数を、関数を足したときに
+# 更新すること**（issue #48当時の「全13関数」が実態と合わなくなったのと同じ陳腐化を繰り返さない）。
+#
+#   - issue #48: 当時の全13関数を実機実行。3件の不具合（システムノートの混入・
+#     `glab mr note --message`の非推奨・空コミットフォールバックの前提誤り）を修正した。
+#     ただし当時は`get_provider`がself-hostedのGitLab URLを判定できなかったため、
+#     `gitlab_*`関数を直接呼ぶ形で迂回している。
+#   - issue #45: その`get_provider`の判定を修正し、同じ環境で`Provider.sh`経由のディスパッチが
+#     通ることを確認した（**issue #48時点の「未修正」という制約は解消済み**）。
+#   - issue #127: issue #48以降に追加された13関数を`Provider.sh`経由で実機実行し、
+#     **サブグループ・ネストしたnamespaceでの`glab`のプロジェクト解決**（3階層
+#     `grp127/sub127/issue127-verify-sub`）も確認した。この検証で2件の不具合
+#     （差分アンカーの土台がCompareページで機能しない・`gitlab_get_repo_url`の未定義呼び出し）を
+#     検出し修正、あわせて`gitlab_get_diff_anchor_base_url` / `gitlab_mr_has_version_head`の
+#     2関数を追加してこれも確認した。
+#
+# 関数の数え方: issue #48当時13 − 1（`gitlab_get_repo_url`。issue #44が定義を削除し
+# `get_repo_url`へ一本化した）+ issue #127で検証した13 + 同issueで追加した2 = **27**（検証済み）。
+# これに issue #43 の `gitlab_read_file_at_ref` を足した **28** が
+# `grep -c '^gitlab_[a-z0-9_]*()' <本ファイル>` の値である。
+#
+# **どこまで確認できていて何が残っているかの正は
+# .claude/docs/spec/issue-mr-workflow.md の「未決定事項・懸念点」の1箇所である。**
+# ここへ一覧を再掲しない（同じ内容を複数箇所へ書くと片方だけが更新されて食い違う。issue #127）。
+# なお本ファイルで確認したのは「関数がAPI経路で期待どおり動くこと」までで、
+# 「生成したURLがブラウザで意図どおり働くこと」は上記の節に別項目として残っている。
+
+gitlab_get_issue() {
+  local number="$1"
+  local issue title slug
+  issue="$(glab issue view "$number" --output json)"
+  title="$(printf '%s' "$issue" | jq -r '.title')"
+  slug="$(to_slug "$title")"
+  printf '%s' "$issue" | jq --arg slug "$slug" \
+    '{number: .iid, title: .title, body: .description, url: .web_url, slug: $slug}'
+}
+
+# タイトル・本文からissueを新規作成する。作成後は `gitlab_get_issue` で正規化した
+# JSON（number/title/body/url/slug）を返す（get_issueと同じ形にすることで呼び出し側の扱いを揃える）。
+gitlab_new_issue() {
+  local title="$1" body="$2"
+  local url number
+  url="$(glab issue create --title "$title" --description "$body" --yes)"
+  number="$(printf '%s' "$url" | grep -oE '[0-9]+$')"
+  if [ -z "$number" ]; then
+    echo "glab issue create の出力からissue番号を取得できませんでした: $url" >&2
+    return 1
+  fi
+  gitlab_get_issue "$number"
+}
+
+# `glab issue list --search` の出力を共通形式（number/title/state/url）へ正規化する（issue #68）。
+# `glab` を呼ばない純粋関数（jqのみ）のため .claude/scripts/test/test_vcs_provider.sh から単体テストできる。
+#
+# GitLab APIのキー名の違いを `gitlab_get_issue` と同じ方針で吸収する（`iid`→`number`、
+# `web_url`→`url`）。`state` はGitLabが `opened`/`closed` を返すため、GitHub側（`OPEN`/`CLOSED`を
+# 小文字化）と揃うよう `opened` のみ `open` へ読み替える（`closed` はそのまま）。
+gitlab_normalize_issue_search_results() {
+  local raw="$1"
+  printf '%s' "$raw" | jq -c \
+    '[.[] | {number: .iid, title: .title, state: (if .state == "opened" then "open" else .state end), url: .web_url}]'
+}
+
+# キーワードで既存issueを検索する（issue #68: 起票前の重複チェック用）。
+# 第1引数は1キーワードあたりの取得件数、第2引数以降が検索キーワード。
+# キーワードごとに1回ずつ検索して統合する理由は `github_search_issues` のコメントを参照。
+#
+# `glab issue list --search` はtitleとdescriptionを対象に検索する。`--all` を付けることで
+# opened/closedの両方を対象にする（closedを含めるのはissue #68の要求）。
+gitlab_search_issues() {
+  local limit="$1"
+  shift
+  local keyword results=()
+  for keyword in "$@"; do
+    results+=("$(gitlab_normalize_issue_search_results \
+      "$(glab issue list --search "$keyword" --all --per-page "$limit" --output json)")")
+  done
+  merge_issue_search_results "${results[@]}"
+}
+
+gitlab_new_draft_merge_request() {
+  local issue_number="$1" branch="$2" base_branch="$3" title="$4"
+  local description
+  description="$(printf 'Closes #%s\n\n(plan作成中。/issue-mr-flow describe で更新する)' "$issue_number")"
+
+  if ! glab mr create --draft --source-branch "$branch" --target-branch "$base_branch" \
+      --title "$title" --description "$description" --yes >/dev/null; then
+    # 差分（コミット）が無いブランチで`glab mr create`が失敗するかどうかは、プロバイダによって
+    # 異なる。issue #48でGitLab CE 18.5.4に対し実機確認したところ、targetブランチと同一SHAの
+    # ブランチでもMR作成は成功し、この分岐には到達しなかった。差分ゼロで失敗するのは
+    # `gh pr create`（GitHub）側の制約である（issue #48対応時、実際に
+    # `No commits between main and feature-48-...`が発生しフォールバックが動作した。
+    # 設計: .claude/docs/ddr/i0000-03-DraftPR作成失敗時は空コミットで自動リトライする.md）。
+    #
+    # したがってこの分岐はGitLabでは通常到達しない安全網である。削除せず残しているのは、
+    # 実機確認できたのが18.5.4の1バージョンのみで、他バージョン・他設定でも必ず成功すると
+    # 言い切れないため。`glab`本体のエラーはそのまま表示した上で、想定内でありこれから
+    # 空コミットにフォールバックする旨を明示する（失敗として扱わせないため）。
+    echo "glab mr create が失敗しましたが、baseとの差分が無いことによる既知の制約です。空コミットを1つ積んでリトライします" >&2
+    add_empty_commit_for_draft_mr
+    if ! glab mr create --draft --source-branch "$branch" --target-branch "$base_branch" \
+        --title "$title" --description "$description" --yes >/dev/null; then
+      echo "glab mr create に失敗しました（空コミットでのリトライ後も失敗）" >&2
+      return 1
+    fi
+  fi
+  glab mr view "$branch" --output json --jq '.iid'
+}
+
+# --- レビューコメント取得（issue #43） -----------------------------------------------------
+#
+# 出力仕様の見直しにより、この層は**正規化JSONを返すだけ**になった（テキスト整形と、指摘行
+# 前後のソース切り出しは `Provider.sh` の共通の後段ロジックが行う）。issue #43 以前は
+# GitHub側とGitLab側がそれぞれ別々に整形しており、行頭ラベルが `[review unresolved ...]` /
+# `[unresolved ...]` と非対称だった。`.claude/hooks/session-start.sh` は
+# `^\[review unresolved threadId=` で未解決件数を数えているため、**GitLabリポジトリでは
+# 未解決件数が常に0件と表示されていた**（issue #43 の調査で判明）。整形を1箇所へ寄せることで
+# この種の非対称が構造的に起きなくなる。
+
+# discussions APIのJSONを、プロバイダ非依存の正規化JSONへ変換する純粋関数
+# （`glab`呼び出しを伴わないため単体テストできる。.claude/rules/shell-script-style.md「テスト」）。
+# 第1引数はGitLab REST APIの `projects/:id/merge_requests/<n>/discussions` が返すJSON配列そのもの。
+#
+# GitLabは「説明を変更した」等の操作履歴を、レビューコメントと同じdiscussions APIから
+# `system: true` のnoteとして返す（issue #48で実機確認: `changed the description`）。
+# レビュー往復の完了判定を狂わせるため機械的に除外する。GitHub側はGraphQLの`reviewThreads`を
+# 使っておりシステムイベントを返さないため、同種の問題は無い。
+#
+# **解決状態の粒度が違う点をここで吸収する。** GitHubはスレッド単位（`isResolved`）だが、
+# GitLabはnote単位（`resolvable` / `resolved`）である。共通形式はスレッド単位のため、
+# 「resolvableなnoteが1つ以上あり、そのすべてが解決済み」のときだけスレッドを解決済みとみなす
+# （個人メモ（individual_note）等 resolvable でないnoteしか無いスレッドは常に未解決扱い。
+# 従来の挙動を維持している）。
+#
+# 位置と断面（`path` / `line` / `sha`）は `position` から解決する。
+#   - 追加・変更行への指摘: `new_path` / `new_line` / `head_sha`
+#   - 削除行への指摘（`new_line` が無い）: `old_path` / `old_line` / `base_sha`
+#     （削除された行は `head_sha` 側に存在しないため、断面はベース側を使う。issue #43）
+# 第3引数 `mr_url`（省略可）を渡すと、各noteの公式パーマリンク `<mr_url>#note_<noteId>` を
+# `url` として持たせる（issue #42。GitHubのGraphQL `url` フィールドに相当するものが
+# GitLabのdiscussions APIには無いため、note `id` から組み立てる）。
+#
+# 通常コメント（`comments`）は常に空配列を返す。GitLabのdiscussions APIはインラインコメントと
+# MR全体へのコメントを同じ配列で返すため、後者も `path: null` のスレッドとして `threads` に
+# 含まれる（従来と同じ出力になる）。
+gitlab_normalize_discussions() {
+  local discussions="$1" include_resolved="${2:-false}" mr_url="${3:-}"
+
+  printf '%s' "$discussions" | jq -c --argjson includeResolved "$include_resolved" \
+    --arg mrUrl "$mr_url" '
+    {
+      threads: [
+        .[] as $d
+        | [ ($d.notes // [])[] | select(.system | not) ] as $notes
+        | select(($notes | length) > 0)
+        | [ $notes[] | select(.resolvable == true) ] as $resolvable
+        | (($resolvable | length) > 0
+           and ([ $resolvable[] | select(.resolved != true) ] | length) == 0) as $isResolved
+        | select(($isResolved | not) or $includeResolved)
+        | ($notes[0].position // null) as $pos
+        | (($pos != null) and (($pos.new_line // null) != null)) as $useNew
+        | {
+            threadId: ($d.id | tostring),
+            isResolved: $isResolved,
+            isOutdated: false,
+            path: (if $pos == null then null
+                   elif $useNew then ($pos.new_path // $pos.old_path // null)
+                   elif ($pos.old_line // null) != null then ($pos.old_path // $pos.new_path // null)
+                   else ($pos.new_path // $pos.old_path // null) end),
+            line: (if $pos == null then null
+                   elif $useNew then $pos.new_line
+                   else ($pos.old_line // null) end),
+            sha: (if $pos == null then null
+                  elif $useNew then ($pos.head_sha // null)
+                  else ($pos.base_sha // $pos.start_sha // null) end),
+            comments: [
+              $notes[]
+              | {
+                  author: (.author.username // "(unknown)"),
+                  body: (.body // ""),
+                  url: (if ($mrUrl | length) > 0
+                        then ($mrUrl + "#note_" + (.id | tostring))
+                        else null end)
+                }
+            ]
+          }
+      ],
+      comments: []
+    }
+  ' | tr -d '\r'
+}
+
+# レビュースレッドを正規化JSONで返す（GitHub側 `github_get_mr_review_threads` の対応関数）。
+gitlab_get_mr_review_threads() {
+  local mr_number="$1" include_resolved="${2:-false}"
+  local discussions repo_url="" mr_url=""
+  discussions="$(glab api "projects/:id/merge_requests/${mr_number}/discussions")"
+  # コメントのパーマリンク（issue #42）用にMRのURLを求める。ここで失敗しても本体の
+  # コメント取得は成功させたいため、握りつぶしてurl無しの出力へ縮退する。
+  #
+  # `get_repo_url` は Provider.sh 側のプロバイダ非依存な共有関数（`gitlab_get_issue` が
+  # `to_slug` を呼んでいるのと同じ形の依存）。
+  # issue #42 が呼んでいた `gitlab_get_repo_url` は issue #44 が定義を削除して
+  # この関数へ一本化しており、**呼び出し側だけが取り残されて未定義呼び出しになっていた**
+  # （並行ブランチのsemantic conflict。`2>/dev/null` が `command not found` を握りつぶすため、
+  # 無言でurl無しへ縮退していた。issue #127 で実機検証中に検出）。
+  if repo_url="$(get_repo_url 2>/dev/null)" && [ -n "$repo_url" ]; then
+    mr_url="$(gitlab_get_mr_url "$repo_url" "$mr_number")"
+  fi
+  gitlab_normalize_discussions "$discussions" "$include_resolved" "$mr_url"
+}
+
+# 指定したcommit時点のファイル内容を標準出力へ返す（ローカルにblobが無い場合のフォールバック。
+# issue #43。GitHub側 `github_read_file_at_ref` の対応関数）。取得できなければ何も出力せず
+# 終了コード1を返す。【未検証】: このリポジトリのremoteはGitHubのみのため実機確認していない。
+#
+# GitLabのRepository files APIは、パスをpercent-encodeして**スラッシュも `%2F` へ**置き換える
+# 必要がある（`url_encode_path_to_reply` は `/` を残すため、ここで追加で置換する）。
+gitlab_read_file_at_ref() {
+  local sha="$1" path="$2"
+  local encoded
+  url_encode_path_to_reply "$path"
+  encoded="${REPLY//\//%2F}"
+  glab api "projects/:id/repository/files/${encoded}/raw?ref=${sha}" 2>/dev/null
+}
+
+# 指定したdiscussion（スレッド）に対応内容を返信する。スレッドの解決（resolved）はレビュアー側の
+# 操作のためここでは行わない。
+#
+# 投稿した返信自身のパーマリンク（`<mrUrl>#note_<noteId>`）を標準出力へ返す（issue #42）。
+# POSTレスポンスのnote `id` から組み立てる。MRのURLを取得できなかった場合は何も出力しない。
+gitlab_add_mr_thread_reply() {
+  local mr_number="$1" thread_id="$2" reply_body="$3"
+  local response note_id repo_url="" mr_url=""
+  response="$(glab api "projects/:id/merge_requests/${mr_number}/discussions/${thread_id}/notes" \
+    -X POST -f "body=${reply_body}")"
+  note_id="$(printf '%s' "$response" | jq -r '.id // empty' | tr -d '\r')"
+  [ -n "$note_id" ] || return 0
+  if repo_url="$(get_repo_url 2>/dev/null)" && [ -n "$repo_url" ]; then
+    mr_url="$(gitlab_get_mr_url "$repo_url" "$mr_number")"
+    gitlab_get_note_url "$mr_url" "$note_id"
+  fi
+}
+
+# 指定ブランチに紐づくMRのJSONを返す（無ければ何も出力せず終了コード0）。途中引き継ぎ対応（resume）と、
+# comments/describeサブコマンドでの「現在のブランチのMR番号取得」の共通実装として使う。
+gitlab_get_mr_for_branch() {
+  local branch="$1"
+  local json
+  if ! json="$(glab mr view "$branch" --output json 2>/dev/null)"; then
+    return 0
+  fi
+  printf '%s' "$json" | jq '{number: .iid, url: .web_url, isDraft: .work_in_progress, title: .title}'
+}
+
+gitlab_set_mr_description() {
+  local mr_number="$1" body_file="$2"
+  local description
+  description="$(cat "$body_file")"
+  glab mr update "$mr_number" --description "$description" >/dev/null
+}
+
+# Draft MRのDraft状態を解除し、レビュー・マージ可能な状態にする（flow-id 5-5）。
+# GitLabはDraftをタイトルの `Draft:` 接頭辞で表現するため、`glab mr update <id> --ready` は
+# タイトル先頭の `Draft:` / `WIP:`（大文字小文字・重複を問わない）を除去した新タイトルを
+# APIへ送る実装になっている（glab本体のソース `internal/commands/mr/update/mr_update.go` で確認）。
+# 接頭辞が無い（＝既にDraftでない）MRに対しても、除去後のタイトルが元と同じになるだけで
+# エラーにはならないため冪等に扱える。
+gitlab_set_mr_ready() {
+  local mr_number="$1"
+  glab mr update "$mr_number" --ready >/dev/null
+}
+
+# 2つのref（ブランチ名・SHAいずれも可）間の差分を見れる「Compare」ページのURLを組み立てる
+# （純粋関数。`glab`呼び出しを伴わない）。GitLabの`/-/compare/<from>...<to>`はMR作成前から
+# 使われている汎用の比較ページ。issue #13フォローアップ。
+gitlab_get_compare_url() {
+  local repo_url="$1" from="$2" to="$3"
+  printf '%s/-/compare/%s...%s\n' "$repo_url" "$from" "$to"
+}
+
+# MRの「defaultブランチとの差分」を見れるURLを組み立てる（純粋関数）。issue #13。
+gitlab_get_mr_diff_url() {
+  local repo_url="$1" base_branch="$2" head_branch="$3"
+  gitlab_get_compare_url "$repo_url" "$base_branch" "$head_branch"
+}
+
+# MRの「前回push時点(from_sha)から今回push時点(to_sha)までの差分」を見れるURLを組み立てる
+# （純粋関数）。issue #13。
+gitlab_get_mr_diff_since_url() {
+  local repo_url="$1" from_sha="$2" to_sha="$3"
+  gitlab_get_compare_url "$repo_url" "$from_sha" "$to_sha"
+}
+
+# MR本体のページURLを組み立てる（純粋関数）。issue #42。noteのパーマリンクの土台に使う。
+gitlab_get_mr_url() {
+  local repo_url="$1" mr_number="$2"
+  printf '%s/-/merge_requests/%s\n' "$repo_url" "$mr_number"
+}
+
+# note（コメント）の公式パーマリンクを組み立てる（純粋関数）。issue #42。
+gitlab_get_note_url() {
+  local mr_url="$1" note_id="$2"
+  printf '%s#note_%s\n' "$mr_url" "$note_id"
+}
+
+# 特定ファイルの「そのref時点の本体」を開くblobページのURLを組み立てる（純粋関数）。issue #42。
+# `path`は呼び出し側でpercent-encode済みのものを渡す（`url_encode_path_to_reply`）。
+gitlab_get_blob_url() {
+  local repo_url="$1" ref="$2" path="$3"
+  printf '%s/-/blob/%s/%s\n' "$repo_url" "$ref" "$path"
+}
+
+# 指定SHAがMRのバージョン（push断面）のheadかを判定する。issue #127。
+# `gitlab_get_diff_anchor_base_url` が `?start_sha=` を付けてよいかの判定に使う。
+gitlab_mr_has_version_head() {
+  local mr_number="$1" sha="$2"
+  local versions
+  versions="$(glab api "projects/:id/merge_requests/${mr_number}/versions" 2>/dev/null)" || return 1
+  [ -n "$versions" ] || return 1
+  printf '%s' "$versions" \
+    | jq -e --arg sha "$sha" 'any(.[]; .head_commit_sha == $sha)' >/dev/null 2>&1
+}
+
+# 差分アンカーの土台にするページのURLを返す。issue #127。
+#
+# **GitLabのCompareページではアンカーが機能しない**（差分を非同期にストリーム描画するため、
+# ブラウザがフラグメントを解決する時点で対象要素がまだ存在しない）。MRの差分ページなら
+# 初回ロードから飛ぶことを実機の目視で確認した。
+#
+# 土台が覆う範囲は、呼び出し元のファイル一覧の供給元（`diff_range`）と一致させる。
+#
+# | pushの回 | `diff_range` | 土台URL |
+# |---|---|---|
+# | 初回（`since_sha` 無し） | `origin/<base>...HEAD` | `<mrUrl>/diffs` |
+# | 2回目以降 | `prev_sha...HEAD` | `<mrUrl>/diffs?start_sha=<prev_sha>` |
+#
+# MR全体の差分（`<mrUrl>/diffs`）を2回目以降にも使う案は採らなかった。前のpushで追加し今回の
+# pushで削除したファイル（**ファイルの改名も差分上は削除＋追加なので同じ形**）は、一覧には
+# 載るのにMR全体の差分には現れず、アンカーが着地先を失うため（実測: MR全体は30ファイル中0件、
+# `?start_sha=` は1ファイル中1件）。
+#
+# `start_sha` には**MRバージョンのheadでないSHAを渡してはいけない**。GitLabはエラーにせず
+# HTTP 200のまま0ファイルを返すため、無言で空の差分ページになる。呼び出し元の `prev_sha` は
+# pushを伴わないhookの誤検知でも上書きされうる（issue #23）ので、ここで検証して外れていたら
+# `<mrUrl>/diffs` へ縮退する。
+#
+# **この縮退は、上の「範囲を一致させる」原則を満たせない意図的な妥協である。** 縮退先は却下した
+# 案Aと同じ形であり、呼び出し元の `diff_range` は `prev_sha...HEAD` のままなので、そのpushに
+# 「前のpushで追加され今回削除された（＝改名された）ファイル」が含まれていれば、そのアンカーは
+# 着地先を失う。0ファイルの空ページを出すよりはましだが、正しくはない。**根治するには
+# `prev_sha` が汚れる原因（issue #23 のhook誤検知）を直す必要がある**（本issueの範囲外）。
+gitlab_get_diff_anchor_base_url() {
+  local compare_url="$1" mr_url="$2" mr_number="$3" since_sha="$4"
+  # MRのURLを取得できない経路（MCP経路等）では従来どおりCompareページへ縮退する。
+  # アンカーは機能しないが、壊れたURLを出すよりは現行の振る舞いを保つ。
+  if [ -z "$mr_url" ]; then
+    printf '%s\n' "$compare_url"
+    return 0
+  fi
+  if [ -z "$since_sha" ] || [ -z "$mr_number" ] \
+    || ! gitlab_mr_has_version_head "$mr_number" "$since_sha"; then
+    printf '%s/diffs\n' "$mr_url"
+    return 0
+  fi
+  printf '%s/diffs?start_sha=%s\n' "$mr_url" "$since_sha"
+}
+
+# 差分ページ内の特定ファイルの差分位置を指すアンカー付きURLを組み立てる（純粋関数）。issue #42。
+# GitLabの差分アンカーは `#<パス文字列のsha1>`（GitHubと違い `diff-` 接頭辞が付かない）。
+# ハッシュの入力は**percent-encode前の生パス**（encodeが要るblobリンクとは逆）。
+# issue #127 でローカルGitLab CE 18.5.4 に対して実機確認済み。
+# `base_url` は `gitlab_get_diff_anchor_base_url` の戻り値を渡す（Compareページを渡すと
+# アンカーが機能しない。同関数のコメント参照）。
+gitlab_get_diff_anchor_url() {
+  local base_url="$1" path_hash="$2"
+  printf '%s#%s\n' "$base_url" "$path_hash"
+}
+
+# 差分アンカーのハッシュ算出に使うアルゴリズム名を返す（純粋関数）。issue #42。issue #127 でローカルGitLab CE 18.5.4 に対し実機確認済み（`sha1` を返す）。
+gitlab_diff_anchor_algo() {
+  printf 'sha1\n'
+}
+
+# MRへ新規コメントを1件投稿する（スレッド返信・レビューではない通常コメント）。
+gitlab_add_mr_comment() {
+  local mr_number="$1" body_file="$2"
+  local body
+  body="$(cat "$body_file")"
+  # 安定版のREST APIを直接叩く（`glab mr note --message`はglab 1.114.0で非推奨警告を出し、
+  # 代替の`glab mr note create`はEXPERIMENTAL扱いのため採用しない。issue #48）。
+  # 同ファイルの gitlab_add_mr_thread_reply と実装方式が揃う。
+  glab api "projects/:id/merge_requests/${mr_number}/notes" \
+    -X POST -f "body=${body}" >/dev/null
+}
+
+# MRへ新規スレッド（discussion）を1件立てる（issue #121）。インラインではない（`position` を
+# 持たない）が、`gitlab_add_mr_comment` の単発noteと違い**返信と解決（resolve）ができる**形になる。
+#
+# `notes` APIで作ったnoteはGitLab上で `individual_note: true` / `resolvable: false` となり、
+# `gitlab_normalize_discussions` は resolvable でないnoteを常に「未解決」として出力する
+# （解決しようが無いため、レビュー往復の未解決一覧に残り続ける）。対応を求めるコメントは
+# `discussions` APIで投稿し、レビュアーが解決できる状態にする。
+#
+# 本文は `gitlab_add_mr_comment` と同じくファイル経由で受け取る（コマンド文字列へ長文を
+# 埋め込むとpush検知hookが誤発火するため。`.claude/rules/git-workflow.md`）。
+gitlab_add_mr_thread() {
+  local mr_number="$1" body_file="$2"
+  local body
+  body="$(cat "$body_file")"
+  glab api "projects/:id/merge_requests/${mr_number}/discussions" \
+    -X POST -f "body=${body}" >/dev/null
+}
+
+# --- 敵対的レビュー: インラインコメントの投稿（issue #77） ---
+#
+# GitLabは1リクエスト1指摘のため、GitHubのような「1件が不正だと全件失敗する」巻き添えは
+# 起きない。代わりに失敗理由をAPIが区別して返さないため、失敗した指摘はまとめてサマリへ回す。
+
+# finding 1件とMRの `diff_refs` から、`discussions` APIへPOSTするJSONボディを組み立てる（純粋関数）。
+# `position` の必須項目は `diff_refs`（base_sha / start_sha / head_sha）だけで揃う。
+#   - 新規行への指摘: `new_line` のみ
+#   - 削除行への指摘: `old_line` のみ（findingが `old_line` を持ち `line` を持たない場合）
+#   - コンテキスト行への指摘: 両方
+# `old_path` / `new_path` はGitLabが常に要求するため、片方しか無い場合は同じ値で埋める。
+gitlab_build_discussion_body() {
+  local finding="$1" diff_refs="$2"
+  printf '%s' "$finding" | jq -c --argjson refs "$diff_refs" '
+    . as $f
+    | {
+        body: ("Claude Codeより（敵対的レビュー）:\n\n"
+               + "**[" + ($f.severity // "minor") + " / 確度: " + ($f.confidence // "medium")
+               + (if $f.category then " / " + $f.category else "" end) + "]** "
+               + ($f.title // "") + "\n\n" + ($f.body // "")),
+        position: (
+          {
+            base_sha: $refs.base_sha,
+            start_sha: $refs.start_sha,
+            head_sha: $refs.head_sha,
+            position_type: "text",
+            old_path: ($f.old_path // $f.path),
+            new_path: ($f.path // $f.old_path)
+          }
+          + (if ($f.line // null) != null then {new_line: $f.line} else {} end)
+          + (if ($f.old_line // null) != null then {old_line: $f.old_line} else {} end)
+        )
+      }
+  ' | tr -d '\r'
+}
+
+# サマリ（インラインで示せなかった指摘のまとめ）を、スレッドと単発noteのどちらで投稿するかを
+# 決める純粋関数（issue #121）。`thread` / `note` のいずれかを出力する。
+#
+# GitHubと違いGitLabにはまとめ役のレビュー本文が無いため、サマリは別の1コメントとして投稿する。
+# このとき**指摘を1件でも含むなら `discussions`（スレッド）で投稿する**。インラインの指摘と同じく
+# 対応を求める内容であり、レビュアーが解決でき、`add_mr_thread_reply` で返信できる形にする必要が
+# あるため。
+#
+# 逆に**0件のとき（全件をインラインで示せたとき）は単発noteのままにする**。本文は
+# 「すべての指摘をインラインコメントで示しています」という通知でしか無く、スレッドにすると
+# 誰も解決しないまま未解決一覧に残り続けてレビュー往復の完了判定を濁す。
+gitlab_summary_post_kind() {
+  local summarized="$1"
+  if [ "$summarized" -gt 0 ]; then
+    printf 'thread\n'
+  else
+    printf 'note\n'
+  fi
+}
+
+# findings JSONファイルの指摘を、MRへインラインコメントとして投稿する。
+# 戻り値の形はGitHub版と揃える（呼び出し元にプロバイダ差を意識させない）。
+#
+# findingごとに `jq` を起動するが、1件ごとにHTTPリクエストが発生する経路であり、
+# 起動コストは無視できる（.claude/rules/shell-script-style.md「外部プロセス起動のコスト」は
+# ファイル数に比例して外部コマンドを起動するホットパスを対象とした指針）。
+gitlab_add_mr_inline_comments() {
+  local mr_number="$1" findings_file="$2"
+  local tmpdir diff_refs finding posted=0 summarized
+
+  tmpdir="$(mktemp -d)"
+  diff_refs="$(glab api "projects/:id/merge_requests/${mr_number}" | jq -c '.diff_refs')"
+  if [ -z "$diff_refs" ] || [ "$diff_refs" = "null" ]; then
+    # MR作成直後は diff_refs が null のことがある（issue #77 のフェーズ2で実機確認）。
+    sleep 5
+    diff_refs="$(glab api "projects/:id/merge_requests/${mr_number}" | jq -c '.diff_refs')"
+  fi
+  if [ -z "$diff_refs" ] || [ "$diff_refs" = "null" ]; then
+    printf 'gitlab_add_mr_inline_comments: MR %s の diff_refs を取得できませんでした\n' "$mr_number" >&2
+    rm -rf "$tmpdir"
+    return 1
+  fi
+
+  jq -c '(.findings // [])[]' "$findings_file" > "$tmpdir/findings.jsonl"
+  : > "$tmpdir/failed.jsonl"
+  while IFS= read -r finding; do
+    gitlab_build_discussion_body "$finding" "$diff_refs" > "$tmpdir/body.json"
+    if glab api "projects/:id/merge_requests/${mr_number}/discussions" \
+         -X POST -H "Content-Type: application/json" --input "$tmpdir/body.json" \
+         >/dev/null 2>&1 </dev/null; then
+      posted=$((posted + 1))
+    else
+      printf '%s\n' "$finding" >> "$tmpdir/failed.jsonl"
+    fi
+  done < "$tmpdir/findings.jsonl"
+
+  jq -s '.' "$tmpdir/failed.jsonl" | format_findings_summary > "$tmpdir/summary.md"
+  # Windowsネイティブのjqはコマンド置換でも行末へCRを付ける（`.claude/rules/shell-script-style.md`
+  # 「文字コード」）。CRが残ると数値比較が `integer expression expected` で落ちるため取り除く。
+  summarized="$(jq -s 'length' "$tmpdir/failed.jsonl" | tr -d '\r')"
+  case "$(gitlab_summary_post_kind "$summarized")" in
+    thread) gitlab_add_mr_thread "$mr_number" "$tmpdir/summary.md" ;;
+    note) gitlab_add_mr_comment "$mr_number" "$tmpdir/summary.md" ;;
+  esac
+
+  rm -rf "$tmpdir"
+  jq -nc --argjson posted "$posted" --argjson summarized "$summarized" \
+    '{posted: $posted, summarized: $summarized}'
+}
+
+# 任意のissueへ新規コメントを1件投稿する（flow-id 5-2: マージ前の関連issue通知。issue #86。当時のflow-idは 5-3。issue #112 でフェーズ5を並べ替え）。issue #127 で実機確認済み
+# 宛先がMRである `gitlab_add_mr_comment` とは別関数（エンドポイントが `merge_requests` ではなく
+# `issues` になる）。同関数と同じく安定版のREST APIを直接叩く（`glab issue note --message` は
+# `glab mr note --message` と同様に非推奨の可能性があり、代替のサブコマンドはEXPERIMENTAL扱いの
+# ため採用しない。issue #48・issue #86）。`<issue番号>` はGitLabのiid（プロジェクト内番号）。
+gitlab_add_issue_comment() {
+  local issue_number="$1" body_file="$2"
+  local body
+  body="$(cat "$body_file")"
+  glab api "projects/:id/issues/${issue_number}/notes" \
+    -X POST -f "body=${body}" >/dev/null
+}
+
+# --- 最終統括レポートの添付（flow-id 5-3・層3。issue #111） ---
+#
+# GitLabは**公式APIで添付を提供する**（`POST /projects/:id/uploads`）。GitHubの
+# `github_upload_attachment` と違い未ドキュメントAPIへの依存は無く、レスポンスの `markdown`
+# フィールドをそのまま本文へ埋め込める。
+# https://docs.gitlab.com/api/projects/#upload-a-file
+#
+# **未確認の設計上の疑い（issue #127 の検証項目。「実機が無い」とは別の話）**:
+# このエンドポイントは **multipart/form-data でのファイル送信**を要求するが、`glab api` の
+# `-F/--field` は（`gh api` と同様に）`@` 接頭辞を「**値をファイルから読む**」の意味で扱う
+# フラグである可能性がある。その場合、読んだ内容が通常のパラメータ値として送られ、サーバ側は
+# `file` パートを受け取れず400になるか、HTMLの中身が文字列として渡って壊れる。
+# **`glab` が multipart を生成できるかどうかを実機で確かめること。** 生成できない場合は、
+# `glab api` に multipart 用のオプションがあればそちらへ、無ければ別手段へ寄せる必要がある。
+# **この疑いは「GitLab実機が無いから未検証」で片付けてよいものではない**（呼び出し方が正しいか
+# の問題であり、実機差ではない）。
+#
+# 成功: {"url":"...","markdown":"...","provider":"gitlab"} をstdoutへ / 終了コード0
+# 失敗: 理由をstderrへ / 終了コード非0（呼び出し側はスキップする）
+#
+# 第2引数のcontent_typeは受け取るが使わない（GitLabはmultipartのファイル名から判定するため）。
+# シグネチャを `github_upload_attachment` と揃えるために引数だけ残している。
+gitlab_upload_attachment() {
+  local file="$1" _content_type="${2:-}"
+  local response path markdown host url
+
+  # `timeout` を被せる理由は `github_upload_attachment` と同じ（ハングは非0終了にならず、
+  # 「壊れてもフローを止めない」という層3の設計意図が壊れる）。
+  if ! response="$(timeout 60 glab api "projects/:id/uploads" -X POST -F "file=@${file}" 2>&1)"; then
+    printf 'gitlab_upload_attachment: アップロードに失敗しました（層3はスキップしてよい）: %s\n' \
+      "$(printf '%s' "$response" | head -c 500)" >&2
+    return 1
+  fi
+
+  markdown="$(printf '%s' "$response" | jq -r '.markdown // empty' 2>/dev/null || true)"
+  if [ -z "$markdown" ]; then
+    printf 'gitlab_upload_attachment: レスポンスから markdown を取得できませんでした（層3はスキップしてよい）: %s\n' \
+      "$(printf '%s' "$response" | head -c 500)" >&2
+    return 1
+  fi
+
+  # **`url` は絶対URLで返す**（`github_upload_attachment` と型を揃えるため。issue #111 の
+  # 敵対的レビュー指摘）。GitLabが返す `full_path` はインスタンス相対パス
+  # （`/uploads/<hash>/<name>`）で、そのまま `url` に入れると同じキー名なのに
+  # GitHub側は絶対URL・GitLab側は相対パスという状態になり、呼び出し側が貼ったリンクが
+  # GitLab経路でだけ壊れる。VCS抽象化層は呼び出し元にプロバイダ差を見せないのが目的である。
+  path="$(printf '%s' "$response" | jq -r '.full_path // .url // empty' 2>/dev/null || true)"
+  host="$(get_repo_slug | jq -r '.host // empty')"
+  if [ -n "$path" ] && [ -n "$host" ] && [ "${path:0:1}" = "/" ]; then
+    url="https://${host}${path}"
+  else
+    # 既に絶対URLか、ホストを解決できなかった場合はそのまま返す（空になることもある）
+    url="$path"
+  fi
+
+  jq -nc --arg url "$url" --arg markdown "$markdown" \
+    '{url: $url, markdown: $markdown, provider: "gitlab"}'
+}
