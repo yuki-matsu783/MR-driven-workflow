@@ -17,7 +17,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - issue: #149 post-issue-create-notice.shの検知をコマンド位置ベースにして誤検知を減らす
 - ブランチ: claude/post-issue-notice-detection-xleu14
 - PR: https://github.com/yuki-matsu783/MR-driven-workflow/pull/179 (Draft)
-- push回数: 4
+- push回数: 5
 - 現在のループ: 3-6〜3-9 の1周目（進行中）
 - 追従監視: 購読あり（web。subscribe_pr_activity + 1時間ごとの自己チェックイン）
 
@@ -105,14 +105,36 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
   （36件）・`test_block_direct_git_commit.sh`（27件・共有ライブラリの回帰確認）すべて
   `failures=0`。`git diff <ブランチ分岐点> -- CommandPosition.sh`で削除行が無いことも確認した。
 - 敵対的レビュー（フェーズ3・2回目/最大3回。実装レビュー）をバックグラウンドで起動した
-  （`adversarial-review-count.sh increment 3` 済み。現在2回目）。結果は次のpush以降で
-  確認・反映する。
+  （`adversarial-review-count.sh increment 3` 済み。現在2回目）。
+- レビュー結果（8件: major 3件・minor 4件・nit 1件）を取得し、すべて実機で再現確認のうえ
+  実装へ反映した。
+  1. prefix語（sudo/timeout等）が値を取るオプションを持つと値を実コマンドと誤認する
+     （`timeout 60 bash <path>`がmiss）→ 値トークンを読み飛ばすよう修正。
+  2. クォート付きパスが検知できず旧実装への機能後退になっている → インタプリタ直後の引数が
+     プレースホルダに潰れている場合は保守的フォールバックの対象にするよう修正（既知の制約から
+     解消）。
+  3. トップレベルsourceが前置フィルタより前に毎回走り、issue #159の最適化を戻している
+     （実測+35%）→ `_pin_cli_match`の初期化を初回呼び出しまで遅延させる形に変更。
+  4. `bash -n <script>`を実行とみなす → シェル系インタプリタ限定で`-n`を検知対象から除外。
+  5. target一致判定が変数代入判定より前にあり誤検知する → 判定順序を入れ替え。
+  6. ヘッダコメント「見逃しだけ」の記述が実装と食い違う（過検知も残る）→ コメント訂正・
+     回帰テスト追加。
+  7. 3段ガードのフォールバック経路（ライブラリ非存在時）を検証するテストが無い →
+     `lib/`無し一時ディレクトリでのサブプロセステストを追加。
+  8. 新規テスト名が既存git側ケースと重複 → 改名。
+- `bash -n`構文チェック・`test_command_position.sh`（118件）・`test_post_issue_create_notice.sh`
+  （38件）・`test_block_direct_git_commit.sh`（27件）すべて`failures=0`。git専用の既存関数
+  （`_cp_scan_tokens`・`command_invokes_git_subcommand`）がbyte-identicalであることも確認した。
+- `reports/20260823_post-issue-notice-command-position_実装結果.md`/`.html`へ2回目レビューの
+  指摘・対応・検証結果を追記した。
 
 ## 次にやること
 
-- 敵対的レビュー（実装レビュー・2回目）の指摘を確認し、必要なら実装を修正する（3-6〜3-9ループの
-  1周目）。
-- レビューが落ち着いたら flow-id 3-7（commit・push）→ フェーズ4（反映計画→spec更新）へ進む。
+- flow-id 3-7: commit・push してレビュー依頼を行う（本セッションはこの直後に実施）。
+- push後、フェーズ4（反映計画→spec更新: `command-position.md`4箇所・`issue-mr-workflow.md`
+  「既知のトレードオフ」）へ進む。フェーズ3の敵対的レビューは既に2回実施済み（最大3回）。
+  3回目を追加で回すかは、今回の修正がレビュー指摘への対応（新規設計要素の追加ではない）で
+  あることを踏まえて判断する。
 
 ## 判断を迷った内容
 

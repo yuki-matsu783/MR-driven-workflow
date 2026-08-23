@@ -242,21 +242,52 @@ assert_eq "パラメータ展開\${VAR}直後のパスでは誤って発火し�
   "$(detect_script 'cat ${REPO}/.claude/scripts/src/create-issue.sh')"
 assert_eq "sudoで実際にスクリプトを実行する場合は発火する" "hit" "$(detect_script "sudo bash $SCRIPT_PATH")"
 
+# --- 敵対的レビュー（2回目・実装レビュー）で検出された指摘の修正確認 ---------------------
+# 1件目: prefix語が値を取るオプションを持つと、その値を実コマンドと誤認して検知漏れしていた。
+# 「timeoutの後のgrepの引数では発火しない」だけでは、timeout配下が常にmissになる実装バグを
+# 隠してしまう（対になるhitケースが無かった）ため、対で追加する。
+assert_eq "timeoutの後で実際にスクリプトを実行する場合は発火する" "hit" \
+  "$(detect_script "timeout 60 bash $SCRIPT_PATH --title x")"
+assert_eq "sudo -u（値を取るオプション）の後の実行は発火する" "hit" \
+  "$(detect_script "sudo -u alice bash $SCRIPT_PATH")"
+assert_eq "nice -n（値を取るオプション）の後の実行は発火する" "hit" \
+  "$(detect_script "nice -n 10 bash $SCRIPT_PATH")"
+# 4件目: bash -n（構文チェックのみ、実行しない）は発火しない。
+assert_eq "bash -n（構文チェックのみ）は発火しない" "miss" "$(detect_script "bash -n $SCRIPT_PATH")"
+assert_eq "sh -n（構文チェックのみ）は発火しない" "miss" "$(detect_script "sh -n $SCRIPT_PATH")"
+# 5件目: 変数代入は、target一致より先に判定する（basenameが偶然targetと一致しても代入は代入）。
+assert_eq "変数代入のみでは発火しない" "miss" "$(detect_script "SCRIPT=$SCRIPT_PATH")"
+assert_eq "変数代入した値をechoするだけでは発火しない" "miss" \
+  "$(detect_script "SCRIPT=$SCRIPT_PATH; echo \$SCRIPT")"
+
 # --- 素通りさせたくないケース（コード文字列を受け取る実行系。保守的フォールバック） ------
 assert_eq "eval の中身" "hit" "$(detect_script "eval \"bash $SCRIPT_PATH --title x\"")"
 assert_eq "bash -c の中身" "hit" "$(detect_script "bash -c \"bash $SCRIPT_PATH\"")"
 assert_eq "xargs" "hit" "$(detect_script "echo x | xargs bash $SCRIPT_PATH")"
+# 2件目（敵対的レビュー2回目）: bash -n -c "..." は -n だけなら発火しないが、-c 併用は
+# コード文字列オプションが優先され、保守的フォールバックで発火する。
+assert_eq "bash -n -c の併用はコードオプションが優先され発火する" "hit" \
+  "$(detect_script "bash -n -c \"bash $SCRIPT_PATH\"")"
+# 6件目（敵対的レビュー2回目）: opaque語（find等）は保守的フォールバックにより、対象語を
+# 引数に含むだけの検索コマンドでも発火する（誤検知が残る既知の挙動。下記ヘッダコメント参照）。
+assert_eq "findの引数に対象ファイル名を含むだけでも発火する（既知の誤検知）" "hit" \
+  "$(detect_script "find . -name create-issue.sh")"
 
 # --- 極端に長い行（部分一致への縮退） ----------------------------------------------------
 long_script_line='echo "x" '
 while ((${#long_script_line} < 20000)); do long_script_line+='echo "x" '; done
-assert_eq "上限超えの行があっても実行は検知する" "hit" \
+assert_eq "script判定: 上限超えの行があっても実行は検知する" "hit" \
   "$(detect_script "${long_script_line}${NL}bash $SCRIPT_PATH")"
-assert_eq "上限超えの行だけで該当語が無ければ検知しない" "miss" "$(detect_script "$long_script_line")"
+assert_eq "script判定: 上限超えの行だけで該当語が無ければ検知しない" "miss" "$(detect_script "$long_script_line")"
 
 # --- 既知の制約（issue #149。回帰テストとして現状の挙動を固定する） ---------------------
-assert_eq "既知の制約: クォートで囲まれたスクリプトパスは検知できない" "miss" \
+# 敵対的レビュー2回目の指摘を受け、クォート付きパスは「インタプリタの直後の引数がクォート等で
+# プレースホルダへ潰れている」場合に限り、保守的フォールバック（部分一致）で拾うようにした。
+# 位置判定そのものでクォート内容を読めるようになったわけではない（クォート内は依然\"_\"へ潰れる）。
+assert_eq "クォートで囲まれたスクリプトパスは保守的フォールバックで発火する" "hit" \
   "$(detect_script 'bash "$CLAUDE_PROJECT_DIR/.claude/scripts/src/create-issue.sh" --title x')"
+assert_eq "クォート付きでも無関係なパスでは発火しない" "miss" \
+  "$(detect_script 'bash "$VAR/unrelated-script.sh"')"
 assert_eq "既知の制約: バックスラッシュ区切りパス（PowerShell）は検知できない" "miss" \
   "$(detect_script '.claude\scripts\src\create-issue.sh -Title x')"
 

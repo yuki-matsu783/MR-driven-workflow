@@ -218,5 +218,28 @@ assert_contains "CLI経路は実際に注意文を注入する" "$REPLY_STDOUT" 
 run_hook_real 'Bash' 'git status' ''
 assert_eq "無関係なコマンドは何も出力しない" "" "$REPLY_STDOUT"
 
+# --- 3段ガードの縮退経路（ライブラリ非存在時。issue #149, 2回目レビュー） ---
+# 通常のテスト実行では lib/CommandPosition.sh が常に存在するため、_pin_cli_match は初回呼び出しで
+# 必ずコマンド位置判定へ差し替わり、既定値（部分一致）の分岐が一度も通らない
+# （3段ガードの「担保が働くか」自体を確かめるテストが無かった。敵対的レビューで指摘）。
+# ライブラリを意図的に置かない環境を再現し、縮退した部分一致が実際に機能することを確認する。
+fallback_dir="$(mktemp -d)"
+trap 'rm -rf "$stub_dir" "$fallback_dir"' EXIT
+cp "$hook" "$fallback_dir/post-issue-create-notice.sh"
+# lib/ を置かない（=> CommandPosition.sh を読み込めない => 部分一致へ縮退する）。
+
+run_hook_fallback() {
+  # $1=command 。戻り値 REPLY_STDOUT
+  REPLY_STDOUT="$(notice_payload 'Bash' "$1" '' | bash "$fallback_dir/post-issue-create-notice.sh")"
+}
+
+# `cat <script>` は位置判定なら miss だが、縮退時の既定値（部分一致）では hit になる。
+# 位置判定と縮退後の判定が区別できる入力を使うことで、縮退が実際に効いていることを確認する。
+run_hook_fallback 'cat .claude/scripts/src/create-issue.sh'
+assert_contains "ライブラリ非存在時は部分一致へ縮退し、catでも発火する" "$REPLY_STDOUT" 'additionalContext'
+
+run_hook_fallback 'git status'
+assert_eq "ライブラリ非存在時でも無関係なコマンドでは発火しない" "" "$REPLY_STDOUT"
+
 echo "passed=$passed failures=$failures"
 [[ "$failures" -eq 0 ]]

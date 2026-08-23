@@ -68,6 +68,22 @@ _CP_CODE_OPTS=' -c -e -E --command -command -encodedcommand '
 # どちらも値を1つ取るので区別する必要は無い。
 _CP_GIT_OPTS_WITH_VALUE=' -c --git-dir --work-tree --namespace --exec-path --super-prefix '
 
+# 値を**別のトークン**で取る、_CP_PREFIX_WORDS配下のコマンド（sudo/env/nice/ionice/timeout/
+# stdbuf等）のオプション。_cp_scan_tokens_for_script が使う（issue #149, 2回目レビュー）。
+# if/then等、そもそもこれらのオプションを取らない語には影響しない
+# （該当する文字列がその語の直後に現れることが無いため）。
+_CP_PREFIX_OPTS_WITH_VALUE=' -u -g -p -h -r -t -c -a -n -s -k -i -o -e '
+
+# 最初の非オプション・非代入引数が「値」であり実コマンドではない prefix語
+# （`timeout DURATION COMMAND...` の語順のため）。_cp_scan_tokens_for_script が使う。
+_CP_PREFIX_WORDS_WITH_LEADING_VALUE=' timeout '
+
+# インタプリタ経由の実行で、コードを実行しない（構文チェックのみ等の）オプション。
+# シェル系インタプリタに限って対象にする。python/perl/rubyは`-n`の意味が異なり
+# （実行はする）、誤って検知漏れを増やすため対象に含めない（issue #149, 2回目レビュー）。
+_CP_SHELL_INTERPRETERS=' bash sh zsh ksh dash busybox '
+_CP_NONEXEC_OPTS=' -n '
+
 # 正規化を行う1行あたりの長さの上限。
 # 行内の走査は「次の関心文字まで読み飛ばして残りを切り出す」形のため、**1行の中の
 # 関心文字の数に対して二乗**になる（行数に対しては線形）。特殊文字を多く含む極端に長い1行
@@ -623,7 +639,7 @@ _cp_scan_tokens_for_script() {
   local IFS=$' \t\r\n'
   read -ra tokens <<<"$norm" || true
 
-  local n=${#tokens[@]} i=0 j t u base ubase at_cmd=1 found=1 code_opt hit_sep
+  local n=${#tokens[@]} i=0 j t u base ubase at_cmd=1 found=1 code_opt noexec hit_sep
   while ((i < n)); do
     t="${tokens[i]}"
     case "${t,,}" in
@@ -647,18 +663,21 @@ _cp_scan_tokens_for_script() {
     fi
 
     t="${t,,}"
+
+    if [[ "$t" =~ ^[A-Za-z_][A-Za-z0-9_]*= ]]; then
+      # 変数代入。コマンド位置は次のトークンへ持ち越す。
+      # target一致の判定より先に見る（`SCRIPT=<path>/create-issue.sh` のような代入を、
+      # `${t##*/}` で削った結果が偶然targetと一致して誤検知しないため。issue #149, 2回目レビュー）。
+      i=$((i + 1))
+      continue
+    fi
+
     base="${t##*/}"
     base="${base%.exe}"
 
     if [[ "$base" == "$target" ]]; then
       found=0
       break
-    fi
-
-    if [[ "$t" =~ ^[A-Za-z_][A-Za-z0-9_]*= ]]; then
-      # 変数代入。コマンド位置は次のトークンへ持ち越す。
-      i=$((i + 1))
-      continue
     fi
 
     if [[ "$_CP_OPAQUE_WORDS" == *" $base "* ]]; then
@@ -673,6 +692,7 @@ _cp_scan_tokens_for_script() {
       # 対象スクリプトかを見る。
       j=$((i + 1))
       code_opt=0
+      noexec=0
       hit_sep=0
       while ((j < n)); do
         case "${tokens[j],,}" in
@@ -685,6 +705,12 @@ _cp_scan_tokens_for_script() {
         if [[ "$_CP_CODE_OPTS" == *" $u "* ]]; then
           code_opt=1
           break
+        elif [[ "$_CP_SHELL_INTERPRETERS" == *" $base "* ]] && [[ "$_CP_NONEXEC_OPTS" == *" $u "* ]]; then
+          # `bash -n` 等の構文チェックのみのオプション。実行はしないため、後段の判定へは
+          # 進めるが検知対象にはしない（issue #149, 2回目レビュー）。他のオプションと
+          # 組み合わせられる可能性があるため、ここでは break せず走査を続ける。
+          noexec=1
+          j=$((j + 1))
         elif [[ "$u" == -* ]]; then
           j=$((j + 1))
         else
@@ -693,6 +719,8 @@ _cp_scan_tokens_for_script() {
       done
       if ((code_opt)); then
         _CP_OPAQUE_FOUND=1
+      elif ((noexec)); then
+        : # 実行しないオプションが付いている。検知対象にしない。
       elif ((!hit_sep)) && ((j < n)); then
         ubase="${tokens[j],,}"
         ubase="${ubase##*/}"
@@ -700,6 +728,11 @@ _cp_scan_tokens_for_script() {
         if [[ "$ubase" == "$target" ]]; then
           found=0
           break
+        elif [[ "${tokens[j]}" == '_' ]]; then
+          # 引数がクォート等でプレースホルダへ潰れている。中身は分からないが対象を
+          # 含む可能性があるため、保守的フォールバック（部分一致）の対象にする
+          # （issue #149, 2回目レビュー。`bash "$VAR/create-issue.sh"` 等）。
+          _CP_OPAQUE_FOUND=1
         fi
       fi
       at_cmd=0
@@ -721,7 +754,14 @@ _cp_scan_tokens_for_script() {
         esac
         case "${tokens[j]}" in
           -*)
-            j=$((j + 1))
+            # 値を別トークンで取るオプション（`sudo -u alice` 等）は、そのオプションの値も
+            # あわせて読み飛ばす。読み飛ばさないと値トークンを実コマンドと誤認し、直後の
+            # 本当のコマンドを見なくなる（issue #149, 2回目レビュー）。
+            if [[ "$_CP_PREFIX_OPTS_WITH_VALUE" == *" ${tokens[j],,} "* ]]; then
+              j=$((j + 2))
+            else
+              j=$((j + 1))
+            fi
             ;;
           *)
             if [[ "${tokens[j]}" =~ ^[A-Za-z_][A-Za-z0-9_]*= ]]; then
@@ -732,6 +772,15 @@ _cp_scan_tokens_for_script() {
             ;;
         esac
       done
+      # `timeout DURATION COMMAND...` のように、オプション読み飛ばし後の最初の非オプション
+      # 引数自体が値（実コマンドではない）である語は、その1トークンをさらに読み飛ばす
+      # （issue #149, 2回目レビュー）。
+      if ((!hit_sep)) && [[ "$_CP_PREFIX_WORDS_WITH_LEADING_VALUE" == *" $base "* ]] && ((j < n)); then
+        case "${tokens[j],,}" in
+          ';' | '&' | '|' | '(' | ')' | '{' | '}' | "$_CP_BT") hit_sep=1 ;;
+          *) j=$((j + 1)) ;;
+        esac
+      fi
       if ((!hit_sep)) && ((j < n)); then
         i=$j
         continue

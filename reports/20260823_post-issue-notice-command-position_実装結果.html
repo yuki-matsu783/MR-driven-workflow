@@ -117,8 +117,8 @@
       <li><b>issue</b> #149</li>
       <li><b>ブランチ</b> claude/post-issue-notice-detection-xleu14</li>
       <li><b>PR</b> #179</li>
-      <li><b>フェーズ</b> 3〈作業〉 flow-id 3-6</li>
-      <li><b>push回数</b> 4</li>
+      <li><b>フェーズ</b> 3〈作業〉 flow-id 3-6〜3-9</li>
+      <li><b>push回数</b> 5</li>
       <li><b>作成日</b> 2026-08-23</li>
       <li><b>正文</b> 同名の .md</li>
     </ul>
@@ -183,7 +183,7 @@ $ command_invokes_script 'eval "bash .claude/scripts/src/create-issue.sh"' 'crea
     敵対的レビューの再現コマンドがいずれも意図どおりの結果（miss/hit）になることを実測で確認した。
   </div>
 
-  <h3>3. テストと回帰確認</h3>
+  <h3>3. テストと回帰確認（1回目レビュー反映時点・push2）</h3>
   <pre><code>$ bash .claude/scripts/test/test_command_position.sh
 passed=108 failures=0
 $ bash .claude/scripts/test/test_post_issue_create_notice.sh
@@ -196,6 +196,36 @@ $ git diff &lt;ブランチ分岐点0aa9874&gt; -- .claude/hooks/lib/CommandPosi
     <span class="label">結論</span>
     3本のテストスクリプトすべて<code>failures=0</code>。共有ライブラリの既存関数は変更していない。
   </div>
+
+  <h3>4. 敵対的レビュー（2回目・実装レビュー）で判明した実装バグと修正</h3>
+  <p>diff全体（コードとテスト4ファイル）を対象にしたレビューで、実装そのものの正しさに関する8件の指摘（major 3件・minor 4件・nit 1件）を受けた。すべて実機で再現を確認したうえで修正した。</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>#</th><th>重大度</th><th>指摘</th><th>対応</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td>major</td><td>prefix語が値を取るオプションを持つと値を実コマンドと誤認する（<code>timeout 60 bash &lt;path&gt;</code>がmiss）</td><td><code>_CP_PREFIX_OPTS_WITH_VALUE</code>・<code>_CP_PREFIX_WORDS_WITH_LEADING_VALUE</code>を追加し値トークンを読み飛ばす</td></tr>
+      <tr><td>2</td><td>major</td><td>クォート付きパスが検知できず旧・部分一致実装への機能後退になっている</td><td>インタプリタ直後の引数が正規化でプレースホルダに潰れている場合、保守的フォールバックの対象にする</td></tr>
+      <tr><td>3</td><td>major</td><td>トップレベルsourceが前置フィルタより前に毎回走り、issue #159の最適化を戻す（実測+35%/+1.0ms）</td><td><code>_pin_cli_match</code>の初期化を初回呼び出しまで遅延</td></tr>
+      <tr><td>4</td><td>minor</td><td><code>bash -n &lt;script&gt;</code>（構文チェックのみ）を実行とみなす</td><td>シェル系インタプリタ限定で<code>-n</code>を検知対象から除外</td></tr>
+      <tr><td>5</td><td>minor</td><td>target一致判定が変数代入判定より前にあり誤検知する</td><td>判定順序を入れ替え</td></tr>
+      <tr><td>6</td><td>minor</td><td>ヘッダコメント「見逃しだけ」の記述が実装と食い違う（過検知も残る）</td><td>コメント訂正・回帰テスト追加</td></tr>
+      <tr><td>7</td><td>minor</td><td>3段ガードのフォールバック経路の検証テストが無い</td><td><code>lib/</code>無し一時ディレクトリでのサブプロセステストを追加</td></tr>
+      <tr><td>8</td><td>nit</td><td>新規テスト名が既存git側ケースと重複</td><td>接頭辞を付けて改名</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <pre><code>$ bash .claude/scripts/test/test_command_position.sh
+passed=118 failures=0
+$ bash .claude/scripts/test/test_post_issue_create_notice.sh
+passed=38 failures=0
+$ bash .claude/scripts/test/test_block_direct_git_commit.sh
+passed=27 failures=0
+$ git diff &lt;ブランチ分岐点&gt; -- .claude/hooks/lib/CommandPosition.sh | grep -E '^-[^-]' | wc -l
+0</code></pre>
+  <div class="box ok">
+    <span class="label">結論</span>
+    8件すべて修正し、3本のテストスイートすべて<code>failures=0</code>。git専用の既存関数（<code>_cp_scan_tokens</code>・<code>command_invokes_git_subcommand</code>）はbyte-identicalであることを確認した。
+  </div>
 </section>
 
 <section id="unverified">
@@ -204,7 +234,6 @@ $ git diff &lt;ブランチ分岐点0aa9874&gt; -- .claude/hooks/lib/CommandPosi
     <span class="label">この結果が言っていないこと</span>
     <ul>
       <li>Windows / git bash 実機での動作（既存の未決定事項と同じ）。</li>
-      <li><code>sudo -u alice bash &lt;path&gt;</code>のように、prefix word自身が値を取るオプションを持つ場合の検知（現状miss。受け入れ条件には含まれないため未対応）。</li>
     </ul>
   </div>
 </section>
@@ -213,14 +242,15 @@ $ git diff &lt;ブランチ分岐点0aa9874&gt; -- .claude/hooks/lib/CommandPosi
   <h2>設計への反映</h2>
   <ol>
     <li><code>.claude/docs/spec/command-position.md</code>「未決定事項・懸念点」の4本目に関する行と、「公開インターフェース」表・「利用元」・「判定の3段」§3を更新する。</li>
-    <li><code>.claude/docs/spec/issue-mr-workflow.md</code>「既知のトレードオフ」節を、コマンド位置判定へ移行した旨と新しい既知の制約（クォートパス・PowerShellバックスラッシュパス）へ更新する。</li>
+    <li><code>.claude/docs/spec/issue-mr-workflow.md</code>「既知のトレードオフ」節を、コマンド位置判定へ移行した旨と新しい既知の制約（PowerShellバックスラッシュパス・opaque語フォールバックによる過検知）へ更新する。</li>
   </ol>
 </section>
 
 <section id="todo">
   <h2>残課題</h2>
   <ul>
-    <li>敵対的レビュー（実装レビュー・2回目）の結果反映（本レポート作成時点で結果待ち。反映後にレポートを更新する）。</li>
+    <li>spec更新（フェーズ4で実施）。</li>
+    <li>フェーズ3の敵対的レビューは2回実施済み（最大3回）。3回目を追加で回すかは、今回の修正が指摘への対応であることを踏まえて判断する。</li>
   </ul>
 </section>
 

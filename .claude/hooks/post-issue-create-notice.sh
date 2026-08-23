@@ -20,17 +20,27 @@
 #   - CLI経路: Bash/PowerShell/run_shell_command のコマンド文字列で `create-issue.sh` が
 #     **コマンド位置**で実行される（issue #149。`.claude/hooks/lib/CommandPosition.sh` の
 #     `command_invokes_script` による判定。ライブラリを使えない環境では従来どおりの部分一致へ
-#     縮退する。3段ガードは本ファイル冒頭のトップレベルで確定させる（下記 `_pin_cli_match`））
+#     縮退する。3段ガードの**関数定義**は本ファイル冒頭のトップレベルで確定させるが、実際の
+#     初期化（`source`・バージョン確認）は初回呼び出しまで遅延させる（下記 `_pin_cli_match`）
 #   - MCP経路: `mcp__github__issue_write` の `method` が `create`（`gh`/`glab` CLI不在時。issue #34）
 # いずれもツール実行「後」に発火するため、起票そのものは妨げない。
 #
 # 既知のトレードオフ（issue #149でCLI経路をコマンド位置判定へ移行した後も残るもの）:
-#   - クォートで囲まれたスクリプトパス（`bash "$VAR/create-issue.sh"` 等）は検知できない
-#     （クォート内容は正規化でプレースホルダへ潰れるため）。
 #   - PowerShell経路でのバックスラッシュ区切りパス（`.claude\scripts\src\create-issue.sh`）は
 #     検知できない（`CommandPosition.sh`の正規化がバックスラッシュをbashのエスケープとして
-#     解決し、パス区切りごと失われるため。`block-direct-git-commit.sh`も共有する既存の制約）。
-# いずれも発火しない側（見逃し）に倒れるだけで、注入されるのは注意文のみのため実害は小さい。
+#     解決し、パス区切りごと失われるため。`block-direct-git-commit.sh`も共有する既存の制約。
+#     見逃し側に倒れる）。
+#   - クォートで囲まれたスクリプトパス（`bash "$VAR/create-issue.sh"` 等）は、位置判定そのもの
+#     ではクォート内容を読めない（正規化でプレースホルダへ潰れるため）が、インタプリタ
+#     （bash/sh等）の直後の引数がプレースホルダになっている場合は保守的フォールバック
+#     （部分一致）で拾う（issue #149, 2回目レビュー）。インタプリタを介さない起動形式では
+#     依然として見逃しうる。
+#   - **誤検知（過検知）も残る。** コードを文字列として受け取りうる実行系（`eval`/`xargs`/
+#     `find`/`ssh`/`watch`/`flock`等）がコマンド位置にある場合は保守的に部分一致へ倒すため、
+#     例えば `find . -name create-issue.sh`（対象ファイルを検索するだけのコマンド）でも
+#     発火する（issue #149, 2回目レビュー）。
+# 本hookはブロックではなく注意喚起の注入のみのため、見逃し・過検知のどちらへ倒れても実害は
+# 限定的だが、「必ず見逃し側に倒れる」という保証は無い。
 # 詳細: `.claude/docs/spec/command-position.md`。
 #
 # 注意（エラー方針）: 本体処理は `main` にまとめ、`( main )` の実サブシェルで呼ぶ
@@ -62,23 +72,31 @@ write_additional_context() {
 # CLI経路の実判定（issue #149）。既定値（フォールバック）は従来どおりの部分一致で、
 # `.claude/hooks/lib/CommandPosition.sh` を読み込めた場合のみコマンド位置判定へ差し替える。
 #
-# **トップレベルで一度だけ確定させる**（`main()`の中に置かない）。`source`して`main()`を実行
-# せず`is_issue_create_call`を直接呼ぶ単体テストがあるため、`main()`実行前でも判定が完成して
-# いる必要がある（敵対的レビューで指摘。`main()`内に置く案だと、その形の単体テスト4件が
-# `_pin_cli_match: command not found` で落ちる）。
-_pin_cli_match() { [[ "$1" == *create-issue.sh* ]]; }
-_pin_lib_dir="${BASH_SOURCE[0]%/*}"
-# パスにディレクトリ成分が無い（`bash post-issue-create-notice.sh`のような起動）と`%/*`は
-# ファイル名をそのまま返すため、明示的にカレントへ倒す（block-direct-git-commit.shと同じ理由）。
-[ "$_pin_lib_dir" = "${BASH_SOURCE[0]}" ] && _pin_lib_dir='.'
-_pin_lib="${_pin_lib_dir}/lib/CommandPosition.sh"
-# `[ -r ]` だけでは「読めるが読み込みに失敗する」（壊れたファイル・bash 4.3未満）を拾えない。
-# バージョン・sourceの成否・関数の存在まで確かめ、満たさない場合は既定値（部分一致）のまま残す。
-if ((BASH_VERSINFO[0] > 4 || (BASH_VERSINFO[0] == 4 && BASH_VERSINFO[1] >= 3))) &&
-  [ -r "$_pin_lib" ] && source "$_pin_lib" 2>/dev/null &&
-  declare -F command_invokes_script >/dev/null; then
-  _pin_cli_match() { command_invokes_script "$1" 'create-issue.sh'; }
-fi
+# **関数の存在はトップレベルで確定させるが、実際の初期化（source・バージョン確認）は
+# 初回呼び出しまで遅延させる**（issue #149, 2回目レビュー）。`source`して`main()`を実行
+# せず`is_issue_create_call`を直接呼ぶ単体テストがあるため、`main()`実行前でも呼び出せる
+# 必要がある一方、トップレベルで即座に`source`まで済ませると、`raw_hints_at_issue_create`
+# （前置フィルタ、issue #159。`main()`の中にありこの関数定義より後）で弾かれる呼び出しでも
+# 毎回`CommandPosition.sh`（約800行）を読み込むことになり、フィルタ済みの高速経路で
+# 計測上+35%（+1.0ms/回）の遅延が生じ、issue #159が削ったコストの一部を無言で戻してしまう。
+# 自分自身を確定版の関数へ再定義してから委譲する形で、2つの制約を両立させる。
+_pin_cli_match() {
+  local _pin_lib_dir="${BASH_SOURCE[0]%/*}"
+  # パスにディレクトリ成分が無い（`bash post-issue-create-notice.sh`のような起動）と`%/*`は
+  # ファイル名をそのまま返すため、明示的にカレントへ倒す（block-direct-git-commit.shと同じ理由）。
+  [ "$_pin_lib_dir" = "${BASH_SOURCE[0]}" ] && _pin_lib_dir='.'
+  local _pin_lib="${_pin_lib_dir}/lib/CommandPosition.sh"
+  # `[ -r ]` だけでは「読めるが読み込みに失敗する」（壊れたファイル・bash 4.3未満）を拾えない。
+  # バージョン・sourceの成否・関数の存在まで確かめ、満たさない場合は部分一致へ縮退する。
+  if ((BASH_VERSINFO[0] > 4 || (BASH_VERSINFO[0] == 4 && BASH_VERSINFO[1] >= 3))) &&
+    [ -r "$_pin_lib" ] && source "$_pin_lib" 2>/dev/null &&
+    declare -F command_invokes_script >/dev/null; then
+    _pin_cli_match() { command_invokes_script "$1" 'create-issue.sh'; }
+  else
+    _pin_cli_match() { [[ "$1" == *create-issue.sh* ]]; }
+  fi
+  _pin_cli_match "$1"
+}
 
 # issue起票の呼び出しかどうかを判定する純粋関数（外部コマンド呼び出し無し）。
 # $1=tool_name $2=コマンド文字列（CLI経路） $3=method（MCP経路）
