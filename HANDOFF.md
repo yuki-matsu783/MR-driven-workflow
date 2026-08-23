@@ -119,8 +119,10 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - **issue分割**: 「GitLab / GitHub」は外部連携先の並列列挙に当たり分割候補だが、先例
   （#111 の `upload_attachment`）に倣い1件で進めるとユーザーが判断した。
 - **`main` 由来の既存テスト失敗3件**（`test_block_direct_git_commit.sh` 1件・
-  `test_command_position.sh` 2件）を本issueのスコープ外とし、別issueへ切り出すとAIから提案した。
-  **ユーザーの明示的な同意はまだ得ていない。**
+  `test_command_position.sh` 2件）を本issueのスコープ外とし、別issueへ切り出すとAIから提案し、
+  **flow-id 2-4（レビュー1周目）でユーザーが「スコープ外でOK」と同意した**。
+  **切り出し先のissueはまだ起票していない**（起票は `issue-create` スキルで本文をユーザーへ
+  提示してから行う。着手は別セッションに委ねる）。
 
 ## 未解決の内容
 

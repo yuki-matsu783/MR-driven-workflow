@@ -196,6 +196,7 @@ GitHub Pages（Actions で `pr-<番号>/` サブパスへデプロイ）を第�
 - `reports/` の削除タイミング（flow-id 5-5）そのものの変更。案(b)は削除位置を動かさずに成立する
 - **`main` 由来の既存テスト失敗3件の修正**（`test_block_direct_git_commit.sh` 1件・
   `test_command_position.sh` 2件）。本issueの変更と無関係であり、別issueへ切り出す
+  （**flow-id 2-4 でユーザーが「スコープ外でOK」と同意**。切り出し先のissueは未起票）
 
 ## 検証
 
