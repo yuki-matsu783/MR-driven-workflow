@@ -17,7 +17,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - issue: #17
 - ブランチ: `claude/hook-implementation-17-vjhppj`
 - PR: #195（Draft・https://github.com/yuki-matsu783/MR-driven-workflow/pull/195 ）
-- push回数: 3
+- push回数: 5
 - 現在のループ: 2-6〜2-9 の1周目（完了）
 - 未返信スレッド: 0
 - 追従監視: あり（`subscribe_pr_activity` でPR #195 を購読。セッション終了で止まるため、次セッションは `resume` で取り直す）
@@ -95,6 +95,8 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 ## 次にやること
 
 - flow-id 2-10: 調査結果をもとにMR descriptionを更新する。
+- **ヘッダの `- push回数:` は、pushの後ではなくcommitより前に更新して同じcommitへ含める**
+  （`.claude/rules/docs-workflow.md`）。push後に更新すると、その1行だけが未コミットで残る。
 - flow-id 3-1: 個別作業計画 `【実装】【テスト】…` を作成する。
 
 ## 判断を迷った内容
