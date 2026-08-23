@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>【調査】transcriptからのユーザー発言抽出と選定パラメータの実測 — issue #151</title>
+<style>
+  :root {
+    --bg: #f6f7f9;      --panel: #ffffff;   --ink: #1a1d21;     --muted: #5b636d;
+    --line: #dfe3e8;    --accent: #2563eb;  --accent-soft: #eaf0fe;
+    --ok: #1a7f4b;      --ok-soft: #e6f4ec; --warn: #a35a00;    --warn-soft: #fdf1e0;
+    --stop: #b3261e;    --stop-soft: #fdecea; --code-bg: #f0f2f5;
+    --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1216;    --panel: #161a20;   --ink: #e6e8eb;     --muted: #9aa3ad;
+      --line: #2a3038;  --accent: #7aa2f7;  --accent-soft: #1b2333;
+      --ok: #6ee7a8;    --ok-soft: #14261d; --warn: #f0b866;    --warn-soft: #2a2113;
+      --stop: #f2857c;  --stop-soft: #2b1614; --code-bg: #1d222a;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", system-ui, sans-serif;
+    line-height: 1.8; font-size: 15px;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 20px 80px; }
+
+  /* 共通ヘッダ帯 */
+  header.band {
+    background: linear-gradient(135deg, var(--accent-soft), var(--panel));
+    border-bottom: 1px solid var(--line); padding: 28px 20px 22px; margin-bottom: 28px;
+  }
+  header.band .inner { max-width: 1080px; margin: 0 auto; }
+  header.band .kind { font-size: 11px; letter-spacing: .18em; color: var(--accent); font-weight: 700; }
+  header.band h1 { margin: 6px 0 4px; font-size: 26px; line-height: 1.4; }
+  header.band .lead { margin: 0; color: var(--muted); }
+  .meta { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; padding: 0; list-style: none; }
+  .meta li {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 999px;
+    padding: 3px 12px; font-size: 12.5px; color: var(--muted); white-space: nowrap;
+  }
+  .meta li b { color: var(--ink); font-weight: 600; }
+
+  nav.toc {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 14px 20px; margin-bottom: 28px;
+  }
+  nav.toc h2 { margin: 0 0 8px; font-size: 13px; letter-spacing: .08em; color: var(--muted); border: 0; padding: 0; }
+  nav.toc ol { margin: 0; padding-left: 20px; }
+  nav.toc li { margin: 2px 0; }
+  a { color: var(--accent); }
+
+  section {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 8px 24px 22px; margin-bottom: 22px;
+  }
+  h2 { font-size: 20px; margin: 20px 0 10px; padding-bottom: 8px; border-bottom: 2px solid var(--line); }
+  h3 { font-size: 16px; margin: 22px 0 8px; color: var(--accent); }
+  p { margin: 10px 0; }
+  ul, ol { padding-left: 22px; }
+  li { margin: 4px 0; }
+  blockquote { margin: 10px 0; padding: 6px 14px; border-left: 3px solid var(--line); color: var(--muted); }
+
+  /* 表は自身の中で横スクロールする（ページ本体は横スクロールさせない） */
+  .tablewrap { overflow-x: auto; margin: 14px 0; }
+  table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 14px; }
+  th, td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: var(--accent-soft); font-weight: 600; white-space: nowrap; }
+  tbody tr:nth-child(even) td { background: color-mix(in srgb, var(--line) 22%, transparent); }
+
+  code {
+    background: var(--code-bg); border-radius: 5px; padding: 1px 5px; font-size: 13px;
+    font-family: "SFMono-Regular", Consolas, "Noto Sans Mono", monospace;
+  }
+  pre {
+    background: var(--code-bg); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 12px 14px; overflow-x: auto; font-size: 13px; line-height: 1.65;
+  }
+  pre code { background: none; padding: 0; }
+
+  /* 注意ボックス: info（既定）/ ok（決めたこと）/ warn（注意）/ stop（やらないこと・危険） */
+  .box { border-left: 4px solid var(--accent); background: var(--accent-soft);
+         border-radius: 0 var(--radius) var(--radius) 0; padding: 12px 16px; margin: 16px 0; }
+  .box > :first-child { margin-top: 0; } .box > :last-child { margin-bottom: 0; }
+  .box .label { font-size: 12px; font-weight: 700; letter-spacing: .06em; display: block; margin-bottom: 4px; }
+  .box.ok { border-color: var(--ok); background: var(--ok-soft); } .box.ok .label { color: var(--ok); }
+  .box.warn { border-color: var(--warn); background: var(--warn-soft); } .box.warn .label { color: var(--warn); }
+  .box.stop { border-color: var(--stop); background: var(--stop-soft); } .box.stop .label { color: var(--stop); }
+  .box.info .label { color: var(--accent); }
+
+  .tag { display: inline-block; border-radius: 999px; padding: 1px 9px; font-size: 12px; font-weight: 600; }
+  .tag.ok { background: var(--ok-soft); color: var(--ok); }
+  .tag.warn { background: var(--warn-soft); color: var(--warn); }
+  .tag.stop { background: var(--stop-soft); color: var(--stop); }
+
+  footer { color: var(--muted); font-size: 13px; text-align: center; padding-top: 10px; }
+</style>
+</head>
+<body>
+
+<header class="band">
+  <div class="inner">
+    <div class="kind">個別調査計画 / フェーズ2〈調査〉</div>
+    <h1>【調査】transcriptからのユーザー発言抽出と選定パラメータの実測</h1>
+    <p class="lead">SessionStart hook が transcript からユーザーの生発言を抽出できるかを確かめ、件数・文字数・除外規則・抽出条件・性能の各パラメータを<b>実データにあてて確定する</b>。実装（フェーズ3）へ渡す値を決めることがこの計画の成果物であり、<code>session-start.sh</code> には1行も手を入れない。</p>
+    <ul class="meta">
+      <li><b>issue</b> #151</li>
+      <li><b>ブランチ</b> claude/user-recent-utterance-reinject-9ygbxd</li>
+      <li><b>PR</b> #197</li>
+      <li><b>フェーズ</b> 2〈調査〉 flow-id 2-1</li>
+      <li><b>push回数</b> 5</li>
+      <li><b>作成日</b> 2026-08-23</li>
+      <li><b>正文</b> 同名の .md</li>
+    </ul>
+  </div>
+</header>
+
+<div class="wrap">
+
+<nav class="toc">
+  <h2>目次</h2>
+  <ol>
+    <li><a href="#premise">前提（合意状況）</a></li>
+    <li><a href="#goal">この調査で決めること</a></li>
+    <li><a href="#order">調査の進め方（段取り）</a></li>
+    <li><a href="#questions">問いごとの調査方法</a></li>
+    <li><a href="#data">実データを扱ううえでの制約</a></li>
+    <li><a href="#out-of-scope">やらないこと（スコープ外）</a></li>
+    <li><a href="#verify">完了条件</a></li>
+    <li><a href="#stop">停止条件・差し戻し条件</a></li>
+  </ol>
+</nav>
+
+<section id="premise">
+  <h2>前提（合意状況）</h2>
+  <ul>
+    <li>上位の計画: <code>wip/plans/session-start-user-utterance-reinject.md</code> のフェーズ2〈調査〉節（<b>flow-id 1-5 で合意（2026-08-23）</b>）</li>
+    <li>合意した4論点: ①上乗せ提案3点（ブランチ絞り・頭＋末尾の切り出し・件数あたりの文字数配分） ②発言節を <code>CONTEXT_SIZE_WARN_BYTES</code> の分母へ入れない ③単一transcript前提の限界はフェーズ2で詰める ④<b>Gemini CLI 経路は本issueのスコープ外</b>とし issue #201 へ切り出す</li>
+    <li>依拠する調査結果: なし（本フェーズが最初の調査）</li>
+  </ul>
+  <div class="box">
+    <span class="label">計画と実施結果の分離</span>
+    この計画には<b>これから何をするかだけ</b>を書き、結果は一切書かない。結果は flow-id 2-6 で <code>wip/reports/20260823_session-start-user-utterance-reinject_transcript調査結果.md</code>（＋同名 <code>.html</code>）へ記録する。
+  </div>
+</section>
+
+<section id="goal">
+  <h2>この調査で決めること</h2>
+  <p>フェーズ3〈作業〉へ渡す8項目の値を確定させる。「出力位置」は flow-id 1-5 で合意済みのため<b>再検討しない</b>。</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>決めるもの</th><th>現在の暫定値</th><th>確定させる問い</th></tr></thead>
+    <tbody>
+      <tr><td>抽出条件（jqフィルタ）</td><td>5条件＋<code>uuid</code> 重複除去</td><td>問い2・12・13</td></tr>
+      <tr><td>ブランチ絞りの可否・効果</td><td>「行が <code>gitBranch</code> を持つとき」だけ絞る</td><td>問い3</td></tr>
+      <tr><td>件数（先頭3／直近7）</td><td>3 / 7</td><td>問い4・6</td></tr>
+      <tr><td>1件あたりの文字数（頭M＋末尾M&prime;）</td><td>先頭枠 120+40／直近枠 80+30</td><td>問い4・6</td></tr>
+      <tr><td>除外規則（相槌・スラッシュコマンド・ツール出力）</td><td>3種</td><td>問い5</td></tr>
+      <tr><td>節のバイト上限</td><td>6000</td><td>問い6</td></tr>
+      <tr><td>実装手段（文字単位の切り出し・jqの呼び方）</td><td>未定</td><td>問い8・11</td></tr>
+      <tr><td>出力位置</td><td><code>build_work_context</code> 内・SKILL.md 再読み込み指示の手前</td><td><span class="tag ok">確定済み</span> 再検証しない</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="order">
+  <h2>調査の進め方（段取り）</h2>
+  <p><b>問いは番号順ではなく、依存関係の順に解く。</b>問い1が否なら以降がすべて無意味になるため。</p>
+  <pre><code>段取りA（前提の確認）      : 問い1 → 問い9 → 問い10
+   ↓ 問い1が否なら即座に停止（「停止条件」参照）
+段取りB（母集団の確定）    : 問い2 → 問い12 → 問い13 → 問い3
+段取りC（パラメータの実測）: 問い4 → 問い5 → 問い6
+段取りD（実装手段の確認）  : 問い8 → 問い11 → 問い7</code></pre>
+  <p>段取りB〜Dは前段の結果を入力にするため、<b>並行させない</b>。</p>
+</section>
+
+<section id="questions">
+  <h2>問いごとの調査方法</h2>
+  <div class="box warn">
+    <span class="label">合成フィクスチャで済ませない</span>
+    <code>.claude/rules/shell-script-style.md</code>「テスト」の「合成フィクスチャのテストだけで完了としない」に従い、<b>すべての問いを実 transcript にあてて答える</b>。合成フィクスチャは、実データで確かめた性質を単体テストへ固定するためにフェーズ3で作る（本調査の成果物ではない）。
+  </div>
+
+  <h3>段取りA: 前提の確認</h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>#</th><th>問い</th><th>調べ方</th><th>判定基準</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td>stdin JSON に <code>transcript_path</code> はあるか。実体はどこか・行数・バイト数は</td><td><code>session-start.sh</code> が受け取る生JSONを退避して <code>jq 'keys'</code>。パスが取れたら <code>wc -l</code> / <code>wc -c</code></td><td><b>キーが存在し、そのパスに実ファイルがある</b>こと。取れなければ <code>CLAUDE_PROJECT_DIR</code> から辿れるかを1度だけ試し、駄目なら停止</td></tr>
+      <tr><td>9</td><td>transcript はセッション／compact／resume をまたいで同一ファイルか</td><td>現セッションの transcript の inode と行数を記録し、<b>compact を挟んだ前後</b>で比較する。過去セッション分のファイル一覧も併せて採る</td><td>「同一ファイルへ追記」「新規ファイル」のどちらかを<b>断定して</b>記録する。断定できなければ「未確認」</td></tr>
+      <tr><td>10</td><td>セッションをまたいだ過去 transcript はどこに残るか。対象に含める案のコストは</td><td>保存ディレクトリを <code>ls</code> し、<b>このブランチに対応する</b>ファイルの本数・合計バイト数を数える</td><td>本数×バイト数から、走査コストが問い11のしきい値（200ms）に収まるかを机上で見積もる</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <div class="box">
+    <span class="label">未合意論点3への答え</span>
+    <b>問い9・10は、全体作業計画の「単一transcript前提の限界」に直接答える。</b>「1タスクが複数セッションにまたがると先頭3件が要件定義を指さない」が実際に起きるかどうかは、問い9の答え（compactで同一ファイルか）と問い10の答え（過去分が残るか）で決まる。
+  </div>
+
+  <h3>段取りB: 母集団の確定</h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>#</th><th>問い</th><th>調べ方</th><th>判定基準</th></tr></thead>
+    <tbody>
+      <tr><td>2</td><td>issue本文の抽出条件で何件取れるか。ツール由来が混ざらないか</td><td><code>jq -R -n 'inputs | fromjson? | select(...)'</code> を条件ごとに<b>段階的に</b>当て、各段の件数を出す</td><td>各段の件数を表にする。<b>最終段に機械生成ターンが1件も残らない</b>こと</td></tr>
+      <tr><td>12</td><td><code>origin.kind</code> の分布は。<code>origin</code> を持たない行はあるか。<code>content</code> が配列の人間発言は何件か</td><td><code>group_by(.origin.kind)</code> で件数を出す。<code>origin</code> キーの有無・<code>content</code> の型も同様に数える</td><td><code>origin</code> 無しの行を<b>採るか捨てるか</b>を、件数と中身を見て決める。配列 content の取りこぼし割合を出す</td></tr>
+      <tr><td>13</td><td><code>type=="last-prompt"</code> は何を持つか。<code>type=="user"</code> の代替・補完になるか</td><td>両者の発言テキスト集合を突き合わせ、<b>片方にしか無い件数</b>を数える</td><td>「重複のみ」「片方にしか無い発言がN件」のどちらかを数値で記録する</td></tr>
+      <tr><td>3</td><td><code>gitBranch</code> はどの行にも入っているか。絞ったときの残存件数は</td><td><code>gitBranch</code> を持つ行の割合と、現ブランチで絞ったあとの件数を出す</td><td><b>絞った結果が0件になる条件</b>を特定する（全体作業計画の3分岐表の妥当性検証）</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <div class="box warn">
+    <span class="label">条件ごとに段階的に測る</span>
+    issue本文の4条件だけでは <code>origin.kind == "task-notification"</code> がすり抜けることは flow-id 1-5 の時点で実データ確認済みだが、<b>どの条件が何件落としているか</b>が分からないと、条件を1つ足したり外したりしたときの影響が読めない。
+  </div>
+
+  <h3>段取りC: パラメータの実測</h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>#</th><th>問い</th><th>調べ方</th><th>判定基準</th></tr></thead>
+    <tbody>
+      <tr><td>4</td><td>発言の文字数分布は。頭120＋末尾40で何割が全文に収まるか</td><td>段取りBで確定した母集団の文字数を <code>length</code> で採り、分位点（最小・25%・中央・75%・最大）と「&le;160字の割合」を出す</td><td>全文に収まる割合が<b>極端</b>（9割超 or 1割未満）なら、件数・文字数の配分を見直す</td></tr>
+      <tr><td>5</td><td>相槌・スラッシュコマンドは何割か。除外規則で過剰除去・除去漏れは起きるか</td><td>除外規則を実装した jq を母集団へ当て、<b>除外された発言を全件目視する</b></td><td><b>過剰除去が1件でもあれば、その語を辞書から外す</b>（全体作業計画で確定済みの方針）。除去漏れは件数だけ記録</td></tr>
+      <tr><td>6</td><td>先頭3＋直近7の実測バイト数は。既存注入量との合計は</td><td>選定〜切り出しまでを通した出力を作り <code>wc -c</code>。<b>既存の注入量もこの環境で測り直す</b></td><td>合計が <code>CONTEXT_SIZE_WARN_BYTES</code>（8000）に対してどうかを数値で示す。発言節が<b>6000バイト上限に当たるか</b>も見る</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <div class="box stop">
+    <span class="label">古い値を根拠にしない</span>
+    <b>問い6の「既存の注入量を測り直す」を省略しない。</b>全体作業計画に書いた 1.2KB は issue #57 時点の値で、その後の追加分（issue #113 の SKILL.md 再読み込み指示等）を含まない。古い値を根拠に「8000バイトに収まる」と結論すると、実際には超えていても気づけない。
+  </div>
+
+  <h3>段取りD: 実装手段の確認</h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>#</th><th>問い</th><th>調べ方</th><th>判定基準</th></tr></thead>
+    <tbody>
+      <tr><td>8</td><td>マルチバイト文字を<b>文字単位で</b>切り出す、ロケール非依存の手段はどれか</td><td>候補（<code>jq</code> の <code>.[0:N]</code>／<code>awk</code> の <code>substr</code>／<code>${var:0:N}</code>）を、<code>LANG</code> を空にした環境と <code>C.UTF-8</code> の両方で日本語文字列へ当てる</td><td><b>両方の環境で同じ結果</b>になる手段だけを採る。<code>${var:0:N}</code> は既知の実績どおり落ちる想定</td></tr>
+      <tr><td>11</td><td><code>jq -R -n</code> ＋ <code>inputs</code> は実 transcript のサイズで許容範囲か</td><td>段取りAで測った実サイズのファイルへ、確定した抽出フィルタを当てて<b>空関数をベースラインに</b>時間を測る</td><td><b>追加コスト 200ms 以内</b>（先に置いたしきい値。超えたら実装方式を見直す）</td></tr>
+      <tr><td>7</td><td>git bash 実機で <code>transcript_path</code> はどの表記で渡るか</td><td>本調査はリモート実行環境（Linux）で行うため<b>実機確認できない見込み</b></td><td><b>確認できなければ「未確認」と明記する</b>（確認できたことにしない）。jq へパス名を渡さず標準入力へ繋ぐ形で回避できるかを机上で確認する</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <div class="box">
+    <span class="label">計測の作法</span>
+    問い11の計測は <code>.claude/rules/shell-script-style.md</code>「起動回数がゼロであることを計測で確かめるとき」の手順に従う（空関数をベースラインに取る／試行回数を十分に取る／同一セッション内で連続して測る）。<b>絶対値だけを見て「速い・遅い」と判断しない。</b>
+  </div>
+</section>
+
+<section id="data">
+  <h2>実データを扱ううえでの制約</h2>
+  <ul>
+    <li><b>transcript には本セッションの全発言が入る。</b>調査結果へ引用する際は、問いに答えるのに必要な最小限に留める。<b>件数・分布・型のような集計値で答えられる問いは、発言本文を引用せずに答える。</b></li>
+    <li>秘密情報（トークン等）が本文に含まれていた場合、<b>値そのものを置換する</b>（<code>.claude/rules/shell-script-style.md</code>「秘密情報の扱い」）。接頭辞決め打ちのマスクに頼らない。</li>
+    <li>一時ファイル（退避した生JSON・抽出結果）は<b>scratchpad へ置き、リポジトリへコミットしない</b>。</li>
+  </ul>
+</section>
+
+<section id="out-of-scope">
+  <h2>やらないこと（スコープ外）</h2>
+  <div class="box stop">
+    <span class="label">この計画では決めない・触らない</span>
+    <ul>
+      <li><b>Gemini CLI 経路の調査</b>（判断は <b>issue #201</b> へ送る。ブランチ絞りが不可能であることは issue #97 の DDR <code>i0097-04</code> で確定しており、追試しない）</li>
+      <li><b>実装</b>（判断は flow-id 3-1 へ送る）。本調査で書くのは使い捨ての確認用コマンドだけで、<code>session-start.sh</code> へは1行も手を入れない</li>
+      <li><b>合成フィクスチャの整備</b>（判断は flow-id 3-6 へ送る。単体テストを書くときに作る）</li>
+      <li><b>出力位置の再検討</b>（flow-id 1-5 で合意済み。issue #113 の末尾配置を壊さない）</li>
+    </ul>
+  </div>
+</section>
+
+<section id="verify">
+  <h2>完了条件</h2>
+  <ul>
+    <li><b>問い1〜13 のすべて</b>が、次のいずれかの形で埋まっていること。
+      <ul>
+        <li><b>数値</b>（件数・割合・バイト数・ミリ秒）</li>
+        <li><b>可否の断定</b>（「同一ファイルである」「この手段は使えない」）</li>
+        <li><b>「未確認」の明示</b>（なぜ確認できないかの理由付き。問い7が該当する見込み）</li>
+      </ul>
+    </li>
+    <li>「この調査で決めること」の8項目のうち、<b>出力位置を除く7項目</b>の値が確定していること。</li>
+    <li>結果が <code>wip/reports/20260823_session-start-user-utterance-reinject_transcript調査結果.md</code> と同名 <code>.html</code> に記録されていること（md が正文、HTML はその視覚化）。</li>
+    <li>worklog に、試した内容・うまくいかなかった内容が残っていること。</li>
+  </ul>
+  <pre><code># 完了確認（flow-id 2-6 の実施後に流す）
+test -f wip/reports/20260823_session-start-user-utterance-reinject_transcript調査結果.md
+test -f wip/reports/20260823_session-start-user-utterance-reinject_transcript調査結果.html
+
+# 13の問いすべてに見出しがあること（13 が返れば合格）
+grep -cE '^### 問い[0-9]+' wip/reports/20260823_session-start-user-utterance-reinject_transcript調査結果.md
+
+# session-start.sh を触っていないこと（空が返れば合格）
+git diff --name-only origin/main...HEAD -- .claude/hooks/session-start.sh</code></pre>
+  <p>合格条件: 上の3コマンドが順に「両ファイルが存在」「<code>13</code>」「空」を返すこと。</p>
+</section>
+
+<section id="stop">
+  <h2>停止条件・差し戻し条件</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>条件</th><th>対応</th></tr></thead>
+    <tbody>
+      <tr><td><b>問い1が否</b>（<code>transcript_path</code> が取れず、<code>CLAUDE_PROJECT_DIR</code> からも辿れない）</td><td><span class="tag stop">即停止</span> 以降の問いを解かず停止する。実装不能である事実を <code>wip/reports/</code> へ記録し、issue #151 へ差し戻す。<b>代替経路を無理に作らない</b>（<code>PreCompact</code> は DDR <code>i0057-01</code> で却下済み）</td></tr>
+      <tr><td><b>問い11がしきい値超過</b>（追加コスト 200ms 超）</td><td>フェーズ3へ進む前に実装方式（jqの呼び方・走査量）を見直す案を出す。<b>しきい値を後から緩めない</b></td></tr>
+      <tr><td><b>問い5で過剰除去が発生</b></td><td>該当語を辞書から外して測り直す。「まれだから許容」としない</td></tr>
+      <tr><td><b>調査中に規模が本issueに収まらないと判明</b></td><td><code>references/planning.md</code>「issueが大きすぎる場合の分割提案」に従い、未着手範囲の別issue化を提案する</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<footer>issue #151 / PR #197 — 計画の正文は同名の <code>.md</code>。外部依存を持たない自己完結HTML。</footer>
+
+</div>
+</body>
+</html>
