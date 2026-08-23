@@ -1,0 +1,148 @@
+<!--
+  レポートHTMLビュー デザイン案4「タイムライン型」（Tailwind CSS利用サンプル）
+
+  狙い（認知負荷の下げ方）:
+    - 「実施した内容と結果」を縦のタイムラインとして表現し、読む順序を視覚的に固定する。
+      左レールのドット色＝結論の性質なので、スクロールしながら全体の良し悪しの分布が
+      一目で分かる（読み飛ばしても異常箇所だけ拾える）。
+    - 根拠（コマンド出力）は <details> に格納し、本文は結論と要約だけの短い行にする。
+    - 冒頭は「総括1文＋重点レビュー依頼」だけの軽いヘッダに留める。
+    - 現行テンプレートの意味論（◎△✕の3色＋記号、◆◇・）は維持。
+
+  比較用に5案共通のダミー内容（架空のissue #201 調査レポート）を使用。
+-->
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>案4: タイムライン型 — 検索インデックス生成の高速化調査</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  [id] { scroll-margin-top: 1rem; }
+  details > summary { cursor: pointer; }
+</style>
+</head>
+<body class="bg-slate-50 text-slate-800 dark:bg-slate-950 dark:text-slate-200 font-sans leading-relaxed">
+
+<div class="max-w-3xl mx-auto px-5 py-10">
+
+  <!-- 軽量ヘッダ -->
+  <header>
+    <p class="text-[11px] tracking-[0.2em] font-bold text-blue-600 dark:text-blue-400">調査結果レポート / フェーズ2</p>
+    <h1 class="mt-2 text-2xl font-bold">検索インデックス生成の高速化調査</h1>
+    <p class="mt-2 text-slate-600 dark:text-slate-300">再生成136秒の主因はjqの起動回数。1ファイル1回へ集約＋mtimeキャッシュで約10秒になる。</p>
+    <div class="mt-3 flex flex-wrap items-center gap-2 text-xs text-slate-400">
+      <span class="rounded-full bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300 px-2.5 py-0.5 font-semibold">◎良 2</span>
+      <span class="rounded-full bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 px-2.5 py-0.5 font-semibold">△注意 1</span>
+      <span class="rounded-full bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300 px-2.5 py-0.5 font-semibold">✕問題 1</span>
+      <span>issue #201 / PR #205 / 2026-08-23 / 正文は同名の .md</span>
+    </div>
+  </header>
+
+  <!-- 重点レビュー依頼: 1枚のコンパクトなカードに3段階を積む -->
+  <section id="review-focus" class="mt-8 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 divide-y divide-slate-100 dark:divide-slate-800 overflow-hidden">
+    <h2 class="sr-only">重点レビュー依頼</h2>
+    <div class="p-4 bg-blue-50 dark:bg-blue-950/40 border-l-4 border-blue-500">
+      <p class="text-sm"><span class="font-bold text-blue-700 dark:text-blue-300">◆特に見てほしい</span> — <a class="text-blue-700 dark:text-blue-400 underline underline-offset-2" href="#f1">1. mtimeキャッシュ</a>: 巻き戻し時の無効化をどこまで守るかで迷っている。許容範囲を決めてほしい。</p>
+    </div>
+    <div class="p-4 border-l-4 border-blue-300">
+      <p class="text-sm"><span class="font-bold text-blue-700 dark:text-blue-300">◇承認が欲しい</span> — <a class="text-blue-700 dark:text-blue-400 underline underline-offset-2" href="#f2">2. jq集約</a>: <code class="rounded bg-slate-100 dark:bg-slate-800 px-1 text-[13px]">--args</code> 一括渡しで決めた。</p>
+    </div>
+    <div class="p-4 border-l-4 border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400">
+      <p class="text-sm"><span class="font-bold">・細かいレビュー不要</span> — <a class="underline underline-offset-2" href="#f4">4. 走査中断の再現</a>: 実測で確認済み。</p>
+    </div>
+  </section>
+
+  <!-- 確からしさの限界 -->
+  <section id="unverified" class="mt-4 rounded-xl border-l-4 border-amber-500 bg-amber-50 dark:bg-amber-950/40 p-4">
+    <p class="text-xs font-bold tracking-wide text-amber-700 dark:text-amber-300">確かめられなかったこと（この結果が言っていないこと）</p>
+    <ul class="mt-1 list-disc pl-5 text-sm">
+      <li>git bash（MSYS）実機でのfork単価と所要時間の絶対値 — <a class="text-blue-700 dark:text-blue-400 underline underline-offset-2" href="#f3">詳細: 手順3</a></li>
+    </ul>
+  </section>
+
+  <!-- タイムライン: ドット色＝結論の性質。実施条件を最初のノードに置き、前提→結果の順を固定する -->
+  <section id="findings" class="mt-10">
+    <h2 class="text-lg font-bold">実施した内容と結果</h2>
+
+    <ol class="mt-5 relative border-l-2 border-slate-200 dark:border-slate-700 space-y-8 pl-8 ml-3">
+
+      <li id="conditions" class="relative">
+        <span class="absolute -left-[41px] top-0.5 grid h-6 w-6 place-items-center rounded-full bg-slate-200 dark:bg-slate-700 text-[11px] font-bold text-slate-600 dark:text-slate-300 ring-4 ring-slate-50 dark:ring-slate-950">0</span>
+        <p class="text-xs font-bold tracking-wide text-slate-400">実施条件（測った対象・環境）</p>
+        <p class="mt-1 text-sm text-slate-600 dark:text-slate-300">Claude Code on the web（Linux）/ bash 5.2.21 / jq 1.7.1 / 対象43ファイル / 実施日 2026-08-23。1環境の観測であり、全環境の事実としては扱わない。</p>
+      </li>
+
+      <li id="f1" class="relative">
+        <span class="absolute -left-[41px] top-0.5 grid h-6 w-6 place-items-center rounded-full bg-blue-600 text-[11px] font-bold text-white ring-4 ring-slate-50 dark:ring-slate-950">1</span>
+        <div class="flex flex-wrap items-center gap-2">
+          <h3 class="text-base font-bold">mtimeキャッシュの効果</h3>
+          <span class="rounded-full bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300 px-2.5 py-0.5 text-xs font-semibold">◎良</span>
+          <span class="text-xs text-slate-400">根拠: 実測</span>
+        </div>
+        <p class="mt-1 text-sm">mtimeが変わっていないファイルの結果を前回出力から再利用する方式で比較。<strong>差分が無いときの再生成は136秒→約10秒</strong>。キャッシュキーはmtime＋スクリプト自身のハッシュとする。</p>
+        <details class="mt-2 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700">
+          <summary class="px-3 py-2 text-xs font-semibold text-slate-500 dark:text-slate-400">根拠を見る（実行コマンドと出力）</summary>
+          <pre class="border-t border-slate-100 dark:border-slate-800 p-3 text-[13px] overflow-x-auto"><code>$ time bash extract-frontmatter.sh .   # キャッシュ無し
+real  2m16.4s
+$ time bash extract-frontmatter.sh .   # キャッシュ有り（差分なし）
+real  0m9.8s</code></pre>
+        </details>
+      </li>
+
+      <li id="f2" class="relative">
+        <span class="absolute -left-[41px] top-0.5 grid h-6 w-6 place-items-center rounded-full bg-blue-600 text-[11px] font-bold text-white ring-4 ring-slate-50 dark:ring-slate-950">2</span>
+        <div class="flex flex-wrap items-center gap-2">
+          <h3 class="text-base font-bold">jq起動の集約可否</h3>
+          <span class="rounded-full bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300 px-2.5 py-0.5 text-xs font-semibold">◎良</span>
+          <span class="text-xs text-slate-400">根拠: 実装の確認</span>
+        </div>
+        <p class="mt-1 text-sm">キー・配列要素ごとのjq呼び出し（1ファイル約30回）は、シェル配列へ中間表現を溜めて<strong>1ファイル1回へ集約できる</strong>。ハイフン始まりの値対策として <code class="rounded bg-slate-100 dark:bg-slate-800 px-1 text-[13px]">--args</code> の後ろへ <code class="rounded bg-slate-100 dark:bg-slate-800 px-1 text-[13px]">--</code> を置く。</p>
+      </li>
+
+      <li id="f3" class="relative">
+        <span class="absolute -left-[41px] top-0.5 grid h-6 w-6 place-items-center rounded-full bg-amber-500 text-[11px] font-bold text-white ring-4 ring-slate-50 dark:ring-slate-950">3</span>
+        <div class="flex flex-wrap items-center gap-2">
+          <h3 class="text-base font-bold">git bash実機は未計測</h3>
+          <span class="rounded-full bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 px-2.5 py-0.5 text-xs font-semibold">△注意</span>
+          <span class="text-xs text-slate-400">根拠: 実測（Linuxのみ）</span>
+        </div>
+        <p class="mt-1 text-sm">計測はすべてLinux。git bashのfork単価（約95ms/回）とは桁が違う。</p>
+        <div class="mt-2 rounded-lg border-l-4 border-amber-500 bg-amber-50 dark:bg-amber-950/40 p-3 text-sm">
+          <p class="text-xs font-bold text-amber-700 dark:text-amber-300">確かめられなかったこと（詳細）</p>
+          <p class="mt-1">起動回数の削減比（30回→1回）は環境に依らないが、「約10秒」という絶対値はgit bash実機で測り直すまで結論にしない。</p>
+        </div>
+      </li>
+
+      <li id="f4" class="relative">
+        <span class="absolute -left-[41px] top-0.5 grid h-6 w-6 place-items-center rounded-full bg-red-600 text-[11px] font-bold text-white ring-4 ring-slate-50 dark:ring-slate-950">4</span>
+        <div class="flex flex-wrap items-center gap-2">
+          <h3 class="text-base font-bold">削除ファイルで走査中断</h3>
+          <span class="rounded-full bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300 px-2.5 py-0.5 text-xs font-semibold">✕問題</span>
+          <span class="text-xs text-slate-400">根拠: 実測</span>
+        </div>
+        <p class="mt-1 text-sm">追跡ファイルを削除して未ステージのまま走査すると、<code class="rounded bg-slate-100 dark:bg-slate-800 px-1 text-[13px]">git ls-files</code> の列挙に実体の無いパスが混ざり走査全体が中断する。<strong>列挙とファイル操作の間に <code class="rounded bg-slate-100 dark:bg-slate-800 px-1 text-[13px]">[[ -f ]]</code> の実体判定を挟む修正が必要</strong>（スキップ件数は必ず出力する）。</p>
+        <details class="mt-2 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700">
+          <summary class="px-3 py-2 text-xs font-semibold text-slate-500 dark:text-slate-400">根拠を見る（エラー出力）</summary>
+          <pre class="border-t border-slate-100 dark:border-slate-800 p-3 text-[13px] overflow-x-auto"><code>stat: cannot statx 'wip/reports/old.md': No such file or directory</code></pre>
+        </details>
+      </li>
+
+      <li id="next" class="relative">
+        <span class="absolute -left-[41px] top-0.5 grid h-6 w-6 place-items-center rounded-full bg-emerald-600 text-[11px] font-bold text-white ring-4 ring-slate-50 dark:ring-slate-950">→</span>
+        <p class="text-xs font-bold tracking-wide text-emerald-700 dark:text-emerald-300">設計への反映</p>
+        <ol class="mt-1 list-decimal pl-5 text-sm space-y-1">
+          <li>フェーズ3で1ファイル1回のjq集約＋mtimeキャッシュを実装する。</li>
+          <li>実測値と前提条件は <code class="rounded bg-slate-100 dark:bg-slate-800 px-1 text-[13px]">.claude/docs/spec/extract-frontmatter.md</code>「性能」節へ反映する。</li>
+        </ol>
+        <p class="mt-2 text-xs text-slate-500 dark:text-slate-400">残課題: git bash実機での再計測（別issueで扱う）。</p>
+      </li>
+    </ol>
+  </section>
+
+  <footer class="mt-12 text-center text-xs text-slate-400 dark:text-slate-500">issue #201 / PR #205 — 結果の正文は同名の <code>.md</code>。デザイン案4（タイムライン型）。</footer>
+</div>
+
+</body>
+</html>
