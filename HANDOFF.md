@@ -17,9 +17,9 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - issue: #176
 - ブランチ: `claude/reflection-plan-criteria-tnhfvs`
 - PR: #196（Draft・https://github.com/yuki-matsu783/MR-driven-workflow/pull/196 ）
-- push回数: 4
-- 現在のループ: 2-6〜2-9 の1周目（進行中）
-- 未返信スレッド: 8
+- push回数: 5
+- 現在のループ: なし
+- 未返信スレッド: 0
 - 追従監視: あり（PRイベント購読 + 定期チェックイン。Claude Code on the web セッション）
 
 | 進捗 | flow-id | ステップ | 担当 |
@@ -35,11 +35,11 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 | [x] | 2-3 | MRで調査計画についてレビュー・コメントする | 人間 |
 | [x] | 2-4 | レビュー内容を取得し、調査計画を修正する | `comments` / `reply` |
 | [x] | 2-5 | 調査計画をもとにMR descriptionを更新する | `describe` |
-| [] | 2-6 | 調査を実施し、結果を記録する | エージェント |
-| [] | 2-7 | commitし、pushしてレビュー依頼を行う | エージェント |
-| [] | 2-8 | MRで調査結果についてレビュー・コメントする | 人間 |
-| [] | 2-9 | レビュー内容を取得し、調査結果を修正する | `comments` / `reply` |
-| [] | 2-10 | 調査結果をもとにMR descriptionを更新する | `describe` |
+| [x] | 2-6 | 調査を実施し、結果を記録する | エージェント |
+| [x] | 2-7 | commitし、pushしてレビュー依頼を行う | エージェント |
+| [x] | 2-8 | MRで調査結果についてレビュー・コメントする | 人間 |
+| [x] | 2-9 | レビュー内容を取得し、調査結果を修正する | `comments` / `reply` |
+| [x] | 2-10 | 調査結果をもとにMR descriptionを更新する | `describe` |
 | [] | 3-1 | 個別作業計画を作成する | エージェント |
 | [] | 3-2 | commitし、pushしてレビュー依頼を行う | エージェント |
 | [] | 3-3 | MRで作業計画についてレビュー・コメントする | 人間 |
@@ -82,10 +82,11 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - **敵対的レビュー（フェーズ2・2/3回目）**: flow-id 2-6 の調査結果（md＋html）と worklog を対象に実施。指摘11件。振り分け表と `select-adversarial-findings.sh` を通った8件をPR #196 へインライン投稿し、残り3件（minor/medium）はレビュー本文へ記載。**11件すべてを自分のコマンドで裏取りし、全件が正しい指摘であることを確認した。** 投稿スレッド: [#1](https://github.com/yuki-matsu783/MR-driven-workflow/pull/196#discussion_r3839506738) / [#2](https://github.com/yuki-matsu783/MR-driven-workflow/pull/196#discussion_r3839507173) / [#3](https://github.com/yuki-matsu783/MR-driven-workflow/pull/196#discussion_r3839507632) / [#4](https://github.com/yuki-matsu783/MR-driven-workflow/pull/196#discussion_r3839508118) / [#5](https://github.com/yuki-matsu783/MR-driven-workflow/pull/196#discussion_r3839508430) / [#6](https://github.com/yuki-matsu783/MR-driven-workflow/pull/196#discussion_r3839508784) / [#7](https://github.com/yuki-matsu783/MR-driven-workflow/pull/196#discussion_r3839509229) / [#8](https://github.com/yuki-matsu783/MR-driven-workflow/pull/196#discussion_r3839509552)
 - flow-id 2-6（修正後）: **Q4 の母数の作り方に誤りがあり、作り直した。** `grep -rln -- '別issue'` が `個別issue` にも一致していたため2件が偽陽性で混入しており、**その2件がちょうど「時期尚早」類型のすべてだった**。除外を3段階（E1 部分一致／E2 語の用法／E3 判断の性質）へ明示し **13件→7件**とした。結果は **7/7 で一致、No の理由は3種（規模2・スコープ2・価値2）**。あわせて**対案（規模基準）を同じ母数へ当てて 3/7** という比較を追加し、母数の偏り・`status`/`note` の実測・出口(3)の起票主体の制約・測定時点のスナップショットを記録した。
 
+- flow-id 2-9: 投稿した8スレッドすべてへ返信し、報告のみ3件は[まとめコメント](https://github.com/yuki-matsu783/MR-driven-workflow/pull/196#issuecomment-5388329188)で返した。
+- flow-id 2-10: 調査結果をもとにMR description を全文更新した（Q1〜Q6 の結論・基準の欠落・敵対的レビュー2回分の記録・確かめられなかったこと）。
+
 ## 次にやること
 
-- flow-id 2-9: 投稿した8スレッドへ返信し、報告のみ3件をまとめコメントで返す。その後 `set-header --unreplied 0` → ループ範囲 2-6〜2-9 を `mark-done`。
-- flow-id 2-10: 調査結果をもとにMR descriptionを更新する。
 - flow-id 3-1: 個別作業計画 `wip/plans/【AIアセット作成】…` を作成する。フェーズ3で決めることは5件（主判定の文面／No のときの3つの出口／`【AIアセット反映】` 側から指す文面／flow-id 4-6 の参照列／#64 節との相互参照の1行）。
 
 ## 判断を迷った内容
