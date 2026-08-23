@@ -1,0 +1,374 @@
+<!--
+  個別作業計画「push前チェックリスト機構の実装」（issue #17 / flow-id 3-1）の
+  人間レビュー用HTMLビュー。正文は同名の .md で、このHTMLはその視覚化である。
+  外部依存を持たない自己完結HTML。
+-->
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>【実装】【テスト】push前チェックリスト機構の実装 — issue #17</title>
+<style>
+  :root {
+    --bg: #f6f7f9;      --panel: #ffffff;   --ink: #1a1d21;     --muted: #5b636d;
+    --line: #dfe3e8;    --accent: #2563eb;  --accent-soft: #eaf0fe;
+    --ok: #1a7f4b;      --ok-soft: #e6f4ec; --warn: #a35a00;    --warn-soft: #fdf1e0;
+    --stop: #b3261e;    --stop-soft: #fdecea; --code-bg: #f0f2f5;
+    --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1216;    --panel: #161a20;   --ink: #e6e8eb;     --muted: #9aa3ad;
+      --line: #2a3038;  --accent: #7aa2f7;  --accent-soft: #1b2333;
+      --ok: #6ee7a8;    --ok-soft: #14261d; --warn: #f0b866;    --warn-soft: #2a2113;
+      --stop: #f2857c;  --stop-soft: #2b1614; --code-bg: #1d222a;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", system-ui, sans-serif;
+    line-height: 1.8; font-size: 15px;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 20px 80px; }
+
+  /* 共通ヘッダ帯 */
+  header.band {
+    background: linear-gradient(135deg, var(--accent-soft), var(--panel));
+    border-bottom: 1px solid var(--line); padding: 28px 20px 22px; margin-bottom: 28px;
+  }
+  header.band .inner { max-width: 1080px; margin: 0 auto; }
+  header.band .kind { font-size: 11px; letter-spacing: .18em; color: var(--accent); font-weight: 700; }
+  header.band h1 { margin: 6px 0 4px; font-size: 26px; line-height: 1.4; }
+  header.band .lead { margin: 0; color: var(--muted); }
+  .meta { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; padding: 0; list-style: none; }
+  .meta li {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 999px;
+    padding: 3px 12px; font-size: 12.5px; color: var(--muted); white-space: nowrap;
+  }
+  .meta li b { color: var(--ink); font-weight: 600; }
+
+  nav.toc {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 14px 20px; margin-bottom: 28px;
+  }
+  nav.toc h2 { margin: 0 0 8px; font-size: 13px; letter-spacing: .08em; color: var(--muted); border: 0; padding: 0; }
+  nav.toc ol { margin: 0; padding-left: 20px; }
+  nav.toc li { margin: 2px 0; }
+  a { color: var(--accent); }
+
+  section {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 8px 24px 22px; margin-bottom: 22px;
+  }
+  h2 { font-size: 20px; margin: 20px 0 10px; padding-bottom: 8px; border-bottom: 2px solid var(--line); }
+  h3 { font-size: 16px; margin: 22px 0 8px; color: var(--accent); }
+  p { margin: 10px 0; }
+  ul, ol { padding-left: 22px; }
+  li { margin: 4px 0; }
+  blockquote { margin: 10px 0; padding: 6px 14px; border-left: 3px solid var(--line); color: var(--muted); }
+
+  /* 表は自身の中で横スクロールする（ページ本体は横スクロールさせない） */
+  .tablewrap { overflow-x: auto; margin: 14px 0; }
+  table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 14px; }
+  th, td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: var(--accent-soft); font-weight: 600; white-space: nowrap; }
+  tbody tr:nth-child(even) td { background: color-mix(in srgb, var(--line) 22%, transparent); }
+
+  code {
+    background: var(--code-bg); border-radius: 5px; padding: 1px 5px; font-size: 13px;
+    font-family: "SFMono-Regular", Consolas, "Noto Sans Mono", monospace;
+  }
+  pre {
+    background: var(--code-bg); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 12px 14px; overflow-x: auto; font-size: 13px; line-height: 1.65;
+  }
+  pre code { background: none; padding: 0; }
+
+  /* 注意ボックス: info（既定）/ ok（決めたこと）/ warn（注意）/ stop（やらないこと・危険） */
+  .box { border-left: 4px solid var(--accent); background: var(--accent-soft);
+         border-radius: 0 var(--radius) var(--radius) 0; padding: 12px 16px; margin: 16px 0; }
+  .box > :first-child { margin-top: 0; } .box > :last-child { margin-bottom: 0; }
+  .box .label { font-size: 12px; font-weight: 700; letter-spacing: .06em; display: block; margin-bottom: 4px; }
+  .box.ok { border-color: var(--ok); background: var(--ok-soft); } .box.ok .label { color: var(--ok); }
+  .box.warn { border-color: var(--warn); background: var(--warn-soft); } .box.warn .label { color: var(--warn); }
+  .box.stop { border-color: var(--stop); background: var(--stop-soft); } .box.stop .label { color: var(--stop); }
+  .box.info .label { color: var(--accent); }
+
+  .tag { display: inline-block; border-radius: 999px; padding: 1px 9px; font-size: 12px; font-weight: 600; }
+  .tag.ok { background: var(--ok-soft); color: var(--ok); }
+  .tag.warn { background: var(--warn-soft); color: var(--warn); }
+  .tag.stop { background: var(--stop-soft); color: var(--stop); }
+
+  footer { color: var(--muted); font-size: 13px; text-align: center; padding-top: 10px; }
+</style>
+</head>
+<body>
+
+<header class="band">
+  <div class="inner">
+    <div class="kind">個別作業計画 / フェーズ3</div>
+    <h1>【実装】【テスト】push前チェックリスト機構の実装</h1>
+    <p class="lead">調査結果（Q1〜Q8）を入力として、スクリプト1本・hook2本・新規テスト2本・既存テスト1本の改修・<code>settings.json</code> の登録を行う。設計判断はここで作り直さない。</p>
+    <ul class="meta">
+      <li><b>issue</b> #17</li>
+      <li><b>ブランチ</b> claude/hook-implementation-17-vjhppj</li>
+      <li><b>PR</b> #195（Draft）</li>
+      <li><b>フェーズ</b> 3〈作業〉 flow-id 3-1</li>
+      <li><b>push回数</b> 5（次のpushで6）</li>
+      <li><b>作成日</b> 2026-08-23</li>
+      <li><b>正文</b> 同名の .md</li>
+    </ul>
+  </div>
+</header>
+
+<div class="wrap">
+
+<nav class="toc">
+  <h2>目次</h2>
+  <ul>
+    <li><a href="#scope">この計画で作るもの</a></li>
+    <li><a href="#order">実装の順序</a></li>
+    <li><a href="#s1">1. push-checklist.sh（本体）</a></li>
+    <li><a href="#s2">2. block-unchecked-push.sh（PreToolUse）</a></li>
+    <li><a href="#s3">3. post-push-next-checklist.sh（PostToolUse）</a></li>
+    <li><a href="#s4">4-5. 新規テスト2本</a></li>
+    <li><a href="#s6">6. T11の改修</a></li>
+    <li><a href="#s7">7. settings.json</a></li>
+    <li><a href="#verify">検証（合格条件）</a></li>
+    <li><a href="#nogo">やらないこと</a></li>
+    <li><a href="#open">未確定事項</a></li>
+  </ul>
+</nav>
+
+<section id="scope">
+  <h2>この計画で作るもの</h2>
+  <p>前提となる調査結果は <code>wip/reports/20260823_steady-guarding-checkpoint_push前チェックリスト機構の設計調査.md</code>。<b>Q1〜Q8の結論がこの計画の入力であり、設計判断をここで作り直さない。</b></p>
+  <table>
+    <thead><tr><th>#</th><th>ファイル</th><th>種別</th><th>役割</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td><code>.claude/scripts/src/push-checklist.sh</code></td><td>新規</td><td>生成・チェック記録・検証・パス解決の本体</td></tr>
+      <tr><td>2</td><td><code>.claude/hooks/block-unchecked-push.sh</code></td><td>新規</td><td>PreToolUse。未完了なら exit 2</td></tr>
+      <tr><td>3</td><td><code>.claude/hooks/post-push-next-checklist.sh</code></td><td>新規</td><td>PostToolUse。次回分を生成</td></tr>
+      <tr><td>4</td><td><code>.claude/scripts/test/test_push_checklist.sh</code></td><td>新規</td><td>1のテスト</td></tr>
+      <tr><td>5</td><td><code>.claude/scripts/test/test_block_unchecked_push.sh</code></td><td>新規</td><td>2のテスト（2層構成）</td></tr>
+      <tr><td>6</td><td><code>.claude/scripts/test/test_sync_gemini_assets.sh</code></td><td><b>改修</b></td><td>T11を2本→3本（または4本）対応へ</td></tr>
+      <tr><td>7</td><td><code>.claude/settings.json</code></td><td><b>改修</b></td><td>hook登録（PreToolUse 1件・PostToolUse 2件）</td></tr>
+    </tbody>
+  </table>
+  <div class="box warn">
+    <span class="label">6・7は既存ファイルの改修であり、見落としやすい</span>
+    とくに6は、足さなければT11が緑のまま<b>3本目の写経のドリフトを見逃す</b>（調査結果Q5の指摘）。前置フィルタが超集合でなくなるとhookが無言で発火しなくなるため、これは機構の無効化そのものになる。
+  </div>
+  <p><b>種別を <code>【実装】【テスト】</code> と併記する理由</b>: テストコードは実装と同時に書き、まとめて1回で合意を取る。本機構はhookであり、<b>テストを伴わない実装は成立しない</b>。分けると同じ内容を2回説明することになる。</p>
+</section>
+
+<section id="order">
+  <h2>実装の順序</h2>
+  <p>依存関係の順に並べる。<b>各段でその段のテストを通してから次へ進む</b>（最後にまとめてテストしない）。</p>
+  <ol>
+    <li><b><code>push-checklist.sh</code> を書く</b>（4も同時に書く）。hookはこれに委譲するだけなので、ここが本体。</li>
+    <li><b><code>block-unchecked-push.sh</code> を書く</b>（5も同時に書く）。</li>
+    <li><b><code>post-push-next-checklist.sh</code> を書く</b>。</li>
+    <li><b>T11を改修する</b>（3を書いた直後。先に改修するとファイルが存在せずT11が落ちる）。</li>
+    <li><b><code>.claude/settings.json</code> へ登録する</b>。</li>
+    <li><b>回帰確認</b>（下記「検証」）。</li>
+  </ol>
+</section>
+
+<section id="s1">
+  <h2>1. <code>push-checklist.sh</code>（本体）</h2>
+  <h3>サブコマンド</h3>
+  <table>
+    <thead><tr><th>サブコマンド</th><th>引数</th><th>役割</th><th>終了コード</th></tr></thead>
+    <tbody>
+      <tr><td><code>path</code></td><td>なし</td><td>カレントブランチの<b>最新</b>チェックリストのパスをstdoutへ。無ければ空で1</td><td>0 / 1</td></tr>
+      <tr><td><code>new</code></td><td>なし</td><td>次回分を生成する。生成条件（Q6の3つ）を満たさなければ<b>何もせず0で終わる</b></td><td>0</td></tr>
+      <tr><td><code>check &lt;id&gt; &lt;ログ&gt;</code></td><td>id・実施ログ</td><td>その行を <code>done</code> にし、4列目へログを書く</td><td>0 / 1</td></tr>
+      <tr><td><code>skip &lt;id&gt; &lt;理由&gt;</code></td><td>id・理由</td><td>その行を <code>skip</code> にし、4列目へ理由を書く</td><td>0 / 1</td></tr>
+      <tr><td><code>verify</code></td><td>なし</td><td>最新チェックリストの<b>HEAD断面</b>を検証する</td><td>0 / 1</td></tr>
+    </tbody>
+  </table>
+  <div class="box info">
+    <span class="label"><code>verify</code> は exit 2 を返さない</span>
+    exit 2 は<b>hookの契約</b>であり、スクリプト単体の終了コードとしては使わない（テストから呼ぶときに紛らわしいため）。hook側が1を受けて2へ翻訳する。
+  </div>
+  <p><b><code>check</code> / <code>skip</code> は作業ツリー上のファイルを書き換える</b>（<code>verify</code> はHEAD断面を読む）。この非対称は意図的で、調査結果Q4の結論（hookはHEADを読む）に対応する。</p>
+
+  <h3>置き場所・命名</h3>
+  <div class="box stop">
+    <span class="label">自前で <code>// "..."</code> の既定値を書かない</span>
+    置き場所は <code>get_workflow_config</code>（<code>Provider.sh</code>）の <code>worklogDir</code> から解決する。<b><code>get_workflow_config</code> 自身が既定値を持っており、<code>cleanup-task.sh</code> と同じ値（<code>worklog</code>）になる。</b> ここを独自に <code>wip/worklogs</code> と書くと、<code>.mrworkflow.json</code> が無い配布先で生成側と削除側が食い違う（調査結果Q1の訂正を参照）。
+  </div>
+  <ul>
+    <li>命名は <code>&lt;YYYYMMDD&gt;_&lt;ブランチslug&gt;_push&lt;N&gt;_checklist.tsv</code>。</li>
+    <li>ブランチslugは <code>[^a-zA-Z0-9_-]</code> を <code>_</code> へ。<code>post-push-compact-prompt.sh</code> と同じ変換だが、<b><code>sed</code> ではなくbash組み込みで行う</b>（hookから呼ばれるため）。</li>
+    <li><code>&lt;N&gt;</code> は既存チェックリストの最大値 + 1。</li>
+  </ul>
+
+  <h3>ファイル形式</h3>
+<pre><code># generated-for: &lt;HEADのSHA&gt;
+# id	項目	状態	実施ログ
+worklog	worklogを作成／今回のpush分を追記した	pending	</code></pre>
+  <ul>
+    <li>1行目・2行目は <code>#</code> で始まるコメント。<b><code>#</code> で始まる行は読み飛ばす。</b></li>
+    <li>データ行は<b>常にちょうど4フィールド</b>（<code>pending</code> でも4列目を空で出す）。</li>
+    <li>状態は <code>pending</code> / <code>done</code> / <code>skip</code> の3値。</li>
+    <li>項目（5件）とidは<b>スクリプト内の定数</b>。文言は調査結果Q2の表をそのまま使う。</li>
+  </ul>
+
+  <h3><code>verify</code> の判定（否定形）</h3>
+  <p>「通してよい」と積極的に確認できたときだけ0を返す。1つでも欠ければ1。</p>
+  <ol>
+    <li>全データ行が<b>ちょうど4フィールド</b>。</li>
+    <li><code>id</code> 列の集合が<b>5件の定数と過不足なく一致</b>。</li>
+    <li>全行の状態が <code>done</code> または <code>skip</code>。</li>
+    <li><code>done</code> / <code>skip</code> の行の<b>4列目が空でない</b>。</li>
+  </ol>
+  <p><b>複数のチェックリストがHEADに存在する場合は <code>&lt;N&gt;</code> が最大の1本だけを見る。</b></p>
+
+  <h3><code>new</code> の生成条件（3つすべて）</h3>
+  <ol>
+    <li>HEADが公開済み（<code>git branch --remotes --contains HEAD</code> が1件以上）。</li>
+    <li><b>そのHEAD SHAを <code>#&nbsp;generated-for:</code> に持つチェックリストが1本も無い。</b></li>
+    <li>HEADにタスク成果物が残っている（<code>plansDir</code> / <code>worklogDir</code> / <code>reportsDir</code> のいずれかに、<code>TEMPLATE.md</code>・<code>REVIEW-POINTS*.md</code> を除くファイルがある）。</li>
+  </ol>
+  <p><b>条件を満たさないときは、エラーではなく静かに0で終わる</b>（PostToolUseの正常系だから）。</p>
+</section>
+
+<section id="s2">
+  <h2>2. <code>block-unchecked-push.sh</code>（PreToolUse）</h2>
+  <p><code>block-direct-git-commit.sh</code> の構造をそのまま踏襲する。</p>
+  <ol>
+    <li><code>main()</code> 冒頭で<b>前置フィルタ</b> <code>raw_hints_at_git_push</code>（<code>post-push-compact-prompt.sh:222-240</code> と<b>同一実装</b>を写経）。</li>
+    <li><code>jq</code> で <code>tool_name</code> / <code>tool_input.command</code> を取り出す。</li>
+    <li><code>CommandPosition.sh</code> を <code>source</code> して <code>command_invokes_git_subcommand "$command" push</code>。<code>BASH_VERSINFO</code> ≥ 4.3・<code>[ -r ]</code>・<code>source</code> 成否・<code>declare -F</code> の4点を確かめ、<b>駄目なら部分一致へ縮退</b>（ブロック側へ倒す）。</li>
+    <li>push と判定したら <code>push-checklist.sh verify</code> を呼ぶ。
+      <ul>
+        <li>0 → <code>exit 0</code></li>
+        <li>1（未完了・壊れている） → 理由と<b>ルールファイルのパス</b>をstderrへ出して <code>exit 2</code></li>
+        <li>チェックリストがHEADに無い → ブロックしない。ただし<b>作業ツリーには存在する</b>なら <code>exit 1</code>（非ブロックのエラー）＋警告</li>
+      </ul>
+    </li>
+    <li>末尾に <code>if [ "${BASH_SOURCE[0]}" = "${0}" ]; then main; fi</code> のガードを置く。</li>
+  </ol>
+  <div class="box ok">
+    <span class="label">ブロックメッセージの必須要素（issue #17 の受け入れ条件）</span>
+    <b>未完了の項目名</b>と、<code>.claude/skills/commit/SKILL.md</code> / <code>.claude/docs/spec/push-checklist.md</code> という<b>ルールファイルのパス</b>を必ず含める。
+  </div>
+</section>
+
+<section id="s3">
+  <h2>3. <code>post-push-next-checklist.sh</code>（PostToolUse）</h2>
+  <p>同じく前置フィルタ＋<code>command_invokes_git_subcommand</code> のあと、<code>push-checklist.sh new</code> を呼ぶだけ。</p>
+  <ul>
+    <li><b>既存2本より後ろに登録する</b>（既存の出力を邪魔しない）。</li>
+    <li><b>既存2本のロジックは1バイトも変更しない</b>（issue #17 の受け入れ条件）。</li>
+    <li><code>new</code> が静かに0で終わる設計なので、hook側に条件分岐を持たない。</li>
+  </ul>
+</section>
+
+<section id="s4">
+  <h2>4-5. 新規テスト2本</h2>
+  <p><code>test_block_direct_git_commit.sh</code> の2層構成を踏襲する。</p>
+  <ul>
+    <li><b>層1（純粋関数）</b>: hookを <code>source</code> して <code>raw_hints_at_git_push</code> を直接呼ぶ。<b>超集合であることのケースを必ず持つ</b>（<code>pu\sh</code>・<code>PUSH</code>・JSONエスケープを跨いだ <code>pu\&lt;改行&gt;sh</code> 等）。終了コードは <code>if</code> で受ける（<code>$(func; echo $?)</code> は <code>set -e</code> 配下で空になる）。</li>
+    <li><b>層2（結合）</b>: サブプロセス起動＋<code>PATH</code> 先頭のスタブ <code>jq</code>。対象外ペイロードで<b><code>jq</code> が1度も呼ばれないこと</b>を確認する。</li>
+    <li><code>push-checklist.sh</code> のテストは<b>一時ディレクトリにgitリポジトリを作って</b>実行する（このリポジトリの状態を変えない）。</li>
+  </ul>
+  <div class="box warn">
+    <span class="label">「異常が無ければ何も出ない」形にしない</span>
+    <code>verify</code> の4条件それぞれについて、<b>意図的に壊したTSVで1が返ること</b>を確かめる。壊しても通るなら、その条件は実装されていないか実データに当たっていない。
+  </div>
+  <p>出力は <code>passed=N failures=N</code>、失敗時は終了コード1。</p>
+</section>
+
+<section id="s6">
+  <h2>6. <code>test_sync_gemini_assets.sh</code> のT11改修</h2>
+<pre><code>323:for h in post-push-usage-report post-push-compact-prompt; do
+339:assert_eq "T11: 2本の raw_hints_at_git_push が同一実装である" \</code></pre>
+  <ul>
+    <li>ループへ <code>block-unchecked-push</code> <code>post-push-next-checklist</code> を足す。</li>
+    <li>ケース名の「2本の」を実際の本数へ直す。</li>
+    <li><b>テストは実装を <code>source</code> して呼ぶ形を崩さない</b>（テスト側へ写経しない）。</li>
+  </ul>
+  <div class="box warn">
+    <span class="label">本数が3本か4本かは未確定</span>
+    調査結果は「3本」と書いているが、これは <code>raw_hints_at_git_push</code> を持つhookの本数であり、<b>新規hookは2本ともこれを持つ</b>ため実際は4本になる。<b>この食い違いは実装時に確定させる</b>（<a href="#open">未確定事項</a>1）。
+  </div>
+</section>
+
+<section id="s7">
+  <h2>7. <code>.claude/settings.json</code></h2>
+  <ul>
+    <li><code>PreToolUse</code> の <code>Bash|PowerShell</code> matcher へ <code>block-unchecked-push.sh</code> を追加（<code>if</code> は付けない。<code>block-direct-git-commit.sh</code> と同じ）。</li>
+    <li><code>PostToolUse</code> の <code>Bash|PowerShell</code> matcher の<b>末尾</b>へ、<code>if: "Bash(git push*)"</code> と <code>if: "PowerShell(git push*)"</code> の2エントリを追加。</li>
+    <li><code>timeout</code> は既存に合わせ、PreToolUse 10 / PostToolUse 20。</li>
+  </ul>
+</section>
+
+<section id="verify">
+  <h2>検証（合格条件）</h2>
+  <div class="box info">
+    <span class="label">着手前に変更前のツリーで流す</span>
+    期待どおりの結果（新規ファイルが無いので1・3・5が落ちる）になることを確かめてから実装する。通ってしまう検証は、実装後も通り続ける。
+  </div>
+<pre><code># 1. 構文チェック（新規3本）
+for f in .claude/scripts/src/push-checklist.sh \
+         .claude/hooks/block-unchecked-push.sh \
+         .claude/hooks/post-push-next-checklist.sh; do
+  bash -n "$f" || echo "NG: $f"
+done
+
+# 2. 前置フィルタが全hookで同一実装であること（T11）
+bash .claude/scripts/test/test_sync_gemini_assets.sh
+
+# 3. 新規テスト2本
+bash .claude/scripts/test/test_push_checklist.sh
+bash .claude/scripts/test/test_block_unchecked_push.sh
+
+# 4. 既存テストの回帰（失敗を集計して終了コードへ伝播させる）
+fail=0; n=0
+for t in .claude/scripts/test/test_*.sh; do
+  n=$((n + 1))
+  bash "$t" || { echo "NG: $t"; fail=1; }
+done
+echo "実行本数=$n"
+[ "$n" -gt 0 ] &amp;&amp; [ "$fail" = 0 ]
+
+# 5. settings.json が妥当なJSONで、hookが登録されていること
+jq -e '.hooks.PreToolUse[].hooks[] | select(.args[0] | endswith("block-unchecked-push.sh"))' \
+  .claude/settings.json &gt; /dev/null
+jq '[.hooks.PostToolUse[].hooks[] | select(.args[0] | endswith("post-push-next-checklist.sh"))] | length' \
+  .claude/settings.json   # 2 であること
+
+# 6. 配布層の網羅性（新規ファイルが core に含まれること）
+bash .claude/scripts/src/check-dist-coverage.sh</code></pre>
+  <p><b>5の <code>jq -e</code> は、登録漏れがあれば非0で落ちる</b>（「異常が無ければ何も出ない」形を避けている）。6は <code>.claude/</code> 配下へファイルを足したときに落ちうるので必ず流す。</p>
+</section>
+
+<section id="nogo">
+  <h2>やらないこと</h2>
+  <ul>
+    <li><b>チェック項目の実施そのものを機械判定しない</b>（自己申告のまま）。理由は調査結果の「守れない範囲」・DDR <code>i0017-01</code> の却下案として書く。</li>
+    <li><b>既存push系hook 2本のロジックを変更しない。</b></li>
+    <li><b><code>.gemini/</code> を直接編集しない</b>（flow-id 5-3 の変換同期で追随させる）。</li>
+    <li><b>spec / DDR / <code>docs-workflow.md</code> 等への反映はフェーズ4で行う</b>（この計画の対象外）。ただし<b>新規スクリプトのヘッダコメントには、参照先として issue番号と <code>.claude/docs/spec/push-checklist.md</code> を書く</b>（<code>wip/</code> 配下を参照しない）。</li>
+  </ul>
+</section>
+
+<section id="open">
+  <h2>未確定事項（実装中に確定させる）</h2>
+  <ol>
+    <li><b>T11の対象本数が3本か4本か。</b> <code>raw_hints_at_git_push</code> を新規hook 2本とも持つなら4本。PreToolUse側も同じ前置フィルタでよいかを実装時に確かめる。</li>
+    <li><b><code>check</code> / <code>skip</code> のTSV書き換えで、実施ログ中のタブをどう扱うか。</b> 調査結果Q3は「エスケープしない」方針だが、<code>verify</code> が4フィールド固定を要求するため、<b>タブを空白へ潰す</b>のが最小の対処になる見込み。</li>
+    <li><b>警告（exit 1）の文面。</b> stderrが届くか未確認なので、届かなくても機構が壊れないことを保つ。</li>
+  </ol>
+</section>
+
+<footer>issue #17 / PR #195 — 計画の正文は同名の <code>.md</code>。外部依存を持たない自己完結HTML。</footer>
+
+</div>
+</body>
+</html>

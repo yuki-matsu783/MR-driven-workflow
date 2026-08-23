@@ -116,8 +116,17 @@ keywords: [push前チェックリスト, PreToolUse, PostToolUse, CommandPositio
 - **置き場所は `.mrworkflow.json` の `worklogDir` から解決する**（ハードコードしない）。
   `cleanup-task.sh` が issue #165 で同じ形へ変わっており（`.claude/docs/spec/cleanup-task.md`
   「issue #165」節）、揃えないと**配布先が `worklogDir` を変えたときにチェックリストだけが
-  片付かずに残る**。設定・キーが無い場合のフォールバックは `wip/worklogs`。
-  **解決は生成・検証スクリプト側が行い、hookはそこへ委譲する**（設定の読み方を2箇所に持たない）。
+  片付かずに残る**。**解決は生成・検証スクリプト側が行い、hookはそこへ委譲する**
+  （設定の読み方を2箇所に持たない）。
+  - **フォールバック値は `wip/worklogs` ではなく `worklog` である**（flow-id 3-1 の計画作成中に
+    実装を読み直して判明。当初は `wip/worklogs` と書いていたが誤りだった）。`cleanup-task.sh` は
+    `.worklogDir // "worklog"`（`cleanup-task.sh:232`）、`Provider.sh` の `get_workflow_config` も
+    設定ファイルが無いときは `"worklogDir": "worklog"` を返す（`Provider.sh:66`）。いずれも
+    **issue #165 より前の値**のまま据え置かれている。
+  - **ここを `wip/worklogs` にすると、まさにこの節が避けようとした食い違いを自分で作る。**
+    `.mrworkflow.json` が無い配布先で、生成側が `wip/worklogs/` へ置き、削除側（`cleanup-task.sh`）が
+    `worklog/` を見る、という形になる。**フォールバックは `cleanup-task.sh` に合わせて `worklog` とし、
+    そもそも `get_workflow_config` を呼んで同じ既定値を共有する**（自前で `// "..."` を書かない）。
 - **`<N>` は、そのブランチの既存チェックリストの最大値 + 1。** `HANDOFF.md` の `- push回数:` は
   人間・AIが手で書き換えられる値であり、チェックリストの実体と食い違いうるので使わない。
   **採用理由はこの1点だけである。**

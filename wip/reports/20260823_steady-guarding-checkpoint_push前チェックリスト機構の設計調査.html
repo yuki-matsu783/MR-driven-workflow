@@ -253,7 +253,12 @@
   <p><b>答え</b>: <code>&lt;worklogDir&gt;/&lt;YYYYMMDD&gt;_&lt;ブランチslug&gt;_push&lt;N&gt;_checklist.tsv</code>。</p>
   <ul>
     <li><b>置き場所は <code>wip/worklogs/</code></b>（既定値。解決方法は次項）。issue本文の <code>worklog/</code> は <b>issue #165</b> で <code>wip/worklogs/</code> へ改名されている（根拠: <code>.claude/docs/spec/cleanup-task.md</code>「issue #165」節。<code>#178</code> はその squash merge の PR番号であってissueではない）。</li>
-    <li><b>置き場所は <code>.mrworkflow.json</code> の <code>worklogDir</code> から解決する</b>（ハードコードしない）。<code>cleanup-task.sh</code> が issue #165 で同じ形へ変わっており、揃えないと<b>配布先が <code>worklogDir</code> を変えたときにチェックリストだけが片付かずに残る</b>。フォールバックは <code>wip/worklogs</code>。<b>解決はスクリプト側が行い、hookはそこへ委譲する</b>（設定の読み方を2箇所に持たない）。</li>
+    <li><b>置き場所は <code>.mrworkflow.json</code> の <code>worklogDir</code> から解決する</b>（ハードコードしない）。<code>cleanup-task.sh</code> が issue #165 で同じ形へ変わっており、揃えないと<b>配布先が <code>worklogDir</code> を変えたときにチェックリストだけが片付かずに残る</b>。<b>解決はスクリプト側が行い、hookはそこへ委譲する</b>（設定の読み方を2箇所に持たない）。
+      <div class="box stop">
+        <span class="label">フォールバック値は <code>wip/worklogs</code> ではなく <code>worklog</code></span>
+        flow-id 3-1 の計画作成中に実装を読み直して判明（当初は <code>wip/worklogs</code> と書いていたが誤り）。<code>cleanup-task.sh</code> は <code>.worklogDir // "worklog"</code>（<code>cleanup-task.sh:232</code>）、<code>Provider.sh</code> の <code>get_workflow_config</code> も設定ファイルが無いときは <code>"worklogDir": "worklog"</code> を返す（<code>Provider.sh:66</code>）。いずれも<b>issue #165 より前の値</b>のまま据え置かれている。ここを <code>wip/worklogs</code> にすると、<b>まさにこの節が避けようとした食い違いを自分で作る</b>（<code>.mrworkflow.json</code> が無い配布先で、生成側が <code>wip/worklogs/</code> へ置き、削除側が <code>worklog/</code> を見る）。<b>フォールバックは <code>cleanup-task.sh</code> に合わせて <code>worklog</code> とし、そもそも <code>get_workflow_config</code> を呼んで同じ既定値を共有する</b>（自前で <code>// "..."</code> を書かない）。
+      </div>
+    </li>
     <li><b><code>&lt;ブランチslug&gt;</code> はブランチ名の <code>[^a-zA-Z0-9_-]</code> を <code>_</code> へ置換したもの。</b> <code>post-push-compact-prompt.sh:330</code> が <code>wip/state/review-links/</code> の組み立てに使っている既存の慣習と同じ。ただし本機構はhook内で使うため、forkする <code>sed</code> ではなくbash組み込みで同じ変換を行う。</li>
     <li><b><code>&lt;N&gt;</code> は、そのブランチの既存チェックリストの最大値 + 1。</b> <code>HANDOFF.md</code> の <code>- push回数:</code> は手で書き換えられる値で実体と食い違いうる。ファイル名から導けば<b>生成が冪等</b>になる。</li>
   </ul>
