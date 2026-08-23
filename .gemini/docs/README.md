@@ -63,6 +63,7 @@ keywords: [正史仕様, 意思決定ログ, ユースケース, 逆引き, issu
 - [gitlab-verification-environment.md](spec/gitlab-verification-environment.md) ── GitLab検証環境（Docker + glab）の再現手順
 - [otel-listener.md](spec/otel-listener.md) ── OTelリスナー機構（OpenTelemetryをusage/へ振り分け保存するperl製リスナー）
 - [sync-gemini-assets.md](spec/sync-gemini-assets.md) ── .claude/ から .gemini/ を生成する変換スクリプト
+- [check-doc-references.md](spec/check-doc-references.md) ── DDR参照切れ検出スクリプト（絶対パス形式のDDR参照が実在するファイルを指しているかを検証）
 
 ## ddr（意思決定ログ）
 
@@ -175,4 +176,5 @@ frontmatter（`status` / `superseded_by` / `note`）だけから決まる。
 - [i0141-02-canvasデータモデルはフラットなparent参照にする.md](ddr/i0141-02-canvasデータモデルはフラットなparent参照にする.md)
 - [i0159-01-hookの前置フィルタは純粋関数によるバックスラッシュ除去と大文字小文字非依存比較で超集合を保つ.md](ddr/i0159-01-hookの前置フィルタは純粋関数によるバックスラッシュ除去と大文字小文字非依存比較で超集合を保つ.md)
 - [i0170-01-ユースケース逆引き層はREADME一本化・日本語ファイル名・手動一覧で運用する.md](ddr/i0170-01-ユースケース逆引き層はREADME一本化・日本語ファイル名・手動一覧で運用する.md)
+- [i0171-01-DDR参照切れ検出は絶対パス形式に限定しgrep一括抽出で実装する.md](ddr/i0171-01-DDR参照切れ検出は絶対パス形式に限定しgrep一括抽出で実装する.md)
 <!-- END GENERATED: ddr-list -->
