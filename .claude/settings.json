@@ -6,7 +6,7 @@
       "PowerShell(git commit*)"
     ]
   },
-  "plansDirectory": "./wip/plans",
+  "plansDirectory": "./plans2",
   "autoCompactWindow": 600000,
   "env": {
     "CLAUDE_CODE_ENABLE_TELEMETRY": "1",
