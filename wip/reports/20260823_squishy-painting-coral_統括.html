@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gemini CLIテレメトリ機構（issue #105）最終統括レポート</title>
+<style>
+  :root {
+    --bg: #f6f7f9;      --panel: #ffffff;   --ink: #1a1d21;     --muted: #5b636d;
+    --line: #dfe3e8;    --accent: #2563eb;  --accent-soft: #eaf0fe;
+    --ok: #1a7f4b;      --ok-soft: #e6f4ec; --warn: #a35a00;    --warn-soft: #fdf1e0;
+    --stop: #b3261e;    --stop-soft: #fdecea; --code-bg: #f0f2f5;
+    --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1216;    --panel: #161a20;   --ink: #e6e8eb;     --muted: #9aa3ad;
+      --line: #2a3038;  --accent: #7aa2f7;  --accent-soft: #1b2333;
+      --ok: #6ee7a8;    --ok-soft: #14261d; --warn: #f0b866;    --warn-soft: #2a2113;
+      --stop: #f2857c;  --stop-soft: #2b1614; --code-bg: #1d222a;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", system-ui, sans-serif;
+    line-height: 1.8; font-size: 15px;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 20px 80px; }
+
+  header.band {
+    background: linear-gradient(135deg, var(--accent-soft), var(--panel));
+    border-bottom: 1px solid var(--line); padding: 28px 20px 22px; margin-bottom: 28px;
+  }
+  header.band .inner { max-width: 1080px; margin: 0 auto; }
+  header.band .kind { font-size: 11px; letter-spacing: .18em; color: var(--accent); font-weight: 700; }
+  header.band h1 { margin: 6px 0 4px; font-size: 26px; line-height: 1.4; }
+  header.band .lead { margin: 0; color: var(--muted); }
+  .meta { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; padding: 0; list-style: none; }
+  .meta li {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 999px;
+    padding: 3px 12px; font-size: 12.5px; color: var(--muted); white-space: nowrap;
+  }
+  .meta li b { color: var(--ink); font-weight: 600; }
+
+  nav.toc {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 14px 20px; margin-bottom: 28px;
+  }
+  nav.toc h2 { margin: 0 0 8px; font-size: 13px; letter-spacing: .08em; color: var(--muted); border: 0; padding: 0; }
+  nav.toc ol { margin: 0; padding-left: 20px; }
+  nav.toc li { margin: 2px 0; }
+  a { color: var(--accent); }
+
+  section {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 8px 24px 22px; margin-bottom: 22px;
+  }
+  h2 { font-size: 20px; margin: 20px 0 10px; padding-bottom: 8px; border-bottom: 2px solid var(--line); }
+  h3 { font-size: 16px; margin: 22px 0 8px; color: var(--accent); }
+  p { margin: 10px 0; }
+  ul, ol { padding-left: 22px; }
+  li { margin: 4px 0; }
+  blockquote { margin: 10px 0; padding: 6px 14px; border-left: 3px solid var(--line); color: var(--muted); }
+
+  .tablewrap { overflow-x: auto; margin: 14px 0; }
+  table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 14px; }
+  th, td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: var(--accent-soft); font-weight: 600; white-space: nowrap; }
+  tbody tr:nth-child(even) td { background: color-mix(in srgb, var(--line) 22%, transparent); }
+
+  code {
+    background: var(--code-bg); border-radius: 5px; padding: 1px 5px; font-size: 13px;
+    font-family: "SFMono-Regular", Consolas, "Noto Sans Mono", monospace;
+  }
+  pre {
+    background: var(--code-bg); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 12px 14px; overflow-x: auto; font-size: 13px; line-height: 1.65;
+  }
+  pre code { background: none; padding: 0; }
+
+  .box { border-left: 4px solid var(--accent); background: var(--accent-soft);
+         border-radius: 0 var(--radius) var(--radius) 0; padding: 12px 16px; margin: 16px 0; }
+  .box > :first-child { margin-top: 0; } .box > :last-child { margin-bottom: 0; }
+  .box .label { font-size: 12px; font-weight: 700; letter-spacing: .06em; display: block; margin-bottom: 4px; }
+  .box.ok { border-color: var(--ok); background: var(--ok-soft); } .box.ok .label { color: var(--ok); }
+  .box.warn { border-color: var(--warn); background: var(--warn-soft); } .box.warn .label { color: var(--warn); }
+  .box.stop { border-color: var(--stop); background: var(--stop-soft); } .box.stop .label { color: var(--stop); }
+  .box.info .label { color: var(--accent); }
+
+  .tag { display: inline-block; border-radius: 999px; padding: 1px 9px; font-size: 12px; font-weight: 600; }
+  .tag.ok { background: var(--ok-soft); color: var(--ok); }
+  .tag.warn { background: var(--warn-soft); color: var(--warn); }
+  .tag.stop { background: var(--stop-soft); color: var(--stop); }
+
+  footer { color: var(--muted); font-size: 13px; text-align: center; padding-top: 10px; }
+</style></head>
+<body>
+
+<header class="band">
+  <div class="inner">
+    <div class="kind">最終統括レポート / フェーズ5</div>
+    <h1>Gemini CLIテレメトリ機構（issue #105）最終統括レポート</h1>
+    <p class="lead">Gemini CLI公式テレメトリのローカルファイル出力・push毎の差分集計・対応工数レポートへの統合を、既存のセッションログ集計（issue #97）と二重計上せずに実現した。全フェーズの敵対的レビュー・defaultブランチ追従を含め完了。</p>
+    <ul class="meta">
+      <li><b>issue</b> #105</li>
+      <li><b>ブランチ</b> claude/gemini-cli-telemetry-reporting-a253xp</li>
+      <li><b>PR</b> #174</li>
+      <li><b>フェーズ</b> 5〈クローズ〉 flow-id 5-4</li>
+      <li><b>push回数</b> 20</li>
+      <li><b>作成日</b> 2026-08-23</li>
+      <li><b>正文</b> 同名の .md</li>
+    </ul>
+  </div>
+</header>
+
+<div class="wrap">
+
+<nav class="toc">
+  <h2>目次</h2>
+  <ol>
+    <li><a href="#summary">サマリ（結論の一覧）</a></li>
+    <li><a href="#conditions">実施条件（測った対象・環境）</a></li>
+    <li><a href="#findings">実施した内容と結果</a></li>
+    <li><a href="#unverified">確かめられなかったこと</a></li>
+    <li><a href="#next">設計への反映</a></li>
+    <li><a href="#todo">残課題</a></li>
+  </ol>
+</nav>
+
+<section id="summary">
+  <h2>サマリ（結論の一覧）</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>#</th><th>問い／やったこと</th><th>結論</th><th>根拠の性質</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td>Gemini CLI公式テレメトリをローカルファイルへ出力できるか</td><td><b>できる</b>。<code>.gemini/settings.json</code>の<code>telemetry</code>ブロック（<code>target: "local"</code>・<code>outfile: "usage/gemini-otel.log"</code>）を<code>sync-gemini-assets.sh</code>の生成ロジックへ固定値注入する形で実現した</td><td>実装の確認</td></tr>
+      <tr><td>2</td><td>push毎の差分集計は可能か</td><td><b>可能</b>。バイトオフセットカーソル方式（<code>_sync_usage_state_otel</code>系）を<code>UsageTracking.sh</code>へ新設し、ファイル縮小・途中書き込み・状態破損への耐性を実装した</td><td>実装の確認・単体テスト（合成フィクスチャ）</td></tr>
+      <tr><td>3</td><td>セッションログ集計（issue #97）との二重計上は起きないか</td><td><b>起きない</b>。データソース・状態ファイル・カーソル方式のいずれも完全独立で、semantic conventions形式のみ採用しレガシー形式・metricsを除外する設計で構造的に回避した</td><td>実装の確認・単体テスト</td></tr>
+      <tr><td>4</td><td>既定で有効化すべきか</td><td><b>保留</b>（<code>enabled: false</code>固定）。<code>logPrompts</code>等の機微情報の扱いが実機未検証であり、既定有効化は全利用者に影響するため。DDR i0105-02に判断根拠を記録</td><td>設計判断（DDR）</td></tr>
+      <tr><td>5</td><td>実機（<code>gemini</code>コマンド）での検証はできたか</td><td><b>できていない</b>。この実行環境に<code>gemini</code>コマンドが存在しないため、公式ソース（GitHub, mainブランチ）の読解と単体テストの合成フィクスチャによる確認に限定される</td><td>実装の確認・公式ドキュメント／ソースの読解</td></tr>
+      <tr><td>6</td><td>defaultブランチとの整合は取れているか</td><td><b>取れている</b>。ブランチ作成後にmainが吸収した大規模な変更（issue #26配布機構刷新・#165 wip/移行・#170 usecase新設・#184 state移行・#160 SKILL.md分割）を2回のマージで統合し、単体テスト全20本<code>failures=0</code>・DDR識別子重複無し・ドキュメント参照切れ0件を確認した</td><td>実測（マージ後の検証コマンド実行）</td></tr>
+      <tr><td>7</td><td>敵対的レビューは各フェーズで実施したか</td><td><b>実施した</b>。フェーズ2〜4それぞれで計画時1回・作業実施時1回、合計6回（各フェーズ2/3回・上限内）実施し、指摘は全件対応済み。投稿した全60スレッドに返信済み（未返信0件）</td><td>実測（<code>adversarial-review-count.sh</code>・MRスレッド件数）</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="conditions">
+  <h2>実施条件（測った対象・環境）</h2>
+  <ul>
+    <li>実行環境: Claude Code on the web（リモート実行環境。<code>gh</code>/<code>glab</code> CLI不在のためGitHub MCPツール経由）</li>
+    <li>対象リポジトリ: <code>yuki-matsu783/MR-driven-workflow</code>、対象PR: <a href="https://github.com/yuki-matsu783/MR-driven-workflow/pull/174">#174</a></li>
+    <li>対象issue: #105</li>
+    <li>実施期間: 2026-08-23（1セッション、push回数20）</li>
+    <li>対象・バージョン: Gemini CLI公式テレメトリ機構は<code>google-gemini/gemini-cli</code>のGitHub公式ソース（mainブランチ、実施日時点）を一次情報として使用。実機バージョンでの検証は無し</li>
+  </ul>
+</section>
+
+<section id="findings">
+  <h2>実施した内容と結果</h2>
+
+  <h3>1. フェーズ1〈起点〉— 全体作業計画</h3>
+  <p>issue #105の内容を取得し、既存ブランチ<code>claude/gemini-cli-telemetry-reporting-a253xp</code>を用いてDraft PR #174を作成した。Planモードで全体作業計画（<code>wip/plans/squishy-painting-coral.md</code>）を作成し、issue #97（セッションログ集計）・issue #103（Claude Code OTelリスナー）との関係と、二重計上回避が本issueの核心的な受け入れ条件であることを整理した。issue分割は不要と判断（1本のパイプラインの各段階であり、単独マージに意味を持たないため）。ユーザーから、各フェーズの計画時・作業実施時にそれぞれ1回、敵対的レビューを自動実施する指示を受けた。</p>
+  <div class="box ok">
+    <span class="label">結論</span>
+    全体作業計画はフェーズ2〈調査〉・フェーズ4〈反映〉の節を含めて作成し、承認を得た。
+  </div>
+
+  <h3>2. フェーズ2〈調査〉— 出力形式と統合方針</h3>
+  <p>実機（<code>gemini</code>コマンド）がこの実行環境に存在しないため、<code>google-gemini/gemini-cli</code>公式ソースを直接確認して8方針すべてに判断根拠を得た。主な結論は次のとおり。</p>
+  <ul>
+    <li>同一イベントが<b>常に2回</b>LogRecordとしてemitされる（ロギングとテレメトリの二重パス）。</li>
+    <li>metricsは<b>10秒間隔</b>の周期exportで、<code>gemini_cli.api_response</code>とは別レコード系統。</li>
+    <li><code>GEMINI_TELEMETRY_OUTFILE</code>環境変数が存在し、<code>settings.json</code>が静的でも動的パスを渡せる（当初の「渡せない」という判断は誤りだったため修正）。</li>
+    <li>既定有効化は「保留」（配布先で<code>.gitignore</code>保護が効かない配布漏れのリスクを発見したため）。</li>
+  </ul>
+  <p>計画時・作業実施時それぞれ1回ずつ敵対的レビューを実施し、計26件の指摘（11件＋16件のうち重複除く）に対応した。詳細は<code>wip/reports/20260823_squishy-painting-coral_Gemini-CLIテレメトリ出力形式と統合方針の調査結果.md</code>。</p>
+  <div class="box ok">
+    <span class="label">結論</span>
+    二重計上回避に必要な「semantic conventions形式のみ採用」「metrics除外」という設計要件は、この調査段階で確定した。
+  </div>
+
+  <h3>3. フェーズ3〈作業〉— 実装</h3>
+  <p>調査結果をもとに3層構成（設定層・集計層・レポート層）＋配布gitignore是正で実装した。</p>
+  <ul>
+    <li><b>設定層</b>: <code>sync-gemini-assets.sh</code>の生成ロジックへ<code>telemetry</code>固定値ブロック（<code>enabled: false</code>・<code>target: "local"</code>・<code>outfile: "usage/gemini-otel.log"</code>・<code>logPrompts: false</code>）を注入する設計にした（<code>.gemini/settings.json</code>の手編集ではなく、issue #70/#157で<code>.gemini/</code>が変換生成物になったことに合わせた）。</li>
+    <li><b>集計層</b>: <code>UsageTracking.sh</code>へ、セッションログ集計（issue #97）とは完全独立のバイトオフセットカーソル関数群（<code>_sync_usage_state_otel</code>等）を追加。ファイル縮小・途中書き込み・状態ファイル破損への耐性、境界をまたぐ二重計上の回避を実装した。</li>
+    <li><b>レポート層</b>: <code>post-push-usage-report.sh</code>へ独立セクション「Gemini CLI公式テレメトリ（参考値）」として統合した（既存5引数呼び出しを壊さない設計）。</li>
+    <li>計画時・作業実施時それぞれ1回ずつ敵対的レビューを実施し、計32件の指摘（20件＋12件）に対応した。作業実施時レビューでは状態破壊バグ2件（fold結果を検証せず書き戻す不具合）を含む重大な指摘があり、書き込み前検証の追加で修正した。</li>
+    <li>単体テスト120件（<code>test_usage_tracking.sh</code>）を含む全17本の<code>test_*.sh</code>が<code>failures=0</code>。</li>
+  </ul>
+  <p>詳細は<code>wip/reports/20260823_squishy-painting-coral_Gemini-CLIテレメトリ集計機構の実装結果.md</code>。</p>
+  <div class="box ok">
+    <span class="label">結論</span>
+    実装は完了し、既存経路（Claude Code・Gemini CLIセッションログ）の集計結果・レポート内容を変化させないことを単体テストで確認した。
+  </div>
+
+  <h3>4. フェーズ4〈反映〉— spec・DDR・AIアセット</h3>
+  <p>反映対象を洗い出し、評価軸の違いから2本の個別反映計画に分けた。</p>
+  <ul>
+    <li><b>設計反映</b>: 新規spec<code>.claude/docs/spec/gemini-cli-telemetry.md</code>（<code>otel-listener.md</code>と対をなす構成）を作成。既存spec3本（<code>sync-gemini-assets.md</code>・<code>issue-mr-workflow.md</code>・<code>distribution-assets.md</code>）・<code>directory-structure.md</code>を更新。DDR新規2本（<code>i0105-01</code>二重計上回避方式・<code>i0105-02</code>既定有効化の保留）を記録。</li>
+    <li><b>AIアセット反映</b>: このセッションで実際に踏んだ<code>mcp__github__pull_request_read</code>のページネーションパラメータの罠（<code>cursor</code>ではなく<code>after</code>が正）を<code>issue-mr-flow/SKILL.md</code>の<code>references/mcp-fallback.md</code>・<code>references/review-loop.md</code>へ注記した（後述のmainマージで両ファイルへ再適用）。</li>
+    <li><b>実装反映</b>: 不要と判断（フェーズ3のレビュー往復で全指摘に対応済み、持ち越した不具合は無い）。</li>
+    <li>計画時・作業実施時それぞれ1回ずつ敵対的レビューを実施し、計36件の指摘（19件＋17件）に対応した。作業実施時レビューでは、<code>enabled: false</code>固定の保留根拠がspec本文とDDRとで正反対だった矛盾など重大な指摘があり、いずれも修正した。</li>
+  </ul>
+  <p>詳細は<code>wip/reports/20260823_squishy-painting-coral_Gemini-CLIテレメトリ機構の反映結果.md</code>。</p>
+  <div class="box ok">
+    <span class="label">結論</span>
+    spec・DDR・AIアセットへの反映は完了し、<code>.gemini/</code>側も<code>sync-gemini-assets.sh</code>で同期済み。
+  </div>
+
+  <h3>5. フェーズ5〈クローズ〉— defaultブランチ追従とマージ準備</h3>
+  <p>flow-id 5-1で、ブランチ作成後にmainが吸収した大規模な変更（issue #26配布機構刷新・issue #165 <code>wip/</code>移行・issue #170 usecase新設・issue #184 state移行・issue #160 SKILL.md分割）を2回に分けてマージし解消した。中心は<b>類型F（配置の変更 vs 上流の内容変更）</b>で、<code>wip/plans/</code> <code>wip/worklogs/</code> <code>wip/reports/</code>配下はgit自身のディレクトリ改名検出により自動再配置され内容コンフリクトは無く、<code>issue-mr-flow/SKILL.md</code>はこのブランチの2箇所の注記をmain側が分割した<code>references/*.md</code>へ再適用した。</p>
+  <p>このブランチ自身の変更（<code>install-to-project.sh</code>の<code>ignore_rules</code>配列への<code>/usage/</code>追加）は、main側issue #26の全面書き換えで配列自体が無くなっており、<code>dist-layers.json</code>の<code>local</code>層に既に同等の定義があったため、<b>コード変更を取り下げてmain版を採用</b>した（目的は達成済みのため実害無し）。</p>
+  <p>マージ検証中、<code>check-doc-references.sh</code>の実行（Step 5の検証手順）で、<code>git add -A</code>により旧<code>sync-assets.sh</code>（issue #26で廃止済み）が生成した残骸約400ファイルを誤ってステージしていたことを発見・除去した（敵対的レビューではなく、機械的な検証手順が捕捉した）。</p>
+  <p>flow-id 5-2では、<code>gemini-cli-telemetry.md</code>specが<code>.gemini/docs/spec/</code>へもミラーされる依存関係をissue #172（<code>.gemini/</code>生成対象の見直しを検討中）へ通知した。</p>
+  <div class="box ok">
+    <span class="label">結論</span>
+    defaultブランチとの整合・関連issueへの通知はいずれも完了した。単体テスト全20本<code>failures=0</code>・DDR識別子重複無し・ドキュメント参照切れ0件を確認済み。
+  </div>
+</section>
+
+<section id="unverified">
+  <h2>確かめられなかったこと</h2>
+  <div class="box warn">
+    <span class="label">この結果が言っていないこと</span>
+    <ul>
+      <li>実機（<code>gemini</code>コマンド）でのテレメトリ出力の生成・集計は検証できていない。この実行環境に<code>gemini</code>コマンドが存在しないため、公式ソースの読解と単体テストの合成フィクスチャ（実装と同じ仮定に基づく）による確認に限定される。人間による実機確認（フェーズ3計画時レビューで依頼した7項目）が別途必要。</li>
+      <li><code>logPrompts</code>を含む機微情報の実際の出力内容（プロンプト本文がどの程度含まれるか）は実機未検証。これが既定有効化を保留（DDR i0105-02）した直接の理由である。</li>
+      <li>大規模・長期運用でのファイルサイズ増大への対処（エクスポート間隔・ローテーション要否）は、今回のスコープでは既定<code>false</code>のため実運用データが無く、評価していない。</li>
+    </ul>
+  </div>
+</section>
+
+<section id="next">
+  <h2>設計への反映</h2>
+  <ol>
+    <li>新規spec<code>.claude/docs/spec/gemini-cli-telemetry.md</code>、DDR2本（<code>i0105-01</code>・<code>i0105-02</code>）へすでに反映済み（フェーズ4・flow-id 4-6）。本レポートは横断的な結論の記録であり、新規の反映事項は無い。</li>
+    <li>今後、実機確認（上記「確かめられなかったこと」）の結果が得られた場合は、DDR i0105-02の<code>status</code>をfrontmatterのみ更新（<code>superseded</code>等）する運用に従うこと（本文は変更しない）。</li>
+    <li>flow-id 5-5でのクリーンアップ後、<code>wip/plans/</code> <code>wip/worklogs/</code> <code>wip/reports/</code>はmainへは残らず、ブランチのコミット履歴としてのみ残る。squash merge後に参照したい場合はPR #174のコミット一覧を辿ること。</li>
+  </ol>
+</section>
+
+<section id="todo">
+  <h2>残課題</h2>
+  <ul>
+    <li>実機（<code>gemini</code>コマンド）でのテレメトリ出力・集計の実地検証（別issueまたはユーザーによる確認事項として残す。DDR i0105-02の解除条件）。</li>
+    <li>既定有効化の可否判断（<code>logPrompts</code>実機確認の結果を踏まえてDDR i0105-02を見直す）。</li>
+    <li>issue #172の決定（<code>.gemini/</code>生成対象から<code>docs/</code>を外すか）次第で、本issueが追加した<code>gemini-cli-telemetry.md</code>の<code>.gemini/</code>側ミラーの扱いに追従が必要になる可能性がある（flow-id 5-2で通知済み）。</li>
+  </ul>
+</section>
+
+<footer>issue #105 / PR #174 — 結果の正文は同名の <code>.md</code>。外部依存を持たない自己完結HTML。</footer>
+
+</div>
+</body>
+</html>
