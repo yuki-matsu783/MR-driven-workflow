@@ -149,33 +149,62 @@
 <section id="approach">
   <h2>方針</h2>
   <h3>節の並び順（節名は全維持）</h3>
-  <p>ヘッダ帯（結論件数チップ追加）→ 目次 → <b>重点レビュー依頼（新設・必須）</b> → サマリ（結論の一覧）（色分け結論カードへ改修・必須）→ <b>確かめられなかったこと（前半へ移動・必須。一覧は全項目を保持し、詳細は各章のcalloutへ）</b> → 実施条件（任意）→ 実施した内容と結果（必須。章ID・性質チップ・未確認詳細callout）→ 設計への反映（必須）→ 想定と異なった点（任意）→ 残課題（任意）→ フッタ。</p>
+  <p>ヘッダ帯（結論件数チップ追加）→ 目次 → <b>重点レビュー依頼（新設・必須）</b> → サマリ（結論の一覧）（色分け結論カードへ改修・必須）→ <b>確かめられなかったこと（前半へ移動・必須。一覧は全項目を保持し、詳細は各章のcalloutへ）</b> → 実施条件（測った対象・環境）（任意）→ 実施した内容と結果（必須。章ID・性質チップ・未確認詳細callout）→ 設計への反映（必須）→ 想定と異なった点（任意）→ 残課題（任意）→ フッタ。</p>
   <h3>新設: 重点レビュー依頼（id="review-focus"）</h3>
+  <p>3段階の枠を色付きカードで用意し、各項目から該当章（<code>&#35;f1</code> 等）へリンクする。</p>
   <div class="tablewrap">
   <table>
-    <thead><tr><th>段階</th><th>意味</th><th>視覚</th></tr></thead>
+    <thead><tr><th>段階</th><th>意味</th><th>視覚（線色＋地色＋ラベル）</th></tr></thead>
     <tbody>
-      <tr><td>特に見てほしい</td><td>判断に困っている</td><td>赤系（--stop）の枠・「◆重点」ラベル</td></tr>
-      <tr><td>承認が欲しい</td><td>方針は決めたので確認してほしい</td><td>黄系（--warn）の枠・「◇承認」ラベル</td></tr>
-      <tr><td>細かいレビューは不要</td><td>ほぼ確実</td><td>低彩度（--muted系）の枠・「・確認不要」ラベル</td></tr>
+      <tr><td>特に見てほしい</td><td>判断に困っている</td><td><code>border: 2px solid var(--accent)</code>＋<code>background: var(--accent-soft)</code>・「◆特に見てほしい」</td></tr>
+      <tr><td>承認が欲しい</td><td>方針は決めたので確認してほしい</td><td><code>border: 1px solid var(--accent)</code>＋<code>background: var(--panel)</code>・「◇承認が欲しい」</td></tr>
+      <tr><td>細かいレビューは不要</td><td>ほぼ確実</td><td><code>border: 1px solid var(--line)</code>＋<code>background: var(--panel)</code>・文字 <code>var(--muted)</code>・「・細かいレビューは不要」</td></tr>
     </tbody>
   </table>
   </div>
-  <p>レビューの重み（注意の量）の軸なので、結論の性質（良/注意/問題）とは別の視覚語彙にする。段階ラベルは記号＋文字で色に依存させない。各項目から該当章へリンクする。</p>
-  <h3>サマリの改修・色トークン・チップ</h3>
+  <p><b>色相（青/黄/赤）は結論の性質専用に予約し、レビューの重みには使わない。</b>重みはアクセント系1色相の中の濃度・枠の太さ＋記号（◆◇・）で表す。こうすることで、流し読みで「重点依頼の赤」を「問題の赤」と読み違える混線を避ける。第3段階は専用トークンを新設せず既存の <code>--panel</code>／<code>--line</code>／<code>--muted</code> で組む——<code>--muted</code> は文字色にのみ使い、背景には使わない。</p>
+  <h3>サマリ（結論の一覧）の改修</h3>
   <ul>
-    <li>表を廃止し結論カードのリストへ。1件＝性質チップ（◎良／△注意／✕問題）＋短い結論（1行）＋該当章へのアンカーリンク。ヘッダ帯に件数チップ。</li>
-    <li><code>--good: #1d4ed8 / #e7edfd</code>（ダーク <code>#8ab4f8 / #17233a</code>）を新設（アクセント青とは分離）。注意＝既存 <code>--warn</code>、問題＝既存 <code>--stop</code>。</li>
-    <li><code>.tag.ok/.tag.warn/.tag.stop</code>（本体未使用）は削除し、結論性質チップ <code>.chip.good/.chip.warn/.chip.stop</code> へ置き換え。<code>--ok</code>（緑）と <code>.box.ok</code> は「決めたこと」専用として存続し、役割の違いをコメントへ明記。</li>
+    <li>表を廃止し、<b>結論カードのリスト</b>にする。1件＝「性質チップ（◎良／△注意／✕問題）＋短い結論（1行）＋<b>根拠の性質</b>（実測／推測 等。現行の表の4列目の情報を落とさず引き継ぐ）＋該当章へのアンカーリンク」の4要素。</li>
+    <li>性質の色: 良＝青 <code>--good</code>（新設）／注意＝黄 <code>--warn</code>／問題＝赤 <code>--stop</code>。</li>
+    <li>ヘッダ帯に件数チップ（例: ◎3 △2 ✕1）を置く。</li>
+    <li>記述量の目安をコメントで指示（結論は1行。詳細は章に書く）。</li>
   </ul>
-  <h3>確かめられなかったこと（前半移動）・章ID・検査</h3>
+  <h3>色トークン・チップ</h3>
   <ul>
-    <li>サマリ直後に1行1件の一覧（各行に関連章リンク）。詳細は各章内の <code>.box.warn.unverified-detail</code> で語る。一覧を空にしない分担をコメントで指示。</li>
-    <li>各h3章に <code>id="f1"</code> 〜の連番ID。章見出し隣に性質チップ。<code>section[id], h3[id] { scroll-margin-top: 16px; }</code> を追加。</li>
-    <li>リンク破断検査（comm -23 で href参照先IDの存在確認・出力0行が合格）を冒頭コメントへ追記。コード例の href 断片は <code>#</code> を <code>&amp;#35;</code> と書く流儀も明記。</li>
+    <li><code>:root</code> へ <code>--good: #1d4ed8; --good-soft: #e7edfd;</code>、ダーク側へ <code>--good: #8ab4f8; --good-soft: #17233a;</code> を追加。</li>
+    <li><code>.tag.ok/.tag.warn/.tag.stop</code>（既存・本体未使用）は削除し、結論性質チップ <code>.chip.good/.chip.warn/.chip.stop</code> へ置き換える（緑チップと青「良」チップの語彙併存を防ぐ）。</li>
+    <li><code>--ok</code>（緑）と <code>.box.ok</code> は「決めたこと・手順の成功」専用として存続。役割の違いをコメントに明記する（結論の性質には使わない）。</li>
+  </ul>
+  <pre><code>/* 削除（現行144〜147行） */
+.tag { display: inline-block; border-radius: 999px; padding: 1px 9px; font-size: 12px; font-weight: 600; }
+.tag.ok { background: var(--ok-soft); color: var(--ok); }
+.tag.warn { background: var(--warn-soft); color: var(--warn); }
+.tag.stop { background: var(--stop-soft); color: var(--stop); }
+
+/* 追加 */
+.chip { display: inline-block; border-radius: 999px; padding: 1px 9px; font-size: 12px; font-weight: 600; }
+.chip.good { background: var(--good-soft); color: var(--good); }
+.chip.warn { background: var(--warn-soft); color: var(--warn); }
+.chip.stop { background: var(--stop-soft); color: var(--stop); }</code></pre>
+  <h3>確かめられなかったこと（前半移動）</h3>
+  <ul>
+    <li>サマリ直後に置き、<b>1行1件の一覧</b>（各行に関連章へのリンク）。節名・警告色（<code>--warn</code>）は維持。</li>
+    <li>詳細は各章内の専用callout <code>.box.warn.unverified-detail</code>（ラベル「確かめられなかったこと（詳細）」）で語る。<b>一覧側を空にしない・詳細だけを前半に書かない</b>、という分担をコメントで指示。</li>
+  </ul>
+  <h3>実施した内容と結果</h3>
+  <ul>
+    <li>各h3章に <code>id="f1"</code> <code>id="f2"</code> …の連番IDを振る（結論カード・未確認一覧・重点レビュー依頼の3箇所から参照される）。</li>
+    <li>章見出しの隣に性質チップを置き、サマリの色と対応させる。</li>
+  </ul>
+  <h3>アンカーの位置ずれ対策・検査</h3>
+  <ul>
+    <li><code>section[id], h3[id] { scroll-margin-top: 16px; }</code> を追加。</li>
+    <li>テンプレート冒頭コメントへリンク破断検査（下記「検証」のcommコマンド。出力0行が合格）を追記。</li>
+    <li><code>#</code> を <code>&amp;#35;</code> と書くエスケープの適用範囲を限定して明記: <b>対象はコメント中で具体的なIDを引用する見本アンカーのみ</b>。検査コマンド自身の正規表現はエスケープしない（正規表現の <code>#</code> の直後は文字クラスでID列にマッチせず検査を汚染しない。エスケープすると逆にコピーして実行できなくなる）。</li>
   </ul>
   <h3>テンプレートコメント（次の書き手への伝承）</h3>
-  <p>(1) 節順とその理由（未確認事項が前半にある理由） (2) 色・記号の使い分け（性質3色＋緑boxの役割分担） (3) 重点レビュー依頼の3段階の書き方 (4) リンク破断検査 (5) 「フェーズごとの読み替え」の更新（統括5-4: 重点レビュー依頼は「マージ判断で最後に見てほしい点」・未確認一覧は残存分のみ／反映4-6: 従来どおり） (6) プレースホルダ検査・自己完結性・md/html併存の既存指示は維持。</p>
+  <p>(1) 節順とその理由（未確認事項が前半にある理由＝結論の確からしさを先に把握させる） (2) 色・記号の使い分け（性質3色＋緑boxの役割分担） (3) 重点レビュー依頼の3段階の書き方 (4) リンク破断検査 (5) 「フェーズごとの読み替え」の更新（統括5-4: 重点レビュー依頼は「マージ判断で最後に見てほしい点」・未確認一覧は残存分のみ／反映4-6: 従来どおり） (6) プレースホルダ検査・自己完結性・md/html併存の既存指示は維持。</p>
 </section>
 
 <section id="out-of-scope">
@@ -187,6 +216,8 @@
       <li><code>.gemini/</code> 配下の更新（flow-id 5-3 の再生成で追随）</li>
       <li>参照ドキュメントの変更（specへのchangelog追記はフェーズ4の【設計反映】）</li>
       <li>レポートmd側の見出し構成の規定（現行方針を維持）</li>
+      <li><code>reports/REVIEW-POINTS.md</code> への「重点レビュー依頼」観点の追加判断（フェーズ4の【AIアセット反映】の洗い出しで決める）</li>
+      <li><code>.claude/VERSION</code> の増分／据え置きの判断（flow-id 4-6 で行い、判断根拠はspecのchangelogと <code>HANDOFF.md</code> へ残す）</li>
     </ul>
   </div>
 </section>
@@ -203,16 +234,42 @@ grep -nE "(url\(|@import[[:space:]]+)['\"]?(https?:)?//" "$f"
 comm -23 &lt;(grep -oE 'href="&#35;[A-Za-z0-9_-]+"' "$f" | sed 's/^href="&#35;//;s/"$//' | sort -u) \
          &lt;(grep -oE 'id="[A-Za-z0-9_-]+"'   "$f" | sed 's/^id="//;s/"$//'   | sort -u)
 
+# 2b. 検査自体が壊れていないことの確認（存在しないIDへの参照を1件仕込んだ一時コピーで、
+#     同じコマンドが「zzz-broken」1行を出力すること。異常が無ければ何も出ない検証の空振り対策）
+tmp="$(mktemp)"
+sed 's|&lt;/body&gt;|&lt;a href="&#35;zzz-broken"&gt;x&lt;/a&gt;&lt;/body&gt;|' "$f" &gt; "$tmp"
+comm -23 &lt;(grep -oE 'href="&#35;[A-Za-z0-9_-]+"' "$tmp" | sed 's/^href="&#35;//;s/"$//' | sort -u) \
+         &lt;(grep -oE 'id="[A-Za-z0-9_-]+"'   "$tmp" | sed 's/^id="//;s/"$//'   | sort -u)
+rm -f "$tmp"
+
 # 3. プレースホルダ検査手順の維持（テンプレート自身には残っているのが正。0でないこと）
 grep -c '&lt;!-- ここに書く' "$f"
 
 # 4. 受け入れ条件の構造確認（それぞれ1件以上ヒットすること）
 grep -c 'id="review-focus"' "$f"
 grep -c -- '--good' "$f"
-grep -c 'scroll-margin-top' "$f"</code></pre>
+grep -c 'scroll-margin-top' "$f"
+
+# 5. コメントの伝承内容が実在すること（左のコマンドが右の件数以上を返すこと）
+grep -c '重点レビュー依頼' "$f"   # 2以上（本文の節と冒頭コメントの双方に現れる）
+grep -c 'リンク破断' "$f"          # 1以上（冒頭コメントの検査手順）
+grep -c '結論の性質' "$f"          # 1以上（色・記号の使い分けの説明）
+
+# 6. 節順（h2の実測と期待値の機械比較。差分なしが合格）
+diff &lt;(grep -oE '&lt;h2&gt;[^&lt;]*&lt;/h2&gt;' "$f" | sed 's/&lt;[^&gt;]*&gt;//g') - &lt;&lt;'EOF'
+目次
+重点レビュー依頼
+サマリ（結論の一覧）
+確かめられなかったこと
+実施条件（測った対象・環境）
+実施した内容と結果
+設計への反映
+想定と異なった点
+残課題
+EOF</code></pre>
   <ul>
-    <li>空振りの排除: 検証4の3語は現テンプレートでは0件であることを実測済み（2026-08-23）。検証3は現テンプレートで18件。</li>
-    <li>節順の確認: <code>grep -oE '&lt;h2&gt;[^&lt;]*&lt;/h2&gt;' "$f"</code> の出力が「節の並び順」と一致すること。</li>
+    <li>空振りの排除: 検証4の3語と検証5の3語（重点レビュー依頼・リンク破断・結論の性質）は、いずれも現テンプレートでは0件であることを実測済み（2026-08-23。改修後に規定件数以上へ変わることが変更の検出になる）。検証3は現テンプレートで18件。検証2は「出力なし＝合格」の形のため、検証2bで意図的な破断を検出できることを併せて確かめる。</li>
+    <li>検証6が成り立つよう、h2はプレーンテキストのまま保つ（チップ・アンカーはh2の中に入れず、h3側と帯・カード側に置く）。</li>
     <li>実ブラウザ確認は行えない環境のため、HTML構文の機械確認と上記grepで代替し、その旨をレポートの「確かめられなかったこと」へ残す。</li>
   </ul>
 </section>
@@ -223,9 +280,9 @@ grep -c 'scroll-margin-top' "$f"</code></pre>
   <table>
     <thead><tr><th>受け入れ条件</th><th>この計画での対応箇所</th></tr></thead>
     <tbody>
-      <tr><td>サマリ節の色（青／黄／赤）区別＋章へのアンカーリンク</td><td>「サマリの改修・色トークン・チップ」</td></tr>
+      <tr><td>サマリ節の色（青／黄／赤）区別＋章へのアンカーリンク</td><td>「サマリ（結論の一覧）の改修」「色トークン・チップ」</td></tr>
       <tr><td>「重点レビュー依頼」節の3段階の枠</td><td>「新設: 重点レビュー依頼」</td></tr>
-      <tr><td>「確かめられなかったこと」の前半移動・詳細は各章</td><td>「確かめられなかったこと（前半移動）・章ID・検査」</td></tr>
+      <tr><td>「確かめられなかったこと」の前半移動・詳細は各章</td><td>「確かめられなかったこと（前半移動）」「実施した内容と結果」</td></tr>
       <tr><td>色・記号・節順のテンプレート内コメント記述</td><td>「テンプレートコメント」</td></tr>
       <tr><td>自己完結・既存運用の維持</td><td>「検証」1〜3・「やらないこと」</td></tr>
       <tr><td>deliverables.md等との無矛盾</td><td>調査結果Q1で「直す対象なし」を確認済み（節名全維持による）</td></tr>

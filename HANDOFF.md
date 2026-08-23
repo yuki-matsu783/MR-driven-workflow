@@ -18,8 +18,8 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - ブランチ: `claude/html-report-visual-improvement-chu89d`
 - PR: #191（Draft）
 - push回数: 6
-- 現在のループ: なし
-- 未返信スレッド: 0
+- 現在のループ: 3-3〜3-4 の1周目（進行中）
+- 未返信スレッド: 9
 - 追従監視: PR #191をセッション購読（subscribe_pr_activity）で監視中（マージ/クローズで停止）
 
 | 進捗 | flow-id | ステップ |
