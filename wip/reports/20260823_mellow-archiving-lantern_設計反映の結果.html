@@ -137,7 +137,7 @@
     <p class="counts">
       <span class="chip good">◎良 6</span>
       <span class="chip warn">△注意 2</span>
-      <span class="chip stop">✕問題 0</span>
+      <span class="chip stop">✕問題 1</span>
     </p>
     <ul class="meta">
       <li><b>issue</b> #145</li>
@@ -206,6 +206,7 @@
     <li class="verdict"><span class="chip warn">△注意</span><a href="#f7">7. 完了条件7・8 は原理的に落ちないため、完了の根拠にしない</a><span class="v-basis">根拠: 実装の確認</span></li>
     <li class="verdict"><span class="chip warn">△注意</span><a href="#f8">8. 完了条件11の grep は「主張」と「引用」を区別できない</a><span class="v-basis">根拠: 実測</span></li>
     <li class="verdict"><span class="chip good">◎良</span><a href="#f7">7b. usecase 8件中1件が該当し、誤りは0件・不足が1件だった</a><span class="v-basis">根拠: 実測</span></li>
+    <li class="verdict"><span class="chip stop">✕問題</span><a href="#f14">14. 敵対的レビュー（2回目）で16件の指摘。うち<b>自分が書いた文章の事実誤り4件</b>が major で出た</a><span class="v-basis">根拠: 実測（反例・履歴・実行結果）</span></li>
   </ol>
 </section>
 
@@ -343,7 +344,7 @@ $ bash .claude/scripts/src/check-doc-references.sh | tail -1
       <tr><td>2</td><td><code>printf '\-\->\n'</code> がハイフン始まりをオプションと解釈した</td><td><b>(c)</b></td><td>同上（同じ節へ並べた）</td></tr>
       <tr><td>3</td><td>範囲の置き換えで末尾3行が重複し、前後3行の目視では気づけなかった</td><td><b>(c)</b></td><td><code>shell-script-style.md</code>「差し込むファイルは…」の節</td></tr>
       <tr><td>4</td><td><code>&lt;h4&gt;</code> / <code>class="warn"</code> のように、テンプレートが定義していない要素・クラスを使った</td><td><b>(c)</b></td><td><code>references/deliverables.md</code>「計画・レポートのHTMLビュー」</td></tr>
-      <tr><td>5</td><td>差し込む断片の先頭に空行を入れ忘れた</td><td>—</td><td><b>既に書かれている</b>（<code>shell-script-style.md</code> 711行目）</td></tr>
+      <tr><td>5</td><td>差し込む断片の先頭に空行を入れ忘れた</td><td>—</td><td><b>既に書かれている</b>（<code>shell-script-style.md</code>「差し込むファイルは、先頭に空行を置かず、末尾に空行をちょうど1つ持たせる」）</td></tr>
       <tr><td>6</td><td>md/html の同期を繰り返し落とした</td><td>—</td><td><b>既に書かれている</b>。落としたのは手順の不履行であってアセットの欠落ではない</td></tr>
       <tr><td>7</td><td>貼った出力がコマンドで再現できなかった</td><td>—</td><td><b>既に書かれている</b>（<code>REVIEW-POINTS.md</code>）</td></tr>
       <tr><td>8</td><td>worklog に書いた検証結果の数値が誤っていた</td><td>—</td><td>同上</td></tr>
@@ -385,6 +386,65 @@ $ bash .claude/scripts/src/check-doc-references.sh | tail -1
       <li><b>教訓は「機械的検査は、対象を無言で減らす形で壊れうる」ことである。</b> 「NGが出ない」は「検査が働いた」を意味しない。<b>検査を新しい形の入力へ初めて当てるときは、比較対象の件数が期待どおりかを一度見る</b>（今回なら「見出しが6件しか抽出されていない」ことに気づけた）。</li>
     </ul>
   </div>
+
+  <h3 id="f14">14. 敵対的レビュー（フェーズ4・2回目）の16件と、その修正 <span class="chip stop">✕問題</span></h3>
+  <p>flow-id 4-8/4-9。<b>16件の指摘のうち14件を投稿対象へ振り分けたが、O・P（nit 2件）も含めて16件すべてを修正した</b>（1次振り分けが決めるのは「投稿するか」であって「直すかどうか」ではない）。</p>
+  <div class="box stop"><span class="label">深刻だった4件</span>
+  <p>いずれも本フェーズで<b>自分が書いた文章の事実誤り</b>である。成果物のロジックではなく、<b>根拠として書いた測定値・引用</b>が間違っていた。</p></div>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>id</th><th>誤っていた主張</th><th>実際</th><th>どう確かめたか</th></tr></thead>
+    <tbody>
+      <tr><td>A</td><td>テストのヘッダ「(c)/(c2) はどちらの壊し方でも必ずどれかが落ちる」</td><td><b>偽</b>。再列挙をパス参照より<b>後ろ</b>へ置くと <code>passed=115 failures=0</code> で全通過する</td><td>反例を作って実行</td></tr>
+      <tr><td>B</td><td>「5見出し ↔ 10節」表の左列（<code>このタスクで何をしたか</code> 等）</td><td>実在の見出しは <code>## 何を変えたか</code> <code>## なぜそうしたか</code> <code>## 検証結果</code> <code>## spec・DDRへの反映先</code> <code>## 残課題</code></td><td><code>references/phase5-close.md</code> を読む</td></tr>
+      <tr><td>C</td><td>issue #112 が詰めたのは 5-4 と 5-5 の間</td><td><b>5-5 → 5-6</b>（片付け→commit）</td><td>DDR <code>i0112-01</code> の本文と <code>note</code></td></tr>
+      <tr><td>D</td><td><code>printf '\-\->\n'</code> はオプションとして解釈される</td><td><b>されない</b>（<code>\-\-&gt;</code> を出して終了コード0）。落ちるのは素の <code>printf "$s\n"</code>（終了コード2）</td><td>実行して終了コードを見た</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <div class="box warn"><span class="label">共通する原因</span>
+  <p><b>測れるのに測らずに書いた。</b> A は反例を1つ作れば分かり、C は参照先のDDRを開けば分かり、D は1行実行すれば分かる。B は参照先のファイルを開けば分かる。<b>本レポートの他の章では実測値を明示する方針を取っていたのに、新しく書いた散文の中の「〜である」という断定にはその方針が及んでいなかった。</b></p></div>
+
+  <p><b>A への対処</b>: (c3) として <b><code>describe</code> 節の次に来る <code>##</code> 見出しを直接表明する</b>検査を追加した（<code>(b2)</code> が <code>strip_lead_comment</code> の除外範囲に対してやったのと同型で、<b>節の終端そのもの</b>を固定する）。実測で3つの壊し方すべてが捕まることを確認した。</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>壊し方</th><th>落ちる検査</th></tr></thead>
+    <tbody>
+      <tr><td>パス参照より<b>前</b>へ <code>##</code> で再列挙</td><td>(c)（パス参照0件）</td></tr>
+      <tr><td><code>Closes</code> 行のように節を打ち切らない見出しを足す</td><td>(c2)</td></tr>
+      <tr><td>パス参照より<b>後ろ</b>（節末尾）へ <code>##</code> で再列挙</td><td><b>(c3)</b>（従来はどれも落ちなかった）</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p><b>「(c3) を足したから塞ぎ切った」とは書いていない。</b> それは A で指摘されたのと同じ形の断定になるためで、ヘッダには「3つで1組の検査であり、<code>describe</code> 節の中身を人が読む代わりにはならない」と明記した。</p>
+
+  <p><b>B・F への対処</b>: 左列を直すだけでは F（10節の名前を全件書き下している＝案Bが禁じた再掲）が残る。<b>表を消して粒度の違いだけを述べる形</b>にし、「対応表をここへ書き下さない」理由（見出しの正が2箇所とも別のファイルにあり、写すと<b>正が3つになる</b>）を明記した。DDR <code>i0145-02</code> の同名節も追従させた。</p>
+
+  <p><b>G への対処</b>: 新設した検査例 <code>grep -c 'class="warn"'</code> が、<b>この教訓を書いたレポート自身</b>（アンチパターンを <code>&lt;code&gt;</code> で引用している箇所）で誤検知することが実測で示された。差集合を取る形へ書き直したうえで、<b>要素とクラスで信頼度が違う</b>ことを明記した。</p>
+  <ul>
+    <li><b>要素側は信用してよい</b>: 地の文は <code>&amp;lt;h4&amp;gt;</code> とエスケープされるので、<code>&lt;/h4&gt;</code> に一致するのは実際の使用箇所だけである（<code>&lt;h4&gt;</code> を1件混ぜて検出できることを確認）。</li>
+    <li><b>クラス側は候補の列挙まで</b>: テンプレートは <code>.box.warn</code> のような<b>組み合わせ</b>にスタイルを当てるため名前の有無では足りず、さらに地の文の引用と属性を原理的に区別できない。</li>
+  </ul>
+  <p><b>この結論は章8・章13と同じ形をしている</b>——「機械的検査は、対象を無言で減らす／増やす形で壊れうる」。3章で独立に踏んでいるので、成果物ではなく<b>検査の使い方</b>の問題として記録する。</p>
+
+  <p><b>残り8件</b></p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>id</th><th>対象</th><th>内容</th></tr></thead>
+    <tbody>
+      <tr><td>E</td><td><code>shell-script-style.md</code></td><td><code>grep</code> は<b>エラーを出す</b>（stderr・終了コード2）。危ないのは標準出力が出続けること</td></tr>
+      <tr><td>M</td><td>同上</td><td>「末尾3行がそのまま残り」は履歴上<b>1行</b>（<code>ae0924a</code> → <code>fa9c06c</code> で確認）</td></tr>
+      <tr><td>K</td><td>DDR <code>i0145-01</code></td><td>分岐点の先頭コメントが指していたのは <code>SKILL.md</code> ではなく <code>references/review-loop.md</code></td></tr>
+      <tr><td>L</td><td>同上</td><td>28% の出所（issue #145 本文）と、本PRで再検証していない旨が無い</td></tr>
+      <tr><td>P</td><td>同上</td><td>コードブロックの <code>$SP</code> が未定義（<code>mktemp -d</code> へ置換）</td></tr>
+      <tr><td>N</td><td>spec</td><td>「見出し構成の正は distribution-assets.md」と読める。実際の正はテンプレートファイル</td></tr>
+      <tr><td>H</td><td>本レポート</td><td>frontmatter の <code>description</code> が <code>VERSION 0.5.0への引き上げ</code> のままだった</td></tr>
+      <tr><td>I</td><td>本レポート</td><td>行番号参照（711行目）が、<b>このコミット自身の追記でずれていた</b>（実際は738行目）</td></tr>
+      <tr><td>J</td><td>個別反映計画</td><td>完了条件6の着手前が 2件（実測は <b>4件</b>。自分自身を数え忘れ）</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p><b>H・I・J は「自分の作業でずれた値を、自分の成果物に残した」類型</b>である。I はとくに、同じコミットで <code>shell-script-style.md</code> へ3節追記したことが原因なので、<b>行番号での参照をやめて見出し・書き出しで指す</b>形へ直した。</p>
 </section>
 
 <section id="next">
@@ -407,6 +467,7 @@ $ bash .claude/scripts/src/check-doc-references.sh | tail -1
       <tr><td>AIアセット反映は <code>.claude/rules/</code> だけで足りる</td><td><code>.claude/skills/</code> 配下への追記が1件出た</td><td>計画の「触ってよい範囲」を先に更新してから実施した</td></tr>
       <tr><td>完了条件11の <code>grep</code> は0件になる</td><td>歴史的経緯の<b>引用</b>が1件ヒットした</td><td>言い換えて検査を成立させ、検査の限界を本レポートへ記録した</td></tr>
       <tr><td>4点検証はそのまま使える</td><td><b>検証スクリプトの見出し抽出が属性付きタグに一致せず、章見出しを無言で除外していた</b></td><td>抽出を <code>&lt;h[123][^&gt;]*&gt;</code> へ直して再実行（全6ペア通過）</td></tr>
+      <tr><td>敵対的レビュー2回目の指摘は成果物のロジックに出る</td><td><b>major 4件がすべて「自分が書いた散文の事実誤り」だった</b></td><td>16件すべてを修正。A には検査 (c3) を追加し、主張は弱めた</td></tr>
     </tbody>
   </table>
   </div>

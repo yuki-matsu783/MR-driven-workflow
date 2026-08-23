@@ -348,7 +348,7 @@ ls .claude/docs/ddr/ | grep i0145</code></pre>
       <tr><td>3</td><td><code>issue-mr-workflow.md</code> に「最終形は 4-10」「役割分担の表」「5見出し↔10節」がある</td><td>目視</td><td><b>0件（失敗）</b></td></tr>
       <tr><td>4</td><td>changelog が2ファイルとも<b>新規エントリの追記</b>で、過去エントリが変わっていない</td><td><code>git diff &lt;着手時点のSHA&gt; -- .claude/docs/spec/</code> の削除行が既存節にかかっていない</td><td><b>測れない</b>（下記）</td></tr>
       <tr><td>5</td><td>DDR一覧が最新</td><td><code>generate-ddr-list.sh --check</code> が exit=0</td><td><b>成功（回帰ガード）</b></td></tr>
-      <tr><td>6</td><td>参照切れ0件</td><td><code>check-doc-references.sh</code></td><td><b>参照切れ2件</b>（下記）</td></tr>
+      <tr><td>6</td><td>参照切れ0件</td><td><code>check-doc-references.sh</code></td><td><b>参照切れ4件</b>（下記）</td></tr>
       <tr><td>7</td><td>単体テストが引き続き通る</td><td><code>test_install_to_project.sh</code> が <code>failures=0</code></td><td><b>成功（本フェーズでは原理的に落ちない。下記）</b></td></tr>
       <tr><td>8</td><td>md/html の4点検証が全ペアで通る</td><td>作業項目13のコマンド</td><td><b>成功（同上）</b></td></tr>
       <tr><td>9</td><td>usecase への影響を調べた結果と件数が作業結果レポートにある</td><td>目視</td><td><b>0件（失敗）</b></td></tr>
@@ -362,7 +362,7 @@ ls .claude/docs/ddr/ | grep i0145</code></pre>
   <h3>着手前に確かめること</h3>
   <ul>
     <li><b>完了条件5・6 は回帰ガードである</b>（作業中に一度偽になりうるので意味がある）。
-      <ul><li>6 は<b>着手前から2件</b>ある。<code>wip/plans/mellow-archiving-lantern.md</code> が、これから作るDDR 2件を絶対パス形式で指しているため。<b>作業項目1・2の完了で0へ戻るのが正しい挙動</b>で、「作業前は2件・作業後は0件」を確かめる。</li></ul>
+      <ul><li>6 は<b>着手前から4件</b>ある（着手前SHA <code>c076fa2</code> を worktree へ取り出して実測）。これから作るDDR 2件を絶対パス形式で指している箇所が、<b>全体作業計画に2件・この個別計画自身に2件</b>あるため。<b>作業項目1・2の完了で0へ戻るのが正しい挙動</b>で、「作業前は4件・作業後は0件」を確かめる。<b>当初この欄を「2件」と書いていたが、全体作業計画だけを数えて自分を数え忘れていた</b>（敵対的レビューで実測により指摘。値そのものは結論を変えないが、この計画は冒頭で「着手前の実測値を併記する」と宣言しているので、測らずに書いた数字が混ざるのは趣旨に反する）。</li></ul>
     </li>
   </ul>
   <div class="box warn">

@@ -17,7 +17,8 @@ issue #145 は、MR/PRのdescriptionを「レビュー時だけの説明」か�
 というのがこの変更の前提にある認識である。
 
 過去64件のPRを集計したところ、当時のテンプレート（`Closes #N` / `## Plan` / `## 実装状況` の
-3点）を忠実に使っていたのは28%にとどまっていた。残りは独自の見出しを立てており、そこで自然に
+3点）を忠実に使っていたのは28%にとどまっていた（**出所は issue #145 の本文に載っていた集計であり、
+本PRでは数え直していない**。母数64件は起票時点のもの）。残りは独自の見出しを立てており、そこで自然に
 書かれていた見出し（変更内容・検証・概要・受け入れ条件との対応・設計判断…）を**当時の
 テンプレートは1つも含んでいなかった**。
 
@@ -28,8 +29,10 @@ issue #145 は、MR/PRのdescriptionを「レビュー時だけの説明」か�
 | `.github/pull_request_template.md` / `.gitlab/merge_request_templates/Default.md` | GitHub/GitLabがPR作成画面で読む実体 |
 | `issue-mr-flow` の `describe` 節（issue #160 以降は `references/review-loop.md`） | AIエージェントがdescriptionを組み立てるときの雛形 |
 
-当時のテンプレートの先頭コメントは「**SKILL.mdが正**」と明記していた。つまり実体のほうが写しで
-あり、見出しを1つ増やすには2箇所を同時に直す必要があった。
+当時のテンプレートの先頭コメントは「**`references/review-loop.md` の `describe` 節が正**」と
+明記していた（このブランチの分岐点 `d31dfd8` の実物。issue #160 で `SKILL.md` が `references/` へ
+分割される前は `SKILL.md` を指しており、分割時にこの参照も更新されていた）。つまり実体のほうが
+写しであり、見出しを1つ増やすには2箇所を同時に直す必要があった。
 
 ## 決定
 
@@ -68,14 +71,15 @@ issue #145 は、MR/PRのdescriptionを「レビュー時だけの説明」か�
 `test_install_to_project.sh` の検査 (b) で固定した。生成も `awk` で機械的に行う。
 
 ```bash
+tmp="$(mktemp -d)"
 # GitLab版の先頭コメントだけを取り出す
 awk 'NR==1 && /^[[:space:]]*<!--/ { lead=1 } lead { print; if (/-->/) { exit } }' \
-  .gitlab/merge_request_templates/Default.md > "$SP/gl-lead.md"
+  .gitlab/merge_request_templates/Default.md > "$tmp/gl-lead.md"
 # GitHub版から先頭コメントを除いた本文を取り出す
 awk 'NR==1 && /^[[:space:]]*<!--/ { lead = 1 }
      lead { if (/-->/) lead = 0; next }
-     { print }' .github/pull_request_template.md > "$SP/gh-body.md"
-cat "$SP/gl-lead.md" "$SP/gh-body.md" > .gitlab/merge_request_templates/Default.md
+     { print }' .github/pull_request_template.md > "$tmp/gh-body.md"
+cat "$tmp/gl-lead.md" "$tmp/gh-body.md" > .gitlab/merge_request_templates/Default.md
 ```
 
 ### なぜ配布層を `core` のまま変えなかったのか
