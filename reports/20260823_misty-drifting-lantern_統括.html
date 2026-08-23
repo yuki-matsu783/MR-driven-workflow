@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>最終統括レポート — issue #182</title>
+<style>
+  :root {
+    --bg: #f6f7f9;      --panel: #ffffff;   --ink: #1a1d21;     --muted: #5b636d;
+    --line: #dfe3e8;    --accent: #2563eb;  --accent-soft: #eaf0fe;
+    --ok: #1a7f4b;      --ok-soft: #e6f4ec; --warn: #a35a00;    --warn-soft: #fdf1e0;
+    --stop: #b3261e;    --stop-soft: #fdecea; --code-bg: #f0f2f5;
+    --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1216;    --panel: #161a20;   --ink: #e6e8eb;     --muted: #9aa3ad;
+      --line: #2a3038;  --accent: #7aa2f7;  --accent-soft: #1b2333;
+      --ok: #6ee7a8;    --ok-soft: #14261d; --warn: #f0b866;    --warn-soft: #2a2113;
+      --stop: #f2857c;  --stop-soft: #2b1614; --code-bg: #1d222a;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", system-ui, sans-serif;
+    line-height: 1.8; font-size: 15px;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 20px 80px; }
+
+  header.band {
+    background: linear-gradient(135deg, var(--accent-soft), var(--panel));
+    border-bottom: 1px solid var(--line); padding: 28px 20px 22px; margin-bottom: 28px;
+  }
+  header.band .inner { max-width: 1080px; margin: 0 auto; }
+  header.band .kind { font-size: 11px; letter-spacing: .18em; color: var(--accent); font-weight: 700; }
+  header.band h1 { margin: 6px 0 4px; font-size: 26px; line-height: 1.4; }
+  header.band .lead { margin: 0; color: var(--muted); }
+  .meta { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; padding: 0; list-style: none; }
+  .meta li {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 999px;
+    padding: 3px 12px; font-size: 12.5px; color: var(--muted); white-space: nowrap;
+  }
+  .meta li b { color: var(--ink); font-weight: 600; }
+
+  nav.toc {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 14px 20px; margin-bottom: 28px;
+  }
+  nav.toc h2 { margin: 0 0 8px; font-size: 13px; letter-spacing: .08em; color: var(--muted); border: 0; padding: 0; }
+  nav.toc ol { margin: 0; padding-left: 20px; }
+  nav.toc li { margin: 2px 0; }
+  a { color: var(--accent); }
+
+  section {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 8px 24px 22px; margin-bottom: 22px;
+  }
+  h2 { font-size: 20px; margin: 20px 0 10px; padding-bottom: 8px; border-bottom: 2px solid var(--line); }
+  h3 { font-size: 16px; margin: 22px 0 8px; color: var(--accent); }
+  p { margin: 10px 0; }
+  ul, ol { padding-left: 22px; }
+  li { margin: 4px 0; }
+  blockquote { margin: 10px 0; padding: 6px 14px; border-left: 3px solid var(--line); color: var(--muted); }
+
+  .tablewrap { overflow-x: auto; margin: 14px 0; }
+  table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 14px; }
+  th, td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: var(--accent-soft); font-weight: 600; white-space: nowrap; }
+  tbody tr:nth-child(even) td { background: color-mix(in srgb, var(--line) 22%, transparent); }
+
+  code {
+    background: var(--code-bg); border-radius: 5px; padding: 1px 5px; font-size: 13px;
+    font-family: "SFMono-Regular", Consolas, "Noto Sans Mono", monospace;
+  }
+  pre {
+    background: var(--code-bg); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 12px 14px; overflow-x: auto; font-size: 13px; line-height: 1.65;
+  }
+  pre code { background: none; padding: 0; }
+
+  .box { border-left: 4px solid var(--accent); background: var(--accent-soft);
+         border-radius: 0 var(--radius) var(--radius) 0; padding: 12px 16px; margin: 16px 0; }
+  .box > :first-child { margin-top: 0; } .box > :last-child { margin-bottom: 0; }
+  .box .label { font-size: 12px; font-weight: 700; letter-spacing: .06em; display: block; margin-bottom: 4px; }
+  .box.ok { border-color: var(--ok); background: var(--ok-soft); } .box.ok .label { color: var(--ok); }
+  .box.warn { border-color: var(--warn); background: var(--warn-soft); } .box.warn .label { color: var(--warn); }
+  .box.stop { border-color: var(--stop); background: var(--stop-soft); } .box.stop .label { color: var(--stop); }
+  .box.info .label { color: var(--accent); }
+
+  .tag { display: inline-block; border-radius: 999px; padding: 1px 9px; font-size: 12px; font-weight: 600; }
+  .tag.ok { background: var(--ok-soft); color: var(--ok); }
+  .tag.warn { background: var(--warn-soft); color: var(--warn); }
+  .tag.stop { background: var(--stop-soft); color: var(--stop); }
+
+  footer { color: var(--muted); font-size: 13px; text-align: center; padding-top: 10px; }
+</style></head>
+<body>
+
+<header class="band">
+  <div class="inner">
+    <div class="kind">最終統括レポート / フェーズ5</div>
+    <h1>敵対的レビュー投稿件数選別のスクリプト化（issue #182）</h1>
+    <p class="lead">敵対的レビューの投稿件数選別を層単位ルール（blocker無制限・ハードシーリング20件）でスクリプト化し、実施した敵対的レビューへの全指摘対応・defaultブランチとの統合まで完了した。</p>
+    <ul class="meta">
+      <li><b>issue</b> #182</li>
+      <li><b>ブランチ</b> claude/adversarial-review-script-2sba3d</li>
+      <li><b>PR</b> #183</li>
+      <li><b>フェーズ</b> 5〈クローズ〉 flow-id 5-4</li>
+      <li><b>作成日</b> 2026-08-23</li>
+      <li><b>正文</b> 同名の .md</li>
+    </ul>
+  </div>
+</header>
+
+<div class="wrap">
+
+<nav class="toc">
+  <h2>目次</h2>
+  <ol>
+    <li><a href="#summary">サマリ（結論の一覧）</a></li>
+    <li><a href="#conditions">実施条件（測った対象・環境）</a></li>
+    <li><a href="#findings">実施した内容と結果</a></li>
+    <li><a href="#unverified">確かめられなかったこと</a></li>
+    <li><a href="#next">設計への反映</a></li>
+    <li><a href="#surprises">想定と異なった点</a></li>
+    <li><a href="#todo">残課題</a></li>
+  </ol>
+</nav>
+
+<section id="summary">
+  <h2>サマリ（結論の一覧）</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>#</th><th>問い／やったこと</th><th>結論</th><th>根拠の性質</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td>敵対的レビューの投稿件数選別（blocker無制限・ハードシーリング20件）をスクリプト化できたか</td><td><b>できた（<code>select-adversarial-findings.sh</code>）</b></td><td>実装の確認</td></tr>
+      <tr><td>2</td><td>選別規則（層単位追加・10件しきい値・20件ハードシーリング・層内タイブレーク）は仕様どおり動くか</td><td><b>動く</b></td><td>単体テスト（<code>passed=34 failures=0</code>）</td></tr>
+      <tr><td>3</td><td>フェーズ3の敵対的レビュー（自律実行）で見つかった指摘は対応済みか</td><td><b>13件全件対応済み</b>（9件修正・4件は報告のみで確認済み対応）</td><td>実測（PRへの投稿・返信・再テスト）</td></tr>
+      <tr><td>4</td><td>ドキュメント（SKILL.md/spec/DDR）は最新の実装と一致しているか</td><td><b>一致</b>（誤記述4箇所を敵対的レビューで発見・修正）</td><td>ドキュメントの読解＋実装との突き合わせ</td></tr>
+      <tr><td>5</td><td>defaultブランチ（main）との統合は完了したか</td><td><b>完了</b>（コンフリクトはDDR一覧生成物のみ、再生成で解消）</td><td>実測（<code>check-base-conflicts.sh</code>が<code>hasConflict: false</code>）</td></tr>
+      <tr><td>6</td><td><code>.gemini/</code>は<code>.claude/</code>と同期しているか</td><td><b>同期済み</b></td><td>実測（<code>sync-gemini-assets.sh --check</code>が終了コード0）</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="conditions">
+  <h2>実施条件（測った対象・環境）</h2>
+  <ul>
+    <li>実行環境: Claude Code on the web（<code>gh</code>/<code>glab</code> CLI不在、GitHub MCPで代替）</li>
+    <li>対象・バージョン: <code>yuki-matsu783/MR-driven-workflow</code>、ブランチ<code>claude/adversarial-review-script-2sba3d</code>、PR #183</li>
+    <li>実施日: 2026-08-23</li>
+  </ul>
+</section>
+
+<section id="findings">
+  <h2>実施した内容と結果</h2>
+
+  <h3>1. 選別スクリプトの実装と単体テスト</h3>
+  <p><code>.claude/scripts/src/select-adversarial-findings.sh</code>を新規実装した。findings JSONを受け取り、単一のjq呼び出し（<code>reduce</code>による層の逐次処理）でblocker無制限・major→minorの層単位追加（累計10件しきい値）・ハードシーリング20件・層内切り捨ての優先順位（確度降順→パス昇順→行番号昇順）を実現する。出力は<code>{"posted":{"findings":[...]},"reported":{"findings":[...]}}</code>。</p>
+  <div class="box ok">
+    <span class="label">結論</span>
+    単体テスト（<code>test_select_adversarial_findings.sh</code>）は34アサーション、<code>passed=34 failures=0</code>。境界ケース（ちょうど10件・ちょうど20件・blockerが20件超・blockerがハードシーリングの枠を消費する境界・確度優先のタイブレーク・行番号タイブレーク・main関数の入力検証5パターン）を網羅している。
+  </div>
+
+  <h3>2. ドキュメント反映</h3>
+  <p><code>adversarial-review/SKILL.md</code>手順6・<code>.claude/docs/spec/adversarial-review.md</code>・新設DDR（<code>i0182-01</code>）を更新し、旧「1回あたりの投稿上限10件」という記述を層単位ルールへ置き換えた。既存DDR<code>i0077-03</code>の決定6が本issueで無効化されたことをfrontmatterの<code>note</code>で追記し、<code>generate-ddr-list.sh</code>でDDR一覧を再生成した。</p>
+  <div class="box ok">
+    <span class="label">結論</span>
+    すべてのドキュメント反映が完了している。
+  </div>
+
+  <h3>3. 敵対的レビュー実施と対応（フェーズ3・1回目）</h3>
+  <p><code>adversarial-reviewer</code>サブエージェントへdiff全体を渡し独立レビューを実施。13件のfindingsが返り、確度×重大度の1次振り分けで9件が投稿候補、4件が報告のみとなった。<code>select-adversarial-findings.sh</code>（blocker0件のため9件全件がposted）で選別したうえでGitHub MCPでPR #183へ投稿した。</p>
+  <p>投稿した9件は、<code>.posted.findings</code>と<code>.posted</code>の入力形式の不整合（受け取り側が要求する形式は<code>.posted</code>＝オブジェクト全体）、選別漏れfindingsの集約範囲の文言、blockerがハードシーリングの枠を消費するかどうかの規則の曖昧さ、<code>main</code>の入力検証欠如、確度優先タイブレークの検証不足など、いずれも確認のうえその場で修正した。報告のみの4件も全て対応済み。</p>
+  <div class="box ok">
+    <span class="label">結論</span>
+    投稿9件はすべて修正済み・返信済み。修正後の単体テスト（34アサーション）・構文チェックは<code>failures=0</code>。
+  </div>
+
+  <h3>4. defaultブランチ（main）とのコンフリクト解消（flow-id 5-1）</h3>
+  <p><code>check-base-conflicts.sh</code>で<code>hasConflict: true</code>（<code>.claude/docs/README.md</code>のDDR一覧生成マーカー区間のみ）を検知した。<code>resolve-conflict</code>スキルの類型B（生成物）に従い、マーカー内の競合（このブランチの<code>i0182-01</code>行 vs mainの<code>i0171-01</code>行）を両方残す形で手動解消したうえで<code>generate-ddr-list.sh</code>を実行し、「変更はありません（80件）」で機械生成結果と完全一致することを確認した。</p>
+  <pre><code>$ bash .claude/scripts/src/check-base-conflicts.sh
+{"hasConflict": false, "hasTextualConflict": false, "hasDuplicateDdrNumber": false, ...}</code></pre>
+  <div class="box ok">
+    <span class="label">結論</span>
+    全単体テスト<code>passed=1314 failures=0</code>（失敗ファイル0件）。マージコミットをpush後、コンフリクトが完全に解消されたことを確認した。
+  </div>
+
+  <h3>5. 関連issue通知（flow-id 5-2）と<code>.gemini/</code>同期（flow-id 5-3）</h3>
+  <p>diff（<code>plans/</code>/<code>worklog/</code>/<code>reports/</code>除外）から抽出したキーワードで<code>search_issues</code>を実行したが、今回のissue自身とclosed済みissueのみがヒットし、openの関連issueは無かったため通知は行わなかった。<code>.gemini/</code>は<code>sync-gemini-assets.sh</code>で再生成した。</p>
+  <div class="box ok">
+    <span class="label">結論</span>
+    <code>sync-gemini-assets.sh --check</code>が終了コード0（同期済み）を返すことを確認した。
+  </div>
+</section>
+
+<section id="unverified">
+  <h2>確かめられなかったこと</h2>
+  <div class="box warn">
+    <span class="label">この結果が言っていないこと</span>
+    <ul>
+      <li>実際に人間レビュアーがPR #183へ新規のレビューコメントを付けた場合の対応（このセッションは非対話モードのため、人間の実レビューは今後の<code>comments</code>/<code>reply</code>ループで対応する）。</li>
+      <li>選別スクリプトの出力を実際のMRへ<code>add_mr_inline_comments</code>で投稿する経路は、今回の敵対的レビュー往復で実機確認済み（PR #183へ9件投稿・返信が成功）である。</li>
+    </ul>
+  </div>
+</section>
+
+<section id="next">
+  <h2>設計への反映</h2>
+  <ol>
+    <li><code>.claude/docs/spec/adversarial-review.md</code>・<code>.claude/docs/ddr/i0182-01-...md</code>・<code>.claude/docs/ddr/i0077-03-...md</code>（frontmatterの<code>note</code>）・<code>.claude/rules/shell-script-style.md</code>（jqのパイプ内<code>.</code>参照の落とし穴）への反映は完了している。</li>
+    <li>次のissueへ持ち越す反映事項は無い。</li>
+  </ol>
+</section>
+
+<section id="surprises">
+  <h2>想定と異なった点</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>計画時の見込み</th><th>実際</th><th>どう扱ったか</th></tr></thead>
+    <tbody>
+      <tr><td>敵対的レビューは実装完了後の1回で足りると見込んでいた</td><td>実際に1回のレビューで13件の指摘（うちmajor5件）が見つかった</td><td>全件確認のうえその場で修正し、再テストで<code>failures=0</code>を確認した</td></tr>
+      <tr><td>jqの<code>index()</code>を<code>select()</code>内で素直に書けると見込んでいた</td><td>パイプ右辺での<code>.</code>参照が外側の値に束縛される落とし穴を踏んだ</td><td><code>.severity</code>を変数へ先に束縛する形へ修正し、<code>shell-script-style.md</code>へ知見を反映した</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="todo">
+  <h2>残課題</h2>
+  <ul>
+    <li>無し（issue #182の受け入れ条件はすべて満たしている）。</li>
+  </ul>
+</section>
+
+<footer>issue #182 / PR #183 — 結果の正文は同名の <code>.md</code>。外部依存を持たない自己完結HTML。</footer>
+
+</div>
+</body>
+</html>
