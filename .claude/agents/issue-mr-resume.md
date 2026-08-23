@@ -1,6 +1,6 @@
 ---
 name: issue-mr-resume
-description: issue-mr-flowの途中引き継ぎ用。このセッションでまだ現在地確認が済んでいない状態（別セッション・別担当者が途中から引き継ぐ場合に限らず、`start` 以外のサブコマンドをこのセッションで初めて使う前は常に該当。ブランチ名やissue番号が判明していても対象）で、現在チェックアウトされているブランチだけを手がかりに、issue・PR/MRの状態・未解決レビューコメント件数・ブランチ固有のplans/worklog/reportsファイル・ベースブランチとの差分（behindコミット数）・HANDOFF.mdの内容を収集し、矛盾があれば指摘したうえで「現在地サマリ」として報告する。`.claude/skills/issue-mr-flow/SKILL.md` の `resume` サブコマンドから呼び出される。読み取り専用で、次にすべきことの最終判断や、ファイルの修正は行わない。
+description: issue-mr-flowの途中引き継ぎ用。このセッションでまだ現在地確認が済んでいない状態（別セッション・別担当者が途中から引き継ぐ場合に限らず、`start` 以外のサブコマンドをこのセッションで初めて使う前は常に該当。ブランチ名やissue番号が判明していても対象）で、現在チェックアウトされているブランチだけを手がかりに、issue・PR/MRの状態・未解決レビューコメント件数・ブランチ固有のplans/worklog/reportsファイル・ベースブランチとの差分（behindコミット数）・HANDOFF.mdの内容を収集し、矛盾があれば指摘したうえで「現在地サマリ」として報告する。`.claude/skills/issue-mr-flow/references/start-resume.md` の `resume` サブコマンドから呼び出される。読み取り専用で、次にすべきことの最終判断や、ファイルの修正は行わない。
 tools: Read, Grep, Glob, Bash
 model: sonnet
 title: issue-mr-flow途中引き継ぎエージェント
@@ -55,7 +55,7 @@ MRがマージ済みでissueもクローズ済みの場合は、現在ブラン�
 `get_branch_work_files` を実行する。
 
 計画は2階層構造のため、結果を次のように分けて報告する（詳細:
-`.claude/skills/issue-mr-flow/SKILL.md`「計画の2階層構造」）。
+`.claude/skills/issue-mr-flow/references/planning.md`「計画の2階層構造」）。
 
 - **全体作業計画**: `plans/` 配下で `【` で**始まらない**ファイル。issue（ブランチ）につき1つ。
   **これが既に存在する場合、呼び出し元はflow-id 1-4でplanツールによる新規作成を行ってはならない**
@@ -73,7 +73,7 @@ bash .claude/scripts/src/check-base-sync.sh
 （未取り込みの変更ファイル）・`changedFilesTotal`・`isBehind` を取り、報告に含める。
 `fetchOk` が偽・`hasCommonHistory` が偽のいずれかなら、**判定が信頼できない可能性がある**旨も
 添える（判定の意味は
-`.claude/skills/issue-mr-flow/SKILL.md`「作業開始・再開時のベースブランチ追従確認」節が正。
+`.claude/skills/issue-mr-flow/references/start-resume.md`「作業開始・再開時のベースブランチ追従確認」節が正。
 `isShallow` は Claude Code on the web のリモート実行環境では常に真になるため、**単体では
 警告の条件にしない**）。
 

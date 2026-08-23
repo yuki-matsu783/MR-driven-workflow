@@ -54,7 +54,7 @@ keywords: [計画, 種別, 併記, 分割, planツール, 受け入れ条件, is
 ## 【AIアセット反映】の計画（issue #155）
 
 **この節は「何を見るか」だけを持つ。** 4類型の定義・証拠を要求する範囲・打ち切りの段階・2軸の
-対応表は、`.claude/skills/issue-mr-flow/SKILL.md`「AIアセット反映の対象の洗い出し」が正である
+対応表は、`.claude/skills/issue-mr-flow/references/planning.md`「AIアセット反映の対象の洗い出し」が正である
 （ここへ再掲すると、類型や形態を増やしたときに片方だけが古くなる）。
 
 - **起点が「今回の作業の副産物」になっているか。** そのissueの主たる成果物としてのアセット作成が
@@ -77,7 +77,7 @@ keywords: [計画, 種別, 併記, 分割, planツール, 受け入れ条件, is
   （`.claude/docs/spec/distribution-assets.md`。上流の削除は配布先へ伝播しない）。
 - **`【設計反映】` `【実装反映】` と併記していないか**（上記「種別」の観点）。
 - **反映先が `.claude/scripts/` `.claude/hooks/` の項目について、種別の判定が
-  SKILL.md「AIアセット反映の対象の洗い出し」の規定どおりか。**
+  `references/planning.md`「AIアセット反映の対象の洗い出し」の規定どおりか。**
 
 ## 検証手順
 

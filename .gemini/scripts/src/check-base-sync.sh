@@ -2,7 +2,7 @@
 #
 # 現在のブランチが、ベースブランチ（.mrworkflow.json の defaultBaseBranch）の最新を
 # 取り込めているかを、作業ツリーを一切変更せずに判定する（issue #67）。
-# `.claude/skills/issue-mr-flow/SKILL.md` の「作業開始・再開時のベースブランチ追従確認」節
+# `.claude/skills/issue-mr-flow/references/start-resume.md` の「作業開始・再開時のベースブランチ追従確認」節
 # （`start` の既存ブランチ検出時・`resume`・`sync`）から呼び出す想定。
 #
 # check-base-conflicts.sh との違い（判定軸が異なるため別スクリプトにしている）:
