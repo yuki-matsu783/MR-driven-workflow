@@ -10,8 +10,9 @@ keywords: [敵対的レビュー, インラインコメント, findings, 実施�
 
 対象: `.claude/skills/adversarial-review/SKILL.md`, `.claude/skills/review-points/SKILL.md`,
 `.claude/agents/adversarial-reviewer.md`, `.claude/scripts/src/adversarial-review-count.sh`,
-`.claude/scripts/src/collect-review-points.sh`, `.claude/scripts/src/vcs/`（`add_mr_inline_comments`
-とプロバイダ実装）, 各ディレクトリの `REVIEW-POINTS.md`
+`.claude/scripts/src/collect-review-points.sh`, `.claude/scripts/src/select-adversarial-findings.sh`,
+`.claude/scripts/src/vcs/`（`add_mr_inline_comments` とプロバイダ実装）,
+各ディレクトリの `REVIEW-POINTS.md`
 
 ## 背景・目的
 
@@ -171,19 +172,57 @@ bash .claude/scripts/src/collect-review-points.sh <対象ファイルパス...>
 
 ### 投稿／報告の振り分け
 
+まず**確度（`confidence`）と重大度（`severity`）**の表で1次振り分けを行う。
+
 | 確度 \ 重大度 | blocker | major | minor | nit |
 |---|---|---|---|---|
-| high | 投稿 | 投稿 | 投稿 | 報告 |
-| medium | 投稿 | 投稿 | 報告 | 報告 |
+| high | 投稿候補 | 投稿候補 | 投稿候補 | 報告 |
+| medium | 投稿候補 | 投稿候補 | 報告 | 報告 |
 | low | 報告 | 報告 | 報告 | 報告 |
 
-- **投稿** = インラインコメントとしてMRへ出す。**報告** = 会話（非対話モードではworklogs）にのみ
-  書き、MRへは出さない。
-- **1回あたりの投稿上限は10件**。超える場合は重大度の高い順に10件へ絞り、残りは報告へ回す
-  （レビュアーが一度に扱える量を超えると、結局どれも読まれないため）。
-- この振り分けは**シェル関数ではなくスキルの手順7**に置いている。「技術的に投稿可能か」（有効行か
-  どうか）はコードの責務だが、「人間に見せる価値があるか」は判断であり、運用しながら調整できる
-  場所に置くほうがよいと判断した。
+- **投稿候補** = 次の「投稿件数の選別」（下記）へ進む。**報告** = 会話（非対話モードでは
+  wip/worklogs）にのみ書き、MRへは出さない。
+- **この1次振り分け自体は変更していない**（issue #182）。「技術的に投稿可能か」（有効行かどうか）
+  はコードの責務だが、「人間に見せる価値があるか」は判断であり、運用しながら調整できる場所に
+  置くほうがよいという判断は維持している。
+
+### 投稿件数の選別（issue #182）
+
+1次振り分けを通過した「投稿候補」findingsのうち、実際に何件投稿するかは
+`.claude/scripts/src/select-adversarial-findings.sh` が**決定的に**選別する。
+
+```bash
+bash .claude/scripts/src/select-adversarial-findings.sh <投稿候補findings JSONファイル>
+# → {"posted":{"findings":[...]},"reported":{"findings":[...]}}
+```
+
+選別規則（層単位ルール・blocker無制限・ハードシーリング20件）:
+
+1. **blocker は全件投稿する。** 「投稿するかどうか」自体は上限の対象外で、blocker が単独で
+   20件を超える場合も全件投稿し、その場合は下位層（major・minor）を追加しない。
+2. **blocker より下の層（major → minor）は、重大度の高い順に「層単位」で追加する。** 層の
+   途中では切らない。累計が10件（層追加のしきい値）に達した時点で、それより下の層は追加しない。
+   - 例: blocker 1件 + major 13件 + minor 5件 → blocker + majorの14件を投稿し、minorは
+     累計14 ≥ 10のため追加しない。
+3. **絶対上限（ハードシーリング）は20件。** 層を丸ごと追加すると累計が20件を超える場合に限り、
+   その層内を**確度の降順（high→medium→low）→パスの昇順→行番号の昇順**の決定的な順序で
+   20件まで切る。**blockerの件数自体はこの20件の枠を消費する**（例: blocker 9件 + major
+   15件 → 20-9=11件までしかmajorは入らず、残り4件はreportedへ回る）。上記1.の
+   「対象外」は打ち切り判定（2.でblockerが減らされることはない）を指し、消費した枠まで
+   対象外になるわけではない。
+4. **この選別で漏れたfindings**（層追加のしきい値・ハードシーリングで切られたもの）が
+   出力の `reported.findings` に入る。**1次振り分けで「報告」に区分したfindingsは、
+   そもそもこのスクリプトへ渡していない**ため `reported.findings` には含まれない
+   （呼び出し側で両者を合わせて報告する。`adversarial-review/SKILL.md` 手順6・手順9）。
+
+- **findingsは必ずファイル経由でjqへ渡す**（jqの引数長上限を避けるため。
+  `.claude/rules/shell-script-style.md`「JSON操作」）。jqの起動は選別1回につき1回に集約している
+  （層ごとの処理は `reduce` でまとめて1つのjqプログラム内に書く）。
+- 単体テストは `.claude/scripts/test/test_select_adversarial_findings.sh` を正とする（本節へ
+  ケース一覧を再掲しない。テストを追加してもこの節が古くならないようにするため）。
+- **旧規則（1回あたりの投稿上限は固定10件・超過時は重大度の高い順に10件へ絞る）は廃止した。**
+  同一重大度内でどれを落とすかのタイブレークが未定義でAIエージェントの裁量になっていたため
+  （詳細・却下案: `.claude/docs/ddr/i0182-01-敵対的レビューの投稿件数選別を層単位ルールでスクリプト化する.md`）。
 
 ### 承認モデル
 
@@ -292,7 +331,7 @@ GitHub側は、インラインで示せなかった指摘を**レビュー本文
 
 インラインコメント本文の先頭に `Claude Codeより（敵対的レビュー）:` を付ける。`gh`/`glab` CLIは
 人間のアカウントで認証されているため、投稿者名では誰が書いたか判別できない。これは
-`issue-mr-flow/SKILL.md` の `reply` サブコマンド手順2が返信本文へ `Claude Codeより:` を必須と
+`issue-mr-flow/references/review-loop.md` の `reply` サブコマンド手順2が返信本文へ `Claude Codeより:` を必須と
 しているのと同じ理由である。
 
 **GitLabでは特に重要**で、1件ずつ独立したdiscussionになりまとめ役のレビュー本文が存在しないため、
@@ -327,7 +366,7 @@ issue #43 以降、この行に続けて**指摘行前後のソーススライ�
   省略してよい類型は作らない。
 - **返信のタイミングは `comments` ループに揃え、敵対的レビューの直後には返信しない。** 投稿と
   返信の間に人間のレビューを挟むことで、同じスレッドへ人間が判断を示す余地を残す。
-- ルールの本文は `.claude/skills/issue-mr-flow/SKILL.md` の `comments` サブコマンド手順4と
+- ルールの本文は `.claude/skills/issue-mr-flow/references/review-loop.md` の `comments` サブコマンド手順4と
   「レビュー完了合図の確認」節が正で、`.claude/skills/adversarial-review/SKILL.md` には参照の
   1文だけを置く（手順の二重管理を避けるため）。
 - **未返信スレッドを機械的に検出する専用の関数・スクリプトは設けない。** 判定条件は経路によらず
@@ -430,14 +469,42 @@ issue #77 で追加・変更したもの。
   して使われる（`.claude/docs/spec/update-handoff-progress.md`
   「ループ範囲への`mark-done`と未返信スレッド」が正）。
 
+### 追記: 投稿件数選別を層単位ルールでスクリプト化する（issue #182）
+
+**手順6（1次振り分け）と、新設した投稿件数の選別（本ドキュメント「投稿件数の選別」節）を
+分離した。** 従来は手順6が「確度×重大度の表による振り分け」と「1回あたり10件への絞り込み」の
+両方を1つの手順として持っていたが、後者を決定的なスクリプトへ切り出した。
+
+| ファイル | 内容 |
+|---|---|
+| `.claude/scripts/src/select-adversarial-findings.sh` | 新規。層単位ルール（blocker無制限・層追加しきい値10・ハードシーリング20）による投稿件数の決定的な選別 |
+| `.claude/scripts/test/test_select_adversarial_findings.sh` | 新規。境界ケースを含む単体テスト（詳細はファイル自体を正とする） |
+| `.claude/skills/adversarial-review/SKILL.md` | 手順6を「1次振り分け＋スクリプト呼び出し」の形へ書き換え |
+| `.claude/docs/spec/adversarial-review.md` | 本ドキュメント。「投稿件数の選別」節を新設、設定項目表を更新 |
+| `.claude/docs/ddr/i0182-01-敵対的レビューの投稿件数選別を層単位ルールでスクリプト化する.md` | 新規 |
+| `.claude/rules/shell-script-style.md` | 実装中に見つけたjqの落とし穴（`配列 \| index(.field)` のパイプ内`.`束縛）を追記 |
+| `.claude/docs/README.md` | DDR一覧を `generate-ddr-list.sh` で再生成（i0182-01を追加） |
+
+**なぜ変更したか**: 旧規則は「1回あたりの投稿上限は10件。超える場合は重大度の高い順に10件へ
+絞る」とだけ規定しており、**同一重大度内でどれを落とすか**のタイブレークが未定義だった。
+実行のたびにAIエージェントが手作業で選ぶ設計だったため、同じfindingsからでも実行ごとに異なる
+投稿集合になりうる。件数選別を決定的なスクリプトへ切り出すことで、この裁量を無くした。
+
+**確度×重大度による1次振り分け自体は変更していない。** 「技術的に投稿可能か」ではなく
+「人間に見せる価値があるか」の判断であり、運用しながら調整できる場所（スキルの手順）に
+置くという既存の判断は維持した。件数選別だけを切り出したのは、そちらが「同じ入力なら同じ
+出力になるべき」という決定性の要件を持つのに対し、1次振り分けの表は運用感に応じて調整する
+対象であり、性質が異なるためである（詳細・却下案はDDR i0182-01）。
+
 ## 設定項目
 
 | 項目 | 既定 | 変更方法 |
 |---|---|---|
 | 実行モード | 対話モード（判断に迷う場合を含む） | AIエージェントが実行環境の性質（人間のレビュー往復が成立するか）から判断する。環境変数は使わない |
 | 実施回数の上限 | 3回／フェーズ | `adversarial-review-count.sh` の `ADVERSARIAL_REVIEW_MAX_RUNS`（**緩める口は意図的に用意していない**） |
-| 1回あたりの投稿上限 | 10件 | `adversarial-review/SKILL.md` 手順7 |
-| 投稿／報告の振り分け | 確度×重大度の表 | 同上 |
+| 投稿候補への1次振り分け | 確度×重大度の表 | `adversarial-review/SKILL.md` 手順6 |
+| 層追加のしきい値 | 10件 | `select-adversarial-findings.sh` の `LAYER_ADDITION_THRESHOLD`（**緩める口は意図的に用意していない**） |
+| ハードシーリング | 20件 | `select-adversarial-findings.sh` の `HARD_CEILING`（同上） |
 | レビュー観点 | 各ディレクトリの `REVIEW-POINTS.md` | 該当ディレクトリの観点表を編集する（スキル本文は編集しない） |
 
 ## 未決定事項・懸念点

@@ -31,7 +31,7 @@ keywords: [issue作成, create-issue.sh, issue分割, 並列列挙, 目的, 現�
    本体を上回る／共通部分の先行実装が必要）にも当たらない場合は、`AskUserQuestion` で
    「1件のissueとして起票する」「成果物ごとに分けて起票する」を確認する。分けて起票する場合は、
    **親issue（子issueをチェックリストで束ねる）→ 子issue** の順に作成する。**判定基準の詳細は
-   ここに再掲せず**、`.claude/skills/issue-mr-flow/SKILL.md` の
+   ここに再掲せず**、`.claude/skills/issue-mr-flow/references/planning.md` の
    「issueが大きすぎる場合の分割提案」を参照する（二重管理を避けるため）。
    分割の要否が決まってから手順3の重複チェックへ進む（分割後の各issueについて検索するため）。
 
@@ -110,7 +110,7 @@ keywords: [issue作成, create-issue.sh, issue分割, 並列列挙, 目的, 現�
    `create-issue.sh` は内部の `new_issue` が失敗するため使えない**（issue #34）。
    `source .claude/scripts/src/vcs/Provider.sh && get_vcs_access_mode` が `mcp` を返す場合は、
    次のように読み替える（GitHubのみ。GitLabは対象外。詳細:
-   `.claude/skills/issue-mr-flow/SKILL.md`「`gh`/`glab` CLI不在時のMCPフォールバック」節）。
+   `.claude/skills/issue-mr-flow/references/mcp-fallback.md`「`gh`/`glab` CLI不在時のMCPフォールバック」節）。
 
    1. `get_repo_slug | jq -r '.owner, .repo'` で `owner` / `repo` を得る。
    2. 本文は `build_issue_body "<目的>" "<現状>" "<期待する動作>" "<受け入れ条件>"` で組み立てる

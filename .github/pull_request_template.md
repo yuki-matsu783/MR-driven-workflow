@@ -1,7 +1,7 @@
 <!--
   issue駆動MRワークフローのPRテンプレート。
   見出しの構成は `/issue-mr-flow describe` サブコマンドが生成するdescriptionと同一にしてある
-  （`.claude/skills/issue-mr-flow/SKILL.md` の `describe` 節が正）。flow-id 2-5/2-10/3-5/3-10/
+  （`.claude/skills/issue-mr-flow/references/review-loop.md` の `describe` 節が正）。flow-id 2-5/2-10/3-5/3-10/
   4-5/4-10 で `describe` を実行すると、この本文は**全文置換**される。そのため見出しを増やさない
   こと（増やしても最初の `describe` で消える）。
   このコメント自体はGitHub上の表示に出ないため、置換で失われても情報を失わない。
