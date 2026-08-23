@@ -1,0 +1,247 @@
+<!--
+  全体作業計画（issue #176）の人間レビュー用HTMLビュー。
+  正文は同名の wip/plans/reflection-split-criteria.md であり、このHTMLはその視覚化である。
+  土台: .claude/skills/issue-mr-flow/assets/plans.template.html
+-->
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>全体作業計画 — 反映対象の切り出し判断基準（issue #176）</title>
+<style>
+  :root {
+    --bg: #f6f7f9;      --panel: #ffffff;   --ink: #1a1d21;     --muted: #5b636d;
+    --line: #dfe3e8;    --accent: #2563eb;  --accent-soft: #eaf0fe;
+    --ok: #1a7f4b;      --ok-soft: #e6f4ec; --warn: #a35a00;    --warn-soft: #fdf1e0;
+    --stop: #b3261e;    --stop-soft: #fdecea; --code-bg: #f0f2f5;
+    --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1216;    --panel: #161a20;   --ink: #e6e8eb;     --muted: #9aa3ad;
+      --line: #2a3038;  --accent: #7aa2f7;  --accent-soft: #1b2333;
+      --ok: #6ee7a8;    --ok-soft: #14261d; --warn: #f0b866;    --warn-soft: #2a2113;
+      --stop: #f2857c;  --stop-soft: #2b1614; --code-bg: #1d222a;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", system-ui, sans-serif;
+    line-height: 1.8; font-size: 15px;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 20px 80px; }
+
+  /* 共通ヘッダ帯 */
+  header.band {
+    background: linear-gradient(135deg, var(--accent-soft), var(--panel));
+    border-bottom: 1px solid var(--line); padding: 28px 20px 22px; margin-bottom: 28px;
+  }
+  header.band .inner { max-width: 1080px; margin: 0 auto; }
+  header.band .kind { font-size: 11px; letter-spacing: .18em; color: var(--accent); font-weight: 700; }
+  header.band h1 { margin: 6px 0 4px; font-size: 26px; line-height: 1.4; }
+  header.band .lead { margin: 0; color: var(--muted); }
+  .meta { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; padding: 0; list-style: none; }
+  .meta li {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 999px;
+    padding: 3px 12px; font-size: 12.5px; color: var(--muted); white-space: nowrap;
+  }
+  .meta li b { color: var(--ink); font-weight: 600; }
+
+  nav.toc {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 14px 20px; margin-bottom: 28px;
+  }
+  nav.toc h2 { margin: 0 0 8px; font-size: 13px; letter-spacing: .08em; color: var(--muted); border: 0; padding: 0; }
+  nav.toc ol { margin: 0; padding-left: 20px; }
+  nav.toc li { margin: 2px 0; }
+  a { color: var(--accent); }
+
+  section {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 8px 24px 22px; margin-bottom: 22px;
+  }
+  h2 { font-size: 20px; margin: 20px 0 10px; padding-bottom: 8px; border-bottom: 2px solid var(--line); }
+  h3 { font-size: 16px; margin: 22px 0 8px; color: var(--accent); }
+  p { margin: 10px 0; }
+  ul, ol { padding-left: 22px; }
+  li { margin: 4px 0; }
+  blockquote { margin: 10px 0; padding: 6px 14px; border-left: 3px solid var(--line); color: var(--muted); }
+
+  /* 表は自身の中で横スクロールする（ページ本体は横スクロールさせない） */
+  .tablewrap { overflow-x: auto; margin: 14px 0; }
+  table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 14px; }
+  th, td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: var(--accent-soft); font-weight: 600; white-space: nowrap; }
+  tbody tr:nth-child(even) td { background: color-mix(in srgb, var(--line) 22%, transparent); }
+
+  code {
+    background: var(--code-bg); border-radius: 5px; padding: 1px 5px; font-size: 13px;
+    font-family: "SFMono-Regular", Consolas, "Noto Sans Mono", monospace;
+  }
+  pre {
+    background: var(--code-bg); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 12px 14px; overflow-x: auto; font-size: 13px; line-height: 1.65;
+  }
+  pre code { background: none; padding: 0; }
+
+  /* 注意ボックス: info（既定）/ ok（決めたこと）/ warn（注意）/ stop（やらないこと・危険） */
+  .box { border-left: 4px solid var(--accent); background: var(--accent-soft);
+         border-radius: 0 var(--radius) var(--radius) 0; padding: 12px 16px; margin: 16px 0; }
+  .box > :first-child { margin-top: 0; } .box > :last-child { margin-bottom: 0; }
+  .box .label { font-size: 12px; font-weight: 700; letter-spacing: .06em; display: block; margin-bottom: 4px; }
+  .box.ok { border-color: var(--ok); background: var(--ok-soft); } .box.ok .label { color: var(--ok); }
+  .box.warn { border-color: var(--warn); background: var(--warn-soft); } .box.warn .label { color: var(--warn); }
+  .box.stop { border-color: var(--stop); background: var(--stop-soft); } .box.stop .label { color: var(--stop); }
+  .box.info .label { color: var(--accent); }
+
+  .tag { display: inline-block; border-radius: 999px; padding: 1px 9px; font-size: 12px; font-weight: 600; }
+  .tag.ok { background: var(--ok-soft); color: var(--ok); }
+  .tag.warn { background: var(--warn-soft); color: var(--warn); }
+  .tag.stop { background: var(--stop-soft); color: var(--stop); }
+
+  footer { color: var(--muted); font-size: 13px; text-align: center; padding-top: 10px; }
+</style>
+</head>
+<body>
+
+<header class="band">
+  <div class="inner">
+    <div class="kind">全体作業計画 / フェーズ1（flow-id 1-4）</div>
+    <h1>反映対象の「このMRで対応するか別issueへ切り出すか」の判断基準</h1>
+    <p class="lead">フェーズ4〈反映〉で洗い出した反映対象に対して、このMRで対応するか別issueへ切り出すかを判断する基準を <code>issue-mr-flow</code> のドキュメント一式へ定義し、経緯をDDR・specへ反映する。</p>
+    <ul class="meta">
+      <li><b>issue</b> #176</li>
+      <li><b>ブランチ</b> claude/reflection-plan-criteria-tnhfvs</li>
+      <li><b>フェーズ</b> 1〈起点〉 flow-id 1-4</li>
+      <li><b>作成日</b> 2026-08-23</li>
+      <li><b>正文</b> 同名の .md</li>
+    </ul>
+  </div>
+</header>
+
+<div class="wrap">
+
+<nav class="toc">
+  <h2>目次</h2>
+  <ol>
+    <li><a href="#premise">前提（合意状況）</a></li>
+    <li><a href="#goal">この計画で何をするか</a></li>
+    <li><a href="#target">変更対象</a></li>
+    <li><a href="#approach">方針</a></li>
+    <li><a href="#phase-research">フェーズ2〈調査〉</a></li>
+    <li><a href="#phase-apply">フェーズ4〈反映〉</a></li>
+    <li><a href="#out-of-scope">やらないこと（スコープ外）</a></li>
+    <li><a href="#verify">検証</a></li>
+    <li><a href="#criteria">issueの受け入れ条件との対応</a></li>
+  </ol>
+</nav>
+
+<section id="premise">
+  <h2>前提（合意状況）</h2>
+  <ul>
+    <li>issue #176 の本文（目的・現状・期待する動作・受け入れ条件）。<b>まだ人間の合意を経ていない</b>（flow-id 1-5 が未完了）。</li>
+    <li>issue #155（PR #175・マージ済み）が定めた「AIアセット反映の対象の洗い出し」節。反映対象を4類型 (a)〜(d) へ分類する手順まで確定している。本計画はその<b>分類結果に対する切り出し判断</b>を担う。</li>
+    <li>issue #64 が定めた「issueが大きすぎる場合の分割提案」節。<b>着手前のissue粒度</b>を判定する別の基準であり、本計画では統合しない。</li>
+  </ul>
+</section>
+
+<section id="goal">
+  <h2>この計画で何をするか</h2>
+  <p>フェーズ4〈反映〉で洗い出した反映対象について、<b>このMRで対応するか、別issueへ切り出すか</b>を判断する基準（主判定・切り出さない条件・手続き）を定義する。あわせて判断の経緯・却下案をDDRへ記録し、関連specへ反映する。</p>
+  <p>基準の正は1箇所に置き、既存の <code>【実装反映】</code> 定義からの参照を新節へ向け直して二重管理を避ける。</p>
+</section>
+
+<section id="target">
+  <h2>変更対象</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>領域</th><th>操作</th><th>何をするか</th></tr></thead>
+    <tbody>
+      <tr><td><code>.claude/skills/issue-mr-flow/references/planning.md</code></td><td>変更</td><td>切り出し判断の節を新設し、<code>【実装反映】</code> 定義の既存1文の参照先を新節へ向け直す</td></tr>
+      <tr><td><code>.claude/skills/issue-mr-flow/SKILL.md</code></td><td>変更</td><td>flow-id 4-1／4-6 の行から新節を指す（フロー定義側の入口）</td></tr>
+      <tr><td><code>.claude/docs/ddr/i0176-01-….md</code></td><td>新規</td><td>判断基準の設計判断と却下案。追加後に <code>generate-ddr-list.sh</code> で一覧を再生成</td></tr>
+      <tr><td><code>.claude/docs/spec/issue-mr-workflow.md</code></td><td>変更</td><td>仕様側への反映</td></tr>
+      <tr><td><code>.gemini/</code></td><td>再生成</td><td>flow-id 5-3 で <code>sync-gemini-assets.sh</code> を流す（生成物なので手で編集しない）</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="approach">
+  <h2>方針</h2>
+  <p>基準の<b>正は1箇所</b>に置く（受け入れ条件が求める「二重管理をしない」）。issue #160 で SKILL.md の詳細節は <code>references/</code> 配下へ切り出されているため、基準の本体は <code>references/planning.md</code> へ置き、SKILL.md（フロー定義）からは参照だけを張る方針を第一候補とする。</p>
+  <p>既存の「issueが大きすぎる場合の分割提案」（issue #64）とは<b>判定タイミングと入力が違う</b>ため、節を統合せず並置し、相互に「どちらを使うか」を1行で示す。AIは提案までとし、決定は人間が <code>AskUserQuestion</code> で行う（issue #64 と同じ扱い）。</p>
+
+  <div class="box warn">
+    <span class="label">既存の記述を置き換える場合</span>
+    <b>置き換え前と置き換え後の形を両方書く。</b>
+    <ul>
+      <li><b>置換前</b>（<code>references/planning.md</code> の <code>【実装反映】</code> 定義の末尾1文）: 「対応が1issueに収まらない規模になった場合は、下記『issueが大きすぎる場合の分割提案』の基準に従い別issueへの切り出しを検討する。」</li>
+      <li><b>置換後</b>: 新節を指す1文へ差し替える。<b>置換前の1文が兼ねていた役割</b>——「規模超過時に切り出しを検討する」という<b>行為の指示</b>と、「基準は issue #64 側にある」という<b>参照</b>——のうち、行為の指示は新節側へ引き継ぎ、参照先だけを差し替える。<b>この確認はフェーズ2の問い2で行う。</b></li>
+    </ul>
+  </div>
+</section>
+
+<section id="phase-research">
+  <h2>フェーズ2〈調査〉</h2>
+  <p><b>実施する。</b>次の問いに答えられれば、フェーズ3の作業計画を書ける。</p>
+  <ol>
+    <li>受け入れ条件の「SKILL.md に節がある」を、issue #160 の分割後の構造でどう満たすのが正しいか（SKILL.md 本体へ書く／<code>references/planning.md</code> へ書いて SKILL.md から指す）。</li>
+    <li>差し替え対象の「既存の1文」は具体的にどこか。差し替えたとき <code>【実装反映】</code> 定義の他の記述と矛盾しないか。</li>
+    <li>issue #155 の4類型 (a)〜(d) と主判定はどう接続するか。類型ごとに判断が変わるのか、類型に依らず同じ一問で足りるのか。</li>
+    <li>過去のDDR（i0000-02・i0023-01・i0014-01 等）の「別issueの規模と判断して見送った」事例は、検討中の基準で同じ結論になるか（基準の妥当性検証）。</li>
+    <li>「切り出さない条件（誤爆防止）」で使う固定費は何ステップか。既存記述（issue #64 の「5フェーズ43ステップ」）と数字が揃っているか。</li>
+    <li>切り出した／切り出さなかった判断の<b>記録先</b>は、既存のどのファイル・節か。</li>
+  </ol>
+</section>
+
+<section id="phase-apply">
+  <h2>フェーズ4〈反映〉</h2>
+  <p>反映対象は flow-id 4-1 で洗い出す。現時点の見込みは次のとおりで、<b>確定した反映内容ではない</b>。</p>
+  <ul>
+    <li><b>設計反映</b>: DDR <code>i0176-01</code>（主判定を一問へ集約した理由・却下案）と <code>.claude/docs/spec/issue-mr-workflow.md</code> への反映。DDR追加後は <code>bash .claude/scripts/src/generate-ddr-list.sh</code> を実行して一覧を再生成する。</li>
+    <li><b>AIアセット反映</b>: 作業の副産物として気づいた不備があれば、<code>references/planning.md</code>「AIアセット反映の対象の洗い出し」手順1〜2に従って分類する。</li>
+  </ul>
+</section>
+
+<section id="out-of-scope">
+  <h2>やらないこと（スコープ外）</h2>
+  <div class="box stop">
+    <span class="label">この計画では決めない・触らない</span>
+    <ul>
+      <li><b>既存の「issueが大きすぎる場合の分割提案」（issue #64）節の書き換え</b>。判定タイミングが違う別の基準であり、統合すると issue #64 の決定を上書きすることになる。相互参照の1行追加までに留める。</li>
+      <li><b>フェーズ2・3で見つかった反映対象を、この基準に従って実際に別issueへ切り出すこと</b>。今回の成果物は基準そのもので、適用は次タスク以降。ただし flow-id 4-1 で自分自身へ適用してみることは、基準の妥当性検証として行う。</li>
+      <li><b><code>.claude/scripts/</code> へのスクリプト追加</b>（判断は人間が行うため機械化しない）。</li>
+    </ul>
+  </div>
+</section>
+
+<section id="verify">
+  <h2>検証</h2>
+  <pre><code>bash .claude/scripts/src/check-doc-references.sh
+bash .claude/scripts/src/generate-ddr-list.sh
+bash .claude/scripts/src/sync-gemini-assets.sh --check</code></pre>
+  <p>合格条件: issueの受け入れ条件3つがすべて満たされていること。参照切れが0件であること。DDR一覧の差分が同じコミットに含まれていること。<code>--check</code> が差分なしで通ること。</p>
+</section>
+
+<section id="criteria">
+  <h2>issueの受け入れ条件との対応</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>受け入れ条件</th><th>この計画での対応箇所</th></tr></thead>
+    <tbody>
+      <tr><td>SKILL.md にフェーズ4の反映対象に対する切り出し判断基準の節がある（主判定・切り出さない条件・手続きを含む）</td><td>フェーズ3（配置先はフェーズ2の問い1の結論に従う）</td></tr>
+      <tr><td><code>【実装反映】</code> 定義からの参照が新節を指している</td><td>フェーズ3</td></tr>
+      <tr><td>判断の経緯・却下案がDDRとして記録され、関連spec（<code>issue-mr-workflow.md</code>）へ反映されている</td><td>フェーズ4</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<footer>issue #176 — 計画の正文は同名の <code>.md</code>。外部依存を持たない自己完結HTML。</footer>
+
+</div>
+</body>
+</html>
