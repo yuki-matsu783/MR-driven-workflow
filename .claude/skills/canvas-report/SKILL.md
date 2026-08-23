@@ -172,9 +172,10 @@ mermaid.jsは唯一の外部CDN依存で、読み込めないオフライン環�
 
 **「URLを1文字も含まない」という意味での自己完結ではない点に注意する。** canvas形式は
 mermaidを外しても `http://www.w3.org/2000/svg`（`createElementNS` に渡すSVGの名前空間）を
-5箇所持つ。これは外部を読みに行く記述ではないため、`reports/REVIEW-POINTS.md` の自己完結の
-検査も「実際に外部を読みに行く記述」（`src`/`href`/`url()` に `https?://` が来る）だけを
-数える形にしてある。
+**4箇所**持つ（`assets/canvas-report.html` の835・842・902・911行。`https?://` にヒットする
+6行の残りは、mermaid CDN 1行とJSコメント内の例示URL 1行である）。これは外部を読みに行く記述
+ではないため、`reports/REVIEW-POINTS.md` の自己完結の検査も「実際に外部を読みに行く記述」
+（`src`/`href`/`url()`/`@import` に `//` で始まる値が来る）だけを数える形にしてある。
 
 ## 参考
 
