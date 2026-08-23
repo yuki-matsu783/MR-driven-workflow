@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>.gitignoreのDDR参照修正と検出スクリプトの追加</title>
+<style>
+  :root {
+    --bg: #f6f7f9;      --panel: #ffffff;   --ink: #1a1d21;     --muted: #5b636d;
+    --line: #dfe3e8;    --accent: #2563eb;  --accent-soft: #eaf0fe;
+    --ok: #1a7f4b;      --ok-soft: #e6f4ec; --warn: #a35a00;    --warn-soft: #fdf1e0;
+    --stop: #b3261e;    --stop-soft: #fdecea; --code-bg: #f0f2f5;
+    --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1216;    --panel: #161a20;   --ink: #e6e8eb;     --muted: #9aa3ad;
+      --line: #2a3038;  --accent: #7aa2f7;  --accent-soft: #1b2333;
+      --ok: #6ee7a8;    --ok-soft: #14261d; --warn: #f0b866;    --warn-soft: #2a2113;
+      --stop: #f2857c;  --stop-soft: #2b1614; --code-bg: #1d222a;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", system-ui, sans-serif;
+    line-height: 1.8; font-size: 15px;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 20px 80px; }
+
+  header.band {
+    background: linear-gradient(135deg, var(--accent-soft), var(--panel));
+    border-bottom: 1px solid var(--line); padding: 28px 20px 22px; margin-bottom: 28px;
+  }
+  header.band .inner { max-width: 1080px; margin: 0 auto; }
+  header.band .kind { font-size: 11px; letter-spacing: .18em; color: var(--accent); font-weight: 700; }
+  header.band h1 { margin: 6px 0 4px; font-size: 26px; line-height: 1.4; }
+  header.band .lead { margin: 0; color: var(--muted); }
+  .meta { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; padding: 0; list-style: none; }
+  .meta li {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 999px;
+    padding: 3px 12px; font-size: 12.5px; color: var(--muted); white-space: nowrap;
+  }
+  .meta li b { color: var(--ink); font-weight: 600; }
+
+  nav.toc {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 14px 20px; margin-bottom: 28px;
+  }
+  nav.toc h2 { margin: 0 0 8px; font-size: 13px; letter-spacing: .08em; color: var(--muted); border: 0; padding: 0; }
+  nav.toc ol { margin: 0; padding-left: 20px; }
+  nav.toc li { margin: 2px 0; }
+  a { color: var(--accent); }
+
+  section {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 8px 24px 22px; margin-bottom: 22px;
+  }
+  h2 { font-size: 20px; margin: 20px 0 10px; padding-bottom: 8px; border-bottom: 2px solid var(--line); }
+  h3 { font-size: 16px; margin: 22px 0 8px; color: var(--accent); }
+  p { margin: 10px 0; }
+  ul, ol { padding-left: 22px; }
+  li { margin: 4px 0; }
+  blockquote { margin: 10px 0; padding: 6px 14px; border-left: 3px solid var(--line); color: var(--muted); }
+
+  .tablewrap { overflow-x: auto; margin: 14px 0; }
+  table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 14px; }
+  th, td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: var(--accent-soft); font-weight: 600; white-space: nowrap; }
+  tbody tr:nth-child(even) td { background: color-mix(in srgb, var(--line) 22%, transparent); }
+
+  code {
+    background: var(--code-bg); border-radius: 5px; padding: 1px 5px; font-size: 13px;
+    font-family: "SFMono-Regular", Consolas, "Noto Sans Mono", monospace;
+  }
+  pre {
+    background: var(--code-bg); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 12px 14px; overflow-x: auto; font-size: 13px; line-height: 1.65;
+  }
+  pre code { background: none; padding: 0; }
+
+  .box { border-left: 4px solid var(--accent); background: var(--accent-soft);
+         border-radius: 0 var(--radius) var(--radius) 0; padding: 12px 16px; margin: 16px 0; }
+  .box > :first-child { margin-top: 0; } .box > :last-child { margin-bottom: 0; }
+  .box .label { font-size: 12px; font-weight: 700; letter-spacing: .06em; display: block; margin-bottom: 4px; }
+  .box.ok { border-color: var(--ok); background: var(--ok-soft); } .box.ok .label { color: var(--ok); }
+  .box.warn { border-color: var(--warn); background: var(--warn-soft); } .box.warn .label { color: var(--warn); }
+  .box.stop { border-color: var(--stop); background: var(--stop-soft); } .box.stop .label { color: var(--stop); }
+  .box.info .label { color: var(--accent); }
+
+  .tag { display: inline-block; border-radius: 999px; padding: 1px 9px; font-size: 12px; font-weight: 600; }
+  .tag.ok { background: var(--ok-soft); color: var(--ok); }
+  .tag.warn { background: var(--warn-soft); color: var(--warn); }
+  .tag.stop { background: var(--stop-soft); color: var(--stop); }
+
+  footer { color: var(--muted); font-size: 13px; text-align: center; padding-top: 10px; }
+</style>
+</head>
+<body>
+
+<header class="band">
+  <div class="inner">
+    <div class="kind">個別作業計画 / フェーズ3</div>
+    <h1>.gitignoreのDDR参照修正と検出スクリプトの追加</h1>
+    <p class="lead">.gitignore内のDDR参照切れ2箇所を修正し、同種の参照切れを機械的に検出するスクリプトと単体テストを実装する。</p>
+    <ul class="meta">
+      <li><b>issue</b> #171</li>
+      <li><b>ブランチ</b> claude/gitignore-ddr-references-rsjo83</li>
+      <li><b>PR</b> #177</li>
+      <li><b>フェーズ</b> 3〈作業〉 flow-id 3-1</li>
+      <li><b>push回数</b> 4</li>
+      <li><b>作成日</b> 2026-08-23</li>
+      <li><b>正文</b> 同名の .md</li>
+    </ul>
+  </div>
+</header>
+
+<div class="wrap">
+
+<nav class="toc">
+  <h2>目次</h2>
+  <ol>
+    <li><a href="#premise">前提（合意状況）</a></li>
+    <li><a href="#goal">この計画で何をするか</a></li>
+    <li><a href="#target">変更対象</a></li>
+    <li><a href="#approach">方針</a></li>
+    <li><a href="#out-of-scope">やらないこと（スコープ外）</a></li>
+    <li><a href="#verify">検証</a></li>
+  </ol>
+</nav>
+
+<section id="premise">
+  <h2>前提（合意状況）</h2>
+  <ul>
+    <li>上位の計画: <code>plans/sequential-purring-tulip.md</code>（全体作業計画、flow-id 1-5で合意）</li>
+    <li>直前の調査結果: <code>reports/20260823_sequential-purring-tulip_DDR参照切れの網羅調査結果.md</code>
+      （フェーズ2、v2。敵対的レビュー対応済み）「検出方式の設計」節を実装の正とする。</li>
+  </ul>
+</section>
+
+<section id="goal">
+  <h2>この計画で何をするか</h2>
+  <ol>
+    <li><code>.gitignore</code>の2箇所のDDR参照切れを実在するファイル名へ修正する。</li>
+    <li>リポジトリ全体を対象にDDRパス形式の参照切れを検出するスクリプト
+      <code>.claude/scripts/src/check-doc-references.sh</code>を新規作成する。</li>
+    <li>副作用の無い純粋ロジック（正規表現によるパス抽出・フィルタ判定）の単体テスト
+      <code>.claude/scripts/test/test_check_doc_references.sh</code>を作成する。</li>
+  </ol>
+</section>
+
+<section id="target">
+  <h2>変更対象</h2>
+  <ul>
+    <li><code>.gitignore</code>（28行目・40行目のDDR参照コメント修正）</li>
+    <li><code>.claude/scripts/src/check-doc-references.sh</code>（新規）</li>
+    <li><code>.claude/scripts/test/test_check_doc_references.sh</code>（新規）</li>
+  </ul>
+</section>
+
+<section id="approach">
+  <h2>方針</h2>
+
+  <h3>.gitignoreの修正</h3>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>行</th><th>修正前</th><th>修正後</th></tr></thead>
+      <tbody>
+        <tr><td>28行目</td><td><code>i00-13-gemini配下は…md</code></td><td><code>i0000-13-gemini配下は…md</code></td></tr>
+        <tr><td>40行目</td><td><code>i36-01-frontmatterのindex.jsonlを…md</code></td><td><code>i0036-01-frontmatterのindex.jsonlを…md</code></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>コメント文字列の書き換えのみを行い、ignoreパターン自体（<code>/.gemini/docs</code>等）は変更しない。</p>
+
+  <h3>検出スクリプトの設計（reportsの「検出方式の設計」節を実装する）</h3>
+  <ol>
+    <li>対象ファイル: <code>git ls-files -z -- '*.md' '*.sh' '.gitignore'</code>で取得
+      （バイナリを除く）。</li>
+    <li><code>.claude/scripts/test/</code>配下は除外する（フィクスチャに架空パスを含むため。
+      偽陰性のトレードオフはreportsに記録済み・設計判断として許容する）。</li>
+    <li>Markdownコードフェンス（<code>```</code>で囲まれた範囲）内の行は除外する（行単位の
+      状態追跡が必要なため、ファイルごとに<code>while read</code>でbash内蔵処理として読み込み、
+      外部コマンドを呼ばない設計にする）。</li>
+    <li>正規表現<code>\.claude/docs/ddr/i[0-9]+-[0-9]{2}-[終端文字を除く任意文字]*\.md</code>で
+      候補パスを抽出する。終端文字は空白・タブ・<code>)</code> <code>]</code> <code>"</code>
+      <code>'</code> <code>`</code> <code>(</code>とする（<b>reportsの「既知の限界」で
+      指摘されたタブを追加</b>する）。<code>.md</code>で終わることを要求し、貪欲マッチ
+      （bashの<code>[[ =~ ]]</code>は既定で貪欲）で最後まで一致させる。</li>
+    <li>抽出したパスに<code>...</code>または<code>…</code>（省略記法）が含まれる場合は
+      除外する。</li>
+    <li>残った候補について<code>[[ -f "$path" ]]</code>で実在確認する。存在しなければ
+      参照切れとして<code>file:lineno:path</code>形式で標準出力へ報告し、件数を返す。</li>
+    <li>実行タイミングは<b>手動実行のみ</b>とする（<code>.claude/rules/shell-script-style.md</code>
+      「外部プロセス起動のコスト」に照らし、頻度の低い整合性チェックをhookへ組み込む価値は
+      無いという全体作業計画の判断を踏襲。将来<code>resolve-conflict</code>スキル等への合流が
+      必要になれば別issueで検討する）。</li>
+  </ol>
+
+  <h3>実装上の注意（shell-script-style.mdへの適合）</h3>
+  <ul>
+    <li><code>git ls-files -z</code> + <code>xargs -0</code>または<code>while read -r -d ''</code>で
+      NULバイトを保持し、日本語パスのクォート化を回避する。</li>
+    <li>ファイルごとの<code>grep</code>個別起動は避け、可能な範囲で
+      <code>xargs -0 grep -noE</code>にまとめる（コードフェンス除外だけは行単位状態が要るため、
+      対象ファイルを1回<code>&lt; "$file"</code>で読み込むbashループとする）。</li>
+    <li><code>git ls-files</code>はindexの内容を返すため、削除済み未ステージファイルが
+      混ざりうる。読み込み前に<code>[[ -f "$path" ]]</code>のガードを挟む。</li>
+    <li>スクリプト冒頭で<code>set -euo pipefail</code>を宣言し、BOM無しUTF-8・LF改行で保存する。</li>
+  </ul>
+
+  <h3>単体テストの設計</h3>
+  <ul>
+    <li>対象は副作用の無い純粋ロジック（パス抽出の正規表現、3フィルタの判定）。</li>
+    <li>少なくとも次のケースを含める:
+      <ul>
+        <li>通常のDDRパス参照が実在すれば検出されない</li>
+        <li>存在しないDDRパス参照は検出される（<code>.gitignore</code>の元の2箇所相当の
+          再現ケース）</li>
+        <li><code>.claude/scripts/test/</code>配下のパスはフィルタで除外される</li>
+        <li>コードフェンス内のパスは除外される</li>
+        <li>省略記法（<code>...</code>/<code>…</code>）を含む候補は除外される</li>
+        <li>ファイル名自体に<code>.md</code>を含むDDR（<code>i0032-01-...Default.mdを正とし...md</code>
+          相当）が貪欲マッチで正しく終端まで一致する</li>
+        <li>タブ区切りで2つのパスが同一行に並ぶ場合、2つの独立した候補として抽出される
+          （既知の限界の修正を検証する）</li>
+      </ul>
+    </li>
+    <li><code>bash -n</code>構文チェックを行い、<code>passed=N failures=N</code>形式で出力、
+      失敗時は終了コード1。</li>
+  </ul>
+</section>
+
+<section id="out-of-scope">
+  <h2>やらないこと（スコープ外）</h2>
+  <div class="box stop">
+    <span class="label">この計画では決めない・触らない</span>
+    <ul>
+      <li>相対パス表記（<code>../docs/ddr/…</code>）への対応（reportsの「確かめられなかったこと」
+        で見送りと記録済み）</li>
+      <li>旧形式（4桁連番、<code>i</code>接頭辞なし）DDRパスの検出（本リポジトリに現存しないため。
+        将来配布先で必要になった場合の課題としてreportsに記録済み）</li>
+      <li>パスを伴わない裸のDDR識別子表記の検出（全体作業計画・個別調査計画でスコープ外と
+        合意済み）</li>
+      <li>検出スクリプトのSessionStart/PostToolUse hookへの自動組み込み（全体作業計画で
+        「作らない」と明記済み）</li>
+      <li>終端文字集合への全角読点（<code>、</code>）追加（reportsで「実例が無いため優先度を
+        下げる」と記録済み）</li>
+    </ul>
+  </div>
+</section>
+
+<section id="verify">
+  <h2>検証</h2>
+  <pre><code># 1. .gitignore側の参照切れが解消されたことを確認する（0件を期待）
+grep -noE '\.claude/docs/ddr/i[0-9]+-[0-9]{2}-[^]) "'"'"'`(\t]*\.md' .gitignore \
+  | while IFS=: read -r lineno path; do [[ -f "$path" ]] || echo "$lineno:$path"; done
+
+# 2. 検出スクリプトの構文チェック
+bash -n .claude/scripts/src/check-doc-references.sh
+
+# 3. 検出スクリプトをリポジトリ全体に対して実行し、参照切れ0件であることを確認する
+bash .claude/scripts/src/check-doc-references.sh .
+
+# 4. 単体テストが全件成功する
+bash .claude/scripts/test/test_check_doc_references.sh</code></pre>
+  <p>合格条件: 上記1〜4がすべて成功（1と3は0件、2と4は非0の終了コードが出ないこと）を
+  <code>reports/</code>へ記録する。</p>
+</section>
+
+<footer>issue #171 / PR #177 — 計画の正文は同名の <code>.md</code>。外部依存を持たない自己完結HTML。</footer>
+
+</div>
+</body>
+</html>
