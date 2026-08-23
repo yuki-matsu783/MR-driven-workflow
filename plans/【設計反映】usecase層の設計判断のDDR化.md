@@ -24,18 +24,26 @@ keywords: [設計反映, DDR, i0170-01, README一本化, 日本語ファイル�
 どこにも残らないため、DDRとして記録する。
 
 1. **DDR `i0170-01` を新規作成する**: 「ユースケース逆引き層はREADME一本化・日本語ファイル名・
-   手動一覧で運用する」。内容は次の決定と却下案（調査結果 問い3・問い4が正）。
+   手動一覧で運用する」。内容は次の決定と却下案（調査結果 問い1〜4・作業結果「設計への反映」が正）。
+   - 配置は `.claude/docs/usecase/`（却下: `.claude/docs/` 直下への平置き、リポジトリルート。
+     plugin配布単位 `.claude/` の中に置き、spec/ddrと並ぶ独立ディレクトリとする理由を記録する）。
+   - frontmatter `type: usecase` を新設（却下: 既存の `spec`・`guide` への相乗り。specは
+     「機能の正史仕様」、guideは「永続の案内」で、「やりたいこと起点の逆引き」という検索軸が
+     どちらとも異なるため）。
    - 一覧の正は `.claude/docs/README.md` のusecase節1箇所（却下: `usecase/` 直下の独立README）。
    - ファイル名は場面を表す日本語（却下: 英語kebab-case、番号プレフィックス）。
    - 一覧は手動更新＋同一コミット更新ルール（却下: DDR一覧同様の生成物化。8件規模では
      導入・保守コストが上回る。再検討条件＝手動更新の漏れが実際に起きたとき、も記録する）。
+   - 鮮度維持は flow-id 4-6（設計反映）への組み込みで担保（機能の追加・変更時に既存usecase文書への
+     影響を確認する。issue-mr-flow SKILL.md・docs-workflow.mdへ反映済みの運用の、選定理由を記録する）。
 2. `bash .claude/scripts/src/generate-ddr-list.sh` を実行し、README.mdのDDR一覧の差分を
    同じコミットへ含める。
 
 ## やらないこと（スコープ外）
 
-- spec の新設（usecase層の運用の正は `.claude/rules/docs-workflow.md` の表と README のusecase節に
-  既に置いた。specを足すと正が3箇所になる）。
+- spec の新設（usecase層の**運用ルール**の正は `.claude/rules/docs-workflow.md` の表、
+  **一覧**の正は README のusecase節、と対象ごとに1箇所ずつ既に置いた。specを足すと
+  運用ルールの正が2箇所へ増える）。
 - DDR本文への手順詳細の記載（決定と却下案・理由のみ）。
 
 ## 検証（実行できるコマンドと合格条件）

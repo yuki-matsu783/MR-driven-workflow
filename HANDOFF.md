@@ -19,7 +19,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - PR: #173（Draft。https://github.com/yuki-matsu783/MR-driven-workflow/pull/173 ）
 - push回数: 11
 - 現在のループ: なし
-- 未返信スレッド: 0
+- 未返信スレッド: 7
 - 追従監視: 購読あり（web。subscribe_pr_activity + 1時間ごとの自己チェックイン）
 
 | 進捗 | flow-id | ステップ | 担当 |
@@ -51,7 +51,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 | [] | 3-9 | レビュー対応 | サブコマンド |
 | [x] | 3-10 | MR description更新 | サブコマンド |
 | [x] | 4-1 | 個別反映計画作成（反映対象の洗い出し） | エージェント |
-| [] | 4-2 | commit・push・レビュー依頼 | エージェント |
+| [x] | 4-2 | commit・push・レビュー依頼 | エージェント |
 | [] | 4-3 | 反映計画レビュー | 人間 |
 | [] | 4-4 | レビュー対応 | サブコマンド |
 | [] | 4-5 | MR description更新 | サブコマンド |
@@ -106,12 +106,17 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
   （【設計反映】DDR i0170-01／【実装反映】Provider.sh修正＋spec書き戻し／【AIアセット反映】
   種別定義・資産一覧追記＋VERSION増分提案）とworklog（push11）を作成。非対話セッションのため
   4-2のcommit・pushと敵対的レビューは3本まとめて1回で行う（理由はworklog push11）。
+- 敵対的レビュー フェーズ4・1回目（対象: 反映計画3本）: findings 8件（インライン7・報告のみ1、
+  報告分はworklog push11へ記録）。全件修正しcommit・push（push12）。フェーズ4は上限3回中1回を
+  消費。投稿スレッドはPR #173のレビュー
+  https://github.com/yuki-matsu783/MR-driven-workflow/pull/173 上の7件（実装反映md 27/53/47行・
+  設計反映md 26行・AIアセット反映md 32/23/50行）。
 
 ## 次にやること
 
-- 4-2 commit・push → 敵対的レビュー（フェーズ4・1回目。対象: 反映計画3本）→自動修正→返信 →
-  4-5 describe → 4-6 反映実施（DDR作成・Provider.sh修正・SKILL追記・レポート作成）→ 4-7
-  commit・push → 敵対的レビュー（フェーズ4・2回目）→ 4-10 describe → フェーズ5へ。
+- push12の後: 7スレッドへ返信（4-4相当）→ 4-5 describe → 4-6 反映実施（DDR作成・Provider.sh
+  修正＋gitスタブテスト追加・SKILL追記・distribution-assets changelog追記・レポート作成）→
+  4-7 commit・push → 敵対的レビュー（フェーズ4・2回目）→ 4-10 describe → フェーズ5へ。
 
 ## 判断を迷った内容
 

@@ -90,7 +90,8 @@
 <section id="target">
   <h2>反映対象（洗い出しの結果）</h2>
   <ol>
-    <li><b>実装修正</b>: <code>git push</code> を <code>git push -u origin "$(git branch --show-current)"</code> 相当へ変更（upstreamの有無に依存せず冪等）。</li>
+    <li><b>実装修正</b>: <code>git push</code> を <code>git push -u origin HEAD</code> へ変更（全体作業計画の反映候補どおり。upstreamの有無に依存せず、コマンド置換のforkを増やさず、detached HEADでも空文字列にならない。<code>$(git branch --show-current)</code> 案はこの2点で劣るため採らない）。</li>
+    <li><b>単体テストの追加</b>: <code>test_vcs_provider.sh</code> の既存スタブ方式に倣い <code>git()</code> をスタブし、<code>push</code> へ渡す引数に <code>-u origin HEAD</code> が含まれることを表明するテストを追加。</li>
     <li><b>specへの書き戻し</b>: <code>issue-mr-workflow.md</code>「Draft PR作成失敗時の自動リトライ」節へ、upstream未設定でも動くことを追記（過去changelogは書き換えない）。</li>
     <li><b>別issueは起票しない</b>: 1関数1行の修正で、このissueのフロー内で踏んだ不具合のため範囲内で完結する。</li>
   </ol>
@@ -111,14 +112,17 @@
   <h2>検証</h2>
   <pre><code># 1. 構文（終了コード0で合格）
 bash -n .claude/scripts/src/vcs/Provider.sh
-# 2. 引数なしの git push が当該関数に残っていない（出力0で合格）
-sed -n '/^add_empty_commit_for_draft_mr()/,/^}/p' .claude/scripts/src/vcs/Provider.sh | \
-  grep -cE 'git push *(>|$)'
-# 3. 単体テスト（passed=N failures=0 で合格）
+# 2. 当該関数の抽出が空でない・引数なしの git push が残っていない・修正が入っている
+#    （順に 4程度/0/1 で合格。実施前の実測は 4/1/0。抽出0行は空振りのため2つ目を信用しない）
+body="$(sed -n '/^add_empty_commit_for_draft_mr()/,/^}/p' .claude/scripts/src/vcs/Provider.sh)"
+printf '%s\n' "$body" | wc -l
+printf '%s\n' "$body" | grep -cE 'git push *(>|$)'
+printf '%s\n' "$body" | grep -c -- '-u origin'
+# 3. 単体テスト（passed=N failures=0 で合格。gitスタブの新規テストがpassedに含まれること）
 bash .claude/scripts/test/test_vcs_provider.sh | tail -1</code></pre>
   <div class="box warn">
     <span class="label">検証の限界</span>
-    <p>実リモートへの空コミットpushを伴う結合確認は行わない（このPRブランチは既にupstream設定済みで、未設定状態の再現にはリモートへの新規ブランチ作成が要るため）。挙動の根拠は、実発生時に <code>git push -u origin &lt;branch&gt;</code> の手動実行で回復した実績。</p>
+    <p>実リモートへの空コミットpushを伴う結合確認は行わない。渡す引数の正しさは <code>git</code> スタブ単体テストで表明し、<code>-u origin HEAD</code> での回復は実発生時に手動実行で確認済みのため、残る未確認は「実リモートとの疎通」だけであり、それはこの修正で変わる部分ではない。</p>
   </div>
 </section>
 

@@ -89,7 +89,7 @@
 <section id="target">
   <h2>反映対象（洗い出しの結果）</h2>
   <ol>
-    <li><b>DDR <code>i0170-01</code> を新規作成</b>: 「ユースケース逆引き層はREADME一本化・日本語ファイル名・手動一覧で運用する」。決定と却下案（usecase/直下の独立README・英語kebab-case・番号プレフィックス・一覧の生成物化）と、生成物化の再検討条件（手動更新の漏れが実際に起きたとき）を記録する。</li>
+    <li><b>DDR <code>i0170-01</code> を新規作成</b>: 「ユースケース逆引き層はREADME一本化・日本語ファイル名・手動一覧で運用する」。決定と却下案（usecase/直下の独立README・英語kebab-case・番号プレフィックス・一覧の生成物化）と、生成物化の再検討条件（手動更新の漏れが実際に起きたとき）を記録する。加えて<b>配置</b>（<code>.claude/docs/usecase/</code>。却下: docs直下平置き・ルート）、<b><code>type: usecase</code> 新設の理由</b>（却下: spec/guideへの相乗り）、<b>flow-id 4-6への組み込み</b>（鮮度維持の担保）も記録対象とする。</li>
     <li><code>generate-ddr-list.sh</code> を実行し、READMEのDDR一覧の差分を同じコミットへ含める。</li>
   </ol>
 </section>
@@ -99,7 +99,7 @@
   <div class="box stop">
     <span class="label">この計画では触らない</span>
     <ul>
-      <li>specの新設（運用の正はdocs-workflow表とREADMEのusecase節に既に置いた。足すと正が3箇所になる）</li>
+      <li>specの新設（運用ルールの正はdocs-workflow表、一覧の正はREADMEのusecase節、と対象ごとに1箇所ずつ既に置いた。specを足すと運用ルールの正が2箇所へ増える）</li>
       <li>DDR本文への手順詳細の記載</li>
     </ul>
   </div>
