@@ -62,6 +62,7 @@ keywords: [正史仕様, 意思決定ログ, ユースケース, 逆引き, issu
 - [generate-ddr-list.md](spec/generate-ddr-list.md) ── DDR一覧生成スクリプト（README.mdのDDR一覧をfrontmatterから生成）
 - [gitlab-verification-environment.md](spec/gitlab-verification-environment.md) ── GitLab検証環境（Docker + glab）の再現手順
 - [otel-listener.md](spec/otel-listener.md) ── OTelリスナー機構（OpenTelemetryをusage/へ振り分け保存するperl製リスナー）
+- [gemini-cli-telemetry.md](spec/gemini-cli-telemetry.md) ── Gemini CLI公式テレメトリ機構（outfileへの直接書き出し・バイトオフセットカーソル集計）
 - [sync-gemini-assets.md](spec/sync-gemini-assets.md) ── .claude/ から .gemini/ を生成する変換スクリプト
 - [check-doc-references.md](spec/check-doc-references.md) ── DDR参照切れ検出スクリプト（絶対パス形式のDDR参照が実在するファイルを指しているかを検証）
 
@@ -161,6 +162,8 @@ frontmatter（`status` / `superseded_by` / `note`）だけから決まる。
 - [i0097-05-Gemini-CLIのサブエージェントは保存のみとし集計しない.md](ddr/i0097-05-Gemini-CLIのサブエージェントは保存のみとし集計しない.md)
 - [i0103-01-perlを常駐プロセス実装の選択肢に加える理由.md](ddr/i0103-01-perlを常駐プロセス実装の選択肢に加える理由.md)
 - [i0103-02-OTelエンドポイント設定をsettings.local.jsonへ分離する理由.md](ddr/i0103-02-OTelエンドポイント設定をsettings.local.jsonへ分離する理由.md)
+- [i0105-01-二重計上回避方式はsemantic-conventions形式のみ採用しレガシー形式とmetricsを除外する.md](ddr/i0105-01-二重計上回避方式はsemantic-conventions形式のみ採用しレガシー形式とmetricsを除外する.md)
+- [i0105-02-既定有効化は機微情報未確認のため保留する.md](ddr/i0105-02-既定有効化は機微情報未確認のため保留する.md)
 - [i0106-01-敵対的レビューの非対話判定は環境変数ではなくAIエージェントの判断に委ねる.md](ddr/i0106-01-敵対的レビューの非対話判定は環境変数ではなくAIエージェントの判断に委ねる.md)
 - [i0109-01-敵対的レビュー由来のスレッドも人間の指摘と同列に返信を必須とする.md](ddr/i0109-01-敵対的レビュー由来のスレッドも人間の指摘と同列に返信を必須とする.md)
 - [i0110-01-個別計画のタスク種別を6種から8種へ拡張する.md](ddr/i0110-01-個別計画のタスク種別を6種から8種へ拡張する.md)（うち「`.claude/scripts/`をAIアセットから除外する」は、issue #155でフェーズ4に限って置き換えられた（フェーズ3の`【AIアセット作成】`からの除外は現役）。詳細はi0155-01。また【AIアセット作成】の対象は、issue #170で設計ドキュメント（usecase文書等）の新規作成・改訂まで拡張された。現行の定義はissue-mr-flow SKILL.md「計画の2階層構造」が正）

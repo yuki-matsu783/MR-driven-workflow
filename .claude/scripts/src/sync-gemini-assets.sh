@@ -89,13 +89,22 @@ readonly GEMINI_AGENT_KEYS=(
 #                       Gemini には telemetry ブロックがあるが、受け口
 #                       （.claude/hooks/otel/listener.pl）が Claude Code のOTelスキーマを前提に
 #                       振り分けるため、そこへGemini由来のテレメトリを流すと壊れる。
-#                       **対応漏れではない。** 帰結として、Gemini CLI 経路では対応工数の
-#                       OTel計測が行われない（issue #70 / #103）。
+#                       **envブロックの変換は行わない。** ただし telemetry ブロックは
+#                       envとは別に固定値で注入する（issue #105。下記 SETTINGS_JQ_FILTER の
+#                       出力オブジェクト構築部分を参照）。target は "local" 固定で outfile へ
+#                       直接ファイル書き込みするため、listener.pl（OTLPネットワーク受信）は
+#                       経由しない。
 readonly SETTINGS_IGNORED_KEYS=(
   permissions
   autoCompactWindow
   env
 )
+
+# Gemini CLI公式テレメトリ（issue #105）の出力先。`.claude/hooks/lib/UsageTracking.sh` の
+# 読み取り側（`_usage_otel_resolve_outfile_to_reply`）と共有する唯一の正。ここを変えると
+# 読み取り側は`.gemini/settings.json`の`telemetry.outfile`を動的に読むため自動的に追随する
+# （読み取り側にもハードコードした2つ目の正を持たない。issue #105フェーズ3敵対的レビュー指摘）。
+readonly GEMINI_OTEL_OUTFILE_REL="usage/gemini-otel.log"
 
 # 変換して生成するため、コピー対象から外すパス（リポジトリルートからの相対）。
 readonly COPY_EXCLUDED_PREFIXES=(
@@ -414,6 +423,24 @@ def conv_tool_group:
       + (if ($afterTool    | length) > 0 then { AfterTool:    $afterTool    } else {} end)
     )
   }
+  # Gemini CLI公式テレメトリ（issue #105）。.claude/settings.json 側には対応するキーが無く、
+  # ここでは常に固定値を注入する（.claude/settings.json の値を変換するのではない）。
+  #
+  # enabled は false 固定。**現時点でこれをtrueへ切り替える手段は存在しない**
+  # （.claude/settings.json側に対応するスイッチが無く変換元を持たないため、かつ
+  # .gemini/settings.jsonを手で書き換えても次回の`sync-gemini-assets.sh`実行で**無言で**falseへ
+  # 戻る。`--check`はこのフロー上どのhookにも自動では挿さっていないため、この上書きに気づく
+  # 仕組みも無い）。有効化手段の確立（.claude/settings.json側にスイッチを設ける等）は本issueの
+  # スコープ外の未決定事項とする（issue #105フェーズ4で.claude/docs/spec/gemini-cli-telemetry.md・
+  # DDR i0105-02へ記録済み）。
+  + {
+    telemetry: {
+      enabled: false,
+      target: "local",
+      outfile: $otelOutfile,
+      logPrompts: false
+    }
+  }
 '
 
 # `.claude/settings.json` を Gemini 用へ変換して標準出力へ書く。
@@ -428,6 +455,7 @@ convert_settings() {
 
   jq --argjson toolMap "$tool_map_json" \
      --argjson ignored "$ignored_json" \
+     --arg otelOutfile "$GEMINI_OTEL_OUTFILE_REL" \
      "$SETTINGS_JQ_FILTER" "$src"
 }
 

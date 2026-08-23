@@ -98,6 +98,11 @@ assert_eq "配布先のVERSIONが本家と一致する" \
 assert_eq "配布先の.gitignoreへローカル設定の除外が入る" \
   "1" "$(grep -cFx -- '/.claude/settings.local.json' "$dest_new/.gitignore" || true)"
 
+# usage/配下（対応工数レポートのローカル作業状態・Gemini CLI公式テレメトリのoutfile）は
+# 配布先でもGit管理対象外にする必要がある（issue #105）。
+assert_eq "配布先の.gitignoreへusage/の除外が入る" \
+  "1" "$(grep -cFx -- '/usage/' "$dest_new/.gitignore" || true)"
+
 # PR/MRテンプレートの見出しは、`describe` サブコマンドが生成するdescriptionと一致していること。
 # **2つのテンプレート同士を比べるだけでは足りない**（両方が同時にずれた場合に通ってしまう）。
 # 正である SKILL.md の `describe` 節から見出しを抜き出し、3者で突き合わせる。

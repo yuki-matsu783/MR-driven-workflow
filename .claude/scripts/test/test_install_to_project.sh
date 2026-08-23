@@ -98,6 +98,11 @@ assert_eq "配布先のVERSIONが本家と一致する" \
 assert_eq "配布先の.gitignoreへローカル設定の除外が入る" \
   "1" "$(grep -cFx -- '/.claude/settings.local.json' "$dest_new/.gitignore" || true)"
 
+# usage/配下（対応工数レポートのローカル作業状態・Gemini CLI公式テレメトリのoutfile）は
+# 配布先でもGit管理対象外にする必要がある（issue #105）。
+assert_eq "配布先の.gitignoreへusage/の除外が入る" \
+  "1" "$(grep -cFx -- '/usage/' "$dest_new/.gitignore" || true)"
+
 # PR/MRテンプレートの見出しは、issue #145 の10節構成であること。
 #
 # **正はテンプレートファイル（`.github/pull_request_template.md`）側にある**（issue #145、案B）。
