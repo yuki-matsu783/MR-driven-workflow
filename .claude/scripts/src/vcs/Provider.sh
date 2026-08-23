@@ -1133,7 +1133,8 @@ upload_attachment() {
 # 失敗を検知した後にこれを呼び、作成を1回だけリトライする。
 add_empty_commit_for_draft_mr() {
   git commit --allow-empty -m "chore: Draft PR作成のための空コミット（baseとの差分が無いため）" >/dev/null
-  git push >/dev/null
+  # upstream未設定の新規ブランチでも動くよう、pushでupstreamを明示する（issue #170）
+  git push -u origin HEAD >/dev/null
 }
 
 # issue番号・スラッグ生成用テキストから `.mrworkflow.json` の branchPrefixTemplate に沿った

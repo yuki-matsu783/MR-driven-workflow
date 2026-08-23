@@ -1351,6 +1351,29 @@ vcs_shared_functions=(
   format_findings_summary
 )
 
+# `git` をシェル関数で差し替え、add_empty_commit_for_draft_mr が git へ渡す引数を検証する
+# （issue #170。upstream未設定のブランチでは引数なしの `git push` が終了コード128で失敗する
+# 実不具合があったため、`-u origin HEAD` の明示を表明する）。関数内の出力は >/dev/null で
+# 捨てられるため、スタブは引数をグローバル変数へ蓄積する（コマンド置換では受けられない）
+empty_commit_git_calls=""
+git() {
+  empty_commit_git_calls="${empty_commit_git_calls}${empty_commit_git_calls:+ / }$*"
+  return 0
+}
+add_empty_commit_for_draft_mr
+unset -f git
+
+assert_eq "add_empty_commit_for_draft_mr: pushへ -u origin HEAD を明示する（upstream未設定でも動く）" \
+  "yes" \
+  "$(case "$empty_commit_git_calls" in *'push -u origin HEAD'*) echo yes ;; *) echo no ;; esac)"
+assert_eq "add_empty_commit_for_draft_mr: 空コミットを --allow-empty で積む" \
+  "yes" \
+  "$(case "$empty_commit_git_calls" in *'commit --allow-empty'*) echo yes ;; *) echo no ;; esac)"
+# 後片付けの表明（スタブが残ると以降のテスト・呼び出し元のgit操作が握り潰される）
+assert_eq "add_empty_commit_for_draft_mr: gitスタブが解除されている" \
+  "" \
+  "$(declare -F git || true)"
+
 vcs_provider_impl_text="$(sed -E 's/#.*$//' \
   "$repo_root/.claude/scripts/src/vcs/Github.sh" "$repo_root/.claude/scripts/src/vcs/Gitlab.sh")"
 

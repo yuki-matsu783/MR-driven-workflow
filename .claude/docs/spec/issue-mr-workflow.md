@@ -985,6 +985,13 @@ PR/MR作成が失敗することがある。失敗を検知した場合、共通
 [i0000-03-DraftPR作成失敗時は空コミットで自動リトライする.md](../ddr/i0000-03-DraftPR作成失敗時は空コミットで自動リトライする.md)
 参照。
 
+**空コミット後のpushは `git push -u origin HEAD` で行う**（issue #170で修正）。引数なしの
+`git push` は、**upstream未設定のブランチ**（`new_issue_branch` を経ずに用意されたブランチ。
+Claude Code on the webのリモート実行環境でハーネスがブランチを指定する場合に実際に発生した）では
+終了コード128で失敗する。`-u origin HEAD` はupstreamの有無に依存せず、設定済みのブランチでも
+同じ結果になる（`-u` はupstreamを `origin/<同名ブランチ>` へ設定し直すが、`new_issue_branch` が
+作るupstreamと同じ指し先のため影響しない）。
+
 **この制約はGitHub（`gh pr create`）固有である**（issue #48で判明）。issue #48の対応時に、
 GitHubとGitLabの双方を同一セッション内で実測した。
 

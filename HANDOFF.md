@@ -17,8 +17,8 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - issue: #170
 - ブランチ: `claude/usecase-docs-setup-uvs5li`（ハーネス指定）
 - PR: #173（Draft。https://github.com/yuki-matsu783/MR-driven-workflow/pull/173 ）
-- push回数: 12
-- 現在のループ: なし
+- push回数: 14
+- 現在のループ: 4-6〜4-9 の1周目（進行中）
 - 未返信スレッド: 0
 - 追従監視: 購読あり（web。subscribe_pr_activity + 1時間ごとの自己チェックイン）
 
@@ -54,7 +54,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 | [x] | 4-2 | commit・push・レビュー依頼 | エージェント |
 | [] | 4-3 | 反映計画レビュー | 人間 |
 | [] | 4-4 | レビュー対応 | サブコマンド |
-| [] | 4-5 | MR description更新 | サブコマンド |
+| [x] | 4-5 | MR description更新 | サブコマンド |
 | [] | 4-6 | 反映実施・レポート作成 | エージェント |
 | [] | 4-7 | commit・push・レビュー依頼 | エージェント |
 | [] | 4-8 | 反映結果レビュー | 人間 |
@@ -114,13 +114,20 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - 4-5 describeの直前にmainとの再コンフリクトを検知し、監視モードで解消（mainのPR #154により
   配布がmanifest方式化。マーカー競合はmarkdown-frontmatter.mdのtype表1箇所・類型C。
   【AIアセット反映】計画の反映対象2を「SKILL.mdへの資産明記」から「usecase文書のmanifest方式への
-  追随」へ変更。単体テスト18本全緑）。マージコミットはpush13。
+  追随」へ変更。単体テスト18本全緑）。マージコミットはpush13。マージ時に旧ビルド成果物
+  194ファイルを誤って混入させたためpush14で削除・復旧（教訓はworklog push11「ダメだったこと」）。
+- flow-id 4-6（3-6〜3-7相当の実施はpush15）: 3計画の反映を全件実施。DDR i0170-01作成＋DDR一覧
+  再生成（79件）・Provider.sh修正（`git push -u origin HEAD`）＋gitスタブテスト3本追加
+  （passed=222）・spec追記・種別定義への境界付き追記・導入usecase文書のmanifest方式追随・
+  distribution-assetsのchangelogへVERSION据え置き記録。検証10本全合格。結果の正文は
+  `reports/20260823_usecase-atlas_反映結果.md`（+html）。
 
 ## 次にやること
 
-- push12の後: 7スレッドへ返信（4-4相当）→ 4-5 describe → 4-6 反映実施（DDR作成・Provider.sh
-  修正＋gitスタブテスト追加・SKILL追記・distribution-assets changelog追記・レポート作成）→
-  4-7 commit・push → 敵対的レビュー（フェーズ4・2回目）→ 4-10 describe → フェーズ5へ。
+- push15の後: 敵対的レビュー（フェーズ4・2回目。対象: 反映実施分）→自動修正→返信 →
+  4-10 describe → フェーズ5（5-1 コンフリクト最終確認 → 5-2 関連issue通知は人間承認が
+  必要なため非対話では投稿せず最終応答で明示 → 5-3 sync-gemini-assets.sh → 5-4 統括レポート →
+  5-5 cleanup-task.sh → 5-6 commit・push・Draft解除 → 5-7 マージは人間）。
 
 ## 判断を迷った内容
 
