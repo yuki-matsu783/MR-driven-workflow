@@ -171,11 +171,12 @@
       <tr><td><code>.claude/hooks/</code></td><td><span class="tag ok">新規</span></td><td>pushをブロックするPreToolUse hook、次回分を用意するPostToolUse hook</td></tr>
       <tr><td><code>.claude/scripts/test/</code></td><td><span class="tag ok">新規</span></td><td>上記の単体テスト（<code>passed=N failures=N</code> 規約）</td></tr>
       <tr><td><code>.claude/settings.json</code></td><td><span class="tag warn">変更</span></td><td>新規hookの登録</td></tr>
+      <tr><td><code>.claude/VERSION</code></td><td><span class="tag warn">変更</span></td><td>配布資産の追加に伴う版の増分（目安 MINOR）、または据え置き</td></tr>
       <tr><td><code>.claude/docs/spec/</code></td><td><span class="tag ok">新規</span></td><td>push前チェックリストの仕様</td></tr>
       <tr><td><code>.claude/docs/ddr/</code></td><td><span class="tag ok">新規</span></td><td>設計判断（配置場所・拡張子・ブロック方式）<code>i0017-NN</code></td></tr>
       <tr><td><code>.claude/rules/docs-workflow.md</code></td><td><span class="tag warn">変更</span></td><td>ライフサイクル運用表への行追加</td></tr>
       <tr><td><code>.claude/skills/issue-mr-flow/</code>・<code>.claude/skills/commit/</code></td><td><span class="tag warn">変更</span></td><td>commit前のチェックリスト更新手順の明記</td></tr>
-      <tr><td><code>.claude/docs/README.md</code>・<code>index.md</code>・<code>.claude/rules/directory-structure.md</code></td><td><span class="tag warn">変更</span></td><td>DDR一覧・Repository Map・ディレクトリ構成の追随</td></tr>
+      <tr><td><code>.claude/docs/README.md</code>・<code>index.md</code>・<code>.claude/rules/directory-structure.md</code></td><td><span class="tag warn">変更</span></td><td><b>手書きのspec一覧への行追加</b>（<code>generate-ddr-list.sh</code> の生成対象ではない）・DDR一覧の再生成・Repository Map・ディレクトリ構成の追随</td></tr>
       <tr><td><code>.gemini/</code></td><td><span class="tag ok">生成</span></td><td>flow-id 5-3 の <code>sync-gemini-assets.sh</code> で変換同期</td></tr>
     </tbody>
   </table>
@@ -186,8 +187,8 @@
   <h2>方針</h2>
   <ul>
     <li><b>判定ロジックを自前で書かない。</b> pushの検知は <code>command_invokes_git_subcommand "$command" push</code> に委譲し、bash 4.3未満・ライブラリ不在時の縮退は既存hook（<code>block-direct-git-commit.sh</code>）と同じ形で持つ。</li>
-    <li><b>前置フィルタを置く。</b> PreToolUse hookは <code>if</code> フィールドを持てず全Bash/PowerShell呼び出しで起動するため、<code>.claude/rules/shell-script-style.md</code>「hookの前置フィルタ」の型（bash組み込みのみ・ゼロfork・判定本体の<b>超集合</b>）を独立した純粋関数として実装する。</li>
-    <li><b>誤ブロックを避ける側へ倒す。</b> チェックリストが存在しない＝フロー対象外とみなし、ブロックしない。ブロックするのは「チェックリストが存在し、かつ未完了項目が残る」場合に限る。</li>
+    <li><b>前置フィルタを置く。</b> PreToolUse hookは、既存の <code>block-direct-git-commit.sh</code> と同じく<b>判定が単純な文字列一致に収まらない</b>ため <code>if</code> を使わず自前判定する（＝全Bash/PowerShell呼び出しで起動する）。<b>「PreToolUseでは <code>if</code> を使えない」という制約があるわけではない</b>（<code>.claude/rules/shell-script-style.md</code>「hookの前置フィルタ」が言う「持てない」はGemini CLIのhook設定のこと。<code>if</code> の可否そのものはフェーズ2 Q6で確かめる）。したがって<code>.claude/rules/shell-script-style.md</code>「hookの前置フィルタ」の型（bash組み込みのみ・ゼロfork・判定本体の<b>超集合</b>）を独立した純粋関数として実装する。</li>
+    <li><b>誤ブロックを避ける側へ倒す（暫定。確定はフェーズ2 Q5）。</b> チェックリストが存在しない＝フロー対象外とみなし、ブロックしない。ブロックするのは「チェックリストが存在し、かつ未完了項目が残る」場合に限る。<b>ただしこの方針は、生成済みのチェックリストをコミットし忘れると機構が無言で無効化される経路を作る</b>ため、素通りしたことを（ブロックせずに）通知する縮退を置くかどうかをQ5で併せて判断する。</li>
     <li><b>既存のpush系hook 2本と責務を分離する。</b> 既存2本は「push後に情報を伝える」もので、本機構は「pushの可否を検査する」もの。既存ファイルへ処理を足さず、新規ファイルとして持つ。</li>
     <li><b>拡張子を <code>.md</code> にしない。</b> <code>wip/worklogs/</code> へ <code>.md</code> を増やすと <code>extract-frontmatter.sh</code> の走査対象になり <code>index.jsonl</code> が毎push書き換わる（issue #36 が外した競合を作り直す）。</li>
   </ul>
@@ -197,7 +198,7 @@
   <h2>フェーズ2〈調査〉</h2>
   <div class="box info"><span class="label">実施する</span>設計を確定させるために答えを出す問いは次の8点。</div>
   <ol>
-    <li>チェックリストの<b>置き場所と命名</b>。issue本文は <code>worklog/…_push_checklist.tsv</code> と書くが、issue #178 で <code>worklog/</code> は <code>wip/worklogs/</code> へ改名済み。push単位でユニークにする命名と、全体計画名・個別計画名の取り出し方。</li>
+    <li>チェックリストの<b>置き場所と命名</b>。issue本文は <code>worklog/…_push_checklist.tsv</code> と書くが、issue #165 で <code>worklog/</code> は <code>wip/worklogs/</code> へ改名済み（根拠: <code>.claude/docs/spec/cleanup-task.md</code>「issue #165」節。<code>#178</code> はその squash merge の PR番号）。push単位でユニークにする命名と、全体計画名・個別計画名の取り出し方。</li>
     <li><b>項目（何をチェックさせるか）</b>の定義。固定リストか flow-id に応じて可変か。固定するならどの粒度なら「常に実施すべき」と言えるか。</li>
     <li><b>チェック済みの表現</b>をTSVのどの列で持つか。実施ログをどこまで書かせるか。</li>
     <li><b>PreToolUse hookがどの時点のファイルを読むか</b>（作業ツリー／HEAD／index）。「チェックリスト自体をそのcommitに含める」要件と、pushの直前という実行タイミングの関係。</li>
@@ -216,8 +217,10 @@
     <li><code>.claude/docs/ddr/i0017-NN-….md</code>: 設計判断（配置場所・拡張子・ブロック方式）。issue #17 の受け入れ条件が明示的に要求している。追加後は <code>generate-ddr-list.sh</code> を実行する。</li>
     <li><code>.claude/rules/docs-workflow.md</code>: ライフサイクル運用表への行追加（受け入れ条件）。</li>
     <li><code>.claude/rules/directory-structure.md</code>・<code>index.md</code>: 新規ファイルの配置とRepository Mapの追随。</li>
+    <li><code>.claude/docs/README.md</code>: <b>手書きのspec一覧へ新設specの行を追加</b>する（DDR一覧は <code>generate-ddr-list.sh</code> の再生成で追随するが、spec一覧は誰も再生成しない）。</li>
     <li><code>.claude/skills/issue-mr-flow/SKILL.md</code>（および <code>references/</code>）・<code>.claude/skills/commit/SKILL.md</code>: commit前にチェックリストを更新し同じcommitへ含める手順の明記（受け入れ条件）。</li>
     <li><code>.claude/settings.json</code>: hookの登録（<code>.gemini/settings.json</code> は flow-id 5-3 で変換生成）。</li>
+    <li><code>.claude/VERSION</code>: 本変更は <code>.claude/</code> 配下（配布層 <code>core</code>）へ資産を追加するため、<code>.claude/docs/spec/distribution-assets.md</code> の規則に従い<b>増分（目安 MINOR）を適用するか据え置くかを判断し、いずれの場合も根拠を spec の changelog と <code>HANDOFF.md</code>「判断を迷った内容」の両方へ残す</b>（非対話セッションでは「何もしない」という選択肢は無い）。</li>
     <li><code>.claude/docs/usecase/</code>: 既存文書への影響を確認し、必要なら更新する。</li>
   </ul>
 </section>
@@ -227,6 +230,7 @@
   <div class="box stop">
     <span class="label">この計画では決めない・触らない</span>
     <ul>
+      <li><b>issueの分割</b>。受け入れ条件は「PreToolUse hookがブロックする」「PostToolUse hookが次回分を用意する」という同型の成果物（hook）を並列に列挙しており、<code>wip/plans/REVIEW-POINTS.md</code> の「issue分割のトリガー」に該当する。判定基準「各項目が単独でマージされてもシステムが壊れないか」に照らすと、<b>PostToolUseの生成が無ければPreToolUseの検査対象が存在せず、単独マージでは機能が成立しない</b>ため、<b>分割しない</b>と判断した。</li>
       <li><b>チェック済み状態の真正性の検証</b>（AIが実施せずにチェックだけ付けることの防止）。本機構は敵対的な安全境界ではなく「既定動作を確実な方向へ倒す仕組み」である（<code>.claude/docs/ddr/i0000-09-…</code> と同じ立場）。</li>
       <li><b><code>.claude/settings.json</code> の <code>if</code> フィルタの照合規則の解明</b>（issue #47 から未解明。PreToolUse hookは <code>if</code> を使わず自前判定するため触らない）。</li>
       <li>既存2本のpush系hookのロジック変更。</li>
@@ -238,14 +242,24 @@
 
 <section id="verify">
   <h2>検証</h2>
-  <pre><code># 新規スクリプト・hookの構文チェック
-bash -n .claude/scripts/src/&lt;新規&gt;.sh .claude/hooks/&lt;新規&gt;.sh
+  <p><b>ファイル名が <code>&lt;新規&gt;</code> のままの行は、フェーズ3の個別作業計画で名前を確定させた時点で本節を書き換える。</b> 確定前でも実行できる形（分岐点からの差分に含まれる <code>.sh</code> を総なめする）を併記しておく。</p>
+  <pre><code># 新規スクリプト・hookの構文チェック（名前が確定したら直接指定へ置き換える）
+base="$(git merge-base origin/main HEAD)"
+git diff --name-only --diff-filter=d "$base"...HEAD -- '*.sh' | while IFS= read -r f; do bash -n "$f"; done
 
 # 単体テスト（passed=N failures=N を出力し、failures=0 であること）
 bash .claude/scripts/test/test_&lt;新規&gt;.sh
 
-# 既存テストの回帰
-for t in .claude/scripts/test/test_*.sh; do bash "$t"; done
+# 既存テストの回帰（失敗を終了コードへ伝播させ、実行本数も出す。
+# 素朴な for ループはループ全体の終了コードが最後の1本のものになり、
+# 中間の failures=1 を検出できない）
+fail=0; n=0
+for t in .claude/scripts/test/test_*.sh; do
+  n=$((n + 1))
+  bash "$t" || { echo "NG: $t"; fail=1; }
+done
+echo "実行本数=$n"
+[ "$n" -gt 0 ] &amp;&amp; [ "$fail" = 0 ]
 
 # 配布定義の網羅性
 bash .claude/scripts/src/check-dist-coverage.sh

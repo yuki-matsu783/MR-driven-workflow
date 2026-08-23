@@ -181,9 +181,10 @@
 
   <h3>Q1. チェックリストの置き場所と命名</h3>
   <ul>
-    <li>issue本文は <code>worklog/日付_&lt;全体計画名&gt;_&lt;個別計画名&gt;_push_checklist.tsv</code> と書くが、issue #178 で <code>worklog/</code> は <code>wip/worklogs/</code> へ改名されている。現行のディレクトリ構成でどこへ置くか。</li>
+    <li>issue本文は <code>worklog/日付_&lt;全体計画名&gt;_&lt;個別計画名&gt;_push_checklist.tsv</code> と書くが、issue #165 で <code>worklog/</code> は <code>wip/worklogs/</code> へ改名されている（根拠: <code>.claude/docs/spec/cleanup-task.md</code>「issue #165」節。<code>#178</code> はその squash merge の PR番号）。現行のディレクトリ構成でどこへ置くか。</li>
     <li>push単位でユニークにする命名（<code>_push&lt;N&gt;</code>）で、<code>N</code> をどこから取るか（<code>HANDOFF.md</code> の <code>- push回数:</code> か、既存ファイルの数え上げか、<code>usage/state/</code> か）。</li>
     <li>全体計画名・個別計画名を機械的に取り出せるか（取り出せない場合の縮退はどうするか）。</li>
+    <li><b>置き場所を <code>.mrworkflow.json</code> の <code>worklogDir</code> から解決するか、パスをハードコードするか。</b> 設定が無い配布先でのフォールバックは何か。<code>cleanup-task.sh</code> は issue #165 で <code>worklogDir</code> 設定値から動的に組み立てる形へ変わっているため、そちらへ揃えられるか（揃えないと、配布先が <code>worklogDir</code> を変えたときに<b>チェックリストだけが片付かずに残る</b>）。</li>
     <li><b>ブランチ間でconflictしないこと</b>（受け入れ条件）を、命名だけで保証できるか。</li>
   </ul>
 
@@ -207,11 +208,12 @@
     <li>作業ツリー／<code>git show HEAD:</code>／index のどれを読むか。</li>
     <li>「チェックリスト自体をそのcommitに含める」という要件と、pushの直前という実行タイミングの関係。<b>未コミットのチェックリストを見て通すと、pushされる内容と食い違う</b>のではないか。</li>
     <li>ブランチのHEADに存在しないチェックリストをどう扱うか。</li>
+    <li><b>どのref（どのブランチ）に対するpushかをコマンドから読み取るか、現在のブランチ固定でよいか。</b> <code>git push origin HEAD:other</code>・複数refspec・<code>git push --all</code>・タグのみのpushでは、「現在のブランチのHEAD」と実際にpushされる内容が一致しない。読み取れない形はブロック側と素通り側のどちらへ倒すか。</li>
   </ul>
 
   <h3>Q5. 誤ブロックしない条件</h3>
   <ul>
-    <li>チェックリスト未生成のとき（フロー対象外のpush、機構の導入直後、ブランチ初回push）。</li>
+    <li>チェックリスト未生成のとき（フロー対象外のpush、機構の導入直後、ブランチ初回push）。<b>素通りさせるだけでよいか、それとも「チェックリストが無いまま素通りした」ことを（ブロックせずに）通知する縮退を置くか。</b> 生成済みのチェックリストをコミットし忘れた場合、素通りだけだと機構が<b>無言で無効化</b>され、しかも「ブロックされないので正常に見える」。</li>
     <li><code>git push --dry-run</code> / <code>git push --delete</code> / <code>git push</code> 以外のリモート反映手段。</li>
     <li><code>CommandPosition.sh</code> が<b>部分一致へ縮退する場面</b>（1行8192バイト超・<code>eval</code>/<code>bash -c</code> など静的に読めない実行体・bash 4.3未満・ライブラリ不在）で、<b>ブロック側と素通り側のどちらへ倒すか</b>。<code>block-direct-git-commit.sh</code> はブロック側へ倒しているが、本hookでも同じでよいか（commitと違い、pushは「止まると作業が進まない」度合いが大きい）。</li>
     <li>前置フィルタ（<code>raw_hints_at_git_push</code> 相当）を、判定本体の<b>超集合</b>として書けるか。既存2本（<code>post-push-*.sh</code>）が同型の実装を持つはずなので、それを再利用できるか確かめる。</li>
@@ -254,14 +256,19 @@
 
 <section id="verify">
   <h2>検証</h2>
-  <pre><code># Q2: extract-frontmatter.sh の走査対象が .md だけであること（.tsv が載らないこと）
-grep -n "grep -z" .claude/scripts/src/extract-frontmatter.sh
+  <pre><code># Q1: extract-frontmatter.sh の走査対象が .md だけであること（.tsv が載らないこと）。
+# ソースの目視だけでは「拡張子が何であっても1行ヒットする」ため検証にならない。実際に
+# ダミーの .tsv を置いて走らせ、index.jsonl に現れないことまで確かめる
+touch wip/worklogs/_probe.tsv
+bash .claude/scripts/src/extract-frontmatter.sh .
+grep -c '_probe\.tsv' wip/worklogs/index.jsonl   # 0 であること
+rm -f wip/worklogs/_probe.tsv
 
 # Q6: hookの登録順と if フィルタ
 jq '.hooks.PostToolUse' .claude/settings.json
 
 # Q7: cleanup-task.sh の削除対象・除外対象
-grep -n "TEMPLATE.md\|REVIEW-POINTS" .claude/scripts/src/cleanup-task.sh
+grep -n "TEMPLATE.md\|REVIEW-POINTS\|collect_files_under" .claude/scripts/src/cleanup-task.sh
 
 # Q8: 既存テストの型
 bash .claude/scripts/test/test_block_direct_git_commit.sh</code></pre>

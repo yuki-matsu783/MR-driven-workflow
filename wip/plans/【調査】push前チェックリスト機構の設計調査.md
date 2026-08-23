@@ -43,11 +43,16 @@ keywords: [調査計画, push前チェックリスト, PreToolUse, PostToolUse, 
 
 ### Q1. チェックリストの置き場所と命名
 
-- issue本文は `worklog/日付_<全体計画名>_<個別計画名>_push_checklist.tsv` と書くが、issue #178 で
-  `worklog/` は `wip/worklogs/` へ改名されている。現行のディレクトリ構成でどこへ置くか。
+- issue本文は `worklog/日付_<全体計画名>_<個別計画名>_push_checklist.tsv` と書くが、issue #165 で
+  `worklog/` は `wip/worklogs/` へ改名されている（根拠: `.claude/docs/spec/cleanup-task.md`
+  「issue #165」節。`#178` はその squash merge の PR番号）。現行のディレクトリ構成でどこへ置くか。
 - push単位でユニークにする命名（`_push<N>`）で、`N` をどこから取るか
   （`HANDOFF.md` の `- push回数:` か、既存ファイルの数え上げか、`usage/state/` か）。
 - 全体計画名・個別計画名を機械的に取り出せるか（取り出せない場合の縮退はどうするか）。
+- **置き場所を `.mrworkflow.json` の `worklogDir` から解決するか、パスをハードコードするか。**
+  設定が無い配布先でのフォールバックは何か。`cleanup-task.sh` は issue #165 で `worklogDir`
+  設定値から動的に組み立てる形へ変わっているため、そちらへ揃えられるか（揃えないと、配布先が
+  `worklogDir` を変えたときに**チェックリストだけが片付かずに残る**）。
 - **ブランチ間でconflictしないこと**（受け入れ条件）を、命名だけで保証できるか。
 
 ### Q2. 項目（何をチェックさせるか）の定義
@@ -71,10 +76,17 @@ keywords: [調査計画, push前チェックリスト, PreToolUse, PostToolUse, 
 - 「チェックリスト自体をそのcommitに含める」という要件と、pushの直前という実行タイミングの関係。
   **未コミットのチェックリストを見て通すと、pushされる内容と食い違う**のではないか。
 - ブランチのHEADに存在しないチェックリストをどう扱うか。
+- **どのref（どのブランチ）に対するpushかをコマンドから読み取るか、現在のブランチ固定でよいか。**
+  `git push origin HEAD:other`・複数refspec・`git push --all`・タグのみのpushでは、「現在の
+  ブランチのHEAD」と実際にpushされる内容が一致しない。読み取れない形はブロック側と素通り側の
+  どちらへ倒すか。
 
 ### Q5. 誤ブロックしない条件
 
 - チェックリスト未生成のとき（フロー対象外のpush、機構の導入直後、ブランチ初回push）。
+  **素通りさせるだけでよいか、それとも「チェックリストが無いまま素通りした」ことを
+  （ブロックせずに）通知する縮退を置くか。** 生成済みのチェックリストをコミットし忘れた場合、
+  素通りだけだと機構が**無言で無効化**され、しかも「ブロックされないので正常に見える」。
 - `git push --dry-run` / `git push --delete` / `git push` 以外のリモート反映手段。
 - `CommandPosition.sh` が**部分一致へ縮退する場面**（1行8192バイト超・`eval`/`bash -c` など
   静的に読めない実行体・bash 4.3未満・ライブラリ不在）で、**ブロック側と素通り側のどちらへ
@@ -120,15 +132,19 @@ keywords: [調査計画, push前チェックリスト, PreToolUse, PostToolUse, 
 ## 検証
 
 ```bash
-# Q2: extract-frontmatter.sh の走査対象が .md だけであること（.tsv が載らないこと）
-grep -n "grep -z" .claude/scripts/src/extract-frontmatter.sh
+# Q1: extract-frontmatter.sh の走査対象が .md だけであること（.tsv が載らないこと）。
+# ソースの目視だけでは「拡張子が何であっても1行ヒットする」ため検証にならない。実際に
+# ダミーの .tsv を置いて走らせ、index.jsonl に現れないことまで確かめる
+touch wip/worklogs/_probe.tsv
+bash .claude/scripts/src/extract-frontmatter.sh .
+grep -c '_probe\.tsv' wip/worklogs/index.jsonl   # 0 であること
+rm -f wip/worklogs/_probe.tsv
 
 # Q6: hookの登録順と if フィルタ
 jq '.hooks.PostToolUse' .claude/settings.json
 
 # Q7: cleanup-task.sh の削除対象・除外対象
-bash .claude/scripts/src/cleanup-task.sh --help 2>&1 | head -30
-grep -n "TEMPLATE.md\|REVIEW-POINTS" .claude/scripts/src/cleanup-task.sh
+grep -n "TEMPLATE.md\|REVIEW-POINTS\|collect_files_under" .claude/scripts/src/cleanup-task.sh
 
 # Q8: 既存テストの型
 bash .claude/scripts/test/test_block_direct_git_commit.sh
