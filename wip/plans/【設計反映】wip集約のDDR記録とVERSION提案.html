@@ -91,7 +91,7 @@
   <div class="inner">
     <div class="kind">個別反映計画 / フェーズ4 / flow-id 4-1</div>
     <h1>wip集約のDDR記録とVERSION提案</h1>
-    <p class="lead">wip/命名理由のDDR化・.claude/VERSION MAJOR増分の提案・既存導入先向け移行手順の記述先決定と記述を行う。</p>
+    <p class="lead">wip/命名理由のDDR化・.claude/VERSIONのMAJOR適用（非対話セッション例外）・既存導入先向け移行手順の記述先決定と記述を行う。</p>
     <ul class="meta">
       <li><b>issue</b> #165</li>
       <li><b>ブランチ</b> claude/consolidate-wip-directories-ps6f9a</li>
@@ -109,6 +109,7 @@
   <h2>目次</h2>
   <ol>
     <li><a href="#premise">前提（合意状況）</a></li>
+    <li><a href="#target-note">対象（cleanup-task.md解消済みの補足）</a></li>
     <li><a href="#goal">この計画で何をするか</a></li>
     <li><a href="#target">変更対象</a></li>
     <li><a href="#approach">方針</a></li>
@@ -127,9 +128,18 @@
   </ul>
 </section>
 
+<section id="target-note">
+  <h2>対象（cleanup-task.md解消済みの補足）</h2>
+  <p><code>.claude/docs/spec/cleanup-task.md</code>の未決定事項更新（実装結果レポートの項目2）は、mainマージ解消の過程で既に<code>i0165-01</code>とあわせて対応済み（「解消・issue #165」と明記済み）。本計画は残る3項目——DDR記録・VERSION対応・移行手順の記述——を扱う。フェーズ4の他種別（AIアセット反映・実装反映）は「やらないこと」節で扱いを明記する。</p>
+</section>
+
 <section id="goal">
   <h2>この計画で何をするか</h2>
-  <p>フェーズ3実装結果が「フェーズ4で対応」として残した3項目を反映する。(1) <code>wip/</code>という名前を採用した理由をDDRとして記録する、(2) <code>.claude/VERSION</code>のMAJOR増分を提案する（値は変更しない）、(3) 既存導入先向けの移行手順の記述先を決め記述する。</p>
+  <ol>
+    <li><b><code>wip/</code>という名前の採用理由をDDRとして記録する</b>（受け入れ条件7）。<code>flow/</code> <code>tasks/</code> <code>work/</code> <code>scratch/</code>を採らなかった理由を含む。</li>
+    <li><b><code>.claude/VERSION</code>を<code>MAJOR</code>（<code>0.3.0</code>→<code>1.0.0</code>）へ更新する。</b>非対話的実行環境における例外規定（<code>distribution-assets.md</code>「増分の決め方」の「例外（非対話的セッション）」節。issue #160が先例）に従い、AIエージェントが目安表に沿って<b>適用</b>し、根拠と適用の事実をspec changelogと<code>HANDOFF.md</code>「判断を迷った内容」の両方へ残す。人間がレビューで否認した場合は元の<code>0.3.0</code>へ戻す。</li>
+    <li><b>既存導入先向けの移行手順</b>を<code>asset-distribution.md</code>へ記述する。<code>i0165-01</code>「未決定事項」が本タスクへ委譲している論点。</li>
+  </ol>
 </section>
 
 <section id="target">
@@ -138,9 +148,12 @@
   <table>
     <thead><tr><th>ファイル</th><th>操作</th><th>何をするか</th></tr></thead>
     <tbody>
-      <tr><td><code>.claude/docs/ddr/i0165-02-...md</code></td><td>新規</td><td><code>wip/</code>命名の採用理由と却下案（flow/tasks/work/scratch）を記録</td></tr>
-      <tr><td><code>.claude/docs/spec/asset-distribution.md</code></td><td>変更</td><td>「移行」小節を新設し、既存導入先が旧<code>plans/</code> <code>worklog/</code>を残したまま更新した場合の手順を記述</td></tr>
-      <tr><td><code>wip/reports/…md</code>（本計画の実施結果）</td><td>新規</td><td><code>.claude/VERSION</code>のMAJOR増分提案を明記（値そのものは変更しない）</td></tr>
+      <tr><td>新規DDR（識別子<code>i0165-02</code>）</td><td>新規</td><td><code>wip/</code>命名の採用理由と却下案（flow/tasks/work/scratch）を記録。<code>i0165-01</code>の未決定事項をここで引き取る旨を明記</td></tr>
+      <tr><td><code>i0165-01</code>（既存DDR）</td><td>frontmatterのみ更新</td><td><code>note:</code>キーで解消先（<code>i0165-02</code>・<code>asset-distribution.md</code>）を1行で示す（DDR本文は不変）</td></tr>
+      <tr><td><code>.claude/docs/README.md</code></td><td>生成物の更新</td><td>DDR追加に伴い<code>generate-ddr-list.sh</code>で再生成し、同じコミットへ含める</td></tr>
+      <tr><td><code>.claude/VERSION</code></td><td>変更</td><td><code>0.3.0</code> → <code>1.0.0</code>（非対話セッション例外の適用）</td></tr>
+      <tr><td><code>.claude/docs/spec/distribution-assets.md</code></td><td>変更</td><td>issueごとのchangelog節へ issue #165 エントリを追加し、適用した増分・根拠・現在値との整合を記録</td></tr>
+      <tr><td><code>.claude/docs/spec/asset-distribution.md</code></td><td>変更</td><td>「## 移行」小節（恒久の一般手順）＋「## 影響範囲 &gt; issue #165」エントリ（今回固有の具体手順）の2箇所に分けて追加</td></tr>
     </tbody>
   </table>
   </div>
@@ -148,8 +161,38 @@
 
 <section id="approach">
   <h2>方針</h2>
-  <p>DDRは新規識別子 <code>i0165-02</code>（同一issue内で <code>i0165-01</code> の次の枝番）として作成する。理由は <code>i0165-01</code> が「フォールバック既定値の後方互換」という別論点を扱っており、本計画の「命名理由」と評価軸が異なるため、1つのDDRへ混ぜない。</p>
-  <p><code>.claude/VERSION</code>の実際の値は変更しない。<code>.claude/docs/spec/distribution-assets.md</code>のMAJOR目安（配布先に手作業を要求する非互換変更）に該当するかを確認し、該当するなら提案として実施結果とPRへ明記するに留める（人間の判断が必要）。</p>
+
+  <h3>1. DDR新規作成</h3>
+  <p>識別子<code>i0165-02</code>（同一issue内で<code>i0165-01</code>の次の枝番）として新規作成する。理由（草案）:</p>
+  <ul>
+    <li><b><code>wip/</code>（Work In Progress）</b>: 「未完了・一時的で正史ではない」という寿命をそのまま表す、広く認知された慣用語。既存の<code>.claude/</code>語彙と衝突しない。</li>
+    <li><code>flow/</code>を採らない理由: 「フロー」という語は本リポジトリで一貫して手順そのもの（<code>issue-mr-flow/SKILL.md</code>）を指すため、<code>flow/</code>ディレクトリは「フローのドキュメント」ではなく「フローが生成する一時ファイル」と誤読される。</li>
+    <li><code>tasks/</code>を採らない理由: 汎用的すぎてタスク管理（TODO・issue管理）の含意と衝突しうる。寿命の短さが名前から伝わらない。</li>
+    <li><code>work/</code>を採らない理由: 最も汎用的で、導入先が独自に持つ「作業用ディレクトリ」と衝突しやすい。寿命の短さも伝わらない。</li>
+    <li><code>scratch/</code>を採らない理由: 「使い捨てのメモ」という含意が強すぎ、人間のレビューを経る正式な成果物という性質とズレる。</li>
+  </ul>
+  <p>DDR本文の末尾に「<code>i0165-01</code>の未決定事項（移行手順・VERSION増分）はここで引き取り、移行手順は<code>asset-distribution.md</code>「移行」小節へ、VERSION対応は<code>distribution-assets.md</code>のchangelogへそれぞれ記述した」旨を1文添える。あわせて<code>i0165-01</code>のfrontmatterへ<code>note:</code>を追記する。</p>
+  <div class="box warn">
+    <span class="label">参照方法の注意</span>
+    計画md内でのDDR参照は識別子（<code>i0165-02</code>）で書き、確定ファイル名を決め打ちしない。実装時にタイトルの表記が変わっても計画への参照切れが起きないようにするため。
+  </div>
+
+  <h3>2. .claude/VERSIONのMAJOR適用</h3>
+  <p><b>現在値の確認</b>: <code>.claude/VERSION</code>は現在<code>0.3.0</code>である（issue #160が非対話セッション例外の先例として<code>0.2.0</code>→<code>0.3.0</code>のMINOR適用を行った。<code>distribution-assets.md</code>「issue #170」エントリの「<code>0.2.0</code>のまま据え置いた」という記述は、issue #170時点（issue #160マージ前）の事実であり、現在の値とは異なる時系列上の記録として変更しない）。</p>
+  <p><b>今回の判断</b>: <code>dist-layers.json</code>の配置場所変更（<code>plans</code>/<code>worklog</code>/<code>reports</code>のトップレベル→<code>wip/</code>配下への集約）はMAJOR目安「配布先に手作業を要求する非互換変更（配置場所の変更…）」に直接該当する。SemVerの0.xからのMAJOR増分は<code>1.0.0</code>とする（<code>distribution-assets.md</code>「issue #26」エントリの先例に倣う）。</p>
+  <div class="box warn">
+    <span class="label">適用するか提案に留めるかの判断</span>
+    過去2回（issue #54・issue #26）、AIが提案したMAJOR増分はいずれも人間のレビューで<b>否認</b>され据え置かれている。一方issue #160はMINOR増分を非対話セッション例外の下で実際に適用した最初の前例である。本タスクも非対話セッションであり同じ例外規定が適用できるため、<b>提案に留めず適用する</b>。ただし過去2回の否認実績を踏まえ、changelogへ「MAJORを適用したが、過去2回はMAJOR提案が据え置かれている」という判断の迷いも明記し、人間が容易に判断・差し戻しできるようにする。
+  </div>
+
+  <h3>3. 既存導入先向け移行手順</h3>
+  <p>移行手順は「恒久の一般手順」（<code>asset-distribution.md</code>の仕様節）と「今回固有の具体的手順」（<code>distribution-assets.md</code>の影響範囲changelog）に分けて書く。実際に配布先で何が起きるかを確認したうえで、少なくとも次の4点を含める。</p>
+  <ol>
+    <li><code>dist-layers.json</code>は<code>wip/plans</code> <code>wip/worklogs</code> <code>wip/reports</code>を<code>local</code>（配らない）層とする一方、<code>wip/plans/REVIEW-POINTS.md</code> / <code>wip/worklogs/TEMPLATE.md</code> / <code>wip/reports/REVIEW-POINTS.md</code>の3件を<code>core</code>として個別に持つ。配布先には<b>新パスにだけ</b>この3ファイルが置かれ、旧<code>plans/REVIEW-POINTS.md</code>等はそのまま残る。</li>
+    <li>旧方式（manifestを持たない）で導入済みの配布先には「削除・改名されたcoreファイルの一覧」が提示されない。</li>
+    <li>配布先の<code>.mrworkflow.json</code>は<code>seed</code>層（配布先所有・上書きしない）なので、<code>plansDir</code> / <code>worklogDir</code> / <code>reportsDir</code>は自動では変わらず手動で書き換える必要がある。</li>
+    <li><code>.claude/settings.json</code>の<code>plansDirectory</code>も配布先所有なので、これも手動で<code>./wip/plans</code>へ書き換える必要がある。</li>
+  </ol>
 </section>
 
 <section id="out-of-scope">
@@ -157,18 +200,33 @@
   <div class="box stop">
     <span class="label">この計画では決めない・触らない</span>
     <ul>
-      <li><code>.claude/VERSION</code>の実際の値変更（人間の判断へ送る）</li>
+      <li><b>フェーズ4の他種別（<code>【AIアセット反映】</code> <code>【実装反映】</code>）は実施しない。</b>作業中に気づいたルール・スキルの不備は無く、フェーズ3のレビュー往復ループで解消しきれず持ち越した不具合も無いため、対象が無いと判断した。</li>
       <li>既存導入先での移行手順の実行そのもの（各配布先の作業であり本タスクの対象外）</li>
+      <li><code>.claude/VERSION</code>のMAJOR適用が人間のレビューで否認された場合の巻き戻し作業（レビューで指摘された時点で対応する）</li>
     </ul>
   </div>
 </section>
 
 <section id="verify">
   <h2>検証</h2>
-  <pre><code>bash .claude/scripts/src/generate-ddr-list.sh --check
-bash .claude/scripts/src/check-doc-references.sh
-for t in .claude/scripts/test/test_*.sh; do bash "$t"; done</code></pre>
-  <p>合格条件: DDR一覧が最新であること・DDR参照切れが無いこと・単体テスト全件<code>passed=N failures=0</code>であること。</p>
+  <p>変更前の期待値（着手前に確認済み）: <code>generate-ddr-list.sh --check</code>はexit 0（84件）。<code>check-doc-references.sh</code>は参照切れ0件・exit 0（本計画md自体の参照は識別子形式に修正済み）。単体テストは全件<code>passed=N failures=0</code>（本計画の変更はドキュメントのみのため、退行が無いことの確認に位置づける）。</p>
+  <pre><code># DDR一覧が新規DDRを含めて再生成され、--checkが通ること
+bash .claude/scripts/src/generate-ddr-list.sh
+bash .claude/scripts/src/generate-ddr-list.sh --check   # exit 0 を確認
+
+# 新規DDRの識別子形式・重複が無いこと
+bash .claude/scripts/src/check-base-conflicts.sh --no-fetch | jq '.hasDuplicateDdrNumber'  # false
+
+# index.jsonlにi0165-02がtype:ddrで載ること
+bash .claude/scripts/src/extract-frontmatter.sh .
+grep '"i0165-02"' .claude/docs/spec/index.jsonl
+
+# DDR参照切れが無いこと
+bash .claude/scripts/src/check-doc-references.sh   # exit 0・参照切れ0件
+
+# 単体テスト全件（退行が無いことの確認）
+for t in .claude/scripts/test/test_*.sh; do bash "$t"; done   # 全件 passed=N failures=0</code></pre>
+  <p>合格条件: 上記すべてのコマンドが記載の期待値どおりに終わること。</p>
 </section>
 
 <section id="options">
@@ -178,10 +236,12 @@ for t in .claude/scripts/test/test_*.sh; do bash "$t"; done</code></pre>
     <thead><tr><th>案</th><th>利点</th><th>採否と理由</th></tr></thead>
     <tbody>
       <tr><td><code>wip/</code></td><td>「未完了・一時的」という寿命を素直に表す慣用語。既存語彙と衝突しない</td><td><span class="tag ok">採用</span> 実装済み（本branchの改名対象）</td></tr>
-      <tr><td><code>flow/</code></td><td>「issue-mr-flow」との関連が連想しやすい</td><td><span class="tag stop">却下</span> 「フロー」は本リポジトリで一貫して手順そのもの（<code>issue-mr-flow/SKILL.md</code>）を指すため誤誘導になる</td></tr>
-      <tr><td><code>tasks/</code></td><td>「タスク単位」という粒度と合う</td><td><span class="tag stop">却下</span> 汎用的すぎてタスク管理（TODO・issue管理）の含意と衝突し、寿命の短さが伝わらない</td></tr>
-      <tr><td><code>work/</code></td><td>最も一般的で分かりやすい</td><td><span class="tag stop">却下</span> 導入先が独自に持つ「作業用ディレクトリ」と衝突しやすく、寿命の短さも伝わらない</td></tr>
-      <tr><td><code>scratch/</code></td><td>「一時的」という含意が強い</td><td><span class="tag stop">却下</span> 「使い捨てのメモ」という含意が強すぎ、人間のレビューを経る正式な成果物という性質とズレる</td></tr>
+      <tr><td><code>flow/</code></td><td>「issue-mr-flow」との関連が連想しやすい</td><td><span class="tag stop">却下</span> 「フロー」は本リポジトリで一貫して手順そのものを指すため誤誘導になる</td></tr>
+      <tr><td><code>tasks/</code></td><td>「タスク単位」という粒度と合う</td><td><span class="tag stop">却下</span> タスク管理の含意と衝突し、寿命の短さが伝わらない</td></tr>
+      <tr><td><code>work/</code></td><td>最も一般的で分かりやすい</td><td><span class="tag stop">却下</span> 導入先が独自に持つ作業用ディレクトリと衝突しやすい</td></tr>
+      <tr><td><code>scratch/</code></td><td>「一時的」という含意が強い</td><td><span class="tag stop">却下</span> 「使い捨てのメモ」という含意が強すぎ、正式な成果物という性質とズレる</td></tr>
+      <tr><td>VERSION: 提案のみに留める</td><td>過去2回の否認実績と整合し保守的</td><td><span class="tag stop">却下</span> 非対話セッション例外（issue #160先例）に従い適用する方が規定に沿う</td></tr>
+      <tr><td>VERSION: MAJOR適用（1.0.0）</td><td>配置場所変更という非互換変更を版へ正しく反映できる</td><td><span class="tag ok">採用</span> 例外規定・changelog記録・人間による否認時の巻き戻し余地を確保したうえで適用</td></tr>
     </tbody>
   </table>
   </div>
