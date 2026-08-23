@@ -491,8 +491,10 @@ build_into() {
     > "$work/claude-files.list" || return 1
 
   # 列挙は git に任せる。`--exclude-standard` が .gitignore 対象（**/index.jsonl・
-  # .claude/state/ ・skills/apply-.../assets/）を落とすので、生成物とローカル状態の除外は
-  # これだけで足りる（git check-ignore をファイルごとに呼ぶ必要はない）。
+  # .claude/settings.local.json・skills/apply-.../assets/）を落とすので、生成物とローカル状態の
+  # 除外はこれだけで足りる（git check-ignore をファイルごとに呼ぶ必要はない）。
+  # ワークフローのローカル作業状態は issue #184 で wip/state/ へ移したため、そもそも
+  # `-- .claude` の列挙範囲に入らない。
   while IFS= read -r -d '' f; do
     # `--cached` は「削除したがまだステージしていない」追跡ファイルも列挙する。
     # 実体が無いまま cp へ渡すと落ちる（issue #117 と同じ罠）。[[ ]] は組み込みでforkしない。

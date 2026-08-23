@@ -64,8 +64,10 @@ git -c core.quotepath=false ls-files --cached --others --exclude-standard -z -- 
 ```
 
 - **列挙は git に任せる。** `--exclude-standard` が `.gitignore` 対象（`**/index.jsonl`・
-  `.claude/state/`・`skills/apply-mr-workflow-to-project/assets/`）を落とすので、生成物と
-  ローカル状態の除外はこれだけで足りる（`git check-ignore` をファイルごとに呼ぶ必要はない）。
+  `.claude/settings.local.json`・`skills/apply-mr-workflow-to-project/assets/`）を落とすので、
+  生成物とローカル状態の除外はこれだけで足りる（`git check-ignore` をファイルごとに呼ぶ必要はない）。
+  ワークフローのローカル作業状態は issue #184 で `wip/state/` へ移したため、そもそも
+  `-- .claude` の列挙範囲に入らない。
 - `-z` と `core.quotepath=false` は、日本語を含むパスがクォート＋8進エスケープされるのを
   避けるため（`.claude/rules/shell-script-style.md`「コマンド置換とNULバイト」）。
 - **`--cached` は「削除したがまだステージしていない」追跡ファイルも列挙する。** 実体が無いまま

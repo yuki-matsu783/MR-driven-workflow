@@ -1630,12 +1630,14 @@ issue #11「git pushイベントを検知してcompactする」への対応と�
     `gitlab_get_compare_url`）で組み立てられる。詳細な却下案は
     [i0013-01-レビュー依頼メッセージの参照リンクは前回pushSHAをローカル状態で保持して組み立てる.md](../ddr/i0013-01-レビュー依頼メッセージの参照リンクは前回pushSHAをローカル状態で保持して組み立てる.md)
     参照。
-  - 「前回push時点」の判定は、`post-push-compact-prompt.sh`自身が`.claude/state/review-links/
+  - 「前回push時点」の判定は、`post-push-compact-prompt.sh`自身が`wip/state/review-links/
     <safeBranch>.txt`へ直前pushのHEAD SHA（`git rev-parse HEAD`）を保存し、次回push時に読み出す
     形で行う。ファイルが無ければ「このブランチでの初回push」とみなし、前回pushとの差分・コメント
     一覧の2リンクは省略する。状態ファイルは`usage/`と同じ「ブランチ横断・非コミット対象のローカル
     作業状態」だが、責務分離のため対応工数レポート側（`usage/state/`）とは別ディレクトリ
-    （`.claude/state/review-links/`）に置く（`.gitignore`に`/.claude/state/`を追加）。
+    （`wip/state/review-links/`）に置く（`.gitignore`に`/wip/state/`を追加）。**issue #184 以前は
+    `.claude/state/review-links/`だった**（`.claude/`を配布資産だけにするため`wip/`配下へ移した。
+    DDR `i0184-01`）。
     ブランチ名のファイル名サニタイズは`_usage_safe_branch_name`と同じ正規表現
     （`[^a-zA-Z0-9_-]`を`_`へ置換）だが、`UsageTracking.sh`をsourceして共有はせず本スクリプト内に
     複製している（1行の変換ロジックのために責務の異なるファイルへ依存を作らないため）。
@@ -2314,6 +2316,23 @@ SKILL.mdに明記している）。
 - `tests/test_vcs_provider.sh`（新規。上記の純粋関数の単体テスト）
 - `.claude/docs/spec/issue-mr-workflow.md`（本ファイル。「提供関数」表に2関数を追加、
   「/compact実施の呼びかけ」節を参照リンク付与の設計に更新、本エントリを追加）
+
+変更（追加分・issue #184 ワークフローのローカル作業状態を wip/state/ へ移設）:
+- `.gitignore`（`/.claude/state/`を`/wip/state/`へ差し替え。旧パスの行は**移行用の名残**として
+  残す——既存の作業ツリーに残る状態ファイルが追跡対象として現れるのを防ぐため）
+- `.claude/dist-layers.json`（`local`の`gitignorePattern`を`/wip/state/`へ。旧パス用のエントリも
+  追加。`note`を実態（前回push時点のHEAD SHA＋敵対的レビューの投稿件数）へ修正）
+- `.claude/hooks/post-push-compact-prompt.sh`（状態ファイルのパスを`wip/state/review-links/`へ）
+- `.claude/scripts/src/adversarial-review-count.sh`（同`wip/state/adversarial-review/`へ）
+- `.claude/scripts/src/sync-gemini-assets.sh`（除外の説明コメント。ローカル状態が`.claude/`配下から
+  外れたため、例示を`.claude/settings.local.json`へ差し替え）
+- `.claude/scripts/test/test_adversarial_review_count.sh` / `test_install_to_project.sh` /
+  `test_sync_gemini_assets.sh`（期待パスと、除外確認のフィクスチャ）
+- `.claude/rules/directory-structure.md`（ツリー直後の注記と説明段落）
+- `.claude/docs/spec/adversarial-review.md` / `sync-gemini-assets.md`（状態ファイルのパス・除外対象）
+- `.claude/docs/ddr/i0184-01-ワークフローのローカル作業状態はwip配下へ移し旧パスのignoreを移行用に残す.md`（新規）
+- `.claude/docs/spec/issue-mr-workflow.md`（本ファイル。「/compact実施の呼びかけ」節のパスを更新、
+  本エントリを追加）
 
 変更（追加分・issue #13 続き: gh/glabでURLの正確性を担保する方式へ変更）:
 - `.claude/scripts/src/vcs/Github.sh` / `Gitlab.sh`（`github_get_repo_url` /
