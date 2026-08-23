@@ -23,7 +23,7 @@ keywords: [参照件数, 相対リンク, 解決可否, COPY_EXCLUDED_PREFIXES, 
 
 ## 変更対象
 
-調査のみのため、リポジトリのコード・設定は変更しない。生成される成果物は次の2つ。
+調査のみのため、リポジトリのコード・設定は変更しない。生成される成果物は次の3つ。
 
 | ファイル | 操作 | 何をするか |
 |---|---|---|
@@ -50,6 +50,7 @@ keywords: [参照件数, 相対リンク, 解決可否, COPY_EXCLUDED_PREFIXES, 
 | 設定からの実行 | `.gemini/settings.json` の hook `command` が指すパス |
 | ドキュメント間のリンク | `.gemini/` 配下の md から `../` 等で辿る相対リンクの解決先 |
 | 資産からの呼び出し | `.gemini/rules/` `.gemini/skills/` `.gemini/agents/` の本文が指すスクリプトのパス |
+| `.claude/` 側からの名指し | `.claude/` 配下のスクリプト・spec・テストが `.gemini/<サブディレクトリ>/` を文字列で指す箇所 |
 
 ## 調査項目
 
@@ -66,27 +67,65 @@ keywords: [参照件数, 相対リンク, 解決可否, COPY_EXCLUDED_PREFIXES, 
 
 - **判断そのもの（外す／残す）を出すこと。** この調査は材料を揃えるまでで、判断はフェーズ3。
 - **Gemini CLI 実機でのロード確認。** 実行環境に Gemini CLI が無い（既知の未決定事項）。
-- **`.claude/` 側の参照の棚卸し。** `.claude/` からの参照は今回の判断に影響しない
-  （`.claude/` は常に生成対象の「元」であって、コピー先ではない）。
+- **`.claude/` 配下のドキュメントが `.claude/` 自身をどう参照しているかの棚卸し。**
+  これは `.gemini/` の生成対象の判断に影響しない。
+  **一方、`.claude/` 側から `.gemini/` のサブディレクトリを名指ししている記述は調査対象に含める**
+  （「元である」ことと「`.gemini/` のパスを参照していない」ことは別である。実際に
+  `check-doc-references.sh` の除外定義・同 spec の表・`test_search_frontmatter.sh` の
+  アサーションが `.gemini/scripts/` `.gemini/docs/` を名指ししており、これらは
+  「除外したときに何が壊れるか」に直接効く）。
 - **変換規則（agents frontmatter・settings.json のキー対応）の点検。**
 
 ## 検証
 
-```bash
-# 各Qのグレップは、対照とセットで実行して結果へ併記する（下記は Q2 の例）
-grep -rIn --include='*.md' -e '\.gemini/scripts/' .claude .gemini | wc -l
-grep -rIn --include='*.md' -e '\.claude/scripts/' .claude .gemini | wc -l   # 対照（非0であること）
+**探索は md に限定せず、リポジトリ全体を対象にする**（`.sh`・`.json` にも参照がある）。
+**件数は `.gemini/` を除いた「元」の側で数え、`.gemini/` 側は別カウントとして併記する**
+（`.gemini/` は `.claude/` の逐語コピーなので、同時に探索すると同じ1つの参照が2件になる）。
 
+```bash
+# Q1/Q2: リポジトリ全体（.gemini/ を除く「元」の側）で数える
+grep -rIn -e '\.gemini/scripts/' . \
+  --exclude-dir=.git --exclude-dir=.gemini --exclude-dir=wip --exclude-dir=usage | wc -l
+# 対照（同じ形で非0が返ること。0なら探し方が壊れている）
+grep -rIn -e '\.claude/scripts/' . \
+  --exclude-dir=.git --exclude-dir=.gemini --exclude-dir=wip --exclude-dir=usage | wc -l
+# .gemini/ 側の複製は別カウントで併記する
+grep -rIn -e '\.gemini/scripts/' .gemini | wc -l
+```
+
+**Q3/Q4 はリテラル文字列のgrepでは測れない。** `.gemini/` 配下のリンクは `.claude/` の逐語コピー
+ゆえ `](../docs/spec/x.md)` の形で書かれ、文字列 `.gemini/docs/` としては現れない。リテラル一致で
+数えると **0件と出たうえに、対照（`.claude/docs/`）は非0を返す**ため、上の合格条件を満たしたまま
+「docs/ を外してもリンクは切れない」という誤った結論に到達できる。そこで**リンクを抽出して
+解決先を正規化し、接頭辞で判定する**。
+
+```bash
+# 各 md のディレクトリを基準に相対リンクを解決し、解決先が .gemini/<対象>/ に入るものを数える
+grep -rIno --include='*.md' -e '](\.\./[^)]*)' .gemini |
+  while IFS= read -r hit; do
+    src="${hit%%:*}"; rest="${hit#*:}"; link="${rest#*:}"; link="${link#](}"; link="${link%)}"
+    printf '%s\t%s\n' "$src" "$(realpath -m --relative-to=. "$(dirname "$src")/${link%%#*}")"
+  done | awk -F'\t' '{print $2}' | grep -c '^\.gemini/docs/'
+# 対照: 解決した結果が非0になること（0なら抽出・正規化のどこかが壊れている）
+```
+
+**Q4 は「除外後も残るファイルから、除外されるファイルへ向かうリンク」だけを数える。**
+除外対象の内部で完結するリンク（`.gemini/docs/` 内の docs→docs）は、リンク元ごと消えるため
+切れリンクにならない。両者を混ぜると件数が一桁変わる。
+
+```bash
 # Q6 の実測
 find .gemini/hooks .gemini/scripts .gemini/docs -type f | wc -l
-du -sb .gemini/hooks .gemini/scripts .gemini/docs
+for p in .gemini/hooks .gemini/scripts .gemini/docs .gemini; do du -sb "$p"; done   # 個別に測る
 time bash .claude/scripts/src/sync-gemini-assets.sh --check
 ```
 
 合格条件:
 
 - Q1〜Q4 に**件数で**答えられている（「無い」ではなく「0件である」）。
-- 0件と答えた問いには、**同じパターンで非0件が返る対照**が併記されている。
+- 0件と答えた問いには、**同じ探し方で非0件が返る対照**が併記されている。
+  リテラル一致で測れない問い（Q3/Q4）では、対照も**解決後の件数**で取る。
+- Q1/Q2 の件数が、`.gemini/` の複製を二重計上していない（「元」の側と `.gemini/` 側を分けている）。
 - 3ディレクトリそれぞれについて「外す／残す」の判断材料（Gemini CLI が読むか・リンクが切れるか・
   除外時に何が壊れるか）が揃っている。
 

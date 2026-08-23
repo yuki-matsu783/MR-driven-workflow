@@ -136,6 +136,11 @@
   </ol>
 </nav>
 
+<div class="box warn">
+  <span class="label">計画作成の逸脱（記録）</span>
+  <b>この全体作業計画は planツール（Planモード）で作っていない。</b> 非対話セッションで、既にPlanモードを抜けた状態から着手したためハーネスからの自動命名の提示が無く、ファイル名（<code>mellow-drifting-lantern</code>）は命名規則に沿ってAIが付けた。<code>.claude/rules/agent-common.md</code>・<code>references/planning.md</code> からの逸脱なので、その事実をここへ残す（<code>HANDOFF.md</code> は flow-id 5-5 でリセットされ、この記録が消えるため）。
+</div>
+
 <section id="goal">
   <h2>この計画で何をするか</h2>
   <p><code>.gemini/hooks/</code> <code>.gemini/scripts/</code> <code>.gemini/docs/</code> の3ディレクトリそれぞれについて、<code>sync-gemini-assets.sh</code> の生成対象に含めるかを<b>判断し、その理由を記録する</b>。現状維持（3つとも含める）を選んでもよいが、その場合も判断した結果であることが読み取れる形で <code>.claude/docs/spec/sync-gemini-assets.md</code> に残す。</p>
@@ -167,6 +172,10 @@
     <li><b>除外したときに何が壊れるか</b>（<code>--check</code>・配布・既存テスト）</li>
   </ol>
   <p>3ディレクトリを一括で決めず、<b>1つずつ独立に結論を出す</b>。issue本文の見立て（hooks/ scripts/ は使われない、docs/ は外すとリンクが切れうる）は仮説として扱い、フェーズ2で件数付きで検証してから採否を決める。</p>
+  <div class="box">
+    <span class="label">issueは分割しない</span>
+    受け入れ条件は3ディレクトリという同型項目の並列列挙であり、各項目は単独でマージされてもシステムが壊れない（1件あたりの作業は spec/DDR への追記と除外定義1行）。<code>wip/plans/REVIEW-POINTS.md</code>「issue分割のトリガー」に照らして判定した結果、<b>1件あたりの本体が極小で、5フェーズを3回まわす固定費のほうが上回る</b>ため分割しない（<code>references/planning.md</code>「分割しない条件」の「分割コストが本体を上回る」に該当）。
+  </div>
 </section>
 
 <section id="phase-research">
@@ -178,7 +187,7 @@
     <li><b>Q3</b>: <code>.gemini/docs/</code> を解決先とする相対リンクは <code>.gemini/</code> 配下に何件あるか。逆に <code>.gemini/docs/</code> 配下から <code>.gemini/</code> 内の他ファイルへ向かうリンクは何件あるか。</li>
     <li><b>Q4</b>: 3ディレクトリを除外した場合、<code>.gemini/</code> 内で解決できなくなる相対リンクは何件になるか（hooks/ scripts/ を外したときの影響も、docs/ と同じ尺度で数える）。</li>
     <li><b>Q5</b>: 除外を実装する場合、<code>COPY_EXCLUDED_PREFIXES</code> の現在の意味論（完全一致）で足りるか、接頭辞一致への拡張が要るか。既存テストのどれが影響を受けるか。</li>
-    <li><b>Q6</b>: 除外は誰の負担を減らすか（リポジトリサイズ・<code>--check</code> の所要時間・配布物のサイズ）。現状の実測値はどれくらいか。</li>
+    <li><b>Q6</b>: 除外は何をどれだけ減らすか（<code>.gemini/</code> のファイル数・バイト数、<code>--check</code> の所要時間）。現状の実測値はどれくらいか。<b>「配布物のサイズ」は減らない</b>——<code>.claude/dist-layers.json</code> は <code>.gemini</code> を <code>layer: exclude</code> と定義しており、<code>.gemini/</code> はそもそも配られない（配布先で <code>install-to-project.sh</code> が <code>sync-gemini-assets.sh</code> を実行して生成する）。減るのは<b>配布先で生成される <code>.gemini/</code> のサイズ</b>であって、配布物のサイズとは別物である。</li>
   </ul>
   <p><b>次へ進める条件</b>: Q1〜Q4 に件数で答えられ、3ディレクトリそれぞれについて「外す／残す」の判断材料が揃っていること。</p>
 </section>
@@ -191,6 +200,8 @@
     <li><code>.claude/docs/ddr/</code> — 判断の背景・却下案を新規DDRとして記録</li>
     <li><code>.claude/docs/README.md</code> — DDR一覧の再生成（<code>generate-ddr-list.sh</code>）</li>
     <li>AIアセット（<code>.claude/rules/directory-structure.md</code> の <code>.gemini/</code> の説明など）— 除外する判断をした場合、<code>.gemini/</code> の構成の記述が古くならないか確認する</li>
+    <li><code>.claude/scripts/src/check-doc-references.sh</code> と <code>.claude/docs/spec/check-doc-references.md</code> — <code>.gemini/scripts/</code> を外す判断をした場合、<code>CHECK_DOC_REFERENCES_EXCLUDED_DIRS</code> の <code>".gemini/scripts/test/"</code> と同 spec の除外表が<b>存在しないディレクトリを指す死んだ設定</b>になる</li>
+    <li><code>.claude/scripts/test/test_search_frontmatter.sh</code> — <code>.gemini/docs/…</code> を引数に取るアサーションがあるため、除外する判断をした場合に影響が無いかを確認する</li>
   </ul>
 </section>
 
@@ -216,7 +227,7 @@ bash .claude/scripts/test/test_sync_gemini_assets.sh</code></pre>
     <li><code>--check</code> が終了コード0</li>
     <li>単体テストが <code>passed=N failures=0</code></li>
     <li>3ディレクトリそれぞれについて、判断と理由が <code>.claude/docs/spec/sync-gemini-assets.md</code> にある</li>
-    <li>外す判断をしたディレクトリについて、<code>.gemini/</code> 側だけで完結していた相対リンクが切れていないことを<b>件数付きで</b>確認している</li>
+    <li>外す判断をしたディレクトリについて、<b>切れる相対リンクの件数と、その扱い（許容する／リンクを書き換える／外さない）</b>が記録されている。<b>「1件も切れてはならない」とは読まない</b>——<code>.gemini/rules/</code> から <code>../docs/</code> へ向かうリンクだけで実測17件あり、その読み方だと「docs/ を外す」という結論だけが検証条件によって先に封じられ、「3ディレクトリを1つずつ独立に結論を出す」という方針と噛み合わなくなるため（issue #172 の受け入れ条件の解釈を、ここで1つに固定する）</li>
   </ul>
 </section>
 

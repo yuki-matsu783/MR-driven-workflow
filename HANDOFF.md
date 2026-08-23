@@ -17,8 +17,8 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - issue: #172
 - ブランチ: `claude/gemini-exclude-decision-yp5p70`
 - PR: #193（Draft）（https://github.com/yuki-matsu783/MR-driven-workflow/pull/193 ）
-- push回数: 1
-- 現在のループ: なし
+- push回数: 2
+- 現在のループ: 2-3〜2-4 の1周目（進行中）
 - 未返信スレッド: 0
 - 追従監視: PRイベント購読中（`subscribe_pr_activity` で PR #193 を購読。セッション終了とともに止まるため、次セッションは `resume` で取り直す）
 
@@ -79,11 +79,25 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - flow-id 1-3: Draft PR #193 を作成した（`mcp__github__create_pull_request`）。
 - flow-id 2-1: 個別調査計画 `wip/plans/【調査】gemini生成対象3ディレクトリの参照実態.md`（＋`.html`）と
   worklog `wip/worklogs/20260823_…_push2.md` を作成した。
+- flow-id 2-2: commit・pushし、**計画に対する敵対的レビュー（フェーズ2・1回目）を実施**した。
+  findings 11件 → 投稿候補7件 → PR #193 へ6スレッドとしてインライン投稿。
+  投稿したスレッド:
+  - https://github.com/yuki-matsu783/MR-driven-workflow/pull/193#discussion_r3838831895
+  - https://github.com/yuki-matsu783/MR-driven-workflow/pull/193#discussion_r3838832231
+  - https://github.com/yuki-matsu783/MR-driven-workflow/pull/193#discussion_r3838832804
+  - https://github.com/yuki-matsu783/MR-driven-workflow/pull/193#discussion_r3838833312
+  - https://github.com/yuki-matsu783/MR-driven-workflow/pull/193#discussion_r3838833686
+  - https://github.com/yuki-matsu783/MR-driven-workflow/pull/193#discussion_r3838834102
+- **flow-id 2-3〜2-4 相当**: 人間のレビュー往復は非対話セッションのため成立しない（進捗記号は
+  `[]` のまま）。代わりに、上記6スレッドの指摘すべてを計画へ反映し、6スレッドすべてへ返信した
+  （未返信スレッド 0）。MRへ投稿しなかった「報告のみ」4件も、内容は妥当だったため同じpushで
+  修正し、内訳を worklog へ書き出した。
 
 ## 次にやること
 
-- flow-id 2-2: commit・pushし、計画に対する敵対的レビューを実施する。
-- flow-id 2-6: Q1〜Q6 を実測し `wip/reports/` へ記録する。
+- flow-id 2-5: 調査計画をもとにMR descriptionを更新する。
+- flow-id 2-6: 書き直した検証手順に従って Q1〜Q6 を実測し `wip/reports/` へ記録する
+  （md・htmlの両方）。実施後に作業結果の敵対的レビュー（フェーズ2・2回目）を行う。
 
 ## 判断を迷った内容
 
@@ -93,6 +107,10 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
   （`.claude/rules/git-workflow.md`「ハーネスがPR作成を制限する環境での扱い」と同じ考え方）。
 - **flow-id 1-3 と 1-4 の順序を入れ替えた。** GitHubはコミットが1件も無いブランチに対して
   PRを作成できず、ブランチ作成直後は `origin/main` と同一だったため。
+- **issue #172 は分割しない。** 受け入れ条件は3ディレクトリという同型項目の並列列挙であり、
+  `wip/plans/REVIEW-POINTS.md`「issue分割のトリガー」の判定対象に当たる。各項目は単独で
+  マージされてもシステムが壊れないが、1件あたりの作業が spec/DDR への追記と除外定義1行と極小で、
+  5フェーズを3回まわす固定費のほうが上回るため分割しない。
 - **全体作業計画（flow-id 1-4）単独での敵対的レビューは行わない。**
   `adversarial-review-count.sh` が受け付けるフェーズは 2 / 3 / 4 に限られ、フェーズ1を
   指定すると実行前に弾かれる（実行して確認済み）。全体作業計画は flow-id 2-2 の

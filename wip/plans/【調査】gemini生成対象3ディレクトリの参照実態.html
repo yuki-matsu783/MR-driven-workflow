@@ -115,7 +115,6 @@
       <li><b>ブランチ</b> claude/gemini-exclude-decision-yp5p70</li>
       <li><b>PR</b> #193（Draft）</li>
       <li><b>フェーズ</b> 2〈調査〉 flow-id 2-1</li>
-      <li><b>push回数</b> 2</li>
       <li><b>作成日</b> 2026-08-23</li>
       <li><b>正文</b> 同名の .md</li>
     </ul>
@@ -180,6 +179,7 @@
       <tr><td>設定からの実行</td><td><code>.gemini/settings.json</code> の hook <code>command</code> が指すパス</td></tr>
       <tr><td>ドキュメント間のリンク</td><td><code>.gemini/</code> 配下の md から <code>../</code> 等で辿る相対リンクの解決先</td></tr>
       <tr><td>資産からの呼び出し</td><td><code>.gemini/rules/</code> <code>.gemini/skills/</code> <code>.gemini/agents/</code> の本文が指すスクリプトのパス</td></tr>
+      <tr><td><code>.claude/</code> 側からの名指し</td><td><code>.claude/</code> 配下のスクリプト・spec・テストが <code>.gemini/&lt;サブディレクトリ&gt;/</code> を文字列で指す箇所</td></tr>
     </tbody>
   </table>
   </div>
@@ -209,7 +209,7 @@
     <ul>
       <li><b>判断そのもの（外す／残す）を出すこと。</b> この調査は材料を揃えるまでで、判断はフェーズ3。</li>
       <li><b>Gemini CLI 実機でのロード確認。</b> 実行環境に Gemini CLI が無い（既知の未決定事項）。</li>
-      <li><b><code>.claude/</code> 側の参照の棚卸し。</b> <code>.claude/</code> は常に生成対象の「元」であって、コピー先ではない。</li>
+      <li><b><code>.claude/</code> 配下のドキュメントが <code>.claude/</code> 自身をどう参照しているかの棚卸し。</b> これは <code>.gemini/</code> の生成対象の判断に影響しない。<b>一方、<code>.claude/</code> 側から <code>.gemini/</code> のサブディレクトリを名指ししている記述は調査対象に含める</b>（「元である」ことと「<code>.gemini/</code> のパスを参照していない」ことは別である。実際に <code>check-doc-references.sh</code> の除外定義・同 spec の表・<code>test_search_frontmatter.sh</code> のアサーションが <code>.gemini/scripts/</code> <code>.gemini/docs/</code> を名指ししており、これらは「除外したときに何が壊れるか」に直接効く）。</li>
       <li><b>変換規則</b>（agents frontmatter・settings.json のキー対応）の点検。</li>
     </ul>
   </div>
@@ -217,18 +217,36 @@
 
 <section id="verify">
   <h2>検証</h2>
-  <p>各Qのグレップは、対照とセットで実行して結果へ併記する（下記は Q2 の例）。</p>
-  <pre><code>grep -rIn --include='*.md' -e '\.gemini/scripts/' .claude .gemini | wc -l
-grep -rIn --include='*.md' -e '\.claude/scripts/' .claude .gemini | wc -l   # 対照（非0であること）
-
-# Q6 の実測
+  <p><b>探索は md に限定せず、リポジトリ全体を対象にする</b>（<code>.sh</code>・<code>.json</code> にも参照がある）。<b>件数は <code>.gemini/</code> を除いた「元」の側で数え、<code>.gemini/</code> 側は別カウントとして併記する</b>（<code>.gemini/</code> は <code>.claude/</code> の逐語コピーなので、同時に探索すると同じ1つの参照が2件になる）。</p>
+  <pre><code># Q1/Q2: リポジトリ全体（.gemini/ を除く「元」の側）で数える
+grep -rIn -e '\.gemini/scripts/' . \
+  --exclude-dir=.git --exclude-dir=.gemini --exclude-dir=wip --exclude-dir=usage | wc -l
+# 対照（同じ形で非0が返ること。0なら探し方が壊れている）
+grep -rIn -e '\.claude/scripts/' . \
+  --exclude-dir=.git --exclude-dir=.gemini --exclude-dir=wip --exclude-dir=usage | wc -l
+# .gemini/ 側の複製は別カウントで併記する
+grep -rIn -e '\.gemini/scripts/' .gemini | wc -l</code></pre>
+  <div class="box stop">
+    <span class="label">Q3/Q4 はリテラル文字列のgrepでは測れない</span>
+    <code>.gemini/</code> 配下のリンクは <code>.claude/</code> の逐語コピーゆえ <code>](../docs/spec/x.md)</code> の形で書かれ、文字列 <code>.gemini/docs/</code> としては現れない。リテラル一致で数えると <b>0件と出たうえに、対照（<code>.claude/docs/</code>）は非0を返す</b>ため、合格条件を満たしたまま「docs/ を外してもリンクは切れない」という誤った結論に到達できる。そこで<b>リンクを抽出して解決先を正規化し、接頭辞で判定する</b>。
+  </div>
+  <pre><code># 各 md のディレクトリを基準に相対リンクを解決し、解決先が .gemini/&lt;対象&gt;/ に入るものを数える
+grep -rIno --include='*.md' -e '](\.\./[^)]*)' .gemini |
+  while IFS= read -r hit; do
+    src="${hit%%:*}"; rest="${hit#*:}"; link="${rest#*:}"; link="${link#](}"; link="${link%)}"
+    printf '%s\t%s\n' "$src" "$(realpath -m --relative-to=. "$(dirname "$src")/${link%%#*}")"
+  done | awk -F'\t' '{print $2}' | grep -c '^\.gemini/docs/'
+# 対照: 解決した結果が非0になること（0なら抽出・正規化のどこかが壊れている）</code></pre>
+  <p><b>Q4 は「除外後も残るファイルから、除外されるファイルへ向かうリンク」だけを数える。</b> 除外対象の内部で完結するリンク（<code>.gemini/docs/</code> 内の docs→docs）は、リンク元ごと消えるため切れリンクにならない。両者を混ぜると件数が一桁変わる。</p>
+  <pre><code># Q6 の実測
 find .gemini/hooks .gemini/scripts .gemini/docs -type f | wc -l
-du -sb .gemini/hooks .gemini/scripts .gemini/docs
+for p in .gemini/hooks .gemini/scripts .gemini/docs .gemini; do du -sb "$p"; done   # 個別に測る
 time bash .claude/scripts/src/sync-gemini-assets.sh --check</code></pre>
   <p>合格条件:</p>
   <ul>
     <li>Q1〜Q4 に<b>件数で</b>答えられている（「無い」ではなく「0件である」）。</li>
-    <li>0件と答えた問いには、<b>同じパターンで非0件が返る対照</b>が併記されている。</li>
+    <li>0件と答えた問いには、<b>同じ探し方で非0件が返る対照</b>が併記されている。リテラル一致で測れない問い（Q3/Q4）では、対照も<b>解決後の件数</b>で取る。</li>
+    <li>Q1/Q2 の件数が、<code>.gemini/</code> の複製を二重計上していない（「元」の側と <code>.gemini/</code> 側を分けている）。</li>
     <li>3ディレクトリそれぞれについて「外す／残す」の判断材料（Gemini CLI が読むか・リンクが切れるか・除外時に何が壊れるか）が揃っている。</li>
   </ul>
 </section>

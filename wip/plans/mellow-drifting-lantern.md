@@ -8,6 +8,11 @@ keywords: [gemini, 生成対象, hooks, scripts, docs, 相対リンク, sync-gem
 
 # 全体作業計画 — .gemini/ の生成対象からhooks/ scripts/ docs/を外すかを判断する（issue #172）
 
+> **この全体作業計画は planツール（Planモード）で作っていない。** 非対話セッションで、既にPlanモードを
+> 抜けた状態から着手したためハーネスからの自動命名の提示が無く、ファイル名（`mellow-drifting-lantern`）は
+> 命名規則に沿ってAIが付けた。`.claude/rules/agent-common.md`・`references/planning.md` からの逸脱
+> なので、その事実をここへ残す（`HANDOFF.md` は flow-id 5-5 でリセットされ、この記録が消えるため）。
+
 ## この計画で何をするか
 
 `.gemini/hooks/` `.gemini/scripts/` `.gemini/docs/` の3ディレクトリそれぞれについて、
@@ -39,6 +44,12 @@ keywords: [gemini, 生成対象, hooks, scripts, docs, 相対リンク, sync-gem
 （hooks/ scripts/ は使われない、docs/ は外すとリンクが切れうる）は仮説として扱い、
 フェーズ2で件数付きで検証してから採否を決める。
 
+**issueは分割しない。** 受け入れ条件は3ディレクトリという同型項目の並列列挙であり、各項目は
+単独でマージされてもシステムが壊れない（1件あたりの作業は spec/DDR への追記と除外定義1行）。
+`wip/plans/REVIEW-POINTS.md`「issue分割のトリガー」に照らして判定した結果、
+**1件あたりの本体が極小で、5フェーズを3回まわす固定費のほうが上回る**ため分割しない
+（`references/planning.md`「分割しない条件」の「分割コストが本体を上回る」に該当）。
+
 ## フェーズ2〈調査〉
 
 次の問いに答える。いずれも**件数を伴う形**で答えること（「無い」ではなく「0件である」）。
@@ -53,8 +64,11 @@ keywords: [gemini, 生成対象, hooks, scripts, docs, 相対リンク, sync-gem
   （hooks/ scripts/ を外したときの影響も、docs/ と同じ尺度で数える）。
 - Q5: 除外を実装する場合、`COPY_EXCLUDED_PREFIXES` の現在の意味論（完全一致）で足りるか、
   接頭辞一致への拡張が要るか。既存テストのどれが影響を受けるか。
-- Q6: 除外は誰の負担を減らすか（リポジトリサイズ・`--check` の所要時間・配布物のサイズ）。
-  現状の実測値はどれくらいか。
+- Q6: 除外は何をどれだけ減らすか（`.gemini/` のファイル数・バイト数、`--check` の所要時間）。
+  現状の実測値はどれくらいか。**「配布物のサイズ」は減らない**——`.claude/dist-layers.json` は
+  `.gemini` を `layer: exclude` と定義しており、`.gemini/` はそもそも配られない（配布先で
+  `install-to-project.sh` が `sync-gemini-assets.sh` を実行して生成する）。減るのは
+  **配布先で生成される `.gemini/` のサイズ**であって、配布物のサイズとは別物である。
 
 **次へ進める条件**: Q1〜Q4 に件数で答えられ、3ディレクトリそれぞれについて
 「外す／残す」の判断材料が揃っていること。
@@ -68,6 +82,11 @@ keywords: [gemini, 生成対象, hooks, scripts, docs, 相対リンク, sync-gem
 - `.claude/docs/README.md` — DDR一覧の再生成（`generate-ddr-list.sh`）
 - AIアセット（`.claude/rules/directory-structure.md` の `.gemini/` の説明など）— 除外する判断を
   した場合、`.gemini/` の構成の記述が古くならないか確認する
+- `.claude/scripts/src/check-doc-references.sh` と `.claude/docs/spec/check-doc-references.md` —
+  `.gemini/scripts/` を外す判断をした場合、`CHECK_DOC_REFERENCES_EXCLUDED_DIRS` の
+  `".gemini/scripts/test/"` と同 spec の除外表が**存在しないディレクトリを指す死んだ設定**になる
+- `.claude/scripts/test/test_search_frontmatter.sh` — `.gemini/docs/…` を引数に取るアサーションが
+  あるため、除外する判断をした場合に影響が無いかを確認する
 
 ## やらないこと（スコープ外）
 
@@ -86,8 +105,12 @@ issue全体として、次がすべて満たせたら完了とする。
 - `bash .claude/scripts/src/sync-gemini-assets.sh --check` が終了コード0
 - `bash .claude/scripts/test/test_sync_gemini_assets.sh` が `passed=N failures=0`
 - 3ディレクトリそれぞれについて、判断と理由が `.claude/docs/spec/sync-gemini-assets.md` にある
-- 外す判断をしたディレクトリについて、`.gemini/` 側だけで完結していた相対リンクが切れて
-  いないことを**件数付きで**確認している
+- 外す判断をしたディレクトリについて、**切れる相対リンクの件数と、その扱い（許容する／リンクを
+  書き換える／外さない）**が記録されている。**「1件も切れてはならない」とは読まない**——
+  `.gemini/rules/` から `../docs/` へ向かうリンクだけで実測17件あり、その読み方だと
+  「docs/ を外す」という結論だけが検証条件によって先に封じられ、「3ディレクトリを1つずつ
+  独立に結論を出す」という方針と噛み合わなくなるため（issue #172 の受け入れ条件
+  「相対リンクが切れていないことを件数付きで確認している」の解釈を、ここで1つに固定する）
 
 ## issueの受け入れ条件との対応
 
