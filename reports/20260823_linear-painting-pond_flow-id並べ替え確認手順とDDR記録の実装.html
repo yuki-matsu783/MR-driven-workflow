@@ -94,7 +94,7 @@
   <div class="inner">
     <div class="kind">作業結果レポート / フェーズ3</div>
     <h1>flow-id並べ替え確認手順とDDR記録の実装</h1>
-    <p class="lead">個別作業計画どおりに、SKILL.mdへ確認手順の節を追記し、新規DDR i0143-01を作成した。すべての検証項目を件数ベースで確認済み。</p>
+    <p class="lead">個別作業計画どおりに、SKILL.mdへ確認手順の節を追記し、新規DDR i0143-01を作成した。敵対的レビュー2回目で見出しレベル・検証コマンドの不備が見つかり、修正済み。</p>
     <ul class="meta">
       <li><b>issue</b> #143</li>
       <li><b>ブランチ</b> claude/docs-workflow-reports-timing-4gfc5v</li>
@@ -130,7 +130,7 @@
       <tr><td>1</td><td>SKILL.mdへ確認手順の節を追記</td><td><b>完了</b>。計画で決めた挿入位置・本文案どおりに追記</td></tr>
       <tr><td>2</td><td>新規DDR <code>i0143-01</code> を作成</td><td><b>完了</b>。繰り下げ実例（3段階）・採否理由を記録</td></tr>
       <tr><td>3</td><td>DDR一覧の再生成</td><td><b>完了</b>。<code>i0143-01</code>の反映を件数で確認</td></tr>
-      <tr><td>4</td><td>「変更しない」ファイルの検証</td><td><b>完了</b>。分岐点固定diffで削除行0件を確認</td></tr>
+      <tr><td>4</td><td>「変更しない」ファイルの検証</td><td><b>完了</b>。<code>.claude/</code>全体を対象にした<code>git diff --numstat</code>で削除行0件を確認（当初の方法の盲点は敵対的レビュー2回目で指摘され修正）</td></tr>
     </tbody>
   </table>
   </div>
@@ -152,13 +152,15 @@
 
   <h3>1. SKILL.mdへ確認手順の節を追記</h3>
   <p><code>.claude/skills/issue-mr-flow/SKILL.md</code>の「敵対的レビューの位置づけ」節の直後、
-  <code>## サブコマンド</code>見出しの直前へ新見出し
-  <code>### flow-idを並べ替える・挿入する作業を行う場合（issue #143）</code>を追加した。
-  本文は計画のドラフトをそのまま採用し、4点の確認手順を記載した。挿入位置の前後を目視確認し、
-  直前の段落が新しい節へかかって読める状態になっていないことを確認した。</p>
+  <code>## サブコマンド</code>見出しの直前へ新見出しを追加した。本文は計画のドラフトをそのまま
+  採用し、4点の確認手順を記載した。</p>
+  <p><b>見出しレベルは当初<code>###</code>で追加したが、直前の「敵対的レビューの位置づけ」節の
+  サブ節として扱われてしまい章立てが実態と食い違ったため、<code>##</code>へ修正した。</b>
+  修正後、挿入位置の前後を再確認し、直前の段落が新しい節へかかって読める状態になっていないことを
+  確認した。</p>
   <div class="box ok">
     <span class="label">結論</span>
-    計画どおりの位置・内容で追記できた。
+    計画どおりの位置・内容で追記できた（見出しレベルは実装時の不備を修正済み）。
   </div>
 
   <h3>2. 新規DDR i0143-01 の作成</h3>
@@ -184,13 +186,20 @@ $ grep -c -- 'i0143-01' .claude/docs/README.md
   </div>
 
   <h3>4. 「変更しない」と宣言したファイルの検証</h3>
-  <pre><code>$ git diff 0aa9874d18032a9a85d5bc98075511fa11ce0cc3 -- .claude/docs/spec/ .claude/docs/ddr/ \
-    | grep -c '^-[^-]'
-0</code></pre>
+  <p>当初<code>git diff &lt;分岐点SHA&gt; -- .claude/docs/spec/ .claude/docs/ddr/ | grep -c '^-[^-]'</code>
+  で検証したが、敵対的レビュー2回目で2つの不備が指摘された。(a) <code>docs-workflow.md</code>の
+  実体は<code>.claude/rules/</code>配下にあり、元のコマンドはその本体を検証していなかった。
+  (b) <code>grep -c '^-[^-]'</code>は削除された箇条書き行・空行を検出できない盲点があった
+  （合成diffによる自己検証で確認）。指摘を受け、走査範囲を<code>.claude/</code>全体へ広げ、
+  検出方法を<code>git diff --numstat</code>の削除列へ置き換えた。</p>
+  <pre><code>$ git diff --numstat 0aa9874d18032a9a85d5bc98075511fa11ce0cc3 -- .claude/
+1	0	.claude/docs/README.md
+122	0	.claude/docs/ddr/i0143-01-flow-id並べ替え時の確認手順をSKILL.mdへ明記しDDRで記録する.md
+43	0	.claude/skills/issue-mr-flow/SKILL.md</code></pre>
   <div class="box ok">
     <span class="label">結論</span>
-    受け入れ条件(3)を満たしている。<code>docs-workflow.md</code>本体・過去changelog・DDR本文への
-    意図しない変更は無い。
+    受け入れ条件(3)を満たしている。<code>.claude/</code>配下（<code>docs-workflow.md</code>本体を
+    含む）・過去changelog・DDR本文への意図しない変更は無い。
   </div>
 </section>
 
@@ -201,8 +210,10 @@ $ grep -c -- 'i0143-01' .claude/docs/README.md
     <ul>
       <li>追記したSKILL.mdの節の実効性（次に実際にflow-idを並べ替える作業者が、この手順に沿って
       確認を行うかどうか）は、次の並べ替え作業が発生するまで確認できない。</li>
-      <li><code>origin/main</code>取り込み後（flow-id 5-1）の再確認は、この時点ではまだ実施して
-      いない（計画に明記済みで、flow-id 5-1で実施する）。</li>
+      <li><code>origin/main</code>取り込み後の再確認は、この時点ではまだ実施していない。トリガーを
+      flow-id 5-1に限定しないよう敵対的レビュー2回目で指摘を受けた（<code>hasConflict</code>が偽の
+      場合5-1は取り込みを行わずそのまま5-2へ進むため）。実施タイミングは「ベースブランチ追従確認
+      （start/resume/sync）または5-1のいずれかでorigin/mainを取り込んだ直後」と修正した。</li>
     </ul>
   </div>
 </section>
@@ -219,7 +230,7 @@ $ grep -c -- 'i0143-01' .claude/docs/README.md
   <table>
     <thead><tr><th>計画時の見込み</th><th>実際</th><th>どう扱ったか</th></tr></thead>
     <tbody>
-      <tr><td>SKILL.mdの本文案・挿入位置は計画レビューで確定済みだった</td><td>実装時に修正は不要だった（計画どおり適用できた）</td><td>計画のレビュー往復で十分な精度に達していたことを確認できた</td></tr>
+      <tr><td>SKILL.mdの本文案・挿入位置は計画レビューで確定済みだった</td><td>本文・挿入位置自体は計画どおり適用できたが、計画に無かった実装固有の不備（見出しレベル・検証コマンドのスコープ不足と検出漏れ）が敵対的レビュー2回目で見つかった</td><td>計画レビューは文面の妥当性を検証するが、実装時の機械的な作業の正しさまでは保証しないと分かった。敵対的レビュー2回目でいずれも修正した</td></tr>
     </tbody>
   </table>
   </div>
@@ -228,8 +239,9 @@ $ grep -c -- 'i0143-01' .claude/docs/README.md
 <section id="todo">
   <h2>残課題</h2>
   <ul>
-    <li>flow-id 5-1でのorigin/main取り込み後、本ブランチが追加・変更した全記述のflow-id番号を
-    再確認する（計画の検証節・受け入れ条件(1)対応状況に明記済み）。</li>
+    <li>ベースブランチ追従確認（start/resume/sync）または flow-id 5-1 のいずれかでorigin/mainを
+    取り込んだ直後、本ブランチが追加・変更した全記述のflow-id番号を再確認する（計画の検証節・
+    受け入れ条件(1)対応状況に明記済み。トリガーの表現は敵対的レビュー2回目の指摘を受けて修正した）。</li>
   </ul>
 </section>
 
