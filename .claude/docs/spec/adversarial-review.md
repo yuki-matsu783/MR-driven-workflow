@@ -97,9 +97,11 @@ bash .claude/scripts/src/adversarial-review-count.sh reset              # 人間
 ```
 
 - `<phase>` は issue-mr-flow のフェーズ番号（2/3/4）。
-- 状態は `.claude/state/adversarial-review/<ブランチ名>.json` に `{"2":N,"3":N,"4":N}` で持つ。
-  ブランチ名の `/` は `__` へ置換する。`.claude/state/` は `.gitignore` 対象のローカル作業状態で、
+- 状態は `wip/state/adversarial-review/<ブランチ名>.json` に `{"2":N,"3":N,"4":N}` で持つ。
+  ブランチ名の `/` は `__` へ置換する。`wip/state/` は `.gitignore` 対象のローカル作業状態で、
   ブランチ単位のため、ブランチを削除すれば自然に消える（`usage/` とは責務が異なるため混ぜない）。
+  **issue #184 以前は `.claude/state/adversarial-review/` だった**（`.claude/` を配布資産だけに
+  するため `wip/` 配下へ移した。DDR `i0184-01`）。
 - **加算は「レビュー実行の直後・投稿の前」に、投稿の成否に関わらず行う**（失敗を口実に無限
   リトライできないようにするため）。
 - 状態ファイルが空・壊れたJSONの場合は「状態なし」（`{}`）へフォールバックする。空文字列の判定を

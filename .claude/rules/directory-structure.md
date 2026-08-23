@@ -77,7 +77,7 @@ keywords: [ディレクトリ構成, claude, gemini, 配置方針, plans, worklo
 └── REVIEW-POINTS.md            # リポジトリ全体に適用するレビュー観点
 ```
 
-`reports/`・`usage/`・`.claude/state/`は、いずれもワークフロー実行中に動的に作成されるディレクトリの
+`reports/`・`usage/`・`wip/state/`は、いずれもワークフロー実行中に動的に作成されるディレクトリの
 ため、初期スケルトンには含まれない（作成・削除のタイミングは `.claude/rules/docs-workflow.md`・
 `.claude/skills/issue-mr-flow/SKILL.md` を参照）。
 
@@ -116,10 +116,27 @@ issue #97。ブランチ別に持つと、同じセッションのままブラ�
 `.claude/docs/spec/otel-listener.md`）。こちらもワークフロー実行中に動的に作成されるファイルで、
 `/usage/`の`.gitignore`対象に含まれる。
 
-`.claude/state/`は`post-push-compact-prompt.sh`がレビュー依頼メッセージの参照リンク組み立てに使う、
-前回push時点のHEAD SHAのローカル作業状態で、`.gitignore`対象（`/.claude/state/`）。責務分離のため
-`usage/`とは別ディレクトリにしている（詳細: `.claude/docs/spec/issue-mr-workflow.md`
-「/compact実施の呼びかけ」節、`.claude/docs/ddr/i0013-01-レビュー依頼メッセージの参照リンクは前回pushSHAをローカル状態で保持して組み立てる.md`）。
+`wip/state/`はワークフローのローカル作業状態で、`.gitignore`対象（`/wip/state/`）。内訳は
+`wip/state/review-links/<branch>.txt`（`post-push-compact-prompt.sh`がレビュー依頼メッセージの
+参照リンク組み立てに使う、前回push時点のHEAD SHA）と
+`wip/state/adversarial-review/<branch>.json`（`adversarial-review-count.sh`が持つ敵対的レビューの
+実行回数）。責務分離のため`usage/`とは別ディレクトリにしている（詳細:
+`.claude/docs/spec/issue-mr-workflow.md`「/compact実施の呼びかけ」節、
+`.claude/docs/spec/adversarial-review.md`、
+`.claude/docs/ddr/i0013-01-レビュー依頼メッセージの参照リンクは前回pushSHAをローカル状態で保持して組み立てる.md`）。
+
+**issue #184 以前、この状態は`.claude/state/`に置かれていた。** `.claude/`は配布単位
+（`apply-mr-workflow-to-project`が`.claude/`一式を配る）であり、その中に配布先のローカル状態が
+同居していると、配布・変換同期のたびに除外の設定が要る。`wip/`（issue #165 が
+`plans/` `worklog/` `reports/`の集約先として定義する、mainに残らない作業用の親ディレクトリ）へ
+出すことで、`.claude/`を「配る資産だけ」にした（詳細:
+`.claude/docs/ddr/i0184-01-ワークフローのローカル作業状態はwip配下へ移し旧パスのignoreを移行用に残す.md`）。
+`.gitignore`には旧パス`/.claude/state/`の行も**移行用の名残**として残っている（既存の作業ツリーに
+残る状態ファイルが追跡対象に現れないようにするため。手元の`.claude/state/`を消したあとであれば
+削除してよい）。
+
+**`.gitignore`のパターンを`/wip/`へ広げてはいけない。** issue #165 が`wip/`配下へ置く
+`plans` `worklogs` `reports`は**追跡対象**であり、丸ごと無視される。
 
 ## 配置の指針
 
