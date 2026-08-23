@@ -89,6 +89,7 @@
   .box .label { font-size: 12px; font-weight: 700; letter-spacing: .06em; display: block; margin-bottom: 4px; }
   .box.ok { border-color: var(--ok); background: var(--ok-soft); } .box.ok .label { color: var(--ok); }
   .box.warn { border-color: var(--warn); background: var(--warn-soft); } .box.warn .label { color: var(--warn); }
+  .box.stop { border-color: var(--stop); background: var(--stop-soft); } .box.stop .label { color: var(--stop); }
   .box.info .label { color: var(--accent); }
 
   footer { color: var(--muted); font-size: 13px; text-align: center; padding-top: 10px; }
@@ -100,13 +101,13 @@
   <div class="inner">
     <div class="kind">個別反映計画 / フェーズ4</div>
     <h1>【設計反映】【AIアセット反映】HTMLスライドスキルのドキュメント反映</h1>
-    <p class="lead">フェーズ2・3で確定した意思決定と成果物を、永続ドキュメント（spec・DDR・rules・index・REVIEW-POINTS）へ反映する。</p>
+    <p class="lead">フェーズ2・3で確定した意思決定と成果物を、永続ドキュメント（spec・DDR・rules・index・REVIEW-POINTS・VERSION）へ反映する。</p>
     <ul class="meta">
       <li><b>issue</b> #168</li>
       <li><b>ブランチ</b> claude/html-slide-skill-template-ymue7k</li>
       <li><b>PR</b> #194</li>
       <li><b>フェーズ</b> 4〈反映〉 flow-id 4-1</li>
-      <li><b>push回数</b> 10</li>
+      <li><b>push回数</b> 12</li>
       <li><b>作成日</b> 2026-08-23</li>
       <li><b>正文</b> 同名の .md</li>
       <li><b>上位計画</b> html-slides-skill-plan.md</li>
@@ -130,35 +131,55 @@
 
 <section id="goal">
   <h2>この計画で何をするか</h2>
-  <p>フェーズ2・3で確定した意思決定と成果物を、永続ドキュメントへ反映する。反映しないと、(1) 出力先・型名の決定理由がwip削除（flow-id 5-5）とともに失われ、(2) <code>directory-structure.md</code>「wip/reports/にはmdとhtmlの2種類」等の既存記述が事実と食い違ったままmainへマージされる。</p>
-  <div class="box info"><span class="label">種別を併記する理由</span>本セッションは非対話であり、フェーズ4内で合意を複数回に分けても人間のレビュー往復を挟めないため、設計反映（spec/DDR）とAIアセット反映（rules/index/REVIEW-POINTS）を1つの計画で合意対象にする。入力は前提調査レポート（Q4・Q7）・AIアセット作成結果レポート（「設計への反映」）・worklog 2本。</div>
+  <p>フェーズ2・3で確定した意思決定と成果物を、永続ドキュメントへ反映する。反映しないと、(1) 出力先・型名の決定理由がwip削除（flow-id 5-5）とともに失われ、(2) 「wip/reports/にはmdとhtmlの2種類」等の既存記述（5ファイルにある）が事実と食い違ったままmainへマージされ、(3) 配布対象アセットを追加したのに <code>.claude/VERSION</code> が無言で据え置かれる。</p>
+  <div class="box info"><span class="label">種別を併記する理由</span>分ける場合の基準（評価軸の混在。<code>references/planning.md</code>）に照らして判断した。本計画の【AIアセット反映】は洗い出しの結果1件で、その追記内容は【設計反映】側で確定する契約・経緯（調査結論の転記の忠実さ）に従属しており、単独でレビューしても評価軸が変わらない。分けると個別計画・レポート・レビュー往復が1件のために倍になるため併記した（レビューで一部差し戻しになった場合は、その時点でファイルを分割する）。入力は前提調査レポート（Q4・Q7）・AIアセット作成結果レポート・worklog 3本・PR #194 のレビュー往復（計38スレッド）。</div>
 </section>
 
 <section id="target">
   <h2>変更対象</h2>
-  <h3>設計反映（spec・DDR）</h3>
+  <h3>設計反映（spec・DDR・配布版数と、主成果物に付随する既存ドキュメントの整合）</h3>
+  <p>新スキルの追加に伴う既存ドキュメントの説明更新（5〜12）は、作業の副産物ではなく<b>主たる成果物に付随する整合作業</b>のため、【AIアセット反映】（副産物限定）ではなくこちらに含める。</p>
   <div class="tablewrap">
   <table>
     <thead><tr><th>#</th><th>ファイル</th><th>内容</th></tr></thead>
     <tbody>
-      <tr><td>1</td><td><code>.claude/docs/spec/html-slides.md</code>（新設）</td><td>html-slidesスキルの正史仕様。背景・目的／仕様（成果物と置き場所・型8種とスキーマ契約・検査群・サブエージェント境界・動的検証の位置づけ）／影響範囲／設定項目（無し）／未決定事項（.pptx書き出し・サブエージェント実運転）</td></tr>
-      <tr><td>2</td><td><code>.claude/docs/ddr/i0168-01-スライドの出力先はwip-reports既定とし恒久ディレクトリを新設しない.md</code>（新設）</td><td>出力先の意思決定。却下案: 恒久ディレクトリ新設・.gitignore対象ローカル（調査Q4の比較表が根拠）</td></tr>
+      <tr><td>1</td><td><code>.claude/docs/spec/html-slides.md</code>（新設）</td><td>html-slidesスキルの正史仕様。背景・目的／仕様（成果物と置き場所・型8種とスキーマ契約・検査群・サブエージェント境界・動的検証の位置づけ）／影響範囲／設定項目（無し）／未決定事項（.pptx書き出し・サブエージェント実運転）。「検査対象の文字列をテンプレートのコメント・説明文へ書くと検査が誤検知する」（検証2の9件事例）も仕様の注意として記録する</td></tr>
+      <tr><td>2</td><td><code>.claude/docs/ddr/i0168-01-スライドの出力先はwip-reports既定とし恒久ディレクトリを新設しない.md</code>（新設）</td><td>出力先の意思決定。却下案: 恒久ディレクトリ新設・.gitignore対象ローカル（調査Q4の比較表が根拠。DDR単独で読める分量まで書き写す）</td></tr>
       <tr><td>3</td><td><code>.claude/docs/ddr/i0168-02-表紙スライドの型名はtitleでなくcoverにする.md</code>（新設）</td><td>型名の意思決定。却下案: 調査Q5素案の <code>title</code>（フィールド名 <code>title</code> との衝突・3箇所同一使用の契約が根拠）</td></tr>
-      <tr><td>4</td><td><code>.claude/docs/README.md</code></td><td><code>generate-ddr-list.sh</code> でDDR一覧を再生成（手書きしない）。spec一覧の節が手書きなら <code>html-slides.md</code> の行を追記</td></tr>
+      <tr><td>4</td><td><code>.claude/docs/README.md</code></td><td>DDR一覧は <code>generate-ddr-list.sh</code> で再生成（手書きしない）。<b>「## spec（機能仕様）」は手書きの一覧</b>なので <code>- [html-slides.md](spec/html-slides.md)</code> の行を追記する（実測: spec実体19件に対し掲載18件で、既に <code>command-position.md</code> の1件が漏れている。この既存の漏れの修正は本タスクと無関係な変更のため<b>対象外</b>とし、反映結果レポートに事実だけを記録する）</td></tr>
+      <tr><td>5</td><td><code>.claude/VERSION</code></td><td><b>MINOR増分を適用する（0.4.0 → 0.5.0）</b>。<code>.claude/skills/html-slides/</code>・<code>.claude/agents/slide-*.md</code> は <code>dist-layers.json</code> の layer=core に含まれる配布対象アセットの追加であり、<code>distribution-assets.md</code> の目安表で MINOR に当たる。非対話セッションでAIが増分を適用するため、適用した事実と根拠を <code>.claude/docs/spec/html-slides.md</code> のchangelogと <code>HANDOFF.md</code>「判断を迷った内容」の両方へ残す（同specの定めどおり）</td></tr>
+      <tr><td>6</td><td><code>.claude/rules/directory-structure.md</code></td><td>ツリーへ <code>skills/html-slides/</code>（<code>assets/</code>・<code>references/</code> の内訳）と agents 2本の追記。「<code>wip/reports/</code> には<b>mdとhtmlの2種類</b>を置く」の段落へ <code>.slides.html</code>・<code>.slides.json</code>（スキル成果物。対応mdを持たない）を追記</td></tr>
+      <tr><td>7</td><td><code>.claude/rules/docs-workflow.md</code></td><td>ライフサイクル表の <code>wip/reports/</code> 関連行の近くへ、<code>wip/reports/*.slides.html</code>＋<code>.slides.json</code>（html-slidesスキルの成果物。寿命は他のreports成果物と同じ、flow-id 5-5で削除）を追記</td></tr>
+      <tr><td>8</td><td><code>.claude/skills/issue-mr-flow/references/deliverables.md</code></td><td>「<code>wip/plans/</code> <code>wip/reports/</code> のいずれにも、mdとHTMLを併存させる」の節へ、<code>*.slides.html</code>/<code>*.slides.json</code> は例外（対応mdを持たない対のスキル成果物）である旨を追記。docs-workflow.md・directory-structure.md が「詳細はこれが正」と指す参照先のため、ここを直さないと正の側が古いまま残る</td></tr>
+      <tr><td>9</td><td><code>index.md</code>（Repository Map）</td><td>スキル列挙へ <code>/html-slides</code> を追加。<code>.claude/agents/</code> の説明をスライド用2本を含む記述へ更新。<code>wip/reports/</code> の説明へ <code>.slides.*</code> の例外を追記</td></tr>
+      <tr><td>10</td><td><code>.claude/docs/spec/issue-mr-workflow.md</code></td><td>「計画・レポートのHTMLビュー」節（<b>現在の状態を述べる節</b>）へ <code>.slides.*</code> の例外を追記する。<b>changelog（過去issueごとの記録）は書き換えない</b>。この1点に限り「既存specの本文変更をしない」の例外とする</td></tr>
+      <tr><td>11</td><td><code>.claude/rules/markdown-frontmatter.md</code></td><td>「HTMLビューは対象外」節のテンプレート本体の列挙へ <code>.claude/skills/html-slides/assets/slides.template.html</code> を追記（調査Q7は「変更不要」と結論したが、この節はパスを明示列挙する形式のため、新設テンプレートが列挙から漏れる。差分理由を反映結果レポートへ記録する）</td></tr>
+      <tr><td>12</td><td><code>wip/reports/REVIEW-POINTS.md</code></td><td>適用範囲の注記を追加: <code>*.slides.html</code>・<code>*.slides.json</code> はスライド成果物であり、reports.template.html 前提の観点（結論カード・md同期等）は適用しない。スライドへ適用する検査は <code>.claude/skills/html-slides/SKILL.md</code> 手順5・6が正</td></tr>
+      <tr><td>13</td><td><code>.claude/docs/usecase/*.md</code>（8本）</td><td>影響確認のみ（flow-id 4-6 の定め）。html-slidesに触れるべき既存記述・リンク切れが無いかを確認し、影響があれば更新、無ければ「影響なし」を反映結果レポートへ件数付きで記録</td></tr>
     </tbody>
   </table>
   </div>
-  <div class="box warn"><span class="label">新規specの承認</span>新規spec作成は本来「人間承認が必須」（docs-workflow.md）。非対話セッションのため、ユーザーの当初指示を包括承認として作成し、レビュー依頼（敵対的レビュー＋PR description）で明示する。DDRの識別子は issue #168 → <code>i0168-01</code>・<code>i0168-02</code>（4桁ゼロ埋め・枝番01から）。</div>
-  <h3>AIアセット反映（既存ドキュメントへの追記。調査Q7の5点）</h3>
+  <div class="box warn"><span class="label">新規specの承認・DDR識別子</span>新規spec作成は本来「人間承認が必須」（docs-workflow.md）。非対話セッションのため、ユーザーの当初指示を包括承認として作成し、レビュー依頼（敵対的レビュー＋PR description）で明示する。DDRの識別子は issue #168 → <code>i0168-01</code>・<code>i0168-02</code>（4桁ゼロ埋め・枝番01から）。</div>
+
+  <h3>AIアセット反映（副産物の洗い出し。planning.md 手順1〜3を実施済み）</h3>
+  <p><b>手順1（起点の列挙）</b>: worklog 3本の「ダメだったこと」・reports 2本の「想定と異なった点／確かめられなかったこと／残課題／重点レビュー依頼」・PR #194 のレビュー往復（フェーズ2: 15スレッド、フェーズ3: 17スレッド、フェーズ4: 6スレッド）を走査し、<b>候補4件</b>を列挙した。</p>
+  <p><b>手順2（4類型への分類）と手順3（痕跡の確認）</b>:</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>候補</th><th>分類</th><th>判断根拠</th></tr></thead>
+    <tbody>
+      <tr><td>(1) 調査結論を計画へ転記する際に独自に変えてしまった（cover/title不一致・metaの平坦化。フェーズ3計画初版とレポートの「Q5準拠」過小表現で<b>同一MR内2回</b>）</td><td><b>(c) 追記</b></td><td>痕跡確認: <code>doc-search --text '転記'</code> → matched=0、<code>grep -rn '転記\|そのまま引用' .claude/rules .claude/skills/issue-mr-flow/references</code> → 該当0件（2段判定）。既存アセットにこの罠の記述は無い</td></tr>
+      <tr><td>(2) 「異常が無ければ何も出ない検査」の空振り（重複ID検査）</td><td>反映対象ではない</td><td>既存記述あり（<code>shell-script-style.md</code>「テスト」節・ルート <code>REVIEW-POINTS.md</code>）。敵対的レビューがその観点で検出しており、<b>アセットは機能した</b></td></tr>
+      <tr><td>(3) 検証2がテンプレート冒頭コメントの記法例を数えて9件になった</td><td>反映対象ではない（設計反映側で記録）</td><td>スキル固有の注意であり、新設spec（変更対象1）の仕様の注意として記録する</td></tr>
+      <tr><td>(4) <code>adversarial-review-count.sh increment</code> へフェーズ番号でなく上限値を渡した実行ミス</td><td>反映対象ではない</td><td>スクリプトヘッダ・SKILLの用例はいずれも <code>increment &lt;phase&gt;</code> と正しく記載済み（アセットは正しく、参照を怠った1回きりの実行ミス）</td></tr>
+    </tbody>
+  </table>
+  </div>
   <div class="tablewrap">
   <table>
     <thead><tr><th>#</th><th>ファイル</th><th>内容</th></tr></thead>
     <tbody>
-      <tr><td>5</td><td><code>.claude/rules/directory-structure.md</code></td><td>ツリーへ <code>skills/html-slides/</code>（<code>assets/</code>・<code>references/</code> の内訳）と agents 2本の追記。「<code>wip/reports/</code> には<b>mdとhtmlの2種類</b>を置く」の段落へ <code>.slides.html</code>・<code>.slides.json</code>（スキル成果物。対応mdを持たない）を追記</td></tr>
-      <tr><td>6</td><td><code>.claude/rules/docs-workflow.md</code></td><td>ライフサイクル表の <code>wip/reports/</code> 関連行の近くへ、<code>wip/reports/*.slides.html</code>＋<code>.slides.json</code>（html-slidesスキルの成果物。寿命は他のreports成果物と同じ、flow-id 5-5で削除）を追記</td></tr>
-      <tr><td>7</td><td><code>index.md</code>（Repository Map）</td><td>スキル列挙へ <code>/html-slides</code> を追加。<code>.claude/agents/</code> の説明（現状「issue-mr-flow途中引き継ぎ用」）をスライド用2本を含む記述へ更新</td></tr>
-      <tr><td>8</td><td><code>wip/reports/REVIEW-POINTS.md</code></td><td>適用範囲の注記を追加: <code>*.slides.html</code>・<code>*.slides.json</code> はスライド成果物であり、reports.template.html 前提の観点（結論カード・md同期等）は適用しない。スライドへ適用する検査は <code>.claude/skills/html-slides/SKILL.md</code> 手順5・6が正</td></tr>
-      <tr><td>9</td><td><code>.claude/docs/usecase/*.md</code>（8本）</td><td>影響確認のみ（flow-id 4-6 の定め）。html-slidesに触れるべき既存記述・リンク切れが無いかを確認し、影響があれば更新、無ければ「影響なし」を反映結果レポートへ記録</td></tr>
+      <tr><td>14</td><td><code>wip/plans/REVIEW-POINTS.md</code></td><td>候補(1)の(c)追記: 「依拠する調査・レポートの結論を計画へ引くとき、結論の文言をそのまま引用しているか。変える場合は変更点と理由が明示されているか」の観点を追加</td></tr>
     </tbody>
   </table>
   </div>
@@ -167,9 +188,9 @@
 <section id="approach">
   <h2>方針</h2>
   <ul>
-    <li><b>調査・作業の結論を転記するときは文言をそのまま引用し、変える場合は変更点と理由を明示する</b>（フェーズ3のレビューで学んだ再発防止策）。specの契約記述は作業結果レポートの対照表を正とする。</li>
+    <li><b>調査・作業の結論を転記するときは文言をそのまま引用し、変える場合は変更点と理由を明示する</b>（フェーズ3のレビューで学んだ再発防止策。これ自体を変更対象14で観点化する）。specの契約記述は作業結果レポートの対照表を正とする。</li>
     <li>DDRの本文は「検討したが✕✕を採用した」の型で、調査レポートの比較表（Q4・Q5）から根拠を引く。レポートはflow-id 5-5で消えるため、<b>DDR本文が単独で読める分量まで根拠を書き写す</b>。</li>
-    <li>過去の記録（specのchangelog・DDR本文）への機械的一括置換はしない（docs-workflow.mdの制限）。</li>
+    <li>過去の記録（specのchangelog・DDR本文）への機械的一括置換はしない（変更対象10は現在状態の節への追記に限る）。</li>
     <li>frontmatterは <code>markdown-frontmatter.md</code> の規約どおり（spec: type spec / ddr: type ddr）。</li>
     <li>各mdの追記位置は、直前の節の地の文の係り先が変わらない位置を選ぶ（docs-workflow.mdの注意）。</li>
   </ul>
@@ -181,40 +202,60 @@
     <li>.pptx 書き出しの設計・実装（別issue。specの未決定事項として記録するに留める）</li>
     <li><code>.gemini/</code> への変換同期（flow-id 5-3 で実施）</li>
     <li>wip配下の削除・HANDOFFリセット（flow-id 5-5）</li>
-    <li>既存DDR・既存specの本文変更（今回の反映はいずれも新設または追記）</li>
+    <li>既存DDRの本文変更・既存specのchangelog変更（変更対象10の「現在の状態を述べる節への追記」だけを例外として行う）</li>
+    <li><code>.claude/docs/README.md</code> spec一覧の既存の漏れ（<code>command-position.md</code>）の修正（本タスクと無関係な変更のため。事実の記録のみ）</li>
   </ul>
 </section>
 
 <section id="verify">
   <h2>検証</h2>
-  <pre><code># 1. DDR一覧が生成物として更新され、差分がREADMEに限られること
+  <pre><code># 1. DDR一覧の再生成後、作業ツリーの差分が意図したファイルに限られること
+#    （pathspecで絞らず全体を見る。README以外に想定外の差分が無いことを件数と一覧で確認する）
 bash .claude/scripts/src/generate-ddr-list.sh
-git status --porcelain -- .claude/docs/README.md   # 変更が出る（追記後の再実行では出ない）
+git status --porcelain
 
-# 2. ドキュメント参照の破断が無いこと（0件が合格）
+# 2. DDR参照の破断検査（守備範囲は「.claude/docs/ddr/i&lt;番号&gt;-&lt;枝番&gt;-….md という絶対パス形式の
+#    DDR参照」に限られる。相対リンクは検査対象外なので3で別途確かめる）。
+#    基準値: 反映前の現時点では本計画が書く未作成DDRパス2件が検出される（参照切れ数=2）。
+#    反映後に0件へ落ちることをもって合格とする（空振りでないことの確認を兼ねる）
 bash .claude/scripts/src/check-doc-references.sh
 
-# 3. 新設3ファイルが frontmatter インデックスへ載ること（spec 1件・ddr 2件）
+# 3. 新設・更新したmdが張る相対リンクの実在確認（各リンク先で [ -f ] が真）
+for f in .claude/docs/spec/html-slides.md \
+         .claude/docs/ddr/i0168-01-スライドの出力先はwip-reports既定とし恒久ディレクトリを新設しない.md \
+         .claude/docs/ddr/i0168-02-表紙スライドの型名はtitleでなくcoverにする.md; do
+  [ -f "$f" ] &amp;&amp; echo "EXISTS: $f"
+done
+
+# 4. 新設3ファイルが frontmatter インデックスへ載ること（spec 1件・ddr 2件）
 bash .claude/scripts/src/extract-frontmatter.sh .
 grep -c '"concept_id":".claude/docs/spec/html-slides"' .claude/docs/spec/index.jsonl
 grep -cE '"concept_id":".claude/docs/ddr/i0168-0[12]-' .claude/docs/ddr/index.jsonl   # 2
 
-# 4. 追記5点が実際に入っていること（各1件以上）
+# 5. 追記が実際に入っていること（各1件以上）
 grep -c 'html-slides' .claude/rules/directory-structure.md
 grep -c 'slides' .claude/rules/docs-workflow.md
+grep -c 'slides' .claude/skills/issue-mr-flow/references/deliverables.md
 grep -c 'html-slides' index.md
+grep -c 'slides' .claude/rules/markdown-frontmatter.md
 grep -c 'slides' wip/reports/REVIEW-POINTS.md
+grep -c 'slides' wip/plans/REVIEW-POINTS.md
+grep -c '0.5.0' .claude/VERSION   # 1
 
-# 5. 計画・レポートのHTMLビュー機械検査（プレースホルダ0・外部参照2種0件）</code></pre>
-  <div class="box ok"><span class="label">合格条件</span>1〜4がすべて上記のとおり（2は検出0件）。5は md/html 作成のたびに実施。usecase影響確認（対象9）は結果（影響なし／更新内容）を反映結果レポートへ件数付きで記録する。</div>
+# 6. HTMLビューの機械検査（対象: 本計画のhtml、および flow-id 4-6 で作る反映結果レポートのhtml）
+tgt="&lt;対象HTMLのパス&gt;"
+grep -c '&lt;!-- ここに書く' "$tgt"                                     # 0 が合格
+grep -nE "(src|href)=['\"]?(https?:)?//" "$tgt" || echo EXT_REF_NONE  # 0件 が合格
+grep -nE "(url\(|@import[[:space:]]+)['\"]?(https?:)?//" "$tgt" || echo EXT_CSS_NONE  # 0件 が合格</code></pre>
+  <div class="box ok"><span class="label">合格条件</span>1は差分一覧に想定外のファイルが無いこと・2は反映後0件（反映前の基準値2件から減る）・3は3件全てEXISTS・4はspec1件/ddr2件・5は全行1以上・6は md/html 作成のたびに実施し全て合格。usecase影響確認（変更対象13）は結果（影響なし／更新内容）を反映結果レポートへ件数付きで記録する。</div>
 </section>
 
 <section id="human">
   <h2>レビュー依頼で人間に確認してもらう項目</h2>
   <ol>
     <li>新規spec <code>.claude/docs/spec/html-slides.md</code> の新設可否（本来は人間承認必須。包括承認で進めた）</li>
-    <li>DDR 2件の採用理由・却下案の妥当性</li>
-    <li><code>wip/reports/REVIEW-POINTS.md</code> の適用範囲の線引き（スライドへ既存観点を適用しない判断）</li>
+    <li>DDR 2件の採用理由・却下案の妥当性、および <code>.claude/VERSION</code> のMINOR増分（0.4.0→0.5.0）の判断</li>
+    <li><code>wip/reports/REVIEW-POINTS.md</code> の適用範囲の線引き（スライドへ既存観点を適用しない判断）と、変更対象10（既存spec現在状態節への追記を例外とした線引き）</li>
   </ol>
 </section>
 
