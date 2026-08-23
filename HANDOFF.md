@@ -17,7 +17,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - issue: #169
 - ブランチ: `claude/json-to-pptx-export-3g63ea`（ハーネス指定。feature-169-* ではない）
 - PR: #199（Draft。https://github.com/yuki-matsu783/MR-driven-workflow/pull/199 ）
-- push回数: 3
+- push回数: 4
 - 現在のループ: なし
 - 未返信スレッド: 0
 - 追従監視: PR #199 を subscribe_pr_activity で購読（このセッション）
