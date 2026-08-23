@@ -44,6 +44,7 @@ keywords: [正史仕様, 意思決定ログ, ユースケース, 逆引き, issu
 - [リポジトリ内のドキュメントを探す](usecase/リポジトリ内のドキュメントを探す.md) ── 目的のspec・DDR・ルールを素早く見つけたい
 - [対応工数を把握する](usecase/対応工数を把握する.md) ── issue対応にかかった工数を集計したい
 - [この機構を他プロジェクトへ導入する](usecase/この機構を他プロジェクトへ導入する.md) ── 別リポジトリへこのワークフロー一式を入れたい
+- [配布先の改善を本家へ収穫する](usecase/配布先の改善を本家へ収穫する.md) ── 他プロジェクトで改善されたAIアセットを本家へ逆輸入したい
 
 ## spec（機能仕様）
 
@@ -65,6 +66,7 @@ keywords: [正史仕様, 意思決定ログ, ユースケース, 逆引き, issu
 - [gemini-cli-telemetry.md](spec/gemini-cli-telemetry.md) ── Gemini CLI公式テレメトリ機構（outfileへの直接書き出し・バイトオフセットカーソル集計）
 - [sync-gemini-assets.md](spec/sync-gemini-assets.md) ── .claude/ から .gemini/ を生成する変換スクリプト
 - [check-doc-references.md](spec/check-doc-references.md) ── DDR参照切れ検出スクリプト（絶対パス形式のDDR参照が実在するファイルを指しているかを検証）
+- [harvest-from-projects.md](spec/harvest-from-projects.md) ── 収穫（逆輸入）スキルの分析スクリプト（scan/diff/merge3の入出力・分類規則・終了コード）
 
 ## ddr（意思決定ログ）
 
@@ -119,6 +121,8 @@ frontmatter（`status` / `superseded_by` / `note`）だけから決まる。
 - [i0020-01-HANDOFF進捗更新はMarkdownテーブル直接書き換えでループ範囲を一括操作する.md](ddr/i0020-01-HANDOFF進捗更新はMarkdownテーブル直接書き換えでループ範囲を一括操作する.md)（うち「mark-skipで作った不整合は後段のmark-done/add-roundで表面化する」は、issue #140でmark-skip自身がその場で拒否する形へ変更された。詳細はi0140-01）
 - [i0023-01-push断面の全文コピーをやめ行番号インデックスで表現する.md](ddr/i0023-01-push断面の全文コピーをやめ行番号インデックスで表現する.md)（うち「Gemini CLI対応の扱い」は、issue #97でメインセッションのみ集計対象へ変更された。サブエージェントを集計しない部分は引き続き有効。詳細は i0097-05）
 - [i0026-01-AIアセットの配布はmanifest付きの直接コピーとし層はexcludeを含む5つにする.md](ddr/i0026-01-AIアセットの配布はmanifest付きの直接コピーとし層はexcludeを含む5つにする.md)
+- [i0027-01-収穫スキルは読み取り専用分析とissue起票までを出口にする.md](ddr/i0027-01-収穫スキルは読み取り専用分析とissue起票までを出口にする.md)
+- [i0027-02-エラー隔離は条件文脈の外のサブシェルでset-eを掛け直して行う.md](ddr/i0027-02-エラー隔離は条件文脈の外のサブシェルでset-eを掛け直して行う.md)
 - [i0028-01-flow-id5-1の後片付けはスクリプト化しコミットは含めない.md](ddr/i0028-01-flow-id5-1の後片付けはスクリプト化しコミットは含めない.md)（ファイル名の `flow-id5-1` は当時の番号。片付けは issue #112 の並べ替えで 5-3 になり、issue #111 の統括レポート追加で 5-4、issue #70 の変換同期の新設でさらに繰り下がって現在 flow-id 5-5。DDR i0112-01・i0111-01 参照）
 - [i0032-01-GitLab-issueテンプレートは予約名Default.mdを正とし文書側を合わせる.md](ddr/i0032-01-GitLab-issueテンプレートは予約名Default.mdを正とし文書側を合わせる.md)
 - [i0033-01-配布物の版はVERSIONファイル1つで表しCHANGELOGを持たない.md](ddr/i0033-01-配布物の版はVERSIONファイル1つで表しCHANGELOGを持たない.md)
