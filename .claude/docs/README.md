@@ -86,7 +86,7 @@ frontmatter（`status` / `superseded_by` / `note`）だけから決まる。
 - [i0000-08-issue作成は独立スキルとして新設する.md](ddr/i0000-08-issue作成は独立スキルとして新設する.md)
 - [i0000-09-コミットはcommitスキル経由を機構的に強制する.md](ddr/i0000-09-コミットはcommitスキル経由を機構的に強制する.md)（うち「部分一致のため無関係なコマンドも誤ってブロックされる」既知のトレードオフは、issue #53でコマンド位置判定へ置き換えた。詳細はi0053-01）
 - [i0000-10-dev-toolsをAI専用_人間専用に分離する.md](ddr/i0000-10-dev-toolsをAI専用_人間専用に分離する.md)
-- [i0000-11-調査結果のhtml版は自己完結htmlのコミットで作る.md](ddr/i0000-11-調査結果のhtml版は自己完結htmlのコミットで作る.md)（html版を自己完結HTMLのコミットで作るという決定は有効。ただし方式のみ、issue #54 でTailwindCSS CDNから自前CSSへ変わった（根拠(b)の出力トークン量の釣り合いが、テンプレート化により成り立たなくなったため）。詳細は i0054-01）
+- [i0000-11-調査結果のhtml版は自己完結htmlのコミットで作る.md](ddr/i0000-11-調査結果のhtml版は自己完結htmlのコミットで作る.md)（html版を自己完結HTMLのコミットで作るという決定は有効。ただし issue #54 で2点が変わった。(1) 方式がTailwindCSS CDNから自前CSSへ（CDNを推した「出力トークン量と表現力の釣り合い」が、テンプレート化により成り立たなくなったため）。(2) 「テンプレート化は行わない／複数件の運用実績を踏まえてから判断する」という項も、テンプレート2本の新設により覆った。詳細は i0054-01）
 - [i0000-12-frontmatterスクリプトの走査方式にgit-ls-filesを採用する.md](ddr/i0000-12-frontmatterスクリプトの走査方式にgit-ls-filesを採用する.md)
 - [i0000-13-gemini配下はGit管理下に置かずセットアップスクリプトで生成する.md](ddr/i0000-13-gemini配下はGit管理下に置かずセットアップスクリプトで生成する.md)
 - [i0003-01-gemini-settings.jsonのhooksはレビュー提示スニペットのhooksセクションのみ採用する.md](ddr/i0003-01-gemini-settings.jsonのhooksはレビュー提示スニペットのhooksセクションのみ採用する.md)
@@ -146,6 +146,6 @@ frontmatter（`status` / `superseded_by` / `note`）だけから決まる。
 - [i0133-01-DDR識別子はissue番号ベースにし連番採番をやめる.md](ddr/i0133-01-DDR識別子はissue番号ベースにし連番採番をやめる.md)
 - [i0135-01-DDR一覧は生成物にしつつGit管理下へ残す.md](ddr/i0135-01-DDR一覧は生成物にしつつGit管理下へ残す.md)
 - [i0140-01-mark-skipはループ範囲の一部指定を書き換え後の状態で拒否する.md](ddr/i0140-01-mark-skipはループ範囲の一部指定を書き換え後の状態で拒否する.md)
-- [i0141-01-canvasテンプレートはTailwind非依存の自己完結CSSにする.md](ddr/i0141-01-canvasテンプレートはTailwind非依存の自己完結CSSにする.md)（canvas形式をTailwind非依存にした決定は有効。ただし issue #54 で一覧・表形式のテンプレートも自己完結CSSになったため、「canvas形式だけが例外」という本文の前提は成り立たない。詳細は i0054-01）
+- [i0141-01-canvasテンプレートはTailwind非依存の自己完結CSSにする.md](ddr/i0141-01-canvasテンプレートはTailwind非依存の自己完結CSSにする.md)（canvas形式をTailwind非依存にした決定は有効。ただし issue #54 で一覧・表形式のテンプレートも自己完結CSSになったため、「canvas形式だけが例外」という本文の前提は成り立たない。本文中の `templates/canvas-report.html` も当時のパスで、issue #54 で `assets/canvas-report.html` へ改名した。詳細は i0054-01）
 - [i0141-02-canvasデータモデルはフラットなparent参照にする.md](ddr/i0141-02-canvasデータモデルはフラットなparent参照にする.md)
 <!-- END GENERATED: ddr-list -->

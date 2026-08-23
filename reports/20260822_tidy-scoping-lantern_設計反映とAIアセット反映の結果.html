@@ -165,7 +165,7 @@
       <tr>
         <td>3</td>
         <td>DDR <code>i0054-01</code> の新規作成</td>
-        <td><b><code>SKILL.md</code> が既に参照している名前と一致。決定3件・却下案7件</b></td>
+        <td><b><code>SKILL.md</code> が既に参照している名前と一致。決定3件・却下案8件（4/2/2）</b></td>
         <td>実測（<code>test -f</code> が成功）</td>
       </tr>
       <tr>
@@ -248,7 +248,7 @@
   <p><code>.claude/docs/ddr/i0054-01-計画レポートのHTMLビューはassets配下のテンプレートへ切り出す.md</code>。</p>
   <ul>
     <li><b><code>SKILL.md</code> が既に参照している名前と一致する</b>（フェーズ3のレビューで「存在しないDDRを参照している」と指摘され、ファイル名を先に固定していたもの）。実測で <code>test -f</code> が成功する。</li>
-    <li>決定は3つ（テンプレート2本への切り出し／方式の変更／<code>assets</code> 語彙）、却下案は決定1に3件・決定2に2件・決定3に2件を記録した。</li>
+    <li>決定は3つ（テンプレート2本への切り出し／方式の変更／<code>assets</code> 語彙）、却下案は決定1に4件・決定2に2件・決定3に2件（計8件）を記録した。</li>
     <li><b>ファイル名が方式変更を表さない</b>ため、<code>description</code> と <code>keywords</code> に
       <code>TailwindCSS</code> <code>CDN</code> <code>自己完結CSS</code> <code>外部依存</code> を含めた
       （<code>doc-search</code> から辿れるように）。</li>
@@ -312,6 +312,39 @@
     </tbody>
   </table>
   </div>
+  <h3>8. 敵対的レビュー（フェーズ4・2回目）への対応（flow-id 4-9）</h3>
+  <p>指摘12件。<b>うち6件をMRへインラインで投稿し</b>（確度・重大度の振り分け表による）、6件は報告に
+    留めた。<b>投稿の有無にかかわらず12件すべてへ対応した</b>（投稿しなかった指摘を放置すると、
+    振り分けが「直さなくてよい」の意味に化ける）。</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>#</th><th>指摘</th><th>対応</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td><code>i0000-11</code> の <code>note</code> が「方式のみ変わった」と範囲を狭く断定。同DDRの「テンプレート化は行わない」項も覆っている</td><td><code>note</code> を2点構成へ書き直した。「根拠(b)」という本文に無いラベルもやめ、本文の語で指した</td></tr>
+      <tr><td>2</td><td><code>i0054-01</code> が、先行決定（<code>i0000-11</code> のテンプレート化保留）を覆すことに触れていない</td><td>「背景」を2つ→3つのずれへ拡張し、決定1の冒頭へ<b>覆してよいと判断した根拠3点</b>を追記。却下案に <code>(d) 保留を維持する</code> を足した（却下案は7→8件）</td></tr>
+      <tr><td>3</td><td>changelogの <code>http://www.w3.org/2000/svg</code>「実測5件」が誤り（実測4件）</td><td>4件へ訂正し、6行の内訳（mermaid CDN 1・w3.org 4・JSコメントの例示URL 1）を明記。<b>同じ誤りがある <code>canvas-report/SKILL.md</code> の「5箇所」も訂正</b>した</td></tr>
+      <tr><td>4</td><td>自己完結の検査が、シングルクォート・プロトコル相対・<code>@import</code>・ローカル参照を拾えない</td><td><code>reports/REVIEW-POINTS.md</code> の検査を2本立てへ改め、<code>plans/</code> 側も追随。<b>拾えないもの2つ</b>（相対パスのローカル参照・<code>&lt;code&gt;</code> 内の引用）を明記した</td></tr>
+      <tr><td>5</td><td>「運用の詳細は再掲しない」と宣言したspecが、検査を全文再掲している</td><td>specからコマンドを外し、正が <code>reports/REVIEW-POINTS.md</code> であることを明記した（正が3箇所→1箇所）</td></tr>
+      <tr><td>6</td><td>CSS重複の理由が、起こりえない場面設定（「<code>reports/</code> 削除後にHTMLだけ残る」）になっている</td><td>spec・DDRの両方を「HTML単体をリポジトリ外へ持ち出した場合」へ直した</td></tr>
+      <tr><td>7</td><td>changelogにDDR新設・<code>note</code> 追加・DDR一覧再生成が載っていない</td><td>「新設（<code>.claude/docs/ddr/</code>）」を足し、参照側の改訂へ3件を追記した</td></tr>
+      <tr><td>8</td><td><code>create-commit.md</code> の「意図的で変更しない」の根拠が未検証であることが恒久側で落ちている</td><td><code>## 設計判断</code> へ <code>### なぜパス指定でコミットしないのか</code> を新設し、<b>実測していない</b>ことと再確認すべきケースを明記した</td></tr>
+      <tr><td>9</td><td>VERSION据え置きが <code>distribution-assets.md</code> の規定と食い違うのに、そちらに記録が無い</td><td>同specへ「人間の判断で据え置くことがある」項と、据え置きの実害2点を追記。影響範囲へissue #54のエントリも足した</td></tr>
+      <tr><td>10</td><td>改名が配布先に旧ファイルを残すことが記録されていない</td><td>changelogへ明記し、「変更していないもの」の <code>sync-assets.sh</code> に<b>新規ファイルのコピーについては</b>という限定を付けた</td></tr>
+      <tr><td>11</td><td><code>i0141-01</code> の <code>note</code> が、本文中の旧パスに触れていない</td><td><code>note</code> へ改名の1文を足した</td></tr>
+      <tr><td>12</td><td>レポートのサマリの件数が、本文・HTML・DDR実体のいずれとも不一致</td><td>サマリを実体（決定3・却下案8）へ揃えた</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <div class="box warn">
+    <span class="label">対応中に見つかったこと</span>
+    <p><b>既存の成果物1件が、検査に当たっていた。</b>
+      <code>reports/…HTMLビュー前提調査.html</code> が <code>&lt;code&gt;</code> 内で
+      <code>&amp;lt;script src="https:&#47;&#47;…"&amp;gt;</code> を引用しており、<b>新旧どちらの検査でも
+      ヒットしていた</b>（つまり <code>reports/REVIEW-POINTS.md</code> の「0件であること」を、
+      自分たちの成果物が満たしていなかった）。URLのスラッシュを <code>&amp;#47;&amp;#47;</code> で書く形へ
+      直して0件へ戻し、この書き方を観点表へ記録した。</p>
+  </div>
+
 </section>
 
 <section id="unverified">
@@ -381,13 +414,16 @@
 <section id="todo">
   <h2>残課題</h2>
   <ul>
-    <li><b>種別の併記（<code>【設計反映】【AIアセット反映】</code>）について、ユーザーの判断を仰いだが応答が無い。</b>
-      観点表は原則として分けることを求めており、今回は「分量が小さい」だけを根拠に併記している
-      （2つの反映先の判断は独立している）。分けるべきという判断であれば、<code>【AIアセット反映】</code> 側
-      （変更対象 #8・#9）を別の個別計画へ切り出す。<b>このまま進めた場合でも、反映の内容自体は変わらない</b>
-      （合意の粒度だけの話である）。</li>
     <li><b><code>create-commit.sh</code> の挙動そのものは変えていない。</b> 挙動の是非
-      （パス指定コミットにすべきか）は独立した意思決定であり、変えるなら別issueを起票する。</li>
+      （パス指定コミットにすべきか）は独立した意思決定であり、変えるなら別issueを起票する。
+      <b>この判断が読解によるもので実測していないことは、<code>spec/create-commit.md</code> の
+      <code>### なぜパス指定でコミットしないのか</code> へ書いた</b>（このレポートはflow-id 5-4で
+      削除されるため、限定を恒久側にも残す必要がある）。</li>
+    <li><b><code>canvas-report/templates/</code> → <code>assets/</code> の改名は、既に配布済みの
+      プロジェクトへ及ばない。</b> <code>install-to-project.sh</code> はコピーのみで、上流で消えた
+      ファイルを配布先から削除しない。旧パスの削除を持たせるかは<b>別issueの判断</b>とする
+      （本issueのスコープ外。事実は <code>spec/issue-mr-workflow.md</code> のchangelogと
+      <code>spec/distribution-assets.md</code> の両方へ書いた）。</li>
   </ul>
 </section>
 

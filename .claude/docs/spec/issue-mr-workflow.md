@@ -352,8 +352,9 @@ Claude Code / Gemini CLI は**セッションごとに1つのplanファイルし
 
 `plans/`（これから何をするか）と `reports/`（何をして何が分かったか）では必須セクションが
 異なるため、1本に統合できない。**共通のCSSは2本へ重複して持たせる**——共有CSSファイルへ
-切り出すと「自己完結」でなくなり、`reports/` がflow-id 5-4で削除された後にHTMLだけが残ると
-開けなくなるため。
+切り出すと「自己完結」でなくなり、**HTMLファイル単体をリポジトリ外へ持ち出して共有・保管した
+場合に開けなくなる**ため（`reports/` はflow-id 5-4でmdとhtmlをまとめて削除するので、
+「片方だけが残る」状況は起きない。壊れるのは持ち出したときである）。
 
 **md側のテンプレートは作らない。** `plans/*.md` `reports/*.md` の見出し構成は規定せず自由記述の
 ままとする（型を固定する価値があるのは、人間が繰り返し目を通すHTMLビューの側だけであるため）。
@@ -367,17 +368,14 @@ Claude Code / Gemini CLI は**セッションごとに1つのplanファイルし
 [i0054-01-計画レポートのHTMLビューはassets配下のテンプレートへ切り出す.md](../ddr/i0054-01-計画レポートのHTMLビューはassets配下のテンプレートへ切り出す.md)
 を参照。
 
-**自己完結の検査は「実際に外部を読みに行く記述」に限る。**
+**自己完結の検査は「実際に外部を読みに行く記述」に限る。** `https://` を含む行を数える形にすると、
+本文中で `<code>` に囲んでURLを引用しただけのレポート（調査結果はURLを引用しがちである）と、
+`http://www.w3.org/2000/svg`（`createElementNS` に渡すSVGの名前空間。外部を読みに行かない）を
+必ず誤検知する。逆に `src="https://` だけを見る形へ狭めると、シングルクォート・プロトコル相対・
+CSSの `@import` が素通りする。
 
-```bash
-grep -nE '(src|href)="https?://|url\(https?://' <ファイル>   # 0件であること
-```
-
-`https://` を含む行を数える形にしてはいけない。本文中で `<code>` に囲んでURLを引用しただけの
-レポート（調査結果はURLを引用しがちである）と、`http://www.w3.org/2000/svg`（`createElementNS`
-に渡すSVGの名前空間。外部を読みに行かない）を必ず誤検知する。canvas形式
-（`.claude/skills/canvas-report/SKILL.md`）でmermaidを使う場合はCDNの `<script src>` が1本入るため、
-この検査の対象外とする。
+**検査コマンドと、その限界（相対パスのローカル参照は拾えない）・canvas形式の除外の正は
+`reports/REVIEW-POINTS.md`「HTML版」であり、ここへは再掲しない。**
 
 #### バンドルリソースの語彙
 
@@ -3028,6 +3026,11 @@ point-in-time記録の扱い）。併記した段落は、項の末尾（回避�
 **改名**: `.claude/skills/canvas-report/templates/` → `assets/`（`templates/` という名前の
 バンドルディレクトリはリポジトリから0件になった）。
 
+**新設**（`.claude/docs/ddr/`）:
+
+- `i0054-01-計画レポートのHTMLビューはassets配下のテンプレートへ切り出す.md` — テンプレート2本への
+  切り出し・自己完結CSSへの方式変更・`assets` 語彙の統一の3つの決定と、却下案8件（4/2/2）。
+
 **参照側の改訂**:
 
 - `.claude/skills/issue-mr-flow/SKILL.md`（「計画・レポートのHTMLビュー」節を新設。全体フロー表の
@@ -3041,19 +3044,41 @@ point-in-time記録の扱い）。併記した段落は、項の末尾（回避�
 - `plans/REVIEW-POINTS.md`（`## HTML版` 節を新設）・`reports/REVIEW-POINTS.md`（自己完結の検査を改訂）
 - `.claude/docs/spec/create-commit.md` / `.claude/rules/git-workflow.md`（作業中に判明した
   `create-commit.sh` の挙動。下記）
+- `.claude/docs/spec/distribution-assets.md`（`.claude/VERSION` を据え置く判断があり得ることと、
+  その場合に何を残すか。下記）
+- `.claude/docs/ddr/i0000-11-…md` / `i0141-01-…md`（**frontmatterの `note` のみ**追加。本文は不変）
+- `.claude/docs/README.md`（`generate-ddr-list.sh` によるDDR一覧の再生成。手書きしていない）
 
 **自己完結の検査を「実際に外部を読みに行く記述」に限定した。** 従来の
 `grep -c 'https\?://' <ファイル>` が 0、という形は、本文で `<code>` に囲んでURLを引用しただけの
-レポート（実測3件）と `http://www.w3.org/2000/svg`（実測5件）を必ず誤検知し、**外部依存ゼロの
-正しい成果物を不合格にしていた**。`grep -nE '(src|href)="https?://|url\(https?://'` が0件、へ改めた。
+レポート（実測3件）と `http://www.w3.org/2000/svg`（実測4件。`canvas-report.html` の
+`createElementNS` 4箇所。同ファイルで `https?://` にヒットする6行の残りは、mermaid CDN 1行と
+JSコメント内の例示URL 1行である）を必ず誤検知し、**外部依存ゼロの正しい成果物を不合格に
+していた**。検査の正は `reports/REVIEW-POINTS.md`「HTML版」へ置き、specからは再掲を外した。
+**issue #54 のフェーズ4の敵対的レビューで、当初改めた形（`(src|href)="https?://` だけを見る）
+では、シングルクォート・プロトコル相対・CSSの `@import` が素通りすることが判明し、さらに
+広げた**（同時に、`<code>` 内でHTML属性ごとURLを引用した既存レポート1件が新旧どちらの検査でも
+ヒットしていたことも判明し、`&#47;&#47;` で書く形へ直して0件に戻した）。
 
 **埋め忘れの検査を `grep -c '<!-- ここに書く'` へ揃えた。** `<!--` を含めないと、テンプレート自身を
 説明する計画・レポート（地の文で「ここに書く」に触れる成果物）を必ず誤検知する（実測3件）。
 
 **`.claude/VERSION` は `0.1.2` のまま据え置いた**（配布対象アセットは増えたが、ユーザーの判断）。
+`.claude/docs/spec/distribution-assets.md` は「配布対象アセットに変更があった回だけ `MINOR` を
+増分する」と定めており、**今回はその規定の例外にあたる**。規定側にも据え置きの扱いを1行残した
+（規定を読んだ人が「VERSIONは配布アセットの変更に必ず追随する」と信じないようにするため）。
+
+**改名の後片付けは配布先まで及ばない。** `install-to-project.sh` は `safe_copy_dir` による
+コピーのみで、上流で消えたファイルを配布先から削除する仕組みを持たない。したがって既にこの機構を
+導入済みのプロジェクトでは、再インストール後も `.claude/skills/canvas-report/templates/`
+（旧パス）が残り、`assets/` と併存する。**「`templates/` はリポジトリから0件になった」は
+このリポジトリの中の話であって、配布先では成立しない。** VERSIONを据え置いたため、配布先には
+改名が起きたことを知る手掛かりも無い。旧パスの削除を `install-to-project.sh` へ持たせるかは
+別issueの判断とする（本issueのスコープ外）。
 
 **変更していないもの**: `.mrworkflow.json`（テンプレートはパス固定）、`cleanup-task.sh`・
-`extract-frontmatter.sh`・`.gitignore`・`sync-assets.sh`（調査で不要と確認）、markdownテンプレート
+`extract-frontmatter.sh`・`.gitignore`・`sync-assets.sh`（**新規ファイルのコピーについては**
+調査で不要と確認。上記のとおり、改名の後片付けまでは担保していない）、markdownテンプレート
 （issue #54 本文が明示的に除外）、`HANDOFF.md` のテンプレート外だし（DDR `i0028-01` を覆さない）。
 
 ## 設定項目

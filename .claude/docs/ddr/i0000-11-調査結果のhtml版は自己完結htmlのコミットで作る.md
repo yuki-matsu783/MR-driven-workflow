@@ -4,7 +4,7 @@ type: ddr
 description: issue-mr-flowの調査結果をHTMLでも残す仕組みを、Claude Code固有のArtifact公開機能ではなく外部リソース非依存の自己完結HTMLをリポジトリへ直接コミットする方式で実装した経緯を記録したDDR
 tags: [reports, html, issue-mr-flow, ddr]
 keywords: [Artifact, TailwindCSS, reports, worklog, 自己完結HTML, agents-md, claude-code固有機能, issue-48]
-note: 'html版を自己完結HTMLのコミットで作るという決定は有効。ただし方式のみ、issue #54 でTailwindCSS CDNから自前CSSへ変わった（根拠(b)の出力トークン量の釣り合いが、テンプレート化により成り立たなくなったため）。詳細は i0054-01'
+note: 'html版を自己完結HTMLのコミットで作るという決定は有効。ただし issue #54 で2点が変わった。(1) 方式がTailwindCSS CDNから自前CSSへ（CDNを推した「出力トークン量と表現力の釣り合い」が、テンプレート化により成り立たなくなったため）。(2) 「テンプレート化は行わない／複数件の運用実績を踏まえてから判断する」という項も、テンプレート2本の新設により覆った。詳細は i0054-01'
 ---
 
 # i0000-11. 調査結果のHTML版はClaude Code Artifact機能ではなく自己完結HTMLのコミットで作る
