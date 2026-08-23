@@ -39,11 +39,14 @@ keywords: [正史仕様, 意思決定ログ, issue-mr-workflow, シェルスク�
 - [create-commit.md](spec/create-commit.md) ── コミット実行ラッパー（commitスキル専用）
 - [adversarial-review.md](spec/adversarial-review.md) ── 敵対的レビュー（専任サブエージェント・インラインコメント投稿）
 - [distribution-assets.md](spec/distribution-assets.md) ── 配布テンプレート資産（PR/MRテンプレート・`.gitattributes`・VERSION）と配布経路での扱い
+- [asset-distribution.md](spec/asset-distribution.md) ── AIアセットの配布機構（5層の層分け定義とmanifest）
 - [cleanup-task.md](spec/cleanup-task.md) ── flow-id 5-5 後片付けの自動化スクリプト
 - [search-frontmatter.md](spec/search-frontmatter.md) ── ドキュメント横断検索スクリプト（index.jsonl検索）
 - [generate-ddr-list.md](spec/generate-ddr-list.md) ── DDR一覧生成スクリプト（README.mdのDDR一覧をfrontmatterから生成）
 - [gitlab-verification-environment.md](spec/gitlab-verification-environment.md) ── GitLab検証環境（Docker + glab）の再現手順
 - [otel-listener.md](spec/otel-listener.md) ── OTelリスナー機構（OpenTelemetryをusage/へ振り分け保存するperl製リスナー）
+- [sync-gemini-assets.md](spec/sync-gemini-assets.md) ── .claude/ から .gemini/ を生成する変換スクリプト
+- [check-doc-references.md](spec/check-doc-references.md) ── DDR参照切れ検出スクリプト（絶対パス形式のDDR参照が実在するファイルを指しているかを検証）
 
 ## ddr（意思決定ログ）
 
@@ -97,6 +100,7 @@ frontmatter（`status` / `superseded_by` / `note`）だけから決まる。
 - [i0014-01-GitHub_GitLab情報取得はgh_glab-CLIを使いWebFetchは使わない.md](ddr/i0014-01-GitHub_GitLab情報取得はgh_glab-CLIを使いWebFetchは使わない.md)
 - [i0020-01-HANDOFF進捗更新はMarkdownテーブル直接書き換えでループ範囲を一括操作する.md](ddr/i0020-01-HANDOFF進捗更新はMarkdownテーブル直接書き換えでループ範囲を一括操作する.md)（うち「mark-skipで作った不整合は後段のmark-done/add-roundで表面化する」は、issue #140でmark-skip自身がその場で拒否する形へ変更された。詳細はi0140-01）
 - [i0023-01-push断面の全文コピーをやめ行番号インデックスで表現する.md](ddr/i0023-01-push断面の全文コピーをやめ行番号インデックスで表現する.md)（うち「Gemini CLI対応の扱い」は、issue #97でメインセッションのみ集計対象へ変更された。サブエージェントを集計しない部分は引き続き有効。詳細は i0097-05）
+- [i0026-01-AIアセットの配布はmanifest付きの直接コピーとし層はexcludeを含む5つにする.md](ddr/i0026-01-AIアセットの配布はmanifest付きの直接コピーとし層はexcludeを含む5つにする.md)
 - [i0028-01-flow-id5-1の後片付けはスクリプト化しコミットは含めない.md](ddr/i0028-01-flow-id5-1の後片付けはスクリプト化しコミットは含めない.md)（ファイル名の `flow-id5-1` は当時の番号。片付けは issue #112 の並べ替えで 5-3 になり、issue #111 の統括レポート追加で 5-4、issue #70 の変換同期の新設でさらに繰り下がって現在 flow-id 5-5。DDR i0112-01・i0111-01 参照）
 - [i0032-01-GitLab-issueテンプレートは予約名Default.mdを正とし文書側を合わせる.md](ddr/i0032-01-GitLab-issueテンプレートは予約名Default.mdを正とし文書側を合わせる.md)
 - [i0033-01-配布物の版はVERSIONファイル1つで表しCHANGELOGを持たない.md](ddr/i0033-01-配布物の版はVERSIONファイル1つで表しCHANGELOGを持たない.md)
@@ -155,4 +159,5 @@ frontmatter（`status` / `superseded_by` / `note`）だけから決まる。
 - [i0141-02-canvasデータモデルはフラットなparent参照にする.md](ddr/i0141-02-canvasデータモデルはフラットなparent参照にする.md)
 - [i0155-01-AIアセット反映の対象は4類型への分類と痕跡の確認で洗い出す.md](ddr/i0155-01-AIアセット反映の対象は4類型への分類と痕跡の確認で洗い出す.md)
 - [i0159-01-hookの前置フィルタは純粋関数によるバックスラッシュ除去と大文字小文字非依存比較で超集合を保つ.md](ddr/i0159-01-hookの前置フィルタは純粋関数によるバックスラッシュ除去と大文字小文字非依存比較で超集合を保つ.md)
+- [i0171-01-DDR参照切れ検出は絶対パス形式に限定しgrep一括抽出で実装する.md](ddr/i0171-01-DDR参照切れ検出は絶対パス形式に限定しgrep一括抽出で実装する.md)
 <!-- END GENERATED: ddr-list -->
