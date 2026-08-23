@@ -73,6 +73,32 @@ push回数: 6
 - **雛形を正とし、実ファイルは `cp` で作った。** 逆（実ファイルを書いてから雛形へコピー）にすると、
   雛形の冒頭コメント（配布先向けの注意）を書き忘れやすい。
 
+
+### push8（flow-id 3-6 続き: 作業8 実機検証）
+
+- **GitHub側は最後まで通った。** ワークフローをリモートへ反映した時点でCIが11秒で成功し、
+  `gh-pages` の orphan 作成・`.nojekyll`・`pr-180/index.html` がすべて意図どおりに作られた。
+  Pages を有効化したあと `get_report_site_url` → `wait_for_report_site` が **200 OK**。
+- **GitLab環境の構築で踏んだこと。**
+  - `docker run -v /var/run/docker.sock:...` はMSYSのパス変換で
+    `mkdir C:\Program Files\Git\var: Access is denied` になる。`MSYS_NO_PATHCONV=1` を
+    **サブシェルへ閉じ込めて** `-v //var/run/docker.sock:...` にする。
+  - GitLabの `external_url` が `http://localhost:8929` なので、Runner/ジョブコンテナからは
+    `localhost` で届かない。**ユーザー定義ネットワーク `gitlab-net` を作って `gitlab` を接続**し、
+    Runnerは `--url http://gitlab:8929`・`--docker-network-mode gitlab-net`、
+    config.toml へ `clone_url = "http://gitlab:8929"` を足す。
+  - Runner登録トークンは GitLab 17+ では `POST /user/runners`（`runner_type=project_type`）で取る。
+  - **検証用リポジトリのコミットも `block-direct-git-commit.sh` にブロックされる。**
+    プロジェクト外のリポジトリでも `create-commit.sh` 経由にする必要がある（`cd` して
+    `bash <repo>/.claude/scripts/src/create-commit.sh` で通った）。
+- **`glab api` が断続的に失敗した**（`wsarecv: An existing connection was forcibly closed`）。
+  `curl` で `127.0.0.1` を直接叩くと安定した。`localhost` が `[::1]` へ解決されるのが一因と
+  思われる。`pages` ジョブ自体も614秒かかっており、**待ち時間を長めに見積もる**必要がある。
+- **`pages` ジョブは成功したが、Pages配信は確認できていない。** コンテナに Pages 用のポートを
+  公開していないため。`projects/8/pages` は404、`environments` は `[]` で、
+  `gitlab_get_report_site_url` は**設計どおり非0で終わった**（推測URLを返さない）。
+  失敗経路の実機確認としては有効な結果。
+
 ## うまくいったこと
 
 - 見出しの突き合わせは、**`</nav>` 以降だけを対象にする**と md=14 / html=14 で完全一致した。

@@ -1,9 +1,9 @@
 ---
 title: 報告HTMLのホスト機構の実装結果（issue #114 フェーズ3）
 type: report
-description: Provider.shへの関数追加・GitHub/GitLabのCI設定・SKILL.mdへの組み込み・配布からの除外・単体テストの実施結果と、実機検証を残していることの記録。
+description: Provider.shへの関数追加・GitHub/GitLabのCI設定・SKILL.mdへの組み込み・配布からの除外・単体テスト・実機検証の実施結果。GitHubは払い出したURLがブラウザで開けるところまで確認し、GitLabはpagesジョブの成功まで確認した。
 tags: [issue114, hosting, github-pages, gitlab-pages, report]
-keywords: [get_report_site_url, wait_for_report_site, report_site_prefix_to_reply, join_url_to_reply, github_pages_base_url_to_reply, gh-pages, path_prefix, sync-assets, nojekyll, index.html]
+keywords: [get_report_site_url, wait_for_report_site, report_site_prefix_to_reply, join_url_to_reply, github_pages_base_url_to_reply, gh-pages, path_prefix, sync-assets, nojekyll, index.html, gitlab-runner]
 ---
 
 # 報告HTMLのホスト機構の実装結果（issue #114 フェーズ3）
@@ -16,22 +16,29 @@ keywords: [get_report_site_url, wait_for_report_site, report_site_prefix_to_repl
 
 | # | 作業 | 結果 | 根拠の性質 |
 |---|---|---|---|
-| 1 | `Provider.sh` に純粋関数3つ＋公開関数2つを追加 | **完了** | 単体テストで確認 |
-| 2 | `Github.sh` / `Gitlab.sh` にプロバイダ固有実装を追加 | **完了** | 構文チェックと経路テストのみ（**API呼び出しは実機未検証**） |
-| 3 | GitHub Actions ワークフローを作成 | **完了（未実行）** | 静的な作成のみ。**CIとしては1度も走っていない** |
-| 4 | GitLab CI の `pages` ジョブを作成 | **完了（未実行）** | 同上。**GitLab環境そのものが未構築** |
+| 1 | `Provider.sh` に純粋関数3つ＋公開関数2つを追加 | **完了** | 単体テスト＋**両プロバイダで実行** |
+| 2 | `Github.sh` / `Gitlab.sh` にプロバイダ固有実装を追加 | **完了** | **実機で実行**（GitHubは成功経路、GitLabは失敗経路） |
+| 3 | GitHub Actions ワークフローを作成 | **完了・実機で成功** | CIが11秒で成功し `gh-pages` が作られた |
+| 4 | GitLab CI の `pages` ジョブを作成 | **完了・実機で成功** | GitLab CE + Runner を構築し、MRパイプラインで `pages` ジョブが成功した |
 | 5 | `sync-assets.sh` から `workflows/` と `index.jsonl` を除外 | **完了** | 実際に実行して配布物の中身を確認 |
 | 6 | `SKILL.md` への組み込み（flow-id 5-4・5-6・新節・提供関数表） | **完了** | 目視確認 |
 | 7 | 単体テスト | **完了**（`passed=237 failures=0`） | 実行結果 |
-| 8 | 実機検証 | **未実施** | リポジトリ設定を変えるため、ユーザーへ知らせてから行う |
+| 8 | 実機検証 | **GitHubは完了／GitLabは配信のみ未** | 下記「作業8」 |
 
-**この時点で「動く」と言えるのは 1・5・7 だけである。** 2・3・4 は**書いただけ**で、CI が1度も
-走っていない。
+**払い出されたURLは実際にブラウザで開ける。**
+`https://yuki-matsu783.github.io/MR-driven-workflow/pr-180/` が 200 を返し、一覧から各HTMLへ辿れる。
+
+**残っているのは GitLab の Pages 配信だけ**である（`pages` ジョブの成功までは確認した。
+配信を有効にするにはコンテナの再作成が要る。下記「残課題」）。
 
 ## 実施条件（測った対象・環境）
 
-- コミット: `50a5fee`（計画の確定）を起点に実装した。
+- コミット: `50a5fee`（計画の確定）を起点に実装し、`ee5ee1c` でリモートへ反映した。
 - 実行環境: Windows 10 / git bash（MSYS）。`jq` は Windows ネイティブ版。
+- GitHub: このリポジトリ本体（Public）。Pages を**この作業で有効化した**。
+- GitLab: Docker版 `gitlab/gitlab-ce:18.5.4-ce.0`（既存。4日稼働）＋
+  `gitlab/gitlab-runner:latest`（**この作業で新規に立てた**）。検証用プロジェクト
+  `root/issue114-pages`（id=8）を新規作成した。
 - 単体テストは `bash .claude/scripts/test/test_vcs_provider.sh` を直接実行した。
 - 配布物の確認は `bash .claude/skills/apply-mr-workflow-to-project/scripts/sync-assets.sh` を
   実際に走らせ、生成された `assets/` の中身を `ls -a` で見た。
@@ -152,22 +159,85 @@ publish-report-site.gitlab.yml
 |---|---|
 | `test_block_direct_git_commit.sh` | `passed=26 failures=1`（**`main` 由来。着手時から同じ**） |
 | `test_command_position.sh` | `passed=73 failures=2`（**同上**） |
-| `test_sync_gemini_assets.sh` | **完走しない**（下記） |
+| `test_sync_gemini_assets.sh` | **完走しない**（下記「想定と異なった点」） |
 | その他12本 | すべて `failures=0` |
 
-**`test_sync_gemini_assets.sh` が完走しないのは、本ブランチの変更とは無関係である。**
-`ln: failed to create symbolic link '/tmp/.../bin/printf'` で止まっており、Windowsでシンボリック
-リンクを作る権限が無いことが原因。**`sync-assets.sh` への変更を `git stash` で退避した状態でも
-同じ位置で止まることを確認した**（変更の有無で挙動が変わらない）。
+### 作業8: 実機検証
+
+#### GitHub — 払い出したURLがブラウザで開けるところまで確認した
+
+| 順 | やったこと | 結果 |
+|---|---|---|
+| 1 | ワークフローをリモートへ反映（`ee5ee1c`） | **CIが11秒で成功**（run id 32647820084） |
+| 2 | `gh-pages` の中身を確認 | `.nojekyll` と `pr-180/`。`pr-180/` に `index.html` `plans` `reports` |
+| 3 | Pages を有効化（`gh api -X POST …/pages`） | `html_url: https://yuki-matsu783.github.io/MR-driven-workflow/` |
+| 4 | `get_report_site_url` を実行 | `https://yuki-matsu783.github.io/MR-driven-workflow/pr-180/` |
+| 5 | `wait_for_report_site "$url" 120 10` | **200 OK** |
+| 6 | `index.html` の中身と、リンク先HTMLの到達性 | 一覧に reports 2件・plans 3件。リンク先も **200** |
+
+**`gh-pages` ブランチは存在しなかったので、ワークフローの orphan 作成の分岐が実際に働いた。**
+`.nojekyll` の設置・`index.html` の生成・日本語ファイル名のリンクも、すべて意図どおりだった。
+
+#### GitLab — `pages` ジョブの成功まで確認した
+
+環境をこの作業で構築した。
+
+```bash
+docker network create gitlab-net && docker network connect gitlab-net gitlab
+( export MSYS_NO_PATHCONV=1
+  docker run -d --name gitlab-runner --restart unless-stopped --network gitlab-net \
+    -v gitlab-runner-config:/etc/gitlab-runner -v //var/run/docker.sock:/var/run/docker.sock \
+    gitlab/gitlab-runner:latest )
+# Runner認証トークンは POST /user/runners（runner_type=project_type）で取る
+docker exec gitlab-runner gitlab-runner register --non-interactive \
+  --url http://gitlab:8929 --token "<token>" \
+  --executor docker --docker-image alpine:3.20 --docker-network-mode gitlab-net
+# config.toml へ clone_url = "http://gitlab:8929" を足す
+```
+
+| 順 | やったこと | 結果 |
+|---|---|---|
+| 1 | 検証用プロジェクト `root/issue114-pages`（id=8）を作成 | — |
+| 2 | `pages:` ブロック（`path_prefix` / `expire_in`）を落とした CE 版の `.gitlab-ci.yml` と、HTMLを2件配置してブランチを反映 | — |
+| 3 | MR !1 を作成 | `merge_request_event` のパイプラインが起動 |
+| 4 | `pages` ジョブの完了を待つ | **`status=success`**（614秒） |
+| 5 | 成果物（`artifacts.zip` 20,613バイト）を取り出して中身を確認 | `public/index.html` / `public/reports/…html` / `public/plans/…html` の3件 |
+| 6 | `index.html` の中身 | `MR !1 の計画・レポート` の見出しと、reports・plans のリンク一覧 |
+
+**`rules` がMRパイプライン限定で正しく働き、`$CI_MERGE_REQUEST_IID` も展開された。**
+GitHub側と同じスクリプトで、同じ形の `index.html` が生成されている。
+
+#### GitLab — 関数の失敗経路も実機で確認した
+
+検証環境の GitLab CE は **Pages デーモンを有効にしていない**（コンテナに Pages 用のポートを
+公開していないため）。この状態で `Gitlab.sh` の経路を実際に走らせた。
+
+```
+provider=gitlab mode=cli
+gitlab_get_report_site_url → 非0
+  「PagesのURLを取得できませんでした（未デプロイの可能性。報告サイトの提示はスキップしてよい）」
+get_report_site_url 1     → 非0（同じメッセージを伝播）
+report_site_prefix_to_reply gitlab 1 → REPLY=mr-1
+```
+
+一次経路（`projects/8/pages` → **404**）とフォールバック（`projects/8/environments` → **`[]`**）の
+どちらも空で、**設計どおり「推測したURLを返さずに失敗する」**ことを確認できた。**失敗経路は
+実機で確認済み、成功経路は未確認**という状態である。
 
 ## 確かめられなかったこと
 
-- **CIが1度も走っていない。** ワークフローの構文・ガードの判定・`gh-pages` への反映・
-  `index.html` の生成は、**すべて机上のままである。**
-- **`gh api repos/{owner}/{repo}/pages` の応答を見ていない**（Pagesが未有効なため、現状は404が
-  返る想定だが未確認）。フォールバック経路が実際に使われるかも未確認。
-- **GitLab側は環境そのものが無い。** Docker版 GitLab CE も Runner も未構築である。
-- `wait_for_report_site` は `curl` を起動するため単体テストの対象外にした。**1度も実行していない。**
+- **GitLab の Pages 配信（＝`gitlab_get_report_site_url` の成功経路）。** 有効化するには
+  `pages_external_url` を設定したうえで**コンテナに別ポートを公開する**必要があり、
+  稼働中のコンテナを作り直すことになる。**`pages` ジョブが成功し `public/` が正しく作られる
+  ところまでは確認済み**なので、残るのは GitLab インフラ側の配信だけである。
+- **GitLab の並列デプロイ（`path_prefix`）。** Premium/Ultimate 限定で、CE では実行できない
+  （flow-id 2-9 でユーザーが「直列のみ検証でよい」と判断済み）。**検証したのは
+  `pages:` ブロックを削った単一デプロイ版**であり、`path_prefix` を含む雛形そのものは動かして
+  いない。
+- **`concurrency` が実際に直列化する様子。** pushが重なる状況を作っていない。
+- **fork からのPR**での挙動。
+- **`gh-pages` が既にある状態での2回目以降のデプロイ**（`rm -rf` して置き換える経路）。今回は
+  初回のorphan作成の経路しか通っていない。
 
 ## 設計への反映
 
@@ -179,9 +249,11 @@ publish-report-site.gitlab.yml
 ### `test_sync_gemini_assets.sh` が元から完走しない
 
 計画の検証3は「`main` 由来の3件を除き緑」を合格条件にしていたが、**4本目として
-`test_sync_gemini_assets.sh` が完走しない**ことが分かった。環境依存（シンボリックリンクの権限）で
-あり、変更の有無で挙動が変わらないことを `git stash` で確認済み。**合格条件の解釈を
-「`main` 由来の3件＋環境依存の1本を除き緑」へ広げる。**
+`test_sync_gemini_assets.sh` が完走しない**ことが分かった。
+`ln: failed to create symbolic link '/tmp/.../bin/printf'` で止まっており、Windowsでシンボリック
+リンクを作る権限が無いのが原因。**`sync-assets.sh` への変更を `git stash` で退避した状態でも
+同じ位置で止まる**ことを確認した。**合格条件の解釈を「`main` 由来の3件＋環境依存の1本を除き緑」へ
+広げる。**
 
 ### `.gitlab-ci.yml` の除外は不要だった
 
@@ -189,11 +261,26 @@ publish-report-site.gitlab.yml
 **実際に走らせて確認するまでは推測だった。** 走らせた結果、`assets/` 直下に `.gitlab-ci.yml` は
 現れなかった（`grep -c` が 0）。**推測どおりだったが、確認して初めて根拠になる。**
 
+### GitLab CE のコンテナに Pages が有効化されていなかった
+
+計画の作業8は「Runner を登録し、`path_prefix` を外した単一デプロイで `pages` ジョブが通ることを
+確認する」だったので、**この範囲は達成できた**。ただし、`gitlab.rb` に `pages_external_url` が
+無く、コンテナも 8929/2224 しか公開していないため、**Pages としての配信はできない**。
+「`pages` ジョブが通ること」と「Pages で配信されること」は別物で、計画はここを区別していなかった。
+
+### 実機のGitLabは応答が不安定だった
+
+`glab api` が `wsarecv: An existing connection was forcibly closed` で断続的に失敗し、
+`pages` ジョブ自体も614秒かかった。**リトライを前提に手順を組む必要がある。**
+（`curl` で `127.0.0.1` を直接叩くと安定した。`localhost` が IPv6 の `[::1]` へ解決されるのが
+一因と思われるが、切り分けはしていない。）
+
 ## 残課題
 
-- **作業8（実機検証）が丸ごと残っている。** `gh-pages` の作成・Pages の有効化・デプロイの確認・
-  GitLab CE + Runner の構築。**リポジトリ設定を変える操作を含むため、ユーザーへ知らせてから行う。**
-- **ワークフローをリモートへ反映した時点でCIが走る。** つまり「反映」そのものが実機検証の開始で
-  あり、`gh-pages` ブランチが自動的に作られる。この点もユーザーへ伝えたうえで行う。
-- `gh-pages` の掃除は入れていない（flow-id 2-9 の「恒久公開してよい」という判断による）。
-  **別issueの候補として記録する。**
+- **GitLab の Pages 配信の検証。** `pages_external_url` を設定し、コンテナへ別ポートを公開して
+  作り直せば確認できる。**稼働中のコンテナを作り直すことになるため、ユーザーの判断を仰ぐ。**
+- **`gh-pages` の掃除は入れていない**（flow-id 2-9 の「恒久公開してよい」という判断による）。
+  PR単位のディレクトリは溜まり続ける。**別issueの候補として記録する。**
+- **検証用に作った資産の後始末。** GitLab側の `gitlab-runner` コンテナ・`gitlab-net` ネットワーク・
+  プロジェクト `root/issue114-pages`（id=8）は、検証が終わったら消してよい。
+  **`gitlab-verification-environment.md` へ Runner の構築手順を残すのはフェーズ4の担当。**
