@@ -1,0 +1,183 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "slide-outline",
+  "description": "html-slidesスキルの構成案JSON（.slides.json）のスキーマ。表示スタイルではなく内容だけを持ち、将来の .pptx 書き出し（スライドマスタのレイアウト・プレースホルダ・ノート・ドキュメントプロパティへの対応付け）の入力になる。type のenumは slides.template.html の data-type と同一の8種。",
+  "type": "object",
+  "required": ["meta", "slides"],
+  "additionalProperties": false,
+  "properties": {
+    "meta": {
+      "type": "object",
+      "description": "スライド全体のメタ情報。cover型のスライドはこの値を表示する。.pptx ではドキュメントプロパティに対応する",
+      "required": ["title"],
+      "additionalProperties": false,
+      "properties": {
+        "title": { "type": "string", "description": "発表タイトル" },
+        "subtitle": { "type": "string", "description": "サブタイトル" },
+        "date": { "type": "string", "description": "作成日（YYYY-MM-DD）" },
+        "author": { "type": "string", "description": "作成者" },
+        "issue": { "type": "integer", "description": "関連issue番号" }
+      }
+    },
+    "slides": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "oneOf": [
+          { "$ref": "#/definitions/cover" },
+          { "$ref": "#/definitions/section" },
+          { "$ref": "#/definitions/bullets" },
+          { "$ref": "#/definitions/two-column" },
+          { "$ref": "#/definitions/diagram" },
+          { "$ref": "#/definitions/table" },
+          { "$ref": "#/definitions/comparison" },
+          { "$ref": "#/definitions/summary" }
+        ]
+      }
+    }
+  },
+  "definitions": {
+    "speakerNotes": {
+      "type": "string",
+      "description": "話者ノート。テンプレートの <aside class=\"notes\">（非表示）へ転記し、.pptx ではスライドノートに対応する"
+    },
+    "cover": {
+      "type": "object",
+      "description": "表紙。表示内容は meta から採るため固有フィールドを持たない",
+      "required": ["type"],
+      "additionalProperties": false,
+      "properties": {
+        "type": { "const": "cover" },
+        "speakerNotes": { "$ref": "#/definitions/speakerNotes" }
+      }
+    },
+    "section": {
+      "type": "object",
+      "description": "章扉",
+      "required": ["type", "title"],
+      "additionalProperties": false,
+      "properties": {
+        "type": { "const": "section" },
+        "chapter": { "type": "string", "description": "章番号の表示文字列（例: 第1章）" },
+        "title": { "type": "string", "description": "章タイトル" },
+        "speakerNotes": { "$ref": "#/definitions/speakerNotes" }
+      }
+    },
+    "bullets": {
+      "type": "object",
+      "description": "箇条書き",
+      "required": ["type", "title", "items"],
+      "additionalProperties": false,
+      "properties": {
+        "type": { "const": "bullets" },
+        "title": { "type": "string", "description": "スライド見出し" },
+        "items": {
+          "type": "array", "minItems": 1, "maxItems": 6,
+          "items": { "type": "string" },
+          "description": "箇条書き項目（3〜6項目が目安。超えるならスライドを分ける）"
+        },
+        "speakerNotes": { "$ref": "#/definitions/speakerNotes" }
+      }
+    },
+    "two-column": {
+      "type": "object",
+      "description": "2カラム",
+      "required": ["type", "title", "columns"],
+      "additionalProperties": false,
+      "properties": {
+        "type": { "const": "two-column" },
+        "title": { "type": "string", "description": "スライド見出し" },
+        "columns": {
+          "type": "array", "minItems": 2, "maxItems": 2,
+          "items": {
+            "type": "object",
+            "required": ["heading", "items"],
+            "additionalProperties": false,
+            "properties": {
+              "heading": { "type": "string", "description": "カラム見出し" },
+              "items": { "type": "array", "minItems": 1, "items": { "type": "string" } }
+            }
+          }
+        },
+        "speakerNotes": { "$ref": "#/definitions/speakerNotes" }
+      }
+    },
+    "diagram": {
+      "type": "object",
+      "description": "図解（左から右へのフロー図。ノード列の間に矢印が入る）",
+      "required": ["type", "title", "nodes"],
+      "additionalProperties": false,
+      "properties": {
+        "type": { "const": "diagram" },
+        "title": { "type": "string", "description": "スライド見出し" },
+        "nodes": {
+          "type": "array", "minItems": 2,
+          "items": {
+            "type": "object",
+            "required": ["label"],
+            "additionalProperties": false,
+            "properties": {
+              "label": { "type": "string", "description": "ノードの主文言" },
+              "note": { "type": "string", "description": "ノードの補足（小さく表示）" }
+            }
+          }
+        },
+        "speakerNotes": { "$ref": "#/definitions/speakerNotes" }
+      }
+    },
+    "table": {
+      "type": "object",
+      "description": "表（投影で読める行数・列数に絞る。目安は5行×4列まで）",
+      "required": ["type", "title", "columns", "rows"],
+      "additionalProperties": false,
+      "properties": {
+        "type": { "const": "table" },
+        "title": { "type": "string", "description": "スライド見出し" },
+        "columns": { "type": "array", "minItems": 1, "items": { "type": "string" }, "description": "ヘッダ行" },
+        "rows": {
+          "type": "array", "minItems": 1,
+          "items": { "type": "array", "items": { "type": "string" } },
+          "description": "データ行（各行の要素数は columns と揃える）"
+        },
+        "speakerNotes": { "$ref": "#/definitions/speakerNotes" }
+      }
+    },
+    "comparison": {
+      "type": "object",
+      "description": "比較（案・選択肢を並べる）",
+      "required": ["type", "title", "sides"],
+      "additionalProperties": false,
+      "properties": {
+        "type": { "const": "comparison" },
+        "title": { "type": "string", "description": "スライド見出し" },
+        "sides": {
+          "type": "array", "minItems": 2, "maxItems": 3,
+          "items": {
+            "type": "object",
+            "required": ["name", "points"],
+            "additionalProperties": false,
+            "properties": {
+              "name": { "type": "string", "description": "案の名前" },
+              "points": { "type": "array", "minItems": 1, "items": { "type": "string" } },
+              "tone": { "enum": ["pro", "con", "neutral"], "description": "見た目の色分け（採用寄り/却下寄り/中立）" }
+            }
+          }
+        },
+        "speakerNotes": { "$ref": "#/definitions/speakerNotes" }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "description": "まとめ",
+      "required": ["type", "title", "items"],
+      "additionalProperties": false,
+      "properties": {
+        "type": { "const": "summary" },
+        "title": { "type": "string", "description": "まとめの見出し" },
+        "items": { "type": "array", "minItems": 1, "items": { "type": "string" }, "description": "要点の再掲" },
+        "takeaway": { "type": "string", "description": "最も伝えたい1文（持ち帰りメッセージ）" },
+        "speakerNotes": { "$ref": "#/definitions/speakerNotes" }
+      }
+    }
+  }
+}
