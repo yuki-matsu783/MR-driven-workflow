@@ -33,3 +33,38 @@ keywords: [設計反映, spec, DDR, i0160-01, issue-mr-workflow, generate-ddr-li
   - HTMLを再生成（goal/approach等のid・目次を復元し、mdと`##`/`<h2>`が一致する構成へ）。
 - 事実確認: `generate-ddr-list.sh --check` は実在（終了コード0/2）。`setup-gemini-links.sh` は
   `skills` をディレクトリ単位でリンクするため references/ に追加作業は不要。
+
+## mainのマージ（PR #157: 43ステップ化・.gemini生成物化・未返信スレッド管理）
+
+- mainが同じSKILL.md本文へ大規模変更を入れたためコンフリクト6ファイル
+  （SKILL.md / HANDOFF.md / issue-mr-workflow.md / docs-workflow.md / git-workflow.md /
+  Provider.sh）。解消方針: **自ブランチ=配置の変更、main=内容の変更**なので、mainの内容を
+  分割後の構成（本文＋references/）へ移植する。
+- 機械解消: スクリプトで「theirs（main）を採ってから、切り出し済み節への参照を
+  `references/<file>.md`「節名」へ再置換」する形で4ファイルを解消（節名→参照ファイルの
+  対応は SKILL.md の対応表と同じもの）。
+- SKILL.md: 自分の43行表（参照列付き）を残し、mainの行変更を移植——x-4/x-9 の6行へ
+  「レビューOK」ゲーティング文（参照先は `references/review-loop.md` へ付け替え）、
+  新5-3（gemini変換同期）行の挿入、5-4〜5-7の繰り下げ（参照列は phase5-close.md 等）。
+- references/ 7本へmainの節変更を移植: planning.md（1周完了の2条件・ヘッダ7行・43ステップ）、
+  review-loop.md（位置づけ表の未返信の記録行・comments手順2/5のブロック・完了合図(3)と実例）、
+  phase5-close.md（新節「`.claude/` → `.gemini/` の変換同期（flow-id 5-3）」・全繰り下げ）、
+  deliverables.md / start-resume.md / mcp-fallback.md / base-branch-followup.md（番号繰り下げ）。
+- 追随修正: test_session_start.sh の実データ検証 42→43行、update-handoff-progress.sh の
+  hintメッセージと plans.template.html の節参照を references/ へ、フェーズ4計画md/htmlの
+  flow-id 繰り下げ（統括 5-3→5-4 等）。SKILL.md の対応表へ 43行・5-5改名・gemini節の3行を反映。
+- 検証: マーカー0・`bash -n` OK・全17テスト failures=0（ROW_RE等式テスト含む）・
+  `generate-ddr-list.sh` 差分なし・DDR削除0。マージコミット d6a7c7e（push 10回目）。
+- `sync-gemini-assets.sh --check` は非0（＝`.claude/`変更が`.gemini/`未反映）だが、これは
+  フロー設計どおり flow-id 5-3 で同期する（毎コミット同期はしない。phase5-close.md 参照）。
+
+## flow-id 4-6: 反映A〜Fの実施
+
+- A-0〜A-4 / B-1〜B-2 / C-1〜C-2 / D / E / F を計画どおり実施（詳細は反映レポートが正文）。
+- 反映はマージ後の姿（43ステップ・新番号）を前提に読み替えた。A-1へは
+  「mcp-fallback.md は参照列で指さない」設計も追記（マージで本文に確定した記述と整合させるため）。
+- 実測やり直し: 指示文は627〜857バイト（参照3本の最大ケースを含む）。
+- 検証8項目すべて合格。検証5の再実行で、マージ解消時に `HANDOFF.md` の `## 次にやること`
+  見出しを誤って落としていたことを実データ回帰テストが2件の失敗として検出した
+  （Editの置換で見出し行を new_string へ入れ忘れた）。修正して全緑（passed=1132）。
+  ——実データ回帰テストを入れた判断（フェーズ3・敵対的レビュー指摘）が早速効いた実例。

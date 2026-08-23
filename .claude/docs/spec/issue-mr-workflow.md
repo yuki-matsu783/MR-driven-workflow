@@ -51,7 +51,12 @@ MRとのやり取りだけを自動化する薄い層」として設計したが
 ├── Github.sh                       # gh CLIラッパー
 └── Gitlab.sh                       # glab CLIラッパー
 .claude/skills/issue-mr-flow/
-└── SKILL.md                        # ステップ実行のオーケストレーション手順書
+├── SKILL.md                        # 入口: 全体フロー表（「参照」列を含む）・PR/MR担当・
+│                                   #   旧節名→新しい場所の対応表（issue #160で詳細節を分割）
+└── references/                     # SKILL.mdから切り出した参照資料7本（planning / deliverables /
+                                    #   start-resume / review-loop / base-branch-followup /
+                                    #   mcp-fallback / phase5-close。読むタイミングは全体フロー表の
+                                    #   「参照」列が正。issue #160）
 .claude/agents/
 └── issue-mr-resume.md              # 途中引き継ぎ用の状態調査サブエージェント（resumeから起動）
 .claude/hooks/
@@ -84,7 +89,12 @@ MRとのやり取りだけを自動化する薄い層」として設計したが
 - **`.claude/skills/issue-mr-flow/SKILL.md`**: issue起票からマージまでの**唯一の実装フロー定義**。
   現在のブランチ・issue番号・`plans/` `worklog/` `reports/` の有無・MRの有無などから「今どの段階か」を判定し、
   次に何をすべきかをAIエージェントに指示する。実処理は `Provider.sh` 経由のスクリプト呼び出しに
-  委譲
+  委譲。issue #160 で**本文（入口）＋ `references/` 配下の参照資料7本**という構成へ分割した。
+  本文には全体フロー表・PR/MR担当・対応表だけが残り、各ステップの詳細（計画・成果物・サブコマンド・
+  ベースブランチ追従・MCPフォールバック・クローズ手順）は参照資料側が持つ。**どの参照をいつ読むかは
+  全体フロー表の「参照」列が唯一の正**で、下記「セッション開始時の自動コンテキスト注入」の
+  hookがこの列を読み出して注入する（分割単位・却下案:
+  [i0160-01-SKILL.mdの分割は読むタイミング単位で行い参照列とhookで機械的に注入する.md](../ddr/i0160-01-SKILL.mdの分割は読むタイミング単位で行い参照列とhookで機械的に注入する.md)）
 
 ### 提供関数（`Provider.sh` 経由の共通インターフェース）
 
@@ -843,9 +853,10 @@ resume・clear時に毎回、現在ブランチのissue/MR状態をコンテキ�
 - **issue-mr-flow対象ブランチでのSKILL.md再読み込み指示（issue #113）**: 現在のブランチが
   issue-mr-flowの対象と判定できる場合、注入テキストの**末尾**へ
   「`.claude/skills/issue-mr-flow/SKILL.md`（唯一の実装フロー定義）を読み直すこと」という指示を
-  足す。SKILL.mdは1,100行超であり、compactの要約で手順理解（レビュー往復・`commit`スキル経由の
+  足す。SKILL.mdはissue #160の分割後、本文約190行＋`references/` 7ファイル（フロー定義全体では
+  1,400行超）という構成になったが、compactの要約で手順理解（レビュー往復・`commit`スキル経由の
   強制・`HANDOFF.md`の進捗更新）が失われても、**エージェント側からは「読んだ」という認識だけが
-  残るため失われたことが分からない**。そのため指示文では
+  残るため失われたことが分からない**という前提は変わらない。そのため指示文では
   **「このセッションで既に読んでいる場合も読み直すこと」を明示する**。
   - **対象判定**: (a) ブランチ名から `get_issue_number_from_branch` でissue番号を抽出できる、
     (b) `get_branch_work_files` がブランチ固有の作業ファイルを返す、の**いずれか一方でも
@@ -856,11 +867,42 @@ resume・clear時に毎回、現在ブランチのissue/MR状態をコンテキ�
   - **対象外では何も足さない**（issue-mr-flowに乗せていない軽微な変更を直接進めている
     ブランチが該当。`main`ブランチ上はこの判定より手前で `build_context` が何も注入しない）。
   - 起動要因では分岐させない（上記と同じ方針）。指示文の長さは有界で入力サイズに依存しない
-    （実測603バイト。判定根拠が2件そろう場合でも690バイト）。肥大化検知のしきい値8000バイトに
+    （実測627バイト。判定根拠が2件そろい、参照ファイルが最多の3本付く場合でも857バイト。
+    `format_skill_reload_instruction` の出力を `wc -c` で測った値。issue #160 で現在地の参照行が
+    加わった後の実測）。肥大化検知のしきい値8000バイトに
     対して十分小さい。判定材料の取得コストも増えない
     （(a) は文字列照合のみ、(b) は既に取得済みの値の再利用）。設計判断・却下案は
     [i0113-01-issue-mr-flow対象ブランチではSKILL.mdの再読み込みを注入で促す.md](../ddr/i0113-01-issue-mr-flow対象ブランチではSKILL.mdの再読み込みを注入で促す.md)
     参照。
+- **現在地flow-idと参照ファイルの注入（issue #160）**: 上記の再読み込み指示に続けて、現在地の
+  flow-idと、その実行前に開くべき参照ファイル（`references/` 配下）の行を注入する。SKILL.md分割
+  後の「どの参照をいつ読むか」を、AIエージェントの判断ではなく機械的に決めるための仕組みである。
+  - **現在地の解決**: `HANDOFF.md` の進捗表から「**最後の `[x]`/`[-]` の行より後に現れる、最初の
+    `[]`**」を現在地とする（`current_flow_id_to_reply`）。「表全体で最初の `[]`」方式は採らない
+    ——非対話環境では人間レビュー行（2-3等）が `[]` のまま残る運用のため、永遠にそこを指し
+    続けてしまう。
+  - **参照の抽出**: SKILL.md全体フロー表の「参照」列を、**ヘッダ行から列位置を求めて**抽出する
+    （`refs_for_flow_id_to_reply`）。flow-id→参照の対応表をhook側に持たない（表が唯一の正。
+    複製すると表の更新に追従できず、誤った参照を注入し続ける）。
+  - **fail-openを4段で守る**: (1) 現在地が解決できない、(2) 進捗セルが `[x]`/`[]`/`[-]` の
+    ちょうど1つでない（旧表記 `[x][x][]` の誤読防止）、(3) 抽出値が「`` `references/<名前>.md` ``
+    を ` / ` で並べた形」か「—」でない（セル内の `\|` による列ずれの防止）、(4) 参照が `—`——の
+    いずれでも参照行を出さない。**誤ったファイルを名指しするより、出ないほうが害が小さい**
+    （DDR `i0113-01` が同種の現在地解決を却下した判断と整合させた。失敗時の損失が非対称）。
+  - 注入時は `references/<名前>.md` を `.claude/skills/issue-mr-flow/` 前置の**リポジトリルート
+    相対の完全パス**へ変換する（AIエージェントがそのままReadに使える形にするため）。
+  - **表側の維持責任**: 列見出し `参照` とヘッダ行の存在・進捗表の行形式がhookの前提であり、
+    変えると注入はfail-openで**無言に**止まる。全体フロー表へ行を追加するときは参照列を必ず
+    埋める（追加の参照が無いsteps も空欄ではなく `—` を書く）。実SKILL.mdの全行を読む実データ
+    回帰テスト（`test_session_start.sh`）がこの前提を守っている。
+  - 進捗表の行判定の正規表現 `ROW_RE` は `update-handoff-progress.sh` と**同一リテラルの複製**
+    とし、一致を `test_session_start.sh` が表明する。`source` による共有は、あちらの
+    `set -euo pipefail` がhookのfail-open設計を壊すため採らない（詳細:
+    [update-handoff-progress.md](update-handoff-progress.md)「制約・設計判断」、
+    [i0160-01-SKILL.mdの分割は読むタイミング単位で行い参照列とhookで機械的に注入する.md](../ddr/i0160-01-SKILL.mdの分割は読むタイミング単位で行い参照列とhookで機械的に注入する.md)）。
+  - **`references/mcp-fallback.md` だけは参照列で指さない**（設計）。`gh`/`glab` CLIの有無は
+    flow-idではなく実行環境で決まるため、MCP経路と判定されたときに限り、参照列とは別の行で
+    同ファイルを名指しで注入する（上記「CLI自体が無い環境での挙動」の4点に含まれる）。
 - **出力形式**: `{"hookSpecificOutput":{"hookEventName":"SessionStart","additionalContext":"<text>"}}`
   形式のJSONをstdoutへ返す。
 - **フォールバック方針**: `main`ブランチ上（作業ブランチ未チェックアウト）では注入しない。
@@ -879,7 +921,8 @@ resume・clear時に毎回、現在ブランチのissue/MR状態をコンテキ�
   `[ "${BASH_SOURCE[0]}" = "${0}" ]` ガードで直接実行時のみ呼ぶ。これにより
   `.claude/scripts/test/test_session_start.sh` から`source`して、副作用の無い純粋関数
   （`context_text_bytes` / `append_size_warning` / `extract_handoff_next_steps` /
-  `issue_mr_flow_branch_reason` / `format_skill_reload_instruction`）を単体テストできる
+  `issue_mr_flow_branch_reason` / `format_skill_reload_instruction` /
+  `current_flow_id_to_reply` / `refs_for_flow_id_to_reply`）を単体テストできる
   （ガードが無いと`source`時に`raw="$(cat)"`でstdin待ちのままハングする）。
 - **`gh`/`glab` CLI自体が無い環境での挙動（issue #34）**: 上記の一般的な失敗と区別し、
   `get_vcs_access_mode` が `mcp` を返す場合は専用の内容を注入する。具体的には
@@ -3119,6 +3162,41 @@ point-in-time の記録と DDR 本文は**書き換えていない**）:
 - `## 未決定事項・懸念点` の「（issue #57）`.gemini/settings.json` の SessionStart matcher」を
   **解消済みとして「決定済み事項」へ移した**（Gemini の source に `compact` が無いことと、
   matcher が完全一致であることがソースから確定したため）。
+
+### issue #160（SKILL.mdのreferences分割と参照タイミングの機械化）
+
+`.claude/skills/issue-mr-flow/SKILL.md`（約1,100行）を、本文（入口。全体フロー表・PR/MR担当・
+旧節名→新しい場所の対応表のみ、約190行）と `references/` 配下の参照資料7本
+（`planning.md` / `deliverables.md` / `start-resume.md` / `review-loop.md` /
+`base-branch-followup.md` / `mcp-fallback.md` / `phase5-close.md`）へ分割した。
+**どの参照をいつ読むかは全体フロー表へ新設した「参照」列が唯一の正**で、SessionStart hookが
+現在地のflow-idからこの列を読み出し、完全パスへ変換してセッション冒頭へ注入する
+（本仕様「セッション開始時の自動コンテキスト注入」の「現在地flow-idと参照ファイルの注入」項）。
+
+変更ファイル:
+
+- `.claude/skills/issue-mr-flow/SKILL.md`（本文へ縮約。旧節名→新しい場所の対応表を新設）
+- `.claude/skills/issue-mr-flow/references/*.md`（7本を新規作成。frontmatter `type: skill-reference`）
+- `.claude/hooks/session-start.sh`（`current_flow_id_to_reply` / `refs_for_flow_id_to_reply` と
+  参照行の注入を追加。fail-open 4段）
+- `.claude/scripts/test/test_session_start.sh`（新関数の単体テスト・実SKILL.md/実HANDOFF.mdへの
+  実データ回帰テスト・`ROW_RE` 同一性の表明を追加）
+- `.claude/scripts/test/test_install_to_project.sh`（配布先へ `references/*.md` が本家と同じ
+  構成で配られることの表明を追加）
+- `.claude/rules/markdown-frontmatter.md`（`type` 表へ `skill-reference` を追加）・
+  `.claude/rules/directory-structure.md`・`index.md`（`references/` の位置づけを追記）
+- `.claude/docs/spec/issue-mr-workflow.md`（本ファイル。コンポーネント構成のツリー、
+  「セッション開始時の自動コンテキスト注入」節、影響範囲の本エントリ）
+- `.claude/docs/spec/update-handoff-progress.md`（`ROW_RE` 複製の注意）
+- `.claude/VERSION`（`0.2.0` → `0.3.0`。`references/` 7ファイルの追加は配布資産の追加＝MINORに
+  当たるため。増分の判断は非対話環境のためAIが適用し、`HANDOFF.md`「判断を迷った内容」へ記録した）
+
+新規DDR:
+
+- [i0160-01-SKILL.mdの分割は読むタイミング単位で行い参照列とhookで機械的に注入する.md](../ddr/i0160-01-SKILL.mdの分割は読むタイミング単位で行い参照列とhookで機械的に注入する.md)
+  （分割単位・参照列＋hook注入・fail-open・`ROW_RE` 複製の決定と却下案）。あわせて
+  DDR `i0113-01` の frontmatter へ、前提（SKILL.mdは1,100行超）が本issueで変わった旨の
+  `note` を追加した（本文は不変）。
 
 ## 設定項目
 

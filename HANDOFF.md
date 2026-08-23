@@ -17,9 +17,9 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - issue: #160 issue-mr-flow/SKILL.md を references/ へ分割し、参照ファイルを読むタイミングを全体フロー表とSessionStart hookで機械的に決める
 - ブランチ: claude/skill-split-references-z17fw4
 - PR: #161 https://github.com/yuki-matsu783/MR-driven-workflow/pull/161（Draft）
-- push回数: 7
-- 現在のループ: なし
-- 未返信スレッド: 9
+- push回数: 11
+- 現在のループ: 4-6〜4-9 の1周目（進行中）
+- 未返信スレッド: 0
 - 追従監視: 購読あり（web。subscribe_pr_activity + 自己チェックイン）
 
 | 進捗 | flow-id | ステップ | 担当 |
@@ -155,6 +155,18 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 
 - 3-9の対応を4コミットに分けてpushし（push 7回目）、投稿済み10スレッドへ返信した。
 - flow-id 3-10: MR description を更新した。**フェーズ3〈作業〉はここで完了**。
+- flow-id 4-1: 個別反映計画 `plans/【設計反映】SKILL.md分割のspec・DDR反映.md`（＋`.html`）を作成し、
+  4-2 でcommit・push（push 8回目）した。
+- **敵対的レビュー（フェーズ4・1回目=計画）**: 13件の指摘（投稿9件＋報告4件）を得て、全13件を
+  計画へ反映した（push 9回目・e7b91bb。反映元対応表の新設・A-0/E/F項目の追加・検証の機械化）。
+  投稿9スレッドへは返信済み（未返信スレッド: 0）。
+- **mainのマージ（PR #157取り込み）**: mainが43ステップ化（新5-3 `.gemini/`変換同期・未返信
+  スレッド管理・`.gemini/`生成物化）したためコンフリクト6ファイルを解消し、mainの節変更を
+  references/ 分割構成へ移植した（マージコミット d6a7c7e、push 10回目）。全17テスト failures=0。
+- flow-id 4-6: **反映A〜Fをすべて実施した**（spec 2本・DDR `i0160-01` 新規・`i0113-01` note・
+  DDR一覧再生成・VERSION 0.2.0→0.3.0・hookコメント更新）。検証8項目すべて合格
+  （全17テスト passed=1132 failures=0。再実行がマージ解消時の `HANDOFF.md` 見出し欠落を検出→修正）。
+  結果の正文は `reports/20260823_split-issue-mr-flow-skill-into-references_反映.md`（＋同名 `.html`）。
 
 ## 次にやること
 
@@ -183,6 +195,13 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
   代替した。**進捗記号は `[]` のまま残している**（`[x]` にすると「人間が合意した」という事実と
   矛盾し、`[-]` にすると「実施しない」という意味になるため。`.claude/rules/docs-workflow.md`）。
   合意を取ったが記号の更新を忘れたのではなく、**取らずに進めた**ことをここに明記しておく。
+
+- **`.claude/VERSION` の増分（0.2.0→0.3.0 MINOR）をAIの判断で適用した。** `distribution-assets.md`
+  が更新タイミングを flow-id 4-6 と定め、増分の決定は本来人間が行うが、非対話環境のため
+  references/ 7ファイルの追加（配布資産の追加=MINOR）を根拠に適用した。否認されたら戻す。
+- **`.gemini/` 側の references/ の見え方はWindows実機で未確認。** mainのissue #70で `.gemini/` は
+  リンクではなく `sync-gemini-assets.sh` による変換生成物になったため、flow-id 5-3 の同期で
+  `references/` もコピーされる（リンク動作の確認は不要になった）。同期の実行は 5-3 で行う。
 
 ## 未解決の内容
 
