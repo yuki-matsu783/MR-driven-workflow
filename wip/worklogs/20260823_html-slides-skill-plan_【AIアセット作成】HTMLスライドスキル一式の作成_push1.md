@@ -62,7 +62,34 @@ push回数: 7〜
 - 作業結果レポート md+html を作成（機械検査5種合格）。サブエージェント2本の実運転は未実施で、
   レポートの◆重点レビュー依頼へ明示した。
 
+## 敵対的レビュー（フェーズ3の2回目・対象は実装＋レポート）
+
+- 8件の指摘（major 1・minor 7、全件confidence high）を全てPR #194へインライン投稿
+  （報告のみ0件）。カウンタは2/3。
+- 8件すべてを反映:
+  1. **JSガード欠如（major）**: IIFE冒頭へ `if (!slides.length) { return; }`、`progress` 更新を
+     `if (progress)` で包む。冒頭コメントへ「.progress / .nav-hint は消してもページ送りは
+     止まらない」を明記。
+  2. **手順3が無出力**: `; echo "ok=$?"` を復元（実測 正常0/type不正1/空1/0枚1）。
+  3. **型8種の再掲**: 手順3・5の型名をスキーマから導出
+     （`jq -c '[.properties.slides.items.oneOf[]."$ref" | sub(".*/";"")]'`）へ変更。
+  4. **0枚が合格**: フィルタへ `(.slides | length) > 0` を追加。
+  5. **重複ID検査が空振り**: 出力data-typeとスキーマ由来リストの `comm -23` 照合へ置き換え。
+  6. **手順5の未定義 `$outline`**: ブロック内で `outline`/`SCHEMA` を定義し、枚数一致は
+     `COUNT_OK` の1行判定へ。
+  7. **あふれの無言切り落とし**: `.slide` へ `justify-content: safe center` を追加し、
+     動的検証へ「scrollHeight > clientHeight のスライド0枚」を追加。
+  8. **comparison.tone の転記先未定義**: 見本コメントへ tone→クラス対応
+     （pro→`.side.pro` / con→`.side.con` / neutral→`.side`）を明記し、`.side` 単体の既定
+     スタイル（`border-top: var(--line)`）を追加。
+- 指摘の敷衍として同時に実施: `@media print` で `:root` をライトへ上書き（ダークモード印刷対策）・
+  cover へ任意の `title`/`subtitle` を追加（省略時は meta）・SKILL.md成果物表へ flow-id 5-5 の
+  寿命注記・レポートへ「調査Q5からの変更点」表を新設（Q5準拠と言い切っていた記述の訂正）。
+- 修正後にサンプルを再生成し検証スイートを全て再実測: 静的（外部参照0・型8種照合・
+  プレースホルダ0・data-type照合差分なし・COUNT_OK）・スキーマ4入力（0/1/1/1）・動的
+  （キー/クリック・PDF8ページ×ライト/ダーク・あふれ0枚・ダーク印刷背景=白・.progress削除版と
+  0枚版でページエラー0）・index.jsonl（1件/2件）・gemini dry-run（終了0・新規2本）。
+
 ## 次の一歩
 
-- commit/push → 敵対的レビュー（フェーズ3の2回目・対象は実装＋レポート）→ 指摘対応・返信 →
-  describe（3-10）→ フェーズ4。
+- 修正commit/push → 8スレッドへ返信 → describe（3-10）→ フェーズ4。

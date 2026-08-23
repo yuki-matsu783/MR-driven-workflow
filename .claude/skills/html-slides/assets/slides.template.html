@@ -19,9 +19,12 @@
     diagram（図解）/ table（表）/ comparison（比較）/ summary（まとめ）
 
   操作:
-    ページ送り: ← → キー・Space（次へ）・Home/End（先頭/末尾）・画面の左右クリック。
-    進行表示: 右下に「現在/総数」を常設（.progress）。
-    印刷: ブラウザの印刷（またはPDF保存）で1スライド=1ページになる（@media print）。
+    ページ送り: ← → キー・Space/PageDown（次へ）・PageUp（前へ）・Home/End（先頭/末尾）・
+    画面の左右クリック（プレゼン用リモコンの多くは PageUp/PageDown を送出する）。
+    進行表示: 右下に「現在/総数」を常設（.progress）。.progress / .nav-hint は不要なら
+    削除してよい（JSは要素の有無を確認してから触るため、消してもページ送りは止まらない）。
+    印刷: ブラウザの印刷（またはPDF保存）で1スライド=1ページになる（@media print。
+    ダークモードの画面設定でも印刷はライト配色に固定される）。
 
   話者ノート:
     各スライドの <aside class="notes"> は画面にも印刷にも出ない（構成案JSONの speakerNotes の
@@ -68,6 +71,9 @@
     width: 100vw; height: 100vh;
     padding: 6vh 7vw;
     flex-direction: column; justify-content: center;
+    /* 内容がスライド高を超えたとき、中央寄せのまま上端まで切り落とさないための safe 指定
+       （非対応エンジンでは上の center が効く）。あふれ自体は許さず、構成側で枚数を分ける */
+    justify-content: safe center;
     background: var(--bg);
     overflow: hidden;
   }
@@ -123,10 +129,11 @@
   .compare .side {
     flex: 1; background: var(--panel); border: 1px solid var(--line);
     border-radius: var(--radius); padding: 3vh 2vw;
+    border-top: 6px solid var(--line);  /* tone: neutral（クラス無し）の既定 */
   }
   .compare .side h3 { margin: 0 0 0.6em; font-size: clamp(18px, 2.4vw, 30px); }
-  .compare .side.pro { border-top: 6px solid var(--ok); }
-  .compare .side.con { border-top: 6px solid var(--stop); }
+  .compare .side.pro { border-top-color: var(--ok); }
+  .compare .side.con { border-top-color: var(--stop); }
 
   .slide[data-type="summary"] .takeaway {
     background: var(--ok-soft); border-left: 6px solid var(--ok);
@@ -146,8 +153,15 @@
     font-size: 12px; color: var(--muted); z-index: 10;
   }
 
-  /* ===== 印刷: 1スライド=1ページ、操作UIは出さない ===== */
+  /* ===== 印刷: 1スライド=1ページ、操作UIは出さない、配色はライトへ固定 =====
+     （画面がダークモードでも、印刷は白い紙が前提。戻さないと本文が淡色になり読めない） */
   @media print {
+    :root {
+      --bg: #ffffff;    --panel: #ffffff;   --ink: #1a1d21;     --muted: #5b636d;
+      --line: #dfe3e8;  --accent: #2563eb;  --accent-soft: #eaf0fe;
+      --ok: #1a7f4b;    --ok-soft: #e6f4ec; --warn: #a35a00;    --warn-soft: #fdf1e0;
+      --stop: #b3261e;  --stop-soft: #fdecea; --code-bg: #f0f2f5;
+    }
     .slide { display: flex; width: 100%; height: 100vh; page-break-after: always; break-after: page; }
     .slide:last-of-type { page-break-after: auto; break-after: auto; }
     .progress, .nav-hint { display: none; }
@@ -244,7 +258,8 @@
   <h2>スライド見出し</h2>
   <div class="compare">
     <div class="side pro">
-      <!-- ここに書く: 案1の名前と特徴（pro/con のクラスは意味に合わせて付け替えてよい） -->
+      <!-- ここに書く: 案1の名前と特徴。構成案JSONの tone との対応は
+           pro → class="side pro" / con → class="side con" / neutral（または省略）→ class="side" -->
       <h3>案1</h3>
       <ul><li>特徴</li></ul>
     </div>
@@ -282,13 +297,16 @@
     var progress = document.querySelector('.progress');
     var current = 0;
 
+    // スライド0枚（編集の中間状態等）や .progress 削除済みでも例外で止めない
+    if (!slides.length) { return; }
+
     function show(i) {
       if (i < 0) { i = 0; }
       if (i > slides.length - 1) { i = slides.length - 1; }
       slides[current].classList.remove('current');
       current = i;
       slides[current].classList.add('current');
-      progress.textContent = (current + 1) + '/' + slides.length;
+      if (progress) { progress.textContent = (current + 1) + '/' + slides.length; }
     }
 
     slides[0].classList.add('current');

@@ -20,6 +20,9 @@ keywords: [スライド, 発表, プレゼン, テンプレート, 構成案, �
 | スライドHTML | `wip/reports/日付_<全体計画名>_<内容を簡潔に>.slides.html`（既定。ほかの用途では依頼元の指定に従う） |
 | 構成案JSON | 上と同じベース名の `.slides.json`（必ず対で置く） |
 
+- **既定の出力先 `wip/reports/` は flow-id 5-5 で削除され、mainには残らない**（他の
+  `wip/reports/` 成果物と同じ寿命）。発表後も恒久的に残したいスライドは、依頼元が
+  `wip/` の外の置き場所を指定すること。
 - テンプレート: `.claude/skills/html-slides/assets/slides.template.html`
 - スキーマ: `.claude/skills/html-slides/references/slide-outline.schema.json`
 - **スライド型8種の名前と見出し構成の正はテンプレート側**（`data-type` とスキーマの `type` は
@@ -32,17 +35,20 @@ keywords: [スライド, 発表, プレゼン, テンプレート, 構成案, �
    自分で書いてもよいが、元資料の読解が要る場合は `slide-outline-designer` サブエージェントへ
    委譲する（読み取り専用。構成案JSONだけを返し、HTMLは生成しない）。
 3. **スキーマ検査を通す。** 空チェックを jq より先に置く（空入力は `jq -e` が検知できない
-   ことがある）。
+   ことがある）。型名の一覧はスキーマから導出する（正を1箇所に保つ。`definitions | keys` は
+   `speakerNotes` を含むため使わない）。
 
    ```bash
    outline="<構成案JSONのパス>"
-   [ -s "$outline" ] && jq -e 'has("meta") and (.meta|has("title")) and
-     (["cover","section","bullets","two-column","diagram","table","comparison","summary"] as $known
-      | [.slides[].type] | all(. as $t | ($known | index($t)) != null))' "$outline" >/dev/null
+   SCHEMA=".claude/skills/html-slides/references/slide-outline.schema.json"
+   known="$(jq -c '[.properties.slides.items.oneOf[]."$ref" | sub(".*/";"")]' "$SCHEMA")"
+   [ -s "$outline" ] && jq -e --argjson known "$known" 'has("meta") and (.meta|has("title")) and
+     ((.slides | length) > 0) and
+     ([.slides[].type] | all(. as $t | ($known | index($t)) != null))' "$outline" >/dev/null; echo "ok=$?"
    ```
 
-   これは最小限の構造検査（メタ情報と型名）。型ごとの必須フィールドはスキーマ本体を参照して
-   確認する。
+   `ok=0` が合格（実測: 正常=0／型名不正=1／空ファイル=1／0枚=1）。これは最小限の構造検査
+   （メタ情報・型名・1枚以上）。型ごとの必須フィールドはスキーマ本体を参照して確認する。
 4. **テンプレートを穴埋めする。** 構成案の各要素を、同じ `data-type` の見本の複製へ転記する
    （`speakerNotes` は `<aside class="notes">` へ）。`slide-html-generator` サブエージェントへ
    委譲できる（**構成案に忠実に埋める。構成の再設計はしない。** 構成案の `type` がテンプレートに
@@ -51,22 +57,29 @@ keywords: [スライド, 発表, プレゼン, テンプレート, 構成案, �
 
    ```bash
    out="<スライドHTMLのパス>"
+   outline="<構成案JSONのパス>"
+   SCHEMA=".claude/skills/html-slides/references/slide-outline.schema.json"
    # プレースホルダ残存（0が合格）
    grep -c '<!-- ここに書く' "$out"
    # 外部参照（2種とも0件=フォールバック文言が出るのが合格）
    grep -nE "(src|href)=['\"]?(https?:)?//" "$out" || echo EXT_REF_NONE
    grep -nE "(url\(|@import[[:space:]]+)['\"]?(https?:)?//" "$out" || echo EXT_CSS_NONE
-   # 重複ID（出力なしが合格）
-   grep -oE 'id="[^"]+"' "$out" | sort | uniq -d
-   # スライド枚数が構成案と一致（2つの数値が同じ、が合格）
-   grep -c '<section class="slide"' "$out"; jq '.slides | length' "$outline"
+   # 出力の data-type が全てスキーマの型8種のいずれか（出力なしが合格）
+   grep -oE 'data-type="[^"]+"' "$out" | sed 's/.*="//; s/"$//' | sort -u |
+     comm -23 - <(jq -r '.properties.slides.items.oneOf[]."$ref" | sub(".*/";"")' "$SCHEMA" | sort)
+   # スライド枚数が構成案と一致（COUNT_OK が出るのが合格）
+   test "$(grep -c '<section class="slide"' "$out")" = "$(jq '.slides | length' "$outline")" && echo COUNT_OK
    ```
 6. **動的検証（任意）。** node と Playwright＋Chromium が使える実行環境（例: Claude Code on
    the web のリモート実行環境）でのみ、ヘッドレスブラウザでページ送りと印刷を実測する。
    **使えない環境では実行せず、「動的検証: 未実施1件（環境なし）。代替: 手順5の静的検査」の形で
    件数を出して報告する**（無言のスキップはしない）。検証スクリプトはscratchpad等の一時領域に
    置き、リポジトリへはコミットしない。確認するのは (a) キー送出で進行表示（`.progress`）が
-   進むこと、(b) `page.pdf()` のページ数がスライド枚数と一致すること、の2点。
+   進むこと、(b) `page.pdf()` のページ数がスライド枚数と一致すること、
+   (c) `scrollHeight > clientHeight` のスライドが0枚であること（内容あふれは `overflow: hidden`
+   により無言で切り落とされ、静的検査では検出できない）、の3点。印刷・PDFは `@media print` が
+   `:root` をライトパレットへ上書きするため、OSがダークモードでもライト配色で出力される
+   （ダーク検証は `page.emulateMedia({ colorScheme: 'dark' })` を併用する）。
 
 ## サブエージェントとの境界
 

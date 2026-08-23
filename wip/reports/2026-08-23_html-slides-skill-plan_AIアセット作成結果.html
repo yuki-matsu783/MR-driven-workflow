@@ -179,7 +179,7 @@
   <div class="focus skip">
     <span class="label">・細かいレビューは不要（ほぼ確実）</span>
     <ul>
-      <li><a href="#f6">6. 機械検査群</a> — 外部参照0・型8種の一意性・プレースホルダ0・重複ID0・index.jsonl掲載・gemini変換dry-runのいずれも実測で合格。</li>
+      <li><a href="#f6">6. 機械検査群</a> — 外部参照0・型8種の一意性・プレースホルダ0・data-typeとスキーマの照合・index.jsonl掲載・gemini変換dry-runのいずれも実測で合格。当初あった重複ID検査は構造的に空振り（テンプレートに id 属性が無い）だったため、敵対的レビューの指摘を受けて data-type とスキーマの照合へ置き換えた。</li>
     </ul>
   </div>
 </section>
@@ -222,28 +222,45 @@
   <h2>実施した内容と結果</h2>
 
   <h3 id="f1">1. テンプレート（slides.template.html） <span class="chip good">◎良</span></h3>
-  <p><code>.claude/skills/html-slides/assets/slides.template.html</code> を新規作成。plans/reportsテンプレートの共通規約（冒頭使い方コメント・CSS変数＋ダークモード・日本語フォントスタック・プレースホルダ形式）を踏襲し、8種の見本スライド・進行表示・素朴なJS（keydown＋左右30%クリック領域）・<code>@media print</code> を持つ。図解はCSSのみのフロー図。話者ノートは非表示の aside。</p>
+  <p><code>.claude/skills/html-slides/assets/slides.template.html</code> を新規作成。plans/reportsテンプレートの共通規約（冒頭使い方コメント・CSS変数＋ダークモード・日本語フォントスタック・プレースホルダ形式）を踏襲し、8種の見本スライド・進行表示・素朴なJS（keydown＋左右30%クリック領域。0枚・<code>.progress</code> 欠落でも例外で止まらないガード付き）・<code>@media print</code>（<code>:root</code> をライトへ上書きし、印刷は常にライト配色）を持つ。あふれ対策として <code>.slide</code> は <code>justify-content: safe center</code>。図解はCSSのみのフロー図。話者ノートは非表示の aside。</p>
   <pre><code>EXT_REF_NONE / EXT_CSS_NONE            # 外部参照 2種とも0件
 data-type一意数 = 8、期待8種との comm -3 = 空
 @media print = 2件、keydown|ArrowRight = 2件</code></pre>
   <div class="box ok"><span class="label">結論</span>計画の検証1・2・2bに全合格。</div>
 
   <h3 id="f2">2. ページ送り・進行表示・印刷（動的検証） <span class="chip good">◎良</span></h3>
-  <p>サンプル8枚をヘッドレスChromiumで駆動した（計画の検証8）。playwrightは調査Q8の制約どおり絶対パスで require した。</p>
-  <pre><code>initial: 1/8 → ArrowRight: 2/8 → End: 8/8 → Home: 1/8
+  <p>サンプル8枚をヘッドレスChromiumで駆動した（計画の検証8。敵対的レビュー2回目の指摘対応後に再実測した最終値）。playwrightは調査Q8の制約どおり絶対パスで require した。</p>
+  <pre><code>initial: 1/8 → ArrowRight: 2/8 → PageDown: 3/8 → PageUp: 2/8 → End: 8/8 → Home: 1/8
 右30%クリック: 2/8 → 左30%クリック: 1/8
-page.pdf() のページ数 = 8（スライド枚数と一致）</code></pre>
+page.pdf() のページ数 = 8（ライト・ダーク両方。スライド枚数と一致）
+scrollHeight &gt; clientHeight のスライド = 0枚（あふれの無言切り落としなし）
+ダークモード時の印刷背景 = rgb(255,255,255)（@media print のライト固定が有効）
+.progress 削除版: ページ送り動作・ページエラー0 ／ スライド0枚版: ページエラー0（ガード有効）</code></pre>
   <div class="box ok"><span class="label">結論</span>キーボード・クリックのページ送り、進行表示、印刷1スライド1ページが実測で動作した。</div>
   <div class="box warn unverified-detail"><span class="label">確かめられなかったこと（詳細）</span>Chromium 1種の観測。見た目の品質・実プリンタ・他ブラウザは人間の実機確認としてレビュー依頼へ明記する。</div>
 
   <h3 id="f3">3. スキーマ（slide-outline.schema.json） <span class="chip good">◎良</span></h3>
-  <p><code>.claude/skills/html-slides/references/slide-outline.schema.json</code> を新規作成。JSON Schema draft-07。トップレベルは <code>{meta: {title, subtitle, date, author, issue}, slides[]}</code>、型ごとの定義を oneOf で束ね、全型が任意の <code>speakerNotes</code> を持つ（調査Q5準拠、表紙のみ <code>title</code>→<code>cover</code>）。</p>
+  <p><code>.claude/skills/html-slides/references/slide-outline.schema.json</code> を新規作成。JSON Schema draft-07。トップレベルは <code>{meta: {title, subtitle, date, author, issue}, slides[]}</code>、型ごとの定義を oneOf で束ね、全型が任意の <code>speakerNotes</code> を持つ。「Q5準拠」と言い切れるのは meta・8種enum・speakerNotes・HTML固有表現ゼロの骨格であり、型ごとの固有フィールドは次のとおり意図的に変えた。</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Q5の例示</th><th>実装</th><th>理由</th></tr></thead>
+    <tbody>
+      <tr><td>表紙の型名 <code>title</code>・全型で <code>title</code> 必須</td><td>型名 <code>cover</code>。cover のみ <code>title</code>/<code>subtitle</code> は任意（省略時は <code>meta</code> から採る）</td><td>型名とフィールド名 <code>title</code> の衝突回避（計画レビューで確定）。表紙の文言は meta と重複させない</td></tr>
+      <tr><td><code>bullets.items[]</code> は入れ子1段まで</td><td>文字列の平坦配列（1〜6個）</td><td>投影で読める粒度に絞る。入れ子が要る内容はスライドを分ける</td></tr>
+      <tr><td><code>two-column</code> は <code>left</code>/<code>right</code></td><td><code>columns[]</code>（2要素固定）</td><td>転記処理が左右で分岐せず、カラム見出し（<code>heading</code>）を持てる</td></tr>
+      <tr><td><code>table</code> は <code>headers[]</code>/<code>rows[][]</code></td><td><code>columns[]</code>/<code>rows[][]</code></td><td>意味は同じ。名称を .pptx の表現に寄せた</td></tr>
+      <tr><td><code>comparison</code> は <code>options[]</code>（名前・利点・欠点・採否）</td><td><code>sides[]</code>（<code>name</code>/<code>points[]</code>/<code>tone</code>）</td><td>利点・欠点を別配列にせず、見た目の色分けだけを <code>tone</code>（pro/con/neutral）で表す</td></tr>
+      <tr><td><code>diagram</code> は <code>nodes[]</code>/<code>edges[]</code>＋<code>caption</code></td><td><code>nodes[]</code> のみ（左→右のフロー図）</td><td>初版は直列フローに限定。<code>edges</code>/<code>caption</code> が要る図は将来拡張</td></tr>
+    </tbody>
+  </table>
+  </div>
   <pre><code>[ -s ] &amp;&amp; jq -e . → SCHEMA_OK
-構造検査フィルタ: 正常サンプル ok=0 / type不正サンプル bad=1（空ファイルも1）</code></pre>
+構造検査フィルタ: 正常サンプル ok=0 / type不正サンプル ok=1 / 空ファイル ok=1 / 0枚 ok=1</code></pre>
+  <p>構造検査フィルタの型8種は文字列の再掲ではなくスキーマから導出する（敵対的レビューの指摘「正が複数箇所に増えている」への対応）。0枚（<code>"slides": []</code>）は <code>minItems: 1</code> と食い違って合格していたため、フィルタへ <code>(.slides | length) &gt; 0</code> を加えた。</p>
   <div class="box ok"><span class="label">結論</span>計画の検証3・4に合格（異常検出も実測）。</div>
 
   <h3 id="f4">4. SKILL.md <span class="chip good">◎良</span></h3>
-  <p><code>.claude/skills/html-slides/SKILL.md</code> を新規作成。手順6段（コピー→構成案→スキーマ検査→穴埋め→機械検査→任意の動的検証）、成果物の置き場所、サブエージェント2本との境界表、動的検証を実行できない環境での「件数を出してスキップ」、人間に確認してもらう3項目を記載。型8種の名前と見出し構成の正はテンプレート側に置き、再掲していない。</p>
+  <p><code>.claude/skills/html-slides/SKILL.md</code> を新規作成。手順6段（コピー→構成案→スキーマ検査→穴埋め→機械検査→任意の動的検証）、成果物の置き場所（flow-id 5-5 で削除される寿命と恒久保存時の指定を明記）、サブエージェント2本との境界表、動的検証を実行できない環境での「件数を出してスキップ」、人間に確認してもらう3項目を記載。型8種の名前と見出し構成の正はテンプレート側に置き、文字列を再掲しない（手順3・5の検査はスキーマから型名を導出する）。各検査は結果が必ず出力される形（<code>echo "ok=$?"</code>・<code>COUNT_OK</code>・フォールバック文言）に統一し、手順5だけを別シェルで実行しても変数が未定義にならないよう各ブロックで変数を定義している（いずれも敵対的レビューの指摘対応）。</p>
   <div class="box ok"><span class="label">結論</span>受け入れ条件（手順定義・プレースホルダ検査の記載・見出し構成はテンプレートが正）を満たす。</div>
 
   <h3 id="f5">5. サブエージェント2本 <span class="chip warn">△注意</span></h3>
@@ -256,9 +273,10 @@ sync-gemini-assets.sh --dry-run: 終了コード0・出力に新規2本 = 2件</
 
   <h3 id="f6">6. サンプル生成と検証スイート <span class="chip good">◎良</span></h3>
   <p>scratchpadに構成案JSON（8種の型を1枚ずつ・8枚構成）と異常サンプルを作成し、SKILL.mdの手順どおりコピー→穴埋め→機械検査→動的検証を一連で実行した。サンプルはリポジトリへコミットしない（計画どおり）。</p>
-  <pre><code>プレースホルダ残存 = 0 / 重複ID = なし
-スライド枚数 8 = 構成案 slides数 8
-外部参照 2種とも0件（サンプル側）</code></pre>
+  <pre><code>プレースホルダ残存 = 0 / data-typeとスキーマの照合 = 差分なし
+スライド枚数 COUNT_OK（8 = 8）
+外部参照 2種とも0件（サンプル側）
+動的検証: 1/8→2/8→8/8→1/8（キー）・クリック・PDF8ページ・あふれスライド 0枚</code></pre>
   <div class="box ok"><span class="label">結論</span>計画の検証5と枚数一致に合格。SKILL.mdの手順が一連で通ることを実走で確認した。</div>
 </section>
 

@@ -43,11 +43,13 @@
     },
     "cover": {
       "type": "object",
-      "description": "表紙。表示内容は meta から採るため固有フィールドを持たない",
+      "description": "表紙。title/subtitle 省略時は meta の値を表示する",
       "required": ["type"],
       "additionalProperties": false,
       "properties": {
         "type": { "const": "cover" },
+        "title": { "type": "string", "description": "表紙タイトル（省略時は meta.title を採る）" },
+        "subtitle": { "type": "string", "description": "表紙サブタイトル（省略時は meta.subtitle を採る）" },
         "speakerNotes": { "$ref": "#/definitions/speakerNotes" }
       }
     },
