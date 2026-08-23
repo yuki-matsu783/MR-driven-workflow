@@ -18,7 +18,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - ブランチ: `claude/gemini-to-claude-migration-jc64gu`
 - PR: #157（Draft。https://github.com/yuki-matsu783/MR-driven-workflow/pull/157 ）
 - push回数: 15
-- 現在のループ: 4-6〜4-9 の1周目（進行中）
+- 現在のループ: 4-6〜4-9 の1周目（完了）
 - 未返信スレッド: 0
 - 追従監視: 購読あり（web。subscribe_pr_activity + 自己チェックイン）
 
@@ -55,11 +55,11 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 | [x] | 4-3 | 反映計画のレビュー・コメント | 人間 |
 | [x] | 4-4 | レビュー内容を取得し反映計画を修正・返信 | サブコマンド |
 | [x] | 4-5 | 反映計画をもとにMR descriptionを更新 | サブコマンド |
-| [] | 4-6 | 設計反映・AIアセット反映・実装反映を実施 | エージェント |
-| [] | 4-7 | commit・pushしてレビュー依頼 | エージェント |
-| [] | 4-8 | 反映結果のレビュー・コメント | 人間 |
-| [] | 4-9 | レビュー内容を取得し設計・AIアセットを修正・返信 | サブコマンド |
-| [] | 4-10 | 反映内容をもとにMR descriptionを更新 | サブコマンド |
+| [x] | 4-6 | 設計反映・AIアセット反映・実装反映を実施 | エージェント |
+| [x] | 4-7 | commit・pushしてレビュー依頼 | エージェント |
+| [x] | 4-8 | 反映結果のレビュー・コメント | 人間 |
+| [x] | 4-9 | レビュー内容を取得し設計・AIアセットを修正・返信 | サブコマンド |
+| [x] | 4-10 | 反映内容をもとにMR descriptionを更新 | サブコマンド |
 | [] | 5-1 | defaultブランチとのコンフリクト検知・解消 | エージェント |
 | [] | 5-2 | 関連issueへのマージ前通知 | エージェント |
 | [] | 5-3 | `.claude/` の変更を `.gemini/` へ変換同期 | エージェント |
@@ -251,14 +251,30 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - **flow-id 4-6: DDR は書いていない**（`i0070-02` 相当の判断は
   `.claude/docs/spec/update-handoff-progress.md`「なぜ機構で止めるのか」に記録済み）。
   DDRの追加は `【設計反映】` の担当なので、そちらへ寄せる
+- **flow-id 4-8/4-9/4-10（1周目・`【AIアセット反映】`）: 人間のレビューで合意**（チャット
+  「レビューOK」）。**閉じる前に「レビュー完了合図の確認」(1)(2)(3) を通した**——
+  全19スレッドに返信あり（`comments` 配列が1件のスレッドは**0件**）、MRの新規コメントは無し、
+  `set-header --unreplied 0` で記録。**チャットで下された判断は無かったため、記録コメントは
+  投稿していない**（「該当する判断が1件も無い往復では何も投稿しない」）。
+  MR descriptionを更新し（flow-id 4-10）、ループ 4-6〜4-9 を `mark-done` で閉じた
+- **追従監視: main が2コミット進み、コンフリクトを検知した**（`805ab5f` PR #156 /
+  `c71dfa1` PR #158）。`check-base-conflicts.sh` の `textualConflictFiles` は6件
+  （`.claude/rules/directory-structure.md` / `docs-workflow.md` / `markdown-frontmatter.md` /
+  `.claude/skills/issue-mr-flow/SKILL.md` / `HANDOFF.md` / `index.md`）。DDR識別子の重複は無し
 
 ## 次にやること
 
-- **flow-id 4-7（commit・push）まで完了。次は人間のレビュー（flow-id 4-8）待ち。**
-  レビュー対象は `【AIアセット反映】` の実施結果
-  （`reports/20260823_nimble-syncing-lantern_レビュー返信漏れ防止の反映結果.md`）。
-- **合意が得られたら、同じフェーズ4の残り2本を種別ごとに回す**
-  （`.claude/skills/issue-mr-flow/SKILL.md`「原則併記せず分ける」。4-6〜4-9を種別の数だけ）。
+- **`【AIアセット反映】` は 4-6〜4-10 まで完了（1周目で合意）。**
+- **最優先: main とのコンフリクトを解消する**（追従監視で検知済み）。
+  `git merge --no-ff --no-commit origin/main` → 類型別に解消 → 検証 → `commit` スキル。
+  **`git rebase` / `--force` は使わない。** 類型E（同じロジックを両ブランチが変更）が
+  1件でもあれば、他も解消せずに止めて `AskUserQuestion` で確認する。
+  **`.claude/skills/issue-mr-flow/SKILL.md` の競合は要注意**——このブランチは flow-id を
+  5-3 新設で繰り下げており、main 側の変更が旧番号のままの可能性がある。
+- **その後、フェーズ4の残り2本を種別ごとに回す**
+  （`.claude/skills/issue-mr-flow/SKILL.md`「原則併記せず分ける」。4-6〜4-10を種別の数だけ）。
+  **ループ範囲へ入り直すときは `add-round 4-6`**（1周目は完了済みなので `set-header --loop`
+  ではない）。
   1. `plans/【設計反映】gemini変換の仕様化とDDR整備.md`
   2. `plans/【実装反映】敵対的レビュー指摘のコード修正.md`
 - `【設計反映】` で扱う反映対象（計画が正。以下は索引）:
