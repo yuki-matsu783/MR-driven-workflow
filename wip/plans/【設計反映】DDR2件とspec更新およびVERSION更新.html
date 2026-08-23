@@ -1,6 +1,6 @@
 <!--
   issue #145 フェーズ4〈反映〉の個別反映計画（flow-id 4-1）の人間レビュー用HTMLビュー。
-  正文は同名の .md（plans/【設計反映】DDR2件とspec更新およびVERSION更新.md）であり、
+  正文は同名の .md（wip/plans/【設計反映】DDR2件とspec更新およびVERSION更新.md）であり、
   このHTMLはその視覚化である。
   土台: .claude/skills/issue-mr-flow/assets/plans.template.html
 -->
@@ -112,13 +112,13 @@
   <div class="inner">
     <div class="kind">個別反映計画 / フェーズ4〈反映〉</div>
     <h1>【設計反映】DDR2件とspec更新およびVERSION更新</h1>
-    <p class="lead">フェーズ3までで実装は終わっている。<code>plans/</code> <code>worklog/</code> <code>reports/</code> が flow-id 5-5 で消える前に、恒久的に残すべき判断と仕様を <code>.claude/docs/</code> へ移す。</p>
+    <p class="lead">フェーズ3までで実装は終わっている。<code>wip/plans/</code> <code>wip/worklogs/</code> <code>wip/reports/</code> が flow-id 5-5 で消える前に、恒久的に残すべき判断と仕様を <code>.claude/docs/</code> へ移す。</p>
     <ul class="meta">
       <li><b>issue</b> #145</li>
       <li><b>ブランチ</b> claude/mr-pr-template-archive-0bo17a</li>
       <li><b>PR</b> #187</li>
       <li><b>フェーズ</b> 4〈反映〉 flow-id 4-1</li>
-      <li><b>push回数</b> 7</li>
+      <li><b>push回数</b> 8</li>
       <li><b>作成日</b> 2026-08-23</li>
       <li><b>正文</b> 同名の .md</li>
     </ul>
@@ -135,18 +135,23 @@
     <li><a href="#items">作業項目</a></li>
     <li><a href="#out-of-scope">やらないこと（スコープ外）</a></li>
     <li><a href="#criteria">完了条件</a></li>
-    <li><a href="#before">着手前に確かめること</a></li>
+    <li><a href="#undecided">未決（この計画では決めない）</a></li>
   </ol>
 </nav>
 
 <section id="position">
   <h2>このフェーズの位置づけ</h2>
-  <p><b>フェーズ3までで実装は終わっている。</b>ここで行うのは、<code>plans/</code> <code>worklog/</code> <code>reports/</code> が flow-id 5-5 で消える前に、<b>恒久的に残すべき判断と仕様を <code>.claude/docs/</code> へ移すこと</b>である。</p>
-  <p>コードの変更は原則として行わない（例外は作業項目3のみ）。</p>
-  <ul>
-    <li>全体作業計画: <code>plans/mellow-archiving-lantern.md</code></li>
-    <li>反映元: フェーズ2の調査結果レポートと、フェーズ3の実装・worklog（push5〜push7）</li>
-  </ul>
+  <p><b>フェーズ3までで実装は終わっている。</b>ここで行うのは、<code>wip/plans/</code> <code>wip/worklogs/</code> <code>wip/reports/</code> が flow-id 5-5 で消える前に、<b>恒久的に残すべき判断と仕様を <code>.claude/docs/</code> へ移すこと</b>である。</p>
+  <p><b>触ってよい範囲</b>（「コードかドキュメントか」という曖昧な区切りでは書かない）:</p>
+  <table>
+    <thead><tr><th>操作</th><th>対象</th></tr></thead>
+    <tbody>
+      <tr><td>新規作成</td><td><code>.claude/docs/ddr/</code> 2件</td></tr>
+      <tr><td>変更</td><td><code>.claude/docs/spec/</code> 2本、<code>.claude/VERSION</code>、<code>.claude/scripts/test/test_install_to_project.sh</code>（ヘッダコメントのみ）、<code>wip/reports/</code> の訂正、<code>.claude/rules/shell-script-style.md</code>（作業項目10の結果しだい）</td></tr>
+      <tr><td>再生成</td><td><code>.claude/docs/README.md</code>（<code>generate-ddr-list.sh</code>）</td></tr>
+      <tr><td><b>触らない</b></td><td><code>.github/</code> <code>.gitlab/</code> <code>.claude/skills/</code> <code>.claude/scripts/src/</code>（触る必要が生じたら計画へ戻す）</td></tr>
+    </tbody>
+  </table>
 </section>
 
 <section id="keep">
@@ -156,12 +161,14 @@
     <tbody>
       <tr><td>案B（テンプレートを唯一の正とする）の判断と却下案A・C</td><td><b>DDR <code>i0145-01</code></b></td><td>「なぜ他の案を採らなかったか」は仕様書からは読み取れない</td></tr>
       <tr><td>#111 との役割分担（併存させ、自動化の非対称で分ける）</td><td><b>DDR <code>i0145-02</code></b></td><td>同上。とくに「根拠は外部APIの性質ではない」という限界の記録が要る</td></tr>
-      <tr><td>テンプレートが見出し構成の正であること・<code>describe</code> がそれを読むこと</td><td><b>spec <code>issue-mr-workflow.md</code></b></td><td>現在の正史。読み手が最初に当たる場所</td></tr>
+      <tr><td><b>descriptionの最終形は flow-id 4-10 であり「常に最新」ではない</b></td><td><b>spec <code>issue-mr-workflow.md</code></b> ＋ 却下理由はDDR <code>i0145-02</code></td><td>5-3〜5-5 の変更が載らないという事実と、「5-4 の後に <code>describe</code> を足さない」という却下がどこにも無い</td></tr>
       <tr><td>description とサマリコメントの対応関係（5見出し ↔ 10節）</td><td><b>spec <code>issue-mr-workflow.md</code></b>（#111 の節へ追記）</td><td>両方を見る人が突き合わせられるように</td></tr>
-      <tr><td>配布物の変更点</td><td><b>spec <code>distribution-assets.md</code></b> の <code>### issue #145</code> changelog</td><td>配布先が「何が変わったか」を知る唯一の場所</td></tr>
+      <tr><td>テンプレートが見出し構成の正であること</td><td><b>既に <code>distribution-assets.md</code> 32〜38行目にある</b></td><td><b>再掲しない。</b> <code>issue-mr-workflow.md</code> からは1行のポインタで指す（作業項目4）</td></tr>
+      <tr><td>配布物の変更点とVERSIONの増分</td><td><b>spec <code>distribution-assets.md</code></b> の <code>### issue #145</code> changelog</td><td>配布先が「何が変わったか」「版が上がったか」を知る唯一の場所</td></tr>
       <tr><td>参照とアンカーの線引き</td><td><b>既に <code>.claude/rules/docs-workflow.md</code> へ反映済み</b></td><td>ルールなので <code>.claude/rules/</code> が正。DDRからはそこを指す</td></tr>
-      <tr><td>検査 (a)〜(c2) の6種類がそれぞれ何を捕まえるか</td><td><b>テスト内のコメント（反映済み）</b></td><td>テストの意図はテストの隣にあるべきで、specへ写すと二重管理になる</td></tr>
-      <tr><td>敵対的レビュー4回・findings 46件の個別のやりとり</td><td><b>残さない</b></td><td>PR #187 のスレッドが恒久的に残る。DDRへ写すと本文が肥大する</td></tr>
+      <tr><td>検査 (a)〜(c2) の6種類がそれぞれ何を捕まえるか</td><td><b>テスト内のコメント（未反映。作業項目11で反映する）</b></td><td>テストの意図はテストの隣にあるべき。<b>ただし現状は「3種類」のままで、<code>(b2)</code> というラベルも存在しない</b></td></tr>
+      <tr><td>worklog が「フェーズ4で検討する」と送った規約の欠落</td><td><b><code>.claude/rules/</code>（作業項目10で判断）</b></td><td><code>wip/worklogs/</code> は 5-5 で消えるので、拾わなければ失われる</td></tr>
+      <tr><td>敵対的レビュー5回・findings 59件の個別のやりとり</td><td><b>残さない</b></td><td>PR #187 のスレッドが恒久的に残る。DDRへ写すと本文が肥大する</td></tr>
       <tr><td>実測した数値の測定条件（クリーン/dirty 等）</td><td><b>残さない</b>（descriptionへ転記済み）</td><td>タスク固有の値で、仕様ではない</td></tr>
     </tbody>
   </table>
@@ -169,81 +176,97 @@
 
 <section id="items">
   <h2>作業項目</h2>
+  <div class="box">
+    <p><b>順序依存がある。</b>番号順に実施すれば満たされるが、明示しておく。</p>
+    <table>
+      <thead><tr><th>この項目</th><th>が依存する項目</th><th>理由</th></tr></thead>
+      <tbody>
+        <tr><td>3（DDR参照を識別子へ戻す）</td><td>1（DDR作成）</td><td>存在しないファイルは指せない</td></tr>
+        <tr><td>4（<code>issue-mr-workflow.md</code>）</td><td>2（DDR作成）</td><td>本文から <code>i0145-02</code> を指す</td></tr>
+        <tr><td>5（<code>distribution-assets.md</code> changelog）</td><td>6（VERSION）</td><td>承認の可否でchangelogの文面が変わる</td></tr>
+        <tr><td>9（一覧再生成・参照検査）</td><td>1〜5 すべて</td><td>生成物と検査は最後</td></tr>
+        <tr><td>12（目視での参照突き合わせ）</td><td>1〜5 すべて</td><td>この回に作った参照が対象</td></tr>
+      </tbody>
+    </table>
+  </div>
 
   <h3>1. DDR i0145-01（案Bの判断）を作る</h3>
   <p><code>.claude/docs/ddr/i0145-01-MR_PRテンプレートを見出し構成の唯一の正としdescribeが読む.md</code></p>
   <ul>
     <li><b>決めたこと</b>: <code>.github/pull_request_template.md</code> を見出し構成の唯一の正とし、<code>describe</code> はそれを読む。GitLab版は複製で、先頭コメントを除いた全文差分が空であることをテストで固定する。</li>
-    <li><b>却下案</b>: 案A（<code>describe</code> 節を正としテンプレートを生成する）／案C（両方に書いて一致検査）。それぞれの却下理由を書く。</li>
-    <li><b>あわせて記録すること</b>:
-      <ul>
-        <li><code>.github</code> / <code>.gitlab</code> の配布層を <code>core</code> のまま変えなかった理由（<code>seed</code> にすると上流の改善が配布先へ届かなくなる）。</li>
-        <li>Draft PR初期本文を10節に合わせない理由。</li>
-        <li><b>記入ガイドを両側から同時に消しても検査を素通りした</b>という実測（検査 (a2) の存在理由）。これは「テストは書けば効く」わけではないという一般的な教訓なので残す。</li>
-      </ul>
-    </li>
+    <li><b>却下案</b>: 案A（<code>describe</code> 節を正としテンプレートを生成する）／案C（両方に書いて一致検査）。</li>
+    <li><b>あわせて記録すること</b>: <code>.github</code> / <code>.gitlab</code> の配布層を <code>core</code> のまま変えなかった理由／Draft PR初期本文を10節に合わせない理由／<b>記入ガイドを両側から同時に消しても検査を素通りした</b>という実測（検査 (a2) の存在理由）。</li>
   </ul>
 
-  <h3>2. DDR i0145-02（#111 との役割分担）を作る</h3>
+  <h3>2. DDR i0145-02（#111 との役割分担とdescriptionの最終形）を作る</h3>
   <p><code>.claude/docs/ddr/i0145-02-MR_descriptionと統括レポートのサマリコメントは併存させる.md</code></p>
   <ul>
-    <li><b>決めたこと</b>: 併存させる。分ける軸は内容の粒度ではなく、<b>自動処理が繰り返し上書きするか（description）／1回きりか（サマリコメント）</b>という非対称である。</li>
-    <li><b>限界を必ず書く</b>: 根拠は<b>このリポジトリの自動化経路</b>（<code>Provider.sh</code> に投稿済みコメントを編集する関数が無い）であって、<b>GitHub/GitLab の外部APIの性質ではない</b>。人間はWeb UI・APIから編集できる。正しくは「フローの自動処理が繰り返し上書きするのは description だけ」。</li>
+    <li><b>決めたこと</b>: 併存させる。分ける軸は<b>自動処理が繰り返し上書きするか（description）／1回きりか（サマリコメント）</b>という非対称である。</li>
+    <li><b>限界を必ず書く</b>: 根拠は<b>このリポジトリの自動化経路</b>（<code>Provider.sh</code> に投稿済みコメントを編集する関数が無い）であって、<b>GitHub/GitLab の外部APIの性質ではない</b>。</li>
+    <li><b><code>describe</code> を 5-4 の後に追加しない</b>という却下と、その2つの理由もここへ書く（事実側の「最終形は 4-10」は spec 側。作業項目4）。</li>
     <li><b>却下案</b>: サマリコメントを廃止して description へ一本化する／サマリコメントを description へのリンク1行にする。</li>
   </ul>
   <div class="box">
-    <p><b>1件にまとめるか2件に分けるか → 分ける。</b> <code>i0145-01</code> は「テンプレートの正をどこに置くか」、<code>i0145-02</code> は「description と統括レポートの役割分担」で、<b>後から片方だけが supersede されうる</b>独立した判断だから。1つのDDRにまとめると、片方が無効になったときに <code>status</code> を付けられない。</p>
+    <p><b>1件にまとめるか2件に分けるか → 分ける。</b> 片方だけが後から supersede されうる独立した判断であり、1つにまとめると <code>status</code> を付けられない。</p>
   </div>
 
-  <h3>3. .claude/docs/spec/distribution-assets.md の DDR 参照を識別子へ戻す</h3>
-  <p>敵対的レビュー4回目の指摘4への対応。現在は「まだ存在しないDDRを指さない」ために issue 番号だけにしてある。<b>作業項目1でDDRが確定した直後に</b>、識別子（<code>i0145-01</code>）での参照へ戻す。</p>
-  <ul>
-    <li><b><code>check-doc-references.sh</code> はこの参照切れを検出しない</b>（識別子だけの省略記法は対象外）。<b>目視で、実在するファイル名と一致していることを確認する。</b></li>
-    <li>これがフェーズ4で唯一、実装側のファイルを触る作業である。</li>
-  </ul>
+  <h3>3. distribution-assets.md の DDR 参照を識別子へ戻す</h3>
+  <p>作業項目1の完了後に行う。<b>置き換え前後を明示する</b>（対象の取り違えを防ぐため）。</p>
+  <table>
+    <thead><tr><th>行</th><th>現在</th><th>置き換え後</th></tr></thead>
+    <tbody>
+      <tr><td>32行目付近</td><td><code>**見出し構成の正は … である**（issue #145）。</code></td><td><b>変えない</b>（issueを指しているだけで、DDRの参照ではない）</td></tr>
+      <tr><td>35行目付近</td><td><code>（同じ判断を issue #54 が…下している。経緯: issue #145）。</code></td><td><code>経緯: issue #145、DDR [i0145-01](../ddr/i0145-01-….md)</code></td></tr>
+    </tbody>
+  </table>
 
   <h3>4. .claude/docs/spec/issue-mr-workflow.md を更新する</h3>
   <table>
     <thead><tr><th>追記する場所</th><th>内容</th></tr></thead>
     <tbody>
-      <tr><td>テンプレートに触れている節（無ければ新設）</td><td><b>見出し構成の正はテンプレートファイル自身</b>であり、<code>describe</code> はそれを読む。<code>references/review-loop.md</code> の <code>describe</code> 節は見出しを列挙しない</td></tr>
-      <tr><td>「最終統括レポートとPR/MRへの反映（issue #111）」節（746行目付近）</td><td>description とサマリコメントの<b>役割分担の表</b>と、<b>5見出し ↔ 10節の対応関係</b>を追記する。判断の経緯はDDR <code>i0145-02</code> を指す</td></tr>
-      <tr><td>changelog（末尾）</td><td><code>### issue #145: …</code> を<b>新規エントリとして追記</b>する</td></tr>
+      <tr><td>新設節（<code>describe</code> の位置づけ）</td><td><b>規範を再掲しない。</b>「テンプレートの位置づけ・見出し構成の正は <code>distribution-assets.md</code>「PR/MRテンプレート」節が正」という<b>1行のポインタ</b>に留める</td></tr>
+      <tr><td>同節</td><td><b>descriptionの最終形は flow-id 4-10 である</b>こと、<b>5-3〜5-5 の変更は載らない</b>こと（影響する3節: <code>## 変更内容</code> <code>## 検証</code> <code>## レビューの結果</code>）、その差を許容する旨。却下理由はDDR <code>i0145-02</code> を指す</td></tr>
+      <tr><td>「最終統括レポートとPR/MRへの反映（issue #111）」節</td><td>description とサマリコメントの<b>役割分担の表</b>と、<b>5見出し ↔ 10節の対応関係</b></td></tr>
+      <tr><td>changelog（末尾）</td><td><code>### issue #145: …</code> を<b>新規エントリとして追記</b></td></tr>
     </tbody>
   </table>
   <ul>
-    <li><b>過去のchangelogエントリは書き換えない</b>（<code>.claude/rules/docs-workflow.md</code>。point-in-time の記録であり、当時存在しなかった状態を書き込むと歴史を壊す）。</li>
-    <li>#111 の節へ追記する際は、<b>直前の節が「その節全体にかかる地の文」で終わっていないか</b>を確認してから挿入位置を決める（同ルール）。</li>
+    <li><b>過去のchangelogエントリは書き換えない</b>。</li>
+    <li><b>新設節・#111 の節のどちらへ挿入する場合も、直前の節が「その節全体にかかる地の文」で終わっていないかを確認してから位置を決める</b>（<code>.claude/rules/docs-workflow.md</code>）。</li>
   </ul>
 
-  <h3>5. .claude/docs/spec/distribution-assets.md へ changelog を追記する</h3>
-  <p><code>### issue #145</code> エントリを<b>新規に追記</b>する。配布先が知る必要があるのは次の3点。</p>
-  <ul>
+  <h3>5. distribution-assets.md へ changelog を追記する</h3>
+  <p>作業項目6の結論が出てから書く。<code>### issue #145</code> エントリへ次の4点。</p>
+  <ol>
     <li>テンプレート2本の見出しが3節 → 10節へ変わったこと。</li>
-    <li>両ファイルは <code>core</code> 層なので、<b>再適用のたびに上流の内容で上書きされる</b>こと（配布先が独自に増やした見出しは失われ、改変は <code>.bak</code> へ退避され一覧で通知される）。</li>
+    <li>両ファイルは <code>core</code> 層なので、<b>再適用のたびに上流の内容で上書きされる</b>こと。</li>
     <li><code>index.md</code>（<code>seed</code> 層。実体は <code>index.md.template</code>）の記述も向きが変わったこと。</li>
-  </ul>
+    <li><b><code>.claude/VERSION</code> を上げた事実と根拠</b>、または<b>ユーザー未承認により据え置いた事実</b>（specの「<code>.claude/VERSION</code>」節が、適用時・据え置き時のいずれも記録を義務づけている）。</li>
+  </ol>
 
-  <h3>6. .claude/VERSION を 0.3.0 → 0.4.0 へ上げる</h3>
+  <h3>6. .claude/VERSION を 0.4.0 → 0.5.0 へ上げる</h3>
+  <div class="box warn">
+    <p><b>⚠ 前提が変わった。</b> main の PR #191 が VERSION を <b>0.4.0 へ上げた</b>ため、当初計画していた「0.3.0 → 0.4.0」は成立しない。<b>0.4.0 → 0.5.0（MINOR）</b>が正しい。</p>
+  </div>
   <ul>
-    <li><b>MINOR を上げる根拠</b>: 配布物に<b>後方互換の無い変更が無く</b>、機能追加にあたるため。テンプレートの見出しは増えたが、配布先の既存ファイルを壊す変更ではない（<code>core</code> 層として上書きされるが、これは <code>core</code> 層の既定の振る舞いであり本issueが変えたものではない）。</li>
+    <li><b>MINOR の根拠</b>: 目安表の「資産の追加・フローの拡張」に当たる。配布先に手作業を要求する非互換変更（配置場所の変更・必須スクリプトの引数変更）は無いので MAJOR ではない。</li>
   </ul>
-  <div class="warn">
-    <p><b>⚠ ユーザーの承認をまだ得ていない。</b> flow-id 4-3/4-4 の合意で確定させる。承認が得られない場合は VERSION を据え置き、その旨をdescriptionの <code>## 未解決・限界・確かめられなかったこと</code> へ残す。</p>
+  <div class="box warn">
+    <p><b>⚠ ユーザーの承認をまだ得ていない。</b> 非対話セッションの例外規定により<b>適用してよい</b>が、その場合は (1) 適用した事実と根拠を <b>specのchangelog（作業項目5）と <code>HANDOFF.md</code>「判断を迷った内容」の両方</b>へ残し、(2) レビューで否認されたら元へ戻す。据え置く場合も<b>specのchangelogへ据え置いた事実を残す</b>（「適用したが記録が無い」という第3の状態を作らないため）。</p>
   </div>
 
   <h3>7. .claude/docs/usecase/ への影響を確認する</h3>
-  <p>8本のうち、MR description に触れているものがあるか調べ、あれば更新する。</p>
+  <p>MR description に触れているものがあるか調べ、あれば更新する。</p>
   <ul>
-    <li>候補: <code>新しい機能開発を始める.md</code>（フローの流れを説明している）／<code>生成物にレビューコメントして修正させる.md</code>。</li>
-    <li><b>調べた結果「影響なし」だった場合も、調べたこと自体を作業結果レポートへ書く</b>（<code>.claude/rules/docs-workflow.md</code> が flow-id 4-6 で usecase への影響確認を求めているため、やったかどうかが読み取れる必要がある）。</li>
+    <li><b>調べた結果「影響なし」だった場合も、調べたこと自体と件数を作業結果レポートへ書く。</b></li>
   </ul>
 
   <h3>8. フェーズ2の調査結果レポートの「例外は設けない」を訂正する</h3>
-  <p><code>reports/…調査.md</code> の「3. <code>plans/</code> <code>worklog/</code> <code>reports/</code> 参照禁止の書き場所」が<b>「例外は設けない。」</b>のままになっている。敵対的レビュー4回目でこの判断は<b>アンカーを対象外とする形へ狭められた</b>ので、レポート側も揃える（レポートは「レビュー往復のたびに更新する」運用であり、書き換えてよい）。</p>
+  <p>敵対的レビュー4回目でこの判断は<b>アンカーを対象外とする形へ狭められた</b>ので、レポート側も揃える。</p>
   <ul>
-    <li><b>md と html の両方</b>を直す（片方だけ直さない）。</li>
-    <li>直したら md/html の4点検証を流す。</li>
+    <li><b>対象は節3の1箇所ではない。</b> <code>grep -n '例外は設けない\|例外を認めない'</code> でヒットする<b>md 3箇所（サマリ表の行・節3の本文・節3の根拠）と html 3箇所</b>すべてを直す。</li>
+    <li>サマリ表の行だけが古い結論を主張したまま残る、という形が<b>もっとも起きやすい</b>。</li>
+    <li>直したら md/html の4点検証（作業項目13）を流す。</li>
   </ul>
 
   <h3>9. DDR一覧を再生成し、参照切れを検査する</h3>
@@ -251,7 +274,47 @@
 bash .claude/scripts/src/check-doc-references.sh</code></pre>
   <ul>
     <li>一覧は<b>生成物</b>なので手書きしない。出た差分を同じコミットへ含める。</li>
-    <li><code>check-doc-references.sh</code> は<b>絶対パス形式の参照だけ</b>を見る。作業項目3の識別子参照は対象外なので、そちらは目視で確認する（重複するようだが、検出範囲が違う）。</li>
+    <li><b><code>check-doc-references.sh</code> は絶対パス形式の参照だけを見る。</b> <code>.claude/docs/spec/</code> の慣例である<b>相対リンク（<code>[…](../ddr/….md)</code>）は候補として拾われない</b>ので、これだけでは足りない（作業項目12で目視する）。</li>
+  </ul>
+
+  <h3>10. AIアセット反映の対象を洗い出す（flow-id 4-1 の必須手順）</h3>
+  <p><code>.claude/skills/issue-mr-flow/references/planning.md</code>「AIアセット反映の対象の洗い出し」の手順1（起点の列挙）・手順2（4類型への分類）を実施する。<b>0件でも実施した事実を <code>HANDOFF.md</code> へ残す</b>（「やっていない回」と「やって0件だった回」を外形上区別できるようにするため）。</p>
+  <p><b>既に分かっている候補</b>（worklog が明示的にフェーズ4へ送ったもの）:</p>
+  <table>
+    <thead><tr><th>出どころ</th><th>内容</th><th>類型</th></tr></thead>
+    <tbody>
+      <tr><td>push5「ダメだったこと」</td><td><code>.claude/rules/shell-script-style.md</code> は「<code>--</code> を置く」と書いているが、<b>「<code>--</code> より後ろにオプションを書いてはいけない」までは書いていない</b>。<code>grep -rn -- "$pat" --include='*.md'</code> で <code>--include</code> がパス扱いになり、件数が誤った値になりかけた</td><td>(c) アセットはあるが罠が書かれていない</td></tr>
+      <tr><td>push5「ダメだったこと」</td><td><code>plans.template.html</code> が定義していない要素（<code>h4</code>）を足すとスタイルが不揃いになる</td><td>(c) 同上</td></tr>
+      <tr><td>push6/push7「ダメだったこと」</td><td>「差し込み位置の前後3行を目視」だけでは足りず、<b>置き換えた範囲の末尾</b>も見る必要がある（範囲の重なりによる行の重複を見落とした）</td><td>(c) 同上</td></tr>
+    </tbody>
+  </table>
+  <ul>
+    <li><b>採否は分類の結果で決める。</b> 採るなら <code>.claude/rules/shell-script-style.md</code> へ追記する。採らないなら理由を書く。<b>「触れない」という選択はしない。</b></li>
+    <li>種別は <code>【AIアセット反映】</code> だが、規模が小さいので<b>この計画へ含める</b>（別計画へ分けない）。分けるべき量になったら計画へ戻す。</li>
+  </ul>
+
+  <h3>11. テストのヘッダコメントを6種類へ更新する</h3>
+  <p><code>.claude/scripts/test/test_install_to_project.sh</code> の106〜110行目が今も「代わりに<b>3種類</b>を検査する」として (a)(b)(c) の3行しか列挙していない。<code>grep -n 'b2'</code> は<b>0件</b>で、(b2) に相当する表明は無ラベルのまま置かれている。</p>
+  <ul>
+    <li>ヘッダコメントを <b>(a)(a2)(b)(b2)(c)(c2) の6種類の一覧</b>へ更新する。</li>
+    <li>無ラベルの表明（除外後の最初の非空行が <code>Closes</code> 行）へ <b>(b2)</b> のラベルを付ける。</li>
+    <li><b>これはコードファイルへの変更である</b>（「触ってよい範囲」の表に含めてある）。</li>
+  </ul>
+
+  <h3>12. この回に新規作成したDDR参照を目視で突き合わせる</h3>
+  <p>作業項目3・4・1・2が作る参照はいずれも<b>同じ回に新規作成される</b>ため、指摘4と同じ経路で切れうる。</p>
+  <pre><code>grep -rn 'i0145-0[12]' .claude/ --include='*.md'
+ls .claude/docs/ddr/ | grep i0145</code></pre>
+  <ul>
+    <li>ヒットした各行の<b>パス／識別子を実ファイル名と突き合わせる</b>。</li>
+    <li><b>相対リンク形式は <code>check-doc-references.sh</code> が候補にすら入れない</b>ので、この目視が唯一の検査になる。</li>
+  </ul>
+
+  <h3>13. md/html の4点検証を流す</h3>
+  <pre><code>bash /tmp/claude-0/-home-user-MR-driven-workflow/19186b05-07b2-53b0-b44f-22b811251aea/scratchpad/check-md-html.sh &lt;md&gt; &lt;html&gt;</code></pre>
+  <ul>
+    <li><b>このスクリプトはスクラッチパッドにあり、セッション終了とともに消える。</b> 恒久化の要否は「未決」で扱う。</li>
+    <li>4点は<b>見出し一致・表のセル数・プレースホルダ0件・外部参照0件</b>であり、<b>文言の内容は一切見ない</b>。作業項目8の訂正漏れはこれでは検出できない（完了条件11で別途見る）。</li>
   </ul>
 </section>
 
@@ -260,39 +323,62 @@ bash .claude/scripts/src/check-doc-references.sh</code></pre>
   <table>
     <thead><tr><th>やらないこと</th><th>理由</th></tr></thead>
     <tbody>
-      <tr><td>flow-id 5-4（統括レポート）の実装を変える</td><td>本issueで行うのは役割の<b>定義</b>だけ。<code>upload_attachment</code>・3層フォールバック・5見出しは触らない</td></tr>
-      <tr><td><code>.gemini/</code> の再生成</td><td><b>flow-id 5-3 の担当</b>。ここでやると、フェーズ4の後半で <code>.claude/</code> を触ったときに再度ずれる</td></tr>
-      <tr><td>issue #111 への通知</td><td><b>flow-id 5-2 の担当</b>。かつ投稿前に <code>AskUserQuestion</code> での承認が必須</td></tr>
+      <tr><td>flow-id 5-4（統括レポート）の実装を変える</td><td>本issueで行うのは役割の<b>定義</b>だけ</td></tr>
+      <tr><td><code>.gemini/</code> の再生成</td><td><b>flow-id 5-3 の担当</b></td></tr>
+      <tr><td>issue #111 への通知</td><td><b>flow-id 5-2 の担当</b>。投稿前に <code>AskUserQuestion</code> での承認が必須</td></tr>
       <tr><td>過去64件のPR本文の書き直し</td><td>全体作業計画のスコープ外</td></tr>
-      <tr><td><code>.claude/settings.json</code> の <code>if</code> 照合規則</td><td>issue #47 が両論併記のまま残している論点。本issueの範囲外</td></tr>
+      <tr><td><code>.claude/settings.json</code> の <code>if</code> 照合規則</td><td>issue #47 が両論併記のまま残している論点</td></tr>
+      <tr><td><b><code>check-doc-references.sh</code> の除外リストの <code>wip/</code> 追従</b></td><td>main の issue #178/#184 が積み残した別件。<code>HANDOFF.md</code>「判断を迷った内容」に提案を書いてある。<b>このPRでは直さない</b></td></tr>
     </tbody>
   </table>
 </section>
 
 <section id="criteria">
   <h2>完了条件</h2>
+  <p><b>着手前の実測値を併記する。</b>「着手前から成立している条件」を完了の根拠にしないため。</p>
   <table>
-    <thead><tr><th>#</th><th>条件</th><th>確認方法</th></tr></thead>
+    <thead><tr><th>#</th><th>条件</th><th>確認方法</th><th>着手前</th></tr></thead>
     <tbody>
-      <tr><td>1</td><td>DDR 2件が存在し、識別子・ファイル名・<code>title</code>・本文冒頭の見出しが規約どおり</td><td><code>ls .claude/docs/ddr/ | grep i0145</code> が2件。3箇所の表記を目視</td></tr>
-      <tr><td>2</td><td><code>distribution-assets.md</code> の DDR 参照が実在するファイルを指している</td><td>目視（<code>check-doc-references.sh</code> では検出できない）</td></tr>
-      <tr><td>3</td><td><code>issue-mr-workflow.md</code> に役割分担の表と 5見出し ↔ 10節 の対応がある</td><td>目視</td></tr>
-      <tr><td>4</td><td>changelog が2ファイルとも<b>新規エントリの追記</b>で、過去エントリが変わっていない</td><td>分岐点SHAとの差分で <code>.claude/docs/spec/</code> の削除行を確認</td></tr>
-      <tr><td>5</td><td>DDR一覧が最新</td><td><code>generate-ddr-list.sh --check</code> が exit=0</td></tr>
-      <tr><td>6</td><td>参照切れ0件</td><td><code>check-doc-references.sh</code></td></tr>
-      <tr><td>7</td><td>単体テストが引き続き通る</td><td><code>test_install_to_project.sh</code> が <code>failures=0</code></td></tr>
-      <tr><td>8</td><td>md/html の4点検証が全ペアで通る</td><td>スクラッチパッドの検証スクリプト</td></tr>
-      <tr><td>9</td><td>usecase への影響を調べた結果が作業結果レポートに書かれている</td><td>目視</td></tr>
+      <tr><td>1</td><td>DDR 2件が存在し、識別子・ファイル名・<code>title</code>・本文冒頭の見出しが規約どおり</td><td><code>ls .claude/docs/ddr/ | grep -c i0145</code> が2。3箇所の表記を目視</td><td><b>0件（失敗）</b></td></tr>
+      <tr><td>2</td><td><code>distribution-assets.md</code> に <code>i0145-01</code> を含む参照が<b>1件以上あり</b>、実ファイル名と一致する</td><td><code>grep -c 'i0145-01' …</code> が1以上＋ファイル名と突き合わせ</td><td><b>0件（失敗）</b></td></tr>
+      <tr><td>3</td><td><code>issue-mr-workflow.md</code> に「最終形は 4-10」「役割分担の表」「5見出し↔10節」がある</td><td>目視</td><td><b>0件（失敗）</b></td></tr>
+      <tr><td>4</td><td>changelog が2ファイルとも<b>新規エントリの追記</b>で、過去エントリが変わっていない</td><td><code>git diff &lt;着手時点のSHA&gt; -- .claude/docs/spec/</code> の削除行が既存節にかかっていない</td><td><b>測れない</b>（下記）</td></tr>
+      <tr><td>5</td><td>DDR一覧が最新</td><td><code>generate-ddr-list.sh --check</code> が exit=0</td><td><b>成功（回帰ガード）</b></td></tr>
+      <tr><td>6</td><td>参照切れ0件</td><td><code>check-doc-references.sh</code></td><td><b>参照切れ2件</b>（下記）</td></tr>
+      <tr><td>7</td><td>単体テストが引き続き通る</td><td><code>test_install_to_project.sh</code> が <code>failures=0</code></td><td><b>成功（本フェーズでは原理的に落ちない。下記）</b></td></tr>
+      <tr><td>8</td><td>md/html の4点検証が全ペアで通る</td><td>作業項目13のコマンド</td><td><b>成功（同上）</b></td></tr>
+      <tr><td>9</td><td>usecase への影響を調べた結果と件数が作業結果レポートにある</td><td>目視</td><td><b>0件（失敗）</b></td></tr>
+      <tr><td>10</td><td><code>.claude/VERSION</code> が 0.5.0、<b>または</b>据え置きの事実がchangelogと <code>HANDOFF.md</code> にある</td><td><code>cat .claude/VERSION</code> ＋ 目視</td><td><b>0.4.0（失敗）</b></td></tr>
+      <tr><td>11</td><td>レポートの「例外は設けない／例外を認めない」が md・html とも0件</td><td><code>grep -c '例外は設けない\|例外を認めない'</code> を md・html へ</td><td><b>md 3件・html 3件（失敗）</b></td></tr>
+      <tr><td>12</td><td>AIアセット反映の洗い出しを実施した事実（件数込み）が <code>HANDOFF.md</code> にある</td><td>目視</td><td><b>0件（失敗）</b></td></tr>
+      <tr><td>13</td><td>テストのヘッダコメントが6種類を列挙し、<code>(b2)</code> ラベルがある</td><td><code>grep -c 'b2' …test_install_to_project.sh</code> が1以上</td><td><b>0件（失敗）</b></td></tr>
     </tbody>
   </table>
+
+  <h3>着手前に確かめること</h3>
+  <ul>
+    <li><b>完了条件5・6 は回帰ガードである</b>（作業中に一度偽になりうるので意味がある）。
+      <ul><li>6 は<b>着手前から2件</b>ある。<code>wip/plans/mellow-archiving-lantern.md</code> が、これから作るDDR 2件を絶対パス形式で指しているため。<b>作業項目1・2の完了で0へ戻るのが正しい挙動</b>で、「作業前は2件・作業後は0件」を確かめる。</li></ul>
+    </li>
+  </ul>
+  <div class="box warn">
+    <p><b>完了条件7・8 は、本フェーズの作業では原理的に落ちない。</b></p>
+    <ul>
+      <li>7 は VERSION を <code>assert_eq "配布先のVERSIONが本家と一致する"</code> という<b>値に依存しない比較</b>でしか見ないため、0.4.0 でも 0.5.0 でも通る。9つの作業項目のどれが失敗しても落ちない。</li>
+      <li>8 は見出し・セル数・プレースホルダ・外部参照しか見ず、<b>文言の内容を検査しない</b>。</li>
+      <li><b>どちらも完了の根拠にはしない</b>（走らせはする。他の変更による回帰は拾えるため）。作業項目8の実施は完了条件11が、作業項目6は完了条件10が受け持つ。</li>
+    </ul>
+  </div>
+  <div class="box warn">
+    <p><b>完了条件4は着手前には測れない。</b> 基準を分岐点ではなく<b>フェーズ4着手時点のHEAD</b>に取る（分岐点との差分には、フェーズ3で行った <code>distribution-assets.md</code> の正の向きの反転が既に6行の削除として含まれており、「削除行ゼロ」にも「6件のまま」にもできない）。</p>
+  </div>
 </section>
 
-<section id="before">
-  <h2>着手前に確かめること</h2>
-  <div class="warn">
-    <p><b>完了条件4の「過去エントリが変わっていない」は、着手時点で既に成立している</b>はずである（まだ何も触っていないため）。<b>この検証は変更後にだけ意味を持つ</b>ので、変更前の実測を「成功」として完了の根拠にしない。</p>
+<section id="undecided">
+  <h2>未決（この計画では決めない）</h2>
+  <div class="box">
+    <p><b>4点検証スクリプトの恒久化。</b> 現在スクラッチパッドにあり、セッション終了とともに消える。<code>HANDOFF.md</code>「未解決の内容」は「md を編集したら毎回4点検証を流す」を手順と決めているのに、実体が使い捨ての場所にある。<code>.claude/scripts/src/</code> への切り出し（＋単体テストとspec）が筋だが、<b>issue #145 のスコープ外</b>なので別issueとして起票するか判断が要る（<code>.claude/rules/ai-command-style.md</code>「切り出し先の選び方」）。</p>
   </div>
-  <p><b>完了条件1・2・3・9 は、いずれも着手前は「失敗」になる</b>（DDRが無い・参照が識別子でない・節が無い・レポートが無い）。着手前に実際に確かめ、失敗することを記録してから始める。</p>
 </section>
 
 </div>
