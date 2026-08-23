@@ -17,7 +17,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - issue: #26 AIアセットの他プロジェクトへの配布をmanifest方式へ作り直し、配布アセットの層分けを定義する
 - ブランチ: claude/ai-asset-manifest-distribution-u2gn22
 - PR: #154 https://github.com/yuki-matsu783/MR-driven-workflow/pull/154
-- push回数: 13
+- push回数: 14
 - 現在のループ: 3-6〜3-9 の3周目（進行中）
 - 追従監視: 購読あり（web。subscribe_pr_activity + 自己チェックイン）
 
@@ -309,15 +309,15 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
   ならない（間接展開として解釈され `invalid variable name`）。件数を先に見る形へ直した。
 - 検証: 本家 **17ファイル passed=1098 failures=0**／配布先でも17本すべて緑／網羅性 204/204・13/13／
   `requiredLine` を抜くと `failures=3` になることまで確認。
-- **投稿した10スレッドへの返信は未着手**（この周のpushの後に行う）。
+- **投稿した10スレッドすべてへ返信済み**（push13の後。`3837660400` 〜 `3837662508`）。
+  提案どおりに直せなかった1件（`git status --pathspec-from-file` は存在しない）は、
+  代替の直し方と実測を添えて返信した。
 
 ## 次にやること
 
-- **flow-id 3-6〜3-9 の3周目が進行中**（敵対的レビュー3回目の指摘15件を反映済み・push13）。
-  この周はまだ完了していない（`mark-done 3-6` は返信まで済んでから）。
-  1. **PR #154 へ投稿した10スレッドへ返信する**（`comments` / `reply` ループ）。
-     報告のみに留めた6件のうち5件も同じ周で直しているので、その旨は返信・レポートで示す。
-  2. flow-id 3-10: `describe` でPR descriptionを更新する。
+- **flow-id 3-6〜3-9 の3周目が進行中**（敵対的レビュー3回目の指摘15件を反映し、
+  投稿10スレッドへ返信済み。push13）。**人間のレビュー（3-8）待ち**で、合意を得てから
+  `mark-done 3-6` → flow-id 3-10（`describe`）へ進む。
 - その後 **flow-id 4-1（個別反映計画の作成）**。
 - フェーズ4の予定: `distribution-assets.md` の更新、新方式のspec（未確認事項）、
   方式選定のDDR（受け入れ条件11）、`generate-ddr-list.sh` の再実行、`.claude/VERSION` の更新提案。
