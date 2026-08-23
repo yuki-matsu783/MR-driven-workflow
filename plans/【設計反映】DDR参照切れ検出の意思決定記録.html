@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DDR参照切れ検出の意思決定記録</title>
+<style>
+  :root {
+    --bg: #f6f7f9;      --panel: #ffffff;   --ink: #1a1d21;     --muted: #5b636d;
+    --line: #dfe3e8;    --accent: #2563eb;  --accent-soft: #eaf0fe;
+    --ok: #1a7f4b;      --ok-soft: #e6f4ec; --warn: #a35a00;    --warn-soft: #fdf1e0;
+    --stop: #b3261e;    --stop-soft: #fdecea; --code-bg: #f0f2f5;
+    --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1216;    --panel: #161a20;   --ink: #e6e8eb;     --muted: #9aa3ad;
+      --line: #2a3038;  --accent: #7aa2f7;  --accent-soft: #1b2333;
+      --ok: #6ee7a8;    --ok-soft: #14261d; --warn: #f0b866;    --warn-soft: #2a2113;
+      --stop: #f2857c;  --stop-soft: #2b1614; --code-bg: #1d222a;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", system-ui, sans-serif;
+    line-height: 1.8; font-size: 15px;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 20px 80px; }
+
+  header.band {
+    background: linear-gradient(135deg, var(--accent-soft), var(--panel));
+    border-bottom: 1px solid var(--line); padding: 28px 20px 22px; margin-bottom: 28px;
+  }
+  header.band .inner { max-width: 1080px; margin: 0 auto; }
+  header.band .kind { font-size: 11px; letter-spacing: .18em; color: var(--accent); font-weight: 700; }
+  header.band h1 { margin: 6px 0 4px; font-size: 26px; line-height: 1.4; }
+  header.band .lead { margin: 0; color: var(--muted); }
+  .meta { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; padding: 0; list-style: none; }
+  .meta li {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 999px;
+    padding: 3px 12px; font-size: 12.5px; color: var(--muted); white-space: nowrap;
+  }
+  .meta li b { color: var(--ink); font-weight: 600; }
+
+  nav.toc {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 14px 20px; margin-bottom: 28px;
+  }
+  nav.toc h2 { margin: 0 0 8px; font-size: 13px; letter-spacing: .08em; color: var(--muted); border: 0; padding: 0; }
+  nav.toc ol { margin: 0; padding-left: 20px; }
+  nav.toc li { margin: 2px 0; }
+  a { color: var(--accent); }
+
+  section {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 8px 24px 22px; margin-bottom: 22px;
+  }
+  h2 { font-size: 20px; margin: 20px 0 10px; padding-bottom: 8px; border-bottom: 2px solid var(--line); }
+  h3 { font-size: 16px; margin: 22px 0 8px; color: var(--accent); }
+  p { margin: 10px 0; }
+  ul, ol { padding-left: 22px; }
+  li { margin: 4px 0; }
+  blockquote { margin: 10px 0; padding: 6px 14px; border-left: 3px solid var(--line); color: var(--muted); }
+
+  .tablewrap { overflow-x: auto; margin: 14px 0; }
+  table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 14px; }
+  th, td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: var(--accent-soft); font-weight: 600; white-space: nowrap; }
+  tbody tr:nth-child(even) td { background: color-mix(in srgb, var(--line) 22%, transparent); }
+
+  code {
+    background: var(--code-bg); border-radius: 5px; padding: 1px 5px; font-size: 13px;
+    font-family: "SFMono-Regular", Consolas, "Noto Sans Mono", monospace;
+  }
+  pre {
+    background: var(--code-bg); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 12px 14px; overflow-x: auto; font-size: 13px; line-height: 1.65;
+  }
+  pre code { background: none; padding: 0; }
+
+  .box { border-left: 4px solid var(--accent); background: var(--accent-soft);
+         border-radius: 0 var(--radius) var(--radius) 0; padding: 12px 16px; margin: 16px 0; }
+  .box > :first-child { margin-top: 0; } .box > :last-child { margin-bottom: 0; }
+  .box .label { font-size: 12px; font-weight: 700; letter-spacing: .06em; display: block; margin-bottom: 4px; }
+  .box.ok { border-color: var(--ok); background: var(--ok-soft); } .box.ok .label { color: var(--ok); }
+  .box.warn { border-color: var(--warn); background: var(--warn-soft); } .box.warn .label { color: var(--warn); }
+  .box.stop { border-color: var(--stop); background: var(--stop-soft); } .box.stop .label { color: var(--stop); }
+  .box.info .label { color: var(--accent); }
+
+  .tag { display: inline-block; border-radius: 999px; padding: 1px 9px; font-size: 12px; font-weight: 600; }
+  .tag.ok { background: var(--ok-soft); color: var(--ok); }
+  .tag.warn { background: var(--warn-soft); color: var(--warn); }
+  .tag.stop { background: var(--stop-soft); color: var(--stop); }
+
+  footer { color: var(--muted); font-size: 13px; text-align: center; padding-top: 10px; }
+</style>
+</head>
+<body>
+
+<header class="band">
+  <div class="inner">
+    <div class="kind">個別反映計画 / フェーズ4</div>
+    <h1>DDR参照切れ検出の意思決定記録</h1>
+    <p class="lead">issue #171でのDDR参照切れ修正・検出スクリプトの設計判断（対象範囲の限定・実装方式の変遷）をDDRとして記録する。</p>
+    <ul class="meta">
+      <li><b>issue</b> #171</li>
+      <li><b>ブランチ</b> claude/gitignore-ddr-references-rsjo83</li>
+      <li><b>PR</b> #177</li>
+      <li><b>フェーズ</b> 4〈反映〉 flow-id 4-1</li>
+      <li><b>push回数</b> 8</li>
+      <li><b>作成日</b> 2026-08-23</li>
+      <li><b>正文</b> 同名の .md</li>
+    </ul>
+  </div>
+</header>
+
+<div class="wrap">
+
+<nav class="toc">
+  <h2>目次</h2>
+  <ol>
+    <li><a href="#premise">前提（合意状況）</a></li>
+    <li><a href="#goal">この計画で何をするか</a></li>
+    <li><a href="#target">変更対象</a></li>
+    <li><a href="#approach">方針</a></li>
+    <li><a href="#out-of-scope">やらないこと（スコープ外）</a></li>
+    <li><a href="#verify">検証</a></li>
+  </ol>
+</nav>
+
+<section id="premise">
+  <h2>前提（合意状況）</h2>
+  <ul>
+    <li>上位の計画: <code>plans/sequential-purring-tulip.md</code>（全体作業計画、flow-id 1-5で
+      合意）。「フェーズ4〈反映〉」節で「検出の仕組みに関する意思決定をDDRとして記録し、
+      <code>generate-ddr-list.sh</code>でREADMEの一覧を再生成する」ことが既定路線として
+      合意済み。</li>
+    <li>直前の実装結果: <code>reports/20260823_sequential-purring-tulip_gitignore修正と検出
+      スクリプト実装結果.md</code>（v2、敵対的レビュー対応済み）。</li>
+  </ul>
+</section>
+
+<section id="goal">
+  <h2>この計画で何をするか</h2>
+  <ol>
+    <li>issue #171で行った意思決定（対象範囲の限定・検出方式・実装が2回の敵対的レビューを
+      経て変遷した経緯）を1件のDDRとして記録する。</li>
+    <li><code>bash .claude/scripts/src/generate-ddr-list.sh</code>を実行し、
+      <code>.claude/docs/README.md</code>のDDR一覧を再生成する。</li>
+    <li>新規specファイルは作成しない（フェーズ3の個別作業計画で「規模の小さいスクリプトで
+      あり、本計画＋テストコード＋フェーズ4のDDRでドキュメントとして十分」と決定済み）。</li>
+    <li>AIアセット反映: 作業中に気づいたルール・スキルの不備があれば反映する。</li>
+  </ol>
+</section>
+
+<section id="target">
+  <h2>変更対象</h2>
+  <ul>
+    <li><code>.claude/docs/ddr/i0171-01-&lt;タイトル&gt;.md</code>（新規DDR）</li>
+    <li><code>.claude/docs/README.md</code>（<code>generate-ddr-list.sh</code>による
+      自動再生成）</li>
+  </ul>
+</section>
+
+<section id="approach">
+  <h2>方針</h2>
+
+  <h3>DDRに記録する内容</h3>
+  <ol>
+    <li><b>対象範囲を「DDRファイルパスへの絶対パス参照」に限定した判断</b>
+      （個別調査計画・個別作業計画の両方で合意済み）とその理由:
+      <ul>
+        <li>裸の識別子表記（<code>i0159-01</code>等）は規約説明の例示として頻出し誤検知源に
+          なるため対象外</li>
+        <li>相対パス表記（<code>../docs/ddr/…</code>、<code>ddr/…</code>）は今回のスコープ外
+          （約79件が未検査のまま。将来の課題として明記）</li>
+        <li>旧形式（4桁連番、<code>i</code>接頭辞なし）は本リポジトリに現存しないため対象外
+          （配布先で必要になった場合の拡張余地として記録）</li>
+      </ul>
+    </li>
+    <li><b>検出方式の実装が2回の敵対的レビューを経て変遷した経緯</b>（設計判断そのものが
+      変わった点を中心に記録し、詳細な試行錯誤はworklog参照に留める）:
+      <ul>
+        <li>対象ディレクトリからの除外（<code>.claude/scripts/test/</code> <code>plans/</code>
+          <code>reports/</code> <code>worklog/</code>の4つ。当初3つと誤記していたものを訂正）</li>
+        <li>フェンス除外の方式変更（行削除の2パス→行番号集合による判定。行番号ずれの実バグを
+          修正）</li>
+        <li>フェンス判定ロジックの変更（単純トグル→マーカー種別・長さの一致判定。
+          false negativeの実バグを修正）</li>
+        <li>全角句読点による連結対策で、正規表現へ直接埋め込む案がこの実行環境のロケール
+          （POSIX/<code>LANG</code>未設定）で致命的に破綻することを実機で発見し、ASCII構造
+          による後処理方式へ変更した経緯（<b>他プロジェクトへの配布時にも再現しうる罠として
+          重要</b>）</li>
+        <li>候補抽出方式の変更（bash単独ループ→grep一括抽出。実測5.2秒→0.96秒）</li>
+      </ul>
+    </li>
+    <li><b>実行タイミングを手動実行のみとし、hook等への自動組み込みを行わない判断</b>
+      （全体作業計画で決定済み。頻度の低い整合性チェックを毎回自動実行する価値が無いという
+      理由）。</li>
+    <li><b>新規specファイルを作らない判断</b>とその理由（規模の小さいスクリプトのため、
+      計画＋テストコード＋DDRで十分）。</li>
+  </ol>
+
+  <h3>却下案</h3>
+  <ul>
+    <li>検出の仕組みを作らず目視確認のみで済ませる案（全体作業計画で却下済み、DDRにも
+      記録する）。</li>
+    <li>正規表現の文字クラスへ全角句読点を直接追加する案（ロケール依存の破綻により却下。
+      代替のASCII構造による後処理方式を採用）。</li>
+  </ul>
+</section>
+
+<section id="out-of-scope">
+  <h2>やらないこと（スコープ外）</h2>
+  <div class="box stop">
+    <span class="label">この計画では決めない・触らない</span>
+    <ul>
+      <li>相対パス表記への対応拡張（将来課題として記録するのみで、今回は実装しない）</li>
+      <li>検出スクリプトのhook・CI等への自動組み込み</li>
+      <li>git bash実機での動作確認（個別作業計画で見送りと決定済み。DDRにも実施していない
+        事実として記録する）</li>
+    </ul>
+  </div>
+</section>
+
+<section id="verify">
+  <h2>検証</h2>
+  <pre><code>bash .claude/scripts/src/generate-ddr-list.sh
+git diff --stat .claude/docs/README.md</code></pre>
+  <p>合格条件: 新規DDR（<code>i0171-01-*.md</code>）が<code>.claude/rules/
+  markdown-frontmatter.md</code>のDDR識別子・frontmatter規約（<code>type: ddr</code>、
+  <code>title</code>は<code>i0171-01. &lt;タイトル&gt;</code>形式）に沿って作成されている。
+  <code>generate-ddr-list.sh</code>実行後、<code>.claude/docs/README.md</code>のDDR一覧に
+  新規DDRが1行追加されていることを<code>git diff</code>で確認できる。</p>
+</section>
+
+<footer>issue #171 / PR #177 — 計画の正文は同名の <code>.md</code>。外部依存を持たない自己完結HTML。</footer>
+
+</div>
+</body>
+</html>
