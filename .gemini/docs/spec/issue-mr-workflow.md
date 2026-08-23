@@ -1045,6 +1045,16 @@ GitLab側の分岐を削除していないのは、実機確認できたのが C
 [i0048-01-空コミットフォールバックはGitHub固有の制約として残す.md](../ddr/i0048-01-空コミットフォールバックはGitHub固有の制約として残す.md)
 参照。
 
+**空コミット後のpushは `git push -u origin HEAD` で行う**（issue #170で修正。こちらは
+プロバイダと無関係な**git一般の挙動**への対処である）。引数なしの `git push` は、
+**upstream未設定のブランチ**（`new_issue_branch` を経ずに用意されたブランチ。Claude Code on
+the webのリモート実行環境でハーネスがブランチを指定する場合に実際に発生した）では終了コード128で
+失敗する。`-u origin HEAD` はupstreamの有無に依存せず動く。upstreamが `origin/<同名ブランチ>` に
+設定済みの場合は結果も変わらない（`new_issue_branch` が作るupstreamと同じ指し先）。それ以外
+（別リモート・別名を追跡している場合）は、upstreamが `origin/<同名ブランチ>` へ**書き換わる**
+（引数なしの `git push` はこの場合 `push.default=simple` の名前不一致で拒否されるため、
+どちらの形でも「そのまま通る」ことはなく、失敗の仕方が変わるだけである）。
+
 ### 対応工数レポート（PostToolUse hook, git push検知）
 
 issue #15「作業にかかったトークンなどの情報をMRのコメントに記載する」への対応として、
