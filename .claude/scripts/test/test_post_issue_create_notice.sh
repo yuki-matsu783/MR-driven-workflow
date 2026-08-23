@@ -69,11 +69,12 @@ assert_eq "無関係なコマンドは対象外" "1" "$(detect 'Bash' 'git statu
 assert_eq "コマンドが空なら対象外" "1" "$(detect 'Bash' '' '')"
 
 # --- CLI経路のコマンド位置判定（issue #149） ---
-# is_issue_create_call は CommandPosition.sh 経由（_pin_cli_match）で判定する。source した
-# このテストプロセスでは、post-issue-create-notice.sh 冒頭のトップレベル3段ガードが実行済みの
-# ため、command_invokes_script を使った判定になっているはず（フォールバックへ縮退していない
-# ことは、下の「cat/grepでは発火しない」ケースが 1（対象外）になることで確認できる——
-# フォールバック（部分一致）のままなら、これらは誤って 0（起票と判定）になってしまう）。
+# is_issue_create_call は CommandPosition.sh 経由（_pin_cli_match）で判定する。_pin_cli_match は
+# 呼ばれるたびに自分自身を確定版へ再定義してから委譲する遅延初期化型（型B。issue #149,
+# 2回目レビュー）のため、下の detect() の**初回呼び出し**で3段ガードが走り
+# command_invokes_script を使った判定へ確定する。フォールバックへ縮退していないことは、
+# 下の「cat/grepでは発火しない」ケースが 1（対象外）になることで確認できる——
+# フォールバック（部分一致）のままなら、これらは誤って 0（起票と判定）になってしまう。
 assert_eq "改行区切りの2行目でも判定する" "0" \
   "$(detect 'Bash' "ls .claude/scripts/src/create-issue.sh
 bash .claude/scripts/src/create-issue.sh --title x" '')"
@@ -111,19 +112,18 @@ assert_eq "issue_writeを含む生JSONは通過する" "0" \
 assert_eq "無関係な生JSONは足切りされる" "1" "$(hints '{"tool_input":{"command":"git status"}}')"
 assert_eq "空文字列は足切りされる" "1" "$(hints '')"
 # CommandPosition.sh の正規化はバックスラッシュを落とすため（block-direct-git-commit.sh と
-# 同じ理由）、is_issue_create_call が将来コマンド位置判定へ差し替わっても超集合であり続けるよう、
-# 前置フィルタもバックスラッシュ分割・大文字小文字を吸収する。
+# 同じ理由）、is_issue_create_call がコマンド位置判定（issue #149でcommand_invokes_script経由へ
+# 差し替え済み）に対しても超集合であり続けるよう、前置フィルタもバックスラッシュ分割・
+# 大文字小文字を吸収する。
 assert_eq "create-\\issue.shのようにバックスラッシュで分割されていても通過する" "0" \
   "$(hints '{"tool_input":{"command":"bash .claude/scripts/src/create-\\issue.sh --title x"}}')"
 assert_eq "大文字のCREATE-ISSUE.SHでも通過する" "0" \
   "$(hints '{"tool_input":{"command":"bash .claude/scripts/src/CREATE-ISSUE.SH --title x"}}')"
-# 注意: is_issue_create_call の現行CLI経路判定（単純な部分一致）は "create-issue.sh" という
-# 語自体にJSONエスケープを要する文字を含まないため、下記のJSON化テストは「現行の超集合関係を
-# 保つために必須」ではない。block-direct-git-commit.sh の raw_hints_at_git_commit と同じ
-# 正規化（JSONエスケープ列の除去）をここにも入れているのは、issue #149着手時に
-# is_issue_create_call がコマンド位置判定へ差し替わった場合に備えた前倒しの安全マージンで
-# あり、その正規化がJSONエンコードをまたいでも壊れずに動くことを確認する目的で置く
-# （block-direct-git-commit.sh側で見つかった反例と同じ壊れ方をしないことの確認）。
+# 注意: is_issue_create_call は issue #149 でコマンド位置判定（command_invokes_script経由）へ
+# 差し替え済みで、この判定本体に対する前置フィルタの超集合性は上（71-76行）のケース群で確認して
+# いる。下記のJSON化テストは、block-direct-git-commit.sh の raw_hints_at_git_commit と同じ
+# 正規化（JSONエスケープ列の除去）が、JSONエンコードをまたいでも壊れずに動くことを確認する目的で
+# 置く（block-direct-git-commit.sh側で見つかった反例と同じ壊れ方をしないことの確認）。
 create_issue_line_cont_cmd=$'bash .claude/scripts/src/create-\\\nissue.sh --title x'
 create_issue_line_cont_payload="$(jq -nc --arg c "$create_issue_line_cont_cmd" '{tool_input:{command:$c}}')"
 assert_eq "create-\\<改行>issue.shのようにバックスラッシュ+改行で分割されていても通過する（#149着手時の安全マージン確認）" "0" \

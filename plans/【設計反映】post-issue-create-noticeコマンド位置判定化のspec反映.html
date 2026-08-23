@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>【設計反映】post-issue-create-notice.shコマンド位置判定化のspec反映 — issue #149</title>
+<style>
+  :root {
+    --bg: #f6f7f9;      --panel: #ffffff;   --ink: #1a1d21;     --muted: #5b636d;
+    --line: #dfe3e8;    --accent: #2563eb;  --accent-soft: #eaf0fe;
+    --ok: #1a7f4b;      --ok-soft: #e6f4ec; --warn: #a35a00;    --warn-soft: #fdf1e0;
+    --stop: #b3261e;    --stop-soft: #fdecea; --code-bg: #f0f2f5;
+    --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1216;    --panel: #161a20;   --ink: #e6e8eb;     --muted: #9aa3ad;
+      --line: #2a3038;  --accent: #7aa2f7;  --accent-soft: #1b2333;
+      --ok: #6ee7a8;    --ok-soft: #14261d; --warn: #f0b866;    --warn-soft: #2a2113;
+      --stop: #f2857c;  --stop-soft: #2b1614; --code-bg: #1d222a;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", system-ui, sans-serif;
+    line-height: 1.8; font-size: 15px;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 20px 80px; }
+
+  header.band {
+    background: linear-gradient(135deg, var(--accent-soft), var(--panel));
+    border-bottom: 1px solid var(--line); padding: 28px 20px 22px; margin-bottom: 28px;
+  }
+  header.band .inner { max-width: 1080px; margin: 0 auto; }
+  header.band .kind { font-size: 11px; letter-spacing: .18em; color: var(--accent); font-weight: 700; }
+  header.band h1 { margin: 6px 0 4px; font-size: 26px; line-height: 1.4; }
+  header.band .lead { margin: 0; color: var(--muted); }
+  .meta { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; padding: 0; list-style: none; }
+  .meta li {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 999px;
+    padding: 3px 12px; font-size: 12.5px; color: var(--muted); white-space: nowrap;
+  }
+  .meta li b { color: var(--ink); font-weight: 600; }
+
+  nav.toc {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 14px 20px; margin-bottom: 28px;
+  }
+  nav.toc h2 { margin: 0 0 8px; font-size: 13px; letter-spacing: .08em; color: var(--muted); border: 0; padding: 0; }
+  nav.toc ol { margin: 0; padding-left: 20px; }
+  nav.toc li { margin: 2px 0; }
+  a { color: var(--accent); }
+
+  section {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 8px 24px 22px; margin-bottom: 22px;
+  }
+  h2 { font-size: 20px; margin: 20px 0 10px; padding-bottom: 8px; border-bottom: 2px solid var(--line); }
+  h3 { font-size: 16px; margin: 22px 0 8px; color: var(--accent); }
+  p { margin: 10px 0; }
+  ul, ol { padding-left: 22px; }
+  li { margin: 4px 0; }
+
+  .tablewrap { overflow-x: auto; margin: 14px 0; }
+  table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 14px; }
+  th, td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: var(--accent-soft); font-weight: 600; white-space: nowrap; }
+  tbody tr:nth-child(even) td { background: color-mix(in srgb, var(--line) 22%, transparent); }
+
+  code {
+    background: var(--code-bg); border-radius: 5px; padding: 1px 5px; font-size: 13px;
+    font-family: "SFMono-Regular", Consolas, "Noto Sans Mono", monospace;
+  }
+  pre {
+    background: var(--code-bg); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 12px 14px; overflow-x: auto; font-size: 13px; line-height: 1.65;
+  }
+  pre code { background: none; padding: 0; }
+
+  .box { border-left: 4px solid var(--accent); background: var(--accent-soft);
+         border-radius: 0 var(--radius) var(--radius) 0; padding: 12px 16px; margin: 16px 0; }
+  .box > :first-child { margin-top: 0; } .box > :last-child { margin-bottom: 0; }
+  .box .label { font-size: 12px; font-weight: 700; letter-spacing: .06em; display: block; margin-bottom: 4px; }
+  .box.ok { border-color: var(--ok); background: var(--ok-soft); } .box.ok .label { color: var(--ok); }
+  .box.warn { border-color: var(--warn); background: var(--warn-soft); } .box.warn .label { color: var(--warn); }
+  .box.stop { border-color: var(--stop); background: var(--stop-soft); } .box.stop .label { color: var(--stop); }
+
+  .tag { display: inline-block; border-radius: 999px; padding: 1px 9px; font-size: 12px; font-weight: 600; }
+  .tag.ok { background: var(--ok-soft); color: var(--ok); }
+  .tag.stop { background: var(--stop-soft); color: var(--stop); }
+
+  footer { color: var(--muted); font-size: 13px; text-align: center; padding-top: 10px; }
+</style>
+</head>
+<body>
+
+<header class="band">
+  <div class="inner">
+    <div class="kind">個別反映計画 / フェーズ4</div>
+    <h1>【設計反映】post-issue-create-notice.shコマンド位置判定化のspec反映</h1>
+    <p class="lead">issue #149の実装内容を、恒久ドキュメント（.claude/docs/spec/）・DDR・一部のAIアセットへ反映する。実装コード・テストコードの追加修正は無い（コメント誤字1箇所を除く）。</p>
+    <ul class="meta">
+      <li><b>issue</b> #149</li>
+      <li><b>ブランチ</b> claude/post-issue-notice-detection-xleu14</li>
+      <li><b>PR</b> #179</li>
+      <li><b>フェーズ</b> 4〈反映〉 flow-id 4-1</li>
+      <li><b>push回数</b> 5</li>
+      <li><b>作成日</b> 2026-08-23</li>
+      <li><b>正文</b> 同名の .md</li>
+    </ul>
+  </div>
+</header>
+
+<div class="wrap">
+
+<nav class="toc">
+  <h2>目次</h2>
+  <ol>
+    <li><a href="#premise">前提（合意状況）</a></li>
+    <li><a href="#review1">敵対的レビュー（1回目・計画レビュー）を踏まえた改訂</a></li>
+    <li><a href="#goal">この計画で何をするか</a></li>
+    <li><a href="#target">変更対象</a></li>
+    <li><a href="#approach">方針</a></li>
+    <li><a href="#out-of-scope">やらないこと（スコープ外）</a></li>
+    <li><a href="#verify">検証</a></li>
+    <li><a href="#options">比較検討した案</a></li>
+  </ol>
+</nav>
+
+<section id="premise">
+  <h2>前提（合意状況）</h2>
+  <ul>
+    <li>個別作業計画: <code>plans/【設計】【実装】【テスト】post-issue-create-noticeコマンド位置判定化.md</code>（flow-id 3-3/3-4で合意）</li>
+    <li>実装結果: <code>reports/20260823_post-issue-notice-command-position_実装結果.md</code>（flow-id 3-6〜3-9ループ1周目で合意。敵対的レビューを計画時1回・実装後2回、計3回実施）</li>
+  </ul>
+</section>
+
+<section id="review1">
+  <h2>敵対的レビュー（1回目・計画レビュー）を踏まえた改訂</h2>
+  <p>初版はcommand-position.mdの4箇所・issue-mr-workflow.mdの1箇所のみを対象としていたが、敵対的レビューで13件の指摘（blocker 1件・major 8件・minor 3件・nit 1件）を受け、下表のとおり対応した。</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>#</th><th>重大度</th><th>指摘</th><th>対応</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td>major</td><td>計画md自身にfrontmatterが無い</td><td>本ファイル冒頭へ追加</td></tr>
+      <tr><td>2</td><td>blocker</td><td>issue-mr-workflow.md「検知の条件」表・判定説明が移行前の記述のまま</td><td>変更対象へ追加</td></tr>
+      <tr><td>3</td><td>major</td><td>「呼び出し側（hook）の責務」節が3段ガードの型2種を説明していない</td><td>変更対象へ追加</td></tr>
+      <tr><td>4</td><td>major</td><td>相違点が§3のみでは不十分（§1・§4もgit版と異なる）</td><td>§1・§4も対比対象に追加</td></tr>
+      <tr><td>5</td><td>major</td><td>インタプリタ経由の肯定的検知（主検知経路）が相違点リストに無い</td><td>相違点リスト先頭項目として追加</td></tr>
+      <tr><td>6</td><td>major</td><td>新しい既知の制約は「未決定事項」ではなく「既知の制約」表へ</td><td>反映先を変更</td></tr>
+      <tr><td>7</td><td>major</td><td>前置フィルタの超集合性の再確認結果への回答が無い</td><td>未決定事項の書き換えへ含める</td></tr>
+      <tr><td>8</td><td>minor</td><td>frontmatter（description/keywords）が更新対象に無い</td><td>変更対象へ追加</td></tr>
+      <tr><td>9</td><td>major</td><td>DDR新設の要否が計画に無い</td><td><code>i0149-01</code>を新設する</td></tr>
+      <tr><td>10</td><td>major</td><td>「AIアセット反映は無い」の根拠が弱い</td><td>shell-script-style.mdを反映対象へ追加</td></tr>
+      <tr><td>11</td><td>minor</td><td>「影響範囲」節にissue #149のエントリが無い</td><td>変更対象へ追加</td></tr>
+      <tr><td>12</td><td>minor</td><td>検証コマンドが反映を判定できない</td><td>検証コマンドを書き直す</td></tr>
+      <tr><td>13</td><td>minor</td><td>md/htmlが同期していない</td><td>本改訂で同期</td></tr>
+      <tr><td>14</td><td>nit</td><td>CommandPosition.shのコメント誤字（「まえ」→「まで」）</td><td>spec反映時に正しい表現で転記＋コメントのみ修正</td></tr>
+      <tr><td>15</td><td>nit</td><td>レビュー呼び出し時に観点表が未展開だった</td><td>今回は一般観点で実施済み。次回以降の改善事項としてHANDOFF.mdへ記録</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <div class="box info">
+    <span class="label">「既知の制約」表 vs 「未決定事項」の使い分け（指摘6）</span>
+    「既知の制約」表は決着済みで受け入れた制約を、「未決定事項・懸念点」はまだ結論が出ていないことを扱う。クォートパス保守的フォールバック化・PowerShellバックスラッシュパス・opaque語フォールバックによる過検知はいずれも決着済みのため表側へ、前置フィルタの超集合性の再確認結果は未決定事項側へ書く。
+  </div>
+</section>
+
+<section id="goal">
+  <h2>この計画で何をするか</h2>
+  <p><code>.claude/hooks/lib/CommandPosition.sh</code> / <code>.claude/hooks/post-issue-create-notice.sh</code> へ加えたissue #149の実装内容を、恒久ドキュメント（<code>.claude/docs/spec/</code>）・DDR・一部のAIアセット（<code>.claude/rules/</code>）へ反映する。実装コード・テストコードの追加修正は無い（コメント誤字1箇所を除く）。</p>
+</section>
+
+<section id="target">
+  <h2>変更対象</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>ファイル</th><th>操作</th><th>何をするか</th></tr></thead>
+    <tbody>
+      <tr><td><code>.claude/docs/spec/command-position.md</code></td><td>変更</td><td>利用元・公開インターフェース表・判定の3段§1/§3/§4・呼び出し側の責務節・既知の制約表（3行追加）・未決定事項の書き換え・影響範囲エントリ追加・frontmatter</td></tr>
+      <tr><td><code>.claude/docs/spec/issue-mr-workflow.md</code></td><td>変更</td><td>検知の条件表のCLI行・判定説明の書き換え、既知のトレードオフ節への追記</td></tr>
+      <tr><td><code>.claude/docs/ddr/i0149-01-…md</code></td><td>新規</td><td>issue #149の設計判断と却下案を記録</td></tr>
+      <tr><td><code>.claude/docs/README.md</code></td><td>変更</td><td><code>generate-ddr-list.sh</code>実行によるDDR一覧の自動反映</td></tr>
+      <tr><td><code>.claude/rules/shell-script-style.md</code></td><td>変更</td><td>create-issue.shの部分一致例が縮退経路限定になった旨を追記</td></tr>
+      <tr><td><code>.claude/hooks/lib/CommandPosition.sh</code></td><td>変更（コメントのみ）</td><td>615行目コメントの誤字修正（ロジック無変更）</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="approach">
+  <h2>方針</h2>
+
+  <h3>command-position.md</h3>
+  <ol>
+    <li><b>冒頭「利用元」</b>: <code>post-issue-create-notice.sh</code>を追加し、<code>command_invokes_script</code>経由である旨を注記。</li>
+    <li><b>「公開インターフェース」表</b>: <code>command_invokes_script &lt;コマンド文字列&gt; &lt;対象スクリプト名&gt;</code>の行を追加。</li>
+    <li><b>§1（事前チェック・縮退）</b>: script版の縮退判定式（単純部分一致）がgit版と異なる旨を追記。</li>
+    <li><b>§3（コマンド位置でのトークン走査）</b>: 相違点リストの<b>先頭</b>に「インタプリタ経由の肯定的検知（主検知経路）」を追加し、続けてsticky解除・<code>{</code>/<code>}</code>除外・値取りprefixオプションを記載。</li>
+    <li><b>§4（保守的フォールバック）</b>: script版特有の2点（直後の引数が対象スクリプトなら肯定的一致／プレースホルダなら保守的フォールバック）を追記。</li>
+    <li><b>「呼び出し側（hook）の責務」節</b>: 3段ガードの2つの型（トップレベル確定型／遅延初期化型）と、後者を採る理由（前置フィルタより前の無条件sourceによる+35%の遅延回避）を追記。</li>
+    <li><b>「既知の制約」表へ3行追加</b>: クォートパスの保守的フォールバック化・PowerShellバックスラッシュパス・opaque語フォールバックによる過検知。</li>
+    <li><b>「未決定事項・懸念点」の書き換え</b>: 適用済みへの更新＋前置フィルタの超集合性の再確認結果（根拠つき）。</li>
+    <li><b>「影響範囲」へ<code>### issue #149（追加）</code>エントリ新設</b>: 過去のエントリは変更しない。</li>
+    <li><b>frontmatter</b>: descriptionを拡張、keywordsに<code>command_invokes_script</code>等を追加。</li>
+  </ol>
+
+  <h3>issue-mr-workflow.md</h3>
+  <ol>
+    <li><b>「検知の条件」表のCLI行を書き換える</b>（blocker対応）。現在仕様の説明節の更新であり、point-in-time記録の書き換え禁止原則には抵触しない。</li>
+    <li><b>「既知のトレードオフ」節への追記</b>: issue #53時点の追記の続きとして、対応完了・3段ガード遅延初期化（詳細はcommand-position.mdへのリンク）・残る制約（同）を書く。</li>
+  </ol>
+
+  <h3>DDR新設（i0149-01）</h3>
+  <p>却下案を伴う4つの設計判断（sticky解除・<code>{</code>/<code>}</code>除外・3段ガード遅延初期化・保守的フォールバック踏襲）を記録する。新設後<code>generate-ddr-list.sh</code>を実行し、README.mdの差分を同じコミットへ含める。</p>
+
+  <h3>AIアセット反映（shell-script-style.md）</h3>
+  <p>577行目の実例が「<code>create-issue.sh</code>の部分一致」を現在の判定として挙げているが、issue #149以後は縮退時のフォールバックにのみ残る。git push系hookの既存の追記パターンと同じ形で注記を追加する。<code>ai-command-style.md</code>の対象hook表は更新しない（下記「やらないこと」）。</p>
+</section>
+
+<section id="out-of-scope">
+  <h2>やらないこと（スコープ外）</h2>
+  <div class="box stop">
+    <span class="label">この計画では決めない・触らない</span>
+    <ul>
+      <li>実装コード・テストコードの追加修正（コメント誤字1箇所を除く）</li>
+      <li><code>.claude/settings.json</code>の<code>if</code>フィルタの変更（既存の未決定事項のまま）</li>
+      <li><code>ai-command-style.md</code>「対象のhook」表への<code>post-issue-create-notice.sh</code>追加（同表は2語連続を避ける技法の説明で、単一トークンの<code>create-issue.sh</code>には成立しないため）</li>
+      <li><code>.claude/docs/README.md</code>のspec一覧に<code>command-position.md</code>自体を追加すること（issue #53時点からの既存ギャップで、issue #149に起因しない。HANDOFF.mdへ記録）</li>
+    </ul>
+  </div>
+</section>
+
+<section id="verify">
+  <h2>検証</h2>
+  <pre><code># command-position.mdの反映内容ごとに、期待する記述が入っていることを個別に確認する
+grep -c 'command_invokes_script' .claude/docs/spec/command-position.md   # 反映前2 → 反映後4以上
+grep -c '既知の制約' .claude/docs/spec/command-position.md               # 表の行数が3行増える
+grep -n '### issue #149' .claude/docs/spec/command-position.md
+
+grep -n 'command_invokes_script' .claude/docs/spec/issue-mr-workflow.md
+
+ls .claude/docs/ddr/i0149-01-*.md
+bash .claude/scripts/src/generate-ddr-list.sh
+git diff --stat .claude/docs/README.md
+
+bash .claude/scripts/src/extract-frontmatter.sh .
+
+git diff &lt;ブランチ分岐点&gt; -- .claude/docs/ | grep -E '^-[^-]' || echo '削除行なし'
+
+bash -n .claude/hooks/lib/CommandPosition.sh
+bash .claude/scripts/test/test_command_position.sh
+bash .claude/scripts/test/test_post_issue_create_notice.sh</code></pre>
+  <p>合格条件: すべての反映箇所（command-position.md 9箇所・issue-mr-workflow.md 2箇所・DDR新設1件・README.md自動反映・shell-script-style.md 1箇所・コメント誤字1箇所）が確認でき、過去のchangelogエントリ・DDR本文の削除行が無く、単体テスト2本が<code>failures=0</code>のままであること。</p>
+</section>
+
+<section id="options">
+  <h2>比較検討した案</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>案</th><th>利点</th><th>採否と理由</th></tr></thead>
+    <tbody>
+      <tr><td>【設計反映】と【実装反映】を1ファイルへ併記する</td><td>ファイル数が減る</td><td><span class="tag stop">却下</span> 実装修正が無いため【実装反映】自体が不要</td></tr>
+      <tr><td>command-position.mdの反映箇所をまとめて1つの節に追記する</td><td>編集箇所が減る</td><td><span class="tag stop">却下</span> 読み手の関心が異なる既存節へ分散させたほうが該当箇所を探しやすい</td></tr>
+      <tr><td>DDRを新設しない</td><td>作業量が減る</td><td><span class="tag stop">却下</span> worklogは削除され、同系列issueの慣行とも整合しない</td></tr>
+      <tr><td>ai-command-style.mdの対象hook表へ追加する</td><td>表の網羅性が上がる</td><td><span class="tag stop">却下</span> 単一トークンには同表の技法が成立しない</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<footer>issue #149 / PR #179 — 計画の正文は同名の <code>.md</code>。外部依存を持たない自己完結HTML。</footer>
+
+</div>
+</body>
+</html>
