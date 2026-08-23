@@ -200,7 +200,7 @@
     <li>現行の規約がどこで・どう述べられているか。<b>地の文（「1行のみ」等）だけでなく、旧規約に沿った例示・雛形（<code>--message "…"</code> の形）も洗う</b>（後者は地の文の検索語では1件も拾えない）。</li>
     <li>squash merge後に <code>main</code> へ残る実際のコミットログ（<b>母数を固定して数える</b>）が、どのような欠落パターンを持つか。issue本文の4類型以外の類型があるか。</li>
     <li>本文を許容した場合、実装（<code>create-commit.sh</code>）と<b>呼び出し側（複数行メッセージの渡し方）</b>が耐えられるか。</li>
-    <li>squash merge時に本文がどう畳まれるか。<b>GitHub側の畳み方は実測できない</b>（履歴に本文付きコミットが1件も無く、生成はサーバ側の挙動のため）ので、実測できる部分と机上確認の部分を区別する。</li>
+    <li>squash merge時に本文がどう畳まれるか。<b>4項目すべて実測できた</b>（フェーズ2の結果により更新。計画時は「GitHub側の畳み方は履歴に本文付きコミットが1件も無いため実測できない」としていたが、これは事実に反していた——母数の内側であるPR #175 のsquash本文に本文6件が観測できる。詳細は調査結果Q4）。</li>
     <li>規約を変えると壊れる／古くなる箇所はあるか。<b>処理</b>（<code>.claude/scripts/</code> <code>.claude/hooks/</code>）と<b>記述</b>（<code>.claude/skills/</code> <code>.claude/rules/</code> <code>.claude/docs/</code> の例示・雛形・書き方の指示）の両方を対象にする。</li>
   </ol>
   <p><b>何が分かれば次へ進めるか</b>: 「1行のみを維持するか」の判断材料が揃い、書き換えが必要なドキュメントの一覧が確定すること。</p>
@@ -248,7 +248,7 @@
 grep -rn '1行のみ\|本文・フッター\|フッター' --include='*.md' .claude AGENTS.md CLAUDE.md GEMINI.md
 
 # (b) 旧規約に沿った例示・雛形（(a) では1件も拾えない）
-grep -rn -- '--message "' --include='*.md' --include='*.sh' .claude
+grep -rn --include='*.md' --include='*.sh' -e '--message "' .claude
 
 # DDR追加後の一覧再生成（差分は同じコミットへ含める）
 bash .claude/scripts/src/generate-ddr-list.sh
