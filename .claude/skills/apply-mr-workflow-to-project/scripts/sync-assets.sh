@@ -51,13 +51,11 @@ if [ -d "${PROJECT_ROOT}/.github" ]; then
   # workflows/ は配布しない（issue #114）。配布先の既存CI設定を上書きしうるうえ、Pages の
   # 有効化・ブランチ運用は配布先ごとに異なる。雛形は
   # .claude/skills/issue-mr-flow/assets/publish-report-site.*.yml として（.claude ごと）配る。
-  # index.jsonl は extract-frontmatter.sh の生成物（.gitignore対象）。配布物へ焼き込むと
-  # 配布元のスナップショットが配布先で二重管理として残る（.gemini を除くのと同じ理由）。
   for entry in "${PROJECT_ROOT}/.github/"*; do
     [ -e "${entry}" ] || continue
     # `[ … ] && continue` にしない。最後の要素が除外対象だとループ全体の終了コードが1になり、
     # `set -e` 配下でスクリプトが落ちる。
-    case "${entry##*/}" in workflows | index.jsonl) continue ;; esac
+    case "${entry##*/}" in workflows) continue ;; esac
     cp -R "${entry}" "${ASSETS_DIR}/.github/"
   done
 fi
@@ -88,5 +86,24 @@ cp -f "${PROJECT_ROOT}/.gitattributes" "${ASSETS_DIR}/.gitattributes" || true
 rm -rf "${SKILL_DIR}/references/example_reference.md" \
        "${SKILL_DIR}/scripts/example_script.cjs" \
        "${ASSETS_DIR}/example_asset.txt" || true
+
+# 7. 生成物・ローカル作業状態の一括除去（issue #114）
+# いずれも .gitignore 対象で、配布物へ焼き込むと配布元のスナップショットが配布先で
+# 二重管理として残る（.gemini を配らないのと同じ理由）。
+#   - index.jsonl        : extract-frontmatter.sh の生成物
+#   - .claude/state/     : post-push-compact-prompt.sh が持つ前回push時点のHEAD SHA
+# **コピーの各所で個別に弾かず、集め終えたあとに一括で消す。** 個別に弾くと、
+# .github/ だけ対処して .claude/ 配下の18件を見落とす、という取りこぼしが起きる
+# （実際にそうなっていた）。
+removed_index=0
+while IFS= read -r -d '' generated; do
+  rm -f "${generated}"
+  removed_index=$((removed_index + 1))
+done < <(find "${ASSETS_DIR}" -name index.jsonl -type f -print0)
+echo " -> Removed ${removed_index} generated index.jsonl file(s)"
+if [ -d "${ASSETS_DIR}/.claude/state" ]; then
+  rm -rf "${ASSETS_DIR}/.claude/state"
+  echo " -> Removed local state directory (.claude/state)"
+fi
 
 echo "✅  Asset synchronization complete."

@@ -1462,19 +1462,82 @@ assert_contains "mcp_tool_hint: get_report_site_url は代替なしと案内す�
   )" \
   "対応するMCPツールはありません"
 
+# --- wait_for_report_site の引数検査（issue #114） ---------------------------------------------
+#
+# **`curl` を1度も呼ばずに弾けることを確かめる。** 検査が効いていないと、`interval=0` で
+# 無限ループになり（`waited` が増えない）、数値以外では `set -e` 配下でスクリプトごと落ちる。
+# `PATH` の先頭へスタブ `curl` を置き、**呼ばれた回数**まで見る（終了コードだけでは
+# 「弾いた」のか「呼んだうえで失敗した」のかを区別できない）。
+stub_bin="$(mktemp -d)"
+cat > "$stub_bin/curl" <<'STUB'
+#!/usr/bin/env bash
+printf 'x' >> "$CURL_CALL_LOG"
+exit 3
+STUB
+chmod +x "$stub_bin/curl"
+export CURL_CALL_LOG="$stub_bin/calls"
+
+# 終了コードと呼び出し回数を "<status>:<回数>" で返す
+wait_probe() {
+  local status=0
+  : > "$CURL_CALL_LOG"
+  ( PATH="$stub_bin:$PATH"; wait_for_report_site "$@" ) >/dev/null 2>&1 || status=$?
+  printf '%s:%s' "$status" "$(wc -c < "$CURL_CALL_LOG" | tr -d ' ')"
+}
+
+assert_eq "wait_for_report_site: URLが空なら呼ばずに1" "1:0" "$(wait_probe '')"
+assert_eq "wait_for_report_site: 間隔0は呼ばずに1（無限ループにしない）" "1:0" \
+  "$(wait_probe 'https://example.com/' 10 0)"
+assert_eq "wait_for_report_site: 間隔が数値以外なら呼ばずに1" "1:0" \
+  "$(wait_probe 'https://example.com/' 10 abc)"
+assert_eq "wait_for_report_site: 上限が数値以外なら呼ばずに1" "1:0" \
+  "$(wait_probe 'https://example.com/' abc 5)"
+assert_eq "wait_for_report_site: 上限が負なら呼ばずに1（先頭のハイフンも弾く）" "1:0" \
+  "$(wait_probe 'https://example.com/' -1 5)"
+# 上限0は「1回だけ試して諦める」の意味で有効。**1回だけ**呼んで非0で終わることを見る
+# （末尾で無条件に sleep していた頃は、ここで余分に1周期待っていた）。
+assert_eq "wait_for_report_site: 上限0は1回だけ試して非0" "1:1" \
+  "$(wait_probe 'https://example.com/' 0 5)"
+# 上限2・間隔1なら試行は t=0, 1, 2 の3回で、待ち時間の合計は2秒（上限を超えない）。
+# 実際に sleep するので、テストを遅くしないよう小さい値で確かめる。
+assert_eq "wait_for_report_site: 上限2間隔1なら3回試す" "1:3" \
+  "$(wait_probe 'https://example.com/' 2 1)"
+unset CURL_CALL_LOG
+rm -rf "$stub_bin"
+
 # --- CI設定の雛形と実ファイルの同一性（issue #114） -------------------------------------------
 #
 # 雛形（配布物）とこのリポジトリで実際に動いているものが食い違うと、配布先には動作確認されて
-# いないCI設定が渡る。バイト単位の一致で固定する。**配布先はブランチパターン等を書き換える
-# 必要がある**が、その手順は雛形の冒頭コメント側に書いてある。
-assert_eq "雛形の同一性: .github/workflows/publish-report-site.yml" "same" \
-  "$(cmp -s "$repo_root/.github/workflows/publish-report-site.yml" \
-      "$repo_root/.claude/skills/issue-mr-flow/assets/publish-report-site.github.yml" \
-      && echo same || echo differ)"
-assert_eq "雛形の同一性: .gitlab-ci.yml" "same" \
-  "$(cmp -s "$repo_root/.gitlab-ci.yml" \
-      "$repo_root/.claude/skills/issue-mr-flow/assets/publish-report-site.gitlab.yml" \
-      && echo same || echo differ)"
+# いないCI設定が渡る。バイト単位の一致で固定する。
+#
+# **比較先が無い環境ではスキップする。** `.claude/` は配布先へ丸ごとコピーされるのでこの
+# テストも一緒に配られるが、CI設定そのもの（`.github/workflows/` `.gitlab-ci.yml`）は
+# `sync-assets.sh` が配布物から外している。無条件に比較すると、**配布先は何も壊していないのに
+# 単体テストが赤い状態から始まる**ことになる。
+#
+# **配布先が雛形を置いたうえで `on.push.branches` 等を書き換えた場合も、スキップになる**
+# （ファイルは存在するので比較は走り、一致しないため失敗する）——という誤解を招かないよう
+# 明示しておく。**書き換えは SKILL.md が指示している正しい運用**であり、そのときこのテストは
+# 失敗する。配布先はこのテストごと削除してよい（雛形の同一性は配布元だけが保つべき不変条件）。
+skipped_template_checks=0
+assert_template_identical() {
+  local label="$1" actual="$2" template="$3"
+  if [ ! -f "$actual" ]; then
+    skipped_template_checks=$((skipped_template_checks + 1))
+    return 0
+  fi
+  assert_eq "$label" "same" "$(cmp -s "$actual" "$template" && echo same || echo differ)"
+}
+assert_template_identical "雛形の同一性: .github/workflows/publish-report-site.yml" \
+  "$repo_root/.github/workflows/publish-report-site.yml" \
+  "$repo_root/.claude/skills/issue-mr-flow/assets/publish-report-site.github.yml"
+assert_template_identical "雛形の同一性: .gitlab-ci.yml" \
+  "$repo_root/.gitlab-ci.yml" \
+  "$repo_root/.claude/skills/issue-mr-flow/assets/publish-report-site.gitlab.yml"
+# 無言でスキップしない（0件と「検査していない」を取り違えないため）
+if [ "$skipped_template_checks" -gt 0 ]; then
+  echo "skipped=$skipped_template_checks（CI設定が無い環境のため雛形の同一性検査をスキップ）"
+fi
 
 echo "passed=$passed failures=$failures"
 [ "$failures" -eq 0 ]

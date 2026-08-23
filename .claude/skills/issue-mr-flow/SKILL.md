@@ -1568,10 +1568,15 @@ fi
 
 ### `gh`/`glab` CLI不在時
 
-**`get_report_site_url` / `wait_for_report_site` に対応するMCPツールは無い。** どちらも
-`require_vcs_cli` により非0で終えるので、**URLの提示だけをスキップして flow-id 5-6 を完了と
+**`get_report_site_url` / `wait_for_report_site` に対応するMCPツールは無い。** `get_report_site_url`
+が `require_vcs_cli` により非0で終えるので、**URLの提示だけをスキップして flow-id 5-6 を完了と
 する**（その旨を1行ユーザーへ伝える）。フォールバックでURLを組み立てるだけの経路は用意しない
 ——**正しいと確認できないURLを提示するほうが害が大きい**ためである。
+
+**`wait_for_report_site` は `require_vcs_cli` を通らない**（依存するのは `curl` であって
+`gh`/`glab` ではない）。呼べば実際に `curl` が走るが、**そもそも上の時点でURLが得られないので
+到達しない**。同じ理由で `mcp_tool_hint` にもこの関数の分岐は置いていない（置いても到達しない
+死んだコードになる）。
 
 ## PRがflow-id 5-5実施前にマージされてしまった場合の対処
 
