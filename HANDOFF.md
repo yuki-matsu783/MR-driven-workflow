@@ -19,7 +19,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - PR: #180 https://github.com/yuki-matsu783/MR-driven-workflow/pull/180（Draft）
 - push回数: 6
 - 現在のループ: なし
-- 未返信スレッド: 0
+- 未返信スレッド: 10
 - 追従監視: あり（ローカル／git bash。各pushの直後と作業再開時に `/resolve-conflict` を手動実行する）
 
 | 進捗 | flow-id | ステップ | 担当 |
@@ -41,7 +41,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 | [x] | 2-9 | レビュー内容を取得し調査結果を修正・返信する | サブコマンド |
 | [x] | 2-10 | 調査結果をもとにMR descriptionを更新する | サブコマンド |
 | [x] | 3-1 | 個別作業計画を作成する（HTMLビューも作る） | エージェント |
-| [] | 3-2 | commitしpushしてレビュー依頼を行う | エージェント |
+| [x] | 3-2 | commitしpushしてレビュー依頼を行う | エージェント |
 | [] | 3-3 | MRで作業計画についてレビュー・コメントする | 人間 |
 | [] | 3-4 | レビュー内容を取得し作業計画を修正・返信する | サブコマンド |
 | [] | 3-5 | 作業計画をもとにMR descriptionを更新する | サブコマンド |
@@ -158,13 +158,59 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
   1つの機能を構成しており、分けても合意の単位が変わらないため。
   md と HTML の見出しは `</nav>` 以降で 14 対 14 の完全一致を確認済み。
 
+
+- flow-id 3-2: 計画一式をコミット（`1796e41`）してリモートへ反映した。
+  **敵対的レビューをフェーズ3で1回目実施**（`adversarial-review-count.sh get 3` → 1。**上限3回**）。
+  16件の指摘のうち**10件をPR #180 へインライン投稿**（投稿上限10件）、6件は報告のみに留めた。
+  投稿したスレッド（**すべて返信ゼロ。返信は flow-id 3-4 で行う**）:
+  - https://github.com/yuki-matsu783/MR-driven-workflow/pull/180#discussion_r3838544270
+  - https://github.com/yuki-matsu783/MR-driven-workflow/pull/180#discussion_r3838544271
+  - https://github.com/yuki-matsu783/MR-driven-workflow/pull/180#discussion_r3838544274
+  - https://github.com/yuki-matsu783/MR-driven-workflow/pull/180#discussion_r3838544277
+  - https://github.com/yuki-matsu783/MR-driven-workflow/pull/180#discussion_r3838544280
+  - https://github.com/yuki-matsu783/MR-driven-workflow/pull/180#discussion_r3838544281
+  - https://github.com/yuki-matsu783/MR-driven-workflow/pull/180#discussion_r3838544285
+  - https://github.com/yuki-matsu783/MR-driven-workflow/pull/180#discussion_r3838544286
+  - https://github.com/yuki-matsu783/MR-driven-workflow/pull/180#discussion_r3838544287
+  - https://github.com/yuki-matsu783/MR-driven-workflow/pull/180#discussion_r3838544289
+
+  **投稿した10件の要点**: (1) 提示URLがディレクトリなのに `pr-<n>/index.html` を作る手順が無く
+  **常に404になる**（blocker）、(2) `.nojekyll` を置く手順が無い、(3) 作業7の「外部プロセスを
+  起動しない」宣言と `get_report_site_url` の経路テストが**同一計画内で両立しない**、
+  (4) 雛形の**バイト一致**要求が配布物の汎用化と衝突する、(5) GitLab並列デプロイの
+  **Premium/Ultimate 限定**という前提が雛形にもSKILL.md新節にも無い、(6) `concurrency` は
+  待機中の実行を1つしか保持せず**中間のデプロイが取り消される**、(7) fork運用時の
+  `GITHUB_TOKEN` の注記が落ちている、(8) `.github/` の中身の記述が事実と違う（`index.jsonl`
+  がある）、(9) flow-id 5-4 の置き換え後の文で「詳細は下記…節」が2つ連続する、
+  (10) md版とHTML版でワークフロー内コメントの文言が食い違う。
+
+  **報告のみに留めた6件**（MRに残らないのでここへ書く。flow-id 3-4 でまとめて対応する）:
+  1. **`gh-pages` ブランチを新規作成する手順が無い**（minor/medium）。現状このリポジトリに
+     `gh-pages` は無く、存在しないブランチを publishing source に指定する POST は失敗する。
+     作業3のジョブも `checkout` から始まるため初回に失敗する。orphan ブランチの作成手順が要る。
+  2. **末尾スラッシュを誰が付けるかが未定義**で、作業7の期待値が決まらない（minor/medium）。
+     `get_report_site_url` は「末尾スラッシュ付き」と定めているが、`join_url_to_reply` の契約に
+     末尾スラッシュの規定が無い。
+  3. **`report_site_prefix_to_reply` の provider が github/gitlab 以外**（空文字列を含む）のときの
+     挙動が未定義（minor/medium）。`https://…//` のような壊れたURLが提示されうる。
+  4. **GitHubフォールバックの `https://<owner>.github.io/<repo>` が user/org サイトで誤る**
+     （minor/medium）。repo名が `<owner>.github.io` のとき
+     `https://<owner>.github.io/<owner>.github.io` という存在しないURLになる。
+  5. **「調査結果『設計への反映』の6項目を実装する」が計画の記述と食い違う**（minor/high）。
+     6番目のDDRはフェーズ4なので、実装するのは5項目である。
+  6. **「CI設定は配布しない」の検証がGitHub側だけ**で、`.gitlab-ci.yml` を確認していない
+     （minor/medium）。ルート直下ファイルがホワイトリスト方式である根拠が計画に無い。
+
 ## 次にやること
 
-- flow-id 3-2: 計画一式をコミットしリモートへ反映してレビュー依頼を行う。**その直後に
-  敵対的レビュー（フェーズ3・1回目）を自動実行する**（ユーザーの明示指示。上限3回）。
-- flow-id 3-3/3-4: 人間のレビュー往復。合意後 3-5（`describe`）。
-- flow-id 3-6: 個別作業計画の作業1〜作業8を実施する。**作業8（実機検証）でGitHub Pagesを
-  有効化する前に、リポジトリ設定を変更する旨をユーザーへ知らせる。**
+- flow-id 3-2 は完了（コミット `1796e41` をリモートへ反映済み。敵対的レビュー1回目も実施済み）。
+- flow-id 3-3/3-4: **人間のレビューを待つ。** 敵対的レビューの10スレッドは**すべて返信ゼロ**で、
+  flow-id 3-4 で人間の指摘と同列に対応・返信する。**`comments all` で (1) 未解決スレッドが
+  無いこと (2) 返信ゼロのスレッドが無いこと を確認できるまで、3-3〜3-4 を `mark-done` しない。**
+  上記「報告のみに留めた6件」も同じ往復で計画へ反映する。
+- 合意後、flow-id 3-5（`describe`）→ 3-6（作業1〜作業8の実施）へ。
+  **作業8（実機検証）でGitHub Pagesを有効化する前に、リポジトリ設定を変更する旨をユーザーへ
+  知らせる。**
 
 ## 判断を迷った内容
 
