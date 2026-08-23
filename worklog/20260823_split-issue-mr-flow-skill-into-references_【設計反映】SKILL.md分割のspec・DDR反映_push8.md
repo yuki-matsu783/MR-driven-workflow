@@ -82,3 +82,25 @@ keywords: [設計反映, spec, DDR, i0160-01, issue-mr-workflow, generate-ddr-li
   「関連する既存の決定」節へ分離し、却下案は5件に。レポートのサマリ・詳細・HTMLを統一。
 - HANDOFF 4-2 の mark-done 漏れは、current_flow_id_to_reply が誤って 4-2 を指す実害付きで
   検出された（機械化が表の正確さに依存する実例として指摘8に記録）。
+
+## mainのPR #154（manifest配布方式）取り込み（flow-id 5-1で検知）
+
+- 5-1 のコンフリクト検知で main が b8a1b58（PR #154: 配布のmanifest方式化・
+  `agent-common.md` 分離）まで進んでいたため、`git merge` で取り込んだ。
+- コンフリクト3件はいずれも**逆向きの類型F**（上流=配置の変更、自ブランチ=内容の変更）として解消:
+  - `AGENTS.md`: mainの `@./.claude/rules/agent-common.md` import行を採り、
+    自ブランチが持っていた参照の付け替え3箇所（`references/start-resume.md`「`start`」節・
+    `references/planning.md`「計画の2階層構造」・`references/mcp-fallback.md`「MCPフォールバック」節）を
+    移動先の `agent-common.md` へ手で移植した。
+  - `.claude/rules/directory-structure.md`: バンドルリソース表はmainの `scripts/` 行例
+    （`install-to-project.sh`）＋自ブランチの `references/` 行（7本, issue #160）の両取り。
+  - `index.md`: mainのスキル一覧拡充＋自ブランチの references/ サブ項目を併記。
+- main側の変更ファイルで移動済み節を指していた1箇所を付け替え:
+  `commit/SKILL.md` の `ai-asset` 行が `SKILL.md` の `【AIアセット作成】` 定義を指していた →
+  `references/planning.md` へ。
+- `apply-mr-workflow-to-project/assets/` に残っていた旧 `sync-assets.sh` のビルド生成物
+  （untracked）が新テストの「sourceを持つエントリが複数ファイルに一致」失敗を誘発したため削除。
+  もう1つの原因はマージ途中のindexがコンフリクトファイルを3ステージ持ち `git ls-files` が
+  重複を返すことで、解消ファイルの `git add` で収束した。
+- 検証: 全テスト bash 18本 passed=1259 failures=0・perl 2本 OK・マーカーなし・
+  DDR一覧79件最新・`check-dist-coverage.sh` 414/414 OK（references/ 7本も配布対象に含まれる）。

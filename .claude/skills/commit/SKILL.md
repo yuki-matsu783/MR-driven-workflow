@@ -65,7 +65,7 @@ hookの対象にならず正規に実行できる。
 | `feat` | 新機能の追加 |
 | `fix` | バグ修正 |
 | `docs` | ドキュメントのみの変更 |
-| `ai-asset` | AIアセットの変更 |
+| `ai-asset` | AIアセットの変更。対象は**AIが読むもの**（`.claude/rules/` `.claude/skills/` `.claude/agents/` `AGENTS.md` `CLAUDE.md` `GEMINI.md`）。**`.claude/scripts/` は対象外**で、単体テストを持つ実装コードとして `feat`/`fix`/`refactor` を使う（線引きは `.claude/skills/issue-mr-flow/references/planning.md` の `【AIアセット作成】` の定義と同じ） |
 | `style` | コードの意味に影響しない変更（空白・フォーマット等） |
 | `refactor` | バグ修正でも機能追加でもないコード変更 |
 | `test` | テストの追加・修正 |

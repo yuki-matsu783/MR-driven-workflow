@@ -3,7 +3,7 @@ title: 配布テンプレート資産（PR/MRテンプレート・.gitattributes
 type: spec
 description: 他プロジェクトへ配布するテンプレート資産の内容と、配布経路上での扱いの仕様
 tags: [spec, distribution, template]
-keywords: [pull_request_template, merge_request_templates, gitattributes, VERSION, sync-assets, install-to-project, 行追記, 冪等, 版管理]
+keywords: [pull_request_template, merge_request_templates, gitattributes, VERSION, dist-layers, asset-manifest, install-to-project, 行追記, 冪等, 版管理]
 ---
 
 # 配布テンプレート資産（PR/MRテンプレート・`.gitattributes`・VERSION）
@@ -59,7 +59,9 @@ LICENSEも当初の対象だったが、**同梱しないと決めた**（
 # --- dist:end ---
 ```
 
-`install-to-project.sh` はマーカーの間の行（コメント・空行を除く）だけを読んで配布先へ追記する。
+`install-to-project.sh` はマーカーの間の行（コメント・空行を除く）だけを読んで配布先へ追記する
+（`.gitattributes` は `merge` 層の `lines-marker` 戦略で扱われる。仕様:
+[asset-distribution.md](asset-distribution.md)）。
 配る行の定義を**このファイル1箇所**に持たせ、スクリプト側へ書き写さないための仕組みである
 （書き写すと、本家へ配布したい行を足しても配布先へ届かない状態になる）。配布対象へ足してよいのは
 「配布したスクリプトが動くのに必要な指定」だけで、リポジトリ全体の方針は入れない。
@@ -98,21 +100,31 @@ LICENSEも当初の対象だったが、**同梱しないと決めた**（
 
 ### 配布経路での扱い
 
-配布は `apply-mr-workflow-to-project` スキルの2スクリプトが担う（本家 → `assets/` →配布先）。
+**issue #26 で、配布は「本家 → `assets/`（中間生成物）→ 配布先」の2スクリプト方式をやめ、
+本家の実状態を直接読む1スクリプト（`install-to-project.sh`）へ変わった。** どのパスをどう扱うかは
+`.claude/dist-layers.json` が層として定義し、本仕様書はそこで**3資産に割り当てられた層**を示す
+（層そのものの定義・インストーラの動作は [asset-distribution.md](asset-distribution.md) が正）。
 
-| 資産 | `sync-assets.sh` | `install-to-project.sh` | 配布先の既存ファイルの扱い |
-|---|---|---|---|
-| PR/MRテンプレート | `.github/` `.gitlab/` のディレクトリ単位コピーに載る | `safe_copy_dir` | 差分があれば `.bak` 退避のうえ上書き（他資産と同じ） |
-| `.claude/VERSION` | `.claude/*` のループに載る | `safe_copy_dir`（`find -type f`）＋ `ALWAYS_OVERWRITE_RELPATHS` | **`.bak` を作らず常に上書き**（下記） |
-| `.gitattributes` | ルートファイルの列挙へ明示的に追加（配る行の定義をマーカーで持つため、`assets/` へ集める必要がある） | **行追記**（`ensure_gitattributes_rules` が `assets/.gitattributes` のマーカー間の行を読む） | **上書きしない**。必要な行が無ければ末尾へ足すだけ |
+| 資産 | 層 | 配布先の既存ファイルの扱い |
+|---|---|---|
+| PR/MRテンプレート（`.github/` `.gitlab/`） | **`core`** | 常に上書き。配布先で改変されていれば `.bak` へ退避してから上書きし、一覧で知らせる |
+| `.claude/VERSION` | **`core`**（`.claude` エントリに含まれる） | 同上 |
+| `.gitattributes` | **`merge`（`lines-marker`）** | **上書きしない。** マーカー間の行が無ければ足すだけ |
 
-`.claude/VERSION` を通常の「差分があれば `.bak` 退避して警告」の対象にすると、**版を上げた回は
-必ず**警告と `.bak` が出る。VERSIONは配布元が所有する値であって配布先のカスタマイズではないため、
-この警告は誤りであり、本当に手を入れるべき差分（`AGENTS.md` 等）の警告を埋もれさせる。
-`install-to-project.sh` の `ALWAYS_OVERWRITE_RELPATHS` に列挙し、`.bak` も警告も出さずに上書きする。
+- **`.claude/VERSION` に専用の例外（旧 `ALWAYS_OVERWRITE_RELPATHS`）は要らなくなった。**
+  旧方式は「配布先のファイルが本家と1バイトでも違えば改変とみなす」判定だったため、**版を上げた回は
+  必ず**警告と `.bak` が出ていた。新方式は manifest に記録した「前回適用したときのsha256」と比べる
+  ため、配布先が触っていなければ改変とはみなさず、警告も `.bak` も出ない。**上流の変更と配布先の
+  改変を区別できるようになったことで、例外指定そのものが不要になった**（`.claude/VERSION` は
+  `.claude` エントリの `core` として、他のファイルと同じ扱いで配られる）。
+- **PR/MRテンプレートは `seed` ではなく `core` である。** 見出し構成は `describe` が生成する
+  descriptionと一致していなければならず（上記「PR/MRテンプレート」節）、配布先が独自に書き換える
+  ことを想定しない。配布先が実際に書き換えていれば、`.bak` 退避と一覧で気づける。
 
-`.gitattributes` の行追記には次の性質がある（
-[DDR i0033-03](../ddr/i0033-03-gitattributesは配布先へ丸ごとコピーせず必要な行だけ追記する.md)）。
+`.gitattributes` の行追記（`merge` / `lines-marker`）には次の性質がある（
+[DDR i0033-03](../ddr/i0033-03-gitattributesは配布先へ丸ごとコピーせず必要な行だけ追記する.md)。
+**同DDRの本文は当時の実装名（`ensure_gitattributes_rules`）で書かれているが、それは
+point-in-time の記録であり、現在の実装は `merge` 層の `lines-marker` 戦略である**）。
 
 - **冪等**: 何度適用しても行が増えない。
 - **行全体の一致で判定する**（`grep -Fxq`）。部分一致にすると、配布先が
@@ -170,37 +182,55 @@ LICENSEも当初の対象だったが、**同梱しないと決めた**（
   何も壊さずに警告だけが残る（仕様: [sync-gemini-assets.md](sync-gemini-assets.md)）。
 - `jq` が無い環境では `install-to-project.sh` が事前に警告する（`.gemini/` の生成が `jq` に依存する）。
 
+### issue #26（2026-08-23）
+
+配布方式を manifest 方式へ作り直したことに伴う更新。**機構そのものの仕様は
+[asset-distribution.md](asset-distribution.md) を新設して移した**ので、本仕様書は
+「配る**資産**の側」に絞られた。
+
+- 更新: `### 配布経路での扱い` を**層ベースへ全面書き換え**した。3資産の層は
+  PR/MRテンプレート＝`core` / `.claude/VERSION`＝`core` / `.gitattributes`＝`merge`（`lines-marker`）。
+- 削除: `sync-assets.sh` `safe_copy_dir` `ALWAYS_OVERWRITE_RELPATHS` `ensure_gitattributes_rules`
+  への言及（いずれも issue #26 で無くなった）。**過去のchangelogエントリ（issue #33 / #54）に
+  出てくる同じ語は、当時の事実として残す。**
+- **`.claude/VERSION` は `0.2.0` のまま据え置いた。** 上記「人間の判断で据え置くことがある」の
+  規定に従い、据え置いた事実をここへ残す。
+  - 経緯: AIエージェントは `1.0.0`（`MAJOR`）を提案した。根拠は、旧方式で配られた `AGENTS.md` が
+    `requiredLine` による一覧提示だけでは自動で直らず、**配布先に手作業での移行を要求する**ため
+    である。**この提案は採用されず、flow-id 4-4 のレビューで `0.2.0` 据え置きと決まった**
+    （増分を決めるのは人間、という規定どおりの結果）。
+  - **実害を承知のうえでの判断である。** 配布先は同じ `0.2.0` のまま、**配布の仕組みごと入れ替わった**
+    `.claude/` を受け取る。版から資産の差を判別できないという実害は、過去のどの据え置きよりも大きい。
+    ただし issue #26 で `.claude/.asset-manifest.json` が入ったため、**機械可読な同一性は
+    manifest 側（`source.commit` ＋ ファイルごとの sha256）で判別できる**。VERSIONだけが
+    手掛かりだった issue #54 の据え置きとは、この点が異なる。
+- 解消: 下記「未決定事項・懸念点」のうち**4項目を削除**した。解消先は次のとおり。
+
+  | 削除した項目 | どこで解消したか |
+  |---|---|
+  | issue #26 への移行時にどこが引き継がれるか（層の対応表） | 上記「配布経路での扱い」の表が正になった。**旧表の「PR/MRテンプレート＝`seed`」は見込みであり、実装は `core` である** |
+  | `.gitignore` 追記処理の3つの問題（非冪等・部分一致・行の不一致） | `merge` / `lines-marker` として作り直して解消（`.gitignore` の配る行も `dist:begin`〜`dist:end` のマーカーで定義するようになった） |
+  | `HAS_WARNED` が `safe_copy_dir` の外へ伝わらない | `safe_copy_dir` ごと廃止。新実装は走査（1パス目）で件数を集計してから提示するため、サブシェルを跨ぐ状態受け渡しが無い |
+  | 配布先へ `.gitignore` 対象のローカル生成物が混入する | `local` 層（17エントリ）で解消 |
+- **`.gemini/` の扱いは issue #70 側が正である**（上のエントリ）。issue #26 は `sync-assets.sh` を
+  廃止したため、issue #70 のエントリにある「`sync-assets.sh` は `.gemini/` を `assets/` へ集めない」
+  という記述は**当時の実装を指す point-in-time の記録**として読むこと。現在は中間生成物 `assets/`
+  そのものが無く、`.gemini/` は層分け定義で `local`（配らない）として明示されている。
+  配布先での生成を `install-to-project.sh` が行う点は変わらない。
+
 ## 未決定事項・懸念点
 
 - **Windows実機（git bash）での改行挙動は未確認**である。issue #33 の作業はLinuxコンテナ上で
   行われ、`.gitattributes` が無い状態でCRLFが混入する事象そのものを再現できなかった。確認できたのは
   「配布経路が `.gitattributes` を運んでいなかったこと」と「行追記で配布先の既存設定が保たれること」
-  まで。
-- **issue #26（配布方式のmanifest化）への移行時に、この仕様のどこが引き継がれるか。** 現時点の
-  対応関係は次のとおりだが、層分け定義そのものは #26 側で決める。
+  まで。**issue #26 でもこの状況は変わっていない**（同じくLinux上での作業だった）。
+  配布機構の側にもWindows実機でしか確認できない項目が3件あり、そちらは
+  [asset-distribution.md](asset-distribution.md)「未決定事項・懸念点」がまとめて持つ。
+- **`.claude/VERSION` と `.claude/.asset-manifest.json` は役割が重複しない。** manifestは
+  「適用元コミットSHA＋ファイルごとのsha256」という機械可読で正確な同一性を持ち、VERSIONは
+  人間が口頭・issue上で示せる粗い識別子である。**両方を持ち続けるかどうかは決めていない**
+  （issue #26 では VERSION を廃止せず据え置いた）。manifestがある以上VERSIONは要らない、
+  という判断はありうるが、その場合は「配布先の人間がどう版を口にするか」の代替が要る。
 
-  | 資産 | #26 の層 |
-  |---|---|
-  | PR/MRテンプレート | `seed`（無ければ配置し、あれば触らない） |
-  | `.gitattributes` | `merge`（構造マージ。行追記は #26 が `.gitignore` に定めた規則と同じ） |
-  | `.claude/VERSION` | `core`（常に上書き） |
-
-  `.claude/VERSION` と、#26 が予定する `.claude/.asset-manifest.json` は**役割が重複しない**。
-  manifestは「適用元コミットSHA＋ファイルごとのsha256」という機械可読で正確な同一性を持ち、
-  VERSIONは人間が口頭・issue上で示せる粗い識別子である。
-- **`install-to-project.sh` の既存の `.gitignore` 追記処理には、issue #33 で `.gitattributes` 側を
-  作るときに避けた問題が残っている。** issue #33 の範囲外として直していないが、issue #26 の
-  `merge` 層の設計でまとめて扱うために記録する。
-  - 冪等ではない（配列の先頭にある空文字列が毎回無条件に空行を追記するため、再適用のたびに
-    空行が1行増える）。
-  - 判定が部分一致（`grep -Fq`、`--` 無し）のままで、配布先が `# /.claude/session-logs/ は不要` の
-    ようにコメントで言及しているだけでも実設定が入らない。
-  - 追記される行（`/.claude/usage-state/` 等4行）が、本家が実際に使う状態ディレクトリ
-    （`/usage/` と `/.claude/state/`）と一致していない（issue #23 の一本化に配布側が追従していない）。
-- **`HAS_WARNED` が `safe_copy_dir` の外へ伝わらない。** `find ... | while ...` はパイプライン
-  なのでサブシェルで実行され、その中で立てた `HAS_WARNED=true` は失われる。結果として、
-  `.claude/` `.github/` `.gitlab/` 配下のファイルでどれだけ `.bak` 退避が起きても、
-  最後の「ATTENTION: Some existing files differed from the template」ブロックは表示されない
-  （個別のWARNING行は出る）。issue #33 の実機確認で判明したが、範囲外として直していない。
-- **配布先へ `.gitignore` 対象のローカル生成物が混入する**（`index.jsonl` 10件以上と
-  `.claude/state/`）。issue #26 の `local` 層の定義がそのままこの問題を指している。
+**issue #26 で解消した4項目は削除した**（削除の理由と解消先は上記
+「影響範囲 > issue #26（2026-08-23）」に残してある）。

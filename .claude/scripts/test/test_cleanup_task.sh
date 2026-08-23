@@ -69,6 +69,12 @@ assert_eq "is_keep_path: 部分一致では残さない" "1" "$(status_of is_kee
 assert_eq "is_keep_path: plans/REVIEW-POINTS.md は残す" "0" "$(status_of is_keep_path "plans/REVIEW-POINTS.md")"
 assert_eq "is_keep_path: reports/REVIEW-POINTS.md は残す" "0" "$(status_of is_keep_path "reports/REVIEW-POINTS.md")"
 assert_eq "is_keep_path: サブディレクトリのREVIEW-POINTS.mdも残す" "0" "$(status_of is_keep_path "reports/sub/REVIEW-POINTS.md")"
+# REVIEW-POINTS.local.md（配布先が所有する観点表）も同じ理由で残す（issue #26）。
+# ここへ載せ忘れると flow-id 5-4 で毎タスク消え、配布先が書いた観点が失われる。
+assert_eq "is_keep_path: REVIEW-POINTS.local.md は残す" "0" "$(status_of is_keep_path "REVIEW-POINTS.local.md")"
+assert_eq "is_keep_path: plans/REVIEW-POINTS.local.md は残す" "0" "$(status_of is_keep_path "plans/REVIEW-POINTS.local.md")"
+assert_eq "is_keep_path: reports/sub/REVIEW-POINTS.local.md も残す" "0" "$(status_of is_keep_path "reports/sub/REVIEW-POINTS.local.md")"
+assert_eq "is_keep_path: .local の .bak は残さない（完全一致の維持）" "1" "$(status_of is_keep_path "plans/REVIEW-POINTS.local.md.bak")"
 assert_eq "is_keep_path: 名前が似ているだけのファイルは残さない" "1" "$(status_of is_keep_path "plans/REVIEW-POINTS.md.bak")"
 assert_eq "is_keep_path: 接尾辞が一致するだけのファイルは残さない" "1" "$(status_of is_keep_path "plans/OLD-REVIEW-POINTS.md")"
 
@@ -241,6 +247,24 @@ assert_eq "--skip-index: frontmatterIndex.ran は偽" "false" \
 assert_eq "--skip-index: ファイルは削除される" "1" "$(status_of test -e "$ct_repo/plans/【調査】テスト.md")"
 assert_eq "--skip-index: index.jsonl は再生成されない" "1" \
   "$(status_of test -e "$ct_repo/plans/index.jsonl")"
+
+# --- 配布用の雛形と HANDOFF_TEMPLATE の同期（issue #26） ------------------
+# `HANDOFF.md` は seed として配られるが、source を持たないと本家の作業中の引継ぎメモが
+# そのまま配布先へ渡り、seed なので二度と訂正されない。そのため
+# `assets/HANDOFF.md.template` を source に指しているが、**同じ雛形が2箇所に
+# 写しとして存在する**ことになるので、一致を機械的に担保する。
+# どちらかを直したらもう一方も直すこと（この表明が落ちて気づける）。
+handoff_tpl_file="${repo_root}/.claude/skills/apply-mr-workflow-to-project/assets/HANDOFF.md.template"
+if [ -f "$handoff_tpl_file" ]; then
+  # 本文の比較は両辺を同じ `$(...)` に通す（コマンド置換は末尾の改行を落とすため、
+  # 片側だけ生の変数を渡すと必ず食い違う）。末尾改行の有無はバイト数で別途見る。
+  assert_eq "配布用の雛形が HANDOFF_TEMPLATE と一致する" \
+    "$(printf '%s' "$HANDOFF_TEMPLATE")" "$(cat "$handoff_tpl_file")"
+  assert_eq "配布用の雛形は末尾の改行まで一致する" \
+    "$(printf '%s' "$HANDOFF_TEMPLATE" | wc -c)" "$(wc -c < "$handoff_tpl_file")"
+else
+  echo "note: ${handoff_tpl_file} が無いため雛形の同期チェックはスキップしました"
+fi
 
 echo "passed=${passed} failures=${failures}"
 [[ "$failures" -eq 0 ]]
