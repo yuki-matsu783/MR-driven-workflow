@@ -258,4 +258,9 @@ git ls-files -z -- plans worklog reports | tr '\0' '\n' | grep -c .   # 除外�
 
 - `reports/20260822_ai-asset-manifest-distribution_配布アセットの層分け調査.md`（結果の正文）
 - 同 `.html`（視覚化。**パス→層の対応という分類が主題で、要素間の関連が主題ではない**ため、
-  canvas形式ではなくTailwind CDNの通常版で作る）
+  canvas形式ではなく `.claude/skills/issue-mr-flow/assets/reports.template.html` を土台に作る）
+
+  > **2026-08-23 訂正**: 当初ここには「Tailwind CDNの通常版で作る」と書いていたが、issue #54 以降
+  > `reports/REVIEW-POINTS.md` は**CDNも外部依存として禁じている**（土台のテンプレートが自己完結CSSに
+  > なったため）。この記述のまま作った初版が実際にCDNを読み込んでおり、フェーズ3の敵対的レビュー
+  > 3回目で指摘された。計画側の記述を現在のルールへ合わせる。

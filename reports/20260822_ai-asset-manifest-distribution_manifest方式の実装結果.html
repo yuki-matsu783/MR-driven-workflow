@@ -1,0 +1,446 @@
+<!--
+manifest方式の配布機構の実装結果（issue #26 フェーズ3）の人間レビュー用HTMLビュー。
+  土台: .claude/skills/issue-mr-flow/assets/reports.template.html
+
+  正文は同名の .md 側で、このHTMLはその視覚化である（節の見出しはmd側と1対1に対応させている）。
+  flow-id 5-4 で .md とまとめて削除する。外部依存を持たない自己完結HTML。
+-->
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>manifest方式の配布機構の実装結果 — issue #26 フェーズ3</title>
+<style>
+  :root {
+    --bg: #f6f7f9;      --panel: #ffffff;   --ink: #1a1d21;     --muted: #5b636d;
+    --line: #dfe3e8;    --accent: #2563eb;  --accent-soft: #eaf0fe;
+    --ok: #1a7f4b;      --ok-soft: #e6f4ec; --warn: #a35a00;    --warn-soft: #fdf1e0;
+    --stop: #b3261e;    --stop-soft: #fdecea; --code-bg: #f0f2f5;
+    --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1216;    --panel: #161a20;   --ink: #e6e8eb;     --muted: #9aa3ad;
+      --line: #2a3038;  --accent: #7aa2f7;  --accent-soft: #1b2333;
+      --ok: #6ee7a8;    --ok-soft: #14261d; --warn: #f0b866;    --warn-soft: #2a2113;
+      --stop: #f2857c;  --stop-soft: #2b1614; --code-bg: #1d222a;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", system-ui, sans-serif;
+    line-height: 1.8; font-size: 15px;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 20px 80px; }
+
+  /* 共通ヘッダ帯 */
+  header.band {
+    background: linear-gradient(135deg, var(--accent-soft), var(--panel));
+    border-bottom: 1px solid var(--line); padding: 28px 20px 22px; margin-bottom: 28px;
+  }
+  header.band .inner { max-width: 1080px; margin: 0 auto; }
+  header.band .kind { font-size: 11px; letter-spacing: .18em; color: var(--accent); font-weight: 700; }
+  header.band h1 { margin: 6px 0 4px; font-size: 26px; line-height: 1.4; }
+  header.band .lead { margin: 0; color: var(--muted); }
+  .meta { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; padding: 0; list-style: none; }
+  .meta li {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 999px;
+    padding: 3px 12px; font-size: 12.5px; color: var(--muted); white-space: nowrap;
+  }
+  .meta li b { color: var(--ink); font-weight: 600; }
+
+  nav.toc {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 14px 20px; margin-bottom: 28px;
+  }
+  nav.toc h2 { margin: 0 0 8px; font-size: 13px; letter-spacing: .08em; color: var(--muted); border: 0; padding: 0; }
+  nav.toc ol { margin: 0; padding-left: 20px; }
+  nav.toc li { margin: 2px 0; }
+  a { color: var(--accent); }
+
+  section {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 8px 24px 22px; margin-bottom: 22px;
+  }
+  h2 { font-size: 20px; margin: 20px 0 10px; padding-bottom: 8px; border-bottom: 2px solid var(--line); }
+  h3 { font-size: 16px; margin: 22px 0 8px; color: var(--accent); }
+  p { margin: 10px 0; }
+  ul, ol { padding-left: 22px; }
+  li { margin: 4px 0; }
+  blockquote { margin: 10px 0; padding: 6px 14px; border-left: 3px solid var(--line); color: var(--muted); }
+
+  /* 表は自身の中で横スクロールする（ページ本体は横スクロールさせない） */
+  .tablewrap { overflow-x: auto; margin: 14px 0; }
+  table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 14px; }
+  th, td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: var(--accent-soft); font-weight: 600; white-space: nowrap; }
+  tbody tr:nth-child(even) td { background: color-mix(in srgb, var(--line) 22%, transparent); }
+
+  code {
+    background: var(--code-bg); border-radius: 5px; padding: 1px 5px; font-size: 13px;
+    font-family: "SFMono-Regular", Consolas, "Noto Sans Mono", monospace;
+  }
+  pre {
+    background: var(--code-bg); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 12px 14px; overflow-x: auto; font-size: 13px; line-height: 1.65;
+  }
+  pre code { background: none; padding: 0; }
+
+  /* 注意ボックス: info（既定）/ ok（決めたこと）/ warn（注意）/ stop（やらないこと・危険） */
+  .box { border-left: 4px solid var(--accent); background: var(--accent-soft);
+         border-radius: 0 var(--radius) var(--radius) 0; padding: 12px 16px; margin: 16px 0; }
+  .box > :first-child { margin-top: 0; } .box > :last-child { margin-bottom: 0; }
+  .box .label { font-size: 12px; font-weight: 700; letter-spacing: .06em; display: block; margin-bottom: 4px; }
+  .box.ok { border-color: var(--ok); background: var(--ok-soft); } .box.ok .label { color: var(--ok); }
+  .box.warn { border-color: var(--warn); background: var(--warn-soft); } .box.warn .label { color: var(--warn); }
+  .box.stop { border-color: var(--stop); background: var(--stop-soft); } .box.stop .label { color: var(--stop); }
+  .box.info .label { color: var(--accent); }
+
+  .tag { display: inline-block; border-radius: 999px; padding: 1px 9px; font-size: 12px; font-weight: 600; }
+  .tag.ok { background: var(--ok-soft); color: var(--ok); }
+  .tag.warn { background: var(--warn-soft); color: var(--warn); }
+  .tag.stop { background: var(--stop-soft); color: var(--stop); }
+
+  footer { color: var(--muted); font-size: 13px; text-align: center; padding-top: 10px; }
+</style></head>
+<body>
+
+<header class="band">
+  <div class="inner">
+    <div class="kind">作業結果レポート / フェーズ3</div>
+    <h1>manifest方式の配布機構の実装結果（issue #26 フェーズ3）</h1>
+    <p class="lead">AIアセットの配布をmanifest方式へ作り直し、受け入れ条件1〜10を実測で満たした。敵対的レビュー3回とmainのマージで見つかった食い違いも、この周で解消している。</p>
+    <ul class="meta">
+      <li><b>issue</b> #26</li>
+      <li><b>ブランチ</b> claude/ai-asset-manifest-distribution-u2gn22</li>
+      <li><b>PR</b> #154</li>
+      <li><b>フェーズ</b> 3〈作業〉 flow-id 3-6（3周目）</li>
+      <li><b>push回数</b> 13</li>
+      <li><b>作成日</b> 2026-08-22（3周目の追記: 2026-08-23）</li>
+      <li><b>正文</b> 同名の .md</li>
+    </ul>
+  </div>
+</header>
+
+<div class="wrap">
+
+<nav class="toc">
+  <h2>目次</h2>
+  <ol>
+    <li><a href="#conclusion">結論</a></li>
+    <li><a href="#artifacts">成果物</a></li>
+    <li><a href="#design">設計の要点</a></li>
+    <li><a href="#criteria">受け入れ条件の充足（実測）</a></li>
+    <li><a href="#defects">実装中に見つけた不具合（すべて修正済み）</a></li>
+    <li><a href="#dropped">意図的に落とした挙動</a></li>
+    <li><a href="#review2">敵対的レビュー2回目の反映（flow-id 3-9）</a></li>
+    <li><a href="#merge-main">mainのマージで生じた食い違いの解消（2026-08-23）</a></li>
+    <li><a href="#review3">敵対的レビュー3回目の反映（flow-id 3-9 の3周目）</a></li>
+    <li><a href="#open">残る未確認事項（フェーズ4でspecの未決定事項へ）</a></li>
+  </ol>
+</nav>
+
+<section id="conclusion">
+  <h2>結論</h2>
+
+  <p><b>受け入れ条件1〜10をすべて実装し、実際に動かして確認した</b>（11はフェーズ4のDDR）。
+  配布は「本家の実状態を層分け定義に従って配る」方式になり、旧方式の中間生成物（<code>assets/</code>）と
+  ビルド工程（<code>.skill</code>）は丸ごと不要になった。</p>
+  <div class="box ok">
+    <span class="label">この方式の要点</span>
+    配る内容の定義が<b>本家の実状態そのもの</b>になったため、写しとずれようがない。旧方式では
+    <code>sync-assets.sh</code> が集めた <code>assets/.gitignore</code> が実状態とずれても誰も気づけなかった。
+  </div>
+
+</section>
+
+<section id="artifacts">
+  <h2>成果物</h2>
+
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>ファイル</th><th>操作</th><th>役割</th></tr></thead>
+    <tbody>
+      <tr><td><code>.claude/dist-layers.json</code></td><td>新規</td><td>層分け定義（42エントリ）。<b>何をどう配るかの単一の正</b></td></tr>
+      <tr><td><code>.claude/scripts/src/check-dist-coverage.sh</code></td><td>新規</td><td>網羅性チェック（検査4種）</td></tr>
+      <tr><td><code>.claude/skills/apply-mr-workflow-to-project/scripts/install-to-project.sh</code></td><td>全面書き直し</td><td>2パス構成のインストーラ</td></tr>
+      <tr><td><code>.claude/skills/apply-mr-workflow-to-project/assets/*.template</code></td><td>新規4本</td><td><code>AGENTS.md</code> / <code>HANDOFF.md</code> / <code>index.md</code> / <code>REVIEW-POINTS.local.md</code> の雛形</td></tr>
+      <tr><td><code>.claude/rules/agent-common.md</code></td><td>新規</td><td><code>AGENTS.md</code> から切り出した共通ルール9項目</td></tr>
+      <tr><td><code>.claude/scripts/src/sync-assets.sh</code></td><td>削除</td><td>中間生成物を集める工程ごと不要になった</td></tr>
+      <tr><td><code>.claude/scripts/test/test_check_dist_coverage.sh</code></td><td>新規</td><td>網羅性チェックの単体テスト（29件）</td></tr>
+      <tr><td><code>.claude/scripts/test/test_install_to_project.sh</code></td><td>作り直し</td><td>インストーラの結合テスト（95件）</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p>詳細な一覧は正文（md）の「成果物」節を参照。</p>
+
+</section>
+
+<section id="design">
+  <h2>設計の要点</h2>
+
+  <h3>層分け定義（<code>.claude/dist-layers.json</code>）</h3>
+  <ul>
+    <li>パスは <b>git pathspec</b> として git に評価させる（globの意味論を再実装しない）。</li>
+    <li>例外は <code>.gitignore</code> と同じ <b>後に書いたエントリが勝つ</b>規約で表す。</li>
+    <li><code>exclude</code>（配らない）は<b>明示指定を必須</b>とする。暗黙の既定値にすると網羅性チェックが常に通ってしまう。</li>
+    <li>任意キー <code>requiredLine</code>（<code>seed</code> 専用）で、配布先の既存ファイルが古い形式のままでないかを再適用時に知らせる。</li>
+  </ul>
+
+  <h3>網羅性チェック（4種）</h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>検査</th><th>見るもの</th></tr></thead>
+    <tbody>
+      <tr><td>検査1</td><td>追跡ファイル<b>全件</b>が分類されているか（分母は <code>git ls-files</code>）</td></tr>
+      <tr><td>検査2</td><td><code>.gitignore</code> の全行が <code>local</code> エントリに載っているか</td></tr>
+      <tr><td>検査3</td><td>1件も一致しない空振りエントリが無いか</td></tr>
+      <tr><td>検査4</td><td><code>layer</code> / <code>strategy</code> / <code>gitignorePattern</code> / <code>requiredLine</code> の妥当性</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p>配布先（<code>upstream</code> の印が無い定義）では、件数を出したうえでスキップする。</p>
+
+  <h3>インストーラ（2パス構成）</h3>
+  <p><b>走査 → 提示 → 配置</b>の順で進む。受け入れ条件4が「上書きの<b>前に</b>警告と対象一覧を出す」ことを
+  求めており、配置しながら警告を出す1パスの形では満たせない。</p>
+  <ul>
+    <li><code>merge</code> の2方式: <code>lines-marker</code>（<code>.gitignore</code> / <code>.gitattributes</code>）と
+      <code>json-keys</code>（<code>settings.json</code>）。</li>
+    <li>manifest（<code>.claude/.asset-manifest.json</code>）は、本家のコミットSHA＋LF正規化した sha256 で
+      「適用後に配布先で変更されたか」を判定する。</li>
+  </ul>
+
+</section>
+
+<section id="criteria">
+  <h2>受け入れ条件の充足（実測）</h2>
+
+  <p>受け入れ条件1〜10を、実際に配布・再適用して確認した。11（方式選定のDDR）はフェーズ4で扱う。
+  条件別の対応表は正文（md）の同名節が正。</p>
+  <div class="box info">
+    <span class="label">条件1の修正</span>
+    調査（フェーズ2）の結果、層は4層ではなく <b>4層＋<code>exclude</code></b> の5カテゴリになった。
+    この差はマージ前に issue #26 へコメントで残す（flow-id 5-2）。
+  </div>
+
+</section>
+
+<section id="defects">
+  <h2>実装中に見つけた不具合（すべて修正済み）</h2>
+
+  <p>旧実装から引き継いだ欠陥と、作り直しの過程で自分が作り込んだ欠陥の両方を含む。詳細は正文（md）を参照。</p>
+  <ul>
+    <li><code>merge_json_keys</code> が jq の失敗を検査せず、<b>配布先の <code>settings.json</code> を0バイトにしうる</b>
+      （<code>merge</code> は <code>.bak</code> を作らないので回復不能）。</li>
+    <li><code>build_plan</code> が0件でも成功していた（配布対象0件のまま「core を 0 件配置しました」で終わる）。</li>
+    <li>配布先のCRを落とさずに行全体一致していたため、CRLFの配布先では同じ行が毎回追記されていた。</li>
+  </ul>
+
+</section>
+
+<section id="dropped">
+  <h2>意図的に落とした挙動</h2>
+
+  <ul>
+    <li><code>.skill</code> パッケージ化とビルド工程（<code>sync-assets.sh</code>）。配る内容の定義が本家の実状態そのものになったため。</li>
+    <li>配布先のファイルの<b>削除</b>。本家で削除・改名された <code>core</code> は<b>一覧の提示のみ</b>で、消すかどうかは配布先の判断に委ねる。</li>
+  </ul>
+
+</section>
+
+<section id="review2">
+  <h2>敵対的レビュー2回目の反映（flow-id 3-9）</h2>
+
+  <p>14件を検出し10件をインライン投稿。<b>blocker 1件</b>（上記 <code>merge_json_keys</code>）を含む。</p>
+  <div class="box warn">
+    <span class="label">自分の回帰テストが blocker を検出できていなかった</span>
+    多重防御のうち片方だけを戻しても通る作りだった。両方戻して初めて落ちることを実際に流して確かめ、
+    事実を記録に残した。ユーザー判断が下りた4件と、指摘されていない同類の穴（<code>build_plan</code>）も併せて塞いだ。
+  </div>
+
+</section>
+
+<section id="merge-main">
+  <h2>mainのマージで生じた食い違いの解消（2026-08-23）</h2>
+
+  <p>レビュー合意の直後に <code>origin/main</code> が PR #156（issue #54）・#158（issue #103）で進んでいたため、
+  <code>resolve-conflict</code> の<b>監視モード</b>で取り込んだ。gitがコンフリクトとして報告したのは2件だが、
+  <b>gitが競合と見なさない食い違いが2件あった</b>。</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>#</th><th>食い違い</th><th>なぜgitが気づかないか</th><th>解消</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td>issue #54 が「スキルのバンドルリソースに <code>templates/</code> を使わない」ルールを入れた一方、
+        こちらは <code>apply-mr-workflow-to-project/templates/</code> を新設していた</td>
+        <td>追加したファイル名が両ブランチで異なる</td>
+        <td><code>assets/</code> へ改名し、<code>source</code> 4種とテスト2本の参照を追随</td></tr>
+      <tr><td>2</td><td><code>directory-structure.md</code> が <code>assets/</code> を「<code>sync-assets.sh</code> が生成する
+        <code>.gitignore</code> 対象のビルド用一時ディレクトリ」と説明していた</td>
+        <td>main側だけが触った行で、こちらは触っていない</td>
+        <td>現状（Git管理下の恒久のバンドルリソース）へ書き換え</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <ul>
+    <li><b><code>.template</code> の接尾辞は残す。</b><code>collect-review-points.sh</code> と
+      <code>extract-frontmatter.sh</code> に拾われないという理由は <code>assets/</code> へ移しても変わらない。</li>
+    <li><code>.gitignore</code> へ増えた <code>/.claude/settings.local.json</code> に対応する <code>local</code> エントリを追加した。
+      <b>マージのたびに層分け定義の更新が要る</b>という運用コストが初めて実地で現れた例である。</li>
+    <li><b>マージ途中に網羅性チェックを流すと追跡ファイル数が水増しされる</b>（実測 208 → 解消後 204）。
+      <code>git ls-files</code> は未マージのパスをステージ1〜3の3回返すため。件数を根拠に判断しないこと。</li>
+  </ul>
+
+</section>
+
+<section id="review3">
+  <h2>敵対的レビュー3回目の反映（flow-id 3-9 の3周目）</h2>
+
+  <p>3回目（上限）を実施し、<b>16件のうち10件をPR #154 へインライン投稿</b>した。ユーザーの判断は
+  「3周目のレビュー往復で直す」で、<b>投稿した10件と、会話報告に留めた6件のうち5件をこの周で直した</b>
+  （残り1件はフェーズ4へ回した）。</p>
+
+  <h3>配布先を壊していた1件（major）</h3>
+  <div class="box stop">
+    <span class="label">配布先で必ず <code>passed=11 failures=15</code> になっていた</span>
+    <code>test_check_dist_coverage.sh</code> は core として配布先へも届くのに、スキップ判定が
+    「対象ファイルが存在するか」だった。配布先にも対象は届くので<b>スキップに入らないまま、
+    本家でしか成立しない期待値を検査していた</b>。
+  </div>
+  <p>判定を <code>jq -e '.upstream == true'</code> へ変え、配布して実際に流し
+  <b>17本すべてが緑になること</b>を確認した。あわせて、このテストが <code>git add -N</code> /
+  <code>git rm --cached</code> で<b>実行先リポジトリのindexを書き換えていた</b>のもやめ、
+  <code>GIT_INDEX_FILE</code> へindexの写しを渡す形にした。</p>
+
+  <h3>起動回数をファイル数に比例させない（major）</h3>
+  <p>配布1回あたり<b>外部コマンドを1208回</b>起動していた（計数スタブでの実測）。git bashの実測値
+  95ms/回では約115秒で、しかも core 件数（163）に比例して伸びる。</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>直した箇所</th><th>前</th><th>後</th></tr></thead>
+    <tbody>
+      <tr><td>sha256（1ファイルずつ×2パス）</td><td>564</td><td>15（<code>sha256_lf_batch</code>）</td></tr>
+      <tr><td>manifestのエントリ組み立て</td><td>196</td><td>11（中間表現＋<code>jq -R -n</code> 1回）</td></tr>
+      <tr><td><code>mkdir -p</code></td><td>187</td><td>35（<code>ensure_dir</code> でメモ化）</td></tr>
+      <tr><td><code>cp</code></td><td>182</td><td>42（宛先ディレクトリ単位へまとめる）</td></tr>
+      <tr><td><b>総起動数</b></td><td><b>1208</b></td><td><b>176</b></td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p>残る最大は <code>git</code> 65回だが、これはエントリ数（42）に比例するもので、リポジトリのファイル数では増えない。</p>
+
+  <h3>コマンドライン長の上限（major）</h3>
+  <p>dirty判定が <code>git status</code> へ<b>187パス・28,319バイト</b>を渡していた。Windows の
+  <code>CreateProcess</code> の上限は32,767文字で、数十ファイル増えれば<b>配布が始まる前に止まる</b>。
+  本家全体の status を1回だけ取り、配布対象かは bash 側の連想配列で突き合わせる形へ変えた。</p>
+  <div class="box info">
+    <span class="label">レビューの提案どおりには直せなかった</span>
+    <code>git status</code> は <code>--pathspec-from-file</code> を持たない（git 2.43 で実測）。
+    pathspec を渡すのをやめる方向で解いている。
+  </div>
+
+  <h3><code>AGENTS.md</code> 分割の移行漏れ（major）</h3>
+  <p>共通ルールを <code>agent-common.md</code>（core）へ切り出したが <code>AGENTS.md</code> は <code>seed</code> のままで、
+  <b>旧方式で配った共通ルールの写しが配布先に残る</b>。<code>core</code> にするとプロジェクト概要が
+  再適用のたびに消えるため、代わりに任意キー <code>requiredLine</code> を足し、
+  行を含まない <code>seed</code> を<b>触らずに一覧で知らせる</b>形にした。</p>
+
+  <h3>検証が空振りしていた1件（minor）</h3>
+  <p>検査2が <code>.gitignore</code> の<b>末尾に改行が無い最終行を読み落として</b>いた（載せ忘れがあっても満点で報告する形）。
+  <code>|| [ -n "$line" ]</code> を付け、実際にNGとして挙がることを確かめた。</p>
+
+  <h3>雛形の定型文が観点表へ混ざる（minor）</h3>
+  <p><code>REVIEW-POINTS.local.md</code> の雛形の説明（HTMLコメント）とプレースホルダが、観点として拾われていた。
+  HTMLコメントを落とし、未編集の <code>.local</code> は中身が空になるようにし、空の観点表は見出しごと出さない
+  （件数は標準エラーへ出す）。配布先で混入0件・スキップ2件を確認した。</p>
+
+  <h3>計画・レポートのHTMLビューが揃っていなかった（major / minor）</h3>
+  <p>issue #54 が <code>plans/</code> <code>reports/</code> の各mdへ<b>同名の <code>.html</code>（人間レビュー用ビュー）を
+  併存させる</b>ことを必須にしているが、このブランチでは揃っていなかった。</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>ファイル</th><th>前</th><th>後</th></tr></thead>
+    <tbody>
+      <tr><td><code>plans/</code> 4件（全体1・個別3）</td><td><b>HTMLが1件も無い</b></td><td>4件すべて作成</td></tr>
+      <tr><td><code>reports/…実装結果</code></td><td><b>HTMLが無い</b></td><td>作成（このページ）</td></tr>
+      <tr><td><code>reports/…層分け調査.html</code></td><td>md側の <code>## 検証に使ったコマンド</code> 節が無く、節の順序・見出し文言もずれる。土台がテンプレートではなくTailwind CDN</td><td>テンプレートから作り直し、mdの節と1対1へ</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p>土台は <code>.claude/skills/issue-mr-flow/assets/{plans,reports}.template.html</code> を使い、
+  テンプレートの <code>&lt;style&gt;</code> ごと再利用した（CSSを書き写さない）。<b>外部依存は0件</b>で、
+  Tailwind CDNの参照も無くなった。</p>
+  <div class="box info">
+    <span class="label">検証</span>
+    全ファイルで3点を確認した。テンプレートのプレースホルダの残り<b>0件</b>、外部読み込み<b>0件</b>、
+    md の <code>##</code> 見出しとHTMLの <code>&lt;h2&gt;</code> が<b>1対1に対応</b>すること。
+    見出しの照合では、<code>&lt;h2&gt;</code> に <code>&lt;code&gt;</code> を含む行が
+    <code>&lt;h2&gt;[^&lt;]*&lt;/h2&gt;</code> で拾えず「欠落」に見えたため、タグを除去してから比較している。
+  </div>
+
+  <h3>そのほか（minor / nit）</h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>対象</th><th>直した内容</th></tr></thead>
+    <tbody>
+      <tr><td><code>install-to-project.sh</code> の merge 指紋</td><td>「再適用時の変更検知に使う」というコメントが実態と違った（書くだけで誰も読まない）</td></tr>
+      <tr><td>空配列展開</td><td>bash 4.4未満の <code>set -u</code> で落ちる形を4か所そろえた</td></tr>
+      <tr><td><code>.gitattributes</code> の説明</td><td>削除済みの関数名を指していた。関数名を書かない形へ</td></tr>
+      <tr><td><code>setup-gemini-links.sh</code> の掃除</td><td>コメントが実装より狭い保証をしていた</td></tr>
+      <tr><td><code>test_cleanup_task.sh</code> のコメント</td><td><code>templates/</code> → <code>assets/</code></td></tr>
+      <tr><td><code>dist-layers.json</code> の注記</td><td>「配る行には入れない」だと <code>local</code> = 配らない と読めた</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>bashの罠を1つ踏んだ（記録）</h3>
+  <div class="box warn">
+    <span class="label"><code>${!assoc[@]+…}</code> は連想配列のキーの空配列ガードにならない</span>
+    bashが <code>!group[@]+…</code> を<b>間接展開</b>として解釈し、キーではなく値を変数名として扱おうとして
+    <code>invalid variable name</code> で落ちる（最小再現で確認）。インデックス配列の
+    <code>${a[@]+"${a[@]}"}</code> は問題なく、連想配列のキーだけが別物である。
+    件数を先に見る形へ直した。
+  </div>
+
+  <h3>検証</h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>検証</th><th>結果</th></tr></thead>
+    <tbody>
+      <tr><td>単体テスト（本家）</td><td>17ファイル / <b>passed=1098 failures=0</b>（3周目で14件増）</td></tr>
+      <tr><td>単体テスト（配布先で実行）</td><td>17ファイル / 失敗0。修正前は1本が <code>passed=11 failures=15</code></td></tr>
+      <tr><td>網羅性チェック</td><td>追跡ファイル 204/204 件・<code>.gitignore</code> 13/13 行・空振り0件・不正0件</td></tr>
+      <tr><td>外部コマンド起動数</td><td>1208 → <b>176</b>（同一の計数スタブで前後を実測）</td></tr>
+      <tr><td>新しい表明が本当に検出するか</td><td><code>requiredLine</code> を定義から抜くと <code>failures=3</code> になることを確認</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+</section>
+
+<section id="open">
+  <h2>残る未確認事項（フェーズ4でspecの未決定事項へ）</h2>
+
+  <ol>
+    <li><b>sha256 のLF正規化</b>が Windows の <code>core.autocrlf=true</code> で意図どおり働くか（実機未確認）。</li>
+    <li><b>NTFSジャンクションと実体ディレクトリの判別</b>（実機未確認）。判定を誤っても <code>.claude/</code> 側を壊さない二重の安全網は入れてある。</li>
+    <li><b><code>AGENTS.md</code> の <code>@</code> import が解決するか。</b>次セッションの開始時にしか確認できない。
+      Gemini CLI 経路では担保が <code>@</code> import だけになる。</li>
+    <li><code>.claude/docs/spec/extract-frontmatter.md</code> 180行目が <code>build/</code> を例に挙げている（廃止済み）。</li>
+    <li><b><code>gitignorePattern</code> が「配る行／配らない行」を区別できない。</b>
+      定義のスキーマ変更と検査2の双方向化が要るため、フェーズ4で扱う。
+      <code>.gitattributes</code> に行単位の検査が1つも無い点も同じ穴である。</li>
+    <li><code>.claude/docs/spec/distribution-assets.md</code> 102行目が、削除済みの
+      <code>ensure_gitattributes_rules</code> を現在の仕様として書いている（3周目で会話報告に留めた1件）。
+      <b>同じ記述を持つDDR <code>i0033-03</code> は本文なので書き換えない。</b></li>
+  </ol>
+
+</section>
+
+<footer>issue #26 / PR #154 — 結果の正文は同名の <code>.md</code>。外部依存を持たない自己完結HTML。</footer>
+
+</div>
+</body>
+</html>

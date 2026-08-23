@@ -1,0 +1,326 @@
+<!--
+個別作業計画（issue #26 フェーズ3・動くもの） の人間レビュー用HTMLビュー。
+  土台: .claude/skills/issue-mr-flow/assets/plans.template.html
+
+  正文は同名の .md 側で、このHTMLはその視覚化である（節の見出しはmd側と1対1に対応させている）。
+  flow-id 5-4 で .md とまとめて削除する。外部依存を持たない自己完結HTML。
+-->
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>【設計】【実装】【テスト】manifest方式の配布機構 — issue #26</title>
+<style>
+  :root {
+    --bg: #f6f7f9;      --panel: #ffffff;   --ink: #1a1d21;     --muted: #5b636d;
+    --line: #dfe3e8;    --accent: #2563eb;  --accent-soft: #eaf0fe;
+    --ok: #1a7f4b;      --ok-soft: #e6f4ec; --warn: #a35a00;    --warn-soft: #fdf1e0;
+    --stop: #b3261e;    --stop-soft: #fdecea; --code-bg: #f0f2f5;
+    --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1216;    --panel: #161a20;   --ink: #e6e8eb;     --muted: #9aa3ad;
+      --line: #2a3038;  --accent: #7aa2f7;  --accent-soft: #1b2333;
+      --ok: #6ee7a8;    --ok-soft: #14261d; --warn: #f0b866;    --warn-soft: #2a2113;
+      --stop: #f2857c;  --stop-soft: #2b1614; --code-bg: #1d222a;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", system-ui, sans-serif;
+    line-height: 1.8; font-size: 15px;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 20px 80px; }
+
+  /* 共通ヘッダ帯 */
+  header.band {
+    background: linear-gradient(135deg, var(--accent-soft), var(--panel));
+    border-bottom: 1px solid var(--line); padding: 28px 20px 22px; margin-bottom: 28px;
+  }
+  header.band .inner { max-width: 1080px; margin: 0 auto; }
+  header.band .kind { font-size: 11px; letter-spacing: .18em; color: var(--accent); font-weight: 700; }
+  header.band h1 { margin: 6px 0 4px; font-size: 26px; line-height: 1.4; }
+  header.band .lead { margin: 0; color: var(--muted); }
+  .meta { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; padding: 0; list-style: none; }
+  .meta li {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 999px;
+    padding: 3px 12px; font-size: 12.5px; color: var(--muted); white-space: nowrap;
+  }
+  .meta li b { color: var(--ink); font-weight: 600; }
+
+  nav.toc {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 14px 20px; margin-bottom: 28px;
+  }
+  nav.toc h2 { margin: 0 0 8px; font-size: 13px; letter-spacing: .08em; color: var(--muted); border: 0; padding: 0; }
+  nav.toc ol { margin: 0; padding-left: 20px; }
+  nav.toc li { margin: 2px 0; }
+  a { color: var(--accent); }
+
+  section {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 8px 24px 22px; margin-bottom: 22px;
+  }
+  h2 { font-size: 20px; margin: 20px 0 10px; padding-bottom: 8px; border-bottom: 2px solid var(--line); }
+  h3 { font-size: 16px; margin: 22px 0 8px; color: var(--accent); }
+  p { margin: 10px 0; }
+  ul, ol { padding-left: 22px; }
+  li { margin: 4px 0; }
+  blockquote { margin: 10px 0; padding: 6px 14px; border-left: 3px solid var(--line); color: var(--muted); }
+
+  /* 表は自身の中で横スクロールする（ページ本体は横スクロールさせない） */
+  .tablewrap { overflow-x: auto; margin: 14px 0; }
+  table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 14px; }
+  th, td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: var(--accent-soft); font-weight: 600; white-space: nowrap; }
+  tbody tr:nth-child(even) td { background: color-mix(in srgb, var(--line) 22%, transparent); }
+
+  code {
+    background: var(--code-bg); border-radius: 5px; padding: 1px 5px; font-size: 13px;
+    font-family: "SFMono-Regular", Consolas, "Noto Sans Mono", monospace;
+  }
+  pre {
+    background: var(--code-bg); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 12px 14px; overflow-x: auto; font-size: 13px; line-height: 1.65;
+  }
+  pre code { background: none; padding: 0; }
+
+  /* 注意ボックス: info（既定）/ ok（決めたこと）/ warn（注意）/ stop（やらないこと・危険） */
+  .box { border-left: 4px solid var(--accent); background: var(--accent-soft);
+         border-radius: 0 var(--radius) var(--radius) 0; padding: 12px 16px; margin: 16px 0; }
+  .box > :first-child { margin-top: 0; } .box > :last-child { margin-bottom: 0; }
+  .box .label { font-size: 12px; font-weight: 700; letter-spacing: .06em; display: block; margin-bottom: 4px; }
+  .box.ok { border-color: var(--ok); background: var(--ok-soft); } .box.ok .label { color: var(--ok); }
+  .box.warn { border-color: var(--warn); background: var(--warn-soft); } .box.warn .label { color: var(--warn); }
+  .box.stop { border-color: var(--stop); background: var(--stop-soft); } .box.stop .label { color: var(--stop); }
+  .box.info .label { color: var(--accent); }
+
+  .tag { display: inline-block; border-radius: 999px; padding: 1px 9px; font-size: 12px; font-weight: 600; }
+  .tag.ok { background: var(--ok-soft); color: var(--ok); }
+  .tag.warn { background: var(--warn-soft); color: var(--warn); }
+  .tag.stop { background: var(--stop-soft); color: var(--stop); }
+
+  footer { color: var(--muted); font-size: 13px; text-align: center; padding-top: 10px; }
+</style>
+</head>
+<body>
+
+<header class="band">
+  <div class="inner">
+    <div class="kind">個別作業計画 / フェーズ3 flow-id 3-1</div>
+    <h1>【設計】【実装】【テスト】manifest方式の配布機構</h1>
+    <p class="lead">層分け定義・網羅性チェック・manifest・2パス構成のインストーラと、それらを支えるテストを作る。読み物は対の計画が担当する。</p>
+    <ul class="meta">
+      <li><b>issue</b> #26</li>
+      <li><b>PR</b> #154</li>
+      <li><b>全体作業計画</b> plans/ai-asset-manifest-distribution.md</li>
+      <li><b>フェーズ</b> 3〈作業〉 flow-id 3-1</li>
+      <li><b>正文</b> 同名の .md</li>
+    </ul>
+  </div>
+</header>
+
+<div class="wrap">
+
+<nav class="toc">
+  <h2>目次</h2>
+  <ol>
+    <li><a href="#scope">この計画の範囲</a></li>
+    <li><a href="#premise">前提（確定済み。いつ決まったか）</a></li>
+    <li><a href="#design1">1. 層分け定義ファイル <code>.claude/dist-layers.json</code></a></li>
+    <li><a href="#design2">2. 網羅性チェック <code>.claude/scripts/src/check-dist-coverage.sh</code></a></li>
+    <li><a href="#design3">3. manifest <code>.claude/.asset-manifest.json</code>（配布先に置く）</a></li>
+    <li><a href="#design4">4. インストーラの処理順序（<code>install-to-project.sh</code>）</a></li>
+    <li><a href="#files">変更するファイル</a></li>
+    <li><a href="#replacements">個別の指示（置き換え前後）</a></li>
+    <li><a href="#inventory">現行テストの表明の棚卸し（引き継ぐもの）</a></li>
+    <li><a href="#newtests">新規・追加するテスト</a></li>
+    <li><a href="#verify">検証（この計画の完了判定に実際に流すコマンド）</a></li>
+    <li><a href="#selfcheck">この計画の中で互いの前提を崩していないか（自己点検）</a></li>
+  </ol>
+</nav>
+
+<section id="scope">
+  <h2>この計画の範囲</h2>
+
+  <p>配布機構の<b>動くもの</b>（定義ファイル・スクリプト・テスト）を作る。ドキュメント・
+  <code>AGENTS.md</code> の分割・<code>SKILL.md</code>/<code>DEVELOPERS.md</code> の書き換えは対の計画が担当する。</p>
+  <p><code>【設計】【実装】【テスト】</code> を1ファイルに併記するのは、<b>設計判断がそのままスクリプトの構造であり、
+  テストが受け入れ条件の写像になる</b>ため、3つを1回の合意で取るのが妥当と判断したことによる（ユーザー確認済み）。</p>
+  <h3>この計画で決めないこと（スコープ外）</h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>事項</th><th>どこで決めるか</th></tr></thead>
+    <tbody>
+      <tr><td><code>AGENTS.md</code> の切り出し、<code>CLAUDE.md</code>/<code>GEMINI.md</code> の見出し差し替え、
+        配布スキルの <code>SKILL.md</code>・<code>DEVELOPERS.md</code></td><td>対の <code>【AIアセット作成】</code></td></tr>
+      <tr><td>方式選定のDDR（受け入れ条件11）、新方式のspec、<code>distribution-assets.md</code> の更新、
+        <code>.claude/VERSION</code></td><td><b>フェーズ4</b></td></tr>
+      <tr><td>収穫（逆輸入）スキル</td><td><b>本issueの範囲外</b>（後続issue）</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+</section>
+
+<section id="premise">
+  <h2>前提（確定済み。いつ決まったか）</h2>
+
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>#</th><th>前提</th><th>決まった場所</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td>層は <code>core</code> / <code>seed</code> / <code>merge</code> / <code>local</code> ＋ <b><code>exclude</code></b>（明示。暗黙の既定値にしない）</td>
+        <td>調査3 ＋ <b>ユーザー承認</b>（flow-id 2-9 でMRへ記録済み）</td></tr>
+      <tr><td>2</td><td><code>REVIEW-POINTS.md</code> は <code>core</code>、配布先所有は <code>REVIEW-POINTS.local.md</code>（<code>seed</code>）</td><td>調査2</td></tr>
+      <tr><td>3</td><td><code>.github/</code> <code>.gitlab/</code> テンプレート4件と <code>CLAUDE.md</code> <code>GEMINI.md</code> は <code>core</code></td><td>ユーザー判断</td></tr>
+      <tr><td>4</td><td><code>.gemini/{docs,…}</code> は <code>local</code>。ただし<b>「<code>local</code> は触らない」の唯一の例外</b>として、
+        インストーラは最後に <code>setup-gemini-links.sh</code> を<b>呼ぶ</b></td>
+        <td>調査1 ＋ <b>敵対的レビュー1回目</b>（前提4と手順7の矛盾として検出）</td></tr>
+      <tr><td>5</td><td>dirty ＝「配布対象パスに限定した <code>git status --porcelain</code> が空でない」。<code>--allow-dirty</code> を持つ</td><td>調査4</td></tr>
+      <tr><td>6</td><td>定義の形式は案A（定義ファイル1枚）＋網羅性チェック</td><td>調査3</td></tr>
+      <tr><td>7</td><td>既存欠陥は5件中4件が作り直しで消え、<b>#3 だけ明示対処が要る</b></td><td>調査5</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+</section>
+
+<section id="design1">
+  <h2>1. 層分け定義ファイル <code>.claude/dist-layers.json</code></h2>
+
+  <ul>
+    <li>1エントリ＝1ルール。<code>layer</code> と <code>path</code>（<b>git pathspec</b>）を持ち、
+      必要に応じて <code>source</code> / <code>strategy</code> / <code>keys</code> / <code>header</code> / <code>gitignorePattern</code> を添える。</li>
+    <li><b>後に書いたエントリが勝つ</b>（<code>.gitignore</code> と同じ規約）。例外はこれだけで表せる。</li>
+    <li><code>upstream: true</code> は本家の印。配布時に落とし、配布先では網羅性チェックをスキップさせる。</li>
+  </ul>
+
+</section>
+
+<section id="design2">
+  <h2>2. 網羅性チェック <code>.claude/scripts/src/check-dist-coverage.sh</code></h2>
+
+  <p>検査4種（追跡ファイル全件の分類／<code>.gitignore</code> の行の被覆／空振りエントリ／
+  <code>layer</code>・<code>strategy</code> の妥当性）。<b>どれも件数を出す</b>——異常が無ければ何も出ない検証にしない。</p>
+
+</section>
+
+<section id="design3">
+  <h2>3. manifest <code>.claude/.asset-manifest.json</code>（配布先に置く）</h2>
+
+  <p>本家のコミットSHA・版・URLと、ファイルごとの層・sha256（<code>merge</code> は指紋）を記録する。
+  <b>LF正規化してから sha256 を取る</b>（Windows の <code>core.autocrlf=true</code> で全件が「変更された」と誤検知されるため）。
+  <code>local</code> / <code>exclude</code> は書かない（書くと「配布した」と誤読される）。</p>
+
+</section>
+
+<section id="design4">
+  <h2>4. インストーラの処理順序（<code>install-to-project.sh</code>）</h2>
+
+  <p><b>2パス構成</b>にする。受け入れ条件4が「上書きの<b>前に</b>警告と対象一覧を出す」ことを求めており、
+  配置しながら警告を出す1パスの形では満たせない。</p>
+  <ol>
+    <li>引数・配布先の検証 → 定義の読み込み → <b>dirty 判定</b> → 網羅性チェック</li>
+    <li><b>走査パス</b>（ファイルを一切変更しない）: core を新規／変更なし／適用後に変更された／判定不能 に振り分ける</li>
+    <li><b>提示</b>: 件数と警告・対象一覧を出す（<code>--dry-run</code> はここで終了）</li>
+    <li><b>配置パス</b> → <code>.gemini/</code> のセットアップ → manifest の書き出し → サマリ</li>
+  </ol>
+
+</section>
+
+<section id="files">
+  <h2>変更するファイル</h2>
+
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>ファイル</th><th>操作</th></tr></thead>
+    <tbody>
+      <tr><td><code>.claude/dist-layers.json</code></td><td>新規</td></tr>
+      <tr><td><code>.claude/scripts/src/check-dist-coverage.sh</code></td><td>新規</td></tr>
+      <tr><td><code>.claude/skills/apply-mr-workflow-to-project/scripts/install-to-project.sh</code></td><td>全面書き直し</td></tr>
+      <tr><td><code>.claude/skills/apply-mr-workflow-to-project/scripts/sync-assets.sh</code></td><td>削除</td></tr>
+      <tr><td><code>.claude/scripts/src/setup-gemini-links.sh</code></td><td>実体コピーのフォールバックを追加</td></tr>
+      <tr><td><code>.claude/scripts/src/cleanup-task.sh</code> / <code>collect-review-points.sh</code></td><td><code>REVIEW-POINTS.local.md</code> への対応</td></tr>
+      <tr><td><code>.gitignore</code> / <code>.gitattributes</code></td><td>配る行をマーカーで持たせる</td></tr>
+      <tr><td>対応する単体テスト5本</td><td>新規・作り直し</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+</section>
+
+<section id="replacements">
+  <h2>個別の指示（置き換え前後）</h2>
+
+  <p>既存ファイルへ手を入れる箇所は、<b>置き換え前と置き換え後の形を両方書く</b>
+  （<code>plans/REVIEW-POINTS.md</code>）。「どこを何に変えるか」だけだと、置き換え対象の行が兼ねていた役割の
+  巻き添えを計画の段階で検出できない。</p>
+  <div class="box warn">
+    <span class="label">敵対的レビュー1回目で検出した漏れ</span>
+    <code>.gitignore</code> の <code>/build/</code> について、対の計画は「マーカーの中に入れない」としか書いておらず
+    <b>削除の指示になっていなかった</b>。項目10へ「5〜6行目を削除する」という置き換え前後の形を明記した。
+  </div>
+
+</section>
+
+<section id="inventory">
+  <h2>現行テストの表明の棚卸し（引き継ぐもの）</h2>
+
+  <p><b>受け入れ条件に対応するケースだけで書き直すと、既存の保証が無言で失われる。</b>
+  現行テストが表明していることを列挙し、新実装に対しても流して差分を見る。</p>
+  <ul>
+    <li>PR/MRテンプレートの見出しが <code>describe</code> の生成物と一致する</li>
+    <li><code>.gitattributes</code> の行追記が何度適用しても増えない（<b>配布先がCRLFの場合を含む</b>）</li>
+    <li><code>.claude/VERSION</code> の更新が <code>.bak</code> と警告を生まない</li>
+  </ul>
+
+</section>
+
+<section id="newtests">
+  <h2>新規・追加するテスト</h2>
+
+  <ul>
+    <li>受け入れ条件1〜10の各項目に対応するケース（配布・再適用・編集済み <code>seed</code>・改変済み <code>core</code>・dirty ガード）</li>
+    <li><b>異常を実際に検出できること</b>のテスト（定義から意図的に1件落とした一時ツリーで落ちるか）</li>
+    <li><code>setup-gemini-links.sh</code> のフォールバック検証（symlink も NTFS ジャンクションも作れない環境）</li>
+  </ul>
+
+</section>
+
+<section id="verify">
+  <h2>検証（この計画の完了判定に実際に流すコマンド）</h2>
+
+  <ol>
+    <li><b>構文チェック</b>: 新規・変更したすべての <code>.sh</code> に <code>bash -n</code>。</li>
+    <li><b>定義が有効なJSONで、網羅性チェックが通る</b>こと。</li>
+    <li><b>網羅性チェックが「実際に検出できる」ことの確認</b>（異常が無ければ何も出ない検証にしない）。
+      <div class="box warn">
+        <span class="label">2つの落とし穴</span>
+        実物の <code>dist-layers.json</code> は書き換えない（中断すると壊れた定義が作業ツリーに残り、
+        dirty 判定の材料にもなる）。プローブは<b>ルート直下</b>へ置く——<code>.claude/</code> 配下だと
+        広域の core エントリに被覆され、「検出できないのに検証は通る」状態になる（実際に踏んだ）。
+      </div>
+    </li>
+    <li><b>単体テスト・結合テスト</b>を規約どおり <code>passed=N failures=N</code> で見る。</li>
+  </ol>
+
+</section>
+
+<section id="selfcheck">
+  <h2>この計画の中で互いの前提を崩していないか（自己点検）</h2>
+
+  <p>前提1〜7と、設計1〜4・変更ファイル・テストの間で矛盾が無いかを突き合わせた。
+  <b>前提4（<code>.gemini/</code> は <code>local</code>）と手順7（インストーラが <code>setup-gemini-links.sh</code> を呼ぶ）の
+  矛盾は敵対的レビュー1回目で検出され</b>、「<code>local</code> は触らないの唯一の例外」として前提側へ明記した。</p>
+
+</section>
+
+<footer>issue #26 / PR #154 — 計画の正文は同名の <code>.md</code>。外部依存を持たない自己完結HTML。</footer>
+
+</div>
+</body>
+</html>
