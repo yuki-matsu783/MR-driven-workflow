@@ -985,13 +985,6 @@ PR/MR作成が失敗することがある。失敗を検知した場合、共通
 [i0000-03-DraftPR作成失敗時は空コミットで自動リトライする.md](../ddr/i0000-03-DraftPR作成失敗時は空コミットで自動リトライする.md)
 参照。
 
-**空コミット後のpushは `git push -u origin HEAD` で行う**（issue #170で修正）。引数なしの
-`git push` は、**upstream未設定のブランチ**（`new_issue_branch` を経ずに用意されたブランチ。
-Claude Code on the webのリモート実行環境でハーネスがブランチを指定する場合に実際に発生した）では
-終了コード128で失敗する。`-u origin HEAD` はupstreamの有無に依存せず、設定済みのブランチでも
-同じ結果になる（`-u` はupstreamを `origin/<同名ブランチ>` へ設定し直すが、`new_issue_branch` が
-作るupstreamと同じ指し先のため影響しない）。
-
 **この制約はGitHub（`gh pr create`）固有である**（issue #48で判明）。issue #48の対応時に、
 GitHubとGitLabの双方を同一セッション内で実測した。
 
@@ -1005,6 +998,16 @@ GitLab側の分岐を削除していないのは、実機確認できたのが C
 位置づけになる。詳細・却下案は
 [i0048-01-空コミットフォールバックはGitHub固有の制約として残す.md](../ddr/i0048-01-空コミットフォールバックはGitHub固有の制約として残す.md)
 参照。
+
+**空コミット後のpushは `git push -u origin HEAD` で行う**（issue #170で修正。こちらは
+プロバイダと無関係な**git一般の挙動**への対処である）。引数なしの `git push` は、
+**upstream未設定のブランチ**（`new_issue_branch` を経ずに用意されたブランチ。Claude Code on
+the webのリモート実行環境でハーネスがブランチを指定する場合に実際に発生した）では終了コード128で
+失敗する。`-u origin HEAD` はupstreamの有無に依存せず動く。upstreamが `origin/<同名ブランチ>` に
+設定済みの場合は結果も変わらない（`new_issue_branch` が作るupstreamと同じ指し先）。それ以外
+（別リモート・別名を追跡している場合）は、upstreamが `origin/<同名ブランチ>` へ**書き換わる**
+（引数なしの `git push` はこの場合 `push.default=simple` の名前不一致で拒否されるため、
+どちらの形でも「そのまま通る」ことはなく、失敗の仕方が変わるだけである）。
 
 ### 対応工数レポート（PostToolUse hook, git push検知）
 
