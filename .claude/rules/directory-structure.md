@@ -106,6 +106,13 @@ issue #97。ブランチ別に持つと、同じセッションのままブラ�
 `.claude/docs/spec/otel-listener.md`）。こちらもワークフロー実行中に動的に作成されるファイルで、
 `/usage/`の`.gitignore`対象に含まれる。
 
+同様に、Gemini CLI公式テレメトリ機構（issue #105）が`usage/gemini-otel.log`（Gemini CLIが
+`outfile`設定に従い直接追記するテレメトリの生データ）・
+`usage/state/gemini-otel/cursor.json`（バイトオフセットカーソル状態）を生成する。**後者は
+上記の`usage/state/gemini-totals/<sessionId>.json`等と異なり、ブランチにもセッションにも
+紐づかないグローバルな単一ファイル**である（詳細:
+`.claude/docs/spec/gemini-cli-telemetry.md`）。いずれも`/usage/`の`.gitignore`対象に含まれる。
+
 `.claude/state/`は`post-push-compact-prompt.sh`がレビュー依頼メッセージの参照リンク組み立てに使う、
 前回push時点のHEAD SHAのローカル作業状態で、`.gitignore`対象（`/.claude/state/`）。責務分離のため
 `usage/`とは別ディレクトリにしている（詳細: `.claude/docs/spec/issue-mr-workflow.md`

@@ -1521,6 +1521,15 @@ Claude Code経路とは**差分の取り方が根本的に違う**ため、経�
 - **サブエージェントは集計しない**（保存のみ。DDR i0097-05）。`_usage_aggregate_and_merge_subagents`
   を呼ばない。
 
+#### Gemini CLI公式テレメトリ経路（issue #105）
+
+上記「Gemini CLI経路（issue #97）」はGemini CLIの**セッションログ**（非公開フォーマット）を
+集計するのに対し、`usage/gemini-otel.log`が存在する場合は**Gemini CLI公式のテレメトリ
+（OpenTelemetry。`outfile`への直接書き出し）**を独立した参考値セクション「### Gemini CLI
+公式テレメトリ（参考値）」として追加する。**両者は別の状態ファイル・別のレポートセクションを
+持ち、合算しない**（二重計上回避）。詳細（設定項目・出力形式・カーソル方式・二重計上回避）は
+[gemini-cli-telemetry.md](gemini-cli-telemetry.md)を参照。
+
 ### /compact実施の呼びかけ（PostToolUse hook, git push検知）
 
 issue #11「git pushイベントを検知してcompactする」への対応として、MRレビュー待ちに入るタイミング

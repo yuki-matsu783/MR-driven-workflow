@@ -17,7 +17,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - issue: #105
 - ブランチ: claude/gemini-cli-telemetry-reporting-a253xp
 - PR: https://github.com/yuki-matsu783/MR-driven-workflow/pull/174
-- push回数: 11
+- push回数: 13
 - 現在のループ: 4-3〜4-4 の1周目（完了）
 - 未返信スレッド: 0
 - 追従監視: 購読あり（web。subscribe_pr_activity + 1時間ごとの自己チェックイン）
@@ -54,7 +54,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 | [x] | 4-2 | commitしpushしてレビュー依頼を行う | エージェント |
 | [x] | 4-3 | 反映計画についてレビュー・コメントする | 人間 |
 | [x] | 4-4 | レビュー内容を取得し反映計画を修正する | comments/reply |
-| [] | 4-5 | 反映計画をもとにMR descriptionを更新する | describe |
+| [x] | 4-5 | 反映計画をもとにMR descriptionを更新する | describe |
 | [] | 4-6 | 反映計画をもとに作業を進める | エージェント |
 | [] | 4-7 | commitしpushしてレビュー依頼を行う | エージェント |
 | [] | 4-8 | レビュー・コメントする | 人間 |
@@ -287,19 +287,36 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
   `set-header --unreplied 0`・`mark-done 4-2`・`set-header --loop '4-3〜4-4 の1周目（進行中）'`・
   `mark-done 4-3`を実行し、進捗表4-2〜4-4を`[x]`にした（ループは`4-3〜4-4 の1周目（完了）`）。
 
+- flow-id 4-5: `mcp__github__update_pull_request`でMR #174のdescriptionへ「## 反映計画
+  （フェーズ4完了、…）」節を追加し、`## 実装状況`を更新した。
+
+- flow-id 4-6: 反映計画2本に従い、実際の反映作業を実施した。新規spec
+  `.claude/docs/spec/gemini-cli-telemetry.md`（`otel-listener.md`と対をなす構成）を作成し、
+  既存spec3本（`sync-gemini-assets.md`のenv行訂正＋「固定値で注入するブロック」節新設、
+  `issue-mr-workflow.md`への相互リンク、`distribution-assets.md`の既知の問題の是正）・
+  `directory-structure.md`（`usage/`内訳2件追加）を更新した。DDR新規2本
+  （`i0105-01`二重計上回避方式、`i0105-02`既定有効化の保留）を作成した。
+  `.claude/docs/README.md`を`generate-ddr-list.sh`実行（DDR一覧）＋手書き追加（spec一覧）の
+  両方で更新した。`issue-mr-flow/SKILL.md`をAIアセット反映（ページネーションパラメータ注記×2
+  箇所）で更新した。`sync-gemini-assets.sh`を再実行し`.gemini/`側を同期した。
+  `.claude/VERSION`の増分（MINOR提案）は人間の判断待ちとして今回は据え置き、その事実を新規
+  specのchangelogへ記録した。全17テストファイル`failures=0`（既存テストへの影響なし）を確認。
+  結果は`reports/20260823_squishy-painting-coral_Gemini-CLIテレメトリ機構の反映結果.md`
+  （＋同名html）へ記録した（個別反映計画には結果を書いていない）。
+  検証コマンド（DDR識別子重複無し・削除行0・spec/DDRからのreports参照無し等）すべて合格。
+
+- push13後、上記反映作業に対する**フェーズ4・作業実施時の敵対的レビュー**（2回目/最大3回。
+  `adversarial-review-count.sh`のフェーズ4カウンタ=2）をサブエージェントへ依頼した
+  （バックグラウンド実行中。結果到着後、指摘の投稿・修正・commit・pushへ進む）。
+
 ## 次にやること
 
-- flow-id 4-5: 反映計画（`plans/【設計反映】〜.md`・`plans/【AIアセット反映】〜.md`）の内容を
-  もとにMR #174のdescriptionを更新する（`## 実装状況`節を反映フェーズの内容へ更新）。
-- flow-id 4-6: 反映計画に従い実際の反映作業を行う。新規spec
-  `.claude/docs/spec/gemini-cli-telemetry.md`作成、`sync-gemini-assets.md`
-  `issue-mr-workflow.md` `distribution-assets.md`更新、`directory-structure.md`更新、
-  DDR新規2本（`i0105-01` `i0105-02`）作成、`.claude/docs/README.md`（生成DDR一覧＋手書きspec
-  一覧の両方）更新、`.claude/VERSION`増分提案、`issue-mr-flow/SKILL.md`（ページネーション
-  パラメータ注記＋「レビュー完了合図の確認 (2)」節の全ページ走査注記）更新。結果は
-  `reports/日付_squishy-painting-coral_〜.md`（＋html）へ記録し、個別反映計画には書かない。
-- flow-id 4-6の作業完了後、`commit`前に**フェーズ4・作業実施時の敵対的レビュー**（2回目/最大3回）
-  を実施し、指摘へ対応してから4-7（commit・push）へ進む。
+- 敵対的レビュー（フェーズ4・作業実施時・2回目）の結果を受け取り次第、確度×重大度で選別して
+  MR #174へ投稿し、投稿・報告した指摘すべてに対応して成果物（spec・DDR・rules・SKILL.md）を
+  修正する。
+- 修正後、単体テスト全17本`failures=0`を再確認し、`.gemini/`同期（`sync-gemini-assets.sh
+  --check`）を再確認してから、`commit`スキル経由でcommit・push（push14、flow-id 4-7）する。
+- push後は4-8（人間レビュー）を待つ。
 
 ## 判断を迷った内容
 

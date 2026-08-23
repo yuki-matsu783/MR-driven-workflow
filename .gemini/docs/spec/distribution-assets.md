@@ -191,7 +191,10 @@ LICENSEも当初の対象だったが、**同梱しないと決めた**（
   - 判定が部分一致（`grep -Fq`、`--` 無し）のままで、配布先が `# /.claude/session-logs/ は不要` の
     ようにコメントで言及しているだけでも実設定が入らない。
   - 追記される行（`/.claude/usage-state/` 等4行）が、本家が実際に使う状態ディレクトリ
-    （`/usage/` と `/.claude/state/`）と一致していない（issue #23 の一本化に配布側が追従していない）。
+    （`/usage/` と `/.claude/state/`）と一致していない（issue #23 の一本化に配布側が追従して
+    いない）。**`/usage/` 分はissue #105（フェーズ3）で `ignore_rules` へ追加し解消済み。**
+    `/.claude/usage-state/` `/.claude/session-logs/` という旧パス名の行は引き続き残ったままで、
+    `/.claude/state/` はまだ `ignore_rules` に無い（未解消）。
 - **`HAS_WARNED` が `safe_copy_dir` の外へ伝わらない。** `find ... | while ...` はパイプライン
   なのでサブシェルで実行され、その中で立てた `HAS_WARNED=true` は失われる。結果として、
   `.claude/` `.github/` `.gitlab/` 配下のファイルでどれだけ `.bak` 退避が起きても、
