@@ -136,7 +136,7 @@
     <p class="lead">個別反映計画の作業項目13件をすべて実施し、DDR2件の新規作成・spec2本の更新・AIアセット反映4件を行った。完了条件13件のうち11件が期待どおり成立し、残る2件は計画どおり「原理的に落ちないため完了の根拠にしない」として扱った。<b>VERSIONと案Bの2件は、レポート作成後にユーザーの判断が出た。</b> VERSIONは <code>0.5.0</code> をいったん適用したのち<b>「0.4.0で良い」との回答を得て据え置きに確定</b>、案Bの方向性は<b>承認</b>された。</p>
     <p class="counts">
       <span class="chip good">◎良 6</span>
-      <span class="chip warn">△注意 2</span>
+      <span class="chip warn">△注意 3</span>
       <span class="chip stop">✕問題 1</span>
     </p>
     <ul class="meta">
@@ -207,6 +207,7 @@
     <li class="verdict"><span class="chip warn">△注意</span><a href="#f8">8. 完了条件11の grep は「主張」と「引用」を区別できない</a><span class="v-basis">根拠: 実測</span></li>
     <li class="verdict"><span class="chip good">◎良</span><a href="#f7">7b. usecase 8件中1件が該当し、誤りは0件・不足が1件だった</a><span class="v-basis">根拠: 実測</span></li>
     <li class="verdict"><span class="chip stop">✕問題</span><a href="#f14">14. 敵対的レビュー（2回目）で16件の指摘。うち<b>自分が書いた文章の事実誤り4件</b>が major で出た</a><span class="v-basis">根拠: 実測（反例・履歴・実行結果）</span></li>
+    <li class="verdict"><span class="chip warn">△注意</span><a href="#f15">15. <code>main</code> の issue #185 が<b>同じ失敗を独立に踏んでおり、結論が食い違った</b>（<code>--</code> の前へ／<code>-e</code> を使う）。<code>main</code> 側を採った</a><span class="v-basis">根拠: マージ時の突き合わせ</span></li>
   </ol>
 </section>
 
@@ -340,9 +341,9 @@ $ bash .claude/scripts/src/check-doc-references.sh | tail -1
   <table>
     <thead><tr><th>#</th><th>起点</th><th>類型</th><th>反映先</th></tr></thead>
     <tbody>
-      <tr><td>1</td><td><code>grep -rn -- "$pat" --include='*.md'</code> で <code>--include</code> がパス扱いになり件数が誤った</td><td><b>(c)</b></td><td><code>shell-script-style.md</code> の <code>--</code> の節</td></tr>
+      <tr><td>1</td><td><code>grep -rn -- "$pat" --include='*.md'</code> で <code>--include</code> がパス扱いになり件数が誤った</td><td><b>(c)</b></td><td><code>shell-script-style.md</code> の <code>--</code> の節。<b>後に <code>main</code> の issue #185 が同じ失敗を独立に踏み、<code>-e</code> を正とする規範を先にマージしていたため、こちら側の記述は取り込み時に取り下げた</b>（章15）</td></tr>
       <tr><td>2</td><td><code>printf '\-\->\n'</code> がハイフン始まりをオプションと解釈した</td><td><b>(c)</b></td><td>同上（同じ節へ並べた）</td></tr>
-      <tr><td>3</td><td>範囲の置き換えで末尾3行が重複し、前後3行の目視では気づけなかった</td><td><b>(c)</b></td><td><code>shell-script-style.md</code>「差し込むファイルは…」の節</td></tr>
+      <tr><td>3</td><td>範囲の置き換えで末尾が重複し、前後3行の目視では気づけなかった</td><td><b>(c)</b></td><td><code>shell-script-style.md</code>「差し込むファイルは…」の節（当初「末尾3行」と書いたが、実測は<b>1行</b>。章14 の M）</td></tr>
       <tr><td>4</td><td><code>&lt;h4&gt;</code> / <code>class="warn"</code> のように、テンプレートが定義していない要素・クラスを使った</td><td><b>(c)</b></td><td><code>references/deliverables.md</code>「計画・レポートのHTMLビュー」</td></tr>
       <tr><td>5</td><td>差し込む断片の先頭に空行を入れ忘れた</td><td>—</td><td><b>既に書かれている</b>（<code>shell-script-style.md</code>「差し込むファイルは、先頭に空行を置かず、末尾に空行をちょうど1つ持たせる」）</td></tr>
       <tr><td>6</td><td>md/html の同期を繰り返し落とした</td><td>—</td><td><b>既に書かれている</b>。落としたのは手順の不履行であってアセットの欠落ではない</td></tr>
@@ -445,6 +446,39 @@ $ bash .claude/scripts/src/check-doc-references.sh | tail -1
   </table>
   </div>
   <p><b>H・I・J は「自分の作業でずれた値を、自分の成果物に残した」類型</b>である。I はとくに、同じコミットで <code>shell-script-style.md</code> へ3節追記したことが原因なので、<b>行番号での参照をやめて見出し・書き出しで指す</b>形へ直した。</p>
+
+  <h3 id="f15">15. <code>main</code> の追従（3回目）と、規範の衝突 <span class="chip warn">△注意</span></h3>
+  <p>flow-id 4-10 の直前に <code>main</code> が3コミット進み（#189・#188・#192）、<b>コンフリクト2件</b>を検知した。PR作成後の追従監視なので、監視モードの規定に沿って解消した。</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>ファイル</th><th>類型</th><th>解消</th></tr></thead>
+    <tbody>
+      <tr><td><code>.claude/docs/spec/distribution-assets.md</code></td><td><b>D</b>（過去changelogの並び）</td><td>両方のエントリを<b>時系列順</b>に残した（先にマージ済みの <code>### issue #185</code> が先、<code>### issue #145</code> が後）</td></tr>
+      <tr><td><code>.claude/rules/shell-script-style.md</code></td><td><b>C寄りだが規範が衝突</b></td><td>下記</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <div class="box warn"><span class="label"><code>main</code> と同じ失敗を独立に踏み、結論が食い違った</span>
+  <p><b><code>main</code> の issue #185 も、まったく同じ失敗</b>（<code>grep -rn -- "$pat" --include='*.md'</code> で <code>--include</code> がパス扱いになる）を独立に踏んでいた。両者が同じ節へ書き足したためコンフリクトした。</p></div>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th></th><th>本PR（issue #145）</th><th><code>main</code>（issue #185）</th></tr></thead>
+    <tbody>
+      <tr><td>結論</td><td><b>オプションを <code>--</code> より前へ置く</b></td><td><b><code>--</code> ではなく <code>-e</code> で渡す</b></td></tr>
+      <tr><td>根拠</td><td><code>--</code> 以降は位置引数なので順序が効く</td><td><code>--</code> は後からオプションを足したとき無言で壊れる。<b><code>-e</code> は並び順に依存しない</b></td></tr>
+      <tr><td>grepの挙動の記述</td><td>stderrへ出て終了コード2。標準出力は出続ける</td><td>同じ（<b>両者の観測は一致していた</b>）</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p><b><code>main</code> 側を採り、本PRの <code>--</code> 側の記述は取り下げた。</b> 理由は3つ。</p>
+  <ol>
+    <li><b><code>main</code> は共有の正史であり、既にマージ済みである。</b> 本リポジトリの解消規則は類型A・F とも「内容は defaultブランチ側」を採る。</li>
+    <li><b><code>main</code> の記述自身が、この重複の解き方を明示している</b>——「上の issue #97 の記述は『jqと同じく <code>--</code> を置く』としていたが、<b>両方を挙げるのではなく <code>-e</code> を正とする</b>」。これは本PRの <code>--</code> 記述をそのまま指しており、従うのが筋である。</li>
+    <li><b>両方を残すと、同じ節が同じ問いへ2つの違う答えを出す。</b> 「ハイフン始まりのパターンを <code>--include</code> 付きで検索したい」に対し、片方は「<code>--</code> の前へ」、もう片方は「<code>-e</code> を使え」と言う。</li>
+  </ol>
+  <p><b>取り下げなかったのは <code>printf</code> の節だけである</b>（<code>main</code> 側に対応する記述が無い、重ならない追加のため）。E（grepの挙動）の訂正内容は <code>main</code> 側が既に同等以上に書いており、<b>本PRの修正は結果として <code>main</code> に吸収された</b>。</p>
+  <p><b>この衝突自体は、AIアセット反映の仕組みが働いた証拠でもある。</b> 別々のissueが独立に同じ罠を踏み、どちらも「次に踏まないための記述」を残そうとした。<b>問題は結論が割れたことではなく、<code>main</code> 側が先にマージされていることを、こちら側が知る手段が追従の瞬間まで無いことである</b>（残課題へ回す）。</p>
+  <p><b>検証</b>: コンフリクトマーカー0件／unmerged 0件／<b>単体テスト21本すべて <code>failures=0</code></b>（<code>main</code> が <code>test_harvest_from_projects.sh</code> を追加したため20→21本。<code>test_install_to_project.sh</code> は <code>passed=116</code>）／DDR一覧 98件・変更なし／DDR識別子の重複なし／<code>HANDOFF.md</code> へ他タスクの記述の自動マージ混入なし。</p>
 </section>
 
 <section id="next">
@@ -468,6 +502,7 @@ $ bash .claude/scripts/src/check-doc-references.sh | tail -1
       <tr><td>完了条件11の <code>grep</code> は0件になる</td><td>歴史的経緯の<b>引用</b>が1件ヒットした</td><td>言い換えて検査を成立させ、検査の限界を本レポートへ記録した</td></tr>
       <tr><td>4点検証はそのまま使える</td><td><b>検証スクリプトの見出し抽出が属性付きタグに一致せず、章見出しを無言で除外していた</b></td><td>抽出を <code>&lt;h[123][^&gt;]*&gt;</code> へ直して再実行（全6ペア通過）</td></tr>
       <tr><td>敵対的レビュー2回目の指摘は成果物のロジックに出る</td><td><b>major 4件がすべて「自分が書いた散文の事実誤り」だった</b></td><td>16件すべてを修正。A には検査 (c3) を追加し、主張は弱めた</td></tr>
+      <tr><td><code>main</code> への追従は2回で終わり</td><td><b>3回目が flow-id 4-10 の直前に発生し、規範の衝突を1件含んでいた</b></td><td>類型D は時系列順に両方残し、規範の衝突は <code>main</code> 側を採って本PR側を取り下げた（章15）</td></tr>
     </tbody>
   </table>
   </div>
@@ -479,6 +514,7 @@ $ bash .claude/scripts/src/check-doc-references.sh | tail -1
     <li><b>承認待ちだった2件は解消した。</b> VERSIONは <b>0.4.0 据え置き</b>に確定（<code>0.5.0</code> を適用後に復帰）、案Bの方向性は<b>承認</b>された。据え置きの実害（版から資産の差を判別できない）は残る。</li>
     <li><b><code>.gemini/</code> の再生成（flow-id 5-3）。</b> 本フェーズで <code>.claude/rules/</code> <code>.claude/skills/</code> <code>.claude/docs/</code> を変更しているため<b>必須</b>である。</li>
     <li><b>issue #111 への通知（flow-id 5-2）。</b> 投稿前に <code>AskUserQuestion</code> での承認が必須。</li>
+    <li><b>同じ罠を複数のissueが独立に踏んだとき、先にマージされた側を知る手段が無い。</b> issue #185 と本issueは同じ <code>grep</code> の失敗を別々に踏み、AIアセットへ<b>違う結論</b>を書こうとした（章15）。衝突に気づけたのは追従マージの瞬間だけで、それまで双方とも相手の存在を知らない。<b>反映先の節が <code>main</code> で最近変更されていないかを、書く前に見る</b>といった手当てが要るが、これはAIアセット反映の手順そのものにかかる話なので本issueのスコープ外とする。</li>
   </ul>
 </section>
 
