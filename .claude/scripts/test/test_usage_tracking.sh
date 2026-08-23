@@ -607,6 +607,22 @@ assert_eq "otelファイル縮小: byteOffsetが0から再集計され新しい�
 assert_eq "otelファイル縮小: 縮小前に積んだ分もsinceLastPushへ残る" "10" \
   "$(printf '%s' "$otel_state6" | jq -r '.sinceLastPush.tokensByModel["gemini-2.5-pro-padding-to-make-this-entry-long-enough"].input')"
 
+# (6b) ファイルサイズが縮まない作り直し（削除→同程度以上のサイズで再作成）。ファイルサイズ
+#      だけでは検知できないため、前回読み込んだ範囲のチェックサム（prefixFingerprint）で
+#      検知する（issue #105フェーズ3敵対的レビュー指摘）。
+otel_r6b="$(otel_repo otelrepo6b)"
+otel_out6b="$otel_r6b/usage/gemini-otel.log"
+mkdir -p "$(dirname "$otel_out6b")"
+otel_semantic_entry "gemini-2.5-pro-orig" 10 5 > "$otel_out6b"
+_sync_usage_state_otel "$otel_r6b" "$otel_out6b" >/dev/null
+rm -f "$otel_out6b"
+otel_semantic_entry "gemini-2.5-pro-rewritten" 77 33 > "$otel_out6b"   # サイズは縮まない
+otel_state6b="$(_sync_usage_state_otel "$otel_r6b" "$otel_out6b")"
+assert_eq "otel 作り直し検知: フィンガープリント不一致で先頭から再取得される" "77" \
+  "$(printf '%s' "$otel_state6b" | jq -r '.sinceLastPush.tokensByModel["gemini-2.5-pro-rewritten"].input')"
+assert_eq "otel 作り直し検知: 作り直し前に積んだ分もsinceLastPushへ残る" "10" \
+  "$(printf '%s' "$otel_state6b" | jq -r '.sinceLastPush.tokensByModel["gemini-2.5-pro-orig"].input')"
+
 # (7) 状態ファイル破損: cursor.jsonが空・不正JSONでも既定値へ自己回復し、落ちずに再集計する。
 otel_r7="$(otel_repo otelrepo7)"
 otel_out7="$otel_r7/usage/gemini-otel.log"
@@ -617,6 +633,21 @@ printf '' > "$otel_r7/usage/state/gemini-otel/cursor.json"   # 空文字列（�
 otel_state7="$(_sync_usage_state_otel "$otel_r7" "$otel_out7")"
 assert_eq "otel 状態ファイル破損: 既定値へ自己回復し集計できる" "15" \
   "$(printf '%s' "$otel_state7" | jq -r '.sinceLastPush.tokensByModel["gemini-2.5-pro"].input')"
+
+# (7b) fold結果が不正なJSON（未知の形状でjqが失敗する等）でも、cursor.jsonを壊さず
+#      （0バイトにせず）今回の断面をスキップし、既存のsinceLastPushをそのまま返すこと
+#      （issue #105フェーズ3敵対的レビュー指摘。書き込み前検証が無いと1度の失敗で
+#      cursor.jsonが0バイトになり恒久的に回復不能になっていた）。
+otel_r7b="$(otel_repo otelrepo7b)"
+otel_out7b="$otel_r7b/usage/gemini-otel.log"
+mkdir -p "$(dirname "$otel_out7b")"
+printf '{\n  "attributes": [1,2,3\n}\n' > "$otel_out7b"   # 配列が閉じていない壊れたJSON
+otel_state7b="$(_sync_usage_state_otel "$otel_r7b" "$otel_out7b" 2>/dev/null)"
+assert_eq "otel fold失敗: 既存のsinceLastPush（初期値）がそのまま返る" "0" \
+  "$(printf '%s' "$otel_state7b" | jq -r '.sinceLastPush.calls')"
+assert_eq "otel fold失敗: cursor.jsonへ0バイトの壊れた状態を書き込まない" "1" \
+  "$([ ! -f "$otel_r7b/usage/state/gemini-otel/cursor.json" ] && echo 1 || \
+     { [ -s "$otel_r7b/usage/state/gemini-otel/cursor.json" ] && echo 1 || echo 0; })"
 
 # (8) 途中書き込み: 末尾が完結していないエントリ（列0の`}`で終わらない）は今回の集計に含めず、
 #     byte_offsetも進めない。完結後の次回集計で正しく拾われる。
@@ -642,19 +673,54 @@ assert_eq "otel 途中書き込み: 完結後の次回集計で合算される�
 assert_eq "otel 途中書き込み: 完結後の次回集計でcallsが2になる" "2" \
   "$(printf '%s' "$otel_state8b" | jq -r '.sinceLastPush.calls')"
 
+# (8b) 完全なエントリが1件も無いoutfile（先頭から完全に途中書き込みのみ）。
+#      _usage_otel_extract_complete_to_reply を単体で直接（`||`等で囲まずに）呼んでも
+#      set -e配下で関数ごと落ちないこと（issue #105フェーズ3敵対的レビュー指摘）。
+otel_r8b="$(otel_repo otelrepo8b)"
+otel_out8b="$otel_r8b/usage/gemini-otel.log"
+mkdir -p "$(dirname "$otel_out8b")"
+printf '{\n  "attributes": {\n    "incomplete"' > "$otel_out8b"
+_usage_otel_extract_complete_to_reply "$otel_out8b" 0
+assert_eq "otel 完全なエントリ0件: 単体呼び出しでも例外なく終了しREPLYが空になる" "" "$REPLY"
+otel_state8b2="$(_sync_usage_state_otel "$otel_r8b" "$otel_out8b")"
+assert_eq "otel 完全なエントリ0件: sync呼び出しも落ちずcalls=0のまま" "0" \
+  "$(printf '%s' "$otel_state8b2" | jq -r '.sinceLastPush.calls')"
+
+# (8c) attributesがOTLP標準形の配列（`[{key,value}]`）で来てもjqがクラッシュしないこと
+#      （issue #105フェーズ3敵対的レビュー指摘。`keys | startswith` が数値配列に対して
+#      `startswith() requires string inputs`で即死していた）。配列形式は判定対象外として
+#      無視され、calls/tokensには現れない。
+otel_r8c="$(otel_repo otelrepo8c)"
+otel_out8c="$otel_r8c/usage/gemini-otel.log"
+mkdir -p "$(dirname "$otel_out8c")"
+jq -n --indent 2 '{attributes: [{"key":"gen_ai.request.model","value":{"stringValue":"gemini-2.5-pro"}}], name:"gemini_cli.api_response"}' > "$otel_out8c"
+otel_state8c="$(_sync_usage_state_otel "$otel_r8c" "$otel_out8c")"
+assert_eq "otel attributes配列形式: クラッシュせず0件として扱われる" "0" \
+  "$(printf '%s' "$otel_state8c" | jq -r '.sinceLastPush.calls')"
+
 # (9) レポート本文: build_usage_report_body の第6引数（telemetry）は既存のClaude/Geminiの
 #     セクションへ合算せず、別セクションとして出す。省略時（既存の5引数呼び出し）は何も変わらない。
 rp_telemetry='{"tokensByModel":{"gemini-2.5-flash":{"input":100,"output":50,"cached":0,"thoughts":0,"tool":0}},"calls":3}'
 rp_body="$(build_usage_report_body "$rp_claude" "feature-x" "true" '{}' 'Claude Code' "$rp_telemetry")"
 assert_eq "otel report: テレメトリセクションが別枠で出る" "1" \
   "$(printf '%s' "$rp_body" | grep -cF '### Gemini CLI公式テレメトリ（参考値）')"
-assert_eq "otel report: テレメトリのトークンはClaude側のテーブルへ混ざらない" "0" \
-  "$(printf '%s' "$rp_body" | grep -F '| モデル |' | grep -cF 'Cache Read | Thoughts' || true)"
+# テレメトリ表の行そのものを完全一致で固定する（issue #105フェーズ3敵対的レビュー指摘:
+# ヘッダ文字列だけを見る検査は、テレメトリの数値を既存モデル行へ加算するような退行を
+# 検出できない。列の対応・キー名・3桁区切りの取り違えは、この完全一致が壊れて初めて分かる）。
+assert_eq "otel report: テレメトリ表の行が期待どおり（列の対応・3桁区切り）" \
+  "| gemini-2.5-flash | 100 | 50 | 0 | 0 | 0 |" \
+  "$(printf '%s' "$rp_body" | grep -F '| gemini-2.5-flash |')"
 assert_eq "otel report: テレメトリのAPI呼び出し回数が出る" "1" \
   "$(printf '%s' "$rp_body" | grep -cF 'API呼び出し回数: 3')"
-assert_eq "otel report: Claude側の既存テーブルは変わらない" \
+# 「混ざらない」の検証は、Claude側テーブルの行が$rp_claudeの値のまま完全一致することで表現する
+# （テレメトリの数値がClaude側の既存モデル行へ加算されていれば、この行は変化して不一致になる）。
+assert_eq "otel report: Claude側の既存テーブルの値が変わらない（テレメトリが加算されていない）" \
   "| claude-3-5-sonnet-20241022 | 12,345 | 6,789 | 100 | 2,000 |" \
   "$(printf '%s' "$rp_body" | grep -F 'claude-3-5-sonnet')"
+# gemini-2.5-flashの行がClaude側テーブル（Cache Write列を持つ4列表）へは1件も現れないこと。
+assert_eq "otel report: テレメトリのモデル行がClaude側テーブルへ紛れ込まない" "0" \
+  "$(printf '%s' "$rp_body" | sed -n '/^| モデル | Input | Output | Cache Write | Cache Read |$/,/^$/p' \
+     | grep -cF 'gemini-2.5-flash' || true)"
 
 # 第6引数が省略された既存呼び出し（5引数）はテレメトリセクションを出さない。
 rp_body_5arg="$(build_usage_report_body "$rp_claude" "feature-x" "true" '{}' 'Claude Code')"

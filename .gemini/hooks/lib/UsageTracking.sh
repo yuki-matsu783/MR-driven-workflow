@@ -956,8 +956,10 @@ _usage_reset_since_last_push() {
 # 対象は `.gemini/settings.json` の `telemetry.outfile`（既定 `usage/gemini-otel.log`）。
 # Gemini CLI公式のOpenTelemetryエクスポータが、pretty-print JSON値
 # （`safeJsonStringify(data, 2) + '\n'`）を追記し続ける単一ファイルで、spans・logs・metricsが
-# 混在する（詳細: `reports/20260823_squishy-painting-coral_Gemini-CLIテレメトリ出力形式と統合
-# 方針の調査結果.md` 1.節）。
+# 混在する（詳細: issue #105。フェーズ4でこの前提を`.claude/docs/spec/`へ反映する。
+# `reports/`はflow-id 5-5で削除されるため、そちらへの参照はここに置かない
+# ——`.claude/rules/docs-workflow.md`「コード・スクリプト内のコメントから
+# `plans/` `worklog/` `reports/` のファイルを参照しない」）。
 #
 # 判定方針は実データ未確認のため推測に基づく（フェーズ4のspec反映時に実データで裏取りする）。
 #   - metricsレコード（`dataPoints`/`sum`/`gauge`/`histogram`/`scopeMetrics`/`resourceMetrics`
@@ -968,6 +970,26 @@ _usage_reset_since_last_push() {
 #     持つ）のみを採用し、レガシー形式は無視する**ことで二重計上を避ける（境界をまたぐケースでも
 #     原理的に二重計上しない。属性名`gen_ai.usage.*`・`gen_ai.request.model`は
 #     OpenTelemetry semantic conventions（gen_ai）を参考にした推測であり、未確認）。
+
+# outfileのパスを解決しREPLYへ返す。`.gemini/settings.json`の`telemetry.outfile`
+# （`sync-gemini-assets.sh`の`GEMINI_OTEL_OUTFILE_REL`が書き込む値）を正として読み取り、
+# 書き込み側と読み取り側でパスが2箇所にハードコードされて食い違う事故を防ぐ
+# （issue #105フェーズ3敵対的レビュー指摘）。設定ファイルが無い・不正JSON・キー未設定の場合は
+# 既定値（`usage/gemini-otel.log`）へフォールバックする。相対パスは`repo_root`基点で解決する。
+_usage_otel_resolve_outfile_to_reply() {
+  local repo_root="$1"
+  local settings_file="${repo_root}/.gemini/settings.json"
+  local rel="usage/gemini-otel.log"
+  if [ -f "$settings_file" ]; then
+    local configured=""
+    configured="$(jq -r '.telemetry.outfile // empty' "$settings_file" 2>/dev/null || true)"
+    [ -n "$configured" ] && rel="$configured"
+  fi
+  case "$rel" in
+    /*) REPLY="$rel" ;;
+    *)  REPLY="${repo_root}/${rel}" ;;
+  esac
+}
 
 # outfileの`byte_offset`以降のうち、**完全にパースできた末尾までの部分**を一時ファイルへ
 # 切り出す（途中書き込み対応）。切り出したファイルパスをREPLYへ、その末尾までの絶対バイト位置
@@ -999,7 +1021,12 @@ _usage_otel_extract_complete_to_reply() {
   tail -c "+$((byte_offset + 1))" "$outfile_path" > "$tmp_new"
 
   local last_boundary_line
-  last_boundary_line="$(grep -n '^}$' "$tmp_new" | tail -1 | cut -d: -f1)"
+  # `|| true` を必ず付ける。境界行が1件も無い場合（完全なエントリが1つも無いoutfile）は
+  # `grep`が非0を返し、`pipefail`配下ではパイプライン全体が非0になる。単純な代入文は
+  # `set -e`の一時停止対象外（`if`/`||`の中でのみ一時停止される）のため、`|| true`が無いと
+  # この関数を直接（`||`で囲まずに）呼んだ呼び出し元では関数ごと中断してしまう
+  # （issue #105フェーズ3敵対的レビュー指摘。`.claude/rules/shell-script-style.md`「エラー方針」）。
+  last_boundary_line="$(grep -n '^}$' "$tmp_new" | tail -1 | cut -d: -f1 || true)"
 
   if [ -z "$last_boundary_line" ]; then
     # 完全なエントリが1件も無い（末尾が途中書き込みのみ）。次回そのまま再挑戦できるよう
@@ -1035,18 +1062,28 @@ _usage_otel_fold() {
     def zero_bucket: {input: 0, output: 0, cached: 0, thoughts: 0, tool: 0};
 
     # metricsレコードの判定（ResourceMetrics相当。実データ未確認・推測）。
+    # `type == "object"`のガードは、[inputs]の段階で既にobjectへ絞っているため冗長だが、
+    # このdef単体で将来使い回されても安全なように明示する。
     def is_metric_record:
+      (type == "object") and
       (has("dataPoints") or has("sum") or has("gauge") or has("histogram")
        or has("scopeMetrics") or has("resourceMetrics"));
 
     # semantic conventions形式のgemini_cli.api_response判定（実データ未確認・推測。
-    # gen_ai.*属性を持つことを目印にする）。
+    # gen_ai.*属性を持つことを目印にする）。OpenTelemetryの標準的なJSON表現では
+    # attributesが`[{key,value}]`という**配列**になりうる。objectでない場合は
+    # `keys`が数値配列を返しstartswith()がクラッシュするため、型を確認してから判定する
+    # （issue #105フェーズ3敵対的レビュー指摘）。event.nameは過剰計上を避けるため
+    # 部分一致ではなく厳密一致にする。
     def is_semantic_api_response:
-      (.attributes // {}) as $a
-      | ($a | keys | any(startswith("gen_ai.")))
-      and ((($a["event.name"] // .name // "") | tostring | test("api_response")));
+      (type == "object") and
+      ((.attributes // {}) as $a
+       | ($a | type) == "object"
+       and ($a | keys_unsorted | any(type == "string" and startswith("gen_ai.")))
+       and ((($a["event.name"] // .name // "") | tostring) == "gemini_cli.api_response"));
 
-    [inputs] as $entries
+    [inputs] as $rawEntries
+    | ($rawEntries | map(select(type == "object"))) as $entries
     | ($entries | map(select(is_metric_record | not))) as $logs
     | ($logs | map(select(is_semantic_api_response))) as $apiResponses
     | {
@@ -1064,7 +1101,7 @@ _usage_otel_fold() {
   ' "$complete_path"
 }
 
-# usage/state/gemini-otel/cursor.json（グローバル・ブランチ/セッション非依存。フェーズ2報告5.節の
+# usage/state/gemini-otel/cursor.json（グローバル・ブランチ/セッション非依存。issue #105での
 # 判断どおり）を読む。空・不正JSON・ファイル無しなら既定値を返す（`_usage_read_gemini_totals`と
 # 同じ自己回復パターン）。**状態ファイルは`usage/state/`直下ではなく`usage/state/gemini-otel/`
 # サブディレクトリへ置く**（直下だと`usage/state/<branch>.json`のブランチ別状態ファイル名と、
@@ -1079,15 +1116,42 @@ _usage_read_otel_state() {
   if [ -n "$content" ] && printf '%s' "$content" | jq -e . >/dev/null 2>&1; then
     printf '%s' "$content"
   else
-    jq -n '{byteOffset: 0, sinceLastPush: {tokensByModel: {}, calls: 0}}'
+    jq -n '{byteOffset: 0, prefixFingerprint: "", sinceLastPush: {tokensByModel: {}, calls: 0}}'
   fi
 }
 
+# 書き込み前にJSONとして妥当かを検証する。不正なJSONを無検証で書き込むと、
+# `usage/state/gemini-otel/cursor.json`が壊れた状態のまま残り、次回`_usage_read_otel_state`が
+# 空/不正判定で既定値へ自己回復してbyteOffsetが0へ戻る→同じ場所で再び壊れる、という恒久的な
+# 回復不能ループに陥る（`.claude/rules/shell-script-style.md`「JSON操作」が記録する事故と同型。
+# issue #105フェーズ3敵対的レビュー指摘）。無効なら**書かずに**終了コード1を返す。
 _usage_write_otel_state() {
   local repo_root="$1" state="$2"
+  if [ -z "$state" ] || ! printf '%s' "$state" | jq -e . >/dev/null 2>&1; then
+    return 1
+  fi
   local state_dir="${repo_root}/usage/state/gemini-otel"
   mkdir -p "$state_dir"
   printf '%s' "$state" | tr -d '\r' > "${state_dir}/cursor.json"
+}
+
+# outfileの先頭`byte_offset`バイトのチェックサムをREPLYへ返す（ファイル同一性の目印）。
+# `byte_offset`が0以下なら判定対象が無いため空文字列を返す。
+#
+# 用途: ファイルサイズによる縮小検知（下記`_sync_usage_state_otel`）だけでは、outfileが
+# 削除・作り直しされた後に前回のオフセットを超える量が新たに書かれた場合を検知できない
+# （縮小していないため）。この場合`tail -c`が別内容のJSONの途中から切り出してしまい、
+# パース失敗（→上記の状態破壊）または誤った値の無言計上につながる（issue #105フェーズ3
+# 敵対的レビュー指摘）。前回読み込んだ範囲のチェックサムを保存しておき、次回読み込み前に
+# 同じ範囲のチェックサムを取り直して突き合わせることで、サイズだけでは分からない
+# 「作り直し」を検知する。
+_usage_otel_prefix_fingerprint_to_reply() {
+  local path="$1" offset="$2"
+  if [ "$offset" -le 0 ]; then
+    REPLY=""
+    return 0
+  fi
+  REPLY="$(head -c "$offset" "$path" 2>/dev/null | cksum | awk '{print $1"-"$2}')"
 }
 
 # Gemini CLI公式テレメトリのバイトオフセットカーソル集計本体（issue #105）。
@@ -1113,17 +1177,40 @@ _sync_usage_state_otel() {
   # ファイル縮小検知（DDR i0097-01の`needsReset`と同じ考え方）。
   if [ "$file_size" -lt "$byte_offset" ]; then
     byte_offset=0
+  elif [ "$byte_offset" -gt 0 ]; then
+    # サイズが縮んでいなくても、outfileが削除・作り直しされ「前回読み込んだ範囲の内容」が
+    # 別物になっている可能性がある（ファイルサイズだけでは判定できない。issue #105フェーズ3
+    # 敵対的レビュー指摘）。前回保存したチェックサムと突き合わせ、食い違えば同じく先頭から
+    # やり直す。
+    local stored_fp cur_fp
+    stored_fp="$(printf '%s' "$state" | jq -r '.prefixFingerprint // ""')"
+    if [ -n "$stored_fp" ]; then
+      _usage_otel_prefix_fingerprint_to_reply "$outfile_path" "$byte_offset"
+      cur_fp="$REPLY"
+      if [ "$cur_fp" != "$stored_fp" ]; then
+        byte_offset=0
+      fi
+    fi
   fi
 
   _usage_otel_extract_complete_to_reply "$outfile_path" "$byte_offset"
   local complete_path="$REPLY" new_offset="$REPLY_NEW_OFFSET"
 
+  _usage_otel_prefix_fingerprint_to_reply "$outfile_path" "$new_offset"
+  local new_fp="$REPLY"
+
   if [ -z "$complete_path" ]; then
     # 新規の完全なエントリが無い（途中書き込みのみ、または新規バイト無し）。
-    # byte_offsetが縮小検知で0へ変わっていた場合に備え、状態は書き戻す。
-    if [ "$new_offset" != "$(printf '%s' "$state" | jq -r '.byteOffset // 0')" ]; then
-      state="$(printf '%s' "$state" | jq --argjson offset "$new_offset" '.byteOffset = $offset')"
-      _usage_write_otel_state "$repo_root" "$state"
+    # byte_offsetが縮小検知・フィンガープリント不一致で変わっていた場合に備え、状態は書き戻す。
+    local prev_offset
+    prev_offset="$(printf '%s' "$state" | jq -r '.byteOffset // 0')"
+    if [ "$new_offset" != "$prev_offset" ]; then
+      local reset_state
+      reset_state="$(printf '%s' "$state" | jq --argjson offset "$new_offset" --arg fp "$new_fp" \
+        '.byteOffset = $offset | .prefixFingerprint = $fp')"
+      if _usage_write_otel_state "$repo_root" "$reset_state"; then
+        state="$reset_state"
+      fi
     fi
     printf '%s' "$state"
     return 0
@@ -1133,8 +1220,20 @@ _sync_usage_state_otel() {
   delta="$(_usage_otel_fold "$complete_path")"
   rm -f "$complete_path"
 
+  if [ -z "$delta" ] || ! printf '%s' "$delta" | jq -e . >/dev/null 2>&1; then
+    # _usage_otel_fold の出力が不正なJSON（未知の入力形状でjqが失敗した等）。書き込まず
+    # byteOffsetも進めずreturnする。今回の断面（実データにこの区間の情報が残っている限り）は
+    # 次回に持ち越す（`.claude/rules/shell-script-style.md`「JSON操作」。書き込み側の検証無しに
+    # 不正な値をcursor.jsonへ書くと0バイトへ壊れ恒久的に回復不能になる。issue #105フェーズ3
+    # 敵対的レビュー指摘）。
+    echo "警告: _usage_otel_fold の出力が不正なJSONです。今回の断面の集計をスキップし次回へ持ち越します。" >&2
+    printf '%s' "$state"
+    return 0
+  fi
+
   local new_state
-  new_state="$(jq -n --argjson state "$state" --argjson delta "$delta" --argjson offset "$new_offset" '
+  new_state="$(jq -n --argjson state "$state" --argjson delta "$delta" --argjson offset "$new_offset" \
+    --arg fp "$new_fp" '
     def zero_bucket: {input: 0, output: 0, cached: 0, thoughts: 0, tool: 0};
     ($state.sinceLastPush // {tokensByModel: {}, calls: 0}) as $since
     | (reduce (($delta.tokens // {}) | keys[]) as $model ($since;
@@ -1149,10 +1248,20 @@ _sync_usage_state_otel() {
           }
       )) as $sinceTokens
     | ($sinceTokens | .calls = ((.calls // 0) + ($delta.calls // 0))) as $newSince
-    | {byteOffset: $offset, sinceLastPush: $newSince}
+    | {byteOffset: $offset, prefixFingerprint: $fp, sinceLastPush: $newSince}
   ')"
 
-  _usage_write_otel_state "$repo_root" "$new_state"
+  if [ -z "$new_state" ] || ! printf '%s' "$new_state" | jq -e . >/dev/null 2>&1; then
+    echo "警告: _sync_usage_state_otel の集計結果が不正なJSONです。状態を書き戻さず終了します。" >&2
+    printf '%s' "$state"
+    return 0
+  fi
+
+  if ! _usage_write_otel_state "$repo_root" "$new_state"; then
+    echo "警告: cursor.jsonの書き込みに失敗しました（不正なJSON）。状態は前回のまま返します。" >&2
+    printf '%s' "$state"
+    return 0
+  fi
   printf '%s' "$new_state"
 }
 

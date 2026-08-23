@@ -162,3 +162,130 @@ scratchpadでの手動検証を、`test_usage_tracking.sh`の恒久フィクス�
   どおり正文を`reports/`へ置く）。
 - `HANDOFF.md`を更新し、flow-id 3-6完了・3-7（commit/push）へ進む。
 - push後、フェーズ3の作業実施時敵対的レビューを1回実施する（ユーザー指示どおり）。
+
+## 追記（敵対的レビュー2回目・push10後、実装の修正）
+
+flow-id 3-7でpush10をcommit・push後、フェーズ3の作業実施時敵対的レビューを2回目実施した
+（フェーズ3カウンタ=2）。対象はpush10の実装差分（設定層・集計層・レポート層・配布gitignore・
+単体テスト）。12件の指摘（major 6件・minor 6件）のうち10件をMR #174へインラインコメント投稿し、
+残り2件（minor/confidence medium）はレビュー本文へ報告のみとして記載した。**投稿・報告した12件
+すべてに対応した。**
+
+### 修正内容の詳細
+
+1. **状態破壊バグ（最重要）**: `_usage_otel_fold`の出力や`_sync_usage_state_otel`の最終状態を
+   検証せずに`_usage_write_otel_state`で`cursor.json`へ書き戻していた。実機で再現したところ、
+   壊れたJSON行が1件混ざるだけで`jq: invalid JSON text passed to --argjson`となり
+   `cursor.json`が0バイトになった。0バイトになると`_usage_read_otel_state`が既定値
+   （byteOffset=0）へ自己回復するため、**次回以降は毎回ファイル先頭から読み直して同じ場所で
+   失敗し続ける**（テレメトリが恒久的に集計されない）。
+   - 直し方: `_usage_write_otel_state`へ書き込み前検証（`jq -e .`）を追加し、無効なら**書かず**
+     終了コード1を返すよう変更。`_sync_usage_state_otel`側も`delta`・`new_state`それぞれの
+     検証を追加し、無効なら警告をstderrへ出し既存の`state`をそのまま返す（今回の断面は次回へ
+     持ち越す）よう修正。
+   - 検証: 壊れたJSON（配列が閉じていない等）を含むoutfileに対し`_sync_usage_state_otel`を
+     呼んでも、`cursor.json`が作られない（0バイトで壊れない）ことを確認。
+
+2. **attributes配列形式でのクラッシュ**: OpenTelemetryの標準的なJSON表現では`attributes`が
+   `[{key,value}]`という**配列**になりうるが、実装は`.attributes`が常にobjectであることを
+   前提にしており、配列が来ると`keys | startswith`が`startswith() requires string inputs`で
+   jqごと即死していた（＝上記1の状態破壊へ直結）。
+   - 直し方: `is_metric_record`/`is_semantic_api_response`へ`type == "object"`のガードを
+     追加。あわせて`event.name`の判定を`test("api_response")`（部分一致）から
+     `== "gemini_cli.api_response"`（厳密一致）へ変更し、過剰計上のリスクも下げた。
+   - 検証: attributes配列形式のエントリ1件だけのoutfileに対し、クラッシュせずcalls=0として
+     扱われることを確認。
+
+3. **カーソル妥当性検査の穴**: ファイルサイズによる縮小検知だけでは、outfileが削除・作り直し
+   された後、前回のオフセットを超える量が新たに書かれた場合（＝サイズが縮まない作り直し）を
+   検知できない。`tail -c`が別内容のJSONの途中から切り出し、パース失敗（→1の状態破壊）または
+   誤った値の無言計上につながる。
+   - 直し方: 前回読み込んだ範囲（先頭`byte_offset`バイト）のチェックサム（`cksum`）を
+     `prefixFingerprint`としてstateへ保存し、次回読み込み前に同じ範囲のチェックサムを取り直して
+     突き合わせる`_usage_otel_prefix_fingerprint_to_reply`を追加。不一致ならファイル縮小時と
+     同じく先頭（byteOffset=0）から再取得する。
+   - 検証: サイズが縮まない作り直し（削除→同程度以上のサイズで再作成）で、作り直し前の内容が
+     消えず、作り直し後の内容が正しく別モデルキーとして計上されることを確認。
+
+4. **投稿ゲートの欠落**: `post-push-usage-report.sh`の投稿要否判定（合計トークンが0なら投稿
+   しない）にテレメトリの`calls`が入っておらず、「テレメトリしか無いpush」（issue #105が
+   実現したい本命のケース）でレポートが出ないまま`sinceLastPush`へ繰り越され続ける不具合が
+   あった。
+   - 直し方: `otel_calls`を(a) `state`が空/不正な場合のフォールバック判定、(b) `total == 0`の
+     投稿ゲート、の両方へ組み込んだ。stateが空でもtelemetryにcallsがある場合はトークン0の
+     プレースホルダstateへフォールバックしてから通常のレポート組み立てへ進む。
+
+5. **outfileパスの二重管理**: `sync-gemini-assets.sh`（書き込み側）が`usage/gemini-otel.log`を
+   直書きし、`post-push-usage-report.sh`（読み取り側）も同じ文字列を独立して直書きしていた。
+   片方を変えても、もう片方は`[ -f ... ]`で静かにスキップするだけで壊れたことに誰も気づけない。
+   - 直し方: `sync-gemini-assets.sh`に`GEMINI_OTEL_OUTFILE_REL`定数を新設し`--arg`でjqフィルタへ
+     渡す。読み取り側は`UsageTracking.sh`の`_usage_otel_resolve_outfile_to_reply`で
+     `.gemini/settings.json`の`telemetry.outfile`を動的に読み、無ければ既定値へフォールバック
+     する設計へ変更。
+
+6. **specの矛盾・恒久参照禁止違反**: `sync-gemini-assets.sh`のコメントが「詳細:
+   `.claude/docs/spec/sync-gemini-assets.md`」と正を指していたが、そのspecには
+   telemetryについて「OTel計測が行われない」という**この変更で覆した結論**が書かれたままだった。
+   また`UsageTracking.sh`・`post-push-usage-report.sh`のコメントがflow-id 5-5で削除される
+   `reports/`のファイルを3箇所で参照していた（`.claude/rules/docs-workflow.md`が禁じる
+   パターン。issue #9で過去に同じ事故が発生済み）。
+   - 直し方: spec名指しをやめ`issue #105`のみを参照する形へ変更（フェーズ4でspec自体を
+     更新する）。`reports/`参照はすべて`issue #105`のみの参照へ置き換えた。
+
+7. **有効化不能であることの明示不足**: `enabled: false`固定＋`sync-gemini-assets.sh --check`の
+   ゲートにより、利用者が`.gemini/settings.json`を手で`true`にしても次の再生成で無言で
+   `false`へ戻り、戻す前に`--check`が食い違いを検知してflow-id 5-3が止まる。この帰結
+   （現状どうやっても有効化できないこと）がコメントから読み取れなかった。
+   - 直し方: コメントへ「現時点でこれをtrueへ切り替える手段は存在しない」ことを明記し、
+     有効化手段の確立を本issueのスコープ外の未決定事項として明示した。
+
+8. **テストの空洞化**: `grep -F '| モデル |' | grep -cF 'Cache Read | Thoughts'`という
+   ヘッダ文字列頼みの検査は、テレメトリの数値を既存のClaude側モデル行へ加算するという
+   最もありそうな退行では発火しなかった（ヘッダ文字列自体は変わらないため）。テレメトリ表の
+   中身を検証するアサーションも1件も無かった。
+   - 直し方: テレメトリ表の行を`| gemini-2.5-flash | 100 | 50 | 0 | 0 | 0 |`のように完全一致で
+     固定するアサーションを追加。「混ざらない」の検証も、Claude側行が`$rp_claude`の値のまま
+     完全一致することに加え、テレメトリのモデル名がClaude側テーブル（4列表）の範囲に1件も
+     現れないことで表現し直した。
+
+9. **md/htmlの不同期**: `reports/…実装結果.md`のケース表が9行なのに対し、対応するHTMLは8行で
+   「レポート本文統合」の行が抜けていた。また、md側の複数箇所に`<div class="box ok">`
+   `<span class="label">`というHTMLビュー用のマークアップがそのまま混入していた（GitHub上では
+   classが効かずラベルだけが地の文として現れる）。
+   - 直し方: md側のHTML断片をmarkdownの引用（`>`）へ置き換え、HTML側のケース表を最新の
+     内容（12行）へ同期した。あわせてレポート全体を、今回の敵対的レビュー対応の内容を反映した
+     形へ更新した（「4. 敵対的レビュー対応」節を新設）。
+
+10. **`set -e`下でのクラッシュリスク（報告のみ・minor/medium）**: `_usage_otel_extract_
+    complete_to_reply`内の`grep -n '^}$' ... | tail -1 | cut -d: -f1`は、境界行が1件も無い
+    （完全なエントリが1つも無い）場合`grep`が非0を返し`pipefail`配下でパイプライン全体が
+    非0になる。単純な代入文は`set -e`の一時停止対象外（`if`/`||`の中でのみ一時停止される）
+    ため、この関数を直接（`||`で囲まずに）呼ぶ呼び出し文脈では関数ごと中断する。本番経路は
+    `|| true`で偶然救われていたが、呼び出し文脈が変わると壊れる。
+    - 直し方: 該当行へ`|| true`を追加。単体呼び出しでも安全に空扱いへ落ちることをテストで
+      固定した。
+
+11. **サマリの結論表現の言い過ぎ（報告のみ・minor/medium）**: `reports/…実装結果.md`のサマリが
+    「8パターンで正しく動作することを確認」と言い切っていたが、実際に検証したのは
+    「実装が前提にしている推測（属性名・境界判定方式）をそのまま写して生成した合成
+    フィクスチャに対する動作」であり、実データに対する正しさは何も言っていない。
+    - 直し方: サマリの結論・根拠の性質を「推測に基づく仕様どおりに動くことを合成フィクスチャ
+      で確認（実データ未検証）」へ限定する表現へ修正した。
+
+### 検証（修正後）
+
+- `test_usage_tracking.sh`へ5ケース（作り直し検知・fold失敗時の状態保護・完全なエントリ0件・
+  attributes配列形式・テレメトリ表の完全一致）を追加し、`passed=120 failures=0`を確認
+  （修正前は`passed=112`）。
+- `bash .claude/scripts/src/sync-gemini-assets.sh --check` → exit=0（`GEMINI_OTEL_OUTFILE_REL`
+  導入・コメント修正後の再生成）。
+- 全17本の`test_*.sh`を再実行し、すべて`failures=0`。
+- `git diff <ブランチ分岐点SHA> -- .claude/`の削除行を再確認し、DDR/spec本文の point-in-time
+  記録を破壊する削除が無いことを確認（削除行はすべて本セッションで自分が書いたコードの
+  書き換えのみ）。
+
+## 次の一歩
+
+- 上記の修正一式を`commit`スキル経由でcommit・push（push11）し、レビュー依頼を行う（flow-id
+  3-7の続き）。
+- push後は3-8（人間レビュー）を待つ。

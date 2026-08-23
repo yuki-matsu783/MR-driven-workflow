@@ -101,13 +101,13 @@
   <div class="inner">
     <div class="kind">作業結果レポート / フェーズ3</div>
     <h1>Gemini CLIテレメトリ集計機構の実装結果</h1>
-    <p class="lead">設定層・集計層・レポート層・配布gitignore是正・単体テストを実装し、既存の対応工数集計結果を変えずにテレメトリ由来の参考値を追加した。</p>
+    <p class="lead">設定層・集計層・レポート層・配布gitignore是正・単体テストを実装し、作業実施時敵対的レビュー（2回目）で見つかった12件の不具合をすべて修正した。</p>
     <ul class="meta">
       <li><b>issue</b> #105</li>
       <li><b>ブランチ</b> claude/gemini-cli-telemetry-reporting-a253xp</li>
       <li><b>PR</b> #174</li>
-      <li><b>フェーズ</b> 3〈作業〉 flow-id 3-6</li>
-      <li><b>push回数</b> 10</li>
+      <li><b>フェーズ</b> 3〈作業〉 flow-id 3-6/3-7</li>
+      <li><b>push回数</b> 11</li>
       <li><b>作成日</b> 2026-08-23</li>
       <li><b>正文</b> 同名の .md</li>
     </ul>
@@ -135,10 +135,11 @@
     <thead><tr><th>#</th><th>問い／やったこと</th><th>結論</th><th>根拠の性質</th></tr></thead>
     <tbody>
       <tr><td>1</td><td>.gemini/settings.jsonへtelemetryブロックを注入する仕組み</td><td><b>sync-gemini-assets.sh経由でenabled: false固定・target: "local"・outfile: "usage/gemini-otel.log"を注入する形で実装完了</b></td><td>実装の確認＋--checkの前後比較</td></tr>
-      <tr><td>2</td><td>バイトオフセットカーソルによるテレメトリ差分集計</td><td><b>既存経路と完全独立の関数群を追加し、8パターンで正しく動作することを確認</b></td><td>実装の確認＋単体テスト</td></tr>
+      <tr><td>2</td><td>バイトオフセットカーソルによるテレメトリ差分集計</td><td><b>既存経路と完全独立の関数群を追加。推測に基づく仕様どおりに動くことを合成フィクスチャ（実装と同じ仮定に基づく）で確認した（実データ検証ではない）</b></td><td>実装の確認＋合成フィクスチャによる単体テスト</td></tr>
       <tr><td>3</td><td>対応工数レポートへのテレメトリ統合</td><td><b>第6引数を既定値付きで追加し、既存5引数呼び出しを壊さず独立セクションとして統合完了</b></td><td>実装の確認＋単体テスト</td></tr>
       <tr><td>4</td><td>配布先.gitignoreへ/usage/の除外を追加</td><td><b>install-to-project.shのignore_rulesへ1行追加し反映を確認</b></td><td>実装の確認＋結合テスト</td></tr>
       <tr><td>5</td><td>既存の集計結果・レポート内容が変化しないこと</td><td><b>既存90ケースがすべて無変更で通過</b></td><td>単体テストの全件成功</td></tr>
+      <tr><td>6</td><td>フェーズ3作業実施時敵対的レビュー（2回目）の指摘対応</td><td><b>12件の指摘（major 6・minor 6）すべてに対応した</b></td><td>実装の確認＋再現手順による検証＋単体テスト</td></tr>
     </tbody>
   </table>
   </div>
@@ -162,7 +163,7 @@
   <h2>実施した内容と結果</h2>
 
   <h3>1. 設定層: .gemini/settings.jsonへのtelemetry注入</h3>
-  <p><code>sync-gemini-assets.sh</code>のSETTINGS_JQ_FILTERへ、固定値ブロック（<code>enabled: false</code>・<code>target: "local"</code>・<code>outfile: "usage/gemini-otel.log"</code>・<code>logPrompts: false</code>）を追加した。</p>
+  <p><code>sync-gemini-assets.sh</code>のSETTINGS_JQ_FILTERへ、固定値ブロック（<code>enabled: false</code>・<code>target: "local"</code>・<code>outfile: $otelOutfile</code>・<code>logPrompts: false</code>）を追加した。outfileのパスは<code>GEMINI_OTEL_OUTFILE_REL</code>という1つの定数から渡す（後述レビュー対応で読み取り側と共有する設計へ修正）。</p>
   <pre><code>$ bash .claude/scripts/src/sync-gemini-assets.sh --check
 .gemini/ が .claude/ と食い違っています。   # 変更直後は不一致（exit=1）
 $ bash .claude/scripts/src/sync-gemini-assets.sh
@@ -173,7 +174,7 @@ $ bash .claude/scripts/src/sync-gemini-assets.sh --check
 .gemini/ は .claude/ と同期しています。   # exit=0</code></pre>
   <div class="box ok">
     <span class="label">結論</span>
-    telemetry設定は生成物経由で注入され、--checkによる同期検証が通る。手編集による設定ドリフトのリスクは無い。
+    telemetry設定は生成物経由で注入され、--checkによる同期検証が通る。ただしenabled: falseを利用者側から有効化する手段は現時点で存在しない（後述「4. 敵対的レビュー対応」）。
   </div>
 
   <h3>2. 集計層: バイトオフセットカーソルによる差分集計</h3>
@@ -188,8 +189,12 @@ $ bash .claude/scripts/src/sync-gemini-assets.sh --check
       <tr><td>カーソル継続</td><td>追記分のみが差分として計上される</td><td><span class="tag ok">OK</span></td></tr>
       <tr><td>初回集計</td><td>既存の蓄積データが初回1回で全量計上される</td><td><span class="tag ok">OK</span></td></tr>
       <tr><td>ファイル縮小</td><td>byte_offsetが0へリセットされ、縮小前の累計は消えず上乗せされる</td><td><span class="tag ok">OK</span></td></tr>
+      <tr><td>作り直し検知（サイズ不変）</td><td>prefixFingerprintで検知し先頭から再取得する（レビュー対応）</td><td><span class="tag ok">OK</span></td></tr>
       <tr><td>状態ファイル破損</td><td>空文字列でも既定値へ自己回復する</td><td><span class="tag ok">OK</span></td></tr>
+      <tr><td>fold失敗時の状態保護</td><td>不正なJSONでもcursor.jsonを壊さない（レビュー対応）</td><td><span class="tag ok">OK</span></td></tr>
       <tr><td>途中書き込み</td><td>未完結の末尾は次回まで計上を持ち越す</td><td><span class="tag ok">OK</span></td></tr>
+      <tr><td>完全なエントリ0件</td><td>単体呼び出しでも例外なく終了する（レビュー対応）</td><td><span class="tag ok">OK</span></td></tr>
+      <tr><td>attributes配列形式</td><td>OTLP標準形の配列でもクラッシュしない（レビュー対応）</td><td><span class="tag ok">OK</span></td></tr>
     </tbody>
   </table>
   </div>
@@ -199,25 +204,46 @@ $ bash .claude/scripts/src/sync-gemini-assets.sh --check
   </div>
 
   <h3>3. レポート層: post-push-usage-report.shへの統合</h3>
-  <p><code>build_usage_report_body()</code>へ第6引数<code>telemetry</code>を<code>local telemetry="${6:-}"</code>という既定値付きで追加し、既存の5引数呼び出しを壊さないようにした。テレメトリ由来の値は既存テーブルへ合算せず、「### Gemini CLI公式テレメトリ（参考値）」という独立セクションとして出す。</p>
+  <p><code>build_usage_report_body()</code>へ第6引数<code>telemetry</code>を<code>local telemetry="${6:-}"</code>という既定値付きで追加し、既存の5引数呼び出しを壊さないようにした。テレメトリ由来の値は既存テーブルへ合算せず、「### Gemini CLI公式テレメトリ（参考値）」という独立セクションとして出す。投稿要否のゲートにもテレメトリのcallsを含めるようレビュー対応で修正した。</p>
   <pre><code>$ bash .claude/scripts/test/test_usage_tracking.sh
-passed=112 failures=0   # 既存90ケース＋新規22アサーション</code></pre>
+passed=120 failures=0   # 既存90ケース＋新規30アサーション</code></pre>
   <div class="box ok">
     <span class="label">結論</span>
     テレメトリ由来のトークンは既存の対応工数集計（issue #97）とは独立した参考値として提示され、二重計上は起きない。
   </div>
 
-  <h3>4. 配布gitignore是正</h3>
+  <h3>4. 敵対的レビュー対応（フェーズ3・作業実施時・2回目）</h3>
+  <p>push10の実装差分を対象に、adversarial-reviewスキルに従い作業実施時敵対的レビューを実施した（フェーズ3カウンタ=2）。12件の指摘のうち10件をMR #174へインラインコメント投稿し、残り2件はレビュー本文へ報告のみとして記載した。<b>投稿・報告した12件すべてに対応した。</b></p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>#</th><th>指摘</th><th>対応</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td>jq出力を検証せず書き戻し、状態が0バイトに壊れる</td><td>書き込み前検証を追加し無効なら書かない</td></tr>
+      <tr><td>2</td><td>attributes配列形式でjqがクラッシュ</td><td>type=="object"のガードと厳密一致を追加</td></tr>
+      <tr><td>3</td><td>サイズ不変の作り直しを検知できない</td><td>prefixFingerprint（cksum）で検知</td></tr>
+      <tr><td>4</td><td>テレメトリしか無いpushでレポートが出ない</td><td>投稿ゲートへotel_callsを組み込んだ</td></tr>
+      <tr><td>5</td><td>enabled: falseの根拠specが逆の結論のまま</td><td>spec名指しをやめissue #105のみ参照</td></tr>
+      <tr><td>6</td><td>有効化手段が無いことが読み取れない</td><td>コメントへ明記</td></tr>
+      <tr><td>7</td><td>reports/参照（flow-id 5-5で消える）</td><td>issue番号のみの参照へ置換</td></tr>
+      <tr><td>8</td><td>outfileパスが2箇所にハードコード</td><td>定数化＋動的解決関数を追加</td></tr>
+      <tr><td>9</td><td>テストがヘッダ文字列頼みで数値退行を検出できない</td><td>行の完全一致アサーションを追加</td></tr>
+      <tr><td>10</td><td>md/htmlの表が不一致・HTML断片がmdへ混入</td><td>md側を引用へ置換、html側を同期</td></tr>
+      <tr><td>11（報告のみ）</td><td>完全なエントリ0件で単体呼び出しがset -eで落ちる</td><td>||trueを追加しテストケース追加</td></tr>
+      <tr><td>12（報告のみ）</td><td>サマリの結論表現が実データ検証と誤読される</td><td>「合成フィクスチャで確認」へ限定</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>5. 配布gitignore是正</h3>
   <p>install-to-project.shのignore_rules配列へ<code>/usage/</code>を追加した。</p>
   <pre><code>$ bash .claude/scripts/test/test_install_to_project.sh
 passed=24 failures=0   # 既存23ケース＋新規1ケース</code></pre>
 
-  <h3>5. 全体検証</h3>
+  <h3>6. 全体検証</h3>
   <pre><code>$ bash .claude/scripts/src/sync-gemini-assets.sh --check
 .gemini/ は .claude/ と同期しています。
 $ for f in .claude/scripts/test/test_*.sh; do bash "$f"; done
 （全17ファイル、すべて failures=0）</code></pre>
-  <p>ブランチ分岐点SHAからの<code>.claude/</code>差分の削除行を確認し、DDR/spec本文のpoint-in-time記録を破壊する削除が無いことを確認した。</p>
 </section>
 
 <section id="unverified">
@@ -225,8 +251,8 @@ $ for f in .claude/scripts/test/test_*.sh; do bash "$f"; done
   <div class="box warn">
     <span class="label">この結果が言っていないこと</span>
     <ul>
-      <li>実機（Gemini CLI）でのテレメトリ出力を1度も観測していない。属性キー名・レガシー/semantic両形式の実在・境界判定方式が実データと一致するかは未検証（推測に基づく実装）。</li>
-      <li>outfileが長時間・大量に追記され続けた場合の性能特性は測っていない。</li>
+      <li>実機（Gemini CLI）でのテレメトリ出力を1度も観測していない。単体テストは実装と同じ仮定に基づく合成フィクスチャへの検証であり、実データに対する正しさを示すものではない。</li>
+      <li>outfileが長時間・大量に追記され続けた場合の性能特性（cksum・wc -c・tail -c・grepの所要時間）は測っていない。</li>
       <li><code>enabled: false</code>固定のため、有効化した状態でのエンドツーエンドの動作は未検証。</li>
     </ul>
   </div>
@@ -236,16 +262,16 @@ $ for f in .claude/scripts/test/test_*.sh; do bash "$f"; done
   <h2>設計への反映</h2>
   <ol>
     <li>未検証事項（属性名・境界判定方式）は、実機確認が得られ次第specへ反映し、推測である旨の注記を外す。反映が無い場合も未検証のままである旨をフェーズ4でspecに明記する。</li>
-    <li>enabledの有効化手段は本issueのスコープ外の未決定事項としてDDR/specへ記録する。</li>
-    <li>バイトオフセット境界判定方式が実装依存であることをDDRへ記録する。</li>
+    <li>enabledの有効化手段は本issueのスコープ外の未決定事項としてDDR/specへ記録する。現時点で有効化手段が存在しないことも明記する。</li>
+    <li>バイトオフセット境界判定方式・prefixFingerprint方式（cksum）がいずれも実装依存であることをDDRへ記録する。</li>
   </ol>
 </section>
 
 <section id="todo">
   <h2>残課題</h2>
   <ul>
-    <li>flow-id 3-7（commit/push）以降、フェーズ3の作業実施時敵対的レビューを1回実施し、指摘へ対応する。</li>
     <li>実機確認が可能になり次第、確認しフェーズ4へ反映する。</li>
+    <li>outfileの性能特性は、実データが得られる段階で計測を検討する。</li>
   </ul>
 </section>
 

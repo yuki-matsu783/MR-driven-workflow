@@ -280,9 +280,8 @@ build_usage_report_body() {
     fi
 
     # Gemini CLI公式テレメトリ（issue #105、参考値）。既存のトークンテーブル（$usage由来の
-    # tokensByModel）へは合算しない（別経路・別セクションとして表示する。フェーズ2報告5.節、
-    # 受け入れ条件2・3の核心）。呼び出しが1件も無ければ何も出さない（既存の「0件なら出さない」
-    # 規約に従う）。
+    # tokensByModel）へは合算しない（別経路・別セクションとして表示する。受け入れ条件2・3の核心）。
+    # 呼び出しが1件も無ければ何も出さない（既存の「0件なら出さない」規約に従う）。
     if [ -n "$telemetry" ] && [ "$telemetry" != "null" ]; then
       local telemetry_calls
       telemetry_calls="$(printf '%s' "$telemetry" | jq -r '.calls // 0')"
@@ -474,19 +473,35 @@ main() {
   # テレメトリ分の新規バイトが読まれず、未処理バイトが次にengine=geminiでpushした回へ
   # ずれて計上されてしまう）。既存のsync_usage_state呼び出し・state変数とは別の変数で扱い、
   # 既存の集計結果・レポート内容には一切影響しない。
-  local otel_outfile="${repo_root}/usage/gemini-otel.log"
-  local otel_state=""
+  # outfileのパスは `.gemini/settings.json` の `telemetry.outfile` から解決する（直書きしない。
+  # 書き込み側の sync-gemini-assets.sh と2箇所で正がずれる事故を防ぐ。issue #105フェーズ3
+  # 敵対的レビュー指摘）。
+  _usage_otel_resolve_outfile_to_reply "$repo_root"
+  local otel_outfile="$REPLY"
+  local otel_state="" otel_calls="0"
   if [ -f "$otel_outfile" ]; then
     otel_state="$(_sync_usage_state_otel "$repo_root" "$otel_outfile" || true)"
   fi
-
-  if [ -z "$state" ]; then
-    [ -f "$state_file" ] || exit 0
-    state="$(cat "$state_file")"
+  if [ -n "$otel_state" ]; then
+    otel_calls="$(printf '%s' "$otel_state" | jq -r '.sinceLastPush.calls // 0' 2>/dev/null || printf '0')"
   fi
 
-  if [ "$(printf '%s' "$state" | jq 'has("sinceLastPush")')" != "true" ]; then
-    exit 0
+  if [ -z "$state" ]; then
+    if [ -f "$state_file" ]; then
+      state="$(cat "$state_file")"
+    fi
+  fi
+
+  # state（セッションログ由来の集計）が無い/使えない場合でも、テレメトリだけは新規に
+  # 積まれている可能性がある（issue #105。「テレメトリしか無いpush」こそが本命のケース）。
+  # ここで即exitすると、テレメトリのcallsが1件以上あってもレポートされないまま
+  # sinceLastPushへ繰り越され続けてしまう。stateが空/不正なままではこの後のjq呼び出しが
+  # 壊れるため、telemetryにcallsがある場合に限りトークン0の空stateへフォールバックする。
+  if [ -z "$state" ] || [ "$(printf '%s' "$state" | jq 'has("sinceLastPush")')" != "true" ]; then
+    if [ "$otel_calls" = "0" ]; then
+      exit 0
+    fi
+    state='{"sinceLastPush":{"tokensByModel":{},"toolCalls":{},"turns":0,"activeSeconds":0,"skillCalls":[],"agentCalls":[],"askUserQuestions":[]}}'
   fi
   local usage subagent_usage
   usage="$(printf '%s' "$state" | jq -c '.sinceLastPush')"
@@ -513,7 +528,9 @@ main() {
       ([($usage.toolCalls // {})[]] | add // 0) + ($usage.turns // 0)
     ')"
   fi
-  [ "$total" != "0" ] || exit 0
+  # テレメトリ由来のcallsも投稿要否判定に含める（issue #105）。既存のセッションログ由来の
+  # 合計がすべて0でも、テレメトリだけが新規に積まれているpushではレポートを出す必要がある。
+  [ "$total" != "0" ] || [ "$otel_calls" != "0" ] || exit 0
 
   # 表示は「差分0のagentは出力しない」方針（issue #34のユーザー指示）。合計計算後、
   # テーブル描画・稼働時間参考値等の表示処理はすべてこのフィルタ後の値に対して行う。
