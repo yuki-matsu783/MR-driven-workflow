@@ -247,11 +247,35 @@ assert_eq "T6: 2回生成しても差分が出ない" "0" \
   "$(status_of diff -r "$tmp_root/gemini-1" "$scratch/.gemini")"
 assert_eq "T6: 再生成後の --check は0" "0" "$(status_of run_sync --check)"
 
-# --- 古いファイルが残らないこと（.gemini/ は完全な生成物） --------------------
+# --- T13: 生成物に含まれないファイルは、既定では消さずに中断すること ----------
+#
+# 再生成は .gemini/ の丸ごと置き換えなので、配布先が自前で置いたファイル
+# （.gemini/commands/*.toml 等）が黙って消えうる。既定で中断し、--force のときだけ消す。
 printf 'stale\n' > "$scratch/.gemini/stale-file.md"
-run_sync >/dev/null
-assert_eq "main: 生成物に無いファイルは再生成で消える" "0" \
+mkdir -p "$scratch/.gemini/commands"
+printf 'name = "mine"\n' > "$scratch/.gemini/commands/mine.toml"
+
+stale_out="$(run_sync 2>&1 || true)"
+assert_eq "T13: 生成物に含まれないファイルがあれば非0で終わる" "1" "$(status_of run_sync)"
+assert_eq "T13: 中断時に既存ファイルを消さない（stale-file.md）" "1" \
   "$(find "$scratch/.gemini" -name 'stale-file.md' | wc -l | tr -d ' ')"
+assert_eq "T13: 中断時に既存ファイルを消さない（commands/mine.toml）" "1" \
+  "$(find "$scratch/.gemini" -name 'mine.toml' | wc -l | tr -d ' ')"
+assert_eq "T13: エラーメッセージに該当パスが出る" "1" \
+  "$(printf '%s' "$stale_out" | grep -cF -- '.gemini/commands/mine.toml' || true)"
+assert_eq "T13: エラーメッセージが --force を案内する" "1" \
+  "$(printf '%s' "$stale_out" | grep -cF -- '--force' || true)"
+
+# --- T13: --force なら消して再生成すること ------------------------------------
+assert_eq "T13: --force なら0で終わる" "0" "$(status_of run_sync --force)"
+assert_eq "T13: --force は生成物に無いファイルを消す（stale-file.md）" "0" \
+  "$(find "$scratch/.gemini" -name 'stale-file.md' | wc -l | tr -d ' ')"
+assert_eq "T13: --force は生成物に無いファイルを消す（commands/mine.toml）" "0" \
+  "$(find "$scratch/.gemini" -name 'mine.toml' | wc -l | tr -d ' ')"
+
+# --- T13: 孤児が無いときは従来どおり素通りすること（--force 不要） ------------
+assert_eq "T13: 孤児が無ければ --force なしで0で終わる" "0" "$(status_of run_sync)"
+assert_eq "T13: 孤児が無ければ再生成後も --check は0" "0" "$(status_of run_sync --check)"
 
 # --- T3（結合）: 未知のツール名があると .gemini/ を書き換えないこと ------------
 cp "$fixtures/agent-unknown.md.fixture" "$scratch/.claude/agents/unknown-agent.md"

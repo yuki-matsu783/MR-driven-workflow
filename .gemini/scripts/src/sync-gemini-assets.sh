@@ -4,15 +4,20 @@
 #
 # .gemini/ は「手で書く実体」ではなく「.claude/ から機械的に決まる生成物」である。
 # 編集は必ず .claude/ 側に対して行い、このスクリプトを流し直すこと。
-# **.gemini/ 配下へ手で置いたファイルは、再生成時に削除される。**
+#
+# **生成物に含まれないファイルが .gemini/ にあると、既定では書き込まずにエラーで止まる。**
+# 再生成は .gemini/ の丸ごと置き換えなので、そのままでは手で置いたファイルが黙って消える
+# （配布先が自前の .gemini/commands/*.toml や settings.json を持っている場合が該当する）。
+# 消してよいと分かっている場合だけ --force を付ける。
 #
 # 使い方:
-#     bash .claude/scripts/src/sync-gemini-assets.sh [--check] [--dry-run]
+#     bash .claude/scripts/src/sync-gemini-assets.sh [--check] [--dry-run] [--force]
 #
-#     （引数なし） .gemini/ を再生成する
+#     （引数なし） .gemini/ を再生成する（生成物に含まれないファイルがあれば中断する）
 #     --check      生成せず、一時ディレクトリへ生成して .gemini/ と突き合わせる。
 #                  食い違えば非0で終了する（CI・手動確認用。どのhookにも自動では挿さない）
 #     --dry-run    何が変わるかだけを出力する（常に終了コード0）
+#     --force      生成物に含まれないファイルを削除して再生成する（中断しない）
 #
 # 規約: .claude/rules/shell-script-style.md
 #   （set -euo pipefail / jq前提 / ループ内で外部コマンドを呼ばない）
@@ -463,15 +468,33 @@ diff_against_gemini() {
   diff -r -q .gemini "$dst"
 }
 
+# .gemini/ に実在するが $1（生成先）に無いファイルを、1行1件で標準出力へ列挙する。
+#
+# 再生成は .gemini/ の丸ごと置き換えなので、ここに挙がったファイルは書き込みで失われる。
+# 生成物と同名のファイルは上書きされるだけなので対象外である（内容の差は --dry-run が示す）。
+# このリポジトリの .gemini/ は全体が生成物なので通常は0件で、その場合の挙動は従来と変わらない。
+list_gemini_orphans() {
+  local dst="$1" f
+  [ -d .gemini ] || return 0
+  # find は1回だけ起動する（ファイルごとに外部コマンドを呼ばない）。
+  while IFS= read -r -d '' f; do
+    [ -e "$dst/${f#.gemini/}" ] && continue
+    printf '%s\n' "$f"
+  done < <(find .gemini -type f -print0)
+}
+
 main() {
   local mode='write'
+  local force=0
+  local orphan
 
   while [ $# -gt 0 ]; do
     case "$1" in
       --check)   mode='check'; shift ;;
       --dry-run) mode='dry-run'; shift ;;
+      -f|--force) force=1; shift ;;
       -h|--help)
-        sed -n '2,20p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
+        sed -n '2,24p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
         return 0
         ;;
       *)
@@ -515,9 +538,31 @@ main() {
       return 0
       ;;
     write)
+      # 丸ごと置き換える前に、生成物へ含まれないファイルを検出する。**書き込みの前に判定する**
+      # ため、中断したときは1バイトも変更していない（配布先が自前の .gemini/ を持っている場合に
+      # 黙って消さないための歯止め。issue #70 のレビュー指摘）。
+      local -a orphans=()
+      while IFS= read -r orphan; do
+        orphans+=("$orphan")
+      done < <(list_gemini_orphans "$tmp/gemini")
+
+      if [ "${#orphans[@]}" -gt 0 ] && [ "$force" -eq 0 ]; then
+        echo "エラー: .gemini/ に、生成物へ含まれないファイルが ${#orphans[@]} 件あります。" >&2
+        printf '  %s\n' "${orphans[@]}" >&2
+        echo "" >&2
+        echo ".gemini/ は .claude/ からの生成物で、再生成は丸ごとの置き換えです。" >&2
+        echo "上のファイルは再生成で失われます。退避するか、消してよければ --force を付けて" >&2
+        echo "再実行してください（この実行では1バイトも書き込んでいません）。" >&2
+        return 1
+      fi
+
       # .gemini/ は完全な生成物なので、古いファイルを残さないよう丸ごと置き換える。
       rm -rf .gemini
       mv "$tmp/gemini" .gemini
+      if [ "${#orphans[@]}" -gt 0 ]; then
+        echo "--force のため、生成物に含まれない ${#orphans[@]} 件を削除しました。" >&2
+        printf '  %s\n' "${orphans[@]}" >&2
+      fi
       echo ".gemini/ を再生成しました。"
       return 0
       ;;

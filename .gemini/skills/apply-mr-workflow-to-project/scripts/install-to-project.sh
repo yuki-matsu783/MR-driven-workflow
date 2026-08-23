@@ -219,8 +219,27 @@ fi
 # 3-2. Generate .gemini/ from .claude/（issue #70）
 # .gemini/ は配布物ではなく **.claude/ からの変換生成物**である。Go向けルールの取り回し
 # （直前のブロック）が終わってから生成しないと、消したはずのファイルが .gemini/ 側に残る。
+#
+# 生成は .gemini/ の丸ごと置き換えなので、**配布先が自前で持っていた .gemini/ を壊しうる**
+# （このスクリプトが safe_copy_file で守っている契約の外側にある）。そのため:
+#   - --force が指定されていれば、そのまま生成器へ渡して上書きさせる（safe_copy_file と同じ扱い）
+#   - 指定が無ければ、生成器は「生成物に含まれないファイル」を見つけた時点で1バイトも書かずに
+#     中断する。ここではその失敗でインストール全体を止めず、**警告して続ける**。
+#     .gemini/ が無いこと以外のインストールは完了しており、中途半端な状態で止めるほうが害が
+#     大きいためである（後から生成器を単体で流せば復旧できる）。
 echo "Generating .gemini/ from .claude/ ..."
-( cd "${DEST_DIR}" && bash ".claude/scripts/src/sync-gemini-assets.sh" )
+GEMINI_SYNC_ARGS=()
+if [ "${FORCE}" = true ]; then
+  GEMINI_SYNC_ARGS+=("--force")
+fi
+GEMINI_GENERATED=true
+if ! ( cd "${DEST_DIR}" && bash ".claude/scripts/src/sync-gemini-assets.sh" "${GEMINI_SYNC_ARGS[@]+"${GEMINI_SYNC_ARGS[@]}"}" ); then
+  GEMINI_GENERATED=false
+  echo "⚠️  Warning: .gemini/ was NOT generated (see the error above). Nothing was deleted."
+  echo "   Everything else was installed. To generate it later, run from the repository root:"
+  echo "     bash .claude/scripts/src/sync-gemini-assets.sh"
+  echo "   Add --force if you want the listed files replaced by the generated ones."
+fi
 
 # 4. Update destination .gitignore
 echo "Updating .gitignore..."
@@ -324,6 +343,14 @@ fi
 echo "=== Setup Completed Successfully! ==="
 echo "The mr-driven-develop workflow assets have been applied to your repository."
 echo ""
+
+if [ "${GEMINI_GENERATED}" = false ]; then
+  echo "⚠️  ATTENTION: .gemini/ was not generated because your repository already has"
+  echo "   files under .gemini/ that the generator would remove. Nothing was deleted."
+  echo "   Run 'bash .claude/scripts/src/sync-gemini-assets.sh' after moving them aside,"
+  echo "   or re-run with --force to let the generated files win."
+  echo ""
+fi
 
 if [ "${HAS_WARNED}" = true ]; then
   echo "⚠️  ATTENTION: Some existing files differed from the template."
