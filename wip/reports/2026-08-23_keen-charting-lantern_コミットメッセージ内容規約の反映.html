@@ -1,5 +1,5 @@
 <!--
-  issue #185 フェーズ3の作業結果（flow-id 3-6）の人間レビュー用HTMLビュー。正文は同名の .md。
+  issue #185 フェーズ4〈反映〉の実施結果（flow-id 4-6）の人間レビュー用HTMLビュー。正文は同名の .md。
 -->
 <!DOCTYPE html>
 <html lang="ja">
@@ -135,7 +135,7 @@
       <tr><td><b><code>.claude/VERSION</code></b></td><td><b><code>0.3.0</code> のまま据え置いた</b>（提案は <code>0.4.0</code>。<b>計画からの変更</b>）</td></tr>
       <tr><td>参照整理</td><td><code>git-workflow.md</code> / <code>resolve-conflict/SKILL.md</code> / <code>issue-mr-flow/SKILL.md</code> の3件</td></tr>
       <tr><td>副産物の反映</td><td>(c) 追記8件・(d) 導線3件を4ファイルへ</td></tr>
-      <tr><td>参照切れ</td><td><b>0件</b>（<code>check-doc-references.sh</code> exit=0）</td></tr>
+      <tr><td>参照切れ</td><td><b>0件</b>（<code>check-doc-references.sh</code> exit=0）。<b>ただし一度1件出した</b>（下記「敵対的レビュー6回目で直した点」）</td></tr>
     </tbody>
   </table>
   </div>
@@ -194,20 +194,20 @@
     <thead><tr><th>ファイル</th><th>位置</th><th>効果</th></tr></thead>
     <tbody>
       <tr><td><code>git-workflow.md</code></td><td><code>## コミット運用</code> の箇条書き<b>先頭</b>（同じ階層の1項目として）</td><td>内容の正が新設節であることを明示</td></tr>
-      <tr><td><code>resolve-conflict/SKILL.md</code></td><td>「何を」「どう」解消の段落の<b>実例2件の後ろ</b></td><td>本節はコンフリクト解消に限った具体化だと位置づけ</td></tr>
+      <tr><td><code>resolve-conflict/SKILL.md</code></td><td><b>Step 6 の末尾</b>（当初は実例2件の直後に置いたが、「その後 push する」の係り先を変えていたため移動）</td><td>本節はコンフリクト解消に限った具体化だと位置づけ</td></tr>
       <tr><td><code>issue-mr-flow/SKILL.md</code></td><td>「コミットメッセージへ必ず残す」の項の<b>末尾</b></td><td>「件数だけ」で終わる件名は不合格であることを補足</td></tr>
     </tbody>
   </table>
   </div>
-  <p><b>いずれも係り先を壊していない。</b> <code>resolve-conflict</code> は実例の<b>前ではなく後ろ</b>へ置いた（間に挟むと実例が新しい段落の続きに読める）。</p>
+  <p><b><code>resolve-conflict</code> だけは係り先を壊していた。</b> 実例の後ろへ置けば安全だと考えていたが、壊れうるのは実例との関係ではなく<b>直後の「その後 push する」の係り先</b>だった（敵対的レビュー6回目の指摘）。Step 6 の末尾へ移した。</p>
 
   <h3>4. 副産物の反映（<code>【AIアセット反映】</code>）</h3>
   <div class="tablewrap">
   <table>
     <thead><tr><th>反映先</th><th>件数</th><th>内容</th></tr></thead>
     <tbody>
-      <tr><td><code>shell-script-style.md</code></td><td>3件</td><td>A2 <code>awk length()</code> はバイト／A4 <code>--</code> を前へ置きすぎるとオプションが無効／<b>A5（導線）</b> ヒアドキュメントのクォート忘れの<b>失敗の現れ方</b>（ハング・無関係なエラー）を既存記述へ</td></tr>
-      <tr><td><code>.claude/REVIEW-POINTS.md</code></td><td>4件</td><td><code>### 判定基準・規約そのものを書くとき（issue #185）</code> を新設</td></tr>
+      <tr><td><code>shell-script-style.md</code></td><td>3件</td><td>A2 <code>awk length()</code> はバイト（<b>実装・ロケール依存であることを後から追記</b>）／A4 <code>--</code> を前へ置きすぎるとオプションが無効（<b>推奨形を <code>-e</code> へ統一</b>）／<b>A5（導線）</b> ヒアドキュメントのクォート忘れの<b>失敗の現れ方</b>を既存記述へ（<b>展開対象を <code>$VAR</code>・<code>$(...)</code>・行末バックスラッシュまで列挙</b>）</td></tr>
+      <tr><td><code>.claude/REVIEW-POINTS.md</code></td><td><b>5件</b></td><td><code>### 判定基準・規約そのものを書くとき（issue #185）</code> を新設。計画では4件（B1・B2・B4・C1）だったが、<b>禁止は対象でなく目的で書く</b>を加えて5件。ルート側と重複していた「範囲を数える手順」は落とした</td></tr>
       <tr><td><code>wip/reports/REVIEW-POINTS.md</code></td><td>2件</td><td>A1 否定形の結論は前処理を疑う／A3 件数の根拠は実行コマンドをそのまま貼る</td></tr>
       <tr><td>ルート <code>REVIEW-POINTS.md</code></td><td>2件（<b>導線</b>）</td><td>B3 を「集約するときだけの話ではない」として既存項目へ／B5 を「作った成果物を検証基準へ通し直す」として既存項目へ</td></tr>
     </tbody>
@@ -237,7 +237,7 @@
       <tr><td>11</td><td><code>issue-mr-flow</code> の参照</td><td>1</td><td><span class="tag ok">合格</span></td></tr>
       <tr><td>12</td><td><code>.claude/VERSION</code></td><td><code>0.3.0</code>（据え置き）</td><td><span class="tag ok">合格</span> 検証7が理由を含む</td></tr>
       <tr><td>13</td><td>DDR一覧</td><td>1</td><td><span class="tag ok">合格</span></td></tr>
-      <tr><td>14</td><td>参照切れ</td><td>exit=0</td><td><span class="tag ok">合格</span></td></tr>
+      <tr><td>14</td><td>参照切れ</td><td>exit=0</td><td><span class="tag ok">合格</span>（一度やり直した）</td></tr>
       <tr><td>15</td><td>usecaseの判断の記録</td><td>1</td><td><span class="tag ok">合格</span></td></tr>
     </tbody>
   </table>
@@ -264,9 +264,37 @@
   <h2>想定と異なった点</h2>
   <ul>
     <li><b>VERSIONの規則を「読み直す」だけでは足りなかった。</b> 計画段階で <code>## 仕様</code> は読んでいたが、同じファイルの <code>## 影響範囲</code> に、仕様の解釈を狭める人間の判断が<b>同日付で</b>入っていた。<b>仕様節だけを読んで判断すると、その後に積まれた個別の判断を見落とす。</b></li>
-    <li><b>参照切れ検査が、計画に書いた検証コマンドのglobを参照として拾った。</b> <code>check-doc-references.sh</code> は絶対パス形式の記述を拾うため、<b>計画・レポートの中に書いた <code>ls &lt;パス&gt;</code> のような例示も対象になる</b>。<code>grep -c</code> の形へ直して0件へ戻した。</li>
+    <li><b>参照切れ検査が、計画に書いた検証コマンドのglobを参照として拾った。</b> <code>check-doc-references.sh</code> は絶対パス形式の記述を拾うため、<b>計画・レポート・worklogの中に書いた <code>ls &lt;パス&gt;</code> のような例示も対象になる</b>。<code>grep -c</code> の形へ直して0件へ戻した——<b>が、このとき直したのは計画側だけで、後から書いた worklog に同じ形が残っていた</b>（下記「敵対的レビュー6回目で直した点」#7）。</li>
     <li><b>gitのコミットコマンドの <code>-m</code> という文字列を含むファイルを、ヒアドキュメント経由で作ろうとして hook にブロックされた。</b> 判定はコマンド位置ベースだが、<b>この規模のコマンド文字列では部分一致へ縮退した</b>（<code>git-workflow.md</code> の既知のトレードオフ）。<b>Writeツールで書き、文面も言い換えた。</b></li>
   </ul>
+</section>
+
+<section id="review6">
+  <h2>敵対的レビュー6回目で直した点（flow-id 4-9）</h2>
+  <p>フェーズ4の反映結果に対する敵対的レビューで <b>findings 15件</b>（投稿12件・報告のみ3件）が出た。<b>12件すべてに対応した</b>（報告のみの3件も、いずれも安価かつ正しい指摘だったため直した）。</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>#</th><th>対象</th><th>何が間違っていたか</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td><code>shell-script-style.md</code></td><td><b><code>wc -m</code> の「3（文字）」が、同じブロックのawkと別のロケール前提だった。</b> ロケール未設定のこの環境では <code>wc -m</code> も <b>9</b> を返す。「文字数だと思って読む」というこの節が防ごうとしている誤りを、代替手段のほうで再生産していた。ロケール別の実測表へ差し替え、<b>環境非依存なのは <code>perl -CSD</code> だけ</b>と明示</td></tr>
+      <tr><td>2</td><td>同上</td><td><b><code>awk length()</code> がバイトを返すのは実装依存</b>（この環境は mawk 1.3.4）。gawkは文字数を返し、git bash同梱のawkはgawk系。測定環境の明記が、この追記だけ落ちていた</td></tr>
+      <tr><td>3</td><td>同上</td><td><b>「0件ヒットとして現れる」が事実と逆。</b> <code>--include</code> が <code>--</code> の後ろに来ると、フィルタが効かないまま<b>全件走査</b>になる（stderrにエラーは出るが結果は返る）。issue #185 で実際に踏んだのも「件数が偶然一致して検証を素通り」だった</td></tr>
+      <tr><td>4</td><td>同上</td><td>ハイフン始まりパターンの推奨形が <code>--</code>（issue #97）と <code>-e</code>（issue #185）で<b>同一節に2つ並んでいた</b>。<code>-e</code> を正として既存の良い例も揃えた</td></tr>
+      <tr><td>5</td><td>同上</td><td>ヒアドキュメントのクォート忘れで展開されるのは<b>バックティックだけではない</b>（<code>$VAR</code>・<code>$(...)</code>・行末バックスラッシュ）。<code>$VAR</code> は<b>静かに欠落する</b>ため現れ方が違う</td></tr>
+      <tr><td>6</td><td><code>.claude/REVIEW-POINTS.md</code></td><td>ルート側と<b>同じ教訓が2回出る</b>状態だった</td></tr>
+      <tr><td>7</td><td><b>本レポート</b></td><td><b>「参照切れ0件」が現ツリーで成立していなかった。</b> 同じコミットで追加した worklog（push11）に glob 形式のパスが残っており、<code>check-doc-references.sh</code> は <b>exit=1</b>（1件）だった。<b>検証を回した後に書いたファイルは検証を通っていない</b></td></tr>
+      <tr><td>8</td><td>DDR <code>i0185-01</code></td><td><b>「本文は <code>main</code> に残る」の前提が無条件に書かれていた。</b> 実際はGitHubかつsquashメッセージ設定が既定の場合に限る（GitLabは既定でMRタイトルのみ）。<b>本機構は両対応として配布される</b>ため、前提が成り立つ範囲の節を追加</td></tr>
+      <tr><td>9</td><td>同上</td><td>本文を変更しない運用のDDRに<b>行番号付き参照</b>が2件あった。移動しても追える識別子へ変えた</td></tr>
+      <tr><td>10</td><td><code>create-commit.md</code></td><td>本文を許容したのに、<b>長い本文の渡し口が <code>--message</code> の argv 一択</b>である点が記録されていなかった。制約と回避策を影響範囲へ、<code>--message-file</code> の要否を未決定事項へ</td></tr>
+      <tr><td>11</td><td><code>distribution-assets.md</code></td><td>VERSION更新権限の解釈が<b>changelogに両論併記のまま</b>で、次回も同じ迷いが再発する形だった。判断材料を<b>未決定事項1項目へ集約</b>し、<code>## 仕様</code> からそこを指す1行を入れた</td></tr>
+      <tr><td>12</td><td><code>git-workflow.md</code></td><td>「本ファイルはブランチ運用とhook誤検知だけを扱う」が<b>同じ節の内容と食い違っていた</b>。除外対象を「メッセージの内容」だけに限定</td></tr>
+      <tr><td>13</td><td><code>resolve-conflict/SKILL.md</code></td><td>追記が「実例2件 → <b>その後</b> push」の間に入り、<b>「その後」の係り先</b>を変えていた。Step 6 の末尾へ移した</td></tr>
+      <tr><td>14</td><td>反映レポートHTML</td><td>冒頭のHTMLコメントが<b>フェーズ3のまま</b>（flow-id 3-6）だった</td></tr>
+      <tr><td>15</td><td><code>【設計反映】</code> 計画</td><td>検証表のセルに<b>エスケープしていないパイプ文字</b>が入り、md側だけ列がずれていた（HTML側は <code>&lt;code&gt;</code> なので崩れず、<b>mdとHTMLで見え方が食い違っていた</b>）</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p><b>#7 から出た手順上の教訓</b>: 参照切れ検査は <code>wip/worklogs/</code> も走査する。<b>検査は「反映が終わったあと」ではなく、そのコミットに入る全ファイルを書き終えたあとに回す。</b></p>
 </section>
 
 <section id="todo">
@@ -274,7 +302,7 @@
   <ul>
     <li><b><code>commit/SKILL.md</code> の <code>## 備考</code> 以下（孤立ブロック）は触っていない。</b> 別issueへの切り出しを提案する方針を維持している。</li>
     <li><b><code>.gemini/</code> は未同期。</b> flow-id 5-3 で反映する。<b>期待値を固定値で持たない</b>（フェーズ3で書いた 42/30 は失効）。<b><code>.gemini/</code> 側の件数が <code>.claude/</code> 側と一致すること</b>で判定する。</li>
-    <li><b><code>.claude/VERSION</code> の増分は人間の判断待ち。</b> 上げる場合は <code>0.4.0</code>（MINOR）。</li>
+    <li><b><code>.claude/VERSION</code> の増分は人間の判断待ち。</b> 上げる場合は <code>0.4.0</code>（MINOR）。判断材料は <code>distribution-assets.md</code>「未決定事項・懸念点」の該当項目1箇所に集約した（changelogを読み解いて導き直さないため）。</li>
   </ul>
 </section>
 

@@ -17,8 +17,8 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - issue: #185
 - ブランチ: `claude/improve-commit-log-format-9mjlid`
 - PR: #192（https://github.com/yuki-matsu783/MR-driven-workflow/pull/192 ）（Draft）
-- push回数: 11
-- 現在のループ: 4-3〜4-4 の1周目（完了）
+- push回数: 12
+- 現在のループ: 4-6〜4-9 の1周目（完了）
 - 未返信スレッド: 0
 - 追従監視: あり（`subscribe_pr_activity` でPR #192 を購読中。セッション終了で切れるため、次セッションは `resume` で取り直す）
 
@@ -51,14 +51,14 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 | [x] | 3-9 | レビュー内容を取得し、実装・ドキュメントを修正する | `comments` / `reply` |
 | [x] | 3-10 | 作業内容をもとにMR descriptionを更新する | `describe` |
 | [x] | 4-1 | 作業結果と`wip/plans/` `wip/worklogs/` の内容をもとに、個別反映計画`wip/plans/【設計反映】【AIアセット反映】【実装反映】〜.md`等をplanツールを使わずWrite/Editで作成する | エージェント |
-| [] | 4-2 | `commit`スキル経由でcommitし、push してレビュー依頼を行う | エージェント |
+| [x] | 4-2 | `commit`スキル経由でcommitし、push してレビュー依頼を行う | エージェント |
 | [x] | 4-3 | MRで反映計画についてレビュー・コメントする | 人間 |
 | [x] | 4-4 | レビュー内容を取得し、反映計画を修正する | `comments` / `reply` |
 | [] | 4-5 | 反映計画をもとにMR descriptionを更新する | `describe` |
-| [] | 4-6 | 反映計画をもとに作業を進める | エージェント |
-| [] | 4-7 | `commit`スキル経由でcommitし、push してレビュー依頼を行う | エージェント |
-| [] | 4-8 | MRでレビュー・コメントする | 人間 |
-| [] | 4-9 | レビュー内容を取得し、設計・AIアセットの内容を修正する | `comments` / `reply` |
+| [x] | 4-6 | 反映計画をもとに作業を進める | エージェント |
+| [x] | 4-7 | `commit`スキル経由でcommitし、push してレビュー依頼を行う | エージェント |
+| [x] | 4-8 | MRでレビュー・コメントする | 人間 |
+| [x] | 4-9 | レビュー内容を取得し、設計・AIアセットの内容を修正する | `comments` / `reply` |
 | [] | 4-10 | 反映内容をもとにMR descriptionを更新する | `describe` |
 | [] | 5-1 | defaultブランチとのコンフリクトを検知し、あれば解消する | エージェント |
 | [] | 5-2 | 今回のMRが影響する関連issueを特定し、承認を得てから当該issueへ通知する | エージェント |
@@ -207,21 +207,50 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
   - **参照整理3件**（`git-workflow.md` / `resolve-conflict/SKILL.md` / `issue-mr-flow/SKILL.md`）。
     決定Cで決めた文面・挿入位置どおりで、係り先は壊していない。
   - **副産物11件を反映**（(c) 追記8件・(d) 導線3件）。反映先は `shell-script-style.md` 3件 ／
-    `.claude/REVIEW-POINTS.md` 4件（`### 判定基準・規約そのものを書くとき` を新設）／
+    `.claude/REVIEW-POINTS.md` **5件**（`### 判定基準・規約そのものを書くとき` を新設。計画では
+    4件だったが、レビュー6回目でルート側との重複を整理した結果5件になった）／
     `wip/reports/REVIEW-POINTS.md` 2件 ／ ルート `REVIEW-POINTS.md` 2件（既存項目へ追記）。
   - **`.claude/VERSION` は計画から変えて据え置いた**（詳細は「判断を迷った内容」）。
   - `check-doc-references.sh` は **exit=0**（参照切れ0件）。途中1件出たが、実体は計画に書いた
-    検証コマンドのglob（`i0185-01-*.md`）で、`grep -c` の形へ直して解消した。
+    検証コマンドのglobで、`grep -c` の形へ直して解消した。**ただし、このとき直したのは計画側だけで、
+    検証を回した後に書いた worklog（push11）に同じ形が残っていた**（レビュー6回目 #7 で発覚。下記）。
   - 反映結果は `wip/reports/2026-08-23_keen-charting-lantern_コミットメッセージ内容規約の反映.md`
     と同名の `.html` へ記録した。
+- **敵対的レビュー（フェーズ4・2回目、通算6回目）**: 対象はフェーズ4の反映結果。findings **15件**
+  （投稿12件・報告のみ3件）。実施回数は `adversarial-review-count.sh increment 4` で **2/3**。
+  **報告のみの3件も含め、15件すべてに対応した。**
+  投稿したスレッド（すべて返信済み）:
+  - https://github.com/yuki-matsu783/MR-driven-workflow/pull/192#discussion_r3839450129 （`wc -m` の「3」がawkと別のロケール前提）
+  - https://github.com/yuki-matsu783/MR-driven-workflow/pull/192#discussion_r3839450504 （`awk length()` がバイトなのは実装依存・測定環境が無い）
+  - https://github.com/yuki-matsu783/MR-driven-workflow/pull/192#discussion_r3839451015 （「0件ヒット」が事実と逆）
+  - https://github.com/yuki-matsu783/MR-driven-workflow/pull/192#discussion_r3839451572 （観点表がルート側と重複）
+  - https://github.com/yuki-matsu783/MR-driven-workflow/pull/192#discussion_r3839452054 （「参照切れ0件」が現ツリーで成立しない）
+  - https://github.com/yuki-matsu783/MR-driven-workflow/pull/192#discussion_r3839452492 （squashの前提がGitHub・設定依存）
+  - https://github.com/yuki-matsu783/MR-driven-workflow/pull/192#discussion_r3839452862 （長い本文の渡し口が argv 一択）
+  - https://github.com/yuki-matsu783/MR-driven-workflow/pull/192#discussion_r3839453307 （VERSION解釈が両論併記のまま）
+  - https://github.com/yuki-matsu783/MR-driven-workflow/pull/192#discussion_r3839453758 （守備範囲の宣言が節の内容と食い違う）
+  - https://github.com/yuki-matsu783/MR-driven-workflow/pull/192#discussion_r3839454086 （DDRに行番号付き参照）
+  - https://github.com/yuki-matsu783/MR-driven-workflow/pull/192#discussion_r3839454500 （レポートHTMLの冒頭コメントがフェーズ3のまま）
+  - https://github.com/yuki-matsu783/MR-driven-workflow/pull/192#discussion_r3839454943 （表のセルにエスケープしていないパイプ）
+- flow-id 4-9: 上記15件すべてを修正し、12スレッドに返信した。**未返信スレッドは0**。
+  主な修正は (1) `wc -m`/`awk` をロケール別の実測表へ差し替え `perl -CSD` を環境非依存の手段として明示、
+  (2) `grep` のハイフン始まりパターンの推奨形を `-e` へ統一、(3) 観点表の重複を解消、
+  (4) worklogのglobを直して参照切れを **exit=0** へ戻した、(5) DDRへ `### この前提が成り立つ範囲`
+  （GitHub/squash設定/GitLab）を追加し行番号参照を識別子へ、(6) `--message-file` の要否を
+  `create-commit.md` の未決定事項へ起こした、(7) VERSION解釈の判断材料を
+  `distribution-assets.md`「未決定事項・懸念点」1箇所へ集約した。
 
 ## 次にやること
 
-- flow-id 4-7: commit・push する。
-- 続けて敵対的レビュー6回目（フェーズ4の反映実施に対して。実施回数 1/3）を実施し、指摘へ対応・返信する（4-9）。
+- flow-id 4-7: commit・push する。**pushの直前に `check-doc-references.sh` を回し直す**
+  （untrackedのファイルは走査対象に入らないため、コミット後でないと新規worklogを検査できない。
+  レビュー6回目 #7 の教訓）。
 - flow-id 4-10: MR descriptionを更新する。
+- フェーズ5: 5-1 コンフリクト確認 → 5-2 マージ前の関連issue通知（**投稿前に `AskUserQuestion`
+  での承認が必須**）→ 5-3 `.gemini/` 同期 → 5-4 統括レポート → 5-5 片付け → 5-6 Draft解除。
 - flow-id 5-3: `.gemini/` の同期は**固定値 42/30 で判定しない**（DDRが「1行のみ」「フッター」を
   含むため期待値が失効する）。**`.gemini/` 側の件数が `.claude/` 側と一致すること**で判定する。
+- **flow-id 5-7（マージ）は行わない。** 人間の担当であり、明示指示があるまで着手しない。
 
 ## 判断を迷った内容
 

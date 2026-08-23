@@ -379,14 +379,15 @@ bash .claude/scripts/src/create-commit.sh --message "chore: <base>をマージ�
 - `chore: mainをマージしDDR番号を0028へ繰り下げてissue #45の変更と統合`
 - `chore: mainをマージしDDR番号を0026へ繰り下げてindex.jsonl生成物化との競合を解消`
 
-本節はコンフリクト解消コミットに限った具体化である。件名の要素・本文・フッターの一般規則は
-`.claude/skills/commit/SKILL.md`「コミットメッセージの内容規約」が正（issue #185）。
-
 その後 `git push -u origin <branch>` でリモートへ反映する。
 
 **監視モード（issue #88）でも、この Step は一切変えない。** 承認を省略できるのは Step 2 だけで
 あり、コミットは `commit` スキル経由、メッセージは「何を」「どう」解消したかを書く、という規約は
 同じである（例: `chore: mainをマージしDDR番号を0039へ繰り下げてissue #88の変更と統合`）。
+
+本 Step のメッセージ規約は、**コンフリクト解消コミットに限った具体化**である。件名の要素・本文・
+フッターの一般規則は `.claude/skills/commit/SKILL.md`「コミットメッセージの内容規約」が正
+（issue #185）。
 
 ### Step 7: 報告
 

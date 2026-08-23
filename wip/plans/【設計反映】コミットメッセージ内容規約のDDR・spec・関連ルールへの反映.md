@@ -120,7 +120,7 @@ keywords: [反映計画, DDR, i0185-01, create-commit, distribution-assets, git-
 
 | # | 対象 | 検証コマンド | 合格条件 |
 |---|---|---|---|
-| 1 | #1 DDRの識別子 | `ls .claude/docs/ddr/ | grep -c "^i0185-01-"`／`grep -c '^title: i0185-01\. ' <DDR>`／`grep -c '^# i0185-01\. ' <DDR>` | 3つとも1 |
+| 1 | #1 DDRの識別子 | `ls .claude/docs/ddr/ \| grep -c "^i0185-01-"`／`grep -c '^title: i0185-01\. ' <DDR>`／`grep -c '^# i0185-01\. ' <DDR>` | 3つとも1 |
 | 2 | 決定A #3〜#5 | `grep -c '却下' <DDR>` | 3以上 |
 | 3 | 決定A #6 | `grep -c '二面の材料' <DDR>` | 1以上 |
 | 4 | 決定A #7 | `grep -c 'test_usage_tracking' <DDR>` | 1以上 |
