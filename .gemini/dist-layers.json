@@ -9,6 +9,8 @@
       "note": "hooksは本家所有（全置換）、permissions.denyは和集合。plansDirectory等は配布先所有" },
     { "layer": "exclude", "path": ".claude/skills/apply-mr-workflow-to-project",
       "note": "配ると配布先が本家として再配布でき、版の系譜が分岐する" },
+    { "layer": "exclude", "path": ".claude/skills/harvest-from-projects",
+      "note": "収穫（逆輸入）スキルは本家専用。配ると配布先が配布先自身を収穫する誤用と、本家と配布先の役割の分岐を招く（issue #27）" },
 
     { "layer": "exclude", "path": ".gemini",
       "note": "issue #70で.claude/からの変換生成物になった。配布先の.claude/から作らないと食い違うため配らず、install-to-project.shが配布先でsync-gemini-assets.shを実行して生成する" },

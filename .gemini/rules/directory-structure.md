@@ -33,7 +33,8 @@ keywords: [ディレクトリ構成, claude, gemini, 配置方針, plans, worklo
 │   │   │   ├── check-dist-coverage.sh  # 層分け定義の網羅性検査（追跡ファイル全件が分母。issue #26）
 │   │   │   └── vcs/            # GitHub/GitLabの差異を吸収するVCS抽象化層（Provider.sh）
 │   │   └── test/               # 副作用の無い純粋ロジックの単体テスト（`test_<対象>.sh`）。
-│   │                            #   `passed=N failures=N`を出力し失敗時は終了コード1
+│   │                            #   `.claude/scripts/src/` と `.claude/skills/*/scripts/` 配下の
+│   │                            #   スクリプトが対象。`passed=N failures=N`を出力し失敗時は終了コード1
 │   │                            #   （詳細: `.claude/rules/shell-script-style.md`「テスト」）
 │   ├── hooks/                  # SessionStart/PostToolUse等のClaude Code hookスクリプト
 │   │   ├── lib/                # 複数hookスクリプトで使い回す共通ロジック
@@ -127,7 +128,8 @@ issue #97。ブランチ別に持つと、同じセッションのままブラ�
   （唯一の実装フロー定義）に従う。詳細は `AGENTS.md` を参照。
 - **AIエージェントが`.claude/skills/*`経由で能動的に実行するスクリプト**は `.claude/scripts/`
   配下に置く。`.claude/scripts/src/` にスクリプト本体、`.claude/scripts/test/` に
-  その単体テスト、`.claude/scripts/docs/` ではなく
+  その単体テスト（スキルのバンドルスクリプト `.claude/skills/*/scripts/` 配下の単体テストも
+  ここへ置く）、`.claude/scripts/docs/` ではなく
   `.claude/docs/` に関連ドキュメント（`spec/`・`ddr/`）を置く（このリポジトリは移植元と異なり
   アプリ本体を持たないため、`dev-tools/` 等の人間専用ツール置き場との分離は行っていない。将来
   アプリ本体を追加する場合は、そのアプリ専用の `docs/spec/` `docs/ddr/`（または人間専用ツール用の
@@ -136,7 +138,7 @@ issue #97。ブランチ別に持つと、同じセッションのままブラ�
   スクリプト・設計書は`.claude/`の外に置かない。
 - **`.claude/hooks/`配下の常駐プロセス（`otel/`等）の単体テストは、`.claude/scripts/test/`ではなく
   そのプロセス自身の配下（例: `.claude/hooks/otel/test/`）に置く**。`.claude/scripts/test/`は
-  上記のとおり「`.claude/scripts/src/`配下スクリプトの単体テスト」専用であり、Claude Codeの
+  上記のとおり「`.claude/scripts/src/` および `.claude/skills/*/scripts/` 配下スクリプトの単体テスト」専用であり、Claude Codeの
   hookから自動起動される常駐プロセスはこれに当たらない。テスト形式（TAP出力か
   `passed=N failures=N`出力か等）は実装言語の慣習に合わせてよく、`.claude/scripts/test/`の
   規約（`passed=N failures=N`）へ揃える必要はない。

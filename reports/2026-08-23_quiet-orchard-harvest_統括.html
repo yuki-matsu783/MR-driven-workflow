@@ -1,0 +1,135 @@
+<!--
+  最終統括レポート「収穫（逆輸入）スキルの新設」（issue #27 / PR #189）の人間レビュー用HTMLビュー。
+  正文は同名の .md（このHTMLはその視覚化。両者は同期させる）。
+-->
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>統括: 収穫（逆輸入）スキルの新設 — issue #27</title>
+<style>
+  :root {
+    --bg: #f6f7f9;      --panel: #ffffff;   --ink: #1a1d21;     --muted: #5b636d;
+    --line: #dfe3e8;    --accent: #2563eb;  --accent-soft: #eaf0fe;
+    --ok: #1a7f4b;      --ok-soft: #e6f4ec; --warn: #a35a00;    --warn-soft: #fdf1e0;
+    --stop: #b3261e;    --stop-soft: #fdecea; --code-bg: #f0f2f5;
+    --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1216;    --panel: #161a20;   --ink: #e6e8eb;     --muted: #9aa3ad;
+      --line: #2a3038;  --accent: #7aa2f7;  --accent-soft: #1b2333;
+      --ok: #6ee7a8;    --ok-soft: #14261d; --warn: #f0b866;    --warn-soft: #2a2113;
+      --stop: #f2857c;  --stop-soft: #2b1614; --code-bg: #1d222a;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", system-ui, sans-serif;
+    line-height: 1.8; font-size: 15px; }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 20px 80px; }
+  header.band { background: linear-gradient(135deg, var(--accent-soft), var(--panel));
+    border-bottom: 1px solid var(--line); padding: 28px 20px 22px; margin-bottom: 28px; }
+  header.band .inner { max-width: 1080px; margin: 0 auto; }
+  header.band .kind { font-size: 11px; letter-spacing: .18em; color: var(--accent); font-weight: 700; }
+  header.band h1 { margin: 6px 0 4px; font-size: 26px; line-height: 1.4; }
+  header.band .lead { margin: 0; color: var(--muted); }
+  .meta { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; padding: 0; list-style: none; }
+  .meta li { background: var(--panel); border: 1px solid var(--line); border-radius: 999px;
+    padding: 3px 12px; font-size: 12.5px; color: var(--muted); white-space: nowrap; }
+  .meta li b { color: var(--ink); font-weight: 600; }
+  a { color: var(--accent); }
+  section { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 8px 24px 22px; margin-bottom: 22px; }
+  h2 { font-size: 20px; margin: 20px 0 10px; padding-bottom: 8px; border-bottom: 2px solid var(--line); }
+  p { margin: 10px 0; }
+  ul, ol { padding-left: 22px; }
+  li { margin: 4px 0; }
+  code { background: var(--code-bg); border-radius: 5px; padding: 1px 5px; font-size: 13px;
+    font-family: "SFMono-Regular", Consolas, "Noto Sans Mono", monospace; }
+  .pill { display: inline-block; border-radius: 999px; padding: 1px 10px; font-size: 12px; font-weight: 700; }
+  .pill.ok { background: var(--ok-soft); color: var(--ok); }
+  .box { border-left: 4px solid var(--accent); background: var(--accent-soft);
+    border-radius: 0 var(--radius) var(--radius) 0; padding: 12px 16px; margin: 16px 0; }
+  .box > :first-child { margin-top: 0; } .box > :last-child { margin-bottom: 0; }
+  .box.warn { border-color: var(--warn); background: var(--warn-soft); }
+  footer { color: var(--muted); font-size: 13px; text-align: center; padding-top: 10px; }
+</style>
+</head>
+<body>
+
+<header class="band">
+  <div class="inner">
+    <div class="kind">最終統括レポート / フェーズ5（flow-id 5-4）</div>
+    <h1>収穫（逆輸入）スキルの新設 — issue #27 / PR #189</h1>
+    <p class="lead">配布（apply-mr-workflow-to-project）の対向として、配布先の改善を本家へ還流する収穫スキルを新設。読み取り専用の分析＋人間の選択＋issue起票への接続で、双方向の還流プロセスが完成した。あわせて errexit の実測に基づき shell-script-style「エラー方針」を訂正した。</p>
+    <ul class="meta">
+      <li><b>issue</b> #27</li>
+      <li><b>PR</b> #189</li>
+      <li><b>テスト</b> <span class="pill ok">passed=91 failures=0</span></li>
+      <li><b>敵対的レビュー</b> 6回・指摘86件反映</li>
+      <li><b>VERSION</b> 0.3.0 → 0.4.0</li>
+      <li><b>正文</b> 同名の .md</li>
+    </ul>
+  </div>
+</header>
+
+<div class="wrap">
+
+<section id="what">
+  <h2>何を変えたか</h2>
+  <ul>
+    <li><b>収穫スキル <code>harvest-from-projects</code> を新設</b>（本家専用・exclude 層）。配布先の manifest を読み、変更・追加・削除・上流削除を層解決付きで分類し、衝突有無を読み取り専用で分析（scan / diff / merge3）。出口は issue 起票まで——本家の正史はスキルからは変更しない。</li>
+    <li><b>配布先での機構DDRの扱いを明文化</b>（markdown-frontmatter.md）: 配布先では機構DDRを書かず本家へ起票。収穫がその差分を回収する経路になる。</li>
+    <li><b>正史の新設・更新</b>: spec・DDR 2本・usecase・README・directory-structure.md・index.md。</li>
+    <li><b>shell-script-style「エラー方針」「テスト」節を実測に基づき訂正</b>（波及先の spec/shell-scripts.md・REVIEW-POINTS.md も同時訂正）。</li>
+    <li><b>VERSION 0.3.0 → 0.4.0</b>（MINOR。非対話適用・2箇所へ記録）。</li>
+  </ul>
+</section>
+
+<section id="why">
+  <h2>なぜそうしたか</h2>
+  <ul>
+    <li><b>出口を issue 起票までに限定</b>: どの改善をいつ取り込むかの判断を人間が握るため。自動で正史を書き換える案・PR 自動作成案・check-ignore 併用案・スキップ正常終了案は却下（DDR <code>i0027-01</code>）。</li>
+    <li><b>エラー隔離は「フォークされる側の内側で set -e を掛け直す」2形</b>: 従来規約の前提が bash 5.2.21 の実測で不成立（条件文脈の errexit 一時停止の伝播／inherit_errexit 既定オフ）。inherit_errexit 常時オン・set -E＋trap ERR・個別検査は却下（DDR <code>i0027-02</code>）。</li>
+  </ul>
+</section>
+
+<section id="verify">
+  <h2>検証結果</h2>
+  <ul>
+    <li>単体・結合テスト: T1〜T23＋T21b、<b>passed=91 failures=0</b>（合成配布先8種・境界ケース固定）。</li>
+    <li><code>check-dist-coverage.sh</code> 4検査 OK（472/472 分類）・frontmatter 実問い合わせ4件 true・DDR一覧の冪等性・DDR重複なし。</li>
+    <li>errexit 5ケースの実測が訂正後の規約と全ケース一致。旧前提の残存はリポジトリ横断 grep で規範として 0 件。</li>
+    <li>敵対的レビュー6回・指摘計86件をすべて反映・全スレッド返信済み（6回目で merge3 フェイルクローズの穴を実装修正）。</li>
+  </ul>
+</section>
+
+<section id="docs">
+  <h2>spec・DDRへの反映先</h2>
+  <ul>
+    <li><code>.claude/docs/spec/harvest-from-projects.md</code> — 入出力・分類規則・終了コードの正＋VERSION 適用の changelog</li>
+    <li><code>.claude/docs/ddr/i0027-01-収穫スキルは読み取り専用分析とissue起票までを出口にする.md</code></li>
+    <li><code>.claude/docs/ddr/i0027-02-エラー隔離は条件文脈の外のサブシェルでset-eを掛け直して行う.md</code></li>
+    <li><code>.claude/docs/usecase/配布先の改善を本家へ収穫する.md</code></li>
+  </ul>
+</section>
+
+<section id="open">
+  <h2>残課題</h2>
+  <div class="box warn">
+    <ul>
+      <li><b>ベースブランチ（main）が behind 4</b>（wip/ 再配置ほか）。取り込みはユーザー承認必須のため未実施（textualConflictFiles 26件・DDR重複0件。大半は 5-5 の片付けで縮小する見込み）。マージ前に取り込みの承認と解消が必要。</li>
+      <li><b>関連issue通知（5-2）</b>: 影響先候補は #153（漂白。exclude スキルの spec/DDR を core で配る判断が前提に関わる）。投稿前承認が必須のため非対話では投稿していない。</li>
+      <li><b>VERSION 0.4.0 の人間による追認</b>（否認されたら元へ戻す）。</li>
+      <li>Windows 実機・実在配布先での試運転・対話手順の通し実行は未検証（spec の未決定事項）。</li>
+    </ul>
+  </div>
+</section>
+
+<footer>issue #27 / PR #189 — 統括の正文は同名の <code>.md</code>。外部依存を持たない自己完結HTML。</footer>
+
+</div>
+</body>
+</html>
