@@ -1,0 +1,169 @@
+<!--
+  個別作業計画「【AIアセット作成】ユースケース文書一式と周辺更新」（issue #170）の
+  人間レビュー用HTMLビュー。正文は同名の .md。
+-->
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>【AIアセット作成】ユースケース文書一式と周辺更新 — issue #170</title>
+<style>
+  :root {
+    --bg: #f6f7f9;      --panel: #ffffff;   --ink: #1a1d21;     --muted: #5b636d;
+    --line: #dfe3e8;    --accent: #2563eb;  --accent-soft: #eaf0fe;
+    --ok: #1a7f4b;      --ok-soft: #e6f4ec; --warn: #a35a00;    --warn-soft: #fdf1e0;
+    --stop: #b3261e;    --stop-soft: #fdecea; --code-bg: #f0f2f5;
+    --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1216;    --panel: #161a20;   --ink: #e6e8eb;     --muted: #9aa3ad;
+      --line: #2a3038;  --accent: #7aa2f7;  --accent-soft: #1b2333;
+      --ok: #6ee7a8;    --ok-soft: #14261d; --warn: #f0b866;    --warn-soft: #2a2113;
+      --stop: #f2857c;  --stop-soft: #2b1614; --code-bg: #1d222a;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", system-ui, sans-serif;
+    line-height: 1.8; font-size: 15px;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 20px 80px; }
+  header.band {
+    background: linear-gradient(135deg, var(--accent-soft), var(--panel));
+    border-bottom: 1px solid var(--line); padding: 28px 20px 22px; margin-bottom: 28px;
+  }
+  header.band .inner { max-width: 1080px; margin: 0 auto; }
+  header.band .kind { font-size: 11px; letter-spacing: .18em; color: var(--accent); font-weight: 700; }
+  header.band h1 { margin: 6px 0 4px; font-size: 26px; line-height: 1.4; }
+  header.band .lead { margin: 0; color: var(--muted); }
+  .meta { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; padding: 0; list-style: none; }
+  .meta li {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 999px;
+    padding: 3px 12px; font-size: 12.5px; color: var(--muted); white-space: nowrap;
+  }
+  .meta li b { color: var(--ink); font-weight: 600; }
+  a { color: var(--accent); }
+  section {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 8px 24px 22px; margin-bottom: 22px;
+  }
+  h2 { font-size: 20px; margin: 20px 0 10px; padding-bottom: 8px; border-bottom: 2px solid var(--line); }
+  h3 { font-size: 16px; margin: 22px 0 8px; color: var(--accent); }
+  p { margin: 10px 0; }
+  ul, ol { padding-left: 22px; }
+  li { margin: 4px 0; }
+  .tablewrap { overflow-x: auto; margin: 14px 0; }
+  table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 14px; }
+  th, td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: var(--accent-soft); font-weight: 600; white-space: nowrap; }
+  tbody tr:nth-child(even) td { background: color-mix(in srgb, var(--line) 22%, transparent); }
+  code {
+    background: var(--code-bg); border-radius: 5px; padding: 1px 5px; font-size: 13px;
+    font-family: "SFMono-Regular", Consolas, "Noto Sans Mono", monospace;
+  }
+  pre {
+    background: var(--code-bg); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 12px 14px; overflow-x: auto; font-size: 13px; line-height: 1.65;
+  }
+  pre code { background: none; padding: 0; }
+  .box { border-left: 4px solid var(--accent); background: var(--accent-soft);
+         border-radius: 0 var(--radius) var(--radius) 0; padding: 12px 16px; margin: 16px 0; }
+  .box > :first-child { margin-top: 0; } .box > :last-child { margin-bottom: 0; }
+  .box .label { font-size: 12px; font-weight: 700; letter-spacing: .06em; display: block; margin-bottom: 4px; }
+  .box.stop { border-color: var(--stop); background: var(--stop-soft); } .box.stop .label { color: var(--stop); }
+  footer { color: var(--muted); font-size: 13px; text-align: center; padding-top: 10px; }
+</style>
+</head>
+<body>
+
+<header class="band">
+  <div class="inner">
+    <div class="kind">個別作業計画 / フェーズ3（flow-id 3-1）</div>
+    <h1>【AIアセット作成】ユースケース文書一式と周辺更新</h1>
+    <p class="lead">.claude/docs/usecase/ にユースケース文書8本を新規作成し、周辺6ファイル＋観点表1件を更新する。実装（.sh）の変更は無い。</p>
+    <ul class="meta">
+      <li><b>issue</b> #170</li>
+      <li><b>PR</b> #173（Draft）</li>
+      <li><b>フェーズ</b> 3〈作業〉 flow-id 3-1</li>
+      <li><b>作成日</b> 2026-08-23</li>
+      <li><b>正文</b> 同名の .md</li>
+    </ul>
+  </div>
+</header>
+
+<div class="wrap">
+
+<section id="premise">
+  <h2>前提（合意状況）</h2>
+  <ul>
+    <li>依拠する調査結果: <code>reports/20260823_usecase-atlas_調査結果.md</code>（flow-id 2-6。人間レビューは未実施で、敵対的レビュー2回＝計24件の指摘修正で代替）。</li>
+    <li>上位の全体作業計画は flow-id 1-5 未合意のまま先行中（扱いは全体作業計画「実行環境と運用の前提」）。</li>
+    <li>種別 <code>【AIアセット作成】</code> の根拠は全体作業計画「フェーズ3〈作業〉」に記載。</li>
+  </ul>
+</section>
+
+<section id="goal">
+  <h2>この計画で何をするか</h2>
+  <p>調査結果の結論どおり、<code>.claude/docs/usecase/</code> にユースケース文書8本を新規作成し、周辺6ファイル＋観点表1件を更新する。</p>
+</section>
+
+<section id="target">
+  <h2>変更対象</h2>
+  <h3>新規作成（8本）</h3>
+  <p>調査結果「問い1・2」の表が正: 新しい機能開発を始める／途中の作業を再開・引き継ぐ／生成物にレビューコメントして修正させる／レビューをAIに補助してもらう／ベースブランチとのコンフリクトを解消する／リポジトリ内のドキュメントを探す／対応工数を把握する／この機構を他プロジェクトへ導入する（いずれも <code>.md</code>）。</p>
+  <h3>既存ファイルの変更（7件）</h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>ファイル</th><th>変更</th></tr></thead>
+    <tbody>
+      <tr><td><code>.claude/rules/markdown-frontmatter.md</code></td><td>「typeの値」表へ <code>usecase</code> 行を追加</td></tr>
+      <tr><td><code>.claude/docs/README.md</code></td><td>冒頭箇条書き＋usecase節（生成マーカー区間の外）＋frontmatter更新</td></tr>
+      <tr><td><code>.claude/skills/issue-mr-flow/SKILL.md</code></td><td>4-6行「設計反映」項末尾へ影響確認を追記</td></tr>
+      <tr><td><code>.claude/rules/docs-workflow.md</code></td><td>「ドキュメント運用」表へusecase行を追加</td></tr>
+      <tr><td><code>.claude/rules/directory-structure.md</code></td><td>ツリーへ <code>usecase/</code> 行を追加</td></tr>
+      <tr><td><code>index.md</code></td><td>Repository Mapへ <code>usecase/</code> 行を追加</td></tr>
+      <tr><td><code>.claude/REVIEW-POINTS.md</code></td><td>usecase文書の観点（手順詳細を再掲しない等）を追加</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="approach">
+  <h2>方針（各usecase文書の記述の型）</h2>
+  <p>全8本を「どんな場面か／使う機能と流れの概要／何が得られるか／詳細へのリンク」の4見出しで統一する。frontmatterは <code>type: usecase</code>＋必須キー。<b>手順詳細（コマンド列・手順番号）は書かず</b>、流れは散文1〜3文＋箇条書き程度に留めてspec/SKILL.mdへのリンクで参照する。コードブロックは使わない（機械検査の対象）。1本あたり30〜60行程度。</p>
+</section>
+
+<section id="out-of-scope">
+  <h2>やらないこと（スコープ外）</h2>
+  <div class="box stop">
+    <span class="label">この計画では触らない</span>
+    <ul>
+      <li>spec/SKILL.md側の手順詳細の転記</li>
+      <li><code>.sh</code> スクリプトの変更（Provider.sh の不具合対応はフェーズ4の【実装反映】候補）</li>
+      <li>既存ドキュメントの再構成・移動</li>
+    </ul>
+  </div>
+</section>
+
+<section id="verify">
+  <h2>検証</h2>
+  <pre><code># 1. ファイル数が 8
+ls .claude/docs/usecase/*.md | wc -l
+# 2. doc-search で matched=8（未追跡でも載るため文書作成直後から実測できる）
+bash .claude/scripts/src/search-frontmatter.sh --type usecase --format count
+# 3. README目次のusecaseリンク先が全件実在（件数も出す。0件は不合格）
+# 4. 各usecase文書のコードフェンス数が 0（手順詳細の再掲なしの機械検査）
+# 5. usecase文書内のリンク先が全件実在
+# 6. SKILL.md 4-6行に usecase への言及がある
+grep -n 'usecase' .claude/skills/issue-mr-flow/SKILL.md</code></pre>
+  <p>合格条件と各検査の完全なコマンドはmd側「検証」節が正。検査コマンド自体が空振りしないことは、意図的にリンク切れ・フェンス入りの一時ファイルで非合格になることを1回確かめる。</p>
+</section>
+
+<footer>issue #170 / PR #173 — 計画の正文は同名の <code>.md</code>。外部依存を持たない自己完結HTML。</footer>
+
+</div>
+</body>
+</html>
