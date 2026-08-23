@@ -118,8 +118,11 @@
     <li><a href="#goal">この計画で何をするか</a></li>
     <li><a href="#target">変更対象</a></li>
     <li><a href="#approach">方針</a></li>
+    <li><a href="#split">issue分割の判定</a></li>
     <li><a href="#phase-research">フェーズ2〈調査〉</a></li>
+    <li><a href="#phase-work">フェーズ3〈作業〉</a></li>
     <li><a href="#phase-apply">フェーズ4〈反映〉</a></li>
+    <li><a href="#phase-close">フェーズ5〈クローズ〉</a></li>
     <li><a href="#out-of-scope">やらないこと（スコープ外）</a></li>
     <li><a href="#verify">検証</a></li>
     <li><a href="#criteria">issueの受け入れ条件との対応</a></li>
@@ -132,12 +135,18 @@
     <li>依存: <b>issue #168（PR #194）の構成案JSONスキーマ</b>。PR #194 はフェーズ2〈調査〉完了直後のDraftで、スキーマは方針レベル（8種のtype enum・<code>meta</code>・型別フィールド・<code>speakerNotes</code>）まで確定、具体的フィールド定義はフェーズ3送り。</li>
     <li>issue #169 本文は「#168 のマージが前提」とするが、<b>ユーザー指示により PR #194 の状況を確認しながら並行して進める</b>。</li>
     <li>ブランチはハーネス指定の <code>claude/json-to-pptx-export-3g63ea</code>（リポジトリ既定の <code>feature-169-&lt;slug&gt;</code> 形式ではない）。</li>
+    <li>本セッションは人間のレビュー往復を待てないため、planツール（Planモード）を使わずWriteで作成した。<b>このファイルがこのブランチ唯一の全体作業計画である</b>（次セッションはplanツールで新規作成しないこと）。</li>
   </ul>
 </section>
 
 <section id="goal">
   <h2>この計画で何をするか</h2>
   <p>構成案JSONからPowerPointで<b>テキストボックス・ネイティブ表として編集可能な</b> <code>.pptx</code> を生成する仕組み（スキル＋生成スクリプト＋雛形＋テスト）を <code>.claude/</code> 配下へ追加する。8種のスライド型のうち<b>表紙／章扉／箇条書き／2カラム／表／まとめ の6型を必須</b>で表現する（図解・比較は代替表現）。</p>
+</section>
+
+<section id="split">
+  <h2>issue分割の判定（flow-id 1-4）</h2>
+  <p>受け入れ条件6の「6型を出力」は同型成果物の並列列挙に形の上で当たるが、<b>分割は提案しない</b>。6型は単一の生成スクリプト内の分岐（type→XML断片の写像）であり、型単位で切り出しても単独マージで意味を成さない横断的変更のため。この判定の最終判断は人間に委ねる（PRレビューで異議があれば分割する）。</p>
 </section>
 
 <section id="target">
@@ -176,6 +185,16 @@
   </ul>
 </section>
 
+<section id="phase-work">
+  <h2>フェーズ3〈作業〉</h2>
+  <p>調査結果に基づき、個別作業計画（<code>【実装】【テスト】</code> 等）を立てて実装する。</p>
+  <ul>
+    <li>生成スクリプト（構成案JSON → slideN.xml 生成 → 雛形と合わせてzip）</li>
+    <li>スキルSKILL.md（手順・検査コマンド）</li>
+    <li>単体テスト（<code>passed=N failures=N</code> 規約）＋サンプルJSONからの実生成・機械検証</li>
+  </ul>
+</section>
+
 <section id="phase-apply">
   <h2>フェーズ4〈反映〉</h2>
   <p>反映対象は flow-id 4-1 で洗い出す。現時点の候補:</p>
@@ -183,7 +202,13 @@
     <li>spec: 生成方式・パーツ構成・検証方法</li>
     <li>DDR: 採用（雛形＋差し替え＋再zip）と却下案（クリップボード経由・python-pptx・XMLをゼロから組む）の記録（受け入れ条件8）</li>
     <li><code>directory-structure.md</code> のツリー追記・DDR一覧の再生成</li>
+    <li><code>.claude/VERSION</code> の増分の提案（資産追加＝MINOR）、または据え置きの判断の記録</li>
   </ul>
+</section>
+
+<section id="phase-close">
+  <h2>フェーズ5〈クローズ〉</h2>
+  <p>標準どおり（5-1〜5-6）。<b>ただしissue #169は#168のマージが前提のため、Draft解除（5-6）の前に PR #194 の状態を確認し、未マージなら解除の可否をユーザーへ確認する。</b></p>
 </section>
 
 <section id="out-of-scope">
@@ -205,7 +230,7 @@
 unzip -t &lt;生成した.pptx&gt;
 python3 - &lt;検証スクリプト&gt;   # zipfile.testzip / XMLパース
 bash .claude/scripts/test/test_&lt;スクリプト名&gt;.sh   # passed=N failures=0</code></pre>
-  <p>合格条件: issue #169 の受け入れ条件のうち機械検証可能なもの（1・2・6・7）が満たされ、PowerPoint実機確認（3・4・5）の依頼事項がPRへ明記されていること。</p>
+  <p>合格条件: issue #169 の受け入れ条件のうち機械検証可能なもの（1・2・6と、7のうちQ6で定義する突合可能な範囲）が満たされ、PowerPoint実機確認（3・4・5）とWindows git bashでの生成実行の依頼事項がPRへ明記されていること。</p>
 </section>
 
 <section id="criteria">
@@ -220,7 +245,7 @@ bash .claude/scripts/test/test_&lt;スクリプト名&gt;.sh   # passed=N failur
       <tr><td>4. テキストが編集可能</td><td>フェーズ3（XML構造で担保）＋人間の実機確認</td></tr>
       <tr><td>5. 表がネイティブ表として編集可能</td><td>フェーズ3（<code>&lt;a:tbl&gt;</code>）＋人間の実機確認</td></tr>
       <tr><td>6. 6型の出力</td><td>フェーズ2 Q5 → フェーズ3</td></tr>
-      <tr><td>7. HTML版と同じ構成案JSONから生成され内容が一致</td><td>フェーズ2 Q2 → フェーズ3</td></tr>
+      <tr><td>7. HTML版と同じ構成案JSONから生成され内容が一致</td><td>フェーズ2 Q2・Q6（一致確認の手段定義）→ フェーズ3（同一入力の設計＋テキスト突合検証）</td></tr>
       <tr><td>8. 却下理由のDDR</td><td>フェーズ4</td></tr>
     </tbody>
   </table>

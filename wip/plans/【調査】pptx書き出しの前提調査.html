@@ -117,14 +117,14 @@
 <section id="premise">
   <h2>前提（合意状況）</h2>
   <ul>
-    <li>上位の計画: <code>wip/plans/json-to-pptx-export-plan.md</code>（人間の合意は待てないため、ユーザーの当初指示を包括承認として進行中）</li>
-    <li>依存元: PR #194（issue #168）の調査レポートQ5（スキーマ方針）。具体的フィールド定義は未確定</li>
+    <li>上位の計画: <code>wip/plans/json-to-pptx-export-plan.md</code>。flow-id 1-5（人間の合意）と 2-3/2-4（計画レビュー往復）は<b>未了</b>。人間のレビュー往復を待てないセッションのため、ユーザーの当初指示（PR作成＋各フェーズの計画時・作業実施毎の敵対的レビュー自動実施の指示）を包括承認として進めている</li>
+    <li>依存元: PR #194（issue #168）の調査レポート <code>wip/reports/2026-08-23_html-slides-skill-plan_前提調査.md</code> のQ5（スキーマ方針）。具体的フィールド定義は未確定（PR #194 のフェーズ3送り）</li>
   </ul>
 </section>
 
 <section id="goal">
   <h2>この計画で何をするか</h2>
-  <p>フェーズ3（実装)の設計を確定するために、6問へ実測ベースで答える。<b>結果は本ファイルへは書かず</b> <code>wip/reports/2026-08-23_json-to-pptx-export-plan_前提調査.md</code>（+同名.html）へ記録する。</p>
+  <p>フェーズ3（実装）の設計を確定するために、6問へ実測ベースで答える。<b>結果は本ファイルへは書かず</b> <code>wip/reports/2026-08-23_json-to-pptx-export-plan_前提調査.md</code>（+同名.html）へ記録する。</p>
 </section>
 
 <section id="target">
@@ -133,12 +133,12 @@
   <table>
     <thead><tr><th>#</th><th>問い</th><th>何を確定するか</th></tr></thead>
     <tbody>
-      <tr><td>Q1</td><td>zip相当の可用性と代替戦略（受け入れ条件1）</td><td>この環境の実測記録＋Windows git bash向け代替手段の優先順位（zip / python3 zipfile / Compress-Archive / その他）と検出ロジック。OOXMLのzip制約（エントリ順・区切り・圧縮方式）の実測</td></tr>
-      <tr><td>Q2</td><td>構成案JSONスキーマの依存範囲（受け入れ条件7）</td><td>依存を「type enum 8種＋各型の必須キー」へ限定できるか。入力検証に使う必須キー集合と、PR #194 スキーマ確定時の突合手順</td></tr>
-      <tr><td>Q3</td><td>最小OOXML構造（受け入れ条件3）</td><td>警告なく開く .pptx の必須パーツ一覧と、スライド枚数可変時の連動書き換え箇所。最小構成の実生成と構造検査</td></tr>
+      <tr><td>Q1</td><td>zip相当の可用性と代替戦略（受け入れ条件1）</td><td>この環境の実測記録＋Windows git bash向け代替手段の優先順位（zip / python3 zipfile / Compress-Archive / その他）と検出ロジック。<b>縮退方針: 手段が無い場合は無言で壊れた .pptx を出さず明示エラーで止まることを設計要件として引き継ぐ</b>。OOXMLのzip制約（エントリ順・区切り・圧縮方式）の実測</td></tr>
+      <tr><td>Q2</td><td>構成案JSONスキーマの依存範囲（受け入れ条件7）</td><td>依存を「type enum 8種＋各型の必須キー」へ限定できるか。入力検証に使う必須キー集合と、PR #194 スキーマ確定時の突合手順（差分が出た場合・#194クローズの場合の分岐を含む）。依存内容はこちら側の調査レポートへ転記して残す（#194の wip/reports/ はマージ後に消えるため）</td></tr>
+      <tr><td>Q3</td><td>最小OOXML構造（受け入れ条件3）</td><td>警告なく開く .pptx の必須パーツ一覧と、スライド枚数可変時の連動書き換え箇所。最小構成の実生成と構造検査（python-pptx は生成手段としては却下だが、検証手段としては環境に既在の場合に限り併用可。新規インストールはしない）</td></tr>
       <tr><td>Q4</td><td>雛形の形態</td><td>展開ディレクトリ vs バイナリ .pptx の比較と、PowerPoint製雛形へ後から差し替え可能な構造の設計</td></tr>
-      <tr><td>Q5</td><td>8種のtype → スライドXML表現の写像（受け入れ条件6）</td><td>6型必須（テキストボックス・表）＋2型代替（図解→箇条書き、比較→表）の対応。speakerNotesの扱い</td></tr>
-      <tr><td>Q6</td><td>検証手段の切り分け（受け入れ条件3・4・5）</td><td>この環境で機械検証できる範囲と、人間の実機確認（PowerPoint）に残す範囲・PRレビューへの依頼文面の要点</td></tr>
+      <tr><td>Q5</td><td>8種のtype → スライドXML表現の写像（受け入れ条件6）</td><td>Q2で確定したtype集合を前提に（現時点の想定8種の出典はPR #194調査レポートQ5）、6型必須（テキストボックス・表）＋2型代替（図解→箇条書き、比較→表）の対応。speakerNotesの扱い</td></tr>
+      <tr><td>Q6</td><td>検証手段の切り分け（受け入れ条件3・4・5）</td><td>この環境で機械検証できる範囲と、人間の実機確認（PowerPointでの開封・編集、<b>Windows git bashでの生成実行</b>）に残す範囲・PRレビューへの依頼文面の要点。受け入れ条件7の突合手順の具体化</td></tr>
     </tbody>
   </table>
   </div>
@@ -158,8 +158,9 @@
 <section id="verify">
   <h2>検証（この調査自体の完了条件）</h2>
   <ul>
-    <li>Q1〜Q6のすべてに、実測root（コマンドと出力）または「確かめられなかったこと」としての明記がある。</li>
-    <li>最小構成 .pptx の実生成と構造検査が再現可能なコマンドとして記録されている。</li>
+    <li><b>必ず実測して記録する項目</b>（「確かめられなかった」で代替できない）: <code>command -v zip unzip python3</code> の出力とバージョン（Q1）／最小構成 .pptx の実生成 → <code>unzip -t</code> 合格 → 全XMLパーツのwell-formed確認（Q3）／独立実装で最小 .pptx が開けること（Q3/Q6）／PR #194 ブランチの現物からのtype enum・必須キーの転記（Q2）</li>
+    <li>「確かめられなかったこと」として残すのを許す項目（列挙で限定）: Windows実機（git bash・PowerShell経路・PowerPoint本体）に依存する挙動のみ</li>
+    <li>上記が調査レポートに、再現可能なコマンドと出力の形で記録されている</li>
   </ul>
 </section>
 
