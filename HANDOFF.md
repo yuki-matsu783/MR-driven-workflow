@@ -17,9 +17,9 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - issue: #27 他プロジェクトで改善されたAIアセットを本家へ収穫（逆輸入）するスキルを新設する
 - ブランチ: claude/ai-asset-reverse-import-skill-g4qa9s
 - PR: #189 https://github.com/yuki-matsu783/MR-driven-workflow/pull/189（Draft）
-- push回数: 5
+- push回数: 6
 - 現在のループ: なし
-- 未返信スレッド: 0
+- 未返信スレッド: 13
 - 追従監視: なし
 
 | 進捗 | flow-id | ステップ | 担当 |
@@ -107,9 +107,16 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
   非対話セッションのため記号 `[]` のまま（2-6〈調査実施〉・2-7〈commit/push〉相当は実施済み。
   実施内容は上記のとおり）。
 
+- 敵対的レビュー3回目（フェーズ3・対象=個別作業計画。カウンタ 1/3）を実施。findings 20件の
+  うち major 13件をインライン投稿（サマリコメントに報告のみ minor 7件の内訳を記載）、修正は
+  20件すべて計画 md/html へ反映した（-dirty は baseApproximate の第3状態へ・upstreamDeleted
+  追加と「本家でも削除済み」別枠・manifest自身と*.bak の added 除外・check-ignore 廃止で
+  自前照合へ一本化・merge3 に exit 4 新設・git 起動の一括化規約・scan の schemaVersion 付き
+  全体形とエラー隔離・T2a/T2b・T8/T8b・T12〜T15 追加等）。
+
 ## 次にやること
 
-- フェーズ3計画の敵対的レビュー（フェーズ3カウンタ=0）→ 指摘反映 → 収穫スキル実装
+- 敵対的レビュー3回目の13スレッドへ対応内容を返信し未返信0へ → 収穫スキル実装
   （SKILL.md・harvest-from-projects.sh・テスト・dist-layers・DDR規約）→ reports作成 →
   commit/push → 敵対的レビュー（作業実施後）へ。
 
