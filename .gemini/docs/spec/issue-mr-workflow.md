@@ -1203,14 +1203,19 @@ Claude Codeの対応工数（モデル別トークン数・ツール実行回数
       集計しない理由・却下案は
       [.claude/docs/ddr/i0097-05-Gemini-CLIのサブエージェントは保存のみとし集計しない.md](../ddr/i0097-05-Gemini-CLIのサブエージェントは保存のみとし集計しない.md)を参照。
 - **Gemini CLIのhook登録**: `.gemini/settings.json`の`hooks`キー配下（`SessionStart`/`BeforeTool`/
-  `AfterTool`）に`.claude/hooks/*.sh`一式を登録する。`BeforeTool`/`AfterTool`の`matcher`は
-  `"run_shell_command|Bash|PowerShell"`という両エンジンの`tool_name`を含む形にしている
-  （各hookスクリプト内部で`tool_name`により絞り込むため、マッチャーを広めに取っても誤発火はしない）。
-  `command`フィールドは単一のシェル文字列（`args`配列に相当するフィールドはGemini CLI側に無い）で、
-  `${GEMINI_PROJECT_DIR}`はダブルクォートで囲む。`.gemini/settings.json`の既存キー
-  （`general.plan.directory`）はそのまま維持する。採用経緯は
-  [i0003-01-gemini-settings.jsonのhooksはレビュー提示スニペットのhooksセクションのみ採用する.md](../ddr/i0003-01-gemini-settings.jsonのhooksはレビュー提示スニペットのhooksセクションのみ採用する.md)
-  参照。
+  `AfterTool`）へ`.claude/hooks/*.sh`一式が登録される。**issue #70以降、この`.gemini/settings.json`は
+  手で書くファイルではなく`.claude/settings.json`からの変換生成物**であり、
+  `bash .claude/scripts/src/sync-gemini-assets.sh`が生成する。**写像規則の正は
+  [.claude/docs/spec/sync-gemini-assets.md](sync-gemini-assets.md)の1箇所**で、ここには重複して
+  書かない（`PreToolUse`→`BeforeTool`、ツール名`Bash`→`run_shell_command`、
+  `${CLAUDE_PROJECT_DIR}`→`$GEMINI_PROJECT_DIR`、`timeout`の秒→ミリ秒、`SessionStart`の
+  matcherが完全一致であることへの対処などを、そちらが定める）。
+  hookが実行するスクリプトのパスは`.claude/hooks/`のままで、**両経路が同じスクリプトを実行する**。
+  採用経緯は
+  [i0003-01-gemini-settings.jsonのhooksはレビュー提示スニペットのhooksセクションのみ採用する.md](../ddr/i0003-01-gemini-settings.jsonのhooksはレビュー提示スニペットのhooksセクションのみ採用する.md)、
+  生成物へ改めた経緯は
+  [i0070-01-gemini配下はclaudeからの変換生成物にしGit管理下へ置く.md](../ddr/i0070-01-gemini配下はclaudeからの変換生成物にしGit管理下へ置く.md)
+  を参照。
 - **呼び出し・質問の詳細記録**（issue #37）: 上記の新規行diff方式への移行と合わせて、
   メインセッションのtranscriptの新規行から以下3種の詳細情報を抽出し、`sinceLastPush`へ配列として
   追記する（サブエージェント自身が呼び出した分・ネストしたサブエージェントは対象外）。
@@ -3081,6 +3086,40 @@ JSコメント内の例示URL 1行である）を必ず誤検知し、**外部�
 調査で不要と確認。上記のとおり、改名の後片付けまでは担保していない）、markdownテンプレート
 （issue #54 本文が明示的に除外）、`HANDOFF.md` のテンプレート外だし（DDR `i0028-01` を覆さない）。
 
+### issue #70（`.gemini/` を変換生成物へ改め、flow-id 5-3 を新設した）
+
+**全体フローが 42 → 43ステップになった。** フェーズ5へ **flow-id 5-3（`.claude/` → `.gemini/` の
+変換同期）** を新設し、**最終統括レポートの直前**へ置いた。以降のステップは1つずつ繰り下がった。
+
+| 旧 | 新 | ステップ |
+|---|---|---|
+| — | **5-3** | **`.claude/` の変更を `.gemini/` へ変換同期する**（新設。このステップ自身はコミットを持たない） |
+| 5-3 | 5-4 | 最終統括レポートを作成し、PR/MRへサマリコメントとして反映する |
+| 5-4 | 5-5 | 次タスクのための片付け（`cleanup-task.sh`） |
+| 5-5 | 5-6 | commit・push して Draft を解除する（**AIエージェントはここで止まる**） |
+| 5-6 | 5-7 | マージする（人間） |
+
+**最終統括レポートの直前へ置いた理由**: `.gemini/` は `.claude/` からの生成物なので、同期は
+`.claude/` への変更が出そろった後でなければ意味がない。一方、片付け（`cleanup-task.sh`）より後ろ
+だと、生えた差分を載せるコミットが Draft 解除と同じものになり、レビューの区切りとずれる。
+5-3 で生えた差分は**直後の 5-4 のコミットに載る**。
+
+**繰り下げに伴い番号を書き換えたファイル**（現状記述のみ。`## 影響範囲` のような
+point-in-time の記録と DDR 本文は**書き換えていない**）:
+`.claude/skills/issue-mr-flow/SKILL.md`、`.claude/rules/docs-workflow.md`、
+`.claude/rules/directory-structure.md`、`.claude/rules/markdown-frontmatter.md`、
+`.claude/rules/git-workflow.md`、`index.md`、`.claude/docs/spec/cleanup-task.md`、
+`.claude/docs/spec/update-handoff-progress.md`、`.claude/skills/issue-mr-flow/assets/reports.template.html`、
+`reports/REVIEW-POINTS.md`。
+
+**そのほかの変更**:
+
+- 「Gemini CLIのhook登録」節を生成物前提へ書き直し、**写像規則の正を
+  [.claude/docs/spec/sync-gemini-assets.md](sync-gemini-assets.md) 1箇所へ寄せた**。
+- `## 未決定事項・懸念点` の「（issue #57）`.gemini/settings.json` の SessionStart matcher」を
+  **解消済みとして「決定済み事項」へ移した**（Gemini の source に `compact` が無いことと、
+  matcher が完全一致であることがソースから確定したため）。
+
 ## 設定項目
 
 `.mrworkflow.json`
@@ -3146,6 +3185,16 @@ JSコメント内の例示URL 1行である）を必ず誤検知し、**外部�
   issue #57で`compact`を追加した（compactは要約内容を指定できず現在地が失われるため。
   コスト面の再評価は[DDR i0057-01](../ddr/i0057-01-compact後もSessionStart-hookで作業コンテキストを再注入する.md)）。
   `fork`は引き続き対象外。
+- **（issue #57 → issue #70で解消）`.gemini/settings.json` の SessionStart matcher**:
+  `.claude/settings.json` 側へ `compact` を追加した際、Gemini CLI がその値を解釈するかを実機で
+  確認できなかったため、`.gemini/` 側は `startup|resume|clear` のまま揃えずに置いていた。
+  issue #70 で `.gemini/` を変換生成物へ改めた際、gemini-cli のソースから**Gemini の
+  SessionStart source は `startup`/`resume`/`clear` の3つで、`compact` に相当するものが無い**
+  こと、および**matcherが完全一致で判定される**（縦棒つなぎではどの source にも一致せず
+  hookが一度も発火しない）ことが確定した。したがって「揃えない」ではなく**変換規則として
+  `compact` を落とし、3 source すべてを覆う場合は matcher 自体を出力しない**（無条件マッチ）
+  形に変わった。規則の正は
+  [.claude/docs/spec/sync-gemini-assets.md](sync-gemini-assets.md)。
 - **Windows PowerShell 5.1の文字コード対策はルールでなくスクリプト側で強制する**（issue #6で
   `Provider.ps1`自体が`Provider.sh`へ置き換わったため、本項の対策は過去のものとなった。教訓・
   判断基準としての記録として残す）: issue #5対応中に、
@@ -3527,11 +3576,6 @@ issue #48 の実機検証を受けていない13関数（issue #42・#61・#68�
   の2点である（後者はプロバイダ固有関数をスタブへ差し替えて確認した）。
   `gh` が使える環境で実PRに対して実行し、確認できた時点で本項目を削除する。
 
-- **（issue #57）`.gemini/settings.json` の SessionStart matcher は `startup|resume|clear` のまま**:
-  `.claude/settings.json` 側には `compact` を追加したが、Gemini CLI の SessionStart matcher が
-  `compact` という値を解釈するかを実機で確認できていないため、あえて揃えていない。未検証の
-  設定値を持ち込んで既存の動いている設定を壊さないという、[DDR i0003-01](../ddr/i0003-01-gemini-settings.jsonのhooksはレビュー提示スニペットのhooksセクションのみ採用する.md)
-  と同じ判断による。Gemini CLI 側の対応値が確認でき次第、追加を検討する。
 - **（issue #57）注入量のしきい値8000バイトは実測1件（1,222バイト）に基づく暫定値**:
   「通常運用では鳴らず、数倍に膨らめば鳴る」水準として置いたもので、他プロジェクトへ機構を
   展開した際に適切かは未検証。`CONTEXT_SIZE_WARN_BYTES` 環境変数で上書きできるようにしてある。

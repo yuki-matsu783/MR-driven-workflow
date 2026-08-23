@@ -148,6 +148,23 @@ LICENSEも当初の対象だったが、**同梱しないと決めた**（
   その事実は `.claude/docs/spec/issue-mr-workflow.md` のchangelogにしか無く、**規定を持つ本仕様書
   からは例外があったことが見えない**状態だった（フェーズ4の敵対的レビューの指摘）。
 
+### issue #70（`.gemini/` は配布物ではなく配布先で生成する）
+
+`.gemini/` を `.claude/` からの変換生成物へ改めたことに伴い、**配布物からは外した**
+（`sync-assets.sh` は `.gemini/` を `assets/` へ集めない）。代わりに `install-to-project.sh` が
+配布先で `bash .claude/scripts/src/sync-gemini-assets.sh` を実行して生成する。
+
+- **配布物に含めない理由**: 配布時点の `.claude/` から作った `.gemini/` は、配布先の `.claude/`
+  （配布先が独自に足したスキル・hook、Go向けルールの取り回し等）と食い違う。生成スクリプト自体は
+  `.claude/scripts/src/` にあるので配布に自動で乗る。
+- **生成は Go向けルールの取り回しが終わってから行う。** 先に生成すると、配布先で消したはずの
+  ファイルが `.gemini/` 側に残る。
+- **生成に失敗しても、インストール全体は中断しない**（警告のみ）。`.gemini/` が無いこと以外の
+  インストールは完了しており、中途半端な状態で止めるほうが害が大きいため。とくに配布先が自前の
+  `.gemini/` を持っていた場合、生成側の孤児検出が働いて**1バイトも書かずに中断する**ので、
+  何も壊さずに警告だけが残る（仕様: [sync-gemini-assets.md](sync-gemini-assets.md)）。
+- `jq` が無い環境では `install-to-project.sh` が事前に警告する（`.gemini/` の生成が `jq` に依存する）。
+
 ## 未決定事項・懸念点
 
 - **Windows実機（git bash）での改行挙動は未確認**である。issue #33 の作業はLinuxコンテナ上で
@@ -177,7 +194,7 @@ LICENSEも当初の対象だったが、**同梱しないと決めた**（
     （`/usage/` と `/.claude/state/`）と一致していない（issue #23 の一本化に配布側が追従していない）。
 - **`HAS_WARNED` が `safe_copy_dir` の外へ伝わらない。** `find ... | while ...` はパイプライン
   なのでサブシェルで実行され、その中で立てた `HAS_WARNED=true` は失われる。結果として、
-  `.claude/` `.gemini/` `.github/` `.gitlab/` 配下のファイルでどれだけ `.bak` 退避が起きても、
+  `.claude/` `.github/` `.gitlab/` 配下のファイルでどれだけ `.bak` 退避が起きても、
   最後の「ATTENTION: Some existing files differed from the template」ブロックは表示されない
   （個別のWARNING行は出る）。issue #33 の実機確認で判明したが、範囲外として直していない。
 - **配布先へ `.gitignore` 対象のローカル生成物が混入する**（`index.jsonl` 10件以上と

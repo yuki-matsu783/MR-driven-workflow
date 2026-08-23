@@ -3,7 +3,7 @@ title: flow-id 5-5 後片付けの自動化（cleanup-task.sh）
 type: spec
 description: flow-id 5-5（次タスクのための片付け）の4操作――plans/ reports/ の削除、worklog/のTEMPLATE.md以外の削除、frontmatterインデックスの再生成、HANDOFF.mdのリセット――を1コマンドへまとめたスクリプトの仕様
 tags: [script, workflow, cleanup, spec]
-keywords: [cleanup-task, flow-id-5-4, HANDOFF, plans, worklog, reports, index.jsonl, dry-run, TEMPLATE.md, 後片付け]
+keywords: [cleanup-task, flow-id-5-5, HANDOFF, plans, worklog, reports, index.jsonl, dry-run, TEMPLATE.md, 後片付け]
 ---
 
 # flow-id 5-5 後片付けの自動化（cleanup-task.sh）

@@ -58,7 +58,7 @@ bash .claude/scripts/src/search-frontmatter.sh [オプション]
 | `.git` | Gitの内部ディレクトリ |
 | `node_modules` | 依存パッケージ |
 | `build` | ビルド成果物（`.gitignore` 対象） |
-| `.gemini` | **配下が `.claude` 配下へのローカルリンク**（シンボリックリンク／NTFSジャンクション）であり、外さないと同じドキュメントが `.claude/...` と `.gemini/...` の2通りの `concept_id` で二重にヒットする（[i0000-13](../ddr/i0000-13-gemini配下はGit管理下に置かずセットアップスクリプトで生成する.md)） |
+| `.gemini` | **配下が `.claude` 配下からの変換生成物**であり、外さないと同じドキュメントが `.claude/...` と `.gemini/...` の2通りの `concept_id` で二重にヒットする（issue #70。生成の仕様: [sync-gemini-assets.md](sync-gemini-assets.md)、経緯: [i0070-01](../ddr/i0070-01-gemini配下はclaudeからの変換生成物にしGit管理下へ置く.md)。issue #70 以前は `.claude` へのローカルリンクだったが、**除外が必要な理由は「実体が重複すること」で変わらない**） |
 
 加えて、jq側で `unique_by(.concept_id)` により重複を1件へ畳む（上記のリンク以外の経路で同じ
 `concept_id` が二重に現れた場合の保険）。
