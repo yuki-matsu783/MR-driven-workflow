@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>【調査】AIアセット反映の洗い出し手順の前提確認 — issue #155</title>
+<style>
+  :root {
+    --bg: #f6f7f9;      --panel: #ffffff;   --ink: #1a1d21;     --muted: #5b636d;
+    --line: #dfe3e8;    --accent: #2563eb;  --accent-soft: #eaf0fe;
+    --ok: #1a7f4b;      --ok-soft: #e6f4ec; --warn: #a35a00;    --warn-soft: #fdf1e0;
+    --stop: #b3261e;    --stop-soft: #fdecea; --code-bg: #f0f2f5;
+    --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1216;    --panel: #161a20;   --ink: #e6e8eb;     --muted: #9aa3ad;
+      --line: #2a3038;  --accent: #7aa2f7;  --accent-soft: #1b2333;
+      --ok: #6ee7a8;    --ok-soft: #14261d; --warn: #f0b866;    --warn-soft: #2a2113;
+      --stop: #f2857c;  --stop-soft: #2b1614; --code-bg: #1d222a;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", system-ui, sans-serif;
+    line-height: 1.8; font-size: 15px;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 20px 80px; }
+
+  /* 共通ヘッダ帯 */
+  header.band {
+    background: linear-gradient(135deg, var(--accent-soft), var(--panel));
+    border-bottom: 1px solid var(--line); padding: 28px 20px 22px; margin-bottom: 28px;
+  }
+  header.band .inner { max-width: 1080px; margin: 0 auto; }
+  header.band .kind { font-size: 11px; letter-spacing: .18em; color: var(--accent); font-weight: 700; }
+  header.band h1 { margin: 6px 0 4px; font-size: 26px; line-height: 1.4; }
+  header.band .lead { margin: 0; color: var(--muted); }
+  .meta { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; padding: 0; list-style: none; }
+  .meta li {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 999px;
+    padding: 3px 12px; font-size: 12.5px; color: var(--muted); white-space: nowrap;
+  }
+  .meta li b { color: var(--ink); font-weight: 600; }
+
+  nav.toc {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 14px 20px; margin-bottom: 28px;
+  }
+  nav.toc h2 { margin: 0 0 8px; font-size: 13px; letter-spacing: .08em; color: var(--muted); border: 0; padding: 0; }
+  nav.toc ol { margin: 0; padding-left: 20px; }
+  nav.toc li { margin: 2px 0; }
+  a { color: var(--accent); }
+
+  section {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 8px 24px 22px; margin-bottom: 22px;
+  }
+  h2 { font-size: 20px; margin: 20px 0 10px; padding-bottom: 8px; border-bottom: 2px solid var(--line); }
+  h3 { font-size: 16px; margin: 22px 0 8px; color: var(--accent); }
+  p { margin: 10px 0; }
+  ul, ol { padding-left: 22px; }
+  li { margin: 4px 0; }
+  blockquote { margin: 10px 0; padding: 6px 14px; border-left: 3px solid var(--line); color: var(--muted); }
+
+  /* 表は自身の中で横スクロールする（ページ本体は横スクロールさせない） */
+  .tablewrap { overflow-x: auto; margin: 14px 0; }
+  table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 14px; }
+  th, td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: var(--accent-soft); font-weight: 600; white-space: nowrap; }
+  tbody tr:nth-child(even) td { background: color-mix(in srgb, var(--line) 22%, transparent); }
+
+  code {
+    background: var(--code-bg); border-radius: 5px; padding: 1px 5px; font-size: 13px;
+    font-family: "SFMono-Regular", Consolas, "Noto Sans Mono", monospace;
+  }
+  pre {
+    background: var(--code-bg); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 12px 14px; overflow-x: auto; font-size: 13px; line-height: 1.65;
+  }
+  pre code { background: none; padding: 0; }
+
+  /* 注意ボックス: info（既定）/ ok（決めたこと）/ warn（注意）/ stop（やらないこと・危険） */
+  .box { border-left: 4px solid var(--accent); background: var(--accent-soft);
+         border-radius: 0 var(--radius) var(--radius) 0; padding: 12px 16px; margin: 16px 0; }
+  .box > :first-child { margin-top: 0; } .box > :last-child { margin-bottom: 0; }
+  .box .label { font-size: 12px; font-weight: 700; letter-spacing: .06em; display: block; margin-bottom: 4px; }
+  .box.ok { border-color: var(--ok); background: var(--ok-soft); } .box.ok .label { color: var(--ok); }
+  .box.warn { border-color: var(--warn); background: var(--warn-soft); } .box.warn .label { color: var(--warn); }
+  .box.stop { border-color: var(--stop); background: var(--stop-soft); } .box.stop .label { color: var(--stop); }
+  .box.info .label { color: var(--accent); }
+
+  .tag { display: inline-block; border-radius: 999px; padding: 1px 9px; font-size: 12px; font-weight: 600; }
+  .tag.ok { background: var(--ok-soft); color: var(--ok); }
+  .tag.warn { background: var(--warn-soft); color: var(--warn); }
+  .tag.stop { background: var(--stop-soft); color: var(--stop); }
+
+  footer { color: var(--muted); font-size: 13px; text-align: center; padding-top: 10px; }
+</style>
+</head>
+<body>
+<header class="band">
+  <div class="inner">
+    <div class="kind">個別調査計画 / フェーズ2</div>
+    <h1>【調査】AIアセット反映の洗い出し手順の前提確認</h1>
+    <p class="lead">SKILL.md へ「AIアセット反映の対象の洗い出し」節を新設するにあたり、置き換え対象の現行文言・既存定義との整合・<code>doc-search</code> の入出力を先に確かめる。器の確認であって、書く内容そのものは決めない。</p>
+    <ul class="meta">
+      <li><b>issue</b> #155</li>
+      <li><b>ブランチ</b> claude/ai-asset-reflection-scope-njqn95</li>
+      <li><b>PR</b> #175</li>
+      <li><b>フェーズ</b> 2〈調査〉 flow-id 2-1</li>
+      <li><b>push回数</b> 1</li>
+      <li><b>作成日</b> 2026-08-23</li>
+      <li><b>正文</b> 同名の .md</li>
+    </ul>
+  </div>
+</header>
+
+<div class="wrap">
+
+<nav class="toc">
+  <h2>目次</h2>
+  <ol>
+    <li><a href="#premise">前提（合意状況）</a></li>
+    <li><a href="#goal">この計画で何をするか</a></li>
+    <li><a href="#method">調査方法</a></li>
+    <li><a href="#target">変更対象</a></li>
+    <li><a href="#out-of-scope">やらないこと（スコープ外）</a></li>
+    <li><a href="#verify">検証</a></li>
+  </ol>
+</nav>
+
+<section id="premise">
+  <h2>前提（合意状況）</h2>
+  <ul>
+    <li>上位の計画: <code>plans/brisk-charting-lantern.md</code>（flow-id 1-4 で作成）。<b>flow-id 1-5（人間による合意）は未了</b>である。このセッションは人間のレビュー往復が成立しないため、敵対的レビューで代替する（<code>HANDOFF.md</code>「守るべき条件・触ってはいけない範囲」）。</li>
+    <li>全体作業計画の「フェーズ2〈調査〉」節に挙げた6問を、この計画の調査項目としてそのまま引き継ぐ。</li>
+  </ul>
+</section>
+
+<section id="goal">
+  <h2>この計画で何をするか</h2>
+  <p>フェーズ3で <code>.claude/skills/issue-mr-flow/SKILL.md</code> へ新設する「AIアセット反映の対象の洗い出し」節が、<b>既存の記述・仕組みと矛盾しない形で書けるか</b>を先に確かめる。確かめるのは次の6問である。</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>#</th><th>問い</th><th>何が分かれば十分か</th></tr></thead>
+    <tbody>
+      <tr><td>Q1</td><td>flow-id 4-1・4-6 の行と「全体作業計画に必ず含めるフェーズ」節は、新節を参照させるとき<b>どこをどう置き換える</b>ことになるか</td><td>置換前の原文（行番号つき）と置換後の形が両方書けること</td></tr>
+      <tr><td>Q2</td><td>フェーズ4をスキップしてよい条件（現行「反映するものが無いと確認できた場合」）は、洗い出し手順の<b>どの段階が終わった状態</b>を指すか</td><td>「洗い出しの手順Nまでを実施し、結果が空だったとき」と言い換えられること</td></tr>
+      <tr><td>Q3</td><td>反映先の形態（<code>rules</code> / <code>skills</code> / <code>scripts</code> / <code>hooks</code> / <code>REVIEW-POINTS.md</code> / <code>agents</code>）は、既存ドキュメント上どこで定義され、置き場のルールは何か</td><td>各形態の定義元ファイルと、2軸の説明が既存定義と矛盾しないことの確認</td></tr>
+      <tr><td>Q4</td><td><code>doc-search</code> スキルは何を入力に何を返すか。証拠集めの打ち切り条件として書ける形か</td><td>実際に1回実行し、返る項目（<code>type</code>/<code>title</code>/<code>description</code>/<code>tags</code>/<code>keywords</code>/パス）を確認すること</td></tr>
+      <tr><td>Q5</td><td><code>【AIアセット作成】</code>（フェーズ3）と <code>【AIアセット反映】</code>（フェーズ4）の既存の使い分け（issue #110）と、新設する洗い出し手順が矛盾しないか</td><td>「成果物か副産物か」という既存の判断基準を、洗い出しの起点が壊していないこと</td></tr>
+      <tr><td>Q6</td><td><code>plans/REVIEW-POINTS.md</code> の既存の観点と、追加する <code>【AIアセット反映】</code> の観点が重複しないか</td><td>既存の「種別」節の記述との重複箇所の有無</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="method">
+  <h2>調査方法</h2>
+  <ul>
+    <li><b>Q1・Q2・Q5・Q6</b>: <code>.claude/skills/issue-mr-flow/SKILL.md</code> と <code>plans/REVIEW-POINTS.md</code> を <code>grep -n</code> で該当箇所を特定し、原文を行番号つきで引用する（置換前後を両方書くため。<code>plans/REVIEW-POINTS.md</code>「内容」の観点）。</li>
+    <li><b>Q3</b>: 先に <code>doc-search</code>（<code>bash .claude/scripts/src/search-frontmatter.sh</code>）で該当ドキュメントを探し、見つかったファイルだけを開く（<code>AGENTS.md</code> のルール。全文探索を第一手段にしない）。</li>
+    <li><b>Q4</b>: スキルの実体 <code>bash .claude/scripts/src/search-frontmatter.sh</code> を<b>実際に実行</b>し、返る項目を実測で確かめる（公式ドキュメントの記述だけを根拠にしない。<code>reports/REVIEW-POINTS.md</code>「内容の妥当性」）。</li>
+  </ul>
+</section>
+
+<section id="target">
+  <h2>変更対象</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>ファイル</th><th>操作</th><th>何をするか</th></tr></thead>
+    <tbody>
+      <tr><td><code>reports/20260823_brisk-charting-lantern_AIアセット反映の洗い出し手順の前提確認.md</code></td><td>新規</td><td>調査結果の正文（Q1〜Q6の回答と根拠）</td></tr>
+      <tr><td><code>reports/20260823_brisk-charting-lantern_AIアセット反映の洗い出し手順の前提確認.html</code></td><td>新規</td><td>上記の人間レビュー用HTMLビュー</td></tr>
+      <tr><td><code>worklog/20260823_brisk-charting-lantern_【調査】AIアセット反映の洗い出し手順の前提確認_push2.md</code></td><td>新規</td><td>試行錯誤の詳細ログ</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p><b>この計画ファイルには結果を書かない</b>（<code>reports/</code> へ分ける。SKILL.md「計画と実施結果の分離」）。</p>
+</section>
+
+<section id="out-of-scope">
+  <h2>やらないこと（スコープ外）</h2>
+  <div class="box stop">
+    <span class="label">この計画では決めない・触らない</span>
+    <ul>
+      <li><b>4類型・2軸の中身を確定させること。</b> それはフェーズ3（個別作業計画 flow-id 3-1）で決める。この調査が出すのは「どこへどう書けるか」という器の確認であって、書く内容そのものではない。</li>
+      <li><b>過去MRを遡って実際のAIアセット反映事例を網羅的に集めること。</b> 網羅探索をしないことは今回定義する手順そのものの方針であり（全体作業計画「方針」）、調査でそれをやると自己矛盾する。Q4の確認に必要な範囲（<code>doc-search</code> を1回実行する）に留める。</li>
+      <li><b><code>.claude/docs/spec/issue-mr-workflow.md</code> の入口文言の確定。</b> 判断は flow-id 4-1 へ送る。</li>
+    </ul>
+  </div>
+</section>
+
+<section id="verify">
+  <h2>検証</h2>
+  <pre><code># Q1: 置換対象の行が一意に特定できること
+grep -n 'AIアセット反映' .claude/skills/issue-mr-flow/SKILL.md
+
+# Q3: 反映先の形態の定義元
+bash .claude/scripts/src/search-frontmatter.sh --type rule --format table
+
+# Q4: doc-searchが実際に返す項目
+bash .claude/scripts/src/search-frontmatter.sh --tag workflow --format json | head -3</code></pre>
+  <p>合格条件: Q1〜Q6のすべてに、実行したコマンドと返ってきた出力を根拠として添えた回答が <code>reports/…md</code> に書かれていること。確かめられなかった問いがある場合は、確かめたことと区別して書かれていること。</p>
+</section>
+
+<footer>issue #155 / PR #175 — 計画の正文は同名の <code>.md</code>。外部依存を持たない自己完結HTML。</footer>
+
+</div>
+
+</body>
+</html>
