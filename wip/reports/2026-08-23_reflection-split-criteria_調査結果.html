@@ -1,0 +1,433 @@
+<!--
+  調査結果レポート（issue #176・フェーズ2）の人間レビュー用HTMLビュー。
+  正文は同名の wip/reports/2026-08-23_reflection-split-criteria_調査結果.md であり、
+  このHTMLはその視覚化である。
+  土台: .claude/skills/issue-mr-flow/assets/reports.template.html
+-->
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>調査結果 — 反映対象の切り出し判断基準（issue #176）</title>
+<style>
+  :root {
+    --bg: #f6f7f9;      --panel: #ffffff;   --ink: #1a1d21;     --muted: #5b636d;
+    --line: #dfe3e8;    --accent: #2563eb;  --accent-soft: #eaf0fe;
+    --ok: #1a7f4b;      --ok-soft: #e6f4ec; --warn: #a35a00;    --warn-soft: #fdf1e0;
+    --stop: #b3261e;    --stop-soft: #fdecea; --good: #1d4ed8;  --good-soft: #e7edfd;
+    --code-bg: #f0f2f5;
+    --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1216;    --panel: #161a20;   --ink: #e6e8eb;     --muted: #9aa3ad;
+      --line: #2a3038;  --accent: #7aa2f7;  --accent-soft: #1b2333;
+      --ok: #6ee7a8;    --ok-soft: #14261d; --warn: #f0b866;    --warn-soft: #2a2113;
+      --stop: #f2857c;  --stop-soft: #2b1614; --good: #8ab4f8;  --good-soft: #17233a;
+      --code-bg: #1d222a;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", system-ui, sans-serif;
+    line-height: 1.8; font-size: 15px;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 20px 80px; }
+
+  /* 共通ヘッダ帯 */
+  header.band {
+    background: linear-gradient(135deg, var(--accent-soft), var(--panel));
+    border-bottom: 1px solid var(--line); padding: 28px 20px 22px; margin-bottom: 28px;
+  }
+  header.band .inner { max-width: 1080px; margin: 0 auto; }
+  header.band .kind { font-size: 11px; letter-spacing: .18em; color: var(--accent); font-weight: 700; }
+  header.band h1 { margin: 6px 0 4px; font-size: 26px; line-height: 1.4; }
+  header.band .lead { margin: 0; color: var(--muted); }
+  header.band .counts { margin: 12px 0 0; display: flex; gap: 6px; flex-wrap: wrap; }
+  .meta { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; padding: 0; list-style: none; }
+  .meta li {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 999px;
+    padding: 3px 12px; font-size: 12.5px; color: var(--muted); white-space: nowrap;
+  }
+  .meta li b { color: var(--ink); font-weight: 600; }
+
+  nav.toc {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 14px 20px; margin-bottom: 28px;
+  }
+  nav.toc h2 { margin: 0 0 8px; font-size: 13px; letter-spacing: .08em; color: var(--muted); border: 0; padding: 0; }
+  nav.toc ol { margin: 0; padding-left: 20px; }
+  nav.toc li { margin: 2px 0; }
+  a { color: var(--accent); }
+
+  section {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 8px 24px 22px; margin-bottom: 22px;
+  }
+  /* アンカーで飛んだとき見出しが上端に張り付かないようにする（issue #186） */
+  section[id], h3[id] { scroll-margin-top: 16px; }
+  h2 { font-size: 20px; margin: 20px 0 10px; padding-bottom: 8px; border-bottom: 2px solid var(--line); }
+  h3 { font-size: 16px; margin: 22px 0 8px; color: var(--accent); }
+  p { margin: 10px 0; }
+  ul, ol { padding-left: 22px; }
+  li { margin: 4px 0; }
+  blockquote { margin: 10px 0; padding: 6px 14px; border-left: 3px solid var(--line); color: var(--muted); }
+
+  /* 表は自身の中で横スクロールする（ページ本体は横スクロールさせない） */
+  .tablewrap { overflow-x: auto; margin: 14px 0; }
+  table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 14px; }
+  th, td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: var(--accent-soft); font-weight: 600; white-space: nowrap; }
+  tbody tr:nth-child(even) td { background: color-mix(in srgb, var(--line) 22%, transparent); }
+
+  code {
+    background: var(--code-bg); border-radius: 5px; padding: 1px 5px; font-size: 13px;
+    font-family: "SFMono-Regular", Consolas, "Noto Sans Mono", monospace;
+  }
+  pre {
+    background: var(--code-bg); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 12px 14px; overflow-x: auto; font-size: 13px; line-height: 1.65;
+  }
+  pre code { background: none; padding: 0; }
+
+  /* 注意ボックス: info（既定）/ ok（決めたこと・手順の成功。結論の性質には使わない）/
+     warn（注意）/ stop（やらないこと・危険） */
+  .box { border-left: 4px solid var(--accent); background: var(--accent-soft);
+         border-radius: 0 var(--radius) var(--radius) 0; padding: 12px 16px; margin: 16px 0; }
+  .box > :first-child { margin-top: 0; } .box > :last-child { margin-bottom: 0; }
+  .box .label { font-size: 12px; font-weight: 700; letter-spacing: .06em; display: block; margin-bottom: 4px; }
+  .box.ok { border-color: var(--ok); background: var(--ok-soft); } .box.ok .label { color: var(--ok); }
+  .box.warn { border-color: var(--warn); background: var(--warn-soft); } .box.warn .label { color: var(--warn); }
+  .box.stop { border-color: var(--stop); background: var(--stop-soft); } .box.stop .label { color: var(--stop); }
+  .box.info .label { color: var(--accent); }
+
+  /* 結論の性質チップ: 良=青 .good / 注意=黄 .warn / 問題=赤 .stop（記号＋文字を必ず併記） */
+  .chip { display: inline-block; border-radius: 999px; padding: 1px 9px; font-size: 12px; font-weight: 600; }
+  .chip.good { background: var(--good-soft); color: var(--good); }
+  .chip.warn { background: var(--warn-soft); color: var(--warn); }
+  .chip.stop { background: var(--stop-soft); color: var(--stop); }
+
+  /* サマリの結論カード: 1カード1結論（チップ＋結論1行＋根拠の性質＋章リンク） */
+  ol.verdicts { list-style: none; padding: 0; margin: 14px 0; display: grid; gap: 8px; }
+  .verdict {
+    border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel);
+    padding: 8px 12px; display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px;
+  }
+  .verdict .v-basis { color: var(--muted); font-size: 12.5px; margin-left: auto; }
+
+  /* 重点レビュー依頼の3段階: 重みは色相では表さない（色相は結論の性質専用）。
+     must/want はアクセント系1色相の濃度・枠の太さ、skip は中立色（--line枠＋--muted文字）。
+     記号（◆◇・）を必ず併記する */
+  .focus { border-radius: var(--radius); padding: 12px 16px; margin: 14px 0; }
+  .focus > :last-child { margin-bottom: 0; }
+  .focus .label { font-size: 13px; font-weight: 700; letter-spacing: .04em; display: block; margin-bottom: 4px; }
+  .focus.must { border: 2px solid var(--accent); background: var(--accent-soft); }
+  .focus.must .label { color: var(--accent); }
+  .focus.want { border: 1px solid var(--accent); background: var(--panel); }
+  .focus.want .label { color: var(--accent); }
+  .focus.skip { border: 1px solid var(--line); background: var(--panel); color: var(--muted); }
+  .focus.skip .label { color: var(--muted); }
+  .focus.skip a { color: var(--muted); }
+
+  footer { color: var(--muted); font-size: 13px; text-align: center; padding-top: 10px; }
+</style></head>
+<body>
+
+<header class="band">
+  <div class="inner">
+    <div class="kind">調査結果レポート / フェーズ2（flow-id 2-6）</div>
+    <h1>反映対象の切り出し判断基準 — 6問の調査結果</h1>
+    <p class="lead">フェーズ4の反映対象に対する切り出し判断基準を書くための事実を集めた。<b><code>main</code> の整合性を問う判定は過去DDR 9件すべてで当時の結論と一致した</b>が、<b>見送りの理由は4種あり「規模」は2件（25%）だけで、issue本文の骨子が持つ誤爆防止の条件では 6/8 の事例が行き先を失う</b>ことが分かった。</p>
+    <p class="counts">
+      <span class="chip good">◎良 3</span>
+      <span class="chip warn">△注意 3</span>
+      <span class="chip stop">✕問題 0</span>
+    </p>
+    <ul class="meta">
+      <li><b>issue</b> #176</li>
+      <li><b>ブランチ</b> claude/reflection-plan-criteria-tnhfvs</li>
+      <li><b>PR</b> #196（Draft）</li>
+      <li><b>フェーズ</b> 2〈調査〉 flow-id 2-6</li>
+      <li><b>push回数</b> 4</li>
+      <li><b>作成日</b> 2026-08-23</li>
+      <li><b>正文</b> 同名の .md</li>
+    </ul>
+  </div>
+</header>
+
+<div class="wrap">
+
+<nav class="toc">
+  <h2>目次</h2>
+  <ol>
+    <li><a href="#review-focus">重点レビュー依頼</a></li>
+    <li><a href="#summary">サマリ（結論の一覧）</a></li>
+    <li><a href="#unverified">確かめられなかったこと</a></li>
+    <li><a href="#conditions">実施条件（測った対象・環境）</a></li>
+    <li><a href="#findings">実施した内容と結果</a></li>
+    <li><a href="#next">設計への反映</a></li>
+    <li><a href="#surprises">想定と異なった点</a></li>
+    <li><a href="#todo">残課題</a></li>
+  </ol>
+</nav>
+
+<section id="review-focus">
+  <h2>重点レビュー依頼</h2>
+  <div class="focus must">
+    <span class="label">◆特に見てほしい（判断に困っている）</span>
+    <ul>
+      <li><a href="#f4">4. 過去事例での妥当性検証</a> — <b>母数の取り方</b>で迷っている。13件から2件を「別issueという語を使っているだけ」として落とし、さらに2件を「反映対象の見送りではない」として9件へ絞った。とくに <code>i0110-01</code>（計画レビューでの却下案）と <code>i0140-01</code>（過去の決定の踏襲）を外した線引きが恣意的でないか決めてほしい。</li>
+    </ul>
+  </div>
+  <div class="focus want">
+    <span class="label">◇承認が欲しい（方針は決めたので確認してほしい）</span>
+    <ul>
+      <li><a href="#f1">1. 節の配置先</a> — 受け入れ条件の「SKILL.md に節がある」を <code>references/planning.md</code> で満たすと決めた。<b>issue本文の文言を字義どおりには満たさない</b>点を承認してほしい。</li>
+      <li><a href="#f4">4. 過去事例での妥当性検証</a> — <b>No のときの出口を3つ以上持つ形にする</b>と決めた（このMRでやる／やらないと決める／別issueへ切り出す）。issue本文の骨子は1つ目しか持っていない。</li>
+    </ul>
+  </div>
+  <div class="focus skip">
+    <span class="label">・細かいレビューは不要（ほぼ確実）</span>
+    <ul>
+      <li><a href="#f5">5. 固定費の数字</a> — 実数43は <code>grep -cE</code> で実測済み。複製箇所も機械的に洗い出した。</li>
+      <li><a href="#f2">2. 差し替えの影響</a> — <code>【AIアセット反映】</code> 節に「別issue」「切り出し」の語が1つも無いことは全文確認済み。</li>
+    </ul>
+  </div>
+</section>
+
+<section id="summary">
+  <h2>サマリ（結論の一覧）</h2>
+  <ol class="verdicts">
+    <li class="verdict">
+      <span class="chip good">◎良</span>
+      <a href="#f1">1. 節の配置先は <code>references/planning.md</code>。SKILL.md 本体は入口5要素に限定されている</a>
+      <span class="v-basis">根拠: DDR i0160-01 決定1・既存節の実配置</span>
+    </li>
+    <li class="verdict">
+      <span class="chip warn">△注意</span>
+      <a href="#f2">2. <code>【AIアセット反映】</code> 側は切り出しに一切触れておらず、そちらからも新節を指す必要がある</a>
+      <span class="v-basis">根拠: 該当節153行の全文確認</span>
+    </li>
+    <li class="verdict">
+      <span class="chip good">◎良</span>
+      <a href="#f3">3. issue #155 の4類型とは入力・出力で接続し、類型に依らず同じ一問で足りる</a>
+      <span class="v-basis">根拠: ドキュメントの読解</span>
+    </li>
+    <li class="verdict">
+      <span class="chip warn">△注意</span>
+      <a href="#f4">4. 判定は過去9件すべてで当時の結論と一致。ただし No の理由は4種あり「規模」は2件だけ</a>
+      <span class="v-basis">根拠: DDR 13件の全文読解</span>
+    </li>
+    <li class="verdict">
+      <span class="chip good">◎良</span>
+      <a href="#f5">5. 固定費は43で一致済み。新節では再掲せず参照で寄せる（複製は現在6箇所）</a>
+      <span class="v-basis">根拠: 実測（grep -cE で43）</span>
+    </li>
+    <li class="verdict">
+      <span class="chip warn">△注意</span>
+      <a href="#f6">6. issue #64 の記録先（全体作業計画・HANDOFF.md）はフェーズ4では使えない。恒久的に残す先が要る</a>
+      <span class="v-basis">根拠: docs-workflow.md のライフサイクル表</span>
+    </li>
+  </ol>
+</section>
+
+<section id="unverified">
+  <h2>確かめられなかったこと</h2>
+  <div class="box warn">
+    <span class="label">この結果が言っていないこと</span>
+    <ul>
+      <li><b>MRのレビュー往復に残る切り出し判断</b>を見ていない。DDRに書き起こされた分だけが母数で、実際に下された判断はこれより多い可能性が高い — <a href="#f4">詳細: 章4</a></li>
+      <li><b>flow-id 4-6 の参照列に <code>references/planning.md</code> を足すべきか</b>は決めていない。読み込み量のトレードオフがあり、フェーズ3で判断する — <a href="#f1">詳細: 章1</a></li>
+    </ul>
+  </div>
+</section>
+
+<section id="conditions">
+  <h2>実施条件（測った対象・環境）</h2>
+  <ul>
+    <li>実行環境: Claude Code on the web のリモート実行環境（Linux）。<code>gh</code>/<code>glab</code> CLI は不在で、GitHub情報はMCPツール経由。</li>
+    <li>対象: このリポジトリの <code>main</code> 相当（<code>d31dfd8</code>）＋本ブランチの計画コミット。DDR 全92件、<code>.claude/skills/</code> <code>.claude/rules/</code> 配下。</li>
+    <li>実施日: 2026-08-23</li>
+    <li>使った主なコマンド: <code>grep -rn -- '別issue'</code> / <code>grep -rln -- '別issue' .claude/docs/ddr/</code> / <code>grep -cE '^\| [0-9]+-[0-9]+ \|'</code> / <code>search-frontmatter.sh --type ddr --format jsonl</code></li>
+  </ul>
+</section>
+
+<section id="findings">
+  <h2>実施した内容と結果</h2>
+
+  <h3 id="f1">1. 節の配置先は <code>references/planning.md</code> <span class="chip good">◎良</span></h3>
+  <p>SKILL.md 本体と <code>references/</code> の役割分担がどこで定義されているかを調べた。根拠は3つ揃った。</p>
+  <ol>
+    <li><b>DDR <code>i0160-01</code> 決定1</b> — SKILL.md 本体に残すものを「全体フロー表・PR/MR担当・詳細ルールへのポインタ・前提・旧節名の対応表」の5つに限定し、詳細は <code>references/</code> 配下の7ファイルへ移すと決めている。判断基準はこの5つのどれでもない。</li>
+    <li><b><code>SKILL.md:131-132</code></b> —「このファイルは順序立ったフローの定義に専念し、内容の重複は避ける」。</li>
+    <li><b>同型の既存節が既に <code>references/planning.md:192</code> にある</b>（「issueが大きすぎる場合の分割提案」）。<code>SKILL.md:174</code> の旧節名対応表も「→ <code>references/planning.md</code>」と明記。SKILL.md 本体へ書くと<b>同じ種類の節が2ファイルへ分かれる</b>。</li>
+  </ol>
+  <div class="box ok">
+    <span class="label">結論</span>
+    新節は <code>references/planning.md</code> へ置き、SKILL.md からは (a) flow-id 4-1 の行の本文と (b) 全体フロー表の参照列（4-1 は既に <code>references/planning.md</code> を含む）の2経路で指す。受け入れ条件の「SKILL.md に節がある」は issue #160 以前の構造を前提とした文言と読み替える——issue本文が <code>【実装反映】</code> 定義を「SKILL.md にある1文」と呼んでいるが、その定義は現在 <code>references/planning.md:86-94</code> にあり SKILL.md には無い。
+  </div>
+  <div class="box warn unverified-detail">
+    <span class="label">確かめられなかったこと（詳細）</span>
+    <b>flow-id 4-6 の参照列は <code>references/deliverables.md</code> のみ</b>で、<code>references/planning.md</code> を含まない。<code>【実装反映】</code> が拾う不具合は 4-6 の作業中にも判明しうるので追加を検討すべきだが、参照列を増やすとそのステップの読み込み量が増える（DDR <code>i0160-01</code> が分割の根拠にしたトレードオフ）。<b>この調査では決めず、フェーズ3へ送る。</b>
+  </div>
+
+  <h3 id="f2">2. 差し替え対象の1文と、その影響 <span class="chip warn">△注意</span></h3>
+  <p>差し替え対象は <code>references/planning.md:92-94</code>（<code>【実装反映】</code> 定義の末尾1文）。</p>
+  <blockquote>対応が1issueに収まらない規模になった場合は、下記「issueが大きすぎる場合の分割提案」の基準に従い別issueへの切り出しを検討する。</blockquote>
+  <p><b><code>【実装反映】</code> 定義の他の記述とは矛盾しない。</b>定義は4文からなり、(1) 何を拾う種別か、(2) フェーズ3のループで解消できるものは持ち越さない、(3) <code>【設計反映】</code> との使い分け、(4) 本文（切り出し）。<b>(4) は他の3文が確定させた「拾う対象」に対して後段の処理を述べており、依存が一方向である。</b></p>
+  <p>一方で、<code>【AIアセット反映】</code> 側（「AIアセット反映の対象の洗い出し」節・153行）を全文確認したところ、<b>「別issue」「切り出し」のいずれの語も現れなかった</b>。手順2の分類結果に対して「では、それをこのMRでやるのか」を問う記述が無く、<b>分類したものはすべてこのMRで反映する前提</b>になっている。</p>
+  <p>「切り出し」に触れる記述の全数は<b>10行</b>（<code>grep -rn -- '別issue' .claude/skills .claude/rules</code>、<code>.gemini/</code> は生成物なので除外）。うち issue #64 の基準を指すのは3箇所で、<b>本issueの対象はそのうち1箇所だけ</b>である。</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>場所</th><th>内容</th><th>本issueの対象か</th></tr></thead>
+    <tbody>
+      <tr><td><code>references/planning.md:93</code></td><td><code>【実装反映】</code> の切り出し</td><td><b>対象</b>（差し替える）</td></tr>
+      <tr><td><code>SKILL.md:76</code>（flow-id 2-6）</td><td>フェーズ2で規模が判明したときのissue未着手範囲の切り出し</td><td>対象外（#64）</td></tr>
+      <tr><td><code>references/planning.md:246</code></td><td>同上（#64 節の中の基準本体）</td><td>対象外（#64）</td></tr>
+      <tr><td><code>issue-create/SKILL.md:82,123</code>・<code>start-resume.md:27</code></td><td>起票と着手を同じセッションでやらない</td><td>対象外</td></tr>
+      <tr><td><code>phase5-close.md:290</code>・<code>review-loop.md:82,190</code>・<code>plans.template.html:271</code></td><td>記録・テンプレートの例示</td><td>対象外</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <div class="box ok">
+    <span class="label">結論</span>
+    差し替えは <code>references/planning.md:93</code> の1箇所でよい。ただし<b><code>【AIアセット反映】</code> 側（手順2の末尾）からも新節を指す必要がある</b>——issue #176 の対象は「持ち越した不具合」と「副産物として気づいたアセット改善」の両方であり、後者の側には問いそのものが立っていない。
+  </div>
+
+  <h3 id="f3">3. issue #155 の4類型 (a)〜(d) との接続 <span class="chip good">◎良</span></h3>
+  <p>issue #155 の手順2は「<b>何が反映対象か</b>」を決め、本issueは「その対象を<b>このMRでやるか</b>」を決める。入力と出力で接続し、重複しない。</p>
+  <p><b>類型ごとに判断は変わらず、同じ一問で足りる。</b>ただし類型は無関係ではなく、<b>「別issue候補」となった後の規模の見積り</b>に効く。</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>類型</th><th>反映の向き</th><th>規模の傾向</th></tr></thead>
+    <tbody>
+      <tr><td>(a) 新規作成</td><td>アセットを新設</td><td><b>大きい</b>（別issue候補になりやすい）</td></tr>
+      <tr><td>(b) 訂正</td><td>誤った記述を直す</td><td><b>小さい</b>（1行で済むことが多い）</td></tr>
+      <tr><td>(c) 追記</td><td>罠を書き足す</td><td>中</td></tr>
+      <tr><td>(d) 導線の改善</td><td>参照・キーワード・配置</td><td>小〜中</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <div class="box ok">
+    <span class="label">結論</span>
+    <b>類型を見て判定を分岐させない。</b><code>main</code> の整合性の観点では (b) が Yes に倒れやすいが、これは傾向であって規則ではない（今回の変更と無関係な既存の誤りを (b) として拾った場合は No になる）。また <code>references/planning.md:402-405</code> の判別規則（<code>【実装反映】</code>／<code>【AIアセット反映】</code> は「どこから来た項目か」で決める）とも独立で、<b>切り出し判断は種別で分岐しない</b>。
+  </div>
+
+  <h3 id="f4">4. 過去事例での妥当性検証 — 判定は9/9で一致、ただし No の理由は4種 <span class="chip warn">△注意</span></h3>
+  <p>母数は機械的に洗い出した。<code>grep -rln -- '別issue' .claude/docs/ddr/</code> で<b>13件</b>。うち2件（<code>i0039-01</code>・<code>i0068-01</code>）は「別issue」を<b>単に別のissueを指す語</b>として使っているだけなので除外し、<b>母数を11件</b>とした。さらに本issueが対象とする「フェーズ4の反映対象の見送り」に相当するものは<b>9件</b>で、除外した2件は <code>i0140-01</code>（過去の決定 <code>i0066-01</code> 却下3 の踏襲）と <code>i0110-01</code>（計画レビューでの却下案）である。</p>
+  <p>判定は「<b>この反映を見送ってマージした場合、<code>main</code> は今回の変更と矛盾・不整合な状態になるか</b>」。</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>DDR</th><th>何を見送ったか</th><th>当時の理由</th><th>判定</th><th>当時の結論</th><th>一致</th></tr></thead>
+    <tbody>
+      <tr><td><code>i0000-02</code></td><td>botアカウントによる投稿者分離</td><td>本PRの規模を大きく超える</td><td><b>No</b></td><td>別issue候補として見送り</td><td>○</td></tr>
+      <tr><td><code>i0023-01</code></td><td>Gemini CLI分の集計対象化</td><td>別issueの規模になる</td><td><b>No</b></td><td>見送り（境界を構造で保証）</td><td>○</td></tr>
+      <tr><td><code>i0053-01</code>（案F）</td><td><code>post-issue-create-notice.sh</code> への同じ適用</td><td>issue #53 が名指ししておらずスコープ外</td><td><b>No</b></td><td>見送り（却下ではない）</td><td>○</td></tr>
+      <tr><td><code>i0000-07</code></td><td>未使用 <code>slug</code> フィールドの削除</td><td>死んだ出力で実害がない</td><td><b>No</b></td><td>スコープ外・現状維持</td><td>○</td></tr>
+      <tr><td><code>i0171-01</code></td><td>既存フローへの自動合流</td><td>頻度の低い整合性チェックを自動実行する価値が無い</td><td><b>No</b></td><td>手動実行のみ</td><td>○</td></tr>
+      <tr><td><code>i0088-01</code></td><td>衝突しにくい構造への変更</td><td>範囲外で、期待する動作を代替しない</td><td><b>No</b></td><td>見送り</td><td>○</td></tr>
+      <tr><td><code>i0054-01</code></td><td>（<code>i0000-11</code> 時点での）テンプレート化</td><td>複数件運用した実績を踏まえてから判断する</td><td><b>No</b></td><td>保留</td><td>○</td></tr>
+      <tr><td><code>i0000-11</code></td><td>同上（保留を決めた側）</td><td>同上</td><td><b>No</b></td><td>保留</td><td>○</td></tr>
+      <tr><td><code>i0077-02</code></td><td><b>切り出さないと決めた側</b></td><td>観点表が無いと「何を観るか」が定義できず、単独マージの価値が薄い</td><td><b>Yes</b></td><td>issue #77 に含める</td><td>○</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p><b>9件すべてで当時の結論と一致した。</b>とくに <code>i0077-02</code> は、判定が <b>Yes 側でも正しく働く</b>ことの実例である。</p>
+  <div class="box stop">
+    <span class="label">見つかった基準の欠落</span>
+    <b>No と判定された8件の理由は4種に分かれ、「規模」はそのうち2件（25%）だけだった。</b>
+    <div class="tablewrap">
+    <table>
+      <thead><tr><th>理由の類型</th><th>件数</th><th>該当</th></tr></thead>
+      <tbody>
+        <tr><td><b>規模</b>（別issueの規模になる）</td><td>2</td><td><code>i0000-02</code>・<code>i0023-01</code></td></tr>
+        <tr><td><b>スコープ</b>（このissueが名指ししていない／期待する動作を代替しない）</td><td>2</td><td><code>i0053-01</code>・<code>i0088-01</code></td></tr>
+        <tr><td><b>価値</b>（実害がない／自動化する価値が無い）</td><td>2</td><td><code>i0000-07</code>・<code>i0171-01</code></td></tr>
+        <tr><td><b>時期尚早</b>（実績が足りず判断できない）</td><td>2</td><td><code>i0054-01</code>・<code>i0000-11</code></td></tr>
+      </tbody>
+    </table>
+    </div>
+    issue #176 の本文が骨子として挙げる「切り出さない条件（誤爆防止）」は<b>規模の話だけ</b>である。この形の基準だと、残る6件（75%）が行き先を失う。「価値」の2件は別issueにもしないと決めた事例で、起票すると着手されないまま残る。「時期尚早」の2件は判断そのものを先送りした事例で、起票してよいが<b>着手条件</b>（何が起きたら判断できるか）が要る。<b>No のときの出口は最低3つ必要である。</b>
+  </div>
+  <div class="box warn unverified-detail">
+    <span class="label">確かめられなかったこと（詳細）</span>
+    <b>MRのレビュー往復まで遡っていない</b>（個別調査計画のスコープ外）。そのため、レビューで下されDDRに書き起こされなかった判断は見えていない。<code>references/planning.md</code> の手順1の表自身が「このリポジトリではレビュー往復が主要な発見源である」と書いており、<b>この母数は実際に下された判断の一部でしかない</b>。9/9 という一致率は、この偏りのもとでの値である。
+  </div>
+
+  <h3 id="f5">5. 固定費の数字は43。新節では再掲しない <span class="chip good">◎良</span></h3>
+  <pre><code>$ grep -cE '^\| [0-9]+-[0-9]+ \|' .claude/skills/issue-mr-flow/SKILL.md
+43</code></pre>
+  <p><code>references/planning.md:224</code>「5フェーズ43ステップ」と一致している。<b>issue #176 の本文が書く「5フェーズ42ステップ」は現在の値ではない。</b></p>
+  <p>同じ数字の複製は現在<b>6箇所</b>: <code>SKILL.md:44</code>・<code>references/planning.md:224</code>・<code>.claude/rules/docs-workflow.md:24</code>・<code>.claude/docs/usecase/新しい機能開発を始める.md:28</code>・<code>.claude/docs/spec/issue-mr-workflow.md:280,658</code>。過去に 40→43 の繰り下げが起きており、<code>i0064-01:25</code> と <code>i0092-01:52</code> は当時の値「5フェーズ40ステップ」のままである（<b>point-in-time の記録なので書き換えない</b>）。</p>
+  <div class="box ok">
+    <span class="label">結論</span>
+    新節では固定費の数字を再掲せず、<code>references/planning.md</code>「issueが大きすぎる場合の分割提案」の「分割コストが本体を上回る」へ参照で寄せる。複製をもう1つ増やすと、次にステップが増えたときの追随箇所が7つになる。
+  </div>
+
+  <h3 id="f6">6. 判断の記録先 — issue #64 の記録先はフェーズ4では使えない <span class="chip warn">△注意</span></h3>
+  <p><code>references/planning.md:252</code> は「分割しない判断がされた場合は、その理由を<b>全体作業計画と <code>HANDOFF.md</code></b> に残す」としているが、フェーズ4の反映対象については次の2点で使えない。</p>
+  <ol>
+    <li><b>全体作業計画は flow-id 1-5 で合意済みのスナップショットである。</b>実施段階で判明した結果を書き足す場所ではない（<code>references/deliverables.md</code>「計画と実施結果の分離」）。</li>
+    <li><b><code>wip/plans/</code> <code>wip/reports/</code> <code>HANDOFF.md</code> はいずれも flow-id 5-5 で削除・リセットされ、squash merge により <code>main</code> に残らない</b>（<code>.claude/rules/docs-workflow.md</code>）。</li>
+  </ol>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>出口</th><th>残す先</th><th>根拠</th></tr></thead>
+    <tbody>
+      <tr><td>(1) このMRでやる</td><td><code>wip/reports/</code> の反映結果</td><td>実施内容そのものが差分に現れるので、これで足りる</td></tr>
+      <tr><td>(2) やらないと決める</td><td><code>wip/reports/</code> ＋ <b>spec の「未決定事項・懸念点」</b>または DDR の「却下した案」</td><td>蒸し返し防止には <code>main</code> に残る必要がある。docs-workflow.md は「specの未決定事項が解消したらDDRに記録し、spec側の該当項目は削除してよい」という運用を持つ</td></tr>
+      <tr><td>(3) 別issueへ切り出す</td><td><b>起票したissue</b> ＋ <code>wip/reports/</code> に1行</td><td>issueはGitHub/GitLab上に恒久的に残る</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <div class="box ok">
+    <span class="label">結論</span>
+    <code>.claude/docs/spec/issue-mr-workflow.md</code> は <code>## 未決定事項・懸念点</code>（3794行）と <code>## 決定済み事項（旧・未決定事項）</code>（3331行）の2節を持っており、解消時に移す運用が既に機能している。<b>(2) の受け皿として新しい節を作る必要はない。</b>
+  </div>
+</section>
+
+<section id="next">
+  <h2>設計への反映</h2>
+  <ol>
+    <li><b>新節は <code>references/planning.md</code> へ置く</b>（章1）。SKILL.md からは flow-id 4-1 の行の本文と参照列の2経路で指す。</li>
+    <li><b>No のときの出口を3つ以上持つ形にする</b>（章4）。「このMRでやる（極小）」「やらないと決める（価値）」「別issueへ切り出す（規模・スコープ・時期尚早）」。時期尚早で切り出す場合は<b>着手条件</b>を起票時に書く。</li>
+    <li><b><code>【AIアセット反映】</code> 側（手順2の末尾）からも新節を指す</b>（章2）。</li>
+    <li><b>固定費の数字は再掲せず、#64 節へ参照で寄せる</b>（章5）。</li>
+    <li><b>記録先は出口ごとに書き分ける</b>（章6）。恒久的に残す必要があるのは (2) と (3) で、(2) は spec の「未決定事項・懸念点」または DDR の「却下した案」。</li>
+    <li>恒久的に残す知見の反映先: 判断基準そのものは <code>.claude/skills/issue-mr-flow/references/planning.md</code>、設計判断と却下案は <code>.claude/docs/ddr/i0176-01-….md</code>、位置づけの記録は <code>.claude/docs/spec/issue-mr-workflow.md</code>（<b>決定の要約と所在だけ。基準本体は再掲しない</b>）。</li>
+  </ol>
+</section>
+
+<section id="surprises">
+  <h2>想定と異なった点</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>計画時の見込み</th><th>実際</th><th>どう扱ったか</th></tr></thead>
+    <tbody>
+      <tr><td>差し替えが必要なのは <code>【実装反映】</code> の1文だけ</td><td><code>【AIアセット反映】</code> 側には<b>切り出しへの言及が皆無</b>だった。1文が古いのではなく、そもそも問いが立っていない</td><td>フェーズ3の作業へ「手順2の末尾から新節を指す」を追加（章2）</td></tr>
+      <tr><td>誤爆防止の条件は「規模」で足りる（issue本文の骨子）</td><td>No の理由は4種あり、<b>規模は25%（2/8）だけ</b>。そのまま実装すると6件が行き先を失う</td><td>No のときの出口を3つ以上持つ形にすると決めた（章4）</td></tr>
+      <tr><td>過去事例は「別issueの規模と判断して見送った」もの（issue本文が挙げる3件）</td><td>3件目 <code>i0014-01</code> は該当せず、逆に<b>「切り出さないと決めた」実例 <code>i0077-02</code></b> が母数に含まれていた</td><td>母数を機械的に洗い出す形へ変え、Yes 側の実例として判定の両側の検証に使った（章4）</td></tr>
+      <tr><td>Q5 は数字が揃っているかを確かめる問い</td><td>調べるまでもなく一致していた。本当のリスクは<b>複製をもう1つ増やすこと</b>だった</td><td>問いを「再掲するか参照で済ませるか」へ書き換え、複製6箇所を洗い出した（章5）</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="todo">
+  <h2>残課題</h2>
+  <ul>
+    <li>主判定の文面の確定（<code>main</code> の整合性を問う形にするか、別の候補を検討するか）— <b>フェーズ3</b></li>
+    <li>No のときの3つの出口の文面と、「時期尚早」で切り出す場合の着手条件の書き方 — <b>フェーズ3</b></li>
+    <li><code>【AIアセット反映】</code> 側（手順2の末尾）から新節を指す文面 — <b>フェーズ3</b></li>
+    <li>flow-id 4-6 の参照列を増やすかどうか — <b>フェーズ3</b></li>
+    <li>#64 節との相互参照の1行の文面（どちらを使うかが1行で伝わるか）— <b>フェーズ3</b></li>
+  </ul>
+</section>
+
+<footer>issue #176 / PR #196 — 結果の正文は同名の <code>.md</code>。外部依存を持たない自己完結HTML。</footer>
+
+</div>
+</body>
+</html>

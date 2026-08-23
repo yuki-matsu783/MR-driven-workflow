@@ -17,7 +17,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - issue: #176
 - ブランチ: `claude/reflection-plan-criteria-tnhfvs`
 - PR: #196（Draft・https://github.com/yuki-matsu783/MR-driven-workflow/pull/196 ）
-- push回数: 3
+- push回数: 4
 - 現在のループ: 2-3〜2-4 の1周目（完了）
 - 未返信スレッド: 0
 - 追従監視: あり（PRイベント購読 + 定期チェックイン。Claude Code on the web セッション）
@@ -34,7 +34,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 | [] | 2-2 | commitし、pushしてレビュー依頼を行う | エージェント |
 | [x] | 2-3 | MRで調査計画についてレビュー・コメントする | 人間 |
 | [x] | 2-4 | レビュー内容を取得し、調査計画を修正する | `comments` / `reply` |
-| [] | 2-5 | 調査計画をもとにMR descriptionを更新する | `describe` |
+| [x] | 2-5 | 調査計画をもとにMR descriptionを更新する | `describe` |
 | [] | 2-6 | 調査を実施し、結果を記録する | エージェント |
 | [] | 2-7 | commitし、pushしてレビュー依頼を行う | エージェント |
 | [] | 2-8 | MRで調査結果についてレビュー・コメントする | 人間 |
@@ -78,10 +78,12 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - **敵対的レビュー（フェーズ2・1/3回目）**: `wip/plans/` の計画2本＋HTMLビュー＋`HANDOFF.md` を対象に実施。指摘12件。振り分け表を通った6件をPR #196 へインライン投稿し、残り6件（minor/medium）はレビュー本文へ記載。投稿スレッド: [#1](https://github.com/yuki-matsu783/MR-driven-workflow/pull/196#discussion_r3839433337) / [#2](https://github.com/yuki-matsu783/MR-driven-workflow/pull/196#discussion_r3839433850) / [#3](https://github.com/yuki-matsu783/MR-driven-workflow/pull/196#discussion_r3839434276) / [#4](https://github.com/yuki-matsu783/MR-driven-workflow/pull/196#discussion_r3839434773) / [#5](https://github.com/yuki-matsu783/MR-driven-workflow/pull/196#discussion_r3839435180) / [#6](https://github.com/yuki-matsu783/MR-driven-workflow/pull/196#discussion_r3839435574)
 - flow-id 2-3〜2-4（1周目・完了）: 12件すべてに対応し、6スレッドへ返信・報告のみ6件は[まとめコメント](https://github.com/yuki-matsu783/MR-driven-workflow/pull/196#issuecomment-5388152010)で返した。主な修正は (a) 背景の「切り出しに触れているのは1文だけ」を実測10行・うち基準を指すのは3箇所へ訂正し、うち2箇所は別の判定（issue粒度）としてスコープ外に明示、(b) 置換前後の形をmd正文へ移し md↔HTML を11節で同期、(c) status確認のjqの空振り（`.status` → `.frontmatter.status`）を修正、(d) Q4から主判定の文言を外し自己追認を回避、(e) 検証を受け入れ条件ごとの grep へ変えベースラインを実測（0/1/失敗/0）。
 
+- flow-id 2-6: 6問の調査を実施し、結果を `wip/reports/2026-08-23_reflection-split-criteria_調査結果.md`（＋`.html`）へ書いた。**判定は過去DDR 9件すべてで当時の結論と一致したが、No の理由が4種あり「規模」は2件（25%）だけで、issue本文の骨子では6件が行き先を失うことが分かった**（基準の欠落を1件検出）。あわせて `【AIアセット反映】` 側に切り出しへの言及が皆無であることも判明。
+
 ## 次にやること
 
-- flow-id 2-5: 調査計画をもとにMR descriptionを更新する。
-- flow-id 2-6: 6問の調査を実施し、結果を `wip/reports/2026-08-23_reflection-split-criteria_調査結果.md`（＋`.html`）へ書く。実施後に敵対的レビュー（フェーズ2・2/3回目）を起動する。
+- flow-id 2-7: commit・pushしてレビュー依頼を行い、敵対的レビュー（フェーズ2・2/3回目）を起動する。
+- flow-id 3-1: 個別作業計画 `wip/plans/【AIアセット作成】…` を作成する。フェーズ3で決めることは5件（主判定の文面／No のときの3つの出口／`【AIアセット反映】` 側から指す文面／flow-id 4-6 の参照列／#64 節との相互参照の1行）。
 
 ## 判断を迷った内容
 
@@ -91,7 +93,8 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 
 ## 未解決の内容
 
-（無し）
+- **Q4 の母数に偏りがある。** MRのレビュー往復まで遡っていないため、DDRへ書き起こされなかった切り出し判断は見えていない（9/9 という一致率はこの偏りのもとでの値）。調査結果の「確かめられなかったこと」に明記済み。
+- **flow-id 4-6 の参照列に `references/planning.md` を足すか未定。** 読み込み量のトレードオフがあり、フェーズ3で判断する。
 
 ## 守るべき条件・触ってはいけない範囲
 
