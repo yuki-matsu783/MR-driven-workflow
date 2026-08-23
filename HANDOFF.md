@@ -17,8 +17,9 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - issue: #70（https://github.com/yuki-matsu783/MR-driven-workflow/issues/70 ）
 - ブランチ: `claude/gemini-to-claude-migration-jc64gu`
 - PR: #157（Draft。https://github.com/yuki-matsu783/MR-driven-workflow/pull/157 ）
-- push回数: 14
-- 現在のループ: なし
+- push回数: 15
+- 現在のループ: 4-6〜4-9 の1周目（進行中）
+- 未返信スレッド: 0
 - 追従監視: 購読あり（web。subscribe_pr_activity + 自己チェックイン）
 
 | 進捗 | flow-id | ステップ | 担当 |
@@ -50,10 +51,10 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 | [x] | 3-9 | レビュー内容を取得し実装・ドキュメントを修正・返信 | サブコマンド |
 | [x] | 3-10 | 作業内容をもとにMR descriptionを更新 | サブコマンド |
 | [x] | 4-1 | 個別反映計画を作成する（反映対象の洗い出し） | エージェント |
-| [] | 4-2 | commit・pushしてレビュー依頼 | エージェント |
-| [] | 4-3 | 反映計画のレビュー・コメント | 人間 |
-| [] | 4-4 | レビュー内容を取得し反映計画を修正・返信 | サブコマンド |
-| [] | 4-5 | 反映計画をもとにMR descriptionを更新 | サブコマンド |
+| [x] | 4-2 | commit・pushしてレビュー依頼 | エージェント |
+| [x] | 4-3 | 反映計画のレビュー・コメント | 人間 |
+| [x] | 4-4 | レビュー内容を取得し反映計画を修正・返信 | サブコマンド |
+| [x] | 4-5 | 反映計画をもとにMR descriptionを更新 | サブコマンド |
 | [] | 4-6 | 設計反映・AIアセット反映・実装反映を実施 | エージェント |
 | [] | 4-7 | commit・pushしてレビュー依頼 | エージェント |
 | [] | 4-8 | 反映結果のレビュー・コメント | 人間 |
@@ -229,32 +230,51 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
   ループ範囲への `mark-done` が0以外なら拒否する）**。文言の強化（案B）を採らないのは、
   **既に十分強い文言があってなお起きた**ため。**限界も明記した**——値を書くのはAI自身なので
   嘘を書けば通る（`block-direct-git-commit.sh` と同じ「既定動作を確実な方向へ倒す仕組み」）
+- **flow-id 4-3/4-4: 人間のレビューで案Aが採用された**（チャット「【AIアセット反映】 を案A
+  （mark-done を機構的に止める）で進める」）。判断をPR #157 へ記録し
+  （`#issuecomment-5383905841`）、**4-3〜4-4 のループを `mark-done` で閉じた**（1周目・完了）。
+  閉じる前に `comments all` で **全19スレッドに返信があること**（`comments` 配列が1件のスレッドが
+  0件）を機械的に確認した
+- **flow-id 4-6（1周目・`【AIアセット反映】`）: 案Aを実装した。** `HANDOFF.md` のヘッダへ
+  `- 未返信スレッド:` を新設（項目は6→7）し、**レビュー往復のループ範囲への `mark-done` が
+  0件でなければ拒否する**形にした。計画の5件に加え、仕様3本（`update-handoff-progress` /
+  `cleanup-task` / `adversarial-review`）とテスト2本も更新
+  （結果の正文: `reports/20260823_nimble-syncing-lantern_レビュー返信漏れ防止の反映結果.md`）
+- flow-id 4-6: **`set-header` と `mark-done` を同じ扱いにすると詰む**ことが分かった。
+  `mark-done` が「行が無い」で拒否し、その復旧手段の `set-header --unreplied 0` も同じ理由で
+  拒否すると出口が無くなる。**書く側は寛容に挿入し、通す側は厳格に拒否する**という非対称にした
+  （`--loop` が既に持っていた非対称に揃えた）
+- flow-id 4-6: **既存テストが一斉に落ちたこと自体が、検査が効いている証拠だった**
+  （フィクスチャへ新設行を足すまで、ループ範囲への `mark-done` を含むケースが全部落ちた）。
+  そのうえで別途、判定を無効化すると**5件落ちる**ことも確認した。テストは 100→118 /
+  62→64、全16本で **passed=1037 failures=0**。`--check` も0
+- **flow-id 4-6: DDR は書いていない**（`i0070-02` 相当の判断は
+  `.claude/docs/spec/update-handoff-progress.md`「なぜ機構で止めるのか」に記録済み）。
+  DDRの追加は `【設計反映】` の担当なので、そちらへ寄せる
 
 ## 次にやること
 
-- **flow-id 4-2（commit・push）まで完了。次は人間のレビュー（flow-id 4-3）待ち。**
-  3本の個別反映計画への合意が得られたら flow-id 4-6 で実施する。
-  **`【AIアセット反映】` は案A/案Bの選択そのものがレビュー対象**なので、そこだけは
-  合意を待ってから着手する（機構を足すか文言を強めるかで、触るファイルが変わる）
-- flow-id 4-6 で扱う反映対象（3本の計画が正。以下は索引）:
-  - **削除済みの `setup-gemini-links.sh` を指す参照が3箇所**残っている
+- **flow-id 4-7（commit・push）まで完了。次は人間のレビュー（flow-id 4-8）待ち。**
+  レビュー対象は `【AIアセット反映】` の実施結果
+  （`reports/20260823_nimble-syncing-lantern_レビュー返信漏れ防止の反映結果.md`）。
+- **合意が得られたら、同じフェーズ4の残り2本を種別ごとに回す**
+  （`.claude/skills/issue-mr-flow/SKILL.md`「原則併記せず分ける」。4-6〜4-9を種別の数だけ）。
+  1. `plans/【設計反映】gemini変換の仕様化とDDR整備.md`
+  2. `plans/【実装反映】敵対的レビュー指摘のコード修正.md`
+- `【設計反映】` で扱う反映対象（計画が正。以下は索引）:
+  - **削除済みの `setup-gemini-links.sh` を指す参照が3箇所**
     （`README.md` L35 / `index.md` L36 / `.claude/rules/directory-structure.md` L118）
-  - DDR `i0000-13`（gemini配下はGit管理下に置かない）を `status: superseded` /
-    `superseded_by: "i0070-01"` にし、新しい `i0070-01` を書く → `generate-ddr-list.sh`
-  - **`.claude/docs/spec/sync-gemini-assets.md` の新規作成**
-    （`sync-gemini-assets.sh` の冒頭がこのパスを「仕様」として指している）
-  - `.claude/docs/spec/issue-mr-workflow.md` の `## 影響範囲` へ、**今回の繰り下げの
-    changelog エントリを追記**する（過去の繰り下げと同じ形。本文側は今回すべて更新済み）
-  - policy engine の Workspace 層が無効であること（upstream #18186）を spec へ残す
-  - `.gitignore` から消えた `i00-13` 参照の扱い（`i36-01` は別ブロックに残っている）
-  - **敵対的レビューの残り9件**（PR #157 のスレッド。各スレッドへ「フェーズ4で扱う」と返信済み）:
-    `tr -d '\r'` の欠落／CRLFの `agents/*.md` 誤診／`--others` がローカル設定を焼き込む／
-    `build_into` の0件メッセージ／前置フィルタの `read -d ''` の実機計測／
-    `reports/REVIEW-POINTS.md` の `5-4`／spec の Gemini hook登録節と未決定事項（issue #57）
-  - **今回新設した `--force` と孤児検出**も `sync-gemini-assets.md` の仕様として書く
+  - DDR `i0000-13` を `status: superseded` / `superseded_by: "i0070-01"` にし、`i0070-01` を書く
+  - **`i0070-02`（返信漏れは文言ではなく機構で塞ぐ）も、この回でDDR化する**
+  - **`.claude/docs/spec/sync-gemini-assets.md` の新規作成**（`--force` と孤児検出を含む）
+  - `.claude/docs/spec/issue-mr-workflow.md` の `## 影響範囲` へ繰り下げのchangelog追記
+  - policy engine の Workspace 層が無効であること（upstream #18186）
+  - `.gitignore` から消えた `i00-13` 参照の扱い
+- `【実装反映】` で扱う**敵対的レビューの残り指摘**: `tr -d '\r'` の欠落／CRLFの `agents/*.md`
+  誤診／`--others` がローカル設定を焼き込む／`build_into` の0件メッセージ／前置フィルタの
+  `read -d ''` の実機計測／`reports/REVIEW-POINTS.md` の `5-4`／spec の Gemini hook登録節
 - **`.claude/` を触ったら `bash .claude/scripts/src/sync-gemini-assets.sh` を流し直す**
-  （これが新設した flow-id 5-3 そのものだが、フェーズ4の作業中も `--check` が落ちないように
-  こまめに流す）。**`.gemini/` 側を直接編集しない**
+  （`.gemini/` 側を直接編集しない）
 
 ## 判断を迷った内容
 
