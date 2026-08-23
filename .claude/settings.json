@@ -8,6 +8,14 @@
   },
   "plansDirectory": "./plans",
   "autoCompactWindow": 600000,
+  "env": {
+    "CLAUDE_CODE_ENABLE_TELEMETRY": "1",
+    "OTEL_METRICS_EXPORTER": "otlp",
+    "OTEL_LOGS_EXPORTER": "otlp",
+    "OTEL_EXPORTER_OTLP_PROTOCOL": "http/json",
+    "OTEL_METRIC_EXPORT_INTERVAL": "10000",
+    "OTEL_METRICS_INCLUDE_ENTRYPOINT": "true"
+  },
   "hooks": {
     "SessionStart": [
       {
@@ -20,6 +28,14 @@
               "${CLAUDE_PROJECT_DIR}/.claude/hooks/session-start.sh"
             ],
             "timeout": 30
+          },
+          {
+            "type": "command",
+            "command": "bash",
+            "args": [
+              "${CLAUDE_PROJECT_DIR}/.claude/hooks/otel/session-start.sh"
+            ],
+            "timeout": 10
           }
         ]
       }

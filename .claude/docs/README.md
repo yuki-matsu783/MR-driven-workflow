@@ -43,6 +43,7 @@ keywords: [正史仕様, 意思決定ログ, issue-mr-workflow, シェルスク�
 - [search-frontmatter.md](spec/search-frontmatter.md) ── ドキュメント横断検索スクリプト（index.jsonl検索）
 - [generate-ddr-list.md](spec/generate-ddr-list.md) ── DDR一覧生成スクリプト（README.mdのDDR一覧をfrontmatterから生成）
 - [gitlab-verification-environment.md](spec/gitlab-verification-environment.md) ── GitLab検証環境（Docker + glab）の再現手順
+- [otel-listener.md](spec/otel-listener.md) ── OTelリスナー機構（OpenTelemetryをusage/へ振り分け保存するperl製リスナー）
 
 ## ddr（意思決定ログ）
 
@@ -134,6 +135,8 @@ frontmatter（`status` / `superseded_by` / `note`）だけから決まる。
 - [i0097-03-対応工数レポートのトークン列はengineではなくデータで決める.md](ddr/i0097-03-対応工数レポートのトークン列はengineではなくデータで決める.md)
 - [i0097-04-Gemini経路のブランチ帰属は断面時点のブランチとし限界を明示する.md](ddr/i0097-04-Gemini経路のブランチ帰属は断面時点のブランチとし限界を明示する.md)
 - [i0097-05-Gemini-CLIのサブエージェントは保存のみとし集計しない.md](ddr/i0097-05-Gemini-CLIのサブエージェントは保存のみとし集計しない.md)
+- [i0103-01-perlを常駐プロセス実装の選択肢に加える理由.md](ddr/i0103-01-perlを常駐プロセス実装の選択肢に加える理由.md)
+- [i0103-02-OTelエンドポイント設定をsettings.local.jsonへ分離する理由.md](ddr/i0103-02-OTelエンドポイント設定をsettings.local.jsonへ分離する理由.md)
 - [i0106-01-敵対的レビューの非対話判定は環境変数ではなくAIエージェントの判断に委ねる.md](ddr/i0106-01-敵対的レビューの非対話判定は環境変数ではなくAIエージェントの判断に委ねる.md)
 - [i0109-01-敵対的レビュー由来のスレッドも人間の指摘と同列に返信を必須とする.md](ddr/i0109-01-敵対的レビュー由来のスレッドも人間の指摘と同列に返信を必須とする.md)
 - [i0110-01-個別計画のタスク種別を6種から8種へ拡張する.md](ddr/i0110-01-個別計画のタスク種別を6種から8種へ拡張する.md)

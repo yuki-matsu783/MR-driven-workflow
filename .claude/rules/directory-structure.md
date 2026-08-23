@@ -29,7 +29,10 @@ keywords: [ディレクトリ構成, claude, gemini, 配置方針, plans, worklo
 │   │                            #   `passed=N failures=N`を出力し失敗時は終了コード1
 │   │                            #   （詳細: `.claude/rules/shell-script-style.md`「テスト」）
 │   ├── hooks/                  # SessionStart/PostToolUse等のClaude Code hookスクリプト
-│   │   └── lib/                # 複数hookスクリプトで使い回す共通ロジック
+│   │   ├── lib/                # 複数hookスクリプトで使い回す共通ロジック
+│   │   └── otel/                # OTelリスナー機構（常駐プロセス。詳細: `.claude/docs/spec/otel-listener.md`）
+│   │       ├── lib/            # リスナー・フックで使い回す共通ロジック（perlモジュール）
+│   │       └── test/           # 本機構専用の単体テスト（下記「配置の指針」参照）
 │   ├── REVIEW-POINTS.md       # `.claude/`配下に適用するレビュー観点（`type: review-points`）
 │   ├── VERSION                 # 配布物の版（SemVer 1行）。更新規則は`.claude/docs/spec/distribution-assets.md`
 │   └── settings.json
@@ -86,6 +89,12 @@ issue #97。ブランチ別に持つと、同じセッションのままブラ�
 あることを確認したうえで廃止し `usage/` へ一本化した（詳細:
 `.claude/docs/ddr/i0023-01-push断面の全文コピーをやめ行番号インデックスで表現する.md`）。
 
+`usage/`配下には、上記の対応工数レポート状態とは別に、OTelリスナー機構
+（`.claude/hooks/otel/`）が振り分け保存する`usage/claude-otel-YYYYMMDD.jsonl`も生成される
+（Claude Code公式のOpenTelemetryエクスポートをローカル受信したテレメトリの生データ。詳細:
+`.claude/docs/spec/otel-listener.md`）。こちらもワークフロー実行中に動的に作成されるファイルで、
+`/usage/`の`.gitignore`対象に含まれる。
+
 `.claude/state/`は`post-push-compact-prompt.sh`がレビュー依頼メッセージの参照リンク組み立てに使う、
 前回push時点のHEAD SHAのローカル作業状態で、`.gitignore`対象（`/.claude/state/`）。責務分離のため
 `usage/`とは別ディレクトリにしている（詳細: `.claude/docs/spec/issue-mr-workflow.md`
@@ -104,6 +113,12 @@ issue #97。ブランチ別に持つと、同じセッションのままブラ�
   `dev-tools/docs/`）を新設し、`.mrworkflow.json` の `specDirs`/`ddrDirs` に追記することを検討する）。
   Claude Codeのplugin配布は`.claude/`配下一式をパッケージ化する想定のため、AIが実行時に必要とする
   スクリプト・設計書は`.claude/`の外に置かない。
+- **`.claude/hooks/`配下の常駐プロセス（`otel/`等）の単体テストは、`.claude/scripts/test/`ではなく
+  そのプロセス自身の配下（例: `.claude/hooks/otel/test/`）に置く**。`.claude/scripts/test/`は
+  上記のとおり「`.claude/scripts/src/`配下スクリプトの単体テスト」専用であり、Claude Codeの
+  hookから自動起動される常駐プロセスはこれに当たらない。テスト形式（TAP出力か
+  `passed=N failures=N`出力か等）は実装言語の慣習に合わせてよく、`.claude/scripts/test/`の
+  規約（`passed=N failures=N`）へ揃える必要はない。
 - 各`.claude/skills/<name>/`は`SKILL.md`単体が基本だが、スキルの実行に必須のバンドルリソース
   （テンプレート・補助スクリプト等）がある場合は`.claude/skills/<name>/templates/`のような
   サブディレクトリを追加してよい（実例: `canvas-report/templates/canvas-report.html`）。他に

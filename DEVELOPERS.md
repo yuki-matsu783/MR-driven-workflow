@@ -71,3 +71,66 @@ gemini skills install /path/to/apply-mr-workflow-to-project.skill
 ```
 
 インポート完了後、AIエージェントが自律的に対象リポジトリへ `mr-driven-develop` のセットアップを完了させます。
+
+## OpenTelemetryリスナーの導入 (OpenTelemetry Listener Setup)
+
+Claude Code公式のOTLPテレメトリをローカルで受信し、`<ワークスペース>/usage/`配下へ
+セッション単位で振り分け保存する機構（`.claude/hooks/otel/`。仕様の詳細:
+`.claude/docs/spec/otel-listener.md`）を使うには、以下の手順でローカル環境ごとの設定を行う。
+
+### 前提
+
+* `perl`（コアモジュール `IO::Socket::INET` / `JSON::PP` / `Test::More` のみに依存。追加の
+  CPANパッケージのインストールは不要）。Windows側git bash（MSYS）・WSL側Linux、いずれも
+  同梱のperlで動作を確認済み。
+* `perl -v`でバージョンを確認できればよい。コアモジュールの有無は
+  `perl -MIO::Socket::INET -MJSON::PP -e 'print "ok\n"'` で確認できる。
+
+### 手順
+
+1. `.claude/settings.local.json.example` を `.claude/settings.local.json`
+   （リポジトリルート直下。Git管理外、`.gitignore`対象）としてコピーする。
+2. 実行環境に応じて `env.OTEL_EXPORTER_OTLP_ENDPOINT` / `env.OTEL_RESOURCE_ATTRIBUTES` /
+   `env.OTEL_USAGE_PORT` を設定する（Windows/WSLで同じリポジトリを開く場合、双方の値を
+   同時には持てないため、実際に起動する側の値を書く）。**3つとも同じ環境の値で揃える**こと
+   （`OTEL_USAGE_PORT`だけ既定値のままだと、送信先とリスナーの待受ポートが食い違い結線できない）。
+
+   | 環境 | `OTEL_EXPORTER_OTLP_ENDPOINT` | `OTEL_RESOURCE_ATTRIBUTES` | `OTEL_USAGE_PORT` |
+   |---|---|---|---|
+   | Windows（git bash） | `http://localhost:4318` | `host.env=win` | `4318` |
+   | WSL/Linux | `http://localhost:4319` | `host.env=wsl` | `4319` |
+
+   ポートを分けているのは、WindowsとWSLが127.0.0.1を共有しつつも別プロセス空間で動くため、
+   同じポートで両方のリスナーを同時に立てられないことによる。
+3. Claude Codeのセッションを開始（または`/clear`・`/compact`）すると、`SessionStart`
+   フック（`.claude/hooks/otel/session-start.sh`）が自動的に対応表への追記とリスナーの
+   起動判定を行う。手動での起動操作は不要。
+4. 動作確認は以下の順で行うと切り分けやすい。
+   * リスナーが立っているか: `.claude-otel/listener.log`（Windowsは
+     `%USERPROFILE%\.claude-otel\`、WSL/Linuxは`~/.claude-otel/`）を確認する。
+   * 疎通確認: `curl -X POST http://localhost:4318/v1/logs -d '{}'` を実行し、共有位置の
+     `unrouted-YYYYMMDD.jsonl`に1行増えることを確認する。
+   * 結線確認: Claude Codeでプロンプトを1回実行し、
+     `<ワークスペース>/usage/claude-otel-YYYYMMDD.jsonl`に行が追記されることを確認する
+     （メトリクスは`OTEL_METRIC_EXPORT_INTERVAL`で指定した間隔後に出力される）。
+
+### 単体テストの実行
+
+```bash
+perl .claude/hooks/otel/test/test_session_id_finder.pl
+perl .claude/hooks/otel/test/test_otel_registry.pl
+```
+
+`Test::More`によるTAP形式で結果が出力される（bash版の`passed=N failures=N`形式への
+変換は行わない。理由: `.claude/rules/shell-script-style.md`）。
+
+### 既知の制限
+
+詳細・最新版は `.claude/docs/spec/otel-listener.md`「既知の制限」を正とする（本節では要点のみ）。
+
+* セッション開始直後の数秒間は、リスナー起動前のエクスポートを取りこぼす。
+* セッション中に`cwd`が変わっても対応表は追従しない。
+* 出力ファイル（`usage/claude-otel-YYYYMMDD.jsonl`）は日次ローテーションのみで、
+  古いファイルの自動削除は行わない。
+* リスナーは受信の読み取りタイムアウトを持たないため、応答しないクライアントからの接続が
+  1本でもあるとacceptループごと停止しうる（回復にはリスナープロセスの手動終了が必要）。
