@@ -33,6 +33,8 @@ issue #145 は、MR/PRのdescriptionを「レビュー時だけの説明」か�
 
 ## 決定
 
+**この方向（案B）は人間の承認を得ている**（2026-08-23。issue #145 のフェーズ4で確認）。
+
 1. **`.github/pull_request_template.md` を見出し構成の唯一の正とする。** `describe` はこの
    ファイルを読んで見出しを決める（案B）。
 2. **`references/review-loop.md` の `describe` 節から、見出しの記述そのものを削除する。**

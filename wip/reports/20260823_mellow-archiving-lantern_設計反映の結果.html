@@ -133,10 +133,10 @@
   <div class="inner">
     <div class="kind">反映結果レポート / フェーズ4</div>
     <h1>issue #145 フェーズ4〈反映〉の実施結果</h1>
-    <p class="lead">個別反映計画の作業項目13件をすべて実施し、DDR2件の新規作成・spec2本の更新・VERSION 0.5.0への引き上げ・AIアセット反映4件を行った。完了条件13件のうち11件が期待どおり成立し、残る2件は計画どおり「原理的に落ちないため完了の根拠にしない」として扱った。</p>
+    <p class="lead">個別反映計画の作業項目13件をすべて実施し、DDR2件の新規作成・spec2本の更新・AIアセット反映4件を行った。完了条件13件のうち11件が期待どおり成立し、残る2件は計画どおり「原理的に落ちないため完了の根拠にしない」として扱った。<b>VERSIONと案Bの2件は、レポート作成後にユーザーの判断が出た。</b> VERSIONは <code>0.5.0</code> をいったん適用したのち<b>「0.4.0で良い」との回答を得て据え置きに確定</b>、案Bの方向性は<b>承認</b>された。</p>
     <p class="counts">
-      <span class="chip good">◎良 5</span>
-      <span class="chip warn">△注意 3</span>
+      <span class="chip good">◎良 6</span>
+      <span class="chip warn">△注意 2</span>
       <span class="chip stop">✕問題 0</span>
     </p>
     <ul class="meta">
@@ -172,13 +172,14 @@
   <div class="focus must">
     <span class="label">◆特に見てほしい（判断に困っている）</span>
     <ul>
-      <li><a href="#f6">6. VERSION 0.4.0 → 0.5.0</a> — <b>人間の承認を得ていない。</b> 非対話セッション例外規定に基づいて適用した。MINOR（資産の追加・フローの拡張）で妥当か、あるいは据え置くべきかを決めてほしい。否認されたら 0.4.0 へ戻す。</li>
-      <li><a href="#f1">1. 案Bの方向性そのもの</a> — テンプレートを見出し構成の唯一の正とし <code>describe</code> がそれを読む、という方向で確定してよいか。DDR <code>i0145-01</code> として記録済みだが、これも承認を得ていない。</li>
+      <li><b>無し。</b> このレポート作成時点で挙げていた2件（VERSIONの増分・案Bの方向性）は、いずれも<b>ユーザーの判断が出て解消した</b>（下の「◇承認が欲しい」へ結果を移した）。</li>
     </ul>
   </div>
   <div class="focus want">
     <span class="label">◇承認が欲しい（方針は決めたので確認してほしい）</span>
     <ul>
+      <li><a href="#f6">6. VERSION は 0.4.0 据え置きに確定した（対応済み）</a> — <code>0.5.0</code> をいったん適用したのち<b>「0.4.0で良い」との回答</b>を得て戻した。据え置いた事実は <code>distribution-assets.md</code> の changelog と <code>HANDOFF.md</code>「判断を迷った内容」の両方へ残してある。<b>据え置きの実害</b>（配布先が同じ版のまま中身の違う <code>.claude/</code> を受け取る）も changelog へ明記した。</li>
+      <li><a href="#f1">1. 案Bの方向性は承認された（対応済み）</a> — DDR <code>i0145-01</code> の「決定」節へ承認を得た事実を追記した。</li>
       <li><a href="#f2">2. DDRを1件ではなく2件に分けた</a> — 片方だけが後から supersede されうる独立した判断のため。1件にまとめると <code>status</code> を片方だけに付けられない。</li>
       <li><a href="#f10">10. 計画の「触ってよい範囲」を1度広げた</a> — AIアセット反映の洗い出しで <code>.claude/skills/</code> 配下への追記が1件出たため。表自身が持つ「触る必要が生じたら計画へ戻す」に従って計画を先に更新した。</li>
       <li><a href="#f8">8. 訂正の1箇所で、当初の文言の引用をやめた</a> — 完了条件11の <code>grep</code> が「引用」と「主張」を区別できないため、言い換えて検査を成立させた。意味は変えていない。</li>
@@ -198,7 +199,7 @@
   <h2>サマリ（結論の一覧）</h2>
   <ol class="verdicts">
     <li class="verdict"><span class="chip good">◎良</span><a href="#f1">1. 作業項目13件すべてを実施し、完了条件11件が期待どおり成立した</a><span class="v-basis">根拠: 実測</span></li>
-    <li class="verdict"><span class="chip warn">△注意</span><a href="#f6">6. VERSION 0.5.0 は人間の承認を得ていない（非対話セッション例外規定による適用）</a><span class="v-basis">根拠: 規定の読解</span></li>
+    <li class="verdict"><span class="chip good">◎良</span><a href="#f6">6. VERSION は <b>0.4.0 据え置き</b>に確定した（0.5.0 を適用後、ユーザーの判断で復帰）</a><span class="v-basis">根拠: 人間の判断</span></li>
     <li class="verdict"><span class="chip good">◎良</span><a href="#f6">6b. issue #165 の VERSION 書き込みブロックは再現しなかった</a><span class="v-basis">根拠: 実測</span></li>
     <li class="verdict"><span class="chip good">◎良</span><a href="#f9">9. 参照切れが 4件 → 0件になった（着手前は計画の見込み2件より多かった）</a><span class="v-basis">根拠: 実測</span></li>
     <li class="verdict"><span class="chip good">◎良</span><a href="#f10">10. AIアセット反映の洗い出しで起点8件を列挙し、4件を類型 (c) として反映した</a><span class="v-basis">根拠: worklog・レポート・レビューコメントの読解</span></li>
@@ -213,11 +214,11 @@
   <div class="box warn">
     <span class="label">この結果が言っていないこと</span>
     <ul>
-      <li><b>VERSION 0.5.0 が妥当かどうかは確かめていない</b>。目安表に照らした判断であって、人間の承認ではない — <a href="#f6">詳細: 章6</a></li>
+      <li><b>据え置きの実害は残る。</b> 配布先はテンプレートの中身が3節→10節へ変わったのに<b>同じ <code>0.4.0</code> という版</b>を受け取るため、版から資産の差を判別できない — <a href="#f6">詳細: 章6</a></li>
       <li><b>issue #165 の書き込みブロックの再現条件は不明のまま</b>。今回成功したことは「常にブロックされるわけではない」までしか言わない — <a href="#f6">詳細: 章6</a></li>
       <li><b>Windows / git bash 実機での動作は確認していない</b>。本セッションは Claude Code on the web（Linux）で、追記した <code>grep</code>・<code>printf</code> の挙動も Linux でしか測っていない — <a href="#f10">詳細: 章10</a></li>
       <li><b>4点検証は文言の内容を見ない</b>。作業項目8の訂正漏れをこの検証では検出できない — <a href="#f13">詳細: 章13</a></li>
-      <li><b>案Bの方向性が人間の意図に合っているかは確かめていない</b>。フェーズ2から一貫して承認待ちのまま進めている — <a href="#f1">詳細: 章1</a></li>
+      <li><b>案Bは承認されたが、実際の運用で使い勝手が確かめられたわけではない。</b> 確認できているのは方向性への同意までで、配布先でテンプレートを編集して <code>describe</code> の出力が変わることまでは実機で試していない — <a href="#f1">詳細: 章1</a></li>
     </ul>
   </div>
 </section>
@@ -250,7 +251,7 @@
       <tr><td>7</td><td>単体テストが通る</td><td>成功（原理的に落ちない）</td><td><code>failures=0</code>（115件）</td><td>△根拠にしない</td></tr>
       <tr><td>8</td><td>4点検証が全ペアで通る</td><td>成功（原理的に落ちない）</td><td>全6ペア通過</td><td>△根拠にしない</td></tr>
       <tr><td>9</td><td>usecase の調査結果と件数の記録</td><td>0件</td><td>本レポート章7</td><td>◎</td></tr>
-      <tr><td>10</td><td><code>.claude/VERSION</code> が 0.5.0</td><td>0.4.0</td><td><b>0.5.0</b></td><td>◎</td></tr>
+      <tr><td>10</td><td><code>.claude/VERSION</code> が 0.5.0、または据え置きの事実が記録されている</td><td>0.4.0（記録なし）</td><td><b>0.4.0＋据え置きの記録</b>（changelog・HANDOFF）</td><td>◎</td></tr>
       <tr><td>11</td><td>「例外は設けない」が md・html とも0件</td><td>md 3・html 3</td><td><b>md 0・html 0</b></td><td>◎</td></tr>
       <tr><td>12</td><td>AIアセット洗い出しの実施記録</td><td>0件</td><td>本レポート章10＋HANDOFF</td><td>◎</td></tr>
       <tr><td>13</td><td>ヘッダコメントが6種類＋<code>(b2)</code> ラベル</td><td>0件</td><td><code>grep -c 'b2'</code> が 3</td><td>◎</td></tr>
@@ -263,7 +264,7 @@
   </div>
   <div class="box warn unverified-detail">
     <span class="label">確かめられなかったこと（詳細）</span>
-    <b>案Bの方向性そのものが人間の意図に合っているかは、フェーズ2から一貫して確かめられていない。</b> 本セッションは非対話で進めており、承認を待つ機会が無かった。DDR <code>i0145-01</code> として記録済みだが、否認されればDDRごと差し戻しになる。
+    <b>案Bの方向性は本レポート作成後に承認された</b>（DDR <code>i0145-01</code> の「決定」節へ追記済み）。ただし確認できているのは方向性への同意までで、<b>配布先でテンプレートを編集して <code>describe</code> の出力が変わることまでは実機で試していない。</b>
   </div>
 
   <h3 id="f2">2. DDR 2件の新規作成 <span class="chip good">◎良</span></h3>
@@ -273,14 +274,19 @@
     分けた理由は、<b>片方だけが後から supersede されうる独立した判断である</b>ため。1件にまとめると <code>status: superseded</code> を片方だけに付けられない。<code>i0145-02</code> には「根拠は外部APIの性質ではなく、このリポジトリの <code>Provider.sh</code> にコメント編集関数が無いことである」という<b>限界の記録</b>を明記した——これを書かないと、将来 <code>Provider.sh</code> へ編集関数が足された時点でDDRの根拠が無言で消える。
   </div>
 
-  <h3 id="f6">6. VERSION 0.4.0 → 0.5.0 <span class="chip warn">△注意</span></h3>
-  <p>MINOR（目安表の「資産の追加・フローの拡張」）。配布先に手作業を要求する非互換変更は無いのでMAJORではない。</p>
+  <h3 id="f6">6. VERSION は 0.4.0 据え置きに確定 <span class="chip good">◎良</span></h3>
+  <p><b>経過は「提案 → 適用 → 確認 → 否認 → 復帰」である。</b> AIエージェントは MINOR（目安表の「資産の追加・フローの拡張」）と判断し、非対話セッション例外規定に基づいて <code>0.5.0</code> をいったん適用した。その後ユーザーへ確認したところ<b>「0.4.0で良い」との回答</b>を得たため、例外規定が定める「レビューで否認されたら元の値へ戻す」に従って <code>0.4.0</code> へ戻した。</p>
   <pre><code>$ cat .claude/VERSION
-0.5.0</code></pre>
-  <div class="box warn">
-    <span class="label">人間の承認を得ていない</span>
-    <b>非対話セッション例外規定による適用である。</b> 適用した事実と根拠は <code>distribution-assets.md</code> のchangelogと <code>HANDOFF.md</code>「判断を迷った内容」の両方へ残した。<b>レビューで否認されたら 0.4.0 へ戻す。</b>
+0.4.0</code></pre>
+  <div class="box ok">
+    <span class="label">据え置いた事実の記録先</span>
+    <code>distribution-assets.md</code> の <code>### issue #145</code> changelog と <code>HANDOFF.md</code>「判断を迷った内容」の<b>両方</b>（specが据え置き時にも記録を義務づけているため。「適用したが記録が無い」という第3の状態を作らない）。
   </div>
+  <div class="box warn">
+    <span class="label">据え置きの実害を承知のうえでの判断である</span>
+    テンプレート2本の中身が3節→10節へ変わっているのに、配布先は<b>同じ <code>0.4.0</code> という版のまま中身の違う <code>.claude/</code> を受け取る</b>。版から資産の差は判別できない（<code>distribution-assets.md</code>「据え置きには実害がある」）。
+  </div>
+  <p><b>過去3回（issue #54・#26・#165）と同じく、AIの提案した増分は人間の判断で据え置かれた。</b> ただし issue #165 は技術的なブロックが先に来て可否判断の機会自体が無かったのに対し、今回は<b>例外規定どおりの経路（適用してから確認し、否認されて戻す）をたどった初めての回</b>である。</p>
   <div class="box ok">
     <span class="label">issue #165 の書き込みブロックは再現しなかった</span>
     issue #165 は「<code>.claude/VERSION</code> への書き込みが権限クラシファイアにブロックされ、技術的に適用できなかった」と記録している。<b>今回は同じ実行環境で <code>printf</code> による書き込みが1回で成功した。</b> issue #165 が「パス固有の制約か他の条件に依存するのか判別できていない」と書いた点について、少なくとも<b>「そのパスへは常にブロックされるわけではない」</b>ことが分かった。
@@ -409,7 +415,7 @@ $ bash .claude/scripts/src/check-doc-references.sh | tail -1
 <section id="todo">
   <h2>残課題</h2>
   <ul>
-    <li><b><code>.claude/VERSION</code> の 0.5.0 と案Bの方向性は、いずれも人間の承認待ち。</b> 非対話セッション例外規定に基づいて進めており、否認されたら戻す。</li>
+    <li><b>承認待ちだった2件は解消した。</b> VERSIONは <b>0.4.0 据え置き</b>に確定（<code>0.5.0</code> を適用後に復帰）、案Bの方向性は<b>承認</b>された。据え置きの実害（版から資産の差を判別できない）は残る。</li>
     <li><b><code>.gemini/</code> の再生成（flow-id 5-3）。</b> 本フェーズで <code>.claude/rules/</code> <code>.claude/skills/</code> <code>.claude/docs/</code> を変更しているため<b>必須</b>である。</li>
     <li><b>issue #111 への通知（flow-id 5-2）。</b> 投稿前に <code>AskUserQuestion</code> での承認が必須。</li>
   </ul>

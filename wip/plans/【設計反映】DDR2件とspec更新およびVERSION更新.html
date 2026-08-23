@@ -248,15 +248,15 @@
     <li><b><code>.claude/VERSION</code> を上げた事実と根拠</b>、または<b>ユーザー未承認により据え置いた事実</b>（specの「<code>.claude/VERSION</code>」節が、適用時・据え置き時のいずれも記録を義務づけている）。</li>
   </ol>
 
-  <h3>6. .claude/VERSION を 0.4.0 → 0.5.0 へ上げる</h3>
+  <h3>6. .claude/VERSION（人間の判断で 0.4.0 据え置きに確定）</h3>
   <div class="box warn">
-    <p><b>⚠ 前提が変わった。</b> main の PR #191 が VERSION を <b>0.4.0 へ上げた</b>ため、当初計画していた「0.3.0 → 0.4.0」は成立しない。<b>0.4.0 → 0.5.0（MINOR）</b>が正しい。</p>
+    <p><b>⚠ 前提が2度変わった。</b> (1) main の PR #191 が VERSION を <b>0.4.0 へ上げた</b>ため、当初計画していた「0.3.0 → 0.4.0」は成立しなくなり、<b>0.4.0 → 0.5.0（MINOR）</b>へ訂正した。(2) その 0.5.0 を適用した後、<b>ユーザーの判断で 0.4.0 据え置きに確定した</b>（下記）。</p>
   </div>
   <ul>
     <li><b>MINOR の根拠</b>: 目安表の「資産の追加・フローの拡張」に当たる。配布先に手作業を要求する非互換変更（配置場所の変更・必須スクリプトの引数変更）は無いので MAJOR ではない。</li>
   </ul>
   <div class="box warn">
-    <p><b>⚠ ユーザーの承認をまだ得ていない。</b> 非対話セッションの例外規定により<b>適用してよい</b>が、その場合は (1) 適用した事実と根拠を <b>specのchangelog（作業項目5）と <code>HANDOFF.md</code>「判断を迷った内容」の両方</b>へ残し、(2) レビューで否認されたら元へ戻す。据え置く場合も<b>specのchangelogへ据え置いた事実を残す</b>（「適用したが記録が無い」という第3の状態を作らないため）。</p>
+    <p><b>⚠ この項目は完了後にユーザーの判断で結論が変わった。</b> AIエージェントは非対話セッションの例外規定に基づき <code>0.5.0</code> をいったん適用したが、<b>ユーザーへ確認したところ「0.4.0で良い」との回答を得たため <code>0.4.0</code> へ戻した</b>（2026-08-23）。例外規定が定める「レビューで否認されたら元の値へ戻す」に従った結果である。<b>据え置いた事実は <code>distribution-assets.md</code> の <code>### issue #145</code> changelog と <code>HANDOFF.md</code>「判断を迷った内容」の両方へ残した</b>（「適用したが記録が無い」という第3の状態を作らないため）。</p>
   </div>
 
   <h3>7. .claude/docs/usecase/ への影響を確認する</h3>
@@ -352,7 +352,7 @@ ls .claude/docs/ddr/ | grep i0145</code></pre>
       <tr><td>7</td><td>単体テストが引き続き通る</td><td><code>test_install_to_project.sh</code> が <code>failures=0</code></td><td><b>成功（本フェーズでは原理的に落ちない。下記）</b></td></tr>
       <tr><td>8</td><td>md/html の4点検証が全ペアで通る</td><td>作業項目13のコマンド</td><td><b>成功（同上）</b></td></tr>
       <tr><td>9</td><td>usecase への影響を調べた結果と件数が作業結果レポートにある</td><td>目視</td><td><b>0件（失敗）</b></td></tr>
-      <tr><td>10</td><td><code>.claude/VERSION</code> が 0.5.0、<b>または</b>据え置きの事実がchangelogと <code>HANDOFF.md</code> にある</td><td><code>cat .claude/VERSION</code> ＋ 目視</td><td><b>0.4.0（失敗）</b></td></tr>
+      <tr><td>10</td><td><code>.claude/VERSION</code> が 0.5.0、<b>または</b>据え置きの事実がchangelogと <code>HANDOFF.md</code> にある</td><td><code>cat .claude/VERSION</code> ＋ 目視</td><td>0.4.0（<b>据え置きの記録が無いので失敗</b>）</td></tr>
       <tr><td>11</td><td>レポートの「例外は設けない／例外を認めない」が md・html とも0件</td><td><code>grep -c '例外は設けない\|例外を認めない'</code> を md・html へ</td><td><b>md 3件・html 3件（失敗）</b></td></tr>
       <tr><td>12</td><td>AIアセット反映の洗い出しを実施した事実（件数込み）が <code>HANDOFF.md</code> にある</td><td>目視</td><td><b>0件（失敗）</b></td></tr>
       <tr><td>13</td><td>テストのヘッダコメントが6種類を列挙し、<code>(b2)</code> ラベルがある</td><td><code>grep -c 'b2' …test_install_to_project.sh</code> が1以上</td><td><b>0件（失敗）</b></td></tr>
