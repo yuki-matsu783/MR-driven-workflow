@@ -64,6 +64,11 @@ install_to() {
   bash "${SKILL_SCRIPTS}/install-to-project.sh" --allow-dirty "$@" >/dev/null
 }
 
+# 提示（手順5）の出力を見たいとき用。標準エラーは dirty の注意で埋まるので捨てる。
+install_output_of() {
+  bash "${SKILL_SCRIPTS}/install-to-project.sh" --allow-dirty "$@" 2>/dev/null
+}
+
 # =========================================================================
 # A. issue #33 から引き継いだ表明
 # =========================================================================
@@ -441,6 +446,38 @@ assert_eq "配布された index.md に本家固有の記述が漏れていな�
 # 本家側は雛形で上書きされていないこと（source は配布先の内容だけを決める）。
 assert_eq "本家の HANDOFF.md は雛形になっていない" "1" \
   "$(grep -cE '^- issue: #[0-9]+' "${REPO_ROOT}/HANDOFF.md")"
+
+# 雛形自身が requiredLine を含んでいること。含まないと、下の D-1b の検知が
+# 「配った直後の配布先でも警告が出る」形で常に真になり、検証として意味を失う。
+assert_eq "AGENTS.md の雛形は requiredLine を含む" "1" \
+  "$(grep -cFx -- \
+     "$(jq -r '.entries[] | select(.path == "AGENTS.md") | .requiredLine' \
+        "${REPO_ROOT}/.claude/dist-layers.json")" "${TPL}/AGENTS.md.template")"
+assert_eq "配った直後の配布先では移行の注意を出さない" "0" \
+  "$(install_output_of "$dest_seed" | grep -c '注意: 次の seed' || true)"
+
+# --- D-1b: 古い形式のまま残った seed を、触らずに一覧で知らせる -------------
+# issue #26 以前は本家の AGENTS.md 全文（共通ルール9項目を含む）を配っていた。seed は
+# 触らないので、再適用しても共通ルールが .claude/rules/agent-common.md と二重化したまま残る。
+# 削除・書き換えは配布先の判断に委ね、**一覧の提示のみ**を行う（SCAN_CORE_REMOVED と同じ形）。
+dest_legacy="$(make_dest dest_legacy)"
+cat > "$dest_legacy/AGENTS.md" <<'LEGACY_EOF'
+## エージェント共通ルール
+
+- ユーザへの応答・対話はすべて日本語で行う
+
+## プロジェクト概要
+
+旧方式で配布された状態を模したもの。
+LEGACY_EOF
+legacy_out="$(install_output_of "$dest_legacy")"
+assert_eq "D-1b: 古い形式の seed を一覧で知らせる" "1" \
+  "$(printf '%s\n' "$legacy_out" | grep -c '注意: 次の seed')"
+assert_eq "D-1b: 対象のパスと足りない行を出す" "1" \
+  "$(printf '%s\n' "$legacy_out" \
+     | grep -cF -- 'AGENTS.md（"@./.claude/rules/agent-common.md" が見つかりません）')"
+assert_eq "D-1b: 触らない（配布先の AGENTS.md を上書きしない）" "1" \
+  "$(grep -c '旧方式で配布された状態を模したもの' "$dest_legacy/AGENTS.md")"
 
 # --- D-2: 本家から削除された core は一覧提示のみで、配布先から消さない -----
 # 「一覧の提示のみ（削除は人間）」という選択の表明。提示すらしないと、
