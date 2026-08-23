@@ -51,7 +51,12 @@ MRとのやり取りだけを自動化する薄い層」として設計したが
 ├── Github.sh                       # gh CLIラッパー
 └── Gitlab.sh                       # glab CLIラッパー
 .claude/skills/issue-mr-flow/
-└── SKILL.md                        # ステップ実行のオーケストレーション手順書
+├── SKILL.md                        # 入口: 全体フロー表（「参照」列を含む）・PR/MR担当・
+│                                   #   旧節名→新しい場所の対応表（issue #160で詳細節を分割）
+└── references/                     # SKILL.mdから切り出した参照資料7本（planning / deliverables /
+                                    #   start-resume / review-loop / base-branch-followup /
+                                    #   mcp-fallback / phase5-close。読むタイミングは全体フロー表の
+                                    #   「参照」列が正。issue #160）
 .claude/agents/
 └── issue-mr-resume.md              # 途中引き継ぎ用の状態調査サブエージェント（resumeから起動）
 .claude/hooks/
@@ -84,14 +89,20 @@ MRとのやり取りだけを自動化する薄い層」として設計したが
 - **`.claude/skills/issue-mr-flow/SKILL.md`**: issue起票からマージまでの**唯一の実装フロー定義**。
   現在のブランチ・issue番号・`plans/` `worklog/` `reports/` の有無・MRの有無などから「今どの段階か」を判定し、
   次に何をすべきかをAIエージェントに指示する。実処理は `Provider.sh` 経由のスクリプト呼び出しに
-  委譲
+  委譲。issue #160 で**本文（入口）＋ `references/` 配下の参照資料7本**という構成へ分割した。
+  本文には全体フロー表・PR/MR担当・詳細ルールへのポインタ・前提・旧節名の対応表が残り、
+  各ステップの詳細（計画・成果物・サブコマンド・
+  ベースブランチ追従・MCPフォールバック・クローズ手順）は参照資料側が持つ。**どの参照をいつ読むかは
+  全体フロー表の「参照」列が唯一の正**で、下記「セッション開始時の自動コンテキスト注入」の
+  hookがこの列を読み出して注入する（分割単位・却下案:
+  [i0160-01-SKILL.mdの分割は読むタイミング単位で行い参照列とhookで機械的に注入する.md](../ddr/i0160-01-SKILL.mdの分割は読むタイミング単位で行い参照列とhookで機械的に注入する.md)）
 
 ### 提供関数（`Provider.sh` 経由の共通インターフェース）
 
 | 関数 | 内容 | GitHub実装 | GitLab実装 |
 |---|---|---|---|
 | `get_issue <n>` | issueのtitle/body/labelsを取得（JSON） | `gh issue view` | `glab issue view` |
-| `new_issue_branch <n> <slugSource> [<base>]` | `<branchPrefixTemplate>` に従いブランチを作成しcheckout、リモートpush。`<slugSource>` はslug化対象のテキストであり、生issueタイトルである必要はない（`.claude/skills/issue-mr-flow/SKILL.md` の `start` サブコマンドではAIエージェントが生成した英語の意訳フレーズを渡す。詳細: [i0000-07-ブランチslugの意訳生成はAIエージェントが行う.md](../ddr/i0000-07-ブランチslugの意訳生成はAIエージェントが行う.md)）。`<base>`（省略可）でベースブランチを上書きできる。省略時は `.mrworkflow.json` の `defaultBaseBranch` を使う（issue #15: `start` サブコマンドが `AskUserQuestion` で確認した結果を渡す） | `git switch -c` + `git push` | 同左 |
+| `new_issue_branch <n> <slugSource> [<base>]` | `<branchPrefixTemplate>` に従いブランチを作成しcheckout、リモートpush。`<slugSource>` はslug化対象のテキストであり、生issueタイトルである必要はない（`.claude/skills/issue-mr-flow/references/start-resume.md` の `start` サブコマンドではAIエージェントが生成した英語の意訳フレーズを渡す。詳細: [i0000-07-ブランチslugの意訳生成はAIエージェントが行う.md](../ddr/i0000-07-ブランチslugの意訳生成はAIエージェントが行う.md)）。`<base>`（省略可）でベースブランチを上書きできる。省略時は `.mrworkflow.json` の `defaultBaseBranch` を使う（issue #15: `start` サブコマンドが `AskUserQuestion` で確認した結果を渡す） | `git switch -c` + `git push` | 同左 |
 | `new_draft_merge_request <n> <branch> <title> [<base>]` | issueに紐づくDraft PR/MRを作成（bodyは仮テンプレート、後続の `set_mr_description` で上書き前提。`<title>` はissueタイトルをそのまま渡す） | `gh pr create --draft` | `glab mr create --draft` |
 | `get_mr_unresolved_comments <n> [true]` | レビューコメント／スレッドを取得しテキストへ整形（スレッドID・ファイルパス・行番号・**指摘行前後のソーススライス**を含む。issue #43 で `diffHunk` から置き換えた。詳細は下記「レビューコメントのソーススライス」）。既定（第2引数省略）では未解決のスレッドのみを返し、対応済み（解決済み）スレッドは機械的に除外する。第2引数に `true` を渡すと解決済みも含めた全件を返す。GitLabはdiscussions APIが操作履歴を `system: true` のnoteとして同じ配列で返すため、これも機械的に除外する（issue #48）。各行には**そのコメントの公式パーマリンク**を `url=...` として含める（issue #42）。**プロバイダに依存しない共通実装**で、`get_mr_review_threads` の結果を整形するだけである（issue #43） | — | — |
 | `get_mr_review_threads <n> [true]` | レビュースレッド＋通常コメントを**正規化JSON**で返す（issue #43。テキスト整形を伴わないプロバイダ層の出力。スキーマは下記「レビューコメントのソーススライス」） | `gh api graphql` (review threads) | `glab api` (discussions) |
@@ -241,7 +252,7 @@ Claude Code / Gemini CLI は**セッションごとに1つのplanファイルし
   作業結果・反映結果は `reports/日付_<全体計画名>_<内容を簡潔に>.md` へ記録する（mdが結果の正文、
   同名の `.html` はその視覚化）。同居させると、レビューで計画と結果が区別できず、計画としての差分が
   結果の追記に埋もれ、ライフサイクル（計画＝合意のスナップショット／結果＝pushのたびに書き換わる）が
-  食い違うため。詳細: `.claude/skills/issue-mr-flow/SKILL.md`「計画と実施結果の分離」、
+  食い違うため。詳細: `.claude/skills/issue-mr-flow/references/deliverables.md`「計画と実施結果の分離」、
   `.claude/docs/ddr/i0087-01-個別計画には結果を書かず実施結果はreports配下のmdへ分離する.md`。
 - **タスク種別**は `【調査】` `【設計】` `【実装】` `【テスト】` `【AIアセット作成】`
   `【設計反映】` `【実装反映】` `【AIアセット反映】`の8種（issue #110で6種から拡張。
@@ -249,7 +260,7 @@ Claude Code / Gemini CLI は**セッションごとに1つのplanファイルし
   1ファイルへの複数併記を認める。併記するか分けるかの判断基準は「その計画に対して人間の
   合意を1回で取るか、フェーズごとに分けて取るか」であり、迷ったら分ける。各種別の定義・
   属するフェーズの一覧は
-  `.claude/skills/issue-mr-flow/SKILL.md`「計画の2階層構造」節が正
+  `.claude/skills/issue-mr-flow/references/planning.md`「計画の2階層構造」節が正
   （併記/分割の判断基準の詳細は同ファイル「種別を複数併記する場合／分ける場合」）。
 - **囲み文字は全角 `【】` を使う**。ASCIIの `[]` はbashのglobで**文字クラス**として解釈されるため、
   `plans/[調査]*.md` が意図どおりマッチしない（実機確認済み）。全角はglob特殊文字ではないため、
@@ -312,7 +323,7 @@ Claude Code / Gemini CLI は**セッションごとに1つのplanファイルし
   flow-id 4-1。進捗記号 `[-]` を使ってよいのもこのタイミング以降とする。フェーズ4は 4-1 で
   反映対象を洗い出すところまでは必ず通る。
 
-**判断基準そのものの正は `.claude/skills/issue-mr-flow/SKILL.md`「全体作業計画に必ず含めるフェーズ」**
+**判断基準そのものの正は `.claude/skills/issue-mr-flow/references/planning.md`「全体作業計画に必ず含めるフェーズ」**
 であり、本節はその位置づけの記録にとどめる（二重管理を避けるため、基準の詳細をここへ再掲しない）。
 `.claude/rules/docs-workflow.md` は `[-]` を決めてよいタイミングの規定と、同節への参照を持つ。
 省略を一切認めない案・1-4 で調査を尽くす案を採らなかった理由は
@@ -337,7 +348,7 @@ Claude Code / Gemini CLI は**セッションごとに1つのplanファイルし
 | 何の正か | どこ |
 |---|---|
 | 記述の型（見出し構成・必須／任意の区別・埋め忘れの検査） | **テンプレート本体**の冒頭のHTMLコメント |
-| いつ作るか・作った後どう扱うか（flow-idごとの手順） | **`.claude/skills/issue-mr-flow/SKILL.md`**「計画・レポートのHTMLビュー」 |
+| いつ作るか・作った後どう扱うか（flow-idごとの手順） | **`.claude/skills/issue-mr-flow/references/deliverables.md`**「計画・レポートのHTMLビュー」 |
 | レビュー時に何を見るか | **`plans/REVIEW-POINTS.md` / `reports/REVIEW-POINTS.md`** |
 | ライフサイクル（flow-id 5-5 でまとめて削除・frontmatterの対象外） | **`.claude/rules/docs-workflow.md`** のライフサイクル表 |
 
@@ -405,7 +416,7 @@ issue #24 対応では、スコープ外としていた範囲を作業の途中�
 - 分割する場合は元issueを親として残し、子issueをチェックリストで束ねる。共通部分を含む1件目を
   先に完了させてから残りに着手する。
 
-**判断基準そのものの正は `.claude/skills/issue-mr-flow/SKILL.md`
+**判断基準そのものの正は `.claude/skills/issue-mr-flow/references/planning.md`
 「issueが大きすぎる場合の分割提案」**であり、本節はその位置づけの記録にとどめる（二重管理を
 避けるため、基準の詳細をここへ再掲しない）。`issue-create` スキル側も同節を参照するだけで、
 判定基準を持たない。定量閾値・自動検知・強制起票を採らなかった理由は
@@ -427,7 +438,7 @@ issue #24 対応では、スコープ外としていた範囲を作業の途中�
 - **完了合図の確認**: 人間から「レビューOK」等の完了合図を受けても、それだけを根拠に次のステップへ
   進まない。`comments all`（`get_mr_unresolved_comments <n> true`）で全スレッドを再取得し、`unresolved` が残っていれば
   人間に再確認を取ってから次に進む（`reply` は返信のみで解決は行わないため、返信済みでも
-  `unresolved` のまま残ることがある）。詳細は `.claude/skills/issue-mr-flow/SKILL.md` の
+  `unresolved` のまま残ることがある）。詳細は `.claude/skills/issue-mr-flow/references/review-loop.md` の
   「レビュー完了合図の確認」節を参照。
 
 ### レビューコメントのソーススライス（issue #43）
@@ -597,7 +608,7 @@ TSVの1フィールドへ押し込むと本文中の改行・タブのエスケ�
   残す。中身を含まない合図（「OK」「レビュー完了」）・diffを見れば分かる機械的修正の指摘・
   既に `reply` で返信済みの内容・作業の進め方の指示・ローカル環境固有のトラブルシュートは
   残さない。迷った場合は残す側へ倒す。基準の全文は
-  `.claude/skills/issue-mr-flow/SKILL.md`「チャットで受けたレビュー判断の記録」節が正である。
+  `.claude/skills/issue-mr-flow/references/review-loop.md`「チャットで受けたレビュー判断の記録」節が正である。
 - **署名は `reply` サブコマンドと同じ規約**とし、本文の先頭に `Claude Codeより:` を付ける
   （`gh`/`glab` CLIもMCPサーバーも人間の認証情報で動くため投稿者アカウントを分離できない。
   DDR i0000-02）。記録コメントも `reply` と同じくAIが書いた文章であり、規約を分ける理由が無い。
@@ -643,7 +654,7 @@ resumeを省略してしまう事故が発生した）。そのため発動条�
 人間に提案する（この判断自体はサブエージェントの役割ではなく、呼び出し元が行う）。**ベースブランチが
 遅れていた場合に取り込みの可否を `AskUserQuestion` で確認するのも呼び出し元の役割であり、
 サブエージェントは検知結果を報告するだけである**（issue #67。手順は
-`.claude/skills/issue-mr-flow/SKILL.md`「作業開始・再開時のベースブランチ追従確認」節が正。
+`.claude/skills/issue-mr-flow/references/start-resume.md`「作業開始・再開時のベースブランチ追従確認」節が正。
 **呼び出し元はこのサマリの値を使い、`check-base-sync.sh` を再実行しない**）。
 
 `comments` / `describe` サブコマンドの「現在のブランチに紐づくMR番号を取得する」手順は、
@@ -661,7 +672,7 @@ resumeを省略してしまう事故が発生した）。そのため発動条�
 PRで対処する（`main`はレビューを経ないままの直接変更を避ける対象のため）。issue番号を持たない
 一回限りの対応のため、`.mrworkflow.json`のブランチ命名規則には従わず`chore/cleanup-<説明>`
 のような名前を使ってよい。手順の詳細は
-`.claude/skills/issue-mr-flow/SKILL.md`の「PRがflow-id 5-5実施前にマージされてしまった場合の対処」
+`.claude/skills/issue-mr-flow/references/phase5-close.md`の「PRがflow-id 5-5実施前にマージされてしまった場合の対処」
 節を参照。
 
 ### PR作成後のdefaultブランチ追従（issue #88）
@@ -690,7 +701,7 @@ PRが多いほど、この期間のコンフリクトを取りこぼす（実例
 セッションをまたいだ場合は、`resume` の手順5で監視を取り直す。この行は
 `update-handoff-progress.sh` の `set-header` の対象外で、手で書き換える。
 
-手順の詳細は `.claude/skills/issue-mr-flow/SKILL.md`「PR作成後のdefaultブランチ追従（監視）」節と
+手順の詳細は `.claude/skills/issue-mr-flow/references/base-branch-followup.md`「PR作成後のdefaultブランチ追従（監視）」節と
 `.claude/skills/resolve-conflict/SKILL.md`（Step 2「監視モードでの例外」）が正。判断の理由・
 却下案（新flow-idの挿入・GitHubの "Update branch"・hookでの自動チェック・CIでの自動追従・
 常時rebase運用・DDR連番の廃止等）は
@@ -723,7 +734,7 @@ issue #86 当時の並び（5-1 片付け → 5-2 コンフリクト解消 → 5
 `gh pr comment` であるためPR以外のissueへ投げられないからである（MCP経路では
 `mcp__github__add_issue_comment` という同一ツールに収束するが、`issue_number` へ渡す値の意味が
 PR番号か通知先issue番号かで異なる）。手順の正は
-`.claude/skills/issue-mr-flow/SKILL.md`「マージ前の関連issue通知（flow-id 5-2）」節。判断の理由・
+`.claude/skills/issue-mr-flow/references/phase5-close.md`「マージ前の関連issue通知（flow-id 5-2）」節。判断の理由・
 却下案（マージ後の通知・自動投稿・専用サブコマンド化等）は
 [i0086-01-マージ前の関連issue通知はDraft解除の直前に置き投稿前の人間承認を必須にする.md](../ddr/i0086-01-マージ前の関連issue通知はDraft解除の直前に置き投稿前の人間承認を必須にする.md)。
 
@@ -796,7 +807,7 @@ Web UIのドラッグ＆ドロップと同じ `uploads.github.com/user-attachmen
 `Claude Codeより（敵対的レビュー）:`）。新しい1種だけがラベルを持てば「これは統括レポートか、
 それ以外か」を判別できるため、既存3種は書き換えていない。
 
-手順の正は `.claude/skills/issue-mr-flow/SKILL.md`「最終統括レポートとPR/MRへの反映（flow-id 5-4）」節。
+手順の正は `.claude/skills/issue-mr-flow/references/phase5-close.md`「最終統括レポートとPR/MRへの反映（flow-id 5-4）」節。
 判断の理由・却下案（添付を必須にする・GitLabだけ対応する・レポートを `main` へ残す・
 MR descriptionへ書く・全種へラベルを付け直す）は
 [i0111-01-統括レポートの添付は任意層に置きフローを止めない.md](../ddr/i0111-01-統括レポートの添付は任意層に置きフローを止めない.md)
@@ -843,9 +854,10 @@ resume・clear時に毎回、現在ブランチのissue/MR状態をコンテキ�
 - **issue-mr-flow対象ブランチでのSKILL.md再読み込み指示（issue #113）**: 現在のブランチが
   issue-mr-flowの対象と判定できる場合、注入テキストの**末尾**へ
   「`.claude/skills/issue-mr-flow/SKILL.md`（唯一の実装フロー定義）を読み直すこと」という指示を
-  足す。SKILL.mdは1,100行超であり、compactの要約で手順理解（レビュー往復・`commit`スキル経由の
+  足す。SKILL.mdはissue #160の分割後、本文約190行＋`references/` 7ファイル（フロー定義全体では
+  1,400行超）という構成になったが、compactの要約で手順理解（レビュー往復・`commit`スキル経由の
   強制・`HANDOFF.md`の進捗更新）が失われても、**エージェント側からは「読んだ」という認識だけが
-  残るため失われたことが分からない**。そのため指示文では
+  残るため失われたことが分からない**という前提は変わらない。そのため指示文では
   **「このセッションで既に読んでいる場合も読み直すこと」を明示する**。
   - **対象判定**: (a) ブランチ名から `get_issue_number_from_branch` でissue番号を抽出できる、
     (b) `get_branch_work_files` がブランチ固有の作業ファイルを返す、の**いずれか一方でも
@@ -856,11 +868,44 @@ resume・clear時に毎回、現在ブランチのissue/MR状態をコンテキ�
   - **対象外では何も足さない**（issue-mr-flowに乗せていない軽微な変更を直接進めている
     ブランチが該当。`main`ブランチ上はこの判定より手前で `build_context` が何も注入しない）。
   - 起動要因では分岐させない（上記と同じ方針）。指示文の長さは有界で入力サイズに依存しない
-    （実測603バイト。判定根拠が2件そろう場合でも690バイト）。肥大化検知のしきい値8000バイトに
+    （実測604バイト（判定根拠(a)のみ・参照行なし）〜919バイト（判定根拠(a)(b)の2件＋参照行に
+    ファイル3本を載せた最大ケース）。`format_skill_reload_instruction` の出力を `wc -c` で
+    測った値（末尾LF込み。第2引数には「現在地 flow-id … の実行前に開く参照: …」という
+    組み立て済みの1行を渡す——参照ファイル名だけを渡すとこのプレフィックス約50バイトを
+    測り漏らす。issue #160 で現在地の参照行が加わった後の実測）。肥大化検知のしきい値8000バイトに
     対して十分小さい。判定材料の取得コストも増えない
     （(a) は文字列照合のみ、(b) は既に取得済みの値の再利用）。設計判断・却下案は
     [i0113-01-issue-mr-flow対象ブランチではSKILL.mdの再読み込みを注入で促す.md](../ddr/i0113-01-issue-mr-flow対象ブランチではSKILL.mdの再読み込みを注入で促す.md)
     参照。
+- **現在地flow-idと参照ファイルの注入（issue #160）**: 上記の再読み込み指示に続けて、現在地の
+  flow-idと、その実行前に開くべき参照ファイル（`references/` 配下）の行を注入する。SKILL.md分割
+  後の「どの参照をいつ読むか」を、AIエージェントの判断ではなく機械的に決めるための仕組みである。
+  - **現在地の解決**: `HANDOFF.md` の進捗表から「**最後の `[x]`/`[-]` の行より後に現れる、最初の
+    `[]`**」を現在地とする（`current_flow_id_to_reply`）。「表全体で最初の `[]`」方式は採らない
+    ——非対話環境では人間レビュー行（2-3等）が `[]` のまま残る運用のため、永遠にそこを指し
+    続けてしまう。
+  - **参照の抽出**: SKILL.md全体フロー表の「参照」列を、**ヘッダ行から列位置を求めて**抽出する
+    （`refs_for_flow_id_to_reply`）。flow-id→参照の対応表をhook側に持たない（表が唯一の正。
+    複製すると表の更新に追従できず、誤った参照を注入し続ける）。
+  - **fail-openを4段で守る**: (1) 現在地が解決できない、(2) 進捗セルが `[x]`/`[]`/`[-]` の
+    ちょうど1つでない（旧表記 `[x][x][]` の誤読防止）、(3) 抽出値が「`` `references/<名前>.md` ``
+    を ` / ` で並べた形」か「—」でない（セル内の `\|` による列ずれの防止）、(4) 参照が `—`——の
+    いずれでも参照行を出さない。**誤ったファイルを名指しするより、出ないほうが害が小さい**
+    （DDR `i0113-01` が同種の現在地解決を却下した判断と整合させた。失敗時の損失が非対称）。
+  - 注入時は `references/<名前>.md` を `.claude/skills/issue-mr-flow/` 前置の**リポジトリルート
+    相対の完全パス**へ変換する（AIエージェントがそのままReadに使える形にするため）。
+  - **表側の維持責任**: 列見出し `参照` とヘッダ行の存在・進捗表の行形式がhookの前提であり、
+    変えると注入はfail-openで**無言に**止まる。全体フロー表へ行を追加するときは参照列を必ず
+    埋める（追加の参照が無い行も空欄ではなく `—` を書く）。実SKILL.mdの全行を読む実データ
+    回帰テスト（`test_session_start.sh`）がこの前提を守っている。
+  - 進捗表の行判定の正規表現 `ROW_RE` は `update-handoff-progress.sh` と**同一リテラルの複製**
+    とし、一致を `test_session_start.sh` が表明する。`source` による共有は、あちらの
+    `set -euo pipefail` がhookのfail-open設計を壊すため採らない（詳細:
+    [update-handoff-progress.md](update-handoff-progress.md)「制約・設計判断」、
+    [i0160-01-SKILL.mdの分割は読むタイミング単位で行い参照列とhookで機械的に注入する.md](../ddr/i0160-01-SKILL.mdの分割は読むタイミング単位で行い参照列とhookで機械的に注入する.md)）。
+  - **`references/mcp-fallback.md` だけは参照列で指さない**（設計）。`gh`/`glab` CLIの有無は
+    flow-idではなく実行環境で決まるため、MCP経路と判定されたときに限り、参照列とは別の行で
+    同ファイルを名指しで注入する（下記「`gh`/`glab` CLI自体が無い環境での挙動」の4点に含まれる）。
 - **出力形式**: `{"hookSpecificOutput":{"hookEventName":"SessionStart","additionalContext":"<text>"}}`
   形式のJSONをstdoutへ返す。
 - **フォールバック方針**: `main`ブランチ上（作業ブランチ未チェックアウト）では注入しない。
@@ -879,13 +924,14 @@ resume・clear時に毎回、現在ブランチのissue/MR状態をコンテキ�
   `[ "${BASH_SOURCE[0]}" = "${0}" ]` ガードで直接実行時のみ呼ぶ。これにより
   `.claude/scripts/test/test_session_start.sh` から`source`して、副作用の無い純粋関数
   （`context_text_bytes` / `append_size_warning` / `extract_handoff_next_steps` /
-  `issue_mr_flow_branch_reason` / `format_skill_reload_instruction`）を単体テストできる
+  `issue_mr_flow_branch_reason` / `format_skill_reload_instruction` /
+  `current_flow_id_to_reply` / `refs_for_flow_id_to_reply`）を単体テストできる
   （ガードが無いと`source`時に`raw="$(cat)"`でstdin待ちのままハングする）。
 - **`gh`/`glab` CLI自体が無い環境での挙動（issue #34）**: 上記の一般的な失敗と区別し、
   `get_vcs_access_mode` が `mcp` を返す場合は専用の内容を注入する。具体的には
   「VCS情報取得経路: MCP」「ブランチ名から抽出したissue番号（本文・タイトルはMCPで取得すること）」
-  「MCPツールに渡す owner/repo」「`.claude/skills/issue-mr-flow/SKILL.md`『`gh`/`glab` CLI不在時の
-  MCPフォールバック』節の参照とWebFetch・curlを使わない旨」の4点で、issue/PRの実データは取得しない
+  「MCPツールに渡す owner/repo」「`.claude/skills/issue-mr-flow/references/mcp-fallback.md`
+  の参照とWebFetch・curlを使わない旨」の4点で、issue/PRの実データは取得しない
   （hookはMCPツールを呼べないため）。**PR欄は「なし」ではなく「未取得」と表現する**: 変更前は
   `gh` の失敗を握りつぶしていたため、PRが存在していても「PR: なし」と誤った情報が注入されていた。
 
@@ -896,10 +942,10 @@ Claude Code on the webのリモート実行環境のように、`gh`/`glab` CLI�
 以前からこの場合にGitHub/GitLab公式のMCPサーバーツールで代替してよいと定めていたが、**具体的な
 対応手順が実装・文書化されておらず、AIエージェントが都度その場の判断でツールを選ぶ状態**だった。
 
-- **経路の判定**: `get_vcs_access_mode`（`cli` / `mcp`）。`.claude/skills/issue-mr-flow/SKILL.md`
-  の各サブコマンドは、手順に入る前にこれを呼んで経路を決める。
+- **経路の判定**: `get_vcs_access_mode`（`cli` / `mcp`）。issue-mr-flowの各サブコマンド（`.claude/skills/issue-mr-flow/references/start-resume.md` /
+  `.claude/skills/issue-mr-flow/references/review-loop.md`）は、手順に入る前にこれを呼んで経路を決める。
 - **手順の正**: Provider関数・サブコマンドごとのMCPツールと引数の対応表は
-  `.claude/skills/issue-mr-flow/SKILL.md`「`gh`/`glab` CLI不在時のMCPフォールバック」節に置く
+  `.claude/skills/issue-mr-flow/references/mcp-fallback.md` に置く
   （本specは仕組みの説明に留め、対応表を二重管理しない）。`issue-create` スキル
   （`create-issue.sh`）についても同スキル側に読み替え手順を書く。
 - **代替が無い唯一の関数**: `upload_attachment`（issue #111）。MCPには**PR/issueへの添付に相当する
@@ -1631,7 +1677,7 @@ issue #11「git pushイベントを検知してcompactする」への対応と�
   解消可否・5-2の関連issue通知の承認・`start`のベースブランチ確認のように、外部への影響が不可逆で
   承認が必須の場面は従来どおり`AskUserQuestion`を使う。これらはpush直後ではなく、`/compact`を打つ
   タイミングと競合しない）。運用ルールとしての正は
-  `.claude/skills/issue-mr-flow/SKILL.md`「レビュー依頼メッセージ」節。
+  `.claude/skills/issue-mr-flow/references/review-loop.md`「レビュー依頼メッセージ」節。
 - **`post-push-usage-report.sh`とは別ファイル**（`.claude/hooks/post-push-compact-prompt.sh`）とし、
   責務を混在させない（使用量集計とcompact促しは関心事が異なる）。`.claude/settings.json`の
   `hooks.PostToolUse[0].hooks`へ、既存の対応工数レポート用エントリと並べて2エントリ
@@ -3129,6 +3175,52 @@ point-in-time の記録と DDR 本文は**書き換えていない**）:
 - `## 未決定事項・懸念点` の「（issue #57）`.gemini/settings.json` の SessionStart matcher」を
   **解消済みとして「決定済み事項」へ移した**（Gemini の source に `compact` が無いことと、
   matcher が完全一致であることがソースから確定したため）。
+
+### issue #160（SKILL.mdのreferences分割と参照タイミングの機械化）
+
+`.claude/skills/issue-mr-flow/SKILL.md`（約1,100行）を、本文（入口。全体フロー表・PR/MR担当・
+旧節名→新しい場所の対応表のみ、約190行）と `references/` 配下の参照資料7本
+（`planning.md` / `deliverables.md` / `start-resume.md` / `review-loop.md` /
+`base-branch-followup.md` / `mcp-fallback.md` / `phase5-close.md`）へ分割した。
+**どの参照をいつ読むかは全体フロー表へ新設した「参照」列が唯一の正**で、SessionStart hookが
+現在地のflow-idからこの列を読み出し、完全パスへ変換してセッション冒頭へ注入する
+（本仕様「セッション開始時の自動コンテキスト注入」の「現在地flow-idと参照ファイルの注入」項）。
+
+変更ファイル:
+
+- `.claude/skills/issue-mr-flow/SKILL.md`（本文へ縮約。旧節名→新しい場所の対応表を新設）
+- `.claude/skills/issue-mr-flow/references/*.md`（7本を新規作成。frontmatter `type: skill-reference`）
+- `.claude/hooks/session-start.sh`（`current_flow_id_to_reply` / `refs_for_flow_id_to_reply` と
+  参照行の注入を追加。fail-open 4段）
+- `.claude/scripts/test/test_session_start.sh`（新関数の単体テスト・実SKILL.md/実HANDOFF.mdへの
+  実データ回帰テスト・`ROW_RE` 同一性の表明を追加）
+- `.claude/scripts/test/test_install_to_project.sh`（配布先へ `references/*.md` が本家と同じ
+  構成で配られることの表明を追加）
+- `.claude/rules/markdown-frontmatter.md`（`type` 表へ `skill-reference` を追加）・
+  `.claude/rules/directory-structure.md`・`index.md`（`references/` の位置づけを追記）
+- `.claude/docs/spec/issue-mr-workflow.md`（本ファイル。コンポーネント構成のツリー、
+  「セッション開始時の自動コンテキスト注入」節、影響範囲の本エントリ）
+- `.claude/docs/spec/update-handoff-progress.md`（`ROW_RE` 複製の注意）
+- `.claude/VERSION`（`0.2.0` → `0.3.0`。`references/` 7ファイルの追加は配布資産の追加＝MINORに
+  当たるため。非対話的セッションでの増分適用は `distribution-assets.md`「`.claude/VERSION`」の
+  例外規定に従い、`HANDOFF.md`「判断を迷った内容」へ記録した）
+- 参照の付け替えのみのファイル（切り出し済み節を旧 `SKILL.md`「節名」で指していた現在状態の
+  記述を、`references/<ファイル>.md`「節名」へ1件ずつ判断して付け替えた。うち
+  `.claude/scripts/src/vcs/Provider.sh`（`mcp_tool_hint` / `require_vcs_cli` のstderr案内）・
+  `.claude/scripts/src/update-handoff-progress.sh`（`unreplied_hint` の案内）・
+  `.claude/scripts/src/check-base-sync.sh` は**実行時の出力文字列も変わる**）:
+  `.claude/docs/spec/adversarial-review.md` / `check-base-conflicts.md` / `check-base-sync.md`、
+  `.claude/rules/docs-workflow.md` / `git-workflow.md`、`.claude/agents/issue-mr-resume.md`、
+  `.claude/skills/{adversarial-review,canvas-report,issue-create,resolve-conflict}/SKILL.md`、
+  `.claude/skills/issue-mr-flow/assets/{plans,reports}.template.html`、
+  `.claude/scripts/test/test_vcs_provider.sh`
+
+新規DDR:
+
+- [i0160-01-SKILL.mdの分割は読むタイミング単位で行い参照列とhookで機械的に注入する.md](../ddr/i0160-01-SKILL.mdの分割は読むタイミング単位で行い参照列とhookで機械的に注入する.md)
+  （分割単位・参照列＋hook注入・fail-open・`ROW_RE` 複製の決定と却下案）。あわせて
+  DDR `i0113-01` の frontmatter へ、前提（SKILL.mdは1,100行超）が本issueで変わった旨の
+  `note` を追加した（本文は不変）。
 
 ## 設定項目
 
