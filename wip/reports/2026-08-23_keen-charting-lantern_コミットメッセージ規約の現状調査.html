@@ -1,0 +1,347 @@
+<!--
+  issue #185 フェーズ2の調査結果（flow-id 2-6）の人間レビュー用HTMLビュー。正文は同名の .md。
+-->
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>調査結果 — コミットメッセージ規約の現状と本文許容の可否（issue #185）</title>
+<style>
+  :root {
+    --bg: #f6f7f9;      --panel: #ffffff;   --ink: #1a1d21;     --muted: #5b636d;
+    --line: #dfe3e8;    --accent: #2563eb;  --accent-soft: #eaf0fe;
+    --ok: #1a7f4b;      --ok-soft: #e6f4ec; --warn: #a35a00;    --warn-soft: #fdf1e0;
+    --stop: #b3261e;    --stop-soft: #fdecea; --code-bg: #f0f2f5;
+    --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1216;    --panel: #161a20;   --ink: #e6e8eb;     --muted: #9aa3ad;
+      --line: #2a3038;  --accent: #7aa2f7;  --accent-soft: #1b2333;
+      --ok: #6ee7a8;    --ok-soft: #14261d; --warn: #f0b866;    --warn-soft: #2a2113;
+      --stop: #f2857c;  --stop-soft: #2b1614; --code-bg: #1d222a;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", system-ui, sans-serif;
+    line-height: 1.8; font-size: 15px;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 20px 80px; }
+
+  /* 共通ヘッダ帯 */
+  header.band {
+    background: linear-gradient(135deg, var(--accent-soft), var(--panel));
+    border-bottom: 1px solid var(--line); padding: 28px 20px 22px; margin-bottom: 28px;
+  }
+  header.band .inner { max-width: 1080px; margin: 0 auto; }
+  header.band .kind { font-size: 11px; letter-spacing: .18em; color: var(--accent); font-weight: 700; }
+  header.band h1 { margin: 6px 0 4px; font-size: 26px; line-height: 1.4; }
+  header.band .lead { margin: 0; color: var(--muted); }
+  .meta { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; padding: 0; list-style: none; }
+  .meta li {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 999px;
+    padding: 3px 12px; font-size: 12.5px; color: var(--muted); white-space: nowrap;
+  }
+  .meta li b { color: var(--ink); font-weight: 600; }
+
+  nav.toc {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 14px 20px; margin-bottom: 28px;
+  }
+  nav.toc h2 { margin: 0 0 8px; font-size: 13px; letter-spacing: .08em; color: var(--muted); border: 0; padding: 0; }
+  nav.toc ol { margin: 0; padding-left: 20px; }
+  nav.toc li { margin: 2px 0; }
+  a { color: var(--accent); }
+
+  section {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 8px 24px 22px; margin-bottom: 22px;
+  }
+  h2 { font-size: 20px; margin: 20px 0 10px; padding-bottom: 8px; border-bottom: 2px solid var(--line); }
+  h3 { font-size: 16px; margin: 22px 0 8px; color: var(--accent); }
+  p { margin: 10px 0; }
+  ul, ol { padding-left: 22px; }
+  li { margin: 4px 0; }
+  blockquote { margin: 10px 0; padding: 6px 14px; border-left: 3px solid var(--line); color: var(--muted); }
+
+  /* 表は自身の中で横スクロールする（ページ本体は横スクロールさせない） */
+  .tablewrap { overflow-x: auto; margin: 14px 0; }
+  table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 14px; }
+  th, td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: var(--accent-soft); font-weight: 600; white-space: nowrap; }
+  tbody tr:nth-child(even) td { background: color-mix(in srgb, var(--line) 22%, transparent); }
+
+  code {
+    background: var(--code-bg); border-radius: 5px; padding: 1px 5px; font-size: 13px;
+    font-family: "SFMono-Regular", Consolas, "Noto Sans Mono", monospace;
+  }
+  pre {
+    background: var(--code-bg); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 12px 14px; overflow-x: auto; font-size: 13px; line-height: 1.65;
+  }
+  pre code { background: none; padding: 0; }
+
+  /* 注意ボックス: info（既定）/ ok（決めたこと）/ warn（注意）/ stop（やらないこと・危険） */
+  .box { border-left: 4px solid var(--accent); background: var(--accent-soft);
+         border-radius: 0 var(--radius) var(--radius) 0; padding: 12px 16px; margin: 16px 0; }
+  .box > :first-child { margin-top: 0; } .box > :last-child { margin-bottom: 0; }
+  .box .label { font-size: 12px; font-weight: 700; letter-spacing: .06em; display: block; margin-bottom: 4px; }
+  .box.ok { border-color: var(--ok); background: var(--ok-soft); } .box.ok .label { color: var(--ok); }
+  .box.warn { border-color: var(--warn); background: var(--warn-soft); } .box.warn .label { color: var(--warn); }
+  .box.stop { border-color: var(--stop); background: var(--stop-soft); } .box.stop .label { color: var(--stop); }
+  .box.info .label { color: var(--accent); }
+
+  .tag { display: inline-block; border-radius: 999px; padding: 1px 9px; font-size: 12px; font-weight: 600; }
+  .tag.ok { background: var(--ok-soft); color: var(--ok); }
+  .tag.warn { background: var(--warn-soft); color: var(--warn); }
+  .tag.stop { background: var(--stop-soft); color: var(--stop); }
+
+  footer { color: var(--muted); font-size: 13px; text-align: center; padding-top: 10px; }
+</style></head>
+<body>
+
+<header class="band">
+  <div class="inner">
+    <div class="kind">調査結果レポート / フェーズ2</div>
+    <h1>コミットメッセージ規約の現状と本文許容の可否</h1>
+    <p class="lead">書き換えが要るのは3行だけ。本文を許容しても実装変更は要らない。そして <code>main</code> の1行ログに出るのは<b>PRタイトル</b>であり、個別コミットの件名はsquash本文の中にしか残らない。</p>
+    <ul class="meta">
+      <li><b>issue</b> #185</li>
+      <li><b>ブランチ</b> claude/improve-commit-log-format-9mjlid</li>
+      <li><b>PR</b> #192</li>
+      <li><b>フェーズ</b> 2〈調査〉 flow-id 2-6</li>
+      <li><b>push回数</b> 3</li>
+      <li><b>作成日</b> 2026-08-23</li>
+      <li><b>正文</b> 同名の .md</li>
+    </ul>
+  </div>
+</header>
+
+<div class="wrap">
+
+<nav class="toc">
+  <h2>目次</h2>
+  <ol>
+    <li><a href="#summary">サマリ（結論の一覧）</a></li>
+    <li><a href="#conditions">実施条件（測った対象・環境）</a></li>
+    <li><a href="#findings">実施した内容と結果</a></li>
+    <li><a href="#unverified">確かめられなかったこと</a></li>
+    <li><a href="#next">設計への反映</a></li>
+    <li><a href="#surprises">想定と異なった点</a></li>
+    <li><a href="#todo">残課題</a></li>
+  </ol>
+</nav>
+
+<section id="summary">
+  <h2>サマリ（結論の一覧）</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>#</th><th>問い</th><th>結論</th><th>根拠の性質</th></tr></thead>
+    <tbody>
+      <tr><td>Q1</td><td>規約はどこで述べられているか</td><td><b>書き換えが要るのは3行だけ</b>（<code>commit/SKILL.md:145,146</code> と <code>create-commit.md:46</code>）。旧規約に沿った<b>例示・雛形</b>は別に2件あり、地の文の検索語では拾えない</td><td><span class="tag ok">実測</span> grep 2種</td></tr>
+      <tr><td>Q2</td><td>履歴の欠落パターン</td><td>母数80行のうち <b>64%（51件）が「対象＋動詞」で終わり</b>、<b>58%（46件）がmainに残らない成果物のみ</b>に言及。issueの4類型に<b>収まらない類型が1つ</b></td><td><span class="tag ok">実測</span> git log＋分類</td></tr>
+      <tr><td>Q3</td><td>本文を許容すると実装・呼び出し側は耐えるか</td><td><b>耐える。実装変更は不要</b>。改行入りメッセージはそのまま通り、hook判定も発火しない</td><td><span class="tag ok">実測</span> 一時リポジトリ＋関数直呼び</td></tr>
+      <tr><td>Q4</td><td>squash時に本文はどう畳まれるか</td><td><code>main</code> の1行ログに出るのは<b>PRタイトル</b>。個別コミットの件名は<b>squash本文の中にしか残らない</b>。<b>GitHubの本文の畳み方だけは実測できない</b></td><td><span class="tag ok">実測3</span> <span class="tag warn">机上1</span></td></tr>
+      <tr><td>Q5</td><td>規約変更で壊れる箇所はあるか</td><td><b>処理は0件</b>。<b>記述は2箇所</b>が追随を要する</td><td><span class="tag ok">実測</span> grep</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="conditions">
+  <h2>実施条件（測った対象・環境）</h2>
+  <ul>
+    <li><b>実行環境</b>: Claude Code on the web のリモート実行環境（Linux）／2026-08-23。<b>git bash（Windows）実機では未計測。</b></li>
+    <li><b>リポジトリ断面</b>: <code>origin/main</code> = <code>0a9169c</code>（<code>git fetch origin main</code> 済み。ローカルHEADとの差は本ブランチの2コミットのみ）。</li>
+    <li><b>Q2の母数</b>: <code>git log origin/main -5 --format='%B' | grep '^* '</code> = <b>80行</b>（直近5件のsquashコミットに畳まれた個別コミットの件名）。1行ログは <code>git log origin/main -10 --format='%s'</code> の10件。</li>
+  </ul>
+</section>
+
+<section id="findings">
+  <h2>実施した内容と結果</h2>
+
+  <h3>Q1. 規約はどこで・どう述べられているか</h3>
+  <p><b>2種類あり、検索語が異なる。片方だけでは全件にならない。</b></p>
+
+  <h4>(a) 規約の地の文</h4>
+  <pre><code>grep -rn '1行のみ\|本文・フッター\|フッター' --include='*.md' .claude AGENTS.md CLAUDE.md GEMINI.md</code></pre>
+  <p><code>.claude/</code> 側のヒットは18件（<code>index.jsonl</code> を除く）。<b>書き換え対象は3行</b>である。</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>ファイル:行</th><th>内容</th><th>扱い</th></tr></thead>
+    <tbody>
+      <tr><td><code>commit/SKILL.md:145</code></td><td>1行のみ</td><td><span class="tag warn">書き換え対象</span></td></tr>
+      <tr><td><code>commit/SKILL.md:146</code></td><td>本文・フッター・Co-Authored-By など一切付けない</td><td><span class="tag warn">書き換え対象</span>（役割分解に注意）</td></tr>
+      <tr><td><code>spec/create-commit.md:46</code></td><td><code>--message</code> の説明中の「1行のみ」</td><td><span class="tag warn">書き換え対象</span></td></tr>
+      <tr><td><code>commit/SKILL.md:31</code></td><td>フッターは絶対に付けない</td><td><span class="tag ok">維持</span>（方針と独立）</td></tr>
+      <tr><td><code>spec/distribution-assets.md:71</code></td><td>VERSIONはSemVer1行のみ</td><td>無関係</td></tr>
+      <tr><td><code>spec/search-frontmatter.md:115</code></td><td><code>count</code> 出力は1行のみ</td><td>無関係</td></tr>
+      <tr><td><code>ddr/i0033-03…:28</code></td><td><code>.gitattributes</code> へ追記するのは1行のみ</td><td>無関係</td></tr>
+      <tr><td><code>spec/issue-mr-workflow.md</code>（11件）</td><td>対応工数レポートの<b>フッター文</b></td><td>無関係</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <div class="box warn">
+    <span class="label">「0件」を合格条件にできない</span>
+    無関係なヒットが <code>.claude/</code> 側だけで15件ある。判定は<b>書き換え対象3行が消えていること</b>で行う。<code>.gemini/</code> 側には同じ内訳のコピーがあり（<code>.gemini/skills/commit/SKILL.md</code> は <code>diff -q</code> で同一）、flow-id 5-3 の変換同期を忘れるとここに旧規約が残る。
+  </div>
+
+  <h4>(b) 旧規約に沿った例示・雛形</h4>
+  <pre><code>grep -rn -- '--message "' --include='*.md' --include='*.sh' .claude</code></pre>
+  <p>14件ヒットするが、<b>メッセージの「形」を例示しているのは2件だけ</b>——<code>resolve-conflict/SKILL.md:373</code>（<code>--message "chore: 〈base〉をマージし〈解消内容〉を統合"</code>）と同<code>:420</code>。残り12件は構文プレースホルダと、hookのコマンド位置判定の説明・テストで、規約とは無関係である。</p>
+  <div class="box info">
+    <span class="label">同じ方向の規約が既にある</span>
+    <code>resolve-conflict/SKILL.md</code> 376〜378行は、すでに「<b>コミットメッセージには「何を」「どう」解消したかを書く</b>（後から履歴だけで経緯を追えるようにする。実績のある書き方）」と定めている。<b>本issueが作るのは、この前例を <code>commit</code> スキル（全コミットが通る唯一の経路）へ一般化したものになる。</b>
+  </div>
+
+  <h3>Q2. 履歴の欠落パターン</h3>
+  <h4>prefixの分布</h4>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>prefix</th><th>docs</th><th>chore</th><th>fix</th><th>refactor</th><th>test / feat / ai-asset</th></tr></thead>
+    <tbody><tr><td>件数（母数80）</td><td>59</td><td>12</td><td>4</td><td>2</td><td>各1</td></tr></tbody>
+  </table>
+  </div>
+  <p><b>prefixを持たない行は0件。</b>issue本文が末尾で触れていた英語・prefix無しのコミットは、この母数には現れなかった（issue #110 のPRに含まれていたもので、直近5件には入らない）。</p>
+
+  <h4>欠落パターンの分類</h4>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>類型</th><th>件数／母数80</th><th>判定に使ったもの</th></tr></thead>
+    <tbody>
+      <tr><td><b>「対象＋動詞」で終わり、どう変えたかが無い</b></td><td><b>51件（64%）</b></td><td>末尾が「修正／更新／反映／追加／作成／記録（する）」で終わる行</td></tr>
+      <tr><td><b>mainに残らない成果物のみに言及</b></td><td><b>46件（58%）</b></td><td>計画／worklog／レポート／HANDOFF／片付け／統括 を含み、spec・DDR・rules・実装・テストのいずれにも触れない行</td></tr>
+      <tr><td><b>敵対的レビューの反映で、件数しか書いていない</b></td><td><b>11件</b>（該当17件中）</td><td>「敵対的レビュー」を含む17件のうち、直した中身に触れているのは6件のみ</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p>件数しか書いていない例: <code>docs: issue #155 敵対的レビュー2回目の指摘18件を調査結果へ反映</code>。中身に触れている6件のうち最も良い例: <code>fix: 6回目の敵対的レビュー9件へ対応（DDRの実測値・検証の空振り・観点の追随漏れ）</code>。</p>
+  <div class="box warn">
+    <span class="label">この分類は目視判断を含む</span>
+    「どう変えたか」があるかの線引きは機械化できない。上表のgrep条件は再現できるが、<b>17件中6件の内訳は筆者の判断である。</b>
+  </div>
+
+  <h4>件名の長さ — 文字数は問題の原因ではない</h4>
+  <p><b>min 45 / median 85 / max 143 文字。</b> 短く切り詰められて情報が落ちているのではなく、<b>長い行でも中身が無い</b>。最長の143文字（<code>docs: issue #165 フェーズ4反映(DDR記録・移行手順記述)を実施しVERSION増分は環境制約で未適用と記録する</code>）は、長さの割に情報が詰まっている良い例である。</p>
+
+  <h4>issueの4類型に収まらない類型（新発見）</h4>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>見る場所</th><th>そこに出るもの</th></tr></thead>
+    <tbody>
+      <tr><td><code>git log --oneline</code> / GitHubのコミット一覧</td><td><b>PRタイトル</b> + <code> (#PR番号)</code></td></tr>
+      <tr><td><code>git log --format=%B</code> / GitHubのコミット詳細</td><td><code>* &lt;個別コミットの件名&gt;</code> の羅列</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p><b>読み手が最初に見る1行は、コミットメッセージではなくPRタイトルである。</b> issueが挙げた4類型のどれでもなく、規約の設計に直接効く。</p>
+
+  <h3>Q3. 本文を許容した場合、実装・呼び出し側は耐えるか</h3>
+  <h4>(1) <code>create-commit.sh</code> は複数行メッセージを受け付けるか — <b>受け付ける（実装変更不要）</b></h4>
+  <pre><code>bash .claude/scripts/src/create-commit.sh --message "$(printf 'feat: 件名の行\n\n本文の1行目\n本文の2行目')" -- a.txt
+git log -1 --format='%s'   # → feat: 件名の行
+git log -1 --format='%b'   # → 本文の1行目 / 本文の2行目
+git log --oneline -1       # → 9794fb2 feat: 件名の行</code></pre>
+  <p><code>git commit -m</code> は1行目を件名、空行以降を本文として扱う。<b>スクリプトの変更は1行も要らない。</b></p>
+
+  <h4>(2) 複数行メッセージをどの経路で渡すか — <b><code>--message</code> への埋め込みで問題ない</b></h4>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>制約</th><th>判定</th><th>根拠</th></tr></thead>
+    <tbody>
+      <tr><td>コマンド位置判定が誤発火しないか</td><td><span class="tag ok">発火しない</span></td><td><code>CommandPosition.sh</code> を <code>source</code> して直接呼び、本文に「git commit」という語を含む複数行メッセージで <code>command_invokes_git_subcommand … commit</code> が非0（対象外）を返すことを確認した</td></tr>
+      <tr><td>1行8192バイト超で部分一致へ縮退する</td><td><span class="tag ok">むしろ有利</span></td><td><code>_CP_MAX_LINE_LENGTH</code> は<b>1行あたり</b>の上限。本文を許すと1行が短くなるため縮退しにくくなる（上のテストでの最長行は76バイト）</td></tr>
+      <tr><td>長文はファイル経由で渡す既存方針</td><td><span class="tag ok">該当しない</span></td><td>この方針の主たる理由は<b>jqの引数長上限</b>だが、<code>create-commit.sh</code> は <b>jqを1回も呼ばない</b>（<code>grep -c jq</code> → 0）。プロセス引数長の上限（約32KB）は残るが、コミットメッセージがそのサイズに達することは実務上ない</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p><b>結論: <code>--message-file</code> の新設は不要。</b></p>
+
+  <h3>Q4. squash merge時に本文はどう畳まれるか</h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>部分</th><th>結果</th><th>根拠の性質</th></tr></thead>
+    <tbody>
+      <tr><td><code>main</code> の1行ログに何が出るか</td><td><b>PRタイトル + <code> (#PR番号)</code></b>。直近10件すべてがこの形</td><td><span class="tag ok">実測</span></td></tr>
+      <tr><td>個別コミットの件名がsquash本文へどう並ぶか</td><td><code>* &lt;件名&gt;</code> を空行区切りで羅列 → <code>---------</code> → <code>Co-authored-by:</code></td><td><span class="tag ok">実測</span></td></tr>
+      <tr><td>gitの <code>--squash</code> が本文をどう畳むか</td><td><b>本文も含めて畳む</b>（一時リポジトリで <code>.git/SQUASH_MSG</code> を確認）</td><td><span class="tag ok">実測</span></td></tr>
+      <tr><td><b>GitHubのsquash mergeが本文をどう畳むか</b></td><td><b>未確認</b></td><td><span class="tag warn">机上確認</span></td></tr>
+    </tbody>
+  </table>
+  </div>
+  <div class="box warn">
+    <span class="label">GitHub側が未確認である理由と、それが判断を止めない理由</span>
+    現行規約が1行のみを強制してきたため、<code>main</code> の履歴に<b>本文を持つコミットが1件も存在しない</b>。squash本文の生成はGitHubのサーバ側の挙動で、ローカルの <code>git log</code> では再現できない。確かめるには <code>main</code> へ本文付きコミットを含むPRをsquash mergeする必要があり、<b>検証のために正史を書き換えることになる</b>ため実施しなかった。
+    <br><br>
+    <b>この未確認は方針決定のブロッカーにならない。</b>(1) 読み手が最初に見る1行はPRタイトルで、これは個別コミットのメッセージ形式と独立している。(2) 本文が畳まれなかった場合でも失うものが無い——本文は「1行に収まらないときの逃がし先」であり、件名の質を落とす言い訳にしない。件名だけが畳まれる最悪のケースでも、現状より情報量が減ることはない。
+  </div>
+
+  <h3>Q5. 規約を変えると壊れる／古くなる箇所はあるか</h3>
+  <h4>処理 — <b>0件</b></h4>
+  <pre><code>grep -rn "log --grep\|log --format='%s'\|log --format=%s\|%B" .claude/scripts/src .claude/hooks --include='*.sh'</code></pre>
+  <p>ヒット0件。<code>check-base-sync.sh</code> は <code>git rev-list --left-right --count</code> を使うが<b>数えるだけでメッセージを読まない</b>。<b>規約を変えても壊れるスクリプトは無い。</b></p>
+
+  <h4>記述 — <b>2箇所</b></h4>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>ファイル:行</th><th>内容</th><th>追随の要否</th></tr></thead>
+    <tbody>
+      <tr><td><code>resolve-conflict/SKILL.md:373,376-378,420</code></td><td>マージコミットの雛形と「何を・どう解消したかを書く」規約</td><td><b>要確認</b>。新しい規約と矛盾しないが、本issueの規約が上位になるため参照関係を整理する余地がある</td></tr>
+      <tr><td><code>issue-mr-flow/SKILL.md:229</code></td><td>「確認した結果（何件見つかり、どう対処したか）を<b>コミットメッセージへ必ず残す</b>」</td><td><b>要確認</b>。<b>1行に収まらない内容を要求している</b>ため、本文許容の方針と噛み合う</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <div class="box stop">
+    <span class="label">現行規約との実質的な衝突</span>
+    <code>issue-mr-flow/SKILL.md:229</code> が求める「何件見つかり、どう対処したか」を1行へ押し込むと、まさに issue #185 が問題にしている「<b>列挙で中身が削れる</b>」形になる。<b>この衝突は本文を許容しないと解消しない。</b>
+  </div>
+</section>
+
+<section id="unverified">
+  <h2>確かめられなかったこと</h2>
+  <ul>
+    <li><b>GitHubのsquash mergeが本文をsquash本文へ含めるか</b>（Q4）。履歴に本文付きコミットが1件も無く、確かめるには <code>main</code> の正史を検証のために書き換える必要があるため。<b>方針決定には影響しない</b>ことを Q4 に示した。</li>
+    <li><b>git bash（Windows）実機での挙動。</b> Q3の実測はすべてLinuxで行った。<code>create-commit.sh</code> の改行の扱いは <code>git commit -m</code> へ委ねられており処理系差は考えにくいが、<b>未計測であることは事実として記す</b>。</li>
+    <li><b><code>main</code> の全履歴に対する欠落パターンの分布。</b> 母数を直近5件（80行）に固定したため、それ以前の傾向は測っていない。issue本文が挙げた issue #110 の実例は母数の外にある。</li>
+  </ul>
+</section>
+
+<section id="next">
+  <h2>設計への反映（フェーズ3へ渡すもの）</h2>
+  <ol>
+    <li><b>方針は「件名1行は必須・本文は任意で許容」を推す。</b> Q3で実装変更が不要と確かめられ、Q4で本文が畳まれなくても損が無いと言えるため、採用コストがほぼゼロ。一方 Q5 が示すとおり、<b>1行に収まらない内容を要求している既存の規約が既にある</b>（<code>issue-mr-flow/SKILL.md:229</code>）。この衝突は本文を許容しないと解消しない。</li>
+    <li><b>規約の主役は件名（1行目）の内容規約である。</b> Q2が示すのは「長さが足りない」ことではなく「<b>長い行でも中身が無い</b>」ことなので、文字数を緩めるだけでは直らない。満たすべき要素を列挙する形にする。</li>
+    <li><b>「mainに残らない成果物のみのコミット」（母数の58%）の書き方を規約へ含める。</b> これが履歴の過半を占めている以上、何を書かせるかを決めないと規約が守られない側の多数派になる。</li>
+    <li><b>PRタイトルが1行ログに出るという事実を規約へ書く</b>（Q2の新類型・Q4）。書かないと「コミットメッセージを直せば <code>--oneline</code> が読めるようになる」という誤解が残る。</li>
+    <li><b>書き換える3行と、追随を確認する2箇所が確定した</b>（Q1・Q5）。<code>commit/SKILL.md:146</code> を差し替える際、<b>フッター禁止（同31行と重複）を巻き添えにしない</b>。</li>
+    <li><b>検証は「0件」ではなく「書き換え対象3行が消えたこと」で判定する</b>（Q1）。<code>.gemini/</code> 側の同一コピーは flow-id 5-3 の変換同期で追随させる。</li>
+  </ol>
+</section>
+
+<section id="surprises">
+  <h2>想定と異なった点</h2>
+  <ul>
+    <li><b><code>create-commit.sh</code> の実装変更が要るかもしれない、という計画時の見立ては外れた。</b> 改行入りメッセージはそのまま通り、hookも発火しない。</li>
+    <li><b>1行の長さは制約になっていなかった。</b> median 85文字・max 143文字。短く切り詰められて情報が落ちているのではなく、長いまま中身が無い行が多い。</li>
+    <li><b><code>main</code> の1行ログに出るのはPRタイトルだった。</b> issue本文は畳まれた個別コミットの件名を「main へ残るコミットログ」として扱っている。問題意識自体は正しい（squash本文は残るため）が、<b>規約の効き先が1段ずれている</b>。</li>
+    <li><b>同じ方向の規約が既にリポジトリ内にあった</b>（<code>resolve-conflict/SKILL.md</code> の「何を・どう」）。ゼロから作るのではなく、既存の前例を一般化する形になる。</li>
+  </ul>
+</section>
+
+<section id="todo">
+  <h2>残課題</h2>
+  <div class="box warn">
+    <span class="label"><code>commit/SKILL.md</code> の「## 備考」以下（150〜170行）が孤立している</span>
+    開きの無い閉じフェンス（152行）で終わり、「レビュアーが知っておくべきこと」「変更内容の列挙ルール」という、PR descriptionの雛形に見える断片が残っている。ファイル新規作成時（<code>e87d2b4</code>）からこの形で、読み手はこの節が何のためのものか判断できない。<b>本issueの主対象ではないが、同じファイルの同じ主題（何を書くか）の箇所であるため、フェーズ3で扱うか別issueへ切り出すかを判断する。</b>
+  </div>
+</section>
+
+<footer>issue #185 / PR #192 — 結果の正文は同名の <code>.md</code>。外部依存を持たない自己完結HTML。</footer>
+
+</div>
+
+</body>
+</html>

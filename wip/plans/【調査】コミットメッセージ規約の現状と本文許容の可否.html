@@ -149,48 +149,75 @@
 
 <section id="target">
   <h2>調べること（問い）</h2>
+
+  <h3>Q1. 現行の規約はどこで・どう述べられているか</h3>
+  <p><b>2種類ある。両方を洗わないと全件リストにならない。</b></p>
   <div class="tablewrap">
   <table>
-    <thead><tr><th>問い</th><th>手段</th><th>得たい出力</th></tr></thead>
+    <thead><tr><th>種類</th><th>探し方</th></tr></thead>
     <tbody>
-      <tr>
-        <td><b>Q1.</b> 「1行のみ」はどこで・何回述べられているか</td>
-        <td><code>grep -rn</code> で <code>.claude/</code> 配下・<code>AGENTS.md</code>・<code>CLAUDE.md</code>・<code>GEMINI.md</code>・<code>.gemini/</code> を洗う。<b>本文中の言い回しを探す問いなのでfrontmatter検索ではなく <code>grep</code> を使う</b>（<code>AGENTS.md</code> の使い分け）</td>
-        <td>ファイル・行番号と、「規約として述べている」のか「他所を参照しているだけ」なのかの区別</td>
-      </tr>
-      <tr>
-        <td><b>Q2.</b> 実際のコミットログの欠落パターン</td>
-        <td><code>main</code> の直近のsquashコミットと、その本文に畳まれた個別コミット行を読む</td>
-        <td>issue本文の4類型で分類した件数と代表例。<b>4類型に収まらない例の有無</b>。1行が長すぎる例・列挙で中身が削れている例の実数</td>
-      </tr>
-      <tr>
-        <td><b>Q3.</b> <code>create-commit.sh</code> は複数行メッセージを受け付けるか</td>
-        <td><code>--message</code> の受け取り方と <code>git commit -m</code> への渡し方を読み、<b>一時リポジトリで実際に改行入りメッセージをコミットする</b></td>
-        <td>本文を許容する方針を採った場合に実装変更が要るか／要らないか</td>
-      </tr>
-      <tr>
-        <td><b>Q4.</b> squash merge時に本文はどう畳まれるか</td>
-        <td><code>main</code> の既存squashコミット本文（<code>git log --format=%B</code>）を実物として読む</td>
-        <td>本文を許容した場合に <code>main</code> の1行目・本文へ何が残るか。<b>1行目の情報量は改善するのか</b></td>
-      </tr>
-      <tr>
-        <td><b>Q5.</b> コミットメッセージの文言に依存している処理はあるか</td>
-        <td><code>.claude/scripts/</code> <code>.claude/hooks/</code> でコミットメッセージを検索・パースしている箇所を探す</td>
-        <td>規約を変えたときに壊れる処理の有無</td>
-      </tr>
+      <tr><td>(a) 規約の地の文</td><td><code>grep -rn '1行のみ\|本文・フッター\|フッター' --include='*.md' .claude AGENTS.md CLAUDE.md GEMINI.md</code></td></tr>
+      <tr><td>(b) <b>旧規約に沿った例示・雛形</b></td><td><code>grep -rn -- '--message "' --include='*.md' --include='*.sh' .claude</code>（<b>(a) の検索語では1件も拾えない</b>。実例: <code>.claude/skills/resolve-conflict/SKILL.md</code> のマージコミットの雛形）</td></tr>
     </tbody>
   </table>
   </div>
+  <p>対象は <code>.claude/</code> 配下すべて・<code>AGENTS.md</code>・<code>CLAUDE.md</code>・<code>GEMINI.md</code>・<code>.gemini/</code>（<b>変換生成物なので直接の書き換え対象ではないが、同期漏れの検出に使う</b>）。本文中の言い回しを探す問いなので、frontmatterインデックス検索ではなく <code>grep</code> を使う（<code>AGENTS.md</code> の使い分け）。</p>
+  <p><b>出力</b>: ファイル・行番号と、「規約として述べている」「他所を参照しているだけ」「例示・雛形」の区別。</p>
+
+  <h3>Q2. 実際のコミットログの欠落パターン</h3>
+  <p><b>母数を固定する</b>: <code>git log origin/main -5 --format='%B'</code> が出す直近5件のsquashコミットと、その本文に畳まれた <code>^* </code> 行（<b>80行</b>。数え直しの起点にする）。さらに <code>main</code> の1行ログは <code>git log origin/main -10 --format='%s'</code> の10件を見る。</p>
+  <p>issue本文の4類型（(a) 対象しか分からない／(b) どう直したか分からない／(c) 事務的作業記録／(d) mainに残らない対象）で分類し、<b>4類型に収まらない例があるか</b>を確認する。1行が長すぎる例・列挙で中身が削れている例の実数も数える。</p>
+  <p><b>出力</b>: 類型ごとの件数（<b>母数80に対する数として書く</b>）と代表例。件数は分類に使ったコマンドとともに示し、自分で数え直す。</p>
+
+  <h3>Q3. 本文を許容した場合、実装・呼び出し側は耐えられるか</h3>
+  <p>2つに分けて調べる。<b>前者だけを確かめても「実装変更が要らない」とは言えない。</b></p>
+  <ol>
+    <li><b><code>create-commit.sh</code> が複数行メッセージを受け付けるか</b>: <code>--message) message="$2"</code> と <code>git commit -m "$message"</code> を読み、<b>一時リポジトリで実際に改行入りメッセージをコミットして確認する</b>。</li>
+    <li><b>複数行メッセージをどの経路で渡すか</b>: <code>create-commit.sh</code> は <code>--message-file</code> 相当の入口を持たない。<code>--message</code> へ埋め込むとBashツールへ渡すコマンド文字列に改行ごと載るため、次の既知の制約に触れる。
+      <ul>
+        <li><code>.claude/docs/spec/command-position.md</code> のコマンド位置判定が、クォート内の改行をどう正規化するか。</li>
+        <li>1行8192バイト超で判定が部分一致へ縮退する（<code>.claude/rules/git-workflow.md</code>「コミット運用」）。</li>
+        <li><b>長文はコマンド文字列へ直接埋め込まずファイル経由で渡す</b>という既存方針（<code>Provider.sh</code> の <code>set_mr_description</code> がファイルパスを取る設計）。</li>
+      </ul>
+    </li>
+  </ol>
+  <p><b>出力</b>: 実装変更（<code>--message-file</code> の新設等）が要るか／要らないか。<b>要らないと結論する場合は、上の3つの制約それぞれについて理由を示す。</b></p>
+
+  <h3>Q4. squash merge時に本文はどう畳まれるか</h3>
+  <div class="box warn">
+    <span class="label">実測できる部分と実測できない部分に分かれる</span>
+    区別して答える。
+  </div>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>部分</th><th>手段</th><th>根拠の性質</th></tr></thead>
+    <tbody>
+      <tr><td><code>main</code> の1行ログに何が出るか</td><td><code>git log origin/main --format='%s'</code> を読む</td><td><b>実測</b>（既存の履歴）</td></tr>
+      <tr><td>個別コミットの件名がsquash本文へどう並ぶか</td><td>同上（<code>%B</code> を読む）</td><td><b>実測</b>（既存の履歴）</td></tr>
+      <tr><td>gitの <code>--squash</code> が本文をどう畳むか</td><td>一時リポジトリで本文付きコミットを作り <code>git merge --squash</code> → <code>.git/SQUASH_MSG</code> を読む</td><td><b>実測</b></td></tr>
+      <tr><td><b>GitHubのsquash mergeが本文をどう畳むか</b></td><td><b>実測できない</b>——現行規約が1行のみを強制してきたため、<code>main</code> の履歴に<b>本文を持つコミットが1件も無い</b>。squash本文の生成はGitHubのサーバ側の挙動で、ローカルの <code>git log</code> では再現できない</td><td><b>机上確認</b>（実測できないことを明記する）</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p><b>出力</b>: 本文を許容した場合に <code>main</code> の1行目・本文へ何が残るか。<b>GitHub側の畳み方が未確認でも判断が止まらないこと</b>（＝方針がこの答えに依存していないこと）を確認する。</p>
+
+  <h3>Q5. 規約を変えると壊れる／古くなる箇所はあるか</h3>
+  <p><b>対象を2つに分ける。</b></p>
+  <ul>
+    <li><b>処理</b>: <code>.claude/scripts/</code> <code>.claude/hooks/</code> で、コミットメッセージを検索・パースしている箇所（<code>git log --grep</code>、prefixでの分岐等）。</li>
+    <li><b>記述</b>: <code>.claude/skills/</code> <code>.claude/rules/</code> <code>.claude/docs/</code> で、コミットメッセージの<b>例示・雛形・書き方の指示</b>を持つ箇所（Q1の(b)と重なる。<code>resolve-conflict</code> スキルの「何を」「どう」解消したかを書く規約、<code>issue-mr-flow/SKILL.md</code> の「確認した結果をコミットメッセージへ必ず残す」等）。</li>
+  </ul>
+  <p><b>出力</b>: 壊れる処理の有無と、追随が要る記述の一覧。</p>
 </section>
 
 <section id="approach">
   <h2>手順</h2>
   <ol>
-    <li>Q1: <code>grep -rn</code> で該当箇所を洗い、表にする。</li>
-    <li>Q2: <code>git log</code> を読み、類型ごとに分類・計数する。<b>件数は自分で数え直す</b>（<code>wip/reports/REVIEW-POINTS.md</code>「内容の妥当性」）。</li>
-    <li>Q3: <code>create-commit.sh</code> を読んだうえで、一時リポジトリで複数行メッセージを実際にコミットする。</li>
-    <li>Q4: 既存のsquashコミット本文を読む。</li>
-    <li>Q5: <code>grep -rn</code> でコミットメッセージを扱う処理を洗う。</li>
+    <li>Q1: 上表の2つの <code>grep</code> を実行し、表にする。</li>
+    <li>Q2: <code>git log origin/main -5 --format='%B' | grep '^* '</code> を母数（80行）として分類・計数する。</li>
+    <li>Q3: <code>create-commit.sh</code> を読んだうえで、一時リポジトリで複数行メッセージを実際にコミットし、さらに渡し方を上記3制約に照らして判断する。</li>
+    <li>Q4: 既存のsquashコミット本文を読み、<code>git merge --squash</code> を一時リポジトリで実行する。GitHub側の畳み方は机上確認に留め、その旨をレポートへ書く。</li>
+    <li>Q5: 処理と記述の2系統をそれぞれ <code>grep -rn</code> で洗う（処理側の検索パターンは <code>'git log\|--grep\|%s\|%B'</code>）。</li>
     <li>結果を <code>wip/reports/</code> のmd・htmlへ記録し、<code>wip/worklogs/</code> に試行錯誤を残す。</li>
   </ol>
 </section>
@@ -211,7 +238,8 @@
   <h2>検証（この調査が完了したと言える条件）</h2>
   <ul>
     <li>Q1〜Q5すべてに、根拠（ファイル・行番号・実行したコマンドと出力）付きで答えが書けている。</li>
-    <li><b>Q3・Q4は実際に実行した結果が根拠になっている</b>（読解のみの答えを「確認済み」と書かない）。</li>
+    <li><b>Q3と、Q4の「GitHub側の畳み方」以外の部分は、実際に実行した結果が根拠になっている</b>（読解のみの答えを「確認済み」と書かない）。<b>Q4のGitHub側だけは机上確認であることを明記する。</b></li>
+    <li>Q2の件数が、<b>母数（直近5件のsquashコミット／畳まれた80行）とともに</b>書かれている。</li>
     <li>結果は <code>wip/reports/2026-08-23_keen-charting-lantern_コミットメッセージ規約の現状調査.md</code> と同名の <code>.html</code> に記録する（<b>この計画ファイルには結果を書かない</b>）。</li>
   </ul>
 </section>

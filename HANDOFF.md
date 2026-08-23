@@ -17,8 +17,8 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - issue: #185
 - ブランチ: `claude/improve-commit-log-format-9mjlid`
 - PR: #192（https://github.com/yuki-matsu783/MR-driven-workflow/pull/192 ）（Draft）
-- push回数: 1
-- 現在のループ: なし
+- push回数: 3
+- 現在のループ: 2-6〜2-9 の1周目（進行中）
 - 未返信スレッド: 0
 - 追従監視: あり（`subscribe_pr_activity` でPR #192 を購読中。セッション終了で切れるため、次セッションは `resume` で取り直す）
 
@@ -31,10 +31,10 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 | [] | 1-5 | 全体作業計画に合意する | 人間 |
 | [x] | 1-6 | 全体作業計画をもとにHANDOFF.mdを更新する | エージェント |
 | [x] | 2-1 | 個別調査計画`wip/plans/【調査】〜.md`をplanツールを使わずWrite/Editで作成する | エージェント |
-| [] | 2-2 | `commit`スキル経由でcommitし、push してレビュー依頼を行う | エージェント |
-| [] | 2-3 | MRで調査計画についてレビュー・コメントする | 人間 |
-| [] | 2-4 | レビュー内容を取得し、調査計画を修正する | `comments` / `reply` |
-| [] | 2-5 | 調査計画をもとにMR descriptionを更新する | `describe` |
+| [x] | 2-2 | `commit`スキル経由でcommitし、push してレビュー依頼を行う | エージェント |
+| [x] | 2-3 | MRで調査計画についてレビュー・コメントする | 人間 |
+| [x] | 2-4 | レビュー内容を取得し、調査計画を修正する | `comments` / `reply` |
+| [x] | 2-5 | 調査計画をもとにMR descriptionを更新する | `describe` |
 | [] | 2-6 | 調査を実施し、結果を`wip/reports/日付_<全体計画名>_<内容を簡潔に>.md`とwip/worklogsに記録する | エージェント |
 | [] | 2-7 | `commit`スキル経由でcommitし、push してレビュー依頼を行う | エージェント |
 | [] | 2-8 | MRで調査結果についてレビュー・コメントする | 人間 |
@@ -73,15 +73,46 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - flow-id 1-2: issue #185 の内容をMCP（`mcp__github__issue_read`）で取得した。
 - flow-id 1-3: ブランチ `claude/improve-commit-log-format-9mjlid` をリモートへ反映し、Draft PR #192 を作成した。
   baseとの差分が無いため `add_empty_commit_for_draft_mr` の空コミットを1件置いている。
-  `subscribe_pr_activity` でPRイベントの購読を開始した。
+  `subscribe_pr_activity` でPRイベントの購読を開始した（CIチェックは未設定で `total_count=0`）。
 - flow-id 1-4: 全体作業計画 `wip/plans/keen-charting-lantern.md` と同名の `.html` を作成した。
   **planツール（Planモード）は使っていない**——本セッションは非対話であり、Planモードの承認
   （flow-id 1-5）を待てないため。この逸脱は最終統括レポートにも記す。
+- flow-id 1-6: `HANDOFF.md` の進捗表43行を `SKILL.md` の全体フロー表から機械生成した。
+- flow-id 2-1: 個別調査計画 `wip/plans/【調査】コミットメッセージ規約の現状と本文許容の可否.md` と
+  同名の `.html`、worklog（push1）を作成した。
+- flow-id 2-2: `commit` スキル経由でcommitし、pushした。
+- **敵対的レビュー（フェーズ2・1回目）**: findings 9件。確度×重大度の表を通過した7件をPR #192 へ
+  インライン投稿し、報告のみに留めた2件（minor×medium）はレビュー本文へ載せた。
+  実施回数カウンタは `adversarial-review-count.sh increment 2` で1回目として加算済み。
+  投稿したスレッド（すべて返信済み）:
+  - https://github.com/yuki-matsu783/MR-driven-workflow/pull/192#discussion_r3838820394 （HTMLにフェーズ3節が無い）
+  - https://github.com/yuki-matsu783/MR-driven-workflow/pull/192#discussion_r3838820894 （置き換え前後がHTMLにしかない）
+  - https://github.com/yuki-matsu783/MR-driven-workflow/pull/192#discussion_r3838821379 （Q4が実測できない手段になっている）
+  - https://github.com/yuki-matsu783/MR-driven-workflow/pull/192#discussion_r3838821812 （Q5の対象からAIアセット側が落ちている）
+  - https://github.com/yuki-matsu783/MR-driven-workflow/pull/192#discussion_r3838822291 （検証のgrepが0件になりえない）
+  - https://github.com/yuki-matsu783/MR-driven-workflow/pull/192#discussion_r3838822626 （Q2の母数が未定義）
+  - https://github.com/yuki-matsu783/MR-driven-workflow/pull/192#discussion_r3838822905 （HTMLが検索語を落としている）
+- flow-id 2-4（1周目）: 上記7件すべてと、報告のみの2件にも計画を修正して返信した。主な変更は
+  (1) Q1を「地の文」と「例示・雛形」の2種類の探し方へ分割、(2) Q2の母数を直近5件・80行へ固定、
+  (3) Q3へ「複数行メッセージの渡し方（hook判定・引数長・ファイル経由の既存方針）」を追加、
+  (4) Q4を実測できる3項目と机上確認1項目へ分割、(5) Q5を「処理」と「記述」の2系統へ拡大、
+  (6) 検証節を「0件」判定から「変更前の基準値との差分」判定へ変更し `GEMINI.md` `.gemini/` を範囲へ追加、
+  (7) 全体作業計画へ置き換え前後・役割分解・「形式の正は1箇所」の方針を追記。
+- flow-id 2-5: MR description を `mcp__github__update_pull_request` で更新した（PRテンプレートの
+  `Closes` / `## Plan` / `## 実装状況` の3構成を維持）。
+- flow-id 2-6: Q1〜Q5の調査を実施し、
+  `wip/reports/2026-08-23_keen-charting-lantern_コミットメッセージ規約の現状調査.md` と同名の
+  `.html` へ記録した。主な結果は (1) 書き換えが要るのは3行だけ、(2) 母数80行のうち64%が
+  「対象＋動詞」止まり・58%がmainに残らない成果物のみ、(3) **本文を許容しても実装変更は不要**
+  （実測）、(4) `main` の1行ログに出るのは**PRタイトル**であり個別コミットの件名はsquash本文の
+  中にしか残らない（issueの4類型に無い新発見）、(5) 壊れる処理は0件・追随が要る記述は2箇所。
 
 ## 次にやること
 
-- flow-id 2-1: 個別調査計画 `wip/plans/【調査】〜.md` と `.html` を作成する。
-- 作成後、`adversarial-review` スキルで計画に対する敵対的レビューを1回実施する。
+- flow-id 2-7: commit・push する。
+- 続けて敵対的レビュー（フェーズ2・2回目、調査結果に対して）を実施し、指摘へ対応・返信する（2-9）。
+- flow-id 2-10: 調査結果をもとにMR descriptionを更新する。
+- flow-id 3-1: 個別作業計画を作る。**調査の推奨方針は「件名1行必須・本文は任意で許容」**。
 
 ## 判断を迷った内容
 

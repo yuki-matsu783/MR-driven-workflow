@@ -129,10 +129,12 @@
     <li><a href="#target">変更対象</a></li>
     <li><a href="#approach">方針</a></li>
     <li><a href="#phase-research">フェーズ2〈調査〉</a></li>
+    <li><a href="#phase-work">フェーズ3〈作業〉</a></li>
     <li><a href="#phase-apply">フェーズ4〈反映〉</a></li>
     <li><a href="#out-of-scope">やらないこと（スコープ外）</a></li>
     <li><a href="#verify">検証</a></li>
     <li><a href="#criteria">issueの受け入れ条件との対応</a></li>
+    <li><a href="#session">非対話セッションでの読み替え</a></li>
   </ol>
 </nav>
 
@@ -160,30 +162,59 @@
     </tbody>
   </table>
   </div>
+
+  <h3>置き換え前・置き換え後（<code>commit/SKILL.md</code> の該当2行）</h3>
+  <p><b>置き換え前</b>（<code>.claude/skills/commit/SKILL.md</code> 144〜146行）:</p>
+  <pre><code>**コミットメッセージ形式：**
+- `&lt;prefix&gt;: &lt;日本語説明&gt;` の **1行のみ**
+- 本文・フッター・Co-Authored-By など一切付けない</code></pre>
+  <p><b>置き換え後</b>: フェーズ3で決める方針に従う。</p>
+  <div class="box warn">
+    <span class="label">この2行は役割を2つ兼ねている</span>
+    差し替える際に片方を巻き添えにしないこと。
+    <div class="tablewrap">
+    <table>
+      <thead><tr><th>役割</th><th>扱い</th></tr></thead>
+      <tbody>
+        <tr><td>(1) メッセージの<b>形式</b>（1行か複数行か）</td><td>フェーズ3の方針決定の対象</td></tr>
+        <tr><td>(2) <b>Claudeフッターの禁止</b>（<code>Co-Authored-By</code> 等）</td><td><b>方針に関わらず維持する</b>（<code>commit</code> スキルの絶対ルール。同スキル31行にも同趣旨があるが、こちらを消してよい理由にはならない）</td></tr>
+      </tbody>
+    </table>
+    </div>
+  </div>
+
+  <h3>メッセージ形式の「正」は1箇所に置く</h3>
+  <p>現状の <code>.claude/docs/spec/create-commit.md:46</code> は「1行のみ（<b>形式はcommitスキル側の規約</b>）」と、正を <code>commit</code> スキルへ委ねる構造になっている。<b>この構造を維持する</b>——形式の正は <code>.claude/skills/commit/SKILL.md</code> 1箇所とし、<code>create-commit.md</code> からは具体形式を落として参照だけを残す。両方へ具体形式を書くと、片方だけが古くなる（受け入れ条件「<code>create-commit.md</code> の記述が方針と矛盾しない」は、書いた直後の一致しか保証しない）。</p>
 </section>
 
 <section id="approach">
   <h2>方針</h2>
   <p>変えるのは<b>規約（AIアセット）</b>であり、<code>create-commit.sh</code> の実装は原則触らない。実装変更が要ると判明した場合は、フェーズ3の作業計画で改めて範囲を確定する。</p>
   <p>規約は「AIエージェントが機械的に従える形」で書く。すなわち、<b>満たすべき要素の列挙</b>・<b>良い例と悪い例の対</b>・<b>判断に迷ったときの既定</b>の3点を備えさせる。抽象的な心構え（「分かりやすく書く」等）だけにしない。</p>
-  <div class="box warn">
-    <span class="label">既存の記述を置き換える箇所</span>
-    <b>置き換え前:</b> <code>commit/SKILL.md</code>「Step 4」の「<code>&lt;prefix&gt;: &lt;日本語説明&gt;</code> の <b>1行のみ</b> / 本文・フッターを一切付けない」。<br>
-    <b>置き換え後:</b> フェーズ3で決める方針に従う。<b>この2行が兼ねている役割は2つある</b>——(1) メッセージの形式（1行か複数行か）、(2) Claudeフッターの禁止。<b>(2) は方針に関わらず維持する</b>（<code>commit</code> スキルの絶対ルール）。
-  </div>
 </section>
 
 <section id="phase-research">
   <h2>フェーズ2〈調査〉</h2>
-  <p><b>実施する。</b>規約を書く前に、次の問いへ答える。</p>
+  <p><b>実施する。</b>規約を書く前に、次を明らかにする（<b>各問いの手段・母数の確定は個別調査計画 <code>wip/plans/【調査】コミットメッセージ規約の現状と本文許容の可否.md</code> が正</b>）。</p>
   <ol>
-    <li>現行の規約が「1行のみ」をどこで・何回述べているか（<code>commit</code> スキル、<code>create-commit.md</code>、<code>git-workflow.md</code>、その他のルール・spec）。書き換え漏れが残る箇所はどこか。</li>
-    <li>squash merge後に <code>main</code> へ残る実際のコミットログは、どのような欠落パターンを持つか。issue本文の4類型以外の類型はあるか。</li>
-    <li><code>create-commit.sh</code> は複数行メッセージを受け付けられるか（<code>--message</code> の扱い、<code>git commit -m</code> への渡し方）。本文を許容する方針を採った場合に実装変更が要るか。</li>
-    <li>squash merge時にGitHubが本文をどう畳むか。本文を許容した場合、<code>main</code> の1行目に何が残るか。</li>
-    <li>他のAIアセット・スクリプトが、コミットメッセージの文言を前提にしていないか（特定文字列でのコミット検索等）。</li>
+    <li>現行の規約がどこで・どう述べられているか。<b>地の文（「1行のみ」等）だけでなく、旧規約に沿った例示・雛形（<code>--message "…"</code> の形）も洗う</b>（後者は地の文の検索語では1件も拾えない）。</li>
+    <li>squash merge後に <code>main</code> へ残る実際のコミットログ（<b>母数を固定して数える</b>）が、どのような欠落パターンを持つか。issue本文の4類型以外の類型があるか。</li>
+    <li>本文を許容した場合、実装（<code>create-commit.sh</code>）と<b>呼び出し側（複数行メッセージの渡し方）</b>が耐えられるか。</li>
+    <li>squash merge時に本文がどう畳まれるか。<b>GitHub側の畳み方は実測できない</b>（履歴に本文付きコミットが1件も無く、生成はサーバ側の挙動のため）ので、実測できる部分と机上確認の部分を区別する。</li>
+    <li>規約を変えると壊れる／古くなる箇所はあるか。<b>処理</b>（<code>.claude/scripts/</code> <code>.claude/hooks/</code>）と<b>記述</b>（<code>.claude/skills/</code> <code>.claude/rules/</code> <code>.claude/docs/</code> の例示・雛形・書き方の指示）の両方を対象にする。</li>
   </ol>
   <p><b>何が分かれば次へ進めるか</b>: 「1行のみを維持するか」の判断材料が揃い、書き換えが必要なドキュメントの一覧が確定すること。</p>
+</section>
+
+<section id="phase-work">
+  <h2>フェーズ3〈作業〉</h2>
+  <ol>
+    <li>方針を決める（1行のみ維持／本文許容／条件付き許容）。</li>
+    <li><code>commit</code> スキルへ内容規約を追記する。<b>AIエージェントが機械的に従える形</b>にする（満たすべき要素の列挙・良い例・悪い例・判断に迷ったときの既定）。</li>
+    <li>成果物の変更を伴わないコミット（HANDOFF更新・空コミット・片付け）の書き方を規約へ含める。</li>
+    <li>issue本文の「実例」9行の書き直し例を示す。</li>
+    <li><code>create-commit.md</code> のメッセージ形式の記述を方針と揃える。</li>
+  </ol>
 </section>
 
 <section id="phase-apply">
@@ -212,15 +243,24 @@
 
 <section id="verify">
   <h2>検証</h2>
-  <pre><code># 「1行のみ」と述べている箇所を洗い、方針と矛盾する記述が残っていないか
-grep -rn '1行のみ' .claude/ AGENTS.md CLAUDE.md
+  <p><b>旧規約の記述・例示が残っていないことを、次の2つのgrepで確認する。</b></p>
+  <pre><code># (a) 規約の地の文（検索語はQ1の4語へ揃える）
+grep -rn '1行のみ\|本文・フッター\|フッター' --include='*.md' .claude AGENTS.md CLAUDE.md GEMINI.md
+
+# (b) 旧規約に沿った例示・雛形（(a) では1件も拾えない）
+grep -rn -- '--message "' --include='*.md' --include='*.sh' .claude
 
 # DDR追加後の一覧再生成（差分は同じコミットへ含める）
 bash .claude/scripts/src/generate-ddr-list.sh
 
 # ドキュメント間の参照切れ
 bash .claude/scripts/src/check-doc-references.sh</code></pre>
-  <p>合格条件: issue #185 の受け入れ条件5件それぞれについて、対応する記述が成果物のどこにあるかを示せること。上記コマンドがいずれも矛盾・参照切れを報告しないこと。</p>
+  <div class="box warn">
+    <span class="label">「0件」を合格条件にしない</span>
+    (a) は変更前のツリーでも無関係なヒットが常駐する（<code>.claude/hooks/session-start.sh</code>・<code>.claude/scripts/test/test_check_base_conflicts.sh</code>・<code>.claude/docs/spec/distribution-assets.md</code>（VERSIONはSemVer1行のみ）・<code>.claude/docs/spec/search-frontmatter.md</code>・<code>.claude/docs/ddr/i0033-03…</code> の5件と、生成物の <code>index.jsonl</code>）。<b>変更前の件数を基準値として調査レポートへ記録し、変更後との差分で判定する。</b>
+  </div>
+  <p><b><code>GEMINI.md</code> と <code>.gemini/</code> を検索範囲に含める。</b> <code>.gemini/skills/commit/SKILL.md</code> は <code>.claude/</code> 側と同一内容のコピーであり、flow-id 5-3 の変換同期を忘れると旧規約がここに残る（範囲から外すと同期漏れを検出できない）。</p>
+  <p>合格条件: issue #185 の受け入れ条件5件それぞれについて、対応する記述が成果物のどこにあるかを示せること。上記コマンドが矛盾・参照切れを報告しないこと。</p>
 </section>
 
 <section id="criteria">
