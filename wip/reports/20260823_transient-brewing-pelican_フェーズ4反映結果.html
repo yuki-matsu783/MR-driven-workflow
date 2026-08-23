@@ -79,6 +79,10 @@
   .box.ok { border-color: var(--ok); background: var(--ok-soft); } .box.ok .label { color: var(--ok); }
   .box.warn { border-color: var(--warn); background: var(--warn-soft); } .box.warn .label { color: var(--warn); }
   .box.stop { border-color: var(--stop); background: var(--stop-soft); } .box.stop .label { color: var(--stop); }
+  .tag { display: inline-block; border-radius: 999px; padding: 1px 9px; font-size: 12px; font-weight: 600; }
+  .tag.ok { background: var(--ok-soft); color: var(--ok); }
+  .tag.warn { background: var(--warn-soft); color: var(--warn); }
+  .tag.stop { background: var(--stop-soft); color: var(--stop); }
   footer { color: var(--muted); font-size: 13px; text-align: center; padding-top: 10px; }
 </style></head>
 <body>
@@ -105,6 +109,7 @@
   <h2>目次</h2>
   <ol>
     <li><a href="#summary">サマリ（結論の一覧）</a></li>
+    <li><a href="#conditions">実施条件（測った対象・環境）</a></li>
     <li><a href="#findings">実施した内容と結果</a></li>
     <li><a href="#unverified">確かめられなかったこと</a></li>
     <li><a href="#next">設計への反映</a></li>
@@ -121,10 +126,20 @@
       <tr><td>1</td><td>wip/命名の判断をDDR化したか</td><td><b>DDR i0165-02 として記録済み</b></td><td>実装の確認</td></tr>
       <tr><td>2</td><td>DDR一覧・重複識別子の整合性</td><td><b>86件・重複無し</b></td><td>実測（generate-ddr-list.sh --check）</td></tr>
       <tr><td>3</td><td>移行手順の記述先を決め記述したか</td><td><b>asset-distribution.md「移行」節＋distribution-assets.mdのissue #165エントリに記述済み</b></td><td>実装の確認</td></tr>
-      <tr><td>4</td><td><code>.claude/VERSION</code>のMAJOR増分（0.3.0→1.0.0）を適用できたか</td><td><span class="tag" style="background:var(--stop-soft);color:var(--stop)">できなかった</span> — Bash/Writeの両方が権限クラシファイアに拒否された</td><td>実測（2ツールでの試行結果）</td></tr>
+      <tr><td>4</td><td><code>.claude/VERSION</code>のMAJOR増分（0.3.0→1.0.0）を適用できたか</td><td><span class="tag stop">できなかった</span> — Bash/Writeの両方が権限クラシファイアに拒否された</td><td>実測（2ツールでの試行結果）</td></tr>
     </tbody>
   </table>
   </div>
+</section>
+
+<section id="conditions">
+  <h2>実施条件（測った対象・環境）</h2>
+  <ul>
+    <li>実行環境: Claude Code on the web のリモート実行環境（非対話的セッション）</li>
+    <li>対象・バージョン: <code>.claude/VERSION</code>（現在値 <code>0.3.0</code>）</li>
+    <li>実施日: 2026-08-23</li>
+    <li>試行手順: (1) <code>Bash</code>ツールでのheredoc書き込み、(2) <code>Write</code>ツールでの直接上書き。ローカル環境・別セッション・GitHub UI経由は未試行</li>
+  </ul>
 </section>
 
 <section id="findings">
@@ -145,7 +160,11 @@ DDR一覧は最新です（86件）</code></pre>
   <p>「## 移行（本家の配置場所が変わった場合）」の恒久節（4手順）と、「### issue #165（2026-08-23）」の具体エントリ（dist-layers.jsonのcore 3ファイル・.mrworkflow.jsonの3キー・.claude/settings.jsonのplansDirectory）を追加した。</p>
   <div class="box ok"><span class="label">結論</span>恒久の一般手順と今回固有の具体手順を分けて記述できた（計画レビューの指摘7への対応）。</div>
 
-  <h3>4. .claude/VERSION のMAJOR増分（ブロックされた）</h3>
+  <h3>4. usecase文書への影響確認</h3>
+  <p><code>この機構を他プロジェクトへ導入する.md</code>の「機構側の更新を再度同期するときも、導入先固有の設定と衝突しない形で追従できる」という記述が、今回新設した「移行」節（配置場所の改名は自動追従の対象外で手動更新が必要）と食い違っていたため、例外を1行追記し「移行」節へのリンクを追加した。他のusecase文書7件への影響は無いことを確認した。</p>
+  <div class="box ok"><span class="label">結論</span>docs-workflow.mdが定める確認事項を実施し、1件の更新が必要だったものを反映した。</div>
+
+  <h3>5. .claude/VERSION のMAJOR増分（ブロックされた）</h3>
   <p>非対話的セッション例外規定（issue #160が先例）に従い、Bashツール（heredoc書き込み）・Writeツールの両方で<code>.claude/VERSION</code>への書き込みを試みた。</p>
   <pre><code>試行1: Bashツールでのheredoc書き込み → 拒否
 試行2: Writeツールでの直接書き込み → 拒否

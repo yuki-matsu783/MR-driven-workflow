@@ -222,8 +222,11 @@ issue #26 以前は本家の `AGENTS.md` 全文（共通ルールを含む）を
 manifestを持たない旧方式の配布先には提示されない。配布先が手動で追従する必要がある手順は
 次のとおり。
 
-1. **新パスの `core` ファイルが配布されることを確認する。** 次回 `install-to-project.sh` 実行で、
-   新パス配下の `core` エントリ（改名先のディレクトリ・ファイル）が新規追加として提示される。
+1. **新パスの `core` ファイルが配布されることを確認する。** `present_plan` は個々のパスではなく
+   `core`層の**件数**（新規／変更なし／適用後に変更された／判定不能）だけを提示するため、
+   次回 `install-to-project.sh --dry-run` 実行で「新規」件数が増えることを確認する。増えた
+   個々のパスを知りたい場合は、提示された件数と `.claude/dist-layers.json` の該当エントリを
+   突き合わせる。
 2. **`.mrworkflow.json` を手動で更新する。** このファイルは `seed` 層（配布先所有・上書きしない）
    のため、旧パスを指す設定キー（例: ディレクトリ位置を持つキー）は自動では変わらない。
 3. **`.claude/settings.json` の該当設定も手動で更新する。** `merge` / `json-keys` 層で
@@ -259,8 +262,15 @@ manifestを持たない旧方式の配布先には提示されない。配布先
 
 - **`.claude/dist-layers.json`は`wip/plans` `wip/worklogs` `wip/reports`を`local`（配らない）
   層とする一方、`wip/plans/REVIEW-POINTS.md` / `wip/worklogs/TEMPLATE.md` /
-  `wip/reports/REVIEW-POINTS.md`の3件を`core`として個別に持つ。** 配布先には**新パスにだけ**
-  この3ファイルが届き、旧`plans/REVIEW-POINTS.md`等はそのまま残る。
+  `wip/reports/REVIEW-POINTS.md`の3件を`core`として、`wip/plans/REVIEW-POINTS.local.md` /
+  `wip/reports/REVIEW-POINTS.local.md`の2件を`seed`として個別に持つ（計5件）。** 配布先には
+  **新パスにだけ**core 3件が届く。seed 2件は`install-to-project.sh`の`scan_pass`
+  （`SCAN_SEED_PLACE`）により新パスへ**空テンプレートとして新規配置**される（seedはファイルが
+  無ければ配布時に作られる層のため）。**旧パスに配布先が書き込んでいた
+  `plans/REVIEW-POINTS.local.md` 等の内容は、自動では新パスへ引き継がれない。** installerの
+  「本家から削除・改名されたファイル」一覧は`core`層のみを対象とするため、この2件は一覧にも
+  出ない。配布先は、旧パスの`.local.md`の内容を手動で新パスへ移す必要がある（上記「移行」節の
+  手順4に相当するが、`.local`はcoreの削除一覧に出ないため見落としやすい）。
 - **配布先の`.mrworkflow.json`**は`plansDir` / `worklogDir` / `reportsDir`の3キーを
   `wip/plans` / `wip/worklogs` / `wip/reports`へ手動で書き換える必要がある（`.claude/scripts/src/vcs/Provider.sh`・
   `.claude/scripts/src/cleanup-task.sh`のフォールバック既定値は後方互換のため`plans`/`worklog`/
