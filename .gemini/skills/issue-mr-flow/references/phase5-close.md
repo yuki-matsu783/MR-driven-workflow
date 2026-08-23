@@ -29,17 +29,17 @@ keywords: [関連issue通知, 最終統括レポート, cleanup-task, Draft解�
    ```bash
    source .claude/scripts/src/vcs/Provider.sh
    base="$(get_workflow_config | jq -r '.defaultBaseBranch')"
-   git diff --stat "origin/${base}...HEAD" -- . ':(exclude)plans' ':(exclude)worklog' ':(exclude)reports'
-   git diff --stat "origin/${base}...HEAD" -- plans/REVIEW-POINTS.md reports/REVIEW-POINTS.md
+   git diff --stat "origin/${base}...HEAD" -- . ':(exclude)wip/plans' ':(exclude)wip/worklogs' ':(exclude)wip/reports'
+   git diff --stat "origin/${base}...HEAD" -- wip/plans/REVIEW-POINTS.md wip/reports/REVIEW-POINTS.md
    ```
 
-   **`plans/` `worklog/` `reports/` は差分から除外する**（issue #112）。これらの片付けは
+   **`wip/plans/` `wip/worklogs/` `wip/reports/` は差分から除外する**（issue #112）。これらの片付けは
    flow-id 5-5 でこのステップより後に行うため、この時点ではタスク単位の計画・ログ・レポートが
    まだ差分に含まれている。除外しないと、マージ後には残らないファイルの語（個別計画の種別名・
-   worklogの見出し等）がキーワード抽出へ混ざり、通知先の判定を歪める。上記のpathspecを付けずに
+   wip/worklogsの見出し等）がキーワード抽出へ混ざり、通知先の判定を歪める。上記のpathspecを付けずに
    `git diff --stat` を見た場合は、これらのパスの行を読み飛ばすこと。
 
-   **ただし `plans/REVIEW-POINTS.md` と `reports/REVIEW-POINTS.md` は除外しない**（issue #155 で
+   **ただし `wip/plans/REVIEW-POINTS.md` と `wip/reports/REVIEW-POINTS.md` は除外しない**（issue #155 で
    実際に落とした）。この2つはそのディレクトリの直下にありながら**寿命が永続**で、flow-id 5-5 の
    削除対象でもなく、**マージ後に残る**（`.claude/rules/docs-workflow.md`「ドキュメント運用」表）。
    ディレクトリ単位で除外するとこの2ファイルだけがすり抜け、レビュー観点の変更が通知先の判定から
@@ -47,13 +47,13 @@ keywords: [関連issue通知, 最終統括レポート, cleanup-task, Draft解�
    一般則の具体例）。
 
    **`git diff` を2回に分けているのは、pathspecでは除外を打ち消せないためである**（実測:
-   `':(exclude)plans' 'plans/REVIEW-POINTS.md'` と並べても `plans/REVIEW-POINTS.md` は戻らない）。
-   1コマンドにまとめようとして、**出力へ現れるルート直下の `REVIEW-POINTS.md` を
-   `plans/REVIEW-POINTS.md` と読み違えない**こと（`grep 'REVIEW-POINTS'` は両方に当たるため、
+   `':(exclude)wip/plans' 'wip/plans/REVIEW-POINTS.md'` と並べても `wip/plans/REVIEW-POINTS.md` は
+   戻らない）。1コマンドにまとめようとして、**出力へ現れるルート直下の `REVIEW-POINTS.md` を
+   `wip/plans/REVIEW-POINTS.md` と読み違えない**こと（`grep 'REVIEW-POINTS'` は両方に当たるため、
    打ち消せているように見える。issue #155 で実際に誤読しかけた）。
 
-2. **AIエージェントが検索キーワードを抽出する。** 差分（上記のとおり `plans/` `worklog/`
-   `reports/` を除いたもの）に現れた機能名・関数名・ファイル名・概念語から、**最大5件**
+2. **AIエージェントが検索キーワードを抽出する。** 差分（上記のとおり `wip/plans/` `wip/worklogs/`
+   `wip/reports/` を除いたもの）に現れた機能名・関数名・ファイル名・概念語から、**最大5件**
    （`search_issues` の `SEARCH_ISSUES_MAX_KEYWORDS`）を選ぶ。
    キーワード抽出をこの層でAIが担うのは、`issue-create` スキルの起票前重複チェックと同じ理由
    （日本語主体のissueから意味のある語を選ぶには形態素解析が要り、bashでは代替できない。
@@ -170,13 +170,13 @@ bash .claude/scripts/src/sync-gemini-assets.sh --dry-run  # 何が変わるか�
 片付け（flow-id 5-5）へ進む前に、**そのブランチで何をやったかを1枚にまとめた最終統括レポートを
 作成し、PR/MR上へ残す**（issue #111）。
 
-`plans/` `worklog/` `reports/` は flow-id 5-5 で削除され、squash mergeにより `main` にも残らない。
+`wip/plans/` `wip/worklogs/` `wip/reports/` は flow-id 5-5 で削除され、squash mergeにより `main` にも残らない。
 統括をPR/MR上のコメントとして残すことで、**ファイルが消えてもレビュー時・マージ後の追跡に耐える**
 状態にする。
 
 ### なぜ 5-4 なのか（5-3 と 5-5 の間）
 
-- **5-5（片付け）より前**である必要がある。統括レポートは `plans/` `worklog/` `reports/` の内容を
+- **5-5（片付け）より前**である必要がある。統括レポートは `wip/plans/` `wip/worklogs/` `wip/reports/` の内容を
   materialにして書くため、削除後には書けない。
 - **このステップ自身がcommit・pushまでを含む**。統括レポートを作るだけで 5-5 へ進むと、
   作成と削除が同じ作業ツリー上で相殺され、**ブランチのコミット履歴にすら残らない**
@@ -188,11 +188,11 @@ bash .claude/scripts/src/sync-gemini-assets.sh --dry-run  # 何が変わるか�
 
 | ファイル | 位置づけ | 必須か |
 |---|---|---|
-| `reports/日付_<全体計画名>_統括.md` | **正文** | **必須** |
-| `reports/日付_<全体計画名>_統括.html` | 人間レビュー用の視覚化 | 任意（下記） |
+| `wip/reports/日付_<全体計画名>_統括.md` | **正文** | **必須** |
+| `wip/reports/日付_<全体計画名>_統括.html` | 人間レビュー用の視覚化 | 任意（下記） |
 
 内容は「**何を変えたか／なぜそうしたか／検証結果／spec・ddrへの反映先／残課題**」。
-個別の `reports/…md`（flow-id 2-6・3-6・4-6 の結果）を並べ直すのではなく、**ブランチ全体を
+個別の `wip/reports/…md`（flow-id 2-6・3-6・4-6 の結果）を並べ直すのではなく、**ブランチ全体を
 1枚に統括する**。
 
 HTMLは `.claude/skills/issue-mr-flow/assets/reports.template.html` を土台にする
@@ -200,7 +200,7 @@ HTMLは `.claude/skills/issue-mr-flow/assets/reports.template.html` を土台に
 使い方は `references/deliverables.md`「計画・レポートのHTMLビュー」が正である。
 
 **統括レポートも flow-id 5-5 の削除対象である**（md・htmlの両方）。`cleanup-task.sh` は
-`reports/` 配下を `REVIEW-POINTS.md` 以外すべて削除するため、スクリプト側の変更は要らない。
+`wip/reports/` 配下を `REVIEW-POINTS.md` 以外すべて削除するため、スクリプト側の変更は要らない。
 `main` に残るのは**PR/MR上のコメント**と `.claude/docs/spec/` `.claude/docs/ddr/` である。
 
 ### 反映は3層のフォールバック構造にする
@@ -210,7 +210,7 @@ HTMLは `.claude/skills/issue-mr-flow/assets/reports.template.html` を土台に
 
 | 層 | 何をするか | 必須か | 壊れたとき |
 |---|---|---|---|
-| **層1** | レポート本体を `reports/` に載せ、`commit` スキル経由でcommitしてリモートへ反映する | **必須** | — |
+| **層1** | レポート本体を `wip/reports/` に載せ、`commit` スキル経由でcommitしてリモートへ反映する | **必須** | — |
 | **層2** | サマリをMarkdownでPR/MRへコメント投稿する（`add_mr_comment`） | **必須** | — |
 | **層3** | HTMLファイルを添付する（`upload_attachment`） | **任意** | **警告のみ出してスキップし、フローは止めない** |
 
@@ -245,7 +245,7 @@ source .claude/scripts/src/vcs/Provider.sh
 
 # 層3（任意）。失敗しても続ける
 attachment_md=""
-if result="$(upload_attachment "reports/20260821_xxx_統括.html")"; then
+if result="$(upload_attachment "wip/reports/20260821_xxx_統括.html")"; then
   attachment_md="$(printf '%s' "$result" | jq -r '.markdown')"
 else
   echo "添付をスキップしました（任意ステップ。層1・層2でレビューは成立する）" >&2
@@ -326,22 +326,22 @@ Claude Codeより（最終統括レポート）: issue #<番号> / PR #<番号>
 
 ## PRがflow-id 5-5実施前にマージされてしまった場合の対処
 
-人間がレビュー後にそのままMR/PRをマージするなど、flow-id 5-5（`plans/` `worklog/` `reports/`の
+人間がレビュー後にそのままMR/PRをマージするなど、flow-id 5-5（`wip/plans/` `wip/worklogs/` `wip/reports/`の
 削除・`HANDOFF.md`のリセット）を実施する前に**先にマージが完了してしまう**ことがある（issue #28,
-PR #29のセッションで実際に発生）。この場合、タスク固有の`plans/`配下の計画ファイル（全体作業計画・
-下位の個別計画）・`worklog/`・`reports/`のファイル・作業途中のままの`HANDOFF.md`が、そのまま
-`main`へ残ってしまう（本来`worklog/`・`reports/`はsquash mergeの対象からflow-id 5-5で除外され
+PR #29のセッションで実際に発生）。この場合、タスク固有の`wip/plans/`配下の計画ファイル（全体作業計画・
+下位の個別計画）・`wip/worklogs/`・`wip/reports/`のファイル・作業途中のままの`HANDOFF.md`が、そのまま
+`main`へ残ってしまう（本来`wip/worklogs/`・`wip/reports/`はsquash mergeの対象からflow-id 5-5で除外され
 `main`に残らない設計であり、このズレはdocs-workflow.mdの運用と矛盾する）。
 
 マージ後にこのズレに気づいた場合、**`main`へ直接コミットせず**、以下の手順で対処する
 （`main`は共有の正史であり、レビューを経ないままの直接変更は避ける）。
 
-1. `git fetch origin main` 等で最新の`main`を確認し、残ってしまった`plans/`・`worklog/`・
-   `reports/`ファイル・`HANDOFF.md`の状態を特定する。
+1. `git fetch origin main` 等で最新の`main`を確認し、残ってしまった`wip/plans/`・`wip/worklogs/`・
+   `wip/reports/`ファイル・`HANDOFF.md`の状態を特定する。
 2. 新しいクリーンアップ用ブランチを`main`から作成する（対象のissue番号が無いことが多いため、
    `.mrworkflow.json`の`branchPrefixTemplate`に従う必要はなく、`chore/cleanup-<簡潔な説明>`の
    ような分かりやすい名前でよい）。
-3. そのブランチ上で、該当する`plans/`・`worklog/`・`reports/`ファイルを削除し、`HANDOFF.md`を
+3. そのブランチ上で、該当する`wip/plans/`・`wip/worklogs/`・`wip/reports/`ファイルを削除し、`HANDOFF.md`を
    次タスク向けの空テンプレートへリセットする（内容はflow-id 5-5で行うものと同じ）。
 4. commit・pushし、`main`を対象にPRを作成する。**PRの作成は他のPR操作と同様AIエージェントが
    行ってよく、都度の明示指示は要らない**。**マージのみ**、ユーザーから明示的な指示を受けてから

@@ -52,8 +52,8 @@ bash .claude/scripts/src/extract-frontmatter.sh [--force] <directory>
 **markdownが1つも無くなったディレクトリの`index.jsonl`は、出力対象から外れるだけで削除はされない**
 （走査対象が「markdownが直下に存在するディレクトリ」であるため）。スクリプトがスコープ外のファイルを
 消してしまう事故を避けるため、この削除は自動化せず**運用手順側で担保する**（例:
-`.claude/skills/issue-mr-flow/SKILL.md`のflow-id 5-5で、`plans/*.md`の削除とあわせて
-`plans/index.jsonl`も削除する）。
+`.claude/skills/issue-mr-flow/SKILL.md`のflow-id 5-5で、`wip/plans/*.md`の削除とあわせて
+`wip/plans/index.jsonl`も削除する）。
 
 ### 出力フォーマット
 
@@ -174,7 +174,7 @@ bash .claude/scripts/src/extract-frontmatter.sh [--force] <directory>
 gitリポジトリ内での実行を前提とする（`resolve_repo_root`が`git rev-parse --show-toplevel`に
 依存するのと同様の制約）。
 
-`.gitignore`非対象であればフェーズ途中の一時的なディレクトリも走査対象に含む。`plans/`・`worklog/`
+`.gitignore`非対象であればフェーズ途中の一時的なディレクトリも走査対象に含む。`wip/plans/`・`wip/worklogs/`
 （`.claude/rules/docs-workflow.md`の「ドキュメント運用」表でpush単位・タスク単位の寿命とされる
 ファイル群）についても`index.jsonl`を生成し、Git管理下に置く。一方、`.gitignore`で除外されている
 `logs/`・`build/`等はmarkdownを含んでいても列挙自体が発生せず、`index.jsonl`も作られない
@@ -193,7 +193,7 @@ gitリポジトリ内での実行を前提とする（`resolve_repo_root`が`git
 判定は`[[ -f "$f" ]]`（bash組み込み）で行うためforkを伴わず、上記「性能」の前提を崩さない。
 
 この状態は異常系ではなく**正常系として必ず発生する**。`cleanup-task.sh`（flow-id 5-5）は
-`plans/` `worklog/` `reports/` を削除したあと**コミットせずに**本スクリプトを呼ぶ設計であり
+`wip/plans/` `wip/worklogs/` `wip/reports/` を削除したあと**コミットせずに**本スクリプトを呼ぶ設計であり
 （コミットは`commit`スキル経由に限るため。
 [.claude/docs/ddr/i0028-01-flow-id5-1の後片付けはスクリプト化しコミットは含めない.md](../ddr/i0028-01-flow-id5-1の後片付けはスクリプト化しコミットは含めない.md)）、対策前は**追跡ファイルを
 1件でも削除した時点で必ず失敗していた**。

@@ -84,7 +84,7 @@ append_size_warning() {
     printf '%s' "$text"
     return 0
   fi
-  printf '%s\n\n%s' "$text" "$(printf '注意: この追加コンテキストは %s バイトで、しきい値 %s バイトを超えています。ユーザーへ「セッション開始時に自動注入されるコンテキストが肥大化している」ことを警告し、HANDOFF.md（特に「やったこと」「判断を迷った内容」）・plans/配下の個別作業計画を整理するよう促してください。' "$bytes" "$limit")"
+  printf '%s\n\n%s' "$text" "$(printf '注意: この追加コンテキストは %s バイトで、しきい値 %s バイトを超えています。ユーザーへ「セッション開始時に自動注入されるコンテキストが肥大化している」ことを警告し、HANDOFF.md（特に「やったこと」「判断を迷った内容」）・wip/plans/配下の個別作業計画を整理するよう促してください。' "$bytes" "$limit")"
 }
 
 # HANDOFF.md から「## 次にやること」節（見出し行を含み、次の `## ` 見出しの手前まで）を抜き出す。
@@ -128,7 +128,7 @@ issue_mr_flow_branch_reason() {
     reasons+=("ブランチ名がissue命名規則に一致（issue #${issue_number}）")
   fi
   if [ -n "$work_files" ]; then
-    reasons+=("このブランチ固有の作業ファイル（plans/ worklog/ reports/）がある")
+    reasons+=("このブランチ固有の作業ファイル（wip/plans/ wip/worklogs/ wip/reports/）がある")
   fi
   [ "${#reasons[@]}" -gt 0 ] || return 1
   local joined="" r
@@ -316,7 +316,7 @@ build_context() {
   printf '%s\n' "${lines[@]}"
 }
 
-# 作業継続に必須のローカル情報（ブランチ固有のplans/worklog/reportsの**ファイル名一覧**と、
+# 作業継続に必須のローカル情報（ブランチ固有のwip/plans・wip/worklogs・wip/reportsの**ファイル名一覧**と、
 # HANDOFF.mdの「次にやること」節、issue-mr-flow対象ブランチならSKILL.mdの再読み込み指示）を
 # 組み立てて標準出力へ返す（issue #57、issue #113）。該当が無ければ
 # 何も出力しない。いずれもローカル操作のみで得られるため、CLI経路・MCP経路のどちらでも

@@ -21,7 +21,7 @@
 # （wip/state/review-links/）と、adversarial-review-count.shが持つ敵対的レビューの投稿件数
 # （wip/state/adversarial-review/）。issue #184で .claude/state/ から移した（.claude/ は
 # 配布単位であり、配布先のローカル状態をその中に置かないため）。
-# **パターンを /wip/ へ広げないこと。** issue #165 が wip/ 配下へ置く plans/worklogs/reports は
+# **パターンを /wip/ へ広げないこと。** issue #165 が wip/ 配下へ置いた plans/worklogs/reports は
 # 追跡対象であり、丸ごと無視されてしまう。
 /wip/state/
 
