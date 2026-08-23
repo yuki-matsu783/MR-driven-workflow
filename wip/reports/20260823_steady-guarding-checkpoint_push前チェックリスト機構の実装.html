@@ -1,0 +1,363 @@
+<!--
+  作業結果レポート「push前チェックリスト機構の実装」（issue #17 / flow-id 3-6）の
+  人間レビュー用HTMLビュー。結果の正文は同名の .md で、このHTMLはその視覚化である。
+  外部依存を持たない自己完結HTML。
+-->
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>作業結果: push前チェックリスト機構の実装 — issue #17</title>
+<style>
+  :root {
+    --bg: #f6f7f9;      --panel: #ffffff;   --ink: #1a1d21;     --muted: #5b636d;
+    --line: #dfe3e8;    --accent: #2563eb;  --accent-soft: #eaf0fe;
+    --ok: #1a7f4b;      --ok-soft: #e6f4ec; --warn: #a35a00;    --warn-soft: #fdf1e0;
+    --stop: #b3261e;    --stop-soft: #fdecea; --good: #1d4ed8;  --good-soft: #e7edfd;
+    --code-bg: #f0f2f5;
+    --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1216;    --panel: #161a20;   --ink: #e6e8eb;     --muted: #9aa3ad;
+      --line: #2a3038;  --accent: #7aa2f7;  --accent-soft: #1b2333;
+      --ok: #6ee7a8;    --ok-soft: #14261d; --warn: #f0b866;    --warn-soft: #2a2113;
+      --stop: #f2857c;  --stop-soft: #2b1614; --good: #8ab4f8;  --good-soft: #17233a;
+      --code-bg: #1d222a;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", system-ui, sans-serif;
+    line-height: 1.8; font-size: 15px;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 20px 80px; }
+
+  /* 共通ヘッダ帯 */
+  header.band {
+    background: linear-gradient(135deg, var(--accent-soft), var(--panel));
+    border-bottom: 1px solid var(--line); padding: 28px 20px 22px; margin-bottom: 28px;
+  }
+  header.band .inner { max-width: 1080px; margin: 0 auto; }
+  header.band .kind { font-size: 11px; letter-spacing: .18em; color: var(--accent); font-weight: 700; }
+  header.band h1 { margin: 6px 0 4px; font-size: 26px; line-height: 1.4; }
+  header.band .lead { margin: 0; color: var(--muted); }
+  header.band .counts { margin: 12px 0 0; display: flex; gap: 6px; flex-wrap: wrap; }
+  .meta { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; padding: 0; list-style: none; }
+  .meta li {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 999px;
+    padding: 3px 12px; font-size: 12.5px; color: var(--muted); white-space: nowrap;
+  }
+  .meta li b { color: var(--ink); font-weight: 600; }
+
+  nav.toc {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 14px 20px; margin-bottom: 28px;
+  }
+  nav.toc h2 { margin: 0 0 8px; font-size: 13px; letter-spacing: .08em; color: var(--muted); border: 0; padding: 0; }
+  nav.toc ol { margin: 0; padding-left: 20px; }
+  nav.toc li { margin: 2px 0; }
+  a { color: var(--accent); }
+
+  section {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 8px 24px 22px; margin-bottom: 22px;
+  }
+  /* アンカーで飛んだとき見出しが上端に張り付かないようにする（issue #186） */
+  section[id], h3[id] { scroll-margin-top: 16px; }
+  h2 { font-size: 20px; margin: 20px 0 10px; padding-bottom: 8px; border-bottom: 2px solid var(--line); }
+  h3 { font-size: 16px; margin: 22px 0 8px; color: var(--accent); }
+  h4 { font-size: 14px; margin: 16px 0 6px; color: var(--ink); }
+  p { margin: 10px 0; }
+  ul, ol { padding-left: 22px; }
+  li { margin: 4px 0; }
+  blockquote { margin: 10px 0; padding: 6px 14px; border-left: 3px solid var(--line); color: var(--muted); }
+
+  /* 表は自身の中で横スクロールする（ページ本体は横スクロールさせない） */
+  .tablewrap { overflow-x: auto; margin: 14px 0; }
+  table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 14px; }
+  th, td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: var(--accent-soft); font-weight: 600; white-space: nowrap; }
+  tbody tr:nth-child(even) td { background: color-mix(in srgb, var(--line) 22%, transparent); }
+
+  code {
+    background: var(--code-bg); border-radius: 5px; padding: 1px 5px; font-size: 13px;
+    font-family: "SFMono-Regular", Consolas, "Noto Sans Mono", monospace;
+  }
+  pre {
+    background: var(--code-bg); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 12px 14px; overflow-x: auto; font-size: 13px; line-height: 1.65;
+  }
+  pre code { background: none; padding: 0; }
+
+  /* 注意ボックス: info（既定）/ ok（決めたこと・手順の成功。結論の性質には使わない）/
+     warn（注意）/ stop（やらないこと・危険） */
+  .box { border-left: 4px solid var(--accent); background: var(--accent-soft);
+         border-radius: 0 var(--radius) var(--radius) 0; padding: 12px 16px; margin: 16px 0; }
+  .box > :first-child { margin-top: 0; } .box > :last-child { margin-bottom: 0; }
+  .box .label { font-size: 12px; font-weight: 700; letter-spacing: .06em; display: block; margin-bottom: 4px; }
+  .box.ok { border-color: var(--ok); background: var(--ok-soft); } .box.ok .label { color: var(--ok); }
+  .box.warn { border-color: var(--warn); background: var(--warn-soft); } .box.warn .label { color: var(--warn); }
+  .box.stop { border-color: var(--stop); background: var(--stop-soft); } .box.stop .label { color: var(--stop); }
+  .box.info .label { color: var(--accent); }
+
+  /* 結論の性質チップ: 良=青 .good / 注意=黄 .warn / 問題=赤 .stop（記号＋文字を必ず併記） */
+  .chip { display: inline-block; border-radius: 999px; padding: 1px 9px; font-size: 12px; font-weight: 600; }
+  .chip.good { background: var(--good-soft); color: var(--good); }
+  .chip.warn { background: var(--warn-soft); color: var(--warn); }
+  .chip.stop { background: var(--stop-soft); color: var(--stop); }
+
+  /* サマリの結論カード: 1カード1結論（チップ＋結論1行＋根拠の性質＋章リンク） */
+  ol.verdicts { list-style: none; padding: 0; margin: 14px 0; display: grid; gap: 8px; }
+  .verdict {
+    border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel);
+    padding: 8px 12px; display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px;
+  }
+  .verdict .v-basis { color: var(--muted); font-size: 12.5px; margin-left: auto; }
+
+  /* 重点レビュー依頼の3段階: 重みは色相では表さない（色相は結論の性質専用）。
+     must/want はアクセント系1色相の濃度・枠の太さ、skip は中立色（--line枠＋--muted文字）。
+     記号（◆◇・）を必ず併記する */
+  .focus { border-radius: var(--radius); padding: 12px 16px; margin: 14px 0; }
+  .focus > :last-child { margin-bottom: 0; }
+  .focus .label { font-size: 13px; font-weight: 700; letter-spacing: .04em; display: block; margin-bottom: 4px; }
+  .focus.must { border: 2px solid var(--accent); background: var(--accent-soft); }
+  .focus.must .label { color: var(--accent); }
+  .focus.want { border: 1px solid var(--accent); background: var(--panel); }
+  .focus.want .label { color: var(--accent); }
+  .focus.skip { border: 1px solid var(--line); background: var(--panel); color: var(--muted); }
+  .focus.skip .label { color: var(--muted); }
+  .focus.skip a { color: var(--muted); }
+
+  footer { color: var(--muted); font-size: 13px; text-align: center; padding-top: 10px; }
+</style></head>
+<body>
+
+<header class="band">
+  <div class="inner">
+    <div class="kind">作業結果レポート / フェーズ3</div>
+    <h1>push前チェックリスト機構の実装</h1>
+    <p class="lead">スクリプト1本・hook2本・テスト3本・既存テストの改修2件・specの骨組みの計9ファイルを作り、単体テスト23本／1,699アサーションが失敗0で通った。実装中に「タブはIFSの空白文字なので <code>IFS=$'\t' read -a</code> では行末タブが捨てられる」という設計の根幹に関わる落とし穴を1件踏み、bash組み込みだけの分割関数で解決した。</p>
+    <p class="counts">
+      <span class="chip good">◎良 5</span>
+      <span class="chip warn">△注意 2</span>
+      <span class="chip stop">✕問題 0</span>
+    </p>
+    <ul class="meta">
+      <li><b>issue</b> #17</li>
+      <li><b>ブランチ</b> claude/hook-implementation-17-vjhppj</li>
+      <li><b>PR</b> #195（Draft）</li>
+      <li><b>フェーズ</b> 3〈実装〉 flow-id 3-6</li>
+      <li><b>push回数</b> 8</li>
+      <li><b>作成日</b> 2026-08-23</li>
+      <li><b>正文</b> 同名の .md</li>
+    </ul>
+  </div>
+</header>
+
+<div class="wrap">
+
+<nav class="toc">
+  <h2>目次</h2>
+  <ol>
+    <li><a href="#review-focus">重点レビュー依頼</a></li>
+    <li><a href="#summary">サマリ（結論の一覧）</a></li>
+    <li><a href="#unverified">確かめられなかったこと</a></li>
+    <li><a href="#conditions">実施条件（実行した環境）</a></li>
+    <li><a href="#findings">実施した内容と結果</a></li>
+    <li><a href="#next">設計への反映</a></li>
+    <li><a href="#todo">残課題</a></li>
+  </ol>
+</nav>
+
+<section id="review-focus">
+  <h2>重点レビュー依頼</h2>
+
+  <h3>判断してほしいこと</h3>
+  <ul>
+    <li><b>登録後の自己適用をどう回すか</b>（<a href="#f7">7. 登録後の自己適用</a>）。<code>settings.json</code> へ登録した時点から、この作業自身が機構の対象になる。フェーズ4で <code>commit</code> / <code>issue-mr-flow</code> の SKILL.md へ正式な手順を書くまでの間は、<b>各commit前に <code>check</code>/<code>skip</code> を手で実行する暫定手順</b>で回す。「フェーズ4が終わるまで登録を保留する」ほうがよければ、<code>settings.json</code> の変更だけを後ろへ回せる（他の8ファイルは登録と独立している）。</li>
+    <li><b><code>stale</code> 警告の exit 1 が実際にユーザーへ届くか</b>は未確認である（<a href="#unverified">確かめられなかったこと</a>）。届かない場合、コミット忘れは<b>気づかれないまま素通りする</b>（ブロックはしない設計のため実害は限定的だが、機構の一部が無言で効かなくなる）。届かないことが分かった場合の代案（exit 2 でブロック側へ倒す／PostToolUse の stdout で知らせる）をフェーズ4で決めたい。</li>
+  </ul>
+
+  <h3>方針を決めた点</h3>
+  <ul>
+    <li><b>チェック項目の文言は、markdownの表ではなくQ3のTSVサンプルに合わせた</b>（バッククォートを含めない）。Q2の表は <code>`HANDOFF.md`</code> のようにバッククォートを付けているが、それは表の書式であって本文ではない。実ファイルへ書き出すのは素のテキストとした。</li>
+    <li><b><code>verify</code> の失敗理由は stdout へ出す</b>（stderr ではない）。hookが <code>$(...)</code> で捕まえてブロックメッセージへ載せるためである。スクリプト自身のエラー（未知のid等）は stderr。</li>
+  </ul>
+
+  <h3>機械的な変更・自信のある点</h3>
+  <ul>
+    <li>前置フィルタ <code>raw_hints_at_git_push</code> は既存2本から<b>バイト単位で同一</b>に写した（<code>diff</code> で確認済み。T11がこれを機械的に固定する）。</li>
+    <li>既存push系hook 2本（<code>post-push-usage-report.sh</code> / <code>post-push-compact-prompt.sh</code>）は<b>1バイトも変更していない</b>（<code>git diff --stat</code> に現れない）。</li>
+  </ul>
+</section>
+
+<section id="summary">
+  <h2>サマリ（結論の一覧）</h2>
+  <ul class="cards">
+    <li class="card good"><b>1. 9ファイルを作り、テストが全通した</b><span>新規6・改修2・spec骨組み1。単体テスト23本／1,699アサーションが失敗0。</span></li>
+    <li class="card good"><b>2. <code>verify</code> は3値</b><span>0=通す / 1=検証失敗 / 3=対象なし。hookは 1 を exit 2 へ翻訳し、3 ではブロックしない。</span></li>
+    <li class="card good"><b>3. <code>stale</code> が両方のケースを拾う</b><span>初回push（0→1）と2回目以降のコミット忘れ（1→2）を、Nの比較という同じ1条件で拾うことをテストで固定した。</span></li>
+    <li class="card good"><b>4. T11のドリフト検出が実際に落ちる</b><span>「基準1本 vs 残り全本」のループへ書き換え、hookの一覧を実ファイルから導いて突き合わせる検査を新設。どちらも意図的に壊して落ちることを確認した。</span></li>
+    <li class="card warn"><b>5. <code>IFS=$'\t' read -a</code> が使えなかった</b><span>タブはIFS空白文字で、行末タブが捨てられる。4フィールド固定という設計の根幹に関わるため、bash組み込みだけの <code>split_tsv_line</code> を書いた。</span></li>
+    <li class="card good"><b>6. 未確定事項2件を確定させた</b><span>ログ中のタブは半角スペースへ潰す。警告文面はブロック判定と独立した経路に置く。</span></li>
+    <li class="card warn"><b>7. 変換同期は未実施として検出される</b><span><code>sync-gemini-assets.sh --check</code> が終了コード1。flow-id 5-3 で解消する（期待どおりの状態）。</span></li>
+  </ul>
+</section>
+
+<section id="unverified">
+  <h2>確かめられなかったこと</h2>
+  <ul>
+    <li><b>PreToolUse の exit code 1 の stderr がユーザーへ届くか。</b> 調査結果（フェーズ2）から持ち越しの未確認事項。<code>stale</code> の警告経路がここに乗っている。届かなくても「ブロックはしない」という振る舞いは変わらないため、機構は壊れない。</li>
+    <li><b>git bash（Windows）実機での挙動と性能。</b> 本セッションはLinuxのため、CRLFの混入は <code>sed -i 's/$/\r/'</code> のフィクスチャで再現したにとどまる。外部プロセス起動が約95ms/回という環境での実所要時間は測っていない。</li>
+    <li><b><code>settings.json</code> へ登録した状態での実push。</b> 本レポートを書いている時点ではまだ1度もpushしていない（このcommitのpushが初回になる）。</li>
+    <li><b>PostToolUse hook の stdout がどう扱われるか。</b> <code>post-push-next-checklist.sh</code> は生成したパスを stdout へ出すが、表示されるか <code>additionalContext</code> として扱われるかは未確認。表示されなくても生成そのものは行われる。</li>
+  </ul>
+</section>
+
+<section id="conditions">
+  <h2>実施条件（実行した環境）</h2>
+  <ul>
+    <li>実行環境: Claude Code on the web（Linux 6.18.44）／2026-08-23</li>
+    <li>bash: システム既定（<code>BASH_VERSINFO</code> は4.3以上）</li>
+    <li>検証コマンド: 計画「検証（合格条件）」の7ブロックをそのまま実行</li>
+    <li>一時リポジトリ: <code>mktemp -d</code> + <code>git init</code>。公開済み判定は <code>git update-ref refs/remotes/origin/main &lt;HEAD&gt;</code> でリモート追跡refを直接作った（実際にリモートへ送らずに <code>git branch --remotes --contains HEAD</code> を成立させる）</li>
+  </ul>
+</section>
+
+<section id="findings">
+  <h2>実施した内容と結果</h2>
+
+  <h3 id="f1">1. 作ったもの（9ファイル） <span class="chip good">◎良</span></h3>
+  <table>
+    <thead><tr><th>#</th><th>ファイル</th><th>種別</th><th>規模</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td><code>.claude/scripts/src/push-checklist.sh</code></td><td>新規</td><td>約520行</td></tr>
+      <tr><td>2</td><td><code>.claude/hooks/block-unchecked-push.sh</code></td><td>新規</td><td>約170行</td></tr>
+      <tr><td>3</td><td><code>.claude/hooks/post-push-next-checklist.sh</code></td><td>新規</td><td>約140行</td></tr>
+      <tr><td>4</td><td><code>.claude/scripts/test/test_push_checklist.sh</code></td><td>新規</td><td>87アサーション</td></tr>
+      <tr><td>5</td><td><code>.claude/scripts/test/test_block_unchecked_push.sh</code></td><td>新規</td><td>32アサーション</td></tr>
+      <tr><td>6</td><td><code>.claude/scripts/test/test_post_push_next_checklist.sh</code></td><td>新規</td><td>30アサーション</td></tr>
+      <tr><td>7</td><td><code>.claude/scripts/test/test_sync_gemini_assets.sh</code></td><td>改修</td><td>T11・T12を対象hook全件へ</td></tr>
+      <tr><td>8</td><td><code>.claude/settings.json</code></td><td>改修</td><td>PreToolUse 1件・PostToolUse 2件</td></tr>
+      <tr><td>9</td><td><code>.claude/docs/spec/push-checklist.md</code></td><td>新規（骨組み）</td><td>本文はフェーズ4</td></tr>
+    </tbody>
+  </table>
+  <div class="concl"><b>結論</b> 実装は計画の順序どおりに進めた（spec骨組み → 本体 → PreToolUse → PostToolUse → T11/T12改修 → <code>settings.json</code> → 回帰）。各段でその段のテストを通してから次へ進んでいる。</div>
+
+  <h3 id="f2">2. <code>IFS=$'\t' read -r -a</code> が使えなかった <span class="chip warn">△注意</span></h3>
+  <p>TSVを4フィールド固定にする設計の根幹に関わる問題を、実装中に踏んだ。</p>
+  <p><b>タブはbashのIFS空白文字である。</b> <code>IFS=$'\t'</code> を指定しても「連続するIFS空白は1つの区切りへ畳まれ、先頭・末尾のものは無視される」という規則が働くため、<code>read -r -a</code> で分割すると次の2つが起きる。</p>
+  <ul>
+    <li><code>pending</code> 行の<b>行末タブが捨てられ</b>、4フィールドのはずが3になる</li>
+    <li>実施ログが空の <code>done</code> 行も同様に3になり、<b>条件4（4列目が空でない）が検出できない</b></li>
+  </ul>
+  <p>つまり、生成器が4フィールドで書いても検証器が3としか読めず、<code>verify</code> が自分の生成物を必ず落とす。bash組み込みだけでタブを走査する <code>split_tsv_line</code> を書いて解決した。</p>
+  <pre><code>split_tsv_line() {
+  local rest="$1"
+  TSV_FIELDS=()
+  while :; do
+    case "$rest" in
+      *$'\t'*)
+        TSV_FIELDS+=("${rest%%$'\t'*}")
+        rest="${rest#*$'\t'}"
+        ;;
+      *) TSV_FIELDS+=("$rest"); break ;;
+    esac
+  done
+}</code></pre>
+  <div class="concl"><b>結論</b> forkせずに分割でき、行末タブ・連続タブを保つ。この落とし穴はテストで固定してある（「行末タブでも4フィールド」「連続タブを畳まない」）。</div>
+
+  <h3 id="f3">3. <code>verify</code> の3値と、hookでの翻訳 <span class="chip good">◎良</span></h3>
+  <table>
+    <thead><tr><th><code>verify</code></th><th>意味</th><th>hookの対応</th></tr></thead>
+    <tbody>
+      <tr><td>0</td><td>4条件すべてを満たした</td><td>ブロックしない（ただし <code>stale</code> は別に見る）</td></tr>
+      <tr><td>1</td><td>検証失敗（未完了・壊れている・件数が合わない）</td><td><b>exit 2 でブロック</b></td></tr>
+      <tr><td>3</td><td>HEADに対象のチェックリストが無い</td><td>ブロックしない（同上）</td></tr>
+    </tbody>
+  </table>
+  <p>unborn branch（コミットが1つも無い）・<code>git show</code> の失敗も 3 へ倒している。1（ブロック）へ倒すと、コミットが1つも無いブランチで全pushが止まるためである。</p>
+  <p>hook側は <code>status=0; ... || status=$?</code> の形で受けている。<code>set -e</code> 配下で素の単純コマンドとして受けると、<b>ブロックしたい場面でhook自身が exit 1 で終わり、ブロックされなくなる</b>。</p>
+  <div class="concl"><b>結論</b> この罠は「未完了なら exit 2」というテストケースが機械的に塞いでいる（<code>test_block_unchecked_push.sh</code> 層3）。</div>
+
+  <h3 id="f4">4. <code>stale</code> が初回と2回目以降の両方を拾うこと <span class="chip good">◎良</span></h3>
+  <p><code>stale</code> は「作業ツリーの最大N &gt; HEADの最大N」だけを見る。テストで次の2つを固定した。</p>
+  <ul>
+    <li><b>初回push</b>（HEADに無く作業ツリーにある = <code>0 → 1</code>）</li>
+    <li><b>2回目以降のコミット忘れ</b>（<code>1 → 2</code>）</li>
+  </ul>
+  <p>後者では、同じ状態で <code>verify</code> が <b>0 を返す</b>ことも併せて表明してある（HEADに残る古い・全 <code>done</code> のチェックリストを見るため）。</p>
+  <div class="concl"><b>結論</b> <b><code>verify</code> だけではコミット忘れを検知できない</b>という、当初の設計が取りこぼしていた事実そのものをテストが記録している。</div>
+
+  <h3 id="f5">5. T11・T12の改修（3箇所すべて） <span class="chip good">◎良</span></h3>
+  <p>計画どおり、ループ・同一性アサーション・T12のループの<b>3箇所すべて</b>を直した。加えて、対象hookの一覧を<b>実ファイルから導いて突き合わせる</b>アサーションを新設した。</p>
+  <pre><code>while IFS= read -r _f; do
+  _b="${_f##*/}"; prefilter_discovered+=("${_b%.sh}")
+done &lt; &lt;(grep -lFx -- 'raw_hints_at_git_push() {' "$repo_root"/.claude/hooks/*.sh | sort)</code></pre>
+  <p><b>どちらのアサーションも、意図的に壊して実際に落ちることを確かめた</b>（「異常が無ければ何も出ない検証」にしないため）。</p>
+  <table>
+    <thead><tr><th>壊し方</th><th>結果</th></tr></thead>
+    <tbody>
+      <tr><td><code>post-push-next-checklist.sh</code> の関数本文へ1行コメントを足す</td><td><code>FAIL: T11: post-push-next-checklist.sh の raw_hints_at_git_push が基準…と同一実装である</code></td></tr>
+      <tr><td>一覧へ載せずに5本目のhook（前置フィルタ持ち）を置く</td><td><code>FAIL: T11: 前置フィルタを持つhookの一覧が実ファイルと一致する</code></td></tr>
+    </tbody>
+  </table>
+  <div class="concl"><b>結論</b> 「新規hookを足したのにテストは緑」という当初の穴は塞がり、5本目を足したときにも気づける形になった。</div>
+
+  <h3 id="f6">6. 検証（計画の7ブロック） <span class="chip good">◎良</span></h3>
+  <p><b>着手前に変更前のツリーで流し、1・5が期待どおり非0で落ちることを確認してから実装した。</b></p>
+  <table>
+    <thead><tr><th>ブロック</th><th>実装前</th><th>実装後</th></tr></thead>
+    <tbody>
+      <tr><td>1. 構文チェック（新規3本）</td><td>非0（3本とも <code>No such file or directory</code>）</td><td><b>0</b>（本数=3）</td></tr>
+      <tr><td>2. <code>test_sync_gemini_assets.sh</code></td><td>0（既存2本のみ対象）</td><td><b>0</b>（<code>passed=106 failures=0</code>）</td></tr>
+      <tr><td>3. 新規テスト3本</td><td>非0（ファイルが無い）</td><td><b>0</b>（87 / 32 / 30）</td></tr>
+      <tr><td>4. 既存テスト回帰（全件）</td><td>0</td><td><b>0</b>（実行本数=23、失敗0）</td></tr>
+      <tr><td>5. <code>settings.json</code> の登録（<code>== 1</code> / <code>== 2</code>）</td><td>非0（未登録）</td><td><b>0</b></td></tr>
+      <tr><td>6. <code>sync-gemini-assets.sh --check</code></td><td>0</td><td><b>1</b>（＝flow-id 5-3 で解消すべき差分あり。期待どおり）</td></tr>
+      <tr><td>7. <code>check-dist-coverage.sh</code>（回帰確認）</td><td><code>結果: OK</code></td><td><code>結果: OK</code></td></tr>
+    </tbody>
+  </table>
+  <div class="concl"><b>結論</b> テスト23本の合計は <b>1,699アサーション・失敗0</b>。7は<b>この変更では1件も検出しない</b>ため、「配布層の面が確かめられた」と読まないこと。</div>
+
+  <h3 id="f7">7. 未確定事項の確定と、登録後の自己適用 <span class="chip warn">△注意</span></h3>
+  <table>
+    <thead><tr><th>#</th><th>計画時</th><th>確定した内容</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td><code>check</code>/<code>skip</code> のログ中のタブをどう扱うか</td><td><b>タブ・改行・CRをすべて半角スペースへ潰し、前後を刈る</b>（<code>normalize_log_to_reply</code>）。潰した結果が空なら <code>check</code> は終了コード1で拒否する</td></tr>
+      <tr><td>2</td><td>警告（exit 1）の文面</td><td>「コミットされていないチェックリストがあります（作業ツリー push2 &gt; HEAD push1）」＋「ブロックはしません」＋specのパス。<b>届かなくても機構が壊れないこと</b>は、ブロック判定と独立した経路にしてあることで担保している</td></tr>
+    </tbody>
+  </table>
+  <p><b><code>settings.json</code> へ登録した瞬間から、この issue の作業自身が機構の対象になる。</b> フェーズ4で正式な手順を書くまでの間は、各commit前に <code>check</code>/<code>skip</code> を手で実行する暫定手順で回す。</p>
+  <div class="concl"><b>結論</b> 暫定手順で進めてよいかは<a href="#review-focus">重点レビュー依頼</a>の1で判断を仰ぐ。保留する場合、後ろへ回すのは <code>settings.json</code> の変更1件だけで足りる。</div>
+</section>
+
+<section id="next">
+  <h2>設計への反映</h2>
+  <p>フェーズ4（flow-id 4-6）で次を行う。</p>
+  <ul>
+    <li><code>.claude/docs/spec/push-checklist.md</code> の本文（現在は骨組みのみ）。上記2〜5の内容と、調査結果Q1〜Q8をここへ移す。</li>
+    <li>DDR <code>i0017-01</code>。却下案として「チェック項目の実施そのものを機械判定する」「flow-idに応じて項目を可変にする」「<code>.gitignore</code> 対象の <code>wip/state/</code> へ置く」を残す。</li>
+    <li><code>.claude/docs/README.md</code> のspec一覧、<code>docs-workflow.md</code> のライフサイクル表（チェックリストは <code>wip/worklogs/</code> にあり flow-id 5-5 で削除される）、<code>directory-structure.md</code>、<code>index.md</code>。</li>
+    <li><code>commit</code> / <code>issue-mr-flow</code> の SKILL.md へ、<code>check</code>/<code>skip</code> を<b>commitより前に</b>実行する手順。</li>
+    <li><code>.claude/VERSION</code>。</li>
+  </ul>
+</section>
+
+<section id="todo">
+  <h2>残課題</h2>
+  <ul>
+    <li><b><code>settings.json</code> の登録を含む状態での実push検証。</b> flow-id 5-5 直後の 5-6 のpushで再生成されないことまで含めて、フェーズ5で実地確認する。</li>
+    <li><b><code>stale</code> の警告が届くかどうか</b>による代案の決定（フェーズ4）。</li>
+    <li><b>生成条件3（HEADにタスク成果物が残っているか）は、チェックリスト自身を「成果物」に数えている。</b> <code>cleanup-task.sh</code> はチェックリストも同じディレクトリごと消すため実害は無いが、「チェックリストだけが残っている」状態を作れば生成が続く。計画どおり <code>TEMPLATE.md</code> / <code>REVIEW-POINTS*.md</code> のみを除外する実装にしてあり、<b>計画から逸脱しないことを優先した</b>。フェーズ4のspecへ既知の性質として書く。</li>
+  </ul>
+</section>
+
+</div>
+
+<footer>issue #17 / PR #195 — 結果の正文は同名の <code>.md</code>。外部依存を持たない自己完結HTML。</footer>
+</body>
+</html>
