@@ -17,7 +17,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - issue: #26 AIアセットの他プロジェクトへの配布をmanifest方式へ作り直し、配布アセットの層分けを定義する
 - ブランチ: claude/ai-asset-manifest-distribution-u2gn22
 - PR: #154 https://github.com/yuki-matsu783/MR-driven-workflow/pull/154
-- push回数: 15
+- push回数: 16
 - 現在のループ: なし
 - 追従監視: 購読あり（web。subscribe_pr_activity + 自己チェックイン）
 
@@ -318,6 +318,21 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - flow-id 3-10: PR #154 のdescriptionを3周目の内容へ更新した（テスト1084→1098件、
   敵対的レビュー フェーズ3が3回で上限到達、`requiredLine`、起動回数1208→176、
   配布先での実行結果、HTMLビューの追加）。**フェーズ3〈作業〉完了。**
+
+### origin/main の取り込み（2026-08-23・PR #162）
+
+- ユーザーの承認を得て `git merge --no-ff --no-commit origin/main` で取り込んだ
+  （`805ab5f` → `0aa9874`。hookの空振り起動コストを前置フィルタで削減する変更）。
+- **コンフリクトは `HANDOFF.md` の1件のみ。** main側はリセット後の雛形（純粋なリセットで
+  構造的な変更なし）、こちら側はこのブランチの進捗なので、**このブランチ側を採った**。
+  `--ours` での片側採用ではなく、マーカーを外して HEAD 側を残す形で解消している。
+- **gitが競合と見なさない食い違いは無かった。** main の変更9ファイルとこちらの変更の重なりは
+  `HANDOFF.md` だけで、新設された `raw_hints_at_git_commit` /
+  `raw_hints_at_issue_create` はいずれもhookスクリプト内で完結している。
+- 検証（`resolve-conflict` Step 5 の全項目）: マーカー0・未マージ0・`bash -n` 4本OK・
+  生成物の再生成（`index.jsonl` 5件・DDR一覧は差分なし75件）・**全18ファイル
+  `passed=1142 failures=0`**（main由来の `test_block_direct_git_commit.sh` が18本目）・
+  網羅性 212/212・13/13・DDR識別子の重複なし・`git diff HEAD -- HANDOFF.md` 0行。
 
 ## 次にやること
 
