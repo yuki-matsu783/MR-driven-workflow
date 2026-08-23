@@ -19,7 +19,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - PR: #189 https://github.com/yuki-matsu783/MR-driven-workflow/pull/189（Draft）
 - push回数: 6
 - 現在のループ: なし
-- 未返信スレッド: 13
+- 未返信スレッド: 0
 - 追従監視: なし
 
 | 進捗 | flow-id | ステップ | 担当 |
@@ -113,12 +113,13 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
   追加と「本家でも削除済み」別枠・manifest自身と*.bak の added 除外・check-ignore 廃止で
   自前照合へ一本化・merge3 に exit 4 新設・git 起動の一括化規約・scan の schemaVersion 付き
   全体形とエラー隔離・T2a/T2b・T8/T8b・T12〜T15 追加等）。
+- 敵対的レビュー3回目の13スレッドすべてへ対応内容を返信し、`- 未返信スレッド:` を 0 へ
+  戻した（返信URLは各スレッド r3838762517〜r3838766374。修正コミット 142b664）。
 
 ## 次にやること
 
-- 敵対的レビュー3回目の13スレッドへ対応内容を返信し未返信0へ → 収穫スキル実装
-  （SKILL.md・harvest-from-projects.sh・テスト・dist-layers・DDR規約）→ reports作成 →
-  commit/push → 敵対的レビュー（作業実施後）へ。
+- 収穫スキル実装（flow-id 3-6 相当: SKILL.md・harvest-from-projects.sh・テスト・
+  dist-layers・DDR規約）→ reports作成 → commit/push → 敵対的レビュー（作業実施後）へ。
 
 ## 判断を迷った内容
 
