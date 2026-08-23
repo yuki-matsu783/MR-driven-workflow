@@ -61,8 +61,8 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 | [-] | 4-9 | レビュー内容の反映 | comments/reply |
 | [-] | 4-10 | MR description更新 | describe |
 | [x] | 5-1 | defaultブランチとのコンフリクト解消 | resolve-conflict |
-| [] | 5-2 | 関連issueへの通知 | エージェント |
-| [] | 5-3 | .gemini/への変換同期 | エージェント |
+| [x] | 5-2 | 関連issueへの通知 | エージェント |
+| [x] | 5-3 | .gemini/への変換同期 | エージェント |
 | [] | 5-4 | 最終統括レポート | エージェント |
 | [] | 5-5 | 片付け（cleanup-task.sh） | エージェント |
 | [] | 5-6 | commit・push・Draft解除 | エージェント |
@@ -155,9 +155,23 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
   i0171-01・i0182-01両方を含む形へ再生成して統合`）を作成しpush（コミット`1712abb`）。
   push後に`check-base-conflicts.sh`を再実行し`hasConflict: false`を確認済み。
 
+- **flow-id 5-2: 関連issueへの通知は「影響先なし」と判断した。** `git diff --stat
+  origin/main...HEAD --（`plans/`/`worklog/`/`reports/`除外）`から抽出したキーワード
+  （敵対的レビュー・投稿件数・選別・インラインコメント・上限）で`search_issues`を実行したところ、
+  ヒットしたのは今回のissue自身（#182）と、closed済みの5件（#109・#121・#106・#42・#50）のみで、
+  openの関連issueは無かった。念のため別キーワード（インラインコメント・位置指定・プロバイダ制約・
+  縮退）でも検索したが0件だった。通知は行わない。
+
+- **flow-id 5-3: `.gemini/`への変換同期を実行した。** `sync-gemini-assets.sh --check`で
+  8ファイルの食い違いを検知（`docs/README.md`・`docs/ddr/i0077-03`・`docs/spec/
+  adversarial-review.md`・`rules/shell-script-style.md`・`skills/adversarial-review/SKILL.md`の
+  更新、`docs/ddr/i0182-01`・`scripts/src/select-adversarial-findings.sh`・
+  `scripts/test/test_select_adversarial_findings.sh`の新規追加）。`sync-gemini-assets.sh`を
+  実行して再生成し、`--check`が終了コード0（同期済み）になることを確認した。
+
 ## 次にやること
 
-- flow-id 5-2（関連issueへの通知）〜5-6（commit・push・Draft解除）へ進める。
+- flow-id 5-4（最終統括レポート）〜5-6（commit・push・Draft解除）へ進める。
   5-7（マージ）はユーザーの明示指示が無い限り実行しない。
 
 ## 判断を迷った内容

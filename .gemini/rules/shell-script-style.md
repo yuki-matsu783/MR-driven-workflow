@@ -133,6 +133,19 @@ issue #6でリポジトリ内の開発補助スクリプトを全てPowerShell�
   - **`jq -e .`は空文字列の入力に対して失敗を検知できないことがある**（実機確認:
     `printf '%s' "" | jq -e .`が終了コード0を返した）。空文字列チェック（`[ -n "$content" ]`）を
     `jq -e .`の判定より先に行うこと。
+- **`配列 | index(.field)` のように、パイプの右辺で `.` を参照すると、フィルタ内の `.` が
+  パイプ元（左辺）の値に置き換わる**（issue #182対応時に実際に踏んだ）。`.` はパイプが進むたびに
+  更新されるため、`$known | index(.severity)` と書くと `.severity` は各要素ではなく `$known`
+  （配列）に対して評価され、`jq: error: Cannot index array with string "severity"` になる。
+  `select()`・`map()`の内側で「今見ている要素のフィールド」と「外側の配列」を両方使いたい場合は、
+  **先に要素側のフィールドを変数へ束縛してから、外側の配列をパイプする。**
+
+  ```bash
+  # 悪い例（.severity が $known に対して評価される）
+  jq -n '["blocker","major"] as $known | [{severity:"nit"}] | map(select(($known | index(.severity)) == null))'
+  # 良い例（.severity を先に $sv へ束縛する）
+  jq -n '["blocker","major"] as $known | [{severity:"nit"}] | map(select(.severity as $sv | ($known | index($sv)) == null))'
+  ```
 
 ## 外部プロセス起動のコスト
 
