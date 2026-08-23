@@ -226,7 +226,7 @@ assert_eq "B-2: local / exclude は manifest に書かない" "0" \
   "$(jq '[.files[] | select(.layer=="local" or .layer=="exclude")] | length' "$manifest")"
 
 assert_eq "B-2: local の index.jsonl が作られない" "0" "$(find "$dest_new" -name index.jsonl | wc -l)"
-assert_eq "B-2: local の .claude/state/ が作られない" "0" "$(exists "$dest_new/.claude/state")"
+assert_eq "B-2: local の wip/state/ が作られない" "0" "$(exists "$dest_new/wip/state")"
 assert_eq "B-2: local の usage/ が作られない" "0" "$(exists "$dest_new/usage")"
 # `.gemini/{docs,…}` は local だが**唯一の例外**として手順7が作る。ここでは列挙せず、
 # 「作られること」を下の B-7 で確かめる。
