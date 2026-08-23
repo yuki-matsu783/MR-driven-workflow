@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gemini CLI の読み込み経路と .gemini/ に残すもの — issue #172</title>
+<style>
+  :root {
+    --bg: #f6f7f9;      --panel: #ffffff;   --ink: #1a1d21;     --muted: #5b636d;
+    --line: #dfe3e8;    --accent: #2563eb;  --accent-soft: #eaf0fe;
+    --ok: #1a7f4b;      --ok-soft: #e6f4ec; --warn: #a35a00;    --warn-soft: #fdf1e0;
+    --stop: #b3261e;    --stop-soft: #fdecea; --code-bg: #f0f2f5;
+    --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1216;    --panel: #161a20;   --ink: #e6e8eb;     --muted: #9aa3ad;
+      --line: #2a3038;  --accent: #7aa2f7;  --accent-soft: #1b2333;
+      --ok: #6ee7a8;    --ok-soft: #14261d; --warn: #f0b866;    --warn-soft: #2a2113;
+      --stop: #f2857c;  --stop-soft: #2b1614; --code-bg: #1d222a;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", system-ui, sans-serif;
+    line-height: 1.8; font-size: 15px;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 20px 80px; }
+
+  /* 共通ヘッダ帯 */
+  header.band {
+    background: linear-gradient(135deg, var(--accent-soft), var(--panel));
+    border-bottom: 1px solid var(--line); padding: 28px 20px 22px; margin-bottom: 28px;
+  }
+  header.band .inner { max-width: 1080px; margin: 0 auto; }
+  header.band .kind { font-size: 11px; letter-spacing: .18em; color: var(--accent); font-weight: 700; }
+  header.band h1 { margin: 6px 0 4px; font-size: 26px; line-height: 1.4; }
+  header.band .lead { margin: 0; color: var(--muted); }
+  .meta { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; padding: 0; list-style: none; }
+  .meta li {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 999px;
+    padding: 3px 12px; font-size: 12.5px; color: var(--muted); white-space: nowrap;
+  }
+  .meta li b { color: var(--ink); font-weight: 600; }
+
+  nav.toc {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 14px 20px; margin-bottom: 28px;
+  }
+  nav.toc h2 { margin: 0 0 8px; font-size: 13px; letter-spacing: .08em; color: var(--muted); border: 0; padding: 0; }
+  nav.toc ol { margin: 0; padding-left: 20px; }
+  nav.toc li { margin: 2px 0; }
+  a { color: var(--accent); }
+
+  section {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 8px 24px 22px; margin-bottom: 22px;
+  }
+  h2 { font-size: 20px; margin: 20px 0 10px; padding-bottom: 8px; border-bottom: 2px solid var(--line); }
+  h3 { font-size: 16px; margin: 22px 0 8px; color: var(--accent); }
+  p { margin: 10px 0; }
+  ul, ol { padding-left: 22px; }
+  li { margin: 4px 0; }
+  blockquote { margin: 10px 0; padding: 6px 14px; border-left: 3px solid var(--line); color: var(--muted); }
+
+  /* 表は自身の中で横スクロールする（ページ本体は横スクロールさせない） */
+  .tablewrap { overflow-x: auto; margin: 14px 0; }
+  table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 14px; }
+  th, td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: var(--accent-soft); font-weight: 600; white-space: nowrap; }
+  tbody tr:nth-child(even) td { background: color-mix(in srgb, var(--line) 22%, transparent); }
+
+  code {
+    background: var(--code-bg); border-radius: 5px; padding: 1px 5px; font-size: 13px;
+    font-family: "SFMono-Regular", Consolas, "Noto Sans Mono", monospace;
+  }
+  pre {
+    background: var(--code-bg); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 12px 14px; overflow-x: auto; font-size: 13px; line-height: 1.65;
+  }
+  pre code { background: none; padding: 0; }
+
+  /* 注意ボックス: info（既定）/ ok（決めたこと）/ warn（注意）/ stop（やらないこと・危険） */
+  .box { border-left: 4px solid var(--accent); background: var(--accent-soft);
+         border-radius: 0 var(--radius) var(--radius) 0; padding: 12px 16px; margin: 16px 0; }
+  .box > :first-child { margin-top: 0; } .box > :last-child { margin-bottom: 0; }
+  .box .label { font-size: 12px; font-weight: 700; letter-spacing: .06em; display: block; margin-bottom: 4px; }
+  .box.ok { border-color: var(--ok); background: var(--ok-soft); } .box.ok .label { color: var(--ok); }
+  .box.warn { border-color: var(--warn); background: var(--warn-soft); } .box.warn .label { color: var(--warn); }
+  .box.stop { border-color: var(--stop); background: var(--stop-soft); } .box.stop .label { color: var(--stop); }
+  .box.info .label { color: var(--accent); }
+
+  .tag { display: inline-block; border-radius: 999px; padding: 1px 9px; font-size: 12px; font-weight: 600; }
+  .tag.ok { background: var(--ok-soft); color: var(--ok); }
+  .tag.warn { background: var(--warn-soft); color: var(--warn); }
+  .tag.stop { background: var(--stop-soft); color: var(--stop); }
+
+  footer { color: var(--muted); font-size: 13px; text-align: center; padding-top: 10px; }
+</style></head><body>
+
+<header class="band">
+  <div class="inner">
+    <div class="kind">調査結果レポート / フェーズ2（2回目）</div>
+    <h1>Gemini CLI の読み込み経路と <code>.gemini/</code> に残すもの</h1>
+    <p class="lead">Gemini CLI が <code>.gemini/</code> から読むのは <code>settings.json</code> <code>skills/</code> <code>agents/</code> <code>commands/*.toml</code> <code>sandbox-*</code> の5種だけであることを公式ドキュメントで確定した。読まれない4ディレクトリを外すと<b>壊れたリンクは18件から1件へ減る</b>。<b>この調査では判断も実装もしていない。</b></p>
+    <ul class="meta">
+      <li><b>issue</b> #172</li>
+      <li><b>ブランチ</b> claude/gemini-exclude-decision-yp5p70</li>
+      <li><b>PR</b> #193</li>
+      <li><b>フェーズ</b> 2〈調査〉の2回目 flow-id 2-6</li>
+      <li><b>作成日</b> 2026-08-23</li>
+      <li><b>正文</b> 同名の .md</li>
+    </ul>
+  </div>
+</header>
+
+<div class="wrap">
+
+<nav class="toc">
+  <h2>目次</h2>
+  <ol>
+    <li><a href="#summary">サマリ（結論の一覧）</a></li>
+    <li><a href="#conditions">実施条件（測った対象・環境）</a></li>
+    <li><a href="#results">実施した内容と結果</a></li>
+    <li><a href="#unverified">確かめられなかったこと</a></li>
+    <li><a href="#next">設計への反映</a></li>
+  </ol>
+</nav>
+
+<section id="summary">
+  <h2>サマリ（結論の一覧）</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>#</th><th>結論</th><th>根拠の性質</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td><b>Gemini CLI が <code>.gemini/</code> から読むのは <code>settings.json</code> <code>skills/</code> <code>agents/</code> <code>commands/*.toml</code> <code>sandbox-*</code> の5種。</b> <code>rules/</code> <code>docs/</code> <code>hooks/</code> <code>scripts/</code> は公式ドキュメントに記載が無い</td><td>公式ドキュメントの読解（Q7）</td></tr>
+      <tr><td>2</td><td><b><code>.agents/skills/</code> エイリアスは Claude Code 側が対応していない。</b> Gemini CLI は見るが、Claude Code の公式ドキュメントには<b>0件</b>の言及しかなく、探索先は <code>~/.claude/skills/</code> <code>.claude/skills/</code> <code>&lt;plugin&gt;/skills/</code> の3つと明記されている</td><td>公式ドキュメントの読解（Q7）</td></tr>
+      <tr><td>3</td><td><b>現在の <code>.gemini/skills/</code> は Gemini CLI の要件を満たす。</b> 9件すべてが <code>name</code>・<code>description</code> を持ち、<code>name</code> はディレクトリ名と一致する（9/9）</td><td>実測（Q8）</td></tr>
+      <tr><td>4</td><td><b><code>.gemini/agents/</code> も変換済みで要件を満たす。</b> <code>tools</code> が Gemini CLI の語彙（<code>read_file</code> 等）へ変換され、Claude Code 固有キーは落ちている</td><td>実測（Q8）</td></tr>
+      <tr><td>5</td><td><b>4ディレクトリ（<code>hooks/</code> <code>scripts/</code> <code>docs/</code> <code>rules/</code>）を外すと、壊れたリンクは1件だけになる。</b> 3つだけ外す場合の18件から<b>17件減る</b></td><td>実測（Q10）</td></tr>
+      <tr><td>6</td><td><b>その1件は <code>.gemini/skills/apply-mr-workflow-to-project/SKILL.md</code> → <code>../../docs/spec/sync-gemini-assets.md</code></b> で、<b>Gemini CLI が実際に読むファイルの中</b>にある</td><td>実測（Q10）</td></tr>
+      <tr><td>7</td><td><b>4ディレクトリは 184ファイル・2,676,979バイト</b>（<code>.gemini/</code> 全体の85.6% / 84.7%）。<code>rules/</code> は8ファイル・189,256バイトで、1回目は測っていなかった</td><td>実測（Q10）</td></tr>
+      <tr><td>8</td><td><b>依存を明示する記録先として、配布先の Gemini CLI セッションへ実際に届くのは <code>GEMINI.md</code> だけ。</b> <code>README.md</code>・<code>DEVELOPERS.md</code> は <code>layer: exclude</code> で配布されず、spec は配布されるが実行時には読まれない</td><td>実測（Q10）</td></tr>
+      <tr><td>9</td><td><b><code>install-to-project.sh</code> に <code>.gemini/</code> の生成をスキップするオプションは無い。</b> Claude Code しか使わない配布先でも常に生成される</td><td>実測（Q11）</td></tr>
+      <tr><td>10</td><td><b>Gemini CLI しか使わない配布先でも <code>.claude/</code> は消せない。</b> <code>.claude</code> は <code>layer: core</code>、<code>AGENTS.md</code> は <code>seed</code> で、どちらも常に配られる</td><td>実測（Q11）</td></tr>
+      <tr><td>11</td><td><b>すべて公式ドキュメントの読解と生成物の実測であり、Gemini CLI 実機は一度も動かしていない</b></td><td>制約</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="conditions">
+  <h2>実施条件（測った対象・環境）</h2>
+  <ul>
+    <li>実行環境: Claude Code on the web（Linux）／2026-08-23。<b>git bash（Windows）実機では未計測</b>。</li>
+    <li>対象リビジョン: ブランチ <code>claude/gemini-exclude-decision-yp5p70</code> の <b>f98860b</b>（ベース <code>origin/main</code> = 0a9169c）。</li>
+    <li>公式ドキュメントの取得元: <code>raw.githubusercontent.com/google-gemini/gemini-cli/main/docs/…</code>（main ブランチ）と <code>code.claude.com/docs/en/skills</code>。<b>取得時点は 2026-08-23</b>で、以降の変更は追随していない。<code>google-gemini.github.io</code> は egress proxy にブロックされたため raw 経由で取得した。</li>
+    <li><b>1回目の調査の値のうち、Q4（3ディレクトリ除去時の18件）は本調査で再現できた。</b> 同じ数え方で4ディレクトリ版を測っているので、両者は直接比較できる。</li>
+  </ul>
+</section>
+
+<section id="results">
+  <h2>実施した内容と結果</h2>
+
+  <h3>Q7: Gemini CLI の読み込み経路</h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>パス</th><th>根拠（引用）</th></tr></thead>
+    <tbody>
+      <tr><td><code>.gemini/settings.json</code></td><td>「Project settings are located at <code>.gemini/settings.json</code> within your project's root directory」</td></tr>
+      <tr><td><code>.gemini/skills/</code></td><td>「<b>Workspace skills</b>: Located in <code>.gemini/skills/</code> or the <code>.agents/skills/</code> alias.」</td></tr>
+      <tr><td><code>.gemini/agents/</code></td><td>「Rescans agent directories (<code>~/.gemini/agents</code> and <code>.gemini/agents</code>) and reloads the registry.」</td></tr>
+      <tr><td><code>.gemini/commands/*.toml</code></td><td>「<b>Project commands:</b> Located in <code>&lt;your-project-root&gt;/.gemini/commands/</code>」</td></tr>
+      <tr><td><code>.gemini/sandbox-*.sb</code> / <code>sandbox.Dockerfile</code></td><td>「a project's <code>.gemini</code> directory can contain other project-specific files … <code>.gemini/sandbox-macos-custom.sb</code>, <code>.gemini/sandbox.Dockerfile</code>」</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <div class="box ok">
+    <span class="label">記載が無いもの</span>
+    <p><b><code>rules/</code> <code>docs/</code> <code>hooks/</code> <code>scripts/</code> は、上記4ファイルのどこにも現れない。</b></p>
+  </div>
+
+  <h4>skills の探索と注入のされ方</h4>
+  <ol>
+    <li><b>Discovery</b>: セッション開始時に、<b>name と description だけ</b>をシステムプロンプトへ注入する</li>
+    <li><b>Activation</b>: description に合致するタスクで <code>activate_skill</code> を呼ぶ</li>
+    <li><b>Consent</b>: ユーザーへ確認プロンプトが出る</li>
+    <li><b>Injection</b>: 承認後、<b><code>SKILL.md</code> の本文とフォルダ構成</b>が会話履歴へ入り、そのディレクトリが読み取り許可へ加わる</li>
+  </ol>
+  <p><b>つまり <code>.gemini/skills/</code> は「置いてあるだけ」ではなく、毎セッション必ず一部が読まれる。</b></p>
+
+  <h4><code>.agents/skills/</code> エイリアス（論点3）</h4>
+  <ul>
+    <li><b>Gemini CLI 側は対応している。</b>「You can use <code>.agents/skills</code> as an alternative to <code>.gemini/skills</code>.」（<code>docs/cli/creating-skills.md</code>）。同一ティア内では <b><code>.agents/skills/</code> が優先</b>される。</li>
+    <li><b>Claude Code 側は対応していない。</b> 公式ドキュメントを取得して <code>.agents</code> を検索した結果は<b>0件</b>。探索先は Personal <code>~/.claude/skills/</code>・Project <code>.claude/skills/</code>・Plugin <code>&lt;plugin&gt;/skills/</code> の3つと明記されている。</li>
+  </ul>
+  <div class="box warn">
+    <span class="label">論点3は成立しない</span>
+    <p><b>「<code>.agents/skills/</code> へ一本化して二重管理をやめる」は成立しない。</b> そこへ移すと Claude Code からスキルが見えなくなる。<b>ただしこれは「ドキュメントに記載が無い」ことによる判断であり、未文書の対応がある可能性は否定できない</b>（記載が無い機能に依存はできない、という形の結論である）。</p>
+  </div>
+
+  <h4><code>context.fileName</code> で <code>AGENTS.md</code> を直接読ませられるか</h4>
+  <p><code>context.fileName</code> は「Accepts either a single string or an array of strings.」で、<b>既定は <code>undefined</code>（＝<code>GEMINI.md</code>）</b>。配列を設定すれば <code>GEMINI.md</code> を介さずに <code>AGENTS.md</code> を読ませられる。探索は <code>context.memoryBoundaryMarkers</code>（既定 <code>[".git"]</code>）で上方向に止まる。</p>
+
+  <h3>Q8: 現在の .gemini/skills/ .gemini/agents/ はそのまま使えるか</h3>
+  <p><b>SKILL.md の必須 frontmatter は <code>name</code> と <code>description</code> の2つ</b>（<code>docs/cli/creating-skills.md</code>。<code>name</code> は「This should match the directory name」）。</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>検査</th><th>結果</th></tr></thead>
+    <tbody>
+      <tr><td><code>name</code> を持つ</td><td><b>9/9</b></td></tr>
+      <tr><td><code>description</code> を持つ</td><td><b>9/9</b></td></tr>
+      <tr><td><code>name</code> がディレクトリ名と一致</td><td><b>9/9</b></td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p><b>追加の変換は不要。</b> <code>.claude/skills/*/SKILL.md</code> は Claude Code 用の追加キー（<code>title</code>・<code>type</code>・<code>tags</code>・<code>keywords</code>）を持つが、Gemini CLI は必須2キーを見るだけなので、余分なキーがあっても問題にならない。</p>
+<pre><code>.claude/agents/adversarial-reviewer.md   tools: Read, Grep, Glob, Bash   + model/title/type/tags/keywords
+.gemini/agents/adversarial-reviewer.md   tools: [read_file, grep_search, glob, run_shell_command]</code></pre>
+
+  <h3>Q10: 依存の明示と、読まれない複製の扱い（主軸）</h3>
+
+  <h4>Q10-1: .gemini/ の内訳（rules/ とトップレベルを新規に実測）</h4>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>対象</th><th>ファイル数</th><th>バイト数</th></tr></thead>
+    <tbody>
+      <tr><td><code>hooks/</code></td><td>14</td><td>217,308</td></tr>
+      <tr><td><code>scripts/</code></td><td>47</td><td>813,984</td></tr>
+      <tr><td><code>docs/</code></td><td>115</td><td>1,456,431</td></tr>
+      <tr><td><b><code>rules/</code>（新規）</b></td><td><b>8</b></td><td><b>189,256</b></td></tr>
+      <tr><td><code>skills/</code></td><td>24</td><td>448,686</td></tr>
+      <tr><td><code>agents/</code></td><td>2</td><td>18,532</td></tr>
+      <tr><td><b>トップレベル（新規）</b></td><td><b>5</b></td><td><b>15,751</b></td></tr>
+      <tr><td><b>合計</b></td><td><b>215</b></td><td><b>3,159,948</b></td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p><code>.gemini/</code> 全体の直接計測（215 / 3,159,948）と一致する。トップレベルの内訳は <code>REVIEW-POINTS.md</code>(7,406)・<code>dist-layers.json</code>(6,341)・<code>settings.json</code>(1,841)・<code>settings.local.json.example</code>(157)・<code>VERSION</code>(6)。</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>除去する範囲</th><th>外れるファイル数</th><th>割合</th><th>外れるバイト数</th><th>割合</th></tr></thead>
+    <tbody>
+      <tr><td>3ディレクトリ（<code>hooks/</code> <code>scripts/</code> <code>docs/</code>）</td><td>176</td><td>81.9%</td><td>2,487,723</td><td>78.7%</td></tr>
+      <tr><td><b>4ディレクトリ（＋ <code>rules/</code>）</b></td><td><b>184</b></td><td><b>85.6%</b></td><td><b>2,676,979</b></td><td><b>84.7%</b></td></tr>
+      <tr><td>読まれるものだけ残す（<code>settings.json</code>＋<code>skills/</code>＋<code>agents/</code>）</td><td>188</td><td>87.4%</td><td>2,690,889</td><td>85.2%</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h4>Q10-2: 4ディレクトリを外した場合に切れるリンク（再測定）</h4>
+  <p>1回目の Q4 は<b>3つ</b>を外した場合の値なので使えない。同じ数え方で両方を測り直した。</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>除去する範囲</th><th>解決先が除去対象のリンク総数</th><th><b>壊れたリンクとして残る</b>（リンク元が生き残る）</th></tr></thead>
+    <tbody>
+      <tr><td>3ディレクトリ</td><td>304</td><td><b>18</b>（<code>rules/</code>→<code>docs/</code> 17、<code>skills/</code>→<code>docs/</code> 1）</td></tr>
+      <tr><td><b>4ディレクトリ</b></td><td>314</td><td><b>1</b>（<code>skills/</code>→<code>docs/</code> のみ）</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p><b>1回目の18件（内訳 <code>rules/</code> 17・<code>skills/</code> 1）を正確に再現した</b>ので、両者は同じ尺度である。</p>
+  <div class="box ok">
+    <span class="label">計画の見立ては正しかった</span>
+    <p><code>rules/</code> を外すと、その17件は<b>リンク元ごと消える</b>ので「壊れたリンク」ではなくなる。<b>4つ外すほうが3つ外すより軸2の被害が小さい</b>（18 → 1）。</p>
+  </div>
+<pre><code>.gemini/skills/apply-mr-workflow-to-project/SKILL.md
+  → ../../docs/spec/sync-gemini-assets.md</code></pre>
+  <div class="box warn">
+    <span class="label">この1件は性質が違う</span>
+    <p>リンク元の <code>.gemini/skills/</code> は Gemini CLI が実際に読む（Q7）ので、<b>「誰も読まないファイルの中の壊れたリンク」ではなく「読まれるファイルの中の壊れたリンク」</b>である。1回目・フェーズ3で18件を一括で「読まれないファイルの中」と扱っていた前提は、この1件には当てはまらない。</p>
+  </div>
+
+  <h4>Q10-3: 依存を明示する記録先の候補</h4>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>候補</th><th>層</th><th>配布先へ配られるか</th><th>Gemini CLI が読むか</th></tr></thead>
+    <tbody>
+      <tr><td><b><code>GEMINI.md</code></b></td><td><code>core</code></td><td><b>配られる</b></td><td><b>読まれる</b>（ルートの context file）</td></tr>
+      <tr><td><code>AGENTS.md</code></td><td><code>seed</code></td><td>配られる</td><td><code>GEMINI.md</code> の <code>@./AGENTS.md</code> 経由で読まれる</td></tr>
+      <tr><td><code>.claude/docs/spec/sync-gemini-assets.md</code></td><td><code>core</code></td><td>配られる</td><td><b>読まれない</b>（実行時の経路が無い）</td></tr>
+      <tr><td><code>.gemini/</code> 側の案内ファイル</td><td>—</td><td>生成される</td><td><b>読まれない</b></td></tr>
+      <tr><td><code>README.md</code> / <code>DEVELOPERS.md</code></td><td><b><code>exclude</code></b></td><td><b>配られない</b></td><td>読まれない</td></tr>
+      <tr><td><code>index.md</code></td><td><code>seed</code></td><td>配られる</td><td>読まれない</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p><b>配布先の Gemini CLI セッションへ実際に届くのは <code>GEMINI.md</code>（と、その import 先の <code>AGENTS.md</code>）だけである。</b> spec は「後から読む人」には届くが、実行時には届かない。<code>README.md</code> は <code>layer: exclude</code> なので<b>配布先には存在しない</b>——ここへ書いても本家しか読めない。</p>
+  <p>現在の <code>GEMINI.md</code> は「プロジェクト固有のルールは <code>.claude/rules/&lt;名前&gt;.md</code> へ置く」と書いており、<b><code>.claude/</code> の存在を暗に前提にしているが、依存そのものは明示していない</b>。</p>
+
+  <h3>Q11: 配布への影響</h3>
+
+  <h4>Q11-1: ルート直下ファイルの帰属</h4>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>ファイル</th><th>層</th><th>どの配布先へ配られるか</th></tr></thead>
+    <tbody>
+      <tr><td><code>CLAUDE.md</code></td><td><code>core</code></td><td><b>常に</b></td></tr>
+      <tr><td><code>GEMINI.md</code></td><td><code>core</code></td><td><b>常に</b></td></tr>
+      <tr><td><code>AGENTS.md</code></td><td><code>seed</code></td><td><b>常に</b>（初回のみ、以降は配布先所有）</td></tr>
+      <tr><td><code>.claude</code></td><td><code>core</code></td><td><b>常に</b></td></tr>
+      <tr><td><code>.gemini</code></td><td><code>exclude</code></td><td><b>配られない</b>（配布先で生成する）</td></tr>
+      <tr><td><code>index.md</code> <code>.mrworkflow.json</code> <code>HANDOFF.md</code></td><td><code>seed</code></td><td>常に</td></tr>
+      <tr><td><code>README.md</code> <code>DEVELOPERS.md</code></td><td><code>exclude</code></td><td>配られない</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p><b>CLI ごとの出し分けは存在しない。</b> Claude Code しか使わない配布先にも <code>GEMINI.md</code> が配られ、Gemini CLI しか使わない配布先にも <code>CLAUDE.md</code> と <code>.claude/</code> 一式が配られる。</p>
+
+  <h4>Q11-2: 片方のCLIしか使わない配布先</h4>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>方向</th><th>成立するか</th><th>根拠</th></tr></thead>
+    <tbody>
+      <tr><td><b>Claude Code のみ</b></td><td><b><code>.gemini/</code> を生成しない選択肢は無い</b></td><td><code>install-to-project.sh</code> のオプションは <code>--dry-run</code> <code>--force</code> <code>--allow-dirty</code> <code>-h</code> の4つだけで、手順7は無条件に <code>sync-gemini-assets.sh</code> を呼ぶ。手で消しても再適用のたびに再生成される</td></tr>
+      <tr><td><b>Gemini CLI のみ</b></td><td><b><code>.claude/</code> は消せない</b></td><td><code>.claude</code> が <code>layer: core</code>、<code>AGENTS.md</code> が <code>seed</code> で常に配られる。加えて <code>.gemini/settings.json</code> の hook 6本が <code>$GEMINI_PROJECT_DIR/.claude/hooks/…</code> を指し、<code>GEMINI.md</code> → <code>@./AGENTS.md</code> → <code>@./.claude/rules/agent-common.md</code> を辿る</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h4>Q11-3: 手順7の失敗時の挙動（1回目の結論7の再確認）</h4>
+  <p><code>install-to-project.sh:905-923</code> を読み直した。<b>失敗しても中断しない設計は意図的</b>で、その理由がコメントに記録されている（「ここに到達した時点で core / seed / merge の配置は済んでおり、<code>.gemini/</code> が無いこと以外は完了している。中途半端な状態で止めるほうが害が大きい」）。警告は標準エラーへ出るが、<b>installer の終了コードは 0 のまま</b>である。</p>
+</section>
+
+<section id="unverified">
+  <h2>確かめられなかったこと</h2>
+  <ul>
+    <li><b>Gemini CLI 実機の挙動は一度も観測していない。</b> Q7 はすべて公式ドキュメントの読解である。ドキュメントと実装が食い違う可能性は残る。</li>
+    <li><b><code>.agents/skills/</code> を Claude Code が本当に読まないかは、実機で確かめていない。</b> 公式ドキュメントに記載が無いことを確認しただけである（記載が無い＝未対応、とは論理的には言えないが、<b>未文書の挙動に依存する設計は採れない</b>）。</li>
+    <li><b><code>.gemini/rules/</code> が読まれないことは、依然として「記載が無い」だけ</b>で、読まれないという証拠ではない。<code>hooks/</code> <code>scripts/</code> <code>docs/</code> も同じ性質である。</li>
+    <li><b>配布先での再適用は実行していない。</b> Q11 は <code>install-to-project.sh</code> と <code>dist-layers.json</code> を読んで導いた。</li>
+    <li><b>git bash（Windows）実機での確認はしていない。</b> 件数・バイト数は Linux 1環境のものである。</li>
+    <li><b><code>commands/*.toml</code> を持つ配布先が実在するかは調べていない。</b> 1回目の結論7が挙げた「自前の <code>.gemini/commands/*.toml</code>」は仕様上ありうるという話で、実例は確認していない。</li>
+  </ul>
+</section>
+
+<section id="next">
+  <h2>設計への反映</h2>
+  <div class="box stop">
+    <span class="label">この調査では判断していない</span>
+    <p>フェーズ3で下記1〜3を決める。</p>
+  </div>
+  <ol>
+    <li><b>論点2（読まれない4ディレクトリの扱い）。</b> 材料は結論5〜7。<b>4つ外すほうが3つ外すより軸2の被害が小さい（18→1）</b>という、フェーズ3の判断を変えうる結果が出ている。</li>
+    <li><b>論点3（<code>.agents/skills/</code>）。</b> 結論2により<b>成立しない</b>。この根拠を記録して閉じる。</li>
+    <li><b>依存の明示先。</b> 結論8により <code>GEMINI.md</code> が唯一の実効的な経路である。</li>
+    <li><b>論点1の決着（自立化しない理由）</b>を spec と新規DDR <code>i0172-01</code> へ（フェーズ4）。</li>
+    <li><b>フェーズ3レポートの訂正3件</b>（結論5-2・結論6・軸2の18件の性質）（フェーズ4）。</li>
+    <li><b><code>install-to-project.sh</code> に <code>.gemini/</code> 生成のスキップ手段が無いこと</b>を、現行の制約として記録するか別issueにするか（フェーズ4）。</li>
+  </ol>
+</section>
+
+<footer>issue #172 / PR #193 — 結果の正文は同名の <code>.md</code>。外部依存を持たない自己完結HTML。</footer>
+
+</div>
+</body>
+</html>
