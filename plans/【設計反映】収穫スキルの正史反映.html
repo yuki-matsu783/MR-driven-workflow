@@ -1,0 +1,153 @@
+<!--
+  個別反映計画「【設計反映】収穫スキルの正史反映」（issue #27）の人間レビュー用HTMLビュー。
+  正文は同名の .md（このHTMLはその視覚化。両者は同期させる）。
+-->
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>【設計反映】収穫スキルの正史反映 — issue #27</title>
+<style>
+  :root {
+    --bg: #f6f7f9;      --panel: #ffffff;   --ink: #1a1d21;     --muted: #5b636d;
+    --line: #dfe3e8;    --accent: #2563eb;  --accent-soft: #eaf0fe;
+    --ok: #1a7f4b;      --ok-soft: #e6f4ec; --warn: #a35a00;    --warn-soft: #fdf1e0;
+    --stop: #b3261e;    --stop-soft: #fdecea; --code-bg: #f0f2f5;
+    --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1216;    --panel: #161a20;   --ink: #e6e8eb;     --muted: #9aa3ad;
+      --line: #2a3038;  --accent: #7aa2f7;  --accent-soft: #1b2333;
+      --ok: #6ee7a8;    --ok-soft: #14261d; --warn: #f0b866;    --warn-soft: #2a2113;
+      --stop: #f2857c;  --stop-soft: #2b1614; --code-bg: #1d222a;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", system-ui, sans-serif;
+    line-height: 1.8; font-size: 15px; }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 20px 80px; }
+  header.band { background: linear-gradient(135deg, var(--accent-soft), var(--panel));
+    border-bottom: 1px solid var(--line); padding: 28px 20px 22px; margin-bottom: 28px; }
+  header.band .inner { max-width: 1080px; margin: 0 auto; }
+  header.band .kind { font-size: 11px; letter-spacing: .18em; color: var(--accent); font-weight: 700; }
+  header.band h1 { margin: 6px 0 4px; font-size: 26px; line-height: 1.4; }
+  header.band .lead { margin: 0; color: var(--muted); }
+  .meta { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; padding: 0; list-style: none; }
+  .meta li { background: var(--panel); border: 1px solid var(--line); border-radius: 999px;
+    padding: 3px 12px; font-size: 12.5px; color: var(--muted); white-space: nowrap; }
+  .meta li b { color: var(--ink); font-weight: 600; }
+  a { color: var(--accent); }
+  section { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 8px 24px 22px; margin-bottom: 22px; }
+  h2 { font-size: 20px; margin: 20px 0 10px; padding-bottom: 8px; border-bottom: 2px solid var(--line); }
+  h3 { font-size: 16px; margin: 22px 0 8px; color: var(--accent); }
+  p { margin: 10px 0; }
+  ul, ol { padding-left: 22px; }
+  li { margin: 4px 0; }
+  .tablewrap { overflow-x: auto; margin: 14px 0; }
+  table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 14px; }
+  th, td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: var(--accent-soft); font-weight: 600; white-space: nowrap; }
+  tbody tr:nth-child(even) td { background: color-mix(in srgb, var(--line) 22%, transparent); }
+  code { background: var(--code-bg); border-radius: 5px; padding: 1px 5px; font-size: 13px;
+    font-family: "SFMono-Regular", Consolas, "Noto Sans Mono", monospace; }
+  pre { background: var(--code-bg); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 12px 14px; overflow-x: auto; font-size: 13px; line-height: 1.65; }
+  pre code { background: none; padding: 0; }
+  .box { border-left: 4px solid var(--accent); background: var(--accent-soft);
+    border-radius: 0 var(--radius) var(--radius) 0; padding: 12px 16px; margin: 16px 0; }
+  .box > :first-child { margin-top: 0; } .box > :last-child { margin-bottom: 0; }
+  .box .label { font-size: 12px; font-weight: 700; letter-spacing: .06em; display: block; margin-bottom: 4px; }
+  .box.stop { border-color: var(--stop); background: var(--stop-soft); } .box.stop .label { color: var(--stop); }
+  footer { color: var(--muted); font-size: 13px; text-align: center; padding-top: 10px; }
+</style>
+</head>
+<body>
+
+<header class="band">
+  <div class="inner">
+    <div class="kind">個別反映計画 / フェーズ4</div>
+    <h1>【設計反映】収穫スキルの正史反映 — issue #27</h1>
+    <p class="lead">収穫スキルの実装で確定した仕様・意思決定を spec / DDR / usecase / ディレクトリ規約へ反映し、VERSION の増分を判断する。</p>
+    <ul class="meta">
+      <li><b>issue</b> #27</li>
+      <li><b>ブランチ</b> claude/ai-asset-reverse-import-skill-g4qa9s</li>
+      <li><b>PR</b> #189</li>
+      <li><b>フェーズ</b> 4〈反映〉 flow-id 4-1</li>
+      <li><b>作成日</b> 2026-08-23</li>
+      <li><b>正文</b> 同名の .md</li>
+    </ul>
+  </div>
+</header>
+
+<div class="wrap">
+
+<section id="premise">
+  <h2>前提（合意状況）</h2>
+  <ul>
+    <li>依拠する作業結果: <code>reports/2026-08-23_quiet-orchard-harvest_作業結果.md</code>（敵対的レビュー3・4回目の指摘反映済み。非対話セッションのため人間合意は未取得）。</li>
+    <li>非対話セッションのため、本計画のレビュー（4-3）は敵対的レビューで代替する（ユーザーの当初指示に基づく）。</li>
+  </ul>
+</section>
+
+<section id="target">
+  <h2>反映対象の洗い出し（flow-id 4-1 の本体）</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>#</th><th>反映対象</th><th>種別</th><th>出どころ</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td>spec 新規: <code>.claude/docs/spec/harvest-from-projects.md</code></td><td>新規</td><td>SKILL.md「制約」節の予告</td></tr>
+      <tr><td>2</td><td>DDR 新規: <code>i0027-01</code>（収穫スキルの設計判断）</td><td>新規</td><td>調査結果Q1〜Q8・レビュー1〜4回目</td></tr>
+      <tr><td>3</td><td>DDR 新規: <code>i0027-02</code>（エラー隔離の実測と規約訂正の根拠）</td><td>新規</td><td>敵対的レビュー4回目＋実測</td></tr>
+      <tr><td>4</td><td><code>.claude/rules/directory-structure.md</code> の <code>.claude/scripts/test/</code> の定義拡張</td><td>変更</td><td>実態（skills 配下スクリプトのテストも置いている）との不一致</td></tr>
+      <tr><td>5</td><td>usecase 新規: <code>配布先の改善を本家へ収穫したい.md</code>＋README usecase節</td><td>新規</td><td>issue #170 の運用</td></tr>
+      <tr><td>6</td><td><code>.claude/docs/README.md</code> の DDR 一覧再生成</td><td>再生成</td><td>issue #135（generate-ddr-list.sh）</td></tr>
+      <tr><td>7</td><td><code>.claude/VERSION</code> の増分判断（minor を提案）</td><td>判断</td><td>配布物（markdown-frontmatter.md・dist-layers.json）の変更</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p><code>check-doc-references.sh</code> は実行しない（DDRの改名・移動・削除が無い）。shell-script-style.md の訂正は <code>plans/【AIアセット反映】エラー方針の規約訂正.md</code> が担当（本計画は根拠 DDR <code>i0027-02</code> のみ）。</p>
+</section>
+
+<section id="approach">
+  <h2>主な内容</h2>
+  <h3>spec: harvest-from-projects.md</h3>
+  <p>背景・目的／仕様（scan 出力スキーマ・分類規則・縮退条件・conflict 判定・merge3 終了コード5値と層判定のフェイルクローズ・読み取り専用の保証・git 起動の一括化と quotepath / --no-renames）／影響範囲／未決定事項（Windows 実機未検証・実配布先の試運転・対話手順の通し実行）。</p>
+  <h3>DDR i0027-01</h3>
+  <p>出口は issue 起票まで（自動正史変更・自動PRは却下）／除外の正は配布先 dist-layers.json の1つだけ（check-ignore 併用は却下）／merge・seed・dist-layers.json は 3-way 対象外／層判定のフェイルクローズ。</p>
+  <h3>DDR i0027-02</h3>
+  <p>実測（bash 5.2.21）: <code>( f ) || rc=$?</code> も <code>if out="$(f)"</code> も errexit 一時停止が内部へ伝播し途中失敗が素通りする。採用: <code>set +e; ( set -e; f ); rc=$?; set -e</code>。却下: 全コマンドの個別検査（漏れやすい）。</p>
+  <h3>VERSION</h3>
+  <p>配布先の運用ルール（機構DDRは本家へ起票）が変わる後方互換の機能追加として minor 増分を提案（据え置き判断はレビューで覆してよい）。</p>
+</section>
+
+<section id="out-of-scope">
+  <h2>やらないこと（スコープ外）</h2>
+  <div class="box stop">
+    <span class="label">この計画では触らない</span>
+    <ul>
+      <li>shell-script-style.md の訂正（【AIアセット反映】計画が担当）。</li>
+      <li>既存 hook の実装修正（i0027-02 へ注記のみ。必要なら別 issue）。</li>
+      <li>実在配布先での試運転（マージ後の初回収穫。spec の未決定事項へ記載）。</li>
+    </ul>
+  </div>
+</section>
+
+<section id="verify">
+  <h2>検証</h2>
+  <pre><code>bash .claude/scripts/src/extract-frontmatter.sh . &gt;/dev/null
+jq -e 'select(.concept_id == ".claude/docs/spec/harvest-from-projects") | .frontmatter.type == "spec"' \
+  .claude/docs/spec/index.jsonl
+bash .claude/scripts/src/generate-ddr-list.sh && git diff --stat -- .claude/docs/README.md
+git add -A && bash .claude/scripts/src/check-dist-coverage.sh</code></pre>
+  <p>合格条件: frontmatter 問い合わせが true・DDR一覧の再実行で差分が出ない・check-dist-coverage 4検査OK。</p>
+</section>
+
+<footer>issue #27 / PR #189 — 計画の正文は同名の <code>.md</code>。外部依存を持たない自己完結HTML。</footer>
+
+</div>
+</body>
+</html>
