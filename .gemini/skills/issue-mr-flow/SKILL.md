@@ -446,7 +446,7 @@ grep -rn '<罠を表す語>' .claude/docs .claude/rules
   ファイル本体で見る（後続のDDRに置き換えられた決定を現役の根拠として引かないため。
   `.claude/rules/markdown-frontmatter.md`「DDRのstatus」）。
 
-段階3で見るのは**マージ済みPRのコミット一覧**である。flow-id 5-4 で `plans/` `worklog/` `reports/` を
+段階3で見るのは**マージ済みPRのコミット一覧**である。flow-id 5-5 で `plans/` `worklog/` `reports/` を
 削除してからsquash mergeするため、**過去MRの一次資料はdefaultブランチに残らない**（`git log` で
 探しても見つからないのはこのためで、「痕跡なし」の根拠にはならない）。`gh pr list --state merged
 --limit 10` 相当（CLI不在時は `mcp__github__list_pull_requests`）でPRを引き、タイトルと
@@ -493,10 +493,11 @@ descriptionを見る。**10件で打ち切る**のは、それ以上遡っても
   「そのときだけ効けばよい」知見は `skills` 側・`REVIEW-POINTS.md` 側へ寄せる。
 - **削除・統合も反映である。** 誤った記述の訂正 (b) は、書き足すのではなく**消す**ことが正しい
   場合がある。重複した記述を1箇所へ寄せる (d) も同じ。
-- **削除・統合を含めた回は、配布先に旧アセットが残る。** `install-to-project.sh` は上流で消えた
-  ファイルを配布先から削除しない（コピーのみ）。`.claude/VERSION` の扱いは
-  `.claude/docs/spec/distribution-assets.md` に従って判断する。**版を上げても配布先の旧アセットは
-  消えない**（得られるのは配布先が差に気づく手掛かりだけである）ことを承知して選ぶ。
+- **削除・統合を含めた回は、配布先に旧アセットが残る。** `install-to-project.sh` は上流で
+  削除・改名されたファイルを**一覧で提示するだけで、配布先からは削除しない**（消すかどうかは
+  配布先の人間の判断に委ねる。仕様: `.claude/docs/spec/asset-distribution.md`）。
+  `.claude/VERSION` の扱いは `.claude/docs/spec/distribution-assets.md`「人間の判断で据え置く
+  ことがある」に従って判断する。**版を上げても配布先の旧アセットは消えない**ことを承知して選ぶ。
 
 ### 計画と実施結果の分離（issue #87）
 
@@ -702,6 +703,10 @@ hookは多重防御であり、注入が無かったことは着手してよい�
      - `HANDOFF.md` ヘッダの `- 未返信スレッド:` と食い違う場合は、**取得した実物のほうが正**で
        ある。`update-handoff-progress.sh set-header --unreplied <n>` で合わせてから進む。
      - **0件でも、その事実を明示する**（無言で次へ進むと、確認したのか飛ばしたのかが残らない）。
+   - **指摘に含まれる行番号・件数は、対応する前に自分で数え直す。** 指摘の中身が正しいかどうかと
+     は別に、**数値だけが実測とずれていることがある**（issue #155 で実際に起きた）。ずれた数値を
+     そのまま採用すると、直した先のドキュメントへ誤りが固定される。数え直しのコストは `grep -n`
+     1回で、固定される損失と非対称である（観点の正は `reports/REVIEW-POINTS.md`「内容の妥当性」）。
 3. **同じレビュー往復の中でチャット（プロンプト）で受けた指摘・判断も、MRスレッド由来の
    コメントと同列のレビュー入力として洗い出す。** MRへ書かれた指摘だけをレビュー内容として
    扱うと、チャットで下された判断が成果物にだけ反映され、判断そのものと理由がどこにも
@@ -1352,6 +1357,7 @@ issue番号ベース（`i0133-01-…`）へ変わり、issue番号はGitHub/GitL
    source .claude/scripts/src/vcs/Provider.sh
    base="$(get_workflow_config | jq -r '.defaultBaseBranch')"
    git diff --stat "origin/${base}...HEAD" -- . ':(exclude)plans' ':(exclude)worklog' ':(exclude)reports'
+   git diff --stat "origin/${base}...HEAD" -- plans/REVIEW-POINTS.md reports/REVIEW-POINTS.md
    ```
 
    **`plans/` `worklog/` `reports/` は差分から除外する**（issue #112）。これらの片付けは
@@ -1359,6 +1365,19 @@ issue番号ベース（`i0133-01-…`）へ変わり、issue番号はGitHub/GitL
    まだ差分に含まれている。除外しないと、マージ後には残らないファイルの語（個別計画の種別名・
    worklogの見出し等）がキーワード抽出へ混ざり、通知先の判定を歪める。上記のpathspecを付けずに
    `git diff --stat` を見た場合は、これらのパスの行を読み飛ばすこと。
+
+   **ただし `plans/REVIEW-POINTS.md` と `reports/REVIEW-POINTS.md` は除外しない**（issue #155 で
+   実際に落とした）。この2つはそのディレクトリの直下にありながら**寿命が永続**で、flow-id 5-5 の
+   削除対象でもなく、**マージ後に残る**（`.claude/rules/docs-workflow.md`「ドキュメント運用」表）。
+   ディレクトリ単位で除外するとこの2ファイルだけがすり抜け、レビュー観点の変更が通知先の判定から
+   丸ごと落ちる（**除外はディレクトリ単位ではなくファイル単位で判断する**、という同ルールの
+   一般則の具体例）。
+
+   **`git diff` を2回に分けているのは、pathspecでは除外を打ち消せないためである**（実測:
+   `':(exclude)plans' 'plans/REVIEW-POINTS.md'` と並べても `plans/REVIEW-POINTS.md` は戻らない）。
+   1コマンドにまとめようとして、**出力へ現れるルート直下の `REVIEW-POINTS.md` を
+   `plans/REVIEW-POINTS.md` と読み違えない**こと（`grep 'REVIEW-POINTS'` は両方に当たるため、
+   打ち消せているように見える。issue #155 で実際に誤読しかけた）。
 
 2. **AIエージェントが検索キーワードを抽出する。** 差分（上記のとおり `plans/` `worklog/`
    `reports/` を除いたもの）に現れた機能名・関数名・ファイル名・概念語から、**最大5件**

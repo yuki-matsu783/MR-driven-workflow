@@ -1357,6 +1357,7 @@ issue番号ベース（`i0133-01-…`）へ変わり、issue番号はGitHub/GitL
    source .claude/scripts/src/vcs/Provider.sh
    base="$(get_workflow_config | jq -r '.defaultBaseBranch')"
    git diff --stat "origin/${base}...HEAD" -- . ':(exclude)plans' ':(exclude)worklog' ':(exclude)reports'
+   git diff --stat "origin/${base}...HEAD" -- plans/REVIEW-POINTS.md reports/REVIEW-POINTS.md
    ```
 
    **`plans/` `worklog/` `reports/` は差分から除外する**（issue #112）。これらの片付けは
@@ -1364,6 +1365,19 @@ issue番号ベース（`i0133-01-…`）へ変わり、issue番号はGitHub/GitL
    まだ差分に含まれている。除外しないと、マージ後には残らないファイルの語（個別計画の種別名・
    worklogの見出し等）がキーワード抽出へ混ざり、通知先の判定を歪める。上記のpathspecを付けずに
    `git diff --stat` を見た場合は、これらのパスの行を読み飛ばすこと。
+
+   **ただし `plans/REVIEW-POINTS.md` と `reports/REVIEW-POINTS.md` は除外しない**（issue #155 で
+   実際に落とした）。この2つはそのディレクトリの直下にありながら**寿命が永続**で、flow-id 5-5 の
+   削除対象でもなく、**マージ後に残る**（`.claude/rules/docs-workflow.md`「ドキュメント運用」表）。
+   ディレクトリ単位で除外するとこの2ファイルだけがすり抜け、レビュー観点の変更が通知先の判定から
+   丸ごと落ちる（**除外はディレクトリ単位ではなくファイル単位で判断する**、という同ルールの
+   一般則の具体例）。
+
+   **`git diff` を2回に分けているのは、pathspecでは除外を打ち消せないためである**（実測:
+   `':(exclude)plans' 'plans/REVIEW-POINTS.md'` と並べても `plans/REVIEW-POINTS.md` は戻らない）。
+   1コマンドにまとめようとして、**出力へ現れるルート直下の `REVIEW-POINTS.md` を
+   `plans/REVIEW-POINTS.md` と読み違えない**こと（`grep 'REVIEW-POINTS'` は両方に当たるため、
+   打ち消せているように見える。issue #155 で実際に誤読しかけた）。
 
 2. **AIエージェントが検索キーワードを抽出する。** 差分（上記のとおり `plans/` `worklog/`
    `reports/` を除いたもの）に現れた機能名・関数名・ファイル名・概念語から、**最大5件**
