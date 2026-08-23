@@ -19,6 +19,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - PR: #180 https://github.com/yuki-matsu783/MR-driven-workflow/pull/180（Draft）
 - push回数: 1
 - 現在のループ: なし
+- 未返信スレッド: 9
 - 追従監視: あり（ローカル／git bash。各pushの直後と作業再開時に `/resolve-conflict` を手動実行する）
 
 | 進捗 | flow-id | ステップ | 担当 |
@@ -61,10 +62,11 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 | [] | 4-10 | 反映内容をもとにMR descriptionを更新する | サブコマンド |
 | [] | 5-1 | defaultブランチとのコンフリクトを検知し解消する | エージェント |
 | [] | 5-2 | 関連issueへ承認を得てマージ前通知する | エージェント |
-| [] | 5-3 | 最終統括レポートを作成しPR/MRへサマリ投稿する | エージェント |
-| [] | 5-4 | plans/worklog/reportsを削除しHANDOFF.mdをリセット | エージェント |
-| [] | 5-5 | commitしpushしてDraftを解除する | エージェント |
-| [] | 5-6 | マージする | 人間 |
+| [] | 5-3 | .claude/の変更を.gemini/へ変換同期する | エージェント |
+| [] | 5-4 | 最終統括レポートを作成しPR/MRへサマリ投稿する | エージェント |
+| [] | 5-5 | plans/worklog/reportsを削除しHANDOFF.mdをリセット | エージェント |
+| [] | 5-6 | commitしpushしてDraftを解除する | エージェント |
+| [] | 5-7 | マージする | 人間 |
 
 ## やったこと
 
@@ -79,11 +81,29 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
   を作成した。**md と HTML の節見出しがずれていたため、md 側をテンプレートの節構成へ揃え直した**
   （`plans/REVIEW-POINTS.md` のHTML版の観点）。
 
+- flow-id 2-2: 計画一式をコミット（`2d58ac4`）してリモートへ反映した。
+  **敵対的レビューをフェーズ2で1回実施**（`adversarial-review-count.sh get 2` → 1）し、
+  12件の指摘のうち**9件をPR #180 へインライン投稿**、3件は確度・重大度により報告のみに留めた。
+  投稿したスレッド（すべて返信ゼロ。返信は flow-id 2-4 で行う）:
+  - https://github.com/yuki-matsu783/MR-driven-workflow/pull/180#discussion_r3837775808
+  - https://github.com/yuki-matsu783/MR-driven-workflow/pull/180#discussion_r3837775809
+  - https://github.com/yuki-matsu783/MR-driven-workflow/pull/180#discussion_r3837775811
+  - https://github.com/yuki-matsu783/MR-driven-workflow/pull/180#discussion_r3837775812
+  - https://github.com/yuki-matsu783/MR-driven-workflow/pull/180#discussion_r3837775814
+  - https://github.com/yuki-matsu783/MR-driven-workflow/pull/180#discussion_r3837775817
+  - https://github.com/yuki-matsu783/MR-driven-workflow/pull/180#discussion_r3837775818
+  - https://github.com/yuki-matsu783/MR-driven-workflow/pull/180#discussion_r3837775820
+  - https://github.com/yuki-matsu783/MR-driven-workflow/pull/180#discussion_r3837775821
+- 追従監視: `main`（PR #157）を取り込み、`HANDOFF.md` の追記コンフリクトを**類型C（両方を残す）**
+  として自動解消した。あわせて**フェーズ5のflow-idが繰り下がった**（5-3 に `.gemini/` 変換同期が
+  新設され、以降が1つずつ後ろへ）ため、進捗表を 5-1〜5-7 へ書き換えた。
+
 ## 次にやること
 
-- flow-id 2-2: commit・pushしてレビュー依頼を出し、**計画に対する敵対的レビューを1回**実行する
-  （指摘はMRへインライン投稿する）。そのあと人間のレビュー（2-3）を待つ。
-- 敵対的レビューが投稿した指摘への**返信は flow-id 2-4 のループで行う**（投稿直後には返信しない）。
+- flow-id 2-3: 人間によるレビューを待つ。
+- flow-id 2-4: 敵対的レビューが投稿した9スレッドへ**すべて返信する**（対応したものにも、
+  対応しないと判断したものにも理由を返信する）。`- 未返信スレッド:` が 0 になるまで、
+  ループ範囲への `mark-done` は拒否される。
 
 ## 判断を迷った内容
 
