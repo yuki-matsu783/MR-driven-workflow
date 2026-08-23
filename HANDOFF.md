@@ -17,8 +17,8 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - issue: #160 issue-mr-flow/SKILL.md を references/ へ分割し、参照ファイルを読むタイミングを全体フロー表とSessionStart hookで機械的に決める
 - ブランチ: claude/skill-split-references-z17fw4
 - PR: #161 https://github.com/yuki-matsu783/MR-driven-workflow/pull/161（Draft）
-- push回数: 6
-- 現在のループ: 3-6〜3-9 の1周目（進行中）
+- push回数: 7
+- 現在のループ: なし
 - 追従監視: 購読あり（web。subscribe_pr_activity + 自己チェックイン）
 
 | 進捗 | flow-id | ステップ | 担当 |
@@ -48,7 +48,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 | [] | 3-7 | commitしpushしてレビュー依頼 | エージェント |
 | [] | 3-8 | 実装のレビュー | 人間 |
 | [] | 3-9 | レビュー内容を取得し実装・ドキュメントを修正 | `comments` / `reply` |
-| [] | 3-10 | MR descriptionを更新 | `describe` |
+| [x] | 3-10 | MR descriptionを更新 | `describe` |
 | [] | 4-1 | 個別反映計画を作成する | エージェント |
 | [] | 4-2 | commitしpushしてレビュー依頼 | エージェント |
 | [] | 4-3 | 反映計画のレビュー | 人間 |
@@ -151,10 +151,16 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
   `reports/20260823_split-issue-mr-flow-skill-into-references_作業.md`「敵対的レビュー
   （フェーズ3・2回目）への対応」。
 
+- 3-9の対応を4コミットに分けてpushし（push 7回目）、投稿済み10スレッドへ返信した。
+- flow-id 3-10: MR description を更新した。**フェーズ3〈作業〉はここで完了**。
+
 ## 次にやること
 
-- 3-9の対応を commit・push し、投稿済み10スレッドへ返信する。
-- flow-id 3-10: describe（MR description更新）→ フェーズ4（個別反映計画 → spec/DDR反映）へ。
+- フェーズ4: flow-id 4-1 個別反映計画（`plans/【設計反映】〜.md`＋`.html`）→ 4-2 commit・push →
+  敵対的レビュー（フェーズ4・1回目=計画）→ 4-6 反映実施（spec更新・DDR `i0160-01` 新規作成・
+  `generate-ddr-list.sh`）→ 4-7 commit・push → 敵対的レビュー（フェーズ4・2回目=結果）→ 4-10 describe。
+- フェーズ5: 5-1〜5-5（5-2 の関連issue通知は投稿前に `AskUserQuestion` が必須のため、
+  非対話環境では通知をスキップし、その判断を記録する）。
 - flow-id 5-6（マージ）はユーザーからの明示的な指示があるまで実行しない。
 
 
