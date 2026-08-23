@@ -129,8 +129,8 @@
   <table>
     <thead><tr><th>#</th><th>問い</th><th>結論</th><th>根拠の性質</th></tr></thead>
     <tbody>
-      <tr><td>1</td><td>Q1: テンプレート構造に言及するドキュメントはどこか</td><td><b>フェーズ3で直すのは reports.template.html 1本のみ</b>。パス言及20ファイル（.claude/ 10・.gemini/ 10）＋節名言及4ファイルを全件仕分けした。spec 3101行目とDDR 2件はpoint-in-time記録のため書き換えず、specへはフェーズ4で新規エントリを追記する</td><td>grep・frontmatterインデックスの実測（計画の検証コマンド4本）</td></tr>
-      <tr><td>2</td><td>Q2: 何を残し何を変えるか</td><td><b>節名は全維持</b>（参照3系統との矛盾回避）。「重点レビュー依頼」を新設（冒頭）、サマリを色分け結論カードへ改修、「確かめられなかったこと」をサマリ直後へ移動（詳細は各章のcallout）。章IDは f1〜連番、scroll-margin-top で位置ずれ対策</td><td>テンプレート全文とissue受け入れ条件の突き合わせ</td></tr>
+      <tr><td>1</td><td>Q1: テンプレート構造に言及するドキュメントはどこか</td><td><b>フェーズ3で直すのは reports.template.html 1本のみ</b>。仕分け表14行＝1（本体。検索ヒット外）＋10（.claude/ のパス言及）＋3（節名言及のみ）。.gemini/ の10ファイルは生成物として一括扱い（個別行を持たない）。spec 3101行目と<b>DDR 3件</b>（i0054-01・i0111-01・i0155-01）はpoint-in-time記録のため書き換えず、specへはフェーズ4で新規エントリを追記する</td><td>grep・frontmatterインデックスの実測（計画の検証コマンド4本）</td></tr>
+      <tr><td>2</td><td>Q2: 何を残し何を変えるか</td><td><b>節名は全維持</b>（節名変更で矛盾しうる生きた参照は planning.md:280 と reports/REVIEW-POINTS.md:15-16 の2系統。spec changelog・DDRはpoint-in-time記録で制約にならない）。「重点レビュー依頼」を新設（冒頭）、サマリを色分け結論カードへ改修、「確かめられなかったこと」をサマリ直後へ移動（一覧は全項目を保持し、詳細のみ各章のcallout）。章IDは f1〜連番、scroll-margin-top＋リンク破断検査で担保</td><td>テンプレート全文とissue受け入れ条件の突き合わせ</td></tr>
       <tr><td>3</td><td>Q3: 色の設計</td><td><b>良＝青は新トークン --good/--good-soft</b>（アクセント色と分離）、注意＝既存 --warn、問題＝既存 --stop。緑（--ok）は「決めたこと」box用として存続し結論色には使わない。記号◎△✕＋1文字ラベルを必ず併記（色覚多様性への配慮）</td><td>既存トークンの使用箇所の確認＋設計判断</td></tr>
       <tr><td>4</td><td>Q4: フェーズごとの読み替え</td><td><b>「重点レビュー依頼」は全フェーズで意味が通る</b>（統括のみ「マージ判断で見てほしい点」へ読み替えコメントを添える）。前半移動後の「確かめられなかったこと」一覧は統括では残存分のみ、の従来運用を維持</td><td>フローの各flow-id定義の読解</td></tr>
     </tbody>
@@ -152,21 +152,27 @@
   <h2>実施した内容と結果</h2>
 
   <h3>1. Q1: 参照箇所の全列挙と仕分け（14行の仕分け表）</h3>
-  <p>パス言及は20ファイル（<code>.claude/</code> 10・<code>.gemini/</code> 10・ルート0）、節名言及は5箇所・4ファイル。重複を統合した仕分け表14行の全行が「直す／直さない／書き換えない（point-in-time）」のいずれかに分類できた（表の全体は正文mdを参照）。</p>
+  <p>パス言及は20ファイル（<code>.claude/</code> 10・<code>.gemini/</code> 10・ルート0。走査範囲は <code>.claude/ .gemini/ *.md</code> で <code>reports/</code> は範囲外）、節名言及は5箇所・4ファイル。仕分け表14行の内訳は <b>1（本体。自分自身へのパス言及を持たないため検索ヒット外）＋10（.claude/ のパス言及全件）＋3（節名言及のみ: planning.md・i0155-01・reports/REVIEW-POINTS.md）</b>で、パス言及10/10・節名言及4/4（issue-mr-workflow.md はパス言及行へ統合）をカバーする。走査範囲外の <code>reports/REVIEW-POINTS.md</code> 38行目のパス言及（自己完結CSS制約）は個別確認で補完した（表の全体は正文mdを参照）。</p>
   <pre><code>$ grep -rln --include='*.md' --include='*.sh' --include='*.html' -e 'reports\.template\.html' .claude/ .gemini/ *.md | wc -l
 20
-$ grep -rn ...（節名5種）... .claude/ *.md reports/REVIEW-POINTS.md | cut -d: -f1 | sort -u
-.claude/docs/ddr/i0155-01-…md / .claude/docs/spec/issue-mr-workflow.md / .claude/skills/issue-mr-flow/references/planning.md / reports/REVIEW-POINTS.md</code></pre>
+$ grep -rn --include='*.md' --include='*.sh' \
+    -e 'サマリ（結論の一覧）' -e '確かめられなかったこと' -e '設計への反映' \
+    -e '想定と異なった点' -e '実施条件（測った対象・環境）' \
+    .claude/ *.md reports/REVIEW-POINTS.md | cut -d: -f1 | sort -u
+.claude/docs/ddr/i0155-01-AIアセット反映の対象は4類型への分類と痕跡の確認で洗い出す.md
+.claude/docs/spec/issue-mr-workflow.md
+.claude/skills/issue-mr-flow/references/planning.md
+reports/REVIEW-POINTS.md</code></pre>
   <div class="box ok">
     <span class="label">結論</span>
-    フェーズ3で変更するのは <code>reports.template.html</code> 1本。<code>.gemini/</code> はflow-id 5-3の再生成で追随（手編集しない）。spec・DDRのpoint-in-time記録は書き換えず、specへの反映はフェーズ4の新規changelogエントリで行う。
+    フェーズ3で変更するのは <code>reports.template.html</code> 1本。<code>.gemini/</code> はflow-id 5-3の再生成で追随（手編集しない）。spec・DDR 3件のpoint-in-time記録は書き換えず、specへの反映はフェーズ4の新規changelogエントリで行う。
   </div>
 
   <h3>2. Q2: 節ごとの維持／移動／改修／新設</h3>
-  <p>節名を参照する3系統（planning.md 280行目・reports/REVIEW-POINTS.md 15-16行目・spec 3101行目）が全て現節名を前提とするため、<b>節名は全維持</b>し、並び順と内部構造だけを変える。新しい節順: ヘッダ帯（結論件数チップ追加）→ 目次 → <b>重点レビュー依頼（新設）</b> → サマリ（色分け結論カードへ改修）→ <b>確かめられなかったこと（前半へ移動・一覧化）</b> → 実施条件 → 実施した内容と結果（章ID f1〜・性質チップ・未確認詳細callout）→ 設計への反映 → 想定と異なった点 → 残課題。</p>
+  <p>節名変更で矛盾しうる<b>生きた参照は2系統</b>（planning.md 280行目・reports/REVIEW-POINTS.md 15-16行目。spec 3101行目とDDR i0155-01はpoint-in-time記録で制約にならない）のため、<b>節名は全維持</b>し、並び順と内部構造だけを変える。planning.md の手順1が読むのは reports の<b>md側</b>で今回変えるのはHTMLテンプレートのみであり、HTML側でも「確かめられなかったこと」は一覧として全項目を保持する（詳細のみ各章のcallout）ため、洗い出しの入力は痩せない。<b>改修後の節順</b>: ヘッダ帯（結論件数チップ追加）→ 目次 → <b>重点レビュー依頼（新設）</b> → サマリ（色分け結論カードへ改修）→ <b>確かめられなかったこと（前半へ移動・一覧化）</b> → 実施条件 → 実施した内容と結果（章ID f1〜・性質チップ・未確認詳細callout）→ 設計への反映 → 想定と異なった点 → 残課題（現行順: 目次→サマリ→実施条件→実施した内容と結果→確かめられなかったこと→設計への反映→想定と異なった点→残課題）。</p>
   <div class="box ok">
     <span class="label">結論</span>
-    受け入れ条件のうち「各行から該当節へリンク」は現行でもコメント指示として存在するが実マークアップの規則が無かった。新テンプレートは結論カードに <code>href="#f1"</code> 形式の実例を持たせ、指示との二重化を防ぐ。
+    受け入れ条件のうち「各行から該当節へリンク」は現行でもコメント指示として存在するが実マークアップの規則が無かった。新テンプレートは結論カードに <code>href="&#35;f1"</code> 形式の実例を持たせ、指示との二重化を防ぐ。あわせて<b>リンク破断検査</b>（href参照先IDの存在確認コマンド。出力0行が合格）をフェーズ3の検証条件とテンプレートコメントへ新設する（コード例で href 断片を引用するときは <code>#</code> を <code>&amp;#35;</code> と書き検査に当てない）。
   </div>
 
   <h3>3. Q3: 色トークン設計</h3>
@@ -182,7 +188,7 @@ $ grep -rn ...（節名5種）... .claude/ *.md reports/REVIEW-POINTS.md | cut -
   </div>
   <div class="box ok">
     <span class="label">結論</span>
-    <code>--good</code> をアクセント色から分離して新設。緑（<code>--ok</code>）は「決めたこと」box専用として残し、結論の性質には使わない（issueの指定は青。緑青併用は「良かった」の表現が2系統に割れる）。色・記号・ラベル・並び順（問題→注意→良）の4重で判別可能にする。
+    <code>--good</code> をアクセント色から分離して新設。緑（<code>--ok</code>）は「決めたこと」の <code>.box.ok</code> 専用として残し、結論の性質には使わない（issueの指定は青。緑青併用は「良かった」の表現が2系統に割れる）。現テンプレートに定義済みの緑チップ <code>.tag.ok</code>（本体では未使用）は削除し、チップは結論性質（良／注意／問題）専用へ作り替える。色・記号・ラベル・並び順（問題→注意→良）の4重で判別可能にする。
   </div>
 
   <h3>4. Q4: フェーズごとの読み替え</h3>
