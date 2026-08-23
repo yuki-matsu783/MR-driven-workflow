@@ -51,8 +51,8 @@ CONTEXT_SIZE_WARN_BYTES="${CONTEXT_SIZE_WARN_BYTES:-8000}"
 
 # HANDOFF.mdの進捗表の行を判定・分解する正規表現。
 # **`.claude/scripts/src/update-handoff-progress.sh` の ROW_RE と同一のリテラルの複製**
-# （issue #160）。source で共有すると、あちらの set -euo pipefail がこのhookへ効いて
-# fail-open 設計（set -e 無し）が壊れ、双方が定義する main も後勝ちで上書きされるため、
+# （issue #160）。source で共有すると、あちらの冒頭で宣言される set -euo pipefail がこの
+# hookへも効き、fail-open 設計（set -e 無し。判定に失敗しても注入を止めない）が壊れるため、
 # 複製した上で両者の一致を test_session_start.sh が表明する。変更は両方を同時に直すこと。
 ROW_RE='^(\|[[:space:]]*)(\[[^\|]*\])([[:space:]]*\|[[:space:]]*([0-9]+-[0-9]+)[[:space:]]*\|.*)$'
 
@@ -149,6 +149,13 @@ current_flow_id_to_reply() {
   local -a marks=() fids=()
   while IFS= read -r line; do
     [[ "$line" =~ $ROW_RE ]] || continue
+    # 進捗セルが [x] / [] / [-] のちょうど1つでない行（旧表記 [x][x][] 等）を見つけたら、
+    # 解決全体を諦める（fail-open）。旧表記は移行前のHANDOFF.md・配布先に存在しうるが、
+    # *x* の部分一致で読むと進行中のループ範囲を完了扱いにし、誤ったflow-idを注入してしまう。
+    case "${BASH_REMATCH[2]}" in
+      '[x]'|'[]'|'[-]') ;;
+      *) return 0 ;;
+    esac
     marks+=("${BASH_REMATCH[2]}")
     fids+=("${BASH_REMATCH[4]}")
   done < "$file"
@@ -191,6 +198,13 @@ refs_for_flow_id_to_reply() {
       }
     }
   ' "$file" 2>/dev/null)"
+  # 抽出値の形を検証する。awkは FS="|" ＋固定列番号で分解するため、セル内に \|（markdownの
+  # 表で正当なパイプのエスケープ）が入るとフィールドがずれ、別の列の値が「参照」として
+  # 返ってしまう。「`references/<名前>.md` を ` / ` で並べた形」か「—」以外は捨てる（fail-open）。
+  local ref_re='^`references/[A-Za-z0-9._-]+\.md`( / `references/[A-Za-z0-9._-]+\.md`)*$'
+  if [ "$REPLY" != "—" ] && ! [[ "$REPLY" =~ $ref_re ]]; then
+    REPLY=''
+  fi
   return 0
 }
 
@@ -351,6 +365,9 @@ build_work_context() {
         "${CLAUDE_PROJECT_DIR}/.claude/skills/issue-mr-flow/SKILL.md" "$flow_id"
       refs="$REPLY"
       if [ -n "$refs" ] && [ "$refs" != "—" ]; then
+        # 表のセルはSKILL.mdからの相対表記（`references/…`）のため、注入時はリポジトリ
+        # ルートからReadへそのまま渡せる完全パスへ直す（値の形は関数側で検証済み）。
+        refs="${refs//\`references/\`.claude/skills/issue-mr-flow/references}"
         refs_line="現在地 flow-id ${flow_id} の実行前に開く参照: ${refs}"
       fi
     fi
