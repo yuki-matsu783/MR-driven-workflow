@@ -1,0 +1,338 @@
+<!--
+  全体作業計画（issue #151）のHTMLビュー。
+  正文は同名の .md（wip/plans/session-start-user-utterance-reinject.md）で、このHTMLはその視覚化。
+  外部依存を持たない自己完結HTML。
+-->
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<!-- ページタイトル -->
+<title>全体作業計画 — ユーザー発言の再注入（issue #151）</title>
+<style>
+  :root {
+    --bg: #f6f7f9;      --panel: #ffffff;   --ink: #1a1d21;     --muted: #5b636d;
+    --line: #dfe3e8;    --accent: #2563eb;  --accent-soft: #eaf0fe;
+    --ok: #1a7f4b;      --ok-soft: #e6f4ec; --warn: #a35a00;    --warn-soft: #fdf1e0;
+    --stop: #b3261e;    --stop-soft: #fdecea; --code-bg: #f0f2f5;
+    --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1216;    --panel: #161a20;   --ink: #e6e8eb;     --muted: #9aa3ad;
+      --line: #2a3038;  --accent: #7aa2f7;  --accent-soft: #1b2333;
+      --ok: #6ee7a8;    --ok-soft: #14261d; --warn: #f0b866;    --warn-soft: #2a2113;
+      --stop: #f2857c;  --stop-soft: #2b1614; --code-bg: #1d222a;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", system-ui, sans-serif;
+    line-height: 1.8; font-size: 15px;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 20px 80px; }
+
+  /* 共通ヘッダ帯 */
+  header.band {
+    background: linear-gradient(135deg, var(--accent-soft), var(--panel));
+    border-bottom: 1px solid var(--line); padding: 28px 20px 22px; margin-bottom: 28px;
+  }
+  header.band .inner { max-width: 1080px; margin: 0 auto; }
+  header.band .kind { font-size: 11px; letter-spacing: .18em; color: var(--accent); font-weight: 700; }
+  header.band h1 { margin: 6px 0 4px; font-size: 26px; line-height: 1.4; }
+  header.band .lead { margin: 0; color: var(--muted); }
+  .meta { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; padding: 0; list-style: none; }
+  .meta li {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 999px;
+    padding: 3px 12px; font-size: 12.5px; color: var(--muted); white-space: nowrap;
+  }
+  .meta li b { color: var(--ink); font-weight: 600; }
+
+  nav.toc {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 14px 20px; margin-bottom: 28px;
+  }
+  nav.toc h2 { margin: 0 0 8px; font-size: 13px; letter-spacing: .08em; color: var(--muted); border: 0; padding: 0; }
+  nav.toc ol { margin: 0; padding-left: 20px; }
+  nav.toc li { margin: 2px 0; }
+  a { color: var(--accent); }
+
+  section {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 8px 24px 22px; margin-bottom: 22px;
+  }
+  h2 { font-size: 20px; margin: 20px 0 10px; padding-bottom: 8px; border-bottom: 2px solid var(--line); }
+  h3 { font-size: 16px; margin: 22px 0 8px; color: var(--accent); }
+  p { margin: 10px 0; }
+  ul, ol { padding-left: 22px; }
+  li { margin: 4px 0; }
+  blockquote { margin: 10px 0; padding: 6px 14px; border-left: 3px solid var(--line); color: var(--muted); }
+
+  /* 表は自身の中で横スクロールする（ページ本体は横スクロールさせない） */
+  .tablewrap { overflow-x: auto; margin: 14px 0; }
+  table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 14px; }
+  th, td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: var(--accent-soft); font-weight: 600; white-space: nowrap; }
+  tbody tr:nth-child(even) td { background: color-mix(in srgb, var(--line) 22%, transparent); }
+
+  code {
+    background: var(--code-bg); border-radius: 5px; padding: 1px 5px; font-size: 13px;
+    font-family: "SFMono-Regular", Consolas, "Noto Sans Mono", monospace;
+  }
+  pre {
+    background: var(--code-bg); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 12px 14px; overflow-x: auto; font-size: 13px; line-height: 1.65;
+  }
+  pre code { background: none; padding: 0; }
+
+  /* 注意ボックス: info（既定）/ ok（決めたこと）/ warn（注意）/ stop（やらないこと・危険） */
+  .box { border-left: 4px solid var(--accent); background: var(--accent-soft);
+         border-radius: 0 var(--radius) var(--radius) 0; padding: 12px 16px; margin: 16px 0; }
+  .box > :first-child { margin-top: 0; } .box > :last-child { margin-bottom: 0; }
+  .box .label { font-size: 12px; font-weight: 700; letter-spacing: .06em; display: block; margin-bottom: 4px; }
+  .box.ok { border-color: var(--ok); background: var(--ok-soft); } .box.ok .label { color: var(--ok); }
+  .box.warn { border-color: var(--warn); background: var(--warn-soft); } .box.warn .label { color: var(--warn); }
+  .box.stop { border-color: var(--stop); background: var(--stop-soft); } .box.stop .label { color: var(--stop); }
+  .box.info .label { color: var(--accent); }
+
+  .tag { display: inline-block; border-radius: 999px; padding: 1px 9px; font-size: 12px; font-weight: 600; }
+  .tag.ok { background: var(--ok-soft); color: var(--ok); }
+  .tag.warn { background: var(--warn-soft); color: var(--warn); }
+  .tag.stop { background: var(--stop-soft); color: var(--stop); }
+
+  footer { color: var(--muted); font-size: 13px; text-align: center; padding-top: 10px; }
+</style>
+</head>
+<body>
+
+<header class="band">
+  <div class="inner">
+    <div class="kind">全体作業計画 / フェーズ1（flow-id 1-4）</div>
+    <h1>compact後もユーザーの直近発言をSessionStart hookで再注入する</h1>
+    <p class="lead">SessionStart hook が transcript からユーザーの生の入力を抽出し、<b>先頭3件＋直近7件</b>を有界なサイズで <code>additionalContext</code> へ再注入する。compact の要約に依存せず「何を頼まれたか」を保つ。</p>
+    <ul class="meta">
+      <li><b>issue</b> #151</li>
+      <li><b>ブランチ</b> claude/user-recent-utterance-reinject-9ygbxd</li>
+      <li><b>PR</b> #197</li>
+      <li><b>フェーズ</b> 1〈起点〉 flow-id 1-4</li>
+      <li><b>作成日</b> 2026-08-23</li>
+      <li><b>正文</b> 同名の .md</li>
+    </ul>
+  </div>
+</header>
+
+<div class="wrap">
+
+<nav class="toc">
+  <h2>目次</h2>
+  <ol>
+    <li><a href="#goal">この計画で何をするか</a></li>
+    <li><a href="#premise">前提（合意状況）</a></li>
+    <li><a href="#target">変更対象</a></li>
+    <li><a href="#approach">方針</a></li>
+    <li><a href="#phase-research">フェーズ2〈調査〉</a></li>
+    <li><a href="#phase-apply">フェーズ4〈反映〉</a></li>
+    <li><a href="#out-of-scope">やらないこと（スコープ外）</a></li>
+    <li><a href="#verify">検証</a></li>
+    <li><a href="#criteria">issueの受け入れ条件との対応</a></li>
+    <li><a href="#options">比較検討した案</a></li>
+  </ol>
+</nav>
+
+<section id="goal">
+  <h2>この計画で何をするか</h2>
+  <p><code>.claude/hooks/session-start.sh</code> に、<b>ユーザーが自分の言葉で打った入力の抜粋</b>を
+  <code>additionalContext</code> へ足す項目を1つ追加する。抽出元は hook が stdin で受け取る JSON の
+  <code>transcript_path</code>（JSONL）である。</p>
+  <p>compact の要約は「何を残すか」を指定できないため、依頼・制約・除外条件が言い換えや圧縮で歪む・落ちる。
+  <b>生の文字列を少量だけ持ち込む</b>ことで、要約の精度に依存せず「何を頼まれたか」を保つ。
+  issue #57（DDR i0057-01）が入れた「compact後の現在地の再注入」の延長にあたる。</p>
+</section>
+
+<section id="premise">
+  <h2>前提（合意状況）</h2>
+  <ul>
+    <li>issue #151 本文が、実 transcript に対する事前確認（人間の入力は <code>type=="user"</code> かつ
+      <code>.message.content</code> が文字列の行／hook の注入は <code>type:"attachment"</code> で混ざらない／
+      transcript は追記専用）を済ませている。<b>まだ人間のレビュー合意は得ていない</b>（flow-id 1-5 が未了）。</li>
+    <li>起票時の初期案「頭100文字 × 最大20件」に対し、<b>本セッションでユーザーから方針変更の指示</b>
+      （「最初の3件のうち意味のありそうなもの＋直近7件のうち意味のありそうなもの、最大合計10件」）があった。
+      本計画はこれを採用し、下記「方針」で3点を上乗せして提案する。</li>
+  </ul>
+</section>
+
+<section id="target">
+  <h2>変更対象</h2>
+  <p>領域の粒度で示す（個別のファイル・行はフェーズ3の個別作業計画で確定させる）。</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>ファイル</th><th>操作</th><th>何をするか</th></tr></thead>
+    <tbody>
+      <tr><td><code>.claude/hooks/session-start.sh</code></td><td>変更</td><td>抽出・整形の純粋関数を追加し、<code>main</code> から <code>transcript_path</code> を渡して注入テキストへ連結する</td></tr>
+      <tr><td><code>.claude/scripts/test/test_session_start.sh</code></td><td>変更</td><td>純粋関数の単体テスト（合成フィクスチャJSONL＋実 transcript での確認）</td></tr>
+      <tr><td><code>.claude/docs/spec/issue-mr-workflow.md</code></td><td>変更</td><td>「セッション開始時の自動コンテキスト注入」節へ、注入項目・上限・fail-open を追記</td></tr>
+      <tr><td><code>.claude/docs/ddr/i0151-01-….md</code></td><td>新規</td><td>採用案（先頭3＋直近7・頭＋末尾の切り出し・しきい値の扱い）と却下案</td></tr>
+      <tr><td><code>.gemini/</code> 配下</td><td>変更（見込み）</td><td>flow-id 5-3 の変換同期で自動生成（手で編集しない）</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="approach">
+  <h2>方針</h2>
+
+  <h3>採用する選定ロジック（ユーザー案＋3点の上乗せ）</h3>
+  <p>ユーザー案「<b>先頭3件＋直近7件、最大合計10件</b>」を採用する。中盤を捨てるのは、セッション中盤が
+  「ok」「次へ」「それで」といった往復に偏り、同じ枠を使うなら<b>先頭（＝要件定義）と直近（＝現在地）</b>へ
+  寄せたほうが1件あたりの情報量が高いためである。そのうえで次の3点を上乗せする。</p>
+  <ol>
+    <li><b>「先頭」は、現在のブランチに絞ったうえでの先頭とする。</b>
+      <code>gitBranch</code> が現在のブランチと一致する行だけを母集団にすると、「先頭3件」が
+      <b>このタスクでの最初の依頼</b>を指すようになり、別タスクの発言が枠を食う問題（issue本文の論点2）も
+      同時に解ける。<b>一致行が0件のときだけ絞りを外す</b>（ブランチ作成前の発言しか無いセッション・
+      <code>gitBranch</code> 欠落への fail-open）。</li>
+    <li><b>切り出しは「頭M文字」ではなく「頭M文字＋末尾M′文字」にする。</b>
+      制約・除外条件は末尾に来やすい（「ただし〜はしない」「〜は触らないで」）。頭だけでは、
+      この機能が守ろうとしているものをまさに落とす（issue本文の論点4）。</li>
+    <li><b>先頭3件は厚く、直近7件は薄く配分する。</b>
+      初期値は<b>先頭3件＝頭120字＋末尾40字／直近7件＝頭80字＋末尾30字</b>とし、フェーズ2で実データにあてて調整する。</li>
+  </ol>
+
+  <p>「意味のありそうなもの」（issue本文の論点3）は、次の<b>除外規則</b>として実装する。</p>
+  <ul>
+    <li>文字数がしきい値未満で、<b>かつ</b>既知の相槌パターン（<code>ok</code> / はい / お願い / 続けて / ありがとう 等）に一致するもの。
+      <b>短いだけでは落とさない</b>（「ダメ、やり直して」のような短くて重要な指示があるため）。</li>
+    <li>引数の無いスラッシュコマンド単体（<code>/compact</code> <code>/commit</code> 等）。
+      <b>引数付き（<code>/issue-mr-flow start 151</code>）は残す</b>（何に着手したかの情報を持つため）。</li>
+    <li><code>&lt;command-name&gt;</code> <code>&lt;local-command-stdout&gt;</code> 等、CLI の展開結果で始まる行。</li>
+  </ul>
+
+  <h3>サイズの扱い（issue本文の論点5）</h3>
+  <ul>
+    <li>件数と1件あたりの文字数を固定するため、<b>この項目のバイト数は設計上有界</b>である。
+      さらに節全体のバイト上限（初期値 4000 バイト）を置き、超えたら<b>直近側の古いものから落とす</b>。</li>
+    <li><b><code>CONTEXT_SIZE_WARN_BYTES</code> の対象には含めない。</b> このしきい値は
+      「HANDOFF.md や計画が整理されないまま膨らみ続けている」ことを検知して<b>人間に整理を促す</b>ためのもので、
+      整理のしようが無く有界な項目を分母へ入れると、誤った警告が常時鳴る。実装上は <code>main</code> で
+      <code>append_size_warning</code> を適用した<b>後</b>にこの節を連結する。</li>
+  </ul>
+
+  <div class="box warn">
+    <span class="label">既存の記述を置き換える場合</span>
+    <b>本計画に「既存の記述の置き換え」は含まない。</b> <code>session-start.sh</code> への変更は
+    <code>build_work_context</code> と並ぶ<b>新しい項目の追加</b>であり、既存の注入項目（ブランチ／issue／PR／
+    未解決コメント件数／HANDOFF.md「次にやること」／SKILL.md 再読み込み指示）はいずれも文言・条件を変えない。
+    唯一の例外が <code>main</code> における <code>append_size_warning</code> の適用順で、これは
+    <b>置換ではなく連結位置の変更</b>のため、フェーズ3の個別作業計画で置換前・置換後の形を示す。
+  </div>
+
+  <h3>実装上の制約（規約からの持ち込み）</h3>
+  <ul>
+    <li><b>transcript は数MBになりうるため、内容を <code>--argjson</code>/<code>--arg</code> で jq へ渡さない。</b>
+      ファイルパスを渡して <code>jq -R -n</code> ＋ <code>inputs</code> で jq 側に読ませる。</li>
+    <li><b>jq 呼び出しは1回に集約する</b>（行ごとに jq を起動しない）。</li>
+    <li>複数行の値をコマンド置換で受けるため、<b><code>tr -d '\r'</code> を挟む</b>。</li>
+    <li>抽出・整形の中核は<b>副作用の無い純粋関数</b>として切り出し、<code>source</code> して直接呼べるようにする。</li>
+  </ul>
+</section>
+
+<section id="phase-research">
+  <h2>フェーズ2〈調査〉</h2>
+  <p><b>実施する。</b> 数値（件数・文字数・除外規則）は実データにあてないと決められないため。</p>
+  <ol>
+    <li>hook が受け取る stdin JSON に <code>transcript_path</code> は含まれるか。実体はどこにあり、行数・バイト数はどの程度か。</li>
+    <li>実 transcript に対し、issue 本文の抽出条件で何件取れるか。tool_result・hook 注入・サブエージェント由来が混ざらないことを実データで確認できるか。</li>
+    <li><code>gitBranch</code> はどの行にも入っているか。ブランチ絞りをかけたときの残存件数は。</li>
+    <li>抽出できた発言の<b>文字数分布</b>はどうか。頭120字＋末尾40字で何割が全文に収まるか。</li>
+    <li>相槌・スラッシュコマンドは実際に何割を占めるか。除外規則の初期値で過剰除去・除去漏れは起きないか。</li>
+    <li>先頭3＋直近7を上記の配分で切り出したときの<b>実測バイト数</b>は。4000 バイトの上限に収まるか。既存の注入量（実測 1.2KB）と合算しても運用上問題ないか。</li>
+    <li><code>jq -R -n</code> ＋ <code>inputs</code> 方式で、実 transcript のサイズでも所要時間が許容範囲か。</li>
+  </ol>
+  <p><b>何が分かれば次へ進めるか</b>: 上記 1〜6 が数値で埋まり、件数・文字数・除外規則の初期値が確定すること。</p>
+</section>
+
+<section id="phase-apply">
+  <h2>フェーズ4〈反映〉</h2>
+  <p><b>反映対象は flow-id 4-1 で洗い出す。</b> 現時点の見込み候補は次のとおり（確定した反映内容ではない）。</p>
+  <ul>
+    <li><code>.claude/docs/spec/issue-mr-workflow.md</code>「セッション開始時の自動コンテキスト注入」節</li>
+    <li>DDR <code>i0151-01</code>（選定ロジック・切り出し方・しきい値の扱いと、却下案）</li>
+    <li>作業中に気づいた AI アセット（ルール・スキル）の不備</li>
+  </ul>
+</section>
+
+<section id="out-of-scope">
+  <h2>やらないこと（スコープ外）</h2>
+  <div class="box stop">
+    <span class="label">この計画では決めない・触らない</span>
+    <ul>
+      <li><code>PreCompact</code> hook 経路での実装 — DDR i0057-01 で却下済み（<code>additionalContext</code> を持たない）</li>
+      <li>起動要因（startup/resume/clear/compact）ごとの分岐 — 「取れた分だけ出す」設計で自然に解決する（issue本文の論点6）</li>
+      <li>ユーザー発言の<b>全文</b>保存・外部ファイルへの退避 — 本 issue の目的は「少量・有界な再注入」。別 issue の領域</li>
+      <li>AI（assistant）側の発言の再注入 — issue 本文が対象を「ユーザーの生の入力」に限っている</li>
+      <li>transcript の書き換え・削除 — transcript は追記専用の外部資産であり、本機構は読み取りのみ</li>
+    </ul>
+  </div>
+</section>
+
+<section id="verify">
+  <h2>検証</h2>
+  <pre><code>bash .claude/scripts/test/test_session_start.sh
+bash .claude/scripts/src/sync-gemini-assets.sh --check</code></pre>
+  <p>合格条件（issue 全体として）:</p>
+  <ul>
+    <li><code>test_session_start.sh</code> が <code>passed=N failures=0</code> で通る。</li>
+    <li>実 transcript（本ブランチのもの）に対して抽出関数を直接呼び、出力が目視で妥当であること
+      （<b>合成フィクスチャのみで完了としない</b>）。</li>
+    <li>注入テキスト全体のバイト数を実測し、通常運用で <code>CONTEXT_SIZE_WARN_BYTES</code> の警告が常時鳴らないこと。</li>
+    <li><code>transcript_path</code> を空・不正なパス・壊れた JSON にしても、他の項目の注入が続くこと（fail-open）。</li>
+    <li><code>sync-gemini-assets.sh --check</code> が差分なしで通る（flow-id 5-3）。</li>
+  </ul>
+</section>
+
+<section id="criteria">
+  <h2>issueの受け入れ条件との対応</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>受け入れ条件</th><th>この計画での対応箇所</th></tr></thead>
+    <tbody>
+      <tr><td>compact 後のセッションで、直近のユーザー入力の冒頭が <code>additionalContext</code> に含まれる</td><td>方針「採用する選定ロジック」</td></tr>
+      <tr><td>tool_result・hook の注入テキスト・サブエージェント由来の行が混入しない</td><td>フェーズ2 の問い2（実データ確認）</td></tr>
+      <tr><td>相槌・スラッシュコマンド起動が枠を消費しない</td><td>方針「意味のありそうなもの」の除外規則</td></tr>
+      <tr><td>注入量がバイト数で有界であり、警告が常時鳴らない</td><td>方針「サイズの扱い」</td></tr>
+      <tr><td>読み取り・抽出に失敗しても他の項目の注入が続く</td><td>方針の fail-open ／ 検証節</td></tr>
+      <tr><td>抽出ロジックが純粋関数として単体テストできる</td><td>方針「実装上の制約」</td></tr>
+      <tr><td>起動要因ごとの分岐を増やしていない</td><td>やらないこと</td></tr>
+      <tr><td>spec を更新し、採用案・却下案を DDR として記録している</td><td>フェーズ4〈反映〉</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="options">
+  <h2>比較検討した案</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>案</th><th>利点</th><th>採否と理由</th></tr></thead>
+    <tbody>
+      <tr><td>先頭3件＋直近7件（最大10件）／ブランチ絞り／頭＋末尾</td><td>要件定義と現在地の両端を押さえつつ、枠あたりの情報量が高い</td><td><span class="tag ok">採用</span> ユーザー指示を基礎に、ブランチ絞り・頭＋末尾・配分の3点を上乗せ</td></tr>
+      <tr><td>直近20件を均等に頭100文字（issue 本文の初期案）</td><td>実装が単純</td><td><span class="tag stop">却下</span> 中盤の往復（「ok」「次」）が枠を食い、1件あたりの情報量が低い</td></tr>
+      <tr><td>直近10件のみ</td><td>実装が最も単純</td><td><span class="tag stop">却下</span> 長いセッションでは<b>最初の依頼</b>（最も歪んでほしくないもの）が落ちる</td></tr>
+      <tr><td>全発言から文字数の多い順に上位N件</td><td>情報量の多い発言を拾える</td><td><span class="tag stop">却下</span> 貼り付けたログ・エラー出力が上位を占め、依頼が押し出される</td></tr>
+      <tr><td>頭のみM文字で切る</td><td>実装が単純</td><td><span class="tag stop">却下</span> 末尾に書かれがちな制約・除外条件を落とす（issue本文の論点4）</td></tr>
+      <tr><td>ブランチ絞りをかけない</td><td>実装が単純／取りこぼしが無い</td><td><span class="tag stop">却下</span> セッションがブランチをまたぐと、別タスクの発言が「先頭3件」を占める</td></tr>
+      <tr><td>ブランチ絞りを常に強制する</td><td>混入がゼロになる</td><td><span class="tag stop">却下</span> 一致0件のときに何も出せない。0件時のみ絞りを外すフォールバックを採る</td></tr>
+      <tr><td>この項目も <code>CONTEXT_SIZE_WARN_BYTES</code> の分母へ入れる</td><td>注入量の総量を1つの値で見られる</td><td><span class="tag stop">却下</span> 有界かつ整理不能な項目のため、「整理せよ」という誤った警告が常時鳴る</td></tr>
+      <tr><td>しきい値を引き上げる（8000→12000 等）</td><td>警告が鳴らなくなる</td><td><span class="tag stop">却下</span> 本来検知したい「HANDOFF.md の肥大化」の感度を下げる</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<footer>issue #151 / PR #197 — 計画の正文は同名の <code>.md</code>。外部依存を持たない自己完結HTML。</footer>
+
+</div>
+</body>
+</html>
