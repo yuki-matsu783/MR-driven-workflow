@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 # .claude/hooks/post-issue-create-notice.sh の単体テスト（issue #39で新設）。
-# ネットワーク・git操作を伴わない純粋関数（is_issue_create_call / write_additional_context）と、
-# 「sourceしても本体が実行されない」ことを検証する。
+# ネットワーク・git操作を伴わない純粋関数（is_issue_create_call / write_additional_context /
+# raw_hints_at_issue_create）と、「sourceしても本体が実行されない」ことを検証する。前置フィルタ
+# （issue #159）はsourceして直接呼ぶ単体テストに加え、main()冒頭で実際に呼ばれ、jqより前に
+# 足切りされることは関数の存在だけでは保証できないため、サブプロセス起動＋スタブjqでも検証する。
 # 規約: passed=N failures=N を標準出力へ出し、失敗があれば終了コード1
 #       （.claude/rules/shell-script-style.md「テスト」。test_session_start.sh を雛形にした）。
 # 実行: bash .claude/scripts/test/test_post_issue_create_notice.sh
@@ -74,6 +76,39 @@ assert_eq "issue_writeでもmethod=updateは対象外" "1" \
 assert_eq "issue_write以外のMCPツールは対象外" "1" \
   "$(detect 'mcp__github__create_pull_request' '' 'create')"
 
+# --- raw_hints_at_issue_create（前置フィルタの純粋関数。issue #159） ---
+hints() {
+  if raw_hints_at_issue_create "$1"; then
+    printf '0'
+  else
+    printf '1'
+  fi
+}
+assert_eq "create-issue.shを含む生JSONは通過する" "0" \
+  "$(hints '{"tool_input":{"command":".claude/scripts/src/create-issue.sh --title x"}}')"
+assert_eq "issue_writeを含む生JSONは通過する" "0" \
+  "$(hints '{"tool_name":"mcp__github__issue_write","tool_input":{"method":"create"}}')"
+assert_eq "無関係な生JSONは足切りされる" "1" "$(hints '{"tool_input":{"command":"git status"}}')"
+assert_eq "空文字列は足切りされる" "1" "$(hints '')"
+# CommandPosition.sh の正規化はバックスラッシュを落とすため（block-direct-git-commit.sh と
+# 同じ理由）、is_issue_create_call が将来コマンド位置判定へ差し替わっても超集合であり続けるよう、
+# 前置フィルタもバックスラッシュ分割・大文字小文字を吸収する。
+assert_eq "create-\\issue.shのようにバックスラッシュで分割されていても通過する" "0" \
+  "$(hints '{"tool_input":{"command":"bash .claude/scripts/src/create-\\issue.sh --title x"}}')"
+assert_eq "大文字のCREATE-ISSUE.SHでも通過する" "0" \
+  "$(hints '{"tool_input":{"command":"bash .claude/scripts/src/CREATE-ISSUE.SH --title x"}}')"
+# 注意: is_issue_create_call の現行CLI経路判定（単純な部分一致）は "create-issue.sh" という
+# 語自体にJSONエスケープを要する文字を含まないため、下記のJSON化テストは「現行の超集合関係を
+# 保つために必須」ではない。block-direct-git-commit.sh の raw_hints_at_git_commit と同じ
+# 正規化（JSONエスケープ列の除去）をここにも入れているのは、issue #149着手時に
+# is_issue_create_call がコマンド位置判定へ差し替わった場合に備えた前倒しの安全マージンで
+# あり、その正規化がJSONエンコードをまたいでも壊れずに動くことを確認する目的で置く
+# （block-direct-git-commit.sh側で見つかった反例と同じ壊れ方をしないことの確認）。
+create_issue_line_cont_cmd=$'bash .claude/scripts/src/create-\\\nissue.sh --title x'
+create_issue_line_cont_payload="$(jq -nc --arg c "$create_issue_line_cont_cmd" '{tool_input:{command:$c}}')"
+assert_eq "create-\\<改行>issue.shのようにバックスラッシュ+改行で分割されていても通過する（#149着手時の安全マージン確認）" "0" \
+  "$(hints "$create_issue_line_cont_payload")"
+
 # --- 注意文の内容 ---
 assert_contains "注意文が同一セッションでのstart抑止に言及する" "$NOTICE_TEXT" '/issue-mr-flow start'
 assert_contains "注意文が新しいセッションでの実行を勧める" "$NOTICE_TEXT" '新しいセッション'
@@ -90,6 +125,78 @@ assert_eq "hookEventNameがPostToolUse" "PostToolUse" \
   "$(printf '%s' "$context_json" | jq -r '.hookSpecificOutput.hookEventName' | tr -d '\r')"
 assert_eq "additionalContextへ注意文がそのまま入る" "$NOTICE_TEXT" \
   "$(printf '%s' "$context_json" | jq -r '.hookSpecificOutput.additionalContext' | tr -d '\r')"
+
+# --- 前置フィルタ（issue #159）: main()冒頭の read + case による足切り ---
+# raw_hints_at_issue_create 自体は上でsourceして直接テスト済みだが、main()冒頭で実際に
+# 呼ばれ、jqより前に足切りされることは関数の存在だけでは保証できないため、hookスクリプトを
+# サブプロセスとして起動して確認する。スタブjqは「呼ばれたらマーカーへ書いてから失敗する」
+# ことで、足切りされたペイロードでjqが1回も呼ばれないことを時間計測ではなく呼び出し有無
+# そのもので確認する。
+hook="$repo_root/.claude/hooks/post-issue-create-notice.sh"
+stub_dir="$(mktemp -d)"
+trap 'rm -rf "$stub_dir"' EXIT
+cat > "$stub_dir/jq" <<'EOF'
+#!/usr/bin/env bash
+echo "called" >> "$STUB_JQ_MARKER"
+exit 1
+EOF
+chmod +x "$stub_dir/jq"
+
+run_with_stub_jq_to_reply() {
+  local payload="$1"
+  local marker; marker="$(mktemp -u)"
+  : > "$marker"
+  local exit_code=0
+  printf '%s' "$payload" | PATH="$stub_dir:$PATH" STUB_JQ_MARKER="$marker" \
+    bash "$hook" >/dev/null 2>/dev/null || exit_code=$?
+  REPLY_EXIT="$exit_code"
+  if [[ -s "$marker" ]]; then
+    REPLY_JQ_CALLED=1
+  else
+    REPLY_JQ_CALLED=0
+  fi
+  rm -f "$marker"
+}
+
+notice_payload() {
+  # $1=tool_name $2=command $3=method
+  jq -nc --arg tn "$1" --arg cmd "$2" --arg m "$3" \
+    '{tool_name: $tn, tool_input: {command: $cmd, method: $m}}'
+}
+
+run_with_stub_jq_to_reply "$(notice_payload 'Bash' 'git status' '')"
+assert_eq "起票と無関係なコマンドはjqを呼ばない" "0" "$REPLY_JQ_CALLED"
+assert_eq "起票と無関係なコマンドはexit 0" "0" "$REPLY_EXIT"
+
+run_with_stub_jq_to_reply ""
+assert_eq "空入力はjqを呼ばない" "0" "$REPLY_JQ_CALLED"
+
+run_with_stub_jq_to_reply "$(notice_payload 'mcp__github__create_pull_request' '' 'create')"
+assert_eq "issue_write以外のMCPツールはjqを呼ばない" "0" "$REPLY_JQ_CALLED"
+
+run_with_stub_jq_to_reply "$(notice_payload 'Bash' 'bash .claude/scripts/src/create-issue.sh --title x' '')"
+assert_eq "CLI経路（create-issue.sh）はjqを呼ぶ" "1" "$REPLY_JQ_CALLED"
+
+run_with_stub_jq_to_reply "$(notice_payload 'Bash' 'cd /repo && bash .claude/scripts/src/create-issue.sh --title x' '')"
+assert_eq "語が連続しない複合コマンドでもjqを呼ぶ" "1" "$REPLY_JQ_CALLED"
+
+run_with_stub_jq_to_reply "$(notice_payload 'mcp__github__issue_write' '' 'create')"
+assert_eq "MCP経路（issue_write, method=create）はjqを呼ぶ" "1" "$REPLY_JQ_CALLED"
+
+run_with_stub_jq_to_reply "$(notice_payload 'mcp__github__issue_write' '' 'update')"
+assert_eq "MCP経路はmethodの値に関わらずjqを呼ぶ（前置フィルタは足切りでmethodまでは絞らない）" "1" "$REPLY_JQ_CALLED"
+
+# --- 超集合性: 実際のjqを使い、精密判定まで到達して注意文が注入されるか ---
+run_hook_real() {
+  # $1=tool_name $2=command $3=method 。戻り値 REPLY_STDOUT
+  REPLY_STDOUT="$(notice_payload "$1" "$2" "$3" | bash "$hook")"
+}
+
+run_hook_real 'Bash' 'bash .claude/scripts/src/create-issue.sh --title x' ''
+assert_contains "CLI経路は実際に注意文を注入する" "$REPLY_STDOUT" 'additionalContext'
+
+run_hook_real 'Bash' 'git status' ''
+assert_eq "無関係なコマンドは何も出力しない" "" "$REPLY_STDOUT"
 
 echo "passed=$passed failures=$failures"
 [[ "$failures" -eq 0 ]]
