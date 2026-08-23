@@ -58,15 +58,23 @@ review_points_ancestor_dirs() {
   done
 }
 
-# 観点表からYAML frontmatterと先頭のH1見出しを取り除いて出力する。
+# 観点表からYAML frontmatter・先頭のH1見出し・HTMLコメントを取り除いて出力する。
 # マージ後の出力では `## <パス>` を各観点表の見出しとして使うため、frontmatter（機械可読の
 # メタデータ）とH1（frontmatterのtitleと重複する）はそのまま連結すると読みにくいため除く。
-strip_frontmatter_and_h1() {
+#
+# **HTMLコメントも除く**（issue #26）。`REVIEW-POINTS.local.md` の雛形は「このファイルは誰の
+# 所有か・どう収集されるか」という使い方の説明をHTMLコメントで持つが、これは観点ではない。
+# 落とさないと、配布先が何も書かなくても4箇所（ルート・.claude・plans・reports）ぶんの
+# 定型文が観点表へ混ざり、突き合わせようのない項目としてレビュー側の手間になる。
+strip_frontmatter_h1_and_comments() {
   awk '
-    BEGIN { fm = 0; h1 = 0; started = 0 }
+    BEGIN { fm = 0; h1 = 0; started = 0; cmt = 0 }
     NR == 1 && $0 == "---" { fm = 1; next }
     fm == 1 && $0 == "---" { fm = 0; next }
     fm == 1 { next }
+    # HTMLコメント。1行で閉じる場合と複数行にまたがる場合の両方を落とす。
+    cmt == 1 { if (index($0, "-->") > 0) { cmt = 0 } next }
+    /<!--/ { if (index($0, "-->") == 0) { cmt = 1 } next }
     h1 == 0 && /^# / { h1 = 1; next }
     started == 0 && /^[ \t]*$/ { next }
     { started = 1; print }
@@ -74,7 +82,7 @@ strip_frontmatter_and_h1() {
 }
 
 main() {
-  local repo_root rel dir found=0 file
+  local repo_root rel dir found=0 file prefix base body skipped_empty=0
   local -a dirs=()
   local -A seen=()
 
@@ -99,18 +107,39 @@ main() {
 
   # 浅い順（`/` の個数順）に並べ替える。ファイルを渡した順序に依存せず、常に
   # 「一般 → 具体」の順で出力するため。
+  # 同じディレクトリで、本家の観点表（REVIEW-POINTS.md）→ 配布先固有（REVIEW-POINTS.local.md）
+  # の順に出す。**スキップの単位はディレクトリではなくファイルである**（issue #26）。
+  # ディレクトリ単位で `continue` すると、本家の観点表が無く .local だけあるディレクトリ
+  # （配布先が src/ や internal/ へ自分の観点を置く、.local の最も典型的な使い方）が
+  # 丸ごと無視される。
   while IFS= read -r dir; do
     if [ "$dir" = "." ]; then
-      rel="REVIEW-POINTS.md"
+      prefix=""
     else
-      rel="$dir/REVIEW-POINTS.md"
+      prefix="$dir/"
     fi
-    [ -f "$rel" ] || continue
-    found=1
-    printf '## %s\n\n' "$rel"
-    strip_frontmatter_and_h1 "$rel"
-    printf '\n'
+    for base in "REVIEW-POINTS.md" "REVIEW-POINTS.local.md"; do
+      rel="${prefix}${base}"
+      [ -f "$rel" ] || continue
+      body="$(strip_frontmatter_h1_and_comments "$rel")"
+      # **中身が空の観点表は出さない。** 配布直後の REVIEW-POINTS.local.md は雛形のままで
+      # 観点を1つも持たないため、見出しだけが並んで読み手の手間になる。
+      # 無言で捨てず、件数は標準エラーへ出す（標準出力は呼び出し側が観点表として読む）。
+      if [ -z "$body" ]; then
+        skipped_empty=$((skipped_empty + 1))
+        continue
+      fi
+      found=1
+      printf '## %s\n\n' "$rel"
+      printf '%s\n' "$body"
+      printf '\n'
+    done
   done < <(printf '%s\n' "${dirs[@]}" | awk '{print gsub("/", "/") "\t" $0}' | sort -k1,1n -k2,2 | cut -f2-)
+
+  if [ "$skipped_empty" -gt 0 ]; then
+    printf '注意: 観点を1つも持たない観点表を %s 件スキップしました（雛形のままの REVIEW-POINTS.local.md 等）\n' \
+      "$skipped_empty" >&2
+  fi
 
   [ "$found" -eq 1 ] || return 0
 }

@@ -57,8 +57,11 @@ KEEP_PATHS=()
 # `wip/plans/REVIEW-POINTS.md` `wip/reports/REVIEW-POINTS.md` は、これらのディレクトリ配下にあるが
 # タスク単位の成果物ではなく、そのディレクトリに対する永続のレビュー観点である（issue #77。
 # `.claude/rules/docs-workflow.md`「ドキュメント運用」表・`.claude/docs/spec/adversarial-review.md`）。
+# `REVIEW-POINTS.local.md` は配布先が自分の観点を書くファイル（layer=seed）。本家が1回だけ
+# 空雛形を置き、以後は触らない。ここへ載せないと flow-id 5-4 で毎タスク消える（issue #26）。
 readonly -a KEEP_BASENAMES=(
   "REVIEW-POINTS.md"
+  "REVIEW-POINTS.local.md"
 )
 
 # HANDOFF.mdのリセット後の内容（見出しと、ヘッダ行の雛形だけを残した次タスク向けテンプレート）。

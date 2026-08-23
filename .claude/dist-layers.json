@@ -1,0 +1,73 @@
+{
+  "schemaVersion": 1,
+  "upstream": true,
+  "entries": [
+    { "layer": "core", "path": ".claude",
+      "note": "機構本体。配布先が書き換えると本家の更新で壊れる。以下2件が例外" },
+    { "layer": "merge", "path": ".claude/settings.json", "strategy": "json-keys",
+      "keys": ["hooks", "permissions.deny"],
+      "note": "hooksは本家所有（全置換）、permissions.denyは和集合。plansDirectory等は配布先所有" },
+    { "layer": "exclude", "path": ".claude/skills/apply-mr-workflow-to-project",
+      "note": "配ると配布先が本家として再配布でき、版の系譜が分岐する" },
+
+    { "layer": "exclude", "path": ".gemini",
+      "note": "issue #70で.claude/からの変換生成物になった。配布先の.claude/から作らないと食い違うため配らず、install-to-project.shが配布先でsync-gemini-assets.shを実行して生成する" },
+
+    { "layer": "core", "path": ".github", "note": "issue/PRテンプレート。見出しがstart・describeと機能的に結合" },
+    { "layer": "core", "path": ".gitlab", "note": "同上" },
+
+    { "layer": "core", "path": "REVIEW-POINTS.md", "note": "観点表は本家所有。配布先固有は.local側" },
+    { "layer": "core", "path": "CLAUDE.md",
+      "note": "seedだとimportの書き方が変わったとき配布先へ届かず、共通ルールが無言で読まれなくなる" },
+    { "layer": "core", "path": "GEMINI.md", "note": "同上" },
+
+    { "layer": "seed", "path": "AGENTS.md",
+      "source": ".claude/skills/apply-mr-workflow-to-project/assets/AGENTS.md.template",
+      "requiredLine": "@./.claude/rules/agent-common.md",
+      "note": "共通ルールのimport＋プロジェクト概要。概要は配布先が書くため汎用雛形を配る。requiredLine は移行の検知用。issue #26 以前は本家のAGENTS.md全文（共通ルール9項目を含む）がそのまま配られていたため、seedのまま再適用すると agent-common.md と共通ルールが二重化する。行が無ければ再適用時に一覧で知らせる" },
+    { "layer": "seed", "path": "HANDOFF.md",
+      "source": ".claude/skills/apply-mr-workflow-to-project/assets/HANDOFF.md.template",
+      "note": "受け入れ条件3が明示（再適用で上書きしない）。source が無いと本家の作業中の引継ぎメモがそのまま配られ、seed なので二度と訂正されない。中身は cleanup-task.sh の HANDOFF_TEMPLATE と同一で、一致は test_cleanup_task.sh が表明する" },
+    { "layer": "seed", "path": "index.md",
+      "source": ".claude/skills/apply-mr-workflow-to-project/assets/index.md.template",
+      "note": "Repository Map。配布先の構成を反映する。source が無いと本家のマップがそのまま配られる" },
+    { "layer": "seed", "path": ".mrworkflow.json", "note": "ブランチ命名規則・ディレクトリ位置を配布先が書き換える" },
+
+    { "layer": "merge", "path": ".gitignore", "strategy": "lines-marker",
+      "header": "# mr-driven-develop workflow ignores" },
+    { "layer": "merge", "path": ".gitattributes", "strategy": "lines-marker",
+      "header": "# mr-driven-develop workflow attributes" },
+
+    { "layer": "exclude", "path": "README.md", "note": "本家（テンプレート）固有の説明" },
+    { "layer": "exclude", "path": "DEVELOPERS.md", "note": "同上" },
+    { "layer": "exclude", "path": "考えたこと.md", "note": "本家固有のメモ" },
+
+    { "layer": "local", "path": "wip/plans", "note": "タスク単位の作業状態" },
+    { "layer": "core", "path": "wip/plans/REVIEW-POINTS.md" },
+    { "layer": "local", "path": "wip/worklogs", "note": "同上" },
+    { "layer": "core", "path": "wip/worklogs/TEMPLATE.md", "note": "worklogの雛形。issue #26の受け入れ条件" },
+    { "layer": "local", "path": "wip/reports", "note": "同上" },
+    { "layer": "core", "path": "wip/reports/REVIEW-POINTS.md" },
+
+    { "layer": "seed", "path": "REVIEW-POINTS.local.md",
+      "source": ".claude/skills/apply-mr-workflow-to-project/assets/REVIEW-POINTS.local.md.template",
+      "note": "配布先固有の観点。空雛形を1回だけ置き、以後本家は触らない" },
+    { "layer": "seed", "path": ".claude/REVIEW-POINTS.local.md",
+      "source": ".claude/skills/apply-mr-workflow-to-project/assets/REVIEW-POINTS.local.md.template" },
+    { "layer": "seed", "path": "wip/plans/REVIEW-POINTS.local.md",
+      "source": ".claude/skills/apply-mr-workflow-to-project/assets/REVIEW-POINTS.local.md.template" },
+    { "layer": "seed", "path": "wip/reports/REVIEW-POINTS.local.md",
+      "source": ".claude/skills/apply-mr-workflow-to-project/assets/REVIEW-POINTS.local.md.template" },
+
+    { "layer": "local", "gitignorePattern": ".vscode/", "note": "配布先の好み。dist:begin〜dist:end の外に置いてあるので配られない" },
+    { "layer": "local", "gitignorePattern": "*.log", "note": "同上" },
+    { "layer": "local", "gitignorePattern": "参考ディレクトリ", "note": "このリポジトリの成り立ちに固有（移植元の名残）。同じく dist:begin〜dist:end の外" },
+    { "layer": "local", "gitignorePattern": "/usage/", "note": "対応工数レポートのローカル作業状態" },
+    { "layer": "local", "gitignorePattern": "/.claude/state/", "note": "前回push時点のHEAD SHA" },
+    { "layer": "local", "gitignorePattern": "**/index.jsonl", "note": "frontmatterインデックス（生成物）" },
+    { "layer": "local", "gitignorePattern": "*.stackdump", "note": "MSYSのクラッシュダンプ" },
+    { "layer": "local", "gitignorePattern": ".claude/docs/.ddr-list.*", "note": "DDR一覧のキャッシュ" },
+    { "layer": "local", "gitignorePattern": "/.claude/settings.local.json",
+      "note": "OTelリスナーのローカル設定（環境依存値）。雛形は .claude/settings.local.json.example" }
+  ]
+}

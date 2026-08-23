@@ -20,8 +20,13 @@ keywords: [directory, repository-map, リポジトリマップ, ディレクト�
     - [./.claude/docs/spec/](./.claude/docs/spec/) 機能ごとの正史仕様（最新の仕様を上書き更新）。
     - [./.claude/docs/ddr/](./.claude/docs/ddr/) 意思決定ログ（DDR: Design Decision Record。追記のみ）。
   - [./.claude/rules/](./.claude/rules/) AI向け詳細ルール（コーディング規約・ディレクトリ構成・ドキュメント運用等）。
+    - [./.claude/rules/agent-common.md](./.claude/rules/agent-common.md) AIエージェント共通ルールの実体。
+      `AGENTS.md`・`CLAUDE.md`・`GEMINI.md` はこのファイルを `@import` するだけで、**共通ルールの正はここ**
+      （issue #26。3つのファイルへ写しを持たせないため）。
   - [./.claude/skills/](./.claude/skills/) `/issue-mr-flow`（唯一の実装フロー定義）・`/commit`
-    ・`/issue-create`・`/resolve-conflict`・`/canvas-report`・`/doc-search` のスキル定義。
+    ・`/issue-create`・`/resolve-conflict`・`/canvas-report`・`/doc-search`
+    ・`/apply-mr-workflow-to-project`（この機構を他プロジェクトへ配布する。issue #26）
+    ・`/adversarial-review`・`/review-points` のスキル定義。
   - [./.claude/agents/](./.claude/agents/) サブエージェント定義（issue-mr-flow途中引き継ぎ用）。
   - [./.claude/scripts/](./.claude/scripts/) AIエージェントが`.claude/skills/*`経由で能動的に実行するスクリプト一式。
     - [./.claude/scripts/src/](./.claude/scripts/src/) issue駆動MRワークフロー支援スクリプト等（bash）。
@@ -46,7 +51,8 @@ keywords: [directory, repository-map, リポジトリマップ, ディレクト�
 - [./.gitlab/merge_request_templates/](./.gitlab/merge_request_templates/) GitLab用MRテンプレート（`Default.md`。内容はGitHub用PRテンプレートと同一）。
 - [./.gitattributes](./.gitattributes) 改行コードの正規化。`*.sh text eol=lf`が`.sh`のLFを保証する（`# --- dist:begin ---`〜`# --- dist:end ---`の行だけが配布先へも追記される）。
 - [./.claude/VERSION](./.claude/VERSION) 配布物の版（SemVer 1行）。更新規則は`.claude/docs/spec/distribution-assets.md`。
-- `./build/` ビルド成果物の出力先。`.gitignore` 対象でコミットしない（通常は空）。**Git管理下に実体を持たないためリンクにしていない**（`.gitignore`の`/build/`対象で、ビルド時に動的に作成される）。
+- [./.claude/dist-layers.json](./.claude/dist-layers.json) 配布アセットの層分け定義（`core`/`seed`/`merge`/`local`/`exclude`）。**何をどう配るかの単一の正**。網羅性は`.claude/scripts/src/check-dist-coverage.sh`が検査する。
+- `.claude/.asset-manifest.json` **配布先にだけ生成される**ため、このリポジトリには実体が無い（上記のリンクと違い、リンクにしていないのはこのため）。配布した版・ファイルごとのsha256を記録し、再適用時に上流の更新と配布先の改変を区別する材料になる（仕様: `.claude/docs/spec/asset-distribution.md`）。
 
 `wip/reports/`（`日付_<全体計画名>_<内容を簡潔に>.md` が調査結果・作業結果・反映結果の正文で、個別計画へ
 結果を書かないための分離先。同名の `.html` はその内容を視覚的にまとめた報告用の自己完結HTML）・

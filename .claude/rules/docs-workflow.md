@@ -43,11 +43,13 @@ keywords: [wip, plans, handoff, worklogs, 正史仕様, 意思決定ログ, ラ�
 （`wip/worklogs/TEMPLATE.md` と、下記の `REVIEW-POINTS.md` は削除対象から除外される。仕様:
 [.claude/docs/spec/cleanup-task.md](../docs/spec/cleanup-task.md)）。
 
-**唯一の例外が `REVIEW-POINTS.md` である。** `wip/plans/REVIEW-POINTS.md` `wip/reports/REVIEW-POINTS.md` は
-これらのディレクトリ配下にあるが、タスク単位の成果物ではなく**そのディレクトリに対するレビュー観点**
-であり、寿命は永続である（上表）。flow-id 5-5で `wip/plans/` `wip/worklogs/` `wip/reports/` を片付ける際は、
-**`REVIEW-POINTS.md` を残す**（issue #77）。worklogの雛形である `wip/worklogs/TEMPLATE.md` も同様に残す
-（`cleanup-task.sh` はこの2つを削除対象から除外する）。
+**唯一の例外が `REVIEW-POINTS.md` と `REVIEW-POINTS.local.md` である。** `wip/plans/REVIEW-POINTS.md`
+`wip/reports/REVIEW-POINTS.md` はこれらのディレクトリ配下にあるが、タスク単位の成果物ではなく
+**そのディレクトリに対するレビュー観点**であり、寿命は永続である（上表）。flow-id 5-5で
+`wip/plans/` `wip/worklogs/` `wip/reports/` を片付ける際は、**`REVIEW-POINTS.md` を残す**
+（issue #77）。**同じ理由で `REVIEW-POINTS.local.md` も残す**（配布先がそのディレクトリへ書いた
+固有の観点。issue #26）。worklogの雛形である `wip/worklogs/TEMPLATE.md` も同様に残す
+（`cleanup-task.sh` はこれら3つを削除対象から除外する）。
 
 上記の`spec`/`ddr`は、このリポジトリに同梱されたissue駆動MRワークフロー機構自体（`.claude/`配下）の
 ものである。アプリ本体を追加する場合は、そのアプリ専用の`docs/spec/`・`docs/ddr/`（必要なら人間専用
