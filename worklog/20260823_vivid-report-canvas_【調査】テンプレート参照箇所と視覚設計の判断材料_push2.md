@@ -22,7 +22,12 @@ push回数: 2
 
 ## うまくいったこと
 
-- （調査実施時に追記する）
+- Q1: `search-frontmatter.sh --text 'reports.template'` と `grep -rln 'reports\.template\.html'` の
+  2段で参照元を列挙。`.claude/` 配下10ファイル（.gemini/は生成物なので除外）。節名
+  （「サマリ（結論の一覧）」「確かめられなかったこと」「設計への反映」）への言及は
+  `planning.md:280`（AIアセット洗い出しの入力）・`issue-mr-workflow.md:3101`（issue #54の
+  changelog＝point-in-time記録）・`reports/REVIEW-POINTS.md:15-16`（観点）のみ
+- 節名を変えなければ矛盾が生じないことを確認（変えるのは並び順と表現。名前は維持する方針が安全）
 
 ## ダメだったこと
 
