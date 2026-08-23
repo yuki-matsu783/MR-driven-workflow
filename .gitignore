@@ -23,16 +23,6 @@
 # 作業状態（前回push時点のHEAD SHA。ブランチ横断・非コミット対象）
 /.claude/state/
 
-# .gemini/配下は.claude/への参照(シンボリックリンク/NTFSジャンクション)のみでGit管理下に置かない。
-# Gitはジャンクションをリンクとして認識せず中身をそのまま複製してしまうため（詳細:
-# .claude/docs/ddr/i00-13-gemini配下はGit管理下に置かずセットアップスクリプトで生成する.md）。
-# clone後は .claude/scripts/src/setup-gemini-links.sh を1度実行してリンクを作成する。
-/.gemini/docs
-/.gemini/hooks
-/.gemini/rules
-/.gemini/scripts
-/.gemini/skills
-
 # frontmatter抽出スクリプト（.claude/scripts/src/extract-frontmatter.sh）が生成する機械可読
 # インデックス。複数ブランチが並行してmarkdownのfrontmatterを編集すると生成物の近接行同士が
 # 競合していたため、issue #36でGit管理から外し生成物として扱う方針に変更した。SessionStart hook

@@ -56,7 +56,7 @@ keywords: [正史仕様, 意思決定ログ, ユースケース, 逆引き, issu
 - [create-commit.md](spec/create-commit.md) ── コミット実行ラッパー（commitスキル専用）
 - [adversarial-review.md](spec/adversarial-review.md) ── 敵対的レビュー（専任サブエージェント・インラインコメント投稿）
 - [distribution-assets.md](spec/distribution-assets.md) ── 配布テンプレート資産（PR/MRテンプレート・`.gitattributes`・VERSION）と配布経路での扱い
-- [cleanup-task.md](spec/cleanup-task.md) ── flow-id 5-4 後片付けの自動化スクリプト
+- [cleanup-task.md](spec/cleanup-task.md) ── flow-id 5-5 後片付けの自動化スクリプト
 - [search-frontmatter.md](spec/search-frontmatter.md) ── ドキュメント横断検索スクリプト（index.jsonl検索）
 - [generate-ddr-list.md](spec/generate-ddr-list.md) ── DDR一覧生成スクリプト（README.mdのDDR一覧をfrontmatterから生成）
 - [gitlab-verification-environment.md](spec/gitlab-verification-environment.md) ── GitLab検証環境（Docker + glab）の再現手順
@@ -106,7 +106,7 @@ frontmatter（`status` / `superseded_by` / `note`）だけから決まる。
 - [i0000-10-dev-toolsをAI専用_人間専用に分離する.md](ddr/i0000-10-dev-toolsをAI専用_人間専用に分離する.md)
 - [i0000-11-調査結果のhtml版は自己完結htmlのコミットで作る.md](ddr/i0000-11-調査結果のhtml版は自己完結htmlのコミットで作る.md)（html版を自己完結HTMLのコミットで作るという決定は有効。ただし issue #54 で2点が変わった。(1) 方式がTailwindCSS CDNから自前CSSへ（CDNを推した「出力トークン量と表現力の釣り合い」が、テンプレート化により成り立たなくなったため）。(2) 「テンプレート化は行わない／複数件の運用実績を踏まえてから判断する」という項も、テンプレート2本の新設により覆った。詳細は i0054-01）
 - [i0000-12-frontmatterスクリプトの走査方式にgit-ls-filesを採用する.md](ddr/i0000-12-frontmatterスクリプトの走査方式にgit-ls-filesを採用する.md)
-- [i0000-13-gemini配下はGit管理下に置かずセットアップスクリプトで生成する.md](ddr/i0000-13-gemini配下はGit管理下に置かずセットアップスクリプトで生成する.md)
+- [i0000-13-gemini配下はGit管理下に置かずセットアップスクリプトで生成する.md](ddr/i0000-13-gemini配下はGit管理下に置かずセットアップスクリプトで生成する.md) ── **`status: superseded`（i0070-01により置き換え）**
 - [i0003-01-gemini-settings.jsonのhooksはレビュー提示スニペットのhooksセクションのみ採用する.md](ddr/i0003-01-gemini-settings.jsonのhooksはレビュー提示スニペットのhooksセクションのみ採用する.md)
 - [i0009-01-planツール利用を全体作業計画に限定し個別計画をファイル分離する.md](ddr/i0009-01-planツール利用を全体作業計画に限定し個別計画をファイル分離する.md)
 - [i0011-01-frontmatter抽出は1ファイル1回のjq呼び出しとmtimeキャッシュで高速化する.md](ddr/i0011-01-frontmatter抽出は1ファイル1回のjq呼び出しとmtimeキャッシュで高速化する.md)
@@ -114,7 +114,7 @@ frontmatter（`status` / `superseded_by` / `note`）だけから決まる。
 - [i0014-01-GitHub_GitLab情報取得はgh_glab-CLIを使いWebFetchは使わない.md](ddr/i0014-01-GitHub_GitLab情報取得はgh_glab-CLIを使いWebFetchは使わない.md)
 - [i0020-01-HANDOFF進捗更新はMarkdownテーブル直接書き換えでループ範囲を一括操作する.md](ddr/i0020-01-HANDOFF進捗更新はMarkdownテーブル直接書き換えでループ範囲を一括操作する.md)（うち「mark-skipで作った不整合は後段のmark-done/add-roundで表面化する」は、issue #140でmark-skip自身がその場で拒否する形へ変更された。詳細はi0140-01）
 - [i0023-01-push断面の全文コピーをやめ行番号インデックスで表現する.md](ddr/i0023-01-push断面の全文コピーをやめ行番号インデックスで表現する.md)（うち「Gemini CLI対応の扱い」は、issue #97でメインセッションのみ集計対象へ変更された。サブエージェントを集計しない部分は引き続き有効。詳細は i0097-05）
-- [i0028-01-flow-id5-1の後片付けはスクリプト化しコミットは含めない.md](ddr/i0028-01-flow-id5-1の後片付けはスクリプト化しコミットは含めない.md)（ファイル名の `flow-id5-1` は当時の番号。片付けは issue #112 の並べ替えで 5-3 になり、issue #111 の統括レポート追加でさらに繰り下がって現在 flow-id 5-4。DDR i0112-01・i0111-01 参照）
+- [i0028-01-flow-id5-1の後片付けはスクリプト化しコミットは含めない.md](ddr/i0028-01-flow-id5-1の後片付けはスクリプト化しコミットは含めない.md)（ファイル名の `flow-id5-1` は当時の番号。片付けは issue #112 の並べ替えで 5-3 になり、issue #111 の統括レポート追加で 5-4、issue #70 の変換同期の新設でさらに繰り下がって現在 flow-id 5-5。DDR i0112-01・i0111-01 参照）
 - [i0032-01-GitLab-issueテンプレートは予約名Default.mdを正とし文書側を合わせる.md](ddr/i0032-01-GitLab-issueテンプレートは予約名Default.mdを正とし文書側を合わせる.md)
 - [i0033-01-配布物の版はVERSIONファイル1つで表しCHANGELOGを持たない.md](ddr/i0033-01-配布物の版はVERSIONファイル1つで表しCHANGELOGを持たない.md)
 - [i0033-02-配布テンプレートにLICENSEを同梱しない.md](ddr/i0033-02-配布テンプレートにLICENSEを同梱しない.md)
@@ -137,9 +137,11 @@ frontmatter（`status` / `superseded_by` / `note`）だけから決まる。
 - [i0060-01-create-commitは削除ステージ済みパスをgit-addの失敗時分類で吸収する.md](ddr/i0060-01-create-commitは削除ステージ済みパスをgit-addの失敗時分類で吸収する.md)
 - [i0063-01-機構自身の単体テストは.claude_scripts_test配下へ置く.md](ddr/i0063-01-機構自身の単体テストは.claude_scripts_test配下へ置く.md)
 - [i0064-01-issueの分割は並列列挙構造を主トリガーにAIが提案し人間が決定する.md](ddr/i0064-01-issueの分割は並列列挙構造を主トリガーにAIが提案し人間が決定する.md)
-- [i0066-01-HANDOFFのヘッダ表記を1つに定めset-headerは見つからなければ失敗させる.md](ddr/i0066-01-HANDOFFのヘッダ表記を1つに定めset-headerは見つからなければ失敗させる.md)（却下3で「正しい挙動が決まっていない」としたissue #140は、i0140-01で決着した（mark-skip自身がその場で拒否する））
+- [i0066-01-HANDOFFのヘッダ表記を1つに定めset-headerは見つからなければ失敗させる.md](ddr/i0066-01-HANDOFFのヘッダ表記を1つに定めset-headerは見つからなければ失敗させる.md)（却下3で「正しい挙動が決まっていない」としたissue #140は、i0140-01で決着した（mark-skip自身がその場で拒否する）。ヘッダ項目はissue #70で7つになった（- 未返信スレッド: を追加。表記の定義は仕様書側が正））
 - [i0067-01-作業開始時のベースブランチ追従確認は専用スクリプトで検知しユーザー確認を挟む.md](ddr/i0067-01-作業開始時のベースブランチ追従確認は専用スクリプトで検知しユーザー確認を挟む.md)
 - [i0068-01-issue起票前の重複チェックは検索をProvider層へ置きキーワード抽出はAIに委ねる.md](ddr/i0068-01-issue起票前の重複チェックは検索をProvider層へ置きキーワード抽出はAIに委ねる.md)
+- [i0070-01-gemini配下はclaudeからの変換生成物にしGit管理下へ置く.md](ddr/i0070-01-gemini配下はclaudeからの変換生成物にしGit管理下へ置く.md)
+- [i0070-02-レビュー返信漏れは文言強化ではなく機構で塞ぐ.md](ddr/i0070-02-レビュー返信漏れは文言強化ではなく機構で塞ぐ.md)
 - [i0077-01-敵対的レビューは専任サブエージェントで独立コンテキストに切り出す.md](ddr/i0077-01-敵対的レビューは専任サブエージェントで独立コンテキストに切り出す.md)
 - [i0077-02-レビュー観点はディレクトリごとのREVIEW-POINTSへ外だしする.md](ddr/i0077-02-レビュー観点はディレクトリごとのREVIEW-POINTSへ外だしする.md)
 - [i0077-03-インラインコメントの位置指定はプロバイダごとの制約に合わせて縮退させる.md](ddr/i0077-03-インラインコメントの位置指定はプロバイダごとの制約に合わせて縮退させる.md)
@@ -158,10 +160,10 @@ frontmatter（`status` / `superseded_by` / `note`）だけから決まる。
 - [i0106-01-敵対的レビューの非対話判定は環境変数ではなくAIエージェントの判断に委ねる.md](ddr/i0106-01-敵対的レビューの非対話判定は環境変数ではなくAIエージェントの判断に委ねる.md)
 - [i0109-01-敵対的レビュー由来のスレッドも人間の指摘と同列に返信を必須とする.md](ddr/i0109-01-敵対的レビュー由来のスレッドも人間の指摘と同列に返信を必須とする.md)
 - [i0110-01-個別計画のタスク種別を6種から8種へ拡張する.md](ddr/i0110-01-個別計画のタスク種別を6種から8種へ拡張する.md)
-- [i0111-01-統括レポートの添付は任意層に置きフローを止めない.md](ddr/i0111-01-統括レポートの添付は任意層に置きフローを止めない.md)
-- [i0112-01-フェーズ5は片付けをcommit直前へ移した順序に並べ替える.md](ddr/i0112-01-フェーズ5は片付けをcommit直前へ移した順序に並べ替える.md)
-- [i0113-01-issue-mr-flow対象ブランチではSKILL.mdの再読み込みを注入で促す.md](ddr/i0113-01-issue-mr-flow対象ブランチではSKILL.mdの再読み込みを注入で促す.md)（本文中の「flow-id 5-3」（HANDOFF.mdのリセット＝片付け）は当時の番号。issue #111 の統括レポート追加により現在は flow-id 5-4。DDR i0111-01 参照）
-- [i0117-01-削除済み追跡ファイルの除外はextract-frontmatter側で行う.md](ddr/i0117-01-削除済み追跡ファイルの除外はextract-frontmatter側で行う.md)（本文中の「flow-id 5-4」（削除をコミットする手順）は当時の番号。issue #111 の統括レポート追加により現在は flow-id 5-5。DDR i0111-01 参照）
+- [i0111-01-統括レポートの添付は任意層に置きフローを止めない.md](ddr/i0111-01-統括レポートの添付は任意層に置きフローを止めない.md)（本文中の「flow-id 5-3」（統括レポート）は当時の番号。issue #70 が変換同期を 5-3 として新設したため現在は flow-id 5-4）
+- [i0112-01-フェーズ5は片付けをcommit直前へ移した順序に並べ替える.md](ddr/i0112-01-フェーズ5は片付けをcommit直前へ移した順序に並べ替える.md)（本文中の 5-1〜5-5 は当時の番号。issue #111 の統括レポート追加と issue #70 の変換同期の新設により、片付けは 5-5・commit/Draft解除は 5-6・マージは 5-7 へ繰り下がっている）
+- [i0113-01-issue-mr-flow対象ブランチではSKILL.mdの再読み込みを注入で促す.md](ddr/i0113-01-issue-mr-flow対象ブランチではSKILL.mdの再読み込みを注入で促す.md)（本文中の「flow-id 5-3」（HANDOFF.mdのリセット＝片付け）は当時の番号。issue #111 の統括レポート追加で 5-4、issue #70 の変換同期の新設により現在は flow-id 5-5。DDR i0111-01 参照）
+- [i0117-01-削除済み追跡ファイルの除外はextract-frontmatter側で行う.md](ddr/i0117-01-削除済み追跡ファイルの除外はextract-frontmatter側で行う.md)（本文中の「flow-id 5-4」（削除をコミットする手順）は当時の番号。issue #111 の統括レポート追加で 5-5、issue #70 の変換同期の新設により現在は flow-id 5-6。DDR i0111-01 参照）
 - [i0127-01-差分アンカーの土台はプロバイダごとに分けGitLabはMR差分ページを使う.md](ddr/i0127-01-差分アンカーの土台はプロバイダごとに分けGitLabはMR差分ページを使う.md)
 - [i0133-01-DDR識別子はissue番号ベースにし連番採番をやめる.md](ddr/i0133-01-DDR識別子はissue番号ベースにし連番採番をやめる.md)
 - [i0135-01-DDR一覧は生成物にしつつGit管理下へ残す.md](ddr/i0135-01-DDR一覧は生成物にしつつGit管理下へ残す.md)
