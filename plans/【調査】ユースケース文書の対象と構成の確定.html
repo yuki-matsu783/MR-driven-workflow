@@ -1,0 +1,154 @@
+<!--
+  個別調査計画「ユースケース文書の対象と構成の確定」（issue #170）の人間レビュー用HTMLビュー。
+  正文は同名の plans/【調査】ユースケース文書の対象と構成の確定.md。
+-->
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>【調査】ユースケース文書の対象と構成の確定 — issue #170</title>
+<style>
+  :root {
+    --bg: #f6f7f9;      --panel: #ffffff;   --ink: #1a1d21;     --muted: #5b636d;
+    --line: #dfe3e8;    --accent: #2563eb;  --accent-soft: #eaf0fe;
+    --ok: #1a7f4b;      --ok-soft: #e6f4ec; --warn: #a35a00;    --warn-soft: #fdf1e0;
+    --stop: #b3261e;    --stop-soft: #fdecea; --code-bg: #f0f2f5;
+    --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1216;    --panel: #161a20;   --ink: #e6e8eb;     --muted: #9aa3ad;
+      --line: #2a3038;  --accent: #7aa2f7;  --accent-soft: #1b2333;
+      --ok: #6ee7a8;    --ok-soft: #14261d; --warn: #f0b866;    --warn-soft: #2a2113;
+      --stop: #f2857c;  --stop-soft: #2b1614; --code-bg: #1d222a;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", system-ui, sans-serif;
+    line-height: 1.8; font-size: 15px;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 20px 80px; }
+  header.band {
+    background: linear-gradient(135deg, var(--accent-soft), var(--panel));
+    border-bottom: 1px solid var(--line); padding: 28px 20px 22px; margin-bottom: 28px;
+  }
+  header.band .inner { max-width: 1080px; margin: 0 auto; }
+  header.band .kind { font-size: 11px; letter-spacing: .18em; color: var(--accent); font-weight: 700; }
+  header.band h1 { margin: 6px 0 4px; font-size: 26px; line-height: 1.4; }
+  header.band .lead { margin: 0; color: var(--muted); }
+  .meta { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; padding: 0; list-style: none; }
+  .meta li {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 999px;
+    padding: 3px 12px; font-size: 12.5px; color: var(--muted); white-space: nowrap;
+  }
+  .meta li b { color: var(--ink); font-weight: 600; }
+  a { color: var(--accent); }
+  section {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 8px 24px 22px; margin-bottom: 22px;
+  }
+  h2 { font-size: 20px; margin: 20px 0 10px; padding-bottom: 8px; border-bottom: 2px solid var(--line); }
+  p { margin: 10px 0; }
+  ul, ol { padding-left: 22px; }
+  li { margin: 4px 0; }
+  .tablewrap { overflow-x: auto; margin: 14px 0; }
+  table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 14px; }
+  th, td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: var(--accent-soft); font-weight: 600; white-space: nowrap; }
+  tbody tr:nth-child(even) td { background: color-mix(in srgb, var(--line) 22%, transparent); }
+  code {
+    background: var(--code-bg); border-radius: 5px; padding: 1px 5px; font-size: 13px;
+    font-family: "SFMono-Regular", Consolas, "Noto Sans Mono", monospace;
+  }
+  .box { border-left: 4px solid var(--accent); background: var(--accent-soft);
+         border-radius: 0 var(--radius) var(--radius) 0; padding: 12px 16px; margin: 16px 0; }
+  .box > :first-child { margin-top: 0; } .box > :last-child { margin-bottom: 0; }
+  .box .label { font-size: 12px; font-weight: 700; letter-spacing: .06em; display: block; margin-bottom: 4px; }
+  .box.stop { border-color: var(--stop); background: var(--stop-soft); } .box.stop .label { color: var(--stop); }
+  footer { color: var(--muted); font-size: 13px; text-align: center; padding-top: 10px; }
+</style>
+</head>
+<body>
+
+<header class="band">
+  <div class="inner">
+    <div class="kind">個別調査計画 / フェーズ2（flow-id 2-1）</div>
+    <h1>【調査】ユースケース文書の対象と構成の確定</h1>
+    <p class="lead">フェーズ3で .claude/docs/usecase/ 一式を迷いなく作成できるよう、文書一覧・リンク先・命名規則・波及範囲を確定させる。</p>
+    <ul class="meta">
+      <li><b>issue</b> #170</li>
+      <li><b>ブランチ</b> claude/usecase-docs-setup-uvs5li</li>
+      <li><b>PR</b> #173（Draft）</li>
+      <li><b>フェーズ</b> 2〈調査〉 flow-id 2-1</li>
+      <li><b>作成日</b> 2026-08-23</li>
+      <li><b>正文</b> 同名の .md</li>
+    </ul>
+  </div>
+</header>
+
+<div class="wrap">
+
+<section id="premise">
+  <h2>前提（合意状況）</h2>
+  <ul>
+    <li>上位の計画: <code>plans/usecase-atlas.md</code>（非対話セッションのため、ユーザーの包括指示に基づき敵対的レビューで代替しながら進行）</li>
+  </ul>
+</section>
+
+<section id="goal">
+  <h2>この計画で何をするか</h2>
+  <p>「どのユースケース文書を作るか（一覧）」「各文書のリンク先（実在するspec/SKILL/rules）」「命名規則・目次の形」「周辺ドキュメント・スクリプトへの波及」を確定させる。</p>
+</section>
+
+<section id="target">
+  <h2>調査項目（問いの形）</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>#</th><th>問い</th><th>何が分かれば良いか</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td>初期ユースケース8件の実在確認</td><td>各件の対応機能とリンク先パスの列挙</td></tr>
+      <tr><td>2</td><td>取捨選択・追加</td><td>統合・除外・追加の判断（スキル11本・hookとの突き合わせ）</td></tr>
+      <tr><td>3</td><td>命名規則</td><td><code>usecase/</code> 配下のファイル名形式（既存spec/DDRとの整合）</td></tr>
+      <tr><td>4</td><td>目次の要否</td><td>README目次で足りるか、独立目次を置くか</td></tr>
+      <tr><td>5</td><td>検索対応</td><td><code>type: usecase</code> でスクリプト変更が要るか（実機確認）</td></tr>
+      <tr><td>6</td><td>flow-id 4-6への差し込み位置</td><td>挿入位置と前後の係り受け・関連記述への波及</td></tr>
+      <tr><td>7</td><td>周辺ドキュメントへの波及</td><td>directory-structure / index.md / docs README冒頭 / 配布物の更新要否</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="approach">
+  <h2>調査方法</h2>
+  <ul>
+    <li><code>doc-search</code>（search-frontmatter.sh）でスキル・spec・ルール一覧を取得し、対応表を作る。</li>
+    <li>リンク先の実在はGlob/Readで確認し、リンク切れをフェーズ3へ持ち込まない。</li>
+    <li>検索対応は <code>search-frontmatter.sh --type</code> の挙動と実装の両方で確認する。</li>
+  </ul>
+  <p>成果物: <code>reports/20260823_usecase-atlas_調査結果.md</code>（+同名.html）。</p>
+</section>
+
+<section id="out-of-scope">
+  <h2>やらないこと（スコープ外）</h2>
+  <div class="box stop">
+    <span class="label">この計画では触らない</span>
+    <ul>
+      <li>usecase文書本体の執筆（フェーズ3へ送る）</li>
+      <li>spec/SKILL.mdの手順詳細の転記</li>
+    </ul>
+  </div>
+</section>
+
+<section id="verify">
+  <h2>検証（この調査の完了条件）</h2>
+  <p>7つの問いすべてに結論が出ており、フェーズ3の個別作業計画で「新規作成するファイルの完全な一覧」「変更する既存ファイルと変更内容の要点」が書ける状態になっていること。</p>
+</section>
+
+<footer>issue #170 / PR #173 — 計画の正文は同名の <code>.md</code>。外部依存を持たない自己完結HTML。</footer>
+
+</div>
+</body>
+</html>
