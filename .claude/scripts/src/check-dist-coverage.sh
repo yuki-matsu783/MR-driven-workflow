@@ -41,7 +41,8 @@ read_entries_records() {
         (.value.path // ""),
         (.value.source // ""),
         (.value.strategy // ""),
-        (.value.gitignorePattern // "") ]
+        (.value.gitignorePattern // ""),
+        (.value.requiredLine // "") ]
     | join("\u001f")
   ' "$def" | tr -d '\r'
 }
@@ -100,12 +101,13 @@ main() {
     return 0
   fi
 
-  local -a idxs=() layers=() paths=() sources=() strategies=() ignpats=()
-  local idx layer path source strategy ignpat
-  while IFS=$'\037' read -r idx layer path source strategy ignpat; do
+  local -a idxs=() layers=() paths=() sources=() strategies=() ignpats=() reqlines=()
+  local idx layer path source strategy ignpat reqline
+  while IFS=$'\037' read -r idx layer path source strategy ignpat reqline; do
     [ -n "$idx" ] || continue
     idxs+=("$idx"); layers+=("$layer"); paths+=("$path")
     sources+=("$source"); strategies+=("$strategy"); ignpats+=("$ignpat")
+    reqlines+=("$reqline")
   done < <(read_entries_records "$def")
 
   local total_entries="${#idxs[@]}"
@@ -129,6 +131,11 @@ main() {
     fi
     if [ -n "${ignpats[i]}" ] && [ "${layers[i]}" != 'local' ]; then
       bad_layers+=("entry[${idxs[i]}] gitignorePattern は local 専用（layer='${layers[i]}'）")
+    fi
+    # requiredLine は「配布先の既存ファイルが古い形式のままでないか」を再適用時に知らせるための
+    # 印であり、触らない層（seed）にしか意味が無い。core は毎回上書きされるので不要。
+    if [ -n "${reqlines[i]}" ] && [ "${layers[i]}" != 'seed' ]; then
+      bad_layers+=("entry[${idxs[i]}] requiredLine は seed 専用（layer='${layers[i]}'）")
     fi
   done
 
@@ -175,7 +182,12 @@ main() {
   local -a uncovered_ignores=()
   local n_ignore_lines=0 line
   if [ -f .gitignore ]; then
-    while IFS= read -r line; do
+    # **末尾に改行が無い最終行を読み落とさない。** `read` は改行に当たらないまま EOF に達すると
+    # 非0を返すため、`|| [ -n "$line" ]` を付けないと最終行が1行まるごと検査から外れ、載せ忘れが
+    # あっても「n / n 行」と満点で報告してしまう（.claude/rules/shell-script-style.md「テスト」の
+    # 「異常があるときに本当に検出できるか」）。同じ .gitignore を読む install-to-project.sh の
+    # extract_marker_lines は元からこの形である。
+    while IFS= read -r line || [ -n "$line" ]; do
       line="${line//$'\r'/}"
       case "$line" in ''|'#'*) continue ;; esac
       n_ignore_lines=$((n_ignore_lines + 1))

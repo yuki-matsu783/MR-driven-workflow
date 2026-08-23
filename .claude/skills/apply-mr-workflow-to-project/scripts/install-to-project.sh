@@ -65,9 +65,69 @@ run_or_fail() {
 # LF正規化した内容の sha256 を REPLY へ返す。
 # 正規化するのは、Windowsの core.autocrlf=true で全ファイルが「配布先が変更した」と
 # 誤検知されるのを防ぐため（**Windows実機では未確認**。フェーズ4でspecの未決定事項へ残す）。
+# **単発の用途（seed / merge の数件）専用。** 多数のファイルを扱う場合は sha256_lf_batch を使う。
 sha256_lf_to_reply() {
   local file="$1"
-  REPLY="$(tr -d '\r' < "$file" | sha256sum | cut -d' ' -f1)"
+  REPLY="$(tr -d '\r' < "$file" | sha256sum)"
+  REPLY="${REPLY%% *}"
+}
+
+# 複数ファイルのLF正規化 sha256 をまとめて求め、連想配列 SHA_RESULT へ入れる（キーは渡したパス）。
+# **1ファイルごとに tr / sha256sum を起動しない。** core は現状163件あり、ファイル数に比例して
+# 外部プロセスが増えると、git bash（1回あたり約95ms）では所要時間がそれだけで決まってしまう
+# （.claude/rules/shell-script-style.md「外部プロセス起動のコスト」。extract-frontmatter.sh が
+# 2分でタイムアウトしたのと同じ形）。
+#
+# CRを含むファイルだけを grep 1回で洗い出し、残り（通常は全件）は sha256sum 1回でまとめて
+# ハッシュする。**パターンが空扱いになる環境では全件が「CRあり」に挙がるが、その場合も
+# 1件ずつ正規化するという安全側（従来どおりの結果）に倒れる**（`grep -c $'\r'` が空パターンとして
+# 全行に一致した実例が .claude/rules/shell-script-style.md にある）。
+declare -A SHA_RESULT=()
+sha256_lf_batch() {
+  SHA_RESULT=()
+  [ "$#" -gt 0 ] || return 0
+
+  local list nocr f line h path
+  local -A has_cr=()
+  list="$(mktemp)"
+  nocr="$(mktemp)"
+  printf '%s\0' "$@" > "$list"
+
+  while IFS= read -r f; do
+    [ -n "$f" ] || continue
+    has_cr["$f"]=1
+  done < <(xargs -0 grep -lU -e $'\r' -- < "$list" 2>/dev/null || true)
+
+  for f in "$@"; do
+    if [ -n "${has_cr[$f]+x}" ]; then
+      sha256_lf_to_reply "$f"
+      SHA_RESULT["$f"]="$REPLY"
+    else
+      printf '%s\0' "$f" >> "$nocr"
+    fi
+  done
+
+  if [ -s "$nocr" ]; then
+    # 出力は「ハッシュ + 空白2つ + パス」。パスは日本語を含みうるが、改行は含まない。
+    while IFS= read -r line; do
+      [ -n "$line" ] || continue
+      h="${line%% *}"
+      path="${line#* }"
+      path="${path# }"
+      SHA_RESULT["$path"]="$h"
+    done < <(xargs -0 sha256sum -- < "$nocr")
+  fi
+
+  rm -f "$list" "$nocr"
+
+  # **1件も取れなかった場合を成功にしない。** xargs / sha256sum が失敗しても while ループが
+  # 0回まわるだけなので、呼び出し側は「全ファイルが判定不能」として静かに進んでしまう。
+  if [ "${#SHA_RESULT[@]}" -ne "$#" ]; then
+    printf 'エラー: sha256 の一括計算で件数が合いません（要求 %s 件 / 取得 %s 件）\n' \
+      "$#" "${#SHA_RESULT[@]}" >&2
+    return 1
+  fi
+  return 0
 }
 
 log_section() {
@@ -87,14 +147,15 @@ read_entries_records() {
         (.source // ""),
         (.strategy // ""),
         ((.keys // []) | join(",")),
-        (.header // "") ]
+        (.header // ""),
+        (.requiredLine // "") ]
     | join("\u001f")
   ' "$DEF_FILE" | tr -d '\r'
 }
 
 # 配布計画を組み立てる。**後に書いたエントリが勝つ**（.gitignore と同じ規約）ので、
 # 定義の順に上書きしていくだけで例外が表現できる。
-declare -A PLAN_LAYER=() PLAN_SRC=() PLAN_STRATEGY=() PLAN_KEYS=() PLAN_HEADER=()
+declare -A PLAN_LAYER=() PLAN_SRC=() PLAN_STRATEGY=() PLAN_KEYS=() PLAN_HEADER=() PLAN_REQUIRED=()
 declare -a PLAN_PATHS=()
 # dirty 判定に使う「配布対象のパス」。PLAN_PATHS（追跡ファイルの完全パス）では未追跡ファイルを
 # 拾えないため、エントリの path をディレクトリのまま持っておく。
@@ -103,11 +164,11 @@ declare -a DIST_PATHSPECS=() DIST_EXCLUDESPECS=()
 UPSTREAM_DIRTY=0
 
 build_plan() {
-  local layer path source strategy keys header f tmp_ls
+  local layer path source strategy keys header required f tmp_ls
   local -A seen=()
   tmp_ls="$(mktemp)"
 
-  while IFS=$'\037' read -r layer path source strategy keys header; do
+  while IFS=$'\037' read -r layer path source strategy keys header required; do
     [ -n "$layer" ] || continue
 
     if [ -n "$path" ]; then
@@ -131,6 +192,7 @@ build_plan() {
         PLAN_STRATEGY["$f"]="$strategy"
         PLAN_KEYS["$f"]="$keys"
         PLAN_HEADER["$f"]="$header"
+        PLAN_REQUIRED["$f"]="$required"
         [ -n "${seen[$f]+x}" ] || { seen["$f"]=1; PLAN_PATHS+=("$f"); }
       done < "$tmp_ls"
 
@@ -146,6 +208,7 @@ build_plan() {
         PLAN_STRATEGY["$path"]="$strategy"
         PLAN_KEYS["$path"]="$keys"
         PLAN_HEADER["$path"]="$header"
+        PLAN_REQUIRED["$path"]="$required"
         [ -n "${seen[$path]+x}" ] || { seen["$path"]=1; PLAN_PATHS+=("$path"); }
       fi
     fi
@@ -169,15 +232,15 @@ build_plan() {
 # 対象は core / seed（source 側パスを含む）/ merge のみ。exclude は配布先へ1バイトも
 # 配られないので、編集中でも manifest の再現性は損なわれない。
 check_upstream_clean() {
-  local -a specs=()
   local p
+  local -A watched=()
   for p in "${PLAN_PATHS[@]}"; do
     case "${PLAN_LAYER[$p]}" in
       core|seed|merge) ;;
       *) continue ;;
     esac
-    specs+=("$p")
-    [ "${PLAN_SRC[$p]}" = "$p" ] || specs+=("${PLAN_SRC[$p]}")
+    watched["$p"]=1
+    [ "${PLAN_SRC[$p]}" = "$p" ] || watched["${PLAN_SRC[$p]}"]=1
   done
 
   # **未追跡ファイルは specs では拾えない。** specs は `git ls-files` 由来の「既存の追跡ファイルの
@@ -194,15 +257,38 @@ check_upstream_clean() {
     printf '%s\n' "注意: 配布対象のパスに未追跡ファイルが ${untracked} 件あります（配布対象外です。配るならコミットしてください）" >&2
   fi
 
-  local out n
-  out="$(git -C "$UPSTREAM_ROOT" status --porcelain -- "${specs[@]}")" || {
+  # **配布対象のパスを pathspec として git へ渡さない。** 現在の定義では187パス・28KB強になり、
+  # Windows の CreateProcess のコマンドライン上限（32,767文字）に迫る。`.claude/` へ数十ファイル
+  # 増えれば超えて、「本家の状態を取得できませんでした」で配布が始まる前に止まる
+  # （.claude/rules/shell-script-style.md「Windowsのプロセス生成時のコマンドライン長上限」）。
+  # 代わりに本家全体の status を1回だけ取り、配布対象かどうかは bash 側で突き合わせる。
+  # `git status` は `--pathspec-from-file` を持たない（git 2.43 で実測）ため、この形にしている。
+  # `--untracked-files=no` は、旧実装（追跡ファイルの完全パスを pathspec に並べる形）と
+  # 同じ判定に保つため。未追跡ファイルは上の件数通知だけで扱い、dirty とは見なさない。
+  local out n entry path origin tmp_status
+  local -a hits=()
+  tmp_status="$(mktemp)"
+  if ! git -C "$UPSTREAM_ROOT" status --porcelain -z --untracked-files=no > "$tmp_status"; then
     printf 'エラー: 本家の状態を取得できませんでした: %s\n' "$UPSTREAM_ROOT" >&2
+    rm -f "$tmp_status"
     return 1
-  }
-  [ -n "$out" ] || return 0
+  fi
+  while IFS= read -r -d '' entry; do
+    path="${entry:3}"
+    # 改名・コピーは `XY <新パス>\0<旧パス>\0` の2フィールドになる（行単位形式とは逆で新パスが先）。
+    # 旧パスのフィールドは読み捨てる（.claude/rules/shell-script-style.md
+    # 「git status --porcelain からパスを取り出すときは -z を付ける」）。
+    case "${entry:0:2}" in [RC]?|?[RC]) IFS= read -r -d '' origin || true ;; esac
+    [ -n "${watched[$path]+x}" ] || continue
+    hits+=("$entry")
+  done < "$tmp_status"
+  rm -f "$tmp_status"
+
+  [ "${#hits[@]}" -gt 0 ] || return 0
   UPSTREAM_DIRTY=1
 
-  n="$(printf '%s\n' "$out" | grep -c .)"
+  n="${#hits[@]}"
+  out="$(printf '%s\n' "${hits[@]}")"
   if [ "$OPT_ALLOW_DIRTY" -eq 1 ]; then
     # 一覧までは出さない（--allow-dirty は承知のうえで進める指定であり、毎回全件を出すと
     # 本当に読むべき警告が埋もれる）。件数だけを出して、追えるようにはしておく。
@@ -331,7 +417,14 @@ merge_json_keys() {
   rm -f "$tmp"
 }
 
-# manifest へ記録する merge の指紋を返す（再適用時の変更検知に使う）。
+# manifest へ記録する merge の指紋を返す。
+# **現時点では記録するだけで、判定には使っていない。** 再適用時に manifest を読むのは
+# scan_pass の `.files[]? | select(.sha256)` と SCAN_CORE_REMOVED の `select(.layer == "core")` の
+# 2箇所だけで、どちらも merge エントリ（sha256 を持たない）には一致しない。したがって配布先が
+# .gitignore や settings.json を書き換えても警告は出ず、.bak も作られない（merge は元々
+# 「構造的にマージする」層で、上書きではないため .bak の対象外である）。
+# 記録自体は残す。merge 層の改変検知を足すときに、過去に配った内容の指紋が無いと
+# 「配布先が変えたのか、本家が変わったのか」を区別できないため。
 merge_fingerprint_json() {
   local dst="$1" strategy="$2" keys_csv="$3"
   if [ "$strategy" = 'lines-marker' ]; then
@@ -369,12 +462,14 @@ declare -a SCAN_CORE_NEW=() SCAN_CORE_SAME=() SCAN_CORE_MODIFIED=() SCAN_CORE_UN
 # 前回のmanifestに載っていて今回は載らない core パス（＝本家で削除・改名された）。
 declare -a SCAN_CORE_REMOVED=()
 declare -a SCAN_SEED_PLACE=() SCAN_SEED_KEEP=() SCAN_MERGE=()
+# 触らない seed のうち、requiredLine を含まないもの（＝配布先のファイルが古い形式のまま）。
+declare -a SCAN_SEED_STALE=()
 MANIFEST_EXISTS=0
 
 scan_pass() {
   local manifest="${DEST_DIR}/${MANIFEST_REL}"
   local -A prev_sha=()
-  local p dst_path src_abs recorded
+  local p dst_path src_abs recorded cur
 
   if [ -f "$manifest" ] && jq -e . "$manifest" > /dev/null 2>&1; then
     MANIFEST_EXISTS=1
@@ -385,6 +480,19 @@ scan_pass() {
     done < <(jq -r '.files[]? | select(.sha256) | [.path, .sha256] | join("\u001f")' "$manifest" | tr -d '\r')
   fi
 
+  # **core の既存ファイルのハッシュは1回でまとめて取る。** 1件ずつ起動すると、core の件数
+  # （現状163）に比例して外部プロセスが増える（sha256_lf_batch の説明を参照）。
+  local -a core_existing=()
+  for p in "${PLAN_PATHS[@]}"; do
+    [ "${PLAN_LAYER[$p]}" = 'core' ] || continue
+    [ -e "${DEST_DIR}/${p}" ] || continue
+    core_existing+=("${DEST_DIR}/${p}")
+  done
+  SHA_RESULT=()
+  if [ "${#core_existing[@]}" -gt 0 ]; then
+    sha256_lf_batch "${core_existing[@]}"
+  fi
+
   for p in "${PLAN_PATHS[@]}"; do
     dst_path="${DEST_DIR}/${p}"
     src_abs="${UPSTREAM_ROOT}/${PLAN_SRC[$p]}"
@@ -393,13 +501,13 @@ scan_pass() {
         if [ ! -e "$dst_path" ]; then
           SCAN_CORE_NEW+=("$p")
         else
-          sha256_lf_to_reply "$dst_path"
+          cur="${SHA_RESULT[$dst_path]}"
           recorded="${prev_sha[$p]:-}"
           if [ -z "$recorded" ]; then
             # 旧方式で適用済み・manifest を持たない配布先の初回再適用。
             # 「改変済み」ではなく「差分を確認できない（移行）」として一覧へ出し、.bak は作る。
             SCAN_CORE_UNKNOWN+=("$p")
-          elif [ "$REPLY" = "$recorded" ]; then
+          elif [ "$cur" = "$recorded" ]; then
             SCAN_CORE_SAME+=("$p")
           else
             SCAN_CORE_MODIFIED+=("$p")
@@ -409,6 +517,15 @@ scan_pass() {
       seed)
         if [ -e "$dst_path" ]; then
           SCAN_SEED_KEEP+=("$p")
+          # **seed は触らないが、古い形式のまま残っていないかは知らせる。** issue #26 以前は
+          # 本家の AGENTS.md 全文（共通ルールを含む）を配っていたため、再適用しても seed の
+          # ままでは共通ルールが .claude/rules/agent-common.md と二重化し、以後 agent-common.md
+          # だけが更新されて恒久的に食い違う。削除・書き換えは配布先の判断に委ねるので、
+          # SCAN_CORE_REMOVED と同じく**一覧の提示のみ**を行う。
+          if [ -n "${PLAN_REQUIRED[$p]}" ] \
+             && ! grep -qF -- "${PLAN_REQUIRED[$p]}" "$dst_path" 2>/dev/null; then
+            SCAN_SEED_STALE+=("$p")
+          fi
         else
           [ -f "$src_abs" ] || { printf 'エラー: seed の配布元がありません: %s\n' "$src_abs" >&2; return 1; }
           SCAN_SEED_PLACE+=("$p")
@@ -470,6 +587,14 @@ present_plan() {
     printf '      （.claude/rules/*.md はセッション開始時に自動で読み込まれるため、古いルールが残り続けます）。\n'
     printf '  - %s\n' "${SCAN_CORE_REMOVED[@]}"
   fi
+  if [ "${#SCAN_SEED_STALE[@]}" -gt 0 ]; then
+    printf '\n注意: 次の seed は配布先所有のため触りませんが、**配布元が想定する行が含まれていません**。\n'
+    printf '      古い形式のまま残っている可能性があります（内容が重複していないか確認してください）。\n'
+    local q
+    for q in "${SCAN_SEED_STALE[@]}"; do
+      printf '  - %s（"%s" が見つかりません）\n' "$q" "${PLAN_REQUIRED[$q]}"
+    done
+  fi
   if [ "${#SCAN_SEED_KEEP[@]}" -gt 0 ]; then
     printf '\n触らない seed（配布先所有）:\n'
     printf '  - %s\n' "${SCAN_SEED_KEEP[@]}"
@@ -477,7 +602,7 @@ present_plan() {
   if [ "${#SCAN_MERGE[@]}" -gt 0 ]; then
     printf '\nマージ対象:\n'
     local p
-    for p in "${SCAN_MERGE[@]}"; do
+    for p in ${SCAN_MERGE[@]+"${SCAN_MERGE[@]}"}; do
       printf '  - %s（%s）\n' "$p" "${PLAN_STRATEGY[$p]}"
     done
   fi
@@ -487,24 +612,76 @@ present_plan() {
 
 declare -a APPLIED_BAK=()
 MERGE_ADDED_TOTAL=0
+# 作成済みのディレクトリ。同じ親へ何度も mkdir を起動しないための記録。
+declare -A MADE_DIRS=()
+
+# ディレクトリを1回だけ作る。**ファイルごとに mkdir を起動しない**（配布対象は現状187件あるのに
+# 実際の親ディレクトリは数十件しかない。.claude/rules/shell-script-style.md
+# 「外部プロセス起動のコスト」）。
+ensure_dir() {
+  local d="$1"
+  [ -z "${MADE_DIRS[$d]+x}" ] || return 0
+  run_or_fail "ディレクトリの作成（${d}）" mkdir -p "$d" || return 1
+  MADE_DIRS["$d"]=1
+  return 0
+}
 
 apply_pass() {
   local p dst_path src_abs
   local -a overwrite=()
-  overwrite+=("${SCAN_CORE_NEW[@]}" "${SCAN_CORE_SAME[@]}" "${SCAN_CORE_MODIFIED[@]}" "${SCAN_CORE_UNKNOWN[@]}")
+  # **空配列を `"${a[@]}"` で展開しない。** bash 4.4 未満では `set -u` 配下で unbound variable に
+  # なる（SCAN_CORE_UNKNOWN は manifest を持つ通常の再適用では常に空）。同ファイルの
+  # check_upstream_clean が使っている `${a[@]+"${a[@]}"}` の形へ揃える。
+  overwrite+=(${SCAN_CORE_NEW[@]+"${SCAN_CORE_NEW[@]}"} \
+              ${SCAN_CORE_SAME[@]+"${SCAN_CORE_SAME[@]}"} \
+              ${SCAN_CORE_MODIFIED[@]+"${SCAN_CORE_MODIFIED[@]}"} \
+              ${SCAN_CORE_UNKNOWN[@]+"${SCAN_CORE_UNKNOWN[@]}"})
 
+  local d f
+  local -a individual=()
+  local -A group=()
   for p in "${overwrite[@]}"; do
     [ -n "$p" ] || continue
     dst_path="${DEST_DIR}/${p}"
-    src_abs="${UPSTREAM_ROOT}/${PLAN_SRC[$p]}"
-    run_or_fail "ディレクトリの作成（${p}）" mkdir -p "${dst_path%/*}" || return 1
+    ensure_dir "${dst_path%/*}" || return 1
     # 改変済み・判定不能なら .bak を残す（--force のときは残さない）。
     if [ -e "$dst_path" ] && [ "$OPT_FORCE" -eq 0 ]; then
-      if _in_list "$p" "${SCAN_CORE_MODIFIED[@]}" || _in_list "$p" "${SCAN_CORE_UNKNOWN[@]}"; then
+      if _in_list "$p" ${SCAN_CORE_MODIFIED[@]+"${SCAN_CORE_MODIFIED[@]}"} \
+         || _in_list "$p" ${SCAN_CORE_UNKNOWN[@]+"${SCAN_CORE_UNKNOWN[@]}"}; then
         run_or_fail "退避（${p}.bak）" cp "$dst_path" "${dst_path}.bak" || return 1
         APPLIED_BAK+=("${p}.bak")
       fi
     fi
+    # **配置は宛先ディレクトリごとにまとめる。** core は現状163件あり、ファイルごとに cp を
+    # 起動すると件数に比例して外部プロセスが増える（.claude/rules/shell-script-style.md
+    # 「外部プロセス起動のコスト」）。相対パスが本家と同じものだけをまとめ、内容を加工する
+    # dist-layers.json と、source を持つ（配布元と配布先で名前が違う）ものは個別に扱う。
+    if [ "$p" = "$DEF_REL" ] || [ "${PLAN_SRC[$p]}" != "$p" ]; then
+      individual+=("$p")
+    else
+      group["${dst_path%/*}"]+="${UPSTREAM_ROOT}/${p}"$'\n'
+    fi
+  done
+
+  # **`${!group[@]+...}` は使えない。** bashは `!group[@]+…` を**間接展開**として解釈し、
+  # キーではなく値を変数名として扱おうとして `invalid variable name` で落ちる（実測）。
+  # 連想配列のキーを空配列ガード付きで回すときは、件数を先に見る。
+  if [ "${#group[@]}" -gt 0 ]; then
+  for d in "${!group[@]}"; do
+    local -a srcs=()
+    while IFS= read -r f; do
+      [ -n "$f" ] || continue
+      srcs+=("$f")
+    done <<<"${group[$d]}"
+    # 1グループはディレクトリ1つぶんなので、コマンドライン長の上限には届かない
+    # （全件を一度に渡すと28KB強になる。check_upstream_clean の注記を参照）。
+    run_or_fail "配置（${d}）" cp -- "${srcs[@]}" "${d}/" || return 1
+  done
+  fi
+
+  for p in ${individual[@]+"${individual[@]}"}; do
+    dst_path="${DEST_DIR}/${p}"
+    src_abs="${UPSTREAM_ROOT}/${PLAN_SRC[$p]}"
     if [ "$p" = "$DEF_REL" ]; then
       # **配布先では `upstream` の印を落とす。** 付いたまま配ると、配布先で網羅性チェックが
       # 「本家のもの」として走り、配布先の自前ソースを全件未分類として報告する。
@@ -528,14 +705,14 @@ apply_pass() {
     fi
   done
 
-  for p in "${SCAN_SEED_PLACE[@]}"; do
+  for p in ${SCAN_SEED_PLACE[@]+"${SCAN_SEED_PLACE[@]}"}; do
     [ -n "$p" ] || continue
     dst_path="${DEST_DIR}/${p}"
-    run_or_fail "ディレクトリの作成（${p}）" mkdir -p "${dst_path%/*}" || return 1
+    ensure_dir "${dst_path%/*}" || return 1
     run_or_fail "配置（${p}）" cp "${UPSTREAM_ROOT}/${PLAN_SRC[$p]}" "$dst_path" || return 1
   done
 
-  for p in "${SCAN_MERGE[@]}"; do
+  for p in ${SCAN_MERGE[@]+"${SCAN_MERGE[@]}"}; do
     [ -n "$p" ] || continue
     dst_path="${DEST_DIR}/${p}"
     src_abs="${UPSTREAM_ROOT}/${PLAN_SRC[$p]}"
@@ -547,7 +724,7 @@ apply_pass() {
           return 1
         fi
         if [ ! -e "$dst_path" ]; then
-          run_or_fail "ディレクトリの作成（${p}）" mkdir -p "${dst_path%/*}" || return 1
+          ensure_dir "${dst_path%/*}" || return 1
           : > "$dst_path" || { printf 'エラー: 作成できません: %s\n' "$dst_path" >&2; return 1; }
         fi
         append_missing_lines "$src_abs" "$dst_path" "${PLAN_HEADER[$p]}" || return 1
@@ -556,7 +733,7 @@ apply_pass() {
         ;;
       json-keys)
         if [ ! -e "$dst_path" ]; then
-          run_or_fail "ディレクトリの作成（${p}）" mkdir -p "${dst_path%/*}" || return 1
+          ensure_dir "${dst_path%/*}" || return 1
           run_or_fail "配置（${p}）" cp "$src_abs" "$dst_path" || return 1
           printf '  %s: 新規に配置\n' "$p"
         else
@@ -594,38 +771,61 @@ write_manifest() {
   version="$(tr -d '\r\n' < "${UPSTREAM_ROOT}/.claude/VERSION" 2>/dev/null || echo 'unknown')"
   url="$(git -C "$UPSTREAM_ROOT" remote get-url origin 2>/dev/null || echo '')"
 
+  # **ファイル1件ごとに jq を起動しない。** core は現状163件あり、起動回数がそのまま所要時間に
+  # なる（.claude/rules/shell-script-style.md「外部プロセス起動のコスト」）。区切り付きの
+  # 中間表現をファイルへ書き出し、最後に jq 1回でJSONへ変換する。
+  # 区切りは `\u001f`（US）。タブはIFSの空白文字で、空の列があると列がずれる。
+  local -a hash_targets=()
+  for p in "${PLAN_PATHS[@]}"; do
+    case "${PLAN_LAYER[$p]}" in
+      core) hash_targets+=("${DEST_DIR}/${p}") ;;
+      seed) [ -e "${DEST_DIR}/${p}" ] && hash_targets+=("${DEST_DIR}/${p}") ;;
+    esac
+  done
+  SHA_RESULT=()
+  if [ "${#hash_targets[@]}" -gt 0 ]; then
+    sha256_lf_batch "${hash_targets[@]}"
+  fi
+
   entries_file="$(mktemp)"
+  : > "$entries_file"
   for p in "${PLAN_PATHS[@]}"; do
     dst_path="${DEST_DIR}/${p}"
     case "${PLAN_LAYER[$p]}" in
       core)
-        sha256_lf_to_reply "$dst_path"
-        jq -nc --arg p "$p" --arg h "$REPLY" '{path:$p, layer:"core", sha256:$h}'
+        printf 'core\037%s\037%s\037\n' "$p" "${SHA_RESULT[$dst_path]}" >> "$entries_file"
         ;;
       seed)
         [ -e "$dst_path" ] || continue
-        sha256_lf_to_reply "$dst_path"
-        jq -nc --arg p "$p" --arg h "$REPLY" --argjson placed \
-          "$(_in_list "$p" "${SCAN_SEED_PLACE[@]}" && echo true || echo false)" \
-          '{path:$p, layer:"seed", sha256:$h, placed:$placed}'
+        printf 'seed\037%s\037%s\037%s\n' "$p" "${SHA_RESULT[$dst_path]}" \
+          "$(_in_list "$p" ${SCAN_SEED_PLACE[@]+"${SCAN_SEED_PLACE[@]}"} && echo true || echo false)" \
+          >> "$entries_file"
         ;;
       merge)
-        merge_fingerprint_json "$dst_path" "${PLAN_STRATEGY[$p]}" "${PLAN_KEYS[$p]}" \
-          | jq -c --arg p "$p" '{path:$p, layer:"merge"} + .'
+        # merge は2件しかないので、指紋の組み立てはそのまま（内部で jq を使う）。
+        printf 'merge\037%s\037%s\037\n' "$p" \
+          "$(merge_fingerprint_json "$dst_path" "${PLAN_STRATEGY[$p]}" "${PLAN_KEYS[$p]}")" \
+          >> "$entries_file"
         ;;
       # local / exclude は書かない（書くと「配布した」と誤読される）。
     esac
-  done > "$entries_file"
+  done
 
   mkdir -p "$(dirname "${DEST_DIR}/${MANIFEST_REL}")"
-  # ファイル一覧は件数が可変なので、コマンドライン引数ではなくファイル経由でjqへ渡す
+  # 一覧は件数が可変なので、コマンドライン引数ではなくファイル経由でjqへ渡す
   # （.claude/rules/shell-script-style.md「大きなJSONを引数として渡さない」）。
-  jq -s --arg commit "$commit" --arg version "$version" --arg url "$url" \
+  jq -R -n --arg commit "$commit" --arg version "$version" --arg url "$url" \
         --arg at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" '
+    def torec:
+      split("\u001f") as $f
+      | if $f[0] == "merge" then { path: $f[1], layer: "merge" } + ($f[2] | fromjson)
+        elif $f[0] == "seed" then { path: $f[1], layer: "seed", sha256: $f[2], placed: ($f[3] == "true") }
+        else { path: $f[1], layer: $f[0], sha256: $f[2] }
+        end;
     { schemaVersion: 1,
       source: { url: $url, commit: $commit, version: $version },
       appliedAt: $at,
-      files: . }
+      files: [ inputs | select(length > 0) | torec ] }
   ' "$entries_file" | tr -d '\r' > "${DEST_DIR}/${MANIFEST_REL}"
   rm -f "$entries_file"
 }

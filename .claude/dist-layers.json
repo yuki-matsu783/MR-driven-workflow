@@ -25,7 +25,8 @@
 
     { "layer": "seed", "path": "AGENTS.md",
       "source": ".claude/skills/apply-mr-workflow-to-project/assets/AGENTS.md.template",
-      "note": "共通ルールのimport＋プロジェクト概要。概要は配布先が書くため汎用雛形を配る" },
+      "requiredLine": "@./.claude/rules/agent-common.md",
+      "note": "共通ルールのimport＋プロジェクト概要。概要は配布先が書くため汎用雛形を配る。requiredLine は移行の検知用。issue #26 以前は本家のAGENTS.md全文（共通ルール9項目を含む）がそのまま配られていたため、seedのまま再適用すると agent-common.md と共通ルールが二重化する。行が無ければ再適用時に一覧で知らせる" },
     { "layer": "seed", "path": "HANDOFF.md",
       "source": ".claude/skills/apply-mr-workflow-to-project/assets/HANDOFF.md.template",
       "note": "受け入れ条件3が明示（再適用で上書きしない）。source が無いと本家の作業中の引継ぎメモがそのまま配られ、seed なので二度と訂正されない。中身は cleanup-task.sh の HANDOFF_TEMPLATE と同一で、一致は test_cleanup_task.sh が表明する" },
@@ -60,7 +61,7 @@
     { "layer": "seed", "path": "reports/REVIEW-POINTS.local.md",
       "source": ".claude/skills/apply-mr-workflow-to-project/assets/REVIEW-POINTS.local.md.template" },
 
-    { "layer": "local", "gitignorePattern": ".vscode/", "note": "配布先の好み。配る行には入れない" },
+    { "layer": "local", "gitignorePattern": ".vscode/", "note": "配布先の好み。dist:begin〜dist:end の外に置いてあるので配られない" },
     { "layer": "local", "gitignorePattern": "*.log", "note": "同上" },
     { "layer": "local", "gitignorePattern": "/usage/", "note": "対応工数レポートのローカル作業状態" },
     { "layer": "local", "gitignorePattern": "/.claude/state/", "note": "前回push時点のHEAD SHA" },
