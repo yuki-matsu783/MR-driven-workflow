@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>docs-workflow.mdのflow-id矛盾解消確認と再発防止策の選択肢整理</title>
+<style>
+  :root {
+    --bg: #f6f7f9;      --panel: #ffffff;   --ink: #1a1d21;     --muted: #5b636d;
+    --line: #dfe3e8;    --accent: #2563eb;  --accent-soft: #eaf0fe;
+    --ok: #1a7f4b;      --ok-soft: #e6f4ec; --warn: #a35a00;    --warn-soft: #fdf1e0;
+    --stop: #b3261e;    --stop-soft: #fdecea; --code-bg: #f0f2f5;
+    --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1216;    --panel: #161a20;   --ink: #e6e8eb;     --muted: #9aa3ad;
+      --line: #2a3038;  --accent: #7aa2f7;  --accent-soft: #1b2333;
+      --ok: #6ee7a8;    --ok-soft: #14261d; --warn: #f0b866;    --warn-soft: #2a2113;
+      --stop: #f2857c;  --stop-soft: #2b1614; --code-bg: #1d222a;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", system-ui, sans-serif;
+    line-height: 1.8; font-size: 15px;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 20px 80px; }
+  header.band {
+    background: linear-gradient(135deg, var(--accent-soft), var(--panel));
+    border-bottom: 1px solid var(--line); padding: 28px 20px 22px; margin-bottom: 28px;
+  }
+  header.band .inner { max-width: 1080px; margin: 0 auto; }
+  header.band .kind { font-size: 11px; letter-spacing: .18em; color: var(--accent); font-weight: 700; }
+  header.band h1 { margin: 6px 0 4px; font-size: 26px; line-height: 1.4; }
+  header.band .lead { margin: 0; color: var(--muted); }
+  .meta { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; padding: 0; list-style: none; }
+  .meta li {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 999px;
+    padding: 3px 12px; font-size: 12.5px; color: var(--muted); white-space: nowrap;
+  }
+  .meta li b { color: var(--ink); font-weight: 600; }
+  nav.toc {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 14px 20px; margin-bottom: 28px;
+  }
+  nav.toc h2 { margin: 0 0 8px; font-size: 13px; letter-spacing: .08em; color: var(--muted); border: 0; padding: 0; }
+  nav.toc ol { margin: 0; padding-left: 20px; }
+  nav.toc li { margin: 2px 0; }
+  a { color: var(--accent); }
+  section {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 8px 24px 22px; margin-bottom: 22px;
+  }
+  h2 { font-size: 20px; margin: 20px 0 10px; padding-bottom: 8px; border-bottom: 2px solid var(--line); }
+  h3 { font-size: 16px; margin: 22px 0 8px; color: var(--accent); }
+  p { margin: 10px 0; }
+  ul, ol { padding-left: 22px; }
+  li { margin: 4px 0; }
+  blockquote { margin: 10px 0; padding: 6px 14px; border-left: 3px solid var(--line); color: var(--muted); }
+  .tablewrap { overflow-x: auto; margin: 14px 0; }
+  table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 14px; }
+  th, td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: var(--accent-soft); font-weight: 600; white-space: nowrap; }
+  tbody tr:nth-child(even) td { background: color-mix(in srgb, var(--line) 22%, transparent); }
+  code {
+    background: var(--code-bg); border-radius: 5px; padding: 1px 5px; font-size: 13px;
+    font-family: "SFMono-Regular", Consolas, "Noto Sans Mono", monospace;
+  }
+  pre {
+    background: var(--code-bg); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 12px 14px; overflow-x: auto; font-size: 13px; line-height: 1.65;
+  }
+  pre code { background: none; padding: 0; }
+  .box { border-left: 4px solid var(--accent); background: var(--accent-soft);
+         border-radius: 0 var(--radius) var(--radius) 0; padding: 12px 16px; margin: 16px 0; }
+  .box > :first-child { margin-top: 0; } .box > :last-child { margin-bottom: 0; }
+  .box .label { font-size: 12px; font-weight: 700; letter-spacing: .06em; display: block; margin-bottom: 4px; }
+  .box.ok { border-color: var(--ok); background: var(--ok-soft); } .box.ok .label { color: var(--ok); }
+  .box.warn { border-color: var(--warn); background: var(--warn-soft); } .box.warn .label { color: var(--warn); }
+  .box.stop { border-color: var(--stop); background: var(--stop-soft); } .box.stop .label { color: var(--stop); }
+  .box.info .label { color: var(--accent); }
+  .tag { display: inline-block; border-radius: 999px; padding: 1px 9px; font-size: 12px; font-weight: 600; }
+  .tag.ok { background: var(--ok-soft); color: var(--ok); }
+  .tag.warn { background: var(--warn-soft); color: var(--warn); }
+  .tag.stop { background: var(--stop-soft); color: var(--stop); }
+  footer { color: var(--muted); font-size: 13px; text-align: center; padding-top: 10px; }
+</style>
+</head>
+<body>
+
+<header class="band">
+  <div class="inner">
+    <div class="kind">個別調査計画 / フェーズ2</div>
+    <h1>docs-workflow.mdのflow-id矛盾解消確認と再発防止策の選択肢整理</h1>
+    <p class="lead">issue #143が報告した矛盾が現在も残っているかを最終確認し、再発防止策の選択肢を整理する。</p>
+    <ul class="meta">
+      <li><b>issue</b> #143</li>
+      <li><b>ブランチ</b> claude/docs-workflow-reports-timing-4gfc5v</li>
+      <li><b>PR</b> #181</li>
+      <li><b>フェーズ</b> 2〈調査〉 flow-id 2-1</li>
+      <li><b>正文</b> 同名の .md</li>
+    </ul>
+  </div>
+</header>
+
+<div class="wrap">
+
+<nav class="toc">
+  <h2>目次</h2>
+  <ol>
+    <li><a href="#goal">この計画で何をするか</a></li>
+    <li><a href="#target">変更対象</a></li>
+    <li><a href="#approach">方針</a></li>
+    <li><a href="#out-of-scope">やらないこと（スコープ外）</a></li>
+    <li><a href="#verify">検証</a></li>
+    <li><a href="#criteria">issueの受け入れ条件との対応</a></li>
+  </ol>
+</nav>
+
+<section id="goal">
+  <h2>この計画で何をするか</h2>
+  <p>issue #143の受け入れ条件を満たすため、(a) issueが報告した<code>reports/</code>行のflow-id矛盾が
+  現在も残っているかを最終確認し、(b) 「再発防止策の要否を検討し記録する」ため、再発防止策の
+  選択肢を整理する。</p>
+</section>
+
+<section id="target">
+  <h2>変更対象</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>ファイル</th><th>操作</th><th>何をするか</th></tr></thead>
+    <tbody>
+      <tr><td><code>.claude/rules/docs-workflow.md</code></td><td>読み取りのみ</td><td>flow-id記述の現状確認（本計画では変更しない）</td></tr>
+      <tr><td><code>.claude/skills/issue-mr-flow/SKILL.md</code></td><td>読み取りのみ</td><td>flow-idテーブルとの突合</td></tr>
+      <tr><td><code>.claude/docs/ddr/i0112-01-…md</code></td><td>読み取りのみ</td><td>既存の機械的検知見送り方針の確認</td></tr>
+      <tr><td><code>reports/…_調査.md</code>（新規）</td><td>新規</td><td>調査結果の記録先</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="approach">
+  <h2>方針</h2>
+  <p>まず(a)矛盾の現状確認を、`docs-workflow.md`全文の`flow-id`言及箇所の横断grepと、SKILL.mdの
+  正テーブルとの突合、およびgit履歴の確認で行う。次に(b)再発防止策について、機械的検知スクリプトの
+  新設・手順明記＋DDR記録・現状維持の3案を、実現コストと実効性の軸で比較する。</p>
+</section>
+
+<section id="out-of-scope">
+  <h2>やらないこと（スコープ外）</h2>
+  <div class="box stop">
+    <span class="label">この計画では決めない・触らない</span>
+    <ul>
+      <li><code>.claude/docs/spec/</code> <code>.claude/docs/ddr/</code>の過去changelog・DDR本文の
+        書き換え（issue #143の受け入れ条件）</li>
+      <li>再発防止策の実装そのもの（判断はフェーズ3〈作業〉へ送る）</li>
+    </ul>
+  </div>
+</section>
+
+<section id="verify">
+  <h2>検証</h2>
+  <pre><code>grep -rn "flow-id 5-1\|flow-id 5-3" .claude/rules/docs-workflow.md
+git log --oneline -p -- .claude/rules/docs-workflow.md</code></pre>
+  <p>合格条件: 片付けの意味を持つ古いflow-id記述（5-1/5-3）が現行記述として残っていないことを
+  確認できる。再発防止策の選択肢が最低3案、比較材料付きで整理できている。</p>
+</section>
+
+<section id="criteria">
+  <h2>issueの受け入れ条件との対応</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>受け入れ条件</th><th>この計画での対応箇所</th></tr></thead>
+    <tbody>
+      <tr><td>reports/行の運用欄がflow-id 5-3（現在は5-4）を指している</td><td>(a) 矛盾の現状確認</td></tr>
+      <tr><td>「片付け＝flow-id 5-1」と読める現行記述が他に残っていない</td><td>(a) 矛盾の現状確認（全文横断grep）</td></tr>
+      <tr><td>spec/ddrの過去changelogが変更されていない</td><td>やらないこと（本計画では何も変更しない）</td></tr>
+      <tr><td>再発防止策の要否が検討され、結論が記録されている</td><td>(b) 再発防止策の選択肢整理</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<footer>issue #143 / PR #181 — 計画の正文は同名の <code>.md</code>。外部依存を持たない自己完結HTML。</footer>
+
+</div>
+</body>
+</html>
