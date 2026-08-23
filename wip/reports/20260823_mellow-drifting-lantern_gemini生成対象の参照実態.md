@@ -16,18 +16,20 @@ keywords: [参照件数, 相対リンク, 解決先, 死蔵, COPY_EXCLUDED_PREFI
 
 | # | 結論 | 根拠の性質 |
 |---|---|---|
-| 1 | `.gemini/hooks/` は Gemini CLI から**読まれない**。変換後の hook `command` 6本すべてが `.claude/hooks/` を指し、`.gemini/hooks/` を指すものは0件 | 実測（生成物の `.gemini/settings.json` を解析） |
-| 2 | `.gemini/scripts/` も**読まれない**。`.gemini/` 配下の資産からのスクリプト呼び出し97件すべてが `.claude/scripts/` を指し、`.gemini/scripts/` は0件 | 実測（grep・対照付き） |
-| 3 | `.gemini/docs/` は**リンクの解決先として読まれうる**。`.gemini/rules/` から17件、`.gemini/skills/` から1件が向かう | 実測（相対リンクを解決して接頭辞判定） |
+| 1 | **`.gemini/hooks/` を指す実行経路は、生成物の中に0件である。** 変換後の hook `command` 6本すべてが `.claude/hooks/` を指す | 実測（生成物の `.gemini/settings.json` を解析）。**Gemini CLI が別経路でそこを読まないことは未観測**（CLI未実行） |
+| 2 | **`.gemini/scripts/` を指す呼び出しも、生成物の中に0件である。** `.gemini/` 配下の資産が書いているスクリプトのパス97件すべてが `.claude/scripts/` を指す | 同上（実測＋推論。CLI未実行） |
+| 3 | `.gemini/docs/` は**`.gemini/` 内の相対リンクの解決先になっている**。`.gemini/rules/` から17件、`.gemini/skills/` から1件が向かう | 実測（相対リンクを解決して接頭辞判定） |
 | 4 | 除外したとき「残るファイルから」切れるリンクは hooks 1件・scripts 1件・docs 18件。hooks/scripts の1件ずつは**どちらも `.gemini/docs/usecase/対応工数を把握する.md` が唯一のリンク元**で、docs/ も外すならリンク元ごと消える | 実測 |
 | 5 | `scripts/` を外す場合、`check-doc-references.sh` の除外定義と同 spec の表（2ファイル3行）が**存在しないディレクトリを指す死んだ設定**になる | 実装の確認 |
 | 6 | `COPY_EXCLUDED_PREFIXES` の判定は**完全一致**であり、ディレクトリを外すには接頭辞一致への拡張が要る | 実装の確認 |
 | 7 | 3ディレクトリで `.gemini/` の**176/215ファイル・2.49MB（78.7%）**を占める。ただし**配布物のサイズは1バイトも減らない**（`.gemini` は `dist-layers.json` で `layer: exclude`） | 実測＋設定の確認 |
+| 8 | **18件のリンク元である `.gemini/rules/` 自体にも、読み込まれる設定上の経路が見つからない。** ルールの読み込みは `GEMINI.md`（リポジトリ直下）→ `AGENTS.md` → `.claude/rules/agent-common.md` の import 連鎖で、`.gemini/settings.json` は `general`（`plan.directory` のみ）と `hooks` しか持たない | 実測＋推論（CLI未実行）。**結論1・2と同じ強さの根拠であり、3ディレクトリの性質差を左右する** |
 
 ## 実施条件（測った対象・環境）
 
 - 実行環境: Claude Code on the web（Linux）／2026-08-23。**git bash（Windows）実機では未計測**。
-- 対象リビジョン: `claude/gemini-exclude-decision-yp5p70`（`origin/main` の 25e1c37 時点）。
+- 対象リビジョン: ブランチ `claude/gemini-exclude-decision-yp5p70` の **25e1c37**（ベース `origin/main` = **0a9169c**。
+  `git merge-base origin/main HEAD` も 0a9169c で、このブランチは main の最新を含む）。
 - 走査対象: `.gemini/**/*.md` 142ファイル・相対リンク332件、および `.claude/` 配下の追跡ファイル全体。
 - grep の探索範囲は `--exclude-dir=.git --exclude-dir=wip --exclude-dir=usage` を共通に付け、
   件数は `--exclude-dir=.gemini` を足した「元」の側で数えた（理由は下記「測定手順で最初に踏んだ罠」）。
@@ -42,8 +44,28 @@ keywords: [参照件数, 相対リンク, 解決先, 死蔵, COPY_EXCLUDED_PREFI
 
 | 測り方 | `.gemini/docs/` の件数 | 対照（`.claude/docs/`） | 判定 |
 |---|---|---|---|
-| リテラル文字列のgrep（旧手順） | **2**（しかも実体はDDRの地の文でリンクではない） | 982 | 対照が非0なので**旧の合格条件を満たす** |
+| リテラル文字列のgrep（**旧手順のコマンドで測った値**） | **2** | **982** | 対照が非0なので**旧の合格条件を満たす** |
+| 同じリテラル一致を、**下記「実施条件」の探索条件**で測り直した値 | **2** | **846** | 値は変わるが判定は同じ |
 | リンクを解決して接頭辞判定（新手順） | **17**（`.gemini/rules/` 発のみ） | — | 実態と一致 |
+
+**上の2行が使ったコマンドは別物なので、両方を書く。**
+
+```bash
+# 旧手順のコマンド（2 / 982 を返す）
+grep -rIn --include='*.md' -e '\.gemini/docs/' .claude .gemini | wc -l   # → 2
+grep -rIn --include='*.md' -e '\.claude/docs/' .claude .gemini | wc -l   # → 982
+# 実施条件の探索条件で測り直したもの（2 / 846 を返す）
+EX="--exclude-dir=.git --exclude-dir=wip --exclude-dir=usage --exclude-dir=.gemini"
+grep -rIn $EX -e '\.gemini/docs/' . | wc -l    # → 2
+grep -rIn $EX -e '\.claude/docs/' . | wc -l    # → 846
+```
+
+**「2」の中身は、どちらの測り方かで入れ替わる。**
+
+| 測り方 | 2件の内訳 |
+|---|---|
+| 旧手順（md限定・`.claude` と `.gemini` の両方） | どちらも `i0000-13-….md:33` の地の文（`.claude/` 側と `.gemini/` 側の**同一行の複製**） |
+| 実施条件の探索条件（`.gemini/` 除外・拡張子不問） | 1件は `i0000-13-….md:33` の地の文、**もう1件は `.claude/scripts/test/test_search_frontmatter.sh:73` のアサーション**（Q5で別途扱う生きた参照であり、地の文ではない） |
 
 `.gemini/` 配下のリンクは `.claude/` の逐語コピーゆえ `](../docs/spec/x.md)` の形で書かれ、文字列
 `.gemini/docs/` としては現れない。**旧手順のままなら「docs/ を外してもリンクは切れない」という
@@ -65,7 +87,16 @@ grep -rIn --exclude-dir=.git --exclude-dir=wip --exclude-dir=usage --exclude-dir
 | 「元」の側での参照 | **2** |
 | うち `.gemini/` 側の複製 | 2（別カウント） |
 | 対照: `.claude/hooks` | **246**（非0。探し方は壊れていない） |
-| `.gemini/` 配下の資産・settings.json からの実行パス参照 | `.claude/hooks/…` **22件** ／ `.gemini/hooks/…` **0件** |
+| `.gemini/` 配下の資産・settings.json からの実行パス参照（**出現数**） | `.claude/hooks/…` **22件** ／ `.gemini/hooks/…` **0件** |
+
+最後の行は**別の測り方**なので、対象・パターン・単位を明記する。**「0件」はこの対象集合の中での
+0件であり、`.gemini/docs/` は含まない**（`.gemini/docs/` からの相対リンク1件は Q3・Q4 で扱う）。
+
+```bash
+T=".gemini/rules .gemini/skills .gemini/agents .gemini/settings.json"
+grep -rIoh -e '\.claude/hooks/[A-Za-z0-9_/.-]*\.sh' $T | wc -l   # → 22（出現数）
+grep -rIoh -e '\.gemini/hooks/[A-Za-z0-9_/.-]*\.sh' $T | wc -l   # → 0（対照は上行の22）
+```
 
 2件の内訳はいずれも `.claude/docs/ddr/i0000-13-….md` の地の文で、**`status: superseded`
 （`superseded_by: i0070-01`）** の、NTFSジャンクション運用時代の記述である。実行経路でもリンクでもない。
@@ -92,7 +123,19 @@ bash $GEMINI_PROJECT_DIR/.claude/hooks/post-issue-create-notice.sh
 | 「元」の側での参照 | **5** |
 | うち `.gemini/` 側の複製 | 5（別カウント） |
 | 対照: `.claude/scripts` | **643**（非0） |
-| `.gemini/` 配下の資産からのスクリプト呼び出し | `.claude/scripts/…` **97件** ／ `.gemini/scripts/…` **0件** |
+| `.gemini/` 配下の資産からのスクリプト呼び出し（**出現数**） | `.claude/scripts/…` **97件** ／ `.gemini/scripts/…` **0件** |
+
+```bash
+# 上4行のうち1〜3行目（5 / 5 / 643）
+EX="--exclude-dir=.git --exclude-dir=wip --exclude-dir=usage --exclude-dir=.gemini"
+grep -rIn $EX -e '\.gemini/scripts' . | wc -l    # → 5
+grep -rIn      -e '\.gemini/scripts' .gemini | wc -l   # → 5（.gemini/ 側の複製）
+grep -rIn $EX -e '\.claude/scripts' . | wc -l    # → 643（対照。非0）
+# 4行目（97 / 0）。Q1 と同じ対象・同じ単位（出現数）で揃えてある
+T=".gemini/rules .gemini/skills .gemini/agents .gemini/settings.json"
+grep -rIoh -e '\.claude/scripts/[A-Za-z0-9_/.-]*\.sh' $T | wc -l   # → 97（出現数。行数だと96）
+grep -rIoh -e '\.gemini/scripts/[A-Za-z0-9_/.-]*\.sh' $T | wc -l   # → 0
+```
 
 5件の内訳は次の2種類に分かれる。**この区別が判断に効く。**
 
@@ -136,6 +179,36 @@ bash $GEMINI_PROJECT_DIR/.claude/hooks/post-issue-create-notice.sh
 逆方向（`.gemini/docs/` 発のリンク）は305件で、うち282件が `.gemini/docs/` 内で完結し、
 23件が `.gemini/` の他のディレクトリ・リポジトリ直下へ向かう。
 
+**リンク元 × 解決先の表は主なもの（8行・325件）で、全332件のうち7件が表に出ていない**
+（`rules→.claude` 2 / `rules→index.md` 1 / `rules→skills` 1 / `docs→DEVELOPERS.md` 1 /
+`docs→agents` 1 / `docs→HANDOFF.md` 1）。
+
+#### Q3-b: リンク元である `.gemini/rules/` `.gemini/skills/` 自体が読まれる経路はあるか
+
+**Q1・Q2 で hooks/scripts に当てたのと同じ検査を、リンク元の側にも当てる。** 当てないと、
+「docs/ を外すと18件切れる」だけが独り歩きし、その18件が**そもそも誰にも読まれないファイルの中の
+リンク**かどうかが分からないままになる。
+
+```bash
+grep -n '^@' GEMINI.md AGENTS.md
+#   GEMINI.md:11:@./AGENTS.md
+#   AGENTS.md:11:@./.claude/rules/agent-common.md
+ls .gemini/*.md          # → .gemini/REVIEW-POINTS.md のみ（GEMINI.md / AGENTS.md 相当は無い）
+jq -r 'keys[]' .gemini/settings.json      # → general, hooks の2つだけ
+jq -c '.general' .gemini/settings.json    # → {"plan":{"directory":"./wip/plans"}}
+grep -c 'gemini/rules'  .gemini/settings.json   # → 0
+grep -c 'gemini/skills' .gemini/settings.json   # → 0
+```
+
+**ルールの読み込みは `GEMINI.md`（リポジトリ直下）→ `AGENTS.md` → `.claude/rules/agent-common.md`
+という import 連鎖で、`.gemini/rules/` を経由しない。** `.gemini/settings.json` にも
+`.gemini/rules/` `.gemini/skills/` を読み込ませるキーは無い（トップレベルは `general` と `hooks`
+だけで、`general` は `plan.directory` のみ）。
+
+したがって **`.gemini/rules/` にも、`.gemini/hooks/` `.gemini/scripts/` と同じ根拠が当たる**。
+ただし結論1・2と同じく、これは**生成物と設定から導いた推論**であり、Gemini CLI が実行時に
+`.gemini/rules/` を読まないことを観測したわけではない（下記「確かめられなかったこと」）。
+
 ### Q4: 除外したとき、解決できなくなるリンク
 
 **数えるのは「除外後も残るファイルから、除外されるファイルへ向かうリンク」に限る。** 除外対象の
@@ -172,11 +245,21 @@ bash $GEMINI_PROJECT_DIR/.claude/hooks/post-issue-create-notice.sh
 | `.gemini/rules/git-workflow.md` | 1 |
 | `.gemini/skills/apply-mr-workflow-to-project/SKILL.md` | 1 |
 
-**なお、現状でも既に2件のリンクが切れている**（除外とは無関係の既存の傷）。
+**なお、現状でも既に2件のリンクが切れている。うち1件は `.claude/` 側の欠陥である**（`.gemini/`
+側の傷として書くと、`.gemini/docs/` を外した時点で「消えた」ように見えてしまうが、正である
+`.claude/` 側の壊れたリンクは残り続ける）。
 
-- `.gemini/docs/ddr/i0127-01-….md` → `0037-リポジトリURLは…md`（issue #133 の改番前の旧ファイル名）
-- `.gemini/docs/spec/generate-ddr-list.md` → `<link-prefix><ファイル名>`（テンプレート記法の説明が
-  リンクとして解釈されたもの。**誤検知**であり実害はない）
+| リンク元（**正である `.claude/` 側**） | 内容 |
+|---|---|
+| `.claude/docs/ddr/i0127-01-….md:132` | `[DDR 0037](0037-リポジトリURLはgh_glabではなくgit-remoteから導出する.md)` を指すが、実在するのは `.claude/docs/ddr/i0044-01-リポジトリURLはgh_glabではなくgit-remoteから導出する.md`（issue #133 の改番前の旧ファイル名が残っている） |
+| `.claude/docs/spec/generate-ddr-list.md` | `<link-prefix><ファイル名>` というテンプレート記法の説明が、リンクとして解釈されたもの。**この解析スクリプトの誤検知**であり実害はない |
+
+`.gemini/docs/` 側に見えている同じ2件は、この逐語コピーである。
+
+**`bash .claude/scripts/src/check-doc-references.sh` は「参照切れ数=0」を返す**（絶対パス形式
+しか見ないため、この相対リンクを検出できない）。DDR `i0171-01` が置いた「絶対パス形式に限定する」
+という限定が、実データで表面化した実例になっている。1件目は本issueのスコープ外なので、
+**フェーズ4で別issueへ切り出すか `.claude/docs/` 側へ記録を残すかを決める**（下記「設計への反映」5）。
 
 ### Q5: 除外の実装に必要なこと・影響する既存テスト
 
@@ -197,8 +280,10 @@ done
 |---|---|
 | `.claude/scripts/test/test_sync_gemini_assets.sh` | **要変更**。T8（除外対象が出力に含まれないこと）に「除外したディレクトリが出力に無いこと」「除外していないディレクトリは残ること」の対を追加する。T6（冪等性）・T7（`--check`）・T17（0件判定）は仕組みに触れないため素通りする見込み |
 | `.claude/scripts/test/test_search_frontmatter.sh:73` | **影響なし**。`sf_is_excluded_path` は文字列を受け取る純粋関数で、ファイルシステムを触らない。しかも判定はパス**セグメント**一致（`case "/$path/" in *"/$dir/"*`）で `.gemini` 自体に当たるため、サブディレクトリの有無に依存しない |
-| `.claude/scripts/src/check-doc-references.sh` / 同 spec | **要追随**（`scripts/` を外す場合）。上記 Q2 の3行 |
-| `.claude/scripts/src/check-dist-coverage.sh` | **影響なし**（`.gemini` への言及が0件） |
+| `.claude/scripts/src/check-doc-references.sh` / 同 spec | **要追随**（`scripts/` を**外す場合のみ**）。上記 Q2 の3行 |
+| `.claude/rules/directory-structure.md:50` | **要追随**（**外す対象に依らず**）。`docs/ hooks/ rules/ scripts/ skills/` を「そのままコピー」と説明するツリー行が、どれか1つを外した時点で誤りになる |
+| `.claude/docs/spec/sync-gemini-assets.md:96-97` | **要追随**（**外す対象に依らず**）。「`.claude/agents/*.md` と `.claude/settings.json` はコピー対象から外し…それ以外のファイルは**内容を変えずにコピーする**」という、コピー対象の定義そのものが変わる |
+| `.claude/scripts/src/check-dist-coverage.sh` | **影響なし**。理由は「本文に `.gemini` の言及が0件」ではない（このスクリプトは `dist-layers.json` の `.gemini` エントリ経由で `.gemini` を扱うため、本文の言及数は影響の有無を示さない）。**`.gemini` エントリがサブツリー全体を被覆しており、配下が減っても残りのファイルに当たり続けるので検査3の空振り判定に入らない。** 実行して4種すべて通過することを確認済み（検査1 457/457・検査2 10/10・検査3 空振り0件・検査4 不正0件） |
 | `.claude/dist-layers.json` | **影響なし**。`.gemini` は `layer: exclude` のまま |
 
 ### Q6: 除外で減る量（実測）
@@ -213,7 +298,8 @@ done
 | **割合** | **81.9%** | **78.7%** |
 
 `--check` の所要時間は3回の実行で 116ms / 95ms / 91ms（いずれも終了コード0）。
-現状の単体テストは `passed=91 failures=0`。
+**変更前の `bash .claude/scripts/test/test_sync_gemini_assets.sh` は `passed=91 failures=0`**
+（フェーズ3で除外を実装したあと、この数字と比べる）。
 
 **「配布物のサイズ」は1バイトも減らない。** `.claude/dist-layers.json` は `.gemini` を
 `layer: exclude` と定義しており、`.gemini/` はそもそも配られない（配布先で
@@ -223,8 +309,20 @@ done
 ### 再現手順
 
 測定に使ったリンク解析スクリプトは `wip/worklogs/` の同名 push のログに全文を残した。
-grep 系はすべて本文中にコマンドを併記している。**0件と書いた測定にはすべて対照を付けてあり、
-対照が非0であることを確認済み**である。
+**Q1〜Q3・罠の表の各件数には、実際に実行したコマンドを本文中に併記してある**（対象・パターン・
+単位まで書き、行数と出現数を混ぜない）。
+
+**「0件」と書いた測定のうち、対照を付けてあるのは次のものである。**
+
+| 0件の主張 | 対照 |
+|---|---|
+| `.gemini/hooks/…` への実行パス参照 0件 | 同じ対象・同じパターンの `.claude/hooks/…` が22件 |
+| `.gemini/scripts/…` への呼び出し 0件 | 同じ対象・同じパターンの `.claude/scripts/…` が97件 |
+| `.gemini/settings.json` に rules/skills を読み込ませるキー 0件 | **対照なし**。`grep -c` が0であることしか示していない（同じ形で非0を返す既知のキーが無いため） |
+| `check-dist-coverage.sh` 本文の `.gemini` 言及 0件 | **対照なし**。かつ上記 Q5 のとおり、この0件は影響の有無を示さないので根拠から外した |
+
+対照を付けられなかった2件は、いずれも**それ単独では結論を支えていない**（前者は import 連鎖の
+実測と併せて読む、後者は `dist-layers.json` の被覆で置き換えた）。
 
 ## 確かめられなかったこと
 
@@ -240,22 +338,33 @@ grep 系はすべて本文中にコマンドを併記している。**0件と書
   外部プロセス起動が桁で遅い git bash 実機ではそのまま当てはまらない
   （`.claude/rules/shell-script-style.md`「外部プロセス起動のコスト」）。
 - **除外を実装した状態でのテスト結果は測っていない。** Q5 は既存の実装・テストを読んで
-  「どこに手が要るか」を出したもので、実際に通したのは**変更前**の `passed=91 failures=0` である。
+  「どこに手が要るか」を出したもので、実際に通したのは**変更前**の
+  `test_sync_gemini_assets.sh` の `passed=91 failures=0` である。
+- **`.gemini/rules/` `.gemini/skills/` が読まれないことも、同じく未観測である**（Q3-b）。
+  示したのは「設定と import 連鎖の中にそれらを読み込ませる経路が無い」ことまでで、
+  Gemini CLI が `.gemini/` 配下を暗黙に走査しないことは確かめていない。**この1点は
+  3ディレクトリの採否を左右するため、フェーズ3で「未観測のまま判断する」と明記する必要がある。**
 
 ## 設計への反映
 
 フェーズ3（flow-id 3-1〜）で次を決める。
 
-1. **3ディレクトリそれぞれの採否。** 材料は上記のとおりで、hooks/ と scripts/ は「読まれない・
-   切れるリンクは1件・追随箇所は scripts/ のみ2ファイル3行」、docs/ は「読まれうる・切れるリンク
-   18件」と、**性質がはっきり分かれている**。
+1. **3ディレクトリそれぞれの採否。** hooks/ と scripts/ は「指す経路が生成物中に0件・切れるリンクは
+   1件・追随箇所は scripts/ のみ2ファイル3行」。docs/ は「`.gemini/` 内の相対リンクの解決先・
+   切れるリンク18件」。**ただし Q3-b により、その18件のリンク元である `.gemini/rules/` 自体にも
+   読み込まれる経路が見つかっていない。** 「切れるリンク18件」を、読まれるファイルの中の18件と
+   読むか、読まれないファイルの中の18件と読むかで結論が変わる——**ここがフェーズ3の争点である**。
 2. **hooks/ と scripts/ の切れリンク1件ずつの扱い。** 唯一のリンク元
    （`.gemini/docs/usecase/対応工数を把握する.md`）は `.claude/` 側の逐語コピーであり、
    `.claude/` 側では正しく解決される。`.gemini/docs/` の扱いと連動して決める。
 3. **除外の実装形。** `is_copy_excluded` を接頭辞一致（または `case` パターン）へ拡張し、
    T8 へ「除外したディレクトリが出力に無いこと」「除外していないディレクトリは残ること」の対を
    追加する。
-4. **`check-doc-references.sh` と同 spec の追随**（`scripts/` を外す場合）。
+4. **ドキュメントの追随。** `scripts/` を外す場合は `check-doc-references.sh` と同 spec。
+   **どれを外す場合でも** `.claude/rules/directory-structure.md:50` と
+   `.claude/docs/spec/sync-gemini-assets.md:96-97`。
+5. **`.claude/docs/ddr/i0127-01-….md:132` の切れリンクの扱い**（本issueのスコープ外の既存の欠陥）。
+   別issueへ切り出すか、`.claude/docs/` 側へ記録を残すかを決める。
 
 ## 想定と異なった点
 
@@ -265,6 +374,7 @@ grep 系はすべて本文中にコマンドを併記している。**0件と書
 | docs/ を外すと切れるリンクは数百件 | **18件**。全リンク基準の298件のうち282件は `.gemini/docs/` 内で完結しており、リンク元ごと消える |
 | hooks/ scripts/ への参照は完全に0件 | 相対リンクとして**1件ずつ**存在した（同じ1ファイルから） |
 | 除外すれば配布物が小さくなる | **1バイトも変わらない**。`.gemini` は `dist-layers.json` で `layer: exclude` |
+| docs/ だけが「読まれる」側で、hooks/ scripts/ と性質が分かれる | **リンク元の `.gemini/rules/` にも読み込まれる経路が見つからなかった**（Q3-b）。性質差は当初の見立てほど明確ではない |
 
 ---
 
