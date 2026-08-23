@@ -17,9 +17,9 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - issue: #27 他プロジェクトで改善されたAIアセットを本家へ収穫（逆輸入）するスキルを新設する
 - ブランチ: claude/ai-asset-reverse-import-skill-g4qa9s
 - PR: #189 https://github.com/yuki-matsu783/MR-driven-workflow/pull/189（Draft）
-- push回数: 2
+- push回数: 3
 - 現在のループ: なし
-- 未返信スレッド: 0
+- 未返信スレッド: 7
 - 追従監視: なし
 
 | 進捗 | flow-id | ステップ | 担当 |
@@ -79,11 +79,24 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
   記号は `[]` のまま残す。
 - flow-id 2-1: 個別調査計画 `plans/【調査】収穫スキルの前提調査.md`（＋.html）と
   worklog（push1）を作成した。
+- flow-id 2-2直後: 敵対的レビュー1回目（フェーズ2・対象=調査計画）を実施。findings 8件の
+  うち7件をインライン投稿（下記URL）、1件（変更対象の「のみ」表現・minor/medium）は
+  報告のみ。修正は8件すべて反映した（計画へ前提・方針・Q8・検証コマンドを追加）。
+  - https://github.com/yuki-matsu783/MR-driven-workflow/pull/189#discussion_r3838553264 （前提合意の明記）
+  - https://github.com/yuki-matsu783/MR-driven-workflow/pull/189#discussion_r3838553759 （-dirty SHA）
+  - https://github.com/yuki-matsu783/MR-driven-workflow/pull/189#discussion_r3838554061 （検証コマンド）
+  - https://github.com/yuki-matsu783/MR-driven-workflow/pull/189#discussion_r3838554457 （added/deleted Q8）
+  - https://github.com/yuki-matsu783/MR-driven-workflow/pull/189#discussion_r3838554718 （LF正規化の粒度差）
+  - https://github.com/yuki-matsu783/MR-driven-workflow/pull/189#discussion_r3838554982 （HTML要約で情報欠落）
+  - https://github.com/yuki-matsu783/MR-driven-workflow/pull/189#discussion_r3838555266 （方針節の欠落）
+- flow-id 2-6: 調査を実施し `reports/2026-08-23_quiet-orchard-harvest_調査結果.md`（＋.html）へ
+  Q1〜Q8 の回答と実行検証の記録を書いた。
 
 ## 次にやること
 
-- flow-id 2-2 のpush後に敵対的レビュー（フェーズ2の1回目・対象は調査計画）を自動実施し、
-  指摘を修正して返信する。その後 flow-id 2-6（調査実施）へ進む。
+- 7スレッドへ対応内容を返信（返信後 `set-header --unreplied 0`）→ describe で
+  MR description 更新 → 敵対的レビュー2回目（対象=調査結果レポート）→ 指摘反映 →
+  フェーズ3（個別作業計画）へ。
 
 ## 判断を迷った内容
 

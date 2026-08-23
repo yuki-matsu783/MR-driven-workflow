@@ -45,6 +45,13 @@
     padding: 3px 12px; font-size: 12.5px; color: var(--muted); white-space: nowrap;
   }
   .meta li b { color: var(--ink); font-weight: 600; }
+  nav.toc {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 14px 20px; margin-bottom: 28px;
+  }
+  nav.toc h2 { margin: 0 0 8px; font-size: 13px; letter-spacing: .08em; color: var(--muted); border: 0; padding: 0; }
+  nav.toc ol { margin: 0; padding-left: 20px; }
+  nav.toc li { margin: 2px 0; }
   a { color: var(--accent); }
   section {
     background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
@@ -63,10 +70,16 @@
     background: var(--code-bg); border-radius: 5px; padding: 1px 5px; font-size: 13px;
     font-family: "SFMono-Regular", Consolas, "Noto Sans Mono", monospace;
   }
+  pre {
+    background: var(--code-bg); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 12px 14px; overflow-x: auto; font-size: 13px; line-height: 1.65;
+  }
+  pre code { background: none; padding: 0; }
   .box { border-left: 4px solid var(--accent); background: var(--accent-soft);
          border-radius: 0 var(--radius) var(--radius) 0; padding: 12px 16px; margin: 16px 0; }
   .box > :first-child { margin-top: 0; } .box > :last-child { margin-bottom: 0; }
   .box .label { font-size: 12px; font-weight: 700; letter-spacing: .06em; display: block; margin-bottom: 4px; }
+  .box.warn { border-color: var(--warn); background: var(--warn-soft); } .box.warn .label { color: var(--warn); }
   .box.stop { border-color: var(--stop); background: var(--stop-soft); } .box.stop .label { color: var(--stop); }
   footer { color: var(--muted); font-size: 13px; text-align: center; padding-top: 10px; }
 </style>
@@ -77,7 +90,7 @@
   <div class="inner">
     <div class="kind">個別調査計画 / フェーズ2（flow-id 2-1）</div>
     <h1>【調査】収穫スキルの前提調査</h1>
-    <p class="lead">収穫スキルの個別作業計画（flow-id 3-1）を確度高く書けるだけの材料を、配布機構（manifest・層分け定義）と接続先の読解で揃える。</p>
+    <p class="lead">収穫スキルの個別作業計画（flow-id 3-1）を確度高く書けるだけの材料を、配布機構（manifest・層分け定義）と接続先の読解＋実行検証で揃える。</p>
     <ul class="meta">
       <li><b>issue</b> #27</li>
       <li><b>ブランチ</b> claude/ai-asset-reverse-import-skill-g4qa9s</li>
@@ -90,9 +103,30 @@
 
 <div class="wrap">
 
+<nav class="toc">
+  <h2>目次</h2>
+  <ol>
+    <li><a href="#premise">前提（合意状況）</a></li>
+    <li><a href="#goal">この計画で何をするか</a></li>
+    <li><a href="#questions">調査項目（問いの形）</a></li>
+    <li><a href="#policy">方針</a></li>
+    <li><a href="#target">変更対象</a></li>
+    <li><a href="#out-of-scope">やらないこと（スコープ外）</a></li>
+    <li><a href="#verify">検証</a></li>
+  </ol>
+</nav>
+
+<section id="premise">
+  <h2>前提（合意状況）</h2>
+  <ul>
+    <li>依拠する上位計画: <code>plans/quiet-orchard-harvest.md</code>（flow-id 1-4 でAIエージェントが作成）。</li>
+    <li><b>flow-id 1-5（全体作業計画への人間の合意）は未実施である。</b>非対話セッションのため保留したまま進めている（進め方の特記は全体作業計画「非対話セッションでの進め方」節）。1-5 で全体作業計画の方針が変わった場合、本計画の調査項目（Q1〜Q8）も変わりうる。</li>
+  </ul>
+</section>
+
 <section id="goal">
   <h2>この計画で何をするか</h2>
-  <p>全体作業計画 <code>plans/quiet-orchard-harvest.md</code> のフェーズ2節に列挙した7問へ答える。</p>
+  <p>全体作業計画のフェーズ2節に列挙した7問に、レビュー指摘で追加した Q8 を加えた8問へ答える。</p>
 </section>
 
 <section id="questions">
@@ -101,21 +135,31 @@
   <table>
     <thead><tr><th>#</th><th>問い</th><th>調べ方</th></tr></thead>
     <tbody>
-      <tr><td>Q1</td><td>配布先 manifest の正確な形式は何か。とくに <code>merge</code> 層の指紋はどう記録されているか</td><td><code>install-to-project.sh</code> の manifest 書き出し部を読解</td></tr>
-      <tr><td>Q2</td><td>収穫スクリプトと単体テストはどこへ置くのが規約に合うか</td><td><code>install-to-project.sh</code> のテストの所在確認と <code>directory-structure.md</code> の突き合わせ</td></tr>
-      <tr><td>Q3</td><td>3-way突き合わせは何で実装するか。base取得（<code>git show &lt;記録SHA&gt;:&lt;path&gt;</code>）の失敗条件と縮退</td><td><code>git merge-file</code> の実行検証。shallow clone・squash merge 環境での記録SHA到達性の検討</td></tr>
-      <tr><td>Q4</td><td>manifest が無い配布先で、層分け定義から比較対象を列挙する既存手段はあるか</td><td><code>install-to-project.sh</code> 走査パス・<code>check-dist-coverage.sh</code> の pathspec 評価部を読解</td></tr>
+      <tr><td>Q1</td><td>配布先 manifest（<code>.claude/.asset-manifest.json</code>）の正確な形式は何か。<code>merge</code> 層の指紋はどう記録されているか（issue #27 コメントの「読む側が無い」の実装コメント確認）。<b><code>source.commit</code> の取りうる値（<code>&lt;sha&gt;</code> / <code>&lt;sha&gt;-dirty</code>）と、<code>sha256</code> がLF正規化値であることの確認を含む</b></td><td><code>install-to-project.sh</code> の manifest 書き出し部（<code>write_manifest</code>・<code>merge_fingerprint_json</code>・<code>sha256_lf_batch</code>）を読解</td></tr>
+      <tr><td>Q2</td><td>収穫スクリプトと単体テストはどこへ置くのが規約に合うか</td><td><code>install-to-project.sh</code> のテストの所在確認（<code>.claude/scripts/test/</code> か、スキル配下か）と <code>directory-structure.md</code> の突き合わせ</td></tr>
+      <tr><td>Q3</td><td>3-way突き合わせは何で実装するか。base取得（<code>git show &lt;記録SHA&gt;:&lt;path&gt;</code>）が失敗する条件——<b>(a) 記録SHAに <code>-dirty</code> 接尾辞が付いている場合</b>（<code>--allow-dirty</code> 配布。リビジョンとして解決不能で、配布内容はどのコミットにも無い）、(b) shallow clone・squash merge 等で記録SHAへ到達できない場合——と、それぞれの縮退。<b>3-way の3入力へ manifest と同じLF正規化を掛けるか</b>（掛けないとCRLF配布先で全行衝突になる）</td><td><code>git merge-file</code> の実行検証。<code>-dirty</code> 検出時・SHA未到達時の縮退方針の決定。CRLF入力での衝突挙動の実行検証</td></tr>
+      <tr><td>Q4</td><td>manifest が無い配布先で、層分け定義から比較対象を列挙する既存手段はあるか</td><td><code>install-to-project.sh</code> 走査パス（<code>build_plan</code>）・<code>check-dist-coverage.sh</code> の pathspec 評価部を読解</td></tr>
       <tr><td>Q5</td><td>出口レベル2種（issue起票のみ／個別作業計画草案）は既存の何へ接続するか</td><td><code>issue-create</code> スキル（<code>create-issue.sh</code>）の入力形式・非対話時の挙動確認</td></tr>
       <tr><td>Q6</td><td>「配布先で機構DDRを書かず本家へissue起票する」規約の明文化先はどこが適切か</td><td>配布層 <code>core</code> のルールファイル構成と <code>markdown-frontmatter.md</code> の既存記述の確認</td></tr>
-      <tr><td>Q7</td><td>判断材料3種（<code>ai-asset:</code> prefixコミット・変更回数・固有語）は配布先から何で取得でき、どんな限界があるか</td><td>配布先が git リポジトリでない場合・浅い履歴の場合の縮退を検討</td></tr>
+      <tr><td>Q7</td><td>判断材料3種（<code>ai-asset:</code> prefixコミット・変更回数・固有語）は配布先から何で取得でき、どんな限界があるか</td><td>配布先が git リポジトリでない場合・浅い履歴の場合の縮退を検討（<b>机上＋git コマンド確認</b>）</td></tr>
+      <tr><td>Q8</td><td>配布先の added / deleted はどう判定するか。<b>manifest のエントリ集合と配布先実体の差集合を取るとき、manifest に載らない <code>local</code> / <code>exclude</code> 層（配布先所有物）をどう除外するか</b>。縮退モードでは何が判定できないか。「本家で削除・改名されたファイルが配布先に残る」ケースと added の区別はどう付けるか</td><td><code>write_manifest</code> の記録対象（<code>local</code>/<code>exclude</code> は書かない）と <code>scan_pass</code> の <code>SCAN_CORE_REMOVED</code> の扱いを読解。層解決（後勝ち規則）を added 判定へ適用する方法を検討</td></tr>
     </tbody>
   </table>
   </div>
 </section>
 
+<section id="policy">
+  <h2>方針</h2>
+  <ul>
+    <li><b>読解が先、実行検証は判断が割れる箇所だけ</b>: Q1・Q2・Q4・Q6・Q8 は実装・規約の読解で確定できる。Q3（<code>git merge-file</code> の衝突挙動・CRLF入力）と Q5（<code>create-issue.sh</code> の引数検証）は実行して確かめる。Q7 の git コマンドは既知の挙動のため机上でよいが、縮退条件（非gitリポジトリ・浅い履歴）の整理までを答えに含める。</li>
+    <li><b>答えが出ない問いは「出なかった」として記録し、フェーズ3の計画で仮説として扱う</b>（調査を延長しない。8問に答えるか「答えられない理由」を書いた時点で打ち切る）。</li>
+    <li>進め方: Q1→Q4→Q8（manifest まわりを連続で読解）→Q3（実行検証）→Q2・Q5・Q6（規約・接続先）→Q7 の順。</li>
+  </ul>
+</section>
+
 <section id="target">
   <h2>変更対象</h2>
-  <p>このフェーズで書き換えるのは <code>reports/</code>（調査結果）と worklog のみ。実装・ルール・スキルには触らない。</p>
+  <p>成果物として新規に書くのは <code>reports/</code>（調査結果）と worklog。加えてフロー上の定型更新として <code>HANDOFF.md</code>（flow-id が進むごとの進捗更新）と、レビュー反映（flow-id 2-4）による本計画自身（md・html）の修正が入る。<b>実装・ルール・スキル（<code>.claude/</code> 配下の資産本体）には触らない。</b></p>
 </section>
 
 <section id="out-of-scope">
@@ -125,13 +169,33 @@
     <ul>
       <li>実装（フェーズ3）・仕様書/DDRの作成（フェーズ4）</li>
       <li>実在の配布先プロジェクトを用意した実機E2E（フェーズ3のテスト設計で、一時ディレクトリに合成した疑似配布先で代替する方針。実データ検証の要否はフェーズ3の計画で判断する）</li>
+      <li>受け入れ条件のうち「複数の配布先パスを一度の実行で指定できる」「出口レベルで停止する」は引数設計・手順設計の問題であり、本フェーズでは調べない（フェーズ3の個別作業計画で扱う。それ以外の受け入れ条件は Q1・Q3・Q4・Q5・Q6・Q8 が対応する）</li>
     </ul>
   </div>
 </section>
 
 <section id="verify">
   <h2>検証（何が分かれば次へ進めるか）</h2>
-  <p>Q1〜Q7 すべてに「実装に使える具体的な答え」（形式・置き場所・コマンド・縮退条件）が付き、<code>reports/2026-08-23_quiet-orchard-harvest_調査結果.md</code>（＋同名.html）に記録されていること。</p>
+  <p>Q1〜Q8 すべてに「実装に使える具体的な答え」（形式・置き場所・コマンド・縮退条件）が付き、<code>reports/2026-08-23_quiet-orchard-harvest_調査結果.md</code>（＋同名.html）に<b>実行検証のコマンドと出力を貼った形で</b>記録されていること。実行検証は最低限次を含む。</p>
+  <pre><code># Q3: git merge-file の衝突判定（終了コード=衝突数、-p は入力を変更しない）を確かめる
+printf 'l1\nl2\nl3\n' &gt; base; printf 'l1\nL2\nl3\n' &gt; ours; printf 'l1\nl2x\nl3\n' &gt; theirs
+git merge-file -p ours base theirs; echo "exit=$?"
+# 合格条件: 衝突マーカーが出力され exit=1（衝突1件）になること
+
+# Q3: CRLF入力（LF正規化なし）で全行が不一致になることを確かめる
+sed 's/$/\r/' base &gt; theirs_crlf
+git merge-file -p ours base theirs_crlf | grep -c '^&lt;&lt;&lt;&lt;&lt;&lt;&lt;'
+# 合格条件: 正規化しない場合に衝突が出ること（→3入力への正規化が必要という答えの根拠）
+
+# Q4/Q8: 層分け定義から core の対象ファイルを列挙できることを確かめる
+jq -r '.entries[] | select(.layer=="core") | .path // empty' .claude/dist-layers.json | head
+git ls-files -- .claude | head
+# 合格条件: pathspec 展開で対象一覧が得られること（0件でないこと）
+
+# Q5: create-issue.sh が5引数必須であることを確かめる（引数不足で非0＋使い方表示）
+bash .claude/scripts/src/create-issue.sh --title t 2&gt;&amp;1 | head -3; echo "exit=$?"
+# 合格条件: 必須引数エラーの文言が出ること</code></pre>
+  <p>コマンドの出力（またはその要約と実測値）を <code>reports/</code> のmdへ貼ることを合格条件とする。</p>
 </section>
 
 <footer>issue #27 / PR #189 — 計画の正文は同名の <code>.md</code>。外部依存を持たない自己完結HTML。</footer>
