@@ -141,4 +141,6 @@ issue 本文は標準4見出し（目的・現状・期待する動作・受け�
   対象外**（配布元は別パスの雛形で、base が本家の履歴に無い）。層を判定できない配布先
   （manifest も dist-layers.json も読めない）では `merge3` は実行されず終了コード 3 で止まる
   （フェイルクローズ）。
-- 仕様の詳細（分類規則・縮退条件・終了コード）はフェーズ4で `.claude/docs/spec/` へ記録する。
+- 仕様の詳細（分類規則・縮退条件・終了コード）は
+  [.claude/docs/spec/harvest-from-projects.md](../../docs/spec/harvest-from-projects.md) が正
+  （経緯・却下案は DDR `i0027-01`・`i0027-02`）。
