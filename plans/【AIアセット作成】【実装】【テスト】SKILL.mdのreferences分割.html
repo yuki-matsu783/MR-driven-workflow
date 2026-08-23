@@ -1,0 +1,419 @@
+<!--
+  個別作業計画 — SKILL.md の references 分割と参照タイミングの機械化（issue #160）の人間レビュー用HTMLビュー。
+
+  正文は同名の .md であり、この HTML はその視覚化である。両者の内容は同期させる。
+  土台: .claude/skills/issue-mr-flow/assets/plans.template.html
+-->
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>個別作業計画 — SKILL.md の references 分割（issue #160）</title>
+<style>
+  :root {
+    --bg: #f6f7f9;      --panel: #ffffff;   --ink: #1a1d21;     --muted: #5b636d;
+    --line: #dfe3e8;    --accent: #2563eb;  --accent-soft: #eaf0fe;
+    --ok: #1a7f4b;      --ok-soft: #e6f4ec; --warn: #a35a00;    --warn-soft: #fdf1e0;
+    --stop: #b3261e;    --stop-soft: #fdecea; --code-bg: #f0f2f5;
+    --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1216;    --panel: #161a20;   --ink: #e6e8eb;     --muted: #9aa3ad;
+      --line: #2a3038;  --accent: #7aa2f7;  --accent-soft: #1b2333;
+      --ok: #6ee7a8;    --ok-soft: #14261d; --warn: #f0b866;    --warn-soft: #2a2113;
+      --stop: #f2857c;  --stop-soft: #2b1614; --code-bg: #1d222a;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", system-ui, sans-serif;
+    line-height: 1.8; font-size: 15px;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 20px 80px; }
+
+  /* 共通ヘッダ帯 */
+  header.band {
+    background: linear-gradient(135deg, var(--accent-soft), var(--panel));
+    border-bottom: 1px solid var(--line); padding: 28px 20px 22px; margin-bottom: 28px;
+  }
+  header.band .inner { max-width: 1080px; margin: 0 auto; }
+  header.band .kind { font-size: 11px; letter-spacing: .18em; color: var(--accent); font-weight: 700; }
+  header.band h1 { margin: 6px 0 4px; font-size: 26px; line-height: 1.4; }
+  header.band .lead { margin: 0; color: var(--muted); }
+  .meta { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; padding: 0; list-style: none; }
+  .meta li {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 999px;
+    padding: 3px 12px; font-size: 12.5px; color: var(--muted); white-space: nowrap;
+  }
+  .meta li b { color: var(--ink); font-weight: 600; }
+
+  nav.toc {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 14px 20px; margin-bottom: 28px;
+  }
+  nav.toc h2 { margin: 0 0 8px; font-size: 13px; letter-spacing: .08em; color: var(--muted); border: 0; padding: 0; }
+  nav.toc ol { margin: 0; padding-left: 20px; }
+  nav.toc li { margin: 2px 0; }
+  a { color: var(--accent); }
+
+  section {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 8px 24px 22px; margin-bottom: 22px;
+  }
+  h2 { font-size: 20px; margin: 20px 0 10px; padding-bottom: 8px; border-bottom: 2px solid var(--line); }
+  h3 { font-size: 16px; margin: 22px 0 8px; color: var(--accent); }
+  p { margin: 10px 0; }
+  ul, ol { padding-left: 22px; }
+  li { margin: 4px 0; }
+  blockquote { margin: 10px 0; padding: 6px 14px; border-left: 3px solid var(--line); color: var(--muted); }
+
+  /* 表は自身の中で横スクロールする（ページ本体は横スクロールさせない） */
+  .tablewrap { overflow-x: auto; margin: 14px 0; }
+  table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 14px; }
+  th, td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: var(--accent-soft); font-weight: 600; white-space: nowrap; }
+  tbody tr:nth-child(even) td { background: color-mix(in srgb, var(--line) 22%, transparent); }
+
+  code {
+    background: var(--code-bg); border-radius: 5px; padding: 1px 5px; font-size: 13px;
+    font-family: "SFMono-Regular", Consolas, "Noto Sans Mono", monospace;
+  }
+  pre {
+    background: var(--code-bg); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 12px 14px; overflow-x: auto; font-size: 13px; line-height: 1.65;
+  }
+  pre code { background: none; padding: 0; }
+
+  /* 注意ボックス: info（既定）/ ok（決めたこと）/ warn（注意）/ stop（やらないこと・危険） */
+  .box { border-left: 4px solid var(--accent); background: var(--accent-soft);
+         border-radius: 0 var(--radius) var(--radius) 0; padding: 12px 16px; margin: 16px 0; }
+  .box > :first-child { margin-top: 0; } .box > :last-child { margin-bottom: 0; }
+  .box .label { font-size: 12px; font-weight: 700; letter-spacing: .06em; display: block; margin-bottom: 4px; }
+  .box.ok { border-color: var(--ok); background: var(--ok-soft); } .box.ok .label { color: var(--ok); }
+  .box.warn { border-color: var(--warn); background: var(--warn-soft); } .box.warn .label { color: var(--warn); }
+  .box.stop { border-color: var(--stop); background: var(--stop-soft); } .box.stop .label { color: var(--stop); }
+  .box.info .label { color: var(--accent); }
+
+  .tag { display: inline-block; border-radius: 999px; padding: 1px 9px; font-size: 12px; font-weight: 600; }
+  .tag.ok { background: var(--ok-soft); color: var(--ok); }
+  .tag.warn { background: var(--warn-soft); color: var(--warn); }
+  .tag.stop { background: var(--stop-soft); color: var(--stop); }
+
+  footer { color: var(--muted); font-size: 13px; text-align: center; padding-top: 10px; }
+</style>
+</head>
+<body>
+
+<header class="band">
+  <div class="inner">
+    <div class="kind">個別作業計画 / フェーズ3〈作業〉（flow-id 3-1）</div>
+    <h1>SKILL.md の references 分割と参照タイミングの機械化</h1>
+    <p class="lead">SKILL.md を本文 22,690 バイトと <code>references/</code> 8ファイルへ切り出し、
+      <b>全体フロー表の「参照」列</b>と <b>SessionStart hook</b> で「いつ読むか」を機械的に決める。
+      <b>本文は1文字も書き換えない。</b></p>
+    <ul class="meta">
+      <li><b>種別</b> 【AIアセット作成】【実装】【テスト】</li>
+      <li><b>issue</b> #160</li>
+      <li><b>PR</b> #161</li>
+      <li><b>フェーズ</b> 3〈作業〉 flow-id 3-1</li>
+      <li><b>作成日</b> 2026-08-23</li>
+      <li><b>正文</b> 同名の .md</li>
+    </ul>
+  </div>
+</header>
+
+<div class="wrap">
+
+<nav class="toc">
+  <h2>目次</h2>
+  <ol>
+    <li><a href="#premise">前提（合意状況）</a></li>
+    <li><a href="#goal">この計画で何をするか</a></li>
+    <li><a href="#approach">方針</a></li>
+    <li><a href="#target">変更対象</a></li>
+    <li><a href="#works">作業項目</a></li>
+    <li><a href="#out-of-scope">この計画で決めないこと（スコープ外）</a></li>
+    <li><a href="#criteria">issueの受け入れ条件との対応</a></li>
+    <li><a href="#verify">検証</a></li>
+  </ol>
+</nav>
+
+<section id="premise">
+  <h2>前提（合意状況）</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>事項</th><th>いつ・どこで決まったか</th></tr></thead>
+    <tbody>
+      <tr><td>分割は「いつ読むか」で切る（案1）。サイズ4分割は却下</td><td>フェーズ2〈調査〉 E-3（flow-id 2-6〜2-9）</td></tr>
+      <tr><td>現在地flow-idは「最後の <code>[x]</code>/<code>[-]</code> の次の <code>[]</code>」で解決する</td><td>同 C-1 / C-2</td></tr>
+      <tr><td>flow-id → 参照ファイルの対応は全体フロー表の「参照」列から抽出する</td><td>同 C-3</td></tr>
+      <tr><td><code>references/*.md</code> には frontmatter が必要で、type表への追記は<b>フェーズ3で</b>行う</td><td>同 C-5</td></tr>
+      <tr><td>旧節名の<b>機械置換は使わない</b>（(b) が0件ではないため）</td><td>同 B-3（2回目の敵対的レビューで訂正）</td></tr>
+      <tr><td>本セッションは非対話的なため、flow-id 3-3 / 3-4 の人間レビューは敵対的レビュー1回で代替する（進捗記号は <code>[]</code> のまま）</td><td>ユーザー指示（issue着手時）。<code>HANDOFF.md</code>「判断を迷った内容」</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="goal">
+  <h2>この計画で何をするか</h2>
+  <p><code>.claude/skills/issue-mr-flow/SKILL.md</code>（1446行 / 132,251バイト）を、<b>入口に絞った本文</b>と
+    <code>.claude/skills/issue-mr-flow/references/</code> 配下の<b>8ファイル</b>へ切り出し、あわせて
+    <b>参照ファイルを開くタイミングを機械的に決める仕組み</b>を実装する。</p>
+  <div class="box stop">
+    <span class="label">本文の内容は1文字も書き換えない</span>
+    切り出しは行の切り貼りだけで行い、見出しが元と完全に一致することを機械的に確かめる（検証 #2）。
+    本文へ新しく足すのは、全体フロー表の「参照」列・旧節名→新パスの対応表・各参照ファイルの frontmatter だけである。
+  </div>
+</section>
+
+<section id="approach">
+  <h2>方針</h2>
+  <p>3つの原則で進める。作業項目はすべてこの3つから導かれる。</p>
+  <ol>
+    <li><b>本文は行の切り貼りだけで切り出す。</b> 手作業でコピー＆ペーストしない。スクリプトが各行の行き先を決め、
+      漏れ・重複が無いことを <code>assert</code> で表明する。「同じ内容をどこに置くか<b>だけ</b>を変える」という
+      全体作業計画の宣言を、機械的に確かめられる形にするためである。</li>
+    <li><b>旧節名の機械置換を使わない。</b> specのpoint-in-time節（<code>## 影響範囲</code> 等）に節名を伴う参照が33件あり、
+      しかも <code>## 影響範囲</code> の中へ現在の状態を説明する小節が混ざるため、行番号でも節名でも線引きできない（調査 B-3）。
+      1件ずつ囲みH2と文脈を見る。</li>
+    <li><b>flow-id → 参照ファイルの対応は、全体フロー表の「参照」列を唯一の正とする。</b> hook側に対応表を持たない。
+      持つと二重管理になり、受け入れ条件「全体フロー表の各行に参照ファイルを明記する」と食い違う（調査 C-3）。</li>
+  </ol>
+</section>
+
+<section id="target">
+  <h2>変更対象</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>対象</th><th>何をするか</th></tr></thead>
+    <tbody>
+      <tr><td><code>.claude/skills/issue-mr-flow/SKILL.md</code></td><td>本文を22,690バイトへ縮める。参照列・対応表を追加</td></tr>
+      <tr><td><code>.claude/skills/issue-mr-flow/references/*.md</code>（<b>新規8ファイル</b>）</td><td>切り出した詳細。各ファイルへ frontmatter を付ける</td></tr>
+      <tr><td><code>.claude/hooks/session-start.sh</code></td><td>現在地flow-idの解決と参照ファイルの注入を追加</td></tr>
+      <tr><td><code>.claude/scripts/src/vcs/Provider.sh</code></td><td>357行目・373行目の<b>実行時メッセージ</b>の案内先を追従</td></tr>
+      <tr><td><code>.claude/scripts/test/test_vcs_provider.sh</code></td><td>357行目の期待値を追従。<b>373行目の出力を検証するテストを新設</b></td></tr>
+      <tr><td><code>.claude/scripts/test/test_install_to_project.sh</code></td><td><code>describe</code> 節の抽出元を <code>references/</code> へ変更</td></tr>
+      <tr><td><code>.claude/scripts/test/test_session_start.sh</code></td><td>現在地解決・参照注入の単体テストを追加</td></tr>
+      <tr><td><code>.claude/rules/markdown-frontmatter.md</code></td><td><code>type</code> の値の表へ <code>references/*.md</code> の行を追加</td></tr>
+      <tr><td>(c) の64件のうち、節名を伴う参照</td><td>1件ずつ判断して追従（作業5）</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <div class="box warn">
+    <span class="label">変更しないもの</span>
+    (a) DDR本文 <b>26件</b>、(b) specのpoint-in-time節 <b>33件</b>、(d) 節名を伴わない <b>83件</b>。
+  </div>
+</section>
+
+<section id="works">
+  <h2>作業項目</h2>
+
+  <h3>作業1: SKILL.md を8ファイルへ切り出す（【AIアセット作成】）</h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>ファイル</th><th>収める節</th><th>バイト</th></tr></thead>
+    <tbody>
+      <tr><td><b><code>SKILL.md</code>（本文）</b></td><td>前文／全体フロー導入＋42行テーブル／PR/MR作成・マージの担当／詳細ルールへのポインタ／前提</td><td>22,690</td></tr>
+      <tr><td><code>references/planning.md</code></td><td>全体作業計画に必ず含めるフェーズ／計画の2階層構造／issueが大きすぎる場合の分割提案</td><td>20,222</td></tr>
+      <tr><td><code>references/deliverables.md</code></td><td>計画と実施結果の分離／計画・レポートのHTMLビュー</td><td>4,947</td></tr>
+      <tr><td><code>references/start-resume.md</code></td><td>サブコマンド導入／<code>start</code>／<code>sync</code>／<code>resume</code>／作業開始・再開時のベースブランチ追従確認</td><td>20,820</td></tr>
+      <tr><td><code>references/review-loop.md</code></td><td><code>comments</code>／<code>reply</code>／<code>describe</code>／敵対的レビューの位置づけ／チャットで受けたレビュー判断の記録／レビュー依頼メッセージ／レビュー完了合図の確認</td><td>20,972</td></tr>
+      <tr><td><code>references/base-branch-followup.md</code></td><td>PR作成後のdefaultブランチ追従（監視）／defaultブランチとのコンフリクト検知・解消</td><td>11,051</td></tr>
+      <tr><td><code>references/mcp-fallback.md</code></td><td><code>gh</code>/<code>glab</code> CLI不在時のMCPフォールバック</td><td>13,578</td></tr>
+      <tr><td><code>references/phase5-close.md</code></td><td>マージ前の関連issue通知／最終統括レポートとPR/MRへの反映／PRが5-4実施前にマージされた場合の対処</td><td>17,971</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p><b>切り出しは手作業で行わない。</b> 行の切り貼りだけを行うスクリプトを使う（H2/H3の見出し位置から各行の行き先を決め、
+    <code>assert</code> で漏れ・重複が無いことを表明する）。<b>各ファイルの先頭へ H1 と frontmatter を足す</b>のは
+    切り出し後の追加であり、本文の書き換えではない。</p>
+
+  <h3>作業2: 全体フロー表へ「参照」列を追加する（【AIアセット作成】）</h3>
+<pre><code>置き換え前:
+| flow-id | ステップ | 担当 |
+|---|---|---|
+| 3-1 | **調査結果をもとに**、個別作業計画… | エージェント |
+
+置き換え後:
+| flow-id | ステップ | 担当 | 参照 |
+|---|---|---|---|
+| 3-1 | **調査結果をもとに**、個別作業計画… | エージェント | `references/planning.md` / `references/deliverables.md` |</code></pre>
+  <ul>
+    <li>参照が不要な行は <code>—</code> を入れる（<b>空セルにしない</b>。列がずれたことに気づけなくなるため）。</li>
+    <li><b>セルに <code>|</code> を含めない</b>（列位置をヘッダ行から求めるawkの前提。調査 C-3）。</li>
+    <li>全42行分の割り当ては作業時に決め、結果は <code>reports/</code> へ記録する（本計画には書かない）。</li>
+  </ul>
+
+  <h3>作業3: 旧節名→新パスの対応表を本文へ置く（【AIアセット作成】）</h3>
+  <p>DDR本文26件・specのpoint-in-time節33件は<b>書き換えない</b>ので、読み手がそこから辿れるように、
+    本文の末尾近くへ対応表を置く（全19種類の節名）。</p>
+  <div class="box warn">
+    <span class="label">表の左列は集合として一致させる</span>
+    実際に参照されている節名の集合と対応表の左列を <code>comm -3</code> で突き合わせ、<b>差が0件</b>であることを確かめる（検証 #3）。
+  </div>
+
+  <h3>作業4: SessionStart hook を拡張する（【実装】）</h3>
+  <p><code>.claude/hooks/session-start.sh</code> へ2つの関数を足し、注入テキストへ1行加える。</p>
+  <ul>
+    <li><b>4-a. <code>current_flow_id_to_reply</code></b> — <code>HANDOFF.md</code> の進捗表から
+      「<b>最後の <code>[x]</code> または <code>[-]</code> の行より後に現れる、最初の <code>[]</code> の行</b>」の flow-id を返す。
+      解決できなければ空（fail-open）。正規表現は <code>update-handoff-progress.sh</code> の
+      <code>parse_table_row_to_reply</code> と<b>同じものを共有する</b>。</li>
+    <li><b>4-b. <code>refs_for_flow_id_to_reply</code></b> — SKILL.md の全体フロー表から、ヘッダ行で
+      <code>参照</code> 列の位置を求め、指定flow-idの行のその列を返す。<b>hook内に対応表を持たない</b>。</li>
+  </ul>
+<pre><code>置き換え前（format_skill_reload_instruction の末尾）:
+**このセッションで既に読んでいる場合も読み直すこと**（compactの要約で、レビュー往復・
+`commit`スキル経由の強制・`HANDOFF.md`の進捗更新といった手順が失われている可能性があります）。
+
+置き換え後（上記に続けて1行）:
+**このセッションで既に読んでいる場合も読み直すこと**（compactの要約で、レビュー往復・
+`commit`スキル経由の強制・`HANDOFF.md`の進捗更新といった手順が失われている可能性があります）。
+現在地 flow-id &lt;解決した値&gt; の実行前に開く参照: &lt;参照列の値&gt;</code></pre>
+  <div class="box stop">
+    <span class="label">解決できないときは、この1行を出さない</span>
+    「現在地: 不明」のような行も出さない。<b>誤った名指しより、出ないほうが害が小さい</b>（調査 C-0 の非対称）。
+    追加は約150バイトで <code>CONTEXT_SIZE_WARN_BYTES</code>（8000）の2%未満。
+    <br><b><code>format_skill_reload_instruction</code> の引数を増やす場合、既存の呼び出し1箇所（<code>build_work_context</code>）も同時に直す。</b>
+  </div>
+
+  <h3>作業5: 節名を伴う参照 (c) 64件を追従する（【実装】【AIアセット作成】）</h3>
+<pre><code>置き換え前: `.claude/skills/issue-mr-flow/SKILL.md`「レビュー依頼メッセージ」節が正
+置き換え後: `.claude/skills/issue-mr-flow/references/review-loop.md`「レビュー依頼メッセージ」節が正</code></pre>
+  <ul>
+    <li><b>節名は変えない</b>（DDR側の記述と対応が付かなくなるため）。変えるのはパスだけ。</li>
+    <li>母集団は <code>git grep -n 'issue-mr-flow/SKILL\.md'</code>（<b>全拡張子</b>。<code>--include</code> で絞らない）。</li>
+    <li><b>次の行へ折り返している12件</b>は、行単位の確認では見落とす。2行を並べて読む。</li>
+  </ul>
+  <div class="box warn">
+    <span class="label">初版の調査で母集団から抜けていた4件を忘れない</span>
+    <code>assets/plans.template.html:38</code> / <code>assets/reports.template.html:35</code>（全計画・全レポートの土台）と、
+    <code>.github/pull_request_template.md:4</code> / <code>.gitlab/merge_request_templates/Default.md:7</code>（<code>describe</code> 節を名指し）。
+    どれも配布先へ渡る。
+  </div>
+
+  <h3>作業6: 実行時メッセージとテストを追従する（【実装】【テスト】）</h3>
+<pre><code>置き換え前（Provider.sh:357）:
+    *) printf '対応するMCPツールは .claude/skills/issue-mr-flow/SKILL.md の対応表を参照\n' ;;
+置き換え後:
+    *) printf '対応するMCPツールは .claude/skills/issue-mr-flow/references/mcp-fallback.md の対応表を参照\n' ;;
+
+置き換え前（Provider.sh:373）:
+    printf '  手順: .claude/skills/issue-mr-flow/SKILL.md 「`gh`/`glab` CLI不在時のMCPフォールバック」節\n'
+置き換え後:
+    printf '  手順: .claude/skills/issue-mr-flow/references/mcp-fallback.md\n'
+
+置き換え前（test_install_to_project.sh の describe_headings）:
+  ' "${REPO_ROOT}/.claude/skills/issue-mr-flow/SKILL.md"
+置き換え後:
+  ' "${REPO_ROOT}/.claude/skills/issue-mr-flow/references/review-loop.md"</code></pre>
+  <div class="box stop">
+    <span class="label">373 を検証するテストが存在しないので新設する</span>
+    現在どのテストも <code>require_vcs_cli</code> の出力を見ていないため、<b>案内先を変え忘れても緑のまま通る</b>（調査 D-3）。
+<pre><code>assert_contains "require_vcs_cli: MCPフォールバックの手順の場所を案内する" \
+  "$( get_vcs_access_mode() { printf 'mcp\n'; }; require_vcs_cli get_issue 2&gt;&amp;1 || true )" \
+  "references/mcp-fallback.md"</code></pre>
+    差し替えは<b>サブシェルへ閉じ込め</b>、<code>assert_*</code> は<b>サブシェルの外</b>で行う
+    （<code>unset -f</code> は実定義を消してしまう）。
+  </div>
+  <p><code>test_install_to_project.sh</code> の<b>抽出パターン（<code>/^### `describe`/</code>）は変えない</b>。
+    切り出し後も見出しは <code>###</code> のままである。「3行抽出できている」ガードもそのまま残す。
+    <code>test_session_start.sh</code> には調査 C-2 の4ケースと、存在しないflow-idで空が返ることを足す。</p>
+
+  <h3>作業7: frontmatter の type を決めて表へ追記する（【AIアセット作成】）</h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>案</th><th>採否</th><th>理由</th></tr></thead>
+    <tbody>
+      <tr><td>新設 <code>skill-reference</code></td><td><b>採用</b></td><td><code>doc-search --type skill</code> が「スキルの一覧」を返すという現在の意味を保てる</td></tr>
+      <tr><td>既存の <code>skill</code> を流用</td><td>却下</td><td><code>type: skill</code> が9件から17件へ増え、「スキルを一覧する」問いに参照ファイルが混ざる</td></tr>
+      <tr><td><code>guide</code> を流用</td><td>却下</td><td><code>guide</code> は永続する案内ドキュメントに与える値で、スキルのバンドルリソースとは寿命も読み手も違う</td></tr>
+    </tbody>
+  </table>
+  </div>
+<pre><code>置き換え前（typeの値の表）:
+| `skill` | `.claude/skills/*/SKILL.md` |
+置き換え後:
+| `skill` | `.claude/skills/*/SKILL.md` |
+| `skill-reference` | `.claude/skills/*/references/*.md`（SKILL.mdから切り出したバンドルリソース。issue #160） |</code></pre>
+  <p><b><code>description</code> は通常どおり書く。</b>「対象外・特殊対応ファイル」の表が <code>SKILL.md</code> の
+    <code>description</code> を特別扱いしているのは、Claude Codeがスキル選択に使う実キーだからである。
+    <code>references/*.md</code> はスキルの入口ではないので、この例外に当たらない。</p>
+</section>
+
+<section id="out-of-scope">
+  <h2>この計画で決めないこと（スコープ外）</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>事項</th><th>どこで決まるか</th></tr></thead>
+    <tbody>
+      <tr><td>spec（<code>issue-mr-workflow.md</code> 等）への反映内容、DDR <code>i0160-01</code> の本文</td><td>フェーズ4〈反映〉 flow-id 4-1</td></tr>
+      <tr><td>「配布用 <code>assets/</code> の複製が grep の母集団を歪める」知見の反映先</td><td>同上</td></tr>
+      <tr><td><code>install-to-project.sh</code> の破壊的な既定（引数省略で <code>DEST_DIR="."</code>）の修正</td><td><b>本issueのスコープ外</b>。別issueとして起票する</td></tr>
+      <tr><td>他の8スキルの点検・スキル執筆規約の新設</td><td>issue #129</td></tr>
+      <tr><td>フロー自体の変更（flow-idの増減・ステップの並べ替え・手順の中身）</td><td><b>やらない</b>（本issueは置き場所だけを変える）</td></tr>
+      <tr><td><code>.gemini/</code> 側の動作確認</td><td>この環境にリンクが無いため未確認のまま。フェーズ4で扱いを決める</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="criteria">
+  <h2>issueの受け入れ条件との対応</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>#</th><th>受け入れ条件（issue #160）</th><th>本計画での対応箇所</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td>SKILL.md 本文が概ね500行以内。抽出した節が <code>references/</code> 配下にある</td><td>作業1、検証 #1</td></tr>
+      <tr><td>2</td><td>全体フロー表の各行が、そのステップの前に開く参照ファイルを名指ししている</td><td>作業2、検証 #4</td></tr>
+      <tr><td>3</td><td>不変条件（<code>commit</code>スキル経由の強制／マージは人間／HANDOFF.mdの進捗更新／レビュー往復）が本文に残っている</td><td>作業1（該当節はいずれも本文側に含まれる）</td></tr>
+      <tr><td>4</td><td>SessionStart hook が現在地flow-idに対応する参照ファイルを注入する</td><td>作業4（解決できないときは行を出さない）</td></tr>
+      <tr><td>5</td><td>旧節名→新パスの対応表があり、DDR本文・specの過去changelogを書き換えずに辿れる</td><td>作業3、検証 #3・#9</td></tr>
+      <tr><td>6</td><td><code>AGENTS.md</code>・<code>.claude/rules/</code>・spec からのリンク切れが無い</td><td>作業5、検証 #8</td></tr>
+      <tr><td>7</td><td><code>test_install_to_project.sh</code> が新構造で通る</td><td>作業6-c、検証 #6</td></tr>
+      <tr><td>8</td><td><code>markdown-frontmatter.md</code> の type 表が <code>references/*.md</code> を扱っている</td><td>作業7、検証 #11</td></tr>
+      <tr><td>9</td><td><code>references/</code> が配布先へ渡ることを確認済み</td><td>検証 #10</td></tr>
+      <tr><td>10</td><td>決定と却下案を記録したDDRがある</td><td><b>フェーズ4</b>（本計画のスコープ外）</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="verify">
+  <h2>検証</h2>
+  <p>基準を分岐点のSHAへ固定してから行う。</p>
+<pre><code>base="$(git merge-base origin/main HEAD)"</code></pre>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>#</th><th>何を確かめるか</th><th>コマンド／合格条件</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td>本文が目標サイズに収まった</td><td><code>wc -c</code> が概ね25,000バイト以下（参照列・対応表の追加分を含む）</td></tr>
+      <tr><td>2</td><td><b>本文を書き換えていない</b></td><td><code>git show "$base":…SKILL.md</code> の見出し一覧と、分割後の本文＋<code>references/*.md</code> の見出し一覧が<b>集合として完全一致</b>（62件）。差分行数を出力する</td></tr>
+      <tr><td>3</td><td>対応表が全節名を網羅</td><td><code>comm -3</code> の差が<b>0件</b>であることを件数付きで出す</td></tr>
+      <tr><td>4</td><td>参照列が全42行に入っている</td><td>参照列が空のデータ行が<b>0件</b>であることを件数付きで出す</td></tr>
+      <tr><td>5</td><td>hookが正しいflow-idと参照を返す</td><td><code>test_session_start.sh</code> の新規ケース＋実際の <code>HANDOFF.md</code> での手動確認</td></tr>
+      <tr><td>6</td><td><b>既存テストが1本も壊れていない</b></td><td><code>.claude/scripts/test/</code> 配下の<b>全テスト</b>で合計 <code>failures=0</code>。<b>実行本数・passed合計も出す</b></td></tr>
+      <tr><td>7</td><td>373の変え忘れを検出できる</td><td>案内先を旧パスへ戻した一時ツリーで、新設テストが<b>実際に失敗する</b>ことまで確かめる</td></tr>
+      <tr><td>8</td><td>参照追従にリンク切れが無い</td><td>残存件数を出し、<b>すべてが (a)(b)(d) のいずれか</b>であることを確認する</td></tr>
+      <tr><td>9</td><td><b>DDR本文・過去changelogを書き換えていない</b></td><td><code>git diff "$base" -- .claude/docs/ddr/</code> が空。spec の差分は <code>## 影響範囲</code> 配下の行を含まない</td></tr>
+      <tr><td>10</td><td><code>references/</code> が配布先へ渡る</td><td><code>mktemp -d</code> ＋ <code>git init</code> した一時ディレクトリへ配り、8ファイルが現れることをコマンド出力で示す（調査 D-2 の<b>未達だった合格条件</b>）</td></tr>
+      <tr><td>11</td><td><code>index.jsonl</code> に載る</td><td><code>extract-frontmatter.sh</code> 後、8件が <code>type: skill-reference</code> で載っている</td></tr>
+      <tr><td>12</td><td>構文チェック</td><td>変更した <code>.sh</code> すべてに <code>bash -n</code></td></tr>
+    </tbody>
+  </table>
+  </div>
+  <div class="box stop">
+    <span class="label">install-to-project.sh は必ず一時ディレクトリを引数で渡す</span>
+    省略すると <code>DEST_DIR="."</code> になり、このリポジトリ自身を上書きする。
+  </div>
+</section>
+
+<footer>issue #160 / PR #161 — 計画の正文は同名の <code>.md</code>。外部依存を持たない自己完結HTML。</footer>
+
+</div>
+</body>
+</html>
