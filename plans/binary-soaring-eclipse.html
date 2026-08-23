@@ -107,7 +107,7 @@
 
 <header class="band">
   <div class="inner">
-    <div class="kicker">全体作業計画 / フェーズ1</div>
+    <div class="kind">全体作業計画 / フェーズ1</div>
     <h1>報告HTMLをホストしURLをマージ依頼時に通知する</h1>
     <p class="lead">
       <code>reports/</code> 配下の報告HTMLを、GitLabでは CI/CD Review Apps、GitHubでは GitHub Pages で
@@ -118,7 +118,7 @@
       <li><b>ブランチ</b> feature-114-host-report-html-and-notify-url</li>
       <li><b>PR</b> #180</li>
       <li><b>フェーズ</b> 1〈起点〉 flow-id 1-4</li>
-      <li><b>push回数</b> 1</li>
+      <li><b>push回数</b> 2</li>
       <li><b>作成日</b> 2026-08-23</li>
       <li><b>正文</b> 同名の .md</li>
     </ul>
@@ -145,23 +145,46 @@
 <section id="premise">
   <h2>前提（合意状況）</h2>
   <ul>
-    <li>issue <a href="https://github.com/yuki-matsu783/MR-driven-workflow/issues/114">#114</a> の本文（目的・現状・期待する動作・受け入れ条件の4見出しは充足）</li>
-    <li>ベースブランチを <code>main</code> とすることは flow-id 1-3 でユーザーが確認済み</li>
-    <li>issue を分割せず1件で進めることは flow-id 1-4 でユーザーが判断（下記「方針」）</li>
-    <li><b>まだ合意されていない前提</b>: ホスティング手段の選定・ホストするタイミングは未確定で、フェーズ2〈調査〉で決める</li>
+    <li>issue #114 の本文（目的・現状・期待する動作・受け入れ条件の4見出しは充足）</li>
+    <li>ベースブランチを <code>main</code> とすることは <b>flow-id 1-3</b> でユーザーが確認済み</li>
+    <li>issue を分割せず1件で進めることは <b>flow-id 1-4</b> でユーザーが判断（下記「方針」）</li>
+    <li><b>ホストするタイミングは案(b)</b> — 最終統括レポートのステップ（現行 <b>flow-id 5-4</b>）で
+      ホストし、マージ依頼のステップ（現行 <b>flow-id 5-6</b>）では<b>通知のみ</b>行う。
+      <b>flow-id 2-4（レビュー1周目）でユーザーが判断</b>（下記「フェーズ2〈調査〉」問い1）</li>
+    <li><b>まだ合意されていない</b>: 手段の選定（GitLab / GitHub それぞれ何でホストするか）は未確定で、
+      フェーズ2〈調査〉で決める</li>
   </ul>
 
   <h3>issue 起票後に前提が変わっている</h3>
   <div class="box warn">
-    <ul>
-      <li><b>flow-id の番号がずれている。</b> issue本文の「flow-id 5-4（Draft解除・マージ依頼）」は現在の <b>5-5</b>、
-        「flow-id 5-1 で削除される」は現在の <b>5-4</b>（#111・#112 の並べ替えによる）。</li>
-      <li><b>PR/MR上に統括が残るようになった</b>（#111）。flow-id 5-3 のサマリコメントと、層3の
-        <code>upload_attachment</code> によるHTML添付が既にある。ただし添付は「ダウンロードできる」であって
-        「ブラウザで開ける」ではないため、#114 の目的は解消されていない。</li>
-      <li><b>HTMLビューがテンプレート化された</b>（#54・#156）。<code>plans/</code> にもHTMLビューが付いたため、
-        ホスト対象を <code>reports/</code> に限るかは設計判断になる。</li>
-    </ul>
+    <b>flow-id の番号は #111・#112・#157 の3回で繰り下がっている。</b>
+    issue 本文および本計画の flow-id 2-2 時点の記述は、いずれも古い番号を指している。
+    以降は下表の<b>現行</b>列を使う。
+  </div>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>対象のステップ</th><th>issue 本文の記述</th><th>現行</th></tr></thead>
+    <tbody>
+      <tr><td>最終統括レポートの作成・commit・push</td><td>（issue 起票時は存在しない）</td><td><b>5-4</b></td></tr>
+      <tr><td><code>reports/</code> の削除（片付け）</td><td>5-1</td><td><b>5-5</b></td></tr>
+      <tr><td>Draft解除＝マージ依頼</td><td>5-4</td><td><b>5-6</b></td></tr>
+      <tr><td>（#157 で新設）<code>.gemini/</code> への変換同期</td><td>—</td><td>5-3</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>そのほかの変化</th><th>内容</th></tr></thead>
+    <tbody>
+      <tr><td><b>PR/MR上に統括が残るようになった</b>（#111）</td>
+          <td>flow-id 5-4 のサマリコメントと、層3の <code>upload_attachment</code> によるHTML添付が既にある。
+              <b>ただし添付は「ダウンロードできる」であって「ブラウザで開ける」ではない</b>ため、
+              #114 の目的は解消されていない</td></tr>
+      <tr><td><b>HTMLビューがテンプレート化された</b>（#54・#156）</td>
+          <td><code>plans/</code> にもHTMLビューが付いた。ホスト対象を <code>reports/</code> に限るかは
+              設計判断になる（フェーズ2で決める）</td></tr>
+    </tbody>
+  </table>
   </div>
 </section>
 
@@ -169,14 +192,15 @@
   <h2>この計画で何をするか</h2>
   <p>
     <code>reports/日付_&lt;全体計画名&gt;_&lt;内容&gt;.html</code> をブラウザで開けるURLとして払い出す仕組みを作り、
-    マージ依頼のタイミング（現行 flow-id <b>5-5</b>）でそのURLをユーザーへ提示する。
-    払い出しは <code>Provider.sh</code> の共通インターフェースへ載せ、GitLab / GitHub の差異を吸収する。
+    <b>最終統括レポートのステップ（flow-id 5-4）でホストし、マージ依頼のステップ（flow-id 5-6）で
+    そのURLをユーザーへ提示する</b>。払い出しは <code>Provider.sh</code> の共通インターフェースへ載せ、
+    GitLab / GitHub の差異を吸収する。
   </p>
   <div class="box">
     <span class="label">なぜ必要か</span>
-    報告HTMLは flow-id 5-4 で削除され、squash merge により <code>main</code> にも残らない。レビュー期間中でさえ、
-    ブラウザで開くには clone するか raw 表示を経由する必要があり、GitHub の raw は HTML を
-    <code>text/plain</code> で返すためレンダリングされない。<b>最も読んでほしいタイミングで、最も読みやすい成果物が
+    報告HTMLは flow-id 5-5 で削除され、squash merge により <code>main</code> にも残らない。レビュー期間中でさえ、
+    ブラウザで開くには clone するか raw 表示を経由する必要があり、GitHub の raw は
+    HTML を <code>text/plain</code> で返すためレンダリングされない。<b>最も読んでほしいタイミングで、最も読みやすい成果物が
     URL 1つで開けない。</b>
   </div>
 </section>
@@ -201,9 +225,15 @@
         <td>Review Apps / Pages デプロイの定義。どちらもこのリポジトリには現存しない</td>
       </tr>
       <tr>
+        <td><code>.claude/skills/apply-mr-workflow-to-project/scripts/</code></td>
+        <td>変更（見込み）</td>
+        <td>CI設定を配布資産に<b>含めない</b>と決めた場合、<code>sync-assets.sh</code> の
+            <code>.github/</code> 一括コピーから除外する実装が要る（下記「フェーズ2〈調査〉」問い4）</td>
+      </tr>
+      <tr>
         <td><code>.claude/skills/issue-mr-flow/SKILL.md</code></td>
         <td>変更</td>
-        <td>ホストと通知を flow-id のどこへ置くかを組み込む（5-3 と 5-5 の分担は調査1の結論次第）</td>
+        <td>flow-id <b>5-4</b> へホスト、<b>5-6</b> へ通知を組み込む</td>
       </tr>
       <tr>
         <td><code>.claude/scripts/test/test_vcs_provider.sh</code></td>
@@ -218,50 +248,73 @@
     </tbody>
   </table>
   </div>
+  <p><b>最新の報告HTMLの検出</b>は、既存の <code>get_branch_work_files</code>（ブランチ固有の
+    <code>plans/</code> <code>worklog/</code> <code>reports/</code> を返す。プロバイダ非依存）を
+    再利用できないか最初に確認する。</p>
 </section>
 
 <section id="approach">
   <h2>方針</h2>
   <p>
-    新しい仕組みを独立して足すのではなく、<b>既存の <code>Provider.sh</code> 抽象と flow-id 5-3 の3層フォールバック構造に
-    合わせる</b>。ホスティングは外部環境（CI・Pages・Runner）に依存し、配布先で必ず動くとは限らないため、
-    <b>失敗してもフローが止まらない</b>ことを設計の前提に置く。
+    新しい仕組みを独立して足すのではなく、<b>既存の <code>Provider.sh</code> 抽象と flow-id 5-4 の3層
+    フォールバック構造に合わせる</b>。ホスティングは外部環境（CI・Pages・Runner）に依存し、配布先で
+    必ず動くとは限らないため、<b>失敗してもフローが止まらない</b>ことを設計の前提に置く。
   </p>
 
   <h3>この計画で決めた前提（レビューで覆してよい）</h3>
-  <div class="box">
-    <div class="tablewrap">
-    <table>
-      <thead><tr><th>論点</th><th>決定</th><th>根拠</th></tr></thead>
-      <tbody>
-        <tr>
-          <td>issue 分割</td>
-          <td><span class="tag ok">分割せず1件</span></td>
-          <td>「GitLab / GitHub」は外部連携先の並列列挙に当たるが、先例として #111 の
-              <code>upload_attachment</code> も両プロバイダを1 issue で実装している。
-              Provider.sh の抽象は両者が揃って初めて意味を持ち、5フェーズ42ステップの固定費を
-              二重に払う規模ではない</td>
-        </tr>
-        <tr>
-          <td>敵対的レビュー</td>
-          <td>各フェーズの計画時に1回、作業実施ごとに1回、自動実行しMRへインライン投稿する</td>
-          <td>ユーザーからの明示指示。<code>adversarial-review</code> スキル手順3の投稿可否確認は、
-              この計画への合意をもって1回に集約する</td>
-        </tr>
-        <tr>
-          <td>GitHub 側の実機検証</td>
-          <td>GitHub Pages を<b>有効化して実機検証まで行う</b></td>
-          <td>ユーザー判断。リポジトリは Public のため有効化可能（現状は未有効で API が404）</td>
-        </tr>
-        <tr>
-          <td>GitLab 側の実機検証</td>
-          <td>GitLab Runner を<b>立てて実機検証まで行う</b></td>
-          <td>ユーザー判断。既存の検証環境（<code>gitlab-verification-environment.md</code>）に
-              Runner は含まれていないため、その構築も作業に含める</td>
-        </tr>
-      </tbody>
-    </table>
-    </div>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>論点</th><th>決定</th><th>合意した flow-id</th><th>根拠</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>issue 分割</td>
+        <td><span class="tag ok">分割せず1件</span></td>
+        <td><b>1-4</b></td>
+        <td>「GitLab / GitHub」は外部連携先の並列列挙に当たるが、先例として #111 の
+            <code>upload_attachment</code> も両プロバイダを1 issue で実装している。
+            Provider.sh の抽象は両者が揃って初めて意味を持ち、5フェーズ43ステップの固定費を
+            二重に払う規模ではない</td>
+      </tr>
+      <tr>
+        <td>ホストするタイミング</td>
+        <td><span class="tag ok">案(b)</span> flow-id <b>5-4</b> でホスト、<b>5-6</b> で通知のみ</td>
+        <td><b>2-4</b>（レビュー1周目）</td>
+        <td>下記「フェーズ2〈調査〉」問い1</td>
+      </tr>
+      <tr>
+        <td>敵対的レビュー</td>
+        <td>各フェーズの計画時に1回、作業実施ごとに1回、自動実行しMRへインライン投稿する</td>
+        <td><b>1-4</b></td>
+        <td>ユーザーからの明示指示（下の注意書きも参照）</td>
+      </tr>
+      <tr>
+        <td>GitHub 側の実機検証</td>
+        <td>GitHub Pages を<b>有効化して実機検証まで行う</b></td>
+        <td><b>1-4</b></td>
+        <td>リポジトリは Public のため有効化可能（現状は未有効で API が404）</td>
+      </tr>
+      <tr>
+        <td>GitLab 側の実機検証</td>
+        <td>GitLab Runner を<b>立てて実機検証まで行う</b></td>
+        <td><b>1-4</b></td>
+        <td>既存の検証環境（<code>gitlab-verification-environment.md</code>）に
+            Runner は含まれていないため、その構築も作業に含める</td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="box stop">
+    <span class="label">敵対的レビューの運用は、スキルの既定を本ブランチに限り上書きしている</span>
+    <code>.claude/skills/adversarial-review/SKILL.md</code> は「実行モードの判断（起動ポリシー・絶対ルール）」で
+    (1) 対話モードでのAIによる自律起動を禁じ、(2) どちらのモードでも投稿の可否を手順3で毎回確認する
+    ことを求めている。本ブランチは<b>ユーザーの明示指示（flow-id 1-4）</b>により、(1) を自動起動へ、
+    (2) をこの計画への合意1回へ集約する形で上書きする。<b>恒久化するならスキル側へ例外を書く</b>
+    （フェーズ4の反映候補）。
+    <p><b>上書きしても、実施回数の上限は外れない。</b> 同スキル手順1は<b>各フェーズ最大3回</b>と定め、
+      <code>.claude/scripts/src/adversarial-review-count.sh</code> が機械的に強制する（カウンタは投稿の成否に
+      関わらず加算される）。レビュー往復が重なって上限に達した場合は、<b>レビューを実行せずに打ち切り、
+      その事実を報告して人間のレビューへ委ねる</b>。<code>reset</code> はAIから提案しない。</p>
   </div>
 </section>
 
@@ -269,32 +322,83 @@
   <h2>フェーズ2〈調査〉</h2>
   <p><b>実施する。</b> 実装方針を決めるために解かねばならない問いが、少なくとも4つ残っている。</p>
 
-  <div class="box stop">
-    <span class="label">問い1（最重要）: タイミングの矛盾をどう解くか</span>
-    flow-id <b>5-4 で <code>reports/</code> は削除され</b>、その後の <b>5-5 が Draft解除＝マージ依頼</b>である。
-    「マージ依頼時にホストする」を素直に実装すると、<b>ホストすべきファイルが既に存在しない</b>。
+  <div class="box ok">
+    <span class="label">問い1: タイミングの矛盾 — 案(b)で確定済み（flow-id 2-4）</span>
+    現行のフロー順は <b>5-4（統括レポート作成・commit・push）→ 5-5（<code>reports/</code> 削除）→
+    5-6（commit・push・Draft解除＝マージ依頼）</b>である。「マージ依頼時にホストする」を素直に実装すると
+    対象ファイルが既に無い。ユーザーの判断により、次の<b>案(b)</b>を採る。
     <ul>
-      <li>(a) CI が push ごとにデプロイし、デプロイ先を<b>コミットSHA単位の不変パス</b>にする。5-4 の削除pushは
-          新しい空デプロイを作るだけで、5-3 時点のデプロイは残る。5-5 では「最後に中身のあったデプロイ」のURLを提示する</li>
-      <li>(b) ホスト自体を <b>flow-id 5-3</b>（統括レポートのcommit・push）で行い、5-5 では<b>通知のみ</b>行う</li>
-      <li>(c) 5-5 で、削除前のコミット（5-3 のSHA）をCIへ明示的に指定してデプロイさせる</li>
+      <li><b>(a) 不変パス</b>: CI が push ごとにデプロイし、デプロイ先をコミットSHA単位の不変パスにする</li>
+      <li><b>(b) 5-4でホスト</b>（<span class="tag ok">採用</span>）: ホスト自体を flow-id 5-4 で行い、
+        5-6 では<b>通知のみ</b>行う</li>
+      <li><b>(c) SHA指定</b>: 5-6 で、削除前のコミット（5-4 のSHA）をCIへ明示的に指定してデプロイさせる</li>
     </ul>
+    <p>調査では<b>案の選定そのものは行わず</b>、次の2点だけを確かめる。</p>
+    <ol>
+      <li><b>案(b)が成立する条件</b>（5-4 の push を CI がどう捉えるか、5-5 の削除pushが既にホストされた
+        内容を壊さないか、5-6 でURLをどう取得するか）</li>
+      <li><b>(a)(c) を却下した理由の裏取り</b>（DDRへ残すため。推測のまま却下理由にしない）</li>
+    </ol>
+    <p>あわせて、<b><code>plans/</code> のHTMLビューをホスト対象に含めるか</b>を決める
+      （上位の判断として本フェーズへ送られている）。</p>
   </div>
 
+  <h3>問い2: GitHub の代替手段の選定</h3>
+  <p>GitHub Pages（Actions で <code>pr-&lt;番号&gt;/</code> サブパスへデプロイ）を第一候補として、
+    次を<b>一次情報（公式ドキュメント）で</b>確認する。</p>
   <ul>
-    <li><b>問い2: GitHub の代替手段の選定。</b> GitHub Pages（Actions で <code>pr-&lt;番号&gt;/</code> サブパスへデプロイ）を
-      第一候補として、(i) 「1リポジトリ1サイト」制約下でPRごとの並列プレビューをどう表現するか、
-      (ii) デプロイ完了をどう待ちURLをどう取得するか、(iii) fork からのPRで <code>GITHUB_TOKEN</code> の権限が
-      落ちる問題の有無、を確認する。<b>却下候補（raw は <code>text/plain</code>、Actions artifact はダウンロードのみ、
-      <code>upload_attachment</code> も同様）は却下理由つきで記録する。</b></li>
-    <li><b>問い3: GitLab Review Apps の必要条件。</b> <code>environment.url</code> と <code>on_stop</code> の書き方、
-      動的環境名の付け方、<b>GitLab Runner の構築手順</b>（executor の選定・Docker版 GitLab CE への登録）、
-      ホストの実体（GitLab Pages か Runner 上の静的サーバか）。</li>
-    <li><b>問い4: 配布物としての扱い。</b> このリポジトリは <code>.claude/</code> 一式を他プロジェクトへ配布する
-      テンプレートである。<code>.gitlab-ci.yml</code> / <code>.github/workflows/*.yml</code> は <code>.claude/</code> の外に
-      置かれるため、<code>distribution-assets.md</code> の配布資産に含めるべきかを決める
-      （<code>.gitattributes</code> の <code>dist:begin</code>〜<code>dist:end</code> 方式が参考になる）。
-      <b>配布先が既にCI設定を持っている場合に壊さない</b>方法もここで決める。</li>
+    <li>Pages は1リポジトリ1サイトである制約下で、PRごとの並列プレビューをどう表現するか</li>
+    <li>Actions のデプロイ完了をどう待ち、URLをどう取得するか</li>
+    <li>fork からのPRで <code>GITHUB_TOKEN</code> の書き込み権限が落ちる問題の有無</li>
+    <li>Pages 有効化に必要な操作（API で可能か、Web UI が必須か）</li>
+    <li><b>払い出されるURLの閲覧可能範囲が、リポジトリの可視性設定と一致するか</b>（private リポジトリで
+      何が起きるか。issue の受け入れ条件「プロジェクトの可視性設定に従う」は、<b>選ぶ手段によっては
+      満たせない</b>要件である）</li>
+  </ul>
+  <p><b>却下候補は、却下理由つきで必ず記録する</b>（後で「なぜそれを使わないのか」を再検討しないため）。</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>却下候補</th><th>想定される却下理由（調査で裏を取る）</th></tr></thead>
+    <tbody>
+      <tr><td>raw.githubusercontent.com</td><td>HTML を <code>text/plain</code> で返しレンダリングされない</td></tr>
+      <tr><td>Actions artifact</td><td>ダウンロードのみ。ブラウザで開けない・ログインが要る</td></tr>
+      <tr><td><code>upload_attachment</code>（既存の層3）</td>
+          <td>添付はダウンロード用。#114 の「ブラウザで開ける」を満たさない</td></tr>
+      <tr><td>外部ホスティング（Netlify等）</td>
+          <td>リポジトリ外のアカウント・シークレットが要り、配布物として成立しない</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>問い3: GitLab Review Apps の必要条件</h3>
+  <ul>
+    <li><code>.gitlab-ci.yml</code> の <code>environment.name</code>（動的環境名）・
+      <code>environment.url</code>・<code>on_stop</code> の書き方</li>
+    <li><b>ホストの実体</b>（GitLab Pages を使うか、Runner 上の静的サーバか）と、それぞれの前提</li>
+    <li><b>GitLab Runner の構築手順</b>（executor の選定・Docker版 GitLab CE への登録）</li>
+    <li>払い出された URL を <code>glab</code> から取得する方法</li>
+    <li><b>払い出されるURLの閲覧可能範囲が、プロジェクトの可視性設定と一致するか</b>。とくに
+      「Runner 上の静的サーバ」を選ぶとホスト先がGitLabのアクセス制御の外になり、
+      <b>private プロジェクトの成果物が無認証で公開されうる</b></li>
+  </ul>
+
+  <h3>問い4: 配布物としての扱い</h3>
+  <div class="box stop">
+    <span class="label">「配布対象外」という前提は成り立たない</span>
+    <code>.gitlab-ci.yml</code> / <code>.github/workflows/*.yml</code> は Claude Code の plugin 配布
+    （<code>.claude/</code> 一式）の対象外である。<b>しかし <code>apply-mr-workflow-to-project</code> の
+    配布経路では既に配布対象に入りうる</b>: <code>sync-assets.sh</code> は
+    <code>cp -R "${PROJECT_ROOT}/.github/"* "${ASSETS_DIR}/.github/"</code> で <code>.github/</code> 配下を
+    <b>丸ごと</b> <code>assets/</code> へ集め、<code>install-to-project.sh</code> が
+    <code>safe_copy_dir</code> で配布先へ展開する。つまり <code>.github/workflows/*.yml</code> を置いた瞬間、
+    <b>何も設定しなくても配布資産に載る</b>。
+  </div>
+  <ul>
+    <li>CI設定を配布資産に<b>含めるか／含めないか</b></li>
+    <li><b>含めないと決めた場合、<code>sync-assets.sh</code> / <code>install-to-project.sh</code> の
+      どこで除外するか</b>（「含めない」は何もしなければ実現されない）</li>
+    <li>含める場合、<b>配布先が既にCI設定を持っているときに壊さない</b>方法
+      （<code>.gitattributes</code> の <code>dist:begin</code>〜<code>dist:end</code> 方式が参考になる）</li>
   </ul>
 
   <p><b>成果物</b>: <code>reports/日付_binary-soaring-eclipse_ホスティング手段の比較.md</code>（正文）と同名の
@@ -310,13 +414,15 @@
     <thead><tr><th>反映先</th><th>候補</th></tr></thead>
     <tbody>
       <tr><td><code>.claude/docs/spec/issue-mr-workflow.md</code></td>
-          <td>提供関数の表へ追加関数の行、flow-id 5-3／5-5 の節、配布物としてのCI設定の扱い</td></tr>
+          <td>提供関数の表へ追加関数の行、flow-id 5-4／5-6 の節、配布物としてのCI設定の扱い</td></tr>
       <tr><td><code>.claude/docs/spec/gitlab-verification-environment.md</code></td>
           <td>GitLab Runner の構築手順と、実際に踏んだ落とし穴</td></tr>
       <tr><td><code>.claude/docs/spec/distribution-assets.md</code></td>
-          <td>CI設定を配布資産に含める場合の追記</td></tr>
+          <td>CI設定を配布資産に含める／含めない場合の追記</td></tr>
+      <tr><td><code>.claude/skills/adversarial-review/SKILL.md</code></td>
+          <td>起動ポリシー・投稿可否確認の上書きを恒久化する場合の例外</td></tr>
       <tr><td><code>.claude/docs/ddr/i0114-01-….md</code></td>
-          <td>ホスティング手段の選定と却下案。<b>枝番は 01 から。追加したら
+          <td>ホスティング手段とタイミングの選定、および却下案。<b>枝番は 01 から。追加したら
               <code>bash .claude/scripts/src/generate-ddr-list.sh</code> を実行し、
               <code>.claude/docs/README.md</code> の差分を同じコミットへ含める</b></td></tr>
       <tr><td>AIアセット（<code>.claude/rules/</code> <code>.claude/skills/</code> <code>AGENTS.md</code>）</td>
@@ -332,12 +438,13 @@
     <span class="label">この計画では決めない・触らない</span>
     <ul>
       <li>ホストしたHTMLの<b>公開範囲・寿命の制御</b>（認証・自動失効等）。issue の受け入れ条件どおり、
-        プロジェクトの可視性設定に従う（判断はissue本文で確定済み）</li>
-      <li>既存の flow-id 5-3 層3（<code>upload_attachment</code>）の<b>置き換え</b>。添付とホスティングは
+        プロジェクトの可視性設定に従う（判断はissue本文で確定済み）。<b>ただし「可視性設定に従えるか」の
+        確認は行う</b>（問い2・問い3）。制御を追加しないことと、確認しないことは別である</li>
+      <li>既存の flow-id 5-4 層3（<code>upload_attachment</code>）の<b>置き換え</b>。添付とホスティングは
         目的が違うため併存させる</li>
-      <li><code>reports/</code> の削除タイミング（flow-id 5-4）そのものの変更。タイミングの矛盾は
-        削除位置を動かさずに解く（判断は flow-id 2-6 へ送る）</li>
-      <li><code>plans/</code> のHTMLビューをホスト対象に含めるかどうか（判断は flow-id 2-6 へ送る）</li>
+      <li><code>reports/</code> の削除タイミング（flow-id 5-5）そのものの変更。案(b)は削除位置を動かさずに成立する</li>
+      <li><b><code>main</code> 由来の既存テスト失敗3件の修正</b>（<code>test_block_direct_git_commit.sh</code> 1件・
+        <code>test_command_position.sh</code> 2件）。本issueの変更と無関係であり、別issueへ切り出す</li>
     </ul>
   </div>
 </section>
@@ -356,9 +463,11 @@ docker exec gitlab-runner gitlab-runner list</code></pre>
   <p><b>合格条件</b>:
     (1) GitHub でデプロイされたURLがブラウザで開ける、
     (2) GitLab で Review Apps として同じことができる、
-    (3) flow-id 5-5 の実行時にURLがユーザーへ提示される、
-    (4) <code>test_vcs_provider.sh</code> が <code>failures=0</code>、かつ <code>.claude/scripts/test/</code> の既存テストが緑、
-    (5) 手順が SKILL.md の flow-id 5-x と spec/DDR に反映されている、
+    (3) flow-id 5-4 でホストされ、5-6 の実行時にURLがユーザーへ提示される、
+    (4) <code>test_vcs_provider.sh</code> が <code>failures=0</code>、かつ
+    <code>.claude/scripts/test/</code> の既存テストが<b>本ブランチ着手時点と同じ結果</b>
+    （<code>main</code> 由来の3件を除き緑）、
+    (5) 手順が SKILL.md の flow-id 5-4・5-6 と spec/DDR に反映されている、
     (6) 認証・自動失効等の追加制御を入れていない。</p>
 </section>
 
@@ -371,16 +480,17 @@ docker exec gitlab-runner gitlab-runner list</code></pre>
       <tr>
         <td>GitLab運用で flow-id 5-4 を実行すると、<code>reports/</code> 配下の最新の報告HTMLが
             CI/CD Review Apps としてデプロイされ、そのURLがユーザーへ提示される</td>
-        <td>フェーズ2 問い1・問い3 → フェーズ3「CI設定」「フロー定義」。
-            <b>flow-id は現行番号の 5-5（マージ依頼）へ読み替える</b></td>
+        <td>フェーズ2 問い1・問い3 → 変更対象「CI設定」「フロー定義」。
+            <b>issue本文の「flow-id 5-4」は現行の 5-6（マージ依頼）を指す。ホスト自体は現行の 5-4 で行う</b>
+            （上記「issue 起票後に前提が変わっている」）</td>
       </tr>
       <tr>
         <td>GitHub運用でも代替のホスティング手段により同様にURLが提示される仕組みが用意されている</td>
-        <td>フェーズ2 問い2 → フェーズ3「Provider抽象」「CI設定」</td>
+        <td>フェーズ2 問い2 → 変更対象「Provider抽象」「CI設定」</td>
       </tr>
       <tr>
         <td>ホスティングの手順が SKILL.md の flow-id 5-4、および関連する spec/ddr に反映されている</td>
-        <td>フェーズ3「フロー定義」＋フェーズ4〈反映〉</td>
+        <td>変更対象「フロー定義」＋フェーズ4〈反映〉</td>
       </tr>
       <tr>
         <td>公開範囲・寿命について追加の認証・自動失効等の制御は行わない</td>
