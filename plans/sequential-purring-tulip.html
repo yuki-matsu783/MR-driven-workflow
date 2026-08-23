@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>.gitignoreのDDR参照切れ修正と同種検出の仕組み</title>
+<style>
+  :root {
+    --bg: #f6f7f9;      --panel: #ffffff;   --ink: #1a1d21;     --muted: #5b636d;
+    --line: #dfe3e8;    --accent: #2563eb;  --accent-soft: #eaf0fe;
+    --ok: #1a7f4b;      --ok-soft: #e6f4ec; --warn: #a35a00;    --warn-soft: #fdf1e0;
+    --stop: #b3261e;    --stop-soft: #fdecea; --code-bg: #f0f2f5;
+    --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1216;    --panel: #161a20;   --ink: #e6e8eb;     --muted: #9aa3ad;
+      --line: #2a3038;  --accent: #7aa2f7;  --accent-soft: #1b2333;
+      --ok: #6ee7a8;    --ok-soft: #14261d; --warn: #f0b866;    --warn-soft: #2a2113;
+      --stop: #f2857c;  --stop-soft: #2b1614; --code-bg: #1d222a;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", system-ui, sans-serif;
+    line-height: 1.8; font-size: 15px;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 20px 80px; }
+
+  header.band {
+    background: linear-gradient(135deg, var(--accent-soft), var(--panel));
+    border-bottom: 1px solid var(--line); padding: 28px 20px 22px; margin-bottom: 28px;
+  }
+  header.band .inner { max-width: 1080px; margin: 0 auto; }
+  header.band .kind { font-size: 11px; letter-spacing: .18em; color: var(--accent); font-weight: 700; }
+  header.band h1 { margin: 6px 0 4px; font-size: 26px; line-height: 1.4; }
+  header.band .lead { margin: 0; color: var(--muted); }
+  .meta { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; padding: 0; list-style: none; }
+  .meta li {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 999px;
+    padding: 3px 12px; font-size: 12.5px; color: var(--muted); white-space: nowrap;
+  }
+  .meta li b { color: var(--ink); font-weight: 600; }
+
+  nav.toc {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 14px 20px; margin-bottom: 28px;
+  }
+  nav.toc h2 { margin: 0 0 8px; font-size: 13px; letter-spacing: .08em; color: var(--muted); border: 0; padding: 0; }
+  nav.toc ol { margin: 0; padding-left: 20px; }
+  nav.toc li { margin: 2px 0; }
+  a { color: var(--accent); }
+
+  section {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 8px 24px 22px; margin-bottom: 22px;
+  }
+  h2 { font-size: 20px; margin: 20px 0 10px; padding-bottom: 8px; border-bottom: 2px solid var(--line); }
+  h3 { font-size: 16px; margin: 22px 0 8px; color: var(--accent); }
+  p { margin: 10px 0; }
+  ul, ol { padding-left: 22px; }
+  li { margin: 4px 0; }
+  blockquote { margin: 10px 0; padding: 6px 14px; border-left: 3px solid var(--line); color: var(--muted); }
+
+  .tablewrap { overflow-x: auto; margin: 14px 0; }
+  table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 14px; }
+  th, td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: var(--accent-soft); font-weight: 600; white-space: nowrap; }
+  tbody tr:nth-child(even) td { background: color-mix(in srgb, var(--line) 22%, transparent); }
+
+  code {
+    background: var(--code-bg); border-radius: 5px; padding: 1px 5px; font-size: 13px;
+    font-family: "SFMono-Regular", Consolas, "Noto Sans Mono", monospace;
+  }
+  pre {
+    background: var(--code-bg); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 12px 14px; overflow-x: auto; font-size: 13px; line-height: 1.65;
+  }
+  pre code { background: none; padding: 0; }
+
+  .box { border-left: 4px solid var(--accent); background: var(--accent-soft);
+         border-radius: 0 var(--radius) var(--radius) 0; padding: 12px 16px; margin: 16px 0; }
+  .box > :first-child { margin-top: 0; } .box > :last-child { margin-bottom: 0; }
+  .box .label { font-size: 12px; font-weight: 700; letter-spacing: .06em; display: block; margin-bottom: 4px; }
+  .box.ok { border-color: var(--ok); background: var(--ok-soft); } .box.ok .label { color: var(--ok); }
+  .box.warn { border-color: var(--warn); background: var(--warn-soft); } .box.warn .label { color: var(--warn); }
+  .box.stop { border-color: var(--stop); background: var(--stop-soft); } .box.stop .label { color: var(--stop); }
+  .box.info .label { color: var(--accent); }
+
+  .tag { display: inline-block; border-radius: 999px; padding: 1px 9px; font-size: 12px; font-weight: 600; }
+  .tag.ok { background: var(--ok-soft); color: var(--ok); }
+  .tag.warn { background: var(--warn-soft); color: var(--warn); }
+  .tag.stop { background: var(--stop-soft); color: var(--stop); }
+
+  footer { color: var(--muted); font-size: 13px; text-align: center; padding-top: 10px; }
+</style>
+</head>
+<body>
+
+<header class="band">
+  <div class="inner">
+    <div class="kind">全体作業計画 / フェーズ1</div>
+    <h1>.gitignoreのDDR参照切れ修正と同種検出の仕組み</h1>
+    <p class="lead">.gitignoreのコメントが実在しないDDRファイル名を指している2箇所を修正し、同種の参照切れを機械的に検出する仕組みを追加する。</p>
+    <ul class="meta">
+      <li><b>issue</b> #171</li>
+      <li><b>ブランチ</b> claude/gitignore-ddr-references-rsjo83</li>
+      <li><b>PR</b> #177</li>
+      <li><b>フェーズ</b> 1〈起点〉 flow-id 1-4</li>
+      <li><b>push回数</b> 1</li>
+      <li><b>作成日</b> 2026-08-23</li>
+      <li><b>正文</b> 同名の .md</li>
+    </ul>
+  </div>
+</header>
+
+<div class="wrap">
+
+<nav class="toc">
+  <h2>目次</h2>
+  <ol>
+    <li><a href="#goal">この計画で何をするか</a></li>
+    <li><a href="#target">変更対象</a></li>
+    <li><a href="#approach">方針</a></li>
+    <li><a href="#phase-research">フェーズ2〈調査〉</a></li>
+    <li><a href="#phase-apply">フェーズ4〈反映〉</a></li>
+    <li><a href="#out-of-scope">やらないこと（スコープ外）</a></li>
+    <li><a href="#verify">検証</a></li>
+    <li><a href="#criteria">issueの受け入れ条件との対応</a></li>
+    <li><a href="#options">比較検討した案</a></li>
+  </ol>
+</nav>
+
+<section id="goal">
+  <h2>この計画で何をするか</h2>
+  <p>issue #133のDDR識別子一括改番時に取り残された<code>.gitignore</code>内の参照切れ2箇所を
+  実ファイル名へ修正する。あわせて、同種の事故（issue #70・今回で2回目）を検出できるよう、
+  DDRファイルパスへの参照を走査し実在確認する仕組みを追加する。</p>
+  <div class="box warn">
+    <span class="label">事前調査で判明した事実</span>
+    issue本文は「<code>i00-13</code>参照はissue #70で既に消えた」としているが、実際には
+    <code>.gitignore</code>の28行目にまだ残っている。本文が挙げる<code>i36-01</code>（40行目）
+    と合わせて、<b>修正対象は2箇所</b>である。
+  </div>
+</section>
+
+<section id="target">
+  <h2>変更対象</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>ファイル</th><th>操作</th><th>何をするか</th></tr></thead>
+    <tbody>
+      <tr><td><code>.gitignore</code></td><td>変更</td><td>28行目 <code>i00-13</code> → <code>i0000-13</code>、40行目 <code>i36-01</code> → <code>i0036-01</code></td></tr>
+      <tr><td><code>.claude/scripts/src/</code></td><td>新規</td><td>DDR参照切れ検出スクリプト（置き場所・方式はフェーズ2で確定）</td></tr>
+      <tr><td><code>.claude/scripts/test/</code></td><td>新規</td><td>上記スクリプトの単体テスト</td></tr>
+      <tr><td><code>.claude/docs/ddr/</code></td><td>新規</td><td>検出方式・判定基準の意思決定記録</td></tr>
+      <tr><td><code>.claude/docs/spec/</code></td><td>変更/新規（要否未定）</td><td>フェーズ2の結果を見て判断</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="approach">
+  <h2>方針</h2>
+  <p><code>.gitignore</code>の修正はコメント文字列の書き換えのみで、ignoreパターン自体
+  （<code>**/index.jsonl</code>等）は変更しない。</p>
+  <p>検出の仕組みは<b>DDRファイルパス形式の参照</b>（<code>.claude/docs/ddr/i&lt;番号&gt;-&lt;枝番&gt;-...</code>）
+  に絞る。ゼロ埋め規約を説明する例示的記述（例:「ゼロ埋めなし: i106-01, ...」）はパス形式を
+  取らないため、パス形式限定により誤検知を避けられる（.gitignoreの実例で確認済み）。DDR以外
+  （spec等）への参照切れ検出はスコープ外とする。</p>
+  <p>既存の<code>ddr_identifier_to_reply</code>（<code>check-base-conflicts.sh</code>）は
+  DDR<b>ファイル名</b>から識別子を抽出する関数で、今回必要なのは逆方向（<b>本文中の参照文字列</b>
+  から候補パスを抽出し実在確認する）である。流用の可否はフェーズ2で判断する。</p>
+</section>
+
+<section id="phase-research">
+  <h2>フェーズ2〈調査〉</h2>
+  <ul>
+    <li>リポジトリ全体を対象に、DDRパス形式の参照を抽出し、対応する実ファイルが存在するか
+      1件ずつ確認する。結果は件数付きで<code>reports/</code>へ記録する。</li>
+    <li><code>.gitignore</code>の2箇所以外に参照切れが無いことを確認する（無いことも件数で示す）。</li>
+    <li>検出の実装方式（新規スクリプト独立／既存スクリプトへの追記／単体テストとして実装）と
+      実行タイミング（手動実行のみか、既存フローへの組み込みか）を検討する。</li>
+    <li><code>.claude/rules/shell-script-style.md</code>の規約に沿った実装方針を確認する。</li>
+  </ul>
+</section>
+
+<section id="phase-apply">
+  <h2>フェーズ4〈反映〉</h2>
+  <ul>
+    <li>検出の仕組みに関する意思決定（採った方式・粒度を絞った理由、入れない場合はその理由）を
+      DDRとして記録し、<code>generate-ddr-list.sh</code>でREADME一覧を再生成する。</li>
+    <li>該当する既存specがあれば反映する（無ければフェーズ2の結果を見て新規spec作成の要否を判断）。</li>
+    <li>AIアセット反映: 作業中に気づいたルール・スキルの不備があれば反映する（現時点では想定なし）。</li>
+  </ul>
+</section>
+
+<section id="out-of-scope">
+  <h2>やらないこと（スコープ外）</h2>
+  <div class="box stop">
+    <span class="label">この計画では決めない・触らない</span>
+    <ul>
+      <li>DDR以外（spec・plans・reports等）への参照切れ検出（issueタイトル・受け入れ条件が
+        DDR参照切れに限定しているため）</li>
+      <li>SessionStart hook等への自動組み込みによる毎回実行（起動コストの規約に照らし、
+        頻度の低い整合性チェックを毎ツール呼び出しで走らせる必要は無いと判断。判断が変わる
+        場合はフェーズ2で理由とともに更新する）</li>
+    </ul>
+  </div>
+</section>
+
+<section id="verify">
+  <h2>検証</h2>
+  <pre><code># .gitignoreの参照が実ファイルを指しているか
+ls .claude/docs/ddr/i0000-13-*.md .claude/docs/ddr/i0036-01-*.md
+
+# 追加した検出スクリプトの単体テスト
+bash -n .claude/scripts/src/&lt;検出スクリプト&gt;.sh
+bash .claude/scripts/test/test_&lt;検出スクリプト&gt;.sh</code></pre>
+  <p>合格条件: 2箇所の参照が実ファイルを指し、リポジトリ全体での参照切れ走査結果が0件、
+  検出スクリプトの単体テストが<code>passed=N failures=0</code>で通ること。</p>
+</section>
+
+<section id="criteria">
+  <h2>issueの受け入れ条件との対応</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>受け入れ条件</th><th>この計画での対応箇所</th></tr></thead>
+    <tbody>
+      <tr><td><code>.gitignore</code>のコメントが<code>i0036-01-…</code>を指している</td><td>フェーズ3で修正（40行目、および追加確認した28行目の<code>i0000-13-…</code>も含む）</td></tr>
+      <tr><td>ゼロ埋めが漏れたDDR識別子の参照が0件であることを件数付きの検索結果で示す</td><td>フェーズ2・フェーズ3のreportsに記録</td></tr>
+      <tr><td>同種の参照切れを検出する仕組みを入れるか、入れない理由を記録する</td><td>フェーズ3で実装、フェーズ4でDDRへ記録</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="options">
+  <h2>比較検討した案</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>案</th><th>利点</th><th>採否と理由</th></tr></thead>
+    <tbody>
+      <tr><td>検出の仕組みを作らず目視確認のみで済ませる</td><td>実装コストがかからない</td><td><span class="tag stop">却下</span> issueタイトルが「検出できるようにする」と明記しており、実装コストも小さいと見積もられるため</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<footer>issue #171 / PR #177 — 計画の正文は同名の <code>.md</code>。外部依存を持たない自己完結HTML。</footer>
+
+</div>
+</body>
+</html>

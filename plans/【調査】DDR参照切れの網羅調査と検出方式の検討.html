@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DDR参照切れの網羅調査と検出方式の検討</title>
+<style>
+  :root {
+    --bg: #f6f7f9;      --panel: #ffffff;   --ink: #1a1d21;     --muted: #5b636d;
+    --line: #dfe3e8;    --accent: #2563eb;  --accent-soft: #eaf0fe;
+    --ok: #1a7f4b;      --ok-soft: #e6f4ec; --warn: #a35a00;    --warn-soft: #fdf1e0;
+    --stop: #b3261e;    --stop-soft: #fdecea; --code-bg: #f0f2f5;
+    --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1216;    --panel: #161a20;   --ink: #e6e8eb;     --muted: #9aa3ad;
+      --line: #2a3038;  --accent: #7aa2f7;  --accent-soft: #1b2333;
+      --ok: #6ee7a8;    --ok-soft: #14261d; --warn: #f0b866;    --warn-soft: #2a2113;
+      --stop: #f2857c;  --stop-soft: #2b1614; --code-bg: #1d222a;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", system-ui, sans-serif;
+    line-height: 1.8; font-size: 15px;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 20px 80px; }
+
+  header.band {
+    background: linear-gradient(135deg, var(--accent-soft), var(--panel));
+    border-bottom: 1px solid var(--line); padding: 28px 20px 22px; margin-bottom: 28px;
+  }
+  header.band .inner { max-width: 1080px; margin: 0 auto; }
+  header.band .kind { font-size: 11px; letter-spacing: .18em; color: var(--accent); font-weight: 700; }
+  header.band h1 { margin: 6px 0 4px; font-size: 26px; line-height: 1.4; }
+  header.band .lead { margin: 0; color: var(--muted); }
+  .meta { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; padding: 0; list-style: none; }
+  .meta li {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 999px;
+    padding: 3px 12px; font-size: 12.5px; color: var(--muted); white-space: nowrap;
+  }
+  .meta li b { color: var(--ink); font-weight: 600; }
+
+  nav.toc {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 14px 20px; margin-bottom: 28px;
+  }
+  nav.toc h2 { margin: 0 0 8px; font-size: 13px; letter-spacing: .08em; color: var(--muted); border: 0; padding: 0; }
+  nav.toc ol { margin: 0; padding-left: 20px; }
+  nav.toc li { margin: 2px 0; }
+  a { color: var(--accent); }
+
+  section {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 8px 24px 22px; margin-bottom: 22px;
+  }
+  h2 { font-size: 20px; margin: 20px 0 10px; padding-bottom: 8px; border-bottom: 2px solid var(--line); }
+  h3 { font-size: 16px; margin: 22px 0 8px; color: var(--accent); }
+  p { margin: 10px 0; }
+  ul, ol { padding-left: 22px; }
+  li { margin: 4px 0; }
+  blockquote { margin: 10px 0; padding: 6px 14px; border-left: 3px solid var(--line); color: var(--muted); }
+
+  .tablewrap { overflow-x: auto; margin: 14px 0; }
+  table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 14px; }
+  th, td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: var(--accent-soft); font-weight: 600; white-space: nowrap; }
+  tbody tr:nth-child(even) td { background: color-mix(in srgb, var(--line) 22%, transparent); }
+
+  code {
+    background: var(--code-bg); border-radius: 5px; padding: 1px 5px; font-size: 13px;
+    font-family: "SFMono-Regular", Consolas, "Noto Sans Mono", monospace;
+  }
+  pre {
+    background: var(--code-bg); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 12px 14px; overflow-x: auto; font-size: 13px; line-height: 1.65;
+  }
+  pre code { background: none; padding: 0; }
+
+  .box { border-left: 4px solid var(--accent); background: var(--accent-soft);
+         border-radius: 0 var(--radius) var(--radius) 0; padding: 12px 16px; margin: 16px 0; }
+  .box > :first-child { margin-top: 0; } .box > :last-child { margin-bottom: 0; }
+  .box .label { font-size: 12px; font-weight: 700; letter-spacing: .06em; display: block; margin-bottom: 4px; }
+  .box.ok { border-color: var(--ok); background: var(--ok-soft); } .box.ok .label { color: var(--ok); }
+  .box.warn { border-color: var(--warn); background: var(--warn-soft); } .box.warn .label { color: var(--warn); }
+  .box.stop { border-color: var(--stop); background: var(--stop-soft); } .box.stop .label { color: var(--stop); }
+  .box.info .label { color: var(--accent); }
+
+  .tag { display: inline-block; border-radius: 999px; padding: 1px 9px; font-size: 12px; font-weight: 600; }
+  .tag.ok { background: var(--ok-soft); color: var(--ok); }
+  .tag.warn { background: var(--warn-soft); color: var(--warn); }
+  .tag.stop { background: var(--stop-soft); color: var(--stop); }
+
+  footer { color: var(--muted); font-size: 13px; text-align: center; padding-top: 10px; }
+</style>
+</head>
+<body>
+
+<header class="band">
+  <div class="inner">
+    <div class="kind">個別調査計画 / フェーズ2</div>
+    <h1>DDR参照切れの網羅調査と検出方式の検討</h1>
+    <p class="lead">リポジトリ全体でDDRファイルパス形式の参照が実在するかを網羅調査し、同種の参照切れを機械的に検出する方式を検討する。</p>
+    <ul class="meta">
+      <li><b>issue</b> #171</li>
+      <li><b>ブランチ</b> claude/gitignore-ddr-references-rsjo83</li>
+      <li><b>PR</b> #177</li>
+      <li><b>フェーズ</b> 2〈調査〉 flow-id 2-1</li>
+      <li><b>push回数</b> 1</li>
+      <li><b>作成日</b> 2026-08-23</li>
+      <li><b>正文</b> 同名の .md</li>
+    </ul>
+  </div>
+</header>
+
+<div class="wrap">
+
+<nav class="toc">
+  <h2>目次</h2>
+  <ol>
+    <li><a href="#premise">前提（合意状況）</a></li>
+    <li><a href="#goal">この計画で何をするか</a></li>
+    <li><a href="#target">変更対象</a></li>
+    <li><a href="#approach">方針</a></li>
+    <li><a href="#out-of-scope">やらないこと（スコープ外）</a></li>
+    <li><a href="#verify">検証</a></li>
+  </ol>
+</nav>
+
+<section id="premise">
+  <h2>前提（合意状況）</h2>
+  <ul>
+    <li>上位の計画: <code>plans/sequential-purring-tulip.md</code>（全体作業計画、flow-id 1-5で合意）</li>
+  </ul>
+</section>
+
+<section id="goal">
+  <h2>この計画で何をするか</h2>
+  <ul>
+    <li><code>.gitignore</code>の2箇所（28行目・40行目）以外に、DDRファイルパス形式の参照切れが
+      無いことを件数付きの検索結果で確認する。</li>
+    <li>同種の参照切れを検出する仕組みの実装方式（置き場所・判定ロジック・実行タイミング）を決める。</li>
+  </ul>
+</section>
+
+<section id="target">
+  <h2>変更対象</h2>
+  <p>本計画は調査であり、ファイルの変更は行わない。調査結果は<code>reports/</code>へ記録する。</p>
+</section>
+
+<section id="approach">
+  <h2>方針</h2>
+  <ul>
+    <li>リポジトリ全体（<code>git ls-files</code>、バイナリ除く）を対象に、
+      <code>.claude/docs/ddr/i&lt;番号&gt;-&lt;枝番&gt;-</code>という<b>パス形式</b>の文字列を
+      正規表現で抽出し、対応する実ファイルが存在するかを1件ずつ確認する。パス形式に限定するのは、
+      裸の識別子（<code>i133-01</code>等）がゼロ埋め規約の説明文中の例示に多用されており、
+      単純な識別子検索では大量の誤検知を生むため（事前調査で確認済み）。</li>
+    <li>既存の<code>ddr_identifier_to_reply</code>（<code>check-base-conflicts.sh</code>）・
+      <code>generate-ddr-list.sh</code>の実装を読み、識別子の正規表現・ファイル一覧の取得方法を
+      流用できるか確認する。</li>
+    <li>検出方式（新規スクリプト独立／既存スクリプトへの追記）と実行タイミング（手動実行のみ／
+      flow-id 5-1に合流／<code>generate-ddr-list.sh</code>実行時に自動）を比較し、採用案を決める。</li>
+  </ul>
+  <div class="box warn">
+    <span class="label">事前調査からの引き継ぎ</span>
+    <code>.gitignore</code>の28行目は<code>i00-13</code>、40行目は<code>i36-01</code>を参照しており、
+    実ファイルはそれぞれ<code>i0000-13-...md</code>、<code>i0036-01-...md</code>。issue本文は
+    「<code>i00-13</code>参照は既に消えた」としているが、これは誤りで現に残っている。
+  </div>
+</section>
+
+<section id="out-of-scope">
+  <h2>やらないこと（スコープ外）</h2>
+  <div class="box stop">
+    <span class="label">この計画では決めない・触らない</span>
+    <ul>
+      <li>実際の<code>.gitignore</code>修正・検出スクリプトの実装（フェーズ3へ送る）</li>
+      <li>DDR以外のドキュメントへの参照切れ検出（全体作業計画でスコープ外と合意済み）</li>
+    </ul>
+  </div>
+</section>
+
+<section id="verify">
+  <h2>検証</h2>
+  <p>合格条件: リポジトリ全体のDDRパス形式参照の総数と参照切れ件数が<code>reports/</code>へ
+  件数付きで記録され、検出方式の採用案とその理由が記録されていること。</p>
+</section>
+
+<footer>issue #171 / PR #177 — 計画の正文は同名の <code>.md</code>。外部依存を持たない自己完結HTML。</footer>
+
+</div>
+</body>
+</html>
