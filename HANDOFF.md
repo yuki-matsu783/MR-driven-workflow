@@ -17,9 +17,9 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - issue: #27 他プロジェクトで改善されたAIアセットを本家へ収穫（逆輸入）するスキルを新設する
 - ブランチ: claude/ai-asset-reverse-import-skill-g4qa9s
 - PR: #189 https://github.com/yuki-matsu783/MR-driven-workflow/pull/189（Draft）
-- push回数: 9
+- push回数: 10
 - 現在のループ: なし
-- 未返信スレッド: 0
+- 未返信スレッド: 13
 - 追従監視: なし
 
 | 進捗 | flow-id | ステップ | 担当 |
@@ -137,12 +137,19 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
   directory-structure.md 文言・usecase 新規・DDR一覧再生成・VERSION minor 増分の提案）と
   `plans/【AIアセット反映】エラー方針の規約訂正.md`（shell-script-style.md「エラー方針」の
   実測に基づく訂正。洗い出し手順1〜2の記録込み）。種別は規約どおり併記せず分けた。
+- 敵対的レビュー5回目（フェーズ4・対象=反映計画2本。カウンタ 1/3）を実施。findings 15件の
+  うち13件をインライン投稿（nit 2件はサマリで報告）、修正は15件すべて両計画 md/html へ
+  反映した——【設計反映】: ベースブランチ遅れの前提節（behind 2 を実測確認）・洗い出し表の
+  9行化（README spec節/usecase節・SKILL.md 予告文・HANDOFF 記録の行を明示）・spec 影響範囲の
+  core 層訂正・`i0027-02` の2機構書き分け＋却下案3つ・検証節の実行可能コマンド化／
+  【AIアセット反映】: 「テスト」節の行追加・errexit 診断の2機構書き分け（条件文脈の伝播と
+  inherit_errexit 既定オフ）・出力受け取り形パターン追記・5ケース実測検証。
 
 ## 次にやること
 
-- flow-id 4-2（commit/push）→ 敵対的レビュー5回目（フェーズ4・対象=反映計画2本。カウンタ
-  1/3）→ 指摘の投稿・修正・返信 → 4-5（describe）→ 4-6（反映実施。
-  generate-ddr-list.sh 実行込み）→ 4-7（commit/push）→ 敵対的レビュー6回目（反映後）。
+- 敵対的レビュー5回目の13スレッドへ返信し未返信を0へ → 4-5（describe。2-10/3-5/3-10 も
+  まとめて反映）→ 4-6（反映実施。generate-ddr-list.sh 実行込み）→ 4-7（commit/push）→
+  敵対的レビュー6回目（フェーズ4・反映後。カウンタ 2/3）→ フェーズ5。
 
 ## 判断を迷った内容
 
@@ -152,7 +159,11 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 
 ## 未解決の内容
 
-（無し）
+- ベースブランチ（main）に対し behind 2（issue #165/#184 の `wip/` 再配置）。取り込みは
+  AskUserQuestion でのユーザー承認が必須のため非対話セッションでは未実施。flow-id 5-1 で
+  扱う。`check-base-conflicts.sh` 実測: textualConflictFiles 21件・DDR重複0件
+  （21件の大半は本ブランチの plans/worklog/reports と main 側の再配置の重なりで、
+  flow-id 5-5 の片付けで消える見込み）。
 
 ## 守るべき条件・触ってはいけない範囲
 

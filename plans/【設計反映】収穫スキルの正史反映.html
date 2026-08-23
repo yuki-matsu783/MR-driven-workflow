@@ -90,6 +90,7 @@
   <ul>
     <li>依拠する作業結果: <code>reports/2026-08-23_quiet-orchard-harvest_作業結果.md</code>（敵対的レビュー3・4回目の指摘反映済み。非対話セッションのため人間合意は未取得）。</li>
     <li>非対話セッションのため、本計画のレビュー（4-3）は敵対的レビューで代替する（ユーザーの当初指示に基づく）。</li>
+    <li><b>ベースブランチの遅れ（未解消の前提）</b>: check-base-sync.sh 実測で behind 2 / ahead 13。main は issue #165/#184 で wip/ 再配置済みで、本計画が触る rules/docs 群はすべて main 側でも変更済み（textualConflictFiles 21件・DDR重複0件）。取り込みはユーザー承認必須のため非対話では実施せず、HANDOFF「未解決の内容」へ記録して flow-id 5-1 で扱う。新規ドキュメントではタスク単位ディレクトリの具体名への言及を避け、directory-structure.md の変更は最小差分に留める。</li>
   </ul>
 </section>
 
@@ -103,9 +104,11 @@
       <tr><td>2</td><td>DDR 新規: <code>i0027-01</code>（収穫スキルの設計判断）</td><td>新規</td><td>調査結果Q1〜Q8・レビュー1〜4回目</td></tr>
       <tr><td>3</td><td>DDR 新規: <code>i0027-02</code>（エラー隔離の実測と規約訂正の根拠）</td><td>新規</td><td>敵対的レビュー4回目＋実測</td></tr>
       <tr><td>4</td><td><code>.claude/rules/directory-structure.md</code> の <code>.claude/scripts/test/</code> の定義拡張</td><td>変更</td><td>実態（skills 配下スクリプトのテストも置いている）との不一致</td></tr>
-      <tr><td>5</td><td>usecase 新規: <code>配布先の改善を本家へ収穫したい.md</code>＋README usecase節</td><td>新規</td><td>issue #170 の運用</td></tr>
-      <tr><td>6</td><td><code>.claude/docs/README.md</code> の DDR 一覧再生成</td><td>再生成</td><td>issue #135（generate-ddr-list.sh）</td></tr>
-      <tr><td>7</td><td><code>.claude/VERSION</code> の増分判断（minor を提案）</td><td>判断</td><td>配布物（markdown-frontmatter.md・dist-layers.json）の変更</td></tr>
+      <tr><td>5</td><td>usecase 新規: <code>配布先の改善を本家へ収穫する.md</code>（動詞終止形で既存8本と揃える）＋README usecase節</td><td>新規</td><td>issue #170 の運用</td></tr>
+      <tr><td>6</td><td><code>.claude/docs/README.md</code>: DDR 一覧再生成＋<b>spec 節へ1行</b>＋usecase 節へ1行</td><td>再生成＋手書き2行</td><td>issue #135。spec 節・usecase 節は手書きの一覧</td></tr>
+      <tr><td>7</td><td><code>.claude/VERSION</code> の増分判断（minor）＋適用記録（spec changelog と HANDOFF の両方）</td><td>判断</td><td>.claude/ 配下の変更・追加は exclude 2スキルを除きすべて core として配布される</td></tr>
+      <tr><td>8</td><td><code>harvest-from-projects/SKILL.md</code> の予告文を spec へのリンクへ差し替え</td><td>変更</td><td>「フェーズ4で記録する」（未来形）が古くなるため</td></tr>
+      <tr><td>9</td><td><code>HANDOFF.md</code>「判断を迷った内容」へ VERSION 適用記録</td><td>変更</td><td>distribution-assets.md の非対話セッション規定</td></tr>
     </tbody>
   </table>
   </div>
@@ -119,9 +122,11 @@
   <h3>DDR i0027-01</h3>
   <p>出口は issue 起票まで（自動正史変更・自動PRは却下）／除外の正は配布先 dist-layers.json の1つだけ（check-ignore 併用は却下）／merge・seed・dist-layers.json は 3-way 対象外／層判定のフェイルクローズ。</p>
   <h3>DDR i0027-02</h3>
-  <p>実測（bash 5.2.21）: <code>( f ) || rc=$?</code> も <code>if out="$(f)"</code> も errexit 一時停止が内部へ伝播し途中失敗が素通りする。採用: <code>set +e; ( set -e; f ); rc=$?; set -e</code>。却下: 全コマンドの個別検査（漏れやすい）。</p>
+  <p>実測（bash 5.2.21）を2機構で記録: (1) サブシェルは条件文脈で errexit 一時停止が内側へ伝播（条件文脈の外なら fail-fast する）、(2) コマンド置換は inherit_errexit 既定オフのため条件文脈に関係なく -e を継承しない。採用: フォークされる側の内側で set -e を掛け直す2形（出力を捨てる <code>( set -e; f )</code> と出力を受け取る <code>out="$(set -e; f)"</code>）。却下: <code>shopt -s inherit_errexit</code>（bash 4.4 未満で使えない・既存コードへの副作用が広い・機構1に効かない）、<code>set -E</code>＋<code>trap ERR</code>（条件文脈で抑止され機構1を解決しない）、全コマンドの個別検査（漏れやすい）。</p>
   <h3>VERSION</h3>
-  <p>配布先の運用ルール（機構DDRは本家へ起票）が変わる後方互換の機能追加として minor 増分を提案（据え置き判断はレビューで覆してよい）。</p>
+  <p>.claude/ 配下の変更・追加は exclude 2スキルを除きすべて core として配布されるため、後方互換の機能追加として minor を1つ上げる。非対話セッションの適用規定（distribution-assets.md）に従い、適用の事実と根拠を新設 spec の changelog と HANDOFF「判断を迷った内容」の両方へ残す（レビューで否認されたら元へ戻す）。exclude スキルの spec/DDR を core で配ることは許容と明示判断（正史の一元化方針のとおり）。</p>
+  <h3>directory-structure.md</h3>
+  <p>.claude/scripts/test/ の範囲を述べる箇所は grep で数えて3箇所（ツリーのコメント・配置の指針・otel 例外段落の「専用であり」）。3箇所すべてを「.claude/scripts/src/ および .claude/skills/*/scripts/ 配下スクリプトの単体テスト」へ拡張する。</p>
 </section>
 
 <section id="out-of-scope">
@@ -138,12 +143,12 @@
 
 <section id="verify">
   <h2>検証</h2>
-  <pre><code>bash .claude/scripts/src/extract-frontmatter.sh . &gt;/dev/null
-jq -e 'select(.concept_id == ".claude/docs/spec/harvest-from-projects") | .frontmatter.type == "spec"' \
-  .claude/docs/spec/index.jsonl
-bash .claude/scripts/src/generate-ddr-list.sh && git diff --stat -- .claude/docs/README.md
-git add -A && bash .claude/scripts/src/check-dist-coverage.sh</code></pre>
-  <p>合格条件: frontmatter 問い合わせが true・DDR一覧の再実行で差分が出ない・check-dist-coverage 4検査OK。</p>
+  <pre><code># frontmatter（新規4ファイルすべて。spec/ddr×2/usecase の各 index.jsonl へ jq -e）
+# DDR一覧: 生成→ステージ→再生成で git diff --exit-code -- .claude/docs/README.md
+# DDR重複: check-base-conflicts.sh | jq -e '.hasDuplicateDdrNumber == false'
+# 層分け: 新規ファイルをパス列挙で git add してから check-dist-coverage.sh（git add -A は使わない）
+# README: spec 節・usecase 節の行を grep で確認</code></pre>
+  <p>合格条件: frontmatter 問い合わせ4件すべて true・DDR一覧の2回目生成で差分ゼロ・DDR重複判定の jq -e が 0・check-dist-coverage 4検査OK・README の grep が各1以上（コマンドの正文は md 側）。</p>
 </section>
 
 <footer>issue #27 / PR #189 — 計画の正文は同名の <code>.md</code>。外部依存を持たない自己完結HTML。</footer>

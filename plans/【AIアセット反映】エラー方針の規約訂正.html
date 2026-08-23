@@ -70,7 +70,7 @@
   <div class="inner">
     <div class="kind">個別反映計画 / フェーズ4</div>
     <h1>【AIアセット反映】エラー方針の規約訂正 — issue #27</h1>
-    <p class="lead">実測で判明した「set -e の一時停止はサブシェル・コマンド置換の内部へ伝播する」を、shell-script-style.md「エラー方針」の訂正として反映する。</p>
+    <p class="lead">実測で判明した2機構（条件文脈の errexit 一時停止がサブシェル内側へ伝播する／コマンド置換は inherit_errexit 既定オフのため -e を継承しない）を、shell-script-style.md「エラー方針」「テスト」節の訂正として反映する。</p>
     <ul class="meta">
       <li><b>issue</b> #27</li>
       <li><b>ブランチ</b> claude/ai-asset-reverse-import-skill-g4qa9s</li>
@@ -91,6 +91,7 @@
     <thead><tr><th>候補</th><th>分類</th><th>判断</th></tr></thead>
     <tbody>
       <tr><td>「エラー方針」の「コマンド置換・明示サブシェルでは set -e が正しく機能する」が実測（bash 5.2.21）と食い違う</td><td><b>(b) 誤っていた</b></td><td>訂正する（本計画の本体。1回でも直す）</td></tr>
+      <tr><td>「テスト」節の「コマンド置換のサブシェルは -e を引き継ぐ（ため echo $? に到達せず空文字列が返る）」という理由付けも同じ誤った前提に立つ</td><td><b>(b) 誤っていた</b></td><td>理由付けだけ訂正する。<b><code>"$(func; echo $?)"</code> を使わないという結論は維持</b>（issue #45 本来の「環境依存の挙動に依存しない」で成り立つ）。エラー方針と同時に直さないと同一ファイル内で「継承する／しない」が並立する（敵対的レビュー5回目の指摘）</td></tr>
       <tr><td>Edit ツールでエスケープ表記を含む長い塊の置換が失敗</td><td>対象外</td><td>既存記述が同じ罠をカバーし、記述にも辿り着けていた</td></tr>
       <tr><td>jq フィルタへ生の US 文字を書いた</td><td>対象外</td><td>既存記述のとおり（規約の誤り・欠落ではない）</td></tr>
     </tbody>
@@ -101,16 +102,31 @@
 <section id="approach">
   <h2>反映内容（反映先: .claude/rules/shell-script-style.md）</h2>
   <ul>
-    <li><b>誤りの訂正</b>: 「フォークされた側では set -e が正しく機能する」という理由付けは bash 5.2 では成り立たない（実測の詳細は DDR <code>i0027-02</code> を正とする）。</li>
-    <li><b>推奨パターンの差し替え</b>: 条件文脈の外でサブシェルを実行し、内側で set -e を掛け直す。</li>
+    <li><b>誤りの訂正（原因は2つあり、混同せず書き分ける）</b>: 「フォークされた側では set -e が正しく機能する」という理由付けは bash 5.2 では成り立たない。機構は2つに分かれる（いずれも bash 5.2.21 で実測済み）。
+      <ol>
+        <li><b>明示サブシェル <code>( f )</code></b>: -e 自体は継承する（条件文脈の外なら単体で fail-fast。実測: exit=1）。壊れるのは<b>条件文脈（<code>||</code>・<code>if</code>）に置いたとき</b>で、errexit の一時停止がサブシェルの内側まで伝播し途中失敗が素通りする。</li>
+        <li><b>コマンド置換 <code>$(...)</code></b>: <code>shopt inherit_errexit</code> が<b>既定でオフ</b>のため、条件文脈かどうかに関係なく -e を一切継承しない（実測: <code>out="$(f)"</code> は条件文脈の外でも関数本体が最後まで走る）。「条件文脈の外へ出せばコマンド置換でも fail-fast する」と読める書き方をしない。</li>
+      </ol>
+      実測の詳細・却下案は DDR <code>i0027-02</code> を正とし、規約側は結論とパターンだけを書く。</li>
+    <li><b>推奨パターンの差し替え</b>: フォークされる側の内側で set -e を掛け直す。出力の要否で2形を併記する。</li>
   </ul>
-  <pre><code>set +e
+  <pre><code># 出力を捨ててよい場合（サブシェル。条件文脈に入れない）
+set +e
 ( set -e; risky_func )
+rc=$?
+set -e
+if [ "$rc" -ne 0 ]; then fallback; fi
+
+# 出力を受け取る場合（コマンド置換の内側で set -e を掛け直す。
+# 外側の set +e だけでは inherit_errexit 既定オフのため効かない）
+set +e
+out="$(set -e; risky_func)"
 rc=$?
 set -e
 if [ "$rc" -ne 0 ]; then fallback; fi</code></pre>
   <ul>
-    <li><b>従来パターンの位置づけ</b>: <code>if result="$(risky_func)"</code> は関数の最終コマンドの失敗しか検知できないことを明記。実例（session-start.sh 等）は見直し候補として注記（実装修正はスコープ外）。</li>
+    <li><b>従来パターンの位置づけ</b>: <code>if result="$(risky_func)"</code> は関数の最終コマンドの失敗しか検知できないことを明記（複数コマンドから成る関数の途中失敗の検知には使えない）。実例（session-start.sh 等）は見直し候補として注記（実装修正はスコープ外）。</li>
+    <li><b>「テスト」節の理由付けの訂正</b>: 「コマンド置換のサブシェルは -e を引き継ぐ」を「<code>$(func; echo $?)</code> の値は errexit・inherit_errexit の設定と bash の版で変わる」という趣旨へ差し替える（使わないという結論・<code>if</code> で受ける代替はそのまま）。</li>
     <li>実例参照として <code>harvest-from-projects.sh</code> の <code>cmd_scan</code> を追加。</li>
   </ul>
 </section>
@@ -128,9 +144,17 @@ if [ "$rc" -ne 0 ]; then fallback; fi</code></pre>
 
 <section id="verify">
   <h2>検証</h2>
-  <pre><code>bash -c 'set -euo pipefail; f() { false; echo REACHED; }; rc=0; ( f ) || rc=$?; echo "rc=$rc"'
-bash -c 'set -euo pipefail; f() { false; echo R2; }; set +e; ( set -e; f ); rc=$?; set -e; echo "rc=$rc"'</code></pre>
-  <p>合格条件: 1つ目は <code>REACHED</code> と <code>rc=0</code>（従来記述が成り立たない実証）、2つ目は <code>R2</code> を出力せず <code>rc=1</code>（推奨パターンの実証）。訂正後の規約本文がこの実測と矛盾しないこと。</p>
+  <pre><code># (1) 条件文脈のサブシェル: 途中失敗が素通り（従来記述が成り立たない実証）
+bash -c 'set -euo pipefail; f() { false; echo REACHED; }; rc=0; ( f ) || rc=$?; echo "rc=$rc"'
+# (2) 条件文脈の外のサブシェル: fail-fast する（機構1の実証）
+bash -c 'set -euo pipefail; f() { false; echo R1; }; ( f ); echo after'; echo "exit=$?"
+# (3) コマンド置換: 条件文脈の外でも -e を継承しない（機構2の実証）
+bash -c 'set -euo pipefail; f() { false; echo R2; }; out="$(f)"; echo "after out=$out"'; echo "exit=$?"
+# (4) 推奨パターン（出力を捨てる形）
+bash -c 'set -euo pipefail; f() { false; echo R3; }; set +e; ( set -e; f ); rc=$?; set -e; echo "rc=$rc"'
+# (5) 推奨パターン（出力を受け取る形）
+bash -c 'set -euo pipefail; f() { false; echo R4; }; set +e; out="$(set -e; f)"; rc=$?; set -e; echo "rc=$rc out=[$out]"'</code></pre>
+  <p>合格条件: (1) は <code>REACHED</code> と <code>rc=0</code>、(2) は何も出力せず <code>exit=1</code>、(3) は <code>R2</code> と <code>after</code> が出て <code>exit=0</code>、(4) は <code>R3</code> を出力せず <code>rc=1</code>、(5) は <code>rc=1 out=[]</code>。訂正後の規約本文がこの5つの実測結果と矛盾しないこと（いずれも本計画作成時に実行済みで、期待どおりの値を確認している）。</p>
 </section>
 
 <footer>issue #27 / PR #189 — 計画の正文は同名の <code>.md</code>。外部依存を持たない自己完結HTML。</footer>
