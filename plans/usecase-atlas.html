@@ -112,30 +112,40 @@
 <nav class="toc">
   <h2>目次</h2>
   <ol>
-    <li><a href="#premise">前提（実行環境と運用）</a></li>
-    <li><a href="#goal">この計画で何をするか</a></li>
+    <li><a href="#goal">目的</a></li>
+    <li><a href="#premise">実行環境と運用の前提</a></li>
+    <li><a href="#split">issue分割の判定</a></li>
     <li><a href="#target">変更対象</a></li>
     <li><a href="#approach">方針</a></li>
     <li><a href="#phase-research">フェーズ2〈調査〉</a></li>
+    <li><a href="#phase-work">フェーズ3〈作業〉</a></li>
     <li><a href="#phase-apply">フェーズ4〈反映〉</a></li>
+    <li><a href="#phase-close">フェーズ5〈クローズ〉</a></li>
     <li><a href="#out-of-scope">やらないこと（スコープ外）</a></li>
     <li><a href="#verify">検証（受け入れ条件との対応）</a></li>
   </ol>
 </nav>
 
+<section id="goal">
+  <h2>目的</h2>
+  <p>spec（15本）・DDR（75本）・スキル定義（9本）はいずれも機能起点であり、「やりたいこと」起点の索引が無い（件数は <code>ls &lt;dir&gt;/*.md | wc -l</code> で数えた。生成物の index.jsonl は含まない）。<code>.claude/docs/usecase/</code> を新設し、1ユースケース1ファイルで「どんな場面か／使う機能と流れの概要／何が得られるか／詳細へのリンク（spec・SKILL.md）」を提供する。手順の正は従来どおりspec/SKILL.md側に置き、usecase文書は<b>逆引きの索引＋概観に徹する</b>（手順詳細を再掲しない）。</p>
+</section>
+
 <section id="premise">
-  <h2>前提（実行環境と運用）</h2>
+  <h2>実行環境と運用の前提</h2>
   <ul>
-    <li>非対話セッション（Claude Code on the web）。人間のレビュー往復は待てないため、ユーザーの明示指示に基づき<b>各フェーズの計画push後に1回・作業実施push後に1回、敵対的レビューを自律起動し自動修正</b>しながら進める（各フェーズ上限3回の範囲内）。</li>
+    <li>非対話セッション（Claude Code on the web）。人間のレビュー・合意ステップ（flow-id <b>1-5</b>・2-3/2-8/3-3/3-8/4-3/4-8）は待てないため、ユーザーの明示指示に基づき<b>各フェーズの計画push後に1回・作業実施push後に1回、敵対的レビューを自律起動し自動修正</b>しながら進める。</li>
+    <li><b>flow-id 1-5（全体作業計画の合意）も未合意のまま先行する。</b>後から否認された場合は、否認された節に依存するフェーズ2以降の成果物を該当範囲だけ作り直す（巻き戻しはコミットの打ち消しで行う）。</li>
+    <li>敵対的レビューの回数計上（スクリプトはphase 2/3/4のみ受け付ける）: フェーズ1の全体作業計画はフェーズ2として計上。フェーズ2/3/4は各フェーズへ計上。フェーズ5のpushはレビュー対象外。想定は各フェーズ2回（計画1回＋実施1回）で上限3回の範囲内。<b>指摘修正後の再pushへの再レビューは行わない。上限に達したら打ち切って報告し先へ進む</b>（reset はAIから実行・提案しない）。</li>
     <li>人間レビュー待ちループの進捗記号は <code>[]</code> のまま残し、実施内容は HANDOFF.md「やったこと」へ文章で補足する。</li>
     <li>敵対的レビューのスレッドへは修正後に全件返信する（issue #109）。</li>
-    <li><b>issue分割はしない</b>: 初期ユースケース8件は並列列挙だが、1件あたりが極小でフローの固定費が本体を上回るため（SKILL.md「分割しない条件」に該当）。</li>
+    <li>planツール（Planモード）は未使用で、全体作業計画のファイル名はハーネスの自動命名ではなくAIが命名した（<code>usecase-atlas</code>。命名逸脱の記録）。</li>
   </ul>
 </section>
 
-<section id="goal">
-  <h2>この計画で何をするか</h2>
-  <p><code>.claude/docs/usecase/</code> を新設し、1ユースケース1ファイルで「どんな場面か／使う機能と流れの概要／何が得られるか／詳細へのリンク（spec・SKILL.md）」を提供する。手順の正は従来どおりspec/SKILL.md側に置き、usecase文書は<b>逆引きの索引＋概観に徹する</b>（手順詳細を再掲しない）。</p>
+<section id="split">
+  <h2>issue分割の判定</h2>
+  <p>初期ユースケース8件は並列列挙だが、<b>AIの提案は「分割しない」</b>（1件あたりが極小でフローの固定費が本体を上回るため。SKILL.md「分割しない条件」に該当）。<b>判断そのものは人間が行う。</b>非対話セッションで確認が取れないため、この提案のまま1件で進め、最終応答で提案として明示する。人間が分割を選んだ場合は、未着手・差し戻し対象の範囲を子issueへ切り出す。</p>
 </section>
 
 <section id="target">
@@ -149,6 +159,8 @@
       <tr><td><code>.claude/docs/README.md</code></td><td>変更</td><td>目次へusecase節を追加</td></tr>
       <tr><td><code>.claude/skills/issue-mr-flow/SKILL.md</code></td><td>変更</td><td>flow-id 4-6 の確認対象へ「ユースケース文書への影響」を追加</td></tr>
       <tr><td><code>.claude/rules/directory-structure.md</code>・<code>index.md</code></td><td>変更</td><td>ツリー・Repository Mapへ <code>usecase/</code> を反映（要否はフェーズ2で確認）</td></tr>
+      <tr><td><code>.claude/rules/docs-workflow.md</code></td><td>変更</td><td>「ドキュメント運用」表へusecase文書の行（寿命・運用）を追加（要否はフェーズ2で確認）</td></tr>
+      <tr><td>配布物への波及（<code>.claude/docs/spec/distribution-assets.md</code> 等）</td><td>変更</td><td>usecase/ が配布対象に含まれるか・追記が要るかを確認（要否はフェーズ2で確認）</td></tr>
     </tbody>
   </table>
   </div>
@@ -178,13 +190,25 @@
   <p>これらが分かれば、フェーズ3の個別作業計画（ファイル一覧・各文書の骨子）を書ける。</p>
 </section>
 
+<section id="phase-work">
+  <h2>フェーズ3〈作業〉</h2>
+  <p>調査結果に基づき、<code>【AIアセット作成】</code> の個別作業計画を作成して実施する（usecase文書一式の作成、frontmatter規約・README目次・SKILL.md 4-6・ツリー系ドキュメントの更新、index.jsonl再生成と doc-search での検索確認）。</p>
+  <p>種別を <code>【AIアセット作成】</code> とする根拠: usecase文書一式はこのissueの<b>主たる成果物</b>であり、<code>.claude/</code> 配下に置かれてAIエージェントも参照する恒久アセット（ルール表・スキル定義の改訂を含む）だからである。SKILL.mdの種別定義に <code>.claude/docs/</code> 配下の文書は明示されていないため、この解釈が妥当かはフェーズ3の計画レビューで確認し、必要なら種別定義側への追記をフェーズ4の反映候補に加える。</p>
+</section>
+
 <section id="phase-apply">
   <h2>フェーズ4〈反映〉</h2>
   <p>反映対象は flow-id 4-1 で洗い出す。見込みの候補（確定ではない）:</p>
   <ul>
     <li>設計反映: usecase層の設計判断（配置・構成・typeの新設理由）をDDRへ残すかの判断。</li>
     <li>AIアセット反映: 作業中に気づいたルール・スキルの不備があれば反映する。</li>
+    <li><b>実装反映（確定した反映候補）</b>: <code>Provider.sh</code> の <code>add_empty_commit_for_draft_mr</code> がupstream未設定のブランチでプッシュに失敗する実不具合（flow-id 1-3で実際に発生。worklog push1に記録）。<code>git push -u origin HEAD</code> 相当への修正か、spec「Draft PR作成失敗時の自動リトライ」の記述修正かを flow-id 4-1 で判断する（1issueに収まらない場合は別issueへの起票を提案する）。</li>
   </ul>
+</section>
+
+<section id="phase-close">
+  <h2>フェーズ5〈クローズ〉</h2>
+  <p>標準どおり（コンフリクト検知→関連issue通知→統括レポート→片付け→Draft解除）。マージは行わない（人間の担当）。非対話セッションのため、関連issue通知（flow-id 5-2）は<b>承認を取れない場合は投稿せず</b>、判断結果を最終応答とHANDOFF（リセット前）へ明示する。</p>
 </section>
 
 <section id="out-of-scope">
@@ -203,13 +227,13 @@
   <h2>検証（issue受け入れ条件との対応）</h2>
   <div class="tablewrap">
   <table>
-    <thead><tr><th>受け入れ条件</th><th>確認方法</th></tr></thead>
+    <thead><tr><th>受け入れ条件</th><th>確認方法（実行できるコマンド。詳細な合格条件はフェーズ3の個別計画で確定）</th></tr></thead>
     <tbody>
-      <tr><td><code>.claude/docs/usecase/</code> に初期ユースケース文書一式（＋必要なら目次）</td><td>ファイル一覧の提示</td></tr>
-      <tr><td><code>type: usecase</code> が定義され doc-search で絞り込める</td><td><code>bash .claude/scripts/src/search-frontmatter.sh --type usecase</code> が全usecase文書を返す</td></tr>
-      <tr><td><code>.claude/docs/README.md</code> の目次から辿れる</td><td>README目次のリンク先が実在する</td></tr>
-      <tr><td>手順詳細を重複記載していない（リンク参照）</td><td>敵対的レビューの観点に含めて確認</td></tr>
-      <tr><td>flow-id 4-6 に影響確認が組み込まれている</td><td>SKILL.md（および関連ドキュメント）の差分確認</td></tr>
+      <tr><td><code>.claude/docs/usecase/</code> に初期ユースケース文書一式（＋必要なら目次）</td><td><code>ls .claude/docs/usecase/*.md | wc -l</code> が計画したファイル数と一致する</td></tr>
+      <tr><td><code>type: usecase</code> が定義され doc-search で絞り込める</td><td><code>bash .claude/scripts/src/search-frontmatter.sh --type usecase --format count</code> の <code>matched</code> がusecase文書数と一致する</td></tr>
+      <tr><td><code>.claude/docs/README.md</code> の目次から辿れる</td><td>README内のusecaseリンク先パスを抽出し、各パスの実在をループで確認する（件数も出す。0件は不合格）</td></tr>
+      <tr><td>手順詳細を重複記載していない（リンク参照）</td><td>機械検査: 各usecase文書のコードブロック（フェンス）数が0であることを確認する（手順詳細の転記はコマンド列＝コードブロックとして現れるため。散文の重複は敵対的レビューの観点で補完し、指摘0件を証明とは扱わない）</td></tr>
+      <tr><td>flow-id 4-6 に影響確認が組み込まれている</td><td><code>grep -c "usecase" .claude/skills/issue-mr-flow/SKILL.md</code> が1以上で、該当行が 4-6 の作業内訳にあることを目視確認</td></tr>
     </tbody>
   </table>
   </div>

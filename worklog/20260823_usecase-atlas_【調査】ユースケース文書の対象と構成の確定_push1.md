@@ -29,8 +29,27 @@ push回数: 1
 - `add_empty_commit_for_draft_mr` 内のpushがupstream未設定で失敗した（リモート実行環境の
   新規ブランチはupstreamを持たない）。`git push -u` の手動実行で回復。
 
+## 敵対的レビュー フェーズ2・1回目（push1の直後）
+
+対象: 全体作業計画・個別調査計画（md/html）・HANDOFF・worklog。findings 15件
+（インライン投稿10件、確度・重大度が基準未満のため報告のみ5件）。投稿分・報告分とも全件修正した。
+
+報告のみ（MRには出していない）5件の内容:
+
+1. [minor/medium] 変更対象表に `.claude/rules/docs-workflow.md`（ドキュメント運用表）と配布物への
+   波及が無い → 表へ2行追加した。
+2. [minor/medium] フェーズ3の種別 `【AIアセット作成】` の選定根拠が書かれていない → 根拠を追記し、
+   種別定義側への追記要否をフェーズ4候補に含めた。
+3. [minor/medium] HANDOFF「次にやること」が flow-id 2-5（describe）を飛ばしていた → 2-5を含む形へ
+   修正した。
+4. [minor/medium] HANDOFF「未解決の内容」が（無し）のままだった（1-5未合意・Provider.sh不具合が
+   未記載）→ 2件を記載した。
+5. [minor/medium] 全体作業計画のファイル名がハーネス自動命名でない旨の記録が無い → 計画ヘッダへ
+   備考として記録した。
+
 ## 次の一歩
 
-- 調査実施（flow-id 2-6）: 7つの問いへの回答を `reports/20260823_usecase-atlas_調査結果.md` へまとめる。
+- 修正をcommit・pushし、投稿された10スレッドへ返信（2-4相当）→ 2-5 describe → 調査実施
+  （flow-id 2-6）: 7つの問いへの回答を `reports/20260823_usecase-atlas_調査結果.md` へまとめる。
 
 ---
