@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>統括 — .claude/state を wip/state へ移す（issue #184）</title>
+<style>
+  :root {
+    --bg: #f6f7f9;      --panel: #ffffff;   --ink: #1a1d21;     --muted: #5b636d;
+    --line: #dfe3e8;    --accent: #2563eb;  --accent-soft: #eaf0fe;
+    --ok: #1a7f4b;      --ok-soft: #e6f4ec; --warn: #a35a00;    --warn-soft: #fdf1e0;
+    --stop: #b3261e;    --stop-soft: #fdecea; --code-bg: #f0f2f5;
+    --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1216;    --panel: #161a20;   --ink: #e6e8eb;     --muted: #9aa3ad;
+      --line: #2a3038;  --accent: #7aa2f7;  --accent-soft: #1b2333;
+      --ok: #6ee7a8;    --ok-soft: #14261d; --warn: #f0b866;    --warn-soft: #2a2113;
+      --stop: #f2857c;  --stop-soft: #2b1614; --code-bg: #1d222a;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", system-ui, sans-serif;
+    line-height: 1.8; font-size: 15px;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 20px 80px; }
+
+  /* 共通ヘッダ帯 */
+  header.band {
+    background: linear-gradient(135deg, var(--accent-soft), var(--panel));
+    border-bottom: 1px solid var(--line); padding: 28px 20px 22px; margin-bottom: 28px;
+  }
+  header.band .inner { max-width: 1080px; margin: 0 auto; }
+  header.band .kind { font-size: 11px; letter-spacing: .18em; color: var(--accent); font-weight: 700; }
+  header.band h1 { margin: 6px 0 4px; font-size: 26px; line-height: 1.4; }
+  header.band .lead { margin: 0; color: var(--muted); }
+  .meta { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; padding: 0; list-style: none; }
+  .meta li {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 999px;
+    padding: 3px 12px; font-size: 12.5px; color: var(--muted); white-space: nowrap;
+  }
+  .meta li b { color: var(--ink); font-weight: 600; }
+
+  nav.toc {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 14px 20px; margin-bottom: 28px;
+  }
+  nav.toc h2 { margin: 0 0 8px; font-size: 13px; letter-spacing: .08em; color: var(--muted); border: 0; padding: 0; }
+  nav.toc ol { margin: 0; padding-left: 20px; }
+  nav.toc li { margin: 2px 0; }
+  a { color: var(--accent); }
+
+  section {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 8px 24px 22px; margin-bottom: 22px;
+  }
+  h2 { font-size: 20px; margin: 20px 0 10px; padding-bottom: 8px; border-bottom: 2px solid var(--line); }
+  h3 { font-size: 16px; margin: 22px 0 8px; color: var(--accent); }
+  p { margin: 10px 0; }
+  ul, ol { padding-left: 22px; }
+  li { margin: 4px 0; }
+  blockquote { margin: 10px 0; padding: 6px 14px; border-left: 3px solid var(--line); color: var(--muted); }
+
+  /* 表は自身の中で横スクロールする（ページ本体は横スクロールさせない） */
+  .tablewrap { overflow-x: auto; margin: 14px 0; }
+  table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 14px; }
+  th, td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: var(--accent-soft); font-weight: 600; white-space: nowrap; }
+  tbody tr:nth-child(even) td { background: color-mix(in srgb, var(--line) 22%, transparent); }
+
+  code {
+    background: var(--code-bg); border-radius: 5px; padding: 1px 5px; font-size: 13px;
+    font-family: "SFMono-Regular", Consolas, "Noto Sans Mono", monospace;
+  }
+  pre {
+    background: var(--code-bg); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 12px 14px; overflow-x: auto; font-size: 13px; line-height: 1.65;
+  }
+  pre code { background: none; padding: 0; }
+
+  /* 注意ボックス: info（既定）/ ok（決めたこと）/ warn（注意）/ stop（やらないこと・危険） */
+  .box { border-left: 4px solid var(--accent); background: var(--accent-soft);
+         border-radius: 0 var(--radius) var(--radius) 0; padding: 12px 16px; margin: 16px 0; }
+  .box > :first-child { margin-top: 0; } .box > :last-child { margin-bottom: 0; }
+  .box .label { font-size: 12px; font-weight: 700; letter-spacing: .06em; display: block; margin-bottom: 4px; }
+  .box.ok { border-color: var(--ok); background: var(--ok-soft); } .box.ok .label { color: var(--ok); }
+  .box.warn { border-color: var(--warn); background: var(--warn-soft); } .box.warn .label { color: var(--warn); }
+  .box.stop { border-color: var(--stop); background: var(--stop-soft); } .box.stop .label { color: var(--stop); }
+  .box.info .label { color: var(--accent); }
+
+  .tag { display: inline-block; border-radius: 999px; padding: 1px 9px; font-size: 12px; font-weight: 600; }
+  .tag.ok { background: var(--ok-soft); color: var(--ok); }
+  .tag.warn { background: var(--warn-soft); color: var(--warn); }
+  .tag.stop { background: var(--stop-soft); color: var(--stop); }
+
+  footer { color: var(--muted); font-size: 13px; text-align: center; padding-top: 10px; }
+</style></head>
+<body>
+
+<header class="band">
+  <div class="inner">
+    <div class="kind">最終統括レポート / フェーズ5（flow-id 5-4）</div>
+    <h1><code>.claude/state</code> を <code>wip/state</code> へ移す（issue #184）</h1>
+    <p class="lead"><code>.gitignore</code> 対象のローカル作業状態を <code>.claude/state/</code> から <code>wip/state/</code> へ移し、<code>.claude/</code> を「配る資産だけ」にした。実装5・テスト3・ドキュメント6・DDR 1件を変更し、単体テスト3本・配布網羅性検査・参照切れ検査がいずれも通っている。</p>
+    <ul class="meta">
+      <li><b>issue</b> #184</li>
+      <li><b>ブランチ</b> claude/state-wip-directory-xj93sb</li>
+      <li><b>PR</b> #190</li>
+      <li><b>フェーズ</b> 5〈クローズ〉 flow-id 5-4</li>
+      <li><b>push回数</b> 4</li>
+      <li><b>作成日</b> 2026-08-23</li>
+      <li><b>正文</b> 同名の .md</li>
+    </ul>
+  </div>
+</header>
+
+<div class="wrap">
+
+<nav class="toc">
+  <h2>目次</h2>
+  <ol>
+    <li><a href="#summary">何をしたか</a></li>
+    <li><a href="#conditions">issueの前提を補完したこと</a></li>
+    <li><a href="#findings">変更したファイルと判断</a></li>
+    <li><a href="#next">レビューで特に見てほしい点</a></li>
+    <li><a href="#unverified">このセッションで実施できなかったこと</a></li>
+    <li><a href="#todo">関連</a></li>
+  </ol>
+</nav>
+
+<section id="summary">
+  <h2>何をしたか</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>状態</th><th>旧</th><th>新</th></tr></thead>
+    <tbody>
+      <tr><td>参照リンク組み立て用の前回push SHA</td><td><code>.claude/state/review-links/&lt;branch&gt;.txt</code></td><td><code>wip/state/review-links/&lt;branch&gt;.txt</code></td></tr>
+      <tr><td>敵対的レビューの投稿件数</td><td><code>.claude/state/adversarial-review/&lt;branch&gt;.json</code></td><td><code>wip/state/adversarial-review/&lt;branch&gt;.json</code></td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p><b>動機は <code>.claude/</code> を「配る資産だけ」にすること。</b> <code>.claude/</code> は配布単位であり（<code>apply-mr-workflow-to-project</code> が一式を配り、<code>sync-gemini-assets.sh</code> が <code>.gemini/</code> へ変換する）、その中に配布先のローカル状態が同居していると、配る側の仕組みのどちらにも除外の設定が要る。<code>wip/</code>（issue #165 が定義する、mainに残らない作業用の親ディレクトリ）へ出せば、「範囲に入れない」で済む。</p>
+</section>
+
+<section id="conditions">
+  <h2>issueの前提を補完したこと</h2>
+  <div class="box warn">
+    <span class="label">issue #184 は本文が空だった</span>
+    タイトルと、マージ前通知のコメント1件のみ。着手前に <code>AskUserQuestion</code> で2点を確認し、その回答を全体作業計画の前提として固定している。
+  </div>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>確認事項</th><th>回答</th></tr></thead>
+    <tbody>
+      <tr><td>「wipディレクトリ」の位置</td><td>ルート直下 <code>wip/state/</code>（#165 が新設予定の <code>wip/</code> をこのissueで先に作る）</td></tr>
+      <tr><td>移動対象の範囲</td><td><code>.claude/state/</code> のみ（<code>usage/</code> は対象外）</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="findings">
+  <h2>変更したファイルと判断</h2>
+
+  <h3>変更したファイル（計16件）</h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>区分</th><th>ファイル</th></tr></thead>
+    <tbody>
+      <tr><td>保存先パス</td><td><code>.gitignore</code> / <code>.claude/dist-layers.json</code> / <code>.claude/hooks/post-push-compact-prompt.sh</code> / <code>.claude/scripts/src/adversarial-review-count.sh</code> / <code>.claude/scripts/src/sync-gemini-assets.sh</code></td></tr>
+      <tr><td>テスト</td><td><code>test_adversarial_review_count.sh</code> / <code>test_install_to_project.sh</code> / <code>test_sync_gemini_assets.sh</code></td></tr>
+      <tr><td>設計反映</td><td><code>.claude/rules/directory-structure.md</code> / <code>.claude/docs/spec/issue-mr-workflow.md</code> / <code>adversarial-review.md</code> / <code>sync-gemini-assets.md</code></td></tr>
+      <tr><td>DDR</td><td><code>.claude/docs/ddr/i0184-01-….md</code>（新規）／ <code>.claude/docs/README.md</code>（一覧の再生成）</td></tr>
+      <tr><td>AIアセット反映</td><td><code>.claude/rules/git-workflow.md</code> / <code>.claude/rules/shell-script-style.md</code></td></tr>
+      <tr><td>変換生成物</td><td><code>.gemini/</code> 配下（<code>sync-gemini-assets.sh</code> が再生成）</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>判断したこと（DDR <code>i0184-01</code>）</h3>
+  <ol>
+    <li><b>移設先を <code>wip/state/</code> にした。</b> <code>.claude/wip/state/</code>（<code>.claude/</code> 内に留める）と <code>usage/state/</code> への統合は却下。前者は移す動機を満たさず、後者は DDR <code>i0013-01</code> の責務分離の判断を覆すため。</li>
+    <li><b><code>.gitignore</code> のパターンを <code>/wip/</code> へ広げない。</b> #165 が置く <code>wip/plans</code> 等は<b>追跡対象</b>であり、丸ごと無視される。</li>
+    <li><b>旧パス <code>/.claude/state/</code> の除外行を移行用に残した。</b> 差し替えるだけだと、既存の作業ツリーに残る状態ファイルが <code>git status</code> に現れる（<b>作業中に実際に踏んだ</b>）。削除条件をコメントへ明記。</li>
+    <li><b>旧→新の自動移行コードは書かない。</b> 両ファイルとも「無ければ初回」のフォールバックを持ち、実害は1回分の情報欠落に留まる。1回しか効かないコードが恒久的に残るコストのほうが大きい。</li>
+  </ol>
+
+  <h3>検証（すべて実行済み）</h3>
+<pre><code>bash .claude/scripts/test/test_adversarial_review_count.sh → passed=22 failures=0
+bash .claude/scripts/test/test_sync_gemini_assets.sh       → passed=91 failures=0
+bash .claude/scripts/test/test_install_to_project.sh       → passed=99 failures=0
+bash .claude/scripts/src/check-dist-coverage.sh            → 結果: OK（4種すべて通過。検査2は 10/10 行）
+bash .claude/scripts/src/check-doc-references.sh           → 参照切れ数=0（候補247件）
+bash .claude/scripts/src/generate-ddr-list.sh              → 86件へ更新（i0184-01 の行が入った）
+bash .claude/scripts/src/check-base-conflicts.sh           → hasConflict: false
+bash -n（変更した .sh 3本）                                 → 構文OK
+
+git check-ignore -v wip/state/.probe → .gitignore:26:/wip/state/
+git diff 4be448a -- .claude/docs/ddr/ | grep -c '^-[^-]' → 0（既存DDR本文の削除行ゼロ）</code></pre>
+</section>
+
+<section id="next">
+  <h2>レビューで特に見てほしい点</h2>
+  <ol>
+    <li><b><code>.gitignore</code> の3行</b>（<code>/wip/state/</code> と、移行用に残した <code>/.claude/state/</code>、およびそのコメント）。移行用の行を残す判断そのものと、削除条件の書き方。</li>
+    <li><b><code>.claude/dist-layers.json</code> の <code>local</code> エントリ2件</b>。<code>note</code> を実態（前回push SHA＋敵対的レビューの投稿件数）へ直している。</li>
+    <li><b><code>test_sync_gemini_assets.sh</code> のフィクスチャ差し替え</b>。<code>.claude/state/last-push-sha</code> → <code>.claude/settings.local.json</code>。<code>wip/state/</code> にすると <code>-- .claude</code> の列挙範囲外になり、テストが<b>常に成功する空振り</b>へ変わるため、<code>.claude/</code> 配下に残る <code>.gitignore</code> 対象へ替えている。</li>
+    <li><b><code>.claude/docs/spec/issue-mr-workflow.md</code></b>。現在の仕様（「/compact実施の呼びかけ」節）だけを直し、<b>issue #13 の過去changelog（2301〜2302行目）は無変更のまま</b>で、末尾に issue #184 の新規エントリを足している。</li>
+    <li><b><code>.claude/rules/</code> への追記2件</b>（<code>git-workflow.md</code> / <code>shell-script-style.md</code>）。いずれも作業中に踏んだ罠を (c)「アセットはあったが罠が書かれていなかった」と判定して既存節へ追記したもの。常時読込のアセットを新規に増やしていない。</li>
+  </ol>
+</section>
+
+<section id="unverified">
+  <h2>このセッションで実施できなかったこと</h2>
+  <ul>
+    <li><b>人間のレビュー往復</b>（flow-id 1-5・3-3/3-4・3-8/3-9・4-3/4-4・4-8/4-9）。該当ループ範囲の進捗記号は <code>[]</code> のままにしてある（<code>.claude/rules/docs-workflow.md</code>「非対話的実行環境」）。</li>
+    <li><b>git bash（Windows）実機での確認。</b> 実行環境がLinuxのため。今回の変更は文字列としてのパスの差し替えのみで、パス変換・改行コード・外部プロセス起動には触れていない。</li>
+    <li><b><code>.claude/VERSION</code> の更新。</b> 据え置いている（判断は人間に委ねる）。</li>
+  </ul>
+</section>
+
+<section id="todo">
+  <h2>関連</h2>
+  <ul>
+    <li><b>issue #165</b>（<code>plans/worklog/reports</code> を <code>wip/</code> 配下へ集約）へ、マージ前通知を投稿済み（<code>wip/</code> を先に作ったこと・<code>/wip/</code> へ広げてはいけないこと・旧パスの除外行が残っていること）。</li>
+    <li><b>DDR <code>i0013-01</code></b>（参照リンクの状態をローカルに持つ判断）と <b><code>i0039-01</code></b> は、旧パス表記のまま残している（DDR本文は変更しない運用）。</li>
+  </ul>
+</section>
+
+<footer>issue #184 / PR #190 — 結果の正文は同名の <code>.md</code>。外部依存を持たない自己完結HTML。</footer>
+
+</div>
+</body>
+</html>

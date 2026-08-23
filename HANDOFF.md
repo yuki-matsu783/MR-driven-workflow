@@ -17,7 +17,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - issue: #184 `.claude\state`はwipディレクトリで管理する
 - ブランチ: claude/state-wip-directory-xj93sb
 - PR: #190（Draft） https://github.com/yuki-matsu783/MR-driven-workflow/pull/190
-- push回数: 3
+- push回数: 4
 - 現在のループ: 4-6〜4-9 の1周目（進行中）
 - 未返信スレッド: 0
 - 追従監視: 購読あり（subscribe_pr_activity / PR #190）＋ 定期チェックイン
@@ -60,9 +60,9 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 | [] | 4-8 | 反映内容をレビュー・コメントする |
 | [] | 4-9 | レビュー内容を取得し設計・AIアセットを修正する |
 | [] | 4-10 | 反映内容をもとにMR descriptionを更新する |
-| [] | 5-1 | defaultブランチとのコンフリクトを検知・解消する |
-| [] | 5-2 | 関連issueへマージ前通知を行う |
-| [] | 5-3 | .claude/ を .gemini/ へ変換同期する |
+| [x] | 5-1 | defaultブランチとのコンフリクトを検知・解消する |
+| [x] | 5-2 | 関連issueへマージ前通知を行う |
+| [x] | 5-3 | .claude/ を .gemini/ へ変換同期する |
 | [] | 5-4 | 最終統括レポートを作成しPRへ反映する |
 | [] | 5-5 | plans/ worklog/ reports/ を片付けHANDOFF.mdをリセットする |
 | [] | 5-6 | commit・push してDraftを解除する |
@@ -99,11 +99,20 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
   `reports/20260823_wispy-drifting-lantern_ドキュメントへの反映結果.md`（＋`.html`）。
   - `.claude/docs/usecase/` 9本を確認し、影響は**0件**だった。
 
+- flow-id 5-1: `check-base-conflicts.sh` を実行し `hasConflict: false` を確認した（コンフリクトなし）。
+- flow-id 5-2: 関連issueとして **#165** を特定し、ユーザーの承認を得て
+  https://github.com/yuki-matsu783/MR-driven-workflow/issues/165#issuecomment-5386164848 へ
+  マージ前通知を投稿した（`wip/` を先に作ったこと・`/wip/` へ広げてはいけないこと・
+  旧パスの除外行が残っていること）。
+- flow-id 5-3: `bash .claude/scripts/src/sync-gemini-assets.sh` を実行し、`.gemini/` を再生成した
+  （15ファイルの差分）。
+- flow-id 5-4: 統括レポート `reports/20260823_wispy-drifting-lantern_統括.md`（＋`.html`）を作成した。
+
 ## 次にやること
 
-- flow-id 5-1: defaultブランチとのコンフリクト検知。
-- flow-id 5-3: `.gemini/` の変換同期（`.claude/` 側を変更したため必須）。
-- flow-id 5-4以降: 統括レポート・片付け・Draft解除。
+- flow-id 5-5: `cleanup-task.sh` で `plans/` `worklog/` `reports/` を片付け、HANDOFF.mdをリセットする。
+- flow-id 5-6: commit・push してDraftを解除する。
+- flow-id 5-7（マージ）は**人間の担当**。AIエージェントは 5-6 で止まる。
 
 ## 判断を迷った内容
 
