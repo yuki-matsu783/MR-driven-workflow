@@ -17,7 +17,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - issue: #170
 - ブランチ: `claude/usecase-docs-setup-uvs5li`（ハーネス指定）
 - PR: #173（Draft。https://github.com/yuki-matsu783/MR-driven-workflow/pull/173 ）
-- push回数: 7
+- push回数: 8
 - 現在のループ: なし
 - 追従監視: 購読あり（web。subscribe_pr_activity + 1時間ごとの自己チェックイン）
 
@@ -84,12 +84,16 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
   worklog push1へ記録）。全件修正し、6スレッドへ返信済み（2-9相当）。フェーズ2は上限3回中2回を
   消費済み（追加レビューは行わない）。flow-id 2-10のdescribeも更新済みでフェーズ2完了。
 - flow-id 3-1: 個別作業計画 `plans/【AIアセット作成】ユースケース文書一式と周辺更新.md`（+html）と
-  worklog（push7）を作成。
+  worklog（push7）を作成。3-2でcommit・push済み。
+- 敵対的レビュー フェーズ3・1回目（対象: 個別作業計画）: findings 11件（インライン9・報告のみ2、
+  報告分はworklog push7へ記録）。全件修正（検証節の書き直しが中心）しcommit・push（push8）、
+  9スレッドへ返信済み（3-4相当）。フェーズ3は上限3回中1回を消費。
 
 ## 次にやること
 
-- flow-id 3-2 commit・push → 敵対的レビュー（フェーズ3・1回目。対象: 個別作業計画）→自動修正→
-  返信 → 3-5 describe → 3-6（usecase文書8本の作成・周辺7ファイル更新・検証実行）。
+- flow-id 3-5 describe → 3-6（usecase文書8本の作成・周辺7ファイル更新・検証実行）→ 3-7
+  commit・push → 敵対的レビュー（フェーズ3・2回目。対象: 作業結果）→自動修正→返信 →
+  3-10 describe → フェーズ4へ。
 
 ## 判断を迷った内容
 

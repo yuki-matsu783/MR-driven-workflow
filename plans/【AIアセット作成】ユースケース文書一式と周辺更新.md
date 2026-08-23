@@ -45,12 +45,18 @@ keywords: [ユースケース, usecase, frontmatter, README, flow-id 4-6, docs-w
 調査結果「問い7」の表のとおり（各変更の詳細はそちらが正）。
 
 1. `.claude/rules/markdown-frontmatter.md` — 「typeの値」表へ `usecase` 行を追加
-2. `.claude/docs/README.md` — 冒頭箇条書き＋usecase節（生成マーカー区間の外）＋frontmatter更新
+2. `.claude/docs/README.md` — 冒頭箇条書き（`- spec/`・`- ddr/`）の先頭へ `usecase/` 行を追加し、
+   **`## spec（機能仕様）` 見出しの直前**へ `## usecase（ユースケース逆引き）` 節（8本の一覧）を
+   新設する（この位置はDDR一覧の生成マーカー区間（79行目〜）より前なので「区間の外」の条件を
+   満たす）。frontmatterの `description`/`keywords` も更新
 3. `.claude/skills/issue-mr-flow/SKILL.md` — 4-6行「設計反映」項末尾へ影響確認を追記
-4. `.claude/rules/docs-workflow.md` — 「ドキュメント運用」表へusecase行を追加
+4. `.claude/rules/docs-workflow.md` — 「ドキュメント運用」表へusecase行を追加。行には運用ルール
+   「**usecase文書を追加・改名・削除したら、READMEのusecase節を同じコミットで更新する**」を
+   含める（調査結果「問い4」の結論。一覧は生成物にしない代わりに更新責務を明文化する）
 5. `.claude/rules/directory-structure.md` — ツリーへ `usecase/` 行を追加
 6. `index.md` — Repository Mapへ `usecase/` 行を追加
-7. `.claude/REVIEW-POINTS.md` — usecase文書の観点（手順詳細を再掲しない等）を追加
+7. `.claude/REVIEW-POINTS.md` — usecase文書の観点（手順詳細を再掲しない等。**散文・箇条書きに
+   よる手順再掲は機械検査で検出できないため、ここが検出の受け皿**）を追加
 
 ## 方針（各usecase文書の記述の型）
 
@@ -71,9 +77,12 @@ keywords: [ユースケース, usecase, frontmatter, README, flow-id 4-6, docs-w
   散文1〜3文＋箇条書き程度に留め、手順の正であるspec/SKILL.mdへのリンクで参照する。
   コードブロック（```フェンス）は使わない（検証で機械的に確認する）。
 - 1本あたり30〜60行程度を目安にする（概観に徹する。長くなるのは手順を書き始めた兆候）。
-- リンクは相対パスで書き、実在をループで検証する（下記）。
+- **リンクはすべて「そのファイルの位置（`.claude/docs/usecase/`）からの相対パス」で書く**
+  （例: `../spec/issue-mr-workflow.md`、`../../skills/issue-mr-flow/SKILL.md`、
+  `../../../index.md`）。ルート相対・絶対パスは使わない。解決基準を1つに固定することで、
+  検証5のパス解決も `.claude/docs/usecase/` 基準の1経路だけで済む。
 
-## やらないこと
+## やらないこと（スコープ外）
 
 - spec/SKILL.md側の手順詳細の転記（上記のとおり禁止）。
 - `.sh` スクリプトの変更（`Provider.sh` の不具合対応はフェーズ4の `【実装反映】` 候補）。
@@ -82,35 +91,57 @@ keywords: [ユースケース, usecase, frontmatter, README, flow-id 4-6, docs-w
 ## 検証（実行できるコマンドと合格条件）
 
 ```bash
-# 1. ファイル数: 8 であること
+# 1. ファイル数: 出力が 8 であること
 ls .claude/docs/usecase/*.md | wc -l
 
 # 2. frontmatter検索: usecase文書を1本作った直後から実測できる（未追跡でも載る）。
 #    最終的に matched=8 であること
 bash .claude/scripts/src/search-frontmatter.sh --type usecase --format count
 
-# 3. README目次からの到達: usecase節のリンク先が全件実在すること（0件は不合格。件数も出す）
-grep -o 'usecase/[^)]*\.md' .claude/docs/README.md | sort -u | \
-  { n=0; ok=0; while IFS= read -r p; do n=$((n+1)); [ -f ".claude/docs/$p" ] && ok=$((ok+1)) || echo "missing: $p"; done; echo "links=$n exists=$ok"; [ "$n" -gt 0 ] && [ "$n" = "$ok" ]; }
+# 3. README⇔ファイルの双方向一致: READMEのusecase節リンクと実ファイル一覧が集合として
+#    一致すること（リンク先の実在と、8本すべてがREADMEに載っていること＝逆方向の
+#    取りこぼしを1つの検査で兼ねる。差分が出たら不合格。先頭の件数ガードにより、
+#    両側とも0件の空一致は合格にならない）
+[ "$(ls .claude/docs/usecase/*.md 2>/dev/null | wc -l)" -eq 8 ] && \
+diff <(grep -o 'usecase/[^)]*\.md' .claude/docs/README.md | sed 's|^usecase/||' | sort -u) \
+     <(cd .claude/docs/usecase && ls *.md | sort) && echo 'README⇔ファイル 双方向一致'
 
-# 4. 手順詳細の再掲なし（機械検査）: 各usecase文書のコードフェンス数が0であること
-grep -c '^```' .claude/docs/usecase/*.md || echo 'フェンスなし'
+# 4. コードフェンスなし（手順再掲の代理指標）: files=8 fences=0 であること
+#    （対象0ファイルではawkがエラーになるため、空振りでの見かけ合格は起きない）
+awk 'FNR==1{files++} /^```/{fences++} END{printf "files=%d fences=%d\n", files, fences+0}' \
+  .claude/docs/usecase/*.md
 
-# 5. usecase文書内のリンク先（.claude/…・ルートのmd）が全件実在すること
-grep -ho '([^)]*\.md[^)]*)' .claude/docs/usecase/*.md | tr -d '()' | sed 's/#.*//' | sort -u | \
-  { n=0; ok=0; while IFS= read -r p; do n=$((n+1)); [ -f ".claude/docs/usecase/$p" ] || [ -f "$p" ] && ok=$((ok+1)) || echo "missing: $p"; done; echo "links=$n exists=$ok"; }
+# 5. usecase文書内のリンク先が全件実在すること（.md/.sh/.json を対象。解決基準は
+#    .claude/docs/usecase/ の1経路のみ。links>0 かつ missing=0 で合格）
+grep -hoE '\]\([^)]+\.(md|sh|json)(#[^)]*)?\)' .claude/docs/usecase/*.md | \
+  sed -E 's/^\]\(//; s/\)$//; s/#.*$//' | sort -u | \
+  ( cd .claude/docs/usecase && n=0; miss=0; while IFS= read -r p; do n=$((n+1)); \
+    if [ ! -f "$p" ]; then miss=$((miss+1)); echo "missing: $p"; fi; done; \
+    echo "links=$n missing=$miss"; [ "$n" -gt 0 ] && [ "$miss" -eq 0 ] )
 
-# 6. flow-id 4-6への組み込み: SKILL.mdの4-6行にusecaseへの言及があること
-grep -n 'usecase' .claude/skills/issue-mr-flow/SKILL.md
+# 6. flow-id 4-6への組み込み: 全体フロー表の4-6の行（だけ）に usecase への言及があること
+#    （出力が1以上で合格。SKILL.md全文ではなく表の4-6行に限定して検査する）
+awk -F'|' '$2 ~ /^[[:space:]]*4-6[[:space:]]*$/' .claude/skills/issue-mr-flow/SKILL.md | \
+  grep -c 'usecase'
+
+# 7. 周辺ファイル5件の反映（いずれも出力が1以上で合格）
+grep -c -- '| `usecase` |' .claude/rules/markdown-frontmatter.md   # typeの値表の行
+grep -c -- 'usecase' .claude/rules/docs-workflow.md                # ドキュメント運用表の行
+grep -c -- 'usecase/' .claude/rules/directory-structure.md         # ツリーの行
+grep -c -- 'usecase' index.md                                      # Repository Mapの行
+grep -c -- 'usecase' .claude/REVIEW-POINTS.md                      # レビュー観点
 ```
 
-合格条件: 1が8、2の `matched` が8、3が `links>0` かつ全件実在、4が全ファイル0（grep -c は
-マッチ0で非0終了するため「フェンスなし」が出ればよい）、5が全件実在、6で4-6の作業内訳の行が
-ヒットすること。検査コマンド自体が空振りしないことは、意図的にリンク切れ・フェンス入りの
-一時ファイルを置いて非合格になることを1回確かめる。
+合格条件は各検査のコメントのとおり（1: 8／2: matched=8／3: 差分なし／4: files=8 fences=0／
+5: links>0 かつ missing=0／6: 1以上／7: 5本すべて1以上）。検査コマンド自体が空振りしないことは、
+意図的にリンク切れ・フェンス入りの一時ファイルを置いて非合格になることを1回確かめる。
 
 ## 検証に関する補足
 
-- 相対リンクの解決基準はファイル位置（`.claude/docs/usecase/` から見た相対パス）なので、
-  検証5のパス解決は「usecase/からの相対」と「リポジトリルートからの相対」の両方を試す
-  簡易版とする（厳密なmarkdownリンク解決は行わない。実在確認が目的）。
+- 検証4の「フェンス0」が保証するのは**コードブロックが無いことだけ**である。散文・箇条書きで
+  書かれた手順再掲（手順番号付きの列挙等）は機械検査では検出できないため、代理指標と位置づけ、
+  散文での再掲は `.claude/REVIEW-POINTS.md` へ追加するusecase観点（変更対象7）を検出の受け皿と
+  する。
+- 検証5は厳密なmarkdownリンク解決は行わない簡易版（実在確認が目的）。リンクの解決基準は
+  「方針」節で `.claude/docs/usecase/` からの相対パスに統一しているため、検査も同じ1経路のみで
+  解決する（複数経路を試すと、間違った基準でたまたま実在するパスに誤合格しうる）。
