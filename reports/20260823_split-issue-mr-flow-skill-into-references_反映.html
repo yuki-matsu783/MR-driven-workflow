@@ -128,6 +128,7 @@
     <li><a href="#unverified">確かめられなかったこと</a></li>
     <li><a href="#next">設計への反映</a></li>
     <li><a href="#surprises">想定と異なった点</a></li>
+    <li><a href="#review2">敵対的レビュー（フェーズ4・2回目）への対応</a></li>
   </ol>
 </nav>
 
@@ -156,7 +157,7 @@
     <li><b>A-0</b>: 「コンポーネント構成」ツリーへ <code>references/</code> 7本を追記し、SKILL.md の説明へ「本文＋参照資料」構成と「参照列が唯一の正」を追記（DDR i0160-01 への参照付き）。</li>
     <li><b>A-1</b>: 「現在地flow-idと参照ファイルの注入（issue #160）」項を新設。現在地の解決方式（「最初の []」を採らない理由）・参照列のヘッダ由来抽出・fail-open 4段・完全パス変換・表側の維持責任・ROW_RE複製に加え、<code>references/mcp-fallback.md</code> を参照列で指さない設計も記載。</li>
     <li><b>A-2</b>: 純粋関数の列挙へ <code>current_flow_id_to_reply</code> / <code>refs_for_flow_id_to_reply</code> を追記。</li>
-    <li><b>A-3</b>: 「1,100行超」→分割後の姿へ更新。実測は <code>format_skill_reload_instruction</code> の出力を <code>wc -c</code> で計測: <b>627〜857バイト</b>（判定根拠2件＋参照3本が最大）。</li>
+    <li><b>A-3</b>: 「1,100行超」→分割後の姿へ更新。実測は <code>format_skill_reload_instruction</code> の出力を <code>wc -c</code> で計測: <b>604〜919バイト</b>（判定根拠2件＋参照3本＋組み立て済み参照行が最大。末尾LF込み。初回計測857はプレフィックスの測り漏らしで、敵対的レビュー指摘1で訂正）。</li>
     <li><b>A-4</b>: 影響範囲へ <code>### issue #160</code> エントリを新規追記（既存エントリは不変）。</li>
   </ul>
 
@@ -164,7 +165,7 @@
   <p>「制約・設計判断」へ ROW_RE 複製の1項（両方同時に直す・一致はテストが表明・source共有を採らない理由）、影響範囲へ issue #160 エントリ（本スクリプトの挙動に変更なしと明記）。</p>
 
   <h3>C. DDR</h3>
-  <p><code>i0160-01</code> を新規作成（決定5点・却下案6件）。<code>i0113-01</code> の note へ前提変化を追記——mainのマージで同キーに flow-id 繰り下げの注記が先に入っていたため、規約（noteは1行）に従い<b>1行のまま連結</b>した。本文は不変。</p>
+  <p><code>i0160-01</code> を新規作成（決定5点・却下案5件・「関連する既存の決定」1節）。<code>i0113-01</code> の note へ前提変化を追記——mainのマージで同キーに flow-id 繰り下げの注記が先に入っていたため、規約（noteは1行）に従い<b>1行のまま連結</b>した。本文は不変。</p>
 
   <h3>D〜F</h3>
   <pre><code>$ bash .claude/scripts/src/generate-ddr-list.sh   # README差分は i0160-01 行と i0113-01 注記のみ
@@ -221,10 +222,25 @@ $ printf '0.3.0\n' &gt; .claude/VERSION
     <tbody>
       <tr><td>フローは42ステップ（統括=5-3・片付け=5-4）</td><td>mainのPR #157で43ステップ化（新5-3挿入・繰り下げ）</td><td>新番号へ読み替えて反映。計画md/htmlの番号も更新</td></tr>
       <tr><td>i0113-01 の note は新規追加</td><td>mainが同キーへ注記を先に追加していた</td><td>規約（1行）に従い連結</td></tr>
-      <tr><td>指示文は実測603/690バイト</td><td>参照行の追加で627〜857バイト</td><td>最大ケース（参照3本）を含めて測り直し、測り方も本文へ記載</td></tr>
+      <tr><td>指示文は実測603/690バイト</td><td>参照行の追加で604〜919バイト</td><td>最大ケース（判定根拠2件＋参照3本）を含めて測り直し、測り方も本文へ記載</td></tr>
     </tbody>
   </table>
   </div>
+</section>
+
+<section id="review2">
+  <h2>敵対的レビュー（フェーズ4・2回目）への対応</h2>
+  <p>11件の指摘（投稿8件＋報告3件。カウンタ2/3）を受け、全11件へ対応した。</p>
+  <ul>
+    <li><b>実測値の訂正（指摘1）</b>: 最大ケースは918〜919バイト。当初の857は参照行のプレフィックス（約50バイト）の測り漏らし。specへ604〜919バイトと測り方を明記。</li>
+    <li><b>changelogの記述精度（指摘2・3）</b>: <code>update-handoff-progress.md</code> のエントリへ本スクリプト自身の変更を追加。<code>issue-mr-workflow.md</code> の影響範囲へ参照付け替えのみの14ファイル（出力文字列が変わる3スクリプトを明示）を追記。</li>
+    <li><b>「だけが残り」の訂正（指摘5）</b>: spec・DDRとも本文に残る節を実態どおり列挙（DDRはマージ前のため本文を修正できる）。</li>
+    <li><b>DDRの独自ステータス行の削除（指摘6）・却下案の数の整合（指摘7）</b>: 「- ステータス: 承認済み」を削除し、i0113-01 との整合を「関連する既存の決定」節へ分離（却下案5件でサマリ・詳細・HTMLを統一）。</li>
+    <li><b>HANDOFF進捗表の4-2（指摘8）</b>: <code>mark-done 4-2</code> を実行（現在地解決が誤って4-2を指していた——機械化の効果が表の更新漏れに依存する実例）。</li>
+    <li><b>VERSION規約の例外明文化（指摘9）</b>: <code>distribution-assets.md</code> へ非対話的セッションの例外を追記（案(b)。0.3.0は維持）。</li>
+    <li><b>コンフリクト類型F（指摘10）</b>: <code>resolve-conflict/SKILL.md</code> へ「配置の変更 vs 上流の内容変更」を類型Fとして追加。</li>
+    <li><b>表記2件（指摘4・11）</b>: 「上記」→「下記」、地の文の <code>steps</code> → 「行」。</li>
+  </ul>
 </section>
 
 <footer>issue #160 / PR #161 — 結果の正文は同名の <code>.md</code>。外部依存を持たない自己完結HTML。</footer>

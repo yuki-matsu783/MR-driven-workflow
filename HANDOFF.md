@@ -19,7 +19,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - PR: #161 https://github.com/yuki-matsu783/MR-driven-workflow/pull/161（Draft）
 - push回数: 11
 - 現在のループ: 4-6〜4-9 の1周目（進行中）
-- 未返信スレッド: 0
+- 未返信スレッド: 8
 - 追従監視: 購読あり（web。subscribe_pr_activity + 自己チェックイン）
 
 | 進捗 | flow-id | ステップ | 担当 |
@@ -51,7 +51,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 | [] | 3-9 | レビュー内容を取得し実装・ドキュメントを修正 | `comments` / `reply` |
 | [x] | 3-10 | MR descriptionを更新 | `describe` |
 | [x] | 4-1 | 個別反映計画を作成する | エージェント |
-| [] | 4-2 | commitしpushしてレビュー依頼 | エージェント |
+| [x] | 4-2 | commitしpushしてレビュー依頼 | エージェント |
 | [] | 4-3 | 反映計画のレビュー | 人間 |
 | [] | 4-4 | レビュー内容を取得し反映計画を修正 | `comments` / `reply` |
 | [] | 4-5 | MR descriptionを更新 | `describe` |
@@ -167,6 +167,11 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
   DDR一覧再生成・VERSION 0.2.0→0.3.0・hookコメント更新）。検証8項目すべて合格
   （全17テスト passed=1132 failures=0。再実行がマージ解消時の `HANDOFF.md` 見出し欠落を検出→修正）。
   結果の正文は `reports/20260823_split-issue-mr-flow-skill-into-references_反映.md`（＋同名 `.html`）。
+- **敵対的レビュー（フェーズ4・2回目=結果）**: 11件検出（投稿8件＋報告3件。カウンタ2/3）。
+  全11件へ対応した——実測値の訂正（最大919バイト）・changelog記述精度・DDRステータス行削除・
+  却下案数の整合・4-2のmark-done・`distribution-assets.md`へ非対話環境のVERSION増分例外を明文化・
+  `resolve-conflict`へ類型F（配置の変更 vs 上流の内容変更）を追加・表記2件。
+  投稿8スレッドへ返信済み。
 
 ## 次にやること
 

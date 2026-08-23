@@ -414,9 +414,12 @@ hint: 同じループ範囲内のflow-idは常に同じ記号を持ちます（.
 
 SKILL.md分割（issue #160）で、SessionStart hookが `HANDOFF.md` の進捗表から現在地flow-idを
 解決するようになった。行判定の正規表現 `ROW_RE` は本スクリプトのものと**同一リテラルの複製**とし、
-一致を `test_session_start.sh` が表明する（上記「制約・設計判断」）。本スクリプト自身の
-挙動に変更は無い。
+一致を `test_session_start.sh` が表明する（上記「制約・設計判断」）。進捗更新ロジックの挙動は
+同値（下記のとおり `ROW_RE` の変数化と、hint文言の参照先変更のみ）。
 
+- `.claude/scripts/src/update-handoff-progress.sh`: 行判定の正規表現を `ROW_RE` という変数へ
+  切り出し（判定結果は同値）、`unreplied_hint` のstderr案内の参照先を
+  `references/review-loop.md`「レビュー完了合図の確認」へ変更（出力文字列が変わる）。
 - `.claude/hooks/session-start.sh`: `ROW_RE` を複製し、`current_flow_id_to_reply` が使う。
 - `.claude/scripts/test/test_session_start.sh`: 両ファイルのリテラル一致の表明を追加。
 
