@@ -26,12 +26,14 @@ keywords: [dist-layers, asset-manifest, core, seed, merge, local, exclude, insta
 
 | ファイル | 役割 |
 |---|---|
-| `.claude/dist-layers.json` | 層分け定義（41エントリ）。**何をどう配るかの単一の正** |
+| `.claude/dist-layers.json` | 層分け定義（42エントリ）。**何をどう配るかの単一の正** |
 | `.claude/scripts/src/check-dist-coverage.sh` | 網羅性チェック（4種） |
 | `.claude/rules/agent-common.md` | `AGENTS.md` から切り出した共通ルール9項目 |
-| `.claude/skills/apply-mr-workflow-to-project/templates/AGENTS.md` | `seed` の汎用雛形 |
-| `.claude/skills/apply-mr-workflow-to-project/templates/REVIEW-POINTS.local.md` | 配布先所有の観点表の空雛形 |
-| `.claude/scripts/test/test_check_dist_coverage.sh` | 24件 |
+| `.claude/skills/apply-mr-workflow-to-project/assets/AGENTS.md.template` | `seed` の汎用雛形 |
+| `.claude/skills/apply-mr-workflow-to-project/assets/REVIEW-POINTS.local.md.template` | 配布先所有の観点表の空雛形 |
+| `.claude/skills/apply-mr-workflow-to-project/assets/HANDOFF.md.template` | `seed` の雛形。`cleanup-task.sh` の `HANDOFF_TEMPLATE` と同一 |
+| `.claude/skills/apply-mr-workflow-to-project/assets/index.md.template` | `seed` の雛形（Repository Map。配布先固有の節は空欄） |
+| `.claude/scripts/test/test_check_dist_coverage.sh` | 26件 |
 | `.claude/scripts/test/test_setup_gemini_links.sh` | 24件 |
 
 ### 変更・削除
@@ -193,6 +195,35 @@ diff全体に対する2回目の敵対的レビューで**14件**の指摘を得
 **`set -e` の修正だけで「中断する」「0バイトにしない」の両方が満たされてしまう**ため、
 blocker修正を単体で戻しても落ちない。**両方を戻して初めて `actual: 0`（0バイト）で落ちた。**
 テストは多重防御のどちらか一方が生きていれば通る表明として、この形のまま残している。
+
+## mainのマージで生じた食い違いの解消（2026-08-23）
+
+レビュー合意の直後に `origin/main` が PR #156（issue #54）・#158（issue #103）で進んでいたため、
+`resolve-conflict` の**監視モード**で取り込んだ。gitがコンフリクトとして報告したのは
+`.gitignore` と `DEVELOPERS.md` の2件だけだったが、**gitが競合と見なさない食い違いが2件あった**。
+
+| # | 食い違い | なぜgitが気づかないか | 解消 |
+|---|---|---|---|
+| 1 | issue #54 が「スキルのバンドルリソースに `templates/` を使わない」というルールをmainへ入れた一方、こちらは同じ回に `apply-mr-workflow-to-project/templates/` を**新設**していた | 追加したファイル名が両ブランチで異なる（`canvas-report/templates/` と `apply-mr-workflow-to-project/templates/`） | mainの新ルールに従い `assets/` へ改名。`dist-layers.json` の `source` 4種とテスト2本の参照を追随 |
+| 2 | `directory-structure.md` が「`apply-mr-workflow-to-project/assets/` は `sync-assets.sh` が生成する `.gitignore` 対象のビルド用一時ディレクトリ」と書いていた | main側だけが触った行で、こちらは触っていない | issue #26 で `sync-assets.sh` を廃止済みのため、現状（Git管理下の恒久のバンドルリソース）へ書き換え。`scripts/` の実例も `install-to-project.sh` へ差し替え |
+
+**2件目を放置すると、新設した `assets/` が「Git管理外」だと読める**ドキュメントが残る。
+実際 `.gitignore` の該当行はこちらのブランチが既に削除済みで、
+`git check-ignore` でも無視されないことを確認した。
+
+- **`.template` の接尾辞は残す。** `assets/` へ移しても、`collect-review-points.sh` と
+  `extract-frontmatter.sh` に拾われないという理由は変わらない
+  （main側の `reports.template.html` は `.html` なのでこの制約を受けない）。
+- **`.gitignore` へ増えた `/.claude/settings.local.json`（issue #103）に対応する `local`
+  エントリを層分け定義へ追加した**（無いと検査2が落ちる）。**マージのたびに層分け定義の
+  更新が要る**という、この方式の運用コストが初めて実地で現れた例である。
+- **マージ途中に `check-dist-coverage.sh` を流すと、追跡ファイル数が水増しされる**（実測: 208 →
+  解消後 204）。`git ls-files` は未マージのパスをステージ1〜3の**3回**返すため。検査自体は
+  通るので実害は無いが、件数を根拠に判断しないこと。
+
+検証は `resolve-conflict` の Step 5 をすべて実施した（マーカー0件・未マージ0件・`bash -n`・
+生成物の再生成・**全17テスト 1084件が通過**・DDR識別子の重複なし・網羅性チェックOK・
+`git diff HEAD -- HANDOFF.md` が0行）。
 
 ## 残る未確認事項（フェーズ4でspecの未決定事項へ）
 
