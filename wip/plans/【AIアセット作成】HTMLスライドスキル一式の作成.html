@@ -1,0 +1,280 @@
+<!--
+  【AIアセット作成】HTMLスライドスキル一式の作成（issue #168 / PR #194）の人間レビュー用HTMLビュー。
+  正文は同名の .md。土台は .claude/skills/issue-mr-flow/assets/plans.template.html（issue #54）。
+  外部依存なしの自己完結HTML。
+-->
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>【AIアセット作成】HTMLスライドスキル一式の作成 — issue #168</title>
+<style>
+  :root {
+    --bg: #f6f7f9;      --panel: #ffffff;   --ink: #1a1d21;     --muted: #5b636d;
+    --line: #dfe3e8;    --accent: #2563eb;  --accent-soft: #eaf0fe;
+    --ok: #1a7f4b;      --ok-soft: #e6f4ec; --warn: #a35a00;    --warn-soft: #fdf1e0;
+    --stop: #b3261e;    --stop-soft: #fdecea; --code-bg: #f0f2f5;
+    --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1216;    --panel: #161a20;   --ink: #e6e8eb;     --muted: #9aa3ad;
+      --line: #2a3038;  --accent: #7aa2f7;  --accent-soft: #1b2333;
+      --ok: #6ee7a8;    --ok-soft: #14261d; --warn: #f0b866;    --warn-soft: #2a2113;
+      --stop: #f2857c;  --stop-soft: #2b1614; --code-bg: #1d222a;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", system-ui, sans-serif;
+    line-height: 1.8; font-size: 15px;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 20px 80px; }
+
+  header.band {
+    background: linear-gradient(135deg, var(--accent-soft), var(--panel));
+    border-bottom: 1px solid var(--line); padding: 28px 20px 22px; margin-bottom: 28px;
+  }
+  header.band .inner { max-width: 1080px; margin: 0 auto; }
+  header.band .kind { font-size: 11px; letter-spacing: .18em; color: var(--accent); font-weight: 700; }
+  header.band h1 { margin: 6px 0 4px; font-size: 26px; line-height: 1.4; }
+  header.band .lead { margin: 0; color: var(--muted); }
+  .meta { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; padding: 0; list-style: none; }
+  .meta li {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 999px;
+    padding: 3px 12px; font-size: 12.5px; color: var(--muted); white-space: nowrap;
+  }
+  .meta li b { color: var(--ink); font-weight: 600; }
+
+  nav.toc {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 14px 20px; margin-bottom: 28px;
+  }
+  nav.toc h2 { margin: 0 0 8px; font-size: 13px; letter-spacing: .08em; color: var(--muted); border: 0; padding: 0; }
+  nav.toc ol { margin: 0; padding-left: 20px; }
+  nav.toc li { margin: 2px 0; }
+  a { color: var(--accent); }
+
+  section {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 8px 24px 22px; margin-bottom: 22px;
+  }
+  h2 { font-size: 20px; margin: 20px 0 10px; padding-bottom: 8px; border-bottom: 2px solid var(--line); }
+  h3 { font-size: 16px; margin: 22px 0 8px; color: var(--accent); }
+  p { margin: 10px 0; }
+  ul, ol { padding-left: 22px; }
+  li { margin: 4px 0; }
+
+  .tablewrap { overflow-x: auto; margin: 14px 0; }
+  table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 14px; }
+  th, td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: var(--accent-soft); font-weight: 600; white-space: nowrap; }
+  tbody tr:nth-child(even) td { background: color-mix(in srgb, var(--line) 22%, transparent); }
+
+  code {
+    background: var(--code-bg); border-radius: 5px; padding: 1px 5px; font-size: 13px;
+    font-family: "SFMono-Regular", Consolas, "Noto Sans Mono", monospace;
+  }
+  pre {
+    background: var(--code-bg); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 12px 14px; overflow-x: auto; font-size: 13px; line-height: 1.65;
+  }
+  pre code { background: none; padding: 0; }
+
+  .box { border-left: 4px solid var(--accent); background: var(--accent-soft);
+         border-radius: 0 var(--radius) var(--radius) 0; padding: 12px 16px; margin: 16px 0; }
+  .box > :first-child { margin-top: 0; } .box > :last-child { margin-bottom: 0; }
+  .box .label { font-size: 12px; font-weight: 700; letter-spacing: .06em; display: block; margin-bottom: 4px; }
+  .box.ok { border-color: var(--ok); background: var(--ok-soft); } .box.ok .label { color: var(--ok); }
+  .box.warn { border-color: var(--warn); background: var(--warn-soft); } .box.warn .label { color: var(--warn); }
+  .box.stop { border-color: var(--stop); background: var(--stop-soft); } .box.stop .label { color: var(--stop); }
+  .box.info .label { color: var(--accent); }
+
+  .tag { display: inline-block; border-radius: 999px; padding: 1px 9px; font-size: 12px; font-weight: 600; }
+  .tag.ok { background: var(--ok-soft); color: var(--ok); }
+  .tag.warn { background: var(--warn-soft); color: var(--warn); }
+
+  footer { color: var(--muted); font-size: 13px; text-align: center; padding-top: 10px; }
+</style>
+</head>
+<body>
+
+<header class="band">
+  <div class="inner">
+    <div class="kind">個別作業計画 / フェーズ3</div>
+    <h1>【AIアセット作成】HTMLスライドスキル一式の作成</h1>
+    <p class="lead">issue #168 の主たる成果物であるスライドテンプレート・SKILL.md・構成案JSONスキーマ・サブエージェント2本を新規作成する。</p>
+    <ul class="meta">
+      <li><b>issue</b> #168</li>
+      <li><b>ブランチ</b> claude/html-slide-skill-template-ymue7k</li>
+      <li><b>PR</b> #194</li>
+      <li><b>フェーズ</b> 3〈作業〉 flow-id 3-1</li>
+      <li><b>push回数</b> 7</li>
+      <li><b>作成日</b> 2026-08-23</li>
+      <li><b>正文</b> 同名の .md</li>
+    </ul>
+  </div>
+</header>
+
+<div class="wrap">
+
+<nav class="toc">
+  <h2>目次</h2>
+  <ol>
+    <li><a href="#premise">前提（合意状況）</a></li>
+    <li><a href="#goal">この計画で何をするか</a></li>
+    <li><a href="#target">変更対象</a></li>
+    <li><a href="#approach">方針</a></li>
+    <li><a href="#out-of-scope">やらないこと（スコープ外）</a></li>
+    <li><a href="#verify">検証</a></li>
+    <li><a href="#criteria">issueの受け入れ条件との対応</a></li>
+  </ol>
+</nav>
+
+<section id="premise">
+  <h2>前提（合意状況）</h2>
+  <ul>
+    <li>上位の計画: <code>wip/plans/html-slides-skill-plan.md</code>（flow-id 1-4 で作成。本セッションは非対話のため flow-id 1-5 の人間合意は未実施。ユーザーの当初指示を包括的な承認として進めることをHANDOFF.mdへ記録済み）</li>
+    <li>依拠する調査結果: <code>wip/reports/2026-08-23_html-slides-skill-plan_前提調査.md</code>（flow-id 2-6〜2-9相当。敵対的レビュー2回・計21件の指摘を反映済み。人間合意は未実施のため進捗記号は [] のまま）</li>
+    <li>調査で確定した前提: スキル名 <code>html-slides</code>／出力先既定 <code>wip/reports/*.slides.html</code>＋同名<code>.slides.json</code>／スキーマは <code>references/slide-outline.schema.json</code>／配布・同期の設定変更は不要／エージェント定義はホワイトリスト対象キー1行値・<code>tools</code> は <code>GEMINI_TOOL_PAIRS</code> 内の名前（<code>Write</code> は対応表に有り）という変換制約に従う</li>
+  </ul>
+</section>
+
+<section id="goal">
+  <h2>この計画で何をするか</h2>
+  <p>issue #168 の主たる成果物であるAIアセット4点＋検証用サンプルを新規作成する。</p>
+  <ol>
+    <li>スライドテンプレート <code>.claude/skills/html-slides/assets/slides.template.html</code></li>
+    <li>スキル定義 <code>.claude/skills/html-slides/SKILL.md</code></li>
+    <li>構成案JSONスキーマ <code>.claude/skills/html-slides/references/slide-outline.schema.json</code></li>
+    <li>サブエージェント2本 <code>.claude/agents/slide-outline-designer.md</code>（構成設計）・<code>.claude/agents/slide-html-generator.md</code>（HTML生成）</li>
+  </ol>
+</section>
+
+<section id="target">
+  <h2>変更対象</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>ファイル</th><th>操作</th><th>何をするか</th></tr></thead>
+    <tbody>
+      <tr><td><code>.claude/skills/html-slides/assets/slides.template.html</code></td><td>新規</td><td>自己完結スライドテンプレート。スライド型8種・ページ送り・進行表示・印刷対応</td></tr>
+      <tr><td><code>.claude/skills/html-slides/SKILL.md</code></td><td>新規</td><td>コピー→型選択→穴埋め→残存チェックの手順定義。サブエージェント2本の使い分けも記載</td></tr>
+      <tr><td><code>.claude/skills/html-slides/references/slide-outline.schema.json</code></td><td>新規</td><td>構成案JSONのスキーマ（JSON Schema draft-07相当）</td></tr>
+      <tr><td><code>.claude/agents/slide-outline-designer.md</code></td><td>新規</td><td>構成設計エージェント（読み取り専用。構成案JSONを返す）</td></tr>
+      <tr><td><code>.claude/agents/slide-html-generator.md</code></td><td>新規</td><td>HTML生成エージェント（構成案に忠実に穴埋め。食い違いは差し戻す）</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p>ドキュメント本体（directory-structure.md・docs-workflow.md・index.md・usecase・wip/reports/REVIEW-POINTS.md）への追記はフェーズ4で行い、本計画には含めない。</p>
+</section>
+
+<section id="approach">
+  <h2>方針</h2>
+
+  <h3>テンプレート（slides.template.html）</h3>
+  <ul>
+    <li><b>既存テンプレート2本（plans/reports）の共通規約を踏襲する</b>: 冒頭HTMLコメントに使い方・プレースホルダ検査コマンド・外部依存なしの宣言／<code>:root</code> CSS変数＋<code>prefers-color-scheme: dark</code>／日本語フォントスタック／<code>&lt;!-- ここに書く: … --&gt;</code> プレースホルダ形式（既存の検査がそのまま使える）</li>
+    <li><b>スライド型8種</b>: 表紙（cover）／章扉（section）／箇条書き（bullets）／2カラム（two-column）／図解（diagram）／表（table）／比較（comparison）／まとめ（summary）。各型は <code>&lt;section class="slide" data-type="..."&gt;</code> の1要素で、使わない型はsectionごと削除する方式</li>
+    <li><b>ページ送り</b>: 方向キー（←→）・Space・Home/End・クリック（左右領域）。JSは数十行の素朴な実装。<code>nnn/NNN</code> の進行表示を常設</li>
+    <li><b>印刷</b>: <code>@media print</code> で1スライド=1ページ＋操作UI非表示。ヘッドレスChromiumの <code>page.pdf()</code> で枚数一致を実測済みの方式</li>
+    <li><b>図解型はCSSのみで表現</b>（外部画像・Mermaid等は使わない。自己完結・外部参照ゼロの規約を守るため）</li>
+  </ul>
+
+  <h3>スキーマ（slide-outline.schema.json）</h3>
+  <ul>
+    <li>JSON Schema draft-07相当。トップレベルは <code>{title, date, author, slides[]}</code>、各要素は <code>{type, …型ごとのフィールド}</code>。<code>type</code> は8種と同名のenum</li>
+    <li>将来の .pptx 書き出しの入力を想定し、<b>表示スタイルではなく内容</b>だけを持たせる</li>
+    <li>jqでの構造検査が書ける形にする（調査で4入力の実測済み。<code>.</code> の束縛の罠は変数束縛で回避）</li>
+  </ul>
+
+  <h3>SKILL.md</h3>
+  <ul>
+    <li>frontmatterは既存スキルの型（<code>name</code>/<code>description</code> ＋ OKF側 <code>title</code>/<code>type: skill</code>/<code>tags</code>/<code>keywords</code>。<code>description</code> は重複させない）</li>
+    <li>手順: コピー → 構成案JSON作成（構成設計エージェントへ委譲可）→ スキーマ検査 → 穴埋め（HTML生成エージェントへ委譲可）→ 機械検査 → 任意の動的検証（node/Playwright不在なら件数を出してスキップ）</li>
+    <li>見出し構成の正はテンプレート側に置き、SKILL.md では再掲しない（受け入れ条件）</li>
+  </ul>
+
+  <h3>サブエージェント2本</h3>
+  <ul>
+    <li>frontmatterは既存2本の型に合わせる。<b>ホワイトリスト対象キーの値は必ず1行</b>（sync-gemini-assets.sh の変換制約）</li>
+    <li><code>slide-outline-designer</code>: <code>tools: Read, Grep, Glob, Bash</code>（読み取り専用）。構成案JSONだけを返し、HTMLは生成しない。スキーマ適合を自分で確認してから返す</li>
+    <li><code>slide-html-generator</code>: <code>tools: Read, Grep, Glob, Bash, Write</code>（Editは持たせない）。構成案に<b>忠実に</b>穴埋めし、再設計はしない。型が食い違う場合は生成せず差し戻す。生成後に機械検査を自分で実行する</li>
+  </ul>
+
+  <div class="box warn">
+    <span class="label">検証用サンプルの扱い</span>
+    scratchpadに構成案JSONのサンプルを作り、スキーマ検査→穴埋め→機械検査→動的検証まで一連で通す。<b>サンプルはリポジトリへコミットしない</b>（wip/reports/ へ置くと本物の成果物と紛れるため。検証結果はworklogと作業結果レポートへ記録する）。
+  </div>
+</section>
+
+<section id="out-of-scope">
+  <h2>やらないこと（スコープ外）</h2>
+  <div class="box stop">
+    <span class="label">この計画では決めない・触らない</span>
+    <ul>
+      <li>.pptx 書き出しの実装（issue #168 が明示的に対象外）</li>
+      <li>既存テンプレート3本の変更（守るべき条件）</li>
+      <li>ドキュメント追記5点（フェーズ4へ送る。調査レポートQ7）</li>
+      <li><code>.claude/scripts/test/</code> への動的検証テスト追加（「この環境のみの任意検証」と位置づけ済み）</li>
+      <li>DDR作成（フェーズ4の【設計反映】で行う）</li>
+    </ul>
+  </div>
+</section>
+
+<section id="verify">
+  <h2>検証</h2>
+  <pre><code># 1. テンプレートの自己完結性（外部参照ゼロ。2種とも0件が合格）
+grep -nE "(src|href)=['\"]?(https?:)?//" .claude/skills/html-slides/assets/slides.template.html || echo EXT_REF_NONE
+grep -nE "(url\(|@import[[:space:]]+)['\"]?(https?:)?//" .claude/skills/html-slides/assets/slides.template.html || echo EXT_CSS_NONE
+
+# 2. テンプレートにスライド型8種が揃っている（8が合格）
+grep -c 'data-type="' .claude/skills/html-slides/assets/slides.template.html
+
+# 3. スキーマが妥当なJSONである（終了コード0が合格）
+jq -e . .claude/skills/html-slides/references/slide-outline.schema.json >/dev/null
+
+# 4. サンプル構成案JSONがスキーマの構造検査を通る（jqフィルタ。OKが合格）
+
+# 5. サンプル生成物のプレースホルダ残存ゼロ（0が合格）・重複IDゼロ
+grep -c '&lt;!-- ここに書く' サンプル出力.slides.html
+grep -oE 'id="[^"]+"' サンプル出力.slides.html | sort | uniq -d
+
+# 6. frontmatterがインデックスへ載る（SKILL.md・agents 2本の3件が合格）
+bash .claude/scripts/src/extract-frontmatter.sh . &gt;/dev/null
+
+# 7. sync-gemini-assets.sh の変換が新規agents 2本で失敗しない（終了コード0が合格）
+bash .claude/scripts/src/sync-gemini-assets.sh --check || bash .claude/scripts/src/sync-gemini-assets.sh --dry-run
+
+# 8. 動的検証（この実行環境のみ・任意）: ヘッドレスChromiumでサンプルを駆動し、
+#    キー送出で進行表示が進むこと・page.pdf() のページ数がスライド枚数と一致することを確認</code></pre>
+  <p>合格条件: 1〜7がすべて合格（8はこの環境で実施し、結果をレポートへ記録する）。</p>
+</section>
+
+<section id="criteria">
+  <h2>issueの受け入れ条件との対応</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>受け入れ条件（issue #168）</th><th>この計画での対応箇所</th></tr></thead>
+    <tbody>
+      <tr><td>テンプレートが自己完結HTML</td><td>検証1（外部参照ゼロ）</td></tr>
+      <tr><td>スライド型8種</td><td>検証2・「方針」テンプレート節</td></tr>
+      <tr><td>キーボード/クリックのページ送り・進行表示</td><td>「方針」テンプレート節・検証8</td></tr>
+      <tr><td><code>@media print</code> で1スライド1ページ</td><td>「方針」テンプレート節・検証8（PDFページ数）</td></tr>
+      <tr><td>SKILL.md の手順定義（見出し構成はテンプレートが正）</td><td>「方針」SKILL.md節</td></tr>
+      <tr><td>構成設計エージェント（読み取り専用・構成案JSONのみ）</td><td>「方針」サブエージェント節</td></tr>
+      <tr><td>HTML生成エージェント（忠実・差し戻し）</td><td>「方針」サブエージェント節</td></tr>
+      <tr><td>構成案JSONスキーマ（.pptx入力を想定）</td><td>「方針」スキーマ節・検証3〜4</td></tr>
+      <tr><td>frontmatter/index.jsonl 準拠</td><td>検証6</td></tr>
+      <tr><td>directory-structure.md ツリー追記</td><td>フェーズ4へ送る（スコープ外節）</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<footer>issue #168 / PR #194 — 計画の正文は同名の <code>.md</code>。外部依存を持たない自己完結HTML。</footer>
+
+</div>
+</body>
+</html>
