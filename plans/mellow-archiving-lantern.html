@@ -126,14 +126,21 @@
 
 <div class="wrap">
 
+<div class="box warn">
+  <span class="label">合意状況</span>
+  <b>flow-id 1-5（全体作業計画への人間の合意）は未実施である。</b> このセッションは非対話（人間のレビュー往復を待てない実行環境）で動いており、以降の「方針」「やらないこと」も<b>AIエージェントの提案であって合意事項ではない</b>。人間のレビューを受けたら、その結果でこの計画を更新する。
+</div>
+
 <nav class="toc">
   <h2>目次</h2>
   <ol>
     <li><a href="#goal">この計画で何をするか</a></li>
+    <li><a href="#headings">新しい見出し構成（issue #145「期待する動作」の転記）</a></li>
     <li><a href="#why">なぜやるか</a></li>
     <li><a href="#target">変更対象</a></li>
     <li><a href="#approach">方針</a></li>
     <li><a href="#phase-research">フェーズ2〈調査〉</a></li>
+    <li><a href="#phase-impl">フェーズ3〈作業〉</a></li>
     <li><a href="#phase-apply">フェーズ4〈反映〉</a></li>
     <li><a href="#out-of-scope">やらないこと（スコープ外）</a></li>
     <li><a href="#verify">検証</a></li>
@@ -149,6 +156,29 @@
     <li><code>describe</code> サブコマンド（<code>.claude/skills/issue-mr-flow/references/review-loop.md</code>）が生成するdescriptionを同じ構成に合わせ、各見出しに「計画段階では何を書くか」を定める。</li>
     <li>テンプレートファイルと <code>describe</code> 節に同じ雛形が二重に存在している状態を解消する。</li>
   </ol>
+</section>
+
+<section id="headings">
+  <h2>新しい見出し構成（issue #145「期待する動作」の転記）</h2>
+  <p><b>以降この計画・下位の個別計画は、この10節を「新テンプレートの見出し構成」の正として参照する。</b> issue本文は後から編集されうるため、着手時点の前提をここへ固定しておく。</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>#</th><th>見出し</th><th>何を書く節か</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td><code>## 概要</code></td><td>何を・なぜ変えたか3行以内。issueを開かずここだけで骨子が分かる。バグ修正なら原因を1行含める</td></tr>
+      <tr><td>2</td><td><code>## 変更内容</code></td><td>先に挙動の before → after、そのあとに変更ファイルの表</td></tr>
+      <tr><td>3</td><td><code>## 設計判断・採らなかった案</code></td><td>DDRを起こさない規模の判断はここにしか残らない</td></tr>
+      <tr><td>4</td><td><code>## 検証</code></td><td>実行したテスト・実機確認とその結果。未実施なら「未実施」と明記</td></tr>
+      <tr><td>5</td><td><code>## レビューの結果</code></td><td>敵対的レビュー・人間レビューの指摘件数と、その結果<b>設計が変わった点</b>のサマリ</td></tr>
+      <tr><td>6</td><td><code>## 意図的にやらなかったこと・スコープ外</code></td><td>理由と、派生issueがあれば番号</td></tr>
+      <tr><td>7</td><td><code>## 未解決・限界・確かめられなかったこと</code></td><td>後任が踏む地雷</td></tr>
+      <tr><td>8</td><td><code>## 受け入れ条件との対応</code></td><td>issue本文の受け入れ条件を転記して突き合わせ</td></tr>
+      <tr><td>9</td><td><code>## 反映先・関連</code></td><td>spec/DDRの反映先、関連issue/PR、コメントのpermalink</td></tr>
+      <tr><td>10</td><td><code>## 備考</code></td><td>上記に当てはまらない任意事項の受け皿</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p>先頭には従来どおり <code>Closes #&lt;issue番号&gt;</code> 行を置く（見出しではない）。</p>
 </section>
 
 <section id="why">
@@ -175,6 +205,9 @@
       <tr><td><code>.claude/rules/docs-workflow.md</code></td><td>変更</td><td>MR/PR本文からの <code>plans/</code> <code>worklog/</code> <code>reports/</code> 参照禁止を明記する</td></tr>
       <tr><td><code>.claude/docs/spec/issue-mr-workflow.md</code></td><td>変更</td><td>テンプレートの位置づけ・二重管理の解消方式・#111 との役割分担を仕様として記録する</td></tr>
       <tr><td><code>.claude/docs/ddr/i0145-*.md</code></td><td>新規</td><td>二重管理の解消方式と、#111 との役割分担の判断を記録する</td></tr>
+      <tr><td><code>.claude/docs/spec/distribution-assets.md</code></td><td>変更</td><td>「PR/MRテンプレート」節が旧3節構成を<b>仕様として名指しで固定</b>し「見出しを増やさない」と規定しているため、10節構成の下でどう読むかへ書き換える</td></tr>
+      <tr><td><code>index.md</code></td><td>変更</td><td>Repository Mapの <code>.github/pull_request_template.md</code> の行が旧3節構成を具体的に列挙している</td></tr>
+      <tr><td><code>.claude/scripts/test/test_install_to_project.sh</code></td><td>変更</td><td><code>describe</code> 節・テンプレート2本の<b>3者一致</b>を表明するテスト。抽出行数を <code>3</code> に固定しているため、10節化すると必ず失敗する（下記「方針」）</td></tr>
       <tr><td><code>.claude/docs/usecase/*.md</code></td><td>変更（要確認）</td><td>MR descriptionに触れるユースケース文書があれば更新する</td></tr>
     </tbody>
   </table>
@@ -189,6 +222,29 @@
     <li><b>二重管理の解消方式は、フェーズ2の調査で決める。</b> この計画の時点では結論を書かない。</li>
     <li><b>#111 との役割分担もフェーズ2で決める。</b> #111 は PR #144 で既にマージ済み（flow-id 5-4 として稼働中）のため、廃止ではなく棲み分けの定義になる。</li>
   </ul>
+
+  <h3>既存仕様との衝突を、実装と同じフェーズで解消する</h3>
+  <p><code>.claude/docs/spec/distribution-assets.md</code>「PR/MRテンプレート」節は、現在次の2点を仕様として定めている。</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>現行の記述</th><th>10節構成の下でどうするか（フェーズ3で確定させる）</th></tr></thead>
+    <tbody>
+      <tr><td>「両者の見出し構成は <code>describe</code> が生成するdescriptionと同一にする（<code>Closes #&lt;issue番号&gt;</code> → <code>## Plan</code> → <code>## 実装状況</code>）」</td><td><b>列挙をやめ、「同一にする」という制約だけを残す。</b> 見出し名の実体は1箇所（フェーズ2で決める正）だけが持ち、specは正の場所を指す</td></tr>
+      <tr><td>「<b>見出しを増やさない。</b> テンプレートにしか無い見出しは初回 <code>describe</code> で消える」</td><td><b>制約の趣旨は維持する。</b> <code>describe</code> 側も同じ10節を出す限り消えないため、「テンプレートと <code>describe</code> の見出し集合を一致させる」という形へ言い換える</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <div class="box stop">
+    <span class="label">spec側を後回しにしない</span>
+    実装だけ10節へ進めると、specが旧3節構成を正と主張したまま残り、「正が2つあり片方だけ古くなる」状態（ルート <code>REVIEW-POINTS.md</code>）を新たに作ってしまう。
+  </div>
+
+  <h3>既存テストの期待値を、実装と同じコミットで更新する</h3>
+  <p><code>.claude/scripts/test/test_install_to_project.sh</code> は <code>review-loop.md</code> の <code>describe</code> 節から <code>^(Closes|## )</code> の行を抜き出し、テンプレート2本と3者一致を表明したうえで、<b>抽出できた行数が <code>3</code> であること</b>も表明している（「抽出が空振りして空同士の一致で通る」ことを防ぐための表明）。10節構成にすると必ず落ちる。更新方針は<b>フェーズ2の問1の結論に従属する</b>ため、ここでは次の2点だけを決めておく。</p>
+  <ol>
+    <li><b>行数の固定値 <code>3</code> は残さない。</b> 見出しの数は今後も変わりうるので、<code>10</code> へ置き換えるのではなく「<b>抽出できた見出しの集合が、期待値として書き下した10節と一致すること</b>」を表明する（空振り防止の目的は、期待値が非空であることの表明で引き続き満たされる）。</li>
+    <li><b>抽出元は、問1で「正」と決めた場所に合わせる。</b> <code>describe</code> 節が雛形を持たなくなる案を採る場合、<code>awk</code> の抽出範囲を <code>describe</code> 節のままにすると空振りする。</li>
+  </ol>
 </section>
 
 <section id="phase-research">
@@ -200,7 +256,17 @@
     <li><b><code>plans/</code> 参照禁止をどこにどう書くか。</b> テンプレート側と <code>.claude/rules/docs-workflow.md</code> の双方に必要だが、既存の「コード・スクリプト内のコメントから参照しない」という記述との関係をどう書くか。</li>
     <li><b>10節構成が <code>describe</code> の6回の全文置換と噛み合うか。</b> まだ書けない節（例: <code>## レビューの結果</code>）を各時点でどう扱うか。</li>
     <li><b>配布物としての影響。</b> <code>.claude/dist-layers.json</code> におけるテンプレート2本の層と、<code>.gemini/</code> への変換同期（flow-id 5-3）の対象になるか。</li>
+    <li><b>旧3節構成を具体的に列挙している箇所を、漏れなく数え切れているか。</b> 現時点で判明しているのは <code>.github/pull_request_template.md</code> / <code>.gitlab/merge_request_templates/Default.md</code> / <code>references/review-loop.md</code> / <code>.claude/docs/spec/distribution-assets.md</code> / <code>index.md</code> の<b>5箇所</b>（<code>.gemini/</code> 配下は <code>.claude/</code> からの変換生成物なので数えない）。ほかに無いかを機械的に確認し、問1で決めた「正」との関係を1件ずつ確定させる。</li>
   </ol>
+</section>
+
+<section id="phase-impl">
+  <h2>フェーズ3〈作業〉</h2>
+  <p>フェーズ2の結論をもとに、テンプレート2本と <code>describe</code> 節・関連ルールを実装する。</p>
+  <div class="box info">
+    <span class="label">ドッグフーディング</span>
+    <b>このPR自身のdescriptionを新テンプレートで書く</b>（issue #145 の受け入れ条件の1つ）。
+  </div>
 </section>
 
 <section id="phase-apply">
@@ -230,22 +296,42 @@
 
 <section id="verify">
   <h2>検証</h2>
-  <pre><code># テンプレート2本の見出しが完全に一致すること
-diff &lt;(grep -E '^## ' .github/pull_request_template.md) \
-     &lt;(grep -E '^## ' .gitlab/merge_request_templates/Default.md)
-
-# frontmatterインデックスの再生成が通ること
-bash .claude/scripts/src/extract-frontmatter.sh .
-
-# DDRを追加した場合、一覧が生成物と一致すること
-bash .claude/scripts/src/generate-ddr-list.sh
-
-# ドキュメント参照が切れていないこと
-bash .claude/scripts/src/check-doc-references.sh
-
-# .gemini/ への変換同期に差分が残っていないこと（flow-id 5-3）
-bash .claude/scripts/src/sync-gemini-assets.sh --check</code></pre>
-  <p>合格条件: 上記がすべて成功し、issue #145 の受け入れ条件9項目すべてに対応箇所があること。</p>
+  <p><b>この節のコマンドは、変更前のツリーで実行して期待どおり失敗することを確かめてから採用する</b>（ルート <code>REVIEW-POINTS.md</code>「検証コマンドが、異常があるときに本当に検出できるか」）。下表の「変更前の結果」は、着手時点（<code>main</code> と同一の断面）で実際に実行した結果である。</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>#</th><th>検証</th><th>変更前の結果</th><th>何を検出するか</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td><code>bash .claude/scripts/test/test_install_to_project.sh</code></td><td>成功（<code>passed=98 failures=0</code>。2026-08-23 実測）</td><td><code>describe</code> 節・テンプレート2本の<b>3者一致</b>。10節化の途中で1つでも取り残すと落ちる</td></tr>
+      <tr><td>2</td><td>新テンプレートの見出しが、期待値として書き下した10節と順序込みで一致すること</td><td><b>失敗</b>（現在は3節）</td><td>10節構成になったこと。テンプレート2本同士の比較では検出できない</td></tr>
+      <tr><td>3</td><td><code>bash .claude/scripts/src/generate-ddr-list.sh --check</code></td><td>成功（<code>DDR一覧は最新です（85件）</code>。2026-08-23 実測）</td><td>DDR追加後に一覧の再生成を忘れていないこと</td></tr>
+      <tr><td>4</td><td><code>bash .claude/scripts/src/check-doc-references.sh</code></td><td>成功（<code>参照切れ数=0</code>。2026-08-23 実測）</td><td>ドキュメント間の参照切れ</td></tr>
+      <tr><td>5</td><td><code>bash .claude/scripts/src/sync-gemini-assets.sh --check</code></td><td>（flow-id 5-3 で実行）</td><td><code>.claude/</code> の変更が <code>.gemini/</code> へ同期済みであること</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p>検証2は、期待値を書き下した形で行う。ヒアドキュメント側は各行を <code>| </code> で始め、<code>sed</code> で剥がしてから比べる（行頭に見出し記号を持つ行をこの計画ファイル自身へ増やさないための書き方）。</p>
+  <pre><code>expected="$(sed 's/^| //' &lt;&lt;'EXPECTED'
+| Closes #&lt;issue番号&gt;
+| ## 概要
+| ## 変更内容
+| ## 設計判断・採らなかった案
+| ## 検証
+| ## レビューの結果
+| ## 意図的にやらなかったこと・スコープ外
+| ## 未解決・限界・確かめられなかったこと
+| ## 受け入れ条件との対応
+| ## 反映先・関連
+| ## 備考
+EXPECTED
+)"
+for f in .github/pull_request_template.md .gitlab/merge_request_templates/Default.md; do
+  diff &lt;(printf '%s\n' "$expected") &lt;(grep -E '^(Closes|## )' "$f") || echo "NG: $f"
+done</code></pre>
+  <div class="box warn">
+    <span class="label">検証に含めないもの</span>
+    <code>bash .claude/scripts/src/extract-frontmatter.sh .</code> は、再生成が成功することしか見ておらず、本issueの変更に対する検出力を持たないため含めない（実行自体はSessionStart hookが毎回行っている）。
+  </div>
+  <p>合格条件: 上表の1〜5がすべて成功し、issue #145 の受け入れ条件9項目すべてに対応箇所があること。</p>
 </section>
 
 <section id="criteria">
@@ -258,7 +344,7 @@ bash .claude/scripts/src/sync-gemini-assets.sh --check</code></pre>
       <tr><td>設計判断／やらなかったこと／未解決／レビューの結果 の4項目が固定見出し</td><td>フェーズ3</td></tr>
       <tr><td><code>## 備考</code> が唯一の削除可能見出しである旨の明記</td><td>フェーズ3</td></tr>
       <tr><td>各見出しに「何を書くか」「計画段階では何を書くか」をHTMLコメントで</td><td>フェーズ3</td></tr>
-      <tr><td><code>plans/</code> 等の参照禁止をテンプレートと <code>docs-workflow.md</code> の双方へ明記</td><td>フェーズ3（ルール側はフェーズ4でも可）</td></tr>
+      <tr><td><code>plans/</code> 等の参照禁止をテンプレートと <code>docs-workflow.md</code> の双方へ明記</td><td>フェーズ3（<code>docs-workflow.md</code> は本issueの主たる成果物側のアセット変更なので <code>【AIアセット作成】</code>＝フェーズ3。フェーズ4へ送らない）</td></tr>
       <tr><td><code>describe</code> 節が新しい見出し構成と一致</td><td>フェーズ3</td></tr>
       <tr><td>二重管理の扱いの判断がspecまたはDDRに記録されている</td><td>フェーズ2で判断 → フェーズ4で記録</td></tr>
       <tr><td>#111 との役割分担の判断が記録され、#111 へ通知されている</td><td>フェーズ2で判断 → フェーズ4で記録 → flow-id 5-2 で通知</td></tr>

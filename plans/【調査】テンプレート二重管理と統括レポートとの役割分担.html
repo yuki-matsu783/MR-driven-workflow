@@ -150,7 +150,24 @@
   <p>フェーズ3（個別作業計画）を書けるようにするため、次の5つの問いへ答える。<b>答えは <code>reports/</code> の調査結果mdへ書き、この計画には書かない。</b></p>
 
   <h3>問1. テンプレートファイルと <code>describe</code> 節の二重管理をどう解消するか</h3>
-  <p>現状、同じ雛形が <code>.github/pull_request_template.md</code> / <code>.gitlab/merge_request_templates/Default.md</code> と <code>.claude/skills/issue-mr-flow/references/review-loop.md</code> の <code>describe</code> 節の3箇所にある。テンプレート側のコメントは「SKILL.md（現 <code>review-loop.md</code>）が正」と書いている。</p>
+  <p>現状、旧3節構成（<code>Closes #N</code> / <code>## Plan</code> / <code>## 実装状況</code>）を<b>具体的に列挙している箇所は5つ</b>ある。テンプレート側のコメントは「SKILL.md（現 <code>review-loop.md</code>）が正」と書いているが、正を指すだけの箇所と、構成そのものを持つ箇所が混在している。</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>#</th><th>箇所</th><th>現在の役割</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td><code>.github/pull_request_template.md</code></td><td>雛形の実体（GitHub）</td></tr>
+      <tr><td>2</td><td><code>.gitlab/merge_request_templates/Default.md</code></td><td>雛形の実体（GitLab）</td></tr>
+      <tr><td>3</td><td><code>references/review-loop.md</code> の <code>describe</code> 節</td><td>雛形の実体。テンプレート側が「正」と名指ししている</td></tr>
+      <tr><td>4</td><td><code>.claude/docs/spec/distribution-assets.md</code>「PR/MRテンプレート」節</td><td>見出し構成を<b>仕様として</b>列挙し「見出しを増やさない」と規定</td></tr>
+      <tr><td>5</td><td><code>index.md</code>（Repository Map）の該当行</td><td>見出しを括弧書きで列挙</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p><b><code>.gemini/</code> 配下の同名ファイルは数えない</b>（<code>.claude/</code> からの変換生成物であり、<code>sync-gemini-assets.sh</code> が再生成する）。<b><code>.claude/rules/directory-structure.md</code> はテンプレートの存在に触れるだけで見出しを列挙していないため、10節化の影響を受けない</b>（この判定も調査結果へ書き残す）。</p>
+  <div class="box warn">
+    <span class="label">フローどおりに作られたPR/MRは、テンプレートを一度も経由しない</span>
+    Draft PR/MRの初期本文は <code>Github.sh</code> / <code>Gitlab.sh</code>（およびMCP経路では <code>references/mcp-fallback.md</code> の対応表）にハードコードされており、テンプレートが効くのは<b>人間がWeb UIでPRを作る場合だけ</b>である。これは案の評価軸（案Cの副作用の重さ）に直結し、「10節構成をこの初期本文にも反映するのか、<code>describe</code> まで暫定のままでよいのか」という決めごとを生む。
+  </div>
   <p>調べること:</p>
   <ul>
     <li>案A（<code>describe</code> がテンプレートファイルを読み込む）が成立するか。
@@ -163,6 +180,9 @@
     </li>
     <li>案B（テンプレートを正とし、<code>describe</code> 節は見出し名だけを列挙して雛形を持たない）</li>
     <li>案C（<code>describe</code> 節を正とし、テンプレート側から重複を削って参照だけにする）。この場合、人間が手で作るPRで見出しが得られなくなる副作用の大きさを見積もる</li>
+    <li><b>どの案を採っても、上表の4・5（<code>distribution-assets.md</code> / <code>index.md</code>）は「正を指すだけ」へ書き換えるのか、列挙を残すのかを1件ずつ決める。</b></li>
+    <li><b>Draft PR/MRの初期本文を、10節構成へ合わせるかどうかを決める。</b> 合わせない場合は「合わせない理由」を書く（<code>describe</code> が最初に走った時点で全文置換されるため、実害が無いと判断できるかどうか）。</li>
+    <li><b>既存テスト <code>.claude/scripts/test/test_install_to_project.sh</code> が、採る案の下でも成立するかを確認する。</b> 同テストは <code>review-loop.md</code> の <code>describe</code> 節から <code>^(Closes|## )</code> の行を <code>awk</code> で抜き出し、テンプレート2本と3者一致を表明している。<code>describe</code> 節が雛形を持たなくなる案（案B）を採ると、この抽出が空振りする。<b>抽出元をどこにするかまで含めて案の一部として決める。</b></li>
   </ul>
   <div class="box info">
     <span class="label">判定基準</span>
@@ -207,7 +227,7 @@
   <table>
     <thead><tr><th>問い</th><th>読むもの</th></tr></thead>
     <tbody>
-      <tr><td>問1</td><td><code>references/review-loop.md</code>, <code>.claude/dist-layers.json</code>, <code>.claude/docs/spec/asset-distribution.md</code>, <code>.claude/docs/spec/distribution-assets.md</code>, <code>Provider.sh</code> の <code>get_provider</code> / <code>set_mr_description</code></td></tr>
+      <tr><td>問1</td><td><code>references/review-loop.md</code>, <code>.claude/dist-layers.json</code>, <code>.claude/docs/spec/asset-distribution.md</code>, <code>.claude/docs/spec/distribution-assets.md</code>, <code>index.md</code>, <code>Provider.sh</code> の <code>get_provider</code> / <code>set_mr_description</code>, <code>Github.sh</code> / <code>Gitlab.sh</code> の <code>new_draft_merge_request</code>, <code>.claude/scripts/test/test_install_to_project.sh</code></td></tr>
       <tr><td>問2</td><td><code>references/phase5-close.md</code>, 統括レポート関連のspec, issue #111 / PR #144</td></tr>
       <tr><td>問3</td><td><code>.claude/rules/docs-workflow.md</code></td></tr>
       <tr><td>問4</td><td><code>SKILL.md</code> の全体フロー表, <code>references/review-loop.md</code> の <code>describe</code> 節</td></tr>
@@ -240,8 +260,11 @@
   <ul>
     <li>問1〜問5のそれぞれに、<b>採る案と、採らなかった案・その理由</b>が書かれている</li>
     <li>問1・問2の結論が、フェーズ4でDDRへ落とせる粒度（論点・判断・理由・却下案）になっている</li>
+    <li><b>旧3節構成を列挙している箇所を数え切ったことが、機械的な確認とともに示されている。</b> 上表の5箇所が全部かどうかを次のコマンドで確認し、結果を調査結果へ貼る（<code>.gemini/</code> は除く）</li>
     <li>結論が <code>reports/20260823_mellow-archiving-lantern_テンプレート再設計の調査.md</code> と同名の <code>.html</code> に記録され、両者の内容が同期している</li>
   </ul>
+  <pre><code>grep -rn '実装状況' --include='*.md' --include='*.sh' . \
+  | grep -v '^\./\.gemini/' | grep -v 'index\.jsonl'</code></pre>
 </section>
 
 <footer>issue #145 / PR #187 — 計画の正文は同名の <code>.md</code>。外部依存を持たない自己完結HTML。</footer>
