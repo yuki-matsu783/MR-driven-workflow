@@ -17,9 +17,9 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - issue: #170
 - ブランチ: `claude/usecase-docs-setup-uvs5li`（ハーネス指定）
 - PR: #173（Draft。https://github.com/yuki-matsu783/MR-driven-workflow/pull/173 ）
-- push回数: 15
-- 現在のループ: 4-6〜4-9 の1周目（進行中）
-- 未返信スレッド: 6
+- push回数: 16
+- 現在のループ: なし
+- 未返信スレッド: 0
 - 追従監視: 購読あり（web。subscribe_pr_activity + 1時間ごとの自己チェックイン）
 
 | 進捗 | flow-id | ステップ | 担当 |
@@ -59,10 +59,10 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 | [] | 4-7 | commit・push・レビュー依頼 | エージェント |
 | [] | 4-8 | 反映結果レビュー | 人間 |
 | [] | 4-9 | レビュー対応 | サブコマンド |
-| [] | 4-10 | MR description更新 | サブコマンド |
-| [] | 5-1 | コンフリクト検知・解消 | エージェント |
-| [] | 5-2 | 関連issue通知 | エージェント |
-| [] | 5-3 | .gemini変換同期 | エージェント |
+| [x] | 4-10 | MR description更新 | サブコマンド |
+| [x] | 5-1 | コンフリクト検知・解消 | エージェント |
+| [-] | 5-2 | 関連issue通知 | エージェント |
+| [x] | 5-3 | .gemini変換同期 | エージェント |
 | [] | 5-4 | 最終統括レポート | エージェント |
 | [] | 5-5 | 片付け（cleanup-task.sh） | エージェント |
 | [] | 5-6 | commit・push・Draft解除 | エージェント |
@@ -125,14 +125,22 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
   報告分はworklog push11へ記録）。全件修正しcommit・push（push16）。フェーズ4は上限3回中2回を
   消費済み（追加レビューは行わない）。主要な修正: distribution-assetsの `## 未決定事項・懸念点`
   見出し復活・テスト隔離強化・spec追記の係り先修正と条件明示・DDR i0110-01へnote追加・
-  レポートの根拠の書き分け。6スレッドへ返信済み（4-9相当）。
+  レポートの根拠の書き分け。6スレッドへ返信済み（4-9相当）。flow-id 4-10のdescribeも更新済みで
+  フェーズ4完了。
+- flow-id 5-1: `check-base-conflicts.sh` で最終確認し `hasConflict: false`（base b8a1b58）。
+- flow-id 5-2: **投稿せずスキップ（`[-]`）**。関連issue通知は投稿前の `AskUserQuestion` 承認が
+  必須で、非対話セッションでは承認を得られないため。必要なら人間が投稿対象を判断する
+  （このスキップの事実は統括レポート・最終応答にも明示）。
+- flow-id 5-3: `sync-gemini-assets.sh` を実行し `.gemini/` を再生成（usecase 8本・DDR i0170-01・
+  同期13ファイルの差分は5-4のcommitに同梱）。
+- flow-id 5-4: 最終統括レポート `reports/20260823_usecase-atlas_統括.md`（+html）を作成し
+  commit・push（push17）。サマリはPR #173へコメント投稿。HTML添付（層3）はMCP経路に相当ツールが
+  無いためスキップ（層1・層2で成立）。
 
 ## 次にやること
 
-- push15の後: 敵対的レビュー（フェーズ4・2回目。対象: 反映実施分）→自動修正→返信 →
-  4-10 describe → フェーズ5（5-1 コンフリクト最終確認 → 5-2 関連issue通知は人間承認が
-  必要なため非対話では投稿せず最終応答で明示 → 5-3 sync-gemini-assets.sh → 5-4 統括レポート →
-  5-5 cleanup-task.sh → 5-6 commit・push・Draft解除 → 5-7 マージは人間）。
+- 5-5 cleanup-task.sh（plans/worklog/reportsの削除とHANDOFFリセット）→ 5-6 commit・push・
+  Draft解除 → 5-7 マージは人間の明示指示待ちでAIはここで止まる。
 
 ## 判断を迷った内容
 
@@ -155,9 +163,9 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 
 - flow-id 1-5（全体作業計画の合意）が未合意のまま先行している（非対話セッションのため。
   否認時の巻き戻し方は全体作業計画「実行環境と運用の前提」参照）。人間の合意待ち。
-- `Provider.sh` の `add_empty_commit_for_draft_mr` がupstream未設定のブランチで `git push` に
-  失敗する実不具合（flow-id 1-3で実際に発生）。フェーズ4の反映候補として全体作業計画
-  「フェーズ4〈反映〉」へ記載済み。flow-id 4-1で実装反映かspec記述修正か別issue起票かを判断する。
+- `.claude/VERSION` の増分（0.2.0→0.3.0のMINOR）は**提案のみで据え置き中**（人間の決裁待ち。
+  据え置きの事実は `distribution-assets.md` changelogのissue #170エントリに記録済み）。
+- flow-id 5-2（関連issue通知）は未投稿（上記のとおり承認必須のためスキップ。必要なら人間が判断）。
 
 ## 守るべき条件・触ってはいけない範囲
 

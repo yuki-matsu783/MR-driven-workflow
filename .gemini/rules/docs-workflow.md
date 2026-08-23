@@ -27,6 +27,7 @@ keywords: [plans, handoff, worklog, 正史仕様, 意思決定ログ, ライフ�
 | `reports/日付_<全体計画名>_<内容を簡潔に>.html` | AI専用（人間も参照可） | 同上 | 上記mdの内容を視覚的に分かりやすくまとめた自己完結HTML（人間レビュー用ビュー）。**結果の正文はmd側であり、HTMLはその視覚化**（両者は併存させる） | flow-id 2-6・3-6・4-6（および5-4の統括レポート）で作成し、md側の内容と同期して更新する。土台は`.claude/skills/issue-mr-flow/assets/reports.template.html`（見出し構成の正はテンプレート側。詳細: `.claude/skills/issue-mr-flow/SKILL.md`「計画・レポートのHTMLビュー」。issue #54）。**ファイルの削除はflow-id 5-5**で`plans/` `worklog/`とまとめて行う（削除自体もコミットに含める）。`.gitignore`には加えない（ブランチ上のコミット履歴として残すため）。squash mergeにより、mainには残さない。 |
 | `.claude/docs/spec/機能名.md` | 人間＋AI | 永続（最新状態） | 背景・目的／仕様／影響範囲／設定項目／未決定事項・懸念点 | 「現在の正史」。実装完了のたびに最新仕様へ上書きする。新規作成時の人間承認は必須。plans／worklogの内容はflow-id 4-6（設計反映）で反映する。 |
 | `.claude/docs/ddr/i<issue番号>-<枝番2桁>-タイトル.md` | 人間＋AI | 永続（本文は不変） | 「〇〇を検討したが✕✕を採用した」という意思決定の背景・却下案（DDR: Design Decision Record。architectureに限らない意思決定を対象とする） | **issue番号ベースの識別子**で管理する（issue #133。旧方式の4桁連番は全件改番済みで、本リポジトリには残っていない。命名・枝番・`i00`（対応issueが無いDDR）の詳細は `.claude/rules/markdown-frontmatter.md`「DDRの識別子」が正）。一度マージしたら**本文**は追記のみ（変更不可）。ただし**YAML frontmatterのみは後から更新してよい**（後続のDDRで無効になった場合に`status: superseded` / `superseded_by`を付ける。詳細: `.claude/rules/markdown-frontmatter.md`「DDRのstatus」）。`spec` の未決定事項が解消したら記録し、spec側の該当項目は削除してよい。plans／worklogの内容はflow-id 4-6（設計反映）で反映する。**DDRを追加・変更したら、`.claude/docs/README.md` のDDR一覧を手書きせず `bash .claude/scripts/src/generate-ddr-list.sh` を実行し、出た差分を同じコミットに含める**（一覧は生成物。行の内容はfrontmatterの`status`/`superseded_by`/`note`だけから決まる。issue #135。仕様: `.claude/docs/spec/generate-ddr-list.md`、経緯: `.claude/docs/ddr/i0135-01-DDR一覧は生成物にしつつGit管理下へ残す.md`）。 |
+| `.claude/docs/usecase/場面を表す日本語名.md` | 人間＋AI | 永続（最新状態） | 「やりたいこと」起点でどの機能を使うかを逆引きするユースケース文書（issue #170）。どんな場面か／使う機能と流れの概要／何が得られるか／詳細へのリンク、の4見出しで統一し、手順詳細（コマンド列・手順番号）は書かずspec/SKILL.mdへのリンクで参照する | 一覧の正は `.claude/docs/README.md` のusecase節1箇所。**usecase文書を追加・改名・削除したら、READMEのusecase節を同じコミットで更新する**。機能の追加・変更時はflow-id 4-6（設計反映）で既存usecase文書への影響（記述・リンクが古くならないか）を確認し、影響があれば更新する |
 | `<ディレクトリ>/REVIEW-POINTS.md` | 人間＋AI | 永続（最新状態） | そのディレクトリ配下すべて（孫以下を含む）に適用するレビュー観点（`type: review-points`） | 各ディレクトリ直下に置く。敵対的レビュー（`.claude/skills/adversarial-review/SKILL.md`）と `review-points` スキルが祖先方向へ遡って集めて使い、人間のレビューでも参照する。**`plans/` `reports/` 配下に置かれていてもflow-id 5-5の削除対象に含めない**（下記）。仕様: `.claude/docs/spec/adversarial-review.md`「レビュー観点（REVIEW-POINTS.md）」 |
 
 **`reports/` の `.html` は flow-id 2-6・3-6・4-6 のいずれでも作成する**（issue #54。issue #33 時点では
@@ -54,6 +55,9 @@ keywords: [plans, handoff, worklog, 正史仕様, 意思決定ログ, ライフ�
 ものである。アプリ本体を追加する場合は、そのアプリ専用の`docs/spec/`・`docs/ddr/`（必要なら人間専用
 ツール用の`dev-tools/docs/`）を同じ表の運用ルールで新設し、`.mrworkflow.json`の`specDirs`/`ddrDirs`に
 追記することを検討する（詳細: `.claude/rules/directory-structure.md`「配置の指針」）。
+ユースケース文書はアプリ固有の場面が必要になった場合も、まずは `.claude/docs/usecase/` の
+1箇所へ追加する（一覧の正をREADME1箇所に保つため。分離が必要な規模になった時点で、専用
+ディレクトリの新設を検討する）。
 
 `HANDOFF.md` は空でも各見出し（現在地／次回やること等）だけを残した状態でルート直下に存在させておき、使うときに埋める運用とする（都度新規作成はしない）。
 
@@ -62,7 +66,7 @@ keywords: [plans, handoff, worklog, 正史仕様, 意思決定ログ, ライフ�
 のように**flow-id 5-5で削除済みのplanファイル**を参照しており、読み手が辿れない状態になっていた）。
 これらはタスク単位（flow-id 5-5）で削除される寿命の短いファイルであり、コード側の恒久的な参照とは
 ライフサイクルが噛み合わない。**恒久的に参照してよいのは、issue番号（GitHub/GitLab上に残る）と
-`.claude/docs/spec/` `.claude/docs/ddr/` 配下のファイル**である。
+`.claude/docs/spec/` `.claude/docs/ddr/` `.claude/docs/usecase/` 配下のファイル**である。
 
 ```bash
 # 悪い例（planは削除されるため参照が切れる）
