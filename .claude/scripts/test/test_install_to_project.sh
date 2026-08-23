@@ -156,10 +156,40 @@ for rel in .github/pull_request_template.md .gitlab/merge_request_templates/Defa
   if [ -n "$(grep -E '^(Closes|## )' "$dest_new/$rel")" ]; then found=1; else found=0; fi
   assert_eq "テンプレートから見出しを抽出できている（空振りでない）: $rel" "1" "$found"
 
-  # (b) の前提。除外が伸びすぎ／効かなすぎだと 0行または1行になる。
-  stripped_lines="$(strip_lead_comment "$dest_new/$rel" | grep -c '' || true)"
-  if [ "$stripped_lines" -gt 1 ]; then found=1; else found=0; fi
-  assert_eq "先頭コメント除外後が2行以上ある（除外が壊れていない）: $rel ($stripped_lines行)" "1" "$found"
+  # (b) の前提。**行数の下限では足りない**（テンプレートは100行超あるので、10行以上余計に
+  # 削られても「2行以上」を満たして通ってしまう。実例: 先頭コメントの終端 `-->` を落とすと
+  # `Closes` 行と `## 概要` まで削られるが、行数だけを見ると気づけない）。**内容で表明する。**
+  # 除外直後は空行が1つ入るので、**最初の非空行**を見る。
+  first_line="$(strip_lead_comment "$dest_new/$rel" | grep -m1 -e '.' || true)"
+  assert_eq "先頭コメント除外後の最初の非空行がCloses行である（除外が伸びすぎ・効かなすぎでない）: $rel" \
+    'Closes #<issue番号>' "$first_line"
+done
+
+# (a2) 記入ガイド（各節直下のHTMLコメント）が存在すること。
+#
+# **(b) は「2本が食い違っていないこと」しか見ないため、両側から同時に消えると通ってしまう。**
+# テンプレートの先頭コメント自身が「内容を変えるときは GitHub 版を直し、その本文をここへ複製する」
+# という**両側を同時に変える運用**を規定しているので、複製時に落とした記入ガイドは必ず両側で落ちる
+# （issue #145 で実測: 10節すべての記入ガイドを両テンプレートから削っても failures=0 だった）。
+# 記入ガイドは10節構成の実質的な中身であり、「特になし」と「未実施」の書き分け定義もここにしか
+# 無いので、消えたことに誰も気づかない状態にはできない。
+#
+# 全文を期待値として写す必要は無い。**個数と、書き分け定義の存在**を表明すれば足りる。
+for rel in .github/pull_request_template.md .gitlab/merge_request_templates/Default.md; do
+  # 先頭コメントを除いた本文に、HTMLコメントの開始が10個（＝10節ぶんの記入ガイド）ある。
+  guides="$(strip_lead_comment "$dest_new/$rel" | grep -c '^<!--$' || true)"
+  assert_eq "各節の記入ガイドが10個ある: $rel" "10" "$guides"
+
+  # 書き分け規約の定義が本文に存在する（`## 概要` の記入ガイドへ1回だけ置いている）。
+  rules="$(strip_lead_comment "$dest_new/$rel" | grep -c -F -e '検討した結果、書くことが無かった' || true)"
+  assert_eq "「特になし」の定義が記入ガイドにある: $rel" "1" "$rules"
+  rules="$(strip_lead_comment "$dest_new/$rel" | grep -c -F -e 'まだその段階に達していない' || true)"
+  if [ "$rules" -ge 1 ]; then found=1; else found=0; fi
+  assert_eq "「未実施」の定義が記入ガイドにある: $rel ($rules件)" "1" "$found"
+
+  # 各節に「計画段階では何を書くか」がある（10節すべて。issue #145 のレビューで4節の欠落が判明した）。
+  planning="$(strip_lead_comment "$dest_new/$rel" | grep -c -F -e '**計画段階では**' || true)"
+  assert_eq "各節に計画段階の指示が10個ある: $rel" "10" "$planning"
 done
 
 # (b) 先頭のHTMLコメントブロックだけを除いた全文が2本で一致する。
@@ -188,6 +218,21 @@ for rel in .github/pull_request_template.md .gitlab/merge_request_templates/Defa
   if [ "$refs" -ge 1 ]; then found=1; else found=0; fi
   assert_eq "describe節がテンプレートを参照している: $rel ($refs件)" "1" "$found"
 done
+
+# (c2) `describe` 節が見出しを再列挙していないこと。
+#
+# **パスの言及だけを見ても足りない。** 案Bが守りたいのは「この節に見出し構成を列挙しない」ことで
+# あり、パスを残したまま「参考（見出し構成の再掲）」を書き足すことは可能である（issue #145 で
+# 実測: 実際のテンプレートと食い違う見出しを節へ足しても failures=0 だった）。それでは二重管理が
+# 復活する。**節の中に見出し行が1つも無いこと**を表明する。
+#
+# **どの検査が落ちるかは、再列挙の仕方で変わる**（issue #145 で実測）。`describe_section` は
+# `^## ` でも節を打ち切るため、`## ` 始まりの見出しを足すと節自体が空になり、(c2) ではなく
+# (c) が「パス参照0件」で落ちる。`Closes` 行のように節を打ち切らない見出しを足したときだけ
+# (c2) が落ちる。**どちらの壊し方でも必ずどれかが落ちる**という関係なので、(c) と (c2) は
+# 片方だけにしない。
+headings_in_section="$(describe_section | grep -cE '^[[:space:]]*(Closes #|## )' || true)"
+assert_eq "describe節が見出しを再列挙していない（0件）" "0" "$headings_in_section"
 
 assert_eq "配布先の.gitattributesへ*.shの指定が入る" \
   "1" "$(grep -cFx -- '*.sh text eol=lf' "$dest_new/.gitattributes")"
