@@ -17,7 +17,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - issue: #54（https://github.com/yuki-matsu783/MR-driven-workflow/issues/54 ）
 - ブランチ: `claude/plan-report-html-template-024l0t`
 - PR: #156（Draft）（https://github.com/yuki-matsu783/MR-driven-workflow/pull/156 ）
-- push回数: 13
+- push回数: 14
 - 現在のループ: なし（フェーズ4完了。次はフェーズ5）
 - 追従監視: あり（PRイベント購読＋定期チェックイン。Claude Code on the web）
 
@@ -59,9 +59,9 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 | [x] | 4-8 | MRでレビュー・コメントする | 人間 |
 | [x] | 4-9 | レビュー内容を取得し設計・AIアセットを修正・返信する | サブコマンド |
 | [x] | 4-10 | 反映内容をもとにMR descriptionを更新する | サブコマンド |
-| [] | 5-1 | defaultブランチとのコンフリクトを検知し解消する | エージェント |
-| [] | 5-2 | 関連issueへマージ前通知を行う | エージェント |
-| [] | 5-3 | 最終統括レポートを作成しPRへサマリコメントする | エージェント |
+| [x] | 5-1 | defaultブランチとのコンフリクトを検知し解消する | エージェント |
+| [x] | 5-2 | 関連issueへマージ前通知を行う | エージェント |
+| [x] | 5-3 | 最終統括レポートを作成しPRへサマリコメントする | エージェント |
 | [] | 5-4 | plans/worklog/reportsを片付けHANDOFF.mdをリセットする | エージェント |
 | [] | 5-5 | commit・pushしてDraftを解除する | エージェント |
 | [] | 5-6 | マージする | 人間 |
@@ -197,27 +197,29 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
   （観点表の「0件であること」を満たしていなかった）ことが判明し、`&#47;&#47;` で書く形へ直した。
 - チャットで受けた判断: **個別反映計画の種別は `【設計反映】【AIアセット反映】` の併記のまま進める**
   （ユーザー回答「併記で進めて良い」）。MRへも `add_mr_comment` で記録する。
+- flow-id 5-1: `check-base-conflicts.sh` で `hasConflict: false` を確認した（`main` は分岐点
+  `835ffcf` から進んでおらず、テキスト衝突・DDR識別子の重複ともに0件）。
+- flow-id 5-2: 関連issueを調査し、**本MRが実際に前提を変える2件**へ `AskUserQuestion` の承認を得て
+  通知した。**#114**（報告HTMLのホスティング。issue本文が前提にしている「TailwindCSS CDN方式」が
+  変わった）と、**#26**（配布のmanifest方式。改名で配布先に旧パスが残ること・`assets` という語が
+  二義的になっていること）。除外した候補は #143（main側で既に修正済み）・#129・#153。
+  **新規issueは起票しない**（ユーザーの判断。「改名の後片付け」の置き場は #26 のコメント）。
+- flow-id 5-3: 最終統括レポート `reports/20260823_tidy-scoping-lantern_統括.md` と同名の `.html` を
+  作成した（`reports.template.html` の統括向け読み替えに従い、「確かめられなかったこと」は
+  残っている未確認事項だけ、「設計への反映」は次のissueへ回したものを書いた）。
+  **受け入れ条件11項目すべて達成**を表で示している。
 
 ## 次にやること
 
-- **フェーズ4は全10ステップ完了。次はフェーズ5（クローズ）。**
-- flow-id 5-1: `bash .claude/scripts/src/check-base-conflicts.sh` でdefaultブランチとの
-  コンフリクトを検知する。`hasConflict` が真なら `AskUserQuestion` で確認してから
-  `resolve-conflict` スキルで解消する。
-- flow-id 5-2: 関連issueへのマージ前通知。**投稿前に `AskUserQuestion` での承認が必須**。
-  キーワード抽出時は `plans/` `worklog/` `reports/` を差分から除外する（片付けは5-4のため、
-  この時点ではまだ差分に含まれる）。影響先が無ければスキップしてよいが、その場合も
-  「影響先なし」と判断した事実をリセット前のこのファイルへ1行残す。
-- flow-id 5-3: 最終統括レポート `reports/日付_tidy-scoping-lantern_統括.md`（＋同名 `.html`。
-  土台は `reports.template.html` の統括向け読み替え）を作り、commit・push してから
-  サマリをPRへ1回コメントする。
-- flow-id 5-4: `bash .claude/scripts/src/cleanup-task.sh` で `plans/` `worklog/` `reports/` を
-  削除しこのファイルをリセットする（`REVIEW-POINTS.md` と `worklog/TEMPLATE.md` は残る）。
-  **スクリプトはコミットまでは行わない**ので、結果は直後の5-5でコミットする。
-- flow-id 5-5: commit・push して `set_mr_ready` でDraftを解除する。**AIエージェントはここで止まる。**
+- **フェーズ5は 5-3 まで完了。** 残りは 5-4・5-5 の2つ。
+- flow-id 5-4: `bash .claude/scripts/src/cleanup-task.sh` で `plans/` `worklog/` `reports/`
+  （md・htmlの両方）を削除し、このファイルをリセットする（`REVIEW-POINTS.md` 2件と
+  `worklog/TEMPLATE.md` は残る）。**スクリプトはコミットまでは行わない。**
+- flow-id 5-5: `commit` スキル経由でcommit・pushし、`set_mr_ready` でDraftを解除する。
+  **AIエージェントはここで止まる。**
 - **5-6（マージ）は行わない。** マージはユーザーの明示指示が必須である。
 - **フェーズ4の敵対的レビューのカウンタは 2（上限3）。** フェーズ5には敵対的レビューの
-  ステップが無いため、通常はこれ以上使わない。
+  ステップが無いため、これ以上は使わない。
 
 ## 判断を迷った内容
 

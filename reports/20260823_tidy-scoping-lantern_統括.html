@@ -1,0 +1,348 @@
+<!--
+  issue #54 の最終統括レポート（flow-id 5-3）の人間レビュー用HTMLビュー。
+  正文は同名の .md で、このHTMLはその視覚化である（両者の内容は同期させている）。
+  土台: .claude/skills/issue-mr-flow/assets/reports.template.html
+  外部依存: 無し（CDN・外部フォント・画像を1つも参照しない）。
+-->
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>issue #54 統括レポート — 計画・レポートのHTMLビューのテンプレート化</title>
+<style>
+  :root {
+    --bg: #f6f7f9;      --panel: #ffffff;   --ink: #1a1d21;     --muted: #5b636d;
+    --line: #dfe3e8;    --accent: #2563eb;  --accent-soft: #eaf0fe;
+    --ok: #1a7f4b;      --ok-soft: #e6f4ec; --warn: #a35a00;    --warn-soft: #fdf1e0;
+    --stop: #b3261e;    --stop-soft: #fdecea; --code-bg: #f0f2f5;
+    --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1216;    --panel: #161a20;   --ink: #e6e8eb;     --muted: #9aa3ad;
+      --line: #2a3038;  --accent: #7aa2f7;  --accent-soft: #1b2333;
+      --ok: #6ee7a8;    --ok-soft: #14261d; --warn: #f0b866;    --warn-soft: #2a2113;
+      --stop: #f2857c;  --stop-soft: #2b1614; --code-bg: #1d222a;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", system-ui, sans-serif;
+    line-height: 1.8; font-size: 15px;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 20px 80px; }
+
+  /* 共通ヘッダ帯 */
+  header.band {
+    background: linear-gradient(135deg, var(--accent-soft), var(--panel));
+    border-bottom: 1px solid var(--line); padding: 28px 20px 22px; margin-bottom: 28px;
+  }
+  header.band .inner { max-width: 1080px; margin: 0 auto; }
+  header.band .kind { font-size: 11px; letter-spacing: .18em; color: var(--accent); font-weight: 700; }
+  header.band h1 { margin: 6px 0 4px; font-size: 26px; line-height: 1.4; }
+  header.band .lead { margin: 0; color: var(--muted); }
+  .meta { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; padding: 0; list-style: none; }
+  .meta li {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 999px;
+    padding: 3px 12px; font-size: 12.5px; color: var(--muted); white-space: nowrap;
+  }
+  .meta li b { color: var(--ink); font-weight: 600; }
+
+  nav.toc {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 14px 20px; margin-bottom: 28px;
+  }
+  nav.toc h2 { margin: 0 0 8px; font-size: 13px; letter-spacing: .08em; color: var(--muted); border: 0; padding: 0; }
+  nav.toc ol { margin: 0; padding-left: 20px; }
+  nav.toc li { margin: 2px 0; }
+  a { color: var(--accent); }
+
+  section {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 8px 24px 22px; margin-bottom: 22px;
+  }
+  h2 { font-size: 20px; margin: 20px 0 10px; padding-bottom: 8px; border-bottom: 2px solid var(--line); }
+  h3 { font-size: 16px; margin: 22px 0 8px; color: var(--accent); }
+  p { margin: 10px 0; }
+  ul, ol { padding-left: 22px; }
+  li { margin: 4px 0; }
+  blockquote { margin: 10px 0; padding: 6px 14px; border-left: 3px solid var(--line); color: var(--muted); }
+
+  /* 表は自身の中で横スクロールする（ページ本体は横スクロールさせない） */
+  .tablewrap { overflow-x: auto; margin: 14px 0; }
+  table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 14px; }
+  th, td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: var(--accent-soft); font-weight: 600; white-space: nowrap; }
+  tbody tr:nth-child(even) td { background: color-mix(in srgb, var(--line) 22%, transparent); }
+
+  code {
+    background: var(--code-bg); border-radius: 5px; padding: 1px 5px; font-size: 13px;
+    font-family: "SFMono-Regular", Consolas, "Noto Sans Mono", monospace;
+  }
+  pre {
+    background: var(--code-bg); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 12px 14px; overflow-x: auto; font-size: 13px; line-height: 1.65;
+  }
+  pre code { background: none; padding: 0; }
+
+  /* 注意ボックス: info（既定）/ ok（決めたこと）/ warn（注意）/ stop（やらないこと・危険） */
+  .box { border-left: 4px solid var(--accent); background: var(--accent-soft);
+         border-radius: 0 var(--radius) var(--radius) 0; padding: 12px 16px; margin: 16px 0; }
+  .box > :first-child { margin-top: 0; } .box > :last-child { margin-bottom: 0; }
+  .box .label { font-size: 12px; font-weight: 700; letter-spacing: .06em; display: block; margin-bottom: 4px; }
+  .box.ok { border-color: var(--ok); background: var(--ok-soft); } .box.ok .label { color: var(--ok); }
+  .box.warn { border-color: var(--warn); background: var(--warn-soft); } .box.warn .label { color: var(--warn); }
+  .box.stop { border-color: var(--stop); background: var(--stop-soft); } .box.stop .label { color: var(--stop); }
+  .box.info .label { color: var(--accent); }
+
+  .tag { display: inline-block; border-radius: 999px; padding: 1px 9px; font-size: 12px; font-weight: 600; }
+  .tag.ok { background: var(--ok-soft); color: var(--ok); }
+  .tag.warn { background: var(--warn-soft); color: var(--warn); }
+  .tag.stop { background: var(--stop-soft); color: var(--stop); }
+
+  footer { color: var(--muted); font-size: 13px; text-align: center; padding-top: 10px; }
+</style></head>
+<body>
+
+<header class="band">
+  <div class="inner">
+    <div class="kind">最終統括レポート / フェーズ5</div>
+    <h1>issue #54 統括レポート（計画・レポートのHTMLビューをテンプレートへ切り出す）</h1>
+    <p class="lead">計画・レポートの人間レビュー用HTMLビューの<b>記述の型</b>を、SKILL.md の散文から
+      <code>assets/</code> 配下のテンプレート2本へ切り出した。あわせて方式をTailwindCSS CDNから
+      自己完結CSSへ変え、バンドルリソースの語彙を <code>assets/</code> へ統一した。受け入れ条件11項目は
+      すべて達成しているが、<b>改名の後片付けが配布先へ及ばない</b>という副次的な問題が判明し、
+      issue #26 へ引き継いだ。</p>
+    <ul class="meta">
+      <li><b>issue</b> #54</li>
+      <li><b>ブランチ</b> claude/plan-report-html-template-024l0t</li>
+      <li><b>PR</b> #156</li>
+      <li><b>フェーズ</b> 5〈クローズ〉 flow-id 5-3</li>
+      <li><b>push回数</b> 13</li>
+      <li><b>作成日</b> 2026-08-23</li>
+      <li><b>正文</b> 同名の .md</li>
+    </ul>
+  </div>
+</header>
+
+<div class="wrap">
+
+<nav class="toc">
+  <h2>目次</h2>
+  <ol>
+    <li><a href="#summary">サマリ（結論の一覧）</a></li>
+    <li><a href="#conditions">実施条件（測った対象・環境）</a></li>
+    <li><a href="#findings">実施した内容と結果</a></li>
+    <li><a href="#unverified">確かめられなかったこと</a></li>
+    <li><a href="#next">設計への反映</a></li>
+    <li><a href="#surprises">想定と異なった点</a></li>
+    <li><a href="#todo">残課題</a></li>
+  </ol>
+</nav>
+
+<section id="summary">
+  <h2>サマリ（結論の一覧）</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>#</th><th>やったこと</th><th>結論</th><th>根拠の性質</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td>記述の型の正をどこへ置くか</td><td><b><code>assets/</code> 配下のテンプレート2本へ移した</b>（<code>plans.template.html</code> / <code>reports.template.html</code>）。SKILL.md は見出しを列挙せず参照するだけになった</td><td>実装</td></tr>
+      <tr><td>2</td><td><code>plans/</code> のHTMLビュー</td><td><b>追加した。</b> 全体作業計画（1-4）と個別計画（2-1・3-1・4-1）が対象</td><td>実装・実運用</td></tr>
+      <tr><td>3</td><td>レポートHTMLを作るflow-id</td><td><b>3-6・4-6 でも作るようにした</b>（issue #33 時点では 2-6 のみ必須）</td><td>実装</td></tr>
+      <tr><td>4</td><td>スタイルの方式</td><td><b>TailwindCSS CDN → 自己完結CSS。</b> CDNを推していた根拠がテンプレート化により成り立たなくなった</td><td>読解＋ユーザー承認</td></tr>
+      <tr><td>5</td><td>バンドルリソースの語彙</td><td><b><code>assets/</code> <code>scripts/</code> <code>references/</code> の3つへ統一。</b> <code>templates/</code> はリポジトリから0件に</td><td>実装・実測</td></tr>
+      <tr><td>6</td><td>意思決定の記録</td><td><b>DDR <code>i0054-01</code> に1件へまとめた</b>（決定3つ・却下案8件）</td><td>実装</td></tr>
+      <tr><td>7</td><td>2つの検査</td><td><b>どちらも誤検知していたので直した。</b> いずれも<b>正しい成果物を不合格にする</b>向きの誤りだった</td><td>実測</td></tr>
+      <tr><td>8</td><td>作らなかったもの</td><td><b>markdownテンプレート・<code>HANDOFF.md</code> のテンプレート外だし・統括専用テンプレート</b>（いずれもissue本文または既存DDRが除外）</td><td>要求の読解</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="conditions">
+  <h2>実施条件（測った対象・環境）</h2>
+  <ul>
+    <li>実行環境: Claude Code on the web のリモート実行環境（Linux 6.18.44 / コンテナ）。
+      <b>Windows（git bash）実機での確認は一度も行っていない。</b></li>
+    <li>分岐点: <code>835ffcf</code>（<code>git merge-base origin/main HEAD</code>）。
+      マージ依頼時点まで <code>main</code> は進んでいない。</li>
+    <li>VCS操作経路: <b>MCP</b>（<code>gh</code>/<code>glab</code> CLIがこの実行環境に無いため）。</li>
+    <li>期間: 2026-08-22 〜 2026-08-23（push 13回）。</li>
+    <li>レビュー: 各フェーズの結果確認工程（flow-id 2-3/2-8/3-3/3-8/4-3/4-8）は、
+      <b>人間レビューの代替として <code>adversarial-review</code> スキル</b>で実施した（ユーザーの当初指示）。</li>
+  </ul>
+</section>
+
+<section id="findings">
+  <h2>実施した内容と結果</h2>
+
+  <h3>1. 成果物</h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>種別</th><th>ファイル</th><th>内容</th></tr></thead>
+    <tbody>
+      <tr><td>新設</td><td><code>assets/plans.template.html</code></td><td>必須は「この計画で何をするか／変更対象／方針／やらないこと／検証」。<code>[全体作業計画のみ必須]</code> として「フェーズ2〈調査〉／フェーズ4〈反映〉」を持つ</td></tr>
+      <tr><td>新設</td><td><code>assets/reports.template.html</code></td><td>必須は「サマリ／実施した内容と結果／確かめられなかったこと／設計への反映」。フェーズごとの読み替え（調査・作業・反映・統括）を冒頭コメントが持つ</td></tr>
+      <tr><td>新設</td><td>DDR <code>i0054-01</code></td><td>決定3つ（テンプレート切り出し／方式の変更／<code>assets</code> 語彙）と却下案8件（4/2/2）</td></tr>
+      <tr><td>改名</td><td><code>canvas-report/templates/</code> → <code>assets/</code></td><td><code>templates/</code> はリポジトリから0件に</td></tr>
+      <tr><td>改訂</td><td>SKILL.md ほか8ファイル</td><td>型の列挙をやめてテンプレート参照へ。spec は「正の所在」の表を持つ節を新設</td></tr>
+      <tr><td>記録</td><td><code>spec/create-commit.md</code> / <code>rules/git-workflow.md</code></td><td>作業中に判明した <code>create-commit.sh</code> の挙動（<b>スクリプトは変更していない</b>）</td></tr>
+      <tr><td>記録</td><td><code>spec/distribution-assets.md</code></td><td><code>.claude/VERSION</code> を据え置く判断があり得ることと、据え置きの実害</td></tr>
+      <tr><td>追記</td><td>DDR <code>i0000-11</code> / <code>i0141-01</code></td><td>frontmatter の <code>note</code> のみ（<b>本文は1文字も変更していない</b>）</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>2. 受け入れ条件の充足</h3>
+  <div class="box ok">
+    <span class="label">結論</span>
+    <p>issue #54 本文の受け入れ条件<b>11項目すべてを達成</b>。ただし #9（改名）は
+      <b>このリポジトリの中でのみ</b>成立しており、配布先には旧パスが残る（下記「残課題」）。</p>
+  </div>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>#</th><th>受け入れ条件</th><th>結果</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td><code>assets/</code> 配下にテンプレートが<b>ちょうど2本</b></td><td><span class="tag ok">達成</span></td></tr>
+      <tr><td>2</td><td>markdownテンプレートを<b>作らない</b></td><td><span class="tag ok">達成</span>（0本）</td></tr>
+      <tr><td>3</td><td><code>plans/</code> にHTMLビューが追加されている</td><td><span class="tag ok">達成</span>（全体1件＋個別2件で実運用済み）</td></tr>
+      <tr><td>4</td><td>レポートHTMLを 3-6・4-6 でも作る</td><td><span class="tag ok">達成</span>（3-6 を任意→必須、4-6 へ新規追記）</td></tr>
+      <tr><td>5</td><td>SKILL.md がテンプレートを参照し、見出しを列挙しない</td><td><span class="tag ok">達成</span></td></tr>
+      <tr><td>6</td><td>必須／任意セクションが区別されている</td><td><span class="tag ok">達成</span>（<code>[必須]</code> / <code>[任意]</code> / <code>[全体作業計画のみ必須]</code>）</td></tr>
+      <tr><td>7</td><td>プレースホルダがHTMLコメント</td><td><span class="tag ok">達成</span>（検査は <code>grep -c '&lt;!-- ここに書く'</code> が0）</td></tr>
+      <tr><td>8</td><td>3つのrulesが更新されている</td><td><span class="tag ok">達成</span></td></tr>
+      <tr><td>9</td><td><code>canvas-report/templates/</code> を <code>assets/</code> へ改名</td><td><span class="tag ok">達成</span>（<b>ただし配布先には旧パスが残る</b>）</td></tr>
+      <tr><td>10</td><td><code>.mrworkflow.json</code> を変更しない</td><td><span class="tag ok">達成</span></td></tr>
+      <tr><td>11</td><td>統括レポート専用テンプレートを作らない</td><td><span class="tag ok">達成</span>（<b>本レポート自身がその実例</b>）</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>3. 作業中に判明して直したもの（issueの要求外）</h3>
+  <p>いずれも<b>既存の検査・記述が誤っていた</b>もので、issue #54 の作業に取りかからなければ
+    表面化しなかった。</p>
+  <ol>
+    <li><b>自己完結の検査が、正しい成果物を不合格にしていた。</b>
+      <code>grep -c 'https\?://'</code> が0という形は、本文で <code>&lt;code&gt;</code> にURLを引用しただけの
+      レポート（実測3件）と <code>http://www.w3.org/2000/svg</code>（<code>createElementNS</code> の
+      名前空間。実測4件）を必ず誤検知する。属性・CSSからの外部読み込みだけを見る2本立てへ改め、
+      <b>シングルクォート・プロトコル相対・<code>@import</code></b> まで拾う形にしたうえで、
+      <b>拾えないもの2つ</b>（相対パスのローカル参照・<code>&lt;code&gt;</code> 内でHTML属性ごとURLを
+      引用した箇所）を限界として明記した。</li>
+    <li><b>埋め忘れの検査が、テンプレート自身を説明する成果物を誤検知していた。</b>
+      <code>grep -c '&lt;!-- ここに書く'</code> へ揃えた（<code>&lt;!--</code> を含めないと地の文の
+      「ここに書く」に当たる）。</li>
+    <li><b>既存の成果物1件が、その検査に当たっていた。</b>
+      <code>reports/…HTMLビュー前提調査.html</code> が <code>&lt;code&gt;</code> 内で
+      <code>&amp;lt;script src="https:&#47;&#47;…"&amp;gt;</code> を引用しており、<b>新旧どちらの検査でも
+      ヒットしていた</b>——つまり <code>reports/REVIEW-POINTS.md</code> の「0件であること」を、
+      自分たちの成果物が満たしていない状態で通していた。URLのスラッシュを
+      <code>&amp;#47;&amp;#47;</code> と書く（表示は変わらない）形へ直して0件へ戻した。</li>
+    <li><b><code>create-commit.sh</code> の挙動が仕様書のどこにも無かった。</b>
+      「渡したパスに加えて、既にステージ済みの変更も同じコミットへ入る」。フェーズ3で
+      <code>git mv</code> によりステージ済みだったディレクトリ改名が別のコミットへ混ざって気づいた
+      （同一ブランチかつsquash mergeのため実害は無かったが、コミットメッセージと中身が食い違った）。
+      <b>スクリプトの挙動は変更していない。</b></li>
+  </ol>
+
+  <h3>4. 敵対的レビューの実績</h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>フェーズ</th><th>実施回数（上限3）</th><th>指摘</th><th>投稿</th><th>対応</th></tr></thead>
+    <tbody>
+      <tr><td>2〈調査〉</td><td>—</td><td>計画7件・結果5件</td><td>全件</td><td>全件</td></tr>
+      <tr><td>3〈作業〉</td><td>—</td><td>8件</td><td>8件</td><td>全件</td></tr>
+      <tr><td>4〈反映〉</td><td><b>2</b></td><td>1回目13件・2回目12件</td><td>13件・6件</td><td><b>全件</b>（投稿しなかった6件を含む）</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <ul>
+    <li><b>投稿しなかった指摘も対応した。</b> 確度・重大度による振り分けは「MRへ出すか」を決めるもので、
+      「直すかどうか」ではない。放置すると振り分けが「直さなくてよい」の意味に化ける。</li>
+    <li>投稿したスレッドには<b>すべて個別に返信した</b>（issue #109 のルール）。解決操作は
+      レビュアー側の操作なので行っていない。</li>
+  </ul>
+</section>
+
+<section id="unverified">
+  <h2>確かめられなかったこと</h2>
+  <div class="box warn">
+    <span class="label">この結果が言っていないこと</span>
+    <p><b>残っている未確認事項だけを書く</b>（フェーズごとのレポートで既に書いた内容は再掲しない）。</p>
+    <ul>
+      <li><b>Windows（git bash）実機での確認を一度も行っていない。</b> すべて Linux のリモート実行
+        環境で行った。テンプレートは静的HTMLでスクリプトを含まないため実行環境依存は小さいが、
+        「確認していない」という事実は残る。</li>
+      <li><b>配布経路（<code>install-to-project.sh</code>）を実際に走らせていない。</b>
+        「改名の後片付けが配布先へ及ばない」という結論は<b>スクリプトの読解による</b>もので、
+        実際に配布先を作って再インストールしたわけではない。</li>
+      <li><b>人間のレビューを受けていない。</b> 各フェーズの結果確認は敵対的レビューで代替した。
+        ただし次の3点だけはユーザーの判断をチャットで受領している——(1) 自己完結CSSへの方式変更、
+        (2) <code>.claude/VERSION</code> の据え置き、(3) 個別反映計画の種別を併記のまま進めること。</li>
+      <li><b>「正の所在」の表が実運用で足りるかは、次のissueで初めて分かる。</b> 今回は spec を
+        書いた本人が同時にテンプレートも書いているため、「spec だけを読んだ人がテンプレートへ
+        辿り着けるか」は検証できていない。</li>
+    </ul>
+  </div>
+</section>
+
+<section id="next">
+  <h2>設計への反映</h2>
+  <p><b>反映しきれず次のissueへ回したもの</b>を書く（テンプレートの「フェーズごとの読み替え」に従う）。</p>
+  <ol>
+    <li><b><code>install-to-project.sh</code> に「上流で消えたファイルの削除」を持たせるかは、
+      issue #26 の判断へ委ねた。</b> 事実は <code>spec/issue-mr-workflow.md</code> のchangelogと
+      <code>spec/distribution-assets.md</code> の両方へ記録し、<b>#26 へマージ前通知として
+      コメント済み</b>。新規issueは起票しない（ユーザーの判断）。</li>
+    <li><b><code>assets</code> という語が二義的になっている点も #26 へ通知した。</b> 恒久の
+      バンドルリソース（Git管理下）と、<code>sync-assets.sh</code> が生成するビルド用一時
+      ディレクトリ（<code>.gitignore</code> 対象）が同じ名前を持つ。現状の <code>.gitignore</code> は
+      先頭スラッシュでパスを固定しているため衝突しないが、<b>相対パターンへ広げると恒久の
+      テンプレートが無言でGit管理から外れる。</b></li>
+    <li><b>報告HTMLの方式変更を issue #114 へ通知した。</b> 同issueは対象を「TailwindCSS CDN方式の
+      自己完結HTML」と書いており、前提が変わった。ホスティング設計はむしろ単純になる（外部依存ゼロ）
+      一方、canvas形式で mermaid を使う場合だけ CDN の <code>&lt;script src&gt;</code> が1本残る。</li>
+    <li><b><code>.claude/VERSION</code> は <code>0.1.2</code> のまま据え置いた。</b> 配布対象アセットは
+      増えたが、ユーザーの判断。規定の例外にあたるため <code>spec/distribution-assets.md</code> 側にも
+      据え置きの扱いと実害を記録した。次に配布物を触るissueで、まとめて増分を検討することになる。</li>
+    <li><b><code>create-commit.sh</code> の挙動の是非（パス指定コミットにすべきか）は独立した
+      意思決定である。</b> 変えるなら別issueを起票する。<b>この判断が読解によるもので実測して
+      いないこと</b>は <code>spec/create-commit.md</code> の
+      <code>### なぜパス指定でコミットしないのか</code> へ書いた。</li>
+  </ol>
+</section>
+
+<section id="surprises">
+  <h2>想定と異なった点</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>計画時の見込み</th><th>実際</th><th>どう扱ったか</th></tr></thead>
+    <tbody>
+      <tr><td>CDN方式は維持する（issue本文の字面どおり）</td><td>テンプレート化により <code>i0000-11</code> の根拠が成り立たなくなった。加えて<b>この実行環境からCDNへ到達できない</b>ことも判明した</td><td>ユーザーの承認を得て自己完結CSSへ変更し、DDR <code>i0054-01</code> の決定2として記録した</td></tr>
+      <tr><td>spec の新設節には「仕様として決まったこと」を列挙すればよい</td><td>列挙すると SKILL.md とほぼ一対一の重複になり、<b>正が2つ</b>になる</td><td>「正の所在」の表＋spec 側にしか書けない3点へ絞った</td></tr>
+      <tr><td>自己完結の検査はそのまま使える</td><td><b>正しい成果物を不合格にしていた</b>うえ、直した形も逆側へ振れすぎていた</td><td>2本立てへ改め、空振り（既存HTML 7本で0件）と検出力（不正HTMLで4件検出）の両方を測ってから確定した</td></tr>
+      <tr><td>検証は「差分が0」で書ける</td><td>変更を伴う作業では<b>原理的に0にならない</b>（かつコミット後は常に空になり素通りする）</td><td>件数・終了コード・削除行の中身を出す形へ全面的に書き換えた</td></tr>
+      <tr><td>DDRの <code>note</code> は普通に書けばよい</td><td>クォートしないと <code> #54</code> 以降が<b>行内コメントとして落ちる</b></td><td>シングルクォートで囲み、READMEに注記が末尾まで載ることを検証項目にした</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="todo">
+  <h2>残課題</h2>
+  <ul>
+    <li>上記「設計への反映」の1〜3は、<b>issue #26・#114 へ通知済み</b>で、本issueでは対処しない。</li>
+    <li><b><code>docs-workflow.md</code> の flow-id ずれ（issue #143）は本issueの範囲外。</b>
+      本MRが触った <code>reports/*.html</code> の行は現行の flow-id 5-4 で正しく、#143 が指摘した
+      箇所は既に <code>main</code> 側で修正済みであることを確認した。</li>
+    <li><b><code>.claude/VERSION</code> の増分は次に配布物を触るissueへ持ち越す。</b></li>
+  </ul>
+</section>
+
+<footer>issue #54 / PR #156 — 結果の正文は同名の <code>.md</code>。外部依存を持たない自己完結HTML。</footer>
+
+</div>
+</body>
+</html>
