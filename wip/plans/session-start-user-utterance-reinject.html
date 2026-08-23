@@ -165,6 +165,7 @@
       <tr><td>人間の入力は <code>type=="user"</code> かつ <code>.message.content</code> が文字列の行として記録される／hook の注入は <code>type:"attachment"</code> で混ざらない／transcript は追記専用</td><td>issue #151 本文（起票時に実 transcript で確認済み）</td><td>issue 本文として起票者が記載。<b>フェーズ2で追試する</b></td></tr>
       <tr><td>件数配分を「先頭3件＋直近7件、最大合計10件」へ変更する</td><td>本セッションでユーザーから指示（flow-id 1-4 の作成中）</td><td><b>指示は受けたが、具体化した内容（方針の3点の上乗せ）は未合意</b></td></tr>
       <tr><td>数値（件数・文字数・除外規則のしきい値）</td><td>本計画の暫定値</td><td>未合意。<b>フェーズ2で実データにあてて確定する</b></td></tr>
+      <tr><td>ブランチ絞りは「絞れる環境でのみ効かせ、絞れない環境では母集団全体から採る」形にする</td><td>本セッションでユーザーから指示（flow-id 1-5 のレビュー中）</td><td><b>指示は受けたが、具体化した内容（<code>gitBranch</code> の有無で分岐する・Gemini CLI 経路自体はスコープ外にする）は未合意</b></td></tr>
     </tbody>
   </table>
   </div>
@@ -230,8 +231,8 @@
   「ok」「次へ」「それで」といった往復に偏り、同じ枠を使うなら<b>先頭（＝要件定義）と直近（＝現在地）</b>へ
   寄せたほうが1件あたりの情報量が高いためである。そのうえで次の3点を上乗せする。</p>
   <ol>
-    <li><b>「先頭」は、現在のブランチに絞ったうえでの先頭とする。</b>
-      <code>gitBranch</code> が現在のブランチと一致する行だけを母集団にする。<b>一致行が0件のときだけ絞りを外す</b>（fail-open）。
+    <li><b>「先頭」は、現在のブランチに絞ったうえでの先頭とする（絞れる環境でのみ）。</b>
+      <code>gitBranch</code> が現在のブランチと一致する行だけを母集団にする。<b>この絞りは必須ではなく、材料があるときだけ効く任意の絞り込みとして実装する</b>（下記「ブランチ絞りは絞れる環境でのみ効かせる」）。
       <b>この上乗せが解くのは「1つのtranscriptが複数ブランチをまたぐ」方向だけである</b>（逆方向は下記「単一transcript前提の限界」）。</li>
     <li><b>切り出しは「頭M文字」ではなく「頭M文字＋末尾M′文字」にする。</b>
       制約・除外条件は末尾に来やすい（issue本文の論点4）。
@@ -240,6 +241,37 @@
     <li><b>先頭3件は厚く、直近7件は薄く配分する。</b>
       初期値は<b>先頭3件＝頭120字＋末尾40字／直近7件＝頭80字＋末尾30字</b>。フェーズ2で実データにあてて調整する。</li>
   </ol>
+
+  <h4>ブランチ絞りは絞れる環境でのみ効かせる（Gemini CLI では不可能）</h4>
+  <div class="box stop">
+    <span class="label">Gemini CLI では原理的に絞れない</span>
+    <b>Gemini CLI のセッションログには <code>gitBranch</code> に相当するフィールドが無い。</b>
+    これは本issueで新たに分かったことではなく、issue #97 のフェーズ2調査で確認され
+    DDR <code>i0097-04</code> へ記録されている事実である（「メッセージ単位でブランチも作業ディレクトリも記録されない」。
+    唯一近い1行目メタデータの <code>directories</code> は<b>セッション単位のプロジェクトディレクトリ</b>であり、
+    同じワークツリーでブランチを切り替える通常の運用では常に同じ値になるため代用にならない、と却下理由まで書かれている）。
+  </div>
+  <p>したがって<b>ブランチ絞りは必須の前処理にせず、材料があるときだけ効く任意の絞り込みにする。</b></p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>抽出した行の状態</th><th>母集団</th></tr></thead>
+    <tbody>
+      <tr><td><code>gitBranch</code> を持つ行があり、現在のブランチと一致するものが1件以上ある</td><td><b>一致する行だけに絞る</b></td></tr>
+      <tr><td><code>gitBranch</code> を持つ行があるが、一致するものが0件</td><td><b>絞らず全体</b>（ブランチ作成前の発言しか無いセッション）</td></tr>
+      <tr><td><code>gitBranch</code> を持つ行が1件も無い</td><td><b>絞らず全体</b>（Gemini CLI 形式のログ・フィールド欠落）</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p><b>切り替えの判定は「経路（Claude Code か Gemini CLI か）」ではなく「行が <code>gitBranch</code> を持つか」で行う。</b> 理由は2つ。</p>
+  <ol>
+    <li><b>SessionStart には経路を判定する手段が無い。</b> 既存のhookが使うエンジン判定
+      （<code>tool_name</code> が <code>run_shell_command</code> なら Gemini、<code>Bash</code>/<code>PowerShell</code> なら Claude）は
+      <b>PreToolUse/PostToolUse 専用</b>で、SessionStart のペイロードには <code>tool_name</code> が無い。</li>
+    <li><b>フィールドの有無で切り替えれば、将来 Gemini CLI 側がブランチ情報を持ったときに自動で追随する。</b>
+      経路名で分岐すると、そのときコードを直しに戻る必要がある。</li>
+  </ol>
+  <p><b>この分岐は「絞れないと壊れる」ものではない。</b> 絞りは1件あたりの情報密度を上げる最適化であって、
+  絞れなくても「先頭3件＋直近7件」は成立する（先頭が別タスクの発言になりうる、という質の低下に留まる）。</p>
 
   <h4>採り方（母集団が少ないときの重複を防ぐ）</h4>
   <p><b>除外規則を先に適用して母集団を作り、そこから採る。</b> 母集団を時系列順に並べて N 件とすると:</p>
@@ -300,6 +332,46 @@
     <b>フェーズ2の問い9・10で実測し、崩れる場合の扱いをフェーズ3の個別作業計画で決める。</b>
   </div>
 
+  <h3>抽出条件は issue 本文の4条件では足りない（実データでの補正）</h3>
+  <p>issue #151 本文は抽出条件を「<code>type=="user"</code> かつ content が文字列／<code>userType=="external"</code>／<code>isSidechain==false</code>」としているが、
+  <b>本ブランチの実 transcript を見ると、この4条件を満たす行に機械由来のものが混ざる。</b></p>
+  <ul>
+    <li><code>type=="user"</code> かつ <code>.message.content</code> が<b>文字列</b>の行のうち、<code>origin.kind</code> が
+      <code>"task-notification"</code>（サブエージェントの完了通知など、ハーネスが差し込む機械生成のユーザーターン）のものがあった。
+      <code>userType</code> は <code>"external"</code>、<code>isSidechain</code> は <code>false</code> なので<b>4条件では落とせない</b>。</li>
+    <li>これは受け入れ条件「hookの注入テキスト・サブエージェント由来の行が混入しない」に直接効く。</li>
+  </ul>
+  <p>したがって<b>抽出条件へ <code>.origin.kind == "human"</code> を加える</b>（<code>origin</code> を持たない行の扱いはフェーズ2の問い12で決める）。あわせて次の2点もフェーズ2で確認する。</p>
+  <ul>
+    <li><code>.message.content</code> が<b>配列</b>でも、<code>text</code> ブロックだけの人間発言がありうる（実データで1件）。文字列限定にすると取りこぼす可能性がある。</li>
+    <li><code>type=="last-prompt"</code> という行がユーザーの生発言をそのまま保持しているが、<b><code>gitBranch</code> を持たない</b>ためブランチ絞りの母集団には使えない（代替として使えるかはフェーズ2の問い13）。</li>
+  </ul>
+  <div class="box warn">
+    <span class="label"><code>gitBranch</code> 絞りは完全なフィルタではない</span>
+    issue #37 で、同一セッションが複数回・複数ブランチにわたって resume されると、transcript 上に
+    <b>同じ行が異なる <code>gitBranch</code> ラベル付きで複数回出現する</b>ことが実データで確認されている（DDR <code>i0000-04</code>）。
+    <b><code>uuid</code> による重複除去を入れる</b>（同じ発言が2回枠を食うのを防ぐ）。
+  </div>
+
+  <h3>Gemini CLI 経路の扱い（本issueのスコープ外）</h3>
+  <p>ブランチ絞りが Gemini CLI で不可能なのは上記のとおりだが、調査の過程で<b>それより手前に3つの壁がある</b>ことが分かった。
+  <b>本issueでは Gemini CLI 経路の対応そのものを行わない。</b></p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>#</th><th>壁</th><th>根拠</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td><b><code>session-start.sh</code> は Gemini CLI 経路では冒頭で <code>exit 0</code> する。</b> <code>CLAUDE_PROJECT_DIR</code> が未設定なら即終了する実装で、<code>GEMINI_PROJECT_DIR</code> を1箇所も参照していない</td><td><code>session-start.sh</code> の <code>main</code>。push系2本は <code>${GEMINI_PROJECT_DIR:-${CLAUDE_PROJECT_DIR:-}}</code> の両対応を持つが、<code>session-start.sh</code> は issue #7 の両対応から取り残されている</td></tr>
+      <tr><td>2</td><td><b>Gemini CLI の SessionStart には <code>compact</code> 起動要因が無い</b>（source は <code>startup</code>/<code>resume</code>/<code>clear</code> の3つ）。本機能の主目的が原理的に成立しない</td><td><code>.claude/docs/spec/sync-gemini-assets.md</code>。変換時に <code>compact</code> は捨てられ、残り3つが全 source を覆うため <code>matcher</code> ごと落ちている</td></tr>
+      <tr><td>3</td><td><b>ログの構造が違う</b>（Gemini はトップレベル <code>.content</code>、<code>type</code> は <code>"user"</code>/<code>"gemini"</code>、tool呼び出しは <code>toolCalls[]</code>）。抽出ロジックを共通化できない。さらに Gemini CLI の SessionStart ペイロードに <code>transcript_path</code> があるかは<b>リポジトリ内に記載が無い</b></td><td><code>.claude/hooks/lib/UsageTracking.sh</code> の <code>_usage_gemini_fold</code>、<code>.claude/docs/spec/gemini-cli-telemetry.md</code></td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p><b>1 は本機能に固有の穴ではなく、既存の注入6項目すべてに当てはまる既存の穴である。</b>
+  本issueで併せて直すと、変更が「ユーザー発言の再注入」と「Gemini CLI 経路の有効化」の2つに割れてレビューの評価軸が混ざるため、
+  <b>別issueへ切り出すことを flow-id 5-2 で提案する</b>。</p>
+  <p><b>それでも、上記のブランチ絞りの分岐は「<code>gitBranch</code> の有無」で書く。</b>
+  壁1が別issueで解消されたとき、ブランチ絞りだけを理由に壊れることがないようにするためである。</p>
+
   <h3>テストの移植性</h3>
   <ul>
     <li><code>.claude/</code> は <code>dist-layers.json</code> で <code>core</code>（配布元所有・そのまま配布）であり、
@@ -349,9 +421,16 @@
     <li>リモート実行環境で<b>セッションをまたいだ</b>場合、同一ブランチの過去 transcript はどこに残るか。残るなら、それも対象にする案の実現可能性とコスト（走査量）はどうか。</li>
     <li><code>jq -R -n</code> ＋ <code>inputs</code> 方式で、実 transcript のサイズでも所要時間が許容範囲か。
       <b>合否のしきい値を先に置く: 追加コスト 200ms 以内</b>（このhookは既に <code>extract-frontmatter.sh</code> の再生成で約2秒を抱えており、compact のたびに走るため）。</li>
+    <li><b><code>origin.kind</code> の分布はどうか。</b> <code>origin</code> キー自体を持たない行はあるか。持たない行を採るか捨てるかを決める
+      （採ると機械由来が混ざりうる／捨てると人間の発言を落としうる）。あわせて <code>.message.content</code> が<b>配列</b>の人間発言
+      （<code>text</code> ブロックのみ）が何件あるかを数え、文字列限定で取りこぼす割合を出す。</li>
+    <li><b><code>type=="last-prompt"</code> の行は何を持つか。</b> ユーザーの生発言を保持しているが <code>gitBranch</code> を持たないため
+      ブランチ絞りの母集団には使えない。<code>type=="user"</code> の代替・補完として使えるか（重複するのか、片方にしか無い発言があるのか）を確認する。</li>
   </ol>
-  <p><b>何が分かれば次へ進めるか</b>: 上記 <b>1〜11 のすべて</b>が結論（数値・可否・未確認の別）として埋まり、
-  件数・文字数・除外規則・出力位置の初期値が確定すること。</p>
+  <p><b>何が分かれば次へ進めるか</b>: 上記 <b>1〜13 のすべて</b>が結論（数値・可否・未確認の別）として埋まり、
+  件数・文字数・除外規則・抽出条件・出力位置の初期値が確定すること。</p>
+  <p><b>Gemini CLI 経路については調査しない</b>（上記「Gemini CLI 経路の扱い」のとおりスコープ外。
+  ブランチ絞りが不可能であることは issue #97 の調査結果として既に確定しており、追試は要らない）。</p>
 </section>
 
 <section id="phase-apply">
@@ -377,6 +456,10 @@
       <li>AI（assistant）側の発言の再注入 — issue 本文が対象を「ユーザーの生の入力」に限っている</li>
       <li>transcript の書き換え・削除 — 追記専用の外部資産であり、本機構は読み取りのみ</li>
       <li><code>build_context</code> 失敗経路での注入 — フェーズ2の問い1の結果次第でフェーズ3で再検討</li>
+      <li><b>Gemini CLI 経路の対応</b>（<code>session-start.sh</code> の <code>GEMINI_PROJECT_DIR</code> 両対応・Gemini ログ形式の抽出）
+        — 上記「Gemini CLI 経路の扱い」。<b>flow-id 5-2 で別issueへの切り出しを提案する</b></li>
+      <li>Gemini CLI 経路でのブランチ絞り — <b>原理的に不可能</b>（ログに <code>gitBranch</code> 相当が無い。DDR <code>i0097-04</code>）。
+        絞れない環境では母集団全体から採る形で吸収する</li>
     </ul>
   </div>
 </section>
@@ -393,6 +476,10 @@ bash .claude/scripts/src/sync-gemini-assets.sh --check</code></pre>
       期待値を先に置く: 通常運用で<b>全体 ≤ 8000バイト</b>、うち発言節 ≤ 6000バイト。
       「警告が鳴らないこと」だけを見ない（この節は警告の分母から外れるため、鳴らないのは実装の正しさと無関係で必ず通ってしまう）。</li>
     <li>意図的に長い発言を並べたフィクスチャで、<b>上限による切り落としが実際に発動し、先頭枠の3件が残る</b>ことを確認する。</li>
+    <li><b>ブランチ絞りの3分岐</b>（一致あり／<code>gitBranch</code> はあるが一致0件／<code>gitBranch</code> を持つ行が0件）をそれぞれフィクスチャで確認する。
+      とくに3つ目（Gemini CLI 形式を模した、<code>gitBranch</code> の無いログ）で<b>絞らず母集団全体から採る</b>ことを表明する。</li>
+    <li><code>origin.kind</code> が <code>"human"</code> 以外の行と、同じ <code>uuid</code> が複数の <code>gitBranch</code> ラベルで現れる行を含むフィクスチャで、
+      <b>どちらも枠を消費しない</b>ことを確認する。</li>
     <li>実 transcript（本ブランチのもの）に対して抽出関数を直接呼び、出力が目視で妥当であること（単体テストではなく手動確認。結果は統計値のみ <code>wip/reports/</code> へ記録）。</li>
     <li><code>transcript_path</code> を空・不正なパス・壊れた JSON にしても、他の項目の注入が続くこと（fail-open）。</li>
     <li><code>main</code> ブランチ上で hook を実行したとき、<b>何も注入されない</b>こと（既存方針が変わっていない）。</li>
@@ -430,7 +517,11 @@ bash .claude/scripts/src/sync-gemini-assets.sh --check</code></pre>
       <tr><td>全発言から文字数の多い順に上位N件</td><td><span class="tag stop">却下</span> 貼り付けたログ・エラー出力が上位を占め、依頼が押し出される</td></tr>
       <tr><td>頭のみM文字で切る</td><td><span class="tag stop">却下</span> 末尾に書かれがちな制約・除外条件を落とす（issue本文の論点4）</td></tr>
       <tr><td>ブランチ絞りをかけない</td><td><span class="tag stop">却下</span> セッションがブランチをまたぐと、別タスクの発言が「先頭3件」を占める</td></tr>
-      <tr><td>ブランチ絞りを常に強制する</td><td><span class="tag stop">却下</span> 一致0件のときに何も出せない。0件時のみ絞りを外すフォールバックを採る</td></tr>
+      <tr><td>ブランチ絞りを常に強制する（絞れなければ何も出さない）</td><td><span class="tag stop">却下</span> Gemini CLI のログには <code>gitBranch</code> が無く、絞れない環境では機能ごと死ぬ。絞りは情報密度を上げる最適化であって、必須の前処理ではない</td></tr>
+      <tr><td>ブランチ絞りの可否を<b>経路名</b>（Claude Code / Gemini CLI）で分岐する</td><td><span class="tag stop">却下</span> SessionStart には経路を判定する手段が無い（既存の <code>tool_name</code> 判定は PreToolUse/PostToolUse 専用）。将来 Gemini 側がブランチ情報を持ったときにコードを直しに戻ることになる</td></tr>
+      <tr><td>Gemini の1行目メタデータの <code>directories</code> でブランチを代用する</td><td><span class="tag stop">却下</span> セッション単位のプロジェクトディレクトリであってブランチではない（DDR <code>i0097-04</code> が既に却下済み）</td></tr>
+      <tr><td>本issueで Gemini CLI 経路も併せて有効化する</td><td><span class="tag stop">却下</span> 変更が「ユーザー発言の再注入」と「Gemini CLI 経路の有効化」に割れ、レビューの評価軸が混ざる。別issueへ切り出す</td></tr>
+      <tr><td>抽出条件を issue 本文の4条件のままにする</td><td><span class="tag stop">却下</span> 実データで <code>origin.kind == "task-notification"</code> の機械生成ターンが4条件をすり抜けた</td></tr>
       <tr><td>先に3件採ってから除外する（ユーザー文言の直読）</td><td><span class="tag stop">却下</span> 冒頭が <code>/compact</code> や相槌だった回に先頭枠が0件になり、主目的が空振りする</td></tr>
       <tr><td>相槌の判定に文字数しきい値を使う</td><td><span class="tag stop">却下</span> 「ダメ、やり直して」のような短くて重要な指示を落とす。完全一致の辞書で足りる</td></tr>
       <tr><td><code>main</code> で <code>append_size_warning</code> の後に連結する（当初案）</td><td><span class="tag stop">却下</span> SKILL.md 再読み込み指示が末尾でなくなり（issue #113 の設計を壊す）、警告文のバイト数が実際の注入量と食い違う</td></tr>

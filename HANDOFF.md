@@ -17,7 +17,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - issue: #151
 - ブランチ: `claude/user-recent-utterance-reinject-9ygbxd`
 - PR: #197（https://github.com/yuki-matsu783/MR-driven-workflow/pull/197 ）
-- push回数: 3
+- push回数: 4
 - 現在のループ: なし
 - 未返信スレッド: 0
 - 追従監視: 購読あり（web。subscribe_pr_activity + send_laterによる自己チェックイン）
@@ -96,6 +96,25 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
     性能のしきい値200ms）。完了条件も 1〜11 全件へ。
   - フェーズ4の候補へ `.claude/docs/README.md` のDDR一覧再生成と `.claude/VERSION` の判断を追加。
 - **追従監視を開始した**（`subscribe_pr_activity` でPR #197 を購読）。
+- **flow-id 1-5 のレビューでユーザーから指摘**: 「現在ブランチだけに絞る処理は Claude Code の
+  ログでは可能だが Gemini CLI では難しいのではないか。もしそうなら**Gemini CLI では不可能だと
+  記載のうえ**、Claude Code ではブランチを絞る、**絞れない環境では全体から取得**という処理に
+  してほしい」。調査のうえ計画へ反映した。
+  - **指摘は正しい**。Gemini CLI のセッションログに `gitBranch` 相当のフィールドは無い
+    （issue #97 のフェーズ2調査で確認済み。DDR `i0097-04`。`directories` での代用も却下済み）。
+  - 分岐は**経路名ではなく「行が `gitBranch` を持つか」**で行う設計にした（SessionStart には
+    経路判定の手段が無い。既存の `tool_name` 判定は PreToolUse/PostToolUse 専用）。
+  - **さらに手前に3つの壁があることが分かった**（本issueではスコープ外・flow-id 5-2 で別issue
+    への切り出しを提案する）: (1) `session-start.sh` は `CLAUDE_PROJECT_DIR` 必須で
+    Gemini CLI 経路では冒頭で `exit 0` する（既存の注入6項目すべてに当てはまる既存の穴）、
+    (2) Gemini CLI の SessionStart に `compact` 起動要因が無い、(3) ログ構造が違い抽出ロジックを
+    共通化できない。
+  - **副産物: issue 本文の抽出条件では足りないことが実データで判明した。** `type=="user"` かつ
+    content が文字列の2件のうち1件が `origin.kind == "task-notification"`（機械生成のユーザー
+    ターン）で、`userType=="external"` / `isSidechain==false` をすり抜ける。抽出条件へ
+    `.origin.kind == "human"` を追加した。あわせて `uuid` による重複除去も入れる
+    （issue #37: 同じ行が異なる `gitBranch` ラベルで再出現しうる）。
+  - フェーズ2の問いを 11 → **13** に増やした。
 
 ## 次にやること
 
@@ -104,6 +123,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
   - `CONTEXT_SIZE_WARN_BYTES` の分母へ入れない（ただし警告文には両方の数値を出す）判断
   - 単一transcript前提の限界（タスクが複数セッションにまたがると先頭枠が空振りする）を
     フェーズ2で詰める、という進め方
+  - **Gemini CLI 経路の対応（3つの壁）を本issueのスコープ外とし、別issueへ切り出す判断**
 - ~~投稿した10スレッドへの返信~~ 完了（10件すべてに、何をどう直したかを返信済み。`- 未返信スレッド: 0`）。
   **スレッドの解決（resolve）はレビュアー側の操作**のため、こちらでは行っていない。
 - flow-id 2-1（個別調査計画）へ進む。
