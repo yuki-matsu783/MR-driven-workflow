@@ -17,8 +17,8 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - issue: #185
 - ブランチ: `claude/improve-commit-log-format-9mjlid`
 - PR: #192（https://github.com/yuki-matsu783/MR-driven-workflow/pull/192 ）（Draft）
-- push回数: 8
-- 現在のループ: 3-6〜3-9 の1周目（完了）
+- push回数: 9
+- 現在のループ: なし
 - 未返信スレッド: 0
 - 追従監視: あり（`subscribe_pr_activity` でPR #192 を購読中。セッション終了で切れるため、次セッションは `resume` で取り直す）
 
@@ -49,8 +49,8 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 | [x] | 3-7 | `commit`スキル経由でcommitし、push してレビュー依頼を行う | エージェント |
 | [x] | 3-8 | MRでレビュー・コメントする | 人間 |
 | [x] | 3-9 | レビュー内容を取得し、実装・ドキュメントを修正する | `comments` / `reply` |
-| [] | 3-10 | 作業内容をもとにMR descriptionを更新する | `describe` |
-| [] | 4-1 | 作業結果と`wip/plans/` `wip/worklogs/` の内容をもとに、個別反映計画`wip/plans/【設計反映】【AIアセット反映】【実装反映】〜.md`等をplanツールを使わずWrite/Editで作成する | エージェント |
+| [x] | 3-10 | 作業内容をもとにMR descriptionを更新する | `describe` |
+| [x] | 4-1 | 作業結果と`wip/plans/` `wip/worklogs/` の内容をもとに、個別反映計画`wip/plans/【設計反映】【AIアセット反映】【実装反映】〜.md`等をplanツールを使わずWrite/Editで作成する | エージェント |
 | [] | 4-2 | `commit`スキル経由でcommitし、push してレビュー依頼を行う | エージェント |
 | [] | 4-3 | MRで反映計画についてレビュー・コメントする | 人間 |
 | [] | 4-4 | レビュー内容を取得し、反映計画を修正する | `comments` / `reply` |
@@ -172,12 +172,20 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
   - **報告のみに留めた指摘はゼロ**（投稿候補9件がすべて投稿された）。
   - 9スレッドすべてへ返信済み（未返信スレッド 0）。
 
+- flow-id 3-10: MR description を更新した（決定6件の表・作業結果・2段階判定の説明・敵対的レビュー4回分の経緯）。
+- flow-id 4-1: **個別反映計画（md・html）とworklog push9 を作成した**。反映対象9件・決めること3件
+  （A: DDRに何を書くか／B: VERSIONの増分／C: 参照を双方向にするか）・検証8項目。
+  - 調査で分かったこと: usecase文書は**更新不要**（リンクが「何をする機能か」しか書いておらず、
+    規約の中身に踏み込んでいないため）。一方 `resolve-conflict/SKILL.md:376` と
+    `issue-mr-flow/SKILL.md:229` は**同じ主張を独立に書いており二重管理**になっていた。
+
 ## 次にやること
 
-- flow-id 3-10: MR descriptionを更新する。
-- フェーズ4: DDR `i0185-01` の作成、`create-commit.md` の影響範囲追記、
-  `resolve-conflict/SKILL.md` `issue-mr-flow/SKILL.md:229` との参照関係の整理、
-  `.claude/VERSION` の増分判断、usecase文書の確認。
+- flow-id 4-2: commit・push する。
+- 続けて敵対的レビュー5回目（フェーズ4の計画に対して。実施回数 0/3）を実施し、指摘へ対応・返信する（4-4）。
+- flow-id 4-6: 反映を実施する（DDR `i0185-01`・`create-commit.md` の影響範囲・
+  `git-workflow.md` の参照・スキル2本の参照・`.claude/VERSION`・DDR一覧の再生成・参照切れ検査）。
+  **着手の冒頭で `.claude/docs/spec/distribution-assets.md` の版の更新規則を読み直すこと。**
 
 ## 判断を迷った内容
 
