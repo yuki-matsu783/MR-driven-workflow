@@ -14,35 +14,63 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 
 ## フロー進捗状況
 
-- issue: #103 Claude CodeのOpenTelemetry出力をローカルで受信し、ワークスペースのusage/配下へ振り分けて保存する機構を追加する
-- ブランチ: feature-103-collect-claude-code-otel-telemetry-into-usage
-- PR: #158 https://github.com/yuki-matsu783/MR-driven-workflow/pull/158（Draft解除済み）
-- push回数: 5
+- issue: #159 hookの空振り起動コストを前置フィルタで削減する（block-direct-git-commit / post-issue-create-notice）
+- ブランチ: claude/reduce-hook-misfire-cost-p4xzyo（ハーネスが事前作成。命名規則`feature-159-...`とは異なるが、指示によりこのブランチのまま作業する）
+- PR: 未作成
+- push回数: 0
 - 現在のループ: なし
 - 追従監視: なし
 
 | 進捗 | flow-id | ステップ | 担当 |
 |---|---|---|---|
-| [x] | 5-4 | plans/worklog/reportsを削除しHANDOFF.mdをリセット | エージェント |
-| [x] | 5-5 | commitしpushしてDraftを解除 | エージェント |
-| [] | 5-6 | マージする | 人間 |
+| [x] | 1-2 | issueの内容を取得する | エージェント |
+| [x] | 1-3 | featureブランチ/Draft MR作成（ブランチはハーネスが事前作成済み） | エージェント |
+| [x] | 1-4 | 全体作業計画を作成する | エージェント |
+| [] | 1-5 | 全体作業計画に合意する | 人間 |
+| [x] | 1-6 | HANDOFF.mdを更新する | エージェント |
+| [-] | 2-1〜2-10 | フェーズ2〈調査〉（実施しない。理由は全体作業計画参照） | - |
+| [] | 3-1 | 個別作業計画を作成する | エージェント |
+| [] | 3-2 | commit・push・レビュー依頼 | エージェント |
+| [] | 3-3 | 作業計画をレビューする | 人間 |
+| [] | 3-4 | レビュー内容を取得し計画を修正する | エージェント |
+| [] | 3-5 | MR descriptionを更新する | エージェント |
+| [] | 3-6 | 作業を実施する | エージェント |
+| [] | 3-7 | commit・push・レビュー依頼 | エージェント |
+| [] | 3-8 | 作業結果をレビューする | 人間 |
+| [] | 3-9 | レビュー内容を取得し修正する | エージェント |
+| [] | 3-10 | MR descriptionを更新する | エージェント |
+| [] | 4-1 | 個別反映計画を作成する | エージェント |
+| [] | 4-2〜4-10 | フェーズ4〈反映〉 | - |
+| [] | 5-1〜5-6 | フェーズ5〈クローズ〉 | - |
 
 ## やったこと
 
-- flow-id 5-4: `bash .claude/scripts/src/cleanup-task.sh`で`plans/` `worklog/` `reports/`
-  （md・htmlとも）を削除し、`HANDOFF.md`をテンプレートへリセットした。
-  `worklog/TEMPLATE.md`・`REVIEW-POINTS.md`は対象外のまま残っている。
-- flow-id 5-5: 削除・リセット内容を`create-commit.sh`経由でコミット`bb2c439`し、リモートへ反映した。
-  `set_mr_ready 158`でPR #158のDraftを解除した（"ready for review"）。
+- issue #159の内容を取得し、期待する動作・受け入れ条件を確認した。
+- 参考実装として issue #70（PR #157、未マージ）のpush系hook2本への同パターン適用diffを取得し、
+  適用すべきパターン（`IFS= read -r -d '' raw || true` + `case`）を確認した。
+- issue #149（`post-issue-create-notice.sh`の判定本体をコマンド位置判定へ差し替える、未着手の
+  別issue）の内容を確認し、前置フィルタが将来の判定変更に対しても超集合であり続ける根拠を検討した。
+- 全体作業計画 `plans/reduce-hook-misfire-cost.md`（フェーズ2〈調査〉は実施しないと明記）と
+  個別作業計画 `plans/【実装】【テスト】hookの前置フィルタ追加.md`、それぞれのHTMLビューを作成した。
+- 個別作業計画に対する敵対的レビューを実施中（ユーザーからの明示指示により、非対話セッションでの
+  自律起動として実施）。
 
 ## 次にやること
 
-- flow-id 5-6（マージ）はユーザーからの明示的な指示があるまで実行しない。ユーザーが
-  「マージして」等と明示指示した場合のみ、squash mergeを実行しブランチを削除してよい。
+- 個別作業計画の敵対的レビュー結果を確認し、必要なら計画を修正する。
+- commit・push してDraft PRを作成する（flow-id 3-2相当。ユーザーからの明示指示により、
+  非対話セッションでのPR作成として実施する。`.claude/rules/git-workflow.md`
+  「ハーネスがPR作成を制限する環境での扱い」に従う）。
+- `.claude/hooks/block-direct-git-commit.sh` / `post-issue-create-notice.sh` へ前置フィルタを
+  実装し、単体テストを追加する。
+- 実装結果に対する敵対的レビューを実施する。
+- フェーズ4（DDR新規作成・AIアセット反映の要否確認）へ進む。
 
 ## 判断を迷った内容
 
-（無し）
+- 全体フローのうち、人間のレビュー往復（3-3/3-4, 3-8/3-9等）を待てない非対話セッションのため、
+  ユーザーからの「PR作りながら対応して」という指示を、flow-id 1-3のDraft PR作成についても
+  明示指示とみなして進める。
 
 ## 未解決の内容
 
@@ -50,4 +78,6 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 
 ## 守るべき条件・触ってはいけない範囲
 
-（無し）
+- 判定本体（`command_invokes_git_subcommand` / `is_issue_create_call`）のロジックは変更しない
+  （issue #159のスコープ外）。
+- `.claude/settings.json` の `if` フィールドは変更しない。

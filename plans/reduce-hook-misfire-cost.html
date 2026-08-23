@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>hookの空振り起動コスト削減 — 全体作業計画</title>
+<style>
+  :root {
+    --bg: #f6f7f9;      --panel: #ffffff;   --ink: #1a1d21;     --muted: #5b636d;
+    --line: #dfe3e8;    --accent: #2563eb;  --accent-soft: #eaf0fe;
+    --ok: #1a7f4b;      --ok-soft: #e6f4ec; --warn: #a35a00;    --warn-soft: #fdf1e0;
+    --stop: #b3261e;    --stop-soft: #fdecea; --code-bg: #f0f2f5;
+    --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1216;    --panel: #161a20;   --ink: #e6e8eb;     --muted: #9aa3ad;
+      --line: #2a3038;  --accent: #7aa2f7;  --accent-soft: #1b2333;
+      --ok: #6ee7a8;    --ok-soft: #14261d; --warn: #f0b866;    --warn-soft: #2a2113;
+      --stop: #f2857c;  --stop-soft: #2b1614; --code-bg: #1d222a;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", system-ui, sans-serif;
+    line-height: 1.8; font-size: 15px;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 20px 80px; }
+  header.band {
+    background: linear-gradient(135deg, var(--accent-soft), var(--panel));
+    border-bottom: 1px solid var(--line); padding: 28px 20px 22px; margin-bottom: 28px;
+  }
+  header.band .inner { max-width: 1080px; margin: 0 auto; }
+  header.band .kind { font-size: 11px; letter-spacing: .18em; color: var(--accent); font-weight: 700; }
+  header.band h1 { margin: 6px 0 4px; font-size: 26px; line-height: 1.4; }
+  header.band .lead { margin: 0; color: var(--muted); }
+  .meta { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; padding: 0; list-style: none; }
+  .meta li {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 999px;
+    padding: 3px 12px; font-size: 12.5px; color: var(--muted); white-space: nowrap;
+  }
+  .meta li b { color: var(--ink); font-weight: 600; }
+  nav.toc {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 14px 20px; margin-bottom: 28px;
+  }
+  nav.toc h2 { margin: 0 0 8px; font-size: 13px; letter-spacing: .08em; color: var(--muted); border: 0; padding: 0; }
+  nav.toc ol { margin: 0; padding-left: 20px; }
+  nav.toc li { margin: 2px 0; }
+  a { color: var(--accent); }
+  section {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 8px 24px 22px; margin-bottom: 22px;
+  }
+  h2 { font-size: 20px; margin: 20px 0 10px; padding-bottom: 8px; border-bottom: 2px solid var(--line); }
+  h3 { font-size: 16px; margin: 22px 0 8px; color: var(--accent); }
+  p { margin: 10px 0; }
+  ul, ol { padding-left: 22px; }
+  li { margin: 4px 0; }
+  .tablewrap { overflow-x: auto; margin: 14px 0; }
+  table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 14px; }
+  th, td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: var(--accent-soft); font-weight: 600; white-space: nowrap; }
+  tbody tr:nth-child(even) td { background: color-mix(in srgb, var(--line) 22%, transparent); }
+  code {
+    background: var(--code-bg); border-radius: 5px; padding: 1px 5px; font-size: 13px;
+    font-family: "SFMono-Regular", Consolas, "Noto Sans Mono", monospace;
+  }
+  pre {
+    background: var(--code-bg); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 12px 14px; overflow-x: auto; font-size: 13px; line-height: 1.65;
+  }
+  pre code { background: none; padding: 0; }
+  .box { border-left: 4px solid var(--accent); background: var(--accent-soft);
+         border-radius: 0 var(--radius) var(--radius) 0; padding: 12px 16px; margin: 16px 0; }
+  .box > :first-child { margin-top: 0; } .box > :last-child { margin-bottom: 0; }
+  .box .label { font-size: 12px; font-weight: 700; letter-spacing: .06em; display: block; margin-bottom: 4px; }
+  .box.stop { border-color: var(--stop); background: var(--stop-soft); } .box.stop .label { color: var(--stop); }
+  footer { color: var(--muted); font-size: 13px; text-align: center; padding-top: 10px; }
+</style>
+</head>
+<body>
+
+<header class="band">
+  <div class="inner">
+    <div class="kind">全体作業計画 / フェーズ1</div>
+    <h1>hookの空振り起動コストを前置フィルタで削減する</h1>
+    <p class="lead">対象外のツール呼び出しでhookが起動して即終了する際のプロセス生成コストを、判定に辿り着く前の段階で落として消す。</p>
+    <ul class="meta">
+      <li><b>issue</b> #159</li>
+      <li><b>ブランチ</b> claude/reduce-hook-misfire-cost-p4xzyo</li>
+      <li><b>フェーズ</b> 1〈起点〉 flow-id 1-4</li>
+      <li><b>作成日</b> 2026-08-23</li>
+      <li><b>正文</b> 同名の .md</li>
+    </ul>
+  </div>
+</header>
+
+<div class="wrap">
+
+<nav class="toc">
+  <h2>目次</h2>
+  <ol>
+    <li><a href="#premise">前提</a></li>
+    <li><a href="#goal">この計画で何をするか</a></li>
+    <li><a href="#target">全体の変更対象</a></li>
+    <li><a href="#phase-research">フェーズ2〈調査〉</a></li>
+    <li><a href="#phase-apply">フェーズ4〈反映〉</a></li>
+    <li><a href="#out-of-scope">やらないこと（スコープ外）</a></li>
+    <li><a href="#verify">検証</a></li>
+    <li><a href="#criteria">issueの受け入れ条件との対応</a></li>
+  </ol>
+</nav>
+
+<section id="premise">
+  <h2>前提</h2>
+  <ul>
+    <li>対象は <code>block-direct-git-commit.sh</code>（PreToolUse）と
+      <code>post-issue-create-notice.sh</code>（PostToolUse）。どちらも <code>if</code> フィールドを
+      持たず、Bash/PowerShell（後者はさらに<code>mcp__github__issue_write</code>）の全呼び出しで起動する。</li>
+    <li>issue #159実測（2026-08-22, strace）: 空振り1回で
+      <code>block-direct-git-commit.sh</code> = execve 5 / clone 10、
+      <code>post-issue-create-notice.sh</code> = execve 7 / clone 17。原因は判定材料の取り出し
+      （<code>raw="$(cat)"</code> と <code>printf | jq</code> の連鎖）。</li>
+    <li><b>issue #70（PR #157、未マージ）が push系hook2本で同じ問題を解決済み。</b>
+      <code>IFS= read -r -d '' raw || true</code> + <code>case</code> による足切りパターンを
+      本issueで残り2本へ適用する（PR #157 diffで実装内容を確認済み）。</li>
+    <li>issue #149（未着手）は <code>post-issue-create-notice.sh</code> の判定本体を
+      コマンド位置判定へ差し替える別issue。前置フィルタはその新判定に対しても超集合であること
+      が受け入れ条件。</li>
+  </ul>
+</section>
+
+<section id="goal">
+  <h2>この計画で何をするか</h2>
+  <p>2本のhookの<code>main()</code>冒頭に、判定本体（jq呼び出しを含む）へ入る前の前置フィルタを
+  追加し、対象外のペイロードで<code>jq</code>が1回も呼ばれないようにする。判定本体
+  （<code>command_invokes_git_subcommand</code> / <code>is_issue_create_call</code>）は変更しない。
+  前置フィルタのパターンが精密判定の<b>超集合</b>であることをテストで固定する。</p>
+</section>
+
+<section id="target">
+  <h2>全体の変更対象</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>ファイル</th><th>操作</th><th>何をするか</th></tr></thead>
+    <tbody>
+      <tr><td><code>.claude/hooks/block-direct-git-commit.sh</code></td><td>変更</td><td>前置フィルタ追加</td></tr>
+      <tr><td><code>.claude/hooks/post-issue-create-notice.sh</code></td><td>変更</td><td>前置フィルタ追加</td></tr>
+      <tr><td><code>.claude/scripts/test/</code></td><td>新規・変更</td><td>前置フィルタの単体テスト</td></tr>
+      <tr><td><code>.claude/docs/ddr/</code></td><td>新規</td><td>前置フィルタパターンの意思決定記録</td></tr>
+      <tr><td><code>.claude/rules/shell-script-style.md</code></td><td>変更（要否はフェーズ4で確定）</td><td>hook向け前置フィルタパターンの追記を検討</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="phase-research">
+  <h2>フェーズ2〈調査〉</h2>
+  <p><b>実施しない。</b>対象hookの現状（<code>if</code>を持たないこと・jq呼び出し回数）は
+  issue本文の実測値とスクリプト読解で確定済み。適用パターンはissue #70（PR #157）が実装・実測
+  済みでdiffを直接参照できる。精密判定のロジックも既存実装として読解済みで、超集合の条件は
+  自明に導ける。新規に調べる問いが無い。</p>
+</section>
+
+<section id="phase-apply">
+  <h2>フェーズ4〈反映〉</h2>
+  <ul>
+    <li><b>設計反映</b>: 前置フィルタパターンの意思決定をDDRとして新規作成する（issue #70は
+      まだDDRを持たないため、本DDRが正式な記録の初出になる）。</li>
+    <li><b>AIアセット反映</b>: 前置フィルタの一般的な書き方を再利用可能な形で
+      <code>.claude/rules/shell-script-style.md</code>「外部プロセス起動のコスト」節へ
+      追記する価値があるか確認する。</li>
+    <li><b>実装反映</b>: 該当なし（フェーズ3のレビュー往復で解消しきれなかった不具合が
+      出た場合のみ）。</li>
+  </ul>
+</section>
+
+<section id="out-of-scope">
+  <h2>やらないこと（スコープ外）</h2>
+  <div class="box stop">
+    <span class="label">この計画では決めない・触らない</span>
+    <ul>
+      <li>push系2本のhookへの適用（issue #70の範囲。#159は明示的にそこから切り出されている）</li>
+      <li><code>is_issue_create_call</code>の判定本体をコマンド位置判定へ差し替えること（issue #149の範囲）</li>
+      <li><code>.claude/settings.json</code>の<code>if</code>フィールドの追加・変更（issue #47が両論併記のまま残す照合規則には触れない）</li>
+    </ul>
+  </div>
+</section>
+
+<section id="verify">
+  <h2>検証</h2>
+  <pre><code>bash .claude/scripts/test/test_command_position.sh
+bash .claude/scripts/test/test_post_issue_create_notice.sh
+bash .claude/scripts/test/test_block_direct_git_commit.sh
+# スタブjqでjqが1回も呼ばれないことを確認（時間計測に頼らない）</code></pre>
+  <p>合格条件: 全テスト<code>failures=0</code>。前後のexecve/clone実測値を記録に残す。</p>
+</section>
+
+<section id="criteria">
+  <h2>issueの受け入れ条件との対応</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>受け入れ条件</th><th>この計画での対応箇所</th></tr></thead>
+    <tbody>
+      <tr><td>2本の<code>main()</code>冒頭を<code>read -d ''</code>+<code>case</code>による足切りへ置き換える</td><td>個別計画「変更対象」</td></tr>
+      <tr><td><code>|| true</code>を省かない</td><td>個別計画「方針」</td></tr>
+      <tr><td>パターンが超集合であることをテストで固定。<code>git -C /x push</code>のように語が連続しない形を含む</td><td>個別計画「検証」</td></tr>
+      <tr><td>足切りされるペイロードでjqが1回も呼ばれないことをスタブjqで検証</td><td>個別計画「検証」</td></tr>
+      <tr><td>issue #149と同じファイルを触る。前置フィルタは新しい判定の超集合であること</td><td>「前提」節・DDR（フェーズ4）</td></tr>
+      <tr><td>前後のexecve/cloneの実測値を記録に残す</td><td>個別計画・報告（reports/）</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<footer>issue #159 — 計画の正文は同名の <code>.md</code>。外部依存を持たない自己完結HTML。</footer>
+
+</div>
+</body>
+</html>
