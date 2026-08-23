@@ -1,0 +1,182 @@
+<!--
+  レポートHTMLビュー デザイン案12「ミニマル・モノクロ型（意味色のみ着色）」（Tailwind CSS利用サンプル）
+
+  構成・DOM構造は採用案06（サイドバー＋サマリファースト＋タイムライン詳細）と同一。
+  ビジュアルのみ変更した第3ラウンドのバリエーション。
+  本案の方針:
+    - UIの装飾（背景・枠・リンク等）を白黒＋グレーに徹底的に抑え、**色を持つのは
+      意味論を担う要素（◎良/△注意/✕問題のチップ・ドット・件数）だけ**にする。
+      「色が見えたら、それは結論の性質である」という1対1対応で認知負荷を下げる。
+    - リンクは下線のみで示す（青リンク色を使わない。◎良の青と競合させないため）。
+    - 枠は1pxの実線のみ。影・角丸・グラデーションを使わない。
+
+  現行テンプレートの意味論（◎良/△注意/✕問題の3色＋記号、◆◇・は色相を使わない）は維持。
+  比較用に各案共通のダミー内容（架空のissue #201 調査レポート）を使用。
+-->
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>案12: ミニマル・モノクロ型 — 検索インデックス生成の高速化調査</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  html { scroll-behavior: smooth; }
+  [id] { scroll-margin-top: 1rem; }
+  details > summary { cursor: pointer; }
+</style>
+</head>
+<body class="bg-white text-neutral-900 dark:bg-neutral-950 dark:text-neutral-100 font-sans leading-relaxed">
+
+<div class="lg:flex max-w-6xl mx-auto">
+
+  <!-- サイドバー -->
+  <aside class="lg:w-64 lg:shrink-0 lg:sticky lg:top-0 lg:h-screen lg:overflow-y-auto border-b lg:border-b-0 lg:border-r border-neutral-300 dark:border-neutral-700 p-7">
+    <p class="text-[11px] tracking-[0.2em] font-bold text-neutral-400">調査結果レポート / フェーズ2</p>
+    <h1 class="mt-2 text-lg font-bold leading-snug">検索インデックス生成の高速化調査</h1>
+    <div class="mt-3 flex flex-wrap gap-1.5 text-xs font-bold">
+      <span class="bg-blue-600 text-white px-2 py-0.5">◎良 2</span>
+      <span class="bg-amber-500 text-black px-2 py-0.5">△注意 1</span>
+      <span class="bg-red-600 text-white px-2 py-0.5">✕問題 1</span>
+    </div>
+    <nav class="mt-7">
+      <p class="text-[11px] font-bold tracking-widest text-neutral-400 uppercase">目次</p>
+      <ol class="mt-2 space-y-1.5 text-sm">
+        <li><a class="underline underline-offset-4 decoration-neutral-300 hover:decoration-neutral-900 dark:hover:decoration-neutral-100 font-semibold" href="#overview">サマリ・レビュー依頼</a></li>
+        <li><a class="underline underline-offset-4 decoration-neutral-300 hover:decoration-neutral-900 dark:hover:decoration-neutral-100" href="#unverified">確かめられなかったこと</a></li>
+        <li>
+          <a class="underline underline-offset-4 decoration-neutral-300 hover:decoration-neutral-900 dark:hover:decoration-neutral-100" href="#timeline">実施の流れ（タイムライン）</a>
+          <ol class="mt-1.5 space-y-1 pl-4 text-[13px] text-neutral-500">
+            <li><a class="hover:text-neutral-900 dark:hover:text-neutral-100" href="#f1"><span class="text-blue-600">◎</span> 1. mtimeキャッシュ</a></li>
+            <li><a class="hover:text-neutral-900 dark:hover:text-neutral-100" href="#f2"><span class="text-blue-600">◎</span> 2. jq起動の集約</a></li>
+            <li><a class="hover:text-neutral-900 dark:hover:text-neutral-100" href="#f3"><span class="text-amber-600">△</span> 3. 実機は未計測</a></li>
+            <li><a class="hover:text-neutral-900 dark:hover:text-neutral-100" href="#f4"><span class="text-red-600">✕</span> 4. 走査中断</a></li>
+          </ol>
+        </li>
+        <li><a class="underline underline-offset-4 decoration-neutral-300 hover:decoration-neutral-900 dark:hover:decoration-neutral-100" href="#next">設計への反映・残課題</a></li>
+      </ol>
+    </nav>
+    <dl class="mt-7 border-t border-neutral-300 dark:border-neutral-700 pt-4 space-y-1 text-xs text-neutral-500">
+      <div class="flex justify-between"><dt>issue</dt><dd class="text-neutral-900 dark:text-neutral-100">#201</dd></div>
+      <div class="flex justify-between"><dt>PR</dt><dd class="text-neutral-900 dark:text-neutral-100">#205</dd></div>
+      <div class="flex justify-between"><dt>ブランチ</dt><dd class="text-neutral-900 dark:text-neutral-100 truncate pl-2">feature-201-index-speedup</dd></div>
+      <div class="flex justify-between"><dt>作成日</dt><dd class="text-neutral-900 dark:text-neutral-100">2026-08-23</dd></div>
+      <div class="flex justify-between"><dt>正文</dt><dd class="text-neutral-900 dark:text-neutral-100">同名の .md</dd></div>
+    </dl>
+  </aside>
+
+  <main class="flex-1 min-w-0 px-6 py-10 lg:px-12">
+    <div class="max-w-2xl">
+
+      <!-- サマリファースト -->
+      <section id="overview">
+        <p class="text-xl">再生成136秒の主因はjqの起動回数。<strong>1ファイル1回へ集約＋mtimeキャッシュで約10秒</strong>になる。ただし削除済み未ステージのファイルで走査が中断する問題が1件。</p>
+
+        <div class="mt-6 flex max-w-md border border-neutral-300 dark:border-neutral-700 divide-x divide-neutral-300 dark:divide-neutral-700 text-center">
+          <div class="flex-1 py-3"><p class="text-2xl font-bold text-blue-600">2</p><p class="text-xs font-bold text-blue-600">◎良</p></div>
+          <div class="flex-1 py-3"><p class="text-2xl font-bold text-amber-600">1</p><p class="text-xs font-bold text-amber-600">△注意</p></div>
+          <div class="flex-1 py-3"><p class="text-2xl font-bold text-red-600">1</p><p class="text-xs font-bold text-red-600">✕問題</p></div>
+        </div>
+
+        <div class="mt-7 border border-neutral-300 dark:border-neutral-700 divide-y divide-neutral-300 dark:divide-neutral-700">
+          <div class="p-4">
+            <p class="text-sm font-bold">◆特に見てほしい <span class="font-normal text-neutral-400">— 判断に困っている</span></p>
+            <p class="mt-1 text-sm"><a class="underline underline-offset-4" href="#f1">1. mtimeキャッシュ</a> — 巻き戻し時の無効化をどこまで守るか決めてほしい。</p>
+          </div>
+          <div class="p-4">
+            <p class="text-sm font-bold">◇承認が欲しい <span class="font-normal text-neutral-400">— 方針は決めた</span></p>
+            <p class="mt-1 text-sm"><a class="underline underline-offset-4" href="#f2">2. jq集約</a> — <code class="bg-neutral-100 dark:bg-neutral-800 px-1 text-[13px]">--args</code> 一括渡しで決めた。</p>
+          </div>
+          <div class="p-4 text-neutral-400">
+            <p class="text-sm font-bold">・細かいレビュー不要 <span class="font-normal">— ほぼ確実</span></p>
+            <p class="mt-1 text-sm"><a class="underline underline-offset-4" href="#f4">4. 走査中断の再現</a> — 実測で確認済み。</p>
+          </div>
+        </div>
+      </section>
+
+      <section id="unverified" class="mt-6 border-l-4 border-amber-500 pl-4">
+        <p class="text-xs font-bold text-amber-600">確かめられなかったこと（この結果が言っていないこと）</p>
+        <p class="mt-1 text-sm">git bash（MSYS）実機でのfork単価と所要時間の絶対値 — <a class="underline underline-offset-4" href="#f3">詳細: 手順3</a></p>
+      </section>
+
+      <!-- タイムライン -->
+      <section id="timeline" class="mt-12">
+        <h2 class="text-base font-bold uppercase tracking-widest text-neutral-400">実施の流れと結果</h2>
+        <ol class="mt-6 relative border-l border-neutral-300 dark:border-neutral-700 space-y-10 pl-8 ml-2">
+
+          <li id="conditions" class="relative">
+            <span class="absolute -left-[37px] top-1.5 h-3.5 w-3.5 rounded-full border-2 border-neutral-400 bg-white dark:bg-neutral-950"></span>
+            <p class="text-xs font-bold text-neutral-400">0. 実施条件（測った対象・環境）</p>
+            <p class="mt-1 text-sm text-neutral-600 dark:text-neutral-300">Claude Code on the web（Linux）/ bash 5.2.21 / jq 1.7.1 / 対象43ファイル / 実施日 2026-08-23。1環境の観測であり、全環境の事実としては扱わない。</p>
+          </li>
+
+          <li id="f1" class="relative">
+            <span class="absolute -left-[37px] top-1.5 h-3.5 w-3.5 rounded-full bg-blue-600"></span>
+            <div class="flex flex-wrap items-baseline gap-2">
+              <h3 class="text-base font-bold">1. mtimeキャッシュの効果</h3>
+              <span class="bg-blue-600 text-white px-1.5 py-px text-[11px] font-bold">◎良</span>
+              <span class="text-xs text-neutral-400">根拠: 実測</span>
+            </div>
+            <p class="mt-1.5 text-sm">mtimeが変わっていないファイルの結果を前回出力から再利用する方式で比較。<strong>差分が無いときの再生成は136秒→約10秒</strong>。キャッシュキーはmtime＋スクリプト自身のハッシュとする。</p>
+            <details class="mt-2">
+              <summary class="text-xs font-bold text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 underline underline-offset-4">根拠を見る（実行コマンドと出力）</summary>
+              <pre class="mt-2 border border-neutral-300 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-900 p-3 text-[13px] overflow-x-auto"><code>$ time bash extract-frontmatter.sh .   # キャッシュ無し
+real  2m16.4s
+$ time bash extract-frontmatter.sh .   # キャッシュ有り（差分なし）
+real  0m9.8s</code></pre>
+            </details>
+          </li>
+
+          <li id="f2" class="relative">
+            <span class="absolute -left-[37px] top-1.5 h-3.5 w-3.5 rounded-full bg-blue-600"></span>
+            <div class="flex flex-wrap items-baseline gap-2">
+              <h3 class="text-base font-bold">2. jq起動の集約可否</h3>
+              <span class="bg-blue-600 text-white px-1.5 py-px text-[11px] font-bold">◎良</span>
+              <span class="text-xs text-neutral-400">根拠: 実装の確認</span>
+            </div>
+            <p class="mt-1.5 text-sm">キー・配列要素ごとのjq呼び出し（1ファイル約30回）は、シェル配列へ中間表現を溜めて<strong>1ファイル1回へ集約できる</strong>。ハイフン始まりの値対策として <code class="bg-neutral-100 dark:bg-neutral-800 px-1 text-[13px]">--args</code> の後ろへ <code class="bg-neutral-100 dark:bg-neutral-800 px-1 text-[13px]">--</code> を置く。</p>
+          </li>
+
+          <li id="f3" class="relative">
+            <span class="absolute -left-[37px] top-1.5 h-3.5 w-3.5 rounded-full bg-amber-500"></span>
+            <div class="flex flex-wrap items-baseline gap-2">
+              <h3 class="text-base font-bold">3. git bash実機は未計測</h3>
+              <span class="bg-amber-500 text-black px-1.5 py-px text-[11px] font-bold">△注意</span>
+              <span class="text-xs text-neutral-400">根拠: 実測（Linuxのみ）</span>
+            </div>
+            <p class="mt-1.5 text-sm">計測はすべてLinux。git bashのfork単価（約95ms/回）とは桁が違う。起動回数の削減比（30回→1回）は環境に依らないが、「約10秒」という絶対値はgit bash実機で測り直すまで結論にしない。</p>
+          </li>
+
+          <li id="f4" class="relative">
+            <span class="absolute -left-[37px] top-1.5 h-3.5 w-3.5 rounded-full bg-red-600"></span>
+            <div class="flex flex-wrap items-baseline gap-2">
+              <h3 class="text-base font-bold">4. 削除ファイルで走査中断</h3>
+              <span class="bg-red-600 text-white px-1.5 py-px text-[11px] font-bold">✕問題</span>
+              <span class="text-xs text-neutral-400">根拠: 実測</span>
+            </div>
+            <p class="mt-1.5 text-sm">追跡ファイルを削除して未ステージのまま走査すると、<code class="bg-neutral-100 dark:bg-neutral-800 px-1 text-[13px]">git ls-files</code> の列挙に実体の無いパスが混ざり走査全体が中断する。<strong>列挙とファイル操作の間に <code class="bg-neutral-100 dark:bg-neutral-800 px-1 text-[13px]">[[ -f ]]</code> の実体判定を挟む修正が必要</strong>（スキップ件数は必ず出力する）。</p>
+            <details class="mt-2">
+              <summary class="text-xs font-bold text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 underline underline-offset-4">根拠を見る（エラー出力）</summary>
+              <pre class="mt-2 border border-neutral-300 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-900 p-3 text-[13px] overflow-x-auto"><code>stat: cannot statx 'wip/reports/old.md': No such file or directory</code></pre>
+            </details>
+          </li>
+
+          <li id="next" class="relative">
+            <span class="absolute -left-[37px] top-1.5 h-3.5 w-3.5 rounded-full border-2 border-neutral-900 dark:border-neutral-100 bg-white dark:bg-neutral-950"></span>
+            <p class="text-xs font-bold text-neutral-400">→ 設計への反映</p>
+            <ol class="mt-1 list-decimal pl-5 text-sm space-y-1">
+              <li>フェーズ3で1ファイル1回のjq集約＋mtimeキャッシュを実装する。</li>
+              <li>実測値と前提条件は <code class="bg-neutral-100 dark:bg-neutral-800 px-1 text-[13px]">.claude/docs/spec/extract-frontmatter.md</code>「性能」節へ反映する。</li>
+            </ol>
+            <p class="mt-2 text-xs text-neutral-400">残課題: git bash実機での再計測（別issueで扱う）。</p>
+          </li>
+        </ol>
+      </section>
+
+      <footer class="mt-14 border-t border-neutral-300 dark:border-neutral-700 pt-4 text-center text-xs text-neutral-400">issue #201 / PR #205 — 結果の正文は同名の <code>.md</code>。デザイン案12（ミニマル・モノクロ型）。</footer>
+    </div>
+  </main>
+</div>
+
+</body>
+</html>

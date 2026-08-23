@@ -1,0 +1,215 @@
+<!--
+  レポートHTMLビュー 検証サンプル「作業結果レポート版（実MR題材）」
+
+  目的:
+    採用案06（サイドバー＋サマリファースト＋タイムライン詳細）の構成が、調査結果レポート
+    （フェーズ2）だけでなく**作業結果レポート（フェーズ3 / flow-id 3-6）でも成立するか**を
+    判断するための実例。デザインは06と同一で、内容だけを実在のマージ済みMRから起こした。
+
+  題材（実データ）:
+    PR #179「post-issue-create-notice.shの検知をコマンド位置ベースにして誤検知を減らす」
+    （issue #149 / 13コミット / +1,478 −78 / 18ファイル）。内容はPR descriptionと
+    変更ファイル一覧から再構成した（当該ブランチのwip/reports実物はflow-id 5-5で削除済みのため）。
+
+  調査版との構成の対応（読み替え）:
+    - 「結論」→「作業項目ごとの完了状態」（◎=完了・検証済み / △=制限付き / ✕=未完・問題）
+    - 「実施条件」→「作業の規模・ベース断面」
+    - 「実施の流れ」→ 実装→テスト→ドキュメント反映の作業順
+    - ✕問題 0件のケース（0を明示して残す）もこのサンプルで確認できる
+-->
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>作業結果レポート版サンプル — post-issue-create-notice.shのコマンド位置判定化（PR #179）</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  html { scroll-behavior: smooth; }
+  [id] { scroll-margin-top: 1rem; }
+  details > summary { cursor: pointer; }
+</style>
+</head>
+<body class="bg-slate-100 text-slate-800 dark:bg-slate-950 dark:text-slate-200 font-sans leading-relaxed">
+
+<div class="lg:flex max-w-7xl mx-auto">
+
+  <!-- サイドバー -->
+  <aside class="lg:w-72 lg:shrink-0 lg:sticky lg:top-0 lg:h-screen lg:overflow-y-auto border-b lg:border-b-0 lg:border-r border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6">
+    <p class="text-[11px] tracking-[0.2em] font-bold text-blue-600 dark:text-blue-400">作業結果レポート / フェーズ3</p>
+    <h1 class="mt-2 text-lg font-bold leading-snug">post-issue-create-notice.sh の検知をコマンド位置判定へ移行</h1>
+    <div class="mt-3 flex flex-wrap gap-1.5">
+      <span class="rounded-full bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300 px-2.5 py-0.5 text-xs font-semibold">◎良 3</span>
+      <span class="rounded-full bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 px-2.5 py-0.5 text-xs font-semibold">△注意 2</span>
+      <span class="rounded-full bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300 px-2.5 py-0.5 text-xs font-semibold">✕問題 0</span>
+    </div>
+    <nav class="mt-6">
+      <p class="text-xs font-bold tracking-widest text-slate-400 dark:text-slate-500">目次</p>
+      <ol class="mt-2 space-y-1 text-sm">
+        <li><a class="block rounded px-2 py-1 hover:bg-slate-100 dark:hover:bg-slate-800 font-semibold text-blue-700 dark:text-blue-400" href="#overview">サマリ・レビュー依頼</a></li>
+        <li><a class="block rounded px-2 py-1 hover:bg-slate-100 dark:hover:bg-slate-800" href="#unverified">確かめられなかったこと</a></li>
+        <li>
+          <a class="block rounded px-2 py-1 hover:bg-slate-100 dark:hover:bg-slate-800" href="#timeline">作業の流れ（タイムライン）</a>
+          <ol class="ml-3 mt-1 space-y-0.5 border-l border-slate-200 dark:border-slate-700 pl-3 text-[13px] text-slate-500 dark:text-slate-400">
+            <li><a class="block rounded px-1 py-0.5 hover:bg-slate-100 dark:hover:bg-slate-800" href="#conditions">0. 作業の規模・ベース断面</a></li>
+            <li><a class="block rounded px-1 py-0.5 hover:bg-slate-100 dark:hover:bg-slate-800" href="#w1"><span class="text-blue-600 dark:text-blue-400">◎</span> 1. 判定ライブラリ拡張</a></li>
+            <li><a class="block rounded px-1 py-0.5 hover:bg-slate-100 dark:hover:bg-slate-800" href="#w2"><span class="text-blue-600 dark:text-blue-400">◎</span> 2. hook判定差し替え</a></li>
+            <li><a class="block rounded px-1 py-0.5 hover:bg-slate-100 dark:hover:bg-slate-800" href="#w3"><span class="text-blue-600 dark:text-blue-400">◎</span> 3. 回帰テスト183件</a></li>
+            <li><a class="block rounded px-1 py-0.5 hover:bg-slate-100 dark:hover:bg-slate-800" href="#w4"><span class="text-amber-600 dark:text-amber-400">△</span> 4. 超集合性は推論のみ</a></li>
+            <li><a class="block rounded px-1 py-0.5 hover:bg-slate-100 dark:hover:bg-slate-800" href="#w5"><span class="text-amber-600 dark:text-amber-400">△</span> 5. 実機は未確認</a></li>
+          </ol>
+        </li>
+        <li><a class="block rounded px-2 py-1 hover:bg-slate-100 dark:hover:bg-slate-800" href="#next">設計への反映・残課題</a></li>
+      </ol>
+    </nav>
+    <dl class="mt-6 space-y-1 text-xs text-slate-500 dark:text-slate-400 border-t border-slate-200 dark:border-slate-800 pt-4">
+      <div class="flex gap-2"><dt class="font-semibold text-slate-600 dark:text-slate-300 w-16">issue</dt><dd>#149</dd></div>
+      <div class="flex gap-2"><dt class="font-semibold text-slate-600 dark:text-slate-300 w-16">ブランチ</dt><dd class="truncate">claude/post-issue-notice-detection-xleu14</dd></div>
+      <div class="flex gap-2"><dt class="font-semibold text-slate-600 dark:text-slate-300 w-16">PR</dt><dd>#179（マージ済み）</dd></div>
+      <div class="flex gap-2"><dt class="font-semibold text-slate-600 dark:text-slate-300 w-16">フェーズ</dt><dd>3〈作業〉 flow-id 3-6</dd></div>
+      <div class="flex gap-2"><dt class="font-semibold text-slate-600 dark:text-slate-300 w-16">作成日</dt><dd>2026-08-23</dd></div>
+      <div class="flex gap-2"><dt class="font-semibold text-slate-600 dark:text-slate-300 w-16">正文</dt><dd>同名の .md</dd></div>
+    </dl>
+  </aside>
+
+  <!-- 本文 -->
+  <main class="flex-1 min-w-0 px-5 py-8 lg:px-10">
+    <div class="max-w-3xl">
+
+      <!-- サマリファースト -->
+      <section id="overview">
+        <p class="text-lg">CLI経路の検知を、ファイル名だけの部分一致から<strong class="text-blue-700 dark:text-blue-300">「コマンド位置」判定へ差し替えた</strong>。既存のgit専用判定はbyte-identicalのまま保ち、回帰テスト183件がすべて緑。未完・問題は無い（実機確認など制限付きが2件）。</p>
+
+        <div class="mt-5 grid grid-cols-3 gap-3 max-w-md">
+          <div class="rounded-xl bg-white dark:bg-slate-900 border border-blue-200 dark:border-blue-900 p-3 text-center">
+            <p class="text-2xl font-bold text-blue-700 dark:text-blue-300">3</p><p class="text-xs font-semibold text-blue-700 dark:text-blue-300">◎良</p>
+          </div>
+          <div class="rounded-xl bg-white dark:bg-slate-900 border border-amber-200 dark:border-amber-900 p-3 text-center">
+            <p class="text-2xl font-bold text-amber-700 dark:text-amber-300">2</p><p class="text-xs font-semibold text-amber-700 dark:text-amber-300">△注意</p>
+          </div>
+          <div class="rounded-xl bg-white dark:bg-slate-900 border border-red-200 dark:border-red-900 p-3 text-center">
+            <p class="text-2xl font-bold text-red-700 dark:text-red-300">0</p><p class="text-xs font-semibold text-red-700 dark:text-red-300">✕問題</p>
+          </div>
+        </div>
+
+        <div class="mt-6 grid gap-3 md:grid-cols-3">
+          <div class="rounded-xl border-2 border-blue-500 bg-blue-50 dark:bg-blue-950/40 p-4">
+            <p class="text-sm font-bold text-blue-700 dark:text-blue-300">◆特に見てほしい</p>
+            <p class="text-xs text-blue-700/70 dark:text-blue-300/70">判断に困っている</p>
+            <p class="mt-2 text-sm"><a class="text-blue-700 dark:text-blue-400 underline underline-offset-2" href="#w2">2. 3段ガードの遅延初期化</a> — issue #159の前置フィルタ最適化を打ち消さない設計か確認してほしい。</p>
+          </div>
+          <div class="rounded-xl border border-blue-400 bg-white dark:bg-slate-900 p-4">
+            <p class="text-sm font-bold text-blue-700 dark:text-blue-300">◇承認が欲しい</p>
+            <p class="text-xs text-blue-700/70 dark:text-blue-300/70">方針は決めた</p>
+            <p class="mt-2 text-sm"><a class="text-blue-700 dark:text-blue-400 underline underline-offset-2" href="#w1">1. 既存git専用関数は無変更</a> — byte-identicalを確認して決めた。</p>
+          </div>
+          <div class="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4 text-slate-500 dark:text-slate-400">
+            <p class="text-sm font-bold">・細かいレビュー不要</p>
+            <p class="text-xs opacity-70">ほぼ確実</p>
+            <p class="mt-2 text-sm"><a class="underline underline-offset-2" href="#w3">3. 回帰テスト・docs更新</a> — 183件すべて緑を確認済み。</p>
+          </div>
+        </div>
+      </section>
+
+      <section id="unverified" class="mt-4 rounded-xl border-l-4 border-amber-500 bg-amber-50 dark:bg-amber-950/40 p-4">
+        <p class="text-xs font-bold tracking-wide text-amber-700 dark:text-amber-300">確かめられなかったこと（この結果が言っていないこと）</p>
+        <ul class="mt-1 list-disc pl-5 text-sm space-y-0.5">
+          <li>前置フィルタ（issue #159）の超集合性 — 設計上の推論のみで、判定本体との突き合わせテストは未追加 — <a class="text-blue-700 dark:text-blue-400 underline underline-offset-2" href="#w4">詳細: 手順4</a></li>
+          <li>Windows / git bash実機での動作・性能 — <a class="text-blue-700 dark:text-blue-400 underline underline-offset-2" href="#w5">詳細: 手順5</a></li>
+        </ul>
+      </section>
+
+      <!-- タイムライン -->
+      <section id="timeline" class="mt-10">
+        <h2 class="text-lg font-bold">作業の流れと結果</h2>
+        <ol class="mt-5 relative border-l-2 border-slate-200 dark:border-slate-700 space-y-8 pl-8 ml-3">
+
+          <li id="conditions" class="relative">
+            <span class="absolute -left-[41px] top-0.5 grid h-6 w-6 place-items-center rounded-full bg-slate-200 dark:bg-slate-700 text-[11px] font-bold text-slate-600 dark:text-slate-300 ring-4 ring-slate-100 dark:ring-slate-950">0</span>
+            <p class="text-xs font-bold tracking-wide text-slate-400">作業の規模・ベース断面</p>
+            <p class="mt-1 text-sm text-slate-600 dark:text-slate-300">ベース main@43aabe5 / 13コミット / +1,478 −78 / 変更18ファイル（うち9件は <code class="rounded bg-slate-100 dark:bg-slate-800 px-1 text-[13px]">.gemini/</code> の変換生成物）。敵対的レビュー指摘38件（フェーズ3: 16件、フェーズ4: 22件）をすべて反映。</p>
+          </li>
+
+          <li id="w1" class="relative">
+            <span class="absolute -left-[41px] top-0.5 grid h-6 w-6 place-items-center rounded-full bg-blue-600 text-[11px] font-bold text-white ring-4 ring-slate-100 dark:ring-slate-950">1</span>
+            <div class="flex flex-wrap items-center gap-2">
+              <h3 class="text-base font-bold">判定ライブラリ拡張（CommandPosition.sh）</h3>
+              <span class="rounded-full bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300 px-2.5 py-0.5 text-xs font-semibold">◎良</span>
+              <span class="text-xs text-slate-400">根拠: 単体テスト118件</span>
+            </div>
+            <p class="mt-1 text-sm"><code class="rounded bg-slate-100 dark:bg-slate-800 px-1 text-[13px]">_cp_scan_tokens_for_script</code>（内部）と <code class="rounded bg-slate-100 dark:bg-slate-800 px-1 text-[13px]">command_invokes_script</code>（公開）を新規追加。<strong>既存のgit専用関数（<code class="rounded bg-slate-100 dark:bg-slate-800 px-1 text-[13px]">command_invokes_git_subcommand</code> 等）は無変更で、byte-identicalを確認した</strong>。</p>
+          </li>
+
+          <li id="w2" class="relative">
+            <span class="absolute -left-[41px] top-0.5 grid h-6 w-6 place-items-center rounded-full bg-blue-600 text-[11px] font-bold text-white ring-4 ring-slate-100 dark:ring-slate-950">2</span>
+            <div class="flex flex-wrap items-center gap-2">
+              <h3 class="text-base font-bold">hookのCLI経路判定を差し替え</h3>
+              <span class="rounded-full bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300 px-2.5 py-0.5 text-xs font-semibold">◎良</span>
+              <span class="text-xs text-slate-400">根拠: 単体テスト38件</span>
+            </div>
+            <p class="mt-1 text-sm"><code class="rounded bg-slate-100 dark:bg-slate-800 px-1 text-[13px]">post-issue-create-notice.sh</code> の検知を <code class="rounded bg-slate-100 dark:bg-slate-800 px-1 text-[13px]">create-issue.sh</code> の部分一致から <code class="rounded bg-slate-100 dark:bg-slate-800 px-1 text-[13px]">command_invokes_script</code> へ差し替え。3段ガード（<code class="rounded bg-slate-100 dark:bg-slate-800 px-1 text-[13px]">_pin_cli_match</code>）は<strong>初期化（source・バージョン確認）を初回呼び出しまで遅延</strong>させ、issue #159の前置フィルタ最適化（対象外ペイロードでjq起動ゼロ）を打ち消さない設計にした。</p>
+          </li>
+
+          <li id="w3" class="relative">
+            <span class="absolute -left-[41px] top-0.5 grid h-6 w-6 place-items-center rounded-full bg-blue-600 text-[11px] font-bold text-white ring-4 ring-slate-100 dark:ring-slate-950">3</span>
+            <div class="flex flex-wrap items-center gap-2">
+              <h3 class="text-base font-bold">回帰テスト一式が緑</h3>
+              <span class="rounded-full bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300 px-2.5 py-0.5 text-xs font-semibold">◎良</span>
+              <span class="text-xs text-slate-400">根拠: 実測（テスト実行）</span>
+            </div>
+            <p class="mt-1 text-sm">新規・既存あわせて183件（118＋38＋27）がすべて成功。既存hook <code class="rounded bg-slate-100 dark:bg-slate-800 px-1 text-[13px]">block-direct-git-commit.sh</code> への回帰が無いことも27件で確認した。</p>
+            <details class="mt-2 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700">
+              <summary class="px-3 py-2 text-xs font-semibold text-slate-500 dark:text-slate-400">根拠を見る（実行コマンドと出力）</summary>
+              <pre class="border-t border-slate-100 dark:border-slate-800 p-3 text-[13px] overflow-x-auto"><code>$ bash .claude/scripts/test/test_command_position.sh
+passed=118 failures=0
+$ bash .claude/scripts/test/test_post_issue_create_notice.sh
+passed=38 failures=0
+$ bash .claude/scripts/test/test_block_direct_git_commit.sh
+passed=27 failures=0</code></pre>
+            </details>
+          </li>
+
+          <li id="w4" class="relative">
+            <span class="absolute -left-[41px] top-0.5 grid h-6 w-6 place-items-center rounded-full bg-amber-500 text-[11px] font-bold text-white ring-4 ring-slate-100 dark:ring-slate-950">4</span>
+            <div class="flex flex-wrap items-center gap-2">
+              <h3 class="text-base font-bold">前置フィルタの超集合性は推論のみ</h3>
+              <span class="rounded-full bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 px-2.5 py-0.5 text-xs font-semibold">△注意</span>
+              <span class="text-xs text-slate-400">根拠: 設計上の推論</span>
+            </div>
+            <p class="mt-1 text-sm">判定本体の変更により、前置フィルタ（issue #159）が「判定本体の検知を1件も取りこぼさない超集合」であることの前提が変わった。設計上の推論で再確認したが、判定本体を実際に通した突き合わせテストは追加していない。</p>
+            <div class="mt-2 rounded-lg border-l-4 border-amber-500 bg-amber-50 dark:bg-amber-950/40 p-3 text-sm">
+              <p class="text-xs font-bold text-amber-700 dark:text-amber-300">確かめられなかったこと（詳細）</p>
+              <p class="mt-1">超集合性が破れていた場合、hookの機能が無言で失われる（安全側hookならガードの無効化になる）。issue #159へ承認を得たうえで通知済み。</p>
+            </div>
+          </li>
+
+          <li id="w5" class="relative">
+            <span class="absolute -left-[41px] top-0.5 grid h-6 w-6 place-items-center rounded-full bg-amber-500 text-[11px] font-bold text-white ring-4 ring-slate-100 dark:ring-slate-950">5</span>
+            <div class="flex flex-wrap items-center gap-2">
+              <h3 class="text-base font-bold">Windows / git bash実機は未確認</h3>
+              <span class="rounded-full bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 px-2.5 py-0.5 text-xs font-semibold">△注意</span>
+              <span class="text-xs text-slate-400">根拠: —（未実施）</span>
+            </div>
+            <p class="mt-1 text-sm">作業・テストはすべてリモート実行環境（Linux）で行った。ユーザーの常用環境（Windows / git bash）での動作・性能は未確認。</p>
+          </li>
+
+          <li id="next" class="relative">
+            <span class="absolute -left-[41px] top-0.5 grid h-6 w-6 place-items-center rounded-full bg-emerald-600 text-[11px] font-bold text-white ring-4 ring-slate-100 dark:ring-slate-950">→</span>
+            <p class="text-xs font-bold tracking-wide text-emerald-700 dark:text-emerald-300">設計への反映</p>
+            <ol class="mt-1 list-decimal pl-5 text-sm space-y-1">
+              <li><code class="rounded bg-slate-100 dark:bg-slate-800 px-1 text-[13px]">spec/command-position.md</code>・<code class="rounded bg-slate-100 dark:bg-slate-800 px-1 text-[13px]">spec/issue-mr-workflow.md</code>・<code class="rounded bg-slate-100 dark:bg-slate-800 px-1 text-[13px]">rules/shell-script-style.md</code> を更新し、DDR <code class="rounded bg-slate-100 dark:bg-slate-800 px-1 text-[13px]">i0149-01</code> を新規作成（DDR一覧も再生成）。</li>
+              <li><code class="rounded bg-slate-100 dark:bg-slate-800 px-1 text-[13px]">.gemini/</code> への変換同期を実施（変更18ファイル中9件）。</li>
+              <li>DDR <code class="rounded bg-slate-100 dark:bg-slate-800 px-1 text-[13px]">i0159-01</code> の前提変更を issue #159 へ通知（承認済み）。</li>
+            </ol>
+            <p class="mt-2 text-xs text-slate-500 dark:text-slate-400">残課題: 超集合性の突き合わせテスト追加（issue #159で扱う）／ Windows・git bash実機での動作・性能確認。</p>
+          </li>
+        </ol>
+      </section>
+
+      <footer class="mt-12 text-center text-xs text-slate-400 dark:text-slate-500">issue #149 / PR #179 — 結果の正文は同名の <code>.md</code>。作業結果レポート版の検証サンプル（デザインは採用案06）。</footer>
+    </div>
+  </main>
+</div>
+
+</body>
+</html>

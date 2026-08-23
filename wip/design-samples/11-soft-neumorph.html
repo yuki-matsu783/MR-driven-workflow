@@ -1,0 +1,195 @@
+<!--
+  レポートHTMLビュー デザイン案11「ソフトニューモーフィズム型」（Tailwind CSS利用サンプル）
+
+  構成・DOM構造は採用案06（サイドバー＋サマリファースト＋タイムライン詳細）と同一。
+  ビジュアルのみ変更した第3ラウンドのバリエーション。
+  本案の方針:
+    - 淡いグレー地に、境界線の代わりに柔らかい二重影（浮き出し）で要素を区切る。
+      角丸を大きく取り、画面全体の「硬さ」を除いて長時間のレビューでの圧迫感を減らす。
+    - 影で区切るスタイルはコントラストが下がるため、結論チップの3色だけが強い色を持つ
+      （＝意味のある色に視線が集まる）。
+    - 単一ライトテーマ（浮き出し影はダーク変換で意味が崩れるため）。
+
+  現行テンプレートの意味論（◎良/△注意/✕問題の3色＋記号、◆◇・は色相を使わない）は維持。
+  比較用に各案共通のダミー内容（架空のissue #201 調査レポート）を使用。
+-->
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>案11: ソフトニューモーフィズム型 — 検索インデックス生成の高速化調査</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  html { scroll-behavior: smooth; }
+  [id] { scroll-margin-top: 1rem; }
+  details > summary { cursor: pointer; }
+  .neu { box-shadow: 8px 8px 18px #ccd3dd, -8px -8px 18px #ffffff; }
+  .neu-in { box-shadow: inset 4px 4px 10px #ccd3dd, inset -4px -4px 10px #ffffff; }
+</style>
+</head>
+<body class="bg-[#e9edf3] text-slate-700 font-sans leading-relaxed">
+
+<div class="lg:flex max-w-7xl mx-auto">
+
+  <!-- サイドバー -->
+  <aside class="lg:w-72 lg:shrink-0 lg:sticky lg:top-0 lg:h-screen lg:overflow-y-auto p-7">
+    <p class="text-[11px] tracking-[0.2em] font-bold text-blue-600">調査結果レポート / フェーズ2</p>
+    <h1 class="mt-2 text-lg font-bold leading-snug text-slate-800">検索インデックス生成の高速化調査</h1>
+    <div class="mt-4 flex flex-wrap gap-2 text-xs font-semibold">
+      <span class="rounded-full bg-blue-600 text-white px-3 py-1 shadow-md shadow-blue-600/30">◎良 2</span>
+      <span class="rounded-full bg-amber-500 text-white px-3 py-1 shadow-md shadow-amber-500/30">△注意 1</span>
+      <span class="rounded-full bg-red-500 text-white px-3 py-1 shadow-md shadow-red-500/30">✕問題 1</span>
+    </div>
+    <nav class="mt-7 neu rounded-3xl p-5">
+      <p class="text-xs font-bold tracking-widest text-slate-400">目次</p>
+      <ol class="mt-2 space-y-1 text-sm">
+        <li><a class="block rounded-xl px-2.5 py-1.5 font-semibold text-blue-700 hover:neu-in" href="#overview">サマリ・レビュー依頼</a></li>
+        <li><a class="block rounded-xl px-2.5 py-1.5 hover:text-slate-900" href="#unverified">確かめられなかったこと</a></li>
+        <li>
+          <a class="block rounded-xl px-2.5 py-1.5 hover:text-slate-900" href="#timeline">実施の流れ（タイムライン）</a>
+          <ol class="ml-4 mt-1 space-y-1 text-[13px] text-slate-500">
+            <li><a class="block px-1.5 py-0.5 hover:text-slate-800" href="#f1"><span class="text-blue-600">◎</span> 1. mtimeキャッシュ</a></li>
+            <li><a class="block px-1.5 py-0.5 hover:text-slate-800" href="#f2"><span class="text-blue-600">◎</span> 2. jq起動の集約</a></li>
+            <li><a class="block px-1.5 py-0.5 hover:text-slate-800" href="#f3"><span class="text-amber-600">△</span> 3. 実機は未計測</a></li>
+            <li><a class="block px-1.5 py-0.5 hover:text-slate-800" href="#f4"><span class="text-red-600">✕</span> 4. 走査中断</a></li>
+          </ol>
+        </li>
+        <li><a class="block rounded-xl px-2.5 py-1.5 hover:text-slate-900" href="#next">設計への反映・残課題</a></li>
+      </ol>
+    </nav>
+    <dl class="mt-6 neu-in rounded-3xl p-5 space-y-1 text-xs text-slate-500">
+      <div class="flex justify-between"><dt>issue</dt><dd class="text-slate-700 font-semibold">#201</dd></div>
+      <div class="flex justify-between"><dt>PR</dt><dd class="text-slate-700 font-semibold">#205</dd></div>
+      <div class="flex justify-between"><dt>ブランチ</dt><dd class="text-slate-700 font-semibold truncate pl-2">feature-201-index-speedup</dd></div>
+      <div class="flex justify-between"><dt>作成日</dt><dd class="text-slate-700 font-semibold">2026-08-23</dd></div>
+      <div class="flex justify-between"><dt>正文</dt><dd class="text-slate-700 font-semibold">同名の .md</dd></div>
+    </dl>
+  </aside>
+
+  <main class="flex-1 min-w-0 px-5 py-10 lg:px-12">
+    <div class="max-w-3xl">
+
+      <!-- サマリファースト -->
+      <section id="overview">
+        <p class="text-xl text-slate-800">再生成136秒の主因はjqの起動回数。<strong class="text-blue-700">1ファイル1回へ集約＋mtimeキャッシュで約10秒</strong>になる。ただし削除済み未ステージのファイルで走査が中断する問題が1件。</p>
+
+        <div class="mt-7 grid grid-cols-3 gap-5 max-w-md">
+          <div class="neu rounded-3xl p-4 text-center"><p class="text-3xl font-bold text-blue-600">2</p><p class="mt-1 text-xs font-semibold text-blue-600">◎良</p></div>
+          <div class="neu rounded-3xl p-4 text-center"><p class="text-3xl font-bold text-amber-600">1</p><p class="mt-1 text-xs font-semibold text-amber-600">△注意</p></div>
+          <div class="neu rounded-3xl p-4 text-center"><p class="text-3xl font-bold text-red-600">1</p><p class="mt-1 text-xs font-semibold text-red-600">✕問題</p></div>
+        </div>
+
+        <div class="mt-8 grid gap-5 md:grid-cols-3">
+          <div class="neu rounded-3xl p-5 ring-2 ring-blue-500/70">
+            <p class="text-sm font-bold text-blue-700">◆特に見てほしい</p>
+            <p class="text-[11px] text-slate-400">判断に困っている</p>
+            <p class="mt-2 text-sm"><a class="text-blue-700 underline underline-offset-2" href="#f1">1. mtimeキャッシュ</a> — 巻き戻し時の無効化をどこまで守るか決めてほしい。</p>
+          </div>
+          <div class="neu rounded-3xl p-5 ring-1 ring-blue-400/50">
+            <p class="text-sm font-bold text-blue-700">◇承認が欲しい</p>
+            <p class="text-[11px] text-slate-400">方針は決めた</p>
+            <p class="mt-2 text-sm"><a class="text-blue-700 underline underline-offset-2" href="#f2">2. jq集約</a> — <code class="rounded bg-slate-200/70 px-1 text-[13px]">--args</code> 一括渡しで決めた。</p>
+          </div>
+          <div class="neu-in rounded-3xl p-5 text-slate-500">
+            <p class="text-sm font-bold">・細かいレビュー不要</p>
+            <p class="text-[11px] opacity-70">ほぼ確実</p>
+            <p class="mt-2 text-sm"><a class="underline underline-offset-2" href="#f4">4. 走査中断の再現</a> — 実測で確認済み。</p>
+          </div>
+        </div>
+      </section>
+
+      <section id="unverified" class="mt-7 neu rounded-3xl p-5 border-l-8 border-amber-500">
+        <p class="text-xs font-bold tracking-wide text-amber-600">確かめられなかったこと（この結果が言っていないこと）</p>
+        <p class="mt-1 text-sm">git bash（MSYS）実機でのfork単価と所要時間の絶対値 — <a class="text-blue-700 underline underline-offset-2" href="#f3">詳細: 手順3</a></p>
+      </section>
+
+      <!-- タイムライン -->
+      <section id="timeline" class="mt-12">
+        <h2 class="text-lg font-bold text-slate-800">実施の流れと結果</h2>
+        <ol class="mt-6 relative space-y-9 pl-9 ml-4 before:absolute before:left-0 before:top-1 before:bottom-1 before:w-1.5 before:rounded-full before:neu-in before:content-['']">
+
+          <li id="conditions" class="relative">
+            <span class="absolute -left-[46px] top-0.5 grid h-7 w-7 place-items-center rounded-full bg-[#e9edf3] neu text-[11px] font-bold text-slate-500">0</span>
+            <p class="text-xs font-bold tracking-wide text-slate-400">実施条件（測った対象・環境）</p>
+            <p class="mt-1 text-sm">Claude Code on the web（Linux）/ bash 5.2.21 / jq 1.7.1 / 対象43ファイル / 実施日 2026-08-23。1環境の観測であり、全環境の事実としては扱わない。</p>
+          </li>
+
+          <li id="f1" class="relative">
+            <span class="absolute -left-[46px] top-0.5 grid h-7 w-7 place-items-center rounded-full bg-blue-600 text-[11px] font-bold text-white shadow-md shadow-blue-600/40">1</span>
+            <div class="neu rounded-3xl p-6">
+              <div class="flex flex-wrap items-center gap-2">
+                <h3 class="text-base font-bold text-slate-800">mtimeキャッシュの効果</h3>
+                <span class="rounded-full bg-blue-600 text-white px-2.5 py-0.5 text-xs font-semibold">◎良</span>
+                <span class="text-xs text-slate-400">根拠: 実測</span>
+              </div>
+              <p class="mt-2 text-sm">mtimeが変わっていないファイルの結果を前回出力から再利用する方式で比較。<strong>差分が無いときの再生成は136秒→約10秒</strong>。キャッシュキーはmtime＋スクリプト自身のハッシュとする。</p>
+              <details class="mt-3">
+                <summary class="text-xs font-semibold text-slate-400 hover:text-slate-600">根拠を見る（実行コマンドと出力）</summary>
+                <pre class="mt-2 neu-in rounded-2xl p-4 text-[13px] overflow-x-auto"><code>$ time bash extract-frontmatter.sh .   # キャッシュ無し
+real  2m16.4s
+$ time bash extract-frontmatter.sh .   # キャッシュ有り（差分なし）
+real  0m9.8s</code></pre>
+              </details>
+            </div>
+          </li>
+
+          <li id="f2" class="relative">
+            <span class="absolute -left-[46px] top-0.5 grid h-7 w-7 place-items-center rounded-full bg-blue-600 text-[11px] font-bold text-white shadow-md shadow-blue-600/40">2</span>
+            <div class="neu rounded-3xl p-6">
+              <div class="flex flex-wrap items-center gap-2">
+                <h3 class="text-base font-bold text-slate-800">jq起動の集約可否</h3>
+                <span class="rounded-full bg-blue-600 text-white px-2.5 py-0.5 text-xs font-semibold">◎良</span>
+                <span class="text-xs text-slate-400">根拠: 実装の確認</span>
+              </div>
+              <p class="mt-2 text-sm">キー・配列要素ごとのjq呼び出し（1ファイル約30回）は、シェル配列へ中間表現を溜めて<strong>1ファイル1回へ集約できる</strong>。ハイフン始まりの値対策として <code class="rounded bg-slate-200/70 px-1 text-[13px]">--args</code> の後ろへ <code class="rounded bg-slate-200/70 px-1 text-[13px]">--</code> を置く。</p>
+            </div>
+          </li>
+
+          <li id="f3" class="relative">
+            <span class="absolute -left-[46px] top-0.5 grid h-7 w-7 place-items-center rounded-full bg-amber-500 text-[11px] font-bold text-white shadow-md shadow-amber-500/40">3</span>
+            <div class="neu rounded-3xl p-6">
+              <div class="flex flex-wrap items-center gap-2">
+                <h3 class="text-base font-bold text-slate-800">git bash実機は未計測</h3>
+                <span class="rounded-full bg-amber-500 text-white px-2.5 py-0.5 text-xs font-semibold">△注意</span>
+                <span class="text-xs text-slate-400">根拠: 実測（Linuxのみ）</span>
+              </div>
+              <p class="mt-2 text-sm">計測はすべてLinux。git bashのfork単価（約95ms/回）とは桁が違う。起動回数の削減比（30回→1回）は環境に依らないが、「約10秒」という絶対値はgit bash実機で測り直すまで結論にしない。</p>
+            </div>
+          </li>
+
+          <li id="f4" class="relative">
+            <span class="absolute -left-[46px] top-0.5 grid h-7 w-7 place-items-center rounded-full bg-red-500 text-[11px] font-bold text-white shadow-md shadow-red-500/40">4</span>
+            <div class="neu rounded-3xl p-6">
+              <div class="flex flex-wrap items-center gap-2">
+                <h3 class="text-base font-bold text-slate-800">削除ファイルで走査中断</h3>
+                <span class="rounded-full bg-red-500 text-white px-2.5 py-0.5 text-xs font-semibold">✕問題</span>
+                <span class="text-xs text-slate-400">根拠: 実測</span>
+              </div>
+              <p class="mt-2 text-sm">追跡ファイルを削除して未ステージのまま走査すると、<code class="rounded bg-slate-200/70 px-1 text-[13px]">git ls-files</code> の列挙に実体の無いパスが混ざり走査全体が中断する。<strong>列挙とファイル操作の間に <code class="rounded bg-slate-200/70 px-1 text-[13px]">[[ -f ]]</code> の実体判定を挟む修正が必要</strong>（スキップ件数は必ず出力する）。</p>
+              <details class="mt-3">
+                <summary class="text-xs font-semibold text-slate-400 hover:text-slate-600">根拠を見る（エラー出力）</summary>
+                <pre class="mt-2 neu-in rounded-2xl p-4 text-[13px] overflow-x-auto"><code>stat: cannot statx 'wip/reports/old.md': No such file or directory</code></pre>
+              </details>
+            </div>
+          </li>
+
+          <li id="next" class="relative">
+            <span class="absolute -left-[46px] top-0.5 grid h-7 w-7 place-items-center rounded-full bg-emerald-500 text-[11px] font-bold text-white shadow-md shadow-emerald-500/40">→</span>
+            <p class="text-xs font-bold tracking-wide text-emerald-600">設計への反映</p>
+            <ol class="mt-1 list-decimal pl-5 text-sm space-y-1">
+              <li>フェーズ3で1ファイル1回のjq集約＋mtimeキャッシュを実装する。</li>
+              <li>実測値と前提条件は <code class="rounded bg-slate-200/70 px-1 text-[13px]">.claude/docs/spec/extract-frontmatter.md</code>「性能」節へ反映する。</li>
+            </ol>
+            <p class="mt-2 text-xs text-slate-400">残課題: git bash実機での再計測（別issueで扱う）。</p>
+          </li>
+        </ol>
+      </section>
+
+      <footer class="mt-12 text-center text-xs text-slate-400">issue #201 / PR #205 — 結果の正文は同名の <code>.md</code>。デザイン案11（ソフトニューモーフィズム型）。</footer>
+    </div>
+  </main>
+</div>
+
+</body>
+</html>
