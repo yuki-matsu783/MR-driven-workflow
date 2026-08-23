@@ -291,7 +291,7 @@ GitHub側は、インラインで示せなかった指摘を**レビュー本文
 
 インラインコメント本文の先頭に `Claude Codeより（敵対的レビュー）:` を付ける。`gh`/`glab` CLIは
 人間のアカウントで認証されているため、投稿者名では誰が書いたか判別できない。これは
-`issue-mr-flow/SKILL.md` の `reply` サブコマンド手順2が返信本文へ `Claude Codeより:` を必須と
+`issue-mr-flow/references/review-loop.md` の `reply` サブコマンド手順2が返信本文へ `Claude Codeより:` を必須と
 しているのと同じ理由である。
 
 **GitLabでは特に重要**で、1件ずつ独立したdiscussionになりまとめ役のレビュー本文が存在しないため、
@@ -326,7 +326,7 @@ issue #43 以降、この行に続けて**指摘行前後のソーススライ�
   省略してよい類型は作らない。
 - **返信のタイミングは `comments` ループに揃え、敵対的レビューの直後には返信しない。** 投稿と
   返信の間に人間のレビューを挟むことで、同じスレッドへ人間が判断を示す余地を残す。
-- ルールの本文は `.claude/skills/issue-mr-flow/SKILL.md` の `comments` サブコマンド手順4と
+- ルールの本文は `.claude/skills/issue-mr-flow/references/review-loop.md` の `comments` サブコマンド手順4と
   「レビュー完了合図の確認」節が正で、`.claude/skills/adversarial-review/SKILL.md` には参照の
   1文だけを置く（手順の二重管理を避けるため）。
 - **未返信スレッドを機械的に検出する専用の関数・スクリプトは設けない。** 判定条件は経路によらず

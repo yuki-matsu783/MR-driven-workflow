@@ -21,7 +21,7 @@ keywords: [コンフリクト, merge, DDR識別子, 改番, deleted by us, index
   defaultブランチへ追従したいとき）。
 - **PR作成後の追従監視でコンフリクトを検知したとき**（issue #88。PRイベント・定期チェックイン・
   各pushの直後。位置づけ:
-  `.claude/skills/issue-mr-flow/SKILL.md`「PR作成後のdefaultブランチ追従（監視）」節）。この
+  `.claude/skills/issue-mr-flow/references/base-branch-followup.md`「PR作成後のdefaultブランチ追従（監視）」節）。この
   呼び出しは**監視モード**として扱い、Step 2 の承認の取り方だけが変わる（下記）。
 
 ## 絶対ルール
@@ -409,4 +409,4 @@ bash .claude/scripts/src/create-commit.sh --message "chore: ..." -- "${staged[@]
 - 意思決定の経緯・却下案: `.claude/docs/ddr/i0046-01-defaultブランチとのコンフリクトは検知を機構化し解消手順をスキル化する.md`
 - 監視モード（PR作成後の追従・自動解消の線引き）の経緯・却下案:
   `.claude/docs/ddr/i0088-01-PR作成後のdefaultブランチ追従は並行手順として定義し自動解消は一意に決まる類型に限る.md`
-- 監視のフロー上の位置づけ: `.claude/skills/issue-mr-flow/SKILL.md`「PR作成後のdefaultブランチ追従（監視）」節
+- 監視のフロー上の位置づけ: `.claude/skills/issue-mr-flow/references/base-branch-followup.md`「PR作成後のdefaultブランチ追従（監視）」節
