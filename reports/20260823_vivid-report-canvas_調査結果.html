@@ -1,0 +1,221 @@
+<!--
+  調査結果「テンプレート参照箇所と視覚設計の判断材料」（issue #186 / flow-id 2-6）の
+  人間レビュー用HTMLビュー。正文は同名の .md。
+  土台: .claude/skills/issue-mr-flow/assets/reports.template.html（issue #54）
+-->
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>調査結果 — テンプレート参照箇所と視覚設計の判断材料 — issue #186</title>
+<style>
+  :root {
+    --bg: #f6f7f9;      --panel: #ffffff;   --ink: #1a1d21;     --muted: #5b636d;
+    --line: #dfe3e8;    --accent: #2563eb;  --accent-soft: #eaf0fe;
+    --ok: #1a7f4b;      --ok-soft: #e6f4ec; --warn: #a35a00;    --warn-soft: #fdf1e0;
+    --stop: #b3261e;    --stop-soft: #fdecea; --code-bg: #f0f2f5;
+    --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1216;    --panel: #161a20;   --ink: #e6e8eb;     --muted: #9aa3ad;
+      --line: #2a3038;  --accent: #7aa2f7;  --accent-soft: #1b2333;
+      --ok: #6ee7a8;    --ok-soft: #14261d; --warn: #f0b866;    --warn-soft: #2a2113;
+      --stop: #f2857c;  --stop-soft: #2b1614; --code-bg: #1d222a;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", system-ui, sans-serif;
+    line-height: 1.8; font-size: 15px;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 20px 80px; }
+  header.band {
+    background: linear-gradient(135deg, var(--accent-soft), var(--panel));
+    border-bottom: 1px solid var(--line); padding: 28px 20px 22px; margin-bottom: 28px;
+  }
+  header.band .inner { max-width: 1080px; margin: 0 auto; }
+  header.band .kind { font-size: 11px; letter-spacing: .18em; color: var(--accent); font-weight: 700; }
+  header.band h1 { margin: 6px 0 4px; font-size: 26px; line-height: 1.4; }
+  header.band .lead { margin: 0; color: var(--muted); }
+  .meta { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; padding: 0; list-style: none; }
+  .meta li {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 999px;
+    padding: 3px 12px; font-size: 12.5px; color: var(--muted); white-space: nowrap;
+  }
+  .meta li b { color: var(--ink); font-weight: 600; }
+  nav.toc {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 14px 20px; margin-bottom: 28px;
+  }
+  nav.toc h2 { margin: 0 0 8px; font-size: 13px; letter-spacing: .08em; color: var(--muted); border: 0; padding: 0; }
+  nav.toc ol { margin: 0; padding-left: 20px; }
+  nav.toc li { margin: 2px 0; }
+  a { color: var(--accent); }
+  section {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 8px 24px 22px; margin-bottom: 22px;
+  }
+  h2 { font-size: 20px; margin: 20px 0 10px; padding-bottom: 8px; border-bottom: 2px solid var(--line); }
+  h3 { font-size: 16px; margin: 22px 0 8px; color: var(--accent); }
+  p { margin: 10px 0; }
+  ul, ol { padding-left: 22px; }
+  li { margin: 4px 0; }
+  .tablewrap { overflow-x: auto; margin: 14px 0; }
+  table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 14px; }
+  th, td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: var(--accent-soft); font-weight: 600; white-space: nowrap; }
+  tbody tr:nth-child(even) td { background: color-mix(in srgb, var(--line) 22%, transparent); }
+  code {
+    background: var(--code-bg); border-radius: 5px; padding: 1px 5px; font-size: 13px;
+    font-family: "SFMono-Regular", Consolas, "Noto Sans Mono", monospace;
+  }
+  pre {
+    background: var(--code-bg); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 12px 14px; overflow-x: auto; font-size: 13px; line-height: 1.65;
+  }
+  pre code { background: none; padding: 0; }
+  .box { border-left: 4px solid var(--accent); background: var(--accent-soft);
+         border-radius: 0 var(--radius) var(--radius) 0; padding: 12px 16px; margin: 16px 0; }
+  .box > :first-child { margin-top: 0; } .box > :last-child { margin-bottom: 0; }
+  .box .label { font-size: 12px; font-weight: 700; letter-spacing: .06em; display: block; margin-bottom: 4px; }
+  .box.ok { border-color: var(--ok); background: var(--ok-soft); } .box.ok .label { color: var(--ok); }
+  .box.warn { border-color: var(--warn); background: var(--warn-soft); } .box.warn .label { color: var(--warn); }
+  .box.stop { border-color: var(--stop); background: var(--stop-soft); } .box.stop .label { color: var(--stop); }
+  .box.info .label { color: var(--accent); }
+  .tag { display: inline-block; border-radius: 999px; padding: 1px 9px; font-size: 12px; font-weight: 600; }
+  .tag.ok { background: var(--ok-soft); color: var(--ok); }
+  .tag.warn { background: var(--warn-soft); color: var(--warn); }
+  .tag.stop { background: var(--stop-soft); color: var(--stop); }
+  footer { color: var(--muted); font-size: 13px; text-align: center; padding-top: 10px; }
+</style></head>
+<body>
+
+<header class="band">
+  <div class="inner">
+    <div class="kind">調査結果レポート / フェーズ2</div>
+    <h1>調査結果 — テンプレート参照箇所と視覚設計の判断材料</h1>
+    <p class="lead">テンプレート参照箇所を全列挙して仕分けた結果、フェーズ3で変更するのは reports.template.html 1本のみ。節名を全維持し、色は「良＝青（新トークン）／注意＝黄／問題＝赤」に記号・ラベルを併用する設計で確定した。</p>
+    <ul class="meta">
+      <li><b>issue</b> #186</li>
+      <li><b>ブランチ</b> claude/html-report-visual-improvement-chu89d</li>
+      <li><b>PR</b> #191（Draft）</li>
+      <li><b>フェーズ</b> 2〈調査〉 flow-id 2-6</li>
+      <li><b>push回数</b> 4</li>
+      <li><b>作成日</b> 2026-08-23</li>
+      <li><b>正文</b> 同名の .md</li>
+    </ul>
+  </div>
+</header>
+
+<div class="wrap">
+
+<nav class="toc">
+  <h2>目次</h2>
+  <ol>
+    <li><a href="#summary">サマリ（結論の一覧）</a></li>
+    <li><a href="#conditions">実施条件（測った対象・環境）</a></li>
+    <li><a href="#findings">実施した内容と結果</a></li>
+    <li><a href="#unverified">確かめられなかったこと</a></li>
+    <li><a href="#next">設計への反映</a></li>
+  </ol>
+</nav>
+
+<section id="summary">
+  <h2>サマリ（結論の一覧）</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>#</th><th>問い</th><th>結論</th><th>根拠の性質</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td>Q1: テンプレート構造に言及するドキュメントはどこか</td><td><b>フェーズ3で直すのは reports.template.html 1本のみ</b>。パス言及20ファイル（.claude/ 10・.gemini/ 10）＋節名言及4ファイルを全件仕分けした。spec 3101行目とDDR 2件はpoint-in-time記録のため書き換えず、specへはフェーズ4で新規エントリを追記する</td><td>grep・frontmatterインデックスの実測（計画の検証コマンド4本）</td></tr>
+      <tr><td>2</td><td>Q2: 何を残し何を変えるか</td><td><b>節名は全維持</b>（参照3系統との矛盾回避）。「重点レビュー依頼」を新設（冒頭）、サマリを色分け結論カードへ改修、「確かめられなかったこと」をサマリ直後へ移動（詳細は各章のcallout）。章IDは f1〜連番、scroll-margin-top で位置ずれ対策</td><td>テンプレート全文とissue受け入れ条件の突き合わせ</td></tr>
+      <tr><td>3</td><td>Q3: 色の設計</td><td><b>良＝青は新トークン --good/--good-soft</b>（アクセント色と分離）、注意＝既存 --warn、問題＝既存 --stop。緑（--ok）は「決めたこと」box用として存続し結論色には使わない。記号◎△✕＋1文字ラベルを必ず併記（色覚多様性への配慮）</td><td>既存トークンの使用箇所の確認＋設計判断</td></tr>
+      <tr><td>4</td><td>Q4: フェーズごとの読み替え</td><td><b>「重点レビュー依頼」は全フェーズで意味が通る</b>（統括のみ「マージ判断で見てほしい点」へ読み替えコメントを添える）。前半移動後の「確かめられなかったこと」一覧は統括では残存分のみ、の従来運用を維持</td><td>フローの各flow-id定義の読解</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="conditions">
+  <h2>実施条件（測った対象・環境）</h2>
+  <ul>
+    <li>実行環境: Claude Code on the web（リモート実行環境・Linux）</li>
+    <li>対象: リポジトリ全体（ブランチ <code>claude/html-report-visual-improvement-chu89d</code>、mainと同期済み断面）</li>
+    <li>実施日: 2026-08-23</li>
+    <li>使ったコマンド: 計画「検証」節のgrep 2系統＋<code>search-frontmatter.sh</code> 2本（結果は同名mdに全掲）</li>
+  </ul>
+</section>
+
+<section id="findings">
+  <h2>実施した内容と結果</h2>
+
+  <h3>1. Q1: 参照箇所の全列挙と仕分け（14行の仕分け表）</h3>
+  <p>パス言及は20ファイル（<code>.claude/</code> 10・<code>.gemini/</code> 10・ルート0）、節名言及は5箇所・4ファイル。重複を統合した仕分け表14行の全行が「直す／直さない／書き換えない（point-in-time）」のいずれかに分類できた（表の全体は正文mdを参照）。</p>
+  <pre><code>$ grep -rln --include='*.md' --include='*.sh' --include='*.html' -e 'reports\.template\.html' .claude/ .gemini/ *.md | wc -l
+20
+$ grep -rn ...（節名5種）... .claude/ *.md reports/REVIEW-POINTS.md | cut -d: -f1 | sort -u
+.claude/docs/ddr/i0155-01-…md / .claude/docs/spec/issue-mr-workflow.md / .claude/skills/issue-mr-flow/references/planning.md / reports/REVIEW-POINTS.md</code></pre>
+  <div class="box ok">
+    <span class="label">結論</span>
+    フェーズ3で変更するのは <code>reports.template.html</code> 1本。<code>.gemini/</code> はflow-id 5-3の再生成で追随（手編集しない）。spec・DDRのpoint-in-time記録は書き換えず、specへの反映はフェーズ4の新規changelogエントリで行う。
+  </div>
+
+  <h3>2. Q2: 節ごとの維持／移動／改修／新設</h3>
+  <p>節名を参照する3系統（planning.md 280行目・reports/REVIEW-POINTS.md 15-16行目・spec 3101行目）が全て現節名を前提とするため、<b>節名は全維持</b>し、並び順と内部構造だけを変える。新しい節順: ヘッダ帯（結論件数チップ追加）→ 目次 → <b>重点レビュー依頼（新設）</b> → サマリ（色分け結論カードへ改修）→ <b>確かめられなかったこと（前半へ移動・一覧化）</b> → 実施条件 → 実施した内容と結果（章ID f1〜・性質チップ・未確認詳細callout）→ 設計への反映 → 想定と異なった点 → 残課題。</p>
+  <div class="box ok">
+    <span class="label">結論</span>
+    受け入れ条件のうち「各行から該当節へリンク」は現行でもコメント指示として存在するが実マークアップの規則が無かった。新テンプレートは結論カードに <code>href="#f1"</code> 形式の実例を持たせ、指示との二重化を防ぐ。
+  </div>
+
+  <h3>3. Q3: 色トークン設計</h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>性質</th><th>トークン</th><th>ライト</th><th>ダーク</th><th>記号・ラベル</th></tr></thead>
+    <tbody>
+      <tr><td>良かった</td><td><code>--good</code> / <code>--good-soft</code>（新設）</td><td>#1d4ed8 / #e7edfd</td><td>#8ab4f8 / #17233a</td><td>◎＋「良」</td></tr>
+      <tr><td>気になる</td><td><code>--warn</code>（既存流用）</td><td>#a35a00 / #fdf1e0</td><td>#f0b866 / #2a2113</td><td>△＋「注意」</td></tr>
+      <tr><td>悪かった</td><td><code>--stop</code>（既存流用）</td><td>#b3261e / #fdecea</td><td>#f2857c / #2b1614</td><td>✕＋「問題」</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <div class="box ok">
+    <span class="label">結論</span>
+    <code>--good</code> をアクセント色から分離して新設。緑（<code>--ok</code>）は「決めたこと」box専用として残し、結論の性質には使わない（issueの指定は青。緑青併用は「良かった」の表現が2系統に割れる）。色・記号・ラベル・並び順（問題→注意→良）の4重で判別可能にする。
+  </div>
+
+  <h3>4. Q4: フェーズごとの読み替え</h3>
+  <p>「重点レビュー依頼」はレビュー往復を前提とする本フローの全フェーズで意味が通る。統括（5-4）のみ「マージ判断で最後に見てほしい点」への読み替えコメントを添える。「確かめられなかったこと」の統括での運用（残存分のみ・水増ししない）は従来どおり。</p>
+  <div class="box ok">
+    <span class="label">結論</span>
+    「フェーズごとの読み替え」コメントは更新のみで維持できる。新設節のためにフローの読み替え構造を壊す必要は無い。
+  </div>
+</section>
+
+<section id="unverified">
+  <h2>確かめられなかったこと</h2>
+  <div class="box warn">
+    <span class="label">この結果が言っていないこと</span>
+    <ul>
+      <li>実ブラウザでの表示確認・色コントラスト比の実測はフェーズ3で行う（本調査は構造・参照関係の机上確認）。</li>
+      <li>実運用でどの節が省略されがちかは確認できていない（過去レポートはflow-id 5-5で削除済みでdefaultブランチに残らないため。テンプレートのコメント指示からの推定に留まる）。</li>
+    </ul>
+  </div>
+</section>
+
+<section id="next">
+  <h2>設計への反映</h2>
+  <ol>
+    <li>フェーズ3の個別作業計画へ、Q2の節順表・Q3の色トークン表・アンカー設計をそのまま転記する。</li>
+    <li>spec <code>issue-mr-workflow.md</code> への issue #186 changelogエントリ追記はフェーズ4（設計反映）で行う。</li>
+    <li><code>reports/REVIEW-POINTS.md</code> へ「重点レビュー依頼」観点を足すかはフェーズ4の洗い出しで判断する。</li>
+    <li><code>.gemini/</code> の追随は flow-id 5-3 の再生成で行う（フェーズ3では触らない）。</li>
+  </ol>
+</section>
+
+<footer>issue #186 / PR #191 — 結果の正文は同名の <code>.md</code>。外部依存を持たない自己完結HTML。</footer>
+
+</div>
+</body>
+</html>
