@@ -175,6 +175,7 @@ frontmatter（`status` / `superseded_by` / `note`）だけから決まる。
 - [i0141-01-canvasテンプレートはTailwind非依存の自己完結CSSにする.md](ddr/i0141-01-canvasテンプレートはTailwind非依存の自己完結CSSにする.md)（canvas形式をTailwind非依存にした決定は有効。ただし issue #54 で一覧・表形式のテンプレートも自己完結CSSになったため、「canvas形式だけが例外」という本文の前提は成り立たない。本文中の `templates/canvas-report.html` も当時のパスで、issue #54 で `assets/canvas-report.html` へ改名した。詳細は i0054-01）
 - [i0141-02-canvasデータモデルはフラットなparent参照にする.md](ddr/i0141-02-canvasデータモデルはフラットなparent参照にする.md)
 - [i0143-01-flow-id並べ替え時の確認手順をSKILL.mdへ明記しDDRで記録する.md](ddr/i0143-01-flow-id並べ替え時の確認手順をSKILL.mdへ明記しDDRで記録する.md)
+- [i0149-01-post-issue-create-notice.shの検知をコマンド位置判定へ移行する.md](ddr/i0149-01-post-issue-create-notice.shの検知をコマンド位置判定へ移行する.md)
 - [i0155-01-AIアセット反映の対象は4類型への分類と痕跡の確認で洗い出す.md](ddr/i0155-01-AIアセット反映の対象は4類型への分類と痕跡の確認で洗い出す.md)
 - [i0159-01-hookの前置フィルタは純粋関数によるバックスラッシュ除去と大文字小文字非依存比較で超集合を保つ.md](ddr/i0159-01-hookの前置フィルタは純粋関数によるバックスラッシュ除去と大文字小文字非依存比較で超集合を保つ.md)
 - [i0160-01-SKILL.mdの分割は読むタイミング単位で行い参照列とhookで機械的に注入する.md](ddr/i0160-01-SKILL.mdの分割は読むタイミング単位で行い参照列とhookで機械的に注入する.md)
