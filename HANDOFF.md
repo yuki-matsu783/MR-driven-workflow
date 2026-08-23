@@ -17,7 +17,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - issue: #172
 - ブランチ: `claude/gemini-exclude-decision-yp5p70`
 - PR: #193（Draft）（https://github.com/yuki-matsu783/MR-driven-workflow/pull/193 ）
-- push回数: 5
+- push回数: 6
 - 現在のループ: なし
 - 未返信スレッド: 0
 - 追従監視: PRイベント購読中（`subscribe_pr_activity` で PR #193 を購読。セッション終了とともに止まるため、次セッションは `resume` で取り直す）
@@ -114,13 +114,34 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
   整合性チェックを判定基準の一部として置いた。案は3つ（残す／hooks・scriptsだけ外す／3つとも外す）で、
   **暫定は案1（現状維持）**。結論は flow-id 3-6 で確定させる。
 
+- flow-id 3-2: commit・pushし、**計画に対する敵対的レビュー（フェーズ3・1回目）を実施**した。
+  findings 10件 → 投稿候補7件 → PR #193 へ7スレッドとしてインライン投稿。
+  投稿したスレッド:
+  - https://github.com/yuki-matsu783/MR-driven-workflow/pull/193#discussion_r3838975571
+  - https://github.com/yuki-matsu783/MR-driven-workflow/pull/193#discussion_r3838976178
+  - https://github.com/yuki-matsu783/MR-driven-workflow/pull/193#discussion_r3838976657
+  - https://github.com/yuki-matsu783/MR-driven-workflow/pull/193#discussion_r3838977282
+  - https://github.com/yuki-matsu783/MR-driven-workflow/pull/193#discussion_r3838977757
+  - https://github.com/yuki-matsu783/MR-driven-workflow/pull/193#discussion_r3838978275
+  - https://github.com/yuki-matsu783/MR-driven-workflow/pull/193#discussion_r3838978752
+- **flow-id 3-3〜3-4 相当**: 人間のレビュー往復は非対話セッションのため成立しない（進捗記号は
+  `[]` のまま）。代わりに**10件すべてを自分で実装を読んで再現確認したうえで**計画へ反映し、
+  7スレッドすべてへ返信した（未返信スレッド 0）。「報告のみ」3件も同じpushで修正し、内訳を
+  worklog `_push6.md` へ書き出した。
+  **最も重い指摘は「軸3（外すコスト）に配布先での再適用が壊れることが計上されていない」**で、
+  `install-to-project.sh` の手順7が `--force` 無しで sync を呼び失敗しても警告のみで続行するため、
+  既存の配布先では古い3ディレクトリが残ったままインストール成功に見えることを確認し、
+  事実Iとして追加。移行方針（3択）をこの計画の決定対象に含めた。
+  あわせて **`【実装】` を同じファイルへ追記する方針をやめ、別ファイル＋3-2〜3-5 の合意を経る形**
+  へ変更した（合意を取る地点がフローの中に無かったため）。
+
 ## 次にやること
 
-- flow-id 3-2: commit・push してレビュー依頼（このpush）。**敵対的レビュー（フェーズ3・1回目）**を
-  実施し、指摘を計画へ反映する。
 - flow-id 3-6: 判定基準の4軸を3ディレクトリへ当てて結論を確定し、
   `wip/reports/20260823_mellow-drifting-lantern_gemini生成対象の採否.md`（＋`.html`）へ記録する。
-  「外す」を選んだ場合に限り、`is_copy_excluded` の接頭辞一致化とT8のテスト追加まで行う。
+  暫定は**案1（3つとも残す）**。事実I（配布先の移行コスト）が加わり、案2・案3のコスト側が増えた。
+- 「外す」を選んだ場合に限り、**別ファイル** `wip/plans/【実装】gemini生成対象の除外.md` を
+  flow-id 3-1 として新規作成し、3-2〜3-5 の合意を経てから実装する（この計画では実装しない）。
 
 ## 判断を迷った内容
 
