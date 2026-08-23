@@ -134,7 +134,7 @@
   <h2>実施条件（測った対象・環境）</h2>
   <ul>
     <li>実行環境: Linuxリモート実行環境（Claude Code on the web）。Windows実機は対象外（下記「確かめられなかったこと」）。</li>
-    <li>対象: このブランチの作業ツリー（PR #173 / push9予定分）。</li>
+    <li>対象: このブランチの作業ツリー（push9の断面）。</li>
     <li>実施日: 2026-08-23</li>
   </ul>
 </section>
@@ -143,7 +143,7 @@
   <h2>実施した内容と結果</h2>
 
   <h3>1. usecase文書8本の作成</h3>
-  <p>ファイル名は調査結果「問い1・2」の表のとおり。全8本が、4見出し統一・<code>type: usecase</code> のfrontmatter・手順詳細なし（コードフェンス0）・ファイル位置からの相対リンク（全21リンク実在）・各30〜45行、を満たす。</p>
+  <p>ファイル名は調査結果「問い1・2」の表のとおり。全8本が、4見出し統一・<code>type: usecase</code> のfrontmatter・手順詳細なし（コードフェンス0）・ファイル位置からの相対リンク（リンク先ユニーク21件＝延べ26箇所の実在確認済み）・各30〜45行、を満たす。</p>
 
   <h3>2. 周辺7ファイルの更新</h3>
   <div class="tablewrap">
@@ -166,7 +166,7 @@
 検証2（frontmatter検索）:         matched=8 total=140
 検証3（README⇔ファイル双方向）:   README⇔ファイル 双方向一致
 検証4（コードフェンスなし）:      files=8 fences=0
-検証5（リンク実在）:              links=21 missing=0
+検証5（リンク実在）:              links=21 missing=0（ユニーク21件・延べ26箇所）
 検証6（4-6行のusecase言及）:      1
 検証7（周辺5ファイル）:           1 / 1 / 1 / 1 / 5（いずれも1以上）</code></pre>
   <div class="box ok">
@@ -198,6 +198,7 @@
     <li>usecase層の設計判断（README一本化・日本語ファイル名・生成物化の見送りと再検討条件・flow-id 4-6への組み込み）をDDRとして残すかを、flow-id 4-1で判断する。</li>
     <li><code>【AIアセット作成】</code> 種別の定義への追記要否も、flow-id 4-1の反映候補に含める（フェーズ2から持ち越し）。</li>
     <li><code>Provider.sh</code> の <code>add_empty_commit_for_draft_mr</code> 不具合はflow-id 4-1の確定候補（本フェーズでは計画どおり <code>.sh</code> に触れていない）。</li>
+    <li>配布対象アセット（<code>.claude/</code> 配下）が増えたため、<code>.claude/VERSION</code> の増分（MINOR: 資産の追加）を flow-id 4-6 で提案する。据え置く場合は理由をspecのchangelogへ残す。</li>
   </ol>
 </section>
 

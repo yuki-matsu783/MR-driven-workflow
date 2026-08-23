@@ -48,9 +48,40 @@ findings 11件（インライン投稿9件、確度・重大度が基準未満�
    運用ルール1行が落ちていた → docs-workflow行の変更内容へ運用ルールを復元し、
    「調査結果が正」の位置づけを維持した。
 
+## 敵対的レビュー フェーズ3・2回目（push9の直後。対象: 作業実施分）
+
+findings 11件（インライン投稿5件、確度・重大度が基準未満のため報告のみ6件）。全件修正した。
+これでフェーズ3の敵対的レビューは上限3回中2回を消費（このフェーズでの追加レビューは行わない）。
+
+報告のみ（MRには出していない）6件の内容:
+
+1. [minor/medium] 「途中の作業を再開・引き継ぐ」の `sync` 紹介に「新しいセッションの最初の
+   一手には使わない」の制約が無い → 括弧書きで追記した。
+2. [minor/medium] 「レビューをAIに補助してもらう」が対話セッション側の起動条件しか書いておらず、
+   非対話での自律起動と投稿前の承認確認が落ちている → 両モードと承認の1文を追記した。
+3. [minor/medium] 作業結果レポート「設計への反映」に `.claude/VERSION` 増分判断の受け皿が無い
+   → 項目4として追加した（MINOR増分をflow-id 4-6で提案。据え置き時はchangelogへ記録）。
+4. [nit/high] `.claude/REVIEW-POINTS.md` のfrontmatter（description/keywords）がusecase観点の
+   新設に追随していない → description・keywordsを更新した。
+5. [nit/medium] 作業結果レポートのmd/htmlで「実施条件」の情報が非対称 → md側ヘッダへ
+   「対象: このブランチの作業ツリー（push9の断面）」を追記して揃えた。
+6. [minor/low] docs-workflowの「恒久的に参照してよい」列挙等3箇所が spec/ddr のまま →
+   docs-workflow・ルートREVIEW-POINTSの列挙へ `.claude/docs/usecase/` を追加し、アプリ本体
+   拡張の段落へusecaseの集約方針を1文追記した。
+
+## mainのマージ（push10に含む）
+
+- 定期チェックインで `check-base-conflicts.sh` が `hasTextualConflict` を検知（mainがPR #157で
+  前進。フローが43ステップ化、flow-id 5-3に.gemini変換同期が新設され5-4以降が繰り下げ）。
+- 監視モードの類型C（両方を残す）で解消: HANDOFFヘッダは main新設の「未返信スレッド」行＋
+  こちらの「追従監視」行を統合。docs-workflow表は こちらのusecase行＋main側の5-5表記の
+  REVIEW-POINTS行を統合。進捗表をフェーズ5の新番号（5-3〜5-7）へ更新。
+- semantic conflict対応: usecase文書2本と全体作業計画の「42ステップ」表記を43へ追随。
+- 検証: マーカー残存なし・単体テスト17本全緑（passed合計1104・failures 0）・DDR一覧再生成差分なし。
+
 ## 次の一歩
 
-- 3-6は完了（push9）。3-7 commit・push → 敵対的レビュー（フェーズ3・2回目。対象: 作業結果と
-  usecase文書一式）→自動修正→返信 → 3-10 describe → フェーズ4（4-1 個別反映計画）へ。
+- レビュー修正をcommit・push（push10）→ 5スレッドへ返信（3-9相当）→ 3-10 describe →
+  フェーズ4（4-1 個別反映計画）へ。
 
 ---

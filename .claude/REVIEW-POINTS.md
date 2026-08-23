@@ -1,9 +1,9 @@
 ---
 title: レビュー観点（.claude配下）
 type: review-points
-description: .claude配下のシェルスクリプト・スキル・ルール・エージェント定義に適用されるレビュー観点。
+description: .claude配下のシェルスクリプト・スキル・ルール・エージェント定義・ユースケース文書に適用されるレビュー観点。
 tags: [review, review-points, shell]
-keywords: [bash, jq, フォーク, コマンド置換, NULバイト, CR混入, set -e, mainガード, テスト, Provider.sh, SKILL.md]
+keywords: [bash, jq, フォーク, コマンド置換, NULバイト, CR混入, set -e, mainガード, テスト, Provider.sh, SKILL.md, usecase, ユースケース文書]
 ---
 
 # レビュー観点（.claude配下）

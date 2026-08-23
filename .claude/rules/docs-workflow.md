@@ -54,6 +54,9 @@ keywords: [plans, handoff, worklog, 正史仕様, 意思決定ログ, ライフ�
 ものである。アプリ本体を追加する場合は、そのアプリ専用の`docs/spec/`・`docs/ddr/`（必要なら人間専用
 ツール用の`dev-tools/docs/`）を同じ表の運用ルールで新設し、`.mrworkflow.json`の`specDirs`/`ddrDirs`に
 追記することを検討する（詳細: `.claude/rules/directory-structure.md`「配置の指針」）。
+ユースケース文書はアプリ固有の場面が必要になった場合も、まずは `.claude/docs/usecase/` の
+1箇所へ追加する（一覧の正をREADME1箇所に保つため。分離が必要な規模になった時点で、専用
+ディレクトリの新設を検討する）。
 
 `HANDOFF.md` は空でも各見出し（現在地／次回やること等）だけを残した状態でルート直下に存在させておき、使うときに埋める運用とする（都度新規作成はしない）。
 
@@ -62,7 +65,7 @@ keywords: [plans, handoff, worklog, 正史仕様, 意思決定ログ, ライフ�
 のように**flow-id 5-5で削除済みのplanファイル**を参照しており、読み手が辿れない状態になっていた）。
 これらはタスク単位（flow-id 5-5）で削除される寿命の短いファイルであり、コード側の恒久的な参照とは
 ライフサイクルが噛み合わない。**恒久的に参照してよいのは、issue番号（GitHub/GitLab上に残る）と
-`.claude/docs/spec/` `.claude/docs/ddr/` 配下のファイル**である。
+`.claude/docs/spec/` `.claude/docs/ddr/` `.claude/docs/usecase/` 配下のファイル**である。
 
 ```bash
 # 悪い例（planは削除されるため参照が切れる）

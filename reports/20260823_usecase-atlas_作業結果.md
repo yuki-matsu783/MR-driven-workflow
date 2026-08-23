@@ -11,6 +11,7 @@ keywords: [ユースケース, usecase, 作業結果, 検証, frontmatter, READM
 - issue: #170 / PR: #173
 - 個別作業計画: `plans/【AIアセット作成】ユースケース文書一式と周辺更新.md`
 - 実施日: 2026-08-23（Linuxリモート実行環境。Claude Code on the web）
+- 対象: このブランチの作業ツリー（push9の断面）
 
 ## サマリ
 
@@ -34,8 +35,8 @@ keywords: [ユースケース, usecase, 作業結果, 検証, frontmatter, READM
   対応する実リソースが無いため省略）。
 - 手順詳細（コマンド列・手順番号）は書かず、コードフェンス0（検証4）。流れは散文＋箇条書きで
   概観に留め、spec/SKILL.mdへのリンクで参照。
-- リンクはすべてファイル位置（`.claude/docs/usecase/`）からの相対パスで、全21リンクの実在を
-  確認（検証5）。
+- リンクはすべてファイル位置（`.claude/docs/usecase/`）からの相対パスで、リンク先ユニーク
+  21件（延べ26箇所。検証5は `sort -u` 後のユニーク数を数える）の実在を確認（検証5）。
 - 分量は各30〜45行（目安30〜60行の範囲内）。
 
 ### 2. 周辺7ファイルの更新
@@ -58,7 +59,7 @@ keywords: [ユースケース, usecase, 作業結果, 検証, frontmatter, READM
 - 検証2（frontmatter検索）: `matched=8 total=140`
 - 検証3（README⇔ファイル双方向一致）: `README⇔ファイル 双方向一致`（diff差分なし・件数ガード通過）
 - 検証4（コードフェンスなし）: `files=8 fences=0`
-- 検証5（リンク実在）: `links=21 missing=0`
+- 検証5（リンク実在）: `links=21 missing=0`（ユニークなリンク先パス21件。延べ26箇所）
 - 検証6（4-6行のusecase言及）: `1`
 - 検証7（周辺5ファイル）: `1 / 1 / 1 / 1 / 5`（frontmatter規約・docs-workflow・
   directory-structure・index.md・REVIEW-POINTS。いずれも1以上）
@@ -95,3 +96,6 @@ keywords: [ユースケース, usecase, 作業結果, 検証, frontmatter, READM
    持ち越し）。
 3. `Provider.sh` の `add_empty_commit_for_draft_mr` 不具合（フェーズ1で発生）は引き続き
    flow-id 4-1の確定候補（本フェーズでは計画どおり `.sh` に触れていない）。
+4. 今回の変更は配布対象アセット（`.claude/` 配下）を増やしているため、`.claude/VERSION` の
+   増分（MINOR: 資産の追加）を flow-id 4-6 で提案する。据え置く場合は、その事実と理由を
+   specのchangelogへ残す（`distribution-assets.md`「`.claude/VERSION`」の運用）。
