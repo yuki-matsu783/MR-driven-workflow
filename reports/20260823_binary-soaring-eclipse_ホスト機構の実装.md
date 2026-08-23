@@ -20,10 +20,11 @@ keywords: [get_report_site_url, wait_for_report_site, report_site_prefix_to_repl
 | 2 | `Github.sh` / `Gitlab.sh` にプロバイダ固有実装を追加 | **完了** | **実機で実行**（GitHubは成功経路、GitLabは失敗経路） |
 | 3 | GitHub Actions ワークフローを作成 | **完了・実機で成功** | CIが11秒で成功し `gh-pages` が作られた |
 | 4 | GitLab CI の `pages` ジョブを作成 | **完了・改変版が実機で成功** | GitLab CE + Runner を構築し、MRパイプラインで `pages` ジョブが成功した。**ただし動かしたのは `pages:` ブロック（`path_prefix` / `expire_in`）を削った CE 版**で、雛形そのものは未実行 |
-| 5 | `sync-assets.sh` から `workflows/` と `index.jsonl` を除外 | **完了** | 実際に実行して配布物の中身を確認 |
+| 5 | `sync-assets.sh` から `workflows/`・生成物・ローカル状態を除外 | **完了** | 実際に実行して配布物の中身を確認（`index.jsonl` 18件と `.claude/state/` が消えること） |
 | 6 | `SKILL.md` への組み込み（flow-id 5-4・5-6・新節・提供関数表） | **完了** | 目視確認 |
-| 7 | 単体テスト | **完了**（`passed=237 failures=0`） | 実行結果 |
+| 7 | 単体テスト | **完了**（`passed=244 failures=0`） | 実行結果 |
 | 8 | 実機検証 | **GitHubは完了／GitLabは一部未** | 下記「作業8」 |
+| 9 | 敵対的レビュー2回目（13件）の反映 | **完了** | 投稿7件・報告6件のすべてを反映。下記「作業9」 |
 
 **払い出されたURLは実際にブラウザで開ける。**
 `https://yuki-matsu783.github.io/MR-driven-workflow/pr-180/` が 200 を返し、一覧から各HTMLへ辿れる。
@@ -130,6 +131,18 @@ publish-report-site.gitlab.yml
 雛形は `.claude/` 経由で配られている。** `.gitlab-ci.yml` はルート直下ファイルの明示的な
 ホワイトリスト（7ファイル）に含めていないため、追加の除外は要らなかった。
 
+**生成物の除外は、作業9で「集め終えたあとに一括で消す」形へ変えた**（当初は `.github/` の
+除外ループの中だけで弾いており、`.claude/` 配下の18件が残っていた）。ついでに `.claude/state/`
+（`.gitignore` 対象のローカル作業状態）も同じ性質なので落としている。
+
+```
+$ bash .claude/skills/apply-mr-workflow-to-project/scripts/sync-assets.sh
+ -> Removed 18 generated index.jsonl file(s)
+ -> Removed local state directory (.claude/state)
+$ find .claude/skills/apply-mr-workflow-to-project/assets -name index.jsonl | wc -l
+0
+```
+
 ### 作業6: `SKILL.md` への組み込み
 
 - flow-id **5-4** の行の**末尾**へ1文を足した（既存の「詳細は下記…節」の係り先を動かさないため、
@@ -147,7 +160,7 @@ publish-report-site.gitlab.yml
 
 ### 作業7: 単体テスト
 
-`test_vcs_provider.sh` へ **19件**を追加し、`passed=237 failures=0`。
+`test_vcs_provider.sh` へ **25件**を追加し、`passed=244 failures=0`。
 
 | 対象 | 件数 | 内容 |
 |---|---|---|
@@ -156,7 +169,8 @@ publish-report-site.gitlab.yml
 | `github_pages_base_url_to_reply` | 2 | project site / user・org site |
 | `get_report_site_url` の経路 | 2 | 組み立て結果＋**差し替えがサブシェルの外へ漏れていないこと** |
 | `mcp_tool_hint` | 1 | 「代替なし」と案内すること |
-| 雛形の同一性 | 2 | GitHub側・GitLab側 |
+| `wait_for_report_site` の引数検査 | 7 | 空URL / 間隔0 / 間隔非数値 / 上限非数値 / 上限負 / 上限0は1回 / 上限2間隔1は3回 |
+| 雛形の同一性 | 2 | GitHub側・GitLab側（**比較先が無ければスキップし件数を出す**） |
 | （既存） | 219 | — |
 
 **経路テストでは4つを差し替えた**（`github_get_report_site_url` / `get_provider` /
@@ -265,6 +279,27 @@ report_site_prefix_to_reply gitlab 1 → REPLY=mr-1
 `exit 0` 版では「成功したジョブが空の `public` をアップロードする」ことになっていたので、
 挙動が反転している。
 
+### 作業9: 敵対的レビュー2回目の指摘への反映
+
+投稿7件・報告のみ6件の**すべて**を反映した。GitLab関連4件は先行して直し（上記「作業8」の
+取り直しがその結果）、残り9件をこの往復で直した。
+
+| 指摘 | 直したもの |
+|---|---|
+| バイト一致テストが**配布先では必ず失敗する**（配布先にCI設定が無い） | `assert_template_identical` を新設し、比較先が無ければスキップ。**スキップ件数を出す**（無言のスキップにしない） |
+| `wait_for_report_site` は `require_vcs_cli` を通らないのに SKILL.md が「どちらも非0で終える」と書いていた／`mcp_tool_hint` の分岐が到達不能 | SKILL.md を実装に合わせ、`mcp_tool_hint` の分岐を削除。**なぜ置かないか**をコメントで残した |
+| `curl` という新しい外部依存が「前提」に無い | `Provider.sh` 冒頭へ追記。あわせて **`AGENTS.md` の「curlへフォールバックしない」の対象外である理由**を関数コメントへ書いた |
+| `interval=0` で無限ループ／数値以外で `set -e` ごと落ちる／`curl` に `-L` が無い／実所要が上限より1周期長い | 4点とも修正。**引数検査は `curl` を1度も呼ばずに弾く**ことを、呼び出し回数を数えるテスト6件で固定した |
+| `index.html` がファイル名をエスケープしていない | href は%エンコード、表示テキストはHTMLエスケープ。**GitHub版・GitLab版で同じ実装**にした |
+| 配布先向けの注意が SKILL.md と2本のYAMLヘッダに二重 | **正を SKILL.md の表に決め**、YAMLヘッダは「このファイルを置くときに手を入れる箇所」だけに絞った |
+| `index.jsonl` の除外が `.github/` にしか効いていない | 集め終えたあとに**一括で消す**形へ変更（`.claude/` 配下の18件が残っていた） |
+| `index.md` / `directory-structure.md` に `.github/workflows/` と `.gitlab-ci.yml` が無い | **フェーズ4の反映先**として `HANDOFF.md` へ記録済み（このフェーズでは直さない） |
+| orphan `gh-pages` 直後の競合で `git pull --rebase` が `unrelated histories` で必ず失敗する | `fetch` + `reset --hard FETCH_HEAD` してから `pr-<n>/` を置き直す形へ変更。同じ手順を2箇所へ書かないよう関数へ切り出した |
+
+**ついでに見つけたもの**: `sync-assets.sh` は `.claude/state/`（`.gitignore` 対象のローカル
+作業状態）も配布物へコピーしていた。`index.jsonl` とまったく同じ性質なので、同じ一括除去で
+落とすようにした（指摘には含まれていない）。
+
 ## 確かめられなかったこと
 
 - **GitLab の Pages 配信（＝`gitlab_get_report_site_url` の成功経路）。** 有効化するには
@@ -281,6 +316,12 @@ report_site_prefix_to_reply gitlab 1 → REPLY=mr-1
 - **fork からのPR**での挙動。
 - **`gh-pages` が既にある状態での2回目以降のデプロイ**（`rm -rf` して置き換える経路）。今回は
   初回のorphan作成の経路しか通っていない。
+- **作業9で書き換えたあとの GitHub ワークフロー。** 実機で成功したのは書き換え**前**の版で
+  ある。エスケープ処理・リトライ経路・ヘッダの整理を入れた版は、この変更をリモートへ反映した
+  時点のCI実行が初めての実行になる。**「以前成功したから今も動く」とは言えない**ので、
+  反映後に実行結果を確認する必要がある。
+- **`fetch` + `reset --hard FETCH_HEAD` によるリトライ経路。** 競合を意図的に作っていない。
+  `unrelated histories` で必ず失敗する状態は解消したが、**リトライが成功するところは見ていない**。
 
 ## 設計への反映
 
@@ -311,6 +352,19 @@ artifacts としてアップロードされ、`mr-<iid>/` を空（404）に置�
 `deploy=false` で以降のstepごとスキップするので `gh-pages` を一切触らず、**同じガードのつもりで
 書いた2つの実装の強さが違っていた。** `rules` の `exists` へ移し、0件ならジョブ自体を作らせない
 形にしたうえで、**実機でパイプラインが生成されないことを確認した**。
+
+### bashの `${v//a/b}` は、置換文字列中の `&` の意味がバージョンで違う
+
+`index.html` のHTMLエスケープを `esc="${esc//</&lt;}"` と書いたところ、**`<lt;` になった**。
+bash 5.2 から置換文字列中の `&` が「マッチした文字列全体」へ展開されるようになっており
+（`patsub_replacement`、既定で有効）、`&lt;` の `&` が `<` へ化けていた。
+
+- `\&` で退避できるが、**5.1以前では `\&` がそのまま残る可能性**があり互換でない。
+- GitLab の `script` は shell が bash とも限らない（`${v//a/b}` 自体が保証されない）。
+- **`sed` へ寄せた。** `&` の意味も `\&` での退避も、処理系をまたいで定まっている。
+
+**「置換文字列に `&` を書く」というだけの話が、bashのバージョンとCIのshellの2軸に依存していた。**
+テストで気づけたのは、期待値を目視ではなく実際の変換結果で確かめたからである。
 
 ### `test_sync_gemini_assets.sh` が元から完走しない
 
@@ -346,11 +400,10 @@ artifacts としてアップロードされ、`mr-<iid>/` を空（404）に置�
 - **GitLab の Pages 配信の検証。** `pages_external_url` を設定し、コンテナへ別ポートを公開して
   作り直せば確認できる。**稼働中のコンテナを作り直すことになるため、ユーザーの判断を仰ぐ。**
   これができると `expire_in: never` の効果も併せて確認できる。
-- **敵対的レビュー（フェーズ3・2回目）の未対応6件。** `wait_for_report_site` の `interval=0` で
-  無限ループ／`index.html` のHTMLエスケープ漏れ／雛形バイト一致テストが配布先で失敗する／
-  `SKILL.md` と YAML の二重管理／`index.jsonl` 除外が `.github/` のみ／`index.md` と
-  `directory-structure.md` への追記漏れ。**GitLab以外の指摘は人間のレビュー（flow-id 3-8）を
-  待って対応する。**
+- **敵対的レビュー（フェーズ3・2回目）の13件は全件反映済み**（上記「作業9」）。**ただし1件は
+  フェーズ4送り**である——`index.md` と `.claude/rules/directory-structure.md` への
+  `.github/workflows/` `.gitlab-ci.yml` の追記は、AIアセット反映（フェーズ4）の担当なので
+  ここでは行っていない（`HANDOFF.md` の反映先候補へ記録済み）。
 - **`gh-pages` の掃除は入れていない**（flow-id 2-9 の「恒久公開してよい」という判断による）。
   PR単位のディレクトリは溜まり続ける。**別issueの候補として記録する。**
 - **検証用に作った資産の後始末。** GitLab側の `gitlab-runner` コンテナ・`gitlab-net` ネットワーク・

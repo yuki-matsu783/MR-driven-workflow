@@ -17,9 +17,9 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - issue: #114 flow-id 5-4のマージ依頼時に報告HTMLをホストしURLをユーザへ通知する機能を追加する
 - ブランチ: feature-114-host-report-html-and-notify-url
 - PR: #180 https://github.com/yuki-matsu783/MR-driven-workflow/pull/180（Draft）
-- push回数: 11
+- push回数: 12
 - 現在のループ: 3-6〜3-9 の1周目（進行中）
-- 未返信スレッド: 3
+- 未返信スレッド: 0
 - 追従監視: あり（ローカル／git bash。各pushの直後と作業再開時に `/resolve-conflict` を手動実行する）
 
 | 進捗 | flow-id | ステップ | 担当 |
@@ -313,22 +313,53 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
   - **残り3スレッド**（`test_vcs_provider.sh` / `SKILL.md` / `Provider.sh`）と**報告のみの6件**は、
     flow-id 3-8 の人間のレビューと同じ往復で対応する。
 
+- flow-id 3-9（レビュー1周目・**残り9件**）: チャットで**「修正してよい」**の判断を受け、
+  GitLab以外の指摘も直した。**これで敵対的レビュー2回目の13件（投稿7・報告6）は全件反映済み**。
+  - `test_vcs_provider.sh`: `assert_template_identical` を新設し、**比較先が無ければスキップして
+    件数を出す**（配布先ではCI設定が無いので必ず失敗していた）。「書き換えたら破れる」ほうは
+    スキップでは解決しないため、**配布元だけが保つべき不変条件**だとコメントで明示した。
+  - `SKILL.md` / `Provider.sh`: `mcp_tool_hint` の `wait_for_report_site)` 分岐（到達不能）を削除し、
+    **なぜ置かないか**をコメントで残した。SKILL.md の説明を実装に合わせた。冒頭の「前提」へ
+    `curl` を追記し、**`AGENTS.md` の「curlへフォールバックしない」の対象外である理由**も書いた。
+  - `wait_for_report_site`: `interval=0` の無限ループ・数値以外での `set -e` 落ち・`curl -L` の
+    欠落・実所要が上限より1周期長い、の4点を修正。**`curl` を1度も呼ばずに弾くこと**を、
+    呼び出し回数を数えるテスト7件で固定した（`passed=244 failures=0`）。
+  - CI雛形2本: `index.html` の href を%エンコード・表示テキストをHTMLエスケープ。orphan `gh-pages`
+    直後の競合で必ず失敗していた `git pull --rebase` を `fetch` + `reset --hard FETCH_HEAD` +
+    置き直しへ変更（同じ手順を2箇所へ書かないよう関数へ切り出し）。ヘッダの重複は
+    **正を SKILL.md の表に決め**、「置くときに手を入れる箇所」だけに絞った。
+  - `sync-assets.sh`: `index.jsonl` の除去を**集め終えたあとの一括処理**へ変更（`.claude/` 配下の
+    18件が残っていた）。**指摘に無いが `.claude/state/` も同じ性質なので落とした**
+    （タスクと直接関係しない変更。不要なら戻せる）。
+  - **`index.md` / `.claude/rules/directory-structure.md` への追記だけはフェーズ4送り**
+    （AIアセット反映の担当）。反映先候補へ記録済み。
+  - **踏んだこと**: `esc="${esc//</&lt;}"` が `<lt;` になった。bash 5.2 から置換文字列中の `&` が
+    マッチ全体へ展開される（`patsub_replacement`）。`\&` での退避は5.1以前と互換でなく、
+    GitLab の `script` は shell が bash とも限らないため **`sed` へ寄せた**。
+  - **書き換えた GitHub ワークフローは、このpushのCI実行が初めての実行**である
+    （実機で成功したのは書き換え前の版）。レポートの「確かめられなかったこと」へ明記した。
+  - 判断と対応内容は `add_mr_comment` でPR #180 へ記録した（`flow-id 3-9・GitLab以外も修正`）。
+  - **未返信スレッドは0件になった。**
+
 ## 次にやること
 
-- flow-id 3-8（**進行中**）: 人間のレビューを待つ。**GitLab関連の4スレッドは対応・返信済み**で、
-  **未返信は3スレッド**（`test_vcs_provider.sh` / `SKILL.md` / `Provider.sh`）。
-  レビュー依頼のメッセージでは、**GitLab以外の指摘も今この往復で直してよいか**を明示的に問う。
-  - `test_vcs_provider.sh`: 雛形と `.github/workflows/` `.gitlab-ci.yml` のバイト一致テストが、
-    **配布先では必ず失敗する**（配布先に元ファイルが無いため）
-  - `SKILL.md`: `wait_for_report_site` の説明と実装の食い違い・`require_vcs_cli` を通らない
-    関数に `mcp_tool_hint` の分岐がある（到達不能）
-  - `Provider.sh`: `curl` への依存が前提として明記されていない
-  - **報告のみに留めた6件**（上記「やったこと」flow-id 3-7 に列挙）も同じ往復で反映する
+- flow-id 3-8（**進行中**）: 人間のレビューを待つ。**敵対的レビュー2回目の13件は全件反映済みで、
+  未返信スレッドは0件**。
+  - **このpushで走る GitHub Actions の結果を確認する**（書き換え後の版は今回が初めての実行）。
+  - レビューで合意が取れたら、ループ範囲 3-6〜3-9 を `mark-done` する。
 - 合意後、flow-id 3-10（`describe`）→ **フェーズ4（4-1: 個別反映計画）**。反映先の候補:
   - `.claude/docs/ddr/i0114-01-….md`（ホスティング手段とタイミングの選定・却下案）
   - `.claude/docs/spec/issue-mr-workflow.md`（提供関数の表・flow-id 5-4／5-6・配布物の扱い）
   - `.claude/docs/spec/gitlab-verification-environment.md`（**Runner の構築手順**）
-  - `.claude/docs/spec/distribution-assets.md`（`.github/workflows/` と `index.jsonl` の除外）
+  - `.claude/docs/spec/distribution-assets.md`（`.github/workflows/`・生成物・ローカル状態の除外）
+  - `.claude/docs/spec/shell-scripts.md`（**`curl` 依存の追記**と、**bash 5.2 の
+    `patsub_replacement` で `${v//a/b}` の置換文字列中の `&` の意味が変わる**という罠）
+  - **`index.md` と `.claude/rules/directory-structure.md`**（`.github/workflows/` と
+    `.gitlab-ci.yml` の追加。敵対的レビューの指摘のうち唯一フェーズ4送りにしたもの）
+- **検証用に作った資産の後始末**（`gitlab-runner` コンテナ・`gitlab-net`・プロジェクト id=8）。
+- **別issueの候補**: `gh-pages` の掃除（PR単位のディレクトリが溜まり続ける）。
+  `main` 由来の既存テスト失敗3件（`test_block_direct_git_commit` 1件・`test_command_position` 2件）。
+
   - `.claude/docs/spec/shell-scripts.md`（`curl` 依存の追記）
   - **`index.md` と `.claude/rules/directory-structure.md`**（`.github/workflows/` と
     `.gitlab-ci.yml` の追加。上記「報告のみ」5）
