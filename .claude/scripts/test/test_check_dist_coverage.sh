@@ -123,6 +123,18 @@ assert_eq "配布先ではスキップと分かる出力を出す" "1" \
 assert_eq "スキップ時も件数を出す" "1" \
   "$(printf '%s\n' "$down_out" | grep -c '追跡ファイル [0-9]* 件')"
 
+# --- 3-b. 検査対象は「定義ファイルの置かれたリポジトリ」で決まる -------------
+# 既定の相対パスと cwd 基準の `git ls-files` のままだと、別ディレクトリから起動したときに
+# 「起動時のカレントディレクトリのリポジトリ」を検査してしまう（install-to-project.sh が
+# 配布先を cwd にして呼ばれると必ず中断していた）。
+run_outside() { (cd "$TMP_DIR" && bash "$TARGET" "$@"); }
+
+assert_eq "本家ルート以外から起動しても通る" "0" "$(status_of run_outside --def "$DEF")"
+# 通るだけでは「別のリポジトリを検査して偶然通った」場合と区別できないので、分母まで見る。
+assert_eq "別cwdでも分母は本家の追跡ファイル数" \
+  "$(git -C "$REPO_ROOT" ls-files | wc -l)" \
+  "$(run_outside --def "$DEF" | sed -n 's#^検査1 .*/ \([0-9]*\) 件$#\1#p')"
+
 # --- 4. 引数の扱い ----------------------------------------------------------
 
 assert_eq "定義ファイルが無ければ失敗する" "1" "$(status_of run_here --def "${TMP_DIR}/no_such.json")"

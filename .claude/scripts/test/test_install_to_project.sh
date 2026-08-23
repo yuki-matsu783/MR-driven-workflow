@@ -319,5 +319,114 @@ else
 fi
 assert_eq "gitリポジトリでない配布先は中断する" "1" "$notgit_status"
 
+# =========================================================================
+# C. 敵対的レビュー（フェーズ3・2回目）の指摘に対する回帰テスト
+#
+# **どれも受け入れ条件1〜11には現れない挙動である。** 条件だけを見てテストを書くと
+# 抜け落ちる種類のものなので、指摘ごとに1件ずつ表明を残す。
+# =========================================================================
+
+# --- C-1: --help の出力にシェルのコード行が混ざらない ----------------------
+# 行番号で切り出していたため、冒頭コメントの増減で `set -euo pipefail` が出ていた。
+help_out="$(bash "${SKILL_SCRIPTS}/install-to-project.sh" --help)"
+assert_eq "--help にシェルのコード行が混ざらない" "0" \
+  "$(printf '%s\n' "$help_out" | grep -c '^set -')"
+assert_eq "--help に使い方の行は出る" "1" \
+  "$(printf '%s\n' "$help_out" | grep -c 'install-to-project.sh \[オプション\]')"
+
+# --- C-2: 配布した層分け定義から upstream の印が落ちている -----------------
+# 付いたまま配ると、配布先で網羅性チェックが「本家のもの」として走り、配布先の自前ソースを
+# 全件未分類として報告する（install-to-project.sh 自身も手順2cで中断する）。
+assert_eq "配布した層分け定義に upstream の印が無い" "null" \
+  "$(jq -r '.upstream // "null"' "$dest_new/.claude/dist-layers.json")"
+assert_eq "本家の定義には upstream の印が残っている" "true" \
+  "$(jq -r '.upstream' "${REPO_ROOT}/.claude/dist-layers.json")"
+cov_out="$(cd "$dest_new" && bash .claude/scripts/src/check-dist-coverage.sh)"
+assert_eq "配布先では網羅性チェックがスキップされる" "1" \
+  "$(printf '%s\n' "$cov_out" | grep -c '^スキップ:')"
+
+# --- C-3: 配布先をカレントディレクトリにしても適用できる -------------------
+# 網羅性チェックが相対パスの定義と cwd 基準の git ls-files を見ていたため、必ず中断していた。
+dest_cwd="$(make_dest dest_cwd)"
+if (cd "$dest_cwd" && bash "${SKILL_SCRIPTS}/install-to-project.sh" --allow-dirty . >/dev/null 2>&1)
+then cwd_status=0; else cwd_status=1; fi
+assert_eq "配布先をカレントにしても適用できる" "0" "$cwd_status"
+assert_eq "そのとき manifest も作られる" "1" "$(exists "$dest_cwd/.claude/.asset-manifest.json")"
+
+# --- C-4: 壊れた配布先 settings.json でファイルを破壊しない ----------------
+# jq の終了コードを見ずに書き戻していたため、0バイトへ潰したうえで成功として終了していた。
+# merge 層は .bak を作らないので、これは回復不能な破壊だった。
+dest_broken="$(make_dest dest_broken)"
+install_to "$dest_broken"
+printf '%s' '{ "hooks": ' > "$dest_broken/.claude/settings.json"
+broken_before="$(wc -c < "$dest_broken/.claude/settings.json")"
+if install_to "$dest_broken" 2>/dev/null; then broken_status=0; else broken_status=1; fi
+assert_eq "壊れた配布先settings.jsonでは中断する" "1" "$broken_status"
+assert_eq "中断してもファイルを0バイトにしない" "$broken_before" \
+  "$(wc -c < "$dest_broken/.claude/settings.json")"
+
+# --- C-5: --force のとき、判定不能の警告が .bak を約束しない ---------------
+# 実際には --force では .bak を作らないのに「元の内容は .bak として残します」と出ていた。
+dest_force="$(make_dest dest_force)"
+install_to "$dest_force"
+rm -f "$dest_force/.claude/.asset-manifest.json"   # 旧方式からの移行（判定不能）を模す
+force_out="$(bash "${SKILL_SCRIPTS}/install-to-project.sh" \
+  --allow-dirty --force --dry-run "$dest_force" 2>&1)"
+assert_eq "判定不能の警告自体は出る" "1" \
+  "$(printf '%s\n' "$force_out" | grep -c 'manifest が無いため差分を確認できません')"
+assert_eq "--force のとき .bak を約束しない" "0" \
+  "$(printf '%s\n' "$force_out" | grep -c '元の内容は .bak として残します')"
+assert_eq "--force のとき退避されないことを明示する" "1" \
+  "$(printf '%s\n' "$force_out" | grep -c '退避されずに失われます')"
+
+# --- クリーンな本家を用意する（C-6 / C-7 で使う） --------------------------
+# このリポジトリは機構自身の開発中ほぼ常に dirty なので、作業ツリーの写しから
+# 1コミットだけのクリーンなリポジトリを作り、そこを本家として実行する。
+# 写しは tar 1回で取る。ファイルごとに mkdir と cp を起動すると、186ファイルで
+# 370回以上のforkになる（.claude/rules/shell-script-style.md「外部プロセス起動のコスト」）。
+clean_up="$TMP_DIR/clean_upstream"
+mkdir -p "$clean_up"
+clean_list="$TMP_DIR/clean_files"
+: > "$clean_list"
+while IFS= read -r -d '' f; do
+  # `git ls-files` はindexの内容を返すので、削除したが未ステージの追跡ファイルも含む。
+  # そのまま tar へ渡すと落ちる（.claude/rules/shell-script-style.md）。
+  [ -f "$REPO_ROOT/$f" ] || continue
+  printf '%s\0' "$f" >> "$clean_list"
+done < <(git -C "$REPO_ROOT" ls-files -z)
+tar -C "$REPO_ROOT" -c --null -T "$clean_list" -f - | tar -C "$clean_up" -x -f -
+git -C "$clean_up" init -q .
+git -C "$clean_up" add -A
+git -C "$clean_up" -c user.name=t -c user.email=t@example.com \
+  -c commit.gpgsign=false commit -q -m 'fixture'
+clean_installer="$clean_up/.claude/skills/apply-mr-workflow-to-project/scripts/install-to-project.sh"
+
+# --- C-6: クリーンな本家からの配布では -dirty を付けない -------------------
+# オプションの有無だけを見ていたため、--allow-dirty を常用すると常に -dirty が付き、
+# 「この配布先はこのコミットで再現できるか」が判定できなくなっていた。
+dest_clean="$(make_dest dest_clean)"
+bash "$clean_installer" --allow-dirty "$dest_clean" >/dev/null
+assert_eq "クリーンな本家なら -dirty を付けない" "0" \
+  "$(jq -r '.source.commit' "$dest_clean/.claude/.asset-manifest.json" | grep -c -- '-dirty')"
+assert_eq "commit はSHAとして記録される" "1" \
+  "$(jq -r '.source.commit' "$dest_clean/.claude/.asset-manifest.json" | grep -cE '^[0-9a-f]{40}$')"
+# 逆向きの表明: 実際に dirty なら付くこと（付かないだけの実装でも通ってしまわないように）。
+printf '\n# dirty にする\n' >> "$clean_up/.gitattributes"
+dest_dirty="$(make_dest dest_dirty)"
+bash "$clean_installer" --allow-dirty "$dest_dirty" >/dev/null
+assert_eq "実際に dirty なら -dirty を付ける" "1" \
+  "$(jq -r '.source.commit' "$dest_dirty/.claude/.asset-manifest.json" | grep -c -- '-dirty')"
+
+# --- C-7: マーカーENDの欠落を検出して中断する ------------------------------
+# BEGIN しか必須にしていなかったため、END を消すと BEGIN 以降の全行が配られていた。
+# コメントは落ちるので、出力を目視しても異常だと気づけない。
+sed -i '/^# --- dist:end ---$/d' "$clean_up/.gitattributes"
+dest_noend="$(make_dest dest_noend)"
+if bash "$clean_installer" --allow-dirty "$dest_noend" >/dev/null 2>&1
+then noend_status=0; else noend_status=1; fi
+assert_eq "マーカーENDが無ければ中断する" "1" "$noend_status"
+assert_eq "中断したので本家固有の行を配っていない" "0" \
+  "$([ -f "$dest_noend/.gitattributes" ] && grep -c 'text=auto' "$dest_noend/.gitattributes" || echo 0)"
+
 echo "passed=$passed failures=$failures"
 [ "$failures" -eq 0 ]
