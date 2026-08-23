@@ -47,6 +47,21 @@ usage() {
 
 # ---- 小さなヘルパー --------------------------------------------------------
 
+# 失敗したら理由を出して非0を返す。
+# **`set -e` に頼れない場所で使う。** この下の主要関数はいずれもグローバル変数へ結果を書くため
+# サブシェルで包めず、呼び出し側が条件式（`f || ...` / `if f; then`）へ置くと `set -e` が
+# 関数の内部まで一時停止する。そうなっても失敗が握りつぶされないよう、内部の各コマンドの
+# 終了コードを明示的に検査する（.claude/rules/shell-script-style.md「エラー方針」）。
+# 引数の `$@` は外部コマンドなので、`||` の左辺に置いても `set -e` の一時停止は関係しない。
+run_or_fail() {
+  local what="$1"
+  shift
+  "$@" || {
+    printf 'エラー: %s に失敗しました（%s）\n' "$what" "$1" >&2
+    return 1
+  }
+}
+
 # LF正規化した内容の sha256 を REPLY へ返す。
 # 正規化するのは、Windowsの core.autocrlf=true で全ファイルが「配布先が変更した」と
 # 誤検知されるのを防ぐため（**Windows実機では未確認**。フェーズ4でspecの未決定事項へ残す）。
@@ -137,6 +152,14 @@ build_plan() {
   done < <(read_entries_records)
 
   rm -f "$tmp_ls"
+
+  # **エントリを1件も読めなかった場合を成功にしない。** `read_entries_records` は
+  # プロセス置換の中で走るため、jq が失敗しても while ループが0回まわるだけで、
+  # 以降は「配布対象0件」のまま「core を 0 件配置しました」と成功で終わってしまう。
+  if [ "${#PLAN_PATHS[@]}" -eq 0 ]; then
+    printf 'エラー: 層分け定義から配布対象を1件も読み取れませんでした: %s\n' "$DEF_FILE" >&2
+    return 1
+  fi
   return 0
 }
 
@@ -172,7 +195,10 @@ check_upstream_clean() {
   fi
 
   local out n
-  out="$(git -C "$UPSTREAM_ROOT" status --porcelain -- "${specs[@]}")"
+  out="$(git -C "$UPSTREAM_ROOT" status --porcelain -- "${specs[@]}")" || {
+    printf 'エラー: 本家の状態を取得できませんでした: %s\n' "$UPSTREAM_ROOT" >&2
+    return 1
+  }
   [ -n "$out" ] || return 0
   UPSTREAM_DIRTY=1
 
@@ -340,6 +366,8 @@ merge_fingerprint_json() {
 # ---- 走査パス（ファイルを一切変更しない） ----------------------------------
 
 declare -a SCAN_CORE_NEW=() SCAN_CORE_SAME=() SCAN_CORE_MODIFIED=() SCAN_CORE_UNKNOWN=()
+# 前回のmanifestに載っていて今回は載らない core パス（＝本家で削除・改名された）。
+declare -a SCAN_CORE_REMOVED=()
 declare -a SCAN_SEED_PLACE=() SCAN_SEED_KEEP=() SCAN_MERGE=()
 MANIFEST_EXISTS=0
 
@@ -391,6 +419,22 @@ scan_pass() {
         ;;
     esac
   done
+
+  # **本家で削除・改名された core を洗い出す（一覧の提示のみで、削除はしない）。**
+  # 配布先のファイルを消す操作は人間の判断に委ねる（issue #26 の受け入れ条件にも含まれない）。
+  # 提示すらしないと、`.claude/rules/*.md` はセッション開始時に自動で読み込まれるため、
+  # 配布先のAIが削除されたはずの古いルールを読み続ける。
+  if [ "$MANIFEST_EXISTS" -eq 1 ]; then
+    local -A planned=()
+    local f
+    for f in "${PLAN_PATHS[@]}"; do planned["$f"]=1; done
+    while IFS= read -r f; do
+      [ -n "$f" ] || continue
+      [ -z "${planned[$f]+x}" ] || continue     # 今回も配る
+      [ -e "${DEST_DIR}/${f}" ] || continue     # 配布先から既に消えている
+      SCAN_CORE_REMOVED+=("$f")
+    done < <(jq -r '.files[]? | select(.layer == "core") | .path' "$manifest" | tr -d '\r')
+  fi
   return 0
 }
 
@@ -420,6 +464,12 @@ present_plan() {
       "$([ "$OPT_FORCE" -eq 1 ] && echo '--force のため .bak を作りません。配布先の変更は退避されずに失われます' || echo '元の内容は .bak として残します')"
     printf '  - %s\n' "${SCAN_CORE_UNKNOWN[@]}"
   fi
+  if [ "${#SCAN_CORE_REMOVED[@]}" -gt 0 ]; then
+    printf '\n注意: 次の core ファイルは本家から削除・改名されました。\n'
+    printf '      **このスクリプトは配布先のファイルを削除しません。** 不要であれば手で消してください\n'
+    printf '      （.claude/rules/*.md はセッション開始時に自動で読み込まれるため、古いルールが残り続けます）。\n'
+    printf '  - %s\n' "${SCAN_CORE_REMOVED[@]}"
+  fi
   if [ "${#SCAN_SEED_KEEP[@]}" -gt 0 ]; then
     printf '\n触らない seed（配布先所有）:\n'
     printf '  - %s\n' "${SCAN_SEED_KEEP[@]}"
@@ -447,11 +497,11 @@ apply_pass() {
     [ -n "$p" ] || continue
     dst_path="${DEST_DIR}/${p}"
     src_abs="${UPSTREAM_ROOT}/${PLAN_SRC[$p]}"
-    mkdir -p "$(dirname "$dst_path")"
+    run_or_fail "ディレクトリの作成（${p}）" mkdir -p "${dst_path%/*}" || return 1
     # 改変済み・判定不能なら .bak を残す（--force のときは残さない）。
     if [ -e "$dst_path" ] && [ "$OPT_FORCE" -eq 0 ]; then
       if _in_list "$p" "${SCAN_CORE_MODIFIED[@]}" || _in_list "$p" "${SCAN_CORE_UNKNOWN[@]}"; then
-        cp "$dst_path" "${dst_path}.bak"
+        run_or_fail "退避（${p}.bak）" cp "$dst_path" "${dst_path}.bak" || return 1
         APPLIED_BAK+=("${p}.bak")
       fi
     fi
@@ -467,18 +517,22 @@ apply_pass() {
         rm -f "$def_tmp"
         return 1
       }
-      tr -d '\r' < "$def_tmp" > "$dst_path"
+      tr -d '\r' < "$def_tmp" > "$dst_path" || {
+        printf 'エラー: 層分け定義の書き出しに失敗しました: %s\n' "$dst_path" >&2
+        rm -f "$def_tmp"
+        return 1
+      }
       rm -f "$def_tmp"
     else
-      cp "$src_abs" "$dst_path"
+      run_or_fail "配置（${p}）" cp "$src_abs" "$dst_path" || return 1
     fi
   done
 
   for p in "${SCAN_SEED_PLACE[@]}"; do
     [ -n "$p" ] || continue
     dst_path="${DEST_DIR}/${p}"
-    mkdir -p "$(dirname "$dst_path")"
-    cp "${UPSTREAM_ROOT}/${PLAN_SRC[$p]}" "$dst_path"
+    run_or_fail "ディレクトリの作成（${p}）" mkdir -p "${dst_path%/*}" || return 1
+    run_or_fail "配置（${p}）" cp "${UPSTREAM_ROOT}/${PLAN_SRC[$p]}" "$dst_path" || return 1
   done
 
   for p in "${SCAN_MERGE[@]}"; do
@@ -492,18 +546,21 @@ apply_pass() {
             "${PLAN_SRC[$p]}" "$MARKER_BEGIN" >&2
           return 1
         fi
-        [ -e "$dst_path" ] || { mkdir -p "$(dirname "$dst_path")"; : > "$dst_path"; }
-        append_missing_lines "$src_abs" "$dst_path" "${PLAN_HEADER[$p]}"
+        if [ ! -e "$dst_path" ]; then
+          run_or_fail "ディレクトリの作成（${p}）" mkdir -p "${dst_path%/*}" || return 1
+          : > "$dst_path" || { printf 'エラー: 作成できません: %s\n' "$dst_path" >&2; return 1; }
+        fi
+        append_missing_lines "$src_abs" "$dst_path" "${PLAN_HEADER[$p]}" || return 1
         MERGE_ADDED_TOTAL=$((MERGE_ADDED_TOTAL + REPLY))
         printf '  %s: %s 行を追記\n' "$p" "$REPLY"
         ;;
       json-keys)
         if [ ! -e "$dst_path" ]; then
-          mkdir -p "$(dirname "$dst_path")"
-          cp "$src_abs" "$dst_path"
+          run_or_fail "ディレクトリの作成（${p}）" mkdir -p "${dst_path%/*}" || return 1
+          run_or_fail "配置（${p}）" cp "$src_abs" "$dst_path" || return 1
           printf '  %s: 新規に配置\n' "$p"
         else
-          merge_json_keys "$src_abs" "$dst_path" "${PLAN_KEYS[$p]}"
+          merge_json_keys "$src_abs" "$dst_path" "${PLAN_KEYS[$p]}" || return 1
           printf '  %s: キー %s を更新\n' "$p" "${PLAN_KEYS[$p]}"
         fi
         ;;
@@ -527,7 +584,10 @@ _in_list() {
 
 write_manifest() {
   local commit version url entries_file p dst_path
-  commit="$(git -C "$UPSTREAM_ROOT" rev-parse HEAD)"
+  commit="$(git -C "$UPSTREAM_ROOT" rev-parse HEAD)" || {
+    printf 'エラー: 本家のコミットSHAを取得できませんでした\n' >&2
+    return 1
+  }
   # オプションの有無ではなく、**実際に未コミットの変更があったか**で付ける。
   # --allow-dirty を常用する運用でも、クリーンなコミットからの配布はそう記録される。
   [ "$UPSTREAM_DIRTY" -eq 0 ] || commit="${commit}-dirty"
@@ -658,6 +718,10 @@ main() {
   printf 'seed を %s 件配置し、%s 件は既存を残しました。\n' \
     "${#SCAN_SEED_PLACE[@]}" "${#SCAN_SEED_KEEP[@]}"
   printf 'merge %s 件（追記した行の合計 %s）。\n' "${#SCAN_MERGE[@]}" "$MERGE_ADDED_TOTAL"
+  if [ "${#SCAN_CORE_REMOVED[@]}" -gt 0 ]; then
+    printf '本家から削除・改名された core が %s 件あります（**削除していません**。上の一覧を参照）。\n' \
+      "${#SCAN_CORE_REMOVED[@]}"
+  fi
   printf 'manifest: %s\n' "${DEST_DIR}/${MANIFEST_REL}"
   if [ "${#APPLIED_BAK[@]}" -gt 0 ]; then
     printf '\n配布先で変更されていたファイルの元の内容は次に残しました:\n'
@@ -666,7 +730,8 @@ main() {
   printf '\n次にやること:\n'
   printf '  1. AGENTS.md の「プロジェクト概要」「開発・実行」を、このプロジェクトの内容で埋める。\n'
   printf '  2. .mrworkflow.json のブランチ命名規則・ディレクトリ位置を確認する。\n'
-  printf '  3. 各ディレクトリの REVIEW-POINTS.local.md へ、このプロジェクト固有の観点を書く。\n'
+  printf '  3. index.md の「このプロジェクト固有のディレクトリ」を埋める。\n'
+  printf '  4. 各ディレクトリの REVIEW-POINTS.local.md へ、このプロジェクト固有の観点を書く。\n'
   return 0
 }
 
