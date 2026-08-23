@@ -17,7 +17,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - issue: #165 (plans/worklog/reports を wip/ 配下へ集約し worklog を worklogs へ改名する)
 - ブランチ: claude/consolidate-wip-directories-ps6f9a（ハーネス指定。命名規則`feature-165-*`からの逸脱は環境制約による）
 - PR: https://github.com/yuki-matsu783/MR-driven-workflow/pull/178
-- push回数: 9
+- push回数: 10
 - 現在のループ: 3-6〜3-9 の1周目（完了。敵対的レビュー1回・指摘反映まで実施。人間レビューは省略）
 - 未返信スレッド: 0
 - 追従監視: 購読あり（web。subscribe_pr_activity。1時間ごとの自己チェックインを予約済み）
@@ -174,6 +174,21 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
   （main側で新規追加された`test_check_dist_coverage.sh`含む）・DDR一覧再生成（79件、差分無し）・
   `.gemini/`再生成・DDR識別子重複無し・分岐点SHA基準でのDDR本文/spec changelog非改変を確認済み。
   push後`mergeable_state: clean`を確認。CIチェックは未設定のため対象外。
+- **PR作成後の追従監視で3回目のコンフリクトを検知し解消した**（`0012dea`）。`main`にissue #160
+  （SKILL.md → `references/*.md` 7ファイルへの分割）・issue #171（`check-doc-references.sh`、
+  DDR参照切れ検出）・issue #182（`select-adversarial-findings.sh`、敵対的レビュー投稿件数の
+  層単位選別）の3PRがマージされ、SKILL.md本体・7つの新規referencesファイル・
+  `docs-workflow.md`・`markdown-frontmatter.md`・`directory-structure.md`・`agent-common.md`・
+  `issue-mr-resume.md`・`adversarial-review.md`（spec/skill両方）・`issue-mr-workflow.md`・
+  `canvas-report/SKILL.md`・`plans.template.html`・`reports.template.html`・
+  `.claude/docs/README.md`（DDR一覧）で本PRと競合した。監視モードのため承認は待たず、
+  すべて類型C（両ブランチの変更を統合）または類型B（生成物の再生成: DDR一覧・`.gemini/`）として
+  機械的に解消——SKILL.md本体はmain側を全採用したうえで`wip/`パス移行を再適用、
+  issue #182由来のadversarial-review関連2ファイルは「main側の新機能をそのまま採用しつつ
+  `worklog`表記のみ`wip/worklogs`へ修正」で対応。解消後、単体テスト20本すべて
+  `passed=N failures=0`（main側で新規追加された`test_check_doc_references.sh`・
+  `test_select_adversarial_findings.sh`含む）・DDR一覧再生成（82件、位置差分のみで内容重複無し）・
+  `.gemini/`再生成・DDR識別子重複無し・コンフリクトマーカー残存無しを確認済み。push完了。
 
 ## 次にやること
 
