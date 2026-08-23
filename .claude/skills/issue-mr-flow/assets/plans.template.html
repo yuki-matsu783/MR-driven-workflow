@@ -1,11 +1,11 @@
 <!--
-  計画（plans/）の人間レビュー用HTMLビュー テンプレート
+  計画（wip/plans/）の人間レビュー用HTMLビュー テンプレート
   （.claude/skills/issue-mr-flow/SKILL.md / .claude/rules/docs-workflow.md 参照。issue #54）
 
   使い方:
     1. このファイルを、対応する計画mdと同じベース名でコピーする（拡張子だけ .html にする）。
-         plans/<自動命名>.md        → plans/<自動命名>.html          （全体作業計画）
-         plans/【種別】タスク内容.md → plans/【種別】タスク内容.html   （個別計画）
+         wip/plans/<自動命名>.md        → wip/plans/<自動命名>.html          （全体作業計画）
+         wip/plans/【種別】タスク内容.md → wip/plans/【種別】タスク内容.html   （個別計画）
        全体作業計画のファイル名は、ハーネスが提示した自動命名をそのまま使う（付け直さない）。
     2. <title> とヘッダ帯（.band）の見出し・メタ情報を埋める。
     3. 各 section に置いてある「ここに書く: …」で始まるHTMLコメントを、実際の内容へ置き換える。
@@ -34,7 +34,7 @@
       - 「検証」は、issue全体として何が満たせたら完了かを書く（コマンド単位の検証は個別計画側）。
 
   結果を書かないこと:
-    計画には「これから何をするか」だけを書く。実施した結果は reports/ 配下のmdとHTMLへ書く
+    計画には「これから何をするか」だけを書く。実施した結果は wip/reports/ 配下のmdとHTMLへ書く
     （.claude/skills/issue-mr-flow/references/deliverables.md「計画と実施結果の分離」）。
 
   正文はどちらか:
@@ -189,14 +189,14 @@
 </nav>
 
 <!-- [任意] 前提（合意状況）。上位の計画・過去フェーズの合意の上に立つ場合に書く。
-     「いつ・どこで合意したか」を flow-id で示す（plans/REVIEW-POINTS.md）。 -->
+     「いつ・どこで合意したか」を flow-id で示す（wip/plans/REVIEW-POINTS.md）。 -->
 <section id="premise">
   <h2>前提（合意状況）</h2>
   <!-- ここに書く: 依拠する上位計画・調査結果と、それがどの flow-id で合意されたか。
        まだ合意されていない前提があるなら、その旨を明記する -->
   <ul>
-    <li>上位の計画: <code>plans/…</code>（flow-id N-N で合意）</li>
-    <li>依拠する調査結果: <code>reports/…md</code>（flow-id 2-9 で合意）</li>
+    <li>上位の計画: <code>wip/plans/…</code>（flow-id N-N で合意）</li>
+    <li>依拠する調査結果: <code>wip/reports/…md</code>（flow-id 2-9 で合意）</li>
   </ul>
 </section>
 
@@ -231,7 +231,7 @@
   <div class="box warn">
     <span class="label">既存の記述を置き換える場合</span>
     <b>置き換え前と置き換え後の形を両方書く。</b>「どこを何に変えるか」だけだと、置き換え対象の行が
-    兼ねていた役割の巻き添えを計画の段階で検出できない（<code>plans/REVIEW-POINTS.md</code>）。
+    兼ねていた役割の巻き添えを計画の段階で検出できない（<code>wip/plans/REVIEW-POINTS.md</code>）。
     <!-- ここに書く: 置換前・置換後。無ければこの box ごと削除する -->
   </div>
 </section>

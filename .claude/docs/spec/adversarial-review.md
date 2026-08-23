@@ -21,7 +21,7 @@ issue #77。実装・計画・設計反映の各レビュー（flow-id 2-3/2-8/3
 やすく**、独立した検証にならない。
 
 組み込みの `/code-review` は汎用のバグ探しであり、このリポジトリ固有の落とし穴
-（`plans/` の粒度、spec/DDR/rules の二重管理、point-in-time記録の破壊、DDR番号の衝突、
+（`wip/plans/` の粒度、spec/DDR/rules の二重管理、point-in-time記録の破壊、DDR番号の衝突、
 shellの既知の罠）は対象外である。本issue以前、このリポジトリにはレビューを担うスキルも
 サブエージェントも存在しなかった（`.claude/agents/` は読み取り専用の `issue-mr-resume` のみ）。
 
@@ -127,7 +127,7 @@ bash .claude/scripts/src/collect-review-points.sh <対象ファイルパス...>
 ```
 
 現在の配置は `REVIEW-POINTS.md`（リポジトリ全体）・`.claude/REVIEW-POINTS.md`・
-`plans/REVIEW-POINTS.md`・`reports/REVIEW-POINTS.md` の4つ。
+`wip/plans/REVIEW-POINTS.md`・`wip/reports/REVIEW-POINTS.md` の4つ。
 単独でも使えるよう `review-points` スキル（`.claude/skills/review-points/SKILL.md`）として
 切り出しており、人間のレビュー・`/code-review` の補助にも使える。
 
@@ -139,7 +139,7 @@ bash .claude/scripts/src/collect-review-points.sh <対象ファイルパス...>
 | 対象 | 判別 | ファイルの列挙 |
 |---|---|---|
 | diff全体 | flow-id 3-7 / 4-7 の直後 | `git diff --name-only origin/<base>...HEAD` |
-| `plans/` の個別計画 | flow-id 2-2 / 3-2 / 4-2 の直後 | 該当する `plans/【*.md` |
+| `wip/plans/` の個別計画 | flow-id 2-2 / 3-2 / 4-2 の直後 | 該当する `wip/plans/【*.md` |
 | 設計反映 | flow-id 4-7 の直後 | `.claude/docs/spec/` `.claude/docs/ddr/` `.claude/rules/` の変更ファイル |
 
 ### findings JSONスキーマ
@@ -181,7 +181,7 @@ bash .claude/scripts/src/collect-review-points.sh <対象ファイルパス...>
 | low | 報告 | 報告 | 報告 | 報告 |
 
 - **投稿候補** = 次の「投稿件数の選別」（下記）へ進む。**報告** = 会話（非対話モードでは
-  worklog）にのみ書き、MRへは出さない。
+  wip/worklogs）にのみ書き、MRへは出さない。
 - **この1次振り分け自体は変更していない**（issue #182）。「技術的に投稿可能か」（有効行かどうか）
   はコードの責務だが、「人間に見せる価値があるか」は判断であり、運用しながら調整できる場所に
   置くほうがよいという判断は維持している。

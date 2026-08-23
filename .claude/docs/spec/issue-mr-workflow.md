@@ -16,7 +16,7 @@ AIエージェント（Claude Code）がissueを起点に開発を進める際�
 - ブランチ・MR（Pull Request / Merge Request）の作成
 - plan〜レビュー往復（人間のコメント取得→plan修正）の繰り返し
 - 作業内容に応じたMR descriptionの更新
-- 設計反映（`plans/` `worklog/` の内容を `docs/spec/` `docs/ddr/` へ反映）後のクリーンアップ
+- 設計反映（`wip/plans/` `wip/worklogs/` の内容を `docs/spec/` `docs/ddr/` へ反映）後のクリーンアップ
 
 これをGitHub・GitLabどちらのリポジトリでも同じ手順で回せるように、ステップ単位で呼び出す
 Claude Codeスキルと、その裏側でGitHub/GitLabの差異を吸収するスクリプト群を整備する。
@@ -83,11 +83,11 @@ MRとのやり取りだけを自動化する薄い層」として設計したが
   [i0045-01-プロバイダ判定はremote-URLのホスト部でgithub以外をgitlabとみなす.md](../ddr/i0045-01-プロバイダ判定はremote-URLのホスト部でgithub以外をgitlabとみなす.md)
   参照（issue #45。それ以前はURL文字列全体への部分一致だったため、ホスト名に `gitlab` を含まない
   self-hosted GitLabを弾いていた）。
-- **`.mrworkflow.json`**（リポジトリ直下、Git管理下）: ブランチ命名規則やパス（`plans/` 等）など
+- **`.mrworkflow.json`**（リポジトリ直下、Git管理下）: ブランチ命名規則やパス（`wip/plans/` 等）など
   プロジェクト固有の値を切り出す。他リポジトリへ移植する場合はこのファイルの値を書き換えるだけで済む
   ようにする。
 - **`.claude/skills/issue-mr-flow/SKILL.md`**: issue起票からマージまでの**唯一の実装フロー定義**。
-  現在のブランチ・issue番号・`plans/` `worklog/` `reports/` の有無・MRの有無などから「今どの段階か」を判定し、
+  現在のブランチ・issue番号・`wip/plans/` `wip/worklogs/` `wip/reports/` の有無・MRの有無などから「今どの段階か」を判定し、
   次に何をすべきかをAIエージェントに指示する。実処理は `Provider.sh` 経由のスクリプト呼び出しに
   委譲。issue #160 で**本文（入口）＋ `references/` 配下の参照資料7本**という構成へ分割した。
   本文には全体フロー表・PR/MR担当・詳細ルールへのポインタ・前提・旧節名の対応表が残り、
@@ -129,7 +129,7 @@ MRとのやり取りだけを自動化する薄い層」として設計したが
 | `get_note_url <mrUrl> <noteId>` | レビューコメントの公式パーマリンクを組み立てる（純粋関数。**GitLab実装は issue #42**、**GitHub実装とディスパッチャは issue #127**）。**本番経路で使うのはGitLabだけ**で、GitHubはGraphQLが `comment { url }` を返すため組み立てる必要が無い（GitHub実装は名前を揃えるための対応物） | `<mrUrl>#discussion_r<noteId>` | `<mrUrl>#note_<noteId>` |
 | `url_encode_path_to_reply <path>` | パスをURLへ埋め込める形へpercent-encodeし、結果を`REPLY`へ返す（プロバイダ非依存の純粋関数。unreserved文字と`/`は残し、それ以外はUTF-8のバイト単位で`%XX`へ変換する。issue #42） | — | — |
 | `hash_paths <algo> <path>...` | 渡した各**パス文字列**（ファイルの中身ではない）のハッシュを引数と同じ順序で1行ずつ返す（差分アンカー用。issue #42）。件数に比例して`sha256sum`を起動しないよう一時ファイルへ書き出して1回で計算する | `sha256sum` | `sha1sum` |
-| `get_branch_work_files` | 現在のブランチ固有（`<defaultBaseBranch>` に無い）の `plans/` `worklog/` `reports/` ファイル一覧を返す（プロバイダ非依存）。日本語を含むパスをそのまま返すため `-c core.quotepath=false` を指定している（issue #9。詳細は「計画の2階層構造」節）。**出力は常に「1行＝1つの実在するパス」**で、改名されたファイルは新パスのみを返す（issue #115。下記「日本語ファイル名を扱う際の注意」） | — | — |
+| `get_branch_work_files` | 現在のブランチ固有（`<defaultBaseBranch>` に無い）の `wip/plans/` `wip/worklogs/` `wip/reports/` ファイル一覧を返す（プロバイダ非依存）。日本語を含むパスをそのまま返すため `-c core.quotepath=false` を指定している（issue #9。詳細は「計画の2階層構造」節）。**出力は常に「1行＝1つの実在するパス」**で、改名されたファイルは新パスのみを返す（issue #115。下記「日本語ファイル名を扱う際の注意」） | — | — |
 | `porcelain_z_to_paths` | `git status --porcelain -z` の出力（標準入力）を1行1パスへ変換する純粋関数（プロバイダ非依存。issue #115）。改名・コピーのエントリ（`XY <新パス>\0<旧パス>\0`）は新パスのみを返し、旧パスを読み捨てる。NUL区切りを改行区切りへ変換するため、呼び出し側は結果をコマンド置換で受け取れる | — | — |
 | `build_issue_body <purpose> <current> <expected> <acceptance>` | 標準4見出し（目的・現状・期待する動作・受け入れ条件）に沿ってissue本文を組み立てる（プロバイダ非依存。issue #25） | — | — |
 | `new_issue <title> <body>` | タイトル・本文からissueを新規作成し、`get_issue`と同じ形（number/title/body/url/slug）のJSONを返す（issue #25） | `gh issue create` → URLから番号抽出 → `github_get_issue` | `glab issue create` → URLから番号抽出 → `gitlab_get_issue` |
@@ -238,18 +238,18 @@ Draft解除は、クローズ・書き直し・Draftへの差し戻しでいつ�
 
 Claude Code / Gemini CLI は**セッションごとに1つのplanファイルしか割り当てない**
 （`.claude/settings.json` の `plansDirectory`、`.gemini/settings.json` の `general.plan.directory`。
-いずれも `./plans` を指す）。従来のフローは調査計画と作業計画の2箇所でPlanモードを使う設計だった
+いずれも `./wip/plans` を指す）。従来のフローは調査計画と作業計画の2箇所でPlanモードを使う設計だった
 ため、同一セッションで作業すると2つ目の計画が1つ目のファイルへ書き込まれ、計画が混ざっていた。
 
 この構造的な衝突を解消するため、計画を2階層に分離した。
 
 | 種類 | 作り方 | ファイル名 | 単位 |
 |---|---|---|---|
-| **全体作業計画** | **planツール**（Planモード）で作成 | ハーネス提示パス `plans/<自動命名>.md` | **issue（ブランチ）につき1回**（flow-id 1-4） |
-| **個別調査計画／個別作業計画／個別反映計画** | **planツールを使わない**（Write/Editで直接作成） | `plans/【種別】タスク内容.md` | フェーズ2・3・4ごと・必要な数だけ（flow-id 2-1・3-1・4-1） |
+| **全体作業計画** | **planツール**（Planモード）で作成 | ハーネス提示パス `wip/plans/<自動命名>.md` | **issue（ブランチ）につき1回**（flow-id 1-4） |
+| **個別調査計画／個別作業計画／個別反映計画** | **planツールを使わない**（Write/Editで直接作成） | `wip/plans/【種別】タスク内容.md` | フェーズ2・3・4ごと・必要な数だけ（flow-id 2-1・3-1・4-1） |
 
 - **個別計画には「これから何をするか」だけを書き、実施結果は書かない**（issue #87）。調査結果・
-  作業結果・反映結果は `reports/日付_<全体計画名>_<内容を簡潔に>.md` へ記録する（mdが結果の正文、
+  作業結果・反映結果は `wip/reports/日付_<全体計画名>_<内容を簡潔に>.md` へ記録する（mdが結果の正文、
   同名の `.html` はその視覚化）。同居させると、レビューで計画と結果が区別できず、計画としての差分が
   結果の追記に埋もれ、ライフサイクル（計画＝合意のスナップショット／結果＝pushのたびに書き換わる）が
   食い違うため。詳細: `.claude/skills/issue-mr-flow/references/deliverables.md`「計画と実施結果の分離」、
@@ -268,9 +268,9 @@ Claude Code / Gemini CLI は**セッションごとに1つのplanファイルし
   （issue #155。経緯・却下案:
   `.claude/docs/ddr/i0155-01-AIアセット反映の対象は4類型への分類と痕跡の確認で洗い出す.md`）。
 - **囲み文字は全角 `【】` を使う**。ASCIIの `[]` はbashのglobで**文字クラス**として解釈されるため、
-  `plans/[調査]*.md` が意図どおりマッチしない（実機確認済み）。全角はglob特殊文字ではないため、
+  `wip/plans/[調査]*.md` が意図どおりマッチしない（実機確認済み）。全角はglob特殊文字ではないため、
   未クォートでも正しくマッチする。
-- **`plans/【*.md` で下位の個別計画（調査・作業・反映）のみを機械的に列挙でき、それ以外が全体作業計画**になる。
+- **`wip/plans/【*.md` で下位の個別計画（調査・作業・反映）のみを機械的に列挙でき、それ以外が全体作業計画**になる。
   この区別を、flow-id 1-4 の「既に全体作業計画があるか」の判定に使う。
 - **全体作業計画が既にあればPlanモードで新規作成しない**。新しいセッションではハーネスが新しい
   planファイルパスを提示するため、これを規定しないとセッションを跨ぐたびに全体作業計画が増える。
@@ -279,8 +279,8 @@ Claude Code / Gemini CLI は**セッションごとに1つのplanファイルし
 - これに伴い全体フローの先頭に全体作業計画の作成・合意を追加した（issue #9時点では33→35ステップ。
   現在のflow-idは `<フェーズ番号>-<ステップ番号>` 形式の5フェーズ・43ステップで、最新の定義は
   `.claude/skills/issue-mr-flow/SKILL.md`「全体フロー」を正とする）。worklogは
-  `worklog/日付_<全体計画名>_<個別計画名>_push<N>.md`、reportsは
-  `reports/日付_<全体計画名>_<内容を簡潔に>.html` へ命名を変更し、reportsは調査結果専用ではなく
+  `wip/worklogs/日付_<全体計画名>_<個別計画名>_push<N>.md`、reportsは
+  `wip/reports/日付_<全体計画名>_<内容を簡潔に>.html` へ命名を変更し、reportsは調査結果専用ではなく
   設計・実装・AIアセット反映等の報告にも使える位置づけへ拡張した。
 - **廃止**: 従来のre-entry対策（`.claude/rules/plan-mode-safety.md` 規則6、
   `archive-reentrant-plan.sh`）は、planツールの利用が1回に限定されたことで不要になったため削除した。
@@ -337,7 +337,7 @@ Claude Code / Gemini CLI は**セッションごとに1つのplanファイルし
 
 ### 計画・レポートのHTMLビュー（issue #54）
 
-`plans/` の計画と `reports/` のレポートには、mdと同じベース名の `.html`（人間レビュー用ビュー）を
+`wip/plans/` の計画と `wip/reports/` のレポートには、mdと同じベース名の `.html`（人間レビュー用ビュー）を
 併存させる。**mdが正文で、HTMLはその視覚化**である。このHTMLの「記述の型」は、issue #54 以前は
 `.claude/skills/issue-mr-flow/SKILL.md` の散文として各flow-idの説明に散っていた。issue #54 で、
 それを**バンドルリソースのテンプレートファイル2本**へ移した。
@@ -354,7 +354,7 @@ Claude Code / Gemini CLI は**セッションごとに1つのplanファイルし
 |---|---|
 | 記述の型（見出し構成・必須／任意の区別・埋め忘れの検査） | **テンプレート本体**の冒頭のHTMLコメント |
 | いつ作るか・作った後どう扱うか（flow-idごとの手順） | **`.claude/skills/issue-mr-flow/references/deliverables.md`**「計画・レポートのHTMLビュー」 |
-| レビュー時に何を見るか | **`plans/REVIEW-POINTS.md` / `reports/REVIEW-POINTS.md`** |
+| レビュー時に何を見るか | **`wip/plans/REVIEW-POINTS.md` / `wip/reports/REVIEW-POINTS.md`** |
 | ライフサイクル（flow-id 5-5 でまとめて削除・frontmatterの対象外） | **`.claude/rules/docs-workflow.md`** のライフサイクル表 |
 
 #### なぜテンプレートファイルへ切り出したか
@@ -366,13 +366,13 @@ Claude Code / Gemini CLI は**セッションごとに1つのplanファイルし
 
 #### なぜ2本なのか（そしてmd側のテンプレートは持たない）
 
-`plans/`（これから何をするか）と `reports/`（何をして何が分かったか）では必須セクションが
+`wip/plans/`（これから何をするか）と `wip/reports/`（何をして何が分かったか）では必須セクションが
 異なるため、1本に統合できない。**共通のCSSは2本へ重複して持たせる**——共有CSSファイルへ
 切り出すと「自己完結」でなくなり、**HTMLファイル単体をリポジトリ外へ持ち出して共有・保管した
-場合に開けなくなる**ため（`reports/` はflow-id 5-5でmdとhtmlをまとめて削除するので、
+場合に開けなくなる**ため（`wip/reports/` はflow-id 5-5でmdとhtmlをまとめて削除するので、
 「片方だけが残る」状況は起きない。壊れるのは持ち出したときである）。
 
-**md側のテンプレートは作らない。** `plans/*.md` `reports/*.md` の見出し構成は規定せず自由記述の
+**md側のテンプレートは作らない。** `wip/plans/*.md` `wip/reports/*.md` の見出し構成は規定せず自由記述の
 ままとする（型を固定する価値があるのは、人間が繰り返し目を通すHTMLビューの側だけであるため）。
 
 #### 外部依存を持たせない
@@ -391,7 +391,7 @@ Claude Code / Gemini CLI は**セッションごとに1つのplanファイルし
 CSSの `@import` が素通りする。
 
 **検査コマンドと、その限界（相対パスのローカル参照は拾えない）・canvas形式の除外の正は
-`reports/REVIEW-POINTS.md`「HTML版」であり、ここへは再掲しない。**
+`wip/reports/REVIEW-POINTS.md`「HTML版」であり、ここへは再掲しない。**
 
 #### バンドルリソースの語彙
 
@@ -644,7 +644,7 @@ resumeを省略してしまう事故が発生した）。そのため発動条�
    （抽出できなければ「命名規則に一致しないブランチです」と警告しつつ以降を続行する）。
 3. `get_mr_for_branch` で対応するPR/MRの有無・番号・URL・Draft状態を取得する。
 4. PR/MRがあれば `get_mr_unresolved_comments <n> true` で全件取得し、未解決件数を集計する。
-5. `get_branch_work_files` で、このブランチ固有の `plans/` `worklog/` `reports/` ファイルを列挙する
+5. `get_branch_work_files` で、このブランチ固有の `wip/plans/` `wip/worklogs/` `wip/reports/` ファイルを列挙する
    （`<defaultBaseBranch>` との差分から求めるため、削除済み＝設計反映済みの判別にも使える）。
 6. `check-base-sync.sh` で**ベースブランチとの差分**（behindコミット数・未取り込みの変更ファイル）を
    取得する（issue #67。このスクリプトは `git fetch` を行うが、リモート追跡参照を更新するだけで
@@ -667,10 +667,10 @@ resumeを省略してしまう事故が発生した）。そのため発動条�
 
 ### マージ後の取り残しクリーンアップ
 
-人間がレビュー後にそのままMR/PRをマージするなど、flow-id 5-5（`plans/` `worklog/`の削除・
+人間がレビュー後にそのままMR/PRをマージするなど、flow-id 5-5（`wip/plans/` `wip/worklogs/`の削除・
 `HANDOFF.md`のリセット）の実施前にマージが完了してしまうことがある（issue #28, PR #29の
-セッションで実際に発生）。この場合、タスク固有の`plans/`・`worklog/`ファイルと作業途中のままの
-`HANDOFF.md`が`main`へ残ってしまい、`docs-workflow.md`の運用（`worklog/`はsquash mergeで
+セッションで実際に発生）。この場合、タスク固有の`wip/plans/`・`wip/worklogs/`ファイルと作業途中のままの
+`HANDOFF.md`が`main`へ残ってしまい、`docs-workflow.md`の運用（`wip/worklogs/`はsquash mergeで
 `main`に残さない設計）と矛盾する。
 
 この状態に気づいた場合、`main`への直接コミットではなく、新しいクリーンアップ用ブランチと
@@ -732,7 +732,7 @@ PRが多いほど、この期間のコンフリクトを取りこぼす（実例
 **flow-id 5-2**（コンフリクト解消 5-1 の次、統括レポート 5-4・片付け 5-5 の前）である。上表の「挿入位置」は
 issue #86 当時の並び（5-1 片付け → 5-2 コンフリクト解消 → 5-3 本ステップ）を指す。並べ替えにより、
 「影響先なし」の判断を書き戻す `HANDOFF.md` が、片付け（5-5）のリセット前に残っている状態になった。
-キーワード抽出時に `plans/` `worklog/` `reports/` を差分から除外するのも並べ替えに伴う変更である
+キーワード抽出時に `wip/plans/` `wip/worklogs/` `wip/reports/` を差分から除外するのも並べ替えに伴う変更である
 （issue #86 当時は片付けが先だったため、これらは既に差分から消えていた）。
 
 `add_mr_comment` を流用せず `add_issue_comment` を新設したのは、前者の宛先がPR/MRで、GitHub実装が
@@ -746,7 +746,7 @@ PR番号か通知先issue番号かで異なる）。手順の正は
 ### 最終統括レポートとPR/MRへの反映（issue #111）
 
 **タスク（issue／ブランチ）の完了時に、そのブランチで何をやったかを1枚にまとめた最終統括
-レポートを作成し、PR/MR上へ残す**ステップ（flow-id 5-4）を設けた。`plans/` `worklog/` `reports/`
+レポートを作成し、PR/MR上へ残す**ステップ（flow-id 5-4）を設けた。`wip/plans/` `wip/worklogs/` `wip/reports/`
 は片付け（flow-id 5-5）で削除され、squash mergeにより `main` にも残らないため、ブランチ全体を
 統括した成果を後から一望する手段が無かった。
 
@@ -754,7 +754,7 @@ PR番号か通知先issue番号かで異なる）。手順の正は
 |---|---|
 | 挿入位置 | **flow-id 5-2（関連issue通知）と旧5-3（片付け）の間**。旧5-3→5-4、旧5-4→5-5、旧5-5→5-6 へ繰り下げ、全41→42ステップ |
 | ステップの粒度 | **作成 → commit・push → サマリ投稿 →（任意）添付**を1ステップに含む複合ステップ。作るだけで片付けへ進むと、作成と削除が同じ作業ツリー上で相殺され**ブランチのコミット履歴にすら残らない** |
-| 成果物 | `reports/日付_<全体計画名>_統括.md`（正文・必須）と同名の `.html`（人間レビュー用ビュー） |
+| 成果物 | `wip/reports/日付_<全体計画名>_統括.md`（正文・必須）と同名の `.html`（人間レビュー用ビュー） |
 | HTMLの土台 | `.claude/skills/issue-mr-flow/assets/reports.template.html`（必須セクションの統括レポート向けの読み替えは、同テンプレートの冒頭コメント「フェーズごとの読み替え」を参照） |
 | 反映の構造 | **3層のフォールバック**（下表）。層3が壊れても層1・層2でレビューは成立する |
 | サマリの1行目 | **`Claude Codeより（最終統括レポート）:`**。既存の通常コメント3種の書式は変更しない |
@@ -764,7 +764,7 @@ PR番号か通知先issue番号かで異なる）。手順の正は
 
 | 層 | 何をするか | 必須か | 依存する外部API |
 |---|---|---|---|
-| 層1 | レポート本体を `reports/` に載せ、`commit` スキル経由でリモートへ反映する | **必須** | 無し（git操作のみ） |
+| 層1 | レポート本体を `wip/reports/` に載せ、`commit` スキル経由でリモートへ反映する | **必須** | 無し（git操作のみ） |
 | 層2 | サマリをMarkdownでPR/MRへコメント投稿する（`add_mr_comment`） | **必須** | **公式API**（GitHub/GitLab両対応） |
 | 層3 | HTMLを添付する（`upload_attachment`） | **任意** | GitHub: **未ドキュメントAPI** / GitLab: 公式API（実機未検証） |
 
@@ -866,7 +866,7 @@ resume・clear時に毎回、現在ブランチのissue/MR状態をコンテキ�
   **「このセッションで既に読んでいる場合も読み直すこと」を明示する**。
   - **対象判定**: (a) ブランチ名から `get_issue_number_from_branch` でissue番号を抽出できる、
     (b) `get_branch_work_files` がブランチ固有の作業ファイルを返す、の**いずれか一方でも
-    成り立てば対象**とする。(a) はflow-id 1-3直後（`plans/`未作成）で、(b) はブランチ名が命名
+    成り立てば対象**とする。(a) はflow-id 1-3直後（`wip/plans/`未作成）で、(b) はブランチ名が命名
     規則から外れている場合（例: Claude Code on the web が生成する `claude/<slug>` 形式）で
     それぞれ効く。判定は `issue_mr_flow_branch_reason`（外部コマンドを呼ばない純粋関数）が行い、
     **判定根拠を指示文へ埋め込む**（誤判定時に原因が一目で分かるようにするため）。
@@ -921,7 +921,7 @@ resume・clear時に毎回、現在ブランチのissue/MR状態をコンテキ�
 - **注入量の肥大化検知（issue #57）**: 組み立てた`additionalContext`の**バイト数**
   （文字数ではない。日本語はUTF-8で1文字3バイトのため3倍ずれる）を測り、しきい値
   `CONTEXT_SIZE_WARN_BYTES`（既定8000バイト。環境変数で上書き可能）を**超えた場合のみ**、
-  末尾へ「ユーザーへ肥大化を警告し`HANDOFF.md`・`plans/`の整理を促すこと」という指示文を
+  末尾へ「ユーザーへ肥大化を警告し`HANDOFF.md`・`wip/plans/`の整理を促すこと」という指示文を
   追記する。**切り詰めは行わず全量を注入する**（切り詰めると、この機構が守ろうとしている現在地
   そのものを失い、かつ失ったことがエージェント側から分からないため）。しきい値の根拠・
   却下案は[DDR i0057-01](../ddr/i0057-01-compact後もSessionStart-hookで作業コンテキストを再注入する.md)参照。
@@ -955,7 +955,7 @@ Claude Code on the webのリモート実行環境のように、`gh`/`glab` CLI�
   （`create-issue.sh`）についても同スキル側に読み替え手順を書く。
 - **代替が無い唯一の関数**: `upload_attachment`（issue #111）。MCPには**PR/issueへの添付に相当する
   ツールが存在しない**（実測で確認）。`mcp_tool_hint` は読み替え先のツール名ではなく
-  「**flow-id 5-4 の層3（添付）はスキップしてよい**」という案内を返す。層1（`reports/` を
+  「**flow-id 5-4 の層3（添付）はスキップしてよい**」という案内を返す。層1（`wip/reports/` を
   リモートへ反映）・層2（サマリコメント）だけでレビューが成立する設計にしてあるため、
   ここでの失敗はフローを止めない（下記「最終統括レポートとPR/MRへの反映」）。
 - **機構的な誘導**: プロバイダ依存の11関数（`get_issue` / `new_issue` / `search_issues` /
@@ -3246,9 +3246,9 @@ point-in-time の記録と DDR 本文は**書き換えていない**）:
 {
   "branchPrefixTemplate": "feature-{issue}-{slug}",
   "defaultBaseBranch": "main",
-  "plansDir": "plans",
-  "worklogDir": "worklog",
-  "reportsDir": "reports",
+  "plansDir": "wip/plans",
+  "worklogDir": "wip/worklogs",
+  "reportsDir": "wip/reports",
   "specDirs": [".claude/docs/spec"],
   "ddrDirs": [".claude/docs/ddr"]
 }

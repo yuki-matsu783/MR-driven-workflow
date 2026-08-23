@@ -138,7 +138,7 @@ gh issue comment 23 --body-file /path/to/body.md
 
 ## worklogの配置・命名
 
-`worklog/日付_<全体計画名>_<個別計画名>_push<N>.md` に記録する（配置・命名は `directory-structure.md`、ライフサイクルは
+`wip/worklogs/日付_<全体計画名>_<個別計画名>_push<N>.md` に記録する（配置・命名は `directory-structure.md`、ライフサイクルは
 `docs-workflow.md` の「ドキュメント運用」表、作成・削除のタイミングは `.claude/skills/issue-mr-flow/SKILL.md`
 の全体フローを参照）。
 
@@ -163,7 +163,7 @@ gh issue comment 23 --body-file /path/to/body.md
 - 判断の根拠は「**取り消せるか**」である。PR/MRの作成・Draft解除・description更新は、Draftへ戻す・
   クローズする・本文を書き直すことでいつでも取り消せ、`main` は1バイトも変わらない。一方マージは
   `main` の正史を書き換える不可逆な操作であり、squash mergeでは元のコミット粒度も失われる。
-- マージはsquash mergeを用いる。flow-id 5-5で`plans/` `worklog/` `reports/`を削除しておくことで、squash後にmainへ反映される内容は「コード＋spec/ddr」のみになり、試行錯誤の詳細はブランチ上のコミット履歴（PRのコミット一覧）としてのみ残る。
+- マージはsquash mergeを用いる。flow-id 5-5で`wip/plans/` `wip/worklogs/` `wip/reports/`を削除しておくことで、squash後にmainへ反映される内容は「コード＋spec/ddr」のみになり、試行錯誤の詳細はブランチ上のコミット履歴（PRのコミット一覧）としてのみ残る。
 - マージ後、作業ブランチは削除してよい。
 
 ### PR作成後のdefaultブランチ追従（issue #88）

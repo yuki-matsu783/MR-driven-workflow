@@ -1,6 +1,6 @@
 ---
 name: canvas-report
-description: 報告用HTML reports/日付_<全体計画名>_<内容>.html（外部依存を持たない自己完結HTML）を執筆する際、内容が複数要素間の関連・依存関係を主題とする場合に、一覧・表形式に代えてノード・エッジで構成されるcanvas形式（パン・ズーム・連続セマンティックズーム・ホバーでの関連ハイライト・ミニマップ・詳細パネル対応）で表現するために使う。ファイル間の依存関係、機能同士の呼び出し関係、ドキュメント間の参照関係、モジュール構成など「複数の要素がどうつながっているか」が主題の調査結果では、必ずこのスキルの利用を検討すること。issue-mr-flowのflow-id 2-6（調査を実施）で結果をHTML化する際に、内容の性質に応じてこのスキルと一覧・表形式のテンプレート（.claude/skills/issue-mr-flow/assets/reports.template.html）のどちらを使うか判断する。
+description: 報告用HTML wip/reports/日付_<全体計画名>_<内容>.html（外部依存を持たない自己完結HTML）を執筆する際、内容が複数要素間の関連・依存関係を主題とする場合に、一覧・表形式に代えてノード・エッジで構成されるcanvas形式（パン・ズーム・連続セマンティックズーム・ホバーでの関連ハイライト・ミニマップ・詳細パネル対応）で表現するために使う。ファイル間の依存関係、機能同士の呼び出し関係、ドキュメント間の参照関係、モジュール構成など「複数の要素がどうつながっているか」が主題の調査結果では、必ずこのスキルの利用を検討すること。issue-mr-flowのflow-id 2-6（調査を実施）で結果をHTML化する際に、内容の性質に応じてこのスキルと一覧・表形式のテンプレート（.claude/skills/issue-mr-flow/assets/reports.template.html）のどちらを使うか判断する。
 title: 調査結果canvas表示
 type: skill
 tags: [issue-mr-flow, docs-workflow, reports, html, canvas]
@@ -9,14 +9,14 @@ keywords: [canvas, Code Canvas, ノード, エッジ, 依存関係, セマンテ
 
 # canvas-report スキル
 
-報告用HTML（`reports/日付_<全体計画名>_<内容を簡潔に>.html`。調査結果に限らず設計・実装・AIアセット
+報告用HTML（`wip/reports/日付_<全体計画名>_<内容を簡潔に>.html`。調査結果に限らず設計・実装・AIアセット
 反映等の報告に使う。運用は`.claude/rules/docs-workflow.md`参照）のうち、複数の要素同士の
 「関連・依存関係」を主題とする内容を、**階層セマンティックズーム対応のCode Canvas形式**
 （issue #141で全面刷新）で表現するためのスキル。
 
 **結果の正文は同名の`.md`側であり、このHTMLはその視覚化である**（issue #87。詳細:
 `.claude/skills/issue-mr-flow/references/deliverables.md`「計画と実施結果の分離」）。HTMLを書く前に、対応する
-`reports/…md` に結果が記録されていることを確認する。
+`wip/reports/…md` に結果が記録されていることを確認する。
 
 ## いつcanvasを選ぶか
 
@@ -160,7 +160,7 @@ mermaid.jsは唯一の外部CDN依存で、読み込めないオフライン環�
 アニメーション・重なり順が壊れており、CDN遮断環境では検証もできなかったため、canvas形式に
 限りTailwindを外した。
 
-**issue #54 以降、一覧・表形式のHTMLも自己完結CSSになった**（`reports/` `plans/` のHTMLビューの
+**issue #54 以降、一覧・表形式のHTMLも自己完結CSSになった**（`wip/reports/` `wip/plans/` のHTMLビューの
 土台は `.claude/skills/issue-mr-flow/assets/` の2テンプレート）。したがって「CDN前提の一覧表形式に
 対し、canvas形式だけが自己完結」という以前の対比は、もう成り立たない。ただし**両者が完全に同じに
 なったわけではない**ので、次のように区別して扱う。
@@ -174,7 +174,7 @@ mermaid.jsは唯一の外部CDN依存で、読み込めないオフライン環�
 mermaidを外しても `http://www.w3.org/2000/svg`（`createElementNS` に渡すSVGの名前空間）を
 **4箇所**持つ（`assets/canvas-report.html` の835・842・902・911行。`https?://` にヒットする
 6行の残りは、mermaid CDN 1行とJSコメント内の例示URL 1行である）。これは外部を読みに行く記述
-ではないため、`reports/REVIEW-POINTS.md` の自己完結の検査も「実際に外部を読みに行く記述」
+ではないため、`wip/reports/REVIEW-POINTS.md` の自己完結の検査も「実際に外部を読みに行く記述」
 （`src`/`href`/`url()`/`@import` に `//` で始まる値が来る）だけを数える形にしてある。
 
 ## 参考

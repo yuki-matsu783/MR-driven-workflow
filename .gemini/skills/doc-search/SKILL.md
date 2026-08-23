@@ -156,7 +156,7 @@ SF --type ddr | jq -r 'select(.frontmatter.status == "superseded")
                      | "\(.concept_id) -> \(.frontmatter.superseded_by)"'
 ```
 
-**description を使って一覧をmarkdownの表にする**（reportsへ貼るとき）
+**description を使って一覧をmarkdownの表にする**（wip/reportsへ貼るとき）
 
 ```bash
 SF --type spec | jq -r '"| \(.frontmatter.title) | \(.frontmatter.description) |"'
@@ -171,6 +171,6 @@ SF --type spec | jq -r '"| \(.frontmatter.title) | \(.frontmatter.description) |
 - **検索できるのはfrontmatterの内容だけで、本文は対象外**。本文中の語を探すときは `grep` / `rg`
   を使う。逆に言えば、frontmatterの `description` / `keywords` の質がそのまま検索の質になる
   （新規markdown作成時は `.claude/rules/markdown-frontmatter.md` に従って必ず付与する）。
-- **`plans/` `worklog/` `reports/` 配下のファイルもヒットする**。これらはタスク単位で
+- **`wip/plans/` `wip/worklogs/` `wip/reports/` 配下のファイルもヒットする**。これらはタスク単位で
   flow-id 5-5 に削除される寿命の短いファイルのため、恒久的な参照先として扱わない
   （`.claude/rules/docs-workflow.md`）。除外したいときは `--dir .claude` で対象を絞る。
