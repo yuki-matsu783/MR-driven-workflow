@@ -17,8 +17,8 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - issue: #26 AIアセットの他プロジェクトへの配布をmanifest方式へ作り直し、配布アセットの層分けを定義する
 - ブランチ: claude/ai-asset-manifest-distribution-u2gn22
 - PR: #154 https://github.com/yuki-matsu783/MR-driven-workflow/pull/154
-- push回数: 20
-- 現在のループ: 4-6〜4-9 の2周目（進行中）
+- push回数: 21
+- 現在のループ: 4-6〜4-9 の3周目（進行中）
 - 追従監視: 購読あり（web。subscribe_pr_activity + 自己チェックイン）
 
 | 進捗 | flow-id | ステップ | 担当 |
@@ -436,21 +436,39 @@ flow-id 4-3 のレビューはチャットで下りた。**2件とも、AIの提
 - 検証: 単体テスト18ファイル **`passed=1147 failures=0`**／網羅性 221/221・13/13／
   DDR一覧 `--check` 最新／DDR識別子の重複0件。
 
+### flow-id 4-6（`【AIアセット反映】`の実施。フェーズ4の3セット目・最後）
+
+結果の正文は `reports/20260823_ai-asset-manifest-distribution_AIアセット反映の結果.md`。
+
+- **案内から抜けていた3件を埋めた。** `agent-common.md`（ツリー・Repository Map の**どちらにも
+  無かった**）・`check-dist-coverage.sh`（ツリーに無かった）・`.asset-manifest.json`
+  （**ツリーには載せず**説明文へ。配布先にだけ生成され本家に実体が無いため）。
+- **`.claude/VERSION` は触っていない**（`git diff --stat` が空であることを検証項目として確認）。
+  据え置いた事実の changelog への記録は `【設計反映】` で済ませてある。
+- **新設 spec をツリーへ書く必要は無かった。** ツリーは `spec/` をディレクトリ単位でしか持たず、
+  個別 spec の案内は `.claude/docs/README.md` の spec 一覧（`【設計反映】` で追加済み）が担う。
+  計画は「ファイル名を確認してから書く」としていたが、実物を見て不要と判断した。
+- **計画に無い変更を1件入れた**（`index.md` のスキル一覧に `/apply-mr-workflow-to-project` ほか
+  3件が抜けていた）。結果レポートへ明示済み。不要なら戻せる（`index.md` の1行のみ）。
+- 検証: 単体テスト18ファイル **`passed=1147 failures=0`**／網羅性 226/226・13/13／
+  欠落3件とも ds=1 idx=1。
+
+**これでフェーズ4の3セットがすべて完了した。**
+
 ## 次にやること
 
-- **フェーズ4の2セット目（`【設計反映】`）は 4-6・4-7 まで完了。** 次は 4-8/4-9（レビュー往復）
-  → 4-10（`describe`）。
-- **3セット目は `【AIアセット反映】`。** 新設 spec のファイル名が
-  **`asset-distribution.md`** に確定したので、ツリー・Repository Map へ載せられる。
-  やることは `plans/【AIアセット反映】ディレクトリ構成とVERSIONの更新.md` が正。
-  - **`.claude/VERSION` は変更しない**（`0.2.0` 据え置きが flow-id 4-4 で確定。
-    据え置いた事実の記録は `【設計反映】` で済ませた）。
-  - ツリーへ足すのは `check-dist-coverage.sh` / `agent-common.md` /（説明文へ）
-    `.asset-manifest.json`。**新設 spec を案内へ載せるのもこのセット。**
-- flow-id 5-2 で、**受け入れ条件1の修正（4層 → 5層。`exclude` の追加）を issue #26 へ
-  コメントで記録する**（issue本文は編集しない）。
-- 敵対的レビューは**フェーズ3の上限3回に到達済み**（以降は実行できない）。
-  フェーズ4は未使用（上限3回）。
+- **フェーズ4の3セットすべてが 4-6 まで完了。** 次は **4-7**（commit・push してレビュー依頼）
+  → 4-8/4-9（レビュー往復）→ 4-10（`describe`）。
+- その後 **フェーズ5**へ入る。
+  - **5-1**: `bash .claude/scripts/src/check-base-conflicts.sh` でコンフリクト検知。
+  - **5-2**: **受け入れ条件1の修正（4層 → 5層。`exclude` の追加）を issue #26 へコメントで
+    記録する**（issue本文は編集しない）。投稿前に `AskUserQuestion` での承認が必須。
+  - **5-3**: 統括レポート `reports/日付_<全体計画名>_統括.md` を作成し、PRへサマリコメント。
+  - **5-4**: `bash .claude/scripts/src/cleanup-task.sh` で `plans/` `worklog/` `reports/` を削除し
+    `HANDOFF.md` をリセット（`REVIEW-POINTS.md` と `worklog/TEMPLATE.md` は残る）。
+  - **5-5**: commit・push して `set_mr_ready` で Draft 解除。**AIエージェントはここで止まる。**
+- **マージ（5-6）はユーザーの明示指示が無い限り実行しない。**
+- 敵対的レビューは**フェーズ3の上限3回に到達済み**。フェーズ4は未使用（上限3回）。
 - **追従監視の再武装**: 購読・チェックインはセッションに紐づくため、次のセッションは
   `resume` で取り直す。
 
