@@ -16,10 +16,10 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 
 - issue: #165 (plans/worklog/reports を wip/ 配下へ集約し worklog を worklogs へ改名する)
 - ブランチ: claude/consolidate-wip-directories-ps6f9a（ハーネス指定。命名規則`feature-165-*`からの逸脱は環境制約による）
-- PR: 未作成（この後作成する）
-- push回数: 0
+- PR: https://github.com/yuki-matsu783/MR-driven-workflow/pull/178
+- push回数: 1
 - 現在のループ: なし
-- 追従監視: なし
+- 追従監視: 購読あり（web。subscribe_pr_activity。定期チェックインは今後必要に応じて予約）
 
 | flow-id | 内容 | 状態 |
 |---|---|---|
@@ -29,7 +29,9 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 | 1-4 | 全体作業計画作成 | [x]（plans/transient-brewing-pelican.md） |
 | 1-5 | 全体作業計画承認 | [x]（ExitPlanModeでユーザー承認済み） |
 | 1-6 | HANDOFF.md更新 | [x]（本更新） |
-| 2-1〜2-10 | 調査（plansDirectoryネストパス実機検証等） | [ ] |
+| 2-1 | 個別調査計画作成 | [x]（plans/【調査】plansDirectoryのネストパス対応検証.md） |
+| 2-2〜2-9 | 調査計画レビュー〜調査実施〜結果レビュー | 進行中（非対話のため人間レビューは省略し敵対的レビューで代替） |
+| 2-10 | 調査結果でMR description更新 | [ ] |
 | 3-1〜3-10 | 作業（設定・スクリプト変更・git mv・ドキュメント更新） | [ ] |
 | 4-1〜4-10 | 反映（DDR記録・spec更新） | [ ] |
 | 5-1〜5-6 | クローズ | [ ] |
@@ -45,9 +47,9 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 
 ## 次にやること
 
-- Draft PR を作成する（この後、commit・pushしてから実施）。
-- フェーズ2〈調査〉: `.claude/settings.json` の `plansDirectory` にネストパス（`./wip/plans`）が
-  実際に機能するかを実機検証する（受け入れ条件1・最優先）。
+- 個別調査計画（plansDirectoryネストパス検証）に対する敵対的レビューを実施し、指摘へ対応する。
+- `.claude/settings.json` の `plansDirectory` にネストパス（`./wip/plans`）が実際に機能するかを
+  実機検証する（受け入れ条件1・最優先）。
 
 ## 判断を迷った内容
 
