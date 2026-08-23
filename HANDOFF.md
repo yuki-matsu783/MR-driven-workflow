@@ -60,7 +60,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 | [-] | 4-8 | 反映結果のレビュー | 人間 |
 | [-] | 4-9 | レビュー内容の反映 | comments/reply |
 | [-] | 4-10 | MR description更新 | describe |
-| [] | 5-1 | defaultブランチとのコンフリクト解消 | resolve-conflict |
+| [x] | 5-1 | defaultブランチとのコンフリクト解消 | resolve-conflict |
 | [] | 5-2 | 関連issueへの通知 | エージェント |
 | [] | 5-3 | .gemini/への変換同期 | エージェント |
 | [] | 5-4 | 最終統括レポート | エージェント |
@@ -138,9 +138,26 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
   `mark-done 4-1`のうえ`mark-skip 4-2 4-3 4-4 4-5 4-6 4-7 4-8 4-9 4-10`でフェーズ4の残りを
   スキップした。
 
+- **flow-id 5-1: defaultブランチ（main）とのコンフリクトを解消した。**
+  `check-base-conflicts.sh`で`hasConflict: true`（`textualConflictFiles:
+  [".claude/docs/README.md"]`、`hasDuplicateDdrNumber: false`）を検知。`resolve-conflict`
+  スキルに従い`AskUserQuestion`でユーザーへ確認し「解消する」を選択。`git merge --no-ff
+  --no-commit origin/main`を実行し、競合は`.claude/docs/README.md`のDDR一覧生成マーカー区間
+  （このブランチの`i0182-01`行 vs mainの`i0171-01`行）1箇所のみに収まっていた（類型B）。
+  マーカー外の差分（mainが追加した`asset-distribution.md`等のspec一覧行）はgitが競合と見なさず
+  自動マージ済みであることを確認したうえで、マーカー内の競合だけを両方のDDR識別子を残す形で
+  手動解消し、`generate-ddr-list.sh`を実行して「変更はありません（80件）」（i0171-01・
+  i0182-01の両方を含む形と完全一致）を確認した。`extract-frontmatter.sh`・全単体テスト
+  （`passed=1314 failures=0`、失敗ファイル0件）・`git diff --check`・コンフリクトマーカー
+  残存無し・DDR識別子重複無しをいずれも確認し、`HANDOFF.md`自体がマージで汚染されていないこと
+  （`git diff HEAD -- HANDOFF.md`が空）も確認した。72ファイルをNUL安全な方法でステージし、
+  `commit`スキル経由でマージコミット（`chore: mainをマージしDDR一覧(README.md)を
+  i0171-01・i0182-01両方を含む形へ再生成して統合`）を作成しpush（コミット`1712abb`）。
+  push後に`check-base-conflicts.sh`を再実行し`hasConflict: false`を確認済み。
+
 ## 次にやること
 
-- flow-id 5-1（defaultブランチとのコンフリクト解消）〜5-6（commit・push・Draft解除）へ進める。
+- flow-id 5-2（関連issueへの通知）〜5-6（commit・push・Draft解除）へ進める。
   5-7（マージ）はユーザーの明示指示が無い限り実行しない。
 
 ## 判断を迷った内容
@@ -161,6 +178,17 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
   進捗記号（3-3〜3-9）は上記のとおり`[]`のまま残す（実施しなかったことにはしないが、人間が
   レビューした事実として`[x]`にもしない）。マージ（flow-id 5-7）は引き続き明示指示が無い限り
   実行しない。
+- **flow-id 5-1（`resolve-conflict`スキル）でmainとのコンフリクトを解消した際の判断。**
+  `.claude/docs/README.md`のDDR一覧生成マーカー区間の競合（このブランチの`i0182-01`行 vs
+  mainの`i0171-01`行）は類型B（生成物）として、マーカー内を手動で両方残す形に解消したうえで
+  `generate-ddr-list.sh`を実行し「変更はありません」で機械生成結果と一致することを確認した。
+  マーカー**外**にも差分（mainが追加した`asset-distribution.md`等のspec一覧行）があったため、
+  スキルの手順どおりなら「差分が出たら片側採用してはいけない」に該当するが、実際にはこの差分は
+  git自身が競合と見なさず既に自動マージ済みの内容であり、コンフリクトマーカーはマーカー区間
+  だけに存在していたため、片側採用（`--ours`/`--theirs`）ではなく**マーカー区間だけを手動で
+  解消する**方法を取った（片側採用を一切行っていない）。マージ後、`git diff HEAD --
+  HANDOFF.md`が空であること（このブランチ固有のファイルがマージで汚染されていないこと）も
+  個別に確認した。単体テストは`passed=1314 failures=0`（全173ファイル中失敗0件）。
 
 ## 未解決の内容
 
