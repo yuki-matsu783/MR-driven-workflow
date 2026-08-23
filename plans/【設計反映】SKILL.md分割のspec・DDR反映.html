@@ -113,9 +113,9 @@
   <div class="inner">
     <div class="kind">個別反映計画 / フェーズ4〈反映〉（flow-id 4-1）</div>
     <h1>SKILL.md分割のspec・DDR反映</h1>
-    <p class="lead">フェーズ3の成果（分割・参照列・SessionStart hookの参照注入）を
-      spec 2本へ反映し、DDR i0160-01 を新規作成する。plans/worklog/reports は flow-id 5-4 で
-      削除されるため、この反映が唯一の永続記録になる。</p>
+    <p class="lead">フェーズ3の成果（分割・参照列・SessionStart hookの参照注入）を spec 2本・DDR・
+      VERSION へ反映する。plans/worklog/reports は flow-id 5-4 で削除されるため、
+      この反映が唯一の永続記録になる。</p>
     <ul class="meta">
       <li><b>issue</b> #160</li>
       <li><b>PR</b> #161</li>
@@ -127,61 +127,119 @@
 
 <div class="wrap">
 
-<section>
-  <h2>変更対象</h2>
+<nav class="toc">
+  <h2 class="toctitle">目次</h2>
+  <ol>
+    <li><a href="#goal">目的</a></li>
+    <li><a href="#sources">反映元と洗い出しの対応表</a></li>
+    <li><a href="#targets">変更対象</a></li>
+    <li><a href="#approach">反映項目の詳細</a></li>
+    <li><a href="#nogo">やらないこと</a></li>
+    <li><a href="#verify">検証手順</a></li>
+  </ol>
+</nav>
+
+<section id="goal">
+  <h2>目的</h2>
+  <p>フェーズ3で実施した「SKILL.mdの分割・全体フロー表の参照列・SessionStart hookの参照注入」を、
+  永続ドキュメント（<code>.claude/docs/spec/</code>・<code>.claude/docs/ddr/</code>）へ反映する。
+  <code>plans/</code> <code>worklog/</code> <code>reports/</code> は flow-id 5-4 で削除されるため、
+  この反映が唯一の永続記録になる。</p>
+</section>
+
+<section id="sources">
+  <h2>反映元と洗い出しの対応表</h2>
+  <p>反映元はフェーズ3作業レポート・フェーズ2調査レポート・全体作業計画の3つ。
+  洗い出した項目と扱い:</p>
   <div class="tablewrap">
   <table>
-    <thead><tr><th>#</th><th>ファイル</th><th>変更内容</th></tr></thead>
+    <thead><tr><th>洗い出した項目</th><th>扱い</th></tr></thead>
     <tbody>
-      <tr><td>A</td><td><code>.claude/docs/spec/issue-mr-workflow.md</code></td><td>「セッション開始時の自動コンテキスト注入」節の更新＋「影響範囲」への新規エントリ追記</td></tr>
-      <tr><td>B</td><td><code>.claude/docs/spec/update-handoff-progress.md</code></td><td><code>ROW_RE</code> が hook 側へ複製されている旨を追記</td></tr>
-      <tr><td>C</td><td><code>.claude/docs/ddr/i0160-01-…md</code>（新規）</td><td>分割単位・参照列・hook注入・複製の意思決定と却下案</td></tr>
-      <tr><td>D</td><td><code>.claude/docs/README.md</code></td><td><code>generate-ddr-list.sh</code> の再実行による生成差分（手書きしない）</td></tr>
+      <tr><td>SKILL.md の構成（本文＋references/）のspec反映</td><td><b>反映する</b>（A-0）</td></tr>
+      <tr><td>SessionStart hook の注入項目追加のspec反映</td><td><b>反映する</b>（A-1〜A-3）</td></tr>
+      <tr><td>分割単位・機械化・複製の意思決定の記録</td><td><b>反映する</b>（C: DDR <code>i0160-01</code>）</td></tr>
+      <tr><td><code>ROW_RE</code> 複製の注意の update-handoff-progress.md への反映</td><td><b>反映する</b>（B）</td></tr>
+      <tr><td><code>.claude/VERSION</code> の更新（flow-id 4-6 が定時）</td><td><b>反映する</b>（E: 0.2.0→0.3.0 MINOR）</td></tr>
+      <tr><td>DDR <code>i0113-01</code> の前提変化（1,100行→分割後）</td><td><b>反映する</b>（C-2: frontmatter <code>note</code>）</td></tr>
+      <tr><td>frontmatter type表・directory-structure.md・index.md</td><td><b>済み</b>（フェーズ3で反映済み。再変更しない）</td></tr>
+      <tr><td><code>.gemini/</code> 側のリンク動作</td><td><b>追加作業なしと結論</b>（<code>skills</code> はディレクトリ単位リンクのため references/ は自動で見える。Windows実機確認は HANDOFF へ引き継ぐ）</td></tr>
+      <tr><td><code>index.jsonl</code> 混入・install-to-project.sh の破壊的既定</td><td><b>別issue候補として引き継ぐ</b>（起票はユーザー判断。統括レポートと HANDOFF へ明記）</td></tr>
     </tbody>
   </table>
   </div>
 </section>
 
-<section>
-  <h2>反映項目の要点</h2>
-  <ul>
-    <li><b>A-1</b>: hook の新項目「現在地flow-idと参照ファイルの注入（issue #160）」。現在地は
-      「最後の <code>[x]</code>/<code>[-]</code> の次の <code>[]</code>」で解決し、
-      <b>fail-open を4段</b>（解決不能・旧表記・値の形不正・<code>—</code>）で守る。
-      注入は完全パスへ変換。<code>ROW_RE</code> は複製＋一致テスト。</li>
-    <li><b>A-2</b>: テスト対象の純粋関数一覧へ <code>current_flow_id_to_reply</code> /
-      <code>refs_for_flow_id_to_reply</code> を追記。</li>
-    <li><b>A-3</b>: 「SKILL.mdは1,100行超」という現状説明を分割後の姿へ更新（理由部分は変えない）。</li>
-    <li><b>A-4</b>: 「影響範囲」へ issue #160 のエントリを<b>新規追記</b>（既存エントリは不変）。</li>
-    <li><b>B</b>: <code>update-handoff-progress.md</code> へ複製の注意を1項追記。</li>
-    <li><b>C</b>: DDR <code>i0160-01</code> — 分割単位（サイズ4分割の却下）・機械化
-      （本文ポインタのみの却下）・i0113-01 との整合・複製 vs <code>source</code>/<code>hooks/lib/</code>・
-      fail-open 設計。</li>
-    <li><b>D</b>: DDR一覧は <code>generate-ddr-list.sh</code> で再生成（手書きしない）。</li>
-  </ul>
-</section>
-
-<section>
-  <h2>やらないこと</h2>
-  <ul>
-    <li>DDR本文・specの過去changelogエントリの書き換え（specは現在状態の節と新規エントリ追記のみ）。</li>
-    <li>フロー自体の変更・他スキルの点検（issue #129 の担当）。</li>
-    <li>フェーズ3で反映済みの項目（frontmatter type表・directory-structure.md・index.md）の再変更。</li>
-  </ul>
-</section>
-
-<section>
-  <h2>検証手順</h2>
+<section id="targets">
+  <h2>変更対象</h2>
   <div class="tablewrap">
   <table>
-    <thead><tr><th>#</th><th>内容</th><th>合格条件</th></tr></thead>
+    <thead><tr><th>#</th><th>ファイル</th><th>変更内容</th></tr></thead>
     <tbody>
-      <tr><td>1</td><td>specの変更行の節対応付け</td><td>変更が「セッション開始時の自動コンテキスト注入」節と「影響範囲」の新規エントリのみ。既存エントリの削除・変更行0</td></tr>
-      <tr><td>2</td><td>DDR識別子の形式</td><td><code>^i[0-9]{4}-[0-9]{2}-</code> に一致し、title・H1 と一致</td></tr>
-      <tr><td>3</td><td>DDR一覧の再生成</td><td>差分が <code>.claude/docs/README.md</code> のみで、<code>i0160-01</code> の行が現れる</td></tr>
-      <tr><td>4</td><td>全テスト</td><td>16本すべて failures=0（件数を記録）</td></tr>
-      <tr><td>5</td><td>frontmatter検索</td><td><code>--type ddr</code> で <code>i0160-01</code> が引ける</td></tr>
-      <tr><td>6</td><td>md/html同期</td><td>本計画・反映レポートとも md と html を対で更新</td></tr>
+      <tr><td>A</td><td><code>.claude/docs/spec/issue-mr-workflow.md</code></td><td>「コンポーネント構成」ツリー・「セッション開始時の自動コンテキスト注入」節の更新＋「影響範囲」への新規エントリ追記</td></tr>
+      <tr><td>B</td><td><code>.claude/docs/spec/update-handoff-progress.md</code></td><td><code>ROW_RE</code> 複製の注意（制約・設計判断）＋ issue #160 エントリ（影響範囲）</td></tr>
+      <tr><td>C</td><td><code>.claude/docs/ddr/i0160-01-…md</code>（新規）＋ <code>i0113-01</code> の <code>note</code></td><td>意思決定の記録と、前提が変わった既存DDRへの導線</td></tr>
+      <tr><td>D</td><td><code>.claude/docs/README.md</code></td><td><code>generate-ddr-list.sh</code> の再実行による生成差分（手書きしない）</td></tr>
+      <tr><td>E</td><td><code>.claude/VERSION</code></td><td><code>0.2.0</code> → <code>0.3.0</code>（MINOR: 配布資産の追加）</td></tr>
+      <tr><td>F</td><td><code>.claude/hooks/session-start.sh</code></td><td>コメント内の陳腐化した現状説明（「SKILL.md（1000行超）」）の更新</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="approach">
+  <h2>反映項目の詳細</h2>
+  <ul>
+    <li><b>A-0</b>: 「コンポーネント構成」ツリーを SKILL.md（入口）＋ <code>references/</code>（詳細7ファイル）の構成へ更新。</li>
+    <li><b>A-1</b>: 新項目「現在地flow-idと参照ファイルの注入（issue #160）」。現在地は
+      「最後の <code>[x]</code>/<code>[-]</code> の次の <code>[]</code>」で解決し、
+      <b>fail-open を4段</b>（解決不能・旧表記・値の形不正・<code>—</code>）で守る。注入は完全パスへ変換。
+      <b>表側の維持責任</b>（列見出し <code>参照</code> を変えると無言で止まる・行追加時は <code>—</code> でも必ず埋める）も明記。
+      <code>ROW_RE</code> は複製＋一致テスト。</li>
+    <li><b>A-2</b>: テスト対象の純粋関数一覧へ <code>current_flow_id_to_reply</code> /
+      <code>refs_for_flow_id_to_reply</code> を追記。</li>
+    <li><b>A-3</b>: 「SKILL.mdは1,100行超」を分割後の姿へ更新（理由部分は変えない）。
+      「実測603バイト」等の数値は参照行込みの実測値へ更新し、測り方を添える。</li>
+    <li><b>A-4</b>: 「影響範囲」へ issue #160 のエントリを<b>新規追記</b>（VERSION更新の記録を含む。既存エントリは不変）。</li>
+    <li><b>B-1</b>: <code>update-handoff-progress.md</code>「制約・設計判断」へ複製の注意を1項追記。</li>
+    <li><b>B-2</b>: 同「影響範囲」へ issue #160 エントリを追記（A-4 と対称）。</li>
+    <li><b>C-1</b>: DDR <code>i0160-01</code> — 分割単位（サイズ4分割の却下）・機械化
+      （本文ポインタのみの却下）・i0113-01 との整合・複製 vs <code>source</code>/<code>hooks/lib/</code>・
+      fail-open 設計。</li>
+    <li><b>C-2</b>: <code>i0113-01</code> の frontmatter へ <code>note</code> を1行追加（本文不変）。</li>
+    <li><b>D</b>: DDR一覧は <code>generate-ddr-list.sh</code> で再生成（<code>i0160-01</code> 新規行と
+      <code>i0113-01</code> の注記の2差分）。</li>
+    <li><b>E</b>: VERSION 0.2.0→0.3.0。非対話環境のため適用のうえ HANDOFF「判断を迷った内容」へ記録し、
+      否認されたら戻す。</li>
+    <li><b>F</b>: hookコメントの「1000行超」を更新（コメントのみ。動作は変えない）。</li>
+  </ul>
+</section>
+
+<section id="nogo">
+  <h2>やらないこと</h2>
+  <ul>
+    <li>DDR本文・specの過去changelogエントリの書き換え（specは現在状態の節と新規エントリ追記のみ。<code>i0113-01</code> は frontmatter の <code>note</code> のみ）。</li>
+    <li>フロー自体の変更・他スキルの点検（issue #129 の担当）。</li>
+    <li>フェーズ3で反映済みの項目（frontmatter type表・directory-structure.md・index.md）の再変更。</li>
+    <li>別issue候補（<code>index.jsonl</code> 混入・install-to-project.sh の破壊的既定）の起票（ユーザー判断に委ねる）。</li>
+  </ul>
+</section>
+
+<section id="verify">
+  <h2>検証手順</h2>
+  <p>分岐点は <code>base="$(git merge-base origin/main HEAD)"</code> で固定する（引数なしの
+  <code>git diff</code> はコミットした瞬間に保証が失効するため使わない）。</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>#</th><th>内容</th><th>合格条件（実行するコマンド）</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td>specの変更行の節対応付け</td><td><code>git diff "$base" -- …/issue-mr-workflow.md</code> の全ハンクが「コンポーネント構成」「セッション開始時の自動コンテキスト注入」「影響範囲の issue #160 エントリ」のいずれかに属する。既存エントリの削除・変更行0</td></tr>
+      <tr><td>2</td><td>.claude/ 全体の巻き添え確認</td><td><code>git diff "$base" --stat -- .claude/</code> が想定ファイルのみ。<code>git diff "$base" -- .claude/docs/ddr/</code> の差分が「i0160-01 新規」と「i0113-01 の note 行」のみ</td></tr>
+      <tr><td>3</td><td>DDR識別子の形式</td><td><code>^i[0-9]&#123;4&#125;-[0-9]&#123;2&#125;-</code> に一致し、title・H1 と一致</td></tr>
+      <tr><td>4</td><td>DDR一覧の再生成</td><td><code>generate-ddr-list.sh --check</code> の終了コードが0。<code>git diff "$base" -- .claude/docs/README.md</code> に i0160-01 行と i0113-01 の注記変化が現れる</td></tr>
+      <tr><td>5</td><td>全テスト</td><td>16本すべて failures=0（合計 passed を記録）</td></tr>
+      <tr><td>6</td><td>frontmatter検索</td><td><code>search-frontmatter.sh --type ddr</code> 相当で i0160-01 が引ける</td></tr>
+      <tr><td>7</td><td>md/html同期（機械）</td><td>md の <code>##</code> 一覧と html の <code>&lt;h2&gt;</code> 一覧が一致・プレースホルダ0件・外部参照0件</td></tr>
+      <tr><td>8</td><td>VERSIONの形式</td><td><code>.claude/VERSION</code> が <code>0.3.0</code> の1行のみ</td></tr>
     </tbody>
   </table>
   </div>
