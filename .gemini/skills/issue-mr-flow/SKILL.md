@@ -87,7 +87,7 @@ MR description更新」という同じ形を繰り返す。
 | 4-6 | 反映計画をもとに作業を進める。詳細な試行錯誤はworklogsに更新し、**反映結果は`wip/reports/日付_<全体計画名>_<内容を簡潔に>.md`に記録し、あわせて同名の`.html`（人間レビュー用ビュー）を作成する**（**個別反映計画には結果を書かない**。下記「計画と実施結果の分離」。HTMLの土台は`.claude/skills/issue-mr-flow/assets/reports.template.html`。下記「計画・レポートのHTMLビュー」）。作業の内訳は次のとおり（**設計反映**: `wip/plans/` `wip/worklogs/` の内容を `.claude/docs/spec/` `.claude/docs/ddr/`（アプリ本体があれば`docs/spec/` `docs/ddr/`）へ反映する。**DDRを追加・変更したら `bash .claude/scripts/src/generate-ddr-list.sh` を実行し、`.claude/docs/README.md` のDDR一覧の差分を同じコミットへ含める**（一覧は生成物。手書きで行を足さない。issue #135。仕様: `.claude/docs/spec/generate-ddr-list.md`）／**AIアセット反映**: 作業中に気づいたルール・スキルの不備を `.claude/rules/` `.claude/skills/` `CLAUDE.md` `AGENTS.md` に反映する／**実装反映**: フェーズ3のレビュー往復ループ（3-6〜3-9）では解消しきれず持ち越した不具合について、記録（spec/ddr等）への書き戻しと、実装コード・テストコードの修正をあわせて行う） | エージェント |
 | 4-7 | `commit`スキル経由でcommitし、push してレビュー依頼を行う | エージェント |
 | 4-8 | MRでレビュー・コメントする。レビュー済み連絡をするまで以降の作業は行わない。 | 人間 |
-| 4-9 | レビュー内容を取得し、設計・AIアセットの内容を修正する。対応が完了したコメントには対応内容を返信する（結果側の記述の修正先は`reports/`のmdであり、個別反映計画ではない。4-6〜4-9の反映ループを合意まで繰り返す）。チャットで受けた判断はMRへ記録する（下記「チャットで受けたレビュー判断の記録」節）。**「レビューOK」の合図を受けても、下記「レビュー完了合図の確認」節の(1)(2)(3)を通るまでループを閉じない**（未返信スレッドが残っていると`mark-done`が拒否する。issue #70） | `comments` / `reply` |
+| 4-9 | レビュー内容を取得し、設計・AIアセットの内容を修正する。対応が完了したコメントには対応内容を返信する（結果側の記述の修正先は`wip/reports/`のmdであり、個別反映計画ではない。4-6〜4-9の反映ループを合意まで繰り返す）。チャットで受けた判断はMRへ記録する（下記「チャットで受けたレビュー判断の記録」節）。**「レビューOK」の合図を受けても、下記「レビュー完了合図の確認」節の(1)(2)(3)を通るまでループを閉じない**（未返信スレッドが残っていると`mark-done`が拒否する。issue #70） | `comments` / `reply` |
 | 4-10 | 反映内容をもとにMR descriptionを更新する | `describe` |
 | 5-1 | **defaultブランチとのコンフリクトを検知し、あれば解消する**（`bash .claude/scripts/src/check-base-conflicts.sh` で判定 → `hasConflict` が真なら `AskUserQuestion` でユーザーに確認 → 承認されたら `resolve-conflict` スキルで解消。詳細は下記「defaultブランチとのコンフリクト検知・解消」節）。PR作成後の継続的な追従（下記「PR作成後のdefaultブランチ追従（監視）」節）を行っていても、**このステップは最終ゲートとして必ず通る** | エージェント（`resolve-conflict` スキル） |
 | 5-2 | **今回のMRが影響する関連issueを特定し、承認を得てから当該issueへ通知する**（差分からキーワードを抽出 → `search_issues` で候補提示 → `AskUserQuestion` で対象issueとコメント本文の承認 → `add_issue_comment` で投稿）。**キーワードの抽出時は `wip/plans/` `wip/worklogs/` `wip/reports/` を差分から除外する**（片付けは flow-id 5-5 で行うため、この時点ではこれらの計画・ログ・レポートがまだ差分に含まれる）。**影響先が無ければスキップしてよい**（その場合も「影響先なし」と判断した事実を、リセット前の `HANDOFF.md` へ1行残す）。詳細は下記「マージ前の関連issue通知（flow-id 5-2）」節 | エージェント |
@@ -734,7 +734,7 @@ CLI経路には無い、MCPツール固有の挙動。**いずれも失敗では
 | `reply <threadId> <対応内容>` | 返信先の指定が数値のcommentIdになる（上表の補足参照）。**`Claude Codeより:` の署名行を先頭に付ける規約はMCP経路でも同じ**（MCPサーバーもユーザーの認証情報で動くため、投稿者は人間のアカウントとして表示される）。投稿後に返る `html_url` が返信のパーマリンクで、次のpushのレビュー依頼メッセージへ含める（issue #42） |
 | `describe` | descriptionを一時ファイルへ書く手順は同じでよいが、最後は `mcp__github__update_pull_request` の `body` へ文字列として渡す |
 | `sync` | 変更なし（git操作のみ） |
-| `resume` | サブエージェント（`issue-mr-resume`）はProvider.sh経由でのCLI利用を前提とするため、MCP経路ではissue/PR情報の取得部分が失敗する。その場合はサブエージェントの報告のうちgit・ファイル系（ブランチ・plans/worklogs・HANDOFF.md）を採用し、issue/PR情報は呼び出し元が上表のMCPツールで補う |
+| `resume` | サブエージェント（`issue-mr-resume`）はProvider.sh経由でのCLI利用を前提とするため、MCP経路ではissue/PR情報の取得部分が失敗する。その場合はサブエージェントの報告のうちgit・ファイル系（ブランチ・wip/plans・wip/worklogs・HANDOFF.md）を採用し、issue/PR情報は呼び出し元が上表のMCPツールで補う |
 
 ### 4. hookの挙動（CLI不在時）
 

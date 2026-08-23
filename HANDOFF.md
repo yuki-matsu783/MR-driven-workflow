@@ -32,10 +32,10 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 | [x] | 1-1 | issue起票（人間による起票済み） |
 | [x] | 1-2 | issue取得 |
 | [x] | 1-3 | ブランチ/Draft PR作成（PR #178） |
-| [x] | 1-4 | 全体作業計画作成（plans/transient-brewing-pelican.md） |
+| [x] | 1-4 | 全体作業計画作成（wip/plans/transient-brewing-pelican.md） |
 | [x] | 1-5 | 全体作業計画承認（ExitPlanModeでユーザー承認済み） |
 | [x] | 1-6 | HANDOFF.md更新 |
-| [x] | 2-1 | 個別調査計画作成（plans/【調査】plansDirectoryのネストパス対応検証.md） |
+| [x] | 2-1 | 個別調査計画作成（wip/plans/【調査】plansDirectoryのネストパス対応検証.md） |
 | [x] | 2-2 | commit・push・レビュー依頼（敵対的レビュー1周目実施・指摘反映済み） |
 | [] | 2-3 | （人間レビュー省略。敵対的レビューで代替済み） |
 | [] | 2-4 | （人間レビュー省略。敵対的レビュー指摘への対応は計画へ反映済み） |
@@ -45,7 +45,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 | [] | 2-8 | （人間レビュー省略。敵対的レビュー1周目で13件の指摘を受け反映済み） |
 | [] | 2-9 | （人間レビュー省略。対照実験の結果待ちのため2周目レビューは保留） |
 | [x] | 2-10 | 調査結果でMR description更新 |
-| [x] | 3-1 | 個別作業計画作成・敵対的レビュー1周目実施（13件の指摘を反映済み。plans/【設計】【実装】【テスト】wip集約とworklogs改名.md） |
+| [x] | 3-1 | 個別作業計画作成・敵対的レビュー1周目実施（13件の指摘を反映済み。wip/plans/【設計】【実装】【テスト】wip集約とworklogs改名.md） |
 | [x] | 3-2 | commit・push・レビュー依頼 |
 | [] | 3-3 | （人間レビュー省略予定） |
 | [] | 3-4 | （人間レビュー省略予定） |
@@ -78,7 +78,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - issue #165 の内容を取得し、内容を確認した（`.mrworkflow.json`・`Provider.sh`・
   `cleanup-task.sh`・`.claude/settings.json`・`.gemini/settings.json`・
   `install-to-project.sh`・関連ドキュメントのファイル数を事前調査）。
-- 全体作業計画を作成し（`plans/transient-brewing-pelican.md`）、Planモードでユーザーの承認を得た。
+- 全体作業計画を作成し（`wip/plans/transient-brewing-pelican.md`）、Planモードでユーザーの承認を得た。
 - Draft PR #178 を作成し、PR活動の購読・1時間ごとの自己チェックインを設定した。
 - 個別調査計画（plansDirectoryネストパス検証）を作成した。
 - **計画フェーズに対する敵対的レビュー（1周目）を実施し、16件の指摘（major多数）を受けて
@@ -96,7 +96,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
   `.claude/settings.json`の`plansDirectory: "./wip/plans"`（ネストしたパス）は実際に機能する。**
   新規セッションで`EnterPlanMode`を呼んだところ、提示された計画ファイルパスは
   `wip/plans/<自動命名>.md` であり、`plans/<自動命名>.md`へのフォールバックは発生しなかった。
-  詳細は `reports/20260823_transient-brewing-pelican_plansDirectoryネストパス検証.md`。
+  詳細は `wip/reports/20260823_transient-brewing-pelican_plansDirectoryネストパス検証.md`。
 - **調査結果に対する敵対的レビュー（1周目）を実施し、13件の指摘を受けた。** 主な指摘:
   (1) 「ファイルが実際に作成された」という判定基準はWriteツール自身の結果であり
   plansDirectoryの検証根拠にならない（循環論法）→報告の根拠をEnterPlanModeの提示パス1点に絞る、
@@ -109,7 +109,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
   新規セッションでの検証を5回試みたが、`create_session`がサービス一時停止
   （"the service is temporarily unavailable"）で毎回失敗した。**設定はいったん`"./plans"`
   （元の値）へ戻し**、中途半端な状態を残さないようにした。対照実験はサービス復旧後に再試行する。
-- **フェーズ3個別作業計画（plans/【設計】【実装】【テスト】wip集約とworklogs改名.md）に対する
+- **フェーズ3個別作業計画（wip/plans/【設計】【実装】【テスト】wip集約とworklogs改名.md）に対する
   敵対的レビュー（1周目）を実施し、13件の指摘（major多数）を受けて計画md・HTMLを修正した。**
   主な指摘: (1) `KEEP_PATHS`動的化後は`test_cleanup_task.sh`の`is_keep_path`直接呼び出しテストが
   必ず失敗する（実測で確認）→テスト側に明示セット行を追加、(2) `declare`をmain内で使うとローカル
@@ -142,6 +142,29 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
   （176ファイル）、単体テスト17本すべて`passed=N failures=0`・DDR重複なし・
   コンフリクトマーカー残存なしを確認したうえで、`chore: mainをマージし…統合`として
   commit・push済み（`3714b7d`）。
+- **flow-id 3-6実施結果に対する敵対的レビュー（1回目）を再試行し、完了した。** mainマージ後の
+  `origin/main...HEAD`差分（42ファイル、wip/plans・wip/worklogs・wip/reports・.gemini除く）を
+  対象に実施し、10件の指摘（major 4件・minor 6件）を受けた。すべて反映済み。
+  - **major**: (1) `cleanup-task.md`が`KEEP_PATHS`動的化前の記述のまま（`.mrworkflow.json`から
+    読まないと書いてあった）だった→現状（`worklogDir`から動的組み立て）へ更新し、issue #165の
+    影響範囲節を新設、(2) READMEの「デフォルト値」列がコードのフォールバック既定値
+    （`plans`/`worklog`/`reports`のまま）と食い違う→列見出しを「本リポジトリの設定値」へ改め、
+    フォールバックは別物である旨を明記（DDR i0165-01を新規作成し決定を記録）、(3) `.claude/VERSION`
+    未増分の指摘→**flow-id 4-6（AIアセット反映）の判断事項として既に`wip/reports/`の実装結果
+    レポートで追跡済み**のため今回は対応不要と判断（増分の決定自体が人間の役割かつflow-id 4-6の
+    タイミングであるため）、(4) `docs-workflow.md`の「横断的な棚卸し」段落が旧パス（`plans/`
+    `worklog/` `reports/`）のまま→現在有効な規則の地の文として`wip/`パスへ更新（当時の実例文は
+    そのまま残した）。
+  - **minor**: (5) SKILL.mdの4-9行だけ`reports/`表記が漏れていた→修正、(6) `KEEP_PATHS`が
+    jq配列の並び順に暗黙依存するshellの罠→空になった場合に明示的にエラーで止まるガードを追加、
+    (7) `install-to-project.sh`が追加した`wip/reports/`初期プレースホルダが
+    `directory-structure.md`（「初期スケルトンに含まれない」）と矛盾→インストーラ側を元の
+    2-way（`wip/plans` `wip/worklogs`のみ）へ戻した、(8) `docs-workflow.md`のfrontmatter
+    description/keywordsが旧語のまま→更新、(9) テストの`bash -c`文字列埋め込みが値次第で
+    壊れる→ヒアストリング＋`if`文の形へ書き換え、(10) ネスト構成の結合テストが
+    `wip/plans/REVIEW-POINTS.md`残存と`removedDirs`を検証していなかった→3件のアサーションを追加。
+  - 修正後、単体テスト17本すべて`passed=N failures=0`（`test_cleanup_task.sh`は69→73件）・
+    DDR一覧再生成（78件）・`.gemini/`再生成を確認済み。
 
 ## 次にやること
 
@@ -149,9 +172,8 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
   `.claude/settings.json`は現在`"./plans"`に戻してある）。
 - 対照実験の結果が得られ次第、`wip/reports/`の調査結果md・HTML・worklogへ反映する。
 - 調査結果に対する敵対的レビュー2周目（指摘反映後の再確認）は、対照実験の結果待ちのため保留。
-- **flow-id 3-6実施結果に対する敵対的レビュー（1回目）を再試行する**（前回はセッションの
-  API利用上限で失敗。再試行時はmainマージ後の最新差分を対象にする）。指摘があれば反映してから
-  commit・push・レビュー依頼（flow-id 3-7）を行う。
+- **flow-id 3-6実施結果への敵対的レビュー（1回目）の指摘反映が完了したので、commit・push・
+  レビュー依頼（flow-id 3-7）を行い、3-6〜3-9ループの1周目を完了とする。**
 
 ## 判断を迷った内容
 

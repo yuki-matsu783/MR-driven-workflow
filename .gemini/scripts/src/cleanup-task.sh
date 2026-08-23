@@ -236,6 +236,14 @@ main() {
   # [plansDir, worklogDir, reportsDir] の並び順に対応。並びを変える場合はここも直すこと）。
   KEEP_PATHS=("${target_dirs[1]}/TEMPLATE.md")
 
+  # KEEP_PATHS が空のまま残るのは、target_dirs が3要素揃っていない異常系だけである（jqの
+  # フィルタが3要素の配列を保証する限り通常は起きない）。空のまま先へ進むと is_keep_path が
+  # 「何も残さない」と判定し TEMPLATE.md が黙って削除されるため、異常として明示的に止める。
+  if [ "${#KEEP_PATHS[@]}" -eq 0 ] || [ -z "${KEEP_PATHS[0]}" ]; then
+    echo "error: KEEP_PATHS を決定できませんでした（.mrworkflow.json の worklogDir 設定を確認してください）" >&2
+    return 1
+  fi
+
   local dir
   for dir in "${target_dirs[@]}"; do
     if ! is_safe_relative_dir "$dir"; then

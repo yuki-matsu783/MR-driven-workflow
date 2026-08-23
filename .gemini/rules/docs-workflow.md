@@ -2,9 +2,9 @@
 alwaysApply: true
 title: ドキュメント運用
 type: rule
-description: ドキュメントの置き場所・ライフサイクル（plans/worklog/spec/ddr/HANDOFF）を定めたルール
+description: ドキュメントの置き場所・ライフサイクル（wip/plans/wip/worklogs/spec/ddr/HANDOFF）を定めたルール
 tags: [docs, workflow, rule]
-keywords: [plans, handoff, worklog, 正史仕様, 意思決定ログ, ライフサイクル, issue-mr-flow, ループ進捗, always-apply]
+keywords: [wip, plans, handoff, worklogs, 正史仕様, 意思決定ログ, ライフサイクル, issue-mr-flow, ループ進捗, always-apply]
 ---
 
 # ドキュメント運用
@@ -88,10 +88,10 @@ DDRは本文を一切変更せず、`git mv`による位置の移動のみを行
 （引数なしの `git diff` は作業ツリー比較のため、その1回の実行以降に入るコミットを見ない。
 DDR一覧そのものは生成物なので、`generate-ddr-list.sh` の再実行で追随する）。
 
-**flow-idの繰り下げのような横断的な棚卸しでは、`plans/` `worklog/` `reports/` を一括で対象外に
-しない**（issue #70対応時に実際に踏んだ）。これらはタスク単位で削除される寿命の短いディレクトリ
-なので、棚卸しの対象から外すのが基本である。しかし**`plans/REVIEW-POINTS.md` と
-`reports/REVIEW-POINTS.md` だけは、そのディレクトリの直下にありながら寿命が永続**であり
+**flow-idの繰り下げのような横断的な棚卸しでは、`wip/plans/` `wip/worklogs/` `wip/reports/` を
+一括で対象外にしない**（issue #70対応時に実際に踏んだ）。これらはタスク単位で削除される寿命の
+短いディレクトリなので、棚卸しの対象から外すのが基本である。しかし**`wip/plans/REVIEW-POINTS.md`
+と `wip/reports/REVIEW-POINTS.md` だけは、そのディレクトリの直下にありながら寿命が永続**であり
 （上表・flow-id 5-5の削除対象外）、ディレクトリ単位で除外するとこの2ファイルだけがすり抜ける。
 実例では `reports/REVIEW-POINTS.md` の `flow-id 5-4` が繰り下げ漏れとして残り、敵対的レビューで
 初めて見つかった。**除外はディレクトリ単位ではなくファイル単位で判断する。**

@@ -271,18 +271,35 @@ setup_ct_repo_wip
 ct_json="$(run_ct --dry-run)"
 assert_eq "wip設定: targetDirsがwip/plans等になる" "wip/plans wip/worklogs wip/reports" \
   "$(printf '%s' "$ct_json" | jq -r '.targetDirs | join(" ")')"
+if jq -e '.keptPaths | index("wip/worklogs/TEMPLATE.md")' <<<"$ct_json" >/dev/null; then
+  kept_wip_worklogs_template=0
+else
+  kept_wip_worklogs_template=1
+fi
 assert_eq "wip設定: keptPathsにwip/worklogs/TEMPLATE.mdが含まれる（KEEP_PATHS動的化の配線確認）" "0" \
-  "$(status_of bash -c "printf '%s' '$ct_json' | jq -e '.keptPaths | index(\"wip/worklogs/TEMPLATE.md\")' >/dev/null")"
+  "$kept_wip_worklogs_template"
 assert_eq "wip設定（--dry-run）: ファイルを削除しない" "0" \
   "$(status_of test -e "$ct_repo/wip/plans/【調査】テスト.md")"
 
 # --dry-run ではなく実際に走らせ、wip/worklogs/TEMPLATE.md が誤削除されないことまで確認する
 setup_ct_repo_wip
-run_ct >/dev/null
+ct_json_run="$(run_ct)"
 assert_eq "wip設定: 実行後もwip/worklogs/TEMPLATE.mdが残る（誤削除されない）" "0" \
   "$(status_of test -e "$ct_repo/wip/worklogs/TEMPLATE.md")"
 assert_eq "wip設定: タスク固有のworklogは削除される" "1" \
   "$(status_of test -e "$ct_repo/wip/worklogs/2026-08-20_計画_個別_push1.md")"
+# wip/plans/REVIEW-POINTS.md（KEEP_BASENAMES側）もネスト構成で残ることを確認する
+# （フラット構成側は上の217行付近で既に確認済みだが、ネスト構成側は未検証だった）
+assert_eq "wip設定: 実行後もwip/plans/REVIEW-POINTS.mdが残る" "0" \
+  "$(status_of test -e "$ct_repo/wip/plans/REVIEW-POINTS.md")"
+# 残す物が無い wip/reports はディレクトリごと消え、親の wip/ ディレクトリ自体は
+# wip/plans・wip/worklogs が残っているため巻き込まれずに残ることを確認する
+assert_eq "wip設定: removedDirsにwip/reportsが含まれる" "wip/reports" \
+  "$(printf '%s' "$ct_json_run" | jq -r '.removedDirs | join(" ")')"
+assert_eq "wip設定: wip/reportsはディレクトリごと消える" "1" \
+  "$(status_of test -e "$ct_repo/wip/reports")"
+assert_eq "wip設定: 親のwipディレクトリは残る（wip/plans・wip/worklogsが残るため）" "0" \
+  "$(status_of test -e "$ct_repo/wip")"
 
 echo "passed=${passed} failures=${failures}"
 [[ "$failures" -eq 0 ]]

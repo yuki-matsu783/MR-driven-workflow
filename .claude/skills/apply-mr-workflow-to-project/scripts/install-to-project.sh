@@ -174,11 +174,12 @@ fi
 # 2. Copy core workflow assets from skill's assets
 echo "Installing core configuration files..."
 
-# Ensure target directories exist
+# Ensure target directories exist. wip/reports is intentionally NOT created here:
+# it is created dynamically during the workflow (flow-id 2-6 etc.), not part of the
+# initial skeleton (.claude/rules/directory-structure.md).
 mkdir -p "${DEST_DIR}/.claude"
 mkdir -p "${DEST_DIR}/wip/plans"
 mkdir -p "${DEST_DIR}/wip/worklogs"
-mkdir -p "${DEST_DIR}/wip/reports"
 
 # Copy configuration and rules safely
 safe_copy_dir "${ASSETS_DIR}/.claude" "${DEST_DIR}/.claude"
@@ -200,10 +201,9 @@ if [ -d "${ASSETS_DIR}/.gitlab" ]; then
   safe_copy_dir "${ASSETS_DIR}/.gitlab" "${DEST_DIR}/.gitlab"
 fi
 
-# Create placeholders for wip/plans, wip/worklogs, wip/reports if they do not exist
+# Create placeholders for wip/plans, wip/worklogs if they do not exist
 touch "${DEST_DIR}/wip/plans/.gitkeep"
 touch "${DEST_DIR}/wip/worklogs/.gitkeep"
-touch "${DEST_DIR}/wip/reports/.gitkeep"
 
 # 3. Inject Language-specific rules if detected
 if [ "${IS_GO_PROJECT}" = true ]; then
