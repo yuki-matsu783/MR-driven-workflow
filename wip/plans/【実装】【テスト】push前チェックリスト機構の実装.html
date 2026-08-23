@@ -1,5 +1,5 @@
 <!--
-  個別作業計画「push前チェックリスト機構の実装」（issue #17 / flow-id 3-1）の
+  個別作業計画「push前チェックリスト機構の実装」（issue #17 / flow-id 3-1・3-4）の
   人間レビュー用HTMLビュー。正文は同名の .md で、このHTMLはその視覚化である。
   外部依存を持たない自己完結HTML。
 -->
@@ -110,20 +110,25 @@
   <div class="inner">
     <div class="kind">個別作業計画 / フェーズ3</div>
     <h1>【実装】【テスト】push前チェックリスト機構の実装</h1>
-    <p class="lead">調査結果（Q1〜Q8）を入力として、スクリプト1本・hook2本・新規テスト2本・既存テスト1本の改修・<code>settings.json</code> の登録を行う。設計判断はここで作り直さない。</p>
+    <p class="lead">調査結果（Q1〜Q8）を入力として、スクリプト1本・hook2本・新規テスト3本・既存テスト1本の改修・<code>settings.json</code> の登録・spec の骨組みを作る。設計判断はここで作り直さない。</p>
     <ul class="meta">
       <li><b>issue</b> #17</li>
       <li><b>ブランチ</b> claude/hook-implementation-17-vjhppj</li>
       <li><b>PR</b> #195（Draft）</li>
-      <li><b>フェーズ</b> 3〈作業〉 flow-id 3-1</li>
-      <li><b>push回数</b> 5（次のpushで6）</li>
+      <li><b>フェーズ</b> 3〈作業〉 flow-id 3-1 / 3-4</li>
       <li><b>作成日</b> 2026-08-23</li>
       <li><b>正文</b> 同名の .md</li>
+      <li><b>現在地</b> HANDOFF.md が正</li>
     </ul>
   </div>
 </header>
 
 <div class="wrap">
+
+<div class="box stop">
+  <span class="label">敵対的レビュー（フェーズ3・1回目）で14件を反映済み</span>
+  うち<b>6件は設計を書き直す必要のあるもの</b>だった。<b>指摘された19件すべてを、実物を読み・コマンドを実行して裏取りしたところ、すべて事実だった。</b> 反映箇所は各節に「敵対的レビュー フェーズ3・1回目で指摘」と記してある。
+</div>
 
 <nav class="toc">
   <h2>目次</h2>
@@ -133,9 +138,11 @@
     <li><a href="#s1">1. push-checklist.sh（本体）</a></li>
     <li><a href="#s2">2. block-unchecked-push.sh（PreToolUse）</a></li>
     <li><a href="#s3">3. post-push-next-checklist.sh（PostToolUse）</a></li>
-    <li><a href="#s4">4-5. 新規テスト2本</a></li>
-    <li><a href="#s6">6. T11の改修</a></li>
-    <li><a href="#s7">7. settings.json</a></li>
+    <li><a href="#s4">4-6. 新規テスト3本</a></li>
+    <li><a href="#s7">7. T11・T12の改修</a></li>
+    <li><a href="#s8">8. settings.json</a></li>
+    <li><a href="#crlf">改行コード（CRLF対策）</a></li>
+    <li><a href="#self">登録後の自己適用</a></li>
     <li><a href="#verify">検証（合格条件）</a></li>
     <li><a href="#nogo">やらないこと</a></li>
     <li><a href="#open">未確定事項</a></li>
@@ -145,6 +152,10 @@
 <section id="scope">
   <h2>この計画で作るもの</h2>
   <p>前提となる調査結果は <code>wip/reports/20260823_steady-guarding-checkpoint_push前チェックリスト機構の設計調査.md</code>。<b>Q1〜Q8の結論がこの計画の入力であり、設計判断をここで作り直さない。</b></p>
+  <div class="box info">
+    <span class="label">合意の地点</span>
+    上記の調査結果は <b>flow-id 2-6 で作成し、flow-id 2-8/2-9（敵対的レビュー2回目・12件を反映）で合意した版</b>を入力とする。本セッションは非対話のため、人間のレビューの代わりに敵対的レビューで合意を取っている。<b>Q1のフォールバック値（<code>worklog</code>）は、この計画を書く過程で調査結果側を訂正した結果である</b>（当初は <code>wip/worklogs</code> と書かれていた）ため、訂正後の版を指している。
+  </div>
   <table>
     <thead><tr><th>#</th><th>ファイル</th><th>種別</th><th>役割</th></tr></thead>
     <tbody>
@@ -153,27 +164,30 @@
       <tr><td>3</td><td><code>.claude/hooks/post-push-next-checklist.sh</code></td><td>新規</td><td>PostToolUse。次回分を生成</td></tr>
       <tr><td>4</td><td><code>.claude/scripts/test/test_push_checklist.sh</code></td><td>新規</td><td>1のテスト</td></tr>
       <tr><td>5</td><td><code>.claude/scripts/test/test_block_unchecked_push.sh</code></td><td>新規</td><td>2のテスト（2層構成）</td></tr>
-      <tr><td>6</td><td><code>.claude/scripts/test/test_sync_gemini_assets.sh</code></td><td><b>改修</b></td><td>T11を2本→3本（または4本）対応へ</td></tr>
-      <tr><td>7</td><td><code>.claude/settings.json</code></td><td><b>改修</b></td><td>hook登録（PreToolUse 1件・PostToolUse 2件）</td></tr>
+      <tr><td>6</td><td><code>.claude/scripts/test/test_post_push_next_checklist.sh</code></td><td>新規</td><td>3のテスト（2層構成）</td></tr>
+      <tr><td>7</td><td><code>.claude/scripts/test/test_sync_gemini_assets.sh</code></td><td><b>改修</b></td><td>T11・T12を対象hook全件へ</td></tr>
+      <tr><td>8</td><td><code>.claude/settings.json</code></td><td><b>改修</b></td><td>hook登録（PreToolUse 1件・PostToolUse 2件）</td></tr>
+      <tr><td>9</td><td><code>.claude/docs/spec/push-checklist.md</code></td><td>新規（<b>骨組みのみ</b>）</td><td>実装・ブロックメッセージからの参照先を成立させる。中身はフェーズ4</td></tr>
     </tbody>
   </table>
   <div class="box warn">
-    <span class="label">6・7は既存ファイルの改修であり、見落としやすい</span>
-    とくに6は、足さなければT11が緑のまま<b>3本目の写経のドリフトを見逃す</b>（調査結果Q5の指摘）。前置フィルタが超集合でなくなるとhookが無言で発火しなくなるため、これは機構の無効化そのものになる。
+    <span class="label">7・8は既存ファイルの改修であり、見落としやすい</span>
+    とくに7は、足さなければT11が緑のまま新規hookの写経のドリフトを見逃す（調査結果Q5の指摘）。<b>6は当初この表に無かった</b>（敵対的レビュー フェーズ3・1回目で指摘）。この計画自身が「テストを伴わない実装は成立しない」と書いているのに、hook 3本目だけがその例外になっていた。
   </div>
-  <p><b>種別を <code>【実装】【テスト】</code> と併記する理由</b>: テストコードは実装と同時に書き、まとめて1回で合意を取る。本機構はhookであり、<b>テストを伴わない実装は成立しない</b>。分けると同じ内容を2回説明することになる。</p>
+  <p><b>種別を <code>【実装】【テスト】</code> と併記する理由</b>: テストコードは実装と同時に書き、まとめて1回で合意を取る。本機構はhookであり、<b>テストを伴わない実装は成立しない</b>。</p>
 </section>
 
 <section id="order">
   <h2>実装の順序</h2>
   <p>依存関係の順に並べる。<b>各段でその段のテストを通してから次へ進む</b>（最後にまとめてテストしない）。</p>
-  <ol>
-    <li><b><code>push-checklist.sh</code> を書く</b>（4も同時に書く）。hookはこれに委譲するだけなので、ここが本体。</li>
-    <li><b><code>block-unchecked-push.sh</code> を書く</b>（5も同時に書く）。</li>
-    <li><b><code>post-push-next-checklist.sh</code> を書く</b>。</li>
-    <li><b>T11を改修する</b>（3を書いた直後。先に改修するとファイルが存在せずT11が落ちる）。</li>
-    <li><b><code>.claude/settings.json</code> へ登録する</b>。</li>
-    <li><b>回帰確認</b>（下記「検証」）。</li>
+  <ol start="0">
+    <li><b><code>.claude/docs/spec/push-checklist.md</code> の骨組みを置く。</b> 以降のヘッダコメント・ブロックメッセージがこのパスを参照するため、先に存在させる（中身はフェーズ4）。</li>
+    <li><b><code>push-checklist.sh</code> を書く</b>（テスト4も同時に書く）。hookはこれに委譲するだけなので、ここが本体。</li>
+    <li><b><code>block-unchecked-push.sh</code> を書く</b>（テスト5も同時に書く）。</li>
+    <li><b><code>post-push-next-checklist.sh</code> を書く</b>（テスト6も同時に書く）。</li>
+    <li><b>T11・T12を改修する</b>（3を書いた直後。先に改修するとファイルが存在せず落ちる）。</li>
+    <li><b><code>.claude/settings.json</code> へ登録する。</b> ここから先、<b>この issue の作業自身が機構の対象になる</b>（<a href="#self">登録後の自己適用</a>）。</li>
+    <li><b>回帰確認</b>（<a href="#verify">検証</a>）。</li>
   </ol>
 </section>
 
@@ -181,41 +195,63 @@
   <h2>1. <code>push-checklist.sh</code>（本体）</h2>
   <h3>サブコマンド</h3>
   <table>
-    <thead><tr><th>サブコマンド</th><th>引数</th><th>役割</th><th>終了コード</th></tr></thead>
+    <thead><tr><th>サブコマンド</th><th>役割</th><th>終了コード</th></tr></thead>
     <tbody>
-      <tr><td><code>path</code></td><td>なし</td><td>カレントブランチの<b>最新</b>チェックリストのパスをstdoutへ。無ければ空で1</td><td>0 / 1</td></tr>
-      <tr><td><code>new</code></td><td>なし</td><td>次回分を生成する。生成条件（Q6の3つ）を満たさなければ<b>何もせず0で終わる</b></td><td>0</td></tr>
-      <tr><td><code>check &lt;id&gt; &lt;ログ&gt;</code></td><td>id・実施ログ</td><td>その行を <code>done</code> にし、4列目へログを書く</td><td>0 / 1</td></tr>
-      <tr><td><code>skip &lt;id&gt; &lt;理由&gt;</code></td><td>id・理由</td><td>その行を <code>skip</code> にし、4列目へ理由を書く</td><td>0 / 1</td></tr>
-      <tr><td><code>verify</code></td><td>なし</td><td>最新チェックリストの<b>HEAD断面</b>を検証する</td><td>0 / 1</td></tr>
+      <tr><td><code>path</code></td><td>カレントブランチの<b>最新</b>チェックリストのパスをstdoutへ</td><td>0 / 1</td></tr>
+      <tr><td><code>new</code></td><td>次回分を生成する。生成条件（Q6の3つ）を満たさなければ<b>何もせず0で終わる</b></td><td>0</td></tr>
+      <tr><td><code>check &lt;id&gt; &lt;ログ&gt;</code></td><td>その行を <code>done</code> にし、4列目へログを書く</td><td>0 / 1</td></tr>
+      <tr><td><code>skip &lt;id&gt; &lt;理由&gt;</code></td><td>その行を <code>skip</code> にし、4列目へ理由を書く</td><td>0 / 1</td></tr>
+      <tr><td><code>verify</code></td><td>最新チェックリストの<b>HEAD断面</b>を検証する（下表の3値）</td><td>0 / 1 / 3</td></tr>
+      <tr><td><code>stale</code></td><td>コミットされていない新しいチェックリストがあるか</td><td>0=あり / 1=なし</td></tr>
     </tbody>
   </table>
-  <div class="box info">
-    <span class="label"><code>verify</code> は exit 2 を返さない</span>
-    exit 2 は<b>hookの契約</b>であり、スクリプト単体の終了コードとしては使わない（テストから呼ぶときに紛らわしいため）。hook側が1を受けて2へ翻訳する。
+  <div class="box stop">
+    <span class="label"><code>verify</code> の終了コードは3値にする（敵対的レビュー フェーズ3・1回目で指摘）</span>
+    0/1の2値だと「未完了・壊れている」と「HEADに対象が無い」が同じ1になり、hook側の3分岐が表現できない。<b>どちらへ倒しても調査結果Q5に反する</b>（1扱いにすると初回pushが全ブロック、0扱いにすると空ファイルが素通り）。
   </div>
-  <p><b><code>check</code> / <code>skip</code> は作業ツリー上のファイルを書き換える</b>（<code>verify</code> はHEAD断面を読む）。この非対称は意図的で、調査結果Q4の結論（hookはHEADを読む）に対応する。</p>
+  <table>
+    <thead><tr><th>終了コード</th><th>意味</th><th>hook側の対応</th></tr></thead>
+    <tbody>
+      <tr><td>0</td><td>通してよい（4条件すべてを満たした）</td><td><code>exit 0</code></td></tr>
+      <tr><td>1</td><td><b>検証失敗</b>（未完了・壊れている・件数が合わない）</td><td><code>exit 2</code>（ブロック）</td></tr>
+      <tr><td>3</td><td><b>HEADに対象のチェックリストが無い</b></td><td>ブロックしない（警告条件へ）</td></tr>
+    </tbody>
+  </table>
+  <ul>
+    <li><b><code>verify</code> は exit 2 を返さない。</b> exit 2 はhookの契約であり、スクリプト単体の終了コードとしては使わない。hook側が1を受けて2へ翻訳する。</li>
+    <li><b>HEADが未コミット（unborn branch）・detached HEAD で <code>git show HEAD:</code> 自体が失敗する場合は 3（対象なし）へ倒す。</b> 1（＝ブロック）へ倒すと、コミットが1つも無いブランチで全pushが止まる。<code>git rev-parse --verify HEAD</code> の成否を先に見て、<code>set -e</code> で落ちないようにする。</li>
+    <li><b><code>check</code> / <code>skip</code> は作業ツリー上のファイルを書き換える</b>（<code>verify</code> はHEAD断面を読む）。この非対称は意図的で、調査結果Q4の結論に対応する。</li>
+  </ul>
 
   <h3>置き場所・命名</h3>
   <div class="box stop">
-    <span class="label">自前で <code>// "..."</code> の既定値を書かない</span>
-    置き場所は <code>get_workflow_config</code>（<code>Provider.sh</code>）の <code>worklogDir</code> から解決する。<b><code>get_workflow_config</code> 自身が既定値を持っており、<code>cleanup-task.sh</code> と同じ値（<code>worklog</code>）になる。</b> ここを独自に <code>wip/worklogs</code> と書くと、<code>.mrworkflow.json</code> が無い配布先で生成側と削除側が食い違う（調査結果Q1の訂正を参照）。
+    <span class="label">フォールバックは <code>cleanup-task.sh:232</code> と同一の文字列を自分で当てる</span>
+<pre><code>worklog_dir="$(get_workflow_config | jq -r '.worklogDir // "worklog"')"</code></pre>
+    <b>当初「自前で <code>// "..."</code> を書かない（<code>get_workflow_config</code> 自身が既定値を持つ）」と書いていたが、これは誤りだった</b>（敵対的レビュー フェーズ3・1回目で指摘）。<code>get_workflow_config</code> は <b><code>.mrworkflow.json</code> が存在すればその中身をそのまま <code>cat</code> するだけ</b>で、キー単位の既定値補完を行わない（<code>Provider.sh:53-61</code>）。一時リポジトリでの実測:
+<pre><code>$ echo '{"defaultBaseBranch":"main"}' &gt; .mrworkflow.json
+$ get_workflow_config | jq -r '.worklogDir'             → null
+$ get_workflow_config | jq -r '.worklogDir // "worklog"' → worklog</code></pre>
+    <b><code>.mrworkflow.json</code> はあるが <code>worklogDir</code> キーが無い配布先</b>（seed層なので配布先が書き換える）では、生成側が literal な <code>null/</code> へ書き、削除側は <code>worklog/</code> を見る。<b>Q1が避けようとした食い違いをそのまま作る。</b> <code>plansDir</code> / <code>reportsDir</code> も同様。
   </div>
   <ul>
     <li>命名は <code>&lt;YYYYMMDD&gt;_&lt;ブランチslug&gt;_push&lt;N&gt;_checklist.tsv</code>。</li>
-    <li>ブランチslugは <code>[^a-zA-Z0-9_-]</code> を <code>_</code> へ。<code>post-push-compact-prompt.sh</code> と同じ変換だが、<b><code>sed</code> ではなくbash組み込みで行う</b>（hookから呼ばれるため）。</li>
+    <li>ブランチslugは <code>[^a-zA-Z0-9_-]</code> を <code>_</code> へ。<b><code>sed</code> ではなくbash組み込みで行う</b>（hookから呼ばれるため）。</li>
     <li><code>&lt;N&gt;</code> は既存チェックリストの最大値 + 1。</li>
   </ul>
 
   <h3>ファイル形式</h3>
 <pre><code># generated-for: &lt;HEADのSHA&gt;
 # id	項目	状態	実施ログ
-worklog	worklogを作成／今回のpush分を追記した	pending	</code></pre>
+worklog	worklogを作成し、このpushまでの試行錯誤を追記した	pending	</code></pre>
+  <div class="box warn">
+    <span class="label">上の <code>pending</code> 行も行末がタブで終わる（＝4フィールド）</span>
+    markdownでは末尾タブが不可視なので明記する。<b>当初この行は3フィールドで、自分の「常に4フィールド」規則と <code>verify</code> 条件1に反していた</b>（敵対的レビュー フェーズ3・1回目で指摘）。そのまま写経すると、<code>new</code> が生成した直後のチェックリストが<b>自分の <code>verify</code> に必ず落ちる</b>（しかもメッセージは「未完了項目」ではなく形式異常になり、原因に辿り着きにくい）。
+  </div>
   <ul>
     <li>1行目・2行目は <code>#</code> で始まるコメント。<b><code>#</code> で始まる行は読み飛ばす。</b></li>
     <li>データ行は<b>常にちょうど4フィールド</b>（<code>pending</code> でも4列目を空で出す）。</li>
     <li>状態は <code>pending</code> / <code>done</code> / <code>skip</code> の3値。</li>
-    <li>項目（5件）とidは<b>スクリプト内の定数</b>。文言は調査結果Q2の表をそのまま使う。</li>
+    <li>項目（5件）とidは<b>スクリプト内の定数</b>。<b>文言は調査結果Q2の表と一字一句同じ</b>にする（独自に短縮すると、生成器の定数・仕様文書・調査結果で文言が3系統に割れる）。</li>
   </ul>
 
   <h3><code>verify</code> の判定（否定形）</h3>
@@ -228,6 +264,18 @@ worklog	worklogを作成／今回のpush分を追記した	pending	</code></pre>
   </ol>
   <p><b>複数のチェックリストがHEADに存在する場合は <code>&lt;N&gt;</code> が最大の1本だけを見る。</b></p>
 
+  <h3>コミット忘れの検知（<code>stale</code> 判定。ブロックはしない）</h3>
+  <div class="box stop">
+    <span class="label">「HEADにチェックリストがあるか」では検知にならない（敵対的レビュー フェーズ3・1回目で指摘）</span>
+    チェックリストは flow-id 5-5 まで削除されず<b>蓄積する</b>ため、2回目以降のpushではHEADに必ず古いものが残っている。当初の条件（HEADに無いが作業ツリーにある）は<b>初回pushでしか成立せず</b>、新しく生成された <code>push&lt;N+1&gt;</code> をコミットし忘れても、<code>verify</code> は旧チェックリスト（全 <code>done</code>）を見て通し、警告も出ない。<b>調査結果Q5が exit 1 の警告を置いた、まさにその失敗が素通りする。</b>
+  </div>
+  <p>したがって判定は<b>Nの比較</b>で行う。</p>
+<pre><code>作業ツリーの最大N &gt; HEADの最大N  →  コミットされていない新しいチェックリストがある</code></pre>
+  <ul>
+    <li>この形なら、<b>初回push</b>（<code>0 → 1</code>）も、<b>2回目以降のコミット忘れ</b>（<code>3 → 4</code>）も同じ1つの条件で拾える。</li>
+    <li><code>stale</code> サブコマンドが <code>0</code>＝コミット忘れあり／<code>1</code>＝なし を返す。hookはこれを見て <code>exit 1</code>（非ブロックのエラー）＋警告を出す。<b>通す側の判断は変えない。</b></li>
+  </ul>
+
   <h3><code>new</code> の生成条件（3つすべて）</h3>
   <ol>
     <li>HEADが公開済み（<code>git branch --remotes --contains HEAD</code> が1件以上）。</li>
@@ -239,20 +287,29 @@ worklog	worklogを作成／今回のpush分を追記した	pending	</code></pre>
 
 <section id="s2">
   <h2>2. <code>block-unchecked-push.sh</code>（PreToolUse）</h2>
-  <p><code>block-direct-git-commit.sh</code> の構造をそのまま踏襲する。</p>
   <ol>
     <li><code>main()</code> 冒頭で<b>前置フィルタ</b> <code>raw_hints_at_git_push</code>（<code>post-push-compact-prompt.sh:222-240</code> と<b>同一実装</b>を写経）。</li>
-    <li><code>jq</code> で <code>tool_name</code> / <code>tool_input.command</code> を取り出す。</li>
-    <li><code>CommandPosition.sh</code> を <code>source</code> して <code>command_invokes_git_subcommand "$command" push</code>。<code>BASH_VERSINFO</code> ≥ 4.3・<code>[ -r ]</code>・<code>source</code> 成否・<code>declare -F</code> の4点を確かめ、<b>駄目なら部分一致へ縮退</b>（ブロック側へ倒す）。</li>
-    <li>push と判定したら <code>push-checklist.sh verify</code> を呼ぶ。
+    <li><code>jq</code> で <code>tool_name</code> / <code>tool_input.command</code> を取り出す。<b>受理する <code>tool_name</code> は <code>run_shell_command|Bash|PowerShell</code> の3つ</b>。<code>block-direct-git-commit.sh</code> は2つだけだが、<b>そちらへ揃えると Gemini CLI経路（<code>run_shell_command</code>）で機構が丸ごと効かない</b>。</li>
+    <li><b><code>project_dir</code> を解決して <code>cd</code> する</b>（<code>GEMINI_PROJECT_DIR</code> → <code>CLAUDE_PROJECT_DIR</code>。無ければ <code>exit 0</code>）。<code>push-checklist.sh</code> は内部で git を呼ぶため<b>cwdがリポジトリ内であることに依存する</b>。<code>block-direct-git-commit.sh</code> は git を一切呼ばないためこの手順を持たず、「同じ構造を踏襲する」だけでは埋まらない。</li>
+    <li><code>CommandPosition.sh</code> を <code>source</code> して <code>command_invokes_git_subcommand "$command" push</code>。<b>駄目なときの縮退は <code>raw_hints_at_git_push</code>（前置フィルタ）をそのまま使う。</b></li>
+    <li>push と判定したら <code>push-checklist.sh verify</code> を呼ぶ。<b><code>set -euo pipefail</code> 配下なので非0を素の単純コマンドで受けない</b>（<code>status=0; … || status=$?</code> の形）。
       <ul>
         <li>0 → <code>exit 0</code></li>
-        <li>1（未完了・壊れている） → 理由と<b>ルールファイルのパス</b>をstderrへ出して <code>exit 2</code></li>
-        <li>チェックリストがHEADに無い → ブロックしない。ただし<b>作業ツリーには存在する</b>なら <code>exit 1</code>（非ブロックのエラー）＋警告</li>
+        <li>1（検証失敗） → <b>未完了の項目名</b>と<b>ルールファイルのパス</b>をstderrへ出して <code>exit 2</code></li>
+        <li>3（HEADに対象なし） → ブロックしない。ただし <code>stale</code> が0を返すなら <code>exit 1</code>＋警告</li>
+        <li><b><code>verify</code> が 0 を返した場合も <code>stale</code> を見る</b>（2回目以降のコミット忘れはここで拾う）。</li>
       </ul>
     </li>
     <li>末尾に <code>if [ "${BASH_SOURCE[0]}" = "${0}" ]; then main; fi</code> のガードを置く。</li>
   </ol>
+  <div class="box stop">
+    <span class="label"><code>grep -qiE 'git[[:space:]]+push'</code> を使ってはいけない（敵対的レビュー フェーズ3・1回目で指摘）</span>
+    これは精密判定の<b>部分集合</b>であり、「ブロック側へ倒す」と逆向きに倒れる。実測:
+<pre><code>precise=1 grep=1 : git push
+precise=1 grep=0 : git -C /x push
+precise=1 grep=0 : git --no-pager push origin HEAD</code></pre>
+    この2形は T11 が prefilter_cases として持っており、同ファイルのコメントも「<code>git[[:space:]]+push</code> へ縮めると、ここで落ちる」と警告している。前置フィルタは<b>超集合であることがT11で機械的に固定されている</b>ため、縮退判定に流用すればその保証をそのまま引き継げる。<code>block-direct-git-commit.sh:134</code> が <code>grep</code> へ縮む形なのは既存の許容であり、新規hookで「ブロック側へ倒す」と宣言する根拠にはならない。
+  </div>
   <div class="box ok">
     <span class="label">ブロックメッセージの必須要素（issue #17 の受け入れ条件）</span>
     <b>未完了の項目名</b>と、<code>.claude/skills/commit/SKILL.md</code> / <code>.claude/docs/spec/push-checklist.md</code> という<b>ルールファイルのパス</b>を必ず含める。
@@ -261,74 +318,109 @@ worklog	worklogを作成／今回のpush分を追記した	pending	</code></pre>
 
 <section id="s3">
   <h2>3. <code>post-push-next-checklist.sh</code>（PostToolUse）</h2>
-  <p>同じく前置フィルタ＋<code>command_invokes_git_subcommand</code> のあと、<code>push-checklist.sh new</code> を呼ぶだけ。</p>
+  <p><b>2. の手順1〜4・6をそのまま持つ</b>（前置フィルタ／<code>tool_name</code> の3値／<code>project_dir</code> の解決と <code>cd</code>／縮退時は <code>raw_hints_at_git_push</code> へ／<code>BASH_SOURCE</code> ガード）。違うのは手順5だけで、<code>verify</code> の代わりに <code>push-checklist.sh new</code> を呼ぶ。</p>
   <ul>
     <li><b>既存2本より後ろに登録する</b>（既存の出力を邪魔しない）。</li>
     <li><b>既存2本のロジックは1バイトも変更しない</b>（issue #17 の受け入れ条件）。</li>
     <li><code>new</code> が静かに0で終わる設計なので、hook側に条件分岐を持たない。</li>
+    <li><b><code>new</code> の非0も素で受けない</b>（<code>set -e</code> で落ちる）。PostToolUseの非0はブロックしないが、エラーが出続けるだけで生成もされないため、状態を見て握る。</li>
   </ul>
 </section>
 
 <section id="s4">
-  <h2>4-5. 新規テスト2本</h2>
+  <h2>4-6. 新規テスト3本</h2>
   <p><code>test_block_direct_git_commit.sh</code> の2層構成を踏襲する。</p>
   <ul>
-    <li><b>層1（純粋関数）</b>: hookを <code>source</code> して <code>raw_hints_at_git_push</code> を直接呼ぶ。<b>超集合であることのケースを必ず持つ</b>（<code>pu\sh</code>・<code>PUSH</code>・JSONエスケープを跨いだ <code>pu\&lt;改行&gt;sh</code> 等）。終了コードは <code>if</code> で受ける（<code>$(func; echo $?)</code> は <code>set -e</code> 配下で空になる）。</li>
+    <li><b>層1（純粋関数）</b>: hookを <code>source</code> して <code>raw_hints_at_git_push</code> を直接呼ぶ。<b>超集合であることのケースを必ず持つ</b>。終了コードは <code>if</code> で受ける。</li>
     <li><b>層2（結合）</b>: サブプロセス起動＋<code>PATH</code> 先頭のスタブ <code>jq</code>。対象外ペイロードで<b><code>jq</code> が1度も呼ばれないこと</b>を確認する。</li>
-    <li><code>push-checklist.sh</code> のテストは<b>一時ディレクトリにgitリポジトリを作って</b>実行する（このリポジトリの状態を変えない）。</li>
+    <li><b>hook 3本すべてに層1・層2を持たせる。</b> <code>post-push-next-checklist.sh</code> も例外にしない。</li>
   </ul>
-  <div class="box warn">
-    <span class="label">「異常が無ければ何も出ない」形にしない</span>
-    <code>verify</code> の4条件それぞれについて、<b>意図的に壊したTSVで1が返ること</b>を確かめる。壊しても通るなら、その条件は実装されていないか実データに当たっていない。
-  </div>
-  <p>出力は <code>passed=N failures=N</code>、失敗時は終了コード1。</p>
-</section>
-
-<section id="s6">
-  <h2>6. <code>test_sync_gemini_assets.sh</code> のT11改修</h2>
-<pre><code>323:for h in post-push-usage-report post-push-compact-prompt; do
-339:assert_eq "T11: 2本の raw_hints_at_git_push が同一実装である" \</code></pre>
+  <p><code>push-checklist.sh</code> のテストは<b>一時ディレクトリにgitリポジトリを作って</b>実行する。次を必ず含める（「異常が無ければ何も出ない」形にしない）。</p>
   <ul>
-    <li>ループへ <code>block-unchecked-push</code> <code>post-push-next-checklist</code> を足す。</li>
-    <li>ケース名の「2本の」を実際の本数へ直す。</li>
-    <li><b>テストは実装を <code>source</code> して呼ぶ形を崩さない</b>（テスト側へ写経しない）。</li>
+    <li><code>verify</code> の4条件それぞれについて、<b>意図的に壊したTSVで 1 が返ること</b>。</li>
+    <li><b>HEADに対象が無いとき 3 が返ること</b>、<code>git rev-parse HEAD</code> が失敗するリポジトリ（unborn branch）でも<b>落ちずに 3 が返ること</b>。</li>
+    <li><b><code>stale</code> が、初回（<code>0 → 1</code>）と2回目以降のコミット忘れ（<code>3 → 4</code>）の両方で 0 を返すこと。</b> 2回目以降のケースは当初の設計が取りこぼしていた形なので必ず持つ。</li>
+    <li><b>CRLFのフィクスチャで <code>#&nbsp;generated-for:</code> の SHA 比較が壊れないこと</b>（<a href="#crlf">改行コード</a>）。</li>
   </ul>
-  <div class="box warn">
-    <span class="label">本数が3本か4本かは未確定</span>
-    調査結果は「3本」と書いているが、これは <code>raw_hints_at_git_push</code> を持つhookの本数であり、<b>新規hookは2本ともこれを持つ</b>ため実際は4本になる。<b>この食い違いは実装時に確定させる</b>（<a href="#open">未確定事項</a>1）。
-  </div>
+  <p>hookのテストには、<b><code>verify</code> が1を返すペイロードで hook の終了コードが 2 であること</b>を1ケース置く（<code>set -e</code> で exit 1 へ落ちる罠を機械的に塞ぐ）。出力は <code>passed=N failures=N</code>、失敗時は終了コード1。</p>
 </section>
 
 <section id="s7">
-  <h2>7. <code>.claude/settings.json</code></h2>
+  <h2>7. <code>test_sync_gemini_assets.sh</code> のT11・T12改修</h2>
+  <p><b>対象は「<code>raw_hints_at_git_push</code> を持つhook」の全件＝既存2本＋新規2本の4本</b>である。以降この本数を他の箇所へ書かず、「T11の対象hook」と参照する（数を表す語が散ると、実装時に1箇所だけ直して残りが古くなる）。</p>
+<pre><code>323:for h in post-push-usage-report post-push-compact-prompt; do   ← ループ（行の存在確認）
+338:assert_eq "T11: 2本の raw_hints_at_git_push が同一実装である"   ← ドリフト検出の本体
+411:for h in post-push-usage-report post-push-compact-prompt; do   ← T12（ゼロforkの確認）</code></pre>
+  <div class="box stop">
+    <span class="label">3箇所すべてを直す（敵対的レビュー フェーズ3・1回目で指摘）</span>
+    当初はループだけを挙げていたが、<b>ドリフトを実際に禁じているのはループの外にある338行の1対1 <code>assert_eq</code></b> であり、そこを広げなければ新規2本は「行が存在する」ことしか確かめられず、<b>関数本文がドリフトしても緑のまま</b>になる。写経方式を選ぶ根拠（既存2本の前例）が、その前例を支えているテストごと引き継げていなかった。
+  </div>
+  <ol>
+    <li><b>ループ（323行）</b> へ新規2本を足す。</li>
+    <li><b>同一性アサーション（338行）</b> を、基準1本と残り全本を比べるループへ書き換える。ケース名も件数を書かない形にする。</li>
+    <li><b>T12のループ（411行）</b> へも新規2本を足す。前置フィルタを持たせる目的（空振り時のゼロfork）が、新規hookでも機械的に確かめられるようにする。</li>
+  </ol>
+  <p><b>テストは実装を <code>source</code> して呼ぶ形を崩さない</b>（テスト側へ写経しない）。<b>引用した行番号は実行時に取り直すこと。</b> 当初この計画は338行を <code>339</code> と書いていた（1行ずれ）。</p>
+</section>
+
+<section id="s8">
+  <h2>8. <code>.claude/settings.json</code></h2>
   <ul>
-    <li><code>PreToolUse</code> の <code>Bash|PowerShell</code> matcher へ <code>block-unchecked-push.sh</code> を追加（<code>if</code> は付けない。<code>block-direct-git-commit.sh</code> と同じ）。</li>
+    <li><code>PreToolUse</code> の <code>Bash|PowerShell</code> matcher へ <code>block-unchecked-push.sh</code> を追加（<code>if</code> は付けない）。</li>
     <li><code>PostToolUse</code> の <code>Bash|PowerShell</code> matcher の<b>末尾</b>へ、<code>if: "Bash(git push*)"</code> と <code>if: "PowerShell(git push*)"</code> の2エントリを追加。</li>
     <li><code>timeout</code> は既存に合わせ、PreToolUse 10 / PostToolUse 20。</li>
   </ul>
 </section>
 
+<section id="crlf">
+  <h2>改行コード（CRLF対策）</h2>
+  <p><b><code>.gitattributes</code> の <code>eol=lf</code> は <code>*.sh</code> にしか掛からず、<code>* text=auto</code> の行は配布対象外である</b>（<code>dist:begin</code>〜<code>dist:end</code> の外）。Windows で <code>core.autocrlf=true</code> の開発者・配布先がチェックアウトすると、コミット済みチェックリストの<b>作業ツリー上の各行が CRLF になる</b>。</p>
+  <p><code>verify</code> は <code>git show HEAD:</code> の blob（LF）を読むので無事だが、<b>作業ツリーを読む処理</b>——<code>check</code>/<code>skip</code> の書き換え、生成条件2、<code>&lt;N&gt;</code> の最大値スキャン、<code>stale</code> の比較——は行末の <code>\r</code> を拾う。SHA比較が不一致になれば<b>毎push新しいチェックリストが生えて冪等性が崩れる</b>。</p>
+  <div class="box ok">
+    <span class="label">対処</span>
+    <code>push-checklist.sh</code> が作業ツリーの行を読む箇所で <code>${line//$'\r'/}</code> を当てる（bash組み込みなのでforkは増えない）。<code>.gitattributes</code> を触る案は採らない——配布行の増減は <code>check-dist-coverage.sh</code> と配布先への影響を伴い、この計画の範囲を超えるため。テストにCRLFフィクスチャのケースを置いて機械的に固定する。
+  </div>
+  <p><b>実機（Windows）での再現は本セッションでは行っていない</b>（Linux環境のため）。仕様へもその旨を書く。</p>
+</section>
+
+<section id="self">
+  <h2>登録後の自己適用（フェーズ3〜5の運用）</h2>
+  <div class="box warn">
+    <span class="label">登録した瞬間から、この issue の作業自身が機構の対象になる（敵対的レビュー フェーズ3・1回目で指摘）</span>
+    以降のpushで PostToolUse がチェックリストを生成し、次のcommitへ含めなければ <code>stale</code> の警告が出て、<code>pending</code> のままpushすると exit 2 でブロックされる。ところが「commit前に <code>check</code>/<code>skip</code> を実行する」手順は<b>フェーズ4</b>で書く予定であり、フェーズ3〜5の間の運用が決まっていない。
+  </div>
+  <p>この計画では次の暫定手順を採る（フェーズ4で正式な手順を書くまでの間）。</p>
+  <ol>
+    <li>各pushの前に <code>bash .claude/scripts/src/push-checklist.sh check &lt;id&gt; &lt;実施ログ&gt;</code> を項目ごとに実行する（該当しない項目は <code>skip</code>）。</li>
+    <li>生成されたチェックリストは、そのpushのcommitへ<b>必ず含める</b>。</li>
+    <li>flow-id 5-5（<code>cleanup-task.sh</code>）の直後の 5-6 のpushで<b>再生成されないこと</b>を実地で確認し、結果をworklogへ記録する。</li>
+  </ol>
+  <p><b>3は副次的に、生成条件3の実地検証になる。</b> 本番相当で1度も通さずにマージへ進まないための手順でもある。</p>
+</section>
+
 <section id="verify">
   <h2>検証（合格条件）</h2>
-  <div class="box info">
-    <span class="label">着手前に変更前のツリーで流す</span>
-    期待どおりの結果（新規ファイルが無いので1・3・5が落ちる）になることを確かめてから実装する。通ってしまう検証は、実装後も通り続ける。
-  </div>
-<pre><code># 1. 構文チェック（新規3本）
+  <p><b>着手前に変更前のツリーで流し、期待どおりの結果になることを確かめてから実装する。</b> 下の各ブロックは、<b>新規ファイルが無い状態では 1・3・5 が非0で落ちる</b>（実測で確認した）。</p>
+<pre><code># 1. 構文チェック（新規3本）。失敗を集計して終了コードへ伝播させる
+fail=0; n=0
 for f in .claude/scripts/src/push-checklist.sh \
          .claude/hooks/block-unchecked-push.sh \
          .claude/hooks/post-push-next-checklist.sh; do
-  bash -n "$f" || echo "NG: $f"
+  n=$((n + 1))
+  bash -n "$f" || { echo "NG: $f"; fail=1; }
 done
+echo "構文チェック本数=$n"
+[ "$n" -gt 0 ] &amp;&amp; [ "$fail" = 0 ]
 
-# 2. 前置フィルタが全hookで同一実装であること（T11）
+# 2. 前置フィルタが対象hook全件で同一実装であること（T11）＋ ゼロfork（T12）
 bash .claude/scripts/test/test_sync_gemini_assets.sh
 
-# 3. 新規テスト2本
+# 3. 新規テスト3本
 bash .claude/scripts/test/test_push_checklist.sh
 bash .claude/scripts/test/test_block_unchecked_push.sh
+bash .claude/scripts/test/test_post_push_next_checklist.sh
 
-# 4. 既存テストの回帰（失敗を集計して終了コードへ伝播させる）
+# 4. 既存テストの回帰（同上）
 fail=0; n=0
 for t in .claude/scripts/test/test_*.sh; do
   n=$((n + 1))
@@ -337,15 +429,33 @@ done
 echo "実行本数=$n"
 [ "$n" -gt 0 ] &amp;&amp; [ "$fail" = 0 ]
 
-# 5. settings.json が妥当なJSONで、hookが登録されていること
-jq -e '.hooks.PreToolUse[].hooks[] | select(.args[0] | endswith("block-unchecked-push.sh"))' \
+# 5. settings.json が妥当なJSONで、hookが過不足なく登録されていること
+jq -e '[.hooks.PreToolUse[].hooks[]
+        | select(.args[0] | endswith("block-unchecked-push.sh"))] | length == 1' \
   .claude/settings.json &gt; /dev/null
-jq '[.hooks.PostToolUse[].hooks[] | select(.args[0] | endswith("post-push-next-checklist.sh"))] | length' \
-  .claude/settings.json   # 2 であること
+jq -e '[.hooks.PostToolUse[].hooks[]
+        | select(.args[0] | endswith("post-push-next-checklist.sh"))] | length == 2' \
+  .claude/settings.json &gt; /dev/null
 
-# 6. 配布層の網羅性（新規ファイルが core に含まれること）
+# 6. 変換同期が未実施であることの検出（flow-id 5-3 で解消する）
+bash .claude/scripts/src/sync-gemini-assets.sh --check
+
+# 7. 配布層の網羅性（回帰確認）
 bash .claude/scripts/src/check-dist-coverage.sh</code></pre>
-  <p><b>5の <code>jq -e</code> は、登録漏れがあれば非0で落ちる</b>（「異常が無ければ何も出ない」形を避けている）。6は <code>.claude/</code> 配下へファイルを足したときに落ちうるので必ず流す。</p>
+  <div class="box stop">
+    <span class="label">当初、1・5・6 は検証になっていなかった（敵対的レビュー フェーズ3・1回目で指摘）</span>
+    3つとも実際に実行して確かめた。
+  </div>
+  <table>
+    <thead><tr><th>検証</th><th>当初の主張</th><th>実測</th><th>直し方</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td>「新規ファイルが無いので落ちる」</td><td><code>NG:</code>×3 を出して<b>終了コード0</b>（<code>|| echo</code> が失敗を吸収）</td><td>4と同じ集計形へ</td></tr>
+      <tr><td>5の2つ目</td><td>「登録漏れがあれば非0で落ちる」</td><td><code>0</code> を印字して<b>終了コード0</b>（件数を出すだけ）</td><td><code>jq -e '… == 2'</code> で期待値を機械判定へ入れる</td></tr>
+      <tr><td>旧6（dist-coverage）</td><td>「<code>.claude/</code> へ足すと落ちうる」</td><td><code>.claude</code> は<b>ディレクトリ単位</b>で core 登録済み。<code>結果: OK</code></td><td>実際に落ちる <code>sync-gemini-assets.sh --check</code> を新6として置き、dist-coverage は7へ降格</td></tr>
+    </tbody>
+  </table>
+  <p><b>5は <code>jq -e</code> に <code>== 1</code> / <code>== 2</code> という期待値を入れてあるので、片方だけ足し忘れた場合も落ちる</b>（PostToolUse は2エントリが要る）。</p>
+  <p><b>7（dist-coverage）は、この変更に対しては1件も検出しない。</b> <code>.claude/dist-layers.json</code> が <code>{"layer":"core","path":".claude"}</code> というディレクトリ単位のエントリを持ち、<code>wip/worklogs</code> も <code>layer: local</code> で登録済みだからである。<b>それでも流すのは他の3検査の回帰確認のため</b>であり、「配布層の面が確かめられた」と読まないこと。</p>
 </section>
 
 <section id="nogo">
@@ -354,17 +464,32 @@ bash .claude/scripts/src/check-dist-coverage.sh</code></pre>
     <li><b>チェック項目の実施そのものを機械判定しない</b>（自己申告のまま）。理由は調査結果の「守れない範囲」・DDR <code>i0017-01</code> の却下案として書く。</li>
     <li><b>既存push系hook 2本のロジックを変更しない。</b></li>
     <li><b><code>.gemini/</code> を直接編集しない</b>（flow-id 5-3 の変換同期で追随させる）。</li>
-    <li><b>spec / DDR / <code>docs-workflow.md</code> 等への反映はフェーズ4で行う</b>（この計画の対象外）。ただし<b>新規スクリプトのヘッダコメントには、参照先として issue番号と <code>.claude/docs/spec/push-checklist.md</code> を書く</b>（<code>wip/</code> 配下を参照しない）。</li>
+    <li><b><code>.gitattributes</code> を触らない</b>（CRLF対策はスクリプト側で行う）。</li>
+    <li><b>spec / DDR / <code>docs-workflow.md</code> 等への反映はフェーズ4で行う</b>（この計画の対象外）。</li>
   </ul>
+  <h3>存在しないspecを参照しないこと</h3>
+  <div class="box warn">
+    <span class="label">この参照切れは <code>check-doc-references.sh</code> では検出されない（敵対的レビュー フェーズ3・1回目で指摘）</span>
+    <b>フェーズ3の時点で <code>.claude/docs/spec/push-checklist.md</code> は存在しない</b>（作るのはフェーズ4）。当初この計画は「新規スクリプトのヘッダコメントに参照先として同ファイルを書く」「ブロックメッセージにも含める」と指示していたが、<b>フェーズ3〜4の間、コードとブロックメッセージが存在しないファイルを案内する</b>ことになる。<code>check-doc-references.sh</code> は<b>DDRパスしか検出対象にしていない</b>（同スクリプト35行）ため自動検出されない（実際に流しても <code>参照切れ数=0</code>）。
+  </div>
+  <p><b>採る対処</b>: フェーズ3の実装単位に <b>spec のプレースホルダ作成を含める</b>。frontmatter ＋「## 背景・目的」「## 仕様」＋「<b>この仕様は flow-id 4-6 で完成させる。現時点は実装からの参照先を成立させるための骨組みである</b>」という最小の骨組みで先に置く。</p>
+  <table>
+    <thead><tr><th>採らなかった案</th><th>却下理由</th></tr></thead>
+    <tbody>
+      <tr><td>ヘッダ・メッセージをフェーズ4で書き足す</td><td><b>書き足し忘れが自動検出されない</b>（上記）</td></tr>
+      <tr><td>issue番号だけを参照する</td><td><b>ブロックされた人がルールの本文へ辿り着けない</b>（issue #17 の受け入れ条件「ブロックメッセージがルールファイルのパスを示す」を満たさない）</td></tr>
+    </tbody>
+  </table>
+  <p><b>中身の記述はフェーズ4のまま</b>なので、「spec / DDR への反映はフェーズ4」という線引きは変わらない（フェーズ3で置くのは骨組みだけ）。</p>
 </section>
 
 <section id="open">
   <h2>未確定事項（実装中に確定させる）</h2>
   <ol>
-    <li><b>T11の対象本数が3本か4本か。</b> <code>raw_hints_at_git_push</code> を新規hook 2本とも持つなら4本。PreToolUse側も同じ前置フィルタでよいかを実装時に確かめる。</li>
     <li><b><code>check</code> / <code>skip</code> のTSV書き換えで、実施ログ中のタブをどう扱うか。</b> 調査結果Q3は「エスケープしない」方針だが、<code>verify</code> が4フィールド固定を要求するため、<b>タブを空白へ潰す</b>のが最小の対処になる見込み。</li>
     <li><b>警告（exit 1）の文面。</b> stderrが届くか未確認なので、届かなくても機構が壊れないことを保つ。</li>
   </ol>
+  <p><b>当初あった「T11の対象本数が3本か4本か」は、フェーズ3・1回目の敵対的レビューで確定した</b>（<code>raw_hints_at_git_push</code> を持つhook全件＝既存2本＋新規2本の4本。<a href="#s7">7.</a>）。</p>
 </section>
 
 <footer>issue #17 / PR #195 — 計画の正文は同名の <code>.md</code>。外部依存を持たない自己完結HTML。</footer>
