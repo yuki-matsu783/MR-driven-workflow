@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DDR参照切れ検出運用のルール・VERSION反映</title>
+<style>
+  :root {
+    --bg: #f6f7f9;      --panel: #ffffff;   --ink: #1a1d21;     --muted: #5b636d;
+    --line: #dfe3e8;    --accent: #2563eb;  --accent-soft: #eaf0fe;
+    --ok: #1a7f4b;      --ok-soft: #e6f4ec; --warn: #a35a00;    --warn-soft: #fdf1e0;
+    --stop: #b3261e;    --stop-soft: #fdecea; --code-bg: #f0f2f5;
+    --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1216;    --panel: #161a20;   --ink: #e6e8eb;     --muted: #9aa3ad;
+      --line: #2a3038;  --accent: #7aa2f7;  --accent-soft: #1b2333;
+      --ok: #6ee7a8;    --ok-soft: #14261d; --warn: #f0b866;    --warn-soft: #2a2113;
+      --stop: #f2857c;  --stop-soft: #2b1614; --code-bg: #1d222a;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", system-ui, sans-serif;
+    line-height: 1.8; font-size: 15px;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 20px 80px; }
+
+  header.band {
+    background: linear-gradient(135deg, var(--accent-soft), var(--panel));
+    border-bottom: 1px solid var(--line); padding: 28px 20px 22px; margin-bottom: 28px;
+  }
+  header.band .inner { max-width: 1080px; margin: 0 auto; }
+  header.band .kind { font-size: 11px; letter-spacing: .18em; color: var(--accent); font-weight: 700; }
+  header.band h1 { margin: 6px 0 4px; font-size: 26px; line-height: 1.4; }
+  header.band .lead { margin: 0; color: var(--muted); }
+  .meta { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; padding: 0; list-style: none; }
+  .meta li {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 999px;
+    padding: 3px 12px; font-size: 12.5px; color: var(--muted); white-space: nowrap;
+  }
+  .meta li b { color: var(--ink); font-weight: 600; }
+
+  nav.toc {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 14px 20px; margin-bottom: 28px;
+  }
+  nav.toc h2 { margin: 0 0 8px; font-size: 13px; letter-spacing: .08em; color: var(--muted); border: 0; padding: 0; }
+  nav.toc ol { margin: 0; padding-left: 20px; }
+  nav.toc li { margin: 2px 0; }
+  a { color: var(--accent); }
+
+  section {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 8px 24px 22px; margin-bottom: 22px;
+  }
+  h2 { font-size: 20px; margin: 20px 0 10px; padding-bottom: 8px; border-bottom: 2px solid var(--line); }
+  h3 { font-size: 16px; margin: 22px 0 8px; color: var(--accent); }
+  p { margin: 10px 0; }
+  ul, ol { padding-left: 22px; }
+  li { margin: 4px 0; }
+  blockquote { margin: 10px 0; padding: 6px 14px; border-left: 3px solid var(--line); color: var(--muted); }
+
+  code {
+    background: var(--code-bg); border-radius: 5px; padding: 1px 5px; font-size: 13px;
+    font-family: "SFMono-Regular", Consolas, "Noto Sans Mono", monospace;
+  }
+  pre {
+    background: var(--code-bg); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 12px 14px; overflow-x: auto; font-size: 13px; line-height: 1.65;
+  }
+  pre code { background: none; padding: 0; }
+
+  .box { border-left: 4px solid var(--accent); background: var(--accent-soft);
+         border-radius: 0 var(--radius) var(--radius) 0; padding: 12px 16px; margin: 16px 0; }
+  .box > :first-child { margin-top: 0; } .box > :last-child { margin-bottom: 0; }
+  .box .label { font-size: 12px; font-weight: 700; letter-spacing: .06em; display: block; margin-bottom: 4px; }
+  .box.ok { border-color: var(--ok); background: var(--ok-soft); } .box.ok .label { color: var(--ok); }
+  .box.warn { border-color: var(--warn); background: var(--warn-soft); } .box.warn .label { color: var(--warn); }
+  .box.stop { border-color: var(--stop); background: var(--stop-soft); } .box.stop .label { color: var(--stop); }
+  .box.info .label { color: var(--accent); }
+
+  footer { color: var(--muted); font-size: 13px; text-align: center; padding-top: 10px; }
+</style>
+</head>
+<body>
+
+<header class="band">
+  <div class="inner">
+    <div class="kind">個別反映計画 / フェーズ4</div>
+    <h1>DDR参照切れ検出運用のルール・VERSION反映</h1>
+    <p class="lead">issue #171の実装過程で発見したロケール依存の正規表現マッチ罠とgrep一括抽出の性能実測を<code>.claude/rules/shell-script-style.md</code>へ反映し、新規配布アセットに対する<code>.claude/VERSION</code>増分を人間へ提案する。</p>
+    <ul class="meta">
+      <li><b>issue</b> #171</li>
+      <li><b>ブランチ</b> claude/gitignore-ddr-references-rsjo83</li>
+      <li><b>PR</b> #177</li>
+      <li><b>フェーズ</b> 4〈反映〉 flow-id 4-1</li>
+      <li><b>push回数</b> 10で反映</li>
+      <li><b>作成日</b> 2026-08-23</li>
+      <li><b>正文</b> 同名の .md</li>
+    </ul>
+  </div>
+</header>
+
+<div class="wrap">
+
+<nav class="toc">
+  <h2>目次</h2>
+  <ol>
+    <li><a href="#premise">前提（合意状況）</a></li>
+    <li><a href="#goal">この計画で何をするか</a></li>
+    <li><a href="#target">変更対象</a></li>
+    <li><a href="#approach">方針</a></li>
+    <li><a href="#out-of-scope">やらないこと（スコープ外）</a></li>
+    <li><a href="#verify">検証</a></li>
+  </ol>
+</nav>
+
+<section id="premise">
+  <h2>前提（合意状況）</h2>
+  <ul>
+    <li>上位の計画: <code>plans/sequential-purring-tulip.md</code>（全体作業計画、flow-id 1-5で合意）。</li>
+    <li>兄弟計画: <code>plans/【設計反映】DDR参照切れ検出の意思決定記録.md</code>（同じくフェーズ4、
+      flow-id 4-1）。DDR・spec新設を扱う。本計画はそれとは評価軸が異なる「ルール・VERSIONへの
+      反映」のみを扱う（<code>.claude/skills/issue-mr-flow/SKILL.md</code>
+      「種別を複数併記する場合／分ける場合」により分離）。</li>
+    <li>反映元の事実: <code>.claude/scripts/src/check-doc-references.sh</code>の実装
+      （flow-id 3-6、2回目の敵対的レビュー対応）で実機発見した2件の知見。issue #171・PR #177の
+      コミット<code>e51da6f</code>が根拠。</li>
+  </ul>
+</section>
+
+<section id="goal">
+  <h2>この計画で何をするか</h2>
+  <ol>
+    <li><b>ロケール依存の正規表現マッチ罠</b>を<code>.claude/rules/shell-script-style.md</code>へ
+      追記する。</li>
+    <li><b>grepへの一括委譲が有利になるケースの実測</b>を、同ファイルの「外部プロセス起動の
+      コスト」節へ補足として追記する（既存規約「ループ内で外部コマンドを呼ばない」と
+      矛盾しない形で位置づける）。</li>
+    <li><code>.claude/VERSION</code>の増分を<b>提案</b>する（実際の書き換えは行わない。
+      下記「方針」参照）。</li>
+  </ol>
+</section>
+
+<section id="target">
+  <h2>変更対象</h2>
+  <ul>
+    <li><code>.claude/rules/shell-script-style.md</code>（追記のみ。既存記述は変更しない）</li>
+    <li><code>.claude/VERSION</code>（<b>変更しない</b>。提案のみをHANDOFF・最終統括レポートへ
+      残す）</li>
+  </ul>
+</section>
+
+<section id="approach">
+  <h2>方針</h2>
+
+  <h3>ロケール依存の正規表現マッチ罠（追記内容）</h3>
+  <p><code>.claude/rules/shell-script-style.md</code>「文字コード」節の末尾に新しい箇条書きを
+    追加する。</p>
+  <div class="box warn">
+    <span class="label">追記案</span>
+    <p><b>POSIX/<code>LANG</code>未設定のロケールでは、POSIX ERE のブラケット式
+      （<code>[...]</code>）へ多バイト文字を直接含めると、<code>grep -E</code>・bashの
+      <code>[[ =~ ]]</code>のいずれも、その行がマッチしないだけでなくパターン全体が
+      一致しなくなることがある</b>（issue #171で実機確認: <code>.gitignore</code>のDDR参照
+      検出スクリプトで、全角句読点1文字をブラケット式の終端文字クラスへ追加したところ、
+      リポジトリ全体37,411行に対する候補抽出が121件から0件へ落ちた）。<code>LC_ALL=C.UTF-8</code>
+      を明示すれば再現しないが、git bash/Windows配布先ではロケールを制御できないため、
+      正規表現自体には多バイト文字を含めず、抽出後の文字列をASCII構造（固定の英数字
+      プレフィックスの再出現位置等）だけで判定する後処理で対応する（実装例:
+      <code>.claude/scripts/src/check-doc-references.sh</code>の
+      <code>split_concatenated_candidates_to_reply</code>）。</p>
+  </div>
+  <p><b>確認方法</b>: この追記自体は新しい罠の記録であり、追記によって既存の動作を変えない
+    （ドキュメントのみの変更のため「変えないはずのものが変わっていないか」の検証は不要）。</p>
+
+  <h3>grep一括抽出が有利になるケースの実測（追記内容）</h3>
+  <p>同ファイル「外部プロセス起動のコスト」節へ、既存の「ループ内で外部コマンドを呼ばない」
+    原則の<b>適用範囲の補足</b>として追加する（原則を変更するのではなく、原則が指す
+    「外部コマンド」が「ループの中で複数回呼ぶ」ケースを指しており、「まとめて1回だけ呼ぶ」
+    ケースとは区別することを明確化する）。</p>
+  <div class="box warn">
+    <span class="label">追記案</span>
+    <p><b>大量データの走査は、bash単独ループより<code>grep</code>等への一括委譲が有利な場合が
+      ある。</b>issue #171の検出スクリプトで、リポジトリ全体約37,000行に対する正規表現
+      マッチを (a) <code>git ls-files</code>で得た各ファイルをbashの<code>while read</code>
+      ループ＋<code>[[ =~ ]]</code>で1行ずつ判定する方式と、(b) 全対象ファイルを
+      <code>grep -nHoE</code>へ1回で渡す方式とで実測比較したところ、(a) 5.2秒 →
+      (b) 0.96秒だった。<b>これは上記「ループ内で外部コマンドを呼ばない」の否定ではない。</b>
+      (b) は<code>grep</code>を1回だけ呼びbashのループ自体を無くす設計であり、
+      <code>grep</code>をファイルごと・行ごとに呼び直す設計（禁止対象）とは異なる。目安:
+      判定対象の総行数が数万行を超える場合は、ループ＋bash内蔵正規表現よりも一括grepを
+      先に検討する。</p>
+  </div>
+
+  <h3><code>.claude/VERSION</code>の増分提案</h3>
+  <ul>
+    <li><code>.claude/docs/spec/distribution-assets.md</code>「<code>.claude/VERSION</code>」は、
+      増分の決め方はAIエージェントが提案し人間が決める（AIが独断で上げない）と定めている。
+      非対話セッションではこの人間判断を得られないため、<b>本計画では<code>.claude/VERSION</code>
+      ファイル自体を書き換えない</b>。</li>
+    <li><b>提案内容</b>: MINOR増分（<code>0.2.0</code> → <code>0.3.0</code>系）。理由は、
+      配布対象アセット（<code>check-doc-references.sh</code>、
+      <code>test_check_doc_references.sh</code>、および本計画で新設する
+      <code>check-doc-references.md</code>）を新設したため（同specの目安表で「資産の追加・
+      フローの拡張」＝MINORに該当）。</li>
+    <li><b>提案の伝達方法</b>: 最終統括レポート（flow-id 5-3）とHANDOFF.mdの「判断を迷った
+      内容」にこの提案を明記し、マージ前にユーザーへ確認する。人間が承認した場合、承認後に
+      別途<code>.claude/VERSION</code>を書き換える（この計画のスコープには含めない）。
+      人間が「今回は据え置く」と判断した場合は、据え置いた事実を新設spec側へ1行残す。</li>
+  </ul>
+</section>
+
+<section id="out-of-scope">
+  <h2>やらないこと（スコープ外）</h2>
+  <div class="box stop">
+    <span class="label">この計画では決めない・触らない</span>
+    <ul>
+      <li><code>.claude/VERSION</code>ファイル自体の書き換え（上記「方針」参照。人間の承認後に
+        行う）</li>
+      <li>DDR・新規specの作成（<code>plans/【設計反映】DDR参照切れ検出の意思決定記録.md</code>で
+        扱う）</li>
+      <li><code>.claude/skills/</code>・<code>CLAUDE.md</code>・<code>AGENTS.md</code>への反映
+        （今回の作業で気づいた不備は無いと判断。ロケール罠・性能実測はいずれも
+        <code>.claude/rules/shell-script-style.md</code>が担う領域であり、スキル・エージェント
+        運用ルールの不備ではないため）</li>
+    </ul>
+  </div>
+</section>
+
+<section id="verify">
+  <h2>検証</h2>
+  <pre><code>grep -n "ロケール\|POSIX ERE" .claude/rules/shell-script-style.md
+grep -n "grep.*一括委譲\|大量データの走査" .claude/rules/shell-script-style.md
+git diff --stat "$(git merge-base origin/main HEAD)" -- .claude/rules/shell-script-style.md</code></pre>
+  <ul>
+    <li>追記した2箇所が、それぞれ「文字コード」節・「外部プロセス起動のコスト」節の既存記述を
+      変更せず末尾へ追加する形になっていること（既存規約の骨子を壊していないことを、追記前後の
+      <code>diff</code>で確認する）。</li>
+    <li><code>.claude/VERSION</code>が変更されていないこと（<code>git diff -- .claude/VERSION</code>
+      が空であること）。</li>
+    <li>VERSION増分の提案が、最終統括レポートまたはHANDOFF.mdの「判断を迷った内容」のいずれかに
+      明記されていること。</li>
+  </ul>
+</section>
+
+<footer>issue #171 / PR #177 — 計画の正文は同名の <code>.md</code>。外部依存を持たない自己完結HTML。</footer>
+
+</div>
+</body>
+</html>
