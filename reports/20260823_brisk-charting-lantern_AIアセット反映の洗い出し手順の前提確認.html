@@ -100,7 +100,6 @@
 </style>
 </head>
 <body>
-
 <header class="band">
   <div class="inner">
     <div class="kind">調査結果 / フェーズ2 flow-id 2-6</div>
@@ -161,7 +160,7 @@
 <tr><td>Q4</td><td><code>doc-search</code> は何を返すか</td><td><code>--format detail</code> は <code>type</code> / <code>title</code> / <code>description</code> / <code>tags</code> / <code>keywords</code> / パス / <code>mtime</code> を出すが、<b><code>status</code> / <code>superseded_by</code> は出さない</b>。<b><code>--text</code> は本文を検索しない</b>ため、<code>matched=0</code> だけでは痕跡なしと判定できない（<code>grep</code> との二段にする）</td><td>実測（実行して出力を確認）</td></tr>
 <tr><td>Q5</td><td><code>【AIアセット作成】</code> との使い分けと矛盾しないか</td><td><b>矛盾しない。</b> 洗い出しの起点が「作業の副産物」に限られるため、「成果物か副産物か」という既存の基準をそのまま踏襲する</td><td>原文の読解</td></tr>
 <tr><td>Q6</td><td>観点表とSKILL.mdで「正が2つ」にならない境界を引けるか</td><td><b>引ける。</b> 観点表は「何を見るか」を問いの形で持ち、<b>4類型・打ち切り段階・2軸の定義そのものは持たずSKILL.mdを指す</b></td><td>原文の読解</td></tr>
-<tr><td>Q7</td><td><code>scripts</code> / <code>hooks</code> を反映先に含めるか</td><td><b>含める。ただし選んだ場合の種別は <code>【実装反映】</code> になる</b>と明記して、issue #110 の切り分けを保つ。<b>そのためには 164行目の除外規定の主語へ <code>.claude/hooks/</code> を加える書き換えが要る</b>（現行の主語は <code>.claude/scripts/</code> だけ）。<b>反映先の列挙は4-6行から新節へ移す</b>（4-6行は参照だけにする）</td><td>既存規定の突き合わせ</td></tr>
+<tr><td>Q7</td><td><code>scripts</code> / <code>hooks</code> を反映先に含めるか</td><td><b>含める。種別も他の形態と同じ <code>【AIアセット反映】</code> に揃える</b>（2026-08-23 ユーザー判断）。<b>そのためには 164行目の「（<code>【実装】</code>/<code>【実装反映】</code>側で扱う）」がフェーズ4の扱いを <code>【実装反映】</code> だと述べている点を書き換える必要がある</b>。<b>反映先の列挙は4-6行から新節へ移す</b>（4-6行は参照だけにする）</td><td>既存規定の突き合わせ＋ユーザー判断</td></tr>
 <tr><td>Q8</td><td>削除・統合は配布経路で何が起きるか</td><td><b>配布先から消えない。</b> <code>install-to-project.sh</code> の資産配布は <code>cp -f</code> のみで、削除を伝播する処理を持たない（唯一の <code>rm -f</code> はGo用ファイルの特例）</td><td>実測（実装を確認）</td></tr>
 </tbody>
 </table>
@@ -384,24 +383,31 @@ $ grep -rl &#x27;バックスラッシュ&#x27; --include=&#x27;*.md&#x27; .clau
 <li><code>【AIアセット作成】</code> は <code>.claude/scripts/</code> 配下を<b>明示的に対象外</b>にしている（164行目）。</li>
 <li>flow-id 4-6 のAIアセット反映の反映先は<b>4つに限定</b>されている （<code>.claude/rules/</code> <code>.claude/skills/</code> <code>CLAUDE.md</code> <code>AGENTS.md</code>）。<code>.claude/agents/</code> と <code>REVIEW-POINTS.md</code> は、AIアセットでありながら<b>列挙から漏れている</b>。</li>
 </ol>
-<p><b>結論: 含める。ただし「反映先に選べること」と「どの種別で作業するか」を分ける。</b></p>
+<p><b>結論: 含める。種別も他の形態と同じ <code>【AIアセット反映】</code> に揃える。</b></p>
+<p><b>当初は「含めるが、選んだ場合の種別は <code>【実装反映】</code>」と結論していた</b>（単体テストを伴うため）。<b>2026-08-23 のユーザー判断により、<code>scripts</code> / <code>hooks</code> もAIアセットとして扱い、種別を <code>【AIアセット反映】</code> へ揃える方針に変更した。</b></p>
 <ul>
 <li><b>反映先の形態としては6つすべて選べる。</b> 2軸の「守らせ方の強さ」で <code>hooks</code>（検証で落とす）を 選べないと、軸そのものが機能しない。実際 <code>.claude/hooks/block-direct-git-commit.sh</code> は 「commitスキル経由を強制する」というルールを hook で守らせた実例である（DDR i0000-09）。</li>
-<li><b><code>scripts</code> / <code>hooks</code> を選んだ場合、その作業の種別は <code>【実装反映】</code> になる</b>（単体テストを伴う ため）。新節にはこの1行を書く。</li>
+<li><b>種別は反映先の形態によらず <code>【AIアセット反映】</code> である。</b> 反映先ごとに種別が分岐すると、 1回の洗い出しの結果が2つの個別計画へ割れる（<code>plans/REVIEW-POINTS.md</code> は <code>【AIアセット反映】</code> と <code>【実装反映】</code> の併記を禁じている）。<b>単体テストを伴う場合は、 テストの追加・更新も同じ <code>【AIアセット反映】</code> の計画に含める。</b></li>
 </ul>
-<h4>そのためには164行目の除外規定の主語を広げる必要がある</h4>
-<p><b>現行の除外規定の主語は <code>.claude/scripts/</code> だけである</b>（実測）。</p>
-<pre><code>$ sed -n &#x27;163,164p&#x27; .claude/skills/issue-mr-flow/SKILL.md
+<h4>そのためには164行目が述べるフェーズ4の扱いを書き換える必要がある</h4>
+<p><b>現行の除外規定は、フェーズ4の扱いまで <code>【実装反映】</code> だと述べている</b>（実測）。</p>
+<pre><code>$ sed -n &#x27;162,166p&#x27; .claude/skills/issue-mr-flow/SKILL.md
+- **`【AIアセット作成】`**: そのissueの**主たる成果物**としてAIアセット（スキル・ルール・
   エージェント）を**新規作成・改訂**する作業。`.claude/scripts/`配下のスクリプトは実装コードと
-  同じ性質（単体テストを持つ等）を持つため対象に含めない（`【実装】`/`【実装反映】`側で扱う）。</code></pre>
-<p>つまり <code>.claude/hooks/</code> は<b>現行では <code>【AIアセット作成】</code> から除外されていない</b>。この状態で 新節だけ「hooksを選んだら <code>【実装反映】</code>」と書くと、種別の判定が2通りになる。<b>164行目を 書き換える。</b></p>
+  同じ性質（単体テストを持つ等）を持つため対象に含めない（`【実装】`/`【実装反映】`側で扱う）。
+  作業の**副産物**として気づいた改善を反映する`【AIアセット反映】`（フェーズ4）とは、
+  成果物か副産物かで使い分ける。</code></pre>
+<p>括弧の中の <code>【実装反映】</code> が、<b>新節の「種別は <code>【AIアセット反映】</code>」と正面から食い違う。</b> 一方で <code>.claude/scripts/</code> を <code>【AIアセット作成】</code>（フェーズ3）の対象から外すこと自体は issue #110 の判断であり、<b>変えない</b>（主たる成果物としてスクリプトを作る作業は実装と同じ 性質を持つ、という判断はユーザー判断の対象ではない）。<b>書き換えるのは、フェーズ4の扱いを 述べている部分だけである。</b></p>
 <p>置換前:</p>
 <pre><code>`.claude/scripts/`配下のスクリプトは実装コードと
   同じ性質（単体テストを持つ等）を持つため対象に含めない（`【実装】`/`【実装反映】`側で扱う）。</code></pre>
 <p>置換後:</p>
-<pre><code>`.claude/scripts/` `.claude/hooks/` 配下のスクリプトは実装コードと
-  同じ性質（単体テストを持つ等）を持つため対象に含めない（`【実装】`/`【実装反映】`側で扱う）。</code></pre>
-<p>これで<b>編集箇所は5つ</b>になる（Q1の4つ＋164行目）。</p>
+<pre><code>`.claude/scripts/`配下のスクリプトは実装コードと
+  同じ性質（単体テストを持つ等）を持つため、**フェーズ3では**対象に含めない（`【実装】`側で
+  扱う）。**フェーズ4で副産物として反映する場合は、`.claude/scripts/` `.claude/hooks/` 配下も
+  AIアセットとして `【AIアセット反映】` で扱う**（下記「AIアセット反映の対象の洗い出し」）。</code></pre>
+<p><b><code>.claude/hooks/</code> を除外の主語へ追加しない。</b> 当初はそうする案だったが、hooksをAIアセットと して扱う方針では<b>逆のシグナル</b>になる。現行でも hooks は <code>【AIアセット作成】</code> から除外されて おらず、主たる成果物としてhookを作る作業は <code>【AIアセット作成】</code> でよい。</p>
+<p>これで<b>編集箇所は5つ</b>になる（Q1の4つ＋164行目）。<b><code>【実装反映】</code> という種別自体は残る</b> （フェーズ3のレビュー往復で解消しきれず持ち越した不具合を扱う、という本来の用途は変わらない）。</p>
 <h4>反映先の列挙は4-6行から新節へ移す</h4>
 <p>Q1(2)の置換後は<b>4-6行から列挙そのものを消す</b>形にしてある。列挙を2箇所に置くと「正が2つ」に なり、形態を足したときに片方だけが古くなるためである。<b>現行の列挙が落としているものは、新節側の一覧で補う。</b></p>
 <div class="tablewrap">
@@ -472,7 +478,7 @@ declare -a ALWAYS_OVERWRITE_RELPATHS=(
 <li><b>131行目の表・133-134行目の地の文は同時に書き換える</b>（片方だけだと同じ節で表と地の文が 食い違う）。</li>
 <li><b>反映先の一覧は新節が持ち、4-6行からは消す</b>（Q7）。一覧には現行が落としている <code>.claude/agents/</code> <code>**/REVIEW-POINTS.md</code> <code>GEMINI.md</code> を含める。</li>
 <li><b>観点表側は問いだけを持ち、定義はSKILL.mdを指す</b>（Q6の境界）。</li>
-<li><b>新節に「<code>scripts</code> / <code>hooks</code> を選んだ場合の種別は <code>【実装反映】</code>」を1行書く</b>（Q7）。</li>
+<li><b>新節に「反映先の形態によらず種別は <code>【AIアセット反映】</code>」と書く</b>（Q7。2026-08-23の ユーザー判断）。単体テストを伴う場合はテストの追加・更新も同じ計画へ含める旨を添える。</li>
 <li><b>証拠集めの打ち切り条件は <code>doc-search</code> の <code>matched=0</code> だけにしない</b>（Q4）。<code>grep</code> との 二段にし、DDRを証拠に使うときは <code>status</code> を別途確認する旨を書く。</li>
 <li><b>新節のQ8関連は注意喚起と <code>distribution-assets.md</code> への参照だけにする</b>（規定を再掲しない）。 <b>「版を上げれば打ち消せる」とは書かない</b>（追跡可能性が上がるだけである）。</li>
 <li>恒久的に残す知見: <b>Q7の判断（6形態を認めつつ種別で切り分ける）とQ2の言い直し（3系統の連言を 保つ）はDDRへ</b>、spec側（<code>.claude/docs/spec/issue-mr-workflow.md</code>）は入口のみ。</li>
@@ -487,11 +493,12 @@ declare -a ALWAYS_OVERWRITE_RELPATHS=(
 <thead><tr><th>計画時の見込み</th><th>実際</th><th>どう扱ったか</th></tr></thead>
 <tbody>
 <tr><td>反映先の形態は既存定義と「矛盾しないか確認するだけ」で済む</td><td>flow-id 4-6 の列挙が <code>.claude/agents/</code> <code>**/REVIEW-POINTS.md</code> <code>GEMINI.md</code> を<b>落としている</b>という既存の漏れが見つかった</td><td>列挙を新節へ移し、3件を補う形にした（Q7）</td></tr>
-<tr><td>除外規定（164行目）は書き換えずに済む</td><td>除外の主語は <code>.claude/scripts/</code> <b>だけ</b>で、<code>.claude/hooks/</code> は含まれていなかった</td><td>164行目の主語へ <code>.claude/hooks/</code> を加える置換前後の形を追加し、編集箇所を4つ→5つへ数え直した（Q7）</td></tr>
+<tr><td>除外規定（164行目）は書き換えずに済む</td><td>括弧の中がフェーズ4の扱いまで <code>【実装反映】</code> だと述べており、新節の種別と食い違う</td><td>164行目の<b>フェーズ4の扱いを述べている部分</b>を書き換える置換前後の形を追加し、編集箇所を4つ→5つへ数え直した（Q7）</td></tr>
 <tr><td>スキップ条件はAIアセットの手順の番号で言い直せる</td><td>現行条件は<b>3系統の連言</b>で、AIアセットはそのうち1系統。全体を置き換えると<b>フェーズ4の必須通過が後退する</b></td><td>連言を保ち、AIアセットの項だけを言い直す形へ改めた（Q2）</td></tr>
 <tr><td><code>doc-search</code> の <code>matched=0</code> を打ち切り条件にできる</td><td><code>--text</code> は<b>本文を検索しない</b>（実測: 1件 対 <code>grep</code> 7ファイル）。<code>matched=0</code> は偽陰性を出す</td><td>打ち切り条件を <code>doc-search</code> と <code>grep</code> の二段にした（Q4）</td></tr>
 <tr><td><code>--format detail</code> は全項目を出す</td><td><code>status</code> / <code>superseded_by</code> を<b>出さない</b>。置き換え済みDDRを現役の根拠として引用しうる</td><td>DDRを証拠に使うときは <code>--format jsonl</code> で <code>status</code> を確認する旨を追加（Q4）</td></tr>
 <tr><td>版を上げれば削除の非伝播を打ち消せる</td><td><code>install-to-project.sh</code> は <code>.claude/VERSION</code> を上書きコピーするだけで、<b>削除も通知もしない</b>。得られるのは追跡可能性だけ</td><td>結論を限定し、実害の解消は残課題（別issue）へ送った（Q8）</td></tr>
+<tr><td><code>scripts</code> / <code>hooks</code> を選んだ場合の種別は <code>【実装反映】</code> になる</td><td><b>2026-08-23 のユーザー判断で <code>【AIアセット反映】</code> へ揃える方針に変わった。</b> 反映先ごとに種別が分岐すると1回の洗い出しの結果が2つの個別計画へ割れ、観点表が禁じる併記に近づく</td><td>Q7の結論と「設計への反映」8を差し替え、164行目の置換後も書き直した</td></tr>
 <tr><td>Q8は配布経路の制約を確認するだけ</td><td>制約を打ち消す手段が<b>既存の <code>.claude/VERSION</code> の規定の枠内</b>にあり、新しい仕組みが要らないと分かった</td><td>新節に1〜2行書くだけで足りるため、スコープが広がらずに済んだ</td></tr>
 <tr><td>スキップ条件の言い直しは表現の問題</td><td>現行文が「何をもって確認できたとするか」を持たないこと自体が issue #155 の指摘の核心だと分かった</td><td>手順の番号で言い直す形（Q2）を設計への反映2へ組み込んだ</td></tr>
 </tbody>
@@ -511,5 +518,6 @@ declare -a ALWAYS_OVERWRITE_RELPATHS=(
 <footer>issue #155 / PR #175 — 結果の正文は同名の <code>.md</code>。外部依存を持たない自己完結HTML。</footer>
 
 </div>
+
 </body>
 </html>

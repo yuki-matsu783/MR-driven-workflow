@@ -111,6 +111,7 @@
       <li><b>PR</b> #175</li>
       <li><b>フェーズ</b> 3〈作業〉 flow-id 3-1</li>
       <li><b>作成日</b> 2026-08-23</li>
+      <li><b>調査結果</b> <code>reports/20260823_brisk-charting-lantern_AIアセット反映の洗い出し手順の前提確認.md</code></li>
       <li><b>正文</b> 同名の .md</li>
     </ul>
   </div>
@@ -125,7 +126,7 @@
     <li><a href="#kind">種別が 【AIアセット作成】 である根拠</a></li>
     <li><a href="#goal">この計画で何をするか</a></li>
     <li><a href="#target">変更対象</a></li>
-    <li><a href="#order">順序</a></li>
+    <li><a href="#order">順序（この計画で決めたもの）</a></li>
     <li><a href="#out-of-scope">やらないこと（スコープ外）</a></li>
     <li><a href="#verify">検証</a></li>
   </ol>
@@ -135,19 +136,46 @@
 <h2>前提（合意状況）</h2>
 <ul>
 <li>上位の計画: <code>plans/brisk-charting-lantern.md</code>。<b>flow-id 1-5（人間による合意）は未了</b>である。 このセッションは人間のレビュー往復が成立しないため、敵対的レビューで代替する（<code>HANDOFF.md</code> 「守るべき条件・触ってはいけない範囲」）。</li>
-<li><b>この計画の内容はすべて、フェーズ2の調査結果「設計への反映」1〜11を入力にしている。</b> 新しい判断を足しておらず、判断の根拠は調査結果側にある（ここへ再掲しない）。</li>
+</ul>
+<h3>何を根拠にしているか（2種類に分かれる）</h3>
+<p><b>「すべて調査結果由来」ではない。</b> 根拠の所在を取り違えると、確かめ直すべきものが追認される。</p>
+<div class="tablewrap">
+<table>
+<thead><tr><th>内容</th><th>根拠</th></tr></thead>
+<tbody>
+<tr><td>新節の構成（4手順）・4類型・証拠要求の範囲・打ち切り条件・2軸・反映先の一覧・書き換える5箇所</td><td><b>調査結果の「設計への反映」1〜11</b>（<code>reports/…前提確認.md</code>）</td></tr>
+<tr><td><code>scripts</code> / <code>hooks</code> を選んだ場合の<b>種別を <code>【AIアセット反映】</code> に揃える</b>こと</td><td><b>2026-08-23 のユーザー判断</b>（下記「ユーザー判断による方針変更」）</td></tr>
+<tr><td>網羅探索をしない方針</td><td><b>全体作業計画</b>「方針」</td></tr>
+<tr><td><b>新節の挿入位置</b>・<b>実施の順序</b>・<b>コミット粒度</b>・<b>検証コマンド</b></td><td><b>この計画で新たに決めた</b>（調査結果には無い）</td></tr>
+</tbody>
+</table>
+</div>
+<h3>ユーザー判断による方針変更（2026-08-23）</h3>
+<p>調査結果Q7は当初「<code>scripts</code> / <code>hooks</code> は反映先に含めるが、選んだ場合の種別は <code>【実装反映】</code>」と 結論していた。<b>ユーザーの判断により、<code>scripts</code> / <code>hooks</code> もAIアセットとして扱い、種別を <code>【AIアセット反映】</code> へ揃える。</b></p>
+<ul>
+<li><b>反映先の形態によって種別が分岐しない。</b> 分岐すると1回の洗い出しの結果が2つの個別計画へ 割れ、<code>plans/REVIEW-POINTS.md</code> が禁じる <code>【AIアセット反映】</code>／<code>【実装反映】</code> の併記に近づく。</li>
+<li><b>単体テストを伴う場合は、テストの追加・更新も同じ <code>【AIアセット反映】</code> の計画に含める。</b></li>
+<li><b><code>【実装反映】</code> という種別自体は残る</b>（フェーズ3のレビュー往復で解消しきれず持ち越した 不具合を扱う、という本来の用途は変わらない）。</li>
+<li><code>.claude/scripts/</code> を <code>【AIアセット作成】</code>（フェーズ3）の対象から外すこと自体は issue #110 の 判断であり、<b>変えない</b>。書き換えるのは、その規定が<b>フェーズ4の扱い</b>まで <code>【実装反映】</code> だと 述べている部分だけである。</li>
 </ul>
 </section>
 
 <section id="kind">
 <h2>種別が <code>【AIアセット作成】</code> である根拠</h2>
 <p>この issue の<b>主たる成果物</b>がAIアセット（SKILL.md の節・レビュー観点）であるため （調査結果Q5）。<code>【AIアセット反映】</code> は「作業の<b>副産物</b>として気づいた改善を反映する」場合の 種別であり、本issueは当てはまらない。<b>併記もしない</b>（<code>plans/REVIEW-POINTS.md</code>「種別」の 観点。対象・評価軸が異なるものを1つの計画へ混ぜない）。</p>
-<p>なお本計画で書き換える <code>.claude/skills/issue-mr-flow/SKILL.md</code> 164行目は 「<code>【AIアセット作成】</code> の除外規定」であり、<b>規定の文言を直す作業もアセットの改訂</b>なので同じ 種別に収まる（<code>.claude/scripts/</code> <code>.claude/hooks/</code> 配下のスクリプト自体は1行も触らない）。</p>
+<p><code>.claude/scripts/</code> <code>.claude/hooks/</code> 配下のスクリプト自体は<b>1行も触らない</b>ため、除外規定 （SKILL.md 163-164行目）に抵触しない。書き換えるのはその規定の文言だけである。</p>
 </section>
 
 <section id="goal">
 <h2>この計画で何をするか</h2>
 <p><code>.claude/skills/issue-mr-flow/SKILL.md</code> へ <b>「AIアセット反映の対象の洗い出し」節を新設</b>し、その節を参照する形へ既存の記述を書き換える。併せて <code>plans/REVIEW-POINTS.md</code> へ <code>【AIアセット反映】</code> 計画のレビュー観点を追加する。</p>
+<h3>新設する節をどこへ入れるか</h3>
+<p><b><code>## 全体フロー</code> 配下の h3 として、<code>### issueが大きすぎる場合の分割提案（issue #64）</code> の直後・ <code>### 計画と実施結果の分離（issue #87）</code> の直前へ入れる。</b></p>
+<ul>
+<li><b>flow-id 4-1 行（82行目）・4-6 行（87行目）・省略タイミング表（131行目）より後ろ</b>である 必要がある。3箇所とも本節を「<b>下記</b>『AIアセット反映の対象の洗い出し』」として参照するため。</li>
+<li><b>直前の節の「節全体にかかる地の文」の係り先を壊さない位置を選んだ</b> （<code>.claude/rules/docs-workflow.md</code>）。<code>### issueが大きすぎる場合の分割提案</code> の末尾は 「<b>分割することになった場合</b>」というラベル付きの箇条書きで終わっており、節全体にかかる 地の文を持たない。</li>
+<li><b>採らなかった位置</b>: (a) <code>### 計画・レポートのHTMLビュー</code> の直後（<code>## 全体フロー</code> の末尾）は、 直前が「<b>md側のテンプレートは無い。</b>〜」という節全体にかかる地の文で終わるため避けた。 (b) <code>### 計画と実施結果の分離</code> の直後は、その節の末尾が「HTMLビューの見出し構成は<b>下記</b> 『計画・レポートのHTMLビュー』が持つ」と<b>次の節を前方参照</b>しており、間に挟むと参照が遠くなる。</li>
+</ul>
 <h3>新設する節の構成（4手順）</h3>
 <p>調査結果の「設計への反映」2 のとおり、次の4手順で構成する。<b>スキップ条件（手順1〜2まで）を 手順の番号で書けるようにするための区切り</b>である。</p>
 <div class="tablewrap">
@@ -155,12 +183,41 @@
 <thead><tr><th>手順</th><th>内容</th><th>打ち切り・境界</th></tr></thead>
 <tbody>
 <tr><td>手順1</td><td><b>起点の列挙。</b> <code>worklog/</code> の「試したこと」「ダメだったこと」を入力にする</td><td><b>主たる成果物としてのアセット作成は対象外</b>（<code>【AIアセット作成】</code> で扱う）</td></tr>
-<tr><td>手順2</td><td><b>4類型への分類</b>（(a) 無かった／(b) 誤っていた／(c) 罠が書かれていなかった／(d) 辿り着けなかった）</td><td><b>ここで0件ならフェーズ4のAIアセットの項は充足</b>（手順3・4は入力が無い）</td></tr>
-<tr><td>手順3</td><td><b>証拠集めと打ち切り</b>（(a) のみ。(b)(c)(d) は1回でも反映する）</td><td><code>doc-search</code> で <code>matched=0</code> <b>かつ</b> <code>grep -rn</code> も0件なら痕跡なしと判断して進む</td></tr>
-<tr><td>手順4</td><td><b>反映先の形態の決定</b>（2軸: いつ効いてほしいか × 守らせ方の強さ）＋削除・統合の検討</td><td><code>scripts</code> / <code>hooks</code> を選んだ場合の<b>種別は <code>【実装反映】</code></b></td></tr>
+<tr><td>手順2</td><td><b>4類型への分類</b>（下表）</td><td><b>ここで0件ならフェーズ4のAIアセットの項は充足</b>（手順3・4は入力が無い）</td></tr>
+<tr><td>手順3</td><td><b>証拠集めと打ち切り</b>（(a) のみ）。<b>段階を持つ</b>（下記）</td><td>各段階で見つからなければ次へ進み、最後の段階でも0件なら打ち切る</td></tr>
+<tr><td>手順4</td><td><b>反映先の形態の決定</b>（2軸）＋削除・統合の検討</td><td>形態によらず種別は <code>【AIアセット反映】</code></td></tr>
 </tbody>
 </table>
 </div>
+<h4>手順2で使う4類型の表（新節はこの3列で持つ）</h4>
+<p>受け入れ条件が「4類型と、再現性の証拠を要求する範囲が<b>表で示されている</b>」を求めるため、<b>新節では箇条書きではなく表</b>にする。</p>
+<div class="tablewrap">
+<table>
+<thead><tr><th>類型</th><th>意味</th><th>証拠を要求するか</th></tr></thead>
+<tbody>
+<tr><td>(a)</td><td>該当するアセットが<b>無かった</b></td><td><b>要求する</b>（新規作成のため）</td></tr>
+<tr><td>(b)</td><td>アセットは<b>あったが誤っていた</b></td><td>しない（1回でも直す）</td></tr>
+<tr><td>(c)</td><td>アセットはあったが、<b>その罠が書かれていなかった</b></td><td>しない（同上）</td></tr>
+<tr><td>(d)</td><td>アセットはあったのに、<b>辿り着けなかった</b></td><td>しない（同上）</td></tr>
+</tbody>
+</table>
+</div>
+<h4>手順3の段階（安い側から見て打ち切る）</h4>
+<p>全体作業計画「方針」が定めた段階を、新節へそのまま持たせる。<b>打ち切り条件だけでは受け入れ 条件を満たさない</b>（段階も書かれている必要がある）。</p>
+<div class="tablewrap">
+<table>
+<thead><tr><th>段階</th><th>何を見るか</th><th>打ち切ってよい条件</th></tr></thead>
+<tbody>
+<tr><td>1</td><td><b>同一MR内</b>（<code>worklog/</code> の他の項目・同じPRの他のコミット）</td><td>同じ罠が2回以上出ていれば (a) の証拠として十分。ここで確定すれば以降は見ない</td></tr>
+<tr><td>2</td><td><b><code>doc-search</code>（frontmatter）＋ <code>grep</code>（本文）</b></td><td><b>両方0件</b>であること（下記）</td></tr>
+<tr><td>3</td><td><b>直近のPR・DDR一覧</b></td><td>見つからなければ痕跡なしとして打ち切る。<b>それ以上は遡らない</b></td></tr>
+</tbody>
+</table>
+</div>
+<p>段階2の打ち切りは<b>2段</b>にする。<code>doc-search</code>（<code>search-frontmatter.sh</code>）は<b>frontmatterのキーしか 見ない</b>ため、<code>matched=0</code> 単独では偽陰性が出る（実測: <code>--text</code> で1件 対 <code>grep -rl</code> で7ファイル）。</p>
+<pre><code>bash .claude/scripts/src/search-frontmatter.sh --text &#x27;&lt;罠を表す語&gt;&#x27; --type ddr --format count
+grep -rn &#x27;&lt;罠を表す語&gt;&#x27; .claude/docs .claude/rules</code></pre>
+<p><b>DDRを証拠に使う場合は <code>status</code> を別途確認する。</b> <code>--format detail</code> は <code>status</code> / <code>superseded_by</code> / <code>note</code> / <code>resource</code> を出力しないため、<code>--format jsonl</code> かファイル本体で 見る（後続のDDRに置き換えられた決定を現役の根拠として引かないため。調査結果Q4）。</p>
 <h3>節が持つもの・持たないもの</h3>
 <p>「正が2つ」を避けるため、境界を先に決めておく（調査結果Q3・Q6・Q8）。</p>
 <div class="tablewrap">
@@ -176,55 +233,51 @@
 </tbody>
 </table>
 </div>
+<p><b>新節に「版を上げれば実害が打ち消せる」と読める記述を書かない</b>（調査結果「設計への反映」10）。<code>install-to-project.sh</code> は削除も通知も行わないため、版を上げても配布先には旧アセットが残る。得られるのは配布先が差に気づく手掛かり（追跡可能性）だけである。既存規定は「配布対象アセットに <b>変更があった回</b>」を対象にしているので、<b>削除・統合に限った条件で書き直さない</b>（条件の広狭が 食い違ったまま残る）。</p>
 </section>
 
 <section id="target">
 <h2>変更対象</h2>
+<p><b>書き換えは行番号ではなく照合文字列で行う。</b> 節を新設すると行番号は必ず動く。<b>番号（(1)(2)…）で参照しない</b>——調査結果Q1の番号と対応させると取り違えるため、照合文字列そのものを識別子にする。</p>
+<div class="tablewrap">
+<table>
+<thead><tr><th>照合文字列（<code>grep -cF --</code> で1件）</th><th>場所</th><th>書き換えの内容</th></tr></thead>
+<tbody>
+<tr><td><code>まず反映対象を洗い出し</code></td><td>flow-id 4-1 行</td><td>新節への参照を1つ足す。<b>3系統の連言はそのまま残す</b></td></tr>
+<tr><td><code>作業中に気づいたルール・スキルの不備</code></td><td>flow-id 4-6 行</td><td><b>反映先の列挙を消し</b>、新節への参照にする</td></tr>
+<tr><td><code>反映対象を洗い出した結果</code></td><td>省略タイミングの表の行</td><td>スキップ条件を言い直す</td></tr>
+<tr><td><code>フェーズ4は必ず通る</code></td><td>同じ節の地の文</td><td>スキップ条件を言い直す（上の行と<b>同じ内容</b>にする）</td></tr>
+<tr><td>`<code> </code>.claude/scripts/<code>配下のスクリプト </code>`</td><td><code>【AIアセット作成】</code> の除外規定（163-164行目）</td><td>フェーズ4の扱いを述べている部分を書き換える</td></tr>
+</tbody>
+</table>
+</div>
+<p><b><code>対象に含めない</code> を照合文字列に使わない</b>（164行目にヒットするが、書き換えるテキスト `<code> </code>.claude/scripts/<code>配下のスクリプト </code><code> は163行目にあり、1行ずれる）。**</code>反映するものが無いと確認できた<code> も使わない**（</code>まず反映対象を洗い出し` と同じ行を指す）。</p>
 <div class="tablewrap">
 <table>
 <thead><tr><th>ファイル</th><th>操作</th><th>何をするか</th></tr></thead>
 <tbody>
-<tr><td><code>.claude/skills/issue-mr-flow/SKILL.md</code></td><td>新設</td><td>「AIアセット反映の対象の洗い出し」節（4手順・4類型・2軸・反映先の一覧）</td></tr>
-<tr><td>〃</td><td>書き換え(1)</td><td>flow-id 4-1 行（<code>まず反映対象を洗い出し</code>）へ新節への参照を1つ足す</td></tr>
-<tr><td>〃</td><td>書き換え(2)</td><td>flow-id 4-6 行（<code>作業中に気づいたルール・スキルの不備</code>）の<b>列挙を消し</b>、新節への参照にする</td></tr>
-<tr><td>〃</td><td>書き換え(3)</td><td>省略タイミング表の行（<code>反映対象を洗い出した結果</code>）のスキップ条件を言い直す</td></tr>
-<tr><td>〃</td><td>書き換え(4)</td><td>同じ節の地の文（<code>フェーズ4は必ず通る</code>）のスキップ条件を言い直す</td></tr>
-<tr><td>〃</td><td>書き換え(5)</td><td>除外規定（<code>対象に含めない</code>）の主語へ <code>.claude/hooks/</code> を加える</td></tr>
+<tr><td><code>.claude/skills/issue-mr-flow/SKILL.md</code></td><td>新設</td><td>「AIアセット反映の対象の洗い出し」節（4手順・4類型の表・段階の表・2軸・反映先の一覧）</td></tr>
+<tr><td>〃</td><td>書き換え×5</td><td>上表のとおり</td></tr>
 <tr><td><code>plans/REVIEW-POINTS.md</code></td><td>追記</td><td><code>【AIアセット反映】</code> 計画のレビュー観点（<b>問いだけ</b>を持ち、定義はSKILL.mdを指す）</td></tr>
 <tr><td><code>reports/20260823_brisk-charting-lantern_洗い出し手順の新設.md</code> / <code>.html</code></td><td>新規</td><td>作業結果の正文とHTMLビュー</td></tr>
-<tr><td><code>worklog/20260823_brisk-charting-lantern_【AIアセット作成】AIアセット反映の洗い出し手順をSKILL.mdへ新設_push6.md</code></td><td>新規</td><td>試行錯誤の詳細ログ</td></tr>
+<tr><td><code>worklog/20260823_brisk-charting-lantern_【AIアセット作成】AIアセット反映の洗い出し手順をSKILL.mdへ新設_push6.md</code></td><td>追記</td><td>試行錯誤の詳細ログ</td></tr>
 </tbody>
 </table>
 </div>
 <p><b>この計画ファイルには結果を書かない</b>（<code>reports/</code> へ分ける。SKILL.md「計画と実施結果の分離」）。</p>
-<h3>書き換えは行番号ではなく文字列で照合する</h3>
-<p>調査結果が<b>編集箇所ごとに1文字列＝1箇所になる照合文字列を実測して</b>添えてある。節を新設すると 行番号は必ず動くため、<b>行番号では照合しない</b>。</p>
-<div class="tablewrap">
-<table>
-<thead><tr><th>#</th><th>照合文字列</th><th>期待ヒット数</th></tr></thead>
-<tbody>
-<tr><td>(1)</td><td><code>まず反映対象を洗い出し</code></td><td>1</td></tr>
-<tr><td>(2)</td><td><code>作業中に気づいたルール・スキルの不備</code></td><td>1</td></tr>
-<tr><td>(3)</td><td><code>反映対象を洗い出した結果</code></td><td>1</td></tr>
-<tr><td>(4)</td><td><code>フェーズ4は必ず通る</code></td><td>1</td></tr>
-<tr><td>(5)</td><td><code>対象に含めない</code></td><td>1</td></tr>
-</tbody>
-</table>
-</div>
-<p><b><code>反映するものが無いと確認できた</code> は使わない</b>（(1) と同じ行を指すため重複する）。</p>
 </section>
 
 <section id="order">
-<h2>順序</h2>
+<h2>順序（この計画で決めたもの）</h2>
 <ol>
-<li>書き換え(5)（除外規定）→ 新節が前提にする「hooksは <code>【実装反映】</code>」を先に成立させる。</li>
+<li>除外規定（`<code> </code>.claude/scripts/<code>配下のスクリプト </code><code>）の書き換え。新節が前提にする 「scripts/hooks も </code>【AIアセット反映】`」を先に成立させる。</li>
 <li>新節の追加。</li>
-<li>書き換え(1)(2) → 新節への参照。</li>
-<li>書き換え(3)(4) → <b>2つ同時に</b>（片方だけだと同じ節で表と地の文が食い違う。調査結果Q1）。</li>
+<li>flow-id 4-1 行・4-6 行の書き換え（新節への参照）。</li>
+<li>省略タイミングの表と地の文の書き換えを<b>2つ同時に</b>（片方だけだと同じ節で表と地の文が 食い違う。調査結果「設計への反映」5）。</li>
 <li><code>plans/REVIEW-POINTS.md</code> への観点追加。</li>
 <li>検証（下記）→ <code>reports/</code> へ結果を記録。</li>
 </ol>
-<p><b>(3)(4) を分けてコミットしない。</b> 中間状態が「同じ節の中で表と地の文が矛盾する」形になる。</p>
+<p><b>表と地の文の書き換えを分けてコミットしない</b>（コミット粒度もこの計画で決めたもの）。中間状態が「同じ節の中で表と地の文が矛盾する」形になる。</p>
 </section>
 
 <section id="out-of-scope">
@@ -232,8 +285,9 @@
 <ul>
 <li><b>DDRの作成・<code>.claude/docs/spec/issue-mr-workflow.md</code> の入口1行・<code>.claude/VERSION</code> の増分提案。</b> いずれも<b>フェーズ4（flow-id 4-6）</b>で行う。フェーズ3は「アセットを作る」までである。</li>
 <li><b><code>.claude/skills/issue-mr-flow/SKILL.md</code> 50行目と <code>.claude/docs/spec/issue-mr-workflow.md</code> 313行目の書き換え。</b> どちらも「フェーズ4は必ず通る」ことだけを述べており判定条件を含まない ため、据え置く（調査結果Q1）。</li>
+<li><b><code>.claude/scripts/</code> を <code>【AIアセット作成】</code> の対象へ戻すこと。</b> issue #110 の判断であり、 今回のユーザー判断の対象ではない（変えるのはフェーズ4の扱いを述べている部分だけ）。</li>
 <li><b>spec/ddr・実装コード側のスキップ条件の判定手順を定めること。</b> issue #155 の対象は flow-id 4-1・4-6 の<b>AIアセット反映</b>である（調査結果Q2）。</li>
-<li><b>配布経路が上流の削除を伝播しない件の修正。</b> 別issueとして起票を提案する（調査結果Q8・残課題）。 今回の節に書くのは注意喚起までである。</li>
+<li><b>配布経路が上流の削除を伝播しない件の修正。</b> 別issueとして起票を提案する（調査結果Q8・残課題）。</li>
 <li><b><code>.claude/scripts/</code> <code>.claude/hooks/</code> 配下のスクリプトの変更。</b> 1行も触らない。</li>
 <li><b>過去MRを遡ってAIアセット反映の実例を網羅すること。</b> 網羅探索をしないことが今回定義する 手順そのものの方針であり、実装時にそれをやると自己矛盾する。</li>
 </ul>
@@ -241,37 +295,43 @@
 
 <section id="verify">
 <h2>検証</h2>
-<p><b>変更前に実行すると失敗するコマンドだけを合格条件に使う</b>（変更の有無にかかわらず成功する コマンドは検証にならない。フェーズ2の敵対的レビューの指摘）。</p>
-<pre><code># 新節が存在すること（変更前は0件 → 変更後1件）
-grep -c &#x27;^### AIアセット反映の対象の洗い出し&#x27; .claude/skills/issue-mr-flow/SKILL.md
-
-# 観点が追加されていること（変更前は0件 → 変更後1件以上）
-grep -c &#x27;^## 【AIアセット反映】&#x27; plans/REVIEW-POINTS.md
-
-# 反映先の列挙が flow-id 4-6 行から消えていること（変更前1件 → 変更後0件）
-grep -c &#x27;作業中に気づいたルール・スキルの不備&#x27; .claude/skills/issue-mr-flow/SKILL.md
-
-# 除外規定の主語に hooks が入ったこと（変更前0件 → 変更後1件）
-grep -c &#x27;`.claude/scripts/` `.claude/hooks/` 配下のスクリプト&#x27; .claude/skills/issue-mr-flow/SKILL.md
-
-# 反映先の一覧が3件の漏れを補っていること（新節の中に存在すること）
-grep -c &#x27;.claude/agents/&#x27; .claude/skills/issue-mr-flow/SKILL.md
-grep -c &#x27;GEMINI.md&#x27; .claude/skills/issue-mr-flow/SKILL.md
-
-# frontmatterインデックスが壊れていないこと
-bash .claude/scripts/src/extract-frontmatter.sh .
-bash .claude/scripts/src/search-frontmatter.sh --type skill --path issue-mr-flow --format count  # matched=1
-
-# レビュー観点が収集経路に乗ること（変更前は0件。既存の「種別」節にある3件と混ざらないよう
-# 新設する見出しで数える）
-bash .claude/scripts/src/collect-review-points.sh plans/ | grep -c &#x27;^## 【AIアセット反映】&#x27;</code></pre>
-<p>合格条件:</p>
+<p><b>コマンドごとに変更前／変更後の期待値を持たせる。</b>「変更前に失敗する」と一括では言えない （健全性確認のように前後とも同じ値になるものが混ざるため）。<b>変更前の実測値は取得済み</b>で、下表の「変更前」列がそれである。</p>
+<div class="tablewrap">
+<table>
+<thead><tr><th>#</th><th>コマンド</th><th>変更前</th><th>変更後</th></tr></thead>
+<tbody>
+<tr><td>V1</td><td><code>grep -c '^### AIアセット反映の対象の洗い出し' .claude/skills/issue-mr-flow/SKILL.md</code></td><td>0</td><td>1</td></tr>
+<tr><td>V2</td><td><code>grep -c 'AIアセットの洗い出し手順は下記' .claude/skills/issue-mr-flow/SKILL.md</code></td><td>0</td><td>1</td></tr>
+<tr><td>V3</td><td><code>grep -c '作業中に気づいたルール・スキルの不備' .claude/skills/issue-mr-flow/SKILL.md</code></td><td>1</td><td><b>0</b></td></tr>
+<tr><td>V4</td><td><code>grep -cF -- '\</code>.claude/scripts/\<code>配下のスクリプト' .claude/skills/issue-mr-flow/SKILL.md</code></td><td>1</td><td>1</td></tr>
+<tr><td>V5</td><td><code>grep -c '^## 【AIアセット反映】' plans/REVIEW-POINTS.md</code></td><td>0</td><td>1</td></tr>
+<tr><td>V6</td><td>`bash .claude/scripts/src/collect-review-points.sh 'plans/【AIアセット作成】AIアセット反映の洗い出し手順をSKILL.mdへ新設.md' \</td><td>grep -c '^## 【AIアセット反映】'`</td><td>0</td><td>1</td></tr>
+<tr><td>V7</td><td><code>bash .claude/scripts/src/search-frontmatter.sh --type skill --path issue-mr-flow --format count</code></td><td>matched=1</td><td>matched=1（健全性確認）</td></tr>
+</tbody>
+</table>
+</div>
+<p><b>V4 は件数ではなく内容を見る</b>（書き換えても行は残るため件数は1のまま）。置換後の文に <code>【AIアセット反映】</code> が含まれることを目視で確認し、<code>reports/</code> へ置換前後を並べて記録する。</p>
+<p><b>V6 は実在するファイルパスを渡す。</b> <code>collect-review-points.sh</code> へ <code>plans/</code> のような ディレクトリを渡すと、末尾スラッシュの有無で結果が変わる（実測: <code>plans/</code> は1件、<code>plans</code> は0件で <b>エラーも出ない</b>）。祖先を遡る本来の経路を通すため、対象ファイルそのものを渡す。</p>
+<h3>新節の中身を数える検証（範囲を絞る）</h3>
+<p><b>ファイル全体で数えない。</b> <code>.claude/agents/</code> はSKILL.md全体で既に2件、<code>REVIEW-POINTS</code> は4件 ヒットするため、新節に書き忘れても合格してしまう（実測）。<b>新節の範囲へ絞ってから数える。</b></p>
+<pre><code>sec() { sed -n &#x27;/^### AIアセット反映の対象の洗い出し/,/^### 計画と実施結果の分離/p&#x27; \
+          .claude/skills/issue-mr-flow/SKILL.md; }
+sec | grep -c &#x27;\.claude/agents/&#x27;      # 変更前 0 → 変更後 1以上
+sec | grep -c &#x27;REVIEW-POINTS&#x27;         # 変更前 0 → 変更後 1以上
+sec | grep -c &#x27;GEMINI\.md&#x27;            # 変更前 0 → 変更後 1以上
+sec | grep -c &#x27;\.claude/hooks/&#x27;       # 変更前 0 → 変更後 1以上
+sec | grep -c &#x27;status&#x27;                # 変更前 0 → 変更後 1以上（DDRのstatus確認）</code></pre>
+<p>（変更前は節が存在しないので <code>sec</code> の出力が空になり、いずれも0を返す。）</p>
+<h3>目視で確認する合格条件</h3>
+<p>grepでは判定できないものを挙げる。<b>いずれも <code>reports/</code> へ置換前後を並べて記録する。</b></p>
 <ul>
-<li>上記コマンドがすべて期待どおりの件数を返すこと。<b>変更前に実行して失敗する（0件になる）ことを 先に確かめてから</b>書き換える。</li>
-<li><b>スキップ条件の3系統の連言が保たれていること</b>（<code>spec/ddr</code> と <code>実装コード</code> が条件から 消えていないこと）。これは grep では判定できないため、書き換え後の文を目視で確認し、 <code>reports/</code> へ置換前後を並べて記録する。</li>
+<li><b>スキップ条件の3系統の連言が保たれていること</b>（<code>spec/ddr</code> と <code>実装コード</code> が条件から 消えていないこと）。条件全体をAIアセットの手順で置き換えると、フェーズ4の必須通過が後退する。</li>
 <li><b>同じスキップ条件を持つ2箇所（表・地の文）が同じ内容になっていること。</b></li>
-<li><code>plans/REVIEW-POINTS.md</code> に4類型の<b>定義</b>が書かれて<b>いない</b>こと（問いだけを持つ。調査結果Q6）。</li>
-<li>md と同名の <code>.html</code> を作り、<b>未編集プレースホルダ0件・外部リソース読み込み0件・見出し（h2/h3/h4）が md と一致</b>すること。</li>
+<li><b>新節に4類型が3列の表（類型／意味／証拠を要求するか）で書かれていること。</b></li>
+<li><b>新節に手順3の段階（3段階）が書かれていること。</b></li>
+<li><b>新節に「版を上げれば実害が打ち消せる」と読める記述が無いこと。</b></li>
+<li><b><code>plans/REVIEW-POINTS.md</code> に4類型の定義が書かれていないこと</b>（問いだけを持つ。調査結果Q6）。</li>
+<li>md と同名の <code>.html</code> を作り、<b>未編集プレースホルダ0件・外部リソース読み込み0件・見出し （h2/h3/h4）が md と一致</b>すること。</li>
 </ul>
 </section>
 
