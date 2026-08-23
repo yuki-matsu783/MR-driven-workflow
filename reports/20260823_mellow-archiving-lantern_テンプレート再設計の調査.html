@@ -1,0 +1,382 @@
+<!--
+  issue #145 フェーズ2〈調査〉の調査結果レポート（flow-id 2-6）の人間レビュー用HTMLビュー。
+  正文は同名の .md（reports/20260823_mellow-archiving-lantern_テンプレート再設計の調査.md）で
+  あり、このHTMLはその視覚化である。
+  土台: .claude/skills/issue-mr-flow/assets/reports.template.html
+-->
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>テンプレート再設計の調査結果 — issue #145</title>
+<style>
+  :root {
+    --bg: #f6f7f9;      --panel: #ffffff;   --ink: #1a1d21;     --muted: #5b636d;
+    --line: #dfe3e8;    --accent: #2563eb;  --accent-soft: #eaf0fe;
+    --ok: #1a7f4b;      --ok-soft: #e6f4ec; --warn: #a35a00;    --warn-soft: #fdf1e0;
+    --stop: #b3261e;    --stop-soft: #fdecea; --code-bg: #f0f2f5;
+    --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1216;    --panel: #161a20;   --ink: #e6e8eb;     --muted: #9aa3ad;
+      --line: #2a3038;  --accent: #7aa2f7;  --accent-soft: #1b2333;
+      --ok: #6ee7a8;    --ok-soft: #14261d; --warn: #f0b866;    --warn-soft: #2a2113;
+      --stop: #f2857c;  --stop-soft: #2b1614; --code-bg: #1d222a;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", system-ui, sans-serif;
+    line-height: 1.8; font-size: 15px;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 20px 80px; }
+
+  /* 共通ヘッダ帯 */
+  header.band {
+    background: linear-gradient(135deg, var(--accent-soft), var(--panel));
+    border-bottom: 1px solid var(--line); padding: 28px 20px 22px; margin-bottom: 28px;
+  }
+  header.band .inner { max-width: 1080px; margin: 0 auto; }
+  header.band .kind { font-size: 11px; letter-spacing: .18em; color: var(--accent); font-weight: 700; }
+  header.band h1 { margin: 6px 0 4px; font-size: 26px; line-height: 1.4; }
+  header.band .lead { margin: 0; color: var(--muted); }
+  .meta { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; padding: 0; list-style: none; }
+  .meta li {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 999px;
+    padding: 3px 12px; font-size: 12.5px; color: var(--muted); white-space: nowrap;
+  }
+  .meta li b { color: var(--ink); font-weight: 600; }
+
+  nav.toc {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 14px 20px; margin-bottom: 28px;
+  }
+  nav.toc h2 { margin: 0 0 8px; font-size: 13px; letter-spacing: .08em; color: var(--muted); border: 0; padding: 0; }
+  nav.toc ol { margin: 0; padding-left: 20px; }
+  nav.toc li { margin: 2px 0; }
+  a { color: var(--accent); }
+
+  section {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 8px 24px 22px; margin-bottom: 22px;
+  }
+  h2 { font-size: 20px; margin: 20px 0 10px; padding-bottom: 8px; border-bottom: 2px solid var(--line); }
+  h3 { font-size: 16px; margin: 22px 0 8px; color: var(--accent); }
+  p { margin: 10px 0; }
+  ul, ol { padding-left: 22px; }
+  li { margin: 4px 0; }
+  blockquote { margin: 10px 0; padding: 6px 14px; border-left: 3px solid var(--line); color: var(--muted); }
+
+  /* 表は自身の中で横スクロールする（ページ本体は横スクロールさせない） */
+  .tablewrap { overflow-x: auto; margin: 14px 0; }
+  table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 14px; }
+  th, td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: var(--accent-soft); font-weight: 600; white-space: nowrap; }
+  tbody tr:nth-child(even) td { background: color-mix(in srgb, var(--line) 22%, transparent); }
+
+  code {
+    background: var(--code-bg); border-radius: 5px; padding: 1px 5px; font-size: 13px;
+    font-family: "SFMono-Regular", Consolas, "Noto Sans Mono", monospace;
+  }
+  pre {
+    background: var(--code-bg); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 12px 14px; overflow-x: auto; font-size: 13px; line-height: 1.65;
+  }
+  pre code { background: none; padding: 0; }
+
+  /* 注意ボックス: info（既定）/ ok（決めたこと）/ warn（注意）/ stop（やらないこと・危険） */
+  .box { border-left: 4px solid var(--accent); background: var(--accent-soft);
+         border-radius: 0 var(--radius) var(--radius) 0; padding: 12px 16px; margin: 16px 0; }
+  .box > :first-child { margin-top: 0; } .box > :last-child { margin-bottom: 0; }
+  .box .label { font-size: 12px; font-weight: 700; letter-spacing: .06em; display: block; margin-bottom: 4px; }
+  .box.ok { border-color: var(--ok); background: var(--ok-soft); } .box.ok .label { color: var(--ok); }
+  .box.warn { border-color: var(--warn); background: var(--warn-soft); } .box.warn .label { color: var(--warn); }
+  .box.stop { border-color: var(--stop); background: var(--stop-soft); } .box.stop .label { color: var(--stop); }
+  .box.info .label { color: var(--accent); }
+
+  .tag { display: inline-block; border-radius: 999px; padding: 1px 9px; font-size: 12px; font-weight: 600; }
+  .tag.ok { background: var(--ok-soft); color: var(--ok); }
+  .tag.warn { background: var(--warn-soft); color: var(--warn); }
+  .tag.stop { background: var(--stop-soft); color: var(--stop); }
+
+  footer { color: var(--muted); font-size: 13px; text-align: center; padding-top: 10px; }
+</style></head>
+<body>
+
+<header class="band">
+  <div class="inner">
+    <div class="kind">調査結果レポート / フェーズ2（flow-id 2-6）</div>
+    <h1>テンプレート再設計の調査結果（issue #145 フェーズ2）</h1>
+    <p class="lead">二重管理は<b>テンプレートファイルを正とする案B</b>で解消する。#111 の統括レポートは廃止せず、「上書きされうる最新版」と「追記のみの完了時スナップショット」という耐久性の差で棲み分ける。</p>
+    <ul class="meta">
+      <li><b>issue</b> #145</li>
+      <li><b>ブランチ</b> claude/mr-pr-template-archive-0bo17a</li>
+      <li><b>PR</b> #187</li>
+      <li><b>フェーズ</b> 2〈調査〉 flow-id 2-6</li>
+      <li><b>push回数</b> 2</li>
+      <li><b>作成日</b> 2026-08-23</li>
+      <li><b>正文</b> 同名の .md</li>
+    </ul>
+  </div>
+</header>
+
+<div class="wrap">
+
+<nav class="toc">
+  <h2>目次</h2>
+  <ol>
+    <li><a href="#summary">サマリ（結論の一覧）</a></li>
+    <li><a href="#conditions">実施条件</a></li>
+    <li><a href="#results">実施した内容と結果</a></li>
+    <li><a href="#unknown">確かめられなかったこと</a></li>
+    <li><a href="#design">設計への反映</a></li>
+    <li><a href="#surprises">想定と異なった点</a></li>
+  </ol>
+</nav>
+
+<section id="summary">
+  <h2>サマリ（結論の一覧）</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>#</th><th>問い</th><th>結論</th><th>根拠の性質</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td>二重管理をどう解消するか</td><td><b>案B: テンプレートファイルを正とし、<code>describe</code> 節は雛形を持たない</b></td><td>実装の確認＋既存の先例（issue #54）</td></tr>
+      <tr><td>2</td><td>#111（flow-id 5-4）との役割分担</td><td><b>併存させ、「上書きされうる最新版（description）」と「追記のみの完了時スナップショット（サマリコメント）」で分ける</b></td><td>実装の確認（<code>Provider.sh</code> に編集関数が無い）</td></tr>
+      <tr><td>3</td><td><code>plans/</code> 等の参照禁止をどこに書くか</td><td><b><code>docs-workflow.md</code> の既存段落の直後へ1段落追加＋テンプレートのHTMLコメント。例外は設けない</b></td><td>ドキュメントの読解</td></tr>
+      <tr><td>4</td><td>10節構成と6回の全文置換</td><td><b>噛み合う。ただし「特になし」と「未実施」を書き分ける規約が要る。最終形は flow-id 4-10 で完成させる</b></td><td>実装の確認＋フロー順序の読解</td></tr>
+      <tr><td>5</td><td>配布物としての影響</td><td><b>テンプレート2本は <code>core</code> 層。<code>.gemini/</code> 同期の対象外。<code>review-loop.md</code> は対象。<code>.claude/VERSION</code> は 0.3.0 → 0.4.0（MINOR）を提案</b></td><td>実装の確認（<code>dist-layers.json</code>・列挙コマンド）</td></tr>
+      <tr><td>6</td><td>旧3節構成の列挙箇所の数え切り</td><td><b>5箇所で確定</b>（<code>grep</code> で確認済み。DDR本文の1件は対象外）</td><td>実測</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="conditions">
+  <h2>実施条件</h2>
+  <ul>
+    <li><b>実行環境</b>: Claude Code on the web（Linux）のリモート実行環境。<code>gh</code>/<code>glab</code> CLI 不在（<code>get_vcs_access_mode</code> → <code>mcp</code>）</li>
+    <li><b>対象の断面</b>: <code>main</code> = <code>4be448a</code> と同一の断面から分岐したブランチ <code>claude/mr-pr-template-archive-0bo17a</code></li>
+    <li><b>実施日</b>: 2026-08-23</li>
+    <li><b>方法</b>: リポジトリ内のファイルの読解と、下記に貼った <code>grep</code> / スクリプト実行の実測。外部APIへの問い合わせは行っていない</li>
+  </ul>
+</section>
+
+<section id="results">
+  <h2>実施した内容と結果</h2>
+
+  <h3>1. 二重管理の解消方式 → 案B（テンプレートファイルを正とする）</h3>
+  <div class="box ok">
+    <span class="label">判断</span>
+    <code>.github/pull_request_template.md</code> を<b>唯一の正</b>とし、<code>describe</code> 節は見出し構成を列挙せず「テンプレートファイルを読んで、その見出し構成に従う」と指示するだけにする。<code>.gitlab/merge_request_templates/Default.md</code> は GitHub 版と<b>本文が一致していること</b>をテストで機械的に保証する。
+  </div>
+  <p>根拠:</p>
+  <ul>
+    <li><b>同じ判断の先例がある。</b> <code>references/deliverables.md</code>「計画・レポートのHTMLビュー」は「<b>記述の型（見出し構成）の正はテンプレート側にあり、SKILL.md（フロー定義）は列挙しない</b>」と、issue #54 で既に同型の判断を下している。<b>本issueはこの原則をPR/MRテンプレートへ広げるだけ</b>であり、新しい方針を持ち込まない。</li>
+    <li><b>テンプレート2本は <code>core</code> 層である。</b> <code>.claude/dist-layers.json</code> は <code>.github</code> / <code>.gitlab</code> を <code>core</code>（配布元所有・常に上書き）とし、note に「issue/PRテンプレート。見出しが <code>start</code>・<code>describe</code> と<b>機能的に結合</b>」と書いている。配布先が改変しても再適用時に <code>.bak</code> へ退避して上書きされるため、<b>配布先でも中身は本家と一致する</b>。</li>
+    <li><b>MCP経路でも動く。</b> <code>describe</code> が行うのはローカルファイルの読み込みであり、経路に依存しない。どちらのテンプレートを読むかは <code>get_provider</code> で足りる（<code>references/mcp-fallback.md</code> の対応表でも「MCP不要」に分類）。</li>
+    <li><b>人間がWeb UIで作るPRでも見出しが得られる</b>（案Cが失う性質）。</li>
+  </ul>
+  <p>採らなかった案:</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>案</th><th>内容</th><th>却下の理由</th></tr></thead>
+    <tbody>
+      <tr><td>案A</td><td><code>describe</code> の手順を「テンプレートを読み込む」へ変え、<code>describe</code> 節にも雛形を残す</td><td>雛形が残る限り二重管理が解消しない。「どちらが正か」の曖昧さが残る</td></tr>
+      <tr><td>案C</td><td><code>describe</code> 節を正とし、テンプレート側は参照だけにする</td><td>GitHub/GitLabはテンプレートの中身をそのままPR作成画面へ入れるため、<b>人間が手で作るPRで見出しが1つも得られない</b></td></tr>
+    </tbody>
+  </table>
+  </div>
+  <div class="box warn">
+    <span class="label">副次的に判明したこと（案の評価に効く）</span>
+    <b>フローどおりに作られたPR/MRは、テンプレートファイルの中身を一度も経由しない。</b> Draft PR/MRの初期本文は <code>Github.sh</code> / <code>Gitlab.sh</code> の <code>new_draft_merge_request</code> にハードコードされており、MCP経路でも <code>references/mcp-fallback.md</code> の対応表が同じ文字列を指定している。<br>
+    <b>この初期本文は10節構成へ合わせない。</b> 初回の <code>describe</code>（flow-id 2-5）で全文置換されるため実害が無く、合わせると「まだ何も無い状態の10節」が一時的に残るだけで、かえって読みにくい。<b>合わせないという判断そのものを、テンプレートのHTMLコメントへ1行残す。</b>
+  </div>
+  <p>既存テストの扱い: <code>.claude/scripts/test/test_install_to_project.sh</code> は現在、<code>review-loop.md</code> の <code>describe</code> 節から見出し行を <code>awk</code> で抜き出し（抽出行数が <code>3</code> であることも表明）、テンプレート2本と3者一致を検査している。案Bでは <code>describe</code> 節が雛形を失うため、<b>この抽出は空振りする</b>。置き換え方針は次のとおり。</p>
+  <ol>
+    <li>抽出元を <code>review-loop.md</code> から<b>やめる</b>。</li>
+    <li>代わりに、<b>期待値の10節をテスト内へ書き下す</b>。テンプレート2本の見出しが、この期待値と順序込みで一致することを表明する。</li>
+    <li><b>テストの期待値は「二重管理」に数えない。</b> 期待値は正ではなく<b>検査</b>であり、これが無いと「2本を比べるだけでは足りない（両方が同時にずれると通ってしまう）」という既存テストのコメントが守れなくなる。ただし更新が必要な場所であることに変わりはないため、<b>その旨をテスト側のコメントへ明記する。</b></li>
+    <li>抽出行数の固定値 <code>3</code> は残さない。「期待値が非空であること」の表明で空振り防止の目的は満たされる。</li>
+  </ol>
+
+  <h3>2. issue #111（flow-id 5-4）との役割分担 → 併存させ、耐久性で分ける</h3>
+  <div class="box ok">
+    <span class="label">判断</span>
+    MR description と最終統括レポートのサマリコメントは<b>どちらも残す</b>。
+  </div>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th></th><th>MR description（本issue）</th><th>サマリコメント（flow-id 5-4 / issue #111）</th></tr></thead>
+    <tbody>
+      <tr><td>位置づけ</td><td><b>常に最新の全体像</b></td><td><b>完了時点の1回きりのスナップショット</b></td></tr>
+      <tr><td>更新</td><td><code>describe</code> が6回（2-5/2-10/3-5/3-10/4-5/4-10）<b>全文置換</b>する</td><td>ブランチにつき<b>1回だけ</b>投稿。以後編集しない</td></tr>
+      <tr><td>耐久性</td><td><b>上書きされうる</b>（誰でも編集でき、<code>describe</code> 自身も全置換する）</td><td><b>追記のみ</b>（<code>Provider.sh</code> に投稿済みコメントを編集する関数が無い）</td></tr>
+      <tr><td>粒度</td><td>10節。受け入れ条件との突き合わせ・レビューの結果まで含む</td><td>5見出し（何を変えたか／なぜそうしたか／検証結果／spec・DDRへの反映先／残課題）</td></tr>
+      <tr><td>1行目</td><td>—</td><td><code>Claude Codeより（最終統括レポート）:</code></td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p>根拠:</p>
+  <ul>
+    <li><b>重複は意図的な冗長である。</b> 同じ内容を「上書きされうる場所」と「追記のみの場所」の2つの耐久性で持つことに価値がある。descriptionが後から書き換えられても、完了時点の記録はコメントとして残る。</li>
+    <li><b><code>Provider.sh</code> は投稿済みコメントを編集できない</b>（あるのは <code>add_mr_comment</code> / <code>add_issue_comment</code> / <code>set_mr_description</code> だけ）。この非対称が、そのまま役割の根拠になる。</li>
+    <li><b>flow-id 5-4 の実装（<code>upload_attachment</code>・3層フォールバック・見出し構成）は変更しない。</b> 本issueで行うのは役割の<b>定義</b>だけである。</li>
+  </ul>
+  <p>サマリコメントの5見出しは、新しい10節の<b>部分集合として読める</b>。次の対応関係を仕様へ記録する。</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>サマリコメントの見出し</th><th>descriptionの対応節</th></tr></thead>
+    <tbody>
+      <tr><td>何を変えたか</td><td><code>## 概要</code> ＋ <code>## 変更内容</code></td></tr>
+      <tr><td>なぜそうしたか</td><td><code>## 設計判断・採らなかった案</code></td></tr>
+      <tr><td>検証結果</td><td><code>## 検証</code></td></tr>
+      <tr><td>spec・DDRへの反映先</td><td><code>## 反映先・関連</code></td></tr>
+      <tr><td>残課題</td><td><code>## 未解決・限界・確かめられなかったこと</code> ＋ <code>## 意図的にやらなかったこと・スコープ外</code></td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p>採らなかった案:</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>案</th><th>却下の理由</th></tr></thead>
+    <tbody>
+      <tr><td>サマリコメントを廃止し description へ一本化する</td><td>#111 が「層2は必須」と定めた設計を壊す。descriptionは上書きされうるため、「ファイルが消えても残る」実体が無くなる</td></tr>
+      <tr><td>サマリコメントを description へのリンク1行だけにする</td><td>同上。リンク先が書き換われば記録も変わってしまい、スナップショットにならない</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>3. <code>plans/</code> <code>worklog/</code> <code>reports/</code> 参照禁止の書き場所</h3>
+  <div class="box ok">
+    <span class="label">判断</span>
+    <b>(1)</b> <code>.claude/rules/docs-workflow.md</code> の既存段落「コード・スクリプト内のコメントから <code>plans/</code> <code>worklog/</code> <code>reports/</code> のファイルを参照しない」の<b>直後</b>へ、MR/PR本文についての段落を足す。<b>(2)</b> テンプレート2本のHTMLコメント（<code>## 反映先・関連</code> 節の記入ガイド）にも同じ禁止と「代わりに何を書くか」を書く。<b>例外は設けない。</b>
+  </div>
+  <ul>
+    <li>既存段落は「<b>恒久的に参照してよいのは、issue番号と <code>.claude/docs/spec/</code> <code>.claude/docs/ddr/</code> <code>.claude/docs/usecase/</code> 配下のファイル</b>である」という一般則で終わっており、直後に足しても<b>係り先が壊れない</b>。<code>docs-workflow.md</code> 自身の「新しい見出しを差し込むとき」の注意は<b>見出しの差し込み</b>を対象にしており、同じ節の中の段落追加はその対象にもならない。</li>
+    <li><b>「参照しない」だけでは足りない。</b> 何を書くかまで示す。
+      <ul>
+        <li><code>reports/</code> の結論は、<code>## 検証</code> <code>## 設計判断・採らなかった案</code> へ<b>転記する</b>（リンクしない）。</li>
+        <li>spec/DDRへ昇格したものは、そのパスで指す。</li>
+        <li>issue番号・PR番号・レビューコメントのpermalinkは恒久なので、これらで代替する。</li>
+      </ul>
+    </li>
+    <li><b>例外を認めない。</b> 「レビュー中はまだ存在するので参照が有効に見える」という状況こそが罠で、レビュー時に踏めた参照がマージ後に必ず切れる。issue #145 が集計した「64件中52件」がまさにこの経路で生まれている。</li>
+  </ul>
+
+  <h3>4. 10節構成と <code>describe</code> の6回の全文置換</h3>
+  <p>噛み合う。ただし次の3点を規約として決める。</p>
+  <ol>
+    <li><b>「特になし」と「未実施」を書き分ける。</b> <code>特になし</code> ＝ 検討した結果、書くことが無かった。<code>未実施</code> / <code>このフェーズではまだ確定していない</code> ＝ まだその段階に達していない。issue #145 は「該当が無ければ『特になし』と1行書いて残す」と定めているが、<b>まだ書けない節に『特になし』と書くと、検討済みと誤読される</b>。両者を区別する語をテンプレートのHTMLコメントで定義する。</li>
+    <li><b>各節の「計画段階では何を書くか」をHTMLコメントで定める</b>（issue #145 の受け入れ条件）。</li>
+    <li><b>descriptionの最終形は flow-id 4-10 で完成させる。</b> <code>describe</code> の最後の実行は 4-10 であり、<code>plans/</code> <code>worklog/</code> <code>reports/</code> の削除（flow-id 5-5）はその<b>後</b>である。つまり最後の <code>describe</code> の時点では材料がまだ全部そろっている。この順序を仕様へ明記しないと、「材料が消えた後に書こうとして書けない」という読み違いが起きうる。</li>
+  </ol>
+  <div class="box info">
+    <span class="label">確認した事実</span>
+    <b>全文置換で前回の内容が失われる問題は、現行の2節構成にも同じようにある。</b> <code>describe</code> は毎回 <code>get_branch_work_files</code> で <code>plans/</code> <code>worklog/</code> を読み直して本文を作り直す設計で、前回のdescriptionを読み込む手順は無い。10節にしても性質は変わらない。節が増えるぶん再生成のコストは上がるが、材料（<code>HANDOFF.md</code>・<code>worklog/</code>・PRのレビュースレッド）はすべてブランチ上にあり、追加の情報源は要らない。
+  </div>
+
+  <h3>5. 配布物としての影響</h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>対象</th><th>結論</th><th>確認方法</th></tr></thead>
+    <tbody>
+      <tr><td>テンプレート2本の層</td><td><b><code>core</code></b>（配布元所有・常に上書き）</td><td><code>.claude/dist-layers.json</code> の読解</td></tr>
+      <tr><td><code>.gemini/</code> への変換同期</td><td><b>テンプレート2本は対象外。<code>review-loop.md</code> は対象</b></td><td><code>sync-gemini-assets.sh</code> の列挙は <code>.claude</code> 配下のみ。実際に <code>.gemini/</code> 配下に <code>.github</code> / <code>.gitlab</code> は存在しない</td></tr>
+      <tr><td><code>.claude/VERSION</code></td><td><b>0.3.0 → 0.4.0（MINOR）を提案</b></td><td><code>.claude/docs/spec/distribution-assets.md</code>「<code>.claude/VERSION</code>」の増分の目安</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <ul>
+    <li><b><code>review-loop.md</code> を変更するため、flow-id 5-3 の <code>sync-gemini-assets.sh</code> 実行は必須</b>である（実行しないと <code>--check</code> が差分を検出する）。</li>
+    <li><b>VERSION の増分</b>: 目安表の <code>MINOR</code>（資産の追加・フローの拡張）に当たる。<b>配布先に手作業を要求しない</b>（<code>core</code> 層なので再適用で上書きされる）ため <code>MAJOR</code> ではなく、文言修正の範囲を超えるため <code>PATCH</code> でもない。<b>このセッションは非対話のため、<code>distribution-assets.md</code> の例外規定に従って増分を適用してよい</b>（適用した事実と根拠を specのchangelog と <code>HANDOFF.md</code>「判断を迷った内容」の両方へ残し、レビューで否認されたら戻す）。</li>
+  </ul>
+
+  <h3>6. 旧3節構成を列挙している箇所の数え切り</h3>
+  <pre><code>$ grep -rn '実装状況' --include='*.md' --include='*.sh' . | grep -v '^\./\.gemini/' | grep -v 'index\.jsonl'
+./.github/pull_request_template.md:19
+./.gitlab/merge_request_templates/Default.md:22
+./index.md:52
+./.claude/skills/issue-mr-flow/references/review-loop.md:144
+./.claude/docs/spec/distribution-assets.md:33
+./.claude/docs/ddr/i0050-01-….md:55   ← 地の文。対象外</code></pre>
+  <p>（<code>plans/</code> <code>worklog/</code> 配下の本ブランチの作業ファイルは、flow-id 5-5 で削除されるため除外している。）</p>
+  <p><b>5箇所で確定。</b> 最後の1件（DDR <code>i0050-01</code>）は地の文で「現在の計画・実装状況」と述べているだけで<b>見出し構成の列挙ではなく</b>、かつ <b>DDR本文は一度マージしたら変更しない</b>運用のため対象外とする。</p>
+  <p>案Bを採ったあとの各箇所の役割:</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>箇所</th><th>変更後の役割</th></tr></thead>
+    <tbody>
+      <tr><td><code>.github/pull_request_template.md</code></td><td><b>唯一の正</b>（10節の実体）</td></tr>
+      <tr><td><code>.gitlab/merge_request_templates/Default.md</code></td><td>GitHub版と本文一致。テストで保証する</td></tr>
+      <tr><td><code>references/review-loop.md</code> の <code>describe</code> 節</td><td>雛形を持たず、テンプレートを読む手順だけを書く</td></tr>
+      <tr><td><code>.claude/docs/spec/distribution-assets.md</code></td><td>列挙をやめ、「テンプレートと <code>describe</code> の見出し集合を一致させる」という制約と、正の場所を指す</td></tr>
+      <tr><td><code>index.md</code></td><td>括弧書きの列挙をやめ、「見出し構成の正はテンプレート自身」と書く</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p><b><code>.claude/rules/directory-structure.md</code> は影響を受けない。</b> テンプレートの存在に触れるだけで見出しを列挙していないことを確認した。</p>
+</section>
+
+<section id="unknown">
+  <h2>確かめられなかったこと</h2>
+  <div class="box stop">
+    <span class="label">この調査の限界</span>
+    <ul>
+      <li><b>GitLab側の実機確認は行っていない。</b> このリポジトリはGitHub上にあり、<code>glab</code> も存在しない。「GitLabがテンプレートファイルの中身をMR作成画面へ入れる」という前提は、<code>Default.md</code> が予約名として既定適用されるという既存の記述（DDR <code>i0032-01</code>）に依拠している。</li>
+      <li><b>配布先での再適用は実測していない。</b> <code>core</code> 層の挙動は <code>asset-distribution.md</code> の記述と <code>test_install_to_project.sh</code> の表明（<code>passed=98 failures=0</code>）に依拠しており、実際の配布先リポジトリで試してはいない。</li>
+      <li><b>「64件中52件が <code>plans/</code> 等を参照している」という集計は再検証していない。</b> issue #145 本文の数値をそのまま前提に使っている（個別調査計画のスコープ外として明示した）。</li>
+      <li><b><code>describe</code> を10節で実際に回したときの本文の長さ</b>は測っていない。<code>set_mr_description</code> はファイル経由で渡すため引数長の上限には当たらない見込みだが、フェーズ3の実装後に実測する。</li>
+    </ul>
+  </div>
+</section>
+
+<section id="design">
+  <h2>設計への反映</h2>
+  <p>フェーズ3（個別作業計画・flow-id 3-1）で決めること・作るもの。</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>#</th><th>作業</th><th>対象</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td>10節構成のテンプレートを書く（各節のHTMLコメントに「何を書くか」「計画段階では何を書くか」「特になし／未実施の書き分け」を入れる）</td><td><code>.github/pull_request_template.md</code></td></tr>
+      <tr><td>2</td><td>GitHub版と本文一致のGitLab版を作る（先頭コメントのみプロバイダ固有）</td><td><code>.gitlab/merge_request_templates/Default.md</code></td></tr>
+      <tr><td>3</td><td><code>describe</code> 節から雛形を削り、テンプレートを読む手順へ差し替える</td><td><code>references/review-loop.md</code></td></tr>
+      <tr><td>4</td><td>期待値の10節を書き下し、テンプレート2本と突き合わせる形へ差し替える</td><td><code>.claude/scripts/test/test_install_to_project.sh</code></td></tr>
+      <tr><td>5</td><td>列挙をやめ、正の場所を指す形へ書き換える</td><td><code>.claude/docs/spec/distribution-assets.md</code>, <code>index.md</code></td></tr>
+      <tr><td>6</td><td>MR/PR本文からの <code>plans/</code> 等の参照禁止を追加する</td><td><code>.claude/rules/docs-workflow.md</code></td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p>フェーズ4（flow-id 4-1 以降）で行う見込み。</p>
+  <ul>
+    <li><code>.claude/docs/spec/issue-mr-workflow.md</code> — テンプレートの位置づけ・#111 との役割分担・「最終形は flow-id 4-10 で完成させる」順序の明記</li>
+    <li><code>.claude/docs/ddr/i0145-01-…</code> — 案Bを採った判断と却下案（案A・案C）</li>
+    <li><code>.claude/docs/ddr/i0145-02-…</code> — #111 との役割分担の判断</li>
+    <li><code>.claude/VERSION</code> — 0.3.0 → 0.4.0</li>
+    <li>issue #111 への通知（flow-id 5-2）</li>
+  </ul>
+</section>
+
+<section id="surprises">
+  <h2>想定と異なった点</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>計画時の見込み</th><th>実際</th></tr></thead>
+    <tbody>
+      <tr><td>案A（<code>describe</code> がテンプレートを読み込む）が有力だと見ていた</td><td>案Aは雛形を残す限り二重管理が解消しないため却下。<b>案B</b>（テンプレートを正とし <code>describe</code> 節から雛形を消す）になった</td></tr>
+      <tr><td>二重管理の解消は新しい判断が要ると見ていた</td><td>issue #54 が計画・レポートのHTMLビューで<b>既に同型の判断</b>を下しており、その原則を広げるだけで済む</td></tr>
+      <tr><td>#111 との役割分担は「どちらかへ寄せる」判断になると見ていた</td><td>併存が正しい。根拠は内容の粒度ではなく、<b>上書きされうるか／追記のみか</b>という耐久性の差だった</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<footer>issue #145 / PR #187 — 結果の正文は同名の <code>.md</code>。外部依存を持たない自己完結HTML。</footer>
+
+</div>
+
+</body>
+</html>
