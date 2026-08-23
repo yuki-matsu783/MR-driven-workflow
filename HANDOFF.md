@@ -17,8 +17,8 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - issue: #142
 - ブランチ: `claude/docs-workflow-heading-rule-mi3krb`
 - PR: #188（Draft, https://github.com/yuki-matsu783/MR-driven-workflow/pull/188 ）
-- push回数: 6
-- 現在のループ: 2-6〜2-9 の1周目（完了）
+- push回数: 7
+- 現在のループ: 3-3〜3-4 の1周目（完了）
 - 未返信スレッド: 0
 - 追従監視: あり（`subscribe_pr_activity` でPR #188 を購読中。セッション終了で止まるため、次セッションは `resume` で取り直す）
 
@@ -42,8 +42,8 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 | [x] | 2-10 | 調査結果をもとにMR descriptionを更新 | サブコマンド |
 | [x] | 3-1 | 個別作業計画を作成する | エージェント |
 | [] | 3-2 | commitしpushしてレビュー依頼 | エージェント |
-| [] | 3-3 | 作業計画をレビュー・コメント | 人間 |
-| [] | 3-4 | レビュー内容を取得し作業計画を修正 | サブコマンド |
+| [x] | 3-3 | 作業計画をレビュー・コメント | 人間 |
+| [x] | 3-4 | レビュー内容を取得し作業計画を修正 | サブコマンド |
 | [] | 3-5 | 作業計画をもとにMR descriptionを更新 | サブコマンド |
 | [] | 3-6 | 作業を進めreportsへ記録 | エージェント |
 | [] | 3-7 | commitしpushしてレビュー依頼 | エージェント |
@@ -131,11 +131,29 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
   **A-4 として「この書き換えで自分が PR #139 と同じ罠を踏まない」条件**（直後の `HANDOFF.md` の
   段落を新しい見出しの配下へ入れない）を計画へ入れている。
 
+- flow-id 3-2: commit・push（push 7）。
+- flow-id 3-3〜3-4（1周目、敵対的レビューで代替）: 個別作業計画に対する敵対的レビューを実施し、
+  **6件をインライン投稿・6件を報告のみ**とした（**報告のみの6件も全て計画へ反映済み**）。
+  6件すべてへ対応し返信済み（未返信スレッド 0）。
+  - 投稿したスレッド:
+    - https://github.com/yuki-matsu783/MR-driven-workflow/pull/188#discussion_r3838755041 （置き換え後の文言が無い）
+    - https://github.com/yuki-matsu783/MR-driven-workflow/pull/188#discussion_r3838755529 （発動条件に上限が無く陰性ケースも無い）
+    - https://github.com/yuki-matsu783/MR-driven-workflow/pull/188#discussion_r3838755935 （Aに「対処」が無く正と観点表が逆転）
+    - https://github.com/yuki-matsu783/MR-driven-workflow/pull/188#discussion_r3838756400 （項の追加自体が#155型。前方向を見ていない）
+    - https://github.com/yuki-matsu783/MR-driven-workflow/pull/188#discussion_r3838756834 （「4件」が二義的で#155が検証から落ちる）
+    - https://github.com/yuki-matsu783/MR-driven-workflow/pull/188#discussion_r3838757368 （pathspecを広げてもB側は検出できない）
+  - 敵対的レビューの実施回数: フェーズ3は 1/3。
+  - この往復で**計画に3つの決定が加わった**。(1) A-5 / B-1 として**置き換え後の実文**を計画へ
+    書き、変えてはいけない4点を固定した。(2) 実例の**挿入位置を「既存2件の前」で確定**した
+    （後ろへ足すと既存2件目の締めの一文の係り先が変わるため）。(3) 「逃げ道が残っていること」を
+    **存在検査**（`grep -c`）へ分けた（削除検査では原理的に見られないため）。
+
 ## 次にやること
 
-- flow-id 3-2: commit・push し、個別作業計画に対する敵対的レビュー（フェーズ3の1回目）を実施する。
-- その後 flow-id 3-6 で書き換えを実施する。書き換え先は
-  `.claude/rules/docs-workflow.md`（104〜114行）とルート `REVIEW-POINTS.md`（47〜48行）の2箇所。
+- flow-id 3-5: 個別作業計画をもとに MR description を更新する（`describe`）。
+- flow-id 3-6: 書き換えを実施する。**文案は計画の A-5 / B-1 が正**で、字句は推敲してよいが
+  「変えてはいけない4点」は守る。書き換え先は `.claude/rules/docs-workflow.md`（104〜114行）と
+  ルート `REVIEW-POINTS.md`（47〜48行）の2箇所。実例は**既存2件の前**へ足す。
 
 ## 判断を迷った内容
 
