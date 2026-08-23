@@ -17,9 +17,9 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - issue: #27 他プロジェクトで改善されたAIアセットを本家へ収穫（逆輸入）するスキルを新設する
 - ブランチ: claude/ai-asset-reverse-import-skill-g4qa9s
 - PR: #189 https://github.com/yuki-matsu783/MR-driven-workflow/pull/189（Draft）
-- push回数: 7
+- push回数: 8
 - 現在のループ: なし
-- 未返信スレッド: 13
+- 未返信スレッド: 0
 - 追従監視: なし
 
 | 進捗 | flow-id | ステップ | 担当 |
@@ -130,12 +130,16 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
   フェイルクローズ（exit 3）と seed 対象外（exit 4）・strategy 明示分岐・縮退時の
   判断材料充填・usage の awk 化・空配列ガード・index.md スキル一覧追記・SKILL.md の
   非対話決め打ち。テストは T16〜T23 を追加し 66→89 アサーション（passed=89 failures=0）。
+- 敵対的レビュー4回目の13スレッドすべてへ対応内容を返信し、`- 未返信スレッド:` を 0 へ
+  戻した（返信URLは各スレッド r3838880125〜r3838884069。修正コミット 55dd094）。
 
 ## 次にやること
 
-- 敵対的レビュー4回目の13スレッドへ対応内容を返信 → unreplied 0 →
-  フェーズ4（個別反映計画: spec `asset-harvest` 相当・DDR `i0027-01`・directory-structure.md
-  文言・shell-script-style.md「エラー方針」の実測に基づく訂正・VERSION 増分判断）へ。
+- フェーズ4（flow-id 4-1: 個別反映計画の作成。反映対象: spec `asset-harvest` 相当の新規
+  仕様書・DDR `i0027-01`・directory-structure.md 文言（テスト置き場等）・
+  shell-script-style.md「エラー方針」の実測（errexit 一時停止のサブシェル伝播）に基づく訂正・
+  VERSION 増分判断・usecase 文書への影響確認）→ commit/push → 敵対的レビュー（フェーズ4計画）→
+  4-6 反映実施（generate-ddr-list.sh 実行込み）→ commit/push → 敵対的レビュー（反映後）。
 
 ## 判断を迷った内容
 
