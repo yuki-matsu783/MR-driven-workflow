@@ -17,7 +17,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - issue: #70（https://github.com/yuki-matsu783/MR-driven-workflow/issues/70 ）
 - ブランチ: `claude/gemini-to-claude-migration-jc64gu`
 - PR: #157（Draft。https://github.com/yuki-matsu783/MR-driven-workflow/pull/157 ）
-- push回数: 18
+- push回数: 19
 - 現在のループ: 4-6〜4-9 の2周目（完了）
 - 未返信スレッド: 0
 - 追従監視: 購読あり（web。subscribe_pr_activity + 自己チェックイン）
@@ -343,9 +343,11 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
   焼き込む／`build_into` の0件メッセージ／前置フィルタの `read -d ''` の実機計測。
   **`reports/REVIEW-POINTS.md` の `5-4` と spec の Gemini hook登録節は `【設計反映】` で対応済み
   なので対象外。**
-- **main（`0aa9874`。PR #162 の前置フィルタ）への追従が未了**。`HANDOFF.md` 1件だけが競合する
-  （main側は前タスクの状態なのでこちらを採る）。マージ後は `generate-ddr-list.sh` の再実行と
-  `sync-gemini-assets.sh` の流し直しを忘れない（mainがDDRを1件追加している）。
+- **main（`0aa9874`。PR #162 の前置フィルタ）への追従は完了**（`5b74c65`）。競合は `HANDOFF.md`
+  1件のみで、main側が前タスクの状態だったためこちらを採用した。DDRは77件へ、テストは17本・
+  **passed=1083** へ増えている。**PR #162 は issue #159（このMRから切り出した前置フィルタの
+  適用範囲）そのものなので、`【実装反映】` の「前置フィルタの `read -d ''` の実機計測」は
+  main側の実装を踏まえて要否を見直すこと。**
 - フェーズ5は 5-1（コンフリクト検知）→ 5-2（関連issue通知）→ **5-3（`.gemini/` 変換同期）** →
   5-4（統括レポート）→ 5-5（片付け）→ 5-6（commit・Draft解除）。**5-6 で止まる**
   （マージは人間の明示指示が要る）。
