@@ -49,6 +49,21 @@ push回数: 11（このpushで反映計画3本を反映）
   劣化。上位計画との差分に理由が無いのはplan-deviationとして指摘された）。上位計画に既にある
   記述を個別計画へ写すときは、変える場合に限り理由を書く。
 
+## mainマージ（push13。#154 配布のmanifest方式化）
+
+- 4-5 describeの直前に `mergeable_state: dirty` を検知し、監視モードでmainをマージ。
+  マーカー競合は `.claude/rules/markdown-frontmatter.md` のtypeの値表1箇所のみ
+  （類型C: このブランチのusecase行＋main側の新review-points行を両方残す）。
+- 意味的な影響が【AIアセット反映】計画の反映対象2に直撃: mainのissue #26（PR #154）で
+  配布の単一の正が `.claude/dist-layers.json` へ移り、apply-mr-workflow-to-project SKILL.md は
+  「何をどう配るかをこのファイルへ書かない」方式へ変わった。当初予定の「SKILL.mdの適用資産
+  一覧へ `.claude/docs/` を明記」は明記先が新設計で禁止されたため取りやめ、代わりに
+  usecase文書「この機構を他プロジェクトへ導入する」のmanifest方式への追随（4-6で実施）へ
+  対象を変更した。検証#2も `grep -c 'dist-layers' <usecase文書>`（実施前0を実測）へ差し替え。
+- usecase文書「この機構を他プロジェクトへ導入する」は distribution-assets 仕様のみを配布範囲の
+  正として書いており、Gemini向けの「ローカルリンク生成」記述も旧方式のまま（mainでは
+  インストーラが配布先で `sync-gemini-assets.sh` を実行する）。4-6で追随修正する。
+
 ## 次の一歩
 
 - 4-2 commit・push → 敵対的レビュー（フェーズ4・1回目。対象: 反映計画3本）→自動修正→返信 →

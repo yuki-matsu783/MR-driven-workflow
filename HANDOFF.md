@@ -17,9 +17,9 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - issue: #170
 - ブランチ: `claude/usecase-docs-setup-uvs5li`（ハーネス指定）
 - PR: #173（Draft。https://github.com/yuki-matsu783/MR-driven-workflow/pull/173 ）
-- push回数: 11
+- push回数: 12
 - 現在のループ: なし
-- 未返信スレッド: 7
+- 未返信スレッド: 0
 - 追従監視: 購読あり（web。subscribe_pr_activity + 1時間ごとの自己チェックイン）
 
 | 進捗 | flow-id | ステップ | 担当 |
@@ -110,7 +110,11 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
   報告分はworklog push11へ記録）。全件修正しcommit・push（push12）。フェーズ4は上限3回中1回を
   消費。投稿スレッドはPR #173のレビュー
   https://github.com/yuki-matsu783/MR-driven-workflow/pull/173 上の7件（実装反映md 27/53/47行・
-  設計反映md 26行・AIアセット反映md 32/23/50行）。
+  設計反映md 26行・AIアセット反映md 32/23/50行）。7スレッド全件へ返信済み（4-4相当）。
+- 4-5 describeの直前にmainとの再コンフリクトを検知し、監視モードで解消（mainのPR #154により
+  配布がmanifest方式化。マーカー競合はmarkdown-frontmatter.mdのtype表1箇所・類型C。
+  【AIアセット反映】計画の反映対象2を「SKILL.mdへの資産明記」から「usecase文書のmanifest方式への
+  追随」へ変更。単体テスト18本全緑）。マージコミットはpush13。
 
 ## 次にやること
 
@@ -129,6 +133,11 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - mainマージ（push10）のHANDOFFヘッダ競合は「main新設の未返信スレッド行＋このブランチの
   追従監視行」の両方を残す形で統合した。docs-workflow表は、このブランチのusecase行と
   main側（5-5表記）のREVIEW-POINTS行をどちらも残した（類型C。散文の矛盾は無し）。
+- mainマージ（push13）: markdown-frontmatter.mdのtype表は、このブランチのusecase行＋main側の
+  新review-points行（.local対応）を両方残した（類型C）。意味的な影響として【AIアセット反映】
+  計画の反映対象2を変更（SKILL.mdへの資産列挙がmainの新設計で禁止されたため。詳細は
+  worklog push11「mainマージ（push13）」）。usecase文書「この機構を他プロジェクトへ導入する」の
+  manifest方式への追随は4-6で実施する。
 
 ## 未解決の内容
 

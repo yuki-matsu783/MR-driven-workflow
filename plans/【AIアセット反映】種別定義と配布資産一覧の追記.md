@@ -28,10 +28,16 @@ keywords: [AIアセット反映, 種別定義, AIアセット作成, apply-mr-wo
    「設計ドキュメント（usecase文書等）を**そのissueの主たる成果物として**新規作成・改訂する
    場合もこの種別に含む（issue #170の実績）。作業の過程で得た知見を既存のspec/ddrへ書き戻す
    のは `【設計反映】`（フェーズ4）の担当であり、この種別には含めない」。
-2. **導入スキルの資産一覧への明記**: `.claude/skills/apply-mr-workflow-to-project/SKILL.md` の
-   適用資産の記述へ、`.claude/docs/`（spec・ddr・usecaseの設計ドキュメント一式）が `.claude/`
-   丸ごとコピーに含まれることを明記する（usecase文書「この機構を他プロジェクトへ導入する」の
-   記述の根拠を正史側へ持たせる。フェーズ3レビューへの返信で約束した対応）。
+2. **導入系ドキュメントのmanifest方式への追随**（mainマージにより対象を変更）: mainの
+   issue #26（PR #154）で配布の単一の正が `.claude/dist-layers.json`（5層）へ移り、
+   `apply-mr-workflow-to-project` SKILL.md は「何をどう配るかをこのファイルへ書かない」方式へ
+   変わった。`.claude/docs/`（usecase含む）は `core` 層の `.claude` エントリに含まれ、配布される
+   ことが定義上保証される。当初予定の「SKILL.mdの適用資産一覧へ `.claude/docs/` を明記」は、
+   **明記先の一覧自体が新設計で禁止されたため行わない**（フェーズ3レビューへの返信で約束した
+   「根拠を正史側へ持たせる」は、dist-layers.json の `.claude` エントリが既に果たしている）。
+   代わりに、usecase文書「この機構を他プロジェクトへ導入する」の記述・リンクを
+   manifest方式へ追随させる（配布の正が dist-layers.json であること・`.gemini/` は配らず
+   インストーラが配布先で生成すること・詳細リンクへ `asset-distribution.md` を追加すること）。
 3. **`.claude/VERSION` の増分**: 配布対象アセットが増えたため、`0.2.0` → `0.3.0`（MINOR:
    資産の追加）を**提案する**。増分の決定は人間の担当（`distribution-assets.md`）のため、
    非対話セッションでは**書き換えを実施しない**。提案は最終応答・HANDOFF「未解決の内容」へ
@@ -53,10 +59,9 @@ keywords: [AIアセット反映, 種別定義, AIアセット作成, apply-mr-wo
 # 1. 種別定義に設計ドキュメントへの言及がある（出力1以上で合格。実施前は0であることを確認済み。
 #    汎用語 '設計ドキュメント' はSKILL.md内に既出1件があり空振り合格するため使わない）
 grep -c '設計ドキュメント（usecase' .claude/skills/issue-mr-flow/SKILL.md
-# 2. 導入スキルに設計ドキュメント一式の配布が明記されている（出力1以上で合格。
-#    実施前は0であることを確認済み。'usecase' の汎用語は反映と無関係の説明行に混ざるだけでも
-#    1になりうるため、反映対象そのものを指す '.claude/docs/' で確認する）
-grep -c -- '\.claude/docs/' .claude/skills/apply-mr-workflow-to-project/SKILL.md
+# 2. 導入usecase文書がmanifest方式へ追随している（出力1以上で合格。実施前は0であることを
+#    2026-08-23のmainマージ直後に実測済み）
+grep -c 'dist-layers' .claude/docs/usecase/この機構を他プロジェクトへ導入する.md
 # 3. VERSIONが書き換わっていない（非対話セッションで人間の決裁が無いまま進めた場合、
 #    0.2.0 のままで合格。人間が増分を承認した場合はその値で合格。現在値0.2.0は2026-08-23に実測）
 cat .claude/VERSION

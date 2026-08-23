@@ -1,95 +1,191 @@
 ---
 name: apply-mr-workflow-to-project
-description: あらゆるプロジェクトに対して、Issue/MR駆動開発プロセス（mr-driven-develop）のAI資産（.claude, テンプレート, 共通ルール）を自動展開・適用し、.gemini を .claude から生成します。ターゲットプロジェクトがGoの場合、Goに特化したルールを自動的に統合・適用します。Gitリポジトリでこのフレームワークをセットアップしたい時に使用します。
+description: issue駆動MRワークフロー機構のAIアセット（.claude/ 一式・issue/MRテンプレート・ルート設定）を、他のGitリポジトリへ配布・再適用するために使う。何をどう配るかは配布元の .claude/dist-layers.json（5層の層分け定義）が単一の正として持ち、配布結果は配布先の .claude/.asset-manifest.json へ記録される。「このフレームワークを別のリポジトリへ入れたい」「配布元の更新を追従したい」ときに使用する。
+title: 他プロジェクトへの配布スキル
+type: skill
+tags: [distribution, manifest, install, skill]
+keywords: [dist-layers, asset-manifest, core, seed, merge, local, exclude, install-to-project, check-dist-coverage, dry-run, allow-dirty, bak]
 ---
 
-# Apply mr-driven-develop Workflow to Projects
+# 他プロジェクトへAIアセットを配布する
 
-## 概要 (Overview)
+## 概要
 
-このスキルは、あらゆるソフトウェア開発プロジェクトのリポジトリに対して、本プロジェクトで確立された強力なIssue/MR駆動開発フレームワーク（`mr-driven-develop`）の各種AI資産（ルール、スクリプト、フック、テンプレートなど）を一挙に展開・適用します。
+配布元（このリポジトリ）のAIアセットを、対象のGitリポジトリへ展開・再適用する。
+**ビルド（`.skill` パッケージ）は不要**である（issue #26 で廃止した。インストーラを直接実行する）。
 
-セットアップは完全に自律化されており、インストール対象がGoプロジェクトである場合（ルートに `go.mod` が存在する場合）は、自動検知によってGo言語特化ルール（`go test ./...` や `golangci-lint`、Go特有のコーディング規約）を追加で統合適用します。それ以外の言語では、極めて洗練された言語ニュートラルなAI協調開発資産が展開され、即座に `/issue-mr-flow` を稼働可能にします。
+**何をどう配るかをこのファイルへ書かない。** 単一の正は `.claude/dist-layers.json` であり、
+ここへ写しを持つと必ずどちらかが古くなる（旧方式で実際に起きた: 配る行の定義が本家の実状態と
+ずれても誰も気づけなかった）。
 
-## 前提条件 (Prerequisites)
+## 前提条件
 
-対象のプロジェクトが以下の条件を満たしていることを自動または手動で確認してください：
-1. **Gitリポジトリであること**: ルートディレクトリに `.git` ディレクトリが存在すること（Issue/MR駆動フローにはVCS操作が不可欠なため）。
+1. 配布先が**Gitリポジトリ**であること（インストーラが検証し、違えば中断する）。
+2. 配布元のワークツリーが**dirtyでない**こと。manifest へ記録するコミットSHAと配る内容が
+   食い違わないようにするため（インストーラが検証する。承知のうえで進めるなら `--allow-dirty`）。
+3. `jq` が使えること。
 
-## セットアップ手順 (Setup Workflow)
+## 5つの層
 
-このスキルが呼び出された際、AIエージェントは以下の手順を自律的に実行してセットアップを完了させます。
+| 層 | 扱い |
+|---|---|
+| `core` | 常に上書きする（配布元所有） |
+| `seed` | 配布先に無ければ置く。あれば触らない（配布先所有） |
+| `merge` | 構造的にマージする（`lines-marker` / `json-keys`） |
+| `local` | 何もしない（配布先のローカル作業状態） |
+| `exclude` | 配らない（配布元固有） |
 
-### Step 1: 環境の検証とインストーラの実行
-対象プロジェクトのパスを指定して、スキルに同梱されたインストールスクリプト `install-to-project.sh` を実行します（指定がない場合はカレントディレクトリ `.` が対象となります）。
+**`exclude` は明示指定が必須**である（暗黙の既定値にすると、定義への載せ忘れが「配らないもの」
+として素通りし、網羅性チェックが常に通ってしまう）。
 
-デフォルトでは、すでに存在するファイルとテンプレートの間に差分がある場合、ファイルを上書きする前に既存のファイルを `.bak` という拡張子でバックアップ退避し、警告を表示します。これにより、以前にカスタマイズした内容を安全にマージ・輸入できます。
+## 手順
 
-一律で強制上書き（アップデート）したい場合は、`-f` または `--force` オプションを付与してください。
+### Step 1: まず `--dry-run` で確認する
 
 ```bash
-# 対象リポジトリが現在のディレクトリの場合（安全マージモード）
-bash .claude/skills/apply-mr-workflow-to-project/scripts/install-to-project.sh
-
-# 強制上書きモードで実行する場合
-bash .claude/skills/apply-mr-workflow-to-project/scripts/install-to-project.sh --force
-
-# 対象リポジトリのパスを個別に指定する場合
-bash .claude/skills/apply-mr-workflow-to-project/scripts/install-to-project.sh /path/to/project
-
-# パス指定と強制上書きを併用する場合（順不同）
-bash .claude/skills/apply-mr-workflow-to-project/scripts/install-to-project.sh /path/to/project --force
+bash .claude/skills/apply-mr-workflow-to-project/scripts/install-to-project.sh --dry-run /path/to/project
 ```
 
-### Step 2: 適用されたファイルの整合性確認
-セットアップ完了後、対象プロジェクト内に以下のファイルが正しく配置され、設定されているかを確認します。
-- `[DEST]/.mrworkflow.json`（ワークフロー基本設定）
-- `[DEST]/AGENTS.md` / `[DEST]/CLAUDE.md` / `[DEST]/GEMINI.md` / `[DEST]/HANDOFF.md` / `[DEST]/index.md`（各種基本ルール・引き継ぎ・インデックスポインタ）
-- `[DEST]/.gitignore`（各種一時状態ディレクトリ `/usage-state/`, `/session-logs/` が追記されているか）
-- `[DEST]/.gemini/`（`.claude/` から生成されているか。**配布物ではなく生成物**で、`install-to-project.sh` が `.claude/scripts/src/sync-gemini-assets.sh` を実行して作る。内容を直したいときは `.claude/` 側を編集して生成し直す）
+出力される内容は次のとおり。**この時点でファイルは1つも変更されていない。**
 
-### Step 3: 動作検証
-対象プロジェクトにて、VCS連携等の動作を確認します。
-- 一般のプロジェクトの場合：対象プロジェクトにエラーが起きず正常に動作することを確認します。
+- `core` の内訳（新規 / 変更なし / **適用後に配布先で変更された** / 判定不能）
+- 触らない `seed` の一覧
+- マージ対象と、その方式
 
-## 適用される主要なAI資産
+「適用後に配布先で変更された」は、配布先の `.claude/.asset-manifest.json` に記録された
+sha256 と実ファイルを突き合わせて判定する。**manifest が無い配布先**（旧方式で適用済み・
+初回）では判定できないため「判定不能（移行）」として別に数え、上書き前に一覧で示す。
 
-セットアップによって展開される資産とその役割は以下の通りです：
+### Step 2: 適用する
 
-### 1. 共通ルール・ガイドライン
-- `AGENTS.md` / `CLAUDE.md` / `GEMINI.md` / `HANDOFF.md` / `index.md`：AIアシスタントが遵守すべき最重要ルール、引き継ぎ情報、ポインタ。
-- `.claude/rules/` 内の各共通規約（Goプロジェクトの場合は、さらに `go-applications.md` 特化ルールも有効化されます）。
+```bash
+bash .claude/skills/apply-mr-workflow-to-project/scripts/install-to-project.sh /path/to/project
+```
 
-### 2. コアスクリプト群（`.claude/scripts/`）
-- `create-issue.sh` / `create-commit.sh` / `extract-frontmatter.sh`：VCS、コミット、フロントマター処理の自動化。
-- `check-base-conflicts.sh`：defaultブランチとのコンフリクト（テキスト＋DDR識別子の重複）を作業ツリーを変更せずに検知。
-- `check-base-sync.sh`：作業開始・再開時に、ベースブランチの最新を取り込めているか（behindコミット数・未取り込みの変更ファイル）を作業ツリーを変更せずに判定。
-- `search-frontmatter.sh`：frontmatterの`index.jsonl`を結合し、type/tags/keywords/パス/フリーテキストでドキュメントを横断検索。
-- `sync-gemini-assets.sh`：`.gemini/` を `.claude/` から生成する（agentsのfrontmatter・settings.jsonをGemini CLIの記法へ変換し、残りはコピー）。`--check` で食い違いを検査できる。
-- `vcs/Provider.sh`（および `Github.sh`, `Gitlab.sh`）：GitHubやGitLabのAPI差異を吸収し、ブランチやDraft MR/PR作成を自動化するラッパー。
+| オプション | 意味 |
+|---|---|
+| `--dry-run` | 何も変更せず、Step 1 の内容だけを出力する |
+| `--force` | 改変済みの `core` を `.bak` を残さず上書きする |
+| `--allow-dirty` | 配布元が dirty でも続行する（manifest の commit へ `-dirty` が付く） |
 
-### 3. フック群（`.claude/hooks/`）
-- `block-direct-git-commit.sh`：コミット時、安全に `commit` スキルを経由させるためのブロックフック。
-- `session-start.sh` / `post-push-usage-report.sh` / `post-push-compact-prompt.sh`：セッション開始時やプッシュ時の自動的なユーセージ追跡とコンテキスト最適化。
+インストーラは**2パス構成**である（走査 → 提示 → 配置）。上書きの**前に**警告と対象一覧を
+出すことが要件であり、配置しながら警告を出す形では満たせないため。
 
-### 4. 組み込みスキル群（`.claude/skills/`）
-- `commit`：Conventional Commitsに準拠したコミットの自動生成・分割コミット支援。
-- `issue-create`：対話的なIssueの自動作成。
-- `issue-mr-flow`：起票からマージまでを完全ガイド・自律実行するメインワークフロー。
-- `resolve-conflict`：マージ依頼前のdefaultブランチとのコンフリクト検知・解消。
-- `doc-search`：ドキュメント探索をgrep/findの全文探索ではなくfrontmatterインデックス検索で行う。
+配置のあと、配布先で `.claude/scripts/src/sync-gemini-assets.sh` を実行して `.gemini/` を
+**生成する**。`.gemini/` は配らない（層は `exclude`）——配布時点の本家の `.claude/` から作った
+`.gemini/` は、配布先が独自に足したスキル・hookと食い違うためである（issue #70。仕様:
+[sync-gemini-assets.md](../../docs/spec/sync-gemini-assets.md)）。生成スクリプト自体は
+`.claude/scripts/src/` にあるので `core` として配布に乗る。
 
----
+**生成に失敗してもインストール全体は中断しない**（警告のみ）。ここに到達した時点で
+`core` / `seed` / `merge` の配置は済んでおり、`.gemini/` が無いこと以外は完了している。
+とくに配布先が自前の `.gemini/` を持っていた場合、生成側の削除ファイル検出が働いて
+**1バイトも書かずに中断する**ので、何も壊さずに警告だけが残る。
 
-## 既存プロジェクトへの再適用とマージ相談フロー (Interactive Merging)
+### Step 3: 配置結果を確認する
 
-すでに本フレームワークを展開済みのリポジトリに対して再適用を行う場合、または本リポジトリのアップデートを追従したい場合、デフォルト（`--force`なし）でスクリプトを実行すると、衝突したファイルは安全に退避され、マージするための警告が通知されます。
+- `[DEST]/.claude/.asset-manifest.json` が生成されている（配布元のURL・コミットSHA・版・
+  ファイルごとの sha256）。
+- `.bak` が残っていれば、その内容を新しいファイルへ取り込むか判断する（下記）。
+- `[DEST]/.gitignore` へ、配布元のマーカー区間の行が追記されている。
 
-### AIと人間での共同マージフロー
-1. **スクリプトの実行**：`install-to-project.sh` を通常実行（`--force` なし）。
-2. **バックアップの作成**：既存のカスタマイズされていたファイル（例：`CLAUDE.md`）は `CLAUDE.md.bak` として退避され、最新のテンプレートが `CLAUDE.md` に配置されます。
-3. **AIへの指示とマージの相談**：
-   人間からAIエージェントに対して以下のように呼びかけ、以前のカスタマイズ部分を相談しながら適用（輸入）します。
-   > 「CLAUDE.md.bak と新しく展開された CLAUDE.md の差分を比較して、以前のプロジェクト固有の設定（例：計画モードの個別ルールなど）を新しい CLAUDE.md にマージして取り込んでください。」
-4. **自律的マージ**：AIエージェントは両者のファイルを読み込んで差分を検証し、最新のテンプレート構造を崩すことなく、プロジェクト固有の設定部分のみをスマートに移植します。
-5. **クリーンアップ**：マージが成功し動作確認ができたら、不要になった `.bak` ファイルを削除し、コミットを作成します。
+### Step 4: 配布先で埋めるもの
+
+`seed` は配布先所有なので、中身は配布先が書く。
+
+1. `AGENTS.md` の「プロジェクト概要」「開発・実行」。
+2. `.mrworkflow.json` のブランチ命名規則・ディレクトリ位置。
+3. `index.md`（Repository Map）の「このプロジェクト固有のディレクトリ」。
+4. 各ディレクトリの `REVIEW-POINTS.local.md`（配布先固有のレビュー観点）。
+   **同じディレクトリの `REVIEW-POINTS.md` は配布元所有（`core`）なので編集しない。**
+   `REVIEW-POINTS.md` が無いディレクトリへ `.local` だけを置いてもよい。
+
+`HANDOFF.md` は空の雛形が置かれる。タスクに着手した時点で `issue-mr-flow` が埋めるので、
+配布直後に手で書くものはない。
+
+**これらはいずれも `seed` なので、配布元の内容ではなく汎用の雛形が置かれる**
+（`AGENTS.md` / `HANDOFF.md` / `index.md` / `REVIEW-POINTS.local.md`）。配布元の作業中の
+引継ぎメモやディレクトリ構成がそのまま流れ込むことはない。
+
+## 再適用（配布元の更新を追従する）
+
+同じコマンドをもう一度実行するだけでよい。
+
+1. `--dry-run` で、配布先が変更した `core` ファイルの一覧を確認する。
+2. 変更を残したいものがあれば、**先に別ファイルへ退避するか、`.claude/rules/` 側へ移す**。
+   `CLAUDE.md` / `GEMINI.md` へプロジェクト固有のルールを書き足していた場合は、
+   `.claude/rules/<名前>.md` へ移すのが正しい置き場である（そちらは配布元が触らない）。
+3. 適用する。改変済みの `core` は `.bak` を残して上書きされる。
+4. `.bak` と新しいファイルの差分を確認し、必要な内容を取り込む。取り込み終わったら `.bak` を削除する。
+
+### 配布元で削除・改名されたファイルは、配布先に残る
+
+**このスクリプトは配布先のファイルを削除しない。** 配布元で `core` のファイルが削除・改名されると、
+配布先には古い側が残り続ける。
+
+再適用時、前回の manifest に載っていて今回は配られないパスを**一覧として提示する**ので、
+不要であれば手で消す。
+
+```
+注意: 次の core ファイルは本家から削除・改名されました。
+      **このスクリプトは配布先のファイルを削除しません。** 不要であれば手で消してください
+      （.claude/rules/*.md はセッション開始時に自動で読み込まれるため、古いルールが残り続けます）。
+  - .claude/rules/old-name.md
+```
+
+**消し忘れの影響が最も大きいのは `.claude/rules/*.md` である**（セッション開始時に自動で
+読み込まれるため、削除されたはずの古いルールを配布先のAIが読み続ける）。スクリプト側も、
+古い名前を参照しているドキュメント・hookが動き続けて「直したはずの不具合が直らない」形になる。
+
+削除を自動化しなかったのは、配布先のファイルを消す操作を配布元のスクリプトへ持たせないためである
+（issue #26。一覧の提示までを担当し、削除は人間の判断に委ねる）。
+
+### 古い形式のまま残った `seed` は、触らずに一覧で知らせる
+
+`seed` は配布先所有なので、**中身が古くても書き換えない**。ただし配布元が想定する行を
+持たない場合は、再適用のたびに一覧で知らせる（`requiredLine` を持つエントリが対象）。
+
+```
+注意: 次の seed は配布先所有のため触りませんが、**配布元が想定する行が含まれていません**。
+      古い形式のまま残っている可能性があります（内容が重複していないか確認してください）。
+  - AGENTS.md（"@./.claude/rules/agent-common.md" が見つかりません）
+```
+
+**この仕組みが要る理由は `AGENTS.md` である。** issue #26 より前は、配布元の `AGENTS.md`
+全文（共通ルール9項目を含む）をそのまま配っていた。issue #26 で共通ルールを
+`.claude/rules/agent-common.md`（`core`）へ切り出したが、`AGENTS.md` は `seed` なので
+再適用しても触らない。したがって**既存の配布先には、切り出し前のルールの写しが残る**。
+以後 `agent-common.md` だけが更新されるため、放置すると恒久的に食い違う。
+
+対処は配布先で行う。`AGENTS.md` の「エージェント共通ルール」節を
+`@./.claude/rules/agent-common.md` の1行へ置き換え、プロジェクト概要・開発実行方法だけを残す
+（配布される `AGENTS.md` の雛形が、そのままこの形になっている）。
+
+**`AGENTS.md` を `core` にしなかったのは、プロジェクト概要が配布先の所有物だからである。**
+`core` にすると再適用のたびに概要が消える。`CLAUDE.md` / `GEMINI.md` を `core` にできるのは、
+あちらが import の1行しか持たないためで、同じ理屈は `AGENTS.md` には当てはまらない。
+
+## 層分け定義を変えたとき
+
+追跡ファイルを追加・移動・削除したら、**必ず網羅性チェックを流す**。
+
+```bash
+bash .claude/scripts/src/check-dist-coverage.sh
+```
+
+4種の検査（追跡ファイル全件の分類 / `.gitignore` の全行の被覆 / 空振りエントリ / `layer`・
+`strategy` の妥当性）を行い、未分類が1件でもあれば終了コード1になる。**インストーラは配布を
+始める前にこの検査を実行し、失敗すれば中断する。**
+
+配布先でこの検査を流した場合は、定義に `upstream` の印が無いため「配布先なので対象外」と
+件数付きで報告して終了コード0で終わる（配布先の自前ソースを全件「未分類」と報告しないため）。
+
+## してはいけないこと
+
+- **配布対象の一覧をこのファイルへ書くこと**（`.claude/dist-layers.json` が単一の正）。
+- `.claude/dist-layers.json` を更新せずに追跡ファイルを追加すること（網羅性チェックが落ちる）。
+- 配布先の `.bak` を確認せずに削除すること。
+- **配布元で削除したファイルが配布先にも消えていると思い込むこと**（残る。上記「配布元で
+  削除・改名されたファイルは、配布先に残る」）。
+- 配布先で `core` のファイルを編集し続けること（再適用のたびに失われる。`seed` か
+  `.claude/rules/<名前>.md` へ置く）。

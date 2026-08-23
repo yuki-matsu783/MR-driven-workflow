@@ -65,19 +65,36 @@ assert_eq "review_points_ancestor_dirs: ルート直上の..だけならルー�
   '.' \
   "$(review_points_ancestor_dirs '../x.md')"
 
-# --- strip_frontmatter_and_h1 --------------------------------------------------------
+# --- strip_frontmatter_h1_and_comments --------------------------------------------------------
 
 fixture_md="$(mktemp)"
 printf '%s\n' '---' 'title: T' 'type: review-points' '---' '' '# 見出し' '' '本文1' '' '## 節' '- 項目' > "$fixture_md"
 
-assert_eq "strip_frontmatter_and_h1: frontmatterとH1と先頭空行を取り除く" \
+assert_eq "strip_frontmatter_h1_and_comments: frontmatterとH1と先頭空行を取り除く" \
   $'本文1\n\n## 節\n- 項目' \
-  "$(strip_frontmatter_and_h1 "$fixture_md")"
+  "$(strip_frontmatter_h1_and_comments "$fixture_md")"
 
 printf '%s\n' '本文だけ' '- 項目' > "$fixture_md"
-assert_eq "strip_frontmatter_and_h1: frontmatterもH1も無ければそのまま" \
+assert_eq "strip_frontmatter_h1_and_comments: frontmatterもH1も無ければそのまま" \
   $'本文だけ\n- 項目' \
-  "$(strip_frontmatter_and_h1 "$fixture_md")"
+  "$(strip_frontmatter_h1_and_comments "$fixture_md")"
+
+# HTMLコメントは観点ではないので落とす（REVIEW-POINTS.local.md の雛形が使い方の説明を持つ）。
+printf '%s\n' '<!--' '雛形の説明' 'つづき' '-->' '' '- 本物の観点' > "$fixture_md"
+assert_eq "strip_frontmatter_h1_and_comments: 複数行のHTMLコメントを落とす" \
+  '- 本物の観点' \
+  "$(strip_frontmatter_h1_and_comments "$fixture_md")"
+
+printf '%s\n' '<!-- 1行コメント -->' '- 本物の観点' > "$fixture_md"
+assert_eq "strip_frontmatter_h1_and_comments: 1行で閉じるHTMLコメントも落とす" \
+  '- 本物の観点' \
+  "$(strip_frontmatter_h1_and_comments "$fixture_md")"
+
+# 雛形のまま（説明コメントだけ）なら中身は空になる。
+printf '%s\n' '---' 'title: T' '---' '' '# 見出し' '' '<!--' 'ここへ観点を書く' '-->' > "$fixture_md"
+assert_eq "strip_frontmatter_h1_and_comments: 雛形のままなら空になる" \
+  '' \
+  "$(strip_frontmatter_h1_and_comments "$fixture_md")"
 
 # --- main（収集・マージ） -------------------------------------------------------------
 
@@ -120,6 +137,35 @@ assert_eq "collect: 観点表の中身が見出しの下に続く" \
   '- abの観点' \
   "$(collect a/b/deep.sh | grep -- '- abの観点')"
 
+# --- REVIEW-POINTS.local.md（配布先所有の観点表。issue #26） --------------------------
+
+(
+  cd "$fixture_repo"
+  mkdir -p d/e
+  # 本家の観点表がある所へ .local を足す
+  printf '%s\n' '---' 'title: AL' '---' '' '# a.local' '' '- aのlocal観点' > a/REVIEW-POINTS.local.md
+  # **本家の観点表が無く .local だけ**あるディレクトリ（.local の最も典型的な使い方）
+  printf '%s\n' '---' 'title: DL' '---' '' '# d.local' '' '- dのlocal観点' > d/REVIEW-POINTS.local.md
+  : > d/e/f.sh
+)
+
+assert_eq "collect: .local は同じディレクトリの本家の観点表の直後に出る" \
+  $'## REVIEW-POINTS.md\n## a/REVIEW-POINTS.md\n## a/REVIEW-POINTS.local.md\n## a/b/REVIEW-POINTS.md' \
+  "$(collect a/b/deep.sh | grep '^## ')"
+
+# 現行実装はディレクトリ単位で `continue` していたため、このケースが丸ごと無視されていた。
+assert_eq "collect: 本家の観点表が無く .local だけあるディレクトリも拾う" \
+  $'## REVIEW-POINTS.md\n## d/REVIEW-POINTS.local.md' \
+  "$(collect d/e/f.sh | grep '^## ')"
+
+assert_eq "collect: .local の中身も見出しの下に続く" \
+  '- dのlocal観点' \
+  "$(collect d/e/f.sh | grep -- '- dのlocal観点')"
+
+# .local が無いディレクトリで空振りしても失敗しない（存在するのが普通の状態）
+assert_eq "collect: .local が無くても終了コード0" '0' \
+  "$(if collect c/other.sh >/dev/null 2>&1; then printf 0; else printf 1; fi)"
+
 # 観点表が1つも無い場合は、エラーではなく「無出力・終了コード0」
 empty_repo="$(mktemp -d)"
 (
@@ -135,6 +181,27 @@ fi
 assert_eq "collect: 観点表が1つも無くても終了コード0" '0' "$empty_status"
 assert_eq "collect: 観点表が1つも無ければ無出力" '0' "$(wc -c < "$empty_repo/out.txt")"
 rm -rf "$empty_repo"
+
+# --- 中身が空の観点表はスキップする（issue #26） ---------------------------------------
+# 配布直後の REVIEW-POINTS.local.md は雛形のままで観点を1つも持たない。見出しだけが並ぶと
+# 読み手の手間になるので出さない。ただし**無言では捨てず**、件数を標準エラーへ出す。
+empty_rp_repo="$(mktemp -d)"
+(
+  cd "$empty_rp_repo"
+  git init -q .
+  printf '%s\n' '---' 'title: T' '---' '' '# 見出し' '' '- 本物の観点' > REVIEW-POINTS.md
+  printf '%s\n' '---' 'title: L' '---' '' '# 見出し' '' '<!--' 'ここへ観点を書く' '-->' \
+    > REVIEW-POINTS.local.md
+  : > x.sh
+)
+(cd "$empty_rp_repo" && bash "$target" x.sh > "$empty_rp_repo/out.txt" 2> "$empty_rp_repo/err.txt")
+assert_eq "collect: 雛形のままの .local は見出しごと出さない" '0' \
+  "$(grep -c '^## REVIEW-POINTS.local.md' "$empty_rp_repo/out.txt" || true)"
+assert_eq "collect: 中身のある観点表は従来どおり出す" '1' \
+  "$(grep -c '^## REVIEW-POINTS.md' "$empty_rp_repo/out.txt" || true)"
+assert_eq "collect: スキップは無言にせず件数を標準エラーへ出す" '1' \
+  "$(grep -c '観点を1つも持たない観点表を 1 件スキップ' "$empty_rp_repo/err.txt" || true)"
+rm -rf "$empty_rp_repo"
 
 # 引数なしは使い方を示して失敗する
 if (cd "$fixture_repo" && bash "$target" >/dev/null 2>&1); then

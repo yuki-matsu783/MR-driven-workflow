@@ -90,7 +90,7 @@
   <h2>反映対象（洗い出しの結果）</h2>
   <ol>
     <li><b>種別定義への追記</b>: issue-mr-flow SKILL.md「計画の2階層構造」の <code>【AIアセット作成】</code> 定義へ、設計ドキュメント（usecase文書等）の新規作成・改訂も含まれることを明記。<b><code>【設計反映】</code>（フェーズ4）との境界も同時に書く</b>（追記文面案: 「設計ドキュメントを<b>そのissueの主たる成果物として</b>新規作成・改訂する場合もこの種別に含む。既存のspec/ddrへの書き戻しは <code>【設計反映】</code> の担当」）。</li>
-    <li><b>導入スキルの資産一覧への明記</b>: apply-mr-workflow-to-project SKILL.md の適用資産へ、<code>.claude/docs/</code>（spec・ddr・usecase）が丸ごとコピーに含まれることを明記（フェーズ3レビューへの返信で約束した対応）。</li>
+    <li><b>導入系ドキュメントのmanifest方式への追随</b>（mainマージにより対象を変更）: mainのissue #26（PR #154）で配布の単一の正が <code>.claude/dist-layers.json</code> へ移り、SKILL.mdへの資産列挙は新設計で禁止された（<code>.claude/docs/</code> は <code>core</code> 層の <code>.claude</code> エントリで配布が保証済み）。当初予定のSKILL.mdへの明記は行わず、usecase文書「この機構を他プロジェクトへ導入する」の記述・リンクをmanifest方式へ追随させる（<code>asset-distribution.md</code> へのリンク追加を含む）。</li>
     <li><b><code>.claude/VERSION</code> の増分</b>: <code>0.2.0</code> → <code>0.3.0</code>（MINOR: 資産の追加）を<b>提案する</b>。決定は人間の担当のため、非対話セッションでは書き換えを実施せず、最終応答とHANDOFF「未解決の内容」へ記録する。</li>
     <li><b>据え置きの事実をspecのchangelogへ残す</b>: <code>distribution-assets.md</code> の規約に従い、同specのchangelogへ issue #170 のエントリとして「0.2.0のまま据え置き（0.3.0への増分は提案のみ。人間の決裁待ち）」を追記（mainへ残る記録はここが唯一）。</li>
   </ol>
@@ -112,9 +112,9 @@
   <pre><code># 1. 種別定義に設計ドキュメントへの言及（出力1以上で合格。実施前0を確認済み。
 #    汎用語「設計ドキュメント」は既出1件があり空振り合格するため使わない）
 grep -c '設計ドキュメント（usecase' .claude/skills/issue-mr-flow/SKILL.md
-# 2. 導入スキルに設計ドキュメント一式の配布が明記されている（出力1以上で合格。実施前0を確認済み。
-#    'usecase' の汎用語は無関係の説明行でも1になりうるため '.claude/docs/' で確認する）
-grep -c -- '\.claude/docs/' .claude/skills/apply-mr-workflow-to-project/SKILL.md
+# 2. 導入usecase文書がmanifest方式へ追随している（出力1以上で合格。実施前0を
+#    mainマージ直後に実測済み）
+grep -c 'dist-layers' .claude/docs/usecase/この機構を他プロジェクトへ導入する.md
 # 3. VERSIONが書き換わっていない（非対話セッションで決裁が無い場合0.2.0のままで合格。
 #    人間が増分を承認した場合はその値で合格。現在値0.2.0は2026-08-23実測）
 cat .claude/VERSION
