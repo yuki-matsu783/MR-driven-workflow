@@ -21,6 +21,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - 現在のループ: 4-6〜4-9 の1周目（進行中。作業実施〈4-6〉・push〈4-7〉・敵対的レビューと
   その反映〈4-9相当〉は完了。非対話セッションのため4-8〈人間レビュー〉は実施せず、
   敵対的レビューで代替）
+- 未返信スレッド: 0
 - 追従監視: なし
 
 | 進捗 | flow-id | ステップ | 担当 |
@@ -63,10 +64,11 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 | [] | 4-10 | 反映内容をもとにMR descriptionを更新する | エージェント |
 | [] | 5-1 | defaultブランチとのコンフリクトを検知・解消する | エージェント |
 | [] | 5-2 | 関連issueへ承認を得てから通知する | エージェント |
-| [] | 5-3 | 最終統括レポートを作成しPR/MRへ反映する | エージェント |
-| [] | 5-4 | plans/worklog/reportsを削除しHANDOFF.mdをリセットする | エージェント |
-| [] | 5-5 | commit・pushしてDraftを解除する | エージェント |
-| [] | 5-6 | マージする | 人間 |
+| [] | 5-3 | .claude/の変更を.gemini/へ変換同期する | エージェント |
+| [] | 5-4 | 最終統括レポートを作成しPR/MRへ反映する | エージェント |
+| [] | 5-5 | plans/worklog/reportsを削除しHANDOFF.mdをリセットする | エージェント |
+| [] | 5-6 | commit・pushしてDraftを解除する | エージェント |
+| [] | 5-7 | マージする | 人間 |
 
 ## やったこと
 
@@ -243,15 +245,50 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
   - 検証（`check-doc-references.sh`本体の再実行・単体テスト49件・`generate-ddr-list.sh
     --check`）はいずれも成功を維持したまま反映を完了。
 
+- push12（`9b2a9d2`）としてフェーズ4作業実施への敵対的レビュー反映（DDR・spec・rules・
+  docs-workflow.md・script本体の修正）をcommit・pushした。
+- flow-id 5-1でdefaultブランチ（main）とのコンフリクトを検知した。`check-base-conflicts.sh`が
+  4ファイル（`.gitignore` `.claude/docs/README.md` `.claude/rules/docs-workflow.md`
+  `HANDOFF.md`）のテキストコンフリクトを報告し、差分調査の結果、想定より大きな構造変更
+  （main側PR #154が`.gitignore`を`dist:begin`/`dist:end`方式へ全面再構成し、issue #171で
+  修正した`.gemini/`関連DDR参照コメント自体を削除済み〈対応DDR i0000-13もi0070-01により
+  superseded化〉。フェーズ5に新flow-id「5-3（`.gemini/`変換同期）」が追加され旧5-3〜5-6が
+  5-4〜5-7へ繰り下がっている等）を検知したため、`AskUserQuestion`でユーザーへ確認し
+  「取り込んで解消する」の承認を得た（`resolve-conflict`スキルの手順に従う）。
+- `git merge --no-ff --no-commit origin/main`を実行し、4ファイルのコンフリクトを解消した。
+  - `.claude/docs/README.md`: spec一覧はmainの新規spec行と本ブランチの`check-doc-references.md`
+    行を両方残した。DDR一覧はmain側の新規DDR（i0026-01/i0070-01/i0070-02）を含め
+    `generate-ddr-list.sh --check`で最新（79件）であることを確認した。
+  - `.claude/rules/docs-workflow.md`: DDR行は本ブランチ側（`check-doc-references.sh`実行を
+    追記した内容）を、`REVIEW-POINTS.md`行はmain側（新flow-id番号）をそれぞれ残した。
+  - `.gitignore`: mainが該当ブロックを全面削除（issue #171が修正した`i0000-13`参照ごと
+    `.gemini/`関連コメントを削除し、別の独立した意思決定〈i0070-01〉で置き換え済み）していた
+    ため、mainの側を採用した。本ブランチのもう一方の修正（`i0036-01`）は生き残っており、
+    `diff <(git show origin/main:.gitignore) .gitignore`で確認した唯一の差分として残っている
+    ことを確認済み。
+  - `HANDOFF.md`: ヘッダは本ブランチ側を維持し、`- 未返信スレッド: 0`行を追加
+    （`pull_request_read` method=get_review_comments で確認）。進捗表フェーズ5の行を
+    旧6行構成から新7行構成（新flow-id 5-3「`.claude/`の変更を`.gemini/`へ変換同期する」の
+    挿入とそれに伴う繰り下げ）へ更新した。
+- マージ後の検証: 全ファイルでコンフリクトマーカーが残っていないことを`grep`で確認、
+  `check-doc-references.sh`本体の`bash -n`構文チェックとリポジトリ全体での再実行、単体テスト
+  （`passed=49 failures=0`）、`generate-ddr-list.sh --check`（79件・最新）を実施した。
+  - **マージにより`.gemini/scripts/test/`（`sync-gemini-assets.sh`が生成する
+    `.claude/scripts/test/`のミラー、issue #171時点では存在しなかった新規Git管理対象）が
+    追加され、`check-doc-references.sh`の除外ディレクトリ（`.claude/scripts/test/`のみだった）
+    がこのミラーを除外できず、フィクスチャの架空DDRパス19件を参照切れとして誤検知した。**
+    `.gemini/scripts/test/`を除外リストへ追加し、spec（`check-doc-references.md`「検出対象」
+    節）の対象外ファイル種別説明も、mainマージで拡張子構成が変わり数値が陳腐化したため
+    「都度`git ls-files`で確認する」旨へ差し替えた。再実行で参照切れ0件・単体テスト
+    `passed=49 failures=0`を再確認した。
+
 ## 次にやること
 
-- 反映内容（DDR・spec・rules・docs-workflow.md・script本体の修正）をpush12として
-  commit・push。（非対話セッションのため4-8〈人間レビュー〉は実施しておらず、
-  4-6〜4-9のループ範囲は`[]`のまま残す。「現在のループ」欄に代替実施の旨を明記している。）
-- flow-id 4-10（MR description更新）・フェーズ5（5-1コンフリクト確認〜5-3最終統括レポート・
-  5-4片付け・5-5Draft解除）へ進む。5-2関連issue通知はAskUserQuestion的な人間確認は
-  非対話セッションでは行えないため、最終統括レポートへ集約する形を検討する。5-6マージは
-  人間の明示指示があるまで実施しない。
+- マージ解消の内容（上記）をcommit・pushし、flow-id 5-1を完了とする。
+- flow-id 4-10（MR description更新）・フェーズ5の残り（新5-2関連issue通知〈承認要〉・
+  新5-3 `.gemini/`変換同期・新5-4最終統括レポート・新5-5片付け・新5-6 Draft解除）へ進む。
+  5-2の関連issue通知はAskUserQuestion的な人間確認が非対話セッションでは行えないため、
+  最終統括レポートへ集約する形を検討する。5-7マージは人間の明示指示があるまで実施しない。
 
 ## 判断を迷った内容
 

@@ -6,9 +6,12 @@ set -euo pipefail
 
 # 対象から除外するディレクトリ（先頭一致）。
 #   .claude/scripts/test/ … フィクスチャに架空のDDRパスを含むため
+#   .gemini/scripts/test/ … 上記の sync-gemini-assets.sh によるミラー（生成物）。中身は
+#     .claude/scripts/test/ と同一のため、除外理由も同じ
 #   plans/ reports/ worklog/ … タスク単位で削除される短命ファイル。.html除外と同じ理由
 CHECK_DOC_REFERENCES_EXCLUDED_DIRS=(
   ".claude/scripts/test/"
+  ".gemini/scripts/test/"
   "plans/"
   "reports/"
   "worklog/"

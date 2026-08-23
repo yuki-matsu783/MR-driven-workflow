@@ -41,20 +41,24 @@ bash .claude/scripts/src/check-doc-references.sh
 ### 検出対象
 
 `git ls-files -- '*.md' '*.sh' '.gitignore'`（**拡張子`.md` `.sh`と`.gitignore`のみ**。
-追跡ファイル全件ではない）のうち、次の4ディレクトリ配下を除いたファイルを走査する。
+追跡ファイル全件ではない）のうち、次の5ディレクトリ配下を除いたファイルを走査する。
 
 | 除外ディレクトリ | 理由 |
 |---|---|
 | `.claude/scripts/test/` | 単体テストのフィクスチャが検証用に架空のDDRパスを含むため |
+| `.gemini/scripts/test/` | 上記の`sync-gemini-assets.sh`によるミラー（生成物）。中身が同一のため除外理由も同じ |
 | `plans/` | タスク単位（flow-id 5-4）で削除される短命ファイルのため |
 | `reports/` | 同上 |
 | `worklog/` | 同上 |
 
-**対象外になるファイル種別**（issue #171フェーズ4の敵対的レビューで判明。実測: 追跡ファイル
-204件のうち走査対象は182件、22件が対象外）: `.claude/hooks/otel/`配下のperlソース
-（`*.pl` `*.pm`）、`.claude/settings.json` `.mrworkflow.json`等のJSON、`.claude/skills/*/
-assets/*.template.html`等のHTML、`.gitattributes`。これらのファイルにDDRパスへの参照が
-書かれても、本ツールでは検出されない。対象を広げる場合はpathspecを追加する。
+**対象外になるファイル種別**（issue #171フェーズ4の敵対的レビューで判明）: `.claude/hooks/otel/`
+配下のperlソース（`*.pl` `*.pm`）、`.claude/settings.json` `.mrworkflow.json`等のJSON、
+`.claude/skills/*/assets/*.template.html`等のHTML、`.gitattributes`。これらのファイルに
+DDRパスへの参照が書かれても、本ツールでは検出されない。対象を広げる場合はpathspecを追加する。
+**具体的な件数は、拡張子構成が変わるたびに変動するため本節には書かない**（`git ls-files -- '*.md'
+'*.sh' '.gitignore' | wc -l`と`git ls-files | wc -l`の差分で随時確認できる。issue #171時点の
+実測は204件中182件が対象・22件が対象外だったが、issue #171フェーズ5でのmainマージにより
+`.gemini/`配下が生成物としてGit管理下へ入ったため、本行を書いた時点で既に古い数値になっている）。
 
 各ファイル中の、次の形式に一致する文字列を候補として抽出する。
 
