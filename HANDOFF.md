@@ -18,7 +18,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - ブランチ: feature-103-collect-claude-code-otel-telemetry-into-usage
 - PR: #158 https://github.com/yuki-matsu783/MR-driven-workflow/pull/158
 - push回数: 1
-- 現在のループ: 4-6〜4-9 の2周目（進行中）
+- 現在のループ: 4-6〜4-9 の2周目（完了）
 - 追従監視: なし（ローカル。各pushとflow-id 5-1で手動で `/resolve-conflict` を確認する）
 
 | 進捗 | flow-id | ステップ | 担当 |
@@ -54,13 +54,13 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 | [x] | 4-3 | 反映計画をレビュー | 人間 |
 | [x] | 4-4 | レビュー内容を取得し反映計画を修正 | サブコマンド |
 | [x] | 4-5 | 反映計画をもとにMR descriptionを更新 | サブコマンド |
-| [] | 4-6 | 設計反映・AIアセット反映・実装反映を実施 | エージェント |
-| [] | 4-7 | commitしpushしてレビュー依頼 | エージェント |
-| [] | 4-8 | 反映結果をレビュー | 人間 |
-| [] | 4-9 | レビュー内容を取得し設計・AIアセットを修正 | サブコマンド |
-| [] | 4-10 | 反映内容をもとにMR descriptionを更新 | サブコマンド |
-| [] | 5-1 | defaultブランチとのコンフリクトを検知・解消 | エージェント |
-| [] | 5-2 | 関連issueへマージ前通知 | エージェント |
+| [x] | 4-6 | 設計反映・AIアセット反映・実装反映を実施 | エージェント |
+| [x] | 4-7 | commitしpushしてレビュー依頼 | エージェント |
+| [x] | 4-8 | 反映結果をレビュー | 人間 |
+| [x] | 4-9 | レビュー内容を取得し設計・AIアセットを修正 | サブコマンド |
+| [x] | 4-10 | 反映内容をもとにMR descriptionを更新 | サブコマンド |
+| [x] | 5-1 | defaultブランチとのコンフリクトを検知・解消 | エージェント |
+| [x] | 5-2 | 関連issueへマージ前通知 | エージェント |
 | [] | 5-3 | 最終統括レポートを作成しPRへ反映 | エージェント |
 | [] | 5-4 | plans/worklog/reportsを削除しHANDOFF.mdをリセット | エージェント |
 | [] | 5-5 | commitしpushしてDraftを解除 | エージェント |
@@ -255,10 +255,37 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
   設計反映レポートの「フェーズ4への持ち越し事項」も完了扱いに更新した。
   `bash .claude/scripts/src/extract-frontmatter.sh .`で`failed=0`を確認済み。
 
+- flow-id 4-8（2周目）: ユーザーから「レビューOK」の連絡を受けた（AIアセット反映内容への
+  追加指摘は無し。`get_mr_unresolved_comments 158`で未解決スレッドは設計反映ラウンドで
+  返信済みの10件のみであることを再確認）。
+- flow-id 4-9（2周目）: 対応が必要な追加指摘は無かった。`mark-done 4-6`で4-6〜4-9ループの
+  2周目（AIアセット反映分）を完了扱いにした。これでフェーズ4の反映内容（設計反映・
+  AIアセット反映）はすべてレビュー合意済み。
+
+- flow-id 4-10: 反映内容（設計反映・AIアセット反映）をもとにMR #158 のdescriptionを更新した。
+  フェーズ2〜4がすべて完了しレビュー合意済みであることを記載した。
+
+- flow-id 5-1: `bash .claude/scripts/src/check-base-conflicts.sh`で`hasConflict: false`を確認した
+  （テキストコンフリクト無し・DDR番号重複無し）。
+- flow-id 5-2: 差分（`plans/` `worklog/` `reports/`除外）からキーワードを抽出し`search_issues`で
+  検索した結果、open状態の関連issueとして#105（Gemini CLIテレメトリのローカル出力・push毎集計。
+  本文が既にissue #103を前提として言及している）を発見した。`AskUserQuestion`で投稿内容の承認を
+  得たうえで、実装内容（出力先パス`usage/claude-otel-YYYYMMDD.jsonl`・設定ファイル分離方針）の
+  共有と、対応工数レポート集計元の置き換えが引き続きスコープ外という理解でよいかの確認を
+  `add_issue_comment`で投稿した
+  （https://github.com/yuki-matsu783/MR-driven-workflow/issues/105#issuecomment-5383699026）。
+  他の候補（#26 manifest配布方式）は、本MRが前提・スコープを変えるものではないため通知対象外と
+  判断した。
+
+- flow-id 5-3: 最終統括レポート`reports/20260823_humming-mapping-pie_統括.md`を作成した
+  （何を変えたか・なぜそうしたか・検証結果・spec/DDRへの反映先・残課題）。HTMLは今回省略した
+  （flow-id 2-6以外では任意であり、md側の内容で十分にレビュー可能と判断）。
+  `bash .claude/scripts/src/extract-frontmatter.sh .`で`failed=0`を確認済み。この後commit・push
+  （層1）→ サマリコメントをMR #158へ投稿（層2）まで実施する。
+
 ## 次にやること
 
-- 上記のAIアセット反映（2周目）をcommit・pushし、レビュー依頼を行う
-  （flow-id 4-7、2周目）。
+- flow-id 5-3の層1（commit・push）・層2（サマリコメント投稿）を実施する。
 
 ## 判断を迷った内容
 
