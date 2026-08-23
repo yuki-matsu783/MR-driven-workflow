@@ -115,6 +115,15 @@ keywords: [wip, plans, worklog, worklogs, reports, plansDirectory, cleanup-task,
 指摘への対応（対応または理由を添えた見送り）を行ってから次フェーズへ進む。人間のレビュー待ち
 ループ（2-3/2-4等）はスキップし、その旨を`HANDOFF.md`に記録する。
 
+## 継続メモ（フェーズ2実施中）
+
+`.claude/settings.json` の `plansDirectory` を一時的に `"./wip/plans"` へ変更してこのセッション内で
+`EnterPlanMode` を再実行したところ、ハーネスは新規パスではなく**既存の計画ファイル
+（`plans/transient-brewing-pelican.md`）を引き続き使う**旨を提示した（同一セッション内で
+既に計画ファイルの割り当てが確定しているため、設定変更が反映されない可能性がある）。
+この結果はセッション内の再入では汚染されるため、クリーンな検証には新規セッションでの
+実機確認が必要と判断した（詳細はworklog・reportsへ記録する）。
+
 ## 検証方法
 
 - `bash .claude/scripts/test/test_cleanup_task.sh`
