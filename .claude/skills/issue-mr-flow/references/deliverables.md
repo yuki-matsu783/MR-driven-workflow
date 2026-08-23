@@ -27,7 +27,7 @@ keywords: [計画と実施結果の分離, HTMLビュー, テンプレート, re
    結果はpushのたびに書き換わる。
 
 **`plans/` `reports/` のいずれにも、mdとHTMLを併存させる。md が正文であり、HTMLはその視覚化
-（人間レビュー用ビュー）である。** 両者の寿命は同じで、flow-id 5-4 でまとめて削除する
+（人間レビュー用ビュー）である。** 両者の寿命は同じで、flow-id 5-5 でまとめて削除する
 （`.claude/rules/docs-workflow.md` の「ドキュメント運用」表）。
 
 **本節が決めるのは「どこへ書くか」だけである。** HTMLビューの見出し構成は下記
@@ -43,7 +43,7 @@ keywords: [計画と実施結果の分離, HTMLビュー, テンプレート, re
 | テンプレート | 使う場面 |
 |---|---|
 | `.claude/skills/issue-mr-flow/assets/plans.template.html` | 全体作業計画（flow-id 1-4）と個別計画（2-1・3-1・4-1）のHTMLビュー |
-| `.claude/skills/issue-mr-flow/assets/reports.template.html` | 調査結果（2-6）・作業結果（3-6）・反映結果（4-6）・最終統括レポート（5-3）のHTMLビュー |
+| `.claude/skills/issue-mr-flow/assets/reports.template.html` | 調査結果（2-6）・作業結果（3-6）・反映結果（4-6）・最終統括レポート（5-4）のHTMLビュー |
 
 **書く前にテンプレートを読む。** テンプレートは冒頭のHTMLコメントに使い方・必須／任意
 セクションの区別・埋め忘れの検査方法を持つので、置いてあるだけでは伝わらない。

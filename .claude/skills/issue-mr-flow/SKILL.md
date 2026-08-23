@@ -41,7 +41,7 @@ source .claude/scripts/src/vcs/Provider.sh
 flow-idではなく実行環境で決まるため、hookが経路判定の結果MCP経路だったときに限り、
 参照列とは別の行で同ファイルを名指しで注入する。
 
-flow-idは `<フェーズ番号>-<ステップ番号>` 形式で、全5フェーズ・42ステップからなる。
+flow-idは `<フェーズ番号>-<ステップ番号>` 形式で、全5フェーズ・43ステップからなる。
 
 | フェーズ | 範囲 | 内容 |
 |---|---|---|
@@ -49,7 +49,7 @@ flow-idは `<フェーズ番号>-<ステップ番号>` 形式で、全5フェー
 | 2 | 2-1〜2-10 | 調査（調査計画 → レビュー → 調査実施 → レビュー） |
 | 3 | 3-1〜3-10 | 作業（作業計画 → レビュー → 設計・実装 → レビュー） |
 | 4 | 4-1〜4-10 | 反映（反映計画 → レビュー → 設計反映・AIアセット反映 → レビュー） |
-| 5 | 5-1〜5-6 | クローズ（コンフリクト解消・関連issue通知・**最終統括レポート**・片付け・Draft解除・マージ） |
+| 5 | 5-1〜5-7 | クローズ（コンフリクト解消・関連issue通知・**`.gemini/` 変換同期**・最終統括レポート・片付け・Draft解除・マージ） |
 
 フェーズ2〜4は「計画 → commit/push → レビュー → 実施 → commit/push → レビュー →
 MR description更新」という同じ形を繰り返す。
@@ -70,41 +70,42 @@ MR description更新」という同じ形を繰り返す。
 | 2-1 | **個別調査計画**`plans/【調査】〜.md`を**planツールを使わず**Write/Editで作成する。このタイミングで `worklog/日付_<全体計画名>_<個別計画名>_push<N>.md` を作成。**フェーズ2を省略してよいと判断できるのはこの時点以降**（`references/planning.md`「全体作業計画に必ず含めるフェーズ」）。**あわせて同名の `.html`（人間レビュー用ビュー）を作成する**（`references/deliverables.md`「計画・レポートのHTMLビュー」） | エージェント | `references/planning.md` / `references/deliverables.md` |
 | 2-2 | `commit`スキル経由でcommitし、push してレビュー依頼を行う | エージェント | `references/review-loop.md` |
 | 2-3 | MRで調査計画についてレビュー・コメントする。レビュー完了済み連絡をするまで以降の作業は行わない。 | 人間 | — |
-| 2-4 | レビュー内容を取得し、調査計画を修正する。対応が完了したコメントには対応内容を返信する（2-3〜2-4を合意まで繰り返す）。チャットで受けた判断はMRへ記録する（`references/review-loop.md`「チャットで受けたレビュー判断の記録」節） | `comments` / `reply` | `references/review-loop.md` |
+| 2-4 | レビュー内容を取得し、調査計画を修正する。対応が完了したコメントには対応内容を返信する（2-3〜2-4を合意まで繰り返す）。チャットで受けた判断はMRへ記録する（`references/review-loop.md`「チャットで受けたレビュー判断の記録」節）。**「レビューOK」の合図を受けても、`references/review-loop.md`「レビュー完了合図の確認」節の(1)(2)(3)を通るまでループを閉じない**（未返信スレッドが残っていると`mark-done`が拒否する。issue #70） | `comments` / `reply` | `references/review-loop.md` |
 | 2-5 | 調査計画をもとにMR descriptionを更新する | `describe` | `references/review-loop.md` |
 | 2-6 | **調査を実施**し、結果を`reports/日付_<全体計画名>_<内容を簡潔に>.md`とworklogに記録する。**個別調査計画には結果を書かない**（`references/deliverables.md`「計画と実施結果の分離」）。あわせて結果を視覚的に分かりやすくまとめた自己完結HTMLを`reports/日付_<全体計画名>_<内容を簡潔に>.html`として作成する（mdが結果の正文、HTMLはその視覚化。土台は`.claude/skills/issue-mr-flow/assets/reports.template.html`。複数要素間の関連・依存関係が主題の場合は、`.claude/skills/canvas-report/SKILL.md`のcanvas形式テンプレートの利用を検討する。`references/deliverables.md`「計画・レポートのHTMLビュー」）。**ここで初めて規模が判明した場合は、未着手範囲を別issueへ切り出すことを検討する**（`references/planning.md`「issueが大きすぎる場合の分割提案」） | エージェント | `references/deliverables.md` / `references/planning.md` |
 | 2-7 | `commit`スキル経由でcommitし、push してレビュー依頼を行う | エージェント | `references/review-loop.md` |
 | 2-8 | MRで調査結果についてレビュー・コメントする。レビュー完了済み連絡をするまで以降の作業は行わない。 | 人間 | — |
-| 2-9 | レビュー内容を取得し、調査結果を修正する。対応が完了したコメントには対応内容を返信する（修正先は`reports/`のmdであり、個別調査計画ではない。`reports/`のHTMLもmdと同期して更新する。2-6〜2-9を合意まで繰り返す）。チャットで受けた判断はMRへ記録する（`references/review-loop.md`「チャットで受けたレビュー判断の記録」節） | `comments` / `reply` | `references/review-loop.md` / `references/deliverables.md` |
+| 2-9 | レビュー内容を取得し、調査結果を修正する。対応が完了したコメントには対応内容を返信する（修正先は`reports/`のmdであり、個別調査計画ではない。`reports/`のHTMLもmdと同期して更新する。2-6〜2-9を合意まで繰り返す）。チャットで受けた判断はMRへ記録する（`references/review-loop.md`「チャットで受けたレビュー判断の記録」節）。**「レビューOK」の合図を受けても、`references/review-loop.md`「レビュー完了合図の確認」節の(1)(2)(3)を通るまでループを閉じない**（未返信スレッドが残っていると`mark-done`が拒否する。issue #70） | `comments` / `reply` | `references/review-loop.md` / `references/deliverables.md` |
 | 2-10 | 調査結果をもとにMR descriptionを更新する | `describe` | `references/review-loop.md` |
 | 3-1 | **調査結果をもとに**、個別作業計画`plans/【設計】【実装】〜.md`等を**planツールを使わず**Write/Editで作成する。**あわせて同名の `.html`（人間レビュー用ビュー）を作成する**（`references/deliverables.md`「計画・レポートのHTMLビュー」） | エージェント | `references/planning.md` / `references/deliverables.md` |
 | 3-2 | `commit`スキル経由でcommitし、push してレビュー依頼を行う | エージェント | `references/review-loop.md` |
 | 3-3 | MRで作業計画についてレビュー・コメントする。レビュー完了済み連絡をするまで以降の作業は行わない。 | 人間 | — |
-| 3-4 | レビュー内容を取得し、作業計画を修正する。対応が完了したコメントには対応内容を返信する（3-3〜3-4を合意まで繰り返す）。チャットで受けた判断はMRへ記録する（`references/review-loop.md`「チャットで受けたレビュー判断の記録」節） | `comments` / `reply` | `references/review-loop.md` |
+| 3-4 | レビュー内容を取得し、作業計画を修正する。対応が完了したコメントには対応内容を返信する（3-3〜3-4を合意まで繰り返す）。チャットで受けた判断はMRへ記録する（`references/review-loop.md`「チャットで受けたレビュー判断の記録」節）。**「レビューOK」の合図を受けても、`references/review-loop.md`「レビュー完了合図の確認」節の(1)(2)(3)を通るまでループを閉じない**（未返信スレッドが残っていると`mark-done`が拒否する。issue #70） | `comments` / `reply` | `references/review-loop.md` |
 | 3-5 | 作業計画をもとにMR descriptionを更新する | `describe` | `references/review-loop.md` |
 | 3-6 | 作業計画をもとに作業を進める。作業の詳細な試行錯誤はworklogに更新し、**作業結果は`reports/日付_<全体計画名>_<内容を簡潔に>.md`に記録する**（**個別作業計画には結果を書かない**。`references/deliverables.md`「計画と実施結果の分離」）。**あわせて同名の`.html`（人間レビュー用ビュー）を作成する**（土台は`.claude/skills/issue-mr-flow/assets/reports.template.html`。`references/deliverables.md`「計画・レポートのHTMLビュー」） | エージェント | `references/deliverables.md` |
 | 3-7 | `commit`スキル経由でcommitし、push してレビュー依頼を行う | エージェント | `references/review-loop.md` |
 | 3-8 | MRでレビュー・コメントする。レビュー済み連絡をするまで以降の作業は行わない。 | 人間 | — |
-| 3-9 | レビュー内容を取得し、実装・ドキュメントを修正する。対応が完了したコメントには対応内容を返信する（結果側の記述の修正先は`reports/`のmdであり、個別作業計画ではない。3-6〜3-9の作業ループを合意まで繰り返す）。チャットで受けた判断はMRへ記録する（`references/review-loop.md`「チャットで受けたレビュー判断の記録」節） | `comments` / `reply` | `references/review-loop.md` / `references/deliverables.md` |
+| 3-9 | レビュー内容を取得し、実装・ドキュメントを修正する。対応が完了したコメントには対応内容を返信する（結果側の記述の修正先は`reports/`のmdであり、個別作業計画ではない。3-6〜3-9の作業ループを合意まで繰り返す）。チャットで受けた判断はMRへ記録する（`references/review-loop.md`「チャットで受けたレビュー判断の記録」節）。**「レビューOK」の合図を受けても、`references/review-loop.md`「レビュー完了合図の確認」節の(1)(2)(3)を通るまでループを閉じない**（未返信スレッドが残っていると`mark-done`が拒否する。issue #70） | `comments` / `reply` | `references/review-loop.md` / `references/deliverables.md` |
 | 3-10 | 作業内容をもとにMR descriptionを更新する | `describe` | `references/review-loop.md` |
 | 4-1 | **作業結果と`plans/` `worklog/` の内容をもとに**、個別反映計画`plans/【設計反映】【AIアセット反映】【実装反映】〜.md`等を**planツールを使わず**Write/Editで作成する。**まず反映対象を洗い出し、spec/ddr・AIアセット・実装コード/テストコードのいずれにも反映するものが無いと確認できた場合に限り、この時点でフェーズ4の残りをスキップしてよい**（`references/planning.md`「全体作業計画に必ず含めるフェーズ」）。**スキップしない場合は、あわせて同名の `.html`（人間レビュー用ビュー）を作成する**（`references/deliverables.md`「計画・レポートのHTMLビュー」） | エージェント | `references/planning.md` / `references/deliverables.md` |
 | 4-2 | `commit`スキル経由でcommitし、push してレビュー依頼を行う | エージェント | `references/review-loop.md` |
 | 4-3 | MRで反映計画についてレビュー・コメントする。レビュー完了済み連絡をするまで以降の作業は行わない。 | 人間 | — |
-| 4-4 | レビュー内容を取得し、反映計画を修正する。対応が完了したコメントには対応内容を返信する（4-3〜4-4を合意まで繰り返す）。チャットで受けた判断はMRへ記録する（`references/review-loop.md`「チャットで受けたレビュー判断の記録」節） | `comments` / `reply` | `references/review-loop.md` |
+| 4-4 | レビュー内容を取得し、反映計画を修正する。対応が完了したコメントには対応内容を返信する（4-3〜4-4を合意まで繰り返す）。チャットで受けた判断はMRへ記録する（`references/review-loop.md`「チャットで受けたレビュー判断の記録」節）。**「レビューOK」の合図を受けても、`references/review-loop.md`「レビュー完了合図の確認」節の(1)(2)(3)を通るまでループを閉じない**（未返信スレッドが残っていると`mark-done`が拒否する。issue #70） | `comments` / `reply` | `references/review-loop.md` |
 | 4-5 | 反映計画をもとにMR descriptionを更新する | `describe` | `references/review-loop.md` |
 | 4-6 | 反映計画をもとに作業を進める。詳細な試行錯誤はworklogに更新し、**反映結果は`reports/日付_<全体計画名>_<内容を簡潔に>.md`に記録し、あわせて同名の`.html`（人間レビュー用ビュー）を作成する**（**個別反映計画には結果を書かない**。`references/deliverables.md`「計画と実施結果の分離」。HTMLの土台は`.claude/skills/issue-mr-flow/assets/reports.template.html`。`references/deliverables.md`「計画・レポートのHTMLビュー」）。作業の内訳は次のとおり（**設計反映**: `plans/` `worklog/` の内容を `.claude/docs/spec/` `.claude/docs/ddr/`（アプリ本体があれば`docs/spec/` `docs/ddr/`）へ反映する。**DDRを追加・変更したら `bash .claude/scripts/src/generate-ddr-list.sh` を実行し、`.claude/docs/README.md` のDDR一覧の差分を同じコミットへ含める**（一覧は生成物。手書きで行を足さない。issue #135。仕様: `.claude/docs/spec/generate-ddr-list.md`）／**AIアセット反映**: 作業中に気づいたルール・スキルの不備を `.claude/rules/` `.claude/skills/` `CLAUDE.md` `AGENTS.md` に反映する／**実装反映**: フェーズ3のレビュー往復ループ（3-6〜3-9）では解消しきれず持ち越した不具合について、記録（spec/ddr等）への書き戻しと、実装コード・テストコードの修正をあわせて行う） | エージェント | `references/deliverables.md` |
 | 4-7 | `commit`スキル経由でcommitし、push してレビュー依頼を行う | エージェント | `references/review-loop.md` |
 | 4-8 | MRでレビュー・コメントする。レビュー済み連絡をするまで以降の作業は行わない。 | 人間 | — |
-| 4-9 | レビュー内容を取得し、設計・AIアセットの内容を修正する。対応が完了したコメントには対応内容を返信する（結果側の記述の修正先は`reports/`のmdであり、個別反映計画ではない。4-6〜4-9の反映ループを合意まで繰り返す）。チャットで受けた判断はMRへ記録する（`references/review-loop.md`「チャットで受けたレビュー判断の記録」節） | `comments` / `reply` | `references/review-loop.md` / `references/deliverables.md` |
+| 4-9 | レビュー内容を取得し、設計・AIアセットの内容を修正する。対応が完了したコメントには対応内容を返信する（結果側の記述の修正先は`reports/`のmdであり、個別反映計画ではない。4-6〜4-9の反映ループを合意まで繰り返す）。チャットで受けた判断はMRへ記録する（`references/review-loop.md`「チャットで受けたレビュー判断の記録」節）。**「レビューOK」の合図を受けても、`references/review-loop.md`「レビュー完了合図の確認」節の(1)(2)(3)を通るまでループを閉じない**（未返信スレッドが残っていると`mark-done`が拒否する。issue #70） | `comments` / `reply` | `references/review-loop.md` / `references/deliverables.md` |
 | 4-10 | 反映内容をもとにMR descriptionを更新する | `describe` | `references/review-loop.md` |
 | 5-1 | **defaultブランチとのコンフリクトを検知し、あれば解消する**（`bash .claude/scripts/src/check-base-conflicts.sh` で判定 → `hasConflict` が真なら `AskUserQuestion` でユーザーに確認 → 承認されたら `resolve-conflict` スキルで解消。詳細は`references/base-branch-followup.md`「defaultブランチとのコンフリクト検知・解消」節）。PR作成後の継続的な追従（`references/base-branch-followup.md`「PR作成後のdefaultブランチ追従（監視）」節）を行っていても、**このステップは最終ゲートとして必ず通る** | エージェント（`resolve-conflict` スキル） | `references/base-branch-followup.md` |
-| 5-2 | **今回のMRが影響する関連issueを特定し、承認を得てから当該issueへ通知する**（差分からキーワードを抽出 → `search_issues` で候補提示 → `AskUserQuestion` で対象issueとコメント本文の承認 → `add_issue_comment` で投稿）。**キーワードの抽出時は `plans/` `worklog/` `reports/` を差分から除外する**（片付けは flow-id 5-4 で行うため、この時点ではこれらの計画・ログ・レポートがまだ差分に含まれる）。**影響先が無ければスキップしてよい**（その場合も「影響先なし」と判断した事実を、リセット前の `HANDOFF.md` へ1行残す）。詳細は`references/phase5-close.md`「マージ前の関連issue通知（flow-id 5-2）」節 | エージェント | `references/phase5-close.md` |
-| 5-3 | **最終統括レポートを作成し、PR/MRへサマリコメントとして反映する**（`reports/日付_<全体計画名>_統括.md` を正文として作成 → `commit` スキル経由でcommit・push → （**任意**）HTMLを `upload_attachment` で添付し、**失敗したら警告のみでスキップ** → サマリを `add_mr_comment` でPR/MRへ1回投稿する）。**反映は3層のフォールバック構造**で、層3が壊れても層1・層2でレビューは成立する。詳細は`references/phase5-close.md`「最終統括レポートとPR/MRへの反映（flow-id 5-3）」節 | エージェント | `references/phase5-close.md` / `references/deliverables.md` / `references/review-loop.md` |
-| 5-4 | 次タスクのために、`plans/` `worklog/` `reports/`（md・htmlの両方）を削除し、`HANDOFF.md` をリセットする（**`bash .claude/scripts/src/cleanup-task.sh` を実行する**。何を消し何を残すか（`worklog/TEMPLATE.md` と `REVIEW-POINTS.md` は残す。後者はタスク単位の成果物ではなく、そのディレクトリに対する永続のレビュー観点であるため。詳細は `.claude/rules/docs-workflow.md` が正）・`index.jsonl` の再生成・HANDOFF.mdのテンプレートはスクリプトが持つ。先に対象を確認したい場合は `--dry-run` を付ける。仕様: `.claude/docs/spec/cleanup-task.md`）。**スクリプトはコミットまでは行わない**ため、削除・リセットの結果は直後の flow-id 5-5 の `commit` スキル経由でコミットする（**このステップを commit の直前へ置く**のは、生成と確定の間に他のステップを挟まないため。issue #112） | エージェント | `references/phase5-close.md` |
-| 5-5 | `commit`スキル経由でcommitし、push して Draftを解除する（解除は `source .claude/scripts/src/vcs/Provider.sh && set_mr_ready <MR番号>` で行う。`gh pr ready` / `glab mr update --ready` を直接呼ばない。MR番号は `get_mr_for_branch` で取得できる）。**AIエージェントはここで止まる**（マージへは進まない） | エージェント | `references/phase5-close.md` / `references/review-loop.md` |
-| 5-6 | マージする（squash merge。ブランチは削除してよい）。**AIエージェントは、ユーザーから明示的に指示された場合に限り実行してよい**（下記「PR/MR作成・マージの担当」） | 人間 | — |
+| 5-2 | **今回のMRが影響する関連issueを特定し、承認を得てから当該issueへ通知する**（差分からキーワードを抽出 → `search_issues` で候補提示 → `AskUserQuestion` で対象issueとコメント本文の承認 → `add_issue_comment` で投稿）。**キーワードの抽出時は `plans/` `worklog/` `reports/` を差分から除外する**（片付けは flow-id 5-5 で行うため、この時点ではこれらの計画・ログ・レポートがまだ差分に含まれる）。**影響先が無ければスキップしてよい**（その場合も「影響先なし」と判断した事実を、リセット前の `HANDOFF.md` へ1行残す）。詳細は`references/phase5-close.md`「マージ前の関連issue通知（flow-id 5-2）」節 | エージェント | `references/phase5-close.md` |
+| 5-3 | **`.claude/` の変更を `.gemini/` へ変換同期する**（`bash .claude/scripts/src/sync-gemini-assets.sh` を実行する。`.gemini/` は `.claude/` からの**生成物**であり、手で編集しない。**このステップ自身はcommitを持たない**——生えた差分は直後のflow-id 5-4（最終統括レポート）のcommitに載る。詳細は`references/phase5-close.md`「`.claude/` → `.gemini/` の変換同期（flow-id 5-3）」節） | エージェント | `references/phase5-close.md` |
+| 5-4 | **最終統括レポートを作成し、PR/MRへサマリコメントとして反映する**（`reports/日付_<全体計画名>_統括.md` を正文として作成 → `commit` スキル経由でcommit・push → （**任意**）HTMLを `upload_attachment` で添付し、**失敗したら警告のみでスキップ** → サマリを `add_mr_comment` でPR/MRへ1回投稿する）。**反映は3層のフォールバック構造**で、層3が壊れても層1・層2でレビューは成立する。詳細は`references/phase5-close.md`「最終統括レポートとPR/MRへの反映（flow-id 5-4）」節 | エージェント | `references/phase5-close.md` / `references/deliverables.md` / `references/review-loop.md` |
+| 5-5 | 次タスクのために、`plans/` `worklog/` `reports/`（md・htmlの両方）を削除し、`HANDOFF.md` をリセットする（**`bash .claude/scripts/src/cleanup-task.sh` を実行する**。何を消し何を残すか（`worklog/TEMPLATE.md` と `REVIEW-POINTS.md` は残す。後者はタスク単位の成果物ではなく、そのディレクトリに対する永続のレビュー観点であるため。詳細は `.claude/rules/docs-workflow.md` が正）・`index.jsonl` の再生成・HANDOFF.mdのテンプレートはスクリプトが持つ。先に対象を確認したい場合は `--dry-run` を付ける。仕様: `.claude/docs/spec/cleanup-task.md`）。**スクリプトはコミットまでは行わない**ため、削除・リセットの結果は直後の flow-id 5-6 の `commit` スキル経由でコミットする（**このステップを commit の直前へ置く**のは、生成と確定の間に他のステップを挟まないため。issue #112） | エージェント | `references/phase5-close.md` |
+| 5-6 | `commit`スキル経由でcommitし、push して Draftを解除する（解除は `source .claude/scripts/src/vcs/Provider.sh && set_mr_ready <MR番号>` で行う。`gh pr ready` / `glab mr update --ready` を直接呼ばない。MR番号は `get_mr_for_branch` で取得できる）。**AIエージェントはここで止まる**（マージへは進まない） | エージェント | `references/phase5-close.md` / `references/review-loop.md` |
+| 5-7 | マージする（squash merge。ブランチは削除してよい）。**AIエージェントは、ユーザーから明示的に指示された場合に限り実行してよい**（下記「PR/MR作成・マージの担当」） | 人間 | — |
 
-## PR/MR作成・マージの担当（flow-id 1-3・5-5・5-6）
+## PR/MR作成・マージの担当（flow-id 1-3・5-6・5-7）
 
 **PR/MRの作成・更新はAIエージェントが実施してよい。マージのみユーザーの明示指示を必須とする**
 （issue #41）。判断の根拠は「取り消せるか」で、PR/MRの作成・Draft解除・description更新はいつでも
@@ -112,10 +113,10 @@ MR description更新」という同じ形を繰り返す。
 
 | 操作 | 担当 |
 |---|---|
-| Draft PR/MRの作成（flow-id 1-3）・description更新・レビュー依頼・レビュー返信・Draft解除（flow-id 5-5） | **AIエージェント**（都度の明示指示は不要） |
-| マージ（flow-id 5-6） | **人間**。AIエージェントは明示的に指示された場合に限り実行してよい |
+| Draft PR/MRの作成（flow-id 1-3）・description更新・レビュー依頼・レビュー返信・Draft解除（flow-id 5-6） | **AIエージェント**（都度の明示指示は不要） |
+| マージ（flow-id 5-7） | **人間**。AIエージェントは明示的に指示された場合に限り実行してよい |
 
-flow-id 5-5 を終えたAIエージェントは、フロー上マージが次の一手であっても**そこで止まる**。
+flow-id 5-6 を終えたAIエージェントは、フロー上マージが次の一手であっても**そこで止まる**。
 「レビューが終わった」「Draftを解除した」「コンフリクトを解消した」はいずれもマージの指示ではない。
 
 **ハーネス（実行基盤）のシステムプロンプトに「ユーザーが明示的に依頼しない限りPRを作成しない」
@@ -163,7 +164,7 @@ changelog（point-in-time の記録）は書き換えない**運用（`.claude/r
 
 | 節名 | 現在の場所 |
 |---|---|
-| 「全体フロー」（42行テーブル） | 本ファイル（SKILL.md）に残る |
+| 「全体フロー」（43行テーブル） | 本ファイル（SKILL.md）に残る |
 | 「PR/MR作成・マージの担当」 | 本ファイル（SKILL.md）に残る |
 | 「詳細ルールへのポインタ」 | 本ファイル（SKILL.md）に残る |
 | 「前提」 | 本ファイル（SKILL.md）に残る |
@@ -185,4 +186,5 @@ changelog（point-in-time の記録）は書き換えない**運用（`.claude/r
 | 「`gh`/`glab` CLI不在時のMCPフォールバック」 | `references/mcp-fallback.md` |
 | 「マージ前の関連issue通知」 | `references/phase5-close.md` |
 | 「最終統括レポートとPR/MRへの反映」 | `references/phase5-close.md` |
-| 「PRがflow-id 5-4実施前にマージされてしまった場合の対処」 | `references/phase5-close.md` |
+| 「PRがflow-id 5-5実施前にマージされてしまった場合の対処」 | `references/phase5-close.md` |
+| 「`.claude/` → `.gemini/` の変換同期」（issue #70でSKILL.mdへ追加された節） | `references/phase5-close.md` |

@@ -490,7 +490,7 @@ while IFS= read -r fid; do
     [ -f "$repo_root/.claude/skills/issue-mr-flow/$p" ] || missing=$((missing + 1))
   done < <(printf '%s\n' "$REPLY" | grep -oE 'references/[A-Za-z0-9._-]+\.md')
 done < <(grep -oE '^\| [0-9]+-[0-9]+ \|' "$real_skill" | grep -oE '[0-9]+-[0-9]+')
-assert_eq "実データ: 全体フロー表は42行ある" "42" "$rows"
+assert_eq "実データ: 全体フロー表は43行ある" "43" "$rows"
 assert_eq "実データ: 全行で参照列が引け、名指しされた参照ファイルが実在する（欠落0）" "0" "$missing"
 
 echo "passed=$passed failures=$failures"

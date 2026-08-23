@@ -1,7 +1,7 @@
 ---
 title: issue-mr-flow 参照: クローズ（関連issue通知〜Draft解除）
 type: skill-reference
-description: フェーズ5（flow-id 5-2〜5-5）の実行前に開く。マージ前の関連issue通知・最終統括レポート・PRが先にマージされた場合の対処
+description: フェーズ5（flow-id 5-2〜5-6）の実行前に開く。マージ前の関連issue通知・`.gemini/` 変換同期・最終統括レポート・PRが先にマージされた場合の対処
 tags: [issue-mr-flow, skill-reference, close]
 keywords: [関連issue通知, 最終統括レポート, cleanup-task, Draft解除, set_mr_ready, squash merge, 先行マージ]
 ---
@@ -10,15 +10,15 @@ keywords: [関連issue通知, 最終統括レポート, cleanup-task, Draft解�
 
 ## マージ前の関連issue通知（flow-id 5-2）
 
-片付け（flow-id 5-4）・Draft解除（flow-id 5-5）へ進む前に、**今回のMRが影響する他のissueを特定し、
+片付け（flow-id 5-5）・Draft解除（flow-id 5-6）へ進む前に、**今回のMRが影響する他のissueを特定し、
 人間の承認を得てから当該issueへコメントで通知する**（issue #86）。MRがマージされても、その変更で
 前提が変わる・一部が解決される・記述が矛盾する他のissueには何も残らず、後続タスクの担当者が影響に
 気づけないため。
 
 **影響先が無ければスキップしてよい。** その場合も「影響先なし」と判断したことを `HANDOFF.md` の
-「やったこと」へ1行残し、flow-id 5-4 へ進む（判断を省いたのか、判断した結果なしだったのかを
-次のセッションが区別できるようにするため）。**このステップが片付け（flow-id 5-4）より前に置かれて
-いるのは、この1行の書き戻し先を残すためである**（issue #112。5-4 は `HANDOFF.md` を空テンプレートへ
+「やったこと」へ1行残し、flow-id 5-5 へ進む（判断を省いたのか、判断した結果なしだったのかを
+次のセッションが区別できるようにするため）。**このステップが片付け（flow-id 5-5）より前に置かれて
+いるのは、この1行の書き戻し先を残すためである**（issue #112。5-5 は `HANDOFF.md` を空テンプレートへ
 リセットするため、後に置くと書き戻す先が無くなる）。
 
 ### 手順
@@ -33,7 +33,7 @@ keywords: [関連issue通知, 最終統括レポート, cleanup-task, Draft解�
    ```
 
    **`plans/` `worklog/` `reports/` は差分から除外する**（issue #112）。これらの片付けは
-   flow-id 5-4 でこのステップより後に行うため、この時点ではタスク単位の計画・ログ・レポートが
+   flow-id 5-5 でこのステップより後に行うため、この時点ではタスク単位の計画・ログ・レポートが
    まだ差分に含まれている。除外しないと、マージ後には残らないファイルの語（個別計画の種別名・
    worklogの見出し等）がキーワード抽出へ混ざり、通知先の判定を歪める。上記のpathspecを付けずに
    `git diff --stat` を見た場合は、これらのパスの行を読み飛ばすこと。
@@ -109,20 +109,62 @@ Claude Codeより: PR #<今回のPR番号>（issue #<今回のissue番号>）の
 `issue_number` へ渡すのがPR番号ではなく通知先のissue番号である**点に注意する。候補の検索側
 （`search_issues`）も同じ表に従って `mcp__github__search_issues` へ読み替える。
 
-## 最終統括レポートとPR/MRへの反映（flow-id 5-3）
+## `.claude/` → `.gemini/` の変換同期（flow-id 5-3）
 
-片付け（flow-id 5-4）へ進む前に、**そのブランチで何をやったかを1枚にまとめた最終統括レポートを
+統括レポート（flow-id 5-4）へ進む前に、**`.claude/` の変更を `.gemini/` へ反映する**（issue #70）。
+
+```bash
+bash .claude/scripts/src/sync-gemini-assets.sh
+```
+
+`.gemini/` は手書きの実体ではなく、**`.claude/` から機械的に決まる変換生成物**である
+（agentsのfrontmatterと `settings.json` は Gemini CLI の記法へ変換し、残りはコピーする。除外するのは
+生成物とローカル状態だけ）。**`.gemini/` 側を直接編集しない**——次の同期で上書きされる。
+
+### なぜフェーズ5に1回置くのか（毎コミットではなく）
+
+このフローでは `.claude/` の編集とコミットが何度も繰り返される。同期をコミットのたびに強制すると、
+**`.claude/` を編集した直後は必ず食い違う**ため通常の作業が止まる。一方でどこにも置かないと、
+`.gemini/` が古いまま `main` へ入る。**フェーズ5に1回だけ置く**のがこの折衷である。
+
+### なぜ 5-3 なのか（5-2 と 5-4 の間）
+
+- **5-4（統括レポート）より前**である必要がある。5-4 は自前でcommit・pushまで行うため、
+  **同期で生えた `.gemini/**` の差分はそのcommitに載る**。このステップ自身はcommitを持たない。
+- **5-1（コンフリクト解消）より後**である必要がある。5-1 でdefaultブランチから入った `.claude/`
+  の変更も、同じ同期で拾えるようにするため。
+- 5-5（片付け）より前でもある。片付けは `index.jsonl` を再生成するので、`.gemini/` の状態が
+  確定していたほうがよい（`extract-frontmatter.sh` は `.gemini/` を走査対象から除外している）。
+
+### 確認
+
+食い違いの有無だけを見たい場合は `--check` を使う（生成せず、非0で終了する）。
+**このフロー上、`--check` はどのhookにも自動では挿さっていない**（挿すと上記の「作業が止まる」
+問題が戻るため）。**このステップを飛ばすと食い違いに気づけない**が、それは `HANDOFF.md` の
+進捗表がこの行を持つことで担保する。
+
+```bash
+bash .claude/scripts/src/sync-gemini-assets.sh --check    # 一致=0 / 不一致=非0
+bash .claude/scripts/src/sync-gemini-assets.sh --dry-run  # 何が変わるかだけ出す
+```
+
+**`jq` が無い環境では非0で終了する**（インストール方法を出す）。`jq` は `.gemini/` だけでなく
+`.claude/` 機構全体の前提のため、生成だけを諦めて先へ進む形は採らない。
+
+## 最終統括レポートとPR/MRへの反映（flow-id 5-4）
+
+片付け（flow-id 5-5）へ進む前に、**そのブランチで何をやったかを1枚にまとめた最終統括レポートを
 作成し、PR/MR上へ残す**（issue #111）。
 
-`plans/` `worklog/` `reports/` は flow-id 5-4 で削除され、squash mergeにより `main` にも残らない。
+`plans/` `worklog/` `reports/` は flow-id 5-5 で削除され、squash mergeにより `main` にも残らない。
 統括をPR/MR上のコメントとして残すことで、**ファイルが消えてもレビュー時・マージ後の追跡に耐える**
 状態にする。
 
-### なぜ 5-2 と 5-4 の間なのか
+### なぜ 5-4 なのか（5-3 と 5-5 の間）
 
-- **5-4（片付け）より前**である必要がある。統括レポートは `plans/` `worklog/` `reports/` の内容を
+- **5-5（片付け）より前**である必要がある。統括レポートは `plans/` `worklog/` `reports/` の内容を
   materialにして書くため、削除後には書けない。
-- **このステップ自身がcommit・pushまでを含む**。統括レポートを作るだけで 5-4 へ進むと、
+- **このステップ自身がcommit・pushまでを含む**。統括レポートを作るだけで 5-5 へ進むと、
   作成と削除が同じ作業ツリー上で相殺され、**ブランチのコミット履歴にすら残らない**
   （層1が成立しなくなる）。5-5 と同じく複合ステップにしてあるのはこのためである。
 - 5-1（コンフリクト解消）より後である必要もある。5-1 は作業ツリーがきれいなうちに `git merge` を
@@ -143,7 +185,7 @@ HTMLは `.claude/skills/issue-mr-flow/assets/reports.template.html` を土台に
 （`.claude/skills/canvas-report/SKILL.md` の判断基準は統括レポートにも当てはまる）。
 使い方は `references/deliverables.md`「計画・レポートのHTMLビュー」が正である。
 
-**統括レポートも flow-id 5-4 の削除対象である**（md・htmlの両方）。`cleanup-task.sh` は
+**統括レポートも flow-id 5-5 の削除対象である**（md・htmlの両方）。`cleanup-task.sh` は
 `reports/` 配下を `REVIEW-POINTS.md` 以外すべて削除するため、スクリプト側の変更は要らない。
 `main` に残るのは**PR/MR上のコメント**と `.claude/docs/spec/` `.claude/docs/ddr/` である。
 
@@ -251,7 +293,7 @@ Claude Codeより（最終統括レポート）: issue #<番号> / PR #<番号>
 | チャットで受けたレビュー判断の記録 | `Claude Codeより: チャットで受けたレビュー判断の記録（…）` | レビュー往復ごと（`comments` 手順6） |
 | スレッドを持たない指摘への対応記録 | `Claude Codeより:` | レビュー往復ごと（`comments` 手順4） |
 | 対応工数レポート | `Claude Codeより: 自動投稿（post-push-usage-report.sh …）` | pushごと（hookが自動投稿） |
-| **最終統括レポートのサマリ** | **`Claude Codeより（最終統括レポート）:`** | **flow-id 5-3（ブランチにつき1回）** |
+| **最終統括レポートのサマリ** | **`Claude Codeより（最終統括レポート）:`** | **flow-id 5-4（ブランチにつき1回）** |
 
 **既存3種の1行目は変更しない。** 統括レポートだけが括弧付きラベルを持てば、読み手は
 「これは統括レポートか、それ以外か」を1行目で判別できる。全種の書式を揃え直すと、`SKILL.md` の
@@ -268,13 +310,13 @@ Claude Codeより（最終統括レポート）: issue #<番号> / PR #<番号>
 **層3のスキップは異常ではない。** レポート本体（層1）とサマリコメント（層2）が揃っていれば、
 このステップは完了である。
 
-## PRがflow-id 5-4実施前にマージされてしまった場合の対処
+## PRがflow-id 5-5実施前にマージされてしまった場合の対処
 
-人間がレビュー後にそのままMR/PRをマージするなど、flow-id 5-4（`plans/` `worklog/` `reports/`の
+人間がレビュー後にそのままMR/PRをマージするなど、flow-id 5-5（`plans/` `worklog/` `reports/`の
 削除・`HANDOFF.md`のリセット）を実施する前に**先にマージが完了してしまう**ことがある（issue #28,
 PR #29のセッションで実際に発生）。この場合、タスク固有の`plans/`配下の計画ファイル（全体作業計画・
 下位の個別計画）・`worklog/`・`reports/`のファイル・作業途中のままの`HANDOFF.md`が、そのまま
-`main`へ残ってしまう（本来`worklog/`・`reports/`はsquash mergeの対象からflow-id 5-4で除外され
+`main`へ残ってしまう（本来`worklog/`・`reports/`はsquash mergeの対象からflow-id 5-5で除外され
 `main`に残らない設計であり、このズレはdocs-workflow.mdの運用と矛盾する）。
 
 マージ後にこのズレに気づいた場合、**`main`へ直接コミットせず**、以下の手順で対処する
@@ -286,7 +328,7 @@ PR #29のセッションで実際に発生）。この場合、タスク固有�
    `.mrworkflow.json`の`branchPrefixTemplate`に従う必要はなく、`chore/cleanup-<簡潔な説明>`の
    ような分かりやすい名前でよい）。
 3. そのブランチ上で、該当する`plans/`・`worklog/`・`reports/`ファイルを削除し、`HANDOFF.md`を
-   次タスク向けの空テンプレートへリセットする（内容はflow-id 5-4で行うものと同じ）。
+   次タスク向けの空テンプレートへリセットする（内容はflow-id 5-5で行うものと同じ）。
 4. commit・pushし、`main`を対象にPRを作成する。**PRの作成は他のPR操作と同様AIエージェントが
    行ってよく、都度の明示指示は要らない**。**マージのみ**、ユーザーから明示的な指示を受けてから
    実行する（`.claude/skills/issue-mr-flow/SKILL.md`「PR/MR作成・マージの担当」節、`.claude/rules/git-workflow.md`「PR・マージ」節）。

@@ -98,11 +98,11 @@ MRとのやり取りだけを自動化する薄い層」として設計したが
 | `read_file_at_ref <sha> <path>` | 指定commit時点のファイル内容を**プロバイダのファイル取得API**から読む（issue #43。ソーススライスの断面がローカルのblobで解決できないときのフォールバック。ローカルで解決できる場合はここへ来ない） | `gh api repos/{owner}/{repo}/contents/<path>?ref=<sha>`（base64） | `glab api projects/:id/repository/files/<encoded>/raw?ref=<sha>`（【未検証】） |
 | `add_mr_thread_reply <n> <threadId> <text>` | 指定スレッドに対応内容を返信する（スレッドの解決＝resolvedはレビュアー側の操作のため本関数では行わない）。**投稿した返信自身のパーマリンクを標準出力へ返す**（issue #42。レビュー依頼メッセージへ「前回の指摘にどう返信したか」のリンクを載せるため） | `gh api graphql`（reply mutation。戻り値を `comment { url }` にした） | `glab api`（note追加。POSTレスポンスの `id` から組み立てる） |
 | `set_mr_description <n> <bodyFile>` | PR/MRのdescriptionを指定ファイル内容で上書き | `gh pr edit --body-file` | `glab mr update --description` |
-| `set_mr_ready <n>` | Draft PR/MRのDraft状態を解除し、レビュー・マージ可能な状態にする（全体フロー flow-id 5-5。Draft作成側の `new_draft_merge_request` に対応する解除側。issue #61） | `gh pr ready` | `glab mr update --ready` |
+| `set_mr_ready <n>` | Draft PR/MRのDraft状態を解除し、レビュー・マージ可能な状態にする（全体フロー flow-id 5-6。Draft作成側の `new_draft_merge_request` に対応する解除側。issue #61） | `gh pr ready` | `glab mr update --ready` |
 | `add_mr_comment <n> <bodyFile>` | PR/MRへ新規コメントを1件投稿（スレッド返信・レビューではない通常コメント） | `gh pr comment --body-file` | `glab api`（notes追加） |
 | `add_mr_inline_comments <n> <findingsFile>` | findings JSONファイルの指摘を、PR/MRへインラインコメントとして投稿する（敵対的レビュー用。issue #77）。投稿できなかった指摘はサマリへ回し、`{"posted":N,"summarized":M}` を返す。findingsは**必ずファイル経由で渡す**（引数長上限とhook誤検知の回避）。仕様は [adversarial-review.md](adversarial-review.md) を正とする | `gh api pulls/<n>/reviews`（1レビューへまとめて投稿。有効行を事前検証） | `glab api discussions`（1件ずつPOST。`position` を `diff_refs` から組み立てる。サマリも指摘を含むなら `position` 無しの `discussions` でスレッドとして投稿する） |
 | `add_issue_comment <n> <bodyFile>` | **任意のissue**へ新規コメントを1件投稿（全体フロー flow-id 5-2: マージ前の関連issue通知。issue #86）。宛先がPR/MRである `add_mr_comment` とは別関数で、GitHub実装が `gh pr comment` であるためPR以外へ投げられなかったのが分離の理由。本文はファイル経由（push検知hookの誤発火を避けるため）。投稿先・本文の決定と人間の承認は呼び出し側の責務 | `gh issue comment --body-file` | `glab api`（issues notes追加） |
-| `upload_attachment <file> [<contentType>]` | ファイルをPR/MR本文へ埋め込める形でアップロードし `{url, markdown, provider}` を返す（全体フロー flow-id 5-3 の**層3**。issue #111）。**失敗は正常系のひとつ**で、呼び出し側は非0を受けてスキップする | **未ドキュメントAPI**（`uploads.github.com/user-attachments/assets` へ `curl`。`gh` に添付用フラグが無い） | `glab api projects/:id/uploads -F file=@<path>`（公式API・**実機未検証**） |
+| `upload_attachment <file> [<contentType>]` | ファイルをPR/MR本文へ埋め込める形でアップロードし `{url, markdown, provider}` を返す（全体フロー flow-id 5-4 の**層3**。issue #111）。**失敗は正常系のひとつ**で、呼び出し側は非0を受けてスキップする | **未ドキュメントAPI**（`uploads.github.com/user-attachments/assets` へ `curl`。`gh` に添付用フラグが無い） | `glab api projects/:id/uploads -F file=@<path>`（公式API・**実機未検証**） |
 | `sync_branch <branch>` | 現在のブランチをfetch、必要ならcheckout（新しいセッションでの再開用） | `git fetch` + `git checkout` | 同左 |
 | `test_issue_sections <body>` | issue本文に「目的／現状／期待する動作／受け入れ条件」の4見出しが揃っているか確認し、欠けている見出し名を1行1件でstdoutへ出力する（プロバイダ非依存） | — | — |
 | `get_issue_number_from_branch [<branch>]` | ブランチ名を `branchPrefixTemplate` に照らしてissue番号を抽出する（省略時は現在のブランチ）。マッチすればstdoutへ出力し終了コード0、マッチしなければ終了コード1（プロバイダ非依存） | — | — |
@@ -215,11 +215,11 @@ Draft解除は、クローズ・書き直し・Draftへの差し戻しでいつ�
 優先した先の振る舞いを「ブランチ作成までは通常どおり → `AskUserQuestion` で作成可否を1回だけ確認 →
 応答を待てない非対話的セッションではPRを作成せず、その事実を最終応答へ明示」と決め打ちにすることで
 再現性を確保している（再現性の要点は「必ず作る」ことではなく「毎回同じ判断になる」ことにある）。
-この確認はPRの**新規作成**のみが対象で、flow-id 5-5（Draft解除）・`describe`・`reply` は既存PRの
+この確認はPRの**新規作成**のみが対象で、flow-id 5-6（Draft解除）・`describe`・`reply` は既存PRの
 更新のため対象外。
 
 担当表と手順の詳細は `.claude/rules/git-workflow.md`「PR・マージ」節が正であり、
-`.claude/skills/issue-mr-flow/SKILL.md`「PR/MR作成・マージの担当（flow-id 1-3・5-5・5-6）」節が
+`.claude/skills/issue-mr-flow/SKILL.md`「PR/MR作成・マージの担当（flow-id 1-3・5-6・5-7）」節が
 フロー側からの入口になる。判断の理由・却下案は
 [i0041-01-PR_MR作成はAIエージェントに委ねマージのみ明示指示を必須にする.md](../ddr/i0041-01-PR_MR作成はAIエージェントに委ねマージのみ明示指示を必須にする.md)。
 
@@ -261,7 +261,7 @@ Claude Code / Gemini CLI は**セッションごとに1つのplanファイルし
   `"defaultMode": "plan"` により新セッションは必ずPlanモードで始まるが、それは新規作成の理由に
   ならない。
 - これに伴い全体フローの先頭に全体作業計画の作成・合意を追加した（issue #9時点では33→35ステップ。
-  現在のflow-idは `<フェーズ番号>-<ステップ番号>` 形式の5フェーズ・42ステップで、最新の定義は
+  現在のflow-idは `<フェーズ番号>-<ステップ番号>` 形式の5フェーズ・43ステップで、最新の定義は
   `.claude/skills/issue-mr-flow/SKILL.md`「全体フロー」を正とする）。worklogは
   `worklog/日付_<全体計画名>_<個別計画名>_push<N>.md`、reportsは
   `reports/日付_<全体計画名>_<内容を簡潔に>.html` へ命名を変更し、reportsは調査結果専用ではなく
@@ -329,7 +329,7 @@ Claude Code / Gemini CLI は**セッションごとに1つのplanファイルし
 | テンプレート | 対象 |
 |---|---|
 | `.claude/skills/issue-mr-flow/assets/plans.template.html` | 全体作業計画（flow-id 1-4）と個別計画（2-1・3-1・4-1） |
-| `.claude/skills/issue-mr-flow/assets/reports.template.html` | 調査結果（2-6）・作業結果（3-6）・反映結果（4-6）・最終統括レポート（5-3） |
+| `.claude/skills/issue-mr-flow/assets/reports.template.html` | 調査結果（2-6）・作業結果（3-6）・反映結果（4-6）・最終統括レポート（5-4） |
 
 **この節が扱うのは、なぜこの形にしたかと、どこに何の正があるかだけである。** 運用の詳細
 （見出し構成・必須／任意の区別・作成タイミング・埋め忘れの検査）はここへ再掲しない。
@@ -339,7 +339,7 @@ Claude Code / Gemini CLI は**セッションごとに1つのplanファイルし
 | 記述の型（見出し構成・必須／任意の区別・埋め忘れの検査） | **テンプレート本体**の冒頭のHTMLコメント |
 | いつ作るか・作った後どう扱うか（flow-idごとの手順） | **`.claude/skills/issue-mr-flow/references/deliverables.md`**「計画・レポートのHTMLビュー」 |
 | レビュー時に何を見るか | **`plans/REVIEW-POINTS.md` / `reports/REVIEW-POINTS.md`** |
-| ライフサイクル（flow-id 5-4 でまとめて削除・frontmatterの対象外） | **`.claude/rules/docs-workflow.md`** のライフサイクル表 |
+| ライフサイクル（flow-id 5-5 でまとめて削除・frontmatterの対象外） | **`.claude/rules/docs-workflow.md`** のライフサイクル表 |
 
 #### なぜテンプレートファイルへ切り出したか
 
@@ -353,7 +353,7 @@ Claude Code / Gemini CLI は**セッションごとに1つのplanファイルし
 `plans/`（これから何をするか）と `reports/`（何をして何が分かったか）では必須セクションが
 異なるため、1本に統合できない。**共通のCSSは2本へ重複して持たせる**——共有CSSファイルへ
 切り出すと「自己完結」でなくなり、**HTMLファイル単体をリポジトリ外へ持ち出して共有・保管した
-場合に開けなくなる**ため（`reports/` はflow-id 5-4でmdとhtmlをまとめて削除するので、
+場合に開けなくなる**ため（`reports/` はflow-id 5-5でmdとhtmlをまとめて削除するので、
 「片方だけが残る」状況は起きない。壊れるのは持ち出したときである）。
 
 **md側のテンプレートは作らない。** `plans/*.md` `reports/*.md` の見出し構成は規定せず自由記述の
@@ -639,7 +639,7 @@ resumeを省略してしまう事故が発生した）。そのため発動条�
    記述と実際の状態（PR有無・未解決コメント件数等）に矛盾があれば、それも指摘する**
    （例: HANDOFF.mdは「PR未作成」と書いてあるが実際はPRが存在する、等）。
 
-呼び出し元は、このサマリをもとに全体フロー（5フェーズ・42ステップ）のうちどこから再開すべきかを判断し、
+呼び出し元は、このサマリをもとに全体フロー（5フェーズ・43ステップ）のうちどこから再開すべきかを判断し、
 人間に提案する（この判断自体はサブエージェントの役割ではなく、呼び出し元が行う）。**ベースブランチが
 遅れていた場合に取り込みの可否を `AskUserQuestion` で確認するのも呼び出し元の役割であり、
 サブエージェントは検知結果を報告するだけである**（issue #67。手順は
@@ -651,7 +651,7 @@ resumeを省略してしまう事故が発生した）。そのため発動条�
 
 ### マージ後の取り残しクリーンアップ
 
-人間がレビュー後にそのままMR/PRをマージするなど、flow-id 5-4（`plans/` `worklog/`の削除・
+人間がレビュー後にそのままMR/PRをマージするなど、flow-id 5-5（`plans/` `worklog/`の削除・
 `HANDOFF.md`のリセット）の実施前にマージが完了してしまうことがある（issue #28, PR #29の
 セッションで実際に発生）。この場合、タスク固有の`plans/`・`worklog/`ファイルと作業途中のままの
 `HANDOFF.md`が`main`へ残ってしまい、`docs-workflow.md`の運用（`worklog/`はsquash mergeで
@@ -661,7 +661,7 @@ resumeを省略してしまう事故が発生した）。そのため発動条�
 PRで対処する（`main`はレビューを経ないままの直接変更を避ける対象のため）。issue番号を持たない
 一回限りの対応のため、`.mrworkflow.json`のブランチ命名規則には従わず`chore/cleanup-<説明>`
 のような名前を使ってよい。手順の詳細は
-`.claude/skills/issue-mr-flow/references/phase5-close.md`の「PRがflow-id 5-4実施前にマージされてしまった場合の対処」
+`.claude/skills/issue-mr-flow/references/phase5-close.md`の「PRがflow-id 5-5実施前にマージされてしまった場合の対処」
 節を参照。
 
 ### PR作成後のdefaultブランチ追従（issue #88）
@@ -672,7 +672,7 @@ PRが多いほど、この期間のコンフリクトを取りこぼす（実例
 `main` が4回進み、DDR番号を 0034→0035→0036→0038 と3回繰り下げた）。
 
 この追従を、**flow-idを持たないフェーズ横断の並行手順**として定義する。flow-id 1-3（PR作成）の
-直後に開始し、5-6（マージ）またはPRのクローズで停止する「期間」であり、進捗表の1行として完了を
+直後に開始し、5-7（マージ）またはPRのクローズで停止する「期間」であり、進捗表の1行として完了を
 表せる性質のものではないため、flow-idは増やしていない。**flow-id 5-1 は「最終ゲート」として残す**
 （監視は実行環境の機能とセッションの寿命に依存するため、一度も動かないセッションがありうる）。
 
@@ -713,9 +713,9 @@ PRが多いほど、この期間のコンフリクトを取りこぼす（実例
 | 影響先が無い場合 | **スキップしてよい**。ただし「影響先なし」と判断したことは `HANDOFF.md` へ残す |
 
 **現在のフェーズ5内の位置**: issue #112 でフェーズ5を並べ替えた結果、本ステップは
-**flow-id 5-2**（コンフリクト解消 5-1 の次、統括レポート 5-3・片付け 5-4 の前）である。上表の「挿入位置」は
+**flow-id 5-2**（コンフリクト解消 5-1 の次、統括レポート 5-4・片付け 5-5 の前）である。上表の「挿入位置」は
 issue #86 当時の並び（5-1 片付け → 5-2 コンフリクト解消 → 5-3 本ステップ）を指す。並べ替えにより、
-「影響先なし」の判断を書き戻す `HANDOFF.md` が、片付け（5-4）のリセット前に残っている状態になった。
+「影響先なし」の判断を書き戻す `HANDOFF.md` が、片付け（5-5）のリセット前に残っている状態になった。
 キーワード抽出時に `plans/` `worklog/` `reports/` を差分から除外するのも並べ替えに伴う変更である
 （issue #86 当時は片付けが先だったため、これらは既に差分から消えていた）。
 
@@ -730,8 +730,8 @@ PR番号か通知先issue番号かで異なる）。手順の正は
 ### 最終統括レポートとPR/MRへの反映（issue #111）
 
 **タスク（issue／ブランチ）の完了時に、そのブランチで何をやったかを1枚にまとめた最終統括
-レポートを作成し、PR/MR上へ残す**ステップ（flow-id 5-3）を設けた。`plans/` `worklog/` `reports/`
-は片付け（flow-id 5-4）で削除され、squash mergeにより `main` にも残らないため、ブランチ全体を
+レポートを作成し、PR/MR上へ残す**ステップ（flow-id 5-4）を設けた。`plans/` `worklog/` `reports/`
+は片付け（flow-id 5-5）で削除され、squash mergeにより `main` にも残らないため、ブランチ全体を
 統括した成果を後から一望する手段が無かった。
 
 | 観点 | 決めたこと |
@@ -742,7 +742,7 @@ PR番号か通知先issue番号かで異なる）。手順の正は
 | HTMLの土台 | `.claude/skills/issue-mr-flow/assets/reports.template.html`（必須セクションの統括レポート向けの読み替えは、同テンプレートの冒頭コメント「フェーズごとの読み替え」を参照） |
 | 反映の構造 | **3層のフォールバック**（下表）。層3が壊れても層1・層2でレビューは成立する |
 | サマリの1行目 | **`Claude Codeより（最終統括レポート）:`**。既存の通常コメント3種の書式は変更しない |
-| ライフサイクル | 統括レポート自体も **flow-id 5-4 の削除対象**。`main` に残るのはPR/MR上のコメントと `spec/` `ddr/` |
+| ライフサイクル | 統括レポート自体も **flow-id 5-5 の削除対象**。`main` に残るのはPR/MR上のコメントと `spec/` `ddr/` |
 
 #### 3層のフォールバック構造
 
@@ -796,7 +796,7 @@ Web UIのドラッグ＆ドロップと同じ `uploads.github.com/user-attachmen
 `Claude Codeより（敵対的レビュー）:`）。新しい1種だけがラベルを持てば「これは統括レポートか、
 それ以外か」を判別できるため、既存3種は書き換えていない。
 
-手順の正は `.claude/skills/issue-mr-flow/references/phase5-close.md`「最終統括レポートとPR/MRへの反映（flow-id 5-3）」節。
+手順の正は `.claude/skills/issue-mr-flow/references/phase5-close.md`「最終統括レポートとPR/MRへの反映（flow-id 5-4）」節。
 判断の理由・却下案（添付を必須にする・GitLabだけ対応する・レポートを `main` へ残す・
 MR descriptionへ書く・全種へラベルを付け直す）は
 [i0111-01-統括レポートの添付は任意層に置きフローを止めない.md](../ddr/i0111-01-統括レポートの添付は任意層に置きフローを止めない.md)
@@ -904,7 +904,7 @@ Claude Code on the webのリモート実行環境のように、`gh`/`glab` CLI�
   （`create-issue.sh`）についても同スキル側に読み替え手順を書く。
 - **代替が無い唯一の関数**: `upload_attachment`（issue #111）。MCPには**PR/issueへの添付に相当する
   ツールが存在しない**（実測で確認）。`mcp_tool_hint` は読み替え先のツール名ではなく
-  「**flow-id 5-3 の層3（添付）はスキップしてよい**」という案内を返す。層1（`reports/` を
+  「**flow-id 5-4 の層3（添付）はスキップしてよい**」という案内を返す。層1（`reports/` を
   リモートへ反映）・層2（サマリコメント）だけでレビューが成立する設計にしてあるため、
   ここでの失敗はフローを止めない（下記「最終統括レポートとPR/MRへの反映」）。
 - **機構的な誘導**: プロバイダ依存の11関数（`get_issue` / `new_issue` / `search_issues` /
@@ -1203,14 +1203,19 @@ Claude Codeの対応工数（モデル別トークン数・ツール実行回数
       集計しない理由・却下案は
       [.claude/docs/ddr/i0097-05-Gemini-CLIのサブエージェントは保存のみとし集計しない.md](../ddr/i0097-05-Gemini-CLIのサブエージェントは保存のみとし集計しない.md)を参照。
 - **Gemini CLIのhook登録**: `.gemini/settings.json`の`hooks`キー配下（`SessionStart`/`BeforeTool`/
-  `AfterTool`）に`.claude/hooks/*.sh`一式を登録する。`BeforeTool`/`AfterTool`の`matcher`は
-  `"run_shell_command|Bash|PowerShell"`という両エンジンの`tool_name`を含む形にしている
-  （各hookスクリプト内部で`tool_name`により絞り込むため、マッチャーを広めに取っても誤発火はしない）。
-  `command`フィールドは単一のシェル文字列（`args`配列に相当するフィールドはGemini CLI側に無い）で、
-  `${GEMINI_PROJECT_DIR}`はダブルクォートで囲む。`.gemini/settings.json`の既存キー
-  （`general.plan.directory`）はそのまま維持する。採用経緯は
-  [i0003-01-gemini-settings.jsonのhooksはレビュー提示スニペットのhooksセクションのみ採用する.md](../ddr/i0003-01-gemini-settings.jsonのhooksはレビュー提示スニペットのhooksセクションのみ採用する.md)
-  参照。
+  `AfterTool`）へ`.claude/hooks/*.sh`一式が登録される。**issue #70以降、この`.gemini/settings.json`は
+  手で書くファイルではなく`.claude/settings.json`からの変換生成物**であり、
+  `bash .claude/scripts/src/sync-gemini-assets.sh`が生成する。**用語変換規則の正は
+  [.claude/docs/spec/sync-gemini-assets.md](sync-gemini-assets.md)の1箇所**で、ここには重複して
+  書かない（`PreToolUse`→`BeforeTool`、ツール名`Bash`→`run_shell_command`、
+  `${CLAUDE_PROJECT_DIR}`→`$GEMINI_PROJECT_DIR`、`timeout`の秒→ミリ秒、`SessionStart`の
+  matcherが完全一致であることへの対処などを、そちらが定める）。
+  hookが実行するスクリプトのパスは`.claude/hooks/`のままで、**両経路が同じスクリプトを実行する**。
+  採用経緯は
+  [i0003-01-gemini-settings.jsonのhooksはレビュー提示スニペットのhooksセクションのみ採用する.md](../ddr/i0003-01-gemini-settings.jsonのhooksはレビュー提示スニペットのhooksセクションのみ採用する.md)、
+  生成物へ改めた経緯は
+  [i0070-01-gemini配下はclaudeからの変換生成物にしGit管理下へ置く.md](../ddr/i0070-01-gemini配下はclaudeからの変換生成物にしGit管理下へ置く.md)
+  を参照。
 - **呼び出し・質問の詳細記録**（issue #37）: 上記の新規行diff方式への移行と合わせて、
   メインセッションのtranscriptの新規行から以下3種の詳細情報を抽出し、`sinceLastPush`へ配列として
   追記する（サブエージェント自身が呼び出した分・ネストしたサブエージェントは対象外）。
@@ -3081,6 +3086,40 @@ JSコメント内の例示URL 1行である）を必ず誤検知し、**外部�
 調査で不要と確認。上記のとおり、改名の後片付けまでは担保していない）、markdownテンプレート
 （issue #54 本文が明示的に除外）、`HANDOFF.md` のテンプレート外だし（DDR `i0028-01` を覆さない）。
 
+### issue #70（`.gemini/` を変換生成物へ改め、flow-id 5-3 を新設した）
+
+**全体フローが 42 → 43ステップになった。** フェーズ5へ **flow-id 5-3（`.claude/` → `.gemini/` の
+変換同期）** を新設し、**最終統括レポートの直前**へ置いた。以降のステップは1つずつ繰り下がった。
+
+| 旧 | 新 | ステップ |
+|---|---|---|
+| — | **5-3** | **`.claude/` の変更を `.gemini/` へ変換同期する**（新設。このステップ自身はコミットを持たない） |
+| 5-3 | 5-4 | 最終統括レポートを作成し、PR/MRへサマリコメントとして反映する |
+| 5-4 | 5-5 | 次タスクのための片付け（`cleanup-task.sh`） |
+| 5-5 | 5-6 | commit・push して Draft を解除する（**AIエージェントはここで止まる**） |
+| 5-6 | 5-7 | マージする（人間） |
+
+**最終統括レポートの直前へ置いた理由**: `.gemini/` は `.claude/` からの生成物なので、同期は
+`.claude/` への変更が出そろった後でなければ意味がない。一方、片付け（`cleanup-task.sh`）より後ろ
+だと、生えた差分を載せるコミットが Draft 解除と同じものになり、レビューの区切りとずれる。
+5-3 で生えた差分は**直後の 5-4 のコミットに載る**。
+
+**繰り下げに伴い番号を書き換えたファイル**（現状記述のみ。`## 影響範囲` のような
+point-in-time の記録と DDR 本文は**書き換えていない**）:
+`.claude/skills/issue-mr-flow/SKILL.md`、`.claude/rules/docs-workflow.md`、
+`.claude/rules/directory-structure.md`、`.claude/rules/markdown-frontmatter.md`、
+`.claude/rules/git-workflow.md`、`index.md`、`.claude/docs/spec/cleanup-task.md`、
+`.claude/docs/spec/update-handoff-progress.md`、`.claude/skills/issue-mr-flow/assets/reports.template.html`、
+`reports/REVIEW-POINTS.md`。
+
+**そのほかの変更**:
+
+- 「Gemini CLIのhook登録」節を生成物前提へ書き直し、**用語変換規則の正を
+  [.claude/docs/spec/sync-gemini-assets.md](sync-gemini-assets.md) 1箇所へ寄せた**。
+- `## 未決定事項・懸念点` の「（issue #57）`.gemini/settings.json` の SessionStart matcher」を
+  **解消済みとして「決定済み事項」へ移した**（Gemini の source に `compact` が無いことと、
+  matcher が完全一致であることがソースから確定したため）。
+
 ## 設定項目
 
 `.mrworkflow.json`
@@ -3146,6 +3185,16 @@ JSコメント内の例示URL 1行である）を必ず誤検知し、**外部�
   issue #57で`compact`を追加した（compactは要約内容を指定できず現在地が失われるため。
   コスト面の再評価は[DDR i0057-01](../ddr/i0057-01-compact後もSessionStart-hookで作業コンテキストを再注入する.md)）。
   `fork`は引き続き対象外。
+- **（issue #57 → issue #70で解消）`.gemini/settings.json` の SessionStart matcher**:
+  `.claude/settings.json` 側へ `compact` を追加した際、Gemini CLI がその値を解釈するかを実機で
+  確認できなかったため、`.gemini/` 側は `startup|resume|clear` のまま揃えずに置いていた。
+  issue #70 で `.gemini/` を変換生成物へ改めた際、gemini-cli のソースから**Gemini の
+  SessionStart source は `startup`/`resume`/`clear` の3つで、`compact` に相当するものが無い**
+  こと、および**matcherが完全一致で判定される**（縦棒つなぎではどの source にも一致せず
+  hookが一度も発火しない）ことが確定した。したがって「揃えない」ではなく**変換規則として
+  `compact` を落とし、3 source すべてを覆う場合は matcher 自体を出力しない**（無条件マッチ）
+  形に変わった。規則の正は
+  [.claude/docs/spec/sync-gemini-assets.md](sync-gemini-assets.md)。
 - **Windows PowerShell 5.1の文字コード対策はルールでなくスクリプト側で強制する**（issue #6で
   `Provider.ps1`自体が`Provider.sh`へ置き換わったため、本項の対策は過去のものとなった。教訓・
   判断基準としての記録として残す）: issue #5対応中に、
@@ -3527,11 +3576,6 @@ issue #48 の実機検証を受けていない13関数（issue #42・#61・#68�
   の2点である（後者はプロバイダ固有関数をスタブへ差し替えて確認した）。
   `gh` が使える環境で実PRに対して実行し、確認できた時点で本項目を削除する。
 
-- **（issue #57）`.gemini/settings.json` の SessionStart matcher は `startup|resume|clear` のまま**:
-  `.claude/settings.json` 側には `compact` を追加したが、Gemini CLI の SessionStart matcher が
-  `compact` という値を解釈するかを実機で確認できていないため、あえて揃えていない。未検証の
-  設定値を持ち込んで既存の動いている設定を壊さないという、[DDR i0003-01](../ddr/i0003-01-gemini-settings.jsonのhooksはレビュー提示スニペットのhooksセクションのみ採用する.md)
-  と同じ判断による。Gemini CLI 側の対応値が確認でき次第、追加を検討する。
 - **（issue #57）注入量のしきい値8000バイトは実測1件（1,222バイト）に基づく暫定値**:
   「通常運用では鳴らず、数倍に膨らめば鳴る」水準として置いたもので、他プロジェクトへ機構を
   展開した際に適切かは未検証。`CONTEXT_SIZE_WARN_BYTES` 環境変数で上書きできるようにしてある。

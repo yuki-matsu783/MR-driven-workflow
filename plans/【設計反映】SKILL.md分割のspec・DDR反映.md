@@ -12,7 +12,7 @@ keywords: [設計反映, spec, DDR, issue-mr-workflow, update-handoff-progress, 
 
 フェーズ3で実施した「SKILL.mdの分割・全体フロー表の参照列・SessionStart hookの参照注入」を、
 永続ドキュメント（`.claude/docs/spec/`・`.claude/docs/ddr/`）へ反映する。
-`plans/` `worklog/` `reports/` は flow-id 5-4 で削除されるため、この反映が唯一の永続記録になる。
+`plans/` `worklog/` `reports/` は flow-id 5-5 で削除されるため、この反映が唯一の永続記録になる。
 
 ## 反映元と洗い出しの対応表
 
@@ -34,7 +34,7 @@ keywords: [設計反映, spec, DDR, issue-mr-workflow, update-handoff-progress, 
 | DDR `i0113-01` の前提変化（1,100行→分割後） | **反映する**（C-2: frontmatter `note`） |
 | `markdown-frontmatter.md` type表・`directory-structure.md`・`index.md` | **済み**（フェーズ3の 3-6/3-9 で反映済み。再変更しない） |
 | `.gemini/` 側のリンク動作 | **追加作業なしと結論**（`setup-gemini-links.sh` は `skills` を**ディレクトリ単位**でリンクするため、`references/` はリンク越しに自動で見える。Windows実機での動作確認だけが残り、これは本環境では不可能なので `HANDOFF.md`「判断を迷った内容」へ記録して引き継ぐ） |
-| 配布物への `index.jsonl` 混入・`install-to-project.sh` の破壊的既定 | **別issue候補として引き継ぐ**（本issueのスコープ外。起票の要否はユーザー判断のため、flow-id 5-3 の統括レポートと `HANDOFF.md` へ明記して委ねる。このセッションでは起票しない） |
+| 配布物への `index.jsonl` 混入・`install-to-project.sh` の破壊的既定 | **別issue候補として引き継ぐ**（本issueのスコープ外。起票の要否はユーザー判断のため、flow-id 5-4 の統括レポートと `HANDOFF.md` へ明記して委ねる。このセッションでは起票しない） |
 
 ## 変更対象
 
