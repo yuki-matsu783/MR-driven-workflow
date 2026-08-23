@@ -63,7 +63,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 | [x] | 5-1 | defaultブランチとのコンフリクト解消 | resolve-conflict |
 | [x] | 5-2 | 関連issueへの通知 | エージェント |
 | [x] | 5-3 | .gemini/への変換同期 | エージェント |
-| [] | 5-4 | 最終統括レポート | エージェント |
+| [x] | 5-4 | 最終統括レポート | エージェント |
 | [] | 5-5 | 片付け（cleanup-task.sh） | エージェント |
 | [] | 5-6 | commit・push・Draft解除 | エージェント |
 | [] | 5-7 | マージ | 人間 |
@@ -169,9 +169,17 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
   `scripts/test/test_select_adversarial_findings.sh`の新規追加）。`sync-gemini-assets.sh`を
   実行して再生成し、`--check`が終了コード0（同期済み）になることを確認した。
 
+- **flow-id 5-4: 最終統括レポートを作成しPRへ反映した。**
+  `reports/20260823_misty-drifting-lantern_統括.md`・`.html`を作成し（層1）、`commit`スキル経由で
+  コミット・push（コミット`d80a963`）。層3（HTML添付）は`gh`/`glab` CLI不在の実行環境のため
+  対応するMCPツールが無く、SKILL.mdの記載どおりスキップした。層2として、サマリを
+  `Claude Codeより（最終統括レポート）:`で始まる本文で`mcp__github__add_issue_comment`
+  （PR #183へのコメント）として投稿した
+  （https://github.com/yuki-matsu783/MR-driven-workflow/pull/183#issuecomment-5385783449 ）。
+
 ## 次にやること
 
-- flow-id 5-4（最終統括レポート）〜5-6（commit・push・Draft解除）へ進める。
+- flow-id 5-5（片付け・cleanup-task.sh）〜5-6（commit・push・Draft解除）へ進める。
   5-7（マージ）はユーザーの明示指示が無い限り実行しない。
 
 ## 判断を迷った内容
