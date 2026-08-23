@@ -114,15 +114,22 @@ assert_eq "HANDOFF_TEMPLATE: 末尾の改行は2つ以上にならない" "1" \
 # 進捗表はリセット時点では持たない（次タスク着手時にissue-mr-flowが書き起こす）
 assert_eq "HANDOFF_TEMPLATE: 進捗表の記号を含まない" "1" \
   "$(status_of test "${HANDOFF_TEMPLATE#*'[x]'}" != "$HANDOFF_TEMPLATE")"
+# 未返信スレッドは 0 で始まる（1以上だと、リセット直後にループ範囲を完了にできなくなる）。
+# status_of は「テストが真なら 0」を返すため、含まれていることの期待値は "0" である
+assert_eq "HANDOFF_TEMPLATE: 未返信スレッドの初期値は0" "0" \
+  "$(status_of test "${HANDOFF_TEMPLATE#*$'\n'"- 未返信スレッド: 0"$'\n'}" != "$HANDOFF_TEMPLATE")"
 
-# ヘッダ行の雛形6行を持つ（issue #66。タスクごとの書き起こしによる表記ゆらぎを防ぐため）。
+# ヘッダ行の雛形7行を持つ（issue #66。タスクごとの書き起こしによる表記ゆらぎを防ぐため）。
 # 表記の定義は .claude/docs/spec/update-handoff-progress.md「HANDOFF.mdのヘッダ行」が正。
+# "- 未返信スレッド: " は issue #70 で追加した。この行が無いと、ループ範囲への mark-done が
+# 必ず失敗するため、雛形が持つことに意味がある（次タスクは必ず揃った状態から始まる）。
 for header in \
   "- issue: " \
   "- ブランチ: " \
   "- PR: " \
   "- push回数: " \
   "- 現在のループ: " \
+  "- 未返信スレッド: " \
   "- 追従監視: "
 do
   if [[ "$HANDOFF_TEMPLATE" == *$'\n'"$header"* ]]; then

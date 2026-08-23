@@ -20,7 +20,7 @@ keywords: [plans, handoff, worklog, 正史仕様, 意思決定ログ, ライフ�
 | `CLAUDE.md` / `.claude/rules/*.md` | AI専用 | 永続 | 規約・構成 | ルート直下・`.claude/rules/`。セッション開始時にAIが自動読込する。実装フローそのものは `.claude/skills/issue-mr-flow/SKILL.md` を参照。 |
 | `plans/<自動命名>.md`（**全体作業計画**） | 人間＋AI | 生成時点のスナップショットとして永続 | このissueをどう進めるかの全体像（何を調査し何を実装するか）・比較検討した案・承認記録。**フェーズ2〈調査〉・フェーズ4〈反映〉の節は必ず含める**（詳細: `.claude/skills/issue-mr-flow/SKILL.md`「全体作業計画に必ず含めるフェーズ」） | **planツール（Planモード）で作成**し、issue（ブランチ）につき1つだけ持つ。ファイル名はハーネスが提示する自動命名のまま使う。手動で使い回したり中身を空にしたりせず、そのままコミットして履歴に残す。詳細: `.claude/skills/issue-mr-flow/SKILL.md`「計画の2階層構造」 |
 | `plans/【種別】タスク内容.md`（**個別調査計画**（フェーズ2）／**個別作業計画**（フェーズ3）／**個別反映計画**（フェーズ4）） | 人間＋AI | 同上 | フェーズごとの詳細な計画（**「これから何をするか」のみ。実施した結果は書かず`reports/…md`へ分離する**。詳細: `.claude/skills/issue-mr-flow/SKILL.md`「計画と実施結果の分離」）。種別は`【調査】【設計】【実装】【テスト】【AIアセット作成】【設計反映】【AIアセット反映】【実装反映】`の8種（issue #110で拡張。`【AIアセット作成】`はフェーズ3、`【実装反映】`はフェーズ4に属する）。**合意を1回で取るなら併記**（例`【実装】【テスト】`）、**フェーズごとに合意を挟むなら分ける**（迷ったら分ける。各種別の定義・判断基準の詳細は`.claude/skills/issue-mr-flow/SKILL.md`「計画の2階層構造」「種別を複数併記する場合／分ける場合」） | **planツールは使わず**Write/Editで直接作成する。囲み文字は全角`【】`（ASCIIの`[]`はbashのglobで文字クラス扱いになり、`plans/[調査]*.md`が意図どおりマッチしないため使わない）。`plans/【*.md`で下位の個別計画（調査・作業・反映）のみを機械的に列挙できる。 |
-| `HANDOFF.md` | 人間＋AI | 短期（常に最新状態のみ） | `.claude/skills/issue-mr-flow/SKILL.md`の全体フロー（5フェーズ・43ステップ）に対応する進捗チェック表／現在地／次にやること／判断を迷った内容／未解決の内容／守るべき条件・触ってはいけない範囲 | Git管理下に置く。**flow-idが1つ進むごとに、完了したflow-idの行を`[x]`にし「やったこと」「次にやること」を書き換える**（更新はcommit（flow-id 2-2/2-7/3-2/3-7/4-2/4-7/5-4/5-6）より前に行い、同じcommitに含める）。進捗表の記号・ヘッダ情報（issue/ブランチ/PR/push回数/現在のループ）の更新は`.claude/scripts/src/update-handoff-progress.sh`（`mark-done`/`mark-skip`/`add-round`/`set-header`）で機械的に行う（**ヘッダ行の正しい表記は`.claude/docs/spec/update-handoff-progress.md`「HANDOFF.mdのヘッダ行」が正**。issue #66。ここには再掲しない）（PR作成後は`- 追従監視:`行もヘッダへ持たせ、こちらは手で書き換える。`set-header`の対象外。詳細: `.claude/skills/issue-mr-flow/SKILL.md`「PR作成後のdefaultブランチ追従（監視）」）（手作業でのテーブル編集を禁止するものではないが、記号の書き間違いを避けるため推奨する。詳細: `.claude/docs/spec/update-handoff-progress.md`）。詳細な試行錯誤は書かず `worklog/` に逃がす。flow-id 5-5で次のタスクへ向けてリセットする。 |
+| `HANDOFF.md` | 人間＋AI | 短期（常に最新状態のみ） | `.claude/skills/issue-mr-flow/SKILL.md`の全体フロー（5フェーズ・43ステップ）に対応する進捗チェック表／現在地／次にやること／判断を迷った内容／未解決の内容／守るべき条件・触ってはいけない範囲 | Git管理下に置く。**flow-idが1つ進むごとに、完了したflow-idの行を`[x]`にし「やったこと」「次にやること」を書き換える**（更新はcommit（flow-id 2-2/2-7/3-2/3-7/4-2/4-7/5-4/5-6）より前に行い、同じcommitに含める）。進捗表の記号・ヘッダ情報（issue/ブランチ/PR/push回数/現在のループ/未返信スレッド）の更新は`.claude/scripts/src/update-handoff-progress.sh`（`mark-done`/`mark-skip`/`add-round`/`set-header`）で機械的に行う（**ヘッダ行の正しい表記は`.claude/docs/spec/update-handoff-progress.md`「HANDOFF.mdのヘッダ行」が正**。issue #66。ここには再掲しない）（PR作成後は`- 追従監視:`行もヘッダへ持たせ、こちらは手で書き換える。`set-header`の対象外。詳細: `.claude/skills/issue-mr-flow/SKILL.md`「PR作成後のdefaultブランチ追従（監視）」）（手作業でのテーブル編集を禁止するものではないが、記号の書き間違いを避けるため推奨する。詳細: `.claude/docs/spec/update-handoff-progress.md`）。詳細な試行錯誤は書かず `worklog/` に逃がす。flow-id 5-5で次のタスクへ向けてリセットする。 |
 | `worklog/日付_<全体計画名>_<個別計画名>_push<N>.md` | AI専用（人間も参照可） | タスク（issue／ブランチ）単位（flow-id 5-5でまとめて削除。ファイル自体はpushごとに`_push<N>`で分ける） | 「何を試した／うまくいった／ダメだったか」の詳細ログ | 個別作業計画の作成時に作り、同じセッションで作業する間に作業の節目ごとに頻繁に書き足す。内容はflow-id 4-6（設計反映）でspec/ddrへ反映し、**ファイルの削除はflow-id 5-5**で`plans/` `reports/`とまとめて行う（削除自体もコミットに含める）。`.gitignore`には加えない（ブランチ上のコミット履歴として残すため）。squash mergeにより、mainには残さない。 |
 | `reports/日付_<全体計画名>_<内容を簡潔に>.md` | 人間＋AI | タスク（issue／ブランチ）単位（worklogと同様、flow-id 5-5でまとめて削除） | **実施結果の正文**。調査結果・作業結果・反映結果と、その結論・根拠・確認結果（計画ファイルへは書かない） | flow-id 2-6/3-6/4-6で作成し、レビュー往復（2-9/3-9/4-9）のたびに更新する。**個別計画（`plans/【*】〜.md`）へ結果を書かないための分離先**（詳細: `.claude/skills/issue-mr-flow/SKILL.md`「計画と実施結果の分離」）。見出し構成は規定しない（記述の型のテンプレート化はissue #54の担当）。内容はflow-id 4-6（設計反映）でspec/ddrへ反映し、**ファイルの削除はflow-id 5-5**で`plans/` `worklog/`とまとめて行う（削除自体もコミットに含める）。`.gitignore`には加えない。squash mergeにより、mainには残さない。 |
 | `reports/日付_<全体計画名>_<内容を簡潔に>.html` | AI専用（人間も参照可） | 同上 | 上記mdの内容を視覚的に分かりやすくまとめた自己完結HTML（TailwindCSS CDN方式）。**結果の正文はmd側であり、HTMLはその視覚化**（両者は併存させる） | flow-id 2-6で作成し、md側の内容と同期して更新する。**ファイルの削除はflow-id 5-5**で`plans/` `worklog/`とまとめて行う（削除自体もコミットに含める）。`.gitignore`には加えない（ブランチ上のコミット履歴として残すため）。squash mergeにより、mainには残さない。 |
@@ -106,6 +106,18 @@ DDR一覧そのものは生成物なので、`generate-ddr-list.sh` の再実行
 **ループ範囲は「1周（レビュー往復1回）が完全に完了して初めて`[x]`にする」という単位であり、
 範囲内の一部ステップだけを個別に完了扱いにすることはできない**（`update-handoff-progress.sh`は
 この制約を機械的に強制する。詳細: `.claude/docs/spec/update-handoff-progress.md`「制約・設計判断」）。
+
+**「1周が完全に完了した」の条件は2つある**（issue #70）。
+
+1. そのループのレビュー指摘を**成果物へ反映した**こと。
+2. **返信が1件も付いていないレビュースレッドが無い**こと（人間の指摘・敵対的レビューの投稿の
+   両方を含む。判定方法は`.claude/skills/issue-mr-flow/SKILL.md`「レビュー完了合図の確認」の(2)）。
+
+2を満たしたら`update-handoff-progress.sh set-header --unreplied 0`でヘッダへ記録する。
+**ループ範囲への`mark-done`は、この値が0でなければ（行が無い場合も）拒否する。**
+1だけを満たして`[x]`にできてしまうと、返信ゼロのスレッドが「未対応と区別が付かない」まま残る
+（実例: issue #70のフェーズ2で敵対的レビューの10件が約1日この状態だった。
+詳細: `.claude/docs/spec/update-handoff-progress.md`「ループ範囲への`mark-done`と未返信スレッド」）。
 
 **レビュー往復が何周目かは、進捗表ではなくヘッダの1行が持つ**（issue #58）。ヘッダ項目
 （`- push回数:`等）と同じブロックに、次の1行を置く。

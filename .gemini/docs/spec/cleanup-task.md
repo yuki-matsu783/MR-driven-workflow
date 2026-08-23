@@ -71,14 +71,18 @@ bash .claude/scripts/src/cleanup-task.sh [--dry-run] [--skip-index]
 ### HANDOFF.mdのリセット
 
 `HANDOFF.md` を、スクリプトへ埋め込んだテンプレート（frontmatter＋6つの見出し＋**ヘッダ行の
-雛形6行**を持ち、本文は `（無し）`／`（進捗表は次タスク着手時に記入する）`）で上書きする。
+雛形7行**を持ち、本文は `（無し）`／`（進捗表は次タスク着手時に記入する）`）で上書きする。
 見出し構成は `.claude/rules/docs-workflow.md`「ドキュメント運用」表の `HANDOFF.md` 行に対応する。
 
-- **ヘッダ行の雛形6行**（`- issue:` / `- ブランチ:` / `- PR:` / `- push回数:` / `- 現在のループ:` /
-  `- 追従監視:`）は issue #66 で追加した。タスクごとにAIエージェントが書き起こしていたことが
+- **ヘッダ行の雛形7行**（`- issue:` / `- ブランチ:` / `- PR:` / `- push回数:` / `- 現在のループ:` /
+  `- 未返信スレッド:` / `- 追従監視:`）は issue #66 で追加した。タスクごとにAIエージェントが
+  書き起こしていたことが
   表記ゆらぎ（`- PR:` / `- Draft PR:`）を生み、`update-handoff-progress.sh set-header` が対象行を
   見つけられなくなっていたため。表記の定義は
   [update-handoff-progress.md](update-handoff-progress.md)「HANDOFF.mdのヘッダ行」が正。
+  - `- 未返信スレッド: 0` は issue #70 で追加した1行である。**この行が無いと、ループ範囲への
+    `mark-done` が必ず失敗する**ため、雛形が持つことに意味がある（次タスクは必ず揃った状態から
+    始まる）。
 
 - 既にテンプレートと同じ内容なら書き込まない（JSONの `handoff.alreadyTemplate` が `true` になる）。
   末尾の改行の個数だけの差は同一とみなす。

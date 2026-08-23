@@ -66,8 +66,10 @@ assert_contains() {
 TMP_DIR="$(mktemp -d)"
 trap 'rm -rf "$TMP_DIR"' EXIT INT TERM
 
-# 簡略版HANDOFF.mdフィクスチャを新規作成する（ヘッダ4行＋単発ステップ・ループ範囲・
+# 簡略版HANDOFF.mdフィクスチャを新規作成する（ヘッダ5行＋単発ステップ・ループ範囲・
 # スキップ対象を1つずつ含む最小限のテーブル）。
+# "- 未返信スレッド: 0" を持つのは、**ループ範囲への mark-done がこの行を要求する**ため
+# （issue #70）。行を持たない状態そのものは専用のケースで検証する。
 # フィクスチャ中のflow-idは行を識別するための値でしかなく、実際の全体フローの各ステップの
 # 内容（担当・省略可否）とは対応しない。フェーズ5の並べ替え（issue #112）のように全体フロー側の
 # 順序が変わってもこのフィクスチャは変更しない。
@@ -78,6 +80,7 @@ write_fixture() {
 - ブランチ: （未着手）
 - PR: （未着手）
 - push回数: 0
+- 未返信スレッド: 0
 
 | 進捗 | flow-id | ステップ | 担当 |
 |----|---|---|---|
@@ -90,7 +93,7 @@ FIXTURE
 
 # 実物のHANDOFF.mdと同じ形のフィクスチャ（issue #66）。
 #   - "## フロー進捗状況" 見出しの**下**にヘッダ行が並ぶ（既存の write_fixture は見出しを持たない）
-#   - ヘッダ項目が6つ（"- 現在のループ:" "- 追従監視:" を含む）
+#   - ヘッダ項目が7つ（"- 現在のループ:" "- 未返信スレッド:" "- 追従監視:" を含む）
 #   - 「やったこと」節に "- PR: ..." の引用がある（ヘッダ行と取り違えないことの検証用）
 # 引数で PR 行の項目名を差し替えられる（既定 "PR"。"Draft PR" を渡すと表記ゆらぎを再現する）。
 write_real_fixture() {
@@ -105,6 +108,7 @@ write_real_fixture() {
 - ${pr_label}: #146 https://github.com/o/r/pull/146
 - push回数: 2
 - 現在のループ: なし
+- 未返信スレッド: 0
 - 追従監視: なし
 
 | 進捗 | flow-id | ステップ | 担当 |
@@ -292,6 +296,7 @@ fixture="$TMP_DIR/handoff11.md"
 cat >"$fixture" <<'FIXTURE_MULTI'
 - push回数: 0
 - 現在のループ: 2-3〜2-4 の3周目（完了）
+- 未返信スレッド: 0
 
 | 進捗 | flow-id | ステップ | 担当 |
 |----|---|---|---|
@@ -308,6 +313,7 @@ assert_eq "別のループ範囲へ移ると1周目から数え直す" \
 fixture="$TMP_DIR/handoff12.md"
 cat >"$fixture" <<'FIXTURE_LEGACY'
 - push回数: 0
+- 未返信スレッド: 0
 
 | 進捗 | flow-id | ステップ | 担当 |
 |----|---|---|---|
@@ -323,6 +329,7 @@ assert_eq "旧表記からの移行: 進捗列は記号1つへ畳まれる" \
 fixture="$TMP_DIR/handoff13.md"
 cat >"$fixture" <<'FIXTURE_LEGACY2'
 - push回数: 0
+- 未返信スレッド: 0
 
 | 進捗 | flow-id | ステップ | 担当 |
 |----|---|---|---|
@@ -364,6 +371,8 @@ cat >"$fixture" <<'FIXTURE_NOHEADER'
 
 ## フロー進捗状況
 
+- 未返信スレッド: 0
+
 | 進捗 | flow-id | ステップ | 担当 |
 |----|---|---|---|
 | [] | 2-3 | ループ範囲1 | 人間 |
@@ -379,6 +388,7 @@ assert_eq "ヘッダ項目が無い場合は見出しの直後へ空行付きで
 # 挿入位置の基準が無い場合、進捗表の更新は成功させヘッダ行は警告に留める
 fixture="$TMP_DIR/handoff17.md"
 cat >"$fixture" <<'FIXTURE_BARE'
+- 未返信スレッド: 0
 | 進捗 | flow-id | ステップ | 担当 |
 |----|---|---|---|
 | [] | 2-3 | ループ範囲1 | 人間 |
@@ -499,6 +509,7 @@ cat >"$fixture" <<'FIXTURE_REAL_NOLOOP'
 - ブランチ: `claude/example`
 - PR: #146 https://github.com/o/r/pull/146
 - push回数: 2
+- 未返信スレッド: 0
 
 | 進捗 | flow-id | ステップ | 担当 |
 |----|---|---|---|
@@ -522,6 +533,7 @@ cat >"$fixture" <<'FIXTURE_WATCH'
 
 - issue: #66
 - push回数: 2
+- 未返信スレッド: 0
 - 追従監視: なし
 
 | 進捗 | flow-id | ステップ | 担当 |
@@ -530,10 +542,11 @@ cat >"$fixture" <<'FIXTURE_WATCH'
 | [] | 2-4 | ループ範囲2 | エージェント |
 FIXTURE_WATCH
 cmd_mark_done "$fixture" "2-3"
-assert_eq "「- 追従監視:」は挿入位置の基準にしない（その前へ入る）" \
+assert_eq "「- 追従監視:」「- 未返信スレッド:」は挿入位置の基準にしない（その前へ入る）" \
   "- push回数: 2
 - 現在のループ: 2-3〜2-4 の1周目（完了）
-- 追従監視: なし" "$(sed -n '4,6p' "$fixture")"
+- 未返信スレッド: 0
+- 追従監視: なし" "$(sed -n '4,7p' "$fixture")"
 
 # --- issue #66（敵対的レビュー指摘）: ヘッダブロックの打ち切りは見出しの有無に依らない ----
 
@@ -805,6 +818,117 @@ FIXTURE_ALL_SKIPPED
 cmd_mark_skip "$fixture" "2-6"
 assert_eq "mark-skip: 既に全て[-]の範囲への部分指定は通る（冪等）" \
   "| [-] | 2-6 | ループ範囲1 | エージェント |" "$(get_row "$fixture" 2-6)"
+
+# --- issue #70: ループ範囲への mark-done は「未返信スレッド 0件」を要求する -------------
+
+# 未返信スレッドを持つフィクスチャ（ヘッダは実物と同じ7項目）。
+write_unreplied_fixture() {
+  local file="$1" count="$2"
+  cat >"$file" <<FIXTURE_UNREPLIED
+# HANDOFF
+
+## フロー進捗状況
+
+- issue: #70
+- ブランチ: \`claude/example\`
+- PR: #157
+- push回数: 3
+- 現在のループ: 2-3〜2-4 の1周目（進行中）
+- 未返信スレッド: ${count}
+- 追従監視: なし
+
+| 進捗 | flow-id | ステップ | 担当 |
+|----|---|---|---|
+| [] | 1-1 | 単発ステップ | 人間 |
+| [] | 2-3 | ループ範囲1 | 人間 |
+| [] | 2-4 | ループ範囲2 | エージェント |
+
+## やったこと
+
+- 未返信スレッド: 9（本文中の引用。ヘッダ行ではない）
+FIXTURE_UNREPLIED
+}
+
+# 1件以上残っていればループ範囲への mark-done は失敗し、**1行も書き換えない**
+fixture="$TMP_DIR/handoff42.md"
+write_unreplied_fixture "$fixture" 3
+cp "$fixture" "$fixture.orig"
+set +e
+stderr="$(cmd_mark_done "$fixture" "2-3" 2>&1 >/dev/null)"
+status=$?
+set -e
+assert_failure "mark-done: 未返信が残っているとループ範囲は完了にできない" "$status"
+assert_unchanged "mark-done: 拒否時はファイルを書き戻さない" "$fixture.orig" "$fixture"
+assert_contains "mark-done: 残件数をエラーメッセージへ出す" "$stderr" "未返信スレッドが 3 件残っている"
+assert_contains "mark-done: 復旧手順（set-header --unreplied 0）を出す" "$stderr" \
+  "set-header --unreplied 0"
+
+# 同じファイルでも単発ステップは検査しない（レビュー往復の外にあるため）
+cmd_mark_done "$fixture" "1-1"
+assert_eq "mark-done(単発): 未返信が残っていても通る" \
+  "| [x] | 1-1 | 単発ステップ | 人間 |" "$(get_row "$fixture" 1-1)"
+assert_eq "mark-done(単発): ループ範囲の記号は動かない" \
+  "| [] | 2-3 | ループ範囲1 | 人間 |" "$(get_row "$fixture" 2-3)"
+
+# 0件なら従来どおり通る（**既定の挙動が変わっていないことの表明**）
+fixture="$TMP_DIR/handoff43.md"
+write_unreplied_fixture "$fixture" 0
+cmd_mark_done "$fixture" "2-3"
+assert_eq "mark-done: 未返信0件ならループ範囲を完了にできる" \
+  "| [x] | 2-4 | ループ範囲2 | エージェント |" "$(get_row "$fixture" 2-4)"
+assert_eq "mark-done: 0件なら周回数据え置きで（完了）になる" \
+  "- 現在のループ: 2-3〜2-4 の1周目（完了）" "$(get_loop_header "$fixture")"
+
+# 値の前後に空白（Windows版jq由来のCR等）があっても 0 と判定する
+fixture="$TMP_DIR/handoff44.md"
+write_unreplied_fixture "$fixture" "0   "
+cmd_mark_done "$fixture" "2-3"
+assert_eq "mark-done: 値の末尾の空白は落として比較する" \
+  "| [x] | 2-3 | ループ範囲1 | 人間 |" "$(get_row "$fixture" 2-3)"
+
+# 行そのものが無い場合は「未確認」として拒否する（古いHANDOFF.mdで検査が素通りしないため）
+fixture="$TMP_DIR/handoff45.md"
+write_real_fixture "$fixture"
+grep -v -F -- '- 未返信スレッド:' "$fixture" >"$fixture.tmp"
+mv "$fixture.tmp" "$fixture"
+cp "$fixture" "$fixture.orig"
+set +e
+stderr="$(cmd_mark_done "$fixture" "2-3" 2>&1 >/dev/null)"
+status=$?
+set -e
+assert_failure "mark-done: 「- 未返信スレッド:」行が無ければ拒否する" "$status"
+assert_unchanged "mark-done: 行が無い場合も書き戻さない" "$fixture.orig" "$fixture"
+assert_contains "mark-done: 行が無いことをエラーメッセージへ出す" "$stderr" \
+  "「- 未返信スレッド:」行がありません"
+
+# --- issue #70: set-header --unreplied ------------------------------------------------
+
+# 既存行だけを書き換える（他のヘッダ行・本文中の引用行を巻き込まない。issue #66 と同じ罠）
+fixture="$TMP_DIR/handoff46.md"
+write_unreplied_fixture "$fixture" 5
+cmd_set_header "$fixture" --unreplied 0
+assert_eq "set-header --unreplied: 既存行が置換される" "- 未返信スレッド: 0" \
+  "$(get_header "$fixture" '未返信スレッド' | head -1)"
+assert_eq "set-header --unreplied: 本文中の引用行はそのまま残る" \
+  "- 未返信スレッド: 9（本文中の引用。ヘッダ行ではない）" "$(tail -1 "$fixture")"
+assert_eq "set-header --unreplied: 他のヘッダ行は現状維持" "- push回数: 3" \
+  "$(get_header "$fixture" 'push回数')"
+cmd_mark_done "$fixture" "2-3"
+assert_eq "set-header --unreplied 0 の直後はmark-doneが通る" \
+  "| [x] | 2-3 | ループ範囲1 | 人間 |" "$(get_row "$fixture" 2-3)"
+
+# 行が無ければ挿入する（--loop と同じ扱い。位置は "- 現在のループ:" の直後）
+fixture="$TMP_DIR/handoff47.md"
+write_real_fixture "$fixture"
+grep -v -F -- '- 未返信スレッド:' "$fixture" >"$fixture.tmp"
+mv "$fixture.tmp" "$fixture"
+cmd_set_header "$fixture" --unreplied 2
+assert_eq "set-header --unreplied: 行が無ければ「- 現在のループ:」の直後へ挿入する" \
+  "- 現在のループ: なし
+- 未返信スレッド: 2
+- 追従監視: なし" "$(sed -n '9,11p' "$fixture")"
+assert_eq "set-header --unreplied: 挿入しても行は1つだけ" "1" \
+  "$(grep -c -F -- '- 未返信スレッド:' "$fixture")"
 
 echo "passed=$passed failures=$failures"
 [ "$failures" -eq 0 ]

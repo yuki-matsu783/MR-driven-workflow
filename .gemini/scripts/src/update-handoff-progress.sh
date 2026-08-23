@@ -9,7 +9,8 @@
 #   update-handoff-progress.sh mark-skip <flow-id> [<flow-id>...] [--file <path>]
 #   update-handoff-progress.sh add-round <flow-id> [--file <path>]
 #   update-handoff-progress.sh set-header [--issue <text>] [--branch <text>] [--pr <text>]
-#                                          [--push-count <n>] [--loop <text>] [--file <path>]
+#                                          [--push-count <n>] [--loop <text>] [--unreplied <n>]
+#                                          [--file <path>]
 #
 # 進捗記号: [x] 完了 / [] 未着手・進行中 / [-] 今回は実施しない（スキップ）。
 # 進捗列は**どの行も記号1つ**であり、ループ扱いのflow-idも例外ではない。同じループ範囲内の
@@ -28,7 +29,12 @@
 # 記号1つへ畳む）。
 #
 # ヘッダ行は "- <項目名>: <値>" の1行で、項目名は issue / ブランチ / PR / push回数 /
-# 現在のループ / 追従監視 の6つに固定する（"- Draft PR:" のような別名は使わない）。
+# 現在のループ / 未返信スレッド / 追従監視 の7つに固定する（"- Draft PR:" のような別名は使わない）。
+#
+# "- 未返信スレッド:" は、返信が1件も付いていないレビュースレッドの件数を持つ（issue #70）。
+# **ループ範囲への mark-done は、この値が 0 でなければ拒否する。** レビュー往復を閉じる条件は
+# 〈指摘を直した〉だけでなく〈全スレッドへ返信した〉ことも含むのに、進捗表は前者しか表せず、
+# 実際に敵対的レビューの10件が返信ゼロのまま [x] になった事故があったため。
 # **書き換えを求められた対象が見つからなければ、どのサブコマンドも書き戻さずに非0で終了する**
 # （issue #66。「呼び出しは成功したが、ファイルは期待した状態になっていない」状態を作らない）。
 #
@@ -167,41 +173,101 @@ resolve_header_block_to_reply() {
   return 0
 }
 
-# 行配列 LINES 内の "- 現在のループ:" 行を text で置き換える（読み込み・書き戻しは呼び出し側）。
+# 行配列 LINES 内の "- <label>:" 行を text で置き換える（読み込み・書き戻しは呼び出し側）。
 # 探索も挿入もヘッダブロック（resolve_header_block_to_reply）の中だけで行う。
-# 行が無い場合の挿入位置は次のとおり。
-#   1. ヘッダ項目（issue/ブランチ/PR/push回数）があれば、その最後の行の直後。
+# anchor は「その項目より前に置くヘッダ項目」にマッチする正規表現で、行が無い場合の挿入位置を決める。
+#   1. anchor に一致するヘッダ項目があれば、その最後の行の直後。
 #   2. 無ければ "## フロー進捗状況" 見出しの直後へ、前に空行を1つ添えて挿入する
 #      （flow-id 5-5でリセットした直後のHANDOFF.mdがヘッダ項目を持たない場合に備える）。
 #   3. どちらの基準も見つからない場合は、メッセージを出さずに終了コード1を返す
 #      （扱いは呼び出し側が決める）。
-# "- 追従監視:" は基準に含めない（"- 現在のループ:" より後ろに置く項目のため。issue #88）。
-set_loop_header_in_lines() {
-  local text="$1"
+# "- 追従監視:" はどのanchorにも含めない（ヘッダ項目の最後に置く項目のため。issue #88）。
+set_optional_header_in_lines() {
+  local label="$1" text="$2" anchor="$3"
   resolve_header_block_to_reply
   local block_end="$REPLY_BLOCK_END" heading="$REPLY_HEADING"
   local i last_header=-1
   for ((i = 0; i < block_end; i++)); do
-    if [[ "${LINES[$i]}" =~ ^-[[:space:]]現在のループ: ]]; then
-      LINES[$i]="- 現在のループ: ${text}"
+    if [[ "${LINES[$i]}" =~ ^-[[:space:]]${label}: ]]; then
+      LINES[$i]="- ${label}: ${text}"
       return 0
     fi
-    if [[ "${LINES[$i]}" =~ ^-[[:space:]](issue|ブランチ|PR|push回数): ]]; then
+    if [[ "${LINES[$i]}" =~ $anchor ]]; then
       last_header=$i
     fi
   done
 
   local at
-  local -a insert=("- 現在のループ: ${text}")
+  local -a insert=("- ${label}: ${text}")
   if [[ $last_header -ge 0 ]]; then
     at=$((last_header + 1))
   elif [[ $heading -ge 0 ]]; then
     at=$((heading + 1))
-    insert=("" "- 現在のループ: ${text}")
+    insert=("" "- ${label}: ${text}")
   else
     return 1
   fi
   LINES=("${LINES[@]:0:$at}" "${insert[@]}" "${LINES[@]:$at}")
+}
+
+# "- 現在のループ:" 行の置き換え・挿入（挿入位置はissue/ブランチ/PR/push回数の直後）。
+set_loop_header_in_lines() {
+  set_optional_header_in_lines '現在のループ' "$1" '^-[[:space:]](issue|ブランチ|PR|push回数):'
+}
+
+# "- 未返信スレッド:" 行の置き換え・挿入（挿入位置は "- 現在のループ:" の直後。issue #70）。
+set_unreplied_header_in_lines() {
+  set_optional_header_in_lines '未返信スレッド' "$1" '^-[[:space:]](issue|ブランチ|PR|push回数|現在のループ):'
+}
+
+# ヘッダブロック内の "- 未返信スレッド:" の値をREPLYへ返す（前後の空白は落とす）。
+# 行が無ければ終了コード1を返す（REPLYは変更しない）。
+read_unreplied_header_to_reply() {
+  resolve_header_block_to_reply
+  local block_end="$REPLY_BLOCK_END" i value
+  for ((i = 0; i < block_end; i++)); do
+    if [[ "${LINES[$i]}" =~ ^-[[:space:]]未返信スレッド:[[:space:]]*(.*)$ ]]; then
+      value="${BASH_REMATCH[1]}"
+      # 末尾の空白（Windows版jq由来のCRを含む）を落とす。組み込みだけで済ませforkしない
+      value="${value%"${value##*[![:space:]]}"}"
+      REPLY="$value"
+      return 0
+    fi
+  done
+  return 1
+}
+
+# ループ範囲の1周を閉じてよいかを、"- 未返信スレッド:" の値で検査する（issue #70）。
+# 0 以外・行が無い のいずれでも終了コード1を返す（呼び出し側は1行も書き換えない）。
+#
+# **行が無い場合を「未確認」として拒否する**のは、この行を持たない古いHANDOFF.mdで
+# 素通りさせると、検査を足した意味がそこだけ無くなるためである。cleanup-task.sh の雛形が
+# この行を持つので、flow-id 5-5 を経た次タスク以降は必ず存在する。
+require_zero_unreplied_threads() {
+  local flow_id="$1"
+  if ! read_unreplied_header_to_reply; then
+    echo "error: flow-id ${flow_id} はレビュー往復のループ範囲ですが、ヘッダに「- 未返信スレッド:」行がありません（1件も書き換えていません）" >&2
+    unreplied_hint "$flow_id"
+    return 1
+  fi
+  if [[ "$REPLY" != "0" ]]; then
+    echo "error: 未返信スレッドが ${REPLY} 件残っているため、flow-id ${flow_id} のループ範囲を完了にできません（1件も書き換えていません）" >&2
+    unreplied_hint "$flow_id"
+    return 1
+  fi
+}
+
+# 未返信スレッド検査に落ちたときの復旧手順（両方の失敗経路で同じ内容を出す）。
+unreplied_hint() {
+  cat >&2 <<'HINT'
+hint: レビュー往復のループを閉じる条件は「未解決スレッドが無い」ことと
+      「返信が1件も付いていないスレッドが無い」ことの2つです
+      （.claude/skills/issue-mr-flow/SKILL.md「レビュー完了合図の確認」）。
+      1. `/issue-mr-flow comments all` でスレッドを再取得する
+      2. 返信ゼロのスレッド（コメントが1件だけのもの）へ `reply` で返信する
+      3. `update-handoff-progress.sh set-header --unreplied 0` を実行する
+      4. 改めて mark-done を実行する
+HINT
 }
 
 # ヘッダの "- 現在のループ:" 行を、指定の周回数・状態へ更新する。
@@ -243,15 +309,22 @@ usage:
   update-handoff-progress.sh mark-skip <flow-id> [<flow-id>...] [--file <path>]
   update-handoff-progress.sh add-round <flow-id> [--file <path>]
   update-handoff-progress.sh set-header [--issue <text>] [--branch <text>] [--pr <text>]
-                                         [--push-count <n>] [--loop <text>] [--file <path>]
+                                         [--push-count <n>] [--loop <text>]
+                                         [--unreplied <n>] [--file <path>]
 
-  --file <path>   操作対象のHANDOFF.md（省略時 "HANDOFF.md"）
-  --loop <text>   ヘッダの "- 現在のループ:" 行を <text> で書き換える（行が無ければ挿入する）。
-                  例: --loop 'なし' / --loop '3-6〜3-9 の2周目（進行中）'
-                  add-round・ループ範囲へのmark-doneは、この行を自動で追従させる
+  --file <path>     操作対象のHANDOFF.md（省略時 "HANDOFF.md"）
+  --loop <text>     ヘッダの "- 現在のループ:" 行を <text> で書き換える（行が無ければ挿入する）。
+                    例: --loop 'なし' / --loop '3-6〜3-9 の2周目（進行中）'
+                    add-round・ループ範囲へのmark-doneは、この行を自動で追従させる
+  --unreplied <n>   ヘッダの "- 未返信スレッド:" 行を <n> で書き換える（行が無ければ挿入する）。
+                    返信が1件も付いていないレビュースレッドの件数。ループ範囲への mark-done は
+                    この値が 0 でなければ拒否する（issue #70）
 
   set-header は、指定した項目のヘッダ行がちょうど1件見つからなければ、ファイルを書き戻さずに
-  エラー終了する（--loop を除く。--loop は行が無ければ挿入する）。
+  エラー終了する（--loop / --unreplied を除く。この2つは行が無ければ挿入する）。
+
+  mark-done は、対象がループ範囲のとき "- 未返信スレッド:" が 0 でなければ（行が無い場合も）
+  ファイルを書き戻さずにエラー終了する。
 
   mark-skip は、書き換えた結果ループ範囲内の記号が揃わなくなる場合、ファイルを書き戻さずに
   エラー終了する（範囲を丸ごと省略するなら範囲内の全flow-idを指定する）。
@@ -275,6 +348,11 @@ write_lines_from_array() {
 # mark-done <flow-id>: 対象行（ループ範囲なら範囲内の全flow-id行）の進捗列を "[x]" にする。
 # 末尾が "[]" でない対象行があればエラー終了する。対象がループ範囲なら、ヘッダの周回数は据え置いた
 # まま状態だけ（完了）へ更新する。
+#
+# **対象がループ範囲のときは、ヘッダの "- 未返信スレッド:" が 0 でなければ拒否する**（issue #70）。
+# レビュー往復のループを閉じる条件は〈指摘を直した〉だけでなく〈全スレッドへ返信した〉ことも
+# 含むのに、進捗表は前者しか表せない。実際にフェーズ2の敵対的レビュー10件が返信ゼロのまま
+# [x] になり、約1日「未対応と区別が付かない」状態で残った。単発ステップは検査しない。
 cmd_mark_done() {
   local file="$1" flow_id="$2"
   local -a targets=("$flow_id")
@@ -285,6 +363,10 @@ cmd_mark_done() {
   fi
 
   read_lines_to_array "$file"
+  # 進捗列を触る前に検査する（落ちる呼び出しで1行も書き換わらないようにするため）
+  if [[ -n "$loop_range" ]]; then
+    require_zero_unreplied_threads "$flow_id" || return 1
+  fi
   local i line progress prev_progress="" matched=0
   for ((i = 0; i < ${#LINES[@]}; i++)); do
     line="${LINES[$i]}"
@@ -464,8 +546,9 @@ report_header_match_errors() {
     echo "  ${entry}" >&2
   done
   cat >&2 <<'HINT'
-hint: HANDOFF.mdの「## フロー進捗状況」見出しの直下へ、次の6行をこの順で1行ずつ置いてください。
-        - issue: / - ブランチ: / - PR: / - push回数: / - 現在のループ: / - 追従監視:
+hint: HANDOFF.mdの「## フロー進捗状況」見出しの直下へ、次の7行をこの順で1行ずつ置いてください。
+        - issue: / - ブランチ: / - PR: / - push回数: / - 現在のループ: / - 未返信スレッド: /
+        - 追従監視:
       「- Draft PR:」のような別名は使いません（Draftかどうかは値の側に書きます）。
       表記の定義: .claude/docs/spec/update-handoff-progress.md「HANDOFF.mdのヘッダ行」
 HINT
@@ -485,8 +568,8 @@ HINT
 cmd_set_header() {
   local file="$1"
   shift
-  local issue="" branch="" pr="" push_count="" loop=""
-  local has_issue=0 has_branch=0 has_pr=0 has_push_count=0 has_loop=0
+  local issue="" branch="" pr="" push_count="" loop="" unreplied=""
+  local has_issue=0 has_branch=0 has_pr=0 has_push_count=0 has_loop=0 has_unreplied=0
   while [[ $# -gt 0 ]]; do
     case "$1" in
       --issue)
@@ -514,6 +597,11 @@ cmd_set_header() {
         has_loop=1
         shift 2
         ;;
+      --unreplied)
+        unreplied="$2"
+        has_unreplied=1
+        shift 2
+        ;;
       *)
         echo "error: set-headerの不明な引数: $1" >&2
         return 1
@@ -524,7 +612,7 @@ cmd_set_header() {
   # 項目を1つも指定しない呼び出しは、必ず何も更新しない。成功として通すと issue #66 が
   # 問題にした「成功したのに何も変わっていない」に戻るため、ここで止める
   # （呼び出し側が値の有無でオプションを組み立てると、全部空＝引数なしになりうる）
-  if [[ $((has_issue + has_branch + has_pr + has_push_count + has_loop)) -eq 0 ]]; then
+  if [[ $((has_issue + has_branch + has_pr + has_push_count + has_loop + has_unreplied)) -eq 0 ]]; then
     echo "error: set-header: 更新する項目が1つも指定されていません" >&2
     usage
     return 1
@@ -573,6 +661,12 @@ cmd_set_header() {
   if [[ $has_loop -eq 1 ]]; then
     set_loop_header_in_lines "$loop" || {
       echo "error: ヘッダ項目も「## フロー進捗状況」見出しも見つからないため「- 現在のループ:」行を挿入できません" >&2
+      return 1
+    }
+  fi
+  if [[ $has_unreplied -eq 1 ]]; then
+    set_unreplied_header_in_lines "$unreplied" || {
+      echo "error: ヘッダ項目も「## フロー進捗状況」見出しも見つからないため「- 未返信スレッド:」行を挿入できません" >&2
       return 1
     }
   fi

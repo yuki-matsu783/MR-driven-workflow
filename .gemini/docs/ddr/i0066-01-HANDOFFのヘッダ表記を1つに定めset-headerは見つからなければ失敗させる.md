@@ -1,7 +1,7 @@
 ---
 title: i0066-01. HANDOFFのヘッダ表記を1つに定めset-headerは見つからなければ失敗させる
 type: ddr
-note: '却下3で「正しい挙動が決まっていない」としたissue #140は、i0140-01で決着した（mark-skip自身がその場で拒否する）'
+note: '却下3で「正しい挙動が決まっていない」としたissue #140は、i0140-01で決着した（mark-skip自身がその場で拒否する）。ヘッダ項目はissue #70で7つになった（- 未返信スレッド: を追加。表記の定義は仕様書側が正）'
 description: set-headerの無言成功に対し、別名の受け入れや自動挿入ではなく「表記を1つに定めて見つからなければ非0で終了する」方式を採用し、issue #140 を統合しなかった理由
 tags: [ddr, update-handoff-progress, handoff]
 keywords: [set-header, 無言の失敗, Draft PR, ヘッダブロック, 表記ゆらぎ, テンプレート, issue140, 却下案]
