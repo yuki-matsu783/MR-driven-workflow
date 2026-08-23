@@ -121,9 +121,14 @@
 
 <section id="goal">
   <h2>この計画で何をするか</h2>
-  <p>issue #143の受け入れ条件を満たすため、(a) issueが報告した<code>reports/</code>行のflow-id矛盾が
-  現在も残っているかを最終確認し、(b) 「再発防止策の要否を検討し記録する」ため、再発防止策の
-  選択肢を整理する。</p>
+  <p>issue #143の受け入れ条件を満たすため、次の2点を調べる。</p>
+  <ol>
+    <li>issueが報告した「<code>reports/</code>行の運用欄がflow-id 5-1のままで、寿命欄・直後の注記と
+    矛盾している」問題が、現在どうなっているかを最終確認する（結論は本計画には書かず、
+    <code>reports/</code>へ記録する）。</li>
+    <li>「再発防止策の要否を検討し、結論を記録する」という受け入れ条件を満たすため、再発防止策の
+    選択肢を整理し、比較材料をまとめる。</li>
+  </ol>
 </section>
 
 <section id="target">
@@ -133,9 +138,10 @@
     <thead><tr><th>ファイル</th><th>操作</th><th>何をするか</th></tr></thead>
     <tbody>
       <tr><td><code>.claude/rules/docs-workflow.md</code></td><td>読み取りのみ</td><td>flow-id記述の現状確認（本計画では変更しない）</td></tr>
-      <tr><td><code>.claude/skills/issue-mr-flow/SKILL.md</code></td><td>読み取りのみ</td><td>flow-idテーブルとの突合</td></tr>
+      <tr><td><code>.claude/skills/issue-mr-flow/SKILL.md</code></td><td>読み取りのみ</td><td>flow-idテーブル（「## 全体フロー」節）との突合</td></tr>
       <tr><td><code>.claude/docs/ddr/i0112-01-…md</code></td><td>読み取りのみ</td><td>既存の機械的検知見送り方針の確認</td></tr>
-      <tr><td><code>reports/…_調査.md</code>（新規）</td><td>新規</td><td>調査結果の記録先</td></tr>
+      <tr><td><code>reports/20260823_linear-painting-pond_flow-id矛盾解消確認と再発防止策調査.md</code>（新規）</td><td>新規</td><td>調査結果の記録先（正文）</td></tr>
+      <tr><td><code>reports/20260823_linear-painting-pond_flow-id矛盾解消確認と再発防止策調査.html</code>（新規）</td><td>新規</td><td>上記mdの視覚化ビュー（同時に作成する）</td></tr>
     </tbody>
   </table>
   </div>
@@ -143,9 +149,40 @@
 
 <section id="approach">
   <h2>方針</h2>
-  <p>まず(a)矛盾の現状確認を、`docs-workflow.md`全文の`flow-id`言及箇所の横断grepと、SKILL.mdの
-  正テーブルとの突合、およびgit履歴の確認で行う。次に(b)再発防止策について、機械的検知スクリプトの
-  新設・手順明記＋DDR記録・現状維持の3案を、実現コストと実効性の軸で比較する。</p>
+  <h3>(a) 矛盾の現状確認</h3>
+  <p>現ブランチはこの時点で<code>docs-workflow.md</code>を変更していないため、作業ツリーの内容と
+  <code>origin/main</code>の断面は一致する（<code>git show origin/main:.claude/rules/docs-workflow.md</code>
+  で裏付けを取る）。</p>
+  <p><code>.claude/rules/docs-workflow.md</code><b>全文</b>を対象に、<code>5-[0-9]</code>にマッチする
+  全番号参照を列挙し（<code>flow-id</code>前置きの有無を問わない。裸の番号参照が実在するため）、
+  件数と内訳を出す。列挙した番号のうち片付けを指すものが、SKILL.mdの現行テーブルと一致するかを
+  1件ずつ突合する。</p>
+  <div class="box warn">
+    <span class="label">受け入れ条件(1)の番号自体の読み替えが必要な可能性</span>
+    issueの受け入れ条件(1)は「flow-id 5-3を指している」ことを求めているが、現行のSKILL.mdでは
+    5-3は「最終統括レポート作成」、5-4が「片付け」である。この食い違い自体が「issue起票後、さらに
+    フェーズ5が繰り下がった」ことを示す可能性があるため、いつ・どのPRで繰り下げが起きたかを
+    <code>git log --follow -p</code>で確認し、受け入れ条件(1)を「SKILL.mdの現行テーブルが
+    片付けとして指す番号」と読み替えてよいかを調査結論の一部として明示する。
+  </div>
+  <p>受け入れ条件(2)「他に残っていない」は<code>docs-workflow.md</code>1ファイルに閉じない。
+  リポジトリ全体を対象に<code>5-1</code>を含む記述を横断検索し、次の3分類へ振り分ける。</p>
+  <ul>
+    <li>コンフリクト解消の意味で使うflow-id 5-1（正当。SKILL.mdの現行テーブルどおり）</li>
+    <li><code>.claude/docs/spec/</code> <code>.claude/docs/ddr/</code>の過去changelog・DDR本文（変更しない）</li>
+    <li>片付けの意味でflow-id 5-1を使う現行記述（追従漏れ。あれば報告する）</li>
+  </ul>
+  <p>過去の同型事案（issue #51）の対応記録（<code>.claude/docs/spec/issue-mr-workflow.md</code>の
+  changelog節）を参照し、今回との異同を整理する。</p>
+
+  <h3>(b) 再発防止策の選択肢整理</h3>
+  <p><code>.claude/scripts/src/</code> <code>.claude/hooks/</code>配下を確認し、
+  <code>docs-workflow.md</code>・<code>SKILL.md</code>内のflow-id参照の横断的な整合性を機械的に
+  検証する既存の仕組みがあるか、あるとすれば何をどこまで検証しているかを調べる。
+  <code>.claude/docs/ddr/i0112-01</code>の却下案を確認し、「機械的検知の仕組みを作らず変更範囲を
+  最小化する」という既存方針の妥当性を、今回実際に追従漏れが起きた事実を踏まえて再検討する。
+  選択肢を最低3案（機械的検知スクリプト新設／手順明記＋DDR記録／現状維持）で比較し、実現コストと
+  実効性を軸に整理する。</p>
 </section>
 
 <section id="out-of-scope">
@@ -154,7 +191,10 @@
     <span class="label">この計画では決めない・触らない</span>
     <ul>
       <li><code>.claude/docs/spec/</code> <code>.claude/docs/ddr/</code>の過去changelog・DDR本文の
-        書き換え（issue #143の受け入れ条件）</li>
+        書き換え（issue #143の受け入れ条件(3)）</li>
+      <li><code>docs-workflow.md</code>本体の修正は本調査の対象に含めない。修正が必要かどうかは
+        (a)の調査結果として<code>reports/</code>へ記録し、要否の判断・実施はフェーズ3〈作業〉へ
+        送る（本計画の時点では確認前であり、「修正が要らない」と断定しない）</li>
       <li>再発防止策の実装そのもの（判断はフェーズ3〈作業〉へ送る）</li>
     </ul>
   </div>
@@ -162,10 +202,24 @@
 
 <section id="verify">
   <h2>検証</h2>
-  <pre><code>grep -rn "flow-id 5-1\|flow-id 5-3" .claude/rules/docs-workflow.md
-git log --oneline -p -- .claude/rules/docs-workflow.md</code></pre>
-  <p>合格条件: 片付けの意味を持つ古いflow-id記述（5-1/5-3）が現行記述として残っていないことを
-  確認できる。再発防止策の選択肢が最低3案、比較材料付きで整理できている。</p>
+  <pre><code># (a) 全番号参照の列挙（flow-id前置きの有無を問わない）
+grep -n -- '5-[0-9]' .claude/rules/docs-workflow.md
+
+# mainの断面と作業ツリーが一致することの確認（本ブランチは未変更のはず）
+diff &lt;(git show origin/main:.claude/rules/docs-workflow.md) .claude/rules/docs-workflow.md
+
+# 受け入れ条件(2): リポジトリ全体でのflow-id 5-1参照の横断確認（3分類に仕分ける）
+grep -rn -- '5-1' --include='*.md' .
+
+# 受け入れ条件(3): spec/ddrの過去changelogが変更されていないことの確認（削除行ゼロ）
+git diff "$(git merge-base origin/main HEAD)" -- .claude/docs/spec/ .claude/docs/ddr/
+
+# 変更履歴の確認（いつ・どのPRで繰り下げが起きたか）
+git log --follow -p -- .claude/rules/docs-workflow.md</code></pre>
+  <p>合格条件: 片付けを指す番号参照が、SKILL.mdの現行テーブルと1件ずつ突合できている（件数の
+  根拠を明示）。リポジトリ全体で「片付け＝flow-id 5-1」と読める現行記述の有無が判定できている
+  （3分類の内訳付き）。<code>git diff</code>の削除行が0であることを確認できている。再発防止策の
+  選択肢が最低3案、比較材料付きで整理できている。</p>
 </section>
 
 <section id="criteria">
@@ -174,10 +228,10 @@ git log --oneline -p -- .claude/rules/docs-workflow.md</code></pre>
   <table>
     <thead><tr><th>受け入れ条件</th><th>この計画での対応箇所</th></tr></thead>
     <tbody>
-      <tr><td>reports/行の運用欄がflow-id 5-3（現在は5-4）を指している</td><td>(a) 矛盾の現状確認</td></tr>
-      <tr><td>「片付け＝flow-id 5-1」と読める現行記述が他に残っていない</td><td>(a) 矛盾の現状確認（全文横断grep）</td></tr>
-      <tr><td>spec/ddrの過去changelogが変更されていない</td><td>やらないこと（本計画では何も変更しない）</td></tr>
-      <tr><td>再発防止策の要否が検討され、結論が記録されている</td><td>(b) 再発防止策の選択肢整理</td></tr>
+      <tr><td>(1) reports/…md / reports/…html行の運用欄がflow-id 5-3を指している</td><td>方針(a) 番号の読み替え確認＋全番号列挙</td></tr>
+      <tr><td>(2) 「片付け＝flow-id 5-1」と読める現行記述が他に残っていない</td><td>方針(a) リポジトリ全体の横断検索・3分類</td></tr>
+      <tr><td>(3) spec/ddrの過去changelogが変更されていない</td><td>やらないこと／検証（git diffの削除行ゼロ確認）</td></tr>
+      <tr><td>(4) 再発防止策の要否が検討され、結論が記録されている</td><td>方針(b) 選択肢整理</td></tr>
     </tbody>
   </table>
   </div>
