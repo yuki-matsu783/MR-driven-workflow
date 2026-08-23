@@ -138,6 +138,7 @@
     <li><a href="#verify">検証</a></li>
     <li><a href="#criteria">issueの受け入れ条件との対応</a></li>
     <li><a href="#options">比較検討した案</a></li>
+    <li><a href="#deviation">補足: フロー定義からの逸脱</a></li>
   </ol>
 </nav>
 
@@ -153,14 +154,20 @@
 
 <section id="premise">
   <h2>前提（合意状況）</h2>
-  <ul>
-    <li>issue #151 本文が、実 transcript に対する事前確認（人間の入力は <code>type=="user"</code> かつ
-      <code>.message.content</code> が文字列の行／hook の注入は <code>type:"attachment"</code> で混ざらない／
-      transcript は追記専用）を済ませている。<b>まだ人間のレビュー合意は得ていない</b>（flow-id 1-5 が未了）。</li>
-    <li>起票時の初期案「頭100文字 × 最大20件」に対し、<b>本セッションでユーザーから方針変更の指示</b>
-      （「最初の3件のうち意味のありそうなもの＋直近7件のうち意味のありそうなもの、最大合計10件」）があった。
-      本計画はこれを採用し、下記「方針」で3点を上乗せして提案する。</li>
-  </ul>
+  <div class="box stop">
+    <span class="label">合意の状態</span>
+    <b>現時点でこの計画は人間の合意を得ていない</b>（flow-id 1-5 が未了）。下記はいずれも「提案」であって確定事項ではない。
+  </div>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>前提</th><th>出どころ</th><th>合意の状態</th></tr></thead>
+    <tbody>
+      <tr><td>人間の入力は <code>type=="user"</code> かつ <code>.message.content</code> が文字列の行として記録される／hook の注入は <code>type:"attachment"</code> で混ざらない／transcript は追記専用</td><td>issue #151 本文（起票時に実 transcript で確認済み）</td><td>issue 本文として起票者が記載。<b>フェーズ2で追試する</b></td></tr>
+      <tr><td>件数配分を「先頭3件＋直近7件、最大合計10件」へ変更する</td><td>本セッションでユーザーから指示（flow-id 1-4 の作成中）</td><td><b>指示は受けたが、具体化した内容（方針の3点の上乗せ）は未合意</b></td></tr>
+      <tr><td>数値（件数・文字数・除外規則のしきい値）</td><td>本計画の暫定値</td><td>未合意。<b>フェーズ2で実データにあてて確定する</b></td></tr>
+    </tbody>
+  </table>
+  </div>
 </section>
 
 <section id="target">
@@ -170,18 +177,53 @@
   <table>
     <thead><tr><th>ファイル</th><th>操作</th><th>何をするか</th></tr></thead>
     <tbody>
-      <tr><td><code>.claude/hooks/session-start.sh</code></td><td>変更</td><td>抽出・整形の純粋関数を追加し、<code>main</code> から <code>transcript_path</code> を渡して注入テキストへ連結する</td></tr>
-      <tr><td><code>.claude/scripts/test/test_session_start.sh</code></td><td>変更</td><td>純粋関数の単体テスト（合成フィクスチャJSONL＋実 transcript での確認）</td></tr>
+      <tr><td><code>.claude/hooks/session-start.sh</code></td><td>変更</td><td>抽出・整形の純粋関数を追加し、<code>build_context</code> から呼んで注入テキストへ連結する</td></tr>
+      <tr><td><code>.claude/scripts/test/test_session_start.sh</code></td><td>変更</td><td>純粋関数の単体テスト。<b>合成フィクスチャのみで完結させる</b>（実 transcript への依存を持ち込まない）</td></tr>
       <tr><td><code>.claude/docs/spec/issue-mr-workflow.md</code></td><td>変更</td><td>「セッション開始時の自動コンテキスト注入」節へ、注入項目・上限・fail-open を追記</td></tr>
-      <tr><td><code>.claude/docs/ddr/i0151-01-….md</code></td><td>新規</td><td>採用案（先頭3＋直近7・頭＋末尾の切り出し・しきい値の扱い）と却下案</td></tr>
+      <tr><td><code>.claude/docs/ddr/i0151-01-….md</code></td><td>新規</td><td>採用案と却下案</td></tr>
+      <tr><td><code>.claude/docs/README.md</code></td><td>変更</td><td>DDR一覧。<b>手書きせず <code>generate-ddr-list.sh</code> で再生成</b>し、同じコミットへ含める</td></tr>
+      <tr><td><code>.claude/VERSION</code></td><td>変更（判断が要る）</td><td>配布対象を変更するため、flow-id 4-6 で増分／据え置きを判断し、据え置く場合も spec の changelog へ記録する</td></tr>
       <tr><td><code>.gemini/</code> 配下</td><td>変更（見込み）</td><td>flow-id 5-3 の変換同期で自動生成（手で編集しない）</td></tr>
     </tbody>
   </table>
+  </div>
+
+  <div class="box warn">
+    <span class="label">既存の記述を置き換える場合</span>
+    <b>本計画に「既存の注入項目の削除・文言変更」は含まない。</b> 既存の6項目（ブランチ／issue／PR／未解決レビューコメント件数／
+    <code>HANDOFF.md</code>「次にやること」／SKILL.md 再読み込み指示）は出力条件・文言を変えない。
+    <b>ただし次の2点は既存の挙動へ手を入れる。</b>
+    <div class="tablewrap">
+    <table>
+      <thead><tr><th>置き換える箇所</th><th>置き換え前</th><th>置き換え後</th></tr></thead>
+      <tbody>
+        <tr><td><code>build_work_context</code> の出力順</td><td>作業ファイル一覧 → 「次にやること」 → SKILL.md 再読み込み指示（末尾）</td><td>作業ファイル一覧 → 「次にやること」 → <b>ユーザー発言の抜粋</b> → SKILL.md 再読み込み指示（<b>末尾のまま</b>）</td></tr>
+        <tr><td><code>append_size_warning</code> の計測</td><td>注入テキスト全体のバイト数としきい値を比較</td><td><b>ユーザー発言節のバイト数を計測対象から除いて</b>比較し、警告文には「全体Nバイト（うち再注入分Mバイトを除外）」と両方を出す</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <b>SKILL.md 再読み込み指示を末尾に置く設計（issue #113）は維持する。</b> 新しい節はその手前へ入れる。
   </div>
 </section>
 
 <section id="approach">
   <h2>方針</h2>
+
+  <h3>出力位置と、出す／出さない経路</h3>
+  <p>新しい節は <b><code>build_context</code> の中</b>（<code>build_work_context</code> 経由）で組み立てる。<code>main</code> 側では連結しない。
+  これにより、ブランチ名（ブランチ絞りに必要）を <code>build_context</code> のローカル変数からそのまま使え、既存のフォールバック方針にも自然に従う。</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th><code>build_context</code> の経路</th><th>既存の挙動</th><th>ユーザー発言節</th></tr></thead>
+    <tbody>
+      <tr><td>正常（作業ブランチ上、CLI経路・MCP経路とも）</td><td>全項目を注入</td><td><b>出す</b></td></tr>
+      <tr><td><code>exit 2</code>（<code>main</code> ブランチ上・ブランチ未チェックアウト）</td><td>何も注入しない</td><td><b>出さない</b>（既存方針を変えない）</td></tr>
+      <tr><td>失敗（非ゼロ終了）</td><td><code>(issue/MR情報の取得に失敗しました)</code> のみ</td><td><b>出さない</b></td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p>3つ目について: <code>build_context</code> の失敗は <code>Provider.sh</code> の読み込み失敗など<b>環境が壊れている</b>ことを示すため、
+  そこで出力の形を増やすと原因の切り分けが難しくなる。フェーズ2の問い1の結果次第でフェーズ3で再検討する（現時点では出さない側に倒す）。</p>
 
   <h3>採用する選定ロジック（ユーザー案＋3点の上乗せ）</h3>
   <p>ユーザー案「<b>先頭3件＋直近7件、最大合計10件</b>」を採用する。中盤を捨てるのは、セッション中盤が
@@ -189,51 +231,100 @@
   寄せたほうが1件あたりの情報量が高いためである。そのうえで次の3点を上乗せする。</p>
   <ol>
     <li><b>「先頭」は、現在のブランチに絞ったうえでの先頭とする。</b>
-      <code>gitBranch</code> が現在のブランチと一致する行だけを母集団にすると、「先頭3件」が
-      <b>このタスクでの最初の依頼</b>を指すようになり、別タスクの発言が枠を食う問題（issue本文の論点2）も
-      同時に解ける。<b>一致行が0件のときだけ絞りを外す</b>（ブランチ作成前の発言しか無いセッション・
-      <code>gitBranch</code> 欠落への fail-open）。</li>
+      <code>gitBranch</code> が現在のブランチと一致する行だけを母集団にする。<b>一致行が0件のときだけ絞りを外す</b>（fail-open）。
+      <b>この上乗せが解くのは「1つのtranscriptが複数ブランチをまたぐ」方向だけである</b>（逆方向は下記「単一transcript前提の限界」）。</li>
     <li><b>切り出しは「頭M文字」ではなく「頭M文字＋末尾M′文字」にする。</b>
-      制約・除外条件は末尾に来やすい（「ただし〜はしない」「〜は触らないで」）。頭だけでは、
-      この機能が守ろうとしているものをまさに落とす（issue本文の論点4）。</li>
+      制約・除外条件は末尾に来やすい（issue本文の論点4）。
+      <b>全長が M+M′ 以下なら全文をそのまま出す</b>（これを書かないと、短い発言で頭と末尾が重なり同じ部分を2回出す）。
+      <b>切り出しは文字単位で行う</b>（バイト単位で切るとマルチバイト文字が壊れる。手段はフェーズ2の問い8で確定）。</li>
     <li><b>先頭3件は厚く、直近7件は薄く配分する。</b>
-      初期値は<b>先頭3件＝頭120字＋末尾40字／直近7件＝頭80字＋末尾30字</b>とし、フェーズ2で実データにあてて調整する。</li>
+      初期値は<b>先頭3件＝頭120字＋末尾40字／直近7件＝頭80字＋末尾30字</b>。フェーズ2で実データにあてて調整する。</li>
   </ol>
 
-  <p>「意味のありそうなもの」（issue本文の論点3）は、次の<b>除外規則</b>として実装する。</p>
-  <ul>
-    <li>文字数がしきい値未満で、<b>かつ</b>既知の相槌パターン（<code>ok</code> / はい / お願い / 続けて / ありがとう 等）に一致するもの。
-      <b>短いだけでは落とさない</b>（「ダメ、やり直して」のような短くて重要な指示があるため）。</li>
-    <li>引数の無いスラッシュコマンド単体（<code>/compact</code> <code>/commit</code> 等）。
-      <b>引数付き（<code>/issue-mr-flow start 151</code>）は残す</b>（何に着手したかの情報を持つため）。</li>
-    <li><code>&lt;command-name&gt;</code> <code>&lt;local-command-stdout&gt;</code> 等、CLI の展開結果で始まる行。</li>
-  </ul>
+  <h4>採り方（母集団が少ないときの重複を防ぐ）</h4>
+  <p><b>除外規則を先に適用して母集団を作り、そこから採る。</b> 母集団を時系列順に並べて N 件とすると:</p>
+  <pre><code>先頭枠 = 先頭から min(3, N) 件
+直近枠 = 先頭枠で採った分を除いた残りの、末尾から min(7, N - min(3, N)) 件
+出力   = 先頭枠 ＋ 直近枠（重複なし。最大10件）</code></pre>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>N</th><th>先頭枠</th><th>直近枠</th><th>出力</th></tr></thead>
+    <tbody>
+      <tr><td>0</td><td>0件</td><td>0件</td><td><b>節ごと出さない</b>（見出しも出さない）</td></tr>
+      <tr><td>1</td><td>1件</td><td>0件</td><td>1件</td></tr>
+      <tr><td>2</td><td>2件</td><td>0件</td><td>2件</td></tr>
+      <tr><td>3</td><td>3件</td><td>0件</td><td>3件</td></tr>
+      <tr><td>5</td><td>3件</td><td>2件</td><td>5件</td></tr>
+      <tr><td>10</td><td>3件</td><td>7件</td><td>10件</td></tr>
+      <tr><td>30</td><td>3件</td><td>7件</td><td>10件（中盤20件は落とす）</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p>この表の各行を<b>単体テストのケースとして必ず持つ</b>。</p>
+
+  <h4>「意味のありそうなもの」（＝除外規則）</h4>
+  <p><b>適用順は「除外してから採る」。</b> ユーザー指示の文言は「最初の3件<b>のうち</b>意味のありそうなもの」だが、
+  それを「先に3件採ってから除外する」と読むと、セッション冒頭が <code>/compact</code> や「よろしく」だった回に先頭枠が0件になり、
+  この機能の主目的（最初の依頼を保つ）が空振りする。<b>枠を空振りさせない側に倒す。</b></p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>#</th><th>除外するもの</th><th>初期値・判定方法</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td>相槌</td><td><b>正規化後の完全一致</b>（正規化＝前後の空白・句読点・感嘆符・記号を落とす）。辞書は <code>ok</code> <code>OK</code> はい／うん／お願い／お願いします／よろしく／続けて／続けてください／ありがとう／ありがとうございます／了解 等。<b>文字数のしきい値は設けない</b>（完全一致で判定する以上、長さ条件は何も足さない。「ダメ、やり直して」のような短くて重要な指示を落とさないためでもある）</td></tr>
+      <tr><td>2</td><td>引数の無いスラッシュコマンド単体</td><td><code>^/[A-Za-z][A-Za-z0-9:_-]*$</code>（前後の空白除去後）。<b>引数付きは残す</b></td></tr>
+      <tr><td>3</td><td>CLIの展開結果</td><td><code>&lt;command-name&gt;</code> <code>&lt;local-command-stdout&gt;</code> <code>&lt;command-message&gt;</code> 等のタグで<b>始まる</b>行</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p><b>辞書の中身と、それで実データが何割落ちるかはフェーズ2の問い5で確定させる。</b> 過剰除去が1件でも見つかったら辞書から外す。</p>
 
   <h3>サイズの扱い（issue本文の論点5）</h3>
   <ul>
-    <li>件数と1件あたりの文字数を固定するため、<b>この項目のバイト数は設計上有界</b>である。
-      さらに節全体のバイト上限（初期値 4000 バイト）を置き、超えたら<b>直近側の古いものから落とす</b>。</li>
-    <li><b><code>CONTEXT_SIZE_WARN_BYTES</code> の対象には含めない。</b> このしきい値は
-      「HANDOFF.md や計画が整理されないまま膨らみ続けている」ことを検知して<b>人間に整理を促す</b>ためのもので、
-      整理のしようが無く有界な項目を分母へ入れると、誤った警告が常時鳴る。実装上は <code>main</code> で
-      <code>append_size_warning</code> を適用した<b>後</b>にこの節を連結する。</li>
+    <li>理論最大は <code>3×(120+40) + 7×(80+30) = 1250文字</code> ≒ <b>約3,750バイト</b>、見出し・記号・改行を足して<b>約3,900バイト</b>。</li>
+    <li>節全体のバイト上限は <b>6000バイト</b>（<code>USER_UTTERANCE_MAX_BYTES</code>）。理論最大の約1.5倍に置くのは、
+      <b>上限を「実質発動しない安全網」に留めるため</b>。理論最大に近い値（例: 4000）だと4バイト文字が混ざるだけで常時発動し、
+      「有界」という説明と実挙動が食い違う。</li>
+    <li><b>超えた場合は、直近枠の古い側から1件ずつ落とす。先頭枠の3件は落とさない。</b> それでも収まらなければ節ごと出さない。</li>
+    <li><b><code>CONTEXT_SIZE_WARN_BYTES</code> の判定からは、この節のバイト数を差し引く。</b>
+      あのしきい値は「HANDOFF.md や計画が整理されないまま膨らみ続けている」ことを検知して人間に整理を促すためのもので、
+      整理のしようが無く有界な項目を分母へ入れると誤った警告が常時鳴る。
+      <b>ただし警告文には「全体Nバイト（うち再注入分Mバイトを除外して判定）」と両方の数値を出す</b>（差し引くこと自体は隠さない）。</li>
   </ul>
 
-  <div class="box warn">
-    <span class="label">既存の記述を置き換える場合</span>
-    <b>本計画に「既存の記述の置き換え」は含まない。</b> <code>session-start.sh</code> への変更は
-    <code>build_work_context</code> と並ぶ<b>新しい項目の追加</b>であり、既存の注入項目（ブランチ／issue／PR／
-    未解決コメント件数／HANDOFF.md「次にやること」／SKILL.md 再読み込み指示）はいずれも文言・条件を変えない。
-    唯一の例外が <code>main</code> における <code>append_size_warning</code> の適用順で、これは
-    <b>置換ではなく連結位置の変更</b>のため、フェーズ3の個別作業計画で置換前・置換後の形を示す。
+  <h3>単一transcript前提の限界（フェーズ2で詰める）</h3>
+  <div class="box stop">
+    <span class="label">この上乗せで解けない方向</span>
+    抽出元は <code>transcript_path</code> <b>1ファイル</b>である。したがって<b>1つのタスクが複数セッション（＝複数transcript）にまたがる場合、
+    「先頭3件」はそのtranscriptの冒頭でしかなく、要件定義の発言はどのtranscriptからも読まれない。</b>
+    本リポジトリのようにissueが数日にわたる運用では、これが常態になりうる。この限界は「直近10件のみ」案を却下した理由と同じ形をしている。
+    <b>フェーズ2の問い9・10で実測し、崩れる場合の扱いをフェーズ3の個別作業計画で決める。</b>
   </div>
+
+  <h3>テストの移植性</h3>
+  <ul>
+    <li><code>.claude/</code> は <code>dist-layers.json</code> で <code>core</code>（配布元所有・そのまま配布）であり、
+      <code>test_session_start.sh</code> は<b>他プロジェクトでも実行される</b>。</li>
+    <li><b>単体テストは合成フィクスチャのみで完結させる。</b> 実行マシンのtranscriptに依存すると、配布先・他の開発者の環境でファイル不在により必ず落ちる。</li>
+    <li><b>実 transcript での確認は検証節の手動確認として行い</b>、結果を <code>wip/reports/</code> へ記録する。</li>
+  </ul>
+
+  <h3>実データを扱うときの記録方針（秘密情報）</h3>
+  <ul>
+    <li>実 transcript に現れるのは<b>ユーザーが打った生の文字列</b>であり、貼り付けたトークン・パス・第三者の情報を含みうる。</li>
+    <li><b>レポート・worklog へ発言の本文を貼らない。</b> 残すのは件数・文字数分布・バイト数といった統計値と、
+      <b>自分が本セッションで打った発言に限った</b>抜粋だけにする。</li>
+  </ul>
 
   <h3>実装上の制約（規約からの持ち込み）</h3>
   <ul>
     <li><b>transcript は数MBになりうるため、内容を <code>--argjson</code>/<code>--arg</code> で jq へ渡さない。</b>
       ファイルパスを渡して <code>jq -R -n</code> ＋ <code>inputs</code> で jq 側に読ませる。</li>
     <li><b>jq 呼び出しは1回に集約する</b>（行ごとに jq を起動しない）。</li>
-    <li>複数行の値をコマンド置換で受けるため、<b><code>tr -d '\r'</code> を挟む</b>。</li>
+    <li>複数行の値をコマンド置換で受けるため、<b><code>tr -d '\r'</code> を挟む</b>（Windowsネイティブjqは最終行以外の行末へCRを付ける）。</li>
+    <li><b>実行環境が git bash（MSYS）である前提を落とさない。</b> 「Windowsネイティブjqへプロセス置換のパスを渡せない」
+      「<code>MSYS_NO_PATHCONV=1</code> を効かせたシェルではMSYS形式パスをjqが開けない」という実機で踏んだ罠があり、
+      <b>jq へファイルパスを引数で渡す本設計はこの直撃コースにある</b>。
+      候補の対策は「パス名を渡さず <code>jq -R -n 'inputs' &lt; "$path"</code> の形で標準入力へ繋ぐ」。実際の表記はフェーズ2の問い7で確認する。</li>
     <li>抽出・整形の中核は<b>副作用の無い純粋関数</b>として切り出し、<code>source</code> して直接呼べるようにする。</li>
   </ul>
 </section>
@@ -242,23 +333,35 @@
   <h2>フェーズ2〈調査〉</h2>
   <p><b>実施する。</b> 数値（件数・文字数・除外規則）は実データにあてないと決められないため。</p>
   <ol>
-    <li>hook が受け取る stdin JSON に <code>transcript_path</code> は含まれるか。実体はどこにあり、行数・バイト数はどの程度か。</li>
+    <li>hook が受け取る stdin JSON に <code>transcript_path</code> は含まれるか。実体はどこにあり、行数・バイト数はどの程度か。
+      <b>含まれなかった場合の分岐</b>: <code>CLAUDE_PROJECT_DIR</code> 等から辿れるか調べ、辿れなければ本issueは実装不能として
+      <code>wip/reports/</code> へ記録のうえ<b>issueへ差し戻す</b>（<code>PreCompact</code> は DDR i0057-01 で却下済み）。</li>
     <li>実 transcript に対し、issue 本文の抽出条件で何件取れるか。tool_result・hook 注入・サブエージェント由来が混ざらないことを実データで確認できるか。</li>
     <li><code>gitBranch</code> はどの行にも入っているか。ブランチ絞りをかけたときの残存件数は。</li>
-    <li>抽出できた発言の<b>文字数分布</b>はどうか。頭120字＋末尾40字で何割が全文に収まるか。</li>
-    <li>相槌・スラッシュコマンドは実際に何割を占めるか。除外規則の初期値で過剰除去・除去漏れは起きないか。</li>
-    <li>先頭3＋直近7を上記の配分で切り出したときの<b>実測バイト数</b>は。4000 バイトの上限に収まるか。既存の注入量（実測 1.2KB）と合算しても運用上問題ないか。</li>
-    <li><code>jq -R -n</code> ＋ <code>inputs</code> 方式で、実 transcript のサイズでも所要時間が許容範囲か。</li>
+    <li>抽出できた発言の<b>文字数分布</b>はどうか。頭120字＋末尾40字で何割が全文に収まるか（＝「全長 ≤ M+M′」の分岐へ落ちる割合）。</li>
+    <li>相槌・スラッシュコマンドは実際に何割を占めるか。除外規則の初期値（辞書・正規表現）で過剰除去・除去漏れは起きないか。<b>過剰除去が1件でもあれば辞書から外す。</b></li>
+    <li>先頭3＋直近7を上記の配分で切り出したときの<b>実測バイト数</b>は。<b>既存の注入量はこの環境で測り直す</b>（下記の注記参照）。合算値が <code>CONTEXT_SIZE_WARN_BYTES</code>（8000）に対してどうか。</li>
+    <li><b>git bash 実機で <code>transcript_path</code> がどの表記（Windows形式／MSYS形式）で渡るか。</b>
+      本調査はリモート実行環境（Linux）で行うため実機確認できない見込みで、その場合は<b>「未確認」と明記して残す</b>。
+      jq へパス名を渡さない形で回避できるかを机上で確認する。</li>
+    <li>マルチバイト文字を<b>文字単位で</b>切り出す手段のうち、ロケール設定に依存しないものはどれか（<code>${var:0:N}</code> はロケール次第でバイト単位になる実績がある）。</li>
+    <li><b>transcript はセッション／compact／resume をまたいで同一ファイルか。</b> compact 後も同じファイルへ追記されるか、新しいファイルになるかを実測する。</li>
+    <li>リモート実行環境で<b>セッションをまたいだ</b>場合、同一ブランチの過去 transcript はどこに残るか。残るなら、それも対象にする案の実現可能性とコスト（走査量）はどうか。</li>
+    <li><code>jq -R -n</code> ＋ <code>inputs</code> 方式で、実 transcript のサイズでも所要時間が許容範囲か。
+      <b>合否のしきい値を先に置く: 追加コスト 200ms 以内</b>（このhookは既に <code>extract-frontmatter.sh</code> の再生成で約2秒を抱えており、compact のたびに走るため）。</li>
   </ol>
-  <p><b>何が分かれば次へ進めるか</b>: 上記 1〜6 が数値で埋まり、件数・文字数・除外規則の初期値が確定すること。</p>
+  <p><b>何が分かれば次へ進めるか</b>: 上記 <b>1〜11 のすべて</b>が結論（数値・可否・未確認の別）として埋まり、
+  件数・文字数・除外規則・出力位置の初期値が確定すること。</p>
 </section>
 
 <section id="phase-apply">
   <h2>フェーズ4〈反映〉</h2>
-  <p><b>反映対象は flow-id 4-1 で洗い出す。</b> 現時点の見込み候補は次のとおり（確定した反映内容ではない）。</p>
+  <p><b>反映対象は flow-id 4-1 で洗い出す。</b> 現時点の見込み候補（確定した反映内容ではない）:</p>
   <ul>
     <li><code>.claude/docs/spec/issue-mr-workflow.md</code>「セッション開始時の自動コンテキスト注入」節</li>
     <li>DDR <code>i0151-01</code>（選定ロジック・切り出し方・しきい値の扱いと、却下案）</li>
+    <li><b><code>.claude/docs/README.md</code> のDDR一覧</b>（<code>generate-ddr-list.sh</code> で再生成し、差分を同じコミットへ含める）</li>
+    <li><b><code>.claude/VERSION</code></b>（配布対象を変更するため、増分／据え置きを判断し、据え置く場合も spec の changelog へ記録する）</li>
     <li>作業中に気づいた AI アセット（ルール・スキル）の不備</li>
   </ul>
 </section>
@@ -268,11 +371,12 @@
   <div class="box stop">
     <span class="label">この計画では決めない・触らない</span>
     <ul>
-      <li><code>PreCompact</code> hook 経路での実装 — DDR i0057-01 で却下済み（<code>additionalContext</code> を持たない）</li>
+      <li><code>PreCompact</code> hook 経路での実装 — DDR i0057-01 で却下済み</li>
       <li>起動要因（startup/resume/clear/compact）ごとの分岐 — 「取れた分だけ出す」設計で自然に解決する（issue本文の論点6）</li>
-      <li>ユーザー発言の<b>全文</b>保存・外部ファイルへの退避 — 本 issue の目的は「少量・有界な再注入」。別 issue の領域</li>
+      <li>ユーザー発言の<b>全文</b>保存・外部ファイルへの退避 — 別 issue の領域</li>
       <li>AI（assistant）側の発言の再注入 — issue 本文が対象を「ユーザーの生の入力」に限っている</li>
-      <li>transcript の書き換え・削除 — transcript は追記専用の外部資産であり、本機構は読み取りのみ</li>
+      <li>transcript の書き換え・削除 — 追記専用の外部資産であり、本機構は読み取りのみ</li>
+      <li><code>build_context</code> 失敗経路での注入 — フェーズ2の問い1の結果次第でフェーズ3で再検討</li>
     </ul>
   </div>
 </section>
@@ -280,15 +384,18 @@
 <section id="verify">
   <h2>検証</h2>
   <pre><code>bash .claude/scripts/test/test_session_start.sh
+bash .claude/scripts/src/generate-ddr-list.sh   # 実行後に .claude/docs/README.md の差分が無いこと
 bash .claude/scripts/src/sync-gemini-assets.sh --check</code></pre>
   <p>合格条件（issue 全体として）:</p>
   <ul>
-    <li><code>test_session_start.sh</code> が <code>passed=N failures=0</code> で通る。</li>
-    <li>実 transcript（本ブランチのもの）に対して抽出関数を直接呼び、出力が目視で妥当であること
-      （<b>合成フィクスチャのみで完了としない</b>）。</li>
-    <li>注入テキスト全体のバイト数を実測し、通常運用で <code>CONTEXT_SIZE_WARN_BYTES</code> の警告が常時鳴らないこと。</li>
+    <li><code>test_session_start.sh</code> が <code>passed=N failures=0</code> で通る。<b>「採り方」の表の各行（N=0/1/2/3/5/10/30）と、上限による切り落としが実際に発動するケース</b>を含むこと。</li>
+    <li><b>注入テキスト全体（新しい節を含む）の実バイト数を測り、期待値と突き合わせる。</b>
+      期待値を先に置く: 通常運用で<b>全体 ≤ 8000バイト</b>、うち発言節 ≤ 6000バイト。
+      「警告が鳴らないこと」だけを見ない（この節は警告の分母から外れるため、鳴らないのは実装の正しさと無関係で必ず通ってしまう）。</li>
+    <li>意図的に長い発言を並べたフィクスチャで、<b>上限による切り落としが実際に発動し、先頭枠の3件が残る</b>ことを確認する。</li>
+    <li>実 transcript（本ブランチのもの）に対して抽出関数を直接呼び、出力が目視で妥当であること（単体テストではなく手動確認。結果は統計値のみ <code>wip/reports/</code> へ記録）。</li>
     <li><code>transcript_path</code> を空・不正なパス・壊れた JSON にしても、他の項目の注入が続くこと（fail-open）。</li>
-    <li><code>sync-gemini-assets.sh --check</code> が差分なしで通る（flow-id 5-3）。</li>
+    <li><code>main</code> ブランチ上で hook を実行したとき、<b>何も注入されない</b>こと（既存方針が変わっていない）。</li>
   </ul>
 </section>
 
@@ -298,12 +405,12 @@ bash .claude/scripts/src/sync-gemini-assets.sh --check</code></pre>
   <table>
     <thead><tr><th>受け入れ条件</th><th>この計画での対応箇所</th></tr></thead>
     <tbody>
-      <tr><td>compact 後のセッションで、直近のユーザー入力の冒頭が <code>additionalContext</code> に含まれる</td><td>方針「採用する選定ロジック」</td></tr>
+      <tr><td>compact 後のセッションで、直近のユーザー入力の冒頭が <code>additionalContext</code> に含まれる</td><td>方針「採用する選定ロジック」「出力位置と、出す／出さない経路」</td></tr>
       <tr><td>tool_result・hook の注入テキスト・サブエージェント由来の行が混入しない</td><td>フェーズ2 の問い2（実データ確認）</td></tr>
-      <tr><td>相槌・スラッシュコマンド起動が枠を消費しない</td><td>方針「意味のありそうなもの」の除外規則</td></tr>
-      <tr><td>注入量がバイト数で有界であり、警告が常時鳴らない</td><td>方針「サイズの扱い」</td></tr>
+      <tr><td>相槌・スラッシュコマンド起動が枠を消費しない</td><td>方針「意味のありそうなもの（＝除外規則）」</td></tr>
+      <tr><td>注入量がバイト数で有界であり、警告が常時鳴らない</td><td>方針「サイズの扱い」／検証節（合計バイト数の期待値）</td></tr>
       <tr><td>読み取り・抽出に失敗しても他の項目の注入が続く</td><td>方針の fail-open ／ 検証節</td></tr>
-      <tr><td>抽出ロジックが純粋関数として単体テストできる</td><td>方針「実装上の制約」</td></tr>
+      <tr><td>抽出ロジックが純粋関数として単体テストできる</td><td>方針「実装上の制約」「テストの移植性」</td></tr>
       <tr><td>起動要因ごとの分岐を増やしていない</td><td>やらないこと</td></tr>
       <tr><td>spec を更新し、採用案・却下案を DDR として記録している</td><td>フェーズ4〈反映〉</td></tr>
     </tbody>
@@ -315,20 +422,52 @@ bash .claude/scripts/src/sync-gemini-assets.sh --check</code></pre>
   <h2>比較検討した案</h2>
   <div class="tablewrap">
   <table>
-    <thead><tr><th>案</th><th>利点</th><th>採否と理由</th></tr></thead>
+    <thead><tr><th>案</th><th>採否と理由</th></tr></thead>
     <tbody>
-      <tr><td>先頭3件＋直近7件（最大10件）／ブランチ絞り／頭＋末尾</td><td>要件定義と現在地の両端を押さえつつ、枠あたりの情報量が高い</td><td><span class="tag ok">採用</span> ユーザー指示を基礎に、ブランチ絞り・頭＋末尾・配分の3点を上乗せ</td></tr>
-      <tr><td>直近20件を均等に頭100文字（issue 本文の初期案）</td><td>実装が単純</td><td><span class="tag stop">却下</span> 中盤の往復（「ok」「次」）が枠を食い、1件あたりの情報量が低い</td></tr>
-      <tr><td>直近10件のみ</td><td>実装が最も単純</td><td><span class="tag stop">却下</span> 長いセッションでは<b>最初の依頼</b>（最も歪んでほしくないもの）が落ちる</td></tr>
-      <tr><td>全発言から文字数の多い順に上位N件</td><td>情報量の多い発言を拾える</td><td><span class="tag stop">却下</span> 貼り付けたログ・エラー出力が上位を占め、依頼が押し出される</td></tr>
-      <tr><td>頭のみM文字で切る</td><td>実装が単純</td><td><span class="tag stop">却下</span> 末尾に書かれがちな制約・除外条件を落とす（issue本文の論点4）</td></tr>
-      <tr><td>ブランチ絞りをかけない</td><td>実装が単純／取りこぼしが無い</td><td><span class="tag stop">却下</span> セッションがブランチをまたぐと、別タスクの発言が「先頭3件」を占める</td></tr>
-      <tr><td>ブランチ絞りを常に強制する</td><td>混入がゼロになる</td><td><span class="tag stop">却下</span> 一致0件のときに何も出せない。0件時のみ絞りを外すフォールバックを採る</td></tr>
-      <tr><td>この項目も <code>CONTEXT_SIZE_WARN_BYTES</code> の分母へ入れる</td><td>注入量の総量を1つの値で見られる</td><td><span class="tag stop">却下</span> 有界かつ整理不能な項目のため、「整理せよ」という誤った警告が常時鳴る</td></tr>
-      <tr><td>しきい値を引き上げる（8000→12000 等）</td><td>警告が鳴らなくなる</td><td><span class="tag stop">却下</span> 本来検知したい「HANDOFF.md の肥大化」の感度を下げる</td></tr>
+      <tr><td>先頭3件＋直近7件（最大10件）／ブランチ絞り／頭＋末尾／<code>build_context</code> 内で出力</td><td><span class="tag ok">採用</span> ユーザー指示を基礎に、ブランチ絞り・頭＋末尾・配分・出力位置を具体化</td></tr>
+      <tr><td>直近20件を均等に頭100文字（issue 本文の初期案）</td><td><span class="tag stop">却下</span> 中盤の往復が枠を食い、1件あたりの情報量が低い</td></tr>
+      <tr><td>直近10件のみ</td><td><span class="tag stop">却下</span> 長いセッションでは<b>最初の依頼</b>が落ちる</td></tr>
+      <tr><td>全発言から文字数の多い順に上位N件</td><td><span class="tag stop">却下</span> 貼り付けたログ・エラー出力が上位を占め、依頼が押し出される</td></tr>
+      <tr><td>頭のみM文字で切る</td><td><span class="tag stop">却下</span> 末尾に書かれがちな制約・除外条件を落とす（issue本文の論点4）</td></tr>
+      <tr><td>ブランチ絞りをかけない</td><td><span class="tag stop">却下</span> セッションがブランチをまたぐと、別タスクの発言が「先頭3件」を占める</td></tr>
+      <tr><td>ブランチ絞りを常に強制する</td><td><span class="tag stop">却下</span> 一致0件のときに何も出せない。0件時のみ絞りを外すフォールバックを採る</td></tr>
+      <tr><td>先に3件採ってから除外する（ユーザー文言の直読）</td><td><span class="tag stop">却下</span> 冒頭が <code>/compact</code> や相槌だった回に先頭枠が0件になり、主目的が空振りする</td></tr>
+      <tr><td>相槌の判定に文字数しきい値を使う</td><td><span class="tag stop">却下</span> 「ダメ、やり直して」のような短くて重要な指示を落とす。完全一致の辞書で足りる</td></tr>
+      <tr><td><code>main</code> で <code>append_size_warning</code> の後に連結する（当初案）</td><td><span class="tag stop">却下</span> SKILL.md 再読み込み指示が末尾でなくなり（issue #113 の設計を壊す）、警告文のバイト数が実際の注入量と食い違う</td></tr>
+      <tr><td>この項目も <code>CONTEXT_SIZE_WARN_BYTES</code> の分母へ入れる</td><td><span class="tag stop">却下</span> 有界かつ整理不能な項目のため、「整理せよ」という誤った警告が常時鳴る</td></tr>
+      <tr><td>しきい値を引き上げる（8000→12000 等）</td><td><span class="tag stop">却下</span> 本来検知したい「HANDOFF.md の肥大化」の感度を下げる</td></tr>
+      <tr><td>節の上限を理論最大に近い4000バイトにする（当初案）</td><td><span class="tag stop">却下</span> 4バイト文字が混ざるだけで上限が常時発動し、「有界」という説明と実挙動が食い違う</td></tr>
+      <tr><td>単体テストで実 transcript を読む</td><td><span class="tag stop">却下</span> <code>.claude/</code> は配布対象（<code>core</code>）であり、配布先・他マシンでファイル不在により必ず落ちる</td></tr>
     </tbody>
   </table>
   </div>
+</section>
+
+<section id="deviation">
+  <h2>補足: このタスクにおけるフロー定義からの逸脱</h2>
+  <div class="box warn">
+    <span class="label">記録の持ち先</span>
+    <code>wip/plans/</code> はタスク単位で削除されるため、この節の内容は flow-id 4-6（設計反映）で DDR <code>i0151-01</code> へ書き戻す。
+    <code>HANDOFF.md</code> も flow-id 5-5 でリセットされるため、逸脱の記録をそちらだけに置かない。
+  </div>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>#</th><th>逸脱</th><th>根拠と、崩れたときの戻し方</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td>全体作業計画を planツールで作らなかった</td><td>リモート実行環境でハーネスが既に Plan モードを抜けており、再入は承認待ちでセッションを止める。ファイル名が <code>【</code> で始まらない＝全体作業計画、という判別規則には従っている</td></tr>
+      <tr><td>2</td><td>flow-id 1-5（人間の合意）を待たずに先へ進めている</td><td><b>衝突先</b>: <code>AGENTS.md</code>「計画がユーザーに承認されるまでファイルの書き換え・コマンド実行を行ってはいけない」。<b>根拠</b>: ユーザー指示が「PR作って進めて。各フェーズでの計画時に一度敵対的レビュー、作業実施毎に一度ずつ敵対的レビューを自動で行い、指摘に対する修正を行いながら進めること」であり、<b>レビューはPR上で受ける前提</b>が示されている。<b>戻し方</b>: 不同意ならフェーズ2以降の成果物を破棄し本計画から作り直す（手戻りは <code>wip/plans/</code> <code>wip/reports/</code> に限られる）</td></tr>
+      <tr><td>3</td><td>ブランチ名がリポジトリの命名規則に従っていない</td><td>ハーネスが designated branch を指定しているため、<code>branchPrefixTemplate</code>（<code>feature-{issue}-{slug}</code>）には従わない。<b>結果として <code>get_issue_number_from_branch</code> がissue番号を抽出できず、SessionStart hook の注入も「issue: 特定できず」になる</b>（本issueが扱う機能の動作確認に影響しうる点として記録）</td></tr>
+      <tr><td>4</td><td>フェーズ1の敵対的レビューは回数カウンタの対象外</td><td><code>adversarial-review-count.sh</code> は phase 2/3/4 のみを受け付ける。<b>実施は1回のみ</b>とし、その事実をここへ記録することで代替する</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p><b>合意状態の記述は、本計画md・同名HTML・<code>HANDOFF.md</code> の3箇所で揃える。</b></p>
+
+  <h3>注記: 「既存の注入量」の出典</h3>
+  <p>フェーズ2の問い6で「測り直す」と書いているのは、よく引かれる <b>1,222バイト</b>という値が
+  DDR <code>i0057-01</code> の「issue #57 実装時、MCP経路・HANDOFF抜粋込み」の<b>実測1件</b>であり、
+  その後 issue #113（SKILL.md 再読み込み指示）と issue #160（現在地の参照行）が注入項目を増やしているためである。
+  <code>session-start.sh</code> 自身のコメントも「実測で約0.6〜2KB」と幅で書いており、1.2KB を現在値として扱うと合算を見誤る。</p>
 </section>
 
 <footer>issue #151 / PR #197 — 計画の正文は同名の <code>.md</code>。外部依存を持たない自己完結HTML。</footer>
