@@ -440,10 +440,10 @@ cat > "$itest/docs/index.jsonl" <<'EOF'
 EOF
 # 除外されるべきディレクトリ（build/ は find の prune、.gemini/ は .claude からの生成物）
 cat > "$itest/build/gen/index.jsonl" <<'EOF'
-{"concept_id":"build/gen/生成物","directory":"build/gen","frontmatter":{"title":"生成物","type":"spec"},"mtime":"2026-08-04T00:00:00"}
+{"concept_id":"build/gen/ビルド成果物","directory":"build/gen","frontmatter":{"title":"ビルド成果物","type":"spec"},"mtime":"2026-08-04T00:00:00"}
 EOF
 cat > "$itest/.gemini/rules/index.jsonl" <<'EOF'
-{"concept_id":".gemini/rules/生成物","directory":".gemini/rules","frontmatter":{"title":"生成物","type":"rule"},"mtime":"2026-08-05T00:00:00"}
+{"concept_id":".gemini/rules/変換生成物","directory":".gemini/rules","frontmatter":{"title":"変換生成物","type":"rule"},"mtime":"2026-08-05T00:00:00"}
 EOF
 
 # 実プロセスとして起動する。cd はサブシェルへ閉じ込め、テスト側のカレントを動かさない。
@@ -453,8 +453,8 @@ last_stderr() { cat "$fixture_dir/stderr.txt"; }
 
 assert_eq "main: 除外ディレクトリを除いた3件を返す" \
   "$(printf '%s\n' 'README' 'docs/alpha' 'docs/beta')" "$(run_main --format path -q)"
-assert_eq "main: build/ 配下の index.jsonl は探索しない" "" "$(run_main --path 生成物 --format path -q)"
-assert_eq "main: .gemini/ 配下の index.jsonl は探索しない" "" "$(run_main --path 生成物 --format path -q)"
+assert_eq "main: build/ 配下の index.jsonl は探索しない" "" "$(run_main --path ビルド成果物 --format path -q)"
+assert_eq "main: .gemini/ 配下の index.jsonl は探索しない" "" "$(run_main --path 変換生成物 --format path -q)"
 
 assert_eq "main: 件数サマリを stderr へ出す（index数を含む）" \
   "matched=3 total=3 indexes=2" "$(run_main --format path >/dev/null; last_stderr)"
