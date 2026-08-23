@@ -119,3 +119,51 @@ issue #114 は「flow-id 5-4（Draft解除・マージ依頼）」「flow-id 5-1
 - 合意後、flow-id 2-5（`describe`）→ 2-6（調査の実施）へ。
 
 ---
+
+# push3（flow-id 2-6・調査の実施）
+
+## 試したこと
+
+- GitHub Docs / GitLab Docs を一次情報として、問い2・問い3の必要条件を確認した。
+- `curl -sSI` で `raw.githubusercontent.com` のレスポンスヘッダを実測した。
+- `gh api repos/{o}/{r}` と `.../pages` でリポジトリの可視性・Pagesの有効状態を確認した。
+- `sync-assets.sh` / `install-to-project.sh` を読み、CI設定が配布経路に載るかを確認した。
+
+## うまくいったこと
+
+- **却下理由を推測ではなく実測で裏取りできた。** `raw.githubusercontent.com` は
+  `content-type: text/plain; charset=utf-8` ＋ `x-content-type-options: nosniff` を返す。
+  `nosniff` が付いている以上、ブラウザは絶対にHTMLとして解釈しない。
+- **URLが決定的に組み立てられることが分かった**（`https://<owner>.github.io/<repo>/pr-<n>/`）。
+  これにより「5-4 でホストして 5-6 で通知する」案(b)が、APIで結果を引き直さずに成立する。
+- **配布経路の非対称を実装から特定できた。** `.github/` と `.gitlab/` はディレクトリ丸ごと配られる
+  一方、`.gitlab-ci.yml` はルート直下の明示リストに無いので配られない。
+
+## ダメだったこと
+
+- **見出しの突き合わせスクリプトで `<code>` を含む見出しが途中で切れた。**
+  `grep -oE '<h[234]>[^<]*'` は最初のタグで止まるため、`### 問い1(iii): <code>plans/</code>…` が
+  `### 問い1(iii): ` になった。`grep -oE '<h[234]>.*'` ＋ `sed 's/<[^>]*>//g'` にして解決した。
+- **md には `####` で書いた小見出しを、HTML では `.box` の `label` にしていた箇所が1件あった**
+  （「Runner 上の静的サーバを却下した理由」）。`plans/REVIEW-POINTS.md`・
+  `reports/REVIEW-POINTS.md` の「md側とHTML側で節の見出しが一致しているか」に反するため、
+  `<h4>` ＋ `.box` の2段に直した。**box の label は見出しの代用にならない。**
+
+## 気づいたこと（重大）
+
+- **GitLab Pages の並列デプロイ（`pages.path_prefix`）は Premium/Ultimate 限定**（17.9 GA）。
+  検証環境の `gitlab/gitlab-ce:18.5.4-ce.0` は **Community Edition ＝ Free tier** なので、
+  flow-id 1-4 で合意した「Runner を立てて実機検証する」が**そのままでは成立しない**。
+  加えて self-managed の GitLab Pages は `pages_external_url` に**インスタンスとは別ドメイン**と
+  ワイルドカードDNSが要り、`localhost:8929` の環境では Runner 以前にここが壁になる。
+- **GitHub Pages は private リポジトリでもサイトが既定で公開される**（非公開化は Enterprise Cloud
+  のみ）。issue #114 の受け入れ条件「プロジェクトの可視性設定に従う」を満たすには、
+  ワークフロー側に「public のときだけデプロイする」ガードが要る。
+  **「確認する」と計画に書いておいて良かった項目**で、書いていなければ実装後に気づいていた。
+
+## 次の一歩
+
+- flow-id 2-7: commit・push してレビュー依頼を出し、**調査結果に対する敵対的レビューを1回**実行する。
+- flow-id 2-8: GitLab側の検証方針（α 見送り / β トライアルライセンス / γ GitLab.com）の判断を仰ぐ。
+
+---
