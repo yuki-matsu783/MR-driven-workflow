@@ -500,6 +500,38 @@ report_site_prefix_to_reply gitlab 1 → REPLY=mr-1</code></pre>
       同じ一括除去で落とすようにした（指摘には含まれていない）。
     </p>
   </div>
+
+  <h4>書き換えた GitHub ワークフローを実機で確認した</h4>
+  <p>
+    <b>書き換え前の版で成功していたことは、書き換え後の版が動く根拠にならない。</b>
+    リモートへ反映して実行結果を確認した（run <code>32664987390</code> / コミット
+    <code>c8192ea</code>）。
+  </p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>確認したこと</th><th>結果</th></tr></thead>
+    <tbody>
+      <tr><td>ワークフロー</td><td><code>success</code></td></tr>
+      <tr><td><code>pr-180/</code></td><td><b>200</b></td></tr>
+      <tr><td>日本語ファイル名のリンク</td><td><b>200</b>（<code>【実装】【テスト】…</code> のHTMLへ辿れる）</td></tr>
+      <tr><td><code>gh-pages</code> のコミット数</td><td><b>5</b>（<code>ee5ee1c</code> → <code>0fa18f8</code> → <code>7e2c9e3</code> → <code>c2f54e8</code> → <code>c8192ea</code>）</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <div class="box ok">
+    <span class="label">副産物</span>
+    <p>
+      <b>「<code>gh-pages</code> が既にある状態での2回目以降のデプロイ」も確認できた。</b>
+      5回のうち4回は <code>rm -rf</code> して置き換える経路であり、当初「初回のorphan作成しか
+      通っていない」と書いていた項目は解消した（「確かめられなかったこと」から外した）。
+    </p>
+    <p>
+      <b>エスケープの追加で出力は変わっていない。</b> 現在のファイル名には <code>&amp;</code>
+      <code>&lt;</code> <code>"</code> <code>%</code> <code>#</code> <code>?</code> が無いため、
+      %エンコード・HTMLエスケープのどちらも素通りする。<b>「変わらないこと」が正しい</b>
+      （変わったら既存のリンクが壊れている）。
+    </p>
+  </div>
 </section>
 
 <section id="unverified">
@@ -519,15 +551,9 @@ report_site_prefix_to_reply gitlab 1 → REPLY=mr-1</code></pre>
         含む雛形そのものは動かしていない。</li>
       <li><b><code>concurrency</code> が実際に直列化する様子。</b> pushが重なる状況を作っていない。</li>
       <li><b>fork からのPR</b>での挙動。</li>
-      <li><b><code>gh-pages</code> が既にある状態での2回目以降のデプロイ</b>（<code>rm -rf</code> して
-        置き換える経路）。今回は初回のorphan作成の経路しか通っていない。</li>
-      <li><b>作業9で書き換えたあとの GitHub ワークフロー。</b> 実機で成功したのは書き換え<b>前</b>の
-        版である。エスケープ処理・リトライ経路・ヘッダの整理を入れた版は、この変更をリモートへ
-        反映した時点のCI実行が初めての実行になる。<b>「以前成功したから今も動く」とは言えない</b>ので、
-        反映後に実行結果を確認する必要がある。</li>
       <li><b><code>fetch</code> + <code>reset --hard FETCH_HEAD</code> によるリトライ経路。</b>
         競合を意図的に作っていない。<code>unrelated histories</code> で必ず失敗する状態は解消したが、
-        <b>リトライが成功するところは見ていない</b>。</li>
+        <b>リトライが成功するところは見ていない</b>（押し出しが1回目で通るので、この経路へ入らない）。</li>
     </ul>
   </div>
 </section>
