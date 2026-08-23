@@ -62,3 +62,17 @@ push回数: 9
 - flow-id 4-6: 反映の実施・反映結果レポート作成
 
 ---
+
+## flow-id 4-6（反映の実施）— push 12
+
+- mainの `wip/` 再編（PR #178・#190）との競合を4-6直前に検知し、監視モードで解消
+  （マージコミット 6ef558e。詳細はHANDOFF「判断を迷った内容」とPRコメント）。
+- 設計反映: spec changelogへ issue #186 エントリを追記（分岐点差分で削除行0を実測）。
+  DDR i0186-01（限定2件を本文に含む）・i0186-02（決定・却下案のみ）を新規作成し、
+  generate-ddr-list.sh で一覧再生成（90件）。i0054-01 のnoteは不要と判断（計画どおり）。
+- AIアセット反映: 手順1〜4を実施し列挙10件・採用4件（埋まり方観点→wip/reports/REVIEW-POINTS.md、
+  アンカー破断/重複ID→wip/plans/REVIEW-POINTS.md、分岐点のfetch/直書きの罠→ルートREVIEW-POINTS.md、
+  重点レビュー依頼→planning.md手順1）・不採用6件（理由つきでレポート表へ）。
+- VERSION 0.3.0→0.4.0 をフェーズ4の最後に適用（記録: specのchangelog・HANDOFF）。
+- 反映結果レポート（md+html。新テンプレート適用・2計画分1組）を作成。検証1〜8＋HTML検査
+  全て合格（検証6は実行時merge-base方式で削除行0を確認）。

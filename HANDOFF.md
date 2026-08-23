@@ -17,8 +17,8 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - issue: #186
 - ブランチ: `claude/html-report-visual-improvement-chu89d`
 - PR: #191（Draft）
-- push回数: 10
-- 現在のループ: 4-3〜4-4 の1周目（完了）
+- push回数: 11
+- 現在のループ: 4-6〜4-9 の1周目（進行中）
 - 未返信スレッド: 0
 - 追従監視: PR #191をセッション購読（subscribe_pr_activity）で監視中（マージ/クローズで停止）
 
@@ -54,7 +54,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 | [x] | 4-2 | commit・push・レビュー依頼 |
 | [x] | 4-3 | 反映計画のレビュー（人間） |
 | [x] | 4-4 | レビュー対応・返信 |
-| [] | 4-5 | MR description更新 |
+| [x] | 4-5 | MR description更新 |
 | [] | 4-6 | 反映の実施・reports作成 |
 | [] | 4-7 | commit・push・レビュー依頼 |
 | [] | 4-8 | 反映結果のレビュー（人間） |
@@ -101,6 +101,13 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
   （`reports/`→`wip/reports/` 等7箇所）を再適用。フェーズ4計画の検証コマンド・HANDOFFの
   パス参照も追従。検証6の基準SHAは固定値（4b8fb20。fetch前の古いorigin/mainへの誤実測）を
   やめ、実行時の `git merge-base origin/main HEAD` へ変更した
+- `.claude/VERSION` を 0.3.0 → 0.4.0 へ増分（非対話セッションのため distribution-assets.md の
+  例外規定に従いAIエージェントが適用）: 根拠は、必須節「重点レビュー依頼」の新設・サマリの
+  結論カード化という**レポート様式＝フローの拡張**（目安表のMINOR）。PATCHではない（文言修正の
+  範囲を超え節構成・視覚語彙が変わる）・据え置きも採らない（配布先が版から様式変更を判別
+  できなくなる）。対象アセット（core層）: reports.template.html・specのchangelogエントリ・
+  DDR i0186-01/-02・.claude/docs/README.md・wip/reports/REVIEW-POINTSほか観点追記4件。
+  specのchangelog（issue #186 エントリ）にも同じ記録あり。レビューで否認されたら元へ戻す
 
 ## 未解決の内容
 
