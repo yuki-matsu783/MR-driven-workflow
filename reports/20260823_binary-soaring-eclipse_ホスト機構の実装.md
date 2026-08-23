@@ -19,17 +19,18 @@ keywords: [get_report_site_url, wait_for_report_site, report_site_prefix_to_repl
 | 1 | `Provider.sh` に純粋関数3つ＋公開関数2つを追加 | **完了** | 単体テスト＋**両プロバイダで実行** |
 | 2 | `Github.sh` / `Gitlab.sh` にプロバイダ固有実装を追加 | **完了** | **実機で実行**（GitHubは成功経路、GitLabは失敗経路） |
 | 3 | GitHub Actions ワークフローを作成 | **完了・実機で成功** | CIが11秒で成功し `gh-pages` が作られた |
-| 4 | GitLab CI の `pages` ジョブを作成 | **完了・実機で成功** | GitLab CE + Runner を構築し、MRパイプラインで `pages` ジョブが成功した |
+| 4 | GitLab CI の `pages` ジョブを作成 | **完了・改変版が実機で成功** | GitLab CE + Runner を構築し、MRパイプラインで `pages` ジョブが成功した。**ただし動かしたのは `pages:` ブロック（`path_prefix` / `expire_in`）を削った CE 版**で、雛形そのものは未実行 |
 | 5 | `sync-assets.sh` から `workflows/` と `index.jsonl` を除外 | **完了** | 実際に実行して配布物の中身を確認 |
 | 6 | `SKILL.md` への組み込み（flow-id 5-4・5-6・新節・提供関数表） | **完了** | 目視確認 |
 | 7 | 単体テスト | **完了**（`passed=237 failures=0`） | 実行結果 |
-| 8 | 実機検証 | **GitHubは完了／GitLabは配信のみ未** | 下記「作業8」 |
+| 8 | 実機検証 | **GitHubは完了／GitLabは一部未** | 下記「作業8」 |
 
 **払い出されたURLは実際にブラウザで開ける。**
 `https://yuki-matsu783.github.io/MR-driven-workflow/pr-180/` が 200 を返し、一覧から各HTMLへ辿れる。
 
-**残っているのは GitLab の Pages 配信だけ**である（`pages` ジョブの成功までは確認した。
-配信を有効にするにはコンテナの再作成が要る。下記「残課題」）。
+**残っているのは GitLab 側の3点**である——(a) Pages 配信（デーモン未有効。コンテナの再作成が要る）、
+(b) `path_prefix` による並列デプロイ（Premium/Ultimate 限定）、(c) `expire_in: never` の効果。
+**(b)(c) は配布する雛形の中核**なので、「配信だけが残っている」という言い方はしない。
 
 ## 実施条件（測った対象・環境）
 
@@ -67,6 +68,10 @@ keywords: [get_report_site_url, wait_for_report_site, report_site_prefix_to_repl
 - `gitlab_get_report_site_url`: `glab api projects/:id/pages` の `.url` → environments API の
   `external_url` → **どちらも引けなければ失敗させる。** GitLabのPagesドメインはインスタンス設定
   （`pages_external_url`）に依存し、GitHubのように規則で組み立てられないため、推測したURLは返さない。
+  **プロジェクトの指定は `projects/:id` で行う**（`glab` が現在のリポジトリへ解決する）。
+  当初は `get_repo_slug` の `path` を `url_encode_path_to_reply` へ通した値を使っていたが、
+  **この関数は `/` を残すため `projects/group/repo/pages` という存在しないルートになり、
+  Pagesが正常でも必ず404になっていた**（下記「想定と異なった点」）。
 
 `mcp_tool_hint` には `get_report_site_url` / `wait_for_report_site` の分岐を足し、
 `upload_attachment` と同じく**「代替なし」を名指しで返す**形にした。
@@ -96,6 +101,12 @@ keywords: [get_report_site_url, wait_for_report_site, report_site_prefix_to_repl
 **GitLab側**は `rules` をMRパイプライン限定にし、`path_prefix: "mr-$CI_MERGE_REQUEST_IID"` ＋
 `expire_in: never`。`public/index.html` も同様に生成する。**冒頭コメントで「Free tier / CE では
 `pages:` ブロックを削る」ことを指示している。**
+
+**0件のガードは `rules` の `exists` が持つ**（`if` とANDで効く）。当初は script 内の `exit 0` で
+済ませていたが、**GitLab Runner は script を1つのシェルスクリプトへ連結して実行するため、
+`exit 0` はジョブを「成功」で終わらせ、空の `public` がそのまま artifacts としてアップロード
+されて `mr-<iid>/` を空（404）に置き換える**（下記「想定と異なった点」）。script 側に残した
+0件判定は「`rules` を通ったのに0件」という想定外の検出だけを担い、**`exit 1` で失敗させる**。
 
 ### 作業5: 配布からの除外
 
@@ -207,29 +218,61 @@ docker exec gitlab-runner gitlab-runner register --non-interactive \
 **`rules` がMRパイプライン限定で正しく働き、`$CI_MERGE_REQUEST_IID` も展開された。**
 GitHub側と同じスクリプトで、同じ形の `index.html` が生成されている。
 
-#### GitLab — 関数の失敗経路も実機で確認した
+#### GitLab — 関数の失敗経路と、0件ガードを実機で確認した
 
-検証環境の GitLab CE は **Pages デーモンを有効にしていない**（コンテナに Pages 用のポートを
-公開していないため）。この状態で `Gitlab.sh` の経路を実際に走らせた。
+**当初の実機確認は無効だった。** 検証環境の GitLab CE は Pages デーモンを有効にしていないため
+`gitlab_get_report_site_url` は非0で終わり、それを「設計どおりの失敗」と読んだ。しかし
+**実装のエンドポイント自体が壊れており、Pagesが正常でも404になる状態だった**ため、
+観測した404が「Pages未デプロイ」なのか「経路が不正」なのか区別できていなかった。
+
+修正後に、**2つの404を区別できることを実機で確かめた。**
 
 ```
-provider=gitlab mode=cli
+$ glab api 'projects/:id'                       → {"id":8,"path_with_namespace":"root/issue114-pages",...}
+$ glab api 'projects/:id/pages'                 → {"message":"404 Not Found"}   ← リソースが無い
+$ glab api 'projects/root/issue114-pages/pages' → {"error":"404 Not Found"}     ← ルートが無い
+```
+
+**`message` と `error` でレスポンスの形が違う。** 前者はPages APIへ到達したうえで「Pagesが
+未デプロイ」と言っており、後者はそもそもそのエンドポイントが存在しない。`projects/:id` が
+プロジェクトを返すことも併せて、**経路が有効であることと、404の理由がPages未デプロイである
+ことの両方**を示せた。
+
+修正後の関数の実行結果は次のとおり。
+
+```
+provider=gitlab
 gitlab_get_report_site_url → 非0
   「PagesのURLを取得できませんでした（未デプロイの可能性。報告サイトの提示はスキップしてよい）」
 get_report_site_url 1     → 非0（同じメッセージを伝播）
 report_site_prefix_to_reply gitlab 1 → REPLY=mr-1
 ```
 
-一次経路（`projects/8/pages` → **404**）とフォールバック（`projects/8/environments` → **`[]`**）の
-どちらも空で、**設計どおり「推測したURLを返さずに失敗する」**ことを確認できた。**失敗経路は
-実機で確認済み、成功経路は未確認**という状態である。
+**成功経路（Pagesが有効な場合）は依然として未確認**である。
+
+#### GitLab — 0件のときジョブが作られないことを確認した
+
+`rules` の `exists` へ変えた効果を、実機で確かめた。検証用MRのブランチから
+**`reports/` `plans/` のHTMLをすべて削除**（flow-id 5-5 の片付けと同じ状態）してリモートへ反映した。
+
+| 確認したこと | 結果 |
+|---|---|
+| MRのHEAD | `c5b39dbc`（削除後のコミット）へ進んだ |
+| 新しいパイプライン | **作られなかった**（一覧の最新は削除前の `0e99d345` に対する pipeline 2 のまま） |
+| `head_pipeline` | 2（削除前のもの）のまま |
+
+**ジョブが1つも作られないためパイプライン自体が生成されず、直前のデプロイはそのまま残る。**
+`exit 0` 版では「成功したジョブが空の `public` をアップロードする」ことになっていたので、
+挙動が反転している。
 
 ## 確かめられなかったこと
 
 - **GitLab の Pages 配信（＝`gitlab_get_report_site_url` の成功経路）。** 有効化するには
   `pages_external_url` を設定したうえで**コンテナに別ポートを公開する**必要があり、
   稼働中のコンテナを作り直すことになる。**`pages` ジョブが成功し `public/` が正しく作られる
-  ところまでは確認済み**なので、残るのは GitLab インフラ側の配信だけである。
+  ところまでは確認済み**である。
+- **`expire_in: never` の効果。** `pages:` ブロックごと削った版で検証したため、この指定が
+  実際に寿命を延ばすかは見ていない。
 - **GitLab の並列デプロイ（`path_prefix`）。** Premium/Ultimate 限定で、CE では実行できない
   （flow-id 2-9 でユーザーが「直列のみ検証でよい」と判断済み）。**検証したのは
   `pages:` ブロックを削った単一デプロイ版**であり、`path_prefix` を含む雛形そのものは動かして
@@ -245,6 +288,29 @@ report_site_prefix_to_reply gitlab 1 → REPLY=mr-1
 **DDR `i0114-01` はフェーズ4で書く。**
 
 ## 想定と異なった点
+
+### GitLabのAPIエンドポイントが壊れていた（敵対的レビューで発覚）
+
+`gitlab_get_report_site_url` を `projects/${encoded}/pages` で書いたが、`url_encode_path_to_reply`
+は **`/` を残す**仕様（文字クラスが `[a-zA-Z0-9._~/-]`）なので、`projects/group/repo/pages` という
+**存在しないルート**になっていた。namespaceを持つ全プロジェクトで、Pagesが正常でも必ず404になる。
+
+**同じファイルの `gitlab_read_file_at_ref` は、まさにこの理由で `${REPLY//\//%2F}` を明示的に
+行い、コメントでも述べていた。** 既存の近い関数を読んでから書けば防げた。
+
+**もっと重いのは、この欠陥が「失敗経路を実機で確認した」という当初の結論を無効にしていたこと
+である。** 観測した404が「Pages未デプロイ」なのか「経路が不正」なのか区別できていなかった。
+**期待する失敗とバグによる失敗が同じ症状になる検証は、何も確かめていない。**
+修正後は `message`（リソースが無い）と `error`（ルートが無い）でレスポンスの形が違うことを
+使って区別できるようにした（上記「作業8」）。
+
+### GitLabの `exit 0` はガードとして働かない（同上）
+
+script 内の `exit 0` は**ジョブを「成功」で終わらせる**ため、空の `public` がそのまま
+artifacts としてアップロードされ、`mr-<iid>/` を空（404）に置き換える。GitHub版は
+`deploy=false` で以降のstepごとスキップするので `gh-pages` を一切触らず、**同じガードのつもりで
+書いた2つの実装の強さが違っていた。** `rules` の `exists` へ移し、0件ならジョブ自体を作らせない
+形にしたうえで、**実機でパイプラインが生成されないことを確認した**。
 
 ### `test_sync_gemini_assets.sh` が元から完走しない
 
@@ -279,6 +345,12 @@ report_site_prefix_to_reply gitlab 1 → REPLY=mr-1
 
 - **GitLab の Pages 配信の検証。** `pages_external_url` を設定し、コンテナへ別ポートを公開して
   作り直せば確認できる。**稼働中のコンテナを作り直すことになるため、ユーザーの判断を仰ぐ。**
+  これができると `expire_in: never` の効果も併せて確認できる。
+- **敵対的レビュー（フェーズ3・2回目）の未対応6件。** `wait_for_report_site` の `interval=0` で
+  無限ループ／`index.html` のHTMLエスケープ漏れ／雛形バイト一致テストが配布先で失敗する／
+  `SKILL.md` と YAML の二重管理／`index.jsonl` 除外が `.github/` のみ／`index.md` と
+  `directory-structure.md` への追記漏れ。**GitLab以外の指摘は人間のレビュー（flow-id 3-8）を
+  待って対応する。**
 - **`gh-pages` の掃除は入れていない**（flow-id 2-9 の「恒久公開してよい」という判断による）。
   PR単位のディレクトリは溜まり続ける。**別issueの候補として記録する。**
 - **検証用に作った資産の後始末。** GitLab側の `gitlab-runner` コンテナ・`gitlab-net` ネットワーク・

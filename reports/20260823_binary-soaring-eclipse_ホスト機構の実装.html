@@ -111,7 +111,7 @@
       <b>払い出したURLは実際にブラウザで開けた。</b>
       GitHub は <code>pr-180/</code> が 200 を返し一覧から各HTMLへ辿れるところまで、
       GitLab は Runner を立てて <code>pages</code> ジョブが成功するところまで確認した。
-      残るのは GitLab の Pages 配信だけである。
+      残るのは GitLab 側の Pages 配信・並列デプロイ・寿命指定の3点である。
     </p>
     <ul class="meta">
       <li><b>issue</b> #114</li>
@@ -149,11 +149,11 @@
       <tr><td>1</td><td><code>Provider.sh</code> に純粋関数3つ＋公開関数2つを追加</td><td><span class="tag ok">完了</span></td><td>単体テスト＋<b>両プロバイダで実行</b></td></tr>
       <tr><td>2</td><td><code>Github.sh</code> / <code>Gitlab.sh</code> にプロバイダ固有実装を追加</td><td><span class="tag ok">完了</span></td><td><b>実機で実行</b>（GitHubは成功経路、GitLabは失敗経路）</td></tr>
       <tr><td>3</td><td>GitHub Actions ワークフローを作成</td><td><span class="tag ok">完了・実機で成功</span></td><td>CIが11秒で成功し <code>gh-pages</code> が作られた</td></tr>
-      <tr><td>4</td><td>GitLab CI の <code>pages</code> ジョブを作成</td><td><span class="tag ok">完了・実機で成功</span></td><td>GitLab CE + Runner を構築し、MRパイプラインで <code>pages</code> ジョブが成功した</td></tr>
+      <tr><td>4</td><td>GitLab CI の <code>pages</code> ジョブを作成</td><td><span class="tag warn">完了・改変版が実機で成功</span></td><td>GitLab CE + Runner を構築し、MRパイプラインで <code>pages</code> ジョブが成功した。<b>ただし動かしたのは <code>pages:</code> ブロック（<code>path_prefix</code> / <code>expire_in</code>）を削った CE 版</b>で、雛形そのものは未実行</td></tr>
       <tr><td>5</td><td><code>sync-assets.sh</code> から <code>workflows/</code> と <code>index.jsonl</code> を除外</td><td><span class="tag ok">完了</span></td><td>実際に実行して配布物の中身を確認</td></tr>
       <tr><td>6</td><td><code>SKILL.md</code> への組み込み</td><td><span class="tag ok">完了</span></td><td>目視確認</td></tr>
       <tr><td>7</td><td>単体テスト</td><td><span class="tag ok">passed=237 failures=0</span></td><td>実行結果</td></tr>
-      <tr><td>8</td><td>実機検証</td><td><span class="tag warn">GitHubは完了／GitLabは配信のみ未</span></td><td>下記「作業8」</td></tr>
+      <tr><td>8</td><td>実機検証</td><td><span class="tag warn">GitHubは完了／GitLabは一部未</span></td><td>下記「作業8」</td></tr>
     </tbody>
   </table>
   </div>
@@ -165,8 +165,10 @@
       一覧から各HTMLへ辿れる。
     </p>
     <p>
-      <b>残っているのは GitLab の Pages 配信だけ</b>である（<code>pages</code> ジョブの成功までは
-      確認した。配信を有効にするにはコンテナの再作成が要る）。
+      <b>残っているのは GitLab 側の3点</b>である——(a) Pages 配信（デーモン未有効。コンテナの
+      再作成が要る）、(b) <code>path_prefix</code> による並列デプロイ（Premium/Ultimate 限定）、
+      (c) <code>expire_in: never</code> の効果。<b>(b)(c) は配布する雛形の中核</b>なので、
+      「配信だけが残っている」という言い方はしない。
     </p>
   </div>
 </section>
@@ -216,7 +218,11 @@
       <code>.url</code> → environments API の <code>external_url</code> →
       <b>どちらも引けなければ失敗させる。</b> GitLabのPagesドメインはインスタンス設定
       （<code>pages_external_url</code>）に依存し、GitHubのように規則で組み立てられないため、
-      推測したURLは返さない。</li>
+      推測したURLは返さない。<b>プロジェクトの指定は <code>projects/:id</code> で行う</b>
+      （<code>glab</code> が現在のリポジトリへ解決する）。当初は <code>get_repo_slug</code> の
+      <code>path</code> を <code>url_encode_path_to_reply</code> へ通した値を使っていたが、
+      <b>この関数は <code>/</code> を残すため <code>projects/group/repo/pages</code> という存在
+      しないルートになり、Pagesが正常でも必ず404になっていた</b>（下記「想定と異なった点」）。</li>
   </ul>
   <p>
     <code>mcp_tool_hint</code> には <code>get_report_site_url</code> /
@@ -255,6 +261,17 @@
     <code>public/index.html</code> も同様に生成する。<b>冒頭コメントで「Free tier / CE では
     <code>pages:</code> ブロックを削る」ことを指示している。</b>
   </p>
+  <div class="box warn">
+    <span class="label">0件のガードは <code>rules</code> の <code>exists</code> が持つ</span>
+    <p>
+      当初は script 内の <code>exit 0</code> で済ませていたが、<b>GitLab Runner は script を1つの
+      シェルスクリプトへ連結して実行するため、<code>exit 0</code> はジョブを「成功」で終わらせ、
+      空の <code>public</code> がそのまま artifacts としてアップロードされて
+      <code>mr-&lt;iid&gt;/</code> を空（404）に置き換える</b>（下記「想定と異なった点」）。
+      script 側に残した0件判定は「<code>rules</code> を通ったのに0件」という想定外の検出だけを
+      担い、<b><code>exit 1</code> で失敗させる</b>。
+    </p>
+  </div>
 
   <h3>作業5: 配布からの除外</h3>
   <p>
@@ -388,23 +405,56 @@ docker exec gitlab-runner gitlab-runner register --non-interactive \
     展開された。</b> GitHub側と同じスクリプトで、同じ形の <code>index.html</code> が生成されている。
   </p>
 
-  <h4>GitLab — 関数の失敗経路も実機で確認した</h4>
+  <h4>GitLab — 関数の失敗経路と、0件ガードを実機で確認した</h4>
+  <div class="box stop">
+    <span class="label">当初の実機確認は無効だった</span>
+    <p>
+      検証環境の GitLab CE は Pages デーモンを有効にしていないため
+      <code>gitlab_get_report_site_url</code> は非0で終わり、それを「設計どおりの失敗」と読んだ。
+      しかし<b>実装のエンドポイント自体が壊れており、Pagesが正常でも404になる状態だった</b>ため、
+      観測した404が「Pages未デプロイ」なのか「経路が不正」なのか区別できていなかった。
+    </p>
+  </div>
+  <p>修正後に、<b>2つの404を区別できることを実機で確かめた。</b></p>
+<pre><code>$ glab api 'projects/:id'                       → {"id":8,"path_with_namespace":"root/issue114-pages",...}
+$ glab api 'projects/:id/pages'                 → {"message":"404 Not Found"}   ← リソースが無い
+$ glab api 'projects/root/issue114-pages/pages' → {"error":"404 Not Found"}     ← ルートが無い</code></pre>
   <p>
-    検証環境の GitLab CE は <b>Pages デーモンを有効にしていない</b>（コンテナに Pages 用のポートを
-    公開していないため）。この状態で <code>Gitlab.sh</code> の経路を実際に走らせた。
+    <b><code>message</code> と <code>error</code> でレスポンスの形が違う。</b> 前者はPages APIへ
+    到達したうえで「Pagesが未デプロイ」と言っており、後者はそもそもそのエンドポイントが存在しない。
+    <code>projects/:id</code> がプロジェクトを返すことも併せて、<b>経路が有効であることと、404の
+    理由がPages未デプロイであることの両方</b>を示せた。
   </p>
-<pre><code>provider=gitlab mode=cli
+  <p>修正後の関数の実行結果は次のとおり。</p>
+<pre><code>provider=gitlab
 gitlab_get_report_site_url → 非0
   「PagesのURLを取得できませんでした（未デプロイの可能性。報告サイトの提示はスキップしてよい）」
 get_report_site_url 1     → 非0（同じメッセージを伝播）
 report_site_prefix_to_reply gitlab 1 → REPLY=mr-1</code></pre>
+  <p><b>成功経路（Pagesが有効な場合）は依然として未確認</b>である。</p>
+
+  <h4>GitLab — 0件のときジョブが作られないことを確認した</h4>
+  <p>
+    <code>rules</code> の <code>exists</code> へ変えた効果を、実機で確かめた。検証用MRのブランチから
+    <b><code>reports/</code> <code>plans/</code> のHTMLをすべて削除</b>（flow-id 5-5 の片付けと同じ
+    状態）してリモートへ反映した。
+  </p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>確認したこと</th><th>結果</th></tr></thead>
+    <tbody>
+      <tr><td>MRのHEAD</td><td><code>c5b39dbc</code>（削除後のコミット）へ進んだ</td></tr>
+      <tr><td>新しいパイプライン</td><td><b>作られなかった</b>（一覧の最新は削除前の <code>0e99d345</code> に対する pipeline 2 のまま）</td></tr>
+      <tr><td><code>head_pipeline</code></td><td>2（削除前のもの）のまま</td></tr>
+    </tbody>
+  </table>
+  </div>
   <div class="box ok">
-    <span class="label">設計どおりに失敗した</span>
+    <span class="label">挙動が反転した</span>
     <p>
-      一次経路（<code>projects/8/pages</code> → <b>404</b>）とフォールバック
-      （<code>projects/8/environments</code> → <b><code>[]</code></b>）のどちらも空で、
-      <b>設計どおり「推測したURLを返さずに失敗する」</b>ことを確認できた。
-      <b>失敗経路は実機で確認済み、成功経路は未確認</b>という状態である。
+      <b>ジョブが1つも作られないためパイプライン自体が生成されず、直前のデプロイはそのまま残る。</b>
+      <code>exit 0</code> 版では「成功したジョブが空の <code>public</code> をアップロードする」ことに
+      なっていた。
     </p>
   </div>
 </section>
@@ -417,8 +467,9 @@ report_site_prefix_to_reply gitlab 1 → REPLY=mr-1</code></pre>
       <li><b>GitLab の Pages 配信（＝<code>gitlab_get_report_site_url</code> の成功経路）。</b>
         有効化するには <code>pages_external_url</code> を設定したうえで<b>コンテナに別ポートを
         公開する</b>必要があり、稼働中のコンテナを作り直すことになる。<b><code>pages</code> ジョブが
-        成功し <code>public/</code> が正しく作られるところまでは確認済み</b>なので、残るのは
-        GitLab インフラ側の配信だけである。</li>
+        成功し <code>public/</code> が正しく作られるところまでは確認済み</b>である。</li>
+      <li><b><code>expire_in: never</code> の効果。</b> <code>pages:</code> ブロックごと削った版で
+        検証したため、この指定が実際に寿命を延ばすかは見ていない。</li>
       <li><b>GitLab の並列デプロイ（<code>path_prefix</code>）。</b> Premium/Ultimate 限定で、CE では
         実行できない（flow-id 2-9 でユーザーが「直列のみ検証でよい」と判断済み）。<b>検証したのは
         <code>pages:</code> ブロックを削った単一デプロイ版</b>であり、<code>path_prefix</code> を
@@ -441,6 +492,39 @@ report_site_prefix_to_reply gitlab 1 → REPLY=mr-1</code></pre>
 
 <section id="surprises">
   <h2>想定と異なった点</h2>
+
+  <h3>GitLabのAPIエンドポイントが壊れていた（敵対的レビューで発覚）</h3>
+  <p>
+    <code>gitlab_get_report_site_url</code> を <code>projects/${encoded}/pages</code> で書いたが、
+    <code>url_encode_path_to_reply</code> は <b><code>/</code> を残す</b>仕様（文字クラスが
+    <code>[a-zA-Z0-9._~/-]</code>）なので、<code>projects/group/repo/pages</code> という<b>存在しない
+    ルート</b>になっていた。namespaceを持つ全プロジェクトで、Pagesが正常でも必ず404になる。
+  </p>
+  <p>
+    <b>同じファイルの <code>gitlab_read_file_at_ref</code> は、まさにこの理由で
+    <code>${REPLY//\//%2F}</code> を明示的に行い、コメントでも述べていた。</b>
+    既存の近い関数を読んでから書けば防げた。
+  </p>
+  <div class="box stop">
+    <span class="label">もっと重いこと</span>
+    <p>
+      <b>この欠陥が「失敗経路を実機で確認した」という当初の結論を無効にしていた。</b>
+      観測した404が「Pages未デプロイ」なのか「経路が不正」なのか区別できていなかった。
+      <b>期待する失敗とバグによる失敗が同じ症状になる検証は、何も確かめていない。</b>
+      修正後は <code>message</code>（リソースが無い）と <code>error</code>（ルートが無い）で
+      レスポンスの形が違うことを使って区別できるようにした（上記「作業8」）。
+    </p>
+  </div>
+
+  <h3>GitLabの <code>exit 0</code> はガードとして働かない（同上）</h3>
+  <p>
+    script 内の <code>exit 0</code> は<b>ジョブを「成功」で終わらせる</b>ため、空の
+    <code>public</code> がそのまま artifacts としてアップロードされ、<code>mr-&lt;iid&gt;/</code> を
+    空（404）に置き換える。GitHub版は <code>deploy=false</code> で以降のstepごとスキップするので
+    <code>gh-pages</code> を一切触らず、<b>同じガードのつもりで書いた2つの実装の強さが違っていた。</b>
+    <code>rules</code> の <code>exists</code> へ移し、0件ならジョブ自体を作らせない形にしたうえで、
+    <b>実機でパイプラインが生成されないことを確認した</b>。
+  </p>
 
   <h3><code>test_sync_gemini_assets.sh</code> が元から完走しない</h3>
   <p>
@@ -486,7 +570,14 @@ report_site_prefix_to_reply gitlab 1 → REPLY=mr-1</code></pre>
     <ul>
       <li><b>GitLab の Pages 配信の検証。</b> <code>pages_external_url</code> を設定し、コンテナへ
         別ポートを公開して作り直せば確認できる。<b>稼働中のコンテナを作り直すことになるため、
-        ユーザーの判断を仰ぐ。</b></li>
+        ユーザーの判断を仰ぐ。</b> これができると <code>expire_in: never</code> の効果も併せて
+        確認できる。</li>
+      <li><b>敵対的レビュー（フェーズ3・2回目）の未対応6件。</b>
+        <code>wait_for_report_site</code> の <code>interval=0</code> で無限ループ／
+        <code>index.html</code> のHTMLエスケープ漏れ／雛形バイト一致テストが配布先で失敗する／
+        <code>SKILL.md</code> と YAML の二重管理／<code>index.jsonl</code> 除外が
+        <code>.github/</code> のみ／<code>index.md</code> と <code>directory-structure.md</code> への
+        追記漏れ。<b>GitLab以外の指摘は人間のレビュー（flow-id 3-8）を待って対応する。</b></li>
       <li><b><code>gh-pages</code> の掃除は入れていない</b>（flow-id 2-9 の「恒久公開してよい」という
         判断による）。PR単位のディレクトリは溜まり続ける。<b>別issueの候補として記録する。</b></li>
       <li><b>検証用に作った資産の後始末。</b> GitLab側の <code>gitlab-runner</code> コンテナ・

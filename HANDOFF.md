@@ -17,9 +17,9 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - issue: #114 flow-id 5-4のマージ依頼時に報告HTMLをホストしURLをユーザへ通知する機能を追加する
 - ブランチ: feature-114-host-report-html-and-notify-url
 - PR: #180 https://github.com/yuki-matsu783/MR-driven-workflow/pull/180（Draft）
-- push回数: 10
+- push回数: 11
 - 現在のループ: 3-6〜3-9 の1周目（進行中）
-- 未返信スレッド: 7
+- 未返信スレッド: 3
 - 追従監視: あり（ローカル／git bash。各pushの直後と作業再開時に `/resolve-conflict` を手動実行する）
 
 | 進捗 | flow-id | ステップ | 担当 |
@@ -291,12 +291,39 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
      `unrelated histories` で必ず失敗する**（3回のリトライが1回も機能しない）。
      `git fetch` + `git reset --hard FETCH_HEAD` にすれば単純で確実（minor/low。未再現）。
 
+- flow-id 3-9（レビュー1周目・**GitLabのみ先行**）: チャットで**「gitlabについては修正して良い」**の
+  判断を受け、**7スレッドのうちGitLabに関わる4件だけ**を人間のレビューを待たずに修正・返信した。
+  - **blockerを修正**: `gitlab_get_report_site_url` を `projects/:id/pages` ／
+    `projects/:id/environments` へ寄せた（`%2F` 置換ではなく `:id` にしたのは、エンコード漏れという
+    同じ失敗を繰り返さないため）。`url_encode_path_to_reply` が `/` を残す点をコメントで残した。
+  - **`.gitlab-ci.yml` の `exit 0` ガードを `rules.exists` へ移した**。`exit 0` はジョブを成功させ、
+    空の `public` が `mr-<iid>/` を404で上書きする（しかも起きるのは flow-id 5-6 のまさにその瞬間）。
+    script内の0件チェックは「起きえない状態」の表明として `exit 1` に変えた。雛形と `.gitlab-ci.yml`
+    のバイト一致は維持（`cmp -s`）。
+  - **実機で取り直した**: `projects/:id` → プロジェクトが返る／`projects/:id/pages` →
+    `{"message":...}`（リソースが無い）／旧形式 `projects/root/issue114-pages/pages` →
+    `{"error":...}`（ルートが無い）。**2つの404を区別できる**ことを示せたので、失敗経路の確認が
+    初めて意味を持つようになった。またHTMLを全削除してリモートへ反映し、**パイプラインが1つも
+    作られない**ことを確認した（MRのHEADは `c5b39dbc` へ進み、最新パイプラインは削除前のまま）。
+  - **レポート（md・html）を訂正**: サマリの「GitLab CI ＝ 実機で成功」に「実行したのは `pages:`
+    ブロックを削った改変版」という限定を付け、残課題を1つ→3つ（Pages配信／`path_prefix`／
+    `expire_in: never`）へ改めた。「当初の実機確認は無効だった」ことも囲みで残した。
+  - `test_vcs_provider.sh` は `passed=237 failures=0`。判断と対応内容は `add_mr_comment` で
+    PR #180 へ記録した（`flow-id 3-9・GitLabのみ先行修正`）。
+  - **残り3スレッド**（`test_vcs_provider.sh` / `SKILL.md` / `Provider.sh`）と**報告のみの6件**は、
+    flow-id 3-8 の人間のレビューと同じ往復で対応する。
+
 ## 次にやること
 
-- flow-id 3-8（**進行中**）: 人間のレビューを待つ。**敵対的レビューの7スレッドは全件返信ゼロ**で、
-  3-9 で人間の指摘と同列に対応・返信する。上記「報告のみに留めた6件」も同じ往復で反映する。
-- **最優先はblockerの修正**（`gitlab_get_report_site_url` の `%2F` 未置換）。直したうえで
-  **GitLabの失敗経路の実機確認を取り直す**（現状のレポートの結論は根拠を失っている）。
+- flow-id 3-8（**進行中**）: 人間のレビューを待つ。**GitLab関連の4スレッドは対応・返信済み**で、
+  **未返信は3スレッド**（`test_vcs_provider.sh` / `SKILL.md` / `Provider.sh`）。
+  レビュー依頼のメッセージでは、**GitLab以外の指摘も今この往復で直してよいか**を明示的に問う。
+  - `test_vcs_provider.sh`: 雛形と `.github/workflows/` `.gitlab-ci.yml` のバイト一致テストが、
+    **配布先では必ず失敗する**（配布先に元ファイルが無いため）
+  - `SKILL.md`: `wait_for_report_site` の説明と実装の食い違い・`require_vcs_cli` を通らない
+    関数に `mcp_tool_hint` の分岐がある（到達不能）
+  - `Provider.sh`: `curl` への依存が前提として明記されていない
+  - **報告のみに留めた6件**（上記「やったこと」flow-id 3-7 に列挙）も同じ往復で反映する
 - 合意後、flow-id 3-10（`describe`）→ **フェーズ4（4-1: 個別反映計画）**。反映先の候補:
   - `.claude/docs/ddr/i0114-01-….md`（ホスティング手段とタイミングの選定・却下案）
   - `.claude/docs/spec/issue-mr-workflow.md`（提供関数の表・flow-id 5-4／5-6・配布物の扱い）
