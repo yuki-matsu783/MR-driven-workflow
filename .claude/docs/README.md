@@ -44,6 +44,7 @@ keywords: [正史仕様, 意思決定ログ, ユースケース, 逆引き, issu
 - [リポジトリ内のドキュメントを探す](usecase/リポジトリ内のドキュメントを探す.md) ── 目的のspec・DDR・ルールを素早く見つけたい
 - [対応工数を把握する](usecase/対応工数を把握する.md) ── issue対応にかかった工数を集計したい
 - [この機構を他プロジェクトへ導入する](usecase/この機構を他プロジェクトへ導入する.md) ── 別リポジトリへこのワークフロー一式を入れたい
+- [配布先の改善を本家へ収穫する](usecase/配布先の改善を本家へ収穫する.md) ── 他プロジェクトで改善されたAIアセットを本家へ逆輸入したい
 
 ## spec（機能仕様）
 
@@ -62,8 +63,10 @@ keywords: [正史仕様, 意思決定ログ, ユースケース, 逆引き, issu
 - [generate-ddr-list.md](spec/generate-ddr-list.md) ── DDR一覧生成スクリプト（README.mdのDDR一覧をfrontmatterから生成）
 - [gitlab-verification-environment.md](spec/gitlab-verification-environment.md) ── GitLab検証環境（Docker + glab）の再現手順
 - [otel-listener.md](spec/otel-listener.md) ── OTelリスナー機構（OpenTelemetryをusage/へ振り分け保存するperl製リスナー）
+- [gemini-cli-telemetry.md](spec/gemini-cli-telemetry.md) ── Gemini CLI公式テレメトリ機構（outfileへの直接書き出し・バイトオフセットカーソル集計）
 - [sync-gemini-assets.md](spec/sync-gemini-assets.md) ── .claude/ から .gemini/ を生成する変換スクリプト
 - [check-doc-references.md](spec/check-doc-references.md) ── DDR参照切れ検出スクリプト（絶対パス形式のDDR参照が実在するファイルを指しているかを検証）
+- [harvest-from-projects.md](spec/harvest-from-projects.md) ── 収穫（逆輸入）スキルの分析スクリプト（scan/diff/merge3の入出力・分類規則・終了コード）
 
 ## ddr（意思決定ログ）
 
@@ -118,6 +121,8 @@ frontmatter（`status` / `superseded_by` / `note`）だけから決まる。
 - [i0020-01-HANDOFF進捗更新はMarkdownテーブル直接書き換えでループ範囲を一括操作する.md](ddr/i0020-01-HANDOFF進捗更新はMarkdownテーブル直接書き換えでループ範囲を一括操作する.md)（うち「mark-skipで作った不整合は後段のmark-done/add-roundで表面化する」は、issue #140でmark-skip自身がその場で拒否する形へ変更された。詳細はi0140-01）
 - [i0023-01-push断面の全文コピーをやめ行番号インデックスで表現する.md](ddr/i0023-01-push断面の全文コピーをやめ行番号インデックスで表現する.md)（うち「Gemini CLI対応の扱い」は、issue #97でメインセッションのみ集計対象へ変更された。サブエージェントを集計しない部分は引き続き有効。詳細は i0097-05）
 - [i0026-01-AIアセットの配布はmanifest付きの直接コピーとし層はexcludeを含む5つにする.md](ddr/i0026-01-AIアセットの配布はmanifest付きの直接コピーとし層はexcludeを含む5つにする.md)
+- [i0027-01-収穫スキルは読み取り専用分析とissue起票までを出口にする.md](ddr/i0027-01-収穫スキルは読み取り専用分析とissue起票までを出口にする.md)
+- [i0027-02-エラー隔離は条件文脈の外のサブシェルでset-eを掛け直して行う.md](ddr/i0027-02-エラー隔離は条件文脈の外のサブシェルでset-eを掛け直して行う.md)
 - [i0028-01-flow-id5-1の後片付けはスクリプト化しコミットは含めない.md](ddr/i0028-01-flow-id5-1の後片付けはスクリプト化しコミットは含めない.md)（ファイル名の `flow-id5-1` は当時の番号。片付けは issue #112 の並べ替えで 5-3 になり、issue #111 の統括レポート追加で 5-4、issue #70 の変換同期の新設でさらに繰り下がって現在 flow-id 5-5。DDR i0112-01・i0111-01 参照）
 - [i0032-01-GitLab-issueテンプレートは予約名Default.mdを正とし文書側を合わせる.md](ddr/i0032-01-GitLab-issueテンプレートは予約名Default.mdを正とし文書側を合わせる.md)
 - [i0033-01-配布物の版はVERSIONファイル1つで表しCHANGELOGを持たない.md](ddr/i0033-01-配布物の版はVERSIONファイル1つで表しCHANGELOGを持たない.md)
@@ -161,6 +166,8 @@ frontmatter（`status` / `superseded_by` / `note`）だけから決まる。
 - [i0097-05-Gemini-CLIのサブエージェントは保存のみとし集計しない.md](ddr/i0097-05-Gemini-CLIのサブエージェントは保存のみとし集計しない.md)
 - [i0103-01-perlを常駐プロセス実装の選択肢に加える理由.md](ddr/i0103-01-perlを常駐プロセス実装の選択肢に加える理由.md)
 - [i0103-02-OTelエンドポイント設定をsettings.local.jsonへ分離する理由.md](ddr/i0103-02-OTelエンドポイント設定をsettings.local.jsonへ分離する理由.md)
+- [i0105-01-二重計上回避方式はsemantic-conventions形式のみ採用しレガシー形式とmetricsを除外する.md](ddr/i0105-01-二重計上回避方式はsemantic-conventions形式のみ採用しレガシー形式とmetricsを除外する.md)
+- [i0105-02-既定有効化は機微情報未確認のため保留する.md](ddr/i0105-02-既定有効化は機微情報未確認のため保留する.md)
 - [i0106-01-敵対的レビューの非対話判定は環境変数ではなくAIエージェントの判断に委ねる.md](ddr/i0106-01-敵対的レビューの非対話判定は環境変数ではなくAIエージェントの判断に委ねる.md)
 - [i0109-01-敵対的レビュー由来のスレッドも人間の指摘と同列に返信を必須とする.md](ddr/i0109-01-敵対的レビュー由来のスレッドも人間の指摘と同列に返信を必須とする.md)
 - [i0110-01-個別計画のタスク種別を6種から8種へ拡張する.md](ddr/i0110-01-個別計画のタスク種別を6種から8種へ拡張する.md)（うち「`.claude/scripts/`をAIアセットから除外する」は、issue #155でフェーズ4に限って置き換えられた（フェーズ3の`【AIアセット作成】`からの除外は現役）。詳細はi0155-01。また【AIアセット作成】の対象は、issue #170で設計ドキュメント（usecase文書等）の新規作成・改訂まで拡張された。現行の定義はissue-mr-flow SKILL.md「計画の2階層構造」が正）
@@ -186,4 +193,6 @@ frontmatter（`status` / `superseded_by` / `note`）だけから決まる。
 - [i0171-01-DDR参照切れ検出は絶対パス形式に限定しgrep一括抽出で実装する.md](ddr/i0171-01-DDR参照切れ検出は絶対パス形式に限定しgrep一括抽出で実装する.md)
 - [i0182-01-敵対的レビューの投稿件数選別を層単位ルールでスクリプト化する.md](ddr/i0182-01-敵対的レビューの投稿件数選別を層単位ルールでスクリプト化する.md)
 - [i0184-01-ワークフローのローカル作業状態はwip配下へ移し旧パスのignoreを移行用に残す.md](ddr/i0184-01-ワークフローのローカル作業状態はwip配下へ移し旧パスのignoreを移行用に残す.md)
+- [i0186-01-レポートの視覚語彙は結論の性質とレビューの重みで軸を分ける.md](ddr/i0186-01-レポートの視覚語彙は結論の性質とレビューの重みで軸を分ける.md)
+- [i0186-02-リンク破断検査はID抽出をタグ内に限定し重複ID検査を併設する.md](ddr/i0186-02-リンク破断検査はID抽出をタグ内に限定し重複ID検査を併設する.md)
 <!-- END GENERATED: ddr-list -->

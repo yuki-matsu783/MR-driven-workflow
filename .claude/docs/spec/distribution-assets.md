@@ -182,6 +182,26 @@ point-in-time の記録であり、現在の実装は `merge` 層の `lines-mark
   何も壊さずに警告だけが残る（仕様: [sync-gemini-assets.md](sync-gemini-assets.md)）。
 - `jq` が無い環境では `install-to-project.sh` が事前に警告する（`.gemini/` の生成が `jq` に依存する）。
 
+### issue #105（`/usage/` を配布先でもGit管理対象外にする）
+
+当初、`install-to-project.sh` の `ignore_rules`（当時の実装。下記「issue #26」参照）へ `/usage/`
+を追加する形で対応した。Gemini CLI公式テレメトリ機構
+（[gemini-cli-telemetry.md](gemini-cli-telemetry.md)）のoutfile（`usage/gemini-otel.log`）・
+カーソル状態（`usage/state/gemini-otel/cursor.json`）を含む `usage/` 配下全体を、配布先でも
+Git管理対象外にすることが目的だった。
+
+**flow-id 5-1（defaultブランチ追従）でmainをマージした時点で、issue #26が配布機構を
+`ignore_rules` 配列ごと作り直しており、`.claude/dist-layers.json` の `local` 層に
+`/usage/` パターンが既に含まれていた（下記「issue #26」参照）。** そのため、`install-to-project.sh`
+への直接のコード変更は不要になった（マージ時に取り下げ、mainの実装をそのまま採用した）。
+`/usage/` を配布先の `.gitignore` から除外するという**目的自体は達成済み**であり、達成手段が
+`ignore_rules` 配列から `dist-layers.json` の宣言的な `local` 層へ移っただけである。
+
+- **旧パス名の行（`/.claude/usage-state/` `/.claude/session-logs/`）の扱いは、issue #26 で
+  `dist-layers.json` の `local` 層が `/.claude/state/` を含むgitignoreパターンへ作り直された
+  ことで、この懸念自体が指していた実装（`ignore_rules` 配列）ごと無くなった。**
+- 変更したファイル: なし（コード変更はflow-id 5-1のマージで取り下げ）。
+
 ### issue #26（2026-08-23）
 
 配布方式を manifest 方式へ作り直したことに伴う更新。**機構そのものの仕様は
@@ -276,4 +296,6 @@ point-in-time の記録であり、現在の実装は `merge` 層の `lines-mark
   という判断はありうるが、その場合は「配布先の人間がどう版を口にするか」の代替が要る。
 
 **issue #26 で解消した4項目は削除した**（削除の理由と解消先は上記
-「影響範囲 > issue #26（2026-08-23）」に残してある）。
+「影響範囲 > issue #26（2026-08-23）」に残してある）。issue #105 が対応していた
+「`/usage/` が配布先へ配られない」懸念も、issue #26 の `local` 層の定義（上記
+「影響範囲 > issue #105」参照）でそのまま解消済みである。

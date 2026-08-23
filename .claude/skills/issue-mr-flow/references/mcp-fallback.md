@@ -45,7 +45,7 @@ get_repo_slug | jq -r '.owner, .repo'
 | `search_issues <キーワード...>` | `mcp__github__search_issues` | `query="<キーワード（複数可）>"`, `owner`, `repo` | `issue-create` スキルの起票前重複チェック（issue #68）の代替。**CLI版と違い、キーワードごとに呼び分ける必要はない**（自然言語のセマンティック検索で、既に `is:issue` にスコープされている）。1回の `query` に複数キーワードを平文で並べる。closedのissueも対象にしたいので `state` で絞り込まないこと。返却の `number`/`title`/`state`/`html_url` を、CLI版の `number`/`title`/`state`/`url` と読み替える |
 | `new_draft_merge_request <n> <branch> <title> [<base>]` | `mcp__github__create_pull_request` | `owner`, `repo`, `title`, `head=<branch>`, `base=<base>`, `draft=true`, `body="Closes #<n>\n\n(plan作成中。/issue-mr-flow describe で更新する)"` | baseとの差分が無いと失敗する制約はMCP経路でも同じ。失敗したら `source .claude/scripts/src/vcs/Provider.sh && add_empty_commit_for_draft_mr` を実行してから1回だけ再試行する |
 | `get_mr_for_branch <branch>` | `mcp__github__list_pull_requests` | `owner`, `repo`, `head="<owner>:<branch>"`, `state="open"` | 結果が空配列ならPRなし。`number`/`html_url`/`draft`/`title` を使う |
-| `get_mr_unresolved_comments <n> [true]` | `mcp__github__pull_request_read` | `method="get_review_comments"`, `owner`, `repo`, `pullNumber=<n>` | スレッドごとに `isResolved` が付くので、**既定では `isResolved=false` のスレッドだけを提示する**（CLI版の「解決済みは機械的に除外」に相当）。`all` 指定時は全件。通常コメントは `method="get_comments"` を追加で呼ぶ。**コメントのパーマリンク（CLI版の `url=...`）は返却JSONの `html_url` を使う**（issue #42）。**このツールは `line` も commitのsha も返さないため、CLI版が付ける指摘行前後のソーススライスは作れない**（`path` までは分かる。実測で確認。GitHub MCPサーバー側の制約であり本機構では変えられない。issue #43）。指摘箇所のコードが必要なら、`path` を頼りにReadツール等で**現在のファイル**を読む——**それは断面ではなく現HEADである**点に注意する |
+| `get_mr_unresolved_comments <n> [true]` | `mcp__github__pull_request_read` | `method="get_review_comments"`, `owner`, `repo`, `pullNumber=<n>` | スレッドごとに `isResolved` が付くので、**既定では `isResolved=false` のスレッドだけを提示する**（CLI版の「解決済みは機械的に除外」に相当）。`all` 指定時は全件。通常コメントは `method="get_comments"` を追加で呼ぶ。**コメントのパーマリンク（CLI版の `url=...`）は返却JSONの `html_url` を使う**（issue #42）。**このツールは `line` も commitのsha も返さないため、CLI版が付ける指摘行前後のソーススライスは作れない**（`path` までは分かる。実測で確認。GitHub MCPサーバー側の制約であり本機構では変えられない。issue #43）。指摘箇所のコードが必要なら、`path` を頼りにReadツール等で**現在のファイル**を読む——**それは断面ではなく現HEADである**点に注意する。**ページネーションの罠は下記「2-b. MCP経路で踏んだ落とし穴」参照** |
 | `add_mr_thread_reply <n> <threadId> <body>` | `mcp__github__add_reply_to_pull_request_comment` | `owner`, `repo`, `pullNumber=<n>`, `commentId=<返信先スレッドの先頭コメントの数値ID>`, `body` | **ID体系が違う。** CLI経路はGraphQLのthreadId（`PRRT_...`）を使うが、MCP経路は数値のcommentId（`#discussion_r...` の数字部分）を使う。`get_review_comments` の各スレッドに含まれるコメントのidを使うこと。**投稿した返信のURL（CLI版の戻り値）は、返却JSONの `html_url` を使う**（issue #42） |
 | `set_mr_description <n> <file>` | `mcp__github__update_pull_request` | `owner`, `repo`, `pullNumber=<n>`, `body=<ファイルの内容>` | CLI版はファイルパスを渡すが、MCPは文字列で渡す。本文はReadツール等で読んでから渡す |
 | `set_mr_ready <n>` | `mcp__github__update_pull_request` | `owner`, `repo`, `pullNumber=<n>`, `draft=false` | `set_mr_description` と同じツールだが渡す引数が違う。`draft=false` が「Draftを解除しレビュー可能にする」の意味（flow-id 5-6。issue #61） |
@@ -70,6 +70,19 @@ CLI経路には無い、MCPツール固有の挙動。**いずれも失敗では
     （既に投稿したコメントは編集できないため、消すのではなく足す）。
   - 予防: 本文に記号そのものを書かず、「入力リダイレクト」のように語で説明する。
     コード例が要る場合はフェンス内へ入れる。
+
+- **`mcp__github__pull_request_read`（`method="get_review_comments"`）のページネーション
+  パラメータ名は `after`（前ページの `pageInfo.endCursor` の値。`perPage` は最大100、
+  ツール定義で確認済みの値）であり `cursor` ではない**（issue #105フェーズ3で実際に2回踏んだ）。
+  **誤ったパラメータ名を渡すと、ツールがそれを無視して常に1ページ目を返す**ため、
+  `hasNextPage: true` のまま同一ページが返り続ける（無限ループ状のハングに見えるため
+  気づきにくい）。
+  - 対処: `after` に前ページの `pageInfo.endCursor` を渡し、`pageInfo.hasNextPage` が偽に
+    なるまで繰り返す。
+  - 予防: 未返信スレッドの判定（`references/review-loop.md`「レビュー完了合図の確認」
+    (1)(2)）は、**全ページを走査できていることが前提**。1ページ目だけで判定を打ち切ると、
+    未解決・未返信スレッドを取りこぼしたままループ範囲へ `mark-done` してしまいうる
+    （issue #70・#109が防ごうとした状態そのもの）。
 
 ### 3. サブコマンドごとの読み替え
 

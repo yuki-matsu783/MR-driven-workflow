@@ -27,6 +27,7 @@ keywords: [directory, repository-map, リポジトリマップ, ディレクト�
   - [./.claude/skills/](./.claude/skills/) `/issue-mr-flow`（唯一の実装フロー定義）・`/commit`
     ・`/issue-create`・`/resolve-conflict`・`/canvas-report`・`/doc-search`
     ・`/apply-mr-workflow-to-project`（この機構を他プロジェクトへ配布する。issue #26）
+    ・`/harvest-from-projects`（配布先の改善を本家へ収穫する。本家専用。issue #27）
     ・`/adversarial-review`・`/review-points` のスキル定義。
     - [./.claude/skills/issue-mr-flow/references/](./.claude/skills/issue-mr-flow/references/)
       SKILL.mdから切り出した参照資料7本（読むタイミングは全体フロー表の「参照」列が正。issue #160）。
