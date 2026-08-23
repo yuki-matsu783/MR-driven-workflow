@@ -1,0 +1,145 @@
+<!--
+  個別調査計画「【調査】HTMLスライドスキルの前提調査」（issue #168）の人間レビュー用HTMLビュー。
+  正文は同名の .md（wip/plans/【調査】HTMLスライドスキルの前提調査.md）。
+  土台: .claude/skills/issue-mr-flow/assets/plans.template.html（issue #54）
+-->
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>【調査】HTMLスライドスキルの前提調査 — issue #168</title>
+<style>
+  :root {
+    --bg: #f6f7f9;      --panel: #ffffff;   --ink: #1a1d21;     --muted: #5b636d;
+    --line: #dfe3e8;    --accent: #2563eb;  --accent-soft: #eaf0fe;
+    --ok: #1a7f4b;      --ok-soft: #e6f4ec; --warn: #a35a00;    --warn-soft: #fdf1e0;
+    --stop: #b3261e;    --stop-soft: #fdecea; --code-bg: #f0f2f5;
+    --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1216;    --panel: #161a20;   --ink: #e6e8eb;     --muted: #9aa3ad;
+      --line: #2a3038;  --accent: #7aa2f7;  --accent-soft: #1b2333;
+      --ok: #6ee7a8;    --ok-soft: #14261d; --warn: #f0b866;    --warn-soft: #2a2113;
+      --stop: #f2857c;  --stop-soft: #2b1614; --code-bg: #1d222a;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", system-ui, sans-serif;
+    line-height: 1.8; font-size: 15px;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 20px 80px; }
+  header.band {
+    background: linear-gradient(135deg, var(--accent-soft), var(--panel));
+    border-bottom: 1px solid var(--line); padding: 28px 20px 22px; margin-bottom: 28px;
+  }
+  header.band .inner { max-width: 1080px; margin: 0 auto; }
+  header.band .kind { font-size: 11px; letter-spacing: .18em; color: var(--accent); font-weight: 700; }
+  header.band h1 { margin: 6px 0 4px; font-size: 26px; line-height: 1.4; }
+  header.band .lead { margin: 0; color: var(--muted); }
+  .meta { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; padding: 0; list-style: none; }
+  .meta li {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 999px;
+    padding: 3px 12px; font-size: 12.5px; color: var(--muted); white-space: nowrap;
+  }
+  .meta li b { color: var(--ink); font-weight: 600; }
+  a { color: var(--accent); }
+  section {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 8px 24px 22px; margin-bottom: 22px;
+  }
+  h2 { font-size: 20px; margin: 20px 0 10px; padding-bottom: 8px; border-bottom: 2px solid var(--line); }
+  p { margin: 10px 0; }
+  ul, ol { padding-left: 22px; }
+  li { margin: 4px 0; }
+  .tablewrap { overflow-x: auto; margin: 14px 0; }
+  table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 14px; }
+  th, td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: var(--accent-soft); font-weight: 600; white-space: nowrap; }
+  tbody tr:nth-child(even) td { background: color-mix(in srgb, var(--line) 22%, transparent); }
+  code {
+    background: var(--code-bg); border-radius: 5px; padding: 1px 5px; font-size: 13px;
+    font-family: "SFMono-Regular", Consolas, "Noto Sans Mono", monospace;
+  }
+  pre {
+    background: var(--code-bg); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 12px 14px; overflow-x: auto; font-size: 13px; line-height: 1.65;
+  }
+  pre code { background: none; padding: 0; }
+  .box { border-left: 4px solid var(--accent); background: var(--accent-soft);
+         border-radius: 0 var(--radius) var(--radius) 0; padding: 12px 16px; margin: 16px 0; }
+  .box > :first-child { margin-top: 0; } .box > :last-child { margin-bottom: 0; }
+  .box .label { font-size: 12px; font-weight: 700; letter-spacing: .06em; display: block; margin-bottom: 4px; }
+  .box.stop { border-color: var(--stop); background: var(--stop-soft); } .box.stop .label { color: var(--stop); }
+  footer { color: var(--muted); font-size: 13px; text-align: center; padding-top: 10px; }
+</style>
+</head>
+<body>
+
+<header class="band">
+  <div class="inner">
+    <div class="kind">個別調査計画 / フェーズ2（flow-id 2-1）</div>
+    <h1>【調査】HTMLスライドスキルの前提調査</h1>
+    <p class="lead">フェーズ3で作る4点（テンプレート・SKILL.md・サブエージェント2本・構成案JSONスキーマ）の設計を確定するため、既存の規約・実例・影響範囲を調べる。</p>
+    <ul class="meta">
+      <li><b>issue</b> #168</li>
+      <li><b>ブランチ</b> claude/html-slide-skill-template-ymue7k</li>
+      <li><b>PR</b> #194（Draft）</li>
+      <li><b>フェーズ</b> 2〈調査〉 flow-id 2-1</li>
+      <li><b>作成日</b> 2026-08-23</li>
+      <li><b>正文</b> 同名の .md</li>
+    </ul>
+  </div>
+</header>
+
+<div class="wrap">
+
+<section id="goal">
+  <h2>この計画で何をするか</h2>
+  <p>既存の規約・実例・影響範囲を調べ、個別作業計画（flow-id 3-1）が書ける状態にする。調査項目は次の7つの問い（Q1〜Q7）。</p>
+</section>
+
+<section id="target">
+  <h2>調査項目（変更対象に代わる調査対象）</h2>
+  <p>本計画はファイルを変更しない（調査のみ）。調査対象と問いは次のとおり。</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>#</th><th>問い</th><th>調べ方</th><th>何が分かれば次へ進めるか</th></tr></thead>
+    <tbody>
+      <tr><td>Q1</td><td>既存テンプレート3本の冒頭コメント・スタイル変数・ダークモード対応・プレースホルダ検査はどう作られているか</td><td><code>plans.template.html</code> / <code>reports.template.html</code> / <code>canvas-report.html</code> を読み共通構成を表にする</td><td><code>slides.template.html</code> が踏襲すべき要素の一覧</td></tr>
+      <tr><td>Q2</td><td>サブエージェント定義のfrontmatter・本文構成・ツール制限はどう書かれているか</td><td><code>.claude/agents/</code> 既存2本を読む</td><td>新規エージェント2本のfrontmatterと見出し構成の型</td></tr>
+      <tr><td>Q3</td><td>スキル名は何にするか</td><td>既存スキル名の命名傾向を確認し候補を比較する</td><td><code>.claude/skills/&lt;スキル名&gt;/</code> の確定</td></tr>
+      <tr><td>Q4</td><td>スライドHTMLの出力先ディレクトリの既定はどこにするか</td><td><code>wip/reports/</code> の寿命・<code>.gitignore</code>・<code>directory-structure.md</code> を確認し選択肢を比較する</td><td>既定の出力先と寿命・ignore上の扱いの確定</td></tr>
+      <tr><td>Q5</td><td>構成案JSONスキーマはどこに・どの形式で置くか</td><td><code>assets/</code>・<code>references/</code>・<code>scripts/</code> の語彙定義と検証手段（jq）を確認する</td><td>置き場所・形式・参照方法の確定</td></tr>
+      <tr><td>Q6</td><td>新規ファイルは配布・同期・インデックスの仕組みにどう影響するか</td><td><code>dist-layers.json</code>・<code>check-dist-coverage.sh</code>・<code>sync-gemini-assets.sh</code>・<code>extract-frontmatter.sh</code> を確認する</td><td>必要な設定変更の一覧（無ければ根拠）</td></tr>
+      <tr><td>Q7</td><td>ドキュメントへの追記はどこに必要か</td><td><code>directory-structure.md</code> のツリー・<code>markdown-frontmatter.md</code> の type 表を確認する</td><td>フェーズ4で追記すべき箇所の一覧</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="out-of-scope">
+  <h2>やらないこと（スコープ外）</h2>
+  <div class="box stop">
+    <span class="label">この計画では決めない・触らない</span>
+    <ul>
+      <li>テンプレート・スキル・エージェントの実装（フェーズ3へ送る）</li>
+      <li>出力先ディレクトリ以外の新規ディレクトリ提案</li>
+      <li>既存テンプレート3本の変更</li>
+    </ul>
+  </div>
+</section>
+
+<section id="verify">
+  <h2>検証</h2>
+  <p>調査結果を <code>wip/reports/2026-08-23_html-slides-skill-plan_前提調査.md</code>（+同名.html）に記録し、Q1〜Q7のすべてに答えが書かれていること。Q3・Q4・Q5は選択肢の比較（利点・欠点・採否）を含むこと。</p>
+</section>
+
+<footer>issue #168 / PR #194 — 計画の正文は同名の <code>.md</code>。外部依存を持たない自己完結HTML。</footer>
+
+</div>
+</body>
+</html>
