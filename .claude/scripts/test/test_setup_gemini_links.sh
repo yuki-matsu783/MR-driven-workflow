@@ -9,6 +9,10 @@
 #      追加・変更・削除の3つとも反映されること。
 #   3. **`.claude/` 側を壊さないこと。** リンクを実体と誤判定した場合に、リンクを辿って
 #      配布元を消してしまう事故を避けるための安全網が効いていること。
+#   4. **コピーの失敗が成功として報告されないこと**（issue #26 フェーズ4の `【実装反映】`）。
+#      `cp` のスタブを失敗させ、成功メッセージが出ないこと・`main` の集約が非0で終わること・
+#      メッセージが標準エラーへ出ることを確かめる。**この4件は、直す前の実装では実際に
+#      落ちることを確認してから書いた**（回帰テストが欠陥を検出できていない状態を避けるため）。
 #
 # 実リポジトリは対象にしない（`mktemp -d` の使い捨てツリーの中で実プロセスとして起動する）。
 #
@@ -133,6 +137,49 @@ mkdir -p "$root_file/.gemini"
 printf 'これはファイル\n' > "$root_file/.gemini/rules"
 assert_eq "対象がファイルなら失敗する" "1" "$(status_of run_nolink "$root_file")"
 assert_eq "対象がファイルでも中身は書き換えない" "これはファイル" "$(cat "$root_file/.gemini/rules")"
+
+# --- コピーの失敗を成功として報告しない（issue #26 フェーズ4） ---------------
+#
+# `cp` を必ず失敗させるスタブをPATHの先頭へ置く。`ln` / `cmd.exe` のスタブと併用して、
+# 「リンクが作れず実体コピーへフォールバックしたが、そのコピーも失敗した」状況を作る。
+#
+# **`main` は `setup_target "$t" || fail=1` という条件式の中で各対象を呼ぶ。** bashはこの
+# 評価中、`set -e` を**呼ばれた関数の内部にまで及んで**一時停止させるため、明示的に終了
+# コードを検査しない限り `cp` の失敗は伝わらない（直す前はこれで握りつぶされていた）。
+
+FAILCP_DIR="$TMP_DIR/failcp"
+mkdir -p "$FAILCP_DIR"
+printf '#!/usr/bin/env bash\nexit 1\n' > "$FAILCP_DIR/ln"
+printf '#!/usr/bin/env bash\nexit 1\n' > "$FAILCP_DIR/cmd.exe"
+printf '#!/usr/bin/env bash\nexit 1\n' > "$FAILCP_DIR/cp"
+chmod +x "$FAILCP_DIR/ln" "$FAILCP_DIR/cmd.exe" "$FAILCP_DIR/cp"
+
+run_failcp() { PATH="$FAILCP_DIR:$PATH" bash "$1/.claude/scripts/src/setup-gemini-links.sh"; }
+
+# **表明ごとに新しい木を使う。** 1回実行すると `.gemini/<name>` が（中身は空のまま）
+# 出来上がるため、同じ木で2回目を流すと `absent` ではなく `real` 経路に入り、別の分岐を
+# 測ることになる。実際、木を使い回していたときは「成功メッセージを出さない」が修正前でも
+# 通ってしまっていた（2回目は「作成しました」ではなく「更新します」を出すため）。
+
+assert_eq "コピー失敗: main の集約が非0で終わる" "1" \
+  "$(status_of run_failcp "$(make_tree failcp1)")"
+
+failcp_out="$(PATH="$FAILCP_DIR:$PATH" bash "$(make_tree failcp2)/.claude/scripts/src/setup-gemini-links.sh" 2>/dev/null || true)"
+assert_eq "コピー失敗: 成功メッセージ（作成しました）を出さない" "0" \
+  "$(printf '%s\n' "$failcp_out" | grep -c -- '作成しました' || true)"
+
+failcp_err="$(PATH="$FAILCP_DIR:$PATH" bash "$(make_tree failcp3)/.claude/scripts/src/setup-gemini-links.sh" 2>&1 >/dev/null || true)"
+assert_eq "コピー失敗: エラーが標準エラーへ出る" "1" \
+  "$([ -n "$failcp_err" ] && echo 1 || echo 0)"
+assert_eq "コピー失敗: どの操作が失敗したかを示す" "1" \
+  "$(printf '%s\n' "$failcp_err" | grep -cq -- '実体コピー' && echo 1 || echo 0)"
+
+# 実体コピー状態からの**再実行**（`real` 経路）でも、コピーの失敗を握りつぶさないこと。
+# 上とは通る分岐が違う（`place_real_copy` ではなく `sync_real_copy`）。
+root_resync="$(make_tree failcp4)"
+run_nolink "$root_resync" > /dev/null 2>&1
+assert_eq "コピー失敗（再実行経路）: main の集約が非0で終わる" "1" \
+  "$(status_of run_failcp "$root_resync")"
 
 echo "passed=$passed failures=$failures"
 [ "$failures" -eq 0 ]
