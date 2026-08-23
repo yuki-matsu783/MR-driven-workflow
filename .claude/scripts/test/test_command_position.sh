@@ -198,5 +198,77 @@ fi
 assert_eq "上限超えの行があっても実行は検知する" "hit" "$(detect "${long_line}${NL}git commit -m x")"
 assert_eq "上限超えの行だけで該当語が無ければ検知しない" "miss" "$(detect "$long_line")"
 
+# --- command_invokes_script（任意のスクリプト実行判定。issue #149） -------------------------
+# command_invokes_git_subcommand の結果を hit/miss で受け取るのと同じ形。
+detect_script() { # $1=コマンド文字列 $2=対象スクリプト名（省略時 create-issue.sh）
+  if command_invokes_script "$1" "${2:-create-issue.sh}"; then
+    printf 'hit'
+  else
+    printf 'miss'
+  fi
+}
+
+SCRIPT_PATH='.claude/scripts/src/create-issue.sh'
+
+# --- 発火すること（issue #149 受け入れ条件） ---------------------------------------------
+assert_eq "単体実行" "hit" "$(detect_script "$SCRIPT_PATH --title x")"
+assert_eq "複合コマンド（cd … && …）" "hit" "$(detect_script "cd /repo && bash $SCRIPT_PATH --title x")"
+assert_eq "改行区切りの2行目" "hit" "$(detect_script "ls $SCRIPT_PATH${NL}bash $SCRIPT_PATH --title x")"
+assert_eq "bash <パス> 形式" "hit" "$(detect_script "bash $SCRIPT_PATH")"
+assert_eq "相対パス（./）での起動" "hit" "$(detect_script "./create-issue.sh --title x")"
+assert_eq "絶対パスでの起動" "hit" "$(detect_script "/repo/$SCRIPT_PATH --title x")"
+assert_eq "Windowsの実行ファイル名（.exe）" "hit" "$(detect_script "create-issue.sh.exe --title x" 'create-issue.sh')"
+assert_eq "sh経由の実行" "hit" "$(detect_script "sh $SCRIPT_PATH")"
+assert_eq "ブレースグループの中" "hit" "$(detect_script "{ bash $SCRIPT_PATH; }")"
+
+# --- 発火しないこと（issue #149 受け入れ条件） ------------------------------------------
+assert_eq "該当ファイル名を含むだけのcat" "miss" "$(detect_script "cat $SCRIPT_PATH")"
+assert_eq "該当ファイル名を含むだけのgrep" "miss" "$(detect_script "grep -rn create-issue.sh .claude/")"
+assert_eq "ドキュメント編集コマンド（sed）" "miss" "$(detect_script "sed -n '1,10p' $SCRIPT_PATH")"
+assert_eq "コメント内の言及" "miss" "$(detect_script "# create-issue.shを実行するhook${NL}ls")"
+assert_eq "ヒアドキュメント本文内の言及" "miss" \
+  "$(detect_script "cat <<'EOF'${NL}create-issue.shの説明${NL}EOF")"
+assert_eq "ダブルクォート内（地の文）" "miss" "$(detect_script 'echo "create-issue.shについて説明します"')"
+assert_eq "無関係なコマンド" "miss" "$(detect_script 'git status')"
+assert_eq "コマンド文字列が空" "miss" "$(detect_script '')"
+
+# --- 敵対的レビュー（1回目）で検出された誤検知の再発防止 --------------------------------
+assert_eq "sudoの後のcatの引数では発火しない" "miss" "$(detect_script "sudo cat $SCRIPT_PATH")"
+assert_eq "ifの条件部のgrepの引数では発火しない" "miss" \
+  "$(detect_script "if grep -q x $SCRIPT_PATH; then echo y; fi")"
+assert_eq "timeoutの後のgrepの引数では発火しない" "miss" \
+  "$(detect_script "timeout 5 grep -rn x $SCRIPT_PATH")"
+assert_eq "パラメータ展開\${VAR}直後のパスでは誤って発火しない" "miss" \
+  "$(detect_script 'cat ${REPO}/.claude/scripts/src/create-issue.sh')"
+assert_eq "sudoで実際にスクリプトを実行する場合は発火する" "hit" "$(detect_script "sudo bash $SCRIPT_PATH")"
+
+# --- 素通りさせたくないケース（コード文字列を受け取る実行系。保守的フォールバック） ------
+assert_eq "eval の中身" "hit" "$(detect_script "eval \"bash $SCRIPT_PATH --title x\"")"
+assert_eq "bash -c の中身" "hit" "$(detect_script "bash -c \"bash $SCRIPT_PATH\"")"
+assert_eq "xargs" "hit" "$(detect_script "echo x | xargs bash $SCRIPT_PATH")"
+
+# --- 極端に長い行（部分一致への縮退） ----------------------------------------------------
+long_script_line='echo "x" '
+while ((${#long_script_line} < 20000)); do long_script_line+='echo "x" '; done
+assert_eq "上限超えの行があっても実行は検知する" "hit" \
+  "$(detect_script "${long_script_line}${NL}bash $SCRIPT_PATH")"
+assert_eq "上限超えの行だけで該当語が無ければ検知しない" "miss" "$(detect_script "$long_script_line")"
+
+# --- 既知の制約（issue #149。回帰テストとして現状の挙動を固定する） ---------------------
+assert_eq "既知の制約: クォートで囲まれたスクリプトパスは検知できない" "miss" \
+  "$(detect_script 'bash "$CLAUDE_PROJECT_DIR/.claude/scripts/src/create-issue.sh" --title x')"
+assert_eq "既知の制約: バックスラッシュ区切りパス（PowerShell）は検知できない" "miss" \
+  "$(detect_script '.claude\scripts\src\create-issue.sh -Title x')"
+
+# --- 公開関数の引数契約: パス付き・大文字混じりで渡しても表記ゆれを吸収する -------------
+assert_eq "対象スクリプト名をパス付きで渡しても一致する" "hit" \
+  "$(detect_script "$SCRIPT_PATH" '.claude/scripts/src/create-issue.sh')"
+assert_eq "対象スクリプト名を大文字混じりで渡しても一致する" "hit" \
+  "$(detect_script "$SCRIPT_PATH" 'Create-Issue.SH')"
+
+# --- 変えていないことの確認: command_invokes_git_subcommand に影響していないか -----------
+assert_eq "git検知は影響を受けない（回帰確認）" "hit" "$(detect 'git commit -m x')"
+assert_eq "git検知のブレースグループも変わらない（回帰確認）" "hit" "$(detect '{ git commit; }')"
+
 echo "passed=$passed failures=$failures"
 [[ "$failures" -eq 0 ]]

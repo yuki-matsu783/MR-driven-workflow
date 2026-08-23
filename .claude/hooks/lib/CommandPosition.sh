@@ -588,3 +588,206 @@ command_invokes_git_subcommand() {
   [[ "$lower" =~ git[[:space:]]+${sub,,} ]] || return 1
   return 0
 }
+
+# 正規化済み文字列に、指定したスクリプト（basename）がコマンド位置で現れるかを判定する。
+# 副作用として _CP_OPAQUE_FOUND を設定する（issue #149）。
+#
+# `_cp_scan_tokens`（git専用）とは次の点で異なる:
+#
+# 1. `_CP_PREFIX_WORDS`（sudo/if/timeout等）を通ったあとは、**次の非オプション・非代入トークンを
+#    実コマンドとして1回だけ判定し、そこでコマンド位置を終える**（`_cp_scan_tokens`はセパレータ
+#    まえコマンド位置を保ち続ける。gitのような「離れた位置にある固定語1つを探す」判定では実害が
+#    小さいが、任意のスクリプトbasenameを探す判定でこれを真似ると、`sudo cat <スクリプトパス>`
+#    のように無関係なコマンドの引数に現れただけで誤って一致してしまう。敵対的レビュー
+#    （issue #149, 1回目）で検出）。
+# 2. `{`/`}` をトークン化のための人工的な空白挿入の対象に**含めない**（`_cp_scan_tokens`は
+#    含める）。`${VAR}/path` のようなパラメータ展開は、`{`側は`$`に、`}`側は変数名に隙間なく
+#    連結されているため元々1トークンのままであり、意図せず分割すると `}` の直後（実際には
+#    パスの続き）が誤ってコマンド位置として扱われる（同じくissue #149, 1回目で検出）。
+#    ブレースグループ（`{ cmd; }`）は、bash構文上 `{`/`}` の前後に空白が必須のため、この人工的な
+#    挿入が無くても素の空白分割で独立トークンになり、判定は変わらない。
+#
+# 引数: $1 = 正規化済み文字列 / $2 = 対象スクリプトのbasename（小文字化済み）
+# 戻り: 0 = コマンド位置で一致 / 1 = 一致なし
+_cp_scan_tokens_for_script() {
+  local norm="$1" target="$2"
+  _CP_OPAQUE_FOUND=0
+
+  local m
+  for m in ';' '&' '|' '(' ')' "$_CP_BT"; do
+    norm="${norm//"$m"/ $m }"
+  done
+  norm="${norm//"$_CP_NL"/ ; }"
+
+  local -a tokens=()
+  local IFS=$' \t\r\n'
+  read -ra tokens <<<"$norm" || true
+
+  local n=${#tokens[@]} i=0 j t u base ubase at_cmd=1 found=1 code_opt hit_sep
+  while ((i < n)); do
+    t="${tokens[i]}"
+    case "${t,,}" in
+      ';' | '&' | '|' | '(' | ')' | '{' | '}' | "$_CP_BT")
+        at_cmd=1
+        i=$((i + 1))
+        continue
+        ;;
+    esac
+
+    if ((!at_cmd)); then
+      i=$((i + 1))
+      continue
+    fi
+
+    # コマンドの前に置かれたリダイレクトは、コマンド位置を保ったまま読み飛ばす。
+    if [[ "$t" =~ ^[0-9]*[\<\>]+ ]]; then
+      [[ "$t" =~ ^[0-9]*[\<\>]+$ ]] && i=$((i + 1))
+      i=$((i + 1))
+      continue
+    fi
+
+    t="${t,,}"
+    base="${t##*/}"
+    base="${base%.exe}"
+
+    if [[ "$base" == "$target" ]]; then
+      found=0
+      break
+    fi
+
+    if [[ "$t" =~ ^[A-Za-z_][A-Za-z0-9_]*= ]]; then
+      # 変数代入。コマンド位置は次のトークンへ持ち越す。
+      i=$((i + 1))
+      continue
+    fi
+
+    if [[ "$_CP_OPAQUE_WORDS" == *" $base "* ]]; then
+      _CP_OPAQUE_FOUND=1
+      at_cmd=0
+      i=$((i + 1))
+      continue
+    fi
+
+    if [[ "$_CP_OPAQUE_WITH_OPT" == *" $base "* ]]; then
+      # インタプリタ経由。直後の非オプショントークン（コード文字列オプションが挟まれば除く）が
+      # 対象スクリプトかを見る。
+      j=$((i + 1))
+      code_opt=0
+      hit_sep=0
+      while ((j < n)); do
+        case "${tokens[j],,}" in
+          ';' | '&' | '|' | '(' | ')' | '{' | '}' | "$_CP_BT")
+            hit_sep=1
+            break
+            ;;
+        esac
+        u="${tokens[j],,}"
+        if [[ "$_CP_CODE_OPTS" == *" $u "* ]]; then
+          code_opt=1
+          break
+        elif [[ "$u" == -* ]]; then
+          j=$((j + 1))
+        else
+          break
+        fi
+      done
+      if ((code_opt)); then
+        _CP_OPAQUE_FOUND=1
+      elif ((!hit_sep)) && ((j < n)); then
+        ubase="${tokens[j],,}"
+        ubase="${ubase##*/}"
+        ubase="${ubase%.exe}"
+        if [[ "$ubase" == "$target" ]]; then
+          found=0
+          break
+        fi
+      fi
+      at_cmd=0
+      i=$((i + 1))
+      continue
+    fi
+
+    if [[ "$_CP_PREFIX_WORDS" == *" $base "* ]]; then
+      # 透過的なラッパー・予約語。次のセパレータまでではなく、次の非オプション・非代入トークン
+      # 「実コマンド」を1回だけ判定へ通す（上記コメント参照）。
+      j=$((i + 1))
+      hit_sep=0
+      while ((j < n)); do
+        case "${tokens[j],,}" in
+          ';' | '&' | '|' | '(' | ')' | '{' | '}' | "$_CP_BT")
+            hit_sep=1
+            break
+            ;;
+        esac
+        case "${tokens[j]}" in
+          -*)
+            j=$((j + 1))
+            ;;
+          *)
+            if [[ "${tokens[j]}" =~ ^[A-Za-z_][A-Za-z0-9_]*= ]]; then
+              j=$((j + 1))
+            else
+              break
+            fi
+            ;;
+        esac
+      done
+      if ((!hit_sep)) && ((j < n)); then
+        i=$j
+        continue
+      fi
+      at_cmd=0
+      i=$((i + 1))
+      continue
+    fi
+
+    # 一致しない通常のコマンド。コマンド位置をここで終える。
+    at_cmd=0
+    i=$((i + 1))
+  done
+
+  return "$found"
+}
+
+# コマンド文字列が、指定したスクリプト（basename）をコマンド位置で実行するかを判定する。
+#
+# 単体実行（パス付き・`.exe`付きでも末尾のbasenameが一致すれば可）と、インタプリタ経由の実行
+# （`bash <path>` 等。直後にコード文字列オプションが来る場合は対象外）の両方を検知する。
+# `cat` / `grep` のように無関係なコマンドの引数に現れるだけでは一致しない。
+#
+# 既知の制約（issue #149）: クォートで囲まれたスクリプトパス（`bash "$VAR/create-issue.sh"` 等）と、
+# PowerShell経路でのバックスラッシュ区切りパス（`.claude\scripts\src\create-issue.sh`）は、
+# `normalize_shell_command_to_reply` の正規化の性質上検知できない（前者はクォート内容がプレース
+# ホルダへ潰れるため、後者はバックスラッシュがエスケープとして解決されパス区切りごと失われる
+# ため。後者は `command_invokes_git_subcommand` も共有する既存の制約であり、本関数が新たに
+# 生んだものではない）。詳細: `.claude/docs/spec/command-position.md`。
+#
+# 引数: $1 = コマンド文字列 / $2 = 対象スクリプトのbasename（例: create-issue.sh）
+# 戻り: 0 = コマンド位置で実行される / 1 = 対象外
+command_invokes_script() {
+  local s="${1:-}" script="${2:?スクリプト名を指定すること}"
+  [[ -n $s ]] || return 1
+
+  # 呼び出し側がパス付き・大文字混じりで渡した場合の表記ゆれを吸収する。
+  local script_lower="${script,,}"
+  script_lower="${script_lower##*/}"
+  script_lower="${script_lower%.exe}"
+
+  local lower="${s,,}"
+  if _cp_has_overlong_line "$s"; then
+    [[ "$lower" == *"$script_lower"* ]] && return 0
+    return 1
+  fi
+
+  normalize_shell_command_to_reply "$s"
+  if _cp_scan_tokens_for_script "$REPLY" "$script_lower"; then
+    return 0
+  fi
+
+  # 位置判定では一致しなかったが、文字列をコードとして受け取りうる実行系が
+  # コマンド位置にある場合は、従来どおりの部分一致で保守的に倒す
+  # （command_invokes_git_subcommand と同じ設計原則）。
+  ((_CP_OPAQUE_FOUND)) || return 1
+  [[ "$lower" == *"$script_lower"* ]] || return 1
+  return 0
+}

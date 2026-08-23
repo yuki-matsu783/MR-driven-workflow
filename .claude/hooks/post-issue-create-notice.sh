@@ -17,13 +17,21 @@
 # （却下案を含む詳細はDDR i0039-01参照）。
 #
 # 検知対象は2経路ある（`.claude/settings.json` の matcher で両方を受ける）。
-#   - CLI経路: Bash/PowerShell/run_shell_command のコマンド文字列に `create-issue.sh` を含む
+#   - CLI経路: Bash/PowerShell/run_shell_command のコマンド文字列で `create-issue.sh` が
+#     **コマンド位置**で実行される（issue #149。`.claude/hooks/lib/CommandPosition.sh` の
+#     `command_invokes_script` による判定。ライブラリを使えない環境では従来どおりの部分一致へ
+#     縮退する。3段ガードは本ファイル冒頭のトップレベルで確定させる（下記 `_pin_cli_match`））
 #   - MCP経路: `mcp__github__issue_write` の `method` が `create`（`gh`/`glab` CLI不在時。issue #34）
 # いずれもツール実行「後」に発火するため、起票そのものは妨げない。
 #
-# 既知のトレードオフ: 既存の push/commit 検知hookと同じく部分文字列マッチのため、
-# `create-issue.sh` という語をたまたま含むコマンド（該当ファイルを開く・検索する等）でも
-# 発火する。注入されるのは注意文だけで処理は妨げないため、実害は小さいものとして許容する。
+# 既知のトレードオフ（issue #149でCLI経路をコマンド位置判定へ移行した後も残るもの）:
+#   - クォートで囲まれたスクリプトパス（`bash "$VAR/create-issue.sh"` 等）は検知できない
+#     （クォート内容は正規化でプレースホルダへ潰れるため）。
+#   - PowerShell経路でのバックスラッシュ区切りパス（`.claude\scripts\src\create-issue.sh`）は
+#     検知できない（`CommandPosition.sh`の正規化がバックスラッシュをbashのエスケープとして
+#     解決し、パス区切りごと失われるため。`block-direct-git-commit.sh`も共有する既存の制約）。
+# いずれも発火しない側（見逃し）に倒れるだけで、注入されるのは注意文のみのため実害は小さい。
+# 詳細: `.claude/docs/spec/command-position.md`。
 #
 # 注意（エラー方針）: 本体処理は `main` にまとめ、`( main )` の実サブシェルで呼ぶ
 # （.claude/rules/shell-script-style.md「bashでのtry/catch相当の書き方」）。失敗はすべて
@@ -51,6 +59,27 @@ write_additional_context() {
     '{hookSpecificOutput: {hookEventName: "PostToolUse", additionalContext: $text}}'
 }
 
+# CLI経路の実判定（issue #149）。既定値（フォールバック）は従来どおりの部分一致で、
+# `.claude/hooks/lib/CommandPosition.sh` を読み込めた場合のみコマンド位置判定へ差し替える。
+#
+# **トップレベルで一度だけ確定させる**（`main()`の中に置かない）。`source`して`main()`を実行
+# せず`is_issue_create_call`を直接呼ぶ単体テストがあるため、`main()`実行前でも判定が完成して
+# いる必要がある（敵対的レビューで指摘。`main()`内に置く案だと、その形の単体テスト4件が
+# `_pin_cli_match: command not found` で落ちる）。
+_pin_cli_match() { [[ "$1" == *create-issue.sh* ]]; }
+_pin_lib_dir="${BASH_SOURCE[0]%/*}"
+# パスにディレクトリ成分が無い（`bash post-issue-create-notice.sh`のような起動）と`%/*`は
+# ファイル名をそのまま返すため、明示的にカレントへ倒す（block-direct-git-commit.shと同じ理由）。
+[ "$_pin_lib_dir" = "${BASH_SOURCE[0]}" ] && _pin_lib_dir='.'
+_pin_lib="${_pin_lib_dir}/lib/CommandPosition.sh"
+# `[ -r ]` だけでは「読めるが読み込みに失敗する」（壊れたファイル・bash 4.3未満）を拾えない。
+# バージョン・sourceの成否・関数の存在まで確かめ、満たさない場合は既定値（部分一致）のまま残す。
+if ((BASH_VERSINFO[0] > 4 || (BASH_VERSINFO[0] == 4 && BASH_VERSINFO[1] >= 3))) &&
+  [ -r "$_pin_lib" ] && source "$_pin_lib" 2>/dev/null &&
+  declare -F command_invokes_script >/dev/null; then
+  _pin_cli_match() { command_invokes_script "$1" 'create-issue.sh'; }
+fi
+
 # issue起票の呼び出しかどうかを判定する純粋関数（外部コマンド呼び出し無し）。
 # $1=tool_name $2=コマンド文字列（CLI経路） $3=method（MCP経路）
 # 起票と判定した場合のみ 0 を返す。
@@ -58,7 +87,7 @@ is_issue_create_call() {
   local tool_name="$1" command="${2:-}" method="${3:-}"
   case "$tool_name" in
     run_shell_command | Bash | PowerShell)
-      [[ "$command" == *create-issue.sh* ]]
+      _pin_cli_match "$command"
       ;;
     mcp__github__issue_write)
       [[ "$method" == "create" ]]
@@ -75,12 +104,12 @@ is_issue_create_call() {
 # 戻り: 0 = 判定本体へ進む可能性がある（通過）/ 1 = 起票と無関係と確定（足切りしてよい）
 #
 # CLI経路（`create-issue.sh`）は raw_hints_at_git_commit と同じ理由で、バックスラッシュ除去・
-# 大文字小文字非依存の比較にする。is_issue_create_call 自体は大文字小文字を区別する部分一致
-# だが、ここをそれに厳密に合わせて超集合の余白を削るより、緩めに保つ方が安全側に倒れる
-# （過剰検知は後段が無害に落とすだけ。取りこぼす方が危険）。将来issue #149が
-# is_issue_create_call のCLI経路判定をコマンド位置判定（CommandPosition.sh）へ差し替える際も、
-# その正規化は同じくバックスラッシュ除去・大文字小文字非依存の比較を含むため、この前置フィルタは
-# 引き続き超集合であり続ける（#149の実装時に、この関係が保たれているか再確認すること）。
+# 大文字小文字非依存の比較にする。判定本体（`_pin_cli_match`）は既定でも大文字小文字を区別する
+# 部分一致だが、ここをそれに厳密に合わせて超集合の余白を削るより、緩めに保つ方が安全側に倒れる
+# （過剰検知は後段が無害に落とすだけ。取りこぼす方が危険）。issue #149でCLI経路判定を
+# コマンド位置判定（`command_invokes_script`）へ差し替えたが、その正規化
+# （`normalize_shell_command_to_reply`）も同じくバックスラッシュ除去・大文字小文字非依存の
+# 比較を含むため、この前置フィルタは引き続き超集合であり続ける（既存の単体テストで確認済み）。
 # MCP経路は tool_name が固定文字列 `mcp__github__issue_write` なので、そのまま比較すればよい
 # （method の値までは見ない——前置フィルタは足切りであって精密化ではなく、method の絞り込みは
 # 後段の is_issue_create_call が担う）。

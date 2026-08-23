@@ -17,8 +17,8 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - issue: #149 post-issue-create-notice.shの検知をコマンド位置ベースにして誤検知を減らす
 - ブランチ: claude/post-issue-notice-detection-xleu14
 - PR: https://github.com/yuki-matsu783/MR-driven-workflow/pull/179 (Draft)
-- push回数: 3
-- 現在のループ: なし
+- push回数: 4
+- 現在のループ: 3-6〜3-9 の1周目（進行中）
 - 追従監視: 購読あり（web。subscribe_pr_activity + 1時間ごとの自己チェックイン）
 
 | 進捗 | flow-id | ステップ | 担当 |
@@ -40,9 +40,9 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 | [-] | 2-9 | レビュー内容を取得し、調査結果を修正する | `comments` / `reply` |
 | [-] | 2-10 | 調査結果をもとにMR descriptionを更新する | `describe` |
 | [x] | 3-1 | 個別作業計画を作成する | エージェント |
-| [] | 3-2 | commitし、pushしてレビュー依頼を行う | エージェント |
-| [] | 3-3 | MRで作業計画についてレビュー・コメントする | 人間 |
-| [] | 3-4 | レビュー内容を取得し、作業計画を修正する | `comments` / `reply` |
+| [x] | 3-2 | commitし、pushしてレビュー依頼を行う | エージェント |
+| [x] | 3-3 | MRで作業計画についてレビュー・コメントする | 人間 |
+| [x] | 3-4 | レビュー内容を取得し、作業計画を修正する | `comments` / `reply` |
 | [] | 3-5 | 作業計画をもとにMR descriptionを更新する | `describe` |
 | [] | 3-6 | 作業計画をもとに作業を進め、結果をreports/へ記録する | エージェント |
 | [] | 3-7 | commitし、pushしてレビュー依頼を行う | エージェント |
@@ -88,14 +88,31 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - flow-id 3-1: 個別作業計画（`plans/【設計】【実装】【テスト】post-issue-create-noticeコマンド位置判定化.md`/`.html`）を
   作成した。`command_invokes_script`（新規公開関数）の設計・3段ガードの置き換えイメージ・
   検証コマンドを記載した。
-- 敵対的レビュー（フェーズ3・1回目/最大3回）をバックグラウンドで起動した
-  （`adversarial-reviewer` サブエージェント。`adversarial-review-count.sh increment 3` 済み）。
-  結果は次のpush以降で確認・反映する。
+- 敵対的レビュー（フェーズ3・1回目/最大3回。計画レビュー）を実施し、8件の指摘（major 4件・
+  minor 5件）を受けた。計画を改訂し（sticky解除・保守的フォールバック・トップレベル3段ガード・
+  クォート/PowerShellの既知の制約化 等）、`plans/【設計】…md`「敵対的レビュー（1回目）を
+  踏まえた設計改訂」節へ反映内容を記録した。HTMLビューも同期した。
+- flow-id 3-2: 上記計画の改訂内容をcommitし、リモートへ反映した。
+- flow-id 3-6: 計画に沿って実装した（`.claude/hooks/lib/CommandPosition.sh` へ
+  `_cp_scan_tokens_for_script`/`command_invokes_script`を追加、
+  `.claude/hooks/post-issue-create-notice.sh` の3段ガードをトップレベルへ移し
+  `is_issue_create_call` を差し替え、`test_command_position.sh`へ33件・
+  `test_post_issue_create_notice.sh`へ5件のテストを追加）。敵対的レビュー1回目の指摘は
+  すべて実装へ反映し、実データで手動検証した（`sudo cat <path>` 等が意図どおりmissになる
+  ことを確認）。作業結果は`reports/20260823_post-issue-notice-command-position_実装結果.md`/
+  `.html`へ記録した（`plans/`には結果を書かない方針に従う）。
+- `bash -n`構文チェック・`test_command_position.sh`（108件）・`test_post_issue_create_notice.sh`
+  （36件）・`test_block_direct_git_commit.sh`（27件・共有ライブラリの回帰確認）すべて
+  `failures=0`。`git diff <ブランチ分岐点> -- CommandPosition.sh`で削除行が無いことも確認した。
+- 敵対的レビュー（フェーズ3・2回目/最大3回。実装レビュー）をバックグラウンドで起動した
+  （`adversarial-review-count.sh increment 3` 済み。現在2回目）。結果は次のpush以降で
+  確認・反映する。
 
 ## 次にやること
 
-- 敵対的レビュー（1回目）の指摘を確認し、必要なら計画を修正する。
-- 計画に沿って実装（`CommandPosition.sh`・`post-issue-create-notice.sh`・テスト2本）を進める。
+- 敵対的レビュー（実装レビュー・2回目）の指摘を確認し、必要なら実装を修正する（3-6〜3-9ループの
+  1周目）。
+- レビューが落ち着いたら flow-id 3-7（commit・push）→ フェーズ4（反映計画→spec更新）へ進む。
 
 ## 判断を迷った内容
 

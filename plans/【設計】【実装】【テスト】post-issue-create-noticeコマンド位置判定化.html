@@ -161,6 +161,7 @@
     <li><a href="#goal">この計画で何をするか</a></li>
     <li><a href="#target">変更対象</a></li>
     <li><a href="#approach">方針</a></li>
+    <li><a href="#review1">敵対的レビュー（1回目）を踏まえた設計改訂</a></li>
     <li><a href="#out-of-scope">やらないこと（スコープ外）</a></li>
     <li><a href="#verify">検証</a></li>
     <li><a href="#criteria">issueの受け入れ条件との対応</a></li>
@@ -199,6 +200,8 @@
 
 <section id="approach">
   <h2>方針</h2>
+
+  <h3>command_invokes_script の設計</h3>
   <p>既存の<code>_cp_scan_tokens</code>（<code>git &lt;サブコマンド&gt;</code>専用）と同じ骨格
   （正規化済み文字列をトークン走査し、コマンド位置にあるトークンだけを見る）を再利用しつつ、
   判定内容を「basenameが対象スクリプト名と一致するか」に置き換えた専用関数
@@ -208,10 +211,41 @@
   <p>判定する2形態: (1) 単体実行 — コマンド位置のトークンのbasenameが対象スクリプト名と一致。
   (2) インタプリタ経由 — コマンド位置のトークンが<code>bash</code>/<code>sh</code>等で、直後の
   非オプショントークン（<code>-c</code>等のコード文字列オプションが無い場合に限る）のbasenameが
-  一致。<code>cat</code>/<code>grep</code>のような無関係なコマンドの引数に現れるだけでは、
-  そのコマンド自身がコマンド位置を消費した時点で判定対象外になる（既存の<code>_cp_scan_tokens</code>
-  と同じ振る舞い）。</p>
+  一致。</p>
+  <pre><code>_cp_scan_tokens_for_script() {
+  local norm="$1" target="$2"   # target は小文字化済みのbasename
+  _CP_OPAQUE_FOUND=0
+  # ループ: at_cmd の間だけ判定
+  #   base == target -&gt; 一致
+  #   base が _CP_OPAQUE_WITH_OPT -&gt; 直後の非オプショントークンを見る。コード文字列
+  #     オプションがあれば _CP_OPAQUE_FOUND=1
+  #   base が _CP_OPAQUE_WORDS（eval/xargs/find等）-&gt; _CP_OPAQUE_FOUND=1
+  #   base が _CP_PREFIX_WORDS（sudo/if/timeout等）-&gt; 次の非オプショントークンを
+  #     「実コマンド」として1回だけ判定し、sticky区間をそこで終える
+  #     （_cp_scan_tokens とはこの点が異なる。下記「敵対的レビュー」1点目）
+  #   それ以外 -&gt; at_cmd=0
+}
 
+command_invokes_script() {
+  local s="${1:-}" script="${2:?}"
+  [[ -n $s ]] || return 1
+  local script_lower="${script,,}"
+  script_lower="${script_lower##*/}"; script_lower="${script_lower%.exe}"
+  if _cp_has_overlong_line "$s"; then
+    [[ "${s,,}" == *"$script_lower"* ]] &amp;&amp; return 0
+    return 1
+  fi
+  normalize_shell_command_to_reply "$s"
+  if _cp_scan_tokens_for_script "$REPLY" "$script_lower"; then
+    return 0
+  fi
+  # 保守的フォールバック（command_invokes_git_subcommand と同じ設計原則）
+  ((_CP_OPAQUE_FOUND)) || return 1
+  [[ "${s,,}" == *"$script_lower"* ]] || return 1
+  return 0
+}</code></pre>
+
+  <h3>post-issue-create-notice.sh の3段ガード（改訂）</h3>
   <div class="box warn">
     <span class="label">既存の記述を置き換える場合</span>
     <b>置き換え前と置き換え後の形を両方書く。</b>
@@ -219,15 +253,47 @@
     <pre><code>run_shell_command | Bash | PowerShell)
   [[ "$command" == *create-issue.sh* ]]
   ;;</code></pre>
-    <p>置き換え後（イメージ。3段ガードは<code>main()</code>側、<code>is_issue_create_call</code>の
-    引数3つのシグネチャは変えない）:</p>
-    <pre><code>if ((BASH_VERSINFO[0] &gt; 4 || (BASH_VERSINFO[0] == 4 &amp;&amp; BASH_VERSINFO[1] &gt;= 3))) &amp;&amp;
-  [ -r "$lib" ] &amp;&amp; source "$lib" 2&gt;/dev/null &amp;&amp;
+    <p>置き換え後（<b>トップレベルで一度だけ確定させる</b>。<code>main()</code>の中に置くと、
+    <code>source</code>して<code>main()</code>を実行せず<code>is_issue_create_call</code>を
+    直接呼ぶ既存テストが落ちるため）:</p>
+    <pre><code>_pin_cli_match() { [[ "$1" == *create-issue.sh* ]]; }  # 既定値（フォールバック）
+_pin_lib_dir="${BASH_SOURCE[0]%/*}"
+[ "$_pin_lib_dir" = "${BASH_SOURCE[0]}" ] &amp;&amp; _pin_lib_dir='.'
+_pin_lib="${_pin_lib_dir}/lib/CommandPosition.sh"
+if ((BASH_VERSINFO[0] &gt; 4 || (BASH_VERSINFO[0] == 4 &amp;&amp; BASH_VERSINFO[1] &gt;= 3))) &amp;&amp;
+  [ -r "$_pin_lib" ] &amp;&amp; source "$_pin_lib" 2&gt;/dev/null &amp;&amp;
   declare -F command_invokes_script &gt;/dev/null; then
-  cli_match() { command_invokes_script "$1" 'create-issue.sh'; }
-else
-  cli_match() { [[ "$1" == *create-issue.sh* ]]; }
+  _pin_cli_match() { command_invokes_script "$1" 'create-issue.sh'; }
 fi</code></pre>
+    <p><code>is_issue_create_call</code>はCLI経路の分岐で<code>_pin_cli_match "$command"</code>を
+    呼ぶ形へ変更する（引数3つのシグネチャは変えない）。</p>
+  </div>
+
+  <h3>前置フィルタ（raw_hints_at_issue_create）は変更しない</h3>
+  <p>既存の前置フィルタは判定本体の超集合であり続ける（<code>command_invokes_script</code>は
+  部分一致の対象を絞り込むだけで、新しい語形を拾うようにはならないため）。実装後に
+  既存テスト（バックスラッシュ分割・大文字小文字混在）が新しい判定本体に対しても成立することを
+  確認する。</p>
+</section>
+
+<section id="review1">
+  <h2>敵対的レビュー（1回目）を踏まえた設計改訂</h2>
+  <p>敵対的レビュー（<code>adversarial-reviewer</code>、2026-08-23、フェーズ3・1回目）で8件の
+  指摘を受けた。反映内容の要約:</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>#</th><th>指摘</th><th>対応</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td><code>_CP_PREFIX_WORDS</code>（sudo/if/timeout等）を通るとstickyが次のセパレータまで解除されず、cat/grepの引数に対しても発火する</td><td><span class="tag ok">修正</span> prefix word の後は最初の非オプショントークンを1回だけ実コマンドとして評価し、sticky区間をそこで終える</td></tr>
+      <tr><td>2</td><td>eval/bash -c経由の保守的フォールバックが設計に無く、既存の部分一致より検知が後退する</td><td><span class="tag ok">修正</span> <code>command_invokes_git_subcommand</code>と同じ<code>_CP_OPAQUE_FOUND</code>フォールバックを追加</td></tr>
+      <tr><td>3</td><td>クォートで囲まれたパスが正規化で<code>_</code>へ潰れ、取りこぼす</td><td><span class="tag warn">既知の制約として受容</span> クォート内は「言及」と「実行対象パス」を区別できない構造的制約。回帰テストで固定しspecへ明記</td></tr>
+      <tr><td>4</td><td>PowerShell経路・バックスラッシュ区切りパスで一致しなくなる</td><td><span class="tag warn">既知の制約として受容</span> block-direct-git-commit.shも共有する既存の制約。回帰テストで固定</td></tr>
+      <tr><td>5</td><td>cli_matchをmain()内で定義すると、sourceして直接is_issue_create_callを呼ぶ既存テスト4件が落ちる</td><td><span class="tag ok">修正</span> 3段ガードをトップレベルへ移す</td></tr>
+      <tr><td>6</td><td>置き換え後コードにlib_dir/libの算出が無く無言で縮退する</td><td><span class="tag ok">修正</span> 算出を含めた</td></tr>
+      <tr><td>7</td><td>公開関数がパス付きで渡されると無言で常に不一致になる</td><td><span class="tag ok">修正</span> 関数内でbasename・.exe除去</td></tr>
+      <tr><td>8</td><td>共有ライブラリ変更なのに他の利用元hookの回帰確認が検証に無い</td><td><span class="tag ok">修正</span> test_block_direct_git_commit.shの実行とdiff確認を検証へ追加</td></tr>
+    </tbody>
+  </table>
   </div>
 </section>
 
@@ -239,6 +305,8 @@ fi</code></pre>
       <li>MCP経路の判定変更（判断は全体作業計画へ送った）</li>
       <li>他の3本のhookへの変更</li>
       <li><code>.claude/settings.json</code> の <code>if</code> フィルタ変更</li>
+      <li><b>クォートで囲まれたスクリプトパスの検知</b>（既知の制約）。<code>bash "$VAR/create-issue.sh"</code>は発火しない</li>
+      <li><b>PowerShell経路のバックスラッシュ区切りパスの検知</b>（既知の制約）。<code>.claude\scripts\src\create-issue.sh</code>は発火しない</li>
     </ul>
   </div>
 </section>
@@ -248,9 +316,12 @@ fi</code></pre>
   <pre><code>bash -n .claude/hooks/lib/CommandPosition.sh
 bash -n .claude/hooks/post-issue-create-notice.sh
 bash .claude/scripts/test/test_command_position.sh
-bash .claude/scripts/test/test_post_issue_create_notice.sh</code></pre>
-  <p>合格条件: 上記4コマンドがすべてエラー無く終わり、2本のテストスクリプトが追加ケースを
-  含めて <code>passed=N failures=0</code> を出すこと。</p>
+bash .claude/scripts/test/test_post_issue_create_notice.sh
+bash .claude/scripts/test/test_block_direct_git_commit.sh
+git diff &lt;ブランチ分岐点のSHA&gt; -- .claude/hooks/lib/CommandPosition.sh</code></pre>
+  <p>合格条件: 上記3本のテストスクリプトが追加ケースを含めて <code>passed=N failures=0</code>
+  を出すこと。<code>git diff</code>で既存関数（<code>_cp_scan_tokens</code>・
+  <code>command_invokes_git_subcommand</code>等）に削除行が無いこと。</p>
 </section>
 
 <section id="criteria">
@@ -259,12 +330,12 @@ bash .claude/scripts/test/test_post_issue_create_notice.sh</code></pre>
   <table>
     <thead><tr><th>受け入れ条件</th><th>この計画での対応箇所</th></tr></thead>
     <tbody>
-      <tr><td>発火しないこと（cat/grep/ドキュメント編集、コメント内、ヒアドキュメント本文内）</td><td>test_command_position.sh + test_post_issue_create_notice.sh へ追加</td></tr>
+      <tr><td>発火しないこと（cat/grep/ドキュメント編集、コメント内、ヒアドキュメント本文内）</td><td>test_command_position.sh + test_post_issue_create_notice.sh へ追加（sticky修正込み）</td></tr>
       <tr><td>発火すること（単体実行、cd … &amp;&amp; …、改行区切り2行目、bash &lt;パス&gt;）</td><td>同上</td></tr>
       <tr><td>CommandPosition.shを再利用し公開関数を足す</td><td>command_invokes_script</td></tr>
-      <tr><td>3段ガードでの縮退</td><td>post-issue-create-notice.shのmain()</td></tr>
+      <tr><td>3段ガードでの縮退</td><td>post-issue-create-notice.shトップレベルの_pin_cli_match</td></tr>
       <tr><td>test_post_issue_create_notice.sh全件failures=0</td><td>実施・確認</td></tr>
-      <tr><td>spec更新</td><td>個別反映計画（flow-id 4-1）で扱う</td></tr>
+      <tr><td>spec更新（4箇所）</td><td>個別反映計画（flow-id 4-1）で扱う</td></tr>
     </tbody>
   </table>
   </div>

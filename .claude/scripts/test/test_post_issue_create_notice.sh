@@ -68,6 +68,26 @@ assert_eq "PowerShellでも判定する" "0" \
 assert_eq "無関係なコマンドは対象外" "1" "$(detect 'Bash' 'git status' '')"
 assert_eq "コマンドが空なら対象外" "1" "$(detect 'Bash' '' '')"
 
+# --- CLI経路のコマンド位置判定（issue #149） ---
+# is_issue_create_call は CommandPosition.sh 経由（_pin_cli_match）で判定する。source した
+# このテストプロセスでは、post-issue-create-notice.sh 冒頭のトップレベル3段ガードが実行済みの
+# ため、command_invokes_script を使った判定になっているはず（フォールバックへ縮退していない
+# ことは、下の「cat/grepでは発火しない」ケースが 1（対象外）になることで確認できる——
+# フォールバック（部分一致）のままなら、これらは誤って 0（起票と判定）になってしまう）。
+assert_eq "改行区切りの2行目でも判定する" "0" \
+  "$(detect 'Bash' "ls .claude/scripts/src/create-issue.sh
+bash .claude/scripts/src/create-issue.sh --title x" '')"
+assert_eq "ファイルを開くだけのcatでは発火しない" "1" \
+  "$(detect 'Bash' 'cat .claude/scripts/src/create-issue.sh' '')"
+assert_eq "ファイルを検索するだけのgrepでは発火しない" "1" \
+  "$(detect 'Bash' 'grep -rn create-issue.sh .claude/' '')"
+assert_eq "コメント内の言及では発火しない" "1" \
+  "$(detect 'Bash' '# create-issue.shを実行するhook' '')"
+assert_eq "ヒアドキュメント本文内の言及では発火しない" "1" \
+  "$(detect 'Bash' "cat <<'EOF'
+create-issue.shの説明
+EOF" '')"
+
 # --- MCP経路（gh/glab CLI不在時。issue #34） ---
 assert_eq "issue_writeのmethod=createは起票と判定する" "0" \
   "$(detect 'mcp__github__issue_write' '' 'create')"
