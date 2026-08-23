@@ -17,9 +17,9 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - issue: #168
 - ブランチ: `claude/html-slide-skill-template-ymue7k`（ハーネス指定。feature-168-* ではない）
 - PR: #194（Draft。https://github.com/yuki-matsu783/MR-driven-workflow/pull/194 ）
-- push回数: 7
+- push回数: 8
 - 現在のループ: なし
-- 未返信スレッド: 0
+- 未返信スレッド: 9
 - 追従監視: PR #194 を subscribe_pr_activity で購読（このセッション）
 
 | 進捗 | flow-id | ステップ | 担当 |
@@ -95,12 +95,16 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - 2026-08-23: describe（flow-id 2-10）でPR #194のdescriptionへ調査結果の要約を反映。フェーズ2完了。
 - 2026-08-23: 個別作業計画 `wip/plans/【AIアセット作成】HTMLスライドスキル一式の作成.md`（+同名.html）と
   worklog（push1）を作成（flow-id 3-1）。HTMLビューの機械検査5種すべて合格。
+- 2026-08-23: 敵対的レビュー（フェーズ3の1回目・対象は個別作業計画）を実施。12件の指摘のうち
+  9件をPR #194へインライン投稿、3件は報告のみ（worklog参照）。12件すべてを計画へ反映
+  （型名契約の確定 cover・スキーマのQ5準拠・受け入れ条件表の1対1化・検証節の全面書き直し等）。
+  9スレッドへの返信は反映commitのpush後に実施。
 
 ## 次にやること
 
-- commit/push → 敵対的レビュー（フェーズ3の1回目・対象は個別作業計画）→ 指摘対応・返信 →
-  作業実施（flow-id 3-6。テンプレート・SKILL.md・スキーマ・エージェント2本＋サンプル検証）→
-  commit/push → 敵対的レビュー（2回目）→ 指摘対応・返信 → describe（3-10）。
+- 指摘反映のcommit/push → 9スレッドへ返信 → 作業実施（flow-id 3-6。テンプレート・SKILL.md・
+  スキーマ・エージェント2本＋サンプル検証）→ commit/push → 敵対的レビュー（2回目）→
+  指摘対応・返信 → describe（3-10）。
 
 ## 判断を迷った内容
 

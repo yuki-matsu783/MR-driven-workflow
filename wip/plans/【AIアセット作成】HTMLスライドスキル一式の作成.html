@@ -111,7 +111,7 @@
       <li><b>ブランチ</b> claude/html-slide-skill-template-ymue7k</li>
       <li><b>PR</b> #194</li>
       <li><b>フェーズ</b> 3〈作業〉 flow-id 3-1</li>
-      <li><b>push回数</b> 7</li>
+      <li><b>push回数</b> 8</li>
       <li><b>作成日</b> 2026-08-23</li>
       <li><b>正文</b> 同名の .md</li>
     </ul>
@@ -176,7 +176,7 @@
   <h3>テンプレート（slides.template.html）</h3>
   <ul>
     <li><b>既存テンプレート2本（plans/reports）の共通規約を踏襲する</b>: 冒頭HTMLコメントに使い方・プレースホルダ検査コマンド・外部依存なしの宣言／<code>:root</code> CSS変数＋<code>prefers-color-scheme: dark</code>／日本語フォントスタック／<code>&lt;!-- ここに書く: … --&gt;</code> プレースホルダ形式（既存の検査がそのまま使える）</li>
-    <li><b>スライド型8種</b>: 表紙（cover）／章扉（section）／箇条書き（bullets）／2カラム（two-column）／図解（diagram）／表（table）／比較（comparison）／まとめ（summary）。各型は <code>&lt;section class="slide" data-type="..."&gt;</code> の1要素で、使わない型はsectionごと削除する方式</li>
+    <li><b>スライド型8種</b>: 表紙（<code>cover</code>）／章扉（<code>section</code>）／箇条書き（<code>bullets</code>）／2カラム（<code>two-column</code>）／図解（<code>diagram</code>）／表（<code>table</code>）／比較（<code>comparison</code>）／まとめ（<code>summary</code>）。各型は <code>&lt;section class="slide" data-type="..."&gt;</code> の1要素で、使わない型はsectionごと削除する方式。<b>型名は調査Q5のenum（1件目 <code>title</code>）から表紙のみ <code>cover</code> へ改める</b>（各スライド要素の必須フィールド名 <code>title</code> と <code>type: "title"</code> が同名になると受け渡しで意味の衝突を招くため）。<b>この8種の文字列を、テンプレートの <code>data-type</code>・スキーマのenum・エージェント2本の受け渡し契約の3箇所で完全に同一に使う</b></li>
     <li><b>ページ送り</b>: 方向キー（←→）・Space・Home/End・クリック（左右領域）。JSは数十行の素朴な実装。<code>nnn/NNN</code> の進行表示を常設</li>
     <li><b>印刷</b>: <code>@media print</code> で1スライド=1ページ＋操作UI非表示。ヘッドレスChromiumの <code>page.pdf()</code> で枚数一致を実測済みの方式</li>
     <li><b>図解型はCSSのみで表現</b>（外部画像・Mermaid等は使わない。自己完結・外部参照ゼロの規約を守るため）</li>
@@ -184,9 +184,9 @@
 
   <h3>スキーマ（slide-outline.schema.json）</h3>
   <ul>
-    <li>JSON Schema draft-07相当。トップレベルは <code>{title, date, author, slides[]}</code>、各要素は <code>{type, …型ごとのフィールド}</code>。<code>type</code> は8種と同名のenum</li>
+    <li>JSON Schema draft-07相当。トップレベルは調査Q5の結論どおり <code>{meta: {title, subtitle, date, author, issue}, slides: [...]}</code>、各スライド要素は <code>{type, …型ごとのフィールド, speakerNotes}</code>（<code>speakerNotes</code>・<code>issue</code> は .pptx のノート・ドキュメントプロパティに対応。落とさない）。<code>type</code> は8種と同名のenum（表紙のみQ5の <code>title</code> から <code>cover</code> へ改める）</li>
     <li>将来の .pptx 書き出しの入力を想定し、<b>表示スタイルではなく内容</b>だけを持たせる</li>
-    <li>jqでの構造検査が書ける形にする（調査で4入力の実測済み。<code>.</code> の束縛の罠は変数束縛で回避）</li>
+    <li>jqでの構造検査が書ける形にする。調査Q5で4入力を実測したフィルタは <code>meta.title</code> の存在確認＋<code>type</code> のenum判定の形で、この構造を保つ限り流用できる（enumの <code>title</code>→<code>cover</code> の1語だけ差し替え）。<code>[ -s ]</code> の空チェックをjqより先に置く。<code>.</code> の束縛の罠は変数束縛で回避</li>
   </ul>
 
   <h3>SKILL.md</h3>
@@ -198,7 +198,7 @@
 
   <h3>サブエージェント2本</h3>
   <ul>
-    <li>frontmatterは既存2本の型に合わせる。<b>ホワイトリスト対象キーの値は必ず1行</b>（sync-gemini-assets.sh の変換制約）</li>
+    <li>frontmatterは既存2本の型（<code>name</code>/<code>description</code>/<code>tools</code>/<code>model</code> ＋ OKF側4キー。<code>model</code> は既存2本と同じ値、Gemini側では変換時に除去）に合わせる。<b>ホワイトリスト対象キーの値は必ず1行</b>（sync-gemini-assets.sh の変換制約）</li>
     <li><code>slide-outline-designer</code>: <code>tools: Read, Grep, Glob, Bash</code>（読み取り専用）。構成案JSONだけを返し、HTMLは生成しない。スキーマ適合を自分で確認してから返す</li>
     <li><code>slide-html-generator</code>: <code>tools: Read, Grep, Glob, Bash, Write</code>（Editは持たせない）。構成案に<b>忠実に</b>穴埋めし、再設計はしない。型が食い違う場合は生成せず差し戻す。生成後に機械検査を自分で実行する</li>
   </ul>
@@ -225,49 +225,97 @@
 
 <section id="verify">
   <h2>検証</h2>
-  <pre><code># 1. テンプレートの自己完結性（外部参照ゼロ。2種とも0件が合格）
-grep -nE "(src|href)=['\"]?(https?:)?//" .claude/skills/html-slides/assets/slides.template.html || echo EXT_REF_NONE
-grep -nE "(url\(|@import[[:space:]]+)['\"]?(https?:)?//" .claude/skills/html-slides/assets/slides.template.html || echo EXT_CSS_NONE
+  <p>実行できるコマンドと合格条件（パスはシェル変数へ束縛して使う）:</p>
+  <pre><code>TPL=.claude/skills/html-slides/assets/slides.template.html
+SCHEMA=.claude/skills/html-slides/references/slide-outline.schema.json
+out="$SP/sample.slides.html"       # SP=scratchpad。サンプル生成物
+outline="$SP/sample.slides.json"   # サンプル構成案
+bad="$SP/bad.slides.json"          # typeを不正値にした異常サンプル
 
-# 2. テンプレートにスライド型8種が揃っている（8が合格）
-grep -c 'data-type="' .claude/skills/html-slides/assets/slides.template.html
+# 1. テンプレートの自己完結性（外部参照ゼロ。2種とも0件が合格）
+grep -nE "(src|href)=['\"]?(https?:)?//" "$TPL" || echo EXT_REF_NONE
+grep -nE "(url\(|@import[[:space:]]+)['\"]?(https?:)?//" "$TPL" || echo EXT_CSS_NONE
 
-# 3. スキーマが妥当なJSONである（終了コード0が合格）
-jq -e . .claude/skills/html-slides/references/slide-outline.schema.json >/dev/null
+# 2. スライド型8種が「相異なる名前で」揃っている（1つ目は8が合格。冒頭コメントの型一覧を
+#    数えないよう要素までマッチさせる）。2つ目は期待8種との突き合わせ（出力が空、が合格）
+grep -oE '&lt;section class="slide" data-type="[^"]+"' "$TPL" | sed 's/.*data-type="//; s/"$//' | sort -u | wc -l
+comm -3 &lt;(grep -oE '&lt;section class="slide" data-type="[^"]+"' "$TPL" | sed 's/.*data-type="//; s/"$//' | sort -u) \
+        &lt;(printf '%s\n' bullets comparison cover diagram section summary table two-column | sort)
 
-# 4. サンプル構成案JSONがスキーマの構造検査を通る（jqフィルタ。OKが合格）
+# 2b. ページ送り・印刷の静的検査（いずれも1以上が合格。必須）
+grep -c '@media print' "$TPL"
+grep -cE "addEventListener\('keydown'|ArrowRight" "$TPL"
 
-# 5. サンプル生成物のプレースホルダ残存ゼロ（0が合格）・重複IDゼロ
-grep -c '&lt;!-- ここに書く' サンプル出力.slides.html
-grep -oE 'id="[^"]+"' サンプル出力.slides.html | sort | uniq -d
+# 3. スキーマが空でなく妥当なJSONである（両方成功＝終了コード0が合格。
+#    [ -s ] の空チェックを jq -e より先に置く——空入力を jq -e が検知できない実機観測のため）
+[ -s "$SCHEMA" ] &amp;&amp; jq -e . "$SCHEMA" &gt;/dev/null
 
-# 6. frontmatterがインデックスへ載る（SKILL.md・agents 2本の3件が合格）
+# 4. サンプル構成案JSONがスキーマの構造検査を通る。フィルタの骨子は調査Q5の実測形
+#    （[ -s ] の空チェック → meta.title の存在 → type のenum判定。enumは title→cover の
+#    1語だけ差し替えて流用し、正式版はSKILL.mdへ記載してここと同一にする）。
+#    正常サンプルで終了コード0、異常サンプルで非0、の両方を確かめて空振りを排除する
+[ -s "$outline" ] &amp;&amp; jq -e 'has("meta") and (.meta|has("title")) and
+  (["cover","section","bullets","two-column","diagram","table","comparison","summary"] as $known
+   | [.slides[].type] | all(. as $t | ($known | index($t)) != null))' "$outline" &gt;/dev/null; echo "ok=$?"
+[ -s "$bad" ] &amp;&amp; jq -e 'has("meta") and (.meta|has("title")) and
+  (["cover","section","bullets","two-column","diagram","table","comparison","summary"] as $known
+   | [.slides[].type] | all(. as $t | ($known | index($t)) != null))' "$bad" &gt;/dev/null; echo "bad=$?"
+
+# 5. サンプル生成物のプレースホルダ残存ゼロ（0が合格）・重複IDゼロ（出力なしが合格）
+grep -c '&lt;!-- ここに書く' "$out"
+grep -oE 'id="[^"]+"' "$out" | sort | uniq -d
+
+# 6. frontmatterがインデックスへ載る（skills側1件・agents側2件が合格。
+#    || true や 2&gt;/dev/null は付けない——ファイルが無ければ失敗として観測する）
 bash .claude/scripts/src/extract-frontmatter.sh . &gt;/dev/null
+grep -c '"concept_id":".claude/skills/html-slides/SKILL"' .claude/skills/html-slides/index.jsonl
+grep -cE 'slide-outline-designer|slide-html-generator' .claude/agents/index.jsonl
 
-# 7. sync-gemini-assets.sh の変換が新規agents 2本で失敗しない（終了コード0が合格）
-bash .claude/scripts/src/sync-gemini-assets.sh --check || bash .claude/scripts/src/sync-gemini-assets.sh --dry-run
+# 7. sync-gemini-assets.sh の変換が新規agents 2本で失敗しない
+#    （--dry-run は常に終了コード0のため、終了コードだけでは判定しない。終了コード0かつ
+#    出力に新規agents 2本が現れる＝2が合格。.gemini/ との同期状態そのもの（--check）は
+#    flow-id 5-3 の後に単体で見る——このフローでは5-3まで .gemini/ は未同期のため正常でも落ちる）
+bash .claude/scripts/src/sync-gemini-assets.sh --dry-run | grep -cE 'slide-outline-designer|slide-html-generator'
 
-# 8. 動的検証（この実行環境のみ・任意）: ヘッドレスChromiumでサンプルを駆動し、
-#    キー送出で進行表示が進むこと・page.pdf() のページ数がスライド枚数と一致することを確認</code></pre>
-  <p>合格条件: 1〜7がすべて合格（8はこの環境で実施し、結果をレポートへ記録する）。</p>
+# 8. 動的検証（この実行環境のみ・任意。Chromium 1種の観測であることを制約として結果に添える）
+#    playwrightはグローバル配置のみのため絶対パスでrequireする（調査Q8の制約）
+node -e '
+  const {chromium}=require("/opt/node22/lib/node_modules/playwright");
+  (async()=&gt;{const b=await chromium.launch();const p=await b.newPage();
+    await p.goto("file://"+process.argv[1]);
+    await p.keyboard.press("ArrowRight");
+    console.log(await p.evaluate(()=&gt;document.querySelector(".progress").textContent));
+    await p.pdf({path:process.argv[1]+".pdf"});await b.close();})()' "$out"
+# 合格: キー送出で進行表示が進む・PDFのページ数がスライド枚数と一致する。
+# 実行できない環境ではスキップし、件数（未実施1件）と代替（検証2bの静的検査）を報告へ明記する</code></pre>
+  <p>合格条件: <b>1〜7（2b含む）がすべて必須で合格</b>。8はこの環境で実施し、結果をレポートへ記録する。</p>
+
+  <h3>レビュー依頼で人間に確認してもらう項目（調査Q8の結論）</h3>
+  <p>機械検査では代替できない次の3項目を、flow-id 3-7 のレビュー依頼メッセージへ明記する。</p>
+  <ol>
+    <li>見た目の品質（文字の大きさ・投影時の視認性）</li>
+    <li>実プリンタでの印刷（1スライド1ページに収まるか）</li>
+    <li>Chromium以外のブラウザでの表示・ページ送り</li>
+  </ol>
 </section>
 
 <section id="criteria">
   <h2>issueの受け入れ条件との対応</h2>
+  <p>上位計画（<code>wip/plans/html-slides-skill-plan.md</code>「検証」節）の10項目と1対1・同じ文言・同じ並び。</p>
   <div class="tablewrap">
   <table>
     <thead><tr><th>受け入れ条件（issue #168）</th><th>この計画での対応箇所</th></tr></thead>
     <tbody>
-      <tr><td>テンプレートが自己完結HTML</td><td>検証1（外部参照ゼロ）</td></tr>
-      <tr><td>スライド型8種</td><td>検証2・「方針」テンプレート節</td></tr>
-      <tr><td>キーボード/クリックのページ送り・進行表示</td><td>「方針」テンプレート節・検証8</td></tr>
-      <tr><td><code>@media print</code> で1スライド1ページ</td><td>「方針」テンプレート節・検証8（PDFページ数）</td></tr>
-      <tr><td>SKILL.md の手順定義（見出し構成はテンプレートが正）</td><td>「方針」SKILL.md節</td></tr>
-      <tr><td>構成設計エージェント（読み取り専用・構成案JSONのみ）</td><td>「方針」サブエージェント節</td></tr>
-      <tr><td>HTML生成エージェント（忠実・差し戻し）</td><td>「方針」サブエージェント節</td></tr>
-      <tr><td>構成案JSONスキーマ（.pptx入力を想定）</td><td>「方針」スキーマ節・検証3〜4</td></tr>
-      <tr><td>frontmatter/index.jsonl 準拠</td><td>検証6</td></tr>
-      <tr><td>directory-structure.md ツリー追記</td><td>フェーズ4へ送る（スコープ外節）</td></tr>
+      <tr><td>テンプレートが外部依存ゼロで8種の見本が表示される</td><td>検証1（外部参照ゼロ）・検証2（8種の一意性と名前の突き合わせ）</td></tr>
+      <tr><td>キーボード・クリックのページ送りと進行表示</td><td>「方針」テンプレート節・検証2b（keydownハンドラ）・検証8</td></tr>
+      <tr><td>印刷プレビューで1スライド1ページ</td><td>「方針」テンプレート節・検証2b（<code>@media print</code>）・検証8（PDFページ数）</td></tr>
+      <tr><td>SKILL.md の手順どおりでスライドHTMLが1本完成する</td><td>「検証用サンプル」（方針節の枠）で一連の生成を実走・検証5</td></tr>
+      <tr><td>サブエージェント①の入出力形式と「HTML生成は行わない」境界の明記</td><td>「方針」サブエージェント節（slide-outline-designer）</td></tr>
+      <tr><td>構成案JSONスキーマが定義され .pptx 書き出しの入力にできる</td><td>「方針」スキーマ節（<code>meta</code>・<code>speakerNotes</code>・<code>issue</code> を保持）・検証3〜4</td></tr>
+      <tr><td>サブエージェント②の入力と「構成を作り直さない」境界・差し戻し条件の明記</td><td>「方針」サブエージェント節（slide-html-generator）</td></tr>
+      <tr><td>プレースホルダ残存チェックの方法が SKILL.md に書かれている</td><td>「方針」SKILL.md節 手順(5)・検証5</td></tr>
+      <tr><td>directory-structure.md のツリーへ追記</td><td>フェーズ4へ送る（スコープ外節）</td></tr>
+      <tr><td>新規mdのfrontmatterが規約に沿い index.jsonl に載る</td><td>検証6</td></tr>
     </tbody>
   </table>
   </div>
