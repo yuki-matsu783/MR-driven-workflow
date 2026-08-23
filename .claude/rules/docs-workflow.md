@@ -4,7 +4,7 @@ title: ドキュメント運用
 type: rule
 description: ドキュメントの置き場所・ライフサイクル（wip/plans/wip/worklogs/spec/ddr/HANDOFF）を定めたルール
 tags: [docs, workflow, rule]
-keywords: [wip, plans, handoff, worklogs, 正史仕様, 意思決定ログ, ライフサイクル, issue-mr-flow, ループ進捗, always-apply]
+keywords: [wip, plans, handoff, worklogs, 正史仕様, 意思決定ログ, ライフサイクル, issue-mr-flow, ループ進捗, always-apply, 係り先, 残置テキスト]
 ---
 
 # ドキュメント運用
