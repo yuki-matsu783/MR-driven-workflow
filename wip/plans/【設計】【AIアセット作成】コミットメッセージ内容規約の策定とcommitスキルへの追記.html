@@ -1,0 +1,332 @@
+<!--
+  issue #185 フェーズ3の個別作業計画（flow-id 3-1）の人間レビュー用HTMLビュー。正文は同名の .md。
+-->
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>【設計】【AIアセット作成】コミットメッセージ内容規約の策定とcommitスキルへの追記 — issue #185</title>
+<style>
+  :root {
+    --bg: #f6f7f9;      --panel: #ffffff;   --ink: #1a1d21;     --muted: #5b636d;
+    --line: #dfe3e8;    --accent: #2563eb;  --accent-soft: #eaf0fe;
+    --ok: #1a7f4b;      --ok-soft: #e6f4ec; --warn: #a35a00;    --warn-soft: #fdf1e0;
+    --stop: #b3261e;    --stop-soft: #fdecea; --code-bg: #f0f2f5;
+    --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1216;    --panel: #161a20;   --ink: #e6e8eb;     --muted: #9aa3ad;
+      --line: #2a3038;  --accent: #7aa2f7;  --accent-soft: #1b2333;
+      --ok: #6ee7a8;    --ok-soft: #14261d; --warn: #f0b866;    --warn-soft: #2a2113;
+      --stop: #f2857c;  --stop-soft: #2b1614; --code-bg: #1d222a;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", system-ui, sans-serif;
+    line-height: 1.8; font-size: 15px;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 20px 80px; }
+
+  /* 共通ヘッダ帯 */
+  header.band {
+    background: linear-gradient(135deg, var(--accent-soft), var(--panel));
+    border-bottom: 1px solid var(--line); padding: 28px 20px 22px; margin-bottom: 28px;
+  }
+  header.band .inner { max-width: 1080px; margin: 0 auto; }
+  header.band .kind { font-size: 11px; letter-spacing: .18em; color: var(--accent); font-weight: 700; }
+  header.band h1 { margin: 6px 0 4px; font-size: 26px; line-height: 1.4; }
+  header.band .lead { margin: 0; color: var(--muted); }
+  .meta { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; padding: 0; list-style: none; }
+  .meta li {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 999px;
+    padding: 3px 12px; font-size: 12.5px; color: var(--muted); white-space: nowrap;
+  }
+  .meta li b { color: var(--ink); font-weight: 600; }
+
+  nav.toc {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 14px 20px; margin-bottom: 28px;
+  }
+  nav.toc h2 { margin: 0 0 8px; font-size: 13px; letter-spacing: .08em; color: var(--muted); border: 0; padding: 0; }
+  nav.toc ol { margin: 0; padding-left: 20px; }
+  nav.toc li { margin: 2px 0; }
+  a { color: var(--accent); }
+
+  section {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 8px 24px 22px; margin-bottom: 22px;
+  }
+  h2 { font-size: 20px; margin: 20px 0 10px; padding-bottom: 8px; border-bottom: 2px solid var(--line); }
+  h3 { font-size: 16px; margin: 22px 0 8px; color: var(--accent); }
+  p { margin: 10px 0; }
+  ul, ol { padding-left: 22px; }
+  li { margin: 4px 0; }
+  blockquote { margin: 10px 0; padding: 6px 14px; border-left: 3px solid var(--line); color: var(--muted); }
+
+  /* 表は自身の中で横スクロールする（ページ本体は横スクロールさせない） */
+  .tablewrap { overflow-x: auto; margin: 14px 0; }
+  table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 14px; }
+  th, td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: var(--accent-soft); font-weight: 600; white-space: nowrap; }
+  tbody tr:nth-child(even) td { background: color-mix(in srgb, var(--line) 22%, transparent); }
+
+  code {
+    background: var(--code-bg); border-radius: 5px; padding: 1px 5px; font-size: 13px;
+    font-family: "SFMono-Regular", Consolas, "Noto Sans Mono", monospace;
+  }
+  pre {
+    background: var(--code-bg); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 12px 14px; overflow-x: auto; font-size: 13px; line-height: 1.65;
+  }
+  pre code { background: none; padding: 0; }
+
+  /* 注意ボックス: info（既定）/ ok（決めたこと）/ warn（注意）/ stop（やらないこと・危険） */
+  .box { border-left: 4px solid var(--accent); background: var(--accent-soft);
+         border-radius: 0 var(--radius) var(--radius) 0; padding: 12px 16px; margin: 16px 0; }
+  .box > :first-child { margin-top: 0; } .box > :last-child { margin-bottom: 0; }
+  .box .label { font-size: 12px; font-weight: 700; letter-spacing: .06em; display: block; margin-bottom: 4px; }
+  .box.ok { border-color: var(--ok); background: var(--ok-soft); } .box.ok .label { color: var(--ok); }
+  .box.warn { border-color: var(--warn); background: var(--warn-soft); } .box.warn .label { color: var(--warn); }
+  .box.stop { border-color: var(--stop); background: var(--stop-soft); } .box.stop .label { color: var(--stop); }
+  .box.info .label { color: var(--accent); }
+
+  .tag { display: inline-block; border-radius: 999px; padding: 1px 9px; font-size: 12px; font-weight: 600; }
+  .tag.ok { background: var(--ok-soft); color: var(--ok); }
+  .tag.warn { background: var(--warn-soft); color: var(--warn); }
+  .tag.stop { background: var(--stop-soft); color: var(--stop); }
+
+  footer { color: var(--muted); font-size: 13px; text-align: center; padding-top: 10px; }
+</style>
+</head>
+<body>
+
+<header class="band">
+  <div class="inner">
+    <div class="kind">個別作業計画 / フェーズ3</div>
+    <h1>【設計】【AIアセット作成】コミットメッセージ内容規約の策定</h1>
+    <p class="lead">「件名1行は必須・本文は任意で許容」を確定し、<code>commit/SKILL.md</code> へ<b>AIが機械的に従える内容規約</b>を追記する。あわせてissue本文の実例9行の書き直し例を作る。</p>
+    <ul class="meta">
+      <li><b>issue</b> #185</li>
+      <li><b>ブランチ</b> claude/improve-commit-log-format-9mjlid</li>
+      <li><b>PR</b> #192</li>
+      <li><b>フェーズ</b> 3〈作業〉 flow-id 3-1</li>
+      <li><b>作成日</b> 2026-08-23</li>
+      <li><b>正文</b> 同名の .md</li>
+    </ul>
+  </div>
+</header>
+
+<div class="wrap">
+
+<nav class="toc">
+  <h2>目次</h2>
+  <ol>
+    <li><a href="#premise">前提と、種別を併記した理由</a></li>
+    <li><a href="#goal">目的（受け入れ条件のどれを担うか）</a></li>
+    <li><a href="#decide">決めること（設計）</a></li>
+    <li><a href="#deliver">作ること（成果物）</a></li>
+    <li><a href="#out-of-scope">やらないこと（スコープ外）</a></li>
+    <li><a href="#ask">判断を仰ぐこと</a></li>
+    <li><a href="#verify">検証</a></li>
+    <li><a href="#steps">進め方</a></li>
+  </ol>
+</nav>
+
+<section id="premise">
+  <h2>前提と、種別を併記した理由</h2>
+  <ul>
+    <li>上位の計画: <code>wip/plans/keen-charting-lantern.md</code>（全体作業計画。flow-id 1-4）。</li>
+    <li>前提となる調査結果: <code>wip/reports/2026-08-23_keen-charting-lantern_コミットメッセージ規約の現状調査.md</code>（flow-id 2-6）。</li>
+    <li><b>非対話セッションのため人間の合意は得ていない。</b>代替として敵対的レビューを行う。</li>
+  </ul>
+  <div class="box warn">
+    <div class="label">この計画には「これから何をするか」だけを書く</div>
+    <p>実施結果は <code>wip/reports/2026-08-23_keen-charting-lantern_コミットメッセージ内容規約の策定.md</code> へ書く（計画と実施結果の分離）。</p>
+  </div>
+  <p><b>種別を併記した理由</b>: <code>【設計】</code>（方針の確定）と <code>【AIアセット作成】</code>（<code>commit/SKILL.md</code> の改訂）を1ファイルにした。<b>方針の中身がそのまま規約の文面になるため、分けても記述が重複するだけで合意の単位が変わらない</b>。方針そのものは調査（Q3・Q4）で実測が揃っており、フェーズ3で新たに検討するのは「その方針を、AIエージェントが機械的に従える文面へどう落とすか」だけである。</p>
+</section>
+
+<section id="goal">
+  <h2>目的（受け入れ条件のどれを担うか）</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>受け入れ条件</th><th>フェーズ3での担当</th></tr></thead>
+    <tbody>
+      <tr><td>1. 1行で「何を・どう変えたか」が分かる内容規約を定める</td><td>規約の文面を作る</td></tr>
+      <tr><td>2. 「1行のみ」を維持するか本文を許容するかを決める</td><td><b>方針を確定する</b>（DDRへの記録はフェーズ4）</td></tr>
+      <tr><td>3. <code>commit/SKILL.md</code> へAIが機械的に従える形で書く</td><td>追記の実施</td></tr>
+      <tr><td>4. issue本文の実例9行の書き直し例を示す</td><td>9行すべての書き直し例を作る</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="decide">
+  <h2>決めること（設計）</h2>
+
+  <h3>決定1: 件名1行は必須・本文は任意で許容する</h3>
+  <p>調査で実測が4点揃っているため、この方針を採る。<b>この計画のレビューで覆る余地は残す</b>が、覆す場合は下記の実測のどれを否定するかを示す必要がある。</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>根拠</th><th>実測の出所</th></tr></thead>
+    <tbody>
+      <tr><td>実装変更が不要（<code>create-commit.sh</code> は改行入りメッセージをそのまま通す）</td><td>調査Q3</td></tr>
+      <tr><td>本文はsquash後も <code>main</code> へ恒久的に残る</td><td>調査Q4</td></tr>
+      <tr><td>実務側は既に本文を書いており、現行規約のほうが実態から乖離している（本文6件・フッター6件）</td><td>調査Q2</td></tr>
+      <tr><td><code>issue-mr-flow/SKILL.md:229</code>（確認結果を必ずコミットメッセージへ残す）が1行縛りと衝突</td><td>調査Q5</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p>現時点の案は「原則任意。ただし<b>件名だけでは要素を満たせない場合は本文へ書く</b>」で、「必ず本文を書け」とはしない（守られない規約を増やさないため）。</p>
+
+  <h3>決定2: 件名が満たすべき要素</h3>
+  <p>issue #185 が問題視しているのは「対象＋動詞で終わる」形なので、<b>動詞の先を要求する</b>形にする。<b>要素の粒度と個数はこの計画のレビューで確定させる。</b></p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>要素</th><th>内容</th><th>省略してよい場合</th></tr></thead>
+    <tbody>
+      <tr><td><b>何を</b></td><td>変更した対象（ファイル・機能・概念）</td><td>省略不可</td></tr>
+      <tr><td><b>どう</b></td><td>どう変えたか（変更後の状態・採った手段）</td><td>省略不可</td></tr>
+      <tr><td><b>なぜ</b></td><td>変更の理由</td><td>対象と手段から自明なら省略可。本文へ回してもよい</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <div class="box warn">
+    <div class="label">「どう」の判定基準を文面へ入れる</div>
+    <p>「修正した」「更新した」「反映した」で終わる行は、どう変えたかを述べていないため<b>不合格</b>とする（調査で母数の <b>64%</b> がこの形）。</p>
+  </div>
+
+  <h3>決定3: 成果物の変更を伴わないコミットの書き方</h3>
+  <p>調査で <code>main</code> に残らない成果物のみのコミットが <b>58%</b>、事務的作業記録が <b>15%</b> あった。<b>この多数派の書き方を決めないと、規約は守られない側が多数になる。</b></p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>類型</th><th>現状の書かれ方</th><th>規約で求める形（案）</th></tr></thead>
+    <tbody>
+      <tr><td><code>HANDOFF.md</code> の進捗更新のみ</td><td><code>docs: HANDOFFを更新</code></td><td><b>どのflow-idが何になったか</b>を書く</td></tr>
+      <tr><td><code>wip/plans/</code> <code>wip/worklogs/</code> <code>wip/reports/</code> のみの変更</td><td><code>docs: 計画を修正</code></td><td><b>何を変えたか</b>（どの節・どの判断が変わったか）を書く</td></tr>
+      <tr><td>Draft PR作成のための空コミット</td><td><code>chore: 空コミット（baseとの差分が無いため）</code></td><td>現状の形で足りる。<b>例外として明記する</b></td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>決定4: PRタイトルが1行ログに出る事実を規約へ書くか</h3>
+  <p>調査Q4で、<code>git log --oneline</code> に出るのは<b>PRタイトル</b>であり、個別コミットの件名はsquash本文の中にしか現れないと実測できた。</p>
+  <ul>
+    <li><b>書く場合</b>: 「コミットメッセージを直せば <code>--oneline</code> が読めるようになる」という誤解を防げる。</li>
+    <li><b>書かない場合</b>: <code>commit</code> スキルの守備範囲（コミットの作り方）から外れる。</li>
+  </ul>
+  <p>現時点の案は「<b>注記として1段落だけ書く</b>」。PRタイトルの規約そのものは本issueのスコープ外とし、必要なら別issueへ切り出す。</p>
+</section>
+
+<section id="deliver">
+  <h2>作ること（成果物）</h2>
+
+  <h3>1. <code>.claude/skills/commit/SKILL.md</code> への追記</h3>
+  <p><b>置き換え前</b>（144〜146行）:</p>
+  <pre><code>**コミットメッセージ形式：**
+- `&lt;prefix&gt;: &lt;日本語説明&gt;` の **1行のみ**
+- 本文・フッター・Co-Authored-By など一切付けない</code></pre>
+  <p><b>置き換え後</b>: 決定1〜4を反映した節へ差し替える。</p>
+  <div class="box stop">
+    <div class="label">この2行は役割を2つ兼ねている — 差し替えで巻き添えにしないこと</div>
+    <div class="tablewrap">
+    <table>
+      <thead><tr><th>役割</th><th>扱い</th></tr></thead>
+      <tbody>
+        <tr><td>(1) メッセージの形式（1行のみ・本文なし）</td><td><b>方針決定の対象</b>。決定1で置き換える</td></tr>
+        <tr><td>(2) Claudeフッター・Co-Authored-By の禁止</td><td><b>方針に関わらず維持する</b>。同ファイル31行に同趣旨の絶対ルールがあるが、<b>それは146行を消してよい理由にならない</b></td></tr>
+      </tbody>
+    </table>
+    </div>
+  </div>
+  <p>追記する節の構成（案）:</p>
+  <ol>
+    <li>件名（1行目）の形式と、満たすべき要素</li>
+    <li>良い例・悪い例（悪い例には<b>なぜ悪いか</b>を必ず添える）</li>
+    <li>本文（2行目以降）を書く場合の形式と、書くべき場面</li>
+    <li>成果物の変更を伴わないコミットの書き方（決定3の3類型）</li>
+    <li>PRタイトルについての注記（決定4）</li>
+  </ol>
+
+  <h3>2. issue本文の実例9行の書き直し例</h3>
+  <div class="box warn">
+    <div class="label">素材は統計の母数の外にある</div>
+    <p>issue #185 の本文が挙げた9行はissue #110 のPR由来で、調査で固定した母数（直近5件・80件）には含まれない。<b>issue本文から直接9行を引き写し、統計とは別枠であることを明示する</b>（母数を広げて統計を取り直さない）。</p>
+  </div>
+  <p>書き直し例は <code>wip/reports/…内容規約の策定.md</code> へ表として置く。<b>規約が実際に適用できることの検証を兼ねる</b>ため、9行すべてを対象にし、1行も飛ばさない。</p>
+  <p>9行のうち1行（<code>Fix formatting and clarify task types in workflow doc</code>）は<b>英語・prefix無し</b>である。規約は日本語・prefix必須なので、書き直し例では両方を直す。<b>英語コミットが生まれた経路の調査はスコープ外</b>。</p>
+
+  <h3>3. worklog</h3>
+  <p><code>wip/worklogs/20260823_keen-charting-lantern_【設計】【AIアセット作成】コミットメッセージ内容規約の策定とcommitスキルへの追記_push&lt;N&gt;.md</code></p>
+</section>
+
+<section id="out-of-scope">
+  <h2>やらないこと（スコープ外）</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>対象</th><th>理由</th></tr></thead>
+    <tbody>
+      <tr><td>DDR <code>i0185-01</code> の作成</td><td>フェーズ4〈反映〉の担当（<code>【設計反映】</code>）</td></tr>
+      <tr><td><code>.claude/docs/spec/create-commit.md</code> の追随</td><td>同上。<b>形式の正は <code>commit/SKILL.md</code> 1箇所</b>とし、spec側は参照だけを残す</td></tr>
+      <tr><td><code>.claude/rules/git-workflow.md</code> への入口追加の要否判定</td><td>同上</td></tr>
+      <tr><td><code>resolve-conflict/SKILL.md</code> <code>issue-mr-flow/SKILL.md:229</code> との参照関係の整理</td><td>同上（調査Q5で洗い出し済み）</td></tr>
+      <tr><td><code>.gemini/</code> の追随</td><td>flow-id 5-3 の変換同期（手では編集しない）</td></tr>
+      <tr><td>過去コミットの書き換え</td><td>全体作業計画のスコープ外</td></tr>
+      <tr><td><code>commit/SKILL.md</code> 150〜170行の孤立ブロック</td><td><b>本issueで扱うか別issueへ切り出すかを、この計画のレビューで判断する</b></td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="ask">
+  <h2>判断を仰ぐこと</h2>
+  <div class="box stop">
+    <div class="label"><code>commit/SKILL.md</code> の「## 備考」以下（150〜170行）が孤立している</div>
+    <p>開きの無い閉じフェンスで終わり、PR descriptionの雛形に見える断片（「レビュアーが知っておくべきこと」「変更内容の列挙ルール」）が残っている。ファイル新規作成時（<code>e87d2b4</code>）からこの形である。</p>
+    <ul>
+      <li><b>同じファイルの同じ主題（何を書くか）</b>の箇所であり、今回追記する節のすぐ下に来る。</li>
+      <li>ただし<b>本issueの受け入れ条件のどれにも該当しない</b>。</li>
+      <li>現時点の案は「<b>触らず、別issueとして切り出す</b>」。無言で削除はしない（何のための断片か判断できない以上、消してよいと断定できないため）。</li>
+    </ul>
+  </div>
+</section>
+
+<section id="verify">
+  <h2>検証</h2>
+  <p><b>「0件」を合格条件にしない</b>（調査Q1で、無関係なヒットが15件常駐すると分かっているため）。</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>検証項目</th><th>方法</th><th>合格条件</th></tr></thead>
+    <tbody>
+      <tr><td>書き換え対象3行のうち2行が消えたか</td><td><code>grep -n '1行のみ\|本文・フッター' .claude/skills/commit/SKILL.md</code></td><td><code>145</code> <code>146</code> に相当する記述が無い</td></tr>
+      <tr><td>フッター禁止が残っているか</td><td><code>grep -n 'Co-Authored-By' .claude/skills/commit/SKILL.md</code></td><td>31行の絶対ルールが残っている</td></tr>
+      <tr><td>追記した節がAIエージェントに機械的に従えるか</td><td>規約の文面だけを読んで、issue本文の9行を書き直せるか</td><td>9行すべてに書き直し例が作れる</td></tr>
+      <tr><td>悪い例に理由が添えられているか</td><td>目視</td><td>悪い例の全件に「なぜ悪いか」がある</td></tr>
+      <tr><td>規約が自分自身に適用できるか</td><td>このフェーズのコミットメッセージを新規約で書く</td><td>件名が決定2の3要素を満たす</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p><b>最後の項目は自己適用の検証である。</b> 規約を作った当人が最初の適用者になるため、書けない・書きにくいと感じたらそれは規約側の欠陥として扱う。</p>
+</section>
+
+<section id="steps">
+  <h2>進め方</h2>
+  <ol>
+    <li>上記の決定1〜4を確定させる（この計画のレビュー）。</li>
+    <li><code>commit/SKILL.md</code> へ節を追記する（置き換え前後は上記のとおり）。</li>
+    <li>issue本文の9行の書き直し例を作り、レポートへ記録する。</li>
+    <li>検証表の5項目を実施する。</li>
+    <li>敵対的レビュー（作業実施に対して）→ 指摘へ対応・返信。</li>
+  </ol>
+</section>
+
+<footer>issue #185 / フェーズ3〈作業〉 flow-id 3-1 / 正文は同名の .md</footer>
+
+</div>
+
+</body>
+</html>
