@@ -100,7 +100,7 @@
 
 <header class="band">
   <div class="inner">
-    <div class="kind">個別作業計画 / フェーズ3</div>
+    <div class="kind">個別作業計画 / フェーズ3 / v2</div>
     <h1>.gitignoreのDDR参照修正と検出スクリプトの追加</h1>
     <p class="lead">.gitignore内のDDR参照切れ2箇所を修正し、同種の参照切れを機械的に検出するスクリプトと単体テストを実装する。</p>
     <ul class="meta">
@@ -108,7 +108,7 @@
       <li><b>ブランチ</b> claude/gitignore-ddr-references-rsjo83</li>
       <li><b>PR</b> #177</li>
       <li><b>フェーズ</b> 3〈作業〉 flow-id 3-1</li>
-      <li><b>push回数</b> 4</li>
+      <li><b>push回数</b> 5</li>
       <li><b>作成日</b> 2026-08-23</li>
       <li><b>正文</b> 同名の .md</li>
     </ul>
@@ -126,6 +126,7 @@
     <li><a href="#approach">方針</a></li>
     <li><a href="#out-of-scope">やらないこと（スコープ外）</a></li>
     <li><a href="#verify">検証</a></li>
+    <li><a href="#corrections">v1からの訂正点（敵対的レビュー対応）</a></li>
   </ol>
 </nav>
 
@@ -160,6 +161,11 @@
 
 <section id="approach">
   <h2>方針</h2>
+  <div class="box warn">
+    <span class="label">v2への全面改訂</span>
+    本節は敵対的レビュー（1回目、フェーズ3計画）で12件のfindingsを受け、全件を実機で再検証の
+    うえ全面改訂した。検証手順・訂正内容は下記「v1からの訂正点」節を参照。
+  </div>
 
   <h3>.gitignoreの修正</h3>
   <div class="tablewrap">
@@ -173,57 +179,125 @@
   </div>
   <p>コメント文字列の書き換えのみを行い、ignoreパターン自体（<code>/.gemini/docs</code>等）は変更しない。</p>
 
-  <h3>検出スクリプトの設計（reportsの「検出方式の設計」節を実装する）</h3>
+  <h3>検出スクリプトの設計（reportsの「検出方式の設計」節を実装する。v2で全面改訂）</h3>
   <ol>
     <li>対象ファイル: <code>git ls-files -z -- '*.md' '*.sh' '.gitignore'</code>で取得
       （バイナリを除く）。</li>
-    <li><code>.claude/scripts/test/</code>配下は除外する（フィクスチャに架空パスを含むため。
-      偽陰性のトレードオフはreportsに記録済み・設計判断として許容する）。</li>
-    <li>Markdownコードフェンス（<code>```</code>で囲まれた範囲）内の行は除外する（行単位の
-      状態追跡が必要なため、ファイルごとに<code>while read</code>でbash内蔵処理として読み込み、
-      外部コマンドを呼ばない設計にする）。</li>
-    <li>正規表現<code>\.claude/docs/ddr/i[0-9]+-[0-9]{2}-[終端文字を除く任意文字]*\.md</code>で
-      候補パスを抽出する。終端文字は空白・タブ・<code>)</code> <code>]</code> <code>"</code>
-      <code>'</code> <code>`</code> <code>(</code>とする（<b>reportsの「既知の限界」で
-      指摘されたタブを追加</b>する）。<code>.md</code>で終わることを要求し、貪欲マッチ
-      （bashの<code>[[ =~ ]]</code>は既定で貪欲）で最後まで一致させる。</li>
+    <li>次の3ディレクトリ配下は除外する:
+      <ul>
+        <li><code>.claude/scripts/test/</code>（フィクスチャに架空パスを含むため。偽陰性の
+          トレードオフはreportsに記録済み・設計判断として許容する）。</li>
+        <li><code>plans/</code> <code>reports/</code> <code>worklog/</code>
+          （<b>v2で追加</b>。理由は下記「対象範囲の除外理由」）。</li>
+      </ul>
+    </li>
+    <li>Markdownコードフェンス（行頭が<code>```</code>または<code>~~~</code>で始まる行。
+      インデントされたフェンスも対象、正規表現<code>^[[:space:]]*(```|~~~)</code>でトグル）で
+      囲まれた範囲内の行は除外する。<b>フェンス行が奇数個で閉じずにファイル末尾へ達した場合は、
+      残りの行を除外しない</b>（安全側＝偽陽性が出る方向へ倒す。偽陰性＝無言の見逃しにしない）。</li>
+    <li>抽出は<b>1ファイル1回、bash内蔵の<code>while read</code>＋<code>[[ =~ ]]</code>のみで行い、
+      <code>grep</code>は使わない</b>（外部コマンド<code>git ls-files</code>の1回起動のみに
+      留める。<b>v2で訂正</b>: 当初「<code>xargs -0 grep</code>とフェンス除外のbashループを
+      両方使う」という両立しない案を書いていたため、bash単独方式へ一本化した）。正規表現は
+      <code>\.claude/docs/ddr/i[0-9]+-[0-9]+-[終端文字を除く任意文字]*\.md</code>で、
+      <b>issue番号側だけでなく枝番側も<code>[0-9]+</code>（桁数不問）にする</b>（<b>v2で訂正</b>:
+      <code>[0-9]{2}</code>固定では枝番のゼロ埋め漏れ自体を検出できなかったため）。終端文字は
+      空白・<b>実際のタブ文字</b>・<code>)</code> <code>]</code> <code>"</code> <code>'</code>
+      <code>`</code> <code>(</code>とする。<b>タブは<code>\t</code>というエスケープ表記ではなく、
+      <code>tab=$'\t'</code>のようにシェル変数で組み立てた生のタブ文字を使う</b>
+      （<b>v2で訂正・blocker対応</b>: POSIX ERE のブラケット式内では<code>\t</code>は
+      バックスラッシュと<code>t</code>の2文字として解釈され、「タブを除く」ではなく
+      「ASCIIの<code>t</code>を終端文字にする」誤りになる。DDRファイル名には<code>t</code>が
+      高頻度で現れるため、この誤りがあると<code>.md</code>まで到達できず<b>候補が1件も
+      抽出されなくなり、検証コマンドが常に「0件＝合格」を返す</b>。実機で確認済み——詳細は
+      「v1からの訂正点」）。<code>.md</code>で終わることを要求し、貪欲マッチ（bashの
+      <code>[[ =~ ]]</code>は既定で貪欲）で最後まで一致させる。</li>
     <li>抽出したパスに<code>...</code>または<code>…</code>（省略記法）が含まれる場合は
       除外する。</li>
     <li>残った候補について<code>[[ -f "$path" ]]</code>で実在確認する。存在しなければ
-      参照切れとして<code>file:lineno:path</code>形式で標準出力へ報告し、件数を返す。</li>
-    <li>実行タイミングは<b>手動実行のみ</b>とする（<code>.claude/rules/shell-script-style.md</code>
+      参照切れとして<code>file:lineno:path</code>形式で標準出力へ報告する。<b>加えて、
+      標準エラーへ<code>走査ファイル数 / 候補数 / 除外数（テスト・plans等/フェンス内/
+      省略記法の内訳） / 参照切れ数</code>のサマリを出す</b>（<b>v2で追加</b>: 件数を出さないと
+      「正規表現が当たらず0件」と「本当に参照切れが無く0件」を区別できないため。issueの
+      受け入れ条件・全体作業計画が求める「件数付きの検索結果」の要件でもある）。</li>
+    <li>スクリプトは<b>引数を取らない</b>。冒頭で<code>cd "$(git rev-parse --show-toplevel)"</code>
+      しリポジトリルートを起点に走査する（<b>v2で追加</b>: 未定義だった呼び出し
+      インターフェースを確定した）。</li>
+    <li>実行タイミングは<b>手動実行のみ</b>とし、<b>この個別作業計画で決定する</b>
+      （<b>v2で訂正</b>: 当初「全体作業計画の判断を踏襲」としていたが、全体作業計画が
+      留保していたのは「hookへ組み込まない」ことだけで、実行タイミングの具体案自体は
+      フェーズ2の成果物として決めるとされていた。しかしreportsにはこの判断が記録されて
+      いなかった（帰属の誤り）ため、ここで確定させる。<code>.claude/rules/shell-script-style.md</code>
       「外部プロセス起動のコスト」に照らし、頻度の低い整合性チェックをhookへ組み込む価値は
-      無いという全体作業計画の判断を踏襲。将来<code>resolve-conflict</code>スキル等への合流が
-      必要になれば別issueで検討する）。</li>
+      無いと判断。将来<code>resolve-conflict</code>スキル等への合流が必要になれば別issueで
+      検討する）。新規specファイルは作らない（規模の小さいスクリプトであり、本計画＋
+      テストコード＋フェーズ4のDDRでドキュメントとして十分と判断。全体作業計画の
+      「過剰なドキュメント化は避ける」方針に沿う）。</li>
   </ol>
+
+  <h3>対象範囲の除外理由（v2で追加）</h3>
+  <p><b><code>plans/</code> <code>reports/</code> <code>worklog/</code>を除外する</b>:
+    これらはflow-id 5-4でタスク単位に削除される寿命の短いファイル群であり、<code>.html</code>を
+    対象外にした理由（reportsの「対象範囲の限定理由」節）と同じ理由で除外するのが整合的である。
+    加えて、除外しない場合は<b>実際に偽陽性が発生する</b>ことを実機で確認した:
+    <code>worklog/20260823_sequential-purring-tulip_【調査】…_push1.md:69</code>に、前回レビュー
+    対応の記録として書いた<code>ls .claude/docs/ddr/i0000-13-*.md</code>というコマンド断片があり、
+    glob文字<code>*</code>を含む文字列がDDRパス候補として抽出され<code>[[ -f ]]</code>に失敗する
+    （<b>v1では対象に含めていたため、この偽陽性のせいで検証3の「参照切れ0件」が達成できな
+    かった</b>）。</p>
 
   <h3>実装上の注意（shell-script-style.mdへの適合）</h3>
   <ul>
-    <li><code>git ls-files -z</code> + <code>xargs -0</code>または<code>while read -r -d ''</code>で
-      NULバイトを保持し、日本語パスのクォート化を回避する。</li>
-    <li>ファイルごとの<code>grep</code>個別起動は避け、可能な範囲で
-      <code>xargs -0 grep -noE</code>にまとめる（コードフェンス除外だけは行単位状態が要るため、
-      対象ファイルを1回<code>&lt; "$file"</code>で読み込むbashループとする）。</li>
+    <li><code>git ls-files -z</code> + <code>while IFS= read -r -d ''</code>でNULバイトを保持し、
+      日本語パスのクォート化を回避する。外部コマンドの起動は<code>git ls-files</code>の1回のみ
+      （上記のとおり<code>grep</code>は使わない）。</li>
     <li><code>git ls-files</code>はindexの内容を返すため、削除済み未ステージファイルが
       混ざりうる。読み込み前に<code>[[ -f "$path" ]]</code>のガードを挟む。</li>
     <li>スクリプト冒頭で<code>set -euo pipefail</code>を宣言し、BOM無しUTF-8・LF改行で保存する。</li>
+    <li>テストから直接呼べるよう、次の関数境界を持たせる（<b>v2で追加</b>: 純粋関数への切り出しが
+      無いと、単体テストが実装の正規表現・フィルタ条件を書き写すだけになり、実装側の誤りを
+      検出できない。<code>.claude/rules/shell-script-style.md</code>「テスト」の指摘と同根）。
+      <ul>
+        <li><code>extract_ddr_candidates_to_reply &lt;行&gt;</code>: 1行から候補パス配列を
+          <code>REPLY_CANDIDATES</code>（配列）へ返す。</li>
+        <li><code>is_excluded_target_path &lt;ファイルパス&gt;</code>: ディレクトリ除外
+          （テスト・plans/reports/worklog）の判定。</li>
+        <li><code>is_placeholder_candidate &lt;候補文字列&gt;</code>: 省略記法（<code>...</code>/
+          <code>…</code>）を含むかの判定。</li>
+        <li>本体は<code>main</code>関数にまとめ、
+          <code>if [ "${BASH_SOURCE[0]}" = "${0}" ]; then main; fi</code>でガードする。
+          単体テストはこのファイルを<code>source</code>し、<b>上記の関数を直接呼ぶ</b>
+          （正規表現やフィルタ条件をテスト側へ書き写さない）。</li>
+      </ul>
+    </li>
   </ul>
 
-  <h3>単体テストの設計</h3>
+  <h3>単体テストの設計（v2で改訂）</h3>
   <ul>
-    <li>対象は副作用の無い純粋ロジック（パス抽出の正規表現、3フィルタの判定）。</li>
+    <li>対象は副作用の無い純粋ロジック（上記の3関数）。</li>
     <li>少なくとも次のケースを含める:
       <ul>
         <li>通常のDDRパス参照が実在すれば検出されない</li>
         <li>存在しないDDRパス参照は検出される（<code>.gitignore</code>の元の2箇所相当の
           再現ケース）</li>
-        <li><code>.claude/scripts/test/</code>配下のパスはフィルタで除外される</li>
-        <li>コードフェンス内のパスは除外される</li>
-        <li>省略記法（<code>...</code>/<code>…</code>）を含む候補は除外される</li>
-        <li>ファイル名自体に<code>.md</code>を含むDDR（<code>i0032-01-...Default.mdを正とし...md</code>
-          相当）が貪欲マッチで正しく終端まで一致する</li>
-        <li>タブ区切りで2つのパスが同一行に並ぶ場合、2つの独立した候補として抽出される
-          （既知の限界の修正を検証する）</li>
+        <li><code>.claude/scripts/test/</code> <code>plans/</code> <code>reports/</code>
+          <code>worklog/</code>配下のパスは<code>is_excluded_target_path</code>で除外される</li>
+        <li>コードフェンス内のパスは除外される（インデントされたフェンスも含む）</li>
+        <li>コードフェンスが奇数個で閉じない場合、残りの行は除外され<b>ない</b>
+          （安全側の挙動を確認する）</li>
+        <li>省略記法（<code>...</code>/<code>…</code>）を含む候補は
+          <code>is_placeholder_candidate</code>で除外される</li>
+        <li>ファイル名自体に<code>.md</code>を含む実在DDR（
+          <code>i0032-01-GitLab-issueテンプレートは予約名Default.mdを正とし文書側を合わせる.md</code>。
+          <b>v2で訂正</b>: 省略記法を含む例示文字列をそのままフィクスチャにすると省略記法
+          フィルタに先に除外され貪欲マッチの検証にならないため、省略記法を含まない実名を
+          使う）について、<code>extract_ddr_candidates_to_reply</code>が<b>抽出した候補文字列
+          そのもの</b>を<code>assert_eq</code>し、末尾の<code>.md</code>まで正しく1本の
+          フルパスとして一致することを確認する（検出結果の真偽ではなく抽出関数の戻り値を
+          直接検証する）</li>
+        <li>タブ区切りで2つのパスが同一行に並ぶ場合、2つの独立した候補として抽出される</li>
+        <li>枝番が1桁・3桁のDDRパス（<code>i0133-1-…md</code>等）も候補として抽出される
+          （枝番側<code>[0-9]+</code>化の検証）</li>
       </ul>
     </li>
     <li><code>bash -n</code>構文チェックを行い、<code>passed=N failures=N</code>形式で出力、
@@ -244,28 +318,97 @@
         合意済み）</li>
       <li>検出スクリプトのSessionStart/PostToolUse hookへの自動組み込み（全体作業計画で
         「作らない」と明記済み）</li>
-      <li>終端文字集合への全角読点（<code>、</code>）追加（reportsで「実例が無いため優先度を
-        下げる」と記録済み）</li>
+      <li><b>終端文字集合への全角読点（<code>、</code>）・全角括弧（<code>（）「」</code>）追加</b>
+        （<b>v2で理由を精緻化</b>: 「実例が無いため」だけでなく、実例が出た場合に<b>検出器の
+        出力（誤って結合された1本の存在しないパス）を見れば気づける</b>ため——無言の見逃しには
+        ならない、という理由を明記する。タブと違い、これらの文字は本リポジトリのドキュメントで
+        多用される書式（「（詳細: X.md、経緯: Y.md）」）と衝突しうるため、対応するなら別途
+        正規表現の再設計が必要になる。今回は見送る）</li>
+      <li><b>git bash（MSYS/Windows）実機での再検証</b>（<b>v2で追加</b>: reportsの
+        「実施条件」節は今回の走査がLinux/GNU grep 3.11で行われ「git bash実機では未検証」と
+        明記している。本issueのスコープでは、この検出スクリプトはCIやhookに組み込まず
+        手動実行のみとするため、git bash実機での動作確認は本issueでは行わず、実際にgit bash
+        環境で使う際の課題として残す。実機が用意できないことの代替（PATH先頭のスタブ等）では、
+        マルチバイト文字を含むブラケット式のロケール依存の挙動は代替できないため、代替検証も
+        行わない）</li>
     </ul>
   </div>
 </section>
 
 <section id="verify">
   <h2>検証</h2>
-  <pre><code># 1. .gitignore側の参照切れが解消されたことを確認する（0件を期待）
-grep -noE '\.claude/docs/ddr/i[0-9]+-[0-9]{2}-[^]) "'"'"'`(\t]*\.md' .gitignore \
+  <pre><code># 1. .gitignore側の参照切れが解消されたことを確認する（0件を期待）。
+#    タブは \t ではなく実際のタブ文字を使う（変数経由で組み立てる）
+tab=$'\t'
+grep -noE "\.claude/docs/ddr/i[0-9]+-[0-9]+-[^]) \"'`($tab]*\.md" .gitignore \
   | while IFS=: read -r lineno path; do [[ -f "$path" ]] || echo "$lineno:$path"; done
 
 # 2. 検出スクリプトの構文チェック
 bash -n .claude/scripts/src/check-doc-references.sh
 
-# 3. 検出スクリプトをリポジトリ全体に対して実行し、参照切れ0件であることを確認する
-bash .claude/scripts/src/check-doc-references.sh .
+# 3. 検出スクリプトをリポジトリ全体に対して実行し、候補件数&gt;0かつ参照切れ0件であることを
+#    標準エラーのサマリで確認する（引数は取らない）
+bash .claude/scripts/src/check-doc-references.sh
 
 # 4. 単体テストが全件成功する
 bash .claude/scripts/test/test_check_doc_references.sh</code></pre>
-  <p>合格条件: 上記1〜4がすべて成功（1と3は0件、2と4は非0の終了コードが出ないこと）を
-  <code>reports/</code>へ記録する。</p>
+  <p>上記1〜4がすべて成功すること（1は0件、3は候補N件・N&gt;0のうえで参照切れ0件、2と4は
+  非0の終了コードが出ないこと）を<code>reports/</code>へ、走査した候補の母数付きで記録する。</p>
+</section>
+
+<section id="corrections">
+  <h2>v1からの訂正点（敵対的レビュー対応）</h2>
+  <p>フェーズ3計画への1回目の敵対的レビュー（12件のfindings）を受け、全件を実機で再検証し、
+  以下を訂正した。</p>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>種別</th><th>v1</th><th>v2</th></tr></thead>
+      <tbody>
+        <tr><td><span class="tag stop">blocker</span></td>
+          <td>終端文字にエスケープ表記<code>\t</code>を使用。ブラケット式内では<code>\</code>と
+            <code>t</code>の2文字として解釈され<code>t</code>を終端文字にしてしまい、検証
+            コマンドが常に候補0件を返す（実機確認済み）</td>
+          <td>実際のタブ文字（変数<code>tab=$'\t'</code>経由）を使う</td></tr>
+        <tr><td><span class="tag warn">major</span></td>
+          <td>対象を<code>.claude/scripts/test/</code>のみ除外。<code>plans/</code>
+            <code>reports/</code> <code>worklog/</code>を含めており、worklogのコマンド断片が
+            偽陽性になり検証3が達成不能だった（実機確認済み）</td>
+          <td><code>plans/</code> <code>reports/</code> <code>worklog/</code>も除外</td></tr>
+        <tr><td><span class="tag warn">major</span></td>
+          <td>テストから呼べる関数境界・<code>BASH_SOURCE</code>ガードの指定が無かった</td>
+          <td>3つの純粋関数（<code>extract_ddr_candidates_to_reply</code>等）と
+            <code>main</code>ガードを明記</td></tr>
+        <tr><td><span class="tag warn">major</span></td>
+          <td>git bash実機再検証がreportsの記述と食い違ったまま計画に反映されていなかった</td>
+          <td>「やらないこと」へ理由付きで明記</td></tr>
+        <tr><td>minor</td>
+          <td>枝番を<code>[0-9]{2}</code>固定にしており枝番側のゼロ埋め漏れを検出できなかった</td>
+          <td><code>[0-9]+</code>（桁数不問）に変更</td></tr>
+        <tr><td>minor</td>
+          <td>「手動実行のみ」の決定を全体作業計画へ誤帰属していた</td>
+          <td>本計画で決定する旨に訂正</td></tr>
+        <tr><td>minor</td>
+          <td><code>xargs -0 grep</code>とbashループの両立しない方式が併記されていた</td>
+          <td>bash単独方式（外部コマンドは<code>git ls-files</code>のみ）へ一本化</td></tr>
+        <tr><td>minor</td>
+          <td>検出スクリプトが違反件数しか出さず母数を確認できなかった</td>
+          <td>サマリ（候補数・除外内訳・参照切れ数）を出力する設計に変更</td></tr>
+        <tr><td>minor</td>
+          <td>スクリプトの引数仕様が未定義だった</td>
+          <td>引数を取らずリポジトリルートへcdする設計に確定</td></tr>
+        <tr><td>minor</td>
+          <td>コードフェンスの判定規則（インデント・不均衡）が未定義だった</td>
+          <td>トグル規則・未閉鎖時の安全側挙動を明記</td></tr>
+        <tr><td>minor</td>
+          <td>全角句読点による結合の見送り理由が「実例が無い」のみだった</td>
+          <td>「顕在化しても出力で気づける」という理由を追加</td></tr>
+        <tr><td>minor</td>
+          <td>貪欲マッチのテストフィクスチャに省略記法<code>...</code>を含めており、省略記法
+            フィルタに先に食われて検証にならなかった</td>
+          <td>省略記法を含まない実名を使い、抽出結果の文字列を直接検証する設計に変更</td></tr>
+      </tbody>
+    </table>
+  </div>
 </section>
 
 <footer>issue #171 / PR #177 — 計画の正文は同名の <code>.md</code>。外部依存を持たない自己完結HTML。</footer>

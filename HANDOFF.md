@@ -17,7 +17,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - issue: #171
 - ブランチ: claude/gitignore-ddr-references-rsjo83
 - PR: #177
-- push回数: 4
+- push回数: 6
 - 現在のループ: なし
 - 追従監視: なし
 
@@ -108,13 +108,23 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
   対応表・検出スクリプトの判定ロジック（3フィルタ＋タブを追加した終端文字集合）・単体テストの
   ケース一覧を計画へ落とし込んだ。HTMLの品質チェック（プレースホルダ・外部依存）は0件で完了。
 
+- 個別作業計画をpush5として反映後、ユーザー指示に従い敵対的レビュー（1回目）を実施した。
+  **blocker 1件（終端文字集合`\t`表記の誤り。検証コマンドが常に「0件＝合格」を返し検出
+  できない状態だった）・major 3件（plans/reports/worklog除外漏れによる検証不能、テスト用の
+  関数境界未定義、git bash実機再検証の帰属誤り）・minor 8件**、計12件のfindingsを全件
+  実機で再検証し、計画（md・html）をv2として全面改訂した（詳細はworklog
+  「個別作業計画への敵対的レビュー対応」節）。scratchpadでプロトタイプを実装し、
+  `plans/` `reports/` `worklog/`を除外した後の実測が`total=118 missing=2`（`.gitignore`の
+  2件のみ）であることも確認済み。HTML品質チェック（プレースホルダ・外部依存）は0件で完了。
+
 ## 次にやること
 
-- 個別作業計画へユーザー指示に従い敵対的レビューを自動実施し、指摘へ対応する（flow-id 3-2の前）。
-- 計画をcommit・push（flow-id 3-2）。
+- 改訂した個別作業計画（md・html）とworklog・HANDOFFをcommit・push（flow-id 3-2）。
 - 計画に基づき`.gitignore`の2箇所（28行目・40行目）を修正し、検出スクリプト
   （`.claude/scripts/src/check-doc-references.sh`）と単体テスト
   （`.claude/scripts/test/test_check_doc_references.sh`）を実装する（flow-id 3-6）。
+  実装時は計画v2の設計（bash単独方式・real tab・枝番`[0-9]+`化・3関数への切り出し・
+  サマリ出力）に従う。
 - 作業実施後も敵対的レビューを自動実施する。
 - フェーズ4〈反映〉: 検出方式の意思決定をDDRとして記録し、`generate-ddr-list.sh`で
   README一覧を再生成する。
