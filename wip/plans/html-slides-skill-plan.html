@@ -1,0 +1,253 @@
+<!--
+  全体作業計画「HTMLスライド作成スキル・テンプレート・サブエージェント2本の追加」（issue #168）の
+  人間レビュー用HTMLビュー。正文は同名の .md（wip/plans/html-slides-skill-plan.md）。
+  土台: .claude/skills/issue-mr-flow/assets/plans.template.html（issue #54）
+-->
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>全体作業計画: HTMLスライド作成スキル・テンプレート・サブエージェント2本の追加 — issue #168</title>
+<style>
+  :root {
+    --bg: #f6f7f9;      --panel: #ffffff;   --ink: #1a1d21;     --muted: #5b636d;
+    --line: #dfe3e8;    --accent: #2563eb;  --accent-soft: #eaf0fe;
+    --ok: #1a7f4b;      --ok-soft: #e6f4ec; --warn: #a35a00;    --warn-soft: #fdf1e0;
+    --stop: #b3261e;    --stop-soft: #fdecea; --code-bg: #f0f2f5;
+    --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1216;    --panel: #161a20;   --ink: #e6e8eb;     --muted: #9aa3ad;
+      --line: #2a3038;  --accent: #7aa2f7;  --accent-soft: #1b2333;
+      --ok: #6ee7a8;    --ok-soft: #14261d; --warn: #f0b866;    --warn-soft: #2a2113;
+      --stop: #f2857c;  --stop-soft: #2b1614; --code-bg: #1d222a;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", system-ui, sans-serif;
+    line-height: 1.8; font-size: 15px;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 20px 80px; }
+
+  /* 共通ヘッダ帯 */
+  header.band {
+    background: linear-gradient(135deg, var(--accent-soft), var(--panel));
+    border-bottom: 1px solid var(--line); padding: 28px 20px 22px; margin-bottom: 28px;
+  }
+  header.band .inner { max-width: 1080px; margin: 0 auto; }
+  header.band .kind { font-size: 11px; letter-spacing: .18em; color: var(--accent); font-weight: 700; }
+  header.band h1 { margin: 6px 0 4px; font-size: 26px; line-height: 1.4; }
+  header.band .lead { margin: 0; color: var(--muted); }
+  .meta { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; padding: 0; list-style: none; }
+  .meta li {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 999px;
+    padding: 3px 12px; font-size: 12.5px; color: var(--muted); white-space: nowrap;
+  }
+  .meta li b { color: var(--ink); font-weight: 600; }
+
+  nav.toc {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 14px 20px; margin-bottom: 28px;
+  }
+  nav.toc h2 { margin: 0 0 8px; font-size: 13px; letter-spacing: .08em; color: var(--muted); border: 0; padding: 0; }
+  nav.toc ol { margin: 0; padding-left: 20px; }
+  nav.toc li { margin: 2px 0; }
+  a { color: var(--accent); }
+
+  section {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 8px 24px 22px; margin-bottom: 22px;
+  }
+  h2 { font-size: 20px; margin: 20px 0 10px; padding-bottom: 8px; border-bottom: 2px solid var(--line); }
+  h3 { font-size: 16px; margin: 22px 0 8px; color: var(--accent); }
+  p { margin: 10px 0; }
+  ul, ol { padding-left: 22px; }
+  li { margin: 4px 0; }
+  blockquote { margin: 10px 0; padding: 6px 14px; border-left: 3px solid var(--line); color: var(--muted); }
+
+  /* 表は自身の中で横スクロールする（ページ本体は横スクロールさせない） */
+  .tablewrap { overflow-x: auto; margin: 14px 0; }
+  table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 14px; }
+  th, td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: var(--accent-soft); font-weight: 600; white-space: nowrap; }
+  tbody tr:nth-child(even) td { background: color-mix(in srgb, var(--line) 22%, transparent); }
+
+  code {
+    background: var(--code-bg); border-radius: 5px; padding: 1px 5px; font-size: 13px;
+    font-family: "SFMono-Regular", Consolas, "Noto Sans Mono", monospace;
+  }
+  pre {
+    background: var(--code-bg); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 12px 14px; overflow-x: auto; font-size: 13px; line-height: 1.65;
+  }
+  pre code { background: none; padding: 0; }
+
+  /* 注意ボックス: info（既定）/ ok（決めたこと）/ warn（注意）/ stop（やらないこと・危険） */
+  .box { border-left: 4px solid var(--accent); background: var(--accent-soft);
+         border-radius: 0 var(--radius) var(--radius) 0; padding: 12px 16px; margin: 16px 0; }
+  .box > :first-child { margin-top: 0; } .box > :last-child { margin-bottom: 0; }
+  .box .label { font-size: 12px; font-weight: 700; letter-spacing: .06em; display: block; margin-bottom: 4px; }
+  .box.ok { border-color: var(--ok); background: var(--ok-soft); } .box.ok .label { color: var(--ok); }
+  .box.warn { border-color: var(--warn); background: var(--warn-soft); } .box.warn .label { color: var(--warn); }
+  .box.stop { border-color: var(--stop); background: var(--stop-soft); } .box.stop .label { color: var(--stop); }
+  .box.info .label { color: var(--accent); }
+
+  .tag { display: inline-block; border-radius: 999px; padding: 1px 9px; font-size: 12px; font-weight: 600; }
+  .tag.ok { background: var(--ok-soft); color: var(--ok); }
+  .tag.warn { background: var(--warn-soft); color: var(--warn); }
+  .tag.stop { background: var(--stop-soft); color: var(--stop); }
+
+  footer { color: var(--muted); font-size: 13px; text-align: center; padding-top: 10px; }
+</style>
+</head>
+<body>
+
+<header class="band">
+  <div class="inner">
+    <div class="kind">全体作業計画 / フェーズ1（flow-id 1-4）</div>
+    <h1>HTMLスライド作成スキル・テンプレート・サブエージェント2本の追加</h1>
+    <p class="lead">発表用HTMLスライドを作るためのテンプレート1本・スキル1本・サブエージェント2本（構成設計／HTML生成）と構成案JSONスキーマを追加する。</p>
+    <ul class="meta">
+      <li><b>issue</b> #168</li>
+      <li><b>ブランチ</b> claude/html-slide-skill-template-ymue7k</li>
+      <li><b>PR</b> #194（Draft）</li>
+      <li><b>フェーズ</b> 1〈起点〉 flow-id 1-4</li>
+      <li><b>push回数</b> 1</li>
+      <li><b>作成日</b> 2026-08-23</li>
+      <li><b>正文</b> 同名の .md</li>
+    </ul>
+  </div>
+</header>
+
+<div class="wrap">
+
+<nav class="toc">
+  <h2>目次</h2>
+  <ol>
+    <li><a href="#goal">この計画で何をするか</a></li>
+    <li><a href="#operation">進め方（非対話セッションでの運用）</a></li>
+    <li><a href="#phase-research">フェーズ2〈調査〉</a></li>
+    <li><a href="#target">変更対象（フェーズ3〈作業〉）</a></li>
+    <li><a href="#phase-apply">フェーズ4〈反映〉</a></li>
+    <li><a href="#approach">方針（フェーズ5〈クローズ〉を含む）</a></li>
+    <li><a href="#out-of-scope">やらないこと（スコープ外）</a></li>
+    <li><a href="#verify">検証</a></li>
+  </ol>
+</nav>
+
+<section id="goal">
+  <h2>この計画で何をするか</h2>
+  <p>調査結果・設計内容・issue対応の報告を<b>投影して発表するスライド</b>の形で残せるように、次の4点を追加する（issue #168「期待する動作」）。</p>
+  <ol>
+    <li><b>スライドテンプレート1本</b>: <code>.claude/skills/&lt;スキル名&gt;/assets/slides.template.html</code>。自己完結（CDN・外部フォント・外部画像なし）で、スライド型8種（表紙／章扉／箇条書き／2カラム／図解／表／比較／まとめ）、キーボード（←→／Space／Home／End）とクリックのページ送り、進行表示、<code>@media print</code> による1スライド1ページのPDF化を持つ。</li>
+    <li><b>スキル1本</b>: <code>SKILL.md</code> が「テンプレートをコピー → 型を選ぶ → 穴を埋める → プレースホルダ残存チェック」の手順を定義する。見出し構成の正はテンプレート側に置き、再掲しない。</li>
+    <li><b>サブエージェント2本</b>: ①構成設計（読み取り専用。構成案をJSONで返す。HTML生成はしない）／②HTML生成（渡された構成に忠実に埋める。構成の再設計はしない。食い違いは差し戻す）。</li>
+    <li><b>構成案JSONのスキーマ定義</b>: 将来の .pptx 書き出し（別issue）の入力にできる機械可読な形。</li>
+  </ol>
+</section>
+
+<section id="operation">
+  <h2>進め方（非対話セッションでの運用）</h2>
+  <p>本セッションは Claude Code on the web のリモート実行環境で、人間のレビュー往復を待てない<b>非対話セッション</b>である。ユーザーの明示指示により、次の運用で進める。</p>
+  <ul>
+    <li><b>各フェーズの計画をpushした直後に敵対的レビューを1回</b>、<b>作業実施をpushした直後に1回</b>、自動起動する（<code>adversarial-review</code> スキル。非対話セッションの自律起動は同スキルが許可している。各フェーズ上限3回の範囲内）。</li>
+    <li>指摘への対応・修正を行い、対応内容を各スレッドへ返信してから次のステップへ進む。</li>
+    <li>人間担当のレビューステップ（2-3/2-8/3-3/3-8/4-3/4-8等）は実施できないため、該当ループ範囲の進捗記号は <code>[]</code> のまま残し、実施した内容は HANDOFF.md「やったこと」の文章で補足する。</li>
+    <li>全体作業計画の人間合意（flow-id 1-5）も待てないため、ユーザーの当初指示を包括的な承認として進め、計画自体もPR上でレビュー可能な形で残す。</li>
+  </ul>
+  <div class="box warn">
+    <span class="label">ブランチ名について</span>
+    ブランチは <code>claude/html-slide-skill-template-ymue7k</code>（ハーネス指定）。<code>.mrworkflow.json</code> の <code>feature-{issue}-{slug}</code> 命名とは異なるが、実行基盤がこのブランチでの開発を指定しているため、ハーネス側の指示を優先する。
+  </div>
+</section>
+
+<section id="phase-research">
+  <h2>フェーズ2〈調査〉</h2>
+  <p>次の問いに答える。分かれば個別作業計画（3-1）が書ける。</p>
+  <ul>
+    <li><b>既存テンプレート3本の規約</b>: <code>plans.template.html</code> / <code>reports.template.html</code> / <code>canvas-report.html</code> の冒頭コメント・スタイル・ダークモード対応はどう作られているか。<code>slides.template.html</code> が踏襲すべき点はどれか。</li>
+    <li><b>サブエージェント定義の規約</b>: <code>.claude/agents/</code> 既存2本のfrontmatter・本文構成・ツール制限の書き方はどうなっているか。</li>
+    <li><b>スキル名</b>: 既存スキル（<code>canvas-report</code> 等）との整合が取れる名前は何か。</li>
+    <li><b>出力先ディレクトリの既定</b>: <code>wip/reports/</code> は flow-id 5-5 で削除される寿命。スライドを残す場合の選択肢を洗い、既定を確定する（issue #168「期待する動作 4.」の指定事項）。</li>
+    <li><b>構成案JSONスキーマの置き場所と形式</b>: スキル配下のどこに置くか。検証手段をどう示すか。</li>
+    <li><b>配布・同期への影響</b>: <code>dist-layers.json</code>・<code>check-dist-coverage.sh</code>・<code>sync-gemini-assets.sh</code>・<code>index.jsonl</code> への影響。</li>
+    <li><b>ドキュメント追記先</b>: <code>directory-structure.md</code> のツリー・<code>markdown-frontmatter.md</code> の type 表への追記要否。</li>
+  </ul>
+</section>
+
+<section id="target">
+  <h2>変更対象（フェーズ3〈作業〉）</h2>
+  <p>種別は <code>【AIアセット作成】</code>（スキル・テンプレート・エージェントがこのissueの主たる成果物のため）。ファイルパスの確定はフェーズ2の調査結果（スキル名）に従う。</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>ファイル</th><th>操作</th><th>何をするか</th></tr></thead>
+    <tbody>
+      <tr><td><code>.claude/skills/&lt;スキル名&gt;/assets/slides.template.html</code></td><td>新規</td><td>スライド型8種の見本を含む自己完結テンプレート</td></tr>
+      <tr><td><code>.claude/skills/&lt;スキル名&gt;/SKILL.md</code></td><td>新規</td><td>コピー→型選択→穴埋め→残存チェックの手順定義</td></tr>
+      <tr><td><code>.claude/agents/&lt;構成設計&gt;.md</code></td><td>新規</td><td>サブエージェント①（読み取り専用・構成案JSONを返す）</td></tr>
+      <tr><td><code>.claude/agents/&lt;HTML生成&gt;.md</code></td><td>新規</td><td>サブエージェント②（構成に忠実・差し戻し条件付き）</td></tr>
+      <tr><td>構成案JSONスキーマ（置き場所はフェーズ2で確定）</td><td>新規</td><td>.pptx 書き出しの入力にできるスキーマ定義</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="phase-apply">
+  <h2>フェーズ4〈反映〉</h2>
+  <p>反映対象は flow-id 4-1 で洗い出す。現時点の見込み候補（確定した反映内容ではない）:</p>
+  <ul>
+    <li><code>.claude/rules/directory-structure.md</code> のツリーへ新スキル・エージェントを追記（受け入れ条件）</li>
+    <li>出力先ディレクトリ等の意思決定をDDRへ記録（<code>generate-ddr-list.sh</code> の再実行を含む）</li>
+    <li>AIアセット反映・実装反映は 4-1 の洗い出し結果に従う</li>
+  </ul>
+</section>
+
+<section id="approach">
+  <h2>方針（フェーズ5〈クローズ〉を含む）</h2>
+  <p>フェーズ5は通常どおり実施する（5-1 コンフリクト検知 → 5-2 関連issue通知の要否確認 → 5-3 <code>.gemini/</code> 変換同期 → 5-4 統括レポート → 5-5 片付け → 5-6 Draft解除）。マージ（5-7）は行わない。</p>
+  <p>5-2 の投稿は <code>AskUserQuestion</code> での承認が必須のため、非対話セッションでは投稿せず、候補の提示にとどめて HANDOFF.md へ記録する。</p>
+</section>
+
+<section id="out-of-scope">
+  <h2>やらないこと（スコープ外）</h2>
+  <div class="box stop">
+    <span class="label">この計画では決めない・触らない</span>
+    <ul>
+      <li>.pptx 書き出しの実装（別issue。構成案JSONを入力にできる状態にするまでが本issue）</li>
+      <li>既存テンプレート3本（plans/reports/canvas）の変更</li>
+      <li>PRのマージ（flow-id 5-7。人間の担当）</li>
+    </ul>
+  </div>
+</section>
+
+<section id="verify">
+  <h2>検証</h2>
+  <p>issue #168 の受け入れ条件10項目が満たせていることをissue全体の完了条件とする。</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>受け入れ条件</th><th>対応フェーズ</th></tr></thead>
+    <tbody>
+      <tr><td>テンプレートが外部依存ゼロで8種の見本が表示される</td><td>フェーズ3</td></tr>
+      <tr><td>キーボード・クリックのページ送りと進行表示</td><td>フェーズ3</td></tr>
+      <tr><td>印刷プレビューで1スライド1ページ</td><td>フェーズ3</td></tr>
+      <tr><td>SKILL.md の手順どおりでスライドHTMLが1本完成する</td><td>フェーズ3</td></tr>
+      <tr><td>サブエージェント①の入出力形式と「HTML生成は行わない」境界の明記</td><td>フェーズ3</td></tr>
+      <tr><td>構成案JSONスキーマが定義され .pptx 書き出しの入力にできる</td><td>フェーズ3</td></tr>
+      <tr><td>サブエージェント②の入力と「構成を作り直さない」境界・差し戻し条件の明記</td><td>フェーズ3</td></tr>
+      <tr><td>プレースホルダ残存チェックの方法が SKILL.md に書かれている</td><td>フェーズ3</td></tr>
+      <tr><td>directory-structure.md のツリーへ追記</td><td>フェーズ4</td></tr>
+      <tr><td>新規mdのfrontmatterが規約に沿い index.jsonl に載る</td><td>フェーズ3・4</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<footer>issue #168 / PR #194 — 計画の正文は同名の <code>.md</code>。外部依存を持たない自己完結HTML。</footer>
+
+</div>
+</body>
+</html>
