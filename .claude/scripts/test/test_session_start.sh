@@ -305,5 +305,103 @@ else
 fi
 assert_success "指示文は1000バイト未満（しきい値8000に対して十分小さい）" "$status"
 
+# --- current_flow_id_to_reply: 現在地flow-idの解決（issue #160） -----------------
+
+tmp_handoff_dir="$(mktemp -d)"
+trap 'rm -rf "$tmp_handoff_dir"' EXIT
+
+# ケース1: 進捗表なし（ファイル自体が無い）→ 空（fail-open）
+current_flow_id_to_reply "$tmp_handoff_dir/no-such-file.md"
+assert_eq "現在地解決: ファイルが無ければ空を返す" "" "$REPLY"
+
+# ケース2: 全行 [] → 最初の行
+cat > "$tmp_handoff_dir/fresh.md" <<'H'
+| 進捗 | flow-id | ステップ | 担当 |
+|---|---|---|---|
+| [] | 1-1 | issueを起票する | 人間 |
+| [] | 1-2 | issueの内容を取得する | `start` |
+H
+current_flow_id_to_reply "$tmp_handoff_dir/fresh.md"
+assert_eq "現在地解決: 全行 [] なら最初の行" "1-1" "$REPLY"
+
+# ケース3: 穴あき・[-] 混在 → 最後の [x]/[-] より後の最初の []
+#（1-5 が [] のまま残っていても、後続の [x] があれば現在地は先へ進む。
+#  「最初の [] を採る」方式では 1-5 を返し続けてしまう）
+cat > "$tmp_handoff_dir/skip.md" <<'H'
+| 進捗 | flow-id | ステップ | 担当 |
+|---|---|---|---|
+| [x] | 1-4 | 全体作業計画 | エージェント |
+| [] | 1-5 | 合意 | 人間 |
+| [x] | 1-6 | HANDOFF更新 | エージェント |
+| [-] | 2-1 | 個別調査計画 | エージェント |
+| [] | 2-2 | commit/push | エージェント |
+| [] | 2-3 | レビュー | 人間 |
+H
+current_flow_id_to_reply "$tmp_handoff_dir/skip.md"
+assert_eq "現在地解決: 最後の [x]/[-] の次の [] を採る（1-5 に留まらない）" "2-2" "$REPLY"
+
+# ケース4: 書式が想定と違う（進捗表の行が1つも無い）→ 空（fail-open）
+cat > "$tmp_handoff_dir/broken.md" <<'H'
+# HANDOFF
+進捗表はまだ無い。
+H
+current_flow_id_to_reply "$tmp_handoff_dir/broken.md"
+assert_eq "現在地解決: 進捗表の行が無ければ空を返す" "" "$REPLY"
+
+# 全行 [x]（末尾まで完了）→ 空
+cat > "$tmp_handoff_dir/done.md" <<'H'
+| 進捗 | flow-id | ステップ | 担当 |
+|---|---|---|---|
+| [x] | 5-5 | Draft解除 | エージェント |
+| [x] | 5-6 | マージ | 人間 |
+H
+current_flow_id_to_reply "$tmp_handoff_dir/done.md"
+assert_eq "現在地解決: 全行完了なら空を返す" "" "$REPLY"
+
+# --- refs_for_flow_id_to_reply: 参照列の抽出（issue #160） ------------------------
+
+cat > "$tmp_handoff_dir/skill.md" <<'H'
+| フェーズ | 範囲 | 内容 |
+|---|---|---|
+| 1 | 1-1〜1-6 | 起点 |
+
+| flow-id | ステップ | 担当 | 参照 |
+|---|---|---|---|
+| 1-1 | issueを起票する | 人間 | — |
+| 3-6 | 作業を進める | エージェント | `references/deliverables.md` |
+H
+refs_for_flow_id_to_reply "$tmp_handoff_dir/skill.md" "3-6"
+assert_eq "参照抽出: 指定flow-idの参照列を返す" '`references/deliverables.md`' "$REPLY"
+refs_for_flow_id_to_reply "$tmp_handoff_dir/skill.md" "1-1"
+assert_eq "参照抽出: 参照が不要な行は — を返す" "—" "$REPLY"
+refs_for_flow_id_to_reply "$tmp_handoff_dir/skill.md" "9-9"
+assert_eq "参照抽出: 存在しないflow-idでは空を返す（fail-open）" "" "$REPLY"
+refs_for_flow_id_to_reply "$tmp_handoff_dir/no-such-file.md" "1-1"
+assert_eq "参照抽出: ファイルが無ければ空を返す（fail-open）" "" "$REPLY"
+
+# --- ROW_RE: update-handoff-progress.sh 側と同一リテラルであること（issue #160） --
+# source で共有できない（あちらの set -e がhookの fail-open を壊し、main も衝突する）ため
+# 複製しており、ズレをここで機械検出する。
+row_re_hook="$(grep '^ROW_RE=' "$repo_root/.claude/hooks/session-start.sh")"
+row_re_script="$(grep '^ROW_RE=' "$repo_root/.claude/scripts/src/update-handoff-progress.sh")"
+assert_eq "ROW_RE: hook側とupdate-handoff-progress.sh側のリテラルが完全一致する" \
+  "$row_re_script" "$row_re_hook"
+assert_contains "ROW_RE: 空定義ではない（grepが実際に定義行を取れている）" \
+  "$row_re_hook" "ROW_RE='^"
+
+# --- format_skill_reload_instruction: 参照行の出し分け（issue #160） --------------
+
+instruction_with_refs="$(format_skill_reload_instruction 'テスト用の根拠' '現在地 flow-id 3-6 の実行前に開く参照: `references/deliverables.md`')"
+assert_contains "指示文: 第2引数の参照行が末尾へ付く" \
+  "$instruction_with_refs" '現在地 flow-id 3-6 の実行前に開く参照'
+assert_eq "指示文: 参照行が最終行に置かれる" \
+  '現在地 flow-id 3-6 の実行前に開く参照: `references/deliverables.md`' \
+  "$(printf '%s' "$instruction_with_refs" | tail -1)"
+instruction_no_refs="$(format_skill_reload_instruction 'テスト用の根拠')"
+assert_not_contains "指示文: 参照行なしでは『現在地』の行を出さない" \
+  "$instruction_no_refs" "現在地"
+assert_eq "指示文: 参照行なしでも末尾に空行が残らない（最終行が非空）" "1" \
+  "$([ -n "$(printf '%s' "$instruction_no_refs" | tail -1)" ] && echo 1)"
+
 echo "passed=$passed failures=$failures"
 [ "$failures" -eq 0 ]

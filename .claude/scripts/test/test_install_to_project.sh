@@ -83,10 +83,11 @@ describe_headings() {
   awk '
     /^### `describe`/ { in_section = 1; next }
     /^### /           { in_section = 0 }
+    /^## /            { in_section = 0 }
     in_section && /^[[:space:]]*(Closes|## )/ {
       sub(/^[[:space:]]+/, "", $0); print
     }
-  ' "${REPO_ROOT}/.claude/skills/issue-mr-flow/SKILL.md"
+  ' "${REPO_ROOT}/.claude/skills/issue-mr-flow/references/review-loop.md"
 }
 expected_headings="$(describe_headings)"
 

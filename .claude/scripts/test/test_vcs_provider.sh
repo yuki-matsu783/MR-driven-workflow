@@ -281,9 +281,24 @@ assert_contains "mcp_tool_hint: upload_attachment はスキップしてよいと
 assert_contains "mcp_tool_hint: upload_attachment は層1・層2で成立する旨を添える（issue #111）" \
   "$upload_hint" "層1・層2"
 
-assert_eq "mcp_tool_hint: 未知の関数名でも空にならずSKILL.mdの対応表へ誘導する" \
-  "対応するMCPツールは .claude/skills/issue-mr-flow/SKILL.md の対応表を参照" \
+assert_eq "mcp_tool_hint: 未知の関数名でも空にならず対応表（references/mcp-fallback.md）へ誘導する" \
+  "対応するMCPツールは .claude/skills/issue-mr-flow/references/mcp-fallback.md の対応表を参照" \
   "$(mcp_tool_hint unknown_function)"
+
+# require_vcs_cli の出力検証（issue #160で新設。従来はどのテストも373行目の出力を見ておらず、
+# 案内先を変え忘れても全テストが緑のまま通った。調査 D-3）。
+# 差し替えはサブシェルへ閉じ込め、assert_* はサブシェルの外で行う（unset -f は実定義を消す）。
+require_vcs_cli_output="$( get_vcs_access_mode() { printf 'mcp\n'; }; require_vcs_cli get_issue 2>&1 || true )"
+assert_contains "require_vcs_cli: MCPフォールバックの手順の場所（references/mcp-fallback.md）を案内する" \
+  "$require_vcs_cli_output" ".claude/skills/issue-mr-flow/references/mcp-fallback.md"
+assert_contains "require_vcs_cli: WebFetch・curlへ逃げない旨を案内する（DDR i0014-01）" \
+  "$require_vcs_cli_output" "WebFetch"
+if ( get_vcs_access_mode() { printf 'mcp\n'; }; require_vcs_cli get_issue >/dev/null 2>&1 ); then
+  require_vcs_cli_status=0
+else
+  require_vcs_cli_status=1
+fi
+assert_eq "require_vcs_cli: mcp経路では失敗（終了コード1）を返す" "1" "$require_vcs_cli_status"
 
 get_provider() { printf 'gitlab\n'; }
 
