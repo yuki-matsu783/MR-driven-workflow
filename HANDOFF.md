@@ -61,7 +61,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 | [x] | 4-9 | レビュー内容を取得し設計・AIアセットの内容を修正する | comments/reply |
 | [x] | 4-10 | 反映内容をもとにMR descriptionを更新する | describe |
 | [x] | 5-1 | defaultブランチとのコンフリクトを検知・解消する | エージェント |
-| [] | 5-2 | 関連issueへの通知の要否を判定し承認を得てから通知する | エージェント |
+| [x] | 5-2 | 関連issueへの通知の要否を判定し承認を得てから通知する | エージェント |
 | [] | 5-3 | .claude/の変更を.gemini/へ変換同期する | エージェント |
 | [] | 5-4 | 最終統括レポートを作成しPR/MRへ反映する | エージェント |
 | [] | 5-5 | wip/plans・wip/worklogs・wip/reportsを削除しHANDOFF.mdをリセットする | エージェント |
@@ -377,16 +377,22 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
     `passed=N failures=0`（既存17本＋main側で新設された3本: `test_check_dist_coverage.sh`・
     `test_check_doc_references.sh`・`test_select_adversarial_findings.sh`）を確認。
 
+- flow-id 5-2: 差分（`wip/plans/` `wip/worklogs/` `wip/reports/`除外）からキーワードを抽出し
+  `search_issues`で候補6件を取得した。最も関連度が高いissue #172（open、「`.gemini/`の生成対象から
+  `hooks/` `scripts/` `docs/`を外すかを判断し、理由を記録する」）について、`AskUserQuestion`で
+  通知の承認を得たうえで`add_issue_comment`で通知した（依存関係: issue #105が追加した
+  `gemini-cli-telemetry.md`specは`sync-gemini-assets.sh`経由で`.gemini/docs/spec/`へもミラー
+  されており、#172が`docs/`を生成対象から除外すると決めた場合このミラーが消える旨。コメントURL:
+  https://github.com/yuki-matsu783/MR-driven-workflow/issues/172#issuecomment-5387950189）。
+  他の候補issue #97・#70はいずれもclosedで本MRがそれらのコア挙動を変えていないため通知対象から
+  除外した。
+
 ## 次にやること
 
 フェーズ5（クローズ）を継続する。**`issue-mr-flow/SKILL.md`の現行定義はmainのマージにより
 5-1〜5-7（7ステップ、`.claude/`→`.gemini/`同期が独立ステップ5-3として明示された版）へ変わった**
 （旧6ステップ定義から変更。上記進捗表は7ステップへ更新済み）。
 
-- 5-2: 今回のMRが影響する関連issueを特定し、承認を得てから通知する（`wip/plans/` `wip/worklogs/`
-  `wip/reports/`を差分から除外してキーワード抽出→`search_issues`→`AskUserQuestion`で対象issueと
-  本文を承認→`add_issue_comment`）。影響先が無ければスキップしてよい（その場合も判断結果を
-  リセット前にここへ1行残す）。
 - 5-3: `bash .claude/scripts/src/sync-gemini-assets.sh`を実行し`.claude/`→`.gemini/`の変換同期を
   最終確認する（本セッションでは各編集後に都度実行済みだが、独立ステップとして再確認する。
   このステップ自身はcommitを持たず、生えた差分は直後の5-4のcommitに載る）。
