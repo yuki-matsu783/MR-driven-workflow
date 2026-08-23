@@ -73,6 +73,7 @@
          border-radius: 0 var(--radius) var(--radius) 0; padding: 12px 16px; margin: 16px 0; }
   .box > :first-child { margin-top: 0; } .box > :last-child { margin-bottom: 0; }
   .box .label { font-size: 12px; font-weight: 700; letter-spacing: .06em; display: block; margin-bottom: 4px; }
+  .box.warn { border-color: var(--warn); background: var(--warn-soft); } .box.warn .label { color: var(--warn); }
   .box.stop { border-color: var(--stop); background: var(--stop-soft); } .box.stop .label { color: var(--stop); }
   footer { color: var(--muted); font-size: 13px; text-align: center; padding-top: 10px; }
 </style>
@@ -89,6 +90,7 @@
       <li><b>ブランチ</b> claude/html-slide-skill-template-ymue7k</li>
       <li><b>PR</b> #194（Draft）</li>
       <li><b>フェーズ</b> 2〈調査〉 flow-id 2-1</li>
+      <li><b>上位計画</b> wip/plans/html-slides-skill-plan.md</li>
       <li><b>作成日</b> 2026-08-23</li>
       <li><b>正文</b> 同名の .md</li>
     </ul>
@@ -97,28 +99,51 @@
 
 <div class="wrap">
 
+<section id="premise">
+  <h2>前提（合意状況）</h2>
+  <ul>
+    <li>上位計画: <code>wip/plans/html-slides-skill-plan.md</code>（flow-id 1-4 で作成。<b>flow-id 1-5 の人間合意は非対話セッションのため未取得</b>であり、ユーザーの当初指示を包括的な承認として進めている。上位計画に人間から異議が出た場合、本計画のQ1〜Q8とその結論も見直しの対象になる）。</li>
+    <li>したがって Q3（スキル名）・Q4（出力先）・Q5（スキーマの置き場所）の採用案は、フェーズ3の前提になるが<b>人間の再確認対象</b>である（PRレビューで異議があれば差し戻す）。</li>
+  </ul>
+</section>
+
 <section id="goal">
   <h2>この計画で何をするか</h2>
-  <p>既存の規約・実例・影響範囲を調べ、個別作業計画（flow-id 3-1）が書ける状態にする。調査項目は次の7つの問い（Q1〜Q7）。</p>
+  <p>フェーズ3で作る4点（スライドテンプレート・SKILL.md・サブエージェント2本・構成案JSONスキーマ）の設計を確定するために、既存の規約・実例・影響範囲を調べ、個別作業計画（flow-id 3-1）が書ける状態にする。</p>
 </section>
 
 <section id="target">
-  <h2>調査項目（変更対象に代わる調査対象）</h2>
-  <p>本計画はファイルを変更しない（調査のみ）。調査対象と問いは次のとおり。</p>
+  <h2>変更対象</h2>
+  <p>本計画はリポジトリのファイルを変更しない（調査のみ）。成果物は調査レポート <code>wip/reports/2026-08-23_html-slides-skill-plan_前提調査.md</code>（+同名.html）の新規作成のみ。</p>
+</section>
+
+<section id="questions">
+  <h2>調査項目（問いの形）</h2>
   <div class="tablewrap">
   <table>
     <thead><tr><th>#</th><th>問い</th><th>調べ方</th><th>何が分かれば次へ進めるか</th></tr></thead>
     <tbody>
       <tr><td>Q1</td><td>既存テンプレート3本の冒頭コメント・スタイル変数・ダークモード対応・プレースホルダ検査はどう作られているか</td><td><code>plans.template.html</code> / <code>reports.template.html</code> / <code>canvas-report.html</code> を読み共通構成を表にする</td><td><code>slides.template.html</code> が踏襲すべき要素の一覧</td></tr>
-      <tr><td>Q2</td><td>サブエージェント定義のfrontmatter・本文構成・ツール制限はどう書かれているか</td><td><code>.claude/agents/</code> 既存2本を読む</td><td>新規エージェント2本のfrontmatterと見出し構成の型</td></tr>
+      <tr><td>Q2</td><td>サブエージェント定義のfrontmatter・本文構成・ツール制限はどう書かれているか</td><td><code>.claude/agents/</code> 既存2本を読む</td><td>新規エージェント2本のfrontmatter（<code>name</code>/<code>description</code>/<code>tools</code>/<code>model</code>等）と見出し構成の型</td></tr>
       <tr><td>Q3</td><td>スキル名は何にするか</td><td>既存スキル名の命名傾向を確認し候補を比較する</td><td><code>.claude/skills/&lt;スキル名&gt;/</code> の確定</td></tr>
-      <tr><td>Q4</td><td>スライドHTMLの出力先ディレクトリの既定はどこにするか</td><td><code>wip/reports/</code> の寿命・<code>.gitignore</code>・<code>directory-structure.md</code> を確認し選択肢を比較する</td><td>既定の出力先と寿命・ignore上の扱いの確定</td></tr>
-      <tr><td>Q5</td><td>構成案JSONスキーマはどこに・どの形式で置くか</td><td><code>assets/</code>・<code>references/</code>・<code>scripts/</code> の語彙定義と検証手段（jq）を確認する</td><td>置き場所・形式・参照方法の確定</td></tr>
+      <tr><td>Q4</td><td>スライドHTMLの出力先ディレクトリの既定はどこにするか</td><td><code>wip/reports/</code> の寿命・<code>.gitignore</code>・<code>directory-structure.md</code> に加え、新規出力先を選んだ場合の影響先として <code>dist-layers.json</code>（層分け・localエントリ）・<code>check-dist-coverage.sh</code> の検査2・<code>cleanup-task.sh</code> の削除対象（<code>.mrworkflow.json</code>）を確認し、選択肢を比較する</td><td>既定の出力先と寿命・ignore・配布層・片付け対象の扱いの確定</td></tr>
+      <tr><td>Q5</td><td>構成案JSONスキーマはどこに・どの形式で置き、最低限何を保持すべきか</td><td>置き場所は <code>assets/</code>・<code>references/</code>・<code>scripts/</code> の語彙定義から選ぶ（上位計画の2択に <code>scripts/</code> を加える。差分の理由はmd側Q5の1行が正）。内容は受け入れ条件6を満たすため、スライド型8種ごとの構造・話者ノート・必須／任意の区別など保持すべき情報を洗い出す。検証手段（jq）も確認する</td><td>置き場所・形式・保持すべき情報の一覧・参照方法の確定</td></tr>
       <tr><td>Q6</td><td>新規ファイルは配布・同期・インデックスの仕組みにどう影響するか</td><td><code>dist-layers.json</code>・<code>check-dist-coverage.sh</code>・<code>sync-gemini-assets.sh</code>・<code>extract-frontmatter.sh</code> を確認する</td><td>必要な設定変更の一覧（無ければ根拠）</td></tr>
-      <tr><td>Q7</td><td>ドキュメントへの追記はどこに必要か</td><td><code>directory-structure.md</code> のツリー・<code>markdown-frontmatter.md</code> の type 表を確認する</td><td>フェーズ4で追記すべき箇所の一覧</td></tr>
+      <tr><td>Q7</td><td>ドキュメントへの追記はどこに必要か</td><td><code>directory-structure.md</code> のツリー・<code>markdown-frontmatter.md</code> の type 表に加え、同ファイルの「対象外・特殊対応ファイル」表（SKILL.md・agents の <code>description</code> 流用規定）を確認する</td><td>フェーズ4で追記すべき箇所の一覧（<code>description</code> の扱いを含む）</td></tr>
+      <tr><td>Q8</td><td>ページ送り・進行表示・印刷レイアウトはどう実装し、どう検証するか</td><td>既存3本に前例が無いため、<code>file://</code> で動くキーボード/クリックハンドラと <code>@media print</code> の1スライド1ページ割り付けの方式を整理し、ブラウザの無い実行環境で確認できる範囲／できない範囲を切り分ける（できない範囲は誰がいつ実機確認するかを決める）。受け入れ条件4の確認方法も同じ枠で決める</td><td>フェーズ3の実装方式と検証計画（機械検証の一覧と実機確認に残る一覧）</td></tr>
     </tbody>
   </table>
   </div>
+</section>
+
+<section id="approach">
+  <h2>方針</h2>
+  <ul>
+    <li><b>一次情報はリポジトリ内のファイルとissue本文に限る</b>（外部Webは参照しない）。</li>
+    <li><b>打ち切り基準</b>: 各問いは「何が分かれば次へ進めるか」列の状態に達したら打ち切る。それ以上の深掘りはフェーズ3の個別作業計画側で行う。</li>
+    <li><b>答えが割れた場合</b>: 比較表（利点・欠点・採否と理由）を調査レポートへ残して1案を推す。最終確定はフェーズ3の計画レビュー（PR上）に委ねる。</li>
+    <li>調査結果は計画ファイルへ書かず、<code>wip/reports/</code> のレポートへ書く（issue #87 の分離）。</li>
+  </ul>
 </section>
 
 <section id="out-of-scope">
@@ -126,8 +151,8 @@
   <div class="box stop">
     <span class="label">この計画では決めない・触らない</span>
     <ul>
-      <li>テンプレート・スキル・エージェントの実装（フェーズ3へ送る）</li>
-      <li>出力先ディレクトリ以外の新規ディレクトリ提案</li>
+      <li>テンプレート・スキル・エージェントの実装（フェーズ3へ送る。flow-id 3-1 の個別作業計画で確定）</li>
+      <li>リポジトリ直下への新規ディレクトリ追加の提案（Q4の選択肢として比較はするが、採用判断とDDR記録はフェーズ3の計画レビューとフェーズ4へ送る。スキル配下のサブディレクトリ（assets/ references/ scripts/）は Q5 の対象に<b>含む</b>）</li>
       <li>既存テンプレート3本の変更</li>
     </ul>
   </div>
@@ -135,7 +160,23 @@
 
 <section id="verify">
   <h2>検証</h2>
-  <p>調査結果を <code>wip/reports/2026-08-23_html-slides-skill-plan_前提調査.md</code>（+同名.html）に記録し、Q1〜Q7のすべてに答えが書かれていること。Q3・Q4・Q5は選択肢の比較（利点・欠点・採否）を含むこと。</p>
+  <p>調査レポート（md+html）の完成を、次の実行可能なコマンドで機械的に検査する。</p>
+  <pre><code># (1) Q1〜Q8の未回答が0件であること（レポートの見出しにQ1〜Q8が全て存在する）
+for q in Q1 Q2 Q3 Q4 Q5 Q6 Q7 Q8; do
+  grep -c "## ${q}" "wip/reports/2026-08-23_html-slides-skill-plan_前提調査.md"
+done   # 合格: 8行すべて 1 以上
+
+# (2) HTMLビューにプレースホルダが残っていないこと
+grep -c '&lt;!-- ここに書く' "wip/reports/2026-08-23_html-slides-skill-plan_前提調査.html"   # 合格: 0
+
+# (3) HTMLビューが外部を読みに行かないこと（2種とも0件）
+grep -nE "(src|href)=['\"]?(https?:)?//" "wip/reports/2026-08-23_html-slides-skill-plan_前提調査.html"
+grep -nE "(url\(|@import[[:space:]]+)['\"]?(https?:)?//" "wip/reports/2026-08-23_html-slides-skill-plan_前提調査.html"
+
+# (4) レポートmdのfrontmatterが index.jsonl に載ること
+bash .claude/scripts/src/extract-frontmatter.sh . >/dev/null 2>&amp;1
+grep -c '前提調査' wip/reports/index.jsonl   # 合格: 1 以上</code></pre>
+  <p>合格条件: (1) 8問すべて1以上、(2) 0、(3) 出力なし、(4) 1以上。加えて Q3・Q4・Q5 の答えに選択肢の比較（利点・欠点・採否）が含まれることをレビューで確認する（比較の有無は機械判定できないため、この1点のみ目視）。</p>
 </section>
 
 <footer>issue #168 / PR #194 — 計画の正文は同名の <code>.md</code>。外部依存を持たない自己完結HTML。</footer>
