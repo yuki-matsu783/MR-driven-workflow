@@ -194,20 +194,24 @@ assert_eq "T9: エラーメッセージに未知のキー名が出る" "1" \
 # =========================================================================
 
 scratch="$tmp_root/scratch"
-mkdir -p "$scratch/.claude/agents" "$scratch/.claude/rules" "$scratch/.claude/state" \
+mkdir -p "$scratch/.claude/agents" "$scratch/.claude/rules" \
          "$scratch/.claude/docs" "$scratch/.claude/scripts/src"
 git -C "$scratch" init -q 2>/dev/null || git -C "$scratch" init >/dev/null 2>&1
 
+# ローカル状態は issue #184 で .claude/ の外（wip/state/）へ出たため、`.claude/` 配下に
+# 残る .gitignore 対象の代表として settings.local.json を使う（`-- .claude` の列挙範囲に
+# 入るものでなければ、除外されることの確認にならない）。
 cat > "$scratch/.gitignore" <<'EOF'
 **/index.jsonl
-/.claude/state/
+/.claude/settings.local.json
 EOF
 cp "$fixtures/settings-input.json" "$scratch/.claude/settings.json"
 cp "$fixtures/agent-comma.md.fixture" "$scratch/.claude/agents/comma-agent.md"
 printf -- '---\ntitle: ルール\ntype: rule\n---\n\n本文\n' > "$scratch/.claude/rules/a.md"
 # 除外されるべきもの（生成物とローカル状態）
 printf '{"concept_id":"x"}\n' > "$scratch/.claude/docs/index.jsonl"
-printf 'local\n' > "$scratch/.claude/state/last-push-sha"
+printf '{"env":{"OTEL_EXPORTER_OTLP_ENDPOINT":"http://127.0.0.1:4318"}}\n' \
+  > "$scratch/.claude/settings.local.json"
 cp "$target" "$scratch/.claude/scripts/src/sync-gemini-assets.sh"
 
 run_sync() { ( cd "$scratch" && bash .claude/scripts/src/sync-gemini-assets.sh "$@" ); }
@@ -217,8 +221,8 @@ assert_eq "main: 生成が成功する" "0" "$(status_of run_sync)"
 # --- T8: 除外対象が出力に含まれないこと --------------------------------------
 assert_eq "T8: index.jsonl は出力に含まれない" "0" \
   "$(find "$scratch/.gemini" -name index.jsonl | wc -l | tr -d ' ')"
-assert_eq "T8: state/ は出力に含まれない" "0" \
-  "$(find "$scratch/.gemini" -path '*/state/*' | wc -l | tr -d ' ')"
+assert_eq "T8: settings.local.json は出力に含まれない" "0" \
+  "$(find "$scratch/.gemini" -name 'settings.local.json' | wc -l | tr -d ' ')"
 assert_eq "T8: 変換対象の .claude/settings.json はコピーされず生成される" "1" \
   "$(find "$scratch/.gemini" -maxdepth 1 -name settings.json | wc -l | tr -d ' ')"
 assert_eq "T8: settings.json は変換後の内容（general.plan.directory を持つ）" "./plans" \
