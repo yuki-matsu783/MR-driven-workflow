@@ -4,7 +4,7 @@ type: ddr
 description: SessionStart hookの注入テキスト末尾へ「issue-mr-flow SKILL.mdを読み直すこと」の指示を足し、対象判定はブランチ名のissue命名規則一致とブランチ固有作業ファイルの有無の2材料で行うと決めた
 tags: [ddr, session-start-hook, compact, issue-mr-flow]
 keywords: [compact, SKILL.md, 再読み込み, additionalContext, 対象ブランチ判定, 命名規則, 作業ファイル, fail-open, 注入量, しきい値]
-note: '本文中の「flow-id 5-3」（HANDOFF.mdのリセット＝片付け）は当時の番号。issue #111 の統括レポート追加で 5-4、issue #70 の変換同期の新設により現在は flow-id 5-5。DDR i0111-01 参照'
+note: '本文中の「flow-id 5-3」（HANDOFF.mdのリセット＝片付け）は当時の番号。issue #111 の統括レポート追加で 5-4、issue #70 の変換同期の新設により現在は flow-id 5-5（DDR i0111-01 参照）。また前提の「SKILL.mdは1,100行超」はissue #160の分割前の値で、現在は本文約190行＋references/ 7ファイル。詳細は i0160-01'
 ---
 
 # i0113-01. issue-mr-flow対象ブランチではSKILL.mdの再読み込みを注入で促す

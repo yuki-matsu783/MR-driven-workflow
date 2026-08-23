@@ -243,5 +243,5 @@ DDR i0133-01「全件改番へ方針を変えた経緯」）。対応issueを特
 - **本スクリプトはPR作成後の追従監視から繰り返し呼ばれる**（issue #88）。作業ツリーを変更せず、
   引数なしで何度でも実行でき、結果を終了コードではなく `hasConflict` で返す設計は、この繰り返し
   実行にそのまま使える（スクリプト側の変更は不要だった）。監視の手順・自動解消の線引き・停止条件は
-  `.claude/skills/issue-mr-flow/SKILL.md`「PR作成後のdefaultブランチ追従（監視）」節、
+  `.claude/skills/issue-mr-flow/references/base-branch-followup.md`「PR作成後のdefaultブランチ追従（監視）」節、
   経緯は `.claude/docs/ddr/i0088-01-PR作成後のdefaultブランチ追従は並行手順として定義し自動解消は一意に決まる類型に限る.md` を参照。

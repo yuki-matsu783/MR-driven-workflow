@@ -81,6 +81,14 @@ for rel in .github/pull_request_template.md .gitlab/merge_request_templates/Defa
   assert_eq "新規配布先へ配置される: $rel" "1" "$(exists "$dest_new/$rel")"
 done
 
+# issue-mr-flowスキルは references/ 配下が無いと成立しない（issue #160）。本家とファイル名の
+# 集合が一致することを表明する（件数だけだと、別名への置き換わり・増減の同時発生を見逃す）。
+refs_src="$(cd "${REPO_ROOT}/.claude/skills/issue-mr-flow/references" && ls -1 ./*.md)"
+refs_dest="$(cd "$dest_new/.claude/skills/issue-mr-flow/references" 2>/dev/null && ls -1 ./*.md || true)"
+assert_eq "新規配布先へ references/*.md が本家と同じ構成で配置される" "$refs_src" "$refs_dest"
+if [ -n "$refs_src" ]; then found=1; else found=0; fi
+assert_eq "本家の references/*.md が空振りしていない（比較元が非空）" "1" "$found"
+
 assert_eq "配布先のVERSIONが本家と一致する" \
   "$(cat "${REPO_ROOT}/.claude/VERSION")" "$(cat "$dest_new/.claude/VERSION")"
 
@@ -97,10 +105,11 @@ describe_headings() {
   awk '
     /^### `describe`/ { in_section = 1; next }
     /^### /           { in_section = 0 }
+    /^## /            { in_section = 0 }
     in_section && /^[[:space:]]*(Closes|## )/ {
       sub(/^[[:space:]]+/, "", $0); print
     }
-  ' "${REPO_ROOT}/.claude/skills/issue-mr-flow/SKILL.md"
+  ' "${REPO_ROOT}/.claude/skills/issue-mr-flow/references/review-loop.md"
 }
 expected_headings="$(describe_headings)"
 

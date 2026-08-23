@@ -148,7 +148,7 @@ frontmatter（`status` / `superseded_by` / `note`）だけから決まる。
 - [i0110-01-個別計画のタスク種別を6種から8種へ拡張する.md](ddr/i0110-01-個別計画のタスク種別を6種から8種へ拡張する.md)
 - [i0111-01-統括レポートの添付は任意層に置きフローを止めない.md](ddr/i0111-01-統括レポートの添付は任意層に置きフローを止めない.md)（本文中の「flow-id 5-3」（統括レポート）は当時の番号。issue #70 が変換同期を 5-3 として新設したため現在は flow-id 5-4）
 - [i0112-01-フェーズ5は片付けをcommit直前へ移した順序に並べ替える.md](ddr/i0112-01-フェーズ5は片付けをcommit直前へ移した順序に並べ替える.md)（本文中の 5-1〜5-5 は当時の番号。issue #111 の統括レポート追加と issue #70 の変換同期の新設により、片付けは 5-5・commit/Draft解除は 5-6・マージは 5-7 へ繰り下がっている）
-- [i0113-01-issue-mr-flow対象ブランチではSKILL.mdの再読み込みを注入で促す.md](ddr/i0113-01-issue-mr-flow対象ブランチではSKILL.mdの再読み込みを注入で促す.md)（本文中の「flow-id 5-3」（HANDOFF.mdのリセット＝片付け）は当時の番号。issue #111 の統括レポート追加で 5-4、issue #70 の変換同期の新設により現在は flow-id 5-5。DDR i0111-01 参照）
+- [i0113-01-issue-mr-flow対象ブランチではSKILL.mdの再読み込みを注入で促す.md](ddr/i0113-01-issue-mr-flow対象ブランチではSKILL.mdの再読み込みを注入で促す.md)（本文中の「flow-id 5-3」（HANDOFF.mdのリセット＝片付け）は当時の番号。issue #111 の統括レポート追加で 5-4、issue #70 の変換同期の新設により現在は flow-id 5-5（DDR i0111-01 参照）。また前提の「SKILL.mdは1,100行超」はissue #160の分割前の値で、現在は本文約190行＋references/ 7ファイル。詳細は i0160-01）
 - [i0117-01-削除済み追跡ファイルの除外はextract-frontmatter側で行う.md](ddr/i0117-01-削除済み追跡ファイルの除外はextract-frontmatter側で行う.md)（本文中の「flow-id 5-4」（削除をコミットする手順）は当時の番号。issue #111 の統括レポート追加で 5-5、issue #70 の変換同期の新設により現在は flow-id 5-6。DDR i0111-01 参照）
 - [i0127-01-差分アンカーの土台はプロバイダごとに分けGitLabはMR差分ページを使う.md](ddr/i0127-01-差分アンカーの土台はプロバイダごとに分けGitLabはMR差分ページを使う.md)
 - [i0133-01-DDR識別子はissue番号ベースにし連番採番をやめる.md](ddr/i0133-01-DDR識別子はissue番号ベースにし連番採番をやめる.md)
@@ -157,4 +157,5 @@ frontmatter（`status` / `superseded_by` / `note`）だけから決まる。
 - [i0141-01-canvasテンプレートはTailwind非依存の自己完結CSSにする.md](ddr/i0141-01-canvasテンプレートはTailwind非依存の自己完結CSSにする.md)（canvas形式をTailwind非依存にした決定は有効。ただし issue #54 で一覧・表形式のテンプレートも自己完結CSSになったため、「canvas形式だけが例外」という本文の前提は成り立たない。本文中の `templates/canvas-report.html` も当時のパスで、issue #54 で `assets/canvas-report.html` へ改名した。詳細は i0054-01）
 - [i0141-02-canvasデータモデルはフラットなparent参照にする.md](ddr/i0141-02-canvasデータモデルはフラットなparent参照にする.md)
 - [i0159-01-hookの前置フィルタは純粋関数によるバックスラッシュ除去と大文字小文字非依存比較で超集合を保つ.md](ddr/i0159-01-hookの前置フィルタは純粋関数によるバックスラッシュ除去と大文字小文字非依存比較で超集合を保つ.md)
+- [i0160-01-SKILL.mdの分割は読むタイミング単位で行い参照列とhookで機械的に注入する.md](ddr/i0160-01-SKILL.mdの分割は読むタイミング単位で行い参照列とhookで機械的に注入する.md)
 <!-- END GENERATED: ddr-list -->
