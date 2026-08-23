@@ -1,0 +1,190 @@
+<!--
+  issue #160「SKILL.mdのreferences分割」の最終統括レポート（flow-id 5-4）のHTMLビュー。
+  正文は同名の .md（reports/20260823_split-issue-mr-flow-skill-into-references_統括.md）で、
+  このHTMLはその視覚化である。土台: .claude/skills/issue-mr-flow/assets/reports.template.html
+-->
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>issue #160 SKILL.mdのreferences分割 最終統括レポート</title>
+<style>
+  :root {
+    --bg: #f6f7f9;      --panel: #ffffff;   --ink: #1a1d21;     --muted: #5b636d;
+    --line: #dfe3e8;    --accent: #2563eb;  --accent-soft: #eaf0fe;
+    --ok: #1a7f4b;      --ok-soft: #e6f4ec; --warn: #a35a00;    --warn-soft: #fdf1e0;
+    --stop: #b3261e;    --stop-soft: #fdecea; --code-bg: #f0f2f5;
+    --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1216;    --panel: #161a20;   --ink: #e6e8eb;     --muted: #9aa3ad;
+      --line: #2a3038;  --accent: #7aa2f7;  --accent-soft: #1b2333;
+      --ok: #6ee7a8;    --ok-soft: #14261d; --warn: #f0b866;    --warn-soft: #2a2113;
+      --stop: #f2857c;  --stop-soft: #2b1614; --code-bg: #1d222a;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", system-ui, sans-serif;
+    line-height: 1.8; font-size: 15px;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 20px 80px; }
+  header.band {
+    background: linear-gradient(135deg, var(--accent-soft), var(--panel));
+    border-bottom: 1px solid var(--line); padding: 28px 20px 22px; margin-bottom: 28px;
+  }
+  header.band .inner { max-width: 1080px; margin: 0 auto; }
+  header.band .kind { font-size: 11px; letter-spacing: .18em; color: var(--accent); font-weight: 700; }
+  header.band h1 { margin: 6px 0 4px; font-size: 26px; line-height: 1.4; }
+  header.band .lead { margin: 0; color: var(--muted); }
+  .meta { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; padding: 0; list-style: none; }
+  .meta li {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 999px;
+    padding: 3px 12px; font-size: 12.5px; color: var(--muted); white-space: nowrap;
+  }
+  .meta li b { color: var(--ink); font-weight: 600; }
+  nav.toc {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 14px 20px; margin-bottom: 28px;
+  }
+  nav.toc h2 { margin: 0 0 8px; font-size: 13px; letter-spacing: .08em; color: var(--muted); border: 0; padding: 0; }
+  nav.toc ol { margin: 0; padding-left: 20px; }
+  nav.toc li { margin: 2px 0; }
+  a { color: var(--accent); }
+  section {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 8px 24px 22px; margin-bottom: 22px;
+  }
+  h2 { font-size: 20px; margin: 20px 0 10px; padding-bottom: 8px; border-bottom: 2px solid var(--line); }
+  h3 { font-size: 16px; margin: 22px 0 8px; color: var(--accent); }
+  p { margin: 10px 0; }
+  ul, ol { padding-left: 22px; }
+  li { margin: 4px 0; }
+  .tablewrap { overflow-x: auto; margin: 14px 0; }
+  table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 14px; }
+  th, td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: var(--accent-soft); font-weight: 600; white-space: nowrap; }
+  tbody tr:nth-child(even) td { background: color-mix(in srgb, var(--line) 22%, transparent); }
+  code {
+    background: var(--code-bg); border-radius: 5px; padding: 1px 5px; font-size: 13px;
+    font-family: "SFMono-Regular", Consolas, "Noto Sans Mono", monospace;
+  }
+  .box { border-left: 4px solid var(--accent); background: var(--accent-soft);
+         border-radius: 0 var(--radius) var(--radius) 0; padding: 12px 16px; margin: 16px 0; }
+  .box > :first-child { margin-top: 0; } .box > :last-child { margin-bottom: 0; }
+  .box .label { font-size: 12px; font-weight: 700; letter-spacing: .06em; display: block; margin-bottom: 4px; }
+  .box.ok { border-color: var(--ok); background: var(--ok-soft); } .box.ok .label { color: var(--ok); }
+  .box.warn { border-color: var(--warn); background: var(--warn-soft); } .box.warn .label { color: var(--warn); }
+  .box.info .label { color: var(--accent); }
+  .tag { display: inline-block; border-radius: 999px; padding: 1px 9px; font-size: 12px; font-weight: 600; }
+  .tag.ok { background: var(--ok-soft); color: var(--ok); }
+  footer { color: var(--muted); font-size: 13px; text-align: center; padding-top: 10px; }
+</style></head>
+<body>
+
+<header class="band">
+  <div class="inner">
+    <div class="kind">最終統括レポート / フェーズ5</div>
+    <h1>issue #160 SKILL.mdのreferences分割 最終統括レポート</h1>
+    <p class="lead">issue-mr-flow/SKILL.md（約1,100行）を本文＋references/ 7ファイルへ分割し、参照タイミングを全体フロー表の「参照」列とSessionStart hookで機械化した。全テスト passed=1259 failures=0、別issue候補2件は上流で解消済みを確認し、残課題なし。</p>
+    <ul class="meta">
+      <li><b>issue</b> #160</li>
+      <li><b>ブランチ</b> claude/skill-split-references-z17fw4</li>
+      <li><b>PR</b> #161</li>
+      <li><b>フェーズ</b> 5〈クローズ〉 flow-id 5-4</li>
+      <li><b>push回数</b> 14</li>
+      <li><b>作成日</b> 2026-08-23</li>
+      <li><b>正文</b> 同名の .md</li>
+    </ul>
+  </div>
+</header>
+
+<div class="wrap">
+
+<nav class="toc">
+  <h2>目次</h2>
+  <ol>
+    <li><a href="#what">何を変えたか</a></li>
+    <li><a href="#why">なぜそうしたか</a></li>
+    <li><a href="#verify">検証結果</a></li>
+    <li><a href="#reflect">spec・DDRへの反映先</a></li>
+    <li><a href="#todo">残課題</a></li>
+  </ol>
+</nav>
+
+<section id="what">
+  <h2>何を変えたか</h2>
+  <ul>
+    <li><b><code>.claude/skills/issue-mr-flow/SKILL.md</code>（約1,100行）を、本文（入口・約190行）＋<code>references/</code> 7ファイルへ分割した。</b>本文に残るのは全体フロー表・PR/MR担当・詳細ルールへのポインタ・前提・旧節名の対応表。分割単位は行数ではなく<b>「いつ読むか」（同じflow-id群の実行前にまとめて開かれる単位）</b>。</li>
+    <li><b>全体フロー表へ「参照」列を新設</b>し、各flow-idの実行前に開くファイルをこの列で機械的に決められるようにした。参照タイミングの正はこの列の1箇所だけで、hook側に対応表を持たない。</li>
+    <li><b>SessionStart hookが現在地flow-idを解決して参照を注入する</b>（<code>current_flow_id_to_reply</code>: HANDOFF.md進捗表の「最後の <code>[x]</code>/<code>[-]</code> より後の最初の <code>[]</code>」）。解決に失敗したら参照行ごと出さないfail-open 4段。<code>references/mcp-fallback.md</code> だけは参照列で指さず、MCP経路と判定したときに限り別行で注入する。</li>
+    <li><b>旧節名からの導線</b>: 本文へ「旧節名→新しい場所の対応表」を置き、現在状態を説明する参照は移動先へ付け替えた（DDR本文・specの過去changelogは書き換えない）。</li>
+    <li><code>references/*.md</code> へ frontmatter <code>type: skill-reference</code> を新設して付与。配布資産の追加のため <code>.claude/VERSION</code> は 0.3.0 へ（MINOR）。</li>
+    <li><b>並行して進んだmainを2回取り込んだ</b>: PR #157（43ステップ化・<code>.gemini/</code> 変換同期の5-3挿入）とPR #154（manifest配布方式・<code>agent-common.md</code> 分離）。どちらも「配置の変更 vs 内容の変更」のコンフリクトで、解消手順を <code>resolve-conflict/SKILL.md</code> の<b>類型F</b>として一般化して追加した。</li>
+  </ul>
+</section>
+
+<section id="why">
+  <h2>なぜそうしたか</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>採用した判断</th><th>理由（却下した代替案）</th></tr></thead>
+    <tbody>
+      <tr><td>分割単位を「読むタイミング」にする</td><td>サイズ均等分割は1ステップの実行に複数ファイルをまたいで読む状態を作る。flow-idごとの読み込みバイト数の試算で、タイミング単位のほうが小さくなることを確認した（フェーズ2調査）</td></tr>
+      <tr><td>参照列＋hook注入で「いつ読むか」を機械の側へ倒す</td><td>「必要になったら読む」は、compact要約後に「読んだ」という認識だけが残る失敗モード（issue #113と同型）を references/ の粒度で再生産する。hook側に対応表を持つ案は表との二重管理になり、行の繰り下げ（issue #70で実際に発生）へ追従できない</td></tr>
+      <tr><td>fail-open（解決に失敗したら出さない）</td><td>DDR <code>i0113-01</code> が「誤った現在地の断定的注入」を理由に現在地要約の注入を却下した経緯と整合させた</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p>却下案5件の詳細は DDR <code>i0160-01</code> を参照。</p>
+</section>
+
+<section id="verify">
+  <h2>検証結果</h2>
+  <ul>
+    <li>単体テスト: bash 18ファイル <b>passed=1259 failures=0</b>・perl 2ファイル OK（mainのPR #154取り込み後の最終実行。<code>test_session_start.sh</code> には現在地解決・参照注入・ROW_RE一致・実物 <code>HANDOFF.md</code> からの回帰の各テストを新設）。</li>
+    <li>分割の同一性: 分割前のSKILL.md本文と「分割後の本文＋references/ 7本の結合」の見出し単位diffで、差分が見出しの再配置のみであることを確認（フェーズ3）。mainマージ後も同手法で等価性を確認。</li>
+    <li>hookの注入行の実測: 604〜919バイト（組み立て済みの1行。プレフィックス「現在地 flow-id … の実行前に開く参照: 」約50バイトを含む）。</li>
+    <li><code>bash -n</code> 構文チェック・コンフリクトマーカー走査・<code>generate-ddr-list.sh --check</code>（79件最新）・<code>check-dist-coverage.sh</code>（414/414件、references/ 7本が配布対象に含まれることを確認）すべて通過。</li>
+    <li>敵対的レビューを各フェーズで自動実施: フェーズ2で2回（12件反映ほか）・フェーズ3で2回（19件対応ほか）・フェーズ4で2回（11件対応: 実測値訂正・VERSION増分例外の明文化・類型F追加等）。投稿した全スレッドへ返信済み（未返信 0）。</li>
+  </ul>
+</section>
+
+<section id="reflect">
+  <h2>spec・DDRへの反映先</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>反映先</th><th>何を書いたか</th></tr></thead>
+    <tbody>
+      <tr><td><code>.claude/docs/spec/issue-mr-workflow.md</code></td><td>コンポーネント構成（SKILL.md本文＋references/ 7本）、「現在地flow-idと参照ファイルの注入（issue #160）」節（解決方法・fail-open 4段・フルパス化・表側の維持責任・mcp-fallback例外）、影響範囲changelog</td></tr>
+      <tr><td><code>.claude/docs/spec/update-handoff-progress.md</code></td><td><code>ROW_RE</code> を session-start.sh へ同一リテラルで複製した制約と、一致をテストで表明する設計</td></tr>
+      <tr><td><code>.claude/docs/spec/distribution-assets.md</code></td><td>非対話的セッションでのVERSION増分適用の例外の明文化</td></tr>
+      <tr><td><code>.claude/docs/ddr/i0160-01-…md</code></td><td>本決定の背景・却下案5件・i0113-01との関係</td></tr>
+      <tr><td><code>.claude/docs/ddr/i0113-01-…md</code></td><td>frontmatter <code>note</code> へ「SKILL.mdは1,100行超」が分割前の値である旨を追記（本文は不変）</td></tr>
+      <tr><td><code>.claude/skills/resolve-conflict/SKILL.md</code></td><td>類型F「配置の変更（分割・移動）vs 上流の内容変更」</td></tr>
+      <tr><td><code>.claude/rules/markdown-frontmatter.md</code> / <code>directory-structure.md</code> / <code>index.md</code></td><td><code>skill-reference</code> type・references/ 実例の反映</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="todo">
+  <h2>残課題</h2>
+  <div class="box ok">
+    <span class="label">なし</span>
+    フェーズ2調査で別issue候補としていた2件（配布物への <code>index.jsonl</code> 混入・<code>install-to-project.sh</code> の破壊的既定）は、いずれもmainのPR #154が解消済みであることを取り込み時に確認した（<code>dist-layers.json</code> が <code>**/index.jsonl</code> をlocal層＝配布対象外に分類・配布先ディレクトリ引数は必須化されエラーで止まる）。
+  </div>
+  <div class="box warn">
+    <span class="label">補足（制約の記録）</span>
+    hookのgit bash（Windows実機）での動作確認は本環境（Linuxリモート）では実施できていない。判定ロジックはbash組み込みのみで、既存の <code>session-start.sh</code> の枠内の変更のため、既知の環境差はspecの未決定事項としては追加していない。
+  </div>
+</section>
+
+<footer>issue #160 / PR #161 — 結果の正文は同名の <code>.md</code>。外部依存を持たない自己完結HTML。</footer>
+
+</div>
+</body>
+</html>

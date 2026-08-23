@@ -17,7 +17,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - issue: #160 issue-mr-flow/SKILL.md を references/ へ分割し、参照ファイルを読むタイミングを全体フロー表とSessionStart hookで機械的に決める
 - ブランチ: claude/skill-split-references-z17fw4
 - PR: #161 https://github.com/yuki-matsu783/MR-driven-workflow/pull/161（Draft）
-- push回数: 12
+- push回数: 13
 - 現在のループ: なし
 - 未返信スレッド: 0
 - 追従監視: 購読あり（web。subscribe_pr_activity + 自己チェックイン）
@@ -60,9 +60,9 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 | [] | 4-8 | 反映のレビュー | 人間 |
 | [] | 4-9 | レビュー内容を取得し設計・AIアセットを修正 | `comments` / `reply` |
 | [x] | 4-10 | MR descriptionを更新 | `describe` |
-| [] | 5-1 | defaultブランチとのコンフリクトを検知・解消 | エージェント |
-| [] | 5-2 | マージ前の関連issue通知 | エージェント |
-| [] | 5-3 | `.claude/` の変更を `.gemini/` へ変換同期する | エージェント |
+| [x] | 5-1 | defaultブランチとのコンフリクトを検知・解消 | エージェント |
+| [-] | 5-2 | マージ前の関連issue通知 | エージェント |
+| [x] | 5-3 | `.claude/` の変更を `.gemini/` へ変換同期する | エージェント |
 | [] | 5-4 | 最終統括レポートを作成しPR/MRへ反映 | エージェント |
 | [] | 5-5 | plans/worklog/reportsを削除しHANDOFF.mdをリセット | エージェント |
 | [] | 5-6 | commitしpushしてDraftを解除 | エージェント |
@@ -173,14 +173,32 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
   `resolve-conflict`へ類型F（配置の変更 vs 上流の内容変更）を追加・表記2件。
   投稿8スレッドへ返信済み。
 - flow-id 4-10: MR description を更新した（フェーズ4完了・mainの取り込み・敵対的レビュー対応を反映）。
+- **mainのマージ（PR #154取り込み）**: flow-id 5-1 の検知でmainがmanifest配布方式・
+  `agent-common.md` 分離（b8a1b58）まで進んでいたため取り込んだ。コンフリクト3件は**逆向きの
+  類型F**（上流=配置の変更、自ブランチ=内容の変更）として解消し、`AGENTS.md` の参照付け替え
+  3箇所を移動先の `agent-common.md` へ移植、main側 `commit/SKILL.md` の
+  `【AIアセット作成】` 参照を `references/planning.md` へ付け替えた。旧 `sync-assets.sh` の
+  ビルド生成物（untracked）も削除した。検証: 全テスト bash 18本 passed=1259 failures=0・
+  perl 2本 OK・マーカーなし・DDR一覧79件最新・`check-dist-coverage.sh` 414/414
+  （references/ 7本が配布対象に含まれることを確認）。マージコミット 56bc763（push 13回目）。
+- flow-id 5-1: マージ後に `check-base-conflicts.sh` を再実行し `hasConflict: false` を確認した。
+- flow-id 5-2: **関連issueへのマージ前通知はスキップした**（投稿前の `AskUserQuestion` 承認が
+  必須だが、非対話環境のため承認を得られない。承認なしで投稿する側ではなく投稿しない側へ倒した）。
+- flow-id 5-3: `sync-gemini-assets.sh` を実行し `.gemini/` 33ファイルを再生成した
+  （差分は5-4のコミットに同乗）。
+- flow-id 5-4: 最終統括レポート
+  `reports/20260823_split-issue-mr-flow-skill-into-references_統括.md`（＋同名 `.html`）を作成し、
+  commit・push（push 14回目）のうえPR #161 へサマリコメントを投稿した（層3の添付はMCP経路に
+  相当ツールが無いためスキップ。層1・層2で成立）。フェーズ2の別issue候補2件
+  （`index.jsonl` 混入・`install-to-project.sh` の破壊的既定）はmainのPR #154で解消済みを
+  確認し、残課題なしとした。
   **フェーズ4〈反映〉はここで完了**（4-3/4-4・4-8/4-9 は敵対的レビューで代替、進捗記号は `[]` のまま。
   4-5 は実施せず 4-10 でまとめて更新した）。
 
 ## 次にやること
 
-- フェーズ5: 5-1 コンフリクト検知 → 5-2 関連issue通知（投稿前に `AskUserQuestion` が必須のため、
-  非対話環境では通知をスキップし、その判断を記録する）→ 5-3 `sync-gemini-assets.sh` 実行 →
-  5-4 統括レポート（commit・push・サマリコメント投稿）→ 5-5 `cleanup-task.sh` → 5-6 Draft解除。
+- flow-id 5-5: `cleanup-task.sh`（`plans/` `worklog/` `reports/` の削除・HANDOFFリセット）→
+  5-6: commit・pushしてDraft解除（`mcp__github__update_pull_request` で draft=false）。
 - flow-id 5-7（マージ）はユーザーからの明示的な指示があるまで実行しない。
 
 
