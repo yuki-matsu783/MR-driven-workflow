@@ -20,7 +20,7 @@ AIが自分の書いたものを自分で確認しても、追認する方向に
 
 | | `/code-review`（組み込み） | 本スキル |
 |---|---|---|
-| 対象 | コードの正しさ（バグ探し）全般 | コードに加え、**このリポジトリの運用規約・ドキュメント整合**（`plans/` の粒度、spec/DDR/rulesの二重管理、point-in-time記録の破壊、shellの既知の罠） |
+| 対象 | コードの正しさ（バグ探し）全般 | コードに加え、**このリポジトリの運用規約・ドキュメント整合**（`wip/plans/` の粒度、spec/DDR/rulesの二重管理、point-in-time記録の破壊、shellの既知の罠） |
 | 観点の出どころ | 汎用 | **ディレクトリごとの `REVIEW-POINTS.md`**（`review-points` スキル） |
 | 結果 | 会話への報告 | **MRへのインラインコメント投稿**＋報告 |
 | 起動 | 人間が任意に | 対話セッションでは**人間のみ**。非対話セッションではAIも可 |
@@ -66,7 +66,7 @@ bash .claude/scripts/src/adversarial-review-count.sh get <phase>
 | 対象 | 判別 | ファイルの列挙 |
 |---|---|---|
 | diff全体 | flow-id 3-7 / 4-7 の直後 | `git diff --name-only origin/<base>...HEAD` |
-| `plans/` の個別計画 | flow-id 2-2 / 3-2 / 4-2 の直後 | 該当する `plans/【*.md` |
+| `wip/plans/` の個別計画 | flow-id 2-2 / 3-2 / 4-2 の直後 | 該当する `wip/plans/【*.md` |
 | 設計反映 | flow-id 4-7 の直後 | `.claude/docs/spec/` `.claude/docs/ddr/` `.claude/rules/` の変更ファイル |
 
 削除されたファイルは対象から外す。
@@ -132,7 +132,7 @@ findings を、**確度（`confidence`）と重大度（`severity`）**で振り
 | low | 報告 | 報告 | 報告 | 報告 |
 
 - **「投稿」** = インラインコメントとしてMRへ出す。**「報告」** = この会話（非対話モードでは
-  worklog）にのみ書き、MRへは出さない。
+  `wip/worklogs/`）にのみ書き、MRへは出さない。
 - **1回あたりの投稿上限は10件**。超える場合は重大度の高い順に10件へ絞り、残りは報告へ回す。
   レビュアーが一度に扱える量を超えると、結局どれも読まれないため。
 - 投稿する findings だけを集めた JSON を一時ファイルへ書き出す（次の手順で使う）。

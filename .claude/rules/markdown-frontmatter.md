@@ -238,9 +238,9 @@ bash .claude/scripts/src/extract-frontmatter.sh .
 | `rule` | `.claude/rules/*.md`, `AGENTS.md`, `CLAUDE.md`, `GEMINI.md` |
 | `agent` | `.claude/agents/*.md` |
 | `skill` | `.claude/skills/*/SKILL.md` |
-| `plan` | `plans/*.md`（planツールが出力する全体作業計画・`【種別】`付きの個別計画の両方。issue #95。同ディレクトリの`*.html`は対象外。下記「HTMLビューは対象外」） |
-| `log` | `worklog/*.md` |
-| `report` | `reports/*.md`（調査結果・作業結果・反映結果の正文。issue #87。同ディレクトリの`*.html`はfrontmatterを持たないため対象外。下記「HTMLビューは対象外」） |
+| `plan` | `wip/plans/*.md`（planツールが出力する全体作業計画・`【種別】`付きの個別計画の両方。issue #95。同ディレクトリの`*.html`は対象外。下記「HTMLビューは対象外」） |
+| `log` | `wip/worklogs/*.md` |
+| `report` | `wip/reports/*.md`（調査結果・作業結果・反映結果の正文。issue #87。同ディレクトリの`*.html`はfrontmatterを持たないため対象外。下記「HTMLビューは対象外」） |
 | `guide` | `README.md`, `DEVELOPERS.md`, `.claude/docs/README.md`, `index.md` |
 | `handoff` | `HANDOFF.md` |
 | `spec` | `.claude/docs/spec/*.md` |
@@ -254,7 +254,7 @@ bash .claude/scripts/src/extract-frontmatter.sh .
 
 ### HTMLビューは対象外（issue #54）
 
-**`plans/*.html` と `reports/*.html`（人間レビュー用のHTMLビュー）は、frontmatterの対象外である。**
+**`wip/plans/*.html` と `wip/reports/*.html`（人間レビュー用のHTMLビュー）は、frontmatterの対象外である。**
 「typeの値」表への行追加も要らない。
 
 - **HTMLはYAML frontmatterを持てない。** markdownと違い、先頭の `---` に囲まれたブロックが

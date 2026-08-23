@@ -1,7 +1,7 @@
 {
     "general": {
         "plan": {
-            "directory": "./plans"
+            "directory": "./wip/plans"
         }
     },
     "hooks": {

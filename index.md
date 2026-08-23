@@ -3,7 +3,7 @@ title: Repository Map
 type: guide
 description: プロジェクトルートから各ディレクトリへの相対パスと役割をまとめたリポジトリマップ
 tags: [index, repository-map, guide]
-keywords: [directory, repository-map, リポジトリマップ, ディレクトリ, claude, gemini, plans, worklog]
+keywords: [directory, repository-map, リポジトリマップ, ディレクトリ, claude, gemini, wip, plans, worklogs]
 ---
 
 # Repository Map
@@ -37,8 +37,8 @@ keywords: [directory, repository-map, リポジトリマップ, ディレクト�
   `rules/`・`scripts/`・`skills/`は`.claude/`配下の同名ディレクトリへのローカルリンクで、
   `.gitignore`対象（Git管理外。理由は`.claude/rules/directory-structure.md`参照）。
   clone後は`bash .claude/scripts/src/setup-gemini-links.sh`を1回実行してリンクを作成する。
-- `./plans/` 計画ファイル。全体作業計画（planツールが出力する`<自動命名>.md`、issueにつき1つ）と個別作業計画（`【種別】タスク内容.md`、planツールを使わずWrite/Editで作成）の2階層。タスクごとに新規生成しそのままコミットして履歴として残す。各mdには同名の`.html`（その内容を視覚的にまとめた人間レビュー用の自己完結HTML）を併存させる（issue #54）。**flow-id 5-4で削除するためディレクトリが存在しない期間があり、リンクにしていない**。
-- [./worklog/](./worklog/) 実装中の詳細な試行錯誤ログ（`日付_<全体計画名>_<個別計画名>_push<N>.md`）。内容は設計反映（flow-id 4-6）でspec/ddrへ反映し、ファイル自体はflow-id 5-4で`plans/` `reports/`とまとめて削除する。
+- `./wip/plans/` 計画ファイル。全体作業計画（planツールが出力する`<自動命名>.md`、issueにつき1つ）と個別作業計画（`【種別】タスク内容.md`、planツールを使わずWrite/Editで作成）の2階層。タスクごとに新規生成しそのままコミットして履歴として残す。各mdには同名の`.html`（その内容を視覚的にまとめた人間レビュー用の自己完結HTML）を併存させる（issue #54）。**flow-id 5-4で削除するためディレクトリが存在しない期間があり、リンクにしていない**。
+- [./wip/worklogs/](./wip/worklogs/) 実装中の詳細な試行錯誤ログ（`日付_<全体計画名>_<個別計画名>_push<N>.md`）。内容は設計反映（flow-id 4-6）でspec/ddrへ反映し、ファイル自体はflow-id 5-4で`wip/plans` `wip/reports`とまとめて削除する。
 - [./.github/ISSUE_TEMPLATE/](./.github/ISSUE_TEMPLATE/) GitHub用issueテンプレート（目的・現状・期待する動作・受け入れ条件）。
 - [./.github/pull_request_template.md](./.github/pull_request_template.md) GitHub用PRテンプレート。見出しは`describe`サブコマンドが生成するdescriptionと同一（`Closes #N`／`## Plan`／`## 実装状況`）。
 - [./.gitlab/issue_templates/](./.gitlab/issue_templates/) GitLab用issueテンプレート（同上）。
@@ -47,7 +47,7 @@ keywords: [directory, repository-map, リポジトリマップ, ディレクト�
 - [./.claude/VERSION](./.claude/VERSION) 配布物の版（SemVer 1行）。更新規則は`.claude/docs/spec/distribution-assets.md`。
 - `./build/` ビルド成果物の出力先。`.gitignore` 対象でコミットしない（通常は空）。**Git管理下に実体を持たないためリンクにしていない**（`.gitignore`の`/build/`対象で、ビルド時に動的に作成される）。
 
-`reports/`（`日付_<全体計画名>_<内容を簡潔に>.md` が調査結果・作業結果・反映結果の正文で、個別計画へ
+`wip/reports/`（`日付_<全体計画名>_<内容を簡潔に>.md` が調査結果・作業結果・反映結果の正文で、個別計画へ
 結果を書かないための分離先。同名の `.html` はその内容を視覚的にまとめた報告用の自己完結HTML）・
 `usage/`（対応工数レポートのローカル作業状態）は、いずれもワークフロー実行中に動的に作成される
 ディレクトリのため上記には含まれない（詳細: `.claude/rules/docs-workflow.md`）。

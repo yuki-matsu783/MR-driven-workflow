@@ -17,8 +17,8 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - issue: #165 (plans/worklog/reports を wip/ 配下へ集約し worklog を worklogs へ改名する)
 - ブランチ: claude/consolidate-wip-directories-ps6f9a（ハーネス指定。命名規則`feature-165-*`からの逸脱は環境制約による）
 - PR: https://github.com/yuki-matsu783/MR-driven-workflow/pull/178
-- push回数: 7
-- 現在のループ: 2-6〜2-9 の1周目（進行中。人間レビューは省略し敵対的レビューで代替）
+- push回数: 8
+- 現在のループ: 3-6〜3-9 の1周目（進行中。人間レビューは省略し敵対的レビューで代替）
 - 追従監視: 購読あり（web。subscribe_pr_activity。1時間ごとの自己チェックインを予約済み）
 
 **注記**: 非対話的実行環境のため、人間のレビュー待ちループ（2-3/2-4, 2-6〜2-9, 3-3/3-4, 3-6〜3-9,
@@ -49,8 +49,8 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 | [] | 3-3 | （人間レビュー省略予定） |
 | [] | 3-4 | （人間レビュー省略予定） |
 | [] | 3-5 | 作業計画でMR description更新 |
-| [] | 3-6 | 作業実施（設定・スクリプト変更・git mv・ドキュメント更新） |
-| [] | 3-7 | commit・push・レビュー依頼 |
+| [] | 3-6 | 作業実施完了（設定・スクリプト変更・git mv・ドキュメント更新約45ファイル。結果はwip/reports/20260823_transient-brewing-pelican_wip集約実装結果.md参照。テスト8本すべて合格。ループ範囲3-6〜3-9のため記号は`[]`のまま） |
+| [] | 3-7 | commit・push・レビュー依頼（これから実施） |
 | [] | 3-8 | （人間レビュー省略予定） |
 | [] | 3-9 | （人間レビュー省略予定） |
 | [] | 3-10 | 作業内容でMR description更新 |
@@ -67,7 +67,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 | [] | 5-1 | defaultブランチとのコンフリクト検知・解消 |
 | [] | 5-2 | マージ前の関連issue通知 |
 | [] | 5-3 | 最終統括レポート作成・PR反映 |
-| [] | 5-4 | 片付け（plans/worklog/reports削除・HANDOFF.mdリセット） |
+| [] | 5-4 | 片付け（wip/plans, wip/worklogs, wip/reports削除・HANDOFF.mdリセット） |
 | [] | 5-5 | commit・push・Draft解除 |
 | [] | 5-6 | マージ（人間の明示指示待ち） |
 
@@ -119,16 +119,23 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
   自身の恒久ファイル（REVIEW-POINTS.md×2・TEMPLATE.md）がドキュメント更新対象から漏れていた、
   (7) spec changelogの検証コマンドが検証節から落ちていた、(8) HTMLが存在しない変数
   `${worklog_dir}`を使い、C系コメント記法で構文エラーになる状態だった。いずれも計画へ反映済み。
+- **フェーズ3の作業を実施した（flow-id 3-6）。** `cleanup-task.sh`のKEEP_PATHS動的化・
+  `git mv plans wip/plans` `git mv worklog wip/worklogs` `git mv reports wip/reports`・
+  `.mrworkflow.json`/`.claude/settings.json`/`.gemini/settings.json`/`install-to-project.sh`の
+  変更・約45ファイルのドキュメント参照更新（複数のサブエージェントへ分担）を行った。影響を受ける
+  単体テスト8本（`test_cleanup_task.sh`含む）はすべて`passed=N failures=0`。
+  `git diff $(git merge-base main HEAD) -- .claude/docs/ddr/`は0行、specの差分もchangelog小節の
+  外に限られることを確認した。結果は
+  `wip/reports/20260823_transient-brewing-pelican_wip集約実装結果.md`（と同名html）に記録した。
 
 ## 次にやること
 
 - 対照実験（`./plans2`）用の新規セッションを再試行する（サービス一時停止のため保留中。
   `.claude/settings.json`は現在`"./plans"`に戻してある）。
-- 対照実験の結果が得られ次第、`reports/`の調査結果md・HTML・worklogへ反映する。
+- 対照実験の結果が得られ次第、`wip/reports/`の調査結果md・HTML・worklogへ反映する。
 - 調査結果に対する敵対的レビュー2周目（指摘反映後の再確認）は、対照実験の結果待ちのため保留。
-- フェーズ3個別作業計画に対する敵対的レビュー1周目の指摘は反映済み。commit・pushの上、
-  この計画に沿って実際の作業（設定・スクリプト変更、git mv、ドキュメント更新、テスト）を実施する
-  （flow-id 3-6）。作業実施後は同じくユーザー指示に従い敵対的レビューを1回実施する。
+- フェーズ3の作業実施結果に対する敵対的レビュー（1回目）を実施し、指摘があれば反映してから
+  commit・push・レビュー依頼（flow-id 3-7）を行う。
 
 ## 判断を迷った内容
 

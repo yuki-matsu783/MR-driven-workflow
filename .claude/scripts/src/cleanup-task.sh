@@ -5,8 +5,8 @@
 # `.claude/skills/issue-mr-flow/SKILL.md` の flow-id 5-4 が手順として持っていた次の4操作を、
 # 手作業（消し忘れ・消しすぎ）を排して1コマンドへまとめる。
 #
-#   1. `plans/` `worklog/` `reports/` を、下記「残すパス」以外すべて削除する
-#      （`worklog/TEMPLATE.md` と、どの階層にあっても `REVIEW-POINTS.md` は残す）
+#   1. `wip/plans/` `wip/worklogs/` `wip/reports/` を、下記「残すパス」以外すべて削除する
+#      （`wip/worklogs/TEMPLATE.md` と、どの階層にあっても `REVIEW-POINTS.md` は残す）
 #      （ディレクトリは .mrworkflow.json の plansDir / worklogDir / reportsDir から読む）
 #   2. 上記配下の index.jsonl（frontmatterの機械可読インデックス。Git管理外の生成物）も一緒に消える
 #   3. `.claude/scripts/src/extract-frontmatter.sh .` で残りの index.jsonl 群を再生成する
@@ -24,10 +24,10 @@
 #
 # 出力: 実行内容のJSONをstdoutへ1つ出力する（check-base-conflicts.sh・Provider.sh と同じ規約）。
 #   {
-#     "dryRun": false, "repoRoot": "...", "targetDirs": ["plans","worklog","reports"],
-#     "keptPaths": ["worklog/TEMPLATE.md"], "keptBasenames": ["REVIEW-POINTS.md"],
-#     "removedDirs": ["plans","reports"],
-#     "deletedFiles": ["plans/....md"],
+#     "dryRun": false, "repoRoot": "...", "targetDirs": ["wip/plans","wip/worklogs","wip/reports"],
+#     "keptPaths": ["wip/worklogs/TEMPLATE.md"], "keptBasenames": ["REVIEW-POINTS.md"],
+#     "removedDirs": ["wip/plans","wip/reports"],
+#     "deletedFiles": ["wip/plans/....md"],
 #     "handoff": {"path":"HANDOFF.md","reset":true,"alreadyTemplate":false,"created":false},
 #     "frontmatterIndex": {"ran":true,"exitCode":0}
 #   }
@@ -44,15 +44,16 @@
 set -euo pipefail
 
 # 削除対象ディレクトリ配下で**消してはいけない**リポジトリ相対パス。
-# worklog/TEMPLATE.md は worklog を書き起こすときの雛形で、タスクごとの成果物ではない
+# wip/worklogs/TEMPLATE.md は worklog を書き起こすときの雛形で、タスクごとの成果物ではない
 # （`.claude/rules/directory-structure.md`）。ここに載るパスが1つでも残るディレクトリは、
 # ディレクトリ自体を削除しない。
-readonly -a KEEP_PATHS=(
-  "worklog/TEMPLATE.md"
-)
+# 値は main() が .mrworkflow.json の worklogDir から動的に組み立てる（トップレベルでは
+# 空配列のまま初期化する。readonly にしない・declare も使わない — main 内で declare すると
+# その関数のローカル変数になり、main を経由しない直接呼び出し（単体テスト）から見えなくなる）。
+KEEP_PATHS=()
 
 # 同じく、**どの階層にあっても**消してはいけないファイル名。
-# `plans/REVIEW-POINTS.md` `reports/REVIEW-POINTS.md` は、これらのディレクトリ配下にあるが
+# `wip/plans/REVIEW-POINTS.md` `wip/reports/REVIEW-POINTS.md` は、これらのディレクトリ配下にあるが
 # タスク単位の成果物ではなく、そのディレクトリに対する永続のレビュー観点である（issue #77。
 # `.claude/rules/docs-workflow.md`「ドキュメント運用」表・`.claude/docs/spec/adversarial-review.md`）。
 readonly -a KEEP_BASENAMES=(
@@ -226,6 +227,10 @@ main() {
 
   local -a target_dirs=()
   IFS=$'\t' read -r -a target_dirs <<<"$dirs_tsv"
+
+  # KEEP_PATHS はここで初めて確定する。target_dirs[1] は worklogDir（直上の jq 配列
+  # [plansDir, worklogDir, reportsDir] の並び順に対応。並びを変える場合はここも直すこと）。
+  KEEP_PATHS=("${target_dirs[1]}/TEMPLATE.md")
 
   local dir
   for dir in "${target_dirs[@]}"; do

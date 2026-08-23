@@ -38,15 +38,15 @@ issueの起票からfeatureブランチ・Draft PR/MRの作成、レビュー往
    この値がそのまま配布先へ入るため、「どの版の資産を導入したか」を配布先から判別できる
    （更新規則・配布経路の詳細は
    [.claude/docs/spec/distribution-assets.md](.claude/docs/spec/distribution-assets.md)）。
-4. リポジトリ固有のブランチ命名規則・`plans/`等の場所は [.mrworkflow.json](.mrworkflow.json) を
+4. リポジトリ固有のブランチ命名規則・`wip/plans/`等の場所は [.mrworkflow.json](.mrworkflow.json) を
    参照・編集する。各キーの意味・デフォルト値・用途は以下の通り。
 
    | キー | デフォルト値 | 用途 |
    |---|---|---|
    | `branchPrefixTemplate` | `"feature-{issue}-{slug}"` | issueブランチの命名規則テンプレート。`{issue}`はissue番号、`{slug}`はタイトル等をスラッグ化した文字列に置換される |
    | `defaultBaseBranch` | `"main"` | Draft PR/MR作成・ブランチ作成・差分検出のデフォルトベースブランチ |
-   | `plansDir` | `"plans"` | 計画ファイル（全体作業計画・個別計画）の格納ディレクトリ |
-   | `worklogDir` | `"worklog"` | 実装中の試行錯誤ログの格納ディレクトリ |
-   | `reportsDir` | `"reports"` | 報告用自己完結HTMLの格納ディレクトリ |
+   | `plansDir` | `"wip/plans"` | 計画ファイル（全体作業計画・個別計画）の格納ディレクトリ |
+   | `worklogDir` | `"wip/worklogs"` | 実装中の試行錯誤ログの格納ディレクトリ |
+   | `reportsDir` | `"wip/reports"` | 報告用自己完結HTMLの格納ディレクトリ |
    | `specDirs` | `[".claude/docs/spec"]` | 正史仕様ドキュメントの格納ディレクトリ一覧（アプリ本体追加時の拡張ポイント。現時点ではスクリプトからは読み出されておらず、ドキュメント上の配置場所指定として使う） |
    | `ddrDirs` | `[".claude/docs/ddr"]` | 意思決定ログ（DDR）の格納ディレクトリ一覧（同上） |

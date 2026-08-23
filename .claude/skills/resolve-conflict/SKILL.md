@@ -389,7 +389,7 @@ bash .claude/scripts/src/create-commit.sh --message "chore: <base>をマージ�
 | `create-commit.sh` が「次のパスは git が把握していません」で失敗する（パスが `"\346\226\207..."` のように見える） | **`git diff --cached --name-only` を `-z` 無しで使った。** gitは既定（`core.quotePath=true`）で非ASCIIパスをダブルクォート＋8進エスケープして出すため、そのまま渡すと実在するファイルに対して失敗する（issue #135 で実際に踏んだ。`.claude/rules/shell-script-style.md`「コマンド置換とNULバイト」）。下記の `-z` 版で取り直す |
 | **マージ後もテストが緑のまま、後で壊れていたと分かる** | 上と同じsemantic conflictだが、**テストが落ちないため気づけない**類型。issue #127 で、一方のブランチが `gitlab_get_repo_url` の**呼び出しを追加**し（`7ebc615`）、もう一方が**定義を削除**していた（`8d01fbb`。`get_repo_url` へ一本化）。どちらも単体では正しく、gitはコンフリクトと見なさず、**単体テストは当該関数を直接呼んでいたため緑のまま**、実運用経路が数issueにわたり無言で壊れていた。**その場での対処**: `git diff origin/<base>...HEAD --name-only` の対象ファイル間で、**同じ関数の定義側と呼び出し側を両ブランチが別々に触っていないか**を確認する。`.claude/scripts/` を触るマージなら `bash .claude/scripts/test/test_vcs_provider.sh` の未定義呼び出し静的検出も流す（Step 5 の手順4に含まれる）。予防は `.claude/rules/shell-script-style.md`「テスト」節を参照 |
 
-マージで自動ステージされたパスの列挙は、**必ず `-z` を使う**（このリポジトリはDDR・plans等の
+マージで自動ステージされたパスの列挙は、**必ず `-z` を使う**（このリポジトリはDDR・wip/plans等の
 ファイル名が日本語であり、`-z` 無しでは必ずクォートされる）。
 
 ```bash

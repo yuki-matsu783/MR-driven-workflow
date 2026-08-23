@@ -159,8 +159,9 @@ echo "Installing core configuration files..."
 # Ensure target directories exist
 mkdir -p "${DEST_DIR}/.claude"
 mkdir -p "${DEST_DIR}/.gemini"
-mkdir -p "${DEST_DIR}/plans"
-mkdir -p "${DEST_DIR}/worklog"
+mkdir -p "${DEST_DIR}/wip/plans"
+mkdir -p "${DEST_DIR}/wip/worklogs"
+mkdir -p "${DEST_DIR}/wip/reports"
 
 # Copy configuration and rules safely
 safe_copy_dir "${ASSETS_DIR}/.claude" "${DEST_DIR}/.claude"
@@ -183,9 +184,10 @@ if [ -d "${ASSETS_DIR}/.gitlab" ]; then
   safe_copy_dir "${ASSETS_DIR}/.gitlab" "${DEST_DIR}/.gitlab"
 fi
 
-# Create placeholders for plan and worklog if they do not exist
-touch "${DEST_DIR}/plans/.gitkeep"
-touch "${DEST_DIR}/worklog/.gitkeep"
+# Create placeholders for wip/plans, wip/worklogs, wip/reports if they do not exist
+touch "${DEST_DIR}/wip/plans/.gitkeep"
+touch "${DEST_DIR}/wip/worklogs/.gitkeep"
+touch "${DEST_DIR}/wip/reports/.gitkeep"
 
 # 3. Inject Language-specific rules if detected
 if [ "${IS_GO_PROJECT}" = true ]; then

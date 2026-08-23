@@ -25,7 +25,7 @@ source .claude/scripts/src/vcs/Provider.sh
 各関数はJSON文字列をstdoutへ出力する設計のため、`jq`でフィールドを取り出す
 （例: `get_issue 6 | jq -r '.title'`）。
 
-プロジェクト固有のパス設定（ブランチ命名規則・`plans/` 等の場所）はリポジトリ直下の `.mrworkflow.json`
+プロジェクト固有のパス設定（ブランチ命名規則・`wip/plans/` 等の場所）はリポジトリ直下の `.mrworkflow.json`
 から読む（`get_workflow_config`）。他リポジトリへ移植する場合はこのファイルの値を書き換えるだけでよい。
 
 ## 全体フロー
@@ -56,43 +56,43 @@ MR description更新」という同じ形を繰り返す。
 | 1-1 | issueを起票する（`.github/ISSUE_TEMPLATE/task.md` / `.gitlab/issue_templates/Default.md` で目的・現状・期待する動作・受け入れ条件を記載） | 人間（AIが代行する場合は `issue-create` スキル） |
 | 1-2 | issueの内容を取得する | `start <issue番号>` |
 | 1-3 | featureブランチ（`feature-<issue番号>-<slug>`）とDraft MRを作成する（既にあれば `sync` のみ）。**Draft MRの作成に都度の明示指示は要らない**（下記「PR/MR作成・マージの担当」。ハーネスがPR作成を制限する環境での例外も同節）。**作成後は「PR作成後のdefaultブランチ追従（監視）」節に従って追従監視を開始する** | `start`（エージェント） |
-| 1-4 | **Planモードで「全体作業計画」を作成する**（このissueをどう進めるか＝何を調査し何を実装するかの全体像。ハーネスが提示するパス `plans/<自動命名>.md` へ出力）。**現在のブランチに既に全体作業計画があれば新規作成せず、既存を読むだけにとどめる**（詳細は下記「計画の2階層構造」）。**作成前に、issueが大きすぎないか（同型の成果物が並列に列挙されていないか）を判定し、該当すれば分割を提案する**（下記「issueが大きすぎる場合の分割提案」）。**フェーズ2〈調査〉・フェーズ4〈反映〉の節を必ず含める。この段階の事前調査は軽めでよい**（下記「全体作業計画に必ず含めるフェーズ」）。**あわせて同名の `.html`（人間レビュー用ビュー）を作成する**（下記「計画・レポートのHTMLビュー」） | エージェント |
+| 1-4 | **Planモードで「全体作業計画」を作成する**（このissueをどう進めるか＝何を調査し何を実装するかの全体像。ハーネスが提示するパス `wip/plans/<自動命名>.md` へ出力）。**現在のブランチに既に全体作業計画があれば新規作成せず、既存を読むだけにとどめる**（詳細は下記「計画の2階層構造」）。**作成前に、issueが大きすぎないか（同型の成果物が並列に列挙されていないか）を判定し、該当すれば分割を提案する**（下記「issueが大きすぎる場合の分割提案」）。**フェーズ2〈調査〉・フェーズ4〈反映〉の節を必ず含める。この段階の事前調査は軽めでよい**（下記「全体作業計画に必ず含めるフェーズ」）。**あわせて同名の `.html`（人間レビュー用ビュー）を作成する**（下記「計画・レポートのHTMLビュー」） | エージェント |
 | 1-5 | 全体作業計画に合意する | 人間 |
 | 1-6 | 全体作業計画をもとにHANDOFF.mdを更新する | エージェント |
-| 2-1 | **個別調査計画**`plans/【調査】〜.md`を**planツールを使わず**Write/Editで作成する。このタイミングで `worklog/日付_<全体計画名>_<個別計画名>_push<N>.md` を作成。**フェーズ2を省略してよいと判断できるのはこの時点以降**（下記「全体作業計画に必ず含めるフェーズ」）。**あわせて同名の `.html`（人間レビュー用ビュー）を作成する**（下記「計画・レポートのHTMLビュー」） | エージェント |
+| 2-1 | **個別調査計画**`wip/plans/【調査】〜.md`を**planツールを使わず**Write/Editで作成する。このタイミングで `wip/worklogs/日付_<全体計画名>_<個別計画名>_push<N>.md` を作成。**フェーズ2を省略してよいと判断できるのはこの時点以降**（下記「全体作業計画に必ず含めるフェーズ」）。**あわせて同名の `.html`（人間レビュー用ビュー）を作成する**（下記「計画・レポートのHTMLビュー」） | エージェント |
 | 2-2 | `commit`スキル経由でcommitし、push してレビュー依頼を行う | エージェント |
 | 2-3 | MRで調査計画についてレビュー・コメントする。レビュー完了済み連絡をするまで以降の作業は行わない。 | 人間 |
 | 2-4 | レビュー内容を取得し、調査計画を修正する。対応が完了したコメントには対応内容を返信する（2-3〜2-4を合意まで繰り返す）。チャットで受けた判断はMRへ記録する（下記「チャットで受けたレビュー判断の記録」節） | `comments` / `reply` |
 | 2-5 | 調査計画をもとにMR descriptionを更新する | `describe` |
-| 2-6 | **調査を実施**し、結果を`reports/日付_<全体計画名>_<内容を簡潔に>.md`とworklogに記録する。**個別調査計画には結果を書かない**（下記「計画と実施結果の分離」）。あわせて結果を視覚的に分かりやすくまとめた自己完結HTMLを`reports/日付_<全体計画名>_<内容を簡潔に>.html`として作成する（mdが結果の正文、HTMLはその視覚化。土台は`.claude/skills/issue-mr-flow/assets/reports.template.html`。複数要素間の関連・依存関係が主題の場合は、`.claude/skills/canvas-report/SKILL.md`のcanvas形式テンプレートの利用を検討する。下記「計画・レポートのHTMLビュー」）。**ここで初めて規模が判明した場合は、未着手範囲を別issueへ切り出すことを検討する**（下記「issueが大きすぎる場合の分割提案」） | エージェント |
+| 2-6 | **調査を実施**し、結果を`wip/reports/日付_<全体計画名>_<内容を簡潔に>.md`とworklogsに記録する。**個別調査計画には結果を書かない**（下記「計画と実施結果の分離」）。あわせて結果を視覚的に分かりやすくまとめた自己完結HTMLを`wip/reports/日付_<全体計画名>_<内容を簡潔に>.html`として作成する（mdが結果の正文、HTMLはその視覚化。土台は`.claude/skills/issue-mr-flow/assets/reports.template.html`。複数要素間の関連・依存関係が主題の場合は、`.claude/skills/canvas-report/SKILL.md`のcanvas形式テンプレートの利用を検討する。下記「計画・レポートのHTMLビュー」）。**ここで初めて規模が判明した場合は、未着手範囲を別issueへ切り出すことを検討する**（下記「issueが大きすぎる場合の分割提案」） | エージェント |
 | 2-7 | `commit`スキル経由でcommitし、push してレビュー依頼を行う | エージェント |
 | 2-8 | MRで調査結果についてレビュー・コメントする。レビュー完了済み連絡をするまで以降の作業は行わない。 | 人間 |
-| 2-9 | レビュー内容を取得し、調査結果を修正する。対応が完了したコメントには対応内容を返信する（修正先は`reports/`のmdであり、個別調査計画ではない。`reports/`のHTMLもmdと同期して更新する。2-6〜2-9を合意まで繰り返す）。チャットで受けた判断はMRへ記録する（下記「チャットで受けたレビュー判断の記録」節） | `comments` / `reply` |
+| 2-9 | レビュー内容を取得し、調査結果を修正する。対応が完了したコメントには対応内容を返信する（修正先は`wip/reports/`のmdであり、個別調査計画ではない。`wip/reports/`のHTMLもmdと同期して更新する。2-6〜2-9を合意まで繰り返す）。チャットで受けた判断はMRへ記録する（下記「チャットで受けたレビュー判断の記録」節） | `comments` / `reply` |
 | 2-10 | 調査結果をもとにMR descriptionを更新する | `describe` |
-| 3-1 | **調査結果をもとに**、個別作業計画`plans/【設計】【実装】〜.md`等を**planツールを使わず**Write/Editで作成する。**あわせて同名の `.html`（人間レビュー用ビュー）を作成する**（下記「計画・レポートのHTMLビュー」） | エージェント |
+| 3-1 | **調査結果をもとに**、個別作業計画`wip/plans/【設計】【実装】〜.md`等を**planツールを使わず**Write/Editで作成する。**あわせて同名の `.html`（人間レビュー用ビュー）を作成する**（下記「計画・レポートのHTMLビュー」） | エージェント |
 | 3-2 | `commit`スキル経由でcommitし、push してレビュー依頼を行う | エージェント |
 | 3-3 | MRで作業計画についてレビュー・コメントする。レビュー完了済み連絡をするまで以降の作業は行わない。 | 人間 |
 | 3-4 | レビュー内容を取得し、作業計画を修正する。対応が完了したコメントには対応内容を返信する（3-3〜3-4を合意まで繰り返す）。チャットで受けた判断はMRへ記録する（下記「チャットで受けたレビュー判断の記録」節） | `comments` / `reply` |
 | 3-5 | 作業計画をもとにMR descriptionを更新する | `describe` |
-| 3-6 | 作業計画をもとに作業を進める。作業の詳細な試行錯誤はworklogに更新し、**作業結果は`reports/日付_<全体計画名>_<内容を簡潔に>.md`に記録する**（**個別作業計画には結果を書かない**。下記「計画と実施結果の分離」）。**あわせて同名の`.html`（人間レビュー用ビュー）を作成する**（土台は`.claude/skills/issue-mr-flow/assets/reports.template.html`。下記「計画・レポートのHTMLビュー」） | エージェント |
+| 3-6 | 作業計画をもとに作業を進める。作業の詳細な試行錯誤はworklogsに更新し、**作業結果は`wip/reports/日付_<全体計画名>_<内容を簡潔に>.md`に記録する**（**個別作業計画には結果を書かない**。下記「計画と実施結果の分離」）。**あわせて同名の`.html`（人間レビュー用ビュー）を作成する**（土台は`.claude/skills/issue-mr-flow/assets/reports.template.html`。下記「計画・レポートのHTMLビュー」） | エージェント |
 | 3-7 | `commit`スキル経由でcommitし、push してレビュー依頼を行う | エージェント |
 | 3-8 | MRでレビュー・コメントする。レビュー済み連絡をするまで以降の作業は行わない。 | 人間 |
-| 3-9 | レビュー内容を取得し、実装・ドキュメントを修正する。対応が完了したコメントには対応内容を返信する（結果側の記述の修正先は`reports/`のmdであり、個別作業計画ではない。3-6〜3-9の作業ループを合意まで繰り返す）。チャットで受けた判断はMRへ記録する（下記「チャットで受けたレビュー判断の記録」節） | `comments` / `reply` |
+| 3-9 | レビュー内容を取得し、実装・ドキュメントを修正する。対応が完了したコメントには対応内容を返信する（結果側の記述の修正先は`wip/reports/`のmdであり、個別作業計画ではない。3-6〜3-9の作業ループを合意まで繰り返す）。チャットで受けた判断はMRへ記録する（下記「チャットで受けたレビュー判断の記録」節） | `comments` / `reply` |
 | 3-10 | 作業内容をもとにMR descriptionを更新する | `describe` |
-| 4-1 | **作業結果と`plans/` `worklog/` の内容をもとに**、個別反映計画`plans/【設計反映】【AIアセット反映】【実装反映】〜.md`等を**planツールを使わず**Write/Editで作成する。**まず反映対象を洗い出し、spec/ddr・AIアセット・実装コード/テストコードのいずれにも反映するものが無いと確認できた場合に限り、この時点でフェーズ4の残りをスキップしてよい**（下記「全体作業計画に必ず含めるフェーズ」）。**スキップしない場合は、あわせて同名の `.html`（人間レビュー用ビュー）を作成する**（下記「計画・レポートのHTMLビュー」） | エージェント |
+| 4-1 | **作業結果と`wip/plans/` `wip/worklogs/` の内容をもとに**、個別反映計画`wip/plans/【設計反映】【AIアセット反映】【実装反映】〜.md`等を**planツールを使わず**Write/Editで作成する。**まず反映対象を洗い出し、spec/ddr・AIアセット・実装コード/テストコードのいずれにも反映するものが無いと確認できた場合に限り、この時点でフェーズ4の残りをスキップしてよい**（下記「全体作業計画に必ず含めるフェーズ」）。**スキップしない場合は、あわせて同名の `.html`（人間レビュー用ビュー）を作成する**（下記「計画・レポートのHTMLビュー」） | エージェント |
 | 4-2 | `commit`スキル経由でcommitし、push してレビュー依頼を行う | エージェント |
 | 4-3 | MRで反映計画についてレビュー・コメントする。レビュー完了済み連絡をするまで以降の作業は行わない。 | 人間 |
 | 4-4 | レビュー内容を取得し、反映計画を修正する。対応が完了したコメントには対応内容を返信する（4-3〜4-4を合意まで繰り返す）。チャットで受けた判断はMRへ記録する（下記「チャットで受けたレビュー判断の記録」節） | `comments` / `reply` |
 | 4-5 | 反映計画をもとにMR descriptionを更新する | `describe` |
-| 4-6 | 反映計画をもとに作業を進める。詳細な試行錯誤はworklogに更新し、**反映結果は`reports/日付_<全体計画名>_<内容を簡潔に>.md`に記録し、あわせて同名の`.html`（人間レビュー用ビュー）を作成する**（**個別反映計画には結果を書かない**。下記「計画と実施結果の分離」。HTMLの土台は`.claude/skills/issue-mr-flow/assets/reports.template.html`。下記「計画・レポートのHTMLビュー」）。作業の内訳は次のとおり（**設計反映**: `plans/` `worklog/` の内容を `.claude/docs/spec/` `.claude/docs/ddr/`（アプリ本体があれば`docs/spec/` `docs/ddr/`）へ反映する。**DDRを追加・変更したら `bash .claude/scripts/src/generate-ddr-list.sh` を実行し、`.claude/docs/README.md` のDDR一覧の差分を同じコミットへ含める**（一覧は生成物。手書きで行を足さない。issue #135。仕様: `.claude/docs/spec/generate-ddr-list.md`）／**AIアセット反映**: 作業中に気づいたルール・スキルの不備を `.claude/rules/` `.claude/skills/` `CLAUDE.md` `AGENTS.md` に反映する／**実装反映**: フェーズ3のレビュー往復ループ（3-6〜3-9）では解消しきれず持ち越した不具合について、記録（spec/ddr等）への書き戻しと、実装コード・テストコードの修正をあわせて行う） | エージェント |
+| 4-6 | 反映計画をもとに作業を進める。詳細な試行錯誤はworklogsに更新し、**反映結果は`wip/reports/日付_<全体計画名>_<内容を簡潔に>.md`に記録し、あわせて同名の`.html`（人間レビュー用ビュー）を作成する**（**個別反映計画には結果を書かない**。下記「計画と実施結果の分離」。HTMLの土台は`.claude/skills/issue-mr-flow/assets/reports.template.html`。下記「計画・レポートのHTMLビュー」）。作業の内訳は次のとおり（**設計反映**: `wip/plans/` `wip/worklogs/` の内容を `.claude/docs/spec/` `.claude/docs/ddr/`（アプリ本体があれば`docs/spec/` `docs/ddr/`）へ反映する。**DDRを追加・変更したら `bash .claude/scripts/src/generate-ddr-list.sh` を実行し、`.claude/docs/README.md` のDDR一覧の差分を同じコミットへ含める**（一覧は生成物。手書きで行を足さない。issue #135。仕様: `.claude/docs/spec/generate-ddr-list.md`）／**AIアセット反映**: 作業中に気づいたルール・スキルの不備を `.claude/rules/` `.claude/skills/` `CLAUDE.md` `AGENTS.md` に反映する／**実装反映**: フェーズ3のレビュー往復ループ（3-6〜3-9）では解消しきれず持ち越した不具合について、記録（spec/ddr等）への書き戻しと、実装コード・テストコードの修正をあわせて行う） | エージェント |
 | 4-7 | `commit`スキル経由でcommitし、push してレビュー依頼を行う | エージェント |
 | 4-8 | MRでレビュー・コメントする。レビュー済み連絡をするまで以降の作業は行わない。 | 人間 |
-| 4-9 | レビュー内容を取得し、設計・AIアセットの内容を修正する。対応が完了したコメントには対応内容を返信する（結果側の記述の修正先は`reports/`のmdであり、個別反映計画ではない。4-6〜4-9の反映ループを合意まで繰り返す）。チャットで受けた判断はMRへ記録する（下記「チャットで受けたレビュー判断の記録」節） | `comments` / `reply` |
+| 4-9 | レビュー内容を取得し、設計・AIアセットの内容を修正する。対応が完了したコメントには対応内容を返信する（結果側の記述の修正先は`wip/reports/`のmdであり、個別反映計画ではない。4-6〜4-9の反映ループを合意まで繰り返す）。チャットで受けた判断はMRへ記録する（下記「チャットで受けたレビュー判断の記録」節） | `comments` / `reply` |
 | 4-10 | 反映内容をもとにMR descriptionを更新する | `describe` |
 | 5-1 | **defaultブランチとのコンフリクトを検知し、あれば解消する**（`bash .claude/scripts/src/check-base-conflicts.sh` で判定 → `hasConflict` が真なら `AskUserQuestion` でユーザーに確認 → 承認されたら `resolve-conflict` スキルで解消。詳細は下記「defaultブランチとのコンフリクト検知・解消」節）。PR作成後の継続的な追従（下記「PR作成後のdefaultブランチ追従（監視）」節）を行っていても、**このステップは最終ゲートとして必ず通る** | エージェント（`resolve-conflict` スキル） |
-| 5-2 | **今回のMRが影響する関連issueを特定し、承認を得てから当該issueへ通知する**（差分からキーワードを抽出 → `search_issues` で候補提示 → `AskUserQuestion` で対象issueとコメント本文の承認 → `add_issue_comment` で投稿）。**キーワードの抽出時は `plans/` `worklog/` `reports/` を差分から除外する**（片付けは flow-id 5-4 で行うため、この時点ではこれらの計画・ログ・レポートがまだ差分に含まれる）。**影響先が無ければスキップしてよい**（その場合も「影響先なし」と判断した事実を、リセット前の `HANDOFF.md` へ1行残す）。詳細は下記「マージ前の関連issue通知（flow-id 5-2）」節 | エージェント |
-| 5-3 | **最終統括レポートを作成し、PR/MRへサマリコメントとして反映する**（`reports/日付_<全体計画名>_統括.md` を正文として作成 → `commit` スキル経由でcommit・push → （**任意**）HTMLを `upload_attachment` で添付し、**失敗したら警告のみでスキップ** → サマリを `add_mr_comment` でPR/MRへ1回投稿する）。**反映は3層のフォールバック構造**で、層3が壊れても層1・層2でレビューは成立する。詳細は下記「最終統括レポートとPR/MRへの反映（flow-id 5-3）」節 | エージェント |
-| 5-4 | 次タスクのために、`plans/` `worklog/` `reports/`（md・htmlの両方）を削除し、`HANDOFF.md` をリセットする（**`bash .claude/scripts/src/cleanup-task.sh` を実行する**。何を消し何を残すか（`worklog/TEMPLATE.md` と `REVIEW-POINTS.md` は残す。後者はタスク単位の成果物ではなく、そのディレクトリに対する永続のレビュー観点であるため。詳細は `.claude/rules/docs-workflow.md` が正）・`index.jsonl` の再生成・HANDOFF.mdのテンプレートはスクリプトが持つ。先に対象を確認したい場合は `--dry-run` を付ける。仕様: `.claude/docs/spec/cleanup-task.md`）。**スクリプトはコミットまでは行わない**ため、削除・リセットの結果は直後の flow-id 5-5 の `commit` スキル経由でコミットする（**このステップを commit の直前へ置く**のは、生成と確定の間に他のステップを挟まないため。issue #112） | エージェント |
+| 5-2 | **今回のMRが影響する関連issueを特定し、承認を得てから当該issueへ通知する**（差分からキーワードを抽出 → `search_issues` で候補提示 → `AskUserQuestion` で対象issueとコメント本文の承認 → `add_issue_comment` で投稿）。**キーワードの抽出時は `wip/plans/` `wip/worklogs/` `wip/reports/` を差分から除外する**（片付けは flow-id 5-4 で行うため、この時点ではこれらの計画・ログ・レポートがまだ差分に含まれる）。**影響先が無ければスキップしてよい**（その場合も「影響先なし」と判断した事実を、リセット前の `HANDOFF.md` へ1行残す）。詳細は下記「マージ前の関連issue通知（flow-id 5-2）」節 | エージェント |
+| 5-3 | **最終統括レポートを作成し、PR/MRへサマリコメントとして反映する**（`wip/reports/日付_<全体計画名>_統括.md` を正文として作成 → `commit` スキル経由でcommit・push → （**任意**）HTMLを `upload_attachment` で添付し、**失敗したら警告のみでスキップ** → サマリを `add_mr_comment` でPR/MRへ1回投稿する）。**反映は3層のフォールバック構造**で、層3が壊れても層1・層2でレビューは成立する。詳細は下記「最終統括レポートとPR/MRへの反映（flow-id 5-3）」節 | エージェント |
+| 5-4 | 次タスクのために、`wip/plans/` `wip/worklogs/` `wip/reports/`（md・htmlの両方）を削除し、`HANDOFF.md` をリセットする（**`bash .claude/scripts/src/cleanup-task.sh` を実行する**。何を消し何を残すか（`wip/worklogs/TEMPLATE.md` と `REVIEW-POINTS.md` は残す。後者はタスク単位の成果物ではなく、そのディレクトリに対する永続のレビュー観点であるため。詳細は `.claude/rules/docs-workflow.md` が正）・`index.jsonl` の再生成・HANDOFF.mdのテンプレートはスクリプトが持つ。先に対象を確認したい場合は `--dry-run` を付ける。仕様: `.claude/docs/spec/cleanup-task.md`）。**スクリプトはコミットまでは行わない**ため、削除・リセットの結果は直後の flow-id 5-5 の `commit` スキル経由でコミットする（**このステップを commit の直前へ置く**のは、生成と確定の間に他のステップを挟まないため。issue #112） | エージェント |
 | 5-5 | `commit`スキル経由でcommitし、push して Draftを解除する（解除は `source .claude/scripts/src/vcs/Provider.sh && set_mr_ready <MR番号>` で行う。`gh pr ready` / `glab mr update --ready` を直接呼ばない。MR番号は `get_mr_for_branch` で取得できる）。**AIエージェントはここで止まる**（マージへは進まない） | エージェント |
 | 5-6 | マージする（squash merge。ブランチは削除してよい）。**AIエージェントは、ユーザーから明示的に指示された場合に限り実行してよい**（下記「PR/MR作成・マージの担当」） | 人間 |
 
@@ -145,10 +145,10 @@ planツールで複数の計画を作ろうとすると計画同士が混ざる�
 
 | 種類 | 作り方 | ファイル名 | 単位 |
 |---|---|---|---|
-| **全体作業計画** | **planツール**（Planモード）で作成 | ハーネス提示パス `plans/<自動命名>.md` をそのまま使う | **issue（ブランチ）につき1回**（flow-id 1-4） |
-| **個別調査計画** | **planツールを使わない**（Write/Editで直接作成） | `plans/【調査】タスク内容.md` | フェーズ2で必要な数だけ（flow-id 2-1） |
-| **個別作業計画** | **planツールを使わない**（Write/Editで直接作成） | `plans/【種別】タスク内容.md` | フェーズ3で必要な数だけ（flow-id 3-1） |
-| **個別反映計画** | **planツールを使わない**（Write/Editで直接作成） | `plans/【種別】タスク内容.md` | フェーズ4で必要な数だけ（flow-id 4-1） |
+| **全体作業計画** | **planツール**（Planモード）で作成 | ハーネス提示パス `wip/plans/<自動命名>.md` をそのまま使う | **issue（ブランチ）につき1回**（flow-id 1-4） |
+| **個別調査計画** | **planツールを使わない**（Write/Editで直接作成） | `wip/plans/【調査】タスク内容.md` | フェーズ2で必要な数だけ（flow-id 2-1） |
+| **個別作業計画** | **planツールを使わない**（Write/Editで直接作成） | `wip/plans/【種別】タスク内容.md` | フェーズ3で必要な数だけ（flow-id 3-1） |
+| **個別反映計画** | **planツールを使わない**（Write/Editで直接作成） | `wip/plans/【種別】タスク内容.md` | フェーズ4で必要な数だけ（flow-id 4-1） |
 
 **タスク種別**（`【】`内）は次の8種を標準とする（issue #110で6種から拡張）。属するフェーズは
 次のとおり。
@@ -176,7 +176,7 @@ planツールで複数の計画を作ろうとすると計画同士が混ざる�
 
 #### 種別を複数併記する場合／分ける場合
 
-1ファイルに複数の種別を併記してよい（例: `plans/【実装】【テスト】SKILLフロー改訂.md`）。
+1ファイルに複数の種別を併記してよい（例: `wip/plans/【実装】【テスト】SKILLフロー改訂.md`）。
 判断基準は「**その計画に対して人間の合意を1回で取るか、フェーズごとに分けて取るか**」である。
 
 | | 併記する（1ファイル） | 分ける（複数ファイル） |
@@ -201,14 +201,14 @@ planツールで複数の計画を作ろうとすると計画同士が混ざる�
 基準（上記「人間の合意を1回で取るか、フェーズごとに分けて取るか」）に従う。
 
 - **囲み文字は全角の `【】` を使う**（ASCIIの `[]` は使わない）。`[]` はbashのglobで**文字クラス**
-  として解釈されるため、`plans/[調査]*.md` のようなパターンが意図どおりマッチしない。全角の
-  `【】` はglob特殊文字ではないため、`plans/【調査】*.md` と未クォートで書いても正しくマッチする。
-- **下位の個別計画（調査・作業・反映）は `plans/【*.md` で機械的に列挙できる**。逆に、それに一致しないものが
+  として解釈されるため、`wip/plans/[調査]*.md` のようなパターンが意図どおりマッチしない。全角の
+  `【】` はglob特殊文字ではないため、`wip/plans/【調査】*.md` と未クォートで書いても正しくマッチする。
+- **下位の個別計画（調査・作業・反映）は `wip/plans/【*.md` で機械的に列挙できる**。逆に、それに一致しないものが
   全体作業計画である。flow-id 1-4 で「既に全体作業計画があるか」を判定する際にこの区別を使う。
 - 日本語を含むパスをgitの出力から扱う場合は `-c core.quotepath=false` が必要
   （既定では8進エスケープされる。実装例: `Provider.sh` の `get_branch_work_files`）。
 
-**flow-id 1-4 の判定**: `get_branch_work_files` でブランチ固有のplansファイルを列挙し、
+**flow-id 1-4 の判定**: `get_branch_work_files` でブランチ固有の`wip/plans`ファイルを列挙し、
 `【` で始まらないものが既にあれば、それが全体作業計画である。その場合は**planツールで新しい
 計画ファイルを作らず**、既存を読んで次のステップへ進む。`.claude/settings.json` の
 `"defaultMode": "plan"` により新セッションは必ずPlanモードで始まるが、それは新規作成の理由に
@@ -222,7 +222,7 @@ planツールで複数の計画を作ろうとすると計画同士が混ざる�
 **`start` から着手する場合を除き、このセッションでこのフローのサブコマンドを初めて使う前には、
 必ず先に `resume` を実行して「今どこにいるか」を特定する。** `git branch --show-current` 等で
 ブランチ名やissue番号が判明していることは、`resume` を省略してよい理由にはならない。`resume` の
-目的はブランチ名の特定ではなく、PR/MRの状態・未解決コメント件数・plan/worklogファイル・
+目的はブランチ名の特定ではなく、PR/MRの状態・未解決コメント件数・plan/worklogsファイル・
 HANDOFF.mdとの矛盾など、ブランチ名だけでは分からない「このセッションでまだ確認していない現在地
 情報」を集約することにある。
 **flow-idが1つ進むごとに、必ず`HANDOFF.md`を更新する**。進捗表の記号更新は
@@ -337,10 +337,10 @@ AIエージェントは**兆候と分割案を提示するに留める**。勝�
 
 ### 計画と実施結果の分離（issue #87）
 
-**個別計画（`plans/【*】〜.md`）には「これから何をするか」だけを書き、実施した結果は書かない。**
-調査結果・作業結果・反映結果は `reports/日付_<全体計画名>_<内容を簡潔に>.md` へ記録する。
+**個別計画（`wip/plans/【*】〜.md`）には「これから何をするか」だけを書き、実施した結果は書かない。**
+調査結果・作業結果・反映結果は `wip/reports/日付_<全体計画名>_<内容を簡潔に>.md` へ記録する。
 
-| | 個別計画 `plans/【*】〜.md` | 結果 `reports/…md` | 詳細ログ `worklog/…md` |
+| | 個別計画 `wip/plans/【*】〜.md` | 結果 `wip/reports/…md` | 詳細ログ `wip/worklogs/…md` |
 |---|---|---|---|
 | **書くもの** | 目的・変更対象・方針・やらないこと・検証手順 | 実施した内容と、その結論・根拠・確認結果 | 何を試した／うまくいった／ダメだったか |
 | **確定する時点** | 人間の合意時（flow-id 2-4・3-4・4-4） | 実施後（flow-id 2-6・3-6・4-6） | 作業中に随時 |
@@ -353,7 +353,7 @@ AIエージェントは**兆候と分割案を提示するに留める**。勝�
 3. ライフサイクルが食い違う。計画は合意のスナップショットとして固定されるべきものだが、
    結果はpushのたびに書き換わる。
 
-**`plans/` `reports/` のいずれにも、mdとHTMLを併存させる。md が正文であり、HTMLはその視覚化
+**`wip/plans/` `wip/reports/` のいずれにも、mdとHTMLを併存させる。md が正文であり、HTMLはその視覚化
 （人間レビュー用ビュー）である。** 両者の寿命は同じで、flow-id 5-4 でまとめて削除する
 （`.claude/rules/docs-workflow.md` の「ドキュメント運用」表）。
 
@@ -362,7 +362,7 @@ AIエージェントは**兆候と分割案を提示するに留める**。勝�
 
 ### 計画・レポートのHTMLビュー（issue #54）
 
-`plans/` `reports/` の**人間レビュー用HTMLビュー**は、次の2つのテンプレートを土台にする。
+`wip/plans/` `wip/reports/` の**人間レビュー用HTMLビュー**は、次の2つのテンプレートを土台にする。
 **記述の型（見出し構成）の正はテンプレート側にあり、このSKILL.mdは列挙しない**（二重管理を
 避けるため。型を変えたいときは、フロー定義であるこのファイルではなくテンプレートの中身を
 差し替える）。
@@ -375,7 +375,7 @@ AIエージェントは**兆候と分割案を提示するに留める**。勝�
 **書く前にテンプレートを読む。** テンプレートは冒頭のHTMLコメントに使い方・必須／任意
 セクションの区別・埋め忘れの検査方法を持つので、置いてあるだけでは伝わらない。
 
-- **ファイル名は、対応する `.md` と同じベース名で拡張子だけ `.html` にする**（`plans/` `reports/`
+- **ファイル名は、対応する `.md` と同じベース名で拡張子だけ `.html` にする**（`wip/plans/` `wip/reports/`
   とも同じ規則）。全体作業計画のHTMLも、ハーネスが提示した自動命名をそのまま使う。
 - **任意セクションは、書くことが無ければ `<section>` ごと削除する。** 埋めるために内容を
   水増ししない。必須セクションは削除しない。
@@ -384,14 +384,14 @@ AIエージェントは**兆候と分割案を提示するに留める**。勝�
   数える**。テンプレート自身を説明する計画・レポートのように、地の文で「ここに書く」という語に
   触れる成果物を誤検知しないため）。
 - **md側と内容を同期させる。** md側の差分が「追加のみ」でないなら、HTML側も「追加のみ」では
-  同期していない（`reports/REVIEW-POINTS.md`）。
+  同期していない（`wip/reports/REVIEW-POINTS.md`）。
 - **外部依存を持たせない**（CDN・外部フォント・画像を参照しない）。テンプレートのスタイルは
   自己完結しているので、`<style>` を差し替えない限りこの条件は保たれる
   （経緯: `.claude/docs/ddr/i0054-01-計画レポートのHTMLビューはassets配下のテンプレートへ切り出す.md`）。
 - 要素間の関連・依存関係が主題のレポートは、`reports.template.html` ではなく canvas 形式
   （`.claude/skills/canvas-report/SKILL.md`）の利用を検討する。
 
-**md側のテンプレートは無い。** `plans/*.md` `reports/*.md` の見出し構成は規定せず、自由記述の
+**md側のテンプレートは無い。** `wip/plans/*.md` `wip/reports/*.md` の見出し構成は規定せず、自由記述の
 ままとする（型を固定する価値があるのは、人間が繰り返し目を通すHTMLビューの側だけであるため）。
 
 ## PR/MR作成・マージの担当（flow-id 1-3・5-5・5-6）
@@ -557,7 +557,7 @@ hookは多重防御であり、注入が無かったことは着手してよい�
      無い」は返信しなくてよい理由にならない**（そこを空けると、issue #109 が塞いだ抜け道が
      プロバイダ差として残る）。
 5. 提示した内容をもとに、該当する計画ファイル（全体作業計画または下位の個別計画）・
-   `reports/` の結果md・設計・実装を修正する（**結果側の記述の修正先は `reports/` のmdであり、
+   `wip/reports/` の結果md・設計・実装を修正する（**結果側の記述の修正先は `wip/reports/` のmdであり、
    個別計画ではない**。上記「計画と実施結果の分離」。この修正作業自体は本スキルの対象外で、
    通常の編集で行う）。対応が完了したコメントには、`reply` サブコマンドで対応内容を返信する。
 6. **手順3で洗い出したチャット由来の判断のうち、下記「チャットで受けたレビュー判断の記録」節の
@@ -583,9 +583,9 @@ hookは多重防御であり、注入が無かったことは着手してよい�
 
 ### `describe` — MR descriptionの更新（全体フロー 2-5・2-10・3-5・3-10・4-5・4-10）
 
-1. `get_branch_work_files` で現在のブランチ固有の計画・worklogを列挙し、**全体作業計画**
-   （`plans/` 配下で `【` で始まらないもの）と**下位の個別計画**（`plans/【*.md`）、および
-   worklogの要点を読む。
+1. `get_branch_work_files` で現在のブランチ固有の計画・worklogsを列挙し、**全体作業計画**
+   （`wip/plans/` 配下で `【` で始まらないもの）と**下位の個別計画**（`wip/plans/【*.md`）、および
+   worklogsの要点を読む。
 2. 以下のテンプレートでMR description本文を組み立て、一時ファイルへ書き出す。
 
    ```markdown
@@ -598,7 +598,7 @@ hookは多重防御であり、注入が無かったことは着手してよい�
 
    ## 実装状況
 
-   <worklogの「うまくいったこと」等から、現時点までの実装内容の要約。plan段階では「未着手」>
+   <worklogsの「うまくいったこと」等から、現時点までの実装内容の要約。plan段階では「未着手」>
    ```
 
 3. `get_mr_for_branch "$(git branch --show-current)"` で現在のブランチに紐づくMR番号を取得し
@@ -622,7 +622,7 @@ hookは多重防御であり、注入が無かったことは着手してよい�
 1. Agentツールで `issue-mr-resume` サブエージェント（`.claude/agents/issue-mr-resume.md`）を起動する。
 2. サブエージェントが返す「現在地サマリ」をそのままユーザーに提示する。**項目の定義は
    `.claude/agents/issue-mr-resume.md` の報告フォーマットが正**（ブランチ・issue・PR/MR・
-   未解決コメント件数・ブランチ固有のplan/worklogファイル・**ベースブランチとの差分**・
+   未解決コメント件数・ブランチ固有のplan/worklogsファイル・**ベースブランチとの差分**・
    HANDOFF.mdの内容、および矛盾・注意点）。同じ列挙を2箇所で管理するとどちらかが古くなるため、
    項目を増やしたくなったらこの節ではなくサブエージェント定義側を編集する。
 3. 提示した内容をもとに、全体フローの42ステップのうちどこから再開すべきかをAIエージェントが判断し、
@@ -686,7 +686,7 @@ get_repo_slug | jq -r '.owner, .repo'
 | `add_mr_comment <n> <file>` | `mcp__github__add_issue_comment` | `owner`, `repo`, `issue_number=<PR番号>`, `body=<ファイルの内容>` | PR番号を `issue_number` に渡す（GitHub APIの仕様上、PRもissueとして扱える） |
 | `add_mr_inline_comments <n> <file>` | `mcp__github__pull_request_review_write` | `method="create"` → 指摘ごとに `method="add_comment_to_pending_review"`（`owner`, `repo`, `pullNumber`, `path`, `line`, `side`, `body`）→ `method="submit_pending"`（`event="COMMENT"`） | 敵対的レビュー（issue #77）のインライン投稿。**3段構成で、`submit_pending` まで必ず実行する**（pendingのまま放置すると次回の `create` が失敗し続ける）。途中で失敗したら `method="delete_pending"` で片付ける。CLI版と違い有効行の事前検証が入らないため、diffに含まれない行を指定すると個別に失敗する |
 | `add_issue_comment <n> <file>` | `mcp__github__add_issue_comment` | `owner`, `repo`, `issue_number=<通知先のissue番号>`, `body=<ファイルの内容>` | **`add_mr_comment` と同じツールだが、`issue_number` へ渡すのがPR番号ではなく通知先のissue番号である**（flow-id 5-2の関連issue通知。issue #86）。CLI版はファイルパスを渡すが、MCPは文字列で渡すため本文はReadツール等で読んでから渡す |
-| `upload_attachment <file> [<content_type>]` | **代替なし** | — | flow-id 5-3 の**層3（統括レポートHTMLの添付）**（issue #111）。**MCPにPR/issueへの添付に相当するツールは無い**（実測で確認）。この関数は `require_vcs_cli` により非0で終え、stderrへ「層3はスキップしてよい」旨を出す。**層1（`reports/` をリモートへ反映）と層2（`add_mr_comment` でのサマリ投稿）だけでレビューは成立するため、スキップして次へ進む** |
+| `upload_attachment <file> [<content_type>]` | **代替なし** | — | flow-id 5-3 の**層3（統括レポートHTMLの添付）**（issue #111）。**MCPにPR/issueへの添付に相当するツールは無い**（実測で確認）。この関数は `require_vcs_cli` により非0で終え、stderrへ「層3はスキップしてよい」旨を出す。**層1（`wip/reports/` をリモートへ反映）と層2（`add_mr_comment` でのサマリ投稿）だけでレビューは成立するため、スキップして次へ進む** |
 | `get_repo_url` | （MCP不要） | — | `git remote get-url origin` の正規化だけでリポジトリの正規URLを導出するプロバイダ非依存の関数のため、MCP経路でもそのまま呼べる（`get_mr_diff_url` / `get_mr_diff_since_url` も同様。issue #44） |
 | `new_issue_branch` / `sync_branch` / `get_branch_work_files` / `get_issue_number_from_branch` / `to_slug` / `test_issue_sections` | （MCP不要） | — | git操作・純粋ロジックのみでCLIに依存しないため、MCP経路でもそのまま呼べる |
 
@@ -714,7 +714,7 @@ CLI経路には無い、MCPツール固有の挙動。**いずれも失敗では
 | `reply <threadId> <対応内容>` | 返信先の指定が数値のcommentIdになる（上表の補足参照）。**`Claude Codeより:` の署名行を先頭に付ける規約はMCP経路でも同じ**（MCPサーバーもユーザーの認証情報で動くため、投稿者は人間のアカウントとして表示される）。投稿後に返る `html_url` が返信のパーマリンクで、次のpushのレビュー依頼メッセージへ含める（issue #42） |
 | `describe` | descriptionを一時ファイルへ書く手順は同じでよいが、最後は `mcp__github__update_pull_request` の `body` へ文字列として渡す |
 | `sync` | 変更なし（git操作のみ） |
-| `resume` | サブエージェント（`issue-mr-resume`）はProvider.sh経由でのCLI利用を前提とするため、MCP経路ではissue/PR情報の取得部分が失敗する。その場合はサブエージェントの報告のうちgit・ファイル系（ブランチ・plans/worklog・HANDOFF.md）を採用し、issue/PR情報は呼び出し元が上表のMCPツールで補う |
+| `resume` | サブエージェント（`issue-mr-resume`）はProvider.sh経由でのCLI利用を前提とするため、MCP経路ではissue/PR情報の取得部分が失敗する。その場合はサブエージェントの報告のうちgit・ファイル系（ブランチ・plans/worklogs・HANDOFF.md）を採用し、issue/PR情報は呼び出し元が上表のMCPツールで補う |
 
 ### 4. hookの挙動（CLI不在時）
 
@@ -744,7 +744,7 @@ GitLabリポジトリで `glab` が無い場合、`require_vcs_cli` はその旨
 必ずチャット側に来る。この判断と理由はGitHub/GitLab上に一切残らず、PR/MR画面から経緯を
 辿れなくなる（issue #50。issue #48のフェーズ4／PR #49で実際に発生し、AIが判断を仰いだ3点
 すべてがチャットで回答された結果、未解決スレッド0件のまま記録がどこにも残らなかった）。
-**計画ファイル（`plans/`）へ書くだけでは代わりにならない。** `plans/` はflow-id 5-4で削除され、
+**計画ファイル（`wip/plans/`）へ書くだけでは代わりにならない。** `wip/plans/` はflow-id 5-4で削除され、
 squash mergeによりmainにも残らないためである。
 
 **チャットでレビュー判断を受けたら、AIエージェント自身が `add_mr_comment` でMRへ記録を
@@ -815,7 +815,7 @@ squash mergeによりmainにも残らないためである。
   - 論点: ...
   ```
 
-- 反映先には実際に修正したファイルパスを書く。反映先が `plans/` `worklog/` `reports/` 配下しか
+- 反映先には実際に修正したファイルパスを書く。反映先が `wip/plans/` `wip/worklogs/` `wip/reports/` 配下しか
   無い場合でも、判断の内容と理由をこのコメント本文に書いておけば、これらがflow-id 5-4で削除された
   後もPR/MR画面から辿れる。
 
@@ -1095,7 +1095,7 @@ defaultブランチがさらに進み、同じ解消をやり直すことにな�
 （`.claude/skills/resolve-conflict/SKILL.md`）を正とし、本節はフロー上の位置づけと分岐のみを定める。
 
 **このステップをフェーズ5の先頭に置くのは、作業ツリーがまだ汚れていないうちに `git merge` を
-走らせるためである**（issue #112）。片付け（flow-id 5-4）は `plans/` `worklog/` `reports/` の削除と
+走らせるためである**（issue #112）。片付け（flow-id 5-4）は `wip/plans/` `wip/worklogs/` `wip/reports/` の削除と
 `HANDOFF.md` のリセットを未コミットのまま残すため、その後に解消すると、コンフリクト解消の結果と
 片付けの削除が同じ作業ツリーへ混ざる。逆に、片付けを先に済ませても検知の精度は上がらない
 （`check-base-conflicts.sh` は `git merge-tree` をコミット済みの `HEAD` に対して実行するため、
@@ -1157,17 +1157,17 @@ issue番号ベース（`i0133-01-…`）へ変わり、issue番号はGitHub/GitL
    ```bash
    source .claude/scripts/src/vcs/Provider.sh
    base="$(get_workflow_config | jq -r '.defaultBaseBranch')"
-   git diff --stat "origin/${base}...HEAD" -- . ':(exclude)plans' ':(exclude)worklog' ':(exclude)reports'
+   git diff --stat "origin/${base}...HEAD" -- . ':(exclude)wip/plans' ':(exclude)wip/worklogs' ':(exclude)wip/reports'
    ```
 
-   **`plans/` `worklog/` `reports/` は差分から除外する**（issue #112）。これらの片付けは
+   **`wip/plans/` `wip/worklogs/` `wip/reports/` は差分から除外する**（issue #112）。これらの片付けは
    flow-id 5-4 でこのステップより後に行うため、この時点ではタスク単位の計画・ログ・レポートが
    まだ差分に含まれている。除外しないと、マージ後には残らないファイルの語（個別計画の種別名・
-   worklogの見出し等）がキーワード抽出へ混ざり、通知先の判定を歪める。上記のpathspecを付けずに
+   worklogsの見出し等）がキーワード抽出へ混ざり、通知先の判定を歪める。上記のpathspecを付けずに
    `git diff --stat` を見た場合は、これらのパスの行を読み飛ばすこと。
 
-2. **AIエージェントが検索キーワードを抽出する。** 差分（上記のとおり `plans/` `worklog/`
-   `reports/` を除いたもの）に現れた機能名・関数名・ファイル名・概念語から、**最大5件**
+2. **AIエージェントが検索キーワードを抽出する。** 差分（上記のとおり `wip/plans/` `wip/worklogs/`
+   `wip/reports/` を除いたもの）に現れた機能名・関数名・ファイル名・概念語から、**最大5件**
    （`search_issues` の `SEARCH_ISSUES_MAX_KEYWORDS`）を選ぶ。
    キーワード抽出をこの層でAIが担うのは、`issue-create` スキルの起票前重複チェックと同じ理由
    （日本語主体のissueから意味のある語を選ぶには形態素解析が要り、bashでは代替できない。
@@ -1242,13 +1242,13 @@ Claude Codeより: PR #<今回のPR番号>（issue #<今回のissue番号>）の
 片付け（flow-id 5-4）へ進む前に、**そのブランチで何をやったかを1枚にまとめた最終統括レポートを
 作成し、PR/MR上へ残す**（issue #111）。
 
-`plans/` `worklog/` `reports/` は flow-id 5-4 で削除され、squash mergeにより `main` にも残らない。
+`wip/plans/` `wip/worklogs/` `wip/reports/` は flow-id 5-4 で削除され、squash mergeにより `main` にも残らない。
 統括をPR/MR上のコメントとして残すことで、**ファイルが消えてもレビュー時・マージ後の追跡に耐える**
 状態にする。
 
 ### なぜ 5-2 と 5-4 の間なのか
 
-- **5-4（片付け）より前**である必要がある。統括レポートは `plans/` `worklog/` `reports/` の内容を
+- **5-4（片付け）より前**である必要がある。統括レポートは `wip/plans/` `wip/worklogs/` `wip/reports/` の内容を
   materialにして書くため、削除後には書けない。
 - **このステップ自身がcommit・pushまでを含む**。統括レポートを作るだけで 5-4 へ進むと、
   作成と削除が同じ作業ツリー上で相殺され、**ブランチのコミット履歴にすら残らない**
@@ -1260,11 +1260,11 @@ Claude Codeより: PR #<今回のPR番号>（issue #<今回のissue番号>）の
 
 | ファイル | 位置づけ | 必須か |
 |---|---|---|
-| `reports/日付_<全体計画名>_統括.md` | **正文** | **必須** |
-| `reports/日付_<全体計画名>_統括.html` | 人間レビュー用の視覚化 | 任意（下記） |
+| `wip/reports/日付_<全体計画名>_統括.md` | **正文** | **必須** |
+| `wip/reports/日付_<全体計画名>_統括.html` | 人間レビュー用の視覚化 | 任意（下記） |
 
 内容は「**何を変えたか／なぜそうしたか／検証結果／spec・ddrへの反映先／残課題**」。
-個別の `reports/…md`（flow-id 2-6・3-6・4-6 の結果）を並べ直すのではなく、**ブランチ全体を
+個別の `wip/reports/…md`（flow-id 2-6・3-6・4-6 の結果）を並べ直すのではなく、**ブランチ全体を
 1枚に統括する**。
 
 HTMLは `.claude/skills/issue-mr-flow/assets/reports.template.html` を土台にする
@@ -1272,7 +1272,7 @@ HTMLは `.claude/skills/issue-mr-flow/assets/reports.template.html` を土台に
 使い方は上記「計画・レポートのHTMLビュー」が正である。
 
 **統括レポートも flow-id 5-4 の削除対象である**（md・htmlの両方）。`cleanup-task.sh` は
-`reports/` 配下を `REVIEW-POINTS.md` 以外すべて削除するため、スクリプト側の変更は要らない。
+`wip/reports/` 配下を `REVIEW-POINTS.md` 以外すべて削除するため、スクリプト側の変更は要らない。
 `main` に残るのは**PR/MR上のコメント**と `.claude/docs/spec/` `.claude/docs/ddr/` である。
 
 ### 反映は3層のフォールバック構造にする
@@ -1282,7 +1282,7 @@ HTMLは `.claude/skills/issue-mr-flow/assets/reports.template.html` を土台に
 
 | 層 | 何をするか | 必須か | 壊れたとき |
 |---|---|---|---|
-| **層1** | レポート本体を `reports/` に載せ、`commit` スキル経由でcommitしてリモートへ反映する | **必須** | — |
+| **層1** | レポート本体を `wip/reports/` に載せ、`commit` スキル経由でcommitしてリモートへ反映する | **必須** | — |
 | **層2** | サマリをMarkdownでPR/MRへコメント投稿する（`add_mr_comment`） | **必須** | — |
 | **層3** | HTMLファイルを添付する（`upload_attachment`） | **任意** | **警告のみ出してスキップし、フローは止めない** |
 
@@ -1317,7 +1317,7 @@ source .claude/scripts/src/vcs/Provider.sh
 
 # 層3（任意）。失敗しても続ける
 attachment_md=""
-if result="$(upload_attachment "reports/20260821_xxx_統括.html")"; then
+if result="$(upload_attachment "wip/reports/20260821_xxx_統括.html")"; then
   attachment_md="$(printf '%s' "$result" | jq -r '.markdown')"
 else
   echo "添付をスキップしました（任意ステップ。層1・層2でレビューは成立する）" >&2
@@ -1398,22 +1398,22 @@ Claude Codeより（最終統括レポート）: issue #<番号> / PR #<番号>
 
 ## PRがflow-id 5-4実施前にマージされてしまった場合の対処
 
-人間がレビュー後にそのままMR/PRをマージするなど、flow-id 5-4（`plans/` `worklog/` `reports/`の
+人間がレビュー後にそのままMR/PRをマージするなど、flow-id 5-4（`wip/plans/` `wip/worklogs/` `wip/reports/`の
 削除・`HANDOFF.md`のリセット）を実施する前に**先にマージが完了してしまう**ことがある（issue #28,
-PR #29のセッションで実際に発生）。この場合、タスク固有の`plans/`配下の計画ファイル（全体作業計画・
-下位の個別計画）・`worklog/`・`reports/`のファイル・作業途中のままの`HANDOFF.md`が、そのまま
-`main`へ残ってしまう（本来`worklog/`・`reports/`はsquash mergeの対象からflow-id 5-4で除外され
+PR #29のセッションで実際に発生）。この場合、タスク固有の`wip/plans/`配下の計画ファイル（全体作業計画・
+下位の個別計画）・`wip/worklogs/`・`wip/reports/`のファイル・作業途中のままの`HANDOFF.md`が、そのまま
+`main`へ残ってしまう（本来`wip/worklogs/`・`wip/reports/`はsquash mergeの対象からflow-id 5-4で除外され
 `main`に残らない設計であり、このズレはdocs-workflow.mdの運用と矛盾する）。
 
 マージ後にこのズレに気づいた場合、**`main`へ直接コミットせず**、以下の手順で対処する
 （`main`は共有の正史であり、レビューを経ないままの直接変更は避ける）。
 
-1. `git fetch origin main` 等で最新の`main`を確認し、残ってしまった`plans/`・`worklog/`・
-   `reports/`ファイル・`HANDOFF.md`の状態を特定する。
+1. `git fetch origin main` 等で最新の`main`を確認し、残ってしまった`wip/plans/`・`wip/worklogs/`・
+   `wip/reports/`ファイル・`HANDOFF.md`の状態を特定する。
 2. 新しいクリーンアップ用ブランチを`main`から作成する（対象のissue番号が無いことが多いため、
    `.mrworkflow.json`の`branchPrefixTemplate`に従う必要はなく、`chore/cleanup-<簡潔な説明>`の
    ような分かりやすい名前でよい）。
-3. そのブランチ上で、該当する`plans/`・`worklog/`・`reports/`ファイルを削除し、`HANDOFF.md`を
+3. そのブランチ上で、該当する`wip/plans/`・`wip/worklogs/`・`wip/reports/`ファイルを削除し、`HANDOFF.md`を
    次タスク向けの空テンプレートへリセットする（内容はflow-id 5-4で行うものと同じ）。
 4. commit・pushし、`main`を対象にPRを作成する。**PRの作成は他のPR操作と同様AIエージェントが
    行ってよく、都度の明示指示は要らない**。**マージのみ**、ユーザーから明示的な指示を受けてから
@@ -1424,7 +1424,7 @@ PR #29のセッションで実際に発生）。この場合、タスク固有�
 全体フローの各ステップに関わる詳細は、以下の既存ルールを参照する（このファイルは順序立った
 フローの定義に専念し、内容の重複は避ける）。
 
-- ドキュメントの置き場所・ライフサイクル（`plans/` `worklog/` `reports/` `.claude/docs/spec/` `.claude/docs/ddr/` `HANDOFF.md`）:
+- ドキュメントの置き場所・ライフサイクル（`wip/plans/` `wip/worklogs/` `wip/reports/` `.claude/docs/spec/` `.claude/docs/ddr/` `HANDOFF.md`）:
   `.claude/rules/docs-workflow.md` の「ドキュメント運用」表
 - ブランチ命名規則・squash mergeの方針・コミット運用（`commit`スキル必須使用・PreToolUse hookに
   よる技術的強制）・PR/MR作成とマージの担当（ハーネスがPR作成を制限する環境での扱いを含む）:

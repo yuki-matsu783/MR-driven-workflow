@@ -22,11 +22,11 @@ keywords: [issue-mr-flow, 計画, claude-code, gemini-cli, gh, glab, webfetch, �
   `.claude/skills/issue-mr-flow/SKILL.md`「`start`」節、
   `.claude/docs/ddr/i0039-01-issue起票後の着手確認はブロックせず注意喚起の注入で担保する.md`）。
 - 特別なコンテキストなしで回答可能な簡易タスクを除き、いかなるタスク（調査、設計、コード作成、テスト、リファクタリングなど）も、**実作業を開始する前に必ず「計画（Plan）」を立ててユーザーに提示**する
-- 計画はplansディレクトリ配下に保存する。計画は2階層に分ける（詳細は
+- 計画はwip/plansディレクトリ配下に保存する。計画は2階層に分ける（詳細は
   `.claude/skills/issue-mr-flow/SKILL.md`「計画の2階層構造」）
   - **全体作業計画**: planツール（Planモード）で作成。**issue（ブランチ）につき1回**だけ作り、
     既にあれば新規作成しない
-  - **個別作業計画**: `plans/【種別】タスク内容.md` として**planツールを使わず**作成する
+  - **個別作業計画**: `wip/plans/【種別】タスク内容.md` として**planツールを使わず**作成する
 - 計画がユーザーに承認（Approve）されるまで、ファイルの書き換えやコマンドの実行を行ってはいけない
 - コーディング規約・ディレクトリ構成・ドキュメント運用などの詳細ルールは `.claude/rules/` 配下を参照する
 - GitHub/GitLabのissue・PR/MR・コメント等の情報を取得する際は、WebFetchツールやcurlではなく

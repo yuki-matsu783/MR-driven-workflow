@@ -18,7 +18,7 @@ keywords: [レビュー観点, 日本語, hook誤検知, 恒久参照, frontmatt
 
 ## 恒久的な参照先
 
-- コード・スクリプト内のコメントから `plans/` `worklog/` `reports/` のファイルを参照していないか。
+- コード・スクリプト内のコメントから `wip/plans/` `wip/worklogs/` `wip/reports/` のファイルを参照していないか。
   これらは寿命が短く、参照が切れる。**恒久的に参照してよいのはissue番号と
   `.claude/docs/spec/` `.claude/docs/ddr/` 配下のファイルだけ**。
 

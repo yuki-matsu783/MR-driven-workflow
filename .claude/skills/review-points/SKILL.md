@@ -19,10 +19,10 @@ keywords: [レビュー観点, REVIEW-POINTS, 祖先ディレクトリ, マー�
 ファイルに適用される。
 
 - `.claude/REVIEW-POINTS.md` は `.claude/scripts/src/vcs/Github.sh` のレビューにも効く。
-- 一方、`plans/` 配下のファイルには効かない（祖先ではないため）。
+- 一方、`wip/plans/` 配下のファイルには効かない（祖先ではないため）。
 - ルート直下の `REVIEW-POINTS.md` はすべてのファイルに効く。
 
-現在の構成では ルート・`.claude/`・`plans/`・`reports/` の4箇所に置いている。
+現在の構成では ルート・`.claude/`・`wip/plans/`・`wip/reports/` の4箇所に置いている。
 
 ## 実行フロー
 

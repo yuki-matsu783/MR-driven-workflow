@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>wip集約とworklogs改名 実装結果（issue #165）</title>
+<style>
+  :root {
+    --bg: #f6f7f9;      --panel: #ffffff;   --ink: #1a1d21;     --muted: #5b636d;
+    --line: #dfe3e8;    --accent: #2563eb;  --accent-soft: #eaf0fe;
+    --ok: #1a7f4b;      --ok-soft: #e6f4ec; --warn: #a35a00;    --warn-soft: #fdf1e0;
+    --stop: #b3261e;    --stop-soft: #fdecea; --code-bg: #f0f2f5;
+    --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1216;    --panel: #161a20;   --ink: #e6e8eb;     --muted: #9aa3ad;
+      --line: #2a3038;  --accent: #7aa2f7;  --accent-soft: #1b2333;
+      --ok: #6ee7a8;    --ok-soft: #14261d; --warn: #f0b866;    --warn-soft: #2a2113;
+      --stop: #f2857c;  --stop-soft: #2b1614; --code-bg: #1d222a;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", system-ui, sans-serif;
+    line-height: 1.8; font-size: 15px;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 20px 80px; }
+  header.band {
+    background: linear-gradient(135deg, var(--accent-soft), var(--panel));
+    border-bottom: 1px solid var(--line); padding: 28px 20px 22px; margin-bottom: 28px;
+  }
+  header.band .inner { max-width: 1080px; margin: 0 auto; }
+  header.band .kind { font-size: 11px; letter-spacing: .18em; color: var(--accent); font-weight: 700; }
+  header.band h1 { margin: 6px 0 4px; font-size: 24px; line-height: 1.4; }
+  header.band .lead { margin: 0; color: var(--muted); }
+  .meta { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; padding: 0; list-style: none; }
+  .meta li {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 999px;
+    padding: 3px 12px; font-size: 12.5px; color: var(--muted); white-space: nowrap;
+  }
+  .meta li b { color: var(--ink); font-weight: 600; }
+  nav.toc {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 14px 20px; margin-bottom: 28px;
+  }
+  nav.toc h2 { margin: 0 0 8px; font-size: 13px; letter-spacing: .08em; color: var(--muted); border: 0; padding: 0; }
+  nav.toc ol { margin: 0; padding-left: 20px; }
+  nav.toc li { margin: 2px 0; }
+  a { color: var(--accent); }
+  section {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 8px 24px 22px; margin-bottom: 22px;
+  }
+  h2 { font-size: 20px; margin: 20px 0 10px; padding-bottom: 8px; border-bottom: 2px solid var(--line); }
+  h3 { font-size: 16px; margin: 22px 0 8px; color: var(--accent); }
+  p { margin: 10px 0; }
+  ul, ol { padding-left: 22px; }
+  li { margin: 4px 0; }
+  .tablewrap { overflow-x: auto; margin: 14px 0; }
+  table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 14px; }
+  th, td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: var(--accent-soft); font-weight: 600; white-space: nowrap; }
+  tbody tr:nth-child(even) td { background: color-mix(in srgb, var(--line) 22%, transparent); }
+  code {
+    background: var(--code-bg); border-radius: 5px; padding: 1px 5px; font-size: 13px;
+    font-family: "SFMono-Regular", Consolas, "Noto Sans Mono", monospace;
+  }
+  pre {
+    background: var(--code-bg); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 12px 14px; overflow-x: auto; font-size: 13px; line-height: 1.65;
+  }
+  pre code { background: none; padding: 0; }
+  .box { border-left: 4px solid var(--accent); background: var(--accent-soft);
+         border-radius: 0 var(--radius) var(--radius) 0; padding: 12px 16px; margin: 16px 0; }
+  .box > :first-child { margin-top: 0; } .box > :last-child { margin-bottom: 0; }
+  .box .label { font-size: 12px; font-weight: 700; letter-spacing: .06em; display: block; margin-bottom: 4px; }
+  .box.ok { border-color: var(--ok); background: var(--ok-soft); } .box.ok .label { color: var(--ok); }
+  .box.warn { border-color: var(--warn); background: var(--warn-soft); } .box.warn .label { color: var(--warn); }
+  footer { color: var(--muted); font-size: 13px; text-align: center; padding-top: 10px; }
+</style>
+</head>
+<body>
+
+<header class="band">
+  <div class="inner">
+    <div class="kind">作業結果レポート / フェーズ3</div>
+    <h1>wip集約とworklogs改名 実装結果</h1>
+    <p class="lead">plans/worklog/reportsをwip/plans, wip/worklogs, wip/reportsへgit mvで移動し、設定・スクリプト・約45ファイルのドキュメント参照を更新した。影響を受ける単体テスト8本はすべて合格。</p>
+    <ul class="meta">
+      <li><b>issue</b> #165</li>
+      <li><b>ブランチ</b> claude/consolidate-wip-directories-ps6f9a</li>
+      <li><b>PR</b> #178</li>
+      <li><b>フェーズ</b> 3〈作業〉 flow-id 3-6</li>
+      <li><b>作成日</b> 2026-08-23</li>
+      <li><b>正文</b> 同名の .md</li>
+    </ul>
+  </div>
+</header>
+
+<div class="wrap">
+
+<nav class="toc">
+  <h2>目次</h2>
+  <ol>
+    <li><a href="#summary">結論</a></li>
+    <li><a href="#work">実施した内容</a></li>
+    <li><a href="#verify">検証結果</a></li>
+    <li><a href="#surprises">想定と異なった点</a></li>
+    <li><a href="#unverified">確かめられなかったこと</a></li>
+    <li><a href="#next">設計への反映（フェーズ4で対応）</a></li>
+  </ol>
+</nav>
+
+<section id="summary">
+  <h2>結論</h2>
+  <div class="box ok">
+    <span class="label">達成状況</span>
+    issueの受け入れ条件8件のうち7件を満たした。残る1件（wip/命名判断のDDR記録）はフェーズ4へ
+    送る（計画どおり）。DDR本文・spec changelogへの意図しない書き換えは無い。
+  </div>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>#</th><th>受け入れ条件</th><th>状態</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td>plansDirectoryのネストパス対応の実機検証</td><td>済（フェーズ2）</td></tr>
+      <tr><td>2</td><td>test_cleanup_task.shが新パスで通る</td><td>済（67/0、新規9件含む）</td></tr>
+      <tr><td>3</td><td>test_search_frontmatter.sh / test_vcs_provider.shが通る</td><td>済（114/0, 219/0）</td></tr>
+      <tr><td>4</td><td>install-to-project.shがwip/1つ＋配下3構成を作る</td><td>済（手動実行で確認）</td></tr>
+      <tr><td>5</td><td>DDR本文・spec changelogを書き換えない</td><td>済（分岐点SHA基準で確認）</td></tr>
+      <tr><td>6</td><td>git mvで移動する</td><td>済（13件すべてrename認識）</td></tr>
+      <tr><td>7</td><td>wip/命名判断をDDRとして記録</td><td>未（フェーズ4）</td></tr>
+      <tr><td>8</td><td>directory-structure.md・index.mdが新構成を反映</td><td>済</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="work">
+  <h2>実施した内容</h2>
+
+  <h3>1. KEEP_PATHSの動的化（cleanup-task.sh）</h3>
+  <p>トップレベルの<code>readonly -a KEEP_PATHS=("worklog/TEMPLATE.md")</code>を
+  <code>KEEP_PATHS=()</code>（空配列・readonly外し）へ変更し、<code>main()</code>内で
+  <code>target_dirs</code>読み込み直後に<code>KEEP_PATHS=("${target_dirs[1]}/TEMPLATE.md")</code>
+  を代入する形にした。<code>declare</code>は使わず素の代入文にすることで、<code>main()</code>を
+  経由しない単体テストの直接呼び出しからも正しく見えることを確認した。</p>
+  <p><code>test_cleanup_task.sh</code>には、既存の<code>is_keep_path</code>直接呼び出し前への
+  明示セット行と、<code>.mrworkflow.json</code>で<code>worklogDir: "wip/worklogs"</code>を
+  指定する新規フィクスチャによる結合テスト2件を追加した（既存フィクスチャは
+  <code>.mrworkflow.json</code>を持たずこの配線を一度も検証できていなかったため）。</p>
+  <p><code>Provider.sh</code>・<code>cleanup-task.sh:224</code>のjqフォールバック既定値は
+  <b>変更していない</b>（<code>.mrworkflow.json</code>を持たない配布先が旧レイアウトのままである
+  前提を保つため）。</p>
+
+  <h3>2. ディレクトリ移動</h3>
+  <p><code>mkdir -p wip</code>の後、移動先3つの非存在を<code>if</code>文で確認してから
+  <code>git mv plans wip/plans && git mv worklog wip/worklogs && git mv reports wip/reports</code>
+  を実行した。13件すべてが<code>git status</code>上で<code>R</code>（rename）と認識されている。</p>
+
+  <h3>3. 設定・スクリプトの変更</h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>ファイル</th><th>変更内容</th></tr></thead>
+    <tbody>
+      <tr><td><code>.mrworkflow.json</code></td><td>plansDir/worklogDir/reportsDirをwip/配下へ</td></tr>
+      <tr><td><code>.claude/settings.json</code></td><td>plansDirectory: "./wip/plans"</td></tr>
+      <tr><td><code>.gemini/settings.json</code></td><td>同上（実機未検証のまま適用）</td></tr>
+      <tr><td><code>cleanup-task.sh</code></td><td>KEEP_PATHS動的化（上記1.）</td></tr>
+      <tr><td><code>install-to-project.sh</code></td><td>mkdir -p / .gitkeep をwip/plans, wip/worklogs, wip/reportsの3つへ</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p><code>install-to-project.sh</code>は実際に新規の使い捨てgitリポジトリへ向けて実行し、
+  <code>wip/plans/.gitkeep</code>等3件が作られることを確認した。</p>
+
+  <h3>4. ドキュメント更新</h3>
+  <p><code>git grep -lI -e plans -e worklog -e reports</code>を起点に、DDR本文とspecの
+  point-in-time changelog節を除外して約45ファイルを更新した。複数の担当（サブエージェント）へ
+  分担する際、「現在の状態を説明する箇所のみ更新し、過去のissue対応を時系列で記録した文は
+  触らない」という同一の判断基準を明示した。</p>
+  <p>特に<code>.claude/docs/spec/issue-mr-workflow.md</code>は、<code>## 影響範囲</code>配下の
+  50以上の過去issue changelog小節を一切変更せず、<code>## 設定項目</code>等の現在の状態を
+  説明する節のみ更新した。移動先3ディレクトリ自身の恒久ファイル（<code>REVIEW-POINTS.md</code>×2・
+  <code>TEMPLATE.md</code>）本文中の旧パス参照も更新対象に含めた。</p>
+  <div class="box warn">
+    <span class="label">触らなかったもの（意図的）</span>
+    <ul>
+      <li>DDR本文（不変）、specのpoint-in-time changelog節</li>
+      <li><code>.claude/docs/spec/cleanup-task.md</code>の「未決定事項」節（フェーズ4へ送る）</li>
+      <li><code>.claude/skills/apply-mr-workflow-to-project/assets/</code>（ビルド成果物）</li>
+      <li><code>.claude/scripts/test/</code>配下6ファイルのフィクスチャ文字列（設定値に依存しない独立データ）</li>
+    </ul>
+  </div>
+</section>
+
+<section id="verify">
+  <h2>検証結果</h2>
+  <pre><code>bash .claude/scripts/test/test_cleanup_task.sh          -&gt; passed=67 failures=0
+bash .claude/scripts/test/test_search_frontmatter.sh    -&gt; passed=114 failures=0
+bash .claude/scripts/test/test_vcs_provider.sh          -&gt; passed=219 failures=0
+bash .claude/scripts/test/test_install_to_project.sh    -&gt; passed=22 failures=0
+bash .claude/scripts/test/test_check_base_sync.sh       -&gt; passed=55 failures=0
+bash .claude/scripts/test/test_collect_review_points.sh -&gt; passed=17 failures=0
+bash .claude/scripts/test/test_extract_frontmatter.sh   -&gt; passed=32 failures=0
+bash .claude/scripts/test/test_session_start.sh         -&gt; passed=51 failures=0
+perl .claude/hooks/otel/test/test_otel_registry.pl      -&gt; 12/12 ok</code></pre>
+  <p>変更した<code>.sh</code>（7ファイル）を<code>bash -n</code>、<code>.pl</code>/<code>.pm</code>
+  （3ファイル）を<code>perl -c</code>、<code>.json</code>（3ファイル）を<code>jq .</code>で
+  構文チェックし、全てOK。</p>
+  <pre><code>git diff $(git merge-base main HEAD) -- .claude/docs/ddr/    -&gt; 0行（意図しない書き換え無し）</code></pre>
+  <p>specの差分は、変更行がすべて<code>## 影響範囲</code>等のchangelog小節の外にあることを
+  hunk位置とファイル構造を突き合わせて確認した。</p>
+  <p>移動後の実在確認: <code>wip/plans/REVIEW-POINTS.md</code> <code>wip/reports/REVIEW-POINTS.md</code>
+  <code>wip/worklogs/TEMPLATE.md</code> のいずれも存在。
+  <code>cleanup-task.sh --dry-run</code>の実リポジトリ確認では<code>targetDirs</code>が
+  <code>["wip/plans","wip/worklogs","wip/reports"]</code>、<code>keptPaths</code>が
+  <code>["wip/worklogs/TEMPLATE.md"]</code>になることを確認した。</p>
+</section>
+
+<section id="surprises">
+  <h2>想定と異なった点</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>計画時の見込み</th><th>実際</th><th>どう扱ったか</th></tr></thead>
+    <tbody>
+      <tr><td>ドキュメント参照は約58/44/39ファイル（フェーズ2実測）</td><td>本ブランチで数え直すと数え方により48〜70の幅で変動</td><td>固定値ではなくgrepコマンドそのものを検証手段とした</td></tr>
+      <tr><td>ドキュメント更新は手作業で1ファイルずつ</td><td>ファイル数が多いため複数担当へ同一基準で分担</td><td>分岐点SHA基準のgit diffで最終確認</td></tr>
+      <tr><td>test_install_to_project.shの既存合格で確認は足りる想定</td><td>既存テストはplans/worklog/reports作成を検証していなかった</td><td>使い捨てリポジトリへ実行し手動確認</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="unverified">
+  <h2>確かめられなかったこと</h2>
+  <ul>
+    <li><code>.gemini/settings.json</code>の<code>general.plan.directory</code>が実際に機能するかは、
+      Gemini CLI自体が本実行環境に無いため未検証（フェーズ2から持ち越し）。</li>
+    <li><code>wip/plans</code>ディレクトリが事前に存在しない状態でのPlanモードの挙動
+      （フェーズ2から持ち越し）。</li>
+  </ul>
+</section>
+
+<section id="next">
+  <h2>設計への反映（フェーズ4で対応）</h2>
+  <ol>
+    <li><code>wip/</code>という名前の採用理由をDDRとして記録する（受け入れ条件7）。</li>
+    <li><code>.claude/docs/spec/cleanup-task.md</code>の「未決定事項」節を、KEEP_PATHSが
+      設定から動的に組み立てられるようになった事実に合わせて更新する。</li>
+    <li><code>.claude/VERSION</code>のMAJORインクリメントを提案する。</li>
+    <li>既存導入済み配布先の移行手順の記述先を決め、記述する。</li>
+  </ol>
+</section>
+
+<footer>issue #165 / PR #178 — 結果の正文は同名の <code>.md</code>。外部依存を持たない自己完結HTML。</footer>
+
+</div>
+</body>
+</html>
