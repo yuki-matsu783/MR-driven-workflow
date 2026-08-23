@@ -19,17 +19,17 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - PR: #183
 - push回数: 1
 - 現在のループ: 3-6〜3-9 の1周目（進行中）
-- 未返信スレッド: 0
+- 未返信スレッド: 9
 - 追従監視: なし
 
 | 進捗 | flow-id | ステップ | 担当 |
 |---|---|---|---|
-| [] | 1-1 | issueを起票する | 人間 |
+| [x] | 1-1 | issueを起票する | 人間 |
 | [x] | 1-2 | issueの内容を取得する | start |
 | [x] | 1-3 | featureブランチ・Draft MRを作成する | start |
 | [x] | 1-4 | 全体作業計画を作成する | エージェント |
 | [] | 1-5 | 全体作業計画に合意する | 人間 |
-| [] | 1-6 | 全体作業計画をもとにHANDOFF.mdを更新する | エージェント |
+| [x] | 1-6 | 全体作業計画をもとにHANDOFF.mdを更新する | エージェント |
 | [-] | 2-1 | 個別調査計画を作成する | エージェント |
 | [-] | 2-2 | commit・push・レビュー依頼 | エージェント |
 | [-] | 2-3 | 調査計画のレビュー | 人間 |
@@ -80,16 +80,52 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - worklog・実施結果レポート（`reports/20260823_misty-drifting-lantern_選別スクリプト実装.md`）を作成。
 - 4コミットに分けて `commit` スキル経由でコミットし、push。Draft PR #183 を作成
   （`new_draft_merge_request` 相当の手順を、`gh`/`glab` CLI不在のためGitHub MCPで代替）。
-- これから敵対的レビュー（対象: 計画diff、続けて実装diff）をユーザーの明示指示に従い自律実行し、
-  指摘への対応を行う。
+- 敵対的レビュー（フェーズ3・1/3回目、diff全体）を自律実行した。13件のfindingsのうち、
+  確度×重大度の1次振り分けで9件が投稿候補（major×high 5件・minor×high 4件）、4件が報告のみ
+  （minor×medium）となり、`select-adversarial-findings.sh`（層単位ルール、blocker0件のため
+  9件全件がposted）で選別したうえで、GitHub MCP（pending review → 9件のインラインコメント →
+  submit_pending）でPR #183へ投稿した。投稿したスレッドURLは下記「敵対的レビューで投稿した
+  スレッド」参照。
+- 投稿した9件（major5件・minor4件）はいずれも確認のうえ**その場で修正**した。内訳:
+  `select-adversarial-findings.sh`の入力検証追加（空ファイル・findingsキー無し・配列）、
+  spec/SKILL.md/DDRの`.posted.findings`誤記述の修正（正しくは`.posted`）、
+  spec規則4の文言明確化、blockerがハードシーリングの枠を消費する旨をspec/DDR/コメントへ明記、
+  単体テストを16→34アサーションへ拡充（確度優先のタイブレーク・行番号タイブレーク・
+  minorがpostedへ入る経路・ちょうど20件境界・main入力検証）。
+- 報告のみの4件（doc-duplication・DDRの誤参照・既存DDR i0077-03のnote未追加・HANDOFF.mdの
+  進捗記号未更新）も**確認のうえ全て対応済み**（SKILL.mdの規則をspec参照へ縮小、DDRの誤記述を
+  修正、i0077-03へnote追加してDDR一覧を再生成、`mark-done 1-1`/`mark-done 1-6`を実行）。
+  詳細は`reports/20260823_misty-drifting-lantern_選別スクリプト実装.md`「敵対的レビュー実施と
+  対応」節。
+- `plans/misty-drifting-lantern.md`・個別作業計画md・両HTML・`reports/`md/htmlの3ファイルへ
+  frontmatterを追加し、md/HTML間の内容・見出し同期のずれも修正した。
+- 修正後、`test_select_adversarial_findings.sh`（34アサーション）・`bash -n`構文チェックを
+  再実行し`failures=0`を確認した。**まだcommit/pushしていない**（次のアクション）。
+
+## 敵対的レビューで投稿したスレッド（フェーズ3・1回目、未返信9件）
+
+- https://github.com/yuki-matsu783/MR-driven-workflow/pull/183#discussion_r3838127397
+- https://github.com/yuki-matsu783/MR-driven-workflow/pull/183#discussion_r3838127526
+- https://github.com/yuki-matsu783/MR-driven-workflow/pull/183#discussion_r3838127674
+- https://github.com/yuki-matsu783/MR-driven-workflow/pull/183#discussion_r3838127802
+- https://github.com/yuki-matsu783/MR-driven-workflow/pull/183#discussion_r3838127924
+- https://github.com/yuki-matsu783/MR-driven-workflow/pull/183#discussion_r3838127992
+- https://github.com/yuki-matsu783/MR-driven-workflow/pull/183#discussion_r3838128127
+- https://github.com/yuki-matsu783/MR-driven-workflow/pull/183#discussion_r3838128201
+- https://github.com/yuki-matsu783/MR-driven-workflow/pull/183#discussion_r3838128284
+
+**返信は`comments`/`reply`ループ（flow-id 3-9相当）で行う。投稿直後のこのセッションでは
+返信しない**（`adversarial-review/SKILL.md`「してはいけないこと」）。
 
 ## 次にやること
 
-- 敵対的レビューを実行し（`adversarial-review-count.sh get 3` で残回数確認 → 観点表収集 →
-  サブエージェント起動 → `select-adversarial-findings.sh` で選別 → 投稿）、指摘へ対応する。
+- 上記の修正一式を `commit` スキル経由でコミットし、push する（複数論点にまたがるため、
+  内容ごとに分割コミットする想定）。
+- push後、`describe`でMR descriptionを更新する（flow-id 3-10）。
 - flow-id 3-6〜3-9 のループを1周完了させたら（このセッションでは人間レビューを待てないため、
   下記「判断を迷った内容」の方針に従い、レビューはPRへ委ねてこのセッションでは進捗記号を
-  動かさない）、flow-id 4-1（反映計画）以降へ進める。
+  動かさない。未返信スレッドが9件残っているため、いずれにせよこのループへの`mark-done`は
+  現時点では拒否される）、flow-id 4-1（反映計画）以降へ進める。
 - 最終的にPRをDraft解除するかは、人間のレビューが実際に付いてから判断する。
 
 ## 判断を迷った内容
@@ -109,7 +145,9 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 
 ## 未解決の内容
 
-- 敵対的レビュー実施前のため、指摘の有無・対応状況は未定。
+- 敵対的レビューで投稿した9件のスレッドは、いずれも修正済みだが**未返信**（返信は次の
+  `comments`/`reply`ループで行う設計のため。上記「敵対的レビューで投稿したスレッド」参照）。
+- 修正一式はまだcommit/pushしていない（次にやること参照）。
 
 ## 守るべき条件・触ってはいけない範囲
 

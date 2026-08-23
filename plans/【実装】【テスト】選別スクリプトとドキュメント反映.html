@@ -163,11 +163,12 @@
     <li>findingsの入力はファイル経由とし、<code>--argjson</code>には固定値の閾値のみを渡す
       （findings本体は渡さない）。</li>
     <li>出力は <code>{"posted":{"findings":[...]},"reported":{"findings":[...]}}</code>。
-      <code>posted.findings</code> をそのまま <code>add_mr_inline_comments</code> へ渡せる形にする。</li>
+      <code>.posted</code>（オブジェクト全体。<code>{"findings":[...]}</code>の形）をそのまま
+      <code>add_mr_inline_comments</code> へ渡せる形にする。</li>
   </ul>
 
+  <h3>既存の記述を置き換える場合</h3>
   <div class="box warn">
-    <span class="label">既存の記述を置き換える場合</span>
     <p><code>adversarial-review/SKILL.md</code> 手順6は、確度×重大度の表による1次振り分けの節は
     そのまま残し、「1回あたりの投稿上限は10件。超える場合は重大度の高い順に10件へ絞る」の1文を、
     スクリプト呼び出し（コードブロック）と規則1〜4の箇条書きへ置き換える。</p>

@@ -198,24 +198,28 @@ bash .claude/scripts/src/select-adversarial-findings.sh <投稿候補findings JS
 
 選別規則（層単位ルール・blocker無制限・ハードシーリング20件）:
 
-1. **blocker は全件投稿する。** 件数上限の対象外で、blocker が単独で20件を超える場合も全件
-   投稿し、下位層（major・minor）は追加しない。
+1. **blocker は全件投稿する。** 「投稿するかどうか」自体は上限の対象外で、blocker が単独で
+   20件を超える場合も全件投稿し、その場合は下位層（major・minor）を追加しない。
 2. **blocker より下の層（major → minor）は、重大度の高い順に「層単位」で追加する。** 層の
    途中では切らない。累計が10件（層追加のしきい値）に達した時点で、それより下の層は追加しない。
    - 例: blocker 1件 + major 13件 + minor 5件 → blocker + majorの14件を投稿し、minorは
      累計14 ≥ 10のため追加しない。
 3. **絶対上限（ハードシーリング）は20件。** 層を丸ごと追加すると累計が20件を超える場合に限り、
    その層内を**確度の降順（high→medium→low）→パスの昇順→行番号の昇順**の決定的な順序で
-   20件まで切る（blockerはこの上限の対象外）。
-4. 選ばれなかったfindings（1次振り分けの「報告」＋この選別で漏れた「投稿候補」）は、いずれも
-   `reported.findings` へ集約される。
+   20件まで切る。**blockerの件数自体はこの20件の枠を消費する**（例: blocker 9件 + major
+   15件 → 20-9=11件までしかmajorは入らず、残り4件はreportedへ回る）。上記1.の
+   「対象外」は打ち切り判定（2.でblockerが減らされることはない）を指し、消費した枠まで
+   対象外になるわけではない。
+4. **この選別で漏れたfindings**（層追加のしきい値・ハードシーリングで切られたもの）が
+   出力の `reported.findings` に入る。**1次振り分けで「報告」に区分したfindingsは、
+   そもそもこのスクリプトへ渡していない**ため `reported.findings` には含まれない
+   （呼び出し側で両者を合わせて報告する。`adversarial-review/SKILL.md` 手順6・手順9）。
 
 - **findingsは必ずファイル経由でjqへ渡す**（jqの引数長上限を避けるため。
   `.claude/rules/shell-script-style.md`「JSON操作」）。jqの起動は選別1回につき1回に集約している
   （層ごとの処理は `reduce` でまとめて1つのjqプログラム内に書く）。
-- 単体テストは `.claude/scripts/test/test_select_adversarial_findings.sh`。0件／ちょうど10件／
-  層跨ぎ（blocker 1 + major 13 + minor 5 → 14件投稿）／blocker単独で20件超／20件シーリングを
-  跨ぐ層の層内切り捨て順序／上流で本来除外されるはずのnit混入時の防御的な扱い、を含む。
+- 単体テストは `.claude/scripts/test/test_select_adversarial_findings.sh` を正とする（本節へ
+  ケース一覧を再掲しない。テストを追加してもこの節が古くならないようにするため）。
 - **旧規則（1回あたりの投稿上限は固定10件・超過時は重大度の高い順に10件へ絞る）は廃止した。**
   同一重大度内でどれを落とすかのタイブレークが未定義でAIエージェントの裁量になっていたため
   （詳細・却下案: `.claude/docs/ddr/i0182-01-敵対的レビューの投稿件数選別を層単位ルールでスクリプト化する.md`）。
@@ -465,17 +469,6 @@ issue #77 で追加・変更したもの。
   して使われる（`.claude/docs/spec/update-handoff-progress.md`
   「ループ範囲への`mark-done`と未返信スレッド」が正）。
 
-## 設定項目
-
-| 項目 | 既定 | 変更方法 |
-|---|---|---|
-| 実行モード | 対話モード（判断に迷う場合を含む） | AIエージェントが実行環境の性質（人間のレビュー往復が成立するか）から判断する。環境変数は使わない |
-| 実施回数の上限 | 3回／フェーズ | `adversarial-review-count.sh` の `ADVERSARIAL_REVIEW_MAX_RUNS`（**緩める口は意図的に用意していない**） |
-| 投稿候補への1次振り分け | 確度×重大度の表 | `adversarial-review/SKILL.md` 手順6 |
-| 層追加のしきい値 | 10件 | `select-adversarial-findings.sh` の `LAYER_ADDITION_THRESHOLD`（**緩める口は意図的に用意していない**） |
-| ハードシーリング | 20件 | `select-adversarial-findings.sh` の `HARD_CEILING`（同上） |
-| レビュー観点 | 各ディレクトリの `REVIEW-POINTS.md` | 該当ディレクトリの観点表を編集する（スキル本文は編集しない） |
-
 ### 追記: 投稿件数選別を層単位ルールでスクリプト化する（issue #182）
 
 **手順6（1次振り分け）と、新設した投稿件数の選別（本ドキュメント「投稿件数の選別」節）を
@@ -485,10 +478,12 @@ issue #77 で追加・変更したもの。
 | ファイル | 内容 |
 |---|---|
 | `.claude/scripts/src/select-adversarial-findings.sh` | 新規。層単位ルール（blocker無制限・層追加しきい値10・ハードシーリング20）による投稿件数の決定的な選別 |
-| `.claude/scripts/test/test_select_adversarial_findings.sh` | 新規。境界ケース（0件／ちょうど10件／層跨ぎ／blocker単独20件超／ハードシーリング跨ぎの層内切り捨て順序／nit混入時の防御）を含む |
+| `.claude/scripts/test/test_select_adversarial_findings.sh` | 新規。境界ケースを含む単体テスト（詳細はファイル自体を正とする） |
 | `.claude/skills/adversarial-review/SKILL.md` | 手順6を「1次振り分け＋スクリプト呼び出し」の形へ書き換え |
 | `.claude/docs/spec/adversarial-review.md` | 本ドキュメント。「投稿件数の選別」節を新設、設定項目表を更新 |
 | `.claude/docs/ddr/i0182-01-敵対的レビューの投稿件数選別を層単位ルールでスクリプト化する.md` | 新規 |
+| `.claude/rules/shell-script-style.md` | 実装中に見つけたjqの落とし穴（`配列 \| index(.field)` のパイプ内`.`束縛）を追記 |
+| `.claude/docs/README.md` | DDR一覧を `generate-ddr-list.sh` で再生成（i0182-01を追加） |
 
 **なぜ変更したか**: 旧規則は「1回あたりの投稿上限は10件。超える場合は重大度の高い順に10件へ
 絞る」とだけ規定しており、**同一重大度内でどれを落とすか**のタイブレークが未定義だった。
@@ -500,6 +495,17 @@ issue #77 で追加・変更したもの。
 置くという既存の判断は維持した。件数選別だけを切り出したのは、そちらが「同じ入力なら同じ
 出力になるべき」という決定性の要件を持つのに対し、1次振り分けの表は運用感に応じて調整する
 対象であり、性質が異なるためである（詳細・却下案はDDR i0182-01）。
+
+## 設定項目
+
+| 項目 | 既定 | 変更方法 |
+|---|---|---|
+| 実行モード | 対話モード（判断に迷う場合を含む） | AIエージェントが実行環境の性質（人間のレビュー往復が成立するか）から判断する。環境変数は使わない |
+| 実施回数の上限 | 3回／フェーズ | `adversarial-review-count.sh` の `ADVERSARIAL_REVIEW_MAX_RUNS`（**緩める口は意図的に用意していない**） |
+| 投稿候補への1次振り分け | 確度×重大度の表 | `adversarial-review/SKILL.md` 手順6 |
+| 層追加のしきい値 | 10件 | `select-adversarial-findings.sh` の `LAYER_ADDITION_THRESHOLD`（**緩める口は意図的に用意していない**） |
+| ハードシーリング | 20件 | `select-adversarial-findings.sh` の `HARD_CEILING`（同上） |
+| レビュー観点 | 各ディレクトリの `REVIEW-POINTS.md` | 該当ディレクトリの観点表を編集する（スキル本文は編集しない） |
 
 ## 未決定事項・懸念点
 

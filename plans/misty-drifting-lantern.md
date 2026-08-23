@@ -1,3 +1,11 @@
+---
+title: 全体作業計画: 敵対的レビューの投稿件数選別を層単位ルールでスクリプト化する
+type: plan
+description: 敵対的レビューの投稿件数選別を、AIエージェントの裁量から決定的なスクリプト（blocker無制限・層追加しきい値10・ハードシーリング20）へ置き換える全体作業計画
+tags: [adversarial-review, review, plan]
+keywords: [敵対的レビュー, 投稿件数, 選別, 層単位, blocker, ハードシーリング, select-adversarial-findings]
+---
+
 # 全体作業計画: 敵対的レビューの投稿件数選別を層単位ルールでスクリプト化する（issue #182）
 
 ## 前提（合意状況）
@@ -19,6 +27,7 @@ issue #182 で規則（blocker無制限・層追加しきい値10件・ハード
 - `.claude/docs/spec/adversarial-review.md` — 「投稿件数の選別」節の新設・設定項目表の更新
 - `.claude/docs/ddr/i0182-01-...md`（新規）— 設計判断の変更を記録するDDR
 - `.claude/docs/README.md` — DDR一覧の再生成
+- `.claude/rules/shell-script-style.md` — 実装中に見つけたjqの落とし穴の追記
 
 ## 方針
 
