@@ -139,7 +139,7 @@
   <div class="inner">
     <div class="kind">調査結果レポート / フェーズ2（flow-id 2-6）</div>
     <h1>反映対象の切り出し判断基準 — 6問の調査結果</h1>
-    <p class="lead">フェーズ4の反映対象に対する切り出し判断基準を書くための事実を集めた。<b><code>main</code> の整合性を問う判定は過去DDR 9件すべてで当時の結論と一致した</b>が、<b>見送りの理由は4種あり「規模」は2件（25%）だけで、issue本文の骨子が持つ誤爆防止の条件では 6/8 の事例が行き先を失う</b>ことが分かった。</p>
+    <p class="lead">フェーズ4の反映対象に対する切り出し判断基準を書くための事実を集めた。<b><code>main</code> の整合性を問う判定は母数7件すべてで当時の結論と一致し、対案の規模基準は 3/7 だった</b>。ただし<b>見送りの理由は3種あり「規模」は2件だけで、issue本文の骨子が持つ誤爆防止の条件では「価値」で見送った2件が行き先を失う</b>ことが分かった（母数の抽出方法に偏りがあるため、一致率は上限の推定である）。</p>
     <p class="counts">
       <span class="chip good">◎良 3</span>
       <span class="chip warn">△注意 3</span>
@@ -178,21 +178,23 @@
   <div class="focus must">
     <span class="label">◆特に見てほしい（判断に困っている）</span>
     <ul>
-      <li><a href="#f4">4. 過去事例での妥当性検証</a> — <b>母数の取り方</b>で迷っている。13件から2件を「別issueという語を使っているだけ」として落とし、さらに2件を「反映対象の見送りではない」として9件へ絞った。とくに <code>i0110-01</code>（計画レビューでの却下案）と <code>i0140-01</code>（過去の決定の踏襲）を外した線引きが恣意的でないか決めてほしい。</li>
+      <li><a href="#f4">4. 過去事例での妥当性検証</a> — <b>母数の取り方</b>で迷っている。13件を3段階（E1 部分一致の偽陽性 / E2 語の用法 / E3 判断の性質）で <b>7件</b>へ絞った。E1 は機械的だが、<b>E2・E3 は読み分けによる除外</b>であり線引きが恣意的でないか決めてほしい。とくに <code>i0110-01</code>（計画レビューでの却下案）と <code>i0140-01</code>（過去の決定の踏襲）を外したところ。</li>
+      <li><a href="#f4">4. 過去事例での妥当性検証</a> — <b>対案比較（規模基準 3/7）の当てはめが公正か。</b>各件の「規模」の見積りは調査者の判断であり、規模基準に不利へ倒していないか。とくに <code>i0053-01</code>・<code>i0000-07</code> を「極小」、<code>i0088-01</code> を「規模超過」としたところ。</li>
     </ul>
   </div>
   <div class="focus want">
     <span class="label">◇承認が欲しい（方針は決めたので確認してほしい）</span>
     <ul>
       <li><a href="#f1">1. 節の配置先</a> — 受け入れ条件の「SKILL.md に節がある」を <code>references/planning.md</code> で満たすと決めた。<b>issue本文の文言を字義どおりには満たさない</b>点を承認してほしい。</li>
-      <li><a href="#f4">4. 過去事例での妥当性検証</a> — <b>No のときの出口を3つ以上持つ形にする</b>と決めた（このMRでやる／やらないと決める／別issueへ切り出す）。issue本文の骨子は1つ目しか持っていない。</li>
+      <li><a href="#f4">4. 過去事例での妥当性検証</a> — <b>No のときの出口を3つ持つ形にする</b>と決めた（このMRでやる／やらないと決める／別issueへ切り出す）。issue本文の骨子は「規模」だけを条件に挙げており、「価値」で見送った2件が行き先を失う。</li>
+      <li><a href="#f6">6. 判断の記録先</a> — <b>出口(3) には起票主体の制約を付ける</b>と決めた（AIは候補の提示のみ・起票の可否は <code>AskUserQuestion</code> で人間が決める）。</li>
     </ul>
   </div>
   <div class="focus skip">
     <span class="label">・細かいレビューは不要（ほぼ確実）</span>
     <ul>
       <li><a href="#f5">5. 固定費の数字</a> — 実数43は <code>grep -cE</code> で実測済み。複製箇所も機械的に洗い出した。</li>
-      <li><a href="#f2">2. 差し替えの影響</a> — <code>【AIアセット反映】</code> 節に「別issue」「切り出し」の語が1つも無いことは全文確認済み。</li>
+      <li><a href="#f2">2. 差し替えの影響</a> — <code>【AIアセット反映】</code> 節に <code>別issue</code> が0件、<code>切り出し</code> が2件（いずれも文章を <code>.claude/rules/</code> へ移す意味）であることは全文確認済み。</li>
     </ul>
   </div>
 </section>
@@ -207,8 +209,8 @@
     </li>
     <li class="verdict">
       <span class="chip warn">△注意</span>
-      <a href="#f2">2. <code>【AIアセット反映】</code> 側は切り出しに一切触れておらず、そちらからも新節を指す必要がある</a>
-      <span class="v-basis">根拠: 該当節153行の全文確認</span>
+      <a href="#f2">2. <code>【AIアセット反映】</code> 側は切り出し判断に触れておらず、そちらからも新節を指す必要がある</a>
+      <span class="v-basis">根拠: 該当節（263-414行）の全文確認・語ごとの実測</span>
     </li>
     <li class="verdict">
       <span class="chip good">◎良</span>
@@ -217,8 +219,8 @@
     </li>
     <li class="verdict">
       <span class="chip warn">△注意</span>
-      <a href="#f4">4. 判定は過去9件すべてで当時の結論と一致。ただし No の理由は4種あり「規模」は2件だけ</a>
-      <span class="v-basis">根拠: DDR 13件の全文読解</span>
+      <a href="#f4">4. 判定は母数7件すべてで当時の結論と一致（対案の規模基準は 3/7）。ただし No の理由は3種あり「規模」は2件だけ</a>
+      <span class="v-basis">根拠: DDR 13件の全文読解＋3段階の除外規則で7件へ</span>
     </li>
     <li class="verdict">
       <span class="chip good">◎良</span>
@@ -238,7 +240,10 @@
   <div class="box warn">
     <span class="label">この結果が言っていないこと</span>
     <ul>
-      <li><b>MRのレビュー往復に残る切り出し判断</b>を見ていない。DDRに書き起こされた分だけが母数で、実際に下された判断はこれより多い可能性が高い — <a href="#f4">詳細: 章4</a></li>
+      <li><b>母数の抽出方法そのものに偏りがある。</b>母数は「切り出し・見送りに言及したDDR」であり、構造的に「判断が正しく下され、かつ記録された事例」に偏る。<b>偽陰性（切り出すべきだったのに切り出されなかった事例）はDDRに残らないため原理的に見えない。</b>したがって 7/7 は「基準が実証された」ではなく<b>上限の推定</b>である — <a href="#f4">詳細: 章4</a></li>
+      <li><b>MRのレビュー往復に残る切り出し判断</b>を見ていない。DDRに書き起こされた分だけが母数で、実際に下された判断はこれより多い — <a href="#f4">詳細: 章4</a></li>
+      <li><b>出口(1)「このMRでやる（極小）」の裏付けが無い。</b>母数が「見送った／切り出した」事例に偏っているため、「極小だからこのMRでやった」事例が1件も含まれていない。出口(1)は issue #64 節からの引き継ぎであり本調査では検証していない — <a href="#f4">詳細: 章4</a></li>
+      <li><b><code>i0023-01</code> の見送りが結果として妥当だったか。</b><code>note</code> によれば issue #97 で部分的に覆っている。判定の一致には影響しないが「規模での見送りは妥当だった」とは読めない — <a href="#f4">詳細: 章4</a></li>
       <li><b>flow-id 4-6 の参照列に <code>references/planning.md</code> を足すべきか</b>は決めていない。読み込み量のトレードオフがあり、フェーズ3で判断する — <a href="#f1">詳細: 章1</a></li>
     </ul>
   </div>
@@ -249,7 +254,7 @@
   <ul>
     <li>実行環境: Claude Code on the web のリモート実行環境（Linux）。<code>gh</code>/<code>glab</code> CLI は不在で、GitHub情報はMCPツール経由。</li>
     <li>対象: このリポジトリの <code>main</code> 相当（<code>d31dfd8</code>）＋本ブランチの計画コミット。DDR 全92件、<code>.claude/skills/</code> <code>.claude/rules/</code> 配下。</li>
-    <li>実施日: 2026-08-23</li>
+    <li>実施日: 2026-08-23。<b>実測時点はコミット <code>90477a2</code></b>。本文中の行番号はすべてこの時点の値であり、<b>フェーズ3で <code>references/planning.md</code> に新節を足すためこのMRの中で必ずずれる</b>（後から参照するときは見出し名で辿る）。</li>
     <li>使った主なコマンド: <code>grep -rn -- '別issue'</code> / <code>grep -rln -- '別issue' .claude/docs/ddr/</code> / <code>grep -cE '^\| [0-9]+-[0-9]+ \|'</code> / <code>search-frontmatter.sh --type ddr --format jsonl</code></li>
   </ul>
 </section>
@@ -277,20 +282,35 @@
   <p>差し替え対象は <code>references/planning.md:92-94</code>（<code>【実装反映】</code> 定義の末尾1文）。</p>
   <blockquote>対応が1issueに収まらない規模になった場合は、下記「issueが大きすぎる場合の分割提案」の基準に従い別issueへの切り出しを検討する。</blockquote>
   <p><b><code>【実装反映】</code> 定義の他の記述とは矛盾しない。</b>定義は4文からなり、(1) 何を拾う種別か、(2) フェーズ3のループで解消できるものは持ち越さない、(3) <code>【設計反映】</code> との使い分け、(4) 本文（切り出し）。<b>(4) は他の3文が確定させた「拾う対象」に対して後段の処理を述べており、依存が一方向である。</b></p>
-  <p>一方で、<code>【AIアセット反映】</code> 側（「AIアセット反映の対象の洗い出し」節・153行）を全文確認したところ、<b>「別issue」「切り出し」のいずれの語も現れなかった</b>。手順2の分類結果に対して「では、それをこのMRでやるのか」を問う記述が無く、<b>分類したものはすべてこのMRで反映する前提</b>になっている。</p>
-  <p>「切り出し」に触れる記述の全数は<b>10行</b>（<code>grep -rn -- '別issue' .claude/skills .claude/rules</code>、<code>.gemini/</code> は生成物なので除外）。うち issue #64 の基準を指すのは3箇所で、<b>本issueの対象はそのうち1箇所だけ</b>である。</p>
+  <p>一方で、<code>【AIアセット反映】</code> 側（「AIアセット反映の対象の洗い出し」節・263-414行。ファイル全体が414行）を全文確認した。語ごとの実測は <code>別issue</code> が<b>0件</b>、<code>切り出し</code>／<code>切り出す</code> が<b>2件</b>（<code>:387</code>「分量があるものをここへ切り出し」・<code>:396</code>「分量があれば <code>.claude/rules/</code> へ切り出す」）。<b>後者はいずれも「文章を <code>.claude/rules/</code> へ移す」意味であり、別issueへの切り出し判断とは無関係である。</b>手順2の分類結果に対して「では、それをこのMRでやるのか」を問う記述は無く、<b>分類したものはすべてこのMRで反映する前提</b>になっている。</p>
+  <p>切り出しに触れる記述は<b>2つの表に分ける</b>。grepの出力そのものと、「切り出し判断に効く記述」は一致しない（後者には <code>別issue</code> という語を使わずに同じことを述べている行が含まれる）。</p>
+  <p><b>(A) <code>別issue</code> の全数（grep出力そのまま・10行）</b> — <code>grep -rn -- '別issue' .claude/skills .claude/rules</code>（<code>.gemini/</code> は生成物なので除外）。</p>
   <div class="tablewrap">
   <table>
     <thead><tr><th>場所</th><th>内容</th><th>本issueの対象か</th></tr></thead>
     <tbody>
       <tr><td><code>references/planning.md:93</code></td><td><code>【実装反映】</code> の切り出し</td><td><b>対象</b>（差し替える）</td></tr>
       <tr><td><code>SKILL.md:76</code>（flow-id 2-6）</td><td>フェーズ2で規模が判明したときのissue未着手範囲の切り出し</td><td>対象外（#64）</td></tr>
-      <tr><td><code>references/planning.md:246</code></td><td>同上（#64 節の中の基準本体）</td><td>対象外（#64）</td></tr>
       <tr><td><code>issue-create/SKILL.md:82,123</code>・<code>start-resume.md:27</code></td><td>起票と着手を同じセッションでやらない</td><td>対象外</td></tr>
-      <tr><td><code>phase5-close.md:290</code>・<code>review-loop.md:82,190</code>・<code>plans.template.html:271</code></td><td>記録・テンプレートの例示</td><td>対象外</td></tr>
+      <tr><td><code>phase5-close.md:290</code>・<code>review-loop.md:82,190</code></td><td>記録・返信の例示</td><td>対象外</td></tr>
+      <tr><td><code>assets/plans.template.html:271</code>・<code>assets/reports.template.html:414</code></td><td>テンプレートのプレースホルダ内の例示</td><td>対象外</td></tr>
     </tbody>
   </table>
   </div>
+  <p><b>(B) 切り出し判断に効く記述（grepでは拾えないものを含む）</b></p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>場所</th><th>内容</th><th>grepに出たか</th></tr></thead>
+    <tbody>
+      <tr><td><code>references/planning.md:93</code></td><td><code>【実装反映】</code> の切り出し</td><td>○</td></tr>
+      <tr><td><code>SKILL.md:76</code>（flow-id 2-6）</td><td>issue未着手範囲の切り出し</td><td>○</td></tr>
+      <tr><td><code>references/planning.md:246</code></td><td>#64 節の基準本体</td><td><b>×</b>（「未着手の範囲を<b>新しいissueへ切り出す</b>」と書いており <code>別issue</code> を含まない）</td></tr>
+      <tr><td><code>references/planning.md:248-252</code></td><td><b>決定は人間が行う</b>（AIは兆候と分割案の提示に留め、勝手に子issueを起票しない）</td><td><b>×</b></td></tr>
+      <tr><td><code>issue-create/SKILL.md:141</code></td><td>ユーザーの決定を待たずに子issueを起票しない（分割は提案までがAIの役割）</td><td><b>×</b></td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p><b>(B) の下2行は、新節の出口(3)を書くときの制約になる</b>（<a href="#f6">章6</a>）。</p>
   <div class="box ok">
     <span class="label">結論</span>
     差し替えは <code>references/planning.md:93</code> の1箇所でよい。ただし<b><code>【AIアセット反映】</code> 側（手順2の末尾）からも新節を指す必要がある</b>——issue #176 の対象は「持ち越した不具合」と「副産物として気づいたアセット改善」の両方であり、後者の側には問いそのものが立っていない。
@@ -315,45 +335,92 @@
     <b>類型を見て判定を分岐させない。</b><code>main</code> の整合性の観点では (b) が Yes に倒れやすいが、これは傾向であって規則ではない（今回の変更と無関係な既存の誤りを (b) として拾った場合は No になる）。また <code>references/planning.md:402-405</code> の判別規則（<code>【実装反映】</code>／<code>【AIアセット反映】</code> は「どこから来た項目か」で決める）とも独立で、<b>切り出し判断は種別で分岐しない</b>。
   </div>
 
-  <h3 id="f4">4. 過去事例での妥当性検証 — 判定は9/9で一致、ただし No の理由は4種 <span class="chip warn">△注意</span></h3>
-  <p>母数は機械的に洗い出した。<code>grep -rln -- '別issue' .claude/docs/ddr/</code> で<b>13件</b>。うち2件（<code>i0039-01</code>・<code>i0068-01</code>）は「別issue」を<b>単に別のissueを指す語</b>として使っているだけなので除外し、<b>母数を11件</b>とした。さらに本issueが対象とする「フェーズ4の反映対象の見送り」に相当するものは<b>9件</b>で、除外した2件は <code>i0140-01</code>（過去の決定 <code>i0066-01</code> 却下3 の踏襲）と <code>i0110-01</code>（計画レビューでの却下案）である。</p>
-  <p>判定は「<b>この反映を見送ってマージした場合、<code>main</code> は今回の変更と矛盾・不整合な状態になるか</b>」。</p>
+  <h3 id="f4">4. 過去事例での妥当性検証 — 判定は7/7で一致（対案は3/7）、ただし No の理由は3種 <span class="chip warn">△注意</span></h3>
+  <p><b>母数は3段階の除外規則で作る。</b><code>grep -rln -- '別issue' .claude/docs/ddr/</code> で<b>13件</b>がヒットするが、そのままでは使えない。</p>
   <div class="tablewrap">
   <table>
-    <thead><tr><th>DDR</th><th>何を見送ったか</th><th>当時の理由</th><th>判定</th><th>当時の結論</th><th>一致</th></tr></thead>
+    <thead><tr><th>段階</th><th>除外の理由</th><th>件数</th><th>落とした識別子</th></tr></thead>
     <tbody>
-      <tr><td><code>i0000-02</code></td><td>botアカウントによる投稿者分離</td><td>本PRの規模を大きく超える</td><td><b>No</b></td><td>別issue候補として見送り</td><td>○</td></tr>
-      <tr><td><code>i0023-01</code></td><td>Gemini CLI分の集計対象化</td><td>別issueの規模になる</td><td><b>No</b></td><td>見送り（境界を構造で保証）</td><td>○</td></tr>
-      <tr><td><code>i0053-01</code>（案F）</td><td><code>post-issue-create-notice.sh</code> への同じ適用</td><td>issue #53 が名指ししておらずスコープ外</td><td><b>No</b></td><td>見送り（却下ではない）</td><td>○</td></tr>
-      <tr><td><code>i0000-07</code></td><td>未使用 <code>slug</code> フィールドの削除</td><td>死んだ出力で実害がない</td><td><b>No</b></td><td>スコープ外・現状維持</td><td>○</td></tr>
-      <tr><td><code>i0171-01</code></td><td>既存フローへの自動合流</td><td>頻度の低い整合性チェックを自動実行する価値が無い</td><td><b>No</b></td><td>手動実行のみ</td><td>○</td></tr>
-      <tr><td><code>i0088-01</code></td><td>衝突しにくい構造への変更</td><td>範囲外で、期待する動作を代替しない</td><td><b>No</b></td><td>見送り</td><td>○</td></tr>
-      <tr><td><code>i0054-01</code></td><td>（<code>i0000-11</code> 時点での）テンプレート化</td><td>複数件運用した実績を踏まえてから判断する</td><td><b>No</b></td><td>保留</td><td>○</td></tr>
-      <tr><td><code>i0000-11</code></td><td>同上（保留を決めた側）</td><td>同上</td><td><b>No</b></td><td>保留</td><td>○</td></tr>
-      <tr><td><code>i0077-02</code></td><td><b>切り出さないと決めた側</b></td><td>観点表が無いと「何を観るか」が定義できず、単独マージの価値が薄い</td><td><b>Yes</b></td><td>issue #77 に含める</td><td>○</td></tr>
+      <tr><td><b>E1</b></td><td><b><code>個別issue</code> の部分一致による偽陽性。</b>grepの <code>別issue</code> は <code>個別issue</code> にも一致する</td><td>-2</td><td><code>i0000-11</code>・<code>i0054-01</code></td></tr>
+      <tr><td><b>E2</b></td><td><code>別issue</code> を<b>単に別のissueを指す語</b>として使っているだけ</td><td>-2</td><td><code>i0039-01</code>・<code>i0068-01</code></td></tr>
+      <tr><td><b>E3</b></td><td><b>そのissueの作業中に見つけた項目への判断ではない</b>（<code>i0140-01</code> は過去の決定の踏襲、<code>i0110-01</code> は却下案）</td><td>-2</td><td><code>i0140-01</code>・<code>i0110-01</code></td></tr>
+      <tr><td></td><td><b>残った母数</b></td><td><b>7</b></td><td></td></tr>
     </tbody>
   </table>
   </div>
-  <p><b>9件すべてで当時の結論と一致した。</b>とくに <code>i0077-02</code> は、判定が <b>Yes 側でも正しく働く</b>ことの実例である。</p>
+  <pre><code>$ for f in i0000-11 i0054-01; do p=$(ls .claude/docs/ddr/${f}-*.md); \
+    echo "$f: 別issue=$(grep -o -- '別issue' "$p" | wc -l) 個別issue=$(grep -o -- '個別issue' "$p" | wc -l)"; done
+i0000-11: 別issue=1 個別issue=1
+i0054-01: 別issue=1 個別issue=1</code></pre>
   <div class="box stop">
-    <span class="label">見つかった基準の欠落</span>
-    <b>No と判定された8件の理由は4種に分かれ、「規模」はそのうち2件（25%）だけだった。</b>
+    <span class="label">E1 が消したもの</span>
+    この2件は、<b>前版が「時期尚早」類型としていたちょうど2件そのもの</b>である。つまり<b>「時期尚早」という類型は、母数の取り方の誤りから生まれていた</b>。前版はこの2件を同じ意思決定として2行に分けて数え、<code>i0054-01</code> の当時の結論を「保留」としていたが、<code>i0054-01:32</code> は「<b>本DDRの決定1は、この保留を明示的に覆すものである</b>」と書いており、保留した側ではなく解除した側だった。E1 で両方が落ちるため、この矛盾は解消する。
+  </div>
+  <p><b>母数7件の <code>status</code> / <code>note</code> 確認</b>（個別調査計画が Q4 の調べ方に含めていた確認。結果を記録に残す）。レコードのトップレベルキーは <code>concept_id</code> / <code>directory</code> / <code>frontmatter</code> / <code>mtime</code> であり、<code>status</code> も <code>note</code> も <code>.frontmatter</code> の下にある。</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>確認項目</th><th>結果</th></tr></thead>
+    <tbody>
+      <tr><td><code>status: superseded</code>／<code>deprecated</code> を持つ母数7件</td><td><b>0件</b>（リポジトリ全体では <code>i0000-06</code>・<code>i0000-13</code> の2件があるが、いずれも母数外）</td></tr>
+      <tr><td><code>note</code> を持つ母数7件</td><td><b>1件</b>（<code>i0023-01</code>: issue #97 でメインセッションのみ集計対象へ変更された旨）</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p>判定は「<b>この反映を見送ってマージした場合、<code>main</code> は今回の変更と矛盾・不整合な状態になるか</b>」。</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>DDR</th><th>何を見送ったか</th><th>当時の理由</th><th>判定</th><th>No の類型</th><th>当時の結論</th><th>一致</th></tr></thead>
+    <tbody>
+      <tr><td><code>i0000-02</code></td><td>botアカウントによる投稿者分離</td><td>本PRの規模を大きく超える</td><td><b>No</b></td><td>規模</td><td>別issue候補として見送り</td><td>○</td></tr>
+      <tr><td><code>i0023-01</code></td><td>Gemini CLI分の集計対象化</td><td>別issueの規模になる</td><td><b>No</b></td><td>規模</td><td>見送り（境界を構造で保証）</td><td>○</td></tr>
+      <tr><td><code>i0053-01</code>（案F）</td><td><code>post-issue-create-notice.sh</code> への同じ適用</td><td>issue #53 が名指ししておらずスコープ外</td><td><b>No</b></td><td>スコープ</td><td>見送り（却下ではない）</td><td>○</td></tr>
+      <tr><td><code>i0088-01</code></td><td>衝突しにくい構造への変更</td><td>範囲外で、期待する動作を代替しない</td><td><b>No</b></td><td>スコープ</td><td>見送り</td><td>○</td></tr>
+      <tr><td><code>i0000-07</code></td><td>未使用 <code>slug</code> フィールドの削除</td><td>死んだ出力で実害がない</td><td><b>No</b></td><td>価値</td><td>スコープ外・現状維持</td><td>○</td></tr>
+      <tr><td><code>i0171-01</code></td><td>既存フローへの自動合流</td><td>頻度の低い整合性チェックを自動実行する価値が無い</td><td><b>No</b></td><td>価値</td><td>手動実行のみ</td><td>○</td></tr>
+      <tr><td><code>i0077-02</code></td><td><b>切り出さないと決めた側</b>（観点表）</td><td>観点表が無いと「何を観るか」が定義できず、単独マージの価値が薄い</td><td><b>Yes</b></td><td>—</td><td>issue #77 に含める</td><td>○</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p><b>7/7 で当時の結論と一致した。</b><code>i0077-02</code> は Yes 側の唯一の実例である。<b>ただしDDR本文の理由（「単独マージの価値が薄い」）と主判定（<code>main</code> の整合性）は同じことを言っているわけではない</b>——前者は切り出した側の単独価値、後者は <code>main</code> の側の話である。<b>この事例では両者が同じ結論を出した</b>、というのが正確な読み方である。</p>
+  <div class="box ok">
+    <span class="label">対案との比較: 規模基準を同じ7件へ当てる</span>
+    <b>候補を1つしか当てないと、「この基準が優れている」のか「この母数ならどんな素朴な基準でも当たる」のかを区別できない。</b>issue #176 本文の骨子である規模基準（「1issueに収まらない規模か → Yes なら別issueへ切り出す」）を同じ7件へ当てた。
     <div class="tablewrap">
     <table>
-      <thead><tr><th>理由の類型</th><th>件数</th><th>該当</th></tr></thead>
+      <thead><tr><th>DDR</th><th>主判定（<code>main</code> の整合性）</th><th>規模基準</th><th>当時の結論</th><th>規模基準の可否</th></tr></thead>
       <tbody>
-        <tr><td><b>規模</b>（別issueの規模になる）</td><td>2</td><td><code>i0000-02</code>・<code>i0023-01</code></td></tr>
-        <tr><td><b>スコープ</b>（このissueが名指ししていない／期待する動作を代替しない）</td><td>2</td><td><code>i0053-01</code>・<code>i0088-01</code></td></tr>
-        <tr><td><b>価値</b>（実害がない／自動化する価値が無い）</td><td>2</td><td><code>i0000-07</code>・<code>i0171-01</code></td></tr>
-        <tr><td><b>時期尚早</b>（実績が足りず判断できない）</td><td>2</td><td><code>i0054-01</code>・<code>i0000-11</code></td></tr>
+        <tr><td><code>i0000-02</code></td><td>No → 切り出す</td><td>規模超過 → 切り出す</td><td>見送り</td><td>○</td></tr>
+        <tr><td><code>i0023-01</code></td><td>No → 切り出す</td><td>規模超過 → 切り出す</td><td>見送り</td><td>○</td></tr>
+        <tr><td><code>i0088-01</code></td><td>No → 切り出す</td><td>構造変更で規模超過 → 切り出す</td><td>見送り</td><td>○</td></tr>
+        <tr><td><code>i0053-01</code></td><td>No → 切り出す</td><td><b>極小</b>（同じ適用をもう1本）→ このMRでやる</td><td>見送り</td><td><b>✕</b></td></tr>
+        <tr><td><code>i0000-07</code></td><td>No → やらないと決める</td><td><b>極小</b>（1フィールド削除）→ このMRでやる</td><td>現状維持</td><td><b>✕</b></td></tr>
+        <tr><td><code>i0171-01</code></td><td>No → やらないと決める</td><td>中規模 → 切り出す</td><td>手動実行のみ（起票せず）</td><td><b>✕</b></td></tr>
+        <tr><td><code>i0077-02</code></td><td>Yes → このMRでやる</td><td>規模超過 → 切り出す</td><td>issue #77 に含める</td><td><b>✕</b></td></tr>
       </tbody>
     </table>
     </div>
-    issue #176 の本文が骨子として挙げる「切り出さない条件（誤爆防止）」は<b>規模の話だけ</b>である。この形の基準だと、残る6件（75%）が行き先を失う。「価値」の2件は別issueにもしないと決めた事例で、起票すると着手されないまま残る。「時期尚早」の2件は判断そのものを先送りした事例で、起票してよいが<b>着手条件</b>（何が起きたら判断できるか）が要る。<b>No のときの出口は最低3つ必要である。</b>
+    <b>主判定 7/7 に対し、規模基準は 3/7（4件で誤る）。</b>誤り方に規則性がある——(1) 極小の修正を「このMRでやる」へ流す（<code>i0053-01</code>・<code>i0000-07</code>）、(2) やらないと決めるべきものを起票する（<code>i0171-01</code>。規模基準には「やらない」出口が無い）、(3) 必須の反映を切り出す（<code>i0077-02</code>）。
+  </div>
+  <div class="box stop">
+    <span class="label">見つかった基準の欠落</span>
+    <b>No と判定された6件の理由は3種に分かれ、「規模」はそのうち2件だけだった。</b>
+    <div class="tablewrap">
+    <table>
+      <thead><tr><th>理由の類型</th><th>件数</th><th>該当</th><th>妥当な出口</th></tr></thead>
+      <tbody>
+        <tr><td><b>規模</b>（別issueの規模になる）</td><td>2</td><td><code>i0000-02</code>・<code>i0023-01</code></td><td>別issueへ切り出す</td></tr>
+        <tr><td><b>スコープ</b>（このissueが名指ししていない／期待する動作を代替しない）</td><td>2</td><td><code>i0053-01</code>・<code>i0088-01</code></td><td>別issueへ切り出す</td></tr>
+        <tr><td><b>価値</b>（実害がない／自動化する価値が無い）</td><td>2</td><td><code>i0000-07</code>・<code>i0171-01</code></td><td><b>やらないと決める</b>（起票しない）</td></tr>
+      </tbody>
+    </table>
+    </div>
+    issue #176 の本文が骨子として挙げる「切り出さない条件（誤爆防止）」は<b>規模の話だけ</b>である。この形の基準だと<b>「価値」の2件が行き先を失う</b>（別issue候補として起票すると着手されないまま残る）。上の対案比較でも、この2件が実際に誤って流れている。<b>No のときの出口は最低3つ必要である。</b>出口(1)「このMRでやる（極小）」はこの母数からは直接裏付けられておらず、issue #64 節からの引き継ぎである。
   </div>
   <div class="box warn unverified-detail">
     <span class="label">確かめられなかったこと（詳細）</span>
-    <b>MRのレビュー往復まで遡っていない</b>（個別調査計画のスコープ外）。そのため、レビューで下されDDRに書き起こされなかった判断は見えていない。<code>references/planning.md</code> の手順1の表自身が「このリポジトリではレビュー往復が主要な発見源である」と書いており、<b>この母数は実際に下された判断の一部でしかない</b>。9/9 という一致率は、この偏りのもとでの値である。
+    <b>母数の抽出方法そのものに偏りがある。</b>母数は <code>別issue</code> を含むDDR、すなわち<b>切り出し・見送りに言及した事例</b>であり、構造的に「判断が正しく下され、かつ記録された事例」に偏る。したがって 7/7 という一致率は、<b>偽陰性</b>（切り出すべきだったのに切り出されなかった事例）をこの主判定が拾えるかを一切証明しない——そのような事例はDDRに書き起こされないため、この抽出方法では原理的に見えない。<b>一致率は上限の推定であり、「基準が実証された」とは読めない。</b><br>
+    あわせて<b>MRのレビュー往復まで遡っていない</b>（個別調査計画のスコープ外）。<code>references/planning.md</code> の手順1の表自身が「このリポジトリではレビュー往復が主要な発見源である」と書いており、実際に下された判断の総数はこの7件より多い。<br>
+    <code>i0023-01</code> は <code>note</code> によれば issue #97 で部分的に覆っている。判定の一致には影響しないが、<b>「規模での見送りは妥当だった」とは読めない</b>。
   </div>
 
   <h3 id="f5">5. 固定費の数字は43。新節では再掲しない <span class="chip good">◎良</span></h3>
@@ -382,6 +449,10 @@
     </tbody>
   </table>
   </div>
+  <div class="box stop">
+    <span class="label">出口(3) には起票主体の制約が付く</span>
+    <code>references/planning.md:248-252</code> は「<b>決定は人間が行う</b>。AIエージェントは兆候と分割案を提示するに留める。勝手に子issueを起票したり、スコープを削って進めたりしない。提示は <code>AskUserQuestion</code> で行う」と定めており、<code>issue-create/SKILL.md:141</code> も「ユーザーの決定を待たずに、issueを分割して子issueを起票しない（分割は提案までがAIの役割）」と書いている。<b>フェーズ3で新節の出口(3)を書くときは、この制約（AIは候補の提示のみ・起票の可否は <code>AskUserQuestion</code> で人間が決める）を条件として明記する。</b>
+  </div>
   <div class="box ok">
     <span class="label">結論</span>
     <code>.claude/docs/spec/issue-mr-workflow.md</code> は <code>## 未決定事項・懸念点</code>（3794行）と <code>## 決定済み事項（旧・未決定事項）</code>（3331行）の2節を持っており、解消時に移す運用が既に機能している。<b>(2) の受け皿として新しい節を作る必要はない。</b>
@@ -392,7 +463,7 @@
   <h2>設計への反映</h2>
   <ol>
     <li><b>新節は <code>references/planning.md</code> へ置く</b>（章1）。SKILL.md からは flow-id 4-1 の行の本文と参照列の2経路で指す。</li>
-    <li><b>No のときの出口を3つ以上持つ形にする</b>（章4）。「このMRでやる（極小）」「やらないと決める（価値）」「別issueへ切り出す（規模・スコープ・時期尚早）」。時期尚早で切り出す場合は<b>着手条件</b>を起票時に書く。</li>
+    <li><b>No のときの出口を3つ持つ形にする</b>（章4）。「このMRでやる（極小）」「やらないと決める（価値）」「別issueへ切り出す（規模・スコープ）」。<b>出口(3) には起票主体の制約</b>（AIは候補の提示のみ・起票の可否は <code>AskUserQuestion</code> で人間が決める）を条件として書く（章6）。</li>
     <li><b><code>【AIアセット反映】</code> 側（手順2の末尾）からも新節を指す</b>（章2）。</li>
     <li><b>固定費の数字は再掲せず、#64 節へ参照で寄せる</b>（章5）。</li>
     <li><b>記録先は出口ごとに書き分ける</b>（章6）。恒久的に残す必要があるのは (2) と (3) で、(2) は spec の「未決定事項・懸念点」または DDR の「却下した案」。</li>
@@ -407,7 +478,8 @@
     <thead><tr><th>計画時の見込み</th><th>実際</th><th>どう扱ったか</th></tr></thead>
     <tbody>
       <tr><td>差し替えが必要なのは <code>【実装反映】</code> の1文だけ</td><td><code>【AIアセット反映】</code> 側には<b>切り出しへの言及が皆無</b>だった。1文が古いのではなく、そもそも問いが立っていない</td><td>フェーズ3の作業へ「手順2の末尾から新節を指す」を追加（章2）</td></tr>
-      <tr><td>誤爆防止の条件は「規模」で足りる（issue本文の骨子）</td><td>No の理由は4種あり、<b>規模は25%（2/8）だけ</b>。そのまま実装すると6件が行き先を失う</td><td>No のときの出口を3つ以上持つ形にすると決めた（章4）</td></tr>
+      <tr><td>誤爆防止の条件は「規模」で足りる（issue本文の骨子）</td><td>No の理由は3種あり、<b>規模は2/6だけ</b>。そのまま実装すると「価値」の2件が行き先を失う。対案として規模基準を同じ母数へ当てると <b>3/7 しか当たらず</b>、誤り方に規則性があった</td><td>No のときの出口を3つ持つ形にすると決めた（章4）</td></tr>
+      <tr><td>母数は grep で機械的に作れる</td><td><code>grep -- '別issue'</code> が <code>個別issue</code> にも一致し、<b>偽陽性2件が「時期尚早」という存在しない類型を作っていた</b></td><td>除外を3段階（E1〜E3）へ明示し、13件→7件へ絞り直した（章4）</td></tr>
       <tr><td>過去事例は「別issueの規模と判断して見送った」もの（issue本文が挙げる3件）</td><td>3件目 <code>i0014-01</code> は該当せず、逆に<b>「切り出さないと決めた」実例 <code>i0077-02</code></b> が母数に含まれていた</td><td>母数を機械的に洗い出す形へ変え、Yes 側の実例として判定の両側の検証に使った（章4）</td></tr>
       <tr><td>Q5 は数字が揃っているかを確かめる問い</td><td>調べるまでもなく一致していた。本当のリスクは<b>複製をもう1つ増やすこと</b>だった</td><td>問いを「再掲するか参照で済ませるか」へ書き換え、複製6箇所を洗い出した（章5）</td></tr>
     </tbody>
@@ -418,8 +490,8 @@
 <section id="todo">
   <h2>残課題</h2>
   <ul>
-    <li>主判定の文面の確定（<code>main</code> の整合性を問う形にするか、別の候補を検討するか）— <b>フェーズ3</b></li>
-    <li>No のときの3つの出口の文面と、「時期尚早」で切り出す場合の着手条件の書き方 — <b>フェーズ3</b></li>
+    <li>主判定の文面の確定（<code>main</code> の整合性を問う形にするか、別の候補を検討するか）。対案比較で規模基準に対する優位は出たが、<b>候補は2つしか当てていない</b> — <b>フェーズ3</b></li>
+    <li>No のときの3つの出口の文面と、<b>出口(3) の起票主体の制約</b>（AIは提案まで・<code>AskUserQuestion</code> で人間が決める）の書き方 — <b>フェーズ3</b></li>
     <li><code>【AIアセット反映】</code> 側（手順2の末尾）から新節を指す文面 — <b>フェーズ3</b></li>
     <li>flow-id 4-6 の参照列を増やすかどうか — <b>フェーズ3</b></li>
     <li>#64 節との相互参照の1行の文面（どちらを使うかが1行で伝わるか）— <b>フェーズ3</b></li>

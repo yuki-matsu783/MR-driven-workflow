@@ -1,7 +1,7 @@
 ---
 title: worklog 20260823 【調査】反映対象の切り出し判断基準 push2
 type: log
-description: issue #176 フェーズ2〈調査〉の詳細な試行錯誤ログ（push2）
+description: issue #176 フェーズ2〈調査〉の詳細な試行錯誤ログ（push2〜4。以降は push5 以降のファイルへ分ける）
 tags: [worklog, issue-mr-flow, research]
 keywords: [調査, 切り出し, 反映対象, 4類型, DDR, 固定費, 記録先, 敵対的レビュー]
 ---
@@ -11,7 +11,14 @@ keywords: [調査, 切り出し, 反映対象, 4類型, DDR, 固定費, 記録�
 対象: フェーズ4の反映対象に対する「このMRで対応するか別issueへ切り出すか」の判断基準を書くための調査（2026-08-23）。
 全体作業計画: `wip/plans/reflection-split-criteria.md`
 個別作業計画: `wip/plans/【調査】反映対象の切り出し判断基準.md`
-push回数: 4
+**このファイルが記録している範囲: push 2〜4。**
+
+**命名規則からの逸脱を記録に残す。** `.claude/rules/docs-workflow.md` は worklog を
+`日付_<全体計画名>_<個別計画名>_push<N>.md` として**pushごとに分ける**と定めているが、
+このファイルは push 2 の時点で作成したあと push 3・4 の内容を同じファイルへ書き足していた
+（敵対的レビュー2回目の指摘11）。**push 3・4 の境界は事後に再構成できない**ため、
+このファイルは push 2〜4 の記録としてそのまま残し、**push 5 以降は規則どおり
+`_push<N>.md` を新規に作って分ける。**
 
 ## 試したこと
 
