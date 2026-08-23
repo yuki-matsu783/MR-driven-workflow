@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>【AIアセット反映】洗い出し手順を自身へ適用して得た観点を反映する — issue #155</title>
+<style>
+  :root {
+    --bg: #f6f7f9;      --panel: #ffffff;   --ink: #1a1d21;     --muted: #5b636d;
+    --line: #dfe3e8;    --accent: #2563eb;  --accent-soft: #eaf0fe;
+    --ok: #1a7f4b;      --ok-soft: #e6f4ec; --warn: #a35a00;    --warn-soft: #fdf1e0;
+    --stop: #b3261e;    --stop-soft: #fdecea; --code-bg: #f0f2f5;
+    --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1216;    --panel: #161a20;   --ink: #e6e8eb;     --muted: #9aa3ad;
+      --line: #2a3038;  --accent: #7aa2f7;  --accent-soft: #1b2333;
+      --ok: #6ee7a8;    --ok-soft: #14261d; --warn: #f0b866;    --warn-soft: #2a2113;
+      --stop: #f2857c;  --stop-soft: #2b1614; --code-bg: #1d222a;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", system-ui, sans-serif;
+    line-height: 1.8; font-size: 15px;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 20px 80px; }
+
+  /* 共通ヘッダ帯 */
+  header.band {
+    background: linear-gradient(135deg, var(--accent-soft), var(--panel));
+    border-bottom: 1px solid var(--line); padding: 28px 20px 22px; margin-bottom: 28px;
+  }
+  header.band .inner { max-width: 1080px; margin: 0 auto; }
+  header.band .kind { font-size: 11px; letter-spacing: .18em; color: var(--accent); font-weight: 700; }
+  header.band h1 { margin: 6px 0 4px; font-size: 26px; line-height: 1.4; }
+  header.band .lead { margin: 0; color: var(--muted); }
+  .meta { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; padding: 0; list-style: none; }
+  .meta li {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 999px;
+    padding: 3px 12px; font-size: 12.5px; color: var(--muted); white-space: nowrap;
+  }
+  .meta li b { color: var(--ink); font-weight: 600; }
+
+  nav.toc {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 14px 20px; margin-bottom: 28px;
+  }
+  nav.toc h2 { margin: 0 0 8px; font-size: 13px; letter-spacing: .08em; color: var(--muted); border: 0; padding: 0; }
+  nav.toc ol { margin: 0; padding-left: 20px; }
+  nav.toc li { margin: 2px 0; }
+  a { color: var(--accent); }
+
+  section {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 8px 24px 22px; margin-bottom: 22px;
+  }
+  h2 { font-size: 20px; margin: 20px 0 10px; padding-bottom: 8px; border-bottom: 2px solid var(--line); }
+  h3 { font-size: 16px; margin: 22px 0 8px; color: var(--accent); }
+  p { margin: 10px 0; }
+  ul, ol { padding-left: 22px; }
+  li { margin: 4px 0; }
+  blockquote { margin: 10px 0; padding: 6px 14px; border-left: 3px solid var(--line); color: var(--muted); }
+
+  /* 表は自身の中で横スクロールする（ページ本体は横スクロールさせない） */
+  .tablewrap { overflow-x: auto; margin: 14px 0; }
+  table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 14px; }
+  th, td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: var(--accent-soft); font-weight: 600; white-space: nowrap; }
+  tbody tr:nth-child(even) td { background: color-mix(in srgb, var(--line) 22%, transparent); }
+
+  code {
+    background: var(--code-bg); border-radius: 5px; padding: 1px 5px; font-size: 13px;
+    font-family: "SFMono-Regular", Consolas, "Noto Sans Mono", monospace;
+  }
+  pre {
+    background: var(--code-bg); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 12px 14px; overflow-x: auto; font-size: 13px; line-height: 1.65;
+  }
+  pre code { background: none; padding: 0; }
+
+  /* 注意ボックス: info（既定）/ ok（決めたこと）/ warn（注意）/ stop（やらないこと・危険） */
+  .box { border-left: 4px solid var(--accent); background: var(--accent-soft);
+         border-radius: 0 var(--radius) var(--radius) 0; padding: 12px 16px; margin: 16px 0; }
+  .box > :first-child { margin-top: 0; } .box > :last-child { margin-bottom: 0; }
+  .box .label { font-size: 12px; font-weight: 700; letter-spacing: .06em; display: block; margin-bottom: 4px; }
+  .box.ok { border-color: var(--ok); background: var(--ok-soft); } .box.ok .label { color: var(--ok); }
+  .box.warn { border-color: var(--warn); background: var(--warn-soft); } .box.warn .label { color: var(--warn); }
+  .box.stop { border-color: var(--stop); background: var(--stop-soft); } .box.stop .label { color: var(--stop); }
+  .box.info .label { color: var(--accent); }
+
+  .tag { display: inline-block; border-radius: 999px; padding: 1px 9px; font-size: 12px; font-weight: 600; }
+  .tag.ok { background: var(--ok-soft); color: var(--ok); }
+  .tag.warn { background: var(--warn-soft); color: var(--warn); }
+  .tag.stop { background: var(--stop-soft); color: var(--stop); }
+
+  footer { color: var(--muted); font-size: 13px; text-align: center; padding-top: 10px; }
+</style>
+</head>
+<body>
+<header class="band">
+  <div class="inner">
+    <div class="kind">個別反映計画 / フェーズ4 flow-id 4-1</div>
+    <h1>洗い出し手順を自身へ適用して得た観点を反映する</h1>
+    <p class="lead">新設した洗い出し手順を<b>自身へ適用</b>し、28項目から8項目（(b) 1件・(c) 6件・(d) 1件）を選んでレビュー観点表とスキルへ反映する。<b>初回適用で見つかった手順自身の穴</b>（痕跡の確認が (a) 限定である点）の訂正を含む。</p>
+    <ul class="meta">
+      <li><b>issue</b> #155</li>
+      <li><b>ブランチ</b> claude/ai-asset-reflection-scope-njqn95</li>
+      <li><b>PR</b> #175</li>
+      <li><b>フェーズ</b> 4〈反映〉 flow-id 4-1</li>
+      <li><b>種別</b> 【AIアセット反映】</li>
+      <li><b>作成日</b> 2026-08-23</li>
+      <li><b>全体作業計画</b> <code>plans/brisk-charting-lantern.md</code></li>
+      <li><b>直前の作業結果</b> <code>reports/20260823_brisk-charting-lantern_洗い出し手順の新設.md</code></li>
+      <li><b>対になる計画</b> <code>plans/【設計反映】洗い出し手順の根拠をDDRとspecへ残す.md</code></li>
+      <li><b>正文</b> 同名の .md</li>
+    </ul>
+  </div>
+</header>
+
+<div class="wrap">
+
+<nav class="toc">
+  <h2>目次</h2>
+  <ol>
+    <li><a href="#position">この計画の位置づけ</a></li>
+    <li><a href="#scan">洗い出しの結果（手順1〜4の実行記録）</a></li>
+    <li><a href="#goal">この計画で何をするか</a></li>
+    <li><a href="#out-of-scope">やらないこと</a></li>
+    <li><a href="#verify">検証</a></li>
+  </ol>
+</nav>
+
+<section id="position">
+<h2>この計画の位置づけ</h2>
+<p><b>この計画自身が、フェーズ3で新設した「AIアセット反映の対象の洗い出し」の最初の適用例である。</b> 以下の「洗い出しの結果」は手順1〜4をそのまま実行した記録であり、<b>手順が実際に回るかの検証も 兼ねる</b>。回らなかった点は、それ自体が反映対象になる（項目H）。</p>
+<p><b>初回の適用は敵対的レビューで大きく差し戻された。</b> 当初は28項目のうち13項目しか列挙せず、6項目へ束ねて「(a) は0件」と結論していたが、次の3点が指摘された。いずれも実測で確認した。</p>
+<ol>
+<li>手順1の入力から「<b>試したこと</b>」が落ちていた（SKILL.md 365行目は3つとも見るよう定めている）。</li>
+<li><b>落とした項目の理由が書かれていない</b>ものが多数あった（<code>plans/REVIEW-POINTS.md</code> 131-132行目が 求めている）。</li>
+<li><b>(c) と判定するのに痕跡を探していなかった</b>ため、ルート <code>REVIEW-POINTS.md</code> に既にある罠を 「書かれていない」と誤判定していた（項目A）。</li>
+</ol>
+<p><b>3点目は手順そのものの穴である。</b> 手順3の痕跡探索が (a) 限定になっているため、(c) と判定すれば 探索を回避できる。これを項目Hとして反映する。</p>
+</section>
+
+<section id="scan">
+<h2>洗い出しの結果（手順1〜4の実行記録）</h2>
+<h3>手順1: 起点の列挙</h3>
+<p><b>入力3つをすべて、SKILL.md 363-367行目が定める範囲どおりに見た。</b></p>
+<div class="tablewrap">
+<table>
+<thead><tr><th>入力</th><th>走査した対象</th><th>実測</th></tr></thead>
+<tbody>
+<tr><td><code>worklog/</code> 7本（push2/4/5/6/8/9/10）</td><td>「試したこと」「ダメだったこと」「学び」の全箇条書き</td><td><b>46</b></td></tr>
+<tr><td><code>reports/</code> 2本（調査結果・作業結果）</td><td>「確かめられなかったこと」「残課題」</td><td><b>17</b></td></tr>
+<tr><td>MRのレビューコメント</td><td>敵対的レビュー5回（13+18+13+11+15＝<b>70件</b>）の指摘と対応</td><td>（上の63に反映済み）</td></tr>
+</tbody>
+</table>
+</div>
+<p><b>63件のうち「既存のアセットで対応できなかったもの」は28項目</b>（残りは、その回の作業内容そのものの 記録や、既に反映済みの項目である）。<b>28項目の全リストと処遇は、下記「28項目の処遇」に全件を 載せる</b>（<code>plans/REVIEW-POINTS.md</code> 131-132行目「どれにも当たらないと判断した項目について、そう判断した理由が書かれているか」）。</p>
+<h3>手順2: 4類型への分類</h3>
+<p><b>28項目のうち8項目が反映対象</b>である。内訳は (b) 1件・(c) 6件・(d) 1件で、<b>(a) は0件</b>。</p>
+<div class="tablewrap">
+<table>
+<thead><tr><th>#</th><th>反映項目</th><th>類型</th><th>反映の向き</th></tr></thead>
+<tbody>
+<tr><td>A</td><td><b>検証コマンドは、変更前のツリーで実行して期待どおり失敗することを確かめる。数える語は文書の構造語を避ける</b></td><td><b>(d)</b></td><td>導線の改善＋追記</td></tr>
+<tr><td>B</td><td>md/HTMLの見出し突き合わせは、バッククォートと <code>&lt;code&gt;</code> の差を<b>正規化してから</b>行う</td><td>(c)</td><td>追記</td></tr>
+<tr><td>C</td><td>markdownの<b>表のセルにパイプ・バッククォートを含むコマンドを書かない</b></td><td>(c)</td><td>追記</td></tr>
+<tr><td>D</td><td>レポート・計画へ書く<b>数値と事実は、書く直前に実測する</b>（判断理由を事実の主張へ言い換えない）</td><td>(c)</td><td>追記</td></tr>
+<tr><td>E</td><td><code>doc-search</code> の<b>絞り込み条件は答えの範囲を決めてしまう</b>。<code>--type</code> を外した検索も1回かける</td><td>(c)</td><td>追記</td></tr>
+<tr><td>F</td><td>「正を1箇所へ」の前に、<b>同じ判定を述べている行を全部数える</b></td><td>(c)</td><td>追記</td></tr>
+<tr><td>G</td><td><b>連言の一項だけを言い換えたとき、文全体の主語が変わっていないか</b>を確認する</td><td>(c)</td><td>追記</td></tr>
+<tr><td>H</td><td><b>手順3の痕跡確認を (a) 限定にしない。「該当するアセット」の粒度を記述単位で定義する</b></td><td><b>(b)</b></td><td>訂正</td></tr>
+</tbody>
+</table>
+</div>
+<p><b>項目Aが (c) ではなく (d) である理由</b>（敵対的レビューの指摘。実測で確認）: ルート <code>REVIEW-POINTS.md</code> 74-76行目に<b>同じ罠が既に書かれている</b>。</p>
+<blockquote>- <b>検証コマンドが、異常があるときに本当に検出できるか。</b> 「異常が無ければ何も出ない」形の   検証は、パターンが実データに合っていないと<b>常に成功する</b>。…<b>空振り</b>を排除したか。</blockquote>
+<p>ルートは <code>plans/</code> の祖先なので、この計画をレビューする時点で<b>必ず収集される</b>。つまり 「あったのに辿り着けなかった」＝ (d) である。(c) として <code>plans/REVIEW-POINTS.md</code> へ追記すると、<b>同じ規則の正がルートと <code>plans/</code> の2箇所</b>になり、ルート50-53行目「正は1箇所に決め、他はそこを 指すリンクだけにする」に自分で違反する。</p>
+<p><b>項目Cを落とさない理由</b>: 当初は「markdown一般の作法でリポジトリ固有の罠ではない」として 落としていたが、<b>この計画の初版で実際に再発した</b>（手順3の表のセルへ、パイプを含む <code>grep</code> コマンドをそのまま書いた結果、HTMLビューで3列の表に4セルが入って壊れた）。「置き場所を選べない」も事実と異なり、<code>plans/REVIEW-POINTS.md</code>「HTML版」という自然な置き場がある。</p>
+<h3>手順3: 痕跡の確認</h3>
+<p><b>8項目すべてについて痕跡を探した</b>（当初は (a) が0件だからと省略していた。項目Hの穴そのもの）。<b>再現性の確認は行っていない</b>——(a) が0件のため（再現性の確認は (a) 限定である）。</p>
+<div class="tablewrap">
+<table>
+<thead><tr><th>#</th><th>探索した先</th><th>結果</th></tr></thead>
+<tbody>
+<tr><td>A</td><td>ルート <code>REVIEW-POINTS.md</code> を「空振り」で検索</td><td><b>74-76行目にあり</b> → (d)</td></tr>
+<tr><td>B</td><td><code>plans/REVIEW-POINTS.md</code>「HTML版」を「正規化」で検索</td><td><b>0</b>。見出し一致の観点はあるが前処理は無し → (c)</td></tr>
+<tr><td>C</td><td>観点表4本を「表のセル」「コードスパン」で検索</td><td><b>0</b> → (c)</td></tr>
+<tr><td>D</td><td><code>.claude/skills/</code> 全体を「数え直」「鵜呑み」で検索</td><td><b>0</b> → (c)</td></tr>
+<tr><td>E</td><td><code>.claude/skills/doc-search/SKILL.md</code> を「取りこぼ」で検索</td><td><b>0</b> → (c)</td></tr>
+<tr><td>F</td><td>ルート <code>REVIEW-POINTS.md</code> 50-53行目</td><td>「正は1箇所に」は<b>あり</b>、集約前に数える手順は<b>無し</b> → (c)</td></tr>
+<tr><td>G</td><td>観点表4本を「連言」「言い換え」で検索</td><td><b>0</b> → (c)</td></tr>
+<tr><td>H</td><td>SKILL.md 新節の手順3の見出し「（(a) のみ）」</td><td>適用範囲の<b>誤り</b>が実在 → (b)</td></tr>
+</tbody>
+</table>
+</div>
+<p><b>実行したコマンドは次のとおり</b>（表のセルへ書くとパイプが列区切りになるため、ここへ出す。項目Cの実践である）。</p>
+<pre><code>grep -rn &#x27;空振り&#x27; REVIEW-POINTS.md
+sed -n &#x27;/^## HTML版/,$p&#x27; plans/REVIEW-POINTS.md | grep -c &#x27;正規化&#x27;
+grep -rn &#x27;表のセル|コードスパン&#x27; -E REVIEW-POINTS.md plans/REVIEW-POINTS.md reports/REVIEW-POINTS.md
+grep -rn &#x27;数え直|鵜呑み&#x27; -E .claude/skills
+grep -c &#x27;取りこぼ&#x27; .claude/skills/doc-search/SKILL.md
+grep -rn &#x27;連言|言い換え&#x27; -E REVIEW-POINTS.md plans/REVIEW-POINTS.md reports/REVIEW-POINTS.md</code></pre>
+<p><b>段階2までで全件確定したため、段階3（直近10件のマージ済みPR＋DDR一覧）は実施していない。</b></p>
+<h3>手順4: 反映先の形態の決定</h3>
+<div class="tablewrap">
+<table>
+<thead><tr><th>#</th><th>反映先</th><th>いつ効くか</th><th>守らせ方</th></tr></thead>
+<tbody>
+<tr><td>A</td><td><b>ルート <code>REVIEW-POINTS.md</code></b>（内容の正）／<code>plans/REVIEW-POINTS.md</code>「検証手順」（参照のみ）</td><td>あらゆるレビュー時</td><td>読ませる</td></tr>
+<tr><td>B・C</td><td><code>plans/REVIEW-POINTS.md</code>「HTML版」</td><td>計画のレビュー時</td><td>読ませる</td></tr>
+<tr><td>D</td><td><b><code>reports/REVIEW-POINTS.md</code>「内容の妥当性」</b>（内容の正）／<code>.claude/skills/adversarial-review/SKILL.md</code>（参照のみ）</td><td>レポートのレビュー時／敵対的レビューの実施時</td><td>読ませる</td></tr>
+<tr><td>E</td><td><code>.claude/skills/doc-search/SKILL.md</code></td><td><code>doc-search</code> を使うとき</td><td>手順化する</td></tr>
+<tr><td>F・G</td><td>ルート <code>REVIEW-POINTS.md</code>「ドキュメントの構造」</td><td>あらゆるレビュー時</td><td>読ませる</td></tr>
+<tr><td>H</td><td><code>.claude/skills/issue-mr-flow/SKILL.md</code>（新節の手順2・手順3）</td><td>flow-id 4-1 のとき</td><td>手順化する</td></tr>
+</tbody>
+</table>
+</div>
+<ul>
+<li><b>A と D は反映先が2箇所あるので、どちらが正かを上表で明示した</b>（敵対的レビューの指摘。 決めないまま実装すると「両方に本文を書く」形へ倒れる）。<b>参照側には内容を書かない。</b></li>
+<li><b><code>AGENTS.md</code> / <code>CLAUDE.md</code> / <code>GEMINI.md</code> / <code>.claude/rules/</code> は1件も選んでいない。</b> いずれも「そのときだけ効けばよい」知見であり、常時読込のコンテキストを消費させる価値が無い （手順4の「常時読込のアセットを増やすことにはコストがある」）。</li>
+<li><b>削除・統合は無い</b>（8項目すべてが追記・訂正）。配布経路の注意は今回効かない。</li>
+<li><b>種別の判別</b>: 8項目すべて<b>手順1が拾った項目</b>なので <code>【AIアセット反映】</code> である （フェーズ3から持ち越した不具合ではない）。<b>項目Hも同じ</b>——フェーズ3のレビュー往復では 検出されず、フェーズ4の適用で初めて出たためである。</li>
+</ul>
+<h3>28項目の処遇（全件）</h3>
+<p><b>反映する8項目は上表のとおり。残る20項目を落とした理由を全件書く。</b></p>
+<div class="tablewrap">
+<table>
+<thead><tr><th>元</th><th>項目</th><th>落とした理由</th></tr></thead>
+<tbody>
+<tr><td>push2</td><td>Draft PR作成が差分0で失敗する（計画のコミットを先に反映する）</td><td><b>反映済み</b>。<code>HANDOFF.md</code> に記録し、<code>AGENTS.md</code> のMCPフォールバック規定の範囲内</td></tr>
+<tr><td>push2</td><td>HTMLビュー生成をスクリプト化した</td><td><b>その場限りの道具</b>。scratchpadに置いた使い捨てで、リポジトリのアセットではない</td></tr>
+<tr><td>push4</td><td>1行が非常に長い行の原文採取に python が要る</td><td><b>道具の使い方</b>。罠ではなく、<code>sed</code> で取れないときの代替という当たり前の手当て</td></tr>
+<tr><td>push4</td><td><code>matched=N</code> が打ち切り条件にそのまま使える</td><td><b>フェーズ3で反映済み</b>（手順3の段階2）</td></tr>
+<tr><td>push4</td><td>Q8の打ち消し手段が既存の <code>.claude/VERSION</code> の規定の枠内にあった</td><td><b>調査の結果であって、アセットの不備ではない</b></td></tr>
+<tr><td>push4</td><td>Q2のスキップ条件を手順の番号で言い直せた</td><td><b>フェーズ3で反映済み</b>（132・136行目）</td></tr>
+<tr><td>push4</td><td>Q7が「確認だけ」で済まず既存の漏れが出た</td><td><b>見積りの誤り</b>。特定の罠ではなく、アセットに書ける形にならない</td></tr>
+<tr><td>push5</td><td><code>matched=0</code> 単独は偽陰性</td><td><b>フェーズ3で反映済み</b>（手順3の段階2の2段判定）</td></tr>
+<tr><td>push5</td><td>md→HTML変換のバグ（コードスパン内の <code>**</code>）</td><td><b>使い捨てスクリプトのバグ</b>。リポジトリのアセットではない</td></tr>
+<tr><td>push5</td><td>18件すべてを実ツリーで裏取りしてから投稿・返信した</td><td><b>うまくいったことの記録</b>。罠ではない</td></tr>
+<tr><td>push5</td><td>Q1(2)とQ7が矛盾していた（列挙の二重管理）</td><td><b>項目Fに含まれる</b>（同じ判定・同じ列挙が2箇所にある問題）</td></tr>
+<tr><td>push5</td><td>除外規定の書き換えを見落とし、編集対象が4→5箇所になった</td><td><b>項目Fに含まれる</b>（同上）</td></tr>
+<tr><td>push5</td><td>「版を上げれば打ち消せる」が実装で成り立たなかった</td><td><b>別issueの範囲</b>（調査結果Q8。フェーズ5で起票を提案する）</td></tr>
+<tr><td>push6</td><td>調査結果の1項目を前半・後半に分けて確認する</td><td><b>項目Dに含まれる</b>（写した内容が元と一致するかを実測する）</td></tr>
+<tr><td>push8</td><td><code>count == 1</code> のアサートが実行時の確認になった</td><td><b>うまくいったことの記録</b>。罠ではない</td></tr>
+<tr><td>push8</td><td>置換の一意性は計画時と実施時の2回確かめる</td><td><b>項目Aに含まれる</b>（検証を実行時にも走らせる）</td></tr>
+<tr><td>push8</td><td>4類型の表を3列→4列にした</td><td><b>フェーズ3で反映済み</b></td></tr>
+<tr><td>push10</td><td>検証の「変更前の期待値」は机上で書かず実行して埋める</td><td><b>項目Aに含まれる</b></td></tr>
+<tr><td>push10</td><td>数える語は文書の構造語を避ける</td><td><b>項目Aに含まれる</b>（文言として明記する）</td></tr>
+<tr><td>push10</td><td>新しく定義した手順はまず自分自身へ適用してみる</td><td><b>(a) 候補だが再現性が1回</b>。手順3段階1の「再現性なし → この時点では反映しない」に従い落とす（今回うまくいった技法であって、踏んだ罠ではない）</td></tr>
+</tbody>
+</table>
+</div>
+<p><b>「自分の失敗類型を自分の成果物へ適用する」（push9）も同じ理由で落とした</b>——1回きりの成功例で あり、(a) として反映するには再現性が足りない。敵対的レビューの指摘10が「(c) の粒度を緩めると (a) が原理的に発生しなくなる」と述べたとおり、<b>該当ファイルが存在することを (c) の根拠にしない</b> （項目Hで定義する）。</p>
+</section>
+
+<section id="goal">
+<h2>この計画で何をするか</h2>
+<p><b>8項目を、下表の文面で追記・訂正する。</b> 文面を計画に確定させるのは、検証の「数える語」を 文面から選ぶためである（敵対的レビューの指摘。語が文面に無いと検証が変更後も0のまま落ちる）。</p>
+<div class="tablewrap">
+<table>
+<thead><tr><th>#</th><th>反映先</th><th>追記する文面の要点</th><th>数える語</th></tr></thead>
+<tbody>
+<tr><td>A</td><td>ルート <code>REVIEW-POINTS.md</code>「検証コマンドが、異常があるときに本当に検出できるか」の直下</td><td>「計画に書いた検証コマンドは、着手前に<b>変更前のツリー</b>で実行して期待どおり失敗することを確かめる。数える語は、その文書の見出し・目次に使われている構造語を避け、罠の内容に固有の語を選ぶ」</td><td><code>変更前のツリー</code></td></tr>
+<tr><td>A2</td><td><code>plans/REVIEW-POINTS.md</code>「検証手順」</td><td>「<b>空振り</b>の排除はルート <code>REVIEW-POINTS.md</code> の同名の観点が正」という参照1行</td><td><code>空振り</code></td></tr>
+<tr><td>B</td><td><code>plans/REVIEW-POINTS.md</code>「HTML版」の見出し一致の項目</td><td>「バッククォートと <code>&lt;code&gt;</code> の差を<b>正規化</b>してから比較する（<code>sed 's/\</code>//g'`）」</td><td><code>正規化</code></td></tr>
+<tr><td>C</td><td><code>plans/REVIEW-POINTS.md</code>「HTML版」</td><td>「表のセルにパイプ・バッククォートを含むコマンドを書かない。セル内のパイプは<b>列区切り</b>と解釈されて列がずれ、エスケープするとバックスラッシュが落ちて別のコマンドとして表示される」</td><td><code>列区切り</code></td></tr>
+<tr><td>D</td><td><code>reports/REVIEW-POINTS.md</code>「内容の妥当性」</td><td>「書いた数値と事実を、書く直前に<b>実測したか</b>。判断理由を事実の主張へ言い換えない。受け取ったレビュー指摘の行番号・件数も採用前に数え直す」</td><td><code>実測したか</code></td></tr>
+<tr><td>D2</td><td><code>.claude/skills/adversarial-review/SKILL.md</code></td><td>「指摘に含まれる行番号・件数は、対応する前に自分で<b>数え直す</b>（観点は <code>reports/REVIEW-POINTS.md</code>「内容の妥当性」が正）」</td><td><code>数え直す</code></td></tr>
+<tr><td>E</td><td><code>.claude/skills/doc-search/SKILL.md</code>「絞り込み」節</td><td>「絞り込み条件は答えの範囲を決めてしまう。<code>--type</code> で絞った検索は別の <code>type</code> を原理的に<b>取りこぼす</b>。『どこに書いてあるか』を探すときは <code>--type</code> を外した検索も1回かける」</td><td><code>取りこぼ</code></td></tr>
+<tr><td>F</td><td>ルート <code>REVIEW-POINTS.md</code>「正は1箇所に決め」の直下</td><td>「集約する前に、同じ判定を述べている行を<b>全部数える</b>。目に付いた2箇所だけを見て『正を1箇所にした』と結論すると残りが古いまま残る」</td><td><code>全部数える</code></td></tr>
+<tr><td>G</td><td>ルート <code>REVIEW-POINTS.md</code>「ドキュメントの構造」</td><td>「<b>連言</b>（『AかつB』）の一項だけを言い換えたとき、文全体の主語が変わっていないか」</td><td><code>連言</code></td></tr>
+<tr><td>H</td><td><code>.claude/skills/issue-mr-flow/SKILL.md</code> 手順2</td><td>「『該当するアセット』はファイル単位ではなく<b>記述単位</b>で見る。ファイル単位で見ると (a) が原理的に発生せず、手順3が恒久的に迂回される」</td><td><code>記述単位</code></td></tr>
+<tr><td>H2</td><td>同 手順3</td><td>「痕跡の確認は (a) と (c) の<b>両方で行う</b>。再現性の確認だけが (a) 限定である」＋見出しを「証拠集めと打ち切り（(a) のみ）」から改める</td><td><code>両方で行う</code></td></tr>
+</tbody>
+</table>
+</div>
+<p><b>いずれの文面も、SKILL.md の新節の内容を書き写さない</b>（正を2つ作らない）。</p>
+<h3><code>.gemini/</code> の再生成</h3>
+<p><code>.claude/</code> を変更するため <code>bash .claude/scripts/src/sync-gemini-assets.sh</code> を流す （<code>.claude/rules/directory-structure.md</code>。フロー上の最終ゲートは flow-id 5-3 だが、差分が大きくなる前にこの段で流す）。</p>
+</section>
+
+<section id="out-of-scope">
+<h2>やらないこと</h2>
+<ul>
+<li><b>DDR・spec・<code>.claude/VERSION</code> への反映</b>。対になる <code>【設計反映】</code> の計画が担当する。</li>
+<li><b><code>AGENTS.md</code> / <code>CLAUDE.md</code> / <code>GEMINI.md</code> / <code>.claude/rules/</code> への追記</b>（手順4の判断）。</li>
+<li><b>落とした20項目の反映</b>（理由は上表）。</li>
+<li><b>手順3の段階3の実施</b>（段階2までで全件確定したため）。</li>
+</ul>
+</section>
+
+<section id="verify">
+<h2>検証</h2>
+<p><b>「数える語」はすべて、この計画を書いた時点で変更前のツリーに対して実行し、0件であることを 確認済みである</b>（机上の見込みではない。項目Aそのものの実践）。</p>
+<div class="tablewrap">
+<table>
+<thead><tr><th>#</th><th>範囲</th><th>数える語</th><th>変更前（<b>実測済み</b>）</th></tr></thead>
+<tbody>
+<tr><td>A</td><td><code>REVIEW-POINTS.md</code> 全体</td><td><code>変更前のツリー</code></td><td><b>0</b></td></tr>
+<tr><td>A2</td><td><code>plans/REVIEW-POINTS.md</code>「検証手順」</td><td><code>空振り</code></td><td><b>0</b></td></tr>
+<tr><td>B</td><td><code>plans/REVIEW-POINTS.md</code>「HTML版」</td><td><code>正規化</code></td><td><b>0</b></td></tr>
+<tr><td>C</td><td><code>plans/REVIEW-POINTS.md</code>「HTML版」</td><td><code>列区切り</code></td><td><b>0</b></td></tr>
+<tr><td>D</td><td><code>reports/REVIEW-POINTS.md</code>「内容の妥当性」</td><td><code>実測したか</code></td><td><b>0</b></td></tr>
+<tr><td>D2</td><td><code>.claude/skills/adversarial-review/SKILL.md</code> 全体</td><td><code>数え直す</code></td><td><b>0</b></td></tr>
+<tr><td>E</td><td><code>.claude/skills/doc-search/SKILL.md</code> 全体</td><td><code>取りこぼ</code></td><td><b>0</b></td></tr>
+<tr><td>F</td><td><code>REVIEW-POINTS.md</code> 全体</td><td><code>全部数える</code></td><td><b>0</b></td></tr>
+<tr><td>G</td><td><code>REVIEW-POINTS.md</code> 全体</td><td><code>連言</code></td><td><b>0</b></td></tr>
+<tr><td>H</td><td>SKILL.md の新節の範囲</td><td><code>記述単位</code></td><td><b>0</b></td></tr>
+<tr><td>H2</td><td>SKILL.md の新節の範囲</td><td><code>両方で行う</code></td><td><b>0</b></td></tr>
+</tbody>
+</table>
+</div>
+<p>範囲を絞る（節・新節の範囲）ものは次の形で数える。<b>ファイル全体で数えると、既存のヒットで 空振りする</b>。</p>
+<pre><code>sed -n &#x27;/^## HTML版/,$p&#x27; plans/REVIEW-POINTS.md | grep -c &#x27;正規化&#x27;
+sed -n &#x27;/^## 検証手順/,/^## /p&#x27; plans/REVIEW-POINTS.md | grep -c &#x27;空振り&#x27;
+sed -n &#x27;/^## 内容の妥当性/,/^## /p&#x27; reports/REVIEW-POINTS.md | grep -c &#x27;実測したか&#x27;
+sed -n &#x27;/^### AIアセット反映の対象の洗い出し/,/^### 計画と実施結果の分離/p&#x27; \
+  .claude/skills/issue-mr-flow/SKILL.md | grep -c &#x27;記述単位&#x27;</code></pre>
+<h3>収集経路に乗ることの確認</h3>
+<p>追記した観点が実際にレビューで収集されるかを、<b>祖先方向の収集</b>で確かめる。</p>
+<pre><code>bash .claude/scripts/src/collect-review-points.sh &#x27;plans/【AIアセット反映】洗い出し手順を自身へ適用して得た観点を反映する.md&#x27; \
+  | grep -c &#x27;変更前のツリー&#x27;</code></pre>
+<p><b>変更前は0</b>（実測済み）。</p>
+<h3>その他</h3>
+<div class="tablewrap">
+<table>
+<thead><tr><th>#</th><th>何を確かめるか</th><th>コマンド</th><th>変更前</th></tr></thead>
+<tbody>
+<tr><td>X1</td><td>frontmatterインデックスが壊れていない</td><td><code>extract-frontmatter.sh .</code> の最終行の <code>failed=0</code></td><td><code>failed=0</code></td></tr>
+<tr><td>X2</td><td><code>.gemini/</code> が同期済み</td><td><code>bash .claude/scripts/src/sync-gemini-assets.sh --check</code></td><td>（実行時に判定）</td></tr>
+</tbody>
+</table>
+</div>
+<h3>目視で確認すること</h3>
+<ul>
+<li><b>A と D の参照側に内容が書かれていないか</b>（正を2つ作らない）。</li>
+<li><b>追記した文面が、SKILL.md の新節の内容の書き写しになっていないか。</b></li>
+<li><b>項目Hの訂正で、手順3の見出しと本文が食い違っていないか</b>（見出しが「(a) のみ」のままだと 本文と矛盾する）。</li>
+<li><b>この計画のHTMLビューで、表の <code>&lt;td&gt;</code> の数が各行で揃っているか</b>（項目Cの実践）。</li>
+</ul>
+</section>
+
+<footer>issue #155 / PR #175 — 計画の正文は同名の <code>.md</code>。外部依存を持たない自己完結HTML。</footer>
+
+</div>
+
+</body>
+</html>
