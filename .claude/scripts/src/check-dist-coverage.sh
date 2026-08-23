@@ -72,6 +72,23 @@ main() {
     return 2
   fi
 
+  # **定義ファイルの置かれたリポジトリを検査対象にする。** 既定の相対パスと cwd 基準の
+  # `git ls-files` のままだと、別ディレクトリから起動したときに「起動時のカレントディレクトリの
+  # リポジトリ」を検査してしまう（install-to-project.sh が配布先を cwd にして呼ばれると、
+  # ここで必ず中断していた）。定義ファイルがgit管理外（テストが作る一時ファイル等）の場合は、
+  # 従来どおり cwd のリポジトリを見る。
+  local def_dir="${def%/*}" root
+  [ "$def_dir" != "$def" ] || def_dir='.'
+  def="$(cd "$def_dir" && pwd)/${def##*/}"
+  if root="$(git -C "${def%/*}" rev-parse --show-toplevel 2>/dev/null)"; then
+    cd "$root"
+  elif root="$(git rev-parse --show-toplevel 2>/dev/null)"; then
+    cd "$root"
+  else
+    printf 'エラー: gitリポジトリが見つかりません（定義: %s）\n' "$def" >&2
+    return 2
+  fi
+
   # 配布先では、この検査は「配布先の自前ソースが全件未分類」と報告してしまうだけなので流さない。
   # 無言でスキップせず、対象件数を出す（.claude/rules/shell-script-style.md「異常が無ければ何も
   # 出ない検証にしない」と同じ考え方）。

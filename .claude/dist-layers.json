@@ -24,7 +24,7 @@
     { "layer": "core", "path": "GEMINI.md", "note": "同上" },
 
     { "layer": "seed", "path": "AGENTS.md",
-      "source": ".claude/skills/apply-mr-workflow-to-project/templates/AGENTS.md",
+      "source": ".claude/skills/apply-mr-workflow-to-project/templates/AGENTS.md.template",
       "note": "共通ルールのimport＋プロジェクト概要。概要は配布先が書くため汎用雛形を配る" },
     { "layer": "seed", "path": "HANDOFF.md", "note": "受け入れ条件3が明示（再適用で上書きしない）" },
     { "layer": "seed", "path": "index.md", "note": "Repository Map。配布先の構成を反映する" },
@@ -47,14 +47,14 @@
     { "layer": "core", "path": "reports/REVIEW-POINTS.md" },
 
     { "layer": "seed", "path": "REVIEW-POINTS.local.md",
-      "source": ".claude/skills/apply-mr-workflow-to-project/templates/REVIEW-POINTS.local.md",
+      "source": ".claude/skills/apply-mr-workflow-to-project/templates/REVIEW-POINTS.local.md.template",
       "note": "配布先固有の観点。空雛形を1回だけ置き、以後本家は触らない" },
     { "layer": "seed", "path": ".claude/REVIEW-POINTS.local.md",
-      "source": ".claude/skills/apply-mr-workflow-to-project/templates/REVIEW-POINTS.local.md" },
+      "source": ".claude/skills/apply-mr-workflow-to-project/templates/REVIEW-POINTS.local.md.template" },
     { "layer": "seed", "path": "plans/REVIEW-POINTS.local.md",
-      "source": ".claude/skills/apply-mr-workflow-to-project/templates/REVIEW-POINTS.local.md" },
+      "source": ".claude/skills/apply-mr-workflow-to-project/templates/REVIEW-POINTS.local.md.template" },
     { "layer": "seed", "path": "reports/REVIEW-POINTS.local.md",
-      "source": ".claude/skills/apply-mr-workflow-to-project/templates/REVIEW-POINTS.local.md" },
+      "source": ".claude/skills/apply-mr-workflow-to-project/templates/REVIEW-POINTS.local.md.template" },
 
     { "layer": "local", "gitignorePattern": ".vscode/", "note": "配布先の好み。配る行には入れない" },
     { "layer": "local", "gitignorePattern": "*.log", "note": "同上" },

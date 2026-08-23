@@ -17,7 +17,8 @@
 #
 #     --dry-run       配置せず、何が起きるかだけを出力する
 #     --force         改変済み core を .bak を残さず上書きする
-#     --allow-dirty   本家のワークツリーが dirty でも続行する（manifest の commit へ -dirty を付ける）
+#     --allow-dirty   本家のワークツリーが dirty でも続行する
+#                     （このとき manifest の commit へ -dirty が付く）
 #
 # **2パス構成**である。受け入れ条件4が「上書きの**前に**警告と対象一覧を出す」ことを求めており、
 # 配置しながら警告を出す1パスの形では満たせない。走査パス（手順4）→ 提示（手順5）→
@@ -27,7 +28,8 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 UPSTREAM_ROOT="$(cd "${SCRIPT_DIR}/../../../.." && pwd)"
-readonly DEF_FILE="${UPSTREAM_ROOT}/.claude/dist-layers.json"
+readonly DEF_REL='.claude/dist-layers.json'
+readonly DEF_FILE="${UPSTREAM_ROOT}/${DEF_REL}"
 readonly MANIFEST_REL='.claude/.asset-manifest.json'
 readonly MARKER_BEGIN='# --- dist:begin ---'
 readonly MARKER_END='# --- dist:end ---'
@@ -38,7 +40,9 @@ OPT_ALLOW_DIRTY=0
 DEST_DIR=''
 
 usage() {
-  sed -n '3,26p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
+  # 行番号で切り出すと、冒頭のコメントを1行足しただけでずれる（実際に `set -euo pipefail` が
+  # ヘルプ末尾へ出ていた）。3行目から「コメントでない最初の行」の手前までを取る。
+  awk 'NR >= 3 { if ($0 !~ /^#/) exit; sub(/^# ?/, ""); print }' "${BASH_SOURCE[0]}"
 }
 
 # ---- 小さなヘルパー --------------------------------------------------------
@@ -77,6 +81,11 @@ read_entries_records() {
 # 定義の順に上書きしていくだけで例外が表現できる。
 declare -A PLAN_LAYER=() PLAN_SRC=() PLAN_STRATEGY=() PLAN_KEYS=() PLAN_HEADER=()
 declare -a PLAN_PATHS=()
+# dirty 判定に使う「配布対象のパス」。PLAN_PATHS（追跡ファイルの完全パス）では未追跡ファイルを
+# 拾えないため、エントリの path をディレクトリのまま持っておく。
+declare -a DIST_PATHSPECS=() DIST_EXCLUDESPECS=()
+# 本家が実際に dirty だったか（--allow-dirty を付けたかどうかとは別）。
+UPSTREAM_DIRTY=0
 
 build_plan() {
   local layer path source strategy keys header f tmp_ls
@@ -85,6 +94,13 @@ build_plan() {
 
   while IFS=$'\037' read -r layer path source strategy keys header; do
     [ -n "$layer" ] || continue
+
+    if [ -n "$path" ]; then
+      case "$layer" in
+        core|seed|merge) DIST_PATHSPECS+=("$path") ;;
+        exclude) DIST_EXCLUDESPECS+=(":(exclude)${path}") ;;
+      esac
+    fi
 
     if [ -n "$path" ]; then
       if ! git -C "$UPSTREAM_ROOT" ls-files -z -- "$path" > "$tmp_ls" 2>/dev/null; then
@@ -141,9 +157,24 @@ check_upstream_clean() {
     [ "${PLAN_SRC[$p]}" = "$p" ] || specs+=("${PLAN_SRC[$p]}")
   done
 
+  # **未追跡ファイルは specs では拾えない。** specs は `git ls-files` 由来の「既存の追跡ファイルの
+  # 完全パス」なので、`??` のエントリに一致しようがない。本家で新規作成してコミットしていない
+  # ルール・スクリプトは配布計画（build_plan も `git ls-files`）にも入らないため、警告もサマリも
+  # 無いまま配布先へ届かない。中断はしないが、件数は必ず出す（無言のスキップにしない）。
+  local untracked=0
+  if [ "${#DIST_PATHSPECS[@]}" -gt 0 ]; then
+    untracked="$(git -C "$UPSTREAM_ROOT" status --porcelain --untracked-files=all \
+      -- "${DIST_PATHSPECS[@]}" ${DIST_EXCLUDESPECS[@]+"${DIST_EXCLUDESPECS[@]}"} 2>/dev/null \
+      | grep -c -- '^??' || true)"
+  fi
+  if [ "$untracked" -gt 0 ]; then
+    printf '%s\n' "注意: 配布対象のパスに未追跡ファイルが ${untracked} 件あります（配布対象外です。配るならコミットしてください）" >&2
+  fi
+
   local out n
   out="$(git -C "$UPSTREAM_ROOT" status --porcelain -- "${specs[@]}")"
   [ -n "$out" ] || return 0
+  UPSTREAM_DIRTY=1
 
   n="$(printf '%s\n' "$out" | grep -c .)"
   if [ "$OPT_ALLOW_DIRTY" -eq 1 ]; then
@@ -164,6 +195,9 @@ check_upstream_clean() {
 
 # 本家のファイルから、マーカーで囲まれた「配る行」（コメント・空行を除く）を標準出力へ出す。
 # **マーカーが1行も見つからない場合は失敗させる**（旧実装は警告のみで無言の空振りになっていた）。
+# **BEGIN だけでなく END の欠落でも失敗させる。** `inside=1` のままEOFに達すると、BEGIN以降の
+# 全行（コメント・空行を除く）が配布対象になってしまい、しかもコメントが落ちるので出力を
+# 目視しても異常だと気づけない。
 extract_marker_lines() {
   local file="$1" line inside=0 found_begin=0
   while IFS= read -r line || [ -n "$line" ]; do
@@ -174,7 +208,7 @@ extract_marker_lines() {
     case "$line" in ''|'#'*) continue ;; esac
     printf '%s\n' "$line"
   done < "$file"
-  [ "$found_begin" -eq 1 ]
+  [ "$found_begin" -eq 1 ] && [ "$inside" -eq 0 ]
 }
 
 # 配布先のファイルへ、未収録の行だけを追記する（冪等・行全体一致・末尾改行の補完）。
@@ -203,13 +237,19 @@ append_missing_lines() {
     : > "$existing"
   fi
 
+  # 既存行は連想配列へ1回で読み込む。候補ごとに `grep` を起動すると行数に比例して
+  # 外部プロセスが増える（git bashでは1回あたり約95ms。
+  # .claude/rules/shell-script-style.md「外部プロセス起動のコスト」）。
+  local -A have=()
+  while IFS= read -r line || [ -n "$line" ]; do
+    have["$line"]=1
+  done < "$existing"
+  rm -f "$existing"
+
   for line in "${candidates[@]}"; do
-    if grep -qFx -- "$line" "$existing"; then
-      continue
-    fi
+    [ -z "${have[$line]+x}" ] || continue
     to_add+=("$line")
   done
-  rm -f "$existing"
 
   if [ "${#to_add[@]}" -gt 0 ]; then
     # 末尾に改行が無いファイルへ追記すると行が連結されるため、先に補う。
@@ -227,6 +267,17 @@ append_missing_lines() {
 # permissions.deny が配列、hooks がオブジェクトなので、この規則だけで両方の要件を満たす。
 merge_json_keys() {
   local src="$1" dst="$2" keys_csv="$3" key tmp
+  # **マージ前に配布先のファイルを検証する。** 無効なJSONのまま jq へ渡すと jq が失敗し、
+  # リダイレクトで空になった一時ファイルをそのまま書き戻して配布先を**0バイトへ破壊する**。
+  # `merge` 層は .bak を作らないので回復不能で、しかも0バイトになると次回以降も同じ経路で
+  # 失敗し続ける（.claude/rules/shell-script-style.md「上記の失敗が別の関数へ波及して
+  # 恒久化するケース」そのもの）。
+  # **空文字列の検査を `jq -e .` より先に行う**（`jq -e .` は空入力に対して成功を返すことがある）。
+  if [ ! -s "$dst" ] || ! jq -e . "$dst" > /dev/null 2>&1; then
+    printf 'エラー: 配布先が空、または有効なJSONではありません: %s\n' "$dst" >&2
+    printf '       手で修復するか退避してから再実行してください（このファイルは変更していません）。\n' >&2
+    return 1
+  fi
   tmp="$(mktemp)"
   local IFS=','
   # shellcheck disable=SC2206
@@ -243,7 +294,12 @@ merge_json_keys() {
           setpath($p; ((getpath($p) // []) + $v | unique))
         else setpath($p; $v)
         end
-    ' "$dst" > "$tmp"
+    ' "$dst" > "$tmp" || {
+      # jq の終了コードを見てから書き戻す。見ないと、空になった $tmp で $dst を上書きする。
+      printf 'エラー: %s のキー %s の更新に失敗しました\n' "$dst" "$key" >&2
+      rm -f "$tmp"
+      return 1
+    }
     tr -d '\r' < "$tmp" > "$dst"
   done
   rm -f "$tmp"
@@ -360,7 +416,8 @@ present_plan() {
   fi
   if [ "${#SCAN_CORE_UNKNOWN[@]}" -gt 0 ]; then
     printf '\n警告: 次の core ファイルは manifest が無いため差分を確認できません（旧方式からの移行）。\n'
-    printf '      上書きし、元の内容は .bak として残します。\n'
+    printf '      上書きします。（%s）\n' \
+      "$([ "$OPT_FORCE" -eq 1 ] && echo '--force のため .bak を作りません。配布先の変更は退避されずに失われます' || echo '元の内容は .bak として残します')"
     printf '  - %s\n' "${SCAN_CORE_UNKNOWN[@]}"
   fi
   if [ "${#SCAN_SEED_KEEP[@]}" -gt 0 ]; then
@@ -398,7 +455,23 @@ apply_pass() {
         APPLIED_BAK+=("${p}.bak")
       fi
     fi
-    cp "$src_abs" "$dst_path"
+    if [ "$p" = "$DEF_REL" ]; then
+      # **配布先では `upstream` の印を落とす。** 付いたまま配ると、配布先で網羅性チェックが
+      # 「本家のもの」として走り、配布先の自前ソースを全件未分類として報告する。
+      # install-to-project.sh 自身も手順2cでこの検査を通すため、配布先をカレントにした
+      # 再適用が始まらなくなる。
+      local def_tmp
+      def_tmp="$(mktemp)"
+      jq 'del(.upstream)' "$src_abs" > "$def_tmp" || {
+        printf 'エラー: 層分け定義から upstream を落とせませんでした: %s\n' "$src_abs" >&2
+        rm -f "$def_tmp"
+        return 1
+      }
+      tr -d '\r' < "$def_tmp" > "$dst_path"
+      rm -f "$def_tmp"
+    else
+      cp "$src_abs" "$dst_path"
+    fi
   done
 
   for p in "${SCAN_SEED_PLACE[@]}"; do
@@ -455,7 +528,9 @@ _in_list() {
 write_manifest() {
   local commit version url entries_file p dst_path
   commit="$(git -C "$UPSTREAM_ROOT" rev-parse HEAD)"
-  [ "$OPT_ALLOW_DIRTY" -eq 0 ] || commit="${commit}-dirty"
+  # オプションの有無ではなく、**実際に未コミットの変更があったか**で付ける。
+  # --allow-dirty を常用する運用でも、クリーンなコミットからの配布はそう記録される。
+  [ "$UPSTREAM_DIRTY" -eq 0 ] || commit="${commit}-dirty"
   version="$(tr -d '\r\n' < "${UPSTREAM_ROOT}/.claude/VERSION" 2>/dev/null || echo 'unknown')"
   url="$(git -C "$UPSTREAM_ROOT" remote get-url origin 2>/dev/null || echo '')"
 
@@ -528,21 +603,33 @@ main() {
   fi
   [ -f "$DEF_FILE" ] || { printf 'エラー: 層分け定義がありません: %s\n' "$DEF_FILE" >&2; return 2; }
 
+  # **これらを `func || return 1` の形で呼ばないこと。** `||` の左辺は条件式であり、bashは
+  # 条件式として評価される関数の**内部にまで** `set -e` の一時停止を及ぼす。そうすると関数内の
+  # `jq` / `cp` / `mkdir` が失敗しても処理が先へ進み、戻り値は「最後に実行したコマンドの
+  # 終了コード」になる（.claude/rules/shell-script-style.md「エラー方針」）。
+  # これらの関数はいずれもグローバル変数へ結果を書くためサブシェルで包めないので、素で呼んで
+  # `set -e` に任せる（各関数は中断前に自分でエラーメッセージを出す）。
+
   # 手順3: 定義の読み込み（dirty判定の対象を決めるため、検証より先に行う）
-  build_plan || return 1
+  build_plan
 
   # 手順2b: 本家の dirty 判定（受け入れ条件6）
-  check_upstream_clean || return 1
+  check_upstream_clean
 
   # 手順2c: 網羅性チェック（受け入れ条件1）
-  if ! bash "${UPSTREAM_ROOT}/.claude/scripts/src/check-dist-coverage.sh" > /dev/null 2>&1; then
+  # **定義ファイルを絶対パスで渡す。** check-dist-coverage.sh は既定で相対パスの定義と
+  # cwd 基準の `git ls-files` を見るため、渡さないと「起動時のカレントディレクトリのリポジトリ」を
+  # 検査してしまう（配布先を cwd にして実行すると必ず中断していた）。
+  if ! bash "${UPSTREAM_ROOT}/.claude/scripts/src/check-dist-coverage.sh" --def "$DEF_FILE" \
+       > /dev/null 2>&1; then
     printf 'エラー: 層分け定義の網羅性チェックに失敗しました。次を実行して内容を確認してください:\n' >&2
-    printf '  bash .claude/scripts/src/check-dist-coverage.sh\n' >&2
+    printf '  bash %s --def %s\n' \
+      "${UPSTREAM_ROOT}/.claude/scripts/src/check-dist-coverage.sh" "$DEF_FILE" >&2
     return 1
   fi
 
   # 手順4: 走査パス
-  scan_pass || return 1
+  scan_pass
 
   # 手順5: 提示
   present_plan
@@ -553,7 +640,7 @@ main() {
 
   # 手順6: 配置パス
   log_section '配置'
-  apply_pass || return 1
+  apply_pass
 
   # 手順7: 配布先で .gemini/ のリンクを作る（「local は触らない」の唯一の例外）
   log_section '.gemini/ のセットアップ'
