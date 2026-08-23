@@ -247,7 +247,7 @@ assert_eq "--skip-index: index.jsonl は再生成されない" "1" \
 # `templates/HANDOFF.md.template` を source に指しているが、**同じ雛形が2箇所に
 # 写しとして存在する**ことになるので、一致を機械的に担保する。
 # どちらかを直したらもう一方も直すこと（この表明が落ちて気づける）。
-handoff_tpl_file="${repo_root}/.claude/skills/apply-mr-workflow-to-project/templates/HANDOFF.md.template"
+handoff_tpl_file="${repo_root}/.claude/skills/apply-mr-workflow-to-project/assets/HANDOFF.md.template"
 if [ -f "$handoff_tpl_file" ]; then
   # 本文の比較は両辺を同じ `$(...)` に通す（コマンド置換は末尾の改行を落とすため、
   # 片側だけ生の変数を渡すと必ず食い違う）。末尾改行の有無はバイト数で別途見る。

@@ -44,4 +44,9 @@
 *.stackdump
 # generate-ddr-list.sh の一時ファイル（実行が中断されると残ることがある。issue #127で1度コミットしてしまった）
 .claude/docs/.ddr-list.*
+
+# OTelリスナー機構（issue #103）のローカルオーバーライド設定。Windows/WSLで異なる
+# OTEL_EXPORTER_OTLP_ENDPOINT等の環境依存値を持つため、共有の.claude/settings.jsonとは
+# 分離しGit管理下に置かない。テンプレートは.claude/settings.local.json.exampleを参照。
+/.claude/settings.local.json
 # --- dist:end ---

@@ -43,6 +43,7 @@ keywords: [正史仕様, 意思決定ログ, issue-mr-workflow, シェルスク�
 - [search-frontmatter.md](spec/search-frontmatter.md) ── ドキュメント横断検索スクリプト（index.jsonl検索）
 - [generate-ddr-list.md](spec/generate-ddr-list.md) ── DDR一覧生成スクリプト（README.mdのDDR一覧をfrontmatterから生成）
 - [gitlab-verification-environment.md](spec/gitlab-verification-environment.md) ── GitLab検証環境（Docker + glab）の再現手順
+- [otel-listener.md](spec/otel-listener.md) ── OTelリスナー機構（OpenTelemetryをusage/へ振り分け保存するperl製リスナー）
 
 ## ddr（意思決定ログ）
 
@@ -86,7 +87,7 @@ frontmatter（`status` / `superseded_by` / `note`）だけから決まる。
 - [i0000-08-issue作成は独立スキルとして新設する.md](ddr/i0000-08-issue作成は独立スキルとして新設する.md)
 - [i0000-09-コミットはcommitスキル経由を機構的に強制する.md](ddr/i0000-09-コミットはcommitスキル経由を機構的に強制する.md)（うち「部分一致のため無関係なコマンドも誤ってブロックされる」既知のトレードオフは、issue #53でコマンド位置判定へ置き換えた。詳細はi0053-01）
 - [i0000-10-dev-toolsをAI専用_人間専用に分離する.md](ddr/i0000-10-dev-toolsをAI専用_人間専用に分離する.md)
-- [i0000-11-調査結果のhtml版は自己完結htmlのコミットで作る.md](ddr/i0000-11-調査結果のhtml版は自己完結htmlのコミットで作る.md)
+- [i0000-11-調査結果のhtml版は自己完結htmlのコミットで作る.md](ddr/i0000-11-調査結果のhtml版は自己完結htmlのコミットで作る.md)（html版を自己完結HTMLのコミットで作るという決定は有効。ただし issue #54 で2点が変わった。(1) 方式がTailwindCSS CDNから自前CSSへ（CDNを推した「出力トークン量と表現力の釣り合い」が、テンプレート化により成り立たなくなったため）。(2) 「テンプレート化は行わない／複数件の運用実績を踏まえてから判断する」という項も、テンプレート2本の新設により覆った。詳細は i0054-01）
 - [i0000-12-frontmatterスクリプトの走査方式にgit-ls-filesを採用する.md](ddr/i0000-12-frontmatterスクリプトの走査方式にgit-ls-filesを採用する.md)
 - [i0000-13-gemini配下はGit管理下に置かずセットアップスクリプトで生成する.md](ddr/i0000-13-gemini配下はGit管理下に置かずセットアップスクリプトで生成する.md)
 - [i0003-01-gemini-settings.jsonのhooksはレビュー提示スニペットのhooksセクションのみ採用する.md](ddr/i0003-01-gemini-settings.jsonのhooksはレビュー提示スニペットのhooksセクションのみ採用する.md)
@@ -114,6 +115,7 @@ frontmatter（`status` / `superseded_by` / `note`）だけから決まる。
 - [i0048-01-空コミットフォールバックはGitHub固有の制約として残す.md](ddr/i0048-01-空コミットフォールバックはGitHub固有の制約として残す.md)
 - [i0050-01-チャットで受けたレビュー判断はAIがMRの通常コメントへ記録する.md](ddr/i0050-01-チャットで受けたレビュー判断はAIがMRの通常コメントへ記録する.md)
 - [i0053-01-hookの検知は正規化とコマンド位置判定にし読めない実行体は部分一致へ縮退させる.md](ddr/i0053-01-hookの検知は正規化とコマンド位置判定にし読めない実行体は部分一致へ縮退させる.md)
+- [i0054-01-計画レポートのHTMLビューはassets配下のテンプレートへ切り出す.md](ddr/i0054-01-計画レポートのHTMLビューはassets配下のテンプレートへ切り出す.md)
 - [i0057-01-compact後もSessionStart-hookで作業コンテキストを再注入する.md](ddr/i0057-01-compact後もSessionStart-hookで作業コンテキストを再注入する.md)
 - [i0060-01-create-commitは削除ステージ済みパスをgit-addの失敗時分類で吸収する.md](ddr/i0060-01-create-commitは削除ステージ済みパスをgit-addの失敗時分類で吸収する.md)
 - [i0063-01-機構自身の単体テストは.claude_scripts_test配下へ置く.md](ddr/i0063-01-機構自身の単体テストは.claude_scripts_test配下へ置く.md)
@@ -134,6 +136,8 @@ frontmatter（`status` / `superseded_by` / `note`）だけから決まる。
 - [i0097-03-対応工数レポートのトークン列はengineではなくデータで決める.md](ddr/i0097-03-対応工数レポートのトークン列はengineではなくデータで決める.md)
 - [i0097-04-Gemini経路のブランチ帰属は断面時点のブランチとし限界を明示する.md](ddr/i0097-04-Gemini経路のブランチ帰属は断面時点のブランチとし限界を明示する.md)
 - [i0097-05-Gemini-CLIのサブエージェントは保存のみとし集計しない.md](ddr/i0097-05-Gemini-CLIのサブエージェントは保存のみとし集計しない.md)
+- [i0103-01-perlを常駐プロセス実装の選択肢に加える理由.md](ddr/i0103-01-perlを常駐プロセス実装の選択肢に加える理由.md)
+- [i0103-02-OTelエンドポイント設定をsettings.local.jsonへ分離する理由.md](ddr/i0103-02-OTelエンドポイント設定をsettings.local.jsonへ分離する理由.md)
 - [i0106-01-敵対的レビューの非対話判定は環境変数ではなくAIエージェントの判断に委ねる.md](ddr/i0106-01-敵対的レビューの非対話判定は環境変数ではなくAIエージェントの判断に委ねる.md)
 - [i0109-01-敵対的レビュー由来のスレッドも人間の指摘と同列に返信を必須とする.md](ddr/i0109-01-敵対的レビュー由来のスレッドも人間の指摘と同列に返信を必須とする.md)
 - [i0110-01-個別計画のタスク種別を6種から8種へ拡張する.md](ddr/i0110-01-個別計画のタスク種別を6種から8種へ拡張する.md)
@@ -145,6 +149,6 @@ frontmatter（`status` / `superseded_by` / `note`）だけから決まる。
 - [i0133-01-DDR識別子はissue番号ベースにし連番採番をやめる.md](ddr/i0133-01-DDR識別子はissue番号ベースにし連番採番をやめる.md)
 - [i0135-01-DDR一覧は生成物にしつつGit管理下へ残す.md](ddr/i0135-01-DDR一覧は生成物にしつつGit管理下へ残す.md)
 - [i0140-01-mark-skipはループ範囲の一部指定を書き換え後の状態で拒否する.md](ddr/i0140-01-mark-skipはループ範囲の一部指定を書き換え後の状態で拒否する.md)
-- [i0141-01-canvasテンプレートはTailwind非依存の自己完結CSSにする.md](ddr/i0141-01-canvasテンプレートはTailwind非依存の自己完結CSSにする.md)
+- [i0141-01-canvasテンプレートはTailwind非依存の自己完結CSSにする.md](ddr/i0141-01-canvasテンプレートはTailwind非依存の自己完結CSSにする.md)（canvas形式をTailwind非依存にした決定は有効。ただし issue #54 で一覧・表形式のテンプレートも自己完結CSSになったため、「canvas形式だけが例外」という本文の前提は成り立たない。本文中の `templates/canvas-report.html` も当時のパスで、issue #54 で `assets/canvas-report.html` へ改名した。詳細は i0054-01）
 - [i0141-02-canvasデータモデルはフラットなparent参照にする.md](ddr/i0141-02-canvasデータモデルはフラットなparent参照にする.md)
 <!-- END GENERATED: ddr-list -->

@@ -425,7 +425,7 @@ assert_eq "実際に dirty なら -dirty を付ける" "1" \
 # 訂正されない。**「雛形と一致する」だけでなく「本家の内容が漏れていない」も見る**
 # （雛形を本家のコピーにしてしまうと前者だけでは通ってしまうため）。
 # dest_new は受け入れ条件3の確認で HANDOFF.md を編集済みなので、専用の配布先を使う。
-TPL="${REPO_ROOT}/.claude/skills/apply-mr-workflow-to-project/templates"
+TPL="${REPO_ROOT}/.claude/skills/apply-mr-workflow-to-project/assets"
 dest_seed="$(make_dest dest_seed)"
 install_to "$dest_seed"
 assert_eq "配布された HANDOFF.md は雛形と一致する" \
