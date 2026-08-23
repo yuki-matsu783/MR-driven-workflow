@@ -17,7 +17,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - issue: #142
 - ブランチ: `claude/docs-workflow-heading-rule-mi3krb`
 - PR: #188（Draft, https://github.com/yuki-matsu783/MR-driven-workflow/pull/188 ）
-- push回数: 3
+- push回数: 5
 - 現在のループ: 2-3〜2-4 の1周目（完了）
 - 未返信スレッド: 0
 - 追従監視: あり（`subscribe_pr_activity` でPR #188 を購読中。セッション終了で止まるため、次セッションは `resume` で取り直す）
