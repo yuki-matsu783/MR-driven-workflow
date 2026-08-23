@@ -138,9 +138,10 @@
 <table>
 <thead><tr><th>区分</th><th>実施したもの</th></tr></thead>
 <tbody>
-<tr><td>設計反映</td><td>DDR <code>i0155-01</code> 新規（162行）／<code>i0110-01</code> へ <code>note:</code>（<b>本文は不変</b>）／DDR一覧の再生成／specの入口2行＋changelogエントリ／<code>.claude/VERSION</code> の提案</td></tr>
+<tr><td>設計反映</td><td>DDR <code>i0155-01</code> 新規（163行）／<code>i0110-01</code> へ <code>note:</code>（<b>本文は不変</b>）／DDR一覧の再生成／specの入口2行＋changelogエントリ／<code>.claude/VERSION</code> の提案</td></tr>
 <tr><td>AIアセット反映</td><td>8項目（A〜H）を5ファイルへ。<b>うち1件は手順そのものの訂正</b>（項目H）</td></tr>
 <tr><td>変換同期</td><td><code>.gemini/</code> を再生成し <code>--check</code> で同期を確認</td></tr>
+<tr><td>レビュー対応</td><td>6回目の敵対的レビューの<b>9件すべて</b>を受け入れて修正（うち4件はこの反映作業が作った誤りで、<b>2件はDDR本文</b>）</td></tr>
 </tbody>
 </table>
 </div>
@@ -149,7 +150,7 @@
 
 <section id="work">
 <h2>実施した内容と結果</h2>
-<h3>1. DDR <code>i0155-01</code>（新規・162行）</h3>
+<h3>1. DDR <code>i0155-01</code>（新規・163行）</h3>
 <p><code>.claude/docs/ddr/i0155-01-AIアセット反映の対象は4類型への分類と痕跡の確認で洗い出す.md</code></p>
 <p>背景（反映漏れ・反映過多・反映先の漏れの3つ）・決定（手順1〜4と <code>.claude/scripts/</code> <code>.claude/hooks/</code> の扱い）・<b>却下した代替案10件</b>・影響範囲を書いた。</p>
 <p><b>却下案は決定1つにつき1つ以上ある形にした。</b> 特に次の2件は、issue #155 の中で実際に一度採って から改めたものなので、その経緯ごと残している。</p>
@@ -205,6 +206,25 @@
 <p><b>項目Hは、この手順自身の訂正である。</b> 手順3の見出しを 「証拠集めと打ち切り（(a) のみ）」→「<b>痕跡の確認と打ち切り</b>」へ改め、確かめること2つの表に <b>「対象」列</b>（再現性＝(a) のみ／痕跡＝(a) と (c) の両方）を足した。段階1の行も 「(a) はこの時点では反映しない（<b>(c) は段階2へ進む</b>）」へ直し、見出しと本文の食い違いを消した。</p>
 <h3>6. <code>.gemini/</code> の再生成</h3>
 <p><code>bash .claude/scripts/src/sync-gemini-assets.sh</code> を実行し、<code>--check</code> が 「<code>.gemini/</code> は <code>.claude/</code> と同期しています。」を返すことを確認した。</p>
+<h3>7. 6回目の敵対的レビュー（フェーズ4・作業実施）への対応</h3>
+<p><b>9件すべてを、採用する前に自分で行番号・件数を数え直したうえで、9件とも受け入れて修正した。</b> 9件のうち4件（#1・#2・#5・#6）は<b>この反映作業が自分で作った誤り</b>であり、うち2件はDDR本文に 入っていた——<b>DDRの本文はマージ後に変更できない</b>ため、ここで直せなかった場合は誤った実測値が 恒久的に残っていた。</p>
+<div class="tablewrap">
+<table>
+<thead><tr><th>#</th><th>指摘</th><th>実測での確認</th><th>対応</th></tr></thead>
+<tbody>
+<tr><td>1</td><td>DDRの実測値が別の語の測定結果とすり替わっている</td><td>DDRは <code>--text 'AIアセット反映'</code> と書くが、調査結果の実測は <code>バックスラッシュ</code>（<code>matched=1 total=131</code>／<code>grep -rl</code> 7ファイル）</td><td>DDRを実際に測った語へ訂正</td></tr>
+<tr><td>2</td><td>項目H2の検証が空振り</td><td>計画の語 <code>両方で行う</code> は現在0件。実際に書いたのは <code>両方</code> で、新節の中に3件（説明文・表の見出し）ある</td><td>数える語を <code>にも要求する</code>（変更前0・変更後1）へ改め、「計画から変えた点」へ開示</td></tr>
+<tr><td>3</td><td><code>plans/REVIEW-POINTS.md</code> の観点3件が、手順3の訂正に追随していない</td><td>64-68行目が「証拠を要求するのは (a) だけ」「痕跡が見つかった項目を (a) のままに」と、訂正前の前提のまま</td><td>再現性（(a) 限定）と痕跡（(a) と (c) の両方）を分けた4件の観点へ書き換え</td></tr>
+<tr><td>4</td><td>SKILL.md 449行目の flow-id が誤り</td><td>片付けはフロー表97行目のとおり <b>5-5</b>（5-4 は統括レポート）</td><td><code>5-4</code> → <code>5-5</code></td></tr>
+<tr><td>5</td><td>DDRのスキップ判定が射程を落としている</td><td>SKILL.md 395-397行目にある「spec/ddr・実装コード/テストコードの判定は別に必要」の但し書きがDDRに無い</td><td>但し書きをDDRへ補った</td></tr>
+<tr><td>6</td><td>DDRの段階1に (c) の分岐が無い</td><td>SKILL.md 419行目は「(c) は段階2へ進む」を持つが、DDRの表は「この時点では反映しない」で止まる</td><td>DDRの表を SKILL.md と同じ内容へ揃えた</td></tr>
+<tr><td>7</td><td>specへの入口挿入で、直後の1行の係り先が変わった</td><td>「（併記/分割の判断基準の詳細は〜）」がタスク種別の項目から離れ、AIアセット反映の項目の末尾に付いていた</td><td>元の項目の末尾へ戻した</td></tr>
+<tr><td>8</td><td><code>plans/REVIEW-POINTS.md</code> のバッククォートの入れ子が壊れている</td><td>109行目のコマンド例が、markdownでコードスパンとして閉じない書き方になっていた</td><td>コマンドを地の文へ言い換えた</td></tr>
+<tr><td>9</td><td>項目D2の反映先が、そのSKILL.md自身の禁止事項に反する</td><td><code>adversarial-review/SKILL.md</code> は82-84行目と230行目で「観点の中身をこのSKILL.mdへ書き足すこと」を禁じ、195-198行目で担当を「投稿と手順8の記録まで」と限っている</td><td>節を削除し、行動のルールを <code>issue-mr-flow/SKILL.md</code> の <code>comments</code> 節へ移した（観点は <code>reports/REVIEW-POINTS.md</code> 項目Dが持つ）</td></tr>
+</tbody>
+</table>
+</div>
+<p><b>#9は、この反映で足した観点が自分に当たった形である。</b> 項目D2は「レビュー指摘の数値を数え直す」 というルールを、<b>受け取り側ではなく出す側のスキル</b>へ書いていた。担当範囲の分割を、同じファイルが 明文で持っているのに読まずに追記したことになる。</p>
 </section>
 
 <section id="verify">
@@ -239,12 +259,12 @@
 <tr><td>B</td><td><code>plans/REVIEW-POINTS.md</code>「HTML版」</td><td><code>正規化</code></td><td>0</td><td><b>1</b></td></tr>
 <tr><td>C</td><td><code>plans/REVIEW-POINTS.md</code>「HTML版」</td><td><code>列区切り</code></td><td>0</td><td><b>1</b></td></tr>
 <tr><td>D</td><td><code>reports/REVIEW-POINTS.md</code>「内容の妥当性」</td><td><code>実測したか</code></td><td>0</td><td><b>1</b></td></tr>
-<tr><td>D2</td><td><code>.claude/skills/adversarial-review/SKILL.md</code></td><td><code>数え直す</code></td><td>0</td><td><b>1</b></td></tr>
+<tr><td>D2</td><td><code>.claude/skills/issue-mr-flow/SKILL.md</code> の <code>comments</code> 節</td><td><code>数え直す</code></td><td>0</td><td><b>1</b></td></tr>
 <tr><td>E</td><td><code>.claude/skills/doc-search/SKILL.md</code></td><td><code>取りこぼ</code></td><td>0</td><td><b>1</b></td></tr>
 <tr><td>F</td><td><code>REVIEW-POINTS.md</code> 全体</td><td><code>全部数え</code></td><td>0</td><td><b>1</b></td></tr>
 <tr><td>G</td><td><code>REVIEW-POINTS.md</code> 全体</td><td><code>連言</code></td><td>0</td><td><b>2</b></td></tr>
 <tr><td>H</td><td>SKILL.md の新節の範囲</td><td><code>記述単位</code></td><td>0</td><td><b>1</b></td></tr>
-<tr><td>H2</td><td>SKILL.md の新節の範囲</td><td><code>両方</code></td><td>0</td><td><b>3</b></td></tr>
+<tr><td>H2</td><td>SKILL.md の新節の範囲</td><td><code>にも要求する</code></td><td>0</td><td><b>1</b></td></tr>
 </tbody>
 </table>
 </div>
@@ -267,7 +287,10 @@
 <thead><tr><th>計画</th><th>実際</th><th>理由</th></tr></thead>
 <tbody>
 <tr><td>項目Fの数える語は <code>全部数える</code></td><td><code>全部数え</code></td><td>文面が問いの形（「全部数えたか」）になったため。変更前0件は分岐点の断面で確認</td></tr>
+<tr><td>項目H2の数える語は <code>両方で行う</code></td><td><code>にも要求する</code></td><td>実際に書いた文面が「痕跡の確認を (c) <b>にも要求する</b>のは〜」になり、<code>両方で行う</code> は1件も現れなかったため（変更前・変更後とも0件）。<b>当初は <code>両方</code> へ緩めて「0→3」と書いたが、これは空振りだった</b>——<code>両方</code> は新節の中で説明文にも表の見出しにも現れるため、項目H2の内容が入ったかを測っていない（6回目の敵対的レビューで指摘）。ルート <code>REVIEW-POINTS.md</code> の項目A（「数える語は構造語を避ける」）が、まさにこの回で自分に当たった</td></tr>
+<tr><td>項目D2の反映先は <code>.claude/skills/adversarial-review/SKILL.md</code></td><td><code>.claude/skills/issue-mr-flow/SKILL.md</code> の <code>comments</code> 節</td><td><b>あちらのSKILL.mdは「観点の中身をこのSKILL.mdへ書き足すこと」を自ら禁じており、担当範囲も「投稿と手順8の記録まで」で受け取り側を含まない</b>（6回目の敵対的レビューで指摘）。指摘を受け取って対応するのは <code>comments</code> / <code>reply</code> ループの担当なので、行動のルールはそちらへ、観点は <code>reports/REVIEW-POINTS.md</code> 項目Dへ置いた</td></tr>
 <tr><td>specのchangelogに「<code>.claude/VERSION</code> は据え置いた」と書く</td><td>「提案が <code>MINOR</code> で、この時点では未変更」と書く</td><td><b>人間の判断がまだ返っていない</b>。決まっていないことを決まったように書かない</td></tr>
+<tr><td><code>.claude/VERSION</code> の提案幅は <code>0.1.x</code> → <code>0.2.0</code></td><td>現行 <code>0.2.0</code> → <code>0.3.0</code></td><td>分岐点 <code>99fe2f2</code> と <code>origin/main</code> の両方で既に <code>0.2.0</code> であることを実測していなかった。<b>提案の数値そのものが誤っていた</b></td></tr>
 </tbody>
 </table>
 </div>
