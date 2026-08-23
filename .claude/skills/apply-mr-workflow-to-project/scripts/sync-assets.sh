@@ -48,7 +48,18 @@ done
 if [ -d "${PROJECT_ROOT}/.github" ]; then
   echo "Syncing .github templates..."
   mkdir -p "${ASSETS_DIR}/.github"
-  cp -R "${PROJECT_ROOT}/.github/"* "${ASSETS_DIR}/.github/"
+  # workflows/ は配布しない（issue #114）。配布先の既存CI設定を上書きしうるうえ、Pages の
+  # 有効化・ブランチ運用は配布先ごとに異なる。雛形は
+  # .claude/skills/issue-mr-flow/assets/publish-report-site.*.yml として（.claude ごと）配る。
+  # index.jsonl は extract-frontmatter.sh の生成物（.gitignore対象）。配布物へ焼き込むと
+  # 配布元のスナップショットが配布先で二重管理として残る（.gemini を除くのと同じ理由）。
+  for entry in "${PROJECT_ROOT}/.github/"*; do
+    [ -e "${entry}" ] || continue
+    # `[ … ] && continue` にしない。最後の要素が除外対象だとループ全体の終了コードが1になり、
+    # `set -e` 配下でスクリプトが落ちる。
+    case "${entry##*/}" in workflows | index.jsonl) continue ;; esac
+    cp -R "${entry}" "${ASSETS_DIR}/.github/"
+  done
 fi
 
 # 4. .gitlab テンプレートの同期

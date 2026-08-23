@@ -92,9 +92,9 @@ MR description更新」という同じ形を繰り返す。
 | 5-1 | **defaultブランチとのコンフリクトを検知し、あれば解消する**（`bash .claude/scripts/src/check-base-conflicts.sh` で判定 → `hasConflict` が真なら `AskUserQuestion` でユーザーに確認 → 承認されたら `resolve-conflict` スキルで解消。詳細は下記「defaultブランチとのコンフリクト検知・解消」節）。PR作成後の継続的な追従（下記「PR作成後のdefaultブランチ追従（監視）」節）を行っていても、**このステップは最終ゲートとして必ず通る** | エージェント（`resolve-conflict` スキル） |
 | 5-2 | **今回のMRが影響する関連issueを特定し、承認を得てから当該issueへ通知する**（差分からキーワードを抽出 → `search_issues` で候補提示 → `AskUserQuestion` で対象issueとコメント本文の承認 → `add_issue_comment` で投稿）。**キーワードの抽出時は `plans/` `worklog/` `reports/` を差分から除外する**（片付けは flow-id 5-5 で行うため、この時点ではこれらの計画・ログ・レポートがまだ差分に含まれる）。**影響先が無ければスキップしてよい**（その場合も「影響先なし」と判断した事実を、リセット前の `HANDOFF.md` へ1行残す）。詳細は下記「マージ前の関連issue通知（flow-id 5-2）」節 | エージェント |
 | 5-3 | **`.claude/` の変更を `.gemini/` へ変換同期する**（`bash .claude/scripts/src/sync-gemini-assets.sh` を実行する。`.gemini/` は `.claude/` からの**生成物**であり、手で編集しない。**このステップ自身はcommitを持たない**——生えた差分は直後のflow-id 5-4（最終統括レポート）のcommitに載る。詳細は下記「`.claude/` → `.gemini/` の変換同期（flow-id 5-3）」節） | エージェント |
-| 5-4 | **最終統括レポートを作成し、PR/MRへサマリコメントとして反映する**（`reports/日付_<全体計画名>_統括.md` を正文として作成 → `commit` スキル経由でcommit・push → （**任意**）HTMLを `upload_attachment` で添付し、**失敗したら警告のみでスキップ** → サマリを `add_mr_comment` でPR/MRへ1回投稿する）。**反映は3層のフォールバック構造**で、層3が壊れても層1・層2でレビューは成立する。詳細は下記「最終統括レポートとPR/MRへの反映（flow-id 5-4）」節 | エージェント |
+| 5-4 | **最終統括レポートを作成し、PR/MRへサマリコメントとして反映する**（`reports/日付_<全体計画名>_統括.md` を正文として作成 → `commit` スキル経由でcommit・push → （**任意**）HTMLを `upload_attachment` で添付し、**失敗したら警告のみでスキップ** → サマリを `add_mr_comment` でPR/MRへ1回投稿する）。**反映は3層のフォールバック構造**で、層3が壊れても層1・層2でレビューは成立する。詳細は下記「最終統括レポートとPR/MRへの反映（flow-id 5-4）」節。**なお、層1のリモート反映はCIを起動し、報告HTMLがPR/MR単位のURLへホストされる**（AIエージェントがここで行う操作は無い。URLの提示は flow-id 5-6 → 下記「報告サイトのホストとURL通知（flow-id 5-4・5-6）」節） | エージェント |
 | 5-5 | 次タスクのために、`plans/` `worklog/` `reports/`（md・htmlの両方）を削除し、`HANDOFF.md` をリセットする（**`bash .claude/scripts/src/cleanup-task.sh` を実行する**。何を消し何を残すか（`worklog/TEMPLATE.md` と `REVIEW-POINTS.md` は残す。後者はタスク単位の成果物ではなく、そのディレクトリに対する永続のレビュー観点であるため。詳細は `.claude/rules/docs-workflow.md` が正）・`index.jsonl` の再生成・HANDOFF.mdのテンプレートはスクリプトが持つ。先に対象を確認したい場合は `--dry-run` を付ける。仕様: `.claude/docs/spec/cleanup-task.md`）。**スクリプトはコミットまでは行わない**ため、削除・リセットの結果は直後の flow-id 5-6 の `commit` スキル経由でコミットする（**このステップを commit の直前へ置く**のは、生成と確定の間に他のステップを挟まないため。issue #112） | エージェント |
-| 5-6 | `commit`スキル経由でcommitし、push して Draftを解除する（解除は `source .claude/scripts/src/vcs/Provider.sh && set_mr_ready <MR番号>` で行う。`gh pr ready` / `glab mr update --ready` を直接呼ばない。MR番号は `get_mr_for_branch` で取得できる）。**AIエージェントはここで止まる**（マージへは進まない） | エージェント |
+| 5-6 | `commit`スキル経由でcommitし、push して Draftを解除する（解除は `source .claude/scripts/src/vcs/Provider.sh && set_mr_ready <MR番号>` で行う。`gh pr ready` / `glab mr update --ready` を直接呼ばない。MR番号は `get_mr_for_branch` で取得できる）。**続けて、flow-id 5-4 でホストされた報告サイトのURLをユーザーへ提示する**（`get_report_site_url` → `wait_for_report_site`。**到達性の確認に失敗してもURLは注記つきで提示し、フローは止めない**。詳細は下記「報告サイトのホストとURL通知（flow-id 5-4・5-6）」節）。**AIエージェントはここで止まる**（マージへは進まない） | エージェント |
 | 5-7 | マージする（squash merge。ブランチは削除してよい）。**AIエージェントは、ユーザーから明示的に指示された場合に限り実行してよい**（下記「PR/MR作成・マージの担当」） | 人間 |
 
 ### 全体作業計画に必ず含めるフェーズ（issue #92）
@@ -707,6 +707,8 @@ get_repo_slug | jq -r '.owner, .repo'
 | `add_mr_inline_comments <n> <file>` | `mcp__github__pull_request_review_write` | `method="create"` → 指摘ごとに `method="add_comment_to_pending_review"`（`owner`, `repo`, `pullNumber`, `path`, `line`, `side`, `body`）→ `method="submit_pending"`（`event="COMMENT"`） | 敵対的レビュー（issue #77）のインライン投稿。**3段構成で、`submit_pending` まで必ず実行する**（pendingのまま放置すると次回の `create` が失敗し続ける）。途中で失敗したら `method="delete_pending"` で片付ける。CLI版と違い有効行の事前検証が入らないため、diffに含まれない行を指定すると個別に失敗する |
 | `add_issue_comment <n> <file>` | `mcp__github__add_issue_comment` | `owner`, `repo`, `issue_number=<通知先のissue番号>`, `body=<ファイルの内容>` | **`add_mr_comment` と同じツールだが、`issue_number` へ渡すのがPR番号ではなく通知先のissue番号である**（flow-id 5-2の関連issue通知。issue #86）。CLI版はファイルパスを渡すが、MCPは文字列で渡すため本文はReadツール等で読んでから渡す |
 | `upload_attachment <file> [<content_type>]` | **代替なし** | — | flow-id 5-4 の**層3（統括レポートHTMLの添付）**（issue #111）。**MCPにPR/issueへの添付に相当するツールは無い**（実測で確認）。この関数は `require_vcs_cli` により非0で終え、stderrへ「層3はスキップしてよい」旨を出す。**層1（`reports/` をリモートへ反映）と層2（`add_mr_comment` でのサマリ投稿）だけでレビューは成立するため、スキップして次へ進む** |
+| `get_report_site_url [<n>]` | **代替なし** | — | flow-id 5-6 の**報告サイトURLの提示**（issue #114）。**MCPにPagesの設定・URLを引くツールは無い**。この関数は `require_vcs_cli` により非0で終え、stderrへ「スキップしてよい」旨を出す。**フォールバックの組み立てだけを行う経路は用意しない**（URLが正しいと確認できないまま提示するほうが害が大きい）。スキップした場合はその旨を1行ユーザーへ伝え、Draft解除とマージ依頼はそのまま進める |
+| `wait_for_report_site <url> [<上限秒>] [<間隔秒>]` | **代替なし** | — | 到達性の確認はHTTPアクセスでありMCPの担当ではない（issue #114）。`get_report_site_url` がスキップされた時点で呼ぶ相手がいないため、あわせてスキップする |
 | `get_repo_url` | （MCP不要） | — | `git remote get-url origin` の正規化だけでリポジトリの正規URLを導出するプロバイダ非依存の関数のため、MCP経路でもそのまま呼べる（`get_mr_diff_url` / `get_mr_diff_since_url` も同様。issue #44） |
 | `new_issue_branch` / `sync_branch` / `get_branch_work_files` / `get_issue_number_from_branch` / `to_slug` / `test_issue_sections` | （MCP不要） | — | git操作・純粋ロジックのみでCLIに依存しないため、MCP経路でもそのまま呼べる |
 
@@ -1475,6 +1477,101 @@ Claude Codeより（最終統括レポート）: issue #<番号> / PR #<番号>
 
 **層3のスキップは異常ではない。** レポート本体（層1）とサマリコメント（層2）が揃っていれば、
 このステップは完了である。
+
+## 報告サイトのホストとURL通知（flow-id 5-4・5-6）
+
+`reports/日付_…html` `plans/…html`（人間レビュー用のHTMLビュー）を**ブラウザで開けるURL**として
+払い出し、マージ依頼のときにユーザーへ渡す（issue #114）。
+
+これらのファイルは flow-id 5-5 で削除され、squash merge により `main` にも残らない。レビュー期間中で
+さえ、ブラウザで開くには clone するか raw 表示を経由する必要があり、GitHub の raw は HTML を
+`text/plain` で返すためレンダリングされない。**最も読んでほしいタイミングで、最も読みやすい成果物が
+URL 1つで開けない**——それを解消するのがこの仕組みである。
+
+### なぜ 5-4 でホストし、5-6 で通知するのか
+
+**「マージ依頼時にホストする」を素直に実装すると、対象ファイルが既に無い。**
+
+| flow-id | 何が起きるか | 報告HTMLは |
+|---|---|---|
+| **5-4** | 統括レポートを作り、commit・**リモートへ反映**する | **ある** → ここでCIが走りホストされる |
+| 5-5 | `cleanup-task.sh` が `plans/` `worklog/` `reports/` を削除する。**このステップは commit もリモート反映も持たない** | 作業ツリーから消える（リモートはまだ 5-4 の状態） |
+| **5-6** | 削除を commit・リモートへ反映 → `set_mr_ready` → **URLを提示** | リモートからも消える |
+
+- **ホストは 5-4 の層1（リモートへの反映）が自動的に起こす。** AIエージェントが 5-4 で追加の操作を
+  行うことは無い。
+- **削除の確定（5-6 の前半）と URL の提示（5-6 の後半）は同じステップに同居する。** 到達性の確認は
+  **削除の確定より後**に行うことになるので、CI側に「対象HTMLが0件なら何もしない」ガードが要る
+  （下記）。
+- 5-5 と 5-6 の境目を動かして解決しようとしないこと。片付けを commit の直前へ置いてあるのは
+  issue #112 の判断で、別の理由がある。
+
+### CI側の仕組み
+
+雛形は `.claude/skills/issue-mr-flow/assets/publish-report-site.github.yml` と
+`publish-report-site.gitlab.yml` にある（このリポジトリで実際に動いている
+`.github/workflows/publish-report-site.yml` `.gitlab-ci.yml` と**バイト単位で一致**することを
+`test_vcs_provider.sh` が固定している）。
+
+| | GitHub | GitLab |
+|---|---|---|
+| 方式 | Pages「Deploy from a branch」（`gh-pages` の `pr-<PR番号>/`） | Pages parallel deployments（`path_prefix: "mr-<MR iid>"`） |
+| 起動 | `on: push`（featureブランチ）。**`paths` フィルタは付けない** | MRパイプライン（`$CI_PIPELINE_SOURCE == "merge_request_event"`） |
+| デプロイの可否 | ①openなPRがちょうど1件 ②対象HTMLが1件以上 | 対象HTMLが1件以上 |
+| 寿命 | 無期限（ブランチに残る） | `expire_in: never` でGitHubと揃える |
+
+- **`paths` フィルタを付けない**のは、flow-id 5-6 の削除の反映も拾って「0件ならスキップ」で
+  無害化する必要があるためである。フィルタを付けると発火自体しなくなり、判定へ到達しない。
+- **`pr-<n>/index.html`（GitLabは `public/index.html`）を必ず生成する。** Pages は
+  ディレクトリ一覧を自動生成しないため、これが無いと提示するURLが常に404になる。
+- GitHub側は `gh-pages` のルートへ **`.nojekyll`** を置く。無いとJekyllビルドが走り、
+  HTML本文の Liquid 構文（`{{` `{%`）でビルドごと失敗してサイトが更新されない。
+- `concurrency` のグループは**PR単位**に分ける。リポジトリ全体で1つにすると、待機中の実行が
+  1件しか保持されず中間のデプロイが取り消される。別PR同士の書き込み競合は
+  `git pull --rebase` の3回リトライが吸収する。
+
+### flow-id 5-6 での呼び出し方
+
+```bash
+source .claude/scripts/src/vcs/Provider.sh
+
+# Draft解除まで済ませたあとに実行する（削除の反映より後でないと、CIがまだ古い断面で走っている）
+note=""
+if url="$(get_report_site_url)"; then
+  wait_for_report_site "$url" || note='（デプロイがまだ完了していない可能性があります。数分後に開き直してください）'
+  printf '報告サイト: %s %s\n' "$url" "$note"
+else
+  echo '報告サイトのURLは取得できませんでした（CI未設定・Pages未有効・CLI不在のいずれか）。フローはこのまま完了とします' >&2
+fi
+```
+
+- **`get_report_site_url` の失敗は正常系のひとつである**（`upload_attachment` と同じ扱い）。
+  取得できなくても Draft解除とマージ依頼は成立しているので、**フローを止めない。**
+- **到達性の確認に失敗してもURLは提示する。** 上限（既定90秒、5秒間隔）に達するのは、たいてい
+  デプロイがまだ走っているだけである。**「開けなかったから黙る」のが一番よくない。**
+- URLの提示はチャットへの1行で足りる。`add_mr_comment` で別途投稿しない（flow-id 5-4 の
+  サマリコメントが既にPR/MR上にあり、投稿を増やしても読まれる場所が分散するだけである）。
+
+### 使う前に知っておくこと（配布先向け）
+
+| 注意 | 内容 |
+|---|---|
+| **公開範囲** | **GitHub Pages のサイトは、リポジトリが private / internal でもインターネットに公開される**（非公開化は GitHub Enterprise Cloud のみ）。**配布先が private リポジトリで使う場合、計画・レポート・試行錯誤の中身が公開される。** GitLab Pages はプロジェクトの可視性設定に従える（インスタンス設定次第） |
+| **fork運用** | **fork からのPRでは動かない。** `on: push` を使うため自リポジトリのブランチが前提で、fork の `pull_request` では `GITHUB_TOKEN` が読み取り専用へ落とされ `gh-pages` へ書き込めない |
+| **GitLabのtier** | **`path_prefix` による並列デプロイは Premium / Ultimate 限定**（17.9でGA）。**Free tier / CE では `pages:` ブロック（`path_prefix` と `expire_in`）を削り、単一デプロイで使う。** 削らないとジョブが失敗し、MRのパイプラインが赤くなる |
+| **ブランチパターン** | ワークフローの `on.push.branches` を `.mrworkflow.json` の `branchPrefixTemplate` に合わせて書き換える（雛形は既定の `feature-*` になっている） |
+| **掃除** | PR単位のディレクトリは**マージ後も残る**。掃除の仕組みは持たない（issue #114 で「恒久公開してよい」と判断した） |
+
+**CI設定そのものは配布物に含まれない。** `sync-assets.sh` は `.github/` から `workflows/` を
+除外する。雛形は `.claude/` の一部として配られるので、配布先が中身を確認したうえで
+`.github/workflows/` `.gitlab-ci.yml` へ置く。
+
+### `gh`/`glab` CLI不在時
+
+**`get_report_site_url` / `wait_for_report_site` に対応するMCPツールは無い。** どちらも
+`require_vcs_cli` により非0で終えるので、**URLの提示だけをスキップして flow-id 5-6 を完了と
+する**（その旨を1行ユーザーへ伝える）。フォールバックでURLを組み立てるだけの経路は用意しない
+——**正しいと確認できないURLを提示するほうが害が大きい**ためである。
 
 ## PRがflow-id 5-5実施前にマージされてしまった場合の対処
 

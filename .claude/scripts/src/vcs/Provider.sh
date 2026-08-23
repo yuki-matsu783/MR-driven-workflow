@@ -354,6 +354,12 @@ mcp_tool_hint() {
     # スキップしてよいことを名指しで返す。添付は flow-id 5-4 の任意層であり、
     # 層1（reports/ をリモートへ反映）と層2（サマリコメント）でレビューは成立する。
     upload_attachment) printf '対応するMCPツールはありません（PR/issueへの添付に相当するツールが提供されていない）。**flow-id 5-4 の層3（添付）はスキップしてよい**。層1・層2だけでレビューは成立します\n' ;;
+    # 同じく「代替が無い」分岐（issue #114）。MCPにPagesの設定・URLを引くツールが無いため、
+    # フォールバックの組み立てだけを行う経路は用意しない（**URLが正しいと確認できないまま
+    # 提示するほうが害が大きい**）。報告サイトのURL提示は flow-id 5-6 の任意の一手であり、
+    # 得られなくてもDraft解除とマージ依頼は成立する。
+    get_report_site_url) printf '対応するMCPツールはありません（Pagesの設定・URLを引くツールが提供されていない）。**flow-id 5-6 の報告サイトURLの提示はスキップしてよい**。その旨をユーザーへ1行伝えてフローを続けます\n' ;;
+    wait_for_report_site) printf '対応するMCPツールはありません（到達性の確認はHTTPアクセスであり、そもそもMCPの担当ではない）。**スキップしてよい**\n' ;;
     *) printf '対応するMCPツールは .claude/skills/issue-mr-flow/SKILL.md の対応表を参照\n' ;;
   esac
 }
@@ -1125,6 +1131,141 @@ upload_attachment() {
     github) github_upload_attachment "$file" "$content_type" ;;
     gitlab) gitlab_upload_attachment "$file" "$content_type" ;;
   esac
+}
+
+# --- 報告サイトのホストとURL通知（flow-id 5-4 でホスト / 5-6 で通知。issue #114） ----------
+#
+# flow-id 5-4（最終統括レポート）の層1でリモートへ反映した時点でCIが起動し、`reports/*.html`
+# `plans/*.html` がPR/MR単位のサブディレクトリへデプロイされる。ここにある関数は
+# **そのURLを組み立てて返す**ものであって、デプロイ自体は行わない。
+# 手順の正は `.claude/skills/issue-mr-flow/SKILL.md`「報告サイトのホストとURL通知
+# （flow-id 5-4・5-6）」節。
+
+# PR/MR単位のサブディレクトリ名を `REPLY` へ返す（純粋関数）。
+#
+#   report_site_prefix_to_reply <provider> <番号>
+#     成功: REPLY に `pr-<番号>`（github）/ `mr-<番号>`（gitlab） / 終了コード0
+#     失敗: 終了コード非0（REPLYは空）
+#
+# **provider が github/gitlab 以外（空文字列を含む）でも失敗させる。** `get_provider` は
+# origin が GitHub/GitLab のどちらでもないホストのとき空文字列を返しうるため
+# （`get_vcs_access_mode` の `*) cli=""` と同じ状況）、ここで弾かないと `https://…//` の
+# ような壊れたURLが組み上がる。
+report_site_prefix_to_reply() {
+  local provider="${1:-}" number="${2:-}"
+  REPLY=""
+  case "$number" in
+    "" | *[!0-9]*) return 1 ;;
+  esac
+  case "$provider" in
+    github) REPLY="pr-${number}" ;;
+    gitlab) REPLY="mr-${number}" ;;
+    *) return 1 ;;
+  esac
+}
+
+# ベースURLとパスを、スラッシュを重複させずに連結して `REPLY` へ返す（純粋関数）。
+#
+#   join_url_to_reply <base> <path>
+#
+# **末尾スラッシュは付けない。** 付けるのは呼び出し側（`get_report_site_url`）の責務とする。
+# 末尾スラッシュの有無はPagesのリダイレクト・相対パス解決に影響するため、どちらが付けるかを
+# 1箇所に決めておく。`path` が空なら `base` をそのまま返す。
+join_url_to_reply() {
+  local base="${1:-}" path="${2:-}"
+  base="${base%/}"
+  if [ -z "$path" ]; then
+    REPLY="${1:-}"
+    return 0
+  fi
+  path="${path#/}"
+  REPLY="${base}/${path}"
+}
+
+# Pages API を引けないときのGitHub Pagesのベースフォールバックを `REPLY` へ返す（純粋関数）。
+#
+#   github_pages_base_url_to_reply <owner> <repo>
+#
+# **repo名が `<owner>.github.io` の場合（user/organization site）は `https://<owner>.github.io`
+# を返す。** この分岐が無いと `https://<owner>.github.io/<owner>.github.io` という存在しない
+# URLになる。配布先のリポジトリ名は選べないため「今のリポジトリでは起きない」は根拠にならない。
+github_pages_base_url_to_reply() {
+  local owner="${1:-}" repo="${2:-}"
+  REPLY=""
+  [ -n "$owner" ] || return 1
+  if [ -z "$repo" ] || [ "$repo" = "${owner}.github.io" ]; then
+    REPLY="https://${owner}.github.io"
+    return 0
+  fi
+  REPLY="https://${owner}.github.io/${repo}"
+}
+
+# flow-id 5-4 でホストされた報告サイトのURLを返す（末尾スラッシュ付き）。
+#
+#   get_report_site_url [<MR番号>]
+#     成功: URL をstdoutへ / 終了コード0
+#     失敗: 理由をstderrへ / 終了コード非0
+#
+# **この関数の失敗は正常系のひとつである。** 呼び出し側（flow-id 5-6）は非0終了を受け取ったら
+# 注記だけ出してフローを続ける。CIが無い・Pagesが未設定・CLIが無い、のいずれもこの経路を通る。
+# `upload_attachment` と同じく、**成功しても失敗してもフローの続きは変わらない**。
+#
+# MR番号を省略した場合は `get_mr_for_branch` から取る（番号の導出はこの1経路へ一本化する）。
+get_report_site_url() {
+  local number="${1:-}" provider prefix base
+  require_vcs_cli get_report_site_url || return 1
+  provider="$(get_provider)"
+  if [ -z "$number" ]; then
+    number="$(get_mr_for_branch "$(git branch --show-current)" | jq -r '.number // empty')"
+  fi
+  if ! report_site_prefix_to_reply "$provider" "$number"; then
+    printf 'get_report_site_url: PR/MR番号またはプロバイダを特定できません（番号=%s プロバイダ=%s）\n' \
+      "$number" "$provider" >&2
+    return 1
+  fi
+  prefix="$REPLY"
+  case "$provider" in
+    github) base="$(github_get_report_site_url)" || return 1 ;;
+    gitlab) base="$(gitlab_get_report_site_url)" || return 1 ;;
+  esac
+  if [ -z "$base" ]; then
+    printf 'get_report_site_url: Pagesのベースフォールバックを取得できませんでした\n' >&2
+    return 1
+  fi
+  join_url_to_reply "$base" "$prefix"
+  printf '%s/\n' "$REPLY"
+}
+
+# 報告サイトのURLが 200 を返すまで待つ。
+#
+#   wait_for_report_site <url> [<上限秒=90>] [<間隔秒=5>]
+#     到達: 終了コード0
+#     未到達: 理由をstderrへ / 終了コード非0
+#
+# **上限に達しても呼び出し側はフローを止めない。** URLは注記つきで提示する
+# （デプロイがまだ走っているだけのことが多く、数分後には開ける）。
+wait_for_report_site() {
+  local url="${1:-}" limit="${2:-90}" interval="${3:-5}" waited=0 code
+  if [ -z "$url" ]; then
+    printf 'wait_for_report_site: URLを指定してください\n' >&2
+    return 1
+  fi
+  # curl が無い環境では待たずに終える（待ち続けても状況は変わらない）
+  if ! command -v curl >/dev/null 2>&1; then
+    printf 'wait_for_report_site: curl がないため到達性を確認できません（URLは注記つきで提示してよい）\n' >&2
+    return 1
+  fi
+  while [ "$waited" -le "$limit" ]; do
+    code="$(curl -sS -o /dev/null -w '%{http_code}' "$url" 2>/dev/null || true)"
+    if [ "$code" = "200" ]; then
+      return 0
+    fi
+    sleep "$interval"
+    waited=$((waited + interval))
+  done
+  printf 'wait_for_report_site: %s 秒待っても 200 になりませんでした（最後の応答: %s）。URLは注記つきで提示してよい\n' \
+    "$limit" "${code:-なし}" >&2
+  return 1
 }
 
 # baseとの差分（コミット）が無いブランチでは `gh pr create` / `glab mr create` が失敗するため

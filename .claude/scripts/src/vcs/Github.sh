@@ -512,3 +512,28 @@ github_upload_attachment() {
   jq -nc --arg url "$url" --arg name "$name" \
     '{url: $url, markdown: ("[" + $name + "](" + $url + ")"), provider: "github"}'
 }
+
+# GitHub Pages のベースURL（プロジェクトサイトのルート）をstdoutへ返す（issue #114）。
+# 呼び出し元は `get_report_site_url` で、ここへ `pr-<n>` を足して報告サイトのURLにする。
+#
+# 一次経路は Pages API。**Pagesが未有効なら404になる**ので、その場合は
+# `https://<owner>.github.io/<repo>` を組み立てて返す（`github_pages_base_url_to_reply`）。
+# 失敗（＝URLを組み立てられない）は正常系のひとつで、呼び出し元が注記だけ出して続ける。
+github_get_report_site_url() {
+  local slug owner repo url
+  slug="$(get_repo_slug)"
+  owner="$(printf '%s' "$slug" | jq -r '.owner // empty')"
+  repo="$(printf '%s' "$slug" | jq -r '.repo // empty')"
+  if [ -z "$owner" ]; then
+    printf 'github_get_report_site_url: owner を特定できません\n' >&2
+    return 1
+  fi
+  # `--jq` の結果は1行なので CR は末尾ごと落ちる（.claude/rules/shell-script-style.md「文字コード」）
+  url="$(gh api "repos/${owner}/${repo}/pages" --jq '.html_url // empty' 2>/dev/null || true)"
+  if [ -n "$url" ]; then
+    printf '%s\n' "$url"
+    return 0
+  fi
+  github_pages_base_url_to_reply "$owner" "$repo" || return 1
+  printf '%s\n' "$REPLY"
+}

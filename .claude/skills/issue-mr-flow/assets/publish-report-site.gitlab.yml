@@ -1,0 +1,76 @@
+# 報告サイトの公開（issue #114）— GitLab CI 版
+#
+# `reports/*.html` `plans/*.html`（人間レビュー用のHTMLビュー）を GitLab Pages の
+# `mr-<MR iid>/` へデプロイし、ブラウザで開けるURLを払い出す。URLの提示は
+# issue-mr-flow の flow-id 5-6 が `get_report_site_url` で行う。
+#
+# **配布先での設定**
+#   1. `pages.path_prefix` による並列デプロイ（parallel deployments）は
+#      **Premium / Ultimate 限定**である（GitLab 17.9 でGA）。**Free tier / CE では
+#      `pages:` ブロックごと削る**（`path_prefix` と `expire_in` の2行）。削らないと
+#      `pages` ジョブが失敗し、MRのパイプラインが赤くなる。単一デプロイになるため、
+#      複数MRが同時に走ると後のものが前を上書きする点は受け入れる。
+#   2. Runner を登録し、Pages を有効にしておく。
+#
+# **ホストしたHTMLは、プロジェクトの可視性設定に従う。** GitHub Pages と違い、GitLab Pages は
+# private プロジェクトなら「Pages アクセス制御」で閲覧を制限できる（インスタンス設定次第）。
+#
+# 既に `.gitlab-ci.yml` を持つ配布先では、この `pages` ジョブだけを既存の設定へ取り込む。
+
+pages:
+  stage: deploy
+  # MRパイプラインのときだけ走らせる。$CI_MERGE_REQUEST_IID はこの条件下でのみ値を持つ。
+  # **path_prefix が空文字列へ展開されると本番サイトのルートを上書きする**ため、
+  # この rules を緩めないこと。
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+  pages:
+    path_prefix: "mr-$CI_MERGE_REQUEST_IID"
+    # 既定は24時間。レビューが翌日以降になると提示済みのURLが開けなくなり、GitHub側
+    # （無期限）と挙動が食い違うため、寿命を揃える。
+    expire_in: never
+  script:
+    - mkdir -p public/reports public/plans
+    - |
+      html_count=0
+      for f in reports/*.html plans/*.html; do
+        [ -e "$f" ] || continue
+        html_count=$((html_count + 1))
+      done
+      # 対象HTMLが0件ならデプロイしない（flow-id 5-5 の片付けを無害化する。GitHub側と同じガード）
+      if [ "$html_count" = "0" ]; then
+        echo "対象HTMLが0件のためスキップします"
+        exit 0
+      fi
+      for f in reports/*.html; do [ -e "$f" ] || continue; cp "$f" public/reports/; done
+      for f in plans/*.html; do [ -e "$f" ] || continue; cp "$f" public/plans/; done
+    - |
+      # Pages はディレクトリ一覧を自動生成しない。index.html が無いと mr-<iid>/ を開いても
+      # 404 になり、flow-id 5-6 で提示するURLが機能しない。
+      {
+        printf '<!DOCTYPE html>\n<html lang="ja">\n<head>\n<meta charset="UTF-8">\n'
+        printf '<meta name="viewport" content="width=device-width, initial-scale=1.0">\n'
+        printf '<title>MR !%s の計画・レポート</title>\n' "$CI_MERGE_REQUEST_IID"
+        printf '<style>body{font-family:system-ui,sans-serif;line-height:1.8;max-width:900px;'
+        printf 'margin:0 auto;padding:24px}h1{font-size:22px}h2{font-size:17px;margin-top:28px}'
+        printf 'li{margin:4px 0}</style>\n</head>\n<body>\n'
+        printf '<h1>MR !%s の計画・レポート</h1>\n' "$CI_MERGE_REQUEST_IID"
+        printf '<p>コミット <code>%s</code> 時点。squash merge により default ブランチには残らないため、' "$CI_COMMIT_SHA"
+        printf 'レビュー期間中の閲覧用に公開しています。</p>\n'
+        for dir in reports plans; do
+          found=0
+          for f in "public/$dir"/*.html; do [ -e "$f" ] || continue; found=1; done
+          [ "$found" = "1" ] || continue
+          printf '<h2>%s/</h2>\n<ul>\n' "$dir"
+          for f in "public/$dir"/*.html; do
+            [ -e "$f" ] || continue
+            name="${f##*/}"
+            printf '<li><a href="%s/%s">%s</a></li>\n' "$dir" "$name" "$name"
+          done
+          printf '</ul>\n'
+        done
+        printf '</body>\n</html>\n'
+      } > public/index.html
+  artifacts:
+    paths:
+      - public

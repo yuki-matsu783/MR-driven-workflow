@@ -1,0 +1,165 @@
+# 報告サイトの公開（issue #114）— GitHub Actions 版
+#
+# `reports/*.html` `plans/*.html`（人間レビュー用のHTMLビュー）を GitHub Pages の
+# `pr-<PR番号>/` へデプロイし、ブラウザで開けるURLを払い出す。URLの提示は
+# issue-mr-flow の flow-id 5-6 が `get_report_site_url` で行う。
+#
+# **配布先での設定（この2つは配布先ごとに違う。必ず確認すること）**
+#   1. `on.push.branches` を `.mrworkflow.json` の `branchPrefixTemplate` に合わせる。
+#      既定は `feature-<issue番号>-<slug>` なので `feature-*` にしてある。
+#   2. リポジトリ設定で Pages を有効にし、publishing source を `gh-pages` / `/`（root）にする。
+#      `gh api -X POST repos/{owner}/{repo}/pages -f 'source[branch]=gh-pages' -f 'source[path]=/'`
+#
+# **fork からのPRでは動かない。** `on: push` を使うため、自リポジトリのブランチであることが
+# 前提である（fork の `pull_request` では `GITHUB_TOKEN` が読み取り専用へ落とされ、
+# `gh-pages` へ書き込めない）。
+#
+# **ホストしたHTMLは、リポジトリが private でもインターネットに公開される。**
+# Pages サイトのアクセス制御は GitHub Enterprise Cloud のみの機能で、それ以外では
+# リポジトリの可視性設定に従わない。計画・レポート・試行錯誤の中身が公開される点に注意する。
+
+name: publish-report-site
+
+on:
+  push:
+    # paths フィルタは付けない。flow-id 5-5 の片付けで対象HTMLが全部消えた変更も拾い、
+    # 「0件ならスキップ」で無害化する必要があるため（フィルタを付けると発火自体しない）。
+    branches: ['feature-*']
+
+concurrency:
+  # PR単位でグループを分ける。リポジトリ全体で1つにすると、同じグループで保持される
+  # 待機中の実行は「1件」だけなので、3つ目がキューされた時点で中間のデプロイが取り消される
+  # （cancel-in-progress: false はこの取り消しを防がない）。
+  # 別PR同士の gh-pages への書き込みは並走しうるが、その競合は下の pull --rebase リトライが吸収する。
+  group: gh-pages-deploy-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  pull-requests: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: ソースを取得する
+        uses: actions/checkout@v4
+
+      - name: デプロイ対象かどうかを判定する
+        id: guard
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          # 判定1: openなPRがちょうど1件か（0件＝PR作成前、複数件＝どれへ載せるか決まらない）
+          count="$(gh pr list --head "$GITHUB_REF_NAME" --state open --json number --jq 'length')"
+          if [ "$count" != "1" ]; then
+            echo "openなPRが ${count} 件のためスキップします"
+            echo 'deploy=false' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          number="$(gh pr list --head "$GITHUB_REF_NAME" --state open --json number --jq '.[0].number')"
+
+          # 判定2: 対象HTMLが1件以上あるか。0件ならスキップする。
+          # **これが flow-id 5-5 の片付けを無害化する仕掛けである**（gh-pages 側の pr-<n>/ は
+          # 触られないので残る）。
+          html_count=0
+          for f in reports/*.html plans/*.html; do
+            [ -e "$f" ] || continue
+            html_count=$((html_count + 1))
+          done
+          if [ "$html_count" = "0" ]; then
+            echo "対象HTMLが0件のためスキップします（既存の pr-${number}/ はそのまま残ります）"
+            echo 'deploy=false' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "PR #${number} / 対象HTML ${html_count} 件をデプロイします"
+          echo 'deploy=true' >> "$GITHUB_OUTPUT"
+          echo "number=${number}" >> "$GITHUB_OUTPUT"
+
+      - name: 成果物を集めて index.html を作る
+        if: steps.guard.outputs.deploy == 'true'
+        run: |
+          set -euo pipefail
+          out="$RUNNER_TEMP/site"
+          mkdir -p "$out/reports" "$out/plans"
+          for f in reports/*.html; do [ -e "$f" ] || continue; cp "$f" "$out/reports/"; done
+          for f in plans/*.html; do [ -e "$f" ] || continue; cp "$f" "$out/plans/"; done
+
+          # Pages はディレクトリ一覧を自動生成しない。index.html が無いと pr-<n>/ を開いても
+          # 404 になり、flow-id 5-6 で提示するURLが機能しない。
+          {
+            printf '<!DOCTYPE html>\n<html lang="ja">\n<head>\n<meta charset="UTF-8">\n'
+            printf '<meta name="viewport" content="width=device-width, initial-scale=1.0">\n'
+            printf '<title>PR #%s の計画・レポート</title>\n' "${{ steps.guard.outputs.number }}"
+            printf '<style>body{font-family:system-ui,sans-serif;line-height:1.8;max-width:900px;'
+            printf 'margin:0 auto;padding:24px}h1{font-size:22px}h2{font-size:17px;margin-top:28px}'
+            printf 'li{margin:4px 0}</style>\n</head>\n<body>\n'
+            printf '<h1>PR #%s の計画・レポート</h1>\n' "${{ steps.guard.outputs.number }}"
+            printf '<p>コミット <code>%s</code> 時点。squash merge により main には残らないため、' "$GITHUB_SHA"
+            printf 'レビュー期間中の閲覧用に公開しています。</p>\n'
+            for dir in reports plans; do
+              found=0
+              for f in "$out/$dir"/*.html; do [ -e "$f" ] || continue; found=1; done
+              [ "$found" = "1" ] || continue
+              printf '<h2>%s/</h2>\n<ul>\n' "$dir"
+              for f in "$out/$dir"/*.html; do
+                [ -e "$f" ] || continue
+                name="${f##*/}"
+                printf '<li><a href="%s/%s">%s</a></li>\n' "$dir" "$name" "$name"
+              done
+              printf '</ul>\n'
+            done
+            printf '</body>\n</html>\n'
+          } > "$out/index.html"
+
+      - name: gh-pages へ反映する
+        if: steps.guard.outputs.deploy == 'true'
+        run: |
+          set -euo pipefail
+          number='${{ steps.guard.outputs.number }}'
+          out="$RUNNER_TEMP/site"
+          work="$RUNNER_TEMP/gh-pages"
+
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+
+          # gh-pages が無ければ orphan として作る（初回はブランチが存在しない）
+          if git ls-remote --exit-code --heads origin gh-pages >/dev/null 2>&1; then
+            git clone --depth 1 --branch gh-pages \
+              "https://x-access-token:${{ github.token }}@github.com/${GITHUB_REPOSITORY}.git" "$work"
+          else
+            git clone --depth 1 \
+              "https://x-access-token:${{ github.token }}@github.com/${GITHUB_REPOSITORY}.git" "$work"
+            git -C "$work" switch --orphan gh-pages
+            git -C "$work" rm -rf . >/dev/null 2>&1 || true
+          fi
+
+          # Jekyll ビルドを止める。これが無いと (a) `_` で始まるファイルが成果物から落ち、
+          # (b) HTML本文の Liquid 構文（{{ や {%）でビルドごと失敗してサイトが更新されない。
+          # ホストするのはAIが生成した任意のHTMLで、中身を事前に保証できない。
+          [ -f "$work/.nojekyll" ] || : > "$work/.nojekyll"
+
+          rm -rf "$work/pr-${number}"
+          mkdir -p "$work/pr-${number}"
+          cp -R "$out/." "$work/pr-${number}/"
+
+          git -C "$work" add -A
+          if git -C "$work" diff --cached --quiet; then
+            echo '変更がないため反映をスキップします'
+            exit 0
+          fi
+          git -C "$work" commit -m "chore: publish report site for PR #${number} (${GITHUB_SHA})"
+
+          # concurrency はPR単位なので、別PRとの書き込みは並走しうる。3回までリトライする。
+          for attempt in 1 2 3; do
+            if git -C "$work" push origin gh-pages; then
+              echo "反映しました（${attempt} 回目）"
+              exit 0
+            fi
+            echo "反映に失敗しました（${attempt} 回目）。取り込み直して再試行します"
+            git -C "$work" pull --rebase origin gh-pages
+          done
+          echo '3回試しても反映できませんでした' >&2
+          exit 1

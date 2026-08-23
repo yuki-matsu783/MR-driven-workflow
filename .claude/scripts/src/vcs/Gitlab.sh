@@ -605,3 +605,35 @@ gitlab_upload_attachment() {
   jq -nc --arg url "$url" --arg markdown "$markdown" \
     '{url: $url, markdown: $markdown, provider: "gitlab"}'
 }
+
+# GitLab Pages のベースURL（プロジェクトサイトのルート）をstdoutへ返す（issue #114）。
+# 呼び出し元は `get_report_site_url` で、ここへ `mr-<n>` を足して報告サイトのURLにする。
+#
+# 一次経路は Pages API（`projects/:id/pages` の `.url`）。**Pagesが未デプロイなら404**に
+# なるので、その場合は environments API から `external_url` を引く。GitLabの Pages ドメインは
+# インスタンス設定（`pages_external_url`）に依存し、GitHubのように規則で組み立てられないため、
+# **どちらも引けなければ失敗させる**（推測したURLは提示しない）。
+gitlab_get_report_site_url() {
+  local path encoded url
+  path="$(get_repo_slug | jq -r '.path // empty')"
+  if [ -z "$path" ]; then
+    printf 'gitlab_get_report_site_url: プロジェクトパスを特定できません\n' >&2
+    return 1
+  fi
+  url_encode_path_to_reply "$path"
+  encoded="$REPLY"
+  url="$(glab api "projects/${encoded}/pages" 2>/dev/null | jq -r '.url // empty' 2>/dev/null || true)"
+  if [ -n "$url" ]; then
+    printf '%s\n' "$url"
+    return 0
+  fi
+  # フォールバック: Pages の environment が持つ external_url
+  url="$(glab api "projects/${encoded}/environments" 2>/dev/null \
+    | jq -r 'map(select(.name == "pages" or (.external_url // "") != "")) | .[0].external_url // empty' 2>/dev/null || true)"
+  if [ -n "$url" ]; then
+    printf '%s\n' "$url"
+    return 0
+  fi
+  printf 'gitlab_get_report_site_url: PagesのURLを取得できませんでした（未デプロイの可能性。報告サイトの提示はスキップしてよい）\n' >&2
+  return 1
+}

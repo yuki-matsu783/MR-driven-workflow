@@ -5,6 +5,11 @@
 # `gitlab_get_compare_url` / `gitlab_get_mr_diff_url` / `gitlab_get_mr_diff_since_url` が対象。
 # Provider.sh経由のディスパッチ（`get_mr_diff_url`等）は外部コマンド・`git remote get-url origin`
 # に依存し純粋ではないため対象外（Github.sh/Gitlab.sh の関数を直接呼ぶ）。
+# **例外が1つある**: issue #114 で追加した `get_report_site_url` は、依存
+# （`get_provider` / `require_vcs_cli` / プロバイダ固有実装 / `_PROVIDER_CACHE`）をサブシェル内で
+# 差し替えることで、外部プロセスを起動せずに**呼び出し経路そのもの**を1件通している。純粋関数
+# だけをテストしても経路は何も保証されない（issue #127 で、実運用経路からは到達不能になって
+# いたのにテストは緑のままだった）ため、この形を採った。
 # issue #44で `get_repo_url` をプロバイダ非依存化した際に切り出した `repo_url_from_remote_url`
 # （remote URLからリポジトリの正規URLを導出）も対象。`get_repo_url` 本体は
 # `git remote get-url origin` を呼ぶため対象外で、URL文字列を受け取る純粋関数側をテストしている。
@@ -1365,6 +1370,111 @@ for shared_fn in "${vcs_shared_functions[@]}"; do
     "$(declare -F "$shared_fn" >/dev/null && echo "$shared_fn")"
 done
 
+
+
+# --- 報告サイトのURL組み立て（issue #114） ---------------------------------------------------
+
+# report_site_prefix_to_reply
+report_site_prefix_to_reply "github" "180"
+assert_eq "report_site_prefix_to_reply: githubは pr-<番号>" "pr-180" "$REPLY"
+report_site_prefix_to_reply "gitlab" "7"
+assert_eq "report_site_prefix_to_reply: gitlabは mr-<番号>" "mr-7" "$REPLY"
+
+if report_site_prefix_to_reply "github" "" 2>/dev/null; then
+  prefix_empty_status=0
+else
+  prefix_empty_status=1
+fi
+assert_eq "report_site_prefix_to_reply: 番号が空なら非0" "1" "$prefix_empty_status"
+
+if report_site_prefix_to_reply "github" "12a" 2>/dev/null; then
+  prefix_nonnum_status=0
+else
+  prefix_nonnum_status=1
+fi
+assert_eq "report_site_prefix_to_reply: 番号が非数値なら非0" "1" "$prefix_nonnum_status"
+
+# providerが github/gitlab 以外のとき。`get_provider` は origin が両者以外のホストだと
+# 空文字列を返すため（`get_vcs_access_mode` の `*) cli=""` と同じ状況）、ここで弾かないと
+# `https://…//` のような壊れたURLが組み上がる。
+if report_site_prefix_to_reply "" "180" 2>/dev/null; then
+  prefix_noprovider_status=0
+else
+  prefix_noprovider_status=1
+fi
+assert_eq "report_site_prefix_to_reply: providerが空なら非0" "1" "$prefix_noprovider_status"
+
+if report_site_prefix_to_reply "bitbucket" "180" 2>/dev/null; then
+  prefix_unknown_status=0
+else
+  prefix_unknown_status=1
+fi
+assert_eq "report_site_prefix_to_reply: providerが未知なら非0" "1" "$prefix_unknown_status"
+
+# join_url_to_reply（末尾スラッシュは付けない。付けるのは get_report_site_url の責務）
+join_url_to_reply "https://x.github.io/y" "pr-1"
+assert_eq "join_url_to_reply: 末尾なし×先頭なし" "https://x.github.io/y/pr-1" "$REPLY"
+join_url_to_reply "https://x.github.io/y/" "pr-1"
+assert_eq "join_url_to_reply: 末尾あり×先頭なし" "https://x.github.io/y/pr-1" "$REPLY"
+join_url_to_reply "https://x.github.io/y" "/pr-1"
+assert_eq "join_url_to_reply: 末尾なし×先頭あり" "https://x.github.io/y/pr-1" "$REPLY"
+join_url_to_reply "https://x.github.io/y/" "/pr-1"
+assert_eq "join_url_to_reply: 末尾あり×先頭あり" "https://x.github.io/y/pr-1" "$REPLY"
+join_url_to_reply "https://x.github.io/y/" ""
+assert_eq "join_url_to_reply: パスが空ならbaseをそのまま返す" "https://x.github.io/y/" "$REPLY"
+
+# github_pages_base_url_to_reply
+github_pages_base_url_to_reply "o" "r"
+assert_eq "github_pages_base_url_to_reply: project site" "https://o.github.io/r" "$REPLY"
+github_pages_base_url_to_reply "o" "o.github.io"
+assert_eq "github_pages_base_url_to_reply: user/org site はリポジトリ名を足さない" \
+  "https://o.github.io" "$REPLY"
+
+# get_report_site_url の呼び出し経路（issue #114）
+#
+# **ディスパッチャは純粋ではない**ため、外部プロセスを起動する依存をサブシェル内で差し替える。
+# 差し替えるのは `github_get_report_site_url`（プロバイダ固有の実装）・`get_provider`
+# （`git remote get-url origin` を呼ぶ）・`require_vcs_cli`（`gh` の有無に依存）の3つと、
+# `_PROVIDER_CACHE`（前のテストが埋めた値を持ち越さないため）。
+# 純粋関数だけをテストしても呼び出し経路は何も保証されない（issue #127 の実例）ので、
+# 経路そのものを1件通しておく。
+assert_eq "get_report_site_url: ベースURL＋pr-<番号>＋末尾スラッシュを組み立てる" \
+  "https://o.github.io/r/pr-180/" \
+  "$(
+    _PROVIDER_CACHE=""
+    get_provider() { printf 'github\n'; }
+    require_vcs_cli() { return 0; }
+    github_get_report_site_url() { printf 'https://o.github.io/r\n'; }
+    get_report_site_url 180
+  )"
+
+# 差し替えがサブシェルの外へ漏れていないこと（`unset -f` を使うと実定義そのものが消える）
+assert_eq "get_report_site_url: 差し替え後も get_provider の実定義が残っている" \
+  "get_provider" \
+  "$(declare -F get_provider >/dev/null && echo get_provider)"
+
+# MCPフォールバックの案内（代替が無いことを名指しで返す分岐）
+assert_contains "mcp_tool_hint: get_report_site_url は代替なしと案内する" \
+  "$(
+    _PROVIDER_CACHE=""
+    get_provider() { printf 'github\n'; }
+    mcp_tool_hint get_report_site_url
+  )" \
+  "対応するMCPツールはありません"
+
+# --- CI設定の雛形と実ファイルの同一性（issue #114） -------------------------------------------
+#
+# 雛形（配布物）とこのリポジトリで実際に動いているものが食い違うと、配布先には動作確認されて
+# いないCI設定が渡る。バイト単位の一致で固定する。**配布先はブランチパターン等を書き換える
+# 必要がある**が、その手順は雛形の冒頭コメント側に書いてある。
+assert_eq "雛形の同一性: .github/workflows/publish-report-site.yml" "same" \
+  "$(cmp -s "$repo_root/.github/workflows/publish-report-site.yml" \
+      "$repo_root/.claude/skills/issue-mr-flow/assets/publish-report-site.github.yml" \
+      && echo same || echo differ)"
+assert_eq "雛形の同一性: .gitlab-ci.yml" "same" \
+  "$(cmp -s "$repo_root/.gitlab-ci.yml" \
+      "$repo_root/.claude/skills/issue-mr-flow/assets/publish-report-site.gitlab.yml" \
+      && echo same || echo differ)"
 
 echo "passed=$passed failures=$failures"
 [ "$failures" -eq 0 ]
