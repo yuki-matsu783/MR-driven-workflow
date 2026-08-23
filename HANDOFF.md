@@ -17,7 +17,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - issue: #105
 - ブランチ: claude/gemini-cli-telemetry-reporting-a253xp
 - PR: https://github.com/yuki-matsu783/MR-driven-workflow/pull/174
-- push回数: 14
+- push回数: 20
 - 現在のループ: 4-6〜4-9 の1周目（完了）
 - 未返信スレッド: 0
 - 追従監視: 購読あり（web。subscribe_pr_activity + 1時間ごとの自己チェックイン）
@@ -60,12 +60,13 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 | [x] | 4-8 | レビュー・コメントする | 人間 |
 | [x] | 4-9 | レビュー内容を取得し設計・AIアセットの内容を修正する | comments/reply |
 | [x] | 4-10 | 反映内容をもとにMR descriptionを更新する | describe |
-| [] | 5-1 | defaultブランチとのコンフリクトを検知・解消する | エージェント |
+| [x] | 5-1 | defaultブランチとのコンフリクトを検知・解消する | エージェント |
 | [] | 5-2 | 関連issueへの通知の要否を判定し承認を得てから通知する | エージェント |
-| [] | 5-3 | 最終統括レポートを作成しPR/MRへ反映する | エージェント |
-| [] | 5-4 | plans/worklog/reportsを削除しHANDOFF.mdをリセットする | エージェント |
-| [] | 5-5 | commitしpushしてDraftを解除する | エージェント |
-| [] | 5-6 | マージする | 人間 |
+| [] | 5-3 | .claude/の変更を.gemini/へ変換同期する | エージェント |
+| [] | 5-4 | 最終統括レポートを作成しPR/MRへ反映する | エージェント |
+| [] | 5-5 | wip/plans・wip/worklogs・wip/reportsを削除しHANDOFF.mdをリセットする | エージェント |
+| [] | 5-6 | commitしpushしてDraftを解除する | エージェント |
+| [] | 5-7 | マージする | 人間 |
 
 ## やったこと
 
@@ -345,31 +346,71 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
   4本更新・SKILL.md更新・敵対的レビュー2往復の対応内容）を追加する形で更新した
   （`## 反映結果`節を新設し`## 実装状況`を「フェーズ4完了、次はフェーズ5」へ更新）。
 
+- flow-id 5-1: `check-base-conflicts.sh`でdefaultブランチとのコンフリクトを検知し
+  （`hasTextualConflict: true`）、`AskUserQuestion`で承認を得たうえで`resolve-conflict`スキルで
+  解消した。**mainがブランチ作成後に大幅に進んでいた**（issue #26: 配布機構をmanifest方式へ全面
+  刷新・`dist-layers.json`新設、issue #165: `plans/` `worklog/` `reports/`を`wip/plans/`
+  `wip/worklogs/` `wip/reports/`へ改名・集約、issue #170: usecase文書8本新設、issue #184:
+  `.claude/state/`を`wip/state/`へ移行、issue-mr-flow/SKILL.mdの`references/*.md`への分割等）。
+  2回に分けてマージした（1回目push18=`ed11639`、mainがさらに1コミット進んだため2回目
+  push20=`06c467c`）。
+  - **類型F（配置の変更 vs 上流の内容変更）が中心**。`plans/worklog/reports`配下の全ファイルは
+    git自身のディレクトリ改名検出により`wip/`側へ自動再配置され、内容コンフリクトは無かった
+    （`git add`のみで解消）。`issue-mr-flow/SKILL.md`は、このブランチが2箇所へ加えた小さな注記
+    （MCPページネーションの罠・全ページ走査の前提）を、main側が分割した`references/mcp-fallback.md`
+    ・`references/review-loop.md`の対応箇所へ再適用し、SKILL.md本体はmain版へ完全に一致させた。
+  - **判断に迷った箇所（このブランチの変更がmain側の刷新で陳腐化したもの）**:
+    `install-to-project.sh`の`ignore_rules`配列（issue #105で`/usage/`を追加した箇所）は、
+    main側issue #26の全面書き換えでこの配列自体が無くなっており、`dist-layers.json`の
+    `local`層に既に`/usage/`パターンが含まれていたため、**このブランチのコード変更を取り下げて
+    main版をそのまま採用した**（目的＝配布先での`/usage/`除外は達成済みのため実害無し）。
+    `distribution-assets.md`の対応するchangelogエントリ（`### issue #105`）は、この経緯
+    （目的達成済み・手段はmain側へ移管）を明記する形へ書き換えた。
+  - **敵対的レビューを介さない機械的な統合ミスを1件検出・是正した**（レビュー往復ではなく
+    検証手順（Step 5）の`check-doc-references.sh`実行で発覚）。`git add -A`で
+    `.claude/skills/apply-mr-workflow-to-project/assets/`配下の**旧`sync-assets.sh`（issue #26で
+    廃止済み）が生成した残骸211ファイル**（`.gemini/`ミラー含め計約400ファイル、実質`.claude/`
+    全体のコピー）を誤ってステージしていた。main側の実体は`*.template`4ファイルのみと判明し、
+    残骸を`git reset`＋削除して除去した。
+  - 検証: マーカー残存無し・unmergedパス無し・DDR識別子重複無し（90件）・
+    `check-doc-references.sh`参照切れ0件（除去前は誤検知多数）・単体テスト全20本
+    `passed=N failures=0`（既存17本＋main側で新設された3本: `test_check_dist_coverage.sh`・
+    `test_check_doc_references.sh`・`test_select_adversarial_findings.sh`）を確認。
+
 ## 次にやること
 
-フェーズ4（反映）が完了した。次はフェーズ5（クローズ、`issue-mr-flow/SKILL.md`現行定義の
-5-1〜5-6、HANDOFF.mdの進捗表と一致・不整合なし）へ進む。
+フェーズ5（クローズ）を継続する。**`issue-mr-flow/SKILL.md`の現行定義はmainのマージにより
+5-1〜5-7（7ステップ、`.claude/`→`.gemini/`同期が独立ステップ5-3として明示された版）へ変わった**
+（旧6ステップ定義から変更。上記進捗表は7ステップへ更新済み）。
 
-- 5-1: defaultブランチとのコンフリクトを検知・解消する（`check-base-conflicts.sh`で判定→
-  `hasConflict`が真なら`AskUserQuestion`で確認→承認後`resolve-conflict`スキルで解消）。
-- 5-2: 今回のMRが影響する関連issueを特定し、承認を得てから通知する（`plans/` `worklog/`
-  `reports/`を差分から除外してキーワード抽出→`search_issues`→`AskUserQuestion`で対象issueと
+- 5-2: 今回のMRが影響する関連issueを特定し、承認を得てから通知する（`wip/plans/` `wip/worklogs/`
+  `wip/reports/`を差分から除外してキーワード抽出→`search_issues`→`AskUserQuestion`で対象issueと
   本文を承認→`add_issue_comment`）。影響先が無ければスキップしてよい（その場合も判断結果を
   リセット前にここへ1行残す）。
-- 5-3: 最終統括レポート`reports/日付_squishy-painting-coral_統括.md`を作成し、`commit`スキル
+- 5-3: `bash .claude/scripts/src/sync-gemini-assets.sh`を実行し`.claude/`→`.gemini/`の変換同期を
+  最終確認する（本セッションでは各編集後に都度実行済みだが、独立ステップとして再確認する。
+  このステップ自身はcommitを持たず、生えた差分は直後の5-4のcommitに載る）。
+- 5-4: 最終統括レポート`wip/reports/日付_squishy-painting-coral_統括.md`を作成し、`commit`スキル
   経由でcommit・push後、PR #174へサマリコメントとして反映する（HTML添付は任意・失敗時は
   警告のみでスキップ）。
-- 5-4: `bash .claude/scripts/src/cleanup-task.sh`で`plans/` `worklog/` `reports/`
-  （`REVIEW-POINTS.md`・`worklog/TEMPLATE.md`は残す）を削除しHANDOFF.mdをリセットする
-  （このステップ自体はcommitしない。直後の5-5でまとめてcommitする）。
-- 5-5: `commit`スキル経由でcommit・pushし、`set_mr_ready`でDraftを解除する。
+- 5-5: `bash .claude/scripts/src/cleanup-task.sh`で`wip/plans/` `wip/worklogs/` `wip/reports/`
+  （`REVIEW-POINTS.md`・`wip/worklogs/TEMPLATE.md`は残す）を削除しHANDOFF.mdをリセットする
+  （このステップ自体はcommitしない。直後の5-6でまとめてcommitする）。
+- 5-6: `commit`スキル経由でcommit・pushし、`set_mr_ready`でDraftを解除する。
   **AIエージェントはここで止まる**（マージへは進まない）。
-- 5-6: マージ（squash merge）。**ユーザーから明示的に指示された場合に限り実行する。
+- 5-7: マージ（squash merge）。**ユーザーから明示的に指示された場合に限り実行する。
   AIから持ちかけない。**
 
 ## 判断を迷った内容
 
-（無し）
+- flow-id 5-1（mainマージ）: `install-to-project.sh`の`ignore_rules`配列（issue #105で
+  `/usage/`を追加した箇所）が、main側issue #26の配布機構全面刷新でこの配列自体ごと無くなっていた。
+  `dist-layers.json`の`local`層に既に`/usage/`パターンが含まれていることを確認したうえで、
+  **このブランチのコード変更は取り下げてmain版をそのまま採用した**（`/usage/`を配布先で
+  Git管理対象外にするという目的自体はmain側の実装で達成済みのため、実害は無いと判断）。
+  `distribution-assets.md`の対応するchangelogエントリもこの経緯を明記する形へ書き換えた。
+  詳細は`.claude/docs/spec/distribution-assets.md`「issue #105（`/usage/` を配布先でも
+  Git管理対象外にする）」を参照。
 
 ## 未解決の内容
 
