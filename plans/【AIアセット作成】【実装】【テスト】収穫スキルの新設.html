@@ -165,10 +165,10 @@ bash harvest-from-projects.sh [--upstream &lt;dir&gt;] merge3 &lt;配布先パ�
   <ul>
     <li><code>scan</code>: 配布先ごとに manifest を読み、core/merge の modified / added / deleted と衝突有無・判断材料を JSON 1つで返す（複数配布先を一度に受け取る）。manifest 無しは <code>degraded: true</code> で2-way差分一覧へ縮退。</li>
     <li><code>diff</code>: 2-way差分（本家HEAD vs 配布先現在。LF正規化後）。</li>
-    <li><code>merge3</code>: 3-wayマージ結果（3入力ともLF正規化）。終了コード 0=衝突なし・正=衝突数・2=base取得不可で縮退。</li>
+    <li><code>merge3</code>: 3-wayマージ結果（3入力ともLF正規化）。終了コードは正規化して返す: 0=衝突なし／1=衝突あり／2=base取得不可で縮退／3=その他エラー（git merge-file 自体は 0／1〜127=衝突数／≧128=エラー（実測255）の3分岐で解釈。衝突数を露出させないのは縮退・エラーの信号と数値域が重なるため）。<b>merge 層と dist-layers.json は対象外</b>（前者は base が本家のどのコミットにも無い、後者は del(.upstream) 済みで配布されるため。2-way比較では本家側へ del(.upstream) を掛ける）。</li>
     <li><code>--upstream</code>: テストが合成本家を差し込むための上書き（既定はスクリプト位置から導出）。</li>
-    <li>scan JSON: <code>status</code>（modified/added/deleted。added は層解決で core に解決されるパスに限定・<code>upstreamHasPath</code> で本家の削除漏れと区別）・<code>conflict</code>（clean/conflict/unknown）・判断材料（<code>aiAssetCommits</code>・<code>changeCount</code>。非gitリポジトリは null）。merge 層は記録済み指紋との比較で modified 判定（読む側の初実装）。</li>
-    <li>実装規約: <code>set -euo pipefail</code>・jq をループ内で起動しない・<code>main</code> ガードで source 可能にし純粋関数（層解決・分類・-dirty 除去・LF正規化比較）を単体テスト可能にする。</li>
+    <li>scan JSON: <code>status</code>（modified/added/deleted。modified の比較は層・strategy 別——core=LF正規化sha256・merge/lines-marker=全体sha256・merge/json-keys=キーごとの jq -c getpath 出力のsha256。deleted は core/merge に限る。added は<b>自前の pathspec 照合</b>（完全一致＋ディレクトリ前方一致・後勝ち。build_plan の git ls-files 展開は本家に無いパスへ適用できない）で core に解決され、<b>gitignorePattern を持つ local エントリ9件との照合でも除外されない</b>パスに限定・<code>upstreamHasPath</code> で本家の削除漏れと区別）・<code>conflict</code>（clean/conflict/unknown。merge 層は 3-way 対象外のため常に unknown）・判断材料（<code>aiAssetCommits</code>・<code>changeCount</code>。非gitリポジトリは null。aiAssetCommits の0件は「改善なし」と読ませない——commitスキルは .claude/scripts/ を ai-asset 対象外にしている）。merge 層は記録済み指紋との比較で modified 判定（読む側の初実装）。</li>
+    <li>実装規約: <code>set -euo pipefail</code>・jq をループ内で起動しない・<code>main</code> ガードで source 可能にし純粋関数（pathspec照合の層解決・gitignoreパターン照合・分類・-dirty 除去・LF正規化比較）を単体テスト可能にする。</li>
   </ul>
 
   <h3>SKILL.md（AIエージェントの手順）</h3>
@@ -201,10 +201,10 @@ bash harvest-from-projects.sh [--upstream &lt;dir&gt;] merge3 &lt;配布先パ�
       <tr><td>T4</td><td>記録済みファイルを配布先で削除</td><td>deleted（受け入れ条件4）</td></tr>
       <tr><td>T5</td><td>manifest 無し</td><td>degraded=true で差分一覧（受け入れ条件5）</td></tr>
       <tr><td>T6</td><td>配布先2つを一度に指定</td><td>両方の結果（受け入れ条件6）</td></tr>
-      <tr><td>T7</td><td>層解決で除外されるパスの追加</td><td>added に現れない（Q8）</td></tr>
+      <tr><td>T7</td><td>local 相当の追加（(a) path エントリで除外・(b) gitignorePattern だけで除外——index.jsonl 相当——の両方）</td><td>どちらも added に現れない（Q8。(b) は path の層解決では除外できない）</td></tr>
       <tr><td>T8</td><td>記録SHAが -dirty 付き</td><td>baseResolvable=false・conflict=unknown・merge3 は縮退（終了コード2）</td></tr>
       <tr><td>T9</td><td>theirs が CRLF（内容同一）</td><td>modified にならない（LF正規化）</td></tr>
-      <tr><td>T10</td><td>純粋関数の単体</td><td>source して直接検証（層解決の後勝ち・-dirty 除去）</td></tr>
+      <tr><td>T10</td><td>純粋関数の単体</td><td>source して直接検証（pathspec照合の後勝ち・gitignoreパターン照合・-dirty 除去）</td></tr>
       <tr><td>T11</td><td>読み取り専用の表明</td><td>実行前後で両リポジトリの git status --porcelain が不変</td></tr>
     </tbody>
   </table>

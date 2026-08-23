@@ -122,12 +122,12 @@
     <tbody>
       <tr><td>Q1</td><td>manifestの形式・merge層の指紋</td><td><b>層ごとにレコード形が異なる。sha256はLF正規化後。merge指紋は「配布直後のマージ結果」に対する値で、読む側は現状無い（収穫スキルが最初の読み手）</b></td><td>実装の確認（write_manifest / merge_fingerprint_json）</td></tr>
       <tr><td>Q2</td><td>スクリプト・テストの置き場所</td><td><b>スキル配下 scripts/＋.claude/scripts/test/（install-to-project.sh と同型）。dist-layers.json へ exclude エントリ追加が必要</b></td><td>実装の確認・規約の読解</td></tr>
-      <tr><td>Q3</td><td>3-wayの実装手段</td><td><b>git merge-file -p（終了コード=衝突数）。baseは git show <記録SHA>:<path>、取得不可なら2-wayへ縮退（-dirtyサフィックス除去→cat-file -e確認）。3入力にはLF正規化を掛ける</b></td><td>実測（このリポジトリで実行検証）</td></tr>
+      <tr><td>Q3</td><td>3-wayの実装手段</td><td><b>git merge-file -p（終了コードは 0／1〜127=衝突数／≧128=エラーの3分岐。エラー時は実測255）。baseは git show &lt;記録SHA&gt;:&lt;path&gt;——ただし成立するのは core 層のみ（merge層は3-way対象外・dist-layers.json は del(.upstream) を掛ける）。取得不可なら2-wayへ縮退。3入力にはLF正規化を掛ける</b></td><td>実測（このリポジトリで実行検証）</td></tr>
       <tr><td>Q4</td><td>縮退モードの対象列挙</td><td><b>build_plan と同じ方式（dist-layers.json→git ls-files、後勝ち規則）で core/merge の集合を得る。縮退時は2-wayの差分一覧提示に留める</b></td><td>実装の確認</td></tr>
       <tr><td>Q5</td><td>出口レベルの接続点</td><td><b>issue起票は issue-create スキル（create-issue.sh の5引数）経由。個別作業計画草案は本家 plans/ を汚さない場所に生成しパス提示</b></td><td>実装の確認</td></tr>
       <tr><td>Q6</td><td>DDR運用規約の明文化先</td><td><b>.claude/rules/markdown-frontmatter.md「DDRの識別子」節配下（core層で配布され、DDR規約が集約されている）</b></td><td>規約の読解</td></tr>
       <tr><td>Q7</td><td>判断材料3種の取得</td><td><b>git log / rev-list の読み取りのみで取得。固有語の判定はスクリプトでなくAIの手順に置く</b></td><td>実装方針の検討（git経路は既知の挙動）</td></tr>
-      <tr><td>Q8</td><td>added / deleted の判定と local/exclude 層の除外</td><td><b>manifest は local/exclude を記録しないため、素朴な差集合は誤検出する。added は層解決（後勝ち規則）で core に解決されるパスに限定。本家の削除漏れとの区別材料も添える。縮退モードでは確定分類は成立しない</b></td><td>実装の確認（write_manifest / scan_pass）</td></tr>
+      <tr><td>Q8</td><td>added / deleted の判定と local/exclude 層の除外</td><td><b>manifest は local/exclude を記録しないため、素朴な差集合は誤検出する。added は自前のpathspec照合（build_plan は流用不能）で core に解決され、gitignoreパターン照合でも除外されないパスに限定。deleted は core/merge に限る。本家の削除漏れとの区別材料も添える。縮退モードでは確定分類は成立しない</b></td><td>実装の確認（write_manifest / scan_pass）</td></tr>
     </tbody>
   </table>
   </div>
@@ -158,28 +158,39 @@
   </table>
   </div>
   <ul>
-    <li>sha256 は <b>LF正規化（<code>tr -d '\r'</code>）後</b>の内容に対する値。収穫側も同じ正規化が必須。</li>
+    <li>sha256 は <b>LF正規化（<code>tr -d '\r'</code>）後</b>の内容に対する値。収穫側も同じ正規化が必須。ただし <b>merge/json-keys の指紋はキーごとの <code>jq -c 'getpath(...)'</code> 出力に対する値</b>で、ファイル全体でもLF正規化後でもない。</li>
     <li><code>source.commit</code> は本家dirty時に <code>-dirty</code> サフィックスが付く。</li>
     <li><code>local</code> / <code>exclude</code> は manifest に載らない（層判定は manifest の <code>layer</code> キーで足りる）。</li>
   </ul>
-  <div class="box ok"><span class="label">結論</span>merge層の指紋は記録のみで読む側が無い（実装コメントで明言）。収穫スキルが最初の読み手になる。</div>
+  <div class="box ok"><span class="label">結論</span>merge層の指紋は記録のみで読む側が無い（実装コメントで明言。scan_pass が manifest を読むのは <code>select(.sha256)</code> と <code>select(.layer=="core")</code>（SCAN_CORE_REMOVED）の2箇所で、いずれも merge エントリには一致しない）。収穫スキルが最初の読み手になる。</div>
 
   <h3>Q2. 置き場所</h3>
-  <p>スクリプトはスキル配下 <code>scripts/</code>、単体テストは <code>.claude/scripts/test/test_install_to_project.sh</code> が前例（<code>passed=N failures=N</code> 規約）。収穫スキルは本家でしか意味を持たないため、<code>apply-mr-workflow-to-project</code> と同じく <code>exclude</code> 層。<b>dist-layers.json へのエントリ追加を忘れると <code>.claude</code> の core エントリに一致して配布されてしまい、網羅性チェックでは気づけない。</b></p>
+  <p>スクリプトはスキル配下 <code>scripts/</code>、単体テストは <code>.claude/scripts/test/test_install_to_project.sh</code> が前例（<code>passed=N failures=N</code> 規約。directory-structure.md の字義とは食い違うが前例に合わせ、文言の更新はフェーズ4で扱う）。収穫スキルは本家でしか意味を持たないため、<code>apply-mr-workflow-to-project</code> と同じく <code>exclude</code> 層。<b>dist-layers.json へのエントリ追加を忘れると <code>.claude</code> の core エントリに一致して配布されてしまい、網羅性チェックでは気づけない。</b></p>
+  <div class="box warn"><span class="label">非対称に注意</span>テスト（<code>.claude/scripts/test/</code>＝core配下）は全配布先へ配られるが、テスト対象のスクリプトは exclude で配られない。前例と同型の<b>スキップガード</b>（対象不在なら <code>skipped:</code>＋<code>passed=0 failures=0</code>・終了コード0）が必須。無いと配布先で恒常的に落ちるテストが1本増える。</div>
 
   <h3>Q3. 3-way突き合わせ</h3>
-  <pre><code>$ git merge-file -p merged.txt base.txt theirs.txt   # 終了コード=衝突数、-pで入力を変更しない
-&lt;&lt;&lt;&lt;&lt;&lt;&lt; merged.txt
-line2-ours
+  <p>実測（mdの「実行検証の記録」1の転写）:</p>
+  <pre><code>$ printf 'l1\nl2\nl3\n' &gt; base; printf 'l1\nL2\nl3\n' &gt; ours; printf 'l1\nl2x\nl3\n' &gt; theirs
+$ git merge-file -p ours base theirs; echo "exit=$?"
+l1
+&lt;&lt;&lt;&lt;&lt;&lt;&lt; ours
+L2
 =======
-line2-theirs
-&gt;&gt;&gt;&gt;&gt;&gt;&gt; theirs.txt</code></pre>
+l2x
+&gt;&gt;&gt;&gt;&gt;&gt;&gt; theirs
+l3
+exit=1
+$ git merge-file -p ours base nofile; echo "exit_missing=$?"
+error: Could not stat nofile: No such file or directory
+exit_missing=255</code></pre>
   <ul>
-    <li>base は <code>git show &lt;記録SHA&gt;:&lt;path&gt;</code>。取得不可時は (1) <code>-dirty</code> を落とす → (2) <code>git cat-file -e</code> で存在確認 → 失敗なら <b>2-way（本家HEAD vs 配布先）へ縮退</b>し「base取得不可（理由）」を明示。<b>-dirty 付き記録は配布内容がどのコミットにも無いため、-dirty を落として解決できても base が配布物と一致しない可能性を出力に明示する。</b></li>
+    <li>終了コードは <b>0（衝突なし）／1〜127（衝突数）／≧128（エラー=判定不能）の3分岐</b>で仕分ける。「0以外は衝突あり」と実装すると、エラー（実測255）が「255件の衝突」に誤分類される。<code>-p</code> は入力3ファイルを変更しない（実行前後の sha256 不変を実測）。</li>
+    <li>base は <code>git show &lt;記録SHA&gt;:&lt;path&gt;</code>——<b>成立するのは core 層のみ</b>。merge層は配布直後の内容が本家のどのコミットにも無いため<b>3-wayの対象外</b>（指紋比較まで）。<code>dist-layers.json</code> は <code>del(.upstream)</code> を掛けた内容を base にする。</li>
+    <li>取得不可時は (1) <code>-dirty</code> を落とす → (2) <code>git cat-file -e</code> で存在確認 → 失敗なら <b>2-way（本家HEAD vs 配布先）へ縮退</b>し「base取得不可（理由）」を明示。<b>-dirty 付き記録は配布内容がどのコミットにも無いため、-dirty を落として解決できても base が配布物と一致しない可能性を出力に明示する。</b></li>
     <li>隣接行の変更（3行ファイルでoursが2行目・theirsが3行目）も衝突扱いになることを実測で確認。ハンクが離れていれば自動マージされ「衝突なし」。</li>
     <li><b>3-way の3入力（base/ours/theirs）には manifest と同じLF正規化を掛ける。</b>実測で、theirs をCRLF化しただけ（内容同一）で衝突マーカー1件が出た（<code>git merge-file -p ours base theirs_crlf | grep -c '^&lt;&lt;&lt;&lt;&lt;&lt;&lt;'</code> → <code>1</code>）。正規化しないと sha256 比較「変更なし」と 3-way「全行衝突」が矛盾する。</li>
   </ul>
-  <div class="box ok"><span class="label">結論</span>git merge-file の終了コードで「衝突なし／衝突あり」を仕分けられる。縮退経路（2-way）と3入力へのLF正規化は必須。</div>
+  <div class="box ok"><span class="label">結論</span>git merge-file の終了コード3分岐で「衝突なし／衝突あり／判定不能」を仕分ける。base の例外（merge層・dist-layers.json）、縮退経路（2-way）、3入力へのLF正規化は必須。</div>
 
   <h3>Q4. 縮退モード（manifest無し）の対象列挙</h3>
   <p><code>build_plan</code> と同じ方式（<code>dist-layers.json</code> の entries を jq 1回で読み、<code>git ls-files -z -- &lt;pathspec&gt;</code> を本家で評価、「後に書いたエントリが勝つ」）で core/merge の集合を得る。縮退時の比較は2-way（LF正規化）で、added / deleted の確定分類は成立しないため「差分一覧の提示」に留める（分類の確定は Q8）。</p>
@@ -190,14 +201,16 @@ line2-theirs
   <table>
     <thead><tr><th>分類</th><th>判定</th></tr></thead>
     <tbody>
-      <tr><td>modified</td><td>manifest に載っていて（core/merge）、現在のLF正規化 sha256 が記録と異なる</td></tr>
-      <tr><td>deleted</td><td>manifest に載っていて、配布先に実体が無い</td></tr>
-      <tr><td>added</td><td>配布対象ディレクトリ配下に在り、manifest に載っておらず、<b>層解決（後勝ち規則）で core に解決される</b>パス</td></tr>
+      <tr><td>modified</td><td>manifest に載っていて（core/merge）、記録済み指紋と異なる。<b>比較は層・strategy 別</b>: core=LF正規化sha256、merge/lines-marker=全体sha256（キー <code>lines</code>）、merge/json-keys=キーごとの <code>jq -c getpath</code> 出力のsha256（キー <code>keys</code>）。merge レコードに <code>sha256</code> キーは無い</td></tr>
+      <tr><td>deleted</td><td>manifest に <b>core/merge として</b>載っていて、配布先に実体が無い（seed＝配布先所有物の削除は含めない）</td></tr>
+      <tr><td>added</td><td>配布対象ディレクトリ配下に在り、manifest に載っておらず、<b>自前のpathspec照合で core に解決され、gitignoreパターン照合でも除外されない</b>パス</td></tr>
     </tbody>
   </table>
   </div>
   <ul>
-    <li>層解決の適用で local（plans/ 等・gitignoreパターン群）・exclude・seed（manifest に載るため差集合に現れない）が候補から除外される。</li>
+    <li><b>build_plan の層解決は added へ流用できない</b>（本家の <code>git ls-files</code> で pathspec を展開する方式のため、本家に無いパスは1件も展開されない）。「pathspec 文字列と任意のパス文字列の直接照合」（完全一致＋ディレクトリ前方一致・後勝ち）を自前実装する。</li>
+    <li><b>path を持たない local エントリ9件（gitignoreパターン群）は path の層解決では除外できない</b>。<code>.claude/state/</code>・<code>settings.local.json</code>・<code>index.jsonl</code> 等が added に誤って混ざるため、gitignorePattern との照合（自前のサブセット実装、git リポジトリなら <code>git check-ignore</code>）を併用する。</li>
+    <li>seed（<code>*.local.md</code> 等）は manifest に載るため差集合に現れない。</li>
     <li>added 候補のうち本家HEADに同パスが無いものは、「配布先の新規追加」か「本家の削除漏れ（SCAN_CORE_REMOVED は一覧提示のみで削除しない）」かの区別材料（本家の <code>git log --diff-filter=D -- &lt;path&gt;</code> の有無）を添えて提示し、最終判断は人間に委ねる。</li>
     <li>探索範囲は配布対象ディレクトリ（core/merge エントリの pathspec 配下）に限る（配布先のアプリ本体を走査しない）。</li>
   </ul>
@@ -209,14 +222,14 @@ line2-theirs
   </ul>
 
   <h3>Q6. DDR運用規約の明文化先</h3>
-  <p><code>.claude/rules/markdown-frontmatter.md</code> の「DDRの識別子」節配下。DDR採番規約が集約されており、<code>core</code> 層で配布されるため「配布物のルールに含める」を満たす。常時読込の <code>agent-common.md</code> へ置くほどの知識ではない。</p>
+  <p><code>.claude/rules/markdown-frontmatter.md</code> の「DDRの識別子」節配下。DDR採番規約が集約されており、<code>core</code> 層で配布されるため「配布物のルールに含める」を満たす。常時読込の <code>agent-common.md</code> へ置くほどの知識ではない。理由は現行のissue番号ベース識別子に合わせて書く（配布先のissue番号は本家と独立採番のため、配布先で機構DDRを作ると本家の同番号issue由来の識別子と衝突しうる。プロジェクト固有のDDRは従来どおり配布先で書いてよい）。</p>
 
   <h3>Q7. 判断材料3種</h3>
   <div class="tablewrap">
   <table>
     <thead><tr><th>材料</th><th>取得方法</th><th>限界・縮退</th></tr></thead>
     <tbody>
-      <tr><td><code>ai-asset:</code> prefixコミット</td><td><code>git log --format=%s -- &lt;path&gt;</code> の先頭一致</td><td>非gitリポジトリ・未追跡なら「取得不可」明示。浅い履歴は過小評価</td></tr>
+      <tr><td><code>ai-asset:</code> prefixコミット</td><td><code>git log --format=%s -- &lt;path&gt;</code> の先頭一致</td><td>非gitリポジトリ・未追跡なら「取得不可」明示。浅い履歴は過小評価。<b>commitスキルは <code>.claude/scripts/</code> を ai-asset の対象外にしているため、スクリプト類は規約どおりでも常に0件</b>。規約未準拠の配布先も0件になる——<b>0件を「改善なし」と読ませない</b>提示にする</td></tr>
       <tr><td>変更回数</td><td><code>git rev-list --count HEAD -- &lt;path&gt;</code></td><td>同上。未コミット変更は現れない</td></tr>
       <tr><td>プロジェクト固有語</td><td>AIエージェントが差分を読んで判断（SKILL.md の手順）</td><td>機械判定は誤判定が多くスクリプトの責務にしない</td></tr>
     </tbody>

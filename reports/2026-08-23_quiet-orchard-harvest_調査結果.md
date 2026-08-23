@@ -28,9 +28,12 @@ keywords: [asset-manifest, dist-layers, install-to-project, git merge-file, 縮�
   通さないと、CRLF環境の配布先で全件が「改変あり」になる。
 - **merge 層の指紋は「配布直後のマージ結果」に対する値**である。lines-marker は
   マージ後ファイル全体の sha256（キー名 `lines` だがマーカー行だけのハッシュではない）、
-  json-keys は対象キーの値ごとの sha256。**読む側は現状どこにも無い**（`merge_fingerprint_json`
-  冒頭のコメントで明言。scan_pass が読むのは `select(.sha256)` に一致する core/seed のみ）。
-  収穫スキルがこの指紋の最初の読み手になる。
+  json-keys は対象キーの値ごとの sha256（`jq -c 'getpath(...)'` の出力に対する値。
+  **ファイル全体でもLF正規化後でもない**——この経路に `tr -d '\r'` は無い）。
+  **読む側は現状どこにも無い**（`merge_fingerprint_json` 冒頭のコメントで明言。scan_pass が
+  manifest を読むのは `select(.sha256)`（core/seed の改変検知）と `select(.layer == "core")`
+  （SCAN_CORE_REMOVED＝本家から消えた core の一覧提示）の2箇所で、いずれも merge エントリには
+  一致しない）。収穫スキルがこの指紋の最初の読み手になる。
 - `source.commit` は配布時の本家HEAD。本家が dirty のまま `--allow-dirty` で配布した場合は
   `-dirty` サフィックスが付く（3-way の base 解決時に落とす必要がある。Q3）。
 - `local` / `exclude` 層のファイルは manifest に載らない。**収穫対象の層判定は manifest の
@@ -45,6 +48,19 @@ keywords: [asset-manifest, dist-layers, install-to-project, git merge-file, 縮�
 - 単体テスト: `.claude/scripts/test/test_install_to_project.sh` が **スキル配下のスクリプトの
   テストを `.claude/scripts/test/` に置く前例**になっている（`passed=N failures=N` 規約）。
   収穫スクリプトも `.claude/scripts/test/test_harvest_from_projects.sh` とする。
+  - 補足: `.claude/rules/directory-structure.md` は `.claude/scripts/test/` を
+    「`.claude/scripts/src/` 配下スクリプトの単体テスト」の置き場と定めており、スキル配下
+    スクリプトのテストは字義どおりにはこの定義の外にある。ただし前例
+    （`test_install_to_project.sh`）が既に同じ置き方をしており、テスト形式の規約
+    （`passed=N failures=N`）もここに紐づくため、前例に合わせる。文言と実態の食い違いは
+    フェーズ4（設計反映）で `directory-structure.md` 側の記述更新として扱う。
+  - **テストは配布されるが、テスト対象のスクリプトは配布されない**という非対称に注意する。
+    `.claude/scripts/test/` は `.claude` の `core` エントリ配下なのでテストは全配布先へ配られる
+    一方、収穫スクリプト本体は `exclude`（下記）で配られない。前例の
+    `test_install_to_project.sh` は冒頭で対象スクリプト不在を検知し `skipped:` を出して
+    `passed=0 failures=0`・終了コード0で抜けるスキップガードでこれを吸収している。
+    収穫スクリプトのテストにも**同型のスキップガードが必須**（無いと配布先で恒常的に落ちる
+    テストが1本増える）。
 - 層分け: `apply-mr-workflow-to-project` は `exclude`（「配ると配布先が本家として再配布でき、
   版の系譜が分岐する」）。収穫スキルは**本家でしか意味を持たない**（配布先の manifest を読み、
   本家HEADと比較する）ため、同じ理由＋誤用防止で `exclude` にする。
@@ -54,11 +70,28 @@ keywords: [asset-manifest, dist-layers, install-to-project, git merge-file, 縮�
 ## Q3: 3-way突き合わせの実装手段と縮退
 
 - **`git merge-file -p <ours> <base> <theirs>`** を使う（このリポジトリ上で実行検証済み）。
-  終了コードが衝突数（0=衝突なし、正=衝突あり、負=エラー）で、「衝突なし／衝突あり」の
-  仕分けにそのまま使える。`-p` で標準出力へマージ結果を出し、入力ファイルを変更しない
-  （読み取り専用の要件に合う）。
-- base は `git show <記録SHA>:<path>` で取得する。**取得できない場合**は次の順で縮退する。
-  1. 記録SHAの `-dirty` サフィックスを落としてから解決を試みる。
+  終了コードは、gitドキュメント上は「衝突数（エラー時は負）」だが、**シェルの終了コードに
+  負値は無く、実測ではエラー時（入力ファイル不在）に 255 が返る**（下記「実行検証の記録」1）。
+  衝突数として意味を持つのは 0〜127 の範囲（gitの仕様上も127で頭打ち）なので、仕分けは
+  **0（衝突なし）／1〜127（衝突あり・値=衝突数）／それ以外≧128（エラー=判定不能）の3分岐**に
+  する。「0以外は衝突あり」と実装すると、base の取得失敗・引数誤り等のエラーが「255件の衝突」
+  として静かに衝突ありへ誤分類される。`-p` で標準出力へマージ結果を出し、**入力3ファイルを
+  変更しない**（実測: 実行前後で3入力の sha256 が不変。読み取り専用の要件に合う）。
+- base は `git show <記録SHA>:<path>` で取得する。**ただしこの規則が成立するのは、配布内容が
+  本家のブロブと一致する `core` 層のファイルに限る**。次の2種は例外で、3-way の base に
+  `git show` の内容をそのまま使えない。
+  - **merge 層（3件）**: 配布直後の内容は「配布先の既存ファイル＋本家の一部（マーカー区間の
+    行・指定キー）」であり、本家のどのコミットにも存在しない。この base で 3-way すると
+    配布先が自分で書いた既存行が全部「配布先の変更」として差分に出る。**merge 層は 3-way の
+    対象外とし、Q1 の strategy 別指紋との比較（modified 判定）までに留める。**
+  - **`.claude/dist-layers.json`**: `jq 'del(.upstream)'` を通して配布されるため、
+    `git show` の内容には `upstream: true` が余分に含まれ、毎回「改変あり」に見える。
+    **base には `git show` の内容へ同じ `del(.upstream)` を掛けたものを使う。**
+- base が**取得できない場合**は次の順で縮退する。
+  1. 記録SHAの `-dirty` サフィックスを落としてから解決を試みる。**ただし `-dirty` 付きの
+     記録は「配布された内容がどのコミットとも一致しない」ことを意味するため、SHA が解決
+     できても base が配布物と一致しない可能性がある**（本家の未コミット分が「配布先の改変」
+     として出力に混ざりうる）。この場合は出力へその旨を明示する。
   2. `git cat-file -e <SHA>^{commit}` が失敗する場合（shallow clone で届かない・squash merge
      で本家履歴に残っていない・配布後に本家で force push 等）は、**3-way を諦めて 2-way**
      （本家HEAD と配布先現在の差分表示）へ落とし、「base 取得不可（理由）」を明示する。
@@ -96,14 +129,34 @@ manifest（`write_manifest`）は **`local` / `exclude` 層を記録しない**�
 
 | 分類 | 判定 |
 |---|---|
-| modified | manifest に載っていて（core/merge）、現在のLF正規化 sha256 が記録と異なる |
-| deleted | manifest に載っていて、配布先に実体が無い |
-| added | 配布先の配布対象ディレクトリ配下に在り、manifest に載っておらず、**かつ配布先へ配布された層分け定義（`.claude/dist-layers.json`。install-to-project.sh が `upstream` を落として配布する）の後勝ち層解決で `core` に解決されるパス** |
+| modified | manifest に載っていて（core/merge）、記録済み指紋と現在の内容が異なる。**比較方法は層・strategy 別**: core は LF正規化 sha256、merge/lines-marker はマージ後ファイル全体の sha256（キー `lines`）、merge/json-keys はキーごとの `jq -c 'getpath(...)'` 出力の sha256（キー `keys`。Q1）。merge 層のレコードは `sha256` キーを持たないため、core と同じ読み方をすると null になり全件が片側へ無言で倒れる |
+| deleted | manifest に **core/merge として**載っていて、配布先に実体が無い。seed（AGENTS.md・HANDOFF.md 等）も sha256 付きで manifest に載るが、配布先所有物の削除は収穫対象ではないため deleted に含めない。merge 層の実体消失（.gitignore 等を配布先が削除）は「配布先の変更」というより運用事故に近いが、分類上は deleted として提示し判断は人間に委ねる |
+| added | 配布先の配布対象ディレクトリ配下に在り、manifest に載っておらず、**かつ配布先へ配布された層分け定義（`.claude/dist-layers.json`。install-to-project.sh が `upstream` を落として配布する）の層解決で `core` に解決され、gitignoreパターン照合でも除外されないパス**（下記） |
 
-- **層解決を added 判定へ適用する**ことで、`local`（`plans/` `worklog/` `reports/`・
-  gitignoreパターン群）・`exclude`・`seed`（`*.local.md` 等。こちらは manifest に載るので
-  差集合に現れない）が候補から除外される。層解決は `build_plan` と同じ「エントリ順に
-  上書き（後勝ち）」規則を使う。
+- **added 判定の層解決は、`build_plan` の実装をそのまま流用できない。** `build_plan` は
+  `git -C $UPSTREAM_ROOT ls-files -- <pathspec>` でエントリの pathspec を**本家の追跡ファイル**へ
+  展開してから後勝ちで層を上書きする方式だが、added 候補は定義上「本家に無いパス」なので
+  この展開では1件も現れず、層を決められない（配布先で `git ls-files` を使う代替も、配布先が
+  git リポジトリでないケースで使えない）。**「pathspec 文字列と任意のパス文字列を直接照合する
+  層解決」を自前で実装する必要がある**。dist-layers.json の `path` は現状すべて
+  「ディレクトリ名」または「ファイルパスそのもの」（glob を含むエントリは無い）なので、
+  照合は (1) 完全一致、(2) `path` がディレクトリとしての前方一致（`<path>/` で始まる）、の
+  2規則で足りる。エントリ順の後勝ちは `build_plan` と同じ規則を使う。
+- **層解決（path ベース）だけでは、path を持たない `local` エントリを除外できない。**
+  dist-layers.json の local エントリのうち9件は `path` を持たず `gitignorePattern` だけを持つ
+  （`/usage/`・`/.claude/state/`・`**/index.jsonl`・`*.stackdump`・
+  `.claude/docs/.ddr-list.*`・`/.claude/settings.local.json` 等）。これらの実体
+  （`.claude/state/`・`settings.local.json`・`index.jsonl` 等）は `.claude` の core エントリ
+  配下に在り manifest に載らないため、path の層解決だけでは**すべて added（収穫候補）と
+  誤判定される**（settings.local.json は環境依存値を含むため害も大きい。配布先が git
+  リポジトリでない場合は gitignore で暗黙に落ちることも期待できない）。**added 判定には、
+  gitignorePattern を持つ local エントリとのパターン照合を併せて適用する**。照合は gitignore
+  の規則のサブセット（先頭 `/` はルート相対・末尾 `/` はディレクトリ・`*` は `/` を跨がない・
+  `**/` は任意階層）を自前実装するか、配布先が git リポジトリなら
+  `git -C <配布先> check-ignore` に委ねる（非 git リポジトリでは自前照合のみ）。実装の確定は
+  フェーズ3で行うが、**「gitignoreパターン群は path の層解決では除外できない」ことは
+  設計の前提**として固定する。
+- `seed`（`*.local.md` 等）は manifest に載るので差集合に現れない。
 - **「本家で削除・改名されたファイルが配布先に残る」ケースとの区別**: added 候補のうち
   本家HEADに同パスが存在しないものについて、「配布先の新規追加」か「本家の削除漏れ
   （install-to-project.sh は SCAN_CORE_REMOVED を一覧提示するだけで削除しない）」かを
@@ -139,14 +192,17 @@ manifest（`write_manifest`）は **`local` / `exclude` 層を記録しない**�
   - `agent-common.md`（常時読込）へ書くほど毎セッション必要な知識ではない（DDRを書こうと
     する場面でだけ効けばよい）。
 - 内容: 「配布先プロジェクトでは、機構（`.claude/` 一式）に関するDDRを配布先リポジトリへ
-  書かず、本家へissueを起票する。配布先のDDR連番は本家と衝突し、収穫（逆輸入）時に
-  識別子の重複を持ち込むため」。
+  書かず、本家へissueを起票する。DDR識別子は issue 番号ベース（`i<issue番号>-<枝番>`）であり、
+  配布先リポジトリの issue 番号は本家と独立に採番されるため、配布先で機構のDDRを作ると
+  本家の同番号 issue 由来の識別子と衝突しうる（例: 配布先の #12 から作った `i0012-01` は、
+  本家の #12 の `i0012-01` と別物なのに同じ識別子になる）。また機構の意思決定の正史は本家に
+  一元化する。プロジェクト固有のDDR（アプリ本体の意思決定）は従来どおり配布先で書いてよい」。
 
 ## Q7: 判断材料3種の取得方法と限界
 
 | 材料 | 取得方法 | 限界・縮退 |
 |---|---|---|
-| `ai-asset:` prefix コミットの有無 | `git -C <配布先> log --format=%s -- <path>` の先頭一致を数える | 配布先が git リポジトリでない／`.claude/` が追跡されていない場合は「取得不可」を明示。浅い履歴では過小評価（件数に「以上」を付す） |
+| `ai-asset:` prefix コミットの有無 | `git -C <配布先> log --format=%s -- <path>` の先頭一致を数える | 配布先が git リポジトリでない／`.claude/` が追跡されていない場合は「取得不可」を明示。浅い履歴では過小評価（件数に「以上」を付す）。**`commit` スキルは `ai-asset:` の対象を「AIが読むもの」に限定し `.claude/scripts/` 配下を明示的に対象外（feat/fix/refactor）としているため、収穫対象（core）のうちスクリプト類は規約どおりの配布先でも常に0件になる**。配布先が prefix 規約自体に従っていない場合も0件になり「取得不可」と区別できない。**0件は「改善なし」を意味しない**（提示時は「ai-asset該当なし（スクリプト類・規約未準拠では常に0）」のような読み違えない表現にする） |
 | ファイルの変更回数 | `git -C <配布先> rev-list --count HEAD -- <path>` | 同上。未コミットの変更は回数に現れない（差分検出の側で補足される） |
 | プロジェクト固有語の含有 | 差分行（theirs側の追加行）に対する語のマッチ。固有語のリストは機械決定できないため、**AIエージェントが差分を読んで判断する**（SKILL.md の手順に置く。スクリプトは差分の提示まで） | 機械判定は誤判定が多く、スクリプトの責務にしない（実装フェーズで確定） |
 
@@ -172,7 +228,22 @@ manifest（`write_manifest`）は **`local` / `exclude` 層を記録しない**�
    exit=1
    ```
 
-   終了コード=衝突数、`-p` は入力ファイルを変更しない。
+   エラー時の終了コードと `-p` の非破壊性も実測した:
+
+   ```
+   $ git merge-file -p ours base nofile; echo "exit_missing=$?"
+   error: Could not stat nofile: No such file or directory
+   exit_missing=255
+   $ sha_before=$(sha256sum ours base theirs | sha256sum)
+   $ git merge-file -p ours base theirs >/dev/null; echo "exit_conflict=$?"
+   exit_conflict=1
+   $ sha_after=$(sha256sum ours base theirs | sha256sum)
+   $ [ "$sha_before" = "$sha_after" ] && echo '入力3ファイル不変'
+   入力3ファイル不変
+   ```
+
+   終了コード=衝突数（1〜127）、エラー時は 255（「負値」はドキュメント表現で、シェルには
+   負の終了コードが無い）。`-p` は入力3ファイルを変更しない（実行前後で sha256 不変）。
 
 2. **Q3: CRLF入力（正規化なし）で衝突になる**（合格。正規化の必要性の根拠）
 
@@ -200,13 +271,16 @@ manifest（`write_manifest`）は **`local` / `exclude` 層を記録しない**�
 4. **Q5: `create-issue.sh` の必須引数検証**（合格）
 
    ```
-   $ bash .claude/scripts/src/create-issue.sh --title t
+   $ bash .claude/scripts/src/create-issue.sh --title t; echo "exit=$?"
    エラー: --title --purpose --current --expected --acceptance はすべて必須です
    使い方: create-issue.sh --title <タイトル> --purpose <目的> --current <現状> --expected <期待する動作> --acceptance <受け入れ条件>
+
+   すべてのオプションが必須です。
+   exit=1
    ```
 
-   引数不足で issue は作成されず、必須引数エラーになることを確認（PostToolUse hook の
-   起票検知はスクリプト名の一致で発火したもので、起票は行われていない）。
+   引数不足で issue は作成されず、必須引数エラー（終了コード1）になることを確認
+   （PostToolUse hook の起票検知はスクリプト名の一致で発火したもので、起票は行われていない）。
 
 ## 確かめられなかったこと
 

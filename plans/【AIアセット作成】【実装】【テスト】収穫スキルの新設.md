@@ -60,8 +60,15 @@ keywords: [harvest-from-projects, SKILL.md, 収穫スクリプト, 単体テス�
     （変更ありファイルの列挙）へ縮退する。
   - `diff`: 指定ファイルの 2-way 差分（本家HEAD vs 配布先現在。LF正規化後）を表示する。
   - `merge3`: 指定ファイルの 3-way マージ結果（`git merge-file -p`。3入力ともLF正規化）を
-    標準出力へ出し、終了コードで衝突有無を返す（0=衝突なし・正=衝突数。base 取得不可なら
-    その旨をstderrへ出し `diff` 相当へ縮退して終了コード2）。
+    標準出力へ出す。**終了コードは衝突数をそのまま返さず、正規化して返す**（0=衝突なし／
+    1=衝突あり／2=base 取得不可のため `diff` 相当へ縮退（stderrへ理由を出す）／3=その他エラー）。
+    `git merge-file` 自体の終了コードは 0／1〜127（衝突数）／≧128（エラー。実測255）の
+    3分岐で解釈する（「0以外は衝突」と実装するとエラーが衝突に誤分類される。調査結果 Q3）。
+    衝突数を露出させないのは、縮退・エラーの信号と数値域が重なるため。
+    **merge 層と `.claude/dist-layers.json` は `merge3` の対象外**（前者は base が本家のどの
+    コミットにも無い、後者は `del(.upstream)` 済みの内容が配布されるため。指定されたら
+    その旨をstderrへ出し終了コード2で縮退する。dist-layers.json の2-way比較では本家側へ
+    `del(.upstream)` を掛けてから比べる。調査結果 Q3）。
   - `--upstream` は既定でスクリプト位置から導出した本家ルート。テストが合成本家を差し込む
     ための上書きオプション（`install-to-project.sh` に無い引数だが、収穫は「本家＝自分」を
     書き換えないため安全に公開できる）。
@@ -78,16 +85,28 @@ keywords: [harvest-from-projects, SKILL.md, 収穫スクリプト, 単体テス�
     ] }
   ```
 
-  - `status`: modified / added / deleted（判定は調査結果 Q8 の表のとおり。added は層解決で
-    `core` に解決されるパスに限定し、`upstreamHasPath` で本家の削除漏れとの区別材料を添える）。
-  - `conflict`: 3-way の事前判定（base 解決可のときだけ。`-dirty`・未到達なら `unknown`）。
+  - `status`: modified / added / deleted（判定は調査結果 Q8 の表のとおり。modified の比較は
+    層・strategy 別——core は LF正規化 sha256、merge/lines-marker は全体 sha256、
+    merge/json-keys はキーごとの `jq -c getpath` 出力の sha256。deleted は core/merge に限る。
+    added は**自前の pathspec 照合**（完全一致＋ディレクトリ前方一致・エントリ順の後勝ち。
+    `build_plan` の `git ls-files` 展開は本家に無いパスへ適用できないため流用しない）で
+    `core` に解決され、**かつ gitignorePattern を持つ local エントリ9件との照合でも除外
+    されない**パスに限定する（照合は gitignore 規則のサブセットを自前実装し、配布先が git
+    リポジトリなら `git check-ignore` を優先する。調査結果 Q8）。`upstreamHasPath` で本家の
+    削除漏れとの区別材料を添える。
+  - `conflict`: 3-way の事前判定（core 層かつ base 解決可のときだけ。`-dirty`・未到達なら
+    `unknown`。**merge 層は 3-way 対象外**のため常に `unknown` とし、modified 判定のみ行う）。
   - 判断材料: `aiAssetCommits`（`ai-asset:` prefix コミット数）・`changeCount`
     （`rev-list --count`）。配布先が git リポジトリでない場合は `null`（取得不可を明示）。
+    `aiAssetCommits` は SKILL.md の提示側で「0件＝改善なし」と読ませない（commit スキルは
+    `.claude/scripts/` を ai-asset の対象外にしており、スクリプト類は規約どおりでも常に0件。
+    調査結果 Q7）。
   - `merge` 層は記録済み指紋（lines-marker はファイル全体 sha256・json-keys はキーごと）との
     比較で modified を判定する（読む側の初実装。指紋の意味は調査結果 Q1）。
 - 実装規約: `set -euo pipefail`・jq 起動はループ内で行わない（ファイル群の sha256 は
   `sha256sum` 一括、レコードはUS区切り中間表現→jq 1回）・`main` ガード（`BASH_SOURCE` 比較）で
-  `source` 可能にし、純粋関数（層解決・分類・`-dirty` 除去・LF正規化比較）を単体テスト可能にする。
+  `source` 可能にし、純粋関数（pathspec照合の層解決・gitignoreパターン照合・分類・`-dirty` 除去・
+  LF正規化比較）を単体テスト可能にする。
 
 ### SKILL.md（AIエージェントの手順）
 
@@ -136,10 +155,10 @@ keywords: [harvest-from-projects, SKILL.md, 収穫スクリプト, 単体テス�
 | T4 | manifest 記録済みファイルを配布先で削除 | `status=deleted`（受け入れ条件4） |
 | T5 | manifest 無しの配布先 | `degraded=true` で差分一覧が出る（受け入れ条件5） |
 | T6 | 配布先2つを一度に指定 | 両方の結果が返る（受け入れ条件6） |
-| T7 | `local` 相当のファイル（層解決で除外されるパス）を配布先へ追加 | added に**現れない**（Q8） |
+| T7 | `local` 相当のファイルを配布先へ追加（(a) path エントリで除外されるパス、(b) gitignorePattern だけで除外されるパス——`index.jsonl` 相当——の両方） | どちらも added に**現れない**（Q8。(b) は path の層解決では除外できないケース） |
 | T8 | 記録SHAが `-dirty` 付き | `baseResolvable=false`・`conflict=unknown`、`merge3` は縮退（終了コード2） |
 | T9 | theirs が CRLF（内容は同一） | modified に**ならない**（LF正規化。sha一致） |
-| T10 | 純粋関数の単体（層解決の後勝ち・`-dirty` 除去） | source して直接検証 |
+| T10 | 純粋関数の単体（pathspec照合の後勝ち・gitignoreパターン照合・`-dirty` 除去） | source して直接検証 |
 | T11 | スクリプトが読み取り専用であること | 実行前後で合成本家・合成配布先の `git status --porcelain` が不変 |
 
 - 出力規約: `passed=N failures=N`・失敗時終了コード1。
