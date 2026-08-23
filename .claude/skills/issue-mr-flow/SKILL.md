@@ -439,6 +439,38 @@ flow-id 5-5 を終えたAIエージェントは、フロー上マージが次の
 `REVIEW-POINTS.md` に外だしされており、収集は `review-points` スキル
 （`.claude/skills/review-points/SKILL.md`）が担う。
 
+### flow-idを並べ替える・挿入する作業を行う場合（issue #143）
+
+flow-idの並べ替え・新規ステップの挿入（過去の実例: issue #112「フェーズ5並べ替え」・issue #111
+「統括レポート追加」・issue #70「gemini変換同期ステップ追加」）を行う際は、
+`.claude/rules/docs-workflow.md` `.claude/skills/issue-mr-flow/SKILL.md`本体の変更を終えた後、
+**変更作業の最後に**次を確認する。
+
+1. リポジトリ全体で`[0-9]-[0-9]`という数字パターン（`flow-id`の接頭辞が付かないもの——
+   `2-3〜2-4`のような範囲表記・`flow-id 2-2/2-7/…`のようなスラッシュ連結表記を含む）を横断grepし、
+   旧番号を指す記述が残っていないか1件ずつ確認する。
+   ```bash
+   git grep -nE '[0-9]-[0-9]' -- '*.md' '*.sh' '*.html' | grep -vE '^(plans|worklog|reports)/'
+   ```
+   ヒット件数はSKILL.md単体で数十件規模になりうるため、今回変更した番号（旧番号→新番号）を
+   先に列挙してから、その旧番号だけを対象に絞り込むと確認が現実的になる。
+2. `plans/` `worklog/` `reports/`配下はタスク単位で削除される成果物のため走査対象から除外して
+   よいが、**除外はディレクトリ単位ではなくファイル単位で判断する**。`plans/REVIEW-POINTS.md`
+   `reports/REVIEW-POINTS.md`はこれらのディレクトリ直下にありながら寿命が永続のため、
+   ディレクトリ除外だと巻き添えですり抜ける（issue #70で実際に踏んだ実例は
+   `.claude/rules/docs-workflow.md`「DDR番号の繰り下げ（改番）でも、この制限は同じように効く」
+   直後の段落が正——本節では重複説明しない）。
+3. ヒットした記述が**現在の状態を説明しているか、過去の記録（point-in-time）か**で判断する
+   （ファイルの種類では判断しない）。`.claude/docs/spec/*.md` `.claude/docs/ddr/*.md`の過去
+   changelog・DDR本文だけでなく、`.claude/scripts/`配下のコメント（例:
+   `cleanup-task.sh`冒頭の「当時のflow-idは5-1。issue #112の並べ替えで5-3に…」、
+   `vcs/Gitlab.sh` `vcs/Github.sh`の同種のコメント）も同じ性質のpoint-in-time記録であり、
+   書き換えない。現在の状態を説明する節・コメントのみ、新しい番号へ更新する。
+4. 確認した結果（何件見つかり、どう対処したか）を、そのissueの`reports/`（結果記録）または
+   コミットメッセージへ残す。
+
+背景・却下案は `.claude/docs/ddr/i0143-01-flow-id並べ替え時の確認手順をSKILL.mdへ明記しDDRで記録する.md` を参照。
+
 ## サブコマンド
 
 呼び出しは `/issue-mr-flow <サブコマンド> [引数]` の形。
