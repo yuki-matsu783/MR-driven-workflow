@@ -1,0 +1,294 @@
+<!--
+【実装反映】の結果レポートの人間レビュー用HTMLビュー。
+  土台: .claude/skills/issue-mr-flow/assets/reports.template.html
+
+  正文は同名の .md 側で、このHTMLはその視覚化である（節の見出しはmd側と1対1に対応させている）。
+  flow-id 5-4 で .md とまとめて削除する。外部依存を持たない自己完結HTML。
+-->
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>実装反映の結果: setup-gemini-links.sh の失敗握りつぶし — issue #26</title>
+<style>
+  :root {
+    --bg: #f6f7f9;      --panel: #ffffff;   --ink: #1a1d21;     --muted: #5b636d;
+    --line: #dfe3e8;    --accent: #2563eb;  --accent-soft: #eaf0fe;
+    --ok: #1a7f4b;      --ok-soft: #e6f4ec; --warn: #a35a00;    --warn-soft: #fdf1e0;
+    --stop: #b3261e;    --stop-soft: #fdecea; --code-bg: #f0f2f5;
+    --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1216;    --panel: #161a20;   --ink: #e6e8eb;     --muted: #9aa3ad;
+      --line: #2a3038;  --accent: #7aa2f7;  --accent-soft: #1b2333;
+      --ok: #6ee7a8;    --ok-soft: #14261d; --warn: #f0b866;    --warn-soft: #2a2113;
+      --stop: #f2857c;  --stop-soft: #2b1614; --code-bg: #1d222a;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", system-ui, sans-serif;
+    line-height: 1.8; font-size: 15px;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 20px 80px; }
+
+  /* 共通ヘッダ帯 */
+  header.band {
+    background: linear-gradient(135deg, var(--accent-soft), var(--panel));
+    border-bottom: 1px solid var(--line); padding: 28px 20px 22px; margin-bottom: 28px;
+  }
+  header.band .inner { max-width: 1080px; margin: 0 auto; }
+  header.band .kind { font-size: 11px; letter-spacing: .18em; color: var(--accent); font-weight: 700; }
+  header.band h1 { margin: 6px 0 4px; font-size: 26px; line-height: 1.4; }
+  header.band .lead { margin: 0; color: var(--muted); }
+  .meta { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; padding: 0; list-style: none; }
+  .meta li {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 999px;
+    padding: 3px 12px; font-size: 12.5px; color: var(--muted); white-space: nowrap;
+  }
+  .meta li b { color: var(--ink); font-weight: 600; }
+
+  nav.toc {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 14px 20px; margin-bottom: 28px;
+  }
+  nav.toc h2 { margin: 0 0 8px; font-size: 13px; letter-spacing: .08em; color: var(--muted); border: 0; padding: 0; }
+  nav.toc ol { margin: 0; padding-left: 20px; }
+  nav.toc li { margin: 2px 0; }
+  a { color: var(--accent); }
+
+  section {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 8px 24px 22px; margin-bottom: 22px;
+  }
+  h2 { font-size: 20px; margin: 20px 0 10px; padding-bottom: 8px; border-bottom: 2px solid var(--line); }
+  h3 { font-size: 16px; margin: 22px 0 8px; color: var(--accent); }
+  p { margin: 10px 0; }
+  ul, ol { padding-left: 22px; }
+  li { margin: 4px 0; }
+  blockquote { margin: 10px 0; padding: 6px 14px; border-left: 3px solid var(--line); color: var(--muted); }
+
+  /* 表は自身の中で横スクロールする（ページ本体は横スクロールさせない） */
+  .tablewrap { overflow-x: auto; margin: 14px 0; }
+  table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 14px; }
+  th, td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: var(--accent-soft); font-weight: 600; white-space: nowrap; }
+  tbody tr:nth-child(even) td { background: color-mix(in srgb, var(--line) 22%, transparent); }
+
+  code {
+    background: var(--code-bg); border-radius: 5px; padding: 1px 5px; font-size: 13px;
+    font-family: "SFMono-Regular", Consolas, "Noto Sans Mono", monospace;
+  }
+  pre {
+    background: var(--code-bg); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 12px 14px; overflow-x: auto; font-size: 13px; line-height: 1.65;
+  }
+  pre code { background: none; padding: 0; }
+
+  /* 注意ボックス: info（既定）/ ok（決めたこと）/ warn（注意）/ stop（やらないこと・危険） */
+  .box { border-left: 4px solid var(--accent); background: var(--accent-soft);
+         border-radius: 0 var(--radius) var(--radius) 0; padding: 12px 16px; margin: 16px 0; }
+  .box > :first-child { margin-top: 0; } .box > :last-child { margin-bottom: 0; }
+  .box .label { font-size: 12px; font-weight: 700; letter-spacing: .06em; display: block; margin-bottom: 4px; }
+  .box.ok { border-color: var(--ok); background: var(--ok-soft); } .box.ok .label { color: var(--ok); }
+  .box.warn { border-color: var(--warn); background: var(--warn-soft); } .box.warn .label { color: var(--warn); }
+  .box.stop { border-color: var(--stop); background: var(--stop-soft); } .box.stop .label { color: var(--stop); }
+  .box.info .label { color: var(--accent); }
+
+  .tag { display: inline-block; border-radius: 999px; padding: 1px 9px; font-size: 12px; font-weight: 600; }
+  .tag.ok { background: var(--ok-soft); color: var(--ok); }
+  .tag.warn { background: var(--warn-soft); color: var(--warn); }
+  .tag.stop { background: var(--stop-soft); color: var(--stop); }
+
+  footer { color: var(--muted); font-size: 13px; text-align: center; padding-top: 10px; }
+</style></head>
+<body>
+
+<header class="band">
+  <div class="inner">
+    <div class="kind">反映結果レポート / flow-id 4-6</div>
+    <h1>実装反映の結果: setup-gemini-links.sh の失敗握りつぶし</h1>
+    <p class="lead">コピーの失敗が成功として報告される経路を3つ塞いだ（計画では2つの想定）。追加した5つの表明はすべて、修正前の実装で実際に落ちることを確認してから書いた。</p>
+    <ul class="meta">
+      <li><b>issue</b> #26</li>
+      <li><b>PR</b> #154</li>
+      <li><b>フェーズ</b> 4〈反映〉 flow-id 4-6</li>
+      <li><b>種別</b> 【実装反映】</li>
+      <li><b>実施順</b> 3件のうち1番目</li>
+      <li><b>テスト</b> 18ファイル passed=1147</li>
+      <li><b>正文</b> 同名の .md</li>
+    </ul>
+  </div>
+</header>
+
+<div class="wrap">
+
+<nav class="toc">
+  <h2>目次</h2>
+  <ol>
+    <li><a href="#conclusion">結論</a></li>
+    <li><a href="#fixed">直した3箇所</a></li>
+    <li><a href="#why">なぜ set -e では止まらないのか</a></li>
+    <li><a href="#assertions">追加した表明（5件）</a></li>
+    <li><a href="#pitfall">テストを書く過程で踏んだ落とし穴</a></li>
+    <li><a href="#verify">検証</a></li>
+    <li><a href="#diff-from-plan">計画との差分</a></li>
+  </ol>
+</nav>
+
+<section id="conclusion">
+  <h2>結論</h2>
+
+  <p><b>コピーの失敗が成功として報告される経路を3つ塞いだ。</b>計画では2つ
+  （<code>place_real_copy</code> と呼び出し側）を想定していたが、実装中に<b>同じ類型がもう1つ</b>
+  見つかった（<code>sync_real_copy</code> の <code>pwd -P</code> 失敗が「リンクとみなします」という
+  成功で終わる）。</p>
+  <div class="box ok">
+    <span class="label">回帰テスト</span>
+    5つの表明を追加し、<b>5つすべてが修正前の実装で実際に落ちる</b>ことを確認してから書いた。
+    単体テストは <b>18ファイル / <code>passed=1147 failures=0</code></b>。
+  </div>
+
+</section>
+
+<section id="fixed">
+  <h2>直した3箇所</h2>
+
+  <h3>1. <code>place_real_copy</code>（受け入れ条件7のフォールバック経路）</h3>
+<pre><code># 前
+place_real_copy() {
+  mkdir -p "$link_path"
+  cp -R "${target_path}/." "${link_path}/"     # 失敗しても止まらない
+  cat &lt;&lt;MSG
+作成しました（実体コピー）: .gemini/${name}   # 失敗しても出る</code></pre>
+  <p><code>run_or_fail &lt;説明&gt; &lt;コマンド...&gt;</code> を新設し（<code>install-to-project.sh</code> の
+  同名関数と同じ形）、<code>mkdir</code> と <code>cp</code> の終了コードを検査して非0で戻すようにした。
+  <b>成功メッセージより先に、失敗しうる操作を済ませて検査する</b>順序へ変えている。</p>
+
+  <h3>2. <code>setup_target</code> の呼び出し側（2箇所）</h3>
+<pre><code># 前                                    # 後
+sync_real_copy "$t" "$l"                sync_real_copy "$t" "$l" || return 1
+return 0
+...
+place_real_copy "$n" "$l" "$t"          place_real_copy "$n" "$l" "$t" || return 1
+return 0                                return 0</code></pre>
+  <p><code>return 0</code> が戻り値を見ずに成功を確定させていた。</p>
+
+  <h3>3. <code>sync_real_copy</code> のパス解決（<b>計画に無かった。実装中に見つけた</b>）</h3>
+<pre><code>src_real="$(cd "$src" &amp;&amp; pwd -P)"
+dst_real="$(cd "$dst" &amp;&amp; pwd -P)"
+if [ "$src_real" = "$dst_real" ]; then
+  printf 'skip（.claude/ と同じ実体を指しています。リンクとみなします）: %s\n' "$dst"
+  return 0</code></pre>
+  <div class="box warn">
+    <span class="label">より悪い形</span>
+    <code>cd</code> が失敗すると両方が<b>空文字列</b>になり、空同士は等しいので
+    <b>「リンクとみなします」と表示して成功で戻る</b>。同じ「失敗が成功として報告される」類型で、
+    しかも<b>「安全のための二重の確認」として置かれた行</b>が誤動作する。
+    どちらかが空なら明示的に失敗させるようにした。
+  </div>
+
+</section>
+
+<section id="why">
+  <h2>なぜ set -e では止まらないのか</h2>
+
+  <p><code>main</code> は各対象を <code>setup_target "$t" || fail=1</code> という<b>条件式の中で</b>
+  呼ぶ（1つ失敗しても残りを試すため）。bashはこの評価中、<code>set -e</code> の
+  「失敗したら即座に終了する」動作を<b>呼ばれた関数の内部にまで及んで</b>一時停止させる
+  （<code>.claude/rules/shell-script-style.md</code>「bashでのtry/catch相当の書き方」）。</p>
+  <p>したがって <code>cp</code> / <code>mkdir</code> / 代入の失敗は、<b>明示的に終了コードを検査しない
+  限り伝わらない</b>。<code>|| fail=1</code> という呼び方自体は意図どおりなので変えず、内部の検査で
+  対処した（この理由を <code>run_or_fail</code> の直上のコメントへ残した）。</p>
+
+</section>
+
+<section id="assertions">
+  <h2>追加した表明（5件）</h2>
+
+  <p><code>.claude/scripts/test/test_setup_gemini_links.sh</code>（<code>passed=24</code> → <code>29</code>）。
+  <code>ln</code> / <code>cmd.exe</code> に加えて <b><code>cp</code> も失敗させるスタブ</b>をPATHの先頭へ置き、
+  「リンクが作れず実体コピーへフォールバックしたが、そのコピーも失敗した」状況を作る。</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>#</th><th>表明</th><th>修正前</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td><code>main</code> の集約が非0で終わる</td><td><b>落ちる</b>（0で終わっていた）</td></tr>
+      <tr><td>2</td><td>成功メッセージ（<code>作成しました</code>）を出さない</td><td><b>落ちる</b>（5件出ていた）</td></tr>
+      <tr><td>3</td><td>エラーが標準エラーへ出る</td><td><b>落ちる</b>（何も出なかった）</td></tr>
+      <tr><td>4</td><td>どの操作が失敗したかを示す</td><td><b>落ちる</b></td></tr>
+      <tr><td>5</td><td><b>再実行経路</b>（<code>sync_real_copy</code>）でも非0で終わる</td><td><b>落ちる</b></td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p><b>表明5は、1〜4とは通る分岐が違う</b>（<code>place_real_copy</code> ではなく
+  <code>sync_real_copy</code>）。実体コピー状態を先に作ってから <code>cp</code> を失敗させている。</p>
+
+</section>
+
+<section id="pitfall">
+  <h2>テストを書く過程で踏んだ落とし穴</h2>
+
+  <p><b>表明ごとに新しい木を使う必要があった。</b> 最初は1つの木を使い回していたが、1回実行すると
+  <code>.gemini/&lt;name&gt;</code> が（中身は空のまま）出来上がるため、2回目以降は <code>absent</code> ではなく
+  <b><code>real</code> 経路</b>に入る。その結果、</p>
+  <ul>
+    <li>表明2（「<code>作成しました</code> を出さない」）が<b>修正前でも通ってしまっていた</b>。
+      2回目は「作成しました」ではなく「更新します」を出すためである。</li>
+  </ul>
+  <div class="box warn">
+    <span class="label">気づけた理由</span>
+    <b>「修正前で落ちること」を確認していなければ、この空振りに気づけなかった。</b>
+    フェーズ3の敵対的レビュー2回目で「自分の書いた回帰テストが blocker を検出できていなかった」
+    という失敗を踏んでおり、その手順（直す前の実装へ当てて落ちることを見る）がここで効いた。
+  </div>
+
+</section>
+
+<section id="verify">
+  <h2>検証</h2>
+
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>検証</th><th>結果</th></tr></thead>
+    <tbody>
+      <tr><td><code>bash -n .claude/scripts/src/setup-gemini-links.sh</code></td><td>OK</td></tr>
+      <tr><td><code>test_setup_gemini_links.sh</code></td><td><code>passed=29 failures=0</code>（追加前は24）</td></tr>
+      <tr><td><b>修正前の実装に対して同じテスト</b></td><td><code>passed=24 failures=5</code>（追加した5件がすべて落ちる）</td></tr>
+      <tr><td>単体テスト全体</td><td>18ファイル / <b><code>passed=1147 failures=0</code></b></td></tr>
+      <tr><td>網羅性チェック</td><td>追跡ファイル 218/218 件・<code>.gitignore</code> 13/13 行・空振り0件・不正0件</td></tr>
+      <tr><td><code>.claude/VERSION</code> の差分</td><td><b>無し</b>（据え置きが確定しているため差分が出たら異常）</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p>網羅性の分母が 212 → 218 に増えているのは、フェーズ4で <code>plans/</code> へ計画6件（md・html）を
+  足したためで、テストファイルは増えていない（計画の想定どおり）。</p>
+
+</section>
+
+<section id="diff-from-plan">
+  <h2>計画との差分</h2>
+
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>計画</th><th>実際</th></tr></thead>
+    <tbody>
+      <tr><td>直すのは <code>place_real_copy</code> と呼び出し側</td><td><b><code>sync_real_copy</code> のパス解決も</b>（3箇所目。実装中に発見）</td></tr>
+      <tr><td>表明は4件</td><td><b>5件</b>（再実行経路の分を追加）</td></tr>
+      <tr><td><code>sync_real_copy</code> にも同じ握りつぶしが無いか確認する</td><td>確認した結果、<code>cp -R</code> と <code>pwd -P</code> の<b>2つ</b>あった</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p>計画の「<code>sync_real_copy</code> にも同じ握りつぶしが無いかを併せて確認し、あれば同じ形で直す」
+  という一文が実際に効いた。<b>「ついでに見る」ではなく計画へ書いていたから見た。</b></p>
+
+</section>
+
+<footer>issue #26 / PR #154 — 結果の正文は同名の <code>.md</code>。外部依存を持たない自己完結HTML。</footer>
+
+</div>
+</body>
+</html>
