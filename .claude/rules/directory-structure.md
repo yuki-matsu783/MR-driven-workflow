@@ -51,10 +51,10 @@ keywords: [ディレクトリ構成, claude, gemini, 配置方針, plans, worklo
 │   └── settings.json           # `.claude/settings.json`をGemini CLIの記法へ変換したもの
 ├── .github/
 │   ├── ISSUE_TEMPLATE/          # GitHub用issueテンプレート（目的・現状・期待する動作・受け入れ条件）
-│   └── pull_request_template.md # GitHub用PRテンプレート（`describe`が生成するdescriptionと同一構成）
+│   └── pull_request_template.md # GitHub用PRテンプレート。**見出し構成の正**（`describe`がこれを読む）
 ├── .gitlab/
 │   ├── issue_templates/         # GitLab用issueテンプレート（同上）
-│   └── merge_request_templates/ # GitLab用MRテンプレート（`Default.md`。PRテンプレートと同一内容）
+│   └── merge_request_templates/ # GitLab用MRテンプレート（`Default.md`。PRテンプレートと同一内容。先頭コメントのみ固有）
 ├── plans/                      # 計画ファイル。全体作業計画（planツールが出力する`<自動命名>.md`、
 │                                #   issueにつき1つ）と個別作業計画（`【種別】タスク内容.md`、
 │                                #   planツールを使わずWrite/Editで作成）の2階層。タスクごとに

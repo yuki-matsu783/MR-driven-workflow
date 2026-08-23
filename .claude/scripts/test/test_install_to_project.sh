@@ -4,7 +4,7 @@
 # 2つの系統を持つ。
 #   A. issue #33 から**引き継いだ表明**（受け入れ条件には現れないが落としてはいけない挙動）
 #      - PR/MRテンプレート・.claude/VERSION が配布先へ配置される
-#      - PR/MRテンプレートの見出しが `describe` サブコマンドの生成物と一致する
+#      - PR/MRテンプレートの見出しが期待どおりである（issue #145 で3種類の検査へ差し替え）
 #      - .gitattributes は丸ごと置き換えず「行追記」で反映される（.bak を作らない）
 #      - 末尾に改行が無くても連結しない
 #      - 何度適用しても追記行が増えない（**配布先がCRLFの場合も含む**）
@@ -98,28 +98,95 @@ assert_eq "配布先のVERSIONが本家と一致する" \
 assert_eq "配布先の.gitignoreへローカル設定の除外が入る" \
   "1" "$(grep -cFx -- '/.claude/settings.local.json' "$dest_new/.gitignore" || true)"
 
-# PR/MRテンプレートの見出しは、`describe` サブコマンドが生成するdescriptionと一致していること。
-# **2つのテンプレート同士を比べるだけでは足りない**（両方が同時にずれた場合に通ってしまう）。
-# 正である SKILL.md の `describe` 節から見出しを抜き出し、3者で突き合わせる。
-describe_headings() {
+# PR/MRテンプレートの見出しは、issue #145 の10節構成であること。
+#
+# **正はテンプレートファイル（`.github/pull_request_template.md`）側にある**（issue #145、案B）。
+# `review-loop.md` の `describe` 節はテンプレートを読む手順だけを持ち、見出しを列挙しない。
+# したがって、かつてのように `describe` 節から見出しを抜き出して3者一致を見ることはできない。
+#
+# 代わりに3種類を検査する。
+#   (a) 見出し: 期待値の10節と、テンプレート2本の見出し行が順序込みで一致する
+#   (b) 全文  : 先頭のHTMLコメントブロックだけを除いた2本の全文差分が空である
+#   (c) 参照  : `describe` 節がテンプレート2本のパスを両方とも参照している
+#
+# **(a) の期待値をここへ書き下すことは「二重管理」ではない。** これは正ではなく**検査**であり、
+# これが無いと「2本を比べるだけでは足りない（両方が同時にずれると通ってしまう）」という
+# 従来からの趣旨が守れなくなる。テンプレートの見出しを変えるときは、ここも同じコミットで直す。
+#
+# **(b) が要る理由**: (a) は見出し行しか見ないため、各節のHTMLコメント（＝記入ガイド。
+# 10節構成の実質的な中身で、「特になし」と「未実施」の書き分け定義もここにある）が
+# 片方だけずれても検出できない。
+#
+# **(c) が要る理由**: (a)(b) はテンプレート側しか見ない。案Bの成立条件である
+# 「`describe` 節がテンプレートファイルを読むと書いてあること」が誰かの編集で無言で
+# 失われても、(a)(b) だけでは落ちない。
+expected_headings="$(sed 's/^| //' <<'EXPECTED'
+| Closes #<issue番号>
+| ## 概要
+| ## 変更内容
+| ## 設計判断・採らなかった案
+| ## 検証
+| ## レビューの結果
+| ## 意図的にやらなかったこと・スコープ外
+| ## 未解決・限界・確かめられなかったこと
+| ## 受け入れ条件との対応
+| ## 反映先・関連
+| ## 備考
+EXPECTED
+)"
+
+# 先頭のHTMLコメントブロックだけを除く。
+# **`sed` の範囲指定（`1,/-->/d`）では書けない**（issue #145 で実測）。範囲は1行目で開始して
+# しまうと終端が現れるまで伸び続けるため、(1) 終端が行末に付く形（`<!-- 説明 -->`）では
+# 最初の節の記入ガイドまで削り、(2) 先頭にコメントが無い場合はEOFまで削る。どちらも
+# 「本文が食い違っているのに差分なし」になる。状態を持つ awk で書く。
+strip_lead_comment() {
+  awk 'NR==1 && /^[[:space:]]*<!--/ { lead = 1 }
+       lead { if (/-->/) lead = 0; next }
+       { print }' "$1"
+}
+
+for rel in .github/pull_request_template.md .gitlab/merge_request_templates/Default.md; do
+  # (a) 見出しが期待値と順序込みで一致する
+  assert_eq "テンプレートの見出しが10節構成と一致する: $rel" \
+    "$expected_headings" "$(grep -E '^(Closes|## )' "$dest_new/$rel")"
+
+  # 実データ側が空でないこと。期待値はここに書いたリテラルなので「期待値が非空」を表明しても
+  # 恒真になり、落ちる入力が存在しない。空振りを検出できるのは実データ側の表明だけである。
+  if [ -n "$(grep -E '^(Closes|## )' "$dest_new/$rel")" ]; then found=1; else found=0; fi
+  assert_eq "テンプレートから見出しを抽出できている（空振りでない）: $rel" "1" "$found"
+
+  # (b) の前提。除外が伸びすぎ／効かなすぎだと 0行または1行になる。
+  stripped_lines="$(strip_lead_comment "$dest_new/$rel" | grep -c '' || true)"
+  if [ "$stripped_lines" -gt 1 ]; then found=1; else found=0; fi
+  assert_eq "先頭コメント除外後が2行以上ある（除外が壊れていない）: $rel ($stripped_lines行)" "1" "$found"
+done
+
+# (b) 先頭のHTMLコメントブロックだけを除いた全文が2本で一致する。
+# 先頭コメントはプロバイダ固有（GitLab版だけが `Default.md` 予約名の説明を持つ）なので除外する。
+if diff \
+    <(strip_lead_comment "$dest_new/.github/pull_request_template.md") \
+    <(strip_lead_comment "$dest_new/.gitlab/merge_request_templates/Default.md") \
+    >/dev/null 2>&1; then
+  found=1
+else
+  found=0
+fi
+assert_eq "テンプレート2本が先頭コメント以外で完全に一致する" "1" "$found"
+
+# (c) `describe` 節がテンプレート2本のパスを両方とも参照している。
+describe_section() {
   awk '
     /^### `describe`/ { in_section = 1; next }
     /^### /           { in_section = 0 }
     /^## /            { in_section = 0 }
-    in_section && /^[[:space:]]*(Closes|## )/ {
-      sub(/^[[:space:]]+/, "", $0); print
-    }
-  ' "${REPO_ROOT}/.claude/skills/issue-mr-flow/references/review-loop.md"
+    in_section
+  ' "$dest_new/.claude/skills/issue-mr-flow/references/review-loop.md"
 }
-expected_headings="$(describe_headings)"
-
-# 期待値そのものが空になっていないか（SKILL.mdの節名が変わると抽出が空振りし、
-# 「空同士の一致」で常に通るテストになる）。
-assert_eq "describeの見出しを3行抽出できている" "3" "$(printf '%s\n' "$expected_headings" | grep -c .)"
-
 for rel in .github/pull_request_template.md .gitlab/merge_request_templates/Default.md; do
-  assert_eq "describeの生成物と見出しが一致する: $rel" \
-    "$expected_headings" "$(grep -E '^(Closes|## )' "$dest_new/$rel")"
+  refs="$(describe_section | grep -cF -e "$rel" || true)"
+  if [ "$refs" -ge 1 ]; then found=1; else found=0; fi
+  assert_eq "describe節がテンプレートを参照している: $rel ($refs件)" "1" "$found"
 done
 
 assert_eq "配布先の.gitattributesへ*.shの指定が入る" \

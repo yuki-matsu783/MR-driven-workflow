@@ -29,13 +29,20 @@ LICENSEも当初の対象だったが、**同梱しないと決めた**（
 | `.github/pull_request_template.md` | GitHub |
 | `.gitlab/merge_request_templates/Default.md` | GitLab（`Default.md` は既定適用される予約名。DDR i0032-01と同じ理由） |
 
-**両者の見出し構成は、`issue-mr-flow` の `describe` サブコマンドが生成するdescriptionと同一**に
-する（`Closes #<issue番号>` → `## Plan` → `## 実装状況`）。
+**見出し構成の正は `.github/pull_request_template.md` そのものである**（issue #145）。
+`describe` サブコマンドはこのファイルを読んで見出しを決めるため、両者は構造的に一致する。
+**この仕様書へ見出しを列挙しない**——列挙すると正が2つになり、片方だけが古くなる
+（同じ判断を issue #54 が計画・レポートのHTMLビューで下している。経緯: DDR `i0145-01`）。
 
-- **見出しを増やさない。** `describe` は `set_mr_description` でdescriptionを**全文置換**するため、
-  テンプレートにしか無い見出しは flow-id 2-5 の初回 `describe` で消える。
+- **GitLab版はGitHub版の複製である。** 先頭のHTMLコメント（`Default.md` が予約名であることの
+  説明。プロバイダ固有）を除いた本文が一致していることを、
+  `.claude/scripts/test/test_install_to_project.sh` が機械的に検査する。
+- **見出しを増やしてよいのは、この配布元リポジトリでの話である。** `describe` がテンプレートを
+  読む以上、テンプレートにしか無い見出しは生じない（旧方式では初回 `describe` で消えていた）。
+  ただし配布先ではこのファイルは `core` 層として**再適用のたびに上流の内容で上書きされる**ため、
+  配布先で増やした見出しは次の再適用で失われる。この非対称をテンプレートの先頭コメントにも書く。
 - **記入ガイドはHTMLコメントで置く。** GitHub/GitLabの表示に出ず、`describe` に置換されても
-  情報を失わない。
+  情報を失わない。記入ガイドは `describe` への指示であり、descriptionへは書き出さない。
 - **frontmatterを付けない。** issueテンプレートと同じ理由で、本文へYAMLがそのまま挿入されるため
   （`.claude/rules/markdown-frontmatter.md`「対象外・特殊対応ファイル」）。
 
@@ -117,9 +124,10 @@ LICENSEも当初の対象だったが、**同梱しないと決めた**（
   ため、配布先が触っていなければ改変とはみなさず、警告も `.bak` も出ない。**上流の変更と配布先の
   改変を区別できるようになったことで、例外指定そのものが不要になった**（`.claude/VERSION` は
   `.claude` エントリの `core` として、他のファイルと同じ扱いで配られる）。
-- **PR/MRテンプレートは `seed` ではなく `core` である。** 見出し構成は `describe` が生成する
-  descriptionと一致していなければならず（上記「PR/MRテンプレート」節）、配布先が独自に書き換える
-  ことを想定しない。配布先が実際に書き換えていれば、`.bak` 退避と一覧で気づける。
+- **PR/MRテンプレートは `seed` ではなく `core` である。** このファイル自身が見出し構成の正であり
+  （上記「PR/MRテンプレート」節）、`describe` がここを読む以上、配布先ごとに分岐させると
+  `describe` の挙動まで分岐する。だから配布先が独自に書き換えることを想定しない。配布先が実際に
+  書き換えていれば、`.bak` 退避と一覧で気づける。
 
 `.gitattributes` の行追記（`merge` / `lines-marker`）には次の性質がある（
 [DDR i0033-03](../ddr/i0033-03-gitattributesは配布先へ丸ごとコピーせず必要な行だけ追記する.md)。

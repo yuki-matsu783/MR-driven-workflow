@@ -128,25 +128,38 @@ keywords: [comments, reply, describe, 敵対的レビュー, レビュー依頼,
 
 ### `describe` — MR descriptionの更新（全体フロー 2-5・2-10・3-5・3-10・4-5・4-10）
 
-1. `get_branch_work_files` で現在のブランチ固有の計画・worklogを列挙し、**全体作業計画**
-   （`plans/` 配下で `【` で始まらないもの）と**下位の個別計画**（`plans/【*.md`）、および
-   worklogの要点を読む。
-2. 以下のテンプレートでMR description本文を組み立て、一時ファイルへ書き出す。
+**この節に見出し構成を列挙しない。** 見出しの正はテンプレートファイル側にあり、ここへ写すと
+二重管理になる（issue #145。型を変えたいときは、この節ではなくテンプレートの中身を差し替える。
+計画・レポートのHTMLビューで issue #54 が下したのと同型の判断）。
 
-   ```markdown
-   Closes #<issue番号>
+1. `get_branch_work_files` で現在のブランチ固有の作業ファイルを列挙し、**全体作業計画**
+   （`plans/` 配下で `【` で始まらないもの）・**下位の個別計画**（`plans/【*.md`）・**worklog**
+   （`worklog/` 配下）・**レポート**（`reports/` 配下）の要点を読む。
+   - **`reports/` を落とさない。** `get_branch_work_files` は `plansDir` / `worklogDir` /
+     `reportsDir` の3つを列挙しており、調査結果・作業結果の**正文は `reports/` にある**
+     （`.claude/rules/docs-workflow.md`）。テンプレートの `## 検証`
+     `## 設計判断・採らなかった案` はここの結論を転記する節なので、読まないと材料が手に入らない。
+2. `get_provider` で判定したプロバイダに対応するテンプレートファイルを**リポジトリルートからの
+   相対パス**で読み、その見出し構成に従ってMR description本文を組み立て、**一時ファイルへ
+   書き出す**。
 
-   ## Plan
+   | プロバイダ | 読むファイル |
+   |---|---|
+   | `github` | `.github/pull_request_template.md` |
+   | `gitlab` | `.gitlab/merge_request_templates/Default.md` |
 
-   <全体作業計画の要約＋各個別計画の要点。計画が複数ある場合は、
-    どのフェーズまで進んでいるかが分かるようにまとめる>
-
-   ## 実装状況
-
-   <worklogの「うまくいったこと」等から、現時点までの実装内容の要約。plan段階では「未着手」>
-   ```
-
+   - **各節のHTMLコメント（記入ガイド）は指示であり、descriptionへは書き出さない。**
+     書き出すのは `Closes` 行と見出し、および各節の中身だけである。
+   - 記入ガイドが定める書き分け（`特になし` ＝ 検討した結果書くことが無かった /
+     `未実施` ＝ まだその段階に達していない）に従う。
+   - **テンプレートファイルが読めない場合は、本文を組み立てずにその旨を提示して止まる。**
+     見出しを推測して埋めない（推測すると、テンプレートを正とした意味が実行時に失われる）。
+     `get_provider` 自体が失敗する場合（`git remote get-url origin` が取れない等）も同じ。
+   - **一時ファイルへ書き出すのを省略しない。** 手順3の `set_mr_description` がファイルパスを
+     受け取る設計であり、長文をコマンド文字列へ直接埋め込まないため（`.claude/rules/git-workflow.md`
+     「push検知hookの誤検知」・`.claude/rules/shell-script-style.md`「JSON操作」）。
 3. `get_mr_for_branch "$(git branch --show-current)"` で現在のブランチに紐づくMR番号を取得し
+   （`comments` の手順1と同じ）、`set_mr_description <n> <一時ファイル>` で反映する。
    （`comments` の手順1と同じ）、`set_mr_description <n> <一時ファイル>` で反映する。
 
 ## チャットで受けたレビュー判断の記録（全体フロー 2-4・2-9・3-4・3-9・4-4・4-9）
