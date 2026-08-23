@@ -15,77 +15,116 @@ keywords: [docs-workflow.md, SKILL.md, flow-id, reports, 矛盾, 再発防止策
 
 | # | 問い／やったこと | 結論 | 根拠の性質 |
 |---|---|---|---|
-| 1 | issueが報告した矛盾は現在も残っているか | **既に解消済み**。issue #143とは無関係のPR #144（issue #111対応）により、`reports/`行を含む全ての「片付け」言及がflow-id 5-4に統一されている | 実測（grep・git diff） |
-| 2 | 「片付け＝flow-id 5-1」と読める現行記述はリポジトリ全体に残っているか | **残っていない**。全ての現行のflow-id 5-1言及はコンフリクト解消の意味で正しく使われている | 実測（リポジトリ全体の横断grep、25ファイルを個別分類） |
-| 3 | issueの受け入れ条件(1)「flow-id 5-3を指している」は現在も正しいか | **正しくない（番号がさらに繰り下がった）**。issue #143起票（2026-08-20）後、PR #144（2026-08-21、issue #111「最終統括レポート」対応）で片付けは5-3→5-4へ繰り下がった。受け入れ条件は「SKILL.mdの現行テーブルが片付けとして指す番号（現在は5-4）」と読み替えるのが妥当 | 実測（git log、issue日時の突合） |
-| 4 | spec/ddrの過去changelogは変更されていないか | **変更されていない**（削除行0件）。本タスクではdocs-workflow.md本体・spec・ddrのいずれも未変更 | 実測（`git diff`） |
-| 5 | flow-id参照の整合性を機械的に検証する既存の仕組みはあるか | **無い**。`.claude/scripts/src/` `.claude/hooks/`配下に該当する仕組みは存在しない | 実装の確認 |
+| 1 | issueが報告した矛盾は現在も残っているか | **既に解消済み**。issue #143とは無関係のPR #144（issue #111対応）により、`reports/`行を含む全ての「片付け」言及がflow-id 5-4に統一されている（解消前後の断面比較で確認） | 実測（前後比較・grep集計） |
+| 2 | 「片付け＝flow-id 5-1」と読める現行記述はリポジトリ全体に残っているか | **残っていない**（追跡下の`.md`・`.sh`・`.html`計30件を分類し、現行記述はすべてコンフリクト解消の意味か正しい経緯付きの参照だった） | 実測（リポジトリ全体の横断grep、内訳を集計） |
+| 3 | issueの受け入れ条件(1)「flow-id 5-3を指している」は現在も正しいか | **正しくない（番号がさらに繰り下がった）**。issue #143起票時点（UTC 2026-08-20T20:04:04Z）で既にPR #125（issue #112、UTC 2026-08-20T11:09:23Z）はマージ済みで片付けは5-3だったが、翌日のPR #144（issue #111、UTC 2026-08-21T09:27:32Z）で5-4へ繰り下がった | 実測（git log、issueとPRのUTC時刻突合） |
+| 4 | spec/ddrの過去changelogは変更されていないか | **変更されていない**（分岐点SHA固定での`git diff`が空。比較対象ディレクトリの追跡ファイル数も併記） | 実測（`git diff`、分岐点SHA固定） |
+| 5 | flow-id参照の整合性を機械的に検証する既存の仕組みはあるか | **無い**。`.claude/scripts/src/` `.claude/hooks/`配下に該当する仕組みは存在しない | 実装の確認（該当ディレクトリの全ファイルを確認） |
 | 6 | 再発防止策として何を採るべきか | **機械的検知の新設は見送り、flow-id並べ替え作業時の確認手順をSKILL.mdへ明記し、意思決定をDDRとして記録する**（詳細はフェーズ3で設計） | ドキュメントの読解＋比較検討 |
 
 ## 実施条件（測った対象・環境）
 
 - 実行環境: Claude Code on the web（リモート実行環境）
-- 対象ブランチ: `claude/docs-workflow-reports-timing-4gfc5v`（分岐元 `origin/main`、分岐時点でdocs-workflow.mdは未変更）
+- 対象ブランチ: `claude/docs-workflow-reports-timing-4gfc5v`（分岐元 `origin/main`、分岐点SHA `0aa9874d18032a9a85d5bc98075511fa11ce0cc3`。分岐時点でdocs-workflow.mdは未変更）
 - 対象リポジトリ: `yuki-matsu783/MR-driven-workflow`
 - 実施日: 2026-08-23
+- 時刻表記: 特記無い限りUTC（GitHub APIの`created_at`はUTC、`git log`の出力は表示タイムゾーン`+09:00`のため、比較の際はUTCへ揃えた）
 
 ## 実施した内容と結果
 
-### 1. docs-workflow.mdの現状は矛盾していない
+### 1. docs-workflow.mdの現状は矛盾していない（解消前後の断面を比較して確認）
 
-`.claude/rules/docs-workflow.md`内の`5-[0-9]`にマッチする全番号参照を列挙し、片付け（`plans/`
-`worklog/` `reports/`の削除・HANDOFF.mdリセット）を指す箇所が全て同じ番号かを確認した。
-
-```
-$ grep -n -- '5-[0-9]' .claude/rules/docs-workflow.md
-23:...flow-id 5-4...
-24:...(flow-id 2-2/2-7/3-2/3-7/4-2/4-7/5-3/5-5)...flow-id 5-4...
-25:...flow-id 5-4...flow-id 5-4...
-26:...flow-id 5-4...
-27:...(および5-3の統括レポート)...flow-id 5-4...
-29:（省略・DDR行）
-38:...flow-id 5-4...
-48:...flow-id 5-4...
-61:...flow-id 5-4...
-62:...flow-id 5-4...
-```
-
-`24`行目・`27`行目の「flow-id 5-3」はそれぞれ「commit（5-3）」「統括レポート（5-3）」を指しており、
-片付け（5-4）とは別のステップを正しく参照している。片付けを指す全箇所（`reports/日付…md`行・
-`reports/日付…html`行を含む）は`flow-id 5-4`で統一されており、`SKILL.md`の現行テーブル
-（`## 全体フロー`節、5-4=片付け）とも一致する。
-
-また、この時点で作業ブランチは`docs-workflow.md`を変更していないため、`origin/main`の断面と
-作業ツリーは完全に一致することを確認した。
+`.claude/rules/docs-workflow.md`内の`flow-id 5-[0-9]`という表記（片付け・commit・統括レポート等
+フェーズ5の各ステップを指す箇所）を集計した。まず現行の作業ツリーで、この表記が使う番号を数える。
 
 ```
-$ diff <(git show origin/main:.claude/rules/docs-workflow.md) .claude/rules/docs-workflow.md
+$ grep -oE 'flow-id 5-[0-9]' .claude/rules/docs-workflow.md | sort | uniq -c
+     12 flow-id 5-4
+```
+
+現行では`flow-id 5-N`という表記は12件すべてが`5-4`で、`5-1`・`5-3`は1件も無い（`## 全体フロー`
+節・commit行・統括レポート言及等、フェーズ5の複数ステップに触れる箇所を含めて全件が5-4という
+数字だけを使っている。「flow-id 2-2/2-7/…/5-3/5-5」のように他フェーズのステップ番号と併記する
+箇所は、`flow-id N-M`が個別のステップ名として1つずつ列挙されるため、この`flow-id 5-[0-9]`という
+連続パターンには一致しない）。
+
+次に、issueが報告した矛盾が実在し、それをPR #144が解消したことを、**解消前後の断面**を直接
+比較して裏付けた。「ファイルの削除は」に続く番号（`reports/`行・`plans/`html行・`worklog/`行が
+使う表現）を、PR #144の直前コミット（`e33b468^`）・直後コミット（`e33b468`）・現行（HEAD）の
+3断面で集計した。
+
+```
+$ git show e33b468^:.claude/rules/docs-workflow.md \
+    | grep -oE 'ファイルの削除は\**flow-id 5-[0-9]' | sort | uniq -c
+      2 ファイルの削除はflow-id 5-1
+      1 ファイルの削除はflow-id 5-3
+
+$ git show e33b468:.claude/rules/docs-workflow.md \
+    | grep -oE 'ファイルの削除は\**flow-id 5-[0-9]' | sort | uniq -c
+      3 ファイルの削除はflow-id 5-4
+
+$ grep -oE 'ファイルの削除は\**flow-id 5-[0-9]' .claude/rules/docs-workflow.md | sort | uniq -c
+      4 ファイルの削除はflow-id 5-4
+```
+
+`e33b468`の直前断面では「ファイルの削除はflow-id 5-1」が2件・「ファイルの削除はflow-id 5-3」が
+1件混在しており、これがissueの報告した矛盾そのものである。`e33b468`（PR #144）でこの3件が
+すべて「flow-id 5-4」へ揃えられ、現行（HEAD）では件数が4件に増えているが（本ブランチでの
+`reports/`HTMLビュー追記等が寄与）、いずれも`5-4`のみで`5-1`・`5-3`の混在は無い。
+
+また、この時点で作業ブランチ自体は`docs-workflow.md`を変更していないため、分岐点SHA
+（`0aa9874d18032a9a85d5bc98075511fa11ce0cc3`）の断面と作業ツリーが完全に一致することも確認した。
+
+```
+$ diff <(git show 0aa9874d18032a9a85d5bc98075511fa11ce0cc3:.claude/rules/docs-workflow.md) \
+       .claude/rules/docs-workflow.md
 （差分なし）
 ```
 
 <!-- 結論box -->
-**結論**: issueが報告した矛盾は、issue #143とは無関係のPR #144（issue #111対応、commit `e33b468`、
-2026-08-21マージ）によって既に解消されている。
+**結論**: issueが報告した矛盾（5-1と5-3の混在）は実在し、issue #143とは無関係のPR #144
+（issue #111対応、commit `e33b468`、UTC 2026-08-21T09:27:32Z）によって、全箇所が`flow-id 5-4`
+へ統一される形で既に解消されている。
 
 ### 2. リポジトリ全体で「片付け＝flow-id 5-1」の現行記述を横断確認した
 
-`git ls-files`で追跡下の`.md`ファイルを対象に`5-1`を含むファイルを列挙し（25件）、`plans/`
-`worklog/` `reports/`配下（タスク単位で削除されるため対象外）を除いた22ファイルを1つずつ確認した。
+**対象を`.md`だけに限定しない。** `git ls-files`で追跡下の`.md`・`.sh`・`.html`ファイルを対象に
+`5-1`を含むファイルを列挙し、`plans/` `worklog/` `reports/`配下（タスク単位で削除されるため
+対象外）を除いた全件を1つずつ確認した。走査対象を`.sh`・`.html`へ広げたのは、DDR `i0112-01`が
+「flow-idは`HANDOFF.md`の進捗表・rules・spec・**スクリプトのコメント**へ散っている」と述べており、
+`.md`限定では見落とす可能性があるため。
 
-分類結果:
+```
+$ git ls-files -z '*.md' | xargs -0 grep -l -- '5-1' 2>/dev/null \
+    | grep -vE '^(plans|worklog|reports)/' | wc -l
+25
+$ git grep -ln -- '5-1' -- '*.sh' '*.html' | grep -vE '^(plans|worklog|reports)/' | wc -l
+5
+```
+
+**合計30件**（`.md` 25件＋`.sh`/`.html` 5件）を分類した。分類は互いに排他（1ファイルが複数の
+性質を持つ場合は「複合」として別掲）。
 
 | 分類 | 件数 | 内容 |
 |---|---|---|
-| 正当（コンフリクト解消の意味） | 多数 | `.claude/skills/issue-mr-flow/SKILL.md`・`.claude/skills/resolve-conflict/SKILL.md`・`.claude/rules/git-workflow.md`・`.claude/docs/spec/check-base-conflicts.md`・`.claude/docs/spec/check-base-sync.md`など。すべて「defaultブランチとのコンフリクトを検知・解消する」ステップとして5-1を使用しており、片付けとは無関係 |
-| 過去changelog・DDR本文（point-in-time記録） | 11 DDRファイル＋spec内のchangelog節 | `.claude/docs/ddr/i0028-01`（当時flow-id 5-1が片付けだった時代のDDR。ファイル名`flow-id5-1`も当時の番号）、`.claude/docs/spec/cleanup-task.md`・`create-commit.md`・`extract-frontmatter.md`内の「影響範囲」節（いずれも過去のissue番号時点でのflow-id番号を記録） |
-| 正しい現在値付きの参照 | 3 | `.claude/rules/markdown-frontmatter.md`182行目・`.claude/docs/spec/cleanup-task.md`13-15行目・`.claude/docs/README.md`100行目。いずれも「当時は5-1だったが、issue #112で5-3、issue #111でさらに5-4へ繰り下がった」という正しい経緯を明示している |
+| 正当（コンフリクト解消の意味、現行） | 8 | `.md`: `.claude/skills/issue-mr-flow/SKILL.md`・`.claude/skills/resolve-conflict/SKILL.md`・`.claude/rules/git-workflow.md`・`.claude/docs/spec/check-base-conflicts.md`・`.claude/docs/spec/check-base-sync.md`・`HANDOFF.md`（本レポート作成時点の進捗表）。`.sh`: `.claude/scripts/src/check-base-conflicts.sh`・`.claude/scripts/src/check-base-sync.sh`。すべて「defaultブランチとのコンフリクトを検知・解消する」ステップとして5-1を使用しており、片付けとは無関係 |
+| 過去changelog・DDR本文のみ（point-in-time記録） | 15 | 13 DDRファイル（`i0011-01`・`i0028-01`・`i0032-01`・`i0036-01`・`i0050-01`・`i0060-01`・`i0086-01`・`i0087-01`・`i0095-01`・`i0111-01`・`i0112-01`・`i0117-01`・`i0133-01`）＋`.claude/docs/spec/extract-frontmatter.md`・`.claude/docs/spec/issue-mr-workflow.md`の「影響範囲」節。`i0028-01`は当時flow-id 5-1が片付けだった時代のDDR（ファイル名`flow-id5-1`も当時の番号）。`.claude/scripts/test/test_cleanup_task.sh`162行目も過去のissueイベント（issue #97当時）の記録 |
+| 複合（過去changelog＋正しい現在値の両方を持つ） | 2 | `.claude/docs/spec/cleanup-task.md`（13-15行目は「当時は5-1、issue #112で5-3、issue #111で5-4」という正しい経緯、87/100/166/169/170行目は過去のissue番号時点での記録）・`.claude/docs/spec/create-commit.md`（31行目は現在値5-4付き、32行目は過去記録） |
+| 正しい現在値付きの参照のみ | 2 | `.claude/rules/markdown-frontmatter.md`182行目・`.claude/docs/README.md`100行目。いずれも「当時は5-1だったが、issue #112で5-3、issue #111でさらに5-4へ繰り下がった」という正しい経緯を明示している |
+| （テストフィクスチャのラベル。flow-id番号ではない） | 3 | `.claude/scripts/test/test_update_handoff_progress.sh`。テスト用の架空ステップ「スキップ対象」のラベルとして`5-1`という文字列を使っているだけで、片付け・コンフリクト解消いずれの意味でもない |
 
-**片付けの意味で「flow-id 5-1のまま」と誤って書いている現行記述は1件も見つからなかった。**
+**8+15+2+2+3=30**（母数と一致）。**片付けの意味で「flow-id 5-1のまま」と誤って書いている
+現行記述は1件も見つからなかった。**
 
 ```
-$ git diff "$(git merge-base origin/main HEAD)" -- .claude/docs/spec/ .claude/docs/ddr/
-（差分なし。削除行0件）
+$ git diff 0aa9874d18032a9a85d5bc98075511fa11ce0cc3 -- .claude/docs/spec/ .claude/docs/ddr/ | wc -l
+0
+$ git ls-files .claude/docs/spec/ .claude/docs/ddr/ | wc -l
+81
 ```
+
+分岐点SHA（`0aa9874d18032a9a85d5bc98075511fa11ce0cc3`）固定で、`spec/` `ddr/`配下81件の追跡
+ファイルに対して差分行数0を確認した（比較対象が空でないことも件数で確認済み）。
 
 <!-- 結論box -->
 **結論**: 受け入れ条件(2)（「片付け＝flow-id 5-1」と読める現行記述が他に残っていない）は満たされている。
@@ -93,27 +132,41 @@ $ git diff "$(git merge-base origin/main HEAD)" -- .claude/docs/spec/ .claude/do
 
 ### 3. issueの受け入れ条件(1)の番号は起票後にさらに繰り下がっていた
 
-flow-idの繰り下げの経緯をgit logで確認した。
+flow-idの繰り下げの経緯をgit logで確認した。**時刻はすべてUTCへ揃えて比較する**
+（GitHub APIの`created_at`はUTC固定、`git log`の既定出力は表示タイムゾーン`+09:00`のため、
+そのまま数字だけを比較すると9時間分ずれる）。
 
 ```
 $ git log --oneline --all | grep -iE "フェーズ5|統括レポート|片付け"
 e33b468 最終統括レポートを作成し、PR/MRへサマリコメントとして反映する（添付は任意ステップ） (#144)
 d48b698 フェーズ5のステップ順を コンフリクト解消 → 関連issue通知 → 片付け → Draft解除 へ並べ替える（issue #112） (#125)
 1297215 flow-id 5-1 後片付けタスク自動化スクリプト（cleanup-task.sh）の実装 (#102)
+
+$ git log -1 --format='%ad' --date=iso-strict d48b698
+2026-08-20T20:09:23+09:00   （UTC換算: 2026-08-20T11:09:23Z）
+
+$ git log -1 --format='%ad' --date=iso-strict e33b468
+2026-08-21T18:27:32+09:00   （UTC換算: 2026-08-21T09:27:32Z）
 ```
 
-| 時点 | 片付けのflow-id番号 | 出典 |
-|---|---|---|
-| issue #102まで | 5-1 | `.claude/docs/ddr/i0028-01` |
-| issue #112（PR #125、d48b698）以降 | 5-3 | `.claude/docs/ddr/i0112-01` |
-| issue #111（PR #144、e33b468、2026-08-21マージ）以降 | 5-4 | 現行`docs-workflow.md`・`SKILL.md` |
+issue #143の起票時刻は `mcp__github__issue_read` の`created_at`で取得した **`2026-08-20T20:04:04Z`
+（UTC）** である。
 
-issue #143は2026-08-20 20:04に起票されており、この時点では片付けはflow-id 5-3が正しかった
-（PR #144のマージは翌日）。つまりissueの受け入れ条件(1)「flow-id 5-3を指している」は**起票時点
-では正しい記述だった**が、その後の番号繰り下げにより現在は古くなっている。
+| 時点（UTC） | 出来事 | 片付けのflow-id番号 |
+|---|---|---|
+| 〜2026-08-20T11:09:23Z | issue #112対応前 | 5-1（`.claude/docs/ddr/i0028-01`時点） |
+| 2026-08-20T11:09:23Z（PR #125／`d48b698`） | issue #112「フェーズ5並べ替え」マージ | 5-1→**5-3**（`.claude/docs/ddr/i0112-01`） |
+| **2026-08-20T20:04:04Z** | **issue #143 起票** | （5-3のまま） |
+| 2026-08-21T09:27:32Z（PR #144／`e33b468`） | issue #111「最終統括レポート」マージ | 5-3→**5-4**（現行`docs-workflow.md`・`SKILL.md`） |
+
+issue #143の起票（UTC 20:04:04）は、PR #125のマージ（UTC 11:09:23）より**約9時間後**であり、
+PR #144のマージ（UTC 翌09:27:32）より**約13時間前**である。したがって**起票時点では片付けは
+flow-id 5-3が正しかった**（受け入れ条件(1)の記述どおり）。その後、起票の翌日にマージされた
+PR #144によって、issueの本文を更新しないまま片付けが5-4へさらに繰り下がった。
 
 <!-- 結論box -->
-**結論**: 受け入れ条件(1)は文言どおりの「5-3」ではなく、「SKILL.mdの現行テーブルが片付けとして
+**結論**: 受け入れ条件(1)「flow-id 5-3を指している」は起票時点では正しい記述であり、issueの
+勘違いではない。ただし現在は文言どおりの「5-3」ではなく、「SKILL.mdの現行テーブルが片付けとして
 指す番号」（現在は5-4）と読み替えて判定するのが妥当。現行のdocs-workflow.mdは実際に5-4を指して
 おり、この読み替えのもとでも矛盾は無い。
 
@@ -149,7 +202,7 @@ DDRの内容を設計する。
 
 - flow-id並べ替え作業（issue #112・issue #111）を行った当時のセッションが、実際にどのような
   確認手順を踏んでいたか（踏んでいなかったのか、踏んだが見落としたのか）は、当時のPRのコミット
-  ログ・worklog（flow-id 5-4で削除済み）からは追跡できなかった。
+  ログ・worklog（当時の片付けステップ——現在の5-4——で削除済み）からは追跡できなかった。
 - 他プロジェクトへ配布された本機構（`.claude/`一式）で、同種の追従漏れが実際に発生した事例が
   あるかどうかは、本リポジトリの範囲内では確認できない。
 

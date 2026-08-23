@@ -127,10 +127,10 @@
   <table>
     <thead><tr><th>#</th><th>問い／やったこと</th><th>結論</th><th>根拠の性質</th></tr></thead>
     <tbody>
-      <tr><td>1</td><td>issueが報告した矛盾は現在も残っているか</td><td><b>既に解消済み</b>。PR #144（issue #111対応）で全て flow-id 5-4 に統一</td><td>実測</td></tr>
-      <tr><td>2</td><td>「片付け＝flow-id 5-1」の現行記述は他に残っているか</td><td><b>残っていない</b>（22ファイルを横断確認）</td><td>実測</td></tr>
-      <tr><td>3</td><td>受け入れ条件(1)「flow-id 5-3」は現在も正しいか</td><td><b>正しくない</b>（起票後さらに5-4へ繰り下がった）</td><td>実測（git log）</td></tr>
-      <tr><td>4</td><td>spec/ddrの過去changelogは変更されていないか</td><td><b>変更されていない</b>（削除行0件）</td><td>実測</td></tr>
+      <tr><td>1</td><td>issueが報告した矛盾は現在も残っているか</td><td><b>既に解消済み</b>。解消前後の断面比較で矛盾の実在とPR #144による解消を確認</td><td>実測（前後比較）</td></tr>
+      <tr><td>2</td><td>「片付け＝flow-id 5-1」の現行記述は他に残っているか</td><td><b>残っていない</b>（.md/.sh/.html計30件を分類）</td><td>実測（内訳集計）</td></tr>
+      <tr><td>3</td><td>受け入れ条件(1)「flow-id 5-3」は現在も正しいか</td><td><b>起票時点では正しかったが、翌日のPR #144で5-4へ繰り下がった</b></td><td>実測（UTC時刻突合）</td></tr>
+      <tr><td>4</td><td>spec/ddrの過去changelogは変更されていないか</td><td><b>変更されていない</b>（分岐点SHA固定でdiff行数0）</td><td>実測</td></tr>
       <tr><td>5</td><td>機械的検知の仕組みはあるか</td><td><b>無い</b></td><td>実装の確認</td></tr>
       <tr><td>6</td><td>再発防止策として何を採るか</td><td><b>手順明記＋DDR記録案を採用</b>（機械的検知は見送り）</td><td>比較検討</td></tr>
     </tbody>
@@ -142,42 +142,65 @@
   <h2>実施条件（測った対象・環境）</h2>
   <ul>
     <li>実行環境: Claude Code on the web（リモート実行環境）</li>
-    <li>対象: <code>yuki-matsu783/MR-driven-workflow</code>、ブランチ <code>claude/docs-workflow-reports-timing-4gfc5v</code>（分岐時点でdocs-workflow.mdは未変更）</li>
+    <li>対象: <code>yuki-matsu783/MR-driven-workflow</code>、ブランチ <code>claude/docs-workflow-reports-timing-4gfc5v</code>（分岐点SHA <code>0aa9874d18032a9a85d5bc98075511fa11ce0cc3</code>。分岐時点でdocs-workflow.mdは未変更）</li>
     <li>実施日: 2026-08-23</li>
+    <li>時刻表記: 特記無い限りUTC（GitHub APIの<code>created_at</code>はUTC、<code>git log</code>の出力は表示タイムゾーン<code>+09:00</code>のため、比較の際はUTCへ揃えた）</li>
   </ul>
 </section>
 
 <section id="findings">
   <h2>実施した内容と結果</h2>
 
-  <h3>1. docs-workflow.mdの現状は矛盾していない</h3>
-  <p><code>.claude/rules/docs-workflow.md</code>内の <code>5-[0-9]</code> にマッチする全番号参照を
-  列挙し、片付けを指す箇所が全て同じ番号かを確認した。</p>
-  <pre><code>$ grep -n -- '5-[0-9]' .claude/rules/docs-workflow.md
-（片付けを指す全箇所が flow-id 5-4 で統一されていることを確認。24/27行目の「5-3」は
- commit・統括レポートを指し、片付けとは別ステップ）
+  <h3>1. docs-workflow.mdの現状は矛盾していない（解消前後の断面を比較して確認）</h3>
+  <p><code>.claude/rules/docs-workflow.md</code>内の<code>flow-id 5-[0-9]</code>という表記を集計した。
+  現行では12件すべてが<code>5-4</code>で、<code>5-1</code>・<code>5-3</code>は1件も無い。</p>
+  <pre><code>$ grep -oE 'flow-id 5-[0-9]' .claude/rules/docs-workflow.md | sort | uniq -c
+     12 flow-id 5-4</code></pre>
+  <p>issueが報告した矛盾が実在し、PR #144が解消したことを、<b>解消前後の断面</b>を直接比較して
+  裏付けた。「ファイルの削除は」に続く番号を、PR #144の直前・直後・現行の3断面で集計した。</p>
+  <pre><code>$ git show e33b468^:.claude/rules/docs-workflow.md \
+    | grep -oE 'ファイルの削除は\**flow-id 5-[0-9]' | sort | uniq -c
+      2 ファイルの削除はflow-id 5-1
+      1 ファイルの削除はflow-id 5-3
 
-$ diff &lt;(git show origin/main:.claude/rules/docs-workflow.md) .claude/rules/docs-workflow.md
-（差分なし）</code></pre>
+$ git show e33b468:.claude/rules/docs-workflow.md \
+    | grep -oE 'ファイルの削除は\**flow-id 5-[0-9]' | sort | uniq -c
+      3 ファイルの削除はflow-id 5-4
+
+$ grep -oE 'ファイルの削除は\**flow-id 5-[0-9]' .claude/rules/docs-workflow.md | sort | uniq -c
+      4 ファイルの削除はflow-id 5-4</code></pre>
+  <p><code>e33b468</code>の直前断面では「5-1」2件・「5-3」1件が混在しており、これがissueの
+  報告した矛盾そのものである。<code>e33b468</code>（PR #144）で全件が<code>5-4</code>へ統一された。</p>
   <div class="box ok">
     <span class="label">結論</span>
-    issueが報告した矛盾は、issue #143とは無関係のPR #144（issue #111対応、commit
-    <code>e33b468</code>、2026-08-21マージ）によって既に解消されている。
+    issueが報告した矛盾（5-1と5-3の混在）は実在し、issue #143とは無関係のPR #144
+    （issue #111対応、commit <code>e33b468</code>、UTC 2026-08-21T09:27:32Z）によって、
+    全箇所が<code>flow-id 5-4</code>へ統一される形で既に解消されている。
   </div>
 
   <h3>2. リポジトリ全体で「片付け＝flow-id 5-1」の現行記述を横断確認した</h3>
-  <p>追跡下の<code>.md</code>ファイルで<code>5-1</code>を含む25件のうち、<code>plans/</code>
-  <code>worklog/</code> <code>reports/</code>を除く22ファイルを1つずつ分類した。</p>
+  <p><b>対象を<code>.md</code>だけに限定しない。</b> 追跡下の<code>.md</code>・<code>.sh</code>・
+  <code>.html</code>ファイルを対象に<code>5-1</code>を含むファイルを列挙し（<code>plans/</code>
+  <code>worklog/</code> <code>reports/</code>除く<b>計30件</b>: .md 25件＋.sh/.html 5件）、
+  1つずつ分類した。DDR i0112-01が「flow-idはスクリプトのコメントへ散っている」と述べているため、
+  .sh/.htmlも対象に含めている。</p>
   <div class="tablewrap">
   <table>
     <thead><tr><th>分類</th><th>件数</th><th>内容</th></tr></thead>
     <tbody>
-      <tr><td>正当（コンフリクト解消の意味）</td><td>多数</td><td>SKILL.md・resolve-conflict/SKILL.md・git-workflow.md・check-base-conflicts.md 等</td></tr>
-      <tr><td>過去changelog・DDR本文</td><td>11 DDR＋spec内changelog</td><td>i0028-01（当時5-1が片付けだった時代の記録）等、point-in-time記録として正当</td></tr>
-      <tr><td>正しい現在値付きの参照</td><td>3</td><td>markdown-frontmatter.md・cleanup-task.md・README.md。いずれも5-1→5-3→5-4の経緯を正しく明示</td></tr>
+      <tr><td>正当（コンフリクト解消の意味、現行）</td><td>8</td><td>SKILL.md・resolve-conflict/SKILL.md・git-workflow.md・check-base-conflicts.md(.sh含む)・check-base-sync.md(.sh含む)・HANDOFF.md</td></tr>
+      <tr><td>過去changelog・DDR本文のみ</td><td>15</td><td>13 DDRファイル＋spec内の「影響範囲」節2件・test_cleanup_task.sh</td></tr>
+      <tr><td>複合（過去changelog＋正しい現在値）</td><td>2</td><td>cleanup-task.md・create-commit.md</td></tr>
+      <tr><td>正しい現在値付きの参照のみ</td><td>2</td><td>markdown-frontmatter.md・README.md</td></tr>
+      <tr><td>テストフィクスチャのラベル（flow-id番号ではない）</td><td>3</td><td>test_update_handoff_progress.sh</td></tr>
     </tbody>
   </table>
   </div>
+  <p>8+15+2+2+3=30（母数と一致）。</p>
+  <pre><code>$ git diff 0aa9874d18032a9a85d5bc98075511fa11ce0cc3 -- .claude/docs/spec/ .claude/docs/ddr/ | wc -l
+0
+$ git ls-files .claude/docs/spec/ .claude/docs/ddr/ | wc -l
+81</code></pre>
   <div class="box ok">
     <span class="label">結論</span>
     片付けの意味で「flow-id 5-1のまま」と誤って書いている現行記述は1件も見つからなかった。
@@ -185,21 +208,30 @@ $ diff &lt;(git show origin/main:.claude/rules/docs-workflow.md) .claude/rules/d
   </div>
 
   <h3>3. issueの受け入れ条件(1)の番号は起票後にさらに繰り下がっていた</h3>
+  <p>時刻はすべてUTCへ揃えて比較する（<code>git log</code>の既定出力は<code>+09:00</code>表示のため）。</p>
+  <pre><code>$ git log -1 --format='%ad' --date=iso-strict d48b698
+2026-08-20T20:09:23+09:00   （UTC: 2026-08-20T11:09:23Z）
+$ git log -1 --format='%ad' --date=iso-strict e33b468
+2026-08-21T18:27:32+09:00   （UTC: 2026-08-21T09:27:32Z）</code></pre>
+  <p>issue #143の起票時刻（<code>created_at</code>）は <b>2026-08-20T20:04:04Z</b>（UTC）。</p>
   <div class="tablewrap">
   <table>
-    <thead><tr><th>時点</th><th>片付けのflow-id番号</th><th>出典</th></tr></thead>
+    <thead><tr><th>時点（UTC）</th><th>出来事</th><th>片付けのflow-id番号</th></tr></thead>
     <tbody>
-      <tr><td>issue #102まで</td><td>5-1</td><td>DDR i0028-01</td></tr>
-      <tr><td>issue #112（PR #125）以降</td><td>5-3</td><td>DDR i0112-01</td></tr>
-      <tr><td>issue #111（PR #144、2026-08-21）以降</td><td>5-4</td><td>現行docs-workflow.md・SKILL.md</td></tr>
+      <tr><td>〜2026-08-20T11:09:23Z</td><td>issue #112対応前</td><td>5-1</td></tr>
+      <tr><td>2026-08-20T11:09:23Z（PR #125）</td><td>issue #112マージ</td><td>5-1→<b>5-3</b></td></tr>
+      <tr><td><b>2026-08-20T20:04:04Z</b></td><td><b>issue #143 起票</b></td><td>（5-3のまま）</td></tr>
+      <tr><td>2026-08-21T09:27:32Z（PR #144）</td><td>issue #111マージ</td><td>5-3→<b>5-4</b></td></tr>
     </tbody>
   </table>
   </div>
-  <p>issue #143は2026-08-20 20:04起票で、この時点では片付けは5-3が正しかった
-  （PR #144のマージは翌日）。</p>
+  <p>issue #143の起票（UTC 20:04:04）はPR #125のマージ（UTC 11:09:23）より約9時間後、
+  PR #144のマージ（UTC 翌09:27:32）より約13時間前である。したがって<b>起票時点では片付けは
+  flow-id 5-3が正しかった</b>（受け入れ条件(1)の記述どおり）。</p>
   <div class="box ok">
     <span class="label">結論</span>
-    受け入れ条件(1)は「SKILL.mdの現行テーブルが片付けとして指す番号」（現在は5-4）と
+    受け入れ条件(1)「flow-id 5-3を指している」は起票時点では正しい記述であり、issueの
+    勘違いではない。ただし現在は「SKILL.mdの現行テーブルが片付けとして指す番号」（現在は5-4）と
     読み替えるのが妥当。現行のdocs-workflow.mdはこの読み替えのもとでも矛盾は無い。
   </div>
 
@@ -236,7 +268,8 @@ $ diff &lt;(git show origin/main:.claude/rules/docs-workflow.md) .claude/rules/d
     <span class="label">この結果が言っていないこと</span>
     <ul>
       <li>flow-id並べ替え作業（issue #112・issue #111）を行った当時のセッションが、実際にどのような
-      確認手順を踏んでいたかは、当時のworklog（flow-id 5-4で削除済み）からは追跡できなかった。</li>
+      確認手順を踏んでいたかは、当時のPRのコミットログ・worklog（当時の片付けステップ——現在の
+      5-4——で削除済み）からは追跡できなかった。</li>
       <li>他プロジェクトへ配布された本機構で同種の追従漏れが発生した事例の有無は、本リポジトリの
       範囲内では確認できない。</li>
     </ul>
