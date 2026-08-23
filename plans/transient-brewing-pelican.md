@@ -10,14 +10,14 @@ keywords: [wip, plans, worklog, worklogs, reports, plansDirectory, cleanup-task,
 
 ## Context
 
-`plans/` `worklog/` `reports/` は、いずれも flow-id 5-1 で一括削除され squash merge により
-`main` に残らないという同一の寿命を持つが、リポジトリルート直下に並列で置かれており、その
-共通性がディレクトリ構造に表れていない。また `worklog` だけ単数形で `plans` `reports` と
-表記が揃っていない。`apply-mr-workflow-to-project` による他プロジェクトへの導入時も、ルートを
-2ディレクトリ（`plans/` `worklog/`。`reports/` は未作成）占有している。
+`plans/` `worklog/` `reports/` は、いずれも flow-id 5-4（次タスクのための片付け）で一括削除され
+squash merge により `main` に残らないという同一の寿命を持つが、リポジトリルート直下に並列で
+置かれており、その共通性がディレクトリ構造に表れていない。また `worklog` だけ単数形で
+`plans` `reports` と表記が揃っていない。`apply-mr-workflow-to-project` による他プロジェクトへの
+導入時も、ルートを2ディレクトリ（`plans/` `worklog/`。`reports/` は未作成）占有している。
 
 この3ディレクトリを `wip/`（Work In Progress）という1つの親ディレクトリへ集約し、
-`wip/plans` `wip/worklogs` `wip/reports` へ改名する。`wip` という名前自体が「flow-id 5-1で
+`wip/plans` `wip/worklogs` `wip/reports` へ改名する。`wip` という名前自体が「flow-id 5-4で
 削除されmainに残らない」という寿命を表すため、永続ドキュメントを誤って置く事故を名前で防げる。
 
 **ブランチ名について**: 本来 `.mrworkflow.json` の命名規則に従うと `feature-165-...` になるが、
@@ -25,76 +25,107 @@ keywords: [wip, plans, worklog, worklogs, reports, plansDirectory, cleanup-task,
 おり、この指定を優先する（環境固有の制約であり、issue-mr-flowのブランチ命名規則からの逸脱は
 `HANDOFF.md` に記録する）。
 
-## 事前調査（軽め）で分かったこと
+## フェーズ2で確認する事項（結果は reports/ 側の正文へ記録する）
 
-- `.mrworkflow.json`: `plansDir`/`worklogDir`/`reportsDir` で既に外部化されている（既定値
-  `"plans"`/`"worklog"`/`"reports"`）。
-- `.claude/scripts/src/vcs/Provider.sh` 65-67行目: `.mrworkflow.json` が無い場合のフォールバック
-  既定値としても同じ3キーを持つ（`get_workflow_config`）。
-- `.claude/scripts/src/cleanup-task.sh`: 212行目付近でこの3キーを読んで削除対象ディレクトリを
-  決定している。**ただし `KEEP_PATHS=("worklog/TEMPLATE.md")` は設定値から組み立てられておらず
-  ハードコードされたリテラルパス**。`worklogDir` を `wip/worklogs` に変えると、このパスは
-  実際のファイルパス `wip/worklogs/TEMPLATE.md` と一致しなくなり、**TEMPLATE.mdが誤って
-  削除される**。ここは動的化（`"${worklog_dir}/TEMPLATE.md"`のように組み立てる）が必要。
-  `REVIEW-POINTS.md` はどの階層でもファイル名一致で除外する設計（`KEEP_BASENAMES`）のため、
-  こちらは変更不要と見込まれる。
 - `.claude/settings.json` の `plansDirectory: "./plans"`、`.gemini/settings.json` の
-  `general.plan.directory: "./plans"` が、Planモードの出力先を決めている。**ネストしたパス
-  （`./wip/plans`）が実際に機能するかは未検証**であり、受け入れ条件1が要求する実機検証が必要
-  （フェーズ2の最優先タスク）。
-- `.claude/skills/apply-mr-workflow-to-project/scripts/install-to-project.sh`:
-  140-141行目付近で導入先ルートへ `plans/` `worklog/` を直接 `mkdir -p`、165-166行目付近で
-  `.gitkeep` を置いている。`reports/` は作成されていない。ここを `wip/` 1つの作成＋配下3つの
-  構成へ変更する。
-- `.claude/skills/apply-mr-workflow-to-project/assets/` はGit管理外のビルド生成物
-  （`sync-assets.sh` が `.claude`/`.gemini` から都度再生成）であり、本タスクで直接手を入れる
-  対象ではない。
-- ドキュメント側の参照はファイル数ベースで確認済み: `plans/` が55ファイル、`worklog`が
-  約40ファイル、`reports/`が約38ファイル（重複あり）。**うち `.claude/docs/ddr/` 配下
-  （21ファイル前後）は本文を変更しない**（DDR本文は不変。`.claude/rules/docs-workflow.md`）。
-  **`.claude/docs/spec/` 配下（7ファイル前後）は「現在の状態を説明する節」と「point-in-time の
-  changelog節」が同居しているため、節単位で見て前者のみ更新する**。それ以外
-  （`.claude/rules/*.md`, `.claude/skills/*/SKILL.md`, `.claude/scripts/`配下, ルート直下の
-  `README.md`/`AGENTS.md`等, `.github/`/`.gitlab/`テンプレート）は「現在の状態」の記述なので
-  素直に新パスへ更新してよい。
+  `general.plan.directory: "./plans"` にネストしたパス（`./wip/plans`）を設定した場合、
+  Planモードの出力が実際にそこへ向くか（受け入れ条件1・最優先）。
+- `.claude/scripts/src/cleanup-task.sh` の `KEEP_PATHS=("worklog/TEMPLATE.md")` が
+  設定値から組み立てられておらずハードコードされている問題（`worklogDir` を `wip/worklogs` に
+  変えると `TEMPLATE.md` が誤削除される）への対処方法。
+- `.claude/skills/apply-mr-workflow-to-project/scripts/install-to-project.sh` の
+  `mkdir -p "${DEST_DIR}/plans"` `mkdir -p "${DEST_DIR}/worklog"`（162-163行目）、
+  `touch "${DEST_DIR}/plans/.gitkeep"` `touch "${DEST_DIR}/worklog/.gitkeep"`（187-188行目）を
+  `wip/` 1つ＋配下3構成へどう変更するか。
+- ドキュメント側の参照ファイルの正確な棚卸し（フェーズ3の個別作業計画に落とし込むレベルまで）。
+  `git grep -lI 'plans/' -- '*.md' '*.sh' '*.json'` 等、3ディレクトリ自身を除いた実測件数は
+  `plans/`参照58ファイル・`worklog`参照44ファイル・`reports/`参照39ファイル
+  （うち `.claude/docs/ddr/*.md` 26ファイルは本文変更しない、`.claude/docs/spec/*.md` 8ファイルは
+  節単位の判断が必要）。この数はフェーズ2時点の実測であり、フェーズ3実施直前に同じコマンドで
+  数え直す。
 
 ## フェーズ構成
 
 ### フェーズ2〈調査〉
 
-**最優先**: 受け入れ条件1の実機検証。`.claude/settings.json`の`plansDirectory`を一時的に
-`"./wip/plans"`へ変更し、Planモードでダミーの全体作業計画を作成して実際の出力先を確認する。
+**最優先**: 受け入れ条件1の実機検証。**同一セッション内での`.claude/settings.json`書き換え→
+`EnterPlanMode`再入という方式は使わない**（下記「調べ方についての決定」参照）。かわりに
+**新規の別セッション**（`mcp__Claude_Code_Remote__create_session`等）でこのブランチをチェックアウト
+させ、そのセッションでPlanモードに入った際の実際の出力先を確認する。加えて対照実験として、
+存在しない別のフラットなパス（例 `./plans2`）へ変更した場合に提示パスが変わるかも確認し、
+「ネストパス非対応」と「設定変更がそもそも読み込まれていない」を区別できるようにする。
+
 `.gemini/settings.json`の`general.plan.directory`も同様に検証する（Gemini CLI自体は本実行環境に
 無いため、設定ファイルの記法・ドキュメント上の裏付けで代替検証する可能性がある。裏付けが取れない
-場合はその旨をDDRに明記する）。ネストパスが通らない場合は設計を見直す（`plans`だけルートに残す等）。
-検証結果と結論はDDRとして記録する（フェーズ4で正式反映、フェーズ2時点ではworklogへ記録）。
+場合はその旨をDDRに明記する）。
 
-あわせて、上記「事前調査」で洗い出した参照ファイル一覧をより正確に棚卸しし、DDR/spec-changelogの
-除外境界（節単位）を個別作業計画に落とし込めるレベルまで具体化する。
+**ネストパスが機能しないと判明した場合は、実装を進めず停止する。** 代替案（`plans`のみルートに
+残す等）を人間へ提示し、PRコメントまたはissueコメントで判断を仰いでから再開する（AIが独断で
+受け入れ条件を変更した設計へ進まない）。
 
-### フェーズ3〈作業〉（設計・実装・テスト）
+検証結果は `reports/日付_transient-brewing-pelican_plansDirectoryネストパス検証.md` へ記録する
+（結果の正文はreports側。試行錯誤の詳細はworklogへ）。結論は最終的にDDRとして記録する
+（フェーズ4で正式反映）。
+
+あわせて、上記「フェーズ2で確認する事項」で洗い出した参照ファイル一覧をより正確に棚卸しし、
+DDR/spec-changelogの除外境界（節単位）を個別作業計画に落とし込めるレベルまで具体化する。
+
+#### 調べ方についての決定
+
+計画レビュー（敵対的レビュー1周目）で、同一セッション内での設定書き換え→Planモード再入という
+当初の検証方法には2つの欠陥が指摘された。
+
+1. ハーネスが計画ファイルのパスをセッション開始時点で決めている場合、ネストパスが完全に対応して
+   いても提示パスは変わらず「失敗」と誤判定しうる（偽陰性）。
+2. 検証のためのPlanモード再入が、DDR `i0009-01`（planツールの利用は全体作業計画に限定し
+   issue（ブランチ）につき1回）に反し、承認済みの全体作業計画を上書きする・2つ目の全体作業計画を
+   作ってしまう恐れがある（DDR `i0000-06` が記録する「同一セッション内の再入ではハーネスが
+   1回目のパスを提示し続ける」という既知の挙動とも整合する）。
+
+実際にこのセッション内で試したところ、まさに(1)(2)が起きた（既存の
+`plans/transient-brewing-pelican.md` がそのまま提示され、設定変更は反映されなかった）。
+このため、クリーンな検証は新規セッションで行う方針へ切り替えた。
+
+## フェーズ3〈作業〉（設計・実装・テスト）
 
 1. **設定・スクリプトの変更**（実装の核）
    - `.mrworkflow.json`: `plansDir: "wip/plans"`, `worklogDir: "wip/worklogs"`,
      `reportsDir: "wip/reports"`
-   - `.claude/scripts/src/vcs/Provider.sh`: `get_workflow_config`のフォールバック既定値を同期
+   - `.claude/scripts/src/vcs/Provider.sh`: `get_workflow_config`のフォールバック既定値
+     （65-67行目）を同期
    - `.claude/scripts/src/cleanup-task.sh`: `KEEP_PATHS`を設定値から動的に組み立てる形へ修正
      （ハードコード除去）。`is_safe_relative_dir`がネストしたパス（`wip/plans`のような`/`を含む
-     相対パス）を正しく安全と判定できるかも確認する。
-   - `.claude/settings.json`: `plansDirectory: "./wip/plans"`
+     相対パス）を正しく安全と判定できるかも確認する。空になった `wip/plans` 自体が
+     `cleanup-task.sh`によってディレクトリごと削除される（`REVIEW-POINTS.md`・`TEMPLATE.md`を
+     持たない配布先で起きうる）点も踏まえ、`install-to-project.sh`側の`.gitkeep`配置を検討する。
+   - `.claude/settings.json`: `plansDirectory: "./wip/plans"`（フェーズ2の検証結果が
+     肯定的だった場合のみ適用）
    - `.gemini/settings.json`: `general.plan.directory: "./wip/plans"`
    - `.claude/skills/apply-mr-workflow-to-project/scripts/install-to-project.sh`:
-     `mkdir -p`対象を`wip/` `wip/plans` `wip/worklogs` `wip/reports`へ、`.gitkeep`配置も見直す
-2. **ディレクトリ移動**: `git mv plans wip/plans` `git mv worklog wip/worklogs`
-   `git mv reports wip/reports`（履歴を追える形にする。受け入れ条件6）
+     162-163行目の`mkdir -p`対象を`wip/` `wip/plans` `wip/worklogs` `wip/reports`へ、
+     187-188行目の`.gitkeep`配置も見直す
+2. **ディレクトリ移動**: **先に`mkdir -p wip`で親ディレクトリを作る**（`git mv`は中間ディレクトリを
+   作らないため、`wip/`が無い状態での`git mv plans wip/plans`は`fatal: renaming 'plans' failed:
+   No such file or directory`で失敗する）。続けて `git mv plans wip/plans`
+   `git mv worklog wip/worklogs` `git mv reports wip/reports`を、**移動先が存在しないことを
+   `[ ! -e wip/plans ]`等で確認してから**実行する（移動先が既存ディレクトリの場合、`git mv`は
+   エラーにならず配下へ入れてしまう＝`wip/plans/plans`のような二重ネストが無言で発生するため。
+   履歴を追える形にする。受け入れ条件6）。
 3. **ドキュメント更新**: 上記の棚卸しに従い、DDR本文・spec changelogを除外しつつ「現在の状態」を
    説明する箇所を新パスへ更新する（`.claude/rules/directory-structure.md`のツリー構造・
-   `index.md`（Repository Map）を含む。受け入れ条件8）。一括`sed`は使わない（受け入れ条件5）。
-4. **テスト**: `test_cleanup_task.sh` / `test_search_frontmatter.sh` / `test_vcs_provider.sh`を
-   新パス前提で実行・必要なら更新（受け入れ条件2, 3）。`install-to-project.sh`の動作確認
-   （受け入れ条件4）。
+   `index.md`（Repository Map）・`.claude/hooks/session-start.sh`・`.claude/hooks/otel/session-start.sh`・
+   `.claude/agents/issue-mr-resume.md`・`.claude/skills/issue-mr-flow/assets/plans.template.html`・
+   `.claude/skills/issue-mr-flow/assets/reports.template.html`・
+   `.claude/skills/canvas-report/assets/canvas-report.html`を含む。受け入れ条件8）。
+   一括`sed`は使わない（受け入れ条件5）。対象ファイルの列挙は手書きではなく
+   `git grep -lI 'plans/\|worklog\|reports/' -- '*.md' '*.sh' '*.json' '*.html'`の結果を起点にする。
+4. **テスト**: 少なくとも `test_cleanup_task.sh` / `test_search_frontmatter.sh` /
+   `test_vcs_provider.sh` / `test_install_to_project.sh` / `test_check_base_sync.sh` /
+   `test_collect_review_points.sh` / `test_extract_frontmatter.sh` / `test_session_start.sh` を
+   新パス前提で実行・必要なら更新する（受け入れ条件2, 3, 4）。対象は
+   `git grep -lI 'plans/\|worklog\|reports/' -- '.claude/scripts/test/*.sh'` で機械的に洗い出す。
 
-### フェーズ4〈反映〉
+## フェーズ4〈反映〉
 
 - **設計反映**: フェーズ2の実機検証結果・フェーズ3の設計判断（`wip/`という名前を採用し
   `flow/` `tasks/` `work/` `scratch/`を採らなかった理由。特に`flow/`は「フロー」という語が
@@ -102,6 +133,21 @@ keywords: [wip, plans, worklog, worklogs, reports, plansDirectory, cleanup-task,
   判断を含む）をDDRとして記録する（受け入れ条件7）。`.claude/docs/spec/`該当箇所の更新。
 - **AIアセット反映**: 作業中に気づいたルール・スキルの不備があれば反映。
 - **実装反映**: フェーズ3のレビューで持ち越した不具合があれば対応。
+- **`.claude/VERSION`の増分提案**: `.claude/docs/spec/distribution-assets.md`は、配布先に手作業を
+  要求する非互換変更（配置場所の変更等）を`MAJOR`の目安としている。本タスクはまさに配置場所の
+  変更に当たるため、`MAJOR`インクリメントを提案しDDR/報告へ記録する（最終決定は人間）。
+  あわせて、既に`apply-mr-workflow-to-project`で導入済みの配布先が`plans/` `worklog/`を残したまま
+  `wip/`が追加される（`install-to-project.sh`は上流で消えたファイルを配布先から削除しない）
+  移行手順の記述先（specかREADMEか）を決め、記述する。
+
+## この計画で決めないこと（スコープ外）
+
+- DDR本文の書き換え（不変。frontmatterの`status`/`superseded_by`のみ更新可能）
+- `.claude/docs/spec/`内のpoint-in-time changelog節の書き換え
+- `.claude/skills/apply-mr-workflow-to-project/assets/`への直接編集（`sync-assets.sh`が
+  `.claude`/`.gemini`から再生成するビルド生成物のため）
+- 既に`apply-mr-workflow-to-project`で導入済みの他プロジェクトの実際の移行作業（本タスクでは
+  移行手順の記述先を決めるところまでとし、実際の移行は各プロジェクト側の作業とする）
 
 ## 敵対的レビューの実施方針（ユーザー指示）
 
@@ -115,21 +161,21 @@ keywords: [wip, plans, worklog, worklogs, reports, plansDirectory, cleanup-task,
 指摘への対応（対応または理由を添えた見送り）を行ってから次フェーズへ進む。人間のレビュー待ち
 ループ（2-3/2-4等）はスキップし、その旨を`HANDOFF.md`に記録する。
 
-## 継続メモ（フェーズ2実施中）
-
-`.claude/settings.json` の `plansDirectory` を一時的に `"./wip/plans"` へ変更してこのセッション内で
-`EnterPlanMode` を再実行したところ、ハーネスは新規パスではなく**既存の計画ファイル
-（`plans/transient-brewing-pelican.md`）を引き続き使う**旨を提示した（同一セッション内で
-既に計画ファイルの割り当てが確定しているため、設定変更が反映されない可能性がある）。
-この結果はセッション内の再入では汚染されるため、クリーンな検証には新規セッションでの
-実機確認が必要と判断した（詳細はworklog・reportsへ記録する）。
+**計画フェーズ1周目のレビューで実際に指摘された欠陥**（本計画へ反映済み）: 上記「調べ方についての
+決定」の2件（同一セッション内Planモード再入の危険性）に加え、flow-id 5-1/5-4の誤記、`wip/`親
+ディレクトリの作成漏れ、検証コマンドが分岐点SHAとの差分になっていない点、影響を受けるテストの
+列挙漏れ、`.claude/VERSION`増分の検討漏れ、ドキュメント棚卸しの漏れ（hooks/agents/assets配下）。
 
 ## 検証方法
 
-- `bash .claude/scripts/test/test_cleanup_task.sh`
-- `bash .claude/scripts/test/test_search_frontmatter.sh`
-- `bash .claude/scripts/test/test_vcs_provider.sh`
+- `bash .claude/scripts/test/test_cleanup_task.sh` / `test_search_frontmatter.sh` /
+  `test_vcs_provider.sh` / `test_install_to_project.sh` / `test_check_base_sync.sh` /
+  `test_collect_review_points.sh` / `test_extract_frontmatter.sh` / `test_session_start.sh`
+  （いずれも `passed=N failures=0` を確認。フェーズ3実施直前に対象を再度 `git grep -l` で洗い出す）
 - `bash -n`によるスクリプトの構文チェック（変更した`.sh`全て）
-- `.claude/settings.json`の`plansDirectory`変更後、実際にPlanモードでの出力先を確認
-- `grep -rn "^plans/\|[^a-zA-Z0-9_.-]plans/\|worklog\|reports/"` 等で新パスへの更新漏れ・
-  DDR本文への意図しない書き換えが無いことを確認
+- `.claude/settings.json`の`plansDirectory`変更後、**新規セッション**で実際にPlanモードでの
+  出力先を確認（同一セッション内の再入では確認しない。上記「調べ方についての決定」参照）
+- 「DDR本文・spec changelogを書き換えていない」ことの検証は、分岐点SHAを基準に固定して行う:
+  `git diff $(git merge-base main HEAD) -- .claude/docs/ddr/` が空であること、
+  `git diff $(git merge-base main HEAD) -- .claude/docs/spec/` の差分が「現在の状態を説明する節」
+  のみに限られることを確認する

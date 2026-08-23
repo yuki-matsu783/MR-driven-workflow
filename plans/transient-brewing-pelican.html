@@ -91,13 +91,13 @@
   <div class="inner">
     <div class="kind">全体作業計画 / フェーズ1</div>
     <h1>plans/worklog/reports を wip/ 配下へ集約し worklog を worklogs へ改名する</h1>
-    <p class="lead">タスク単位で作られマージ前に消える3ディレクトリを wip/ へ集約し、名前自体が寿命（flow-id 5-1で削除されmainに残らない）を表すようにする。</p>
+    <p class="lead">タスク単位で作られマージ前に消える3ディレクトリを wip/ へ集約し、名前自体が寿命（flow-id 5-4で削除されmainに残らない）を表すようにする。</p>
     <ul class="meta">
       <li><b>issue</b> #165</li>
       <li><b>ブランチ</b> claude/consolidate-wip-directories-ps6f9a</li>
       <li><b>PR</b> #178</li>
       <li><b>フェーズ</b> 1〈起点〉 flow-id 1-4</li>
-      <li><b>push回数</b> 1</li>
+      <li><b>push回数</b> 4</li>
       <li><b>作成日</b> 2026-08-23</li>
       <li><b>正文</b> 同名の .md</li>
     </ul>
@@ -111,12 +111,12 @@
   <ol>
     <li><a href="#goal">この計画で何をするか</a></li>
     <li><a href="#target">変更対象</a></li>
-    <li><a href="#approach">方針</a></li>
     <li><a href="#phase-research">フェーズ2〈調査〉</a></li>
+    <li><a href="#phase-work">フェーズ3〈作業〉</a></li>
     <li><a href="#phase-apply">フェーズ4〈反映〉</a></li>
-    <li><a href="#out-of-scope">やらないこと（スコープ外）</a></li>
-    <li><a href="#verify">検証</a></li>
+    <li><a href="#out-of-scope">この計画で決めないこと（スコープ外）</a></li>
     <li><a href="#review">敵対的レビューの実施方針</a></li>
+    <li><a href="#verify">検証方法</a></li>
   </ol>
 </nav>
 
@@ -136,30 +136,49 @@
       <tr><td><code>.mrworkflow.json</code></td><td>変更</td><td>plansDir/worklogDir/reportsDirを新パスへ</td></tr>
       <tr><td><code>.claude/scripts/src/vcs/Provider.sh</code></td><td>変更</td><td>フォールバック既定値を同期</td></tr>
       <tr><td><code>.claude/scripts/src/cleanup-task.sh</code></td><td>変更</td><td>KEEP_PATHSのハードコードを動的化</td></tr>
-      <tr><td><code>.claude/settings.json</code> / <code>.gemini/settings.json</code></td><td>変更</td><td>plansDirectoryをネストパスへ（要実機検証）</td></tr>
+      <tr><td><code>.claude/settings.json</code> / <code>.gemini/settings.json</code></td><td>変更</td><td>plansDirectoryをネストパスへ（要実機検証。フェーズ2否定なら見送り）</td></tr>
       <tr><td><code>install-to-project.sh</code></td><td>変更</td><td>wip/1つの作成＋配下3構成へ</td></tr>
-      <tr><td>plans/ worklog/ reports/ 実体</td><td>移動（git mv）</td><td>wip/配下へ</td></tr>
-      <tr><td>.claude/rules・skills・docs等の参照ドキュメント</td><td>変更</td><td>現在の状態を説明する箇所のみ新パスへ（DDR本文・spec changelogは除外）</td></tr>
+      <tr><td>plans/ worklog/ reports/ 実体</td><td>移動（git mv。wip/を先に作成）</td><td>wip/配下へ</td></tr>
+      <tr><td>.claude/rules・skills・hooks・agents・docs等の参照ドキュメント</td><td>変更</td><td>現在の状態を説明する箇所のみ新パスへ（DDR本文・spec changelogは除外）</td></tr>
     </tbody>
   </table>
   </div>
 </section>
 
-<section id="approach">
-  <h2>方針</h2>
-  <p>フェーズ2で受け入れ条件1（plansDirectoryのネストパス対応）を最優先で実機検証し、その結果を
-  もとにフェーズ3で設計・実装・テストを行う。フェーズ4でDDR・spec・AIアセットへ反映する。</p>
-</section>
-
 <section id="phase-research">
   <h2>フェーズ2〈調査〉</h2>
+  <p>最優先: 受け入れ条件1の実機検証。<strong>同一セッション内での設定書き換え→Planモード再入は
+  使わない</strong>（偽陰性の恐れ、および承認済み全体作業計画を壊す恐れがあることが計画レビューで
+  指摘され、実際にこのセッションで再現した）。かわりに<strong>新規の別セッション</strong>でこの
+  ブランチをチェックアウトし、Planモードの出力先を確認する。対照実験として存在しないフラットな
+  パス（<code>./plans2</code>）でも試し、「ネストパス非対応」と「設定が読まれていない」を切り分ける。</p>
+  <p><strong>ネストパスが機能しない場合は実装を進めず停止し、代替案を人間へ提示して判断を仰ぐ。</strong></p>
   <ul>
-    <li><code>.claude/settings.json</code> の <code>plansDirectory</code> にネストしたパス
-      (<code>./wip/plans</code>) を設定した場合、Planモードの出力が実際にそこへ向くか。</li>
-    <li><code>.gemini/settings.json</code> の <code>general.plan.directory</code> も同様に機能するか
-      （Gemini CLI不在のため設定ファイルの記法確認が中心になる可能性がある）。</li>
-    <li>ネストパスが機能しない場合の代替設計（<code>plans</code>のみルートに残す等）の要否。</li>
+    <li><code>.claude/settings.json</code> の <code>plansDirectory</code> がネストパスに対応するか</li>
+    <li><code>.gemini/settings.json</code> の <code>general.plan.directory</code> も同様か（Gemini CLI不在のため机上確認中心）</li>
+    <li>参照ファイル一覧の正確な棚卸し（<code>git grep -lI</code> の実測件数を起点にする）</li>
   </ul>
+</section>
+
+<section id="phase-work">
+  <h2>フェーズ3〈作業〉</h2>
+  <ol>
+    <li><strong>設定・スクリプトの変更</strong>: <code>.mrworkflow.json</code>・<code>Provider.sh</code>の
+      フォールバック既定値・<code>cleanup-task.sh</code>の<code>KEEP_PATHS</code>動的化（ハードコード除去）・
+      <code>.claude/settings.json</code>/<code>.gemini/settings.json</code>のplansDirectory（フェーズ2が肯定的な場合のみ）・
+      <code>install-to-project.sh</code>の<code>mkdir -p</code>対象（162-163行目）と<code>.gitkeep</code>配置（187-188行目）</li>
+    <li><strong>ディレクトリ移動</strong>: <code>mkdir -p wip</code>で親ディレクトリを先に作成
+      （<code>git mv</code>は中間ディレクトリを作らないため無いと失敗する）。移動先が存在しないことを
+      確認してから<code>git mv plans wip/plans</code> <code>git mv worklog wip/worklogs</code>
+      <code>git mv reports wip/reports</code>を実行（既存ディレクトリへ入れてしまう二重ネスト事故を防ぐ）</li>
+    <li><strong>ドキュメント更新</strong>: DDR本文・spec changelogを除外しつつ現在の状態を説明する
+      箇所のみ新パスへ（<code>directory-structure.md</code>・<code>index.md</code>・hooks・agents・
+      skills/assets配下のHTMLテンプレートを含む）。一括sedは使わない</li>
+    <li><strong>テスト</strong>: <code>test_cleanup_task.sh</code> <code>test_search_frontmatter.sh</code>
+      <code>test_vcs_provider.sh</code> <code>test_install_to_project.sh</code>
+      <code>test_check_base_sync.sh</code> <code>test_collect_review_points.sh</code>
+      <code>test_extract_frontmatter.sh</code> <code>test_session_start.sh</code> を実行</li>
+  </ol>
 </section>
 
 <section id="phase-apply">
@@ -170,29 +189,22 @@
     <li>plansDirectoryネストパスの実機検証結果をDDRとして記録する。</li>
     <li><code>.claude/docs/spec/</code>該当箇所（issue-mr-workflow.md, cleanup-task.md,
       shell-scripts.md 等）の該当記述を更新する。</li>
+    <li><code>.claude/VERSION</code>のMAJORインクリメントを提案する（配置場所の変更のため）。
+      既存の導入済み配布先の移行手順の記述先を決める。</li>
   </ul>
 </section>
 
 <section id="out-of-scope">
-  <h2>やらないこと（スコープ外）</h2>
+  <h2>この計画で決めないこと（スコープ外）</h2>
   <div class="box stop">
     <span class="label">この計画では決めない・触らない</span>
     <ul>
       <li>DDR本文の書き換え（不変。frontmatterのみ更新可能）</li>
       <li>spec内のpoint-in-time changelog節の書き換え</li>
       <li><code>.claude/skills/apply-mr-workflow-to-project/assets/</code>への直接編集（生成物のため）</li>
+      <li>既に導入済みの他プロジェクトの実際の移行作業（記述先を決めるところまで）</li>
     </ul>
   </div>
-</section>
-
-<section id="verify">
-  <h2>検証</h2>
-  <pre><code>bash .claude/scripts/test/test_cleanup_task.sh
-bash .claude/scripts/test/test_search_frontmatter.sh
-bash .claude/scripts/test/test_vcs_provider.sh</code></pre>
-  <p>合格条件: 上記すべてのテストが <code>passed=N failures=0</code> で通り、
-  <code>wip/plans</code> <code>wip/worklogs</code> <code>wip/reports</code>が実在し、
-  <code>REVIEW-POINTS.md</code>・<code>TEMPLATE.md</code>がcleanup-task.shの削除対象から除外され続けること。</p>
 </section>
 
 <section id="review">
@@ -200,6 +212,28 @@ bash .claude/scripts/test/test_vcs_provider.sh</code></pre>
   <p>非対話的実行環境であり、ユーザーから明示的な指示を受けているため、各フェーズの計画確定後・
   作業実施後に <code>adversarial-reviewer</code> サブエージェントによるレビューを実施し、
   指摘へ対応してから次フェーズへ進む。人間のレビュー待ちループはスキップし、HANDOFF.mdに記録する。</p>
+  <p><strong>計画フェーズ1周目で実際に指摘された欠陥</strong>（本計画へ反映済み）: 同一セッション内
+  Planモード再入の危険性、flow-id 5-1/5-4の誤記、<code>wip/</code>親ディレクトリの作成漏れ、
+  検証コマンドが分岐点SHAとの差分になっていない点、影響を受けるテストの列挙漏れ、
+  <code>.claude/VERSION</code>増分の検討漏れ、ドキュメント棚卸しの漏れ。</p>
+</section>
+
+<section id="verify">
+  <h2>検証方法</h2>
+  <pre><code>bash .claude/scripts/test/test_cleanup_task.sh
+bash .claude/scripts/test/test_search_frontmatter.sh
+bash .claude/scripts/test/test_vcs_provider.sh
+bash .claude/scripts/test/test_install_to_project.sh
+bash .claude/scripts/test/test_check_base_sync.sh
+bash .claude/scripts/test/test_collect_review_points.sh
+bash .claude/scripts/test/test_extract_frontmatter.sh
+bash .claude/scripts/test/test_session_start.sh</code></pre>
+  <p>合格条件: 上記すべてのテストが <code>passed=N failures=0</code> で通り、
+  <code>wip/plans</code> <code>wip/worklogs</code> <code>wip/reports</code>が実在し、
+  <code>REVIEW-POINTS.md</code>・<code>TEMPLATE.md</code>がcleanup-task.shの削除対象から除外され続けること。
+  「DDR本文・spec changelogを書き換えていない」ことは
+  <code>git diff $(git merge-base main HEAD) -- .claude/docs/ddr/</code> が空であることで確認する
+  （分岐点SHAを基準に固定する。作業ツリー比較ではその後のmainの変化を見落とすため）。</p>
 </section>
 
 <footer>issue #165 / PR #178 — 計画の正文は同名の <code>.md</code>。外部依存を持たない自己完結HTML。</footer>

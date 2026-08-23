@@ -71,6 +71,7 @@
   .box > :first-child { margin-top: 0; } .box > :last-child { margin-bottom: 0; }
   .box .label { font-size: 12px; font-weight: 700; letter-spacing: .06em; display: block; margin-bottom: 4px; }
   .box.stop { border-color: var(--stop); background: var(--stop-soft); } .box.stop .label { color: var(--stop); }
+  .box.warn { border-color: var(--warn); background: var(--warn-soft); } .box.warn .label { color: var(--warn); }
   footer { color: var(--muted); font-size: 13px; text-align: center; padding-top: 10px; }
 </style>
 </head>
@@ -86,7 +87,7 @@
       <li><b>ブランチ</b> claude/consolidate-wip-directories-ps6f9a</li>
       <li><b>PR</b> #178</li>
       <li><b>フェーズ</b> 2〈調査〉 flow-id 2-1</li>
-      <li><b>push回数</b> 2</li>
+      <li><b>push回数</b> 4</li>
       <li><b>作成日</b> 2026-08-23</li>
       <li><b>正文</b> 同名の .md</li>
     </ul>
@@ -119,7 +120,7 @@
   <table>
     <thead><tr><th>ファイル</th><th>操作</th><th>何をするか</th></tr></thead>
     <tbody>
-      <tr><td><code>.claude/settings.json</code></td><td>一時変更</td><td>plansDirectoryをネストパスへ変更し検証</td></tr>
+      <tr><td><code>.claude/settings.json</code></td><td>一時変更（commit・push済み）</td><td>plansDirectoryをネストパスへ変更し検証</td></tr>
       <tr><td><code>.gemini/settings.json</code></td><td>机上確認</td><td>Gemini CLI不在のため記法確認のみ</td></tr>
     </tbody>
   </table>
@@ -128,8 +129,17 @@
 
 <section id="approach">
   <h2>方針</h2>
-  <p>EnterPlanModeでダミー計画を作成し、ハーネスが提示するplan file実パスを確認する。
-  期待どおり <code>wip/plans/...</code> になれば成功と判定する。</p>
+  <div class="box warn">
+    <span class="label">同一セッション内でのPlanモード再入は使わない</span>
+    ハーネスがこのセッションの計画ファイルパスを既に確定させている可能性があり、設定変更後も
+    同じパスが提示され続けて「非対応」と誤判定する（偽陰性）恐れがある。また
+    DDR <code>i0009-01</code>（planツールの利用は全体作業計画に限定しissueにつき1回）に反し、
+    承認済みの全体作業計画を壊す・2つ目の全体作業計画を作る恐れがある。実際にこのセッションで
+    試したところ既存の計画ファイルがそのまま提示され、この懸念が現実に起きることを確認した。
+  </div>
+  <p>かわりに<strong>新規の別セッション</strong>でこのブランチをチェックアウトし、Planモードの
+  出力先を確認する。対照実験として、存在しないフラットなパス（<code>./plans2</code>）でも試し、
+  「ネストパス非対応」と「設定が読まれていない」を切り分ける。</p>
 </section>
 
 <section id="out-of-scope">
@@ -137,16 +147,20 @@
   <div class="box stop">
     <span class="label">この計画では決めない・触らない</span>
     <ul>
+      <li><code>.gemini/settings.json</code>の実機検証（Gemini CLI不在のため不可能。記法確認のみ）</li>
       <li>本実装（git mvによる実際のディレクトリ移動、他ファイルの参照更新）はフェーズ3で行う</li>
+      <li><code>wip/plans</code>の事前作成はしない（<code>git mv plans wip/plans</code>の移動先として
+        存在すると、既存ディレクトリへ入れてしまい二重ネストを無言で作るため）</li>
     </ul>
   </div>
 </section>
 
 <section id="verify">
   <h2>検証</h2>
-  <pre><code># .claude/settings.json の plansDirectory を "./wip/plans" へ変更後
-# EnterPlanMode → ダミー計画作成 → 提示されたplan fileパスを確認</code></pre>
-  <p>合格条件: plan fileのパスが <code>wip/plans/...</code> になっていること。</p>
+  <pre><code># .claude/settings.json の plansDirectory を "./wip/plans" へ変更してcommit・push
+# → 新規セッションを立ち上げ、そのセッションでEnterPlanModeを実行
+# → 提示されたplan fileパスを報告してもらう</code></pre>
+  <p>合格条件: 新規セッションでのplan fileパスが <code>wip/plans/...</code> になっていること。</p>
 </section>
 
 <footer>issue #165 / PR #178 — 計画の正文は同名の <code>.md</code>。外部依存を持たない自己完結HTML。</footer>
