@@ -30,11 +30,14 @@ keywords: [directory, repository-map, リポジトリマップ, ディレクト�
       `passed=N failures=N`を出力し失敗時は終了コード1。
   - [./.claude/hooks/](./.claude/hooks/) SessionStart/PostToolUse等のClaude Code hookスクリプト。
     - [./.claude/hooks/lib/](./.claude/hooks/lib/) 複数hookスクリプトで使い回す共通ロジック。
+    - [./.claude/hooks/otel/](./.claude/hooks/otel/) OTelリスナー機構（Claude Code公式の
+      OpenTelemetry出力をローカルで受信し`usage/`配下へ振り分け保存する常駐プロセス。詳細:
+      `.claude/docs/spec/otel-listener.md`）。
 - [./.gemini/](./.gemini/) Gemini CLI向け設定。`settings.json`のみGit管理。`docs/`・`hooks/`・
   `rules/`・`scripts/`・`skills/`は`.claude/`配下の同名ディレクトリへのローカルリンクで、
   `.gitignore`対象（Git管理外。理由は`.claude/rules/directory-structure.md`参照）。
   clone後は`bash .claude/scripts/src/setup-gemini-links.sh`を1回実行してリンクを作成する。
-- `./plans/` 計画ファイル。全体作業計画（planツールが出力する`<自動命名>.md`、issueにつき1つ）と個別作業計画（`【種別】タスク内容.md`、planツールを使わずWrite/Editで作成）の2階層。タスクごとに新規生成しそのままコミットして履歴として残す。**flow-id 5-5で削除するためディレクトリが存在しない期間があり、リンクにしていない**。
+- `./plans/` 計画ファイル。全体作業計画（planツールが出力する`<自動命名>.md`、issueにつき1つ）と個別作業計画（`【種別】タスク内容.md`、planツールを使わずWrite/Editで作成）の2階層。タスクごとに新規生成しそのままコミットして履歴として残す。各mdには同名の`.html`（その内容を視覚的にまとめた人間レビュー用の自己完結HTML）を併存させる（issue #54）。**flow-id 5-5で削除するためディレクトリが存在しない期間があり、リンクにしていない**。
 - [./worklog/](./worklog/) 実装中の詳細な試行錯誤ログ（`日付_<全体計画名>_<個別計画名>_push<N>.md`）。内容は設計反映（flow-id 4-6）でspec/ddrへ反映し、ファイル自体はflow-id 5-5で`plans/` `reports/`とまとめて削除する。
 - [./.github/ISSUE_TEMPLATE/](./.github/ISSUE_TEMPLATE/) GitHub用issueテンプレート（目的・現状・期待する動作・受け入れ条件）。
 - [./.github/pull_request_template.md](./.github/pull_request_template.md) GitHub用PRテンプレート。見出しは`describe`サブコマンドが生成するdescriptionと同一（`Closes #N`／`## Plan`／`## 実装状況`）。

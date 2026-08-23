@@ -607,6 +607,11 @@ jq -s -c '...' "$tmp/normalized.jsonl"
   `.claude/scripts/test/test_vcs_provider.sh`）。機構自身のテストを`.claude/`配下（plugin配布
   単位）へ収めることで、他プロジェクトへ導入したときに導入先本体の`tests/`と場所を取り合わない
   （issue #63）。
+- **本節の`passed=N failures=N`規約はbashスクリプトが対象。** perlで書いた常駐プロセス
+  （`.claude/hooks/`配下の`otel/`等）の単体テストは、`Test::More`を使いTAP形式で出力してよい
+  （bash版の出力形式へ変換する必要は無い）。テストの置き場所自体は`.claude/scripts/test/`では
+  なくそのプロセス自身の配下に置く（`.claude/rules/directory-structure.md`「配置の指針」参照。
+  実例: `.claude/hooks/otel/test/`）。
 - 実プロセス起動・TCP通信等の結合確認は、「`passed=N failures=N`を出力し
   失敗があれば終了コード1」という規約に合わせる（実例: `tests/test_external_command_server.sh`）。
 - 作成した`.sh`は最低限 `bash -n <file>` で構文チェックする。

@@ -13,6 +13,12 @@
             "type": "command",
             "command": "bash $GEMINI_PROJECT_DIR/.claude/hooks/session-start.sh",
             "timeout": 30000
+          },
+          {
+            "name": "session-start",
+            "type": "command",
+            "command": "bash $GEMINI_PROJECT_DIR/.claude/hooks/otel/session-start.sh",
+            "timeout": 10000
           }
         ]
       }

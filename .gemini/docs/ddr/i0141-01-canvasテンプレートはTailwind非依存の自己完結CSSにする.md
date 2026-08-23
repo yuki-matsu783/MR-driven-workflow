@@ -4,6 +4,7 @@ type: ddr
 description: canvas-reportテンプレート（Code Canvas形式）のエンジン・スタイルはTailwindCSS CDNに依存せず自前CSSで自己完結させ、外部依存を任意のmermaid.jsのみとする決定。
 tags: [canvas-report, css, template]
 keywords: [TailwindCSS, CDN, 自己完結, オフライン, 任意値クラス, z-index, keyframes, mermaid]
+note: 'canvas形式をTailwind非依存にした決定は有効。ただし issue #54 で一覧・表形式のテンプレートも自己完結CSSになったため、「canvas形式だけが例外」という本文の前提は成り立たない。本文中の `templates/canvas-report.html` も当時のパスで、issue #54 で `assets/canvas-report.html` へ改名した。詳細は i0054-01'
 ---
 
 # i0141-01. canvasテンプレートはTailwind非依存の自己完結CSSにする

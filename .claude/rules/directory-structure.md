@@ -21,6 +21,8 @@ keywords: [ディレクトリ構成, claude, gemini, 配置方針, plans, worklo
 │   │   └── ddr/                # 意思決定ログ（DDR）
 │   ├── rules/                  # AI向け詳細ルール（コーディング規約・ドキュメント運用等）
 │   ├── skills/                 # `/issue-mr-flow`（唯一の実装フロー定義）等のスキル定義
+│   │   ├── issue-mr-flow/assets/  # 計画・レポートのHTMLビューのテンプレート2本（issue #54）
+│   │   └── canvas-report/assets/  # canvas形式レポートのテンプレート
 │   ├── agents/                 # サブエージェント定義（issue-mr-flow途中引き継ぎ等）
 │   ├── scripts/                # AIエージェントが`.claude/skills/*`経由で能動的に実行するスクリプト一式
 │   │   ├── src/
@@ -29,7 +31,10 @@ keywords: [ディレクトリ構成, claude, gemini, 配置方針, plans, worklo
 │   │                            #   `passed=N failures=N`を出力し失敗時は終了コード1
 │   │                            #   （詳細: `.claude/rules/shell-script-style.md`「テスト」）
 │   ├── hooks/                  # SessionStart/PostToolUse等のClaude Code hookスクリプト
-│   │   └── lib/                # 複数hookスクリプトで使い回す共通ロジック
+│   │   ├── lib/                # 複数hookスクリプトで使い回す共通ロジック
+│   │   └── otel/                # OTelリスナー機構（常駐プロセス。詳細: `.claude/docs/spec/otel-listener.md`）
+│   │       ├── lib/            # リスナー・フックで使い回す共通ロジック（perlモジュール）
+│   │       └── test/           # 本機構専用の単体テスト（下記「配置の指針」参照）
 │   ├── REVIEW-POINTS.md       # `.claude/`配下に適用するレビュー観点（`type: review-points`）
 │   ├── VERSION                 # 配布物の版（SemVer 1行）。更新規則は`.claude/docs/spec/distribution-assets.md`
 │   └── settings.json
@@ -46,7 +51,8 @@ keywords: [ディレクトリ構成, claude, gemini, 配置方針, plans, worklo
 ├── plans/                      # 計画ファイル。全体作業計画（planツールが出力する`<自動命名>.md`、
 │                                #   issueにつき1つ）と個別作業計画（`【種別】タスク内容.md`、
 │                                #   planツールを使わずWrite/Editで作成）の2階層。タスクごとに
-│                                #   新規生成しそのままコミットして履歴として残す
+│                                #   新規生成しそのままコミットして履歴として残す。各mdには
+│                                #   同名の`.html`（人間レビュー用ビュー）を併存させる（issue #54）
 │   └── REVIEW-POINTS.md        # `plans/`配下に適用するレビュー観点。**flow-id 5-5で削除しない**
 ├── worklog/                    # 実装中の詳細な試行錯誤ログ（`日付_<全体計画名>_<個別計画名>_push<N>.md`）
 │   └── TEMPLATE.md             # worklog作成時にコピーして使うテンプレート
@@ -72,7 +78,13 @@ keywords: [ディレクトリ構成, claude, gemini, 配置方針, plans, worklo
 作業結果・反映結果の**正文**で（個別計画へ結果を書かないための分離先。issue #87。詳細:
 `.claude/skills/issue-mr-flow/SKILL.md`「計画と実施結果の分離」）、
 `reports/日付_<全体計画名>_<内容を簡潔に>.html` はその内容を視覚的にまとめた自己完結HTMLである
-（`.claude/skills/canvas-report/SKILL.md` 参照）。両者は併存させ、flow-id 5-5でまとめて削除する。
+（土台は`.claude/skills/issue-mr-flow/assets/reports.template.html`。関連・依存関係が主題の場合は
+`.claude/skills/canvas-report/SKILL.md` のcanvas形式）。両者は併存させ、flow-id 5-5でまとめて削除する。
+
+**`plans/` も同じくmdとhtmlの2種類を置く**（issue #54）。`plans/` の各計画（全体作業計画・個別計画）に
+対応するHTMLビューを、**mdと同じベース名で拡張子だけ`.html`**にして併存させる（土台は
+`.claude/skills/issue-mr-flow/assets/plans.template.html`）。mdが正文でHTMLはその視覚化という関係も、
+flow-id 5-5でまとめて削除される寿命も`reports/`と同じである。
 
 `usage/` は対応工数レポート機能のローカル作業状態で、`.gitignore`対象（`/usage/`）。内訳は
 `usage/session-logs/<sessionId>/`（セッションログのミラー）・`usage/state/<branch>.json`（集計状態）・
@@ -85,6 +97,12 @@ issue #97。ブランチ別に持つと、同じセッションのままブラ�
 `logs/push-<N>/` へpushのたびにセッションログ全文を保存する系統があったが、transcriptが追記専用で
 あることを確認したうえで廃止し `usage/` へ一本化した（詳細:
 `.claude/docs/ddr/i0023-01-push断面の全文コピーをやめ行番号インデックスで表現する.md`）。
+
+`usage/`配下には、上記の対応工数レポート状態とは別に、OTelリスナー機構
+（`.claude/hooks/otel/`）が振り分け保存する`usage/claude-otel-YYYYMMDD.jsonl`も生成される
+（Claude Code公式のOpenTelemetryエクスポートをローカル受信したテレメトリの生データ。詳細:
+`.claude/docs/spec/otel-listener.md`）。こちらもワークフロー実行中に動的に作成されるファイルで、
+`/usage/`の`.gitignore`対象に含まれる。
 
 `.claude/state/`は`post-push-compact-prompt.sh`がレビュー依頼メッセージの参照リンク組み立てに使う、
 前回push時点のHEAD SHAのローカル作業状態で、`.gitignore`対象（`/.claude/state/`）。責務分離のため
@@ -104,10 +122,28 @@ issue #97。ブランチ別に持つと、同じセッションのままブラ�
   `dev-tools/docs/`）を新設し、`.mrworkflow.json` の `specDirs`/`ddrDirs` に追記することを検討する）。
   Claude Codeのplugin配布は`.claude/`配下一式をパッケージ化する想定のため、AIが実行時に必要とする
   スクリプト・設計書は`.claude/`の外に置かない。
+- **`.claude/hooks/`配下の常駐プロセス（`otel/`等）の単体テストは、`.claude/scripts/test/`ではなく
+  そのプロセス自身の配下（例: `.claude/hooks/otel/test/`）に置く**。`.claude/scripts/test/`は
+  上記のとおり「`.claude/scripts/src/`配下スクリプトの単体テスト」専用であり、Claude Codeの
+  hookから自動起動される常駐プロセスはこれに当たらない。テスト形式（TAP出力か
+  `passed=N failures=N`出力か等）は実装言語の慣習に合わせてよく、`.claude/scripts/test/`の
+  規約（`passed=N failures=N`）へ揃える必要はない。
 - 各`.claude/skills/<name>/`は`SKILL.md`単体が基本だが、スキルの実行に必須のバンドルリソース
-  （テンプレート・補助スクリプト等）がある場合は`.claude/skills/<name>/templates/`のような
-  サブディレクトリを追加してよい（実例: `canvas-report/templates/canvas-report.html`）。他に
-  `scripts/`・`references/`・`assets/`等、用途に応じた名前を使ってよい。
+  がある場合はサブディレクトリを追加してよい。**名前はAgent Skillsの語彙に揃え、次の3つから選ぶ**
+  （issue #54。`templates/`は使わない。リポジトリ内で同じ役割に2つの語彙が並立するのを避けるため、
+  issue #54で`canvas-report/templates/`を`assets/`へ改名した）。
+
+  | ディレクトリ | 用途 | 実例 |
+  |---|---|---|
+  | `assets/` | **出力に使うもの**（テンプレート等） | `issue-mr-flow/assets/reports.template.html`, `canvas-report/assets/canvas-report.html` |
+  | `scripts/` | **実行するもの**（補助スクリプト） | `apply-mr-workflow-to-project/scripts/sync-assets.sh` |
+  | `references/` | **AIが読むもの**（参照資料） | （現時点で実例なし） |
+
+  **`apply-mr-workflow-to-project/assets/` だけは意味が異なる**ので混同しないこと。あちらは
+  `sync-assets.sh`が配布前に生成する**ビルド用の一時ディレクトリ**で、`.gitignore`対象
+  （`/.claude/skills/apply-mr-workflow-to-project/assets/`）である。上表の`assets/`は
+  **Git管理下に置く恒久のバンドルリソース**であり、`.gitignore`の除外行を相対パターン
+  （`assets/`）へ広げると、これらが無言でGit管理から外れる。
 - `.gemini/` は `settings.json` のみGit管理下に置く。`docs/`・`hooks/`・`rules/`・`scripts/`・
   `skills/` は `.claude/` 配下の同名ディレクトリへのローカルリンク（可能ならシンボリックリンク、
   Windowsで作成できない環境ではNTFSジャンクション）とし、**Git管理下には置かない**

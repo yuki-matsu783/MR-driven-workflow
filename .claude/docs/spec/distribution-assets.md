@@ -80,6 +80,17 @@ LICENSEも当初の対象だったが、**同梱しないと決めた**（
   | `MINOR` | 資産の追加・フローの拡張 |
   | `PATCH` | 文言修正・バグ修正 |
 
+- **人間の判断で据え置くことがある。** 増分を決めるのは人間なので、配布対象アセットが変わった回
+  でも「今回は上げない」という結論になりうる（実例: issue #54。`.claude/skills/issue-mr-flow/assets/`
+  へテンプレート2本を新設し `canvas-report/templates/` → `assets/` の改名も行ったが、`0.1.2` の
+  まま据え置いた）。**据え置く場合は、そのissueのspecのchangelogへ据え置いた事実を残す。**
+  上の「配布対象アセットに変更があった回だけ行う」を読んで「VERSIONは配布アセットの変更に必ず
+  追随している」と信じないための断りである。
+  - **据え置きには実害がある**ことを承知して選ぶ。配布先は同じ版のまま中身の違う `.claude/` を
+    受け取るため、**版から資産の差を判別できない**。とくに改名・削除を伴う回は、
+    `install-to-project.sh` が上流で消えたファイルを配布先から削除しない（コピーのみ）ため、
+    配布先に旧パスが残ったことに気づく手掛かりが版にも無くなる。
+
 ### 配布経路での扱い
 
 配布は `apply-mr-workflow-to-project` スキルの2スクリプトが担う（本家 → `assets/` →配布先）。
@@ -126,6 +137,16 @@ LICENSEも当初の対象だったが、**同梱しないと決めた**（
   `.claude/rules/markdown-frontmatter.md`（PR/MRテンプレートを「対象外」表へ追加）、
   `.claude/rules/docs-workflow.md`（`reports/` の `.html` が必須なのは flow-id 2-6 だけである旨）、
   `.claude/rules/directory-structure.md` / `index.md` / `README.md` / `DEVELOPERS.md`。
+
+### issue #54（2026-08-22）
+
+- 更新: `### .claude/VERSION` へ、**人間の判断で据え置くことがある**という項と、据え置いた場合の
+  実害（版から資産の差を判別できない・改名の後片付けが配布先へ及ばない）を追記した。
+  **仕様上の挙動は変更していない**（増分を人間が決める点は元からの規定である）。
+- 契機: issue #54 で配布対象アセット（`.claude/skills/issue-mr-flow/assets/` の2ファイル新設と
+  `canvas-report/templates/` → `assets/` の改名）が変わったにもかかわらず `0.1.2` を据え置いた。
+  その事実は `.claude/docs/spec/issue-mr-workflow.md` のchangelogにしか無く、**規定を持つ本仕様書
+  からは例外があったことが見えない**状態だった（フェーズ4の敵対的レビューの指摘）。
 
 ## 未決定事項・懸念点
 

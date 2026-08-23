@@ -81,9 +81,20 @@ readonly GEMINI_AGENT_KEYS=(
 #                       **対応漏れではない。** Workspace 層が有効化されたら見直す。
 #   autoCompactWindow … Gemini の model.compressionThreshold は「コンテキスト使用率の分数」
 #                       （既定 0.5）であり、絶対値である Claude 側の値とは換算できない。
+#   env              … Gemini CLI の settings.json に「プロセス環境変数を注入する」ブロックは
+#                       無い（環境変数は .env ファイルから読む。settings 側にあるのは
+#                       advanced.excludedEnvVars という除外リストだけ）。**構造として写像先が
+#                       無い。** また現在の中身は issue #103 のOTel配線で、
+#                       CLAUDE_CODE_ENABLE_TELEMETRY を筆頭に Claude Code 固有である。
+#                       Gemini には telemetry ブロックがあるが、受け口
+#                       （.claude/hooks/otel/listener.pl）が Claude Code のOTelスキーマを前提に
+#                       振り分けるため、そこへGemini由来のテレメトリを流すと壊れる。
+#                       **対応漏れではない。** 帰結として、Gemini CLI 経路では対応工数の
+#                       OTel計測が行われない（issue #70 / #103）。
 readonly SETTINGS_IGNORED_KEYS=(
   permissions
   autoCompactWindow
+  env
 )
 
 # 変換して生成するため、コピー対象から外すパス（リポジトリルートからの相対）。
