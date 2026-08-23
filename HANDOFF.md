@@ -185,11 +185,26 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
   確認した（125件の削除行を目で追う方法は実質不可能だった）
 - flow-id 3-6: 計画の手順5（`cleanup-task.sh` の HANDOFF 雛形へ新設行を足す）は**不要だった**
   （雛形は進捗表を持たない）。`update-handoff-progress.sh` の `LOOP_RANGES` もフェーズ5を持たない
+- **敵対的レビュー（フェーズ3・1回目 / 上限3回）を実施した**（ユーザーの明示指示。flow-idは
+  持たないので進捗表は動かさない）。対象はdiff全体62ファイル（`.gemini/` 生成物と削除ファイルは
+  除外）、観点表はルート・`.claude/`・`plans/`・`reports/` の4つを収集。**17件検出 → 10件をPR
+  #157へ投稿**（インライン9件＋レビュー本文1件）、7件は報告のみ。**投稿した指摘への返信は
+  flow-id 3-9 の `comments`/`reply` ループで、人間の指摘と同列に扱う**（issue #109）
+- 敵対的レビューの blocker 1件: **`install-to-project.sh` が配布先の既存 `.gemini/` を警告も
+  退避も無く `rm -rf` する**（`safe_copy_file` の契約の外側。旧実装 `safe_copy_dir` からの機能後退）
+- 敵対的レビューの major 9件: `convert_settings` の出力へ `tr -d '\r'` が無い（git bashで
+  `--check` が常に失敗しうる）／`mapfile` がCRを落とさずCRLFの `agents/*.md` を誤診／
+  `--others` が `.claude/settings.local.json` を `.gemini/` へ焼き込む／`build_into` の0件時
+  メッセージが原因を指さず `install-to-project.sh` を中途半端な状態で中断させる／前置フィルタの
+  `read -d ''` がパイプから1バイトずつ read(2) する（300KBで約10倍遅い。**要実機計測**）／
+  `reports/REVIEW-POINTS.md` が繰り下げ漏れで `5-4` のまま／spec の Gemini hook登録節と
+  未決定事項（issue #57）が生成物の実態と食い違う／`setup-gemini-links.sh` 参照3箇所
 
 ## 次にやること
 
-- **flow-id 3-7（commit・push してレビュー依頼）まで完了。次はフェーズ3の結果確認で
-  敵対的レビューを実施する**（ユーザーからの常設指示。フェーズ3のカウンタは 0/3）
+- **flow-id 3-7（commit・push）と、フェーズ3の結果確認としての敵対的レビュー（1/3）まで完了。**
+  次は**人間のレビュー（flow-id 3-8）待ち**。敵対的レビューが投稿した10件も、人間の指摘と同列に
+  flow-id 3-9 の `comments`/`reply` ループで対応・返信する（issue #109）
 - その後は**フェーズ4（反映）**。flow-id 4-1 で個別反映計画を作る。反映対象は次のとおり
   （いずれもフェーズ3では**意図的に手を付けていない**）:
   - **削除済みの `setup-gemini-links.sh` を指す参照が3箇所**残っている
