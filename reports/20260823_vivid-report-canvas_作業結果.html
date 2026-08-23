@@ -1,0 +1,316 @@
+<!--
+  「reportsテンプレート視覚改修の作業結果」（issue #186 / フェーズ3）の人間レビュー用HTMLビュー。
+  正文は同名の .md。土台: .claude/skills/issue-mr-flow/assets/reports.template.html
+  （issue #186 で改修した新テンプレート自身を初適用している）
+-->
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>reportsテンプレート視覚改修の作業結果 — issue #186</title>
+<style>
+  :root {
+    --bg: #f6f7f9;      --panel: #ffffff;   --ink: #1a1d21;     --muted: #5b636d;
+    --line: #dfe3e8;    --accent: #2563eb;  --accent-soft: #eaf0fe;
+    --ok: #1a7f4b;      --ok-soft: #e6f4ec; --warn: #a35a00;    --warn-soft: #fdf1e0;
+    --stop: #b3261e;    --stop-soft: #fdecea; --good: #1d4ed8;  --good-soft: #e7edfd;
+    --code-bg: #f0f2f5;
+    --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1216;    --panel: #161a20;   --ink: #e6e8eb;     --muted: #9aa3ad;
+      --line: #2a3038;  --accent: #7aa2f7;  --accent-soft: #1b2333;
+      --ok: #6ee7a8;    --ok-soft: #14261d; --warn: #f0b866;    --warn-soft: #2a2113;
+      --stop: #f2857c;  --stop-soft: #2b1614; --good: #8ab4f8;  --good-soft: #17233a;
+      --code-bg: #1d222a;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", system-ui, sans-serif;
+    line-height: 1.8; font-size: 15px;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 20px 80px; }
+  header.band {
+    background: linear-gradient(135deg, var(--accent-soft), var(--panel));
+    border-bottom: 1px solid var(--line); padding: 28px 20px 22px; margin-bottom: 28px;
+  }
+  header.band .inner { max-width: 1080px; margin: 0 auto; }
+  header.band .kind { font-size: 11px; letter-spacing: .18em; color: var(--accent); font-weight: 700; }
+  header.band h1 { margin: 6px 0 4px; font-size: 26px; line-height: 1.4; }
+  header.band .lead { margin: 0; color: var(--muted); }
+  header.band .counts { margin: 12px 0 0; display: flex; gap: 6px; flex-wrap: wrap; }
+  .meta { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; padding: 0; list-style: none; }
+  .meta li {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 999px;
+    padding: 3px 12px; font-size: 12.5px; color: var(--muted); white-space: nowrap;
+  }
+  .meta li b { color: var(--ink); font-weight: 600; }
+  nav.toc {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 14px 20px; margin-bottom: 28px;
+  }
+  nav.toc h2 { margin: 0 0 8px; font-size: 13px; letter-spacing: .08em; color: var(--muted); border: 0; padding: 0; }
+  nav.toc ol { margin: 0; padding-left: 20px; }
+  nav.toc li { margin: 2px 0; }
+  a { color: var(--accent); }
+  section {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 8px 24px 22px; margin-bottom: 22px;
+  }
+  section[id], h3[id] { scroll-margin-top: 16px; }
+  h2 { font-size: 20px; margin: 20px 0 10px; padding-bottom: 8px; border-bottom: 2px solid var(--line); }
+  h3 { font-size: 16px; margin: 22px 0 8px; color: var(--accent); }
+  p { margin: 10px 0; }
+  ul, ol { padding-left: 22px; }
+  li { margin: 4px 0; }
+  .tablewrap { overflow-x: auto; margin: 14px 0; }
+  table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 14px; }
+  th, td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: var(--accent-soft); font-weight: 600; white-space: nowrap; }
+  tbody tr:nth-child(even) td { background: color-mix(in srgb, var(--line) 22%, transparent); }
+  code {
+    background: var(--code-bg); border-radius: 5px; padding: 1px 5px; font-size: 13px;
+    font-family: "SFMono-Regular", Consolas, "Noto Sans Mono", monospace;
+  }
+  pre {
+    background: var(--code-bg); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 12px 14px; overflow-x: auto; font-size: 13px; line-height: 1.65;
+  }
+  pre code { background: none; padding: 0; }
+  .box { border-left: 4px solid var(--accent); background: var(--accent-soft);
+         border-radius: 0 var(--radius) var(--radius) 0; padding: 12px 16px; margin: 16px 0; }
+  .box > :first-child { margin-top: 0; } .box > :last-child { margin-bottom: 0; }
+  .box .label { font-size: 12px; font-weight: 700; letter-spacing: .06em; display: block; margin-bottom: 4px; }
+  .box.ok { border-color: var(--ok); background: var(--ok-soft); } .box.ok .label { color: var(--ok); }
+  .box.warn { border-color: var(--warn); background: var(--warn-soft); } .box.warn .label { color: var(--warn); }
+  .box.stop { border-color: var(--stop); background: var(--stop-soft); } .box.stop .label { color: var(--stop); }
+  .box.info .label { color: var(--accent); }
+  .chip { display: inline-block; border-radius: 999px; padding: 1px 9px; font-size: 12px; font-weight: 600; }
+  .chip.good { background: var(--good-soft); color: var(--good); }
+  .chip.warn { background: var(--warn-soft); color: var(--warn); }
+  .chip.stop { background: var(--stop-soft); color: var(--stop); }
+  ol.verdicts { list-style: none; padding: 0; margin: 14px 0; display: grid; gap: 8px; }
+  .verdict {
+    border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel);
+    padding: 8px 12px; display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px;
+  }
+  .verdict .v-basis { color: var(--muted); font-size: 12.5px; margin-left: auto; }
+  .focus { border-radius: var(--radius); padding: 12px 16px; margin: 14px 0; }
+  .focus > :last-child { margin-bottom: 0; }
+  .focus .label { font-size: 13px; font-weight: 700; letter-spacing: .04em; display: block; margin-bottom: 4px; }
+  .focus.must { border: 2px solid var(--accent); background: var(--accent-soft); }
+  .focus.must .label { color: var(--accent); }
+  .focus.want { border: 1px solid var(--accent); background: var(--panel); }
+  .focus.want .label { color: var(--accent); }
+  .focus.skip { border: 1px solid var(--line); background: var(--panel); color: var(--muted); }
+  .focus.skip .label { color: var(--muted); }
+  .focus.skip a { color: var(--muted); }
+  footer { color: var(--muted); font-size: 13px; text-align: center; padding-top: 10px; }
+</style></head>
+<body>
+
+<header class="band">
+  <div class="inner">
+    <div class="kind">作業結果レポート / フェーズ3</div>
+    <h1>reportsテンプレート視覚改修の作業結果</h1>
+    <p class="lead">reports.template.html を色分け結論カード・重点レビュー依頼・未確認事項の前半移動を持つ9節構成へ改修した。検証6種＋タグ対応の機械確認をすべてパスした。</p>
+    <p class="counts">
+      <span class="chip good">◎良 4</span>
+      <span class="chip warn">△注意 1</span>
+    </p>
+    <ul class="meta">
+      <li><b>issue</b> #186</li>
+      <li><b>ブランチ</b> claude/html-report-visual-improvement-chu89d</li>
+      <li><b>PR</b> #191</li>
+      <li><b>フェーズ</b> 3〈作業〉 flow-id 3-6</li>
+      <li><b>push回数</b> 7</li>
+      <li><b>作成日</b> 2026-08-23</li>
+      <li><b>正文</b> 同名の .md</li>
+    </ul>
+  </div>
+</header>
+
+<div class="wrap">
+
+<nav class="toc">
+  <h2>目次</h2>
+  <ol>
+    <li><a href="#review-focus">重点レビュー依頼</a></li>
+    <li><a href="#summary">サマリ（結論の一覧）</a></li>
+    <li><a href="#unverified">確かめられなかったこと</a></li>
+    <li><a href="#conditions">実施条件（測った対象・環境）</a></li>
+    <li><a href="#findings">実施した内容と結果</a></li>
+    <li><a href="#next">設計への反映</a></li>
+    <li><a href="#surprises">想定と異なった点</a></li>
+    <li><a href="#todo">残課題</a></li>
+  </ol>
+</nav>
+
+<section id="review-focus">
+  <h2>重点レビュー依頼</h2>
+  <div class="focus must">
+    <span class="label">◆特に見てほしい（判断に困っている）</span>
+    <ul>
+      <li><a href="#f2">2. 色トークン・チップ</a> — 「良かった＝青」の <code>--good</code>（ライト <code>#1d4ed8</code>）はアクセント青 <code>--accent</code>（<code>#2563eb</code>）と同系色で、チップ地色で区別している。リンク色との識別性がこれで十分か、色相をずらすべきかを判断してほしい。</li>
+    </ul>
+  </div>
+  <div class="focus want">
+    <span class="label">◇承認が欲しい（方針は決めたので確認してほしい）</span>
+    <ul>
+      <li><a href="#f1">1. 節の並び順</a> — 節名は全維持し、並び順だけを変えた。</li>
+      <li><a href="#f2">2. .tag の削除</a> — <code>.tag</code> 系4行を削除し <code>.chip</code> 系4行へ置き換えた（旧クラスの利用箇所ゼロを確認済み）。</li>
+    </ul>
+  </div>
+  <div class="focus skip">
+    <span class="label">・細かいレビューは不要（ほぼ確実）</span>
+    <ul>
+      <li><a href="#f4">4. アンカー対策・検査の伝承</a> — <code>scroll-margin-top</code> の追加・検査コマンドの収載（実測で確認済み）。</li>
+    </ul>
+  </div>
+</section>
+
+<section id="summary">
+  <h2>サマリ（結論の一覧）</h2>
+  <ol class="verdicts">
+    <li class="verdict">
+      <span class="chip good">◎良</span>
+      <a href="#f1">1. 9節構成（重点レビュー依頼 新設・未確認事項 前半移動）へ改修し、節順は期待値とのdiff一致</a>
+      <span class="v-basis">根拠: 実測</span>
+    </li>
+    <li class="verdict">
+      <span class="chip good">◎良</span>
+      <a href="#f2">2. --good 新設・.tag→.chip 置き換え・緑（--ok）は「決めたこと」専用として分離</a>
+      <span class="v-basis">根拠: 実装の確認</span>
+    </li>
+    <li class="verdict">
+      <span class="chip good">◎良</span>
+      <a href="#f3">3. 未確認事項は「前半に1行1件の一覧＋各章に詳細callout」の分担で実装</a>
+      <span class="v-basis">根拠: 実装の確認</span>
+    </li>
+    <li class="verdict">
+      <span class="chip good">◎良</span>
+      <a href="#f4">4. 章ID f1〜・リンク破断検査（意図的破断の検出まで）をテンプレートコメントへ伝承</a>
+      <span class="v-basis">根拠: 実測</span>
+    </li>
+    <li class="verdict">
+      <span class="chip warn">△注意</span>
+      <a href="#f5">5. 検証は機械確認のみで、実ブラウザでの描画は未確認</a>
+      <span class="v-basis">根拠: 実測（環境の制約）</span>
+    </li>
+  </ol>
+</section>
+
+<section id="unverified">
+  <h2>確かめられなかったこと</h2>
+  <div class="box warn">
+    <span class="label">この結果が言っていないこと</span>
+    <ul>
+      <li>実ブラウザでの描画・色の見え方（コントラスト・色覚多様性・ダークモードの実表示）— <a href="#f5">詳細: 章5</a></li>
+      <li><code>color-mix()</code> 非対応の古いブラウザでの表縞模様の欠落（既存テンプレートから引き継いだ性質）— <a href="#f5">詳細: 章5</a></li>
+    </ul>
+  </div>
+</section>
+
+<section id="conditions">
+  <h2>実施条件（測った対象・環境）</h2>
+  <ul>
+    <li>実行環境: Claude Code on the web リモート実行環境（Linux）</li>
+    <li>対象: <code>.claude/skills/issue-mr-flow/assets/reports.template.html</code>（改修前298行→改修後438行）</li>
+    <li>実施日: 2026-08-23</li>
+    <li>使用コマンド: 計画「検証」節の1〜6（grep・comm・diff）＋ python3 <code>html.parser</code> によるタグ対応確認</li>
+  </ul>
+</section>
+
+<section id="findings">
+  <h2>実施した内容と結果</h2>
+
+  <h3 id="f1">1. 節の並び順の変更と「重点レビュー依頼」の新設 <span class="chip good">◎良</span></h3>
+  <p>節順を「目次 → 重点レビュー依頼 → サマリ（結論の一覧） → 確かめられなかったこと → 実施条件（測った対象・環境） → 実施した内容と結果 → 設計への反映 → 想定と異なった点 → 残課題」へ変更した。節名は1つも変えていない（調査結果Q1の「節名全維持」どおり）。</p>
+  <p><code>id="review-focus"</code> の必須節を新設。3段階（◆特に見てほしい／◇承認が欲しい／・細かいレビューは不要）を <code>.focus.must/.want/.skip</code> のカードで表現し、重みは色相ではなくアクセント系1色相の濃度（<code>--accent-soft</code> 地／<code>--panel</code> 地）・枠の太さ（2px／1px）＋記号で表す。第3段階は <code>--line</code> 枠＋ <code>--muted</code> 文字（背景には使わない）。</p>
+  <div class="box ok">
+    <span class="label">結論</span>
+    検証6（h2の実測と期待9行のdiff）は差分なし。本レポート自身がこの節順で書かれている。
+  </div>
+
+  <h3 id="f2">2. サマリの結論カード化と色トークン・チップ <span class="chip good">◎良</span></h3>
+  <p>サマリの表を廃止し、結論カード（<code>ol.verdicts</code> &gt; <code>li.verdict</code>）へ置き換えた。1カード＝性質チップ＋結論1行＋根拠の性質（旧表の4列目を引き継ぐ）＋該当章リンクの4要素。ヘッダ帯には結論件数チップ（<code>p.counts</code>）を追加した。</p>
+  <p><code>:root</code> へ <code>--good: #1d4ed8; --good-soft: #e7edfd;</code>、ダーク側へ <code>--good: #8ab4f8; --good-soft: #17233a;</code> を追加。<code>.tag</code> 基底＋色修飾子の4行（旧144〜147行）を削除し、<code>.chip</code> 基底＋ <code>.chip.good/.warn/.stop</code> の4行を追加した（旧 <code>.tag.*</code> の利用箇所が本体マークアップに無いことを確認済み）。</p>
+  <div class="box ok">
+    <span class="label">結論</span>
+    <code>--ok</code>（緑）と <code>.box.ok</code> は「決めたこと・手順の成功」専用として存続させ、役割分担をCSSコメントと冒頭コメント「色・記号の使い分け」へ明記した。
+  </div>
+
+  <h3 id="f3">3. 「確かめられなかったこと」の前半移動と詳細callout <span class="chip good">◎良</span></h3>
+  <p>一覧をサマリ直後へ移動。1行1件で全項目を挙げ、各行から関連章へリンクする形にした（節名・<code>--warn</code> の警告色は維持）。各章側に <code>.box.warn.unverified-detail</code>（ラベル「確かめられなかったこと（詳細）」）の見本を置いた。</p>
+  <div class="box ok">
+    <span class="label">結論</span>
+    「一覧側を空にして詳細だけを章へ書かない」分担を節コメントへ明記した。本レポートの章5がこの分担の実例になっている。
+  </div>
+
+  <h3 id="f4">4. アンカーの位置ずれ対策とリンク破断検査の伝承 <span class="chip good">◎良</span></h3>
+  <p><code>section[id], h3[id] { scroll-margin-top: 16px; }</code> を追加し、「実施した内容と結果」の h3 に <code>id="f1"</code> 連番を振って見出し隣に性質チップを置く見本を収載した。冒頭コメントへリンク破断検査（comm -23、出力0行が合格）と、<code>#</code> を <code>&amp;#35;</code> と書くエスケープの適用範囲（具体的なIDを引用する見本アンカーのみ。検査コマンドの正規表現には適用しない）を明記した。</p>
+  <div class="box ok">
+    <span class="label">結論</span>
+    検証2（本体の破断なし）は出力0行、検証2b（意図的破断の検出）は zzz-broken 1行を検出した。
+  </div>
+
+  <h3 id="f5">5. 検証の実施結果 <span class="chip warn">△注意</span></h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>検証</th><th>期待</th><th>実測</th><th>判定</th></tr></thead>
+    <tbody>
+      <tr><td>1. 自己完結性（2コマンド）</td><td>いずれも0件</td><td>0件・0件</td><td>パス</td></tr>
+      <tr><td>2. リンク破断</td><td>出力0行</td><td>0行</td><td>パス</td></tr>
+      <tr><td>2b. 意図的破断の検出</td><td>zzz-broken 1行</td><td>1行</td><td>パス</td></tr>
+      <tr><td>3. プレースホルダ</td><td>0でない</td><td>23件</td><td>パス</td></tr>
+      <tr><td>4. 構造3語</td><td>各1件以上</td><td>1・3・1件</td><td>パス</td></tr>
+      <tr><td>5. コメント伝承語</td><td>2・1・1件以上</td><td>12・2・7件</td><td>パス</td></tr>
+      <tr><td>6. 節順diff</td><td>差分なし</td><td>差分なし</td><td>パス</td></tr>
+      <tr><td>タグ対応（python3 html.parser）</td><td>エラーなし</td><td>エラーなし</td><td>パス</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <div class="box warn unverified-detail">
+    <span class="label">確かめられなかったこと（詳細）</span>
+    この環境にはブラウザ描画の確認手段が無く、色の見え方（<code>--good</code> とリンク色の識別性・ダークモードの実表示・コントラスト）とアンカースクロールの実挙動は機械確認で代替した。<code>color-mix()</code>（表の縞模様）は既存テンプレートから引き継いだプロパティで、非対応ブラウザでは縞が消えるだけで情報は失われない。
+  </div>
+</section>
+
+<section id="next">
+  <h2>設計への反映</h2>
+  <ol>
+    <li><code>.claude/docs/spec/issue-mr-workflow.md</code> へ issue #186 のchangelogエントリを追記する（フェーズ4【設計反映】）。</li>
+    <li><code>reports/REVIEW-POINTS.md</code> へ「重点レビュー依頼」観点を足すかを判断する（フェーズ4【AIアセット反映】）。</li>
+    <li><code>.claude/VERSION</code> の増分／据え置きを判断し、根拠をspecのchangelogと <code>HANDOFF.md</code> へ残す（flow-id 4-6）。</li>
+    <li><code>.gemini/</code> 配下は flow-id 5-3 の <code>sync-gemini-assets.sh</code> 再生成で追随させる。</li>
+  </ol>
+</section>
+
+<section id="surprises">
+  <h2>想定と異なった点</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>計画時の見込み</th><th>実際</th><th>どう扱ったか</th></tr></thead>
+    <tbody>
+      <tr><td>プレースホルダは現行18件（改修後も0でなければ合格）</td><td>改修後23件（節・callout追加により増加）</td><td>検証3は「0でないこと」が条件のため合格。件数の増加は新設節の見本コメントによる想定内の方向</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="todo">
+  <h2>残課題</h2>
+  <ul>
+    <li>無し（フェーズ4以降で扱う項目は「設計への反映」に記載のとおり）。</li>
+  </ul>
+</section>
+
+<footer>issue #186 / PR #191 — 結果の正文は同名の <code>.md</code>。外部依存を持たない自己完結HTML。</footer>
+
+</div>
+</body>
+</html>
