@@ -188,3 +188,46 @@ changelog（point-in-time の記録）は書き換えない**運用（`.claude/r
 | 「最終統括レポートとPR/MRへの反映」 | `references/phase5-close.md` |
 | 「PRがflow-id 5-5実施前にマージされてしまった場合の対処」 | `references/phase5-close.md` |
 | 「`.claude/` → `.gemini/` の変換同期」（issue #70でSKILL.mdへ追加された節） | `references/phase5-close.md` |
+
+## flow-idを並べ替える・挿入する作業を行う場合（issue #143）
+
+flow-idの並べ替え・新規ステップの挿入（過去の実例: issue #112「フェーズ5並べ替え」・issue #111
+「統括レポート追加」・issue #70「gemini変換同期ステップ追加」）を行う際は、
+`.claude/rules/docs-workflow.md` `.claude/skills/issue-mr-flow/SKILL.md`本体の変更を終えた後、
+**変更作業の最後に**次を確認する。
+
+1. **まず、今回変更した番号（旧番号→新番号）を先に列挙し、その旧番号だけを固定文字列で
+   横断grepする**（例: 旧番号が`5-4`なら`git grep -n -- '5-4'`）。次に、取りこぼしが無いかの
+   補助確認として、`[0-9]-[0-9]`という数字パターン全体（`flow-id`の接頭辞が付かないもの——
+   `2-3〜2-4`のような範囲表記・`flow-id 2-2/2-7/…`のようなスラッシュ連結表記を含む）も横断grepする。
+   ```bash
+   git -c core.quotePath=false grep -nE '[0-9]-[0-9]' -- \
+     '*.md' '*.sh' '*.html' ':(exclude)plans/*' ':(exclude)worklog/*' ':(exclude)reports/*' \
+     'plans/REVIEW-POINTS.md' 'reports/REVIEW-POINTS.md'
+   ```
+   このパターンは日付（`2026-08-23`等）にもヒットし、リポジトリ全体で2000行規模・SKILL.md単体でも
+   150件規模になりうる。**1件ずつ確認するのは現実的ではない**ため、この全体走査は手順1前段の
+   固定文字列grepで拾いきれなかった取りこぼしの有無を確かめる補助に位置づける
+   （`core.quotePath=false`を付けないと、`plans/` `worklog/`配下の日本語ファイル名がダブルクォート
+   ＋8進エスケープで出力され、下記2の除外パススペックに一致しなくなる点に注意する）。
+2. `plans/` `worklog/` `reports/`配下はタスク単位で削除される成果物のため走査対象から除外して
+   よいが、**除外はファイル単位で判断する**（理由・実例は`.claude/rules/docs-workflow.md`
+   「flow-idの繰り下げのような横断的な棚卸しでは」の段落が正——本節では重複説明しない）。
+   上記1のコマンド例は`plans/REVIEW-POINTS.md` `reports/REVIEW-POINTS.md`を明示的に除外対象から
+   戻している。
+3. ヒットした記述が**現在の状態を説明しているか、過去の記録（point-in-time）か**で判断する
+   （ファイルの種類では判断しない）。`.claude/docs/spec/*.md` `.claude/docs/ddr/*.md`の過去
+   changelog・DDR本文だけでなく、`.claude/scripts/`配下のコメントも対象になる。ただし
+   `.claude/scripts/`配下のコメントは、**同じ1行に現在値と経緯が同居している**ことが多い点に
+   注意する（例: `cleanup-task.sh`冒頭「flow-id 5-5（次タスクのための片付け）を自動化する
+   （issue #28。当時のflow-idは 5-1。issue #112 の並べ替えで 5-3 になり、issue #111 の統括
+   レポート追加で 5-4、issue #70 の変換同期の新設で現在は 5-5）」）。**経緯部分（「当時は〜」
+   「issue #NNで〜になった」）は書き換えず、現在値部分（「現在は5-5」等）だけを新しい番号へ
+   更新する**。ファイル全体を「書き換えない」と
+   一律に扱うと、この種のコメントの現在値が古いまま残る。
+4. 確認した結果（何件見つかり、どう対処したか）を、**コミットメッセージへ必ず残す**。
+   `reports/`はタスク単位の作業記録としてブランチ上でのみ参照でき、flow-id 5-5（次タスクのための
+   片付け）で削除されmainには残らないため、恒久的に参照したい内容（新たな落とし穴の発見等）は
+   spec/DDRへ書く。
+
+背景・却下案は `.claude/docs/ddr/i0143-01-flow-id並べ替え時の確認手順をSKILL.mdへ明記しDDRで記録する.md` を参照。
