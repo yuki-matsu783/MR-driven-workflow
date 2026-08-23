@@ -1,7 +1,7 @@
 # generated-for: 9738ec2aaf61cb89151dae4c8fbb98430f9a48f0
 # id	項目	状態	実施ログ
-worklog	worklogを作成し、このpushまでの試行錯誤を追記した	pending	
-handoff	HANDOFF.md の進捗表・ヘッダを更新した（commitより前・同じcommitに含めた）	pending	
-frontmatter-index	frontmatterを変更した場合、index.jsonl を最新化した	pending	
-plan-report-sync	wip/plans/ wip/reports/ の md と html を同期した	pending	
-commit-skill	commit スキル（create-commit.sh）経由でコミットした	pending	
+worklog	worklogを作成し、このpushまでの試行錯誤を追記した	done	wip/worklogs/…_push8.md を作成し、IFS read の落とし穴・make_tsv の :- 空振り・hookに阻まれたスモークの3件を記録した
+handoff	HANDOFF.md の進捗表・ヘッダを更新した（commitより前・同じcommitに含めた）	done	push回数を8へ、現在のループを 3-6〜3-9 の1周目（進行中）へ更新し、やったこと・次にやること・未解決の内容を書き換えた（commitより前に実施）
+frontmatter-index	frontmatterを変更した場合、index.jsonl を最新化した	done	spec/push-checklist.md・report・worklog を追加したため extract-frontmatter.sh . を実行して再生成した
+plan-report-sync	wip/plans/ wip/reports/ の md と html を同期した	skip	このpushでは wip/plans/ を変更していない。wip/reports/ は md と html を同時に新規作成し、テンプレート検査（プレースホルダ0・アンカー切れ無し・id重複無し）を通してある
+commit-skill	commit スキル（create-commit.sh）経由でコミットした	done	create-commit.sh 経由で feat / test / docs / chore の4コミットへ分けて作成した
