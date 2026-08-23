@@ -18,8 +18,8 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - ブランチ: claude/adversarial-review-script-2sba3d
 - PR: #183
 - push回数: 3
-- 現在のループ: 3-6〜3-9 の1周目（進行中）
-- 未返信スレッド: 9
+- 現在のループ: なし
+- 未返信スレッド: 0
 - 追従監視: なし
 
 | 進捗 | flow-id | ステップ | 担当 |
@@ -50,16 +50,16 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 | [] | 3-8 | 作業結果のレビュー | 人間 |
 | [] | 3-9 | レビュー内容の反映 | comments/reply |
 | [] | 3-10 | MR description更新 | describe |
-| [] | 4-1 | 個別反映計画を作成する | エージェント |
-| [] | 4-2 | commit・push・レビュー依頼 | エージェント |
-| [] | 4-3 | 反映計画のレビュー | 人間 |
-| [] | 4-4 | レビュー内容の反映 | comments/reply |
-| [] | 4-5 | MR description更新 | describe |
-| [] | 4-6 | 反映作業を進める | エージェント |
-| [] | 4-7 | commit・push・レビュー依頼 | エージェント |
-| [] | 4-8 | 反映結果のレビュー | 人間 |
-| [] | 4-9 | レビュー内容の反映 | comments/reply |
-| [] | 4-10 | MR description更新 | describe |
+| [x] | 4-1 | 個別反映計画を作成する | エージェント |
+| [-] | 4-2 | commit・push・レビュー依頼 | エージェント |
+| [-] | 4-3 | 反映計画のレビュー | 人間 |
+| [-] | 4-4 | レビュー内容の反映 | comments/reply |
+| [-] | 4-5 | MR description更新 | describe |
+| [-] | 4-6 | 反映作業を進める | エージェント |
+| [-] | 4-7 | commit・push・レビュー依頼 | エージェント |
+| [-] | 4-8 | 反映結果のレビュー | 人間 |
+| [-] | 4-9 | レビュー内容の反映 | comments/reply |
+| [-] | 4-10 | MR description更新 | describe |
 | [] | 5-1 | defaultブランチとのコンフリクト解消 | resolve-conflict |
 | [] | 5-2 | 関連issueへの通知 | エージェント |
 | [] | 5-3 | .gemini/への変換同期 | エージェント |
@@ -104,31 +104,44 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
   SKILL.md/spec/DDR/計画/レポート/HANDOFF）に分けて`commit`スキル経由でコミットし、push済み
   （push回数2）。
 
-## 敵対的レビューで投稿したスレッド（フェーズ3・1回目、未返信9件）
+## 敵対的レビューで投稿したスレッド（フェーズ3・1回目、返信済み9/9）
 
-- https://github.com/yuki-matsu783/MR-driven-workflow/pull/183#discussion_r3838127397
-- https://github.com/yuki-matsu783/MR-driven-workflow/pull/183#discussion_r3838127526
-- https://github.com/yuki-matsu783/MR-driven-workflow/pull/183#discussion_r3838127674
-- https://github.com/yuki-matsu783/MR-driven-workflow/pull/183#discussion_r3838127802
-- https://github.com/yuki-matsu783/MR-driven-workflow/pull/183#discussion_r3838127924
-- https://github.com/yuki-matsu783/MR-driven-workflow/pull/183#discussion_r3838127992
-- https://github.com/yuki-matsu783/MR-driven-workflow/pull/183#discussion_r3838128127
-- https://github.com/yuki-matsu783/MR-driven-workflow/pull/183#discussion_r3838128201
-- https://github.com/yuki-matsu783/MR-driven-workflow/pull/183#discussion_r3838128284
+投稿（本文）→返信（URL）の順で対応する。
 
-**返信は`comments`/`reply`ループ（flow-id 3-9相当）で行う。投稿直後のこのセッションでは
-返信しない**（`adversarial-review/SKILL.md`「してはいけないこと」）。
+- https://github.com/yuki-matsu783/MR-driven-workflow/pull/183#discussion_r3838127397 → https://github.com/yuki-matsu783/MR-driven-workflow/pull/183#discussion_r3838372090
+- https://github.com/yuki-matsu783/MR-driven-workflow/pull/183#discussion_r3838127526 → https://github.com/yuki-matsu783/MR-driven-workflow/pull/183#discussion_r3838372251
+- https://github.com/yuki-matsu783/MR-driven-workflow/pull/183#discussion_r3838127674 → https://github.com/yuki-matsu783/MR-driven-workflow/pull/183#discussion_r3838372294
+- https://github.com/yuki-matsu783/MR-driven-workflow/pull/183#discussion_r3838127802 → https://github.com/yuki-matsu783/MR-driven-workflow/pull/183#discussion_r3838372393
+- https://github.com/yuki-matsu783/MR-driven-workflow/pull/183#discussion_r3838127924 → https://github.com/yuki-matsu783/MR-driven-workflow/pull/183#discussion_r3838372494
+- https://github.com/yuki-matsu783/MR-driven-workflow/pull/183#discussion_r3838127992 → https://github.com/yuki-matsu783/MR-driven-workflow/pull/183#discussion_r3838372595
+- https://github.com/yuki-matsu783/MR-driven-workflow/pull/183#discussion_r3838128127 → https://github.com/yuki-matsu783/MR-driven-workflow/pull/183#discussion_r3838372658
+- https://github.com/yuki-matsu783/MR-driven-workflow/pull/183#discussion_r3838128201 → https://github.com/yuki-matsu783/MR-driven-workflow/pull/183#discussion_r3838372732
+- https://github.com/yuki-matsu783/MR-driven-workflow/pull/183#discussion_r3838128284 → https://github.com/yuki-matsu783/MR-driven-workflow/pull/183#discussion_r3838372783
+
+返信はすべて署名`Claude Codeより:`付きで、対応内容と反映コミット（4059488・75b6078）を明記した。
 
 - MR descriptionを`update_pull_request`（MCP、`describe`相当）で最新化した
   （実装状況・敵対的レビュー実施結果・投稿9件の対応状況を反映）。
+- 投稿した9件のスレッドすべてへ`reply`相当（`mcp__github__add_reply_to_pull_request_comment`。
+  署名`Claude Codeより:`付き）で対応内容・反映コミットを返信し、`set-header --unreplied 0`で
+  記録した。返信後に本文が途中で切れていないことを`get_review_comments`で確認済み。
+  返信URLは下記「敵対的レビューで投稿したスレッド」参照。
+- ユーザーから「続けて良い」と明示指示を受けた。このセッションでは人間の実レビューを待てない
+  ため、進捗表の3-3〜3-9の記号は`.claude/rules/docs-workflow.md`「非対話的実行環境で、人間担当の
+  レビュー待ちステップを省略する場合」に従い`[]`のまま残す（無理に`[x]`にしない）が、
+  実施済みの内容（実装・敵対的レビュー・修正・返信）を根拠に flow-id 4-1（反映計画）以降へ進める。
+- **flow-id 4-1: 反映対象を洗い出した。** 全体作業計画「フェーズ4〈反映〉」節で既に
+  「設計反映（spec/DDR）はフェーズ3の作業に含めて行う」「実装反映の対象は見込んでいない」と
+  記載しており、実際に敵対的レビューへの対応（フェーズ3内）でspec・DDR・SKILL.mdへの反映が
+  すべて完了済みであることを確認した。実装コード・テストコードの修正で持ち越しているものも
+  無い（フェーズ3内のレビュー往復1回で全指摘に対応済み）。**新たな反映対象は無い**と判断し、
+  `mark-done 4-1`のうえ`mark-skip 4-2 4-3 4-4 4-5 4-6 4-7 4-8 4-9 4-10`でフェーズ4の残りを
+  スキップした。
 
 ## 次にやること
 
-- flow-id 3-6〜3-9 のループを1周完了させたら（このセッションでは人間レビューを待てないため、
-  下記「判断を迷った内容」の方針に従い、レビューはPRへ委ねてこのセッションでは進捗記号を
-  動かさない。未返信スレッドが9件残っているため、いずれにせよこのループへの`mark-done`は
-  現時点では拒否される）、flow-id 4-1（反映計画）以降へ進める。
-- 最終的にPRをDraft解除するかは、人間のレビューが実際に付いてから判断する。
+- flow-id 5-1（defaultブランチとのコンフリクト解消）〜5-6（commit・push・Draft解除）へ進める。
+  5-7（マージ）はユーザーの明示指示が無い限り実行しない。
 
 ## 判断を迷った内容
 
@@ -144,11 +157,14 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
   作成済みなので、実際のレビューはGitHub上で行われる想定とし、このセッションでは
   進捗記号を動かさずに留めた（`.claude/rules/docs-workflow.md`「非対話的実行環境で、人間担当の
   レビュー待ちステップを省略する場合」の扱いに準ずる）。
+- **ユーザーから「続けて良い」の明示指示を受け、人間の実レビューを待たずフェーズ4以降へ進めた。**
+  進捗記号（3-3〜3-9）は上記のとおり`[]`のまま残す（実施しなかったことにはしないが、人間が
+  レビューした事実として`[x]`にもしない）。マージ（flow-id 5-7）は引き続き明示指示が無い限り
+  実行しない。
 
 ## 未解決の内容
 
-- 敵対的レビューで投稿した9件のスレッドは、いずれも修正済みだが**未返信**（返信は次の
-  `comments`/`reply`ループで行う設計のため。上記「敵対的レビューで投稿したスレッド」参照）。
+- （無し。敵対的レビューで投稿した9件は修正・返信とも完了）
 
 ## 守るべき条件・触ってはいけない範囲
 
