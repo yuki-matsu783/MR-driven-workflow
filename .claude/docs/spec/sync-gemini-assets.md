@@ -71,7 +71,25 @@ git -c core.quotepath=false ls-files --cached --others --exclude-standard -z -- 
 - **`--cached` は「削除したがまだステージしていない」追跡ファイルも列挙する。** 実体が無いまま
   `cp` へ渡すと落ちるため、`[[ -f ]]` で弾き、**スキップ件数を標準エラーへ出す**（issue #117 と
   同じ罠。無言のスキップは本当の欠落を隠す）。
-- コピー対象が0件なら、リポジトリルート以外で実行されたとみなしてエラーにする。
+- **`--others` は未追跡ファイルも列挙する。** 意図した挙動である（`.claude/` へ足したばかりで
+  まだコミットしていないファイルも生成物へ載せたい。載らないと flow-id 5-3 の `--check` が
+  コミット前に通らない）。**その代わり、各開発者のローカル設定を落とす責任が `.gitignore` に
+  移る。** このリポジトリの `/.claude/settings.local.json` がそれにあたり、配布先でも同じ行が
+  効くよう `install-to-project.sh` の ignore ルールが配る。
+  `COPY_EXCLUDED_PREFIXES` へは足さない（`.gitignore` に入れば `--exclude-standard` が落とすので
+  二重になる。**除外の定義が2箇所に分かれるほうが危うい**）。
+- **失敗条件は「列挙が0件」であって「コピー対象が0件」ではない**（issue #70）。
+  `agents/*.md` と `settings.json` は変換で作るため、その2つしか無い `.claude/` でも生成物と
+  しては成立する。0件のときは原因を切り分けてメッセージに出す。
+
+  | 原因 | 判定 | メッセージ |
+  |---|---|---|
+  | `.claude/` が無い | `[ ! -d .claude ]` | ワークフローが導入されていないリポジトリと思われる旨 |
+  | 追跡ファイルが全件、作業ツリーに無い | `skipped > 0` | 削除をステージしていない旨（`git status` を案内） |
+  | すべて ignore されている | 上記以外 | `git check-ignore -v .claude/settings.json` を案内 |
+
+  `main` は判定より前に `git rev-parse --show-toplevel` へ `cd` するので、**「リポジトリルート
+  以外で実行した」は原因から外れる**（リポジトリ外なら `git rev-parse` の時点で失敗する）。
 
 `.claude/agents/*.md` と `.claude/settings.json` はコピー対象から外し、変換して生成する。
 それ以外のファイルは**内容を変えずにコピーする**。
@@ -140,6 +158,9 @@ temperature / max_turns / timeout_mins
 hook 1件（`CommandHookConfig`）の変換規則は次のとおり。
 
 - **`if` は出力しない**（Gemini に無い）。代償は `.claude/hooks/*.sh` 側の前置フィルタが払う。
+  push系2本は `raw_hints_at_git_push` を持ち、**判定本体（`command_invokes_git_subcommand`）の
+  超集合**であることをテストで固定している。規約・実装の型は
+  `.claude/rules/shell-script-style.md`「hookの前置フィルタ」が正。
 - `command` と `args[]` を半角スペースで連結する。**こちらではクォートしない**（Gemini 側が
   `escapeShellArg` で代入前にクォート済み。`hookRunner.ts`）。
 - `${CLAUDE_PROJECT_DIR}` → `$GEMINI_PROJECT_DIR`。**波括弧を付けない**（Gemini 側の置換が
@@ -210,9 +231,26 @@ hook 1件（`CommandHookConfig`）の変換規則は次のとおり。
 
 | モード | 0 | 非0 |
 |---|---|---|
-| （なし） | 再生成した | `jq` 不在／コピー対象0件／変換エラー／削除されるファイルがあり `--force` 無し |
+| （なし） | 再生成した | `jq` 不在／**列挙0件**／変換エラー／削除されるファイルがあり `--force` 無し |
 | `--check` | 同期している | 食い違っている／上記の各エラー |
 | `--dry-run` | **常に0** | （`jq` 不在等、生成そのものが失敗した場合のみ） |
+
+### 改行コードの扱い
+
+入口と出口の両方で CR を落とす。**片方だけでは足りない**（issue #70）。
+
+| 箇所 | 何が起きるか | 対処 |
+|---|---|---|
+| 入口: `agents/*.md` の読み込み | `mapfile` は改行だけを区切りにするため、CRLF のファイルでは1行目が `$'---\r'` になり「frontmatter がありません」と誤診する | `mapfile` 直後に全行の行末 CR を落とす（`${lines[i]%$'\r'}`。bash 組み込みなので fork は増えない） |
+| 出口: `settings.json` の書き出し | Windows ネイティブの `jq` は標準出力へ CR を付ける。リダイレクトでファイルへ落とすため、`.gemini/settings.json` だけが CRLF になり `--check` が Windows と Linux で食い違う | `convert_settings … \| tr -d '\r' > …` |
+
+`.gitattributes` の配布行（`dist:begin`〜`dist:end`）が `eol=lf` を保証するのは **`.sh` だけ**で
+あり、`.md` は配布先の `core.autocrlf` 次第で CRLF になりうる。**配布行を増やして対処しない**
+（配布先の `.gitattributes` へ追記される行なので影響がこのリポジトリに閉じない）。スクリプト側で
+吸収する。
+
+検証は**スタブ `jq`** で行う（`.claude/rules/shell-script-style.md`「テスト」）。
+`sed '$!s/$/\r/'` を通すスタブを `PATH` 先頭へ置けば、Windows 実機が無くても CR 付与を再現できる。
 
 ### 性能上の前提
 
@@ -246,6 +284,10 @@ hook 1件（`CommandHookConfig`）の変換規則は次のとおり。
   2件ずつ `index.jsonl` に載るため）。
 - DDR `i0000-13`（リンク運用）を `status: superseded` にし、`i0070-01` で置き換えた。
 - issue-mr-flow に flow-id 5-3 を新設し、以降を1つずつ繰り下げた（42 → 43ステップ）。
+- **フェーズ4〈反映〉で、敵対的レビューの指摘4件を取り込んだ**（上記「改行コードの扱い」
+  「対象ファイルの列挙」に反映済み）。CR の入口・出口の2箇所、`--others` とローカル設定の
+  除外を `.gitignore` へ委ねること（配布先の `.gitignore` へも配る）、失敗条件を
+  「コピー対象0件」から「列挙0件」へ狭めたこと。
 
 ## 未決定事項・懸念点
 
