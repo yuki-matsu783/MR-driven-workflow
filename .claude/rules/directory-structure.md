@@ -22,6 +22,7 @@ keywords: [ディレクトリ構成, claude, gemini, 配置方針, plans, worklo
 │   ├── rules/                  # AI向け詳細ルール（コーディング規約・ドキュメント運用等）
 │   ├── skills/                 # `/issue-mr-flow`（唯一の実装フロー定義）等のスキル定義
 │   │   ├── issue-mr-flow/assets/  # 計画・レポートのHTMLビューのテンプレート2本（issue #54）
+│   │   ├── issue-mr-flow/references/  # SKILL.mdから切り出した参照資料7本（issue #160）
 │   │   └── canvas-report/assets/  # canvas形式レポートのテンプレート
 │   ├── agents/                 # サブエージェント定義（issue-mr-flow途中引き継ぎ等）
 │   ├── scripts/                # AIエージェントが`.claude/skills/*`経由で能動的に実行するスクリプト一式
@@ -137,7 +138,7 @@ issue #97。ブランチ別に持つと、同じセッションのままブラ�
   |---|---|---|
   | `assets/` | **出力に使うもの**（テンプレート等） | `issue-mr-flow/assets/reports.template.html`, `canvas-report/assets/canvas-report.html` |
   | `scripts/` | **実行するもの**（補助スクリプト） | `apply-mr-workflow-to-project/scripts/sync-assets.sh` |
-  | `references/` | **AIが読むもの**（参照資料） | （現時点で実例なし） |
+  | `references/` | **AIが読むもの**（参照資料） | `issue-mr-flow/references/planning.md` 等7本（SKILL.mdから切り出した詳細節。issue #160） |
 
   **`apply-mr-workflow-to-project/assets/` だけは意味が異なる**ので混同しないこと。あちらは
   `sync-assets.sh`が配布前に生成する**ビルド用の一時ディレクトリ**で、`.gitignore`対象

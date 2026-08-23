@@ -12,7 +12,7 @@ keywords: [comments, reply, describe, 敵対的レビュー, レビュー依頼,
 
 `adversarial-review` スキル（`.claude/skills/adversarial-review/SKILL.md`）は、独立コンテキストの
 専任サブエージェントに意図的な欠陥探しを行わせ、指摘をMRへインラインコメントとして投稿する。
-**上の全体フロー表には含まれない**（flow-idを1つも増やしていない）。人間のレビューを置き換えるもの
+**SKILL.md の全体フロー表には含まれない**（flow-idを1つも増やしていない）。人間のレビューを置き換えるもの
 ではなく、その前に挟む任意の補助だからである。
 
 | | 内容 |
@@ -29,17 +29,16 @@ keywords: [comments, reply, describe, 敵対的レビュー, レビュー依頼,
 「AIが既に納得したもの」になり、レビューの独立性が失われる。**AIから「敵対的レビューを
 実施しましょうか」と持ちかけることは構わないが、返事を待たずに実行してはならない。**
 
-なお、レビュー観点は本スキルにもこのSKILL.mdにも書かれていない。ディレクトリごとの
+なお、レビュー観点は本スキルにも `.claude/skills/issue-mr-flow/SKILL.md` にも書かれていない。ディレクトリごとの
 `REVIEW-POINTS.md` に外だしされており、収集は `review-points` スキル
 （`.claude/skills/review-points/SKILL.md`）が担う。
 
 ## サブコマンド（レビュー往復系）
 
-**以下の3つのサブコマンド（`comments` / `reply` / `describe`）にも、`## サブコマンド` 導入部の
-全サブコマンド共通の前提がそのまま適用される。** すなわち、手順に入る前に必ず
-`get_vcs_access_mode`（`Provider.sh`）で経路を確認し、`mcp` が返る環境では
-`references/mcp-fallback.md` の読み替えに従うこと（issue #34。この段落は
-`references/start-resume.md`「サブコマンド」導入部の再掲である）。
+**以下の3つのサブコマンド（`comments` / `reply` / `describe`）にも、
+`references/start-resume.md`「サブコマンド」導入部にある全サブコマンド共通の前提
+（`get_vcs_access_mode` による経路確認と、`mcp` 環境での `references/mcp-fallback.md` への
+読み替え）がそのまま適用される。** 前提の正はあちらの1箇所であり、ここには再掲しない。
 
 ### `comments [all]` — MRレビューコメントの取得（全体フロー 2-4・2-9・3-4・3-9・4-4・4-9）
 

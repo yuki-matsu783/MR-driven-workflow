@@ -30,8 +30,16 @@ source .claude/scripts/src/vcs/Provider.sh
 
 ## 全体フロー
 
-担当列: 「人間」＝人間の作業／「サブコマンド」＝`references/start-resume.md`「サブコマンド」節の `/issue-mr-flow <名前>`／
+担当列: 「人間」＝人間の作業／「サブコマンド」＝`/issue-mr-flow <名前>`（共通の前提は
+`references/start-resume.md`「サブコマンド」節。`start`/`resume`/`sync` は同ファイル、
+`comments`/`reply`/`describe` は `references/review-loop.md` が定義する）／
 「エージェント」＝AIエージェントの通常操作（git操作・ファイル編集等）。
+
+参照列: そのステップの**実行前に開く**参照ファイル（SessionStart hookが現在地のflow-idから
+この列を読み出してセッション冒頭へ注入する）。`—` は追加の参照なしを表す。
+**`references/mcp-fallback.md` は参照列では指さない**（設計）。`gh`/`glab` CLIの有無は
+flow-idではなく実行環境で決まるため、hookが経路判定の結果MCP経路だったときに限り、
+参照列とは別の行で同ファイルを名指しで注入する。
 
 flow-idは `<フェーズ番号>-<ステップ番号>` 形式で、全5フェーズ・42ステップからなる。
 
@@ -58,7 +66,7 @@ MR description更新」という同じ形を繰り返す。
 | 1-3 | featureブランチ（`feature-<issue番号>-<slug>`）とDraft MRを作成する（既にあれば `sync` のみ）。**Draft MRの作成に都度の明示指示は要らない**（下記「PR/MR作成・マージの担当」。ハーネスがPR作成を制限する環境での例外も同節）。**作成後は `references/base-branch-followup.md`「PR作成後のdefaultブランチ追従（監視）」節に従って追従監視を開始する** | `start`（エージェント） | `references/start-resume.md` / `references/base-branch-followup.md` |
 | 1-4 | **Planモードで「全体作業計画」を作成する**（このissueをどう進めるか＝何を調査し何を実装するかの全体像。ハーネスが提示するパス `plans/<自動命名>.md` へ出力）。**現在のブランチに既に全体作業計画があれば新規作成せず、既存を読むだけにとどめる**（詳細は`references/planning.md`「計画の2階層構造」）。**作成前に、issueが大きすぎないか（同型の成果物が並列に列挙されていないか）を判定し、該当すれば分割を提案する**（`references/planning.md`「issueが大きすぎる場合の分割提案」）。**フェーズ2〈調査〉・フェーズ4〈反映〉の節を必ず含める。この段階の事前調査は軽めでよい**（`references/planning.md`「全体作業計画に必ず含めるフェーズ」）。**あわせて同名の `.html`（人間レビュー用ビュー）を作成する**（`references/deliverables.md`「計画・レポートのHTMLビュー」） | エージェント | `references/planning.md` / `references/deliverables.md` |
 | 1-5 | 全体作業計画に合意する | 人間 | — |
-| 1-6 | 全体作業計画をもとにHANDOFF.mdを更新する | エージェント | — |
+| 1-6 | 全体作業計画をもとにHANDOFF.mdを更新する | エージェント | `references/planning.md` |
 | 2-1 | **個別調査計画**`plans/【調査】〜.md`を**planツールを使わず**Write/Editで作成する。このタイミングで `worklog/日付_<全体計画名>_<個別計画名>_push<N>.md` を作成。**フェーズ2を省略してよいと判断できるのはこの時点以降**（`references/planning.md`「全体作業計画に必ず含めるフェーズ」）。**あわせて同名の `.html`（人間レビュー用ビュー）を作成する**（`references/deliverables.md`「計画・レポートのHTMLビュー」） | エージェント | `references/planning.md` / `references/deliverables.md` |
 | 2-2 | `commit`スキル経由でcommitし、push してレビュー依頼を行う | エージェント | `references/review-loop.md` |
 | 2-3 | MRで調査計画についてレビュー・コメントする。レビュー完了済み連絡をするまで以降の作業は行わない。 | 人間 | — |
@@ -91,9 +99,9 @@ MR description更新」という同じ形を繰り返す。
 | 4-10 | 反映内容をもとにMR descriptionを更新する | `describe` | `references/review-loop.md` |
 | 5-1 | **defaultブランチとのコンフリクトを検知し、あれば解消する**（`bash .claude/scripts/src/check-base-conflicts.sh` で判定 → `hasConflict` が真なら `AskUserQuestion` でユーザーに確認 → 承認されたら `resolve-conflict` スキルで解消。詳細は`references/base-branch-followup.md`「defaultブランチとのコンフリクト検知・解消」節）。PR作成後の継続的な追従（`references/base-branch-followup.md`「PR作成後のdefaultブランチ追従（監視）」節）を行っていても、**このステップは最終ゲートとして必ず通る** | エージェント（`resolve-conflict` スキル） | `references/base-branch-followup.md` |
 | 5-2 | **今回のMRが影響する関連issueを特定し、承認を得てから当該issueへ通知する**（差分からキーワードを抽出 → `search_issues` で候補提示 → `AskUserQuestion` で対象issueとコメント本文の承認 → `add_issue_comment` で投稿）。**キーワードの抽出時は `plans/` `worklog/` `reports/` を差分から除外する**（片付けは flow-id 5-4 で行うため、この時点ではこれらの計画・ログ・レポートがまだ差分に含まれる）。**影響先が無ければスキップしてよい**（その場合も「影響先なし」と判断した事実を、リセット前の `HANDOFF.md` へ1行残す）。詳細は`references/phase5-close.md`「マージ前の関連issue通知（flow-id 5-2）」節 | エージェント | `references/phase5-close.md` |
-| 5-3 | **最終統括レポートを作成し、PR/MRへサマリコメントとして反映する**（`reports/日付_<全体計画名>_統括.md` を正文として作成 → `commit` スキル経由でcommit・push → （**任意**）HTMLを `upload_attachment` で添付し、**失敗したら警告のみでスキップ** → サマリを `add_mr_comment` でPR/MRへ1回投稿する）。**反映は3層のフォールバック構造**で、層3が壊れても層1・層2でレビューは成立する。詳細は`references/phase5-close.md`「最終統括レポートとPR/MRへの反映（flow-id 5-3）」節 | エージェント | `references/phase5-close.md` / `references/deliverables.md` |
+| 5-3 | **最終統括レポートを作成し、PR/MRへサマリコメントとして反映する**（`reports/日付_<全体計画名>_統括.md` を正文として作成 → `commit` スキル経由でcommit・push → （**任意**）HTMLを `upload_attachment` で添付し、**失敗したら警告のみでスキップ** → サマリを `add_mr_comment` でPR/MRへ1回投稿する）。**反映は3層のフォールバック構造**で、層3が壊れても層1・層2でレビューは成立する。詳細は`references/phase5-close.md`「最終統括レポートとPR/MRへの反映（flow-id 5-3）」節 | エージェント | `references/phase5-close.md` / `references/deliverables.md` / `references/review-loop.md` |
 | 5-4 | 次タスクのために、`plans/` `worklog/` `reports/`（md・htmlの両方）を削除し、`HANDOFF.md` をリセットする（**`bash .claude/scripts/src/cleanup-task.sh` を実行する**。何を消し何を残すか（`worklog/TEMPLATE.md` と `REVIEW-POINTS.md` は残す。後者はタスク単位の成果物ではなく、そのディレクトリに対する永続のレビュー観点であるため。詳細は `.claude/rules/docs-workflow.md` が正）・`index.jsonl` の再生成・HANDOFF.mdのテンプレートはスクリプトが持つ。先に対象を確認したい場合は `--dry-run` を付ける。仕様: `.claude/docs/spec/cleanup-task.md`）。**スクリプトはコミットまでは行わない**ため、削除・リセットの結果は直後の flow-id 5-5 の `commit` スキル経由でコミットする（**このステップを commit の直前へ置く**のは、生成と確定の間に他のステップを挟まないため。issue #112） | エージェント | `references/phase5-close.md` |
-| 5-5 | `commit`スキル経由でcommitし、push して Draftを解除する（解除は `source .claude/scripts/src/vcs/Provider.sh && set_mr_ready <MR番号>` で行う。`gh pr ready` / `glab mr update --ready` を直接呼ばない。MR番号は `get_mr_for_branch` で取得できる）。**AIエージェントはここで止まる**（マージへは進まない） | エージェント | `references/phase5-close.md` |
+| 5-5 | `commit`スキル経由でcommitし、push して Draftを解除する（解除は `source .claude/scripts/src/vcs/Provider.sh && set_mr_ready <MR番号>` で行う。`gh pr ready` / `glab mr update --ready` を直接呼ばない。MR番号は `get_mr_for_branch` で取得できる）。**AIエージェントはここで止まる**（マージへは進まない） | エージェント | `references/phase5-close.md` / `references/review-loop.md` |
 | 5-6 | マージする（squash merge。ブランチは削除してよい）。**AIエージェントは、ユーザーから明示的に指示された場合に限り実行してよい**（下記「PR/MR作成・マージの担当」） | 人間 | — |
 
 ## PR/MR作成・マージの担当（flow-id 1-3・5-5・5-6）
@@ -148,7 +156,10 @@ issue #160 で本ファイルの詳細節を `references/` 配下へ切り出し
 changelog（point-in-time の記録）は書き換えない**運用（`.claude/rules/docs-workflow.md`）のため、
 そこから旧来の節名で参照されている読み手は、この表で新しい場所を辿ること。節名そのものは
 切り出し後も変えていない（表では `（issue #NN）` の接尾辞を省いて載せる。手順名・引用句の
-参照は、その手順を含む節の行で辿る）。
+参照は、その手順を含む節の行で辿る）。ただし次の2点は切り出しに伴う調整である:
+`references/review-loop.md` へ導入用の節「サブコマンド（レビュー往復系）」を**新設**した。
+`references/planning.md` と `references/deliverables.md` では、元がH3/H4だった節の
+**見出しレベルを1段上げた**（節名の文字列は変えていない）。
 
 | 節名 | 現在の場所 |
 |---|---|
