@@ -14,11 +14,12 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 
 ## フロー進捗状況
 
-- issue: 143
+- issue: #143
 - ブランチ: claude/docs-workflow-reports-timing-4gfc5v
 - PR: #181
 - push回数: 0
 - 現在のループ: なし
+- 未返信スレッド: 0
 - 追従監視: 購読あり（web。subscribe_pr_activity + 定期チェックイン。PR #181のマージ/クローズで停止）
 
 | 進捗 | flow-id | ステップ | 担当 |
@@ -59,15 +60,30 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 | [-] | 4-8 | 反映結果をレビュー・コメントする | 人間 |
 | [-] | 4-9 | レビュー内容を取得し設計・AIアセットの内容を修正する（4-6〜4-9を合意まで繰り返す） | サブコマンド |
 | [-] | 4-10 | 反映内容をもとにMR descriptionを更新する | サブコマンド |
-| [] | 5-1 | defaultブランチとのコンフリクトを検知し解消する | エージェント |
+| [x] | 5-1 | defaultブランチとのコンフリクトを検知し解消する | エージェント |
 | [] | 5-2 | 関連issueへ承認を得てから通知する | エージェント |
-| [] | 5-3 | 最終統括レポートを作成しPR/MRへ反映する | エージェント |
-| [] | 5-4 | plans/worklog/reportsを削除しHANDOFF.mdをリセットする | エージェント |
-| [] | 5-5 | commitしpushしてDraftを解除する | エージェント |
-| [] | 5-6 | マージする | 人間 |
+| [] | 5-3 | `.claude/`を`.gemini/`へ変換同期する | エージェント |
+| [] | 5-4 | 最終統括レポートを作成しPR/MRへ反映する | エージェント |
+| [] | 5-5 | plans/worklog/reportsを削除しHANDOFF.mdをリセットする | エージェント |
+| [] | 5-6 | commitしpushしてDraftを解除する | エージェント |
+| [] | 5-7 | マージする | 人間 |
 
 ## やったこと
 
+- flow-id 5-1: `bash .claude/scripts/src/check-base-conflicts.sh`で`origin/main`とのコンフリクトを
+  検知した（`hasConflict: true`、対象は`HANDOFF.md`のみ）。ユーザーへ`AskUserQuestion`で確認し
+  承認を得たうえで、`resolve-conflict`スキルの手順（`git merge --no-ff --no-commit`→類型C
+  （両方の変更を残して統合）→検証→commit）で解消した。`origin/main`は分岐点から大きく進んでおり、
+  issue #70対応により片付けのflow-id番号が5-4→5-5へ、さらにフェーズ5全体が6ステップ→7ステップ
+  （新設のflow-id 5-3「`.claude/`→`.gemini/`変換同期」が挿入）へ変わっていた。本ブランチが追加した
+  SKILL.mdの新節・DDR `i0143-01`の記述（「本ブランチには未取り込み」等の表現）を、取り込み後の
+  状態に合わせて再確認・修正した（本節が計画していた「残課題」の再確認を実施）。検証（コンフリクト
+  マーカー残存無し・DDR識別子重複無し・`index.jsonl`/DDR一覧の再生成・単体テスト全19スイート
+  `failures=0`）を実施した。単体テストで1件失敗（`test_install_to_project.sh`
+  「本家のHANDOFF.mdは雛形になっていない」）を検出したが、原因は本マージとは無関係の
+  既存不整合（本ブランチのHANDOFF.mdのissue行が`- issue: 143`と`#`無し表記になっており、仕様
+  （`update-handoff-progress.md`）が定める`- issue: #143`形式と食い違っていた）と判明したため、
+  この機会に修正し全テスト`failures=0`を確認した。
 - flow-id 4-1: 反映対象を洗い出した。`plans/` `worklog/` の内容（案Cの検討経緯・敵対的レビューでの
   指摘と対応）は、フェーズ3の成果物であるSKILL.mdの新節・DDR `i0143-01`として既に
   `.claude/skills/issue-mr-flow/SKILL.md` `.claude/docs/ddr/` へ反映済み（`reports/…実装.md`
@@ -144,30 +160,31 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 
 ## 次にやること
 
-- フェーズ5〈クローズ〉flow-id 5-1: `bash .claude/scripts/src/check-base-conflicts.sh`で
-  `origin/main`とのコンフリクトを検知する。現時点で判明している差分（issue #70によるflow-id
-  5-4→5-5繰り下げ）を取り込み、本ブランチが追加・変更した全記述のflow-id番号を再確認する
-  （`reports/…実装.md`「残課題」に手順明記済み）。
+- flow-id 5-1のマージ解消結果を`commit`スキル経由でコミットし、push する（コミットメッセージへ
+  「何を」「どう」解消したかを明記する）。
+- フェーズ5〈クローズ〉flow-id 5-2: 今回のMRが影響する関連issueを特定し、`AskUserQuestion`で承認を
+  得てから通知する（キーワード抽出時は`plans/` `worklog/` `reports/`を除外）。影響先が無ければ
+  スキップしてよい。
+- flow-id 5-3: `bash .claude/scripts/src/sync-gemini-assets.sh`で`.claude/`→`.gemini/`の変換同期を
+  行う（issue #70で新設されたステップ。このステップ自体はcommitを持たず、差分は5-4のcommitへ載る）。
+- flow-id 5-4: 最終統括レポートを作成しPR/MRへ反映する。
+- flow-id 5-5: `cleanup-task.sh`で`plans/` `worklog/` `reports/`を削除しHANDOFF.mdをリセットする。
+- flow-id 5-6: commitしpushしてDraftを解除する（AIエージェントはここで止まる）。
 
 ## 判断を迷った内容
 
-- `git merge-tree --write-tree HEAD origin/main` で確認したところ、`origin/main`は本ブランチの
-  分岐点（`0aa9874d18032a9a85d5bc98075511fa11ce0cc3`）から大きく進んでおり、**issue #70の対応で
-  「片付け」のflow-id番号が再び5-4→5-5へ繰り下がっていた**（`.claude/docs/README.md`の
-  DDR一覧・`i0028-01`の注記等で確認）。これはissue #143が扱う「flow-id繰り下げの追従漏れ」が
-  issue #143起票後も実際に繰り返し発生していることを示す実例であり、フェーズ3の再発防止策
-  （案C）の説得材料として使える。**現時点ではdefaultブランチを取り込まず**、フェーズ3の設計に
-  この事実を反映した後、flow-id 5-1（最終ゲート）で正式にコンフリクト解消する方針とした
-  （理由: 本タスクの調査結果`reports/…調査.md`が「現在は5-4」と書いている内容が、defaultブランチ
-  を早期に取り込むと矛盾して見えるため。5-1まで待つことで、調査結果とその後の設計・反映を
-  一貫した前提のもとで進められる）。
-  なお`git merge-tree`が検知したコンフリクトは`HANDOFF.md`のみ（両ブランチが同じ位置を編集した
-  ための定型的な衝突で、内容上の対立ではない）。
+- （解消済み）`git merge-tree --write-tree HEAD origin/main` で確認したところ、`origin/main`は
+  本ブランチの分岐点（`0aa9874d18032a9a85d5bc98075511fa11ce0cc3`）から大きく進んでおり、
+  issue #70の対応で「片付け」のflow-id番号が再び5-4→5-5へ繰り下がっていた。**現時点では
+  defaultブランチを取り込まず**、フェーズ3の設計にこの事実を反映した後、flow-id 5-1（最終ゲート）
+  で正式にコンフリクト解消する方針とした。**flow-id 5-1でこの方針どおりに取り込みを完了した**
+  （下記参照）。
 
 ## 未解決の内容
 
-- 上記のdefaultブランチ追従（issue #70によるflow-id 5-4→5-5繰り下げの取り込み）は、
-  flow-id 5-1で解消する。
+- （無し）flow-id 5-1で`origin/main`を取り込み、本ブランチが追加したSKILL.md新節・DDR `i0143-01`の
+  flow-id番号を再確認・修正した。フェーズ5は6ステップから7ステップへ変わっている
+  （issue #70でflow-id 5-3「`.claude/`→`.gemini/`変換同期」が新設されたため）。
 
 ## 守るべき条件・触ってはいけない範囲
 

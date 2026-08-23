@@ -11,3 +11,7 @@ keywords: [agents-md, gemini-cli, 固有ルール]
 @./AGENTS.md
 
 ## geminiCLI固有ルール
+
+プロジェクト固有のルールは `.claude/rules/<名前>.md` へ置く（セッション開始時に自動で
+読み込まれる）。このファイルへ直接書き足さないこと——このファイルは配布元が所有しており
+（layer=core）、再適用で上書きされる。
