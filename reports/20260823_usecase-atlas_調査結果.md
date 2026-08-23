@@ -22,7 +22,7 @@ keywords: [ユースケース, 逆引き, 命名規則, doc-search, type usecase
 | 4 | 目次の要否 | **`.claude/docs/README.md` のusecase節へ一本化**。`usecase/` 直下に独立目次は置かない |
 | 5 | 検索対応 | **スクリプト変更不要**（`--type` は任意値の完全一致。実機確認済み） |
 | 6 | 4-6差し込み位置 | SKILL.md 4-6行の作業内訳**「設計反映」項の末尾**へ追記。spec側はフロー表を持たないため変更不要 |
-| 7 | 周辺波及 | 変更5ファイル＋観点表1件（下記）。配布物は変更不要 |
+| 7 | 周辺波及 | 変更6ファイル（下表の行数ではなく変更するファイル数。観点表1件を含めて7ファイル）。配布物は変更不要 |
 
 ## 実施した内容と結果
 
@@ -50,6 +50,21 @@ keywords: [ユースケース, 逆引き, 命名規則, doc-search, type usecase
 - テレメトリ収集（OTelリスナー）: 単独のユースケースとしては薄く、「対応工数を把握する」の
   関連リンクとして扱う。
 
+**取りこぼしの突き合わせ根拠**（スキル9本＝`ls .claude/skills/*/SKILL.md`・hook 5本＋otel）:
+
+| スキル / hook | どのusecaseから辿れるか（または単独にしない理由） |
+|---|---|
+| `issue-create` | 新しい機能開発を始める |
+| `issue-mr-flow` | 新しい機能開発を始める／途中の作業を再開・引き継ぐ／生成物にレビューコメントして修正させる |
+| `adversarial-review`・`review-points` | レビューをAIに補助してもらう |
+| `resolve-conflict` | ベースブランチとのコンフリクトを解消する |
+| `doc-search` | リポジトリ内のドキュメントを探す |
+| `apply-mr-workflow-to-project` | この機構を他プロジェクトへ導入する |
+| `commit` | フロー内部の1ステップ（上記のとおり単独ユースケースにしない。「新しい機能開発を始める」から言及） |
+| `canvas-report` | フロー内部の1ステップ（同上） |
+| hook: `post-push-usage-report.sh`・`show-push-log.sh`・otel | 対応工数を把握する |
+| hook: `session-start.sh`・`post-push-compact-prompt.sh`・`block-direct-git-commit.sh`・`post-issue-create-notice.sh` | フローの自動補助であり人間が能動的に使う入り口ではない（該当usecase文書の本文で必要に応じて言及） |
+
 ### 問い3: 命名規則 — 日本語タイトル＝ファイル名
 
 - **採用**: `どんな場面か`をそのまま表す日本語のファイル名（frontmatter `title`・本文H1と一致させる）。
@@ -67,15 +82,27 @@ keywords: [ユースケース, 逆引き, 命名規則, doc-search, type usecase
 `.claude/docs/README.md` に「usecase（ユースケース逆引き）」節を追加し、8件を場面の一言説明付きで
 列挙する。現状8件であればREADME内の一覧で十分に一覧できる。
 
+**一覧を最新に保つ責任も決める**: `.claude/rules/docs-workflow.md` のusecase行の運用欄へ
+「usecase文書を追加・改名・削除したら `.claude/docs/README.md` のusecase節を同じコミットで
+更新する」を含める（問い7の表に反映済み）。DDR一覧のような**生成物化は現時点では採らない**
+（8件規模では生成スクリプトの導入・保守コストが手動更新を上回る。DDRと違い並び順が意味を持つ
+＝場面の重要度順に人が並べるため、機械的なソートも馴染まない）。件数が増えて手動更新の漏れが
+実際に起きたら、issue #135と同じ生成物化を別issueで検討する。
+
 ### 問い5: 検索対応 — スクリプト変更不要（実機確認）
 
 - `search-frontmatter.sh` の `--type` は「frontmatterの `type` と大文字小文字を無視した完全一致」で、
-  値の妥当性検証（enum）は行わない（実装40行目・229行目の `match_exact`）。
-  実機で `--type spec --format count` が `matched=15 total=129` を返すことを確認した。
-- `extract-frontmatter.sh` は `type` を抽出するだけで値を検証しないため、`type: usecase` の新規
-  ファイルはコミット済みであれば（`git ls-files` 走査のため）自動でインデックスへ載る。
+  値の妥当性検証（enum）は行わない（`match_exact` の定義211行目・`--type` での使用229行目。
+  許容値リスト `SF_SORT_KEYS`/`SF_FORMATS`（40〜41行目）は `--sort`/`--format` にしか無い。
+  行番号は2026-08-23時点の実装のもの）。
+  実機で `--type spec --format count` が `matched=15 total=129` を返すことを確認した
+  （2026-08-23・Linuxリモート実行環境。`total` はインデックス全件数のため時点依存の値）。
+- `extract-frontmatter.sh` は `type` を抽出するだけで値を検証しない。走査は
+  `git ls-files --cached --others --exclude-standard` のため、`.gitignore` 対象でなければ
+  **未追跡（コミット前）のファイルでもインデックスへ載る**。
 - したがって受け入れ条件「`--type usecase` で絞り込める」は、**文書側のfrontmatterと
-  規約表への追記だけで満たせる**。
+  規約表への追記だけで満たせる**見込み（推論）。`--type usecase` そのものの実測は、
+  `type: usecase` のファイルが生まれるフェーズ3の作成直後に行う。
 
 ### 問い6: flow-id 4-6への差し込み — 「設計反映」項の末尾
 
@@ -94,9 +121,9 @@ keywords: [ユースケース, 逆引き, 命名規則, doc-search, type usecase
 | ファイル | 変更内容 |
 |---|---|
 | `.claude/rules/markdown-frontmatter.md` | 「typeの値」表へ `usecase` → `.claude/docs/usecase/*.md` の行を追加 |
-| `.claude/docs/README.md` | 冒頭の `spec/`・`ddr/` 箇条書きへ `usecase/` を追加し、「usecase（ユースケース逆引き）」節（8件の一覧）を追加 |
+| `.claude/docs/README.md` | 冒頭の `spec/`・`ddr/` 箇条書きへ `usecase/` を追加し、「usecase（ユースケース逆引き）」節（8件の一覧）を追加。**節は生成マーカー区間（`BEGIN GENERATED: ddr-list`〜`END GENERATED`、79〜155行）の外へ置く**（内側に置くと `generate-ddr-list.sh` の次回実行で無言で消える）。**frontmatterの `description`/`keywords`（spec・ddrの2分類前提の記述）も更新する** |
 | `.claude/skills/issue-mr-flow/SKILL.md` | 4-6行の「設計反映」項末尾へ影響確認を追記（問い6） |
-| `.claude/rules/docs-workflow.md` | 「ドキュメント運用」表へusecase文書の行を追加（対象: 人間＋AI／寿命: 永続（最新状態）／運用: 機能の追加・変更時にflow-id 4-6で影響を確認し更新する） |
+| `.claude/rules/docs-workflow.md` | 「ドキュメント運用」表へusecase文書の行を追加（対象: 人間＋AI／寿命: 永続（最新状態）／運用: 機能の追加・変更時にflow-id 4-6で影響を確認し更新する。**usecase文書を追加・改名・削除したら `.claude/docs/README.md` のusecase節を同じコミットで更新する**） |
 | `.claude/rules/directory-structure.md` | ツリーの `.claude/docs/` 配下へ `usecase/` の行を追加 |
 | `index.md` | Repository Mapの `.claude/docs/` 配下へ `usecase/` の行を追加 |
 | `.claude/REVIEW-POINTS.md` | 「usecase文書は手順詳細（コマンド列・手順番号）を再掲せず、spec/SKILL.mdへのリンクで参照する」観点を追加（受け入れ条件「重複記載しない」の継続的な検査手段。機械検査＝コードブロック0と併用） |
@@ -107,9 +134,15 @@ keywords: [ユースケース, 逆引き, 命名規則, doc-search, type usecase
 - 日本語ファイル名のusecase文書がWindows実機（git bash・cp932環境）で問題なく扱えるかは、
   この環境（Linux）では確認できない。ただしDDR 75本が同じ形式（日本語ファイル名）で運用済みの
   ため、リスクは新規ではない。
+- **`--type usecase` そのものは未実測**（この時点では `type: usecase` のファイルが存在しないため。
+  実測したのは既存値 `--type spec`）。問い5の結論はスクリプト実装の読解＋既存typeの実測に基づく
+  推論であり、フェーズ3でusecase文書を1本作った直後に実測して裏を取る。
 
 ## 設計への反映
 
 - 本調査の結論（配置・命名・目次一本化・typeの新設）は、フェーズ4でDDRとして残すかを flow-id 4-1
   で判断する（全体作業計画「フェーズ4〈反映〉」の候補に含まれている）。
 - フェーズ3の個別作業計画は、本レポートの問い7の表＋問い1の一覧をそのまま「変更対象」にできる。
+- フェーズ3の検証手順へ「usecase文書を1本作った直後に `extract-frontmatter.sh` →
+  `search-frontmatter.sh --type usecase` を実測する」を含める（未追跡でも載るため、コミットを
+  待つ必要は無い）。

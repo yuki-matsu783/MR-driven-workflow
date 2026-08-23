@@ -106,7 +106,7 @@
       <tr><td>4</td><td>目次の要否</td><td><code>.claude/docs/README.md</code> のusecase節へ一本化（独立目次は置かない）</td></tr>
       <tr><td>5</td><td>検索対応</td><td>スクリプト変更不要（<code>--type</code> は任意値の完全一致。実機確認済み）</td></tr>
       <tr><td>6</td><td>4-6差し込み位置</td><td>SKILL.md 4-6行「設計反映」項の末尾へ追記。spec側は変更不要</td></tr>
-      <tr><td>7</td><td>周辺波及</td><td>変更5ファイル＋観点表1件。配布物は変更不要</td></tr>
+      <tr><td>7</td><td>周辺波及</td><td>変更6ファイル（下表の行数ではなく変更するファイル数。観点表1件を含めて7ファイル）。配布物は変更不要</td></tr>
     </tbody>
   </table>
   </div>
@@ -132,15 +132,32 @@
   </table>
   </div>
   <p>追加候補として検討し<b>採用しなかった</b>もの: コミットの作成（commitスキル）・canvas-report・issue分割（いずれもフロー内部の1ステップであり単独の入り口にならない。該当usecase文書の本文からリンクで触れる）。テレメトリ収集（OTel）は「対応工数を把握する」の関連リンクとして扱う。</p>
+  <p><b>取りこぼしの突き合わせ根拠</b>（スキル9本＝<code>ls .claude/skills/*/SKILL.md</code>・hook 5本＋otel）:</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>スキル / hook</th><th>どのusecaseから辿れるか（または単独にしない理由）</th></tr></thead>
+    <tbody>
+      <tr><td>issue-create</td><td>新しい機能開発を始める</td></tr>
+      <tr><td>issue-mr-flow</td><td>新しい機能開発を始める／途中の作業を再開・引き継ぐ／生成物にレビューコメントして修正させる</td></tr>
+      <tr><td>adversarial-review・review-points</td><td>レビューをAIに補助してもらう</td></tr>
+      <tr><td>resolve-conflict</td><td>ベースブランチとのコンフリクトを解消する</td></tr>
+      <tr><td>doc-search</td><td>リポジトリ内のドキュメントを探す</td></tr>
+      <tr><td>apply-mr-workflow-to-project</td><td>この機構を他プロジェクトへ導入する</td></tr>
+      <tr><td>commit・canvas-report</td><td>フロー内部の1ステップ（単独ユースケースにしない。該当文書から言及）</td></tr>
+      <tr><td>hook: post-push-usage-report.sh・show-push-log.sh・otel</td><td>対応工数を把握する</td></tr>
+      <tr><td>hook: session-start.sh・post-push-compact-prompt.sh・block-direct-git-commit.sh・post-issue-create-notice.sh</td><td>フローの自動補助であり能動的な入り口ではない（必要に応じ本文で言及）</td></tr>
+    </tbody>
+  </table>
+  </div>
 
   <h3>問い3: 命名規則</h3>
   <p><span class="tag ok">採用</span> 日本語タイトル＝ファイル名（frontmatter title・H1と一致）。読み手が一覧だけで場面を選べることが逆引きの目的で、DDRに日本語ファイル名の運用実績がある。<span class="tag stop">却下</span> 英語kebab-case（翻訳の一手間が目的に反する）・番号プレフィックス（並び順はREADME目次が持つ。振り直しコストだけが残る）。</p>
 
   <h3>問い4: 目次</h3>
-  <p><code>usecase/</code> 直下に独立目次は置かず、<code>.claude/docs/README.md</code> の「usecase（ユースケース逆引き）」節へ一本化する（一覧の正を2箇所にしない）。</p>
+  <p><code>usecase/</code> 直下に独立目次は置かず、<code>.claude/docs/README.md</code> の「usecase（ユースケース逆引き）」節へ一本化する（一覧の正を2箇所にしない）。<b>一覧を最新に保つ責任も決める</b>: docs-workflow.md のusecase行の運用欄へ「文書を追加・改名・削除したらREADMEのusecase節を同じコミットで更新する」を含める。DDR一覧のような生成物化は現時点では採らない（8件規模では導入・保守コストが手動更新を上回り、並び順は人が場面の重要度順に決めるため機械ソートも馴染まない）。手動更新の漏れが実際に起きたら別issueで生成物化を検討する。</p>
 
   <h3>問い5: 検索対応（実機確認）</h3>
-  <p><code>search-frontmatter.sh</code> の <code>--type</code> はfrontmatterの type との大文字小文字無視の完全一致で、enum検証は無い。実機で <code>--type spec --format count</code> が <code>matched=15</code> を返すことを確認。<code>extract-frontmatter.sh</code> も type を検証しないため、<b>スクリプト変更は不要</b>。</p>
+  <p><code>search-frontmatter.sh</code> の <code>--type</code> はfrontmatterの type との大文字小文字無視の完全一致で、enum検証は無い（<code>match_exact</code> の定義211行目・使用229行目。許容値リスト <code>SF_SORT_KEYS</code>/<code>SF_FORMATS</code>（40〜41行目）は <code>--sort</code>/<code>--format</code> にしか無い。行番号は2026-08-23時点）。実機で <code>--type spec --format count</code> が <code>matched=15 total=129</code> を返すことを確認（2026-08-23・Linuxリモート実行環境。total は時点依存）。<code>extract-frontmatter.sh</code> は <code>git ls-files --cached --others --exclude-standard</code> 走査のため<b>未追跡（コミット前）のファイルでもインデックスへ載る</b>。したがって<b>スクリプト変更は不要</b>の見込み（推論）。<code>--type usecase</code> そのものの実測はフェーズ3の文書作成直後に行う。</p>
 
   <h3>問い6: flow-id 4-6への差し込み</h3>
   <p>SKILL.md 4-6行の作業内訳「設計反映」項の末尾へ「変更が <code>.claude/docs/usecase/</code> のユースケース文書に影響するか（記述・リンクが古くならないか）を確認し、影響があれば更新する」を追記する。表のセル内の追記であり見出し挿入の係り受け問題は生じない。spec issue-mr-workflow.md「全体フロー」は表を持たずSKILL.md参照のみのため変更不要（実物で確認）。</p>
@@ -151,9 +168,9 @@
     <thead><tr><th>ファイル</th><th>変更内容</th></tr></thead>
     <tbody>
       <tr><td><code>.claude/rules/markdown-frontmatter.md</code></td><td>「typeの値」表へ <code>usecase</code> の行を追加</td></tr>
-      <tr><td><code>.claude/docs/README.md</code></td><td>冒頭の spec/ddr 箇条書きへ usecase/ を追加し、8件一覧のusecase節を追加</td></tr>
+      <tr><td><code>.claude/docs/README.md</code></td><td>冒頭の spec/ddr 箇条書きへ usecase/ を追加し、8件一覧のusecase節を追加。<b>節は生成マーカー区間（BEGIN/END GENERATED: ddr-list）の外へ置く</b>（内側は generate-ddr-list.sh の次回実行で無言で消える）。<b>frontmatterの description/keywords も更新する</b></td></tr>
       <tr><td><code>.claude/skills/issue-mr-flow/SKILL.md</code></td><td>4-6行「設計反映」項末尾へ影響確認を追記</td></tr>
-      <tr><td><code>.claude/rules/docs-workflow.md</code></td><td>「ドキュメント運用」表へusecase文書の行（永続・4-6で影響確認）を追加</td></tr>
+      <tr><td><code>.claude/rules/docs-workflow.md</code></td><td>「ドキュメント運用」表へusecase文書の行（永続・4-6で影響確認・<b>追加/改名/削除時はREADMEのusecase節を同じコミットで更新</b>）を追加</td></tr>
       <tr><td><code>.claude/rules/directory-structure.md</code>・<code>index.md</code></td><td>ツリー・Repository Mapへ <code>usecase/</code> の行を追加</td></tr>
       <tr><td><code>.claude/REVIEW-POINTS.md</code></td><td>「usecase文書は手順詳細を再掲せずリンクで参照する」観点を追加</td></tr>
       <tr><td>配布物（sync-assets.sh・distribution-assets）</td><td><b>変更不要</b>（.claude/ 配下を丸ごとコピーするため自動で配布対象。実装で確認）</td></tr>
@@ -164,7 +181,10 @@
 
 <section id="unverified">
   <h2>確かめられなかったこと</h2>
-  <p>日本語ファイル名のusecase文書がWindows実機（git bash・cp932環境）で問題なく扱えるかは、この環境（Linux）では確認できない。ただしDDR 75本が同じ形式で運用済みのため、リスクは新規ではない。</p>
+  <ul>
+    <li>日本語ファイル名のusecase文書がWindows実機（git bash・cp932環境）で問題なく扱えるかは、この環境（Linux）では確認できない。ただしDDR 75本が同じ形式で運用済みのため、リスクは新規ではない。</li>
+    <li><b>--type usecase そのものは未実測</b>（この時点では type: usecase のファイルが存在しないため。実測したのは既存値 --type spec）。問い5の結論は実装の読解＋既存typeの実測に基づく推論であり、フェーズ3で文書を1本作った直後に実測して裏を取る。</li>
+  </ul>
 </section>
 
 <section id="next">
@@ -172,6 +192,7 @@
   <ul>
     <li>本調査の結論（配置・命名・目次一本化・typeの新設）をDDRとして残すかは flow-id 4-1 で判断する。</li>
     <li>フェーズ3の個別作業計画は、問い7の表＋問い1の一覧をそのまま「変更対象」にできる。</li>
+    <li>フェーズ3の検証手順へ「usecase文書を1本作った直後に extract-frontmatter.sh → search-frontmatter.sh --type usecase を実測する」を含める（未追跡でも載るためコミットを待つ必要は無い）。</li>
   </ul>
 </section>
 
