@@ -123,19 +123,36 @@ bash .claude/scripts/src/adversarial-review-count.sh increment <phase>
 
 ## 手順6: 投稿する指摘を選別する
 
-findings を、**確度（`confidence`）と重大度（`severity`）**で振り分ける。
+findings を、まず**確度（`confidence`）と重大度（`severity`）**の表で1次振り分けする。
 
 | 確度 \ 重大度 | blocker | major | minor | nit |
 |---|---|---|---|---|
-| high | 投稿 | 投稿 | 投稿 | 報告 |
-| medium | 投稿 | 投稿 | 報告 | 報告 |
+| high | 投稿候補 | 投稿候補 | 投稿候補 | 報告 |
+| medium | 投稿候補 | 投稿候補 | 報告 | 報告 |
 | low | 報告 | 報告 | 報告 | 報告 |
 
-- **「投稿」** = インラインコメントとしてMRへ出す。**「報告」** = この会話（非対話モードでは
-  worklog）にのみ書き、MRへは出さない。
-- **1回あたりの投稿上限は10件**。超える場合は重大度の高い順に10件へ絞り、残りは報告へ回す。
-  レビュアーが一度に扱える量を超えると、結局どれも読まれないため。
-- 投稿する findings だけを集めた JSON を一時ファイルへ書き出す（次の手順で使う）。
+- **「投稿候補」** = 次の件数選別へ進む。**「報告」** = この会話（非対話モードではworklog）に
+  のみ書き、MRへは出さない。
+- 表を通過した「投稿候補」findings をファイルへ書き出し
+  （`{"findings":[...]}`）、実際に投稿する件数を次のスクリプトで**決定的に**選別する
+  （AIエージェントの裁量では選ばない。同じfindingsからは常に同じ投稿集合が得られる）。
+
+  ```bash
+  bash .claude/scripts/src/select-adversarial-findings.sh <投稿候補findings JSONファイル>
+  # → {"posted":{"findings":[...]},"reported":{"findings":[...]}}
+  ```
+
+  選別規則（blocker無制限・層単位・ハードシーリング20件）の詳細は
+  `.claude/docs/spec/adversarial-review.md`「投稿件数の選別」を正とする
+  （**本SKILL.mdへ規則を再掲しない**。規則を変えたくなったらspec側を編集する）。
+
+- **出力の `.posted`（`.posted.findings` という配列単体ではなく、`{"findings":[...]}`
+  というオブジェクト全体）を一時ファイルへ書き出す。** そのまま手順7の
+  `add_mr_inline_comments` へ渡せる形になる（`.findings` キーを直下に持つオブジェクトを
+  要求するため）。
+- 手順6の1次振り分けで「報告」に区分したfindingsと、出力の `.reported.findings`
+  （この選別で漏れた「投稿候補」。1次振り分けの「報告」はそもそもこのスクリプトへ渡して
+  いないため含まれない）は、**両方を合わせて**手順9の報告に使う。
 
 ## 手順7: MRへ投稿する
 
