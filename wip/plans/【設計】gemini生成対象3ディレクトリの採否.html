@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>【設計】.gemini/ の hooks/ scripts/ docs/ の採否 — issue #172</title>
+<style>
+  :root {
+    --bg: #f6f7f9;      --panel: #ffffff;   --ink: #1a1d21;     --muted: #5b636d;
+    --line: #dfe3e8;    --accent: #2563eb;  --accent-soft: #eaf0fe;
+    --ok: #1a7f4b;      --ok-soft: #e6f4ec; --warn: #a35a00;    --warn-soft: #fdf1e0;
+    --stop: #b3261e;    --stop-soft: #fdecea; --code-bg: #f0f2f5;
+    --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1216;    --panel: #161a20;   --ink: #e6e8eb;     --muted: #9aa3ad;
+      --line: #2a3038;  --accent: #7aa2f7;  --accent-soft: #1b2333;
+      --ok: #6ee7a8;    --ok-soft: #14261d; --warn: #f0b866;    --warn-soft: #2a2113;
+      --stop: #f2857c;  --stop-soft: #2b1614; --code-bg: #1d222a;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", system-ui, sans-serif;
+    line-height: 1.8; font-size: 15px;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 20px 80px; }
+
+  /* 共通ヘッダ帯 */
+  header.band {
+    background: linear-gradient(135deg, var(--accent-soft), var(--panel));
+    border-bottom: 1px solid var(--line); padding: 28px 20px 22px; margin-bottom: 28px;
+  }
+  header.band .inner { max-width: 1080px; margin: 0 auto; }
+  header.band .kind { font-size: 11px; letter-spacing: .18em; color: var(--accent); font-weight: 700; }
+  header.band h1 { margin: 6px 0 4px; font-size: 26px; line-height: 1.4; }
+  header.band .lead { margin: 0; color: var(--muted); }
+  .meta { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; padding: 0; list-style: none; }
+  .meta li {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 999px;
+    padding: 3px 12px; font-size: 12.5px; color: var(--muted); white-space: nowrap;
+  }
+  .meta li b { color: var(--ink); font-weight: 600; }
+
+  nav.toc {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 14px 20px; margin-bottom: 28px;
+  }
+  nav.toc h2 { margin: 0 0 8px; font-size: 13px; letter-spacing: .08em; color: var(--muted); border: 0; padding: 0; }
+  nav.toc ol { margin: 0; padding-left: 20px; }
+  nav.toc li { margin: 2px 0; }
+  a { color: var(--accent); }
+
+  section {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 8px 24px 22px; margin-bottom: 22px;
+  }
+  h2 { font-size: 20px; margin: 20px 0 10px; padding-bottom: 8px; border-bottom: 2px solid var(--line); }
+  h3 { font-size: 16px; margin: 22px 0 8px; color: var(--accent); }
+  p { margin: 10px 0; }
+  ul, ol { padding-left: 22px; }
+  li { margin: 4px 0; }
+  blockquote { margin: 10px 0; padding: 6px 14px; border-left: 3px solid var(--line); color: var(--muted); }
+
+  /* 表は自身の中で横スクロールする（ページ本体は横スクロールさせない） */
+  .tablewrap { overflow-x: auto; margin: 14px 0; }
+  table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 14px; }
+  th, td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: var(--accent-soft); font-weight: 600; white-space: nowrap; }
+  tbody tr:nth-child(even) td { background: color-mix(in srgb, var(--line) 22%, transparent); }
+
+  code {
+    background: var(--code-bg); border-radius: 5px; padding: 1px 5px; font-size: 13px;
+    font-family: "SFMono-Regular", Consolas, "Noto Sans Mono", monospace;
+  }
+  pre {
+    background: var(--code-bg); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 12px 14px; overflow-x: auto; font-size: 13px; line-height: 1.65;
+  }
+  pre code { background: none; padding: 0; }
+
+  /* 注意ボックス: info（既定）/ ok（決めたこと）/ warn（注意）/ stop（やらないこと・危険） */
+  .box { border-left: 4px solid var(--accent); background: var(--accent-soft);
+         border-radius: 0 var(--radius) var(--radius) 0; padding: 12px 16px; margin: 16px 0; }
+  .box > :first-child { margin-top: 0; } .box > :last-child { margin-bottom: 0; }
+  .box .label { font-size: 12px; font-weight: 700; letter-spacing: .06em; display: block; margin-bottom: 4px; }
+  .box.ok { border-color: var(--ok); background: var(--ok-soft); } .box.ok .label { color: var(--ok); }
+  .box.warn { border-color: var(--warn); background: var(--warn-soft); } .box.warn .label { color: var(--warn); }
+  .box.stop { border-color: var(--stop); background: var(--stop-soft); } .box.stop .label { color: var(--stop); }
+  .box.info .label { color: var(--accent); }
+
+  .tag { display: inline-block; border-radius: 999px; padding: 1px 9px; font-size: 12px; font-weight: 600; }
+  .tag.ok { background: var(--ok-soft); color: var(--ok); }
+  .tag.warn { background: var(--warn-soft); color: var(--warn); }
+  .tag.stop { background: var(--stop-soft); color: var(--stop); }
+
+  footer { color: var(--muted); font-size: 13px; text-align: center; padding-top: 10px; }
+</style>
+</head><body>
+
+<header class="band">
+  <div class="inner">
+    <div class="kind">個別作業計画 / フェーズ3</div>
+    <h1>【設計】<code>.gemini/</code> の hooks/ scripts/ docs/ の採否を決める</h1>
+    <p class="lead">調査結果をもとに、3ディレクトリそれぞれを生成対象に含めるかを1つずつ決め、決め方（判定基準）と結論の根拠を記録する。実装を伴うかは結論次第で、この計画では前提にしない。</p>
+    <ul class="meta">
+      <li><b>issue</b> #172</li>
+      <li><b>ブランチ</b> claude/gemini-exclude-decision-yp5p70</li>
+      <li><b>PR</b> #193</li>
+      <li><b>フェーズ</b> 3〈作業〉 flow-id 3-1</li>
+      <li><b>push回数</b> 5</li>
+      <li><b>作成日</b> 2026-08-23</li>
+      <li><b>正文</b> 同名の .md</li>
+    </ul>
+  </div>
+</header>
+
+<div class="wrap">
+
+<nav class="toc">
+  <h2>目次</h2>
+  <ol>
+    <li><a href="#goal">この計画で何をするか</a></li>
+    <li><a href="#premise">前提として確定していること（flow-id 2-10 時点）</a></li>
+    <li><a href="#criteria">判定基準（これで決める）</a></li>
+    <li><a href="#options">比較する案</a></li>
+    <li><a href="#out-of-scope">この計画で決めないこと（スコープ外）</a></li>
+    <li><a href="#steps">進め方（flow-id 3-6 で行うこと）</a></li>
+    <li><a href="#verify">検証</a></li>
+    <li><a href="#acceptance">issueの受け入れ条件との対応</a></li>
+  </ol>
+</nav>
+
+<section id="goal">
+  <h2>この計画で何をするか</h2>
+  <p>3ディレクトリそれぞれについて <b>「生成対象に含める／外す」を1つずつ決め、決め方（判定基準）と結論の根拠を <code>wip/reports/</code> へ記録する</b>。実装（<code>sync-gemini-assets.sh</code> の変更）を伴うかは結論次第であり、<b>この計画では実装を前提にしない</b>。</p>
+  <div class="box info">
+    <span class="label">種別を【設計】単独にした理由</span>
+    <p>このフェーズの成果物は「判断とその理由」であって、コードではない。外す結論になった場合の実装（<code>is_copy_excluded</code> の接頭辞一致化とテスト追加）は<b>同じフェーズ3の中で続けて行う</b>が、実装するかどうかがこの設計の結論に依存するため、<code>【実装】</code> を先に併記すると「実装することが決まっている」と読めてしまう。<b>結論が「外す」になった時点で、この計画へ <code>【実装】</code> の節を追記する</b>（種別の併記は合意の単位で決める、という <code>references/planning.md</code> の規定に従う）。</p>
+  </div>
+</section>
+
+<section id="premise">
+  <h2>前提として確定していること（flow-id 2-10 時点）</h2>
+  <p>いずれもフェーズ2の調査結果（<code>wip/reports/20260823_mellow-drifting-lantern_gemini生成対象の参照実態.md</code>）が正で、ここでは判断に効く点だけを引く。</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>#</th><th>事実</th><th>出所</th></tr></thead>
+    <tbody>
+      <tr><td>A</td><td><code>.gemini/hooks/</code> を指す実行経路は生成物の中に0件（hook <code>command</code> 6本すべてが <code>.claude/hooks/</code> を指す）</td><td>調査結果 Q1</td></tr>
+      <tr><td>B</td><td><code>.gemini/scripts/</code> を指す呼び出しも生成物の中に0件（資産が書くパス97件すべてが <code>.claude/scripts/</code>）</td><td>調査結果 Q2</td></tr>
+      <tr><td>C</td><td><code>.gemini/docs/</code> は <code>.gemini/</code> 内の相対リンクの解決先（<code>rules/</code> から17件・<code>skills/</code> から1件）</td><td>調査結果 Q3</td></tr>
+      <tr><td>D</td><td><b>その18件のリンク元である <code>.gemini/rules/</code> <code>.gemini/skills/</code> 自体にも、読み込まれる設定上の経路が無い</b></td><td>調査結果 Q3-b</td></tr>
+      <tr><td>E</td><td>外したとき「残るファイルから」切れるリンクは hooks 1・scripts 1・docs 18（hooks/scripts の1件ずつは唯一のリンク元が <code>.gemini/docs/usecase/対応工数を把握する.md</code>）</td><td>調査結果 Q4</td></tr>
+      <tr><td>F</td><td><b>配布物のサイズは1バイトも減らない</b>（<code>.gemini</code> は <code>dist-layers.json</code> で <code>layer: exclude</code>）。減るのはこのリポジトリと配布先で生成される <code>.gemini/</code> の 176ファイル・2.49MB</td><td>調査結果 Q6</td></tr>
+      <tr><td>G</td><td><code>COPY_EXCLUDED_PREFIXES</code> の判定は完全一致で、ディレクトリを外すには接頭辞一致への拡張が要る</td><td>調査結果 Q5</td></tr>
+      <tr><td>H</td><td><b>Gemini CLI 実機の挙動は一切観測していない</b>（この実行環境に CLI が無い）。A・B・D はすべて生成物と設定から導いた推論である</td><td>調査結果「確かめられなかったこと」</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="criteria">
+  <h2>判定基準（これで決める）</h2>
+  <p>3ディレクトリを<b>同じ物差しで</b>測る。物差しをディレクトリごとに変えると、issue本文の見立て（hooks/scripts は不要・docs は要る）をなぞるだけになる。</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>軸</th><th>問い</th><th>「外す」へ倒れる条件</th></tr></thead>
+    <tbody>
+      <tr><td>1. 読まれるか</td><td>そのパスを指す経路が生成物・設定の中にあるか</td><td>0件</td></tr>
+      <tr><td>2. 自己完結が壊れないか</td><td>外したとき、<b>残るファイルから</b>切れる相対リンクが出るか</td><td>0件、または切れても許容できる理由がある</td></tr>
+      <tr><td>3. 外すコスト</td><td>実装・テスト・ドキュメント追随に何が要るか</td><td>追随箇所が特定でき、いずれも機械的に直せる</td></tr>
+      <tr><td>4. 外す利得</td><td>何がどれだけ減るか</td><td>利得が軸1〜3のコストを上回る</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <div class="box warn">
+    <span class="label">整合性チェックを判定基準の一部として置く</span>
+    <p><b>軸1で「0件」を根拠に外すなら、同じ根拠が当たる <code>.gemini/rules/</code> <code>.gemini/skills/</code> を外さない理由も同時に説明できなければならない</b>（事実D）。説明できないなら、その根拠は3ディレクトリの採否を決める根拠として使えない。<b>この整合性チェックを判定基準の一部として明示的に置く</b>のが、この計画の要点である。</p>
+  </div>
+</section>
+
+<section id="options">
+  <h2>比較する案</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>案</th><th>内容</th><th>主な論拠</th><th>主な難点</th></tr></thead>
+    <tbody>
+      <tr><td>案1</td><td>3つとも<b>残す</b>（現状維持）</td><td>部分的に外すと自己完結が壊れる。配布物は減らない。外す根拠（軸1の0件）は未観測の推論で、同じ根拠が rules/ skills/ にも当たる</td><td>176ファイル・2.49MBの複製が残る。調査中に実際に踏んだ「二重計上」のノイズも残る</td></tr>
+      <tr><td>案2</td><td>hooks/ と scripts/ だけ<b>外す</b></td><td>軸1で最も明確に0件。追随箇所が少ない（scripts/ で2ファイル3行）</td><td><b>残る <code>.gemini/docs/</code> から切れリンクが2件出る</b>。「読まれないから外す」を rules/ へ適用しない理由を説明できない</td></tr>
+      <tr><td>案3</td><td>3つとも<b>外す</b></td><td>削減が最大。切れリンクも18件で頭打ち（docs/ 内で完結する282件はリンク元ごと消える）</td><td>未観測の推論だけを根拠に、<code>.gemini/</code> の8割を落とす。<b><code>.gemini/rules/</code> に18件の壊れたリンクが残る</b></td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p><b>現時点の暫定は案1</b>（事実D・F・Hの重なりによる）だが、<b>結論は flow-id 3-6 で確定させ、<code>wip/reports/</code> へ書く</b>。この計画では案の比較軸までを固定する。</p>
+</section>
+
+<section id="out-of-scope">
+  <h2>この計画で決めないこと（スコープ外）</h2>
+  <ul>
+    <li><b><code>.gemini/rules/</code> <code>.gemini/skills/</code> <code>.gemini/agents/</code> の採否。</b> issue #172 が対象にするのは3ディレクトリであり、事実Dはそれらを<b>外す根拠</b>としてではなく、<b>3ディレクトリを外す根拠の整合性を検査する材料</b>として使う。<code>.gemini/</code> 全体に何を置くかの再設計は、Gemini CLI 実機で読み込み経路を観測できるようになった時点で別issueとして扱う（この線引き自体を結論へ記録する）。</li>
+    <li><b><code>.claude/docs/ddr/i0127-01-….md:132</code> の切れリンク</b>（issue #133 の改番で旧ファイル名が残った既存の欠陥）。本issueのスコープ外なので、扱いはフェーズ4（flow-id 4-1）で決める。</li>
+    <li><b><code>check-doc-references.sh</code> の検出範囲</b>（絶対パス形式に限る、というDDR <code>i0171-01</code> の限定）。相対リンクの切れを検出できないことは調査で確認したが、その限定を見直すかは本issueの対象外。</li>
+    <li><b>Gemini CLI 実機での動作確認</b>（実行環境に CLI が無い。全体作業計画のスコープ外に既出）。</li>
+  </ul>
+</section>
+
+<section id="steps">
+  <h2>進め方（flow-id 3-6 で行うこと）</h2>
+  <ol>
+    <li>判定基準の4軸を3ディレクトリへ<b>それぞれ独立に</b>当て、表として書き出す。</li>
+    <li>軸1の整合性チェック（事実D）を通す。通らない案は、その旨を明記して落とす。</li>
+    <li>案1〜案3から1つを選び、<b>選ばなかった案を却下した理由</b>まで書く（フェーズ4でDDRの「却下した案」節へそのまま移せる粒度で書く）。</li>
+    <li><b>結論に「未観測のまま判断した」ことを明記する</b>（事実H）。どの結論を選んでも、根拠は実機観測ではなく生成物と設定からの推論である。</li>
+    <li><b>再検討の条件を書く</b>（何が観測できたら、この判断を見直すのか）。</li>
+    <li>「外す」を選んだ場合に限り、続けて実装する。
+      <ul>
+        <li><code>is_copy_excluded</code> を接頭辞一致（または <code>case</code> パターン）へ拡張する。</li>
+        <li><code>test_sync_gemini_assets.sh</code> の T8 へ「除外したディレクトリが出力に無いこと」と<b>「除外していないディレクトリは残ること」の対</b>を追加する（後者が無いと、判定が全件除外へ壊れても気づけない）。</li>
+        <li><code>bash .claude/scripts/src/sync-gemini-assets.sh</code> を実行して <code>.gemini/</code> を再生成する。</li>
+      </ul>
+    </li>
+    <li>結果を <code>wip/reports/日付_mellow-drifting-lantern_gemini生成対象の採否.md</code>（＋同名 <code>.html</code>）へ記録する。<b>この計画ファイルへ結果を書かない。</b></li>
+  </ol>
+</section>
+
+<section id="verify">
+  <h2>検証</h2>
+  <p><b>結論が「残す」の場合。</b></p>
+<pre><code>bash .claude/scripts/src/sync-gemini-assets.sh --check ; echo "exit=$?"   # → 0
+bash .claude/scripts/test/test_sync_gemini_assets.sh | tail -1            # → passed=91 failures=0</code></pre>
+  <div class="box stop">
+    <span class="label">これだけでは検証にならない</span>
+    <p>上の2つは<b>変更前から通る</b>（調査で実測済み）。「残す」を選んだ場合の検証は、<b>判定基準の4軸すべてに3ディレクトリ分の答えが書かれていること</b>と、<b>却下した案2・案3の理由が書かれていること</b>をレポートで確かめることである。</p>
+  </div>
+  <p><b>結論が「外す」の場合</b>（上記に加えて）。</p>
+<pre><code># 除外したディレクトリが生成物に無いこと（0件）と、残すディレクトリが在ること（非0）の対で見る
+ls .gemini/ ; git -C . status --porcelain .gemini | head
+bash .claude/scripts/test/test_sync_gemini_assets.sh | tail -1   # → passed=N failures=0（Nは91より増える）
+bash .claude/scripts/src/sync-gemini-assets.sh --check ; echo "exit=$?"   # → 0
+bash .claude/scripts/src/check-dist-coverage.sh ; echo "exit=$?"          # → 0</code></pre>
+  <ul>
+    <li><b>T8 の追加が空振りしないことを確かめる。</b> 追加したアサーションが、<code>is_copy_excluded</code> を完全一致へ戻した状態で<b>実際に落ちる</b>ことを一度確認する（落ちなければ、そのテストは除外の実装を固定していない）。</li>
+    <li>切れる相対リンクの件数を、調査と同じ手順（リンク解決）で<b>再測して記録する</b>。事前の見込みは hooks/scripts のみなら2件、3つすべてなら18件。</li>
+  </ul>
+</section>
+
+<section id="acceptance">
+  <h2>issueの受け入れ条件との対応</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>issue #172 の受け入れ条件</th><th>このフェーズでの扱い</th></tr></thead>
+    <tbody>
+      <tr><td>3ディレクトリそれぞれの判断と理由が記録されている</td><td>flow-id 3-6 の <code>wip/reports/</code> に書き、フェーズ4で spec へ移す</td></tr>
+      <tr><td>外す場合、スクリプトとspecが更新され単体テストが <code>failures=0</code> で通る</td><td>上記「検証」の「外す場合」。spec更新はフェーズ4</td></tr>
+      <tr><td>外す場合、相対リンクが切れていないことを件数付きで確認している</td><td>上記「検証」の最終行（件数を再測して記録する）</td></tr>
+      <tr><td>現状維持でも理由が spec に残っている</td><td>flow-id 3-6 で理由を確定し、フェーズ4で spec へ移す</td></tr>
+      <tr><td><code>sync-gemini-assets.sh --check</code> が0で終わる</td><td>上記「検証」（どちらの結論でも実行する）</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<footer>正文は同名の .md。issue #172 / PR #193。</footer>
+
+</div>
+</body>
+</html>
