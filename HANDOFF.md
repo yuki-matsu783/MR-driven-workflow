@@ -17,8 +17,8 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - issue: #176
 - ブランチ: `claude/reflection-plan-criteria-tnhfvs`
 - PR: #196（Draft・https://github.com/yuki-matsu783/MR-driven-workflow/pull/196 ）
-- push回数: 2
-- 現在のループ: なし
+- push回数: 3
+- 現在のループ: 2-3〜2-4 の1周目（完了）
 - 未返信スレッド: 0
 - 追従監視: あり（PRイベント購読 + 定期チェックイン。Claude Code on the web セッション）
 
@@ -32,8 +32,8 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 | [x] | 1-6 | 全体作業計画をもとにHANDOFF.mdを更新する | エージェント |
 | [x] | 2-1 | 個別調査計画を作成する | エージェント |
 | [] | 2-2 | commitし、pushしてレビュー依頼を行う | エージェント |
-| [] | 2-3 | MRで調査計画についてレビュー・コメントする | 人間 |
-| [] | 2-4 | レビュー内容を取得し、調査計画を修正する | `comments` / `reply` |
+| [x] | 2-3 | MRで調査計画についてレビュー・コメントする | 人間 |
+| [x] | 2-4 | レビュー内容を取得し、調査計画を修正する | `comments` / `reply` |
 | [] | 2-5 | 調査計画をもとにMR descriptionを更新する | `describe` |
 | [] | 2-6 | 調査を実施し、結果を記録する | エージェント |
 | [] | 2-7 | commitし、pushしてレビュー依頼を行う | エージェント |
@@ -75,16 +75,19 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - flow-id 1-4: 全体作業計画 `wip/plans/reflection-split-criteria.md`（＋同名 `.html`）を作成した。フェーズ2〈調査〉・フェーズ4〈反映〉の節を含む。
 - flow-id 1-6: 本ファイルへ進捗表・ヘッダを記入した。
 - flow-id 2-1: 個別調査計画 `wip/plans/【調査】反映対象の切り出し判断基準.md`（＋`.html`）と worklog `wip/worklogs/20260823_reflection-split-criteria_【調査】反映対象の切り出し判断基準_push2.md` を作成した。調べる問いは6問。
+- **敵対的レビュー（フェーズ2・1/3回目）**: `wip/plans/` の計画2本＋HTMLビュー＋`HANDOFF.md` を対象に実施。指摘12件。振り分け表を通った6件をPR #196 へインライン投稿し、残り6件（minor/medium）はレビュー本文へ記載。投稿スレッド: [#1](https://github.com/yuki-matsu783/MR-driven-workflow/pull/196#discussion_r3839433337) / [#2](https://github.com/yuki-matsu783/MR-driven-workflow/pull/196#discussion_r3839433850) / [#3](https://github.com/yuki-matsu783/MR-driven-workflow/pull/196#discussion_r3839434276) / [#4](https://github.com/yuki-matsu783/MR-driven-workflow/pull/196#discussion_r3839434773) / [#5](https://github.com/yuki-matsu783/MR-driven-workflow/pull/196#discussion_r3839435180) / [#6](https://github.com/yuki-matsu783/MR-driven-workflow/pull/196#discussion_r3839435574)
+- flow-id 2-3〜2-4（1周目・完了）: 12件すべてに対応し、6スレッドへ返信・報告のみ6件は[まとめコメント](https://github.com/yuki-matsu783/MR-driven-workflow/pull/196#issuecomment-5388152010)で返した。主な修正は (a) 背景の「切り出しに触れているのは1文だけ」を実測10行・うち基準を指すのは3箇所へ訂正し、うち2箇所は別の判定（issue粒度）としてスコープ外に明示、(b) 置換前後の形をmd正文へ移し md↔HTML を11節で同期、(c) status確認のjqの空振り（`.status` → `.frontmatter.status`）を修正、(d) Q4から主判定の文言を外し自己追認を回避、(e) 検証を受け入れ条件ごとの grep へ変えベースラインを実測（0/1/失敗/0）。
 
 ## 次にやること
 
-- flow-id 2-2: commit・pushしてレビュー依頼を行い、`adversarial-review` スキルでフェーズ2の計画に対する敵対的レビューを1回実施する（ユーザー指示による自動起動）。
-- flow-id 2-6: 6問の調査を実施し、結果を `wip/reports/2026-08-23_reflection-split-criteria_調査結果.md`（＋`.html`）へ書く。
+- flow-id 2-5: 調査計画をもとにMR descriptionを更新する。
+- flow-id 2-6: 6問の調査を実施し、結果を `wip/reports/2026-08-23_reflection-split-criteria_調査結果.md`（＋`.html`）へ書く。実施後に敵対的レビュー（フェーズ2・2/3回目）を起動する。
 
 ## 判断を迷った内容
 
 - **flow-id 1-5（人間による全体作業計画の合意）は非対話セッションのため成立しない。** 進捗記号は `[]` のまま残し、代わりに敵対的レビューでレビューの空白を埋める（`.claude/rules/docs-workflow.md`「非対話的実行環境」）。
 - **受け入れ条件の「SKILL.md に節がある」の解釈。** issue #160 で SKILL.md の詳細節は `references/` 配下へ切り出されているため、そのまま SKILL.md 本体へ書くと構造に反する。フェーズ2の問い1で結論を出す。
+- **敵対的レビューの指摘1（切り出しに触れる箇所が3つある）への対応方針。** 3箇所のうち2箇所（`SKILL.md:76`・`references/planning.md:246`）は**判定している対象が違う**（issueそのものの粒度）ため、新節へ寄せず #64 のままにした。相互参照の1行を置くことで読み手の迷いを消す方針を採ったが、これが十分かはフェーズ3のレビューで再確認する。
 
 ## 未解決の内容
 
@@ -94,4 +97,6 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 
 - ブランチは `claude/reflection-plan-criteria-tnhfvs` 固定（ハーネス指定。`.mrworkflow.json` の
   `feature-<issue番号>-<slug>` 規則とは異なるが、ハーネス側の指定を優先する）。
-- DDR本文・spec内の過去changelog（point-in-time の記録）は書き換えない。
+- DDR本文・spec内の過去changelog（point-in-time の記録）は書き換えない。特に `i0064-01:25`・`i0092-01:52` の「5フェーズ40ステップ」は当時の値であり、43へ書き換えない。
+- **planツールを使えない実行環境のため、全体作業計画は Write で作成しファイル名は内容から付けた**（`wip/plans/REVIEW-POINTS.md` の「ハーネスの提示した自動命名のまま」からの逸脱）。worklog・reports のファイル名もこの名前に揃えてある。
+- `SKILL.md:76`（flow-id 2-6）の切り出し記述は変更しない（issue粒度の判定であり issue #64 の担当）。

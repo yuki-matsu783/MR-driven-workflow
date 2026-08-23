@@ -116,7 +116,7 @@
       <li><b>ブランチ</b> claude/reflection-plan-criteria-tnhfvs</li>
       <li><b>PR</b> #196（Draft）</li>
       <li><b>フェーズ</b> 2〈調査〉 flow-id 2-1</li>
-      <li><b>push回数</b> 2</li>
+      <li><b>push回数</b> 3</li>
       <li><b>作成日</b> 2026-08-23</li>
       <li><b>正文</b> 同名の .md</li>
     </ul>
@@ -148,6 +148,10 @@
 <section id="goal">
   <h2>この計画で何をするか</h2>
   <p>フェーズ3で「切り出し判断」の節を書くために必要な事実を、既存のリポジトリ内ドキュメントから集める。<b>基準そのものをこの計画で決めない</b>（決めるのはフェーズ3）。この調査で埋めるのは、基準を書くときに参照する既存の記述・数字・記録先である。</p>
+  <div class="box warn">
+    <span class="label">Q4 の自己追認を避けるための制約</span>
+    <p>Q4 は「フェーズ3で検討する主判定の候補」を過去事例へ当てる妥当性検証だが、<b>その候補の文言をこの計画では確定させない</b>。候補一覧そのものがフェーズ3の成果物であり、ここで文言を固定するとフェーズ3が「Q4 で確かめた基準」として自分の書いた文言を追認することになる。</p>
+  </div>
 </section>
 
 <section id="target">
@@ -157,11 +161,11 @@
     <thead><tr><th>#</th><th>問い</th><th>何が分かれば足りるか</th></tr></thead>
     <tbody>
       <tr><td>Q1</td><td>受け入れ条件の「SKILL.md に節がある」を、issue #160 の分割後の構造でどう満たすのが正しいか</td><td>SKILL.md 本体と <code>references/</code> の役割分担が既存記述のどこで定義されているか。既存の判断基準系の節（issue #64）がどちらにあるか</td></tr>
-      <tr><td>Q2</td><td>差し替え対象の「既存の1文」は具体的にどこか。差し替えると <code>【実装反映】</code> 定義の他の記述と矛盾しないか</td><td>該当行の位置と原文。その1文が兼ねている役割（行為の指示／参照先の提示）の内訳</td></tr>
-      <tr><td>Q3</td><td>issue #155 の4類型 (a)〜(d) と主判定はどう接続するか</td><td>類型ごとに判断が変わるのか、類型に依らず同じ一問で足りるのか。<code>【実装反映】</code>／<code>【AIアセット反映】</code> の判別規則（手順4）との関係</td></tr>
-      <tr><td>Q4</td><td>過去のDDR（i0000-02・i0023-01・i0014-01 等）の「別issueの規模と判断して見送った」事例は、検討中の主判定で同じ結論になるか</td><td>各事例の見送り理由と、主判定を当てた場合の結論。食い違う事例があればその原因</td></tr>
-      <tr><td>Q5</td><td>「切り出さない条件（誤爆防止）」で使う固定費は何ステップか</td><td>issue #64 節の現在の記述（「5フェーズ43ステップ」）と、SKILL.md の全体フローの実数が一致しているか</td></tr>
-      <tr><td>Q6</td><td>切り出した／切り出さなかった判断の記録先は、既存のどのファイル・節か</td><td>issue #64 が定めた記録先（全体作業計画・<code>HANDOFF.md</code>）と、フェーズ4時点で書ける場所（<code>wip/reports/</code>・spec の未決定事項）の対応</td></tr>
+      <tr><td>Q2</td><td>差し替え対象の1文（上位計画の「置換前」）を差し替えると、<code>【実装反映】</code> 定義の他の記述と矛盾しないか。<code>【AIアセット反映】</code> 側から新節を指す必要はあるか</td><td>矛盾の有無と、<code>【AIアセット反映】</code>（「AIアセット反映の対象の洗い出し」節）に切り出しへの言及があるか</td></tr>
+      <tr><td>Q3</td><td>issue #155 の4類型 (a)〜(d) と切り出し判断はどう接続するか</td><td>類型ごとに判断が変わるのか、類型に依らず同じ一問で足りるのか。<code>【実装反映】</code>／<code>【AIアセット反映】</code> の判別規則（手順4）との関係</td></tr>
+      <tr><td>Q4</td><td>過去のDDRに残る「規模を理由に見送った」事例に、<b>フェーズ3で検討する主判定の候補</b>を当てると同じ結論になるか</td><td>各事例の見送り理由と、候補を当てた場合の結論。<b>どの候補でも説明できない事例があれば、その件数と原因</b>（食い違いは基準の限界を示す成果であって失敗ではない）</td></tr>
+      <tr><td>Q5</td><td>新節で固定費（フローのステップ数）を<b>再掲するのか、既存記述への参照で済ませるのか</b></td><td>同じ数字を持つ現在の箇所の一覧と、繰り下げが起きたときに追随が必要な箇所の数</td></tr>
+      <tr><td>Q6</td><td>切り出した／切り出さなかった判断の記録先は、既存のどのファイル・節か</td><td>issue #64 が定めた記録先（全体作業計画・<code>HANDOFF.md</code>）と、フェーズ4時点で書ける場所（<code>wip/reports/</code>・spec の未決定事項・DDR）の対応。<b>flow-id 5-5 で削除される場所とそうでない場所の区別</b></td></tr>
     </tbody>
   </table>
   </div>
@@ -170,10 +174,10 @@
 <section id="approach">
   <h2>調べ方</h2>
   <ul>
-    <li><b>ドキュメントを探す問いは <code>doc-search</code>（frontmatterインデックス）を先に使う</b>（<code>AGENTS.md</code> のルール）。本文中の特定の語（「別issue」「切り出し」等）を探すときだけ <code>grep</code>/<code>rg</code> を使う。</li>
+    <li><b>ドキュメントを探す問いは <code>doc-search</code>（frontmatterインデックス）を先に使う</b>（<code>AGENTS.md</code> のルール）。本文中の特定の語を探すときだけ <code>grep</code>/<code>rg</code> を使う。</li>
     <li>Q2・Q5 は該当ファイルを直接読む（<code>references/planning.md</code>・<code>SKILL.md</code>）。</li>
-    <li>Q4 は DDR 本体を読む。<code>--format detail</code> は <code>status</code> を出さないため、<b><code>status: superseded</code> のDDRを現役の根拠として引かないよう本体で確認する</b>（<code>references/planning.md</code>「手順3」の注意）。</li>
-    <li>Q5 の実数は SKILL.md の全体フロー表の行数を機械的に数える（<code>| N-M |</code> の件数）。</li>
+    <li><b>Q4 の母数は「機械的に洗い出した集合」とする。</b>issue本文が挙げる3件をそのまま使わない（うち <code>i0014-01</code> は「別issueの規模」を理由とした見送りではないことを上位計画で確認済み）。<code>grep -rln -- '別issue' .claude/docs/ddr/</code> で候補を出し、各本文で<b>見送りの理由が規模か価値か</b>を読み分けてから母数を確定する。</li>
+    <li>Q4 で <b>DDR を証拠に使うときは <code>status</code> を確認する</b>（後続のDDRに置き換えられた決定を現役の根拠として引かないため。<code>.claude/rules/markdown-frontmatter.md</code>「DDRのstatus」）。</li>
   </ul>
 </section>
 
@@ -182,21 +186,39 @@
   <div class="box stop">
     <span class="label">この計画では決めない・触らない</span>
     <ul>
-      <li><b>基準の文面を書くこと</b>。フェーズ3（flow-id 3-1 以降）へ送る。</li>
-      <li><b>過去のMRを遡ること</b>。<code>references/planning.md</code>「手順1」が禁じている探索であり、Q4 は DDR という一次資料が残っている範囲だけを見る。</li>
+      <li><b>基準の文面を書くこと</b>。フェーズ3（flow-id 3-1 以降）へ送る。<b>主判定の候補を挙げることも含む</b>（この計画で候補を固定すると、Q4 の妥当性検証が自己追認になる）。</li>
+      <li><b>MRのレビュー往復まで遡って過去の切り出し判断を集めること</b>。理由は<b>この調査自身のコスト判断</b>である（探索コストが件数に比例して増える一方、Q4 に必要な「判断とその理由」は決定として書き起こされたDDRに残っている）。<b><code>references/planning.md</code>「手順1」の『過去のMRを遡らない』を根拠にしない</b>——あちらは flow-id 4-1 でAIアセット反映の対象を洗い出すときに固有の規則であり、フェーズ2の調査一般には適用されない。<b>この除外によって母数に偏りが入る</b>（レビュー往復で下された判断は拾えず、DDRとして書き起こされた分だけが見える）ことを、結果へ明記する。</li>
       <li><b><code>.claude/scripts/</code> の実装調査</b>。今回の成果物は判断基準であって機械化ではない。</li>
     </ul>
   </div>
 </section>
 
 <section id="verify">
-  <h2>検証</h2>
-  <pre><code># Q5 の実数（全体フロー表の行数）
+  <h2>検証（この調査が完了したと言える条件）</h2>
+  <pre><code># Q5 の実数（全体フロー表の行数）。references/planning.md:224 の記述と一致するか
 grep -cE '^\| [0-9]+-[0-9]+ \|' .claude/skills/issue-mr-flow/SKILL.md
 
+# Q5 の複製箇所の洗い出し
+grep -rn -- '5フェーズ' .claude/skills .claude/rules .claude/docs/spec .claude/docs/usecase
+
+# Q4 の母数の候補
+grep -rln -- '別issue' .claude/docs/ddr/
+
 # Q4 の DDR の status 確認（superseded を現役の根拠に使わない）
-bash .claude/scripts/src/search-frontmatter.sh --type ddr --format jsonl | jq -r 'select(.status) | [.title,.status] | @tsv'</code></pre>
-  <p>合格条件: 6問すべてに、<b>根拠となるファイルパス・行の引用つきで</b>答えが書けていること。Q4 で主判定が過去事例と食い違う件があれば、その件数と原因が書けていること（食い違いゼロを目標にしない。基準の限界が分かることも成果）。結果は <code>wip/reports/2026-08-23_reflection-split-criteria_調査結果.md</code>（＋同名 <code>.html</code>）へ書き、<b>この個別調査計画には書かない</b>。</p>
+#   --format jsonl の1レコードは concept_id / directory / frontmatter / mtime の形で、
+#   status も title も frontmatter の下にある（トップレベルの .status は常に null）
+bash .claude/scripts/src/search-frontmatter.sh --type ddr --format jsonl \
+  | jq -r 'select(.frontmatter.status) | [.concept_id, .frontmatter.status] | @tsv'</code></pre>
+  <div class="box warn">
+    <span class="label">最後の1本が空振りでないことの確認</span>
+    <p><b>superseded のDDRが2件（<code>i0000-06</code> / <code>i0000-13</code>）出ることを確かめてから使う。</b>0件しか返らないなら、フィルタが実データに合っていない（＝ガードとして機能していない）。実測で2件出ることを確認済み。</p>
+  </div>
+  <p>合格条件:</p>
+  <ul>
+    <li>6問すべてに、<b>根拠となるファイルパス・行の引用つきで</b>答えが書けている。</li>
+    <li>Q4 で、母数の取り方（何件をどう選んだか）と、候補が過去事例と食い違う件がある場合はその件数と原因が書けている。<b>食い違いゼロを目標にしない</b>（基準の限界が分かることも成果）。</li>
+    <li>結果は <code>wip/reports/2026-08-23_reflection-split-criteria_調査結果.md</code>（＋同名 <code>.html</code>）へ書き、<b>この個別調査計画には書かない</b>。</li>
+  </ul>
 </section>
 
 <footer>issue #176 / PR #196 — 計画の正文は同名の <code>.md</code>。外部依存を持たない自己完結HTML。</footer>
