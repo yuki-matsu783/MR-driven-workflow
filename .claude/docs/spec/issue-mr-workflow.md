@@ -319,6 +319,71 @@ Claude Code / Gemini CLI は**セッションごとに1つのplanファイルし
 [i0092-01-全体作業計画には調査・反映の枠を必ず残し省略判断は各フェーズ直前で行う.md](../ddr/i0092-01-全体作業計画には調査・反映の枠を必ず残し省略判断は各フェーズ直前で行う.md)
 を参照。
 
+### 計画・レポートのHTMLビュー（issue #54）
+
+`plans/` の計画と `reports/` のレポートには、mdと同じベース名の `.html`（人間レビュー用ビュー）を
+併存させる。**mdが正文で、HTMLはその視覚化**である。このHTMLの「記述の型」は、issue #54 以前は
+`.claude/skills/issue-mr-flow/SKILL.md` の散文として各flow-idの説明に散っていた。issue #54 で、
+それを**バンドルリソースのテンプレートファイル2本**へ移した。
+
+| テンプレート | 対象 |
+|---|---|
+| `.claude/skills/issue-mr-flow/assets/plans.template.html` | 全体作業計画（flow-id 1-4）と個別計画（2-1・3-1・4-1） |
+| `.claude/skills/issue-mr-flow/assets/reports.template.html` | 調査結果（2-6）・作業結果（3-6）・反映結果（4-6）・最終統括レポート（5-3） |
+
+**この節が扱うのは、なぜこの形にしたかと、どこに何の正があるかだけである。** 運用の詳細
+（見出し構成・必須／任意の区別・作成タイミング・埋め忘れの検査）はここへ再掲しない。
+
+| 何の正か | どこ |
+|---|---|
+| 記述の型（見出し構成・必須／任意の区別・埋め忘れの検査） | **テンプレート本体**の冒頭のHTMLコメント |
+| いつ作るか・作った後どう扱うか（flow-idごとの手順） | **`.claude/skills/issue-mr-flow/SKILL.md`**「計画・レポートのHTMLビュー」 |
+| レビュー時に何を見るか | **`plans/REVIEW-POINTS.md` / `reports/REVIEW-POINTS.md`** |
+| ライフサイクル（flow-id 5-4 でまとめて削除・frontmatterの対象外） | **`.claude/rules/docs-workflow.md`** のライフサイクル表 |
+
+#### なぜテンプレートファイルへ切り出したか
+
+記述の型の正がSKILL.mdの散文に散っていると、**導入先プロジェクトが自分の型へ差し替えたいときに
+手を入れる場所が定まらない**。フローの手順書とレポートの様式は寿命も変更頻度も違うので、
+様式だけを差し替え可能なファイルとして独立させた。SKILL.md側は見出し構成を列挙せず、
+「テンプレートを読んでから書く」と参照するだけにしている。
+
+#### なぜ2本なのか（そしてmd側のテンプレートは持たない）
+
+`plans/`（これから何をするか）と `reports/`（何をして何が分かったか）では必須セクションが
+異なるため、1本に統合できない。**共通のCSSは2本へ重複して持たせる**——共有CSSファイルへ
+切り出すと「自己完結」でなくなり、**HTMLファイル単体をリポジトリ外へ持ち出して共有・保管した
+場合に開けなくなる**ため（`reports/` はflow-id 5-4でmdとhtmlをまとめて削除するので、
+「片方だけが残る」状況は起きない。壊れるのは持ち出したときである）。
+
+**md側のテンプレートは作らない。** `plans/*.md` `reports/*.md` の見出し構成は規定せず自由記述の
+ままとする（型を固定する価値があるのは、人間が繰り返し目を通すHTMLビューの側だけであるため）。
+
+#### 外部依存を持たせない
+
+テンプレートのスタイルは自己完結（自前CSS＋CSSカスタムプロパティ）で、CDN・外部フォント・画像を
+1つも参照しない。issue #54 以前、`reports/` の一覧・表形式HTMLはTailwindCSS CDN方式だった
+（DDR `i0000-11`）が、その根拠がテンプレート化により成り立たなくなったため方式を変えた。
+経緯・却下案は
+[i0054-01-計画レポートのHTMLビューはassets配下のテンプレートへ切り出す.md](../ddr/i0054-01-計画レポートのHTMLビューはassets配下のテンプレートへ切り出す.md)
+を参照。
+
+**自己完結の検査は「実際に外部を読みに行く記述」に限る。** `https://` を含む行を数える形にすると、
+本文中で `<code>` に囲んでURLを引用しただけのレポート（調査結果はURLを引用しがちである）と、
+`http://www.w3.org/2000/svg`（`createElementNS` に渡すSVGの名前空間。外部を読みに行かない）を
+必ず誤検知する。逆に `src="https://` だけを見る形へ狭めると、シングルクォート・プロトコル相対・
+CSSの `@import` が素通りする。
+
+**検査コマンドと、その限界（相対パスのローカル参照は拾えない）・canvas形式の除外の正は
+`reports/REVIEW-POINTS.md`「HTML版」であり、ここへは再掲しない。**
+
+#### バンドルリソースの語彙
+
+スキル配下のバンドルリソースは `assets/`（出力に使うもの）・`scripts/`（実行するもの）・
+`references/`（AIが読むもの）の3語彙に統一し、**`templates/` は使わない**（issue #54 で
+`canvas-report/templates/` を `assets/` へ改名した）。配置ルールの正は
+`.claude/rules/directory-structure.md`「配置の指針」。
+
 ### issueが大きすぎる場合の分割提案（issue #64）
 
 「1 issue = 1ブランチ = 1 MR」を単位としながら、**issue自体の粒度**に関する基準が無かったため、
@@ -674,7 +739,7 @@ PR番号か通知先issue番号かで異なる）。手順の正は
 | 挿入位置 | **flow-id 5-2（関連issue通知）と旧5-3（片付け）の間**。旧5-3→5-4、旧5-4→5-5、旧5-5→5-6 へ繰り下げ、全41→42ステップ |
 | ステップの粒度 | **作成 → commit・push → サマリ投稿 →（任意）添付**を1ステップに含む複合ステップ。作るだけで片付けへ進むと、作成と削除が同じ作業ツリー上で相殺され**ブランチのコミット履歴にすら残らない** |
 | 成果物 | `reports/日付_<全体計画名>_統括.md`（正文・必須）と同名の `.html`（人間レビュー用ビュー） |
-| HTMLの土台 | `.claude/skills/issue-mr-flow/assets/reports.template.html`（**issue #54 の成果物。未作成の間は手書きへフォールバックする**） |
+| HTMLの土台 | `.claude/skills/issue-mr-flow/assets/reports.template.html`（必須セクションの統括レポート向けの読み替えは、同テンプレートの冒頭コメント「フェーズごとの読み替え」を参照） |
 | 反映の構造 | **3層のフォールバック**（下表）。層3が壊れても層1・層2でレビューは成立する |
 | サマリの1行目 | **`Claude Codeより（最終統括レポート）:`**。既存の通常コメント3種の書式は変更しない |
 | ライフサイクル | 統括レポート自体も **flow-id 5-4 の削除対象**。`main` に残るのはPR/MR上のコメントと `spec/` `ddr/` |
@@ -2946,6 +3011,75 @@ issue #23 の記録は変更せず、issue #47 の観測を**環境差として�
 **既存の「誤検知」項の本文は1文字も変更していない**（`.claude/rules/docs-workflow.md` の
 point-in-time記録の扱い）。併記した段落は、項の末尾（回避策とAIエージェント向け注記への誘導という
 節全体にかかる地の文）の**後ろ**へ置いてある。
+
+### issue #54（計画・レポートのHTMLビューをテンプレートファイルへ切り出す）
+
+上記「計画・レポートのHTMLビュー（issue #54）」節。
+
+**新設**（`.claude/skills/issue-mr-flow/assets/`）:
+
+- `plans.template.html` — 計画のHTMLビューの土台。必須は「この計画で何をするか／変更対象／方針／
+  やらないこと／検証」、`[全体作業計画のみ必須]` として「フェーズ2〈調査〉／フェーズ4〈反映〉」を持つ。
+- `reports.template.html` — レポートのHTMLビューの土台。必須は「サマリ／実施した内容と結果／
+  確かめられなかったこと／設計への反映」。
+
+**改名**: `.claude/skills/canvas-report/templates/` → `assets/`（`templates/` という名前の
+バンドルディレクトリはリポジトリから0件になった）。
+
+**新設**（`.claude/docs/ddr/`）:
+
+- `i0054-01-計画レポートのHTMLビューはassets配下のテンプレートへ切り出す.md` — テンプレート2本への
+  切り出し・自己完結CSSへの方式変更・`assets` 語彙の統一の3つの決定と、却下案8件（4/2/2）。
+
+**参照側の改訂**:
+
+- `.claude/skills/issue-mr-flow/SKILL.md`（「計画・レポートのHTMLビュー」節を新設。全体フロー表の
+  flow-id 1-4・2-1・3-1・4-1・2-6・3-6・4-6 と `start` 手順3 からテンプレートを参照する形へ。
+  **3-6 は任意→必須、4-6 は新規追記**。flow-id 5-3 の暫定記述を解除）
+- `.claude/skills/canvas-report/SKILL.md`（コピー元パスと、外部依存の記述を形式ごとの表へ）
+- `.claude/rules/docs-workflow.md`（ライフサイクル表へ `plans/*.html` の行を新設）
+- `.claude/rules/directory-structure.md`（ツリーへ `assets/`、「配置の指針」を3語彙へ）
+- `.claude/rules/markdown-frontmatter.md`（`plans/*.html` `reports/*.html` はfrontmatter対象外）
+- `index.md`（`./plans/` の説明へHTMLビューの併存を追記）
+- `plans/REVIEW-POINTS.md`（`## HTML版` 節を新設）・`reports/REVIEW-POINTS.md`（自己完結の検査を改訂）
+- `.claude/docs/spec/create-commit.md` / `.claude/rules/git-workflow.md`（作業中に判明した
+  `create-commit.sh` の挙動。下記）
+- `.claude/docs/spec/distribution-assets.md`（`.claude/VERSION` を据え置く判断があり得ることと、
+  その場合に何を残すか。下記）
+- `.claude/docs/ddr/i0000-11-…md` / `i0141-01-…md`（**frontmatterの `note` のみ**追加。本文は不変）
+- `.claude/docs/README.md`（`generate-ddr-list.sh` によるDDR一覧の再生成。手書きしていない）
+
+**自己完結の検査を「実際に外部を読みに行く記述」に限定した。** 従来の
+`grep -c 'https\?://' <ファイル>` が 0、という形は、本文で `<code>` に囲んでURLを引用しただけの
+レポート（実測3件）と `http://www.w3.org/2000/svg`（実測4件。`canvas-report.html` の
+`createElementNS` 4箇所。同ファイルで `https?://` にヒットする6行の残りは、mermaid CDN 1行と
+JSコメント内の例示URL 1行である）を必ず誤検知し、**外部依存ゼロの正しい成果物を不合格に
+していた**。検査の正は `reports/REVIEW-POINTS.md`「HTML版」へ置き、specからは再掲を外した。
+**issue #54 のフェーズ4の敵対的レビューで、当初改めた形（`(src|href)="https?://` だけを見る）
+では、シングルクォート・プロトコル相対・CSSの `@import` が素通りすることが判明し、さらに
+広げた**（同時に、`<code>` 内でHTML属性ごとURLを引用した既存レポート1件が新旧どちらの検査でも
+ヒットしていたことも判明し、`&#47;&#47;` で書く形へ直して0件に戻した）。
+
+**埋め忘れの検査を `grep -c '<!-- ここに書く'` へ揃えた。** `<!--` を含めないと、テンプレート自身を
+説明する計画・レポート（地の文で「ここに書く」に触れる成果物）を必ず誤検知する（実測3件）。
+
+**`.claude/VERSION` は `0.1.2` のまま据え置いた**（配布対象アセットは増えたが、ユーザーの判断）。
+`.claude/docs/spec/distribution-assets.md` は「配布対象アセットに変更があった回だけ `MINOR` を
+増分する」と定めており、**今回はその規定の例外にあたる**。規定側にも据え置きの扱いを1行残した
+（規定を読んだ人が「VERSIONは配布アセットの変更に必ず追随する」と信じないようにするため）。
+
+**改名の後片付けは配布先まで及ばない。** `install-to-project.sh` は `safe_copy_dir` による
+コピーのみで、上流で消えたファイルを配布先から削除する仕組みを持たない。したがって既にこの機構を
+導入済みのプロジェクトでは、再インストール後も `.claude/skills/canvas-report/templates/`
+（旧パス）が残り、`assets/` と併存する。**「`templates/` はリポジトリから0件になった」は
+このリポジトリの中の話であって、配布先では成立しない。** VERSIONを据え置いたため、配布先には
+改名が起きたことを知る手掛かりも無い。旧パスの削除を `install-to-project.sh` へ持たせるかは
+別issueの判断とする（本issueのスコープ外）。
+
+**変更していないもの**: `.mrworkflow.json`（テンプレートはパス固定）、`cleanup-task.sh`・
+`extract-frontmatter.sh`・`.gitignore`・`sync-assets.sh`（**新規ファイルのコピーについては**
+調査で不要と確認。上記のとおり、改名の後片付けまでは担保していない）、markdownテンプレート
+（issue #54 本文が明示的に除外）、`HANDOFF.md` のテンプレート外だし（DDR `i0028-01` を覆さない）。
 
 ## 設定項目
 

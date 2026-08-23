@@ -238,9 +238,9 @@ bash .claude/scripts/src/extract-frontmatter.sh .
 | `rule` | `.claude/rules/*.md`, `AGENTS.md`, `CLAUDE.md`, `GEMINI.md` |
 | `agent` | `.claude/agents/*.md` |
 | `skill` | `.claude/skills/*/SKILL.md` |
-| `plan` | `plans/*.md`（planツールが出力する全体作業計画・`【種別】`付きの個別計画の両方。issue #95） |
+| `plan` | `plans/*.md`（planツールが出力する全体作業計画・`【種別】`付きの個別計画の両方。issue #95。同ディレクトリの`*.html`は対象外。下記「HTMLビューは対象外」） |
 | `log` | `worklog/*.md` |
-| `report` | `reports/*.md`（調査結果・作業結果・反映結果の正文。issue #87。同ディレクトリの`*.html`はfrontmatterを持たないため対象外） |
+| `report` | `reports/*.md`（調査結果・作業結果・反映結果の正文。issue #87。同ディレクトリの`*.html`はfrontmatterを持たないため対象外。下記「HTMLビューは対象外」） |
 | `guide` | `README.md`, `DEVELOPERS.md`, `.claude/docs/README.md`, `index.md` |
 | `handoff` | `HANDOFF.md` |
 | `spec` | `.claude/docs/spec/*.md` |
@@ -251,6 +251,24 @@ bash .claude/scripts/src/extract-frontmatter.sh .
 
 `type`の値は自動判定せず、ファイルごとに内容を見て個別に決定する。上表は現時点の割り当て例であり、
 新しいディレクトリ・用途が増えた場合はこの表に追記する。
+
+### HTMLビューは対象外（issue #54）
+
+**`plans/*.html` と `reports/*.html`（人間レビュー用のHTMLビュー）は、frontmatterの対象外である。**
+「typeの値」表への行追加も要らない。
+
+- **HTMLはYAML frontmatterを持てない。** markdownと違い、先頭の `---` に囲まれたブロックが
+  ページ本文としてそのまま表示されてしまう。
+- **そもそもインデックスに載らない。** `extract-frontmatter.sh` の走査対象は `.md` だけで
+  （`git ls-files ... | grep -z '\.md$'`）、`.html` は `index.jsonl` に現れない。実際に
+  `plans/` へ `.html` を置いて `extract-frontmatter.sh` を実行し、`index.jsonl` に載らないことを
+  確認済み（issue #54 のフェーズ2調査 Q7）。
+- 同じ理由で、**テンプレート本体**（`.claude/skills/issue-mr-flow/assets/*.template.html`、
+  `.claude/skills/canvas-report/assets/canvas-report.html`）も対象外である。
+
+**HTMLビューの説明・使い方は、frontmatterではなくファイル冒頭のHTMLコメントに置く**
+（テンプレートがその形を持っている。詳細:
+`.claude/skills/issue-mr-flow/SKILL.md`「計画・レポートのHTMLビュー」）。
 
 `plan`・`log`・`report` は、いずれもタスク（issue／ブランチ）単位で作られ flow-id 5-4 でまとめて
 削除される寿命の短いファイルに与える値であり、永続する案内ドキュメントの `guide` とは区別する

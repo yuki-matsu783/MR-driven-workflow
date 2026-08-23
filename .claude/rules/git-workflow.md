@@ -68,6 +68,11 @@ keywords: [featureブランチ, ブランチ命名, worklog, squash-merge, draft
   冪等にスキップして通知するだけになる。仕様は
   `.claude/docs/spec/create-commit.md`、経緯は
   `.claude/docs/ddr/i0060-01-create-commitは削除ステージ済みパスをgit-addの失敗時分類で吸収する.md` を参照。
+- **`commit` スキルを呼ぶ前に `git status` を見て、意図しないステージ済みの変更が無いことを
+  確かめる**（issue #54で実際に踏んだ）。`create-commit.sh` は**渡したパスに加えて、既に
+  ステージ済みの変更も同じコミットへ入れる**（詳細・理由は
+  `.claude/docs/spec/create-commit.md`「実行方法」が正）。`git mv` の直後などはindexに変更が
+  載っているため、コミットメッセージと中身が食い違いやすい。
 - **`git status` の出力を機械的に全件 `commit` スキルへ渡さない**（issue #127で実際に踏んだ）。
   `commit` スキルは開発環境の副産物を除外するリストを持つが、**呼び出し側が `git status` から
   組み立てたパス配列をそのまま渡す**運用だと、**リストに無い新種の副産物が素通りする**。
