@@ -121,6 +121,7 @@
     <p class="counts">
       <span class="chip good">◎良 4</span>
       <span class="chip warn">△注意 1</span>
+      <span class="chip stop">✕問題 0</span>
     </p>
     <ul class="meta">
       <li><b>issue</b> #186</li>
@@ -219,7 +220,7 @@
   <h2>実施条件（測った対象・環境）</h2>
   <ul>
     <li>実行環境: Claude Code on the web リモート実行環境（Linux）</li>
-    <li>対象: <code>.claude/skills/issue-mr-flow/assets/reports.template.html</code>（改修前298行→改修後438行）</li>
+    <li>対象: <code>.claude/skills/issue-mr-flow/assets/reports.template.html</code>（改修前297行→改修後425行。いずれも <code>wc -l</code> の実測。敵対的レビュー2回目の指摘反映後の値）</li>
     <li>実施日: 2026-08-23</li>
     <li>使用コマンド: 計画「検証」節の1〜6（grep・comm・diff）＋ python3 <code>html.parser</code> によるタグ対応確認</li>
   </ul>
@@ -238,7 +239,7 @@
 
   <h3 id="f2">2. サマリの結論カード化と色トークン・チップ <span class="chip good">◎良</span></h3>
   <p>サマリの表を廃止し、結論カード（<code>ol.verdicts</code> &gt; <code>li.verdict</code>）へ置き換えた。1カード＝性質チップ＋結論1行＋根拠の性質（旧表の4列目を引き継ぐ）＋該当章リンクの4要素。ヘッダ帯には結論件数チップ（<code>p.counts</code>）を追加した。</p>
-  <p><code>:root</code> へ <code>--good: #1d4ed8; --good-soft: #e7edfd;</code>、ダーク側へ <code>--good: #8ab4f8; --good-soft: #17233a;</code> を追加。<code>.tag</code> 基底＋色修飾子の4行（旧144〜147行）を削除し、<code>.chip</code> 基底＋ <code>.chip.good/.warn/.stop</code> の4行を追加した（旧 <code>.tag.*</code> の利用箇所が本体マークアップに無いことを確認済み）。</p>
+  <p><code>:root</code> へ <code>--good: #1d4ed8; --good-soft: #e7edfd;</code>、ダーク側へ <code>--good: #8ab4f8; --good-soft: #17233a;</code> を追加。<code>.tag</code> 基底＋色修飾子の4行（旧144〜147行）を削除し、<code>.chip</code> 基底＋ <code>.chip.good/.warn/.stop</code> の4行を追加した（旧 <code>.tag.*</code> の利用箇所が本体マークアップに無いことを確認済み。調査結果Q3のとおり）。</p>
   <div class="box ok">
     <span class="label">結論</span>
     <code>--ok</code>（緑）と <code>.box.ok</code> は「決めたこと・手順の成功」専用として存続させ、役割分担をCSSコメントと冒頭コメント「色・記号の使い分け」へ明記した。
@@ -253,9 +254,10 @@
 
   <h3 id="f4">4. アンカーの位置ずれ対策とリンク破断検査の伝承 <span class="chip good">◎良</span></h3>
   <p><code>section[id], h3[id] { scroll-margin-top: 16px; }</code> を追加し、「実施した内容と結果」の h3 に <code>id="f1"</code> 連番を振って見出し隣に性質チップを置く見本を収載した。冒頭コメントへリンク破断検査（comm -23、出力0行が合格）と、<code>#</code> を <code>&amp;#35;</code> と書くエスケープの適用範囲（具体的なIDを引用する見本アンカーのみ。検査コマンドの正規表現には適用しない）を明記した。</p>
+  <p>敵対的レビュー2回目の指摘を受け、検査を2点強化した: (1) ID定義側の抽出を<b>開きタグ内のid属性に限定</b>（コメント・code内の <code>id="…"</code> という文字列を定義に数えると、破断していても合格になるすり抜けを実測で確認したため）、(2) <b>重複ID検査</b>（h3コピーでIDを振り直し忘れると破断検査が素通りするため。タグ内限定の抽出結果を <code>sort | uniq -d</code> にかける）。</p>
   <div class="box ok">
     <span class="label">結論</span>
-    検証2（本体の破断なし）は出力0行、検証2b（意図的破断の検出）は zzz-broken 1行を検出した。
+    検証2（本体の破断なし）は出力0行、検証2b（意図的破断の検出）は zzz-broken 1行を検出した。検証2c（h3のIDを f1→f9 へ変えた変異コピー）は参照切れ f1 を検出し、重複IDは無かった。
   </div>
 
   <h3 id="f5">5. 検証の実施結果 <span class="chip warn">△注意</span></h3>
@@ -266,6 +268,7 @@
       <tr><td>1. 自己完結性（2コマンド）</td><td>いずれも0件</td><td>0件・0件</td><td>パス</td></tr>
       <tr><td>2. リンク破断</td><td>出力0行</td><td>0行</td><td>パス</td></tr>
       <tr><td>2b. 意図的破断の検出</td><td>zzz-broken 1行</td><td>1行</td><td>パス</td></tr>
+      <tr><td>2c. ID振り直し忘れ（f1→f9 変異）・重複ID</td><td>f1 検出・重複なし</td><td>f1 検出・重複なし</td><td>パス</td></tr>
       <tr><td>3. プレースホルダ</td><td>0でない</td><td>23件</td><td>パス</td></tr>
       <tr><td>4. 構造3語</td><td>各1件以上</td><td>1・3・1件</td><td>パス</td></tr>
       <tr><td>5. コメント伝承語</td><td>2・1・1件以上</td><td>12・2・7件</td><td>パス</td></tr>
@@ -297,6 +300,8 @@
     <thead><tr><th>計画時の見込み</th><th>実際</th><th>どう扱ったか</th></tr></thead>
     <tbody>
       <tr><td>プレースホルダは現行18件（改修後も0でなければ合格）</td><td>改修後23件（節・callout追加により増加）</td><td>検証3は「0でないこと」が条件のため合格。件数の増加は新設節の見本コメントによる想定内の方向</td></tr>
+      <tr><td>リンク破断検査は計画の抽出（id="…" の無限定grep）で足りる</td><td>コメント・code内の id="…" 文字列を定義に数え、破断していても合格になるすり抜けを実測で確認（敵対的レビュー2回目の指摘）</td><td>ID定義側の抽出をタグ内限定へ強化し、重複ID検査を追加。テンプレートコメントの検査手順も同じ形へ更新（章4）</td></tr>
+      <tr><td>テンプレートコメントは初版の記述で整合する</td><td>敵対的レビュー2回目で、実装・原則との食い違い5件が判明（目次削除条件の到達不能・件数チップ0件削除と「無い/書き忘れ区別」原則の衝突・重み表現の過剰一般化・節コメント削除の無指示・任意節の区別なし列挙）</td><td>いずれもコメント側を実装・原則どおりに修正</td></tr>
     </tbody>
   </table>
   </div>
