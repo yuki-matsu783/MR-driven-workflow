@@ -17,7 +17,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - issue: #165 (plans/worklog/reports を wip/ 配下へ集約し worklog を worklogs へ改名する)
 - ブランチ: claude/consolidate-wip-directories-ps6f9a（ハーネス指定。命名規則`feature-165-*`からの逸脱は環境制約による）
 - PR: https://github.com/yuki-matsu783/MR-driven-workflow/pull/178
-- push回数: 10
+- push回数: 12
 - 現在のループ: 3-6〜3-9 の1周目（完了。敵対的レビュー1回・指摘反映まで実施。人間レビューは省略）
 - 未返信スレッド: 0
 - 追従監視: 購読あり（web。subscribe_pr_activity。1時間ごとの自己チェックインを予約済み）
@@ -189,6 +189,19 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
   `passed=N failures=0`（main側で新規追加された`test_check_doc_references.sh`・
   `test_select_adversarial_findings.sh`含む）・DDR一覧再生成（82件、位置差分のみで内容重複無し）・
   `.gemini/`再生成・DDR識別子重複無し・コンフリクトマーカー残存無しを確認済み。push完了。
+- **PR作成後の追従監視で4回目のコンフリクトを検知し解消した**（`38ef0c2`）。`main`に issue #170
+  （`.claude/docs/usecase/`ユースケース逆引き文書8件の新設・README.mdへのusecase節追加）・issue #143
+  （flow-idの並べ替え時の確認手順をSKILL.mdへ明記）・issue #155（`REVIEW-POINTS.md`の除外漏れ対策）
+  由来の変更が本PRと再度競合した。監視モードのため承認は待たず類型C（両側の変更を統合）として
+  機械的に解消——`docs-workflow.md`はmain新設のusecase行と自ブランチのREVIEW-POINTS行を両方残し、
+  `SKILL.md`のflow-id 4-1/4-6はmain側の改善文言（AIアセット反映の対象洗い出し手順を
+  `references/planning.md`へ委譲、usecase文書への影響確認を追加）を採用しつつ`wip/`パスを再適用、
+  `phase5-close.md`はissue #155由来の2コマンド分離ロジック（`REVIEW-POINTS.md`除外漏れ対策）を
+  `wip/`パスで採用。`.claude/docs/README.md`は marker外にusecase節の新設という実質差分があった
+  ため、`main`側全体を採用してからDDR一覧を再生成（85件）。新設された`usecase/`配下2ファイルにも
+  旧`plans/` `worklog/` `reports/`表記が残っていたため`wip/`へ更新。解消後、単体テスト20本
+  すべて`passed=N failures=0`・DDR一覧`--check`通過・`.gemini/`再生成・コンフリクトマーカー
+  残存無しを確認済み。push完了。
 
 ## 次にやること
 
