@@ -388,12 +388,15 @@ clean_up="$TMP_DIR/clean_upstream"
 mkdir -p "$clean_up"
 clean_list="$TMP_DIR/clean_files"
 : > "$clean_list"
+# **未追跡（gitignore対象でない）ファイルも含める。** 追跡ファイルだけを写すと、
+# まだコミットしていない新規ファイル（雛形の追加等）がフィクスチャから抜け、
+# 「配布元がありません」で落ちる。テストしたいのは作業ツリーの現在の状態である。
 while IFS= read -r -d '' f; do
   # `git ls-files` はindexの内容を返すので、削除したが未ステージの追跡ファイルも含む。
   # そのまま tar へ渡すと落ちる（.claude/rules/shell-script-style.md）。
   [ -f "$REPO_ROOT/$f" ] || continue
   printf '%s\0' "$f" >> "$clean_list"
-done < <(git -C "$REPO_ROOT" ls-files -z)
+done < <(git -C "$REPO_ROOT" ls-files -z --cached --others --exclude-standard)
 tar -C "$REPO_ROOT" -c --null -T "$clean_list" -f - | tar -C "$clean_up" -x -f -
 git -C "$clean_up" init -q .
 git -C "$clean_up" add -A
@@ -417,6 +420,53 @@ bash "$clean_installer" --allow-dirty "$dest_dirty" >/dev/null
 assert_eq "実際に dirty なら -dirty を付ける" "1" \
   "$(jq -r '.source.commit' "$dest_dirty/.claude/.asset-manifest.json" | grep -c -- '-dirty')"
 
+# --- D-1: HANDOFF.md / index.md は雛形から配られる -------------------------
+# source を持たない seed だと本家の作業中の内容がそのまま配られ、seed なので二度と
+# 訂正されない。**「雛形と一致する」だけでなく「本家の内容が漏れていない」も見る**
+# （雛形を本家のコピーにしてしまうと前者だけでは通ってしまうため）。
+# dest_new は受け入れ条件3の確認で HANDOFF.md を編集済みなので、専用の配布先を使う。
+TPL="${REPO_ROOT}/.claude/skills/apply-mr-workflow-to-project/templates"
+dest_seed="$(make_dest dest_seed)"
+install_to "$dest_seed"
+assert_eq "配布された HANDOFF.md は雛形と一致する" \
+  "$(cat "${TPL}/HANDOFF.md.template")" "$(cat "$dest_seed/HANDOFF.md")"
+assert_eq "配布された HANDOFF.md に本家のissue/PR番号が漏れていない" "0" \
+  "$(grep -cE '^- (issue|PR): #[0-9]+' "$dest_seed/HANDOFF.md" || true)"
+assert_eq "配布された HANDOFF.md の push回数は0" "1" \
+  "$(grep -cFx -- '- push回数: 0' "$dest_seed/HANDOFF.md")"
+assert_eq "配布された index.md は雛形と一致する" \
+  "$(cat "${TPL}/index.md.template")" "$(cat "$dest_seed/index.md")"
+assert_eq "配布された index.md に本家固有の記述が漏れていない" "0" \
+  "$(grep -c 'そのものを配布するテンプレート' "$dest_seed/index.md" || true)"
+# 本家側は雛形で上書きされていないこと（source は配布先の内容だけを決める）。
+assert_eq "本家の HANDOFF.md は雛形になっていない" "1" \
+  "$(grep -cE '^- issue: #[0-9]+' "${REPO_ROOT}/HANDOFF.md")"
+
+# --- D-2: 本家から削除された core は一覧提示のみで、配布先から消さない -----
+# 「一覧の提示のみ（削除は人間）」という選択の表明。提示すらしないと、
+# .claude/rules/*.md は自動読込なので配布先のAIが古いルールを読み続ける。
+dest_del="$(make_dest dest_del)"
+bash "$clean_installer" --allow-dirty "$dest_del" >/dev/null
+victim='.claude/rules/markdown-frontmatter.md'
+assert_eq "前提: 1回目の適用で配られている" "1" "$(exists "$dest_del/$victim")"
+# **index からも消す。** 作業ツリーだけ消すと `git ls-files` には残るため、
+# 「本家から削除された」状態にならず、配置時の `cp` が失敗するだけになる。
+git -C "$clean_up" rm -q -- "$victim"
+del_out="$(bash "$clean_installer" --allow-dirty "$dest_del" 2>&1)"
+assert_eq "削除された core をパス付きで一覧に出す" "1" \
+  "$(printf '%s\n' "$del_out" | grep -cF -- "  - $victim")"
+assert_eq "削除しないことを明示する" "1" \
+  "$(printf '%s\n' "$del_out" | grep -c '配布先のファイルを削除しません')"
+assert_eq "サマリにも件数を出す" "1" \
+  "$(printf '%s\n' "$del_out" | grep -c '本家から削除・改名された core が 1 件')"
+assert_eq "**配布先のファイルは消さない**" "1" "$(exists "$dest_del/$victim")"
+# 逆向き: 削除が無ければ一覧も出ない（常に出る実装でも通ってしまわないように）。
+dest_nodel="$(make_dest dest_nodel)"
+bash "$clean_installer" --allow-dirty "$dest_nodel" >/dev/null
+nodel_out="$(bash "$clean_installer" --allow-dirty "$dest_nodel" 2>&1)"
+assert_eq "削除が無ければ一覧は出ない" "0" \
+  "$(printf '%s\n' "$nodel_out" | grep -c '配布先のファイルを削除しません')"
+
 # --- C-7: マーカーENDの欠落を検出して中断する ------------------------------
 # BEGIN しか必須にしていなかったため、END を消すと BEGIN 以降の全行が配られていた。
 # コメントは落ちるので、出力を目視しても異常だと気づけない。
@@ -427,6 +477,18 @@ then noend_status=0; else noend_status=1; fi
 assert_eq "マーカーENDが無ければ中断する" "1" "$noend_status"
 assert_eq "中断したので本家固有の行を配っていない" "0" \
   "$([ -f "$dest_noend/.gitattributes" ] && grep -c 'text=auto' "$dest_noend/.gitattributes" || echo 0)"
+
+# --- D-3: 定義から配布対象を1件も読めなければ中断する ----------------------
+# `read_entries_records` はプロセス置換の中で走るため、jq が失敗しても while が0回まわる
+# だけで、「core を 0 件配置しました」と成功で終わってしまっていた。
+# **この確認は clean_up の定義を壊すので、他の clean_up 利用より後に置くこと。**
+jq '.entries = []' "$clean_up/.claude/dist-layers.json" > "$TMP_DIR/empty_def.json"
+cp "$TMP_DIR/empty_def.json" "$clean_up/.claude/dist-layers.json"
+dest_empty="$(make_dest dest_empty)"
+if bash "$clean_installer" --allow-dirty "$dest_empty" >/dev/null 2>&1
+then empty_status=0; else empty_status=1; fi
+assert_eq "定義から1件も読めなければ中断する" "1" "$empty_status"
+assert_eq "中断したので manifest を作らない" "0" "$(exists "$dest_empty/.claude/.asset-manifest.json")"
 
 echo "passed=$passed failures=$failures"
 [ "$failures" -eq 0 ]

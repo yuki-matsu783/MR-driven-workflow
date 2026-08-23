@@ -241,5 +241,23 @@ assert_eq "--skip-index: ファイルは削除される" "1" "$(status_of test -
 assert_eq "--skip-index: index.jsonl は再生成されない" "1" \
   "$(status_of test -e "$ct_repo/plans/index.jsonl")"
 
+# --- 配布用の雛形と HANDOFF_TEMPLATE の同期（issue #26） ------------------
+# `HANDOFF.md` は seed として配られるが、source を持たないと本家の作業中の引継ぎメモが
+# そのまま配布先へ渡り、seed なので二度と訂正されない。そのため
+# `templates/HANDOFF.md.template` を source に指しているが、**同じ雛形が2箇所に
+# 写しとして存在する**ことになるので、一致を機械的に担保する。
+# どちらかを直したらもう一方も直すこと（この表明が落ちて気づける）。
+handoff_tpl_file="${repo_root}/.claude/skills/apply-mr-workflow-to-project/templates/HANDOFF.md.template"
+if [ -f "$handoff_tpl_file" ]; then
+  # 本文の比較は両辺を同じ `$(...)` に通す（コマンド置換は末尾の改行を落とすため、
+  # 片側だけ生の変数を渡すと必ず食い違う）。末尾改行の有無はバイト数で別途見る。
+  assert_eq "配布用の雛形が HANDOFF_TEMPLATE と一致する" \
+    "$(printf '%s' "$HANDOFF_TEMPLATE")" "$(cat "$handoff_tpl_file")"
+  assert_eq "配布用の雛形は末尾の改行まで一致する" \
+    "$(printf '%s' "$HANDOFF_TEMPLATE" | wc -c)" "$(wc -c < "$handoff_tpl_file")"
+else
+  echo "note: ${handoff_tpl_file} が無いため雛形の同期チェックはスキップしました"
+fi
+
 echo "passed=${passed} failures=${failures}"
 [[ "$failures" -eq 0 ]]
