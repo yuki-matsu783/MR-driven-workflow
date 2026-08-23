@@ -9,8 +9,10 @@
 
 # --- dist:begin ---
 # ここから下の行だけが、配布先の `.gitattributes` へも追記される。
-# 追記は install-to-project.sh の ensure_gitattributes_rules が行い、**このマーカーの間の行を
-# 読んで配る**（配る行の定義をこのファイル1箇所に持たせるため。スクリプト側へ書き写さない）。
+# 追記は install-to-project.sh が行い、**このマーカーの間の行を読んで配る**
+# （layer=merge / strategy=lines-marker。定義: .claude/dist-layers.json）。配る行の定義を
+# このファイル1箇所に持たせるため、スクリプト側へ書き写さない。**関数名も書かない**
+# （issue #26 で ensure_gitattributes_rules は無くなった。同じ形でまた古くなるため）。
 # 配布対象に足してよいのは「配布したスクリプトが動くのに必要な指定」だけで、リポジトリ全体の
 # 方針（上の `* text=auto` のような行）は入れないこと。
 #

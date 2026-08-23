@@ -19,6 +19,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - PR: https://github.com/yuki-matsu783/MR-driven-workflow/pull/179 (Draft)
 - push回数: 6
 - 現在のループ: 4-6〜4-9 の1周目（完了）
+- 未返信スレッド: 0
 - 追従監視: 購読あり（web。subscribe_pr_activity + 1時間ごとの自己チェックイン）
 
 | 進捗 | flow-id | ステップ | 担当 |
