@@ -17,7 +17,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - issue: #172
 - ブランチ: `claude/gemini-exclude-decision-yp5p70`
 - PR: #193（Draft）（https://github.com/yuki-matsu783/MR-driven-workflow/pull/193 ）
-- push回数: 2
+- push回数: 3
 - 現在のループ: 2-3〜2-4 の1周目（進行中）
 - 未返信スレッド: 0
 - 追従監視: PRイベント購読中（`subscribe_pr_activity` で PR #193 を購読。セッション終了とともに止まるため、次セッションは `resume` で取り直す）
@@ -88,6 +88,11 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
   - https://github.com/yuki-matsu783/MR-driven-workflow/pull/193#discussion_r3838833312
   - https://github.com/yuki-matsu783/MR-driven-workflow/pull/193#discussion_r3838833686
   - https://github.com/yuki-matsu783/MR-driven-workflow/pull/193#discussion_r3838834102
+- flow-id 2-5: MR description を更新した。
+- flow-id 2-6: **Q1〜Q6 を実測**し、`wip/reports/20260823_mellow-drifting-lantern_gemini生成対象の参照実態.md`
+  （＋`.html`）へ記録した。要点は、hooks/ scripts/ は Gemini CLI から読まれず切れるリンクは1件ずつ、
+  docs/ は18件が切れる、3ディレクトリで `.gemini/` の 78.7%（2.49MB）を占めるが配布物のサイズは
+  変わらない（`layer: exclude`）。worklog は `_push3.md`。
 - **flow-id 2-3〜2-4 相当**: 人間のレビュー往復は非対話セッションのため成立しない（進捗記号は
   `[]` のまま）。代わりに、上記6スレッドの指摘すべてを計画へ反映し、6スレッドすべてへ返信した
   （未返信スレッド 0）。MRへ投稿しなかった「報告のみ」4件も、内容は妥当だったため同じpushで
@@ -95,9 +100,11 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 
 ## 次にやること
 
-- flow-id 2-5: 調査計画をもとにMR descriptionを更新する。
-- flow-id 2-6: 書き直した検証手順に従って Q1〜Q6 を実測し `wip/reports/` へ記録する
-  （md・htmlの両方）。実施後に作業結果の敵対的レビュー（フェーズ2・2回目）を行う。
+- flow-id 2-7: commit・pushし、調査結果に対する敵対的レビュー（フェーズ2・2回目）を実施する。
+- flow-id 3-1: 3ディレクトリそれぞれの採否を決める個別作業計画を書く。
+
+（済）flow-id 2-5: 調査計画をもとにMR descriptionを更新する。
+
 
 ## 判断を迷った内容
 

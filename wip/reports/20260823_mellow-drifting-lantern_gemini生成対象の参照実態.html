@@ -1,0 +1,388 @@
+<!--
+  調査結果（issue #172 / フェーズ2）の人間レビュー用HTMLビュー。
+  正文は同名の wip/reports/20260823_mellow-drifting-lantern_gemini生成対象の参照実態.md であり、
+  このHTMLはその視覚化である。土台: .claude/skills/issue-mr-flow/assets/reports.template.html
+-->
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>調査結果 — .gemini/ の hooks/ scripts/ docs/ の参照実態 — issue #172</title>
+<style>
+  :root {
+    --bg: #f6f7f9;      --panel: #ffffff;   --ink: #1a1d21;     --muted: #5b636d;
+    --line: #dfe3e8;    --accent: #2563eb;  --accent-soft: #eaf0fe;
+    --ok: #1a7f4b;      --ok-soft: #e6f4ec; --warn: #a35a00;    --warn-soft: #fdf1e0;
+    --stop: #b3261e;    --stop-soft: #fdecea; --code-bg: #f0f2f5;
+    --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1216;    --panel: #161a20;   --ink: #e6e8eb;     --muted: #9aa3ad;
+      --line: #2a3038;  --accent: #7aa2f7;  --accent-soft: #1b2333;
+      --ok: #6ee7a8;    --ok-soft: #14261d; --warn: #f0b866;    --warn-soft: #2a2113;
+      --stop: #f2857c;  --stop-soft: #2b1614; --code-bg: #1d222a;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", system-ui, sans-serif;
+    line-height: 1.8; font-size: 15px;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 20px 80px; }
+
+  /* 共通ヘッダ帯 */
+  header.band {
+    background: linear-gradient(135deg, var(--accent-soft), var(--panel));
+    border-bottom: 1px solid var(--line); padding: 28px 20px 22px; margin-bottom: 28px;
+  }
+  header.band .inner { max-width: 1080px; margin: 0 auto; }
+  header.band .kind { font-size: 11px; letter-spacing: .18em; color: var(--accent); font-weight: 700; }
+  header.band h1 { margin: 6px 0 4px; font-size: 26px; line-height: 1.4; }
+  header.band .lead { margin: 0; color: var(--muted); }
+  .meta { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; padding: 0; list-style: none; }
+  .meta li {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 999px;
+    padding: 3px 12px; font-size: 12.5px; color: var(--muted); white-space: nowrap;
+  }
+  .meta li b { color: var(--ink); font-weight: 600; }
+
+  nav.toc {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 14px 20px; margin-bottom: 28px;
+  }
+  nav.toc h2 { margin: 0 0 8px; font-size: 13px; letter-spacing: .08em; color: var(--muted); border: 0; padding: 0; }
+  nav.toc ol { margin: 0; padding-left: 20px; }
+  nav.toc li { margin: 2px 0; }
+  a { color: var(--accent); }
+
+  section {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 8px 24px 22px; margin-bottom: 22px;
+  }
+  h2 { font-size: 20px; margin: 20px 0 10px; padding-bottom: 8px; border-bottom: 2px solid var(--line); }
+  h3 { font-size: 16px; margin: 22px 0 8px; color: var(--accent); }
+  p { margin: 10px 0; }
+  ul, ol { padding-left: 22px; }
+  li { margin: 4px 0; }
+  blockquote { margin: 10px 0; padding: 6px 14px; border-left: 3px solid var(--line); color: var(--muted); }
+
+  /* 表は自身の中で横スクロールする（ページ本体は横スクロールさせない） */
+  .tablewrap { overflow-x: auto; margin: 14px 0; }
+  table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 14px; }
+  th, td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: var(--accent-soft); font-weight: 600; white-space: nowrap; }
+  tbody tr:nth-child(even) td { background: color-mix(in srgb, var(--line) 22%, transparent); }
+
+  code {
+    background: var(--code-bg); border-radius: 5px; padding: 1px 5px; font-size: 13px;
+    font-family: "SFMono-Regular", Consolas, "Noto Sans Mono", monospace;
+  }
+  pre {
+    background: var(--code-bg); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 12px 14px; overflow-x: auto; font-size: 13px; line-height: 1.65;
+  }
+  pre code { background: none; padding: 0; }
+
+  /* 注意ボックス: info（既定）/ ok（決めたこと）/ warn（注意）/ stop（やらないこと・危険） */
+  .box { border-left: 4px solid var(--accent); background: var(--accent-soft);
+         border-radius: 0 var(--radius) var(--radius) 0; padding: 12px 16px; margin: 16px 0; }
+  .box > :first-child { margin-top: 0; } .box > :last-child { margin-bottom: 0; }
+  .box .label { font-size: 12px; font-weight: 700; letter-spacing: .06em; display: block; margin-bottom: 4px; }
+  .box.ok { border-color: var(--ok); background: var(--ok-soft); } .box.ok .label { color: var(--ok); }
+  .box.warn { border-color: var(--warn); background: var(--warn-soft); } .box.warn .label { color: var(--warn); }
+  .box.stop { border-color: var(--stop); background: var(--stop-soft); } .box.stop .label { color: var(--stop); }
+  .box.info .label { color: var(--accent); }
+
+  .tag { display: inline-block; border-radius: 999px; padding: 1px 9px; font-size: 12px; font-weight: 600; }
+  .tag.ok { background: var(--ok-soft); color: var(--ok); }
+  .tag.warn { background: var(--warn-soft); color: var(--warn); }
+  .tag.stop { background: var(--stop-soft); color: var(--stop); }
+
+  footer { color: var(--muted); font-size: 13px; text-align: center; padding-top: 10px; }
+</style></head>
+<body>
+
+<header class="band">
+  <div class="inner">
+    <div class="kind">調査結果レポート / フェーズ2</div>
+    <h1>.gemini/ の hooks/ scripts/ docs/ の参照実態と除外時の影響</h1>
+    <p class="lead">3ディレクトリへの参照を件数で確定させた。<b>hooks/ と scripts/ は Gemini CLI から読まれず、切れるリンクは1件ずつ。docs/ はリンクの解決先として読まれうるため、外すと18件が切れる。</b>判断そのものはフェーズ3で出す。</p>
+    <ul class="meta">
+      <li><b>issue</b> #172</li>
+      <li><b>ブランチ</b> claude/gemini-exclude-decision-yp5p70</li>
+      <li><b>PR</b> #193（Draft）</li>
+      <li><b>フェーズ</b> 2〈調査〉 flow-id 2-6</li>
+      <li><b>作成日</b> 2026-08-23</li>
+      <li><b>正文</b> 同名の .md</li>
+    </ul>
+  </div>
+</header>
+
+<div class="wrap">
+
+<nav class="toc">
+  <h2>目次</h2>
+  <ol>
+    <li><a href="#summary">サマリ（結論の一覧）</a></li>
+    <li><a href="#conditions">実施条件（測った対象・環境）</a></li>
+    <li><a href="#findings">実施した内容と結果</a></li>
+    <li><a href="#unverified">確かめられなかったこと</a></li>
+    <li><a href="#next">設計への反映</a></li>
+    <li><a href="#surprises">想定と異なった点</a></li>
+  </ol>
+</nav>
+
+<section id="summary">
+  <h2>サマリ（結論の一覧）</h2>
+  <p><b>判断そのものはフェーズ3で出す。</b> ここは材料のみ。</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>#</th><th>結論</th><th>根拠の性質</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td><code>.gemini/hooks/</code> は Gemini CLI から<b>読まれない</b>。変換後の hook <code>command</code> 6本すべてが <code>.claude/hooks/</code> を指し、<code>.gemini/hooks/</code> を指すものは0件</td><td>実測（生成物の <code>.gemini/settings.json</code> を解析）</td></tr>
+      <tr><td>2</td><td><code>.gemini/scripts/</code> も<b>読まれない</b>。<code>.gemini/</code> 配下の資産からのスクリプト呼び出し97件すべてが <code>.claude/scripts/</code> を指し、<code>.gemini/scripts/</code> は0件</td><td>実測（grep・対照付き）</td></tr>
+      <tr><td>3</td><td><code>.gemini/docs/</code> は<b>リンクの解決先として読まれうる</b>。<code>.gemini/rules/</code> から17件、<code>.gemini/skills/</code> から1件が向かう</td><td>実測（相対リンクを解決して接頭辞判定）</td></tr>
+      <tr><td>4</td><td>除外したとき「残るファイルから」切れるリンクは hooks 1件・scripts 1件・docs 18件。hooks/scripts の1件ずつは<b>どちらも <code>.gemini/docs/usecase/対応工数を把握する.md</code> が唯一のリンク元</b>で、docs/ も外すならリンク元ごと消える</td><td>実測</td></tr>
+      <tr><td>5</td><td><code>scripts/</code> を外す場合、<code>check-doc-references.sh</code> の除外定義と同 spec の表（2ファイル3行）が<b>存在しないディレクトリを指す死んだ設定</b>になる</td><td>実装の確認</td></tr>
+      <tr><td>6</td><td><code>COPY_EXCLUDED_PREFIXES</code> の判定は<b>完全一致</b>であり、ディレクトリを外すには接頭辞一致への拡張が要る</td><td>実装の確認</td></tr>
+      <tr><td>7</td><td>3ディレクトリで <code>.gemini/</code> の<b>176/215ファイル・2.49MB（78.7%）</b>を占める。ただし<b>配布物のサイズは1バイトも減らない</b>（<code>.gemini</code> は <code>dist-layers.json</code> で <code>layer: exclude</code>）</td><td>実測＋設定の確認</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="conditions">
+  <h2>実施条件（測った対象・環境）</h2>
+  <ul>
+    <li>実行環境: Claude Code on the web（Linux）／2026-08-23。<b>git bash（Windows）実機では未計測</b>。</li>
+    <li>対象リビジョン: <code>claude/gemini-exclude-decision-yp5p70</code>（<code>origin/main</code> の 25e1c37 時点）。</li>
+    <li>走査対象: <code>.gemini/**/*.md</code> 142ファイル・相対リンク332件、および <code>.claude/</code> 配下の追跡ファイル全体。</li>
+    <li>grep の探索範囲は <code>--exclude-dir=.git --exclude-dir=wip --exclude-dir=usage</code> を共通に付け、件数は <code>--exclude-dir=.gemini</code> を足した「元」の側で数えた（理由は下記「測定手順で最初に踏んだ罠」）。</li>
+    <li>リンク解決には <code>os.path.normpath</code> による正規化（<code>realpath -m --relative-to=.</code> 相当）を使った。</li>
+  </ul>
+</section>
+
+<section id="findings">
+  <h2>実施した内容と結果</h2>
+
+  <h3>測定手順で最初に踏んだ罠（記録として残す）</h3>
+  <div class="box stop">
+    <span class="label">当初の検証手順は空振りしていた</span>
+    敵対的レビュー（フェーズ2・1回目）の指摘で判明し、実際に再現できた。
+  </div>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>測り方</th><th><code>.gemini/docs/</code> の件数</th><th>対照（<code>.claude/docs/</code>）</th><th>判定</th></tr></thead>
+    <tbody>
+      <tr><td>リテラル文字列のgrep（旧手順）</td><td><b>2</b>（しかも実体はDDRの地の文でリンクではない）</td><td>982</td><td>対照が非0なので<b>旧の合格条件を満たす</b></td></tr>
+      <tr><td>リンクを解決して接頭辞判定（新手順）</td><td><b>17</b>（<code>.gemini/rules/</code> 発のみ）</td><td>—</td><td>実態と一致</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p><code>.gemini/</code> 配下のリンクは <code>.claude/</code> の逐語コピーゆえ <code>](../docs/spec/x.md)</code> の形で書かれ、文字列 <code>.gemini/docs/</code> としては現れない。<b>旧手順のままなら「docs/ を外してもリンクは切れない」という誤った結論に、合格条件を満たしたまま到達できた。</b></p>
+  <p>もう1つの系統誤差として、<code>.claude</code> と <code>.gemini</code> を同時に探索すると<b>同一の記述が2件として計上される</b>。以下の件数はすべて <code>--exclude-dir=.gemini</code> を付けた「元」の側で数え、<code>.gemini/</code> 側の複製は別に併記する。</p>
+
+  <h3>Q1: <code>.gemini/hooks/</code> を指す参照</h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>測定</th><th>件数</th></tr></thead>
+    <tbody>
+      <tr><td>「元」の側での参照</td><td><b>2</b></td></tr>
+      <tr><td>うち <code>.gemini/</code> 側の複製</td><td>2（別カウント）</td></tr>
+      <tr><td>対照: <code>.claude/hooks</code></td><td><b>246</b>（非0。探し方は壊れていない）</td></tr>
+      <tr><td><code>.gemini/</code> 配下の資産・settings.json からの実行パス参照</td><td><code>.claude/hooks/…</code> <b>22件</b> ／ <code>.gemini/hooks/…</code> <b>0件</b></td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p>2件の内訳はいずれも <code>.claude/docs/ddr/i0000-13-….md</code> の地の文で、<b><code>status: superseded</code>（<code>superseded_by: i0070-01</code>）</b> の、NTFSジャンクション運用時代の記述である。実行経路でもリンクでもない。</p>
+  <p>変換後の <code>.gemini/settings.json</code> の hook <code>command</code>（全6本）:</p>
+  <pre><code>bash $GEMINI_PROJECT_DIR/.claude/hooks/session-start.sh
+bash $GEMINI_PROJECT_DIR/.claude/hooks/otel/session-start.sh
+bash $GEMINI_PROJECT_DIR/.claude/hooks/block-direct-git-commit.sh
+bash $GEMINI_PROJECT_DIR/.claude/hooks/post-push-usage-report.sh
+bash $GEMINI_PROJECT_DIR/.claude/hooks/post-push-compact-prompt.sh
+bash $GEMINI_PROJECT_DIR/.claude/hooks/post-issue-create-notice.sh</code></pre>
+  <p><b>6本すべてが <code>.claude/hooks/</code> を指し、<code>.gemini/hooks/</code> を指すものは0件。</b> これは <code>.claude/docs/spec/sync-gemini-assets.md</code> が記す「同期を忘れても両経路が同じスクリプトを実行する」ための意図的な設計であり、issue #172 本文の見立てと一致する。</p>
+
+  <h3>Q2: <code>.gemini/scripts/</code> を指す参照</h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>測定</th><th>件数</th></tr></thead>
+    <tbody>
+      <tr><td>「元」の側での参照</td><td><b>5</b></td></tr>
+      <tr><td>うち <code>.gemini/</code> 側の複製</td><td>5（別カウント）</td></tr>
+      <tr><td>対照: <code>.claude/scripts</code></td><td><b>643</b>（非0）</td></tr>
+      <tr><td><code>.gemini/</code> 配下の資産からのスクリプト呼び出し</td><td><code>.claude/scripts/…</code> <b>97件</b> ／ <code>.gemini/scripts/…</code> <b>0件</b></td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p>5件の内訳は次の2種類に分かれる。<b>この区別が判断に効く。</b></p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>種類</th><th>件数</th><th>場所</th></tr></thead>
+    <tbody>
+      <tr><td><b>生きた設定</b>（除外すると死ぬ）</td><td>3</td><td><code>.claude/scripts/src/check-doc-references.sh:9,14</code>（<code>CHECK_DOC_REFERENCES_EXCLUDED_DIRS</code> に <code>".gemini/scripts/test/"</code>）／<code>.claude/docs/spec/check-doc-references.md:49</code>（同じ除外を載せた仕様表）</td></tr>
+      <tr><td>superseded DDR の地の文</td><td>2</td><td><code>.claude/docs/ddr/i0000-13-….md:35,63</code></td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p><code>.gemini/scripts/</code> を外すと、前者3行は<b>存在しないディレクトリを指す死んだ設定</b>になる。</p>
+
+  <h3>Q3: <code>.gemini/docs/</code> を解決先とする相対リンク</h3>
+  <p><code>.gemini/**/*.md</code> 142ファイルから相対リンク332件を抽出し、各ファイルのディレクトリを基準に解決して接頭辞で分類した。現状で解決先が実在するのは330件。</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>解決先</th><th>件数</th></tr></thead>
+    <tbody>
+      <tr><td><code>.gemini/docs/</code></td><td><b>300</b></td></tr>
+      <tr><td><code>.gemini/skills/</code></td><td>14</td></tr>
+      <tr><td><code>.gemini/rules/</code></td><td>10</td></tr>
+      <tr><td>リポジトリ直下（<code>.claude</code> <code>DEVELOPERS.md</code> <code>HANDOFF.md</code> <code>index.md</code>）</td><td>5</td></tr>
+      <tr><td><code>.gemini/hooks/</code></td><td><b>1</b></td></tr>
+      <tr><td><code>.gemini/scripts/</code></td><td><b>1</b></td></tr>
+      <tr><td><code>.gemini/agents/</code></td><td>1</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>リンク元</th><th>解決先</th><th>件数</th></tr></thead>
+    <tbody>
+      <tr><td><code>.gemini/docs/</code></td><td><code>.gemini/docs/</code></td><td>282</td></tr>
+      <tr><td><code>.gemini/rules/</code></td><td><code>.gemini/docs/</code></td><td><b>17</b></td></tr>
+      <tr><td><code>.gemini/docs/</code></td><td><code>.gemini/skills/</code></td><td>13</td></tr>
+      <tr><td><code>.gemini/docs/</code></td><td><code>.gemini/rules/</code></td><td>5</td></tr>
+      <tr><td><code>.gemini/rules/</code></td><td><code>.gemini/rules/</code></td><td>5</td></tr>
+      <tr><td><code>.gemini/skills/</code></td><td><code>.gemini/docs/</code></td><td><b>1</b></td></tr>
+      <tr><td><code>.gemini/docs/</code></td><td><code>.gemini/hooks/</code></td><td>1</td></tr>
+      <tr><td><code>.gemini/docs/</code></td><td><code>.gemini/scripts/</code></td><td>1</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p>逆方向（<code>.gemini/docs/</code> 発のリンク）は305件で、うち282件が <code>.gemini/docs/</code> 内で完結し、23件が <code>.gemini/</code> の他のディレクトリ・リポジトリ直下へ向かう。</p>
+
+  <h3>Q4: 除外したとき、解決できなくなるリンク</h3>
+  <div class="box warn">
+    <span class="label">数え方</span>
+    <b>数えるのは「除外後も残るファイルから、除外されるファイルへ向かうリンク」に限る。</b> 除外対象の内部で完結するリンク（<code>.gemini/docs/</code> 内の docs→docs）は<b>リンク元ごと消える</b>ので切れリンクにならない。両者を混ぜると件数が一桁変わる。
+  </div>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>除外する対象</th><th>残るファイル基準（<b>本命</b>）</th><th>全リンク基準（参考）</th></tr></thead>
+    <tbody>
+      <tr><td><code>hooks/</code> のみ</td><td><b>1</b></td><td>1</td></tr>
+      <tr><td><code>scripts/</code> のみ</td><td><b>1</b></td><td>1</td></tr>
+      <tr><td><code>docs/</code> のみ</td><td><b>18</b></td><td>298</td></tr>
+      <tr><td><code>hooks/</code> + <code>scripts/</code></td><td><b>2</b></td><td>2</td></tr>
+      <tr><td>3つすべて</td><td><b>18</b></td><td>300</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p><b>hooks/ と scripts/ の1件ずつは、どちらも同じファイルが唯一のリンク元である。</b></p>
+  <pre><code>.gemini/docs/usecase/対応工数を把握する.md:37: [post-push-usage-report.sh](../../hooks/post-push-usage-report.sh)
+.gemini/docs/usecase/対応工数を把握する.md:39: [show-push-log.sh](../../scripts/src/show-push-log.sh)</code></pre>
+  <p>したがって <b><code>docs/</code> も一緒に外すなら、この2件はリンク元ごと消える</b>（3つすべてを外した場合の件数が18件で、docs/ のみの場合と同じなのはこのため）。</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>docs/ を外したときに切れる18件のリンク元</th><th>件数</th></tr></thead>
+    <tbody>
+      <tr><td><code>.gemini/rules/shell-script-style.md</code></td><td>6</td></tr>
+      <tr><td><code>.gemini/rules/markdown-frontmatter.md</code></td><td>5</td></tr>
+      <tr><td><code>.gemini/rules/ai-command-style.md</code></td><td>2</td></tr>
+      <tr><td><code>.gemini/rules/powershell-encoding.md</code></td><td>2</td></tr>
+      <tr><td><code>.gemini/rules/docs-workflow.md</code></td><td>1</td></tr>
+      <tr><td><code>.gemini/rules/git-workflow.md</code></td><td>1</td></tr>
+      <tr><td><code>.gemini/skills/apply-mr-workflow-to-project/SKILL.md</code></td><td>1</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p><b>なお、現状でも既に2件のリンクが切れている</b>（除外とは無関係の既存の傷）。1件は <code>.gemini/docs/ddr/i0127-01-….md</code> から issue #133 の改番前の旧ファイル名へのリンク、もう1件は <code>.gemini/docs/spec/generate-ddr-list.md</code> のテンプレート記法の説明がリンクとして解釈されたもの（<b>誤検知</b>であり実害はない）。</p>
+
+  <h3>Q5: 除外の実装に必要なこと・影響する既存テスト</h3>
+  <p><b><code>COPY_EXCLUDED_PREFIXES</code> の現在の意味論は「完全一致」であり、そのままではディレクトリ配下を落とせない。</b></p>
+  <pre><code># .claude/scripts/src/sync-gemini-assets.sh の is_copy_excluded
+for p in "${COPY_EXCLUDED_PREFIXES[@]}"; do
+  [ "$rel" = "$p" ] &amp;&amp; return 0     # ← 完全一致
+done</code></pre>
+  <p>変数名は <code>PREFIXES</code> だが判定は完全一致で、現在の唯一の要素も <code>.claude/settings.json</code> という1ファイルである。ディレクトリを外すには<b>接頭辞一致（または <code>case</code> によるパターン一致）への拡張</b>が要る。</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>対象</th><th>影響</th></tr></thead>
+    <tbody>
+      <tr><td><code>.claude/scripts/test/test_sync_gemini_assets.sh</code></td><td><b>要変更</b>。T8 に「除外したディレクトリが出力に無いこと」「除外していないディレクトリは残ること」の対を追加する。T6（冪等性）・T7（<code>--check</code>）・T17（0件判定）は仕組みに触れないため素通りする見込み</td></tr>
+      <tr><td><code>.claude/scripts/test/test_search_frontmatter.sh:73</code></td><td><b>影響なし</b>。<code>sf_is_excluded_path</code> は文字列を受け取る純粋関数で、ファイルシステムを触らない。しかも判定はパス<b>セグメント</b>一致で <code>.gemini</code> 自体に当たるため、サブディレクトリの有無に依存しない</td></tr>
+      <tr><td><code>.claude/scripts/src/check-doc-references.sh</code> / 同 spec</td><td><b>要追随</b>（<code>scripts/</code> を外す場合）。上記 Q2 の3行</td></tr>
+      <tr><td><code>.claude/scripts/src/check-dist-coverage.sh</code></td><td><b>影響なし</b>（<code>.gemini</code> への言及が0件）</td></tr>
+      <tr><td><code>.claude/dist-layers.json</code></td><td><b>影響なし</b>。<code>.gemini</code> は <code>layer: exclude</code> のまま</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>Q6: 除外で減る量（実測）</h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>対象</th><th>ファイル数</th><th>バイト数</th></tr></thead>
+    <tbody>
+      <tr><td><code>.gemini/hooks/</code></td><td>14</td><td>217,308</td></tr>
+      <tr><td><code>.gemini/scripts/</code></td><td>47</td><td>813,984</td></tr>
+      <tr><td><code>.gemini/docs/</code></td><td>115</td><td>1,456,431</td></tr>
+      <tr><td><b>3ディレクトリ合計</b></td><td><b>176</b></td><td><b>2,487,723</b></td></tr>
+      <tr><td><code>.gemini/</code> 全体</td><td>215</td><td>3,159,948</td></tr>
+      <tr><td><b>割合</b></td><td><b>81.9%</b></td><td><b>78.7%</b></td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p><code>--check</code> の所要時間は3回の実行で 116ms / 95ms / 91ms（いずれも終了コード0）。現状の単体テストは <code>passed=91 failures=0</code>。</p>
+  <div class="box stop">
+    <span class="label">「配布物のサイズ」は1バイトも減らない</span>
+    <code>.claude/dist-layers.json</code> は <code>.gemini</code> を <code>layer: exclude</code> と定義しており、<code>.gemini/</code> はそもそも配られない（配布先で <code>install-to-project.sh</code> が <code>sync-gemini-assets.sh</code> を実行して生成する）。減るのは<b>このリポジトリと配布先で生成される <code>.gemini/</code> のサイズ</b>であって、配布物のサイズとは別物である。
+  </div>
+
+  <h3>再現手順</h3>
+  <p>測定に使ったリンク解析スクリプトは <code>wip/worklogs/</code> の同名 push のログに全文を残した。grep 系はすべて本文中にコマンドを併記している。<b>0件と書いた測定にはすべて対照を付けてあり、対照が非0であることを確認済み</b>である。</p>
+</section>
+
+<section id="unverified">
+  <h2>確かめられなかったこと</h2>
+  <ul>
+    <li><b>Gemini CLI 実機での挙動は確かめていない。</b> この実行環境に Gemini CLI が無い（<code>command -v gemini</code> が空）。したがって「<code>.gemini/hooks/</code> <code>.gemini/scripts/</code> は読まれない」は<b>生成物の中身から導いた結論</b>であり、Gemini CLI が実行時に別経路でそれらを読みに行かないことまでは観測していない。<code>.claude/docs/spec/sync-gemini-assets.md</code>「未決定事項・懸念点」が既に持つ制約と同じものである。</li>
+    <li><b><code>.gemini/docs/</code> を Gemini CLI が読むか</b>も同様に未確認である。Q3 が示したのは「<code>.gemini/</code> 側だけを見る読み手が辿るリンクの解決先になっている」ことであって、Gemini CLI 自身がリンクを辿るかどうかではない。</li>
+    <li><b>測定は Linux 1環境・1リビジョンのもの</b>である。<code>--check</code> の所要時間（91〜116ms）は、外部プロセス起動が桁で遅い git bash 実機ではそのまま当てはまらない。</li>
+    <li><b>除外を実装した状態でのテスト結果は測っていない。</b> Q5 は既存の実装・テストを読んで「どこに手が要るか」を出したもので、実際に通したのは<b>変更前</b>の <code>passed=91 failures=0</code> である。</li>
+  </ul>
+</section>
+
+<section id="next">
+  <h2>設計への反映</h2>
+  <p>フェーズ3（flow-id 3-1〜）で次を決める。</p>
+  <ol>
+    <li><b>3ディレクトリそれぞれの採否。</b> hooks/ と scripts/ は「読まれない・切れるリンクは1件・追随箇所は scripts/ のみ2ファイル3行」、docs/ は「読まれうる・切れるリンク18件」と、<b>性質がはっきり分かれている</b>。</li>
+    <li><b>hooks/ と scripts/ の切れリンク1件ずつの扱い。</b> 唯一のリンク元（<code>.gemini/docs/usecase/対応工数を把握する.md</code>）は <code>.claude/</code> 側の逐語コピーであり、<code>.claude/</code> 側では正しく解決される。<code>.gemini/docs/</code> の扱いと連動して決める。</li>
+    <li><b>除外の実装形。</b> <code>is_copy_excluded</code> を接頭辞一致（または <code>case</code> パターン）へ拡張し、T8 へ「除外したディレクトリが出力に無いこと」「除外していないディレクトリは残ること」の対を追加する。</li>
+    <li><b><code>check-doc-references.sh</code> と同 spec の追随</b>（<code>scripts/</code> を外す場合）。</li>
+  </ol>
+</section>
+
+<section id="surprises">
+  <h2>想定と異なった点</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>計画時の見込み</th><th>実際</th></tr></thead>
+    <tbody>
+      <tr><td>3ディレクトリへの参照は「0件か非0件か」で単純に分かれる</td><td><code>.gemini/scripts/</code> への5件は<b>性質が2種類</b>に分かれた（生きた除外設定3行 ＋ superseded DDR の地の文2行）。件数だけでは判断できない</td></tr>
+      <tr><td>docs/ を外すと切れるリンクは数百件</td><td><b>18件</b>。全リンク基準の298件のうち282件は <code>.gemini/docs/</code> 内で完結しており、リンク元ごと消える</td></tr>
+      <tr><td>hooks/ scripts/ への参照は完全に0件</td><td>相対リンクとして<b>1件ずつ</b>存在した（同じ1ファイルから）</td></tr>
+      <tr><td>除外すれば配布物が小さくなる</td><td><b>1バイトも変わらない</b>。<code>.gemini</code> は <code>dist-layers.json</code> で <code>layer: exclude</code></td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<footer>issue #172 / PR #193 — 結果の正文は同名の <code>.md</code>。外部依存を持たない自己完結HTML。</footer>
+
+</div>
+</body>
+</html>
