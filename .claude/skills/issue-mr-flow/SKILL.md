@@ -55,7 +55,8 @@ flow-idは `<フェーズ番号>-<ステップ番号>` 形式で、全5フェー
 MR description更新」という同じ形を繰り返す。
 フェーズ2,3はどちらかのみ実施する計画となることがありうるが、
 フェーズ1,4,5についてはこのフローを利用する際は必ず実施する（フェーズ4は flow-id 4-1 で反映対象を
-洗い出すところまでを必ず通り、洗い出した結果が空だったときに限りそこから先をスキップしてよい）。
+洗い出すところまでを必ず通る。そこから先をスキップしてよい条件は
+`references/planning.md`「全体作業計画に必ず含めるフェーズ」が正）。
 **ただし、省略の判断は全体作業計画（flow-id 1-4）ではなく各フェーズの直前で行う**。詳細は
 `references/planning.md`「全体作業計画に必ず含めるフェーズ」。
 
@@ -87,12 +88,12 @@ MR description更新」という同じ形を繰り返す。
 | 3-8 | MRでレビュー・コメントする。レビュー済み連絡をするまで以降の作業は行わない。 | 人間 | — |
 | 3-9 | レビュー内容を取得し、実装・ドキュメントを修正する。対応が完了したコメントには対応内容を返信する（結果側の記述の修正先は`wip/reports/`のmdであり、個別作業計画ではない。3-6〜3-9の作業ループを合意まで繰り返す）。チャットで受けた判断はMRへ記録する（`references/review-loop.md`「チャットで受けたレビュー判断の記録」節）。**「レビューOK」の合図を受けても、`references/review-loop.md`「レビュー完了合図の確認」節の(1)(2)(3)を通るまでループを閉じない**（未返信スレッドが残っていると`mark-done`が拒否する。issue #70） | `comments` / `reply` | `references/review-loop.md` / `references/deliverables.md` |
 | 3-10 | 作業内容をもとにMR descriptionを更新する | `describe` | `references/review-loop.md` |
-| 4-1 | **作業結果と`wip/plans/` `wip/worklogs/` の内容をもとに**、個別反映計画`plans/【設計反映】【AIアセット反映】【実装反映】〜.md`等を**planツールを使わず**Write/Editで作成する。**まず反映対象を洗い出し、spec/ddr・AIアセット・実装コード/テストコードのいずれにも反映するものが無いと確認できた場合に限り、この時点でフェーズ4の残りをスキップしてよい**（`references/planning.md`「全体作業計画に必ず含めるフェーズ」）。**スキップしない場合は、あわせて同名の `.html`（人間レビュー用ビュー）を作成する**（`references/deliverables.md`「計画・レポートのHTMLビュー」） | エージェント | `references/planning.md` / `references/deliverables.md` |
+| 4-1 | **作業結果と`wip/plans/` `wip/worklogs/` の内容をもとに**、個別反映計画`wip/plans/【設計反映】【AIアセット反映】【実装反映】〜.md`等を**planツールを使わず**Write/Editで作成する。**まず反映対象を洗い出す**（AIアセットの洗い出し手順は`references/planning.md`「AIアセット反映の対象の洗い出し」）。**洗い出した結果が`references/planning.md`「全体作業計画に必ず含めるフェーズ」のスキップ条件を満たす場合に限り、この時点でフェーズ4の残りをスキップしてよい**（判定条件の正はあちらの1箇所で、ここには書かない）。**スキップしない場合は、あわせて同名の `.html`（人間レビュー用ビュー）を作成する**（`references/deliverables.md`「計画・レポートのHTMLビュー」） | エージェント | `references/planning.md` / `references/deliverables.md` |
 | 4-2 | `commit`スキル経由でcommitし、push してレビュー依頼を行う | エージェント | `references/review-loop.md` |
 | 4-3 | MRで反映計画についてレビュー・コメントする。レビュー完了済み連絡をするまで以降の作業は行わない。 | 人間 | — |
 | 4-4 | レビュー内容を取得し、反映計画を修正する。対応が完了したコメントには対応内容を返信する（4-3〜4-4を合意まで繰り返す）。チャットで受けた判断はMRへ記録する（`references/review-loop.md`「チャットで受けたレビュー判断の記録」節）。**「レビューOK」の合図を受けても、`references/review-loop.md`「レビュー完了合図の確認」節の(1)(2)(3)を通るまでループを閉じない**（未返信スレッドが残っていると`mark-done`が拒否する。issue #70） | `comments` / `reply` | `references/review-loop.md` |
 | 4-5 | 反映計画をもとにMR descriptionを更新する | `describe` | `references/review-loop.md` |
-| 4-6 | 反映計画をもとに作業を進める。詳細な試行錯誤はwip/worklogsに更新し、**反映結果は`wip/reports/日付_<全体計画名>_<内容を簡潔に>.md`に記録し、あわせて同名の`.html`（人間レビュー用ビュー）を作成する**（**個別反映計画には結果を書かない**。`references/deliverables.md`「計画と実施結果の分離」。HTMLの土台は`.claude/skills/issue-mr-flow/assets/reports.template.html`。`references/deliverables.md`「計画・レポートのHTMLビュー」）。作業の内訳は次のとおり（**設計反映**: `wip/plans/` `wip/worklogs/` の内容を `.claude/docs/spec/` `.claude/docs/ddr/`（アプリ本体があれば`docs/spec/` `docs/ddr/`）へ反映する。**DDRを追加・変更したら `bash .claude/scripts/src/generate-ddr-list.sh` を実行し、`.claude/docs/README.md` のDDR一覧の差分を同じコミットへ含める**（一覧は生成物。手書きで行を足さない。issue #135。仕様: `.claude/docs/spec/generate-ddr-list.md`）／**AIアセット反映**: 作業中に気づいたルール・スキルの不備を `.claude/rules/` `.claude/skills/` `CLAUDE.md` `AGENTS.md` に反映する／**実装反映**: フェーズ3のレビュー往復ループ（3-6〜3-9）では解消しきれず持ち越した不具合について、記録（spec/ddr等）への書き戻しと、実装コード・テストコードの修正をあわせて行う） | エージェント | `references/deliverables.md` |
+| 4-6 | 反映計画をもとに作業を進める。詳細な試行錯誤はwip/worklogsに更新し、**反映結果は`wip/reports/日付_<全体計画名>_<内容を簡潔に>.md`に記録し、あわせて同名の`.html`（人間レビュー用ビュー）を作成する**（**個別反映計画には結果を書かない**。`references/deliverables.md`「計画と実施結果の分離」。HTMLの土台は`.claude/skills/issue-mr-flow/assets/reports.template.html`。`references/deliverables.md`「計画・レポートのHTMLビュー」）。作業の内訳は次のとおり（**設計反映**: `wip/plans/` `wip/worklogs/` の内容を `.claude/docs/spec/` `.claude/docs/ddr/`（アプリ本体があれば`docs/spec/` `docs/ddr/`）へ反映する。**DDRを追加・変更したら `bash .claude/scripts/src/generate-ddr-list.sh` を実行し、`.claude/docs/README.md` のDDR一覧の差分を同じコミットへ含める**（一覧は生成物。手書きで行を足さない。issue #135。仕様: `.claude/docs/spec/generate-ddr-list.md`）。あわせて、変更が `.claude/docs/usecase/` のユースケース文書に影響するか（記述・リンクが古くならないか）を確認し、影響があれば更新する（issue #170）／**AIアセット反映**: 作業中に気づいたアセットの不備を反映する。対象の洗い出し・反映先の一覧・形態の選び方は`references/planning.md`「AIアセット反映の対象の洗い出し」が正／**実装反映**: フェーズ3のレビュー往復ループ（3-6〜3-9）では解消しきれず持ち越した不具合について、記録（spec/ddr等）への書き戻しと、実装コード・テストコードの修正をあわせて行う） | エージェント | `references/deliverables.md` |
 | 4-7 | `commit`スキル経由でcommitし、push してレビュー依頼を行う | エージェント | `references/review-loop.md` |
 | 4-8 | MRでレビュー・コメントする。レビュー済み連絡をするまで以降の作業は行わない。 | 人間 | — |
 | 4-9 | レビュー内容を取得し、設計・AIアセットの内容を修正する。対応が完了したコメントには対応内容を返信する（結果側の記述の修正先は`wip/reports/`のmdであり、個別反映計画ではない。4-6〜4-9の反映ループを合意まで繰り返す）。チャットで受けた判断はMRへ記録する（`references/review-loop.md`「チャットで受けたレビュー判断の記録」節）。**「レビューOK」の合図を受けても、`references/review-loop.md`「レビュー完了合図の確認」節の(1)(2)(3)を通るまでループを閉じない**（未返信スレッドが残っていると`mark-done`が拒否する。issue #70） | `comments` / `reply` | `references/review-loop.md` / `references/deliverables.md` |
@@ -188,3 +189,46 @@ changelog（point-in-time の記録）は書き換えない**運用（`.claude/r
 | 「最終統括レポートとPR/MRへの反映」 | `references/phase5-close.md` |
 | 「PRがflow-id 5-5実施前にマージされてしまった場合の対処」 | `references/phase5-close.md` |
 | 「`.claude/` → `.gemini/` の変換同期」（issue #70でSKILL.mdへ追加された節） | `references/phase5-close.md` |
+
+## flow-idを並べ替える・挿入する作業を行う場合（issue #143）
+
+flow-idの並べ替え・新規ステップの挿入（過去の実例: issue #112「フェーズ5並べ替え」・issue #111
+「統括レポート追加」・issue #70「gemini変換同期ステップ追加」）を行う際は、
+`.claude/rules/docs-workflow.md` `.claude/skills/issue-mr-flow/SKILL.md`本体の変更を終えた後、
+**変更作業の最後に**次を確認する。
+
+1. **まず、今回変更した番号（旧番号→新番号）を先に列挙し、その旧番号だけを固定文字列で
+   横断grepする**（例: 旧番号が`5-4`なら`git grep -n -- '5-4'`）。次に、取りこぼしが無いかの
+   補助確認として、`[0-9]-[0-9]`という数字パターン全体（`flow-id`の接頭辞が付かないもの——
+   `2-3〜2-4`のような範囲表記・`flow-id 2-2/2-7/…`のようなスラッシュ連結表記を含む）も横断grepする。
+   ```bash
+   git -c core.quotePath=false grep -nE '[0-9]-[0-9]' -- \
+     '*.md' '*.sh' '*.html' ':(exclude)wip/plans/*' ':(exclude)wip/worklogs/*' ':(exclude)wip/reports/*' \
+     'wip/plans/REVIEW-POINTS.md' 'wip/reports/REVIEW-POINTS.md'
+   ```
+   このパターンは日付（`2026-08-23`等）にもヒットし、リポジトリ全体で2000行規模・SKILL.md単体でも
+   150件規模になりうる。**1件ずつ確認するのは現実的ではない**ため、この全体走査は手順1前段の
+   固定文字列grepで拾いきれなかった取りこぼしの有無を確かめる補助に位置づける
+   （`core.quotePath=false`を付けないと、`wip/plans/` `wip/worklogs/`配下の日本語ファイル名が
+   ダブルクォート＋8進エスケープで出力され、下記2の除外パススペックに一致しなくなる点に注意する）。
+2. `wip/plans/` `wip/worklogs/` `wip/reports/`配下はタスク単位で削除される成果物のため走査対象から
+   除外してよいが、**除外はファイル単位で判断する**（理由・実例は`.claude/rules/docs-workflow.md`
+   「flow-idの繰り下げのような横断的な棚卸しでは」の段落が正——本節では重複説明しない）。
+   上記1のコマンド例は`wip/plans/REVIEW-POINTS.md` `wip/reports/REVIEW-POINTS.md`を明示的に
+   除外対象から戻している。
+3. ヒットした記述が**現在の状態を説明しているか、過去の記録（point-in-time）か**で判断する
+   （ファイルの種類では判断しない）。`.claude/docs/spec/*.md` `.claude/docs/ddr/*.md`の過去
+   changelog・DDR本文だけでなく、`.claude/scripts/`配下のコメントも対象になる。ただし
+   `.claude/scripts/`配下のコメントは、**同じ1行に現在値と経緯が同居している**ことが多い点に
+   注意する（例: `cleanup-task.sh`冒頭「flow-id 5-5（次タスクのための片付け）を自動化する
+   （issue #28。当時のflow-idは 5-1。issue #112 の並べ替えで 5-3 になり、issue #111 の統括
+   レポート追加で 5-4、issue #70 の変換同期の新設で現在は 5-5）」）。**経緯部分（「当時は〜」
+   「issue #NNで〜になった」）は書き換えず、現在値部分（「現在は5-5」等）だけを新しい番号へ
+   更新する**。ファイル全体を「書き換えない」と
+   一律に扱うと、この種のコメントの現在値が古いまま残る。
+4. 確認した結果（何件見つかり、どう対処したか）を、**コミットメッセージへ必ず残す**。
+   `wip/reports/`はタスク単位の作業記録としてブランチ上でのみ参照でき、flow-id 5-5（次タスクのための
+   片付け）で削除されmainには残らないため、恒久的に参照したい内容（新たな落とし穴の発見等）は
+   spec/DDRへ書く。
+
+背景・却下案は `.claude/docs/ddr/i0143-01-flow-id並べ替え時の確認手順をSKILL.mdへ明記しDDRで記録する.md` を参照。

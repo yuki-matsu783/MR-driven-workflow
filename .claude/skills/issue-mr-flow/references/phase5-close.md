@@ -30,6 +30,7 @@ keywords: [関連issue通知, 最終統括レポート, cleanup-task, Draft解�
    source .claude/scripts/src/vcs/Provider.sh
    base="$(get_workflow_config | jq -r '.defaultBaseBranch')"
    git diff --stat "origin/${base}...HEAD" -- . ':(exclude)wip/plans' ':(exclude)wip/worklogs' ':(exclude)wip/reports'
+   git diff --stat "origin/${base}...HEAD" -- wip/plans/REVIEW-POINTS.md wip/reports/REVIEW-POINTS.md
    ```
 
    **`wip/plans/` `wip/worklogs/` `wip/reports/` は差分から除外する**（issue #112）。これらの片付けは
@@ -37,6 +38,19 @@ keywords: [関連issue通知, 最終統括レポート, cleanup-task, Draft解�
    まだ差分に含まれている。除外しないと、マージ後には残らないファイルの語（個別計画の種別名・
    wip/worklogsの見出し等）がキーワード抽出へ混ざり、通知先の判定を歪める。上記のpathspecを付けずに
    `git diff --stat` を見た場合は、これらのパスの行を読み飛ばすこと。
+
+   **ただし `wip/plans/REVIEW-POINTS.md` と `wip/reports/REVIEW-POINTS.md` は除外しない**（issue #155 で
+   実際に落とした）。この2つはそのディレクトリの直下にありながら**寿命が永続**で、flow-id 5-5 の
+   削除対象でもなく、**マージ後に残る**（`.claude/rules/docs-workflow.md`「ドキュメント運用」表）。
+   ディレクトリ単位で除外するとこの2ファイルだけがすり抜け、レビュー観点の変更が通知先の判定から
+   丸ごと落ちる（**除外はディレクトリ単位ではなくファイル単位で判断する**、という同ルールの
+   一般則の具体例）。
+
+   **`git diff` を2回に分けているのは、pathspecでは除外を打ち消せないためである**（実測:
+   `':(exclude)wip/plans' 'wip/plans/REVIEW-POINTS.md'` と並べても `wip/plans/REVIEW-POINTS.md` は
+   戻らない）。1コマンドにまとめようとして、**出力へ現れるルート直下の `REVIEW-POINTS.md` を
+   `wip/plans/REVIEW-POINTS.md` と読み違えない**こと（`grep 'REVIEW-POINTS'` は両方に当たるため、
+   打ち消せているように見える。issue #155 で実際に誤読しかけた）。
 
 2. **AIエージェントが検索キーワードを抽出する。** 差分（上記のとおり `wip/plans/` `wip/worklogs/`
    `wip/reports/` を除いたもの）に現れた機能名・関数名・ファイル名・概念語から、**最大5件**

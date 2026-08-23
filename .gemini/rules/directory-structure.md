@@ -17,6 +17,7 @@ keywords: [ディレクトリ構成, claude, gemini, 配置方針, wip, plans, w
 ├── .claude/
 │   ├── docs/                  # issue駆動MRワークフロー機構自体の設計ドキュメント
 │   │   ├── README.md         # .claude/docs配下の目次
+│   │   ├── usecase/           # 「やりたいこと」起点の逆引きユースケース文書（issue #170）
 │   │   ├── spec/              # 機能ごとの正史仕様
 │   │   └── ddr/                # 意思決定ログ（DDR）
 │   ├── rules/                  # AI向け詳細ルール（コーディング規約・ドキュメント運用等）
