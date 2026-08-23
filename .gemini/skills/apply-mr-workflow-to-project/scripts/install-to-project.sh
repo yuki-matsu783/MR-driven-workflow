@@ -246,11 +246,16 @@ echo "Updating .gitignore..."
 GITIGNORE="${DEST_DIR}/.gitignore"
 touch "${GITIGNORE}"
 
+# `/.claude/settings.local.json` は、配布先でも `sync-gemini-assets.sh` の列挙
+# （`git ls-files --cached --others --exclude-standard`）から落とすために要る（issue #70）。
+# あちらは `.gitignore` に除外を委ねており、配布先の .gitignore にこの行が無いと、
+# 各開発者のローカル設定が .gemini/ へ焼き込まれてコミットされる。
 declare -a ignore_rules=(
   ""
   "# mr-driven-develop workflow ignores"
   "/.claude/usage-state/"
   "/.claude/session-logs/"
+  "/.claude/settings.local.json"
 )
 
 for rule in "${ignore_rules[@]}"; do

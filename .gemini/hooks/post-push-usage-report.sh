@@ -300,6 +300,40 @@ build_usage_report_body() {
   }
 }
 
+# 前置フィルタの判定本体（issue #70。純粋関数へ切り出す理由は
+# `.claude/rules/shell-script-style.md`「hookの前置フィルタ」）。
+#
+# **後段の精密判定（`command_invokes_git_subcommand … push`）の超集合でなければならない。**
+# 取りこぼすと後段へ辿り着かず、対応工数の集計・カーソル前進が無言で行われなくなる。
+# 過検知は jq 1回分の無駄で済むので、常に緩い側へ倒す。
+#
+# 受け取るのは**hookへの入力そのもの（jqがデコードする前の生JSON文字列）**である。
+# 精密判定はバックスラッシュを落として `git pu\sh` を「push」と読むため、生JSONのまま
+# `*push*` を当てると取りこぼす（`"git pu\\sh"` に `push` は現れない）。JSON文字列
+# エスケープの2文字シーケンス（`\\` `\"` `\n` `\t` `\r` `\/` `\b` `\f`）を**2文字とも**
+# まとめて除去してから、残ったバックスラッシュを落とす。`\\` を最初に処理するのは、
+# `\\n`（エスケープされたバックスラッシュ＋素のn）を `\n`（改行）と誤って分解しないため。
+# いずれの除去も単調にマッチ候補を増やすだけで、既存のマッチを壊さない（forkしない）。
+raw_hints_at_git_push() {
+  local raw="$1"
+  local probe="$raw"
+  probe="${probe//\\\\/}"
+  probe="${probe//\\\"/}"
+  probe="${probe//\\n/}"
+  probe="${probe//\\t/}"
+  probe="${probe//\\r/}"
+  probe="${probe//\\\//}"
+  probe="${probe//\\b/}"
+  probe="${probe//\\f/}"
+  probe="${probe//\\/}"
+  # bash 3.2でも動く大文字小文字非依存の比較。`${var,,}`（bash 4.0以降）は使わない
+  # （実行環境のbashバージョンを制御できず、後段のフォールバックへ到達する前に落ちるため）。
+  case "$probe" in
+    *[Pp][Uu][Ss][Hh]*) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
 main() {
   set -euo pipefail
 
@@ -313,13 +347,13 @@ main() {
   #
   # **パターンは後段の精密判定（command_invokes_git_subcommand）の超集合であること。**
   # `git[[:space:]]+push` のように縮めると `git -C /x push` を取りこぼし、機能が黙って死ぬ。
-  # 逆に緩すぎる分には無害である（後段が正しく落とす）。この非対称が `*push*` の理由。
+  # 逆に緩すぎる分には無害である（後段が正しく落とす）。判定は raw_hints_at_git_push が持つ。
   local raw
   # `|| true` を省かない。`read -d ''` は入力にNULが無いとEOFで非0を返すため、`set -e` 配下では
   # 値が取れているのに終了する。（`$(cat)` と違い末尾の改行を落とさないが、後段は jq へ渡すだけ）
   IFS= read -r -d '' raw || true
   [ -n "$raw" ] || exit 0
-  case "$raw" in *push*) ;; *) exit 0 ;; esac
+  raw_hints_at_git_push "$raw" || exit 0
 
   local hook_input
   hook_input="$(printf '%s' "$raw" | jq -c '.' 2>/dev/null)" || exit 0

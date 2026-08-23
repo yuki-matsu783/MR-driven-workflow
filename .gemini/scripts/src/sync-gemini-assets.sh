@@ -193,6 +193,10 @@ convert_agent_to_reply() {
   local i line key value
 
   mapfile -t lines < "$src"
+  # CRLF で保存された .md を「frontmatter がありません」と誤診しないよう、行末の CR を落とす。
+  # `mapfile` は改行だけを区切りにするため、CRLF のファイルでは 1 行目が `$'---\r'` になり、
+  # 下の `!= '---'` に引っかかる。パラメータ展開は bash 組み込みなので fork は増えない。
+  for ((i = 0; i < ${#lines[@]}; i++)); do lines[i]="${lines[i]%$'\r'}"; done
 
   if [ "${#lines[@]}" -eq 0 ] || [ "${lines[0]}" != '---' ]; then
     echo "エラー: frontmatter がありません: $src" >&2
@@ -425,7 +429,7 @@ build_into() {
   local dst="$1"
   local -a copy_rel=()
   local -a agent_rel=()
-  local f rel skipped=0
+  local f rel skipped=0 listed=0
 
   # 列挙は git に任せる。`--exclude-standard` が .gitignore 対象（**/index.jsonl・
   # .claude/state/ ・skills/apply-.../assets/）を落とすので、生成物とローカル状態の除外は
@@ -437,6 +441,7 @@ build_into() {
       skipped=$((skipped + 1))
       continue
     fi
+    listed=$((listed + 1))
     rel="$f"
     case "$rel" in
       .claude/agents/*.md) agent_rel+=("$rel"); continue ;;
@@ -448,8 +453,23 @@ build_into() {
   if [ "$skipped" -gt 0 ]; then
     echo "skipped $skipped deleted file(s) not present in the working tree" >&2
   fi
-  if [ "${#copy_rel[@]}" -eq 0 ]; then
-    echo "エラー: .claude/ 配下にコピー対象が1件もありません（リポジトリルートで実行していますか）" >&2
+  # 失敗条件は「git が .claude/ 配下のファイルを1件も返さなかった」ことである。
+  # **「コピー対象（copy_rel）が0件」を失敗条件にしない。** agents/*.md と settings.json は
+  # コピーではなく変換で作るため、その2つしか無い .claude/ でも生成物としては成立する。
+  if [ "$listed" -eq 0 ]; then
+    # `main` が `git rev-parse --show-toplevel` へ cd 済みなので、ここへ来た時点で
+    # 「リポジトリルートに居ない」は原因から外れる。残る原因を切り分けて示す。
+    if [ ! -d .claude ]; then
+      echo "エラー: このリポジトリに .claude/ がありません（リポジトリルート: $PWD）。" >&2
+      echo "  issue駆動MRワークフローが導入されていないリポジトリと思われます" >&2
+    elif [ "$skipped" -gt 0 ]; then
+      echo "エラー: .claude/ 配下の追跡ファイル $skipped 件が、すべて作業ツリーに存在しません。" >&2
+      echo "  削除をステージしていない状態と思われます。git status で確認してください" >&2
+    else
+      echo "エラー: .claude/ は存在しますが、git から見えるファイルが1件もありません。" >&2
+      echo "  .gitignore が .claude/ 配下を丸ごと除外している可能性があります。次で確認できます:" >&2
+      echo "    git check-ignore -v .claude/settings.json" >&2
+    fi
     return 1
   fi
 
@@ -459,17 +479,24 @@ build_into() {
   # ファイルごとに cp を呼ばない（148件 × 約95ms = 十数秒になる）。xargs が引数長の上限に
   # 応じて自動で分割するので、`.claude/` が大きくなっても Argument list too long にならない。
   # `cp --parents` は相対パスの階層を再現するため、コピー元へ cd した実サブシェルで実行する。
-  ( cd .claude && printf '%s\0' "${copy_rel[@]}" | xargs -0 cp --parents -t "$dst" -- )
+  # copy_rel が空になりうる（agents/*.md と settings.json しか無い .claude/）。
+  # set -u 配下では空配列の "${arr[@]}" が unbound になる bash があるため、件数で守る。
+  if [ "${#copy_rel[@]}" -gt 0 ]; then
+    ( cd .claude && printf '%s\0' "${copy_rel[@]}" | xargs -0 cp --parents -t "$dst" -- )
+  fi
 
   # --- agents の変換 ---
   mkdir -p "$dst/agents"
-  for rel in "${agent_rel[@]}"; do
+  for rel in ${agent_rel[@]+"${agent_rel[@]}"}; do
     convert_agent_to_reply "$rel" || return 1
     printf '%s' "$REPLY" > "$dst/agents/${rel##*/}"
   done
 
   # --- settings.json の変換 ---
-  convert_settings .claude/settings.json > "$dst/settings.json"
+  # Windows ネイティブの jq は標準出力へ CR を付ける（`.claude/rules/shell-script-style.md`
+  # 「文字コード」）。ここはリダイレクトでファイルへ落とすため、混入すると .gemini/ の
+  # settings.json だけが CRLF になり、--check が Windows と Linux で食い違う。
+  convert_settings .claude/settings.json | tr -d '\r' > "$dst/settings.json"
 }
 
 # .gemini/ と $1 の差分を「Only in …」「Files … differ」の形で出力する。差分があれば非0。
