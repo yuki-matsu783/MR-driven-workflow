@@ -31,13 +31,20 @@ push回数: 1
 
 ## ダメだったこと
 
-- （無し）
+- 本検証に先立ち、同一セッション内で `.claude/settings.json` を書き換えてから
+  `EnterPlanMode` へ再入する方法を試したが失敗した。ハーネスは既存の計画ファイル
+  （`plans/transient-brewing-pelican.md`）をそのまま提示し続け、設定変更が反映されなかった
+  （偽陰性。新規セッションでの検証方式へ切り替える契機になった）。
+- 対照実験（フラットな新規パス`./plans2`）のための新規セッション起動が、サービス一時停止
+  （`create_session`が"the service is temporarily unavailable"で複数回失敗）により保留中。
 
 ## 次の一歩
 
-- 検証用ダミーファイル（`wip/plans/glimmering-dancing-penguin.md`）は削除済み。
+- 検証用ダミーファイル（`wip/plans/glimmering-dancing-penguin.md`）は別セッションのワークツリー
+  上で削除されたと報告されたが、本ブランチからは裏取りできない（コミットされていないため）。
+- 対照実験（`./plans2`）用の新規セッションを再試行する。
 - `.gemini/settings.json` の `general.plan.directory` について、記法上の妥当性確認を別途行う
   （実行環境にGemini CLIが無いため実機検証は対象外）。
-- 個別調査計画に対する敵対的レビューへ進む。
+- 調査結果に対する敵対的レビュー（1周目）の指摘13件へ対応中。対応完了後、2周目のレビューへ進む。
 
 ---

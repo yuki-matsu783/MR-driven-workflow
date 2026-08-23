@@ -93,7 +93,7 @@
       <li><b>ブランチ</b> claude/consolidate-wip-directories-ps6f9a</li>
       <li><b>PR</b> #178</li>
       <li><b>フェーズ</b> 2〈調査〉 flow-id 2-6</li>
-      <li><b>push回数</b> 5</li>
+      <li><b>push回数</b> 6</li>
       <li><b>作成日</b> 2026-08-23</li>
       <li><b>正文</b> 同名の .md</li>
     </ul>
@@ -120,9 +120,10 @@
   <table>
     <thead><tr><th>#</th><th>問い／やったこと</th><th>結論</th><th>根拠の性質</th></tr></thead>
     <tbody>
-      <tr><td>1</td><td>plansDirectoryのネストパス(./wip/plans)は機能するか</td><td><b>機能する</b></td><td>実測（新規セッションでのEnterPlanMode/ExitPlanMode実行）</td></tr>
+      <tr><td>1</td><td>plansDirectoryのネストパス(./wip/plans)は機能するか</td><td><b>機能する</b></td><td>実測（新規セッションでEnterPlanModeが提示したパス。ファイル書き込み自体は根拠に含めない）</td></tr>
       <tr><td>2</td><td>同一セッション内での設定変更→Planモード再入で検証できるか</td><td><b>できない（偽陰性になる）</b></td><td>実測（既存の全体作業計画パスが再提示された）</td></tr>
-      <tr><td>3</td><td>.gemini/settings.jsonのネストパス対応</td><td>未検証</td><td>実行環境にGemini CLIが無い</td></tr>
+      <tr><td>3</td><td>フラットな新規パス(./plans2)での対照実験</td><td>実施中（インフラの一時停止で保留）</td><td>—</td></tr>
+      <tr><td>4</td><td>.gemini/settings.jsonのネストパス対応</td><td>未検証</td><td>実行環境にGemini CLIが無い</td></tr>
     </tbody>
   </table>
   </div>
@@ -140,21 +141,20 @@
 <section id="findings">
   <h2>実施した内容と結果</h2>
 
-  <h3>1. 新規セッションでのEnterPlanMode/ExitPlanMode実行</h3>
-  <p>本ブランチをチェックアウトさせた新規セッションを立ち上げ、<code>EnterPlanMode</code>を呼び出し、
-  提示された計画ファイルパスを確認した。</p>
+  <h3>1. 新規セッションでのEnterPlanMode実行</h3>
+  <p>このタスク自身のコミット（<code>aafaab7</code>, 2026-08-23 04:51:32）で
+  <code>.claude/settings.json</code>の<code>plansDirectory</code>を<code>"./wip/plans"</code>へ
+  変更し<code>wip/plans/.gitkeep</code>を作成した上でpushし、そのコミットをチェックアウトさせた
+  新規セッションを立ち上げ、<code>EnterPlanMode</code>を呼び出して提示された計画ファイルパスを
+  確認した。</p>
   <pre><code>提示されたパス:
-/home/user/MR-driven-workflow/wip/plans/glimmering-dancing-penguin.md
-
-Writeツールで書き込み後、ExitPlanModeでユーザー承認を得た。
-ls -la での確認:
--rw-r--r-- 1 root root 1988 Aug 23 04:54 /home/user/MR-driven-workflow/wip/plans/glimmering-dancing-penguin.md
-
-比較: plans/ 直下に同名ファイルが誤って作られていないことも確認（該当ファイルなし）</code></pre>
+/home/user/MR-driven-workflow/wip/plans/glimmering-dancing-penguin.md</code></pre>
   <div class="box ok">
-    <span class="label">結論</span>
+    <span class="label">結論（根拠はこの提示パス1点のみ）</span>
     ネストしたパス（<code>./wip/plans</code>）は実際に機能する。<code>plans/</code>直下への
-    フォールバックは発生しなかった。
+    フォールバックは発生しなかった。<strong>この後Writeツールで実際にファイルが書けたことは、
+    plansDirectoryの検証根拠には含めない</strong>（Writeツールは任意のパスへ書き込めるため、
+    ネストパス対応の証拠にはならない）。
   </div>
 
   <h3>2. 同一セッション内での再検証（参考・失敗した方法）</h3>
@@ -165,6 +165,16 @@ ls -la での確認:
     <span class="label">結論</span>
     同一セッション内での設定変更→Planモード再入は、既に確定した計画ファイルの割り当てが
     優先されるため検証方法として使えない（偽陰性を生む）。クリーンな検証には新規セッションが必要。
+  </div>
+
+  <h3>3. 対照実験（フラットな新規パス ./plans2）</h3>
+  <p>「設定が読み込まれていること」自体は確認できたが、「ネストしたパス特有の対応であること」を
+  切り分けるため、計画で求めていた対照実験（<code>./plans2</code>のようなフラットな新規パスでも
+  同様に反映されるか）を実施する。</p>
+  <div class="box warn">
+    <span class="label">状態</span>
+    実行環境（<code>create_session</code>）が一時的に利用不可のため保留中。結果が得られ次第この
+    節を更新する。
   </div>
 </section>
 

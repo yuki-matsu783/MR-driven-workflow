@@ -17,8 +17,8 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - issue: #165 (plans/worklog/reports を wip/ 配下へ集約し worklog を worklogs へ改名する)
 - ブランチ: claude/consolidate-wip-directories-ps6f9a（ハーネス指定。命名規則`feature-165-*`からの逸脱は環境制約による）
 - PR: https://github.com/yuki-matsu783/MR-driven-workflow/pull/178
-- push回数: 4
-- 現在のループ: 2-2〜2-9 の1周目（進行中。人間レビューは省略し敵対的レビューで代替）
+- push回数: 6
+- 現在のループ: 2-6〜2-9 の1周目（進行中。人間レビューは省略し敵対的レビューで代替）
 - 追従監視: 購読あり（web。subscribe_pr_activity。1時間ごとの自己チェックインを予約済み）
 
 **注記**: 非対話的実行環境のため、人間のレビュー待ちループ（2-3/2-4, 2-6〜2-9, 3-3/3-4, 3-6〜3-9,
@@ -39,7 +39,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 | [] | 2-3 | （人間レビュー省略。敵対的レビューで代替済み） |
 | [] | 2-4 | （人間レビュー省略。敵対的レビュー指摘への対応は計画へ反映済み） |
 | [] | 2-5 | 調査計画でMR description更新 |
-| [x] | 2-6 | 調査実施（plansDirectoryネストパス実機検証。新規セッションで「機能する」ことを確認） |
+| [] | 2-6 | 調査実施（plansDirectoryネストパス実機検証。新規セッションで「機能する」ことを確認。詳細は「やったこと」参照。ループ範囲2-6〜2-9のため記号は`[]`のまま） |
 | [] | 2-7 | commit・push・レビュー依頼 |
 | [] | 2-8 | （人間レビュー省略予定） |
 | [] | 2-9 | （人間レビュー省略予定。敵対的レビューで代替） |
@@ -90,19 +90,35 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - 事前調査で `cleanup-task.sh` の `KEEP_PATHS` がハードコードされたリテラルパスであり、
   `worklogDir` 変更後に `TEMPLATE.md` が誤削除されるリスクを発見（フェーズ3で対応予定）。
 - plansDirectoryのネストパス実機検証のため、新規の使い捨てセッション
-  （session_01A48PeEHLHrnXihSbMdmvnw）を起動し検証を実施した。**結論: `.claude/settings.json`の
-  `plansDirectory: "./wip/plans"`（ネストしたパス）は実際に機能する。** 新規セッションで
-  `EnterPlanMode`を呼んだところ、提示された計画ファイルパスは `wip/plans/<自動命名>.md` であり、
-  `plans/<自動命名>.md`へのフォールバックは発生しなかった。検証用ダミーファイルは削除済み。
+  （session_01A48PeEHLHrnXihSbMdmvnw、アーカイブ済み）を起動し検証を実施した。**結論:
+  `.claude/settings.json`の`plansDirectory: "./wip/plans"`（ネストしたパス）は実際に機能する。**
+  新規セッションで`EnterPlanMode`を呼んだところ、提示された計画ファイルパスは
+  `wip/plans/<自動命名>.md` であり、`plans/<自動命名>.md`へのフォールバックは発生しなかった。
   詳細は `reports/20260823_transient-brewing-pelican_plansDirectoryネストパス検証.md`。
+- **調査結果に対する敵対的レビュー（1周目）を実施し、13件の指摘を受けた。** 主な指摘:
+  (1) 「ファイルが実際に作成された」という判定基準はWriteツール自身の結果であり
+  plansDirectoryの検証根拠にならない（循環論法）→報告の根拠をEnterPlanModeの提示パス1点に絞る、
+  (2) 「設定は既に済んでいた」という記述が事実誤認（このブランチ自身が直前のコミットで設定した）、
+  (3) 計画が要求していた対照実験（フラットな新規パス`./plans2`での検証）が未実施→追加実施する、
+  (4) `.claude/settings.json`が現時点で存在しない`wip/plans`を指したままの中途半端な状態、
+  (5) HANDOFF.mdの「未解決の内容」が実際の未解決事項と矛盾、(6) ループ範囲2-6〜2-9の記号不整合
+  （`update-handoff-progress.sh`が動かなくなる状態だった）。指摘を反映中。
+- 対照実験（フラットな新規パス`./plans2`）のため`.claude/settings.json`を一時変更してpushし、
+  新規セッションでの検証を5回試みたが、`create_session`がサービス一時停止
+  （"the service is temporarily unavailable"）で毎回失敗した。**設定はいったん`"./plans"`
+  （元の値）へ戻し**、中途半端な状態を残さないようにした。対照実験はサービス復旧後に再試行する。
 
 ## 次にやること
 
-- 検証用セッション（session_01A48PeEHLHrnXihSbMdmvnw）をアーカイブする。
-- 調査結果（reports/）に対する敵対的レビューを実施し、指摘へ対応する。
+- 対照実験（`./plans2`）用の新規セッションを再試行する（サービス一時停止のため保留中。
+  `.claude/settings.json`は現在`"./plans"`に戻してある）。
+- 対照実験の結果が得られ次第、`reports/`の調査結果md・HTML・worklogへ反映する。
 - `.gemini/settings.json` の `general.plan.directory` について、記法上の妥当性確認を行う
   （Gemini CLIが本実行環境に無いため実機検証は対象外）。
-- ネストパス対応が確認できたため、フェーズ3（設計・実装）へ進む準備をする。
+- 調査結果に対する敵対的レビュー2周目（指摘反映後の再確認）を実施する。
+- 対照実験が完了し2周目レビューも通り次第、フェーズ3（設計・実装）へ進む
+  （`.claude/settings.json`の`plansDirectory`は`.mrworkflow.json`等とまとめてフェーズ3で
+  正式に`"./wip/plans"`へ変更する）。
 
 ## 判断を迷った内容
 
@@ -110,7 +126,13 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 
 ## 未解決の内容
 
-- （無し）
+- `.gemini/settings.json` の `general.plan.directory` のネストパス対応は未検証
+  （Gemini CLIが本実行環境に無いため）。
+- `wip/plans` ディレクトリが存在しない状態でPlanモードに入った場合の挙動は未検証
+  （検証時点で`.gitkeep`を含む状態だった）。
+- 対照実験（フラットな新規パス`./plans2`）が、サービス一時停止のため未完了。
+- `cleanup-task.sh` の `KEEP_PATHS` ハードコード問題（`worklogDir`変更後の`TEMPLATE.md`誤削除
+  リスク）はフェーズ3で対応予定・未着手。
 
 ## 守るべき条件・触ってはいけない範囲
 
