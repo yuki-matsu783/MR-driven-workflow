@@ -22,8 +22,19 @@ pages:
   # MRパイプラインのときだけ走らせる。$CI_MERGE_REQUEST_IID はこの条件下でのみ値を持つ。
   # **path_prefix が空文字列へ展開されると本番サイトのルートを上書きする**ため、
   # この rules を緩めないこと。
+  #
+  # **対象HTMLが0件のときは、ジョブ自体を作らせない**（`exists` は `if` とANDで効く）。
+  # ここを script 内の `exit 0` で済ませてはいけない——GitLab Runner は script を1つの
+  # シェルスクリプトへ連結して実行するため、`exit 0` はジョブを「成功」で終わらせ、
+  # **空の public がそのまま artifacts としてアップロードされ、直前まで開けていた
+  # mr-<iid>/ を空（404）に置き換える**。flow-id 5-5 の片付けを反映した直後、つまり
+  # flow-id 5-6 でユーザーへURLを提示するその瞬間に起きる（issue #114 の敵対的レビュー）。
+  # GitHub版は `deploy=false` で以降のstepごとスキップするので gh-pages を一切触らない。
   rules:
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+      exists:
+        - reports/*.html
+        - plans/*.html
   pages:
     path_prefix: "mr-$CI_MERGE_REQUEST_IID"
     # 既定は24時間。レビューが翌日以降になると提示済みのURLが開けなくなり、GitHub側
@@ -32,16 +43,19 @@ pages:
   script:
     - mkdir -p public/reports public/plans
     - |
+      # 0件のガードは上の rules.exists が持つ（script 内で判定しないこと。上のコメント参照）。
+      # ここは「rules を通ったのに0件だった」という想定外の状態を検出するためだけの表明で、
+      # 空の public をアップロードさせないよう**失敗させる**。
       html_count=0
       for f in reports/*.html plans/*.html; do
         [ -e "$f" ] || continue
         html_count=$((html_count + 1))
       done
-      # 対象HTMLが0件ならデプロイしない（flow-id 5-5 の片付けを無害化する。GitHub側と同じガード）
       if [ "$html_count" = "0" ]; then
-        echo "対象HTMLが0件のためスキップします"
-        exit 0
+        echo "rules.exists を通ったのに対象HTMLが0件です（想定外）" >&2
+        exit 1
       fi
+      echo "対象HTML ${html_count} 件をデプロイします"
       for f in reports/*.html; do [ -e "$f" ] || continue; cp "$f" public/reports/; done
       for f in plans/*.html; do [ -e "$f" ] || continue; cp "$f" public/plans/; done
     - |

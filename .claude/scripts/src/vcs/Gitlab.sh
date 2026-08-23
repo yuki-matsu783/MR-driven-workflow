@@ -613,22 +613,21 @@ gitlab_upload_attachment() {
 # なるので、その場合は environments API から `external_url` を引く。GitLabの Pages ドメインは
 # インスタンス設定（`pages_external_url`）に依存し、GitHubのように規則で組み立てられないため、
 # **どちらも引けなければ失敗させる**（推測したURLは提示しない）。
+# **プロジェクトの指定は `projects/:id` で行う**（`glab` が現在のリポジトリへ解決する）。
+# `get_repo_slug` の `path` を `url_encode_path_to_reply` へ通しただけの値を使ってはいけない
+# ——この関数は `/` を残すため、namespaceを持つプロジェクトでは `projects/group/repo/pages` と
+# いう存在しないルートになり、**Pagesが正常でも必ず404になる**（issue #114 の敵対的レビューで
+# 実際に踏んだ）。パスで指定する必要がある場合は `gitlab_read_file_at_ref` と同じく
+# `${REPLY//\//%2F}` まで行うこと。
 gitlab_get_report_site_url() {
-  local path encoded url
-  path="$(get_repo_slug | jq -r '.path // empty')"
-  if [ -z "$path" ]; then
-    printf 'gitlab_get_report_site_url: プロジェクトパスを特定できません\n' >&2
-    return 1
-  fi
-  url_encode_path_to_reply "$path"
-  encoded="$REPLY"
-  url="$(glab api "projects/${encoded}/pages" 2>/dev/null | jq -r '.url // empty' 2>/dev/null || true)"
+  local url
+  url="$(glab api "projects/:id/pages" 2>/dev/null | jq -r '.url // empty' 2>/dev/null || true)"
   if [ -n "$url" ]; then
     printf '%s\n' "$url"
     return 0
   fi
   # フォールバック: Pages の environment が持つ external_url
-  url="$(glab api "projects/${encoded}/environments" 2>/dev/null \
+  url="$(glab api "projects/:id/environments" 2>/dev/null \
     | jq -r 'map(select(.name == "pages" or (.external_url // "") != "")) | .[0].external_url // empty' 2>/dev/null || true)"
   if [ -n "$url" ]; then
     printf '%s\n' "$url"
