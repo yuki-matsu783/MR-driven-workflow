@@ -170,7 +170,7 @@
     <tbody>
       <tr><td>1</td><td>二重管理をどう解消するか</td><td><b>案B: テンプレートファイルを正とし、<code>describe</code> 節は雛形を持たない</b></td><td>実装の確認＋既存の先例（issue #54）</td></tr>
       <tr><td>2</td><td>#111（flow-id 5-4）との役割分担</td><td><b>併存させ、「自動処理が繰り返し上書きするdescription」と「1回きりのスナップショットであるサマリコメント」で分ける</b></td><td>実装の確認（<code>Provider.sh</code> に編集関数が無い）</td></tr>
-      <tr><td>3</td><td><code>plans/</code> 等の参照禁止をどこに書くか</td><td><b><code>docs-workflow.md</code> のコードブロックの後へ1段落追加＋テンプレートのHTMLコメント。例外は設けない</b></td><td>ドキュメントの読解</td></tr>
+      <tr><td>3</td><td><code>wip/plans/</code> 等の参照禁止をどこに書くか</td><td><b><code>docs-workflow.md</code> のコードブロックの後へ1段落追加＋テンプレートのHTMLコメント。禁じるのは「参照」だけで、レビュー対象を指す「アンカー」は対象外</b></td><td>ドキュメントの読解</td></tr>
       <tr><td>4</td><td>10節構成と6回の全文置換</td><td><b>噛み合う。ただし「特になし」と「未実施」を書き分ける規約が要る。最終形は flow-id 4-10 で完成させる</b></td><td>実装の確認＋フロー順序の読解</td></tr>
       <tr><td>5</td><td>配布物としての影響</td><td><b>テンプレート2本は <code>core</code> 層。<code>.gemini/</code> 同期の対象外。<code>review-loop.md</code> は対象。<code>.claude/VERSION</code> は 0.3.0 → 0.4.0（MINOR）を提案</b></td><td>実装の確認（<code>dist-layers.json</code>・列挙コマンド）</td></tr>
       <tr><td>6</td><td>旧3節構成の列挙箇所の数え切り</td><td><b>5箇所で確定</b>（<code>grep</code> で確認済み。DDR本文の1件は対象外）</td><td>実測</td></tr>
@@ -298,7 +298,7 @@
   <h3>3. <code>plans/</code> <code>worklog/</code> <code>reports/</code> 参照禁止の書き場所</h3>
   <div class="box ok">
     <span class="label">判断</span>
-    <p>次の2箇所へ書く。<b>例外は設けない。</b></p>
+    <p>次の2箇所へ書く。<b>禁じるのは「参照」——読み手にそのファイルを開かせる意図での言及——だけで、レビュー対象そのものの位置を指す「アンカー」は対象外とする。</b></p>
     <ol>
       <li><b><code>.claude/rules/docs-workflow.md</code></b>: 既存段落「コード・スクリプト内のコメントから <code>plans/</code> <code>worklog/</code> <code>reports/</code> のファイルを参照しない」（64〜69行目）と、<b>その例示であるコードブロック（71〜76行目の「悪い例／良い例」）の後</b>、つまり<b>76行目の直後</b>へMR/PR本文についての段落を足す。</li>
       <li><b>テンプレート2本のHTMLコメント</b>: <code>## 反映先・関連</code> 節の記入ガイドとして、同じ禁止と「代わりに何を書くか」を書く。</li>
@@ -319,7 +319,7 @@
         <li>issue番号・PR番号・レビューコメントのpermalinkは恒久なので、これらで代替する。</li>
       </ul>
     </li>
-    <li><b>例外を認めない。</b> 「レビュー中はまだ存在するので参照が有効に見える」という状況こそが罠で、レビュー時に踏めた参照がマージ後に必ず切れる。issue #145 が集計した「64件中52件」がまさにこの経路で生まれている。</li>
+    <li><b>禁じるのは「参照」であって「アンカー」ではない。</b> 「レビュー中はまだ存在するので参照が有効に見える」という状況こそが罠で、レビュー時に踏めた参照がマージ後に必ず切れる。issue #145 が集計した「64件中52件」がまさにこの経路で生まれている。<ul><li><b>ただし、レビュー対象そのものの位置を指し示すアンカーは、この禁止の対象外である</b>（フェーズ3の敵対的レビュー4回目で判明。<b>当初この節は例外なしと書いていたが、その規約は敵対的レビュー機構自身と衝突していた</b>——<code>.claude/scripts/src/vcs/Provider.sh</code> の <code>format_findings_summary</code> が出す <code>.path</code> とインラインコメントの位置指定は、レビュー対象が <code>wip/plans/</code> <code>wip/reports/</code> である回に必ずこれらのパスをMRへ書く）。</li><li>区別は<b>マージ後に読み手が困るか</b>で付く。アンカーは「その時点で何を見て指摘したか」の記録なので、対象ファイルが消えても指摘本文だけで読める。参照は、リンク先が消えた時点で本文の意味が欠ける。<b>アンカーであっても、指摘の内容を「詳細はそのファイル参照」で済ませない</b>（済ませた時点で参照になる）。</li><li>現在の規約の正は <code>.claude/rules/docs-workflow.md</code> である。</li></ul></li>
   </ul>
 
   <h3>4. 10節構成と <code>describe</code> の6回の全文置換</h3>

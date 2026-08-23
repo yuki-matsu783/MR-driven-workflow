@@ -147,11 +147,15 @@
     <thead><tr><th>操作</th><th>対象</th></tr></thead>
     <tbody>
       <tr><td>新規作成</td><td><code>.claude/docs/ddr/</code> 2件</td></tr>
-      <tr><td>変更</td><td><code>.claude/docs/spec/</code> 2本、<code>.claude/VERSION</code>、<code>.claude/scripts/test/test_install_to_project.sh</code>（ヘッダコメントのみ）、<code>wip/reports/</code> の訂正、<code>.claude/rules/shell-script-style.md</code>（作業項目10の結果しだい）</td></tr>
+      <tr><td>変更</td><td><code>.claude/docs/spec/</code> 2本、<code>.claude/VERSION</code>、<code>.claude/scripts/test/test_install_to_project.sh</code>（ヘッダコメントのみ）、<code>wip/reports/</code> の訂正、<code>.claude/rules/shell-script-style.md</code> と <code>.claude/skills/issue-mr-flow/references/deliverables.md</code>（いずれも作業項目10の結果しだい。下記）</td></tr>
       <tr><td>再生成</td><td><code>.claude/docs/README.md</code>（<code>generate-ddr-list.sh</code>）</td></tr>
-      <tr><td><b>触らない</b></td><td><code>.github/</code> <code>.gitlab/</code> <code>.claude/skills/</code> <code>.claude/scripts/src/</code>（触る必要が生じたら計画へ戻す）</td></tr>
+      <tr><td><b>触らない</b></td><td><code>.github/</code> <code>.gitlab/</code> <code>.claude/scripts/src/</code>（触る必要が生じたら計画へ戻す）</td></tr>
     </tbody>
   </table>
+  <div class="box warn">
+    <span class="label">この表は flow-id 4-6 の実施中に1度更新した</span>
+    当初 <code>.claude/skills/</code> も「触らない」に入れていたが、作業項目10（AIアセット反映の洗い出し）の結果、<code>references/deliverables.md</code> へ追記すべき類型 (c) が1件出たため、<b>表の「触る必要が生じたら計画へ戻す」に従って範囲を広げた</b>（対象は <code>.claude/skills/issue-mr-flow/references/deliverables.md</code> の1ファイル・HTMLビューの節のみ。<code>SKILL.md</code> とフロー定義そのものには触っていない）。
+  </div>
 </section>
 
 <section id="keep">

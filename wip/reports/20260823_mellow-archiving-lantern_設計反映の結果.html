@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>フェーズ4〈反映〉の実施結果 — issue #145</title>
+<style>
+  :root {
+    --bg: #f6f7f9;      --panel: #ffffff;   --ink: #1a1d21;     --muted: #5b636d;
+    --line: #dfe3e8;    --accent: #2563eb;  --accent-soft: #eaf0fe;
+    --ok: #1a7f4b;      --ok-soft: #e6f4ec; --warn: #a35a00;    --warn-soft: #fdf1e0;
+    --stop: #b3261e;    --stop-soft: #fdecea; --good: #1d4ed8;  --good-soft: #e7edfd;
+    --code-bg: #f0f2f5;
+    --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1216;    --panel: #161a20;   --ink: #e6e8eb;     --muted: #9aa3ad;
+      --line: #2a3038;  --accent: #7aa2f7;  --accent-soft: #1b2333;
+      --ok: #6ee7a8;    --ok-soft: #14261d; --warn: #f0b866;    --warn-soft: #2a2113;
+      --stop: #f2857c;  --stop-soft: #2b1614; --good: #8ab4f8;  --good-soft: #17233a;
+      --code-bg: #1d222a;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", system-ui, sans-serif;
+    line-height: 1.8; font-size: 15px;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 20px 80px; }
+
+  /* 共通ヘッダ帯 */
+  header.band {
+    background: linear-gradient(135deg, var(--accent-soft), var(--panel));
+    border-bottom: 1px solid var(--line); padding: 28px 20px 22px; margin-bottom: 28px;
+  }
+  header.band .inner { max-width: 1080px; margin: 0 auto; }
+  header.band .kind { font-size: 11px; letter-spacing: .18em; color: var(--accent); font-weight: 700; }
+  header.band h1 { margin: 6px 0 4px; font-size: 26px; line-height: 1.4; }
+  header.band .lead { margin: 0; color: var(--muted); }
+  header.band .counts { margin: 12px 0 0; display: flex; gap: 6px; flex-wrap: wrap; }
+  .meta { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; padding: 0; list-style: none; }
+  .meta li {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 999px;
+    padding: 3px 12px; font-size: 12.5px; color: var(--muted); white-space: nowrap;
+  }
+  .meta li b { color: var(--ink); font-weight: 600; }
+
+  nav.toc {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 14px 20px; margin-bottom: 28px;
+  }
+  nav.toc h2 { margin: 0 0 8px; font-size: 13px; letter-spacing: .08em; color: var(--muted); border: 0; padding: 0; }
+  nav.toc ol { margin: 0; padding-left: 20px; }
+  nav.toc li { margin: 2px 0; }
+  a { color: var(--accent); }
+
+  section {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 8px 24px 22px; margin-bottom: 22px;
+  }
+  /* アンカーで飛んだとき見出しが上端に張り付かないようにする（issue #186） */
+  section[id], h3[id] { scroll-margin-top: 16px; }
+  h2 { font-size: 20px; margin: 20px 0 10px; padding-bottom: 8px; border-bottom: 2px solid var(--line); }
+  h3 { font-size: 16px; margin: 22px 0 8px; color: var(--accent); }
+  p { margin: 10px 0; }
+  ul, ol { padding-left: 22px; }
+  li { margin: 4px 0; }
+  blockquote { margin: 10px 0; padding: 6px 14px; border-left: 3px solid var(--line); color: var(--muted); }
+
+  /* 表は自身の中で横スクロールする（ページ本体は横スクロールさせない） */
+  .tablewrap { overflow-x: auto; margin: 14px 0; }
+  table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 14px; }
+  th, td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: var(--accent-soft); font-weight: 600; white-space: nowrap; }
+  tbody tr:nth-child(even) td { background: color-mix(in srgb, var(--line) 22%, transparent); }
+
+  code {
+    background: var(--code-bg); border-radius: 5px; padding: 1px 5px; font-size: 13px;
+    font-family: "SFMono-Regular", Consolas, "Noto Sans Mono", monospace;
+  }
+  pre {
+    background: var(--code-bg); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 12px 14px; overflow-x: auto; font-size: 13px; line-height: 1.65;
+  }
+  pre code { background: none; padding: 0; }
+
+  /* 注意ボックス: info（既定）/ ok（決めたこと・手順の成功。結論の性質には使わない）/
+     warn（注意）/ stop（やらないこと・危険） */
+  .box { border-left: 4px solid var(--accent); background: var(--accent-soft);
+         border-radius: 0 var(--radius) var(--radius) 0; padding: 12px 16px; margin: 16px 0; }
+  .box > :first-child { margin-top: 0; } .box > :last-child { margin-bottom: 0; }
+  .box .label { font-size: 12px; font-weight: 700; letter-spacing: .06em; display: block; margin-bottom: 4px; }
+  .box.ok { border-color: var(--ok); background: var(--ok-soft); } .box.ok .label { color: var(--ok); }
+  .box.warn { border-color: var(--warn); background: var(--warn-soft); } .box.warn .label { color: var(--warn); }
+  .box.stop { border-color: var(--stop); background: var(--stop-soft); } .box.stop .label { color: var(--stop); }
+  .box.info .label { color: var(--accent); }
+
+  /* 結論の性質チップ: 良=青 .good / 注意=黄 .warn / 問題=赤 .stop（記号＋文字を必ず併記） */
+  .chip { display: inline-block; border-radius: 999px; padding: 1px 9px; font-size: 12px; font-weight: 600; }
+  .chip.good { background: var(--good-soft); color: var(--good); }
+  .chip.warn { background: var(--warn-soft); color: var(--warn); }
+  .chip.stop { background: var(--stop-soft); color: var(--stop); }
+
+  /* サマリの結論カード: 1カード1結論（チップ＋結論1行＋根拠の性質＋章リンク） */
+  ol.verdicts { list-style: none; padding: 0; margin: 14px 0; display: grid; gap: 8px; }
+  .verdict {
+    border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel);
+    padding: 8px 12px; display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px;
+  }
+  .verdict .v-basis { color: var(--muted); font-size: 12.5px; margin-left: auto; }
+
+  /* 重点レビュー依頼の3段階: 重みは色相では表さない（色相は結論の性質専用）。
+     must/want はアクセント系1色相の濃度・枠の太さ、skip は中立色（--line枠＋--muted文字）。
+     記号（◆◇・）を必ず併記する */
+  .focus { border-radius: var(--radius); padding: 12px 16px; margin: 14px 0; }
+  .focus > :last-child { margin-bottom: 0; }
+  .focus .label { font-size: 13px; font-weight: 700; letter-spacing: .04em; display: block; margin-bottom: 4px; }
+  .focus.must { border: 2px solid var(--accent); background: var(--accent-soft); }
+  .focus.must .label { color: var(--accent); }
+  .focus.want { border: 1px solid var(--accent); background: var(--panel); }
+  .focus.want .label { color: var(--accent); }
+  .focus.skip { border: 1px solid var(--line); background: var(--panel); color: var(--muted); }
+  .focus.skip .label { color: var(--muted); }
+  .focus.skip a { color: var(--muted); }
+
+  footer { color: var(--muted); font-size: 13px; text-align: center; padding-top: 10px; }
+</style></head>
+<body>
+
+<header class="band">
+  <div class="inner">
+    <div class="kind">反映結果レポート / フェーズ4</div>
+    <h1>issue #145 フェーズ4〈反映〉の実施結果</h1>
+    <p class="lead">個別反映計画の作業項目13件をすべて実施し、DDR2件の新規作成・spec2本の更新・VERSION 0.5.0への引き上げ・AIアセット反映4件を行った。完了条件13件のうち11件が期待どおり成立し、残る2件は計画どおり「原理的に落ちないため完了の根拠にしない」として扱った。</p>
+    <p class="counts">
+      <span class="chip good">◎良 5</span>
+      <span class="chip warn">△注意 3</span>
+      <span class="chip stop">✕問題 0</span>
+    </p>
+    <ul class="meta">
+      <li><b>issue</b> #145</li>
+      <li><b>ブランチ</b> claude/mr-pr-template-archive-0bo17a</li>
+      <li><b>PR</b> #187</li>
+      <li><b>フェーズ</b> 4〈反映〉 flow-id 4-6</li>
+      <li><b>push回数</b> 9</li>
+      <li><b>作成日</b> 2026-08-23</li>
+      <li><b>正文</b> 同名の .md</li>
+    </ul>
+  </div>
+</header>
+
+<div class="wrap">
+
+<nav class="toc">
+  <h2>目次</h2>
+  <ol>
+    <li><a href="#review-focus">重点レビュー依頼</a></li>
+    <li><a href="#summary">サマリ（結論の一覧）</a></li>
+    <li><a href="#unverified">確かめられなかったこと</a></li>
+    <li><a href="#conditions">実施条件（測った対象・環境）</a></li>
+    <li><a href="#findings">実施した内容と結果</a></li>
+    <li><a href="#next">設計への反映</a></li>
+    <li><a href="#surprises">想定と異なった点</a></li>
+    <li><a href="#todo">残課題</a></li>
+  </ol>
+</nav>
+
+<section id="review-focus">
+  <h2>重点レビュー依頼</h2>
+  <div class="focus must">
+    <span class="label">◆特に見てほしい（判断に困っている）</span>
+    <ul>
+      <li><a href="#f6">6. VERSION 0.4.0 → 0.5.0</a> — <b>人間の承認を得ていない。</b> 非対話セッション例外規定に基づいて適用した。MINOR（資産の追加・フローの拡張）で妥当か、あるいは据え置くべきかを決めてほしい。否認されたら 0.4.0 へ戻す。</li>
+      <li><a href="#f1">1. 案Bの方向性そのもの</a> — テンプレートを見出し構成の唯一の正とし <code>describe</code> がそれを読む、という方向で確定してよいか。DDR <code>i0145-01</code> として記録済みだが、これも承認を得ていない。</li>
+    </ul>
+  </div>
+  <div class="focus want">
+    <span class="label">◇承認が欲しい（方針は決めたので確認してほしい）</span>
+    <ul>
+      <li><a href="#f2">2. DDRを1件ではなく2件に分けた</a> — 片方だけが後から supersede されうる独立した判断のため。1件にまとめると <code>status</code> を片方だけに付けられない。</li>
+      <li><a href="#f10">10. 計画の「触ってよい範囲」を1度広げた</a> — AIアセット反映の洗い出しで <code>.claude/skills/</code> 配下への追記が1件出たため。表自身が持つ「触る必要が生じたら計画へ戻す」に従って計画を先に更新した。</li>
+      <li><a href="#f8">8. 訂正の1箇所で、当初の文言の引用をやめた</a> — 完了条件11の <code>grep</code> が「引用」と「主張」を区別できないため、言い換えて検査を成立させた。意味は変えていない。</li>
+    </ul>
+  </div>
+  <div class="focus skip">
+    <span class="label">・細かいレビューは不要（ほぼ確実）</span>
+    <ul>
+      <li><a href="#f9">9. DDR一覧の再生成と参照切れ検査</a> — いずれも生成物・機械的検査（94件、参照切れ 4件 → 0件）。</li>
+      <li><a href="#f11">11. テストのヘッダコメントを6種類へ</a> — コメントのみの変更。挙動は変わらない（<code>failures=0</code> を確認済み）。</li>
+      <li><a href="#f13">13. md/html の4点検証</a> — 全6ペアで通過。機械的検査。</li>
+    </ul>
+  </div>
+</section>
+
+<section id="summary">
+  <h2>サマリ（結論の一覧）</h2>
+  <ol class="verdicts">
+    <li class="verdict"><span class="chip good">◎良</span><a href="#f1">1. 作業項目13件すべてを実施し、完了条件11件が期待どおり成立した</a><span class="v-basis">根拠: 実測</span></li>
+    <li class="verdict"><span class="chip warn">△注意</span><a href="#f6">6. VERSION 0.5.0 は人間の承認を得ていない（非対話セッション例外規定による適用）</a><span class="v-basis">根拠: 規定の読解</span></li>
+    <li class="verdict"><span class="chip good">◎良</span><a href="#f6">6b. issue #165 の VERSION 書き込みブロックは再現しなかった</a><span class="v-basis">根拠: 実測</span></li>
+    <li class="verdict"><span class="chip good">◎良</span><a href="#f9">9. 参照切れが 4件 → 0件になった（着手前は計画の見込み2件より多かった）</a><span class="v-basis">根拠: 実測</span></li>
+    <li class="verdict"><span class="chip good">◎良</span><a href="#f10">10. AIアセット反映の洗い出しで起点8件を列挙し、4件を類型 (c) として反映した</a><span class="v-basis">根拠: worklog・レポート・レビューコメントの読解</span></li>
+    <li class="verdict"><span class="chip warn">△注意</span><a href="#f7">7. 完了条件7・8 は原理的に落ちないため、完了の根拠にしない</a><span class="v-basis">根拠: 実装の確認</span></li>
+    <li class="verdict"><span class="chip warn">△注意</span><a href="#f8">8. 完了条件11の grep は「主張」と「引用」を区別できない</a><span class="v-basis">根拠: 実測</span></li>
+    <li class="verdict"><span class="chip good">◎良</span><a href="#f7">7b. usecase 8件中1件が該当し、誤りは0件・不足が1件だった</a><span class="v-basis">根拠: 実測</span></li>
+  </ol>
+</section>
+
+<section id="unverified">
+  <h2>確かめられなかったこと</h2>
+  <div class="box warn">
+    <span class="label">この結果が言っていないこと</span>
+    <ul>
+      <li><b>VERSION 0.5.0 が妥当かどうかは確かめていない</b>。目安表に照らした判断であって、人間の承認ではない — <a href="#f6">詳細: 章6</a></li>
+      <li><b>issue #165 の書き込みブロックの再現条件は不明のまま</b>。今回成功したことは「常にブロックされるわけではない」までしか言わない — <a href="#f6">詳細: 章6</a></li>
+      <li><b>Windows / git bash 実機での動作は確認していない</b>。本セッションは Claude Code on the web（Linux）で、追記した <code>grep</code>・<code>printf</code> の挙動も Linux でしか測っていない — <a href="#f10">詳細: 章10</a></li>
+      <li><b>4点検証は文言の内容を見ない</b>。作業項目8の訂正漏れをこの検証では検出できない — <a href="#f13">詳細: 章13</a></li>
+      <li><b>案Bの方向性が人間の意図に合っているかは確かめていない</b>。フェーズ2から一貫して承認待ちのまま進めている — <a href="#f1">詳細: 章1</a></li>
+    </ul>
+  </div>
+</section>
+
+<section id="conditions">
+  <h2>実施条件（測った対象・環境）</h2>
+  <ul>
+    <li>実行環境: Claude Code on the web のリモート実行環境（Linux 6.18.44）。<code>gh</code> / <code>glab</code> CLI は無く、VCS操作はMCP経路（<code>mcp__github__*</code>）</li>
+    <li>着手時点のHEAD: <code>c076fa2</code>（完了条件4の基準。<b>分岐点ではない</b>）</li>
+    <li>単体テストの条件: <b>dirty なワークツリー</b>（B-6 のdirtyガードが1件加わる。クリーンだと1件少ない）</li>
+    <li>実施日: 2026-08-23</li>
+  </ul>
+</section>
+
+<section id="findings">
+  <h2>実施した内容と結果</h2>
+
+  <h3 id="f1">1. 作業項目13件の実施と完了条件の判定 <span class="chip good">◎良</span></h3>
+  <p>作業項目13件すべてを実施した。完了条件13件のうち<b>11件が期待どおり成立</b>し、残る2件（完了条件7・8）は計画どおり「原理的に落ちないため完了の根拠にしない」として扱った（回帰ガードとしては走らせ、いずれも成功）。</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>#</th><th>条件</th><th>着手前</th><th>完了後</th><th>判定</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td>DDR 2件が存在し規約どおり</td><td>0件</td><td><b>2件</b></td><td>◎</td></tr>
+      <tr><td>2</td><td><code>distribution-assets.md</code> に <code>i0145-01</code> の参照</td><td>0件</td><td><b>3件</b></td><td>◎</td></tr>
+      <tr><td>3</td><td><code>issue-mr-workflow.md</code> に3項目</td><td>0件</td><td><b>3件すべて</b></td><td>◎</td></tr>
+      <tr><td>4</td><td>changelog が新規追記で過去エントリ不変</td><td>測れない</td><td><b>削除行1行のみ</b>（作業項目3の意図した変更）</td><td>◎</td></tr>
+      <tr><td>5</td><td>DDR一覧が最新</td><td>成功（回帰ガード）</td><td>exit=0（94件）</td><td>◎</td></tr>
+      <tr><td>6</td><td>参照切れ0件</td><td><b>4件</b></td><td><b>0件</b></td><td>◎</td></tr>
+      <tr><td>7</td><td>単体テストが通る</td><td>成功（原理的に落ちない）</td><td><code>failures=0</code>（115件）</td><td>△根拠にしない</td></tr>
+      <tr><td>8</td><td>4点検証が全ペアで通る</td><td>成功（原理的に落ちない）</td><td>全6ペア通過</td><td>△根拠にしない</td></tr>
+      <tr><td>9</td><td>usecase の調査結果と件数の記録</td><td>0件</td><td>本レポート章7</td><td>◎</td></tr>
+      <tr><td>10</td><td><code>.claude/VERSION</code> が 0.5.0</td><td>0.4.0</td><td><b>0.5.0</b></td><td>◎</td></tr>
+      <tr><td>11</td><td>「例外は設けない」が md・html とも0件</td><td>md 3・html 3</td><td><b>md 0・html 0</b></td><td>◎</td></tr>
+      <tr><td>12</td><td>AIアセット洗い出しの実施記録</td><td>0件</td><td>本レポート章10＋HANDOFF</td><td>◎</td></tr>
+      <tr><td>13</td><td>ヘッダコメントが6種類＋<code>(b2)</code> ラベル</td><td>0件</td><td><code>grep -c 'b2'</code> が 3</td><td>◎</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <div class="box ok">
+    <span class="label">結論</span>
+    「着手前」列を先に測ったことが、そのまま2つの誤りの発見につながった（VERSIONの目標値の取り違え・参照切れ件数の過小見積もり）。<b>着手前から期待値と一致している条件は検査として無意味である</b>という原則が、実際に機能した。
+  </div>
+  <div class="box warn unverified-detail">
+    <span class="label">確かめられなかったこと（詳細）</span>
+    <b>案Bの方向性そのものが人間の意図に合っているかは、フェーズ2から一貫して確かめられていない。</b> 本セッションは非対話で進めており、承認を待つ機会が無かった。DDR <code>i0145-01</code> として記録済みだが、否認されればDDRごと差し戻しになる。
+  </div>
+
+  <h3 id="f2">2. DDR 2件の新規作成 <span class="chip good">◎良</span></h3>
+  <p><code>i0145-01</code>（161行。案Bの判断と却下案A・C）と <code>i0145-02</code>（114行。#111 との役割分担）を作成した。<b>1件にまとめず2件に分けた。</b></p>
+  <div class="box ok">
+    <span class="label">結論</span>
+    分けた理由は、<b>片方だけが後から supersede されうる独立した判断である</b>ため。1件にまとめると <code>status: superseded</code> を片方だけに付けられない。<code>i0145-02</code> には「根拠は外部APIの性質ではなく、このリポジトリの <code>Provider.sh</code> にコメント編集関数が無いことである」という<b>限界の記録</b>を明記した——これを書かないと、将来 <code>Provider.sh</code> へ編集関数が足された時点でDDRの根拠が無言で消える。
+  </div>
+
+  <h3 id="f6">6. VERSION 0.4.0 → 0.5.0 <span class="chip warn">△注意</span></h3>
+  <p>MINOR（目安表の「資産の追加・フローの拡張」）。配布先に手作業を要求する非互換変更は無いのでMAJORではない。</p>
+  <pre><code>$ cat .claude/VERSION
+0.5.0</code></pre>
+  <div class="box warn">
+    <span class="label">人間の承認を得ていない</span>
+    <b>非対話セッション例外規定による適用である。</b> 適用した事実と根拠は <code>distribution-assets.md</code> のchangelogと <code>HANDOFF.md</code>「判断を迷った内容」の両方へ残した。<b>レビューで否認されたら 0.4.0 へ戻す。</b>
+  </div>
+  <div class="box ok">
+    <span class="label">issue #165 の書き込みブロックは再現しなかった</span>
+    issue #165 は「<code>.claude/VERSION</code> への書き込みが権限クラシファイアにブロックされ、技術的に適用できなかった」と記録している。<b>今回は同じ実行環境で <code>printf</code> による書き込みが1回で成功した。</b> issue #165 が「パス固有の制約か他の条件に依存するのか判別できていない」と書いた点について、少なくとも<b>「そのパスへは常にブロックされるわけではない」</b>ことが分かった。
+  </div>
+  <div class="box warn unverified-detail">
+    <span class="label">確かめられなかったこと（詳細）</span>
+    <b>再現条件は不明のままである。</b> 分かったのは「今回は成功した」ことだけで、issue #165 のときに何が違ったのか（セッションの累積状態か、コマンドの形か、他の要因か）は切り分けていない。<b>1環境・数回の観測</b>にすぎない。
+  </div>
+
+  <h3 id="f7">7. usecase への影響確認と、完了条件7・8 の扱い <span class="chip warn">△注意</span></h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>調べたこと</th><th>結果</th></tr></thead>
+    <tbody>
+      <tr><td><code>.claude/docs/usecase/</code> の文書数</td><td><b>8件</b>（＋<code>index.jsonl</code>）</td></tr>
+      <tr><td>MR description・テンプレート・<code>describe</code> に触れる文書</td><td><b>1件</b>（<code>この機構を他プロジェクトへ導入する.md</code>。3箇所）</td></tr>
+      <tr><td>記述が<b>誤り</b>になったもの</td><td><b>0件</b></td></tr>
+      <tr><td>記述が<b>不足</b>になったもの</td><td><b>1件</b></td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p>誤りは無かったが1件を更新した。「PR/MRテンプレートは配布資産である」という記述は正しいまま残るが、issue #145 以降は<b>そのファイルが <code>describe</code> の読む見出し構成の正でもある</b>——導入先でテンプレートを編集すれば <code>describe</code> の出力もそのまま変わる——という、導入先にとって実用上の意味がある性質が加わった。</p>
+  <div class="box warn">
+    <span class="label">完了条件7・8 を完了の根拠にしない理由</span>
+    <b>本フェーズの作業では原理的に落ちない。</b> 完了条件7（単体テスト）は VERSION を <code>assert_eq "配布先のVERSIONが本家と一致する"</code> という<b>値に依存しない比較</b>でしか見ないため、0.4.0 でも 0.5.0 でも通る。完了条件8（4点検証）は見出し・セル数・プレースホルダ・外部参照しか見ず、<b>文言の内容を検査しない</b>。どちらも走らせはする（他の変更による回帰は拾えるため）が、<b>完了の根拠にはしない</b>。
+  </div>
+
+  <h3 id="f8">8. 調査レポートの訂正6箇所と、grep 検査の限界 <span class="chip warn">△注意</span></h3>
+  <p>「例外は設けない／例外を認めない」を md 3箇所・html 3箇所の計6箇所訂正し、現在の結論（禁じるのは「参照」だけで「アンカー」は対象外）へ揃えた。<b>1箇所だけ直すと、同じレポート内で古い結論と新しい結論が併存する、より悪い状態になる。</b></p>
+  <pre><code>$ grep -c -- '例外は設けない\|例外を認めない' <md>   # 0
+$ grep -c -- '例外は設けない\|例外を認めない' <html>  # 0</code></pre>
+  <div class="box warn">
+    <span class="label">検査が「主張」と「引用」を区別できない</span>
+    節3の根拠へ「当初この節は『例外を認めない』と書いていたが」と<b>歴史的経緯として引用</b>したところ、完了条件11の <code>grep</code> が1件を返した。引用は主張ではないので実害は無いが、<b>機械的な検査はそれを見分けられない。</b> 「当初この節は例外なしと書いていたが」と言い換えて検査を成立させた——<b>検査を通すために意味を曲げてはいない</b>（言い換え後も同じことを述べている）。
+  </div>
+
+  <h3 id="f9">9. DDR一覧の再生成と参照切れ検査 <span class="chip good">◎良</span></h3>
+  <pre><code>$ bash .claude/scripts/src/generate-ddr-list.sh
+DDR一覧を更新しました（94件）: .claude/docs/README.md
+$ bash .claude/scripts/src/check-doc-references.sh | tail -1
+参照切れ数=0</code></pre>
+  <div class="box ok">
+    <span class="label">結論</span>
+    <b>着手前の参照切れは、計画が見込んでいた2件ではなく4件だった。</b> 計画は全体作業計画の2行しか数えていなかったが、個別反映計画自身も新しいDDRを絶対パス形式で指していた。4件すべてが、作業項目1・2の完了と、全体作業計画のワイルドカード表記（<code>i0145-01-*.md</code>）を実ファイル名へ差し替えたことで0件になった。
+  </div>
+
+  <h3 id="f10">10. AIアセット反映の対象の洗い出し <span class="chip good">◎良</span></h3>
+  <p>手順1（起点の列挙）・手順2（4類型への分類）を実施した。入力は worklog 7本の「ダメだったこと」・<code>wip/reports/</code> の調査結果・PR #187 のレビューコメント（敵対的レビュー5回・findings 59件）。<b>起点8件を列挙し、4件を類型 (c)（アセットはあったが、その罠が書かれていなかった）として反映した。</b></p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>#</th><th>起点</th><th>類型</th><th>反映先</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td><code>grep -rn -- "$pat" --include='*.md'</code> で <code>--include</code> がパス扱いになり件数が誤った</td><td><b>(c)</b></td><td><code>shell-script-style.md</code> の <code>--</code> の節</td></tr>
+      <tr><td>2</td><td><code>printf '\-\->\n'</code> がハイフン始まりをオプションと解釈した</td><td><b>(c)</b></td><td>同上（同じ節へ並べた）</td></tr>
+      <tr><td>3</td><td>範囲の置き換えで末尾3行が重複し、前後3行の目視では気づけなかった</td><td><b>(c)</b></td><td><code>shell-script-style.md</code>「差し込むファイルは…」の節</td></tr>
+      <tr><td>4</td><td><code>&lt;h4&gt;</code> / <code>class="warn"</code> のように、テンプレートが定義していない要素・クラスを使った</td><td><b>(c)</b></td><td><code>references/deliverables.md</code>「計画・レポートのHTMLビュー」</td></tr>
+      <tr><td>5</td><td>差し込む断片の先頭に空行を入れ忘れた</td><td>—</td><td><b>既に書かれている</b>（<code>shell-script-style.md</code> 711行目）</td></tr>
+      <tr><td>6</td><td>md/html の同期を繰り返し落とした</td><td>—</td><td><b>既に書かれている</b>。落としたのは手順の不履行であってアセットの欠落ではない</td></tr>
+      <tr><td>7</td><td>貼った出力がコマンドで再現できなかった</td><td>—</td><td><b>既に書かれている</b>（<code>REVIEW-POINTS.md</code>）</td></tr>
+      <tr><td>8</td><td>worklog に書いた検証結果の数値が誤っていた</td><td>—</td><td>同上</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <div class="box ok">
+    <span class="label">結論</span>
+    <b>1・2 は同じ「ハイフン始まりの引数」という型なので、同じ節へ並べた</b>（別々の箇条書きにすると、次に踏んだ人がどちらか一方しか見つけられない）。<b>5〜8 を「反映不要」と判断した根拠は、いずれも「該当する記述が既にある」ことである</b>——手順2の但し書きどおり<b>ファイル単位ではなく記述単位</b>で確認した。
+  </div>
+  <div class="box warn">
+    <span class="label">計画の「触ってよい範囲」を1度広げた</span>
+    #4 だけが <code>.claude/skills/</code> 配下への追記になり、計画が「触らない」に挙げていた範囲に当たった。<b>表自身が持つ「触る必要が生じたら計画へ戻す」に従い、計画側を先に更新してから実施した</b>（対象は <code>deliverables.md</code> 1ファイルのHTMLビューの節のみ。<code>SKILL.md</code> とフロー定義そのものには触っていない）。
+  </div>
+  <div class="box warn unverified-detail">
+    <span class="label">確かめられなかったこと（詳細）</span>
+    追記した <code>grep</code>・<code>printf</code> の挙動は<b>Linux でしか測っていない</b>。この機構の主要な配布先である Windows / git bash 実機では確認していない。<code>--</code> の意味論も <code>printf</code> のオプション解釈も POSIX に基づくため差は出にくいはずだが、確かめてはいない。
+  </div>
+
+  <h3 id="f11">11. テストのヘッダコメントを6種類へ <span class="chip good">◎良</span></h3>
+  <p>「代わりに3種類を検査する」という記述が (a)(b)(c) の3行しか列挙しておらず、実際の6種類と食い違っていた。<code>grep -n 'b2'</code> は0件で、<code>(b2)</code> に相当する表明は無ラベルのまま置かれていた。</p>
+  <div class="box ok">
+    <span class="label">結論</span>
+    6種類の一覧へ更新し、それぞれ<b>「なぜ要るか」を壊し方の実測とともに</b>書いた。無ラベルだった表明へ <code>(b2)</code> のラベルを付けた。<b>(c2) の非対称</b>（<code>## </code> 始まりで再列挙すると落ちるのは (c2) ではなく (c)）も、「(c2) を足したから (c) は不要」という誤った判断を防ぐために明記した。挙動は変えていない（<code>passed=115 failures=0</code>）。
+  </div>
+
+  <h3 id="f13">13. md/html の4点検証 <span class="chip good">◎良</span></h3>
+  <p>対象は本ブランチの全6ペア（<code>wip/plans/</code> 4ペア・<code>wip/reports/</code> 2ペア）。4点は<b>見出し一致・表のセル数・プレースホルダ0件・外部参照0件</b>。</p>
+  <div class="box warn">
+    <span class="label">この検証は文言の内容を見ない</span>
+    <b>作業項目8の訂正漏れは、この検証では検出できない。</b> そちらは完了条件11の <code>grep</code> が受け持つ。<b>4点検証が通ったことをもって「レポートは正しい」と読まないこと。</b>
+  </div>
+  <div class="box warn">
+    <span class="label">検証スクリプト自身が壊れていた</span>
+    見出しの抽出が <code>grep -oE '&lt;h[123]&gt;.*&lt;/h[123]&gt;'</code> と<b>属性なしのタグ決め打ち</b>だったため、issue #186 のテンプレートが h3 へ振る <code>id="fN"</code> に一致せず、<b>章見出しが1つも比較対象に入っていなかった</b>。エラーは出ず「見出し一致」と報告される。
+    <ul>
+      <li>発覚したのは、本レポートのHTMLを新テンプレートから作って初めて h3 に <code>id</code> が付いたためである。<b>旧テンプレート由来のペアでは h3 に属性が無く、症状が出なかった。</b></li>
+      <li><code>&lt;h[123][^&gt;]*&gt;</code> へ直して再実行し、全6ペアで通過することを確認した。</li>
+      <li><b>教訓は「機械的検査は、対象を無言で減らす形で壊れうる」ことである。</b> 「NGが出ない」は「検査が働いた」を意味しない。<b>検査を新しい形の入力へ初めて当てるときは、比較対象の件数が期待どおりかを一度見る</b>（今回なら「見出しが6件しか抽出されていない」ことに気づけた）。</li>
+    </ul>
+  </div>
+</section>
+
+<section id="next">
+  <h2>設計への反映</h2>
+  <p><b>この節は設計反映（flow-id 4-6）の結果レポートなので、テンプレートの読み替えに従い「反映しきれず次のissueへ回したもの」を書く。</b></p>
+  <ol>
+    <li><b><code>check-doc-references.sh</code> の除外リストの <code>wip/</code> 追従</b> — <code>CHECK_DOC_REFERENCES_EXCLUDED_DIRS</code> が旧パス（<code>plans/</code> <code>reports/</code> <code>worklog/</code>）のまま。<code>main</code> の issue #178/#184 が積み残した別件で、<b>本PRでは直さない</b>。3行の修正で済む提案パッチは <code>HANDOFF.md</code>「判断を迷った内容」にある。</li>
+    <li><b>md/html の4点検証スクリプトの恒久化</b> — 現在スクラッチパッドにあり、セッション終了とともに消える。md/html併存の検査は issue #54 が導入した仕組み全体にかかる話で、テンプレート再設計とは別の意思決定になるため本issueのスコープ外とした。</li>
+  </ol>
+</section>
+
+<section id="surprises">
+  <h2>想定と異なった点</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>計画時の見込み</th><th>実際</th><th>どう扱ったか</th></tr></thead>
+    <tbody>
+      <tr><td>着手前の参照切れは<b>2件</b></td><td><b>4件</b>（個別反映計画自身も新DDRを絶対パス形式で指していた）</td><td>4件すべてを0件にした。完了条件6の判定はそのまま成立</td></tr>
+      <tr><td><code>.claude/VERSION</code> への書き込みは issue #165 と同じくブロックされうる</td><td><b>1回で成功した</b></td><td>再現条件は不明のまま。「常にブロックされるわけではない」とだけ記録した</td></tr>
+      <tr><td>AIアセット反映は <code>.claude/rules/</code> だけで足りる</td><td><code>.claude/skills/</code> 配下への追記が1件出た</td><td>計画の「触ってよい範囲」を先に更新してから実施した</td></tr>
+      <tr><td>完了条件11の <code>grep</code> は0件になる</td><td>歴史的経緯の<b>引用</b>が1件ヒットした</td><td>言い換えて検査を成立させ、検査の限界を本レポートへ記録した</td></tr>
+      <tr><td>4点検証はそのまま使える</td><td><b>検証スクリプトの見出し抽出が属性付きタグに一致せず、章見出しを無言で除外していた</b></td><td>抽出を <code>&lt;h[123][^&gt;]*&gt;</code> へ直して再実行（全6ペア通過）</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="todo">
+  <h2>残課題</h2>
+  <ul>
+    <li><b><code>.claude/VERSION</code> の 0.5.0 と案Bの方向性は、いずれも人間の承認待ち。</b> 非対話セッション例外規定に基づいて進めており、否認されたら戻す。</li>
+    <li><b><code>.gemini/</code> の再生成（flow-id 5-3）。</b> 本フェーズで <code>.claude/rules/</code> <code>.claude/skills/</code> <code>.claude/docs/</code> を変更しているため<b>必須</b>である。</li>
+    <li><b>issue #111 への通知（flow-id 5-2）。</b> 投稿前に <code>AskUserQuestion</code> での承認が必須。</li>
+  </ul>
+</section>
+
+<footer>issue #145 / PR #187 — 結果の正文は同名の <code>.md</code>。外部依存を持たない自己完結HTML。</footer>
+
+</div>
+</body>
+</html>

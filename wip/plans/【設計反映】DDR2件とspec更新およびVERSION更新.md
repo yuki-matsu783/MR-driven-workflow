@@ -22,9 +22,15 @@ flow-id 5-5 で消える前に、**恒久的に残すべき判断と仕様を `.
 | 操作 | 対象 |
 |---|---|
 | 新規作成 | `.claude/docs/ddr/` 2件 |
-| 変更 | `.claude/docs/spec/` 2本、`.claude/VERSION`、`.claude/scripts/test/test_install_to_project.sh`（ヘッダコメントのみ）、`wip/reports/` の訂正、`.claude/rules/shell-script-style.md`（作業項目10の結果しだい） |
+| 変更 | `.claude/docs/spec/` 2本、`.claude/VERSION`、`.claude/scripts/test/test_install_to_project.sh`（ヘッダコメントのみ）、`wip/reports/` の訂正、`.claude/rules/shell-script-style.md` と `.claude/skills/issue-mr-flow/references/deliverables.md`（いずれも作業項目10の結果しだい。下記） |
 | 再生成 | `.claude/docs/README.md`（`generate-ddr-list.sh`） |
-| **触らない** | `.github/` `.gitlab/` `.claude/skills/` `.claude/scripts/src/`（触る必要が生じたら計画へ戻す） |
+| **触らない** | `.github/` `.gitlab/` `.claude/scripts/src/`（触る必要が生じたら計画へ戻す） |
+
+**この表は flow-id 4-6 の実施中に1度更新した。** 当初 `.claude/skills/` も「触らない」に
+入れていたが、作業項目10（AIアセット反映の洗い出し）の結果、`references/deliverables.md` へ
+追記すべき類型 (c) が1件出たため、**表の「触る必要が生じたら計画へ戻す」に従って範囲を広げた**
+（対象は `.claude/skills/issue-mr-flow/references/deliverables.md` の1ファイル・HTMLビューの
+節のみ。`SKILL.md` とフロー定義そのものには触っていない）。
 
 ## 何を残すか（残す／残さないの線引き）
 

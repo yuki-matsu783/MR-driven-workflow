@@ -140,8 +140,13 @@ issue本文は後から編集されうるため、着手時点の前提をここ
 反映対象は flow-id 4-1 で洗い出す。現時点の見込みは次のとおり（確定ではない）。
 
 - `.claude/docs/spec/issue-mr-workflow.md` — テンプレートの位置づけ・#111 との役割分担
-- `.claude/docs/ddr/i0145-01-*.md` — 二重管理の解消方式の判断と却下案
-- `.claude/docs/ddr/i0145-02-*.md` — #111 との役割分担の判断（1件にまとまるなら01へ含める）
+- `.claude/docs/ddr/i0145-01-MR_PRテンプレートを見出し構成の唯一の正としdescribeが読む.md` —
+  二重管理の解消方式の判断と却下案（**flow-id 4-6 で作成済み。** 起票時は `i0145-01-*.md` という
+  ワイルドカードで書いていたが、`check-doc-references.sh` はこれを実在しない参照として数えるため、
+  作成後に実ファイル名へ差し替えた）
+- `.claude/docs/ddr/i0145-02-MR_descriptionと統括レポートのサマリコメントは併存させる.md` —
+  #111 との役割分担の判断（**flow-id 4-6 で作成済み。1件へまとめず2件に分けた**——片方だけが
+  後から supersede されうる独立した判断のため）
 - `.claude/docs/usecase/` — MR descriptionに触れる記述があれば更新
 - issue #111 への通知（受け入れ条件。flow-id 5-2 で行う）
 
