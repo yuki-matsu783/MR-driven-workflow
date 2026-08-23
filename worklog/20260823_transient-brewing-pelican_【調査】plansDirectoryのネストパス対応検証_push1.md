@@ -15,18 +15,29 @@ push回数: 1
 
 ## 試したこと
 
-- （これから記載）
+- `.claude/settings.json` の `plansDirectory: "./wip/plans"` が設定された状態で
+  `EnterPlanMode` を呼び出し、"Plan File Info" に提示される計画ファイルパスを確認した。
+- 提示されたパス（`wip/plans/glimmering-dancing-penguin.md`）へ検証用のダミー内容を書き、
+  `ExitPlanMode` でユーザーの承認を得た。
+- 承認後に `ls -la` で実ファイルの存在を確認し、`plans/` 直下（ネスト前の旧既定値相当）へは
+  誤って作成されていないことも確認した。
 
 ## うまくいったこと
 
-- （これから記載）
+- `plansDirectory` のネストパス（`./wip/plans`）は実際に機能することを確認した。ハーネスが
+  提示したパスは `wip/plans/<自動命名>.md` であり、`plans/<自動命名>.md` へのフォールバックは
+  発生しなかった。詳細は `reports/20260823_transient-brewing-pelican_plansDirectoryネストパス検証.md`
+  を参照。
 
 ## ダメだったこと
 
-- （これから記載）
+- （無し）
 
 ## 次の一歩
 
-- （これから記載）
+- 検証用ダミーファイル（`wip/plans/glimmering-dancing-penguin.md`）は削除済み。
+- `.gemini/settings.json` の `general.plan.directory` について、記法上の妥当性確認を別途行う
+  （実行環境にGemini CLIが無いため実機検証は対象外）。
+- 個別調査計画に対する敵対的レビューへ進む。
 
 ---

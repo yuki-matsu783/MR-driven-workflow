@@ -39,7 +39,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 | [] | 2-3 | （人間レビュー省略。敵対的レビューで代替済み） |
 | [] | 2-4 | （人間レビュー省略。敵対的レビュー指摘への対応は計画へ反映済み） |
 | [] | 2-5 | 調査計画でMR description更新 |
-| [] | 2-6 | 調査実施（plansDirectoryネストパス実機検証。新規セッションで検証中） |
+| [x] | 2-6 | 調査実施（plansDirectoryネストパス実機検証。新規セッションで「機能する」ことを確認） |
 | [] | 2-7 | commit・push・レビュー依頼 |
 | [] | 2-8 | （人間レビュー省略予定） |
 | [] | 2-9 | （人間レビュー省略予定。敵対的レビューで代替） |
@@ -89,14 +89,20 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
   不一致。いずれも計画へ反映済み。
 - 事前調査で `cleanup-task.sh` の `KEEP_PATHS` がハードコードされたリテラルパスであり、
   `worklogDir` 変更後に `TEMPLATE.md` が誤削除されるリスクを発見（フェーズ3で対応予定）。
-- plansDirectoryのネストパス実機検証のため、新規の使い捨てセッション（session_01A48PeEHLHrnXihSbMdmvnw）
-  を起動し、`.claude/settings.json`の`plansDirectory: "./wip/plans"`が実際に機能するかを検証中。
+- plansDirectoryのネストパス実機検証のため、新規の使い捨てセッション
+  （session_01A48PeEHLHrnXihSbMdmvnw）を起動し検証を実施した。**結論: `.claude/settings.json`の
+  `plansDirectory: "./wip/plans"`（ネストしたパス）は実際に機能する。** 新規セッションで
+  `EnterPlanMode`を呼んだところ、提示された計画ファイルパスは `wip/plans/<自動命名>.md` であり、
+  `plans/<自動命名>.md`へのフォールバックは発生しなかった。検証用ダミーファイルは削除済み。
+  詳細は `reports/20260823_transient-brewing-pelican_plansDirectoryネストパス検証.md`。
 
 ## 次にやること
 
-- 新規セッションでのplansDirectoryネストパス検証結果を確認する。
-- 検証結果を`reports/`へ記録し、結論に応じてフェーズ3（設計・実装）へ進む。ネストパスが
-  機能しない場合は実装を進めず、代替案を人間へ提示して判断を仰ぐ。
+- 検証用セッション（session_01A48PeEHLHrnXihSbMdmvnw）をアーカイブする。
+- 調査結果（reports/）に対する敵対的レビューを実施し、指摘へ対応する。
+- `.gemini/settings.json` の `general.plan.directory` について、記法上の妥当性確認を行う
+  （Gemini CLIが本実行環境に無いため実機検証は対象外）。
+- ネストパス対応が確認できたため、フェーズ3（設計・実装）へ進む準備をする。
 
 ## 判断を迷った内容
 
