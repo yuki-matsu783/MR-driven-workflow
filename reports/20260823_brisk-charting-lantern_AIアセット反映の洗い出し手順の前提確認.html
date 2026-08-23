@@ -510,6 +510,14 @@ declare -a ALWAYS_OVERWRITE_RELPATHS=(
 <h2>残課題</h2>
 <ul>
 <li><b>配布経路が上流の削除を伝播しない件</b>（Q8）。<b>版を上げても実害（配布先に旧アセットが残り、 新旧が両方読まれる）は解消しない。</b> これは外部の制約ではなく<b>このリポジトリの配布スクリプトの 仕様</b>であり、受け入れるべき制約ではない。本issueの範囲外なので、<b>別issueとして起票することを 提案する</b>（<code>install-to-project.sh</code> の実走確認もそこで行う）。今回の手順に書けるのは注意喚起 までである。</li>
+</ul>
+<p><b>追記（flow-id 5-1 で <code>origin/main</code> を取り込んだ後の再確認）。</b> main が PR #154（issue #26）で 配布をmanifest方式へ作り直し、<b>この残課題の一部が既に解消していた</b>。実測で確かめた差分は次のとおり。</p>
+<p>| Q8時点（分岐点 <code>99fe2f2</code>） | 現在（<code>5dd1a3c</code> 取り込み後） |</p>
+<p>|---|---|</p>
+<p>| 削除・改名は伝播せず、<b>通知もしない</b> | 削除・改名は伝播しないが、<b>一覧で提示する</b>（<code>install-to-project.sh</code> 540・585-586行） |</p>
+<p>| 差に気づく手掛かりは <code>.claude/VERSION</code> だけ | <code>.claude/.asset-manifest.json</code>（<code>source.commit</code> ＋ ファイルごとの sha256）が<b>機械可読な同一性</b>を持つ |</p>
+<p><b>残るのは「配布先のファイルを実際に消す手段が無い」ことだけ</b>である（提示までは行われ、消すかどうかは配布先の人間の判断に委ねる、というのが現在の意図的な設計。仕様: <code>.claude/docs/spec/asset-distribution.md</code>）。<b>別issueの起票は、この縮んだ範囲で提案する</b> （「気づけない」ではなく「気づいたあと自動で片付ける手段が無い」）。</p>
+<ul>
 <li><b><code>.claude/VERSION</code> の増分の決定</b>（人間の判断。flow-id 4-6）。</li>
 <li><b>全体作業計画をplanツールで作らなかったことの承認</b>（人間の判断。flow-id 1-5）。</li>
 </ul>
