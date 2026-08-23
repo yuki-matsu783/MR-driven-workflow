@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # 層分け定義（.claude/dist-layers.json）の網羅性を検査する。
-# 仕様: .claude/docs/spec/distribution-assets.md（issue #26）
+# 仕様: .claude/docs/spec/asset-distribution.md（issue #26）
 set -euo pipefail
 
 readonly DEFAULT_DEF='.claude/dist-layers.json'
