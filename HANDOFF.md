@@ -16,21 +16,21 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 
 - issue: #17
 - ブランチ: `claude/hook-implementation-17-vjhppj`
-- PR: （未作成）
-- push回数: 0
-- 現在のループ: なし
+- PR: #195（Draft・https://github.com/yuki-matsu783/MR-driven-workflow/pull/195 ）
+- push回数: 1
+- 現在のループ: 2-3〜2-4 の1周目（進行中）
 - 未返信スレッド: 0
-- 追従監視: なし
+- 追従監視: あり（`subscribe_pr_activity` でPR #195 を購読。セッション終了で止まるため、次セッションは `resume` で取り直す）
 
 | 進捗 | flow-id | ステップ |
 |---|---|---|
 | [x] | 1-1 | issueを起票する |
 | [x] | 1-2 | issueの内容を取得する |
-| [] | 1-3 | featureブランチとDraft PR/MRを作成する |
+| [x] | 1-3 | featureブランチとDraft PR/MRを作成する |
 | [x] | 1-4 | 全体作業計画を作成する |
 | [] | 1-5 | 全体作業計画に合意する |
 | [x] | 1-6 | 全体作業計画をもとにHANDOFF.mdを更新する |
-| [] | 2-1 | 個別調査計画（md+html）とworklogを作成する |
+| [x] | 2-1 | 個別調査計画（md+html）とworklogを作成する |
 | [] | 2-2 | commitし、pushしてレビュー依頼する |
 | [] | 2-3 | 調査計画をレビューする（非対話のため敵対的レビューで代替） |
 | [] | 2-4 | レビュー内容を取得し調査計画を修正・返信する |
@@ -71,14 +71,20 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 ## やったこと
 
 - flow-id 1-2: issue #17 の本文とコメント（issue #53 によるコマンド位置判定への変更通知）を取得した。
+- flow-id 1-3: Draft PR #195 を作成し、追従監視（PRイベント購読）を開始した。あわせて
+  `check-base-sync.sh` で `main` が1コミット先行していることを検知し、`AskUserQuestion` の承認を得て
+  `git merge origin/main` で取り込んだ（PR #174。`.claude/hooks/post-push-usage-report.sh` 等、
+  本issueの作業範囲と重なる領域を含むため）。
+- flow-id 2-1: 個別調査計画 `wip/plans/【調査】push前チェックリスト機構の設計調査.md`（＋同名の
+  `.html`）と、worklog `wip/worklogs/20260823_…_push2.md` を作成した。
 - flow-id 1-4: 全体作業計画 `wip/plans/steady-guarding-checkpoint.md` と同名の `.html` を作成した。
   **本セッションは非対話**（Claude Code on the web）のため、planツール（Planモード）ではなく
   Write/Editで作成している。
 
 ## 次にやること
 
-- flow-id 1-3: Draft PRを作成する（ユーザーから「PR作って進めて」と明示指示済み）。
-- flow-id 2-1: 個別調査計画 `wip/plans/【調査】…` とworklogを作成する。
+- flow-id 2-2: commit・pushし、敵対的レビュー（フェーズ2・1回目）を実施する。
+- flow-id 2-6: 8つの問いへ答えを出し `wip/reports/` へ記録する。
 
 ## 判断を迷った内容
 
