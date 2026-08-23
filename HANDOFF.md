@@ -17,7 +17,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - issue: #185
 - ブランチ: `claude/improve-commit-log-format-9mjlid`
 - PR: #192（https://github.com/yuki-matsu783/MR-driven-workflow/pull/192 ）（Draft）
-- push回数: 3
+- push回数: 4
 - 現在のループ: 2-6〜2-9 の1周目（完了）
 - 未返信スレッド: 0
 - 追従監視: あり（`subscribe_pr_activity` でPR #192 を購読中。セッション終了で切れるため、次セッションは `resume` で取り直す）
@@ -39,7 +39,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 | [x] | 2-7 | `commit`スキル経由でcommitし、push してレビュー依頼を行う | エージェント |
 | [x] | 2-8 | MRで調査結果についてレビュー・コメントする | 人間 |
 | [x] | 2-9 | レビュー内容を取得し、調査結果を修正する | `comments` / `reply` |
-| [] | 2-10 | 調査結果をもとにMR descriptionを更新する | `describe` |
+| [x] | 2-10 | 調査結果をもとにMR descriptionを更新する | `describe` |
 | [] | 3-1 | 調査結果をもとに、個別作業計画`wip/plans/【設計】【実装】〜.md`等をplanツールを使わずWrite/Editで作成する | エージェント |
 | [] | 3-2 | `commit`スキル経由でcommitし、push してレビュー依頼を行う | エージェント |
 | [] | 3-3 | MRで作業計画についてレビュー・コメントする | 人間 |
