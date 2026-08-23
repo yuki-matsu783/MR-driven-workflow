@@ -59,7 +59,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 | [x] | 4-7 | commitしpushしてレビュー依頼を行う | エージェント |
 | [x] | 4-8 | レビュー・コメントする | 人間 |
 | [x] | 4-9 | レビュー内容を取得し設計・AIアセットの内容を修正する | comments/reply |
-| [] | 4-10 | 反映内容をもとにMR descriptionを更新する | describe |
+| [x] | 4-10 | 反映内容をもとにMR descriptionを更新する | describe |
 | [] | 5-1 | defaultブランチとのコンフリクトを検知・解消する | エージェント |
 | [] | 5-2 | 関連issueへの通知の要否を判定し承認を得てから通知する | エージェント |
 | [] | 5-3 | 最終統括レポートを作成しPR/MRへ反映する | エージェント |
@@ -335,24 +335,37 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
   対応内容を返信した（返信ID3838755576〜3838757259）。返信後、`update-handoff-progress.sh`で
   `set-header --unreplied 0`・`mark-done 4-6`を実行し、進捗表4-6〜4-9を`[x]`にした
   （ループは`4-6〜4-9 の1周目（完了）`）。これでフェーズ4のレビュー往復ループ（計画時1回・
-  作業実施時2回、いずれも敵対的レビュー経由）はすべて完了し、投稿した全スレッドに返信済み。
+  作業実施時1回、計2回。いずれも敵対的レビュー経由。`adversarial-review-count.sh get 4`=2、
+  上限3のうち1回分の余地あり）はすべて完了し、投稿した全スレッドに返信済み。
+
+- flow-id 4-8/4-9後: 上記HANDOFF更新＋worklog追記を`commit`スキル経由でcommit（`398ffb2`）
+  ・push16した。
+
+- flow-id 4-10: MR #174のdescriptionを、フェーズ4の反映結果（新規spec・DDR2本・既存spec
+  4本更新・SKILL.md更新・敵対的レビュー2往復の対応内容）を追加する形で更新した
+  （`## 反映結果`節を新設し`## 実装状況`を「フェーズ4完了、次はフェーズ5」へ更新）。
 
 ## 次にやること
 
-- flow-id 4-10: 反映内容（フェーズ4の全反映作業＋2回の敵対的レビュー対応）をもとにMR #174の
-  descriptionを更新する。
-- その後フェーズ5（クローズ）へ進む。5-1（defaultブランチとのコンフリクト検知・解消。
-  `check-base-conflicts.sh`で判定。過去に一度`mergeable_state: "dirty"`が観測されているため
-  実際に競合が無いか要確認）→5-2（関連issueへの通知要否判定、`AskUserQuestion`で承認を得てから
-  投稿）→5-3（`.claude/`→`.gemini/`同期の最終確認。本セッションでは既に各編集後に都度
-  `sync-gemini-assets.sh`を実行済みだが、flow-id 5-3として`--check`で最終確認する）→5-4（最終
-  統括レポート作成・PR反映）→5-5（`cleanup-task.sh`でplans/worklog/reports削除・HANDOFF.mdリセット）
-  →5-6（commit・push・Draft解除）→5-7（マージ、**ユーザーの明示指示必須、AIから持ちかけない**）
-  の順に進める。
-  - 注記: 本HANDOFF.mdの進捗表は現行`.claude/skills/issue-mr-flow/SKILL.md`のフェーズ5定義
-    （5-1〜5-7、`.gemini/`同期ステップを含む7ステップ）と異なり旧6ステップ番号のままになって
-    いる（本セッションでは未修正・対象外と判断した既知の不整合）。フェーズ5着手時にSKILL.mdを
-    再読して現行定義を確認し、必要なら進捗表を7ステップへ揃える。
+フェーズ4（反映）が完了した。次はフェーズ5（クローズ、`issue-mr-flow/SKILL.md`現行定義の
+5-1〜5-6、HANDOFF.mdの進捗表と一致・不整合なし）へ進む。
+
+- 5-1: defaultブランチとのコンフリクトを検知・解消する（`check-base-conflicts.sh`で判定→
+  `hasConflict`が真なら`AskUserQuestion`で確認→承認後`resolve-conflict`スキルで解消）。
+- 5-2: 今回のMRが影響する関連issueを特定し、承認を得てから通知する（`plans/` `worklog/`
+  `reports/`を差分から除外してキーワード抽出→`search_issues`→`AskUserQuestion`で対象issueと
+  本文を承認→`add_issue_comment`）。影響先が無ければスキップしてよい（その場合も判断結果を
+  リセット前にここへ1行残す）。
+- 5-3: 最終統括レポート`reports/日付_squishy-painting-coral_統括.md`を作成し、`commit`スキル
+  経由でcommit・push後、PR #174へサマリコメントとして反映する（HTML添付は任意・失敗時は
+  警告のみでスキップ）。
+- 5-4: `bash .claude/scripts/src/cleanup-task.sh`で`plans/` `worklog/` `reports/`
+  （`REVIEW-POINTS.md`・`worklog/TEMPLATE.md`は残す）を削除しHANDOFF.mdをリセットする
+  （このステップ自体はcommitしない。直後の5-5でまとめてcommitする）。
+- 5-5: `commit`スキル経由でcommit・pushし、`set_mr_ready`でDraftを解除する。
+  **AIエージェントはここで止まる**（マージへは進まない）。
+- 5-6: マージ（squash merge）。**ユーザーから明示的に指示された場合に限り実行する。
+  AIから持ちかけない。**
 
 ## 判断を迷った内容
 
