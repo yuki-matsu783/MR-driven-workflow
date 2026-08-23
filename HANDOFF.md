@@ -44,12 +44,16 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - 全体作業計画を作成し（`plans/transient-brewing-pelican.md`）、Planモードでユーザーの承認を得た。
 - 事前調査で `cleanup-task.sh` の `KEEP_PATHS` がハードコードされたリテラルパスであり、
   `worklogDir` 変更後に `TEMPLATE.md` が誤削除されるリスクを発見（フェーズ3で対応）。
+- `plansDirectory` のネストパス（`./wip/plans`）実機検証を実施（受け入れ条件1）。
+  `EnterPlanMode`/`ExitPlanMode` 経路で `wip/plans/<自動命名>.md` が実際に出力されることを
+  確認し、`reports/20260823_transient-brewing-pelican_plansDirectoryネストパス検証.md` へ
+  記録した。検証用ダミーファイルは削除済み。
 
 ## 次にやること
 
 - 個別調査計画（plansDirectoryネストパス検証）に対する敵対的レビューを実施し、指摘へ対応する。
-- `.claude/settings.json` の `plansDirectory` にネストパス（`./wip/plans`）が実際に機能するかを
-  実機検証する（受け入れ条件1・最優先）。
+- `.gemini/settings.json` の `general.plan.directory` について、記法上の妥当性確認を行う
+  （Gemini CLIが本実行環境に無いため実機検証は対象外）。
 
 ## 判断を迷った内容
 
