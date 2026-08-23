@@ -91,7 +91,7 @@
   <div class="inner">
     <div class="kind">反映結果レポート / フェーズ4</div>
     <h1>wip集約 フェーズ4反映結果</h1>
-    <p class="lead">DDR記録・移行手順の記述は計画どおり反映できたが、<code>.claude/VERSION</code>のMAJOR増分は実行環境の権限クラシファイアにより適用できなかった。</p>
+    <p class="lead">DDR記録・移行手順の記述は計画どおり反映できた。<code>.claude/VERSION</code>のMAJOR増分は実行環境の権限クラシファイアにより適用できなかったが、報告を受けた人間が「0.3.0で良い」と据え置きを判断し解消した。</p>
     <ul class="meta">
       <li><b>issue</b> #165</li>
       <li><b>ブランチ</b> claude/consolidate-wip-directories-ps6f9a</li>
@@ -126,7 +126,7 @@
       <tr><td>1</td><td>wip/命名の判断をDDR化したか</td><td><b>DDR i0165-02 として記録済み</b></td><td>実装の確認</td></tr>
       <tr><td>2</td><td>DDR一覧・重複識別子の整合性</td><td><b>86件・重複無し</b></td><td>実測（generate-ddr-list.sh --check）</td></tr>
       <tr><td>3</td><td>移行手順の記述先を決め記述したか</td><td><b>asset-distribution.md「移行」節＋distribution-assets.mdのissue #165エントリに記述済み</b></td><td>実装の確認</td></tr>
-      <tr><td>4</td><td><code>.claude/VERSION</code>のMAJOR増分（0.3.0→1.0.0）を適用できたか</td><td><span class="tag stop">できなかった</span> — Bash/Writeの両方が権限クラシファイアに拒否された</td><td>実測（2ツールでの試行結果）</td></tr>
+      <tr><td>4</td><td><code>.claude/VERSION</code>のMAJOR増分（0.3.0→1.0.0）を適用できたか</td><td><span class="tag ok">0.3.0据え置きで確定</span> — 技術的には未適用だが人間が現状維持を判断</td><td>実測＋人間の回答</td></tr>
     </tbody>
   </table>
   </div>
@@ -164,16 +164,18 @@ DDR一覧は最新です（86件）</code></pre>
   <p><code>この機構を他プロジェクトへ導入する.md</code>の「機構側の更新を再度同期するときも、導入先固有の設定と衝突しない形で追従できる」という記述が、今回新設した「移行」節（配置場所の改名は自動追従の対象外で手動更新が必要）と食い違っていたため、例外を1行追記し「移行」節へのリンクを追加した。他のusecase文書7件への影響は無いことを確認した。</p>
   <div class="box ok"><span class="label">結論</span>docs-workflow.mdが定める確認事項を実施し、1件の更新が必要だったものを反映した。</div>
 
-  <h3>5. .claude/VERSION のMAJOR増分（ブロックされた）</h3>
+  <h3>5. .claude/VERSION のMAJOR増分（適用ブロック→人間の判断で据え置き確定）</h3>
   <p>非対話的セッション例外規定（issue #160が先例）に従い、Bashツール（heredoc書き込み）・Writeツールの両方で<code>.claude/VERSION</code>への書き込みを試みた。</p>
   <pre><code>試行1: Bashツールでのheredoc書き込み → 拒否
 試行2: Writeツールでの直接書き込み → 拒否
 （いずれも「Claude Code auto mode classifier」を理由とする同一の拒否メッセージ。
- 他ツールでの回避を試みないよう明示）</code></pre>
-  <div class="box stop">
+ 他ツールでの回避を試みないよう明示）
+→ この結果を人間へ報告 → 人間の回答「0.3.0で良い」</code></pre>
+  <div class="box ok">
     <span class="label">結論</span>
-    値は<code>0.3.0</code>のまま変更できなかった。これは人間によるレビュー否認とは別種の、
-    ツールレベルの制約である。提案の根拠・ブロックされた事実は<code>distribution-assets.md</code>の
+    値は<code>0.3.0</code>のまま変更していない。適用自体はツールレベルの制約でブロックされたが、
+    その事実を報告した人間が明示的に現状維持を判断したため、<b>この件は解消済み</b>である。
+    提案の根拠・ブロックされた事実・人間の最終判断は<code>distribution-assets.md</code>の
     issue #165エントリへ記録した。
   </div>
 </section>
@@ -194,14 +196,14 @@ DDR一覧は最新です（86件）</code></pre>
   <ol>
     <li>DDR <code>i0165-02</code>として記録済み。</li>
     <li><code>asset-distribution.md</code>「移行」節・<code>distribution-assets.md</code>のissue #165エントリとして記録済み。</li>
-    <li><b>人間への確認が必要</b>: <code>.claude/VERSION</code>（および<code>.gemini/VERSION</code>）のMAJOR増分を人間が別経路で手動適用するか、提案のみで進めるかを次のチャット応答でユーザーへ確認する。結果はいずれの場合も<code>distribution-assets.md</code>の該当エントリへ追記する。</li>
+    <li><code>.claude/VERSION</code>のMAJOR増分は、人間へ確認した結果「0.3.0で良い」との回答を得て<b>据え置きが確定した</b>。<code>distribution-assets.md</code>のissue #165エントリへ最終判断を追記済み。</li>
   </ol>
 </section>
 
 <section id="todo">
   <h2>残課題</h2>
   <ul>
-    <li><code>.claude/VERSION</code>のMAJOR増分の最終適用（人間の判断待ち）。</li>
+    <li>無い。<code>.claude/VERSION</code>のMAJOR増分は人間の判断（据え置き）により解消した。</li>
   </ul>
 </section>
 
