@@ -10,7 +10,7 @@ keywords: [issue-mr-flow, claude-code, gemini-cli, github, gitlab, テンプレ�
 
 issueの起票からfeatureブランチ・Draft PR/MRの作成、レビュー往復、マージまでを、AIエージェント
 （Claude Code / Gemini CLI）が一貫して支援する、**issue駆動MRワークフロー機構のテンプレート**
-リポジトリです。`.claude/` 一式・`.gemini/`（`.claude/`へのローカルリンク）・
+リポジトリです。`.claude/` 一式・`.gemini/`（`.claude/`からの変換生成物）・
 `.mrworkflow.json`・GitHub/GitLab issueテンプレートなど、ワークフローに必要なAI資産一式を含みます。
 
 現時点ではアプリ本体（`src/`等）を持たず、他プロジェクトへこのワークフロー機構だけを展開して
@@ -32,8 +32,11 @@ issueの起票からfeatureブランチ・Draft PR/MRの作成、レビュー往
 
 1. `gh` CLI（GitHubの場合）または `glab` CLI（GitLabの場合）、および `jq` をインストール・
    認証済みにする（`.claude/scripts/src/vcs/Provider.sh` がissue/PR/MR情報の取得に使う）。
-2. Gemini CLIも使う場合は `bash .claude/scripts/src/setup-gemini-links.sh` を1回実行し、
-   `.gemini/` 配下に `.claude/` へのローカルリンクを作成する（clone直後に1回でよい）。
+2. Gemini CLIも使う場合は `bash .claude/scripts/src/sync-gemini-assets.sh` を1回実行し、
+   `.gemini/` を再生成する。**`.gemini/` は `.claude/` からの変換生成物**で、`agents/*.md` の
+   frontmatter と `settings.json` の記法差をこのスクリプトが吸収する（`.gemini/` を直接編集
+   しないこと。以後も `.claude/` を変更したら流し直す。詳細:
+   [.claude/docs/spec/sync-gemini-assets.md](.claude/docs/spec/sync-gemini-assets.md)）。
 3. 導入した資産の版は [.claude/VERSION](.claude/VERSION)（SemVer 1行）で確認できる。配布時は
    この値がそのまま配布先へ入るため、「どの版の資産を導入したか」を配布先から判別できる
    （更新規則・配布経路の詳細は
