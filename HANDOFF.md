@@ -17,7 +17,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - issue: #165 (plans/worklog/reports を wip/ 配下へ集約し worklog を worklogs へ改名する)
 - ブランチ: claude/consolidate-wip-directories-ps6f9a（ハーネス指定。命名規則`feature-165-*`からの逸脱は環境制約による）
 - PR: https://github.com/yuki-matsu783/MR-driven-workflow/pull/178
-- push回数: 8
+- push回数: 9
 - 現在のループ: 3-6〜3-9 の1周目（完了。敵対的レビュー1回・指摘反映まで実施。人間レビューは省略）
 - 未返信スレッド: 0
 - 追従監視: 購読あり（web。subscribe_pr_activity。1時間ごとの自己チェックインを予約済み）
@@ -165,6 +165,15 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
     `wip/plans/REVIEW-POINTS.md`残存と`removedDirs`を検証していなかった→3件のアサーションを追加。
   - 修正後、単体テスト17本すべて`passed=N failures=0`（`test_cleanup_task.sh`は69→73件）・
     DDR一覧再生成（78件）・`.gemini/`再生成を確認済み。
+- **PR作成後の追従監視で新規コンフリクトを検知し解消した**（`ba3ec17`）。`main`にissue #26対応
+  （PR #154「AIアセット配布のmanifest方式化」）がマージされ、`install-to-project.sh`・
+  `directory-structure.md`・`docs-workflow.md`・`AGENTS.md`・`test_cleanup_task.sh`で本PRと
+  再度競合した。監視モードのため承認は待たず類型C相当として機械的に解消（詳細はPRコメント
+  https://github.com/yuki-matsu783/MR-driven-workflow/pull/178#issuecomment-5385321311 、
+  および下記「判断を迷った内容」）。解消後、単体テスト18本すべて`passed=N failures=0`
+  （main側で新規追加された`test_check_dist_coverage.sh`含む）・DDR一覧再生成（79件、差分無し）・
+  `.gemini/`再生成・DDR識別子重複無し・分岐点SHA基準でのDDR本文/spec changelog非改変を確認済み。
+  push後`mergeable_state: clean`を確認。CIチェックは未設定のため対象外。
 
 ## 次にやること
 
@@ -207,6 +216,22 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
     （旧issue当時の番号をそのまま記録する行——「旧5-3→5-4」のような改番の記録文——は
     変更していない）。
   - いずれも解消結果は単体テスト17本全合格・`hasConflict: false`・DDR重複なしで検証済み。
+- **2回目の`main`マージ（`ba3ec17`）の解消方針**。今回は方針が異なる2種類の競合が混ざっていた。
+  - **`install-to-project.sh`は「統合」ではなく「main全採用」を選んだ。** mainがインストーラを
+    manifest方式（`dist-layers.json`駆動）へ全面書き換えしており、本PR側が持っていた旧実装
+    （`safe_copy_dir`によるコピー処理）はアーキテクチャごと不要になっていたため。統合を試みると
+    存在しない旧関数を参照する壊れたコードになる。差分ゼロで一致することを確認して判断の妥当性を
+    検証した。
+  - **`dist-layers.json`・`asset-distribution.md`・`assets/index.md.template`は「main新規追加＋
+    wip読み替え」。** これらはmain側でissue #26により新設されたファイルで、旧`plans/` `worklog/`
+    `reports/`パスを参照していた（本PRの`wip/`集約をmainがまだ知らないため）。競合マーカーは
+    立たなかった（片方にしか無いファイルのため）が、**内容としては本PRの決定と矛盾する**ため、
+    機械的にパスを読み替えた（DDR/spec本文の書き換え禁止規則の対象外——これらはchangelogではなく
+    「現在の状態を説明する」現行仕様のため）。
+  - **`AGENTS.md`はmainの`@import`構造を採用し、ルール本文は`agent-common.md`側へ`wip/`表記を
+    適用した。** mainがルール本文を`agent-common.md`へ切り出す構造変更をしていたため、本PR側の
+    `wip/`表記の差分をその新しい置き場へ持っていく形で統合した。
+  - いずれも解消結果は単体テスト18本全合格・push後`mergeable_state: clean`で検証済み。
 
 ## 未解決の内容
 
