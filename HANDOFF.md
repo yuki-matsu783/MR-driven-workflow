@@ -17,8 +17,8 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - issue: #105
 - ブランチ: claude/gemini-cli-telemetry-reporting-a253xp
 - PR: https://github.com/yuki-matsu783/MR-driven-workflow/pull/174
-- push回数: 3
-- 現在のループ: 2-6〜2-9 の1周目（完了）
+- push回数: 4
+- 現在のループ: 2-6〜2-9 の1周目（進行中）
 - 追従監視: 購読あり（web。subscribe_pr_activity + 1時間ごとの自己チェックイン）
 
 | 進捗 | flow-id | ステップ | 担当 |
@@ -36,8 +36,8 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 | [x] | 2-5 | 調査計画をもとにMR descriptionを更新する | describe |
 | [x] | 2-6 | 調査を実施する | エージェント |
 | [x] | 2-7 | commitしpushしてレビュー依頼を行う | エージェント |
-| [x] | 2-8 | 調査結果についてレビュー・コメントする | 人間 |
-| [x] | 2-9 | レビュー内容を取得し調査結果を修正する | comments/reply |
+| [] | 2-8 | 調査結果についてレビュー・コメントする | 人間 |
+| [] | 2-9 | レビュー内容を取得し調査結果を修正する | comments/reply |
 | [] | 2-10 | 調査結果をもとにMR descriptionを更新する | describe |
 | [] | 3-1 | 個別作業計画を作成する | エージェント |
 | [] | 3-2 | commitしpushしてレビュー依頼を行う | エージェント |
@@ -96,15 +96,30 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - flow-id 2-6: 実機（`gemini`コマンド）はこの実行環境に存在しないため不可と判定し、
   `google-gemini/gemini-cli`のGitHub公式ソース（mainブランチ）をWebSearch/WebFetchで直接確認して
   8項目すべてに判断根拠を得た。結果を`reports/20260823_squishy-painting-coral_Gemini-CLI
-  テレメトリ出力形式と統合方針の調査結果.md`（＋同名html）へ記録した。主な発見:
-  出力ファイルは単一ファイル・追記型でspans/logs/metricsが混在し1行1JSONではない
-  （pretty-print＋改行区切り）、`telemetry`設定はsettings.jsonのトップレベルキー、
-  出力先はissue #103と整合させない（Gemini CLI側にローテーション機構が無いため）。
+  テレメトリ出力形式と統合方針の調査結果.md`（＋同名html）へ記録した。
+- flow-id 2-7: 上記reports・worklogをcommit（425a58d）・push（push3）し、レビュー依頼を行った。
+- push3の後、ユーザー指示「作業実施毎に一度敵対的レビューを自動で行う」に従い、フェーズ2の
+  敵対的レビューを2回目実施した（`adversarial-review-count.sh`のフェーズ2カウンタ=2）。対象は
+  `reports/`の調査結果（md・html）。16件の指摘（major 9件・minor 7件）のうち10件
+  （major 9件＋minor/high 1件）をMR #174へインラインコメント投稿し、残り6件はレビュー本文へ
+  報告のみとして記載した。**投稿・報告した16件すべてに対応し、reports（md・html）を修正した**
+  （詳細はworklog「追記（敵対的レビュー2回目・push3後、reports/への修正）」参照）。主な修正:
+  同一イベントが常に2回LogRecordとしてemitされること・metricsが10秒間隔で周期exportされる
+  ことを追加確認し二重計上回避の必須要件として反映、`GEMINI_TELEMETRY_OUTFILE`環境変数の
+  存在を確認し「settings.jsonが静的だから動的パスを渡せない」という当初判断の誤りを修正、
+  既定有効化の可否を「確定」から「保留」へ変更（配布先で`.gitignore`保護が効かない配布漏れを
+  発見）、状態ファイルのスコープをDDR i0097-01と整合させグローバルカーソルへ、カーソル方式の
+  耐障害性（途中書き込み・ファイル縮小・状態破損）を必須要件化、受け入れ条件9項目対応表を追加、
+  WebFetch由来の断定表現を弱め調査手法の注記を追加、参照ソースのコミットSHA・permalinkを記録、
+  HTML内の`**`残骸を`<b>`へ修正。
 
 ## 次にやること
 
-- flow-id 2-7: 修正済みのreports・worklog・HANDOFF.mdをcommitしてpushし、
-  フェーズ2の敵対的レビュー（2回目）を実施する。
+- flow-id 2-7（続き）: 上記の修正（reports md/html・worklog・HANDOFF.md）をcommitしてpushし
+  （push4）、レビュー依頼メッセージを送る。
+- flow-id 2-8: 人間によるレビュー・コメントを待つ（このセッションでは未実施。前回「レビュー済み」
+  の合図は個別調査計画＝flow-id 2-3/2-4に対するものであり、reports（2-6の結果）への人間レビューは
+  まだ受けていないため、進捗表を[]のまま維持している）。
 
 ## 判断を迷った内容
 
