@@ -17,7 +17,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - issue: #185
 - ブランチ: `claude/improve-commit-log-format-9mjlid`
 - PR: #192（https://github.com/yuki-matsu783/MR-driven-workflow/pull/192 ）（Draft）
-- push回数: 10
+- push回数: 11
 - 現在のループ: 4-3〜4-4 の1周目（完了）
 - 未返信スレッド: 0
 - 追従監視: あり（`subscribe_pr_activity` でPR #192 を購読中。セッション終了で切れるため、次セッションは `resume` で取り直す）
@@ -198,15 +198,44 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
   - **`【AIアセット反映】` の検証は基準値を実測してから書いた。** その結果、検索語の1つ
     （`ハング`）が既存記述に当たっており**空振りしていた**ので `クォートし忘れ` へ差し替えた。
 
+- flow-id 4-5: MR description を更新した（フェーズ4の計画・4類型分類・VERSIONの方針）。
+- flow-id 4-6: **反映を実施した**（`【設計反映】` → `【AIアセット反映】` の順）。**検証21項目すべて合格。**
+  - **DDR `i0185-01` を新設**（8節。却下案3件・「二面の材料」の懸念・既存の絶対ルール2箇所を
+    限定した判断・git bash未計測）。`generate-ddr-list.sh` でDDR一覧を再生成（89件）。
+  - **spec 2本**の `## 影響範囲` へ `### issue #185` を追加（`create-commit.md` /
+    `distribution-assets.md`）。
+  - **参照整理3件**（`git-workflow.md` / `resolve-conflict/SKILL.md` / `issue-mr-flow/SKILL.md`）。
+    決定Cで決めた文面・挿入位置どおりで、係り先は壊していない。
+  - **副産物11件を反映**（(c) 追記8件・(d) 導線3件）。反映先は `shell-script-style.md` 3件 ／
+    `.claude/REVIEW-POINTS.md` 4件（`### 判定基準・規約そのものを書くとき` を新設）／
+    `wip/reports/REVIEW-POINTS.md` 2件 ／ ルート `REVIEW-POINTS.md` 2件（既存項目へ追記）。
+  - **`.claude/VERSION` は計画から変えて据え置いた**（詳細は「判断を迷った内容」）。
+  - `check-doc-references.sh` は **exit=0**（参照切れ0件）。途中1件出たが、実体は計画に書いた
+    検証コマンドのglob（`i0185-01-*.md`）で、`grep -c` の形へ直して解消した。
+  - 反映結果は `wip/reports/2026-08-23_keen-charting-lantern_コミットメッセージ内容規約の反映.md`
+    と同名の `.html` へ記録した。
+
 ## 次にやること
 
-- flow-id 4-5: MR descriptionを更新する。
-- flow-id 4-6: 反映を実施する。**`【設計反映】` を先に完了させてから `【AIアセット反映】` へ移る**
-  （`references/planning.md`「必要なものから順に完了・レビューしてから次へ着手する」）。
+- flow-id 4-7: commit・push する。
+- 続けて敵対的レビュー6回目（フェーズ4の反映実施に対して。実施回数 1/3）を実施し、指摘へ対応・返信する（4-9）。
+- flow-id 4-10: MR descriptionを更新する。
 - flow-id 5-3: `.gemini/` の同期は**固定値 42/30 で判定しない**（DDRが「1行のみ」「フッター」を
   含むため期待値が失効する）。**`.gemini/` 側の件数が `.claude/` 側と一致すること**で判定する。
 
 ## 判断を迷った内容
+
+- **`.claude/VERSION` を `0.3.0` のまま据え置いた**（提案は `0.4.0`（MINOR））。
+  `.claude/docs/spec/distribution-assets.md` の `## 仕様` は、非対話セッションではAIが目安表に
+  沿って増分を**適用してよい**と定めており、規約節の新設は目安表の `MINOR`「資産の追加・
+  フローの拡張」に該当する。しかし同ファイルの `## 影響範囲`「issue #165」（**本issueと同日の
+  2026-08-23**）に、人間の判断として「**今後 `.claude/VERSION` を上げる場合は、改めて人間の
+  指示を起点に増分を検討する**」と記録されていた。**非対話例外より後に置かれた、
+  `.claude/VERSION` に限った明示の指示であるため、例外規定より優先すると解釈した。**
+  - **この解釈自体が判断であり、逆の解釈（`## 仕様` が正で `## 影響範囲` はその回の記録に
+    すぎない）も成り立つ。** 上げる指示があれば `0.4.0` へ変更する。
+  - 詳細な根拠は `.claude/docs/spec/distribution-assets.md`「issue #185」へ記録した
+    （規定が義務づける2つの記録のうちの1つ）。
 
 - ブランチ名がワークフローの命名規則（`feature-185-<slug>`）ではなく、ハーネスが指定した
   `claude/improve-commit-log-format-9mjlid` である。ハーネス側の指示（このブランチへ開発・反映する）が

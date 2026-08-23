@@ -248,7 +248,7 @@
   <table>
     <thead><tr><th>#</th><th>対象</th><th>検証コマンド</th><th>合格条件</th></tr></thead>
     <tbody>
-      <tr><td>1</td><td>#1 DDRの識別子</td><td><code>ls .claude/docs/ddr/i0185-01-*.md</code>／<code>grep -c '^title: i0185-01\. '</code>／<code>grep -c '^# i0185-01\. '</code></td><td>3つとも1</td></tr>
+      <tr><td>1</td><td>#1 DDRの識別子</td><td><code>ls .claude/docs/ddr/ | grep -c "^i0185-01-"</code>／<code>grep -c '^title: i0185-01\. '</code>／<code>grep -c '^# i0185-01\. '</code></td><td>3つとも1</td></tr>
       <tr><td>2</td><td>決定A #3〜#5</td><td><code>grep -c '却下' &lt;DDR&gt;</code></td><td>3以上</td></tr>
       <tr><td>3</td><td>決定A #6</td><td><code>grep -c '二面の材料' &lt;DDR&gt;</code></td><td>1以上</td></tr>
       <tr><td>4</td><td>決定A #7</td><td><code>grep -c 'test_usage_tracking' &lt;DDR&gt;</code></td><td>1以上</td></tr>

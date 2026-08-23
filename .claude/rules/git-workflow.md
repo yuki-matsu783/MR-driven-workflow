@@ -35,6 +35,9 @@ keywords: [featureブランチ, ブランチ命名, worklog, squash-merge, draft
 
 ## コミット運用
 
+- **コミットメッセージの内容（件名の要素・本文・フッター）の正は
+  `.claude/skills/commit/SKILL.md`「コミットメッセージの内容規約」である**（issue #185）。
+  本ファイルはブランチ運用と、hookの誤検知を避ける書き方だけを扱う。
 - **すべてのコミットは `commit` スキル（`.claude/skills/commit/SKILL.md`）経由で行う**
   （issue #39）。ユーザーが明示的に `/commit` を呼ぶ場合だけでなく、`issue-mr-flow` の全体フロー
   flow-id 2-2/2-7/3-2/3-7/4-2/4-7/5-4/5-6でAIエージェントが自律的にコミットする場面も対象。

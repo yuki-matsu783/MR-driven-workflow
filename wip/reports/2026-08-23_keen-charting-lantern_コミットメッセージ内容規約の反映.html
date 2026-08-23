@@ -1,0 +1,286 @@
+<!--
+  issue #185 フェーズ3の作業結果（flow-id 3-6）の人間レビュー用HTMLビュー。正文は同名の .md。
+-->
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>コミットメッセージ内容規約の反映 — issue #185</title>
+<style>
+  :root {
+    --bg: #f6f7f9;      --panel: #ffffff;   --ink: #1a1d21;     --muted: #5b636d;
+    --line: #dfe3e8;    --accent: #2563eb;  --accent-soft: #eaf0fe;
+    --ok: #1a7f4b;      --ok-soft: #e6f4ec; --warn: #a35a00;    --warn-soft: #fdf1e0;
+    --stop: #b3261e;    --stop-soft: #fdecea; --code-bg: #f0f2f5;
+    --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1216;    --panel: #161a20;   --ink: #e6e8eb;     --muted: #9aa3ad;
+      --line: #2a3038;  --accent: #7aa2f7;  --accent-soft: #1b2333;
+      --ok: #6ee7a8;    --ok-soft: #14261d; --warn: #f0b866;    --warn-soft: #2a2113;
+      --stop: #f2857c;  --stop-soft: #2b1614; --code-bg: #1d222a;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", system-ui, sans-serif;
+    line-height: 1.8; font-size: 15px;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 20px 80px; }
+
+  /* 共通ヘッダ帯 */
+  header.band {
+    background: linear-gradient(135deg, var(--accent-soft), var(--panel));
+    border-bottom: 1px solid var(--line); padding: 28px 20px 22px; margin-bottom: 28px;
+  }
+  header.band .inner { max-width: 1080px; margin: 0 auto; }
+  header.band .kind { font-size: 11px; letter-spacing: .18em; color: var(--accent); font-weight: 700; }
+  header.band h1 { margin: 6px 0 4px; font-size: 26px; line-height: 1.4; }
+  header.band .lead { margin: 0; color: var(--muted); }
+  .meta { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; padding: 0; list-style: none; }
+  .meta li {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 999px;
+    padding: 3px 12px; font-size: 12.5px; color: var(--muted); white-space: nowrap;
+  }
+  .meta li b { color: var(--ink); font-weight: 600; }
+
+  nav.toc {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 14px 20px; margin-bottom: 28px;
+  }
+  nav.toc h2 { margin: 0 0 8px; font-size: 13px; letter-spacing: .08em; color: var(--muted); border: 0; padding: 0; }
+  nav.toc ol { margin: 0; padding-left: 20px; }
+  nav.toc li { margin: 2px 0; }
+  a { color: var(--accent); }
+
+  section {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 8px 24px 22px; margin-bottom: 22px;
+  }
+  h2 { font-size: 20px; margin: 20px 0 10px; padding-bottom: 8px; border-bottom: 2px solid var(--line); }
+  h3 { font-size: 16px; margin: 22px 0 8px; color: var(--accent); }
+  p { margin: 10px 0; }
+  ul, ol { padding-left: 22px; }
+  li { margin: 4px 0; }
+  blockquote { margin: 10px 0; padding: 6px 14px; border-left: 3px solid var(--line); color: var(--muted); }
+
+  /* 表は自身の中で横スクロールする（ページ本体は横スクロールさせない） */
+  .tablewrap { overflow-x: auto; margin: 14px 0; }
+  table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 14px; }
+  th, td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: var(--accent-soft); font-weight: 600; white-space: nowrap; }
+  tbody tr:nth-child(even) td { background: color-mix(in srgb, var(--line) 22%, transparent); }
+
+  code {
+    background: var(--code-bg); border-radius: 5px; padding: 1px 5px; font-size: 13px;
+    font-family: "SFMono-Regular", Consolas, "Noto Sans Mono", monospace;
+  }
+  pre {
+    background: var(--code-bg); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 12px 14px; overflow-x: auto; font-size: 13px; line-height: 1.65;
+  }
+  pre code { background: none; padding: 0; }
+
+  /* 注意ボックス: info（既定）/ ok（決めたこと）/ warn（注意）/ stop（やらないこと・危険） */
+  .box { border-left: 4px solid var(--accent); background: var(--accent-soft);
+         border-radius: 0 var(--radius) var(--radius) 0; padding: 12px 16px; margin: 16px 0; }
+  .box > :first-child { margin-top: 0; } .box > :last-child { margin-bottom: 0; }
+  .box .label { font-size: 12px; font-weight: 700; letter-spacing: .06em; display: block; margin-bottom: 4px; }
+  .box.ok { border-color: var(--ok); background: var(--ok-soft); } .box.ok .label { color: var(--ok); }
+  .box.warn { border-color: var(--warn); background: var(--warn-soft); } .box.warn .label { color: var(--warn); }
+  .box.stop { border-color: var(--stop); background: var(--stop-soft); } .box.stop .label { color: var(--stop); }
+  .box.info .label { color: var(--accent); }
+
+  .tag { display: inline-block; border-radius: 999px; padding: 1px 9px; font-size: 12px; font-weight: 600; }
+  .tag.ok { background: var(--ok-soft); color: var(--ok); }
+  .tag.warn { background: var(--warn-soft); color: var(--warn); }
+  .tag.stop { background: var(--stop-soft); color: var(--stop); }
+
+  footer { color: var(--muted); font-size: 13px; text-align: center; padding-top: 10px; }
+</style></head>
+
+<body>
+
+<header class="band">
+  <div class="inner">
+    <div class="kind">反映結果レポート / フェーズ4</div>
+    <h1>コミットメッセージ内容規約の反映</h1>
+    <p class="lead">DDR <code>i0185-01</code> を新設し、spec2本のchangelog・参照整理3件・副産物11件のルール／観点表への反映を実施した。<b>検証21項目すべて合格</b>。<code>.claude/VERSION</code> は計画から変えて<b>据え置いた</b>。</p>
+    <ul class="meta">
+      <li><b>issue</b> #185</li>
+      <li><b>ブランチ</b> claude/improve-commit-log-format-9mjlid</li>
+      <li><b>PR</b> #192</li>
+      <li><b>フェーズ</b> 4〈反映〉 flow-id 4-6</li>
+      <li><b>作成日</b> 2026-08-23</li>
+      <li><b>正文</b> 同名の .md</li>
+    </ul>
+  </div>
+</header>
+
+<div class="wrap">
+
+<section id="summary">
+  <h2>サマリ</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>項目</th><th>結果</th></tr></thead>
+    <tbody>
+      <tr><td><code>【設計反映】</code> の検証</td><td><b>15項目すべて合格</b></td></tr>
+      <tr><td><code>【AIアセット反映】</code> の検証</td><td><b>6項目すべて合格</b>（基準値は着手前に実測済み）</td></tr>
+      <tr><td>DDR</td><td><code>i0185-01</code> を新設（8節。却下案3件・懸念・未計測を含む）</td></tr>
+      <tr><td>spec</td><td><code>create-commit.md</code> と <code>distribution-assets.md</code> の <code>## 影響範囲</code> へ <code>### issue #185</code> を追加</td></tr>
+      <tr><td><b><code>.claude/VERSION</code></b></td><td><b><code>0.3.0</code> のまま据え置いた</b>（提案は <code>0.4.0</code>。<b>計画からの変更</b>）</td></tr>
+      <tr><td>参照整理</td><td><code>git-workflow.md</code> / <code>resolve-conflict/SKILL.md</code> / <code>issue-mr-flow/SKILL.md</code> の3件</td></tr>
+      <tr><td>副産物の反映</td><td>(c) 追記8件・(d) 導線3件を4ファイルへ</td></tr>
+      <tr><td>参照切れ</td><td><b>0件</b>（<code>check-doc-references.sh</code> exit=0）</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="version">
+  <h2>計画から変えた点: VERSIONを据え置いた</h2>
+  <div class="box stop">
+    <div class="label">仕様節だけを読んで判断すると、その後に積まれた個別の判断を見落とす</div>
+    <p>計画（決定B）は <code>0.3.0</code> → <code>0.4.0</code>（MINOR）を適用するとしていたが、実施時に据え置きへ変えた。<code>distribution-assets.md</code> を実際に開いたところ、<code>## 影響範囲</code>「issue #165」（<b>本issueと同日の 2026-08-23</b>）の末尾に、人間の判断としてこう記録されていた。</p>
+    <blockquote><b>今後 <code>.claude/VERSION</code> を上げる場合は、改めて人間の指示を起点に増分を検討する。</b></blockquote>
+    <p>計画では「<code>## 仕様</code> が正で、<code>## 影響範囲</code> はその回の記録にすぎない」と解釈していたが、<b>この一文は「その回の記録」ではなく、明示的に「今後」を対象にした指示</b>である。しかも <code>.claude/VERSION</code> に限定され、非対話例外より<b>後</b>に置かれている。したがって例外規定より優先すると判断し直した。</p>
+  </div>
+  <ul>
+    <li><b>提案（<code>0.4.0</code> / MINOR）とその根拠は捨てず、changelog へ記録した。</b> 上げる指示があればそのまま適用できる。</li>
+    <li><b>この解釈自体が判断なので、逆の解釈も成り立つことを明記した</b>（人間が否認できる形にするため）。</li>
+    <li><b>規定が義務づける2つの記録</b>（specのchangelogと <code>HANDOFF.md</code>「判断を迷った内容」）は、据え置きの場合も同じように書いた。「据え置いたが記録が無い」も避けるべき状態である。</li>
+    <li>issue #165 のときに起きた<b>書き込みの技術的ブロック</b>が本セッションでも起きるかは<b>試していない</b>（据え置きを選んだため、そもそも書き込んでいない）。<b>ブロックの再現性について新しい情報は無い。</b></li>
+  </ul>
+</section>
+
+<section id="deliverables">
+  <h2>成果物</h2>
+
+  <h3>1. <code>.claude/docs/ddr/i0185-01-….md</code>（新規）</h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>節</th><th>内容</th></tr></thead>
+    <tbody>
+      <tr><td>決定</td><td>件名1行必須／本文と追跡用フッターは任意許容／「どう」の判定は2段階</td></tr>
+      <tr><td>背景</td><td><code>main</code> の1行ログはPRタイトル。個別の件名は squash 本文の <code>* 件名</code> として恒久的に残る</td></tr>
+      <tr><td>却下案1</td><td>「1行のみ」維持 — 現行規約は既に破られている（本文6件・<code>Refs</code> 6件）</td></tr>
+      <tr><td>却下案2</td><td>本文必須 — 母数の15%は事務的な作業記録で、割に合わない</td></tr>
+      <tr><td>却下案3</td><td>6語一律不合格 — <b>規約自身の模範例4件を不合格にする自己矛盾</b>。判定と合否を同一視したのが原因</td></tr>
+      <tr><td>既存の絶対ルールの限定</td><td>31行とモデル名行を<b>目的で限定</b>した理由と、限定しなければ矛盾する既存資産3箇所</td></tr>
+      <tr><td>懸念・残るリスク</td><td><b>同じ実測は二面の材料</b>。規約の実効性を疑う側の読みと、機械的な強制を入れていない事実</td></tr>
+      <tr><td>未計測</td><td>git bash（Windows）実機での複数行メッセージ</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>2. spec 2本の <code>## 影響範囲</code></h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>ファイル</th><th>書いたこと</th></tr></thead>
+    <tbody>
+      <tr><td><code>create-commit.md</code></td><td><code>--message</code> から具体形式を落として参照へ変えたこと／複数行を渡せるのは<b>元からできていたことの明文化</b>でスクリプトは未変更／<b>usecase文書は更新不要</b>と判断した事実</td></tr>
+      <tr><td><code>distribution-assets.md</code></td><td>VERSION据え置きの事実と根拠、提案値 <code>0.4.0</code>、解釈が判断であること</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>3. 参照整理3件（決定Cの文面・位置どおり）</h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>ファイル</th><th>位置</th><th>効果</th></tr></thead>
+    <tbody>
+      <tr><td><code>git-workflow.md</code></td><td><code>## コミット運用</code> の箇条書き<b>先頭</b>（同じ階層の1項目として）</td><td>内容の正が新設節であることを明示</td></tr>
+      <tr><td><code>resolve-conflict/SKILL.md</code></td><td>「何を」「どう」解消の段落の<b>実例2件の後ろ</b></td><td>本節はコンフリクト解消に限った具体化だと位置づけ</td></tr>
+      <tr><td><code>issue-mr-flow/SKILL.md</code></td><td>「コミットメッセージへ必ず残す」の項の<b>末尾</b></td><td>「件数だけ」で終わる件名は不合格であることを補足</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p><b>いずれも係り先を壊していない。</b> <code>resolve-conflict</code> は実例の<b>前ではなく後ろ</b>へ置いた（間に挟むと実例が新しい段落の続きに読める）。</p>
+
+  <h3>4. 副産物の反映（<code>【AIアセット反映】</code>）</h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>反映先</th><th>件数</th><th>内容</th></tr></thead>
+    <tbody>
+      <tr><td><code>shell-script-style.md</code></td><td>3件</td><td>A2 <code>awk length()</code> はバイト／A4 <code>--</code> を前へ置きすぎるとオプションが無効／<b>A5（導線）</b> ヒアドキュメントのクォート忘れの<b>失敗の現れ方</b>（ハング・無関係なエラー）を既存記述へ</td></tr>
+      <tr><td><code>.claude/REVIEW-POINTS.md</code></td><td>4件</td><td><code>### 判定基準・規約そのものを書くとき（issue #185）</code> を新設</td></tr>
+      <tr><td><code>wip/reports/REVIEW-POINTS.md</code></td><td>2件</td><td>A1 否定形の結論は前処理を疑う／A3 件数の根拠は実行コマンドをそのまま貼る</td></tr>
+      <tr><td>ルート <code>REVIEW-POINTS.md</code></td><td>2件（<b>導線</b>）</td><td>B3 を「集約するときだけの話ではない」として既存項目へ／B5 を「作った成果物を検証基準へ通し直す」として既存項目へ</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p><b>(d) の3件は新項目を作らず、既存の記述へ追記した。</b> 痕跡があったということは、<b>書かれていなかったのではなく辿り着けなかった</b>ということなので、同じことを別の場所へ書き足すと導線がさらに分散する。</p>
+</section>
+
+<section id="verify">
+  <h2>検証結果</h2>
+
+  <h3><code>【設計反映】</code>（15項目）</h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>#</th><th>検証</th><th>実測</th><th>判定</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td>DDRの識別子3箇所</td><td>1 / 1 / 1</td><td><span class="tag ok">合格</span></td></tr>
+      <tr><td>2</td><td>却下案3件</td><td>8</td><td><span class="tag ok">合格</span></td></tr>
+      <tr><td>3</td><td>二面の材料</td><td>1</td><td><span class="tag ok">合格</span></td></tr>
+      <tr><td>4</td><td>既存資産の実例</td><td>1</td><td><span class="tag ok">合格</span></td></tr>
+      <tr><td>5</td><td>未計測の明記</td><td>1</td><td><span class="tag ok">合格</span></td></tr>
+      <tr><td>6</td><td><code>create-commit.md</code> の影響範囲</td><td>1</td><td><span class="tag ok">合格</span></td></tr>
+      <tr><td>7</td><td><code>distribution-assets.md</code> の影響範囲</td><td>1</td><td><span class="tag ok">合格</span></td></tr>
+      <tr><td>8</td><td>HANDOFFのVERSION記録</td><td>3</td><td><span class="tag ok">合格</span></td></tr>
+      <tr><td>9</td><td><code>git-workflow.md</code> の参照</td><td>2</td><td><span class="tag ok">合格</span></td></tr>
+      <tr><td>10</td><td><code>resolve-conflict</code> の参照</td><td>1</td><td><span class="tag ok">合格</span></td></tr>
+      <tr><td>11</td><td><code>issue-mr-flow</code> の参照</td><td>1</td><td><span class="tag ok">合格</span></td></tr>
+      <tr><td>12</td><td><code>.claude/VERSION</code></td><td><code>0.3.0</code>（据え置き）</td><td><span class="tag ok">合格</span> 検証7が理由を含む</td></tr>
+      <tr><td>13</td><td>DDR一覧</td><td>1</td><td><span class="tag ok">合格</span></td></tr>
+      <tr><td>14</td><td>参照切れ</td><td>exit=0</td><td><span class="tag ok">合格</span></td></tr>
+      <tr><td>15</td><td>usecaseの判断の記録</td><td>1</td><td><span class="tag ok">合格</span></td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3><code>【AIアセット反映】</code>（6項目）</h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>#</th><th>対象</th><th>変更前</th><th>変更後</th><th>判定</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td>A2</td><td>0</td><td>2</td><td><span class="tag ok">合格</span></td></tr>
+      <tr><td>2</td><td>A4</td><td>0</td><td>4</td><td><span class="tag ok">合格</span></td></tr>
+      <tr><td>3</td><td>A5</td><td>0</td><td>1</td><td><span class="tag ok">合格</span></td></tr>
+      <tr><td>4</td><td>B1・B2・B4・C1</td><td>0</td><td>4</td><td><span class="tag ok">合格</span></td></tr>
+      <tr><td>5</td><td>A1・A3</td><td>0</td><td>2</td><td><span class="tag ok">合格</span></td></tr>
+      <tr><td>6</td><td>B3・B5</td><td>0</td><td>2</td><td><span class="tag ok">合格</span></td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p><b>変更前の基準値は着手前に実測した</b>（計画の検証#7）。その際、当初置いていた検索語の1つ（<code>ハング</code>）が既存記述に当たって<b>1</b>を返しており、<b>空振りする検証だった</b>。<code>クォートし忘れ</code>（変更前0）へ差し替えてから着手している。</p>
+</section>
+
+<section id="surprises">
+  <h2>想定と異なった点</h2>
+  <ul>
+    <li><b>VERSIONの規則を「読み直す」だけでは足りなかった。</b> 計画段階で <code>## 仕様</code> は読んでいたが、同じファイルの <code>## 影響範囲</code> に、仕様の解釈を狭める人間の判断が<b>同日付で</b>入っていた。<b>仕様節だけを読んで判断すると、その後に積まれた個別の判断を見落とす。</b></li>
+    <li><b>参照切れ検査が、計画に書いた検証コマンドのglobを参照として拾った。</b> <code>check-doc-references.sh</code> は絶対パス形式の記述を拾うため、<b>計画・レポートの中に書いた <code>ls &lt;パス&gt;</code> のような例示も対象になる</b>。<code>grep -c</code> の形へ直して0件へ戻した。</li>
+    <li><b>gitのコミットコマンドの <code>-m</code> という文字列を含むファイルを、ヒアドキュメント経由で作ろうとして hook にブロックされた。</b> 判定はコマンド位置ベースだが、<b>この規模のコマンド文字列では部分一致へ縮退した</b>（<code>git-workflow.md</code> の既知のトレードオフ）。<b>Writeツールで書き、文面も言い換えた。</b></li>
+  </ul>
+</section>
+
+<section id="todo">
+  <h2>残課題</h2>
+  <ul>
+    <li><b><code>commit/SKILL.md</code> の <code>## 備考</code> 以下（孤立ブロック）は触っていない。</b> 別issueへの切り出しを提案する方針を維持している。</li>
+    <li><b><code>.gemini/</code> は未同期。</b> flow-id 5-3 で反映する。<b>期待値を固定値で持たない</b>（フェーズ3で書いた 42/30 は失効）。<b><code>.gemini/</code> 側の件数が <code>.claude/</code> 側と一致すること</b>で判定する。</li>
+    <li><b><code>.claude/VERSION</code> の増分は人間の判断待ち。</b> 上げる場合は <code>0.4.0</code>（MINOR）。</li>
+  </ul>
+</section>
+
+<footer>issue #185 / フェーズ4〈反映〉 flow-id 4-6 / 正文は同名の .md</footer>
+
+</div>
+
+</body>
+</html>
