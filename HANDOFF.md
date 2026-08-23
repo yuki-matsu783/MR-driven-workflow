@@ -17,7 +17,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - issue: #26 AIアセットの他プロジェクトへの配布をmanifest方式へ作り直し、配布アセットの層分けを定義する
 - ブランチ: claude/ai-asset-manifest-distribution-u2gn22
 - PR: #154 https://github.com/yuki-matsu783/MR-driven-workflow/pull/154
-- push回数: 16
+- push回数: 17
 - 現在のループ: なし
 - 追従監視: 購読あり（web。subscribe_pr_activity + 自己チェックイン）
 
@@ -49,7 +49,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 | [x] | 3-8 | 作業結果をレビュー | 人間 |
 | [x] | 3-9 | レビュー内容を取得し実装・ドキュメントを修正 | サブコマンド |
 | [x] | 3-10 | 作業内容をもとにMR descriptionを更新 | サブコマンド |
-| [] | 4-1 | 個別反映計画を作成する（反映対象の洗い出し） | エージェント |
+| [x] | 4-1 | 個別反映計画を作成する（反映対象の洗い出し） | エージェント |
 | [] | 4-2 | commitしpushしてレビュー依頼 | エージェント |
 | [] | 4-3 | 反映計画をレビュー | 人間 |
 | [] | 4-4 | レビュー内容を取得し反映計画を修正 | サブコマンド |
@@ -334,20 +334,47 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
   `passed=1142 failures=0`**（main由来の `test_block_direct_git_commit.sh` が18本目）・
   網羅性 212/212・13/13・DDR識別子の重複なし・`git diff HEAD -- HANDOFF.md` 0行。
 
+### flow-id 4-1（個別反映計画の作成・反映対象の洗い出し）
+
+反映対象を実ファイルで洗い出し、**種別ごとに3つの個別反映計画へ分けた**
+（`.claude/skills/issue-mr-flow/SKILL.md`「`【設計反映】`『【AIアセット反映】`『【実装反映】`は
+基本的に併記せず分ける」）。**フェーズ4はスキップしない**（反映対象が空ではなかった）。
+
+- **`【実装反映】setup-gemini-linksの失敗握りつぶしの修正`** — `place_real_copy` が
+  `cp -R` の失敗を成功として報告する。**3箇所が重なっている**ことが分かった
+  （`setup_target` を `|| fail=1` で呼ぶため `set -e` が関数内部まで一時停止する／
+  成功メッセージが無条件に出る／呼び出し側の `return 0`）。既存の
+  `test_setup_gemini_links.sh` へ4つの表明を足す。
+- **`【設計反映】配布方式のspecとDDRへの反映`** — `distribution-assets.md` の
+  「配布経路での扱い」を層ベースへ全面書き換え／**未決定事項5件のうち4件が決着済み**
+  なので削除しchangelogへ解消先を残す／新方式のspecを新設／**DDR `i0026-01`〜`03`**
+  （方式選定＝受け入れ条件11・`exclude` を明示必須にした判断・`AGENTS.md` を `core` に
+  しなかった判断）。`i0026-` は未使用であることを確認済み。
+- **`【AIアセット反映】ディレクトリ構成とVERSIONの更新`** — ツリー・Repository Map の欠落
+  （`agent-common.md` が**どちらにも無い**・`check-dist-coverage.sh` が
+  `directory-structure.md` に無い）／`.claude/VERSION` の増分提案（**推奨は `1.0.0`**）。
+
+- **実施順は `【実装反映】` → `【設計反映】` → `【AIアセット反映】`。** VERSIONの増分は
+  3件の結果が出そろわないと提案できないため最後に置いた。ただし結論を書く先は
+  `【設計反映】` の成果物（changelog）なので、**その1行だけは後から書き戻す**と決めた。
+- **洗い出しの過程で、フェーズ4の候補として挙げていた3件が既にフェーズ3で反映済み**
+  であることを実ファイルで確認した（`ai-asset:` prefix 規約は `commit` スキルへ、
+  `assets/` の位置づけと `requiredLine` の扱いは既存ドキュメントへ）。再度触らない。
+- **`issue-mr-workflow.md` の3箇所（2369 / 3071 / 3080行目）は触らない**と決めた。
+  `sync-assets.sh` `safe_copy_dir` という語が出るが、いずれも**過去issueのchangelogの中**
+  （issue #63 / #54）であり point-in-time の記録である。
+
 ## 次にやること
 
-- **フェーズ3〈作業〉完了**（flow-id 3-10 まで。レビュー往復3周）。
-  次は **flow-id 4-1（個別反映計画の作成）**。まず反映対象を洗い出す。
-- その後 **flow-id 4-1（個別反映計画の作成）**。
-- フェーズ4の予定: `distribution-assets.md` の更新、新方式のspec（未確認事項）、
-  方式選定のDDR（受け入れ条件11）、`generate-ddr-list.sh` の再実行、`.claude/VERSION` の更新提案。
-  - **`.claude/VERSION` は mainのマージで `0.1.2` → `0.2.0` になった**（main側の更新。こちらは
-    据え置いていた）。issue #26 は配布方式そのものを作り直すため、更新の要否を4-1で判断する。
-  - フェーズ4で持ち越す実装課題: `setup-gemini-links.sh` の `place_real_copy` が `cp -R` の失敗を
-    成功として報告する（`【実装反映】`で扱う）。
-  - フェーズ4で持ち越す設計反映: `.claude/docs/spec/distribution-assets.md` 102行目が、削除済みの
-    `ensure_gitattributes_rules` と `assets/.gitattributes` を現在の仕様として書いている。
-    **DDR `i0033-03` の同じ記述は本文なので書き換えない**（point-in-time の記録）。
+- **flow-id 4-1 完了**（個別反映計画3件＋HTMLビュー3件を作成）。次は **flow-id 4-2**
+  （commit・push してレビュー依頼）→ 4-3〜4-4（計画のレビュー往復）→ 4-5（`describe`）。
+- その後 flow-id 4-6〜4-10 を**種別の数だけセットで回す**
+  （`【実装反映】` → `【設計反映】` → `【AIアセット反映】` の順）。
+- **フェーズ4の内容は3つの個別反映計画が持つ**（上記 flow-id 4-1 節。予定はそちらが正で、
+  ここには再掲しない）。実施時に忘れやすい2点だけ残す。
+  - **`.claude/VERSION` の増分は人間が決める**（AIは提案のみ）。現在値 `0.2.0`、推奨 `1.0.0`。
+  - **DDR `i0033-03` の本文は書き換えない**（`ensure_gitattributes_rules` を書いているが
+    point-in-time の記録）。直すのは `distribution-assets.md` 102行目の側だけ。
 - flow-id 5-2 で、**受け入れ条件1の修正（4層 → 5層。`exclude` の追加）を issue #26 へ
   コメントで記録する**（issue本文は編集しない）。
 - 敵対的レビューは**フェーズ3の上限3回に到達済み**（以降は実行できない）。
