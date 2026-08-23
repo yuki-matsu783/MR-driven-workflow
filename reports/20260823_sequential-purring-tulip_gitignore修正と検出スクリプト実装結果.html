@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>gitignore修正と検出スクリプト実装結果</title>
+<style>
+  :root {
+    --bg: #f6f7f9;      --panel: #ffffff;   --ink: #1a1d21;     --muted: #5b636d;
+    --line: #dfe3e8;    --accent: #2563eb;  --accent-soft: #eaf0fe;
+    --ok: #1a7f4b;      --ok-soft: #e6f4ec; --warn: #a35a00;    --warn-soft: #fdf1e0;
+    --stop: #b3261e;    --stop-soft: #fdecea; --code-bg: #f0f2f5;
+    --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1216;    --panel: #161a20;   --ink: #e6e8eb;     --muted: #9aa3ad;
+      --line: #2a3038;  --accent: #7aa2f7;  --accent-soft: #1b2333;
+      --ok: #6ee7a8;    --ok-soft: #14261d; --warn: #f0b866;    --warn-soft: #2a2113;
+      --stop: #f2857c;  --stop-soft: #2b1614; --code-bg: #1d222a;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", system-ui, sans-serif;
+    line-height: 1.8; font-size: 15px;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 20px 80px; }
+
+  header.band {
+    background: linear-gradient(135deg, var(--accent-soft), var(--panel));
+    border-bottom: 1px solid var(--line); padding: 28px 20px 22px; margin-bottom: 28px;
+  }
+  header.band .inner { max-width: 1080px; margin: 0 auto; }
+  header.band .kind { font-size: 11px; letter-spacing: .18em; color: var(--accent); font-weight: 700; }
+  header.band h1 { margin: 6px 0 4px; font-size: 26px; line-height: 1.4; }
+  header.band .lead { margin: 0; color: var(--muted); }
+  .meta { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; padding: 0; list-style: none; }
+  .meta li {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 999px;
+    padding: 3px 12px; font-size: 12.5px; color: var(--muted); white-space: nowrap;
+  }
+  .meta li b { color: var(--ink); font-weight: 600; }
+
+  nav.toc {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 14px 20px; margin-bottom: 28px;
+  }
+  nav.toc h2 { margin: 0 0 8px; font-size: 13px; letter-spacing: .08em; color: var(--muted); border: 0; padding: 0; }
+  nav.toc ol { margin: 0; padding-left: 20px; }
+  nav.toc li { margin: 2px 0; }
+  a { color: var(--accent); }
+
+  section {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 8px 24px 22px; margin-bottom: 22px;
+  }
+  h2 { font-size: 20px; margin: 20px 0 10px; padding-bottom: 8px; border-bottom: 2px solid var(--line); }
+  h3 { font-size: 16px; margin: 22px 0 8px; color: var(--accent); }
+  p { margin: 10px 0; }
+  ul, ol { padding-left: 22px; }
+  li { margin: 4px 0; }
+  blockquote { margin: 10px 0; padding: 6px 14px; border-left: 3px solid var(--line); color: var(--muted); }
+
+  .tablewrap { overflow-x: auto; margin: 14px 0; }
+  table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 14px; }
+  th, td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: var(--accent-soft); font-weight: 600; white-space: nowrap; }
+  tbody tr:nth-child(even) td { background: color-mix(in srgb, var(--line) 22%, transparent); }
+
+  code {
+    background: var(--code-bg); border-radius: 5px; padding: 1px 5px; font-size: 13px;
+    font-family: "SFMono-Regular", Consolas, "Noto Sans Mono", monospace;
+  }
+  pre {
+    background: var(--code-bg); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 12px 14px; overflow-x: auto; font-size: 13px; line-height: 1.65;
+  }
+  pre code { background: none; padding: 0; }
+
+  .box { border-left: 4px solid var(--accent); background: var(--accent-soft);
+         border-radius: 0 var(--radius) var(--radius) 0; padding: 12px 16px; margin: 16px 0; }
+  .box > :first-child { margin-top: 0; } .box > :last-child { margin-bottom: 0; }
+  .box .label { font-size: 12px; font-weight: 700; letter-spacing: .06em; display: block; margin-bottom: 4px; }
+  .box.ok { border-color: var(--ok); background: var(--ok-soft); } .box.ok .label { color: var(--ok); }
+  .box.warn { border-color: var(--warn); background: var(--warn-soft); } .box.warn .label { color: var(--warn); }
+  .box.stop { border-color: var(--stop); background: var(--stop-soft); } .box.stop .label { color: var(--stop); }
+  .box.info .label { color: var(--accent); }
+
+  .tag { display: inline-block; border-radius: 999px; padding: 1px 9px; font-size: 12px; font-weight: 600; }
+  .tag.ok { background: var(--ok-soft); color: var(--ok); }
+  .tag.warn { background: var(--warn-soft); color: var(--warn); }
+  .tag.stop { background: var(--stop-soft); color: var(--stop); }
+
+  footer { color: var(--muted); font-size: 13px; text-align: center; padding-top: 10px; }
+</style>
+</head>
+<body>
+
+<header class="band">
+  <div class="inner">
+    <div class="kind">作業結果 / フェーズ3 flow-id 3-6</div>
+    <h1>.gitignoreのDDR参照修正と検出スクリプト実装結果</h1>
+    <p class="lead">.gitignoreのDDR参照切れ2箇所を修正し、検出スクリプトcheck-doc-references.shと単体テストを実装した結果。</p>
+    <ul class="meta">
+      <li><b>issue</b> #171</li>
+      <li><b>ブランチ</b> claude/gitignore-ddr-references-rsjo83</li>
+      <li><b>PR</b> #177</li>
+      <li><b>フェーズ</b> 3〈作業〉 flow-id 3-6</li>
+      <li><b>作成日</b> 2026-08-23</li>
+      <li><b>正文</b> 同名の .md</li>
+    </ul>
+  </div>
+</header>
+
+<div class="wrap">
+
+<nav class="toc">
+  <h2>目次</h2>
+  <ol>
+    <li><a href="#summary">サマリ（結論の一覧）</a></li>
+    <li><a href="#conditions">実施条件（測った対象・環境）</a></li>
+    <li><a href="#findings">実施した内容と結果</a></li>
+    <li><a href="#surprises">想定と異なった点</a></li>
+    <li><a href="#unverified">確かめられなかったこと</a></li>
+    <li><a href="#verify-summary">検証まとめ</a></li>
+  </ol>
+</nav>
+
+<section id="summary">
+  <h2>サマリ（結論の一覧）</h2>
+  <ol>
+    <li><code>.gitignore</code>の28行目・40行目のDDR参照切れを実在ファイル名へ修正した。
+      修正後、参照側から検索した参照切れは<b>0件</b>。</li>
+    <li>検出スクリプト<code>.claude/scripts/src/check-doc-references.sh</code>を新規実装した。
+      個別作業計画（v2、敵対的レビュー対応済み）の設計どおり、bash単独方式（外部コマンドは
+      <code>git ls-files</code>の1回のみ）・実際のタブ文字・issue番号／枝番とも桁数不問の
+      正規表現・3ディレクトリ除外（<code>.claude/scripts/test/</code> <code>plans/</code>
+      <code>reports/</code> <code>worklog/</code>）・省略記法除外・貪欲マッチによる終端規則・
+      コードフェンス除外（未閉鎖時は安全側で除外しない）を実装した。</li>
+    <li>リポジトリ全体（走査ファイル数150、除外ディレクトリ配下25）に対して実行し、
+      候補121件（省略記法による除外3件）のうち<b>参照切れ0件</b>を確認した。</li>
+    <li>単体テスト<code>.claude/scripts/test/test_check_doc_references.sh</code>を実装し、
+      5つの純粋関数を対象に28ケース全件成功した。</li>
+  </ol>
+</section>
+
+<section id="conditions">
+  <h2>実施条件（測った対象・環境）</h2>
+  <ul>
+    <li>対象コミット: このworklog作成時点のワーキングツリー（ブランチ
+      <code>claude/gitignore-ddr-references-rsjo83</code>、直前コミット<code>4c3f861</code>）。</li>
+    <li>実行環境: Linux 6.18.44、bash 5.2.21、grep 3.11、<code>LANG</code>未設定
+      （フェーズ2 reportsの「実施条件」と同一環境）。</li>
+    <li>git bash（MSYS/Windows）実機での再検証は行っていない（個別作業計画「やらないこと」で
+      理由付きで見送りと決定済み）。</li>
+  </ul>
+</section>
+
+<section id="findings">
+  <h2>実施した内容と結果</h2>
+
+  <h3>1. .gitignoreの修正</h3>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>行</th><th>修正前</th><th>修正後</th></tr></thead>
+      <tbody>
+        <tr><td>28行目</td><td><code>i00-13-gemini配下は…md</code></td><td><code>i0000-13-gemini配下は…md</code></td></tr>
+        <tr><td>40行目</td><td><code>i36-01-frontmatterのindex.jsonlを…md</code></td><td><code>i0036-01-frontmatterのindex.jsonlを…md</code></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>検証（計画の検証1、タブは実際のタブ文字を変数経由で使用）:</p>
+  <pre><code>tab=$'\t'
+grep -noE "\.claude/docs/ddr/i[0-9]+-[0-9]+-[^]) \"'`($tab]*\.md" .gitignore \
+  | while IFS=: read -r lineno path; do [[ -f "$path" ]] || echo "$lineno:$path"; done</code></pre>
+  <p>修正前は28行目・40行目の2件が出力され、修正後は<b>出力0件</b>（終了コードで確認済み）。</p>
+
+  <h3>2. 検出スクリプトの実装</h3>
+  <p><code>.claude/scripts/src/check-doc-references.sh</code>を新規作成した。個別作業計画からの
+    変更点は実装過程で1件見つかった（下記「想定と異なった点」）以外は計画どおり。</p>
+  <p>構成する純粋関数（テストから直接呼べる）:</p>
+  <ul>
+    <li><code>is_excluded_target_path</code>: <code>.claude/scripts/test/</code>
+      <code>plans/</code> <code>reports/</code> <code>worklog/</code>配下の判定</li>
+    <li><code>is_placeholder_candidate</code>: 省略記法（<code>...</code>/<code>…</code>）を
+      含むかの判定</li>
+    <li><code>is_fence_delimiter_line</code>: 行がコードフェンス区切り（<code>```</code>/
+      <code>~~~</code>、インデント可）かの判定</li>
+    <li><code>strip_fenced_lines_to_reply</code>: 複数行テキストからフェンス内の行を除いた
+      テキストを返す。未閉鎖（奇数回トグル）なら除外せず入力をそのまま返す（安全側）</li>
+    <li><code>extract_ddr_candidates_to_reply</code>: 1行からDDRパス候補を貪欲マッチですべて
+      抽出する</li>
+  </ul>
+  <p><code>main</code>は<code>if [ "${BASH_SOURCE[0]}" = "${0}" ]; then main; fi</code>で
+    ガードし、単体テストからの<code>source</code>時に実行されないようにした。</p>
+  <p>検証（計画の検証2・3）:</p>
+  <pre><code>bash -n .claude/scripts/src/check-doc-references.sh   # 構文OK
+bash .claude/scripts/src/check-doc-references.sh</code></pre>
+  <p>実行結果（標準エラーのサマリ）:</p>
+  <pre><code>走査ファイル数=150（除外ディレクトリ配下=25）
+候補数=121（省略記法による除外=3）
+フェンス未閉鎖ファイル数=2（安全側のため除外なし）
+参照切れ数=0</code></pre>
+  <p>終了コードは0（<code>missing -eq 0</code>のとき成功）。</p>
+
+  <h3>3. 単体テストの実装</h3>
+  <p><code>.claude/scripts/test/test_check_doc_references.sh</code>を新規作成した。個別作業
+    計画のケース一覧（枝番の桁数不問化、タブ区切り2候補、貪欲マッチ境界値、フェンス未閉鎖時の
+    安全側挙動を含む）をすべてカバーし、<b>28ケース全件成功</b>
+    （<code>passed=28 failures=0</code>）。</p>
+  <pre><code>bash .claude/scripts/test/test_check_doc_references.sh</code></pre>
+</section>
+
+<section id="surprises">
+  <h2>想定と異なった点</h2>
+  <div class="box warn">
+    <span class="label">フェンス除外の実装バグ（実装段階で発見・修正）</span>
+    <p>個別作業計画のフェンス除外設計は「行単位状態の追跡」とだけ書いており、1ファイル1回の
+    ストリーミング読み込み（行ごとに<code>in_fence</code>を更新しながらリアルタイムで除外
+    判定する実装）を素朴に書くと、<b>フェンスが未閉鎖のままファイル末尾に達した場合、除外して
+    いた行が確定するのはファイルを最後まで読み終えた後</b>になるため、ストリーミング処理では
+    「未閉鎖なら除外しない」という安全側の設計を正しく実装できない（読み進めながら捨てて
+    しまった行を後から復元できない）。</p>
+    <p>対応: ファイル全体を<code>content="$(&lt;"$file")"</code>で一度読み込み（bash内蔵の
+    変数展開、追加の外部プロセスフォークなし）、<code>strip_fenced_lines_to_reply</code>関数で
+    「未閉鎖ならフェンス除外を一切行わない」という2パス方式に設計を変更した。この設計変更に
+    より、<code>.claude/rules/markdown-frontmatter.md</code>（フェンス11本で未閉鎖）から
+    新たに3件の実在するDDRパス参照が候補に加わった（総候補数が当初の実測118件から121件に
+    増加。いずれも実在ファイルであり参照切れではない）。</p>
+    <p>このバグは、個別作業計画へ提出した敵対的レビュー（1回目）の指摘（コードフェンスの
+    判定規則の未定義）が示唆していたリスクが、実装時に実際に顕在化した例である。</p>
+  </div>
+</section>
+
+<section id="unverified">
+  <h2>確かめられなかったこと</h2>
+  <ul>
+    <li>git bash（MSYS/Windows）実機での動作確認（個別作業計画「やらないこと」で見送りと
+      決定済み）。</li>
+  </ul>
+</section>
+
+<section id="verify-summary">
+  <h2>検証まとめ（個別作業計画の合格条件との対応）</h2>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>検証</th><th>結果</th></tr></thead>
+      <tbody>
+        <tr><td>1. <code>.gitignore</code>参照切れ</td><td><span class="tag ok">0件</span>（修正前は2件）</td></tr>
+        <tr><td>2. 構文チェック</td><td><span class="tag ok">OK</span></td></tr>
+        <tr><td>3. リポジトリ全体走査</td><td><span class="tag ok">候補121件（N&gt;0）、参照切れ0件</span></td></tr>
+        <tr><td>4. 単体テスト</td><td><span class="tag ok">passed=28 failures=0</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<footer>issue #171 / PR #177 — 結果の正文は同名の <code>.md</code>。外部依存を持たない自己完結HTML。</footer>
+
+</div>
+</body>
+</html>

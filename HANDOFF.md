@@ -18,7 +18,8 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - ブランチ: claude/gitignore-ddr-references-rsjo83
 - PR: #177
 - push回数: 6
-- 現在のループ: なし
+- 現在のループ: 3-6〜3-9 の1周目（進行中。非対話セッションのため3-8は実施せず、
+  敵対的レビューで代替）
 - 追従監視: なし
 
 | 進捗 | flow-id | ステップ | 担当 |
@@ -117,15 +118,23 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
   `plans/` `reports/` `worklog/`を除外した後の実測が`total=118 missing=2`（`.gitignore`の
   2件のみ）であることも確認済み。HTML品質チェック（プレースホルダ・外部依存）は0件で完了。
 
+- 改訂した個別作業計画（md・html）とworklog・HANDOFFをpush6として反映した（flow-id 3-2）。
+- 計画v2の設計に基づき`.gitignore`の2箇所（28行目・40行目）を修正し、検出スクリプト
+  `.claude/scripts/src/check-doc-references.sh`（5つの純粋関数＋`main`ガード。bash単独方式・
+  実際のタブ文字・issue番号／枝番とも桁数不問・3ディレクトリ除外・省略記法除外・コード
+  フェンス除外・貪欲マッチ）と単体テスト`.claude/scripts/test/test_check_doc_references.sh`
+  （28ケース）を実装した（flow-id 3-6）。実装過程でフェンス除外のストリーミング実装が
+  「未閉鎖時は除外しない」という安全側設計を満たせないバグを発見し、ファイル全体読み込み＋
+  2パス方式へ設計変更して解消した。検証4項目すべて成功（`.gitignore`参照切れ0件、構文OK、
+  リポジトリ全体走査で候補121件中参照切れ0件、単体テスト`passed=28 failures=0`）。結果を
+  `reports/20260823_sequential-purring-tulip_gitignore修正と検出スクリプト実装結果.md`・
+  `.html`へ記録した（HTML品質チェックも0件で完了）。
+
 ## 次にやること
 
-- 改訂した個別作業計画（md・html）とworklog・HANDOFFをcommit・push（flow-id 3-2）。
-- 計画に基づき`.gitignore`の2箇所（28行目・40行目）を修正し、検出スクリプト
-  （`.claude/scripts/src/check-doc-references.sh`）と単体テスト
-  （`.claude/scripts/test/test_check_doc_references.sh`）を実装する（flow-id 3-6）。
-  実装時は計画v2の設計（bash単独方式・real tab・枝番`[0-9]+`化・3関数への切り出し・
-  サマリ出力）に従う。
-- 作業実施後も敵対的レビューを自動実施する。
+- 実装（`.gitignore`・検出スクリプト・単体テスト・reports）に対し、ユーザー指示に従い
+  敵対的レビュー（作業実施フェーズ）を自動実施し、指摘へ対応する。
+- 実装結果をcommit・push（flow-id 3-7）。
 - フェーズ4〈反映〉: 検出方式の意思決定をDDRとして記録し、`generate-ddr-list.sh`で
   README一覧を再生成する。
 
