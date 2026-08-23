@@ -17,7 +17,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - issue: #149 post-issue-create-notice.shの検知をコマンド位置ベースにして誤検知を減らす
 - ブランチ: claude/post-issue-notice-detection-xleu14
 - PR: https://github.com/yuki-matsu783/MR-driven-workflow/pull/179 (Draft)
-- push回数: 6
+- push回数: 7
 - 現在のループ: 4-6〜4-9 の1周目（完了）
 - 未返信スレッド: 0
 - 追従監視: 購読あり（web。subscribe_pr_activity + 1時間ごとの自己チェックイン）
@@ -60,7 +60,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 | [x] | 4-8 | MRでレビュー・コメントする | 人間 |
 | [x] | 4-9 | レビュー内容を取得し、設計・AIアセットの内容を修正する | `comments` / `reply` |
 | [] | 4-10 | 反映内容をもとにMR descriptionを更新する | `describe` |
-| [] | 5-1 | defaultブランチとのコンフリクトを検知・解消する | エージェント（`resolve-conflict` スキル） |
+| [x] | 5-1 | defaultブランチとのコンフリクトを検知・解消する | エージェント（`resolve-conflict` スキル） |
 | [] | 5-2 | 関連issueへマージ前通知を行う | エージェント |
 | [] | 5-3 | 最終統括レポートを作成し、PR/MRへ反映する | エージェント |
 | [] | 5-4 | plans/worklog/reportsを削除しHANDOFF.mdをリセットする | エージェント |
@@ -183,10 +183,18 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - ユーザーから「続けて」とのチャットでの継続指示を受けた。PRのレビュースレッド件数をMCPで
   確認したところ0件だったため、フェーズ4の敵対的レビュー2回（計画レビュー・実装レビュー）を
   もって4-6〜4-9ループ（1周目）の合意とみなし完了とした（判断の記録は下記「判断を迷った内容」）。
+- flow-id 5-1: `check-base-conflicts.sh`でdefaultブランチとのコンフリクトを検知し、`git merge
+  origin/main`で解消した。1回目のマージ（origin/main 26937d0）ではHANDOFF.mdのヘッダ節が
+  コンフリクトし、ブランチの実内容を保持しつつmain側の新規フィールド「未返信スレッド」を
+  取り込んで解消（コミットeebf798）。push後にmainがさらに進んだ（efafea8。usecase文書新設
+  issue #170/#173/#181）ため再度マージし、`.claude/docs/README.md`のDDR一覧（生成物）が
+  コンフリクトしたため両エントリを残したうえで`generate-ddr-list.sh`で再生成して解消
+  （コミット59847e5）。いずれも`bash -n`構文チェック・3本の単体テスト（118/38/27件）・
+  DDR識別子重複チェック・`check-base-conflicts.sh`（`hasConflict: false`）で確認し、push7で
+  リモートへ反映した。
 
 ## 次にやること
 
-- flow-id 5-1: defaultブランチとのコンフリクト確認・解消を行う。
 - flow-id 5-2: 関連issueへのマージ前通知（要`AskUserQuestion`承認）。
 - flow-id 5-3〜5-5: 最終統括レポート作成→片付け→Draft解除。
 - flow-id 5-6（マージ）はユーザーの明示的な指示があるまで実行しない。
