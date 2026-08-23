@@ -132,7 +132,7 @@
       <tr><td><code>【AIアセット反映】</code> の検証</td><td><b>6項目すべて合格</b>（基準値は着手前に実測済み）</td></tr>
       <tr><td>DDR</td><td><code>i0185-01</code> を新設（8節。却下案3件・懸念・未計測を含む）</td></tr>
       <tr><td>spec</td><td><code>create-commit.md</code> と <code>distribution-assets.md</code> の <code>## 影響範囲</code> へ <code>### issue #185</code> を追加</td></tr>
-      <tr><td><b><code>.claude/VERSION</code></b></td><td><b>本issueとしての増分は行っていない</b>（実施時点では <code>0.3.0</code> のまま据え置き。<b>計画からの変更</b>）。<b>その後 flow-id 5-1 のmainマージで <code>0.4.0</code> になった</b>（main側 PR #191 の増分）</td></tr>
+      <tr><td><b><code>.claude/VERSION</code></b></td><td><b><code>0.4.0</code> で据え置き（人間の判断として確定）。</b> 実施時点では <code>0.3.0</code> のまま据え置き（<b>計画からの変更</b>）、flow-id 5-1 のmainマージで <code>0.4.0</code> になった（main側 PR #191 の増分）</td></tr>
       <tr><td>参照整理</td><td><code>git-workflow.md</code> / <code>resolve-conflict/SKILL.md</code> / <code>issue-mr-flow/SKILL.md</code> の3件</td></tr>
       <tr><td>副産物の反映</td><td>(c) 追記8件・(d) 導線3件を4ファイルへ</td></tr>
       <tr><td>参照切れ</td><td><b>0件</b>（<code>check-doc-references.sh</code> exit=0）。<b>ただし一度1件出した</b>（下記「敵対的レビュー6回目で直した点」）</td></tr>
@@ -300,9 +300,9 @@
 <section id="todo">
   <h2>残課題</h2>
   <ul>
-    <li><b><code>commit/SKILL.md</code> の <code>## 備考</code> 以下（孤立ブロック）は触っていない。</b> 別issueへの切り出しを提案する方針を維持している。</li>
+    <li><b><code>commit/SKILL.md</code> の <code>## 備考</code> 以下（孤立ブロック）は触っていない。</b> 人間の承認を得て <b>issue #200 として切り出した</b>（2026-08-23）。<b>このPRでは着手しない。</b></li>
     <li><b><code>.gemini/</code> は未同期。</b> flow-id 5-3 で反映する。<b>期待値を固定値で持たない</b>（フェーズ3で書いた 42/30 は失効）。<b><code>.gemini/</code> 側の件数が <code>.claude/</code> 側と一致すること</b>で判定する。</li>
-    <li><b><code>.claude/VERSION</code> の増分は人間の判断待ち。</b> 上げる場合は <code>MINOR</code>（mainマージ後の現在値 <code>0.4.0</code> から <code>0.5.0</code>）。判断材料は <code>distribution-assets.md</code>「未決定事項・懸念点」の該当項目1箇所に集約した（changelogを読み解いて導き直さないため）。</li>
+    <li><b><code>.claude/VERSION</code> は据え置きで確定した</b>（2026-08-23、人間の回答「<code>0.4.0</code> で」）。<b>ただし決まったのは本issueの増分だけで、「非対話例外を <code>.claude/VERSION</code> へ適用してよいか」という規則そのものは未決定のまま残る。</b> 判断材料は <code>distribution-assets.md</code>「未決定事項・懸念点」の該当項目1箇所に集約した（changelogを読み解いて導き直さないため）。</li>
   </ul>
 </section>
 
