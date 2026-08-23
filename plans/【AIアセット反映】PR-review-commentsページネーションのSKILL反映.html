@@ -130,7 +130,9 @@
   2回連続して誤ったパラメータ名<code>cursor</code>を使い、<code>hasNextPage: true</code>のまま
   同一ページが返り続ける現象を実際に踏んだ（正しいパラメータ名は<code>after</code>）。この罠を
   <code>.claude/skills/issue-mr-flow/SKILL.md</code>「<code>gh</code>/<code>glab</code> CLI不在時の
-  MCPフォールバック」節へ注記として追記し、次のセッションが同じ回り道をしないようにする。</p>
+  MCPフォールバック」節へ注記として追記する。あわせて、同SKILL.mdの「レビュー完了合図の確認 (2)」
+  節（MCP経路での未返信スレッド判定手順）が全ページ走査を暗黙の前提にしていることへも注記する。
+  <code>get_reviews</code>による横断確認の追記は行わない（「やらないこと」参照）。</p>
 </section>
 
 <section id="target">
@@ -140,8 +142,10 @@
     <thead><tr><th>ファイル</th><th>操作</th><th>何をするか</th></tr></thead>
     <tbody>
       <tr><td><code>.claude/skills/issue-mr-flow/SKILL.md</code></td><td>変更</td>
-        <td>「<code>gh</code>/<code>glab</code> CLI不在時のMCPフォールバック」節の
-        <code>get_review_comments</code>対応行へ、正しいページネーションパラメータ名を注記</td></tr>
+        <td>(a) 「<code>gh</code>/<code>glab</code> CLI不在時のMCPフォールバック」節の
+        <code>get_review_comments</code>対応行へ正しいページネーションパラメータ名を注記。
+        (b) 「レビュー完了合図の確認 (2)」節のMCP経路へ、全ページ走査してから未返信判定を
+        行う旨を追記</td></tr>
     </tbody>
   </table>
   </div>
@@ -154,9 +158,15 @@
       関連の行を探し、<code>get_review_comments</code>のページネーションに関する既存の記載を確認する。</li>
     <li>パラメータ名の注記を追加する。「<code>after</code>が正、<code>cursor</code>は誤り」という
       否定形ではなく、<b>実際に踏んだ症状（誤ったパラメータ名を渡すと<code>hasNextPage: true</code>の
-      まま同一ページが返り続ける）を含めて書く</b>。</li>
-    <li>併せて、<code>get_reviews</code>で全レビュー本文を横断確認する手法（自分の投稿と人間の投稿を
-      本文パターンで判別する）も、代替手段として一言だけ触れる（過度な詳述はしない）。</li>
+      まま同一ページが返り続ける）を含めて書く</b>。<code>perPage</code>の上限100はこのセッションで
+      MCPツールのスキーマを直接確認した値（未検証の伝聞ではない）として書く。</li>
+    <li><b>「レビュー完了合図の確認 (2)」節への波及も併せて直す</b>（このページネーションの罠が
+      実害を持つ本質的な理由）。同節のMCP経路は「各スレッドの<code>comments</code>配列が1件か
+      どうか」で未返信を判定するが、この判定は全スレッドを取得できていることが前提になっている。
+      より危険なのは2ページ目以降を取らずに判定を終える場合で、未返信スレッドを取りこぼしたまま
+      <code>set-header --unreplied 0</code>を書き、ループ範囲へ<code>mark-done</code>できてしまう
+      （issue #70・#109が防ごうとした状態そのもの）。同節のMCP経路へ「<code>hasNextPage</code>が
+      偽になるまで<code>after</code>で全ページを走査してから判定する」ことを追記する。</li>
   </ol>
 </section>
 
@@ -168,15 +178,19 @@
       <li>他のMCPツール（<code>add_comment_to_pending_review</code>等）の網羅的な再検証</li>
       <li><code>Provider.sh</code>本体への変更（<code>gh</code>/<code>glab</code> CLIが使える
         環境では発生しない問題のため）</li>
+      <li><code>get_reviews</code>で全レビュー本文を横断確認する手法の追記。今回代替手段として
+        実際に使ったが、目的から外れる別トピックであり見送る</li>
     </ul>
   </div>
 </section>
 
 <section id="verify">
   <h2>検証</h2>
-  <pre><code>grep -n 'after\|cursor' .claude/skills/issue-mr-flow/SKILL.md</code></pre>
-  <p>合格条件: 上記コマンドの出力に、<code>get_review_comments</code>のページネーションパラメータが
-  <code>after</code>であることの記載が含まれていること。</p>
+  <pre><code>grep -n 'after\|cursor' .claude/skills/issue-mr-flow/SKILL.md
+grep -n 'hasNextPage' .claude/skills/issue-mr-flow/SKILL.md</code></pre>
+  <p>合格条件: 1つ目のコマンドの出力に、<code>get_review_comments</code>のページネーション
+  パラメータが<code>after</code>であることの記載が含まれていること。2つ目のコマンドの出力に、
+  「レビュー完了合図の確認 (2)」節のMCP経路が全ページ走査を前提とする旨の記載が含まれていること。</p>
 </section>
 
 <footer>issue #105 / PR #174 — 計画の正文は同名の <code>.md</code>。外部依存を持たない自己完結HTML。</footer>

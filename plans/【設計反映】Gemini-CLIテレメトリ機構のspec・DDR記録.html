@@ -157,14 +157,26 @@
         <td>Gemini CLI公式テレメトリ機構の仕様（背景・目的／仕組み／設定項目／出力形式／
         カーソル方式／既知の制限／影響範囲／未決定事項）</td></tr>
       <tr><td><code>.claude/docs/spec/sync-gemini-assets.md</code></td><td>変更</td>
-        <td><code>env</code>行の帰結を、issue #105で<code>telemetry</code>ブロックが別経路で
-        追加されたことに合わせて訂正</td></tr>
-      <tr><td><code>.claude/docs/ddr/i0105-01-〜.md</code></td><td>新規</td>
+        <td>(a) <code>env</code>行の帰結を訂正、(b) <code>telemetry</code>ブロックを固定値で注入
+        する新しい変換挙動（<code>GEMINI_OTEL_OUTFILE_REL</code>定数）を追記</td></tr>
+      <tr><td><code>.claude/docs/spec/issue-mr-workflow.md</code></td><td>変更</td>
+        <td>「対応工数レポート」節へ、テレメトリ由来の参考値セクションが追加された旨と新規spec
+        へのリンクを1行追記</td></tr>
+      <tr><td><code>.claude/docs/spec/distribution-assets.md</code></td><td>変更</td>
+        <td>「既知の問題」節の配布gitignore不一致の記述を、フェーズ3で<code>/usage/</code>が
+        追加され一部解消したことに合わせて更新</td></tr>
+      <tr><td><code>.claude/rules/directory-structure.md</code></td><td>変更</td>
+        <td><code>usage/</code>配下の内訳一覧へ<code>usage/gemini-otel.log</code>・
+        <code>usage/state/gemini-otel/cursor.json</code>（グローバル）を追記</td></tr>
+      <tr><td><code>.claude/docs/ddr/i0105-01-二重計上回避方式は…md</code></td><td>新規</td>
         <td>二重計上回避方式（semantic conventions形式のみ採用、却下案）</td></tr>
-      <tr><td><code>.claude/docs/ddr/i0105-02-〜.md</code></td><td>新規</td>
-        <td>既定有効化を保留した判断（配布先gitignore未整備・機微情報未確認、却下案）</td></tr>
-      <tr><td><code>.claude/docs/README.md</code></td><td>変更（生成物）</td>
-        <td><code>generate-ddr-list.sh</code>実行によるDDR一覧の再生成</td></tr>
+      <tr><td><code>.claude/docs/ddr/i0105-02-既定有効化は…md</code></td><td>新規</td>
+        <td>既定有効化を保留した判断（機微情報未確認、却下案）</td></tr>
+      <tr><td><code>.claude/docs/README.md</code></td><td>変更（一部生成物）</td>
+        <td>(a) <code>generate-ddr-list.sh</code>によるDDR一覧再生成（生成物）、(b) spec一覧
+        （<b>手書き</b>）へ新規spec行を追加</td></tr>
+      <tr><td><code>.claude/VERSION</code></td><td>変更（提案）</td>
+        <td>配布対象アセット4本の変更に対する版増分をAIエージェントが提案する</td></tr>
     </tbody>
   </table>
   </div>
@@ -176,20 +188,39 @@
     <li><b>新規spec作成</b>: <code>otel-listener.md</code>の見出し構成に倣う。Claude Code側
       （常駐perlリスナー経由）と、Gemini CLI側（<code>outfile</code>への直接書き出し、常駐
       プロセス無し）という対比を「背景・目的」で明記する。</li>
-    <li><b><code>sync-gemini-assets.md</code>の訂正</b>: 帰結列を、issue #105により
-      <code>telemetry</code>ブロックは<code>env</code>変換とは独立した経路
-      （<code>SETTINGS_JQ_FILTER</code>内の固定注入）で追加された旨へ書き換える。理由列
-      （<code>env</code>キー自体を変換しない判断）は変更しない。</li>
+    <li><b><code>sync-gemini-assets.md</code>の訂正・追記</b>（置き換え前後を両方示す）:
+      <ul>
+        <li><b>置き換え前</b>（<code>env</code>行の帰結列）: 「Gemini CLI 経路では対応工数の
+          OTel 計測が行われない（issue #70 / #103）」</li>
+        <li><b>置き換え後</b>: 「Gemini CLI 経路では、Claude Code由来の<code>env</code>ブロック
+          としてのOTel計測は行われない（issue #70 / #103）。ただしissue #105により、
+          <code>env</code>変換とは独立した経路（<code>SETTINGS_JQ_FILTER</code>内の固定注入）で
+          <code>telemetry</code>ブロックが別途追加されており、<b><code>enabled: false</code>固定の
+          ため現状は無効</b>」。理由列（<code>env</code>キー自体を変換しない判断）は変更しない。</li>
+        <li><b>追記</b>: 「固定値で注入するブロック」という新しい節を設け、
+          <code>telemetry</code>ブロックが対応キーを持たない固定注入であること、
+          <code>GEMINI_OTEL_OUTFILE_REL</code>定数が出力先パスの単一の出所であることを記載する。</li>
+      </ul>
+    </li>
     <li><b>DDR i0105-01（二重計上回避方式）</b>: <code>toLogRecord</code>/
       <code>toSemanticLogRecord</code>が同一イベントにつき無条件で2回emitされる事実、metricsが
       10秒間隔で周期exportされる事実を根拠に、semantic conventions形式のみを対象としレガシー
       形式・metricsは無視する設計を採用した理由を書く。</li>
-    <li><b>DDR i0105-02（既定有効化の保留）</b>: 配布先<code>.gitignore</code>が<code>/usage/</code>
-      を対象にしないまま<code>enabled: true</code>を配布する非対称と、<code>logPrompts: false</code>
-      が他イベントの機微情報を抑制するかが未確認である点を根拠に、<code>enabled: false</code>固定
-      とした判断を書く。</li>
-    <li><b>DDR一覧の再生成</b>: 2本追加後に<code>generate-ddr-list.sh</code>を実行し、差分を
-      同じコミットへ含める。</li>
+    <li><b>DDR i0105-02（既定有効化の保留）</b>: 保留の根拠は<b>機微情報（tool_call引数等）が
+      未確認である点1つに絞る</b>。配布先<code>.gitignore</code>の<code>/usage/</code>未整備は、
+      <b>フェーズ3で既に解消済み</b>のため経緯としてのみ触れ、現在の保留理由には含めない。</li>
+    <li><b><code>.claude/docs/README.md</code>への追加</b>: DDR一覧は生成、
+      spec一覧（<b>手書き</b>）は新規spec行を自分で追加する。</li>
+    <li><b><code>issue-mr-workflow.md</code>の相互リンク</b>:「対応工数レポート」節へ新規specへの
+      リンクを1行追記する。</li>
+    <li><b><code>distribution-assets.md</code>の是正</b>: 配布gitignore不一致の既知の問題を、
+      <code>/usage/</code>は解消済み・<code>/.claude/state/</code>は未解消と書き分ける。</li>
+    <li><b><code>directory-structure.md</code>の追記</b>: 新設した2ファイルを内訳一覧へ追加し、
+      カーソルがグローバル（ブランチ/セッション非依存）であることを明記する。</li>
+    <li><b><code>.claude/VERSION</code>の増分提案</b>: 配布対象アセット4本の変更を根拠に
+      <code>MINOR</code>増分を提案する。据え置く場合は新規specのchangelogへ残す。</li>
+    <li><b>恒久ドキュメントからの参照先の限定</b>: 新規spec・DDR2本の本文からは
+      <code>reports/</code>・<code>plans/</code>・<code>worklog/</code>を参照しない。</li>
   </ol>
 </section>
 
@@ -211,11 +242,18 @@
 <section id="verify">
   <h2>検証</h2>
   <pre><code>bash .claude/scripts/src/generate-ddr-list.sh
-git diff --stat .claude/docs/README.md</code></pre>
-  <p>合格条件: 上記実行後<code>.claude/docs/README.md</code>に新規DDR2本の行が追加されていること。
-  DDR識別子の重複が無いこと（<code>ls .claude/docs/ddr/ | grep -c '^i0105-'</code> が2）。
-  <code>git merge-base origin/main HEAD</code>を基点とした<code>.claude/</code>配下の削除行が0で
-  あること。</p>
+git diff --stat .claude/docs/README.md
+grep -c 'spec/gemini-cli-telemetry.md' .claude/docs/README.md
+ls .claude/docs/ddr/ | sed -E 's/^(i[0-9]{4,}-[0-9]{2}).*/\1/' | sort | uniq -d
+git diff --numstat "$(git merge-base origin/main HEAD)" HEAD -- .claude/docs/ddr/
+grep -n 'reports/\|plans/\|worklog/' .claude/docs/spec/gemini-cli-telemetry.md .claude/docs/ddr/i0105-*.md</code></pre>
+  <p>合格条件: <code>.claude/docs/README.md</code>にDDR一覧の新規2行（生成）とspec一覧の新規1行
+  （手書き）の両方があること。DDR識別子の重複が無いこと（<code>sort | uniq -d</code>の出力が空）。
+  <code>git merge-base origin/main HEAD</code>を基点とした<b><code>.claude/docs/ddr/</code>配下</b>
+  の削除行が0であること（対象を<code>.claude/</code>全体ではなく絞る）。新規DDR2本の
+  <code>title</code>が<code>i0105-0N. &lt;タイトル&gt;</code>形式・<code>type: ddr</code>である
+  こと。新規spec・DDR2本の本文が<code>reports/</code>・<code>plans/</code>・<code>worklog/</code>
+  を参照していないこと。</p>
 </section>
 
 <section id="criteria">
@@ -224,18 +262,29 @@ git diff --stat .claude/docs/README.md</code></pre>
   <table>
     <thead><tr><th>#</th><th>受け入れ条件</th><th>本計画での対応</th></tr></thead>
     <tbody>
+      <tr><td>1</td><td>telemetry設定によりusage/配下へファイルが生成・追記される</td>
+        <td><b>未達（実機未検証）</b>。人間への実機確認依頼として持ち越す</td></tr>
+      <tr><td>2</td><td>テレメトリ由来の集計値が対応工数レポートへ載り二重計上されない
+        （単体テスト検証）</td><td>実装・テスト済みだが合成フィクスチャ（実データ未検証）</td></tr>
+      <tr><td>3</td><td>issue #97のセッションログ集計と二重計上にならない</td>
+        <td>実装・単体テスト済み。新規specの「二重計上回避」節、DDR i0105-01</td></tr>
+      <tr><td>4</td><td>Claude Code側の集計結果・レポート内容が変化せず既存テストが通る</td>
+        <td>確認済み（既存全17本<code>test_*.sh</code>が<code>failures=0</code>）</td></tr>
+      <tr><td>5</td><td><code>.gemini/settings.json</code>がTelemetrySettingsスキーマに沿っている</td>
+        <td>フェーズ2で確認済み</td></tr>
       <tr><td>6</td><td><code>logPrompts</code>の既定・出力先が<code>gitignore</code>対象である
         ことが明記されている</td><td>新規specの「設定項目」節、DDR i0105-02</td></tr>
-      <tr><td>7</td><td>既定有効化の可否についての判断が記録されている</td>
-        <td>DDR i0105-02</td></tr>
-      <tr><td>8</td><td>二重計上回避の設計判断が記録されている</td>
-        <td>DDR i0105-01、新規specの「出力形式・カーソル方式」節</td></tr>
-      <tr><td>9</td><td>issue #103との関係が記録されている</td>
+      <tr><td>7</td><td>出力先配置がissue #103と整合している、または整合しない理由が記録されている</td>
         <td>新規specの「背景・目的」節</td></tr>
+      <tr><td>8</td><td>設計判断がDDRとして記録されている</td>
+        <td>DDR i0105-01・i0105-02</td></tr>
+      <tr><td>9</td><td>仕様がspecに記録されている、実機検証できない範囲は「未検証」と明示</td>
+        <td>新規spec全体、とくに「未決定事項」節</td></tr>
     </tbody>
   </table>
   </div>
-  <p>条件1〜5はフェーズ3の実装・単体テストで既に満たしている。</p>
+  <p>条件1〜5は上表のとおりフェーズ3までの実装状況をそのまま転記する（本計画では変更しない）。
+  条件1は現時点で<b>未達</b>であり、フェーズ4の反映によって満たされるものではないことに注意する。</p>
 </section>
 
 <footer>issue #105 / PR #174 — 計画の正文は同名の <code>.md</code>。外部依存を持たない自己完結HTML。</footer>
