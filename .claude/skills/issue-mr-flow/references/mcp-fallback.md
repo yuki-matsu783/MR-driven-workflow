@@ -52,7 +52,7 @@ get_repo_slug | jq -r '.owner, .repo'
 | `add_mr_comment <n> <file>` | `mcp__github__add_issue_comment` | `owner`, `repo`, `issue_number=<PR番号>`, `body=<ファイルの内容>` | PR番号を `issue_number` に渡す（GitHub APIの仕様上、PRもissueとして扱える） |
 | `add_mr_inline_comments <n> <file>` | `mcp__github__pull_request_review_write` | `method="create"` → 指摘ごとに `method="add_comment_to_pending_review"`（`owner`, `repo`, `pullNumber`, `path`, `line`, `side`, `body`）→ `method="submit_pending"`（`event="COMMENT"`） | 敵対的レビュー（issue #77）のインライン投稿。**3段構成で、`submit_pending` まで必ず実行する**（pendingのまま放置すると次回の `create` が失敗し続ける）。途中で失敗したら `method="delete_pending"` で片付ける。CLI版と違い有効行の事前検証が入らないため、diffに含まれない行を指定すると個別に失敗する |
 | `add_issue_comment <n> <file>` | `mcp__github__add_issue_comment` | `owner`, `repo`, `issue_number=<通知先のissue番号>`, `body=<ファイルの内容>` | **`add_mr_comment` と同じツールだが、`issue_number` へ渡すのがPR番号ではなく通知先のissue番号である**（flow-id 5-2の関連issue通知。issue #86）。CLI版はファイルパスを渡すが、MCPは文字列で渡すため本文はReadツール等で読んでから渡す |
-| `upload_attachment <file> [<content_type>]` | **代替なし** | — | flow-id 5-4 の**層3（統括レポートHTMLの添付）**（issue #111）。**MCPにPR/issueへの添付に相当するツールは無い**（実測で確認）。この関数は `require_vcs_cli` により非0で終え、stderrへ「層3はスキップしてよい」旨を出す。**層1（`reports/` をリモートへ反映）と層2（`add_mr_comment` でのサマリ投稿）だけでレビューは成立するため、スキップして次へ進む** |
+| `upload_attachment <file> [<content_type>]` | **代替なし** | — | flow-id 5-4 の**層3（統括レポートHTMLの添付）**（issue #111）。**MCPにPR/issueへの添付に相当するツールは無い**（実測で確認）。この関数は `require_vcs_cli` により非0で終え、stderrへ「層3はスキップしてよい」旨を出す。**層1（`wip/reports/` をリモートへ反映）と層2（`add_mr_comment` でのサマリ投稿）だけでレビューは成立するため、スキップして次へ進む** |
 | `get_repo_url` | （MCP不要） | — | `git remote get-url origin` の正規化だけでリポジトリの正規URLを導出するプロバイダ非依存の関数のため、MCP経路でもそのまま呼べる（`get_mr_diff_url` / `get_mr_diff_since_url` も同様。issue #44） |
 | `new_issue_branch` / `sync_branch` / `get_branch_work_files` / `get_issue_number_from_branch` / `to_slug` / `test_issue_sections` | （MCP不要） | — | git操作・純粋ロジックのみでCLIに依存しないため、MCP経路でもそのまま呼べる |
 
@@ -80,7 +80,7 @@ CLI経路には無い、MCPツール固有の挙動。**いずれも失敗では
 | `reply <threadId> <対応内容>` | 返信先の指定が数値のcommentIdになる（上表の補足参照）。**`Claude Codeより:` の署名行を先頭に付ける規約はMCP経路でも同じ**（MCPサーバーもユーザーの認証情報で動くため、投稿者は人間のアカウントとして表示される）。投稿後に返る `html_url` が返信のパーマリンクで、次のpushのレビュー依頼メッセージへ含める（issue #42） |
 | `describe` | descriptionを一時ファイルへ書く手順は同じでよいが、最後は `mcp__github__update_pull_request` の `body` へ文字列として渡す |
 | `sync` | 変更なし（git操作のみ） |
-| `resume` | サブエージェント（`issue-mr-resume`）はProvider.sh経由でのCLI利用を前提とするため、MCP経路ではissue/PR情報の取得部分が失敗する。その場合はサブエージェントの報告のうちgit・ファイル系（ブランチ・plans/worklog・HANDOFF.md）を採用し、issue/PR情報は呼び出し元が上表のMCPツールで補う |
+| `resume` | サブエージェント（`issue-mr-resume`）はProvider.sh経由でのCLI利用を前提とするため、MCP経路ではissue/PR情報の取得部分が失敗する。その場合はサブエージェントの報告のうちgit・ファイル系（ブランチ・wip/plans・wip/worklogs・HANDOFF.md）を採用し、issue/PR情報は呼び出し元が上表のMCPツールで補う |
 
 ### 4. hookの挙動（CLI不在時）
 

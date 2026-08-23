@@ -33,7 +33,7 @@ fi
 
 # デタッチ起動。呼び出し元プロセスグループから切り離して常駐させる。
 # Windows(git bash/MSYS)にはsetsidが無いため環境ごとに分岐する
-# （reports/20260823_humming-mapping-pie_OTel設計論点調査.md「重要な発見」）。
+# （詳細: .claude/docs/spec/otel-listener.md「多重起動防止・デタッチ起動」）。
 LOG_PATH="$SHARED_DIR/listener.log"
 mkdir -p "$SHARED_DIR" 2>/dev/null || true
 

@@ -1,6 +1,6 @@
 ---
 name: issue-mr-resume
-description: issue-mr-flowの途中引き継ぎ用。このセッションでまだ現在地確認が済んでいない状態（別セッション・別担当者が途中から引き継ぐ場合に限らず、`start` 以外のサブコマンドをこのセッションで初めて使う前は常に該当。ブランチ名やissue番号が判明していても対象）で、現在チェックアウトされているブランチだけを手がかりに、issue・PR/MRの状態・未解決レビューコメント件数・ブランチ固有のplans/worklog/reportsファイル・ベースブランチとの差分（behindコミット数）・HANDOFF.mdの内容を収集し、矛盾があれば指摘したうえで「現在地サマリ」として報告する。`.claude/skills/issue-mr-flow/references/start-resume.md` の `resume` サブコマンドから呼び出される。読み取り専用で、次にすべきことの最終判断や、ファイルの修正は行わない。
+description: issue-mr-flowの途中引き継ぎ用。このセッションでまだ現在地確認が済んでいない状態（別セッション・別担当者が途中から引き継ぐ場合に限らず、`start` 以外のサブコマンドをこのセッションで初めて使う前は常に該当。ブランチ名やissue番号が判明していても対象）で、現在チェックアウトされているブランチだけを手がかりに、issue・PR/MRの状態・未解決レビューコメント件数・ブランチ固有のwip/plans・wip/worklogs・wip/reportsファイル・ベースブランチとの差分（behindコミット数）・HANDOFF.mdの内容を収集し、矛盾があれば指摘したうえで「現在地サマリ」として報告する。`.claude/skills/issue-mr-flow/references/start-resume.md` の `resume` サブコマンドから呼び出される。読み取り専用で、次にすべきことの最終判断や、ファイルの修正は行わない。
 tools:
   - read_file
   - grep_search
@@ -49,17 +49,17 @@ source .claude/scripts/src/vcs/Provider.sh
 `unresolved` の件数を数える（内容の詳細な提示は不要。件数と、あれば概要のみでよい）。
 MRがマージ済みでissueもクローズ済みの場合は、現在ブランチはマージ済みなので他ブランチで作業するかをユーザに判断してもらう。これ以降の手順については実施しない。
 
-## 手順6: ブランチ固有のplan/worklog/reportsファイルを列挙する
+## 手順6: ブランチ固有のwip/plans・wip/worklogs・wip/reportsファイルを列挙する
 
 `get_branch_work_files` を実行する。
 
 計画は2階層構造のため、結果を次のように分けて報告する（詳細:
 `.claude/skills/issue-mr-flow/references/planning.md`「計画の2階層構造」）。
 
-- **全体作業計画**: `plans/` 配下で `【` で**始まらない**ファイル。issue（ブランチ）につき1つ。
+- **全体作業計画**: `wip/plans/` 配下で `【` で**始まらない**ファイル。issue（ブランチ）につき1つ。
   **これが既に存在する場合、呼び出し元はflow-id 1-4でplanツールによる新規作成を行ってはならない**
   ため、有無を明示する。
-- **個別作業計画**: `plans/【*.md` に一致するファイル。どの種別（`【調査】`『`【実装】`』等）が
+- **個別作業計画**: `wip/plans/【*.md` に一致するファイル。どの種別（`【調査】`『`【実装】`』等）が
   既に作られているかが、フローのどこまで進んだかの手がかりになる。
 
 ## 手順7: ベースブランチとの差分を確認する（issue #67）
@@ -117,8 +117,8 @@ issue #58）と `- 追従監視:` 行（defaultブランチ追従監視の状態
 - PR/MR: #<n> <title> (<url>) [Draft/Ready] ／ なし
 - 未解決レビューコメント: <N>件
 - 全体作業計画: <パス> ／ **なし（flow-id 1-4でplanツールによる作成が必要）**
-- 個別作業計画（`plans/【*.md`）: <ファイルパスの一覧> ／ なし
-- worklog/reportsファイル: <ファイルパスの一覧> ／ なし
+- 個別作業計画（`wip/plans/【*.md`）: <ファイルパスの一覧> ／ なし
+- wip/worklogs・wip/reportsファイル: <ファイルパスの一覧> ／ なし
 - ベースブランチとの差分: `<base>` から **<behind>コミット遅れ** ／ 追従済み（behind=0）
   ／ **判定できなかった（<stderrの1行目>）**
   - 未取り込みの変更ファイル: <changedFiles の一覧。多い場合は件数と代表例>

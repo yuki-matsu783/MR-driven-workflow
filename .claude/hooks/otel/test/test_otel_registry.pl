@@ -1,8 +1,7 @@
 #!/usr/bin/env perl
 # OtelRegistry の純粋関数（parse_registry_lines / needs_rotation / rotate_lines）の単体テスト
 # （issue #103）。ファイルI/Oを伴う read_registry / append_registry_entry はここでは対象外
-# （実機でのWindows/WSL動作確認で代替する。plans/【設計】【実装】【テスト】OTelリスナー機構の実装.md
-# 「テスト方針」節）。
+# （実機でのWindows/WSL動作確認で代替する）。
 use strict;
 use warnings;
 use FindBin qw($Bin);

@@ -83,8 +83,8 @@ issue #26。このリポジトリのAIアセット（`.claude/` 一式・`.mrwor
 `.gitignore` に近い記法を独自に解釈すると、本家が実際に追跡しているファイルの集合とずれる。
 
 **例外は「後に書いたエントリが勝つ」で表す**（`.gitignore` と同じ規約）。
-`{ "layer": "local", "path": "plans" }` の後ろへ
-`{ "layer": "core", "path": "plans/REVIEW-POINTS.md" }` を置けば、`plans/` は配らないが
+`{ "layer": "local", "path": "wip/plans" }` の後ろへ
+`{ "layer": "core", "path": "wip/plans/REVIEW-POINTS.md" }` を置けば、`wip/plans/` は配らないが
 その中の `REVIEW-POINTS.md` だけは配る、と読める。
 
 `"upstream": true` は**本家にだけ立つ印**である。ただし網羅性チェックは「自分が本家かどうか」を
@@ -114,7 +114,7 @@ issue #26。このリポジトリのAIアセット（`.claude/` 一式・`.mrwor
   （書くと「配布した」と誤読される）。
 - **`source.commit` に `-dirty` が付くことがある。** 本家のワークツリーに未コミットの変更が
   あり、`--allow-dirty` を付けて実行した場合。判定対象は**配布対象のパスに限る**（本家の
-  `plans/` を編集中でも dirty にはならない）。未追跡ファイルは件数の通知のみで dirty と見なさない。
+  `wip/plans/` を編集中でも dirty にはならない）。未追跡ファイルは件数の通知のみで dirty と見なさない。
 - **再適用時の判定**: 配布先の現在の sha256 と manifest の値を比べる。一致すれば「配布先は
   触っていない」ので黙って上書きし、違えば「配布先が適用後に変更した」として `.bak` を残す。
   manifest 自体が無い（旧方式で適用済みの）配布先では、**改変済みではなく「差分を確認できない
@@ -213,6 +213,32 @@ issue #26 以前は本家の `AGENTS.md` 全文（共通ルールを含む）を
 
 実測で、配布1回あたりの外部コマンド起動は **1208回 → 176回**になった。
 
+## 移行（本家の配置場所が変わった場合）
+
+本家（配布元）が `core` 層のファイル・ディレクトリを**改名・移動**した場合、既にこの機構を
+導入済みの配布先は自動では追従しない。`install-to-project.sh` は「本家から消えたファイルを
+配布先から削除しない」設計（上記「インストーラの2パス構成」）であり、かつ次回実行時に
+提示される「削除・改名されたファイルの一覧」は**前回のmanifestとの突き合わせ**で決まるため、
+manifestを持たない旧方式の配布先には提示されない。配布先が手動で追従する必要がある手順は
+次のとおり。
+
+1. **新パスの `core` ファイルが配布されることを確認する。** `present_plan` は個々のパスではなく
+   `core`層の**件数**（新規／変更なし／適用後に変更された／判定不能）だけを提示するため、
+   次回 `install-to-project.sh --dry-run` 実行で「新規」件数が増えることを確認する。増えた
+   個々のパスを知りたい場合は、提示された件数と `.claude/dist-layers.json` の該当エントリを
+   突き合わせる。
+2. **`.mrworkflow.json` を手動で更新する。** このファイルは `seed` 層（配布先所有・上書きしない）
+   のため、旧パスを指す設定キー（例: ディレクトリ位置を持つキー）は自動では変わらない。
+3. **`.claude/settings.json` の該当設定も手動で更新する。** `merge` / `json-keys` 層で
+   マージ対象になっている `keys`（本リポジトリでは `hooks` と `permissions.deny` のみ）以外の
+   キーは配布先所有のため、本家の変更が自動では反映されない。
+4. **配布先に残る旧パスのファイル・ディレクトリを、手動で `git mv` するか削除するか判断する。**
+   `install-to-project.sh` は本家で消えたファイルを配布先から削除しないため、旧パス配下に
+   残った実体（配布先が作成したタスク単位のドキュメント等）は配布先の判断で移行・削除する。
+
+**この移行手順は「改名・移動が起きるたびに毎回発生する」恒久的な運用である。** 個別の改名の
+具体例（実際のパス名・対象ファイル一覧）は下記「影響範囲」の該当issueエントリを参照する。
+
 ## 影響範囲
 
 ### issue #26（2026-08-23）
@@ -227,6 +253,32 @@ issue #26 以前は本家の `AGENTS.md` 全文（共通ルールを含む）を
   `AGENTS.md` / `CLAUDE.md` / `GEMINI.md` はポインタ化した（`AGENTS.md` を `seed` のまま
   保つため。DDR i0026-01 の c）。
 - 更新: [distribution-assets.md](distribution-assets.md)（3資産の層と、解消した未決定事項4件）。
+
+### issue #165（2026-08-23）
+
+`plans/` `worklog/` `reports/` を `wip/plans/` `wip/worklogs/` `wip/reports/` へ集約・改名した
+（DDR [i0165-02](../ddr/i0165-02-タスク単位ディレクトリの集約名はwip-を採用しflow-tasks-work-scratchを採らない.md)
+参照）。「移行」節の一般手順を、この改名に当てはめると次のとおりになる。
+
+- **`.claude/dist-layers.json`は`wip/plans` `wip/worklogs` `wip/reports`を`local`（配らない）
+  層とする一方、`wip/plans/REVIEW-POINTS.md` / `wip/worklogs/TEMPLATE.md` /
+  `wip/reports/REVIEW-POINTS.md`の3件を`core`として、`wip/plans/REVIEW-POINTS.local.md` /
+  `wip/reports/REVIEW-POINTS.local.md`の2件を`seed`として個別に持つ（計5件）。** 配布先には
+  **新パスにだけ**core 3件が届く。seed 2件は`install-to-project.sh`の`scan_pass`
+  （`SCAN_SEED_PLACE`）により新パスへ**空テンプレートとして新規配置**される（seedはファイルが
+  無ければ配布時に作られる層のため）。**旧パスに配布先が書き込んでいた
+  `plans/REVIEW-POINTS.local.md` 等の内容は、自動では新パスへ引き継がれない。** installerの
+  「本家から削除・改名されたファイル」一覧は`core`層のみを対象とするため、この2件は一覧にも
+  出ない。配布先は、旧パスの`.local.md`の内容を手動で新パスへ移す必要がある（上記「移行」節の
+  手順4に相当するが、`.local`はcoreの削除一覧に出ないため見落としやすい）。
+- **配布先の`.mrworkflow.json`**は`plansDir` / `worklogDir` / `reportsDir`の3キーを
+  `wip/plans` / `wip/worklogs` / `wip/reports`へ手動で書き換える必要がある（`.claude/scripts/src/vcs/Provider.sh`・
+  `.claude/scripts/src/cleanup-task.sh`のフォールバック既定値は後方互換のため`plans`/`worklog`/
+  `reports`のまま据え置いている。DDR [i0165-01](../ddr/i0165-01-wip集約時のコード側フォールバック既定値は変更せず後方互換を優先する.md)
+  参照。書き換えないまま放置しても、フォールバックが旧パスを見に行くため即座には壊れないが、
+  配布先の実際のディレクトリ構成と設定値が食い違ったままになる）。
+- **配布先の`.claude/settings.json`**の`plansDirectory`キーも配布先所有のため、
+  `"./wip/plans"`へ手動で書き換える必要がある。
 
 ## 未決定事項・懸念点
 

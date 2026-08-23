@@ -36,7 +36,7 @@
 # どちらを載せるかはエージェントが判断する**（hookは候補の供給に徹し、選定はしない）。
 # コンテキストを圧迫しないよう供給件数には上限（MAX_REVIEW_FILES）を設け、超過分は件数だけ伝える。
 #
-# 「前回push時点」の判定は、このスクリプト自身が `.claude/state/review-links/<branch>.txt` へ
+# 「前回push時点」の判定は、このスクリプト自身が `wip/state/review-links/<branch>.txt` へ
 # 直前pushのHEAD SHAを保存し、次回push時に読み出す形で行う（`usage/`と同様、ブランチ横断・
 # 非コミット対象のローカル作業状態。責務分離のため対応工数レポート側の状態とは別ファイルにする）。
 # 差分系のURLは、MR/PRのURL文字列から`/files`等のsuffixを推測する方式ではなく、
@@ -328,7 +328,7 @@ main() {
   local repo_root safe_branch state_file current_sha prev_sha=""
   repo_root="$(get_repo_root)"
   safe_branch="$(printf '%s' "$branch" | sed -E 's/[^a-zA-Z0-9_-]/_/g')"
-  state_file="${repo_root}/.claude/state/review-links/${safe_branch}.txt"
+  state_file="${repo_root}/wip/state/review-links/${safe_branch}.txt"
   current_sha="$(git rev-parse HEAD)"
   if [ -f "$state_file" ]; then
     prev_sha="$(cat "$state_file")"

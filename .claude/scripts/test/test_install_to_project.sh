@@ -226,16 +226,16 @@ assert_eq "B-2: local / exclude は manifest に書かない" "0" \
   "$(jq '[.files[] | select(.layer=="local" or .layer=="exclude")] | length' "$manifest")"
 
 assert_eq "B-2: local の index.jsonl が作られない" "0" "$(find "$dest_new" -name index.jsonl | wc -l)"
-assert_eq "B-2: local の .claude/state/ が作られない" "0" "$(exists "$dest_new/.claude/state")"
+assert_eq "B-2: local の wip/state/ が作られない" "0" "$(exists "$dest_new/wip/state")"
 assert_eq "B-2: local の usage/ が作られない" "0" "$(exists "$dest_new/usage")"
 # `.gemini/{docs,…}` は local だが**唯一の例外**として手順7が作る。ここでは列挙せず、
 # 「作られること」を下の B-7 で確かめる。
 
-# 旧実装が作っていた .gitkeep は、plans/ worklog/ が local になったため意図的に落とした。
-assert_eq "B-2: plans/.gitkeep を作らない（旧挙動を意図的に落とした）" \
-  "0" "$(exists "$dest_new/plans/.gitkeep")"
-assert_eq "B-2: worklog/.gitkeep を作らない（同上）" \
-  "0" "$(exists "$dest_new/worklog/.gitkeep")"
+# 旧実装が作っていた .gitkeep は、wip/plans/ wip/worklogs/ が local になったため意図的に落とした。
+assert_eq "B-2: wip/plans/.gitkeep を作らない（旧挙動を意図的に落とした）" \
+  "0" "$(exists "$dest_new/wip/plans/.gitkeep")"
+assert_eq "B-2: wip/worklogs/.gitkeep を作らない（同上）" \
+  "0" "$(exists "$dest_new/wip/worklogs/.gitkeep")"
 
 assert_eq "B-2: exclude の README.md は配らない" "0" "$(exists "$dest_new/README.md")"
 assert_eq "B-2: exclude の apply-mr-workflow-to-project は配らない" \
@@ -245,7 +245,7 @@ assert_eq "B-2: exclude の apply-mr-workflow-to-project は配らない" \
 # （issue #70 以降）。**配布したものを数えたいので `.gemini/` は数から外す。**
 assert_eq "B-2: core の REVIEW-POINTS.md が4件とも配られる" "4" \
   "$(find "$dest_new" -path "$dest_new/.gemini" -prune -o -name 'REVIEW-POINTS.md' -print | wc -l)"
-assert_eq "B-2: core の worklog/TEMPLATE.md が配られる" "1" "$(exists "$dest_new/worklog/TEMPLATE.md")"
+assert_eq "B-2: core の wip/worklogs/TEMPLATE.md が配られる" "1" "$(exists "$dest_new/wip/worklogs/TEMPLATE.md")"
 assert_eq "B-2: seed の REVIEW-POINTS.local.md が4件とも置かれる" "4" \
   "$(find "$dest_new" -path "$dest_new/.gemini" -prune -o -name 'REVIEW-POINTS.local.md' -print | wc -l)"
 

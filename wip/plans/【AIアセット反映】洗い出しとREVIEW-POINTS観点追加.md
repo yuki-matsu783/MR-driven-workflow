@@ -1,16 +1,16 @@
 ---
 title: 【AIアセット反映】洗い出しとREVIEW-POINTS観点追加
 type: plan
-description: issue #186 の作業の副産物をplanning.mdの手順1〜3で洗い出し、reports/REVIEW-POINTS.md へ新節「重点レビュー依頼」等の観点を追記する反映計画
+description: issue #186 の作業の副産物をplanning.mdの手順1〜3で洗い出し、wip/reports/REVIEW-POINTS.md へ新節「重点レビュー依頼」等の観点を追記する反映計画
 tags: [plan, ai-asset-reflection, review-points]
-keywords: [AIアセット反映, 洗い出し, 4類型, reports/REVIEW-POINTS.md, 重点レビュー依頼, リンク破断, 結論カード, VERSION]
+keywords: [AIアセット反映, 洗い出し, 4類型, wip/reports/REVIEW-POINTS.md, 重点レビュー依頼, リンク破断, 結論カード, VERSION]
 ---
 
 # 【AIアセット反映】洗い出しとREVIEW-POINTS観点追加（issue #186 / フェーズ4）
 
 ## 前提（合意状況）
 
-- 上位の計画: `plans/vivid-report-canvas.md`（flow-id 1-5 で包括指示を承認とみなし合意）
+- 上位の計画: `wip/plans/vivid-report-canvas.md`（flow-id 1-5 で包括指示を承認とみなし合意）
 - 手順の正: `.claude/skills/issue-mr-flow/references/planning.md`「AIアセット反映の対象の洗い出し」
   （手順1: 起点の列挙 → 手順2: 4類型への分類 → 手順3: 痕跡の確認と打ち切り →
   **手順4: 反映先の形態の決定**〈いつ効いてほしいか × 守らせ方の強さ の2軸〉）
@@ -28,16 +28,16 @@ keywords: [AIアセット反映, 洗い出し, 4類型, reports/REVIEW-POINTS.md
 
 | # | 候補 | 見込みの類型 | 見込みの反映先 |
 |---|---|---|---|
-| 1 | テンプレートへ新設した「重点レビュー依頼」節・結論カード・未確認一覧の**埋まり方**を見る観点が `reports/REVIEW-POINTS.md` に無い（調査結果「設計への反映」項目3で本フェーズへ送った判断） | (c) 罠が書かれていない | `reports/REVIEW-POINTS.md` へ観点を追記（3段階が埋まっているか・結論カードの4要素・件数チップの一致・リンク破断/重複ID検査の実施） |
-| 2 | 「異常が無ければ何も出ない検査は、抽出パターンが拾う母集団まで疑う（変異コピーで検出できることを確かめる）」という教訓 | **(d) または反映不要**の見込み（**既知の痕跡が2箇所ある**: ルート `REVIEW-POINTS.md`「意図的に異常を作って落ちることを確かめる」・`plans/REVIEW-POINTS.md`「検証手順」〈ルートを正として参照〉。ほかに `.claude/rules/shell-script-style.md`「テスト」にも同型の記述。判定はこの痕跡の存在から始める） | 痕跡があるため追記はしない見込み（書き足すと issue #155 が踏んだ「既にある記述の隣へ同じことを書く」形になる）。導線の問題が確認できた場合のみ (d) |
-| 3 | 数値（行数・件数）を書く直前に実測する規律を破った（調査結果の内訳・作業結果の行数・本計画のworklog本数で**計3回**） | 反映対象ではない見込み（`reports/REVIEW-POINTS.md`「書いた数値と事実を、書く直前に実測したか」が既にあり、敵対的レビューはこの観点で3回とも検出に成功している＝アセットは機能した） | 無し（判断根拠をレポートへ記録） |
-| 4 | **アンカー破断・重複IDの観点が `plans/REVIEW-POINTS.md`「HTML版」に無い**（計画HTMLも目次から7本のアンカーを張っており、同じ罠が plans/ 側でも起こる。ディレクトリで機械的に切らず罠の再現性で判定する） | (c) 罠が書かれていない | `plans/REVIEW-POINTS.md` へ追記（reports側と重複記載せず、検査の正を参照する導線の形も検討） |
+| 1 | テンプレートへ新設した「重点レビュー依頼」節・結論カード・未確認一覧の**埋まり方**を見る観点が `wip/reports/REVIEW-POINTS.md` に無い（調査結果「設計への反映」項目3で本フェーズへ送った判断） | (c) 罠が書かれていない | `wip/reports/REVIEW-POINTS.md` へ観点を追記（3段階が埋まっているか・結論カードの4要素・件数チップの一致・リンク破断/重複ID検査の実施） |
+| 2 | 「異常が無ければ何も出ない検査は、抽出パターンが拾う母集団まで疑う（変異コピーで検出できることを確かめる）」という教訓 | **(d) または反映不要**の見込み（**既知の痕跡が2箇所ある**: ルート `REVIEW-POINTS.md`「意図的に異常を作って落ちることを確かめる」・`wip/plans/REVIEW-POINTS.md`「検証手順」〈ルートを正として参照〉。ほかに `.claude/rules/shell-script-style.md`「テスト」にも同型の記述。判定はこの痕跡の存在から始める） | 痕跡があるため追記はしない見込み（書き足すと issue #155 が踏んだ「既にある記述の隣へ同じことを書く」形になる）。導線の問題が確認できた場合のみ (d) |
+| 3 | 数値（行数・件数）を書く直前に実測する規律を破った（調査結果の内訳・作業結果の行数・本計画のworklog本数で**計3回**） | 反映対象ではない見込み（`wip/reports/REVIEW-POINTS.md`「書いた数値と事実を、書く直前に実測したか」が既にあり、敵対的レビューはこの観点で3回とも検出に成功している＝アセットは機能した） | 無し（判断根拠をレポートへ記録） |
+| 4 | **アンカー破断・重複IDの観点が `wip/plans/REVIEW-POINTS.md`「HTML版」に無い**（計画HTMLも目次から7本のアンカーを張っており、同じ罠が plans/ 側でも起こる。ディレクトリで機械的に切らず罠の再現性で判定する） | (c) 罠が書かれていない | `wip/plans/REVIEW-POINTS.md` へ追記（reports側と重複記載せず、検査の正を参照する導線の形も検討） |
 | 5 | **新設節「重点レビュー依頼」を `planning.md` 手順1の入力節リストへ加えるか**（手順1は reports/ の「想定と異なった点／確かめられなかったこと／残課題」の3節を固定しており、◆＝未決着の論点が集まる新設節が入力から外れ続ける） | (c)〜(d)（4-6で判定） | `.claude/skills/issue-mr-flow/references/planning.md` の手順1の表へ節名を追加（または加えない判断理由をレポートへ） |
 
 ## 方針
 
 - 手順1の入力は **worklog 3本**（`【調査】…push2`・`【AIアセット作成】…push6`・
-  `【設計反映】【AIアセット反映】…push9`。**4-6実施時点の `worklog/` 全体**を対象にする）・
+  `【設計反映】【AIアセット反映】…push9`。**4-6実施時点の `wip/worklogs/` 全体**を対象にする）・
   reports 2本（調査結果・作業結果）・PR #191 のレビュー往復（敵対的レビュー・計36件＋本計画への
   指摘）。**過去のMRは遡らない**（planning.mdの規定）。
 - **絞り込みの基準**: レビュー指摘・worklogの学びの大半は、このMRの成果物（テンプレート・
@@ -55,9 +55,9 @@ keywords: [AIアセット反映, 洗い出し, 4類型, reports/REVIEW-POINTS.md
   **追記は既存の「HTML版」節の検査群と束ね、削除・統合も検討する**（単純追記で観点表を
   膨らませない。テンプレートコメントの内容〈書き方の指示〉は重複記載せず、正の所在を
   分けたまま保つ）。既存観点の削除が不要な場合も、その判断をレポートへ残す。
-- **VERSIONとの順序**: 本計画の 4-6 の結果（`reports/REVIEW-POINTS.md` 等の変更範囲）が
+- **VERSIONとの順序**: 本計画の 4-6 の結果（`wip/reports/REVIEW-POINTS.md` 等の変更範囲）が
   確定した後に、`【設計反映】`側が `.claude/VERSION` を適用する（フェーズ4の最後）。
-- 反映結果は `reports/20260823_vivid-report-canvas_反映結果.md`（＋.html。改修後テンプレートを
+- 反映結果は `wip/reports/20260823_vivid-report-canvas_反映結果.md`（＋.html。改修後テンプレートを
   適用）へ、洗い出しの全件・分類・採否理由の表として残す（`【設計反映】`分の結果も同じ
   レポートへ併記し、フェーズ4のレポートは1組にまとめる）。
 
@@ -65,9 +65,9 @@ keywords: [AIアセット反映, 洗い出し, 4類型, reports/REVIEW-POINTS.md
 
 - テンプレート本体の追加変更（フェーズ3で完了。レビューで新たな指摘があれば別途）。
 - ルート `REVIEW-POINTS.md` への追記（候補2の痕跡が既にあり、書き足すと重複になる見込み。
-  手順3で導線の問題が確認できた場合の (d) は除く。`plans/REVIEW-POINTS.md` は候補4で
+  手順3で導線の問題が確認できた場合の (d) は除く。`wip/plans/REVIEW-POINTS.md` は候補4で
   **検討対象に含める**——ディレクトリで機械的に切らず、罠が plans/ 側でも起こるかで判定する）。
-- `.claude/VERSION`・spec・DDR（`plans/【設計反映】specチェンジログ・DDR・VERSION判断.md` が担当。
+- `.claude/VERSION`・spec・DDR（`wip/plans/【設計反映】specチェンジログ・DDR・VERSION判断.md` が担当。
   ただしVERSIONの適用は本計画の4-6の結果が確定した後＝フェーズ4の最後。上記「方針」参照）。
 - `.gemini/` 配下の更新（flow-id 5-3 で追随）。
 
@@ -76,27 +76,27 @@ keywords: [AIアセット反映, 洗い出し, 4類型, reports/REVIEW-POINTS.md
 ```bash
 # 1. 反映結果レポートの洗い出し表が全件を持つこと
 #    （表の行数＝レポート自身が明記する列挙件数。行頭が「| 数字」の行を数えて突き合わせる）
-grep -c '^| [0-9]' "reports/20260823_vivid-report-canvas_反映結果.md"
+grep -c '^| [0-9]' "wip/reports/20260823_vivid-report-canvas_反映結果.md"
 
 # 2. REVIEW-POINTS への追記（候補の採否ごとに期待値が分岐する。下記）
-grep -c '重点レビュー依頼' reports/REVIEW-POINTS.md
-grep -c -- '重複ID' plans/REVIEW-POINTS.md
+grep -c '重点レビュー依頼' wip/reports/REVIEW-POINTS.md
+grep -c -- '重複ID' wip/plans/REVIEW-POINTS.md
 
 # 3. 追記後も frontmatter が壊れていないこと（先頭行が --- のまま）
-head -1 reports/REVIEW-POINTS.md
-head -1 plans/REVIEW-POINTS.md
+head -1 wip/reports/REVIEW-POINTS.md
+head -1 wip/plans/REVIEW-POINTS.md
 ```
 
 - 検証1は「表がある」ではなく**行数の一致**で見る: レポートに「N件を列挙した」と明記し、
   `grep -c '^| [0-9]'` の値がそのNと一致すること（構造語の存在チェックにしない）。
 - **検証2の期待値は採否で分岐する**（どちらの分岐でも判定できるよう明記する）:
-  - 候補1を採用（(c)）→ `reports/REVIEW-POINTS.md` の「重点レビュー依頼」が**1件以上**。
+  - 候補1を採用（(c)）→ `wip/reports/REVIEW-POINTS.md` の「重点レビュー依頼」が**1件以上**。
     (d)/反映不要と判定 → **0件のままが正**で、代わりに判断理由の行が反映結果レポートの
     表にあること（検証1で確認）。
-  - 候補4を採用（(c)）→ `plans/REVIEW-POINTS.md` の「重複ID」が**1件以上**。不採用なら
+  - 候補4を採用（(c)）→ `wip/plans/REVIEW-POINTS.md` の「重複ID」が**1件以上**。不採用なら
     0件のままが正（同上）。
-- 空振りの排除（2026-08-23実測）: 「重点レビュー依頼」は `reports/REVIEW-POINTS.md` に
-  **0件**、「重複ID」は `plans/REVIEW-POINTS.md` に**0件**。採用時に1件以上へ変わることが
+- 空振りの排除（2026-08-23実測）: 「重点レビュー依頼」は `wip/reports/REVIEW-POINTS.md` に
+  **0件**、「重複ID」は `wip/plans/REVIEW-POINTS.md` に**0件**。採用時に1件以上へ変わることが
   検出になる。
 
 ## issueの受け入れ条件との対応

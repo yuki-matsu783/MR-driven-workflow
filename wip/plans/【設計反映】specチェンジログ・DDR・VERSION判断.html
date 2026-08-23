@@ -120,8 +120,8 @@
 <section id="premise">
   <h2>前提（合意状況）</h2>
   <ul>
-    <li>上位の計画: <code>plans/vivid-report-canvas.md</code>（flow-id 1-5 で包括指示を承認とみなし合意）</li>
-    <li>入力: <code>reports/20260823_vivid-report-canvas_作業結果.md</code>「設計への反映」の項目1・3、および調査結果・worklog・PR #191 のレビュー往復（敵対的レビュー4回・計36件）</li>
+    <li>上位の計画: <code>wip/plans/vivid-report-canvas.md</code>（flow-id 1-5 で包括指示を承認とみなし合意）</li>
+    <li>入力: <code>wip/reports/20260823_vivid-report-canvas_作業結果.md</code>「設計への反映」の項目1・3、および調査結果・worklog・PR #191 のレビュー往復（敵対的レビュー4回・計36件）</li>
   </ul>
 </section>
 
@@ -142,7 +142,7 @@
       <tr><td><code>.claude/docs/README.md</code></td><td>再生成</td><td><code>bash .claude/scripts/src/generate-ddr-list.sh</code> でDDR一覧を再生成（手書きしない）</td></tr>
       <tr><td><code>.claude/VERSION</code></td><td>変更（判断）</td><td>「方針」の判断基準で増分を適用</td></tr>
       <tr><td><code>HANDOFF.md</code></td><td>変更</td><td>「判断を迷った内容」へVERSION増分の適用値と根拠を追記（distribution-assets.md の非対話例外が義務づける記録。specのchangelogと両方へ残す）</td></tr>
-      <tr><td><code>reports/20260823_vivid-report-canvas_反映結果.md</code>（＋.html）</td><td>新規</td><td>flow-id 4-6 の実施結果。<b>【AIアセット反映】計画の分と1組にまとめる</b>（作成は両計画で共有。本計画分の結果もここへ書く）</td></tr>
+      <tr><td><code>wip/reports/20260823_vivid-report-canvas_反映結果.md</code>（＋.html）</td><td>新規</td><td>flow-id 4-6 の実施結果。<b>【AIアセット反映】計画の分と1組にまとめる</b>（作成は両計画で共有。本計画分の結果もここへ書く）</td></tr>
     </tbody>
   </table>
   </div>
@@ -157,8 +157,8 @@
     <li><b>VERSION の判断基準</b>（<code>.claude/docs/spec/distribution-assets.md</code>「.claude/VERSION」が正）:
       <ul>
         <li><b>目安表の語への対応づけ</b>: 必須節「重点レビュー依頼」の新設・サマリの結論カード化という<b>レポート様式（フロー）の拡張</b>にあたるため <b>MINOR（0.3.0 → 0.4.0）</b>。PATCH（文言修正・バグ修正）ではない（節構成・視覚語彙が変わる）。据え置きも採らない（配布先が版から様式変更を判別できなくなる実害が distribution-assets.md に明記されている）。</li>
-        <li><b>根拠に含める配布対象アセット（いずれもcore層）</b>: <code>reports.template.html</code>・specのchangelogエントリ・DDR 2本・<code>.claude/docs/README.md</code>（DDR一覧）・<code>reports/REVIEW-POINTS.md</code>（【AIアセット反映】計画の変更分）。</li>
-        <li><b>適用の順序</b>: 増分の適用は、【AIアセット反映】側の 4-6（洗い出し結果と <code>reports/REVIEW-POINTS.md</code> の変更範囲）が確定した後、フェーズ4の最後に行う。</li>
+        <li><b>根拠に含める配布対象アセット（いずれもcore層）</b>: <code>reports.template.html</code>・specのchangelogエントリ・DDR 2本・<code>.claude/docs/README.md</code>（DDR一覧）・<code>wip/reports/REVIEW-POINTS.md</code>（【AIアセット反映】計画の変更分）。</li>
+        <li><b>適用の順序</b>: 増分の適用は、【AIアセット反映】側の 4-6（洗い出し結果と <code>wip/reports/REVIEW-POINTS.md</code> の変更範囲）が確定した後、フェーズ4の最後に行う。</li>
         <li>非対話セッションのため例外規定に従いAIエージェントが適用し、(1) 根拠を本issueのspecのchangelogエントリと <code>HANDOFF.md</code>「判断を迷った内容」の両方へ残し、(2) レビューで否認されたら元へ戻す。</li>
       </ul>
     </li>
@@ -173,7 +173,7 @@
     <span class="label">この計画では決めない・触らない</span>
     <ul>
       <li>生きたspec本文の書き換え（変更不要を確認済み）</li>
-      <li><code>reports/REVIEW-POINTS.md</code> への観点追加（<code>plans/【AIアセット反映】洗い出しとREVIEW-POINTS観点追加.md</code> が担当）</li>
+      <li><code>wip/reports/REVIEW-POINTS.md</code> への観点追加（<code>wip/plans/【AIアセット反映】洗い出しとREVIEW-POINTS観点追加.md</code> が担当）</li>
       <li><code>.gemini/</code> 配下の更新（flow-id 5-3 の <code>sync-gemini-assets.sh</code> 再生成で追随）</li>
       <li>CHANGELOGファイルの新設（DDR i0033-01 で「持たない」と決定済み）</li>
     </ul>
@@ -200,11 +200,13 @@ grep -c '0\.4\.0' .claude/docs/spec/issue-mr-workflow.md
 bash .claude/scripts/src/check-doc-references.sh
 
 # 6. 過去のchangelog・生きた記述・既存DDRを壊していないこと
-#    （ブランチ分岐点との差分で、docs配下の削除行が0＝追記・新規のみ）
-git diff --numstat 4b8fb20f6b1d0324367ceeda280a31dc4d016732 -- .claude/docs/spec/ .claude/docs/ddr/</code></pre>
+#    （mainとの分岐点との差分で、docs配下の削除行が0＝追記・新規のみ。
+#     分岐点は固定SHAではなく実行時に fetch 済みの origin/main から求める）
+git fetch origin main
+git diff --numstat "$(git merge-base origin/main HEAD)" -- .claude/docs/spec/ .claude/docs/ddr/</code></pre>
   <ul>
     <li>空振りの排除（<b>2026-08-23、着手前のツリーで実測済み</b>）: 検証1の「issue #186」はspecに0件、検証2の i0186-* は0件、検証4の適用前VERSIONは 0.3.0（0.4.0 は3ファイルとも0件）。いずれも4-6の実施で規定値へ変わることが検出になる。</li>
-    <li>検証6の基準は<b>ブランチ分岐点のSHA（git merge-base origin/main HEAD ＝ 4b8fb20）に固定</b>する。基準なしの git diff はコミット後に空になり、削除の検出が恒久的に空振りするため。合否は各行の2列目（削除行数）が全行0であること（README.md は生成物のため対象から除外）。</li>
+    <li>検証6の基準は<b>ブランチ分岐点（git merge-base origin/main HEAD）を実行時に求めて使う</b>。基準なしの git diff はコミット後に空になり、削除の検出が恒久的に空振りするため。<b>固定SHAの直書きはしない</b>——当初 4b8fb20 を書いたが、これは fetch 前の古い origin/main に対する誤実測で、真の分岐点は 4be448a、さらに main のマージ取り込み後は分岐点自体が進む。固定すると main 由来の削除行を自ブランチの削除として誤検出する。合否は各行の2列目（削除行数）が全行0であること（README.md は生成物のため対象から除外）。</li>
   </ul>
 </section>
 

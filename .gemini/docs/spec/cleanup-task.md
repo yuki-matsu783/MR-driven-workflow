@@ -1,9 +1,9 @@
 ---
 title: flow-id 5-5 後片付けの自動化（cleanup-task.sh）
 type: spec
-description: flow-id 5-5（次タスクのための片付け）の4操作――plans/ reports/ の削除、worklog/のTEMPLATE.md以外の削除、frontmatterインデックスの再生成、HANDOFF.mdのリセット――を1コマンドへまとめたスクリプトの仕様
+description: flow-id 5-5（次タスクのための片付け）の4操作――wip/plans/ wip/reports/ の削除、wip/worklogs/のTEMPLATE.md以外の削除、frontmatterインデックスの再生成、HANDOFF.mdのリセット――を1コマンドへまとめたスクリプトの仕様
 tags: [script, workflow, cleanup, spec]
-keywords: [cleanup-task, flow-id-5-5, HANDOFF, plans, worklog, reports, index.jsonl, dry-run, TEMPLATE.md, 後片付け]
+keywords: [cleanup-task, flow-id-5-5, HANDOFF, wip, plans, worklogs, reports, index.jsonl, dry-run, TEMPLATE.md, 後片付け]
 ---
 
 # flow-id 5-5 後片付けの自動化（cleanup-task.sh）
@@ -18,14 +18,14 @@ issue #28「flow-id 5-1 後片付けタスク自動化スクリプト（cleanup-
 flow-id 5-5（次タスクのための片付け）は、`.claude/skills/issue-mr-flow/SKILL.md` に手順として
 書かれているだけで、実行はAIエージェントの手作業だった。実際に行う操作は毎回同じ4つである。
 
-1. `plans/` `reports/` を削除する（md・htmlの両方）
-2. `worklog/` のタスク固有ファイルを削除する（**`worklog/TEMPLATE.md` は残す**）。どの階層に
-   あっても **`REVIEW-POINTS.md` は残す**（`plans/` `reports/` 配下を含む）
+1. `wip/plans/` `wip/reports/` を削除する（md・htmlの両方）
+2. `wip/worklogs/` のタスク固有ファイルを削除する（**`wip/worklogs/TEMPLATE.md` は残す**）。
+   どの階層にあっても **`REVIEW-POINTS.md` は残す**（`wip/plans/` `wip/reports/` 配下を含む）
 3. frontmatterの機械可読インデックス（`index.jsonl`）を再生成する
 4. `HANDOFF.md` を次タスク向けのテンプレートへリセットする
 
-手作業である限り、**消し忘れ**（`reports/` のhtmlだけ残る等）と**消しすぎ**（`worklog/TEMPLATE.md`
-まで消す）の両方が起こりうる。とくに後者は、次のタスクでworklogを書き起こす雛形が失われるため、
+手作業である限り、**消し忘れ**（`wip/reports/` のhtmlだけ残る等）と**消しすぎ**
+（`wip/worklogs/TEMPLATE.md` まで消す）の両方が起こりうる。とくに後者は、次のタスクでworklogを書き起こす雛形が失われるため、
 気づかれないまま次のissueへ持ち越される。`.claude/scripts/src/update-handoff-progress.sh`（進捗記号）
 `.claude/scripts/src/check-base-conflicts.sh`（コンフリクト検知）と同じく、**手順書に書くのではなく
 スクリプトへ委譲する**方針でこの4操作をまとめる。
@@ -50,7 +50,10 @@ bash .claude/scripts/src/cleanup-task.sh [--dry-run] [--skip-index]
 ### 削除対象の決め方
 
 対象ディレクトリは `.mrworkflow.json` の `plansDir` / `worklogDir` / `reportsDir` から読む
-（既定 `plans` / `worklog` / `reports`）。設定値は**リポジトリルート配下の相対パスでなければ
+（既定 `plans` / `worklog` / `reports`。**この既定値は後方互換のため据え置いており、
+本リポジトリ自身の設定値である `wip/plans` / `wip/worklogs` / `wip/reports` とは異なる**。
+issue #165で`.mrworkflow.json`を持たない配布先向けのフォールバックとして意図的に変更していない。
+詳細は下記「issue #165」）。設定値は**リポジトリルート配下の相対パスでなければ
 エラーにする**（絶対パス・`..` を含むパス・Windowsのドライブ表記・バックスラッシュ区切りを拒否する。
 設定ファイル由来の値をそのまま `rm -rf` へ渡さないためのガード）。
 
@@ -58,15 +61,15 @@ bash .claude/scripts/src/cleanup-task.sh [--dry-run] [--skip-index]
 
 | 残すもの | 判定 | 理由 |
 |---|---|---|
-| `worklog/TEMPLATE.md` | パス完全一致（`KEEP_PATHS`） | worklogを書き起こすときの雛形であり、タスクごとの成果物ではない（`.claude/rules/directory-structure.md`） |
-| `REVIEW-POINTS.md` | ファイル名一致（`KEEP_BASENAMES`）。階層は問わない | `plans/REVIEW-POINTS.md` `reports/REVIEW-POINTS.md` は、そのディレクトリに対する永続のレビュー観点であってタスク単位の成果物ではない（issue #77。`.claude/rules/docs-workflow.md`「ドキュメント運用」表・`.claude/docs/spec/adversarial-review.md`） |
+| `<worklogDir>/TEMPLATE.md`（本リポジトリでは`wip/worklogs/TEMPLATE.md`） | パス完全一致（`KEEP_PATHS`）。**issue #165で`worklogDir`設定値から動的に組み立てる形へ変更**（下記「issue #165」） | worklogを書き起こすときの雛形であり、タスクごとの成果物ではない（`.claude/rules/directory-structure.md`） |
+| `REVIEW-POINTS.md` | ファイル名一致（`KEEP_BASENAMES`）。階層は問わない | `wip/plans/REVIEW-POINTS.md` `wip/reports/REVIEW-POINTS.md` は、そのディレクトリに対する永続のレビュー観点であってタスク単位の成果物ではない（issue #77。`.claude/rules/docs-workflow.md`「ドキュメント運用」表・`.claude/docs/spec/adversarial-review.md`） |
 
 - 残すものを1つも含まないディレクトリは、**ディレクトリごと削除する**。残すものがある
-  ディレクトリ（`worklog/` や、`REVIEW-POINTS.md` を置いた `plans/` `reports/`）は
+  ディレクトリ（`wip/worklogs/` や、`REVIEW-POINTS.md` を置いた `wip/plans/` `wip/reports/`）は
   ディレクトリ自体を残し、中の空になったサブディレクトリだけを畳む。
-- **Git管理下かどうかは問わない。** `index.jsonl`（`.gitignore` 対象の生成物）や `reports/*.html`
-  のような未追跡ファイルも同じ扱いで消える。`plans/index.jsonl` を個別に指定する必要はない。
-- 非ASCIIのファイル名（`plans/【調査】〜.md` 等）を正しく扱うため、走査は `find -print0` で受ける。
+- **Git管理下かどうかは問わない。** `index.jsonl`（`.gitignore` 対象の生成物）や `wip/reports/*.html`
+  のような未追跡ファイルも同じ扱いで消える。`wip/plans/index.jsonl` を個別に指定する必要はない。
+- 非ASCIIのファイル名（`wip/plans/【調査】〜.md` 等）を正しく扱うため、走査は `find -print0` で受ける。
 
 ### HANDOFF.mdのリセット
 
@@ -124,11 +127,11 @@ bash .claude/scripts/src/cleanup-task.sh [--dry-run] [--skip-index]
 {
   "dryRun": false,
   "repoRoot": "/path/to/repo",
-  "targetDirs": ["plans", "worklog", "reports"],
-  "keptPaths": ["worklog/TEMPLATE.md"],
+  "targetDirs": ["wip/plans", "wip/worklogs", "wip/reports"],
+  "keptPaths": ["wip/worklogs/TEMPLATE.md"],
   "keptBasenames": ["REVIEW-POINTS.md"],
-  "removedDirs": ["plans", "reports"],
-  "deletedFiles": ["plans/【調査】〜.md", "worklog/2026-08-19_〜_push1.md"],
+  "removedDirs": ["wip/plans", "wip/reports"],
+  "deletedFiles": ["wip/plans/【調査】〜.md", "wip/worklogs/2026-08-19_〜_push1.md"],
   "handoff": { "path": "HANDOFF.md", "reset": true, "alreadyTemplate": false, "created": false },
   "frontmatterIndex": { "ran": true, "exitCode": 0 }
 }
@@ -193,12 +196,39 @@ bash .claude/scripts/src/cleanup-task.sh [--dry-run] [--skip-index]
 新規:
 - `.claude/docs/ddr/i0117-01-削除済み追跡ファイルの除外はextract-frontmatter側で行う.md`
 
+### issue #165（plans/worklog/reportsをwip/配下へ集約しworklogをworklogsへ改名する）
+
+対象ディレクトリを`plans/` `worklog/` `reports/`から`wip/plans/` `wip/worklogs/` `wip/reports/`へ
+集約・改名した（`.mrworkflow.json`の`plansDir`/`worklogDir`/`reportsDir`を変更）。これに伴い、
+`KEEP_PATHS`（`<worklogDir>/TEMPLATE.md`）をスクリプト内のハードコードされたリテラルパス
+（`worklog/TEMPLATE.md`）から、`.mrworkflow.json`の`worklogDir`設定値を使って動的に組み立てる
+方式へ変更した（上記「未決定事項・懸念点」参照）。変更しなければ`worklogDir`を`wip/worklogs`へ
+変えた時点で`KEEP_PATHS`が実在しないパス（`worklog/TEMPLATE.md`）を指したままになり、
+`wip/worklogs/TEMPLATE.md`が誤って削除されるリスクがあった。
+
+**コード側のフォールバック既定値（`.mrworkflow.json`を持たない、または該当キーを持たない配布先で
+使われる値）は`plans`/`worklog`/`reports`のまま変更していない。** `Provider.sh`の
+`get_workflow_config`のheredoc既定値、および本スクリプトのjqフォールバック
+（`.plansDir // "plans"`等）の両方が対象。本リポジトリ自身の`.mrworkflow.json`は
+`wip/plans`/`wip/worklogs`/`wip/reports`を明示的に持つため実害は無いが、**未移行の既存配布先との
+後方互換性を優先した判断**である（詳細・却下案は`.claude/docs/ddr/i0165-01`を参照）。
+
+変更:
+- `.claude/scripts/src/cleanup-task.sh`（`KEEP_PATHS`の動的化）
+- `.claude/scripts/test/test_cleanup_task.sh`（`.mrworkflow.json`で`worklogDir`をネストしたパスへ
+  変更した場合の動的配線を検証する結合テストを追加）
+- `.mrworkflow.json`（`plansDir`/`worklogDir`/`reportsDir`を`wip/plans`/`wip/worklogs`/`wip/reports`へ）
+- 本ファイル（対象ディレクトリ・`KEEP_PATHS`の説明・出力例のパス表記を更新）
+
 ## 未決定事項・懸念点
 
-- **残すものの一覧はスクリプト内の定数（`KEEP_PATHS`・`KEEP_BASENAMES`）である。** 現在の対象は
-  `worklog/TEMPLATE.md` と `REVIEW-POINTS.md` の2件だけで、`.mrworkflow.json` からは読まない。
-  他プロジェクトへ移植した際に残したいファイルが増えたら、設定ファイルへ逃がすか定数へ足すかを
-  改めて判断する。
+- **（解消・issue #165）`KEEP_PATHS`（TEMPLATE.mdのパス）は`.mrworkflow.json`の`worklogDir`から
+  動的に組み立てる。** トップレベルでは空配列（`KEEP_PATHS=()`）として宣言し、`main()`内で
+  `target_dirs`（`[plansDir, worklogDir, reportsDir]`の順で`.mrworkflow.json`から取得）の
+  2番目の要素を使って組み立てる（`declare`はbashのローカルスコープの罠を避けるため使わず、
+  素の代入文にしている）。`KEEP_BASENAMES`（`REVIEW-POINTS.md`）は引き続きスクリプト内の
+  定数のままである。他プロジェクトへ移植した際に残したいファイルの種類自体が増えたら、
+  設定ファイルへ逃がすか定数へ足すかを改めて判断する。
 - **（解消）`main` の結合テストは持たない**: issue #117 で常設した。「実リポジトリを汚さない」方針は
   変えず、`mktemp -d` + `git init` の使い捨てリポジトリの中で実プロセスとして起動する
   （`test_search_frontmatter.sh` と同じ切り分け）。削除は実際に走るが対象はフィクスチャのみ。

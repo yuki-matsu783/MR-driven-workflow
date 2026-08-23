@@ -10,8 +10,8 @@ keywords: [issue-mr-workflow.md, changelog, DDR, i0186-01, i0186-02, VERSION, ge
 
 ## 前提（合意状況）
 
-- 上位の計画: `plans/vivid-report-canvas.md`（flow-id 1-5 で包括指示を承認とみなし合意）
-- 入力: `reports/20260823_vivid-report-canvas_作業結果.md`「設計への反映」の項目1・3、
+- 上位の計画: `wip/plans/vivid-report-canvas.md`（flow-id 1-5 で包括指示を承認とみなし合意）
+- 入力: `wip/reports/20260823_vivid-report-canvas_作業結果.md`「設計への反映」の項目1・3、
   および調査結果・worklog・PR #191 のレビュー往復（敵対的レビュー4回・計36件）
 
 ## この計画で何をするか
@@ -30,7 +30,7 @@ keywords: [issue-mr-workflow.md, changelog, DDR, i0186-01, i0186-02, VERSION, ge
 | `.claude/docs/README.md` | 再生成 | `bash .claude/scripts/src/generate-ddr-list.sh` でDDR一覧を再生成（手書きしない） |
 | `.claude/VERSION` | 変更（判断） | 下記「方針」の判断基準で増分を適用 |
 | `HANDOFF.md` | 変更 | 「判断を迷った内容」へVERSION増分の適用値と根拠を追記（`distribution-assets.md` の非対話例外が義務づける記録。specのchangelogと両方へ残す） |
-| `reports/20260823_vivid-report-canvas_反映結果.md`（＋.html） | 新規 | flow-id 4-6 の実施結果。**【AIアセット反映】計画の分と1組にまとめる**（作成は両計画で共有。本計画分の結果もここへ書く） |
+| `wip/reports/20260823_vivid-report-canvas_反映結果.md`（＋.html） | 新規 | flow-id 4-6 の実施結果。**【AIアセット反映】計画の分と1組にまとめる**（作成は両計画で共有。本計画分の結果もここへ書く） |
 
 ## 方針
 
@@ -52,10 +52,10 @@ keywords: [issue-mr-workflow.md, changelog, DDR, i0186-01, i0186-02, VERSION, ge
     **PATCH（文言修正・バグ修正）ではない**（節構成・視覚語彙が変わる）。**据え置きも採らない**
     （配布先が版から様式変更を判別できなくなる実害が distribution-assets.md に明記されている）。
   - **根拠に含める配布対象アセット（いずれもcore層）**: `reports.template.html`・specのchangelog
-    エントリ・DDR 2本・`.claude/docs/README.md`（DDR一覧）・`reports/REVIEW-POINTS.md`
+    エントリ・DDR 2本・`.claude/docs/README.md`（DDR一覧）・`wip/reports/REVIEW-POINTS.md`
     （【AIアセット反映】計画の変更分）。
   - **適用の順序**: 増分の適用は、**【AIアセット反映】側の 4-6（洗い出し結果と
-    `reports/REVIEW-POINTS.md` の変更範囲）が確定した後、フェーズ4の最後**に行う
+    `wip/reports/REVIEW-POINTS.md` の変更範囲）が確定した後、フェーズ4の最後**に行う
     （版の根拠になる変更範囲が確定する前に版だけ先に決めない）。
   - 非対話セッションのため例外規定に従いAIエージェントが適用し、(1) 根拠を本issueのspecの
     changelogエントリと `HANDOFF.md`「判断を迷った内容」の両方へ残し、(2) レビューで
@@ -70,7 +70,7 @@ keywords: [issue-mr-workflow.md, changelog, DDR, i0186-01, i0186-02, VERSION, ge
 ## やらないこと（スコープ外）
 
 - 生きたspec本文の書き換え（上記のとおり変更不要を確認済み）。
-- `reports/REVIEW-POINTS.md` への観点追加（`plans/【AIアセット反映】洗い出しとREVIEW-POINTS観点追加.md` が担当）。
+- `wip/reports/REVIEW-POINTS.md` への観点追加（`wip/plans/【AIアセット反映】洗い出しとREVIEW-POINTS観点追加.md` が担当）。
 - `.gemini/` 配下の更新（flow-id 5-3 の `sync-gemini-assets.sh` 再生成で追随）。
 - CHANGELOGファイルの新設（DDR i0033-01 で「持たない」と決定済み）。
 
@@ -95,15 +95,20 @@ grep -c '0\.4\.0' .claude/docs/spec/issue-mr-workflow.md
 bash .claude/scripts/src/check-doc-references.sh
 
 # 6. 過去のchangelog・生きた記述・既存DDRを壊していないこと
-#    （ブランチ分岐点との差分で、docs配下の削除行が0＝追記・新規のみ）
-git diff --numstat 4b8fb20f6b1d0324367ceeda280a31dc4d016732 -- .claude/docs/spec/ .claude/docs/ddr/
+#    （mainとの分岐点との差分で、docs配下の削除行が0＝追記・新規のみ。
+#     分岐点は固定SHAではなく実行時に fetch 済みの origin/main から求める）
+git fetch origin main
+git diff --numstat "$(git merge-base origin/main HEAD)" -- .claude/docs/spec/ .claude/docs/ddr/
 ```
 
 - 空振りの排除（**2026-08-23、着手前のツリーで実測済み**）: 検証1の `issue #186` はspecに
   **0件**、検証2の `i0186-*` は**0件**、検証4の適用前VERSIONは `0.3.0`（`0.4.0` は3ファイル
   とも0件）。いずれも4-6の実施で規定値へ変わることが検出になる。
-- 検証6の基準は**ブランチ分岐点のSHA（`git merge-base origin/main HEAD` ＝ `4b8fb20`）に固定**
-  する。基準なしの `git diff` はコミット後に空になり、削除の検出が恒久的に空振りするため。
+- 検証6の基準は**ブランチ分岐点（`git merge-base origin/main HEAD`）を実行時に求めて使う**。
+  基準なしの `git diff` はコミット後に空になり、削除の検出が恒久的に空振りするため。
+  **固定SHAの直書きはしない**——当初 `4b8fb20` を書いたが、これは fetch 前の古い
+  `origin/main` に対する誤実測で、真の分岐点は `4be448a`、さらに main のマージ取り込み後は
+  分岐点自体が進む。固定すると main 由来の削除行を自ブランチの削除として誤検出する。
   合否は各行の**2列目（削除行数）が全行0**であること（README.md は生成物のため対象から除外）。
 
 ## issueの受け入れ条件との対応
