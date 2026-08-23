@@ -1,7 +1,3 @@
-# （このリポジトリでは未使用）移植元プロジェクトに存在した参考資料ディレクトリの名残。
-# `#` の無い裸の行だったためignoreパターンとして有効になっていたのを、issue #32でコメント化した。
-# 参考ディレクトリ
-
 # ビルド成果物
 /build/
 
@@ -23,16 +19,6 @@
 # 作業状態（前回push時点のHEAD SHA。ブランチ横断・非コミット対象）
 /.claude/state/
 
-# .gemini/配下は.claude/への参照(シンボリックリンク/NTFSジャンクション)のみでGit管理下に置かない。
-# Gitはジャンクションをリンクとして認識せず中身をそのまま複製してしまうため（詳細:
-# .claude/docs/ddr/i00-13-gemini配下はGit管理下に置かずセットアップスクリプトで生成する.md）。
-# clone後は .claude/scripts/src/setup-gemini-links.sh を1度実行してリンクを作成する。
-/.gemini/docs
-/.gemini/hooks
-/.gemini/rules
-/.gemini/scripts
-/.gemini/skills
-
 # frontmatter抽出スクリプト（.claude/scripts/src/extract-frontmatter.sh）が生成する機械可読
 # インデックス。複数ブランチが並行してmarkdownのfrontmatterを編集すると生成物の近接行同士が
 # 競合していたため、issue #36でGit管理から外し生成物として扱う方針に変更した。SessionStart hook
@@ -48,3 +34,6 @@
 # OTEL_EXPORTER_OTLP_ENDPOINT等の環境依存値を持つため、共有の.claude/settings.jsonとは
 # 分離しGit管理下に置かない。テンプレートは.claude/settings.local.json.exampleを参照。
 /.claude/settings.local.json
+
+# 移植元プロジェクトに存在した参考資料ディレクトリの名残。
+参考ディレクトリ

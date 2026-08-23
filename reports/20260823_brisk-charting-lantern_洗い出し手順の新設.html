@@ -155,7 +155,19 @@
 <section id="conditions">
 <h2>実施条件</h2>
 <ul>
-<li>対象リビジョン: <code>claude/ai-asset-reflection-scope-njqn95</code>（<code>ff8c9b4</code>）。</li>
+<li>対象リビジョン: <code>claude/ai-asset-reflection-scope-njqn95</code>（作業時 <code>a283fa8</code>）。</li>
+<li><b>本文中の行番号は、敵対的レビューへの対応を終えた時点（<code>bd57e31</code>）のものである。</b> その後 <code>origin/main</code>（PR #157 のマージを含む）を取り込んだため、<b>現在の行番号は 下表のとおり後ろへずれている</b>（節の内容・参照関係は変わらない）。</li>
+</ul>
+<p>| 箇所 | 対応前 | 対応後（<code>bd57e31</code>） | main取り込み後 |</p>
+<p>|---|---|---|---|</p>
+<p>| 新節の開始 | — | 342 | <b>349</b> |</p>
+<p>| 除外規定 | 163 | 163 | <b>166</b> |</p>
+<p>| 「必ず実施する」の地の文 | 50 | 50 | <b>50</b> |</p>
+<p>| flow-id 4-1 行 | 82 | 83 | <b>83</b> |</p>
+<p>| flow-id 4-6 行 | 87 | 88 | <b>88</b> |</p>
+<p>| スキップ条件（表） | 131 | 132 | <b>133</b> |</p>
+<p>| スキップ条件（地の文） | 135 | 135 | <b>136</b> |</p>
+<ul>
 <li>書き換えは<b>行番号ではなく照合文字列</b>で行った。すべて <code>python</code> の <code>str.replace</code> で <code>count == 1</code> をアサートしてから置換しており、複数箇所への誤爆が起きないことを実行時に確認して いる。</li>
 <li>実施日: 2026-08-23</li>
 </ul>
