@@ -253,3 +253,28 @@ def main():
 if __name__ == "__main__":
     main()
 ```
+
+## 敵対的レビュー（フェーズ3・2回目=作業結果）と flow-id 3-9 対応
+
+- サブエージェントが16件を検出（major 5 / minor 9 / nit 2）。カウンタ increment → 2/3。
+- マトリクス選別: 投稿10件（ちょうど上限。うち2件は行がdiffハンク外のためファイルコメント）、
+  報告のみ6件（単発コメントで投稿）。投稿前にハンク範囲をローカルdiffで確認した。
+- 対応（全16件）:
+  - test_session_start.sh: 末尾空行の検証をファイル＋`tail -c 2`非空判定へ（コマンド置換が
+    末尾改行を全て落とすため従来形は常に成功していた）。`\|`列ずれ・旧表記`[x][x][]`・
+    2参照併記のフィクスチャ追加。実HANDOFF.md/実SKILL.md全42行の実データ回帰を追加。
+    tmp_handoff_dirをTMP_DIR配下へ集約（trap上書きで後片付けが無効になっていた）。
+    **テストのラベルにバッククォートを書いて `/` が実行される事故**を1回踏んだ
+    （`assert_eq "… \` / \` …"` の二重引用符内バッククォートはコマンド置換になる。
+    ラベルは単一引用符にするか「 」で書く）。
+  - session-start.sh: 参照列抽出値の形検証（fail-open）・注入時の完全パス化・旧表記ガード・
+    ROW_RE複製コメントの根拠を set -euo pipefail の1点へ修正。
+  - 変異テスト3種（空行混入・検証無効化・旧表記ガード無効化）で各 failures=1 を確認し復元。
+  - SKILL.md: 参照列（5-3/5-5→review-loop.md、1-6→planning.md）、参照列の設計注記
+    （mcp-fallback.mdは参照列で指さずhookが経路判定で注入）、担当列説明へreview-loop.md、
+    対応表前文へ新設H2・見出しレベル調整の明記。
+  - references/: 係り先を失った指示語3件を修正、review-loop.mdの前提再掲をリンク1行へ、
+    planning.md/deliverables.mdの見出しをH3/H4→H2/H3へ1段上げ。
+  - test_install_to_project.sh: 配布先references/*.mdの本家との集合一致を表明（passed=24）。
+  - directory-structure.md（表・ツリー図）・index.md: references/ の実例を追記（フェーズ4予定を前倒し）。
+- 全テスト16本 passed=1028 failures=0。

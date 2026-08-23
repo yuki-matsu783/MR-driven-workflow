@@ -112,7 +112,7 @@
     <h1>SKILL.md の references 分割と参照タイミングの機械化 — 作業結果</h1>
     <p class="lead">SKILL.md を本文 <b>177行 / 27,349バイト</b> と <code>references/</code> <b>7ファイル</b>へ分割し、
       全体フロー表の「参照」列と SessionStart hook で「いつ読むか」を機械化した。
-      検証14項目すべて合格（テスト16本 / passed=1018 / failures=0）。</p>
+      検証14項目すべて合格（テスト16本 / passed=1028 / failures=0）。敵対的レビュー2回目の16件へ全件対応済み（flow-id 3-9）。</p>
     <ul class="meta">
       <li><b>issue</b> #160</li>
       <li><b>PR</b> #161</li>
@@ -135,8 +135,8 @@
       <tr><td>2</td><td>本文は切り貼り以外で触っていない。元の見出し62件は全て残り（<code>comm -23</code> 0件）、増分は追加したH1 7件＋導入H2 1件＋対応表H2 1件のみ（<code>comm -13</code> 9件）</td><td>検証 #2-(i)</td></tr>
       <tr><td>3</td><td>全行差分は「参照付け替え16行＋フロー表44行（参照列追加）」の旧側60行と、追加分の新側154行だけで、<b>説明の付かない差分は無い</b></td><td>検証 #2-(ii)・例外リスト</td></tr>
       <tr><td>4</td><td>全体フロー表の<b>42行すべて</b>に参照列が入った（空セル0件）</td><td>検証 #4</td></tr>
-      <tr><td>5</td><td>SessionStart hook は現在地 flow-id（実データで <code>3-3</code>）と参照列を解決し、参照が <code>—</code>・解決不能のときは1行も出さない（fail-open）</td><td>検証 #5・実機確認</td></tr>
-      <tr><td>6</td><td>既存テストは<b>16本 / passed=1018 / failures=0</b>。<code>require_vcs_cli</code> の出力を検証するテストを新設し、案内先を旧パスへ戻した一時ツリーで<b>実際に failures=1 になる</b>ことを確認した</td><td>検証 #6・#7</td></tr>
+      <tr><td>5</td><td>SessionStart hook は現在地 flow-id と参照列を解決し（実HANDOFF.md・実SKILL.md全42行の回帰テストあり）、解決不能・値の形が不正・旧進捗表記のときは1行も出さない（fail-open）。注入時は参照をリポジトリルートからの完全パスへ変換する</td><td>検証 #5・実機確認</td></tr>
+      <tr><td>6</td><td>既存テストは<b>16本 / passed=1028 / failures=0</b>。<code>require_vcs_cli</code> の出力を検証するテストを新設し、案内先を旧パスへ戻した一時ツリーで<b>実際に failures=1 になる</b>ことを確認した</td><td>検証 #6・#7</td></tr>
       <tr><td>7</td><td>DDR本文の差分は<b>0行</b>。specの変更行のうち<code>## 影響範囲</code>配下は1件だけで、それは調査B-3が特定済みの「影響範囲の中の現在状態の小節」への正しい追従である</td><td>検証 #9</td></tr>
       <tr><td>8</td><td><code>references/</code> は配布先へ<b>7ファイルすべて</b>渡る（<code>sync-assets.sh</code> 再ビルド後に実測）</td><td>検証 #10</td></tr>
       <tr><td>9</td><td><code>index.jsonl</code> に <code>type: skill-reference</code> で7件載り、<code>--type skill</code> の件数（8件）は変わらない</td><td>検証 #11</td></tr>
@@ -175,8 +175,8 @@
       <tr><td>2-(ii)</td><td>全行差分が例外リストと一致</td><td><b>合格</b>（旧側60行=表44＋付け替え16。新側154行=表67＋追加分）</td></tr>
       <tr><td>3</td><td>被参照節名と対応表の差0件</td><td><b>合格</b>（節名12件は対応表がカバー。非節名7件は対象外と判断し内訳を記録）</td></tr>
       <tr><td>4</td><td>参照列の空データ行0件</td><td><b>合格</b>（42行 / 空0）</td></tr>
-      <tr><td>5</td><td>hookの新規テスト＋実データ確認</td><td><b>合格</b>（passed=66。実 <code>HANDOFF.md</code> で現在地 <code>3-3</code>、<code>9-9</code>→空）</td></tr>
-      <tr><td>6</td><td>全テスト failures=0（件数付き）</td><td><b>合格</b>（16本 / passed=1018 / failures=0）</td></tr>
+      <tr><td>5</td><td>hookの新規テスト＋実データ確認</td><td><b>合格</b>（passed=74。実HANDOFF.md・実SKILL.md全42行への実データ回帰テストを追加）</td></tr>
+      <tr><td>6</td><td>全テスト failures=0（件数付き）</td><td><b>合格</b>（16本 / passed=1028 / failures=0。敵対的レビュー2回目の対応後に再実行）</td></tr>
       <tr><td>7</td><td>変え忘れの検出</td><td><b>合格</b>（旧パスへ戻した一時ツリーで <code>passed=221 failures=1</code>）</td></tr>
       <tr><td>8</td><td>残存参照の分類</td><td><b>合格</b>（総195行。節名付き残存は本文に残る節への2件＋過去changelog 1件のみ）</td></tr>
       <tr><td>9</td><td>DDR差分0・spec影響範囲配下0</td><td><b>合格</b>（DDR 0行。配下1件は調査B-3の既知の現在状態小節への追従）</td></tr>
@@ -184,7 +184,7 @@
       <tr><td>11</td><td><code>skill-reference</code> 7件</td><td><b>合格</b>（matched=7。<code>--type skill</code> は8件のまま）</td></tr>
       <tr><td>12</td><td><code>bash -n</code></td><td><b>合格</b>（変更した7本すべてOK）</td></tr>
       <tr><td>13</td><td>アンカー不一致0件</td><td><b>合格</b>（残存アンカー3件はすべて <code>start-resume.md</code> 内で解決）</td></tr>
-      <tr><td>14</td><td>相対参照の付け替え漏れ0件</td><td><b>合格</b>（元56行を点検。別ファイル行き10件を全て付け替え）</td></tr>
+      <tr><td>14</td><td>相対参照の付け替え漏れ0件</td><td>当初「合格」としたが、敵対的レビュー2回目で<b>節名を伴わない指示語3件の漏れ</b>が検出された（「上の全体フロー表」「このSKILL.md」等）。<b>3件とも修正済み</b>（下記の対応表）</td></tr>
     </tbody>
   </table>
   </div>
@@ -259,13 +259,24 @@
 </section>
 
 <section>
+  <h2>敵対的レビュー（フェーズ3・2回目）への対応（flow-id 3-9）</h2>
+  <p>作業結果のdiffに対する敵対的レビューで <b>16件</b>（major 5 / minor 9 / nit 2）の指摘を受け、
+  <b>全16件へ対応した</b>（インライン投稿10件・報告のみ6件）。主な対応:</p>
+  <ul>
+    <li><b>テストの空振り</b>: 末尾空行の検証をファイル書き出し＋<code>tail -c 2</code> 非空判定へ置き換え。変異テストで failures=1 を確認</li>
+    <li><b>パース脆弱性</b>: 参照列の抽出値の形を検証し、セル内 <code>\|</code> で列がずれた場合は空を返す（fail-open）。旧進捗表記 <code>[x][x][]</code> も解決放棄へ</li>
+    <li><b>実データ回帰</b>: 実HANDOFF.md・実SKILL.md（全42行・参照先ファイルの実在）へのテストを追加</li>
+    <li><b>参照列の網羅</b>: 5-3/5-5へ <code>review-loop.md</code>、1-6へ <code>planning.md</code> を追加。<code>mcp-fallback.md</code> を参照列で指さないのは設計である旨をSKILL.mdへ明記</li>
+    <li><b>注入パスの完全パス化</b>・trap上書きの解消・係り先を失った指示語3件の修正・前提再掲の正1箇所化・見出し階層の是正・<code>directory-structure.md</code>/<code>index.md</code> の追随・配布先references検証の追加</li>
+  </ul>
+
   <h2>残課題</h2>
   <ul>
     <li><b>配布物に <code>index.jsonl</code>（生成物）が混入する</b>（<code>sync-assets.sh</code> の <code>cp -R</code> が
       作業ツリーの生成済み <code>index.jsonl</code> を全ディレクトリ分コピーする）。本issue以前からの既存挙動で
       <code>references/</code> に限らない。<b>別issue候補</b>（<code>install-to-project.sh</code> の破壊的既定と合わせて起票を検討）。</li>
     <li><code>.gemini/</code> 側のリンク動作は本環境では未確認（フェーズ4で扱いを決める）。</li>
-    <li><code>directory-structure.md</code> の <code>references/</code> 行「（現時点で実例なし）」の更新はフェーズ4で行う。</li>
+    <li><del><code>directory-structure.md</code> の「（現時点で実例なし）」の更新はフェーズ4で行う</del> → 敵対的レビュー2回目の指摘を受け flow-id 3-9 で前倒しして更新済み（表・ツリー図・<code>index.md</code> の3箇所）。</li>
   </ul>
 </section>
 

@@ -22,6 +22,8 @@ keywords: [directory, repository-map, リポジトリマップ, ディレクト�
   - [./.claude/rules/](./.claude/rules/) AI向け詳細ルール（コーディング規約・ディレクトリ構成・ドキュメント運用等）。
   - [./.claude/skills/](./.claude/skills/) `/issue-mr-flow`（唯一の実装フロー定義）・`/commit`
     ・`/issue-create`・`/resolve-conflict`・`/canvas-report`・`/doc-search` のスキル定義。
+    - [./.claude/skills/issue-mr-flow/references/](./.claude/skills/issue-mr-flow/references/)
+      SKILL.mdから切り出した参照資料7本（読むタイミングは全体フロー表の「参照」列が正。issue #160）。
   - [./.claude/agents/](./.claude/agents/) サブエージェント定義（issue-mr-flow途中引き継ぎ用）。
   - [./.claude/scripts/](./.claude/scripts/) AIエージェントが`.claude/skills/*`経由で能動的に実行するスクリプト一式。
     - [./.claude/scripts/src/](./.claude/scripts/src/) issue駆動MRワークフロー支援スクリプト等（bash）。

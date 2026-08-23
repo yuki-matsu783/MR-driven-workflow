@@ -48,8 +48,8 @@ keywords: [references分割, 参照列, flow-id解決, ROW_RE, describe抽出, �
 | 2-(ii) | 全行差分が例外リストと一致 | **合格**（旧側60行=表44＋付け替え16。新側154行=表67＋frontmatter/H1/導入H2/対応表/付け替え新側。下記「例外リスト」） |
 | 3 | 被参照節名と対応表の差0件 | **合格**。DDR・spec過去changelogの「…」抽出19件のうち、節名12件は対応表がカバー。非節名7件（手順名・引用句・hookの見出し）は対象外と判断（内訳は下記） |
 | 4 | 参照列の空データ行0件 | **合格**（42行 / 空0） |
-| 5 | hookの新規テスト＋実データ確認 | **合格**（`test_session_start.sh` passed=66。実際の `HANDOFF.md` で現在地 `3-3`、`3-6`→`deliverables.md`・`9-9`→空を確認） |
-| 6 | 全テスト failures=0（件数付き） | **合格**（16本 / passed=1018 / failures=0） |
+| 5 | hookの新規テスト＋実データ確認 | **合格**（`test_session_start.sh` passed=74。実HANDOFF.md・実SKILL.md全42行に対する実データ回帰テストを追加（敵対的レビュー2回目の指摘対応）） |
+| 6 | 全テスト failures=0（件数付き） | **合格**（16本 / passed=1028 / failures=0。敵対的レビュー2回目の対応後に再実行） |
 | 7 | 変え忘れの検出 | **合格**（`Provider.sh:373` 相当を旧パスへ戻した一時ツリーで `passed=221 failures=1`） |
 | 8 | 残存参照の分類 | **合格**（総195行。節名付きでSKILL.mdを指す残存は、本文に残る節への参照2件＋過去changelog1件のみ） |
 | 9 | DDR差分0・spec影響範囲配下0 | **合格**（DDR 0行。spec配下1件は `check-base-sync.md:187` = 調査B-3の既知の現在状態小節 `### 呼び出し側の責務` への追従で、point-in-timeの書き換えではない） |
@@ -57,7 +57,7 @@ keywords: [references分割, 参照列, flow-id解決, ROW_RE, describe抽出, �
 | 11 | `skill-reference` 7件 | **合格**（`search-frontmatter.sh --type skill-reference` matched=7。`--type skill` は8件のまま） |
 | 12 | `bash -n` | **合格**（変更した7本すべてOK） |
 | 13 | アンカー不一致0件 | **合格**（分割後の全 `.md` で残存アンカー3件はすべて `start-resume.md` 内で解決） |
-| 14 | 相対参照の付け替え漏れ0件 | **合格**（元56行を所在ファイルごとに点検。別ファイル行きは下記の10件で、全て付け替え済み） |
+| 14 | 相対参照の付け替え漏れ0件 | **当初「合格」としたが、敵対的レビュー2回目で節名を伴わない指示語3件の漏れが検出された**（review-loop.md「上の全体フロー表」「このSKILL.md」・deliverables.md「このSKILL.md／このファイル」。「上記／下記＋節名」の形だけを点検し、節名を伴わない指示語を見ていなかった）。**3件とも修正済み**（下記「敵対的レビュー（フェーズ3・2回目）への対応」） |
 
 ## 例外リスト（「切り貼り以外で触らない」の例外＝参照の付け替え）
 
@@ -81,6 +81,16 @@ keywords: [references分割, 参照列, flow-id解決, ROW_RE, describe抽出, �
 | phase5-close.md 292-293行目 | 上記「PR/MR作成・マージの担当」節 | `` `.claude/skills/issue-mr-flow/SKILL.md` ``「同」節 |
 
 （表の行数と16行の差は、複数行にまたがる付け替えが旧側で2行に数えられるため。）
+
+**敵対的レビュー2回目（flow-id 3-9）で追加した例外**（いずれも切り貼り原則からの逸脱として記録）:
+
+| 場所 | 旧 | 新 | 理由 |
+|---|---|---|---|
+| review-loop.md 15行目 | 上の全体フロー表には含まれない | SKILL.md の全体フロー表には含まれない | 分割で係り先を喪失 |
+| review-loop.md 32行目 | 本スキルにもこのSKILL.mdにも | 本スキルにも `.claude/skills/issue-mr-flow/SKILL.md` にも | 同上（「このSKILL.md」が review-loop.md を指してしまう） |
+| deliverables.md 39-41行目 | このSKILL.mdは列挙しない／フロー定義であるこのファイルではなく | SKILL.md（フロー定義）は列挙しない／フロー定義である SKILL.md ではなく | 同上 |
+| review-loop.md 導入H2直後 | `get_vcs_access_mode` 前提の再掲（5行） | `references/start-resume.md`「サブコマンド」導入部へのリンク（正を1箇所化） | 正が2つになる重複の解消 |
+| planning.md・deliverables.md 全見出し | H3/H4 | H2/H3（1段上げ。節名の文字列は不変） | H1直下がH3になる階層飛びの解消 |
 
 **追加分**（書き換えではなく新規）: 各 `references/*.md` の frontmatter（7行×7）＋H1＋空行、
 `review-loop.md` の導入H2ブロック（7行）、`start-resume.md` の再掲注記（2行）、本文の
@@ -115,6 +125,28 @@ keywords: [references分割, 参照列, flow-id解決, ROW_RE, describe抽出, �
    `deliverables.md`。結果修正（2-9/3-9/4-9）は `review-loop.md`＋`deliverables.md`。
    5-1は`base-branch-followup.md`、5-2〜5-5は`phase5-close.md`（5-3は`deliverables.md`併記）。
 
+## 敵対的レビュー（フェーズ3・2回目）への対応（flow-id 3-9）
+
+作業結果のdiffに対する敵対的レビューで**16件**（blocker 0 / major 5 / minor 9 / nit 2）の指摘を
+受け、**全16件へ対応した**。インライン投稿10件・報告のみ6件（確度×重大度マトリクスによる選別）。
+
+| 分類 | 対応 |
+|---|---|
+| テストの空振り（末尾空行の検証がコマンド置換で常に成功） | ファイルへ書き `tail -c 2` の非空で判定する形へ置き換え。変異テスト（`printf '\n'` 混入）で failures=1 になることを確認 |
+| `refs_for_flow_id_to_reply` のパース脆弱性（セル内 `\|` で列ずれ） | 抽出値の形（`` `references/*.md` `` の ` / ` 列挙か `—`）を検証し、外れたら空（fail-open）。変異テストで検出確認 |
+| 実データ回帰テストの欠如 | 実HANDOFF.md・実SKILL.md（全42行・参照先ファイルの実在）へのケースを追加 |
+| 参照列の網羅漏れ（5-3/5-5に `review-loop.md`、1-6に `planning.md`） | 参照列へ追加 |
+| 注入パスが基準ディレクトリ不明の相対表記 | 注入時に `.claude/skills/issue-mr-flow/` を前置した完全パスへ変換 |
+| trap上書きで一時ディレクトリが残る | `tmp_handoff_dir` を `TMP_DIR` 配下へ集約し、2つ目のtrapを撤去 |
+| 係り先を失った指示語3件 | 修正し例外リストへ追記（検証#14の訂正） |
+| ROW_RE複製コメントの根拠誤り（main衝突は成り立たない） | 根拠を `set -euo pipefail` の伝播1点へ限定（複製＋一致テストという設計自体は維持） |
+| 旧進捗表記 `[x][x][]` の誤判定 | 進捗セルが `[x]`/`[]`/`[-]` ちょうど1つでない行を見たら解決を諦める（fail-open）。フィクスチャ追加 |
+| `mcp-fallback.md` が参照列に無い | 参照列で指さないのは設計である旨をSKILL.md「参照列」説明へ明記（hookが経路判定時に別途注入する） |
+| サブコマンド前提の二重掲載 | review-loop.md側を start-resume.md へのリンク1行に畳み、正を1箇所化。SKILL.md担当列の説明へ review-loop.md を追記 |
+| directory-structure.md「実例なし」・ツリー図・index.md | 3箇所とも references/ の実例で更新（当初フェーズ4予定を前倒し） |
+| 配布先の references/ 検証欠如 | `test_install_to_project.sh` へ本家とのファイル名集合一致の表明を追加（passed=24） |
+| 見出し階層の飛び（planning/deliverables）・新設H2の未記載 | 見出しを1段上げ、対応表の前文へ新設H2と併せて明記 |
+
 ## 残課題
 
 - **配布物に `index.jsonl`（生成物）が混入する**（`sync-assets.sh` が `cp -R` でコピーするため、
@@ -122,5 +154,6 @@ keywords: [references分割, 参照列, flow-id解決, ROW_RE, describe抽出, �
   既存挙動で、`references/` に限らない。**別issue候補**（`install-to-project.sh` の破壊的既定と
   合わせて起票を検討）。
 - `.gemini/` 側のリンク動作は本環境では未確認（フェーズ4で扱いを決める。計画のスコープ外表）。
-- `.claude/rules/directory-structure.md` の `references/` 行「（現時点で実例なし）」の更新は
-  フェーズ4で行う（全体作業計画の記載どおり）。
+- ~~`.claude/rules/directory-structure.md` の `references/` 行「（現時点で実例なし）」の更新は
+  フェーズ4で行う~~ → **敵対的レビュー2回目の指摘を受け、flow-id 3-9 で前倒しして更新済み**
+  （表・ツリー図・`index.md` の3箇所）。
