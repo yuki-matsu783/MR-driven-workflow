@@ -17,6 +17,7 @@ keywords: [directory, repository-map, リポジトリマップ, ディレクト�
 
 - [./.claude/](./.claude/) Claude Code向けのルール・スキル・エージェント・hook・スクリプト定義一式。
   - [./.claude/docs/](./.claude/docs/) issue駆動MRワークフロー機構自体の設計ドキュメント。
+    - [./.claude/docs/usecase/](./.claude/docs/usecase/) 「やりたいこと」起点で使う機能を逆引きするユースケース文書（一覧は[.claude/docs/README.md](./.claude/docs/README.md)のusecase節）。
     - [./.claude/docs/spec/](./.claude/docs/spec/) 機能ごとの正史仕様（最新の仕様を上書き更新）。
     - [./.claude/docs/ddr/](./.claude/docs/ddr/) 意思決定ログ（DDR: Design Decision Record。追記のみ）。
   - [./.claude/rules/](./.claude/rules/) AI向け詳細ルール（コーディング規約・ディレクトリ構成・ドキュメント運用等）。
