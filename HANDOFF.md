@@ -17,7 +17,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - issue: #170
 - ブランチ: `claude/usecase-docs-setup-uvs5li`（ハーネス指定）
 - PR: #173（Draft。https://github.com/yuki-matsu783/MR-driven-workflow/pull/173 ）
-- push回数: 14
+- push回数: 15
 - 現在のループ: 4-6〜4-9 の1周目（進行中）
 - 未返信スレッド: 0
 - 追従監視: 購読あり（web。subscribe_pr_activity + 1時間ごとの自己チェックイン）
