@@ -21,7 +21,7 @@ issue #77。実装・計画・設計反映の各レビュー（flow-id 2-3/2-8/3
 やすく**、独立した検証にならない。
 
 組み込みの `/code-review` は汎用のバグ探しであり、このリポジトリ固有の落とし穴
-（`plans/` の粒度、spec/DDR/rules の二重管理、point-in-time記録の破壊、DDR番号の衝突、
+（`wip/plans/` の粒度、spec/DDR/rules の二重管理、point-in-time記録の破壊、DDR番号の衝突、
 shellの既知の罠）は対象外である。本issue以前、このリポジトリにはレビューを担うスキルも
 サブエージェントも存在しなかった（`.claude/agents/` は読み取り専用の `issue-mr-resume` のみ）。
 
@@ -97,9 +97,11 @@ bash .claude/scripts/src/adversarial-review-count.sh reset              # 人間
 ```
 
 - `<phase>` は issue-mr-flow のフェーズ番号（2/3/4）。
-- 状態は `.claude/state/adversarial-review/<ブランチ名>.json` に `{"2":N,"3":N,"4":N}` で持つ。
-  ブランチ名の `/` は `__` へ置換する。`.claude/state/` は `.gitignore` 対象のローカル作業状態で、
+- 状態は `wip/state/adversarial-review/<ブランチ名>.json` に `{"2":N,"3":N,"4":N}` で持つ。
+  ブランチ名の `/` は `__` へ置換する。`wip/state/` は `.gitignore` 対象のローカル作業状態で、
   ブランチ単位のため、ブランチを削除すれば自然に消える（`usage/` とは責務が異なるため混ぜない）。
+  **issue #184 以前は `.claude/state/adversarial-review/` だった**（`.claude/` を配布資産だけに
+  するため `wip/` 配下へ移した。DDR `i0184-01`）。
 - **加算は「レビュー実行の直後・投稿の前」に、投稿の成否に関わらず行う**（失敗を口実に無限
   リトライできないようにするため）。
 - 状態ファイルが空・壊れたJSONの場合は「状態なし」（`{}`）へフォールバックする。空文字列の判定を
@@ -127,7 +129,7 @@ bash .claude/scripts/src/collect-review-points.sh <対象ファイルパス...>
 ```
 
 現在の配置は `REVIEW-POINTS.md`（リポジトリ全体）・`.claude/REVIEW-POINTS.md`・
-`plans/REVIEW-POINTS.md`・`reports/REVIEW-POINTS.md` の4つ。
+`wip/plans/REVIEW-POINTS.md`・`wip/reports/REVIEW-POINTS.md` の4つ。
 単独でも使えるよう `review-points` スキル（`.claude/skills/review-points/SKILL.md`）として
 切り出しており、人間のレビュー・`/code-review` の補助にも使える。
 
@@ -139,7 +141,7 @@ bash .claude/scripts/src/collect-review-points.sh <対象ファイルパス...>
 | 対象 | 判別 | ファイルの列挙 |
 |---|---|---|
 | diff全体 | flow-id 3-7 / 4-7 の直後 | `git diff --name-only origin/<base>...HEAD` |
-| `plans/` の個別計画 | flow-id 2-2 / 3-2 / 4-2 の直後 | 該当する `plans/【*.md` |
+| `wip/plans/` の個別計画 | flow-id 2-2 / 3-2 / 4-2 の直後 | 該当する `wip/plans/【*.md` |
 | 設計反映 | flow-id 4-7 の直後 | `.claude/docs/spec/` `.claude/docs/ddr/` `.claude/rules/` の変更ファイル |
 
 ### findings JSONスキーマ
@@ -181,7 +183,7 @@ bash .claude/scripts/src/collect-review-points.sh <対象ファイルパス...>
 | low | 報告 | 報告 | 報告 | 報告 |
 
 - **投稿候補** = 次の「投稿件数の選別」（下記）へ進む。**報告** = 会話（非対話モードでは
-  worklog）にのみ書き、MRへは出さない。
+  wip/worklogs）にのみ書き、MRへは出さない。
 - **この1次振り分け自体は変更していない**（issue #182）。「技術的に投稿可能か」（有効行かどうか）
   はコードの責務だが、「人間に見せる価値があるか」は判断であり、運用しながら調整できる場所に
   置くほうがよいという判断は維持している。

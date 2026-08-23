@@ -106,7 +106,7 @@ defaultブランチがさらに進み、同じ解消をやり直すことにな�
 （`.claude/skills/resolve-conflict/SKILL.md`）を正とし、本節はフロー上の位置づけと分岐のみを定める。
 
 **このステップをフェーズ5の先頭に置くのは、作業ツリーがまだ汚れていないうちに `git merge` を
-走らせるためである**（issue #112）。片付け（flow-id 5-5）は `plans/` `worklog/` `reports/` の削除と
+走らせるためである**（issue #112）。片付け（flow-id 5-5）は `wip/plans/` `wip/worklogs/` `wip/reports/` の削除と
 `HANDOFF.md` のリセットを未コミットのまま残すため、その後に解消すると、コンフリクト解消の結果と
 片付けの削除が同じ作業ツリーへ混ざる。逆に、片付けを先に済ませても検知の精度は上がらない
 （`check-base-conflicts.sh` は `git merge-tree` をコミット済みの `HEAD` に対して実行するため、

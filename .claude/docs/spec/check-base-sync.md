@@ -128,7 +128,7 @@ bash .claude/scripts/src/check-base-sync.sh [--base <branch>] [--head <ref>] [--
   一方 `rev-list --left-right --count` は**成功してしまう**（両側の全コミット数を返す）ため、
   「rev-list が通ったから安全」と考えて3ドットdiffを実行すると `set -euo pipefail` 配下で
   スクリプトごと落ちる。手順5の分岐は必須である。
-- **`core.quotepath=false` が必要。** このリポジトリは `plans/【調査】〜.md` のような日本語を
+- **`core.quotepath=false` が必要。** このリポジトリは `wip/plans/【調査】〜.md` のような日本語を
   含むパスを持ち、既定では8進エスケープされる。
 - **fetchはrefspec形 `+<base>:refs/remotes/origin/<base>` を使う。** `git clone --branch <b>` 等の
   single-branch cloneでは `git fetch origin <base>` を実行しても `origin/<base>` の

@@ -1,0 +1,300 @@
+<!--
+  issue #145 フェーズ4〈反映〉の個別反映計画（flow-id 4-1）の人間レビュー用HTMLビュー。
+  正文は同名の .md（plans/【設計反映】DDR2件とspec更新およびVERSION更新.md）であり、
+  このHTMLはその視覚化である。
+  土台: .claude/skills/issue-mr-flow/assets/plans.template.html
+-->
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>【設計反映】DDR2件とspec更新およびVERSION更新 — issue #145</title>
+<style>
+  :root {
+    --bg: #f6f7f9;      --panel: #ffffff;   --ink: #1a1d21;     --muted: #5b636d;
+    --line: #dfe3e8;    --accent: #2563eb;  --accent-soft: #eaf0fe;
+    --ok: #1a7f4b;      --ok-soft: #e6f4ec; --warn: #a35a00;    --warn-soft: #fdf1e0;
+    --stop: #b3261e;    --stop-soft: #fdecea; --code-bg: #f0f2f5;
+    --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1216;    --panel: #161a20;   --ink: #e6e8eb;     --muted: #9aa3ad;
+      --line: #2a3038;  --accent: #7aa2f7;  --accent-soft: #1b2333;
+      --ok: #6ee7a8;    --ok-soft: #14261d; --warn: #f0b866;    --warn-soft: #2a2113;
+      --stop: #f2857c;  --stop-soft: #2b1614; --code-bg: #1d222a;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", system-ui, sans-serif;
+    line-height: 1.8; font-size: 15px;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 20px 80px; }
+
+  /* 共通ヘッダ帯 */
+  header.band {
+    background: linear-gradient(135deg, var(--accent-soft), var(--panel));
+    border-bottom: 1px solid var(--line); padding: 28px 20px 22px; margin-bottom: 28px;
+  }
+  header.band .inner { max-width: 1080px; margin: 0 auto; }
+  header.band .kind { font-size: 11px; letter-spacing: .18em; color: var(--accent); font-weight: 700; }
+  header.band h1 { margin: 6px 0 4px; font-size: 26px; line-height: 1.4; }
+  header.band .lead { margin: 0; color: var(--muted); }
+  .meta { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; padding: 0; list-style: none; }
+  .meta li {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 999px;
+    padding: 3px 12px; font-size: 12.5px; color: var(--muted); white-space: nowrap;
+  }
+  .meta li b { color: var(--ink); font-weight: 600; }
+
+  nav.toc {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 14px 20px; margin-bottom: 28px;
+  }
+  nav.toc h2 { margin: 0 0 8px; font-size: 13px; letter-spacing: .08em; color: var(--muted); border: 0; padding: 0; }
+  nav.toc ol { margin: 0; padding-left: 20px; }
+  nav.toc li { margin: 2px 0; }
+  a { color: var(--accent); }
+
+  section {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 8px 24px 22px; margin-bottom: 22px;
+  }
+  h2 { font-size: 20px; margin: 20px 0 10px; padding-bottom: 8px; border-bottom: 2px solid var(--line); }
+  h3 { font-size: 16px; margin: 22px 0 8px; color: var(--accent); }
+  p { margin: 10px 0; }
+  ul, ol { padding-left: 22px; }
+  li { margin: 4px 0; }
+  blockquote { margin: 10px 0; padding: 6px 14px; border-left: 3px solid var(--line); color: var(--muted); }
+
+  /* 表は自身の中で横スクロールする（ページ本体は横スクロールさせない） */
+  .tablewrap { overflow-x: auto; margin: 14px 0; }
+  table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 14px; }
+  th, td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: var(--accent-soft); font-weight: 600; white-space: nowrap; }
+  tbody tr:nth-child(even) td { background: color-mix(in srgb, var(--line) 22%, transparent); }
+
+  code {
+    background: var(--code-bg); border-radius: 5px; padding: 1px 5px; font-size: 13px;
+    font-family: "SFMono-Regular", Consolas, "Noto Sans Mono", monospace;
+  }
+  pre {
+    background: var(--code-bg); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 12px 14px; overflow-x: auto; font-size: 13px; line-height: 1.65;
+  }
+  pre code { background: none; padding: 0; }
+
+  /* 注意ボックス: info（既定）/ ok（決めたこと）/ warn（注意）/ stop（やらないこと・危険） */
+  .box { border-left: 4px solid var(--accent); background: var(--accent-soft);
+         border-radius: 0 var(--radius) var(--radius) 0; padding: 12px 16px; margin: 16px 0; }
+  .box > :first-child { margin-top: 0; } .box > :last-child { margin-bottom: 0; }
+  .box .label { font-size: 12px; font-weight: 700; letter-spacing: .06em; display: block; margin-bottom: 4px; }
+  .box.ok { border-color: var(--ok); background: var(--ok-soft); } .box.ok .label { color: var(--ok); }
+  .box.warn { border-color: var(--warn); background: var(--warn-soft); } .box.warn .label { color: var(--warn); }
+  .box.stop { border-color: var(--stop); background: var(--stop-soft); } .box.stop .label { color: var(--stop); }
+  .box.info .label { color: var(--accent); }
+
+  .tag { display: inline-block; border-radius: 999px; padding: 1px 9px; font-size: 12px; font-weight: 600; }
+  .tag.ok { background: var(--ok-soft); color: var(--ok); }
+  .tag.warn { background: var(--warn-soft); color: var(--warn); }
+  .tag.stop { background: var(--stop-soft); color: var(--stop); }
+
+  footer { color: var(--muted); font-size: 13px; text-align: center; padding-top: 10px; }
+</style>
+</head>
+<body>
+
+<header class="band">
+  <div class="inner">
+    <div class="kind">個別反映計画 / フェーズ4〈反映〉</div>
+    <h1>【設計反映】DDR2件とspec更新およびVERSION更新</h1>
+    <p class="lead">フェーズ3までで実装は終わっている。<code>plans/</code> <code>worklog/</code> <code>reports/</code> が flow-id 5-5 で消える前に、恒久的に残すべき判断と仕様を <code>.claude/docs/</code> へ移す。</p>
+    <ul class="meta">
+      <li><b>issue</b> #145</li>
+      <li><b>ブランチ</b> claude/mr-pr-template-archive-0bo17a</li>
+      <li><b>PR</b> #187</li>
+      <li><b>フェーズ</b> 4〈反映〉 flow-id 4-1</li>
+      <li><b>push回数</b> 7</li>
+      <li><b>作成日</b> 2026-08-23</li>
+      <li><b>正文</b> 同名の .md</li>
+    </ul>
+  </div>
+</header>
+
+<div class="wrap">
+
+<nav class="toc">
+  <h2>目次</h2>
+  <ol>
+    <li><a href="#position">このフェーズの位置づけ</a></li>
+    <li><a href="#keep">何を残すか（残す／残さないの線引き）</a></li>
+    <li><a href="#items">作業項目</a></li>
+    <li><a href="#out-of-scope">やらないこと（スコープ外）</a></li>
+    <li><a href="#criteria">完了条件</a></li>
+    <li><a href="#before">着手前に確かめること</a></li>
+  </ol>
+</nav>
+
+<section id="position">
+  <h2>このフェーズの位置づけ</h2>
+  <p><b>フェーズ3までで実装は終わっている。</b>ここで行うのは、<code>plans/</code> <code>worklog/</code> <code>reports/</code> が flow-id 5-5 で消える前に、<b>恒久的に残すべき判断と仕様を <code>.claude/docs/</code> へ移すこと</b>である。</p>
+  <p>コードの変更は原則として行わない（例外は作業項目3のみ）。</p>
+  <ul>
+    <li>全体作業計画: <code>plans/mellow-archiving-lantern.md</code></li>
+    <li>反映元: フェーズ2の調査結果レポートと、フェーズ3の実装・worklog（push5〜push7）</li>
+  </ul>
+</section>
+
+<section id="keep">
+  <h2>何を残すか（残す／残さないの線引き）</h2>
+  <table>
+    <thead><tr><th>内容</th><th>残す先</th><th>理由</th></tr></thead>
+    <tbody>
+      <tr><td>案B（テンプレートを唯一の正とする）の判断と却下案A・C</td><td><b>DDR <code>i0145-01</code></b></td><td>「なぜ他の案を採らなかったか」は仕様書からは読み取れない</td></tr>
+      <tr><td>#111 との役割分担（併存させ、自動化の非対称で分ける）</td><td><b>DDR <code>i0145-02</code></b></td><td>同上。とくに「根拠は外部APIの性質ではない」という限界の記録が要る</td></tr>
+      <tr><td>テンプレートが見出し構成の正であること・<code>describe</code> がそれを読むこと</td><td><b>spec <code>issue-mr-workflow.md</code></b></td><td>現在の正史。読み手が最初に当たる場所</td></tr>
+      <tr><td>description とサマリコメントの対応関係（5見出し ↔ 10節）</td><td><b>spec <code>issue-mr-workflow.md</code></b>（#111 の節へ追記）</td><td>両方を見る人が突き合わせられるように</td></tr>
+      <tr><td>配布物の変更点</td><td><b>spec <code>distribution-assets.md</code></b> の <code>### issue #145</code> changelog</td><td>配布先が「何が変わったか」を知る唯一の場所</td></tr>
+      <tr><td>参照とアンカーの線引き</td><td><b>既に <code>.claude/rules/docs-workflow.md</code> へ反映済み</b></td><td>ルールなので <code>.claude/rules/</code> が正。DDRからはそこを指す</td></tr>
+      <tr><td>検査 (a)〜(c2) の6種類がそれぞれ何を捕まえるか</td><td><b>テスト内のコメント（反映済み）</b></td><td>テストの意図はテストの隣にあるべきで、specへ写すと二重管理になる</td></tr>
+      <tr><td>敵対的レビュー4回・findings 46件の個別のやりとり</td><td><b>残さない</b></td><td>PR #187 のスレッドが恒久的に残る。DDRへ写すと本文が肥大する</td></tr>
+      <tr><td>実測した数値の測定条件（クリーン/dirty 等）</td><td><b>残さない</b>（descriptionへ転記済み）</td><td>タスク固有の値で、仕様ではない</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<section id="items">
+  <h2>作業項目</h2>
+
+  <h3>1. DDR i0145-01（案Bの判断）を作る</h3>
+  <p><code>.claude/docs/ddr/i0145-01-MR_PRテンプレートを見出し構成の唯一の正としdescribeが読む.md</code></p>
+  <ul>
+    <li><b>決めたこと</b>: <code>.github/pull_request_template.md</code> を見出し構成の唯一の正とし、<code>describe</code> はそれを読む。GitLab版は複製で、先頭コメントを除いた全文差分が空であることをテストで固定する。</li>
+    <li><b>却下案</b>: 案A（<code>describe</code> 節を正としテンプレートを生成する）／案C（両方に書いて一致検査）。それぞれの却下理由を書く。</li>
+    <li><b>あわせて記録すること</b>:
+      <ul>
+        <li><code>.github</code> / <code>.gitlab</code> の配布層を <code>core</code> のまま変えなかった理由（<code>seed</code> にすると上流の改善が配布先へ届かなくなる）。</li>
+        <li>Draft PR初期本文を10節に合わせない理由。</li>
+        <li><b>記入ガイドを両側から同時に消しても検査を素通りした</b>という実測（検査 (a2) の存在理由）。これは「テストは書けば効く」わけではないという一般的な教訓なので残す。</li>
+      </ul>
+    </li>
+  </ul>
+
+  <h3>2. DDR i0145-02（#111 との役割分担）を作る</h3>
+  <p><code>.claude/docs/ddr/i0145-02-MR_descriptionと統括レポートのサマリコメントは併存させる.md</code></p>
+  <ul>
+    <li><b>決めたこと</b>: 併存させる。分ける軸は内容の粒度ではなく、<b>自動処理が繰り返し上書きするか（description）／1回きりか（サマリコメント）</b>という非対称である。</li>
+    <li><b>限界を必ず書く</b>: 根拠は<b>このリポジトリの自動化経路</b>（<code>Provider.sh</code> に投稿済みコメントを編集する関数が無い）であって、<b>GitHub/GitLab の外部APIの性質ではない</b>。人間はWeb UI・APIから編集できる。正しくは「フローの自動処理が繰り返し上書きするのは description だけ」。</li>
+    <li><b>却下案</b>: サマリコメントを廃止して description へ一本化する／サマリコメントを description へのリンク1行にする。</li>
+  </ul>
+  <div class="box">
+    <p><b>1件にまとめるか2件に分けるか → 分ける。</b> <code>i0145-01</code> は「テンプレートの正をどこに置くか」、<code>i0145-02</code> は「description と統括レポートの役割分担」で、<b>後から片方だけが supersede されうる</b>独立した判断だから。1つのDDRにまとめると、片方が無効になったときに <code>status</code> を付けられない。</p>
+  </div>
+
+  <h3>3. .claude/docs/spec/distribution-assets.md の DDR 参照を識別子へ戻す</h3>
+  <p>敵対的レビュー4回目の指摘4への対応。現在は「まだ存在しないDDRを指さない」ために issue 番号だけにしてある。<b>作業項目1でDDRが確定した直後に</b>、識別子（<code>i0145-01</code>）での参照へ戻す。</p>
+  <ul>
+    <li><b><code>check-doc-references.sh</code> はこの参照切れを検出しない</b>（識別子だけの省略記法は対象外）。<b>目視で、実在するファイル名と一致していることを確認する。</b></li>
+    <li>これがフェーズ4で唯一、実装側のファイルを触る作業である。</li>
+  </ul>
+
+  <h3>4. .claude/docs/spec/issue-mr-workflow.md を更新する</h3>
+  <table>
+    <thead><tr><th>追記する場所</th><th>内容</th></tr></thead>
+    <tbody>
+      <tr><td>テンプレートに触れている節（無ければ新設）</td><td><b>見出し構成の正はテンプレートファイル自身</b>であり、<code>describe</code> はそれを読む。<code>references/review-loop.md</code> の <code>describe</code> 節は見出しを列挙しない</td></tr>
+      <tr><td>「最終統括レポートとPR/MRへの反映（issue #111）」節（746行目付近）</td><td>description とサマリコメントの<b>役割分担の表</b>と、<b>5見出し ↔ 10節の対応関係</b>を追記する。判断の経緯はDDR <code>i0145-02</code> を指す</td></tr>
+      <tr><td>changelog（末尾）</td><td><code>### issue #145: …</code> を<b>新規エントリとして追記</b>する</td></tr>
+    </tbody>
+  </table>
+  <ul>
+    <li><b>過去のchangelogエントリは書き換えない</b>（<code>.claude/rules/docs-workflow.md</code>。point-in-time の記録であり、当時存在しなかった状態を書き込むと歴史を壊す）。</li>
+    <li>#111 の節へ追記する際は、<b>直前の節が「その節全体にかかる地の文」で終わっていないか</b>を確認してから挿入位置を決める（同ルール）。</li>
+  </ul>
+
+  <h3>5. .claude/docs/spec/distribution-assets.md へ changelog を追記する</h3>
+  <p><code>### issue #145</code> エントリを<b>新規に追記</b>する。配布先が知る必要があるのは次の3点。</p>
+  <ul>
+    <li>テンプレート2本の見出しが3節 → 10節へ変わったこと。</li>
+    <li>両ファイルは <code>core</code> 層なので、<b>再適用のたびに上流の内容で上書きされる</b>こと（配布先が独自に増やした見出しは失われ、改変は <code>.bak</code> へ退避され一覧で通知される）。</li>
+    <li><code>index.md</code>（<code>seed</code> 層。実体は <code>index.md.template</code>）の記述も向きが変わったこと。</li>
+  </ul>
+
+  <h3>6. .claude/VERSION を 0.3.0 → 0.4.0 へ上げる</h3>
+  <ul>
+    <li><b>MINOR を上げる根拠</b>: 配布物に<b>後方互換の無い変更が無く</b>、機能追加にあたるため。テンプレートの見出しは増えたが、配布先の既存ファイルを壊す変更ではない（<code>core</code> 層として上書きされるが、これは <code>core</code> 層の既定の振る舞いであり本issueが変えたものではない）。</li>
+  </ul>
+  <div class="warn">
+    <p><b>⚠ ユーザーの承認をまだ得ていない。</b> flow-id 4-3/4-4 の合意で確定させる。承認が得られない場合は VERSION を据え置き、その旨をdescriptionの <code>## 未解決・限界・確かめられなかったこと</code> へ残す。</p>
+  </div>
+
+  <h3>7. .claude/docs/usecase/ への影響を確認する</h3>
+  <p>8本のうち、MR description に触れているものがあるか調べ、あれば更新する。</p>
+  <ul>
+    <li>候補: <code>新しい機能開発を始める.md</code>（フローの流れを説明している）／<code>生成物にレビューコメントして修正させる.md</code>。</li>
+    <li><b>調べた結果「影響なし」だった場合も、調べたこと自体を作業結果レポートへ書く</b>（<code>.claude/rules/docs-workflow.md</code> が flow-id 4-6 で usecase への影響確認を求めているため、やったかどうかが読み取れる必要がある）。</li>
+  </ul>
+
+  <h3>8. フェーズ2の調査結果レポートの「例外は設けない」を訂正する</h3>
+  <p><code>reports/…調査.md</code> の「3. <code>plans/</code> <code>worklog/</code> <code>reports/</code> 参照禁止の書き場所」が<b>「例外は設けない。」</b>のままになっている。敵対的レビュー4回目でこの判断は<b>アンカーを対象外とする形へ狭められた</b>ので、レポート側も揃える（レポートは「レビュー往復のたびに更新する」運用であり、書き換えてよい）。</p>
+  <ul>
+    <li><b>md と html の両方</b>を直す（片方だけ直さない）。</li>
+    <li>直したら md/html の4点検証を流す。</li>
+  </ul>
+
+  <h3>9. DDR一覧を再生成し、参照切れを検査する</h3>
+  <pre><code>bash .claude/scripts/src/generate-ddr-list.sh
+bash .claude/scripts/src/check-doc-references.sh</code></pre>
+  <ul>
+    <li>一覧は<b>生成物</b>なので手書きしない。出た差分を同じコミットへ含める。</li>
+    <li><code>check-doc-references.sh</code> は<b>絶対パス形式の参照だけ</b>を見る。作業項目3の識別子参照は対象外なので、そちらは目視で確認する（重複するようだが、検出範囲が違う）。</li>
+  </ul>
+</section>
+
+<section id="out-of-scope">
+  <h2>やらないこと（スコープ外）</h2>
+  <table>
+    <thead><tr><th>やらないこと</th><th>理由</th></tr></thead>
+    <tbody>
+      <tr><td>flow-id 5-4（統括レポート）の実装を変える</td><td>本issueで行うのは役割の<b>定義</b>だけ。<code>upload_attachment</code>・3層フォールバック・5見出しは触らない</td></tr>
+      <tr><td><code>.gemini/</code> の再生成</td><td><b>flow-id 5-3 の担当</b>。ここでやると、フェーズ4の後半で <code>.claude/</code> を触ったときに再度ずれる</td></tr>
+      <tr><td>issue #111 への通知</td><td><b>flow-id 5-2 の担当</b>。かつ投稿前に <code>AskUserQuestion</code> での承認が必須</td></tr>
+      <tr><td>過去64件のPR本文の書き直し</td><td>全体作業計画のスコープ外</td></tr>
+      <tr><td><code>.claude/settings.json</code> の <code>if</code> 照合規則</td><td>issue #47 が両論併記のまま残している論点。本issueの範囲外</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<section id="criteria">
+  <h2>完了条件</h2>
+  <table>
+    <thead><tr><th>#</th><th>条件</th><th>確認方法</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td>DDR 2件が存在し、識別子・ファイル名・<code>title</code>・本文冒頭の見出しが規約どおり</td><td><code>ls .claude/docs/ddr/ | grep i0145</code> が2件。3箇所の表記を目視</td></tr>
+      <tr><td>2</td><td><code>distribution-assets.md</code> の DDR 参照が実在するファイルを指している</td><td>目視（<code>check-doc-references.sh</code> では検出できない）</td></tr>
+      <tr><td>3</td><td><code>issue-mr-workflow.md</code> に役割分担の表と 5見出し ↔ 10節 の対応がある</td><td>目視</td></tr>
+      <tr><td>4</td><td>changelog が2ファイルとも<b>新規エントリの追記</b>で、過去エントリが変わっていない</td><td>分岐点SHAとの差分で <code>.claude/docs/spec/</code> の削除行を確認</td></tr>
+      <tr><td>5</td><td>DDR一覧が最新</td><td><code>generate-ddr-list.sh --check</code> が exit=0</td></tr>
+      <tr><td>6</td><td>参照切れ0件</td><td><code>check-doc-references.sh</code></td></tr>
+      <tr><td>7</td><td>単体テストが引き続き通る</td><td><code>test_install_to_project.sh</code> が <code>failures=0</code></td></tr>
+      <tr><td>8</td><td>md/html の4点検証が全ペアで通る</td><td>スクラッチパッドの検証スクリプト</td></tr>
+      <tr><td>9</td><td>usecase への影響を調べた結果が作業結果レポートに書かれている</td><td>目視</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<section id="before">
+  <h2>着手前に確かめること</h2>
+  <div class="warn">
+    <p><b>完了条件4の「過去エントリが変わっていない」は、着手時点で既に成立している</b>はずである（まだ何も触っていないため）。<b>この検証は変更後にだけ意味を持つ</b>ので、変更前の実測を「成功」として完了の根拠にしない。</p>
+  </div>
+  <p><b>完了条件1・2・3・9 は、いずれも着手前は「失敗」になる</b>（DDRが無い・参照が識別子でない・節が無い・レポートが無い）。着手前に実際に確かめ、失敗することを記録してから始める。</p>
+</section>
+
+</div>
+</body>
+</html>

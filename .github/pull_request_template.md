@@ -64,8 +64,8 @@ Closes #<issue番号>
 
   **計画段階では**: 「未実施」と書き、フェーズ3で実施予定の検証を列挙する。
 
-  `reports/` に調査結果・作業結果がある場合、**その結論をここへ転記する**
-  （`reports/` のパスを書かない。下記 `## 反映先・関連` の参照禁止を参照）。
+  `wip/reports/` に調査結果・作業結果がある場合、**その結論をここへ転記する**
+  （`wip/reports/` のパスを書かない。下記 `## 反映先・関連` の参照禁止を参照）。
 -->
 
 ## レビューの結果
@@ -114,12 +114,12 @@ Closes #<issue番号>
   この変更に関連するissue・PR、および `.claude/docs/spec/` `.claude/docs/ddr/`
   `.claude/docs/usecase/` 配下の反映先。
 
-  **`plans/` `worklog/` `reports/` のパスをここへ書かない**（`.claude/rules/docs-workflow.md`）。
+  **`wip/plans/` `wip/worklogs/` `wip/reports/` のパスをここへ書かない**（`.claude/rules/docs-workflow.md`）。
   これらは flow-id 5-5 で削除されるため、レビュー中は踏める参照がマージ後に必ず切れる。
   **禁じているのは「参照」であり、レビュー対象の位置を指すアンカーは対象外**である
   （敵対的レビューのインラインコメント等。線引きは `.claude/rules/docs-workflow.md`）。
   代わりに次のようにする。
-  - `reports/` の結論は、`## 検証` `## 設計判断・採らなかった案` へ**転記する**（リンクしない）。
+  - `wip/reports/` の結論は、`## 検証` `## 設計判断・採らなかった案` へ**転記する**（リンクしない）。
   - spec/DDRへ昇格したものは、そのパスで指す。
   - issue番号・PR番号・レビューコメントのpermalinkは恒久なので、これらで代替する。
 

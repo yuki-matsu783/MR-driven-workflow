@@ -98,7 +98,7 @@ keywords: [comments, reply, describe, 敵対的レビュー, レビュー依頼,
      無い」は返信しなくてよい理由にならない**（そこを空けると、issue #109 が塞いだ抜け道が
      プロバイダ差として残る）。
 5. 提示した内容をもとに、該当する計画ファイル（全体作業計画または下位の個別計画）・
-   `reports/` の結果md・設計・実装を修正する（**結果側の記述の修正先は `reports/` のmdであり、
+   `wip/reports/` の結果md・設計・実装を修正する（**結果側の記述の修正先は `wip/reports/` のmdであり、
    個別計画ではない**。`references/deliverables.md`「計画と実施結果の分離」。この修正作業自体は本スキルの対象外で、
    通常の編集で行う）。対応が完了したコメントには、`reply` サブコマンドで対応内容を返信する。
    - **手順2で一覧にした返信ゼロのスレッドが空になったら、
@@ -128,9 +128,9 @@ keywords: [comments, reply, describe, 敵対的レビュー, レビュー依頼,
 
 ### `describe` — MR descriptionの更新（全体フロー 2-5・2-10・3-5・3-10・4-5・4-10）
 
-1. `get_branch_work_files` で現在のブランチ固有の計画・worklogを列挙し、**全体作業計画**
-   （`plans/` 配下で `【` で始まらないもの）と**下位の個別計画**（`plans/【*.md`）、および
-   worklogの要点を読む。
+1. `get_branch_work_files` で現在のブランチ固有の計画・wip/worklogsを列挙し、**全体作業計画**
+   （`wip/plans/` 配下で `【` で始まらないもの）と**下位の個別計画**（`wip/plans/【*.md`）、および
+   wip/worklogsの要点を読む。
 2. 以下のテンプレートでMR description本文を組み立て、一時ファイルへ書き出す。
 
    ```markdown
@@ -143,7 +143,7 @@ keywords: [comments, reply, describe, 敵対的レビュー, レビュー依頼,
 
    ## 実装状況
 
-   <worklogの「うまくいったこと」等から、現時点までの実装内容の要約。plan段階では「未着手」>
+   <wip/worklogsの「うまくいったこと」等から、現時点までの実装内容の要約。plan段階では「未着手」>
    ```
 
 3. `get_mr_for_branch "$(git branch --show-current)"` で現在のブランチに紐づくMR番号を取得し
@@ -156,7 +156,7 @@ keywords: [comments, reply, describe, 敵対的レビュー, レビュー依頼,
 必ずチャット側に来る。この判断と理由はGitHub/GitLab上に一切残らず、PR/MR画面から経緯を
 辿れなくなる（issue #50。issue #48のフェーズ4／PR #49で実際に発生し、AIが判断を仰いだ3点
 すべてがチャットで回答された結果、未解決スレッド0件のまま記録がどこにも残らなかった）。
-**計画ファイル（`plans/`）へ書くだけでは代わりにならない。** `plans/` はflow-id 5-5で削除され、
+**計画ファイル（`wip/plans/`）へ書くだけでは代わりにならない。** `wip/plans/` はflow-id 5-5で削除され、
 squash mergeによりmainにも残らないためである。
 
 **チャットでレビュー判断を受けたら、AIエージェント自身が `add_mr_comment` でMRへ記録を
@@ -227,7 +227,7 @@ squash mergeによりmainにも残らないためである。
   - 論点: ...
   ```
 
-- 反映先には実際に修正したファイルパスを書く。反映先が `plans/` `worklog/` `reports/` 配下しか
+- 反映先には実際に修正したファイルパスを書く。反映先が `wip/plans/` `wip/worklogs/` `wip/reports/` 配下しか
   無い場合でも、判断の内容と理由をこのコメント本文に書いておけば、これらがflow-id 5-5で削除された
   後もPR/MR画面から辿れる。
 
