@@ -16,17 +16,17 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 
 - issue: #184 `.claude\state`はwipディレクトリで管理する
 - ブランチ: claude/state-wip-directory-xj93sb
-- PR: （未作成）
-- push回数: 0
-- 現在のループ: なし
+- PR: #190（Draft） https://github.com/yuki-matsu783/MR-driven-workflow/pull/190
+- push回数: 2
+- 現在のループ: 3-6〜3-9 の1周目（進行中）
 - 未返信スレッド: 0
-- 追従監視: なし
+- 追従監視: 購読あり（subscribe_pr_activity / PR #190）＋ 定期チェックイン
 
 | 進捗 | flow-id | ステップ |
 |---|---|---|
 | [x] | 1-1 | issueを起票する |
 | [x] | 1-2 | issueの内容を取得する |
-| [] | 1-3 | featureブランチとDraft MRを作成する |
+| [x] | 1-3 | featureブランチとDraft MRを作成する |
 | [x] | 1-4 | 全体作業計画を作成する |
 | [] | 1-5 | 全体作業計画に合意する |
 | [x] | 1-6 | 全体作業計画をもとにHANDOFF.mdを更新する |
@@ -40,11 +40,11 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 | [-] | 2-8 | 調査結果をレビュー・コメントする |
 | [-] | 2-9 | レビュー内容を取得し調査結果を修正する |
 | [-] | 2-10 | 調査結果をもとにMR descriptionを更新する |
-| [] | 3-1 | 個別作業計画を作成する |
-| [] | 3-2 | commit・push してレビュー依頼 |
+| [x] | 3-1 | 個別作業計画を作成する |
+| [x] | 3-2 | commit・push してレビュー依頼 |
 | [] | 3-3 | 作業計画をレビュー・コメントする |
 | [] | 3-4 | レビュー内容を取得し作業計画を修正する |
-| [] | 3-5 | 作業計画をもとにMR descriptionを更新する |
+| [-] | 3-5 | 作業計画をもとにMR descriptionを更新する |
 | [] | 3-6 | 作業を実施し結果をreports/へ記録する |
 | [] | 3-7 | commit・push してレビュー依頼 |
 | [] | 3-8 | 作業内容をレビュー・コメントする |
@@ -77,11 +77,23 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
   - 「wipディレクトリ」の位置 → **ルート直下 `wip/state/`**（#165 が新設予定の `wip/` を先に作る）
   - 移動対象の範囲 → **`.claude/state/` のみ**（`usage/` は対象外）
 - flow-id 1-4: 全体作業計画 `plans/wispy-drifting-lantern.md` と同名の `.html` を作成した。
+- flow-id 1-3: Draft PR #190 を作成し、`subscribe_pr_activity` で追従監視を開始した。
+- flow-id 2-x: フェーズ2〈調査〉は実施しないと判断した（`[-]`）。
+- flow-id 3-1: 個別作業計画 `plans/【実装】【テスト】stateの保存先をwip-stateへ移す.md`（＋`.html`）と
+  worklog（push2）を作成した。
+- flow-id 3-6: 保存先パスの置き換えを実施した。実装5ファイル（`.gitignore` /
+  `dist-layers.json` / `post-push-compact-prompt.sh` / `adversarial-review-count.sh` /
+  `sync-gemini-assets.sh`）とテスト3ファイル。検証は
+  `check-dist-coverage.sh`「結果: OK」、単体テスト3本すべて `failures=0`（22 / 91 / 99 件）、
+  `git check-ignore -v wip/state/.probe` が `/wip/state/` にマッチ。結果は
+  `reports/20260823_wispy-drifting-lantern_stateのwip-stateへの移設.md`（＋`.html`）。
+  - **作業中に、旧パス `/.claude/state/` の除外行を残す必要があると分かった**（差し替えるだけだと
+    既存の残骸が `git status` に現れ、誤ってコミットされる）。計画・レポート・worklogへ反映済み。
 
 ## 次にやること
 
-- flow-id 1-3: Draft PRを作成する。
-- flow-id 3-1 以降: `.claude/state/` → `wip/state/` の置き換えを実施する。
+- flow-id 4-1 以降: 反映対象を洗い出し、rules・spec 4本の更新とDDR `i0184-01` の新規作成を行う。
+- flow-id 5-3: `.gemini/` の変換同期（`.claude/` 側を変更したため必須）。
 
 ## 判断を迷った内容
 
