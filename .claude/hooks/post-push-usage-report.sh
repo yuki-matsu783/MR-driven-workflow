@@ -70,6 +70,10 @@ fmt_duration() {
 # 同時に載りうる。「今回のengine」で列を決めると、混在時にどちらかの数値が無言で表から消える。
 build_usage_report_body() {
   local usage="$1" branch="$2" is_first_post="$3" subagent_usage="$4" engine_label="$5"
+  # Gemini CLI公式テレメトリの差分（issue #105）。**既定値付きで受ける**（既存の5引数呼び出しを
+  # 壊さないため。test_usage_tracking.sh の既存ケースが5引数のままこの関数を直接呼んでおり、
+  # 既定値が無いと `set -u` 配下で `$6: unbound variable` となり一斉に失敗する）。
+  local telemetry="${6:-}"
   {
     echo "## 対応工数レポート（前回pushからの差分）"
     echo ""
@@ -274,6 +278,46 @@ build_usage_report_body() {
       echo "- 稼働時間（サブエージェント内・参考値。メインの対応工数とは別集計で重複除去はしていません）: $(fmt_duration "$subagent_active_seconds")"
       echo ""
     fi
+
+    # Gemini CLI公式テレメトリ（issue #105、参考値）。既存のトークンテーブル（$usage由来の
+    # tokensByModel）へは合算しない（別経路・別セクションとして表示する。フェーズ2報告5.節、
+    # 受け入れ条件2・3の核心）。呼び出しが1件も無ければ何も出さない（既存の「0件なら出さない」
+    # 規約に従う）。
+    if [ -n "$telemetry" ] && [ "$telemetry" != "null" ]; then
+      local telemetry_calls
+      telemetry_calls="$(printf '%s' "$telemetry" | jq -r '.calls // 0')"
+      if [ "$telemetry_calls" != "0" ]; then
+        echo "### Gemini CLI公式テレメトリ（参考値）"
+        echo ""
+        echo "> OpenTelemetry経由の別集計です。上記の対応工数レポートへは合算していません。"
+        echo ""
+        local telemetry_table
+        telemetry_table="$(printf '%s' "$telemetry" | jq -r '
+          def commafy:
+            (tostring | explode | reverse) as $d
+            | [range(0; ($d | length)) | if (. > 0 and . % 3 == 0) then [44, $d[.]] else [$d[.]] end]
+            | flatten | reverse | implode;
+          (.tokensByModel // {}) as $t
+          | ($t | to_entries | map(select([.value[] | select(type == "number")] | any(. != 0)))
+                 | sort_by(.key)) as $rows
+          | if ($rows | length) == 0 then ""
+            else
+              (["| モデル | Input | Output | Cached | Thoughts | Tool |",
+                "|---|---:|---:|---:|---:|---:|"]
+               + [$rows[] | "| " + .key + " | "
+                   + ([.value.input, .value.output, .value.cached, .value.thoughts, .value.tool
+                       | (. // 0) | commafy] | join(" | ")) + " |"])
+              | join("\n")
+            end' | tr -d '\r')"
+        if [ -n "$telemetry_table" ]; then
+          printf '%s\n' "$telemetry_table"
+          echo ""
+        fi
+        echo "- API呼び出し回数: ${telemetry_calls}"
+        echo ""
+      fi
+    fi
+
     if [ "$is_first_post" = "true" ]; then
       echo "---"
       echo "### ${engine_label}より"
@@ -424,6 +468,18 @@ main() {
     state="$(sync_usage_state "$repo_root" "$branch" "$session_id" "$transcript_path" "$engine" || true)"
   fi
 
+  # Gemini CLI公式テレメトリ（issue #105）。**engineではなくoutfileの有無で判定する**
+  # （既存の「トークンテーブルの列構成はengineではなくデータで決める」設計判断と整合させる。
+  # engineで分岐すると、Gemini CLIでの作業後にClaude Code側の操作でpushが起きた場合に
+  # テレメトリ分の新規バイトが読まれず、未処理バイトが次にengine=geminiでpushした回へ
+  # ずれて計上されてしまう）。既存のsync_usage_state呼び出し・state変数とは別の変数で扱い、
+  # 既存の集計結果・レポート内容には一切影響しない。
+  local otel_outfile="${repo_root}/usage/gemini-otel.log"
+  local otel_state=""
+  if [ -f "$otel_outfile" ]; then
+    otel_state="$(_sync_usage_state_otel "$repo_root" "$otel_outfile" || true)"
+  fi
+
   if [ -z "$state" ]; then
     [ -f "$state_file" ] || exit 0
     state="$(cat "$state_file")"
@@ -484,11 +540,18 @@ main() {
   local is_first_post
   is_first_post="$(printf '%s' "$state" | jq -r 'if .lastPostedAt then "false" else "true" end')"
 
+  # Gemini CLI公式テレメトリのsinceLastPush（issue #105）。既存の $usage とは別変数で
+  # build_usage_report_body の第6引数（既定値付き）へ渡す。
+  local telemetry_usage=""
+  if [ -n "$otel_state" ]; then
+    telemetry_usage="$(printf '%s' "$otel_state" | jq -c '.sinceLastPush')"
+  fi
+
   # --- コメント本文の組み立て ---
   local tmp_file
   tmp_file="$(mktemp)"
   build_usage_report_body "$usage" "$branch" "$is_first_post" "$subagent_usage" "$engine_label" \
-    > "$tmp_file"
+    "$telemetry_usage" > "$tmp_file"
 
   add_mr_comment "$mr_number" "$tmp_file"
   rm -f "$tmp_file"
@@ -501,6 +564,12 @@ main() {
   reset_state="$(_usage_reset_since_last_push "$state")"
   mkdir -p "$state_dir"
   printf '%s' "$reset_state" > "$state_file"
+
+  # テレメトリのsinceLastPushも同時にリセットする（既存のstate_file・_usage_reset_since_last_push
+  # とは別ファイル・別関数）。
+  if [ -n "$otel_state" ]; then
+    _usage_reset_otel_since_last_push "$repo_root" "$otel_state"
+  fi
 }
 
 # `source` されたときは関数定義のみを読み込ませ、`main` を実行しない（issue #97）。

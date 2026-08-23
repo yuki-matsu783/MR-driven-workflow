@@ -474,5 +474,197 @@ rp_body="$(build_usage_report_body "$rp_zeroclaude" "feature-x" "true" '{}' 'Gem
 assert_eq "report(0行のみClaude由来): 表に出ない行を根拠に注記を出さない" "0" \
   "$(printf '%s' "$rp_body" | grep -cF '既知の過小カウント要因が報告されています。' || true)"
 
+# ------------------------------------------------------------------------------------------
+# Gemini CLI 公式テレメトリのバイトオフセットカーソル集計（issue #105）
+# ------------------------------------------------------------------------------------------
+# 既存のGemini CLIセッションログ集計（issue #97、上の33ケース）・レポート本文の既存アサーション
+# （ケース13(a)〜(f)）は1行も変更していない。これらが通り続けることが「既存の集計結果・
+# レポート内容が変化しない」ことの担保である（受け入れ条件4）。
+
+# semantic conventions形式のLogRecord（gen_ai.*属性を持つ）を1件生成する。
+otel_semantic_entry() {
+  local model="$1" input="$2" output="$3" cached="${4:-0}" thoughts="${5:-0}" tool="${6:-0}"
+  jq -n --indent 2 --arg model "$model" \
+    --argjson input "$input" --argjson output "$output" --argjson cached "$cached" \
+    --argjson thoughts "$thoughts" --argjson tool "$tool" '
+    {
+      attributes: {
+        "gen_ai.request.model": $model,
+        "gen_ai.usage.input_tokens": $input,
+        "gen_ai.usage.output_tokens": $output,
+        "gen_ai.usage.cached_tokens": $cached,
+        "gen_ai.usage.thoughts_tokens": $thoughts,
+        "gen_ai.usage.tool_tokens": $tool,
+        "event.name": "gemini_cli.api_response"
+      }
+    }'
+}
+
+# レガシー形式（`toLogRecord`）のLogRecordを1件生成する。gen_ai.*属性を持たないため
+# _usage_otel_fold からは無視される想定。
+otel_legacy_entry() {
+  local model="$1" input="$2" output="$3"
+  jq -n --indent 2 --arg model "$model" --argjson input "$input" --argjson output "$output" '
+    {
+      body: "api_response",
+      attributes: {
+        model: $model,
+        input_token_count: $input,
+        output_token_count: $output
+      }
+    }'
+}
+
+# metricsレコード（周期export分）を1件生成する。集計対象から除外される想定。
+otel_metric_entry() {
+  jq -n --indent 2 '{resourceMetrics: [{scopeMetrics: [{metrics: []}]}]}'
+}
+
+otel_repo() {
+  local dir="$fixture_dir/$1"
+  mkdir -p "$dir"
+  printf '%s' "$dir"
+}
+
+# (1) 正常系: レガシー形式＋semantic形式の対を書き込んでも、semantic形式のみが計上される。
+otel_r1="$(otel_repo otelrepo1)"
+otel_out1="$otel_r1/usage/gemini-otel.log"
+mkdir -p "$(dirname "$otel_out1")"
+{ otel_legacy_entry "gemini-2.5-pro" 100 50; otel_semantic_entry "gemini-2.5-pro" 100 50; } > "$otel_out1"
+otel_state1="$(_sync_usage_state_otel "$otel_r1" "$otel_out1")"
+assert_eq "otel 正常系: レガシー形式は無視されsemantic形式のみ計上される（input）" "100" \
+  "$(printf '%s' "$otel_state1" | jq -r '.sinceLastPush.tokensByModel["gemini-2.5-pro"].input')"
+assert_eq "otel 正常系: calls=1（対は1回のAPI呼び出し分）" "1" \
+  "$(printf '%s' "$otel_state1" | jq -r '.sinceLastPush.calls')"
+
+# (2) 境界またぎ2重emit: レガシー形式とsemantic形式が別々の読み取りウィンドウ（別pushの断面）へ
+#     分かれても、レガシー形式は常に無視されるため二重計上しない。
+otel_r2="$(otel_repo otelrepo2)"
+otel_out2="$otel_r2/usage/gemini-otel.log"
+mkdir -p "$(dirname "$otel_out2")"
+otel_legacy_entry "gemini-2.5-pro" 200 80 > "$otel_out2"
+_sync_usage_state_otel "$otel_r2" "$otel_out2" >/dev/null   # 1回目: レガシー形式のみの断面
+otel_semantic_entry "gemini-2.5-pro" 200 80 >> "$otel_out2"
+otel_state2="$(_sync_usage_state_otel "$otel_r2" "$otel_out2")"  # 2回目: semantic形式が追記された断面
+assert_eq "otel 境界またぎ2重emit: 合計inputは1回分のみ（二重計上しない）" "200" \
+  "$(printf '%s' "$otel_state2" | jq -r '.sinceLastPush.tokensByModel["gemini-2.5-pro"].input')"
+
+# (3) metrics混在: 周期exportのmetricsレコードが混ざっていても、tokens/callsへ現れない。
+otel_r3="$(otel_repo otelrepo3)"
+otel_out3="$otel_r3/usage/gemini-otel.log"
+mkdir -p "$(dirname "$otel_out3")"
+{ otel_metric_entry; otel_semantic_entry "gemini-2.5-flash" 30 10; otel_metric_entry; } > "$otel_out3"
+otel_state3="$(_sync_usage_state_otel "$otel_r3" "$otel_out3")"
+assert_eq "otel metrics混在: metricsを除いたcallsは1" "1" \
+  "$(printf '%s' "$otel_state3" | jq -r '.sinceLastPush.calls')"
+assert_eq "otel metrics混在: モデルはmetrics由来のキーを持たない" "gemini-2.5-flash" \
+  "$(printf '%s' "$otel_state3" | jq -r '.sinceLastPush.tokensByModel | keys | join(",")')"
+
+# (4) カーソル継続: 1回目の集計後に追記した分だけが2回目の差分として計上される。
+otel_r4="$(otel_repo otelrepo4)"
+otel_out4="$otel_r4/usage/gemini-otel.log"
+mkdir -p "$(dirname "$otel_out4")"
+otel_semantic_entry "gemini-2.5-pro" 100 50 > "$otel_out4"
+_sync_usage_state_otel "$otel_r4" "$otel_out4" >/dev/null
+otel_semantic_entry "gemini-2.5-pro" 20 5 >> "$otel_out4"
+otel_state4="$(_sync_usage_state_otel "$otel_r4" "$otel_out4")"
+assert_eq "otel カーソル継続: 累計inputが2回分合算される" "120" \
+  "$(printf '%s' "$otel_state4" | jq -r '.sinceLastPush.tokensByModel["gemini-2.5-pro"].input')"
+assert_eq "otel カーソル継続: callsも累積する" "2" \
+  "$(printf '%s' "$otel_state4" | jq -r '.sinceLastPush.calls')"
+
+# (5) 初回集計: outfileへ有効化前から複数エントリが溜まっていても、初回1回のカーソル0集計で
+#     全量が計上される（特別扱いしない）。
+otel_r5="$(otel_repo otelrepo5)"
+otel_out5="$otel_r5/usage/gemini-otel.log"
+mkdir -p "$(dirname "$otel_out5")"
+{
+  otel_semantic_entry "gemini-2.5-pro" 10 5
+  otel_semantic_entry "gemini-2.5-pro" 20 8
+  otel_semantic_entry "gemini-2.5-flash" 7 3
+} > "$otel_out5"
+otel_state5="$(_sync_usage_state_otel "$otel_r5" "$otel_out5")"
+assert_eq "otel 初回集計: 既存データも含め全量が1回で計上される（gemini-2.5-pro input）" "30" \
+  "$(printf '%s' "$otel_state5" | jq -r '.sinceLastPush.tokensByModel["gemini-2.5-pro"].input')"
+assert_eq "otel 初回集計: callsは3件すべて" "3" \
+  "$(printf '%s' "$otel_state5" | jq -r '.sinceLastPush.calls')"
+
+# (6) ファイル縮小: byteOffsetがファイルサイズを超えて先行している状態（ローテーション等で
+#     縮小した想定）を検知し、byteOffsetを0へリセットして再集計する。**sinceLastPushはリセット
+#     せず維持したまま**、縮小後ファイルの再集計分を上乗せする（DDR i0097-01のneedsResetと
+#     同じ考え方。再集計はあくまで「新しい取得」であり、既に積んだ前回pushからの累計を消さない）。
+#     置き換え後のファイルが確実に前回byte_offsetより小さくなるよう、1回目は長いモデル名で
+#     パディングし、2回目は極端に短い内容に差し替える。
+otel_r6="$(otel_repo otelrepo6)"
+otel_out6="$otel_r6/usage/gemini-otel.log"
+mkdir -p "$(dirname "$otel_out6")"
+otel_semantic_entry "gemini-2.5-pro-padding-to-make-this-entry-long-enough" 10 5 > "$otel_out6"
+_sync_usage_state_otel "$otel_r6" "$otel_out6" >/dev/null
+otel_semantic_entry "g" 999 999 > "$otel_out6"   # 縮小かつ内容も差し替え
+otel_state6="$(_sync_usage_state_otel "$otel_r6" "$otel_out6")"
+assert_eq "otelファイル縮小: byteOffsetが0から再集計され新しい内容が計上される" "999" \
+  "$(printf '%s' "$otel_state6" | jq -r '.sinceLastPush.tokensByModel["g"].input')"
+assert_eq "otelファイル縮小: 縮小前に積んだ分もsinceLastPushへ残る" "10" \
+  "$(printf '%s' "$otel_state6" | jq -r '.sinceLastPush.tokensByModel["gemini-2.5-pro-padding-to-make-this-entry-long-enough"].input')"
+
+# (7) 状態ファイル破損: cursor.jsonが空・不正JSONでも既定値へ自己回復し、落ちずに再集計する。
+otel_r7="$(otel_repo otelrepo7)"
+otel_out7="$otel_r7/usage/gemini-otel.log"
+mkdir -p "$(dirname "$otel_out7")"
+otel_semantic_entry "gemini-2.5-pro" 15 6 > "$otel_out7"
+mkdir -p "$otel_r7/usage/state/gemini-otel"
+printf '' > "$otel_r7/usage/state/gemini-otel/cursor.json"   # 空文字列（不正JSON）
+otel_state7="$(_sync_usage_state_otel "$otel_r7" "$otel_out7")"
+assert_eq "otel 状態ファイル破損: 既定値へ自己回復し集計できる" "15" \
+  "$(printf '%s' "$otel_state7" | jq -r '.sinceLastPush.tokensByModel["gemini-2.5-pro"].input')"
+
+# (8) 途中書き込み: 末尾が完結していないエントリ（列0の`}`で終わらない）は今回の集計に含めず、
+#     byte_offsetも進めない。完結後の次回集計で正しく拾われる。
+otel_r8="$(otel_repo otelrepo8)"
+otel_out8="$otel_r8/usage/gemini-otel.log"
+mkdir -p "$(dirname "$otel_out8")"
+otel_semantic_entry "gemini-2.5-pro" 40 20 > "$otel_out8"
+# 2件目のエントリを生成し、末尾行（列0の`}`）だけを除いた状態で書き込む（途中書き込みの模擬）。
+otel_second8="$(mktemp)"
+otel_semantic_entry "gemini-2.5-pro" 999 999 > "$otel_second8"
+head -n -1 "$otel_second8" >> "$otel_out8"
+otel_state8="$(_sync_usage_state_otel "$otel_r8" "$otel_out8")"
+assert_eq "otel 途中書き込み: 完結したエントリのみ計上される" "40" \
+  "$(printf '%s' "$otel_state8" | jq -r '.sinceLastPush.tokensByModel["gemini-2.5-pro"].input')"
+assert_eq "otel 途中書き込み: 未完結エントリはcallsに含めない" "1" \
+  "$(printf '%s' "$otel_state8" | jq -r '.sinceLastPush.calls')"
+# 欠けていた末尾行が来て完結した後、次回の集計で追加分として拾われる。
+tail -n 1 "$otel_second8" >> "$otel_out8"
+rm -f "$otel_second8"
+otel_state8b="$(_sync_usage_state_otel "$otel_r8" "$otel_out8")"
+assert_eq "otel 途中書き込み: 完結後の次回集計で合算される（40+999）" "1039" \
+  "$(printf '%s' "$otel_state8b" | jq -r '.sinceLastPush.tokensByModel["gemini-2.5-pro"].input')"
+assert_eq "otel 途中書き込み: 完結後の次回集計でcallsが2になる" "2" \
+  "$(printf '%s' "$otel_state8b" | jq -r '.sinceLastPush.calls')"
+
+# (9) レポート本文: build_usage_report_body の第6引数（telemetry）は既存のClaude/Geminiの
+#     セクションへ合算せず、別セクションとして出す。省略時（既存の5引数呼び出し）は何も変わらない。
+rp_telemetry='{"tokensByModel":{"gemini-2.5-flash":{"input":100,"output":50,"cached":0,"thoughts":0,"tool":0}},"calls":3}'
+rp_body="$(build_usage_report_body "$rp_claude" "feature-x" "true" '{}' 'Claude Code' "$rp_telemetry")"
+assert_eq "otel report: テレメトリセクションが別枠で出る" "1" \
+  "$(printf '%s' "$rp_body" | grep -cF '### Gemini CLI公式テレメトリ（参考値）')"
+assert_eq "otel report: テレメトリのトークンはClaude側のテーブルへ混ざらない" "0" \
+  "$(printf '%s' "$rp_body" | grep -F '| モデル |' | grep -cF 'Cache Read | Thoughts' || true)"
+assert_eq "otel report: テレメトリのAPI呼び出し回数が出る" "1" \
+  "$(printf '%s' "$rp_body" | grep -cF 'API呼び出し回数: 3')"
+assert_eq "otel report: Claude側の既存テーブルは変わらない" \
+  "| claude-3-5-sonnet-20241022 | 12,345 | 6,789 | 100 | 2,000 |" \
+  "$(printf '%s' "$rp_body" | grep -F 'claude-3-5-sonnet')"
+
+# 第6引数が省略された既存呼び出し（5引数）はテレメトリセクションを出さない。
+rp_body_5arg="$(build_usage_report_body "$rp_claude" "feature-x" "true" '{}' 'Claude Code')"
+assert_eq "otel report: 第6引数省略時はテレメトリセクションが出ない" "0" \
+  "$(printf '%s' "$rp_body_5arg" | grep -cF '### Gemini CLI公式テレメトリ' || true)"
+
+# calls=0（テレメトリはあるが報告するものが無い）ならセクションごと出さない。
+rp_body_zero="$(build_usage_report_body "$rp_claude" "feature-x" "true" '{}' 'Claude Code' '{"tokensByModel":{},"calls":0}')"
+assert_eq "otel report: calls=0ならテレメトリセクションを出さない" "0" \
+  "$(printf '%s' "$rp_body_zero" | grep -cF '### Gemini CLI公式テレメトリ' || true)"
+
 echo "passed=$passed failures=$failures"
 [ "$failures" -eq 0 ]

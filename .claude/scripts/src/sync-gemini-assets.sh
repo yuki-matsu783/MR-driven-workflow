@@ -89,8 +89,11 @@ readonly GEMINI_AGENT_KEYS=(
 #                       Gemini には telemetry ブロックがあるが、受け口
 #                       （.claude/hooks/otel/listener.pl）が Claude Code のOTelスキーマを前提に
 #                       振り分けるため、そこへGemini由来のテレメトリを流すと壊れる。
-#                       **対応漏れではない。** 帰結として、Gemini CLI 経路では対応工数の
-#                       OTel計測が行われない（issue #70 / #103）。
+#                       **envブロックの変換は行わない。** ただし telemetry ブロックは
+#                       envとは別に固定値で注入する（issue #105。下記 SETTINGS_JQ_FILTER の
+#                       出力オブジェクト構築部分を参照）。target は "local" 固定で outfile へ
+#                       直接ファイル書き込みするため、listener.pl（OTLPネットワーク受信）は
+#                       経由しない。
 readonly SETTINGS_IGNORED_KEYS=(
   permissions
   autoCompactWindow
@@ -390,6 +393,18 @@ def conv_tool_group:
       + (if ($beforeTool   | length) > 0 then { BeforeTool:   $beforeTool   } else {} end)
       + (if ($afterTool    | length) > 0 then { AfterTool:    $afterTool    } else {} end)
     )
+  }
+  # Gemini CLI公式テレメトリ（issue #105）。.claude/settings.json 側には対応するキーが無く、
+  # ここでは常に固定値を注入する（.claude/settings.json の値を変換するのではない）。
+  # enabled は false 固定（配布先gitignore是正・機微情報確認の2条件が揃うまでON化しない。
+  # 詳細: .claude/docs/spec/sync-gemini-assets.md）。
+  + {
+    telemetry: {
+      enabled: false,
+      target: "local",
+      outfile: "usage/gemini-otel.log",
+      logPrompts: false
+    }
   }
 '
 

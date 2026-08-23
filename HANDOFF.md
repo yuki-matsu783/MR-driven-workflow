@@ -17,8 +17,8 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - issue: #105
 - ブランチ: claude/gemini-cli-telemetry-reporting-a253xp
 - PR: https://github.com/yuki-matsu783/MR-driven-workflow/pull/174
-- push回数: 9
-- 現在のループ: 3-3〜3-4 の1周目（進行中）
+- push回数: 10
+- 現在のループ: 3-6〜3-9 の1周目（進行中）
 - 未返信スレッド: 0
 - 追従監視: 購読あり（web。subscribe_pr_activity + 1時間ごとの自己チェックイン）
 
@@ -42,9 +42,9 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 | [x] | 2-10 | 調査結果をもとにMR descriptionを更新する | describe |
 | [x] | 3-1 | 個別作業計画を作成する | エージェント |
 | [x] | 3-2 | commitしpushしてレビュー依頼を行う | エージェント |
-| [] | 3-3 | 作業計画についてレビュー・コメントする | 人間 |
-| [] | 3-4 | レビュー内容を取得し作業計画を修正する | comments/reply |
-| [] | 3-5 | 作業計画をもとにMR descriptionを更新する | describe |
+| [x] | 3-3 | 作業計画についてレビュー・コメントする | 人間 |
+| [x] | 3-4 | レビュー内容を取得し作業計画を修正する | comments/reply |
+| [x] | 3-5 | 作業計画をもとにMR descriptionを更新する | describe |
 | [] | 3-6 | 作業計画をもとに作業を進める | エージェント |
 | [] | 3-7 | commitしpushしてレビュー依頼を行う | エージェント |
 | [] | 3-8 | レビュー・コメントする | 人間 |
@@ -153,12 +153,47 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
   全量計上の明示化・推測ベースフィクスチャの但し書き・`env`コメント更新・md/html非同期解消）。
   push9でこの修正内容をcommit・pushした。
 
+- flow-id 3-3/3-4: ユーザーから「レビューOK」の合図を受けた。`get_review_comments`で
+  全30スレッドを再取得したところ、フェーズ3の敵対的レビュー1回目で投稿した10スレッドが
+  返信0件だったため、全10件へ対応内容を返信した（フェーズ2の20スレッドは既に返信済み。
+  合計30スレッドすべて返信済み）。
+
+- flow-id 3-5: 作業計画（フェーズ3の8方針・人間への実機確認依頼）をもとにMR #174のdescriptionを
+  更新した。
+
+- flow-id 3-6: 計画（`plans/【設計】【実装】【テスト】〜.md`）に従い実装した。
+  - **設定層**: `sync-gemini-assets.sh`の`SETTINGS_JQ_FILTER`へ`telemetry`固定値ブロック
+    （`enabled: false`・`target: "local"`・`outfile: "usage/gemini-otel.log"`・
+    `logPrompts: false`）を追加し、`.gemini/settings.json`を再生成した（`--check`が生成前は
+    exit=1・生成後はexit=0であることを確認）。`test_sync_gemini_assets.sh`のT9ゴールデン
+    フィクスチャも更新した。
+  - **集計層**: `UsageTracking.sh`へ、既存のGemini CLIセッションログ集計（issue #97）とは
+    完全独立のバイトオフセットカーソル関数群（`_sync_usage_state_otel`等）を追加した。
+    semantic conventions形式のみ採用しレガシー形式を無視することで二重計上を構造的に回避、
+    metricsレコードの除外、ファイル縮小・途中書き込み・状態ファイル破損への耐性を実装した。
+    実装過程で`jq -R -n 'inputs'`（raw-input）がpretty-print JSON値を正しく読めない不具合を
+    見つけ、`jq -n '[inputs]'`（ネイティブJSONストリームパーサ）へ変更して解決した。
+  - **レポート層**: `post-push-usage-report.sh`の`build_usage_report_body()`へ第6引数
+    `telemetry`を`"${6:-}"`の既定値付きで追加し、既存5引数呼び出しを壊さずに独立セクション
+    「### Gemini CLI公式テレメトリ（参考値）」として統合した。`main()`では`engine`ではなく
+    `usage/gemini-otel.log`の存在有無で判定する（既存設計方針と整合）。
+  - **配布gitignore是正**: `install-to-project.sh`の`ignore_rules`へ`/usage/`を追加した。
+  - **単体テスト**: `test_usage_tracking.sh`へ9ケース（正常系・境界またぎ2重emit・metrics混在・
+    カーソル継続・初回集計・ファイル縮小・状態ファイル破損・途中書き込み・レポート本文統合）を
+    追加。`test_install_to_project.sh`へ配布gitignoreの反映を確認する1ケースを追加。
+  - 全17本の`test_*.sh`が`failures=0`、`sync-gemini-assets.sh --check`がexit=0、
+    ブランチ分岐点からの`.claude/`削除行に問題が無いことを確認した。
+  - 作業結果を`reports/20260823_squishy-painting-coral_Gemini-CLIテレメトリ集計機構の実装結果.md`
+    （＋同名html）へ記録した（個別作業計画には結果を書いていない）。worklog
+    （`worklog/20260823_squishy-painting-coral_【設計】【実装】【テスト】〜_push10.md`）も作成した。
+
 ## 次にやること
 
-- flow-id 3-3〜3-4: 修正した計画（`plans/【設計】【実装】【テスト】〜.md`・html）について、
-  人間のレビューを待つ。レビュー完了の合図（「レビュー済み」等）を受けたら、
-  `pull_request_read`（get_review_comments）で全スレッドを再取得し、返信0件のスレッドへ
-  対応内容を返信する（flow-id 2-3/2-4等と同じ手順）。
+- flow-id 3-7: `commit`スキル経由でcommitし、push（push10）してレビュー依頼を行う。
+- push後、ユーザー指示「作業実施毎に一度敵対的レビューを自動で行う」に従い、フェーズ3の
+  作業実施時敵対的レビューを1回実施する（`adversarial-review-count.sh`のフェーズ3カウンタは
+  現在1。上限3まで余裕あり）。対象は今回のdiff全体（設定層・集計層・レポート層・配布gitignore・
+  単体テスト）。指摘があれば投稿・報告し、すべてに対応してから3-8（人間レビュー）を待つ。
 
 ## 判断を迷った内容
 

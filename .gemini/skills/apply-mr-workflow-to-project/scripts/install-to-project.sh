@@ -256,6 +256,7 @@ declare -a ignore_rules=(
   "/.claude/usage-state/"
   "/.claude/session-logs/"
   "/.claude/settings.local.json"
+  "/usage/"
 )
 
 for rule in "${ignore_rules[@]}"; do

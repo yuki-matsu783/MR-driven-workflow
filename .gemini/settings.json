@@ -66,5 +66,11 @@
         ]
       }
     ]
+  },
+  "telemetry": {
+    "enabled": false,
+    "target": "local",
+    "outfile": "usage/gemini-otel.log",
+    "logPrompts": false
   }
 }

@@ -945,6 +945,227 @@ _usage_reset_since_last_push() {
         skillCalls: [], agentCalls: [], askUserQuestions: []} | .lastPostedAt = $postedAt'
 }
 
+# --------------------------------------------------------------------------------------------
+# Gemini CLI 公式テレメトリ（OpenTelemetry。issue #105）のバイトオフセットカーソル集計
+# --------------------------------------------------------------------------------------------
+#
+# 上記のGemini CLIセッションログ集計（`_usage_gemini_fold`系、issue #97）とは**入力データソースが
+# 別物**であり、本節の関数群は既存のGemini経路・Claude Code経路のいずれとも完全に独立している。
+# 既存関数のシグネチャ・返り値は一切変更しない（受け入れ条件4）。
+#
+# 対象は `.gemini/settings.json` の `telemetry.outfile`（既定 `usage/gemini-otel.log`）。
+# Gemini CLI公式のOpenTelemetryエクスポータが、pretty-print JSON値
+# （`safeJsonStringify(data, 2) + '\n'`）を追記し続ける単一ファイルで、spans・logs・metricsが
+# 混在する（詳細: `reports/20260823_squishy-painting-coral_Gemini-CLIテレメトリ出力形式と統合
+# 方針の調査結果.md` 1.節）。
+#
+# 判定方針は実データ未確認のため推測に基づく（フェーズ4のspec反映時に実データで裏取りする）。
+#   - metricsレコード（`dataPoints`/`sum`/`gauge`/`histogram`/`scopeMetrics`/`resourceMetrics`
+#     のいずれかのフィールドを持つ）は集計対象から除外する（10秒間隔で周期exportされるため）。
+#   - `gemini_cli.api_response`相当のLogRecordは、同一イベントが常にレガシー形式
+#     （`toLogRecord`）とsemantic conventions形式（`toSemanticLogRecord`）の2回emitされる
+#     （調査結果1.節で確認済み）。**semantic conventions形式（属性キーに`gen_ai.`プレフィックスを
+#     持つ）のみを採用し、レガシー形式は無視する**ことで二重計上を避ける（境界をまたぐケースでも
+#     原理的に二重計上しない。属性名`gen_ai.usage.*`・`gen_ai.request.model`は
+#     OpenTelemetry semantic conventions（gen_ai）を参考にした推測であり、未確認）。
+
+# outfileの`byte_offset`以降のうち、**完全にパースできた末尾までの部分**を一時ファイルへ
+# 切り出す（途中書き込み対応）。切り出したファイルパスをREPLYへ、その末尾までの絶対バイト位置
+# （次回のbyte_offset）をREPLY_NEW_OFFSETへ返す（`.claude/rules/shell-script-style.md`
+# 「複数戻り値」パターン）。完全なエントリが1つも無い場合はREPLYを空文字列にし、
+# REPLY_NEW_OFFSETは呼び出し時の`byte_offset`のまま変えない。呼び出し側はREPLYが指す一時ファイルを
+# 使い終えたら削除すること。
+#
+# 「完全」の判定方法: シリアライズ形式（`safeJsonStringify(data, 2) + '\n'`。インデント2の
+# pretty-print JSON＋末尾改行1つ）を前提に、**行頭（列0）が`}`のみである行**を1エントリの終端と
+# みなす。JSON文字列値の中の改行はエスケープされ生の改行として現れないため、インデント2の
+# pretty-printでは各値のトップレベルの閉じ括弧だけが列0に来る、という性質を根拠にする。
+# **この方式は`safeJsonStringify`のインデント幅・出力形式に依存する実装依存の判定であり、
+# Gemini CLI側の出力形式が変わると壊れる**（未決定事項。列0の`}`が1エントリ中に複数回現れない
+# ＝トップレベルの型が常にobjectであることは実機データでの裏取りが必要な前提）。
+_usage_otel_extract_complete_to_reply() {
+  local outfile_path="$1" byte_offset="$2"
+  local file_size
+  file_size="$(wc -c < "$outfile_path" 2>/dev/null || printf '0')"
+
+  if [ "$file_size" -le "$byte_offset" ]; then
+    REPLY=""
+    REPLY_NEW_OFFSET="$byte_offset"
+    return 0
+  fi
+
+  local tmp_new
+  tmp_new="$(mktemp)"
+  tail -c "+$((byte_offset + 1))" "$outfile_path" > "$tmp_new"
+
+  local last_boundary_line
+  last_boundary_line="$(grep -n '^}$' "$tmp_new" | tail -1 | cut -d: -f1)"
+
+  if [ -z "$last_boundary_line" ]; then
+    # 完全なエントリが1件も無い（末尾が途中書き込みのみ）。次回そのまま再挑戦できるよう
+    # byte_offsetは進めない。
+    rm -f "$tmp_new"
+    REPLY=""
+    REPLY_NEW_OFFSET="$byte_offset"
+    return 0
+  fi
+
+  local tmp_complete
+  tmp_complete="$(mktemp)"
+  head -n "$last_boundary_line" "$tmp_new" > "$tmp_complete"
+  rm -f "$tmp_new"
+
+  local complete_bytes
+  complete_bytes="$(wc -c < "$tmp_complete")"
+
+  REPLY="$tmp_complete"
+  REPLY_NEW_OFFSET="$((byte_offset + complete_bytes))"
+}
+
+# 完全にパースできたエントリ（1つ以上のpretty-print JSON値が改行区切りで連続するファイル）を
+# 畳み込み、モデル別トークン合計と呼び出し回数を返す。
+#   出力: {tokens: {"<model>": {input, output, cached, thoughts, tool}}, calls: <回数>}
+_usage_otel_fold() {
+  local complete_path="$1"
+  # 注意: `-R`（raw input）を付けない。対象ファイルは複数行にまたがるpretty-print JSON値が
+  # 改行区切りで連続する形式（1行1JSONのJSONLではない）ため、`-R`（行単位の文字列読み込み）では
+  # 各行を個別にfromjsonしようとして必ず失敗する。jqの通常入力パーサ（`-n` + `inputs`）は
+  # 複数の空白区切りJSON値をストリームとして正しく読める。
+  jq -n '
+    def zero_bucket: {input: 0, output: 0, cached: 0, thoughts: 0, tool: 0};
+
+    # metricsレコードの判定（ResourceMetrics相当。実データ未確認・推測）。
+    def is_metric_record:
+      (has("dataPoints") or has("sum") or has("gauge") or has("histogram")
+       or has("scopeMetrics") or has("resourceMetrics"));
+
+    # semantic conventions形式のgemini_cli.api_response判定（実データ未確認・推測。
+    # gen_ai.*属性を持つことを目印にする）。
+    def is_semantic_api_response:
+      (.attributes // {}) as $a
+      | ($a | keys | any(startswith("gen_ai.")))
+      and ((($a["event.name"] // .name // "") | tostring | test("api_response")));
+
+    [inputs] as $entries
+    | ($entries | map(select(is_metric_record | not))) as $logs
+    | ($logs | map(select(is_semantic_api_response))) as $apiResponses
+    | {
+        tokens: (reduce $apiResponses[] as $e ({};
+          (($e.attributes["gen_ai.request.model"] // $e.attributes.model // "unknown")) as $model
+          | .[$model] = ((.[$model] // zero_bucket)
+              | .input    += ($e.attributes["gen_ai.usage.input_tokens"] // 0)
+              | .output   += ($e.attributes["gen_ai.usage.output_tokens"] // 0)
+              | .cached   += ($e.attributes["gen_ai.usage.cached_tokens"] // 0)
+              | .thoughts += ($e.attributes["gen_ai.usage.thoughts_tokens"] // 0)
+              | .tool     += ($e.attributes["gen_ai.usage.tool_tokens"] // 0))
+        )),
+        calls: ($apiResponses | length)
+      }
+  ' "$complete_path"
+}
+
+# usage/state/gemini-otel/cursor.json（グローバル・ブランチ/セッション非依存。フェーズ2報告5.節の
+# 判断どおり）を読む。空・不正JSON・ファイル無しなら既定値を返す（`_usage_read_gemini_totals`と
+# 同じ自己回復パターン）。**状態ファイルは`usage/state/`直下ではなく`usage/state/gemini-otel/`
+# サブディレクトリへ置く**（直下だと`usage/state/<branch>.json`のブランチ別状態ファイル名と、
+# 同名のブランチが存在した場合に完全一致し内容を壊し合う可能性があるため）。
+_usage_read_otel_state() {
+  local repo_root="$1"
+  local state_file="${repo_root}/usage/state/gemini-otel/cursor.json"
+  local content=""
+  if [ -f "$state_file" ]; then
+    content="$(cat "$state_file")"
+  fi
+  if [ -n "$content" ] && printf '%s' "$content" | jq -e . >/dev/null 2>&1; then
+    printf '%s' "$content"
+  else
+    jq -n '{byteOffset: 0, sinceLastPush: {tokensByModel: {}, calls: 0}}'
+  fi
+}
+
+_usage_write_otel_state() {
+  local repo_root="$1" state="$2"
+  local state_dir="${repo_root}/usage/state/gemini-otel"
+  mkdir -p "$state_dir"
+  printf '%s' "$state" | tr -d '\r' > "${state_dir}/cursor.json"
+}
+
+# Gemini CLI公式テレメトリのバイトオフセットカーソル集計本体（issue #105）。
+#
+#   引数: <repo_root> <outfile_path>
+#   出力: 集計後の状態JSON（{byteOffset, sinceLastPush: {tokensByModel, calls}}）をstdoutへ返す。
+#         outfile_pathが存在しない場合は何も出力せず終了コード1を返す。
+#
+# 初回集計（カーソル0）でも特別扱いせず、既存データを含めた全量をそのまま計上する（outfileは
+# ローテーション無しの無制限追記のため、有効化前から溜まっていたデータも初回の1回で計上される）。
+_sync_usage_state_otel() {
+  local repo_root="$1" outfile_path="$2"
+
+  if [ ! -f "$outfile_path" ]; then
+    return 1
+  fi
+
+  local state byte_offset file_size
+  state="$(_usage_read_otel_state "$repo_root")"
+  byte_offset="$(printf '%s' "$state" | jq -r '.byteOffset // 0')"
+  file_size="$(wc -c < "$outfile_path" 2>/dev/null || printf '0')"
+
+  # ファイル縮小検知（DDR i0097-01の`needsReset`と同じ考え方）。
+  if [ "$file_size" -lt "$byte_offset" ]; then
+    byte_offset=0
+  fi
+
+  _usage_otel_extract_complete_to_reply "$outfile_path" "$byte_offset"
+  local complete_path="$REPLY" new_offset="$REPLY_NEW_OFFSET"
+
+  if [ -z "$complete_path" ]; then
+    # 新規の完全なエントリが無い（途中書き込みのみ、または新規バイト無し）。
+    # byte_offsetが縮小検知で0へ変わっていた場合に備え、状態は書き戻す。
+    if [ "$new_offset" != "$(printf '%s' "$state" | jq -r '.byteOffset // 0')" ]; then
+      state="$(printf '%s' "$state" | jq --argjson offset "$new_offset" '.byteOffset = $offset')"
+      _usage_write_otel_state "$repo_root" "$state"
+    fi
+    printf '%s' "$state"
+    return 0
+  fi
+
+  local delta
+  delta="$(_usage_otel_fold "$complete_path")"
+  rm -f "$complete_path"
+
+  local new_state
+  new_state="$(jq -n --argjson state "$state" --argjson delta "$delta" --argjson offset "$new_offset" '
+    def zero_bucket: {input: 0, output: 0, cached: 0, thoughts: 0, tool: 0};
+    ($state.sinceLastPush // {tokensByModel: {}, calls: 0}) as $since
+    | (reduce (($delta.tokens // {}) | keys[]) as $model ($since;
+        ($delta.tokens[$model]) as $d
+        | (.tokensByModel[$model] // zero_bucket) as $acc
+        | .tokensByModel[$model] = {
+            input:    ($acc.input    + ($d.input // 0)),
+            output:   ($acc.output   + ($d.output // 0)),
+            cached:   ($acc.cached   + ($d.cached // 0)),
+            thoughts: ($acc.thoughts + ($d.thoughts // 0)),
+            tool:     ($acc.tool     + ($d.tool // 0))
+          }
+      )) as $sinceTokens
+    | ($sinceTokens | .calls = ((.calls // 0) + ($delta.calls // 0))) as $newSince
+    | {byteOffset: $offset, sinceLastPush: $newSince}
+  ')"
+
+  _usage_write_otel_state "$repo_root" "$new_state"
+  printf '%s' "$new_state"
+}
+
+# post-push-usage-report.sh がMRへの投稿成功後に呼ぶ、テレメトリsinceLastPushのゼロ初期化。
+# 既存の `_usage_reset_since_last_push`（Claude Code経路・Gemini経路共通の状態）とは別ファイルを
+# 対象とする独立した関数。
+_usage_reset_otel_since_last_push() {
+  local repo_root="$1" state="$2"
+  local new_state
+  new_state="$(printf '%s' "$state" | jq '.sinceLastPush = {tokensByModel: {}, calls: 0}')"
+  _usage_write_otel_state "$repo_root" "$new_state"
+}
+
 # サブエージェントレポート用: 前回pushからの差分が0（tokensByModel全モデル・toolCalls・
 # activeSecondsのいずれも0）のagentIdを `sinceLastPush.subagents` から除外して返す（issue #34、
 # 「差分0のagentはレポートに出力しない」というフィードバックへの対応）。
