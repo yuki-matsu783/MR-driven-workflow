@@ -244,6 +244,7 @@ bash .claude/scripts/src/extract-frontmatter.sh .
 | `guide` | `README.md`, `DEVELOPERS.md`, `.claude/docs/README.md`, `index.md` |
 | `handoff` | `HANDOFF.md` |
 | `spec` | `.claude/docs/spec/*.md` |
+| `usecase` | `.claude/docs/usecase/*.md`（ユースケース起点の逆引き文書。issue #170） |
 | `review-points` | `**/REVIEW-POINTS.md`（各ディレクトリ直下のレビュー観点表。issue #77） |
 
 アプリ本体を追加し、専用の`docs/spec/`・`docs/ddr/`・`docs/README.md`（必要なら`dev-tools/docs/`

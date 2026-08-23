@@ -1,9 +1,9 @@
 ---
 title: .claude/docs配下の目次
 type: guide
-description: .claude/docs配下（issue駆動MRワークフロー機構自体のspec・ddr）の位置づけと各ドキュメントへのリンクをまとめた目次
+description: .claude/docs配下（issue駆動MRワークフロー機構自体のusecase・spec・ddr）の位置づけと各ドキュメントへのリンクをまとめた目次
 tags: [claude-docs, docs, index, guide]
-keywords: [正史仕様, 意思決定ログ, issue-mr-workflow, シェルスクリプト方針, frontmatter抽出]
+keywords: [正史仕様, 意思決定ログ, ユースケース, 逆引き, issue-mr-workflow, シェルスクリプト方針, frontmatter抽出]
 ---
 
 # .claude/docs 配下の目次
@@ -14,6 +14,7 @@ keywords: [正史仕様, 意思決定ログ, issue-mr-workflow, シェルスク�
 （唯一の実装フロー定義）に従い、ドキュメントの置き場所・ライフサイクルは
 [.claude/rules/docs-workflow.md](../rules/docs-workflow.md) の「ドキュメント運用」表を参照する。
 
+- `usecase/` ── 「やりたいこと」起点でどの機能を使うかを逆引きするユースケース文書（機能の追加・変更に追従して更新）
 - `spec/` ── ワークフロー機構の機能ごとの正史仕様（最新の仕様を上書き更新）
 - `ddr/` ── ワークフロー機構関連の意思決定ログ（DDR: Design Decision Record。追記のみ）
 
@@ -27,6 +28,22 @@ keywords: [正史仕様, 意思決定ログ, issue-mr-workflow, シェルスク�
 > 現在この機構が実際に置かれている場所は、本リポジトリの `.claude/scripts/`・`.claude/docs/`
 > です。移植元プロジェクトの構成については `.claude/docs/ddr/i0000-10-dev-toolsをAI専用_人間専用に分離する.md`
 > を参照してください。
+
+## usecase（ユースケース逆引き）
+
+「やりたいこと」から、使う機能と詳細ドキュメントを逆引きする入り口（issue #170）。手順詳細は
+書かず、各文書がspec/SKILL.mdへのリンクで参照する。**usecase文書を追加・改名・削除したら、
+この一覧を同じコミットで更新する**（一覧の正はここ1箇所。運用は
+[.claude/rules/docs-workflow.md](../rules/docs-workflow.md) の「ドキュメント運用」表を参照）。
+
+- [新しい機能開発を始める](usecase/新しい機能開発を始める.md) ── 機能追加・変更をissue起点で始めたい
+- [途中の作業を再開・引き継ぐ](usecase/途中の作業を再開・引き継ぐ.md) ── 中断した作業・他者の作業を続きから進めたい
+- [生成物にレビューコメントして修正させる](usecase/生成物にレビューコメントして修正させる.md) ── AIの成果物へPR/MR上で指摘して直させたい
+- [レビューをAIに補助してもらう](usecase/レビューをAIに補助してもらう.md) ── 人間レビューの前にAIに欠陥を探させたい
+- [ベースブランチとのコンフリクトを解消する](usecase/ベースブランチとのコンフリクトを解消する.md) ── mainが進んでコンフリクト・遅れが出た
+- [リポジトリ内のドキュメントを探す](usecase/リポジトリ内のドキュメントを探す.md) ── 目的のspec・DDR・ルールを素早く見つけたい
+- [対応工数を把握する](usecase/対応工数を把握する.md) ── issue対応にかかった工数を集計したい
+- [この機構を他プロジェクトへ導入する](usecase/この機構を他プロジェクトへ導入する.md) ── 別リポジトリへこのワークフロー一式を入れたい
 
 ## spec（機能仕様）
 
