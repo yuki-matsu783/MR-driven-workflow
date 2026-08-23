@@ -93,7 +93,7 @@
       <li><b>ブランチ</b> claude/consolidate-wip-directories-ps6f9a</li>
       <li><b>PR</b> #178</li>
       <li><b>フェーズ</b> 3〈作業〉 flow-id 3-1</li>
-      <li><b>push回数</b> 7</li>
+      <li><b>push回数</b> 8</li>
       <li><b>作成日</b> 2026-08-23</li>
       <li><b>正文</b> 同名の .md</li>
     </ul>
@@ -121,6 +121,14 @@
     <li>上位の計画: <code>plans/transient-brewing-pelican.md</code>（flow-id 1-5でユーザー承認済み）</li>
     <li>依拠する調査結果: <code>reports/20260823_transient-brewing-pelican_plansDirectoryネストパス検証.md</code>（plansDirectoryのネストパスは機能することを確認済み。対照実験はインフラ一時停止のため保留中）</li>
   </ul>
+  <div class="box warn">
+    <span class="label">限定条件（未検証のまま進める）</span>
+    <ul>
+      <li>N=1・Claude Code on the web（Linux）・2026-08-23限定。ローカル環境（Windows/git bash）・別バージョンは未確認</li>
+      <li><code>wip/plans</code>が事前に存在しない状態での挙動は未検証（検証時点で<code>.gitkeep</code>が既に存在）。<code>install-to-project.sh</code>導入先で<code>cleanup-task.sh</code>が空判定で削除した後、同じ条件が成立しうる</li>
+      <li><code>.gemini/settings.json</code>の<code>general.plan.directory</code>はGemini CLI不在のため実行確認ができていない。記法上の妥当性のみで適用し、フェーズ4のDDRへ明記する</li>
+    </ul>
+  </div>
 </section>
 
 <section id="goal">
@@ -137,16 +145,18 @@
     <thead><tr><th>領域</th><th>操作</th><th>何をするか</th></tr></thead>
     <tbody>
       <tr><td><code>.mrworkflow.json</code></td><td>変更</td><td>plansDir/worklogDir/reportsDirを新パスへ</td></tr>
-      <tr><td><code>Provider.sh</code></td><td>変更</td><td>フォールバック既定値を同期</td></tr>
-      <tr><td><code>cleanup-task.sh</code></td><td>変更</td><td>KEEP_PATHSのハードコード除去（動的化）</td></tr>
-      <tr><td><code>.claude/settings.json</code> / <code>.gemini/settings.json</code></td><td>変更</td><td>plansDirectoryを新パスへ</td></tr>
+      <tr><td><code>Provider.sh</code></td><td><b>変更しない</b></td><td>フォールバック既定値（65-67行目）は据え置く（後方互換のため。方針1参照）</td></tr>
+      <tr><td><code>cleanup-task.sh</code></td><td>変更</td><td>KEEP_PATHSのハードコード除去（動的化）。224行目のjqフォールバック既定値は変更しない</td></tr>
+      <tr><td><code>.claude/settings.json</code> / <code>.gemini/settings.json</code></td><td>変更</td><td>plansDirectoryを新パスへ（.gemini側は実機未検証）</td></tr>
       <tr><td><code>install-to-project.sh</code></td><td>変更</td><td>wip/1つ＋配下3構成へ</td></tr>
-      <tr><td>plans/ worklog/ reports/ 実体</td><td>移動（git mv）</td><td>wip/配下へ</td></tr>
-      <tr><td>ドキュメント参照（約58/44/39ファイル）</td><td>変更</td><td>現在の状態を説明する箇所のみ（DDR本文・spec changelogは除外）</td></tr>
-      <tr><td>関連テスト</td><td>変更・確認</td><td>新パス前提での動作確認</td></tr>
+      <tr><td>plans/ worklog/ reports/ 実体（<code>wip/plans/REVIEW-POINTS.md</code> 等の恒久ファイルを含む）</td><td>移動（git mv）</td><td>wip/配下へ</td></tr>
+      <tr><td>ドキュメント参照（正確な件数は方針4の棚卸しコマンドで都度取得）</td><td>変更</td><td>現在の状態を説明する箇所のみ（DDR本文・spec changelogは除外）。移動先の恒久ファイル自身も対象に含む</td></tr>
+      <tr><td><code>.claude/scripts/test/</code>配下の該当テスト（<code>test_cleanup_task.sh</code>を含む）</td><td>変更</td><td>新パス前提での動作確認・必要な修正</td></tr>
+      <tr><td><code>.claude/docs/spec/cleanup-task.md</code></td><td>フェーズ4へ送る（本計画では変更しない）</td><td>「未決定事項」節がKEEP_PATHS動的化と食い違うため</td></tr>
     </tbody>
   </table>
   </div>
+  <p><code>.claude/VERSION</code>は本計画の変更対象に含めない（「やらないこと」参照）。</p>
 </section>
 
 <section id="approach">
@@ -157,39 +167,85 @@
   <code>TEMPLATE.md</code>が誤削除される。設定値から動的に組み立てる形へ修正する。</p>
   <div class="box warn">
     <span class="label">置き換え前後（コード上の対応箇所）</span>
-    <pre><code>// 置換前
+    <pre><code># 置換前（50-52行目）
 readonly -a KEEP_PATHS=(
   "worklog/TEMPLATE.md"
 )
 
-// 置換後（main内でworklog_dir読み込み後に構築）
-KEEP_PATHS=("${worklog_dir}/TEMPLATE.md")</code></pre>
+# 置換後（readonlyを外し空配列で初期化。declareは使わない — main内でdeclareすると
+# ローカル変数になり、main経由の呼び出しではたまたま見えるがテストの直接呼び出しでは壊れる）
+KEEP_PATHS=()
+
+# main() 内、dirs_tsv -> target_dirs 読み込み直後に追加
+# target_dirs[1] は worklogDir（224行目のjq配列の並び順に対応）
+KEEP_PATHS=("${target_dirs[1]}/TEMPLATE.md")</code></pre>
   </div>
+  <p><b>test_cleanup_task.sh側の修正が必須。</b>同スクリプトは<code>main</code>を呼ばず
+  <code>is_keep_path</code>を直接呼ぶため、呼び出し直前に<code>KEEP_PATHS=("worklog/TEMPLATE.md")</code>
+  を明示的にセットする行を追加する。加えて<code>.mrworkflow.json</code>で
+  <code>worklogDir: "wip/worklogs"</code>を指定したフィクスチャによる新規結合テストケースを追加し、
+  <code>main</code>経由の配線自体を検証する（既存フィクスチャは<code>.mrworkflow.json</code>を
+  持たずこの配線を一度も通らないため）。</p>
+  <p><b>Provider.sh・cleanup-task.sh:224のjqフォールバック既定値は変更しない。</b>
+  <code>.mrworkflow.json</code>を持たない配布先（旧レイアウトのまま）で、フォールバックが
+  <code>wip/*</code>を指すと実際の<code>plans/</code>等が片付け対象から漏れるため。この決定により
+  <code>.claude/docs/spec/cleanup-task.md</code>の「未決定事項」節が事実と食い違うが、本計画では
+  変更せずフェーズ4へ送る。</p>
 
   <h3>2. ディレクトリ移動</h3>
-  <p><code>mkdir -p wip</code>で親ディレクトリを先に作成してから、移動先が存在しないことを
-  確認して<code>git mv plans wip/plans</code> <code>git mv worklog wip/worklogs</code>
-  <code>git mv reports wip/reports</code>を実行する。</p>
+  <p><b>チェックと<code>git mv</code>を同じ条件式で繋ぎ、チェックが偽なら実行しないようにする</b>
+  （別行に分けるとBashツールには<code>set -e</code>が無いため、チェックが偽でも<code>git mv</code>が
+  そのまま走ってしまう）。</p>
+  <pre><code>mkdir -p wip
+if [ ! -e wip/plans ] && [ ! -e wip/worklogs ] && [ ! -e wip/reports ]; then
+  git mv plans wip/plans && git mv worklog wip/worklogs && git mv reports wip/reports
+else
+  echo 'error: 移動先が既に存在します' &gt;&amp;2
+fi</code></pre>
+  <p>移動後、<code>wip/plans/REVIEW-POINTS.md</code> <code>wip/reports/REVIEW-POINTS.md</code>
+  <code>wip/worklogs/TEMPLATE.md</code>が存在することを確認する（検証節に手順あり）。</p>
 
   <h3>3. 設定・スクリプトの変更</h3>
   <p>上記「変更対象」表のとおり。<code>install-to-project.sh</code>は162-163行目の
   <code>mkdir -p</code>と187-188行目の<code>.gitkeep</code>を<code>wip/</code>1つ＋配下3構成へ
   変更し、<code>reports</code>にも<code>.gitkeep</code>を新設する（受け入れ条件4）。</p>
+  <div class="box">
+    <span class="label">検討事項（現状維持と判断）</span>
+    <p><code>.gitkeep</code>は<code>KEEP_PATHS</code>/<code>KEEP_BASENAMES</code>のいずれにも
+    該当しないため、配布先で最初にflow-id 5-4を回した時点で<code>wip/plans</code>等が
+    ディレクトリごと削除される。これは<code>wip/</code>集約前から存在した既存動作であり、本タスクの
+    スコープでは対処せず現状維持とする。恒久対処は別issue化を検討し、最終統括レポートへ記録する。</p>
+  </div>
 
   <h3>4. ドキュメント更新</h3>
+  <p>対象は次のコマンドの結果を起点にする（拡張子を絞らず、3語ともスラッシュ無しで拾う。
+  当初案は<code>plans</code>/<code>reports</code>側にだけスラッシュを要求しており非対称だった）。</p>
+  <pre><code>git grep -lI -e plans -e worklog -e reports</code></pre>
+  <p>正確な件数はフェーズ3実施直前に上記コマンドで実測する（見積り値は本ブランチ上で再現しなかった
+  ため参考値に留める）。</p>
   <div class="tablewrap">
   <table>
     <thead><tr><th>対象</th><th>扱い</th></tr></thead>
     <tbody>
       <tr><td><code>.claude/docs/ddr/*.md</code></td><td>本文は変更しない</td></tr>
-      <tr><td><code>.claude/docs/spec/*.md</code></td><td>節単位で判断。現在の状態を説明する節のみ更新</td></tr>
+      <tr><td><code>.claude/docs/spec/*.md</code></td><td>節単位で判断。現在の状態を説明する節のみ更新。<code>cleanup-task.md</code>の未決定事項節はフェーズ4へ送る</td></tr>
+      <tr><td><code>.claude/hooks/otel/</code>配下の<code>.pl</code>/<code>.pm</code>（3ファイル）</td><td>対象に含める。コメント中の参照をissue番号または<code>.claude/docs/</code>配下へ書き換える</td></tr>
+      <tr><td>移動先の恒久ファイル（REVIEW-POINTS.md×2・TEMPLATE.md）</td><td>本文中の旧パス参照を新パスへ更新する</td></tr>
       <tr><td>それ以外</td><td>新パスへ更新</td></tr>
     </tbody>
   </table>
   </div>
   <p>一括sedは使わない。<code>directory-structure.md</code>・<code>index.md</code>を含む。</p>
+  <div class="box warn">
+    <span class="label">cleanup-task.sh編集時の注意</span>
+    <p><code>usage()</code>は<code>sed -n '2,42p'</code>でヘッダコメントをそのまま<code>--help</code>
+    出力にしている。同じ範囲を書き換えるため、行数を変えずに書き換えるか<code>usage()</code>の範囲も
+    合わせて直す。編集後<code>--help</code>の出力末尾を目視確認する。</p>
+  </div>
 
   <h3>5. テスト</h3>
+  <p><code>test_cleanup_task.sh</code>は上記「1」の2箇所の修正（<code>KEEP_PATHS</code>明示セット・
+  新規結合テストケース）を含む。</p>
   <pre><code>bash .claude/scripts/test/test_cleanup_task.sh
 bash .claude/scripts/test/test_search_frontmatter.sh
 bash .claude/scripts/test/test_vcs_provider.sh
@@ -198,6 +254,7 @@ bash .claude/scripts/test/test_check_base_sync.sh
 bash .claude/scripts/test/test_collect_review_points.sh
 bash .claude/scripts/test/test_extract_frontmatter.sh
 bash .claude/scripts/test/test_session_start.sh</code></pre>
+  <p>変更した<code>.sh</code>全てに<code>bash -n</code>で構文チェックを行う。</p>
 </section>
 
 <section id="out-of-scope">
@@ -207,9 +264,12 @@ bash .claude/scripts/test/test_session_start.sh</code></pre>
     <ul>
       <li>DDR本文の書き換え（不変）</li>
       <li>spec内のpoint-in-time changelog節の書き換え</li>
+      <li><code>.claude/docs/spec/cleanup-task.md</code>の「未決定事項」節の更新（フェーズ4へ送る）</li>
       <li><code>apply-mr-workflow-to-project/assets/</code>への直接編集（生成物のため）</li>
       <li>既に導入済みの他プロジェクトの実際の移行作業</li>
-      <li><code>.claude/VERSION</code>の最終インクリメント（提案はフェーズ4、確定は人間の判断）</li>
+      <li><code>.claude/VERSION</code>の変更（提案自体もフェーズ4で行う。確定は人間の判断）</li>
+      <li><code>.gitkeep</code>が<code>cleanup-task.sh</code>に削除される既存動作への対処（別issue化を検討）</li>
+      <li>Provider.sh・cleanup-task.sh:224のjqフォールバック既定値の変更（後方互換のため据え置く）</li>
     </ul>
   </div>
 </section>
@@ -224,10 +284,24 @@ bash .claude/scripts/test/test_check_base_sync.sh
 bash .claude/scripts/test/test_collect_review_points.sh
 bash .claude/scripts/test/test_extract_frontmatter.sh
 bash .claude/scripts/test/test_session_start.sh
-git diff $(git merge-base main HEAD) -- .claude/docs/ddr/   # 空であること</code></pre>
+
+# 移動後の実在確認
+[ -f wip/plans/REVIEW-POINTS.md ] && [ -f wip/reports/REVIEW-POINTS.md ] && [ -f wip/worklogs/TEMPLATE.md ]
+
+# KEEP_PATHSの動的配線を実リポジトリで直接確認する（--dry-run なので破壊しない）
+bash .claude/scripts/src/cleanup-task.sh --dry-run | jq -e '.keptPaths | index("wip/worklogs/TEMPLATE.md")'
+
+# --help の出力末尾が説明文で終わっていることを目視確認
+bash .claude/scripts/src/cleanup-task.sh --help
+
+# DDR本文・spec changelogを書き換えていないことの検証（分岐点SHA基準）
+git diff $(git merge-base main HEAD) -- .claude/docs/ddr/    # 空であること
+git diff $(git merge-base main HEAD) -- .claude/docs/spec/   # 現在の状態を説明する節のみに限られることを目視確認</code></pre>
   <p>合格条件: 上記すべてのテストが<code>passed=N failures=0</code>。<code>wip/plans</code>
   <code>wip/worklogs</code> <code>wip/reports</code>が実在し<code>REVIEW-POINTS.md</code>・
-  <code>TEMPLATE.md</code>を含む。DDR本文への意図しない書き換えが無い。</p>
+  <code>TEMPLATE.md</code>を含む。<code>git mv</code>による移動なのでファイル履歴が
+  <code>git log --follow</code>で追える。DDR本文への意図しない書き換えが無く、spec側の差分が
+  現在の状態を説明する節のみに限られる。</p>
 </section>
 
 <section id="criteria">
