@@ -129,6 +129,7 @@
 <nav class="toc">
   <h2>目次</h2>
   <ol>
+    <li><a href="#ported">追記（2026-08-23）: 対象ファイルが main で消え、修正を新スクリプトへ移した</a></li>
     <li><a href="#conclusion">結論</a></li>
     <li><a href="#fixed">直した3箇所</a></li>
     <li><a href="#why">なぜ set -e では止まらないのか</a></li>
@@ -138,6 +139,55 @@
     <li><a href="#diff-from-plan">計画との差分</a></li>
   </ol>
 </nav>
+
+<section id="ported">
+  <h2>追記（2026-08-23）: 対象ファイルが main で消え、修正を新スクリプトへ移した</h2>
+
+  <div class="box warn">
+    <span class="label">この節より下は取り込み前の記録</span>
+    <code>main</code>（PR #157）の取り込みにより <code>setup-gemini-links.sh</code> は
+    <code>sync-gemini-assets.sh</code> へ置き換えられて<b>削除された</b>。下に書いた3つの修正は、
+    そのままでは行き先を失った。
+  </div>
+  <p>ユーザーの判断は「<b>新スクリプトへ移植する</b>」だった（捨てずに、同じ類型の穴が
+  <code>sync-gemini-assets.sh</code> にも無いかを調べる）。調べた結果、<b>3件見つかり、すべて
+  同じ形（<code>run_or_fail</code>）で直した</b>。</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>移植先の箇所</th><th>症状</th><th>直した後</th></tr></thead>
+    <tbody>
+      <tr><td><code>list_gemini_removed_files</code> の <code>find</code></td><td>走査が失敗すると<b>削除ガードが無言で失効し</b>、配布先の自前ファイルを終了コード0のまま消す</td><td>非0で終わり、1バイトも書かない</td></tr>
+      <tr><td><code>build_into</code> の <code>git ls-files</code></td><td>列挙の失敗が「列挙0件」と区別できず、<code>.gitignore</code> を原因として名指しする誤った案内</td><td>列挙の失敗として名指しする</td></tr>
+      <tr><td><code>convert_agent_to_reply</code> の <code>mapfile</code></td><td>読めないファイルを「frontmatter がありません」と誤診</td><td>「読み取れません」と名指しする</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <ul>
+    <li><b>原因は下の「なぜ set -e では止まらないのか」とまったく同じ</b>で、形だけが違う。
+      <code>setup-gemini-links.sh</code> は <code>func || fail=1</code> という<b>条件式</b>、
+      <code>sync-gemini-assets.sh</code> は <code>while … done &lt; &lt;(cmd)</code> という
+      <b>プロセス置換</b>で、どちらも失敗した事実が呼び出し元へ届かない。</li>
+    <li>1件目は<b>データを消す</b>点で、元の不具合より重い。「必ず失敗する <code>find</code>」を
+      <code>PATH</code> の先頭へ置いて再現し、配布先の自前ファイルが
+      <b>終了コード0のまま消えること</b>を確認した。</li>
+    <li>回帰テストは <code>test_sync_gemini_assets.sh</code> の <b>T18（6件）</b>。
+      <b>修正前の実装に対して6件とも落ちること</b>を先に確認している。</li>
+  </ul>
+  <div class="box">
+    <span class="label">副産物</span>
+    <code>install-to-project.sh</code> の手順7が、<code>sync-gemini-assets.sh</code> を
+    <b>本家のカレントディレクトリのまま</b>呼んでいた（同スクリプトは
+    <code>cd "$(git rev-parse --show-toplevel)"</code> で対象を決めるため、<b>本家の
+    <code>.gemini/</code> を作り直し、配布先には何も作らない</b>）。
+    <code>test_install_to_project.sh</code> の B-7 が検出したので、配布先へ <code>cd</code> して
+    から実行する形へ直し、B-7 に表明を1件足した。
+  </div>
+  <div class="box ok">
+    <span class="label">検証</span>
+    以上を含めた単体テストは <b>18ファイル / <code>passed=1231 failures=0</code></b>。
+  </div>
+
+</section>
 
 <section id="conclusion">
   <h2>結論</h2>

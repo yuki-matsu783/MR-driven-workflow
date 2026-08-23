@@ -1,15 +1,46 @@
 ---
 title: 実装反映の結果（setup-gemini-links.sh の失敗握りつぶし）
 type: report
-description: フェーズ4の【実装反映】として、place_real_copy と sync_real_copy がコピーの失敗を成功として報告する不具合を直した結果
+description: フェーズ4の【実装反映】として失敗握りつぶしを直し、対象ファイルがmainで消えた後はsync-gemini-assets.shへ同じ修正を移植した結果
 tags: [report, 実装反映, shell-script, gemini]
-keywords: [setup-gemini-links, place_real_copy, sync_real_copy, run_or_fail, set -e, 条件式, 終了コード, 回帰テスト, pwd -P]
+keywords: [setup-gemini-links, sync-gemini-assets, place_real_copy, run_or_fail, set -e, 条件式, プロセス置換, 削除ガード, 終了コード, 回帰テスト]
 ---
 
 # 実装反映の結果: `setup-gemini-links.sh` の失敗握りつぶし
 
 flow-id 4-6（`【実装反映】`）。計画は
 `plans/【実装反映】setup-gemini-linksの失敗握りつぶしの修正.md`。
+
+## 追記（2026-08-23）: 対象ファイルが `main` で消え、修正を新スクリプトへ移した
+
+**この節より下は、`main`（PR #157）を取り込む前の記録である。** 取り込みにより
+`setup-gemini-links.sh` は `sync-gemini-assets.sh` へ置き換えられて**削除された**ため、
+下に書いた3つの修正は、そのままでは行き先を失った。
+
+ユーザーの判断は「**新スクリプトへ移植する**」だった（捨てずに、同じ類型の穴が
+`sync-gemini-assets.sh` にも無いかを調べる）。調べた結果、**3件見つかり、すべて同じ形
+（`run_or_fail`）で直した**。
+
+| 移植先の箇所 | 症状 | 直した後 |
+|---|---|---|
+| `list_gemini_removed_files` の `find` | 走査が失敗すると**削除ガードが無言で失効し**、配布先の自前ファイルを終了コード0のまま消す | 非0で終わり、1バイトも書かない |
+| `build_into` の `git ls-files` | 列挙の失敗が「列挙0件」と区別できず、`.gitignore` を原因として名指しする誤った案内 | 列挙の失敗として名指しする |
+| `convert_agent_to_reply` の `mapfile` | 読めないファイルを「frontmatter がありません」と誤診 | 「読み取れません」と名指しする |
+
+- **原因は下の「なぜ `set -e` では止まらないのか」とまったく同じ**で、形だけが違う。
+  `setup-gemini-links.sh` は `func || fail=1` という**条件式**、`sync-gemini-assets.sh` は
+  `while … done < <(cmd)` という**プロセス置換**で、どちらも失敗した事実が呼び出し元へ届かない。
+- 1件目は**データを消す**点で、元の不具合より重い。実際に「必ず失敗する `find`」を
+  `PATH` の先頭へ置いて再現し、配布先の自前ファイルが**終了コード0のまま消えること**を確認した。
+- 回帰テストは `test_sync_gemini_assets.sh` の **T18（6件）**。下と同じやり方で、
+  **修正前の実装に対して6件とも落ちること**を先に確認している。
+- **副産物**: `install-to-project.sh` の手順7が、`sync-gemini-assets.sh` を
+  **本家のカレントディレクトリのまま**呼んでいた（同スクリプトは
+  `cd "$(git rev-parse --show-toplevel)"` で対象を決めるため、**本家の `.gemini/` を作り直し、
+  配布先には何も作らない**）。`test_install_to_project.sh` の B-7 が検出したので、
+  配布先へ `cd` してから実行する形へ直し、B-7 に表明を1件足した。
+
+以上を含めた単体テストは **18ファイル / `passed=1231 failures=0`**。
 
 ## 結論
 
