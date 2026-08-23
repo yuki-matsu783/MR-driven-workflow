@@ -717,21 +717,20 @@ cmd_merge3() {
 
   # 層の判定（フェイルクローズ）: 第一情報源は manifest の .files[].layer（merge/seed の
   # レコードがそのまま入っている）。manifest に無いパスは dist-layers.json の照合で解決する。
-  # どちらの情報源も読めないときは、merge/seed を誤って 3-way してしまう恐れがあるため
-  # 実行せずエラーで止める（無言のスキップは「exit 0=そのまま取り込める」の誤読を招く）
+  # どちらの情報源からも層が確定しないときは、merge/seed を誤って 3-way してしまう恐れが
+  # あるため実行せずエラーで止める（無言のスキップは「exit 0=そのまま取り込める」の誤読を招く）
   local manifest="$dest/$MANIFEST_REL" rel_layer='' manifest_readable=0
   if [ -s "$manifest" ] && jq -e . "$manifest" > /dev/null 2>&1; then
     manifest_readable=1
     rel_layer="$(jq -r --arg p "$rel" '[.files[]? | select(.path == $p) | .layer] | last // ""' "$manifest" | tr -d '\r')"
   fi
+  if [ -z "$rel_layer" ] && load_dest_layers "$dest"; then
+    resolve_layer_to_reply "$rel"
+    rel_layer="$REPLY"
+  fi
   if [ -z "$rel_layer" ]; then
-    if load_dest_layers "$dest"; then
-      resolve_layer_to_reply "$rel"
-      rel_layer="$REPLY"
-    elif [ "$manifest_readable" -ne 1 ]; then
-      printf 'エラー: 層を判定できません（manifest と dist-layers.json のどちらも読めません）。merge/seed 層を誤って 3-way しないため実行を中止します\n' >&2
-      return 3
-    fi
+    printf 'エラー: 層を判定できません（manifest の記録にも dist-layers.json の照合にも %s の層がありません）。merge/seed 層を誤って 3-way しないため実行を中止します\n' "$rel" >&2
+    return 3
   fi
   case "$rel_layer" in
     merge)

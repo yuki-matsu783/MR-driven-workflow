@@ -37,18 +37,19 @@ keywords: [逆輸入, 収穫, asset-manifest, dist-layers, scan, diff, merge3, 3
 bash .claude/skills/harvest-from-projects/scripts/harvest-from-projects.sh scan /path/to/projectA /path/to/projectB
 ```
 
-出力は `{"schemaVersion":1,"targets":[...]}` の JSON 1つ。配布先ごとに:
+出力は `{"schemaVersion":1,"targets":[...]}` の JSON 1つ。**キー一覧・出力条件の正は
+[spec](../../docs/spec/harvest-from-projects.md)「scan の出力スキーマ」**（ここには読み方の
+注意だけを書く。変更時は spec を先に直す）。
 
-- `manifestExists` / `degraded`: manifest（`.claude/.asset-manifest.json`）が無い・壊れている
-  配布先は `degraded: true` の**縮退モード**になり、`files[]` は確定分類ではなく
-  `status: "differs"`（本家HEADとの2-way差分あり）の一覧になる。
-- `sourceCommit` / `sourceCommitDirty` / `baseResolvable` / `baseApproximate`: 3-way の base
-  （配布時点の内容）が解決できたか。`baseApproximate: true` は記録SHAが `-dirty` 付きで、
-  base が配布された内容と一致しない可能性がある（結果は近似として読む）。
-- `files[]`: `status`（modified / added / deleted / removedUpstream。縮退モードでは
-  differs）・`conflict`（clean / conflict / unknown）・判断材料（`aiAssetCommits` /
-  `changeCount`。配布先が git リポジトリでないときは `null`。縮退モードでも配布先が
-  git なら埋まる）・`upstreamHasPath` / `upstreamDeleted`。
+- `degraded: true` は**縮退モード**——manifest（`.claude/.asset-manifest.json`）が無い・
+  壊れている・レコードを1件も読めない、**または配布先の `.claude/dist-layers.json` が
+  読めない**配布先。`files[]` は確定分類ではなく `status: "differs"`（本家HEADとの2-way
+  差分あり）の一覧になる。`manifestExists: true` かつ `degraded: true` の組み合わせは
+  dist-layers.json 側が原因なので、「manifest が壊れている」と決め打ちしない。
+- `baseApproximate: true` は記録SHAが `-dirty` 付きで、base が配布された内容と一致しない
+  可能性がある（結果は近似として読む）。
+- 判断材料（`aiAssetCommits` / `changeCount`）は配布先が git リポジトリでないとき `null`
+  （縮退モードでも配布先が git なら埋まる）。
 - 読めなかった配布先は `{"path":..., "error":...}` になる（他の配布先の結果は返る）。
 
 ### Step 2: 結果を表で提示する
@@ -101,9 +102,8 @@ MCP フォールバック規約に従う）。
 # 2-way 差分（本家HEAD vs 配布先現在。LF正規化後）
 bash .claude/skills/harvest-from-projects/scripts/harvest-from-projects.sh diff /path/to/projectA .claude/rules/x.md
 
-# 3-way マージ結果の事前確認
-# （終了コード: 0=衝突なし/1=衝突あり/2=base取得不可で2-wayへ縮退/
-#   3=エラー（層を判定できない場合のフェイルクローズを含む）/4=対象外（merge層・seed層・dist-layers.json））
+# 3-way マージ結果の事前確認（終了コード5値の正は spec「merge3 の終了コード」。
+# 0 以外はそのまま取り込めない: 1=衝突/2=2-wayへ縮退/3=エラー（フェイルクローズ含む）/4=対象外）
 bash .claude/skills/harvest-from-projects/scripts/harvest-from-projects.sh merge3 /path/to/projectA .claude/rules/x.md
 ```
 
@@ -138,9 +138,9 @@ issue 本文は標準4見出し（目的・現状・期待する動作・受け�
 - **`.claude/dist-layers.json` も 3-way の対象外**（`del(.upstream)` を掛けた内容が配布される
   ため）。`diff` は本家側へ同じ変換を掛けてから比較する。
 - **seed 層（`AGENTS.md` / `HANDOFF.md` / `index.md` / `REVIEW-POINTS.local.md` 等）も 3-way の
-  対象外**（配布元は別パスの雛形で、base が本家の履歴に無い）。層を判定できない配布先
-  （manifest も dist-layers.json も読めない）では `merge3` は実行されず終了コード 3 で止まる
-  （フェイルクローズ）。
+  対象外**（配布元は別パスの雛形で、base が本家の履歴に無い）。層を判定できないパス
+  （manifest の記録にも dist-layers.json の照合にも層が無い。両方が読めない場合を含む）では
+  `merge3` は実行されず終了コード 3 で止まる（フェイルクローズ）。
 - 仕様の詳細（分類規則・縮退条件・終了コード）は
   [.claude/docs/spec/harvest-from-projects.md](../../docs/spec/harvest-from-projects.md) が正
   （経緯・却下案は DDR `i0027-01`・`i0027-02`）。

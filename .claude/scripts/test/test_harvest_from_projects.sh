@@ -410,6 +410,16 @@ bash "$SCRIPT" --upstream "$UP" merge3 "$H" .claude/rules/a.md > "$m_out" 2> "$m
 assert_eq 'T21: 層を判定できないときは exit 3（無言で 3-way しない）' '3' "$rc"
 assert_contains 'T21: stderr に理由が出る' '層を判定できません' "$(cat "$m_err")"
 
+# T21b: manifest は読めるが当該パスの記録が無く、dist-layers.json も無い場合も exit 3
+# （敵対的レビュー6回目の指摘: 以前は層未確定のまま 3-way が走り exit 0 を返していた）
+printf '{"schemaVersion":1,"source":{"commit":"%s"},"files":[{"path":"other.md","layer":"core"}]}\n' \
+  "$BASE_SHA" > "$H/.claude/.asset-manifest.json"
+rc=0
+bash "$SCRIPT" --upstream "$UP" merge3 "$H" .claude/rules/a.md > "$m_out" 2> "$m_err" || rc=$?
+assert_eq 'T21b: manifest 未記録＋dist-layers 無しでも exit 3（層未確定で 3-way しない）' '3' "$rc"
+assert_contains 'T21b: stderr に理由が出る' '層を判定できません' "$(cat "$m_err")"
+rm -f "$H/.claude/.asset-manifest.json"
+
 rc=0
 bash "$SCRIPT" --upstream "$UP" merge3 "$A" .claude/rules/nope.md > "$m_out" 2> "$m_err" || rc=$?
 assert_eq 'T14: 存在しない相対パスは exit 3' '3' "$rc"

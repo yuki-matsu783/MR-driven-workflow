@@ -25,7 +25,18 @@ keywords: [設計反映, AIアセット反映, harvest-from-projects, i0027-01, 
 | `.claude/skills/harvest-from-projects/SKILL.md` | 変更 | 「制約」節の予告文（未来形）を新設 spec への実リンクへ差し替え |
 | `.claude/VERSION` | 変更 | `0.3.0` → `0.4.0`（MINOR。非対話適用。記録は spec changelog と HANDOFF の両方） |
 | `.claude/rules/shell-script-style.md` | 変更 | 「エラー方針」の理由付けを2機構へ書き分け・推奨パターンを2形（出力を捨てる形／受け取る形）へ差し替え・従来パターンの制約明記・「テスト」節の `"$(func; echo $?)"` の理由付け訂正（結論は維持） |
-| `HANDOFF.md` | 変更 | 「判断を迷った内容」へ VERSION 適用の事実と根拠を追記 |
+| `HANDOFF.md` | 変更 | 「判断を迷った内容」へ VERSION 適用の事実と根拠を追記。ヘッダの「現在のループ」を 4-6〜4-9 の1周目へ |
+
+### 敵対的レビュー6回目（フェーズ4・対象=反映一式）の反映で追加した変更
+
+| ファイル | 操作 | 内容 |
+|---|---|---|
+| `.claude/skills/harvest-from-projects/scripts/harvest-from-projects.sh` | 変更 | merge3 の層判定フェイルクローズの穴を修正——manifest は読めるが当該パスの記録が無く dist-layers.json でも解決できない場合、従来は層未確定のまま 3-way が走り exit 0 を返していた。層が確定しなければ exit 3 で止める形へ |
+| `.claude/scripts/test/test_harvest_from_projects.sh` | 変更 | 上記を固定する T21b を追加（89→91 アサーション） |
+| `.claude/docs/spec/shell-scripts.md` | 変更 | 「設計方針」の try/catch 節に残っていた旧前提（フォークされた側では set -e が正しく機能する）を2機構の書き分けへ訂正し、規約・DDR へのリンクに寄せた |
+| `.claude/REVIEW-POINTS.md` | 変更 | 「スクリプトの作法」の観点を、旧パターンを合格にする記述から「フォークされる側の内側で set -e を掛け直しているか」へ書き換え |
+| `.claude/docs/spec/harvest-from-projects.md` | 変更 | 縮退条件へ dist-layers.json 不読を追加・スキーマ表の条件付きキー明記・removedUpstream と upstreamDeleted の情報源分離・conflict 判定の dist-layers 除外・git 起動の cat-file/ls-files 追記・`--upstream`/`-h` の記載・フェイルクローズの境界明記 |
+| `.claude/skills/harvest-from-projects/SKILL.md` | 変更 | スキーマ・終了コードの重複を spec へのリンクへ置き換え（正を1箇所へ）。縮退条件・フェイルクローズの説明を spec・実装と同じ粒度へ |
 
 ## 実施の要点
 
@@ -38,8 +49,12 @@ keywords: [設計反映, AIアセット反映, harvest-from-projects, i0027-01, 
   分けて記録した。却下案は `shopt -s inherit_errexit` 常時オン（bash 4.4 未満不可・副作用が
   広い・機構1に効かない）・`set -E`＋`trap ERR`・個別検査の3つ。
 - **shell-script-style.md の訂正**は、`"$(func; echo $?)"` を使わないという「テスト」節の
-  結論を維持したまま理由付けだけを差し替え、同一ファイル内で「継承する／しない」が並立しない
-  ことを確認した（`grep -n '引き継ぐ'` で旧記述の残存が無いことを確認）。
+  結論を維持したまま理由付けだけを差し替えた。旧前提の残存確認は、当初「同一ファイル内・
+  単語1つの grep」で済ませており、**リポジトリ横断では2箇所（`spec/shell-scripts.md` の
+  設計方針節・`.claude/REVIEW-POINTS.md` のスクリプト作法）が残っていた**（敵対的レビュー
+  6回目の指摘）。両方を2機構の書き分けへ訂正したうえで、検証を「旧前提の語
+  （`フォークされた側では`・`コマンド置換または明示サブシェル`等）のリポジトリ横断 grep ＋
+  全ヒットの仕分け」へ改めた（下記「検証の記録」8）。
 - 新規正史ドキュメントでは、ベースブランチ（main）側で再配置済みのタスク単位ディレクトリの
   具体名への言及を避けた（計画の前提「ベースブランチの遅れ」の制約(1)）。
 
@@ -62,6 +77,15 @@ keywords: [設計反映, AIアセット反映, harvest-from-projects, i0027-01, 
    (3) `out="$(f)"` → `R2`・`after`・exit=0／(4) `set +e; ( set -e; f ); rc=$?` → rc=1／
    (5) `set +e; out="$(set -e; f)"; rc=$?` → rc=1・out 空。
 7. **制御文字混入なし**（合格）: 新規・変更6ファイルの `tr -d '\037\000'` 前後のバイト数が一致。
+8. **旧前提の残存ゼロ**（合格。敵対的レビュー6回目の反映で追加）: 旧前提の語
+   （`フォークされた側では`・`コマンド置換または明示サブシェル`・`フォークされたサブシェルの
+   内部では`）をタスク成果物・生成物を除く全 md へ grep。ヒットは `spec/shell-scripts.md` と
+   DDR `i0027-02` の各1箇所のみで、いずれも**旧主張を引用して否定する訂正済みの文**。規範
+   （合格基準・推奨）として旧前提を述べる記述は 0 件。`引き継ぐ`/`継承` の他のヒット
+   （issue-mr-workflow.md 等）は作業引き継ぎ・トークン集計等の無関係な用法であることを
+   目視で仕分けた。
+9. **単体テスト再実行**（合格）: `test_harvest_from_projects.sh` が T21b 込みで
+   `passed=91 failures=0`。
 
 ## 確かめられなかったこと
 

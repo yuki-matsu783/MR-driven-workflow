@@ -29,9 +29,10 @@ issue #27。`apply-mr-workflow-to-project` スキル（配布。issue #26 の ma
 ### サブコマンド
 
 ```bash
-bash .claude/skills/harvest-from-projects/scripts/harvest-from-projects.sh scan <配布先パス>...
-bash .claude/skills/harvest-from-projects/scripts/harvest-from-projects.sh diff <配布先パス> <相対パス>
-bash .claude/skills/harvest-from-projects/scripts/harvest-from-projects.sh merge3 <配布先パス> <相対パス>
+bash .claude/skills/harvest-from-projects/scripts/harvest-from-projects.sh [--upstream <dir>] scan <配布先パス>...
+bash .claude/skills/harvest-from-projects/scripts/harvest-from-projects.sh [--upstream <dir>] diff <配布先パス> <相対パス>
+bash .claude/skills/harvest-from-projects/scripts/harvest-from-projects.sh [--upstream <dir>] merge3 <配布先パス> <相対パス>
+bash .claude/skills/harvest-from-projects/scripts/harvest-from-projects.sh -h|--help
 ```
 
 ### scan の出力スキーマ
@@ -42,15 +43,21 @@ bash .claude/skills/harvest-from-projects/scripts/harvest-from-projects.sh merge
 |---|---|
 | `path` | 配布先パス |
 | `manifestExists` / `degraded` | manifest（`.claude/.asset-manifest.json`）の有無と縮退モードか |
-| `sourceCommit` / `sourceCommitDirty` | manifest が記録する配布元コミットSHAと `-dirty` 付きだったか |
-| `baseResolvable` / `baseApproximate` | 3-way の base（配布時点の内容）を本家履歴から解決できたか。`baseApproximate: true` は `-dirty` 付き記録SHAから `-dirty` を落として解決した近似 |
+| `sourceCommit` / `sourceCommitDirty` | manifest が記録する配布元コミットSHAと `-dirty` 付きだったか。**縮退モードでは出力されない** |
+| `baseResolvable` / `baseApproximate` | 3-way の base（配布時点の内容）を本家履歴から解決できたか。`baseApproximate: true` は `-dirty` 付き記録SHAから `-dirty` を落として解決した近似。**縮退モードでは出力されない** |
 | `files[]` | 下記レコード |
 | `error` | 読めなかった配布先はこのキーを持つレコードになる（**配布先単位のエラー隔離**。他の配布先の結果は返る） |
 
-`files[]` の各レコード: `path`・`layer`・`status`（modified / added / deleted /
-removedUpstream。縮退モードでは differs）・`conflict`（clean / conflict / unknown）・
-判断材料（`aiAssetCommits` / `changeCount`。配布先が git リポジトリでないときは `null`）・
-`upstreamHasPath` / `upstreamDeleted`。
+`files[]` の各レコード:
+
+- `path`・`layer`・`status`（modified / added / deleted / removedUpstream。縮退モードでは
+  differs）。
+- `conflict`（clean / conflict / unknown）は **core / merge 層の modified レコードにだけ現れる**
+  （added / deleted / removedUpstream / differs にはキー自体が無い。`.conflict` で分岐する
+  後段は null を「衝突なし」と読まないこと）。
+- 判断材料 `aiAssetCommits` / `changeCount`（配布先が git リポジトリでないときは `null`）。
+- `upstreamHasPath`（そのパスが本家HEADに存在するか）・`upstreamDeleted`（本家の履歴上で
+  一度でも削除・改名された痕跡があるか。deleted / removedUpstream の判断材料）。
 
 ### 分類規則
 
@@ -60,8 +67,10 @@ removedUpstream。縮退モードでは differs）・`conflict`（clean / confli
   落ちるため）。
 - **deleted / removedUpstream**: core/merge 層限定。配布先から消えたファイルのうち、
   **本家HEADにも無いものは `removedUpstream`**（本家でも削除済み＝収穫対象外の別枠）として
-  status 値ごと分ける。本家の削除履歴は `git log --no-renames --diff-filter=D --name-only`
-  1回で取得する（`--no-renames` により改名の旧パスも D として拾う）。
+  status 値ごと分ける。**この判定の情報源は本家HEADのパス集合（`git ls-tree -r HEAD`）**である。
+- **`upstreamDeleted`（判断材料）**: 本家の履歴上で一度でも削除・改名された痕跡があるかを表す
+  別キー。情報源は `git log --no-renames --diff-filter=D --name-only` 1回（`--no-renames` に
+  より改名の旧パスも D として拾う）。removedUpstream の判定には使わない（混同しないこと）。
 - **added**: 3段の除外を通ったものだけを候補にする——(1) 配布先の dist-layers.json
   （`del(.upstream)` 済み）による自前 pathspec 照合（完全一致＋ディレクトリ前方一致・後勝ち）で
   core に解決されるパスに限定、(2) gitignorePattern 照合（自前サブセット実装のみ。
@@ -77,15 +86,23 @@ removedUpstream。縮退モードでは differs）・`conflict`（clean / confli
   `baseApproximate: true` を立てる（一律 unknown にしない。結果は近似として読む）。
 - `conflict: unknown` は「衝突が無い」ではなく「判定できない」（merge 層・base 未解決・
   merge-file のエラー）。
+- **`.claude/dist-layers.json` は（merge3 と同じ理由で）scan の 3-way 事前判定も行わず、
+  modified でも常に unknown になる**（`del(.upstream)` 済みの内容が配布されるため base が
+  成立しない。merge3 側では 4=対象外として明示される挙動）。
 
 ### 縮退モード（degraded）
 
-manifest が無い・壊れている・レコードを1件も読めない配布先は縮退モードになり、`files[]` は
-確定分類ではなく `status: "differs"`（本家HEADとの2-way差分あり）の一覧になる。
+**manifest が無い・壊れている・レコードを1件も読めない配布先、または配布先の
+`.claude/dist-layers.json` が読めない（欠落・不正JSON・path エントリ0件）配布先**は
+縮退モードになり、`files[]` は確定分類ではなく `status: "differs"`（本家HEADとの2-way差分
+あり）の一覧になる。
 
 - manifest の検証は `[ -s ]` → `jq -e '(.schemaVersion == 1) and ((.files | length) > 0)'` の
   順で行う。**妥当な JSON でも `.files` が空なら縮退へ倒す**（通常経路へ進むと added 判定が
   全件素通りし、配布先の全ファイルを added と誤報するため）。
+- dist-layers.json 不読も縮退条件であるため、**`manifestExists: true` かつ `degraded: true`
+  という組み合わせが起きうる**。この場合の原因は manifest ではなく dist-layers.json 側であり、
+  復旧案内を「manifest が壊れています」と決め打ちしないこと。
 - 縮退モードのレコードも通常経路と同じ生成関数を通し、**配布先が git なら判断材料
   （`aiAssetCommits` / `changeCount`）が通常経路と同じに埋まる**。
 - 本家HEADの展開は `git archive | tar -x` 1回で行い、**パイプラインの終了コードと展開結果の
@@ -102,8 +119,10 @@ manifest が無い・壊れている・レコードを1件も読めない配布�
 | 4 | 3-way の対象外（merge 層・seed 層・`.claude/dist-layers.json`） |
 
 - 層の判定は **manifest の `.files[].layer` を第一情報源**にし、無ければ配布先の
-  dist-layers.json の照合で解決する。どちらも読めなければ実行せず 3 で止める
-  （無言のスキップは「exit 0=そのまま取り込める」の誤読を招くため）。
+  dist-layers.json の照合で解決する。**どちらの情報源からも層が確定しなければ**（両方が
+  読めない場合に加え、manifest に当該パスの記録が無く dist-layers.json でも解決できない
+  場合を含む）実行せず 3 で止める（無言のスキップは「exit 0=そのまま取り込める」の誤読を
+  招くため）。
 - merge 層（`.gitignore` / `.gitattributes` / `.claude/settings.json`）は配布直後の内容が
   本家のどのコミットにも存在しないため base が成立しない。seed 層は配布元が別パスの雛形。
   `.claude/dist-layers.json` は `del(.upstream)` を掛けた内容が配布される（`diff` は本家側へ
@@ -122,7 +141,9 @@ manifest が無い・壊れている・レコードを1件も読めない配布�
 削除履歴は `log --no-renames --diff-filter=D --name-only`・配布先の判断材料は
 `log --format='%x01%s' --name-only` を awk で畳み込み・縮退モードの本家HEAD展開は
 `git archive | tar -x`。ファイル数に比例する起動は「core かつ modified」に限定した
-`git show`（base/ours の実体化）と `git merge-file` のみ。
+`git show`（base/ours の実体化。1回の実体化につき存在確認の `git cat-file -e` も1起動伴う）と
+`git merge-file` のみ。このほか縮退モードでは、dist-layers.json のエントリ数に比例する
+`git ls-files` の起動がある（ファイル数には比例しない）。
 **2本の `git log` には `-c core.quotepath=false` を付ける**（無いと非ASCIIパスが8進
 エスケープでクォートされ、実パスとの突き合わせが全件空振りする）。
 
@@ -157,8 +178,13 @@ manifest が無い・壊れている・レコードを1件も読めない配布�
 
 ## 設定項目
 
-なし（配布先パスは実行時引数で受け取る。本家側の層定義は `.claude/dist-layers.json`、
-配布先側の判定材料は配布先の `.claude/.asset-manifest.json` と dist-layers.json をそのまま読む）。
+- `--upstream <dir>`: 本家リポジトリのルートを差し替える（既定はスクリプト自身の位置から
+  導出した本家ルート。単体テストが合成フィクスチャを指すのに使う）。ディレクトリとして
+  移動できない値を渡すと `set -e` により即時エラー終了する（終了コード表の 0〜4 とは別）。
+- `-h` / `--help`: usage（3サブコマンドの書式）を表示して終了する。
+- そのほかの設定ファイルは持たない（配布先パスは実行時引数で受け取る。本家側の層定義は
+  `.claude/dist-layers.json`、配布先側の判定材料は配布先の `.claude/.asset-manifest.json` と
+  dist-layers.json をそのまま読む）。
 
 ## 未決定事項・懸念点
 

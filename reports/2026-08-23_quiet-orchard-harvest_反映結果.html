@@ -71,12 +71,12 @@
   <div class="inner">
     <div class="kind">反映結果 / フェーズ4（flow-id 4-6）</div>
     <h1>収穫スキルの正史反映とエラー方針の規約訂正 — issue #27</h1>
-    <p class="lead">個別反映計画2本（敵対的レビュー5回目反映済み）に基づき、spec/DDR/usecase の新規作成・README・directory-structure・SKILL.md・VERSION 増分・shell-script-style の訂正を実施した。検証7種すべて合格。</p>
+    <p class="lead">個別反映計画2本（敵対的レビュー5回目反映済み）に基づき、spec/DDR/usecase の新規作成・README・directory-structure・SKILL.md・VERSION 増分・shell-script-style の訂正を実施した。敵対的レビュー6回目（対象=反映一式）の指摘14件も反映済み（merge3 フェイルクローズの穴の実装修正・旧前提の残存2箇所の訂正を含む）。検証9種すべて合格。</p>
     <ul class="meta">
       <li><b>issue</b> #27</li>
       <li><b>PR</b> #189</li>
       <li><b>実施日</b> 2026-08-23</li>
-      <li><b>検証</b> <span class="pill ok">7/7 合格</span></li>
+      <li><b>検証</b> <span class="pill ok">9/9 合格</span></li>
       <li><b>正文</b> 同名の .md</li>
     </ul>
   </div>
@@ -99,7 +99,21 @@
       <tr><td><code>.claude/skills/harvest-from-projects/SKILL.md</code></td><td>変更</td><td>「制約」節の予告文（未来形）を新設 spec への実リンクへ差し替え</td></tr>
       <tr><td><code>.claude/VERSION</code></td><td>変更</td><td>0.3.0 → 0.4.0（MINOR。非対話適用。記録は spec changelog と HANDOFF の両方）</td></tr>
       <tr><td><code>.claude/rules/shell-script-style.md</code></td><td>変更</td><td>「エラー方針」を2機構へ書き分け・推奨パターン2形へ差し替え・従来パターンの制約明記・「テスト」節の理由付け訂正（結論は維持）</td></tr>
-      <tr><td><code>HANDOFF.md</code></td><td>変更</td><td>「判断を迷った内容」へ VERSION 適用の事実と根拠を追記</td></tr>
+      <tr><td><code>HANDOFF.md</code></td><td>変更</td><td>「判断を迷った内容」へ VERSION 適用の事実と根拠を追記。ヘッダの「現在のループ」を 4-6〜4-9 の1周目へ</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <h2>敵対的レビュー6回目の反映で追加した変更</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>ファイル</th><th>操作</th><th>内容</th></tr></thead>
+    <tbody>
+      <tr><td><code>…/scripts/harvest-from-projects.sh</code></td><td>変更</td><td>merge3 の層判定フェイルクローズの穴を修正（manifest 未記録＋dist-layers 不読で層未確定のまま 3-way が走り exit 0 になっていた → 層が確定しなければ exit 3）</td></tr>
+      <tr><td><code>…/test_harvest_from_projects.sh</code></td><td>変更</td><td>T21b を追加（89→91 アサーション）</td></tr>
+      <tr><td><code>.claude/docs/spec/shell-scripts.md</code></td><td>変更</td><td>設計方針の try/catch 節に残っていた旧前提を2機構の書き分けへ訂正</td></tr>
+      <tr><td><code>.claude/REVIEW-POINTS.md</code></td><td>変更</td><td>スクリプト作法の観点を「フォークされる側の内側で set -e を掛け直しているか」へ書き換え</td></tr>
+      <tr><td><code>.claude/docs/spec/harvest-from-projects.md</code></td><td>変更</td><td>縮退条件へ dist-layers 不読を追加・条件付きキー明記・removedUpstream/upstreamDeleted の情報源分離・conflict 判定の dist-layers 除外・git 起動の記述訂正・--upstream/-h 記載・フェイルクローズの境界明記</td></tr>
+      <tr><td><code>…/SKILL.md</code></td><td>変更</td><td>スキーマ・終了コードの重複を spec へのリンクへ置き換え（正を1箇所へ）・縮退条件を spec と同じ粒度へ</td></tr>
     </tbody>
   </table>
   </div>
@@ -110,13 +124,13 @@
   <ul>
     <li><b>spec の影響範囲</b>: スキル本体は exclude 層だが、spec/DDR/usecase/README/rules の変更分は <code>.claude</code> の core エントリに包含されすべて配布対象。exclude スキルの spec/DDR を core で配ることを許容する明示判断を記載。</li>
     <li><b>i0027-02</b>: 実測（bash 5.2.21）の再現コマンド3つを本文に持ち、機構1（明示サブシェルは -e を継承するが条件文脈で一時停止が内側へ伝播）と機構2（コマンド置換は inherit_errexit 既定オフのため継承しない）を分けて記録。却下案は inherit_errexit 常時オン・set -E＋trap ERR・個別検査の3つ。</li>
-    <li><b>shell-script-style.md</b>: 「テスト」節の結論（<code>"$(func; echo $?)"</code> を使わない）は維持し理由付けだけ差し替え。同一ファイル内で「継承する／しない」が並立しないことを確認。</li>
+    <li><b>shell-script-style.md</b>: 「テスト」節の結論（<code>"$(func; echo $?)"</code> を使わない）は維持し理由付けだけ差し替え。旧前提の残存はリポジトリ横断 grep で仕分け——規範として述べる記述は 0 件（残っていた spec/shell-scripts.md と REVIEW-POINTS.md の2箇所はレビュー6回目の反映で訂正済み）。</li>
     <li>新規正史ドキュメントでは、main 側で再配置済みのタスク単位ディレクトリの具体名への言及を避けた（ベースブランチの遅れの制約）。</li>
   </ul>
 </section>
 
 <section id="verify">
-  <h2>検証の記録（7種すべて合格）</h2>
+  <h2>検証の記録（9種すべて合格）</h2>
   <ol>
     <li><b>frontmatter インデックス問い合わせ</b>: spec / DDR 2本 / usecase の4件すべて <code>jq -e</code> が true。</li>
     <li><b>DDR一覧の冪等性</b>: 生成→ステージ→再生成で <code>git diff --exit-code</code> が 0（87件）。</li>
@@ -125,6 +139,8 @@
     <li><b>README の行</b>: 新規 spec・usecase の grep が各1以上。</li>
     <li><b>errexit 5ケースの再実測</b>: (1) REACHED・rc=0／(2) 無出力・exit=1／(3) R2・after・exit=0／(4) rc=1／(5) rc=1・out 空——訂正後の規約本文と全ケース一致。</li>
     <li><b>制御文字混入なし</b>: 新規・変更6ファイルの <code>tr -d '\037\000'</code> 前後のバイト数が一致。</li>
+    <li><b>旧前提の残存ゼロ</b>: 旧前提の語をリポジトリ横断で grep。ヒットは訂正済みの引用2箇所のみで、規範として述べる記述は 0 件（他の「引き継ぐ／継承」ヒットは無関係な用法と仕分け済み）。</li>
+    <li><b>単体テスト再実行</b>: T21b 込みで <code>passed=91 failures=0</code>。</li>
   </ol>
 </section>
 

@@ -72,7 +72,8 @@ issue #6でリポジトリ内の開発補助スクリプトを全てPowerShell�
     `.claude/hooks/post-push-usage-report.sh` の `main`）はこの制約に照らした見直し候補である
     （必要になった時点で別issueで扱う）。
   - 実例: `.claude/skills/harvest-from-projects/scripts/harvest-from-projects.sh` の `cmd_scan`
-    （配布先単位のエラー隔離）。
+    （配布先単位のエラー隔離。**本家専用スキルのため配布先にはこのファイルは存在しない**——
+    配布先では上記のコード例2形を直接参照すること）。
 
 ## JSON操作
 

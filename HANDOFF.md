@@ -17,9 +17,9 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - issue: #27 他プロジェクトで改善されたAIアセットを本家へ収穫（逆輸入）するスキルを新設する
 - ブランチ: claude/ai-asset-reverse-import-skill-g4qa9s
 - PR: #189 https://github.com/yuki-matsu783/MR-driven-workflow/pull/189（Draft）
-- push回数: 11
-- 現在のループ: なし
-- 未返信スレッド: 0
+- push回数: 12
+- 現在のループ: 4-6〜4-9 の1周目（進行中）
+- 未返信スレッド: 12
 - 追従監視: なし
 
 | 進捗 | flow-id | ステップ | 担当 |
@@ -154,6 +154,14 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
   差し替え、VERSION 0.3.0→0.4.0（MINOR・非対話適用）、shell-script-style.md「エラー方針」
   「テスト」節の訂正（2機構の書き分け・推奨パターン2形）。検証7種すべて合格。結果は
   `reports/2026-08-23_quiet-orchard-harvest_反映結果.md`（＋.html）。
+- 敵対的レビュー6回目（フェーズ4・対象=反映一式。カウンタ 2/3）を実施。findings 14件の
+  うち12件をインライン投稿（PR diff 外の spec/shell-scripts.md と REVIEW-POINTS.md の
+  2件はサマリで報告）、修正は14件すべて反映した——merge3 の層判定フェイルクローズの穴を
+  実装修正（manifest 未記録＋dist-layers 不読で exit 0 になっていた → 層未確定なら exit 3。
+  T21b 追加で passed=91）・旧前提の残存2箇所（spec/shell-scripts.md・REVIEW-POINTS.md）を
+  2機構の書き分けへ訂正・spec の実装との齟齬7点を訂正・SKILL.md の重複を spec への
+  リンクへ置き換え・レポートの検証をリポジトリ横断 grep（検証9種）へ更新・HANDOFF の
+  ループヘッダを 4-6〜4-9 の1周目へ。
 
 ## 次にやること
 
