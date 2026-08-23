@@ -1,0 +1,124 @@
+<!--
+  個別反映計画「【AIアセット反映】種別定義と配布資産一覧の追記」（issue #170）の
+  人間レビュー用HTMLビュー。正文は同名の .md。
+-->
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>【AIアセット反映】種別定義と配布資産一覧の追記 — issue #170</title>
+<style>
+  :root {
+    --bg: #f6f7f9;      --panel: #ffffff;   --ink: #1a1d21;     --muted: #5b636d;
+    --line: #dfe3e8;    --accent: #2563eb;  --accent-soft: #eaf0fe;
+    --ok: #1a7f4b;      --ok-soft: #e6f4ec; --warn: #a35a00;    --warn-soft: #fdf1e0;
+    --stop: #b3261e;    --stop-soft: #fdecea; --code-bg: #f0f2f5;
+    --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1216;    --panel: #161a20;   --ink: #e6e8eb;     --muted: #9aa3ad;
+      --line: #2a3038;  --accent: #7aa2f7;  --accent-soft: #1b2333;
+      --ok: #6ee7a8;    --ok-soft: #14261d; --warn: #f0b866;    --warn-soft: #2a2113;
+      --stop: #f2857c;  --stop-soft: #2b1614; --code-bg: #1d222a;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", system-ui, sans-serif;
+    line-height: 1.8; font-size: 15px; }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 20px 80px; }
+  header.band { background: linear-gradient(135deg, var(--accent-soft), var(--panel));
+    border-bottom: 1px solid var(--line); padding: 28px 20px 22px; margin-bottom: 28px; }
+  header.band .inner { max-width: 1080px; margin: 0 auto; }
+  header.band .kind { font-size: 11px; letter-spacing: .18em; color: var(--accent); font-weight: 700; }
+  header.band h1 { margin: 6px 0 4px; font-size: 26px; line-height: 1.4; }
+  header.band .lead { margin: 0; color: var(--muted); }
+  .meta { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; padding: 0; list-style: none; }
+  .meta li { background: var(--panel); border: 1px solid var(--line); border-radius: 999px;
+    padding: 3px 12px; font-size: 12.5px; color: var(--muted); white-space: nowrap; }
+  .meta li b { color: var(--ink); font-weight: 600; }
+  a { color: var(--accent); }
+  section { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 8px 24px 22px; margin-bottom: 22px; }
+  h2 { font-size: 20px; margin: 20px 0 10px; padding-bottom: 8px; border-bottom: 2px solid var(--line); }
+  p { margin: 10px 0; }
+  ul, ol { padding-left: 22px; }
+  li { margin: 4px 0; }
+  code { background: var(--code-bg); border-radius: 5px; padding: 1px 5px; font-size: 13px;
+    font-family: "SFMono-Regular", Consolas, "Noto Sans Mono", monospace; }
+  pre { background: var(--code-bg); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 12px 14px; overflow-x: auto; font-size: 13px; line-height: 1.65; }
+  pre code { background: none; padding: 0; }
+  .box { border-left: 4px solid var(--accent); background: var(--accent-soft);
+         border-radius: 0 var(--radius) var(--radius) 0; padding: 12px 16px; margin: 16px 0; }
+  .box > :first-child { margin-top: 0; } .box > :last-child { margin-bottom: 0; }
+  .box .label { font-size: 12px; font-weight: 700; letter-spacing: .06em; display: block; margin-bottom: 4px; }
+  .box.stop { border-color: var(--stop); background: var(--stop-soft); } .box.stop .label { color: var(--stop); }
+  footer { color: var(--muted); font-size: 13px; text-align: center; padding-top: 10px; }
+</style>
+</head>
+<body>
+
+<header class="band">
+  <div class="inner">
+    <div class="kind">個別反映計画 / フェーズ4（flow-id 4-1）</div>
+    <h1>【AIアセット反映】種別定義と配布資産一覧の追記</h1>
+    <p class="lead">SKILL.mdの【AIアセット作成】種別定義へ設計ドキュメントを明記し、導入スキルの資産一覧へ .claude/docs/ を明記する。VERSION増分は提案のみ（決定は人間）。</p>
+    <ul class="meta">
+      <li><b>issue</b> #170</li>
+      <li><b>PR</b> #173（Draft）</li>
+      <li><b>フェーズ</b> 4〈反映〉 flow-id 4-1</li>
+      <li><b>作成日</b> 2026-08-23</li>
+      <li><b>正文</b> 同名の .md</li>
+    </ul>
+  </div>
+</header>
+
+<div class="wrap">
+
+<section id="premise">
+  <h2>前提（合意状況）</h2>
+  <ul>
+    <li>依拠する結果: フェーズ2敵対的レビューの報告のみ指摘（種別根拠）・フェーズ3敵対的レビューの指摘（配布範囲の「正」の逸脱・VERSION受け皿欠落）。</li>
+    <li>上位の全体作業計画は flow-id 1-5 未合意のまま先行中。</li>
+  </ul>
+</section>
+
+<section id="target">
+  <h2>反映対象（洗い出しの結果）</h2>
+  <ol>
+    <li><b>種別定義への追記</b>: issue-mr-flow SKILL.md「計画の2階層構造」の <code>【AIアセット作成】</code> 定義へ、設計ドキュメント（usecase文書等）の新規作成・改訂も含まれることを明記。</li>
+    <li><b>導入スキルの資産一覧への明記</b>: apply-mr-workflow-to-project SKILL.md の適用資産へ、<code>.claude/docs/</code>（spec・ddr・usecase）が丸ごとコピーに含まれることを明記（フェーズ3レビューへの返信で約束した対応）。</li>
+    <li><b><code>.claude/VERSION</code> の増分</b>: <code>0.2.0</code> → <code>0.3.0</code>（MINOR: 資産の追加）を<b>提案する</b>。決定は人間の担当のため、非対話セッションでは書き換えを実施せず、最終応答とHANDOFF「未解決の内容」へ記録する。</li>
+  </ol>
+</section>
+
+<section id="out-of-scope">
+  <h2>やらないこと（スコープ外）</h2>
+  <div class="box stop">
+    <span class="label">この計画では触らない</span>
+    <ul>
+      <li><code>.claude/VERSION</code> の書き換え（人間の決裁事項）</li>
+      <li><code>.gemini/</code> 配下の手動更新（flow-id 5-3 の変換同期が正）</li>
+    </ul>
+  </div>
+</section>
+
+<section id="verify">
+  <h2>検証</h2>
+  <pre><code># 1. 種別定義に設計ドキュメントへの言及（出力1以上で合格。実施前0を確認済み。
+#    汎用語「設計ドキュメント」は既出1件があり空振り合格するため使わない）
+grep -c '設計ドキュメント（usecase' .claude/skills/issue-mr-flow/SKILL.md
+# 2. 導入スキルにusecaseを含む設計ドキュメントへの言及（出力1以上で合格。実施前0を確認済み）
+grep -c 'usecase' .claude/skills/apply-mr-workflow-to-project/SKILL.md
+# 3. VERSIONが書き換わっていない（0.2.0 のままで合格。2026-08-23実測）
+cat .claude/VERSION</code></pre>
+</section>
+
+<footer>issue #170 / PR #173 — 計画の正文は同名の <code>.md</code>。外部依存を持たない自己完結HTML。</footer>
+
+</div>
+</body>
+</html>
