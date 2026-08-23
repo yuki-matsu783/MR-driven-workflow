@@ -213,6 +213,29 @@ issue #26 以前は本家の `AGENTS.md` 全文（共通ルールを含む）を
 
 実測で、配布1回あたりの外部コマンド起動は **1208回 → 176回**になった。
 
+## 移行（本家の配置場所が変わった場合）
+
+本家（配布元）が `core` 層のファイル・ディレクトリを**改名・移動**した場合、既にこの機構を
+導入済みの配布先は自動では追従しない。`install-to-project.sh` は「本家から消えたファイルを
+配布先から削除しない」設計（上記「インストーラの2パス構成」）であり、かつ次回実行時に
+提示される「削除・改名されたファイルの一覧」は**前回のmanifestとの突き合わせ**で決まるため、
+manifestを持たない旧方式の配布先には提示されない。配布先が手動で追従する必要がある手順は
+次のとおり。
+
+1. **新パスの `core` ファイルが配布されることを確認する。** 次回 `install-to-project.sh` 実行で、
+   新パス配下の `core` エントリ（改名先のディレクトリ・ファイル）が新規追加として提示される。
+2. **`.mrworkflow.json` を手動で更新する。** このファイルは `seed` 層（配布先所有・上書きしない）
+   のため、旧パスを指す設定キー（例: ディレクトリ位置を持つキー）は自動では変わらない。
+3. **`.claude/settings.json` の該当設定も手動で更新する。** `merge` / `json-keys` 層で
+   マージ対象になっている `keys`（本リポジトリでは `hooks` と `permissions.deny` のみ）以外の
+   キーは配布先所有のため、本家の変更が自動では反映されない。
+4. **配布先に残る旧パスのファイル・ディレクトリを、手動で `git mv` するか削除するか判断する。**
+   `install-to-project.sh` は本家で消えたファイルを配布先から削除しないため、旧パス配下に
+   残った実体（配布先が作成したタスク単位のドキュメント等）は配布先の判断で移行・削除する。
+
+**この移行手順は「改名・移動が起きるたびに毎回発生する」恒久的な運用である。** 個別の改名の
+具体例（実際のパス名・対象ファイル一覧）は下記「影響範囲」の該当issueエントリを参照する。
+
 ## 影響範囲
 
 ### issue #26（2026-08-23）
@@ -227,6 +250,25 @@ issue #26 以前は本家の `AGENTS.md` 全文（共通ルールを含む）を
   `AGENTS.md` / `CLAUDE.md` / `GEMINI.md` はポインタ化した（`AGENTS.md` を `seed` のまま
   保つため。DDR i0026-01 の c）。
 - 更新: [distribution-assets.md](distribution-assets.md)（3資産の層と、解消した未決定事項4件）。
+
+### issue #165（2026-08-23）
+
+`plans/` `worklog/` `reports/` を `wip/plans/` `wip/worklogs/` `wip/reports/` へ集約・改名した
+（DDR [i0165-02](../ddr/i0165-02-タスク単位ディレクトリの集約名はwip-を採用しflow-tasks-work-scratchを採らない.md)
+参照）。「移行」節の一般手順を、この改名に当てはめると次のとおりになる。
+
+- **`.claude/dist-layers.json`は`wip/plans` `wip/worklogs` `wip/reports`を`local`（配らない）
+  層とする一方、`wip/plans/REVIEW-POINTS.md` / `wip/worklogs/TEMPLATE.md` /
+  `wip/reports/REVIEW-POINTS.md`の3件を`core`として個別に持つ。** 配布先には**新パスにだけ**
+  この3ファイルが届き、旧`plans/REVIEW-POINTS.md`等はそのまま残る。
+- **配布先の`.mrworkflow.json`**は`plansDir` / `worklogDir` / `reportsDir`の3キーを
+  `wip/plans` / `wip/worklogs` / `wip/reports`へ手動で書き換える必要がある（`.claude/scripts/src/vcs/Provider.sh`・
+  `.claude/scripts/src/cleanup-task.sh`のフォールバック既定値は後方互換のため`plans`/`worklog`/
+  `reports`のまま据え置いている。DDR [i0165-01](../ddr/i0165-01-wip集約時のコード側フォールバック既定値は変更せず後方互換を優先する.md)
+  参照。書き換えないまま放置しても、フォールバックが旧パスを見に行くため即座には壊れないが、
+  配布先の実際のディレクトリ構成と設定値が食い違ったままになる）。
+- **配布先の`.claude/settings.json`**の`plansDirectory`キーも配布先所有のため、
+  `"./wip/plans"`へ手動で書き換える必要がある。
 
 ## 未決定事項・懸念点
 
