@@ -38,9 +38,11 @@ keywords: [ディレクトリ構成, claude, gemini, 配置方針, plans, worklo
 │   ├── REVIEW-POINTS.md       # `.claude/`配下に適用するレビュー観点（`type: review-points`）
 │   ├── VERSION                 # 配布物の版（SemVer 1行）。更新規則は`.claude/docs/spec/distribution-assets.md`
 │   └── settings.json
-├── .gemini/                    # Gemini CLI向け設定。settings.jsonのみGit管理。docs/hooks/rules/
-│   │                            # scripts/skillsは.claude配下へのローカルリンクで.gitignore対象
-│   └── settings.json
+├── .gemini/                    # Gemini CLI向け資産。**全体が`.claude/`からの変換生成物**で、
+│   │                            # `sync-gemini-assets.sh`が生成する（直接編集しない。Git管理下）
+│   ├── agents/                 # frontmatterをGemini CLIのlocalAgentSchemaへ変換したもの
+│   ├── docs/ hooks/ rules/ scripts/ skills/  # `.claude/`配下の同名ディレクトリをそのままコピー
+│   └── settings.json           # `.claude/settings.json`をGemini CLIの記法へ写像したもの
 ├── .github/
 │   ├── ISSUE_TEMPLATE/          # GitHub用issueテンプレート（目的・現状・期待する動作・受け入れ条件）
 │   └── pull_request_template.md # GitHub用PRテンプレート（`describe`が生成するdescriptionと同一構成）
@@ -144,15 +146,17 @@ issue #97。ブランチ別に持つと、同じセッションのままブラ�
   （`/.claude/skills/apply-mr-workflow-to-project/assets/`）である。上表の`assets/`は
   **Git管理下に置く恒久のバンドルリソース**であり、`.gitignore`の除外行を相対パターン
   （`assets/`）へ広げると、これらが無言でGit管理から外れる。
-- `.gemini/` は `settings.json` のみGit管理下に置く。`docs/`・`hooks/`・`rules/`・`scripts/`・
-  `skills/` は `.claude/` 配下の同名ディレクトリへのローカルリンク（可能ならシンボリックリンク、
-  Windowsで作成できない環境ではNTFSジャンクション）とし、**Git管理下には置かない**
-  （`.gitignore`で除外。Gemini CLIとClaude Code間でルール・スキル・スクリプトの内容を二重管理
-  しないための仕組みだが、NTFSジャンクションはGitがリンクとして認識できず中身をそのまま複製して
-  コミットしてしまうため、リンク自体はGitに載せず各開発者のマシン上でローカルに生成する方針とした。
-  詳細: `.claude/docs/ddr/i0000-13-gemini配下はGit管理下に置かずセットアップスクリプトで生成する.md`）。
-  リンクの作成・再作成は `bash .claude/scripts/src/setup-gemini-links.sh` を実行する
-  （clone直後に1回実行すればよい。既存のリンクがあれば何もしない）。実体は常に `.claude/` 側を編集する。
+- **`.gemini/` は全体が `.claude/` からの変換生成物である**（issue #70）。`agents/*.md` の
+  frontmatter と `settings.json` は Claude Code と Gemini CLI でスキーマが違うため、
+  `bash .claude/scripts/src/sync-gemini-assets.sh` が記法差を変換で吸収して生成する。
+  **`.gemini/` を直接編集しない**（次の再生成で失われる）。編集は常に `.claude/` 側へ行い、
+  このスクリプトを流し直す（フロー上の最終ゲートは flow-id 5-3）。
+  **生成物だがGit管理下へ置きコミットする**（配布先で再生成を忘れても資産が見えるようにするため。
+  `index.jsonl` をGit管理外にしている判断とはここが分かれる）。変換規則・`--check`/`--dry-run`/
+  `--force`・孤児検出の詳細は `.claude/docs/spec/sync-gemini-assets.md`、方式を選んだ経緯・却下案は
+  `.claude/docs/ddr/i0070-01-gemini配下はclaudeからの変換生成物にしGit管理下へ置く.md` を参照
+  （issue #70 以前はローカルリンク運用で、`setup-gemini-links.sh` が各開発者のマシン上でリンクを
+  生成していた。当時の経緯は DDR `i0000-13`。**現在は superseded**）。
 - `.claude/hooks/` 配下のスクリプトは現在すべてbash（`.sh`）。新規`.ps1`を作成する場合のみ
   **BOM付きUTF-8で保存する**こと（BOM無しだとWindows PowerShell 5.1でパースエラーになる。詳細:
   `.claude/rules/powershell-encoding.md`）。`.sh`はBOM無しUTF-8・LF改行で保存する
