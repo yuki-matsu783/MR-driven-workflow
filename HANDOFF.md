@@ -17,9 +17,9 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - issue: #114 flow-id 5-4のマージ依頼時に報告HTMLをホストしURLをユーザへ通知する機能を追加する
 - ブランチ: feature-114-host-report-html-and-notify-url
 - PR: #180 https://github.com/yuki-matsu783/MR-driven-workflow/pull/180（Draft）
-- push回数: 9
+- push回数: 10
 - 現在のループ: 3-6〜3-9 の1周目（進行中）
-- 未返信スレッド: 0
+- 未返信スレッド: 7
 - 追従監視: あり（ローカル／git bash。各pushの直後と作業再開時に `/resolve-conflict` を手動実行する）
 
 | 進捗 | flow-id | ステップ | 担当 |
@@ -45,10 +45,10 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 | [x] | 3-3 | MRで作業計画についてレビュー・コメントする | 人間 |
 | [x] | 3-4 | レビュー内容を取得し作業計画を修正・返信する | サブコマンド |
 | [x] | 3-5 | 作業計画をもとにMR descriptionを更新する | サブコマンド |
-| [x] | 3-6 | 作業を進めreports/へ結果を記録する（md・html） | エージェント |
-| [x] | 3-7 | commitしpushしてレビュー依頼を行う | エージェント |
-| [x] | 3-8 | MRでレビュー・コメントする | 人間 |
-| [x] | 3-9 | レビュー内容を取得し実装・ドキュメントを修正・返信する | サブコマンド |
+| [] | 3-6 | 作業を進めreports/へ結果を記録する（md・html） | エージェント |
+| [] | 3-7 | commitしpushしてレビュー依頼を行う | エージェント |
+| [] | 3-8 | MRでレビュー・コメントする | 人間 |
+| [] | 3-9 | レビュー内容を取得し実装・ドキュメントを修正・返信する | サブコマンド |
 | [] | 3-10 | 作業内容をもとにMR descriptionを更新する | サブコマンド |
 | [] | 4-1 | 個別反映計画を作成する（反映対象の洗い出しを含む） | エージェント |
 | [] | 4-2 | commitしpushしてレビュー依頼を行う | エージェント |
@@ -251,17 +251,60 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
     この状態で `gitlab_get_report_site_url` を実機実行し、**設計どおり非0で終わる**
     （推測URLを返さない）ことを確認した。
 
+- flow-id 3-7: 実装一式をコミット（`ee5ee1c`）し、実機検証の結果を追記してコミット（`0fa18f8`）、
+  どちらもリモートへ反映した。**敵対的レビューをフェーズ3で2回目実施**
+  （`adversarial-review-count.sh get 3` → 2。**上限3回**）。13件の指摘のうち**7件をPR #180 へ
+  インライン投稿**、6件は報告のみに留めた。
+  投稿したスレッド（**すべて返信ゼロ。返信は flow-id 3-9 で行う**）:
+  - https://github.com/yuki-matsu783/MR-driven-workflow/pull/180#discussion_r3838963517
+  - https://github.com/yuki-matsu783/MR-driven-workflow/pull/180#discussion_r3838963521
+  - https://github.com/yuki-matsu783/MR-driven-workflow/pull/180#discussion_r3838963524
+  - https://github.com/yuki-matsu783/MR-driven-workflow/pull/180#discussion_r3838963528
+  - https://github.com/yuki-matsu783/MR-driven-workflow/pull/180#discussion_r3838963533
+  - https://github.com/yuki-matsu783/MR-driven-workflow/pull/180#discussion_r3838963537
+  - https://github.com/yuki-matsu783/MR-driven-workflow/pull/180#discussion_r3838963539
+
+  **blocker が1件出た（実装の欠陥）**: `gitlab_get_report_site_url` が
+  `projects/${encoded}/pages` を呼んでいるが、`url_encode_path_to_reply` は `/` を残すため、
+  **namespace を持つ全プロジェクトで一次経路が必ず404**になる。同じファイルの
+  `gitlab_read_file_at_ref` は `${REPLY//\//%2F}` で置換しており、**既存実装と食い違っている**。
+  **この欠陥により、レポート「GitLab — 関数の失敗経路も実機で確認した」の結論は根拠を失う**
+  （観測した404が「Pages未デプロイ」なのか「経路が壊れている」なのか区別できない）。
+
+  **報告のみに留めた6件**（MRに残らないのでここへ書く。flow-id 3-9 でまとめて対応する）:
+  1. **`wait_for_report_site` は `interval` に 0 を渡すと無限ループする**（`waited` が増えない）。
+     数値以外を渡すと `set -e` 配下でスクリプトごと落ちる。また `curl` に `-L` が無く、
+     `http`→`https` のリダイレクト構成では**永久に200にならない**。末尾の `sleep` により
+     実所要が `limit` より約1周期長い（minor/medium）。
+  2. **生成する `index.html` がファイル名をHTMLエスケープ・URLエンコードしていない**。
+     `&` `<` `"` を含むファイル名でリンクが壊れる。`<owner>.github.io` は同一オリジンなので、
+     コストの非対称を考えると足しておくべき（minor/medium）。
+  3. **配布先向けの注意が `SKILL.md` と2本のYAMLヘッダに二重にある**（公開範囲・fork運用・
+     GitLabのtier・ブランチパターンの4項目）。**YAML側はバイト一致テストが守るが、SKILL.md が
+     乖離しても誰も気づかない**という非対称がある（minor/medium）。
+  4. **`index.jsonl` の除外が `.github/` にしか効いていない**。`assets/.claude/` 配下には
+     20件以上の `index.jsonl` が焼き込まれたままで、コメントが挙げる一般論と適用範囲が
+     食い違う。`distribution-assets.md` に既知の欠陥として記録済み（minor/medium）。
+  5. **`index.md`（Repository Map）と `directory-structure.md` に `.github/workflows/` と
+     `.gitlab-ci.yml` が追加されていない**。フェーズ4の反映先として明示すること（minor/medium）。
+  6. **`gh-pages` を orphan で新規作成した直後に競合すると、`git pull --rebase` が
+     `unrelated histories` で必ず失敗する**（3回のリトライが1回も機能しない）。
+     `git fetch` + `git reset --hard FETCH_HEAD` にすれば単純で確実（minor/low。未再現）。
+
 ## 次にやること
 
-- flow-id 3-7（commit・リモート反映・レビュー依頼）→ **敵対的レビュー（フェーズ3・2回目。
-  上限3回のうち2回目）を自動実行する。**
-- flow-id 3-8/3-9: 人間のレビュー往復 → 3-10（`describe`）。
-- **フェーズ4（4-1: 個別反映計画）**へ。反映先の候補:
+- flow-id 3-8（**進行中**）: 人間のレビューを待つ。**敵対的レビューの7スレッドは全件返信ゼロ**で、
+  3-9 で人間の指摘と同列に対応・返信する。上記「報告のみに留めた6件」も同じ往復で反映する。
+- **最優先はblockerの修正**（`gitlab_get_report_site_url` の `%2F` 未置換）。直したうえで
+  **GitLabの失敗経路の実機確認を取り直す**（現状のレポートの結論は根拠を失っている）。
+- 合意後、flow-id 3-10（`describe`）→ **フェーズ4（4-1: 個別反映計画）**。反映先の候補:
   - `.claude/docs/ddr/i0114-01-….md`（ホスティング手段とタイミングの選定・却下案）
   - `.claude/docs/spec/issue-mr-workflow.md`（提供関数の表・flow-id 5-4／5-6・配布物の扱い）
-  - `.claude/docs/spec/gitlab-verification-environment.md`（**Runner の構築手順**。今回踏んだ
-    `MSYS_NO_PATHCONV` ・ネットワーク・`clone_url` の落とし穴を含む）
+  - `.claude/docs/spec/gitlab-verification-environment.md`（**Runner の構築手順**）
   - `.claude/docs/spec/distribution-assets.md`（`.github/workflows/` と `index.jsonl` の除外）
+  - `.claude/docs/spec/shell-scripts.md`（`curl` 依存の追記）
+  - **`index.md` と `.claude/rules/directory-structure.md`**（`.github/workflows/` と
+    `.gitlab-ci.yml` の追加。上記「報告のみ」5）
 - **検証用に作った資産の後始末**（`gitlab-runner` コンテナ・`gitlab-net`・プロジェクト id=8）。
 
 ## 判断を迷った内容
