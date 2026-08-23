@@ -44,6 +44,7 @@ keywords: [正史仕様, 意思決定ログ, issue-mr-workflow, シェルスク�
 - [generate-ddr-list.md](spec/generate-ddr-list.md) ── DDR一覧生成スクリプト（README.mdのDDR一覧をfrontmatterから生成）
 - [gitlab-verification-environment.md](spec/gitlab-verification-environment.md) ── GitLab検証環境（Docker + glab）の再現手順
 - [otel-listener.md](spec/otel-listener.md) ── OTelリスナー機構（OpenTelemetryをusage/へ振り分け保存するperl製リスナー）
+- [check-doc-references.md](spec/check-doc-references.md) ── DDR参照切れ検出スクリプト（絶対パス形式のDDR参照が実在するファイルを指しているかを検証）
 
 ## ddr（意思決定ログ）
 
@@ -152,4 +153,5 @@ frontmatter（`status` / `superseded_by` / `note`）だけから決まる。
 - [i0141-01-canvasテンプレートはTailwind非依存の自己完結CSSにする.md](ddr/i0141-01-canvasテンプレートはTailwind非依存の自己完結CSSにする.md)（canvas形式をTailwind非依存にした決定は有効。ただし issue #54 で一覧・表形式のテンプレートも自己完結CSSになったため、「canvas形式だけが例外」という本文の前提は成り立たない。本文中の `templates/canvas-report.html` も当時のパスで、issue #54 で `assets/canvas-report.html` へ改名した。詳細は i0054-01）
 - [i0141-02-canvasデータモデルはフラットなparent参照にする.md](ddr/i0141-02-canvasデータモデルはフラットなparent参照にする.md)
 - [i0159-01-hookの前置フィルタは純粋関数によるバックスラッシュ除去と大文字小文字非依存比較で超集合を保つ.md](ddr/i0159-01-hookの前置フィルタは純粋関数によるバックスラッシュ除去と大文字小文字非依存比較で超集合を保つ.md)
+- [i0171-01-DDR参照切れ検出は絶対パス形式に限定しgrep一括抽出で実装する.md](ddr/i0171-01-DDR参照切れ検出は絶対パス形式に限定しgrep一括抽出で実装する.md)
 <!-- END GENERATED: ddr-list -->
