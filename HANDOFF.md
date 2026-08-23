@@ -19,7 +19,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - PR: #194（Draft。https://github.com/yuki-matsu783/MR-driven-workflow/pull/194 ）
 - push回数: 5
 - 現在のループ: なし
-- 未返信スレッド: 9
+- 未返信スレッド: 0
 - 追従監視: PR #194 を subscribe_pr_activity で購読（このセッション）
 
 | 進捗 | flow-id | ステップ | 担当 |
@@ -88,12 +88,17 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
   `wip/reports/`（`.slides.html`・`.slides.json`）／スキーマは `references/slide-outline.schema.json`／
   配布・同期の設定変更不要／この環境はヘッドレスChromium（Playwright）で動的検証可能。
   MR description更新済み（flow-id 2-5）。
+- 2026-08-23: 敵対的レビュー（フェーズ2の2回目・対象は調査レポート）を実施。11件の指摘のうち
+  9件をPR #194へインライン投稿、2件は報告のみ（worklog参照）。11件すべてをレポートへ反映
+  （commit 31dcc9d。プロトタイプ実測への格上げ・Q7の追記先5点への拡張・動的検証の位置づけ決定等）。
+  9スレッド全てへ返信済み（未返信スレッド0）。
 
 ## 次にやること
 
-- 調査計画pushの直後に敵対的レビュー（フェーズ2の1回目）→ 指摘対応・返信 →
-  調査実施（flow-id 2-6。Q1〜Q7）→ commit/push → 敵対的レビュー（2回目）→ 指摘対応・返信 →
-  describe（flow-id 2-10）。
+- describe（flow-id 2-10。調査結果をMR descriptionへ反映）→ フェーズ3:
+  個別作業計画【AIアセット作成】（md+html）→ commit/push → 敵対的レビュー（フェーズ3の1回目）→
+  指摘対応・返信 → 実装（テンプレート・SKILL.md・エージェント2本・スキーマ）→ commit/push →
+  敵対的レビュー（2回目）→ 指摘対応・返信 → describe（3-10）。
 
 ## 判断を迷った内容
 
