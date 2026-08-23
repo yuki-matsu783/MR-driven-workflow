@@ -1847,11 +1847,13 @@ issue #59で `issue-create` スキル側の導線は既に整えていたが、�
 
 | 経路 | 条件 |
 |---|---|
-| CLI | `tool_name` が `Bash` / `PowerShell` / `run_shell_command` で、コマンド文字列に `create-issue.sh` を含む |
+| CLI | `tool_name` が `Bash` / `PowerShell` / `run_shell_command` で、コマンド文字列が `create-issue.sh` を**コマンド位置**で実行する（`command_invokes_script`によるコマンド位置判定。issue #149。ライブラリを使えない環境でのみ従来の部分一致へ縮退する。詳細: `.claude/docs/spec/command-position.md`） |
 | MCP | `tool_name` が `mcp__github__issue_write` で、`tool_input.method` が `create`（`gh`/`glab` CLI不在時。issue #34） |
 
 判定は純粋関数 `is_issue_create_call` に切り出してあり、`.claude/scripts/test/test_post_issue_create_notice.sh`
-で単体テストしている。サブエージェント内実行（`agent_id` あり）では何もしないガードは、既存の
+で単体テストしている。CLI経路の実判定は`_pin_cli_match`（3段ガード。初回呼び出しまで初期化を
+遅延させる型。詳細: `command-position.md`「呼び出し側（hook）の責務」）へ委譲する構成になった
+（issue #149）。サブエージェント内実行（`agent_id` あり）では何もしないガードは、既存の
 push検知hookと同じ。**MCP経路も検知するため、CLI不在時にも縮退しない**（既存の3つのhookと異なる点）。
 
 #### ブロックではなく注意喚起に留めた理由
@@ -1876,6 +1878,15 @@ SKILL.mdに明記している）。
 **誤発火を3回踏んでおり**（該当節に触れるたびに発火した）、注入が繰り返されると本当に起票した
 ときの注意喚起が埋もれる。**issue #149 として起票済み。** 判定ライブラリ
 （`.claude/hooks/lib/CommandPosition.sh`）はそのまま流用できる。
+
+**追記（issue #149）: 対応完了。** CLI経路の判定を`command_invokes_script`（コマンド位置判定）へ
+差し替えた。3段ガードは、他の3本と同じ「`main()`内・前置フィルタの後で確定させる」型（型A）
+ではなく、**判定関数自体はトップレベルで存在させつつ、実際の初期化は初回呼び出しまで遅延させる
+型（型B）**を採用した。理由・実装・測定条件は`command-position.md`「呼び出し側（hook）の
+責務」型B節（重複を避けるためここには繰り返さない）。残る既知の制約（クォートパス・
+値を取らないprefixオプション・PowerShellバックスラッシュパス）と、新たに判明した過検知の残存
+（opaque語フォールバックによる）は、`command-position.md`「既知の制約」表を参照。設計判断・
+却下案の詳細はDDR `i0149-01`。
 
 ## 影響範囲
 
