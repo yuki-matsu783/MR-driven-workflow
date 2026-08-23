@@ -61,6 +61,7 @@
 
     { "layer": "local", "gitignorePattern": ".vscode/", "note": "配布先の好み。dist:begin〜dist:end の外に置いてあるので配られない" },
     { "layer": "local", "gitignorePattern": "*.log", "note": "同上" },
+    { "layer": "local", "gitignorePattern": "参考ディレクトリ", "note": "このリポジトリの成り立ちに固有（移植元の名残）。同じく dist:begin〜dist:end の外" },
     { "layer": "local", "gitignorePattern": "/usage/", "note": "対応工数レポートのローカル作業状態" },
     { "layer": "local", "gitignorePattern": "/.claude/state/", "note": "前回push時点のHEAD SHA" },
     { "layer": "local", "gitignorePattern": "**/index.jsonl", "note": "frontmatterインデックス（生成物）" },
