@@ -25,6 +25,23 @@ REPO_ROOT="$(cd "${SCRIPT_DIR}/../../.." && pwd)"
 
 TARGETS=(docs hooks rules scripts skills)
 
+# コマンドを実行し、失敗したら説明付きのメッセージを標準エラーへ出して非0で戻る。
+# `install-to-project.sh` の同名関数と同じ形（同じ類型の不具合に別々の対処を持ち込まないため）。
+#
+# **この関数が要るのは、set -e に頼れないからである。** main は `setup_target "$t" || fail=1`
+# という条件式の中で各対象を呼ぶ（1つ失敗しても残りを試すため）。bashはこの条件式の評価中、
+# set -e の「失敗したら即座に終了する」動作を**呼ばれた関数の内部にまで及んで**一時停止させる
+# （.claude/rules/shell-script-style.md「bashでのtry/catch相当の書き方」）。
+# したがって cp / mkdir の失敗は、明示的に終了コードを検査しない限り伝わらない。
+run_or_fail() {
+  local what="$1"
+  shift
+  "$@" || {
+    printf 'エラー: %s に失敗しました（%s）\n' "$what" "$1" >&2
+    return 1
+  }
+}
+
 # 対象の現在の状態を REPLY へ返す（absent / symlink / junction / real / file）。
 #
 # `[ -L ]` はNTFSジャンクションを実体ディレクトリと区別できない。Windows実機でしか確認できない
@@ -65,8 +82,16 @@ sync_real_copy() {
 
   # 追加の安全網: 物理パスが同一なら、それはリンクであって実体コピーではない。
   # `pwd -P` はsymlinkを解決する（ジャンクションは環境によるため、上の classify と二重で持つ）。
-  src_real="$(cd "$src" && pwd -P)"
-  dst_real="$(cd "$dst" && pwd -P)"
+  src_real="$(cd "$src" && pwd -P)" || src_real=''
+  dst_real="$(cd "$dst" && pwd -P)" || dst_real=''
+  # **どちらかが空なら「同一」と判定してはいけない。** 空同士は等しいので、`cd` が失敗した
+  # ときに「リンクとみなします」と表示して成功で戻ってしまう（上と同じ「失敗が成功として
+  # 報告される」類型）。set -e はこの関数の呼ばれ方（条件式の中）では一時停止しているため、
+  # 代入の失敗では止まらない。
+  if [ -z "$src_real" ] || [ -z "$dst_real" ]; then
+    printf 'エラー: 実体パスを解決できませんでした（src=%s / dst=%s）\n' "$src" "$dst" >&2
+    return 1
+  fi
   if [ "$src_real" = "$dst_real" ]; then
     printf 'skip（.claude/ と同じ実体を指しています。リンクとみなします）: %s\n' "$dst"
     return 0
@@ -79,7 +104,7 @@ sync_real_copy() {
   done < <(cd "$dst" && find . -type f -print0)
 
   # 2. コピー元の中身で上書きする。
-  cp -R "${src}/." "${dst}/"
+  run_or_fail "実体コピーの更新（${dst}）" cp -R "${src}/." "${dst}/" || return 1
 
   # 3. 空のディレクトリを掃除する。
   # **「1. の削除で空になった分だけ」ではない。** 2. の `cp -R` がコピー元から複製してきた
@@ -92,8 +117,11 @@ sync_real_copy() {
 # `.claude/<name>` を実体コピーとして `.gemini/<name>` へ置く（受け入れ条件7）。
 place_real_copy() {
   local name="$1" link_path="$2" target_path="$3"
-  mkdir -p "$link_path"
-  cp -R "${target_path}/." "${link_path}/"
+  # **成功メッセージより先に、失敗しうる操作を済ませて検査する。** 逆順にすると、コピーが
+  # 失敗しても「作成しました」だけが残る（issue #26 のフェーズ4で実際にこの形だった）。
+  run_or_fail "実体コピー先の作成（${link_path}）" mkdir -p "$link_path" || return 1
+  run_or_fail "実体コピー（${target_path} → ${link_path}）" \
+    cp -R "${target_path}/." "${link_path}/" || return 1
   # 利用者が「リンクになっている」と誤解したまま .gemini/ を編集するのを防ぐため明示する。
   cat <<MSG
 作成しました（実体コピー）: .gemini/${name}
@@ -120,7 +148,7 @@ setup_target() {
       ;;
     real)
       printf '更新します（実体コピー）: .gemini/%s ← .claude/%s\n' "$name" "$name"
-      sync_real_copy "$target_path" "$link_path"
+      sync_real_copy "$target_path" "$link_path" || return 1
       return 0
       ;;
   esac
@@ -151,8 +179,10 @@ setup_target() {
     fi
   fi
 
-  # 3. どちらも作れない環境では実体コピーへフォールバックする（失敗にしない）。
-  place_real_copy "$name" "$link_path" "$target_path"
+  # 3. どちらも作れない環境では実体コピーへフォールバックする（受け入れ条件7）。
+  #    **フォールバックしたこと自体は失敗ではないが、そのコピーが失敗したら失敗である。**
+  #    戻り値をそのまま返す（`return 0` で握りつぶさない）。
+  place_real_copy "$name" "$link_path" "$target_path" || return 1
   return 0
 }
 
