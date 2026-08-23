@@ -20,12 +20,15 @@ keywords: [ディレクトリ構成, claude, gemini, 配置方針, plans, worklo
 │   │   ├── spec/              # 機能ごとの正史仕様
 │   │   └── ddr/                # 意思決定ログ（DDR）
 │   ├── rules/                  # AI向け詳細ルール（コーディング規約・ドキュメント運用等）
+│   │   └── agent-common.md    # AIエージェント共通ルール。`AGENTS.md`/`CLAUDE.md`/`GEMINI.md`が
+│   │                            #   `@import`する実体（issue #26。配布層はcore）
 │   ├── skills/                 # `/issue-mr-flow`（唯一の実装フロー定義）等のスキル定義
 │   │   ├── issue-mr-flow/assets/  # 計画・レポートのHTMLビューのテンプレート2本（issue #54）
 │   │   └── canvas-report/assets/  # canvas形式レポートのテンプレート
 │   ├── agents/                 # サブエージェント定義（issue-mr-flow途中引き継ぎ等）
 │   ├── scripts/                # AIエージェントが`.claude/skills/*`経由で能動的に実行するスクリプト一式
 │   │   ├── src/
+│   │   │   ├── check-dist-coverage.sh  # 層分け定義の網羅性検査（追跡ファイル全件が分母。issue #26）
 │   │   │   └── vcs/            # GitHub/GitLabの差異を吸収するVCS抽象化層（Provider.sh）
 │   │   └── test/               # 副作用の無い純粋ロジックの単体テスト（`test_<対象>.sh`）。
 │   │                            #   `passed=N failures=N`を出力し失敗時は終了コード1
@@ -73,6 +76,11 @@ keywords: [ディレクトリ構成, claude, gemini, 配置方針, plans, worklo
 `reports/`・`usage/`・`.claude/state/`は、いずれもワークフロー実行中に動的に作成されるディレクトリの
 ため、初期スケルトンには含まれない（作成・削除のタイミングは `.claude/rules/docs-workflow.md`・
 `.claude/skills/issue-mr-flow/SKILL.md` を参照）。
+
+**`.claude/.asset-manifest.json` は上のツリーに含まれない。** これは配布先にだけ生成されるファイルで、
+本家（このリポジトリ）には実体が無いためである（ツリーへ載せると本家にも在ると誤読される）。
+配布先では「どの版の何を配ったか」を記録し、再適用時に**上流の更新と配布先の改変を区別する**材料に
+なる（仕様: `.claude/docs/spec/asset-distribution.md`。issue #26）。
 
 `reports/` には**mdとhtmlの2種類**を置く。`reports/日付_<全体計画名>_<内容を簡潔に>.md` が調査結果・
 作業結果・反映結果の**正文**で（個別計画へ結果を書かないための分離先。issue #87。詳細:
