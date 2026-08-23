@@ -118,6 +118,9 @@ DDRは本文を一切変更せず、`git mv`による位置の移動のみを行
 `.claude/skills/resolve-conflict/SKILL.md`「類型A」が正で、**改番後は
 `git diff <ブランチ分岐点のSHA> -- .claude/` の削除行がゼロであることで確認する**
 （引数なしの `git diff` は作業ツリー比較のため、その1回の実行以降に入るコミットを見ない。
+分岐点のSHAは `git fetch origin <base>` の直後に `git merge-base` で**実行時に求める**——
+fetch前の古い `origin/<base>` では実際より古い祖先が返り、求めた値を文書へ書き写すと
+defaultブランチのマージ取り込み後に誤検出へ変わる（issue #186 で実際に踏んだ）。
 DDR一覧そのものは生成物なので、`generate-ddr-list.sh` の再実行で追随する）。
 
 **flow-idの繰り下げのような横断的な棚卸しでは、`wip/plans/` `wip/worklogs/` `wip/reports/` を
