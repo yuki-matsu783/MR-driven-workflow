@@ -109,15 +109,15 @@
     <h1>報告HTMLのホスティング手段の比較（調査結果）</h1>
     <p class="lead">
       GitHub は <b>Pages の branch 方式</b>、GitLab は <b>Pages parallel deployments</b> が答えだった。
-      ただし <b>GitHub Pages は private リポジトリで可視性設定に従えず</b>、
-      <b>GitLab の並列デプロイは Premium/Ultimate 限定で検証環境（CE）では実機検証できない</b>。
+      削除pushと通知が同じ flow-id 5-6 に同居すること、GitHub Pages が可視性設定に従えないこと、
+      GitLab の並列デプロイが Premium 限定であることが、設計へ効く3つの制約になる。
     </p>
     <ul class="meta">
       <li><b>issue</b> #114</li>
       <li><b>ブランチ</b> feature-114-host-report-html-and-notify-url</li>
       <li><b>PR</b> #180</li>
-      <li><b>フェーズ</b> 2〈調査〉 flow-id 2-6</li>
-      <li><b>push回数</b> 3</li>
+      <li><b>フェーズ</b> 2〈調査〉 flow-id 2-6（2-9 で更新）</li>
+      <li><b>push回数</b> 5</li>
       <li><b>作成日</b> 2026-08-23</li>
       <li><b>正文</b> 同名の .md</li>
     </ul>
@@ -149,23 +149,22 @@
           <td><b>GitHub Pages の「Deploy from a branch」方式</b>。<code>gh-pages</code> ブランチの
               <code>pr-&lt;PR番号&gt;/</code> サブディレクトリへ置く。
               <b><code>actions/deploy-pages</code>（artifact方式）は使えない</b></td>
-          <td><span class="tag ok">一次情報＋実測</span></td></tr>
+          <td><span class="tag ok">読解＋実測</span></td></tr>
       <tr><td>2</td><td>GitLab は何でホストするか</td>
           <td><b>GitLab Pages parallel deployments</b>（<code>pages.path_prefix</code>）。
               ただし <b>Premium/Ultimate が必要</b></td>
-          <td><span class="tag ok">一次情報</span></td></tr>
+          <td><span class="tag warn">読解のみ・実機未検証</span></td></tr>
       <tr><td>3</td><td>案(b)は成立するか</td>
-          <td><b>成立する。ただし「<code>reports/*.html</code> が0件ならデプロイをスキップする」ガードが必須</b></td>
-          <td><span class="tag warn">設計上は成立・実機未検証</span></td></tr>
+          <td><b>成立する。</b> ただし「<b>対象HTMLが0件ならデプロイをスキップする</b>」ガードが必須</td>
+          <td><span class="tag warn">設計判断・実機未検証</span></td></tr>
       <tr><td>4</td><td>URLはどう取得するか</td>
-          <td><b>GitHub は決定的に組み立てられる</b>
-              （<code>https://&lt;owner&gt;.github.io/&lt;repo&gt;/pr-&lt;n&gt;/</code>）。
-              GitLab は <code>CI_PAGES_URL</code> ＋ path_prefix</td>
-          <td><span class="tag ok">一次情報</span></td></tr>
-      <tr><td>5</td><td>可視性設定に従えるか</td>
-          <td><b>GitHub は従えない</b>（private でも Pages サイトは既定で公開。非公開化は
-              Enterprise Cloud のみ）。<b>GitLab は従える</b>（access control が Free tier）</td>
-          <td><span class="tag ok">一次情報</span></td></tr>
+          <td><b>GitHub は決定的に組み立てられる</b>。<b>GitLab はAPIで引く</b>
+              （<code>CI_PAGES_URL</code> はCIジョブ内でしか読めない）</td>
+          <td><span class="tag ok">読解</span></td></tr>
+      <tr><td>5</td><td>可視性はどうなるか</td>
+          <td><b>GitHub は可視性設定に従わない</b>（private でも既定で公開。非公開化は
+              Enterprise Cloud のみ）。<b>GitLab は従う</b>（access control が Free tier）</td>
+          <td><span class="tag warn">読解のみ・実機未検証</span></td></tr>
       <tr><td>6</td><td><code>plans/</code> も含めるか</td>
           <td><b>含める</b>（<code>pr-&lt;n&gt;/plans/</code> と <code>pr-&lt;n&gt;/reports/</code> に分ける）</td>
           <td><span class="tag warn">判断</span></td></tr>
@@ -173,19 +172,26 @@
           <td><b>含めない。</b> ただし <code>.github/</code> は<b>何もしないと配布される</b>ため、
               <code>sync-assets.sh</code> 側で <code>workflows/</code> を除外する実装が要る</td>
           <td><span class="tag ok">実装の確認</span></td></tr>
+      <tr><td>8</td><td>公開範囲・寿命をどうするか</td>
+          <td><b>恒久公開してよい</b>（flow-id 2-9 でユーザーが判断）。GitLab も
+              <code>expire_in: never</code> にして<b>GitHubと寿命を揃える</b></td>
+          <td><span class="tag ok">ユーザーの判断</span></td></tr>
     </tbody>
   </table>
   </div>
 
   <div class="box stop">
-    <span class="label">最も重要な発見が2つある</span>
+    <span class="label">設計へ効く制約が3つある</span>
     <ol>
       <li><b>GitHub Pages は「プロジェクトの可視性設定に従う」を満たせない。</b> private / internal
-        リポジトリでも Pages サイトは既定でインターネットに公開される。issue #114 の受け入れ条件を
-        破らないために、<b>ワークフロー側に「public リポジトリのときだけデプロイする」ガードが要る</b>。</li>
+        リポジトリでも Pages サイトは既定でインターネットに公開される。<b>flow-id 2-9 でユーザーが
+        「公開しておいてよい」と判断したため、可視性によるガードは入れない</b>（ただし配布先向けの
+        注意としてドキュメントへ残す）。</li>
       <li><b>GitLab の並列デプロイは Premium/Ultimate 限定で、検証環境（GitLab CE ＝ Free）では
-        実機検証できない。</b> flow-id 1-4 で合意した「GitLab Runner を立てて実機検証する」という
-        方針は、<b>このままでは成立しない</b>（下記「想定と異なった点」）。</li>
+        実機検証できない。</b> flow-id 2-9 でユーザーが「<b>直列のみ検証でよい</b>」と判断したため、
+        実装は並列のままとし、<b>CE で可能な直列（単一デプロイ）までを実機検証</b>、並列部分は
+        「実機未検証」と明記する。</li>
+      <li><b>削除pushと通知は同じ flow-id 5-6 に同居する</b>（下記「問い1(i)」）。5-5 は push を持たない。</li>
     </ol>
   </div>
 </section>
@@ -200,81 +206,196 @@
       <tr><td>リポジトリ</td><td><code>yuki-matsu783/MR-driven-workflow</code>
           （<code>visibility: public</code> / <code>private: false</code> / <code>has_pages: false</code>）</td></tr>
       <tr><td>ブランチ / PR</td><td><code>feature-114-host-report-html-and-notify-url</code> / PR #180</td></tr>
-      <tr><td>一次情報</td><td>GitHub Docs・GitLab Docs（各項に参照先を記載）</td></tr>
+      <tr><td>参照した一次情報</td><td>下記の表（URL・参照日つき）</td></tr>
       <tr><td>実測に使ったもの</td><td><code>curl -sSI</code>（raw のContent-Type）、<code>gh api</code>
-          （リポジトリ・Pages の状態）、リポジトリ内スクリプトの読解</td></tr>
+          （リポジトリ・Pages の状態）、<code>wc -c</code>（HTMLのサイズ）、リポジトリ内スクリプトの読解</td></tr>
       <tr><td><b>実機検証していないもの</b></td>
           <td>GitHub Pages の有効化・デプロイ・URLの到達性、GitLab Runner の構築、
-              GitLab Pages の並列デプロイ。<b>すべてフェーズ3で行う</b>（計画の「やらないこと」どおり）</td></tr>
+              GitLab Pages の直列／並列デプロイ。<b>すべてフェーズ3で行う</b></td></tr>
     </tbody>
   </table>
   </div>
+
+  <h3>参照した一次情報</h3>
+  <p><b>いずれも 2026-08-23 に参照した。</b> 外部ドキュメントは改訂されるため、後日の突き合わせに使う。</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>#</th><th>ドキュメント</th><th>URL</th><th>何の根拠か</th></tr></thead>
+    <tbody>
+      <tr><td>A</td><td>GitHub Docs「What is GitHub Pages?」</td>
+          <td><code>docs.github.com/en/pages/getting-started-with-github-pages/what-is-github-pages</code></td>
+          <td>1リポジトリ1サイト、プロジェクトサイトのURL形式</td></tr>
+      <tr><td>B</td><td>GitHub Docs「Configuring a publishing source for your GitHub Pages site」</td>
+          <td><code>docs.github.com/en/pages/getting-started-with-github-pages/configuring-a-publishing-source-for-your-github-pages-site</code></td>
+          <td>branch方式はブランチ/フォルダの内容がそのままサイト、artifact方式はartifactがサイト全体</td></tr>
+      <tr><td>C</td><td>GitHub Docs「Controlling permissions for GITHUB_TOKEN」</td>
+          <td><code>docs.github.com/en/actions/writing-workflows/choosing-what-your-workflow-does/controlling-permissions-for-github_token</code></td>
+          <td>fork からの <code>pull_request</code> では write 権限が read へ調整される</td></tr>
+      <tr><td>D</td><td>GitHub Enterprise Cloud Docs「Changing the visibility of your GitHub Pages site」</td>
+          <td><code>docs.github.com/en/enterprise-cloud@latest/pages/getting-started-with-github-pages/changing-the-visibility-of-your-github-pages-site</code></td>
+          <td>private/internal でも Pages は既定で公開、非公開化は Enterprise Cloud のみ</td></tr>
+      <tr><td>E</td><td>GitLab Docs「GitLab Pages parallel deployments」</td>
+          <td><code>docs.gitlab.com/user/project/pages/parallel_deployments/</code></td>
+          <td>Premium/Ultimate、17.9 GA、<code>path_prefix</code> の記法とURL形式、
+              <code>expire_in</code> 既定24時間、上限はルートnamespace単位</td></tr>
+      <tr><td>F</td><td>GitLab Docs「GitLab Pages access control」</td>
+          <td><code>docs.gitlab.com/user/project/pages/pages_access_control/</code></td>
+          <td>Free tier で利用可、プロジェクトの可視性に従う、self-managed は管理者の有効化が要る</td></tr>
+      <tr><td>G</td><td>GitLab Docs「Review apps」</td>
+          <td><code>docs.gitlab.com/ci/review_apps/</code></td>
+          <td>Free tier、動的環境の記法、<b>ホストするインフラは自前</b></td></tr>
+      <tr><td>H</td><td>GitLab Docs「Administer GitLab Pages」</td>
+          <td><code>docs.gitlab.com/administration/pages/</code></td>
+          <td><code>pages_external_url</code> はインスタンスのサブドメイン不可、ワイルドカードDNS、
+              <code>gitlab_pages['access_control']</code></td></tr>
+      <tr><td>I</td><td><code>actions/deploy-pages</code> README</td>
+          <td><code>github.com/actions/deploy-pages</code></td>
+          <td>入力・出力（<code>page_url</code>）・必要な permissions</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p><b>対象バージョン</b>: GitLab は 17.9 以降（parallel deployments のGA）を前提に読んだ。検証環境は
+    <code>gitlab/gitlab-ce:18.5.4-ce.0</code>。GitHub Docs はバージョン概念を持たない（参照日で限定する）。</p>
 </section>
 
 <section id="findings">
   <h2>実施した内容と結果</h2>
 
   <h3>問い1(i): 案(b)が成立する条件</h3>
-  <p>案(b) ＝ <b>flow-id 5-4（統括レポートのcommit・push）でホストし、5-6（Draft解除＝マージ依頼）では
-    通知のみ行う</b>。計画の観点表に1項目ずつ答える。</p>
+  <p>案(b) ＝ <b>最終統括レポートのステップでホストし、マージ依頼のステップでは通知のみ行う</b>。</p>
+
+  <h4>前提の訂正: 5-5 は push を持たない</h4>
+  <div class="box stop">
+    <b>当初この節は「5-4 → 5-5（削除push）→ 5-6（通知）」と書いていたが、誤りである。</b>
+    <code>.claude/skills/issue-mr-flow/SKILL.md</code> の flow-id 5-5 は
+    「<b>スクリプトはコミットまでは行わない</b>ため、削除・リセットの結果は直後の flow-id 5-6 の
+    <code>commit</code> スキル経由でコミットする」と定めている。
+  </div>
   <div class="tablewrap">
   <table>
-    <thead><tr><th>確認すること</th><th>結果</th><th>根拠</th></tr></thead>
+    <thead><tr><th>flow-id</th><th>何が起きるか</th><th>ホスティングとの関係</th></tr></thead>
+    <tbody>
+      <tr><td>5-4</td><td>統括レポートを作成し <b>commit・push</b></td><td><b>ここでホストされる</b></td></tr>
+      <tr><td>5-5</td><td><code>cleanup-task.sh</code> が <code>plans/</code> <code>worklog/</code>
+          <code>reports/</code> を削除（<b>commitもpushもしない</b>）</td><td>何も起きない</td></tr>
+      <tr><td>5-6</td><td><b>削除のcommit・push</b> → <code>set_mr_ready</code> → <b>URLを提示</b></td>
+          <td><b>URLを壊しうるpushと、URLの提示が同じステップに同居する</b></td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p><b>したがって「削除pushの直後に、同じステップの中で到達性を確認してURLを出す」ことになる。</b>
+    ガードが要るという結論は変わらないが、<b>確認のタイミングは「削除pushの後」</b>である
+    （前に確認しても、その後のpushで壊れたら意味が無い）。</p>
+
+  <h4>観点表への回答</h4>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>確認すること</th><th>結果</th></tr></thead>
     <tbody>
       <tr><td>5-4 の push を CI がどのトリガで捉えるか</td>
-          <td><b><code>push</code> トリガ（featureブランチ）を使う。<code>pull_request</code> トリガは
-              使わない。</b> fork からの <code>pull_request</code> では <code>GITHUB_TOKEN</code> が
-              読み取り専用へ落とされ、<code>gh-pages</code> へ書き込めないため</td>
-          <td>GitHub Docs「Controlling permissions for GITHUB_TOKEN」: fork からの
-              <code>pull_request</code> では write 権限が read へ調整される</td></tr>
-      <tr><td>5-5（<code>reports/</code> 削除）の push が、既にホストされた内容を壊さないか</td>
-          <td><b>壊しうる。ガードが必須。</b> 「Deploy from a branch」方式なら<b>サイトの実体は
-              <code>gh-pages</code> ブランチの内容</b>なので、ワークフローが
-              「<code>reports/*.html</code> が0件なら何もせず終了」すれば <code>pr-&lt;n&gt;/</code> は残る。
-              <b>逆に <code>actions/deploy-pages</code>（artifact方式）はアップロードしたartifactが
-              サイト全体になるため、前回のサブディレクトリごと消える</b></td>
-          <td>GitHub Docs「Configuring a publishing source」: branch方式は指定ブランチ/フォルダの
-              内容がそのままサイトになる。artifact方式はartifactがサイト全体</td></tr>
-      <tr><td>5-6 でURLをどう取得するか</td>
-          <td><b>組み立てるだけでよい。</b> 5-4 の結果をAPIで引き直す必要が無い</td>
-          <td>GitHub Docs（project site の URL 形式）</td></tr>
+          <td><b><code>push</code> トリガ（<code>feature-*</code> ブランチ）。<code>paths</code> フィルタは
+              付けない</b>（下記「発火条件」）</td></tr>
+      <tr><td>5-6 の削除pushが、既にホストされた内容を壊さないか</td>
+          <td><b>ガードで無害化する。</b> branch方式ではサイトの実体が <code>gh-pages</code> ブランチの
+              内容なので、ジョブが「<b>対象HTMLが0件なら何もせず成功終了</b>」すれば
+              <code>pr-&lt;n&gt;/</code> は残る。<code>actions/deploy-pages</code>（artifact方式）だと
+              artifactがサイト全体になるため<b>前回のサブディレクトリごと消える</b>（参照B）</td></tr>
+      <tr><td>5-6 でURLをどう取得するか</td><td>GitHubは組み立てるだけ。GitLabはAPIで引く（問い1(iv)）</td></tr>
       <tr><td>CIが無い／失敗する環境でフローが止まらないか</td>
-          <td><b>止めない設計にできる。</b> 既存の <code>upload_attachment</code>（flow-id 5-4 の層3）と
-              同じ「<b>失敗は正常系のひとつ</b>」の形にし、非0終了で呼び出し側がスキップする</td>
-          <td><code>.claude/docs/spec/issue-mr-workflow.md</code>「提供関数」・DDR <code>i0111-01</code></td></tr>
-      <tr><td>デプロイ完了を待つ必要があるか</td>
-          <td><b>待つ必要がある。</b> 5-4→5-5→5-6 の間に人手が挟まらず数十秒で進む一方、Pagesの
-              ビルド・デプロイはそれより遅いことがある。<b>URLが決定的である以上「URLは出せるが
-              中身がまだ無い」状態が起きうる</b>ので、5-6 では<b>到達性を確認してから提示する</b></td>
-          <td>設計判断。<b>待ち時間の実測はフェーズ3</b></td></tr>
+          <td><b>止めない。</b> 既存の <code>upload_attachment</code>（flow-id 5-4 の層3）と同じ
+              「<b>失敗は正常系のひとつ</b>」の形にし、非0終了で呼び出し側がスキップする</td></tr>
+      <tr><td>デプロイ完了を待つ必要があるか</td><td><b>待つ。</b> 到達性確認の仕様は下記</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h4>発火条件（どのpushでジョブを起動し、どの条件でデプロイするか）</h4>
+  <p><b>「起動は広く、デプロイは狭く」で統一する。</b></p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>段</th><th>条件</th></tr></thead>
+    <tbody>
+      <tr><td><b>起動</b></td>
+          <td><code>on: push: branches: ['feature-*']</code>。<b><code>paths</code> フィルタは付けない</b>
+              （削除pushも <code>reports/**</code> に触れるためフィルタでは絞れず、ガードと二重化して
+              読みにくくなるだけである）</td></tr>
+      <tr><td><b>デプロイ判定1</b></td>
+          <td>ブランチに紐づく<b>open な PR が1件だけ</b>存在するか。0件・2件以上なら<b>スキップ</b></td></tr>
+      <tr><td><b>デプロイ判定2</b></td>
+          <td><code>reports/*.html</code> と <code>plans/*.html</code> の<b>合計が1件以上</b>あるか。
+              0件なら<b>スキップ</b>（これが 5-6 の削除pushを無害化する要）</td></tr>
     </tbody>
   </table>
   </div>
   <div class="box ok">
-    <span class="label">結論: 案(b)は成立する</span>
-    決め手は<b>サイトの実体をブランチの内容にする</b>ことで、これにより 5-5 の削除pushを
-    <b>何もしない</b>ことで無害化できる。
+    <span class="label">これは却下した案(a)とは別物である</span>
+    案(a)は「pushごとに<b>別のパスへ</b>デプロイして積み上げる」案であり、本案は「pushごとにジョブは
+    起動するが、<b>デプロイ先は1PRにつき1ディレクトリで固定</b>、かつ中身が空なら何もしない」である。
+    増えるのは1PRあたり1ディレクトリで、pushの回数に比例しない。
   </div>
 
-  <h3>問い1(ii): 案(a)(c) を却下した理由の裏取り</h3>
+  <h4>PR番号の取得</h4>
+  <p><code>push</code> イベントのペイロードにPR番号は含まれない。<b>ジョブ側でブランチ名から引く。</b></p>
+  <pre><code>gh pr list --head "$GITHUB_REF_NAME" --state open --json number --jq '.[].number'</code></pre>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>ケース</th><th>挙動</th></tr></thead>
+    <tbody>
+      <tr><td>1件</td><td>その番号を <code>pr-&lt;n&gt;/</code> に使う</td></tr>
+      <tr><td>0件（PR作成前のpush・PRクローズ後）</td><td><b>デプロイしない</b>（スキップして成功終了）</td></tr>
+      <tr><td>2件以上</td><td><b>デプロイしない</b>（どちらのPRのものか決められないため）</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p><b>呼び出し側（<code>Provider.sh</code>）も同じ導出をする。</b> 食い違うと通知したURLが404になるため、
+    <b>両者が使う導出は <code>get_mr_for_branch</code>（既存関数）に一本化する</b>。</p>
+
+  <h4>同時実行制御</h4>
+  <p>branch方式は <code>gh-pages</code> へ push するため、<b>複数の実行が重なると2本目以降が
+    non-fast-forward で失敗する</b>。起きうる場面は (1) 複数PRが並行して 5-4 を実行する、
+    (2) 同一ブランチで 5-4 と 5-6 のpushが近接する、の2つ。</p>
+  <ul>
+    <li>ワークフローに <code>concurrency: { group: gh-pages-deploy, cancel-in-progress: false }</code> を置く
+      （<b>キャンセルしない</b>。キャンセルするとデプロイが落ちる）。</li>
+    <li>それでも競合しうるため、push を <code>git pull --rebase &amp;&amp; git push</code> で
+      <b>最大3回リトライ</b>する。</li>
+  </ul>
+
+  <h4>到達性確認の仕様</h4>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>項目</th><th>値</th></tr></thead>
+    <tbody>
+      <tr><td>方法</td><td>組み立てたURLへHTTPリクエスト
+          （<code>curl -sS -o /dev/null -w '%{http_code}'</code>）</td></tr>
+      <tr><td>間隔・上限</td><td><b>5秒間隔・最大90秒</b>（18回）</td></tr>
+      <tr><td>200が返った場合</td><td>URLをそのまま提示する</td></tr>
+      <tr><td>上限まで200にならなかった場合</td>
+          <td><b>URLは提示するが「まだ反映されていない可能性がある」と注記する。フローは止めない</b></td></tr>
+      <tr><td>確認自体が失敗（ネットワーク不通等）</td>
+          <td>同上。<b>「失敗は正常系のひとつ」の枠に入れる</b></td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>問い1(ii): 案(a)(c) を却下した理由</h3>
   <p>DDR <code>i0114-01</code> へ残すため、推測ではなく仕様で確かめた。</p>
   <div class="tablewrap">
   <table>
-    <thead><tr><th>案</th><th>却下理由（裏取り済み）</th></tr></thead>
+    <thead><tr><th>案</th><th>却下理由</th></tr></thead>
     <tbody>
       <tr><td><b>(a) 不変パス</b><br>（コミットSHA単位のパスへ毎push デプロイ）</td>
-          <td><b>技術的には成立するが、デプロイ物が単調に増える。</b> GitHub の branch 方式では
-              <code>gh-pages</code> ブランチにSHA単位のディレクトリが積み上がり、掃除する仕組みが
-              このフローに無い（<code>cleanup-task.sh</code> はワークツリーの <code>reports/</code> を
-              消すだけで、<code>gh-pages</code> には触れない）。GitLab の parallel deployments には
-              既定24時間の失効があるが、<b>GitHub Pages には失効の仕組みが無い</b>。
-              PR単位（<code>pr-&lt;n&gt;/</code>）なら1PRにつき1ディレクトリで済む</td></tr>
+          <td><b>デプロイ物の増加率が、採用案の数倍〜十数倍になる。</b> GitHub Pages には失効の仕組みが
+              無く（参照E の GitLab とは対照的）、掃除する仕組みもこのフローに無い
+              （<code>cleanup-task.sh</code> はワークツリーの <code>reports/</code> を消すだけで
+              <code>gh-pages</code> には触れない）。<b>採用案(b)も溜まる点は同じだが、増え方が
+              「1PRにつき1ディレクトリ」に収まる</b>のに対し、案(a)は「1pushにつき1ディレクトリ」で、
+              本ブランチだけで既に5倍になる</td></tr>
       <tr><td><b>(c) SHA指定</b><br>（5-6 で過去SHAを指定してCIを起こす）</td>
           <td><b>5-4 でホストする案(b)と比べて、得るものが無い。</b> (1) 5-4 で一度pushしている以上
-              その時点で走らせればよく、(2) 5-6 で起動すると<b>デプロイ完了を待つ時間が丸ごと
+              その時点で走らせればよい、(2) 5-6 で起動すると<b>デプロイ完了を待つ時間が丸ごと
               マージ依頼の直前に来る</b>、(3) <code>workflow_dispatch</code> はデフォルトブランチの
-              ワークフロー定義しか使えないため、機構を配布した直後（ワークフローがまだ default
-              ブランチに無い）は動かない</td></tr>
+              ワークフロー定義しか使えないため、機構を配布した直後は動かない</td></tr>
     </tbody>
   </table>
   </div>
@@ -284,43 +405,70 @@
   <ul>
     <li><code>plans/</code> も <code>reports/</code> と同じく flow-id 5-5 で削除され、squash merge で
       <code>main</code> に残らない。<b>消える理由が同じなら、残す扱いも同じにするのが一貫している。</b></li>
-    <li>レビュアーが「計画（合意した内容）」と「結果」を同じURLから行き来できる。片方だけホストすると、
-      結果を読んで計画を参照したくなったときに clone が要る。</li>
-    <li>サイズが問題にならない。テンプレート由来のHTMLは自己完結だが<b>外部依存を持たない＝画像も無い</b>
-      ため、1ファイル20〜40KB程度である（本ブランチの実測: 計画2本で計 42KB）。</li>
+    <li>レビュアーが「計画（合意した内容）」と「結果」を同じURLから行き来できる。</li>
+    <li><b>サイズが問題にならない。</b> 本ブランチの計画HTMLの実測は下表のとおりで、合計
+      <b>49,706 バイト（約48.5 KiB）</b>である。テンプレート由来のHTMLは自己完結で<b>画像も外部依存も
+      持たない</b>ため、1ファイルあたり20〜30KB程度に収まる。</li>
   </ul>
-  <p><b>配置は <code>pr-&lt;n&gt;/plans/</code> と <code>pr-&lt;n&gt;/reports/</code> に分ける。</b>
-    ファイル名が衝突しないうえ、<code>pr-&lt;n&gt;/index.html</code> を自動生成して一覧を出せる。</p>
-
-  <h3>問い2: GitHub の手段</h3>
-  <p><b>採用: GitHub Pages の「Deploy from a branch」方式</b>（<code>gh-pages</code> ブランチ / ルート）。
-    ワークフローが <code>pr-&lt;PR番号&gt;/</code> サブディレクトリへ書き込み、<code>gh-pages</code> へ push する。</p>
   <div class="tablewrap">
   <table>
-    <thead><tr><th>確認項目</th><th>結果</th></tr></thead>
+    <thead><tr><th>ファイル</th><th>バイト数</th></tr></thead>
     <tbody>
-      <tr><td>1リポジトリ1サイトの制約下で並列プレビューをどう表現するか</td>
-          <td><b>サブディレクトリ</b>。Pages は「Maximum of one pages site per repository」だが、
-              サイトの実体がブランチの内容なので、<code>pr-1/</code> <code>pr-2/</code> … を同居させられる</td></tr>
-      <tr><td>デプロイ完了の待ち方とURL取得</td>
-          <td>URLは決定的（下記）。完了は <code>gh run watch</code> またはURLへのHTTPリクエストで確認する</td></tr>
-      <tr><td>fork PR での <code>GITHUB_TOKEN</code></td>
-          <td><b><code>push</code> トリガを使うことで回避する。</b> このフローは自リポジトリのfeature
-              ブランチへ push するため、fork の問題に当たらない。<b>配布先でfork運用する場合は当たる</b>ので、
-              その旨をドキュメントへ残す</td></tr>
-      <tr><td>Pages 有効化に必要な操作</td>
-          <td>未検証（フェーズ3）。現状 <code>gh api repos/{o}/{r}/pages</code> は <b>404</b>（未有効）で
-              <code>has_pages: false</code></td></tr>
-      <tr><td><b>可視性設定との一致</b></td><td><b>一致しない。</b> 下記「想定と異なった点」</td></tr>
+      <tr><td><code>plans/binary-soaring-eclipse.html</code></td><td>29,722</td></tr>
+      <tr><td><code>plans/【調査】報告HTMLのホスティング手段とタイミングの選定.html</code></td><td>19,984</td></tr>
+      <tr><td><b>合計</b></td><td><b>49,706</b></td></tr>
     </tbody>
   </table>
   </div>
-  <p><b>URLは決定的に組み立てられる</b>（プロジェクトサイトの形式は
-    <code>http(s)://&lt;owner&gt;.github.io/&lt;repositoryname&gt;</code>）。したがって本リポジトリなら
-    <code>https:&#47;&#47;yuki-matsu783.github.io/MR-driven-workflow/pr-180/reports/&lt;ファイル名&gt;.html</code>
-    になる。独自ドメインに追随するため、実装では
-    <code>gh api repos/{o}/{r}/pages --jq .html_url</code> を土台にし、取得できないときだけ
-    <code>https:&#47;&#47;&lt;owner&gt;.github.io/&lt;repo&gt;</code> へフォールバックする。</p>
+  <p><b>配置は <code>pr-&lt;n&gt;/plans/</code> と <code>pr-&lt;n&gt;/reports/</code> に分ける。</b>
+    ファイル名が衝突しないうえ、<code>pr-&lt;n&gt;/index.html</code> を自動生成して一覧を出せる。</p>
+
+  <h3>問い1(iv): URLの取得経路</h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>プロバイダ</th><th>経路</th></tr></thead>
+    <tbody>
+      <tr><td><b>GitHub</b></td>
+          <td><b>組み立てるだけでよい。</b> <code>gh api repos/{o}/{r}/pages --jq .html_url</code> を土台に
+              （独自ドメインに追随するため）、取得できないときだけ
+              <code>https:&#47;&#47;&lt;owner&gt;.github.io/&lt;repo&gt;</code> へフォールバックする。
+              末尾に <code>/pr-&lt;n&gt;/</code> を足す</td></tr>
+      <tr><td><b>GitLab</b></td>
+          <td><b>APIで引く。</b> <code>CI_PAGES_URL</code> は<b>CIジョブの中でしか定義されない</b>
+              定義済み変数であり、ローカルの <code>Provider.sh</code> からは読めない。
+              <code>glab api projects/:id/pages --jq .url</code> を土台に <code>/mr-&lt;iid&gt;</code> を足す。
+              取得できない場合は <code>glab api projects/:id/environments</code> の
+              <code>external_url</code> へフォールバックする（<b>どちらも実機未検証</b>）</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p><b>GitHub の「組み立てるだけでよい」は GitLab には当てはまらない。</b> GitLab はプロジェクトごとに
+    ユニークドメインの有無でURL形式が変わる（参照E）ため、組み立てではなくAPIで引く。</p>
+
+  <h3>問い2: GitHub の手段</h3>
+  <p><b>採用: GitHub Pages の「Deploy from a branch」方式</b>（<code>gh-pages</code> ブランチ / ルート）。</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>確認項目</th><th>結果</th><th>根拠</th></tr></thead>
+    <tbody>
+      <tr><td>1リポジトリ1サイトの制約下で並列プレビューをどう表現するか</td>
+          <td><b>サブディレクトリ</b>。サイトの実体がブランチの内容なので <code>pr-1/</code>
+              <code>pr-2/</code> … を同居させられる</td><td>参照A・B</td></tr>
+      <tr><td>デプロイ完了の待ち方とURL取得</td>
+          <td>URLは決定的。完了はURLへのHTTPリクエストで確認（上記の到達性確認）</td><td>参照A</td></tr>
+      <tr><td>fork PR での <code>GITHUB_TOKEN</code></td>
+          <td><b><code>push</code> トリガで回避する。</b> 自リポジトリのfeatureブランチへ push するため
+              fork の問題に当たらない。<b>配布先でfork運用する場合は当たる</b>ので注記を残す</td>
+          <td>参照C</td></tr>
+      <tr><td>Pages 有効化に必要な操作</td>
+          <td><b>未検証</b>（フェーズ3）。現状 <code>gh api repos/{o}/{r}/pages</code> は 404 で
+              <code>has_pages: false</code></td><td>実測</td></tr>
+      <tr><td>可視性設定との一致</td>
+          <td><b>一致しない。</b> private/internal でも既定で公開。
+              <b>ユーザー判断により、これを受け入れてガードを入れない</b></td><td>参照D</td></tr>
+    </tbody>
+  </table>
+  </div>
 
   <h4>却下した手段（却下理由つき）</h4>
   <div class="tablewrap">
@@ -328,14 +476,12 @@
     <thead><tr><th>却下候補</th><th>却下理由</th><th>裏取り</th></tr></thead>
     <tbody>
       <tr><td><b><code>raw.githubusercontent.com</code></b></td>
-          <td><b>HTMLがレンダリングされない。</b> レスポンスヘッダが
-              <code>content-type: text/plain; charset=utf-8</code> かつ
+          <td><b>HTMLがレンダリングされない。</b> <code>content-type: text/plain; charset=utf-8</code> かつ
               <code>x-content-type-options: nosniff</code> で、ブラウザはHTMLとして解釈しない</td>
-          <td><span class="tag ok">実測</span>（本ブランチのHTMLに対し <code>curl -sSI</code>）</td></tr>
+          <td><span class="tag ok">実測</span></td></tr>
       <tr><td><b><code>actions/deploy-pages</code>（artifact方式）</b></td>
-          <td><b>1回のデプロイでサイト全体が置き換わる</b>ため、PRごとの並列プレビューを保てない。
-              案(b)の要（5-5 の削除pushを無害化する）が成立しない</td>
-          <td>GitHub Docs</td></tr>
+          <td><b>1回のデプロイでサイト全体が置き換わる</b>ため、PRごとの並列プレビューを保てない</td>
+          <td>参照B・I</td></tr>
       <tr><td>Actions artifact（<code>actions/upload-artifact</code>）</td>
           <td>ダウンロード専用でブラウザ表示できない。ログインも要る</td><td>仕様上明らか</td></tr>
       <tr><td><code>upload_attachment</code>（既存の層3）</td>
@@ -343,8 +489,7 @@
               <b>置き換えではなく併存させる</b></td>
           <td><code>.claude/docs/spec/issue-mr-workflow.md</code></td></tr>
       <tr><td>外部ホスティング（Netlify等）</td>
-          <td>リポジトリ外のアカウントとシークレットが要り、<b>配布物として成立しない</b>
-              （配布先ごとに人手の初期設定が必要になる）</td><td>判断</td></tr>
+          <td>リポジトリ外のアカウントとシークレットが要り、<b>配布物として成立しない</b></td><td>判断</td></tr>
     </tbody>
   </table>
   </div>
@@ -353,53 +498,112 @@
   <div class="box warn">
     <span class="label">Review Apps は枠組みであって、ホスティングそのものではない</span>
     Review Apps（動的環境）は Free tier で使えるが、<b>ホスト先のインフラは自前で用意する必要がある</b>
-    （GitLab Docs「Review apps」: "you must set up the infrastructure to host and deploy the review apps"）。
-    GitLab に組み込みで並列プレビューを提供するのは <b>GitLab Pages parallel deployments</b>
+    （参照G）。組み込みで並列プレビューを提供するのは <b>GitLab Pages parallel deployments</b>
     （<code>pages.path_prefix</code>）である。
   </div>
   <div class="tablewrap">
   <table>
-    <thead><tr><th>確認項目</th><th>結果</th></tr></thead>
+    <thead><tr><th>確認項目</th><th>結果</th><th>根拠</th></tr></thead>
     <tbody>
       <tr><td>CI記法</td>
-          <td><code>pages:</code> ジョブに <code>path_prefix: "mr-$CI_MERGE_REQUEST_IID"</code> を書く。
+          <td><code>pages:</code> ジョブに <code>path_prefix: "mr-$CI_MERGE_REQUEST_IID"</code>。
               動的環境は <code>environment.name: review/$CI_COMMIT_REF_SLUG</code> ＋
-              <code>environment.url</code> ＋ <code>on_stop</code> / <code>auto_stop_in</code></td></tr>
-      <tr><td>ホストの実体</td><td><b>GitLab Pages</b>（Runner 上の静的サーバは下記の理由で却下）</td></tr>
+              <code>environment.url</code> ＋ <code>on_stop</code> / <code>auto_stop_in</code></td>
+          <td>参照E・G</td></tr>
+      <tr><td><b>パイプライン種別</b></td><td><b>マージリクエストパイプラインに限定する</b>（下記）</td>
+          <td>参照E</td></tr>
+      <tr><td>ホストの実体</td><td><b>GitLab Pages</b>（Runner 上の静的サーバは下記の理由で却下）</td>
+          <td>参照G</td></tr>
       <tr><td><b>必要なtier</b></td>
-          <td><b>Premium / Ultimate。GitLab 17.9 で GA</b>
-              （機能フラグ <code>pages_multiple_versions_setting</code> は削除済み）</td></tr>
+          <td><b>Premium / Ultimate。GitLab 17.9 で GA</b></td><td>参照E</td></tr>
       <tr><td>URL形式</td>
-          <td>ユニークドメイン有: <code>https:&#47;&#47;project-123456.gitlab.io/&lt;prefix&gt;</code> ／
-              無: <code>https:&#47;&#47;&lt;namespace&gt;.gitlab.io/&lt;project&gt;/&lt;prefix&gt;</code></td></tr>
-      <tr><td>URL取得</td><td>CI変数 <code>CI_PAGES_URL</code> ＋ path_prefix</td></tr>
-      <tr><td>失効</td><td><b>既定24時間。</b> <code>expire_in</code> で変更でき、
-          <code>expire_in: never</code> で無効化できる</td></tr>
+          <td>ユニークドメイン有: <code>project-123456.gitlab.io/&lt;prefix&gt;</code> ／
+              無: <code>&lt;namespace&gt;.gitlab.io/&lt;project&gt;/&lt;prefix&gt;</code></td><td>参照E</td></tr>
+      <tr><td>URL取得</td><td><code>glab api projects/:id/pages</code> → フォールバックで environments API</td>
+          <td>参照E</td></tr>
+      <tr><td>失効</td>
+          <td>既定24時間。<code>expire_in</code> で変更でき、<code>expire_in: never</code> で無効化できる。
+              <b>本機構は <code>expire_in: never</code> を指定してGitHubと寿命を揃える</b></td><td>参照E</td></tr>
       <tr><td>並列デプロイ数の上限</td>
-          <td>ルートnamespace単位で制限。<b>具体的な数値はドキュメントに明記が無い</b></td></tr>
-      <tr><td><b>可視性設定との一致</b></td>
-          <td><b>一致する。</b> GitLab Pages access control は <b>Free tier</b> で利用でき、
-              プロジェクトの可視性（private / internal / public）に従う。self-managed では管理者が
-              <code>gitlab_pages['access_control'] = true</code> を設定する必要がある</td></tr>
+          <td>ルートnamespace単位で制限。<b>具体的な数値はドキュメントに明記が無い</b></td><td>参照E</td></tr>
+      <tr><td>可視性設定との一致</td>
+          <td><b>一致する。</b> access control は <b>Free tier</b> で利用でき、プロジェクトの可視性に従う。
+              self-managed では管理者が <code>gitlab_pages['access_control'] = true</code> を設定する</td>
+          <td>参照F・H</td></tr>
       <tr><td>self-managed の前提</td>
           <td><code>gitlab.rb</code> に <code>pages_external_url</code> が要る。
-              <b>GitLabインスタンスのドメインのサブドメインであってはならず</b>、
-              ワイルドカードDNS（<code>*.example.io</code>）が標準</td></tr>
+              <b>インスタンスのドメインのサブドメインであってはならず</b>、ワイルドカードDNSが標準</td>
+          <td>参照H</td></tr>
     </tbody>
   </table>
   </div>
+
+  <h4><code>path_prefix</code> が空になる罠</h4>
+  <div class="box stop">
+    <b>MR関連の定義済み変数（<code>CI_MERGE_REQUEST_IID</code> 等）は、マージリクエストパイプラインでのみ
+    設定される。</b> ブランチパイプラインでは空になる。空のまま展開されると <code>path_prefix</code> が
+    <code>mr-</code> になり、<b>すべてのMRが同じディレクトリを共有して上書きし合う</b>。しかもURLは
+    組み立てられるので、<b>エラーではなく「別のMRの内容が表示される」</b>という形で表面化する。
+  </div>
+  <p><b>対策</b>: <code>pages</code> ジョブに
+    <code>rules: - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'</code> を置き、
+    <b>マージリクエストパイプライン以外では走らせない</b>。あわせて、変数が空だった場合はジョブを
+    失敗させず<b>スキップ</b>する（GitHub側のガードと同じ形）。</p>
+  <p><b>GitHub は <code>push</code> トリガ、GitLab は MRパイプラインという非対称になる。</b> 理由は、
+    GitHubが <code>pull_request</code> トリガを避けたのは fork の <code>GITHUB_TOKEN</code> 問題（参照C）
+    であり、GitLabのMRパイプラインにはその制約が無いためである。<b>この非対称は意図的なので、
+    ドキュメントへ残す。</b></p>
+
+  <h4>寿命を GitHub と揃える（<code>expire_in: never</code>）</h4>
+  <p>GitLabの並列デプロイは既定24時間で失効するが、GitHub Pages には失効の仕組みが無い。
+    <b>同じ機能なのに、GitHubではURLが永続し、GitLabでは24時間後に死ぬ</b>——レビューが翌日以降に
+    なれば、GitLab運用の配布先ではマージ依頼で提示したURLが開けない。</p>
+  <p>VCS抽象化層は呼び出し元にプロバイダ差を見せないことが目的であるため、<b><code>expire_in: never</code> を
+    指定して寿命を揃える</b>。flow-id 2-9 でユーザーが「恒久公開してよい」と判断したことと整合する。</p>
+
   <h4>Runner 上の静的サーバを却下した理由</h4>
   <div class="box stop">
-    計画で挙げていたもう一方の選択肢（Runner 上で静的サーバを立てる）は却下する。
     <b>ホスト先がGitLabのアクセス制御の外に出るため、private プロジェクトの成果物が無認証で
-    公開されうる</b>。issue #114 の受け入れ条件「プロジェクトの可視性設定に従う」を、
-    <b>選んだ時点で破る</b>。
+    公開されうる。</b> GitLab側は access control で可視性に従えるのが唯一の利点なので、それを
+    自ら捨てる選択になる。
   </div>
+
+  <h4>実機検証の範囲と、環境構築コストの見積もり</h4>
+  <p><b>flow-id 2-9 でユーザーが「直列のみ検証でよい」と判断した。</b> 実装は受け入れ条件どおり並列
+    （<code>path_prefix</code>）のままとし、<b>CE で可能な直列（単一デプロイ）までを実機検証</b>、
+    並列部分は「実機未検証」と明記する。</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>作業</th><th>内容</th><th>見積もり</th></tr></thead>
+    <tbody>
+      <tr><td>GitLab Pages の有効化</td>
+          <td><code>gitlab.rb</code> へ <code>pages_external_url</code> を追記し
+              <code>gitlab-ctl reconfigure</code>。<b>インスタンス（<code>localhost:8929</code>）の
+              サブドメインにできない</b>ため、<code>nip.io</code> のようなワイルドカードDNSサービスか
+              hosts ファイルで別ドメインを用意する</td>
+          <td><b>1〜2時間</b>（DNSの解決が最大の不確実要素）</td></tr>
+      <tr><td>GitLab Runner の構築</td>
+          <td><code>docker run</code> で <code>gitlab-runner</code> を起動 →
+              <code>gitlab-runner register</code>（<b>executor は <code>docker</code></b>。
+              CEと同一ホスト上のためネットワーク疎通の設定が要る）</td>
+          <td><b>1時間</b></td></tr>
+      <tr><td>直列デプロイの確認</td>
+          <td><code>pages</code> ジョブ（<code>path_prefix</code> 無し）で <code>public/</code> を公開し、
+              <code>CI_PAGES_URL</code> が開けることを確認</td><td><b>30分</b></td></tr>
+      <tr><td>access control の確認</td>
+          <td><code>gitlab_pages['access_control'] = true</code> を設定し、private プロジェクトの
+              Pagesが未認証で開けないことを確認</td><td><b>30分</b></td></tr>
+      <tr><td><b>並列デプロイ</b></td><td><b>CE（Free）では実施しない。</b> Premium/Ultimate が必要</td>
+          <td>—</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p><b><code>pages</code> は依然としてRunnerが実行するCIジョブである。</b>
+    「GitLab Pages を使うから Runner が不要になる」わけではない。</p>
 
   <h3>問い4: 配布物としての扱い</h3>
   <p><b>結論: CI設定（<code>.github/workflows/*.yml</code> と <code>.gitlab-ci.yml</code>）は
-    配布資産に含めない。</b> CI設定が<b>配布先のプラン・インフラ・可視性に強く依存する</b>ためである。
-    GitLab側は Premium/Ultimate が要り、GitHub側は private リポジトリだと受け入れ条件を破る。</p>
+    配布資産に含めない。</b> CI設定が<b>配布先のプラン・インフラ・可視性に強く依存する</b>ためである。</p>
   <div class="box stop">
     <span class="label">「含めない」は、何もしなければ実現されない</span>
     <div class="tablewrap">
@@ -413,10 +617,7 @@
         <tr><td><code>.gitlab/</code> 配下</td><td><b>丸ごと配布される</b></td>
             <td><code>sync-assets.sh:55-59</code> / <code>install-to-project.sh:197-199</code></td></tr>
         <tr><td><b><code>.gitlab-ci.yml</code>（ルート直下）</b></td><td><b>配布されない</b></td>
-            <td><code>sync-assets.sh</code> のルート直下コピーは明示リストのみ
-                （<code>.mrworkflow.json</code> / <code>AGENTS.md</code> / <code>GEMINI.md</code> /
-                <code>CLAUDE.md</code> / <code>HANDOFF.md</code> / <code>index.md</code> /
-                <code>.gitattributes</code>）</td></tr>
+            <td><code>sync-assets.sh</code> のルート直下コピーは明示リストのみ</td></tr>
       </tbody>
     </table>
     </div>
@@ -425,41 +626,45 @@
   </div>
   <ul>
     <li>衝突時の挙動: <code>safe_copy_file</code> は内容が異なれば <code>&lt;dest&gt;.bak</code> を作って
-      上書きし、警告を出す（<code>FORCE</code> または <code>is_always_overwrite</code> のときは
-      <code>.bak</code> を作らない）。<b>配布先が既にワークフローを持っていれば、それが
-      <code>.bak</code> へ退避される。</b></li>
+      上書きし、警告を出す。<b>配布先が既にワークフローを持っていれば、それが <code>.bak</code> へ
+      退避される。</b></li>
     <li><b>実装方針</b>: <code>sync-assets.sh</code> の <code>.github/</code> コピーで
       <code>workflows/</code> を除外する。代わりに<b>雛形</b>を
-      <code>.claude/skills/issue-mr-flow/assets/</code> 配下へ置き（<code>.claude/</code> 一式は
-      配布されるため雛形は届く）、導入は配布先の判断で手動に委ねる。</li>
+      <code>.claude/skills/issue-mr-flow/assets/</code> 配下へ置き、導入は配布先の判断で手動に委ねる。</li>
   </ul>
 </section>
 
 <section id="unverified">
   <h2>確かめられなかったこと</h2>
-  <p><b>すべて計画の「やらないこと」に沿った意図的な未検証である</b>（リポジトリ設定を変える
-    実機検証はフェーズ3で行う）。フェーズ3のどの手順で確かめるかを併記する。</p>
+  <p><b>すべて計画の「やらないこと」に沿った意図的な未検証である。</b> フェーズ3のどの手順で確かめるかを
+    併記する。</p>
   <div class="tablewrap">
   <table>
     <thead><tr><th>未検証の項目</th><th>フェーズ3での確認手順</th></tr></thead>
     <tbody>
+      <tr><td><b>GitHub Pages が private リポジトリで公開されること</b>（参照D。サマリ #5 の根拠）</td>
+          <td><b>ユーザー判断により、この機能は使わない前提になった</b>ため確認しない。配布先向けの注記に留める</td></tr>
+      <tr><td><b>GitLab の並列デプロイが Premium/Ultimate 限定であること</b>（参照E。サマリ #2 の根拠）</td>
+          <td><b>CE では確認できない。</b>「直列のみ検証」の判断により、<code>path_prefix</code> を
+              指定したジョブがCEでどう振る舞うか（エラーか無視か）だけを記録する</td></tr>
       <tr><td>GitHub Pages の有効化操作（APIで足りるか、Web UIが必須か）</td>
           <td><code>gh api -X POST repos/{o}/{r}/pages -f 'source[branch]=gh-pages' -f 'source[path]=/'</code>
               を実行し、失敗したらWeb UIへ切り替える</td></tr>
       <tr><td>実際にデプロイされたURLがブラウザで開けるか</td>
           <td><code>gh-pages</code> へ push 後、<code>curl -sSI &lt;URL&gt;</code> で
               <code>content-type: text/html</code> と 200 を確認し、ブラウザでも開く</td></tr>
-      <tr><td>ビルド・デプロイの所要時間（5-4→5-6 の待ち時間）</td>
-          <td><code>gh run watch</code> の所要時間を3回計測する</td></tr>
-      <tr><td>5-5 の削除pushでサイトが壊れないこと</td>
-          <td><code>reports/</code> を空にした状態で push し、<code>pr-&lt;n&gt;/</code> のURLが
-              200のままであることを確認する</td></tr>
-      <tr><td>GitLab Pages parallel deployments の実挙動</td>
-          <td><b>CE では検証できない</b>（下記「想定と異なった点」）。方針の再確認が要る</td></tr>
+      <tr><td>ビルド・デプロイの所要時間（到達性確認の上限90秒が妥当か）</td>
+          <td>デプロイ完了までの時間を3回計測し、90秒で足りるかを確認する</td></tr>
+      <tr><td>5-6 の削除pushでサイトが壊れないこと</td>
+          <td><code>reports/</code> <code>plans/</code> を空にした状態で push し、
+              <code>pr-&lt;n&gt;/</code> のURLが200のままであることを確認する</td></tr>
+      <tr><td><code>gh-pages</code> への同時push競合とリトライ</td>
+          <td>2つのPRから同時に 5-4 を実行し、両方のデプロイが成功することを確認する</td></tr>
       <tr><td>GitLab Pages access control が<b>並列デプロイにも適用されるか</b></td>
-          <td>ドキュメントに記載が無い。実機で確認するほかない</td></tr>
-      <tr><td>GitLab の並列デプロイ数の上限（具体値）</td>
-          <td>ドキュメントに明記が無い。管理画面で確認する</td></tr>
+          <td>ドキュメントに記載が無く、<b>並列自体がCEで動かない</b>ため確認できない。直列での適用のみ確認する</td></tr>
+      <tr><td>GitLab の並列デプロイ数の上限（具体値）</td><td>ドキュメントに明記が無い。<b>CEでは確認できない</b></td></tr>
+      <tr><td><code>glab api projects/:id/pages</code> の応答形</td>
+          <td>CE ＋ Pages 有効化後に実行し、<code>url</code> フィールドの有無を確認する</td></tr>
       <tr><td>配布先が fork 運用の場合の <code>GITHUB_TOKEN</code> の挙動</td>
           <td>本リポジトリでは再現しない。<b>ドキュメントへの注記に留める</b></td></tr>
     </tbody>
@@ -471,77 +676,65 @@
   <h2>設計への反映</h2>
   <p>フェーズ3の個別作業計画（flow-id 3-1）は、この結果だけを読んで書ける。要点は次のとおり。</p>
   <ol>
-    <li><b><code>Provider.sh</code> に「報告HTMLをホストしURLを返す」関数を追加する。</b>
-      <code>upload_attachment</code> と同じく<b>失敗は正常系のひとつ</b>とし、非0終了で呼び出し側が
-      スキップする。GitHub実装はPagesのURLを組み立てて返し、GitLab実装は <code>CI_PAGES_URL</code> ＋
-      path_prefix を返す。</li>
-    <li><b>GitHub のワークフローは <code>push</code> トリガ・branch方式（<code>gh-pages</code>）で書く。</b>
-      必須のガードが2つ。
+    <li><b><code>Provider.sh</code> に「報告HTMLをホストしURLを返す」関数と「到達性を確認する」関数を
+      追加する。</b> <code>upload_attachment</code> と同じく<b>失敗は正常系のひとつ</b>とし、非0終了で
+      呼び出し側がスキップする。PR/MR番号の導出は <code>get_mr_for_branch</code> に一本化する。</li>
+    <li><b>GitHub のワークフロー</b>: <code>on: push: branches: ['feature-*']</code>（<code>paths</code>
+      フィルタ無し）、branch方式で <code>gh-pages</code> の <code>pr-&lt;n&gt;/</code> へ書く。
       <ul>
-        <li><b><code>reports/*.html</code> と <code>plans/*.html</code> が0件ならデプロイをスキップする</b>（案(b)の要）</li>
-        <li><b>リポジトリが public のときだけデプロイする</b>（可視性の受け入れ条件を守るため）</li>
+        <li>デプロイ判定1: openなPRが<b>ちょうど1件</b>か（0件・複数件はスキップ）</li>
+        <li>デプロイ判定2: <code>reports/*.html</code> ＋ <code>plans/*.html</code> が<b>1件以上</b>か
+          （0件はスキップ＝削除pushの無害化）</li>
+        <li><code>concurrency: { group: gh-pages-deploy, cancel-in-progress: false }</code> ＋ push の3回リトライ</li>
+        <li><b>可視性によるガードは入れない</b>（ユーザー判断）</li>
       </ul>
     </li>
-    <li><b><code>SKILL.md</code> の flow-id 5-4 へホスト、5-6 へ通知を組み込む。</b>
-      5-6 では<b>URLの到達性を確認してから</b>提示する。</li>
+    <li><b>GitLab の <code>.gitlab-ci.yml</code></b>: <code>pages</code> ジョブに
+      <code>path_prefix: "mr-$CI_MERGE_REQUEST_IID"</code>、<code>expire_in: never</code>、
+      <code>rules: - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'</code>。対象HTMLが0件ならスキップ。</li>
+    <li><b><code>SKILL.md</code></b>: flow-id <b>5-4</b> へホスト、<b>5-6</b> へ通知を組み込む。
+      <b>5-6 では削除pushの後に</b>到達性を確認（5秒間隔・最大90秒）し、200にならなくてもURLは
+      注記つきで提示してフローを止めない。</li>
     <li><b><code>sync-assets.sh</code> の <code>.github/</code> コピーから <code>workflows/</code> を
       除外する。</b> 雛形は <code>.claude/skills/issue-mr-flow/assets/</code> へ置く。</li>
-    <li><b>DDR <code>i0114-01</code> に、ホスティング手段とタイミングの選定・却下案・可視性の制約を残す。</b></li>
+    <li><b>DDR <code>i0114-01</code></b> に、ホスティング手段とタイミングの選定・却下案・可視性と寿命の
+      扱い・GitHub/GitLabでトリガが非対称になる理由を残す。</li>
   </ol>
 </section>
 
 <section id="surprises">
   <h2>想定と異なった点</h2>
 
-  <h3>GitLab の実機検証は、現在の環境では成立しない</h3>
-  <p>flow-id 1-4 で「GitLab Runner を立てて実機検証する」と合意したが、<b>その前提が崩れている</b>。</p>
-  <ul>
-    <li>並列デプロイ（<code>pages.path_prefix</code>）は <b>Premium / Ultimate 限定</b>である。</li>
-    <li>検証環境（<code>.claude/docs/spec/gitlab-verification-environment.md</code> の
-      <code>gitlab/gitlab-ce:18.5.4-ce.0</code>）は <b>Community Edition ＝ Free tier</b> であり、
-      この機能を持たない。</li>
-    <li>加えて、self-managed で GitLab Pages を使うには <code>pages_external_url</code> に
-      <b>インスタンスとは別のドメイン</b>とワイルドカードDNSが要る。<code>localhost:8929</code> で
-      動かしている現在の環境では、Runner を立てる以前にここが障害になる。</li>
-  </ul>
-  <div class="box warn">
-    <span class="label">取りうる道は3つ。判断は人間に委ねる（この調査では決めない）</span>
-    <div class="tablewrap">
-    <table>
-      <thead><tr><th>案</th><th>内容</th><th>コスト</th></tr></thead>
-      <tbody>
-        <tr><td>α</td><td><b>GitLab側の実機検証を見送り</b>、<code>Gitlab.sh</code> の既存関数と同じく
-            「実機未検証」と明記して実装・ドキュメントを整える</td>
-            <td>小。先例あり（<code>upload_attachment</code> の GitLab 実装も実機未検証）</td></tr>
-        <tr><td>β</td><td><b>Premium/Ultimate のトライアルライセンス</b>をローカルCEへ適用し、
-            <code>pages_external_url</code> ＋ ワイルドカードDNS（hostsファイル or <code>nip.io</code> 等）を
-            整えて検証する</td><td>大。ライセンス取得・DNS・Runner構築</td></tr>
-        <tr><td>γ</td><td><b>GitLab.com の無料アカウント</b>に検証用プロジェクトを作る。ただし並列
-            デプロイは同じく Premium 以上なので、<b>Free では検証できない範囲が残る</b></td>
-            <td>中。ただし目的を果たせない</td></tr>
-      </tbody>
-    </table>
-    </div>
-  </div>
+  <h3>flow-id 5-5 に push は無かった</h3>
+  <p>当初「5-4 → 5-5（削除push）→ 5-6（通知）」と書いていたが、5-5 はコミットもpushもしない。
+    <b>削除pushと通知は同じ 5-6 に同居する</b>（上記「前提の訂正」）。到達性確認は削除pushの<b>後</b>に
+    行う必要がある。</p>
+
+  <h3>GitLab の実機検証範囲が狭まった</h3>
+  <p>flow-id 1-4 で「GitLab Runner を立てて実機検証する」と合意したが、並列デプロイは
+    <b>Premium/Ultimate 限定</b>で、検証環境（GitLab CE ＝ Free）では実施できない。
+    <b>flow-id 2-9 でユーザーが「直列のみ検証でよい」と判断</b>し、実装は並列のまま・検証は直列まで、
+    という形に落ち着いた。</p>
 
   <h3>GitHub Pages は「可視性設定に従う」を満たせない</h3>
   <p>計画では「可視性設定と一致するかを確認する」としていたが、<b>確認したら一致しなかった</b>。
-    private / internal リポジトリでも Pages サイトは既定でインターネットに公開され、非公開にできるのは
-    GitHub Enterprise Cloud のみである。</p>
-  <p>これは<b>受け入れ条件を満たすためにワークフロー側のガードが必要</b>という形で設計へ跳ね返る。
-    「追加の認証・自動失効等の制御は行わない」というスコープ外の項目とは矛盾しない
-    （<b>制御を足すのではなく、条件を満たせないときにデプロイしない</b>という判断であるため）。</p>
+    private / internal リポジトリでも Pages サイトは既定で公開される。</p>
+  <p>当初は「public のときだけデプロイする」ガードを設計に含めたが、<b>flow-id 2-9 でユーザーが
+    「公開しておいてよい」「恒久公開してよい」と判断</b>したため、ガードは入れない。<b>配布先が
+    private リポジトリで使う場合、計画・レポートの中身が公開される</b>という事実は、ドキュメントへ
+    注記として残す。</p>
 </section>
 
 <section id="todo">
   <h2>残課題</h2>
   <ul>
-    <li><b>GitLab側の検証方針（上記 α / β / γ）の決定。</b> flow-id 2-8 のレビューで人間の判断を仰ぐ。</li>
     <li><b>GitHub Pages の有効化。</b> フェーズ3の最初に行う。リポジトリ設定を変更するため、
       実行前にユーザーへ知らせる。</li>
-    <li><b><code>gh-pages</code> ブランチの掃除。</b> PR単位のディレクトリはマージ後も残る。今回の
-      スコープでは「寿命の制御は行わない」ため放置するが、<b>溜まり続けることは事実</b>なので、
-      別issueの候補として記録しておく。</li>
+    <li><b><code>gh-pages</code> ブランチの掃除。</b> PR単位のディレクトリはマージ後も残り、
+      <code>expire_in: never</code> によりGitLab側も残る。<b>恒久公開してよいという判断を得たので
+      今回は放置する</b>が、溜まり続けることは事実なので、別issueの候補として記録しておく。</li>
+    <li><b>配布先が private リポジトリの場合の注意喚起</b>をどこに書くか（<code>SKILL.md</code> か
+      spec か）。フェーズ4で決める。</li>
   </ul>
 </section>
 
