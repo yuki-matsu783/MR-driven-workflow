@@ -1,0 +1,260 @@
+<!--
+  個別作業計画「【AIアセット作成】【実装】【テスト】収穫スキルの新設 — issue #27」の人間レビュー用HTMLビュー。
+  正文は同名の plans/【AIアセット作成】【実装】【テスト】収穫スキルの新設.md（このHTMLはその視覚化）。
+-->
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>【AIアセット作成】【実装】【テスト】収穫スキルの新設 — issue #27</title>
+<style>
+  :root {
+    --bg: #f6f7f9;      --panel: #ffffff;   --ink: #1a1d21;     --muted: #5b636d;
+    --line: #dfe3e8;    --accent: #2563eb;  --accent-soft: #eaf0fe;
+    --ok: #1a7f4b;      --ok-soft: #e6f4ec; --warn: #a35a00;    --warn-soft: #fdf1e0;
+    --stop: #b3261e;    --stop-soft: #fdecea; --code-bg: #f0f2f5;
+    --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1216;    --panel: #161a20;   --ink: #e6e8eb;     --muted: #9aa3ad;
+      --line: #2a3038;  --accent: #7aa2f7;  --accent-soft: #1b2333;
+      --ok: #6ee7a8;    --ok-soft: #14261d; --warn: #f0b866;    --warn-soft: #2a2113;
+      --stop: #f2857c;  --stop-soft: #2b1614; --code-bg: #1d222a;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", system-ui, sans-serif;
+    line-height: 1.8; font-size: 15px;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 20px 80px; }
+  header.band {
+    background: linear-gradient(135deg, var(--accent-soft), var(--panel));
+    border-bottom: 1px solid var(--line); padding: 28px 20px 22px; margin-bottom: 28px;
+  }
+  header.band .inner { max-width: 1080px; margin: 0 auto; }
+  header.band .kind { font-size: 11px; letter-spacing: .18em; color: var(--accent); font-weight: 700; }
+  header.band h1 { margin: 6px 0 4px; font-size: 26px; line-height: 1.4; }
+  header.band .lead { margin: 0; color: var(--muted); }
+  .meta { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; padding: 0; list-style: none; }
+  .meta li {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 999px;
+    padding: 3px 12px; font-size: 12.5px; color: var(--muted); white-space: nowrap;
+  }
+  .meta li b { color: var(--ink); font-weight: 600; }
+  nav.toc {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 14px 20px; margin-bottom: 28px;
+  }
+  nav.toc h2 { margin: 0 0 8px; font-size: 13px; letter-spacing: .08em; color: var(--muted); border: 0; padding: 0; }
+  nav.toc ol { margin: 0; padding-left: 20px; }
+  nav.toc li { margin: 2px 0; }
+  a { color: var(--accent); }
+  section {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 8px 24px 22px; margin-bottom: 22px;
+  }
+  h2 { font-size: 20px; margin: 20px 0 10px; padding-bottom: 8px; border-bottom: 2px solid var(--line); }
+  h3 { font-size: 16px; margin: 22px 0 8px; color: var(--accent); }
+  p { margin: 10px 0; }
+  ul, ol { padding-left: 22px; }
+  li { margin: 4px 0; }
+  .tablewrap { overflow-x: auto; margin: 14px 0; }
+  table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 14px; }
+  th, td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: var(--accent-soft); font-weight: 600; white-space: nowrap; }
+  tbody tr:nth-child(even) td { background: color-mix(in srgb, var(--line) 22%, transparent); }
+  code {
+    background: var(--code-bg); border-radius: 5px; padding: 1px 5px; font-size: 13px;
+    font-family: "SFMono-Regular", Consolas, "Noto Sans Mono", monospace;
+  }
+  pre {
+    background: var(--code-bg); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 12px 14px; overflow-x: auto; font-size: 13px; line-height: 1.65;
+  }
+  pre code { background: none; padding: 0; }
+  .box { border-left: 4px solid var(--accent); background: var(--accent-soft);
+         border-radius: 0 var(--radius) var(--radius) 0; padding: 12px 16px; margin: 16px 0; }
+  .box > :first-child { margin-top: 0; } .box > :last-child { margin-bottom: 0; }
+  .box .label { font-size: 12px; font-weight: 700; letter-spacing: .06em; display: block; margin-bottom: 4px; }
+  .box.stop { border-color: var(--stop); background: var(--stop-soft); } .box.stop .label { color: var(--stop); }
+  footer { color: var(--muted); font-size: 13px; text-align: center; padding-top: 10px; }
+</style>
+</head>
+<body>
+
+<header class="band">
+  <div class="inner">
+    <div class="kind">個別作業計画 / フェーズ3（flow-id 3-1）</div>
+    <h1>【AIアセット作成】【実装】【テスト】収穫スキルの新設</h1>
+    <p class="lead">収穫（逆輸入）スキル一式（SKILL.md・読み取り専用の分析スクリプト・単体テスト・配布先DDR規約・dist-layersエントリ）を新設する。</p>
+    <ul class="meta">
+      <li><b>issue</b> #27</li>
+      <li><b>ブランチ</b> claude/ai-asset-reverse-import-skill-g4qa9s</li>
+      <li><b>PR</b> #189</li>
+      <li><b>作成日</b> 2026-08-23</li>
+      <li><b>正文</b> 同名の .md</li>
+    </ul>
+  </div>
+</header>
+
+<div class="wrap">
+
+<nav class="toc">
+  <h2>目次</h2>
+  <ol>
+    <li><a href="#premise">前提（合意状況）</a></li>
+    <li><a href="#kinds">種別の併記について</a></li>
+    <li><a href="#goal">この計画で何をするか</a></li>
+    <li><a href="#target">変更対象</a></li>
+    <li><a href="#approach">方針</a></li>
+    <li><a href="#out-of-scope">やらないこと（スコープ外）</a></li>
+    <li><a href="#verify">検証</a></li>
+    <li><a href="#criteria">issueの受け入れ条件との対応</a></li>
+  </ol>
+</nav>
+
+<section id="premise">
+  <h2>前提（合意状況）</h2>
+  <ul>
+    <li>依拠する調査結果: <code>reports/2026-08-23_quiet-orchard-harvest_調査結果.md</code>（flow-id 2-6 で作成。敵対的レビュー1〜2回目の指摘を反映済み）。</li>
+    <li>上位計画: <code>plans/quiet-orchard-harvest.md</code>（flow-id 1-4 で作成）。</li>
+    <li><b>flow-id 1-5・2-8（人間の合意・レビュー）は未実施</b>（非対話セッションのため保留のまま進行中）。人間レビューで方針が変われば本計画も変わりうる。</li>
+  </ul>
+</section>
+
+<section id="kinds">
+  <h2>種別の併記について</h2>
+  <p><code>【AIアセット作成】</code>（SKILL.md・DDR規約明文化）・<code>【実装】</code>（収穫スクリプト・dist-layersエントリ）・<code>【テスト】</code>（単体テスト）を併記する。スクリプトはスキルの実行に必須のバンドルリソースで、テストは実装と同時に書いてまとめて1回で合意を取るのが自然なため（分けても合意の単位が変わらず記述が重複するだけ）。</p>
+</section>
+
+<section id="goal">
+  <h2>この計画で何をするか</h2>
+  <p>収穫（逆輸入）スキル一式を新設する。構成は「読み取り専用の分析スクリプト＋AIエージェントの手順（SKILL.md）＋既存フロー（issue-create）への接続」。</p>
+</section>
+
+<section id="target">
+  <h2>変更対象</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>ファイル</th><th>操作</th><th>何をするか</th></tr></thead>
+    <tbody>
+      <tr><td><code>.claude/skills/harvest-from-projects/SKILL.md</code></td><td>新規</td><td>収穫スキルの手順定義</td></tr>
+      <tr><td><code>.claude/skills/harvest-from-projects/scripts/harvest-from-projects.sh</code></td><td>新規</td><td>読み取り専用の差分分析スクリプト</td></tr>
+      <tr><td><code>.claude/scripts/test/test_harvest_from_projects.sh</code></td><td>新規</td><td>単体・結合テスト（<code>passed=N failures=N</code> 規約。配布先でスクリプト不在ならスキップ——<code>test_install_to_project.sh</code> と同型）</td></tr>
+      <tr><td><code>.claude/dist-layers.json</code></td><td>変更</td><td><code>exclude</code> エントリ追加（<code>apply-mr-workflow-to-project</code> エントリの直後）</td></tr>
+      <tr><td><code>.claude/rules/markdown-frontmatter.md</code></td><td>変更</td><td>「DDRの識別子」節配下へ「配布先プロジェクトでの機構DDRの扱い」を追記</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="approach">
+  <h2>方針</h2>
+
+  <h3>スクリプト harvest-from-projects.sh</h3>
+  <ul>
+    <li><b>読み取り専用</b>: 本家・配布先のワークツリーを変更しない。書き込みは <code>mktemp -d</code> の一時領域のみ。git 操作は <code>show</code> / <code>cat-file</code> / <code>ls-files</code> / <code>log</code> / <code>rev-list</code> / <code>merge-file -p</code> に限る。</li>
+  </ul>
+  <pre><code>bash harvest-from-projects.sh [--upstream &lt;dir&gt;] scan &lt;配布先パス&gt;...
+bash harvest-from-projects.sh [--upstream &lt;dir&gt;] diff &lt;配布先パス&gt; &lt;相対パス&gt;
+bash harvest-from-projects.sh [--upstream &lt;dir&gt;] merge3 &lt;配布先パス&gt; &lt;相対パス&gt;</code></pre>
+  <ul>
+    <li><code>scan</code>: 配布先ごとに manifest を読み、core/merge の modified / added / deleted と衝突有無・判断材料を JSON 1つで返す（複数配布先を一度に受け取る）。manifest 無しは <code>degraded: true</code> で2-way差分一覧へ縮退。</li>
+    <li><code>diff</code>: 2-way差分（本家HEAD vs 配布先現在。LF正規化後）。</li>
+    <li><code>merge3</code>: 3-wayマージ結果（3入力ともLF正規化）。終了コード 0=衝突なし・正=衝突数・2=base取得不可で縮退。</li>
+    <li><code>--upstream</code>: テストが合成本家を差し込むための上書き（既定はスクリプト位置から導出）。</li>
+    <li>scan JSON: <code>status</code>（modified/added/deleted。added は層解決で core に解決されるパスに限定・<code>upstreamHasPath</code> で本家の削除漏れと区別）・<code>conflict</code>（clean/conflict/unknown）・判断材料（<code>aiAssetCommits</code>・<code>changeCount</code>。非gitリポジトリは null）。merge 層は記録済み指紋との比較で modified 判定（読む側の初実装）。</li>
+    <li>実装規約: <code>set -euo pipefail</code>・jq をループ内で起動しない・<code>main</code> ガードで source 可能にし純粋関数（層解決・分類・-dirty 除去・LF正規化比較）を単体テスト可能にする。</li>
+  </ul>
+
+  <h3>SKILL.md（AIエージェントの手順）</h3>
+  <ol>
+    <li>配布先パス（複数可）を受け取り <code>scan</code> を実行。</li>
+    <li>結果を層・分類・衝突・判断材料つきで提示（プロジェクト固有語の判定は AI が diff を読んで行う）。</li>
+    <li><code>AskUserQuestion</code> で取り込む差分を選択。</li>
+    <li><code>AskUserQuestion</code> で出口レベルを確認（a. issue起票のみ／b. 起票＋個別作業計画の草案）。</li>
+    <li>差分ごとに issue 本文（4見出し）を組み立て、<b>issue-create スキルの手順</b>で起票（重複チェック込み。CLI不在時はMCPフォールバック）。</li>
+    <li>レベル b は草案をセッションの scratchpad へ書きパスを提示して停止（本家の plans/ へは置かない）。</li>
+    <li>どのレベルでも本家の正史（rules/skills/docs）を直接編集しない（「してはいけないこと」で明文化）。</li>
+  </ol>
+
+  <h3>DDR規約の明文化（markdown-frontmatter.md）</h3>
+  <p>「DDRの識別子」節の末尾へ小節「配布先プロジェクトでの機構DDRの扱い（issue #27）」を追加: 配布先では機構に関するDDRを書かず本家へ issue を起票する（識別子衝突の防止・意思決定の正史の一元化）。プロジェクト固有のDDR（アプリ本体）は従来どおり配布先で書いてよい、という線引きも明記。</p>
+
+  <h3>dist-layers.json</h3>
+  <pre><code>{ "layer": "exclude", "path": ".claude/skills/harvest-from-projects",
+  "note": "収穫（逆輸入）スキルは本家専用。配ると配布先が配布先自身を収穫する誤用と、本家と配布先の役割の分岐を招く" }</code></pre>
+
+  <h3>テスト test_harvest_from_projects.sh</h3>
+  <p>一時ディレクトリに合成本家（git init・最小 dist-layers.json・core 数件・2コミット）と合成配布先（git init・manifest 捏造）を作り <code>--upstream</code> で差し込む。</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>#</th><th>ケース</th><th>期待</th></tr></thead>
+    <tbody>
+      <tr><td>T1</td><td>core を配布先で変更</td><td>modified として列挙（受け入れ条件1）</td></tr>
+      <tr><td>T2</td><td>同一ファイルを本家側も変更</td><td>conflict。T1 は clean と区別（受け入れ条件2）</td></tr>
+      <tr><td>T3</td><td>配布先で core 対象へ新規追加</td><td>added（受け入れ条件3）</td></tr>
+      <tr><td>T4</td><td>記録済みファイルを配布先で削除</td><td>deleted（受け入れ条件4）</td></tr>
+      <tr><td>T5</td><td>manifest 無し</td><td>degraded=true で差分一覧（受け入れ条件5）</td></tr>
+      <tr><td>T6</td><td>配布先2つを一度に指定</td><td>両方の結果（受け入れ条件6）</td></tr>
+      <tr><td>T7</td><td>層解決で除外されるパスの追加</td><td>added に現れない（Q8）</td></tr>
+      <tr><td>T8</td><td>記録SHAが -dirty 付き</td><td>baseResolvable=false・conflict=unknown・merge3 は縮退（終了コード2）</td></tr>
+      <tr><td>T9</td><td>theirs が CRLF（内容同一）</td><td>modified にならない（LF正規化）</td></tr>
+      <tr><td>T10</td><td>純粋関数の単体</td><td>source して直接検証（層解決の後勝ち・-dirty 除去）</td></tr>
+      <tr><td>T11</td><td>読み取り専用の表明</td><td>実行前後で両リポジトリの git status --porcelain が不変</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="out-of-scope">
+  <h2>やらないこと（スコープ外）</h2>
+  <div class="box stop">
+    <span class="label">この計画では行わない</span>
+    <ul>
+      <li>本家正史への取り込みの自動実行（出口は issue 起票まで。以降は通常の issue-mr-flow）</li>
+      <li>GitLab MCP 対応・リモート配布先・merge 層の自動マージ逆適用（modified の提示まで）</li>
+      <li>spec / DDR の作成（フェーズ4の <code>【設計反映】</code> で行う）</li>
+      <li><code>.gemini/</code> への変換同期（flow-id 5-3 でまとめて行う）</li>
+    </ul>
+  </div>
+</section>
+
+<section id="verify">
+  <h2>検証</h2>
+  <pre><code>bash -n .claude/skills/harvest-from-projects/scripts/harvest-from-projects.sh
+bash .claude/scripts/test/test_harvest_from_projects.sh   # passed=N failures=0・終了コード0
+bash .claude/scripts/src/check-dist-coverage.sh           # exclude エントリ追加後も4検査が通る
+bash .claude/scripts/src/extract-frontmatter.sh . &gt;/dev/null  # 新規mdのfrontmatterが読める</code></pre>
+  <p>合格条件: 上記がすべて成功し、T1〜T11 が issue #27 の受け入れ条件を1件以上のアサーションで固定していること。</p>
+</section>
+
+<section id="criteria">
+  <h2>issueの受け入れ条件との対応</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>受け入れ条件</th><th>対応</th></tr></thead>
+    <tbody>
+      <tr><td>core 層変更が列挙される</td><td>scan の modified＋T1</td></tr>
+      <tr><td>本家側変更と衝突ありの区別</td><td>conflict 判定＋T2</td></tr>
+      <tr><td>新規追加が候補列挙</td><td>added＋T3（T7 で誤検出防止）</td></tr>
+      <tr><td>削除が列挙</td><td>deleted＋T4</td></tr>
+      <tr><td>manifest 無しの縮退モード</td><td>degraded＋T5</td></tr>
+      <tr><td>複数配布先パス</td><td>scan 引数設計＋T6</td></tr>
+      <tr><td>出口レベル確認・停止・正史不変更</td><td>SKILL.md 手順3〜7＋読み取り専用設計（T11）</td></tr>
+      <tr><td>issue-create 経由の起票</td><td>SKILL.md 手順5</td></tr>
+      <tr><td>DDR規約が配布物のルールに記載</td><td>markdown-frontmatter.md への追記（core 層）</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<footer>issue #27 / PR #189 — 計画の正文は同名の <code>.md</code>。外部依存を持たない自己完結HTML。</footer>
+
+</div>
+</body>
+</html>
