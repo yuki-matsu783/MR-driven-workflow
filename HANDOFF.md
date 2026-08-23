@@ -17,7 +17,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - issue: #105
 - ブランチ: claude/gemini-cli-telemetry-reporting-a253xp
 - PR: https://github.com/yuki-matsu783/MR-driven-workflow/pull/174
-- push回数: 2
+- push回数: 3
 - 現在のループ: なし
 - 追従監視: 購読あり（web。subscribe_pr_activity + 1時間ごとの自己チェックイン）
 
@@ -30,7 +30,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 | [x] | 1-5 | 全体作業計画に合意する | 人間 |
 | [x] | 1-6 | 全体作業計画をもとにHANDOFF.mdを更新する | エージェント |
 | [x] | 2-1 | 個別調査計画を作成する | エージェント |
-| [] | 2-2 | commitしpushしてレビュー依頼を行う | エージェント |
+| [x] | 2-2 | commitしpushしてレビュー依頼を行う | エージェント |
 | [] | 2-3 | 調査計画についてレビュー・コメントする | 人間 |
 | [] | 2-4 | レビュー内容を取得し調査計画を修正する | comments/reply |
 | [] | 2-5 | 調査計画をもとにMR descriptionを更新する | describe |
@@ -88,8 +88,8 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 
 ## 次にやること
 
-- flow-id 2-2: 修正済みの計画（md・html・worklog・HANDOFF.md）をcommitしてpush3を実行し、
-  人間のレビュー依頼メッセージを出す。
+- flow-id 2-2完了。commitしpush3を実行済み。次は人間のレビュー依頼メッセージを出し、
+  flow-id 2-3（人間によるレビュー）を待つ。
 
 ## 判断を迷った内容
 
