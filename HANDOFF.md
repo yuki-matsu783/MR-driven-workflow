@@ -17,7 +17,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - issue: #105
 - ブランチ: claude/gemini-cli-telemetry-reporting-a253xp
 - PR: https://github.com/yuki-matsu783/MR-driven-workflow/pull/174
-- push回数: 5
+- push回数: 6
 - 現在のループ: なし
 - 未返信スレッド: 0
 - 追従監視: 購読あり（web。subscribe_pr_activity + 1時間ごとの自己チェックイン）
@@ -121,6 +121,14 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
   （plans/、返信済み）とあわせ、現時点で全20スレッドに返信済み。
 
 - flow-id 2-10: 調査結果（reports/の8方針・受け入れ条件対応表）をもとにMR descriptionを更新した。
+- defaultブランチ追従チェックイン（自己スケジュール）でdefaultブランチとのコンフリクトを検知
+  （`check-base-conflicts.sh`の`hasTextualConflict`）。`main`側で新設された
+  `- 未返信スレッド:`ヘッダ行（issue #70。`mark-done`がループ範囲完了時にこの値の確認を要求する
+  ようになった）と、このブランチの既存ヘッダが競合したため、`git merge`（`--no-ff`ではなく
+  通常マージ）で取り込み、`update-handoff-progress.md`の正しい並び順（現在のループ→未返信
+  スレッド→追従監視）へ手動で解消した（値は0。全20スレッドへ返信済みのため）。単体テスト全17本
+  `passed=N failures=0`・DDR番号重複無しを確認してから`commit`スキル経由でマージコミットを
+  作成しpushした（push6）。
 
 ## 次にやること
 
