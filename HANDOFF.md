@@ -17,7 +17,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - issue: #105
 - ブランチ: claude/gemini-cli-telemetry-reporting-a253xp
 - PR: https://github.com/yuki-matsu783/MR-driven-workflow/pull/174
-- push回数: 8
+- push回数: 9
 - 現在のループ: 3-3〜3-4 の1周目（進行中）
 - 未返信スレッド: 0
 - 追従監視: 購読あり（web。subscribe_pr_activity + 1時間ごとの自己チェックイン）
@@ -137,11 +137,28 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
   `sync-gemini-assets.sh`の生成ロジック変更で対応する設計へ更新した。3層構成
   （設定層/集計層/レポート層）＋配布gitignore是正で計画した。worklog
   （`worklog/20260823_squishy-painting-coral_【設計】【実装】【テスト】〜_push8.md`）も作成した。
+- flow-id 3-2: commit（7a08184）・push（push8）し、レビュー依頼を行った。
+- push8の後、ユーザー指示「計画時に一度敵対的レビューを自動で行う」に従い、フェーズ3の
+  敵対的レビューを1回実施した（`adversarial-review-count.sh`のフェーズ3カウンタ=1）。対象は
+  `plans/`の個別作業計画（md・html）。20件の指摘（major多数・minor若干）のうち10件をMR #174へ
+  インラインコメント投稿し、残り10件はレビュー本文へ報告のみとして記載した。**投稿・報告した
+  20件すべてに対応し、計画（md・html）を修正した**（詳細はworklog「追記（敵対的レビュー1回目・
+  push8後、計画の修正）」参照）。主な修正: `enabled`値の自己矛盾を`false`固定へ統一し手動有効化
+  運用を撤回、変更対象の欠落3件（`.gemini/settings.json`・`test_sync_gemini_assets.sh`・
+  `test_install_to_project.sh`）を追加、既存5引数呼び出しを壊す設計ミスを既定値付き引数へ修正、
+  バイト位置検出方法（列0の`}`+改行を境界とする方式）を明記、境界をまたぐ二重計上バグをsemantic
+  conventions形式のみ採用で解消、engine分岐の設計不整合をデータ側判定へ修正、検証手順の
+  トートロジー2件を修正、`install-to-project.sh`の現状記述の事実誤りを訂正、人間への実機確認
+  依頼（7項目）を計画へ転記、その他minor（カーソル状態ファイルのパス衝突回避・初回カーソル
+  全量計上の明示化・推測ベースフィクスチャの但し書き・`env`コメント更新・md/html非同期解消）。
+  push9でこの修正内容をcommit・pushした。
 
 ## 次にやること
 
-- flow-id 3-2: `commit`スキル経由でcommitし、pushしてレビュー依頼を行う。push後、フェーズ3の
-  敵対的レビューを1回実施する（計画時、ユーザー指示）。
+- flow-id 3-3〜3-4: 修正した計画（`plans/【設計】【実装】【テスト】〜.md`・html）について、
+  人間のレビューを待つ。レビュー完了の合図（「レビュー済み」等）を受けたら、
+  `pull_request_read`（get_review_comments）で全スレッドを再取得し、返信0件のスレッドへ
+  対応内容を返信する（flow-id 2-3/2-4等と同じ手順）。
 
 ## 判断を迷った内容
 
