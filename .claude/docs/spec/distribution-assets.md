@@ -165,6 +165,19 @@ LICENSEも当初の対象だったが、**同梱しないと決めた**（
   何も壊さずに警告だけが残る（仕様: [sync-gemini-assets.md](sync-gemini-assets.md)）。
 - `jq` が無い環境では `install-to-project.sh` が事前に警告する（`.gemini/` の生成が `jq` に依存する）。
 
+### issue #105（`/usage/` を `ignore_rules` へ追加）
+
+`install-to-project.sh` の `ignore_rules`（下記「未決定事項・懸念点」の既知の問題）へ `/usage/`
+を追加した。Gemini CLI公式テレメトリ機構（[gemini-cli-telemetry.md](gemini-cli-telemetry.md)）の
+outfile（`usage/gemini-otel.log`）・カーソル状態（`usage/state/gemini-otel/cursor.json`）を
+含む `usage/` 配下全体が、配布先でもGit管理対象外になる。
+
+- **旧パス名の行（`/.claude/usage-state/` `/.claude/session-logs/`）・`/.claude/state/` の未解消は
+  この対応でも直していない**（issue #23 の一本化に配布側が追従していないという既存の問題の一部
+  だけを解消した。範囲外として残す）。
+- 変更したファイル: `.claude/skills/apply-mr-workflow-to-project/scripts/install-to-project.sh`
+  （`ignore_rules` 配列）。
+
 ## 未決定事項・懸念点
 
 - **Windows実機（git bash）での改行挙動は未確認**である。issue #33 の作業はLinuxコンテナ上で
@@ -190,11 +203,11 @@ LICENSEも当初の対象だったが、**同梱しないと決めた**（
     空行が1行増える）。
   - 判定が部分一致（`grep -Fq`、`--` 無し）のままで、配布先が `# /.claude/session-logs/ は不要` の
     ようにコメントで言及しているだけでも実設定が入らない。
-  - 追記される行（`/.claude/usage-state/` 等4行）が、本家が実際に使う状態ディレクトリ
+  - 追記される行（`/.claude/usage-state/` 等5行）が、本家が実際に使う状態ディレクトリ
     （`/usage/` と `/.claude/state/`）と一致していない（issue #23 の一本化に配布側が追従して
-    いない）。**`/usage/` 分はissue #105（フェーズ3）で `ignore_rules` へ追加し解消済み。**
-    `/.claude/usage-state/` `/.claude/session-logs/` という旧パス名の行は引き続き残ったままで、
-    `/.claude/state/` はまだ `ignore_rules` に無い（未解消）。
+    いない）。**`/usage/` 分はissue #105（フェーズ3）で `ignore_rules` へ追加し解消済み**
+    （下記「issue #105」参照）。`/.claude/usage-state/` `/.claude/session-logs/` という旧パス名の
+    行は引き続き残ったままで、`/.claude/state/` はまだ `ignore_rules` に無い（未解消）。
 - **`HAS_WARNED` が `safe_copy_dir` の外へ伝わらない。** `find ... | while ...` はパイプライン
   なのでサブシェルで実行され、その中で立てた `HAS_WARNED=true` は失われる。結果として、
   `.claude/` `.github/` `.gitlab/` 配下のファイルでどれだけ `.bak` 退避が起きても、

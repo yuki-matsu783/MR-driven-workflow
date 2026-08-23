@@ -405,11 +405,11 @@ def conv_tool_group:
   #
   # enabled は false 固定。**現時点でこれをtrueへ切り替える手段は存在しない**
   # （.claude/settings.json側に対応するスイッチが無く変換元を持たないため、かつ
-  # .gemini/settings.jsonを手で書き換えても次回の`sync-gemini-assets.sh`実行で無言でfalseへ
-  # 戻り、戻す前に`--check`が食い違いを検知して非0で終了する＝flow-id 5-3で必ず止まる）。
-  # 有効化手段の確立（.claude/settings.json側にスイッチを設ける等）は本issueのスコープ外の
-  # 未決定事項とする（issue #105フェーズ4で.claude/docs/spec/・DDRへ記録する。反映が済むまでは
-  # spec側にこの経緯を記載していないため、ここではspecを名指ししない）。
+  # .gemini/settings.jsonを手で書き換えても次回の`sync-gemini-assets.sh`実行で**無言で**falseへ
+  # 戻る。`--check`はこのフロー上どのhookにも自動では挿さっていないため、この上書きに気づく
+  # 仕組みも無い）。有効化手段の確立（.claude/settings.json側にスイッチを設ける等）は本issueの
+  # スコープ外の未決定事項とする（issue #105フェーズ4で.claude/docs/spec/gemini-cli-telemetry.md・
+  # DDR i0105-02へ記録済み）。
   + {
     telemetry: {
       enabled: false,

@@ -25,12 +25,17 @@ Gemini CLIの非公開・内部フォーマットであり、将来のバージ�
 Claude Code側の同種の機構は
 [otel-listener.md](otel-listener.md)（issue #103、`.claude/hooks/otel/`の常駐perlリスナー）が
 実装済みだが、本機構とは**受信方式が根本的に異なる**。Claude Code公式のOTLPエクスポートは
-ネットワーク送信（HTTP）のみをサポートするため常駐リスナーで受信する必要があるのに対し、
-Gemini CLIは`target: "local"`を指定すると**outfileへ直接ファイル追記**する。したがって
-本機構には常駐プロセスが無く、`usage/`配下のoutfileをpush毎にバイトオフセットカーソルで
-差分読み取りするだけで完結する。
+ネットワーク送信（HTTP）で受信する構成を採っており（`otel-listener.md`「設定項目」の
+`OTEL_EXPORTER_OTLP_ENDPOINT`等）、outfileへの直接書き出しのような経路は本リポジトリでは
+確認できていない。一方Gemini CLIは`target: "local"`を指定すると**outfileへ直接ファイル
+追記**する。したがって本機構には常駐プロセスが無く、`usage/`配下のoutfileをpush毎に
+バイトオフセットカーソルで差分読み取りするだけで完結する。
 
 ## 仕組み
+
+> 以下は`telemetry.enabled: true`にした場合の動作である。**現状は`enabled: false`固定
+> （下記「設定項目」）のため、1〜4はいずれも起きない**（outfileは1バイトも書かれず、
+> 集計・レポート反映も対象データが無いまま常に空を返す）。
 
 1. `.gemini/settings.json`（`sync-gemini-assets.sh`が`.claude/settings.json`から変換生成する際、
    固定値ブロックとして注入する。下記「設定項目」参照）に従い、Gemini CLIが起動するたびに
@@ -38,12 +43,20 @@ Gemini CLIは`target: "local"`を指定すると**outfileへ直接ファイル�
 2. `git push`成功時（`post-push-usage-report.sh`）、`usage/gemini-otel.log`の存在有無で
    本機構の集計を行うかを判定する（`engine`ではなくデータの有無で判定する。既存の
    「トークン列の構成はengineではなくデータで決める」設計方針（DDR i0097-03）と整合させた）。
+   outfileのパスは固定文字列ではなく、`_usage_otel_resolve_outfile_to_reply`
+   （`.claude/hooks/lib/UsageTracking.sh`）が`.gemini/settings.json`の`telemetry.outfile`を
+   **動的に読んで**解決する（設定ファイルが無い・不正・キー未設定なら既定値
+   `usage/gemini-otel.log`へフォールバック）。相対パスは**repo_root基点**で解決するが、
+   **Gemini CLI側が相対`outfile`を何基点で解決するか（起動時CWDかプロジェクトルートか）は
+   未確認**である（下記「未決定事項・懸念点」）。
 3. `_sync_usage_state_otel`（`.claude/hooks/lib/UsageTracking.sh`）が、前回までに読み取った
    バイトオフセット以降を差分読み取りし、完全にパースできたエントリだけを畳み込んで
    `usage/state/gemini-otel/cursor.json`へ書き戻す。
 4. `post-push-usage-report.sh`が、畳み込んだ値を対応工数レポートへ「### Gemini CLI公式
    テレメトリ（参考値）」という独立したセクションとして追加する。既存のトークンテーブル
-   （Claude Code経路・Gemini CLIセッションログ経路）へは合算しない。
+   （Claude Code経路・Gemini CLIセッションログ経路）へは合算しない。投稿要否のゲートは、
+   セッションログ由来の合計が0でも**`telemetry`の`calls`が1件以上あれば投稿する**よう
+   拡張されている（詳細は[issue-mr-workflow.md](issue-mr-workflow.md)「対応工数レポート」節）。
 
 ## 設定項目
 
@@ -60,11 +73,16 @@ Gemini CLIは`target: "local"`を指定すると**outfileへ直接ファイル�
 常に同じ値を書き込む）。詳細な注入位置・変換規則との関係は
 [sync-gemini-assets.md](sync-gemini-assets.md)「固定値で注入するブロック」節を参照。
 
-- **`enabled: false`固定**: 配布先`.gitignore`保護の配布漏れ（フェーズ3で`/usage/`分は解消済み。
-  下記DDR i0105-02）と、機微情報未確認（下記）の条件が解消するまで既定ONにしない。
+- **`enabled: false`固定**: 保留の根拠は**機微情報（`tool_call`引数等）未確認の1点**に絞る
+  （下記、DDR
+  [i0105-02](../ddr/i0105-02-既定有効化は機微情報未確認のため保留する.md)「決定」）。
+  配布先`.gitignore`の`/usage/`未整備は、フェーズ2敵対的レビューで発見された時点では
+  保留根拠の1つだったが、**フェーズ3で`install-to-project.sh`へ`/usage/`除外を追加し解消済み**
+  であり、現在の保留理由には含めない（DDR i0105-02の経緯として記録）。
   **現時点でこれをtrueへ切り替える手段は存在しない**（`.claude/settings.json`側に対応する
   スイッチが無く変換元を持たないため、`.gemini/settings.json`を手で書き換えても次回の
-  `sync-gemini-assets.sh`実行で無言でfalseへ戻る）。
+  `sync-gemini-assets.sh`実行で無言でfalseへ戻る。`--check`は自動実行されないため、この
+  上書きに気づく仕組みも無い。下記「未決定事項・懸念点」）。
 - **`logPrompts: false`**: プロンプト本文の記録を明示的に抑制する。ただし、これが制御するのは
   プロンプト本文のみであり、**他イベント（`tool_call`の引数等）に機微情報が残るかは未確認**
   （下記「未決定事項・懸念点」）。
@@ -148,6 +166,12 @@ Gemini CLIは`target: "local"`を指定すると**outfileへ直接ファイル�
 - ローテーションは実装しない（当面）。`GEMINI_TELEMETRY_OUTFILE`環境変数を使った起動ラッパーは
   将来の拡張として残す。
 - `enabled: false`固定配線に対する有効化手段の確立はスコープ外（DDR i0105-02）。
+- **attributesがOTLP標準の配列形式（`[{key,value}]`）だった場合、1件も採用されず無言で
+  ゼロ計上になる**（`is_semantic_api_response`は`attributes`が`type == "object"`であることを
+  要求する。実データが配列形式だった場合、全エントリがフィルタで落ち`calls: 0`となり
+  レポートのセクションごと出ない）。**このときbyteOffsetは読み取り済みとして進むため、
+  後から属性形式が判明しても遡って計上できない。** エラー・警告も出ないため、利用者からは
+  「テレメトリが動いていない」としか見えない。実機データ入手時に最初に確認すべき項目。
 
 ## 影響範囲
 
@@ -168,12 +192,20 @@ Gemini CLIは`target: "local"`を指定すると**outfileへ直接ファイル�
 - `.claude/hooks/post-push-usage-report.sh`（`build_usage_report_body()`第6引数、投稿要否ゲート）
 - `.claude/skills/apply-mr-workflow-to-project/scripts/install-to-project.sh`（`ignore_rules`へ
   `/usage/`追加）
+- `.claude/scripts/test/test_usage_tracking.sh`（本機構のテストケース追加）
+- `.claude/scripts/test/test_install_to_project.sh`（`/usage/`除外の固定テスト追加）
+- `.claude/scripts/test/fixtures/sync-gemini-assets/settings-expected.json`（`telemetry`ブロック
+  分のゴールデンフィクスチャ更新）
 - `.claude/docs/spec/sync-gemini-assets.md`（`env`行の帰結訂正、固定値注入ブロックの仕様化）
 - `.claude/docs/spec/issue-mr-workflow.md`（「対応工数レポート」節への相互リンク）
 - `.claude/docs/spec/distribution-assets.md`（既知の問題の記述更新）
 - `.claude/rules/directory-structure.md`（`usage/`内訳一覧への追加）
-- `.claude/skills/issue-mr-flow/SKILL.md`（AIアセット反映。`mcp__github__pull_request_read`の
-  ページネーションパラメータ注記）
+
+### 本機構と直接の因果関係を持たないが同issue内で行った変更
+
+- `.claude/skills/issue-mr-flow/SKILL.md`（`mcp__github__pull_request_read`の
+  ページネーションパラメータ注記。issue #105の作業中に踏んだAIアセットの不備で、
+  本機構の仕様自体とは関係が無い）
 
 ## 未決定事項・懸念点
 
@@ -194,5 +226,8 @@ Gemini CLIは`target: "local"`を指定すると**outfileへ直接ファイル�
 ## changelog
 
 - issue #105: 新規作成。フェーズ2（調査）・フェーズ3（作業）の設計判断を反映。
-  `.claude/VERSION`の増分（配布対象アセット4本の変更に対しMINORを提案）は人間の判断待ち
+  `.claude/VERSION`の増分（実装スクリプト4本——`sync-gemini-assets.sh` / `UsageTracking.sh` /
+  `post-push-usage-report.sh` / `install-to-project.sh`——の変更に対しMINORを提案。
+  `sync-assets.sh`は`.claude/`配下をディレクトリ単位でまとめて配布するため、実際の配布範囲は
+  上記スクリプト4本に加え本specやDDR等のドキュメントも含む）は人間の判断待ち
   （据え置く場合はその事実をここへ追記する）。

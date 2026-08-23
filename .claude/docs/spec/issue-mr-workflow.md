@@ -1315,9 +1315,13 @@ Claude Codeの対応工数（モデル別トークン数・ツール実行回数
     `git push` を含むコマンド実行後のみ発火する（マッチしなければプロセス起動自体が行われず、
     通常のBash/PowerShell利用への性能影響は無い）。投稿要否判定の前に自分で `sync_usage_state` を
     呼んで状態を最新化してから投稿する（ターンの途中でのpushでも記録漏れが起きないようにするため）。
-    `sinceLastPush` が全て0（メイン＋サブエージェント双方のトークン合計で判定）なら投稿しない。
-    `get_mr_for_branch` でMRが無ければ投稿しない。投稿成功後のみ `_usage_reset_since_last_push`で
-    `sinceLastPush` をリセットする（失敗時は次回pushへ繰り越す。git push自体はブロックしない）。
+    `sinceLastPush` が全て0（メイン＋サブエージェント双方のトークン合計で判定）**かつ**
+    Gemini CLI公式テレメトリ（issue #105）の `calls` も0なら投稿しない（`sinceLastPush` が
+    全て0でも、テレメトリの `calls` が1件以上あれば投稿する。「テレメトリしか無いpush」を
+    拾うため。詳細は下記「Gemini CLI公式テレメトリ経路（issue #105）」）。
+    `get_mr_for_branch` でMRが無ければ投稿しない。投稿成功後のみ `_usage_reset_since_last_push`
+    （＋テレメトリの `_usage_reset_otel_since_last_push`）で `sinceLastPush` をリセットする
+    （失敗時は次回pushへ繰り越す。git push自体はブロックしない）。
     hookの起動コマンドは`"bash"`（PATH解決に依存。詳細: [shell-scripts.md](shell-scripts.md)）。
     コメント本文には`fmt_duration`（秒→`H時間M分`/`M分`形式）で整形した「対応工数（目安・入力待ち
     時間を除く）」の行、`skillCalls`/`agentCalls`/`askUserQuestions`がそれぞれ1件以上あれば

@@ -221,9 +221,11 @@ hook 1件（`CommandHookConfig`）の変換規則は次のとおり。
   2箇所にハードコードして食い違う事故を防ぐ設計。issue #105フェーズ3敵対的レビュー指摘）。
 - `enabled`は`false`固定。**現時点でこれをtrueへ切り替える手段は存在しない**
   （`.claude/settings.json`側に対応するスイッチが無く変換元を持たないため、
-  `.gemini/settings.json`を手で書き換えても次回の`sync-gemini-assets.sh`実行で無言でfalseへ
-  戻り、戻す前に`--check`が食い違いを検知して非0で終了する）。有効化手段の確立は本issueの
-  スコープ外の未決定事項（DDR
+  `.gemini/settings.json`を手で書き換えても次回の`sync-gemini-assets.sh`実行で**無言で**
+  falseへ戻る。**`--check`はこのフロー上どのhookにも自動では挿さっていない**
+  （`issue-mr-flow/SKILL.md`「`.claude/` → `.gemini/` の変換同期（flow-id 5-3）」参照）ため、
+  手編集は警告なく失われる。差分の有無を知りたい場合は手動で`--check`を実行する）。
+  有効化手段の確立は本issueのスコープ外の未決定事項（DDR
   [i0105-02](../ddr/i0105-02-既定有効化は機微情報未確認のため保留する.md)）。
 - `target`は`"local"`固定。outfileへ直接ファイル書き込みするため、`.claude/hooks/otel/`の
   常駐リスナー（OTLPネットワーク受信）は経由しない。
