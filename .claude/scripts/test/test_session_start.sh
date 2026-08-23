@@ -454,25 +454,49 @@ assert_eq "指示文: 参照行ありでも末尾に空行が残らない" "1" \
 
 real_skill="$repo_root/.claude/skills/issue-mr-flow/SKILL.md"
 
-# 実HANDOFF.mdから現在地が解決できる（cleanup-task.sh がリセットした直後のテンプレートでも
-# 全行 [] のため必ず解決できる。形式は N-N）
-current_flow_id_to_reply "$repo_root/HANDOFF.md"
-real_flow_id="$REPLY"
-if [[ "$real_flow_id" =~ ^[0-9]+-[0-9]+$ ]]; then
-  status=0
-else
-  status=1
-fi
-assert_success "実データ: 実HANDOFF.mdから現在地flow-idが解決できる" "$status"
+# 実HANDOFF.mdの状態はタスクの進行度で2通りある——(1) 進捗表がある（タスク進行中）、
+# (2) 進捗表が無い（cleanup-task.sh のリセット直後。表は「（進捗表は次タスク着手時に
+# 記入する）」の1行に置き換わり、行そのものが無い）。(2) では現在地は解決できないのが
+# 正しい挙動（fail-open）なので、表の有無で期待を分岐する。どちらの状態でも意味のある
+# 表明になるため、mainへマージされた直後（=リセット済みHANDOFF）でもこのテストは通る。
+if grep -qE "$ROW_RE" "$repo_root/HANDOFF.md"; then
+  # 進捗表がある: 現在地が N-N 形式で解決できること
+  current_flow_id_to_reply "$repo_root/HANDOFF.md"
+  real_flow_id="$REPLY"
+  if [[ "$real_flow_id" =~ ^[0-9]+-[0-9]+$ ]]; then
+    status=0
+  else
+    status=1
+  fi
+  assert_success "実データ: 実HANDOFF.mdから現在地flow-idが解決できる" "$status"
 
-# その現在地で実SKILL.mdの参照列が引ける（— か references/*.md の列挙で、空ではない）
-refs_for_flow_id_to_reply "$real_skill" "$real_flow_id"
-if [ -n "$REPLY" ]; then
-  status=0
+  # その現在地で実SKILL.mdの参照列が引ける（— か references/*.md の列挙で、空ではない）
+  refs_for_flow_id_to_reply "$real_skill" "$real_flow_id"
+  if [ -n "$REPLY" ]; then
+    status=0
+  else
+    status=1
+  fi
+  assert_success "実データ: 現在地flow-idの参照列が実SKILL.mdから引ける" "$status"
 else
-  status=1
+  # 進捗表が無い（リセット直後）: 解決は空を返す（fail-open）こと
+  current_flow_id_to_reply "$repo_root/HANDOFF.md"
+  if [ -z "$REPLY" ]; then
+    status=0
+  else
+    status=1
+  fi
+  assert_success "実データ: 進捗表の無いHANDOFF.mdでは現在地を解決しない（fail-open）" "$status"
+
+  # 表が無い状態でも、参照列の検証は代表flow-id（1-1）で実SKILL.mdに対して行う
+  refs_for_flow_id_to_reply "$real_skill" "1-1"
+  if [ -n "$REPLY" ]; then
+    status=0
+  else
+    status=1
+  fi
+  assert_success "実データ: 参照列が実SKILL.mdから引ける（代表flow-id 1-1）" "$status"
 fi
-assert_success "実データ: 現在地flow-idの参照列が実SKILL.mdから引ける" "$status"
 
 # 実SKILL.mdの全体フロー表の全行について、参照列が引けること（値の形の検証を通ること）と、
 # 名指しされた参照ファイルが実在することを表明する

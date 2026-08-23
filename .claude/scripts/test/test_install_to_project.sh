@@ -454,6 +454,7 @@ assert_eq "実際に dirty なら -dirty を付ける" "1" \
 # dest_new は受け入れ条件3の確認で HANDOFF.md を編集済みなので、専用の配布先を使う。
 TPL="${REPO_ROOT}/.claude/skills/apply-mr-workflow-to-project/assets"
 dest_seed="$(make_dest dest_seed)"
+repo_handoff_before="$(cat "${REPO_ROOT}/HANDOFF.md")"
 install_to "$dest_seed"
 assert_eq "配布された HANDOFF.md は雛形と一致する" \
   "$(cat "${TPL}/HANDOFF.md.template")" "$(cat "$dest_seed/HANDOFF.md")"
@@ -465,9 +466,12 @@ assert_eq "配布された index.md は雛形と一致する" \
   "$(cat "${TPL}/index.md.template")" "$(cat "$dest_seed/index.md")"
 assert_eq "配布された index.md に本家固有の記述が漏れていない" "0" \
   "$(grep -c 'そのものを配布するテンプレート' "$dest_seed/index.md" || true)"
-# 本家側は雛形で上書きされていないこと（source は配布先の内容だけを決める）。
-assert_eq "本家の HANDOFF.md は雛形になっていない" "1" \
-  "$(grep -cE '^- issue: #[0-9]+' "${REPO_ROOT}/HANDOFF.md")"
+# 本家側は配布で書き換えられていないこと（source は配布先の内容だけを決める）。
+# 「issue番号を含むか」で判定しない——本家の HANDOFF.md は cleanup-task.sh（flow-id 5-5）の
+# リセット直後は雛形と同内容になり、タスク進行中しか通らないテストになってしまう。
+# 状態に依存しない「install実行の前後で内容が変わっていない」ことを表明する。
+assert_eq "本家の HANDOFF.md は配布で書き換えられていない" \
+  "$repo_handoff_before" "$(cat "${REPO_ROOT}/HANDOFF.md")"
 
 # 雛形自身が requiredLine を含んでいること。含まないと、下の D-1b の検知が
 # 「配った直後の配布先でも警告が出る」形で常に真になり、検証として意味を失う。
