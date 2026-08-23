@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>選別スクリプト実装計画</title>
+<style>
+  :root {
+    --bg: #f6f7f9;      --panel: #ffffff;   --ink: #1a1d21;     --muted: #5b636d;
+    --line: #dfe3e8;    --accent: #2563eb;  --accent-soft: #eaf0fe;
+    --ok: #1a7f4b;      --ok-soft: #e6f4ec; --warn: #a35a00;    --warn-soft: #fdf1e0;
+    --stop: #b3261e;    --stop-soft: #fdecea; --code-bg: #f0f2f5;
+    --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1216;    --panel: #161a20;   --ink: #e6e8eb;     --muted: #9aa3ad;
+      --line: #2a3038;  --accent: #7aa2f7;  --accent-soft: #1b2333;
+      --ok: #6ee7a8;    --ok-soft: #14261d; --warn: #f0b866;    --warn-soft: #2a2113;
+      --stop: #f2857c;  --stop-soft: #2b1614; --code-bg: #1d222a;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", system-ui, sans-serif;
+    line-height: 1.8; font-size: 15px;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 20px 80px; }
+  header.band {
+    background: linear-gradient(135deg, var(--accent-soft), var(--panel));
+    border-bottom: 1px solid var(--line); padding: 28px 20px 22px; margin-bottom: 28px;
+  }
+  header.band .inner { max-width: 1080px; margin: 0 auto; }
+  header.band .kind { font-size: 11px; letter-spacing: .18em; color: var(--accent); font-weight: 700; }
+  header.band h1 { margin: 6px 0 4px; font-size: 26px; line-height: 1.4; }
+  header.band .lead { margin: 0; color: var(--muted); }
+  .meta { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; padding: 0; list-style: none; }
+  .meta li {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 999px;
+    padding: 3px 12px; font-size: 12.5px; color: var(--muted); white-space: nowrap;
+  }
+  .meta li b { color: var(--ink); font-weight: 600; }
+  nav.toc {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 14px 20px; margin-bottom: 28px;
+  }
+  nav.toc h2 { margin: 0 0 8px; font-size: 13px; letter-spacing: .08em; color: var(--muted); border: 0; padding: 0; }
+  nav.toc ol { margin: 0; padding-left: 20px; }
+  nav.toc li { margin: 2px 0; }
+  a { color: var(--accent); }
+  section {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 8px 24px 22px; margin-bottom: 22px;
+  }
+  h2 { font-size: 20px; margin: 20px 0 10px; padding-bottom: 8px; border-bottom: 2px solid var(--line); }
+  p { margin: 10px 0; }
+  ul, ol { padding-left: 22px; }
+  li { margin: 4px 0; }
+  .tablewrap { overflow-x: auto; margin: 14px 0; }
+  table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 14px; }
+  th, td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: var(--accent-soft); font-weight: 600; white-space: nowrap; }
+  tbody tr:nth-child(even) td { background: color-mix(in srgb, var(--line) 22%, transparent); }
+  code {
+    background: var(--code-bg); border-radius: 5px; padding: 1px 5px; font-size: 13px;
+    font-family: "SFMono-Regular", Consolas, "Noto Sans Mono", monospace;
+  }
+  pre {
+    background: var(--code-bg); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 12px 14px; overflow-x: auto; font-size: 13px; line-height: 1.65;
+  }
+  pre code { background: none; padding: 0; }
+  .box { border-left: 4px solid var(--accent); background: var(--accent-soft);
+         border-radius: 0 var(--radius) var(--radius) 0; padding: 12px 16px; margin: 16px 0; }
+  .box > :first-child { margin-top: 0; } .box > :last-child { margin-bottom: 0; }
+  .box .label { font-size: 12px; font-weight: 700; letter-spacing: .06em; display: block; margin-bottom: 4px; }
+  .box.stop { border-color: var(--stop); background: var(--stop-soft); } .box.stop .label { color: var(--stop); }
+  .box.warn { border-color: var(--warn); background: var(--warn-soft); } .box.warn .label { color: var(--warn); }
+  footer { color: var(--muted); font-size: 13px; text-align: center; padding-top: 10px; }
+</style>
+</head>
+<body>
+
+<header class="band">
+  <div class="inner">
+    <div class="kind">個別作業計画（実装・テスト） / フェーズ3 flow-id 3-1</div>
+    <h1>敵対的レビュー投稿件数選別スクリプトとドキュメント反映</h1>
+    <p class="lead">選別スクリプト本体と単体テストを実装し、あわせてSKILL.md・spec・DDRへ反映する。</p>
+    <ul class="meta">
+      <li><b>issue</b> #182</li>
+      <li><b>ブランチ</b> claude/adversarial-review-script-2sba3d</li>
+      <li><b>フェーズ</b> 3〈作業〉 flow-id 3-1</li>
+      <li><b>作成日</b> 2026-08-23</li>
+      <li><b>正文</b> 同名の .md</li>
+    </ul>
+  </div>
+</header>
+
+<div class="wrap">
+
+<nav class="toc">
+  <h2>目次</h2>
+  <ol>
+    <li><a href="#premise">前提（合意状況）</a></li>
+    <li><a href="#goal">この計画で何をするか</a></li>
+    <li><a href="#target">変更対象</a></li>
+    <li><a href="#approach">方針</a></li>
+    <li><a href="#out-of-scope">やらないこと（スコープ外）</a></li>
+    <li><a href="#verify">検証</a></li>
+  </ol>
+</nav>
+
+<section id="premise">
+  <h2>前提（合意状況）</h2>
+  <ul>
+    <li>上位の計画: <code>plans/misty-drifting-lantern.md</code>（全体作業計画・flow-id 1-4）</li>
+    <li>フェーズ2〈調査〉は実施しないと判断済み（全体作業計画に理由を記載）</li>
+  </ul>
+</section>
+
+<section id="goal">
+  <h2>この計画で何をするか</h2>
+  <p><code>select-adversarial-findings.sh</code>（選別スクリプト本体）と、その単体テストを
+  実装する。あわせて、issue #182 の受け入れ条件が求める <code>adversarial-review/SKILL.md</code>
+  手順6・<code>.claude/docs/spec/adversarial-review.md</code>・新設DDRの反映も、同じ変更セットとして
+  行う（このissueの主たる成果物が「スクリプト化とそれに追随するドキュメント」であるため、
+  設計反映を別フェーズへ分けず本計画にまとめる）。</p>
+</section>
+
+<section id="target">
+  <h2>変更対象</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>ファイル</th><th>操作</th><th>何をするか</th></tr></thead>
+    <tbody>
+      <tr><td><code>.claude/scripts/src/select-adversarial-findings.sh</code></td><td>新規</td>
+          <td>選別ロジック（layer-addition-threshold=10, hard-ceiling=20の定数、jq 1回起動）</td></tr>
+      <tr><td><code>.claude/scripts/test/test_select_adversarial_findings.sh</code></td><td>新規</td>
+          <td>単体テスト（<code>passed=N failures=N</code>規約）</td></tr>
+      <tr><td><code>.claude/skills/adversarial-review/SKILL.md</code></td><td>変更</td>
+          <td>手順6を「1次振り分け（維持）＋スクリプト呼び出し」へ書き換え</td></tr>
+      <tr><td><code>.claude/docs/spec/adversarial-review.md</code></td><td>変更</td>
+          <td>「投稿件数の選別」節の新設、設定項目表の更新、影響範囲表・追記セクションの追加</td></tr>
+      <tr><td><code>.claude/docs/ddr/i0182-01-....md</code></td><td>新規</td>
+          <td>決定・却下した案を記録</td></tr>
+      <tr><td><code>.claude/docs/README.md</code></td><td>変更</td>
+          <td><code>generate-ddr-list.sh</code> 実行によるDDR一覧の再生成</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="approach">
+  <h2>方針</h2>
+  <ul>
+    <li>選別スクリプトは <code>adversarial-review-count.sh</code> と同じ骨格
+      （固定値の定数・純粋関数を<code>source</code>ガードでテスト可能にする）で書く。</li>
+    <li>jqフィルタは1つの文字列としてスクリプト内に持ち、<code>reduce</code> で層ごとの逐次処理
+      （blocker全件→major層追加判定→minor層追加判定）をまとめる。</li>
+    <li>層内の並び順（確度降順→パス昇順→行番号昇順）は、層を丸ごと追加する場合も含めて常に
+      適用し、出力を常に決定的にする。</li>
+    <li>findingsの入力はファイル経由とし、<code>--argjson</code>には固定値の閾値のみを渡す
+      （findings本体は渡さない）。</li>
+    <li>出力は <code>{"posted":{"findings":[...]},"reported":{"findings":[...]}}</code>。
+      <code>posted.findings</code> をそのまま <code>add_mr_inline_comments</code> へ渡せる形にする。</li>
+  </ul>
+
+  <div class="box warn">
+    <span class="label">既存の記述を置き換える場合</span>
+    <p><code>adversarial-review/SKILL.md</code> 手順6は、確度×重大度の表による1次振り分けの節は
+    そのまま残し、「1回あたりの投稿上限は10件。超える場合は重大度の高い順に10件へ絞る」の1文を、
+    スクリプト呼び出し（コードブロック）と規則1〜4の箇条書きへ置き換える。</p>
+  </div>
+</section>
+
+<section id="out-of-scope">
+  <h2>やらないこと（スコープ外）</h2>
+  <div class="box stop">
+    <span class="label">この計画では決めない・触らない</span>
+    <ul>
+      <li>確度×重大度の1次振り分け表そのものの変更</li>
+      <li>実施回数の上限（3回／フェーズ）の変更</li>
+      <li>GitLab側の投稿インターフェイス（<code>gitlab_add_mr_inline_comments</code>）の変更</li>
+    </ul>
+  </div>
+</section>
+
+<section id="verify">
+  <h2>検証</h2>
+  <pre><code>bash -n .claude/scripts/src/select-adversarial-findings.sh
+bash -n .claude/scripts/test/test_select_adversarial_findings.sh
+bash .claude/scripts/test/test_select_adversarial_findings.sh
+bash .claude/scripts/test/test_adversarial_review_count.sh
+bash .claude/scripts/test/test_generate_ddr_list.sh
+bash .claude/scripts/test/test_check_base_conflicts.sh
+bash .claude/scripts/src/generate-ddr-list.sh</code></pre>
+  <p>合格条件: 全コマンドがエラーなく終わり、新規テストが <code>passed=N failures=0</code>、
+  既存テストに回帰が無いこと。</p>
+</section>
+
+<footer>issue #182 — 計画の正文は同名の <code>.md</code>。外部依存を持たない自己完結HTML。</footer>
+
+</div>
+</body>
+</html>
