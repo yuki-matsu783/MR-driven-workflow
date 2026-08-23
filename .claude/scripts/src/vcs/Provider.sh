@@ -18,6 +18,7 @@
 # camelCase（number/title/...）に統一している（詳細: .claude/docs/spec/shell-scripts.md）。
 #
 # 前提: bash, git, jq, gh（GitHubの場合）または glab（GitLabの場合）。
+#       加えて curl（`wait_for_report_site` のみ。無い場合は到達性確認をスキップする。issue #114）。
 #
 # `gh`/`glab` が実行環境に存在しない場合（例: Claude Code on the webのリモート実行環境）は、
 # プロバイダ依存の関数は `require_vcs_cli` により「代替すべきMCPツール名」を提示して失敗する。
@@ -358,8 +359,11 @@ mcp_tool_hint() {
     # フォールバックの組み立てだけを行う経路は用意しない（**URLが正しいと確認できないまま
     # 提示するほうが害が大きい**）。報告サイトのURL提示は flow-id 5-6 の任意の一手であり、
     # 得られなくてもDraft解除とマージ依頼は成立する。
+    # **`wait_for_report_site` の分岐はここに置かない。** `mcp_tool_hint` は `require_vcs_cli`
+    # からしか呼ばれず、あの関数は `require_vcs_cli` を通らない（依存するのは `curl` であって
+    # `gh`/`glab` ではない）ため、書いても到達しない死んだコードになる。CLI不在時は
+    # `get_report_site_url` の時点でURLが得られず、待つ相手がいないので自然にスキップされる。
     get_report_site_url) printf '対応するMCPツールはありません（Pagesの設定・URLを引くツールが提供されていない）。**flow-id 5-6 の報告サイトURLの提示はスキップしてよい**。その旨をユーザーへ1行伝えてフローを続けます\n' ;;
-    wait_for_report_site) printf '対応するMCPツールはありません（到達性の確認はHTTPアクセスであり、そもそもMCPの担当ではない）。**スキップしてよい**\n' ;;
     *) printf '対応するMCPツールは .claude/skills/issue-mr-flow/SKILL.md の対応表を参照\n' ;;
   esac
 }
@@ -1244,21 +1248,51 @@ get_report_site_url() {
 #
 # **上限に達しても呼び出し側はフローを止めない。** URLは注記つきで提示する
 # （デプロイがまだ走っているだけのことが多く、数分後には開ける）。
+#
+# **この関数だけは `curl` に依存する。`require_vcs_cli` は通らない。** 到達性の確認は
+# GitHub/GitLab **APIからの情報取得ではない**ため、`AGENTS.md`「情報取得はgh/glab CLIを使い
+# WebFetch・curlへフォールバックしない」（DDR i0014-01）の対象外である。CLIが無い環境では
+# そもそも `get_report_site_url` がURLを返せないので、この関数へ到達しない。
+#
+# **`limit` / `interval` は数値検査してから使う。** `set -u` / `set -e` 配下では、数値以外を
+# 渡すと `[ "$waited" -le "$limit" ]` が算術エラーで**スクリプトごと落ちる**。また
+# `interval` に 0 を渡すと `waited` が増えず**無限ループ**になる。呼び出し側の値は
+# SKILL.md の手順や設定に由来しうるので、固定値である保証は無い。
 wait_for_report_site() {
-  local url="${1:-}" limit="${2:-90}" interval="${3:-5}" waited=0 code
+  local url="${1:-}" limit="${2:-90}" interval="${3:-5}" waited=0 code=""
   if [ -z "$url" ]; then
     printf 'wait_for_report_site: URLを指定してください\n' >&2
     return 1
   fi
+  case "$limit" in
+    "" | *[!0-9]*)
+      printf 'wait_for_report_site: 上限秒には0以上の整数を指定してください（受け取った値: %s）\n' "$limit" >&2
+      return 1
+      ;;
+  esac
+  case "$interval" in
+    "" | *[!0-9]* | 0)
+      printf 'wait_for_report_site: 間隔秒には1以上の整数を指定してください（受け取った値: %s）\n' "$interval" >&2
+      return 1
+      ;;
+  esac
   # curl が無い環境では待たずに終える（待ち続けても状況は変わらない）
   if ! command -v curl >/dev/null 2>&1; then
     printf 'wait_for_report_site: curl がないため到達性を確認できません（URLは注記つきで提示してよい）\n' >&2
     return 1
   fi
-  while [ "$waited" -le "$limit" ]; do
-    code="$(curl -sS -o /dev/null -w '%{http_code}' "$url" 2>/dev/null || true)"
+  # `-L` を付ける: GitHub Pagesは http→https、末尾スラッシュ無し→有りのリダイレクトを返すため、
+  # 追随しないと 301 のまま永久に 200 にならない。
+  #
+  # 待つのは「次の試行が上限内に収まる間」だけにする。末尾で無条件に sleep すると、
+  # 実所要が `limit` より約1周期長くなる（90秒の指定で95秒待つ）。
+  while :; do
+    code="$(curl -sSL -o /dev/null -w '%{http_code}' "$url" 2>/dev/null || true)"
     if [ "$code" = "200" ]; then
       return 0
+    fi
+    if [ "$((waited + interval))" -gt "$limit" ]; then
+      break
     fi
     sleep "$interval"
     waited=$((waited + interval))

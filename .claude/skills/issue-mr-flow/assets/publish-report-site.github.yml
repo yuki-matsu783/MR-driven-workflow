@@ -4,19 +4,21 @@
 # `pr-<PR番号>/` へデプロイし、ブラウザで開けるURLを払い出す。URLの提示は
 # issue-mr-flow の flow-id 5-6 が `get_report_site_url` で行う。
 #
-# **配布先での設定（この2つは配布先ごとに違う。必ず確認すること）**
+# **配布先で知っておくことの正は `.claude/skills/issue-mr-flow/SKILL.md`
+#   「報告サイトのホストとURL通知（flow-id 5-4・5-6）」節の「使う前に知っておくこと」表である。**
+# ここへ同じ内容を書き写さない（雛形と実ファイルのバイト一致はテストが守るが、SKILL.md との
+# 一致は誰も見ていないため、二重に書くと片方だけが古くなる）。このヘッダが持つのは
+# **このファイルを置くときに手を入れる箇所**だけに留める。
+#
+# **このファイルを置くときに手を入れる箇所**
 #   1. `on.push.branches` を `.mrworkflow.json` の `branchPrefixTemplate` に合わせる。
 #      既定は `feature-<issue番号>-<slug>` なので `feature-*` にしてある。
 #   2. リポジトリ設定で Pages を有効にし、publishing source を `gh-pages` / `/`（root）にする。
 #      `gh api -X POST repos/{owner}/{repo}/pages -f 'source[branch]=gh-pages' -f 'source[path]=/'`
 #
-# **fork からのPRでは動かない。** `on: push` を使うため、自リポジトリのブランチであることが
-# 前提である（fork の `pull_request` では `GITHUB_TOKEN` が読み取り専用へ落とされ、
-# `gh-pages` へ書き込めない）。
-#
 # **ホストしたHTMLは、リポジトリが private でもインターネットに公開される。**
-# Pages サイトのアクセス制御は GitHub Enterprise Cloud のみの機能で、それ以外では
-# リポジトリの可視性設定に従わない。計画・レポート・試行錯誤の中身が公開される点に注意する。
+# この1行だけは SKILL.md と重複して置く（置く前に読まれるべき安全上の注意であり、
+# 見落としたときの損失が大きいため。意図的な重複であって、上の「書き写さない」の例外である）。
 
 name: publish-report-site
 
@@ -107,7 +109,21 @@ jobs:
               for f in "$out/$dir"/*.html; do
                 [ -e "$f" ] || continue
                 name="${f##*/}"
-                printf '<li><a href="%s/%s">%s</a></li>\n' "$dir" "$name" "$name"
+                # ファイル名は日本語・【】・記号を含みうる。**素のまま埋め込まない。**
+                # href は壊れる文字だけを%エンコードし、表示テキストは HTML エスケープする。
+                # どちらも置換の順序が効く（`%` を最初に、`&` を `<` `>` より先に。
+                # 逆にすると二重エンコード・二重エスケープになる）。
+                #
+                # **bash の `${v//a/b}` を使わない。** 置換文字列中の `&` の扱いが
+                # bash 5.2 で変わっており（マッチ全体へ展開される）、`\&` での退避が
+                # 5.1 以前と互換でない。GitLab 側は shell が bash とも限らない。
+                # sed なら `&` の意味も `\&` での退避も、処理系をまたいで定まっている。
+                enc="$(printf '%s' "$name" | sed -e 's/%/%25/g' -e 's/&/%26/g' \
+                  -e 's/#/%23/g' -e 's/?/%3F/g' -e 's/"/%22/g' \
+                  -e 's/</%3C/g' -e 's/>/%3E/g' -e 's/ /%20/g')"
+                esc="$(printf '%s' "$name" | sed -e 's/&/\&amp;/g' \
+                  -e 's/</\&lt;/g' -e 's/>/\&gt;/g')"
+                printf '<li><a href="%s/%s">%s</a></li>\n' "$dir" "$enc" "$esc"
               done
               printf '</ul>\n'
             done
@@ -136,21 +152,34 @@ jobs:
             git -C "$work" rm -rf . >/dev/null 2>&1 || true
           fi
 
-          # Jekyll ビルドを止める。これが無いと (a) `_` で始まるファイルが成果物から落ち、
-          # (b) HTML本文の Liquid 構文（{{ や {%）でビルドごと失敗してサイトが更新されない。
-          # ホストするのはAIが生成した任意のHTMLで、中身を事前に保証できない。
-          [ -f "$work/.nojekyll" ] || : > "$work/.nojekyll"
+          # pr-<n>/ を作り直してコミットする。押し出しに失敗して取り込み直したあとにも
+          # そのまま使えるよう関数にしておく（同じ手順を2箇所に書かないため）。
+          #   0  = コミットした / 9 = 差分なし / それ以外 = 失敗
+          apply_and_commit() {
+            # Jekyll ビルドを止める。これが無いと (a) `_` で始まるファイルが成果物から落ち、
+            # (b) HTML本文の Liquid 構文（{{ や {%）でビルドごと失敗してサイトが更新されない。
+            # ホストするのはAIが生成した任意のHTMLで、中身を事前に保証できない。
+            [ -f "$work/.nojekyll" ] || : > "$work/.nojekyll"
+            rm -rf "$work/pr-${number}"
+            mkdir -p "$work/pr-${number}"
+            cp -R "$out/." "$work/pr-${number}/"
+            git -C "$work" add -A
+            if git -C "$work" diff --cached --quiet; then
+              return 9
+            fi
+            git -C "$work" commit -m "chore: publish report site for PR #${number} (${GITHUB_SHA})"
+          }
 
-          rm -rf "$work/pr-${number}"
-          mkdir -p "$work/pr-${number}"
-          cp -R "$out/." "$work/pr-${number}/"
-
-          git -C "$work" add -A
-          if git -C "$work" diff --cached --quiet; then
-            echo '変更がないため反映をスキップします'
-            exit 0
-          fi
-          git -C "$work" commit -m "chore: publish report site for PR #${number} (${GITHUB_SHA})"
+          # 明示サブシェルで呼ぶ。`if apply_and_commit; then` のように条件式へ直接置くと、
+          # 関数の内部でも `set -e` が一時停止し、cp 等が失敗しても先へ進んでしまう
+          # （.claude/rules/shell-script-style.md「エラー方針」）。
+          status=0
+          ( apply_and_commit ) || status=$?
+          case "$status" in
+            0) ;;
+            9) echo '変更がないため反映をスキップします'; exit 0 ;;
+            *) echo "成果物の配置に失敗しました（終了コード ${status}）" >&2; exit 1 ;;
+          esac
 
           # concurrency はPR単位なので、別PRとの書き込みは並走しうる。3回までリトライする。
           for attempt in 1 2 3; do
@@ -158,8 +187,21 @@ jobs:
               echo "反映しました（${attempt} 回目）"
               exit 0
             fi
-            echo "反映に失敗しました（${attempt} 回目）。取り込み直して再試行します"
-            git -C "$work" pull --rebase origin gh-pages
+            echo "反映に失敗しました（${attempt} 回目）。リモートの状態へ合わせ直して再試行します"
+            # **`git pull --rebase` は使えない。** gh-pages を orphan として作った直後に
+            # 別の実行が先に同じことをしていると、履歴が繋がっていないため
+            # `refusing to merge unrelated histories` で必ず失敗し、リトライが1回も機能しない。
+            # マージせずリモートの現状へ合わせ直し、その上へ pr-<n>/ を置き直す
+            # （他PRのディレクトリはリモート側の内容がそのまま残る）。
+            git -C "$work" fetch origin gh-pages
+            git -C "$work" reset --hard FETCH_HEAD
+            status=0
+            ( apply_and_commit ) || status=$?
+            case "$status" in
+              0) ;;
+              9) echo '取り込み直したところ差分が無くなりました（他の実行が同じ内容を反映済み）'; exit 0 ;;
+              *) echo "成果物の再配置に失敗しました（終了コード ${status}）" >&2; exit 1 ;;
+            esac
           done
           echo '3回試しても反映できませんでした' >&2
           exit 1
