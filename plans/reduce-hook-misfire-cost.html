@@ -150,6 +150,7 @@
       <tr><td><code>.claude/hooks/post-issue-create-notice.sh</code></td><td>変更</td><td>前置フィルタ追加</td></tr>
       <tr><td><code>.claude/scripts/test/</code></td><td>新規・変更</td><td>前置フィルタの単体テスト</td></tr>
       <tr><td><code>.claude/docs/ddr/</code></td><td>新規</td><td>前置フィルタパターンの意思決定記録</td></tr>
+      <tr><td><code>.claude/docs/spec/command-position.md</code></td><td>変更</td><td>「利用元」節へ前置フィルタの存在を追記</td></tr>
       <tr><td><code>.claude/rules/shell-script-style.md</code></td><td>変更（要否はフェーズ4で確定）</td><td>hook向け前置フィルタパターンの追記を検討</td></tr>
     </tbody>
   </table>
@@ -160,16 +161,22 @@
   <h2>フェーズ2〈調査〉</h2>
   <p><b>実施しない。</b>対象hookの現状（<code>if</code>を持たないこと・jq呼び出し回数）は
   issue本文の実測値とスクリプト読解で確定済み。適用パターンはissue #70（PR #157）が実装・実測
-  済みでdiffを直接参照できる。精密判定のロジックも既存実装として読解済みで、超集合の条件は
-  自明に導ける。新規に調べる問いが無い。</p>
+  済みでdiffを直接参照できる。精密判定のロジックも既存実装として読解済みで、フェーズ3の個別計画
+  レベルで超集合条件を導出・検証できる（「自明」ではなく検証すべき仮説として扱う。実際、
+  個別計画への敵対的レビューで当初案の導出に2件の反例が見つかった。詳細は個別計画・
+  <code>reports/</code>参照）。</p>
 </section>
 
 <section id="phase-apply">
   <h2>フェーズ4〈反映〉</h2>
   <ul>
-    <li><b>設計反映</b>: 前置フィルタパターンの意思決定をDDRとして新規作成する（issue #70は
-      まだDDRを持たないため、本DDRが正式な記録の初出になる）。</li>
-    <li><b>AIアセット反映</b>: 前置フィルタの一般的な書き方を再利用可能な形で
+    <li><b>設計反映</b>: 前置フィルタパターンの意思決定をDDRとして新規作成する（範囲は本issueが
+      実際に変更する2本のhookに限定し、push系2本（issue #70/PR #157が担当。本計画作成時点で
+      未マージ）の実装内容までは代弁しない）。あわせて
+      <code>.claude/docs/spec/command-position.md</code>「利用元」節へ前置フィルタの存在を
+      追記する。</li>
+    <li><b>AIアセット反映</b>: 前置フィルタの一般的な書き方（純粋関数への切り出し・
+      バックスラッシュ除去とブラケット式による大文字小文字非依存比較）を再利用可能な形で
       <code>.claude/rules/shell-script-style.md</code>「外部プロセス起動のコスト」節へ
       追記する価値があるか確認する。</li>
     <li><b>実装反映</b>: 該当なし（フェーズ3のレビュー往復で解消しきれなかった不具合が

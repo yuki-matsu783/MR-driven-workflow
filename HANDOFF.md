@@ -16,10 +16,10 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 
 - issue: #159 hookの空振り起動コストを前置フィルタで削減する（block-direct-git-commit / post-issue-create-notice）
 - ブランチ: claude/reduce-hook-misfire-cost-p4xzyo（ハーネスが事前作成。命名規則`feature-159-...`とは異なるが、指示によりこのブランチのまま作業する）
-- PR: 未作成
-- push回数: 0
-- 現在のループ: なし
-- 追従監視: なし
+- PR: #162 https://github.com/yuki-matsu783/MR-driven-workflow/pull/162（Draft）
+- push回数: 2
+- 現在のループ: 3-6〜3-9 の1周目（進行中）
+- 追従監視: 購読あり（web。subscribe_pr_activity + 1時間ごとの自己チェックイン）
 
 | 進捗 | flow-id | ステップ | 担当 |
 |---|---|---|---|
@@ -29,8 +29,8 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 | [] | 1-5 | 全体作業計画に合意する | 人間 |
 | [x] | 1-6 | HANDOFF.mdを更新する | エージェント |
 | [-] | 2-1〜2-10 | フェーズ2〈調査〉（実施しない。理由は全体作業計画参照） | - |
-| [] | 3-1 | 個別作業計画を作成する | エージェント |
-| [] | 3-2 | commit・push・レビュー依頼 | エージェント |
+| [x] | 3-1 | 個別作業計画を作成する | エージェント |
+| [x] | 3-2 | commit・push・レビュー依頼 | エージェント |
 | [] | 3-3 | 作業計画をレビューする | 人間 |
 | [] | 3-4 | レビュー内容を取得し計画を修正する | エージェント |
 | [] | 3-5 | MR descriptionを更新する | エージェント |
@@ -39,7 +39,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 | [] | 3-8 | 作業結果をレビューする | 人間 |
 | [] | 3-9 | レビュー内容を取得し修正する | エージェント |
 | [] | 3-10 | MR descriptionを更新する | エージェント |
-| [] | 4-1 | 個別反映計画を作成する | エージェント |
+| [x] | 4-1 | 個別反映計画を作成する | エージェント |
 | [] | 4-2〜4-10 | フェーズ4〈反映〉 | - |
 | [] | 5-1〜5-6 | フェーズ5〈クローズ〉 | - |
 
@@ -52,19 +52,66 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
   別issue）の内容を確認し、前置フィルタが将来の判定変更に対しても超集合であり続ける根拠を検討した。
 - 全体作業計画 `plans/reduce-hook-misfire-cost.md`（フェーズ2〈調査〉は実施しないと明記）と
   個別作業計画 `plans/【実装】【テスト】hookの前置フィルタ追加.md`、それぞれのHTMLビューを作成した。
-- 個別作業計画に対する敵対的レビューを実施中（ユーザーからの明示指示により、非対話セッションでの
-  自律起動として実施）。
+- 個別作業計画に対する敵対的レビュー（1回目）を実施した（ユーザーからの明示指示により、
+  非対話セッションでの自律起動として実施）。**major 4件・minor 8件**の指摘を受けた。
+  主なもの: (1) 当初案`*commit*`部分一致は`git com\mit`のようなバックスラッシュ分割で
+  超集合が壊れる、(2) `${raw,,}`はbash 4.0以降専用で既存のbash 4.3未満フォールバックより
+  前に置くと展開エラーで丸ごと落ちる、(3) issue #149整合性の論理（部分集合になる、という
+  主張）が誤り、(4) 前置フィルタを純粋関数へ切り出していないため単体テストできない。
+  全指摘を計画・実装・テスト・DDR・specへ反映済み（詳細:
+  `reports/20260823_reduce-hook-misfire-cost_前置フィルタ実装.md`）。
+- commit・pushし、Draft PR #162 を作成した（ユーザーからの明示指示「PR作りながら対応して」を
+  flow-id 1-3のPR作成の明示指示とみなした。`.claude/rules/git-workflow.md`
+  「ハーネスがPR作成を制限する環境での扱い」に従う）。`subscribe_pr_activity`でPRイベントを購読した。
+- `.claude/hooks/block-direct-git-commit.sh` / `post-issue-create-notice.sh` へ前置フィルタを
+  実装した。判定本体は変更していない。
+- `.claude/scripts/test/test_block_direct_git_commit.sh`を新規作成し、
+  `.claude/scripts/test/test_post_issue_create_notice.sh`へ前置フィルタのテストケースを追記した。
+  いずれもスタブjq（呼ばれたら失敗する）を使い、足切りされるペイロードでjqが1回も呼ばれないことと、
+  `git -C /x commit`のような語が非連続の形・大文字混じりでも前置フィルタを通過して精密判定まで
+  到達することを確認した。既存テスト（test_command_position.sh, 既存の
+  test_post_issue_create_notice.shケース）もすべて引き続きパスすることを確認した。
+- 変更前後のexecve/clone回数をstraceで実測した（対象外ペイロード1件、Linux環境）。
+  敵対的レビューの指摘反映後（最終版）でも数値に変化が無いことを再測定で確認した。
+  - `block-direct-git-commit.sh`: 変更前 execve=5 clone=10 → 最終版 execve=1 clone=0
+  - `post-issue-create-notice.sh`: 変更前 execve=7 clone=17 → 最終版 execve=1 clone=1
+    （clone=1は`( main ) || true`の実サブシェル分。jq起動は0）
+- 前置フィルタパターンのDDR（`.claude/docs/ddr/i0159-01-....md`）を新規作成し、
+  `.claude/docs/README.md`のDDR一覧を再生成した。
+- `.claude/docs/spec/command-position.md`「利用元」節・「未決定事項・懸念点」節へ前置フィルタの
+  存在とissue #149着手時の再確認事項を追記した。
+- `.claude/rules/shell-script-style.md`「外部プロセス起動のコスト」節へ、hook向け前置フィルタ
+  パターンを一般化して追記した（AIアセット反映）。
+- 全テスト（`test_command_position.sh` 75件・`test_post_issue_create_notice.sh` 30件・
+  `test_block_direct_git_commit.sh` 23件）が`failures=0`であることを確認した（1回目レビュー時点）。
+- **commit直前の作業結果（フェーズ3の実装＋フェーズ4の反映をまとめた差分）に対する敵対的
+  レビュー（2回目・作業結果の確認）を実施した。** major 2件・minor 8件・nit 1件の指摘を受け、
+  全件を自分で再現・検証したうえで修正した。
+  - **超集合性の破綻（再発、major）**: `raw_hints_at_git_commit`はjqデコード**前**の生JSON
+    文字列を受け取るが、`${raw//\\/}`はバックスラッシュだけを除去するため、実コマンド
+    `git com\<改行>mit`（行継続）はJSON化すると`com\\\nmit`（バックスラッシュ3つ+n）になり、
+    `n`が残って一致しなくなっていた（実機で反例・end-to-endのブロック解除を確認）。
+    JSON文字列エスケープの2文字シーケンス（`\\` `\"` `\n` `\t` `\r` `\/` `\b` `\f`）を丸ごと
+    除去するよう修正し、回帰テストを追加（`test_block_direct_git_commit.sh` 23→27件、
+    `test_post_issue_create_notice.sh` 30→31件）。
+  - **read(2)回数の未計測（major）**: `read -r -d ''`は入力サイズに比例したread(2)回数になる
+    （1バイト単位）ため、大きなペイロードでは削減したexecve/clone以上のシステムコール増加に
+    なりうる。実測は小さいペイロードのみで、この特性を測っていなかった。git bash実機が無く
+    実測できないため実装は変更せず、`shell-script-style.md`へ注記するに留めた。
+  - **execve/clone「変更前」の値の誤り（minor）**: 最初の測定が`lib/CommandPosition.sh`の
+    無い配置（縮退経路）で行われており、execve6/clone12だった。正しい配置で再測定し
+    execve5/clone10へ訂正（レポート・本ファイル・DDRの数値を修正）。
+  - その他minor（測定環境の明記漏れ・未マージPR #157への参照の誤り・行番号参照のずれ・
+    テストコメントの記述漏れ・回帰テストの記述と実態の食い違い・frontmatter欠落・md/HTML
+    同期漏れ・本ファイルの進捗記号）・nit（レポートmdへのHTMLタグ混入）を修正。
+    詳細は`reports/20260823_reduce-hook-misfire-cost_前置フィルタ実装.md`。
 
 ## 次にやること
 
-- 個別作業計画の敵対的レビュー結果を確認し、必要なら計画を修正する。
-- commit・push してDraft PRを作成する（flow-id 3-2相当。ユーザーからの明示指示により、
-  非対話セッションでのPR作成として実施する。`.claude/rules/git-workflow.md`
-  「ハーネスがPR作成を制限する環境での扱い」に従う）。
-- `.claude/hooks/block-direct-git-commit.sh` / `post-issue-create-notice.sh` へ前置フィルタを
-  実装し、単体テストを追加する。
-- 実装結果に対する敵対的レビューを実施する。
-- フェーズ4（DDR新規作成・AIアセット反映の要否確認）へ進む。
+- commit・pushする（`commit`スキル経由）。
+- MR descriptionを更新する（flow-id 3-5/3-10・4-5/4-10相当）。
+- flow-id 5-1（コンフリクト確認）〜5-5（Draft解除）を実施する。issue #149への通知
+  （flow-id 5-2）を実施する。
 
 ## 判断を迷った内容
 
