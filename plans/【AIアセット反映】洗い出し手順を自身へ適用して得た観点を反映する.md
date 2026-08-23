@@ -178,7 +178,7 @@ grep -rn '連言|言い換え' -E REVIEW-POINTS.md plans/REVIEW-POINTS.md report
 | D | `reports/REVIEW-POINTS.md`「内容の妥当性」 | 「書いた数値と事実を、書く直前に**実測したか**。判断理由を事実の主張へ言い換えない。受け取ったレビュー指摘の行番号・件数も採用前に数え直す」 | `実測したか` |
 | D2 | `.claude/skills/adversarial-review/SKILL.md` | 「指摘に含まれる行番号・件数は、対応する前に自分で**数え直す**（観点は `reports/REVIEW-POINTS.md`「内容の妥当性」が正）」 | `数え直す` |
 | E | `.claude/skills/doc-search/SKILL.md`「絞り込み」節 | 「絞り込み条件は答えの範囲を決めてしまう。`--type` で絞った検索は別の `type` を原理的に**取りこぼす**。『どこに書いてあるか』を探すときは `--type` を外した検索も1回かける」 | `取りこぼ` |
-| F | ルート `REVIEW-POINTS.md`「正は1箇所に決め」の直下 | 「集約する前に、同じ判定を述べている行を**全部数える**。目に付いた2箇所だけを見て『正を1箇所にした』と結論すると残りが古いまま残る」 | `全部数える` |
+| F | ルート `REVIEW-POINTS.md`「正は1箇所に決め」の直下 | 「集約する前に、同じ判定を述べている行を**全部数えた**か。目に付いた2箇所だけを見て『正を1箇所にした』と結論すると残りが古いまま残る」 | `全部数え` |
 | G | ルート `REVIEW-POINTS.md`「ドキュメントの構造」 | 「**連言**（『AかつB』）の一項だけを言い換えたとき、文全体の主語が変わっていないか」 | `連言` |
 | H | `.claude/skills/issue-mr-flow/SKILL.md` 手順2 | 「『該当するアセット』はファイル単位ではなく**記述単位**で見る。ファイル単位で見ると (a) が原理的に発生せず、手順3が恒久的に迂回される」 | `記述単位` |
 | H2 | 同 手順3 | 「痕跡の確認は (a) と (c) の**両方で行う**。再現性の確認だけが (a) 限定である」＋見出しを「証拠集めと打ち切り（(a) のみ）」から改める | `両方で行う` |
@@ -212,7 +212,7 @@ grep -rn '連言|言い換え' -E REVIEW-POINTS.md plans/REVIEW-POINTS.md report
 | D | `reports/REVIEW-POINTS.md`「内容の妥当性」 | `実測したか` | **0** |
 | D2 | `.claude/skills/adversarial-review/SKILL.md` 全体 | `数え直す` | **0** |
 | E | `.claude/skills/doc-search/SKILL.md` 全体 | `取りこぼ` | **0** |
-| F | `REVIEW-POINTS.md` 全体 | `全部数える` | **0** |
+| F | `REVIEW-POINTS.md` 全体 | `全部数え` | **0** |
 | G | `REVIEW-POINTS.md` 全体 | `連言` | **0** |
 | H | SKILL.md の新節の範囲 | `記述単位` | **0** |
 | H2 | SKILL.md の新節の範囲 | `両方で行う` | **0** |

@@ -272,7 +272,7 @@ grep -rn &#x27;連言|言い換え&#x27; -E REVIEW-POINTS.md plans/REVIEW-POINTS
 <tr><td>D</td><td><code>reports/REVIEW-POINTS.md</code>「内容の妥当性」</td><td>「書いた数値と事実を、書く直前に<b>実測したか</b>。判断理由を事実の主張へ言い換えない。受け取ったレビュー指摘の行番号・件数も採用前に数え直す」</td><td><code>実測したか</code></td></tr>
 <tr><td>D2</td><td><code>.claude/skills/adversarial-review/SKILL.md</code></td><td>「指摘に含まれる行番号・件数は、対応する前に自分で<b>数え直す</b>（観点は <code>reports/REVIEW-POINTS.md</code>「内容の妥当性」が正）」</td><td><code>数え直す</code></td></tr>
 <tr><td>E</td><td><code>.claude/skills/doc-search/SKILL.md</code>「絞り込み」節</td><td>「絞り込み条件は答えの範囲を決めてしまう。<code>--type</code> で絞った検索は別の <code>type</code> を原理的に<b>取りこぼす</b>。『どこに書いてあるか』を探すときは <code>--type</code> を外した検索も1回かける」</td><td><code>取りこぼ</code></td></tr>
-<tr><td>F</td><td>ルート <code>REVIEW-POINTS.md</code>「正は1箇所に決め」の直下</td><td>「集約する前に、同じ判定を述べている行を<b>全部数える</b>。目に付いた2箇所だけを見て『正を1箇所にした』と結論すると残りが古いまま残る」</td><td><code>全部数える</code></td></tr>
+<tr><td>F</td><td>ルート <code>REVIEW-POINTS.md</code>「正は1箇所に決め」の直下</td><td>「集約する前に、同じ判定を述べている行を<b>全部数えた</b>か。目に付いた2箇所だけを見て『正を1箇所にした』と結論すると残りが古いまま残る」</td><td><code>全部数え</code></td></tr>
 <tr><td>G</td><td>ルート <code>REVIEW-POINTS.md</code>「ドキュメントの構造」</td><td>「<b>連言</b>（『AかつB』）の一項だけを言い換えたとき、文全体の主語が変わっていないか」</td><td><code>連言</code></td></tr>
 <tr><td>H</td><td><code>.claude/skills/issue-mr-flow/SKILL.md</code> 手順2</td><td>「『該当するアセット』はファイル単位ではなく<b>記述単位</b>で見る。ファイル単位で見ると (a) が原理的に発生せず、手順3が恒久的に迂回される」</td><td><code>記述単位</code></td></tr>
 <tr><td>H2</td><td>同 手順3</td><td>「痕跡の確認は (a) と (c) の<b>両方で行う</b>。再現性の確認だけが (a) 限定である」＋見出しを「証拠集めと打ち切り（(a) のみ）」から改める</td><td><code>両方で行う</code></td></tr>
@@ -308,7 +308,7 @@ grep -rn &#x27;連言|言い換え&#x27; -E REVIEW-POINTS.md plans/REVIEW-POINTS
 <tr><td>D</td><td><code>reports/REVIEW-POINTS.md</code>「内容の妥当性」</td><td><code>実測したか</code></td><td><b>0</b></td></tr>
 <tr><td>D2</td><td><code>.claude/skills/adversarial-review/SKILL.md</code> 全体</td><td><code>数え直す</code></td><td><b>0</b></td></tr>
 <tr><td>E</td><td><code>.claude/skills/doc-search/SKILL.md</code> 全体</td><td><code>取りこぼ</code></td><td><b>0</b></td></tr>
-<tr><td>F</td><td><code>REVIEW-POINTS.md</code> 全体</td><td><code>全部数える</code></td><td><b>0</b></td></tr>
+<tr><td>F</td><td><code>REVIEW-POINTS.md</code> 全体</td><td><code>全部数え</code></td><td><b>0</b></td></tr>
 <tr><td>G</td><td><code>REVIEW-POINTS.md</code> 全体</td><td><code>連言</code></td><td><b>0</b></td></tr>
 <tr><td>H</td><td>SKILL.md の新節の範囲</td><td><code>記述単位</code></td><td><b>0</b></td></tr>
 <tr><td>H2</td><td>SKILL.md の新節の範囲</td><td><code>両方で行う</code></td><td><b>0</b></td></tr>

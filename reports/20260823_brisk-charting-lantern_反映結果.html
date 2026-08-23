@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>反映結果 — DDR・specとレビュー観点への反映 — issue #155</title>
+<style>
+  :root {
+    --bg: #f6f7f9;      --panel: #ffffff;   --ink: #1a1d21;     --muted: #5b636d;
+    --line: #dfe3e8;    --accent: #2563eb;  --accent-soft: #eaf0fe;
+    --ok: #1a7f4b;      --ok-soft: #e6f4ec; --warn: #a35a00;    --warn-soft: #fdf1e0;
+    --stop: #b3261e;    --stop-soft: #fdecea; --code-bg: #f0f2f5;
+    --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1216;    --panel: #161a20;   --ink: #e6e8eb;     --muted: #9aa3ad;
+      --line: #2a3038;  --accent: #7aa2f7;  --accent-soft: #1b2333;
+      --ok: #6ee7a8;    --ok-soft: #14261d; --warn: #f0b866;    --warn-soft: #2a2113;
+      --stop: #f2857c;  --stop-soft: #2b1614; --code-bg: #1d222a;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", system-ui, sans-serif;
+    line-height: 1.8; font-size: 15px;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 20px 80px; }
+
+  /* 共通ヘッダ帯 */
+  header.band {
+    background: linear-gradient(135deg, var(--accent-soft), var(--panel));
+    border-bottom: 1px solid var(--line); padding: 28px 20px 22px; margin-bottom: 28px;
+  }
+  header.band .inner { max-width: 1080px; margin: 0 auto; }
+  header.band .kind { font-size: 11px; letter-spacing: .18em; color: var(--accent); font-weight: 700; }
+  header.band h1 { margin: 6px 0 4px; font-size: 26px; line-height: 1.4; }
+  header.band .lead { margin: 0; color: var(--muted); }
+  .meta { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; padding: 0; list-style: none; }
+  .meta li {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 999px;
+    padding: 3px 12px; font-size: 12.5px; color: var(--muted); white-space: nowrap;
+  }
+  .meta li b { color: var(--ink); font-weight: 600; }
+
+  nav.toc {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 14px 20px; margin-bottom: 28px;
+  }
+  nav.toc h2 { margin: 0 0 8px; font-size: 13px; letter-spacing: .08em; color: var(--muted); border: 0; padding: 0; }
+  nav.toc ol { margin: 0; padding-left: 20px; }
+  nav.toc li { margin: 2px 0; }
+  a { color: var(--accent); }
+
+  section {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 8px 24px 22px; margin-bottom: 22px;
+  }
+  h2 { font-size: 20px; margin: 20px 0 10px; padding-bottom: 8px; border-bottom: 2px solid var(--line); }
+  h3 { font-size: 16px; margin: 22px 0 8px; color: var(--accent); }
+  p { margin: 10px 0; }
+  ul, ol { padding-left: 22px; }
+  li { margin: 4px 0; }
+  blockquote { margin: 10px 0; padding: 6px 14px; border-left: 3px solid var(--line); color: var(--muted); }
+
+  /* 表は自身の中で横スクロールする（ページ本体は横スクロールさせない） */
+  .tablewrap { overflow-x: auto; margin: 14px 0; }
+  table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 14px; }
+  th, td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: var(--accent-soft); font-weight: 600; white-space: nowrap; }
+  tbody tr:nth-child(even) td { background: color-mix(in srgb, var(--line) 22%, transparent); }
+
+  code {
+    background: var(--code-bg); border-radius: 5px; padding: 1px 5px; font-size: 13px;
+    font-family: "SFMono-Regular", Consolas, "Noto Sans Mono", monospace;
+  }
+  pre {
+    background: var(--code-bg); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 12px 14px; overflow-x: auto; font-size: 13px; line-height: 1.65;
+  }
+  pre code { background: none; padding: 0; }
+
+  /* 注意ボックス: info（既定）/ ok（決めたこと）/ warn（注意）/ stop（やらないこと・危険） */
+  .box { border-left: 4px solid var(--accent); background: var(--accent-soft);
+         border-radius: 0 var(--radius) var(--radius) 0; padding: 12px 16px; margin: 16px 0; }
+  .box > :first-child { margin-top: 0; } .box > :last-child { margin-bottom: 0; }
+  .box .label { font-size: 12px; font-weight: 700; letter-spacing: .06em; display: block; margin-bottom: 4px; }
+  .box.ok { border-color: var(--ok); background: var(--ok-soft); } .box.ok .label { color: var(--ok); }
+  .box.warn { border-color: var(--warn); background: var(--warn-soft); } .box.warn .label { color: var(--warn); }
+  .box.stop { border-color: var(--stop); background: var(--stop-soft); } .box.stop .label { color: var(--stop); }
+  .box.info .label { color: var(--accent); }
+
+  .tag { display: inline-block; border-radius: 999px; padding: 1px 9px; font-size: 12px; font-weight: 600; }
+  .tag.ok { background: var(--ok-soft); color: var(--ok); }
+  .tag.warn { background: var(--warn-soft); color: var(--warn); }
+  .tag.stop { background: var(--stop-soft); color: var(--stop); }
+
+  footer { color: var(--muted); font-size: 13px; text-align: center; padding-top: 10px; }
+</style>
+</head>
+<body>
+<header class="band">
+  <div class="inner">
+    <div class="kind">反映結果 / フェーズ4 flow-id 4-6</div>
+    <h1>DDR・specとレビュー観点への反映</h1>
+    <p class="lead">DDR <code>i0155-01</code>（162行・却下案10件）の新規作成と <code>i0110-01</code> への <code>note:</code> 追加、spec の入口2行＋changelogエントリ、そして<b>洗い出し手順を自身へ適用して得た8項目</b>のAIアセット反映を実施した。<b>うち1件は手順そのものの訂正</b>である。検証は S1〜S8 と数える語11個すべてが期待値を返した。</p>
+    <ul class="meta">
+      <li><b>issue</b> #155</li>
+      <li><b>PR</b> #175</li>
+      <li><b>フェーズ</b> 4〈反映〉 flow-id 4-6</li>
+      <li><b>実施日</b> 2026-08-23</li>
+      <li><b>全体作業計画</b> <code>plans/brisk-charting-lantern.md</code></li>
+      <li><b>個別反映計画</b> 【設計反映】／【AIアセット反映】の2本</li>
+      <li><b>正文</b> 同名の .md</li>
+    </ul>
+  </div>
+</header>
+
+<div class="wrap">
+
+<nav class="toc">
+  <h2>目次</h2>
+  <ol>
+    <li><a href="#summary">サマリ</a></li>
+    <li><a href="#work">実施した内容と結果</a></li>
+    <li><a href="#verify">検証</a></li>
+    <li><a href="#deviations">計画から変えた点</a></li>
+    <li><a href="#unverified">確かめられなかったこと</a></li>
+    <li><a href="#todo">残課題</a></li>
+  </ol>
+</nav>
+
+<section id="summary">
+<h2>サマリ</h2>
+<p><b>2本の計画どおり、設計反映5件とAIアセット反映8項目を実施した。検証は S1〜S8 と 数える語11個のすべてが期待値を返した。</b></p>
+<div class="tablewrap">
+<table>
+<thead><tr><th>区分</th><th>実施したもの</th></tr></thead>
+<tbody>
+<tr><td>設計反映</td><td>DDR <code>i0155-01</code> 新規（162行）／<code>i0110-01</code> へ <code>note:</code>（<b>本文は不変</b>）／DDR一覧の再生成／specの入口2行＋changelogエントリ／<code>.claude/VERSION</code> の提案</td></tr>
+<tr><td>AIアセット反映</td><td>8項目（A〜H）を5ファイルへ。<b>うち1件は手順そのものの訂正</b>（項目H）</td></tr>
+<tr><td>変換同期</td><td><code>.gemini/</code> を再生成し <code>--check</code> で同期を確認</td></tr>
+</tbody>
+</table>
+</div>
+<p><b><code>.claude/VERSION</code> は変更していない。</b> 提案は <code>MINOR</code> で、<b>決定は人間</b>である（PR #175 で 判断を仰いでいる）。specのchangelogには「AIからの提案が <code>MINOR</code> で、この時点では未変更」と 事実どおり書き、据え置く判断になった場合はその事実を追記すると明記した。</p>
+</section>
+
+<section id="work">
+<h2>実施した内容と結果</h2>
+<h3>1. DDR <code>i0155-01</code>（新規・162行）</h3>
+<p><code>.claude/docs/ddr/i0155-01-AIアセット反映の対象は4類型への分類と痕跡の確認で洗い出す.md</code></p>
+<p>背景（反映漏れ・反映過多・反映先の漏れの3つ）・決定（手順1〜4と <code>.claude/scripts/</code> <code>.claude/hooks/</code> の扱い）・<b>却下した代替案10件</b>・影響範囲を書いた。</p>
+<p><b>却下案は決定1つにつき1つ以上ある形にした。</b> 特に次の2件は、issue #155 の中で実際に一度採って から改めたものなので、その経緯ごと残している。</p>
+<div class="tablewrap">
+<table>
+<thead><tr><th>却下案</th><th>経緯</th></tr></thead>
+<tbody>
+<tr><td><b>痕跡の確認を (a) だけで行う案</b></td><td><b>初回適用まではこの形だった。</b> (c) と判定すれば探索を回避でき、「該当するアセット」をファイル単位で見ると (a) が原理的に発生しなくなる</td></tr>
+<tr><td><b><code>.claude/scripts/</code> <code>.claude/hooks/</code> を <code>【実装反映】</code> にする案</b></td><td><b>AIが当初採り、ユーザー判断で覆った</b>（2026-08-23）。反映先のパスで種別が分岐すると、1回の洗い出しの結果が2つの個別計画へ割れる</td></tr>
+</tbody>
+</table>
+</div>
+<h3>2. DDR <code>i0110-01</code> への <code>note:</code>（frontmatterのみ）</h3>
+<pre><code>note: &#x27;うち「`.claude/scripts/`をAIアセットから除外する」は、issue #155でフェーズ4に限って置き換えられた（フェーズ3の`【AIアセット作成】`からの除外は現役）。詳細はi0155-01&#x27;</code></pre>
+<p><b>本文は1文字も変更していない</b>（下記S8で実測）。<code>status: superseded</code> を使わなかったのは、置き換わったのが<b>決定の一部だけ</b>で、8種への拡張そのものは現役だからである （<code>.claude/rules/markdown-frontmatter.md</code>「DDRのnote」の類型「決定の一部だけが後で変わった」）。</p>
+<p><b>この選択は人間の確認待ちである。</b> <code>status: superseded</code> を選ぶ判断になれば <code>superseded_by: "i0155-01"</code> を併記する形へ変える。</p>
+<h3>3. DDR一覧の再生成</h3>
+<p><code>bash .claude/scripts/src/generate-ddr-list.sh</code> を実行（78件）。差分は2行で、<b>手書きでは足していない</b>。</p>
+<ul>
+<li><code>i0155-01</code> の行の追加。</li>
+<li><code>i0110-01</code> の行末へ <code>note:</code> 由来の注記が付いた。</li>
+</ul>
+<h3>4. spec（<code>.claude/docs/spec/issue-mr-workflow.md</code>）</h3>
+<div class="tablewrap">
+<table>
+<thead><tr><th>箇所</th><th>内容</th></tr></thead>
+<tbody>
+<tr><td>「仕様」側（タスク種別の直後）</td><td><b>入口2行</b>。手順の正がSKILL.mdであることとDDRへのリンクだけ</td></tr>
+<tr><td>「影響範囲」</td><td><code>### issue #155</code> エントリ。<b>変更したファイル10件の表</b>＋DDRへのリンク</td></tr>
+</tbody>
+</table>
+</div>
+<p><b>却下案はエントリに書かず、DDRへのリンクだけにした</b>（却下案はDDRが持つ）。</p>
+<h3>5. AIアセット反映（8項目）</h3>
+<div class="tablewrap">
+<table>
+<thead><tr><th>#</th><th>反映先</th><th>類型</th><th>何を書いたか</th></tr></thead>
+<tbody>
+<tr><td>A</td><td>ルート <code>REVIEW-POINTS.md</code>「検証コマンドが〜」</td><td>(d)</td><td>変更前のツリーで実行して失敗を確かめる／構造語を数える語にしない</td></tr>
+<tr><td>A2</td><td><code>plans/REVIEW-POINTS.md</code>「検証手順」</td><td>—</td><td><b>参照1行のみ</b>（内容の正はルート）</td></tr>
+<tr><td>B</td><td><code>plans/REVIEW-POINTS.md</code>「HTML版」</td><td>(c)</td><td>見出しの突き合わせ前にバッククォートと <code>&lt;code&gt;</code> の差を正規化する</td></tr>
+<tr><td>C</td><td><code>plans/REVIEW-POINTS.md</code>「HTML版」</td><td>(c)</td><td>表のセルにパイプ・バッククォートを含むコマンドを書かない</td></tr>
+<tr><td>D</td><td><code>reports/REVIEW-POINTS.md</code>「内容の妥当性」</td><td>(c)</td><td>書いた数値と事実を実測してから書く／判断理由を事実の主張へ言い換えない</td></tr>
+<tr><td>D2</td><td><code>.claude/skills/adversarial-review/SKILL.md</code></td><td>—</td><td><b>参照1行のみ</b>（「指摘を受け取る側への注意」節を新設）</td></tr>
+<tr><td>E</td><td><code>.claude/skills/doc-search/SKILL.md</code>「絞り込み」</td><td>(c)</td><td>絞り込み条件が答えの範囲を決めてしまう</td></tr>
+<tr><td>F</td><td>ルート <code>REVIEW-POINTS.md</code>「正は1箇所に決め」</td><td>(c)</td><td>集約する前に、同じ判定を述べている行を全部数える</td></tr>
+<tr><td>G</td><td>ルート <code>REVIEW-POINTS.md</code>「ドキュメントの構造」</td><td>(c)</td><td>連言の一項の言い換えで文全体の主語が変わっていないか</td></tr>
+<tr><td>H</td><td><code>.claude/skills/issue-mr-flow/SKILL.md</code> 手順2・手順3</td><td><b>(b)</b></td><td>「該当するアセット」は記述単位で見る／痕跡の確認は (a) と (c) の両方</td></tr>
+</tbody>
+</table>
+</div>
+<p><b>A と D は反映先が2箇所あるが、参照側には内容を書いていない</b>（計画で正を明示した）。</p>
+<p><b>項目Hは、この手順自身の訂正である。</b> 手順3の見出しを 「証拠集めと打ち切り（(a) のみ）」→「<b>痕跡の確認と打ち切り</b>」へ改め、確かめること2つの表に <b>「対象」列</b>（再現性＝(a) のみ／痕跡＝(a) と (c) の両方）を足した。段階1の行も 「(a) はこの時点では反映しない（<b>(c) は段階2へ進む</b>）」へ直し、見出しと本文の食い違いを消した。</p>
+<h3>6. <code>.gemini/</code> の再生成</h3>
+<p><code>bash .claude/scripts/src/sync-gemini-assets.sh</code> を実行し、<code>--check</code> が 「<code>.gemini/</code> は <code>.claude/</code> と同期しています。」を返すことを確認した。</p>
+</section>
+
+<section id="verify">
+<h2>検証</h2>
+<h3>設計反映（S1〜S8）</h3>
+<p><b>分岐点のSHAは <code>99fe2f2</code>（<code>git merge-base HEAD origin/main</code> の実測値）に固定した。</b></p>
+<div class="tablewrap">
+<table>
+<thead><tr><th>#</th><th>何を確かめたか</th><th>変更前</th><th>変更後（実測）</th></tr></thead>
+<tbody>
+<tr><td>S1</td><td>DDR <code>i0155-01</code> が存在する</td><td>0</td><td><b>1</b></td></tr>
+<tr><td>S2</td><td><code>i0110-01</code> に <code>note:</code> がある</td><td>0</td><td><b>1</b></td></tr>
+<tr><td>S3</td><td>新規DDRがインデックスへ載った</td><td>matched=0</td><td><b>matched=1</b></td></tr>
+<tr><td>S4</td><td>DDR一覧が生成物と一致する（冪等）</td><td>—</td><td><b>再生成で変化なし</b></td></tr>
+<tr><td>S5</td><td>specにchangelogエントリがある</td><td>0</td><td><b>1</b></td></tr>
+<tr><td>S6</td><td>specの「仕様」側の追記が入口に留まる</td><td>0</td><td><b>2</b>（期待1〜2）</td></tr>
+<tr><td>S7</td><td>frontmatterインデックスが壊れていない</td><td><code>failed=0</code></td><td><b><code>failed=0</code></b>（145件）</td></tr>
+<tr><td>S8</td><td><code>i0110-01</code> の<b>本文</b>が変わっていない</td><td>—</td><td><b>追加行は <code>note:</code> の1行のみ</b></td></tr>
+</tbody>
+</table>
+</div>
+<p><b>S8はディレクトリ単位で見た</b>（<code>git diff 99fe2f2 -- .claude/docs/ddr/</code>）。<code>.claude/docs/ddr/</code> 全体の<b>削除行は0</b>で、一括置換のような操作が他のDDRへ波及していないことも 同時に確かめられている。</p>
+<p><b>S3をS7と別に置いた理由</b>: <code>failed=0</code> は<b>対象ファイルが1件も増えていなくても成立する</b> （「異常が無ければ何も出ない」形の検証）。</p>
+<h3>AIアセット反映（数える語11個）</h3>
+<p><b>全11個が、変更前0件・変更後1件以上</b>である。</p>
+<div class="tablewrap">
+<table>
+<thead><tr><th>#</th><th>範囲</th><th>数える語</th><th>変更前</th><th>変更後</th></tr></thead>
+<tbody>
+<tr><td>A</td><td><code>REVIEW-POINTS.md</code> 全体</td><td><code>変更前のツリー</code></td><td>0</td><td><b>1</b></td></tr>
+<tr><td>A2</td><td><code>plans/REVIEW-POINTS.md</code>「検証手順」</td><td><code>空振り</code></td><td>0</td><td><b>1</b></td></tr>
+<tr><td>B</td><td><code>plans/REVIEW-POINTS.md</code>「HTML版」</td><td><code>正規化</code></td><td>0</td><td><b>1</b></td></tr>
+<tr><td>C</td><td><code>plans/REVIEW-POINTS.md</code>「HTML版」</td><td><code>列区切り</code></td><td>0</td><td><b>1</b></td></tr>
+<tr><td>D</td><td><code>reports/REVIEW-POINTS.md</code>「内容の妥当性」</td><td><code>実測したか</code></td><td>0</td><td><b>1</b></td></tr>
+<tr><td>D2</td><td><code>.claude/skills/adversarial-review/SKILL.md</code></td><td><code>数え直す</code></td><td>0</td><td><b>1</b></td></tr>
+<tr><td>E</td><td><code>.claude/skills/doc-search/SKILL.md</code></td><td><code>取りこぼ</code></td><td>0</td><td><b>1</b></td></tr>
+<tr><td>F</td><td><code>REVIEW-POINTS.md</code> 全体</td><td><code>全部数え</code></td><td>0</td><td><b>1</b></td></tr>
+<tr><td>G</td><td><code>REVIEW-POINTS.md</code> 全体</td><td><code>連言</code></td><td>0</td><td><b>2</b></td></tr>
+<tr><td>H</td><td>SKILL.md の新節の範囲</td><td><code>記述単位</code></td><td>0</td><td><b>1</b></td></tr>
+<tr><td>H2</td><td>SKILL.md の新節の範囲</td><td><code>両方</code></td><td>0</td><td><b>3</b></td></tr>
+</tbody>
+</table>
+</div>
+<p><b>Fの数える語を計画から変えた。</b> 計画では <code>全部数える</code> としていたが、実際に書いた文面が 「全部数え<b>た</b>か」という問いの形になったため <code>全部数え</code> へ変えた（変更前0件であることを 分岐点の断面 <code>git show 99fe2f2:REVIEW-POINTS.md</code> で確認済み）。<b>語を文面へ合わせるのではなく、文面に合う語へ変えた</b>——検証を通すために語を捻じ込むと、検証が「内容が入ったか」ではなく 「その語を含むか」だけを測る形になるためである。</p>
+<h3>収集経路</h3>
+<p>追記した観点が実際にレビューで収集されることを確かめた。</p>
+<pre><code>$ bash .claude/scripts/src/collect-review-points.sh &#x27;plans/【AIアセット反映】…md&#x27; \
+    | grep -c &#x27;変更前のツリー&#x27;
+1</code></pre>
+<p><b>変更前は0</b>（計画に実測値を記載済み）。</p>
+<h3>変換同期</h3>
+<pre><code>$ bash .claude/scripts/src/sync-gemini-assets.sh --check
+.gemini/ は .claude/ と同期しています。</code></pre>
+</section>
+
+<section id="deviations">
+<h2>計画から変えた点</h2>
+<div class="tablewrap">
+<table>
+<thead><tr><th>計画</th><th>実際</th><th>理由</th></tr></thead>
+<tbody>
+<tr><td>項目Fの数える語は <code>全部数える</code></td><td><code>全部数え</code></td><td>文面が問いの形（「全部数えたか」）になったため。変更前0件は分岐点の断面で確認</td></tr>
+<tr><td>specのchangelogに「<code>.claude/VERSION</code> は据え置いた」と書く</td><td>「提案が <code>MINOR</code> で、この時点では未変更」と書く</td><td><b>人間の判断がまだ返っていない</b>。決まっていないことを決まったように書かない</td></tr>
+</tbody>
+</table>
+</div>
+<p>これ以外は計画どおりである。</p>
+</section>
+
+<section id="unverified">
+<h2>確かめられなかったこと</h2>
+<ul>
+<li><b><code>.claude/VERSION</code> の決定</b>。提案（<code>MINOR</code>）を出しただけで、上げるか据え置くかは人間の判断 待ちである。据え置く判断になった場合は、specのchangelogへその事実を追記する必要がある。</li>
+<li><b><code>i0110-01</code> に <code>note:</code> を使う判断の是非</b>。<code>status: superseded</code> を選ぶ判断になれば <code>superseded_by: "i0155-01"</code> の併記へ変える。PR #175 で問いかけ済み。</li>
+<li><b>訂正した手順3が、次のissueで実際に機能するか</b>。今回は手順を自分へ適用した1回だけで、 訂正後の形はまだ回していない。</li>
+<li><b><code>install-to-project.sh</code> を実際に走らせての配布確認</b>（調査結果Q8から引き継ぎ）。</li>
+</ul>
+</section>
+
+<section id="todo">
+<h2>残課題</h2>
+<ul>
+<li><b>フェーズ5</b>: コンフリクト確認 → 関連issueへのマージ前通知（<b>投稿前に承認が必要</b>）→ 統括レポート → <code>cleanup-task.sh</code> → commit/push＋Draft解除。<b>マージはユーザーの明示指示待ち。</b></li>
+<li><b>別issueの起票を提案する</b>: 配布経路が上流の削除を伝播しない件（調査結果Q8）。</li>
+<li><b>PR #175 のDDR矛盾スレッドへ再返信する</b>（フェーズ3の返信で約束済み。本反映で解消した）。</li>
+</ul>
+</section>
+
+<footer>issue #155 / PR #175 — 結果の正文は同名の <code>.md</code>。外部依存を持たない自己完結HTML。</footer>
+
+</div>
+
+</body>
+</html>
