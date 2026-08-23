@@ -108,7 +108,7 @@
       <li><b>ブランチ</b> claude/gitignore-ddr-references-rsjo83</li>
       <li><b>PR</b> #177</li>
       <li><b>フェーズ</b> 1〈起点〉 flow-id 1-4</li>
-      <li><b>push回数</b> 1</li>
+      <li><b>push回数</b> 3</li>
       <li><b>作成日</b> 2026-08-23</li>
       <li><b>正文</b> 同名の .md</li>
     </ul>
@@ -120,6 +120,7 @@
 <nav class="toc">
   <h2>目次</h2>
   <ol>
+    <li><a href="#context">Context</a></li>
     <li><a href="#goal">この計画で何をするか</a></li>
     <li><a href="#target">変更対象</a></li>
     <li><a href="#approach">方針</a></li>
@@ -132,17 +133,31 @@
   </ol>
 </nav>
 
-<section id="goal">
-  <h2>この計画で何をするか</h2>
-  <p>issue #133のDDR識別子一括改番時に取り残された<code>.gitignore</code>内の参照切れ2箇所を
-  実ファイル名へ修正する。あわせて、同種の事故（issue #70・今回で2回目）を検出できるよう、
-  DDRファイルパスへの参照を走査し実在確認する仕組みを追加する。</p>
+<section id="context">
+  <h2>Context</h2>
+  <p>issue #133で全DDRを4桁ゼロ埋めのissue番号ベース識別子（<code>i0000-01</code>形式）へ一括改番した際、
+  <code>.gitignore</code>内のコメントに書かれた<b>参照文字列</b>は改番対象に含まれず、古い識別子のまま
+  取り残された。issue #171はこの取りこぼしを修正するとともに、実在しないドキュメントを指す参照を
+  機械的に検出できるようにすることを求めている。issue本文は「issue #70で1回、同種の参照切れが
+  発生していた」と述べているが、これはissue本文の記述の引用であり、本計画では該当コミットまでは
+  特定していない。</p>
   <div class="box warn">
     <span class="label">事前調査で判明した事実</span>
     issue本文は「<code>i00-13</code>参照はissue #70で既に消えた」としているが、実際には
     <code>.gitignore</code>の28行目にまだ残っている。本文が挙げる<code>i36-01</code>（40行目）
-    と合わせて、<b>修正対象は2箇所</b>である。
+    と合わせて、<b>修正対象は2箇所</b>である。詳細は
+    <code>reports/20260823_sequential-purring-tulip_DDR参照切れの網羅調査結果.md</code>を正とする。
   </div>
+</section>
+
+<section id="goal">
+  <h2>この計画で何をするか</h2>
+  <ol>
+    <li><code>.gitignore</code>内の2箇所のDDR参照切れ（<code>i00-13</code> → <code>i0000-13</code>、<code>i36-01</code> → <code>i0036-01</code>）を実在するファイル名に修正する。</li>
+    <li>リポジトリ全体を走査し、「実ファイルを指す意図で書かれたDDR参照でゼロ埋めが漏れている」箇所が上記2件以外に無いことを、件数付きの検索結果で確認する。</li>
+    <li>同種の参照切れ（DDRファイルパスへの参照が実在しない）を検出する仕組みを追加する（既存の<code>check-base-conflicts.sh</code>の<code>ddr_identifier_to_reply</code>とは別の新規関数として実装。フェーズ2で確認済み）。単体テストを付ける。</li>
+    <li>設計反映として、今回の意思決定（検出の仕組みの設計・粒度）をDDRとして記録する。</li>
+  </ol>
 </section>
 
 <section id="target">
@@ -165,13 +180,29 @@
   <h2>方針</h2>
   <p><code>.gitignore</code>の修正はコメント文字列の書き換えのみで、ignoreパターン自体
   （<code>**/index.jsonl</code>等）は変更しない。</p>
-  <p>検出の仕組みは<b>DDRファイルパス形式の参照</b>（<code>.claude/docs/ddr/i&lt;番号&gt;-&lt;枝番&gt;-...</code>）
-  に絞る。ゼロ埋め規約を説明する例示的記述（例:「ゼロ埋めなし: i106-01, ...」）はパス形式を
-  取らないため、パス形式限定により誤検知を避けられる（.gitignoreの実例で確認済み）。DDR以外
-  （spec等）への参照切れ検出はスコープ外とする。</p>
+  <p>検出の仕組みは<b>DDRファイルパスへの参照</b>（<code>.claude/docs/ddr/i&lt;番号&gt;-&lt;枝番&gt;-...\.md</code>）
+  に絞る。<b>この設計判断はリポジトリ全体を対象に実測して検証済み</b>（フェーズ2の調査で確認。
+  全体作業計画作成の時点では<code>.gitignore</code>の実例だけで確認した未検証の段階だった）。
+  実測の結果、単純な「パス形式に限定するだけ」では誤検知が残ることが判明し、追加で
+  「テストファイル（<code>.claude/scripts/test/</code>配下）除外」「Markdownコードフェンス内除外」
+  「省略記法（<code>...</code>/<code>…</code>を含む候補）除外」の3フィルタが必要だった。</p>
+  <div class="box warn">
+    <span class="label">見逃す範囲</span>
+    この設計は「DDRファイルパス形式」の参照に限定するため、パスを伴わない裸の識別子表記
+    （例:「DDR i0159-01参照」）はスコープに含めない。issueの受け入れ条件(2)は文言上パス形式に
+    限定していないが、裸の識別子はドキュメント中で規約の例示として多用され誤検知源になりやすい
+    （実測でも確認済み）ため、本issueではパス形式限定とする。
+  </div>
   <p>既存の<code>ddr_identifier_to_reply</code>（<code>check-base-conflicts.sh</code>）は
   DDR<b>ファイル名</b>から識別子を抽出する関数で、今回必要なのは逆方向（<b>本文中の参照文字列</b>
-  から候補パスを抽出し実在確認する）である。流用の可否はフェーズ2で判断する。</p>
+  から候補パスを抽出し実在確認する）である。新規関数として実装する（フェーズ2で確認済み）。</p>
+  <p><b>参照文字列の終端規則</b>: 一部のDDRファイル名自体に<code>.md</code>という文字列が含まれる
+  （例: <code>i0032-01-GitLab-issueテンプレートは予約名Default.mdを正とし文書側を合わせる.md</code>）。
+  非貪欲マッチで最初の<code>.md</code>を終端にすると誤って途中で切れるため、<b>貪欲マッチ</b>
+  （bashの<code>[[ =~ ]]</code>は既定で貪欲）で終端記号（空白・<code>)</code> <code>]</code>
+  <code>"</code> <code>'</code> <code>`</code> <code>(</code>）の直前までを候補として拾い、
+  <code>.md</code>で終わることを要求する設計とする（フェーズ2で実測によりこの2件を含めて
+  正しく判定できることを確認済み）。</p>
 </section>
 
 <section id="phase-research">
@@ -203,17 +234,25 @@
     <ul>
       <li>DDR以外（spec・plans・reports等）への参照切れ検出（issueタイトル・受け入れ条件が
         DDR参照切れに限定しているため）</li>
-      <li>SessionStart hook等への自動組み込みによる毎回実行（起動コストの規約に照らし、
-        頻度の低い整合性チェックを毎ツール呼び出しで走らせる必要は無いと判断。判断が変わる
-        場合はフェーズ2で理由とともに更新する）</li>
+      <li>パスを伴わない裸のDDR識別子表記（例:「DDR i0159-01参照」）の参照切れ検出
+        （上記「方針」の「見逃す範囲」参照）</li>
+      <li><b>毎ツール呼び出し・毎コミットで自動実行する仕組み（SessionStart/PostToolUse hookへの
+        組み込み）</b>は作らない（起動コストの規約に照らし判断）。<b>実行タイミングの具体案
+        （手動実行のみか、`resolve-conflict`スキル・`generate-ddr-list.sh`実行時への合流か）は
+        フェーズ2の成果物として決定し、ここでは決めない</b>（フェーズ2の調査結果を参照）</li>
     </ul>
   </div>
 </section>
 
 <section id="verify">
   <h2>検証</h2>
-  <pre><code># .gitignoreの参照が実ファイルを指しているか
-ls .claude/docs/ddr/i0000-13-*.md .claude/docs/ddr/i0036-01-*.md
+  <pre><code># .gitignoreから参照確認に使う正規表現でDDRパス文字列を抽出し、実在しないものを検索する
+grep -noE '\.claude/docs/ddr/i[0-9]+-[0-9]{2}-[^]\)\ "'"'"'`(]*\.md' .gitignore
+# 修正前は2件ヒット、修正後は0件になること（既存DDRファイルの存在確認だけでは
+# .gitignore側の記述が直っているかを検出できないため、検証は必ず参照側から行う）
+
+# リポジトリ全体でのDDRパス参照走査（3フィルタ適用）。フェーズ2で123件中2件と確定済み。
+# フェーズ3の修正後に再実行し0件になることを確認する
 
 # 追加した検出スクリプトの単体テスト
 bash -n .claude/scripts/src/&lt;検出スクリプト&gt;.sh
@@ -229,7 +268,7 @@ bash .claude/scripts/test/test_&lt;検出スクリプト&gt;.sh</code></pre>
     <thead><tr><th>受け入れ条件</th><th>この計画での対応箇所</th></tr></thead>
     <tbody>
       <tr><td><code>.gitignore</code>のコメントが<code>i0036-01-…</code>を指している</td><td>フェーズ3で修正（40行目、および追加確認した28行目の<code>i0000-13-…</code>も含む）</td></tr>
-      <tr><td>ゼロ埋めが漏れたDDR識別子の参照が0件であることを件数付きの検索結果で示す</td><td>フェーズ2・フェーズ3のreportsに記録</td></tr>
+      <tr><td>ゼロ埋めが漏れたDDR識別子の参照が0件であることを件数付きの検索結果で示す</td><td>フェーズ2で調査済み（reports参照）、フェーズ3で修正後に再走査し記録</td></tr>
       <tr><td>同種の参照切れを検出する仕組みを入れるか、入れない理由を記録する</td><td>フェーズ3で実装、フェーズ4でDDRへ記録</td></tr>
     </tbody>
   </table>
@@ -242,7 +281,7 @@ bash .claude/scripts/test/test_&lt;検出スクリプト&gt;.sh</code></pre>
   <table>
     <thead><tr><th>案</th><th>利点</th><th>採否と理由</th></tr></thead>
     <tbody>
-      <tr><td>検出の仕組みを作らず目視確認のみで済ませる</td><td>実装コストがかからない</td><td><span class="tag stop">却下</span> issueタイトルが「検出できるようにする」と明記しており、実装コストも小さいと見積もられるため</td></tr>
+      <tr><td>検出の仕組みを作らず目視確認のみで済ませる</td><td>実装コストがかからない</td><td><span class="tag stop">却下</span> issueタイトルが「検出できるようにする」と明記しており、フェーズ2の調査で判定ロジック（正規表現・3フィルタ）が既に確立し実装可能な見通しが立ったため</td></tr>
     </tbody>
   </table>
   </div>

@@ -108,7 +108,7 @@
       <li><b>ブランチ</b> claude/gitignore-ddr-references-rsjo83</li>
       <li><b>PR</b> #177</li>
       <li><b>フェーズ</b> 2〈調査〉 flow-id 2-1</li>
-      <li><b>push回数</b> 1</li>
+      <li><b>push回数</b> 2</li>
       <li><b>作成日</b> 2026-08-23</li>
       <li><b>正文</b> 同名の .md</li>
     </ul>
@@ -138,11 +138,11 @@
 
 <section id="goal">
   <h2>この計画で何をするか</h2>
-  <ul>
+  <ol>
     <li><code>.gitignore</code>の2箇所（28行目・40行目）以外に、DDRファイルパス形式の参照切れが
       無いことを件数付きの検索結果で確認する。</li>
     <li>同種の参照切れを検出する仕組みの実装方式（置き場所・判定ロジック・実行タイミング）を決める。</li>
-  </ul>
+  </ol>
 </section>
 
 <section id="target">
@@ -157,7 +157,15 @@
       <code>.claude/docs/ddr/i&lt;番号&gt;-&lt;枝番&gt;-</code>という<b>パス形式</b>の文字列を
       正規表現で抽出し、対応する実ファイルが存在するかを1件ずつ確認する。パス形式に限定するのは、
       裸の識別子（<code>i133-01</code>等）がゼロ埋め規約の説明文中の例示に多用されており、
-      単純な識別子検索では大量の誤検知を生むため（事前調査で確認済み）。</li>
+      単純な識別子検索では大量の誤検知を生むため（事前調査で確認済み）。<b>この限定により
+      裸の識別子表記は見逃す</b>（issueの受け入れ条件(2)の文言上はパス形式に限定していないが、
+      本issueのスコープでは許容する。詳細は下記「やらないこと」）。</li>
+    <li><b>参照文字列の終端規則</b>: 一部のDDRファイル名自体が<code>.md</code>を含む
+      （例: <code>i0032-01-...Default.mdを正とし...md</code>）。非貪欲マッチで最初の
+      <code>.md</code>を終端にすると誤って途中で切れるため、貪欲マッチ（bashの
+      <code>[[ =~ ]]</code>は既定で貪欲）で終端記号（空白・<code>)</code> <code>]</code>
+      <code>"</code> <code>'</code> <code>`</code> <code>(</code>）の直前までを候補とし、
+      <code>.md</code>で終わることを要求する。</li>
     <li>既存の<code>ddr_identifier_to_reply</code>（<code>check-base-conflicts.sh</code>）・
       <code>generate-ddr-list.sh</code>の実装を読み、識別子の正規表現・ファイル一覧の取得方法を
       流用できるか確認する。</li>
@@ -177,6 +185,8 @@
   <div class="box stop">
     <span class="label">この計画では決めない・触らない</span>
     <ul>
+      <li>パスを伴わない裸のDDR識別子表記（例:「DDR i0159-01参照」）の参照切れ検出
+        （上記「方針」の理由参照。判断はフェーズ2の合意事項として全体作業計画へも反映する）</li>
       <li>実際の<code>.gitignore</code>修正・検出スクリプトの実装（フェーズ3へ送る）</li>
       <li>DDR以外のドキュメントへの参照切れ検出（全体作業計画でスコープ外と合意済み）</li>
     </ul>
@@ -185,8 +195,14 @@
 
 <section id="verify">
   <h2>検証</h2>
-  <p>合格条件: リポジトリ全体のDDRパス形式参照の総数と参照切れ件数が<code>reports/</code>へ
-  件数付きで記録され、検出方式の採用案とその理由が記録されていること。</p>
+  <pre><code># リポジトリ全体からDDRパス形式の参照候補を抽出する（コードフェンス内・テストファイルは
+# 別途除外ロジックで扱う。ここでは素朴な抽出コマンドの例を示す）
+git ls-files -z -- '*.md' '*.sh' '.gitignore' \
+  | xargs -0 grep -noE '\.claude/docs/ddr/i[0-9]+-[0-9]{2}-[^]) "'"'"'`(]*\.md' \
+  | wc -l</code></pre>
+  <p>合格条件: 上記のようなコマンドで得た候補について、3フィルタ（テストファイル除外・
+  コードフェンス内除外・省略記法除外）適用後の総数と、そのうち実ファイルが存在しない件数が
+  <code>reports/</code>へ件数付きで記録され、検出方式の採用案とその理由が記録されていること。</p>
 </section>
 
 <footer>issue #171 / PR #177 — 計画の正文は同名の <code>.md</code>。外部依存を持たない自己完結HTML。</footer>
