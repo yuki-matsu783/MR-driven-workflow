@@ -69,6 +69,7 @@
   section[id], h3[id] { scroll-margin-top: 16px; }
   h2 { font-size: 20px; margin: 20px 0 10px; padding-bottom: 8px; border-bottom: 2px solid var(--line); }
   h3 { font-size: 16px; margin: 22px 0 8px; color: var(--accent); }
+  h4 { font-size: 14px; margin: 16px 0 6px; color: var(--ink); }
   p { margin: 10px 0; }
   ul, ol { padding-left: 22px; }
   li { margin: 4px 0; }
@@ -186,7 +187,7 @@
       <li><a href="#f1">Q1. 置き場所と命名</a> — <code>&lt;worklogDir&gt;/&lt;YYYYMMDD&gt;_&lt;ブランチslug&gt;_push&lt;N&gt;_checklist.tsv</code>。issue本文の「全体計画名_個別計画名」ではなく<b>ブランチslug</b>を使い、置き場所は <code>.mrworkflow.json</code> から解決すると決めた。</li>
       <li><a href="#f2">Q2. 項目の定義</a> — <b>5件の固定リスト</b>とし、スクリプト内の定数として持つ（外部定義ファイルにしない）と決めた。</li>
       <li><a href="#f4">Q4. hookが読む断面</a> — <b>HEADにコミット済みの断面</b>を読み、push対象refは読み取らず常に現在のブランチを見ると決めた。</li>
-      <li><a href="#f6">Q6. PostToolUseと既存hook</a> — push成否の判定に <code>tool_response</code> ではなく <b><code>HEAD == @{upstream}</code></b> を使うと決めた。</li>
+      <li><a href="#f6">Q6. PostToolUseと既存hook</a> — push成否（正確には<b>HEADが公開済みか</b>）の判定に、<code>tool_response</code> でも <code>HEAD == @{upstream}</code> でもなく <b><code>git branch --remotes --contains HEAD</code></b> を使うと決めた。当初案の <code>@{upstream}</code> は実測により<b>両方向に誤る</b>ことを確認して撤回した。</li>
     </ul>
   </div>
   <div class="focus skip">
@@ -205,8 +206,8 @@
     <li class="verdict"><span class="chip good">◎良</span> <a href="#f2">Q2. 項目は5件の固定リスト。スクリプト内の定数として持つ</a> <span class="v-basis">根拠: 実装の確認（配布層 core）</span></li>
     <li class="verdict"><span class="chip good">◎良</span> <a href="#f3">Q3. 4列TSV（<code>id</code> / <code>項目</code> / <code>状態</code> / <code>実施ログ</code>）。状態は <code>pending</code> / <code>done</code> / <code>skip</code></a> <span class="v-basis">根拠: 設計判断</span></li>
     <li class="verdict"><span class="chip good">◎良</span> <a href="#f4">Q4. HEADにコミット済みの断面を読む。push対象refは読み取らない</a> <span class="v-basis">根拠: 要件からの導出＋実装の確認</span></li>
-    <li class="verdict"><span class="chip warn">△注意</span> <a href="#f5">Q5. ブロックは「HEADに存在し、かつ <code>pending</code> が残る」ときだけ。縮退時はブロック側へ倒す</a> <span class="v-basis">根拠: 実装の確認</span></li>
-    <li class="verdict"><span class="chip good">◎良</span> <a href="#f6">Q6. push成否は <code>HEAD == @{upstream}</code> で判定する</a> <span class="v-basis">根拠: 実測</span></li>
+    <li class="verdict"><span class="chip warn">△注意</span> <a href="#f5">Q5. 判定は<b>否定形</b>。「全行が <code>done</code>/<code>skip</code> かつ想定5件のidが揃う」ときだけ通し、それ以外はブロックする</a> <span class="v-basis">根拠: 実装の確認</span></li>
+    <li class="verdict"><span class="chip good">◎良</span> <a href="#f6">Q6. HEADが公開済みかを <code>git branch --remotes --contains HEAD</code> で判定する（当初案の <code>@{upstream}</code> は実測により撤回）</a> <span class="v-basis">根拠: 実測（一時リポジトリで5ケース）</span></li>
     <li class="verdict"><span class="chip good">◎良</span> <a href="#f7">Q7. 削除は flow-id 5-5（<code>cleanup-task.sh</code>）。追加実装は不要</a> <span class="v-basis">根拠: 実測（<code>--dry-run</code>）</span></li>
     <li class="verdict"><span class="chip good">◎良</span> <a href="#f8">Q8. 既存テストの2層構成を踏襲する</a> <span class="v-basis">根拠: 実行（<code>passed=27 failures=0</code>）</span></li>
   </ol>
@@ -233,7 +234,15 @@
     <li>実行環境: Claude Code on the web のリモート実行環境（Linux 6.18.44）。<code>gh</code>/<code>glab</code> CLIは無い</li>
     <li>対象: <code>main</code> を取り込んだ時点のブランチ <code>claude/hook-implementation-17-vjhppj</code>（<code>f58bfdd</code>）</li>
     <li>実施日: 2026-08-23</li>
-    <li>使ったコマンド: <code>grep -n</code> による実装の読み取り、<code>jq</code> による <code>.claude/settings.json</code> の走査、<code>cleanup-task.sh --dry-run</code>、<code>extract-frontmatter.sh</code>、<code>test_block_direct_git_commit.sh</code> の実行、<code>git rev-parse</code></li>
+    <li>使ったコマンド:
+      <ul>
+        <li><code>grep -n</code> / <code>sed -n</code> による実装の読み取り、<code>jq</code> による <code>.claude/settings.json</code> の走査</li>
+        <li><code>bash .claude/scripts/test/test_block_direct_git_commit.sh</code>（既存テストの型と実行結果の確認）</li>
+        <li><code>bash .claude/scripts/src/cleanup-task.sh --dry-run --skip-index</code>（<a href="#f7">Q7</a>。ダミーの <code>.tsv</code> が削除対象へ入ることの確認）</li>
+        <li><code>bash .claude/scripts/src/extract-frontmatter.sh .</code>（同上。<code>.tsv</code> が <code>index.jsonl</code> に載らないことの確認）</li>
+        <li>使い捨ての一時リポジトリ上で走らせた検証スクリプト3本（<a href="#f6">Q6</a>）。scratchpad に置き <code>bash &lt;path&gt;</code> で実行した（コマンド位置に <code>git push</code> が立つため、その場のコマンド文字列としては書けない）。<b>このリポジトリではなく一時リポジトリを対象にしている</b>ので、本ブランチの状態は変えていない</li>
+      </ul>
+    </li>
   </ul>
 </section>
 
@@ -352,42 +361,120 @@ handoff	HANDOFF.mdの進捗表・ヘッダを更新した	done	3-6完了とし�
   </div>
 
   <h3 id="f5">Q5. 誤ブロックしない条件 <span class="chip warn">△注意</span></h3>
-  <p><b>答え</b>: ブロックするのは次の<b>すべて</b>を満たすときだけ。</p>
+  <p><b>答え</b>: 判定は<b>否定形</b>で書く。「通してよい」と積極的に確認できたときだけ通し、それ以外はブロックする。</p>
   <ol>
-    <li>コマンドが <code>git push</code> を<b>コマンド位置で</b>実行する（<code>command_invokes_git_subcommand "$command" push</code>）。</li>
-    <li>カレントブランチのチェックリストが<b>HEADに存在する</b>。</li>
-    <li>そのチェックリストに <code>pending</code> の行が<b>1件以上ある</b>。</li>
+    <li>コマンドが <code>git push</code> を<b>コマンド位置で</b>実行する（<code>command_invokes_git_subcommand "$command" push</code>）。<b>しなければ何もしない。</b></li>
+    <li>カレントブランチのチェックリストが<b>HEADに存在しない</b>なら、ブロックしない（下記の警告条件へ）。</li>
+    <li>存在する場合、<b>次をすべて満たすときだけ通す</b>。1つでも欠ければ <b>exit 2 でブロックする</b>。
+      <ul>
+        <li>全データ行が<b>ちょうど4フィールド</b>である（<a href="#f3">Q3</a>）。</li>
+        <li><code>id</code> 列の集合が、スクリプトが持つ<b>5件の定数と過不足なく一致</b>する。</li>
+        <li>全行の状態が <code>done</code> または <code>skip</code> である（<code>pending</code> はもちろん、<code>Done</code> <code>PENDING</code> <code>pendign</code> のような<b>3値以外の値もブロック</b>する）。</li>
+        <li><code>done</code> / <code>skip</code> の行の<b>実施ログ（4列目）が空でない</b>。</li>
+      </ul>
+    </li>
   </ol>
-  <div class="box info">
-    <span class="label">「未生成のまま素通りした」ことを検出可能にする（ブロックはしない）</span>
-    素通りさせるだけだと、PostToolUseが生成したチェックリストを<b>コミットし忘れた</b>場合に機構が<b>無言で無効化</b>され、しかも「ブロックされないので正常に見える」。そこで、HEADに <code>wip/plans/</code> または <code>wip/worklogs/</code> のタスク成果物がある（<code>TEMPLATE.md</code>・<code>REVIEW-POINTS*.md</code> を除く）＝<b>フロー対象のブランチ</b>なのにチェックリストが無いときは、<b>exit code 1（非ブロックのエラー）＋ 標準エラーへの警告</b>でpushを通す。Claude Code のhookは「0＝成功／2＝ブロック／それ以外＝非ブロックのエラー（stderrをユーザーへ表示し、実行は継続）」という規約のため、この形ならブロックせずに気づかせられる。<b>この警告が実際に届くかは本セッションでは確かめていない</b>ため、届かなくても機構が壊れない設計にしている。
+  <div class="box warn">
+    <span class="label">なぜ肯定形（「<code>pending</code> が1件以上ならブロック」）にしないか</span>
+    肯定形だと、チェックリスト本体の読み取りが縮退したときだけ<b>素通り側</b>へ倒れる。状態列のタイプミス・空ファイル・列ずれ・項目行の削除は、いずれも「<code>pending</code> に一致しない」ため通ってしまう。<b>「縮退時はブロック側へ倒す」という本節の方針と正反対</b>であり、しかも症状は「ブロックされない＝正常に見える」ので気づけない。（敵対的レビュー2回目の指摘により肯定形から反転させた。）
   </div>
+  <p><b>複数のチェックリストがHEADに存在する場合は、<code>&lt;N&gt;</code> が最大の1本だけを見る。</b> それより古いものは、そのpushを通した時点で全件 <code>done</code>/<code>skip</code> だったはずであり、再検査しても結果が変わらない（<a href="#f1">Q1</a> の生成ガードにより、そもそも同一断面に対して2本目は作られない）。</p>
+  <p>したがって次は<b>ブロックされない</b>: <b>チェックリスト未生成</b>（フロー対象外のブランチ・機構の導入直後・ブランチ初回push）／<code>git push</code> 以外のリモート反映手段（MCP経由のファイル作成等。hookが検知できないため<b>そもそも守れない範囲</b>として仕様へ明記する）。</p>
   <div class="box warn">
     <span class="label"><code>git push --dry-run</code> は特別扱いしない（ブロックされる）</span>
     理由は2つ。(1) <code>command_invokes_git_subcommand</code> は<b>0/1しか返さず、引数リストを露出しない</b>（<code>CommandPosition.sh:584-606</code>）。(2) 自前判定を素朴な部分一致で書くと、<b>コメントやヒアドキュメント本文に <code>--dry-run</code> と書くだけでブロックを迂回できる</b>バイパスができ、issue #53 の目的に逆行する。一方 <code>--dry-run</code> がブロックされる損失は「チェックリストを埋めるまで試行できない」だけで<b>作業内容は1バイトも失われない</b>。非対称なので特別扱いしない側へ倒す。
   </div>
-  <p><b>縮退時（<code>CommandPosition.sh</code> が使えない／部分一致へ落ちる）はブロック側へ倒す。</b> <code>block-direct-git-commit.sh</code> と同じ扱い。上の条件2・3により<b>チェックリストが存在し未完了項目があるときにしか発火しない</b>ため、誤ブロックの被害範囲は「チェックを埋めれば通る」に限られる。</p>
+  <div class="box info">
+    <span class="label">「生成したのにコミットし忘れた」ことを検出可能にする（ブロックはしない）</span>
+    素通りさせるだけだと、PostToolUseが生成したチェックリストを<b>コミットし忘れた</b>場合に機構が<b>無言で無効化</b>され、しかも「ブロックされないので正常に見える」。そこで、チェックリストが<b>HEADには無い</b>が<b>作業ツリーには存在する</b>（未追跡または未ステージ）ときは、<b>exit code 1（非ブロックのエラー）＋ 標準エラーへの警告</b>でpushを通す。Claude Code のhookは「0＝成功／2＝ブロック／それ以外＝非ブロックのエラー（stderrをユーザーへ表示し、実行は継続）」という規約のため、この形ならブロックせずに気づかせられる。<b>この警告が実際に届くかは本セッションでは確かめていない</b>ため、届かなくても機構が壊れない設計（通す側は変わらない）にしている。
+  </div>
+  <div class="box warn">
+    <span class="label">当初の警告条件（「フロー対象のブランチなのに未生成」）を撤回した理由</span>
+    (1) <b>正常系で必ず出る警告になっていた。</b> チェックリストはPostToolUse（＝最初の成功pushの後）で初めて生成されるのに、<code>wip/plans/</code> の計画は flow-id 1-4/2-1 で作られ 2-2 のcommitで先にHEADへ入る。つまり<b>すべてのブランチの初回pushで条件が成立する</b>。正常時に毎回出る警告は信号として機能せず、本来検出したい「コミット忘れ」まで一緒に無視される。(2) <b><code>wip/plans/</code> <code>wip/worklogs/</code> をパスとして直書きしていた。</b> <a href="#f1">Q1</a> の「ハードコードしない」方針に反しており、<code>plansDir</code> / <code>worklogDir</code> を変えた配布先では判定が常に偽になって<b>検知が丸ごと無効</b>になる。新しい条件（HEADに無く作業ツリーにある）は<b>検出したい失敗そのもの</b>を直接見ているため初回pushでは成立せず、パスの解決も設定値から1箇所で済む。（敵対的レビュー2回目の指摘。）
+  </div>
+  <p><b>縮退時（<code>CommandPosition.sh</code> が使えない／部分一致へ落ちる）はブロック側へ倒す。</b> <code>block-direct-git-commit.sh</code> と同じ扱い。上の条件2により<b>チェックリストがHEADに存在するときにしか発火しない</b>ため、誤ブロックの被害範囲は「チェックを埋めれば通る」に限られる。</p>
   <p><b>前置フィルタは既存の <code>raw_hints_at_git_push</code> と同型のものを持つ。</b> <code>post-push-compact-prompt.sh:222-240</code> に実装があり、JSON文字列エスケープの2文字シーケンスをまとめて除去してからブラケット式で <code>push</code> を大文字小文字非依存に探す形になっている。3本目として同じ実装を持たせる（<code>source</code> で共有しないのは、既存2本が同型の実装をそれぞれ持っている前例に従い、hookが単独で動くことを優先するため）。</p>
+  <div class="box warn">
+    <span class="label">その前例は T11 が支えており、T11 は現在2本に決め打ちされている</span>
+<pre><code>$ grep -n 'for h in post-push' .claude/scripts/test/test_sync_gemini_assets.sh
+323:for h in post-push-usage-report post-push-compact-prompt; do
+$ grep -n 'T11: 2本の raw_hints_at_git_push が同一実装である' .claude/scripts/test/test_sync_gemini_assets.sh
+339:assert_eq "T11: 2本の raw_hints_at_git_push が同一実装である" \</code></pre>
+    このままでは3本目を足してもT11は緑のままで、<b>3本目の写経がドリフトしたことを検出しない</b>。前置フィルタが超集合でなくなるとhookが無言で発火しなくなるため、<b>T11を3本対応へ更新することを実装単位に含める</b>（<a href="#next">設計への反映</a>）。（敵対的レビュー2回目の指摘。）
+  </div>
+  <table>
+    <thead><tr><th>採らなかった案</th><th>却下理由</th></tr></thead>
+    <tbody>
+      <tr><td>前置フィルタを <code>.claude/hooks/lib/</code> へ共有関数として切り出す</td><td>hookが <code>source</code> の成否に依存する。<code>block-direct-git-commit.sh</code> は <code>source</code> 失敗時に部分一致へ縮退する設計を持つが、<b>前置フィルタは判定本体より前に走る</b>ため、そこで落ちるとhook自体が起動しない。既存2本と非対称な設計になる</td></tr>
+      <tr><td>3本目を足すがT11は2本のままにする</td><td>写経方式の根拠（テストがドリフトを禁じている）が3本目にだけ効かない。<b>無言で超集合が壊れる</b>経路を作る</td></tr>
+    </tbody>
+  </table>
   <div class="box warn unverified-detail">
     <span class="label">確かめられなかったこと（詳細）</span>
     (1) PreToolUse hookが exit code 1 を返したときに stderr が実際にユーザーへ表示されるか。規約上はそうなるはずだが、hookの実起動を再現できていない。(2) <code>.claude/settings.json</code> の <code>if</code> フィルタの照合規則、および「PreToolUseで <code>if</code> を使えるか」。本機構は <code>if</code> を使わない設計（判定が単純な文字列一致に収まらないため）なので、可否が判明しても結論は変わらない。
   </div>
 
   <h3 id="f6">Q6. PostToolUse hookの次回分生成と既存hookとの競合 <span class="chip good">◎良</span></h3>
-  <p><b>答え</b>: push成否は <b><code>HEAD == @{upstream}</code></b> で判定する。<code>tool_response</code> は使わない。</p>
-  <p>リポジトリ内に <code>tool_response</code> を参照している箇所は<b>1つも無い</b>。既存の2本も参照しておらず、「push成功後」という前提はどちらも検証していない。</p>
+  <p><b>答え</b>: push成否は<b>「HEADがいずれかのremote-trackingref（<code>origin/*</code>）に含まれるか」</b>（<code>git branch --remotes --contains HEAD</code>）で判定する。<code>tool_response</code> も <code>@{upstream}</code> も使わない。</p>
+  <p>リポジトリ内に <code>tool_response</code> を参照している箇所は<b>1つも無い</b>。既存の <code>post-push-usage-report.sh</code> / <code>post-push-compact-prompt.sh</code> も参照しておらず、「push成功後」という前提はどちらも検証していない。</p>
   <pre><code>$ grep -rn 'tool_response' .claude/
-（0件）
+（0件）</code></pre>
 
-$ git rev-parse HEAD
-f58bfdd763befe9504bbeef234d1e7504d162702
-$ git rev-parse '@{u}'
-f58bfdd763befe9504bbeef234d1e7504d162702</code></pre>
-  <div class="box ok">
-    <span class="label">結論</span>
-    pushが失敗しているのに次回分を生成すると、<b>再pushが新しい未完了のチェックリストにブロックされる</b>。「失敗したpushをやり直せない」という最悪の failure mode になるため、ここは緩めない。
+  <h4><code>HEAD == @{upstream}</code> を採らない理由（当初案の撤回）</h4>
+  <div class="box stop">
+    <span class="label">当初案は両方向に誤る（実測により撤回）</span>
+    敵対的レビュー2回目の指摘を受けて一時リポジトリで実測した結果:
+<pre><code>$ bash upstream-probe.sh   # 一時リポジトリで @{u} の意味論を測る使い捨てスクリプト
+=== 何も送らない up-to-date な再push ===
+  何も送っていないのに HEAD == @{u} → 『成功』と判定される（誤り）
+=== upstream未設定のブランチ ===
+  @{u} を解決できない（rev-parse が非0）→ set -e 配下ならhookが落ちる
+=== 別ref宛てpushが成功した直後 ===
+  git push origin HEAD:other は成功（終了コード 0）
+  HEAD = 2de4972c / @{u} = f2dd3f1e
+  不一致 → 誤って『失敗』と判定される</code></pre>
   </div>
-  <p><b>既存hookとの競合</b>: <code>PostToolUse</code> には既に同じ matcher（<code>Bash|PowerShell</code>）で4エントリが <code>if: "Bash(git push*)"</code> / <code>if: "PowerShell(git push*)"</code> 付きで並んでいる。本機構は<b>5・6番目のエントリとして末尾に足す</b>（既存2本より後に走らせ、出力を邪魔しない）。<code>if</code> フィルタも既存2本と同じ2種を付ける（Gemini CLI経路では <code>if</code> が効かないため、いずれにせよ自前判定が要る）。<b>状態ファイルは持たない</b>（次回の番号はファイル名から導ける）。</p>
+  <table>
+    <thead><tr><th>誤る形</th><th>帰結</th></tr></thead>
+    <tbody>
+      <tr><td>up-to-date な再push（何も送っていない）を「成功」と読む</td><td>未完了チェックリストが余分に生成される</td></tr>
+      <tr><td><code>git push origin HEAD:other</code> の<b>成功</b>を「失敗」と読む</td><td>チェックリストが生成されず、以降のpushが古い全 <code>done</code> チェックリストで<b>素通りし続ける</b>（機構の無言の無効化）</td></tr>
+      <tr><td>upstream未設定・detached HEAD で <code>@{u}</code> の解決自体が失敗</td><td><code>set -euo pipefail</code> 配下でhookが異常終了し、<b>次回分が永久に生成されない</b></td></tr>
+    </tbody>
+  </table>
+
+  <h4>採用案の実測</h4>
+  <p><code>git branch --remotes --contains HEAD</code> は、上の3つの形すべてで正しく振る舞う。</p>
+<pre><code>$ bash contains-probe.sh
+1. 通常push直後:              contains件数=1  → 公開済みと判定
+2. commit後・push前:          contains件数=0  → 未公開と判定（正しい）
+3. 別ref宛てpushの成功後:     contains件数=1  → 公開済みと判定（@{u}方式は誤判定していた）
+4. upstream未設定・push前:    contains件数=0  → 未公開と判定（rev-parse @{u} と違い落ちない）
+5. upstream未設定・push成功後: contains件数=1  → 公開済みと判定</code></pre>
+  <p><b>upstreamの設定を一切参照しないため、解決に失敗して落ちる経路が無い</b>（上表の3行目の問題も同時に消える）。</p>
+
+  <h4>生成の条件（3つすべてを満たすときだけ生成する）</h4>
+  <ol>
+    <li><b>HEADが公開済みである</b>（上記の <code>--contains</code> が1件以上）。</li>
+    <li><b>そのHEAD SHAを記録したチェックリストが、まだ1本も存在しない。</b> チェックリストは1行目のヘッダコメントへ「どの断面に対して生成されたか」を記録する。これが<b>冪等性の保証</b>であり、up-to-date な再pushで2本目が生えることを防ぐ（<a href="#f1">Q1</a> の <code>&lt;N&gt;</code> の採り方だけでは冪等にならない）。</li>
+    <li><b>HEADにタスク成果物が残っている</b>（<code>plansDir</code> / <code>worklogDir</code> / <code>reportsDir</code> のいずれかに、<code>TEMPLATE.md</code>・<code>REVIEW-POINTS*.md</code> を除くファイルがある）。</li>
+  </ol>
+  <div class="box warn">
+    <span class="label">条件3は flow-id 5-5 で片付けた直後の 5-6 のpushで生成しないため</span>
+    5-5 が <code>wip/worklogs/</code> を空にし、その削除を 5-6 の commit＋push で確定させるのに、そのpushの直後に次回分を生成すると、<b>片付けたはずのディレクトリに未追跡ファイルが1本残ったままタスクが終わる</b>。<code>wip/worklogs/</code> は <code>.gitignore</code> 対象ではない（載るのは <code>/wip/state/</code> だけ）ため、この残骸は次タスクの <code>git status</code> に現れ続け、<code>.claude/rules/git-workflow.md</code> が警告している事故（issue #127 の <code>bash.exe.stackdump</code>）と同じ形になる。（敵対的レビュー2回目の指摘。）
+  </div>
+  <table>
+    <thead><tr><th>採らなかった案（生成の停止条件）</th><th>却下理由</th></tr></thead>
+    <tbody>
+      <tr><td>Draft解除済みのMRでは生成しない</td><td>hookからMRの状態を取るのに外部CLI・APIの往復が要る（<code>gh</code>/<code>glab</code> 不在の環境もある）。<code>--contains</code> と同じくローカルで完結する条件を優先した</td></tr>
+      <tr><td>生成物を <code>.gitignore</code> に載せる</td><td>受け入れ条件「レビュアーがPRの差分から確認できる」と衝突する</td></tr>
+      <tr><td>停止条件を置かず、残骸は <code>commit</code> スキルの除外リストで拾う</td><td>残骸が出ること自体は変わらない。<code>git status</code> に現れる新種の副産物は、<code>.claude/rules/git-workflow.md</code> が「見落としの機会そのものを消す」ことを求めている</td></tr>
+    </tbody>
+  </table>
+
+  <h4>既存hookとの競合</h4>
+  <p><code>.claude/settings.json</code> の <code>PostToolUse</code> には、既に同じ matcher（<code>Bash|PowerShell</code>）で4エントリが <code>if: "Bash(git push*)"</code> / <code>if: "PowerShell(git push*)"</code> 付きで並んでいる。本機構は<b>5・6番目のエントリとして末尾に足す</b>（既存の2本より後に走らせ、既存の出力を邪魔しない）。<code>if</code> フィルタも既存2本と同じ2種を付ける（Gemini CLI経路では <code>if</code> が効かないため、いずれにせよ自前判定が要る）。</p>
+  <p><b>別立ての状態ファイル（<code>wip/state/</code> 等）は持たない。</b> 冪等性に必要な「どの断面に対して生成したか」は、チェックリスト自身のヘッダコメントが持つ。</p>
   <div class="box warn unverified-detail">
     <span class="label">確かめられなかったこと（詳細）</span>
     <code>tool_response</code> の構造（終了コードを含むか）と、複数hookが同時に <code>additionalContext</code> を返したときの合成のされ方。前者は参照箇所が無く、後者は既存2本が同時に返す構成で運用されている事実からの推測に留まる。
@@ -411,6 +498,10 @@ $ bash .claude/scripts/src/cleanup-task.sh --dry-run --skip-index | jq -r '.targ
 $ bash .claude/scripts/src/extract-frontmatter.sh .
 $ grep -c '_probe\.tsv' wip/worklogs/index.jsonl
 0</code></pre>
+  <div class="box info">
+    <span class="label">5-5 で消した直後の 5-6 のpushで再生成されないことは、生成側が担保する</span>
+    <code>cleanup-task.sh</code> は削除するだけなので、生成側に停止条件（<a href="#f6">Q6</a> の生成条件3）を持たせないと、5-6 のpush後に<b>追跡されていないチェックリストが1件だけ残る</b>（片付けたはずのディレクトリが復活する）。
+  </div>
   <div class="box stop">
     <span class="label">issue本文の「flow-id 4-6 で削除」を採らない</span>
     4-6 で消すと、直後の 4-7 のpushでチェックリストが存在しなくなり、<b>フェーズ4以降のpushが機構の対象外へ落ちる</b>。issue #17 起票時点では、現行フローの片付けが flow-id 5-5 に集約されていることが前提に入っていなかったと見られる。
@@ -434,20 +525,34 @@ passed=27 failures=0</code></pre>
       <ul>
         <li><code>.claude/scripts/src/push-checklist.sh</code>（生成 <code>new</code> / チェック記録 <code>check</code> / 検証 <code>verify</code> / パス解決 <code>path</code>）</li>
         <li><code>.claude/hooks/block-unchecked-push.sh</code>（PreToolUse。前置フィルタ＋<code>command_invokes_git_subcommand</code> まではhook内で行い、<b>HEAD断面の検証は <code>push-checklist.sh verify</code> へ委譲する</b>。未完了なら exit 2、フロー対象なのに未生成なら exit 1 の警告）</li>
-        <li><code>.claude/hooks/post-push-next-checklist.sh</code>（PostToolUse。<code>HEAD == @{upstream}</code> の確認＋次回分の生成）</li>
+        <li><code>.claude/hooks/post-push-next-checklist.sh</code>（PostToolUse。<code>git branch --remotes --contains HEAD</code> による公開済み判定＋3つの生成条件＋次回分の生成）</li>
         <li><code>.claude/scripts/test/test_push_checklist.sh</code> / <code>test_block_unchecked_push.sh</code></li>
+      </ul>
+    </li>
+    <li><b>既存ファイルへの変更</b>（新規作成ではないので見落としやすい）。
+      <ul>
+        <li><code>.claude/scripts/test/test_sync_gemini_assets.sh</code> の <b>T11</b>。<code>raw_hints_at_git_push</code> を持つhookが2本である前提で書かれており（ケース名も「2本の〜」）、3本目を足すと<b>この前提のほうが古くなる</b>。3本を対象にし件数も直す（<a href="#f5">Q5</a>）。<b>テストは実装を <code>source</code> して呼ぶ形を崩さない</b>（写経しない）。</li>
+        <li><code>.claude/settings.json</code>（hook登録。PreToolUse・PostToolUseの両方）</li>
       </ul>
     </li>
     <li><b>flow-id 4-6（設計反映）で書く先</b>。
       <ul>
         <li><code>.claude/docs/spec/push-checklist.md</code>（新規。仕様の正）＋ <code>.claude/docs/README.md</code> の手書きspec一覧への行追加</li>
-        <li><code>.claude/docs/ddr/i0017-01</code>（配置場所・拡張子・ブロック方式。Q1〜Q5・Q7の却下案をそのまま使う）</li>
+        <li><code>.claude/docs/ddr/i0017-01</code>（配置場所・拡張子・ブロック方式。Q1〜Q5・Q7の却下案をそのまま使う）。<b>却下案として「実施そのものを機械判定する」も書く</b>（worklogの存在・<code>index.jsonl</code> の鮮度は判定できるが、<code>HANDOFF.md</code> の内容が正しいかは判定できない。一部だけ機械判定にすると「機械判定された項目だけが信頼できる」という非対称を仕様の読み手が読み取れなくなる）</li>
         <li><code>.claude/rules/docs-workflow.md</code> 運用表への1行（<a href="#f7">Q7</a>）</li>
         <li><code>.claude/skills/commit/SKILL.md</code> / <code>.claude/skills/issue-mr-flow/SKILL.md</code>（commit前の更新手順）</li>
-        <li><code>.claude/settings.json</code>（hook登録）／<code>.claude/VERSION</code>（配布資産の追加に伴う版）</li>
+        <li><code>.claude/rules/directory-structure.md</code> / <code>index.md</code>（<code>wip/worklogs/</code> に <code>.md</code> 以外が置かれるため、ツリーの説明が古くなる）</li>
+        <li><code>bash .claude/scripts/src/generate-ddr-list.sh</code> の実行（DDR一覧は生成物）</li>
+        <li><code>.claude/VERSION</code>（配布資産の追加に伴う版）</li>
       </ul>
     </li>
-    <li><b>仕様へ明記すべき「守れない範囲」</b>: <code>git push</code> 以外のリモート反映手段、<code>if</code> フィルタの照合規則が未解明であること、<code>tool_response</code> を当てにしていないこと、push対象refを読み取らないこと。</li>
+    <li><b>仕様へ明記すべき「守れない範囲」</b>。
+      <ul>
+        <li><code>git push</code> 以外のリモート反映手段（IDEのGUI・別ツール経由など、Bashツールを通らない経路）。</li>
+        <li><code>if</code> フィルタの照合規則が未解明であること。<code>tool_response</code> を当てにしていないこと。push対象refを読み取らないこと。</li>
+        <li><b>チェック状態はAIエージェントの自己申告である</b>こと。<code>push-checklist.sh check</code> は状態を <code>done</code> にするだけで、その項目が実際に行われたかを機構は検証しない（例: worklogを書かずに <code>check</code> だけ打っても通る）。本機構が防ぐのは「<b>やるべきことの存在を忘れる</b>」ことであって、「やったと偽る」ことではない。<a href="#f5">Q5</a> の否定形の通し条件も、この前提の上に立っている。</li>
+      </ul>
+    </li>
   </ol>
 </section>
 

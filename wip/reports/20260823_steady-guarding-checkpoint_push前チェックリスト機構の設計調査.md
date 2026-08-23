@@ -29,8 +29,10 @@ keywords: [push前チェックリスト, PreToolUse, PostToolUse, CommandPositio
    定数として持つ（外部定義ファイルにしない）と決めた。
 5. [Q4](#q4-pretooluse-hookが読む断面) — hookは**HEADにコミット済みの断面**を読み、
    push対象refは読み取らず常に現在のブランチを見ると決めた。
-6. [Q6](#q6-posttooluse-hookの次回分生成と既存hookとの競合) — push成否の判定に `tool_response`
-   ではなく **`HEAD == @{upstream}`** を使うと決めた。
+6. [Q6](#q6-posttooluse-hookの次回分生成と既存hookとの競合) — push成否（正確には
+   **HEADが公開済みか**）の判定に、`tool_response` でも `HEAD == @{upstream}` でもなく
+   **`git branch --remotes --contains HEAD`** を使うと決めた。当初案の `@{upstream}` は
+   敵対的レビュー2回目の指摘を受けて実測し、**両方向に誤る**ことを確認して撤回した。
 
 **・細かいレビューは不要（ほぼ確実）**
 
@@ -46,7 +48,7 @@ keywords: [push前チェックリスト, PreToolUse, PostToolUse, CommandPositio
 | Q3 | 4列TSV（`id` / `項目` / `状態` / `実施ログ`）。状態は `pending` / `done` / `skip` | ◎良 | 設計判断 |
 | Q4 | hookは**HEADにコミット済みの断面**を読む（作業ツリーではない）。push対象refは読み取らない | ◎良 | 要件からの導出＋実装の確認 |
 | Q5 | ブロックは「チェックリストがHEADに存在し、かつ `pending` が残る」ときだけ。縮退時はブロック側へ倒す。フロー対象なのに未生成なら exit 1 で警告する | △注意 | 実装の確認 |
-| Q6 | push成否は `HEAD == @{upstream}` で判定する。`tool_response` は既存hookも参照しておらず当てにしない | ◎良 | 実測 |
+| Q6 | HEADが公開済みかを `git branch --remotes --contains HEAD` で判定する。`tool_response` は既存hookも参照しておらず当てにしない。当初案の `HEAD == @{upstream}` は実測により撤回 | ◎良 | 実測（一時リポジトリで5ケース） |
 | Q7 | 削除は flow-id 5-5（`cleanup-task.sh`）。**追加実装は不要**で自動的に対象へ入る | ◎良 | 実測（`--dry-run`） |
 | Q8 | 既存 `test_block_direct_git_commit.sh` の2層構成（純粋関数の直接テスト＋スタブ `jq` の結合テスト）を踏襲 | ◎良 | 実行（`passed=27 failures=0`） |
 
@@ -79,8 +81,17 @@ keywords: [push前チェックリスト, PreToolUse, PostToolUse, CommandPositio
 - 対象: 本リポジトリの `main` を取り込んだ時点のブランチ `claude/hook-implementation-17-vjhppj`
   （`f58bfdd`）。
 - 実施日: 2026-08-23。
-- 使ったコマンド: `grep -n` による実装の読み取り、`jq` による `.claude/settings.json` の走査、
-  `bash .claude/scripts/test/test_block_direct_git_commit.sh` の実行、`git rev-parse`。
+- 使ったコマンド:
+  - `grep -n` / `sed -n` による実装の読み取り、`jq` による `.claude/settings.json` の走査。
+  - `bash .claude/scripts/test/test_block_direct_git_commit.sh`（既存テストの型と実行結果の確認）。
+  - `bash .claude/scripts/src/cleanup-task.sh --dry-run --skip-index`（[Q7](#q7-ライフサイクル)。
+    ダミーの `.tsv` が削除対象へ入ることの確認）。
+  - `bash .claude/scripts/src/extract-frontmatter.sh .`（同上。`.tsv` が `index.jsonl` に
+    載らないことの確認）。
+  - 使い捨ての一時リポジトリ上で走らせた検証スクリプト3本（[Q6](#q6-posttooluse-hookの次回分生成と既存hookとの競合)）。
+    scratchpad に置き `bash <path>` で実行した（コマンド位置に `git push` が立つため、
+    その場のコマンド文字列としては書けない）。**このリポジトリではなく一時リポジトリを
+    対象にしている**ので、本ブランチの状態は変えていない。
 
 ## 実施した内容と結果
 
@@ -109,7 +120,14 @@ keywords: [push前チェックリスト, PreToolUse, PostToolUse, CommandPositio
   **解決は生成・検証スクリプト側が行い、hookはそこへ委譲する**（設定の読み方を2箇所に持たない）。
 - **`<N>` は、そのブランチの既存チェックリストの最大値 + 1。** `HANDOFF.md` の `- push回数:` は
   人間・AIが手で書き換えられる値であり、チェックリストの実体と食い違いうるので使わない。
-  ファイル名から導けば、**生成が冪等**になる（同じ状態で2回走らせても同じ番号になる）。
+  **採用理由はこの1点だけである。**
+  - **`<N>` の採り方自体は冪等ではない**（敵対的レビュー2回目で指摘）。生成器がファイルを作った
+    時点で「最大値」が変わるため、2回目の起動は N+2 を作る。むしろ却下した `HANDOFF.md` 案の
+    ほうが、生成器がHANDOFF.mdを書き換えない以上この尺度では冪等である。当初「ファイル名から
+    導けば生成が冪等になる」と書いていたのは**誤り**だった。
+  - **冪等性は、生成側の条件2（同じHEAD SHAを記録したチェックリストが既にあれば作らない）が
+    保証する**（[Q6](#q6-posttooluse-hookの次回分生成と既存hookとの競合)）。`<N>` の採り方は
+    冪等性と無関係である。
 
 **「ブランチ間でconflictしない」の根拠**: ファイル名に**ブランチslugを含める**こと自体が保証に
 なる。issue本文が挙げていた「全体計画名_個別計画名」は、2つのブランチが同じ種別
@@ -159,14 +177,31 @@ flow-idの判定がhookへ入り込んで壊れやすくなるため、**項目�
 **答え**: ヘッダ行（`#` 始まり）＋ 4列。
 
 ```
+# generated-for: 2fcb4e40d514e660c5357f5bbd932ab2e98ba8f8
 # id	項目	状態	実施ログ
 worklog	worklogを作成し、このpushまでの試行錯誤を追記した	pending
-handoff	HANDOFF.mdの進捗表・ヘッダを更新した	done	3-6完了として mark-done 3-6 を実行
+handoff	HANDOFF.md の進捗表・ヘッダを更新した（commitより前・同じcommitに含めた）	done	3-6完了として mark-done 3-6 を実行
 ```
 
-- **状態は `pending` / `done` / `skip` の3値。** `pending` が1件でも残っていればブロックする。
+**上の `pending` 行も、実際には4フィールド目（空文字列）を持つ**（行末がタブで終わる）。
+markdownのコードブロックでは見えないが、**列数は常に4で固定する**（下記）。
+
+- **列数は常に4で固定する**（敵対的レビュー2回目で指摘）。`pending` 行も4列目を空文字列で必ず
+  出す。可変にすると、`IFS=$'\t' read -r id item state log` で読む生成器と、
+  `awk -F'\t' 'NF!=4'` のような妥当性検査を入れる検証器とで前提が食い違う。
+  **検証器はフィールド数が4でない行をブロック対象とする**
+  （[Q5](#q5-誤ブロックしない条件)）。
+- **1行目に `# generated-for: <HEAD SHA>` を置く。** どの断面に対して生成されたかを記録し、
+  [Q6](#q6-posttooluse-hookの次回分生成と既存hookとの競合) の生成条件2（冪等性）が参照する。
+- **状態は `pending` / `done` / `skip` の3値。** **3値以外の値もブロック対象**である
+  （`Done` `PENDING` `pendign` のようなタイプミスが素通りしないようにするため。
+  [Q5](#q5-誤ブロックしない条件)）。
+- **項目の文言はQ2の定数と一字一句同じものを書き出す**（上のサンプルもQ2の表と一致させてある）。
 - **`done` / `skip` は実施ログ（4列目）が非空であることを要求する。** 空の `done` を許すと
   「チェックだけ付ける」が最短経路になるため、少なくとも**何をしたかを書く**コストは課す。
+  **この要求は検証器（`verify`）側でも強制する**——`check` サブコマンドを通さずEdit/Writeで
+  直接TSVを書けば `check` の検証点を通らないため、生成器側だけの要求では意味を持たない
+  （敵対的レビュー2回目で指摘）。
 - **エスケープは行わず、書き込み時にタブ・改行を半角スペースへ潰す。** TSVのエスケープ規則を
   持ち込むと `git diff` での読みやすさ（受け入れ条件）が落ちる。実施ログは1行の自由記述で足りる。
 - **1行の長さは短く保つ。** 列順を `id` → `項目` → `状態` → `実施ログ` にしているのは、
@@ -222,18 +257,33 @@ HEADを読めば、この2つが同時に保証される。
 
 ### Q5. 誤ブロックしない条件
 
-**答え**: ブロックするのは次の**すべて**を満たすときだけ。
+**答え**: 判定は**否定形**で書く。「通してよい」と積極的に確認できたときだけ通し、それ以外は
+ブロックする。
 
 1. コマンドが `git push` を**コマンド位置で**実行する
-   （`command_invokes_git_subcommand "$command" push`）。
-2. カレントブランチのチェックリストが**HEADに存在する**。
-3. そのチェックリストに `pending` の行が**1件以上ある**。
+   （`command_invokes_git_subcommand "$command" push`）。**しなければ何もしない。**
+2. カレントブランチのチェックリストが**HEADに存在しない**なら、ブロックしない（下記の警告条件へ）。
+3. 存在する場合、**次をすべて満たすときだけ通す**。1つでも欠ければ **exit 2 でブロックする**。
+   - 全データ行が**ちょうど4フィールド**である（[Q3](#q3-チェック済みの表現とtsvの列構成)）。
+   - `id` 列の集合が、スクリプトが持つ**5件の定数と過不足なく一致**する。
+   - 全行の状態が `done` または `skip` である（`pending` はもちろん、`Done` `PENDING` `pendign` の
+     ような**3値以外の値もブロック**する）。
+   - `done` / `skip` の行の**実施ログ（4列目）が空でない**。
+
+**なぜ肯定形（「`pending` が1件以上ならブロック」）にしないか**（敵対的レビュー2回目で指摘）:
+肯定形だと、チェックリスト本体の読み取りが縮退したときだけ**素通り側**へ倒れる。
+状態列のタイプミス・空ファイル・列ずれ・項目行の削除は、いずれも「`pending` に一致しない」ため
+通ってしまう。**「縮退時はブロック側へ倒す」という本節の方針と正反対**であり、しかも症状は
+「ブロックされない＝正常に見える」ので気づけない。
+
+**複数のチェックリストがHEADに存在する場合は、`<N>` が最大の1本だけを見る。**
+それより古いものは、そのpushを通した時点で全件 `done`/`skip` だったはずであり、再検査しても
+結果が変わらないためである（[Q1](#q1-チェックリストの置き場所と命名) の生成ガードにより、
+そもそも同一断面に対して2本目は作られない）。
 
 したがって次はブロックされない。
 
 - **チェックリスト未生成**（フロー対象外のブランチ・機構の導入直後・ブランチ初回push）。
-  ただし**無条件に黙って通すのではなく、「フロー対象のブランチなのにチェックリストが無い」
-  ときだけ警告する**（下記）。
 - `git push` 以外のリモート反映手段（MCP経由のファイル作成等）。
   hookが検知できないため、**そもそも守れない範囲**として仕様へ明記する。
 
@@ -249,13 +299,12 @@ HEADを読めば、この2つが同時に保証される。
 一方 `--dry-run` がブロックされる損失は「チェックリストを埋めるまで試行できない」だけで、
 **作業内容は1バイトも失われない**。非対称なので、特別扱いしない側へ倒す。
 
-**「未生成のまま素通りした」ことを検出可能にする（ブロックはしない）。** 素通りさせるだけだと、
-PostToolUseが生成したチェックリストを**コミットし忘れた**場合に機構が**無言で無効化**され、
-しかも「ブロックされないので正常に見える」。そこで、
+**「生成したのにコミットし忘れた」ことを検出可能にする（ブロックはしない）。** 素通りさせる
+だけだと、PostToolUseが生成したチェックリストを**コミットし忘れた**場合に機構が**無言で
+無効化**され、しかも「ブロックされないので正常に見える」。そこで、
 
-- HEADに `wip/plans/` または `wip/worklogs/` のタスク成果物がある（`TEMPLATE.md`・
-  `REVIEW-POINTS*.md` を除く）＝**フロー対象のブランチ**であり、
-- それなのにチェックリストがHEADに無い
+- チェックリストが**HEADには無い**が、
+- **作業ツリーには存在する**（未追跡または未ステージ）
 
 ときは、**exit code 1（非ブロックのエラー）＋ 標準エラーへの警告**でpushを通す。
 Claude Code のhookは「0＝成功／2＝ブロック／それ以外＝非ブロックのエラー（stderrをユーザーへ
@@ -263,10 +312,24 @@ Claude Code のhookは「0＝成功／2＝ブロック／それ以外＝非ブ�
 **この警告が実際にユーザーへ届くかは本セッションでは確かめていない**ため、届かなくても
 機構が壊れない設計（通す側は変わらない）にしている。
 
+**当初は「フロー対象のブランチ（`wip/plans/` 等にタスク成果物がある）なのにチェックリストが
+無い」を条件にしていたが、2つの理由で上の形へ変えた**（敵対的レビュー2回目で指摘）。
+
+1. **正常系で必ず出る警告になっていた。** チェックリストはPostToolUse（＝最初の成功pushの後）で
+   初めて生成されるのに、`wip/plans/` の計画は flow-id 1-4/2-1 で作られ 2-2 のcommitで先に
+   HEADへ入る。つまり**すべてのブランチの初回pushで条件が成立する**。正常時に毎回出る警告は
+   信号として機能せず、本来検出したい「コミット忘れ」まで一緒に無視される。
+2. **`wip/plans/` `wip/worklogs/` をパスとして直書きしていた。**
+   [Q1](#q1-チェックリストの置き場所と命名) が「ハードコードしない」と決めた方針に反しており、
+   `plansDir` / `worklogDir` を変えた配布先では判定が常に偽になって**検知が丸ごと無効**になる。
+
+新しい条件（HEADに無く作業ツリーにある）は、**検出したい失敗そのもの**を直接見ているため
+初回pushでは成立せず、パスの解決も生成・検証スクリプト側の1箇所（設定値から解決）で済む。
+
 **縮退時（`CommandPosition.sh` が使えない／部分一致へ落ちる）はブロック側へ倒す。**
 `block-direct-git-commit.sh` と同じ扱いにする。pushは「止まると作業が進まない」度合いが大きいが、
-上の条件2・3により**チェックリストが存在し未完了項目があるときにしか発火しない**ため、
-誤ブロックの被害範囲は「チェックを埋めれば通る」に限られる。
+上の条件2により**チェックリストがHEADに存在するときにしか発火しない**ため、誤ブロックの
+被害範囲は「チェックを埋めれば通る」に限られる。
 
 **前置フィルタは既存の `raw_hints_at_git_push` と同型のものを持つ。**
 `post-push-compact-prompt.sh:222-240` に実装があり、JSON文字列エスケープの2文字シーケンスを
@@ -274,9 +337,29 @@ Claude Code のhookは「0＝成功／2＝ブロック／それ以外＝非ブ�
 **3本目として同じ実装を持たせる**（`source` で共有しない理由は、既存2本が同型の実装を
 それぞれ持っている前例に従い、hookが単独で動くことを優先するため）。
 
+**ただし、その前例が成立しているのは `test_sync_gemini_assets.sh` のT11がドリフトを禁じて
+いるからであり、T11は現在2本に決め打ちされている**（敵対的レビュー2回目で指摘）。
+
+```
+$ grep -n 'for h in post-push' .claude/scripts/test/test_sync_gemini_assets.sh
+323:for h in post-push-usage-report post-push-compact-prompt; do
+$ grep -n 'T11: 2本の raw_hints_at_git_push が同一実装である' .claude/scripts/test/test_sync_gemini_assets.sh
+339:assert_eq "T11: 2本の raw_hints_at_git_push が同一実装である" \
+```
+
+このままでは3本目を足してもT11は緑のままで、**3本目の写経がドリフトしたことを検出しない**。
+前置フィルタが超集合でなくなるとhookが無言で発火しなくなるため、**T11を3本対応へ更新することを
+実装単位に含める**（下記「設計への反映」）。
+
+| 採らなかった案 | 却下理由 |
+|---|---|
+| 前置フィルタを `.claude/hooks/lib/` へ共有関数として切り出す | hookが `source` の成否に依存する。`block-direct-git-commit.sh` は `source` 失敗時に部分一致へ縮退する設計を持つが、**前置フィルタは判定本体より前に走る**ため、そこで落ちるとhook自体が起動しない。既存2本と非対称な設計になる |
+| 3本目を足すがT11は2本のままにする | 写経方式の根拠（テストがドリフトを禁じている）が3本目にだけ効かない。**無言で超集合が壊れる**経路を作る |
+
 ### Q6. PostToolUse hookの次回分生成と既存hookとの競合
 
-**答え**: push成否は **`HEAD == @{upstream}`** で判定する。`tool_response` は使わない。
+**答え**: push成否は **「HEADがいずれかのremote-trackingref（`origin/*`）に含まれるか」**
+（`git branch --remotes --contains HEAD`）で判定する。`tool_response` も `@{upstream}` も使わない。
 
 リポジトリ内に `tool_response` を参照している箇所は**1つも無い**。既存の
 `post-push-usage-report.sh` / `post-push-compact-prompt.sh` も参照しておらず、
@@ -287,27 +370,78 @@ $ grep -rn 'tool_response' .claude/
 （0件）
 ```
 
-一方 `HEAD == @{upstream}` は、pushが成功していれば一致し、失敗していれば一致しない。
-実測でも一致を確認した。
+#### `HEAD == @{upstream}` を採らない理由（当初案の撤回）
+
+**当初は `HEAD == @{upstream}` を採ると書いていたが、敵対的レビュー2回目の指摘を受けて実測し、
+両方向へ誤ることを確認したため撤回した。** 一時リポジトリでの実測結果は次のとおり。
 
 ```
-$ git rev-parse HEAD
-f58bfdd763befe9504bbeef234d1e7504d162702
-$ git rev-parse '@{u}'
-f58bfdd763befe9504bbeef234d1e7504d162702
+$ bash upstream-probe.sh   # 一時リポジトリで @{u} の意味論を測る使い捨てスクリプト
+=== 何も送らない up-to-date な再push ===
+  何も送っていないのに HEAD == @{u} → 『成功』と判定される（誤り）
+=== upstream未設定のブランチ ===
+  @{u} を解決できない（rev-parse が非0）→ set -e 配下ならhookが落ちる
+=== 別ref宛てpushが成功した直後 ===
+  git push origin HEAD:other は成功（終了コード 0）
+  HEAD = 2de4972c / @{u} = f2dd3f1e
+  不一致 → 誤って『失敗』と判定される
 ```
 
-**なぜこの判定が要るか**: pushが失敗しているのに次回分を生成すると、**再pushが新しい未完了の
-チェックリストにブロックされる**。「失敗したpushをやり直せない」という最悪の failure mode に
-なるため、ここは緩めない。
+| 誤る形 | 帰結 |
+|---|---|
+| up-to-date な再push（何も送っていない）を「成功」と読む | 未完了チェックリストが余分に生成される |
+| `git push origin HEAD:other` の**成功**を「失敗」と読む | チェックリストが生成されず、以降のpushが古い全 `done` チェックリストで**素通りし続ける**（機構の無言の無効化） |
+| upstream未設定・detached HEAD で `@{u}` の解決自体が失敗 | `set -euo pipefail` 配下でhookが異常終了し、**次回分が永久に生成されない** |
 
-**既存hookとの競合**: `.claude/settings.json` の `PostToolUse` には、既に同じ matcher
-（`Bash|PowerShell`）で4エントリが `if: "Bash(git push*)"` / `if: "PowerShell(git push*)"` 付きで
-並んでいる。本機構は**5・6番目のエントリとして末尾に足す**（既存の2本より後に走らせ、
-既存の出力を邪魔しない）。`if` フィルタも既存2本と同じ2種を付ける
-（Gemini CLI経路では `if` が効かないため、いずれにせよ自前判定が要る）。
+#### 採用案の実測
 
-**状態ファイルは持たない。** 次回の番号はファイル名から導ける（[Q1](#q1-チェックリストの置き場所と命名)）。
+`git branch --remotes --contains HEAD` は、上の3つの形すべてで正しく振る舞う。
+
+```
+$ bash contains-probe.sh
+1. 通常push直後:              contains件数=1  → 公開済みと判定
+2. commit後・push前:          contains件数=0  → 未公開と判定（正しい）
+3. 別ref宛てpushの成功後:     contains件数=1  → 公開済みと判定（@{u}方式は誤判定していた）
+4. upstream未設定・push前:    contains件数=0  → 未公開と判定（rev-parse @{u} と違い落ちない）
+5. upstream未設定・push成功後: contains件数=1  → 公開済みと判定
+```
+
+**upstreamの設定を一切参照しないため、解決に失敗して落ちる経路が無い**（上表の3行目の問題も
+同時に消える）。
+
+#### 生成の条件（3つすべてを満たすときだけ生成する）
+
+1. **HEADが公開済みである**（上記の `--contains` が1件以上）。
+2. **そのHEAD SHAを記録したチェックリストが、まだ1本も存在しない。**
+   チェックリストは1行目のヘッダコメントへ「どの断面に対して生成されたか」を記録する。
+   これが**冪等性の保証**であり、up-to-date な再pushで2本目が生えることを防ぐ
+   （[Q1](#q1-チェックリストの置き場所と命名) の `<N>` の採り方だけでは冪等にならない）。
+3. **HEADにタスク成果物が残っている**（`plansDir` / `worklogDir` / `reportsDir` のいずれかに、
+   `TEMPLATE.md`・`REVIEW-POINTS*.md` を除くファイルがある）。
+
+条件3は **flow-id 5-5 で片付けた直後の 5-6 のpushで生成しないため**である（敵対的レビュー2回目
+で指摘）。5-5 が `wip/worklogs/` を空にし、その削除を 5-6 の commit＋push で確定させるのに、
+そのpushの直後に次回分を生成すると、**片付けたはずのディレクトリに未追跡ファイルが1本残ったまま
+タスクが終わる**。`wip/worklogs/` は `.gitignore` 対象ではない（載るのは `/wip/state/` だけ）
+ため、この残骸は次タスクの `git status` に現れ続け、`.claude/rules/git-workflow.md` が警告して
+いる事故（issue #127 の `bash.exe.stackdump`）と同じ形になる。
+
+| 採らなかった案（生成の停止条件） | 却下理由 |
+|---|---|
+| Draft解除済みのMRでは生成しない | hookからMRの状態を取るのに外部CLI・APIの往復が要る（`gh`/`glab` 不在の環境もある）。`--contains` と同じくローカルで完結する条件を優先した |
+| 生成物を `.gitignore` に載せる | 受け入れ条件「レビュアーがPRの差分から確認できる」と衝突する |
+| 停止条件を置かず、残骸は `commit` スキルの除外リストで拾う | 残骸が出ること自体は変わらない。`git status` に現れる新種の副産物は、`.claude/rules/git-workflow.md` が「見落としの機会そのものを消す」ことを求めている |
+
+#### 既存hookとの競合
+
+`.claude/settings.json` の `PostToolUse` には、既に同じ matcher（`Bash|PowerShell`）で4エントリが
+`if: "Bash(git push*)"` / `if: "PowerShell(git push*)"` 付きで並んでいる。本機構は
+**5・6番目のエントリとして末尾に足す**（既存の2本より後に走らせ、既存の出力を邪魔しない）。
+`if` フィルタも既存2本と同じ2種を付ける（Gemini CLI経路では `if` が効かないため、いずれにせよ
+自前判定が要る）。
+
+**別立ての状態ファイル（`wip/state/` 等）は持たない。** 冪等性に必要な「どの断面に対して
+生成したか」は、チェックリスト自身のヘッダコメントが持つ。
 
 ### Q7. ライフサイクル
 
@@ -342,6 +476,11 @@ $ bash .claude/scripts/src/cleanup-task.sh --dry-run --skip-index | jq -r '.targ
 **`targetDirs` は `.mrworkflow.json` の設定値から組み立てられている**（`worklogDir` 等）。
 [Q1](#q1-チェックリストの置き場所と命名) で生成側も同じ設定値から解決すると決めたのは、
 この削除側と食い違わせないためである。
+
+**flow-id 5-5 で消した直後の 5-6 のpushで再生成されないこと**は、削除側ではなく生成側が
+担保する（[Q6](#q6-posttooluse-hookの次回分生成と既存hookとの競合) の生成条件3）。
+`cleanup-task.sh` は削除するだけなので、生成条件を持たないと 5-6 のpush後に
+**追跡されていないチェックリストが1件だけ残る**（片付けたはずのディレクトリが復活する）。
 
 **issue本文の「flow-id 4-6 で削除」を採らない理由**: 4-6 で消すと、直後の 4-7 のpushで
 チェックリストが存在しなくなり、**フェーズ4以降のpushが機構の対象外へ落ちる**。
@@ -395,17 +534,38 @@ passed=27 failures=0
      `command_invokes_git_subcommand` まではhook内で行い、**HEAD断面の検証は
      `push-checklist.sh verify` へ委譲する**。未完了なら exit 2、フロー対象なのに未生成なら
      exit 1 の警告）
-   - `.claude/hooks/post-push-next-checklist.sh`（PostToolUse。`HEAD == @{upstream}` の確認 ＋
-     次回分の生成）
+   - `.claude/hooks/post-push-next-checklist.sh`（PostToolUse。`git branch --remotes --contains HEAD`
+     による公開済み判定 ＋ 3つの生成条件 ＋ 次回分の生成）
    - `.claude/scripts/test/test_push_checklist.sh` / `test_block_unchecked_push.sh`
-2. **flow-id 4-6（設計反映）で書く先**。
+2. **既存ファイルへの変更**（新規作成ではないので見落としやすい）。
+   - `.claude/scripts/test/test_sync_gemini_assets.sh` の **T11**。`raw_hints_at_git_push` を
+     持つhookが2本である前提で書かれており（`for h in post-push-usage-report post-push-compact-prompt`、
+     ケース名も「2本の〜」）、3本目を足すと**この前提のほうが古くなる**。3本を対象にし、
+     ケース名の件数も直す。**テストは実装を `source` して呼ぶ形を崩さない**（写経しない）。
+   - `.claude/settings.json`（hook登録。PreToolUse・PostToolUseの両方）
+3. **flow-id 4-6（設計反映）で書く先**。
    - `.claude/docs/spec/push-checklist.md`（新規。仕様の正）
-   - `.claude/docs/ddr/i0017-01`（配置場所・拡張子・ブロック方式。Q1〜Q5・Q7の却下案をそのまま使う）
+   - **`.claude/docs/README.md` のspec一覧への追記**（specを新設したら一覧も更新する。
+     DDR一覧と違い生成物ではないので、手で足さないと載らない）
+   - `.claude/docs/ddr/i0017-01`（配置場所・拡張子・ブロック方式。Q1〜Q5・Q7の却下案をそのまま使う）。
+     **却下案として「実施そのものを機械判定する」も書く**（worklogの存在・`index.jsonl` の鮮度は
+     判定できるが、`HANDOFF.md` の内容が正しいかは判定できない。一部だけ機械判定にすると
+     「機械判定された項目だけが信頼できる」という非対称を仕様の読み手が読み取れなくなる）
+   - `bash .claude/scripts/src/generate-ddr-list.sh` の実行（DDR一覧は生成物）
    - `.claude/rules/docs-workflow.md` 運用表への1行（Q7）
+   - `.claude/rules/directory-structure.md` / `index.md`（`wip/worklogs/` に `.md` 以外が
+     置かれるようになるため、ツリーの説明が古くなる）
    - `.claude/skills/commit/SKILL.md` / `.claude/skills/issue-mr-flow/SKILL.md`（commit前の更新手順）
-   - `.claude/settings.json`（hook登録）
-3. **仕様へ明記すべき「守れない範囲」**: `git push` 以外のリモート反映手段、`if` フィルタの
-   照合規則が未解明であること、`tool_response` を当てにしていないこと。
+   - `.claude/VERSION`（配布物の版。`.claude/` 配下へ機能を足すため）
+4. **仕様へ明記すべき「守れない範囲」**。
+   - `git push` 以外のリモート反映手段（IDEのGUI・別ツール経由など、Bashツールを通らない経路）。
+   - `if` フィルタの照合規則が未解明であること。
+   - `tool_response` を当てにしていないこと。
+   - **チェック状態はAIエージェントの自己申告である**こと。`push-checklist.sh check` が
+     状態を `done` にするだけで、その項目が実際に行われたかを機構は検証しない
+     （例: worklogを書かずに `check` だけ打っても通る）。本機構が防ぐのは
+     「**やるべきことの存在を忘れる**」ことであって、「やったと偽る」ことではない。
+     [Q5](#q5-誤ブロックしない条件) の否定形の通し条件も、この前提の上に立っている。
 
 ## 残課題
 
