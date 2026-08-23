@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>【設計反映】係り先ルールの一般化をspecとDDRへ反映する — issue #142</title>
+<style>
+  :root {
+    --bg: #f6f7f9;      --panel: #ffffff;   --ink: #1a1d21;     --muted: #5b636d;
+    --line: #dfe3e8;    --accent: #2563eb;  --accent-soft: #eaf0fe;
+    --ok: #1a7f4b;      --ok-soft: #e6f4ec; --warn: #a35a00;    --warn-soft: #fdf1e0;
+    --stop: #b3261e;    --stop-soft: #fdecea; --code-bg: #f0f2f5;
+    --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1216;    --panel: #161a20;   --ink: #e6e8eb;     --muted: #9aa3ad;
+      --line: #2a3038;  --accent: #7aa2f7;  --accent-soft: #1b2333;
+      --ok: #6ee7a8;    --ok-soft: #14261d; --warn: #f0b866;    --warn-soft: #2a2113;
+      --stop: #f2857c;  --stop-soft: #2b1614; --code-bg: #1d222a;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", system-ui, sans-serif;
+    line-height: 1.8; font-size: 15px;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 20px 80px; }
+
+  /* 共通ヘッダ帯 */
+  header.band {
+    background: linear-gradient(135deg, var(--accent-soft), var(--panel));
+    border-bottom: 1px solid var(--line); padding: 28px 20px 22px; margin-bottom: 28px;
+  }
+  header.band .inner { max-width: 1080px; margin: 0 auto; }
+  header.band .kind { font-size: 11px; letter-spacing: .18em; color: var(--accent); font-weight: 700; }
+  header.band h1 { margin: 6px 0 4px; font-size: 26px; line-height: 1.4; }
+  header.band .lead { margin: 0; color: var(--muted); }
+  .meta { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; padding: 0; list-style: none; }
+  .meta li {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 999px;
+    padding: 3px 12px; font-size: 12.5px; color: var(--muted); white-space: nowrap;
+  }
+  .meta li b { color: var(--ink); font-weight: 600; }
+
+  nav.toc {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 14px 20px; margin-bottom: 28px;
+  }
+  nav.toc h2 { margin: 0 0 8px; font-size: 13px; letter-spacing: .08em; color: var(--muted); border: 0; padding: 0; }
+  nav.toc ol { margin: 0; padding-left: 20px; }
+  nav.toc li { margin: 2px 0; }
+  a { color: var(--accent); }
+
+  section {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 8px 24px 22px; margin-bottom: 22px;
+  }
+  h2 { font-size: 20px; margin: 20px 0 10px; padding-bottom: 8px; border-bottom: 2px solid var(--line); }
+  h3 { font-size: 16px; margin: 22px 0 8px; color: var(--accent); }
+  p { margin: 10px 0; }
+  ul, ol { padding-left: 22px; }
+  li { margin: 4px 0; }
+  blockquote { margin: 10px 0; padding: 6px 14px; border-left: 3px solid var(--line); color: var(--muted); }
+
+  /* 表は自身の中で横スクロールする（ページ本体は横スクロールさせない） */
+  .tablewrap { overflow-x: auto; margin: 14px 0; }
+  table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 14px; }
+  th, td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: var(--accent-soft); font-weight: 600; white-space: nowrap; }
+  tbody tr:nth-child(even) td { background: color-mix(in srgb, var(--line) 22%, transparent); }
+
+  code {
+    background: var(--code-bg); border-radius: 5px; padding: 1px 5px; font-size: 13px;
+    font-family: "SFMono-Regular", Consolas, "Noto Sans Mono", monospace;
+  }
+  pre {
+    background: var(--code-bg); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 12px 14px; overflow-x: auto; font-size: 13px; line-height: 1.65;
+  }
+  pre code { background: none; padding: 0; }
+
+  /* 注意ボックス: info（既定）/ ok（決めたこと）/ warn（注意）/ stop（やらないこと・危険） */
+  .box { border-left: 4px solid var(--accent); background: var(--accent-soft);
+         border-radius: 0 var(--radius) var(--radius) 0; padding: 12px 16px; margin: 16px 0; }
+  .box > :first-child { margin-top: 0; } .box > :last-child { margin-bottom: 0; }
+  .box .label { font-size: 12px; font-weight: 700; letter-spacing: .06em; display: block; margin-bottom: 4px; }
+  .box.ok { border-color: var(--ok); background: var(--ok-soft); } .box.ok .label { color: var(--ok); }
+  .box.warn { border-color: var(--warn); background: var(--warn-soft); } .box.warn .label { color: var(--warn); }
+  .box.stop { border-color: var(--stop); background: var(--stop-soft); } .box.stop .label { color: var(--stop); }
+  .box.info .label { color: var(--accent); }
+
+  .tag { display: inline-block; border-radius: 999px; padding: 1px 9px; font-size: 12px; font-weight: 600; }
+  .tag.ok { background: var(--ok-soft); color: var(--ok); }
+  .tag.warn { background: var(--warn-soft); color: var(--warn); }
+  .tag.stop { background: var(--stop-soft); color: var(--stop); }
+
+  footer { color: var(--muted); font-size: 13px; text-align: center; padding-top: 10px; }
+</style>
+</head>
+<body>
+
+<header class="band">
+  <div class="inner">
+    <div class="kind">個別反映計画 / フェーズ4〈反映〉</div>
+    <h1>【設計反映】係り先ルールの一般化をspecとDDRへ反映する</h1>
+    <p class="lead">フェーズ3で書き換えた係り先ルールについて、<b>意思決定を新規DDR <code>i0142-01</code> へ</b>、<b>変更の記録を <code>issue-mr-workflow.md</code> の changelog へ</b>反映する。AIアセットへの新規反映は無い（条文そのものがフェーズ3の主たる成果物であるため）。</p>
+    <ul class="meta">
+      <li><b>issue</b> #142</li>
+      <li><b>ブランチ</b> claude/docs-workflow-heading-rule-mi3krb</li>
+      <li><b>PR</b> #188</li>
+      <li><b>フェーズ</b> 4〈反映〉 flow-id 4-1</li>
+      <li><b>push回数</b> 9</li>
+      <li><b>作成日</b> 2026-08-23</li>
+      <li><b>正文</b> 同名の .md</li>
+    </ul>
+  </div>
+</header>
+
+<div class="wrap">
+
+<nav class="toc">
+  <h2>目次</h2>
+  <ol>
+    <li><a href="#zentei">前提（合意状況）</a></li>
+    <li><a href="#araidashi">AIアセット反映の対象の洗い出し</a></li>
+    <li><a href="#hanei">反映するもの（3件）</a></li>
+    <li><a href="#shinai">反映しないもの（確認済み）</a></li>
+    <li><a href="#wana">この反映で自分が踏んではいけない罠</a></li>
+    <li><a href="#kensho">検証</a></li>
+    <li><a href="#ukeire">issueの受け入れ条件との対応</a></li>
+  </ol>
+</nav>
+
+<section id="zentei">
+  <h2>前提（合意状況）</h2>
+  <ul>
+    <li><b>フェーズ3〈作業〉は完了している</b>（flow-id 3-10 まで）。書き換えた2箇所は <code>.claude/rules/docs-workflow.md</code> 104〜132行と ルート <code>REVIEW-POINTS.md</code> 47〜57行。結果は <code>reports/20260823_brisk-weaving-lantern_係り先ルールの一般化.md</code>。</li>
+    <li><b>非対話的セッションのため、人間のレビュー往復（flow-id 4-3/4-4・4-8/4-9）は敵対的レビューで代替する</b>（ユーザーの指示）。この計画に対して1回、反映実施後に1回。</li>
+    <li>種別は <code>【設計反映】</code>。今回の反映先は <b>spec と DDR のみ</b>で、AIアセット（<code>.claude/rules/</code> 等）はフェーズ3で<b>主たる成果物として</b>書き換え済みであり、フェーズ4の反映対象ではない（<code>references/planning.md</code>「対象は作業の副産物に限る」）。</li>
+  </ul>
+</section>
+
+<section id="araidashi">
+  <h2>AIアセット反映の対象の洗い出し（issue #155 の手順）</h2>
+
+  <h3>手順1: 起点の列挙</h3>
+  <p>入力は <code>worklog/</code>（push1〜5）・<code>reports/</code>（調査結果・作業結果）・MRのレビューコメント（4回・計29スレッド）の3つ。<b>今回の作業のうち既存のアセットで対応できなかったもの</b>は次の3件。</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>#</th><th>何が起きたか</th><th>出所</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td>発動条件を操作の分類（「構造変更全般」）で書こうとして、issue #155 の形を取りこぼしかけた</td><td>調査 Q3・作業計画のレビュー</td></tr>
+      <tr><td>2</td><td><b>この書き換え自身が、対象としている欠陥を作った</b>（既存2実例の帰属が消えた）</td><td>書き換え結果のレビュー（2件が別方向から到達）</td></tr>
+      <tr><td>3</td><td>同じ規約を A（<code>.claude/rules/</code>）と B（<code>REVIEW-POINTS.md</code>）の2箇所へ書く必要があった</td><td>調査 Q5・書き換え結果のレビュー</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>手順2: 4類型への分類</h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>#</th><th>類型</th><th>根拠</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td><b>反映対象ではない</b>（今回の主たる成果物そのもの）</td><td>条文の書き方の問題であり、<code>docs-workflow.md</code> の書き換えで解決済み。<b>アセットの副産物ではない</b></td></tr>
+      <tr><td>2</td><td><b>反映対象ではない</b>（同上）</td><td>一般化後の条文が扱う形そのもの。ルール側は既に「残した記述の側へ係り先を明示する」を持つ</td></tr>
+      <tr><td>3</td><td><b>(a) 該当するアセットが無かった</b> → 手順3へ</td><td>「同じ規約を2箇所へ意図的に置く」ことの是非を扱った記述が見当たらない</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p class="note"><b>1と2をAIアセット反映の対象にしない理由</b>を明示する。どちらも「アセットが足りなかった」のではなく、<b>このissueが直そうとしていた当のもの</b>である。フェーズ3の成果物へ既に入っており、ここで重ねて別のアセットへ書くと同じ内容が3箇所に散る。</p>
+
+  <h3>手順3: 痕跡の確認（#3 について）</h3>
+  <p>段階2（frontmatter検索 ＋ 本文grep）を実施した。<b>打ち切りの条件（両方0件）は満たさなかった</b>が、ヒットした記述はいずれも<b>別のことを述べている</b>ため、(a) のまま扱う。</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>手段</th><th>結果</th><th>判定</th></tr></thead>
+    <tbody>
+      <tr><td><code>search-frontmatter.sh --text 二重管理 --type ddr</code></td><td><code>matched=2</code></td><td>ヒットは <code>i0077-02</code>（レビュー観点をディレクトリごとに外だしする設計）と 1件。<b>「同じ規約を意図的に2箇所へ置く」ことは扱っていない</b></td></tr>
+      <tr><td><code>search-frontmatter.sh --text 発動条件 --type ddr</code></td><td><code>matched=0</code></td><td>—</td></tr>
+      <tr><td><code>grep -rn 二重管理 .claude/docs .claude/rules</code></td><td>9件</td><td><b>すべて「二重管理を避ける」側</b>の記述（specへ再掲しない・手順を重複させない）。<b>避けずに許容した判断</b>の記録は無い</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p><b><code>i0077-02</code> は追記先にならない。</b> DDRは本文を変更しない運用であり、かつ同DDRが決めたのは「観点を<b>どこへ置くか</b>（ディレクトリごとの <code>REVIEW-POINTS.md</code>）」であって、「<b>規約と観点表の両方へ同じ発動条件を書くか</b>」ではない。</p>
+  <p class="ok"><b>結論: 新規DDR <code>i0142-01</code> を作る</b>（フェーズ2の Q4 が出した「追記先になりうる既存DDRは0件」と同じ結論に、別の入力（今回のレビューで新たに生じた #3）からも到達した）。</p>
+
+  <h3>手順4: 反映先の形態の決定</h3>
+  <p><b>AIアセットへの新規反映は無い</b>（#1・#2 は対象外、#3 は spec/ddr で扱う）。よって <code>AGENTS.md</code> / <code>.claude/rules/</code> / <code>.claude/skills/</code> / <code>.claude/hooks/</code> のいずれも触らない。</p>
+</section>
+
+<section id="hanei">
+  <h2>反映するもの（3件）</h2>
+
+  <h3>R-1. 新規DDR <code>.claude/docs/ddr/i0142-01-….md</code></h3>
+  <p><b>記録する意思決定は3つ。</b> タイトルは決定の中身を表すものにする（案: <code>i0142-01-係り先確認の発動条件は残置テキストの側から書き上限を付ける.md</code>）。</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>#</th><th>決定</th><th>却下案</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td><b>発動条件を操作の分類ではなく、残置テキストの側から書く</b></td><td>「構造変更全般」への言い換え（<b>それ自体が操作の分類</b>であり、#155 の「同じ深さの項を1つ足しただけ」が入る保証がない）。操作を列挙して増やす案（列挙は必ず漏れる。#155 が既に4操作の外だった）</td></tr>
+      <tr><td>2</td><td><b>上限を付ける</b>（残置側に依存する文があるときへ絞る）</td><td>無条件で発動させる案（<b>常時発動＝実質的に無視される規約</b>になる）。件数・行数での閾値（意味の依存はサイズと相関しない）</td></tr>
+      <tr><td>3</td><td><b>A（規約）と B（観点表）の両方へ同じ発動条件を置く</b></td><td>Bをポインタにする案（<code>collect-review-points.sh</code> は <code>.claude/rules/</code> を集めないため<b>辿る動機が生まれない</b>）。A を廃して B 一本にする案（規約としての正が観点表へ移り、レビュー時以外に読まれなくなる）</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p><b>#3 には残るコストを併記する。</b> 発動条件を変えるときは A・B 2箇所の更新が要る。これを許容した理由（Bが敵対的レビューへの唯一の経路であること）と、<b>実例の固有名は A にのみ置いて更新点を1箇所へ寄せている</b>ことを書く。</p>
+  <p class="warn"><b>書いたら <code>bash .claude/scripts/src/generate-ddr-list.sh</code> を実行し、<code>.claude/docs/README.md</code> の差分を同じコミットへ含める</b>（一覧は生成物。手書きしない）。</p>
+
+  <h3>R-2. <code>.claude/docs/spec/issue-mr-workflow.md</code> の changelog へ <code>### issue #142</code> を追記</h3>
+  <p><b>追記位置は <code>## 未決定事項・懸念点</code> の直前</b>（既存の <code>### issue #155</code> の後ろ）。書く内容は変更したファイルの表と、却下案はDDRへのリンクで代替する形（<code>### issue #155</code> の構成に揃える）。</p>
+  <p class="stop"><b><code>### issue #64</code>（2538〜2556行）は書き換えない。</b> 当時の作業の point-in-time な記録であり、2547行の「そこへ見出しを差し込むとその地の文が新節の配下に入ってしまうため、位置を変更した」は<b>当時の判断の記録</b>である。今回の一般化で古くなったように見えても、<b>過去の記録として正しい</b>。（<code>.claude/rules/docs-workflow.md</code>「ファイル移動に伴うパス参照の一括置換は…過去issueごとの changelogを対象に含めない」と同じ理由。）</p>
+
+  <h3>R-3. <code>.claude/VERSION</code> の判断</h3>
+  <p><b>据え置く</b>（現在 <code>0.3.0</code>）。理由は <code>### issue #155</code> が記録したものと同じで、<code>0.3.0</code> はまだどの配布先にも渡っていないため、同じ未リリース版へ相乗りする。<b>changelogのエントリへ1段落で判断を残す</b>（<code>.claude/docs/spec/distribution-assets.md</code>「人間の判断で据え置くことがある」）。</p>
+  <p><b>上げる判断になった場合は <code>0.4.0</code> とし、その段落を書き換える。</b></p>
+</section>
+
+<section id="shinai">
+  <h2>反映しないもの（確認済み）</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>候補</th><th>判定</th><th>根拠</th></tr></thead>
+    <tbody>
+      <tr><td><code>.claude/docs/usecase/</code></td><td><b>更新不要</b></td><td>8ファイルに「係り先」「地の文」の該当が<b>0件</b>（<code>git grep -c</code>）。ユースケースは「やりたいこと」起点の逆引きで、条文の書き方には触れていない</td></tr>
+      <tr><td><code>.claude/skills/adversarial-review/SKILL.md</code></td><td><b>更新不要</b></td><td>同スキルは「観点の中身を書き足さない」と自ら定めており、観点は <code>REVIEW-POINTS.md</code> 側が持つ（フェーズ3で更新済み）</td></tr>
+      <tr><td><code>.claude/agents/adversarial-reviewer.md</code></td><td><b>更新不要</b></td><td>全体作業計画のスコープ外。観点表へ書けば足りることが調査 Q5 で確定した</td></tr>
+      <tr><td><code>.gemini/</code></td><td><b>flow-id 5-3 で再生成</b></td><td>変換生成物のため直接編集しない</td></tr>
+      <tr><td>過去ドキュメントの遡及点検</td><td><b>スコープ外</b></td><td>全体作業計画の「この計画で決めないこと」</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="wana">
+  <h2>この反映で自分が踏んではいけない罠</h2>
+  <p class="stop"><b>この計画自体が、issue #142 が扱う欠陥を作りうる。</b> 反映作業は「既存ドキュメントへ節を差し込む」操作そのものである。</p>
+  <ul>
+    <li><b>R-2 の追記位置の前後を両方見る。</b> 追記先の直前は <code>### issue #155</code> の末尾（<code>.claude/VERSION</code> の判断を述べた箇条書き）で、<b>直後は <code>## 未決定事項・懸念点</code> という見出し</b>である。見出しの直前へ差し込むので、<b>後ろ方向の係り先は変わらない</b>。前方向は、#155 の末尾が <b>#155 自身の VERSION 判断</b>を述べており、新しい <code>###</code> 見出しを立てれば係り先は #155 に留まる（同じ深さの見出しが境界になる）。<b>着手前に前後3行を実際に読んで確かめる。</b></li>
+    <li><b>DDR一覧（<code>.claude/docs/README.md</code>）は生成物なので手で書き足さない。</b></li>
+  </ul>
+</section>
+
+<section id="kensho">
+  <h2>検証</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>#</th><th>条件</th><th>手段</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td><code>### issue #64</code> のエントリが1行も変わっていない</td><td>削除検査（下記コマンド、期待 <code>0</code>）</td></tr>
+      <tr><td>2</td><td>DDR一覧が生成物と一致している</td><td><code>generate-ddr-list.sh</code> 実行後に <code>git diff --exit-code .claude/docs/README.md</code> が差分なし</td></tr>
+      <tr><td>3</td><td>DDRの参照が切れていない</td><td><code>bash .claude/scripts/src/check-doc-references.sh</code></td></tr>
+      <tr><td>4</td><td>新規DDRの識別子が重複していない</td><td><code>bash .claude/scripts/src/check-base-conflicts.sh</code></td></tr>
+      <tr><td>5</td><td>R-2 の追記で <code>## 未決定事項・懸念点</code> の係り先が変わっていない</td><td>追記後、同見出しの直前の見出しが <code>### issue #142</code> であることを awk で確認</td></tr>
+      <tr><td>6</td><td>フェーズ3の成果物（既存6行）が引き続き残っている</td><td>フェーズ3の削除検査を再実行（期待 <code>0</code>）</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <pre><code># 【検証1】期待値 0。issue #64 のchangelogエントリが1行も削られていないこと。
+base=4be448af553c82c0fcf731705b0cd1d08bf23f29
+git diff "$base" -- .claude/docs/spec/issue-mr-workflow.md | grep '^-' | grep -cF \
+  -e 'issueが大きすぎる場合の分割提案（issue #64）' \
+  -e 'そこへ見出しを差し込むとその地の文が新節の配下に入ってしまうため、位置を変更した' \
+  -e '3〈類似・重複issueをチェックする〉4〈ユーザーへ最終確認する〉5〈issueを作成する〉' || true
+
+# 【検証5】追記後に実行する。`## 未決定事項・懸念点` の直前の見出しが ### issue #142 であること。
+# 着手前の実行結果は「### issue #155（AIアセット反映の対象を洗い出す手順の新設）」。
+awk '
+  /^[`][`][`]/ { f = !f; next }   # フェンス行（3連バッククォート）。md内で書くため文字クラスにする
+  !f && /^#{1,6} / {
+    if ($0 ~ /^## 未決定事項/) { print "直前の見出し: " h; exit }
+    h = $0
+  }
+' .claude/docs/spec/issue-mr-workflow.md</code></pre>
+  <p class="ok"><b>検証1が空振りしないことは着手前に確認済み。</b> 判定語3つをそれぞれ含む行を削ったツリーで <code>2</code> <code>1</code> <code>1</code> が出た（<b>期待は「1以上」であって「ちょうど1」ではない</b>——1つ目の判定語は見出し行と参照行の2行に現れるため）。現ツリーでは <code>0</code>。</p>
+</section>
+
+<section id="ukeire">
+  <h2>issueの受け入れ条件との対応</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>受け入れ条件</th><th>この計画での対応</th></tr></thead>
+    <tbody>
+      <tr><td>拡張の判断を新規DDRへ残すか既存への追記で足りるかが検討され、結論が記録されている</td><td>R-1（手順3で痕跡を確認したうえで新規DDRと結論。<b>フェーズ2 Q4 と同じ結論に別の入力から到達</b>）</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<footer>issue #142 / PR #188 — 計画の正文は同名の <code>.md</code>。外部依存を持たない自己完結HTML。</footer>
+
+</div>
+</body>
+</html>
