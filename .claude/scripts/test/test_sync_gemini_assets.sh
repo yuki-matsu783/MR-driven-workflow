@@ -549,5 +549,81 @@ allignored_msg="$( run_allignored 2>&1 || true )"
 assert_eq "T17: ignore が原因であることを check-ignore で案内する" "1" \
   "$(printf '%s' "$allignored_msg" | grep -cF -- 'git check-ignore -v' || true)"
 
+# =========================================================================
+# T18: 列挙の失敗を「0件」として握りつぶさないこと（issue #26）
+#
+# `while … done < <(cmd)` というプロセス置換の終了コードは、**どこからも見えない**
+# （`set -e` も `pipefail` も届かない）。この形で書かれていた2箇所は、外部コマンドが
+# 失敗すると「対象は0件」という誤った結論になっていた。とくに削除ガードの側は、
+# **配布先が自前で置いた .gemini/ のファイルを、終了コード0のまま消していた**
+# （issue #70 のレビュー指摘が入れた歯止めが、そのまま外れる）。
+#
+# `【実装反映】` で setup-gemini-links.sh に直したのと同じ「失敗が成功として報告される」
+# 類型で、同じ `run_or_fail` の形で直している。**修正前の実装では下の4件が落ちる**
+# （実際に修正前へ戻して確認済み）。
+# =========================================================================
+
+# PATH の先頭へ置くと、その外部コマンドだけが必ず失敗するスタブ。
+make_failing_stub() { # $1=ディレクトリ $2=コマンド名
+  mkdir -p "$1"
+  printf '#!/usr/bin/env bash\nexit 1\n' > "$1/$2"
+  chmod +x "$1/$2"
+}
+
+guard="$tmp_root/guard"
+mkdir -p "$guard/.claude/agents"
+git -C "$guard" init -q 2>/dev/null || git -C "$guard" init >/dev/null 2>&1
+cp "$fixtures/settings-input.json" "$guard/.claude/settings.json"
+cp "$fixtures/agent-comma.md.fixture" "$guard/.claude/agents/comma-agent.md"
+run_guard() { ( cd "$guard" && bash "$target" "$@" ); }
+run_guard >/dev/null
+
+# 配布先が自前で置いたファイル（削除ガードが守るべきもの）
+mkdir -p "$guard/.gemini/commands"
+printf 'name = "mine"\n' > "$guard/.gemini/commands/mine.toml"
+
+make_failing_stub "$tmp_root/stub-find" find
+run_guard_nofind() { ( cd "$guard" && PATH="$tmp_root/stub-find:$PATH" bash "$target" "$@" ); }
+
+assert_eq "T18: .gemini/ の走査が失敗したら非0で終わる" "1" "$(status_of run_guard_nofind)"
+assert_eq "T18: 走査が失敗しても配布先の自前ファイルを消さない" "1" \
+  "$(find "$guard/.gemini/commands" -name 'mine.toml' | wc -l | tr -d ' ')"
+guard_msg="$( run_guard_nofind 2>&1 || true )"
+assert_eq "T18: 走査の失敗を原因として名指しする" "1" \
+  "$(printf '%s' "$guard_msg" | grep -cF -- '.gemini/ の走査に失敗しました' || true)"
+
+# --- T18: .claude/ 側の列挙が失敗したときも、原因を取り違えないこと ------------
+#
+# 以前は git ls-files の失敗が「列挙0件」と区別できず、`.gitignore` が .claude/ を丸ごと
+# 除外している、という**誤った案内**を出していた（原因が2つあるのに分岐が1つしか無い）。
+mkdir -p "$tmp_root/stub-git"
+cat > "$tmp_root/stub-git/git" <<'STUBEOF'
+#!/usr/bin/env bash
+# ls-files だけを失敗させ、他のサブコマンドは実物へ通す
+case " $* " in *' ls-files '*) exit 1 ;; esac
+exec "$REAL_GIT" "$@"
+STUBEOF
+chmod +x "$tmp_root/stub-git/git"
+real_git="$(command -v git)"
+run_guard_nogit() { ( cd "$guard" && REAL_GIT="$real_git" PATH="$tmp_root/stub-git:$PATH" bash "$target" "$@" ); }
+
+assert_eq "T18: .claude/ の列挙が失敗したら非0で終わる" "1" "$(status_of run_guard_nogit)"
+nogit_msg="$( run_guard_nogit 2>&1 || true )"
+assert_eq "T18: 列挙の失敗を原因として名指しする" "1" \
+  "$(printf '%s' "$nogit_msg" | grep -cF -- '.claude/ 配下のファイル列挙に失敗しました' || true)"
+assert_eq "T18: 列挙の失敗を .gitignore のせいにしない" "0" \
+  "$(printf '%s' "$nogit_msg" | grep -cF -- 'git check-ignore -v' || true)"
+
+# --- T18: 読めない agents/*.md を「frontmatter がありません」と誤診しないこと ---
+#
+# convert_agent_to_reply は `|| return 1` の形で呼ばれるため、関数の内部では `set -e` が
+# 一時停止している。mapfile の失敗が止められず、空の配列のまま次の判定へ落ちて
+# **実際とは違う原因**を報告していた。
+assert_eq "T18: 存在しない agents/*.md は非0" "1" \
+  "$(status_of convert_agent_to_reply "$tmp_root/no-such-agent.md")"
+missing_msg="$( convert_agent_to_reply "$tmp_root/no-such-agent.md" 2>&1 || true )"
+assert_eq "T18: 読めないことを名指しする（frontmatter のせいにしない）" "1" \
+  "$(printf '%s' "$missing_msg" | grep -cF -- '読み取れません' || true)"
+
 echo "passed=$passed failures=$failures"
 [ "$failures" -eq 0 ]

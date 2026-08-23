@@ -120,6 +120,23 @@ readonly COPY_EXCLUDED_PREFIXES=(
 # **「生成をスキップして警告」にしない。** jq は .gemini/ だけの前提ではなく .claude/ 機構全体の
 # 前提であり（Provider.sh・extract-frontmatter.sh・hookが依存）、無ければどのみち動かない。
 # スキップは「インストールが成功した」という嘘の結果を返すことになる。
+# コマンドを実行し、失敗したら説明を添えて非0で返す。
+#
+# **`set -e` は条件式（`if`・`||`・`&&`）の中では一時停止し、その一時停止はそこで呼ばれる
+# 関数の内部にまで及ぶ**（`.claude/rules/shell-script-style.md`「bashでのtry/catch相当の
+# 書き方」）。さらに**プロセス置換 `< <(cmd)` の終了コードは、どこからも見えない**。
+# どちらの形で書いても、失敗した事実が呼び出し元へ伝わらないまま処理が続き、
+# **失敗が成功として報告される**。外部コマンドの失敗を確実に検知したい箇所はこれを通す
+# （`install-to-project.sh` / `setup-gemini-links.sh` と同じ形。issue #26）。
+run_or_fail() {
+  local desc="$1"
+  shift
+  if ! "$@"; then
+    echo "エラー: ${desc}に失敗しました（コマンド: $*）" >&2
+    return 1
+  fi
+}
+
 require_jq() {
   if command -v jq >/dev/null 2>&1; then
     return 0
@@ -201,6 +218,12 @@ convert_agent_to_reply() {
   local -a out=()
   local i line key value
 
+  # 読めないファイルを「frontmatter がありません」と誤診しない。この関数は `|| return 1` の
+  # 形でも呼ばれうるため、`mapfile` の失敗を `set -e` に頼れない（上の run_or_fail の注記）。
+  if [ ! -r "$src" ]; then
+    echo "エラー: 読み取れません: $src" >&2
+    return 1
+  fi
   mapfile -t lines < "$src"
   # CRLF で保存された .md を「frontmatter がありません」と誤診しないよう、行末の CR を落とす。
   # `mapfile` は改行だけを区切りにするため、CRLF のファイルでは 1 行目が `$'---\r'` になり、
@@ -455,9 +478,17 @@ is_copy_excluded() {
 # `.claude/` 一式を $1 のディレクトリへ生成する（$1 は空であること）。
 build_into() {
   local dst="$1"
+  local work="$2"
   local -a copy_rel=()
   local -a agent_rel=()
   local f rel skipped=0 listed=0
+
+  # **列挙をプロセス置換 `< <(git ls-files …)` で受けない。** その終了コードはどこからも
+  # 見えないため、git が失敗すると「1件も無い」と読み替えられ、下の 0 件判定が
+  # `.gitignore` を原因として名指しする誤った案内を出す（issue #26）。
+  run_or_fail '.claude/ 配下のファイル列挙' \
+    git -c core.quotepath=false ls-files --cached --others --exclude-standard -z -- .claude \
+    > "$work/claude-files.list" || return 1
 
   # 列挙は git に任せる。`--exclude-standard` が .gitignore 対象（**/index.jsonl・
   # .claude/state/ ・skills/apply-.../assets/）を落とすので、生成物とローカル状態の除外は
@@ -476,7 +507,7 @@ build_into() {
     esac
     is_copy_excluded "$rel" && continue
     copy_rel+=("${rel#.claude/}")
-  done < <(git -c core.quotepath=false ls-files --cached --others --exclude-standard -z -- .claude)
+  done < "$work/claude-files.list"
 
   if [ "$skipped" -gt 0 ]; then
     echo "skipped $skipped deleted file(s) not present in the working tree" >&2
@@ -540,13 +571,20 @@ diff_against_gemini() {
 # 生成物と同名のファイルは上書きされるだけなので対象外である（内容の差は --dry-run が示す）。
 # このリポジトリの .gemini/ は全体が生成物なので通常は0件で、その場合の挙動は従来と変わらない。
 list_gemini_removed_files() {
-  local dst="$1" f
+  local dst="$1" work="$2" f
   [ -d .gemini ] || return 0
   # find は1回だけ起動する（ファイルごとに外部コマンドを呼ばない）。
+  #
+  # **プロセス置換 `< <(find …)` で受けない。** その終了コードはどこからも見えないため、
+  # find が失敗すると「削除されるファイルは0件」という誤った結論になり、呼び出し元の
+  # 削除ガードが**無言で失効して**、直後の丸ごと置き換えが配布先の自前ファイルを消す
+  # （issue #26 で実測。issue #70 のレビュー指摘が求めた歯止めが、そのまま外れる）。
+  run_or_fail '.gemini/ の走査' find .gemini -type f -print0 \
+    > "$work/gemini-files.list" || return 1
   while IFS= read -r -d '' f; do
     [ -e "$dst/${f#.gemini/}" ] && continue
     printf '%s\n' "$f"
-  done < <(find .gemini -type f -print0)
+  done < "$work/gemini-files.list"
 }
 
 main() {
@@ -581,7 +619,7 @@ main() {
   # shellcheck disable=SC2064
   trap "rm -rf '$tmp'" EXIT
 
-  build_into "$tmp/gemini"
+  build_into "$tmp/gemini" "$tmp"
 
   case "$mode" in
     check)
@@ -608,9 +646,13 @@ main() {
       # ため、中断したときは1バイトも変更していない（配布先が自前の .gemini/ を持っている場合に
       # 黙って消さないための歯止め。issue #70 のレビュー指摘）。
       local -a removed_files=()
+      # **列挙をプロセス置換で受けない。** 失敗しても「0件」に見えるだけで、この直後の
+      # `rm -rf .gemini` がガードをすり抜ける（上の list_gemini_removed_files の注記）。
+      run_or_fail '削除されるファイルの列挙' \
+        list_gemini_removed_files "$tmp/gemini" "$tmp" > "$tmp/removed.list" || return 1
       while IFS= read -r removed; do
         removed_files+=("$removed")
-      done < <(list_gemini_removed_files "$tmp/gemini")
+      done < "$tmp/removed.list"
 
       if [ "${#removed_files[@]}" -gt 0 ] && [ "$force" -eq 0 ]; then
         echo "エラー: .gemini/ に、生成物へ含まれないファイルが ${#removed_files[@]} 件あります。" >&2

@@ -22,8 +22,8 @@
 # `gh`/`glab` が実行環境に存在しない場合（例: Claude Code on the webのリモート実行環境）は、
 # プロバイダ依存の関数は `require_vcs_cli` により「代替すべきMCPツール名」を提示して失敗する。
 # 呼び出し側（AIエージェント）はそのメッセージに従いMCPフォールバック経路へ切り替える
-# （経路判定は `get_vcs_access_mode`、手順は .claude/skills/issue-mr-flow/SKILL.md
-# 「`gh`/`glab` CLI不在時のMCPフォールバック」節。issue #34, DDR i0034-01）。
+# （経路判定は `get_vcs_access_mode`、手順は .claude/skills/issue-mr-flow/references/mcp-fallback.md。
+# issue #34, DDR i0034-01）。
 #
 # 注意（文字コード）: PowerShell版はシステムのANSI/OEMコードページ対策として明示的な
 # UTF-8切り替えが必要だったが、git bash + gh/jq の組み合わせではこの問題が発生しない
@@ -281,8 +281,8 @@ get_provider() {
 #
 # Claude Code on the webのリモート実行環境のように `gh`/`glab` CLIが存在しない環境では、
 # 以下の関数群が「どのMCPツールで代替するか」を機械的に決めるための土台になる。
-# 手順の正（サブコマンドごとの読み替え）は `.claude/skills/issue-mr-flow/SKILL.md`
-# 「`gh`/`glab` CLI不在時のMCPフォールバック」節。WebFetch/curlへはフォールバックしない
+# 手順の正（サブコマンドごとの読み替え）は `.claude/skills/issue-mr-flow/references/mcp-fallback.md`。
+# WebFetch/curlへはフォールバックしない
 # （DDR i0014-01, DDR i0034-01）。
 
 # 実行環境に該当プロバイダのCLIがあるかを判定し、`cli`（CLI経路）または `mcp`（MCPフォールバック
@@ -352,9 +352,9 @@ mcp_tool_hint() {
     add_issue_comment) printf 'mcp__github__add_issue_comment (owner, repo, issue_number=通知先issue番号, body=ファイル内容)\n' ;;
     # 唯一「代替が無い」分岐（issue #111）。他の関数と違い読み替え先を案内できないため、
     # スキップしてよいことを名指しで返す。添付は flow-id 5-4 の任意層であり、
-    # 層1（reports/ をリモートへ反映）と層2（サマリコメント）でレビューは成立する。
+    # 層1（wip/reports/ をリモートへ反映）と層2（サマリコメント）でレビューは成立する。
     upload_attachment) printf '対応するMCPツールはありません（PR/issueへの添付に相当するツールが提供されていない）。**flow-id 5-4 の層3（添付）はスキップしてよい**。層1・層2だけでレビューは成立します\n' ;;
-    *) printf '対応するMCPツールは .claude/skills/issue-mr-flow/SKILL.md の対応表を参照\n' ;;
+    *) printf '対応するMCPツールは .claude/skills/issue-mr-flow/references/mcp-fallback.md の対応表を参照\n' ;;
   esac
 }
 
@@ -370,7 +370,7 @@ require_vcs_cli() {
     printf '%s: gh/glab CLIがこの実行環境に存在しないため、CLI経路では実行できません。\n' "$func_name"
     printf '  代替（MCPフォールバック経路）: %s\n' "$(mcp_tool_hint "$func_name")"
     printf '  owner/repo は `get_repo_slug` で取得できます（例: get_repo_slug | jq -r ".owner, .repo"）。\n'
-    printf '  手順: .claude/skills/issue-mr-flow/SKILL.md 「`gh`/`glab` CLI不在時のMCPフォールバック」節\n'
+    printf '  手順: .claude/skills/issue-mr-flow/references/mcp-fallback.md\n'
     printf '  WebFetchツール・curlへはフォールバックしないこと（DDR i0014-01, DDR i0034-01）。\n'
   } >&2
   return 1
@@ -1044,7 +1044,7 @@ add_mr_comment() {
 # コマンド文字列へ長文を埋め込むと、`git` と `push` が連続する語を含んだだけでpush検知hookが
 # 誤発火するため（`.claude/rules/git-workflow.md`「push検知hookの誤検知」）。
 #
-# 投稿先・本文の決定と**人間の承認**は呼び出し側（`.claude/skills/issue-mr-flow/SKILL.md`
+# 投稿先・本文の決定と**人間の承認**は呼び出し側（`.claude/skills/issue-mr-flow/references/phase5-close.md`
 # 「マージ前の関連issue通知」節）の責務であり、この層では行わない
 # （経緯: .claude/docs/ddr/i0086-01-マージ前の関連issue通知はDraft解除の直前に置き投稿前の人間承認を必須にする.md）。
 add_issue_comment() {
@@ -1097,7 +1097,7 @@ content_type_from_path_to_reply() {
 #     失敗: 理由をstderrへ / 終了コード非0
 #
 # **この関数の失敗は正常系のひとつである。** 呼び出し側（flow-id 5-4）は非0終了を受け取ったら
-# 警告だけ出して層3をスキップし、フローを続ける。層1（reports/ へ載せてリモートへ反映）と
+# 警告だけ出して層3をスキップし、フローを続ける。層1（wip/reports/ へ載せてリモートへ反映）と
 # 層2（サマリをMarkdownでコメント投稿）だけでレビューは成立する設計になっている
 # （.claude/docs/ddr/i0111-01-統括レポートの添付は任意層に置きフローを止めない.md）。
 #
@@ -1133,7 +1133,8 @@ upload_attachment() {
 # 失敗を検知した後にこれを呼び、作成を1回だけリトライする。
 add_empty_commit_for_draft_mr() {
   git commit --allow-empty -m "chore: Draft PR作成のための空コミット（baseとの差分が無いため）" >/dev/null
-  git push >/dev/null
+  # upstream未設定の新規ブランチでも動くよう、pushでupstreamを明示する（issue #170）
+  git push -u origin HEAD >/dev/null
 }
 
 # issue番号・スラッグ生成用テキストから `.mrworkflow.json` の branchPrefixTemplate に沿った
@@ -1225,14 +1226,14 @@ porcelain_z_to_paths() {
   done
 }
 
-# 現在のブランチ固有（<defaultBaseBranch> には無い）の plans/worklog/reports ファイル一覧を返す
+# 現在のブランチ固有（<defaultBaseBranch> には無い）の wip/plans, wip/worklogs, wip/reports ファイル一覧を返す
 # （コミット済み差分＋作業ツリーの未コミット分をマージ・重複排除）。プロバイダ非依存。
 # 出力は常に「1行＝1つの実在するパス」であり、`while IFS= read -r f` で回してそのままファイル
 # 操作へ渡せる（改名の扱いは上記 `porcelain_z_to_paths` を参照。issue #115）。
 #
 # 注意（core.quotepath）: gitは既定（core.quotepath=true）で、非ASCII文字を含むパスを
-# 8進エスケープ＋ダブルクォートで囲んだ形（例: "plans/\343\200\220..."）で出力する。
-# 個別作業計画は `plans/【調査】〜.md` のように日本語を含む命名（issue #9）のため、既定のままだと
+# 8進エスケープ＋ダブルクォートで囲んだ形（例: "wip/plans/\343\200\220..."）で出力する。
+# 個別作業計画は `wip/plans/【調査】〜.md` のように日本語を含む命名（issue #9）のため、既定のままだと
 # 戻り値が人間にもスクリプトにも使えない文字列になる。`-c core.quotepath=false` を付けて
 # 生のパスを出力させる（未コミット分は `--porcelain -z` のNUL区切り出力になったため元から影響を
 # 受けないが、コミット済み分の `--name-only` は行単位出力のため明示指定が必要。両方に付けて

@@ -4,7 +4,7 @@ title: ディレクトリ構成
 type: rule
 description: リポジトリのディレクトリ構成と配置方針を定めたルール
 tags: [directory-structure, rule]
-keywords: [ディレクトリ構成, claude, gemini, 配置方針, plans, worklog, mrworkflow, always-apply]
+keywords: [ディレクトリ構成, claude, gemini, 配置方針, wip, plans, worklogs, mrworkflow, always-apply]
 ---
 
 # ディレクトリ構成
@@ -17,15 +17,20 @@ keywords: [ディレクトリ構成, claude, gemini, 配置方針, plans, worklo
 ├── .claude/
 │   ├── docs/                  # issue駆動MRワークフロー機構自体の設計ドキュメント
 │   │   ├── README.md         # .claude/docs配下の目次
+│   │   ├── usecase/           # 「やりたいこと」起点の逆引きユースケース文書（issue #170）
 │   │   ├── spec/              # 機能ごとの正史仕様
 │   │   └── ddr/                # 意思決定ログ（DDR）
 │   ├── rules/                  # AI向け詳細ルール（コーディング規約・ドキュメント運用等）
+│   │   └── agent-common.md    # AIエージェント共通ルール。`AGENTS.md`/`CLAUDE.md`/`GEMINI.md`が
+│   │                            #   `@import`する実体（issue #26。配布層はcore）
 │   ├── skills/                 # `/issue-mr-flow`（唯一の実装フロー定義）等のスキル定義
 │   │   ├── issue-mr-flow/assets/  # 計画・レポートのHTMLビューのテンプレート2本（issue #54）
+│   │   ├── issue-mr-flow/references/  # SKILL.mdから切り出した参照資料7本（issue #160）
 │   │   └── canvas-report/assets/  # canvas形式レポートのテンプレート
 │   ├── agents/                 # サブエージェント定義（issue-mr-flow途中引き継ぎ等）
 │   ├── scripts/                # AIエージェントが`.claude/skills/*`経由で能動的に実行するスクリプト一式
 │   │   ├── src/
+│   │   │   ├── check-dist-coverage.sh  # 層分け定義の網羅性検査（追跡ファイル全件が分母。issue #26）
 │   │   │   └── vcs/            # GitHub/GitLabの差異を吸収するVCS抽象化層（Provider.sh）
 │   │   └── test/               # 副作用の無い純粋ロジックの単体テスト（`test_<対象>.sh`）。
 │   │                            #   `passed=N failures=N`を出力し失敗時は終了コード1
@@ -37,6 +42,7 @@ keywords: [ディレクトリ構成, claude, gemini, 配置方針, plans, worklo
 │   │       └── test/           # 本機構専用の単体テスト（下記「配置の指針」参照）
 │   ├── REVIEW-POINTS.md       # `.claude/`配下に適用するレビュー観点（`type: review-points`）
 │   ├── VERSION                 # 配布物の版（SemVer 1行）。更新規則は`.claude/docs/spec/distribution-assets.md`
+│   ├── dist-layers.json        # 配布アセットの層分け定義（core/seed/merge/local/exclude）。**何をどう配るかの単一の正**
 │   └── settings.json
 ├── .gemini/                    # Gemini CLI向け資産。**全体が`.claude/`からの変換生成物**で、
 │   │                            # `sync-gemini-assets.sh`が生成する（直接編集しない。Git管理下）
@@ -49,19 +55,19 @@ keywords: [ディレクトリ構成, claude, gemini, 配置方針, plans, worklo
 ├── .gitlab/
 │   ├── issue_templates/         # GitLab用issueテンプレート（同上）
 │   └── merge_request_templates/ # GitLab用MRテンプレート（`Default.md`。PRテンプレートと同一内容）
-├── build/                      # ビルド成果物の出力先。`.gitignore`対象でコミットしない（通常は空）
-├── plans/                      # 計画ファイル。全体作業計画（planツールが出力する`<自動命名>.md`、
-│                                #   issueにつき1つ）と個別作業計画（`【種別】タスク内容.md`、
-│                                #   planツールを使わずWrite/Editで作成）の2階層。タスクごとに
-│                                #   新規生成しそのままコミットして履歴として残す。各mdには
-│                                #   同名の`.html`（人間レビュー用ビュー）を併存させる（issue #54）
-│   └── REVIEW-POINTS.md        # `plans/`配下に適用するレビュー観点。**flow-id 5-5で削除しない**
-├── worklog/                    # 実装中の詳細な試行錯誤ログ（`日付_<全体計画名>_<個別計画名>_push<N>.md`）
-│   └── TEMPLATE.md             # worklog作成時にコピーして使うテンプレート
+├── wip/                        # タスク単位の作業中ドキュメント（計画・ログ・報告）置き場（issue #165）
+│   ├── plans/                  # 計画ファイル。全体作業計画（planツールが出力する`<自動命名>.md`、
+│   │                            #   issueにつき1つ）と個別作業計画（`【種別】タスク内容.md`、
+│   │                            #   planツールを使わずWrite/Editで作成）の2階層。タスクごとに
+│   │                            #   新規生成しそのままコミットして履歴として残す。各mdには
+│   │                            #   同名の`.html`（人間レビュー用ビュー）を併存させる（issue #54）
+│   │   └── REVIEW-POINTS.md    # `wip/plans/`配下に適用するレビュー観点。**flow-id 5-5で削除しない**
+│   └── worklogs/                # 実装中の詳細な試行錯誤ログ（`日付_<全体計画名>_<個別計画名>_push<N>.md`）
+│       └── TEMPLATE.md         # worklog作成時にコピーして使うテンプレート
 ├── .gitattributes              # 改行コードの正規化。`*.sh text eol=lf`が`.sh`のLFを保証する
 │                                #   （`dist:begin`〜`dist:end`の行のみ配布先へも追記される）
 ├── .gitignore
-├── .mrworkflow.json            # リポジトリ固有設定（ブランチ命名規則・plans/等の場所）
+├── .mrworkflow.json            # リポジトリ固有設定（ブランチ命名規則・wip/plans/等の場所）
 ├── AGENTS.md                   # AIエージェント共通ルール・プロジェクト概要・開発実行方法
 ├── CLAUDE.md                   # Claude Code固有ルールへのポインタ（AGENTS.mdを@import）
 ├── DEVELOPERS.md                # 開発者向けドキュメントの入り口
@@ -72,21 +78,26 @@ keywords: [ディレクトリ構成, claude, gemini, 配置方針, plans, worklo
 └── REVIEW-POINTS.md            # リポジトリ全体に適用するレビュー観点
 ```
 
-`reports/`・`usage/`・`.claude/state/`は、いずれもワークフロー実行中に動的に作成されるディレクトリの
+`wip/reports/`・`usage/`・`.claude/state/`は、いずれもワークフロー実行中に動的に作成されるディレクトリの
 ため、初期スケルトンには含まれない（作成・削除のタイミングは `.claude/rules/docs-workflow.md`・
 `.claude/skills/issue-mr-flow/SKILL.md` を参照）。
 
-`reports/` には**mdとhtmlの2種類**を置く。`reports/日付_<全体計画名>_<内容を簡潔に>.md` が調査結果・
+**`.claude/.asset-manifest.json` は上のツリーに含まれない。** これは配布先にだけ生成されるファイルで、
+本家（このリポジトリ）には実体が無いためである（ツリーへ載せると本家にも在ると誤読される）。
+配布先では「どの版の何を配ったか」を記録し、再適用時に**上流の更新と配布先の改変を区別する**材料に
+なる（仕様: `.claude/docs/spec/asset-distribution.md`。issue #26）。
+
+`wip/reports/` には**mdとhtmlの2種類**を置く。`wip/reports/日付_<全体計画名>_<内容を簡潔に>.md` が調査結果・
 作業結果・反映結果の**正文**で（個別計画へ結果を書かないための分離先。issue #87。詳細:
-`.claude/skills/issue-mr-flow/SKILL.md`「計画と実施結果の分離」）、
-`reports/日付_<全体計画名>_<内容を簡潔に>.html` はその内容を視覚的にまとめた自己完結HTMLである
+`.claude/skills/issue-mr-flow/references/deliverables.md`「計画と実施結果の分離」）、
+`wip/reports/日付_<全体計画名>_<内容を簡潔に>.html` はその内容を視覚的にまとめた自己完結HTMLである
 （土台は`.claude/skills/issue-mr-flow/assets/reports.template.html`。関連・依存関係が主題の場合は
 `.claude/skills/canvas-report/SKILL.md` のcanvas形式）。両者は併存させ、flow-id 5-5でまとめて削除する。
 
-**`plans/` も同じくmdとhtmlの2種類を置く**（issue #54）。`plans/` の各計画（全体作業計画・個別計画）に
+**`wip/plans/` も同じくmdとhtmlの2種類を置く**（issue #54）。`wip/plans/` の各計画（全体作業計画・個別計画）に
 対応するHTMLビューを、**mdと同じベース名で拡張子だけ`.html`**にして併存させる（土台は
 `.claude/skills/issue-mr-flow/assets/plans.template.html`）。mdが正文でHTMLはその視覚化という関係も、
-flow-id 5-5でまとめて削除される寿命も`reports/`と同じである。
+flow-id 5-5でまとめて削除される寿命も`wip/reports/`と同じである。
 
 `usage/` は対応工数レポート機能のローカル作業状態で、`.gitignore`対象（`/usage/`）。内訳は
 `usage/session-logs/<sessionId>/`（セッションログのミラー）・`usage/state/<branch>.json`（集計状態）・
@@ -145,14 +156,14 @@ issue #97。ブランチ別に持つと、同じセッションのままブラ�
   | ディレクトリ | 用途 | 実例 |
   |---|---|---|
   | `assets/` | **出力に使うもの**（テンプレート等） | `issue-mr-flow/assets/reports.template.html`, `canvas-report/assets/canvas-report.html` |
-  | `scripts/` | **実行するもの**（補助スクリプト） | `apply-mr-workflow-to-project/scripts/sync-assets.sh` |
-  | `references/` | **AIが読むもの**（参照資料） | （現時点で実例なし） |
+  | `scripts/` | **実行するもの**（補助スクリプト） | `apply-mr-workflow-to-project/scripts/install-to-project.sh` |
+  | `references/` | **AIが読むもの**（参照資料） | `issue-mr-flow/references/planning.md` 等7本（SKILL.mdから切り出した詳細節。issue #160） |
 
-  **`apply-mr-workflow-to-project/assets/` だけは意味が異なる**ので混同しないこと。あちらは
-  `sync-assets.sh`が配布前に生成する**ビルド用の一時ディレクトリ**で、`.gitignore`対象
-  （`/.claude/skills/apply-mr-workflow-to-project/assets/`）である。上表の`assets/`は
-  **Git管理下に置く恒久のバンドルリソース**であり、`.gitignore`の除外行を相対パターン
-  （`assets/`）へ広げると、これらが無言でGit管理から外れる。
+  **issue #26以前、`apply-mr-workflow-to-project/assets/` だけは意味が異なり、`sync-assets.sh`が
+  配布前に生成する`.gitignore`対象のビルド用一時ディレクトリだった。** issue #26で`.skill`
+  パッケージ化と`sync-assets.sh`を廃止したため、この例外は無くなり、現在は上表どおり
+  **Git管理下に置く恒久のバンドルリソース**（配布先へ置く雛形一式）である。
+  `.gitignore`の除外行を相対パターン（`assets/`）へ広げると、これらが無言でGit管理から外れる。
 - **`.gemini/` は全体が `.claude/` からの変換生成物である**（issue #70）。`agents/*.md` の
   frontmatter と `settings.json` は Claude Code と Gemini CLI でスキーマが違うため、
   `bash .claude/scripts/src/sync-gemini-assets.sh` が記法差を変換で吸収して生成する。
@@ -177,7 +188,10 @@ issue #97。ブランチ別に持つと、同じセッションのままブラ�
   1つの `REVIEW-POINTS.md` は**そのディレクトリ配下すべて（孫以下を含む）**に適用され、収集時は
   対象ファイルのディレクトリからリポジトリルートまで祖先を遡って集めてマージする（浅い→深い）。
   一般的な観点ほど上位へ置き、下位で重複して書かない。現在の配置はルート直下・`.claude/`・
-  `plans/`・`reports/` の4つ。収集アルゴリズム・frontmatterの詳細は
+  `wip/plans/`・`wip/reports/` の4つ。**同じディレクトリの `REVIEW-POINTS.local.md` は配布先が所有する**
+  （`REVIEW-POINTS.md` は配布元所有の `core`、`.local` は `seed`。issue #26）。収集時は
+  `REVIEW-POINTS.md` → `REVIEW-POINTS.local.md` の順に連結され、**`REVIEW-POINTS.md` が無い
+  ディレクトリに `.local` だけを置いてもよい**。収集アルゴリズム・frontmatterの詳細は
   `.claude/docs/spec/adversarial-review.md`「レビュー観点（REVIEW-POINTS.md）」を参照する。
-  **`plans/REVIEW-POINTS.md` と `reports/REVIEW-POINTS.md` は、それらのディレクトリを片付ける
+  **`wip/plans/REVIEW-POINTS.md` と `wip/reports/REVIEW-POINTS.md` は、それらのディレクトリを片付ける
   flow-id 5-5でも削除しない**（`.claude/rules/docs-workflow.md` のライフサイクル表が正）。

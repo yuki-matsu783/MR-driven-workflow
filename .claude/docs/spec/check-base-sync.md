@@ -32,7 +32,7 @@ PR作成後の追従監視（issue #88）と flow-id 5-1（issue #46）はどち
 その追記を知らないまま実装・レビューを進めることになる。**3つは代替関係ではなく補完関係**である。
 
 3機構の対比表（いつ・判定軸・検知手段）は
-`.claude/skills/issue-mr-flow/SKILL.md`「作業開始・再開時のベースブランチ追従確認」節の
+`.claude/skills/issue-mr-flow/references/start-resume.md`「作業開始・再開時のベースブランチ追従確認」節の
 「既存2機構との役割の違い」が正であり、ここへは再掲しない（同じ表を2箇所で管理すると片方が
 古くなる。`.claude/REVIEW-POINTS.md`）。
 
@@ -128,7 +128,7 @@ bash .claude/scripts/src/check-base-sync.sh [--base <branch>] [--head <ref>] [--
   一方 `rev-list --left-right --count` は**成功してしまう**（両側の全コミット数を返す）ため、
   「rev-list が通ったから安全」と考えて3ドットdiffを実行すると `set -euo pipefail` 配下で
   スクリプトごと落ちる。手順5の分岐は必須である。
-- **`core.quotepath=false` が必要。** このリポジトリは `plans/【調査】〜.md` のような日本語を
+- **`core.quotepath=false` が必要。** このリポジトリは `wip/plans/【調査】〜.md` のような日本語を
   含むパスを持ち、既定では8進エスケープされる。
 - **fetchはrefspec形 `+<base>:refs/remotes/origin/<base>` を使う。** `git clone --branch <b>` 等の
   single-branch cloneでは `git fetch origin <base>` を実行しても `origin/<base>` の
@@ -145,7 +145,7 @@ bash .claude/scripts/src/check-base-sync.sh [--base <branch>] [--head <ref>] [--
 
 `isBehind` が `false` でも「追従済み」と断定できない状況がある。呼び出し側が識別できるよう、
 すべてJSONへ出す。**この表は各キーの意味（何を表しているか）の正であり、遭遇したときに何をするか
-（ユーザーへどう伝え、取り込みを提案するか）は `.claude/skills/issue-mr-flow/SKILL.md`
+（ユーザーへどう伝え、取り込みを提案するか）は `.claude/skills/issue-mr-flow/references/start-resume.md`
 「作業開始・再開時のベースブランチ追従確認」節が正**である。同じ判断を2箇所で管理しないための
 切り分けであり、片方だけを読んで運用しない。
 
@@ -184,7 +184,7 @@ bash .claude/scripts/src/check-base-sync.sh [--base <branch>] [--head <ref>] [--
 ### 呼び出し側の責務
 
 - **遅れがあった場合に取り込むかどうかは `AskUserQuestion` でユーザーへ確認する。AIエージェントが
-  無断でマージ・リベースしない。** 選択肢と手順は `.claude/skills/issue-mr-flow/SKILL.md`
+  無断でマージ・リベースしない。** 選択肢と手順は `.claude/skills/issue-mr-flow/references/start-resume.md`
   「作業開始・再開時のベースブランチ追従確認」節が正。
 - **本スクリプトが非0で終了した場合は「判定できなかった」として扱い、追従済みとして扱わない**
   （上記「終了コード」節）。JSONが返らないため `fetchOk` 等での識別もできない。

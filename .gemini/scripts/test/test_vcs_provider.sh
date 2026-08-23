@@ -41,6 +41,9 @@
 # issue #115で追加した `porcelain_z_to_paths`（`git status --porcelain -z` の出力を1行1パスへ
 # 変換し、改名・コピーの旧パスを捨てる）も対象。`get_branch_work_files` 本体は `git` を起動する
 # ため対象外で、その未コミット分の解釈を担う純粋関数側を切り出してテストしている。
+# issue #170で追加した `add_empty_commit_for_draft_mr` の引数検証も対象。`git` を起動する
+# 非純粋関数だが、`git` をシェル関数でスタブして呼ぶため外部プロセス・ネットワークを使わない
+# （ファイル末尾のブロック参照）。
 # 規約: passed=N failures=N を標準出力へ出し、失敗があれば終了コード1
 #       （.claude/rules/shell-script-style.md「テスト」）。
 # 実行: bash .claude/scripts/test/test_vcs_provider.sh
@@ -281,9 +284,24 @@ assert_contains "mcp_tool_hint: upload_attachment はスキップしてよいと
 assert_contains "mcp_tool_hint: upload_attachment は層1・層2で成立する旨を添える（issue #111）" \
   "$upload_hint" "層1・層2"
 
-assert_eq "mcp_tool_hint: 未知の関数名でも空にならずSKILL.mdの対応表へ誘導する" \
-  "対応するMCPツールは .claude/skills/issue-mr-flow/SKILL.md の対応表を参照" \
+assert_eq "mcp_tool_hint: 未知の関数名でも空にならず対応表（references/mcp-fallback.md）へ誘導する" \
+  "対応するMCPツールは .claude/skills/issue-mr-flow/references/mcp-fallback.md の対応表を参照" \
   "$(mcp_tool_hint unknown_function)"
+
+# require_vcs_cli の出力検証（issue #160で新設。従来はどのテストも373行目の出力を見ておらず、
+# 案内先を変え忘れても全テストが緑のまま通った。調査 D-3）。
+# 差し替えはサブシェルへ閉じ込め、assert_* はサブシェルの外で行う（unset -f は実定義を消す）。
+require_vcs_cli_output="$( get_vcs_access_mode() { printf 'mcp\n'; }; require_vcs_cli get_issue 2>&1 || true )"
+assert_contains "require_vcs_cli: MCPフォールバックの手順の場所（references/mcp-fallback.md）を案内する" \
+  "$require_vcs_cli_output" ".claude/skills/issue-mr-flow/references/mcp-fallback.md"
+assert_contains "require_vcs_cli: WebFetch・curlへ逃げない旨を案内する（DDR i0014-01）" \
+  "$require_vcs_cli_output" "WebFetch"
+if ( get_vcs_access_mode() { printf 'mcp\n'; }; require_vcs_cli get_issue >/dev/null 2>&1 ); then
+  require_vcs_cli_status=0
+else
+  require_vcs_cli_status=1
+fi
+assert_eq "require_vcs_cli: mcp経路では失敗（終了コード1）を返す" "1" "$require_vcs_cli_status"
 
 get_provider() { printf 'gitlab\n'; }
 
@@ -1365,6 +1383,33 @@ for shared_fn in "${vcs_shared_functions[@]}"; do
     "$(declare -F "$shared_fn" >/dev/null && echo "$shared_fn")"
 done
 
+# `git` をシェル関数で差し替え、add_empty_commit_for_draft_mr が git へ渡す引数を検証する
+# （issue #170。upstream未設定のブランチでは引数なしの `git push` が終了コード128で失敗する
+# 実不具合があったため、`-u origin HEAD` の明示を表明する）。関数内の出力は >/dev/null で
+# 捨てられるため、スタブは引数をグローバル変数へ蓄積する（コマンド置換では受けられない）。
+empty_commit_git_calls=""
+git() {
+  empty_commit_git_calls="${empty_commit_git_calls}${empty_commit_git_calls:+ / }$*"
+  return 0
+}
+# スタブが効いていることを、副作用のある関数を呼ぶ「前」に表明する
+assert_eq "add_empty_commit_for_draft_mr: gitスタブが有効（実gitを呼ばない）" \
+  "git" \
+  "$(declare -F git >/dev/null && echo git)"
+# 万一シャドウイングが外れても実リポジトリ・実リモートへ届かないよう、存在しないGIT_DIRを
+# 指して呼ぶ（実gitなら "not a git repository" で必ず即失敗し、無言の空コミット・pushには
+# 決してならない。スタブが効いていれば環境変数は参照されない）
+GIT_DIR="/nonexistent-isolated-repo/.git" add_empty_commit_for_draft_mr
+unset -f git
+
+# commit→push の順序・回数・引数を完全一致で表明する（部分一致だと余計な呼び出しを見逃す）
+assert_eq "add_empty_commit_for_draft_mr: commit --allow-empty → push -u origin HEAD の順で2回だけ呼ぶ" \
+  "commit --allow-empty -m chore: Draft PR作成のための空コミット（baseとの差分が無いため） / push -u origin HEAD" \
+  "$empty_commit_git_calls"
+# 後片付けの表明（スタブが残ると以降のテスト・呼び出し元のgit操作が握り潰される）
+assert_eq "add_empty_commit_for_draft_mr: gitスタブが解除されている" \
+  "" \
+  "$(declare -F git || true)"
 
 echo "passed=$passed failures=$failures"
 [ "$failures" -eq 0 ]

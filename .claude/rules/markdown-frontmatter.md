@@ -238,13 +238,15 @@ bash .claude/scripts/src/extract-frontmatter.sh .
 | `rule` | `.claude/rules/*.md`, `AGENTS.md`, `CLAUDE.md`, `GEMINI.md` |
 | `agent` | `.claude/agents/*.md` |
 | `skill` | `.claude/skills/*/SKILL.md` |
-| `plan` | `plans/*.md`（planツールが出力する全体作業計画・`【種別】`付きの個別計画の両方。issue #95。同ディレクトリの`*.html`は対象外。下記「HTMLビューは対象外」） |
-| `log` | `worklog/*.md` |
-| `report` | `reports/*.md`（調査結果・作業結果・反映結果の正文。issue #87。同ディレクトリの`*.html`はfrontmatterを持たないため対象外。下記「HTMLビューは対象外」） |
+| `skill-reference` | `.claude/skills/*/references/*.md`（SKILL.mdから切り出したバンドルリソース。issue #160） |
+| `plan` | `wip/plans/*.md`（planツールが出力する全体作業計画・`【種別】`付きの個別計画の両方。issue #95。同ディレクトリの`*.html`は対象外。下記「HTMLビューは対象外」） |
+| `log` | `wip/worklogs/*.md` |
+| `report` | `wip/reports/*.md`（調査結果・作業結果・反映結果の正文。issue #87。同ディレクトリの`*.html`はfrontmatterを持たないため対象外。下記「HTMLビューは対象外」） |
 | `guide` | `README.md`, `DEVELOPERS.md`, `.claude/docs/README.md`, `index.md` |
 | `handoff` | `HANDOFF.md` |
 | `spec` | `.claude/docs/spec/*.md` |
-| `review-points` | `**/REVIEW-POINTS.md`（各ディレクトリ直下のレビュー観点表。issue #77） |
+| `usecase` | `.claude/docs/usecase/*.md`（ユースケース起点の逆引き文書。issue #170） |
+| `review-points` | `**/REVIEW-POINTS.md`（配布元所有）と `**/REVIEW-POINTS.local.md`（配布先所有。issue #26）。いずれも各ディレクトリ直下のレビュー観点表（issue #77） |
 
 アプリ本体を追加し、専用の`docs/spec/`・`docs/ddr/`・`docs/README.md`（必要なら`dev-tools/docs/`
 配下も）を新設した場合は、上表に対象パスを追記する。
@@ -254,7 +256,7 @@ bash .claude/scripts/src/extract-frontmatter.sh .
 
 ### HTMLビューは対象外（issue #54）
 
-**`plans/*.html` と `reports/*.html`（人間レビュー用のHTMLビュー）は、frontmatterの対象外である。**
+**`wip/plans/*.html` と `wip/reports/*.html`（人間レビュー用のHTMLビュー）は、frontmatterの対象外である。**
 「typeの値」表への行追加も要らない。
 
 - **HTMLはYAML frontmatterを持てない。** markdownと違い、先頭の `---` に囲まれたブロックが
@@ -268,7 +270,7 @@ bash .claude/scripts/src/extract-frontmatter.sh .
 
 **HTMLビューの説明・使い方は、frontmatterではなくファイル冒頭のHTMLコメントに置く**
 （テンプレートがその形を持っている。詳細:
-`.claude/skills/issue-mr-flow/SKILL.md`「計画・レポートのHTMLビュー」）。
+`.claude/skills/issue-mr-flow/references/deliverables.md`「計画・レポートのHTMLビュー」）。
 
 `plan`・`log`・`report` は、いずれもタスク（issue／ブランチ）単位で作られ flow-id 5-5 でまとめて
 削除される寿命の短いファイルに与える値であり、永続する案内ドキュメントの `guide` とは区別する

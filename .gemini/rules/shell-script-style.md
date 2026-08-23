@@ -133,6 +133,19 @@ issue #6でリポジトリ内の開発補助スクリプトを全てPowerShell�
   - **`jq -e .`は空文字列の入力に対して失敗を検知できないことがある**（実機確認:
     `printf '%s' "" | jq -e .`が終了コード0を返した）。空文字列チェック（`[ -n "$content" ]`）を
     `jq -e .`の判定より先に行うこと。
+- **`配列 | index(.field)` のように、パイプの右辺で `.` を参照すると、フィルタ内の `.` が
+  パイプ元（左辺）の値に置き換わる**（issue #182対応時に実際に踏んだ）。`.` はパイプが進むたびに
+  更新されるため、`$known | index(.severity)` と書くと `.severity` は各要素ではなく `$known`
+  （配列）に対して評価され、`jq: error: Cannot index array with string "severity"` になる。
+  `select()`・`map()`の内側で「今見ている要素のフィールド」と「外側の配列」を両方使いたい場合は、
+  **先に要素側のフィールドを変数へ束縛してから、外側の配列をパイプする。**
+
+  ```bash
+  # 悪い例（.severity が $known に対して評価される）
+  jq -n '["blocker","major"] as $known | [{severity:"nit"}] | map(select(($known | index(.severity)) == null))'
+  # 良い例（.severity を先に $sv へ束縛する）
+  jq -n '["blocker","major"] as $known | [{severity:"nit"}] | map(select(.severity as $sv | ($known | index($sv)) == null))'
+  ```
 
 ## 外部プロセス起動のコスト
 
@@ -284,6 +297,17 @@ issue #11の実例: `extract-frontmatter.sh` がfrontmatterのキー・配列要
   bench 200 noop              # ベースライン
   bench 200 split_remote_url  # 差がベースラインの数分の一なら fork していない
   ```
+
+- **大量データの走査は、bash単独ループより`grep`等への一括委譲が有利な場合がある。** 上の
+  「ループ内で外部コマンドを呼ばない」の否定ではない。指しているのは**外部コマンドをファイル
+  ごと・行ごとに呼び直す**設計であり、**まとめて1回だけ**呼ぶ設計とは区別する。測定環境:
+  Claude Code on the web（Linux）／2026-08-23。git bash実機では未計測（fork単価が桁違いの
+  環境のため、下記の「数万行」という閾値をそのままgit bashへ持ち込まないこと）。issue #171の
+  DDR参照切れ検出スクリプトで、リポジトリ全体約37,000行に対する正規表現マッチを実測比較した
+  ところ、(a) `git ls-files`で得た各ファイルをbashの`while read`ループ＋`[[ =~ ]]`で1行ずつ
+  判定する方式が5.2秒、(b) 全対象ファイルを`grep -nHoE`へ1回で渡す方式が0.96秒だった。目安:
+  判定対象の総行数が数万行を超える場合は、ループ＋bash内蔵正規表現よりも一括grepを先に検討する
+  （詳細: [DDR i0171-01](../docs/ddr/i0171-01-DDR参照切れ検出は絶対パス形式に限定しgrep一括抽出で実装する.md)）。
 
 ### hookの前置フィルタ（issue #70, #159）
 
@@ -612,6 +636,14 @@ jq -s -c '...' "$tmp/normalized.jsonl"
     CRの有無により判定が1件も変わらないことを確認済み。**判定ロジックを変更する際は、この
     2点が維持されているかを確認すること**（`tr`を足さずに済んでいる根拠がここにあるため）。
 
+    **追記（issue #149）: `[[ "$command" == *create-issue.sh* ]]`という部分一致の例も、
+    上記のgit系hookと同じ経緯をたどった。** `post-issue-create-notice.sh`のCLI経路判定は
+    `command_invokes_script`（コマンド位置判定）へ移行しており、この部分一致は**ライブラリを
+    使えない環境でのみ通る縮退時のフォールバック**としてのみ残っている（詳細:
+    `.claude/docs/spec/command-position.md`、DDR `i0149-01`）。CRが判定へ影響しないという
+    結論自体は変わらない（フォールバック時は部分一致のまま、通常経路はトークン走査の`IFS`が
+    `\r`を吸収する上記の設計を引き継いでいる）。
+
 - **`awk`/`sed`の置換文字列で、`\r`を含むシェルコードを生成しない**（issue #48で実際に踏んだ）。
   スクリプトへ`| tr -d '\r'`という行を差し込もうとして`awk 'NR==95{print "... tr -d '\''\r'\''"}'`と
   書いたところ、**awkが文字列リテラル中の`\r`をCR文字そのものへ展開**し、ソースコードに生の
@@ -689,6 +721,20 @@ jq -s -c '...' "$tmp/normalized.jsonl"
   # 差し込み位置が N 行目直後なら、その周辺だけを表示する
   sed -n "$((N - 3)),$((N + 12))p" target.md
   ```
+
+- **POSIX/`LANG`未設定のロケールでは、POSIX ERE のブラケット式（`[...]`）へ多バイト文字を
+  直接含めると、`grep -E`・bashの`[[ =~ ]]`のいずれも該当行がマッチしないだけでなく、
+  パターン全体が一致しなくなることがある。** 測定環境: Claude Code on the web（Linux）／
+  2026-08-23。git bash実機では未計測（issue #171で実機確認: `.gitignore`のDDR参照検出
+  スクリプトで、全角句読点1文字をブラケット式の終端文字クラスへ追加したところ、リポジトリ
+  全体37,411行に対する候補抽出が121件から0件へ落ちた）。`LC_ALL=C.UTF-8`を明示すれば
+  再現しないが、git bash/Windows配布先ではロケールを制御できないため、**正規表現自体には
+  多バイト文字を含めず、抽出後の文字列をASCII構造（固定の英数字プレフィックスの再出現位置等）
+  だけで判定する後処理で対応する。**（実装例:
+  `.claude/scripts/src/check-doc-references.sh`の`split_concatenated_candidates_to_reply`。
+  詳細: [DDR i0171-01](../docs/ddr/i0171-01-DDR参照切れ検出は絶対パス形式に限定しgrep一括抽出で実装する.md)
+  「理由」2、および同DDRが挙げる却下案。ここでは適用結果のみを示し、再発条件・却下案の
+  詳細はDDR側を正とする。）
 
 ## Claude Code hookとして登録する場合
 

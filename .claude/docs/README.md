@@ -1,9 +1,9 @@
 ---
 title: .claude/docs配下の目次
 type: guide
-description: .claude/docs配下（issue駆動MRワークフロー機構自体のspec・ddr）の位置づけと各ドキュメントへのリンクをまとめた目次
+description: .claude/docs配下（issue駆動MRワークフロー機構自体のusecase・spec・ddr）の位置づけと各ドキュメントへのリンクをまとめた目次
 tags: [claude-docs, docs, index, guide]
-keywords: [正史仕様, 意思決定ログ, issue-mr-workflow, シェルスクリプト方針, frontmatter抽出]
+keywords: [正史仕様, 意思決定ログ, ユースケース, 逆引き, issue-mr-workflow, シェルスクリプト方針, frontmatter抽出]
 ---
 
 # .claude/docs 配下の目次
@@ -14,6 +14,7 @@ keywords: [正史仕様, 意思決定ログ, issue-mr-workflow, シェルスク�
 （唯一の実装フロー定義）に従い、ドキュメントの置き場所・ライフサイクルは
 [.claude/rules/docs-workflow.md](../rules/docs-workflow.md) の「ドキュメント運用」表を参照する。
 
+- `usecase/` ── 「やりたいこと」起点でどの機能を使うかを逆引きするユースケース文書（機能の追加・変更に追従して更新）
 - `spec/` ── ワークフロー機構の機能ごとの正史仕様（最新の仕様を上書き更新）
 - `ddr/` ── ワークフロー機構関連の意思決定ログ（DDR: Design Decision Record。追記のみ）
 
@@ -28,6 +29,22 @@ keywords: [正史仕様, 意思決定ログ, issue-mr-workflow, シェルスク�
 > です。移植元プロジェクトの構成については `.claude/docs/ddr/i0000-10-dev-toolsをAI専用_人間専用に分離する.md`
 > を参照してください。
 
+## usecase（ユースケース逆引き）
+
+「やりたいこと」から、使う機能と詳細ドキュメントを逆引きする入り口（issue #170）。手順詳細は
+書かず、各文書がspec/SKILL.mdへのリンクで参照する。**usecase文書を追加・改名・削除したら、
+この一覧を同じコミットで更新する**（一覧の正はここ1箇所。運用は
+[.claude/rules/docs-workflow.md](../rules/docs-workflow.md) の「ドキュメント運用」表を参照）。
+
+- [新しい機能開発を始める](usecase/新しい機能開発を始める.md) ── 機能追加・変更をissue起点で始めたい
+- [途中の作業を再開・引き継ぐ](usecase/途中の作業を再開・引き継ぐ.md) ── 中断した作業・他者の作業を続きから進めたい
+- [生成物にレビューコメントして修正させる](usecase/生成物にレビューコメントして修正させる.md) ── AIの成果物へPR/MR上で指摘して直させたい
+- [レビューをAIに補助してもらう](usecase/レビューをAIに補助してもらう.md) ── 人間レビューの前にAIに欠陥を探させたい
+- [ベースブランチとのコンフリクトを解消する](usecase/ベースブランチとのコンフリクトを解消する.md) ── mainが進んでコンフリクト・遅れが出た
+- [リポジトリ内のドキュメントを探す](usecase/リポジトリ内のドキュメントを探す.md) ── 目的のspec・DDR・ルールを素早く見つけたい
+- [対応工数を把握する](usecase/対応工数を把握する.md) ── issue対応にかかった工数を集計したい
+- [この機構を他プロジェクトへ導入する](usecase/この機構を他プロジェクトへ導入する.md) ── 別リポジトリへこのワークフロー一式を入れたい
+
 ## spec（機能仕様）
 
 - [issue-mr-workflow.md](spec/issue-mr-workflow.md) ── issue駆動MRワークフロー支援
@@ -39,12 +56,15 @@ keywords: [正史仕様, 意思決定ログ, issue-mr-workflow, シェルスク�
 - [create-commit.md](spec/create-commit.md) ── コミット実行ラッパー（commitスキル専用）
 - [adversarial-review.md](spec/adversarial-review.md) ── 敵対的レビュー（専任サブエージェント・インラインコメント投稿）
 - [distribution-assets.md](spec/distribution-assets.md) ── 配布テンプレート資産（PR/MRテンプレート・`.gitattributes`・VERSION）と配布経路での扱い
+- [asset-distribution.md](spec/asset-distribution.md) ── AIアセットの配布機構（5層の層分け定義とmanifest）
 - [cleanup-task.md](spec/cleanup-task.md) ── flow-id 5-5 後片付けの自動化スクリプト
 - [search-frontmatter.md](spec/search-frontmatter.md) ── ドキュメント横断検索スクリプト（index.jsonl検索）
 - [generate-ddr-list.md](spec/generate-ddr-list.md) ── DDR一覧生成スクリプト（README.mdのDDR一覧をfrontmatterから生成）
 - [gitlab-verification-environment.md](spec/gitlab-verification-environment.md) ── GitLab検証環境（Docker + glab）の再現手順
 - [otel-listener.md](spec/otel-listener.md) ── OTelリスナー機構（OpenTelemetryをusage/へ振り分け保存するperl製リスナー）
 - [gemini-cli-telemetry.md](spec/gemini-cli-telemetry.md) ── Gemini CLI公式テレメトリ機構（outfileへの直接書き出し・バイトオフセットカーソル集計）
+- [sync-gemini-assets.md](spec/sync-gemini-assets.md) ── .claude/ から .gemini/ を生成する変換スクリプト
+- [check-doc-references.md](spec/check-doc-references.md) ── DDR参照切れ検出スクリプト（絶対パス形式のDDR参照が実在するファイルを指しているかを検証）
 
 ## ddr（意思決定ログ）
 
@@ -98,6 +118,7 @@ frontmatter（`status` / `superseded_by` / `note`）だけから決まる。
 - [i0014-01-GitHub_GitLab情報取得はgh_glab-CLIを使いWebFetchは使わない.md](ddr/i0014-01-GitHub_GitLab情報取得はgh_glab-CLIを使いWebFetchは使わない.md)
 - [i0020-01-HANDOFF進捗更新はMarkdownテーブル直接書き換えでループ範囲を一括操作する.md](ddr/i0020-01-HANDOFF進捗更新はMarkdownテーブル直接書き換えでループ範囲を一括操作する.md)（うち「mark-skipで作った不整合は後段のmark-done/add-roundで表面化する」は、issue #140でmark-skip自身がその場で拒否する形へ変更された。詳細はi0140-01）
 - [i0023-01-push断面の全文コピーをやめ行番号インデックスで表現する.md](ddr/i0023-01-push断面の全文コピーをやめ行番号インデックスで表現する.md)（うち「Gemini CLI対応の扱い」は、issue #97でメインセッションのみ集計対象へ変更された。サブエージェントを集計しない部分は引き続き有効。詳細は i0097-05）
+- [i0026-01-AIアセットの配布はmanifest付きの直接コピーとし層はexcludeを含む5つにする.md](ddr/i0026-01-AIアセットの配布はmanifest付きの直接コピーとし層はexcludeを含む5つにする.md)
 - [i0028-01-flow-id5-1の後片付けはスクリプト化しコミットは含めない.md](ddr/i0028-01-flow-id5-1の後片付けはスクリプト化しコミットは含めない.md)（ファイル名の `flow-id5-1` は当時の番号。片付けは issue #112 の並べ替えで 5-3 になり、issue #111 の統括レポート追加で 5-4、issue #70 の変換同期の新設でさらに繰り下がって現在 flow-id 5-5。DDR i0112-01・i0111-01 参照）
 - [i0032-01-GitLab-issueテンプレートは予約名Default.mdを正とし文書側を合わせる.md](ddr/i0032-01-GitLab-issueテンプレートは予約名Default.mdを正とし文書側を合わせる.md)
 - [i0033-01-配布物の版はVERSIONファイル1つで表しCHANGELOGを持たない.md](ddr/i0033-01-配布物の版はVERSIONファイル1つで表しCHANGELOGを持たない.md)
@@ -128,7 +149,7 @@ frontmatter（`status` / `superseded_by` / `note`）だけから決まる。
 - [i0070-02-レビュー返信漏れは文言強化ではなく機構で塞ぐ.md](ddr/i0070-02-レビュー返信漏れは文言強化ではなく機構で塞ぐ.md)
 - [i0077-01-敵対的レビューは専任サブエージェントで独立コンテキストに切り出す.md](ddr/i0077-01-敵対的レビューは専任サブエージェントで独立コンテキストに切り出す.md)
 - [i0077-02-レビュー観点はディレクトリごとのREVIEW-POINTSへ外だしする.md](ddr/i0077-02-レビュー観点はディレクトリごとのREVIEW-POINTSへ外だしする.md)
-- [i0077-03-インラインコメントの位置指定はプロバイダごとの制約に合わせて縮退させる.md](ddr/i0077-03-インラインコメントの位置指定はプロバイダごとの制約に合わせて縮退させる.md)
+- [i0077-03-インラインコメントの位置指定はプロバイダごとの制約に合わせて縮退させる.md](ddr/i0077-03-インラインコメントの位置指定はプロバイダごとの制約に合わせて縮退させる.md)（決定6の「1回あたりの投稿上限（10件）」は、issue #182で層単位ルール（blocker無制限・層追加しきい値10・ハードシーリング20）へ置き換えられた。詳細はi0182-01）
 - [i0086-01-マージ前の関連issue通知はDraft解除の直前に置き投稿前の人間承認を必須にする.md](ddr/i0086-01-マージ前の関連issue通知はDraft解除の直前に置き投稿前の人間承認を必須にする.md)
 - [i0087-01-個別計画には結果を書かず実施結果はreports配下のmdへ分離する.md](ddr/i0087-01-個別計画には結果を書かず実施結果はreports配下のmdへ分離する.md)
 - [i0088-01-PR作成後のdefaultブランチ追従は並行手順として定義し自動解消は一意に決まる類型に限る.md](ddr/i0088-01-PR作成後のdefaultブランチ追従は並行手順として定義し自動解消は一意に決まる類型に限る.md)
@@ -145,10 +166,10 @@ frontmatter（`status` / `superseded_by` / `note`）だけから決まる。
 - [i0105-02-既定有効化は機微情報未確認のため保留する.md](ddr/i0105-02-既定有効化は機微情報未確認のため保留する.md)
 - [i0106-01-敵対的レビューの非対話判定は環境変数ではなくAIエージェントの判断に委ねる.md](ddr/i0106-01-敵対的レビューの非対話判定は環境変数ではなくAIエージェントの判断に委ねる.md)
 - [i0109-01-敵対的レビュー由来のスレッドも人間の指摘と同列に返信を必須とする.md](ddr/i0109-01-敵対的レビュー由来のスレッドも人間の指摘と同列に返信を必須とする.md)
-- [i0110-01-個別計画のタスク種別を6種から8種へ拡張する.md](ddr/i0110-01-個別計画のタスク種別を6種から8種へ拡張する.md)
+- [i0110-01-個別計画のタスク種別を6種から8種へ拡張する.md](ddr/i0110-01-個別計画のタスク種別を6種から8種へ拡張する.md)（うち「`.claude/scripts/`をAIアセットから除外する」は、issue #155でフェーズ4に限って置き換えられた（フェーズ3の`【AIアセット作成】`からの除外は現役）。詳細はi0155-01。また【AIアセット作成】の対象は、issue #170で設計ドキュメント（usecase文書等）の新規作成・改訂まで拡張された。現行の定義はissue-mr-flow SKILL.md「計画の2階層構造」が正）
 - [i0111-01-統括レポートの添付は任意層に置きフローを止めない.md](ddr/i0111-01-統括レポートの添付は任意層に置きフローを止めない.md)（本文中の「flow-id 5-3」（統括レポート）は当時の番号。issue #70 が変換同期を 5-3 として新設したため現在は flow-id 5-4）
 - [i0112-01-フェーズ5は片付けをcommit直前へ移した順序に並べ替える.md](ddr/i0112-01-フェーズ5は片付けをcommit直前へ移した順序に並べ替える.md)（本文中の 5-1〜5-5 は当時の番号。issue #111 の統括レポート追加と issue #70 の変換同期の新設により、片付けは 5-5・commit/Draft解除は 5-6・マージは 5-7 へ繰り下がっている）
-- [i0113-01-issue-mr-flow対象ブランチではSKILL.mdの再読み込みを注入で促す.md](ddr/i0113-01-issue-mr-flow対象ブランチではSKILL.mdの再読み込みを注入で促す.md)（本文中の「flow-id 5-3」（HANDOFF.mdのリセット＝片付け）は当時の番号。issue #111 の統括レポート追加で 5-4、issue #70 の変換同期の新設により現在は flow-id 5-5。DDR i0111-01 参照）
+- [i0113-01-issue-mr-flow対象ブランチではSKILL.mdの再読み込みを注入で促す.md](ddr/i0113-01-issue-mr-flow対象ブランチではSKILL.mdの再読み込みを注入で促す.md)（本文中の「flow-id 5-3」（HANDOFF.mdのリセット＝片付け）は当時の番号。issue #111 の統括レポート追加で 5-4、issue #70 の変換同期の新設により現在は flow-id 5-5（DDR i0111-01 参照）。また前提の「SKILL.mdは1,100行超」はissue #160の分割前の値で、現在は本文約190行＋references/ 7ファイル。詳細は i0160-01）
 - [i0117-01-削除済み追跡ファイルの除外はextract-frontmatter側で行う.md](ddr/i0117-01-削除済み追跡ファイルの除外はextract-frontmatter側で行う.md)（本文中の「flow-id 5-4」（削除をコミットする手順）は当時の番号。issue #111 の統括レポート追加で 5-5、issue #70 の変換同期の新設により現在は flow-id 5-6。DDR i0111-01 参照）
 - [i0127-01-差分アンカーの土台はプロバイダごとに分けGitLabはMR差分ページを使う.md](ddr/i0127-01-差分アンカーの土台はプロバイダごとに分けGitLabはMR差分ページを使う.md)
 - [i0133-01-DDR識別子はissue番号ベースにし連番採番をやめる.md](ddr/i0133-01-DDR識別子はissue番号ベースにし連番採番をやめる.md)
@@ -156,5 +177,14 @@ frontmatter（`status` / `superseded_by` / `note`）だけから決まる。
 - [i0140-01-mark-skipはループ範囲の一部指定を書き換え後の状態で拒否する.md](ddr/i0140-01-mark-skipはループ範囲の一部指定を書き換え後の状態で拒否する.md)
 - [i0141-01-canvasテンプレートはTailwind非依存の自己完結CSSにする.md](ddr/i0141-01-canvasテンプレートはTailwind非依存の自己完結CSSにする.md)（canvas形式をTailwind非依存にした決定は有効。ただし issue #54 で一覧・表形式のテンプレートも自己完結CSSになったため、「canvas形式だけが例外」という本文の前提は成り立たない。本文中の `templates/canvas-report.html` も当時のパスで、issue #54 で `assets/canvas-report.html` へ改名した。詳細は i0054-01）
 - [i0141-02-canvasデータモデルはフラットなparent参照にする.md](ddr/i0141-02-canvasデータモデルはフラットなparent参照にする.md)
+- [i0143-01-flow-id並べ替え時の確認手順をSKILL.mdへ明記しDDRで記録する.md](ddr/i0143-01-flow-id並べ替え時の確認手順をSKILL.mdへ明記しDDRで記録する.md)
+- [i0149-01-post-issue-create-notice.shの検知をコマンド位置判定へ移行する.md](ddr/i0149-01-post-issue-create-notice.shの検知をコマンド位置判定へ移行する.md)
+- [i0155-01-AIアセット反映の対象は4類型への分類と痕跡の確認で洗い出す.md](ddr/i0155-01-AIアセット反映の対象は4類型への分類と痕跡の確認で洗い出す.md)
 - [i0159-01-hookの前置フィルタは純粋関数によるバックスラッシュ除去と大文字小文字非依存比較で超集合を保つ.md](ddr/i0159-01-hookの前置フィルタは純粋関数によるバックスラッシュ除去と大文字小文字非依存比較で超集合を保つ.md)
+- [i0160-01-SKILL.mdの分割は読むタイミング単位で行い参照列とhookで機械的に注入する.md](ddr/i0160-01-SKILL.mdの分割は読むタイミング単位で行い参照列とhookで機械的に注入する.md)
+- [i0165-01-wip集約時のコード側フォールバック既定値は変更せず後方互換を優先する.md](ddr/i0165-01-wip集約時のコード側フォールバック既定値は変更せず後方互換を優先する.md)（「未決定事項」が委譲していた移行手順・VERSION増分（0.3.0で据え置きと人間が判断）はいずれも i0165-02 が引き取り解消した）
+- [i0165-02-タスク単位ディレクトリの集約名はwip-を採用しflow-tasks-work-scratchを採らない.md](ddr/i0165-02-タスク単位ディレクトリの集約名はwip-を採用しflow-tasks-work-scratchを採らない.md)
+- [i0170-01-ユースケース逆引き層はREADME一本化・日本語ファイル名・手動一覧で運用する.md](ddr/i0170-01-ユースケース逆引き層はREADME一本化・日本語ファイル名・手動一覧で運用する.md)
+- [i0171-01-DDR参照切れ検出は絶対パス形式に限定しgrep一括抽出で実装する.md](ddr/i0171-01-DDR参照切れ検出は絶対パス形式に限定しgrep一括抽出で実装する.md)
+- [i0182-01-敵対的レビューの投稿件数選別を層単位ルールでスクリプト化する.md](ddr/i0182-01-敵対的レビューの投稿件数選別を層単位ルールでスクリプト化する.md)
 <!-- END GENERATED: ddr-list -->

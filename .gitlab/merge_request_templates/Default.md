@@ -4,7 +4,7 @@
   自動でこの本文が入る（issueテンプレートで同じ判断をした経緯:
   `.claude/docs/ddr/i0032-01-GitLab-issueテンプレートは予約名Default.mdを正とし文書側を合わせる.md`）。
   見出しの構成は `/issue-mr-flow describe` サブコマンドが生成するdescriptionと同一にしてある
-  （`.claude/skills/issue-mr-flow/SKILL.md` の `describe` 節が正）。flow-id 2-5/2-10/3-5/3-10/
+  （`.claude/skills/issue-mr-flow/references/review-loop.md` の `describe` 節が正）。flow-id 2-5/2-10/3-5/3-10/
   4-5/4-10 で `describe` を実行すると、この本文は**全文置換**される。そのため見出しを増やさない
   こと（増やしても最初の `describe` で消える）。
   このコメント自体はGitLab上の表示に出ないため、置換で失われても情報を失わない。
@@ -15,13 +15,13 @@ Closes #<issue番号>
 ## Plan
 
 <!--
-  全体作業計画（`plans/` 配下で `【` で始まらないファイル）の要約と、各個別計画
-  （`plans/【*.md`）の要点。計画が複数ある場合は、どのフェーズまで進んでいるかが分かるようにまとめる。
+  全体作業計画（`wip/plans/` 配下で `【` で始まらないファイル）の要約と、各個別計画
+  （`wip/plans/【*.md`）の要点。計画が複数ある場合は、どのフェーズまで進んでいるかが分かるようにまとめる。
 -->
 
 ## 実装状況
 
 <!--
-  worklog（`worklog/` 配下）の「うまくいったこと」等から、現時点までの実装内容を要約する。
+  worklog（`wip/worklogs/` 配下）の「うまくいったこと」等から、現時点までの実装内容を要約する。
   計画段階では「未着手」と書く。
 -->

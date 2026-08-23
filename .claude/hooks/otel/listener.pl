@@ -5,11 +5,11 @@
 # 手がかりに、SessionStartフックが記録した対応表（OtelRegistry）から出力先
 # ワークスペースを引いて `<cwd>/usage/claude-otel-YYYYMMDD.jsonl` へ追記する。
 # session.idを引けなかった分は共有位置の `unrouted-YYYYMMDD.jsonl` へ退避する
-# （参考ディレクトリ/otel/listener.py の移植。設計判断: plans/【設計】【実装】
-# 【テスト】OTelリスナー機構の実装.md）。
+# （参考ディレクトリ/otel/listener.py の移植。issue #103。設計・仕組みの詳細:
+# .claude/docs/spec/otel-listener.md）。
 #
 # シングルスレッド・逐次accept方式。Claude Code 1インスタンスからのリクエストは
-# 直列で来るため排他制御は不要（reports/20260823_humming-mapping-pie_OTel設計論点調査.md 5節）。
+# 直列で来るため排他制御は不要（詳細: .claude/docs/spec/otel-listener.md「既知の制限」）。
 use strict;
 use warnings;
 use FindBin qw($Bin);
@@ -110,7 +110,7 @@ sub _append_best_effort {
     };
     if (!$ok) {
         # 出力先にも書けない場合はベストエフォートで諦める（受け口を落とさないことを優先。
-        # reports/…md「ベストエフォート方針の実現方法」節）。
+        # 詳細: .claude/docs/spec/otel-listener.md「ベストエフォート方針」）。
         warn "failed to write otel record to $path: $@";
     }
     return;

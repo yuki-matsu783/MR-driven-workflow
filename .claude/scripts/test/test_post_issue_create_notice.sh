@@ -68,6 +68,27 @@ assert_eq "PowerShellでも判定する" "0" \
 assert_eq "無関係なコマンドは対象外" "1" "$(detect 'Bash' 'git status' '')"
 assert_eq "コマンドが空なら対象外" "1" "$(detect 'Bash' '' '')"
 
+# --- CLI経路のコマンド位置判定（issue #149） ---
+# is_issue_create_call は CommandPosition.sh 経由（_pin_cli_match）で判定する。_pin_cli_match は
+# 呼ばれるたびに自分自身を確定版へ再定義してから委譲する遅延初期化型（型B。issue #149,
+# 2回目レビュー）のため、下の detect() の**初回呼び出し**で3段ガードが走り
+# command_invokes_script を使った判定へ確定する。フォールバックへ縮退していないことは、
+# 下の「cat/grepでは発火しない」ケースが 1（対象外）になることで確認できる——
+# フォールバック（部分一致）のままなら、これらは誤って 0（起票と判定）になってしまう。
+assert_eq "改行区切りの2行目でも判定する" "0" \
+  "$(detect 'Bash' "ls .claude/scripts/src/create-issue.sh
+bash .claude/scripts/src/create-issue.sh --title x" '')"
+assert_eq "ファイルを開くだけのcatでは発火しない" "1" \
+  "$(detect 'Bash' 'cat .claude/scripts/src/create-issue.sh' '')"
+assert_eq "ファイルを検索するだけのgrepでは発火しない" "1" \
+  "$(detect 'Bash' 'grep -rn create-issue.sh .claude/' '')"
+assert_eq "コメント内の言及では発火しない" "1" \
+  "$(detect 'Bash' '# create-issue.shを実行するhook' '')"
+assert_eq "ヒアドキュメント本文内の言及では発火しない" "1" \
+  "$(detect 'Bash' "cat <<'EOF'
+create-issue.shの説明
+EOF" '')"
+
 # --- MCP経路（gh/glab CLI不在時。issue #34） ---
 assert_eq "issue_writeのmethod=createは起票と判定する" "0" \
   "$(detect 'mcp__github__issue_write' '' 'create')"
@@ -91,19 +112,18 @@ assert_eq "issue_writeを含む生JSONは通過する" "0" \
 assert_eq "無関係な生JSONは足切りされる" "1" "$(hints '{"tool_input":{"command":"git status"}}')"
 assert_eq "空文字列は足切りされる" "1" "$(hints '')"
 # CommandPosition.sh の正規化はバックスラッシュを落とすため（block-direct-git-commit.sh と
-# 同じ理由）、is_issue_create_call が将来コマンド位置判定へ差し替わっても超集合であり続けるよう、
-# 前置フィルタもバックスラッシュ分割・大文字小文字を吸収する。
+# 同じ理由）、is_issue_create_call がコマンド位置判定（issue #149でcommand_invokes_script経由へ
+# 差し替え済み）に対しても超集合であり続けるよう、前置フィルタもバックスラッシュ分割・
+# 大文字小文字を吸収する。
 assert_eq "create-\\issue.shのようにバックスラッシュで分割されていても通過する" "0" \
   "$(hints '{"tool_input":{"command":"bash .claude/scripts/src/create-\\issue.sh --title x"}}')"
 assert_eq "大文字のCREATE-ISSUE.SHでも通過する" "0" \
   "$(hints '{"tool_input":{"command":"bash .claude/scripts/src/CREATE-ISSUE.SH --title x"}}')"
-# 注意: is_issue_create_call の現行CLI経路判定（単純な部分一致）は "create-issue.sh" という
-# 語自体にJSONエスケープを要する文字を含まないため、下記のJSON化テストは「現行の超集合関係を
-# 保つために必須」ではない。block-direct-git-commit.sh の raw_hints_at_git_commit と同じ
-# 正規化（JSONエスケープ列の除去）をここにも入れているのは、issue #149着手時に
-# is_issue_create_call がコマンド位置判定へ差し替わった場合に備えた前倒しの安全マージンで
-# あり、その正規化がJSONエンコードをまたいでも壊れずに動くことを確認する目的で置く
-# （block-direct-git-commit.sh側で見つかった反例と同じ壊れ方をしないことの確認）。
+# 注意: is_issue_create_call は issue #149 でコマンド位置判定（command_invokes_script経由）へ
+# 差し替え済みで、この判定本体に対する前置フィルタの超集合性は上（71-76行）のケース群で確認して
+# いる。下記のJSON化テストは、block-direct-git-commit.sh の raw_hints_at_git_commit と同じ
+# 正規化（JSONエスケープ列の除去）が、JSONエンコードをまたいでも壊れずに動くことを確認する目的で
+# 置く（block-direct-git-commit.sh側で見つかった反例と同じ壊れ方をしないことの確認）。
 create_issue_line_cont_cmd=$'bash .claude/scripts/src/create-\\\nissue.sh --title x'
 create_issue_line_cont_payload="$(jq -nc --arg c "$create_issue_line_cont_cmd" '{tool_input:{command:$c}}')"
 assert_eq "create-\\<改行>issue.shのようにバックスラッシュ+改行で分割されていても通過する（#149着手時の安全マージン確認）" "0" \
@@ -197,6 +217,29 @@ assert_contains "CLI経路は実際に注意文を注入する" "$REPLY_STDOUT" 
 
 run_hook_real 'Bash' 'git status' ''
 assert_eq "無関係なコマンドは何も出力しない" "" "$REPLY_STDOUT"
+
+# --- 3段ガードの縮退経路（ライブラリ非存在時。issue #149, 2回目レビュー） ---
+# 通常のテスト実行では lib/CommandPosition.sh が常に存在するため、_pin_cli_match は初回呼び出しで
+# 必ずコマンド位置判定へ差し替わり、既定値（部分一致）の分岐が一度も通らない
+# （3段ガードの「担保が働くか」自体を確かめるテストが無かった。敵対的レビューで指摘）。
+# ライブラリを意図的に置かない環境を再現し、縮退した部分一致が実際に機能することを確認する。
+fallback_dir="$(mktemp -d)"
+trap 'rm -rf "$stub_dir" "$fallback_dir"' EXIT
+cp "$hook" "$fallback_dir/post-issue-create-notice.sh"
+# lib/ を置かない（=> CommandPosition.sh を読み込めない => 部分一致へ縮退する）。
+
+run_hook_fallback() {
+  # $1=command 。戻り値 REPLY_STDOUT
+  REPLY_STDOUT="$(notice_payload 'Bash' "$1" '' | bash "$fallback_dir/post-issue-create-notice.sh")"
+}
+
+# `cat <script>` は位置判定なら miss だが、縮退時の既定値（部分一致）では hit になる。
+# 位置判定と縮退後の判定が区別できる入力を使うことで、縮退が実際に効いていることを確認する。
+run_hook_fallback 'cat .claude/scripts/src/create-issue.sh'
+assert_contains "ライブラリ非存在時は部分一致へ縮退し、catでも発火する" "$REPLY_STDOUT" 'additionalContext'
+
+run_hook_fallback 'git status'
+assert_eq "ライブラリ非存在時でも無関係なコマンドでは発火しない" "" "$REPLY_STDOUT"
 
 echo "passed=$passed failures=$failures"
 [[ "$failures" -eq 0 ]]

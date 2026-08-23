@@ -2,7 +2,7 @@ package HttpMinimal;
 # IO::Socket::INET上で動く、HTTP/1.1リクエストの最小パーサ。
 #
 # CPANの HTTP::Daemon はコア添付ではなくインストールが要る（issue #103はコアモジュール
-# のみに依存を限る方針、`reports/20260823_humming-mapping-pie_OTel設計論点調査.md`）。
+# のみに依存を限る方針。詳細: .claude/docs/spec/otel-listener.md）。
 # Claude CodeのOTLP/HTTPエクスポータが送るのは単発のPOSTのみで、チャンク転送や
 # keep-aliveへの対応は不要なため、リクエスト行・ヘッダ・Content-Length分のbodyを
 # 読むだけの最小実装で足りる。

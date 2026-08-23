@@ -60,6 +60,9 @@ assert_eq "is_safe_relative_dir: 末尾の親参照は不正" "1" "$(status_of i
 assert_eq "is_safe_relative_dir: ..foo は親参照ではない" "0" "$(status_of is_safe_relative_dir "..foo")"
 
 # --- is_keep_path ---------------------------------------------------------
+# is_keep_path は main() 内で初めて KEEP_PATHS を組み立てる設計のため（cleanup-task.sh方針）、
+# main を経由しないこの単体テストでは呼び出し前に明示的にセットする
+KEEP_PATHS=("worklog/TEMPLATE.md")
 
 assert_eq "is_keep_path: worklog/TEMPLATE.md は残す" "0" "$(status_of is_keep_path "worklog/TEMPLATE.md")"
 assert_eq "is_keep_path: タスク固有のworklogは残さない" "1" "$(status_of is_keep_path "worklog/2026-08-19_計画_個別_push1.md")"
@@ -69,6 +72,12 @@ assert_eq "is_keep_path: 部分一致では残さない" "1" "$(status_of is_kee
 assert_eq "is_keep_path: plans/REVIEW-POINTS.md は残す" "0" "$(status_of is_keep_path "plans/REVIEW-POINTS.md")"
 assert_eq "is_keep_path: reports/REVIEW-POINTS.md は残す" "0" "$(status_of is_keep_path "reports/REVIEW-POINTS.md")"
 assert_eq "is_keep_path: サブディレクトリのREVIEW-POINTS.mdも残す" "0" "$(status_of is_keep_path "reports/sub/REVIEW-POINTS.md")"
+# REVIEW-POINTS.local.md（配布先が所有する観点表）も同じ理由で残す（issue #26）。
+# ここへ載せ忘れると flow-id 5-4 で毎タスク消え、配布先が書いた観点が失われる。
+assert_eq "is_keep_path: REVIEW-POINTS.local.md は残す" "0" "$(status_of is_keep_path "REVIEW-POINTS.local.md")"
+assert_eq "is_keep_path: plans/REVIEW-POINTS.local.md は残す" "0" "$(status_of is_keep_path "plans/REVIEW-POINTS.local.md")"
+assert_eq "is_keep_path: reports/sub/REVIEW-POINTS.local.md も残す" "0" "$(status_of is_keep_path "reports/sub/REVIEW-POINTS.local.md")"
+assert_eq "is_keep_path: .local の .bak は残さない（完全一致の維持）" "1" "$(status_of is_keep_path "plans/REVIEW-POINTS.local.md.bak")"
 assert_eq "is_keep_path: 名前が似ているだけのファイルは残さない" "1" "$(status_of is_keep_path "plans/REVIEW-POINTS.md.bak")"
 assert_eq "is_keep_path: 接尾辞が一致するだけのファイルは残さない" "1" "$(status_of is_keep_path "plans/OLD-REVIEW-POINTS.md")"
 
@@ -241,6 +250,80 @@ assert_eq "--skip-index: frontmatterIndex.ran は偽" "false" \
 assert_eq "--skip-index: ファイルは削除される" "1" "$(status_of test -e "$ct_repo/plans/【調査】テスト.md")"
 assert_eq "--skip-index: index.jsonl は再生成されない" "1" \
   "$(status_of test -e "$ct_repo/plans/index.jsonl")"
+
+# --- main の結合テスト: .mrworkflow.json でネストしたディレクトリを指定した場合
+#     （KEEP_PATHS の動的配線。issue #165）------------------------------------
+# 既存の setup_ct_repo は .mrworkflow.json を持たず常にフォールバック既定値
+# （plans/worklog/reports）で走るため、この配線を一度も通らない。ここでは
+# worklogDir に "wip/worklogs" を指定したフィクスチャで main() 経由の配線を直接検証する。
+setup_ct_repo_wip() {
+  rm -rf "$ct_repo"
+  mkdir -p "$ct_repo/wip/plans" "$ct_repo/wip/worklogs" "$ct_repo/wip/reports" "$ct_repo/.claude/scripts/src"
+  git -C "$ct_repo" init -q 2>/dev/null || git -C "$ct_repo" init >/dev/null 2>&1
+  cp "$repo_root/.claude/scripts/src/extract-frontmatter.sh" "$ct_repo/.claude/scripts/src/"
+  printf '**/index.jsonl\n' >"$ct_repo/.gitignore"
+  printf '{\n  "plansDir": "wip/plans",\n  "worklogDir": "wip/worklogs",\n  "reportsDir": "wip/reports"\n}\n' \
+    >"$ct_repo/.mrworkflow.json"
+  printf -- '---\ntitle: 個別計画\ntype: plan\n---\n\n本文\n' >"$ct_repo/wip/plans/【調査】テスト.md"
+  printf -- '---\ntitle: 観点\ntype: review-points\n---\n\n本文\n' >"$ct_repo/wip/plans/REVIEW-POINTS.md"
+  printf -- '---\ntitle: 雛形\ntype: log\n---\n\n本文\n' >"$ct_repo/wip/worklogs/TEMPLATE.md"
+  printf -- '---\ntitle: ログ\ntype: log\n---\n\n本文\n' >"$ct_repo/wip/worklogs/2026-08-20_計画_個別_push1.md"
+  printf -- '---\ntitle: 結果\ntype: report\n---\n\n本文\n' >"$ct_repo/wip/reports/2026-08-20_計画_結果.md"
+  printf -- '---\ntitle: HANDOFF\ntype: handoff\n---\n\n# HANDOFF\n\n作業中の内容\n' >"$ct_repo/HANDOFF.md"
+  git -C "$ct_repo" add -A >/dev/null 2>&1
+}
+
+setup_ct_repo_wip
+ct_json="$(run_ct --dry-run)"
+assert_eq "wip設定: targetDirsがwip/plans等になる" "wip/plans wip/worklogs wip/reports" \
+  "$(printf '%s' "$ct_json" | jq -r '.targetDirs | join(" ")')"
+if jq -e '.keptPaths | index("wip/worklogs/TEMPLATE.md")' <<<"$ct_json" >/dev/null; then
+  kept_wip_worklogs_template=0
+else
+  kept_wip_worklogs_template=1
+fi
+assert_eq "wip設定: keptPathsにwip/worklogs/TEMPLATE.mdが含まれる（KEEP_PATHS動的化の配線確認）" "0" \
+  "$kept_wip_worklogs_template"
+assert_eq "wip設定（--dry-run）: ファイルを削除しない" "0" \
+  "$(status_of test -e "$ct_repo/wip/plans/【調査】テスト.md")"
+
+# --dry-run ではなく実際に走らせ、wip/worklogs/TEMPLATE.md が誤削除されないことまで確認する
+setup_ct_repo_wip
+ct_json_run="$(run_ct)"
+assert_eq "wip設定: 実行後もwip/worklogs/TEMPLATE.mdが残る（誤削除されない）" "0" \
+  "$(status_of test -e "$ct_repo/wip/worklogs/TEMPLATE.md")"
+assert_eq "wip設定: タスク固有のworklogは削除される" "1" \
+  "$(status_of test -e "$ct_repo/wip/worklogs/2026-08-20_計画_個別_push1.md")"
+# wip/plans/REVIEW-POINTS.md（KEEP_BASENAMES側）もネスト構成で残ることを確認する
+# （フラット構成側は上の217行付近で既に確認済みだが、ネスト構成側は未検証だった）
+assert_eq "wip設定: 実行後もwip/plans/REVIEW-POINTS.mdが残る" "0" \
+  "$(status_of test -e "$ct_repo/wip/plans/REVIEW-POINTS.md")"
+# 残す物が無い wip/reports はディレクトリごと消え、親の wip/ ディレクトリ自体は
+# wip/plans・wip/worklogs が残っているため巻き込まれずに残ることを確認する
+assert_eq "wip設定: removedDirsにwip/reportsが含まれる" "wip/reports" \
+  "$(printf '%s' "$ct_json_run" | jq -r '.removedDirs | join(" ")')"
+assert_eq "wip設定: wip/reportsはディレクトリごと消える" "1" \
+  "$(status_of test -e "$ct_repo/wip/reports")"
+assert_eq "wip設定: 親のwipディレクトリは残る（wip/plans・wip/worklogsが残るため）" "0" \
+  "$(status_of test -e "$ct_repo/wip")"
+
+# --- 配布用の雛形と HANDOFF_TEMPLATE の同期（issue #26） ------------------
+# `HANDOFF.md` は seed として配られるが、source を持たないと本家の作業中の引継ぎメモが
+# そのまま配布先へ渡り、seed なので二度と訂正されない。そのため
+# `assets/HANDOFF.md.template` を source に指しているが、**同じ雛形が2箇所に
+# 写しとして存在する**ことになるので、一致を機械的に担保する。
+# どちらかを直したらもう一方も直すこと（この表明が落ちて気づける）。
+handoff_tpl_file="${repo_root}/.claude/skills/apply-mr-workflow-to-project/assets/HANDOFF.md.template"
+if [ -f "$handoff_tpl_file" ]; then
+  # 本文の比較は両辺を同じ `$(...)` に通す（コマンド置換は末尾の改行を落とすため、
+  # 片側だけ生の変数を渡すと必ず食い違う）。末尾改行の有無はバイト数で別途見る。
+  assert_eq "配布用の雛形が HANDOFF_TEMPLATE と一致する" \
+    "$(printf '%s' "$HANDOFF_TEMPLATE")" "$(cat "$handoff_tpl_file")"
+  assert_eq "配布用の雛形は末尾の改行まで一致する" \
+    "$(printf '%s' "$HANDOFF_TEMPLATE" | wc -c)" "$(wc -c < "$handoff_tpl_file")"
+else
+  echo "note: ${handoff_tpl_file} が無いため雛形の同期チェックはスキップしました"
+fi
 
 echo "passed=${passed} failures=${failures}"
 [[ "$failures" -eq 0 ]]

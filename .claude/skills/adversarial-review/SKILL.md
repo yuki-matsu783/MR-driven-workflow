@@ -20,7 +20,7 @@ AIが自分の書いたものを自分で確認しても、追認する方向に
 
 | | `/code-review`（組み込み） | 本スキル |
 |---|---|---|
-| 対象 | コードの正しさ（バグ探し）全般 | コードに加え、**このリポジトリの運用規約・ドキュメント整合**（`plans/` の粒度、spec/DDR/rulesの二重管理、point-in-time記録の破壊、shellの既知の罠） |
+| 対象 | コードの正しさ（バグ探し）全般 | コードに加え、**このリポジトリの運用規約・ドキュメント整合**（`wip/plans/` の粒度、spec/DDR/rulesの二重管理、point-in-time記録の破壊、shellの既知の罠） |
 | 観点の出どころ | 汎用 | **ディレクトリごとの `REVIEW-POINTS.md`**（`review-points` スキル） |
 | 結果 | 会話への報告 | **MRへのインラインコメント投稿**＋報告 |
 | 起動 | 人間が任意に | 対話セッションでは**人間のみ**。非対話セッションではAIも可 |
@@ -66,7 +66,7 @@ bash .claude/scripts/src/adversarial-review-count.sh get <phase>
 | 対象 | 判別 | ファイルの列挙 |
 |---|---|---|
 | diff全体 | flow-id 3-7 / 4-7 の直後 | `git diff --name-only origin/<base>...HEAD` |
-| `plans/` の個別計画 | flow-id 2-2 / 3-2 / 4-2 の直後 | 該当する `plans/【*.md` |
+| `wip/plans/` の個別計画 | flow-id 2-2 / 3-2 / 4-2 の直後 | 該当する `wip/plans/【*.md` |
 | 設計反映 | flow-id 4-7 の直後 | `.claude/docs/spec/` `.claude/docs/ddr/` `.claude/rules/` の変更ファイル |
 
 削除されたファイルは対象から外す。
@@ -123,19 +123,36 @@ bash .claude/scripts/src/adversarial-review-count.sh increment <phase>
 
 ## 手順6: 投稿する指摘を選別する
 
-findings を、**確度（`confidence`）と重大度（`severity`）**で振り分ける。
+findings を、まず**確度（`confidence`）と重大度（`severity`）**の表で1次振り分けする。
 
 | 確度 \ 重大度 | blocker | major | minor | nit |
 |---|---|---|---|---|
-| high | 投稿 | 投稿 | 投稿 | 報告 |
-| medium | 投稿 | 投稿 | 報告 | 報告 |
+| high | 投稿候補 | 投稿候補 | 投稿候補 | 報告 |
+| medium | 投稿候補 | 投稿候補 | 報告 | 報告 |
 | low | 報告 | 報告 | 報告 | 報告 |
 
-- **「投稿」** = インラインコメントとしてMRへ出す。**「報告」** = この会話（非対話モードでは
-  worklog）にのみ書き、MRへは出さない。
-- **1回あたりの投稿上限は10件**。超える場合は重大度の高い順に10件へ絞り、残りは報告へ回す。
-  レビュアーが一度に扱える量を超えると、結局どれも読まれないため。
-- 投稿する findings だけを集めた JSON を一時ファイルへ書き出す（次の手順で使う）。
+- **「投稿候補」** = 次の件数選別へ進む。**「報告」** = この会話（非対話モードではwip/worklogs）に
+  のみ書き、MRへは出さない。
+- 表を通過した「投稿候補」findings をファイルへ書き出し
+  （`{"findings":[...]}`）、実際に投稿する件数を次のスクリプトで**決定的に**選別する
+  （AIエージェントの裁量では選ばない。同じfindingsからは常に同じ投稿集合が得られる）。
+
+  ```bash
+  bash .claude/scripts/src/select-adversarial-findings.sh <投稿候補findings JSONファイル>
+  # → {"posted":{"findings":[...]},"reported":{"findings":[...]}}
+  ```
+
+  選別規則（blocker無制限・層単位・ハードシーリング20件）の詳細は
+  `.claude/docs/spec/adversarial-review.md`「投稿件数の選別」を正とする
+  （**本SKILL.mdへ規則を再掲しない**。規則を変えたくなったらspec側を編集する）。
+
+- **出力の `.posted`（`.posted.findings` という配列単体ではなく、`{"findings":[...]}`
+  というオブジェクト全体）を一時ファイルへ書き出す。** そのまま手順7の
+  `add_mr_inline_comments` へ渡せる形になる（`.findings` キーを直下に持つオブジェクトを
+  要求するため）。
+- 手順6の1次振り分けで「報告」に区分したfindingsと、出力の `.reported.findings`
+  （この選別で漏れた「投稿候補」。1次振り分けの「報告」はそもそもこのスクリプトへ渡して
+  いないため含まれない）は、**両方を合わせて**手順9の報告に使う。
 
 ## 手順7: MRへ投稿する
 
@@ -195,7 +212,7 @@ bash .claude/scripts/src/update-handoff-progress.sh set-header --unreplied <投�
 **本スキルの担当は投稿と手順8の記録までで、投稿した指摘への対応と返信は担わない。** 投稿したスレッドは
 `issue-mr-flow` の `comments` / `reply` ループ（flow-id 2-4/2-9/3-4/3-9/4-4/4-9）が、人間の指摘と
 同列に扱って対応・返信する（issue #109。ルールは
-`.claude/skills/issue-mr-flow/SKILL.md` の `comments` サブコマンドが正）。
+`.claude/skills/issue-mr-flow/references/review-loop.md` の `comments` サブコマンドが正）。
 
 ## `gh`/`glab` CLI不在時（`get_vcs_access_mode` が `mcp`）の読み替え
 

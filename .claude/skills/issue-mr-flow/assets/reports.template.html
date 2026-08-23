@@ -1,11 +1,11 @@
 <!--
-  レポート（reports/）の人間レビュー用HTMLビュー テンプレート
+  レポート（wip/reports/）の人間レビュー用HTMLビュー テンプレート
   （.claude/skills/issue-mr-flow/SKILL.md / .claude/rules/docs-workflow.md 参照。issue #54）
 
   使い方:
     1. このファイルを、対応するレポートmdと同じベース名でコピーする（拡張子だけ .html にする）。
-         reports/日付_<全体計画名>_<内容を簡潔に>.md → 同名の .html
-       flow-id 5-4 の最終統括レポート（reports/日付_<全体計画名>_統括.html）もこれを土台にする。
+         wip/reports/日付_<全体計画名>_<内容を簡潔に>.md → 同名の .html
+       flow-id 5-4 の最終統括レポート（wip/reports/日付_<全体計画名>_統括.html）もこれを土台にする。
     2. <title> とヘッダ帯（.band）の見出し・メタ情報を埋める。
     3. 各 section に置いてある「ここに書く: …」で始まるHTMLコメントを、実際の内容へ置き換える。
     4. 使わない任意セクションは <section> ごと削除する。必須セクションは削除しない。
@@ -32,12 +32,12 @@
 
   計画を書かないこと:
     レポートには「実施した結果」と、その結論・根拠・確認結果だけを書く。「これから何をするか」は
-    plans/ 配下の計画へ書く（.claude/skills/issue-mr-flow/SKILL.md「計画と実施結果の分離」）。
+    wip/plans/ 配下の計画へ書く（.claude/skills/issue-mr-flow/references/deliverables.md「計画と実施結果の分離」）。
 
   正文はどちらか:
     レポートの正文は **md 側** で、このHTMLはその視覚化である。両者の内容は同期させる。
     **同期を「追記」だけで済ませないこと。** md側の差分が「追加のみ」でないなら、HTML側も
-    「追加のみ」では同期していない（reports/REVIEW-POINTS.md）。
+    「追加のみ」では同期していない（wip/reports/REVIEW-POINTS.md）。
 
   関連・依存関係が主題なら:
     要素同士のつながりが主題の内容は、この一覧・表形式ではなく canvas 形式が向く。
@@ -206,7 +206,7 @@
 </section>
 
 <!-- [任意]（実測・計測を含むなら必須） 実施条件。
-     「測った環境が結論に添えられているか」は reports/REVIEW-POINTS.md の観点。
+     「測った環境が結論に添えられているか」は wip/reports/REVIEW-POINTS.md の観点。
      1環境・1バージョンの観測を、全環境の事実として書かない -->
 <section id="conditions">
   <h2>実施条件（測った対象・環境）</h2>
@@ -254,7 +254,7 @@
 </section>
 
 <!-- [必須] 設計への反映。削除しない。
-     この結果が後続フェーズの設計へどう効くかまで書く（reports/REVIEW-POINTS.md） -->
+     この結果が後続フェーズの設計へどう効くかまで書く（wip/reports/REVIEW-POINTS.md） -->
 <section id="next">
   <h2>設計への反映</h2>
   <!-- ここに書く: 後続フェーズで何を決める／何をするか。
