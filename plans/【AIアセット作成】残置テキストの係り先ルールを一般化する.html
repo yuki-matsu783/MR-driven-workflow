@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>【AIアセット作成】残置テキストの係り先ルールを一般化する — issue #142</title>
+<style>
+  :root {
+    --bg: #f6f7f9;      --panel: #ffffff;   --ink: #1a1d21;     --muted: #5b636d;
+    --line: #dfe3e8;    --accent: #2563eb;  --accent-soft: #eaf0fe;
+    --ok: #1a7f4b;      --ok-soft: #e6f4ec; --warn: #a35a00;    --warn-soft: #fdf1e0;
+    --stop: #b3261e;    --stop-soft: #fdecea; --code-bg: #f0f2f5;
+    --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1216;    --panel: #161a20;   --ink: #e6e8eb;     --muted: #9aa3ad;
+      --line: #2a3038;  --accent: #7aa2f7;  --accent-soft: #1b2333;
+      --ok: #6ee7a8;    --ok-soft: #14261d; --warn: #f0b866;    --warn-soft: #2a2113;
+      --stop: #f2857c;  --stop-soft: #2b1614; --code-bg: #1d222a;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", system-ui, sans-serif;
+    line-height: 1.8; font-size: 15px;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 20px 80px; }
+
+  /* 共通ヘッダ帯 */
+  header.band {
+    background: linear-gradient(135deg, var(--accent-soft), var(--panel));
+    border-bottom: 1px solid var(--line); padding: 28px 20px 22px; margin-bottom: 28px;
+  }
+  header.band .inner { max-width: 1080px; margin: 0 auto; }
+  header.band .kind { font-size: 11px; letter-spacing: .18em; color: var(--accent); font-weight: 700; }
+  header.band h1 { margin: 6px 0 4px; font-size: 26px; line-height: 1.4; }
+  header.band .lead { margin: 0; color: var(--muted); }
+  .meta { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; padding: 0; list-style: none; }
+  .meta li {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 999px;
+    padding: 3px 12px; font-size: 12.5px; color: var(--muted); white-space: nowrap;
+  }
+  .meta li b { color: var(--ink); font-weight: 600; }
+
+  nav.toc {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 14px 20px; margin-bottom: 28px;
+  }
+  nav.toc h2 { margin: 0 0 8px; font-size: 13px; letter-spacing: .08em; color: var(--muted); border: 0; padding: 0; }
+  nav.toc ol { margin: 0; padding-left: 20px; }
+  nav.toc li { margin: 2px 0; }
+  a { color: var(--accent); }
+
+  section {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 8px 24px 22px; margin-bottom: 22px;
+  }
+  h2 { font-size: 20px; margin: 20px 0 10px; padding-bottom: 8px; border-bottom: 2px solid var(--line); }
+  h3 { font-size: 16px; margin: 22px 0 8px; color: var(--accent); }
+  p { margin: 10px 0; }
+  ul, ol { padding-left: 22px; }
+  li { margin: 4px 0; }
+  blockquote { margin: 10px 0; padding: 6px 14px; border-left: 3px solid var(--line); color: var(--muted); }
+
+  /* 表は自身の中で横スクロールする（ページ本体は横スクロールさせない） */
+  .tablewrap { overflow-x: auto; margin: 14px 0; }
+  table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 14px; }
+  th, td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: var(--accent-soft); font-weight: 600; white-space: nowrap; }
+  tbody tr:nth-child(even) td { background: color-mix(in srgb, var(--line) 22%, transparent); }
+
+  code {
+    background: var(--code-bg); border-radius: 5px; padding: 1px 5px; font-size: 13px;
+    font-family: "SFMono-Regular", Consolas, "Noto Sans Mono", monospace;
+  }
+  pre {
+    background: var(--code-bg); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 12px 14px; overflow-x: auto; font-size: 13px; line-height: 1.65;
+  }
+  pre code { background: none; padding: 0; }
+
+  /* 注意ボックス: info（既定）/ ok（決めたこと）/ warn（注意）/ stop（やらないこと・危険） */
+  .box { border-left: 4px solid var(--accent); background: var(--accent-soft);
+         border-radius: 0 var(--radius) var(--radius) 0; padding: 12px 16px; margin: 16px 0; }
+  .box > :first-child { margin-top: 0; } .box > :last-child { margin-bottom: 0; }
+  .box .label { font-size: 12px; font-weight: 700; letter-spacing: .06em; display: block; margin-bottom: 4px; }
+  .box.ok { border-color: var(--ok); background: var(--ok-soft); } .box.ok .label { color: var(--ok); }
+  .box.warn { border-color: var(--warn); background: var(--warn-soft); } .box.warn .label { color: var(--warn); }
+  .box.stop { border-color: var(--stop); background: var(--stop-soft); } .box.stop .label { color: var(--stop); }
+  .box.info .label { color: var(--accent); }
+
+  .tag { display: inline-block; border-radius: 999px; padding: 1px 9px; font-size: 12px; font-weight: 600; }
+  .tag.ok { background: var(--ok-soft); color: var(--ok); }
+  .tag.warn { background: var(--warn-soft); color: var(--warn); }
+  .tag.stop { background: var(--stop-soft); color: var(--stop); }
+
+  footer { color: var(--muted); font-size: 13px; text-align: center; padding-top: 10px; }
+</style>
+</head>
+<body>
+
+<header class="band">
+  <div class="inner">
+    <div class="kind">個別作業計画 / フェーズ3〈作業〉</div>
+    <h1>【AIアセット作成】残置テキストの係り先ルールを一般化する</h1>
+    <p class="lead">「見出しの差し込み時に係り先を確認する」というルールを、<b>残置テキストの側から発動条件を書く形</b>へ一般化する。書き換え先は <code>.claude/rules/docs-workflow.md</code>（正）と ルート <code>REVIEW-POINTS.md</code>（敵対的レビューが実際に読む唯一の経路）の2箇所。</p>
+    <ul class="meta">
+      <li><b>issue</b> #142</li>
+      <li><b>ブランチ</b> claude/docs-workflow-heading-rule-mi3krb</li>
+      <li><b>PR</b> #188</li>
+      <li><b>フェーズ</b> 3〈作業〉 flow-id 3-1</li>
+      <li><b>push回数</b> 6</li>
+      <li><b>作成日</b> 2026-08-23</li>
+      <li><b>正文</b> 同名の .md</li>
+    </ul>
+  </div>
+</header>
+
+<div class="wrap">
+
+<nav class="toc">
+  <h2>目次</h2>
+  <ol>
+    <li><a href="#premise">前提（合意状況）</a></li>
+    <li><a href="#goal">この計画で何をするか</a></li>
+    <li><a href="#target-a">A: <code>.claude/rules/docs-workflow.md</code> の書き換え</a></li>
+    <li><a href="#target-b">B: ルート <code>REVIEW-POINTS.md</code> の書き換え</a></li>
+    <li><a href="#out-of-scope">やらないこと（スコープ外）</a></li>
+    <li><a href="#verify">検証</a></li>
+    <li><a href="#criteria">issueの受け入れ条件との対応</a></li>
+  </ol>
+</nav>
+
+<section id="premise">
+  <h2>前提（合意状況）</h2>
+  <ul>
+    <li>上位の計画: <code>plans/brisk-weaving-lantern.md</code>（flow-id 1-4）。</li>
+    <li><b>調査結果が確定させたこと</b>は <code>reports/20260823_brisk-weaving-lantern_係り先ルールの射程調査.md</code>「設計への反映（フェーズ3で決めること）」の8項目が正である。<b>本計画はそれを実行手順へ落とすもので、結論を蒸し返さない。</b></li>
+    <li>flow-id 3-3（人間の作業計画レビュー）は非対話的セッションのため成立しない。<b>本計画に対する敵対的レビュー（フェーズ3の1回目）をもって代替する。</b></li>
+  </ul>
+</section>
+
+<section id="goal">
+  <h2>この計画で何をするか</h2>
+  <p>書き換え先は<b>2箇所</b>。どちらも「残置したテキストの係り先が変わっていないか」という同じ観点を述べるが、<b>役割が違うので同じ文言にはしない</b>。</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>#</th><th>ファイル</th><th>現在</th><th>何をするか</th></tr></thead>
+    <tbody>
+      <tr><td>A</td><td><code>.claude/rules/docs-workflow.md</code> 104〜114行</td><td>見出しの挿入に限定された規約＋実例2件</td><td><b>正</b>。発動条件を一般化し、実例を4件へ増やす</td></tr>
+      <tr><td>B</td><td>ルート <code>REVIEW-POINTS.md</code> 47〜48行</td><td>「新しい見出しの挿入位置が…係り先を壊していないか」</td><td><b>敵対的レビューが実際に読む唯一の経路</b>。単独で「何を疑うか」が伝わる中身にする</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <div class="box warn">
+    <span class="label">Bをポインタで済ませない</span>
+    <code>collect-review-points.sh</code> は <code>REVIEW-POINTS.md</code> / <code>REVIEW-POINTS.local.md</code> しか集めず、<b><code>.claude/rules/</code> は敵対的レビューへ渡らない</b>（Q5）。ポインタだけでは、辿る動機そのものが生まれない。
+  </div>
+</section>
+
+<section id="target-a">
+  <h2>A: <code>.claude/rules/docs-workflow.md</code> の書き換え</h2>
+
+  <h3>A-1. 発動条件（トリガー）</h3>
+  <ul>
+    <li><b>操作の分類で書かない。</b>「見出しの差し込み」も「構造変更全般」も操作の分類であり、issue #155（箇条書きへ項を1つ足しただけ）が含まれるかどうかが読み手に委ねられる。</li>
+    <li><b>残置テキストの側から書く。</b>「既存の記述を残したまま、その周囲を編集したとき」という形にする。周囲の編集には、見出しの挿入・節の分割・項の追加・並べ替えのいずれもが自動的に入る。</li>
+  </ul>
+
+  <h3>A-2. 確認の観点</h3>
+  <ul>
+    <li>「<b>残置した地の文・箇条書きが、変更前と同じものに係っているか</b>」を見る。</li>
+    <li><b>前後どちらの残置テキストも見る。</b> 現行の「直前の節が…」は、PR #139（新設した見出しの配下へ既存の段落群が入ってしまった形）を<b>射程内の操作なのに検出できなかった</b>。</li>
+  </ul>
+
+  <h3>A-3. 実例（計4件）</h3>
+  <p><b>既存2件を1行も消さない</b>（受け入れ条件）。109〜114行の6行はそのまま残し、2件を足す。</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>実例</th><th>何を示すか</th><th>扱い</th></tr></thead>
+    <tbody>
+      <tr><td><code>計画の2階層構造</code> の位置（issue #64）</td><td>挿入位置の<b>前</b>が壊れる</td><td><span class="tag ok">既存のまま残す</span></td></tr>
+      <tr><td>ファイルごとに結論が変わる（issue #64）</td><td>同じ節名でも判定が変わる</td><td><span class="tag ok">既存のまま残す</span></td></tr>
+      <tr><td>issue #109</td><td><b>分割前は正しかった行が、分割によって誤りになる</b></td><td><span class="tag warn">追加</span></td></tr>
+      <tr><td>PR #139</td><td>新設した見出しの<b>後ろ</b>が巻き込まれる</td><td><span class="tag warn">追加</span></td></tr>
+    </tbody>
+  </table>
+  </div>
+  <ul>
+    <li>issue #155 は<b>5件目として並べない</b>（4件で方向・操作の両軸が揃い、5件は読み手の負担になる）。代わりに A-1 の根拠として<b>1行だけ</b>触れる（「箇条書きへ項を1つ足しただけでも起きた」）。</li>
+    <li>4件それぞれについて、<b>書き換え後の文言を読んで「見るべきだった」と分かるか</b>を机上で突き合わせる（上位計画の検証条件）。</li>
+  </ul>
+
+  <h3>A-4. 書き換えるときに自分が踏んではいけない罠</h3>
+  <div class="box stop">
+    <span class="label">PR #139 と同じ事故</span>
+    <b>この段落の直後（116行以降）は <code>HANDOFF.md</code> の進捗記号を扱う無関係な段落である。</b>
+    一般化にあたって新しい見出しを立てると、その段落が新しい見出しの配下に入り、<b>PR #139 とまったく同じ事故</b>を起こす。次のいずれかを守る。
+    <ul>
+      <li>新しい見出しを<b>立てない</b>（現行と同じく、見出しを持たない段落として書く）。</li>
+      <li>立てるなら、直後の <code>HANDOFF.md</code> の段落にも<b>見出しを与える</b>。</li>
+    </ul>
+    <b>どちらを採るかは flow-id 3-6 の作業時に決めてよい</b>が、決めた根拠を作業結果へ書く。
+  </div>
+</section>
+
+<section id="target-b">
+  <h2>B: ルート <code>REVIEW-POINTS.md</code> の書き換え</h2>
+  <p>「ドキュメントの構造」節の該当2行を、次の2点を<b>単独で読めるだけの中身</b>を持つ形へ書き換える。</p>
+  <ol>
+    <li><b>発動条件</b>: 既存の記述を残したまま、その周囲を編集したとき。</li>
+    <li><b>前後どちらも見る</b>こと。</li>
+  </ol>
+  <ul>
+    <li>詳細（4件の実例・背景）はAへのリンクで足りる。観点表は<b>判定に必要な最小限</b>を持てばよい。</li>
+    <li><b>既存の「挿入するなら節の末尾（次の見出しの直前）へ回す」という具体的な逃げ道は残す</b>（一般化で抽象度が上がった分、対処の手がかりが消えるのを避ける）。</li>
+    <li><b>同じ節の他の観点との重複を作らない。</b> 直下に「同じ内容が複数ファイルに重複して書かれていないか」があるため、そこと混ざらない位置・粒度にする。</li>
+  </ul>
+</section>
+
+<section id="out-of-scope">
+  <h2>やらないこと（スコープ外）</h2>
+  <div class="box stop">
+    <span class="label">この計画では決めない・触らない</span>
+    <ul>
+      <li><b>DDRの作成</b>。新規DDRを作ることは調査で確定済みだが、作成は<b>フェーズ4（flow-id 4-6）</b>で行う。</li>
+      <li><b><code>.claude/agents/adversarial-reviewer.md</code> の改修</b>（上位計画のスコープ外。Bで足りると判定済み）。</li>
+      <li><b><code>.gemini/</code> の再生成</b>。flow-id 5-3 の <code>sync-gemini-assets.sh</code> が行う。<b>直接編集しない。</b></li>
+      <li><b>過去ドキュメントの遡及点検</b>（上位計画のスコープ外。別issueへ送る）。</li>
+      <li><b><code>.claude/docs/spec/</code> への反映</b>。フェーズ4で扱う。</li>
+    </ul>
+  </div>
+</section>
+
+<section id="verify">
+  <h2>検証</h2>
+  <p><b>作業が終わったと言える条件は、次の4つがすべて満たされていることである。</b></p>
+  <ul>
+    <li><b>既存2実例（計6行）が1行も消えていない。</b> 下記コマンドが <code>0</code> を出す。</li>
+    <li><b>4件の実例すべてが、書き換え後の文言の下で「見るべきだった」と説明できる。</b> 4件×判定を作業結果（<code>reports/…md</code>）へ表で書く。</li>
+    <li><b>ルート <code>REVIEW-POINTS.md</code> が、Aを読まなくても (i) 発動条件と (ii) 前後どちらも見ること を伝えている。</b> 該当行だけを抜き出して読み、2点が読み取れるかで判定する。</li>
+    <li><b>A-4 の罠を踏んでいない。</b> 書き換え後の <code>.claude/rules/docs-workflow.md</code> で、<code>HANDOFF.md</code> の進捗記号を扱う段落が、新しい見出しの配下に入っていないことを確認する。</li>
+  </ul>
+  <pre><code># 既存2実例（.claude/rules/docs-workflow.md の109〜114行、計6行）が1行も消えていないこと。
+# 判定語は6行それぞれに固有のものを選ぶ（1語だと途中行の削除を見逃す）。
+# 対象パスは書き換え先2箇所の両方（.claude/ とルート REVIEW-POINTS.md）。
+# 分岐点SHAは直接渡す（origin/main は fetch のたびに動くため）。
+base=4be448af553c82c0fcf731705b0cd1d08bf23f29
+git diff "$base" -- .claude/ REVIEW-POINTS.md | grep '^-' | grep -cF \
+  -e '末尾に節全体へかかる地の文' \
+  -e 'での機械的列挙・flow-id 1-4の判定' \
+  -e 'の直前へ新節を入れた' \
+  -e '同じ節名でもファイルごとに結論が変わる' \
+  -e '直後に地の文が無く' \
+  -e '入れられたから安全' || true
+
+# A-4 の確認: 書き換えた段落と HANDOFF.md の段落の間に見出しが増えていないか、
+# 増えているなら HANDOFF.md の段落にも見出しが付いているかを目視する。
+sed -n '100,130p' .claude/rules/docs-workflow.md</code></pre>
+  <div class="box ok">
+    <span class="label">空振りしないことの確認</span>
+    <b>上のコマンドが空振りしないことは flow-id 2-6 で確認済みである</b>（6行を1行ずつ削ったツリーでそれぞれ <code>1</code> が出る。結果は <code>reports/20260823_brisk-weaving-lantern_係り先ルールの射程調査.md</code>「全体作業計画の検証コマンドの空振り確認」）。<b>2つ目の <code>sed</code> は目視の材料であって合否判定ではない</b>（実行できたことは何も保証しない）。
+  </div>
+</section>
+
+<section id="criteria">
+  <h2>issueの受け入れ条件との対応</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>受け入れ条件</th><th>この計画での対応</th></tr></thead>
+    <tbody>
+      <tr><td>該当ルールが節の分割・再構成を含む形に更新されている</td><td>A-1・A-2</td></tr>
+      <tr><td>issue #64 の既存の実例を消さずに issue #109 の実例が追加されている</td><td>A-3（検証コマンドで機械的に確認）</td></tr>
+      <tr><td>拡張後の記述が issue #64 由来の既存記述と矛盾していない</td><td>A-3（既存2件が一般化後の文言の下でも成立することは Q1 で確認済み）</td></tr>
+      <tr><td>DDRの要否が検討され結論が記録されている</td><td>調査で「新規に作る」と確定。作成はフェーズ4（スコープ外）</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<footer>issue #142 / PR #188 — 計画の正文は同名の <code>.md</code>。外部依存を持たない自己完結HTML。</footer>
+
+</div>
+</body>
+</html>
