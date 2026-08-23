@@ -1,12 +1,12 @@
 ---
-title: 全体作業計画 — .gemini/ の生成対象からhooks/ scripts/ docs/を外すかを判断する（issue #172）
+title: 全体作業計画 — .gemini/ に何を置くべきかを決める（issue #172）
 type: plan
-description: .gemini/ の生成対象に hooks/ scripts/ docs/ を含めるかを判断し、理由を記録するissue #172の全体作業計画
+description: .gemini/ の生成対象・.claude/ への依存・自立性を判断し理由を記録するissue #172の全体作業計画。当初の3ディレクトリの採否からスコープを拡大した
 tags: [plan, gemini, sync-gemini-assets, issue-mr-flow]
-keywords: [gemini, 生成対象, hooks, scripts, docs, 相対リンク, sync-gemini-assets, 判断の記録, 配布, DDR]
+keywords: [gemini, 生成対象, 自立性, 依存, skills, agents, 相対リンク, sync-gemini-assets, 判断の記録, スコープ拡大]
 ---
 
-# 全体作業計画 — .gemini/ の生成対象からhooks/ scripts/ docs/を外すかを判断する（issue #172）
+# 全体作業計画 — .gemini/ に何を置くべきかを決める（issue #172）
 
 > **この全体作業計画は planツール（Planモード）で作っていない。** 非対話セッションで、既にPlanモードを
 > 抜けた状態から着手したためハーネスからの自動命名の提示が無く、ファイル名（`mellow-drifting-lantern`）は
@@ -15,10 +15,72 @@ keywords: [gemini, 生成対象, hooks, scripts, docs, 相対リンク, sync-gem
 
 ## この計画で何をするか
 
-`.gemini/hooks/` `.gemini/scripts/` `.gemini/docs/` の3ディレクトリそれぞれについて、
-`sync-gemini-assets.sh` の生成対象に含めるかを**判断し、その理由を記録する**。
-現状維持（3つとも含める）を選んでもよいが、その場合も「判断した結果である」ことが
-後から読み取れる形で `.claude/docs/spec/sync-gemini-assets.md` に残す。
+**`.gemini/` に何を置くべきか**を判断し、その理由を記録する。現状維持を選んでもよいが、
+その場合も「判断した結果である」ことが後から読み取れる形で
+`.claude/docs/spec/sync-gemini-assets.md` に残す。
+
+## スコープ拡大（2026-08-23、フェーズ3の途中）
+
+**当初この計画は「`.gemini/hooks/` `.gemini/scripts/` `.gemini/docs/` の3ディレクトリを外すか」
+だけを扱っていた。** フェーズ3で「3つとも残す」という結論まで出したあと、ユーザーの問い
+——**「配布先が片方のCLIしか使わないとき、それぞれ独立して動くか」**——を確かめた結果、
+問いの切り方が合っていないことが分かったため、ユーザーの承認を得てスコープを広げた。
+
+### 分かったこと1: 独立して動く設計になっていない（非対称）
+
+| 構成 | 動くか | 根拠 |
+|---|---|---|
+| `.claude/` だけを残す | **動く** | `.claude/` から `.gemini/` を名指しする箇所は「生成する側」「走査除外リスト」「説明コメント」のみで、実行時に `.gemini/` を必要としない |
+| `.gemini/` だけを残す | **動かない** | `.gemini/settings.json` の hook 6本すべてが `$GEMINI_PROJECT_DIR/.claude/hooks/…` を指す。`GEMINI.md` は `@./AGENTS.md` → `@./.claude/rules/agent-common.md` を辿る。`.gemini/agents/issue-mr-resume.md` は `source .claude/scripts/src/vcs/Provider.sh` を実行する |
+
+### 分かったこと2: 軸1を公式ドキュメントで裏取りできた
+
+フェーズ2・3の判断は「Gemini CLI 未観測のまま」行っていたが、公式ドキュメントで確認できた
+（`google-gemini/gemini-cli` の `docs/cli/skills.md`・`docs/reference/commands.md`・
+`docs/reference/configuration.md`・`docs/cli/gemini-md.md`。**実機の観測ではなく
+ドキュメントの読解**であることに注意する）。
+
+| `.gemini/` 配下 | 読むか | 根拠 |
+|---|---|---|
+| `settings.json` | 読む | プロジェクト設定 |
+| **`skills/`** | **読む** | workspace skills。セッション開始時に name+description をシステムプロンプトへ注入し、`activate_skill` で本文を注入 |
+| **`agents/`** | **読む** | `/agents reload` が「`~/.gemini/agents` と `.gemini/agents` を再スキャン」と明記 |
+| `commands/*.toml` | 読む | カスタムスラッシュコマンド |
+| `sandbox-*.sb` / `sandbox.Dockerfile` | 読む | サンドボックスプロファイル |
+| `rules/` `docs/` `hooks/` `scripts/` | **記載なし** | — |
+
+- 「`hooks/` `scripts/` `docs/` は読まれない」という**フェーズ2の調査結果は正しかった**。
+- ただし**フェーズ3レポートの結論5-2は誤り**である。「軸1の0件根拠は `.gemini/rules/`
+  `.gemini/skills/` にも同じ強さで当たる」と書いたが、**`skills/` は読まれる**。
+  案2の却下理由の片方が成り立たない（もう片方——残る `.gemini/docs/` から2件切れる——は生きている）。
+
+### 分かったこと3: 読まれる側と複製されている側が食い違っている
+
+```
+Gemini CLI ──読む──> .gemini/settings.json ──指す────> .claude/hooks/*.sh
+           ──読む──> .gemini/skills/   ──指す(366件)──> .claude/scripts/, .claude/docs/
+           ──読む──> .gemini/agents/   ──指す(8件)────> .claude/scripts/vcs/Provider.sh
+           ──読む──> GEMINI.md ─@./AGENTS.md──────────> .claude/rules/agent-common.md
+
+.gemini/rules/ docs/ hooks/ scripts/ ＝ 誰も読まない（複製のみ）
+```
+
+**読まれる3つは全部 `.claude/` へ依存し、読まれない4つが複製されている。** 元の問い
+（3ディレクトリを外すか）は、この構造のうち複製側の一部（4つのうち3つ）にしか触れていない。
+
+### 拡大後に決める3論点
+
+1. **`.gemini/` を自立させるか、`.claude/` への依存を明示するか。**
+2. **読まれない4ディレクトリ（`rules/` `docs/` `hooks/` `scripts/`）の扱い。**
+3. **`.agents/skills/` エイリアスを使うか**（Claude Code と共用できる中立パス）。
+
+**「今の設計がベスト」という結論も残す**——依存を明示するのは、それ自体が正当な設計判断である。
+
+### フェーズ3までの成果の扱い
+
+**破棄しない。** 4軸の適用結果・案2/案3の却下理由・配布先の再適用の弱点（結論7）は、
+拡大後の論点2の材料としてそのまま使える。誤りだった結論5-2・結論8は訂正済み・訂正対象として
+`wip/reports/20260823_mellow-drifting-lantern_gemini生成対象の採否.md` に残す。
 
 ## 変更対象
 
@@ -43,6 +105,12 @@ keywords: [gemini, 生成対象, hooks, scripts, docs, 相対リンク, sync-gem
 3ディレクトリを一括で決めず、**1つずつ独立に結論を出す**。issue本文の見立て
 （hooks/ scripts/ は使われない、docs/ は外すとリンクが切れうる）は仮説として扱い、
 フェーズ2で件数付きで検証してから採否を決める。
+
+**スコープ拡大後の追記**: 上の3軸は**複製側（読まれない4ディレクトリ）にしか当たらない**。
+拡大後は、これに**「Gemini CLI が読む側（`skills/` `agents/` `settings.json`）が
+`.claude/` へ依存していてよいか」**という第4の軸が加わる。この軸は3ディレクトリごとに
+独立に決められるものではなく、**`.gemini/` 全体の性格（自立した複製か、`.claude/` 前提の
+アダプタか）を1つ決める**問いである。**先に第4の軸を決め、その帰結として複製側を決める。**
 
 **issueは分割しない。** 受け入れ条件は3ディレクトリという同型項目の並列列挙であり、各項目は
 単独でマージされてもシステムが壊れない（1件あたりの作業は spec/DDR への追記と除外定義1行）。
@@ -73,6 +141,29 @@ keywords: [gemini, 生成対象, hooks, scripts, docs, 相対リンク, sync-gem
 **次へ進める条件**: Q1〜Q4 に件数で答えられ、3ディレクトリそれぞれについて
 「外す／残す」の判断材料が揃っていること。
 
+### スコープ拡大後の追加の問い（2回目の調査）
+
+Q1〜Q6 は**実施済み**（結果は `wip/reports/20260823_mellow-drifting-lantern_gemini生成対象の参照実態.md`）。
+拡大後は次を追加で調べる。**第4の軸（`.gemini/` 全体の性格）を決めるための材料**である。
+
+- Q7: Gemini CLI が `.gemini/` から読むパスは、公式ドキュメント上で正確にどれか。
+  `skills/` `agents/` の探索規則・優先順位・ファイル形式の要件は何か。
+  **`.agents/skills/` エイリアスの扱い**（Claude Code と共用できるか）はどうか。
+- Q8: `.gemini/skills/` `.gemini/agents/` の中身は、Gemini CLI から見て**そのまま使えるか**。
+  frontmatter の必須キー・SKILL.md の形式要件を満たしているか。満たしていない場合は何が要るか。
+- Q9: **`.gemini/` を自立させる場合に必要な変更の全量**は何か。374件の参照書き換えのほかに、
+  hooks の実体・scripts の実体・rules の import 元をどうする必要があるか。
+  **書き換えてはいけない参照**（DDR本文・過去changelog・「編集は `.claude/` 側へ」という指示・
+  生成の仕組みの説明）は何件あり、どう判別するか。
+- Q10: **依存を明示する場合に必要な変更**は何か。「Gemini CLI 利用時も `.claude/` は必須」を
+  どこに書き、読まれない複製をやめると何が壊れるか（Q3・Q4 の再利用）。
+- Q11: 配布（`install-to-project.sh`・`dist-layers.json`）は、上の2つの方向それぞれで
+  どう変わるか。**配布先が片方のCLIしか使わない場合の手順**は成立するか。
+
+**次へ進める条件**: Q7〜Q11 に答えられ、**3論点それぞれについて「どちらを採るか」の
+判断材料が揃っている**こと。Q9・Q10 は「必要な変更の全量」を出すのが目的で、
+**実装はしない**（実装はフェーズ3以降）。
+
 ## フェーズ4〈反映〉
 
 反映対象は flow-id 4-1 で洗い出す。現時点の見込みは次のとおり（確定した反映内容ではない）。
@@ -90,10 +181,16 @@ keywords: [gemini, 生成対象, hooks, scripts, docs, 相対リンク, sync-gem
 
 ## やらないこと（スコープ外）
 
-- **変換規則そのもの（agents の frontmatter・settings.json のキー対応）の変更**。
-  issue #172 が扱うのは「コピー対象に何を含めるか」だけである。
+- ~~**変換規則そのもの（agents の frontmatter・settings.json のキー対応）の変更**。
+  issue #172 が扱うのは「コピー対象に何を含めるか」だけである。~~
+  → **スコープ拡大でこれは対象内になった**（2026-08-23）。`.gemini/` を自立させる判断を採る
+  場合、`settings.json` の hook `command` の向き先と、skills・agents 本文中の `.claude/…`
+  参照（計374件）の書き換えが必要になり、いずれも変換規則そのものの変更である。
+  **ただし「変換規則をどう変えるか」の実装は、自立させると決めた場合にのみ行う。**
 - **Gemini CLI の実機での動作確認**。この実行環境に Gemini CLI が無い
   （`.claude/docs/spec/sync-gemini-assets.md`「未決定事項・懸念点」に既知として記録済み）。
+  **スコープ拡大後もこれは変わらない。** 読み込み経路は公式ドキュメントの読解で裏取りするが、
+  **ドキュメントと実装が食い違う可能性は残る**ので、結論には必ずこの制約を併記する。
 - **`.gemini/` を Git 管理から外すかの再検討**。issue #70 の DDR `i0070-01` が決めた事項で、
   本issueの対象外。
 - **`permissions` の変換**（policy engine の Workspace 層待ち。同 spec の未決定事項）。
@@ -105,6 +202,10 @@ issue全体として、次がすべて満たせたら完了とする。
 - `bash .claude/scripts/src/sync-gemini-assets.sh --check` が終了コード0
 - `bash .claude/scripts/test/test_sync_gemini_assets.sh` が `passed=N failures=0`
 - 3ディレクトリそれぞれについて、判断と理由が `.claude/docs/spec/sync-gemini-assets.md` にある
+- **スコープ拡大後の追加**: 3論点（自立させるか／読まれない4ディレクトリの扱い／
+  `.agents/skills/` を使うか）それぞれについて、判断と理由が spec にある
+- **スコープ拡大後の追加**: 「配布先が片方のCLIしか使わない場合にどうなるか」が、
+  `.claude/` 単体・`.gemini/` 単体の**両方向について**記録されている
 - 外す判断をしたディレクトリについて、**切れる相対リンクの件数と、その扱い（許容する／リンクを
   書き換える／外さない）**が記録されている。**「1件も切れてはならない」とは読まない**——
   `.gemini/rules/` から `../docs/` へ向かうリンクだけで実測17件あり、その読み方だと
@@ -114,9 +215,13 @@ issue全体として、次がすべて満たせたら完了とする。
 
 ## issueの受け入れ条件との対応
 
+**issue #172 の受け入れ条件は、スコープ拡大にあわせて更新済み**（2026-08-23）。下表は更新後のもの。
+
 | issue #172 の受け入れ条件 | 対応するフェーズ |
 |---|---|
-| 3つのディレクトリそれぞれについて、生成対象に含めるかの判断と理由が記録されている | フェーズ2〈調査〉→ フェーズ3〈作業〉→ フェーズ4〈反映〉 |
+| 3論点それぞれについて、判断と理由が記録されている | フェーズ2〈調査・2回目〉→ フェーズ3〈作業〉→ フェーズ4〈反映〉 |
+| 「配布先が片方のCLIしか使わない場合にどうなるか」が両方向について記録されている | フェーズ2〈調査・2回目〉Q11 → フェーズ4〈反映〉 |
+| 各ディレクトリについて、生成対象に含めるかの判断と理由が記録されている（`rules/` を含む4つ） | フェーズ2〈調査〉→ フェーズ3〈作業〉→ フェーズ4〈反映〉 |
 | 外す判断をした場合、スクリプトとspecが更新され単体テストが `failures=0` で通る | フェーズ3〈作業〉 |
 | 外す判断をした場合、相対リンクが切れていないことを件数付きで確認している | フェーズ2〈調査〉Q3・Q4 → フェーズ3〈作業〉の検証 |
 | 現状維持とした場合も理由が spec に残っている | フェーズ4〈反映〉 |

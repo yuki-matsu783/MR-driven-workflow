@@ -108,8 +108,8 @@
 <header class="band">
   <div class="inner">
     <div class="kind">全体作業計画 / フェーズ1</div>
-    <h1>.gemini/ の生成対象から hooks/ scripts/ docs/ を外すかを判断する</h1>
-    <p class="lead">3つのディレクトリそれぞれについて、<code>sync-gemini-assets.sh</code> の生成対象に含めるかを判断し、その理由を記録する。現状維持を選ぶ場合も「判断した結果である」ことが後から読み取れる形で残す。</p>
+    <h1>.gemini/ に何を置くべきかを決める</h1>
+    <p class="lead">生成対象・<code>.claude/</code> への依存・自立性を判断し、その理由を記録する。現状維持を選ぶ場合も「判断した結果である」ことが後から読み取れる形で残す。<b>当初の「3ディレクトリの採否」からスコープを拡大した。</b></p>
     <ul class="meta">
       <li><b>issue</b> #172</li>
       <li><b>ブランチ</b> claude/gemini-exclude-decision-yp5p70</li>
@@ -126,6 +126,7 @@
   <h2>目次</h2>
   <ol>
     <li><a href="#goal">この計画で何をするか</a></li>
+    <li><a href="#scope-change">スコープ拡大（2026-08-23、フェーズ3の途中）</a></li>
     <li><a href="#target">変更対象</a></li>
     <li><a href="#approach">方針</a></li>
     <li><a href="#phase-research">フェーズ2〈調査〉</a></li>
@@ -143,7 +144,69 @@
 
 <section id="goal">
   <h2>この計画で何をするか</h2>
-  <p><code>.gemini/hooks/</code> <code>.gemini/scripts/</code> <code>.gemini/docs/</code> の3ディレクトリそれぞれについて、<code>sync-gemini-assets.sh</code> の生成対象に含めるかを<b>判断し、その理由を記録する</b>。現状維持（3つとも含める）を選んでもよいが、その場合も判断した結果であることが読み取れる形で <code>.claude/docs/spec/sync-gemini-assets.md</code> に残す。</p>
+  <p><b><code>.gemini/</code> に何を置くべきか</b>を判断し、その理由を記録する。現状維持を選んでもよいが、その場合も判断した結果であることが読み取れる形で <code>.claude/docs/spec/sync-gemini-assets.md</code> に残す。</p>
+</section>
+
+<section id="scope-change">
+  <h2>スコープ拡大（2026-08-23、フェーズ3の途中）</h2>
+  <div class="box warn">
+    <span class="label">問いの切り方が合っていなかった</span>
+    <p><b>当初この計画は「<code>.gemini/hooks/</code> <code>.gemini/scripts/</code> <code>.gemini/docs/</code> の3ディレクトリを外すか」だけを扱っていた。</b> フェーズ3で「3つとも残す」という結論まで出したあと、ユーザーの問い——<b>「配布先が片方のCLIしか使わないとき、それぞれ独立して動くか」</b>——を確かめた結果、問いの切り方が合っていないことが分かったため、ユーザーの承認を得てスコープを広げた。</p>
+  </div>
+
+  <h3>分かったこと1: 独立して動く設計になっていない（非対称）</h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>構成</th><th>動くか</th><th>根拠</th></tr></thead>
+    <tbody>
+      <tr><td><code>.claude/</code> だけを残す</td><td><b>動く</b></td><td><code>.claude/</code> から <code>.gemini/</code> を名指しする箇所は「生成する側」「走査除外リスト」「説明コメント」のみで、実行時に <code>.gemini/</code> を必要としない</td></tr>
+      <tr><td><code>.gemini/</code> だけを残す</td><td><b>動かない</b></td><td><code>.gemini/settings.json</code> の hook 6本すべてが <code>$GEMINI_PROJECT_DIR/.claude/hooks/…</code> を指す。<code>GEMINI.md</code> は <code>@./AGENTS.md</code> → <code>@./.claude/rules/agent-common.md</code> を辿る。<code>.gemini/agents/issue-mr-resume.md</code> は <code>source .claude/scripts/src/vcs/Provider.sh</code> を実行する</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>分かったこと2: 軸1を公式ドキュメントで裏取りできた</h3>
+  <p>フェーズ2・3の判断は「Gemini CLI 未観測のまま」行っていたが、公式ドキュメントで確認できた（<code>google-gemini/gemini-cli</code> の <code>docs/cli/skills.md</code>・<code>docs/reference/commands.md</code>・<code>docs/reference/configuration.md</code>・<code>docs/cli/gemini-md.md</code>。<b>実機の観測ではなくドキュメントの読解</b>であることに注意する）。</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th><code>.gemini/</code> 配下</th><th>読むか</th><th>根拠</th></tr></thead>
+    <tbody>
+      <tr><td><code>settings.json</code></td><td>読む</td><td>プロジェクト設定</td></tr>
+      <tr><td><b><code>skills/</code></b></td><td><b>読む</b></td><td>workspace skills。セッション開始時に name+description をシステムプロンプトへ注入し、<code>activate_skill</code> で本文を注入</td></tr>
+      <tr><td><b><code>agents/</code></b></td><td><b>読む</b></td><td><code>/agents reload</code> が「<code>~/.gemini/agents</code> と <code>.gemini/agents</code> を再スキャン」と明記</td></tr>
+      <tr><td><code>commands/*.toml</code></td><td>読む</td><td>カスタムスラッシュコマンド</td></tr>
+      <tr><td><code>sandbox-*.sb</code> / <code>sandbox.Dockerfile</code></td><td>読む</td><td>サンドボックスプロファイル</td></tr>
+      <tr><td><code>rules/</code> <code>docs/</code> <code>hooks/</code> <code>scripts/</code></td><td><b>記載なし</b></td><td>—</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <ul>
+    <li>「<code>hooks/</code> <code>scripts/</code> <code>docs/</code> は読まれない」という<b>フェーズ2の調査結果は正しかった</b>。</li>
+    <li>ただし<b>フェーズ3レポートの結論5-2は誤り</b>である。「軸1の0件根拠は <code>.gemini/rules/</code> <code>.gemini/skills/</code> にも同じ強さで当たる」と書いたが、<b><code>skills/</code> は読まれる</b>。案2の却下理由の片方が成り立たない（もう片方——残る <code>.gemini/docs/</code> から2件切れる——は生きている）。</li>
+  </ul>
+
+  <h3>分かったこと3: 読まれる側と複製されている側が食い違っている</h3>
+<pre><code>Gemini CLI ──読む──&gt; .gemini/settings.json ──指す────&gt; .claude/hooks/*.sh
+           ──読む──&gt; .gemini/skills/   ──指す(366件)──&gt; .claude/scripts/, .claude/docs/
+           ──読む──&gt; .gemini/agents/   ──指す(8件)────&gt; .claude/scripts/vcs/Provider.sh
+           ──読む──&gt; GEMINI.md ─@./AGENTS.md──────────&gt; .claude/rules/agent-common.md
+
+.gemini/rules/ docs/ hooks/ scripts/ ＝ 誰も読まない（複製のみ）</code></pre>
+  <p><b>読まれる3つは全部 <code>.claude/</code> へ依存し、読まれない4つが複製されている。</b> 元の問い（3ディレクトリを外すか）は、この構造のうち複製側の一部（4つのうち3つ）にしか触れていない。</p>
+
+  <h3>拡大後に決める3論点</h3>
+  <ol>
+    <li><b><code>.gemini/</code> を自立させるか、<code>.claude/</code> への依存を明示するか。</b></li>
+    <li><b>読まれない4ディレクトリ（<code>rules/</code> <code>docs/</code> <code>hooks/</code> <code>scripts/</code>）の扱い。</b></li>
+    <li><b><code>.agents/skills/</code> エイリアスを使うか</b>（Claude Code と共用できる中立パス）。</li>
+  </ol>
+  <div class="box ok">
+    <span class="label">結論を先に決めていない</span>
+    <p><b>「今の設計がベスト」という結論も残す</b>——依存を明示するのは、それ自体が正当な設計判断である。</p>
+  </div>
+
+  <h3>フェーズ3までの成果の扱い</h3>
+  <p><b>破棄しない。</b> 4軸の適用結果・案2/案3の却下理由・配布先の再適用の弱点（結論7）は、拡大後の論点2の材料としてそのまま使える。誤りだった結論5-2・結論8は訂正済み・訂正対象として <code>wip/reports/20260823_mellow-drifting-lantern_gemini生成対象の採否.md</code> に残す。</p>
 </section>
 
 <section id="target">
@@ -190,6 +253,17 @@
     <li><b>Q6</b>: 除外は何をどれだけ減らすか（<code>.gemini/</code> のファイル数・バイト数、<code>--check</code> の所要時間）。現状の実測値はどれくらいか。<b>「配布物のサイズ」は減らない</b>——<code>.claude/dist-layers.json</code> は <code>.gemini</code> を <code>layer: exclude</code> と定義しており、<code>.gemini/</code> はそもそも配られない（配布先で <code>install-to-project.sh</code> が <code>sync-gemini-assets.sh</code> を実行して生成する）。減るのは<b>配布先で生成される <code>.gemini/</code> のサイズ</b>であって、配布物のサイズとは別物である。</li>
   </ul>
   <p><b>次へ進める条件</b>: Q1〜Q4 に件数で答えられ、3ディレクトリそれぞれについて「外す／残す」の判断材料が揃っていること。</p>
+
+  <h3>スコープ拡大後の追加の問い（2回目の調査）</h3>
+  <p>Q1〜Q6 は<b>実施済み</b>（結果は <code>wip/reports/20260823_mellow-drifting-lantern_gemini生成対象の参照実態.md</code>）。拡大後は次を追加で調べる。<b>第4の軸（<code>.gemini/</code> 全体の性格）を決めるための材料</b>である。</p>
+  <ul>
+    <li><b>Q7</b>: Gemini CLI が <code>.gemini/</code> から読むパスは、公式ドキュメント上で正確にどれか。<code>skills/</code> <code>agents/</code> の探索規則・優先順位・ファイル形式の要件は何か。<b><code>.agents/skills/</code> エイリアスの扱い</b>（Claude Code と共用できるか）はどうか。</li>
+    <li><b>Q8</b>: <code>.gemini/skills/</code> <code>.gemini/agents/</code> の中身は、Gemini CLI から見て<b>そのまま使えるか</b>。frontmatter の必須キー・SKILL.md の形式要件を満たしているか。満たしていない場合は何が要るか。</li>
+    <li><b>Q9</b>: <b><code>.gemini/</code> を自立させる場合に必要な変更の全量</b>は何か。374件の参照書き換えのほかに、hooks の実体・scripts の実体・rules の import 元をどうする必要があるか。<b>書き換えてはいけない参照</b>（DDR本文・過去changelog・「編集は <code>.claude/</code> 側へ」という指示・生成の仕組みの説明）は何件あり、どう判別するか。</li>
+    <li><b>Q10</b>: <b>依存を明示する場合に必要な変更</b>は何か。「Gemini CLI 利用時も <code>.claude/</code> は必須」をどこに書き、読まれない複製をやめると何が壊れるか（Q3・Q4 の再利用）。</li>
+    <li><b>Q11</b>: 配布（<code>install-to-project.sh</code>・<code>dist-layers.json</code>）は、上の2つの方向それぞれでどう変わるか。<b>配布先が片方のCLIしか使わない場合の手順</b>は成立するか。</li>
+  </ul>
+  <p><b>次へ進める条件</b>: Q7〜Q11 に答えられ、<b>3論点それぞれについて「どちらを採るか」の判断材料が揃っている</b>こと。Q9・Q10 は「必要な変更の全量」を出すのが目的で、<b>実装はしない</b>（実装はフェーズ3以降）。</p>
 </section>
 
 <section id="phase-apply">
@@ -210,8 +284,8 @@
   <div class="box stop">
     <span class="label">この計画では決めない・触らない</span>
     <ul>
-      <li><b>変換規則そのもの</b>（agents の frontmatter・settings.json のキー対応）の変更。issue #172 が扱うのは「コピー対象に何を含めるか」だけ。</li>
-      <li><b>Gemini CLI の実機での動作確認</b>。この実行環境に Gemini CLI が無い（spec の「未決定事項・懸念点」に既知として記録済み）。</li>
+      <li><s><b>変換規則そのもの</b>（agents の frontmatter・settings.json のキー対応）の変更。issue #172 が扱うのは「コピー対象に何を含めるか」だけ。</s> → <b>スコープ拡大でこれは対象内になった</b>（2026-08-23）。<code>.gemini/</code> を自立させる判断を採る場合、<code>settings.json</code> の hook <code>command</code> の向き先と、skills・agents 本文中の <code>.claude/…</code> 参照（計374件）の書き換えが必要になり、いずれも変換規則そのものの変更である。<b>ただし「変換規則をどう変えるか」の実装は、自立させると決めた場合にのみ行う。</b></li>
+      <li><b>Gemini CLI の実機での動作確認</b>。この実行環境に Gemini CLI が無い（spec の「未決定事項・懸念点」に既知として記録済み）。<b>スコープ拡大後もこれは変わらない。</b> 読み込み経路は公式ドキュメントの読解で裏取りするが、<b>ドキュメントと実装が食い違う可能性は残る</b>ので、結論には必ずこの制約を併記する。</li>
       <li><b><code>.gemini/</code> を Git 管理から外すかの再検討</b>。DDR <code>i0070-01</code> が決めた事項で本issueの対象外。</li>
       <li><b><code>permissions</code> の変換</b>（policy engine の Workspace 層待ち。同 spec の未決定事項）。</li>
     </ul>
@@ -227,6 +301,8 @@ bash .claude/scripts/test/test_sync_gemini_assets.sh</code></pre>
     <li><code>--check</code> が終了コード0</li>
     <li>単体テストが <code>passed=N failures=0</code></li>
     <li>3ディレクトリそれぞれについて、判断と理由が <code>.claude/docs/spec/sync-gemini-assets.md</code> にある</li>
+    <li><b>スコープ拡大後の追加</b>: 3論点（自立させるか／読まれない4ディレクトリの扱い／<code>.agents/skills/</code> を使うか）それぞれについて、判断と理由が spec にある</li>
+    <li><b>スコープ拡大後の追加</b>: 「配布先が片方のCLIしか使わない場合にどうなるか」が、<code>.claude/</code> 単体・<code>.gemini/</code> 単体の<b>両方向について</b>記録されている</li>
     <li>外す判断をしたディレクトリについて、<b>切れる相対リンクの件数と、その扱い（許容する／リンクを書き換える／外さない）</b>が記録されている。<b>「1件も切れてはならない」とは読まない</b>——<code>.gemini/rules/</code> から <code>../docs/</code> へ向かうリンクだけで実測17件あり、その読み方だと「docs/ を外す」という結論だけが検証条件によって先に封じられ、「3ディレクトリを1つずつ独立に結論を出す」という方針と噛み合わなくなるため（issue #172 の受け入れ条件の解釈を、ここで1つに固定する）</li>
   </ul>
 </section>
@@ -235,9 +311,12 @@ bash .claude/scripts/test/test_sync_gemini_assets.sh</code></pre>
   <h2>issueの受け入れ条件との対応</h2>
   <div class="tablewrap">
   <table>
+    <caption style="caption-side:top;text-align:left;padding-bottom:.5em"><b>issue #172 の受け入れ条件は、スコープ拡大にあわせて更新済み</b>（2026-08-23）。下表は更新後のもの。</caption>
     <thead><tr><th>issue #172 の受け入れ条件</th><th>対応するフェーズ</th></tr></thead>
     <tbody>
-      <tr><td>3つのディレクトリそれぞれについて、生成対象に含めるかの判断と理由が記録されている</td><td>フェーズ2〈調査〉→ フェーズ3〈作業〉→ フェーズ4〈反映〉</td></tr>
+      <tr><td>3論点それぞれについて、判断と理由が記録されている</td><td>フェーズ2〈調査・2回目〉→ フェーズ3〈作業〉→ フェーズ4〈反映〉</td></tr>
+      <tr><td>「配布先が片方のCLIしか使わない場合にどうなるか」が両方向について記録されている</td><td>フェーズ2〈調査・2回目〉Q11 → フェーズ4〈反映〉</td></tr>
+      <tr><td>各ディレクトリについて、生成対象に含めるかの判断と理由が記録されている（<code>rules/</code> を含む4つ）</td><td>フェーズ2〈調査〉→ フェーズ3〈作業〉→ フェーズ4〈反映〉</td></tr>
       <tr><td>外す判断をした場合、スクリプトとspecが更新され単体テストが <code>failures=0</code> で通る</td><td>フェーズ3〈作業〉</td></tr>
       <tr><td>外す判断をした場合、相対リンクが切れていないことを件数付きで確認している</td><td>フェーズ2〈調査〉Q3・Q4 → フェーズ3〈作業〉の検証</td></tr>
       <tr><td>現状維持とした場合も理由が spec に残っている</td><td>フェーズ4〈反映〉</td></tr>
