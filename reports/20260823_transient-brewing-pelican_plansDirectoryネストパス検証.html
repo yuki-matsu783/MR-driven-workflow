@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>plansDirectoryネストパス実機検証結果（issue #165）</title>
+<style>
+  :root {
+    --bg: #f6f7f9;      --panel: #ffffff;   --ink: #1a1d21;     --muted: #5b636d;
+    --line: #dfe3e8;    --accent: #2563eb;  --accent-soft: #eaf0fe;
+    --ok: #1a7f4b;      --ok-soft: #e6f4ec; --warn: #a35a00;    --warn-soft: #fdf1e0;
+    --stop: #b3261e;    --stop-soft: #fdecea; --code-bg: #f0f2f5;
+    --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1216;    --panel: #161a20;   --ink: #e6e8eb;     --muted: #9aa3ad;
+      --line: #2a3038;  --accent: #7aa2f7;  --accent-soft: #1b2333;
+      --ok: #6ee7a8;    --ok-soft: #14261d; --warn: #f0b866;    --warn-soft: #2a2113;
+      --stop: #f2857c;  --stop-soft: #2b1614; --code-bg: #1d222a;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", system-ui, sans-serif;
+    line-height: 1.8; font-size: 15px;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 20px 80px; }
+  header.band {
+    background: linear-gradient(135deg, var(--accent-soft), var(--panel));
+    border-bottom: 1px solid var(--line); padding: 28px 20px 22px; margin-bottom: 28px;
+  }
+  header.band .inner { max-width: 1080px; margin: 0 auto; }
+  header.band .kind { font-size: 11px; letter-spacing: .18em; color: var(--accent); font-weight: 700; }
+  header.band h1 { margin: 6px 0 4px; font-size: 24px; line-height: 1.4; }
+  header.band .lead { margin: 0; color: var(--muted); }
+  .meta { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; padding: 0; list-style: none; }
+  .meta li {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 999px;
+    padding: 3px 12px; font-size: 12.5px; color: var(--muted); white-space: nowrap;
+  }
+  .meta li b { color: var(--ink); font-weight: 600; }
+  nav.toc {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 14px 20px; margin-bottom: 28px;
+  }
+  nav.toc h2 { margin: 0 0 8px; font-size: 13px; letter-spacing: .08em; color: var(--muted); border: 0; padding: 0; }
+  nav.toc ol { margin: 0; padding-left: 20px; }
+  nav.toc li { margin: 2px 0; }
+  a { color: var(--accent); }
+  section {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 8px 24px 22px; margin-bottom: 22px;
+  }
+  h2 { font-size: 20px; margin: 20px 0 10px; padding-bottom: 8px; border-bottom: 2px solid var(--line); }
+  h3 { font-size: 16px; margin: 22px 0 8px; color: var(--accent); }
+  p { margin: 10px 0; }
+  ul, ol { padding-left: 22px; }
+  li { margin: 4px 0; }
+  .tablewrap { overflow-x: auto; margin: 14px 0; }
+  table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 14px; }
+  th, td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: var(--accent-soft); font-weight: 600; white-space: nowrap; }
+  tbody tr:nth-child(even) td { background: color-mix(in srgb, var(--line) 22%, transparent); }
+  code {
+    background: var(--code-bg); border-radius: 5px; padding: 1px 5px; font-size: 13px;
+    font-family: "SFMono-Regular", Consolas, "Noto Sans Mono", monospace;
+  }
+  pre {
+    background: var(--code-bg); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 12px 14px; overflow-x: auto; font-size: 13px; line-height: 1.65;
+  }
+  pre code { background: none; padding: 0; }
+  .box { border-left: 4px solid var(--accent); background: var(--accent-soft);
+         border-radius: 0 var(--radius) var(--radius) 0; padding: 12px 16px; margin: 16px 0; }
+  .box > :first-child { margin-top: 0; } .box > :last-child { margin-bottom: 0; }
+  .box .label { font-size: 12px; font-weight: 700; letter-spacing: .06em; display: block; margin-bottom: 4px; }
+  .box.ok { border-color: var(--ok); background: var(--ok-soft); } .box.ok .label { color: var(--ok); }
+  .box.warn { border-color: var(--warn); background: var(--warn-soft); } .box.warn .label { color: var(--warn); }
+  footer { color: var(--muted); font-size: 13px; text-align: center; padding-top: 10px; }
+</style>
+</head>
+<body>
+
+<header class="band">
+  <div class="inner">
+    <div class="kind">調査結果レポート / フェーズ2</div>
+    <h1>plansDirectoryネストパス実機検証結果</h1>
+    <p class="lead">.claude/settings.json の plansDirectory にネストしたパス（./wip/plans）を設定した場合、Planモードが実際にそこへ出力することを新規セッションでの実機検証により確認した。</p>
+    <ul class="meta">
+      <li><b>issue</b> #165</li>
+      <li><b>ブランチ</b> claude/consolidate-wip-directories-ps6f9a</li>
+      <li><b>PR</b> #178</li>
+      <li><b>フェーズ</b> 2〈調査〉 flow-id 2-6</li>
+      <li><b>push回数</b> 5</li>
+      <li><b>作成日</b> 2026-08-23</li>
+      <li><b>正文</b> 同名の .md</li>
+    </ul>
+  </div>
+</header>
+
+<div class="wrap">
+
+<nav class="toc">
+  <h2>目次</h2>
+  <ol>
+    <li><a href="#summary">サマリ（結論の一覧）</a></li>
+    <li><a href="#conditions">実施条件（測った対象・環境）</a></li>
+    <li><a href="#findings">実施した内容と結果</a></li>
+    <li><a href="#unverified">確かめられなかったこと</a></li>
+    <li><a href="#next">設計への反映</a></li>
+    <li><a href="#surprises">想定と異なった点</a></li>
+  </ol>
+</nav>
+
+<section id="summary">
+  <h2>サマリ（結論の一覧）</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>#</th><th>問い／やったこと</th><th>結論</th><th>根拠の性質</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td>plansDirectoryのネストパス(./wip/plans)は機能するか</td><td><b>機能する</b></td><td>実測（新規セッションでのEnterPlanMode/ExitPlanMode実行）</td></tr>
+      <tr><td>2</td><td>同一セッション内での設定変更→Planモード再入で検証できるか</td><td><b>できない（偽陰性になる）</b></td><td>実測（既存の全体作業計画パスが再提示された）</td></tr>
+      <tr><td>3</td><td>.gemini/settings.jsonのネストパス対応</td><td>未検証</td><td>実行環境にGemini CLIが無い</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="conditions">
+  <h2>実施条件（測った対象・環境）</h2>
+  <ul>
+    <li>実行環境: Claude Code on the web（リモート実行環境）。検証は新規セッション（session_01A48PeEHLHrnXihSbMdmvnw）で実施</li>
+    <li>対象: このリポジトリのブランチ <code>claude/consolidate-wip-directories-ps6f9a</code>（<code>.claude/settings.json</code>の<code>plansDirectory: "./wip/plans"</code>が設定済みの状態）</li>
+    <li>実施日: 2026-08-23</li>
+  </ul>
+</section>
+
+<section id="findings">
+  <h2>実施した内容と結果</h2>
+
+  <h3>1. 新規セッションでのEnterPlanMode/ExitPlanMode実行</h3>
+  <p>本ブランチをチェックアウトさせた新規セッションを立ち上げ、<code>EnterPlanMode</code>を呼び出し、
+  提示された計画ファイルパスを確認した。</p>
+  <pre><code>提示されたパス:
+/home/user/MR-driven-workflow/wip/plans/glimmering-dancing-penguin.md
+
+Writeツールで書き込み後、ExitPlanModeでユーザー承認を得た。
+ls -la での確認:
+-rw-r--r-- 1 root root 1988 Aug 23 04:54 /home/user/MR-driven-workflow/wip/plans/glimmering-dancing-penguin.md
+
+比較: plans/ 直下に同名ファイルが誤って作られていないことも確認（該当ファイルなし）</code></pre>
+  <div class="box ok">
+    <span class="label">結論</span>
+    ネストしたパス（<code>./wip/plans</code>）は実際に機能する。<code>plans/</code>直下への
+    フォールバックは発生しなかった。
+  </div>
+
+  <h3>2. 同一セッション内での再検証（参考・失敗した方法）</h3>
+  <p>本検証に先立ち、このセッション自身で<code>.claude/settings.json</code>を書き換えてから
+  <code>EnterPlanMode</code>へ再入する方法を試したが、ハーネスは既存の計画ファイル
+  （<code>plans/transient-brewing-pelican.md</code>）をそのまま提示し続けた。</p>
+  <div class="box warn">
+    <span class="label">結論</span>
+    同一セッション内での設定変更→Planモード再入は、既に確定した計画ファイルの割り当てが
+    優先されるため検証方法として使えない（偽陰性を生む）。クリーンな検証には新規セッションが必要。
+  </div>
+</section>
+
+<section id="unverified">
+  <h2>確かめられなかったこと</h2>
+  <div class="box warn">
+    <span class="label">この結果が言っていないこと</span>
+    <ul>
+      <li><code>.gemini/settings.json</code>の<code>general.plan.directory</code>についても
+        同様にネストパスが機能するかは、Gemini CLI自体が本実行環境に存在しないため実行による
+        確認ができていない。設定ファイルの記法上の妥当性のみ、別途ドキュメントで裏付ける。</li>
+      <li>存在しないディレクトリ（<code>wip/plans</code>が事前に無い状態）でも同じ結果になるかは
+        今回未検証（検証時点で既に<code>wip/plans/.gitkeep</code>を含む状態だった）。</li>
+    </ul>
+  </div>
+</section>
+
+<section id="next">
+  <h2>設計への反映</h2>
+  <ol>
+    <li>フェーズ3で <code>.claude/settings.json</code> の <code>plansDirectory</code> を
+      <code>"./wip/plans"</code> へ正式に変更してよいと判断できる。</li>
+    <li>この検証結果と検証方法（新規セッションを使う理由）をDDRとして記録する（フェーズ4）。</li>
+    <li><code>.gemini/settings.json</code>側は、記法上の妥当性確認の結果を別途DDR/specへ記載する。</li>
+  </ol>
+</section>
+
+<section id="surprises">
+  <h2>想定と異なった点</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>計画時の見込み</th><th>実際</th><th>どう扱ったか</th></tr></thead>
+    <tbody>
+      <tr><td>同一セッション内の設定変更で検証できると想定していた</td><td>既存の計画ファイルパスが再提示され続け検証にならなかった</td><td>新規セッションでの検証方式へ切り替え（敵対的レビューでも指摘された）</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<footer>issue #165 / PR #178 — 結果の正文は同名の <code>.md</code>。外部依存を持たない自己完結HTML。</footer>
+
+</div>
+</body>
+</html>
