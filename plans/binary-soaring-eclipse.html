@@ -1,0 +1,509 @@
+<!--
+  全体作業計画（flow-id 1-4）の人間レビュー用HTMLビュー — issue #114
+  正文は同名の binary-soaring-eclipse.md。両者の内容は同期させる。
+-->
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>報告HTMLをホストしURLをマージ依頼時に通知する — issue #114</title>
+<style>
+  :root {
+    --bg: #f6f7f9;      --panel: #ffffff;   --ink: #1a1d21;     --muted: #5b636d;
+    --line: #dfe3e8;    --accent: #2563eb;  --accent-soft: #eaf0fe;
+    --ok: #1a7f4b;      --ok-soft: #e6f4ec; --warn: #a35a00;    --warn-soft: #fdf1e0;
+    --stop: #b3261e;    --stop-soft: #fdecea; --code-bg: #f0f2f5;
+    --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1216;    --panel: #161a20;   --ink: #e6e8eb;     --muted: #9aa3ad;
+      --line: #2a3038;  --accent: #7aa2f7;  --accent-soft: #1b2333;
+      --ok: #6ee7a8;    --ok-soft: #14261d; --warn: #f0b866;    --warn-soft: #2a2113;
+      --stop: #f2857c;  --stop-soft: #2b1614; --code-bg: #1d222a;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", system-ui, sans-serif;
+    line-height: 1.8; font-size: 15px;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 20px 80px; }
+
+  /* 共通ヘッダ帯 */
+  header.band {
+    background: linear-gradient(135deg, var(--accent-soft), var(--panel));
+    border-bottom: 1px solid var(--line); padding: 28px 20px 22px; margin-bottom: 28px;
+  }
+  header.band .inner { max-width: 1080px; margin: 0 auto; }
+  header.band .kind { font-size: 11px; letter-spacing: .18em; color: var(--accent); font-weight: 700; }
+  header.band h1 { margin: 6px 0 4px; font-size: 26px; line-height: 1.4; }
+  header.band .lead { margin: 0; color: var(--muted); }
+  .meta { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; padding: 0; list-style: none; }
+  .meta li {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 999px;
+    padding: 3px 12px; font-size: 12.5px; color: var(--muted); white-space: nowrap;
+  }
+  .meta li b { color: var(--ink); font-weight: 600; }
+
+  nav.toc {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 14px 20px; margin-bottom: 28px;
+  }
+  nav.toc h2 { margin: 0 0 8px; font-size: 13px; letter-spacing: .08em; color: var(--muted); border: 0; padding: 0; }
+  nav.toc ol { margin: 0; padding-left: 20px; }
+  nav.toc li { margin: 2px 0; }
+  a { color: var(--accent); }
+
+  section {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 8px 24px 22px; margin-bottom: 22px;
+  }
+  h2 { font-size: 20px; margin: 20px 0 10px; padding-bottom: 8px; border-bottom: 2px solid var(--line); }
+  h3 { font-size: 16px; margin: 22px 0 8px; color: var(--accent); }
+  p { margin: 10px 0; }
+  ul, ol { padding-left: 22px; }
+  li { margin: 4px 0; }
+  blockquote { margin: 10px 0; padding: 6px 14px; border-left: 3px solid var(--line); color: var(--muted); }
+
+  /* 表は自身の中で横スクロールする（ページ本体は横スクロールさせない） */
+  .tablewrap { overflow-x: auto; margin: 14px 0; }
+  table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 14px; }
+  th, td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: var(--accent-soft); font-weight: 600; white-space: nowrap; }
+  tbody tr:nth-child(even) td { background: color-mix(in srgb, var(--line) 22%, transparent); }
+
+  code {
+    background: var(--code-bg); border-radius: 5px; padding: 1px 5px; font-size: 13px;
+    font-family: "SFMono-Regular", Consolas, "Noto Sans Mono", monospace;
+  }
+  pre {
+    background: var(--code-bg); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 12px 14px; overflow-x: auto; font-size: 13px; line-height: 1.65;
+  }
+  pre code { background: none; padding: 0; }
+
+  /* 注意ボックス: info（既定）/ ok（決めたこと）/ warn（注意）/ stop（やらないこと・危険） */
+  .box { border-left: 4px solid var(--accent); background: var(--accent-soft);
+         border-radius: 0 var(--radius) var(--radius) 0; padding: 12px 16px; margin: 16px 0; }
+  .box > :first-child { margin-top: 0; } .box > :last-child { margin-bottom: 0; }
+  .box .label { font-size: 12px; font-weight: 700; letter-spacing: .06em; display: block; margin-bottom: 4px; }
+  .box.ok { border-color: var(--ok); background: var(--ok-soft); } .box.ok .label { color: var(--ok); }
+  .box.warn { border-color: var(--warn); background: var(--warn-soft); } .box.warn .label { color: var(--warn); }
+  .box.stop { border-color: var(--stop); background: var(--stop-soft); } .box.stop .label { color: var(--stop); }
+  .box.info .label { color: var(--accent); }
+
+  .tag { display: inline-block; border-radius: 999px; padding: 1px 9px; font-size: 12px; font-weight: 600; }
+  .tag.ok { background: var(--ok-soft); color: var(--ok); }
+  .tag.warn { background: var(--warn-soft); color: var(--warn); }
+  .tag.stop { background: var(--stop-soft); color: var(--stop); }
+
+  footer { color: var(--muted); font-size: 13px; text-align: center; padding-top: 10px; }
+</style>
+</head>
+<body>
+
+<header class="band">
+  <div class="inner">
+    <div class="kind">全体作業計画 / フェーズ1</div>
+    <h1>報告HTMLをホストしURLをマージ依頼時に通知する</h1>
+    <p class="lead">
+      <code>reports/</code> 配下の報告HTMLを、GitLabでは CI/CD Review Apps、GitHubでは GitHub Pages で
+      ホストし、マージ依頼のタイミングでそのURLをユーザーへ提示できるようにする。
+    </p>
+    <ul class="meta">
+      <li><b>issue</b> #114</li>
+      <li><b>ブランチ</b> feature-114-host-report-html-and-notify-url</li>
+      <li><b>PR</b> #180</li>
+      <li><b>フェーズ</b> 1〈起点〉 flow-id 1-4</li>
+      <li><b>push回数</b> 2</li>
+      <li><b>作成日</b> 2026-08-23</li>
+      <li><b>正文</b> 同名の .md</li>
+    </ul>
+  </div>
+</header>
+
+<div class="wrap">
+
+<nav class="toc">
+  <h2>目次</h2>
+  <ol>
+    <li><a href="#premise">前提（合意状況）</a></li>
+    <li><a href="#goal">この計画で何をするか</a></li>
+    <li><a href="#target">変更対象</a></li>
+    <li><a href="#approach">方針</a></li>
+    <li><a href="#phase-research">フェーズ2〈調査〉</a></li>
+    <li><a href="#phase-apply">フェーズ4〈反映〉</a></li>
+    <li><a href="#out-of-scope">やらないこと（スコープ外）</a></li>
+    <li><a href="#verify">検証</a></li>
+    <li><a href="#criteria">issueの受け入れ条件との対応</a></li>
+  </ol>
+</nav>
+
+<section id="premise">
+  <h2>前提（合意状況）</h2>
+  <ul>
+    <li>issue #114 の本文（目的・現状・期待する動作・受け入れ条件の4見出しは充足）</li>
+    <li>ベースブランチを <code>main</code> とすることは <b>flow-id 1-3</b> でユーザーが確認済み</li>
+    <li>issue を分割せず1件で進めることは <b>flow-id 1-4</b> でユーザーが判断（下記「方針」）</li>
+    <li><b>ホストするタイミングは案(b)</b> — 最終統括レポートのステップ（現行 <b>flow-id 5-4</b>）で
+      ホストし、マージ依頼のステップ（現行 <b>flow-id 5-6</b>）では<b>通知のみ</b>行う。
+      <b>flow-id 2-4（レビュー1周目）でユーザーが判断</b>（下記「フェーズ2〈調査〉」問い1）</li>
+    <li><b>まだ合意されていない</b>: 手段の選定（GitLab / GitHub それぞれ何でホストするか）は未確定で、
+      フェーズ2〈調査〉で決める</li>
+  </ul>
+
+  <h3>issue 起票後に前提が変わっている</h3>
+  <div class="box warn">
+    <b>flow-id の番号は #111・#112・#157 の3回で繰り下がっている。</b>
+    issue 本文および本計画の flow-id 2-2 時点の記述は、いずれも古い番号を指している。
+    以降は下表の<b>現行</b>列を使う。
+  </div>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>対象のステップ</th><th>issue 本文の記述</th><th>現行</th></tr></thead>
+    <tbody>
+      <tr><td>最終統括レポートの作成・commit・push</td><td>（issue 起票時は存在しない）</td><td><b>5-4</b></td></tr>
+      <tr><td><code>reports/</code> の削除（片付け）</td><td>5-1</td><td><b>5-5</b></td></tr>
+      <tr><td>Draft解除＝マージ依頼</td><td>5-4</td><td><b>5-6</b></td></tr>
+      <tr><td>（#157 で新設）<code>.gemini/</code> への変換同期</td><td>—</td><td>5-3</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>そのほかの変化</th><th>内容</th></tr></thead>
+    <tbody>
+      <tr><td><b>PR/MR上に統括が残るようになった</b>（#111）</td>
+          <td>flow-id 5-4 のサマリコメントと、層3の <code>upload_attachment</code> によるHTML添付が既にある。
+              <b>ただし添付は「ダウンロードできる」であって「ブラウザで開ける」ではない</b>ため、
+              #114 の目的は解消されていない</td></tr>
+      <tr><td><b>HTMLビューがテンプレート化された</b>（#54・#156）</td>
+          <td><code>plans/</code> にもHTMLビューが付いた。ホスト対象を <code>reports/</code> に限るかは
+              設計判断になる（フェーズ2で決める）</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="goal">
+  <h2>この計画で何をするか</h2>
+  <p>
+    <code>reports/日付_&lt;全体計画名&gt;_&lt;内容&gt;.html</code> をブラウザで開けるURLとして払い出す仕組みを作り、
+    <b>最終統括レポートのステップ（flow-id 5-4）でホストし、マージ依頼のステップ（flow-id 5-6）で
+    そのURLをユーザーへ提示する</b>。払い出しは <code>Provider.sh</code> の共通インターフェースへ載せ、
+    GitLab / GitHub の差異を吸収する。
+  </p>
+  <div class="box">
+    <span class="label">なぜ必要か</span>
+    報告HTMLは flow-id 5-5 で削除され、squash merge により <code>main</code> にも残らない。レビュー期間中でさえ、
+    ブラウザで開くには clone するか raw 表示を経由する必要があり、GitHub の raw は
+    HTML を <code>text/plain</code> で返すためレンダリングされない。<b>最も読んでほしいタイミングで、最も読みやすい成果物が
+    URL 1つで開けない。</b>
+  </div>
+</section>
+
+<section id="target">
+  <h2>変更対象</h2>
+  <p>全体作業計画のため、ファイル単位ではなく領域の粒度で示す。個別のファイル・行はフェーズごとの個別計画で確定させる。</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>領域</th><th>操作</th><th>何をするか</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><code>.claude/scripts/src/vcs/</code>（<code>Provider.sh</code> / <code>Github.sh</code> / <code>Gitlab.sh</code>）</td>
+        <td>変更</td>
+        <td>報告HTMLをホストしURLを返す関数を追加する。既存の <code>upload_attachment</code> と同じく
+            <b>失敗を正常系のひとつ</b>として扱い、非0終了で呼び出し側がスキップできる形にする。
+            MCP経路のヒント（<code>mcp_tool_hint</code>）も揃える</td>
+      </tr>
+      <tr>
+        <td><code>.gitlab-ci.yml</code> / <code>.github/workflows/</code></td>
+        <td>新規</td>
+        <td>Review Apps / Pages デプロイの定義。どちらもこのリポジトリには現存しない</td>
+      </tr>
+      <tr>
+        <td><code>.claude/skills/apply-mr-workflow-to-project/scripts/</code></td>
+        <td>変更（見込み）</td>
+        <td>CI設定を配布資産に<b>含めない</b>と決めた場合、<code>sync-assets.sh</code> の
+            <code>.github/</code> 一括コピーから除外する実装が要る（下記「フェーズ2〈調査〉」問い4）</td>
+      </tr>
+      <tr>
+        <td><code>.claude/skills/issue-mr-flow/SKILL.md</code></td>
+        <td>変更</td>
+        <td>flow-id <b>5-4</b> へホスト、<b>5-6</b> へ通知を組み込む</td>
+      </tr>
+      <tr>
+        <td><code>.claude/scripts/test/test_vcs_provider.sh</code></td>
+        <td>変更</td>
+        <td>追加関数の純粋ロジック（対象ファイルの選択・URL組み立て・早期リターン）の単体テスト</td>
+      </tr>
+      <tr>
+        <td><code>.claude/docs/spec/</code> / <code>.claude/docs/ddr/</code></td>
+        <td>変更・新規</td>
+        <td>フェーズ4で反映する（下記）</td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+  <p><b>最新の報告HTMLの検出</b>は、既存の <code>get_branch_work_files</code>（ブランチ固有の
+    <code>plans/</code> <code>worklog/</code> <code>reports/</code> を返す。プロバイダ非依存）を
+    再利用できないか最初に確認する。</p>
+</section>
+
+<section id="approach">
+  <h2>方針</h2>
+  <p>
+    新しい仕組みを独立して足すのではなく、<b>既存の <code>Provider.sh</code> 抽象と flow-id 5-4 の3層
+    フォールバック構造に合わせる</b>。ホスティングは外部環境（CI・Pages・Runner）に依存し、配布先で
+    必ず動くとは限らないため、<b>失敗してもフローが止まらない</b>ことを設計の前提に置く。
+  </p>
+
+  <h3>この計画で決めた前提（レビューで覆してよい）</h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>論点</th><th>決定</th><th>合意した flow-id</th><th>根拠</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>issue 分割</td>
+        <td><span class="tag ok">分割せず1件</span></td>
+        <td><b>1-4</b></td>
+        <td>「GitLab / GitHub」は外部連携先の並列列挙に当たるが、先例として #111 の
+            <code>upload_attachment</code> も両プロバイダを1 issue で実装している。
+            Provider.sh の抽象は両者が揃って初めて意味を持ち、5フェーズ43ステップの固定費を
+            二重に払う規模ではない</td>
+      </tr>
+      <tr>
+        <td>ホストするタイミング</td>
+        <td><span class="tag ok">案(b)</span> flow-id <b>5-4</b> でホスト、<b>5-6</b> で通知のみ</td>
+        <td><b>2-4</b>（レビュー1周目）</td>
+        <td>下記「フェーズ2〈調査〉」問い1</td>
+      </tr>
+      <tr>
+        <td>敵対的レビュー</td>
+        <td>各フェーズの計画時に1回、作業実施ごとに1回、自動実行しMRへインライン投稿する</td>
+        <td><b>1-4</b></td>
+        <td>ユーザーからの明示指示（下の注意書きも参照）</td>
+      </tr>
+      <tr>
+        <td>GitHub 側の実機検証</td>
+        <td>GitHub Pages を<b>有効化して実機検証まで行う</b></td>
+        <td><b>1-4</b></td>
+        <td>リポジトリは Public のため有効化可能（現状は未有効で API が404）</td>
+      </tr>
+      <tr>
+        <td>GitLab 側の実機検証</td>
+        <td>GitLab Runner を<b>立てて実機検証まで行う</b></td>
+        <td><b>1-4</b></td>
+        <td>既存の検証環境（<code>gitlab-verification-environment.md</code>）に
+            Runner は含まれていないため、その構築も作業に含める</td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="box stop">
+    <span class="label">敵対的レビューの運用は、スキルの既定を本ブランチに限り上書きしている</span>
+    <code>.claude/skills/adversarial-review/SKILL.md</code> は「実行モードの判断（起動ポリシー・絶対ルール）」で
+    (1) 対話モードでのAIによる自律起動を禁じ、(2) どちらのモードでも投稿の可否を手順3で毎回確認する
+    ことを求めている。本ブランチは<b>ユーザーの明示指示（flow-id 1-4）</b>により、(1) を自動起動へ、
+    (2) をこの計画への合意1回へ集約する形で上書きする。<b>恒久化するならスキル側へ例外を書く</b>
+    （フェーズ4の反映候補）。
+    <p><b>上書きしても、実施回数の上限は外れない。</b> 同スキル手順1は<b>各フェーズ最大3回</b>と定め、
+      <code>.claude/scripts/src/adversarial-review-count.sh</code> が機械的に強制する（カウンタは投稿の成否に
+      関わらず加算される）。レビュー往復が重なって上限に達した場合は、<b>レビューを実行せずに打ち切り、
+      その事実を報告して人間のレビューへ委ねる</b>。<code>reset</code> はAIから提案しない。</p>
+  </div>
+</section>
+
+<section id="phase-research">
+  <h2>フェーズ2〈調査〉</h2>
+  <p><b>実施する。</b> 実装方針を決めるために解かねばならない問いが、少なくとも4つ残っている。</p>
+
+  <div class="box ok">
+    <span class="label">問い1: タイミングの矛盾 — 案(b)で確定済み（flow-id 2-4）</span>
+    現行のフロー順は <b>5-4（統括レポート作成・commit・push）→ 5-5（<code>reports/</code> 削除）→
+    5-6（commit・push・Draft解除＝マージ依頼）</b>である。「マージ依頼時にホストする」を素直に実装すると
+    対象ファイルが既に無い。ユーザーの判断により、次の<b>案(b)</b>を採る。
+    <ul>
+      <li><b>(a) 不変パス</b>: CI が push ごとにデプロイし、デプロイ先をコミットSHA単位の不変パスにする</li>
+      <li><b>(b) 5-4でホスト</b>（<span class="tag ok">採用</span>）: ホスト自体を flow-id 5-4 で行い、
+        5-6 では<b>通知のみ</b>行う</li>
+      <li><b>(c) SHA指定</b>: 5-6 で、削除前のコミット（5-4 のSHA）をCIへ明示的に指定してデプロイさせる</li>
+    </ul>
+    <p>調査では<b>案の選定そのものは行わず</b>、次の2点だけを確かめる。</p>
+    <ol>
+      <li><b>案(b)が成立する条件</b>（5-4 の push を CI がどう捉えるか、5-5 の削除pushが既にホストされた
+        内容を壊さないか、5-6 でURLをどう取得するか）</li>
+      <li><b>(a)(c) を却下した理由の裏取り</b>（DDRへ残すため。推測のまま却下理由にしない）</li>
+    </ol>
+    <p>あわせて、<b><code>plans/</code> のHTMLビューをホスト対象に含めるか</b>を決める
+      （上位の判断として本フェーズへ送られている）。</p>
+  </div>
+
+  <h3>問い2: GitHub の代替手段の選定</h3>
+  <p>GitHub Pages（Actions で <code>pr-&lt;番号&gt;/</code> サブパスへデプロイ）を第一候補として、
+    次を<b>一次情報（公式ドキュメント）で</b>確認する。</p>
+  <ul>
+    <li>Pages は1リポジトリ1サイトである制約下で、PRごとの並列プレビューをどう表現するか</li>
+    <li>Actions のデプロイ完了をどう待ち、URLをどう取得するか</li>
+    <li>fork からのPRで <code>GITHUB_TOKEN</code> の書き込み権限が落ちる問題の有無</li>
+    <li>Pages 有効化に必要な操作（API で可能か、Web UI が必須か）</li>
+    <li><b>払い出されるURLの閲覧可能範囲が、リポジトリの可視性設定と一致するか</b>（private リポジトリで
+      何が起きるか。issue の受け入れ条件「プロジェクトの可視性設定に従う」は、<b>選ぶ手段によっては
+      満たせない</b>要件である）</li>
+  </ul>
+  <p><b>却下候補は、却下理由つきで必ず記録する</b>（後で「なぜそれを使わないのか」を再検討しないため）。</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>却下候補</th><th>想定される却下理由（調査で裏を取る）</th></tr></thead>
+    <tbody>
+      <tr><td>raw.githubusercontent.com</td><td>HTML を <code>text/plain</code> で返しレンダリングされない</td></tr>
+      <tr><td>Actions artifact</td><td>ダウンロードのみ。ブラウザで開けない・ログインが要る</td></tr>
+      <tr><td><code>upload_attachment</code>（既存の層3）</td>
+          <td>添付はダウンロード用。#114 の「ブラウザで開ける」を満たさない</td></tr>
+      <tr><td>外部ホスティング（Netlify等）</td>
+          <td>リポジトリ外のアカウント・シークレットが要り、配布物として成立しない</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>問い3: GitLab Review Apps の必要条件</h3>
+  <ul>
+    <li><code>.gitlab-ci.yml</code> の <code>environment.name</code>（動的環境名）・
+      <code>environment.url</code>・<code>on_stop</code> の書き方</li>
+    <li><b>ホストの実体</b>（GitLab Pages を使うか、Runner 上の静的サーバか）と、それぞれの前提</li>
+    <li><b>GitLab Runner の構築手順</b>（executor の選定・Docker版 GitLab CE への登録）</li>
+    <li>払い出された URL を <code>glab</code> から取得する方法</li>
+    <li><b>払い出されるURLの閲覧可能範囲が、プロジェクトの可視性設定と一致するか</b>。とくに
+      「Runner 上の静的サーバ」を選ぶとホスト先がGitLabのアクセス制御の外になり、
+      <b>private プロジェクトの成果物が無認証で公開されうる</b></li>
+  </ul>
+
+  <h3>問い4: 配布物としての扱い</h3>
+  <div class="box stop">
+    <span class="label">「配布対象外」という前提は成り立たない</span>
+    <code>.gitlab-ci.yml</code> / <code>.github/workflows/*.yml</code> は Claude Code の plugin 配布
+    （<code>.claude/</code> 一式）の対象外である。<b>しかし <code>apply-mr-workflow-to-project</code> の
+    配布経路では既に配布対象に入りうる</b>: <code>sync-assets.sh</code> は
+    <code>cp -R "${PROJECT_ROOT}/.github/"* "${ASSETS_DIR}/.github/"</code> で <code>.github/</code> 配下を
+    <b>丸ごと</b> <code>assets/</code> へ集め、<code>install-to-project.sh</code> が
+    <code>safe_copy_dir</code> で配布先へ展開する。つまり <code>.github/workflows/*.yml</code> を置いた瞬間、
+    <b>何も設定しなくても配布資産に載る</b>。
+  </div>
+  <ul>
+    <li>CI設定を配布資産に<b>含めるか／含めないか</b></li>
+    <li><b>含めないと決めた場合、<code>sync-assets.sh</code> / <code>install-to-project.sh</code> の
+      どこで除外するか</b>（「含めない」は何もしなければ実現されない）</li>
+    <li>含める場合、<b>配布先が既にCI設定を持っているときに壊さない</b>方法
+      （<code>.gitattributes</code> の <code>dist:begin</code>〜<code>dist:end</code> 方式が参考になる）</li>
+  </ul>
+
+  <p><b>成果物</b>: <code>reports/日付_binary-soaring-eclipse_ホスティング手段の比較.md</code>（正文）と同名の
+    <code>.html</code>（土台は <code>reports.template.html</code>。選択肢の比較が主題であり要素間の依存関係が
+    主題ではないため、canvas形式は使わない見込み）。</p>
+</section>
+
+<section id="phase-apply">
+  <h2>フェーズ4〈反映〉</h2>
+  <p><b>必ず通る。</b> 反映対象は flow-id 4-1 で洗い出すため、ここでは候補に留める（確定した反映内容として書かない）。</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>反映先</th><th>候補</th></tr></thead>
+    <tbody>
+      <tr><td><code>.claude/docs/spec/issue-mr-workflow.md</code></td>
+          <td>提供関数の表へ追加関数の行、flow-id 5-4／5-6 の節、配布物としてのCI設定の扱い</td></tr>
+      <tr><td><code>.claude/docs/spec/gitlab-verification-environment.md</code></td>
+          <td>GitLab Runner の構築手順と、実際に踏んだ落とし穴</td></tr>
+      <tr><td><code>.claude/docs/spec/distribution-assets.md</code></td>
+          <td>CI設定を配布資産に含める／含めない場合の追記</td></tr>
+      <tr><td><code>.claude/skills/adversarial-review/SKILL.md</code></td>
+          <td>起動ポリシー・投稿可否確認の上書きを恒久化する場合の例外</td></tr>
+      <tr><td><code>.claude/docs/ddr/i0114-01-….md</code></td>
+          <td>ホスティング手段とタイミングの選定、および却下案。<b>枝番は 01 から。追加したら
+              <code>bash .claude/scripts/src/generate-ddr-list.sh</code> を実行し、
+              <code>.claude/docs/README.md</code> の差分を同じコミットへ含める</b></td></tr>
+      <tr><td>AIアセット（<code>.claude/rules/</code> <code>.claude/skills/</code> <code>AGENTS.md</code>）</td>
+          <td>作業中に気づいた不備があれば</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="out-of-scope">
+  <h2>やらないこと（スコープ外）</h2>
+  <div class="box stop">
+    <span class="label">この計画では決めない・触らない</span>
+    <ul>
+      <li>ホストしたHTMLの<b>公開範囲・寿命の制御</b>（認証・自動失効等）。issue の受け入れ条件どおり、
+        プロジェクトの可視性設定に従う（判断はissue本文で確定済み）。<b>ただし「可視性設定に従えるか」の
+        確認は行う</b>（問い2・問い3）。制御を追加しないことと、確認しないことは別である</li>
+      <li>既存の flow-id 5-4 層3（<code>upload_attachment</code>）の<b>置き換え</b>。添付とホスティングは
+        目的が違うため併存させる</li>
+      <li><code>reports/</code> の削除タイミング（flow-id 5-5）そのものの変更。案(b)は削除位置を動かさずに成立する</li>
+      <li><b><code>main</code> 由来の既存テスト失敗3件の修正</b>（<code>test_block_direct_git_commit.sh</code> 1件・
+        <code>test_command_position.sh</code> 2件）。本issueの変更と無関係であり、別issueへ切り出す
+        （<b>flow-id 2-4 でユーザーが「スコープ外でOK」と同意</b>。切り出し先のissueは未起票）</li>
+    </ul>
+  </div>
+</section>
+
+<section id="verify">
+  <h2>検証</h2>
+  <p>issue #114 の受け入れ条件に対応させる。コマンド単位の検証はフェーズごとの個別計画で確定させる。</p>
+  <pre><code># 回帰（追加関数の純粋ロジック）
+bash .claude/scripts/test/test_vcs_provider.sh
+
+# 実機（GitHub）: Pages を有効化したうえで、デプロイ結果のURLをブラウザで開く
+gh api repos/yuki-matsu783/MR-driven-workflow/pages
+
+# 実機（GitLab）: Docker版 GitLab CE に Runner を登録し、Review Apps の environment URL を開く
+docker exec gitlab-runner gitlab-runner list</code></pre>
+  <p><b>合格条件</b>:
+    (1) GitHub でデプロイされたURLがブラウザで開ける、
+    (2) GitLab で Review Apps として同じことができる、
+    (3) flow-id 5-4 でホストされ、5-6 の実行時にURLがユーザーへ提示される、
+    (4) <code>test_vcs_provider.sh</code> が <code>failures=0</code>、かつ
+    <code>.claude/scripts/test/</code> の既存テストが<b>本ブランチ着手時点と同じ結果</b>
+    （<code>main</code> 由来の3件を除き緑）、
+    (5) 手順が SKILL.md の flow-id 5-4・5-6 と spec/DDR に反映されている、
+    (6) 認証・自動失効等の追加制御を入れていない。</p>
+</section>
+
+<section id="criteria">
+  <h2>issueの受け入れ条件との対応</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>受け入れ条件</th><th>この計画での対応箇所</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>GitLab運用で flow-id 5-4 を実行すると、<code>reports/</code> 配下の最新の報告HTMLが
+            CI/CD Review Apps としてデプロイされ、そのURLがユーザーへ提示される</td>
+        <td>フェーズ2 問い1・問い3 → 変更対象「CI設定」「フロー定義」。
+            <b>issue本文の「flow-id 5-4」は現行の 5-6（マージ依頼）を指す。ホスト自体は現行の 5-4 で行う</b>
+            （上記「issue 起票後に前提が変わっている」）</td>
+      </tr>
+      <tr>
+        <td>GitHub運用でも代替のホスティング手段により同様にURLが提示される仕組みが用意されている</td>
+        <td>フェーズ2 問い2 → 変更対象「Provider抽象」「CI設定」</td>
+      </tr>
+      <tr>
+        <td>ホスティングの手順が SKILL.md の flow-id 5-4、および関連する spec/ddr に反映されている</td>
+        <td>変更対象「フロー定義」＋フェーズ4〈反映〉</td>
+      </tr>
+      <tr>
+        <td>公開範囲・寿命について追加の認証・自動失効等の制御は行わない</td>
+        <td>「やらないこと（スコープ外）」に明記。検証の合格条件(6)で確認する</td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<footer>issue #114 / PR #180 — 計画の正文は同名の <code>.md</code>。外部依存を持たない自己完結HTML。</footer>
+
+</div>
+</body>
+</html>

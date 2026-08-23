@@ -1,0 +1,609 @@
+<!--
+  個別作業計画（flow-id 3-1）の人間レビュー用HTMLビュー — issue #114
+  正文は同名の 【実装】【テスト】【AIアセット作成】報告HTMLのホストとURL通知.md。両者の内容は同期させる。
+-->
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>【実装】【テスト】【AIアセット作成】報告HTMLのホストとURL通知 — issue #114</title>
+<style>
+  :root {
+    --bg: #f6f7f9;      --panel: #ffffff;   --ink: #1a1d21;     --muted: #5b636d;
+    --line: #dfe3e8;    --accent: #2563eb;  --accent-soft: #eaf0fe;
+    --ok: #1a7f4b;      --ok-soft: #e6f4ec; --warn: #a35a00;    --warn-soft: #fdf1e0;
+    --stop: #b3261e;    --stop-soft: #fdecea; --code-bg: #f0f2f5;
+    --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1216;    --panel: #161a20;   --ink: #e6e8eb;     --muted: #9aa3ad;
+      --line: #2a3038;  --accent: #7aa2f7;  --accent-soft: #1b2333;
+      --ok: #6ee7a8;    --ok-soft: #14261d; --warn: #f0b866;    --warn-soft: #2a2113;
+      --stop: #f2857c;  --stop-soft: #2b1614; --code-bg: #1d222a;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", system-ui, sans-serif;
+    line-height: 1.8; font-size: 15px;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 20px 80px; }
+
+  /* 共通ヘッダ帯 */
+  header.band {
+    background: linear-gradient(135deg, var(--accent-soft), var(--panel));
+    border-bottom: 1px solid var(--line); padding: 28px 20px 22px; margin-bottom: 28px;
+  }
+  header.band .inner { max-width: 1080px; margin: 0 auto; }
+  header.band .kind { font-size: 11px; letter-spacing: .18em; color: var(--accent); font-weight: 700; }
+  header.band h1 { margin: 6px 0 4px; font-size: 26px; line-height: 1.4; }
+  header.band .lead { margin: 0; color: var(--muted); }
+  .meta { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; padding: 0; list-style: none; }
+  .meta li {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 999px;
+    padding: 3px 12px; font-size: 12.5px; color: var(--muted); white-space: nowrap;
+  }
+  .meta li b { color: var(--ink); font-weight: 600; }
+
+  nav.toc {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 14px 20px; margin-bottom: 28px;
+  }
+  nav.toc h2 { margin: 0 0 8px; font-size: 13px; letter-spacing: .08em; color: var(--muted); border: 0; padding: 0; }
+  nav.toc ol { margin: 0; padding-left: 20px; }
+  nav.toc li { margin: 2px 0; }
+  a { color: var(--accent); }
+
+  section {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 8px 24px 22px; margin-bottom: 22px;
+  }
+  h2 { font-size: 20px; margin: 20px 0 10px; padding-bottom: 8px; border-bottom: 2px solid var(--line); }
+  h3 { font-size: 16px; margin: 22px 0 8px; color: var(--accent); }
+  p { margin: 10px 0; }
+  ul, ol { padding-left: 22px; }
+  li { margin: 4px 0; }
+  blockquote { margin: 10px 0; padding: 6px 14px; border-left: 3px solid var(--line); color: var(--muted); }
+
+  /* 表は自身の中で横スクロールする（ページ本体は横スクロールさせない） */
+  .tablewrap { overflow-x: auto; margin: 14px 0; }
+  table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 14px; }
+  th, td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: var(--accent-soft); font-weight: 600; white-space: nowrap; }
+  tbody tr:nth-child(even) td { background: color-mix(in srgb, var(--line) 22%, transparent); }
+
+  code {
+    background: var(--code-bg); border-radius: 5px; padding: 1px 5px; font-size: 13px;
+    font-family: "SFMono-Regular", Consolas, "Noto Sans Mono", monospace;
+  }
+  pre {
+    background: var(--code-bg); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 12px 14px; overflow-x: auto; font-size: 13px; line-height: 1.65;
+  }
+  pre code { background: none; padding: 0; }
+
+  /* 注意ボックス: info（既定）/ ok（決めたこと）/ warn（注意）/ stop（やらないこと・危険） */
+  .box { border-left: 4px solid var(--accent); background: var(--accent-soft);
+         border-radius: 0 var(--radius) var(--radius) 0; padding: 12px 16px; margin: 16px 0; }
+  .box > :first-child { margin-top: 0; } .box > :last-child { margin-bottom: 0; }
+  .box .label { font-size: 12px; font-weight: 700; letter-spacing: .06em; display: block; margin-bottom: 4px; }
+  .box.ok { border-color: var(--ok); background: var(--ok-soft); } .box.ok .label { color: var(--ok); }
+  .box.warn { border-color: var(--warn); background: var(--warn-soft); } .box.warn .label { color: var(--warn); }
+  .box.stop { border-color: var(--stop); background: var(--stop-soft); } .box.stop .label { color: var(--stop); }
+  .box.info .label { color: var(--accent); }
+
+  .tag { display: inline-block; border-radius: 999px; padding: 1px 9px; font-size: 12px; font-weight: 600; }
+  .tag.ok { background: var(--ok-soft); color: var(--ok); }
+  .tag.warn { background: var(--warn-soft); color: var(--warn); }
+  .tag.stop { background: var(--stop-soft); color: var(--stop); }
+
+  footer { color: var(--muted); font-size: 13px; text-align: center; padding-top: 10px; }
+</style>
+</head>
+<body>
+
+<header class="band">
+  <div class="inner">
+    <div class="kind">個別作業計画 / フェーズ3</div>
+    <h1>報告HTMLのホストとURL通知</h1>
+    <p class="lead">
+      フェーズ2で決めたホスティング手段を実装する。Provider.sh に5つの関数、GitHub / GitLab の
+      CI設定、SKILL.md の flow-id 5-4・5-6 への組み込み、配布からの除外、単体テストと実機検証。
+    </p>
+    <ul class="meta">
+      <li><b>issue</b> #114</li>
+      <li><b>ブランチ</b> feature-114-host-report-html-and-notify-url</li>
+      <li><b>PR</b> #180</li>
+      <li><b>フェーズ</b> 3〈作業〉 flow-id 3-1</li>
+      <li><b>種別</b> 【実装】【テスト】【AIアセット作成】</li>
+      <li><b>作成日</b> 2026-08-23</li>
+      <li><b>正文</b> 同名の .md</li>
+    </ul>
+  </div>
+</header>
+
+<div class="wrap">
+
+<nav class="toc">
+  <h2>目次</h2>
+  <ol>
+    <li><a href="#premise">前提（合意状況）</a></li>
+    <li><a href="#goal">この計画で何をするか</a></li>
+    <li><a href="#target">変更対象</a></li>
+    <li><a href="#approach">方針</a>（作業1〜作業8）</li>
+    <li><a href="#out-of-scope">やらないこと（スコープ外）</a></li>
+    <li><a href="#verify">検証</a></li>
+  </ol>
+</nav>
+
+<section id="premise">
+  <h2>前提（合意状況）</h2>
+
+  <div class="box ok">
+    <span class="label">この計画は新しい設計判断を行わない</span>
+    <p>
+      下表はすべてフェーズ2で合意済みで、根拠は前段の調査結果
+      （<code>reports/20260823_binary-soaring-eclipse_ホスティング手段の比較.md</code>）にある。
+      ここでは「決まったことをどう実装するか」だけを書く。
+    </p>
+  </div>
+
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>前提</th><th>合意した flow-id</th></tr></thead>
+    <tbody>
+      <tr><td>ホストは flow-id <b>5-4</b>、通知は <b>5-6</b>（案(b)）</td><td>2-4</td></tr>
+      <tr><td>GitHub は Pages「Deploy from a branch」方式（<code>gh-pages</code> の <code>pr-&lt;PR番号&gt;/</code>）</td><td>2-8</td></tr>
+      <tr><td>GitLab は Pages parallel deployments（<code>path_prefix: "mr-$CI_MERGE_REQUEST_IID"</code>）</td><td>2-8</td></tr>
+      <tr><td>ホスト対象に <code>plans/*.html</code> も含める</td><td>2-8</td></tr>
+      <tr><td>可視性によるガードを入れず<b>恒久公開</b>する。<code>gh-pages</code> の掃除も入れない</td><td>2-9</td></tr>
+      <tr><td>GitLab は<b>実装は並列のまま・実機検証は直列（単一デプロイ）まで</b></td><td>2-9</td></tr>
+      <tr><td>CI設定は<b>配布しない</b>（<code>sync-assets.sh</code> から除外する）</td><td>2-8</td></tr>
+      <tr><td>未解決スレッド10件を残したままフェーズ2を閉じてよい</td><td>2-9</td></tr>
+      <tr><td>敵対的レビュー（フェーズ3・1回目）の指摘16件を、人間のレビューを待たずに反映してよい</td><td>3-4</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <p>
+    <b>この計画で決めること</b>（レビューで覆してよい）は、下記「方針」の
+    <b>関数名・ファイル名・テストの粒度</b>の3つだけである。
+  </p>
+</section>
+
+<section id="goal">
+  <h2>この計画で何をするか</h2>
+  <p>
+    調査結果「設計への反映」は6項目あり、<b>そのうち1〜5をこの計画で実装する</b>。
+    <b>6番目（DDR <code>i0114-01</code> を残す）はフェーズ4の担当</b>なので含めない。
+  </p>
+  <p>
+    種別を3つ併記しているのは、<code>Provider.sh</code> の関数（実装）・その単体テスト（テスト）・
+    <code>SKILL.md</code> への組み込み（AIアセット作成）が<b>1つの機能を構成しており、分けても
+    合意の単位が変わらない</b>ためである（<code>SKILL.md</code> の
+    「種別を複数併記する場合／分ける場合」の基準による）。
+  </p>
+</section>
+
+<section id="target">
+  <h2>変更対象</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>ファイル</th><th>操作</th><th>何をするか</th></tr></thead>
+    <tbody>
+      <tr><td><code>.claude/scripts/src/vcs/Provider.sh</code></td><td>変更</td><td>純粋関数3つ＋公開関数2つを追加し、プロバイダへ振り分ける</td></tr>
+      <tr><td><code>.claude/scripts/src/vcs/Github.sh</code></td><td>変更</td><td><code>github_get_report_site_url</code> を追加</td></tr>
+      <tr><td><code>.claude/scripts/src/vcs/Gitlab.sh</code></td><td>変更</td><td><code>gitlab_get_report_site_url</code> を追加</td></tr>
+      <tr><td><code>.claude/skills/issue-mr-flow/assets/publish-report-site.github.yml</code></td><td>新規</td><td>GitHub Actions ワークフローの<b>雛形</b>（配布物）</td></tr>
+      <tr><td><code>.claude/skills/issue-mr-flow/assets/publish-report-site.gitlab.yml</code></td><td>新規</td><td>GitLab CI の <code>pages</code> ジョブの<b>雛形</b>（配布物）</td></tr>
+      <tr><td><code>.github/workflows/publish-report-site.yml</code></td><td>新規</td><td>上の雛形と<b>同一内容</b>。このリポジトリ自身で動かすもの</td></tr>
+      <tr><td><code>.gitlab-ci.yml</code></td><td>新規</td><td>同上（GitLab側）</td></tr>
+      <tr><td><code>.claude/skills/apply-mr-workflow-to-project/scripts/sync-assets.sh</code></td><td>変更</td><td><code>.github/</code> の一括コピーから <code>workflows/</code> と <code>index.jsonl</code> を除外する</td></tr>
+      <tr><td><code>.claude/skills/issue-mr-flow/SKILL.md</code></td><td>変更</td><td>flow-id 5-4・5-6 の行と、新節「報告サイトのホストとURL通知」、提供関数の表、MCPフォールバックの表</td></tr>
+      <tr><td><code>.claude/scripts/test/test_vcs_provider.sh</code></td><td>変更</td><td>追加関数の単体テスト</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="approach">
+  <h2>方針</h2>
+
+  <h3>作業1: <code>Provider.sh</code> に5つの関数を足す</h3>
+
+  <p><b>純粋関数3つ（単体テストの対象）</b></p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>関数</th><th>役割</th><th>戻り値</th></tr></thead>
+    <tbody>
+      <tr><td><code>report_site_prefix_to_reply &lt;provider&gt; &lt;番号&gt;</code></td><td>サブディレクトリ名を決める</td><td><code>REPLY</code> に <code>pr-&lt;番号&gt;</code>（github）／<code>mr-&lt;番号&gt;</code>（gitlab）</td></tr>
+      <tr><td><code>join_url_to_reply &lt;base&gt; &lt;path&gt;</code></td><td>ベースURLとパスを連結する</td><td><code>REPLY</code> に連結結果</td></tr>
+      <tr><td><code>github_pages_base_url_to_reply &lt;owner&gt; &lt;repo&gt;</code></td><td>Pages API が引けないときのフォールバックURLを組み立てる</td><td><code>REPLY</code> にベースURL</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <ul>
+    <li>いずれも外部コマンド・コマンド置換を含めない
+      （<code>.claude/rules/shell-script-style.md</code>「ホットパスの小さなヘルパー関数は
+      <code>REPLY</code> へ返す」）。</li>
+    <li><b><code>join_url_to_reply</code> は末尾スラッシュを付けない。</b> <code>base</code> の
+      末尾スラッシュ・<code>path</code> の先頭スラッシュを吸収してスラッシュが重複しないように
+      するだけで、末尾に足すのは <code>get_report_site_url</code> の責務とする（末尾スラッシュの
+      有無はPagesのリダイレクト・相対パス解決に影響するので、どちらが付けるかを1箇所に決めて
+      おく）。空の <code>path</code> を渡した場合は <code>base</code> をそのまま返す。</li>
+  </ul>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th><code>base</code></th><th><code>path</code></th><th><code>REPLY</code></th></tr></thead>
+    <tbody>
+      <tr><td><code>https://x.github.io/y</code></td><td><code>pr-1</code></td><td><code>https://x.github.io/y/pr-1</code></td></tr>
+      <tr><td><code>https://x.github.io/y/</code></td><td><code>pr-1</code></td><td><code>https://x.github.io/y/pr-1</code></td></tr>
+      <tr><td><code>https://x.github.io/y</code></td><td><code>/pr-1</code></td><td><code>https://x.github.io/y/pr-1</code></td></tr>
+      <tr><td><code>https://x.github.io/y/</code></td><td><code>/pr-1</code></td><td><code>https://x.github.io/y/pr-1</code></td></tr>
+      <tr><td><code>https://x.github.io/y/</code></td><td>（空）</td><td><code>https://x.github.io/y/</code></td></tr>
+    </tbody>
+  </table>
+  </div>
+  <ul>
+    <li><code>report_site_prefix_to_reply</code> は、<b>番号が空・非数値なら非0で終える</b>。
+      <b><code>&lt;provider&gt;</code> が <code>github</code> / <code>gitlab</code> 以外
+      （空文字列を含む）でも非0で終える</b>。<code>get_provider</code> は origin が
+      GitHub/GitLab のどちらでもないホストのとき空文字列を返しうる
+      （<code>get_vcs_access_mode</code> も <code>*) cli=""</code> の分岐を持つ）ため、
+      ここで弾かないと <code>https://…//</code> のような壊れたURLが組み上がる。</li>
+    <li><code>github_pages_base_url_to_reply</code> は
+      <code>https://&lt;owner&gt;.github.io/&lt;repo&gt;</code> を返すが、
+      <b><code>repo</code> が <code>&lt;owner&gt;.github.io</code> と一致する場合
+      （user/organization site）は <code>https://&lt;owner&gt;.github.io</code> を返す</b>。
+      この分岐が無いと <code>https://&lt;owner&gt;.github.io/&lt;owner&gt;.github.io</code> という
+      存在しないURLになる。</li>
+  </ul>
+
+  <p><b>公開関数2つ</b></p>
+<pre><code>get_report_site_url [&lt;MR番号&gt;]
+  成功: URL（末尾スラッシュ付き）をstdoutへ / 終了コード0
+  失敗: 理由をstderrへ / 終了コード非0
+
+wait_for_report_site &lt;url&gt; [&lt;上限秒=90&gt;] [&lt;間隔秒=5&gt;]
+  到達: 終了コード0
+  未到達: 理由をstderrへ / 終了コード非0（上限に達した場合も含む）</code></pre>
+
+  <div class="box warn">
+    <span class="label">失敗は正常系のひとつ</span>
+    <p>
+      <code>upload_attachment</code> と同じ扱いにする。呼び出し側（flow-id 5-6）は非0を受け取ったら
+      注記だけ出してフローを続ける。関数の直上コメントにもその旨を書く（既存の
+      <code>upload_attachment</code> の書き方に揃える）。
+    </p>
+  </div>
+  <ul>
+    <li>MR番号を省略したときは <code>get_mr_for_branch</code> の結果から取る。
+      <b>番号の導出はこの1経路に一本化する</b>（調査結果「設計への反映」1）。この関数はJSONを返すので
+      <code>jq -r '.number'</code> で取り出す（値は1行なので <code>tr -d</code> は挟まない）。</li>
+    <li><code>wait_for_report_site</code> は <code>curl -sS -o /dev/null -w '%{http_code}'</code> で
+      200 を待つ。<b><code>curl</code> が無い環境では即座に非0で終える</b>（待ち続けない）。</li>
+  </ul>
+
+  <h3>作業2: プロバイダ固有のURL取得</h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>プロバイダ</th><th>一次経路</th><th>フォールバック</th></tr></thead>
+    <tbody>
+      <tr><td>GitHub</td><td><code>gh api repos/{owner}/{repo}/pages --jq .html_url</code></td><td><code>github_pages_base_url_to_reply</code> で組み立てる</td></tr>
+      <tr><td>GitLab</td><td><code>glab api projects/:id/pages --jq .url</code></td><td>environments API から <code>external_url</code> を引く</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <ul>
+    <li>取得したベースURLへ <code>report_site_prefix_to_reply</code> の結果を
+      <code>join_url_to_reply</code> で足し、<b>末尾へスラッシュを1つ付けて</b>返す。</li>
+    <li><b>CLI不在（MCP経路）では <code>require_vcs_cli</code> で非0にする。</b> MCPにはPages情報を
+      引くツールが無いため、フォールバックの組み立てだけを行う経路は用意しない
+      （<b>URLが正しいと確認できないまま提示するほうが害が大きい</b>ため）。この判断は
+      <code>mcp_tool_hint</code> にも1行として載せる。</li>
+  </ul>
+
+  <h3>作業3: GitHub Actions ワークフロー</h3>
+  <p><code>.github/workflows/publish-report-site.yml</code> を新規作成する。要点だけを示す（全文は実装時）。</p>
+<pre><code>on:
+  push:
+    branches: ['feature-*']     # paths フィルタは付けない（削除の変更も拾う必要がある）
+concurrency:
+  # PR単位でグループを分ける。リポジトリ全体で1つにすると、同じグループの待機中の実行は
+  # 「1件」しか保持されず、3つ目がキューされた時点で中間のデプロイが取り消される
+  # （cancel-in-progress: false はこの取り消しを防がない）。
+  group: gh-pages-deploy-${{ github.ref }}
+  cancel-in-progress: false
+permissions:
+  contents: write
+  pull-requests: read</code></pre>
+  <p>ジョブは次の順で判定する。<b>どちらかで外れたら何もせず正常終了する</b>（<code>exit 0</code>）。</p>
+  <ol>
+    <li><b>openなPRがちょうど1件か。</b>
+      <code>gh pr list --head "$GITHUB_REF_NAME" --state open --json number</code> の件数が1でなければ
+      スキップ（0件＝PR作成前、複数件＝どれへ載せるか決まらない）。</li>
+    <li><b>対象HTMLが1件以上あるか。</b> <code>reports/*.html</code> ＋ <code>plans/*.html</code> の
+      件数が0ならスキップ。<b>これが flow-id 5-6 の削除で送られる変更を無害化する仕掛けである</b>
+      （<code>gh-pages</code> 側の <code>pr-&lt;n&gt;/</code> は触られないので残る）。</li>
+  </ol>
+  <p>デプロイの手順は次のとおり。</p>
+  <ol>
+    <li><b><code>gh-pages</code> ブランチが無ければ orphan として作る</b>
+      （<code>git switch --orphan gh-pages</code>）。このリポジトリには現在 <code>gh-pages</code> が
+      存在しないため、この分岐が無いと初回の <code>checkout</code> で必ず失敗する。</li>
+    <li><b>ルートに <code>.nojekyll</code>（空ファイル）を置く</b>（既にあれば何もしない）。
+      「Deploy from a branch」は既定でJekyllビルドを通すため、これが無いと
+      (a) <code>_</code> で始まるファイル・ディレクトリが成果物から落ち、
+      (b) HTML本文に Liquid 構文（<code>{{</code> <code>{%</code>）が含まれるとビルドごと失敗して
+      サイトが更新されない。ホストするのはAIが生成した任意のHTMLで、<code>&lt;code&gt;</code> 内へ
+      何が入るかを事前に保証できない。</li>
+    <li><code>pr-&lt;n&gt;/reports/</code> <code>pr-&lt;n&gt;/plans/</code> を<b>置き換える</b>
+      （<code>rm -rf</code> してから <code>cp</code>）。</li>
+    <li><b><code>pr-&lt;n&gt;/index.html</code> を生成する。</b> Pages は
+      <b>ディレクトリ一覧を自動生成しない</b>ため、これが無いと <code>pr-&lt;n&gt;/</code> を
+      開いても404になり、通知するURLが機能しない。内容は <code>reports/</code>
+      <code>plans/</code> 配下のHTMLへのリンク一覧（生成はワークフロー内のシェルで行い、
+      外部依存を増やさない）。</li>
+    <li><b>リモートへの反映は3回までリトライし、各回の前に <code>git pull --rebase</code> する。</b>
+      <code>concurrency</code> をPR単位へ分けた結果、別PR同士の書き込みは並走しうるため、
+      競合の吸収はこのリトライが担う。</li>
+  </ol>
+
+  <h3>作業4: GitLab CI</h3>
+  <p><code>.gitlab-ci.yml</code> を新規作成する。</p>
+<pre><code>pages:
+  stage: deploy
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+  pages:
+    path_prefix: "mr-$CI_MERGE_REQUEST_IID"
+    expire_in: never
+  artifacts:
+    paths: [public]</code></pre>
+  <ul>
+    <li><code>script</code> で <code>reports/*.html</code> <code>plans/*.html</code> を
+      <code>public/</code> へ集め、<b>0件なら <code>exit 0</code> でジョブを終える</b>
+      （GitHub側と同じガード）。</li>
+    <li><b><code>public/index.html</code> を生成する</b>（GitHub側と同じ理由。
+      <code>path_prefix</code> の付いたURLを開いたときに一覧が出るようにする）。</li>
+    <li><code>path_prefix</code> が<b>空文字列に展開されると本番サイトを上書きする</b>ため、
+      <code>$CI_MERGE_REQUEST_IID</code> が空なら <code>rules</code> で弾かれることを、
+      コメントで明記する。</li>
+  </ul>
+  <div class="box warn">
+    <span class="label">tier の制約</span>
+    <p>
+      <b><code>path_prefix</code> による並列デプロイは Premium/Ultimate 限定である</b>
+      （調査結果で確認済み）。Free tier / CE の配布先がこの雛形をそのまま置くと
+      <code>pages</code> ジョブが失敗し、MRのパイプラインが赤くなる。<b>雛形の冒頭コメントへ
+      「Free tier では <code>path_prefix</code> の行を削り単一デプロイで使うこと」を書く。</b>
+    </p>
+  </div>
+
+  <h3>作業5: 配布からの除外</h3>
+  <p>
+    <code>sync-assets.sh</code> の <code>.github</code> 同期を、<code>workflows/</code> と
+    <code>index.jsonl</code> を除いたコピーへ変える。
+  </p>
+  <p><b>置き換え前</b></p>
+<pre><code>if [ -d "${PROJECT_ROOT}/.github" ]; then
+  echo "Syncing .github templates..."
+  mkdir -p "${ASSETS_DIR}/.github"
+  cp -R "${PROJECT_ROOT}/.github/"* "${ASSETS_DIR}/.github/"
+fi</code></pre>
+  <p><b>置き換え後</b></p>
+<pre><code>if [ -d "${PROJECT_ROOT}/.github" ]; then
+  echo "Syncing .github templates..."
+  mkdir -p "${ASSETS_DIR}/.github"
+  # workflows/ は配布しない（issue #114）。配布先のCI設定を上書きしうるうえ、
+  # Pages の有効化・ブランチ運用は配布先ごとに異なる。雛形は
+  # .claude/skills/issue-mr-flow/assets/publish-report-site.*.yml として配る。
+  # index.jsonl は extract-frontmatter.sh の生成物（.gitignore対象）で、配布物へ焼き込むと
+  # 配布元のスナップショットが配布先で二重管理として残る（.gemini を除く理由と同じ）。
+  for entry in "${PROJECT_ROOT}/.github/"*; do
+    [ -e "$entry" ] || continue
+    case "${entry##*/}" in workflows|index.jsonl) continue ;; esac
+    cp -R "$entry" "${ASSETS_DIR}/.github/"
+  done
+fi</code></pre>
+  <ul>
+    <li><b><code>.github/</code> の現在の中身は <code>ISSUE_TEMPLATE/</code>・
+      <code>pull_request_template.md</code>・<code>index.jsonl</code> の3つ</b>である
+      （<code>ls -a .github/</code> で確認）。前2つは従来どおり配布し、<code>index.jsonl</code> は
+      <b>この機会に除外する</b>（現行の <code>cp -R .github/*</code> は生成物ごと配布物へ
+      焼き込んでいる）。</li>
+    <li><b><code>[ … ] &amp;&amp; continue</code> を <code>set -e</code> 配下で使わない。</b>
+      最後の要素が除外対象だった場合にループ全体の終了コードが1になり、スクリプトが落ちる。
+      上のように <code>case</code> を使う。</li>
+    <li><b><code>.gitlab-ci.yml</code> には追加の除外が要らない。</b> ルート直下のファイルは
+      <code>cp -f "${PROJECT_ROOT}/&lt;名前&gt;"</code> の<b>明示的なホワイトリスト</b>
+      （<code>.mrworkflow.json</code> / <code>AGENTS.md</code> / <code>GEMINI.md</code> /
+      <code>CLAUDE.md</code> / <code>HANDOFF.md</code> / <code>index.md</code> /
+      <code>.gitattributes</code>）で同期されており、そこへ加えなければ配布されない。
+      <b>検証4でこれを実際に確かめる</b>（根拠を書いておかないと、将来ホワイトリストが
+      増えたときに誰も気づけない）。</li>
+    <li><code>install-to-project.sh</code> 側は変更しない（<code>assets/</code> に無いものは
+      配布されないため、除外は <code>sync-assets.sh</code> の1箇所で完結する）。</li>
+  </ul>
+
+  <h3>作業6: <code>SKILL.md</code> への組み込み</h3>
+
+  <p>
+    <b>(a) flow-id 5-4 の行</b> — 1文を<b>末尾へ</b>足す。既存の3層構造と、その直後の
+    「詳細は下記…節」の係り先を動かさない。
+  </p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th></th><th>末尾の記述</th></tr></thead>
+    <tbody>
+      <tr><td><b>置き換え前</b></td><td>… <b>反映は3層のフォールバック構造</b>で、層3が壊れても層1・層2でレビューは成立する。詳細は下記「最終統括レポートとPR/MRへの反映（flow-id 5-4）」節</td></tr>
+      <tr><td><b>置き換え後</b></td><td>… <b>反映は3層のフォールバック構造</b>で、層3が壊れても層1・層2でレビューは成立する。詳細は下記「最終統括レポートとPR/MRへの反映（flow-id 5-4）」節。<b>なお、層1のリモート反映はCIを起動し、報告HTMLがPR/MR単位のURLへホストされる</b>（AIエージェントがここで行う操作は無い。URLの提示は flow-id 5-6 → 下記「報告サイトのホストとURL通知（flow-id 5-4・5-6）」節）</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <p><b>(b) flow-id 5-6 の行</b></p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th></th><th>記述</th></tr></thead>
+    <tbody>
+      <tr><td><b>置き換え前</b></td><td>… MR番号は <code>get_mr_for_branch</code> で取得できる）。<b>AIエージェントはここで止まる</b>（マージへは進まない）</td></tr>
+      <tr><td><b>置き換え後</b></td><td>… MR番号は <code>get_mr_for_branch</code> で取得できる）。<b>続けて、flow-id 5-4 でホストされた報告サイトのURLをユーザーへ提示する</b>（<code>get_report_site_url</code> → <code>wait_for_report_site</code>。<b>到達性の確認に失敗してもURLは注記つきで提示し、フローは止めない</b>。詳細は下記「報告サイトのホストとURL通知（flow-id 5-4・5-6）」節）。<b>AIエージェントはここで止まる</b>（マージへは進まない）</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <p><b>(c) 新節「報告サイトのホストとURL通知（flow-id 5-4・5-6）」</b></p>
+  <div class="box warn">
+    <span class="label">挿入位置の確認を省略しない</span>
+    <p>
+      「最終統括レポートとPR/MRへの反映（flow-id 5-4）」節の<b>直後</b>へ置く。
+      <b>直前の節の末尾が節全体にかかる地の文で終わっていないことを、挿入前に確認する</b>
+      （<code>.claude/rules/docs-workflow.md</code>「既存ドキュメントへ新しい見出しを差し込むときは」）。
+    </p>
+  </div>
+  <p>内容は次の9項目とする。</p>
+  <ol>
+    <li>なぜ 5-4 でホストし 5-6 で通知するのか（対象ファイルは 5-5 で消えるため）</li>
+    <li><b>5-5 は commit もリモート反映も持たない</b>こと。削除の確定と通知はどちらも 5-6 にあり、
+      <b>到達性確認は削除の確定より後</b>に行うこと</li>
+    <li>到達性確認の仕様（5秒間隔・最大90秒。上限到達時は注記つきで提示しフローを止めない）</li>
+    <li>呼び出し方のコード例（<code>upload_attachment</code> の節と同じ体裁）</li>
+    <li>CIが無い・失敗する環境での扱い（<b>URLが得られなくてもフローを止めない</b>）</li>
+    <li>配布先が private リポジトリの場合、<b>中身が公開される</b>という注意</li>
+    <li><b>fork からのPRではこの仕組みは動かない</b>こと（<code>on: push</code> を使うため、
+      自リポジトリのブランチであることが前提。fork の <code>pull_request</code> では
+      <code>GITHUB_TOKEN</code> が読み取り専用へ落とされ <code>gh-pages</code> へ書き込めない）</li>
+    <li><b>GitLab の並列デプロイは Premium/Ultimate 限定</b>であること（Free tier / CE では
+      <code>path_prefix</code> を外して単一デプロイで使う）</li>
+    <li><b>配布先はワークフローの <code>on.push.branches</code> を <code>.mrworkflow.json</code> の
+      <code>branchPrefixTemplate</code> に合わせて書き換える</b>必要があること</li>
+  </ol>
+
+  <p>
+    <b>(d) 提供関数の表・MCPフォールバックの表</b> —
+    <code>get_report_site_url</code> / <code>wait_for_report_site</code> の行を足す。
+    <b>MCP側は「代替なし」</b>で、<code>upload_attachment</code> の行と同じ書き方に揃える。
+  </p>
+
+  <h3>作業7: 単体テスト</h3>
+  <p>
+    <code>.claude/scripts/test/test_vcs_provider.sh</code> へ追加する。<b>テストの実行中に
+    外部プロセスが起動しない形にする</b>（起動しうる依存はサブシェル内で差し替える）。
+  </p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>対象</th><th>ケース</th></tr></thead>
+    <tbody>
+      <tr><td><code>report_site_prefix_to_reply</code></td><td>github→<code>pr-180</code> / gitlab→<code>mr-7</code> / 空番号→非0 / 非数値→非0 / <b>provider が空・未知→非0</b></td></tr>
+      <tr><td><code>join_url_to_reply</code></td><td>上の表の5通り（末尾・先頭スラッシュの4組み合わせ＋空パス）</td></tr>
+      <tr><td><code>github_pages_base_url_to_reply</code></td><td>通常のrepo→<code>https://o.github.io/r</code> / <b>repo名が <code>o.github.io</code>→<code>https://o.github.io</code></b></td></tr>
+      <tr><td><code>get_report_site_url</code></td><td><b>呼び出し経路を通す</b>（下記の差し替えを行う）</td></tr>
+      <tr><td>雛形の同一性</td><td><code>.github/workflows/publish-report-site.yml</code> と <code>assets/publish-report-site.github.yml</code> が<b>バイト単位で一致</b>する。<code>.gitlab-ci.yml</code> と <code>assets/publish-report-site.gitlab.yml</code> も同様</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="box stop">
+    <span class="label">経路テストで差し替えるもの（サブシェル内に閉じ込める）</span>
+    <ul>
+      <li><code>github_get_report_site_url</code>（プロバイダ固有の実装）</li>
+      <li><b><code>get_provider</code></b>（<code>git remote get-url origin</code> をコマンド置換で呼ぶ）</li>
+      <li><b><code>require_vcs_cli</code></b>（<code>gh</code> の有無に依存する）</li>
+      <li><b><code>_PROVIDER_CACHE=""</code></b> にしてから呼ぶ（前のテストが埋めた値を持ち越さないため）</li>
+    </ul>
+    <p>
+      この4点を差し替えないと外部プロセスが起動し、<code>gh</code> の無い環境ではテストが落ちる。
+      <b><code>test_vcs_provider.sh</code> の冒頭コメントは「Provider.sh経由のディスパッチは
+      <code>git remote get-url origin</code> に依存し純粋ではないため対象外」と書いている</b>ので、
+      <b>この経路テストを追加する際に同コメントを更新する</b>（例外を作ったことを明示する）。
+      純粋関数だけをテストしても呼び出し経路は何も保証されない（issue #127 の実例）ため、
+      経路テスト自体は残す。
+    </p>
+  </div>
+
+  <ul>
+    <li>関数の差し替えは<b>サブシェルへ閉じ込め</b>、アサーションはサブシェルの外で行う
+      （<code>.claude/rules/shell-script-style.md</code>「テスト内で既存関数を再定義してから
+      <code>unset -f</code>」）。</li>
+    <li>終了コードの検査に <code>"$(func; echo $?)"</code> の形を使わない（<code>if</code> で受ける。
+      同ルール「テスト」節）。</li>
+    <li><code>wait_for_report_site</code> は <code>curl</code> を起動するため単体テストの対象外とし、
+      <b>実機検証で確かめる</b>。</li>
+  </ul>
+
+  <h3>作業8: 実機検証</h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>順</th><th>対象</th><th>手順</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td><code>gh-pages</code> ブランチの作成</td><td>orphan ブランチとして作り、<code>.nojekyll</code> だけを置いてリモートへ反映する。<b>現状このブランチは存在しない</b>（<code>git ls-remote --heads origin gh-pages</code> が0件）ため、これを先に行わないと次の手順が失敗する</td></tr>
+      <tr><td>2</td><td>GitHub Pages の有効化</td><td><b>リポジトリ設定を変更するため、実行前にユーザーへ知らせる</b>（調査結果「残課題」）。<code>gh api -X POST repos/{owner}/{repo}/pages</code> で <code>gh-pages</code> / <code>/</code> を publishing source に設定する</td></tr>
+      <tr><td>3</td><td>GitHub のデプロイ</td><td>このPRのブランチをリモートへ反映し、<b><code>pr-180/</code> を開くと一覧（<code>index.html</code>）が表示され</b>、そこから各報告HTMLへ辿れることを確認する</td></tr>
+      <tr><td>4</td><td>GitLab（直列のみ）</td><td>Docker版 GitLab CE に Runner を登録し、<code>path_prefix</code> を<b>外した</b>単一デプロイで <code>pages</code> ジョブが通ることを確認する。<b>並列部分は実機未検証と明記する</b></td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="out-of-scope">
+  <h2>やらないこと（スコープ外）</h2>
+  <div class="box stop">
+    <span class="label">この計画では触らない</span>
+    <ul>
+      <li><b><code>gh-pages</code> ブランチの掃除</b>（PR単位ディレクトリはマージ後も残る）。恒久公開の
+        判断（flow-id 2-9）により今回は放置し、別issueの候補として <code>reports/</code> へ記録する</li>
+      <li><b>可視性によるデプロイのガード</b>（flow-id 2-9 の判断）</li>
+      <li><b>GitLab の並列デプロイの実機検証</b>（CE では不可能。flow-id 2-9 の判断）</li>
+      <li><b>spec・DDRへの反映</b>（フェーズ4。調査結果「設計への反映」の6番目）</li>
+      <li><b><code>main</code> 由来の既存テスト失敗3件の修正</b>（flow-id 2-4 でスコープ外と合意済み）</li>
+      <li>既存の <code>upload_attachment</code>（flow-id 5-4 層3）の置き換え。
+        <b>添付とホスティングは併存させる</b></li>
+    </ul>
+  </div>
+</section>
+
+<section id="verify">
+  <h2>検証</h2>
+<pre><code># 1. 構文チェック
+bash -n .claude/scripts/src/vcs/Provider.sh
+bash -n .claude/scripts/src/vcs/Github.sh
+bash -n .claude/scripts/src/vcs/Gitlab.sh
+bash -n .claude/skills/apply-mr-workflow-to-project/scripts/sync-assets.sh
+
+# 2. 単体テスト（追加分を含む）
+bash .claude/scripts/test/test_vcs_provider.sh
+
+# 3. 既存テスト一式（main由来の3件を除き緑であること）
+for f in .claude/scripts/test/test_*.sh; do echo "--- $f"; bash "$f" | tail -1; done
+
+# 4. 配布物にCI設定が入らないこと（GitHub側・GitLab側の両方を見る）
+bash .claude/skills/apply-mr-workflow-to-project/scripts/sync-assets.sh
+ls -a .claude/skills/apply-mr-workflow-to-project/assets/.github/
+ls -a .claude/skills/apply-mr-workflow-to-project/assets/ | grep -c gitlab-ci
+
+# 5. ワークフロー定義がGitHubに認識されること
+gh workflow list</code></pre>
+
+  <div class="box ok">
+    <span class="label">合格条件</span>
+    <ol>
+      <li><code>test_vcs_provider.sh</code> が <code>failures=0</code></li>
+      <li>検証4で <code>.github/</code> 側に <code>workflows</code> と <code>index.jsonl</code> が
+        現れず <code>ISSUE_TEMPLATE</code> と <code>pull_request_template.md</code> は残り、
+        <code>assets/</code> 直下に <code>.gitlab-ci.yml</code> が現れない（<code>grep -c</code> が 0）</li>
+      <li>GitHub で <b><code>pr-180/</code> を開くと一覧が表示され</b>、そこから各報告HTMLへ辿れる</li>
+      <li>GitLab CE で <code>pages</code> ジョブが直列構成で成功する</li>
+      <li><code>SKILL.md</code> の flow-id 5-4・5-6 と新節に、上記の呼び出し方と9項目が書かれている</li>
+    </ol>
+  </div>
+</section>
+
+<footer>issue #114 / PR #180 — 個別作業計画（flow-id 3-1、3-4で更新）。正文は同名の .md。</footer>
+
+</div>
+</body>
+</html>
