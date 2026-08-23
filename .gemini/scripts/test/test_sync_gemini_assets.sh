@@ -166,9 +166,9 @@ assert_eq "実データ: 実 agents 全件が変換を通る（失敗0件）" "0
 # =========================================================================
 # T9: settings.json のゴールデン比較
 #
-# ゴールデンは設計（plans/【設計】… の Q3写像表・`if` の写像・`args` の連結規則）と
+# ゴールデンは設計（plans/【設計】… の Q3変換表・`if` の変換・`args` の連結規則）と
 # 目視で突き合わせたうえで固定している。次の6点が同時に確かめられる。
-#   - permissions / autoCompactWindow が落ちること（意図的に写像しない2件）
+#   - permissions / autoCompactWindow が落ちること（意図的に変換しない2件）
 #   - plansDirectory → general.plan.directory
 #   - SessionStart: 全sourceを覆う matcher は省略、部分集合は source ごとに複製
 #   - PreToolUse→BeforeTool / PostToolUse→AfterTool、Bash→run_shell_command
@@ -273,9 +273,9 @@ assert_eq "T13: --force は生成物に無いファイルを消す（stale-file.
 assert_eq "T13: --force は生成物に無いファイルを消す（commands/mine.toml）" "0" \
   "$(find "$scratch/.gemini" -name 'mine.toml' | wc -l | tr -d ' ')"
 
-# --- T13: 孤児が無いときは従来どおり素通りすること（--force 不要） ------------
-assert_eq "T13: 孤児が無ければ --force なしで0で終わる" "0" "$(status_of run_sync)"
-assert_eq "T13: 孤児が無ければ再生成後も --check は0" "0" "$(status_of run_sync --check)"
+# --- T13: 削除されるファイルが無いときは従来どおり素通りすること（--force 不要） ------------
+assert_eq "T13: 削除されるファイルが無ければ --force なしで0で終わる" "0" "$(status_of run_sync)"
+assert_eq "T13: 削除されるファイルが無ければ再生成後も --check は0" "0" "$(status_of run_sync --check)"
 
 # --- T3（結合）: 未知のツール名があると .gemini/ を書き換えないこと ------------
 cp "$fixtures/agent-unknown.md.fixture" "$scratch/.claude/agents/unknown-agent.md"

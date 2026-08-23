@@ -1,9 +1,9 @@
 ---
 title: .claude/ から .gemini/ への変換同期（sync-gemini-assets.sh）
 type: spec
-description: .gemini/ を .claude/ からの変換生成物として再生成するスクリプトの仕様。ツール名の対応表・agents frontmatterのホワイトリスト・settings.jsonの写像規則・孤児検出と--force・3モードの動作を定める
+description: .gemini/ を .claude/ からの変換生成物として再生成するスクリプトの仕様。ツール名の対応表・agents frontmatterのホワイトリスト・settings.jsonの用語変換規則・削除ファイル検出と--force・3モードの動作を定める
 tags: [gemini, script, sync, spec]
-keywords: [sync-gemini-assets, gemini-cli, agents, settings.json, hooks, invoke_agent, GEMINI_PROJECT_DIR, 孤児検出, force, flow-id-5-3]
+keywords: [sync-gemini-assets, gemini-cli, agents, settings.json, hooks, invoke_agent, GEMINI_PROJECT_DIR, 削除ファイル検出, force, flow-id-5-3]
 ---
 
 # `.claude/` から `.gemini/` への変換同期（sync-gemini-assets.sh）
@@ -38,7 +38,7 @@ bash .claude/scripts/src/sync-gemini-assets.sh [--check] [--dry-run] [--force]
 
 | 引数 | 動作 |
 |---|---|
-| （なし） | `.gemini/` を再生成する。**生成物に含まれないファイルがあれば、1バイトも書かずに中断する**（下記「孤児検出と `--force`」） |
+| （なし） | `.gemini/` を再生成する。**生成物に含まれないファイルがあれば、1バイトも書かずに中断する**（下記「削除ファイル検出と `--force`」） |
 | `--check` | 生成せず、一時ディレクトリへ生成して `.gemini/` と突き合わせる。食い違えば非0で終了する |
 | `--dry-run` | 何が変わるかだけを出力する（**常に終了コード0**） |
 | `--force` | 生成物に含まれないファイルを削除して再生成する（中断しない） |
@@ -55,7 +55,7 @@ bash .claude/scripts/src/sync-gemini-assets.sh [--check] [--dry-run] [--force]
 
 `.gemini/` は完全な生成物なので、`rm -rf .gemini` してから一時ディレクトリを `mv` する。
 差分更新にしないのは、`.claude/` 側で削除・改名されたファイルが `.gemini/` に残り続けるのを
-確実に防ぐためである。**この性質が、下記の孤児検出を必要にする。**
+確実に防ぐためである。**この性質が、下記の削除ファイル検出を必要にする。**
 
 ### 対象ファイルの列挙
 
@@ -76,7 +76,7 @@ git -c core.quotepath=false ls-files --cached --others --exclude-standard -z -- 
 `.claude/agents/*.md` と `.claude/settings.json` はコピー対象から外し、変換して生成する。
 それ以外のファイルは**内容を変えずにコピーする**。
 
-### 変換規則1: ツール名の対応表
+### 用語変換規則1: ツール名の対応表
 
 | Claude Code | Gemini CLI |
 |---|---|
@@ -98,7 +98,7 @@ git -c core.quotepath=false ls-files --cached --others --exclude-standard -z -- 
 **この表は1つだけ持ち、`agents` の `tools` と settings の hook `matcher` の両方で使う**
 （2箇所に別の表を持つと、片方だけが古くなる）。
 
-### 変換規則2: `agents/*.md` の frontmatter
+### 用語変換規則2: `agents/*.md` の frontmatter
 
 Gemini 側へ通すキーは**ホワイトリスト**で定める。
 
@@ -128,7 +128,7 @@ temperature / max_turns / timeout_mins
 | ホワイトリスト対象キーの値がネスト・複数行 | 未対応。黙って捨てるとGemini側が設定を失ったまま静かに動く |
 | 対応表に無いツール名 | 同上。エラーメッセージで `GEMINI_TOOL_PAIRS` への追加を促す |
 
-### 変換規則3: `settings.json` の写像
+### 用語変換規則3: `settings.json` のキー対応
 
 | Claude Code | Gemini CLI |
 |---|---|
@@ -165,12 +165,12 @@ hook 1件（`CommandHookConfig`）の変換規則は次のとおり。
 3. 部分集合なら **source ごとにグループを複製する**。
 4. 残りが0件ならエラーで停止する。
 
-### 写像しないトップレベルキー
+### 変換しないトップレベルキー
 
-`.claude/settings.json` のトップレベルキーのうち、**意図的に写像しないもの**を
+`.claude/settings.json` のトップレベルキーのうち、**意図的に変換しないもの**を
 `SETTINGS_IGNORED_KEYS` に理由付きで列挙する。**対応漏れではなく、記録された判断である。**
 
-| キー | 写像しない理由 | 帰結 |
+| キー | 変換しない理由 | 帰結 |
 |---|---|---|
 | `permissions` | Gemini の相当機能は policy engine（`.gemini/policies/*.toml`）だが、**プロジェクト単位の Workspace 層が現在無効**で、リポジトリへ置いても効果がゼロである（`docs/reference/policy-engine.md` の "(Currently disabled)"、upstream issue #18186） | コミット強制の多重防御が、**Gemini 経路では hook 1枚**になる。Workspace 層が有効化されたら見直す |
 | `autoCompactWindow` | Gemini の `model.compressionThreshold` は「コンテキスト使用率の**分数**」（既定 0.5）であり、絶対値である Claude 側の値とは換算できない | 自動compactの閾値は Gemini 側の既定に従う |
@@ -183,25 +183,25 @@ hook 1件（`CommandHookConfig`）の変換規則は次のとおり。
 
 | 検出対象 | メッセージ |
 |---|---|
-| `settings.json` の未知のトップレベルキー | 「写像規則へ追加するか、`SETTINGS_IGNORED_KEYS` へ理由付きで加えてください」 |
+| `settings.json` の未知のトップレベルキー | 「用語変換規則へ追加するか、`SETTINGS_IGNORED_KEYS` へ理由付きで加えてください」 |
 | 未知の hook イベント | 「未知の hook イベントです: …」 |
 | 対応表に無いツール名（`agents` の `tools`） | 「`GEMINI_TOOL_PAIRS` へ Gemini 側の名前を追加してください」 |
 
 **`.claude/settings.json` へキーを足したら、このスクリプトも合わせて更新する必要がある。**
 実際に issue #103 が `env` を追加した際、変換が停止して発覚した（上表のとおり除外側で解決した）。
 
-### 孤児検出と `--force`
+### 削除ファイル検出と `--force`
 
 再生成は `.gemini/` の**丸ごと置き換え**なので、そのままでは手で置いたファイルが黙って消える
 （配布先が自前の `.gemini/commands/*.toml` や `settings.json` を持っている場合が該当する）。
 
-- 書き込みの**前**に、`.gemini/` に実在して生成物に無いファイル（＝孤児）を列挙する。
+- 書き込みの**前**に、`.gemini/` に実在して生成物に無いファイル（＝再生成で失われるファイル）を列挙する。
 - 1件でもあり `--force` が無ければ、**1バイトも書き込まずに中断する**（該当ファイルを全件
   標準エラーへ出す）。
 - `--force` を付けると削除して再生成し、**削除した件数と一覧を標準エラーへ出す**。
 - 生成物と同名のファイルは上書きされるだけなので対象外である（内容の差は `--dry-run` が示す）。
 
-このリポジトリの `.gemini/` は全体が生成物なので通常は0件で、その場合の挙動は孤児検出の導入前と
+このリポジトリの `.gemini/` は全体が生成物なので通常は0件で、その場合の挙動は削除ファイル検出の導入前と
 変わらない。**実際に発火した例**: `.claude/skills/canvas-report/templates/` が issue #54 で
 `assets/` へ改名された際、`.gemini/` 側に旧パスの生成物が残っていた（改名であることを
 `git log --name-status` の `R100` で確認したうえで `--force` を使った）。
@@ -210,7 +210,7 @@ hook 1件（`CommandHookConfig`）の変換規則は次のとおり。
 
 | モード | 0 | 非0 |
 |---|---|---|
-| （なし） | 再生成した | `jq` 不在／コピー対象0件／変換エラー／孤児があり `--force` 無し |
+| （なし） | 再生成した | `jq` 不在／コピー対象0件／変換エラー／削除されるファイルがあり `--force` 無し |
 | `--check` | 同期している | 食い違っている／上記の各エラー |
 | `--dry-run` | **常に0** | （`jq` 不在等、生成そのものが失敗した場合のみ） |
 
@@ -223,7 +223,7 @@ hook 1件（`CommandHookConfig`）の変換規則は次のとおり。
   （148件 × 約95ms = 十数秒になるため）。`xargs` が引数長の上限に応じて自動で分割するので、
   `.claude/` が大きくなっても `Argument list too long` にならない。
 - `cp --parents` は相対パスの階層を再現するため、コピー元へ `cd` した実サブシェルで実行する。
-- 孤児の列挙は `find` を1回だけ起動する。
+- 削除ファイルの列挙は `find` を1回だけ起動する。
 - ツール名の対応表・除外キーは**サイズが固定・小さい**ので `--argjson` で渡してよい
 （同ルール「大きなJSONを引数としてjqへ渡さない」の例外条件に当たる）。
 
@@ -256,8 +256,8 @@ hook 1件（`CommandHookConfig`）の変換規則は次のとおり。
 - **`model` に与えるべき具体的な Gemini モデル名が分からない**（公式ドキュメントに網羅リストが
   無い）。現状は除去して `inherit` に倒しているため実害は無いが、エージェントごとにモデルを
   変えたくなった時点で調べ直す必要がある。
-- **policy engine の Workspace 層が有効化されたら、`permissions` の写像を見直す**
-  （upstream issue #18186）。「スコープ外だから写像しない」のではなく「今は動かないから写像
+- **policy engine の Workspace 層が有効化されたら、`permissions` の変換を見直す**
+  （upstream issue #18186）。「スコープ外だから変換しない」のではなく「今は動かないから変換
   しない」であり、上流が直れば解決しうる課題である。
 - `mcp__github__issue_write` のように **Gemini CLI に相当ツールが無いもの**は、matcher に
   そのまま残るが一致しない。**外部の制約であって実装の欠陥ではない**が、Gemini 側で同等の

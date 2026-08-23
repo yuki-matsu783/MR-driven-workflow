@@ -21,7 +21,7 @@ keywords: [sync-gemini-assets, i0070-01, i0070-02, i0000-13, setup-gemini-links,
 | 4 | DDR `i0000-13` の無効化 | **frontmatterのみ** `status: superseded` / `superseded_by: "i0070-01"`。**本文は1行も変えていない** | `git diff` の削除行4件がすべて `note:` |
 | 5 | 削除済み `setup-gemini-links.sh` への参照 | **3箇所とも解消**（`README.md` / `index.md` / `directory-structure.md`）。残り1件は「以前はこうだった」という経緯の説明 | 全文検索・件数付き |
 | 6 | `flow-id 5-4` の繰り下げ漏れ | **`reports/REVIEW-POINTS.md` の1件を解消**。残る36件はすべて**新しい 5-4（統括レポート）を正しく指す記述**か、DDR本文・changelog・タスク単位ファイル | 全文検索・所属見出しの確認 |
-| 7 | `.claude/docs/spec/issue-mr-workflow.md` | 「Gemini CLIのhook登録」節を生成物前提へ書き直し、**写像規則の正を1箇所へ寄せた**。issue #57 の未決定事項を「決定済み事項」へ移し、`### issue #70` のchangelogを追加 | — |
+| 7 | `.claude/docs/spec/issue-mr-workflow.md` | 「Gemini CLIのhook登録」節を生成物前提へ書き直し、**用語変換規則の正を1箇所へ寄せた**。issue #57 の未決定事項を「決定済み事項」へ移し、`### issue #70` のchangelogを追加 | — |
 | 8 | 重複していた単体テスト2件 | **独立に落ちるようにした**。除外を外すと `.gemini` 側だけが落ち `build` 側は通ることを確認 | 実測（意図的な破壊） |
 | 9 | `.gitignore` の存在しないDDR名（`i36-01`） | **直していない**。issue #70 の成果と無関係なので**別issueへの切り出しを提案する**（AIから起票はしない） | 計画どおり |
 
@@ -40,9 +40,9 @@ keywords: [sync-gemini-assets, i0070-01, i0070-02, i0000-13, setup-gemini-links,
 
 含めたもの: 3モード（write / `--check` / `--dry-run`）＋ `--force`、丸ごと置き換えという生成の
 単位、対象ファイルの列挙（`git ls-files --cached --others --exclude-standard -z`）、ツール名の
-対応表11組、agents frontmatter のホワイトリスト9キーと `model` を除去する理由、settings の写像
-4組と hook 変換規則、`SessionStart` matcher が**完全一致**であることへの対処、**写像しない
-トップレベルキー3件とその帰結**、未知の入力をエラーにする3種、**孤児検出と `--force`**、
+対応表11組、agents frontmatter のホワイトリスト9キーと `model` を除去する理由、settings のキー対応
+4組と hook の変換規則、`SessionStart` matcher が**完全一致**であることへの対処、**変換しない
+トップレベルキー3件とその帰結**、未知の入力をエラーにする3種、**削除ファイル検出と `--force`**、
 終了コード表、性能上の前提。
 
 **`env` の除外はこのターンで初めて記録された。** マージを通すためにスクリプトへ入れた判断で、

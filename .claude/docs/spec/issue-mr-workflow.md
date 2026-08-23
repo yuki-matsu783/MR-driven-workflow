@@ -1205,7 +1205,7 @@ Claude Codeの対応工数（モデル別トークン数・ツール実行回数
 - **Gemini CLIのhook登録**: `.gemini/settings.json`の`hooks`キー配下（`SessionStart`/`BeforeTool`/
   `AfterTool`）へ`.claude/hooks/*.sh`一式が登録される。**issue #70以降、この`.gemini/settings.json`は
   手で書くファイルではなく`.claude/settings.json`からの変換生成物**であり、
-  `bash .claude/scripts/src/sync-gemini-assets.sh`が生成する。**写像規則の正は
+  `bash .claude/scripts/src/sync-gemini-assets.sh`が生成する。**用語変換規則の正は
   [.claude/docs/spec/sync-gemini-assets.md](sync-gemini-assets.md)の1箇所**で、ここには重複して
   書かない（`PreToolUse`→`BeforeTool`、ツール名`Bash`→`run_shell_command`、
   `${CLAUDE_PROJECT_DIR}`→`$GEMINI_PROJECT_DIR`、`timeout`の秒→ミリ秒、`SessionStart`の
@@ -3114,7 +3114,7 @@ point-in-time の記録と DDR 本文は**書き換えていない**）:
 
 **そのほかの変更**:
 
-- 「Gemini CLIのhook登録」節を生成物前提へ書き直し、**写像規則の正を
+- 「Gemini CLIのhook登録」節を生成物前提へ書き直し、**用語変換規則の正を
   [.claude/docs/spec/sync-gemini-assets.md](sync-gemini-assets.md) 1箇所へ寄せた**。
 - `## 未決定事項・懸念点` の「（issue #57）`.gemini/settings.json` の SessionStart matcher」を
   **解消済みとして「決定済み事項」へ移した**（Gemini の source に `compact` が無いことと、

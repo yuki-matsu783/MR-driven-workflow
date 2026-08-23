@@ -71,8 +71,8 @@ readonly GEMINI_AGENT_KEYS=(
   timeout_mins
 )
 
-# .claude/settings.json のトップレベルキーのうち、**意図的に写像しないもの**。
-# ここに無く、かつ写像もされないキーが現れたらエラーにする（下記 convert_settings）。
+# .claude/settings.json のトップレベルキーのうち、**意図的に変換しないもの**。
+# ここに無く、かつ変換もされないキーが現れたらエラーにする（下記 convert_settings）。
 #
 #   permissions      … Gemini の相当機能は policy engine（.gemini/policies/*.toml）だが、
 #                       プロジェクト単位の Workspace 層が現在無効のため、リポジトリへ置いても
@@ -83,7 +83,7 @@ readonly GEMINI_AGENT_KEYS=(
 #                       （既定 0.5）であり、絶対値である Claude 側の値とは換算できない。
 #   env              … Gemini CLI の settings.json に「プロセス環境変数を注入する」ブロックは
 #                       無い（環境変数は .env ファイルから読む。settings 側にあるのは
-#                       advanced.excludedEnvVars という除外リストだけ）。**構造として写像先が
+#                       advanced.excludedEnvVars という除外リストだけ）。**構造として変換先が
 #                       無い。** また現在の中身は issue #103 のOTel配線で、
 #                       CLAUDE_CODE_ENABLE_TELEMETRY を筆頭に Claude Code 固有である。
 #                       Gemini には telemetry ブロックがあるが、受け口
@@ -299,7 +299,7 @@ convert_agent_to_reply() {
 
 # jq フィルタ。引数:
 #   $toolMap  ツール名の対応表（Claude名 → Gemini名）
-#   $ignored  意図的に写像しないトップレベルキーの配列
+#   $ignored  意図的に変換しないトップレベルキーの配列
 #
 # **サイズが固定・小さいものだけを --argjson で渡す**
 # （.claude/rules/shell-script-style.md「大きなJSONを引数としてjqへ渡さない」）。
@@ -367,7 +367,7 @@ def conv_tool_group:
 | ( (keys_unsorted - $known) ) as $unknown
 | if ($unknown | length) > 0 then
     error("未知のトップレベルキーです: " + ($unknown | join(", "))
-      + "。sync-gemini-assets.sh の写像規則へ追加するか、SETTINGS_IGNORED_KEYS へ理由付きで加えてください")
+      + "。sync-gemini-assets.sh の用語変換規則へ追加するか、SETTINGS_IGNORED_KEYS へ理由付きで加えてください")
   else . end
 | ( (.hooks.SessionStart // []) | map(conv_session_group) | add // [] ) as $sessionStart
 | ( (.hooks.PreToolUse   // []) | map(conv_tool_group) )                as $beforeTool
@@ -484,7 +484,7 @@ diff_against_gemini() {
 # 再生成は .gemini/ の丸ごと置き換えなので、ここに挙がったファイルは書き込みで失われる。
 # 生成物と同名のファイルは上書きされるだけなので対象外である（内容の差は --dry-run が示す）。
 # このリポジトリの .gemini/ は全体が生成物なので通常は0件で、その場合の挙動は従来と変わらない。
-list_gemini_orphans() {
+list_gemini_removed_files() {
   local dst="$1" f
   [ -d .gemini ] || return 0
   # find は1回だけ起動する（ファイルごとに外部コマンドを呼ばない）。
@@ -497,7 +497,7 @@ list_gemini_orphans() {
 main() {
   local mode='write'
   local force=0
-  local orphan
+  local removed
 
   while [ $# -gt 0 ]; do
     case "$1" in
@@ -552,14 +552,14 @@ main() {
       # 丸ごと置き換える前に、生成物へ含まれないファイルを検出する。**書き込みの前に判定する**
       # ため、中断したときは1バイトも変更していない（配布先が自前の .gemini/ を持っている場合に
       # 黙って消さないための歯止め。issue #70 のレビュー指摘）。
-      local -a orphans=()
-      while IFS= read -r orphan; do
-        orphans+=("$orphan")
-      done < <(list_gemini_orphans "$tmp/gemini")
+      local -a removed_files=()
+      while IFS= read -r removed; do
+        removed_files+=("$removed")
+      done < <(list_gemini_removed_files "$tmp/gemini")
 
-      if [ "${#orphans[@]}" -gt 0 ] && [ "$force" -eq 0 ]; then
-        echo "エラー: .gemini/ に、生成物へ含まれないファイルが ${#orphans[@]} 件あります。" >&2
-        printf '  %s\n' "${orphans[@]}" >&2
+      if [ "${#removed_files[@]}" -gt 0 ] && [ "$force" -eq 0 ]; then
+        echo "エラー: .gemini/ に、生成物へ含まれないファイルが ${#removed_files[@]} 件あります。" >&2
+        printf '  %s\n' "${removed_files[@]}" >&2
         echo "" >&2
         echo ".gemini/ は .claude/ からの生成物で、再生成は丸ごとの置き換えです。" >&2
         echo "上のファイルは再生成で失われます。退避するか、消してよければ --force を付けて" >&2
@@ -570,9 +570,9 @@ main() {
       # .gemini/ は完全な生成物なので、古いファイルを残さないよう丸ごと置き換える。
       rm -rf .gemini
       mv "$tmp/gemini" .gemini
-      if [ "${#orphans[@]}" -gt 0 ]; then
-        echo "--force のため、生成物に含まれない ${#orphans[@]} 件を削除しました。" >&2
-        printf '  %s\n' "${orphans[@]}" >&2
+      if [ "${#removed_files[@]}" -gt 0 ]; then
+        echo "--force のため、生成物に含まれない ${#removed_files[@]} 件を削除しました。" >&2
+        printf '  %s\n' "${removed_files[@]}" >&2
       fi
       echo ".gemini/ を再生成しました。"
       return 0

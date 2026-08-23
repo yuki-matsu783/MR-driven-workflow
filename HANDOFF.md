@@ -17,7 +17,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - issue: #70（https://github.com/yuki-matsu783/MR-driven-workflow/issues/70 ）
 - ブランチ: `claude/gemini-to-claude-migration-jc64gu`
 - PR: #157（Draft。https://github.com/yuki-matsu783/MR-driven-workflow/pull/157 ）
-- push回数: 17
+- push回数: 18
 - 現在のループ: 4-6〜4-9 の2周目（進行中）
 - 未返信スレッド: 0
 - 追従監視: 購読あり（web。subscribe_pr_activity + 自己チェックイン）
@@ -74,7 +74,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - flow-id 1-3: ブランチは main と同一（ahead=0/behind=0）だったため `add_empty_commit_for_draft_mr` で空コミットを積んでからリモートへ反映し、Draft PR #157 を作成。`subscribe_pr_activity` で追従監視を開始
 - flow-id 1-4: 全体作業計画 `plans/nimble-syncing-lantern.md` を作成。issue分割は**しない**と判定（横断的変更に該当）
 - flow-id 1-6: HANDOFF.md の進捗表・ヘッダを記入
-- flow-id 2-1: 個別調査計画 `plans/【調査】gemini-cli記法と同期方式の確定.md` と worklog を作成。調査項目は Q1（agents frontmatterスキーマ）／Q2（skillsを読むか）／Q3（settings.json写像）／Q4（コピー対象・除外）／Q5（同期の実行位置・flow-id採番）／Q6（波及範囲の全件洗い出し）の6件
+- flow-id 2-1: 個別調査計画 `plans/【調査】gemini-cli記法と同期方式の確定.md` と worklog を作成。調査項目は Q1（agents frontmatterスキーマ）／Q2（skillsを読むか）／Q3（settings.json変換）／Q4（コピー対象・除外）／Q5（同期の実行位置・flow-id採番）／Q6（波及範囲の全件洗い出し）の6件
 - flow-id 2-6: 調査を実施。**`google-gemini/gemini-cli` のソースコードを取得してバリデーション実装そのものを読んだ**（コミット `5411f113`）。結果を `reports/20260822_nimble-syncing-lantern_gemini同期方式の調査.md` と `.html` に記録
   - **Q1（本題）**: 現行agentsが弾かれる理由は3系統。(1) ツール名の語彙 (2) `tools` が配列でなく文字列 (3) `localAgentSchema` が `.strict()` で未知キー（`title`/`type`/`tags`/`keywords`）を拒否。**(3) はissue #70 が見落としていた欠陥**
   - **Q2**: skillsのローダは `name`/`description` しか見ない寛容な実装。**skillsは変換不要（コピーのみ）**
@@ -108,7 +108,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
   確認（flow-idの採番／`extract-frontmatter.sh` の `.gemini` 除外が前提条件になること）、1点は
   新たな判断（**未確認3件はフェーズ3で追加取得して潰す**）。**2-6〜2-9 のループを `mark-done` で
   閉じた**（1周目・完了）
-- **flow-id 3-1: 個別作業計画を3本作成した**（`【設計】gemini変換規則とsettings写像の確定` /
+- **flow-id 3-1: 個別作業計画を3本作成した**（`【設計】gemini変換規則とsettings変換の確定` /
   `【実装】【テスト】sync-gemini-assetsと周辺スクリプトの改修` /
   `【AIアセット作成】flow-id5-3の新設と以降の繰り下げ`）。**分けた理由は「判断が要るもの」
   「手を動かすもの」「機械的だが波及が広いもの」で性質が違うため**（実装とテストだけは併記した。
@@ -163,7 +163,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - flow-id 3-6: 単体テスト `test_sync_gemini_assets.sh` を新設（**54件**、T1〜T12を網羅）。
   リポジトリ内の全テスト16本・**1010件が緑**。`--check` が0を返す（`.claude/` と同期）
 - flow-id 3-6: **計画に無かった判断3件を決めた**。(1) hookのパスは `.claude/hooks/` のまま書き換えない
-  （同期を忘れても両経路が同じスクリプトを実行するため）。(2) `autoCompactWindow` は写像しない
+  （同期を忘れても両経路が同じスクリプトを実行するため）。(2) `autoCompactWindow` は変換しない
   （Gemini の `compressionThreshold` は使用率の分数で換算できない。**調査で未判定だった1件が決着**）。
   (3) 未知のトップレベルキーはエラーで落とす（黙って落とすとテストが永久に緑で通るため）
 - flow-id 3-6: **新設テストが不具合3件を検出**。(1) 未知ツール名のエラーからツール名が消える
@@ -201,13 +201,13 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
   `reports/REVIEW-POINTS.md` が繰り下げ漏れで `5-4` のまま／spec の Gemini hook登録節と
   未決定事項（issue #57）が生成物の実態と食い違う／`setup-gemini-links.sh` 参照3箇所
 - **flow-id 3-9（1周目）: 敵対的レビューの blocker 1件を修正した**（ユーザーの判断「blockerは
-  フェーズ3で修正する」をチャットで受領）。`sync-gemini-assets.sh` へ `list_gemini_orphans` と
+  フェーズ3で修正する」をチャットで受領）。`sync-gemini-assets.sh` へ `list_gemini_removed_files` と
   `--force` を新設し、**生成物へ含まれないファイルがあれば1バイトも書かずに中断**する形にした。
   `install-to-project.sh` は自身の `--force` を透過し、中断してもインストール全体は止めず警告
   して続ける（中途半端な状態で終わらせないため）
 - flow-id 3-9: **既存テスト「生成物に無いファイルは再生成で消える」が契約変更でそのまま偽に
   なった。** 期待値だけ書き換えていれば blocker をテストで追認していた。T13（9件）へ置き換え、
-  **孤児ガードを意図的に無効化すると3件落ちる**ことまで確認した
+  **削除ファイルガードを意図的に無効化すると3件落ちる**ことまで確認した
 - flow-id 3-9: テストは 54→63件、全16本で **passed=1019 failures=0**。`--check` も0
 - flow-id 3-9: **blocker以外の9件はフェーズ4送り**（ユーザー判断）。各スレッドへ返信済み
 - **flow-id 3-8（2周目）: 人間のレビューで合意を得た**（チャット「レビューOK」）。
@@ -277,7 +277,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
   Claude CodeのOTelスキーマ前提なので、Geminiの `telemetry` へ流すと壊れる。
   **帰結: Gemini CLI 経路ではOTel計測が行われない**（`permissions` と同じ構図。この判断は
   `【設計反映】` でDDR/specへ記録する）
-- **追従: 孤児検出が実際に発火した。** main が `canvas-report/templates/` を `assets/` へ
+- **追従: 削除ファイル検出が実際に発火した。** main が `canvas-report/templates/` を `assets/` へ
   改名したため、`.gemini/` 側に旧パスの生成物が残っていた。**設計どおり1バイトも書かずに
   中断し**、改名であることを確認してから `--force` で再生成した
 - 追従後の検証: 全16本 **passed=1039 failures=0**（main由来で+2）、mainが追加したperlテスト
@@ -287,8 +287,8 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
   結果は `reports/20260823_nimble-syncing-lantern_gemini変換の設計反映結果.md`（＋同名`.html`）
   - **`.claude/docs/spec/sync-gemini-assets.md` を新規作成**。スクリプト冒頭が `# 仕様:` として
     指していたパスの実体が無かった。3モード＋`--force`・ツール名11組・agentsのホワイトリスト9キー・
-    settingsの写像4組・`SessionStart` matcherが**完全一致**であることへの対処・**写像しない3キーと
-    その帰結**・未知の入力をエラーにする3種・**孤児検出**・終了コード表・性能上の前提を収めた
+    settingsのキー対応4組・`SessionStart` matcherが**完全一致**であることへの対処・**変換しない3キーと
+    その帰結**・未知の入力をエラーにする3種・**削除ファイル検出**・終了コード表・性能上の前提を収めた
   - **DDR 2本を新規作成**。`i0070-01`（`.gemini/`を変換生成物にする／却下案5件）と
     `i0070-02`（返信漏れは文言ではなく機構で塞ぐ／却下案5件）。`i0000-13` は
     **frontmatterのみ** `status: superseded` / `superseded_by: "i0070-01"` にした
@@ -297,7 +297,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
     も明記
   - **`setup-gemini-links.sh` の残存参照3件を解消**（`README.md` / `index.md` /
     `directory-structure.md`）。残る1件は「issue #70 以前はこうだった」という経緯の説明
-  - **`issue-mr-workflow.md`**: hook登録節を生成物前提へ書き直し、**写像規則の正を
+  - **`issue-mr-workflow.md`**: hook登録節を生成物前提へ書き直し、**用語変換規則の正を
     `sync-gemini-assets.md` 1箇所へ寄せた**（対応表を重複させない）。issue #57 の未決定事項は
     **削除ではなく「決定済み事項」へ移した**（削除すると「なぜ揃えていなかったか」が読めなくなる）。
     `## 影響範囲` へ `### issue #70`（42→43ステップの繰り下げ表と理由）を追加
@@ -313,6 +313,13 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
     `build` 側は落ちない**ことを確認（`passed=106 failures=8` → 復元後 `passed=114 failures=0`）
   - 検証: 全16本 **passed=1039 failures=0**、perl 12/7件、`--check` 0、DDR一覧 **76件**（74→76）で
     `--check` 差分なし、`index.jsonl` 再生成 failed=0、DDR本文の削除行は**4件すべて `note:`**
+
+- flow-id 4-6（2周目 / 追加）: **ユーザー指示により用語を2つ改名した**（チャット・2026-08-23）。
+  `写像規則` → **`用語変換規則`**、`孤児検出` → **`削除ファイル検出`**。仕様書の見出し
+  （`変換規則1/2/3` → `用語変換規則1/2/3`）・DDR・rules・スクリプトのエラーメッセージまで揃え、
+  実装側の識別子も `list_gemini_orphans` → `list_gemini_removed_files`、`orphans` →
+  `removed_files` へ改名した。**過去フェーズの `plans/` `worklog/` `reports/` は
+  point-in-time の記録なので書き換えていない**（未実行の `plans/【実装反映】…` だけは追随させた）
 
 ## 次にやること
 
@@ -362,7 +369,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
   詳細は調査結果mdの「5・6・7 の結果」節
 - ~~policy engine を変換範囲に含めるか~~ → **決着**（B-1: スコープ外）。**残る帰結として、
   コミット強制の多重防御は Gemini経路では hook の1枚だけになる**。「調べていないから無い」と
-  誤読されないよう、spec と写像表コメントの2箇所へ理由を残すことが条件。
+  誤読されないよう、spec と変換表コメントの2箇所へ理由を残すことが条件。
   **A の結果で根拠が変わった**（2026-08-22）: 「選ばなかった」ではなく
   **「Workspace 層が現在無効で、リポジトリに置いても動かない」**（upstream issue #18186）。
   specへはこちらを書く（「スコープ外だから」と書くと、上流が直れば解決する課題だと読めない）
@@ -375,7 +382,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
   `jq` は `.claude/` 機構全体の前提なので、満たされない状態で処理を続ける形はどれも
   **嘘の成功**になる。`install-to-project.sh` は**冒頭の前提チェック**で止める（途中まで
   書いて止まる形を作らない）。テスト **T10** を追加
-- ~~**新たな未決が2件ある**（`args` の連結規則・`if` の写像）~~ → **2026-08-22に両方とも決着**
+- ~~**新たな未決が2件ある**（`args` の連結規則・`if` の変換）~~ → **2026-08-22に両方とも決着**
   （`【設計】` の該当2節が正）。**未決だった期間に、どちらも当初の想定と逆・想定外の結論に
   なった**点は記録として残す（`args` はこちらでクォートしない／`if` の代償は1 forkではなく14 fork）
 - ~~前置フィルタを他の2本へ広げるかは未決~~ → **issue #159 として切り出し済み**（2026-08-22）。

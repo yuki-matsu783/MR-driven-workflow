@@ -148,7 +148,7 @@
       <tr><td>4</td><td>DDR <code>i0000-13</code> の無効化</td><td><b>frontmatterのみ</b>変更。<b>本文は1行も変えていない</b></td><td><code>git diff</code> の削除行4件がすべて <code>note:</code></td></tr>
       <tr><td>5</td><td>削除済み <code>setup-gemini-links.sh</code> への参照</td><td><b>3箇所とも解消</b>。残る1件は経緯の説明</td><td>全文検索・件数付き</td></tr>
       <tr><td>6</td><td><code>flow-id 5-4</code> の繰り下げ漏れ</td><td><b>1件を解消</b>（<code>reports/REVIEW-POINTS.md</code>）。残る36件は全件分類済み</td><td>全文検索・所属見出しの確認</td></tr>
-      <tr><td>7</td><td><code>spec/issue-mr-workflow.md</code></td><td>hook登録節を生成物前提へ書き直し、<b>写像規則の正を1箇所へ寄せた</b>。issue #57 の未決定事項を解消済みへ移し、changelogを追加</td><td>—</td></tr>
+      <tr><td>7</td><td><code>spec/issue-mr-workflow.md</code></td><td>hook登録節を生成物前提へ書き直し、<b>用語変換規則の正を1箇所へ寄せた</b>。issue #57 の未決定事項を解消済みへ移し、changelogを追加</td><td>—</td></tr>
       <tr><td>8</td><td>重複していた単体テスト2件</td><td><b>独立に落ちるようにした</b></td><td>実測（意図的な破壊）</td></tr>
       <tr><td>9</td><td><code>.gitignore</code> の存在しないDDR名（<code>i36-01</code>）</td><td><b>直していない</b>。別issueへの切り出しを提案する</td><td>計画どおり</td></tr>
     </tbody>
@@ -170,7 +170,7 @@
 
   <h3>1. <code>.claude/docs/spec/sync-gemini-assets.md</code>（新規）</h3>
   <p><code>sync-gemini-assets.sh</code> の冒頭は <code>#&nbsp;仕様:&nbsp;.claude/docs/spec/sync-gemini-assets.md</code> と書いていたが、<b>そのファイルは存在しなかった</b>。スクリプト本体を読んで仕様として書き起こした。</p>
-  <p>含めたもの: 3モード（write / <code>--check</code> / <code>--dry-run</code>）＋ <code>--force</code>、丸ごと置き換えという生成の単位、対象ファイルの列挙、ツール名の対応表11組、agents frontmatter のホワイトリスト9キーと <code>model</code> を除去する理由、settings の写像4組と hook 変換規則、<code>SessionStart</code> matcher が<b>完全一致</b>であることへの対処、<b>写像しないトップレベルキー3件とその帰結</b>、未知の入力をエラーにする3種、<b>孤児検出と <code>--force</code></b>、終了コード表、性能上の前提。</p>
+  <p>含めたもの: 3モード（write / <code>--check</code> / <code>--dry-run</code>）＋ <code>--force</code>、丸ごと置き換えという生成の単位、対象ファイルの列挙、ツール名の対応表11組、agents frontmatter のホワイトリスト9キーと <code>model</code> を除去する理由、settings のキー対応4組と hook の変換規則、<code>SessionStart</code> matcher が<b>完全一致</b>であることへの対処、<b>変換しないトップレベルキー3件とその帰結</b>、未知の入力をエラーにする3種、<b>削除ファイル検出と <code>--force</code></b>、終了コード表、性能上の前提。</p>
   <div class="box ok">
     <span class="label">結論</span>
     <code>env</code> の除外はこのターンで初めて記録された。マージを通すためにスクリプトへ入れた判断で、それまでどのドキュメントにも根拠が無かった。<b>帰結は「Gemini CLI 経路では対応工数の OTel 計測が行われない」</b>ことである。

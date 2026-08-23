@@ -42,7 +42,7 @@ keywords: [ディレクトリ構成, claude, gemini, 配置方針, plans, worklo
 │   │                            # `sync-gemini-assets.sh`が生成する（直接編集しない。Git管理下）
 │   ├── agents/                 # frontmatterをGemini CLIのlocalAgentSchemaへ変換したもの
 │   ├── docs/ hooks/ rules/ scripts/ skills/  # `.claude/`配下の同名ディレクトリをそのままコピー
-│   └── settings.json           # `.claude/settings.json`をGemini CLIの記法へ写像したもの
+│   └── settings.json           # `.claude/settings.json`をGemini CLIの記法へ変換したもの
 ├── .github/
 │   ├── ISSUE_TEMPLATE/          # GitHub用issueテンプレート（目的・現状・期待する動作・受け入れ条件）
 │   └── pull_request_template.md # GitHub用PRテンプレート（`describe`が生成するdescriptionと同一構成）
@@ -153,7 +153,7 @@ issue #97。ブランチ別に持つと、同じセッションのままブラ�
   このスクリプトを流し直す（フロー上の最終ゲートは flow-id 5-3）。
   **生成物だがGit管理下へ置きコミットする**（配布先で再生成を忘れても資産が見えるようにするため。
   `index.jsonl` をGit管理外にしている判断とはここが分かれる）。変換規則・`--check`/`--dry-run`/
-  `--force`・孤児検出の詳細は `.claude/docs/spec/sync-gemini-assets.md`、方式を選んだ経緯・却下案は
+  `--force`・削除ファイル検出の詳細は `.claude/docs/spec/sync-gemini-assets.md`、方式を選んだ経緯・却下案は
   `.claude/docs/ddr/i0070-01-gemini配下はclaudeからの変換生成物にしGit管理下へ置く.md` を参照
   （issue #70 以前はローカルリンク運用で、`setup-gemini-links.sh` が各開発者のマシン上でリンクを
   生成していた。当時の経緯は DDR `i0000-13`。**現在は superseded**）。

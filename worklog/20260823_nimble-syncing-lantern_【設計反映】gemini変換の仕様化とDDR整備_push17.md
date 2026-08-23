@@ -37,7 +37,7 @@ push回数: 17
   既にあった。**削除すると「なぜ揃えていなかったのか」が読めなくなる**ので、移動を選んだ。
   移した文には、解消した理由（Gemini の source に `compact` が無い／matcher が完全一致）を
   足してある。
-- **写像規則の正を `sync-gemini-assets.md` 1箇所へ寄せた。** `issue-mr-workflow.md` 側には
+- **用語変換規則の正を `sync-gemini-assets.md` 1箇所へ寄せた。** `issue-mr-workflow.md` 側には
   リンクだけを残し、`PreToolUse`→`BeforeTool` のような対応表を重複して書かなかった。
   フェーズ3の敵対的レビューが「スクリプト側のコメントだけが更新されていて、正が2つある」と
   指摘したのと同じ形を、こちらで作らないため。
