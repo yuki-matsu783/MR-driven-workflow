@@ -49,6 +49,13 @@ set -uo pipefail
 # 検知する境界として設定した。環境変数で上書きできる。
 CONTEXT_SIZE_WARN_BYTES="${CONTEXT_SIZE_WARN_BYTES:-8000}"
 
+# HANDOFF.mdの進捗表の行を判定・分解する正規表現。
+# **`.claude/scripts/src/update-handoff-progress.sh` の ROW_RE と同一のリテラルの複製**
+# （issue #160）。source で共有すると、あちらの set -euo pipefail がこのhookへ効いて
+# fail-open 設計（set -e 無し）が壊れ、双方が定義する main も後勝ちで上書きされるため、
+# 複製した上で両者の一致を test_session_start.sh が表明する。変更は両方を同時に直すこと。
+ROW_RE='^(\|[[:space:]]*)(\[[^\|]*\])([[:space:]]*\|[[:space:]]*([0-9]+-[0-9]+)[[:space:]]*\|.*)$'
+
 write_additional_context() {
   local text="$1"
   jq -nc --arg text "$text" \
@@ -131,12 +138,71 @@ issue_mr_flow_branch_reason() {
   printf '%s' "$joined"
 }
 
+# HANDOFF.mdの進捗表から現在地のflow-idを解決する純粋関数（issue #160）。
+# 「**最後の [x]/[-] の行より後に現れる、最初の [] の行**」を現在地とする。単純に最初の [] を
+# 採ると、非対話環境で人間レビュー行（例: 1-5）が [] のまま残ったとき永遠にそこを指し続ける。
+# 解決できなければ REPLY を空にして正常終了する（fail-open。呼び出し元は行を出さない）。
+current_flow_id_to_reply() {
+  local file="$1" line last_done=0 n=0 i
+  REPLY=''
+  [ -f "$file" ] || return 0
+  local -a marks=() fids=()
+  while IFS= read -r line; do
+    [[ "$line" =~ $ROW_RE ]] || continue
+    marks+=("${BASH_REMATCH[2]}")
+    fids+=("${BASH_REMATCH[4]}")
+  done < "$file"
+  n=${#fids[@]}
+  [ "$n" -gt 0 ] || return 0
+  for ((i = 0; i < n; i++)); do
+    case "${marks[i]}" in *x*|*-*) last_done=$((i + 1)) ;; esac
+  done
+  for ((i = last_done; i < n; i++)); do
+    case "${marks[i]}" in *x*|*-*) continue ;; esac
+    REPLY="${fids[i]}"
+    return 0
+  done
+  return 0
+}
+
+# SKILL.mdの全体フロー表から、指定flow-idの行の「参照」列を取り出す純粋関数（issue #160）。
+# 対応表をhook側に持たず、ヘッダ行から列位置を求める（表が唯一の正。列の並び替えにも追随する）。
+# 見つからなければ REPLY を空にして正常終了する（fail-open）。
+refs_for_flow_id_to_reply() {
+  local file="$1" want="$2"
+  REPLY=''
+  [ -f "$file" ] || return 0
+  REPLY="$(awk -v want="$want" '
+    BEGIN { FS = "|"; ref_col = 0; id_col = 0 }
+    /^\|/ {
+      if (ref_col == 0) {
+        for (i = 1; i <= NF; i++) {
+          h = $i; gsub(/^[ \t]+|[ \t]+$/, "", h)
+          if (h == "参照") ref_col = i
+          if (h == "flow-id") id_col = i
+        }
+        next
+      }
+      if (id_col == 0) next
+      id = $id_col; gsub(/^[ \t]+|[ \t]+$/, "", id)
+      if (id == want) {
+        r = $ref_col; gsub(/^[ \t]+|[ \t]+$/, "", r)
+        print r; exit
+      }
+    }
+  ' "$file" 2>/dev/null)"
+  return 0
+}
+
 # issue-mr-flow対象ブランチ向けの「SKILL.mdを読み直すこと」という指示文を組み立てる純粋関数。
 # compactは要約内容を指定できず、SKILL.md（1000行超）の手順理解が失われても、エージェント側から
 # 「失われたこと」が分からない（DDR i0057-01が注入量を切り詰めないと決めたのと同じ失敗モード）。
 # **既に読んだつもりでも読み直す**ことを明示するのが、この指示文の要点である（issue #113）。
 format_skill_reload_instruction() {
   local reason="$1"
+  # 第2引数は現在地の参照行（組み立て済みの1行、または空）。既定値を与えるのは、引数1つの
+  # 既存呼び出しが set -u 配下（test_session_start.sh）でも落ちないようにするため（issue #160）。
+  local refs_line="${2:-}"
   cat <<EOF
 ## issue-mr-flowの手順（SKILL.md）を読み直すこと
 
@@ -145,6 +211,10 @@ format_skill_reload_instruction() {
 **このセッションで既に読んでいる場合も読み直すこと**（compactの要約で、レビュー往復・
 \`commit\`スキル経由の強制・\`HANDOFF.md\`の進捗更新といった手順が失われている可能性があります）。
 EOF
+  # 参照行はヒアドキュメントの外で出し分ける（中で変数展開すると、解決できないときに空行が残る）
+  if [ -n "$refs_line" ]; then
+    printf '%s\n' "$refs_line"
+  fi
 }
 
 # リスクのある本体処理。失敗した場合はこの関数のexit codeが非ゼロになり呼び出し元へ伝わる。
@@ -185,7 +255,7 @@ build_context() {
     fi
     lines+=("- PR: 未取得（CLI不在のためhookからは判定できません。「PRなし」という意味ではありません）")
     lines+=("- MCPツールに渡す owner=$(printf '%s' "$slug" | jq -r '.owner') / repo=$(printf '%s' "$slug" | jq -r '.repo')")
-    lines+=("- 手順: .claude/skills/issue-mr-flow/SKILL.md「\`gh\`/\`glab\` CLI不在時のMCPフォールバック」節を参照し、WebFetch・curlへはフォールバックしないこと")
+    lines+=("- 手順: .claude/skills/issue-mr-flow/references/mcp-fallback.md を参照し、WebFetch・curlへはフォールバックしないこと")
     local work_context
     work_context="$(build_work_context "$branch")"
     [ -z "$work_context" ] || lines+=("$work_context")
@@ -271,8 +341,21 @@ build_work_context() {
   local issue_number="" flow_reason
   issue_number="$(get_issue_number_from_branch "$branch" 2>/dev/null || true)"
   if flow_reason="$(issue_mr_flow_branch_reason "$issue_number" "$work_files")"; then
+    # 現在地flow-idと「参照」列を解決できたときだけ、開くべき参照ファイルの1行を添える
+    # （issue #160。解決できなければ何も出さない。誤った名指しより、出ないほうが害が小さい）。
+    local refs_line="" flow_id="" refs=""
+    current_flow_id_to_reply "${CLAUDE_PROJECT_DIR}/HANDOFF.md"
+    flow_id="$REPLY"
+    if [ -n "$flow_id" ]; then
+      refs_for_flow_id_to_reply \
+        "${CLAUDE_PROJECT_DIR}/.claude/skills/issue-mr-flow/SKILL.md" "$flow_id"
+      refs="$REPLY"
+      if [ -n "$refs" ] && [ "$refs" != "—" ]; then
+        refs_line="現在地 flow-id ${flow_id} の実行前に開く参照: ${refs}"
+      fi
+    fi
     lines+=("")
-    lines+=("$(format_skill_reload_instruction "$flow_reason")")
+    lines+=("$(format_skill_reload_instruction "$flow_reason" "$refs_line")")
   fi
 
   [ "${#lines[@]}" -gt 0 ] || return 0

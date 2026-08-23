@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # HANDOFF.mdの「フロー進捗状況」表の進捗記号・ヘッダ情報を機械的に更新する（issue #20）。
 # flow-idが1つ進むごとの手作業更新（記号の書き間違い・更新漏れ）を無くすため、
-# .claude/skills/issue-mr-flow/SKILL.md の「flow-idが1つ進むごとに、必ずHANDOFF.mdを更新する」
+# .claude/skills/issue-mr-flow/references/planning.md の「flow-idが1つ進むごとに、必ずHANDOFF.mdを更新する」
 # 手順をこのスクリプトへ委譲する。
 #
 # 使い方:
@@ -34,6 +34,12 @@
 #
 # 仕様: .claude/docs/spec/update-handoff-progress.md
 set -euo pipefail
+
+# 進捗表の行（| [x] | 1-2 | ... |）の判定・分解に使う正規表現。
+# **`.claude/hooks/session-start.sh` に同一のリテラルが複製されている**（issue #160）。
+# hook側は fail-open 設計（set -e 無し）のため source で共有できず、複製した上で
+# 両者の一致を `test_session_start.sh` が表明する。変更する場合は両方を同時に直すこと。
+ROW_RE='^(\|[[:space:]]*)(\[[^\|]*\])([[:space:]]*\|[[:space:]]*([0-9]+-[0-9]+)[[:space:]]*\|.*)$'
 
 # ループ範囲テーブル（.claude/rules/docs-workflow.md「ループステップの`[]`追加ルール」と同一の
 # 6範囲）。要素はスペース区切りのflow-id列。範囲・並びを変える場合は同ドキュメントも合わせて
@@ -226,7 +232,7 @@ follow_loop_header_in_lines() {
 # 文字列連結で再結合する）。
 parse_table_row_to_reply() {
   local line="$1"
-  if [[ "$line" =~ ^(\|[[:space:]]*)(\[[^\|]*\])([[:space:]]*\|[[:space:]]*([0-9]+-[0-9]+)[[:space:]]*\|.*)$ ]]; then
+  if [[ "$line" =~ $ROW_RE ]]; then
     REPLY_PREFIX="${BASH_REMATCH[1]}"
     REPLY_PROGRESS="${BASH_REMATCH[2]}"
     REPLY_SUFFIX="${BASH_REMATCH[3]}"
