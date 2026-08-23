@@ -72,3 +72,184 @@ push回数: 4
     第2引数は `"${2:-}"` の既定値付きで受ける（指摘#4・#11）。
   - 検証へ #13（アンカーリンク）・#14（相対参照）を追加、#1に行数、#2をcomm二段構え、
     #9・#10に実行可能な形の条件を追記（指摘#3・#5・#12・#13・#15）。
+
+## 追記（flow-id 3-5〜3-6: description更新と作業1〜7の実施）
+
+- flow-id 3-5: PR #161 の description を更新した（フェーズ3計画の要約と実装状況）。
+- **mainのマージ**: PR #162 マージで origin/main が進み `HANDOFF.md` がコンフリクト。
+  「1ブランチ1状態」のファイルなのでブランチ側を採って解消（監視モード例外・検証は省略せず）。
+- flow-id 3-6: 作業1〜7を予定の順（1→2・3→7→4→6→5）で実施した。詳細と検証14項目の結果は
+  `reports/20260823_split-issue-mr-flow-skill-into-references_作業.md` が正文。
+- **うまくいったこと**: 検証14項目すべて合格。ミューテーションテスト（旧パスへ戻すと
+  `failures=1`）で「変え忘れ検出」が実際に働くことまで確認できた。
+- **想定と異なった点**（計画からの逸脱。レポートにも記録）:
+  1. 検証#2-(i) の増分は8件ではなく**9件**（対応表自身のH2を数え漏れ。計画を訂正）。
+  2. 導入H2は「H1の直後」ではなく「`### comments` の直前」へ（切り出し結果の先頭は
+     「敵対的レビューの位置づけ」のH2だったため）。
+  3. `references/` 配下は**7ファイル**（本文と合わせて8。計画の「references/配下の8ファイル」
+     という表記を訂正）。
+  4. 配布物へ `index.jsonl`（生成物）が混入する既存問題を発見（残課題・別issue候補）。
+
+## 切り出しスクリプト全文（作業1で使用。再現用）
+
+```python
+#!/usr/bin/env python3
+"""SKILL.md を本文と references/*.md へ機械的に切り出す（issue #160 フェーズ3の下ごしらえ）。
+
+本文を1文字も書き換えないことを保証するため、**行の切り貼りだけ**で行う。
+節の割り当ては SECTIONS で定義し、それ以外の加工はしない（見出しの追加・リンクの張り替えは
+このスクリプトの後で人手（Edit）で行う）。
+
+使い方:
+    python3 split_skill.py --dry-run     # 割り当てと行数だけを出す
+    python3 split_skill.py --out DIR     # DIR へ body.md と references/*.md を書き出す
+"""
+import argparse
+import os
+import re
+import sys
+
+SRC = ".claude/skills/issue-mr-flow/SKILL.md"
+
+# H2見出しの本文（`## ` を除いた文字列）→ 行き先。
+# "body" は SKILL.md 本文に残す。それ以外は references/ 配下のファイル名。
+SECTIONS = {
+    "全体フロー": "SPLIT",  # H3単位でさらに分ける（下記 H3_SECTIONS）
+    "PR/MR作成・マージの担当（flow-id 1-3・5-5・5-6）": "body",
+    "敵対的レビューの位置づけ（issue #77）": "references/review-loop.md",
+    "サブコマンド": "SPLIT_SUB",
+    "`gh`/`glab` CLI不在時のMCPフォールバック": "references/mcp-fallback.md",
+    "チャットで受けたレビュー判断の記録（全体フロー 2-4・2-9・3-4・3-9・4-4・4-9）": "references/review-loop.md",
+    "レビュー依頼メッセージ（全体フロー 2-2・2-7・3-2・3-7・4-2・4-7・5-3・5-5）": "references/review-loop.md",
+    "レビュー完了合図の確認（全体フロー 2-4・2-9・3-4・3-9・4-4・4-9）": "references/review-loop.md",
+    "作業開始・再開時のベースブランチ追従確認（issue #67）": "references/start-resume.md",
+    "PR作成後のdefaultブランチ追従（監視）（flow-id 1-3〜5-6を横断）": "references/base-branch-followup.md",
+    "defaultブランチとのコンフリクト検知・解消（flow-id 5-1）": "references/base-branch-followup.md",
+    "マージ前の関連issue通知（flow-id 5-2）": "references/phase5-close.md",
+    "最終統括レポートとPR/MRへの反映（flow-id 5-3）": "references/phase5-close.md",
+    "PRがflow-id 5-4実施前にマージされてしまった場合の対処": "references/phase5-close.md",
+    "詳細ルールへのポインタ": "body",
+    "前提": "body",
+}
+
+# 「全体フロー」節の中のH3。導入＋42行テーブル（最初のH3の手前まで）は body。
+H3_SECTIONS = {
+    "全体作業計画に必ず含めるフェーズ（issue #92）": "references/planning.md",
+    "計画の2階層構造（issue #9）": "references/planning.md",
+    "issueが大きすぎる場合の分割提案（issue #64）": "references/planning.md",
+    "計画と実施結果の分離（issue #87）": "references/deliverables.md",
+    "計画・レポートのHTMLビュー（issue #54）": "references/deliverables.md",
+}
+
+# 「サブコマンド」節の中のH3。導入は references/start-resume.md（経路判定の注意書きなので
+# 両方から参照される。フェーズ3で本文へ要約を置く）。
+H3_SUBCOMMANDS = {
+    "`start <issue番号>` — issue取得・ブランチ/MR作成（全体フロー 1-2〜1-3）": "references/start-resume.md",
+    "`comments [all]` — MRレビューコメントの取得（全体フロー 2-4・2-9・3-4・3-9・4-4・4-9）": "references/review-loop.md",
+    "`reply <threadId> <対応内容>` — レビューコメントへの返信（全体フロー 2-4・2-9・3-4・3-9・4-4・4-9）": "references/review-loop.md",
+    "`describe` — MR descriptionの更新（全体フロー 2-5・2-10・3-5・3-10・4-5・4-10）": "references/review-loop.md",
+    "`sync` — セッション再開（全体フロー 1-3の再開版）": "references/start-resume.md",
+    "`resume` — 途中引き継ぎ（引数なし）": "references/start-resume.md",
+}
+SUBCOMMAND_INTRO = "references/start-resume.md"
+
+
+def headings(lines):
+    """フェンス外の見出しを (行番号1始まり, レベル, 本文) で返す。"""
+    out, fence = [], False
+    for i, ln in enumerate(lines, 1):
+        if ln.startswith("```"):
+            fence = not fence
+            continue
+        if fence:
+            continue
+        m = re.match(r"^(#{1,6}) (.+)$", ln)
+        if m:
+            out.append((i, len(m.group(1)), m.group(2)))
+    return out
+
+
+def assign(lines):
+    """各行の行き先を決めて {行き先: [行番号...]} を返す。frontmatter とH1直下の前文は body。"""
+    heads = headings(lines)
+    h2 = [(i, t) for i, lv, t in heads if lv == 2]
+    if not h2:
+        sys.exit("H2見出しが見つからない")
+
+    owner = ["body"] * (len(lines) + 1)  # 1始まり
+
+    for idx, (start, title) in enumerate(h2):
+        end = h2[idx + 1][0] - 1 if idx + 1 < len(h2) else len(lines)
+        dest = SECTIONS.get(title)
+        if dest is None:
+            sys.exit(f"未定義のH2: {title!r}（SECTIONS へ追加すること）")
+
+        if dest == "SPLIT":
+            sub = [(i, t) for i, lv, t in heads if lv == 3 and start < i <= end]
+            first = sub[0][0] if sub else end + 1
+            for n in range(start, first):
+                owner[n] = "body"
+            for j, (s, t) in enumerate(sub):
+                e = sub[j + 1][0] - 1 if j + 1 < len(sub) else end
+                d = H3_SECTIONS.get(t)
+                if d is None:
+                    sys.exit(f"未定義のH3（全体フロー内）: {t!r}")
+                for n in range(s, e + 1):
+                    owner[n] = d
+        elif dest == "SPLIT_SUB":
+            sub = [(i, t) for i, lv, t in heads if lv == 3 and start < i <= end]
+            first = sub[0][0] if sub else end + 1
+            for n in range(start, first):
+                owner[n] = SUBCOMMAND_INTRO
+            for j, (s, t) in enumerate(sub):
+                e = sub[j + 1][0] - 1 if j + 1 < len(sub) else end
+                d = H3_SUBCOMMANDS.get(t)
+                if d is None:
+                    sys.exit(f"未定義のH3（サブコマンド内）: {t!r}")
+                for n in range(s, e + 1):
+                    owner[n] = d
+        else:
+            for n in range(start, end + 1):
+                owner[n] = dest
+
+    buckets = {}
+    for n in range(1, len(lines) + 1):
+        buckets.setdefault(owner[n], []).append(n)
+    return buckets
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--out")
+    ap.add_argument("--dry-run", action="store_true")
+    a = ap.parse_args()
+
+    lines = open(SRC, encoding="utf-8").read().split("\n")
+    buckets = assign(lines)
+
+    total = 0
+    for dest in sorted(buckets):
+        body = "\n".join(lines[n - 1] for n in buckets[dest])
+        b = len(body.encode("utf-8"))
+        total += b
+        print(f"{dest:<40} {len(buckets[dest]):>5}行 {b:>7}バイト")
+    print(f"{'合計':<40} {sum(len(v) for v in buckets.values()):>5}行 {total:>7}バイト")
+
+    # 行の取りこぼし・重複が無いことを表明する
+    seen = sorted(n for v in buckets.values() for n in v)
+    assert seen == list(range(1, len(lines) + 1)), "行の割り当てに漏れか重複がある"
+    print("行の割り当て: 漏れ・重複なし")
+
+    if a.dry_run or not a.out:
+        return
+    for dest, nums in buckets.items():
+        path = os.path.join(a.out, "SKILL.md" if dest == "body" else dest)
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, "w", encoding="utf-8") as f:
+            f.write("\n".join(lines[n - 1] for n in nums))
+        print(f"wrote {path}")
+
+
+if __name__ == "__main__":
+    main()
+```

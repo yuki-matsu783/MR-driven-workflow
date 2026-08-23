@@ -1,7 +1,7 @@
 ---
 title: 個別作業計画 — SKILL.mdのreferences分割と参照タイミングの機械化（issue #160）
 type: plan
-description: SKILL.mdを本文とreferences/8ファイルへ切り出し、全体フロー表の参照列とSessionStart hookで読むタイミングを機械的に決めるフェーズ3の作業計画
+description: SKILL.mdを本文とreferences/7ファイルへ切り出し、全体フロー表の参照列とSessionStart hookで読むタイミングを機械的に決めるフェーズ3の作業計画
 tags: [issue-mr-flow, skill, plan, session-start]
 keywords: [references分割, 参照列, flow-id解決, frontmatter, Provider.sh, describe抽出, 参照追従, 機械置換の禁止, テスト新設]
 ---
@@ -26,7 +26,7 @@ keywords: [references分割, 参照列, flow-id解決, frontmatter, Provider.sh,
 ## この計画で何をするか
 
 `.claude/skills/issue-mr-flow/SKILL.md`（1446行 / 132,251バイト）を、**入口に絞った本文**と
-`.claude/skills/issue-mr-flow/references/` 配下の**8ファイル**へ切り出し、あわせて
+`.claude/skills/issue-mr-flow/references/` 配下の**7ファイル**（本文と合わせて8ファイル）へ切り出し、あわせて
 **参照ファイルを開くタイミングを機械的に決める仕組み**を実装する。
 
 **見出しと節の中身は、切り貼り以外で触らない。** 切り出しは行の切り貼りだけで行い、
@@ -61,7 +61,7 @@ SKILL.md 内には `上記`/`下記`/`上表`/`前述`/`後述` を含む行が5
 | 対象 | 何をするか |
 |---|---|
 | `.claude/skills/issue-mr-flow/SKILL.md` | 本文を22,690バイトへ縮める。参照列・対応表を追加 |
-| `.claude/skills/issue-mr-flow/references/*.md`（**新規8ファイル**） | 切り出した詳細。各ファイルへ frontmatter を付ける |
+| `.claude/skills/issue-mr-flow/references/*.md`（**新規7ファイル**） | 切り出した詳細。各ファイルへ frontmatter を付ける |
 | `.claude/hooks/session-start.sh` | 現在地flow-idの解決と参照ファイルの注入を追加 |
 | `.claude/scripts/src/vcs/Provider.sh` | 357行目・373行目の**実行時メッセージ**の案内先を追従 |
 | `.claude/scripts/test/test_vcs_provider.sh` | 357行目の期待値を追従。**373行目の出力を検証するテストを新設** |
@@ -356,7 +356,7 @@ base="$(git merge-base origin/main HEAD)"
 | # | 何を確かめるか | コマンド／合格条件 |
 |---|---|---|
 | 1 | 本文が目標サイズに収まった | `wc -l` と `wc -c` の両方を出す。合格は**500行以内**（受け入れ条件 #1 の単位は行数）かつ概ね25,000バイト以下（参照列・対応表の追加分を含む） |
-| 2 | **切り貼り以外で触っていない** | (i) 見出し: `git show "$base":…SKILL.md` の見出し62件が分割後の集合に**すべて含まれ**（`comm -23` が0件）、**増分が追加したH1 8件＋導入H2 1件だけ**（`comm -13` が9件で、中身がその9つ）。見出し抽出は元・分割後ともコードフェンス対応の方法で行う（フェンス無視の `grep '^#'` は両側で同じだけ誤検出して一致してしまう）。 (ii) 全行: 元の全行と、分割後の全行から追加分（frontmatter・H1・導入H2・参照列・対応表）を除いたものを `sort` して `diff` し、**差分行が「参照付け替えの例外リスト」（reports/ に列挙）と完全一致**することを出力する |
+| 2 | **切り貼り以外で触っていない** | (i) 見出し: `git show "$base":…SKILL.md` の見出し62件が分割後の集合に**すべて含まれ**（`comm -23` が0件）、**増分が追加したH1 7件＋導入H2 1件＋対応表のH2 1件だけ**（`comm -13` が9件で、中身がその9つ。本文のH1は元から在るため増えない）。見出し抽出は元・分割後ともコードフェンス対応の方法で行う（フェンス無視の `grep '^#'` は両側で同じだけ誤検出して一致してしまう）。 (ii) 全行: 元の全行と、分割後の全行から追加分（frontmatter・H1・導入H2・参照列・対応表）を除いたものを `sort` して `diff` し、**差分行が「参照付け替えの例外リスト」（reports/ に列挙）と完全一致**することを出力する |
 | 3 | 対応表が全節名を網羅 | 参照されている節名の集合と対応表の左列を `comm -3` で突き合わせ、**差が0件**であることを件数付きで出す |
 | 4 | 参照列が全42行に入っている | 参照列が空のデータ行が**0件**であることを件数付きで出す |
 | 5 | hookが正しいflow-idと参照を返す | `test_session_start.sh` の新規ケースが通る。あわせて実際の `HANDOFF.md` に対して手で実行し、現在地が期待どおりであることを確認する |
@@ -364,8 +364,8 @@ base="$(git merge-base origin/main HEAD)"
 | 7 | 373の変え忘れを検出できる | 新設したテストで、案内先を旧パスへ戻した一時ツリーが**実際に失敗する**ことまで確かめる |
 | 8 | 参照追従にリンク切れが無い | `git grep -n 'issue-mr-flow/SKILL\.md'` の残存件数を出し、**すべてが (a)(b)(d) のいずれかである**ことを確認する |
 | 9 | **DDR本文・過去changelogを書き換えていない** | `git diff "$base" -- .claude/docs/ddr/` の行数が**0**（数字で出す）。spec側は `git diff -U0 "$base" -- .claude/docs/spec/` の変更行番号を新ファイルの節見出しへ対応付け、`## 影響範囲` 配下に落ちる変更行数が**0件**であることを数字で出す |
-| 10 | `references/` が配布先へ渡る | **先に `bash .claude/skills/apply-mr-workflow-to-project/scripts/sync-assets.sh` で配布物を作り直してから**（`install-to-project.sh` は事前ビルド済みの `assets/` からコピーするため、これを飛ばすと古い配布物で「渡ったように見える」）、`mktemp -d` ＋ `git init` した一時ディレクトリへ配り、`dest/.claude/skills/issue-mr-flow/references/` に8ファイルが現れることをコマンド出力で示す（調査 D-2 の**未達だった合格条件**） |
-| 11 | `index.jsonl` に載る | `bash .claude/scripts/src/extract-frontmatter.sh .` 後、`references/*.md` 8件が `type: skill-reference` で載っている |
+| 10 | `references/` が配布先へ渡る | **先に `bash .claude/skills/apply-mr-workflow-to-project/scripts/sync-assets.sh` で配布物を作り直してから**（`install-to-project.sh` は事前ビルド済みの `assets/` からコピーするため、これを飛ばすと古い配布物で「渡ったように見える」）、`mktemp -d` ＋ `git init` した一時ディレクトリへ配り、`dest/.claude/skills/issue-mr-flow/references/` に7ファイルが現れることをコマンド出力で示す（調査 D-2 の**未達だった合格条件**） |
+| 11 | `index.jsonl` に載る | `bash .claude/scripts/src/extract-frontmatter.sh .` 後、`references/*.md` 7件が `type: skill-reference` で載っている |
 | 12 | 構文チェック | 変更した `.sh` すべてに `bash -n` |
 | 13 | アンカーリンクが切れていない | 分割後の本文＋`references/*.md` それぞれで、`](#…)` の飛び先アンカーを同一ファイル内の見出しから生成した集合と突き合わせ、**不一致0件**を件数付きで出す |
 | 14 | 相対参照の追跡漏れが無い | `上記`/`下記`/`上表`/`前述`/`後述` を含む行（元56行）を分割後の所在ファイルごとに点検した結果を reports/ の例外リストと突き合わせ、**別ファイル行きなのに付け替えていない参照が0件**であることを出す |

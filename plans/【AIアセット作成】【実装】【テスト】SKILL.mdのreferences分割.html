@@ -111,7 +111,7 @@
   <div class="inner">
     <div class="kind">個別作業計画 / フェーズ3〈作業〉（flow-id 3-1）</div>
     <h1>SKILL.md の references 分割と参照タイミングの機械化</h1>
-    <p class="lead">SKILL.md を本文 22,690 バイトと <code>references/</code> 8ファイルへ切り出し、
+    <p class="lead">SKILL.md を本文 22,690 バイトと <code>references/</code> 7ファイル（本文と合わせて8ファイル）へ切り出し、
       <b>全体フロー表の「参照」列</b>と <b>SessionStart hook</b> で「いつ読むか」を機械的に決める。
       <b>見出しと節の中身は、切り貼り以外で触らない。</b></p>
     <ul class="meta">
@@ -161,7 +161,7 @@
 <section id="goal">
   <h2>この計画で何をするか</h2>
   <p><code>.claude/skills/issue-mr-flow/SKILL.md</code>（1446行 / 132,251バイト）を、<b>入口に絞った本文</b>と
-    <code>.claude/skills/issue-mr-flow/references/</code> 配下の<b>8ファイル</b>へ切り出し、あわせて
+    <code>.claude/skills/issue-mr-flow/references/</code> 配下の<b>7ファイル</b>（本文と合わせて8ファイル）へ切り出し、あわせて
     <b>参照ファイルを開くタイミングを機械的に決める仕組み</b>を実装する。</p>
   <div class="box stop">
     <span class="label">見出しと節の中身は、切り貼り以外で触らない</span>
@@ -202,7 +202,7 @@
     <thead><tr><th>対象</th><th>何をするか</th></tr></thead>
     <tbody>
       <tr><td><code>.claude/skills/issue-mr-flow/SKILL.md</code></td><td>本文を22,690バイトへ縮める。参照列・対応表を追加</td></tr>
-      <tr><td><code>.claude/skills/issue-mr-flow/references/*.md</code>（<b>新規8ファイル</b>）</td><td>切り出した詳細。各ファイルへ frontmatter を付ける</td></tr>
+      <tr><td><code>.claude/skills/issue-mr-flow/references/*.md</code>（<b>新規7ファイル</b>）</td><td>切り出した詳細。各ファイルへ frontmatter を付ける</td></tr>
       <tr><td><code>.claude/hooks/session-start.sh</code></td><td>現在地flow-idの解決と参照ファイルの注入を追加</td></tr>
       <tr><td><code>.claude/scripts/src/vcs/Provider.sh</code></td><td>357行目・373行目の<b>実行時メッセージ</b>の案内先を追従</td></tr>
       <tr><td><code>.claude/scripts/test/test_vcs_provider.sh</code></td><td>357行目の期待値を追従。<b>373行目の出力を検証するテストを新設</b></td></tr>
@@ -449,7 +449,7 @@
     <thead><tr><th>#</th><th>何を確かめるか</th><th>コマンド／合格条件</th></tr></thead>
     <tbody>
       <tr><td>1</td><td>本文が目標サイズに収まった</td><td><code>wc -l</code> と <code>wc -c</code> の両方を出す。合格は<b>500行以内</b>（受け入れ条件 #1 の単位は行数）かつ概ね25,000バイト以下</td></tr>
-      <tr><td>2</td><td><b>切り貼り以外で触っていない</b></td><td>(i) 見出し: 元62件が分割後の集合に<b>すべて含まれ</b>（<code>comm -23</code> が0件）、<b>増分が追加したH1 8件＋導入H2 1件だけ</b>（<code>comm -13</code> が9件で中身も確認）。抽出は元・分割後ともコードフェンス対応で行う。 (ii) 全行: 元の全行と、分割後の全行から追加分を除いたものを <code>sort</code>＋<code>diff</code> し、<b>差分行が例外リスト（reports/）と完全一致</b>することを出力する</td></tr>
+      <tr><td>2</td><td><b>切り貼り以外で触っていない</b></td><td>(i) 見出し: 元62件が分割後の集合に<b>すべて含まれ</b>（<code>comm -23</code> が0件）、<b>増分が追加したH1 7件＋導入H2 1件＋対応表のH2 1件だけ</b>（<code>comm -13</code> が9件で中身も確認。本文のH1は元から在るため増えない）。抽出は元・分割後ともコードフェンス対応で行う。 (ii) 全行: 元の全行と、分割後の全行から追加分を除いたものを <code>sort</code>＋<code>diff</code> し、<b>差分行が例外リスト（reports/）と完全一致</b>することを出力する</td></tr>
       <tr><td>3</td><td>対応表が全節名を網羅</td><td><code>comm -3</code> の差が<b>0件</b>であることを件数付きで出す</td></tr>
       <tr><td>4</td><td>参照列が全42行に入っている</td><td>参照列が空のデータ行が<b>0件</b>であることを件数付きで出す</td></tr>
       <tr><td>5</td><td>hookが正しいflow-idと参照を返す</td><td><code>test_session_start.sh</code> の新規ケース＋実際の <code>HANDOFF.md</code> での手動確認</td></tr>
@@ -457,8 +457,8 @@
       <tr><td>7</td><td>373の変え忘れを検出できる</td><td>案内先を旧パスへ戻した一時ツリーで、新設テストが<b>実際に失敗する</b>ことまで確かめる</td></tr>
       <tr><td>8</td><td>参照追従にリンク切れが無い</td><td>残存件数を出し、<b>すべてが (a)(b)(d) のいずれか</b>であることを確認する</td></tr>
       <tr><td>9</td><td><b>DDR本文・過去changelogを書き換えていない</b></td><td><code>git diff "$base" -- .claude/docs/ddr/</code> の行数が<b>0</b>（数字で出す）。spec側は <code>git diff -U0</code> の変更行番号を新ファイルの節見出しへ対応付け、<code>## 影響範囲</code> 配下に落ちる変更行数が<b>0件</b>であることを数字で出す</td></tr>
-      <tr><td>10</td><td><code>references/</code> が配布先へ渡る</td><td><b>先に <code>sync-assets.sh</code> で配布物を作り直してから</b>（飛ばすと古い配布物で「渡ったように見える」）、<code>mktemp -d</code> ＋ <code>git init</code> した一時ディレクトリへ配り、8ファイルが現れることをコマンド出力で示す（調査 D-2 の<b>未達だった合格条件</b>）</td></tr>
-      <tr><td>11</td><td><code>index.jsonl</code> に載る</td><td><code>extract-frontmatter.sh</code> 後、8件が <code>type: skill-reference</code> で載っている</td></tr>
+      <tr><td>10</td><td><code>references/</code> が配布先へ渡る</td><td><b>先に <code>sync-assets.sh</code> で配布物を作り直してから</b>（飛ばすと古い配布物で「渡ったように見える」）、<code>mktemp -d</code> ＋ <code>git init</code> した一時ディレクトリへ配り、<code>references/</code> に7ファイルが現れることをコマンド出力で示す（調査 D-2 の<b>未達だった合格条件</b>）</td></tr>
+      <tr><td>11</td><td><code>index.jsonl</code> に載る</td><td><code>extract-frontmatter.sh</code> 後、7件が <code>type: skill-reference</code> で載っている</td></tr>
       <tr><td>12</td><td>構文チェック</td><td>変更した <code>.sh</code> すべてに <code>bash -n</code></td></tr>
       <tr><td>13</td><td>アンカーリンクが切れていない</td><td>分割後の各 <code>.md</code> で <code>](#…)</code> の飛び先アンカーを同一ファイル内の見出しから生成した集合と突き合わせ、<b>不一致0件</b>を件数付きで出す</td></tr>
       <tr><td>14</td><td>相対参照の追跡漏れが無い</td><td>元56行を分割後の所在ファイルごとに点検し、reports/ の例外リストと突き合わせて<b>別ファイル行きなのに付け替えていない参照が0件</b>であることを出す</td></tr>
