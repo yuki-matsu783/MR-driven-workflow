@@ -17,7 +17,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - issue: #168
 - ブランチ: `claude/html-slide-skill-template-ymue7k`（ハーネス指定。feature-168-* ではない）
 - PR: #194（Draft。https://github.com/yuki-matsu783/MR-driven-workflow/pull/194 ）
-- push回数: 2
+- push回数: 4
 - 現在のループ: なし
 - 未返信スレッド: 0
 - 追従監視: PR #194 を subscribe_pr_activity で購読（このセッション）
@@ -34,7 +34,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 | [] | 2-2 | commitし、pushしてレビュー依頼を行う | エージェント |
 | [] | 2-3 | MRで調査計画についてレビュー・コメントする | 人間 |
 | [] | 2-4 | レビュー内容を取得し、調査計画を修正する | サブコマンド |
-| [] | 2-5 | 調査計画をもとにMR descriptionを更新する | サブコマンド |
+| [x] | 2-5 | 調査計画をもとにMR descriptionを更新する | サブコマンド |
 | [] | 2-6 | 調査を実施し、結果を記録する | エージェント |
 | [] | 2-7 | commitし、pushしてレビュー依頼を行う | エージェント |
 | [] | 2-8 | MRで調査結果についてレビュー・コメントする | 人間 |
@@ -79,6 +79,15 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
   指摘に対する修正を行いながら進めること」）を包括的な承認として進める（進捗記号は [] のまま残す）。
 - 2026-08-23: 個別調査計画 `wip/plans/【調査】HTMLスライドスキルの前提調査.md`（+同名.html）と
   worklog（push1）を作成（flow-id 2-1）。PR #194 の追従監視を `subscribe_pr_activity` で開始。
+- 2026-08-23: 敵対的レビュー（フェーズ2の1回目・対象は調査計画）を実施。10件の指摘のうち6件を
+  PR #194 へインライン投稿、4件は報告のみ（内容はworklog参照）。10件すべてを計画へ反映し
+  （commit 95aac42）、6スレッド全てへ対応内容を返信済み（未返信スレッド0）。
+- 2026-08-23: 調査（flow-id 2-6相当）を実施し、レポート
+  `wip/reports/2026-08-23_html-slides-skill-plan_前提調査.md`（+同名.html）を作成。
+  計画の「検証」節の機械検査5種すべて合格。主要な結論: スキル名 `html-slides`／出力先既定
+  `wip/reports/`（`.slides.html`・`.slides.json`）／スキーマは `references/slide-outline.schema.json`／
+  配布・同期の設定変更不要／この環境はヘッドレスChromium（Playwright）で動的検証可能。
+  MR description更新済み（flow-id 2-5）。
 
 ## 次にやること
 

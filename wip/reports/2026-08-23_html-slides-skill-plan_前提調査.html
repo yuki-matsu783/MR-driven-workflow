@@ -1,0 +1,323 @@
+<!--
+  調査結果レポート「HTMLスライドスキルの前提調査」（issue #168 / PR #194）の人間レビュー用HTMLビュー。
+  正文は同名の .md（wip/reports/2026-08-23_html-slides-skill-plan_前提調査.md）。
+  土台: .claude/skills/issue-mr-flow/assets/reports.template.html（issue #54 / #186）
+-->
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>前提調査 — HTMLスライドスキル（issue #168）</title>
+<style>
+  :root {
+    --bg: #f6f7f9;      --panel: #ffffff;   --ink: #1a1d21;     --muted: #5b636d;
+    --line: #dfe3e8;    --accent: #2563eb;  --accent-soft: #eaf0fe;
+    --ok: #1a7f4b;      --ok-soft: #e6f4ec; --warn: #a35a00;    --warn-soft: #fdf1e0;
+    --stop: #b3261e;    --stop-soft: #fdecea; --good: #1d4ed8;  --good-soft: #e7edfd;
+    --code-bg: #f0f2f5;
+    --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1216;    --panel: #161a20;   --ink: #e6e8eb;     --muted: #9aa3ad;
+      --line: #2a3038;  --accent: #7aa2f7;  --accent-soft: #1b2333;
+      --ok: #6ee7a8;    --ok-soft: #14261d; --warn: #f0b866;    --warn-soft: #2a2113;
+      --stop: #f2857c;  --stop-soft: #2b1614; --good: #8ab4f8;  --good-soft: #17233a;
+      --code-bg: #1d222a;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", system-ui, sans-serif;
+    line-height: 1.8; font-size: 15px;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 20px 80px; }
+  header.band {
+    background: linear-gradient(135deg, var(--accent-soft), var(--panel));
+    border-bottom: 1px solid var(--line); padding: 28px 20px 22px; margin-bottom: 28px;
+  }
+  header.band .inner { max-width: 1080px; margin: 0 auto; }
+  header.band .kind { font-size: 11px; letter-spacing: .18em; color: var(--accent); font-weight: 700; }
+  header.band h1 { margin: 6px 0 4px; font-size: 26px; line-height: 1.4; }
+  header.band .lead { margin: 0; color: var(--muted); }
+  header.band .counts { margin: 12px 0 0; display: flex; gap: 6px; flex-wrap: wrap; }
+  .meta { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; padding: 0; list-style: none; }
+  .meta li {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 999px;
+    padding: 3px 12px; font-size: 12.5px; color: var(--muted); white-space: nowrap;
+  }
+  .meta li b { color: var(--ink); font-weight: 600; }
+  nav.toc {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 14px 20px; margin-bottom: 28px;
+  }
+  nav.toc h2 { margin: 0 0 8px; font-size: 13px; letter-spacing: .08em; color: var(--muted); border: 0; padding: 0; }
+  nav.toc ol { margin: 0; padding-left: 20px; }
+  nav.toc li { margin: 2px 0; }
+  a { color: var(--accent); }
+  section {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 8px 24px 22px; margin-bottom: 22px;
+  }
+  section[id], h3[id] { scroll-margin-top: 16px; }
+  h2 { font-size: 20px; margin: 20px 0 10px; padding-bottom: 8px; border-bottom: 2px solid var(--line); }
+  h3 { font-size: 16px; margin: 22px 0 8px; color: var(--accent); }
+  p { margin: 10px 0; }
+  ul, ol { padding-left: 22px; }
+  li { margin: 4px 0; }
+  .tablewrap { overflow-x: auto; margin: 14px 0; }
+  table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 14px; }
+  th, td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: var(--accent-soft); font-weight: 600; white-space: nowrap; }
+  tbody tr:nth-child(even) td { background: color-mix(in srgb, var(--line) 22%, transparent); }
+  code {
+    background: var(--code-bg); border-radius: 5px; padding: 1px 5px; font-size: 13px;
+    font-family: "SFMono-Regular", Consolas, "Noto Sans Mono", monospace;
+  }
+  pre {
+    background: var(--code-bg); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 12px 14px; overflow-x: auto; font-size: 13px; line-height: 1.65;
+  }
+  pre code { background: none; padding: 0; }
+  .box { border-left: 4px solid var(--accent); background: var(--accent-soft);
+         border-radius: 0 var(--radius) var(--radius) 0; padding: 12px 16px; margin: 16px 0; }
+  .box > :first-child { margin-top: 0; } .box > :last-child { margin-bottom: 0; }
+  .box .label { font-size: 12px; font-weight: 700; letter-spacing: .06em; display: block; margin-bottom: 4px; }
+  .box.ok { border-color: var(--ok); background: var(--ok-soft); } .box.ok .label { color: var(--ok); }
+  .box.warn { border-color: var(--warn); background: var(--warn-soft); } .box.warn .label { color: var(--warn); }
+  .box.stop { border-color: var(--stop); background: var(--stop-soft); } .box.stop .label { color: var(--stop); }
+  .box.info .label { color: var(--accent); }
+  .chip { display: inline-block; border-radius: 999px; padding: 1px 9px; font-size: 12px; font-weight: 600; }
+  .chip.good { background: var(--good-soft); color: var(--good); }
+  .chip.warn { background: var(--warn-soft); color: var(--warn); }
+  .chip.stop { background: var(--stop-soft); color: var(--stop); }
+  ol.verdicts { list-style: none; padding: 0; margin: 14px 0; display: grid; gap: 8px; }
+  .verdict {
+    border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel);
+    padding: 8px 12px; display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px;
+  }
+  .verdict .v-basis { color: var(--muted); font-size: 12.5px; margin-left: auto; }
+  .focus { border-radius: var(--radius); padding: 12px 16px; margin: 14px 0; }
+  .focus > :last-child { margin-bottom: 0; }
+  .focus .label { font-size: 13px; font-weight: 700; letter-spacing: .04em; display: block; margin-bottom: 4px; }
+  .focus.must { border: 2px solid var(--accent); background: var(--accent-soft); }
+  .focus.must .label { color: var(--accent); }
+  .focus.want { border: 1px solid var(--accent); background: var(--panel); }
+  .focus.want .label { color: var(--accent); }
+  .focus.skip { border: 1px solid var(--line); background: var(--panel); color: var(--muted); }
+  .focus.skip .label { color: var(--muted); }
+  .focus.skip a { color: var(--muted); }
+  footer { color: var(--muted); font-size: 13px; text-align: center; padding-top: 10px; }
+</style></head>
+<body>
+
+<header class="band">
+  <div class="inner">
+    <div class="kind">調査結果レポート / フェーズ2（flow-id 2-6）</div>
+    <h1>調査結果: HTMLスライドスキルの前提調査</h1>
+    <p class="lead">Q1〜Q8を調査し、スキル名（html-slides）・出力先（wip/reports/）・スキーマの置き場所（references/）・実装/検証方式（単一script＋@media print、ヘッドレスChromiumで実機検証可能）を確定した。配布・同期の設定変更は不要。</p>
+    <p class="counts">
+      <span class="chip good">◎良 8</span>
+      <span class="chip warn">△注意 0</span>
+      <span class="chip stop">✕問題 0</span>
+    </p>
+    <ul class="meta">
+      <li><b>issue</b> #168</li>
+      <li><b>ブランチ</b> claude/html-slide-skill-template-ymue7k</li>
+      <li><b>PR</b> #194（Draft）</li>
+      <li><b>フェーズ</b> 2〈調査〉 flow-id 2-6</li>
+      <li><b>作成日</b> 2026-08-23</li>
+      <li><b>正文</b> 同名の .md</li>
+    </ul>
+  </div>
+</header>
+
+<div class="wrap">
+
+<nav class="toc">
+  <h2>目次</h2>
+  <ol>
+    <li><a href="#review-focus">重点レビュー依頼</a></li>
+    <li><a href="#summary">サマリ（結論の一覧）</a></li>
+    <li><a href="#unverified">確かめられなかったこと</a></li>
+    <li><a href="#conditions">実施条件（測った対象・環境）</a></li>
+    <li><a href="#findings">実施した内容と結果</a></li>
+    <li><a href="#next">設計への反映</a></li>
+    <li><a href="#todo">残課題</a></li>
+  </ol>
+</nav>
+
+<section id="review-focus">
+  <h2>重点レビュー依頼</h2>
+  <div class="focus must">
+    <span class="label">◆特に見てほしい（判断に困っている）</span>
+    <ul>
+      <li><a href="#f4">Q4. 出力先の既定</a> — <code>wip/reports/</code>（タスク単位で削除される寿命）とした。恒久保存の需要が強いなら結論が変わる。既定のままでよいかを決めてほしい。</li>
+    </ul>
+  </div>
+  <div class="focus want">
+    <span class="label">◇承認が欲しい（方針は決めたので確認してほしい）</span>
+    <ul>
+      <li><a href="#f3">Q3. スキル名</a> — <code>html-slides</code> と決めた。</li>
+      <li><a href="#f5">Q5. スキーマの置き場所</a> — <code>references/slide-outline.schema.json</code>、HTML固有の表現を含めない方針と決めた。</li>
+    </ul>
+  </div>
+  <div class="focus skip">
+    <span class="label">・細かいレビューは不要（ほぼ確実）</span>
+    <ul>
+      <li><a href="#f1">Q1</a>・<a href="#f2">Q2</a> — 既存ファイルの読解。<a href="#f6">Q6</a>・<a href="#f7">Q7</a> — 実装・設定の実測で「変更不要」を確認済み。</li>
+    </ul>
+  </div>
+</section>
+
+<section id="summary">
+  <h2>サマリ（結論の一覧）</h2>
+  <ol class="verdicts">
+    <li class="verdict"><span class="chip good">◎良</span><a href="#f1">Q1. 冒頭コメント構成・CSS変数・ダークモード・プレースホルダ検査を踏襲する</a><span class="v-basis">根拠: 実測（grep）＋読解</span></li>
+    <li class="verdict"><span class="chip good">◎良</span><a href="#f2">Q2. frontmatter 8キー＋「立場→入力→手順→出力→してはいけないこと」を踏襲する</a><span class="v-basis">根拠: 既存2本の読解</span></li>
+    <li class="verdict"><span class="chip good">◎良</span><a href="#f3">Q3. スキル名は html-slides を採用</a><span class="v-basis">根拠: 命名傾向の比較</span></li>
+    <li class="verdict"><span class="chip good">◎良</span><a href="#f4">Q4. 出力先の既定は wip/reports/（.slides.html / .slides.json 命名）</a><span class="v-basis">根拠: 実装の確認＋比較</span></li>
+    <li class="verdict"><span class="chip good">◎良</span><a href="#f5">Q5. スキーマは references/slide-outline.schema.json（JSON Schema形式）</a><span class="v-basis">根拠: 語彙定義の読解</span></li>
+    <li class="verdict"><span class="chip good">◎良</span><a href="#f6">Q6. 配布・同期・インデックスの設定変更は一切不要</a><span class="v-basis">根拠: 実装の確認</span></li>
+    <li class="verdict"><span class="chip good">◎良</span><a href="#f7">Q7. 追記が必要なのは directory-structure.md のツリーのみ</a><span class="v-basis">根拠: 規約の読解</span></li>
+    <li class="verdict"><span class="chip good">◎良</span><a href="#f8">Q8. 単一script＋@media print。ヘッドレスChromiumで実機検証可能</a><span class="v-basis">根拠: 実測</span></li>
+  </ol>
+</section>
+
+<section id="unverified">
+  <h2>確かめられなかったこと</h2>
+  <div class="box warn">
+    <span class="label">この結果が言っていないこと</span>
+    <ul>
+      <li>実プリンタでの印刷結果・Chromium以外のブラウザ（Firefox/Safari）での表示とキー操作 — <a href="#f8">詳細: Q8</a></li>
+      <li>Gemini CLI経路での新規エージェント定義の実動作（変換対象になることまでは実装から確認済み） — <a href="#f6">詳細: Q6</a></li>
+    </ul>
+  </div>
+</section>
+
+<section id="conditions">
+  <h2>実施条件（測った対象・環境）</h2>
+  <ul>
+    <li>実行環境: Claude Code on the web のリモート実行環境（Linux）。node v22.22.2・Playwright CLI 1.56.1・Chromium（<code>/opt/pw-browsers/chromium</code>）・Python 3.11.15 を実測確認。</li>
+    <li>対象: リポジトリの現HEAD（PR #194 のブランチ）。実施日: 2026-08-23。</li>
+    <li>1環境の観測であり、git bash（Windows）実機での挙動は本調査の対象外。</li>
+  </ul>
+</section>
+
+<section id="findings">
+  <h2>実施した内容と結果</h2>
+
+  <h3 id="f1">Q1. 既存テンプレート3本の規約 <span class="chip good">◎良</span></h3>
+  <p>3本（<code>plans.template.html</code> / <code>reports.template.html</code> / <code>canvas-report.html</code>）を読解し、共通構成を表にした。</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>要素</th><th>内容</th><th>slides.template.html での扱い</th></tr></thead>
+    <tbody>
+      <tr><td>冒頭HTMLコメント</td><td>使い方・必須/任意の別・検査コマンド</td><td>踏襲（8種の型の一覧・選び方・検査方法を持たせる。見出し構成の正はテンプレート側）</td></tr>
+      <tr><td>プレースホルダ検査</td><td><code>grep -c '&lt;!-- ここに書く'</code> が0</td><td>踏襲（同じ文言・同じ検査）</td></tr>
+      <tr><td>CSS変数</td><td><code>--bg --panel --ink --muted --line --accent</code> 等12種</td><td>踏襲（命名を揃える。スライド固有の変数は追加可）</td></tr>
+      <tr><td>ダークモード</td><td><code>@media (prefers-color-scheme: dark)</code></td><td>踏襲。投影の既定はライト基調、印刷は常にライト</td></tr>
+      <tr><td>自己完結</td><td>CDN・外部フォント・画像なし（canvasのみ任意のmermaid CDN）</td><td>踏襲（外部依存ゼロ。受け入れ条件1）</td></tr>
+      <tr><td>正文の所在</td><td>mdが正文、HTMLは視覚化</td><td>相違点: スライドは対応mdを持たない。機械可読の対は構成案JSON（Q5）</td></tr>
+      <tr><td>script</td><td>plans/reports は0件。canvasのみ内蔵JSエンジン</td><td>相違点: ページ送りに script 必須（Q8）。canvasが自己完結JSの前例</td></tr>
+      <tr><td><code>@media print</code></td><td>3本とも0件（実測）</td><td>新規要素（前例なし。Q8で方式を確定）</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <div class="box ok"><span class="label">結論</span>冒頭コメント構成・CSS変数・ダークモード・プレースホルダ検査・自己完結を踏襲する。script と印刷CSSのみ新規要素。</div>
+
+  <h3 id="f2">Q2. サブエージェント定義の規約 <span class="chip good">◎良</span></h3>
+  <p>既存2本（<code>adversarial-reviewer.md</code> / <code>issue-mr-resume.md</code>）を読解した。</p>
+  <ul>
+    <li>frontmatter: <code>name</code> / <code>description</code> / <code>tools</code> / <code>model</code> / <code>title</code> / <code>type: agent</code> / <code>tags</code> / <code>keywords</code> の8キー。<code>description</code> はClaude Codeが選択に使うキーで、OKF用の要約を重複追加せず流用する。</li>
+    <li>tools による境界の強制: 読み取り専用は Write/Edit を持たせないことで機構的に強制。</li>
+    <li>本文構成: 二人称の役割宣言 → 立場 → 入力 → 手順 → 出力（スキーマ） → してはいけないこと。</li>
+    <li>新規2本: ①構成設計は <code>Read, Grep, Glob, Bash</code>（読み取り専用）、②HTML生成は <code>Read, Grep, Glob, Bash, Write</code>（Editは持たせず新規書き出しのみ）。</li>
+  </ul>
+  <div class="box ok"><span class="label">結論</span>既存の型をそのまま踏襲でき、独自形式を発明する必要は無い。境界（HTML生成をしない／構成を作り直さない）はツール制限と本文の両方で表す。</div>
+
+  <h3 id="f3">Q3. スキル名 <span class="chip good">◎良</span></h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>候補</th><th>利点</th><th>採否</th></tr></thead>
+    <tbody>
+      <tr><td><code>html-slides</code></td><td>issueタイトル「HTMLスライド」を直接表す</td><td>採用</td></tr>
+      <tr><td><code>slide-report</code></td><td><code>canvas-report</code> と命名が揃う</td><td>却下: 用途がreportに限定して見える</td></tr>
+      <tr><td><code>slides</code></td><td>短い</td><td>却下: HTML形式と伝わらず将来の .pptx スキルと紛れる</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <div class="box ok"><span class="label">結論</span><code>.claude/skills/html-slides/</code> を採用する。</div>
+
+  <h3 id="f4">Q4. 出力先ディレクトリの既定 <span class="chip good">◎良</span></h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>候補</th><th>寿命・影響</th><th>採否</th></tr></thead>
+    <tbody>
+      <tr><td><code>wip/reports/</code></td><td>タスク単位（cleanup-task.sh が flow-id 5-5 で削除＝スライドは必ず消える）。設定変更が一切不要</td><td>採用</td></tr>
+      <tr><td>恒久ディレクトリ新設</td><td>mainに残せるが「squash merge後のmainはコード＋spec/ddrのみ」と衝突。dist-layers・ツリー・cleanup除外の追加が必要</td><td>却下（既定としては採らない）</td></tr>
+      <tr><td>.gitignore対象のローカル</td><td>リモートに乗らずレビュー・共有ができない</td><td>却下</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <div class="box ok"><span class="label">結論</span>既定は <code>wip/reports/日付_&lt;全体計画名&gt;_&lt;内容&gt;.slides.html</code>（構成案JSONは同ベース名 <code>.slides.json</code>）。恒久保存したい場合は呼び出し時にユーザーが出力先を明示指定する（SKILL.md に明記）。</div>
+
+  <h3 id="f5">Q5. 構成案JSONスキーマの置き場所・形式・内容 <span class="chip good">◎良</span></h3>
+  <p>置き場所は語彙定義（assets=出力に使うもの／scripts=実行するもの／references=AIが読むもの）から <code>references/</code> を採用（スキーマは①②とSKILL.mdが「読む」契約定義）。形式はJSON Schema（draft-07互換）。構造検査はjqの必須キー確認で行う（完全な検証器はリポジトリに無い）。</p>
+  <p>保持すべき情報（受け入れ条件6のため）: <code>meta</code>（タイトル・日付・作成者・issue番号）、<code>slides[]</code>（<code>type</code> 8種のenumと <code>title</code> を必須、型ごとの固有フィールド）、<code>speakerNotes</code>（任意）。<b>HTML固有の表現（色・座標・CSSクラス）を含めない</b>（HTMLからの逆変換を避けるissue本文の要求）。</p>
+  <div class="box ok"><span class="label">結論</span><code>.claude/skills/html-slides/references/slide-outline.schema.json</code> に置き、SKILL.md・エージェント定義からはパスで参照する（再掲しない）。</div>
+
+  <h3 id="f6">Q6. 配布・同期・インデックスへの影響 <span class="chip good">◎良</span></h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>仕組み</th><th>実測根拠</th><th>影響</th></tr></thead>
+    <tbody>
+      <tr><td><code>dist-layers.json</code></td><td><code>.claude</code> が丸ごと layer=core</td><td>新規は自動的に配布対象。追記不要</td></tr>
+      <tr><td><code>check-dist-coverage.sh</code></td><td>追跡ファイル全件と .gitignore の被覆を検査</td><td>core で被覆済み。.gitignore 変更もなし。変更不要</td></tr>
+      <tr><td><code>sync-gemini-assets.sh</code></td><td>agents/*.md は変換、skills はコピー（ワイルドカード）</td><td>flow-id 5-3 の実行だけでよい。変更不要</td></tr>
+      <tr><td><code>extract-frontmatter.sh</code></td><td>走査対象は *.md のみ</td><td>SKILL.md・エージェントmdは自動で index.jsonl に載る（受け入れ条件10）。schema.json・template.html は対象外（仕様どおり）</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <div class="box ok"><span class="label">結論</span>設定変更は一切不要。</div>
+  <div class="box warn unverified-detail"><span class="label">確かめられなかったこと（詳細）</span>Gemini CLI経路での新規エージェント定義の実動作は未確認（変換対象になることは実装から確認済み。flow-id 5-3 後に <code>.gemini/</code> の生成結果で確認する）。</div>
+
+  <h3 id="f7">Q7. ドキュメント追記先 <span class="chip good">◎良</span></h3>
+  <ul>
+    <li><code>directory-structure.md</code> のツリー: <code>html-slides/assets/</code>・<code>html-slides/references/</code> の行を追記する（受け入れ条件9。フェーズ4で実施）。</li>
+    <li><code>markdown-frontmatter.md</code>: 変更不要。type表の <code>skill</code> / <code>agent</code> が既存で、「対象外・特殊対応ファイル」表により SKILL.md・agents は <code>description</code> を1つだけ書けばよい。schema.json・template.html は md でないため対象外。</li>
+  </ul>
+  <div class="box ok"><span class="label">結論</span>フェーズ4の追記対象は directory-structure.md のツリー1箇所。</div>
+
+  <h3 id="f8">Q8. ページ送り・進行表示・印刷の実装方式と検証 <span class="chip good">◎良</span></h3>
+  <p>実装方式: 単一ファイル内の <code>&lt;script&gt;</code>（DOM操作のみ、<code>file://</code> で動く）。keydown（←→/Space/Home/End）とナビボタンのクリックで <code>.slide</code> を切り替え、「n / N」とプログレスバーで進行表示。印刷は <code>@media print</code> でナビUIを隠して全スライドへ <code>break-after: page</code> を当て、16:9の1スライド1ページに割り付ける（CSSのみで成立させ、JS無効環境でも印刷可能にする）。</p>
+  <p>検証: 静的grep検査（プレースホルダ・外部参照・<code>@media print</code>・キーハンドラ・8種のsection存在）に加え、<b>この実行環境はヘッドレスChromiumで動的検証ができる</b>（実測: node v22.22.2 / Playwright CLI 1.56.1 / <code>/opt/pw-browsers/chromium</code>）。キーイベント→進行表示の変化、クリック→遷移、<code>page.pdf()</code>→ページ数=スライド枚数、を自動テストできる。当初の調査計画は「ブラウザの無い実行環境」を前提としていたが、実測で覆った（良い方向の想定外）。</p>
+  <div class="box ok"><span class="label">結論</span>受け入れ条件1〜3は静的＋動的の機械検証で担保し、見た目の品質・実プリンタ・他ブラウザのみ人間の実機確認に残す（フェーズ3のレビュー依頼へ明記する）。受け入れ条件4はSKILL.mdの手順どおりにサンプル1本を実生成して確認する。</div>
+  <div class="box warn unverified-detail"><span class="label">確かめられなかったこと（詳細）</span>実プリンタでの印刷・Firefox/Safariでの表示とキー操作はこの環境では確認できない。PDF化検証はChromiumの印刷エンジンと同一のため代表性は高いが、ブラウザ差は人間の実機確認に残る。</div>
+</section>
+
+<section id="next">
+  <h2>設計への反映</h2>
+  <ol>
+    <li>フェーズ3の個別作業計画（flow-id 3-1）へ: スキル名 <code>html-slides</code>・出力先既定 <code>wip/reports/</code>（<code>.slides.html</code>/<code>.slides.json</code> 命名）・スキーマの置き場所と保持情報（Q5）・実装方式（Q8）を前提として反映する。</li>
+    <li>フェーズ3のテストへ: Playwrightによる動的検証（キー操作・クリック・<code>page.pdf()</code> のページ数一致）と静的grep検査を検証手順に組み込む。</li>
+    <li>フェーズ4へ: <code>directory-structure.md</code> ツリーへの追記（Q7）と、出力先の意思決定のDDR記録（Q4の比較表が材料になる）。</li>
+  </ol>
+</section>
+
+<section id="todo">
+  <h2>残課題</h2>
+  <ul>
+    <li>スライド型8種それぞれの見本コンテンツの設計（テンプレートに埋め込むサンプル）→ フェーズ3。</li>
+    <li>構成案JSONスキーマの具体的なフィールド定義（Q5の「保持すべき情報」をJSON Schemaに落とす）→ フェーズ3。</li>
+    <li>エージェント②の差し戻し条件の具体化（要点が1枚に収まらない・型に無いフィールドが来た場合等）→ フェーズ3。</li>
+  </ul>
+</section>
+
+<footer>issue #168 / PR #194 — 結果の正文は同名の <code>.md</code>。外部依存を持たない自己完結HTML。</footer>
+
+</div>
+</body>
+</html>
