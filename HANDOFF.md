@@ -17,8 +17,8 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - issue: #142
 - ブランチ: `claude/docs-workflow-heading-rule-mi3krb`
 - PR: #188（Draft, https://github.com/yuki-matsu783/MR-driven-workflow/pull/188 ）
-- push回数: 1
-- 現在のループ: 2-3〜2-4 の1周目（進行中）
+- push回数: 3
+- 現在のループ: 2-3〜2-4 の1周目（完了）
 - 未返信スレッド: 0
 - 追従監視: あり（`subscribe_pr_activity` でPR #188 を購読中。セッション終了で止まるため、次セッションは `resume` で取り直す）
 
@@ -30,10 +30,10 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 | [x] | 1-4 | 全体作業計画を作成する | エージェント |
 | [-] | 1-5 | 全体作業計画に合意する | 人間 |
 | [x] | 1-6 | 全体作業計画をもとにHANDOFF.mdを更新する | エージェント |
-| [] | 2-1 | 個別調査計画を作成する | エージェント |
-| [] | 2-2 | commitしpushしてレビュー依頼 | エージェント |
-| [] | 2-3 | 調査計画をレビュー・コメント | 人間 |
-| [] | 2-4 | レビュー内容を取得し調査計画を修正 | サブコマンド |
+| [x] | 2-1 | 個別調査計画を作成する | エージェント |
+| [x] | 2-2 | commitしpushしてレビュー依頼 | エージェント |
+| [x] | 2-3 | 調査計画をレビュー・コメント | 人間 |
+| [x] | 2-4 | レビュー内容を取得し調査計画を修正 | サブコマンド |
 | [] | 2-5 | 調査計画をもとにMR descriptionを更新 | サブコマンド |
 | [] | 2-6 | 調査を実施しreportsへ記録 | エージェント |
 | [] | 2-7 | commitしpushしてレビュー依頼 | エージェント |
@@ -78,10 +78,26 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - flow-id 1-5 は `[-]`。**非対話的セッション**のため人間の合意を待てない。ユーザーからの指示
   「各フェーズの計画時に一度、作業実施ごとに一度、敵対的レビューを自動で行い、指摘に対する修正を
   行いながら進めること」をもって着手の合意とみなす。
+- flow-id 2-1: 個別調査計画 `plans/【調査】残置テキストの係り先ルールの射程と重複を洗い出す.md`
+  （＋`.html`）と worklog を作成した。
+- flow-id 2-2: commit・push（push 1）。HANDOFF.mdのヘッダ更新で push 2。
+- flow-id 2-3〜2-4（1周目、敵対的レビューで代替）: 計画に対する敵対的レビューを実施し、
+  **7件をインライン投稿・2件を報告のみ**とした。7件すべてへ対応し返信済み（未返信スレッド 0）。
+  - 投稿したスレッド:
+    - https://github.com/yuki-matsu783/MR-driven-workflow/pull/188#discussion_r3838550549 （md/html非同期）
+    - https://github.com/yuki-matsu783/MR-driven-workflow/pull/188#discussion_r3838551127 （#109の壊れた位置の軸が食い違い）
+    - https://github.com/yuki-matsu783/MR-driven-workflow/pull/188#discussion_r3838551519 （Q2が`.gemini/`を数える）
+    - https://github.com/yuki-matsu783/MR-driven-workflow/pull/188#discussion_r3838551929 （検証が1実例・1ファイル）
+    - https://github.com/yuki-matsu783/MR-driven-workflow/pull/188#discussion_r3838552346 （Q3の循環依存）
+    - https://github.com/yuki-matsu783/MR-driven-workflow/pull/188#discussion_r3838552762 （Q4が識別子だけで判定）
+    - https://github.com/yuki-matsu783/MR-driven-workflow/pull/188#discussion_r3838553202 （合格条件が空振り）
+  - 報告のみの2件（`.gemini/`が変更対象に無い／前提にflow-idが無い）も、あわせて計画へ反映した。
+  - 敵対的レビューの実施回数: フェーズ2は 1/3。
 
 ## 次にやること
 
-- flow-id 2-1: 個別調査計画 `plans/【調査】〜.md`（＋`.html`）と worklog を作成する。
+- flow-id 2-5: 調査計画をもとにMR descriptionを更新する（`describe`）。
+- flow-id 2-6: 調査を実施し、`reports/` へ結果を記録する。
 
 ## 判断を迷った内容
 

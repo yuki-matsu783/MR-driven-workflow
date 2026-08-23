@@ -116,7 +116,7 @@
       <li><b>ブランチ</b> claude/docs-workflow-heading-rule-mi3krb</li>
       <li><b>PR</b> #188</li>
       <li><b>フェーズ</b> 1〈起点〉 flow-id 1-4</li>
-      <li><b>push回数</b> 0</li>
+      <li><b>push回数</b> 3</li>
       <li><b>作成日</b> 2026-08-23</li>
       <li><b>正文</b> 同名の .md</li>
     </ul>
@@ -129,12 +129,12 @@
   <h2>目次</h2>
   <ol>
     <li><a href="#goal">この作業で何をするか</a></li>
-    <li><a href="#background">背景（確定している事実）</a></li>
+    <li><a href="#background">背景（issueと通知コメントから確定している事実）</a></li>
     <li><a href="#target">変更対象</a></li>
     <li><a href="#phase-research">フェーズ2〈調査〉</a></li>
-    <li><a href="#approach">フェーズ3〈作業〉の方針</a></li>
+    <li><a href="#approach">フェーズ3〈作業〉</a></li>
     <li><a href="#phase-apply">フェーズ4〈反映〉</a></li>
-    <li><a href="#out-of-scope">やらないこと（スコープ外）</a></li>
+    <li><a href="#out-of-scope">この計画で決めないこと（スコープ外）</a></li>
     <li><a href="#verify">検証</a></li>
     <li><a href="#criteria">issueの受け入れ条件との対応</a></li>
     <li><a href="#session">進め方の前提（このセッション固有）</a></li>
@@ -152,15 +152,17 @@
 </section>
 
 <section id="background">
-  <h2>背景（確定している事実）</h2>
+  <h2>背景（issueと通知コメントから確定している事実）</h2>
+  <p><b>「壊れた位置」は、新しく書いた部分から見て前か後ろかで揃える</b>（「分割点の直後」のように
+  別の基準を混ぜると、同じ事例が前とも後ろとも言えてしまう）。</p>
   <div class="tablewrap">
   <table>
-    <thead><tr><th>#</th><th>何を変えたか</th><th>壊れたテキストの位置</th><th>現行ルールで拾えるか</th></tr></thead>
+    <thead><tr><th>#</th><th>何を変えたか</th><th>壊れたテキストの位置（新しく書いた部分から見て）</th><th>現行ルールで拾えるか</th></tr></thead>
     <tbody>
-      <tr><td>issue #64</td><td>新しい見出しを差し込んだ</td><td>挿入位置の<b>直前</b></td><td><span class="tag ok">拾える</span> このルールの元ネタ</td></tr>
-      <tr><td>issue #109</td><td>既存の節を (1)(2) に<b>分割</b>した</td><td>(1) の<b>直後</b>（分割前は正しかった行）</td><td><span class="tag stop">拾えない</span> 見出しの挿入ではない</td></tr>
-      <tr><td>PR #139（issue #135）</td><td>新しい見出しを差し込んだ</td><td>挿入位置の<b>直後</b>（見出しを持たない段落群）</td><td><span class="tag stop">拾えない</span> 射程内の操作なのに「直前を見よ」では検出できない</td></tr>
-      <tr><td>issue #155</td><td>既存の箇条書きへ<b>項を1つ足した</b></td><td>直前の項の末尾にあった補足</td><td><span class="tag stop">拾えない</span> 見出しも節も階層も動いていない</td></tr>
+      <tr><td>issue #64</td><td>新しい見出しを差し込んだ</td><td><b>前</b>（挿入位置の直前の節の末尾）</td><td><span class="tag ok">拾える</span> このルールの元ネタ</td></tr>
+      <tr><td>issue #109</td><td>既存の節を (1)(2) に<b>分割</b>した</td><td><b>前</b>（新設した (2) の手前に残した、(1) 直下の結論行）</td><td><span class="tag stop">拾えない</span> 見出しの挿入ではない</td></tr>
+      <tr><td>PR #139（issue #135）</td><td>新しい見出しを差し込んだ</td><td><b>後ろ</b>（新設した見出しの配下に入ってしまった、見出しを持たない段落群）</td><td><span class="tag stop">拾えない</span> 射程内の操作なのに「直前を見よ」では検出できない</td></tr>
+      <tr><td>issue #155</td><td>既存の箇条書きへ<b>項を1つ足した</b></td><td><b>前</b>（直前の項の末尾にあった補足）</td><td><span class="tag stop">拾えない</span> 見出しも節も階層も動いていない</td></tr>
     </tbody>
   </table>
   </div>
@@ -168,6 +170,12 @@
     <span class="label">共通点</span>
     4件とも<b>自己確認では見つからず、敵対的レビューが検出</b>している。書いた本人は「新しく書いた部分が
     正しいか」を見ており、「既にあった行の係り先が変わったか」を見ていない。
+  </div>
+  <div class="box stop">
+    <span class="label">この表の正</span>
+    <b>フェーズ2の調査結果（<code>reports/…md</code>）へ移す。</b> 各件の判定（拾えるか／どちらが
+    壊れたか）は調査の成果物であり、計画側で確定させるものではない。ここに置くのは着手時点の見立てで
+    あって、調査結果と食い違った場合は調査結果が正である。
   </div>
 </section>
 
@@ -177,10 +185,11 @@
   <table>
     <thead><tr><th>ファイル群・領域</th><th>操作</th><th>何をするか</th></tr></thead>
     <tbody>
-      <tr><td><code>.claude/rules/</code>（規約）</td><td>変更</td><td>該当ルールの文言を一般化する。フェーズ3の主たる成果物</td></tr>
-      <tr><td><code>REVIEW-POINTS.md</code>（レビュー観点）</td><td>変更（見込み）</td><td>同型の観点との整合。要否はフェーズ2の問い2・5で判定</td></tr>
-      <tr><td><code>.claude/docs/ddr/</code></td><td>新規 or 追記（見込み）</td><td>拡張の判断の記録。要否はフェーズ2の問い4で判定</td></tr>
+      <tr><td><code>.claude/rules/docs-workflow.md</code></td><td>変更</td><td>該当ルールの文言を一般化する。フェーズ3の主たる成果物</td></tr>
+      <tr><td><code>REVIEW-POINTS.md</code>（ルート）</td><td>変更（見込み）</td><td>同型の観点との整合。要否はフェーズ2の問い2・5で判定</td></tr>
+      <tr><td><code>.claude/docs/ddr/</code></td><td>新規 or 見送り（見込み）</td><td>拡張の判断の記録。要否はフェーズ2の問い4で判定</td></tr>
       <tr><td><code>.claude/docs/usecase/</code></td><td>変更（見込み）</td><td>影響の有無を確認する</td></tr>
+      <tr><td><code>.gemini/</code>（<code>rules/</code> 等）</td><td>再生成</td><td><code>.claude/</code> を変更したことに伴う変換生成物の再生成。実行は flow-id 5-3 の <code>sync-gemini-assets.sh</code> であり、<b>直接編集はしない</b></td></tr>
     </tbody>
   </table>
   </div>
@@ -194,18 +203,19 @@
       そのまま残せるか。</li>
     <li>同じ趣旨のルールが<b>他のファイルにも重複していないか</b>（ルート <code>REVIEW-POINTS.md</code>
       「ドキュメントの構造」に同型の観点がある）。正を1箇所にするのか、観点表と規約で役割を分けるのかを決める。</li>
-    <li>4件の実例のうち、ルール本文へ載せるのはどれか。<b>#109（分割で前が壊れる）と PR #139（挿入で
-      後ろが壊れる）は方向が逆</b>で、2つ並べると観点が立体的になる。何件までなら読み手の負担にならないか。</li>
-    <li>受け入れ条件が求める「DDRを新規に残すか既存への追記で足りるか」の材料。issue #64 由来のDDRが
-      存在するかを <code>.claude/docs/ddr/</code> の検索で確定する。</li>
+    <li>4件の実例のうち、ルール本文へ載せるのはどれか。<b>#109（分割前は正しかった行が誤りになる）と
+      PR #139（挿入位置の後ろが壊れる）は方向が逆</b>で、2つ並べると観点が立体的になる。
+      何件までなら読み手の負担にならないか。</li>
+    <li>「拡張の判断をDDRへ残すか、既存DDRへの追記で足りるか」の材料。
+      <b>係り先・見出し挿入のルールを扱ったDDRがあるか</b>を、識別子ではなく内容で確定する。</li>
     <li>このルールを<b>実際に守らせる場所</b>はどこか（規約だけでよいか、観点表・敵対的レビューにも要るか）。</li>
   </ol>
 </section>
 
 <section id="approach">
-  <h2>フェーズ3〈作業〉の方針</h2>
+  <h2>フェーズ3〈作業〉</h2>
   <p>調査結果をもとに <code>.claude/rules/docs-workflow.md</code> の該当ルールを書き換える。想定する形は
-  次のとおりで、確定はフェーズ3の個別計画で行う。</p>
+  次のとおり（<b>暫定案</b>であり、確定はフェーズ3の個別計画で行う）。</p>
   <ul>
     <li>適用対象を「見出しの差し込み」から<b>構造変更全般</b>へ広げる。ただし<b>操作の種類を列挙する形に
       しない</b>（issue #155 の3例目が、列挙した4操作のどれにも入らなかったため）。</li>
@@ -226,11 +236,12 @@
     <li><b><code>REVIEW-POINTS.md</code></b>: ルートの「ドキュメントの構造」の同型の観点を、
       一般化後の記述と揃えるか。</li>
     <li><b><code>.claude/docs/usecase/</code></b>: 影響の有無を確認する。</li>
+    <li><b><code>.gemini/</code></b>: <code>.claude/</code> を変更した以上、再生成が要る（実行は flow-id 5-3）。</li>
   </ul>
 </section>
 
 <section id="out-of-scope">
-  <h2>やらないこと（スコープ外）</h2>
+  <h2>この計画で決めないこと（スコープ外）</h2>
   <div class="box stop">
     <span class="label">この計画では決めない・触らない</span>
     <ul>
@@ -249,13 +260,23 @@
   <ul>
     <li>該当ルールが<b>4件の実例すべてを説明できる</b>文言になっている（4件それぞれについて、ルールの
       文言を読んで「見るべきだった」と分かるか机上で突き合わせる）。</li>
-    <li>issue #64 由来の既存2実例が残っている（差分の削除行で確認する）。</li>
+    <li>issue #64 由来の<b>既存2実例が両方とも</b>残っている。</li>
     <li>DDRの要否について結論が記録されている。</li>
     <li>各フェーズで敵対的レビューを実施し、投稿された指摘へ対応・返信している。</li>
   </ul>
-  <pre><code># issue #64 由来の既存実例が消えていないこと（分岐点との差分の削除行で見る）
-git diff "$(git merge-base origin/main HEAD)" -- .claude/rules/docs-workflow.md | grep '^-' | grep -F '計画の2階層構造'</code></pre>
-  <p>合格条件: 上のコマンドが1件もヒットしないこと（＝既存実例が削除されていない）。</p>
+  <pre><code># issue #64 由来の既存2実例が消えていないこと。
+# 対象は1ファイルではなく .claude/ 全体（一括置換の巻き添えを拾うため）。
+base="$(git merge-base origin/main HEAD)"
+git diff "$base" -- .claude/ | grep '^-' \
+  | grep -cF -e '計画の2階層構造' -e 'ファイルごとに結論が変わる' || true</code></pre>
+  <p>合格条件: 上のコマンドが <b><code>0</code> を出す</b>こと（削除行に2実例のどちらも現れない）。</p>
+  <div class="box warn">
+    <span class="label">空振りの排除</span>
+    <b>この検証が空振りしないことを、着手前に確かめる。</b>
+    <code>.claude/rules/docs-workflow.md</code> から2実例の行を1つずつ試しに削ったツリーで同じコマンドを
+    実行し、<b>それぞれ <code>1</code> 以上が出る</b>ことを確認してから元へ戻す（確認した結果は
+    <code>reports/</code> の調査結果へ書く）。
+  </div>
 </section>
 
 <section id="criteria">
@@ -264,10 +285,10 @@ git diff "$(git merge-base origin/main HEAD)" -- .claude/rules/docs-workflow.md 
   <table>
     <thead><tr><th>受け入れ条件</th><th>この計画での対応</th></tr></thead>
     <tbody>
-      <tr><td>該当ルールが、節の分割・再構成を含む形に更新されている</td><td>フェーズ3</td></tr>
+      <tr><td><code>.claude/rules/docs-workflow.md</code> の該当ルールが、節の分割・再構成を含む形に更新されている</td><td>フェーズ3</td></tr>
       <tr><td>issue #64 の既存の実例を消さずに、issue #109 の実例が追加されている</td><td>フェーズ3（調査の問い3で載せる実例を確定）</td></tr>
       <tr><td>拡張後の記述が、issue #64 由来の既存の記述と矛盾していない</td><td>フェーズ2の問い1・フェーズ3</td></tr>
-      <tr><td>DDRを新規に残すか既存への追記で足りるかが検討され、結論が記録されている</td><td>フェーズ2の問い4 → フェーズ4</td></tr>
+      <tr><td>拡張の判断を新規DDRへ残すか既存への追記で足りるかが検討され、結論が記録されている</td><td>フェーズ2の問い4 → フェーズ4</td></tr>
     </tbody>
   </table>
   </div>
@@ -277,11 +298,15 @@ git diff "$(git merge-base origin/main HEAD)" -- .claude/rules/docs-workflow.md 
   <h2>進め方の前提（このセッション固有）</h2>
   <ul>
     <li><b>非対話的セッション</b>のため、人間のレビュー往復（flow-id 2-3/2-8・3-3/3-8・4-3/4-8）は
-      成立しない。ユーザーの指示により、<b>各フェーズの計画時に1回・作業実施ごとに1回、敵対的レビューを
-      自動起動し</b>、その指摘への修正・返信をもってレビュー往復の代替とする。</li>
+      成立しない。<b>各フェーズの計画時に1回・作業実施ごとに1回、敵対的レビューを自動起動し</b>、
+      その指摘への修正・返信をもってレビュー往復の代替とする。<br>
+      <b>出所</b>: ユーザーがこのセッションの最初の指示で明示したもの（flow-id 1-1 の依頼と同じ発言に
+      含まれる）。flow-id 1-5（全体作業計画への人間の合意）は非対話的セッションのため実施できず
+      <code>[-]</code> としており、<b>人間の合意を経た前提ではない</b>。</li>
     <li>ブランチ名はハーネス指定の <code>claude/docs-workflow-heading-rule-mi3krb</code> を使う
-      （<code>.mrworkflow.json</code> の <code>feature-&lt;issue番号&gt;-&lt;slug&gt;</code> 規則とは異なるが、
-      ハーネスの指定が優先する）。</li>
+      （<code>.mrworkflow.json</code> の <code>feature-&lt;issue番号&gt;-&lt;slug&gt;</code> 規則とは異なる）。<br>
+      <b>出所</b>: ハーネス（実行基盤）のシステムプロンプトによる制約で、flow-id 1-3（ブランチ作成）の
+      時点で決まっていた。ユーザーの判断ではない。</li>
   </ul>
 </section>
 
