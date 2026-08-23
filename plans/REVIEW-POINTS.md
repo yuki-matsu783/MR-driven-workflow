@@ -73,8 +73,8 @@ keywords: [計画, 種別, 併記, 分割, planツール, 受け入れ条件, is
 - **削除・統合を含む場合、`.claude/VERSION` の扱いに触れているか**
   （`.claude/docs/spec/distribution-assets.md`。上流の削除は配布先へ伝播しない）。
 - **`【設計反映】` `【実装反映】` と併記していないか**（上記「種別」の観点）。
-  `.claude/scripts/` `.claude/hooks/` への反映も種別は `【AIアセット反映】` であり、
-  `【実装反映】` へ振り替える理由にはならない。
+- **反映先が `.claude/scripts/` `.claude/hooks/` の項目について、種別の判定が
+  SKILL.md「AIアセット反映の対象の洗い出し」の規定どおりか。**
 
 ## 検証手順
 
