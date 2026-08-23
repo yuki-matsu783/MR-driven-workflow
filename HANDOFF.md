@@ -17,7 +17,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - issue: #70（https://github.com/yuki-matsu783/MR-driven-workflow/issues/70 ）
 - ブランチ: `claude/gemini-to-claude-migration-jc64gu`
 - PR: #157（Draft。https://github.com/yuki-matsu783/MR-driven-workflow/pull/157 ）
-- push回数: 15
+- push回数: 16
 - 現在のループ: 4-6〜4-9 の1周目（完了）
 - 未返信スレッド: 0
 - 追従監視: 購読あり（web。subscribe_pr_activity + 自己チェックイン）
@@ -261,16 +261,35 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
   `c71dfa1` PR #158）。`check-base-conflicts.sh` の `textualConflictFiles` は6件
   （`.claude/rules/directory-structure.md` / `docs-workflow.md` / `markdown-frontmatter.md` /
   `.claude/skills/issue-mr-flow/SKILL.md` / `HANDOFF.md` / `index.md`）。DDR識別子の重複は無し
+- **追従: main（`805ab5f`）をマージして解消した**（`876534c`）。競合6件はすべて**類型C**
+  （同じ節の近接行）で、**main側のissue #54の内容を採り、こちらの繰り下げ（旧5-3〜5-6 →
+  5-4〜5-7）を当てる**形で両方を残した。`HANDOFF.md` だけは前タスク（#103 / PR #158）の
+  最終状態だったのでこちら側を採用
+- **追従: 自動マージされた側にも旧番号が入っていた**（7箇所）。`git diff HEAD` の追加行から
+  拾い、**現状記述だけ**を繰り下げ後へ直した（`spec/issue-mr-workflow.md` 3・`SKILL.md` 1・
+  `assets/reports.template.html` 3）。**`## 影響範囲` のchangelogとDDR本文は直していない**
+  （point-in-timeの記録。`create-commit.md` L197・`issue-mr-workflow.md` L3038 が該当）
+- **追従: `.claude/settings.json` に main が `env`（issue #103 のOTel配線）を足したため、
+  変換器が「未知のトップレベルキー」で停止した。** `SETTINGS_IGNORED_KEYS` へ理由付きで
+  追加した。**Gemini CLI の settings.json には環境変数を注入するブロックが構造として無く**
+  （`.env` から読む。settings側は `advanced.excludedEnvVars` という除外リストだけ）、
+  中身も `CLAUDE_CODE_ENABLE_TELEMETRY` 以下 Claude Code 固有。受け口の `listener.pl` が
+  Claude CodeのOTelスキーマ前提なので、Geminiの `telemetry` へ流すと壊れる。
+  **帰結: Gemini CLI 経路ではOTel計測が行われない**（`permissions` と同じ構図。この判断は
+  `【設計反映】` でDDR/specへ記録する）
+- **追従: 孤児検出が実際に発火した。** main が `canvas-report/templates/` を `assets/` へ
+  改名したため、`.gemini/` 側に旧パスの生成物が残っていた。**設計どおり1バイトも書かずに
+  中断し**、改名であることを確認してから `--force` で再生成した
+- 追従後の検証: 全16本 **passed=1039 failures=0**（main由来で+2）、mainが追加したperlテスト
+  2本も通過（12/7件）、`--check` 0、DDR一覧74件で差分なし、`index.jsonl` 再生成 failed=0
 
 ## 次にやること
 
 - **`【AIアセット反映】` は 4-6〜4-10 まで完了（1周目で合意）。**
-- **最優先: main とのコンフリクトを解消する**（追従監視で検知済み）。
-  `git merge --no-ff --no-commit origin/main` → 類型別に解消 → 検証 → `commit` スキル。
-  **`git rebase` / `--force` は使わない。** 類型E（同じロジックを両ブランチが変更）が
-  1件でもあれば、他も解消せずに止めて `AskUserQuestion` で確認する。
-  **`.claude/skills/issue-mr-flow/SKILL.md` の競合は要注意**——このブランチは flow-id を
-  5-3 新設で繰り下げており、main 側の変更が旧番号のままの可能性がある。
+- **main（`805ab5f`）への追従は完了**（`876534c`）。以降も PRイベントと定期チェックインで
+  監視を続ける。
+- **`env` を変換対象外にした判断は、`【設計反映】` でDDR／specへ記録する**（このターンは
+  マージを通すための最小の対応であり、判断の記録がまだどこにも無い）。
 - **その後、フェーズ4の残り2本を種別ごとに回す**
   （`.claude/skills/issue-mr-flow/SKILL.md`「原則併記せず分ける」。4-6〜4-10を種別の数だけ）。
   **ループ範囲へ入り直すときは `add-round 4-6`**（1周目は完了済みなので `set-header --loop`
@@ -285,6 +304,8 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
   - **`.claude/docs/spec/sync-gemini-assets.md` の新規作成**（`--force` と孤児検出を含む）
   - `.claude/docs/spec/issue-mr-workflow.md` の `## 影響範囲` へ繰り下げのchangelog追記
   - policy engine の Workspace 層が無効であること（upstream #18186）
+  - **`env`（issue #103 のOTel配線）を変換対象外にした判断**（Gemini側に写像先が構造として
+    無い／受け口がClaude CodeのOTelスキーマ前提。帰結はGemini経路でOTel計測が行われないこと）
   - `.gitignore` から消えた `i00-13` 参照の扱い
 - `【実装反映】` で扱う**敵対的レビューの残り指摘**: `tr -d '\r'` の欠落／CRLFの `agents/*.md`
   誤診／`--others` がローカル設定を焼き込む／`build_into` の0件メッセージ／前置フィルタの
