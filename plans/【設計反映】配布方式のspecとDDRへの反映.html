@@ -144,7 +144,7 @@
     <tbody>
       <tr><td><code>.claude/docs/spec/distribution-assets.md</code></td><td>陳腐化した節の書き換え／未決定事項の整理／changelogへの新規エントリ追記</td></tr>
       <tr><td><code>.claude/docs/spec/asset-distribution.md</code>（<b>新規</b>）</td><td>manifest方式そのものの正史</td></tr>
-      <tr><td><code>.claude/docs/ddr/</code>（<b>新規</b>）</td><td>受け入れ条件11の方式選定ほか</td></tr>
+      <tr><td><code>.claude/docs/ddr/i0026-01-….md</code>（<b>新規1件</b>）</td><td>方式選定（受け入れ条件11）ほか3つの決定を節に分けて書く</td></tr>
       <tr><td><code>.claude/docs/README.md</code></td><td><code>generate-ddr-list.sh</code> の再実行（生成物）</td></tr>
     </tbody>
   </table>
@@ -219,7 +219,7 @@
   <ul>
     <li><b>既存のエントリ（issue #33 / issue #54）は1文字も変更しない。</b> point-in-time の記録であり、
       <code>sync-assets.sh</code> <code>safe_copy_dir</code> という語も当時の事実として正しい。</li>
-    <li><b><code>### issue #26（2026-08-23）</code> を新規エントリとして追記する。</b></li>
+    <li><b><code>### issue #26（2026-08-23）</code> を新規エントリとして追記する。</b> 内容は、3資産の層の確定・未決定事項4件の解消・<code>sync-assets.sh</code> の廃止・<b><code>.claude/VERSION</code> を <code>0.2.0</code> のまま据え置いた事実とその理由</b>（flow-id 4-4 で確定。据え置いた場合の記録は規定上<b>必須</b>）。</li>
   </ul>
   <div class="box warn">
     <span class="label">一括置換を絶対にかけない</span>
@@ -263,23 +263,30 @@
 <section id="ddr">
   <h2>3. DDRを追加する</h2>
 
-  <p><b>識別子は <code>i0026-&lt;枝番2桁&gt;</code></b>。<b>枝番は 01 から順に振る</b>
-  （<code>.claude/docs/ddr/</code> に <code>i0026-</code> が無いことを確認済み）。</p>
+  <p><b>識別子は <code>i0026-01</code> の1件のみ</b>。<code>.claude/docs/ddr/</code> に
+  <code>i0026-</code> が無いことは確認済み。</p>
+  <div class="box warn">
+    <span class="label">flow-id 4-4 のレビュー判断</span>
+    当初は3件（方式選定／<code>exclude</code> を明示必須にした判断／<code>AGENTS.md</code> を
+    <code>core</code> にしなかった判断）へ分ける案だったが、<b>「細かいので1つにする」</b>という判断を受けた。
+    分けない代わりに、1件のDDRの中で<b>節を分けて</b>3つの決定を書く。
+  </div>
   <div class="tablewrap">
   <table>
-    <thead><tr><th>枝番</th><th>主題</th><th>却下案として書くもの</th></tr></thead>
+    <thead><tr><th>節</th><th>決定</th><th>却下案</th></tr></thead>
     <tbody>
-      <tr><td>01</td><td><b>配布方式としてmanifest付きの直接コピーを選ぶ</b>（受け入れ条件11）</td><td>git subtree／Claude Code plugin配布／差分をAIが都度判断する案</td></tr>
-      <tr><td>02</td><td><b>層は4つではなく <code>exclude</code> を加えた5つにし、配らないことを明示指定にする</b></td><td>暗黙の既定値（未指定＝配らない）とする案。<b>網羅性チェックが常に通ってしまう</b>ため却下</td></tr>
-      <tr><td>03</td><td><b>旧形式のまま残った <code>seed</code> は、<code>core</code> へ昇格させず <code>requiredLine</code> で一覧提示にとどめる</b></td><td><code>AGENTS.md</code> を <code>core</code> にする案。<b>プロジェクト概要という配布先の所有物が消える</b>ため却下</td></tr>
+      <tr><td>3-a</td><td><b>配布方式としてmanifest付きの直接コピーを選ぶ</b>（受け入れ条件11）</td><td>git subtree／Claude Code plugin配布／差分をAIが都度判断する案</td></tr>
+      <tr><td>3-b</td><td><b>層は4つではなく <code>exclude</code> を加えた5つにし、配らないことを明示指定にする</b></td><td>暗黙の既定値（未指定＝配らない）とする案。<b>網羅性チェックが常に通ってしまう</b>ため却下</td></tr>
+      <tr><td>3-c</td><td><b>旧形式のまま残った <code>seed</code> は、<code>core</code> へ昇格させず <code>requiredLine</code> で一覧提示にとどめる</b></td><td><code>AGENTS.md</code> を <code>core</code> にする案。<b>プロジェクト概要という配布先の所有物が消える</b>ため却下</td></tr>
     </tbody>
   </table>
   </div>
   <ul>
-    <li><b>02・03を1件に束ねない。</b> 決定の対象が違う（層モデル／移行の扱い）ため、
-      後から片方だけが無効になったときに <code>status: superseded</code> を付けられなくなる。</li>
-    <li><b>枝番の数は実装時に増減してよい。</b> 書いてみて「specに書けば足りる（却下案が無い）」と
-      なったものは DDR にしない。</li>
+    <li><b>タイトルは3つを束ねた1文にする</b>（例:「AIアセットの配布はmanifest付きの直接コピーとし、
+      層は <code>exclude</code> を含む5つにする」）。<b>3-c まで題名へ詰め込まない</b>。</li>
+    <li><b>束ねたことの帰結を承知しておく。</b> 後から一部だけが無効になっても、
+      <code>status: superseded</code> はDDR単位でしか付けられない。その場合は<b>後続のDDRの本文で
+      「i0026-01 の 3-b のみを置き換える」と明示する</b>。この制約自体をDDR本文の末尾へ1行残す。</li>
     <li><b>DDRを追加したら必ず <code>bash .claude/scripts/src/generate-ddr-list.sh</code> を実行し、
       <code>.claude/docs/README.md</code> の差分を同じコミットへ含める</b>（一覧は生成物。issue #135）。</li>
   </ul>
@@ -319,7 +326,7 @@ ls .claude/docs/ddr/ | grep -oE '^(i[0-9]+-[0-9]{2}|[0-9]{4})' | sort | uniq -d
 
 # 4. frontmatterインデックスに新しいspec・DDRが載ること
 bash .claude/scripts/src/extract-frontmatter.sh .
-bash .claude/scripts/src/search-frontmatter.sh --type spec --type ddr | grep -c -- '-i0026-\|asset-distribution'
+bash .claude/scripts/src/search-frontmatter.sh --type spec --type ddr | grep -c -- 'i0026-01\|asset-distribution'
 
 # 5. 網羅性チェック（新規specとDDRが core に載る。分母が増える）
 bash .claude/scripts/src/check-dist-coverage.sh
@@ -346,8 +353,9 @@ for t in .claude/scripts/test/test_*.sh; do bash "$t" | tail -1; done</code></pr
     <li><b>2 の新specと 1 の <code>distribution-assets.md</code> は、同じことを二重に書かない。</b>
       マーカー規約は <code>distribution-assets.md</code> 側、<code>merge</code> / <code>lines-marker</code> という
       <b>戦略の仕様</b>は新spec側。互いに参照リンクで繋ぐ。</li>
-    <li><b>3 の DDR 01（方式選定）は受け入れ条件11そのもの</b>である。書かずにフェーズ4を終えると、
-      <b>受け入れ条件が1つ未達のままマージへ進む</b>。省略しない。</li>
+    <li><b>3 の節3-a（方式選定）は受け入れ条件11そのもの</b>である。書かずにフェーズ4を終えると、
+      <b>受け入れ条件が1つ未達のままマージへ進む</b>。3件を1件へ束ねたことで<b>3-a が3-b・3-c に
+      埋もれて薄くなる危険</b>が出たので、却下案はこの節にだけ書き、分量も3節のうち最も厚くする。</li>
   </ul>
 
 </section>

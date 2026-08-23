@@ -3,7 +3,7 @@ title: 【設計反映】配布方式のspecとDDRへの反映
 type: plan
 description: manifest方式への作り直しを spec（distribution-assets.md の更新と新方式の spec 新設）と DDR（方式選定ほか）へ反映する
 tags: [plan, 設計反映, distribution, ddr, spec]
-keywords: [distribution-assets, dist-layers, asset-manifest, DDR, 方式選定, 未決定事項, changelog, point-in-time, generate-ddr-list]
+keywords: [distribution-assets, dist-layers, asset-manifest, DDR, i0026-01, 方式選定, 未決定事項, changelog, point-in-time, generate-ddr-list]
 ---
 
 # 【設計反映】配布方式のspecとDDRへの反映
@@ -18,7 +18,7 @@ flow-id 4-6（設計反映）。`plans/` `worklog/` `reports/` の内容を `.cl
 |---|---|
 | `.claude/docs/spec/distribution-assets.md` | 陳腐化した節の書き換え／未決定事項の整理／changelogへの新規エントリ追記 |
 | `.claude/docs/spec/asset-distribution.md`（**新規**） | manifest方式そのものの正史 |
-| `.claude/docs/ddr/`（**新規**） | 受け入れ条件11の方式選定ほか |
+| `.claude/docs/ddr/i0026-01-….md`（**新規1件**） | 方式選定（受け入れ条件11）ほか3つの決定を節に分けて書く |
 | `.claude/docs/README.md` | `generate-ddr-list.sh` の再実行（生成物） |
 
 **範囲外**: `.claude/rules/` `.claude/skills/` の更新（`【AIアセット反映】` が扱う）、
@@ -76,8 +76,9 @@ flow-id 4-6（設計反映）。`plans/` `worklog/` `reports/` の内容を `.cl
   当時の事実として正しい（`.claude/rules/docs-workflow.md`「ファイル移動に伴うパス参照の一括置換は
   …過去changelogを対象に含めない」）。
 - **`### issue #26（2026-08-23）` を新規エントリとして追記する。** 内容は、3資産の層の確定・
-  未決定事項4件の解消・`sync-assets.sh` の廃止・`.claude/VERSION` の扱い（`【AIアセット反映】`の
-  結論を待って書く）。
+  未決定事項4件の解消・`sync-assets.sh` の廃止・**`.claude/VERSION` を `0.2.0` のまま据え置いた事実と
+  その理由**（flow-id 4-4 のレビューで確定済み。`distribution-assets.md`「人間の判断で据え置くことが
+  ある」節が、据え置いた場合はそのissueのchangelogへ残すと定めているため**必須**）。
 
 > **一括置換を絶対にかけないこと。** このファイルは「直す行（6・94〜123）」と「触ってはいけない
 > 行（125〜150）」が同居している。`sed` で `sync-assets` を全置換すると過去の記録が壊れる
@@ -112,19 +113,26 @@ flow-id 4-6（設計反映）。`plans/` `worklog/` `reports/` の内容を `.cl
 
 ## 3. DDRを追加する
 
-**識別子は `i0026-<枝番2桁>`**（`.claude/rules/markdown-frontmatter.md`「DDRの識別子」）。
-**枝番は 01 から順に振る。** 現在 `.claude/docs/ddr/` に `i0026-` は無いことを確認してから振る。
+**識別子は `i0026-01` の1件のみ**（`.claude/rules/markdown-frontmatter.md`「DDRの識別子」）。
+`.claude/docs/ddr/` に `i0026-` が無いことは確認済み。
 
-| 枝番 | 主題 | 却下案として書くもの |
+**当初は3件（方式選定／`exclude` を明示必須にした判断／`AGENTS.md` を `core` にしなかった判断）へ
+分ける案だったが、flow-id 4-4 のレビューで「細かいので1つにする」という判断を受けた。**
+分けない代わりに、1件のDDRの中で**節を分けて**3つの決定を書く。
+
+| 節 | 決定 | 却下案 |
 |---|---|---|
-| 01 | **配布方式としてmanifest付きの直接コピーを選ぶ**（受け入れ条件11） | git subtree／Claude Code plugin配布／差分をAIが都度判断する案 |
-| 02 | **層は4つではなく `exclude` を加えた5つにし、配らないことを明示指定にする** | 暗黙の既定値（未指定＝配らない）とする案。**網羅性チェックが常に通ってしまう**ため却下 |
-| 03 | **旧形式のまま残った `seed` は、`core` へ昇格させず `requiredLine` で一覧提示にとどめる** | `AGENTS.md` を `core` にする案。**プロジェクト概要という配布先の所有物が消える**ため却下 |
+| 3-a | **配布方式としてmanifest付きの直接コピーを選ぶ**（受け入れ条件11） | git subtree／Claude Code plugin配布／差分をAIが都度判断する案 |
+| 3-b | **層は4つではなく `exclude` を加えた5つにし、配らないことを明示指定にする** | 暗黙の既定値（未指定＝配らない）とする案。**網羅性チェックが常に通ってしまう**ため却下 |
+| 3-c | **旧形式のまま残った `seed` は、`core` へ昇格させず `requiredLine` で一覧提示にとどめる** | `AGENTS.md` を `core` にする案。**プロジェクト概要という配布先の所有物が消える**ため却下 |
 
-- **02・03を1件に束ねない。** 決定の対象が違う（層モデル／移行の扱い）ため、後から片方だけが
-  無効になったときに `status: superseded` を付けられなくなる。
-- **枝番の数は実装時に増減してよい。** 上表は見込みで、書いてみて「これは spec に書けば足りる
-  （却下案が無い）」となったものは DDR にしない。
+- **タイトルは3つを束ねた1文にする**（例: 「AIアセットの配布はmanifest付きの直接コピーとし、
+  層は `exclude` を含む5つにする」）。**3-c まで題名へ詰め込まない**（長くなりすぎるため、
+  本文の節見出しで示す）。
+- **束ねたことの帰結を承知しておく。** 後から一部だけが無効になっても、
+  `status: superseded` はDDR単位でしか付けられない。その場合は**後続のDDRの本文で
+  「i0026-01 の 3-b のみを置き換える」と明示する**（frontmatterでは表せないため）。
+  この制約自体をDDR本文の末尾へ1行残す。
 - **DDRを追加したら必ず `bash .claude/scripts/src/generate-ddr-list.sh` を実行し、
   `.claude/docs/README.md` の差分を同じコミットへ含める**（一覧は生成物。手書きしない。issue #135）。
 
@@ -153,7 +161,7 @@ ls .claude/docs/ddr/ | grep -oE '^(i[0-9]+-[0-9]{2}|[0-9]{4})' | sort | uniq -d
 
 # 4. frontmatterインデックスに新しいspec・DDRが載ること
 bash .claude/scripts/src/extract-frontmatter.sh .
-bash .claude/scripts/src/search-frontmatter.sh --type spec --type ddr | grep -c -- '-i0026-\|asset-distribution'
+bash .claude/scripts/src/search-frontmatter.sh --type spec --type ddr | grep -c -- 'i0026-01\|asset-distribution'
 
 # 5. 網羅性チェック（新規specとDDRが core に載る。分母が増える）
 bash .claude/scripts/src/check-dist-coverage.sh
@@ -176,5 +184,7 @@ changelog の中であること**を目視で確認する（件数と行番号�
 - **2 の新specと 1 の `distribution-assets.md` は、同じことを二重に書かない。**
   `.gitattributes` のマーカー規約は `distribution-assets.md` 側が持ち、`merge` / `lines-marker`
   という**戦略の仕様**は新spec側が持つ。互いに参照リンクで繋ぐ。
-- **3 の DDR 01（方式選定）は受け入れ条件11そのもの**である。これを書かずにフェーズ4を終えると、
-  **受け入れ条件が1つ未達のままマージへ進む**ことになる。省略しない。
+- **3 の節3-a（方式選定）は受け入れ条件11そのもの**である。これを書かずにフェーズ4を終えると、
+  **受け入れ条件が1つ未達のままマージへ進む**ことになる。3件を1件へ束ねたことで、
+  **3-a が3-b・3-c に埋もれて薄くなる危険が出た**。却下案（git subtree / plugin配布 /
+  差分をAIが都度判断する案）はこの節にだけ書き、分量も3節のうち最も厚くする。

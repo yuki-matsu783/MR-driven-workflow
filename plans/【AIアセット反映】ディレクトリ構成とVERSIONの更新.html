@@ -108,7 +108,7 @@
   <div class="inner">
     <div class="kind">個別反映計画 / flow-id 4-1</div>
     <h1>【AIアセット反映】ディレクトリ構成とVERSIONの更新</h1>
-    <p class="lead">副産物として気づいたAIアセットの不備（ツリー・Repository Mapの欠落）を直し、.claude/VERSION の増分をユーザーへ提案する。3件の反映のうち最後に実施する。</p>
+    <p class="lead">副産物として気づいたAIアセットの不備（ツリー・Repository Mapの欠落）を直す。.claude/VERSION は 0.2.0 のまま据え置く（flow-id 4-4 で確定）。3件の反映のうち最後に実施する。</p>
     <ul class="meta">
       <li><b>issue</b> #26</li>
       <li><b>PR</b> #154</li>
@@ -127,7 +127,7 @@
   <ol>
     <li><a href="#scope">この計画の範囲</a></li>
     <li><a href="#tree">1. ツリー・Repository Map の欠落を埋める</a></li>
-    <li><a href="#version">2. .claude/VERSION の増分を提案する</a></li>
+    <li><a href="#version">2. .claude/VERSION は 0.2.0 のまま据え置く（確定）</a></li>
     <li><a href="#done">既に済んでいるもの（この計画では扱わない）</a></li>
     <li><a href="#verify">検証（この計画の完了判定に実際に流すコマンド）</a></li>
     <li><a href="#selfcheck">この計画の中で互いの前提を崩していないか（自己点検）</a></li>
@@ -137,16 +137,17 @@
 <section id="scope">
   <h2>この計画の範囲</h2>
 
-  <p><b>この計画は3つの反映のうち最後に実施する。</b> <code>.claude/VERSION</code> の増分は、
-  <code>【実装反映】</code>・<code>【設計反映】</code>で配布対象アセットがどこまで変わったかが
-  確定してからでないと提案できないため。</p>
+  <p><b>この計画は3つの反映のうち最後に実施する。</b> 当初の理由は「<code>.claude/VERSION</code> の増分は
+  他2件の結果が出そろわないと提案できないため」だったが、<b>据え置きが flow-id 4-4 で確定した</b>ため
+  その理由は消えた。それでも順序は変えない——ツリー・Repository Map の更新は、<code>【設計反映】</code> が
+  新設する spec ファイルを<b>案内へ載せる</b>必要があるためである。</p>
   <div class="tablewrap">
   <table>
     <thead><tr><th>対象</th><th>やること</th></tr></thead>
     <tbody>
       <tr><td><code>.claude/rules/directory-structure.md</code></td><td>ツリーへ新規ファイル3件を追記</td></tr>
       <tr><td><code>index.md</code>（Repository Map）</td><td>同上（<code>agent-common.md</code> が欠落）</td></tr>
-      <tr><td><code>.claude/VERSION</code></td><td>増分を<b>提案</b>する（決めるのは人間）</td></tr>
+      <tr><td><code>.claude/VERSION</code></td><td><b>変更しない</b>（<code>0.2.0</code> のまま据え置きが flow-id 4-4 で確定）。据え置いた事実の記録は <code>【設計反映】</code> 側</td></tr>
     </tbody>
   </table>
   </div>
@@ -185,26 +186,42 @@
 </section>
 
 <section id="version">
-  <h2>2. .claude/VERSION の増分を提案する</h2>
+  <h2>2. .claude/VERSION は 0.2.0 のまま据え置く（確定）</h2>
 
-  <p>現在値は <b><code>0.2.0</code></b>（main のマージで <code>0.1.2</code> → <code>0.2.0</code> になった。
-  main 側の更新であり、このブランチは据え置いていた）。</p>
+  <div class="box warn">
+    <span class="label">flow-id 4-4 のレビュー判断</span>
+    <b>「<code>0.2.0</code>」という判断を受けた。</b> AIの当初の提案は <code>1.0.0</code>（MAJOR）だったが、
+    <b>採用されなかった</b>。したがってこの計画では<b><code>.claude/VERSION</code> を変更しない</b>。
+  </div>
   <ul>
-    <li><b>更新のタイミング</b>: flow-id 4-6（AIアセット反映）＝この計画。</li>
-    <li><b>増分の決め方</b>: AIエージェントが<b>提案</b>し、<b>人間が決める</b>（AIが独断で上げない）。</li>
-    <li><b>据え置きもありうる</b>。据え置く場合は、その事実を <code>【設計反映】</code> の changelog へ残す。</li>
+    <li>現在値は <b><code>0.2.0</code></b>（main のマージで <code>0.1.2</code> → <code>0.2.0</code> になった。
+      main 側の更新であり、このブランチは据え置いていた）。<b>この計画でも触らない。</b></li>
+    <li><b><code>AskUserQuestion</code> は行わない。</b> 「AIが提案し人間が決める」という規定の
+      <b>決定は既に下りている</b>。実施時に重ねて聞かない。</li>
   </ul>
+
+  <h3>据え置きに伴って必ずやること</h3>
+  <p><code>distribution-assets.md</code>「<code>.claude/VERSION</code>」節は、<b>据え置く場合はそのissueの
+  specのchangelogへ据え置いた事実を残す</b>と定めている。これは任意ではない。</p>
+  <ul>
+    <li><b>書く先は <code>【設計反映】</code> の成果物</b>（<code>distribution-assets.md</code> の
+      <code>### issue #26</code> エントリ）であり、この計画の成果物ではない。</li>
+    <li><b>据え置きには実害があることを承知したうえでの判断</b>である旨も併記する
+      （「配布先は同じ版のまま中身の違う <code>.claude/</code> を受け取るため、版から資産の差を判別できない」）。
+      issue #26 は配布の仕組みそのものを入れ替えるので、この実害は過去のどの回よりも大きい。</li>
+  </ul>
+
+  <h3>却下された提案（記録として残す）</h3>
   <div class="tablewrap">
   <table>
-    <thead><tr><th>候補</th><th>根拠</th></tr></thead>
+    <thead><tr><th>候補</th><th>根拠</th><th>結果</th></tr></thead>
     <tbody>
-      <tr><td><b><code>1.0.0</code>（MAJOR）</b></td><td>配布の仕組みそのものが別物になった。<code>.skill</code> パッケージ手順が消え、配布先には <code>.claude/.asset-manifest.json</code> が増える。旧方式で配られた <code>AGENTS.md</code> は<b>手作業での移行が要る</b>ため、規定の <code>MAJOR</code>「配布先に手作業を要求する非互換変更」に当たる</td></tr>
-      <tr><td><code>0.3.0</code>（MINOR）</td><td>「資産の追加・フローの拡張」と読む場合。ただし手作業の要求を説明できない</td></tr>
+      <tr><td><code>1.0.0</code>（MAJOR）</td><td>旧方式で配られた <code>AGENTS.md</code> は <code>requiredLine</code> の一覧提示だけでは自動で直らず<b>手作業での移行が要る</b>ため、規定の <code>MAJOR</code>「配布先に手作業を要求する非互換変更」に当たる</td><td><b>不採用</b></td></tr>
+      <tr><td><code>0.3.0</code>（MINOR）</td><td>「資産の追加・フローの拡張」と読む場合</td><td>不採用</td></tr>
+      <tr><td><b><code>0.2.0</code> のまま据え置き</b></td><td>—</td><td><b>採用</b>（flow-id 4-4）</td></tr>
     </tbody>
   </table>
   </div>
-  <p><b>AIの推奨は <code>1.0.0</code></b> とするが、<code>0.x</code> を保つ方針かどうかは配布方針の判断なので人間が決める。
-  <code>AskUserQuestion</code> は実施時（flow-id 4-6）に1回だけ行い、この計画のレビューで先に決まった場合は重ねて聞かない。</p>
 
 </section>
 
@@ -255,17 +272,17 @@ for t in .claude/scripts/test/test_*.sh; do bash "$t" | tail -1; done</code></pr
   <h2>この計画の中で互いの前提を崩していないか（自己点検）</h2>
 
   <ul>
-    <li><b><code>.claude/VERSION</code> を上げると、<code>core</code> として配布先へ無条件に上書きされる。</b>
-      これは仕様どおりだが、<b>この変更自体がテストを壊さないか</b>を検証5で確認する。</li>
+    <li><b><code>.claude/VERSION</code> は変更しないので、配布先への影響も無い。</b> 当初は「上げるとテストを
+      壊さないか」を検証項目に置いていたが、据え置きが確定したため<b>この検証は不要</b>になった。逆に、
+      <b>検証5で <code>.claude/VERSION</code> に差分が出ていたら、この計画の範囲外の変更が混ざっている。</b></li>
     <li><b><code>index.md</code> と <code>directory-structure.md</code> は役割が違う。</b>
       <code>index.md</code> がディレクトリの<b>役割説明</b>の正で、<code>directory-structure.md</code> は
       <b>ツリー構造・配置ルール</b>の正。同じ説明文を両方へ書かない。</li>
-    <li><b>VERSIONの増分は <code>【設計反映】</code> の changelog と対になり、しかも順序が噛み合わない。</b>
-      増分を決めるには3つの反映の結果が要る（＝この計画が最後）が、結論を書く先は
-      <code>distribution-assets.md</code> の issue #26 エントリ（＝<code>【設計反映】</code> の成果物）である。
-      <b>この1行だけは <code>【設計反映】</code> へ後から書き戻す</b>と決めておく
-      （順序を入れ替えて解消しようとしない。入れ替えると今度は増分の根拠が揃わない）。
-      書き戻しは <code>【AIアセット反映】</code> のコミットに含める。</li>
+    <li><b>VERSIONを据え置くという判断も、<code>【設計反映】</code> の changelog へ書く必要がある。</b>
+      上げないから何も書かなくてよい、ではない。<b>書く先はこの計画の成果物ではないので、
+      <code>【設計反映】</code> を実施するときに漏らさないこと。</b></li>
+    <li><b>1で追記するツリーの行のうち、新設 spec の分は <code>【設計反映】</code> が確定させた
+      ファイル名に依存する。</b> 計画時点では仮のため、実施時に実ファイル名を確認してから書く。</li>
   </ul>
 
 </section>
