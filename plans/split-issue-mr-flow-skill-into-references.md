@@ -36,8 +36,10 @@ issue #113・DDR i0057-01 が退けたのと同型の劣化になる。
 | `.claude/hooks/session-start.sh` | 現在地flow-id → 参照ファイルの解決と注入を足す |
 | `.claude/scripts/test/test_session_start.sh` | 上記の純粋関数の単体テストを足す |
 | `.claude/scripts/test/test_install_to_project.sh` | `describe` 見出しの抽出元を追従させる |
+| `.claude/scripts/src/vcs/Provider.sh` | `require_vcs_cli` / `mcp_tool_hint` が**実行時に出力する**節名・対応表の案内先を追従させる（357行目・373行目） |
+| `.claude/scripts/test/test_vcs_provider.sh` | 上記の出力文字列を完全一致で比較しているアサーションを追従させる |
 | `.claude/rules/markdown-frontmatter.md` | typeの値の表へ `references/*.md` の扱いを追記する |
-| 参照元40ファイル前後（`AGENTS.md`・`.claude/rules/`・`.claude/docs/spec/`・他スキル） | リンク切れの解消。**DDR本文・specの過去changelogは書き換えない** |
+| 参照元（`AGENTS.md`・`.claude/rules/`・`.claude/docs/spec/`・他スキル） | リンク切れの解消。**DDR本文・specの過去changelogは書き換えない**。母集団の件数はフェーズ2 Bで確定する（`grep -rln 'issue-mr-flow/SKILL\.md' --include='*.md' --include='*.sh' .` は64ファイルを返すが、行をまたいで折り返した参照を含まないため過小である） |
 | `.claude/docs/spec/issue-mr-workflow.md`・`.claude/docs/ddr/` | フェーズ4で反映 |
 
 ## 方針
@@ -50,7 +52,23 @@ issue #113・DDR i0057-01 が退けたのと同型の劣化になる。
 - **参照追従は機械的な一括置換で行わない。** `.claude/rules/docs-workflow.md` が、DDR本文と
   specの過去changelogへの一括置換を禁じている（過去に歴史を壊しかけた実例がある）。
   **旧節名→新パスの対応表を SKILL.md 側へ置く**ことで、書き換えずに辿れる状態を作り、
-  そのうえで「現在の状態を説明している参照」だけを個別に判断して更新する。
+  そのうえで「現在の状態を説明している参照」だけを個別に判断して更新する。置き換えの前後は
+  次の形になる。
+
+  | 参照の種類 | 置き換え前 | 置き換え後 |
+  |---|---|---|
+  | DDR本文・specの過去changelog | ``SKILL.md「〜」節が正`` | **そのまま（書き換えない）**。SKILL.md 側の旧節名→新パス対応表から辿れるようにする |
+  | 現在の状態を説明する節（rules・specの仕様節・他スキル・スクリプトの実行時メッセージ） | ``SKILL.md「〜」節が正`` | ``SKILL.md references/<file>.md「〜」節が正`` |
+
+- **SessionStart hook の判定材料は、DDR i0113-01 が同じ材料を却下していることを踏まえて決める。**
+  i0113-01 は「対象ブランチかどうか」の判定材料として `HANDOFF.md` の進捗表を検討し、
+  (1) リセット直後・ブランチ作成直後は空でフローの最初と最後を取りこぼす、(2) 表の書式変更に
+  引きずられる、の2点を理由に**却下**している。判定対象が「現在地flow-id」へ変わっても、この2点は
+  そのままでは消えない。**却下理由をどう解消するかがこの計画の中心論点である**（調査項目 C-0）。
+- **`references/*.md` の frontmatter をどう扱うかは、フェーズ3でファイルを作る前に決める。**
+  `.claude/rules/markdown-frontmatter.md` は「新規markdown作成時は原則付与する」「`type` の値は
+  表にあるものから選ぶ」と定めているため、type表への追記をフェーズ4へ回すと、フェーズ3の
+  コミット時点で**表に無い `type` を持つmarkdown**がリポジトリと `index.jsonl` へ入る。
 - **hookの拡張は fail-open**。解決に失敗しても、従来の注入（ブランチ・issue・PR・HANDOFF抜粋・
   SKILL.md再読み込み指示）を壊さない。
 
@@ -92,15 +110,25 @@ issue #113・DDR i0057-01 が退けたのと同型の劣化になる。
 
 ## 検証
 
-- `.claude/skills/issue-mr-flow/SKILL.md` が500行以下。
-- `references/*.md` の各ファイルが、全体フロー表またはサブコマンド一覧のいずれかから名指しで
-  参照されている（孤児が無い）。
-- 本文と `references/` の相互リンクにリンク切れが無い（実在しないパスを指す参照が0件）。
-- `bash .claude/scripts/test/test_install_to_project.sh` が `failures=0`。
-- `bash .claude/scripts/test/test_session_start.sh` が `failures=0`（hook拡張の単体テストを含む）。
-- `bash -n .claude/hooks/session-start.sh`。
-- `sync-assets.sh` → `install-to-project.sh` の経路で `references/` が配布先へ渡ることを実測。
-- 旧節名→新パスの対応表が、**分割前の SKILL.md に存在したH2/H3をすべて網羅**している。
+**基準は分岐点のSHAへ固定する。** 引数なしの `git diff` や特定コミットとの差分は、その1回の実行
+以降に入るコミット（フェーズ5での `main` の取り込み等）を見ないため、保証が黙って失効する
+（`REVIEW-POINTS.md`「変えていないことの検証を、ブランチ分岐点との差分で取っているか」）。
+
+```bash
+base="$(git merge-base origin/main HEAD)"
+```
+
+| # | 何を確かめるか | 合格条件 |
+|---|---|---|
+| 1 | 本文が入口に絞られたか（`wc -l .claude/skills/issue-mr-flow/SKILL.md`） | 500行以下 |
+| 2 | **移動した本文が1文字も変わっていないか**。`git show "$base":.claude/skills/issue-mr-flow/SKILL.md` を基準に、分割後の本文＋`references/*.md` を結合したものと**見出し単位でdiff**を取る | 差分が「見出しの再配置」だけである。**差分行数を必ず出力する**（0件なら0件と分かる形にする） |
+| 3 | 旧節名→新パスの対応表の網羅。基準側のH2/H3一覧と対応表の左列を `comm -3` で突き合わせる | **差が0件**。件数を出力する |
+| 4 | `references/*.md` の各ファイルが、全体フロー表またはサブコマンド一覧から名指しで参照されている | 孤児が0件。件数を出力する |
+| 5 | 本文と `references/` の相互リンクにリンク切れが無い | 実在しないパスを指す参照が0件。**検査した参照の総数も出力する**（パターンが実データに当たっていることの証拠） |
+| 6 | `.claude/scripts/test/` 配下の**全テスト**を回す（2本だけを名指ししない。`test_vcs_provider.sh` が SKILL.md の節名を完全一致で比較しているため） | 合計の `failures=0` |
+| 7 | `bash -n .claude/hooks/session-start.sh` | 構文エラーなし |
+| 8 | `sync-assets.sh` → `install-to-project.sh`（**`mktemp -d` で作った一時ディレクトリを引数に渡す**）の経路で `references/` が配布先へ渡る | 配布先の `.claude/skills/issue-mr-flow/references/` にファイルが現れる |
+| 9 | 一括置換が意図しないファイルへ波及していないか。`git diff "$base" -- .claude/docs/ddr/` | 出力が空 |
 
 ## issueの受け入れ条件との対応
 

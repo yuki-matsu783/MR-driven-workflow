@@ -140,6 +140,7 @@
     <li><a href="#verify">検証</a></li>
     <li><a href="#criteria">issueの受け入れ条件との対応</a></li>
     <li><a href="#options">比較検討した案</a></li>
+    <li><a href="#process">進め方（レビューの扱い）</a></li>
   </ol>
 </nav>
 
@@ -173,8 +174,10 @@
       <tr><td><code>.claude/hooks/session-start.sh</code></td><td>変更</td><td>現在地flow-id → 参照ファイルの解決と注入を足す（fail-open）</td></tr>
       <tr><td><code>.claude/scripts/test/test_session_start.sh</code></td><td>変更</td><td>上記の純粋関数の単体テストを足す</td></tr>
       <tr><td><code>.claude/scripts/test/test_install_to_project.sh</code></td><td>変更</td><td><code>describe</code> 見出しの抽出元を追従させる</td></tr>
+      <tr><td><code>.claude/scripts/src/vcs/Provider.sh</code></td><td>変更</td><td><code>require_vcs_cli</code> / <code>mcp_tool_hint</code> が<b>実行時に出力する</b>節名・対応表の案内先を追従させる（357行目・373行目）</td></tr>
+      <tr><td><code>.claude/scripts/test/test_vcs_provider.sh</code></td><td>変更</td><td>上記の出力文字列を完全一致で比較しているアサーションを追従させる</td></tr>
       <tr><td><code>.claude/rules/markdown-frontmatter.md</code></td><td>変更</td><td>typeの値の表へ <code>references/*.md</code> の扱いを追記</td></tr>
-      <tr><td>参照元40ファイル前後</td><td>変更</td><td>リンク切れの解消。<b>DDR本文・specの過去changelogは書き換えない</b></td></tr>
+      <tr><td>参照元（<code>AGENTS.md</code>・<code>.claude/rules/</code>・<code>.claude/docs/spec/</code>・他スキル）</td><td>変更</td><td>リンク切れの解消。<b>DDR本文・specの過去changelogは書き換えない</b>。母集団の件数はフェーズ2 Bで確定する（<code>grep -rln</code> は64ファイルを返すが、行をまたいで折り返した参照を含まないため過小である）</td></tr>
       <tr><td><code>.claude/docs/spec/</code> ・ <code>.claude/docs/ddr/</code></td><td>変更・新規</td><td>フェーズ4で反映</td></tr>
     </tbody>
   </table>
@@ -188,6 +191,8 @@
     <li><b>切る軸はサイズではなく「いつ読むか」。</b>同じタイミングで必要になるものを1ファイルにまとめ、別のタイミングでしか要らないものを混ぜない。</li>
     <li><b>省略が不可逆・無言になる内容は本文に残す。</b>不変条件（<code>commit</code> スキル経由の強制／マージは人間／<code>HANDOFF.md</code> の進捗更新／レビュー往復）は、参照ファイルを開き損ねても守られるよう本文へ置く。</li>
     <li><b>hookの拡張は fail-open。</b>解決に失敗しても、従来の注入（ブランチ・issue・PR・HANDOFF抜粋・SKILL.md再読み込み指示）を壊さない。</li>
+    <li><b>SessionStart hook の判定材料は、DDR i0113-01 が同じ材料を却下していることを踏まえて決める。</b>i0113-01 は「対象ブランチかどうか」の判定材料として <code>HANDOFF.md</code> の進捗表を検討し、(1) リセット直後・ブランチ作成直後は空でフローの最初と最後を取りこぼす、(2) 表の書式変更に引きずられる、の2点を理由に<b>却下</b>している。判定対象が「現在地flow-id」へ変わってもこの2点はそのままでは消えない。<b>却下理由をどう解消するかがこの計画の中心論点である</b>（調査項目 C-0）。</li>
+    <li><b><code>references/*.md</code> の frontmatter をどう扱うかは、フェーズ3でファイルを作る前に決める。</b>type表への追記をフェーズ4へ回すと、フェーズ3のコミット時点で<b>表に無い <code>type</code> を持つmarkdown</b>がリポジトリと <code>index.jsonl</code> へ入る。</li>
   </ul>
 
   <div class="box warn">
@@ -255,18 +260,28 @@
 <!-- [必須] 検証。削除しない -->
 <section id="verify">
   <h2>検証</h2>
-  <pre><code>wc -l .claude/skills/issue-mr-flow/SKILL.md          # 500行以下
-bash .claude/scripts/test/test_install_to_project.sh  # failures=0
-bash .claude/scripts/test/test_session_start.sh       # failures=0
-bash -n .claude/hooks/session-start.sh</code></pre>
-  <p>合格条件:</p>
-  <ul>
-    <li><code>SKILL.md</code> が500行以下。</li>
-    <li><code>references/*.md</code> の各ファイルが、全体フロー表またはサブコマンド一覧のいずれかから名指しで参照されている（孤児が無い）。</li>
-    <li>本文と <code>references/</code> の相互リンクにリンク切れが無い（実在しないパスを指す参照が0件）。</li>
-    <li><code>sync-assets.sh</code> → <code>install-to-project.sh</code> の経路で <code>references/</code> が配布先へ渡ることを<b>実測</b>。</li>
-    <li>旧節名→新パスの対応表が、<b>分割前の SKILL.md に存在したH2/H3をすべて網羅</b>している。</li>
-  </ul>
+  <div class="box warn">
+    <span class="label">基準は分岐点のSHAへ固定する</span>
+    引数なしの <code>git diff</code> や特定コミットとの差分は、その1回の実行以降に入るコミット
+    （フェーズ5での <code>main</code> の取り込み等）を見ないため、保証が黙って失効する。
+    <pre><code>base="$(git merge-base origin/main HEAD)"</code></pre>
+  </div>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>#</th><th>何を確かめるか</th><th>合格条件</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td>本文が入口に絞られたか（<code>wc -l</code>）</td><td>500行以下</td></tr>
+      <tr><td>2</td><td><b>移動した本文が1文字も変わっていないか</b>。<code>git show "$base":….md</code> を基準に、分割後の本文＋<code>references/*.md</code> を結合したものと<b>見出し単位でdiff</b>を取る</td><td>差分が「見出しの再配置」だけ。<b>差分行数を必ず出力する</b></td></tr>
+      <tr><td>3</td><td>旧節名→新パス対応表の網羅。基準側のH2/H3一覧と対応表の左列を <code>comm -3</code> で突き合わせる</td><td><b>差が0件</b>。件数を出力する</td></tr>
+      <tr><td>4</td><td><code>references/*.md</code> の各ファイルが、全体フロー表またはサブコマンド一覧から名指しで参照されている</td><td>孤児が0件。件数を出力する</td></tr>
+      <tr><td>5</td><td>本文と <code>references/</code> の相互リンクにリンク切れが無い</td><td>実在しないパスを指す参照が0件。<b>検査した参照の総数も出力する</b></td></tr>
+      <tr><td>6</td><td><code>.claude/scripts/test/</code> 配下の<b>全テスト</b>を回す（2本だけを名指ししない。<code>test_vcs_provider.sh</code> が節名を完全一致で比較しているため）</td><td>合計の <code>failures=0</code></td></tr>
+      <tr><td>7</td><td><code>bash -n .claude/hooks/session-start.sh</code></td><td>構文エラーなし</td></tr>
+      <tr><td>8</td><td><code>sync-assets.sh</code> → <code>install-to-project.sh</code>（<b><code>mktemp -d</code> の一時ディレクトリを引数に渡す</b>）</td><td>配布先に <code>references/</code> が現れる</td></tr>
+      <tr><td>9</td><td>一括置換の波及。<code>git diff "$base" -- .claude/docs/ddr/</code></td><td>出力が空</td></tr>
+    </tbody>
+  </table>
+  </div>
 </section>
 
 <!-- [任意] issueの受け入れ条件との対応。受け入れ条件が箇条書きで与えられている場合に書くと、
@@ -306,6 +321,21 @@ bash -n .claude/hooks/session-start.sh</code></pre>
       <tr><td><b>本文を入口に絞り、読むタイミングを全体フロー表と SessionStart hook で機械的に決める</b></td><td>死荷重を減らしつつ「唯一のフロー定義」という最大の価値を保てる</td><td><span class="tag ok">採用</span> —</td></tr>
     </tbody>
   </table>
+  </div>
+</section>
+
+<section id="process">
+  <h2>進め方（レビューの扱い）</h2>
+  <p>本セッションは人間のレビュー往復を待てない非対話的な進行である。ユーザーの指示により、
+    <b>各フェーズの計画で1回、各フェーズの作業結果で1回、<code>adversarial-review</code> スキルによる敵対的レビューを自動で実施する</b>。
+    人間担当のレビューステップ（2-3/2-4・3-3/3-4・4-3/4-4・2-8/2-9・3-8/3-9・4-8/4-9）はこれで代替し、
+    <code>HANDOFF.md</code> のループ範囲の進捗記号は <code>[]</code> のまま残して、実施内容を「やったこと」の文章で補足する
+    （<code>.claude/rules/docs-workflow.md</code> 末尾の非対話的実行環境の規定に従う）。</p>
+  <div class="box warn">
+    <span class="label">flow-id 1-5（全体作業計画への人間の合意）も同じ扱い</span>
+    ユーザーからの指示が個々の計画への都度の承認を待たない進行を求めているため、1-5 はフェーズ2の敵対的レビュー1回で代替し、
+    <b>進捗記号は <code>[]</code> のまま残す</b>（<code>[x]</code> にすると「人間が合意した」という事実と矛盾し、
+    <code>[-]</code> にすると「実施しない」という意味になるため）。この判断は <code>HANDOFF.md</code> の「判断を迷った内容」にも残す。
   </div>
 </section>
 

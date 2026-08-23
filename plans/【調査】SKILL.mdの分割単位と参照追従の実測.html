@@ -138,7 +138,7 @@
     <li><a href="#target">変更対象</a></li>
     <li><a href="#approach">調べる問い</a></li>
     <li><a href="#out-of-scope">やらないこと（スコープ外）</a></li>
-    <li><a href="#verify">検証</a></li>
+    <li><a href="#verify">検証（この調査が終わったと言える条件）</a></li>
   </ol>
 </nav>
 
@@ -153,7 +153,7 @@
   <div class="box info">
     <span class="label">合意の状況</span>
     本セッションは人間のレビュー往復を待てない非対話的な進行である。ユーザーの指示により、
-    flow-id 2-3/2-4 の人間レビューは <code>adversarial-review</code> スキルによる自動レビュー1回で代替する。
+    flow-id 2-3/2-4 の人間レビューは <code>adversarial-review</code> スキルによる自動レビュー1回で代替する。上位の全体作業計画への合意（flow-id 1-5）も同じ扱いで、進捗記号は <code>[]</code> のまま残す。
   </div>
 </section>
 
@@ -172,15 +172,16 @@
 <!-- [必須] 変更対象。削除しない -->
 <section id="target">
   <h2>変更対象</h2>
-  <p>この計画は<b>調査</b>であり、リポジトリ内のファイルは変更しない。読む対象と、作る成果物は次のとおり。</p>
+  <p>この計画は<b>調査</b>であり、リポジトリ内のGit管理下のファイルは変更しない。読む対象・実行する対象・新規に作る成果物は次のとおり。</p>
   <div class="tablewrap">
   <table>
     <thead><tr><th>ファイル</th><th>操作</th><th>何をするか</th></tr></thead>
     <tbody>
       <tr><td><code>.claude/skills/issue-mr-flow/SKILL.md</code></td><td>読む</td><td>節構成・相互参照の実測（A）</td></tr>
       <tr><td><code>SKILL.md</code> を参照している全ファイル</td><td>読む</td><td>参照元の全量分類（B）</td></tr>
-      <tr><td><code>.claude/hooks/session-start.sh</code> ・ <code>HANDOFF.md</code> ・ <code>update-handoff-progress.sh</code></td><td>読む</td><td>現在地flow-idを機械的に得られるかの確認（C）</td></tr>
+      <tr><td><code>.claude/hooks/session-start.sh</code> ・ <code>HANDOFF.md</code> ・ <code>update-handoff-progress.sh</code> ・ DDR <code>i0113-01</code></td><td>読む</td><td>現在地flow-idを機械的に得られるかの確認（C）</td></tr>
       <tr><td><code>test_install_to_project.sh</code> ・ <code>sync-assets.sh</code> ・ <code>install-to-project.sh</code></td><td>読む・実行</td><td>壊れるテストと配布経路の実測（D）</td></tr>
+      <tr><td><code>.claude/skills/apply-mr-workflow-to-project/assets/</code></td><td><b>再生成される（副作用）</b></td><td><code>sync-assets.sh</code> が <code>rm -rf</code> して作り直す。<code>.gitignore</code> 対象のためコミット差分には出ないが、実行前に把握しておく</td></tr>
       <tr><td><code>reports/20260823_split-issue-mr-flow-skill-into-references_調査.md</code> と同名の <code>.html</code></td><td>新規</td><td>調査結果（正文はmd）</td></tr>
     </tbody>
   </table>
@@ -212,7 +213,8 @@
   <table>
     <thead><tr><th></th><th>問い</th><th>確かめ方</th></tr></thead>
     <tbody>
-      <tr><td>B-1</td><td><code>issue-mr-flow/SKILL.md</code> を参照しているのは何ファイル・何箇所か</td><td><code>grep -rn</code>（<code>index.jsonl</code> を除く）</td></tr>
+      <tr><td>B-1</td><td><code>issue-mr-flow/SKILL.md</code> を参照しているのは何ファイル・何箇所か</td><td><code>grep -rn --include='*.md' --include='*.sh'</code>（<code>index.jsonl</code> と <code>plans/</code> <code>worklog/</code> <code>reports/</code> を除く）。<b>行単位のgrepだけでは足りない</b></td></tr>
+      <tr><td>B-1b</td><td><b>行をまたいで折り返した参照</b>を何件取りこぼしているか</td><td>約100桁で改行する慣習があり、<code>issue-mr-flow/</code> で行が終わり次行が <code>SKILL.md</code> で始まる参照が実在する（実例: <code>post-push-compact-prompt.sh:53-54</code>）。改行を空白へ正規化した写しに対して照合し直し、<b>行末が <code>skills/issue-mr-flow/</code> で終わる行の件数も別途出して</b> B-1 へ合算する</td></tr>
       <tr><td>B-2</td><td>うち<b>節名を伴う</b>参照は何箇所で、どの節を指しているか</td><td><code>grep -o</code> で節名を抽出し、節ごとに集計する</td></tr>
       <tr><td>B-3</td><td>各参照は (a) DDR本文 / (b) specの過去changelog / (c) 現在の状態を説明する節 / (d) パスのみ のどれか</td><td>1件ずつファイルと文脈を見て分類する</td></tr>
     </tbody>
@@ -228,10 +230,12 @@
   <table>
     <thead><tr><th></th><th>問い</th><th>確かめ方</th></tr></thead>
     <tbody>
-      <tr><td>C-1</td><td><code>HANDOFF.md</code> の進捗表から「次に着手すべきflow-id」を機械的に決められるか</td><td>進捗記号の規約（<code>[x]</code> <code>[-]</code> <code>[]</code>）を確認し、awkで最初の <code>[]</code> 行を採る方式が成立するか試す</td></tr>
-      <tr><td>C-2</td><td><code>cleanup-task.sh</code> 直後（進捗表が無い状態）・進捗表が壊れている場合にどう縮退させるか</td><td>テンプレートの内容を確認し、fail-open の設計を決める</td></tr>
+      <tr><td>C-0</td><td><b>DDR i0113-01 が同じ材料（<code>HANDOFF.md</code> の進捗表）を却下した理由</b>が、現在地flow-idの解決でも当てはまるか</td><td>却下理由は (1) リセット直後・ブランチ作成直後は空でフローの最初と最後を取りこぼす、(2) 表の書式変更に引きずられる、の2点。当てはまる場合の代替材料（ヘッダの <code>- 現在のループ:</code> 行・ブランチ上の作業ファイル）も比較対象に含める</td></tr>
+      <tr><td>C-1</td><td><code>HANDOFF.md</code> の進捗表から「次に着手すべきflow-id」を機械的に決められるか</td><td>進捗記号の規約を確認する。<b>「最初の <code>[]</code> 行を採る」方式は本ブランチで既に破綻している</b>（1-5 が <code>[]</code> のまま 1-6 が <code>[x]</code>）ため、複数の候補方式を実データに対して試す</td></tr>
+      <tr><td>C-2</td><td>次の縮退ケースでどう振る舞うか — (i) <code>cleanup-task.sh</code> 直後で<b>進捗表そのものが無い</b>、(ii) <b>全行が <code>[]</code></b>、(iii) <b>穴あき</b>（先行flow-idが <code>[]</code> のまま後続が <code>[x]</code>。非対話セッションとループ範囲では<b>これが既定</b>）、(iv) 書式が想定と違う</td><td>各ケースのHANDOFF.mdを作って実際に判定させる。判定できないときは<b>注入しない</b>（fail-open）を縮退先の既定にする</td></tr>
       <tr><td>C-3</td><td>flow-id → 参照ファイルの対応をどこに持つか（hook内のテーブル / SKILL.md の表から抽出）</td><td>二重管理の有無で比較する</td></tr>
       <tr><td>C-4</td><td>注入テキストのサイズ上限（<code>CONTEXT_SIZE_WARN_BYTES</code> 8000バイト）を圧迫しないか</td><td>追加する行のバイト数を見積もる</td></tr>
+      <tr><td>C-5</td><td><code>references/*.md</code> に frontmatter を付けるか、HTMLビューと同様に<b>対象外</b>とするか</td><td><code>markdown-frontmatter.md</code> の <code>type</code> 表と <code>extract-frontmatter.sh</code> の走査対象を確認する。<b>付けると決めるならtype表への追記はフェーズ3へ前倒す</b></td></tr>
     </tbody>
   </table>
   </div>
@@ -244,8 +248,8 @@
     <thead><tr><th></th><th>問い</th><th>確かめ方</th></tr></thead>
     <tbody>
       <tr><td>D-1</td><td><code>test_install_to_project.sh</code> の <code>describe_headings()</code> は何を前提にしているか</td><td>該当箇所を読み、<code>describe</code> 節を移したときに何が起きるかを実際に試す</td></tr>
-      <tr><td>D-2</td><td><code>sync-assets.sh</code> はスキルディレクトリをどう配るか。<code>references/</code> は自動で渡るか</td><td>スクリプトを読み、<code>sync-assets.sh</code> → <code>install-to-project.sh</code> を実行して配布先に <code>references/</code> が現れるかを<b>実測</b>する</td></tr>
-      <tr><td>D-3</td><td>他に SKILL.md の構造へ依存しているテスト・スクリプトはあるか</td><td><code>grep -rn</code> の全件を確認する</td></tr>
+      <tr><td>D-2</td><td><code>sync-assets.sh</code> はスキルディレクトリをどう配るか。<code>references/</code> は自動で渡るか</td><td>スクリプトを読み、実行して配布先にサブディレクトリが現れるかを<b>実測</b>する。<b>配布先は必ず <code>mktemp -d</code> の一時ディレクトリを引数で渡す</b>（<code>install-to-project.sh</code> は引数省略時に <code>DEST_DIR="."</code> となり、確認プロンプトなしにこのリポジトリ自身を上書きする）。配布先は git リポジトリである必要があるため <code>git init</code> しておく</td></tr>
+      <tr><td>D-3</td><td>他に SKILL.md の<b>構造・節名</b>へ依存しているテスト・スクリプトはあるか</td><td><code>grep -rn --include='*.sh' 'SKILL\.md' .</code> の<b>全件</b>を確認し、<b>ヒット件数を結果へ書く</b>。<code>grep PATTERN -- '*.sh'</code> は <code>--</code> 以降を検索対象パスとして扱うため必ず0件になる。既知の依存先: <code>test_install_to_project.sh:89</code>・<code>Provider.sh:357,373</code>・<code>test_vcs_provider.sh:284-285</code></td></tr>
     </tbody>
   </table>
   </div>
@@ -278,19 +282,26 @@
 
 <!-- [必須] 検証。削除しない -->
 <section id="verify">
-  <h2>検証</h2>
-  <pre><code># A: 節ごとのバイト数
-grep -n '^#\{1,4\} ' .claude/skills/issue-mr-flow/SKILL.md
+  <h2>検証（この調査が終わったと言える条件）</h2>
+  <pre><code># A: 見出しの総数を出す
+grep -n '^#\{1,4\} ' .claude/skills/issue-mr-flow/SKILL.md | wc -l
 
-# B: 参照元の全量
-grep -rn 'issue-mr-flow/SKILL\.md' --include='*.md' --include='*.sh' . | grep -v index.jsonl
+# B-1: 参照元の全量（件数を必ず出す。0件なら0件と分かる形にする）
+grep -rn --include='*.md' --include='*.sh' 'issue-mr-flow/SKILL\.md' . | grep -cv 'index.jsonl'
+# B-1b: 行をまたいで折り返した参照（行末が skills/issue-mr-flow/ で終わる行）
+grep -rn --include='*.md' --include='*.sh' 'skills/issue-mr-flow/$' . | wc -l
 
-# D-2: 配布経路の実測
+# D-3: SKILL.md の構造・節名へ依存するスクリプト（-- '*.sh' は使わない）
+grep -rn --include='*.sh' 'SKILL\.md' . | wc -l
+
+# D-2: 配布経路の実測（配布先は必ず一時ディレクトリを渡す）
+dest="$(mktemp -d)" &amp;&amp; git -C "$dest" init -q
 bash .claude/skills/apply-mr-workflow-to-project/scripts/sync-assets.sh
-bash .claude/skills/apply-mr-workflow-to-project/scripts/install-to-project.sh &lt;一時ディレクトリ&gt;
-ls &lt;一時ディレクトリ&gt;/.claude/skills/issue-mr-flow/</code></pre>
+bash .claude/skills/apply-mr-workflow-to-project/scripts/install-to-project.sh -f "$dest"
+find "$dest/.claude/skills/issue-mr-flow/" -maxdepth 2</code></pre>
   <p>合格条件（この調査が終わったと言える条件）:</p>
   <ul>
+    <li>上記の各コマンドが<b>件数を出力</b>しており、0件のときに「実行していない」と区別できる。</li>
     <li>A〜E の各問いに、<b>実測値または実行結果を伴う</b>回答がある（推測で埋めた項目が無い）。</li>
     <li>B-3 の分類が<b>全件</b>に付いている（サンプリングで済ませない）。</li>
     <li>D-2 が「実際に配布先へ <code>references/</code> が現れた」というコマンド出力で裏付けられている。</li>
