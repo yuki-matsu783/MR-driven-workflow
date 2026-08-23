@@ -1,0 +1,323 @@
+<!--
+  個別調査計画（flow-id 2-1）の人間レビュー用HTMLビュー — issue #114
+  正文は同名の 【調査】報告HTMLのホスティング手段とタイミングの選定.md。両者の内容は同期させる。
+-->
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>【調査】報告HTMLのホスティング手段とタイミングの選定 — issue #114</title>
+<style>
+  :root {
+    --bg: #f6f7f9;      --panel: #ffffff;   --ink: #1a1d21;     --muted: #5b636d;
+    --line: #dfe3e8;    --accent: #2563eb;  --accent-soft: #eaf0fe;
+    --ok: #1a7f4b;      --ok-soft: #e6f4ec; --warn: #a35a00;    --warn-soft: #fdf1e0;
+    --stop: #b3261e;    --stop-soft: #fdecea; --code-bg: #f0f2f5;
+    --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1216;    --panel: #161a20;   --ink: #e6e8eb;     --muted: #9aa3ad;
+      --line: #2a3038;  --accent: #7aa2f7;  --accent-soft: #1b2333;
+      --ok: #6ee7a8;    --ok-soft: #14261d; --warn: #f0b866;    --warn-soft: #2a2113;
+      --stop: #f2857c;  --stop-soft: #2b1614; --code-bg: #1d222a;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", system-ui, sans-serif;
+    line-height: 1.8; font-size: 15px;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 20px 80px; }
+
+  /* 共通ヘッダ帯 */
+  header.band {
+    background: linear-gradient(135deg, var(--accent-soft), var(--panel));
+    border-bottom: 1px solid var(--line); padding: 28px 20px 22px; margin-bottom: 28px;
+  }
+  header.band .inner { max-width: 1080px; margin: 0 auto; }
+  header.band .kind { font-size: 11px; letter-spacing: .18em; color: var(--accent); font-weight: 700; }
+  header.band h1 { margin: 6px 0 4px; font-size: 26px; line-height: 1.4; }
+  header.band .lead { margin: 0; color: var(--muted); }
+  .meta { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; padding: 0; list-style: none; }
+  .meta li {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 999px;
+    padding: 3px 12px; font-size: 12.5px; color: var(--muted); white-space: nowrap;
+  }
+  .meta li b { color: var(--ink); font-weight: 600; }
+
+  nav.toc {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 14px 20px; margin-bottom: 28px;
+  }
+  nav.toc h2 { margin: 0 0 8px; font-size: 13px; letter-spacing: .08em; color: var(--muted); border: 0; padding: 0; }
+  nav.toc ol { margin: 0; padding-left: 20px; }
+  nav.toc li { margin: 2px 0; }
+  a { color: var(--accent); }
+
+  section {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 8px 24px 22px; margin-bottom: 22px;
+  }
+  h2 { font-size: 20px; margin: 20px 0 10px; padding-bottom: 8px; border-bottom: 2px solid var(--line); }
+  h3 { font-size: 16px; margin: 22px 0 8px; color: var(--accent); }
+  p { margin: 10px 0; }
+  ul, ol { padding-left: 22px; }
+  li { margin: 4px 0; }
+  blockquote { margin: 10px 0; padding: 6px 14px; border-left: 3px solid var(--line); color: var(--muted); }
+
+  /* 表は自身の中で横スクロールする（ページ本体は横スクロールさせない） */
+  .tablewrap { overflow-x: auto; margin: 14px 0; }
+  table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 14px; }
+  th, td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: var(--accent-soft); font-weight: 600; white-space: nowrap; }
+  tbody tr:nth-child(even) td { background: color-mix(in srgb, var(--line) 22%, transparent); }
+
+  code {
+    background: var(--code-bg); border-radius: 5px; padding: 1px 5px; font-size: 13px;
+    font-family: "SFMono-Regular", Consolas, "Noto Sans Mono", monospace;
+  }
+  pre {
+    background: var(--code-bg); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 12px 14px; overflow-x: auto; font-size: 13px; line-height: 1.65;
+  }
+  pre code { background: none; padding: 0; }
+
+  /* 注意ボックス: info（既定）/ ok（決めたこと）/ warn（注意）/ stop（やらないこと・危険） */
+  .box { border-left: 4px solid var(--accent); background: var(--accent-soft);
+         border-radius: 0 var(--radius) var(--radius) 0; padding: 12px 16px; margin: 16px 0; }
+  .box > :first-child { margin-top: 0; } .box > :last-child { margin-bottom: 0; }
+  .box .label { font-size: 12px; font-weight: 700; letter-spacing: .06em; display: block; margin-bottom: 4px; }
+  .box.ok { border-color: var(--ok); background: var(--ok-soft); } .box.ok .label { color: var(--ok); }
+  .box.warn { border-color: var(--warn); background: var(--warn-soft); } .box.warn .label { color: var(--warn); }
+  .box.stop { border-color: var(--stop); background: var(--stop-soft); } .box.stop .label { color: var(--stop); }
+  .box.info .label { color: var(--accent); }
+
+  .tag { display: inline-block; border-radius: 999px; padding: 1px 9px; font-size: 12px; font-weight: 600; }
+  .tag.ok { background: var(--ok-soft); color: var(--ok); }
+  .tag.warn { background: var(--warn-soft); color: var(--warn); }
+  .tag.stop { background: var(--stop-soft); color: var(--stop); }
+
+  footer { color: var(--muted); font-size: 13px; text-align: center; padding-top: 10px; }
+</style>
+</head>
+<body>
+
+<header class="band">
+  <div class="inner">
+    <div class="kind">個別調査計画 / フェーズ2</div>
+    <h1>報告HTMLのホスティング手段とタイミングの選定</h1>
+    <p class="lead">
+      報告HTMLをホストしURLを払い出す手段（GitLab Review Apps / GitHub Pages 等）を選び、
+      確定済みのホストタイミング（案(b)＝flow-id 5-4 でホスト、5-6 で通知）が成立する条件を確かめる。
+    </p>
+    <ul class="meta">
+      <li><b>issue</b> #114</li>
+      <li><b>ブランチ</b> feature-114-host-report-html-and-notify-url</li>
+      <li><b>PR</b> #180</li>
+      <li><b>フェーズ</b> 2〈調査〉 flow-id 2-1</li>
+      <li><b>push回数</b> 2</li>
+      <li><b>作成日</b> 2026-08-23</li>
+      <li><b>正文</b> 同名の .md</li>
+    </ul>
+  </div>
+</header>
+
+<div class="wrap">
+
+<nav class="toc">
+  <h2>目次</h2>
+  <ol>
+    <li><a href="#premise">前提（合意状況）</a></li>
+    <li><a href="#goal">この計画で何をするか</a></li>
+    <li><a href="#target">変更対象</a></li>
+    <li><a href="#approach">方針</a></li>
+    <li><a href="#out-of-scope">やらないこと（スコープ外）</a></li>
+    <li><a href="#verify">検証</a></li>
+  </ol>
+</nav>
+
+<section id="premise">
+  <h2>前提（合意状況）</h2>
+  <ul>
+    <li>上位の計画: <code>plans/binary-soaring-eclipse.md</code>（<b>flow-id 1-5 で合意</b>）。
+      <b>調査する4つの問いの定義（案の内容・却下候補の一覧を含む）は、上位計画の
+      「フェーズ2〈調査〉」節が正である。</b> 本計画は重複させず、<b>実行手順と比較の観点表</b>だけを持つ。</li>
+    <li>issue を分割せず1件で進めること・GitHub / GitLab とも<b>実機検証まで行う</b>ことは、
+      <b>flow-id 1-4 でユーザーが判断</b>した。</li>
+    <li><b>ホストするタイミングは案(b)で確定</b>（flow-id <b>5-4</b> でホスト、<b>5-6</b> で通知のみ）。
+      <b>flow-id 2-4（レビュー1周目）でユーザーが判断</b>した。</li>
+    <li><b>flow-id の番号は #111・#112・#157 で繰り下がっている。</b> 対応表は上位計画
+      「issue 起票後に前提が変わっている」が正。本計画は<b>現行の番号</b>で書く。</li>
+    <li><b>まだ合意されていない</b>: 手段の選定結果そのもの。本調査の結論は <code>reports/</code> へ書き、
+      flow-id 2-8 の人間のレビューで合意する。</li>
+  </ul>
+</section>
+
+<section id="goal">
+  <h2>この計画で何をするか</h2>
+  <p>issue #114 の実装方針を決めるために、次の4つを確定させる。</p>
+  <ol>
+    <li><b>どの手段でホストするか</b>（GitLab / GitHub それぞれ。却下した手段は却下理由つきで残す）</li>
+    <li><b>確定済みの案(b)が成立する条件</b>（案の選定はやり直さない。下記「方針」問い1）</li>
+    <li><b><code>plans/</code> のHTMLビューをホスト対象に含めるか</b>（上位計画が本フェーズへ送った判断）</li>
+    <li><b>配布物としてのCI設定の扱い</b>（含める／含めないと、それを実現する実装箇所）</li>
+  </ol>
+  <p>あわせて、<b>実機検証に必要な環境の構築コスト</b>（GitHub Pages の有効化操作、GitLab Runner の
+    構築手順）を見積もる。</p>
+</section>
+
+<section id="target">
+  <h2>変更対象</h2>
+  <div class="box">
+    <span class="label">この調査ではリポジトリのコード・設定を変更しない</span>
+    成果物は <code>reports/</code> と <code>worklog/</code> 配下のみである。
+  </div>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>ファイル</th><th>操作</th><th>何をするか</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><code>reports/20260823_binary-soaring-eclipse_ホスティング手段の比較.md</code></td>
+        <td>新規</td><td>調査結果の<b>正文</b>。4つの問いへの結論・根拠・却下案</td>
+      </tr>
+      <tr>
+        <td><code>reports/20260823_binary-soaring-eclipse_ホスティング手段の比較.html</code></td>
+        <td>新規</td><td>同内容の人間レビュー用ビュー（土台は <code>reports.template.html</code>）</td>
+      </tr>
+      <tr>
+        <td><code>worklog/20260823_binary-soaring-eclipse_【調査】報告HTMLのホスティング手段とタイミングの選定_push&lt;N&gt;.md</code></td>
+        <td>追記</td><td>試行錯誤の詳細ログ</td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+  <p><b>リポジトリ設定を変える実機検証（GitHub Pages の有効化・GitLab Runner の構築）はこの調査では
+    行わない。</b> 必要条件と手順の確認までに留め、実際の構築・デプロイはフェーズ3で行う（下記「やらないこと」）。
+    <b>読み取り専用の実機確認</b>（<code>gh api …/pages</code> が404を返す、
+    <code>glab api projects/:id/environments</code> の応答形を見る等）は<b>この調査で行ってよい</b>。</p>
+</section>
+
+<section id="approach">
+  <h2>方針</h2>
+
+  <h3>問い1: 案(b)の成立条件と、(a)(c)の却下理由の裏取り</h3>
+  <p><b>案の選定はやり直さない</b>（flow-id 2-4 でユーザーが案(b)を選択済み）。案(a)(b)(c) の定義は
+    上位計画が持つ。この調査で確かめるのは次の2点である。</p>
+  <p><b>(i) 案(b)が成立する条件</b></p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>確認すること</th><th>なぜ</th></tr></thead>
+    <tbody>
+      <tr><td>flow-id 5-4 の push を CI がどのトリガで捉えるか</td><td>ホストが始まる契機を特定するため</td></tr>
+      <tr><td>flow-id 5-5（<code>reports/</code> 削除）の push が、既にホストされた内容を壊さないか</td>
+          <td><b>案(b)の成否を分ける最大の点</b>。同じデプロイ先を上書きする構成だと、通知する前に消える</td></tr>
+      <tr><td>flow-id 5-6 でURLをどう取得するか</td>
+          <td>通知するのはこのステップであり、5-4 の結果を後から引くことになる</td></tr>
+      <tr><td>CIが無い／失敗する環境で、フローが止まらないか</td>
+          <td>配布先の大半はCIを持たない。<code>upload_attachment</code> と同じく<b>失敗は正常系</b>にできるか</td></tr>
+      <tr><td>デプロイ完了を待つ必要があるか・待つならどれだけか</td>
+          <td>5-4 と 5-6 の間に人間の操作は挟まらないため、待ち時間がそのままフローの遅延になる</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p><b>(ii) (a)(c) を却下した理由の裏取り</b><br>
+    DDR（<code>i0114-01</code>）へ却下案として残すため、<b>推測のまま却下理由にしない</b>。「不変パスにすると
+    デプロイが何個溜まるか」「5-6 から過去SHAを指定してCIを起こせるか」を実際の仕様で確かめる。</p>
+  <p><b>(iii) <code>plans/</code> のHTMLビューをホスト対象に含めるか</b><br>
+    <code>plans/</code> も <code>reports/</code> と同じく flow-id 5-5 で削除される。含めると対象が増えて
+    デプロイ時間とデプロイ物のサイズが増える一方、レビュー時に計画も同じURLから辿れる。<b>結論を必ず書く。</b></p>
+
+  <h3>問い2: GitHub の手段</h3>
+  <p>第一候補は <b>GitHub Pages ＋ Actions</b>。確認項目は上位計画の問い2が持つ（並列プレビューの表現・
+    デプロイ完了の待ち方とURL取得・fork PRでの <code>GITHUB_TOKEN</code>・Pages 有効化操作・<b>可視性設定との
+    一致</b>）。却下候補の一覧も同様に上位計画が持つ。</p>
+  <p><b>この計画が足すのは、確認の順序だけである。</b> 「可視性設定との一致」を最初に確かめる
+    （ここで満たせない手段は、他の条件を調べる価値が無いため）。</p>
+
+  <h3>問い3: GitLab の手段</h3>
+  <p>CI/CD Review Apps（動的環境）。確認項目は上位計画の問い3が持つ（CI記法・ホストの実体・Runner
+    構築手順・URL取得・<b>可視性設定との一致</b>）。</p>
+  <p><b>この計画が足すのは、ホストの実体を先に決めることである。</b> 「GitLab Pages」か「Runner 上の
+    静的サーバ」かで、可視性の扱いも Runner の構成も変わる。後者は<b>GitLabのアクセス制御の外</b>に
+    出るため、private プロジェクトで受け入れ条件を破りうる。</p>
+
+  <h3>問い4: 配布物としての扱い</h3>
+  <p>前提は上位計画の問い4が持つ（<code>sync-assets.sh</code> が <code>.github/</code> を丸ごと配布資産へ集めており、
+    <b>何もしなければ配布対象に載る</b>）。この計画では次の順で確かめる。</p>
+  <ol>
+    <li><code>.claude/docs/spec/distribution-assets.md</code> を読み、既存の配布経路
+      （<code>.gitattributes</code> の <code>dist:begin</code>〜<code>dist:end</code> 方式）が何を解決しているかを把握する</li>
+    <li>「含めない」と決めた場合の除外位置（<code>sync-assets.sh</code> の <code>.github/</code> コピー箇所か、
+      <code>install-to-project.sh</code> の <code>safe_copy_dir</code> 箇所か）を特定する</li>
+    <li>「含める」と決めた場合、配布先の既存ワークフローを <code>.bak</code> 退避で上書きする現在の挙動が
+      許容できるかを判断する</li>
+  </ol>
+
+  <h3>進め方</h3>
+  <ol>
+    <li>一次情報（GitHub Docs / GitLab Docs）を読み、問い2・問い3の必要条件を確定する</li>
+    <li>リポジトリ内の既存資産（<code>Provider.sh</code> の <code>upload_attachment</code>、
+      <code>distribution-assets.md</code>、<code>gitlab-verification-environment.md</code>、
+      <code>sync-assets.sh</code> / <code>install-to-project.sh</code>）を読む</li>
+    <li>問い1の (i)(ii)(iii) を確かめる</li>
+    <li>結果を <code>reports/</code> のmd（正文）とHTMLへ書く。worklog には試行錯誤を随時書き足す</li>
+  </ol>
+</section>
+
+<section id="out-of-scope">
+  <h2>やらないこと（スコープ外）</h2>
+  <div class="box stop">
+    <span class="label">この計画では決めない・触らない</span>
+    <ul>
+      <li><b>実装（コード・CI設定・SKILL.md の変更）</b>。方針を決めるところまでで、実装は
+        flow-id 3-1 以降で個別作業計画を立ててから行う</li>
+      <li><b>リポジトリ設定を変える実機検証</b>（GitHub Pages の有効化・GitLab Runner の実構築）。
+        必要条件と手順の確認までに留める。<b>ユーザーの判断（flow-id 1-4）で実機検証まで行うと
+        決まっているが、それはフェーズ3で行う</b>（調査段階でリポジトリ設定を変更すると、方針が
+        覆ったときに戻す手間だけが残るため）。読み取り専用の実機確認は上記のとおり行ってよい</li>
+      <li><b>案(a)(b)(c) の選び直し</b>。flow-id 2-4 で確定済み。却下理由の裏取りは行うが、結論は覆さない</li>
+      <li>ホストしたHTMLの公開範囲・寿命の<b>制御</b>（issue の受け入れ条件でスコープ外と確定済み）。
+        ただし「可視性設定に従えるか」の<b>確認</b>は行う（問い2・問い3）</li>
+      <li><code>reports/</code> の削除タイミング（flow-id 5-5）の変更（上位計画でスコープ外と確定済み）</li>
+    </ul>
+  </div>
+</section>
+
+<section id="verify">
+  <h2>検証</h2>
+  <p>調査そのものに自動テストは無い。<b>次の条件がすべて満たせたら、この調査は完了である。</b></p>
+  <pre><code># 成果物が揃っていること
+ls reports/20260823_binary-soaring-eclipse_ホスティング手段の比較.md \
+   reports/20260823_binary-soaring-eclipse_ホスティング手段の比較.html
+
+# HTMLにテンプレートのプレースホルダが残っていないこと（0であること）
+grep -c '&lt;!-- ここに書く' reports/20260823_binary-soaring-eclipse_ホスティング手段の比較.html
+
+# HTMLが自己完結していること（いずれも0件であること）
+grep -nE "(src|href)=['\"]?(https?:)?//" reports/20260823_binary-soaring-eclipse_ホスティング手段の比較.html
+grep -nE "(url\(|@import[[:space:]]+)['\"]?(https?:)?//" reports/20260823_binary-soaring-eclipse_ホスティング手段の比較.html</code></pre>
+  <p><b>合格条件</b>:</p>
+  <ol>
+    <li>問い1(i) の<b>案(b)の成立条件</b>が、上記の観点表すべてに答える形で書かれている</li>
+    <li>問い1(ii) の <b>(a)(c) の却下理由</b>が、推測ではなく仕様の裏取りつきで書かれている</li>
+    <li>問い1(iii) の <b><code>plans/</code> のHTMLビューをホスト対象に含めるかの結論</b>が書かれている</li>
+    <li>問い2・問い3が<b>一次情報の参照つき</b>で答えられており、<b>実機で確かめていない結論は
+      「未検証」であることを結論ごとに明示し、フェーズ3のどの手順で確かめるかを併記</b>している
+      （<code>reports/REVIEW-POINTS.md</code>「内容の妥当性」は実機の根拠を求めるため、確かめたことと
+      確かめられなかったことを区別して書く）</li>
+    <li><b>却下した手段が、却下理由つきで</b>記録されている（GitHub側の4候補を含む）</li>
+    <li>問い4の結論（配布資産に含めるか）と、<b>それを実現する実装箇所</b>が書かれている</li>
+    <li><b>実機検証に必要な環境の構築コスト</b>（Pages 有効化操作・Runner 構築手順）が見積もられている</li>
+    <li><b>フェーズ3で立てる個別作業計画が、この結果だけを読んで書ける</b>こと</li>
+    <li>md と HTML の節見出しが一致しており、内容が同期していること</li>
+  </ol>
+</section>
+
+<footer>issue #114 / PR #180 — 計画の正文は同名の <code>.md</code>。外部依存を持たない自己完結HTML。</footer>
+
+</div>
+</body>
+</html>
