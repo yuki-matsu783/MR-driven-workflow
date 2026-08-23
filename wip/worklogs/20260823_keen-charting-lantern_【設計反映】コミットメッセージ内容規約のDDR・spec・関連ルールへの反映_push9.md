@@ -1,5 +1,5 @@
 ---
-title: 20260823 keen-charting-lantern 【設計反映】【AIアセット反映】コミットメッセージ内容規約のspec・DDR・関連ルールへの反映 push9
+title: 20260823 keen-charting-lantern 【設計反映】コミットメッセージ内容規約のDDR・spec・関連ルールへの反映 push9
 type: log
 description: フェーズ4の個別反映計画を作成した記録と、反映対象の現況調査。
 tags: [worklog, ddr, spec, 反映]
