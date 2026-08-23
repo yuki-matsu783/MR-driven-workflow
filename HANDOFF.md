@@ -17,7 +17,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - issue: #27 他プロジェクトで改善されたAIアセットを本家へ収穫（逆輸入）するスキルを新設する
 - ブランチ: claude/ai-asset-reverse-import-skill-g4qa9s
 - PR: #189 https://github.com/yuki-matsu783/MR-driven-workflow/pull/189（Draft）
-- push回数: 6
+- push回数: 7
 - 現在のループ: なし
 - 未返信スレッド: 0
 - 追従監視: なし
@@ -115,11 +115,18 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
   全体形とエラー隔離・T2a/T2b・T8/T8b・T12〜T15 追加等）。
 - 敵対的レビュー3回目の13スレッドすべてへ対応内容を返信し、`- 未返信スレッド:` を 0 へ
   戻した（返信URLは各スレッド r3838762517〜r3838766374。修正コミット 142b664）。
+- flow-id 3-6 相当: 収穫スキル一式を実装した——`.claude/skills/harvest-from-projects/`
+  （SKILL.md＋scripts/harvest-from-projects.sh）・`.claude/scripts/test/
+  test_harvest_from_projects.sh`（T1〜T15・アサーション66件・passed=66 failures=0）・
+  dist-layers の exclude エントリ・markdown-frontmatter.md の配布先DDR規約。検証4種
+  （bash -n・テスト・check-dist-coverage 4検査・frontmatter 実問い合わせ）すべて合格。
+  結果は `reports/2026-08-23_quiet-orchard-harvest_作業結果.md`（＋.html）。
 
 ## 次にやること
 
-- 収穫スキル実装（flow-id 3-6 相当: SKILL.md・harvest-from-projects.sh・テスト・
-  dist-layers・DDR規約）→ reports作成 → commit/push → 敵対的レビュー（作業実施後）へ。
+- 敵対的レビュー4回目（フェーズ3・対象=実装一式。カウンタ 2/3）→ 指摘の投稿・修正・返信 →
+  フェーズ4（個別反映計画: spec `asset-harvest` 相当・DDR `i0027-01`・directory-structure.md
+  文言・VERSION 増分判断）へ。
 
 ## 判断を迷った内容
 
