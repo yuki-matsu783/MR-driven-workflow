@@ -17,7 +17,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - issue: #185
 - ブランチ: `claude/improve-commit-log-format-9mjlid`
 - PR: #192（https://github.com/yuki-matsu783/MR-driven-workflow/pull/192 ）（Draft）
-- push回数: 12
+- push回数: 13
 - 現在のループ: 4-6〜4-9 の1周目（完了）
 - 未返信スレッド: 0
 - 追従監視: あり（`subscribe_pr_activity` でPR #192 を購読中。セッション終了で切れるため、次セッションは `resume` で取り直す）
@@ -59,8 +59,8 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 | [x] | 4-7 | `commit`スキル経由でcommitし、push してレビュー依頼を行う | エージェント |
 | [x] | 4-8 | MRでレビュー・コメントする | 人間 |
 | [x] | 4-9 | レビュー内容を取得し、設計・AIアセットの内容を修正する | `comments` / `reply` |
-| [] | 4-10 | 反映内容をもとにMR descriptionを更新する | `describe` |
-| [] | 5-1 | defaultブランチとのコンフリクトを検知し、あれば解消する | エージェント |
+| [x] | 4-10 | 反映内容をもとにMR descriptionを更新する | `describe` |
+| [x] | 5-1 | defaultブランチとのコンフリクトを検知し、あれば解消する | エージェント |
 | [] | 5-2 | 今回のMRが影響する関連issueを特定し、承認を得てから当該issueへ通知する | エージェント |
 | [] | 5-3 | `.claude/` の変更を `.gemini/` へ変換同期する | エージェント |
 | [] | 5-4 | 最終統括レポートを作成し、PR/MRへサマリコメントとして反映する | エージェント |
