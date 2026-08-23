@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>【AIアセット作成】AIアセット反映の洗い出し手順をSKILL.mdへ新設 — issue #155</title>
+<style>
+  :root {
+    --bg: #f6f7f9;      --panel: #ffffff;   --ink: #1a1d21;     --muted: #5b636d;
+    --line: #dfe3e8;    --accent: #2563eb;  --accent-soft: #eaf0fe;
+    --ok: #1a7f4b;      --ok-soft: #e6f4ec; --warn: #a35a00;    --warn-soft: #fdf1e0;
+    --stop: #b3261e;    --stop-soft: #fdecea; --code-bg: #f0f2f5;
+    --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1216;    --panel: #161a20;   --ink: #e6e8eb;     --muted: #9aa3ad;
+      --line: #2a3038;  --accent: #7aa2f7;  --accent-soft: #1b2333;
+      --ok: #6ee7a8;    --ok-soft: #14261d; --warn: #f0b866;    --warn-soft: #2a2113;
+      --stop: #f2857c;  --stop-soft: #2b1614; --code-bg: #1d222a;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", system-ui, sans-serif;
+    line-height: 1.8; font-size: 15px;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 20px 80px; }
+
+  /* 共通ヘッダ帯 */
+  header.band {
+    background: linear-gradient(135deg, var(--accent-soft), var(--panel));
+    border-bottom: 1px solid var(--line); padding: 28px 20px 22px; margin-bottom: 28px;
+  }
+  header.band .inner { max-width: 1080px; margin: 0 auto; }
+  header.band .kind { font-size: 11px; letter-spacing: .18em; color: var(--accent); font-weight: 700; }
+  header.band h1 { margin: 6px 0 4px; font-size: 26px; line-height: 1.4; }
+  header.band .lead { margin: 0; color: var(--muted); }
+  .meta { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; padding: 0; list-style: none; }
+  .meta li {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 999px;
+    padding: 3px 12px; font-size: 12.5px; color: var(--muted); white-space: nowrap;
+  }
+  .meta li b { color: var(--ink); font-weight: 600; }
+
+  nav.toc {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 14px 20px; margin-bottom: 28px;
+  }
+  nav.toc h2 { margin: 0 0 8px; font-size: 13px; letter-spacing: .08em; color: var(--muted); border: 0; padding: 0; }
+  nav.toc ol { margin: 0; padding-left: 20px; }
+  nav.toc li { margin: 2px 0; }
+  a { color: var(--accent); }
+
+  section {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 8px 24px 22px; margin-bottom: 22px;
+  }
+  h2 { font-size: 20px; margin: 20px 0 10px; padding-bottom: 8px; border-bottom: 2px solid var(--line); }
+  h3 { font-size: 16px; margin: 22px 0 8px; color: var(--accent); }
+  p { margin: 10px 0; }
+  ul, ol { padding-left: 22px; }
+  li { margin: 4px 0; }
+  blockquote { margin: 10px 0; padding: 6px 14px; border-left: 3px solid var(--line); color: var(--muted); }
+
+  /* 表は自身の中で横スクロールする（ページ本体は横スクロールさせない） */
+  .tablewrap { overflow-x: auto; margin: 14px 0; }
+  table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 14px; }
+  th, td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: var(--accent-soft); font-weight: 600; white-space: nowrap; }
+  tbody tr:nth-child(even) td { background: color-mix(in srgb, var(--line) 22%, transparent); }
+
+  code {
+    background: var(--code-bg); border-radius: 5px; padding: 1px 5px; font-size: 13px;
+    font-family: "SFMono-Regular", Consolas, "Noto Sans Mono", monospace;
+  }
+  pre {
+    background: var(--code-bg); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 12px 14px; overflow-x: auto; font-size: 13px; line-height: 1.65;
+  }
+  pre code { background: none; padding: 0; }
+
+  /* 注意ボックス: info（既定）/ ok（決めたこと）/ warn（注意）/ stop（やらないこと・危険） */
+  .box { border-left: 4px solid var(--accent); background: var(--accent-soft);
+         border-radius: 0 var(--radius) var(--radius) 0; padding: 12px 16px; margin: 16px 0; }
+  .box > :first-child { margin-top: 0; } .box > :last-child { margin-bottom: 0; }
+  .box .label { font-size: 12px; font-weight: 700; letter-spacing: .06em; display: block; margin-bottom: 4px; }
+  .box.ok { border-color: var(--ok); background: var(--ok-soft); } .box.ok .label { color: var(--ok); }
+  .box.warn { border-color: var(--warn); background: var(--warn-soft); } .box.warn .label { color: var(--warn); }
+  .box.stop { border-color: var(--stop); background: var(--stop-soft); } .box.stop .label { color: var(--stop); }
+  .box.info .label { color: var(--accent); }
+
+  .tag { display: inline-block; border-radius: 999px; padding: 1px 9px; font-size: 12px; font-weight: 600; }
+  .tag.ok { background: var(--ok-soft); color: var(--ok); }
+  .tag.warn { background: var(--warn-soft); color: var(--warn); }
+  .tag.stop { background: var(--stop-soft); color: var(--stop); }
+
+  footer { color: var(--muted); font-size: 13px; text-align: center; padding-top: 10px; }
+</style>
+</head>
+<body>
+<header class="band">
+  <div class="inner">
+    <div class="kind">個別作業計画 / フェーズ3</div>
+    <h1>【AIアセット作成】AIアセット反映の洗い出し手順をSKILL.mdへ新設</h1>
+    <p class="lead"><code>.claude/skills/issue-mr-flow/SKILL.md</code> へ「AIアセット反映の対象の洗い出し」節（4手順）を新設し、既存5箇所を書き換える。併せて <code>plans/REVIEW-POINTS.md</code> へ <code>【AIアセット反映】</code> 計画のレビュー観点を追加する。</p>
+    <ul class="meta">
+      <li><b>issue</b> #155</li>
+      <li><b>ブランチ</b> claude/ai-asset-reflection-scope-njqn95</li>
+      <li><b>PR</b> #175</li>
+      <li><b>フェーズ</b> 3〈作業〉 flow-id 3-1</li>
+      <li><b>作成日</b> 2026-08-23</li>
+      <li><b>正文</b> 同名の .md</li>
+    </ul>
+  </div>
+</header>
+
+<div class="wrap">
+
+<nav class="toc">
+  <h2>目次</h2>
+  <ol>
+    <li><a href="#premise">前提（合意状況）</a></li>
+    <li><a href="#kind">種別が 【AIアセット作成】 である根拠</a></li>
+    <li><a href="#goal">この計画で何をするか</a></li>
+    <li><a href="#target">変更対象</a></li>
+    <li><a href="#order">順序</a></li>
+    <li><a href="#out-of-scope">やらないこと（スコープ外）</a></li>
+    <li><a href="#verify">検証</a></li>
+  </ol>
+</nav>
+
+<section id="premise">
+<h2>前提（合意状況）</h2>
+<ul>
+<li>上位の計画: <code>plans/brisk-charting-lantern.md</code>。<b>flow-id 1-5（人間による合意）は未了</b>である。 このセッションは人間のレビュー往復が成立しないため、敵対的レビューで代替する（<code>HANDOFF.md</code> 「守るべき条件・触ってはいけない範囲」）。</li>
+<li><b>この計画の内容はすべて、フェーズ2の調査結果「設計への反映」1〜11を入力にしている。</b> 新しい判断を足しておらず、判断の根拠は調査結果側にある（ここへ再掲しない）。</li>
+</ul>
+</section>
+
+<section id="kind">
+<h2>種別が <code>【AIアセット作成】</code> である根拠</h2>
+<p>この issue の<b>主たる成果物</b>がAIアセット（SKILL.md の節・レビュー観点）であるため （調査結果Q5）。<code>【AIアセット反映】</code> は「作業の<b>副産物</b>として気づいた改善を反映する」場合の 種別であり、本issueは当てはまらない。<b>併記もしない</b>（<code>plans/REVIEW-POINTS.md</code>「種別」の 観点。対象・評価軸が異なるものを1つの計画へ混ぜない）。</p>
+<p>なお本計画で書き換える <code>.claude/skills/issue-mr-flow/SKILL.md</code> 164行目は 「<code>【AIアセット作成】</code> の除外規定」であり、<b>規定の文言を直す作業もアセットの改訂</b>なので同じ 種別に収まる（<code>.claude/scripts/</code> <code>.claude/hooks/</code> 配下のスクリプト自体は1行も触らない）。</p>
+</section>
+
+<section id="goal">
+<h2>この計画で何をするか</h2>
+<p><code>.claude/skills/issue-mr-flow/SKILL.md</code> へ <b>「AIアセット反映の対象の洗い出し」節を新設</b>し、その節を参照する形へ既存の記述を書き換える。併せて <code>plans/REVIEW-POINTS.md</code> へ <code>【AIアセット反映】</code> 計画のレビュー観点を追加する。</p>
+<h3>新設する節の構成（4手順）</h3>
+<p>調査結果の「設計への反映」2 のとおり、次の4手順で構成する。<b>スキップ条件（手順1〜2まで）を 手順の番号で書けるようにするための区切り</b>である。</p>
+<div class="tablewrap">
+<table>
+<thead><tr><th>手順</th><th>内容</th><th>打ち切り・境界</th></tr></thead>
+<tbody>
+<tr><td>手順1</td><td><b>起点の列挙。</b> <code>worklog/</code> の「試したこと」「ダメだったこと」を入力にする</td><td><b>主たる成果物としてのアセット作成は対象外</b>（<code>【AIアセット作成】</code> で扱う）</td></tr>
+<tr><td>手順2</td><td><b>4類型への分類</b>（(a) 無かった／(b) 誤っていた／(c) 罠が書かれていなかった／(d) 辿り着けなかった）</td><td><b>ここで0件ならフェーズ4のAIアセットの項は充足</b>（手順3・4は入力が無い）</td></tr>
+<tr><td>手順3</td><td><b>証拠集めと打ち切り</b>（(a) のみ。(b)(c)(d) は1回でも反映する）</td><td><code>doc-search</code> で <code>matched=0</code> <b>かつ</b> <code>grep -rn</code> も0件なら痕跡なしと判断して進む</td></tr>
+<tr><td>手順4</td><td><b>反映先の形態の決定</b>（2軸: いつ効いてほしいか × 守らせ方の強さ）＋削除・統合の検討</td><td><code>scripts</code> / <code>hooks</code> を選んだ場合の<b>種別は <code>【実装反映】</code></b></td></tr>
+</tbody>
+</table>
+</div>
+<h3>節が持つもの・持たないもの</h3>
+<p>「正が2つ」を避けるため、境界を先に決めておく（調査結果Q3・Q6・Q8）。</p>
+<div class="tablewrap">
+<table>
+<thead><tr><th></th><th>持つ</th><th>持たない（指すだけにする）</th></tr></thead>
+<tbody>
+<tr><td>4類型</td><td><b>定義</b>（この節が正）</td><td>—</td></tr>
+<tr><td>証拠を要求する範囲・打ち切りの段階</td><td><b>定義</b>（この節が正）</td><td>—</td></tr>
+<tr><td>反映先の一覧</td><td><b>一覧</b>（この節が正。flow-id 4-6 行からは消す）</td><td>各ディレクトリの<b>役割の定義</b> → <code>index.md</code></td></tr>
+<tr><td>2軸</td><td>形態と2軸の<b>対応表</b></td><td>役割の定義（同上）</td></tr>
+<tr><td>配布経路の実害</td><td><b>注意喚起</b>の1〜2行</td><td>版の増分の規定 → <code>.claude/docs/spec/distribution-assets.md</code></td></tr>
+<tr><td>レビュー時の問い</td><td>—</td><td><code>plans/REVIEW-POINTS.md</code> が持つ</td></tr>
+</tbody>
+</table>
+</div>
+</section>
+
+<section id="target">
+<h2>変更対象</h2>
+<div class="tablewrap">
+<table>
+<thead><tr><th>ファイル</th><th>操作</th><th>何をするか</th></tr></thead>
+<tbody>
+<tr><td><code>.claude/skills/issue-mr-flow/SKILL.md</code></td><td>新設</td><td>「AIアセット反映の対象の洗い出し」節（4手順・4類型・2軸・反映先の一覧）</td></tr>
+<tr><td>〃</td><td>書き換え(1)</td><td>flow-id 4-1 行（<code>まず反映対象を洗い出し</code>）へ新節への参照を1つ足す</td></tr>
+<tr><td>〃</td><td>書き換え(2)</td><td>flow-id 4-6 行（<code>作業中に気づいたルール・スキルの不備</code>）の<b>列挙を消し</b>、新節への参照にする</td></tr>
+<tr><td>〃</td><td>書き換え(3)</td><td>省略タイミング表の行（<code>反映対象を洗い出した結果</code>）のスキップ条件を言い直す</td></tr>
+<tr><td>〃</td><td>書き換え(4)</td><td>同じ節の地の文（<code>フェーズ4は必ず通る</code>）のスキップ条件を言い直す</td></tr>
+<tr><td>〃</td><td>書き換え(5)</td><td>除外規定（<code>対象に含めない</code>）の主語へ <code>.claude/hooks/</code> を加える</td></tr>
+<tr><td><code>plans/REVIEW-POINTS.md</code></td><td>追記</td><td><code>【AIアセット反映】</code> 計画のレビュー観点（<b>問いだけ</b>を持ち、定義はSKILL.mdを指す）</td></tr>
+<tr><td><code>reports/20260823_brisk-charting-lantern_洗い出し手順の新設.md</code> / <code>.html</code></td><td>新規</td><td>作業結果の正文とHTMLビュー</td></tr>
+<tr><td><code>worklog/20260823_brisk-charting-lantern_【AIアセット作成】AIアセット反映の洗い出し手順をSKILL.mdへ新設_push6.md</code></td><td>新規</td><td>試行錯誤の詳細ログ</td></tr>
+</tbody>
+</table>
+</div>
+<p><b>この計画ファイルには結果を書かない</b>（<code>reports/</code> へ分ける。SKILL.md「計画と実施結果の分離」）。</p>
+<h3>書き換えは行番号ではなく文字列で照合する</h3>
+<p>調査結果が<b>編集箇所ごとに1文字列＝1箇所になる照合文字列を実測して</b>添えてある。節を新設すると 行番号は必ず動くため、<b>行番号では照合しない</b>。</p>
+<div class="tablewrap">
+<table>
+<thead><tr><th>#</th><th>照合文字列</th><th>期待ヒット数</th></tr></thead>
+<tbody>
+<tr><td>(1)</td><td><code>まず反映対象を洗い出し</code></td><td>1</td></tr>
+<tr><td>(2)</td><td><code>作業中に気づいたルール・スキルの不備</code></td><td>1</td></tr>
+<tr><td>(3)</td><td><code>反映対象を洗い出した結果</code></td><td>1</td></tr>
+<tr><td>(4)</td><td><code>フェーズ4は必ず通る</code></td><td>1</td></tr>
+<tr><td>(5)</td><td><code>対象に含めない</code></td><td>1</td></tr>
+</tbody>
+</table>
+</div>
+<p><b><code>反映するものが無いと確認できた</code> は使わない</b>（(1) と同じ行を指すため重複する）。</p>
+</section>
+
+<section id="order">
+<h2>順序</h2>
+<ol>
+<li>書き換え(5)（除外規定）→ 新節が前提にする「hooksは <code>【実装反映】</code>」を先に成立させる。</li>
+<li>新節の追加。</li>
+<li>書き換え(1)(2) → 新節への参照。</li>
+<li>書き換え(3)(4) → <b>2つ同時に</b>（片方だけだと同じ節で表と地の文が食い違う。調査結果Q1）。</li>
+<li><code>plans/REVIEW-POINTS.md</code> への観点追加。</li>
+<li>検証（下記）→ <code>reports/</code> へ結果を記録。</li>
+</ol>
+<p><b>(3)(4) を分けてコミットしない。</b> 中間状態が「同じ節の中で表と地の文が矛盾する」形になる。</p>
+</section>
+
+<section id="out-of-scope">
+<h2>やらないこと（スコープ外）</h2>
+<ul>
+<li><b>DDRの作成・<code>.claude/docs/spec/issue-mr-workflow.md</code> の入口1行・<code>.claude/VERSION</code> の増分提案。</b> いずれも<b>フェーズ4（flow-id 4-6）</b>で行う。フェーズ3は「アセットを作る」までである。</li>
+<li><b><code>.claude/skills/issue-mr-flow/SKILL.md</code> 50行目と <code>.claude/docs/spec/issue-mr-workflow.md</code> 313行目の書き換え。</b> どちらも「フェーズ4は必ず通る」ことだけを述べており判定条件を含まない ため、据え置く（調査結果Q1）。</li>
+<li><b>spec/ddr・実装コード側のスキップ条件の判定手順を定めること。</b> issue #155 の対象は flow-id 4-1・4-6 の<b>AIアセット反映</b>である（調査結果Q2）。</li>
+<li><b>配布経路が上流の削除を伝播しない件の修正。</b> 別issueとして起票を提案する（調査結果Q8・残課題）。 今回の節に書くのは注意喚起までである。</li>
+<li><b><code>.claude/scripts/</code> <code>.claude/hooks/</code> 配下のスクリプトの変更。</b> 1行も触らない。</li>
+<li><b>過去MRを遡ってAIアセット反映の実例を網羅すること。</b> 網羅探索をしないことが今回定義する 手順そのものの方針であり、実装時にそれをやると自己矛盾する。</li>
+</ul>
+</section>
+
+<section id="verify">
+<h2>検証</h2>
+<p><b>変更前に実行すると失敗するコマンドだけを合格条件に使う</b>（変更の有無にかかわらず成功する コマンドは検証にならない。フェーズ2の敵対的レビューの指摘）。</p>
+<pre><code># 新節が存在すること（変更前は0件 → 変更後1件）
+grep -c &#x27;^### AIアセット反映の対象の洗い出し&#x27; .claude/skills/issue-mr-flow/SKILL.md
+
+# 観点が追加されていること（変更前は0件 → 変更後1件以上）
+grep -c &#x27;^## 【AIアセット反映】&#x27; plans/REVIEW-POINTS.md
+
+# 反映先の列挙が flow-id 4-6 行から消えていること（変更前1件 → 変更後0件）
+grep -c &#x27;作業中に気づいたルール・スキルの不備&#x27; .claude/skills/issue-mr-flow/SKILL.md
+
+# 除外規定の主語に hooks が入ったこと（変更前0件 → 変更後1件）
+grep -c &#x27;`.claude/scripts/` `.claude/hooks/` 配下のスクリプト&#x27; .claude/skills/issue-mr-flow/SKILL.md
+
+# 反映先の一覧が3件の漏れを補っていること（新節の中に存在すること）
+grep -c &#x27;.claude/agents/&#x27; .claude/skills/issue-mr-flow/SKILL.md
+grep -c &#x27;GEMINI.md&#x27; .claude/skills/issue-mr-flow/SKILL.md
+
+# frontmatterインデックスが壊れていないこと
+bash .claude/scripts/src/extract-frontmatter.sh .
+bash .claude/scripts/src/search-frontmatter.sh --type skill --path issue-mr-flow --format count  # matched=1
+
+# レビュー観点が収集経路に乗ること（変更前は0件。既存の「種別」節にある3件と混ざらないよう
+# 新設する見出しで数える）
+bash .claude/scripts/src/collect-review-points.sh plans/ | grep -c &#x27;^## 【AIアセット反映】&#x27;</code></pre>
+<p>合格条件:</p>
+<ul>
+<li>上記コマンドがすべて期待どおりの件数を返すこと。<b>変更前に実行して失敗する（0件になる）ことを 先に確かめてから</b>書き換える。</li>
+<li><b>スキップ条件の3系統の連言が保たれていること</b>（<code>spec/ddr</code> と <code>実装コード</code> が条件から 消えていないこと）。これは grep では判定できないため、書き換え後の文を目視で確認し、 <code>reports/</code> へ置換前後を並べて記録する。</li>
+<li><b>同じスキップ条件を持つ2箇所（表・地の文）が同じ内容になっていること。</b></li>
+<li><code>plans/REVIEW-POINTS.md</code> に4類型の<b>定義</b>が書かれて<b>いない</b>こと（問いだけを持つ。調査結果Q6）。</li>
+<li>md と同名の <code>.html</code> を作り、<b>未編集プレースホルダ0件・外部リソース読み込み0件・見出し（h2/h3/h4）が md と一致</b>すること。</li>
+</ul>
+</section>
+
+<footer>issue #155 / PR #175 — 計画の正文は同名の <code>.md</code>。外部依存を持たない自己完結HTML。</footer>
+
+</div>
+
+</body>
+</html>
