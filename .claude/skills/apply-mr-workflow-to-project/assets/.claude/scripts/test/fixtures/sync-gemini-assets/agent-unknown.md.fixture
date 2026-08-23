@@ -1,7 +1,0 @@
----
-name: unknown-agent
-description: 対応表に無いツール名を持つ。変換は黙って落とさずエラーで止まること。
-tools: Read, NotebookEdit
----
-
-本文。
