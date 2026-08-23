@@ -1,0 +1,303 @@
+<!--
+  全体作業計画「hookによるpush前チェックリストの強制（issue #17）」の人間レビュー用HTMLビュー。
+  正文は同名の .md（wip/plans/steady-guarding-checkpoint.md）で、このHTMLはその視覚化である。
+  外部依存を持たない自己完結HTML。
+-->
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>全体作業計画: push前チェックリストの強制 — issue #17</title>
+<style>
+  :root {
+    --bg: #f6f7f9;      --panel: #ffffff;   --ink: #1a1d21;     --muted: #5b636d;
+    --line: #dfe3e8;    --accent: #2563eb;  --accent-soft: #eaf0fe;
+    --ok: #1a7f4b;      --ok-soft: #e6f4ec; --warn: #a35a00;    --warn-soft: #fdf1e0;
+    --stop: #b3261e;    --stop-soft: #fdecea; --code-bg: #f0f2f5;
+    --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1216;    --panel: #161a20;   --ink: #e6e8eb;     --muted: #9aa3ad;
+      --line: #2a3038;  --accent: #7aa2f7;  --accent-soft: #1b2333;
+      --ok: #6ee7a8;    --ok-soft: #14261d; --warn: #f0b866;    --warn-soft: #2a2113;
+      --stop: #f2857c;  --stop-soft: #2b1614; --code-bg: #1d222a;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", system-ui, sans-serif;
+    line-height: 1.8; font-size: 15px;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 20px 80px; }
+
+  /* 共通ヘッダ帯 */
+  header.band {
+    background: linear-gradient(135deg, var(--accent-soft), var(--panel));
+    border-bottom: 1px solid var(--line); padding: 28px 20px 22px; margin-bottom: 28px;
+  }
+  header.band .inner { max-width: 1080px; margin: 0 auto; }
+  header.band .kind { font-size: 11px; letter-spacing: .18em; color: var(--accent); font-weight: 700; }
+  header.band h1 { margin: 6px 0 4px; font-size: 26px; line-height: 1.4; }
+  header.band .lead { margin: 0; color: var(--muted); }
+  .meta { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; padding: 0; list-style: none; }
+  .meta li {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 999px;
+    padding: 3px 12px; font-size: 12.5px; color: var(--muted); white-space: nowrap;
+  }
+  .meta li b { color: var(--ink); font-weight: 600; }
+
+  nav.toc {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 14px 20px; margin-bottom: 28px;
+  }
+  nav.toc h2 { margin: 0 0 8px; font-size: 13px; letter-spacing: .08em; color: var(--muted); border: 0; padding: 0; }
+  nav.toc ol { margin: 0; padding-left: 20px; }
+  nav.toc li { margin: 2px 0; }
+  a { color: var(--accent); }
+
+  section {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 8px 24px 22px; margin-bottom: 22px;
+  }
+  h2 { font-size: 20px; margin: 20px 0 10px; padding-bottom: 8px; border-bottom: 2px solid var(--line); }
+  h3 { font-size: 16px; margin: 22px 0 8px; color: var(--accent); }
+  p { margin: 10px 0; }
+  ul, ol { padding-left: 22px; }
+  li { margin: 4px 0; }
+  blockquote { margin: 10px 0; padding: 6px 14px; border-left: 3px solid var(--line); color: var(--muted); }
+
+  /* 表は自身の中で横スクロールする（ページ本体は横スクロールさせない） */
+  .tablewrap { overflow-x: auto; margin: 14px 0; }
+  table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 14px; }
+  th, td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: var(--accent-soft); font-weight: 600; white-space: nowrap; }
+  tbody tr:nth-child(even) td { background: color-mix(in srgb, var(--line) 22%, transparent); }
+
+  code {
+    background: var(--code-bg); border-radius: 5px; padding: 1px 5px; font-size: 13px;
+    font-family: "SFMono-Regular", Consolas, "Noto Sans Mono", monospace;
+  }
+  pre {
+    background: var(--code-bg); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 12px 14px; overflow-x: auto; font-size: 13px; line-height: 1.65;
+  }
+  pre code { background: none; padding: 0; }
+
+  /* 注意ボックス: info（既定）/ ok（決めたこと）/ warn（注意）/ stop（やらないこと・危険） */
+  .box { border-left: 4px solid var(--accent); background: var(--accent-soft);
+         border-radius: 0 var(--radius) var(--radius) 0; padding: 12px 16px; margin: 16px 0; }
+  .box > :first-child { margin-top: 0; } .box > :last-child { margin-bottom: 0; }
+  .box .label { font-size: 12px; font-weight: 700; letter-spacing: .06em; display: block; margin-bottom: 4px; }
+  .box.ok { border-color: var(--ok); background: var(--ok-soft); } .box.ok .label { color: var(--ok); }
+  .box.warn { border-color: var(--warn); background: var(--warn-soft); } .box.warn .label { color: var(--warn); }
+  .box.stop { border-color: var(--stop); background: var(--stop-soft); } .box.stop .label { color: var(--stop); }
+  .box.info .label { color: var(--accent); }
+
+  .tag { display: inline-block; border-radius: 999px; padding: 1px 9px; font-size: 12px; font-weight: 600; }
+  .tag.ok { background: var(--ok-soft); color: var(--ok); }
+  .tag.warn { background: var(--warn-soft); color: var(--warn); }
+  .tag.stop { background: var(--stop-soft); color: var(--stop); }
+
+  footer { color: var(--muted); font-size: 13px; text-align: center; padding-top: 10px; }
+</style>
+</head>
+<body>
+
+<header class="band">
+  <div class="inner">
+    <div class="kind">全体作業計画 / フェーズ1</div>
+    <h1>hookによるpush前チェックリストの強制（issue #17）</h1>
+    <p class="lead">push前チェックリストをGit管理下のTSVとして持ち、PreToolUse hookが未完了pushを exit code 2 でブロックし、PostToolUse hookが次回分を用意する機構を作る。</p>
+    <ul class="meta">
+      <li><b>issue</b> #17</li>
+      <li><b>ブランチ</b> claude/hook-implementation-17-vjhppj</li>
+      <li><b>フェーズ</b> 1〈起点〉 flow-id 1-4</li>
+      <li><b>作成日</b> 2026-08-23</li>
+      <li><b>正文</b> 同名の .md</li>
+    </ul>
+  </div>
+</header>
+
+<div class="wrap">
+
+<nav class="toc">
+  <h2>目次</h2>
+  <ol>
+    <li><a href="#premise">前提（合意状況）</a></li>
+    <li><a href="#goal">この計画で何をするか</a></li>
+    <li><a href="#target">変更対象</a></li>
+    <li><a href="#approach">方針</a></li>
+    <li><a href="#phase-research">フェーズ2〈調査〉</a></li>
+    <li><a href="#phase-apply">フェーズ4〈反映〉</a></li>
+    <li><a href="#out-of-scope">やらないこと（スコープ外）</a></li>
+    <li><a href="#verify">検証</a></li>
+    <li><a href="#criteria">issueの受け入れ条件との対応</a></li>
+    <li><a href="#options">比較検討した案</a></li>
+  </ol>
+</nav>
+
+<section id="premise">
+  <h2>前提（合意状況）</h2>
+  <ul>
+    <li>依拠するissue: <b>#17</b>（目的・現状・期待する動作・受け入れ条件）。上位の計画は無く、本計画が最上位である。</li>
+    <li>issue #17 へのコメント（2026-08-21）で、issue #53 により hook の検知が<b>コマンド位置ベース</b>（<code>.claude/hooks/lib/CommandPosition.sh</code> の <code>command_invokes_git_subcommand</code>）へ変わったことが通知されている。<b>判定を自前で書かず、このライブラリを使う。</b></li>
+    <li>本セッションは<b>非対話</b>（Claude Code on the web のリモート実行環境）。人間のレビュー往復（flow-id 2-3/2-8/3-3/3-8/4-3/4-8）は成立しないため、各フェーズの計画時に1回・作業実施時に1回、<code>adversarial-review</code> スキルによる敵対的レビューを自動実施し、その指摘へ対応する（ユーザーからの明示指示）。</li>
+    <li>ブランチ名は <code>.mrworkflow.json</code> の <code>branchPrefixTemplate</code>（<code>feature-{issue}-{slug}</code>）に従わない <code>claude/hook-implementation-17-vjhppj</code> である。<b>ハーネスがこのブランチでの開発を指定している</b>ため、命名規則より指定を優先する。</li>
+  </ul>
+</section>
+
+<section id="goal">
+  <h2>この計画で何をするか</h2>
+  <p><b>push前チェックリスト</b>をGit管理下のTSVファイルとして持ち、次の3点を機構として成立させる。</p>
+  <ol>
+    <li>AIエージェントがcommit前に各項目の実施を記録し、チェックリスト自体を同じcommitへ含める。</li>
+    <li><b>PreToolUse hook</b> が、未完了項目の残る状態でのpushを exit code 2 でブロックする。</li>
+    <li><b>PostToolUse hook</b> が、push成功後に次回push用のチェックリストを生成する。</li>
+  </ol>
+  <p>あわせて仕様（<code>.claude/docs/spec/</code>）・設計判断（DDR）・ライフサイクル（<code>.claude/rules/docs-workflow.md</code>）・フロー定義（<code>issue-mr-flow</code> / <code>commit</code> スキル）へ反映する。</p>
+</section>
+
+<section id="target">
+  <h2>変更対象</h2>
+  <p>全体作業計画の粒度のため、<b>ファイル群・領域</b>で示す（個々のファイル・行はフェーズ3・4の個別計画で確定させる）。</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>領域</th><th>操作</th><th>何をするか</th></tr></thead>
+    <tbody>
+      <tr><td><code>.claude/scripts/src/</code></td><td><span class="tag ok">新規</span></td><td>チェックリストの生成・チェック記録・検証を行うスクリプト（1本）</td></tr>
+      <tr><td><code>.claude/hooks/</code></td><td><span class="tag ok">新規</span></td><td>pushをブロックするPreToolUse hook、次回分を用意するPostToolUse hook</td></tr>
+      <tr><td><code>.claude/scripts/test/</code></td><td><span class="tag ok">新規</span></td><td>上記の単体テスト（<code>passed=N failures=N</code> 規約）</td></tr>
+      <tr><td><code>.claude/settings.json</code></td><td><span class="tag warn">変更</span></td><td>新規hookの登録</td></tr>
+      <tr><td><code>.claude/docs/spec/</code></td><td><span class="tag ok">新規</span></td><td>push前チェックリストの仕様</td></tr>
+      <tr><td><code>.claude/docs/ddr/</code></td><td><span class="tag ok">新規</span></td><td>設計判断（配置場所・拡張子・ブロック方式）<code>i0017-NN</code></td></tr>
+      <tr><td><code>.claude/rules/docs-workflow.md</code></td><td><span class="tag warn">変更</span></td><td>ライフサイクル運用表への行追加</td></tr>
+      <tr><td><code>.claude/skills/issue-mr-flow/</code>・<code>.claude/skills/commit/</code></td><td><span class="tag warn">変更</span></td><td>commit前のチェックリスト更新手順の明記</td></tr>
+      <tr><td><code>.claude/docs/README.md</code>・<code>index.md</code>・<code>.claude/rules/directory-structure.md</code></td><td><span class="tag warn">変更</span></td><td>DDR一覧・Repository Map・ディレクトリ構成の追随</td></tr>
+      <tr><td><code>.gemini/</code></td><td><span class="tag ok">生成</span></td><td>flow-id 5-3 の <code>sync-gemini-assets.sh</code> で変換同期</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="approach">
+  <h2>方針</h2>
+  <ul>
+    <li><b>判定ロジックを自前で書かない。</b> pushの検知は <code>command_invokes_git_subcommand "$command" push</code> に委譲し、bash 4.3未満・ライブラリ不在時の縮退は既存hook（<code>block-direct-git-commit.sh</code>）と同じ形で持つ。</li>
+    <li><b>前置フィルタを置く。</b> PreToolUse hookは <code>if</code> フィールドを持てず全Bash/PowerShell呼び出しで起動するため、<code>.claude/rules/shell-script-style.md</code>「hookの前置フィルタ」の型（bash組み込みのみ・ゼロfork・判定本体の<b>超集合</b>）を独立した純粋関数として実装する。</li>
+    <li><b>誤ブロックを避ける側へ倒す。</b> チェックリストが存在しない＝フロー対象外とみなし、ブロックしない。ブロックするのは「チェックリストが存在し、かつ未完了項目が残る」場合に限る。</li>
+    <li><b>既存のpush系hook 2本と責務を分離する。</b> 既存2本は「push後に情報を伝える」もので、本機構は「pushの可否を検査する」もの。既存ファイルへ処理を足さず、新規ファイルとして持つ。</li>
+    <li><b>拡張子を <code>.md</code> にしない。</b> <code>wip/worklogs/</code> へ <code>.md</code> を増やすと <code>extract-frontmatter.sh</code> の走査対象になり <code>index.jsonl</code> が毎push書き換わる（issue #36 が外した競合を作り直す）。</li>
+  </ul>
+</section>
+
+<section id="phase-research">
+  <h2>フェーズ2〈調査〉</h2>
+  <div class="box info"><span class="label">実施する</span>設計を確定させるために答えを出す問いは次の8点。</div>
+  <ol>
+    <li>チェックリストの<b>置き場所と命名</b>。issue本文は <code>worklog/…_push_checklist.tsv</code> と書くが、issue #178 で <code>worklog/</code> は <code>wip/worklogs/</code> へ改名済み。push単位でユニークにする命名と、全体計画名・個別計画名の取り出し方。</li>
+    <li><b>項目（何をチェックさせるか）</b>の定義。固定リストか flow-id に応じて可変か。固定するならどの粒度なら「常に実施すべき」と言えるか。</li>
+    <li><b>チェック済みの表現</b>をTSVのどの列で持つか。実施ログをどこまで書かせるか。</li>
+    <li><b>PreToolUse hookがどの時点のファイルを読むか</b>（作業ツリー／HEAD／index）。「チェックリスト自体をそのcommitに含める」要件と、pushの直前という実行タイミングの関係。</li>
+    <li><b>誤ブロックしない条件</b>の具体化。未生成・フロー対象外・<code>--dry-run</code>・push以外のリモート反映手段。CommandPosition.sh が縮退する場面（8192バイト超・<code>eval</code>・bash 4.3未満）でどちら側へ倒すか。</li>
+    <li><b>PostToolUse hookの次回分生成</b>が既存 <code>post-push-*.sh</code> 2本と競合しないか（実行順・<code>if</code> フィルタ・状態ファイルの持ち方）。</li>
+    <li><b>ライフサイクル</b>。issue本文は flow-id 4-6 での削除を求めるが、現行フローの片付けは flow-id 5-5 の <code>cleanup-task.sh</code> が担う。どちらへ寄せるか。</li>
+    <li>既存hookの<b>単体テストの型</b>（<code>test_block_direct_git_commit.sh</code>）を本機構でどう再利用するか。</li>
+  </ol>
+</section>
+
+<section id="phase-apply">
+  <h2>フェーズ4〈反映〉</h2>
+  <div class="box info"><span class="label">実施する</span>反映先と内容は次のとおり。</div>
+  <ul>
+    <li><code>.claude/docs/spec/&lt;機能名&gt;.md</code>: 本機構の仕様（形式・起動条件・ブロック条件・誤ブロックしない条件・ライフサイクル）。</li>
+    <li><code>.claude/docs/ddr/i0017-NN-….md</code>: 設計判断（配置場所・拡張子・ブロック方式）。issue #17 の受け入れ条件が明示的に要求している。追加後は <code>generate-ddr-list.sh</code> を実行する。</li>
+    <li><code>.claude/rules/docs-workflow.md</code>: ライフサイクル運用表への行追加（受け入れ条件）。</li>
+    <li><code>.claude/rules/directory-structure.md</code>・<code>index.md</code>: 新規ファイルの配置とRepository Mapの追随。</li>
+    <li><code>.claude/skills/issue-mr-flow/SKILL.md</code>（および <code>references/</code>）・<code>.claude/skills/commit/SKILL.md</code>: commit前にチェックリストを更新し同じcommitへ含める手順の明記（受け入れ条件）。</li>
+    <li><code>.claude/settings.json</code>: hookの登録（<code>.gemini/settings.json</code> は flow-id 5-3 で変換生成）。</li>
+    <li><code>.claude/docs/usecase/</code>: 既存文書への影響を確認し、必要なら更新する。</li>
+  </ul>
+</section>
+
+<section id="out-of-scope">
+  <h2>やらないこと（スコープ外）</h2>
+  <div class="box stop">
+    <span class="label">この計画では決めない・触らない</span>
+    <ul>
+      <li><b>チェック済み状態の真正性の検証</b>（AIが実施せずにチェックだけ付けることの防止）。本機構は敵対的な安全境界ではなく「既定動作を確実な方向へ倒す仕組み」である（<code>.claude/docs/ddr/i0000-09-…</code> と同じ立場）。</li>
+      <li><b><code>.claude/settings.json</code> の <code>if</code> フィルタの照合規則の解明</b>（issue #47 から未解明。PreToolUse hookは <code>if</code> を使わず自前判定するため触らない）。</li>
+      <li>既存2本のpush系hookのロジック変更。</li>
+      <li><b>Gemini CLI経路での動作確認</b>（<code>.gemini/</code> は変換生成物として同期するが、実機確認は行わない）。</li>
+      <li><b>git bash（Windows）実機での性能計測</b>（本セッションはLinuxでfork単価が桁違いのため計測結果を持ち込めない。必要性だけを記録する）。</li>
+    </ul>
+  </div>
+</section>
+
+<section id="verify">
+  <h2>検証</h2>
+  <pre><code># 新規スクリプト・hookの構文チェック
+bash -n .claude/scripts/src/&lt;新規&gt;.sh .claude/hooks/&lt;新規&gt;.sh
+
+# 単体テスト（passed=N failures=N を出力し、failures=0 であること）
+bash .claude/scripts/test/test_&lt;新規&gt;.sh
+
+# 既存テストの回帰
+for t in .claude/scripts/test/test_*.sh; do bash "$t"; done
+
+# 配布定義の網羅性
+bash .claude/scripts/src/check-dist-coverage.sh
+
+# DDR一覧の再生成・参照切れ検査
+bash .claude/scripts/src/generate-ddr-list.sh
+bash .claude/scripts/src/check-doc-references.sh
+
+# .gemini/ の変換同期（flow-id 5-3）
+bash .claude/scripts/src/sync-gemini-assets.sh --check</code></pre>
+  <p>合格条件: issue #17 の受け入れ条件（下表）が全件満たされ、上記の各コマンドが失敗しないこと。</p>
+</section>
+
+<section id="criteria">
+  <h2>issueの受け入れ条件との対応</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>受け入れ条件</th><th>この計画での対応箇所</th></tr></thead>
+    <tbody>
+      <tr><td>チェックリストがpush単位のユニークな命名でGit管理下に作成され、ブランチ間でconflictしない</td><td>フェーズ2 問い1 → フェーズ3 実装</td></tr>
+      <tr><td>レビュアーがPRの差分からチェックリストの実施内容を確認できる</td><td>フェーズ2 問い1・3（Git管理下・TSV）</td></tr>
+      <tr><td>commit前にチェックリストを更新し同じcommitに含める手順がルールに明記されている</td><td>フェーズ4（<code>issue-mr-flow</code> / <code>commit</code> スキル）</td></tr>
+      <tr><td>PreToolUse hookが未チェック項目の残る状態のpushを exit code 2 でブロックする</td><td>フェーズ2 問い4・5 → フェーズ3 実装</td></tr>
+      <tr><td>ブロック時のエラーメッセージに未完了項目と参照すべきルールファイルのパスが含まれる</td><td>フェーズ3 実装</td></tr>
+      <tr><td>PostToolUse hookが、push成功後に次回push用のチェックリストを用意する</td><td>フェーズ2 問い6 → フェーズ3 実装</td></tr>
+      <tr><td>チェックリストのライフサイクルが <code>.claude/rules/docs-workflow.md</code> の運用表に追記されている</td><td>フェーズ2 問い7 → フェーズ4</td></tr>
+      <tr><td>フロー対象外のpush・チェックリスト未生成で誤ってブロックしない条件が定義されている</td><td>フェーズ2 問い5 → フェーズ3・4</td></tr>
+      <tr><td>既存のpush hook 2本と責務が分離されている</td><td>方針（新規ファイルとして持つ）</td></tr>
+      <tr><td>仕様が <code>.claude/docs/spec/</code> に、設計判断がDDRとして記録されている</td><td>フェーズ4</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="options">
+  <h2>比較検討した案</h2>
+  <p>確定はフェーズ2の調査結果を待つが、現時点で見えている選択肢を記録する。</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>案</th><th>利点</th><th>採否と理由</th></tr></thead>
+    <tbody>
+      <tr><td>チェックリストを新規スクリプト＋新規hook 2本で持つ</td><td>既存hookの責務を汚さない。受け入れ条件「責務が分離されている」を直接満たす</td><td><span class="tag ok">採用（暫定）</span></td></tr>
+      <tr><td>既存 <code>post-push-*.sh</code> へ次回分生成を相乗りさせる</td><td>ファイル数が増えない</td><td><span class="tag stop">却下（暫定）</span> 受け入れ条件に反する。既存2本は「push後に伝える」責務で、生成は別関心</td></tr>
+      <tr><td>チェックリストを <code>.gitignore</code> 対象のローカル状態（<code>wip/state/</code>）として持つ</td><td>毎pushのdiffノイズが無い</td><td><span class="tag stop">却下</span> 受け入れ条件「レビュアーがPRの差分から確認できる」を満たせない</td></tr>
+      <tr><td>拡張子を <code>.md</code> にする</td><td>既存のworklogと揃う</td><td><span class="tag stop">却下</span> <code>extract-frontmatter.sh</code> の走査対象になり <code>index.jsonl</code> が毎push書き換わる（issue #36 の競合の作り直し）</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<footer>issue #17 — 計画の正文は同名の <code>.md</code>。外部依存を持たない自己完結HTML。</footer>
+
+</div>
+</body>
+</html>
