@@ -17,8 +17,8 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - issue: #142
 - ブランチ: `claude/docs-workflow-heading-rule-mi3krb`
 - PR: #188（Draft, https://github.com/yuki-matsu783/MR-driven-workflow/pull/188 ）
-- push回数: 5
-- 現在のループ: 2-3〜2-4 の1周目（完了）
+- push回数: 6
+- 現在のループ: 2-6〜2-9 の1周目（完了）
 - 未返信スレッド: 0
 - 追従監視: あり（`subscribe_pr_activity` でPR #188 を購読中。セッション終了で止まるため、次セッションは `resume` で取り直す）
 
@@ -35,10 +35,10 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 | [x] | 2-3 | 調査計画をレビュー・コメント | 人間 |
 | [x] | 2-4 | レビュー内容を取得し調査計画を修正 | サブコマンド |
 | [x] | 2-5 | 調査計画をもとにMR descriptionを更新 | サブコマンド |
-| [] | 2-6 | 調査を実施しreportsへ記録 | エージェント |
-| [] | 2-7 | commitしpushしてレビュー依頼 | エージェント |
-| [] | 2-8 | 調査結果をレビュー・コメント | 人間 |
-| [] | 2-9 | レビュー内容を取得し調査結果を修正 | サブコマンド |
+| [x] | 2-6 | 調査を実施しreportsへ記録 | エージェント |
+| [x] | 2-7 | commitしpushしてレビュー依頼 | エージェント |
+| [x] | 2-8 | 調査結果をレビュー・コメント | 人間 |
+| [x] | 2-9 | レビュー内容を取得し調査結果を修正 | サブコマンド |
 | [] | 2-10 | 調査結果をもとにMR descriptionを更新 | サブコマンド |
 | [] | 3-1 | 個別作業計画を作成する | エージェント |
 | [] | 3-2 | commitしpushしてレビュー依頼 | エージェント |
@@ -104,9 +104,31 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
   - **Q4: 追記先になりうる既存DDRは0件** → フェーズ4で新規DDRを作る。
   - 検証コマンドの空振り確認済み（実例を1つずつ削ると、それぞれ `1` を返す）。
 
+- flow-id 2-7: commit・push（push 5）。
+- flow-id 2-8〜2-9（1周目、敵対的レビューで代替）: 調査結果に対する敵対的レビューを実施し、
+  **9件をインライン投稿・2件を報告のみ**とした。9件すべてへ対応し返信済み（未返信スレッド 0）。
+  - 投稿したスレッド:
+    - https://github.com/yuki-matsu783/MR-driven-workflow/pull/188#discussion_r3838691487 （「4件とも敵対的レビューが検出」は事実でない）
+    - https://github.com/yuki-matsu783/MR-driven-workflow/pull/188#discussion_r3838691867 （検証のpathspecがルート`REVIEW-POINTS.md`を含まない）
+    - https://github.com/yuki-matsu783/MR-driven-workflow/pull/188#discussion_r3838692381 （Q3が暫定案5項目ではなく合成した1文を判定）
+    - https://github.com/yuki-matsu783/MR-driven-workflow/pull/188#discussion_r3838692836 （Q2の`# → 2`が実際の出力`4`と不一致）
+    - https://github.com/yuki-matsu783/MR-driven-workflow/pull/188#discussion_r3838693250 （Q4が3語のうち「構造」を欠く）
+    - https://github.com/yuki-matsu783/MR-driven-workflow/pull/188#discussion_r3838693641 （#155を外す理由が採用案と数で矛盾）
+    - https://github.com/yuki-matsu783/MR-driven-workflow/pull/188#discussion_r3838694143 （空振り確認が1行のみ・判定語が非特異）
+    - https://github.com/yuki-matsu783/MR-driven-workflow/pull/188#discussion_r3838694493 （基準SHAが未記録で断面を再現できない）
+    - https://github.com/yuki-matsu783/MR-driven-workflow/pull/188#discussion_r3838694884 （レポートのmd/htmlが非同期）
+  - 報告のみの2件（Q2とQ5の緊張関係／4件の出典が無い）も、あわせて調査結果へ反映した。
+  - 敵対的レビューの実施回数: フェーズ2は 2/3。
+  - この往復で**結論が1つ変わった**。Q3の判定を暫定案5項目へ逐条で当て直した結果、
+    **穴は項目1（「構造変更全般」という言い換え自体が操作の分類である）** だと分かった。
+    フェーズ3では**トリガーを残置テキスト側から書く**。
+
 ## 次にやること
 
-- flow-id 2-7: commit・push し、調査結果に対する敵対的レビュー（フェーズ2の2回目）を実施する。
+- flow-id 2-10: 調査結果をもとに MR description を更新する（`describe`）。
+- 以降フェーズ3へ。flow-id 3-1 で個別作業計画 `plans/【AIアセット作成】…` を作成し、
+  計画に対する敵対的レビュー（フェーズ3の1回目）を実施する。
+  書き換え先は `.claude/rules/docs-workflow.md`（104〜114行）とルート `REVIEW-POINTS.md`（47行）の2箇所。
 
 ## 判断を迷った内容
 

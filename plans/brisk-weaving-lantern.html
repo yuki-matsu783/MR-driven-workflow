@@ -116,7 +116,7 @@
       <li><b>ブランチ</b> claude/docs-workflow-heading-rule-mi3krb</li>
       <li><b>PR</b> #188</li>
       <li><b>フェーズ</b> 1〈起点〉 flow-id 1-4</li>
-      <li><b>push回数</b> 3</li>
+      <li><b>push回数</b> 6</li>
       <li><b>作成日</b> 2026-08-23</li>
       <li><b>正文</b> 同名の .md</li>
     </ul>
@@ -260,22 +260,29 @@
   <ul>
     <li>該当ルールが<b>4件の実例すべてを説明できる</b>文言になっている（4件それぞれについて、ルールの
       文言を読んで「見るべきだった」と分かるか机上で突き合わせる）。</li>
-    <li>issue #64 由来の<b>既存2実例が両方とも</b>残っている。</li>
+    <li>issue #64 由来の<b>既存2実例（計6行）が1行も欠けずに</b>残っている。</li>
     <li>DDRの要否について結論が記録されている。</li>
     <li>各フェーズで敵対的レビューを実施し、投稿された指摘へ対応・返信している。</li>
   </ul>
-  <pre><code># issue #64 由来の既存2実例が消えていないこと。
-# 対象は1ファイルではなく .claude/ 全体（一括置換の巻き添えを拾うため）。
-base="$(git merge-base origin/main HEAD)"
-git diff "$base" -- .claude/ | grep '^-' \
-  | grep -cF -e '計画の2階層構造' -e 'ファイルごとに結論が変わる' || true</code></pre>
-  <p>合格条件: 上のコマンドが <b><code>0</code> を出す</b>こと（削除行に2実例のどちらも現れない）。</p>
-  <div class="box warn">
-    <span class="label">空振りの排除</span>
-    <b>この検証が空振りしないことを、着手前に確かめる。</b>
-    <code>.claude/rules/docs-workflow.md</code> から2実例の行を1つずつ試しに削ったツリーで同じコマンドを
-    実行し、<b>それぞれ <code>1</code> 以上が出る</b>ことを確認してから元へ戻す（確認した結果は
-    <code>reports/</code> の調査結果へ書く）。
+  <pre><code># issue #64 由来の既存2実例（.claude/rules/docs-workflow.md の109〜114行、計6行）が
+# 1行も消えていないこと。判定語は6行それぞれに固有のものを選ぶ（1語だと途中行の削除を見逃す）。
+# 対象パスは書き換え先2箇所の両方（.claude/ とルート REVIEW-POINTS.md）。
+# 分岐点SHAは直接渡す（origin/main は fetch のたびに動くため）。
+base=4be448af553c82c0fcf731705b0cd1d08bf23f29
+git diff "$base" -- .claude/ REVIEW-POINTS.md | grep '^-' | grep -cF \
+  -e '末尾に節全体へかかる地の文' \
+  -e 'での機械的列挙・flow-id 1-4の判定' \
+  -e 'の直前へ新節を入れた' \
+  -e '同じ節名でもファイルごとに結論が変わる' \
+  -e '直後に地の文が無く' \
+  -e '入れられたから安全' || true</code></pre>
+  <p>合格条件: 上のコマンドが <b><code>0</code> を出す</b>こと（削除行に6行のどれも現れない）。</p>
+  <div class="box ok">
+    <span class="label">空振りの排除（確認済み）</span>
+    <b>この検証が空振りしないことは、flow-id 2-6 で確認済みである。</b>
+    109〜114行を1行ずつ削ったツリーで同じコマンドを実行し、<b>6行すべてでそれぞれ <code>1</code> が出る</b>ことを
+    確かめた（結果は <code>reports/20260823_brisk-weaving-lantern_係り先ルールの射程調査.md</code>
+    「全体作業計画の検証コマンドの空振り確認」）。
   </div>
 </section>
 
