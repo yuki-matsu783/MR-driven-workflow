@@ -1,0 +1,225 @@
+<!--
+  【設計反映】【AIアセット反映】HTMLスライドスキルのドキュメント反映（issue #168 / PR #194）の人間レビュー用HTMLビュー。
+  正文は同名の .md。土台は .claude/skills/issue-mr-flow/assets/plans.template.html（issue #54）。
+  外部依存なしの自己完結HTML。
+-->
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>【設計反映】【AIアセット反映】HTMLスライドスキルのドキュメント反映 — issue #168</title>
+<style>
+  :root {
+    --bg: #f6f7f9;      --panel: #ffffff;   --ink: #1a1d21;     --muted: #5b636d;
+    --line: #dfe3e8;    --accent: #2563eb;  --accent-soft: #eaf0fe;
+    --ok: #1a7f4b;      --ok-soft: #e6f4ec; --warn: #a35a00;    --warn-soft: #fdf1e0;
+    --stop: #b3261e;    --stop-soft: #fdecea; --code-bg: #f0f2f5;
+    --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1216;    --panel: #161a20;   --ink: #e6e8eb;     --muted: #9aa3ad;
+      --line: #2a3038;  --accent: #7aa2f7;  --accent-soft: #1b2333;
+      --ok: #6ee7a8;    --ok-soft: #14261d; --warn: #f0b866;    --warn-soft: #2a2113;
+      --stop: #f2857c;  --stop-soft: #2b1614; --code-bg: #1d222a;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", system-ui, sans-serif;
+    line-height: 1.8; font-size: 15px;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 20px 80px; }
+
+  header.band {
+    background: linear-gradient(135deg, var(--accent-soft), var(--panel));
+    border-bottom: 1px solid var(--line); padding: 28px 20px 22px; margin-bottom: 28px;
+  }
+  header.band .inner { max-width: 1080px; margin: 0 auto; }
+  header.band .kind { font-size: 11px; letter-spacing: .18em; color: var(--accent); font-weight: 700; }
+  header.band h1 { margin: 6px 0 4px; font-size: 26px; line-height: 1.4; }
+  header.band .lead { margin: 0; color: var(--muted); }
+  .meta { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; padding: 0; list-style: none; }
+  .meta li {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 999px;
+    padding: 3px 12px; font-size: 12.5px; color: var(--muted); white-space: nowrap;
+  }
+  .meta li b { color: var(--ink); font-weight: 600; }
+
+  nav.toc {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 14px 20px; margin-bottom: 28px;
+  }
+  nav.toc h2 { margin: 0 0 8px; font-size: 13px; letter-spacing: .08em; color: var(--muted); border: 0; padding: 0; }
+  nav.toc ol { margin: 0; padding-left: 20px; }
+  nav.toc li { margin: 2px 0; }
+  a { color: var(--accent); }
+
+  section {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 8px 24px 22px; margin-bottom: 22px;
+  }
+  h2 { font-size: 20px; margin: 20px 0 10px; padding-bottom: 8px; border-bottom: 2px solid var(--line); }
+  h3 { font-size: 16px; margin: 22px 0 8px; color: var(--accent); }
+  p { margin: 10px 0; }
+  ul, ol { padding-left: 22px; }
+  li { margin: 4px 0; }
+
+  .tablewrap { overflow-x: auto; margin: 14px 0; }
+  table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 14px; }
+  th, td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: var(--accent-soft); font-weight: 600; white-space: nowrap; }
+  tbody tr:nth-child(even) td { background: color-mix(in srgb, var(--line) 22%, transparent); }
+
+  code {
+    background: var(--code-bg); border-radius: 5px; padding: 1px 5px; font-size: 13px;
+    font-family: "SFMono-Regular", Consolas, "Noto Sans Mono", monospace;
+  }
+  pre {
+    background: var(--code-bg); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 12px 14px; overflow-x: auto; font-size: 13px; line-height: 1.65;
+  }
+  pre code { background: none; padding: 0; }
+
+  .box { border-left: 4px solid var(--accent); background: var(--accent-soft);
+         border-radius: 0 var(--radius) var(--radius) 0; padding: 12px 16px; margin: 16px 0; }
+  .box > :first-child { margin-top: 0; } .box > :last-child { margin-bottom: 0; }
+  .box .label { font-size: 12px; font-weight: 700; letter-spacing: .06em; display: block; margin-bottom: 4px; }
+  .box.ok { border-color: var(--ok); background: var(--ok-soft); } .box.ok .label { color: var(--ok); }
+  .box.warn { border-color: var(--warn); background: var(--warn-soft); } .box.warn .label { color: var(--warn); }
+  .box.info .label { color: var(--accent); }
+
+  footer { color: var(--muted); font-size: 13px; text-align: center; padding-top: 10px; }
+</style>
+</head>
+<body>
+
+<header class="band">
+  <div class="inner">
+    <div class="kind">個別反映計画 / フェーズ4</div>
+    <h1>【設計反映】【AIアセット反映】HTMLスライドスキルのドキュメント反映</h1>
+    <p class="lead">フェーズ2・3で確定した意思決定と成果物を、永続ドキュメント（spec・DDR・rules・index・REVIEW-POINTS）へ反映する。</p>
+    <ul class="meta">
+      <li><b>issue</b> #168</li>
+      <li><b>ブランチ</b> claude/html-slide-skill-template-ymue7k</li>
+      <li><b>PR</b> #194</li>
+      <li><b>フェーズ</b> 4〈反映〉 flow-id 4-1</li>
+      <li><b>push回数</b> 10</li>
+      <li><b>作成日</b> 2026-08-23</li>
+      <li><b>正文</b> 同名の .md</li>
+      <li><b>上位計画</b> html-slides-skill-plan.md</li>
+    </ul>
+  </div>
+</header>
+
+<div class="wrap">
+
+<nav class="toc">
+  <h2>目次</h2>
+  <ol>
+    <li><a href="#goal">この計画で何をするか</a></li>
+    <li><a href="#target">変更対象</a></li>
+    <li><a href="#approach">方針</a></li>
+    <li><a href="#out-of-scope">やらないこと（スコープ外）</a></li>
+    <li><a href="#verify">検証</a></li>
+    <li><a href="#human">レビュー依頼で人間に確認してもらう項目</a></li>
+  </ol>
+</nav>
+
+<section id="goal">
+  <h2>この計画で何をするか</h2>
+  <p>フェーズ2・3で確定した意思決定と成果物を、永続ドキュメントへ反映する。反映しないと、(1) 出力先・型名の決定理由がwip削除（flow-id 5-5）とともに失われ、(2) <code>directory-structure.md</code>「wip/reports/にはmdとhtmlの2種類」等の既存記述が事実と食い違ったままmainへマージされる。</p>
+  <div class="box info"><span class="label">種別を併記する理由</span>本セッションは非対話であり、フェーズ4内で合意を複数回に分けても人間のレビュー往復を挟めないため、設計反映（spec/DDR）とAIアセット反映（rules/index/REVIEW-POINTS）を1つの計画で合意対象にする。入力は前提調査レポート（Q4・Q7）・AIアセット作成結果レポート（「設計への反映」）・worklog 2本。</div>
+</section>
+
+<section id="target">
+  <h2>変更対象</h2>
+  <h3>設計反映（spec・DDR）</h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>#</th><th>ファイル</th><th>内容</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td><code>.claude/docs/spec/html-slides.md</code>（新設）</td><td>html-slidesスキルの正史仕様。背景・目的／仕様（成果物と置き場所・型8種とスキーマ契約・検査群・サブエージェント境界・動的検証の位置づけ）／影響範囲／設定項目（無し）／未決定事項（.pptx書き出し・サブエージェント実運転）</td></tr>
+      <tr><td>2</td><td><code>.claude/docs/ddr/i0168-01-スライドの出力先はwip-reports既定とし恒久ディレクトリを新設しない.md</code>（新設）</td><td>出力先の意思決定。却下案: 恒久ディレクトリ新設・.gitignore対象ローカル（調査Q4の比較表が根拠）</td></tr>
+      <tr><td>3</td><td><code>.claude/docs/ddr/i0168-02-表紙スライドの型名はtitleでなくcoverにする.md</code>（新設）</td><td>型名の意思決定。却下案: 調査Q5素案の <code>title</code>（フィールド名 <code>title</code> との衝突・3箇所同一使用の契約が根拠）</td></tr>
+      <tr><td>4</td><td><code>.claude/docs/README.md</code></td><td><code>generate-ddr-list.sh</code> でDDR一覧を再生成（手書きしない）。spec一覧の節が手書きなら <code>html-slides.md</code> の行を追記</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <div class="box warn"><span class="label">新規specの承認</span>新規spec作成は本来「人間承認が必須」（docs-workflow.md）。非対話セッションのため、ユーザーの当初指示を包括承認として作成し、レビュー依頼（敵対的レビュー＋PR description）で明示する。DDRの識別子は issue #168 → <code>i0168-01</code>・<code>i0168-02</code>（4桁ゼロ埋め・枝番01から）。</div>
+  <h3>AIアセット反映（既存ドキュメントへの追記。調査Q7の5点）</h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>#</th><th>ファイル</th><th>内容</th></tr></thead>
+    <tbody>
+      <tr><td>5</td><td><code>.claude/rules/directory-structure.md</code></td><td>ツリーへ <code>skills/html-slides/</code>（<code>assets/</code>・<code>references/</code> の内訳）と agents 2本の追記。「<code>wip/reports/</code> には<b>mdとhtmlの2種類</b>を置く」の段落へ <code>.slides.html</code>・<code>.slides.json</code>（スキル成果物。対応mdを持たない）を追記</td></tr>
+      <tr><td>6</td><td><code>.claude/rules/docs-workflow.md</code></td><td>ライフサイクル表の <code>wip/reports/</code> 関連行の近くへ、<code>wip/reports/*.slides.html</code>＋<code>.slides.json</code>（html-slidesスキルの成果物。寿命は他のreports成果物と同じ、flow-id 5-5で削除）を追記</td></tr>
+      <tr><td>7</td><td><code>index.md</code>（Repository Map）</td><td>スキル列挙へ <code>/html-slides</code> を追加。<code>.claude/agents/</code> の説明（現状「issue-mr-flow途中引き継ぎ用」）をスライド用2本を含む記述へ更新</td></tr>
+      <tr><td>8</td><td><code>wip/reports/REVIEW-POINTS.md</code></td><td>適用範囲の注記を追加: <code>*.slides.html</code>・<code>*.slides.json</code> はスライド成果物であり、reports.template.html 前提の観点（結論カード・md同期等）は適用しない。スライドへ適用する検査は <code>.claude/skills/html-slides/SKILL.md</code> 手順5・6が正</td></tr>
+      <tr><td>9</td><td><code>.claude/docs/usecase/*.md</code>（8本）</td><td>影響確認のみ（flow-id 4-6 の定め）。html-slidesに触れるべき既存記述・リンク切れが無いかを確認し、影響があれば更新、無ければ「影響なし」を反映結果レポートへ記録</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="approach">
+  <h2>方針</h2>
+  <ul>
+    <li><b>調査・作業の結論を転記するときは文言をそのまま引用し、変える場合は変更点と理由を明示する</b>（フェーズ3のレビューで学んだ再発防止策）。specの契約記述は作業結果レポートの対照表を正とする。</li>
+    <li>DDRの本文は「検討したが✕✕を採用した」の型で、調査レポートの比較表（Q4・Q5）から根拠を引く。レポートはflow-id 5-5で消えるため、<b>DDR本文が単独で読める分量まで根拠を書き写す</b>。</li>
+    <li>過去の記録（specのchangelog・DDR本文）への機械的一括置換はしない（docs-workflow.mdの制限）。</li>
+    <li>frontmatterは <code>markdown-frontmatter.md</code> の規約どおり（spec: type spec / ddr: type ddr）。</li>
+    <li>各mdの追記位置は、直前の節の地の文の係り先が変わらない位置を選ぶ（docs-workflow.mdの注意）。</li>
+  </ul>
+</section>
+
+<section id="out-of-scope">
+  <h2>やらないこと（スコープ外）</h2>
+  <ul>
+    <li>.pptx 書き出しの設計・実装（別issue。specの未決定事項として記録するに留める）</li>
+    <li><code>.gemini/</code> への変換同期（flow-id 5-3 で実施）</li>
+    <li>wip配下の削除・HANDOFFリセット（flow-id 5-5）</li>
+    <li>既存DDR・既存specの本文変更（今回の反映はいずれも新設または追記）</li>
+  </ul>
+</section>
+
+<section id="verify">
+  <h2>検証</h2>
+  <pre><code># 1. DDR一覧が生成物として更新され、差分がREADMEに限られること
+bash .claude/scripts/src/generate-ddr-list.sh
+git status --porcelain -- .claude/docs/README.md   # 変更が出る（追記後の再実行では出ない）
+
+# 2. ドキュメント参照の破断が無いこと（0件が合格）
+bash .claude/scripts/src/check-doc-references.sh
+
+# 3. 新設3ファイルが frontmatter インデックスへ載ること（spec 1件・ddr 2件）
+bash .claude/scripts/src/extract-frontmatter.sh .
+grep -c '"concept_id":".claude/docs/spec/html-slides"' .claude/docs/spec/index.jsonl
+grep -cE '"concept_id":".claude/docs/ddr/i0168-0[12]-' .claude/docs/ddr/index.jsonl   # 2
+
+# 4. 追記5点が実際に入っていること（各1件以上）
+grep -c 'html-slides' .claude/rules/directory-structure.md
+grep -c 'slides' .claude/rules/docs-workflow.md
+grep -c 'html-slides' index.md
+grep -c 'slides' wip/reports/REVIEW-POINTS.md
+
+# 5. 計画・レポートのHTMLビュー機械検査（プレースホルダ0・外部参照2種0件）</code></pre>
+  <div class="box ok"><span class="label">合格条件</span>1〜4がすべて上記のとおり（2は検出0件）。5は md/html 作成のたびに実施。usecase影響確認（対象9）は結果（影響なし／更新内容）を反映結果レポートへ件数付きで記録する。</div>
+</section>
+
+<section id="human">
+  <h2>レビュー依頼で人間に確認してもらう項目</h2>
+  <ol>
+    <li>新規spec <code>.claude/docs/spec/html-slides.md</code> の新設可否（本来は人間承認必須。包括承認で進めた）</li>
+    <li>DDR 2件の採用理由・却下案の妥当性</li>
+    <li><code>wip/reports/REVIEW-POINTS.md</code> の適用範囲の線引き（スライドへ既存観点を適用しない判断）</li>
+  </ol>
+</section>
+
+<footer>issue #168 / PR #194 — 計画の正文は同名の <code>.md</code>。外部依存を持たない自己完結HTML。</footer>
+
+</div>
+</body>
+</html>
