@@ -141,7 +141,7 @@
     <thead><tr><th>項目</th><th>結果</th></tr></thead>
     <tbody>
       <tr><td>決定1〜6</td><td><b>6件すべて確定</b>（計画の案どおり。覆した決定は無い）</td></tr>
-      <tr><td><code>commit/SKILL.md</code></td><td><b><code>## コミットメッセージの内容規約</code> を新設</b>（8小節・約110行）。144〜146行は参照1行へ置き換え</td></tr>
+      <tr><td><code>commit/SKILL.md</code></td><td><b><code>## コミットメッセージの内容規約</code> を新設</b>（8小節・140行）。144〜146行は参照1行へ置き換え。あわせて既存2箇所（31行の絶対ルール・フッター小節のモデル名行）を限定</td></tr>
       <tr><td><code>create-commit.md:46</code></td><td><b>具体形式を落とし、<code>commit/SKILL.md</code> への参照へ</b>。複数行メッセージを渡せることも明記</td></tr>
       <tr><td>issue本文の実例9行</td><td><b>9行すべてに書き直し例を作成</b>。うち<b>2行</b>は「現状のままでよい」と判定</td></tr>
       <tr><td>検証11項目</td><td><b>9項目合格・2項目は予測値が外れたが実質合格</b></td></tr>
@@ -182,7 +182,7 @@
     <thead><tr><th>小節</th><th>対応する決定</th></tr></thead>
     <tbody>
       <tr><td>（冒頭）目的</td><td>—</td></tr>
-      <tr><td>件名（1行目）の形式 ／ └ 「どう」を書けていない件名の判定</td><td>決定2</td></tr>
+      <tr><td>件名（1行目）の形式 ／ └ 「どう」を書けていない件名の判定（2段階）</td><td>決定2</td></tr>
       <tr><td>良い例・悪い例</td><td>決定2</td></tr>
       <tr><td>本文（2行目以降）</td><td>決定1</td></tr>
       <tr><td>フッター</td><td>決定1-b</td></tr>
@@ -199,6 +199,20 @@
   複数コミットの場合は順番に Step 3-4 を繰り返す…                                    ← 係り先は Step 4 のまま
 ## コミットメッセージの内容規約   ← 新設
 ## 備考                            ← 既存（孤立ブロック。触っていない）</code></pre>
+
+  <h3>1-b. 同ファイルの既存2箇所の限定（敵対的レビュー4回目の指摘）</h3>
+  <p>新設節が <code>Refs #NNN</code> フッターを許容したことで、既存の記述2箇所が新設節と食い違っていた。</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>箇所</th><th>変更前</th><th>変更後</th></tr></thead>
+    <tbody>
+      <tr><td>「絶対ルール」31行</td><td><code>Co-Authored-By: Claude</code> <b>などのフッターは絶対に付けない</b></td><td><code>Co-Authored-By: Claude</code> <b>のような、AIの生成物であることを示すフッター</b>は絶対に付けない（追跡用フッターの扱いは新設節）</td></tr>
+      <tr><td>フッター小節のモデル名行</td><td>モデル名・モデルIDを含む記述は<b>リポジトリへ入る成果物すべて</b>で絶対に付けない</td><td><b>どのAIが書いたかを示す目的で</b>書くことを、コミットメッセージ・PR/MRのタイトルと本文・コード内コメントで禁止。<b>技術的な引用や機能の出力としてのモデル名は対象外</b></td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p><b>モデル名行を限定したのは、変更前の書き方がリポジトリの既存資産と矛盾していたためである。</b> <code>.claude/rules/shell-script-style.md</code> の実例、<code>test_usage_tracking.sh</code> の期待値、対応工数レポートの「使用モデル」行はいずれもモデル名を含むが、どれも「どのAIが書いたか」を示すものではない。</p>
+  <p>加えて、新設節の冒頭へ<b>この節が正であることを1文で明示</b>した（<code>resolve-conflict/SKILL.md</code> のコンフリクト解消コミット、<code>issue-mr-flow/SKILL.md</code> の「確認した結果をコミットメッセージへ必ず残す」は、いずれも本節をその場面へ具体化したものであると位置づけた）。</p>
 
   <h3>2. <code>create-commit.md:46</code> — 追随（決定5）</h3>
   <div class="tablewrap">
@@ -228,7 +242,7 @@
       <tr><td>3</td><td><code>docs: issue #110の計画・作業結果を記録しspecの種別記述を更新する</code></td><td><span class="tag stop">不合格</span>（「更新する」で終わる）</td><td><code>docs: specのタスク種別記述を6種から8種へ書き換え、どちらを使うかの判断基準（成果物か副産物か）を追記</code></td></tr>
       <tr><td>4</td><td><code>ai-asset: 敵対的レビューの指摘を受けタスク種別8種の定義矛盾を修正</code></td><td><span class="tag stop">不合格</span>（「修正」で終わる。どこがどう矛盾していたかが無い）</td><td><code>ai-asset: 【AIアセット作成】がフェーズ3と4の両方に属していた記述をフェーズ3へ一本化</code></td></tr>
       <tr><td>5</td><td><code>docs: DDR新設とspec影響範囲追記、計画・レポートの検証結果を修正</code></td><td><span class="tag stop">不合格</span>（「修正」で終わる。DDRの中身も不明）</td><td><code>docs: タスク種別8種化の判断をDDR i0110-01へ記録し、specの影響範囲へ本issueのエントリを追記</code></td></tr>
-      <tr><td>6</td><td><code>ai-asset: HANDOFFの進捗表とMR description更新完了を反映</code></td><td><span class="tag stop">不合格</span>（「反映」で終わる。<b>さらにprefixも誤り</b>）</td><td><code>docs: HANDOFFのflow-id 4-10完了とMR description更新を記録</code></td></tr>
+      <tr><td>6</td><td><code>ai-asset: HANDOFFの進捗表とMR description更新完了を反映</code></td><td><span class="tag stop">不合格</span>（「反映」で終わる。<b>さらにprefixも誤り</b>）</td><td><code>docs: HANDOFFのflow-id 4-10完了とMR description更新を記録</code><br><b>9件中この1件だけが1段目に掛かる</b>が、「記録」と直前の助詞を取り除くと「flow-id 4-10完了とMR description更新」が残るため2段目を通る</td></tr>
       <tr><td>7</td><td><code>docs: 最終統括レポートを作成</code></td><td><span class="tag stop">不合格</span>（「作成」で終わる。中身が無い）</td><td><code>docs: フェーズ1〜5の統括レポートを作成し、種別8種化の効果と残課題3件をまとめる</code></td></tr>
       <tr><td>8</td><td><code>chore: 次タスクへ向けてplans/worklog/reportsを削除しHANDOFFをリセット</code></td><td><span class="tag ok">合格</span></td><td><b>そのままでよい。</b> 何を（3ディレクトリとHANDOFF）どう（削除・リセット）が揃っている</td></tr>
       <tr><td>9</td><td><code>Fix formatting and clarify task types in workflow doc</code></td><td><span class="tag stop">不合格</span>（英語・prefix無し・「clarify」の中身が無い）</td><td><code>docs: workflow文書のタスク種別の説明を、8種それぞれの属するフェーズが分かる表へ書き換え</code></td></tr>
@@ -255,11 +269,34 @@
       <tr><td>7</td><td>決定4のPRタイトル注記が入ったか</td><td>注記が1段落</td><td>独立した小節（<code>### 注記:</code>）</td><td><span class="tag ok">合格</span></td></tr>
       <tr><td>8</td><td>148行の係り先が壊れていないか</td><td>Step 4の中に残る</td><td>Step 4の中に残り、新設節より前</td><td><span class="tag ok">合格</span></td></tr>
       <tr><td>9</td><td>悪い例に理由が添えられているか</td><td>全件に理由</td><td>「判定の理由」列を設けた（悪い例3件すべて）</td><td><span class="tag ok">合格</span></td></tr>
-      <tr><td>10</td><td>規約だけを読んで9行を書き直せるか</td><td>9行すべて</td><td><b>9行すべて</b></td><td><span class="tag ok">合格</span></td></tr>
+      <tr><td>10</td><td>規約だけを読んで9行を書き直せるか</td><td>9行すべて</td><td><b>9行すべて</b>。当初は書き直せた事実だけを見ており<b>規約自身への当てはめを省いていた</b>（空振り）。規約改訂後に9行すべてを2段階判定へ通し直し、書き直し例が全件合格することを確認</td><td><span class="tag ok">合格（再実施）</span></td></tr>
       <tr><td>11</td><td>規約が自分自身に適用できるか</td><td>件名が「何を」「どう」を満たす</td><td>下記</td><td><span class="tag ok">合格</span></td></tr>
     </tbody>
   </table>
   </div>
+
+  <h3>判定基準を6語ルールから2段階へ改めた（敵対的レビュー4回目）</h3>
+  <div class="box stop">
+    <div class="label">blocker: 規約が自分の模範例を不合格にしていた</div>
+    <p>当初の規約は、6語（修正／更新／反映／追加／作成／記録）で終わる件名を<b>一律に不合格</b>としていた。この形は、同じ節が「良い例」「求める形」として示す<b>4件</b>（良い例 <code>docs: HANDOFFのflow-id 3-6完了とpush回数6を記録</code>、および「成果物の変更を伴わないコミット」の求める形3件）を自分で不合格にしていた。機械的に従えば模範例が全滅し、模範例を真似れば規約違反になる——<b>どちらへ倒しても矛盾する</b>ため、AIエージェントは判断できない。</p>
+  </div>
+  <p>加えて次の3点も併せて壊れていた。</p>
+  <ul>
+    <li>地の文は「〜した」も対象と書いているのに、直下の判定コマンド <code>(する|)$</code> は「〜した」を1件も拾わない。</li>
+    <li>「追加」「作成」は、新規に足したものを述べる<b>正当な件名</b>でも必ず不合格になる。</li>
+    <li>判定コマンドが入力を持たない断片で、そのまま実行するとstdin待ちになる。</li>
+  </ul>
+  <p><b>対処: 判定を2段階に分けた。</b> 1段目は6語で候補を機械的に拾うだけで<b>合否を決めない</b>。2段目は「その6語と直前の助詞を取り除いたとき、残るのは変更対象の名前だけか」という1問で判定する。</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>残るもの</th><th>判定</th></tr></thead>
+    <tbody>
+      <tr><td>名前だけ（<code>docs: HANDOFFを更新</code> → 「HANDOFF」）</td><td><span class="tag stop">不合格</span></td></tr>
+      <tr><td>変更後の状態・採った手段・追加したものの働き（<code>docs: HANDOFFのflow-id 3-6完了とpush回数6を記録</code> → 「flow-id 3-6完了とpush回数6」）</td><td><span class="tag ok">合格</span></td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p>語尾は <code>(する|した|)$</code> へ広げた。<b>母数80件の集計値64%は変わらない</b>（母数に「〜した」で終わる件名が0件だったため。実測で確認）。判定コマンドには入力（<code>$subject</code>）を与える形へ直した。<b>この修正で、書き直し例9件を1段目へ通したところ掛かったのは#6の1件だけで、それも2段目を通る。</b></p>
 
   <h3>検証1・2の予測が外れた理由</h3>
   <div class="box stop">
@@ -282,18 +319,18 @@ grep -c '1行のみ' .claude/docs/spec/create-commit.md         # → 0（旧46�
 
   <h3>自己適用の結果（検証11）</h3>
   <p><b>このフェーズのコミットメッセージを新規約で書いた。</b></p>
-  <pre><code>ai-asset: commit/SKILL.mdへ内容規約を新設し、件名の「どう」を6語で判定する基準とフッターの可否を定める</code></pre>
+  <pre><code>ai-asset: commit/SKILL.mdへ内容規約を新設し、件名の「どう」を2段階で判定する基準とフッターの可否を定める</code></pre>
   <div class="tablewrap">
   <table>
     <thead><tr><th>要素</th><th>満たしているか</th></tr></thead>
     <tbody>
       <tr><td><b>何を</b></td><td><code>commit/SKILL.md</code>（と、その中の内容規約）</td></tr>
-      <tr><td><b>どう</b></td><td>節を新設し、6語の判定基準とフッターの可否を定めた</td></tr>
+      <tr><td><b>どう</b></td><td>節を新設し、2段階の判定基準とフッターの可否を定めた</td></tr>
       <tr><td><b>なぜ</b></td><td><b>件名では省略した。</b>「内容規約を新設する」理由は issue #185 そのものであり、対象と手段から辿れる</td></tr>
     </tbody>
   </table>
   </div>
-  <p><b>書きにくさは感じなかった。</b> ただし<b>件名が長くなる</b>（この例で103文字）ため、「どう」を2つ以上並べる場合は本文へ回したほうが読みやすい場面がありそうである。規約側では「判断に迷ったときの既定」で<b>迷ったら本文へ書く</b>としており、この対処で足りる。</p>
+  <p><b>書きにくさは感じなかった。</b> ただし<b>件名が長くなる</b>（この例で<b>64文字・140バイト</b>。調査で数えた母数の最長件名103文字よりは短いが、中央値28文字の2倍以上ある）ため、「どう」を2つ以上並べる場合は本文へ回したほうが読みやすい場面がありそうである。規約側では「判断に迷ったときの既定」で<b>迷ったら本文へ書く</b>としており、この対処で足りる。</p>
 </section>
 
 <section id="surprises">
