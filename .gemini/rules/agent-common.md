@@ -21,11 +21,11 @@ keywords: [issue-mr-flow, 計画, claude-code, gemini-cli, gh, glab, webfetch, �
   ときだけである。AIから着手を持ちかけず、新しいセッションでの実行を勧めるに留める
   （どのissueにいつ着手するかの判断を人間が握るため。issue #39。詳細は
   `.claude/skills/issue-create/SKILL.md`「してはいけないこと」・
-  `.claude/skills/issue-mr-flow/SKILL.md`「`start`」節、
+  `.claude/skills/issue-mr-flow/references/start-resume.md`「`start`」節、
   `.claude/docs/ddr/i0039-01-issue起票後の着手確認はブロックせず注意喚起の注入で担保する.md`）。
 - 特別なコンテキストなしで回答可能な簡易タスクを除き、いかなるタスク（調査、設計、コード作成、テスト、リファクタリングなど）も、**実作業を開始する前に必ず「計画（Plan）」を立ててユーザーに提示**する
 - 計画はplansディレクトリ配下に保存する。計画は2階層に分ける（詳細は
-  `.claude/skills/issue-mr-flow/SKILL.md`「計画の2階層構造」）
+  `.claude/skills/issue-mr-flow/references/planning.md`「計画の2階層構造」）
   - **全体作業計画**: planツール（Planモード）で作成。**issue（ブランチ）につき1回**だけ作り、
     既にあれば新規作成しない
   - **個別作業計画**: `plans/【種別】タスク内容.md` として**planツールを使わず**作成する
@@ -40,7 +40,7 @@ keywords: [issue-mr-flow, 計画, claude-code, gemini-cli, gh, glab, webfetch, �
   公式のMCPサーバーツール（例: `mcp__github__*`）で代替してよい。WebFetchツールやcurlへは
   フォールバックしない（この場合もDDR i0014-01の理由は変わらないため）。**経路の判定方法
   （`get_vcs_access_mode`）と、Provider関数・サブコマンドごとのMCPツール対応表は
-  `.claude/skills/issue-mr-flow/SKILL.md`「`gh`/`glab` CLI不在時のMCPフォールバック」節が正**
+  `.claude/skills/issue-mr-flow/references/mcp-fallback.md`「`gh`/`glab` CLI不在時のMCPフォールバック」節が正**
   （issue #34。GitLabは対象外）。
 - **リポジトリ内のドキュメントを探すときは、`grep`/`rg`/`find`/Globによる全文探索より先に、
   frontmatterインデックス（`index.jsonl`）の横断検索を使う**（`doc-search` スキル、実体は

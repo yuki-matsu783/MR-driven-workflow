@@ -27,7 +27,7 @@ keywords: [featureブランチ, ブランチ命名, worklog, squash-merge, draft
   対象は `start`（既存ブランチを検出した場合）・`resume`・`sync` の3地点で、
   `bash .claude/scripts/src/check-base-sync.sh` の `isBehind` を見る。**遅れがある場合は
   `AskUserQuestion` でユーザーの承認を得るまで取り込まない。** 手順・判定が信頼できない場合の
-  扱いは `.claude/skills/issue-mr-flow/SKILL.md`「作業開始・再開時のベースブランチ追従確認」節が正
+  扱いは `.claude/skills/issue-mr-flow/references/start-resume.md`「作業開始・再開時のベースブランチ追従確認」節が正
   （本ファイルは入口のみを示す。仕様: `.claude/docs/spec/check-base-sync.md`）。
 - **取り込みは `git merge` で行い、`git rebase` は使わない。** 作業ブランチは既にリモートへ
   反映済みであり、履歴の書き換えは他の作業者のチェックアウトを壊すため。コンフリクトが出た場合の
@@ -152,7 +152,7 @@ gh issue comment 23 --body-file /path/to/body.md
 |---|---|---|
 | Draft PR/MRの作成（flow-id 1-3） | **AIエージェント**（都度の明示指示は不要） | `start` サブコマンドが `new_draft_merge_request` で作成する |
 | MR descriptionの更新（flow-id 2-5等）・レビュー依頼・レビューコメントへの返信 | **AIエージェント**（同上） | `describe` / `reply` サブコマンド |
-| 関連issueへのマージ前通知（flow-id 5-2） | **AIエージェント**（ただし**投稿前に`AskUserQuestion`での承認が必須**） | `add_issue_comment` で行う。詳細: `.claude/skills/issue-mr-flow/SKILL.md`「マージ前の関連issue通知」 |
+| 関連issueへのマージ前通知（flow-id 5-2） | **AIエージェント**（ただし**投稿前に`AskUserQuestion`での承認が必須**） | `add_issue_comment` で行う。詳細: `.claude/skills/issue-mr-flow/references/phase5-close.md`「マージ前の関連issue通知」 |
 | Draft解除（flow-id 5-6） | **AIエージェント**（同上） | `set_mr_ready` で行う |
 | レビュー（コメント・承認） | 人間 | flow-id 2-3/2-8/3-3/3-8/4-3/4-8 |
 | **マージ**（squash merge・マージ後のブランチ削除）（flow-id 5-7） | **人間** | AIエージェントは、**ユーザーから明示的に指示された場合に限り**実行してよい |
@@ -172,7 +172,7 @@ PR作成からマージまでの間にdefaultブランチが進むと、レビ�
 この追従は**flow-id 5-1（マージ依頼の直前の検知）だけでは間に合わない**ため、PR作成後は継続的に
 監視する。手順・実行環境別の手段（Claude Code on the web ではPRイベントの購読と定期チェックイン、
 ローカルでは `/resolve-conflict` の手動実行）・自動解消してよい類型の線引き・停止条件は、
-`.claude/skills/issue-mr-flow/SKILL.md`「PR作成後のdefaultブランチ追従（監視）」節が正である
+`.claude/skills/issue-mr-flow/references/base-branch-followup.md`「PR作成後のdefaultブランチ追従（監視）」節が正である
 （本ファイルは入口のみを示す）。
 
 - 監視の状態（購読の有無・手段）は `HANDOFF.md` のヘッダ `- 追従監視:` 行へ記録する。購読と

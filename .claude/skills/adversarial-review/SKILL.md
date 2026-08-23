@@ -195,7 +195,7 @@ bash .claude/scripts/src/update-handoff-progress.sh set-header --unreplied <投�
 **本スキルの担当は投稿と手順8の記録までで、投稿した指摘への対応と返信は担わない。** 投稿したスレッドは
 `issue-mr-flow` の `comments` / `reply` ループ（flow-id 2-4/2-9/3-4/3-9/4-4/4-9）が、人間の指摘と
 同列に扱って対応・返信する（issue #109。ルールは
-`.claude/skills/issue-mr-flow/SKILL.md` の `comments` サブコマンドが正）。
+`.claude/skills/issue-mr-flow/references/review-loop.md` の `comments` サブコマンドが正）。
 
 ## `gh`/`glab` CLI不在時（`get_vcs_access_mode` が `mcp`）の読み替え
 
