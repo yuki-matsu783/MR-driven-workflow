@@ -17,7 +17,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - issue: #70（https://github.com/yuki-matsu783/MR-driven-workflow/issues/70 ）
 - ブランチ: `claude/gemini-to-claude-migration-jc64gu`
 - PR: #157（Draft。https://github.com/yuki-matsu783/MR-driven-workflow/pull/157 ）
-- push回数: 11
+- push回数: 13
 - 現在のループ: 3-6〜3-9 の1周目（進行中）
 - 追従監視: 購読あり（web。subscribe_pr_activity + 自己チェックイン）
 
@@ -199,12 +199,22 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
   `read -d ''` がパイプから1バイトずつ read(2) する（300KBで約10倍遅い。**要実機計測**）／
   `reports/REVIEW-POINTS.md` が繰り下げ漏れで `5-4` のまま／spec の Gemini hook登録節と
   未決定事項（issue #57）が生成物の実態と食い違う／`setup-gemini-links.sh` 参照3箇所
+- **flow-id 3-9（1周目）: 敵対的レビューの blocker 1件を修正した**（ユーザーの判断「blockerは
+  フェーズ3で修正する」をチャットで受領）。`sync-gemini-assets.sh` へ `list_gemini_orphans` と
+  `--force` を新設し、**生成物へ含まれないファイルがあれば1バイトも書かずに中断**する形にした。
+  `install-to-project.sh` は自身の `--force` を透過し、中断してもインストール全体は止めず警告
+  して続ける（中途半端な状態で終わらせないため）
+- flow-id 3-9: **既存テスト「生成物に無いファイルは再生成で消える」が契約変更でそのまま偽に
+  なった。** 期待値だけ書き換えていれば blocker をテストで追認していた。T13（9件）へ置き換え、
+  **孤児ガードを意図的に無効化すると3件落ちる**ことまで確認した
+- flow-id 3-9: テストは 54→63件、全16本で **passed=1019 failures=0**。`--check` も0
+- flow-id 3-9: **blocker以外の9件はフェーズ4送り**（ユーザー判断）。各スレッドへ返信済み
 
 ## 次にやること
 
-- **flow-id 3-7（commit・push）と、フェーズ3の結果確認としての敵対的レビュー（1/3）まで完了。**
-  次は**人間のレビュー（flow-id 3-8）待ち**。敵対的レビューが投稿した10件も、人間の指摘と同列に
-  flow-id 3-9 の `comments`/`reply` ループで対応・返信する（issue #109）
+- **flow-id 3-9（1周目）の修正・返信まで完了。次は人間のレビュー（flow-id 3-8・2周目）待ち。**
+  blockerの直し方（中断＋`--force`、インストールは止めず警告して続行）に合意が得られれば、
+  `add-round 3-6` は不要でそのまま `mark-done 3-6` してフェーズ4へ進める
 - その後は**フェーズ4（反映）**。flow-id 4-1 で個別反映計画を作る。反映対象は次のとおり
   （いずれもフェーズ3では**意図的に手を付けていない**）:
   - **削除済みの `setup-gemini-links.sh` を指す参照が3箇所**残っている
@@ -217,6 +227,11 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
     changelog エントリを追記**する（過去の繰り下げと同じ形。本文側は今回すべて更新済み）
   - policy engine の Workspace 層が無効であること（upstream #18186）を spec へ残す
   - `.gitignore` から消えた `i00-13` 参照の扱い（`i36-01` は別ブロックに残っている）
+  - **敵対的レビューの残り9件**（PR #157 のスレッド。各スレッドへ「フェーズ4で扱う」と返信済み）:
+    `tr -d '\r'` の欠落／CRLFの `agents/*.md` 誤診／`--others` がローカル設定を焼き込む／
+    `build_into` の0件メッセージ／前置フィルタの `read -d ''` の実機計測／
+    `reports/REVIEW-POINTS.md` の `5-4`／spec の Gemini hook登録節と未決定事項（issue #57）
+  - **今回新設した `--force` と孤児検出**も `sync-gemini-assets.md` の仕様として書く
 - **`.claude/` を触ったら `bash .claude/scripts/src/sync-gemini-assets.sh` を流し直す**
   （これが新設した flow-id 5-3 そのものだが、フェーズ4の作業中も `--check` が落ちないように
   こまめに流す）。**`.gemini/` 側を直接編集しない**
