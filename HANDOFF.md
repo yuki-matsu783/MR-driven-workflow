@@ -17,8 +17,8 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - issue: #70（https://github.com/yuki-matsu783/MR-driven-workflow/issues/70 ）
 - ブランチ: `claude/gemini-to-claude-migration-jc64gu`
 - PR: #157（Draft。https://github.com/yuki-matsu783/MR-driven-workflow/pull/157 ）
-- push回数: 20
-- 現在のループ: 4-6〜4-9 の3周目（進行中）
+- push回数: 21
+- 現在のループ: なし
 - 未返信スレッド: 0
 - 追従監視: 購読あり（web。subscribe_pr_activity + 自己チェックイン）
 
@@ -55,15 +55,15 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 | [x] | 4-3 | 反映計画のレビュー・コメント | 人間 |
 | [x] | 4-4 | レビュー内容を取得し反映計画を修正・返信 | サブコマンド |
 | [x] | 4-5 | 反映計画をもとにMR descriptionを更新 | サブコマンド |
-| [] | 4-6 | 設計反映・AIアセット反映・実装反映を実施 | エージェント |
-| [] | 4-7 | commit・pushしてレビュー依頼 | エージェント |
-| [] | 4-8 | 反映結果のレビュー・コメント | 人間 |
-| [] | 4-9 | レビュー内容を取得し設計・AIアセットを修正・返信 | サブコマンド |
+| [x] | 4-6 | 設計反映・AIアセット反映・実装反映を実施 | エージェント |
+| [x] | 4-7 | commit・pushしてレビュー依頼 | エージェント |
+| [x] | 4-8 | 反映結果のレビュー・コメント | 人間 |
+| [x] | 4-9 | レビュー内容を取得し設計・AIアセットを修正・返信 | サブコマンド |
 | [x] | 4-10 | 反映内容をもとにMR descriptionを更新 | サブコマンド |
-| [] | 5-1 | defaultブランチとのコンフリクト検知・解消 | エージェント |
-| [] | 5-2 | 関連issueへのマージ前通知 | エージェント |
-| [] | 5-3 | `.claude/` の変更を `.gemini/` へ変換同期 | エージェント |
-| [] | 5-4 | 最終統括レポート作成とPR/MRへの反映 | エージェント |
+| [x] | 5-1 | defaultブランチとのコンフリクト検知・解消 | エージェント |
+| [x] | 5-2 | 関連issueへのマージ前通知 | エージェント |
+| [x] | 5-3 | `.claude/` の変更を `.gemini/` へ変換同期 | エージェント |
+| [x] | 5-4 | 最終統括レポート作成とPR/MRへの反映 | エージェント |
 | [] | 5-5 | plans/worklog/reportsの片付けとHANDOFF.mdリセット | エージェント |
 | [] | 5-6 | commit・pushしてDraft解除 | エージェント |
 | [] | 5-7 | マージ（squash merge） | 人間 |
@@ -356,23 +356,35 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
     `--check` 0、frontmatter `files=152 built=4 failed=0`
   - 成果物: `reports/20260823_nimble-syncing-lantern_敵対的レビュー指摘のコード修正結果.md`＋`.html`、
     `worklog/…_【実装反映】敵対的レビュー指摘のコード修正_push20.md`
+- flow-id 4-8〜4-10: `【実装反映】` のレビュー往復1周目で合意（チャットで受領）。
+  (1)(2)(3) を通した——スレッド19件・**返信ゼロ0件**・新規レビューなし。チャットで受けた判断3件を
+  MRへ記録（`#issuecomment-5384313712`）: #166 はそのまま／計測手順の置き場所を spec→rules へ
+  変更／計画外の前置フィルタ修正。PR #157 の description をフェーズ4完了の内容へ更新
+- flow-id 5-1: `check-base-conflicts.sh` で `hasConflict: false`（テキスト競合0・DDR識別子重複0）
+- flow-id 5-2: 関連issueへマージ前通知を投稿（**ユーザーの承認あり**）。
+  **#105**（`env` を変換できないため Gemini 経路では OTel 計測が行われない）、
+  **#108**（`HANDOFF.md` のヘッダが6→7項目になったので template へ7項目すべてを含めること）、
+  **#159**（同じパターンを push 側へ広げたら超集合違反が見つかった）。
+  **#166 は「そのままで良い」との判断のため触っていない。#172 は本文が既に #70 を参照している**
+- flow-id 5-3: `sync-gemini-assets.sh` を実行（**差分なし**。`--check` 0）
+- flow-id 5-4: 最終統括レポートを作成
+  （`reports/20260823_nimble-syncing-lantern_統括.md`＋`.html`）
 
 ## 次にやること
 
-- **フェーズ4は3本とも完了**（`【AIアセット反映】` `【設計反映】` `【実装反映】`）。
-  push 20 のレビュー（flow-id 4-8）を待っている。合意できたら
-  `mark-done 4-6` → flow-id 4-10（description更新）→ フェーズ5へ。
-- フェーズ5は 5-1（コンフリクト検知）→ 5-2（関連issue通知）→ **5-3（`.gemini/` 変換同期）** →
-  5-4（統括レポート）→ 5-5（片付け）→ 5-6（commit・Draft解除）。**5-6 で止まる**
-  （マージは人間の明示指示が要る）。
-- **ユーザーへ確認中**: [#166](https://github.com/yuki-matsu783/MR-driven-workflow/issues/166)
-  （open、2026-08-23 起票）が issue #70 とほぼ同じ内容である。重複としてクローズするかどうかは
-  人間の判断待ち。**AIから閉じない。**
-- **別issueへ切り出し済み（このMRでは対応しない）**: #159（前置フィルタの適用範囲。
-  **PR #162 でマージ済み**）、**#171**（`.gitignore` の `i36-01`）、
-  **#172**（`.gemini/` の生成対象）。**着手は別セッションで。**
-- **`.claude/` を触ったら `bash .claude/scripts/src/sync-gemini-assets.sh` を流し直す**
-  （`.gemini/` 側を直接編集しない）。
+- **フェーズ5は 5-4 まで完了。** 残りは 5-5（片付け）→ 5-6（commit・Draft解除）。
+  **5-6 で止まる**（マージは人間の明示指示が要る）。
+- flow-id 5-5 は `bash .claude/scripts/src/cleanup-task.sh` を実行する
+  （`plans/` `worklog/` `reports/` を md・html ともに削除し、`HANDOFF.md` をリセットする。
+  **`worklog/TEMPLATE.md` と `REVIEW-POINTS.md` は残る**）。**スクリプトはコミットしない**ので、
+  結果は直後の 5-6 の `commit` スキルでコミットする。
+- flow-id 5-6 の Draft 解除は
+  `source .claude/scripts/src/vcs/Provider.sh && set_mr_ready 157`（`gh pr ready` を直接叩かない）。
+  **この実行環境は `gh` 不在なので、MCP の `mcp__github__update_pull_request`（`draft: false`）
+  へ読み替える。**
+- **別issueへ切り出し済み（このMRでは対応しない）**: #159（**PR #162 でマージ済み**）、
+  **#171**（`.gitignore` の `i36-01`）、**#172**（`.gemini/` の生成対象）。**着手は別セッションで。**
+- **#166 はそのままにする**（ユーザーの判断。重複としてクローズしない）。
 
 ## 判断を迷った内容
 

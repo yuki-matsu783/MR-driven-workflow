@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>issue #70 統括レポート</title>
+<style>
+  :root {
+    --bg: #f6f7f9;      --panel: #ffffff;   --ink: #1a1d21;     --muted: #5b636d;
+    --line: #dfe3e8;    --accent: #2563eb;  --accent-soft: #eaf0fe;
+    --ok: #1a7f4b;      --ok-soft: #e6f4ec; --warn: #a35a00;    --warn-soft: #fdf1e0;
+    --stop: #b3261e;    --stop-soft: #fdecea; --code-bg: #f0f2f5;
+    --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1216;    --panel: #161a20;   --ink: #e6e8eb;     --muted: #9aa3ad;
+      --line: #2a3038;  --accent: #7aa2f7;  --accent-soft: #1b2333;
+      --ok: #6ee7a8;    --ok-soft: #14261d; --warn: #f0b866;    --warn-soft: #2a2113;
+      --stop: #f2857c;  --stop-soft: #2b1614; --code-bg: #1d222a;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", system-ui, sans-serif;
+    line-height: 1.8; font-size: 15px;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 20px 80px; }
+
+  /* 共通ヘッダ帯 */
+  header.band {
+    background: linear-gradient(135deg, var(--accent-soft), var(--panel));
+    border-bottom: 1px solid var(--line); padding: 28px 20px 22px; margin-bottom: 28px;
+  }
+  header.band .inner { max-width: 1080px; margin: 0 auto; }
+  header.band .kind { font-size: 11px; letter-spacing: .18em; color: var(--accent); font-weight: 700; }
+  header.band h1 { margin: 6px 0 4px; font-size: 26px; line-height: 1.4; }
+  header.band .lead { margin: 0; color: var(--muted); }
+  .meta { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; padding: 0; list-style: none; }
+  .meta li {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 999px;
+    padding: 3px 12px; font-size: 12.5px; color: var(--muted); white-space: nowrap;
+  }
+  .meta li b { color: var(--ink); font-weight: 600; }
+
+  nav.toc {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 14px 20px; margin-bottom: 28px;
+  }
+  nav.toc h2 { margin: 0 0 8px; font-size: 13px; letter-spacing: .08em; color: var(--muted); border: 0; padding: 0; }
+  nav.toc ol { margin: 0; padding-left: 20px; }
+  nav.toc li { margin: 2px 0; }
+  a { color: var(--accent); }
+
+  section {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 8px 24px 22px; margin-bottom: 22px;
+  }
+  h2 { font-size: 20px; margin: 20px 0 10px; padding-bottom: 8px; border-bottom: 2px solid var(--line); }
+  h3 { font-size: 16px; margin: 22px 0 8px; color: var(--accent); }
+  p { margin: 10px 0; }
+  ul, ol { padding-left: 22px; }
+  li { margin: 4px 0; }
+  blockquote { margin: 10px 0; padding: 6px 14px; border-left: 3px solid var(--line); color: var(--muted); }
+
+  /* 表は自身の中で横スクロールする（ページ本体は横スクロールさせない） */
+  .tablewrap { overflow-x: auto; margin: 14px 0; }
+  table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 14px; }
+  th, td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: var(--accent-soft); font-weight: 600; white-space: nowrap; }
+  tbody tr:nth-child(even) td { background: color-mix(in srgb, var(--line) 22%, transparent); }
+
+  code {
+    background: var(--code-bg); border-radius: 5px; padding: 1px 5px; font-size: 13px;
+    font-family: "SFMono-Regular", Consolas, "Noto Sans Mono", monospace;
+  }
+  pre {
+    background: var(--code-bg); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 12px 14px; overflow-x: auto; font-size: 13px; line-height: 1.65;
+  }
+  pre code { background: none; padding: 0; }
+
+  /* 注意ボックス: info（既定）/ ok（決めたこと）/ warn（注意）/ stop（やらないこと・危険） */
+  .box { border-left: 4px solid var(--accent); background: var(--accent-soft);
+         border-radius: 0 var(--radius) var(--radius) 0; padding: 12px 16px; margin: 16px 0; }
+  .box > :first-child { margin-top: 0; } .box > :last-child { margin-bottom: 0; }
+  .box .label { font-size: 12px; font-weight: 700; letter-spacing: .06em; display: block; margin-bottom: 4px; }
+  .box.ok { border-color: var(--ok); background: var(--ok-soft); } .box.ok .label { color: var(--ok); }
+  .box.warn { border-color: var(--warn); background: var(--warn-soft); } .box.warn .label { color: var(--warn); }
+  .box.stop { border-color: var(--stop); background: var(--stop-soft); } .box.stop .label { color: var(--stop); }
+  .box.info .label { color: var(--accent); }
+
+  .tag { display: inline-block; border-radius: 999px; padding: 1px 9px; font-size: 12px; font-weight: 600; }
+  .tag.ok { background: var(--ok-soft); color: var(--ok); }
+  .tag.warn { background: var(--warn-soft); color: var(--warn); }
+  .tag.stop { background: var(--stop-soft); color: var(--stop); }
+
+  footer { color: var(--muted); font-size: 13px; text-align: center; padding-top: 10px; }
+</style></head>
+<body>
+
+<header class="band">
+  <div class="inner">
+    <div class="kind">最終統括レポート / フェーズ5 flow-id 5-4</div>
+    <h1>統括: .gemini/ を .claude/ からの変換生成物へ改める</h1>
+    <p class="lead"><code>.gemini/</code> をローカルリンクから <b>変換生成物</b> へ改め、agents frontmatter と settings.json の記法差を変換器で吸収した。あわせてフローへ <code>flow-id 5-3</code> を新設し、レビュー返信漏れを<b>文言ではなく機構</b>で塞いだ。</p>
+    <ul class="meta">
+      <li><b>issue</b> #70</li>
+      <li><b>PR</b> #157</li>
+      <li><b>ブランチ</b> claude/gemini-to-claude-migration-jc64gu</li>
+      <li><b>コミット</b> 39件</li>
+      <li><b>変更</b> .claude/ 側 61ファイル / .gemini/ 側 176ファイル</li>
+      <li><b>作成日</b> 2026-08-23</li>
+      <li><b>正文</b> 同名の .md</li>
+    </ul>
+  </div>
+</header>
+
+<div class="wrap">
+
+<nav class="toc">
+  <h2>目次</h2>
+  <ol>
+    <li><a href="#what">何を変えたか</a></li>
+    <li><a href="#why">なぜそうしたか</a></li>
+    <li><a href="#verify">検証結果</a></li>
+    <li><a href="#unverified">この環境で検証できなかったこと</a></li>
+    <li><a href="#specs">spec・DDRへの反映先</a></li>
+    <li><a href="#todo">残課題</a></li>
+  </ol>
+</nav>
+
+<section id="what">
+  <h2>何を変えたか</h2>
+
+  <h3>1. <code>.gemini/</code> を「リンク」から「変換生成物」へ</h3>
+  <p><code>sync-gemini-assets.sh</code> を新設し、<code>setup-gemini-links.sh</code> を削除した。<code>.gemini/</code> は <code>.claude/</code> を読んで<b>まるごと生成し直す</b>ものになり、<b>Git管理下へ入れてコミットする</b>。</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>対象</th><th>何をするか</th></tr></thead>
+    <tbody>
+      <tr><td><code>agents/*.md</code></td><td>frontmatter を Gemini の <code>localAgentSchema</code> へ変換（ツール名11組・<code>tools</code> の配列化・<code>.strict()</code> が拒否する未知キーの除去・<code>model</code> の除去）</td></tr>
+      <tr><td><code>settings.json</code></td><td><code>PreToolUse</code>→<code>BeforeTool</code>、<code>plansDirectory</code>→<code>general.plan.directory</code> 等のキー対応と hook の変換</td></tr>
+      <tr><td>それ以外</td><td>内容を変えずにコピー</td></tr>
+      <tr><td>除外</td><td>生成物とローカル状態（<code>index.jsonl</code> / <code>state/</code> / <code>settings.local.json</code>）のみ</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p><code>--check</code> / <code>--dry-run</code> / <code>--force</code> の3モードを持ち、<b><code>jq</code> が無ければエラーで止まる</b>。<b><code>.gemini/</code> に生成物へ含まれないファイルがあれば1バイトも書かずに中断する</b>（削除ファイル検出）。</p>
+
+  <h3>2. フローへ <code>flow-id 5-3</code> を新設</h3>
+  <p>最終統括レポートの直前へ置き、旧 5-3〜5-6 を 5-4〜5-7 へ繰り下げた（全42 → <b>43ステップ</b>）。21ファイル・機械置換125箇所＋手修正19箇所。<b>DDR本文84箇所は不変</b>（point-in-time の記録のため）。</p>
+
+  <h3>3. レビュー返信漏れを機構で塞いだ</h3>
+  <p><code>HANDOFF.md</code> のヘッダへ <code>- 未返信スレッド:</code> を新設（項目6→7）し、<b>レビュー往復のループ範囲への <code>mark-done</code> を、この値が <code>0</code> でなければ拒否する</b>ようにした。<code>adversarial-review</code> スキルへは<b>手順8（投稿直後に未返信件数を記録する）</b>を足した。</p>
+
+  <h3>4. 仕様書・DDR・AIアセットを整備した</h3>
+  <ul>
+    <li><code>.claude/docs/spec/sync-gemini-assets.md</code> を<b>新設</b>（スクリプト冒頭が <code>#&nbsp;仕様:</code> として指していたパスの実体が無かった）</li>
+    <li>DDR 2本を追加し、<code>i0000-13</code>（リンク運用）を <b>frontmatter のみ</b> <code>superseded</code> にした</li>
+    <li>削除済みスクリプトへの参照3件、<code>flow-id 5-4</code> の繰り下げ漏れ1件を解消</li>
+    <li>用語を2つ改名: <code>写像規則</code> → <b><code>用語変換規則</code></b>、<code>孤児検出</code> → <b><code>削除ファイル検出</code></b></li>
+  </ul>
+
+  <h3>5. 敵対的レビュー指摘のコード修正</h3>
+  <p>CR の<b>入口</b>（<code>mapfile</code> が CRLF の <code>agents/*.md</code> を誤診）と<b>出口</b>（Windows native <code>jq</code> が <code>settings.json</code> へ CR を付ける）の両方を塞いだ。<code>build_into</code> の失敗条件を「コピー対象0件」から<b>「列挙0件」へ狭め</b>、0件時は原因を3つに切り分けて出すようにした。</p>
+</section>
+
+<section id="why">
+  <h2>なぜそうしたか</h2>
+
+  <h3>なぜリンクではなく変換なのか（DDR <code>i0070-01</code>）</h3>
+  <p>リンク運用を続けるには <code>.claude/</code> 側を<b>両者が読める最大公約数</b>へ寄せるしかなく、主客が逆転する。とくに <code>localAgentSchema</code> の <code>.strict()</code> に合わせるには <code>.claude/agents/*.md</code> から <code>type</code> / <code>tags</code> / <code>keywords</code> を<b>消さなければならず</b>、<code>index.jsonl</code> の検索が壊れる。</p>
+  <div class="box ng">
+    <span class="label">そもそも成り立っていなかった</span>
+    <code>setup-gemini-links.sh</code> の <code>TARGETS</code> は <code>agents</code> を含んでおらず、<b>サブエージェント定義は Gemini 経路から一度も見えていなかった</b>。
+  </div>
+
+  <h3>なぜ生成物なのに Git 管理下へ残すのか</h3>
+  <p><code>index.jsonl</code> は生成物として管理外にしている（DDR <code>i0036-01</code>）が、同じ扱いにすると<b>配布先で再生成を忘れた時点で Gemini 側の資産がゼロになる</b>——リンク運用で実際に踏みうる失敗であり、これを繰り返さないことが今回の主目的の1つである。加えて、管理外だと<b>変換が正しいかをレビューできない</b>。</p>
+  <div class="box ok">
+    <span class="label">一般則ではない</span>
+    <b>「生成物だから Git 管理外」は一般則ではない。人間やレビューが直接読むかどうかが分かれ目である</b>（DDR一覧を生成物のまま管理下へ残した <code>i0135-01</code> と同じ理由）。
+  </div>
+
+  <h3>なぜ「落とさずエラー」なのか</h3>
+  <p>変換先の無いキー・ツール名を黙って落とすと、<b>Gemini 側が必要な設定を失ったまま静かに動く</b>。しかも単体テストは「変換が通った」ことしか見ないので永久に緑のままになる。実際に issue #103 の <code>env</code> 追加でこの停止が働き、理由付きで除外リストへ載せて解決した。</p>
+
+  <h3>なぜ文言強化ではなく機構なのか（DDR <code>i0070-02</code>）</h3>
+  <p>issue #70 のフェーズ2で、投稿した10スレッドが返信ゼロのまま <code>mark-done</code> され、約1日「未対応と区別が付かない」状態で残った。原因は手順の飛ばし・記録の欠落・記録の粒度の4つで、<b>いずれも「気をつける」では再発する</b>。書き手（<code>set-header</code>）と検査側（<code>mark-done</code>）で「行が無いとき」の扱いを<b>意図的に非対称</b>にしている——同じ扱いにすると、拒否からの復旧手段まで拒否されて詰むためである。</p>
+</section>
+
+<section id="verify">
+  <h2>検証結果</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>項目</th><th>結果</th></tr></thead>
+    <tbody>
+      <tr><td>単体テスト</td><td>全17本 <b>passed=1104 failures=0</b></td></tr>
+      <tr><td>perlテスト（OTel）</td><td>12件・7件とも通過</td></tr>
+      <tr><td><code>sync-gemini-assets.sh --check</code></td><td>0（同期している）</td></tr>
+      <tr><td>DDR一覧</td><td>77件。<code>--check</code> で差分なし</td></tr>
+      <tr><td>DDR本文の不変</td><td>削除行4件はすべて <code>note:</code> frontmatter</td></tr>
+      <tr><td>コンフリクト検知（flow-id 5-1）</td><td><code>hasConflict: false</code></td></tr>
+      <tr><td>frontmatter索引</td><td><code>files=154 built=0 failed=0</code></td></tr>
+    </tbody>
+  </table>
+  </div>
+  <h3>検出力の実測</h3>
+  <p>直した箇所を<b>意図的に壊し、テストが落ちることを確かめた</b>。</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>壊した箇所</th><th>結果</th></tr></thead>
+    <tbody>
+      <tr><td>削除ファイル検出を無効化</td><td>3件が落ちる</td></tr>
+      <tr><td>未返信検査を無効化</td><td>5件が落ちる</td></tr>
+      <tr><td><code>.gemini</code> の探索除外を無効化</td><td><code>.gemini</code> 側のアサーションだけが落ちる</td></tr>
+      <tr><td><code>mapfile</code> の CR 除去を外す</td><td>2件が落ちる</td></tr>
+      <tr><td><code>convert_settings</code> の <code>tr -d '\r'</code> を外す</td><td>1件が落ちる</td></tr>
+      <tr><td>0件判定を旧仕様へ戻す</td><td>3件が落ちる</td></tr>
+      <tr><td>前置フィルタの2文字シーケンス除去を落とす</td><td>1件が落ちる（<code>取りこぼし: git pu\</code> を報告）</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="unverified">
+  <h2>この環境で検証できなかったこと</h2>
+  <div class="box warn">
+    <span class="label">この統括が言っていないこと</span>
+    <ul>
+      <li><b>Gemini CLI がこの実行環境に無い</b>（<code>command -v gemini</code> が空）。受け入れ条件のうち「<code>Agent loading error</code> が再現しない」「hook が Gemini CLI 実行時に発火する」の<b>2件は未検証のまま残る</b>。変換規則は一次情報（gemini-cli のソース）に基づいて確定し、入出力を単体テストで固定するところまでを成果物とした。</li>
+      <li><b>CR の挙動も Windows 実機では確かめていない</b>（スタブ <code>jq</code> による再現）。</li>
+      <li><b><code>read -d ''</code> の read(2) コストは未計測</b>で、計測手順だけを残した。</li>
+    </ul>
+  </div>
+</section>
+
+<section id="specs">
+  <h2>spec・DDRへの反映先</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>ファイル</th><th>何を書いたか</th></tr></thead>
+    <tbody>
+      <tr><td><code>spec/sync-gemini-assets.md</code>（新規）</td><td>3モード＋<code>--force</code>／対象ファイルの列挙／用語変換規則3種／変換しないトップレベルキーとその帰結／<b>改行コードの扱い</b>／削除ファイル検出／終了コード／性能上の前提</td></tr>
+      <tr><td><code>ddr/i0070-01-…</code></td><td><code>.gemini/</code> を変換生成物にし Git 管理下へ置く判断（却下案5件）</td></tr>
+      <tr><td><code>ddr/i0070-02-…</code></td><td>レビュー返信漏れを文言ではなく機構で塞ぐ判断（却下案5件）</td></tr>
+      <tr><td><code>ddr/i0000-13-…</code></td><td><b>frontmatter のみ</b> <code>superseded</code> にした（本文は不変）</td></tr>
+      <tr><td><code>spec/issue-mr-workflow.md</code></td><td>flow-id 5-3 の新設と繰り下げ／hook登録節を生成物前提へ／issue #57 の未決定事項を「決定済み事項」へ移動</td></tr>
+      <tr><td><code>spec/update-handoff-progress.md</code></td><td><code>--unreplied</code> とループ範囲への <code>mark-done</code> のゲート</td></tr>
+      <tr><td><code>spec/adversarial-review.md</code></td><td>手順8（投稿直後に未返信件数を記録する）</td></tr>
+      <tr><td><code>spec/distribution-assets.md</code></td><td><code>.gemini/</code> は配布物ではなく配布先で生成する</td></tr>
+      <tr><td><code>rules/shell-script-style.md</code></td><td><b>hookの前置フィルタは語ごとに考えず、判定本体の正規化をそのまま施す</b>／<code>read -d ''</code> の計測手順</td></tr>
+      <tr><td><code>rules/docs-workflow.md</code></td><td>棚卸しの除外は<b>ディレクトリ単位ではなくファイル単位</b>で判断する</td></tr>
+      <tr><td><code>rules/directory-structure.md</code></td><td><code>.gemini/</code> は全体が <code>.claude/</code> からの変換生成物である</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="todo">
+  <h2>残課題</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>issue</th><th>内容</th><th>状態</th></tr></thead>
+    <tbody>
+      <tr><td>#159</td><td>前置フィルタを他の2本のhookへ広げる</td><td><b>PR #162 でマージ済み</b>（本MRが main から取り込み、push系2本へも同型の実装を入れた）</td></tr>
+      <tr><td>#171</td><td><code>.gitignore</code> が存在しないDDR名（<code>i36-01</code>）を指している</td><td>open</td></tr>
+      <tr><td>#172</td><td><code>.gemini/hooks/</code> <code>scripts/</code> <code>docs/</code> を生成対象から外すかの判断</td><td>open</td></tr>
+      <tr><td>#105</td><td>Gemini CLI のテレメトリ集計</td><td>open。<b><code>env</code> を変換できないため実現できないことを通知済み</b></td></tr>
+      <tr><td>#108</td><td><code>HANDOFF.template.md</code> の切り出し</td><td>open。<b>ヘッダが7項目になったことを通知済み</b></td></tr>
+    </tbody>
+  </table>
+  </div>
+  <div class="box warn">
+    <span class="label">スコープ外として残したもの</span>
+    <ul>
+      <li><b>policy engine の変換</b>（<code>commandRegex</code> によるコミット/push拒否）。Workspace 層が<b>現在無効</b>で、リポジトリに置いても動かない（upstream issue #18186）。結果として、コミット強制の多重防御は Gemini 経路では hook の1枚だけになる。<b>スコープ外なのではなく、今は動かない。</b></li>
+      <li><b><code>env</code> の変換</b>（上記 #105）。</li>
+    </ul>
+  </div>
+</section>
+
+<footer>issue #70 / PR #157 — 統括の正文は同名の <code>.md</code>。外部依存を持たない自己完結HTML。</footer>
+
+</div>
+</body>
+</html>
