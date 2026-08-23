@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>最終統括レポート — issue #143</title>
+<style>
+  :root {
+    --bg: #f6f7f9;      --panel: #ffffff;   --ink: #1a1d21;     --muted: #5b636d;
+    --line: #dfe3e8;    --accent: #2563eb;  --accent-soft: #eaf0fe;
+    --ok: #1a7f4b;      --ok-soft: #e6f4ec; --warn: #a35a00;    --warn-soft: #fdf1e0;
+    --stop: #b3261e;    --stop-soft: #fdecea; --code-bg: #f0f2f5;
+    --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1216;    --panel: #161a20;   --ink: #e6e8eb;     --muted: #9aa3ad;
+      --line: #2a3038;  --accent: #7aa2f7;  --accent-soft: #1b2333;
+      --ok: #6ee7a8;    --ok-soft: #14261d; --warn: #f0b866;    --warn-soft: #2a2113;
+      --stop: #f2857c;  --stop-soft: #2b1614; --code-bg: #1d222a;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", system-ui, sans-serif;
+    line-height: 1.8; font-size: 15px;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 20px 80px; }
+  header.band {
+    background: linear-gradient(135deg, var(--accent-soft), var(--panel));
+    border-bottom: 1px solid var(--line); padding: 28px 20px 22px; margin-bottom: 28px;
+  }
+  header.band .inner { max-width: 1080px; margin: 0 auto; }
+  header.band .kind { font-size: 11px; letter-spacing: .18em; color: var(--accent); font-weight: 700; }
+  header.band h1 { margin: 6px 0 4px; font-size: 26px; line-height: 1.4; }
+  header.band .lead { margin: 0; color: var(--muted); }
+  .meta { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; padding: 0; list-style: none; }
+  .meta li {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 999px;
+    padding: 3px 12px; font-size: 12.5px; color: var(--muted); white-space: nowrap;
+  }
+  .meta li b { color: var(--ink); font-weight: 600; }
+  nav.toc {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 14px 20px; margin-bottom: 28px;
+  }
+  nav.toc h2 { margin: 0 0 8px; font-size: 13px; letter-spacing: .08em; color: var(--muted); border: 0; padding: 0; }
+  nav.toc ol { margin: 0; padding-left: 20px; }
+  nav.toc li { margin: 2px 0; }
+  a { color: var(--accent); }
+  section {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 8px 24px 22px; margin-bottom: 22px;
+  }
+  h2 { font-size: 20px; margin: 20px 0 10px; padding-bottom: 8px; border-bottom: 2px solid var(--line); }
+  h3 { font-size: 16px; margin: 22px 0 8px; color: var(--accent); }
+  p { margin: 10px 0; }
+  ul, ol { padding-left: 22px; }
+  li { margin: 4px 0; }
+  blockquote { margin: 10px 0; padding: 6px 14px; border-left: 3px solid var(--line); color: var(--muted); }
+  .tablewrap { overflow-x: auto; margin: 14px 0; }
+  table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 14px; }
+  th, td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: var(--accent-soft); font-weight: 600; white-space: nowrap; }
+  tbody tr:nth-child(even) td { background: color-mix(in srgb, var(--line) 22%, transparent); }
+  code {
+    background: var(--code-bg); border-radius: 5px; padding: 1px 5px; font-size: 13px;
+    font-family: "SFMono-Regular", Consolas, "Noto Sans Mono", monospace;
+  }
+  pre {
+    background: var(--code-bg); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 12px 14px; overflow-x: auto; font-size: 13px; line-height: 1.65;
+  }
+  pre code { background: none; padding: 0; }
+  .box { border-left: 4px solid var(--accent); background: var(--accent-soft);
+         border-radius: 0 var(--radius) var(--radius) 0; padding: 12px 16px; margin: 16px 0; }
+  .box > :first-child { margin-top: 0; } .box > :last-child { margin-bottom: 0; }
+  .box .label { font-size: 12px; font-weight: 700; letter-spacing: .06em; display: block; margin-bottom: 4px; }
+  .box.ok { border-color: var(--ok); background: var(--ok-soft); } .box.ok .label { color: var(--ok); }
+  .box.warn { border-color: var(--warn); background: var(--warn-soft); } .box.warn .label { color: var(--warn); }
+  .box.stop { border-color: var(--stop); background: var(--stop-soft); } .box.stop .label { color: var(--stop); }
+  .box.info .label { color: var(--accent); }
+  .tag { display: inline-block; border-radius: 999px; padding: 1px 9px; font-size: 12px; font-weight: 600; }
+  .tag.ok { background: var(--ok-soft); color: var(--ok); }
+  .tag.warn { background: var(--warn-soft); color: var(--warn); }
+  .tag.stop { background: var(--stop-soft); color: var(--stop); }
+  footer { color: var(--muted); font-size: 13px; text-align: center; padding-top: 10px; }
+</style></head>
+<body>
+
+<header class="band">
+  <div class="inner">
+    <div class="kind">最終統括レポート / フェーズ5</div>
+    <h1>最終統括レポート: issue #143 対応</h1>
+    <p class="lead">docs-workflow.mdのreports/行flow-id矛盾は既に解消済みであることを確認し、再発防止策としてSKILL.mdへ確認手順を明記・DDR i0143-01として記録した。</p>
+    <ul class="meta">
+      <li><b>issue</b> #143</li>
+      <li><b>ブランチ</b> claude/docs-workflow-reports-timing-4gfc5v</li>
+      <li><b>PR</b> #181</li>
+      <li><b>フェーズ</b> 5〈クローズ〉 flow-id 5-4</li>
+      <li><b>作成日</b> 2026-08-23</li>
+      <li><b>正文</b> 同名の .md</li>
+    </ul>
+  </div>
+</header>
+
+<div class="wrap">
+
+<nav class="toc">
+  <h2>目次</h2>
+  <ol>
+    <li><a href="#summary">サマリ（結論の一覧）</a></li>
+    <li><a href="#findings">実施した内容と結果</a></li>
+    <li><a href="#unverified">確かめられなかったこと</a></li>
+    <li><a href="#next">設計・DDRへの反映</a></li>
+    <li><a href="#todo">残課題</a></li>
+  </ol>
+</nav>
+
+<section id="summary">
+  <h2>サマリ（結論の一覧）</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>#</th><th>問い／やったこと</th><th>結論</th><th>根拠の性質</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td>issueが報告した矛盾は現在も残っているか</td><td><b>既に解消済み</b>（PR #144、issue #143とは無関係）</td><td>実測（差分比較）</td></tr>
+      <tr><td>2</td><td>「片付け＝flow-id 5-1」の現行記述は他に残っていないか</td><td><b>残っていない</b>（追跡下30件を分類・確認）</td><td>実測（横断grep・分類）</td></tr>
+      <tr><td>3</td><td>再発防止策は何を採るか</td><td><b>案C</b>: 手順明記（SKILL.md新節）＋DDR記録（i0143-01）</td><td>設計判断（DDR記録済み）</td></tr>
+      <tr><td>4</td><td>origin/mainとのコンフリクトは解消できたか</td><td><b>解消済み</b>（HANDOFF.mdのみ、類型C）。issue #70対応の取り込みに伴いSKILL.md新節・DDRのflow-id番号を再確認・修正</td><td>実測（マージ・検証）</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="findings">
+  <h2>実施した内容と結果</h2>
+
+  <h3>1. 何を変えたか</h3>
+  <p><b>調査（フェーズ2）</b>: issueが報告した矛盾は、issue #143とは無関係のPR #144（issue #111対応）で
+  既に解消済みであることを確認した。リポジトリ全体で「片付け＝flow-id 5-1」と読める現行記述は
+  残っていない（追跡下30件を分類し確認）。issueの受け入れ条件(1)「flow-id 5-3」自体が、起票後
+  さらにPR #144で5-4へ繰り下がっていたことも判明した。</p>
+  <p><b>設計・実装（フェーズ3）</b>: 再発防止策として、機械的検知スクリプトの新設・現状維持の両案を
+  却下し、<code>.claude/skills/issue-mr-flow/SKILL.md</code>へ「flow-idを並べ替える・挿入する作業を
+  行う場合」節（約40行）を新設した。新規DDR <code>i0143-01</code> を作成し、意思決定の経緯・却下案を
+  記録した。</p>
+  <p><b>クローズ（フェーズ5）</b>: <code>origin/main</code>とのコンフリクト（<code>HANDOFF.md</code>のみ）を
+  検知・解消した。issue #70対応によりフェーズ5全体が6ステップから7ステップへ変わっていたため、
+  本ブランチが追加した記述を再確認・修正した。関連issue（#129・#160）へ軽い報告コメントを投稿した。
+  <code>.claude/</code>→<code>.gemini/</code>の変換同期を実行した。</p>
+
+  <h3>2. なぜそうしたか</h3>
+  <p><b>機械的検知（案A）を却下した理由</b>: 「片付け＝flow-id 5-1」のような古い番号が別の意味
+  （コンフリクト解消）で今も使われているケースを、文字列の存在チェックだけでは検知できない。
+  DDR <code>i0112-01</code>が既に採用している「変更範囲最小化」の方針とも整合しない。</p>
+  <p><b>現状維持（案B）を却下した理由</b>: issueの受け入れ条件(4)が検討自体を明示的に求めており、
+  issue #143起票後もissue #70対応で同型の追従漏れが実際に再発していた（敵対的レビューで
+  検知・修正済み）ため、「何もしない」を選ぶ根拠が無かった。</p>
+  <p><b>手順明記＋DDR記録（案C）を採用した理由</b>: コストが低く、次にflow-idを並べ替える作業者が
+  確認を忘れにくくなる。詳細は
+  <a href="../.claude/docs/ddr/i0143-01-flow-id並べ替え時の確認手順をSKILL.mdへ明記しDDRで記録する.md">DDR i0143-01</a>参照。</p>
+
+  <h3>3. 検証結果</h3>
+  <pre><code>$ git diff --numstat 0aa9874d18032a9a85d5bc98075511fa11ce0cc3 -- .claude/
+1	0	.claude/docs/README.md
+122	0	.claude/docs/ddr/i0143-01-....md
+43	0	.claude/skills/issue-mr-flow/SKILL.md
+（削除行0件を確認）
+
+$ for t in .claude/scripts/test/test_*.sh; do bash "$t"; done
+（全19スイート passed=N failures=0）</code></pre>
+  <p>コンフリクトマーカーの残存無し、DDR識別子の重複無しを確認した。敵対的レビューを計4回実施
+  （フェーズ2で2回・フェーズ3で2回）し、指摘は計51件を受け、投稿分（各回上限10件）は全件対応・
+  返信済み、報告のみの指摘も全件対応済み。</p>
+  <div class="box ok">
+    <span class="label">結論</span>
+    受け入れ条件4点（矛盾解消済みの確認・他の現行記述の点検・changelog不変更の検証・再発防止策の
+    検討記録）はいずれも満たしている。
+  </div>
+</section>
+
+<section id="unverified">
+  <h2>確かめられなかったこと</h2>
+  <div class="box warn">
+    <span class="label">この結果が言っていないこと</span>
+    <ul>
+      <li>追記したSKILL.mdの節の実効性（次に実際にflow-idを並べ替える作業者が、この手順に沿って
+      確認を行うかどうか）は、次の並べ替え作業が発生するまで確認できない。</li>
+    </ul>
+  </div>
+</section>
+
+<section id="next">
+  <h2>設計・DDRへの反映</h2>
+  <ol>
+    <li><code>.claude/skills/issue-mr-flow/SKILL.md</code>: 「flow-idを並べ替える・挿入する作業を
+    行う場合（issue #143）」節を新設。flow-id並べ替え時の確認手順を明記。</li>
+    <li><code>.claude/docs/ddr/i0143-01-flow-id並べ替え時の確認手順をSKILL.mdへ明記しDDRで記録する.md</code>:
+    本タスクの意思決定（機械的検知・現状維持の却下、手順明記＋DDR記録の採用）を記録。</li>
+    <li><code>.claude/rules/docs-workflow.md</code>本体・過去changelog・DDR本文は変更しない
+    （受け入れ条件(3)、検証済み）。</li>
+  </ol>
+</section>
+
+<section id="todo">
+  <h2>残課題</h2>
+  <ul>
+    <li>なし。</li>
+  </ul>
+</section>
+
+<footer>issue #143 / PR #181 — 結果の正文は同名の <code>.md</code>。外部依存を持たない自己完結HTML。</footer>
+
+</div>
+</body>
+</html>

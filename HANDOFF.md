@@ -61,8 +61,8 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 | [-] | 4-9 | レビュー内容を取得し設計・AIアセットの内容を修正する（4-6〜4-9を合意まで繰り返す） | サブコマンド |
 | [-] | 4-10 | 反映内容をもとにMR descriptionを更新する | サブコマンド |
 | [x] | 5-1 | defaultブランチとのコンフリクトを検知し解消する | エージェント |
-| [] | 5-2 | 関連issueへ承認を得てから通知する | エージェント |
-| [] | 5-3 | `.claude/`を`.gemini/`へ変換同期する | エージェント |
+| [x] | 5-2 | 関連issueへ承認を得てから通知する | エージェント |
+| [x] | 5-3 | `.claude/`を`.gemini/`へ変換同期する | エージェント |
 | [] | 5-4 | 最終統括レポートを作成しPR/MRへ反映する | エージェント |
 | [] | 5-5 | plans/worklog/reportsを削除しHANDOFF.mdをリセットする | エージェント |
 | [] | 5-6 | commitしpushしてDraftを解除する | エージェント |
@@ -70,6 +70,21 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 
 ## やったこと
 
+- flow-id 5-4（層1）: 最終統括レポート`reports/20260823_linear-painting-pond_統括.md`
+  （HTMLビュー併存）を作成した。ブランチ全体（フェーズ2〈調査〉・フェーズ3〈設計・実装〉・
+  フェーズ5〈クローズ〉）の変更内容・判断理由・検証結果・spec/DDRへの反映先・残課題（無し）を
+  1枚にまとめた。flow-id 5-3の`.gemini/`差分とあわせて`commit`スキル経由でコミットする
+  （層1: レポートをリモートへ反映）。
+- flow-id 5-3: `bash .claude/scripts/src/sync-gemini-assets.sh`で`.claude/`→`.gemini/`の変換同期を
+  実行した。差分3件（`.gemini/docs/README.md`・`.gemini/skills/issue-mr-flow/SKILL.md`・新規
+  `.gemini/docs/ddr/i0143-01-…md`）。このステップ自体はcommitを持たないため、差分はcommitせず
+  次のflow-id 5-4のcommitへ含める。
+- flow-id 5-2: 差分（`plans/` `worklog/` `reports/`除外）からキーワードを抽出し、`search_issues`で
+  候補を検索した。issue #129（スキル執筆規約新設・references/分割）・issue #160（SKILL.mdの
+  references/分割）が、本PRでSKILL.mdへ新節（約40行）を追加した点と関連しうると判断し、
+  `AskUserQuestion`で承認を得たうえで両issueへ軽い報告コメントを投稿した
+  （[#129](https://github.com/yuki-matsu783/MR-driven-workflow/issues/129#issuecomment-5385725581)・
+  [#160](https://github.com/yuki-matsu783/MR-driven-workflow/issues/160#issuecomment-5385725856)）。
 - flow-id 5-1: `bash .claude/scripts/src/check-base-conflicts.sh`で`origin/main`とのコンフリクトを
   検知した（`hasConflict: true`、対象は`HANDOFF.md`のみ）。ユーザーへ`AskUserQuestion`で確認し
   承認を得たうえで、`resolve-conflict`スキルの手順（`git merge --no-ff --no-commit`→類型C
