@@ -14,8 +14,8 @@
 # <phase> は 2 / 3 / 4（issue-mr-flow のフェーズ番号）。
 # `increment` は上限に達している場合、加算せず終了コード1と理由メッセージ（stderr）を返す。
 #
-# 状態は .claude/state/adversarial-review/<ブランチ名>.json に {"2":N,"3":N,"4":N} で持つ。
-# .claude/state/ は .gitignore 対象のローカル作業状態であり、ブランチ単位で持つため、
+# 状態は wip/state/adversarial-review/<ブランチ名>.json に {"2":N,"3":N,"4":N} で持つ。
+# wip/state/ は .gitignore 対象のローカル作業状態であり、ブランチ単位で持つため、
 # ブランチを削除すれば自然に消える（usage/ とは責務が異なるため混ぜない）。
 
 set -euo pipefail
@@ -26,7 +26,7 @@ ADVERSARIAL_REVIEW_MAX_RUNS=3
 # 解釈されてしまうため `__` へ置き換える（例: `claude/issue-77` → `claude__issue-77.json`）。
 adversarial_review_state_path() {
   local branch="$1"
-  printf '.claude/state/adversarial-review/%s.json' "${branch//\//__}"
+  printf 'wip/state/adversarial-review/%s.json' "${branch//\//__}"
 }
 
 # 状態ファイルの内容を、必ず有効なJSONオブジェクトへ正規化する（純粋関数）。

@@ -35,17 +35,17 @@ assert_eq() {
 # --- adversarial_review_state_path ---------------------------------------------------
 
 assert_eq "adversarial_review_state_path: ブランチ名をそのままファイル名に使う" \
-  '.claude/state/adversarial-review/feature-77-x.json' \
+  'wip/state/adversarial-review/feature-77-x.json' \
   "$(adversarial_review_state_path 'feature-77-x')"
 
 # `/` を含むブランチ名（例: claude/issue-77-abc）がディレクトリ区切りと解釈されると、
 # 状態ファイルが意図しない場所へ作られる
 assert_eq "adversarial_review_state_path: ブランチ名の/は__へ置き換える" \
-  '.claude/state/adversarial-review/claude__issue-77-abc.json' \
+  'wip/state/adversarial-review/claude__issue-77-abc.json' \
   "$(adversarial_review_state_path 'claude/issue-77-abc')"
 
 assert_eq "adversarial_review_state_path: /が複数あってもすべて置き換える" \
-  '.claude/state/adversarial-review/a__b__c.json' \
+  'wip/state/adversarial-review/a__b__c.json' \
   "$(adversarial_review_state_path 'a/b/c')"
 
 # --- adversarial_review_normalize_state ----------------------------------------------

@@ -16,8 +16,19 @@
 # 廃止しこちらへ一本化した。
 /usage/
 
-# post-push-compact-prompt.shが保持する、レビュー依頼メッセージの参照リンク組み立て用ローカル
-# 作業状態（前回push時点のHEAD SHA。ブランチ横断・非コミット対象）
+# ワークフローのローカル作業状態（ブランチ横断・非コミット対象）。内訳は
+# post-push-compact-prompt.shが保持する参照リンク組み立て用の前回push時点のHEAD SHA
+# （wip/state/review-links/）と、adversarial-review-count.shが持つ敵対的レビューの投稿件数
+# （wip/state/adversarial-review/）。issue #184で .claude/state/ から移した（.claude/ は
+# 配布単位であり、配布先のローカル状態をその中に置かないため）。
+# **パターンを /wip/ へ広げないこと。** issue #165 が wip/ 配下へ置いた plans/worklogs/reports は
+# 追跡対象であり、丸ごと無視されてしまう。
+/wip/state/
+
+# **移行用の名残。** 上の行の旧パスで、issue #184 より前に作られた状態ファイルが各開発者・
+# 各配布先の作業ツリーに残っている。この行が無いと、それらが追跡対象として git status に
+# 現れ、変更一覧を機械的にコミットへ渡す運用（.claude/rules/git-workflow.md「コミット運用」）で
+# 巻き込まれる。手元の .claude/state/ を消したあとであれば、この行は削除してよい。
 /.claude/state/
 
 # frontmatter抽出スクリプト（.claude/scripts/src/extract-frontmatter.sh）が生成する機械可読

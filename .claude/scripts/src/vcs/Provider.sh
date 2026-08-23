@@ -352,7 +352,7 @@ mcp_tool_hint() {
     add_issue_comment) printf 'mcp__github__add_issue_comment (owner, repo, issue_number=通知先issue番号, body=ファイル内容)\n' ;;
     # 唯一「代替が無い」分岐（issue #111）。他の関数と違い読み替え先を案内できないため、
     # スキップしてよいことを名指しで返す。添付は flow-id 5-4 の任意層であり、
-    # 層1（reports/ をリモートへ反映）と層2（サマリコメント）でレビューは成立する。
+    # 層1（wip/reports/ をリモートへ反映）と層2（サマリコメント）でレビューは成立する。
     upload_attachment) printf '対応するMCPツールはありません（PR/issueへの添付に相当するツールが提供されていない）。**flow-id 5-4 の層3（添付）はスキップしてよい**。層1・層2だけでレビューは成立します\n' ;;
     *) printf '対応するMCPツールは .claude/skills/issue-mr-flow/references/mcp-fallback.md の対応表を参照\n' ;;
   esac
@@ -1097,7 +1097,7 @@ content_type_from_path_to_reply() {
 #     失敗: 理由をstderrへ / 終了コード非0
 #
 # **この関数の失敗は正常系のひとつである。** 呼び出し側（flow-id 5-4）は非0終了を受け取ったら
-# 警告だけ出して層3をスキップし、フローを続ける。層1（reports/ へ載せてリモートへ反映）と
+# 警告だけ出して層3をスキップし、フローを続ける。層1（wip/reports/ へ載せてリモートへ反映）と
 # 層2（サマリをMarkdownでコメント投稿）だけでレビューは成立する設計になっている
 # （.claude/docs/ddr/i0111-01-統括レポートの添付は任意層に置きフローを止めない.md）。
 #
@@ -1226,14 +1226,14 @@ porcelain_z_to_paths() {
   done
 }
 
-# 現在のブランチ固有（<defaultBaseBranch> には無い）の plans/worklog/reports ファイル一覧を返す
+# 現在のブランチ固有（<defaultBaseBranch> には無い）の wip/plans, wip/worklogs, wip/reports ファイル一覧を返す
 # （コミット済み差分＋作業ツリーの未コミット分をマージ・重複排除）。プロバイダ非依存。
 # 出力は常に「1行＝1つの実在するパス」であり、`while IFS= read -r f` で回してそのままファイル
 # 操作へ渡せる（改名の扱いは上記 `porcelain_z_to_paths` を参照。issue #115）。
 #
 # 注意（core.quotepath）: gitは既定（core.quotepath=true）で、非ASCII文字を含むパスを
-# 8進エスケープ＋ダブルクォートで囲んだ形（例: "plans/\343\200\220..."）で出力する。
-# 個別作業計画は `plans/【調査】〜.md` のように日本語を含む命名（issue #9）のため、既定のままだと
+# 8進エスケープ＋ダブルクォートで囲んだ形（例: "wip/plans/\343\200\220..."）で出力する。
+# 個別作業計画は `wip/plans/【調査】〜.md` のように日本語を含む命名（issue #9）のため、既定のままだと
 # 戻り値が人間にもスクリプトにも使えない文字列になる。`-c core.quotepath=false` を付けて
 # 生のパスを出力させる（未コミット分は `--porcelain -z` のNUL区切り出力になったため元から影響を
 # 受けないが、コミット済み分の `--name-only` は行単位出力のため明示指定が必要。両方に付けて
