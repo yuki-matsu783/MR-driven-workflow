@@ -4,8 +4,8 @@
 # 選別ロジック（blocker全件投稿・層単位追加・層追加しきい値10・ハードシーリング20・
 # 層内切り捨て順序）を、境界ケースを含めて検証する。
 #
-# `main` はファイル引数の検証しか行わないため対象外で、`select_adversarial_findings`
-# （findings JSONファイルを受け取りjqへ委譲する関数）を直接呼ぶ。
+# 選別ロジック本体は `select_adversarial_findings` を直接呼んで検証し、入力検証
+# （空ファイル・findingsキー欠如・トップレベル配列等）は `main` を直接呼んで検証する。
 # `if [ "${BASH_SOURCE[0]}" = "${0}" ]` のガードによりsourceしても実行されない
 # （.claude/rules/shell-script-style.md「テスト」）。
 #
@@ -127,9 +127,77 @@ assert_eq "ハードシーリング跨ぎ: reportedは5件" "5" "$(count_reporte
 assert_eq "ハードシーリング跨ぎ: reportedはconfidence=mediumの末尾5件（パス昇順で切る）" \
   '["m08.sh","m09.sh","m10.sh","m11.sh","m12.sh"]' \
   "$(jq -c '[.reported.findings[].path] | sort' <<<"$result")"
-assert_eq "ハードシーリング跨ぎ: postedにconfidence=lowは含まれない" \
-  "0" \
-  "$(jq -r '[.posted.findings[] | select(.confidence == "low")] | length' <<<"$result")"
+
+# --- 確度優先のタイブレーク（パスの辞書順ではなく確度が先に効くことを確認） -----
+# high側のパス接頭辞を "z"、medium側を "a" にする（辞書順だけならmedium=aが先に残る
+# はずだが、確度が優先されるためhigh=z側が全件残らなければならない）。
+
+majorHighZ="$(make_layer major 12 z high)"
+majorMediumA="$(make_layer major 13 a medium)"
+input="$(printf '%s\n%s\n' "$majorHighZ" "$majorMediumA" | concat_findings)"
+result="$(run_select "$input")"
+assert_eq "確度優先のタイブレーク: postedは20件" "20" "$(count_posted "$result")"
+assert_eq "確度優先のタイブレーク: postedにconfidence=mediumはa00〜a07の8件のみ" \
+  '["a00.sh","a01.sh","a02.sh","a03.sh","a04.sh","a05.sh","a06.sh","a07.sh"]' \
+  "$(jq -c '[.posted.findings[] | select(.confidence == "medium") | .path] | sort' <<<"$result")"
+assert_eq "確度優先のタイブレーク: reportedはconfidence=mediumの末尾5件(a08〜a12)" \
+  '["a08.sh","a09.sh","a10.sh","a11.sh","a12.sh"]' \
+  "$(jq -c '[.reported.findings[].path] | sort' <<<"$result")"
+
+# --- 行番号タイブレーク（同一パス・同一確度で line 昇順に切る） -------------
+# 同一パス・confidence=highのfindings 25件を、line降順（25→1）で入力する。
+# sort_keyの第3要素（line）が効いていなければ、入力順のまま先頭25件が残ってしまう。
+
+majorSamePath="$(jq -n -c '[range(25; 0; -1) | {
+  path: "same.sh", line: ., severity: "major", confidence: "high",
+  category: "x", title: "t", body: "b"
+}]')"
+input="$(printf '%s\n' "$majorSamePath" | concat_findings)"
+result="$(run_select "$input")"
+assert_eq "行番号タイブレーク: postedは20件" "20" "$(count_posted "$result")"
+assert_eq "行番号タイブレーク: postedはline1〜20（昇順で残る）" \
+  "[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20]" \
+  "$(jq -c '[.posted.findings[].line] | sort' <<<"$result")"
+assert_eq "行番号タイブレーク: reportedはline21〜25" \
+  "[21,22,23,24,25]" \
+  "$(jq -c '[.reported.findings[].line] | sort' <<<"$result")"
+
+# --- minorがpostedへ入る経路（major→minorの順で層を追加する分岐そのものの確認） ---
+
+major3="$(make_layer major 3 m)"
+minor4="$(make_layer minor 4 n)"
+input="$(printf '%s\n%s\n' "$major3" "$minor4" | concat_findings)"
+result="$(run_select "$input")"
+assert_eq "minorがpostedへ入る: posted=7（major3+minor4）" "7" "$(count_posted "$result")"
+assert_eq "minorがpostedへ入る: reportedは0件" "0" "$(count_reported "$result")"
+
+# --- ちょうど20件（ハードシーリングの境界。層を丸ごと追加できる） -----------
+
+major20="$(make_layer major 20 m)"
+input="$(printf '%s\n' "$major20" | concat_findings)"
+result="$(run_select "$input")"
+assert_eq "ちょうど20件: 全件投稿される" "20" "$(count_posted "$result")"
+assert_eq "ちょうど20件: reportedは0件" "0" "$(count_reported "$result")"
+
+# --- blockerがハードシーリングの枠を消費すること（blocker5+major15=ちょうど20件） ---
+
+blocker5="$(make_layer blocker 5 b)"
+major15="$(make_layer major 15 m)"
+input="$(printf '%s\n%s\n' "$blocker5" "$major15" | concat_findings)"
+result="$(run_select "$input")"
+assert_eq "blocker5+major15=20件: 全件投稿される" "20" "$(count_posted "$result")"
+assert_eq "blocker5+major15=20件: reportedは0件" "0" "$(count_reported "$result")"
+
+# --- blockerがハードシーリングの枠を消費し、下位層が層内で切られる境界 -------
+# blocker9件（全件投稿・打ち切り判定10件未満なのでmajorも追加対象）+ major15件。
+# 20件の枠のうちblockerが9件を消費するため、majorは残り11件までしか入らない。
+
+blocker9="$(make_layer blocker 9 b)"
+major15b="$(make_layer major 15 m)"
+input="$(printf '%s\n%s\n' "$blocker9" "$major15b" | concat_findings)"
+result="$(run_select "$input")"
+assert_eq "blocker9+major15: postedは20件（blocker9+major11）" "20" "$(count_posted "$result")"
+assert_eq "blocker9+major15: reportedは4件（majorの残り）" "4" "$(count_reported "$result")"
 
 # --- 防御: 上流の確度×重大度表で本来除外されるはずのnitが紛れ込んでも、
 #     予算を消費せずreportedへ回る ------------------------------------------
@@ -140,6 +208,51 @@ input="$(printf '%s\n%s\n' "$blocker1b" "$nit3" | concat_findings)"
 result="$(run_select "$input")"
 assert_eq "nit混入: blocker1件のみpostedへ" "1" "$(count_posted "$result")"
 assert_eq "nit混入: nit3件はreportedへ" "3" "$(count_reported "$result")"
+
+# --- main の入力検証 --------------------------------------------------------
+
+if main "$tmp_dir/nonexistent.json" >/dev/null 2>&1; then
+  status=0
+else
+  status=$?
+fi
+assert_eq "main: 存在しないファイルは終了コード1" "1" "$status"
+
+empty_file="$tmp_dir/empty.json"
+: > "$empty_file"
+if main "$empty_file" >/dev/null 2>&1; then
+  status=0
+else
+  status=$?
+fi
+assert_eq "main: 空ファイルは終了コード1" "1" "$status"
+
+no_findings_key="$tmp_dir/no_findings_key.json"
+printf '{}' > "$no_findings_key"
+if main "$no_findings_key" >/dev/null 2>&1; then
+  status=0
+else
+  status=$?
+fi
+assert_eq "main: findingsキーが無いJSONは終了コード1" "1" "$status"
+
+array_input="$tmp_dir/array.json"
+printf '[]' > "$array_input"
+if main "$array_input" >/dev/null 2>&1; then
+  status=0
+else
+  status=$?
+fi
+assert_eq "main: トップレベルが配列は終了コード1" "1" "$status"
+
+valid_input="$tmp_dir/valid.json"
+printf '{"findings":[]}' > "$valid_input"
+if main "$valid_input" >/dev/null 2>&1; then
+  status=0
+else
+  status=$?
+fi
+assert_eq "main: 有効な入力は終了コード0" "0" "$status"
 
 echo "passed=$passed failures=$failures"
 [ "$failures" -eq 0 ]

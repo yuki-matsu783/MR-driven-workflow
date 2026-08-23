@@ -7,15 +7,21 @@
 # 実際に何件投稿するかを次の層単位ルールで決定的に選別する。同じfindingsからは常に同じ
 # 投稿集合が得られ、同一重大度内でどれを落とすかがAIエージェントの裁量にならないようにする。
 #
-#   1. blocker は全件投稿する（件数上限の対象外。単独で20件を超えても全件投稿し、
-#      下位層は追加しない）。
+#   1. blocker は全件投稿する（「投稿するかどうか」自体は上限の対象外。単独で20件を
+#      超えても全件投稿し、その場合は下位層を追加しない）。
 #   2. blocker より下の層（major → minor）は、重大度の高い順に「層単位」で追加する。
 #      層の途中では切らない。累計が10件（層追加のしきい値）に達した時点で、
 #      それより下の層は追加しない。
 #   3. 絶対上限（ハードシーリング）は20件。層を丸ごと追加すると累計が20件を超える場合に
-#      限り、その層内を確度の降順→パスの昇順→行番号の昇順の決定的な順序で20件まで切る
-#      （blockerはこの上限の対象外）。
-#   4. 選ばれなかったfindingsは reported（報告のみ。会話・worklogへの書き出し）へ回す。
+#      限り、その層内を確度の降順→パスの昇順→行番号の昇順の決定的な順序で20件まで切る。
+#      **blockerの件数自体はこの20件の枠を消費する**（blocker 9件 + major 15件のように
+#      合計が20件を超える場合、majorは 20-9=11件までで切られる。「blockerはこの上限の
+#      対象外」なのは打ち切り判定（2.で減らされない）だけで、消費した枠まで対象外には
+#      ならない）。
+#   4. この選別で漏れたfindings（層追加のしきい値・ハードシーリングで切られたもの）は、
+#      reported（報告のみ。会話・worklogへの書き出し）へ回す。**1次振り分けで「報告」に
+#      区分されたfindingsは、そもそもこのスクリプトへ渡っていない**ため reported には
+#      含まれない（呼び出し側で両者を合わせて報告する）。
 #
 # 使い方:
 #   bash .claude/scripts/src/select-adversarial-findings.sh <findings JSONファイル>
@@ -23,7 +29,10 @@
 # 入力は {"findings":[{path,line,severity,confidence,...}, ...]} の形（1次振り分けを
 # 通過した投稿候補。adversarial-reviewer サブエージェントのfindingsスキーマに準ずる）。
 # 標準出力へ {"posted":{"findings":[...]},"reported":{"findings":[...]}} を出す。
-# `posted.findings` はそのまま add_mr_inline_comments（Provider.sh）へ渡せる形。
+# `.posted`（オブジェクト全体。`.posted.findings` という配列単体ではない）を一時ファイルへ
+# 書き出せば、そのまま add_mr_inline_comments（Provider.sh）へ渡せる形になる。呼び出し側の
+# `github_filter_findings_by_valid_lines`（Github.sh）は入力の直下に `.findings` キーを
+# 持つオブジェクトを要求するため、配列を直接渡すと失敗する。
 #
 # findingsは必ずファイル経由でjqへ渡す（jqの引数長上限を避けるため。
 # .claude/rules/shell-script-style.md「JSON操作」）。jqの起動は1回に集約する。
@@ -104,6 +113,17 @@ main() {
   fi
   if [ ! -f "$input_file" ]; then
     printf 'ファイルが見つかりません: %s\n' "$input_file" >&2
+    return 1
+  fi
+  # 空文字列チェックを jq -e . より先に行う（空入力に対し jq -e . が終了コード0を返す
+  # ことがあるため。.claude/rules/shell-script-style.md「JSON操作」）。
+  if [ ! -s "$input_file" ]; then
+    printf 'findingsファイルが空です: %s\n' "$input_file" >&2
+    return 1
+  fi
+  if ! jq -e 'type == "object" and has("findings") and (.findings | type == "array")' \
+    "$input_file" >/dev/null 2>&1; then
+    printf '入力が {"findings":[...]} の形式ではありません: %s\n' "$input_file" >&2
     return 1
   fi
 
