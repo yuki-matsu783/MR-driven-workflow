@@ -18,7 +18,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - ブランチ: claude/gemini-cli-telemetry-reporting-a253xp
 - PR: https://github.com/yuki-matsu783/MR-driven-workflow/pull/174
 - push回数: 3
-- 現在のループ: なし
+- 現在のループ: 2-6〜2-9 の1周目（完了）
 - 追従監視: 購読あり（web。subscribe_pr_activity + 1時間ごとの自己チェックイン）
 
 | 進捗 | flow-id | ステップ | 担当 |
@@ -31,13 +31,13 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 | [x] | 1-6 | 全体作業計画をもとにHANDOFF.mdを更新する | エージェント |
 | [x] | 2-1 | 個別調査計画を作成する | エージェント |
 | [x] | 2-2 | commitしpushしてレビュー依頼を行う | エージェント |
-| [] | 2-3 | 調査計画についてレビュー・コメントする | 人間 |
-| [] | 2-4 | レビュー内容を取得し調査計画を修正する | comments/reply |
-| [] | 2-5 | 調査計画をもとにMR descriptionを更新する | describe |
-| [] | 2-6 | 調査を実施する | エージェント |
-| [] | 2-7 | commitしpushしてレビュー依頼を行う | エージェント |
-| [] | 2-8 | 調査結果についてレビュー・コメントする | 人間 |
-| [] | 2-9 | レビュー内容を取得し調査結果を修正する | comments/reply |
+| [x] | 2-3 | 調査計画についてレビュー・コメントする | 人間 |
+| [x] | 2-4 | レビュー内容を取得し調査計画を修正する | comments/reply |
+| [x] | 2-5 | 調査計画をもとにMR descriptionを更新する | describe |
+| [x] | 2-6 | 調査を実施する | エージェント |
+| [x] | 2-7 | commitしpushしてレビュー依頼を行う | エージェント |
+| [x] | 2-8 | 調査結果についてレビュー・コメントする | 人間 |
+| [x] | 2-9 | レビュー内容を取得し調査結果を修正する | comments/reply |
 | [] | 2-10 | 調査結果をもとにMR descriptionを更新する | describe |
 | [] | 3-1 | 個別作業計画を作成する | エージェント |
 | [] | 3-2 | commitしpushしてレビュー依頼を行う | エージェント |
@@ -86,10 +86,25 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
   （TelemetrySettingsスキーマ確認）の追加、前提節・受け入れ条件対応表の追加、検証節の実行可能化、
   受け入れ条件番号の訂正、HTMLの方針節の詳細化、md/html見出しの統一。
 
+- flow-id 2-3/2-4: ユーザーから「レビュー済み」の合図を受けた。`comments all`相当
+  （`pull_request_read` method="get_review_comments"）で再取得したところ、10件のスレッドは
+  すべて自分（敵対的レビュー）の指摘で、人間からの新規指摘は0件だった。返信が0件だったため
+  この場で全10件へ対応内容を返信した（unresolvedのまま残っているが、resolve操作はレビュアー
+  側の操作のため）。
+
+- flow-id 2-5: MR #174のdescriptionを調査計画の内容で更新した。
+- flow-id 2-6: 実機（`gemini`コマンド）はこの実行環境に存在しないため不可と判定し、
+  `google-gemini/gemini-cli`のGitHub公式ソース（mainブランチ）をWebSearch/WebFetchで直接確認して
+  8項目すべてに判断根拠を得た。結果を`reports/20260823_squishy-painting-coral_Gemini-CLI
+  テレメトリ出力形式と統合方針の調査結果.md`（＋同名html）へ記録した。主な発見:
+  出力ファイルは単一ファイル・追記型でspans/logs/metricsが混在し1行1JSONではない
+  （pretty-print＋改行区切り）、`telemetry`設定はsettings.jsonのトップレベルキー、
+  出力先はissue #103と整合させない（Gemini CLI側にローテーション機構が無いため）。
+
 ## 次にやること
 
-- flow-id 2-2完了。commitしpush3を実行済み。次は人間のレビュー依頼メッセージを出し、
-  flow-id 2-3（人間によるレビュー）を待つ。
+- flow-id 2-7: 修正済みのreports・worklog・HANDOFF.mdをcommitしてpushし、
+  フェーズ2の敵対的レビュー（2回目）を実施する。
 
 ## 判断を迷った内容
 

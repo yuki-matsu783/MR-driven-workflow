@@ -1,0 +1,287 @@
+<!--
+  issue #105 フェーズ2 調査結果（flow-id 2-6）の人間レビュー用HTMLビュー。
+  正文は同名の .md であり、本ファイルはその視覚化。内容はmd側と同期させる。
+  土台: .claude/skills/issue-mr-flow/assets/reports.template.html
+-->
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gemini CLIテレメトリ出力形式と統合方針の調査結果 — issue #105</title>
+<style>
+  :root {
+    --bg: #f6f7f9;      --panel: #ffffff;   --ink: #1a1d21;     --muted: #5b636d;
+    --line: #dfe3e8;    --accent: #2563eb;  --accent-soft: #eaf0fe;
+    --ok: #1a7f4b;      --ok-soft: #e6f4ec; --warn: #a35a00;    --warn-soft: #fdf1e0;
+    --stop: #b3261e;    --stop-soft: #fdecea; --code-bg: #f0f2f5;
+    --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1216;    --panel: #161a20;   --ink: #e6e8eb;     --muted: #9aa3ad;
+      --line: #2a3038;  --accent: #7aa2f7;  --accent-soft: #1b2333;
+      --ok: #6ee7a8;    --ok-soft: #14261d; --warn: #f0b866;    --warn-soft: #2a2113;
+      --stop: #f2857c;  --stop-soft: #2b1614; --code-bg: #1d222a;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", system-ui, sans-serif;
+    line-height: 1.8; font-size: 15px;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 20px 80px; }
+  header.band {
+    background: linear-gradient(135deg, var(--accent-soft), var(--panel));
+    border-bottom: 1px solid var(--line); padding: 28px 20px 22px; margin-bottom: 28px;
+  }
+  header.band .inner { max-width: 1080px; margin: 0 auto; }
+  header.band .kind { font-size: 11px; letter-spacing: .18em; color: var(--accent); font-weight: 700; }
+  header.band h1 { margin: 6px 0 4px; font-size: 26px; line-height: 1.4; }
+  header.band .lead { margin: 0; color: var(--muted); }
+  .meta { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; padding: 0; list-style: none; }
+  .meta li {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 999px;
+    padding: 3px 12px; font-size: 12.5px; color: var(--muted); white-space: nowrap;
+  }
+  .meta li b { color: var(--ink); font-weight: 600; }
+  nav.toc {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 14px 20px; margin-bottom: 28px;
+  }
+  nav.toc h2 { margin: 0 0 8px; font-size: 13px; letter-spacing: .08em; color: var(--muted); border: 0; padding: 0; }
+  nav.toc ol { margin: 0; padding-left: 20px; }
+  nav.toc li { margin: 2px 0; }
+  a { color: var(--accent); }
+  section {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 8px 24px 22px; margin-bottom: 22px;
+  }
+  h2 { font-size: 20px; margin: 20px 0 10px; padding-bottom: 8px; border-bottom: 2px solid var(--line); }
+  h3 { font-size: 16px; margin: 22px 0 8px; color: var(--accent); }
+  p { margin: 10px 0; }
+  ul, ol { padding-left: 22px; }
+  li { margin: 4px 0; }
+  blockquote { margin: 10px 0; padding: 6px 14px; border-left: 3px solid var(--line); color: var(--muted); }
+  .tablewrap { overflow-x: auto; margin: 14px 0; }
+  table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 14px; }
+  th, td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: var(--accent-soft); font-weight: 600; white-space: nowrap; }
+  tbody tr:nth-child(even) td { background: color-mix(in srgb, var(--line) 22%, transparent); }
+  code {
+    background: var(--code-bg); border-radius: 5px; padding: 1px 5px; font-size: 13px;
+    font-family: "SFMono-Regular", Consolas, "Noto Sans Mono", monospace;
+  }
+  pre {
+    background: var(--code-bg); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 12px 14px; overflow-x: auto; font-size: 13px; line-height: 1.65;
+  }
+  pre code { background: none; padding: 0; }
+  .box { border-left: 4px solid var(--accent); background: var(--accent-soft);
+         border-radius: 0 var(--radius) var(--radius) 0; padding: 12px 16px; margin: 16px 0; }
+  .box > :first-child { margin-top: 0; } .box > :last-child { margin-bottom: 0; }
+  .box .label { font-size: 12px; font-weight: 700; letter-spacing: .06em; display: block; margin-bottom: 4px; }
+  .box.ok { border-color: var(--ok); background: var(--ok-soft); } .box.ok .label { color: var(--ok); }
+  .box.warn { border-color: var(--warn); background: var(--warn-soft); } .box.warn .label { color: var(--warn); }
+  .box.stop { border-color: var(--stop); background: var(--stop-soft); } .box.stop .label { color: var(--stop); }
+  .box.info .label { color: var(--accent); }
+  .tag { display: inline-block; border-radius: 999px; padding: 1px 9px; font-size: 12px; font-weight: 600; }
+  .tag.ok { background: var(--ok-soft); color: var(--ok); }
+  .tag.warn { background: var(--warn-soft); color: var(--warn); }
+  .tag.stop { background: var(--stop-soft); color: var(--stop); }
+  footer { color: var(--muted); font-size: 13px; text-align: center; padding-top: 10px; }
+</style>
+</head>
+<body>
+
+<header class="band">
+  <div class="inner">
+    <div class="kind">調査結果レポート / フェーズ2</div>
+    <h1>Gemini CLIテレメトリ出力形式と統合方針の調査結果</h1>
+    <p class="lead">Gemini CLI公式ソースコードを直接確認し、出力ファイル形式・settings.jsonスキーマ・出力先配置・差分カーソル単位・二重計上回避・logPrompts・既定有効化・ローテーションの8項目すべてに判断根拠を得た。実機（Gemini CLI起動）での確認はこの実行環境では実施できなかった。</p>
+    <ul class="meta">
+      <li><b>issue</b> #105</li>
+      <li><b>ブランチ</b> claude/gemini-cli-telemetry-reporting-a253xp</li>
+      <li><b>PR</b> #174</li>
+      <li><b>フェーズ</b> 2〈調査〉 flow-id 2-6</li>
+      <li><b>作成日</b> 2026-08-23</li>
+      <li><b>正文</b> 同名の .md</li>
+    </ul>
+  </div>
+</header>
+
+<div class="wrap">
+
+<nav class="toc">
+  <h2>目次</h2>
+  <ol>
+    <li><a href="#summary">サマリ（結論の一覧）</a></li>
+    <li><a href="#conditions">実施条件（測った対象・環境）</a></li>
+    <li><a href="#findings">実施した内容と結果</a></li>
+    <li><a href="#unverified">確かめられなかったこと</a></li>
+    <li><a href="#next">設計への反映</a></li>
+    <li><a href="#todo">残課題</a></li>
+  </ol>
+</nav>
+
+<section id="summary">
+  <h2>サマリ（結論の一覧）</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>#</th><th>問い／やったこと</th><th>結論</th><th>根拠の性質</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td>出力ファイル形式</td><td><b>単一ファイル・追記型・spans/logs/metrics混在・各エントリはpretty-print複数行JSON（末尾改行区切り）</b></td><td>公式ソースコードの確認（実機未検証）</td></tr>
+      <tr><td>2</td><td>settings.jsonのスキーマ</td><td><b>telemetryはトップレベルキー。enabled/target/otlpEndpoint/otlpProtocol/outfile/logPrompts/useCollector/useCliAuth</b></td><td>公式ソースコード・ドキュメントの確認</td></tr>
+      <tr><td>3</td><td>出力先配置（issue #103との整合）</td><td><b>整合させない（Gemini CLI側にローテーション機構が無いため）。固定ファイル名にする</b></td><td>公式ソースコードの確認</td></tr>
+      <tr><td>4</td><td>差分カーソル単位</td><td><b>バイトオフセットカーソル（行カーソル・畳み込み方式のいずれも不適）</b></td><td>1.の結果からの設計判断</td></tr>
+      <tr><td>5</td><td>二重計上回避</td><td><b>別状態ファイル・レポート上は別セクション表示（合算しない）</b></td><td>既存実装（issue #97）との整合を優先した設計判断</td></tr>
+      <tr><td>6</td><td>logPromptsの扱い</td><td><b>既定trueだが false を明示指定する</b></td><td>公式ドキュメントの確認</td></tr>
+      <tr><td>7</td><td>既定有効化の可否</td><td><b>logPrompts:false前提でtelemetry.enabled:trueを既定ONにする</b></td><td>issue #103の判断に揃える設計判断</td></tr>
+      <tr><td>8</td><td>ローテーション方針</td><td><b>当面実装しない（実行中プロセスへの影響が避けられないため）</b></td><td>Unix系ファイルディスクリプタの一般的挙動からの推論</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="conditions">
+  <h2>実施条件（測った対象・環境）</h2>
+  <ul>
+    <li>実行環境: Claude Code on the webのリモート実行環境（<code>gemini</code>コマンド不在を確認済み）</li>
+    <li>対象: <code>google-gemini/gemini-cli</code> GitHub <code>main</code>ブランチ（2026-08-23時点）のソースコード・公式ドキュメント（WebSearch/WebFetch経由）</li>
+    <li>実施日: 2026-08-23</li>
+  </ul>
+</section>
+
+<section id="findings">
+  <h2>実施した内容と結果</h2>
+
+  <h3>1. 出力ファイル形式</h3>
+  <p><code>command -v gemini</code> で実機の有無を確認したところ存在しなかった（exit=1）ため、
+    公式ソースコードを直接確認した。</p>
+  <pre><code>$ command -v gemini; echo "exit=$?"
+exit=1</code></pre>
+  <p><code>packages/core/src/telemetry/sdk.ts</code>で、FileSpanExporter / FileLogExporter /
+    FileMetricExporterの3つが**すべて同一の<code>telemetryOutfile</code>値**で初期化される
+    ことを確認した。<code>packages/core/src/telemetry/file-exporters.ts</code>のコンストラクタは
+    <code>fs.createWriteStream(filePath, { flags: 'a' })</code>（追記モード）、シリアライズは
+    <code>safeJsonStringify(data, 2) + '\n'</code>（インデント2のpretty-print JSON＋末尾改行）。
+    <code>gemini_cli.api_response</code>は<code>logger.emit()</code>によるLogRecordとして記録される
+    （Spanイベントではない。<code>packages/core/src/telemetry/loggers.ts</code>）。</p>
+  <div class="box ok">
+    <span class="label">結論</span>
+    単一ファイル・追記型・spans/logs/metrics混在。「1行1JSON」ではなく、複数行にわたる
+    pretty-print JSONが改行区切りで連続する形式。ローテーション実装は無い。
+  </div>
+
+  <h3>2. settings.jsonのスキーマ確認</h3>
+  <p><code>packages/cli/src/config/settingsSchema.ts</code>で<code>telemetry</code>キーが
+    <code>type: 'object'</code>, <code>ref: 'TelemetrySettings'</code>としてトップレベルに
+    定義されていることを確認した。</p>
+  <pre><code>telemetry: {
+  type: 'object',
+  category: 'Advanced',
+  ref: 'TelemetrySettings',
+  ...
+}</code></pre>
+  <div class="box ok">
+    <span class="label">結論</span>
+    <code>telemetry</code>は<code>general</code>配下ではなくトップレベルキー。現行の
+    <code>.gemini/settings.json</code>（<code>general.plan.directory</code>, <code>hooks</code>）
+    と衝突しない。
+  </div>
+
+  <h3>3. 出力先配置の比較</h3>
+  <p>issue #103は常駐perlリスナー自身が日付ベースでファイルを切り替えて
+    <code>usage/claude-otel-YYYYMMDD.jsonl</code>を実現している。Gemini CLI側の
+    <code>outfile</code>は静的設定の単一固定パスであり、同等の仕組みを持たない。</p>
+  <div class="box warn">
+    <span class="label">結論</span>
+    完全な整合は取れない。出力先は固定ファイル名（例: <code>usage/gemini-otel.log</code>）とし、
+    整合しない理由をDDRへ記録する。
+  </div>
+
+  <h3>4. 差分カーソル単位の判定</h3>
+  <p>単一ファイル・追記型・複数行JSON混在という性質から、Claude Code経路の行カーソル方式、
+    Gemini CLIセッションログ経路の畳み込み方式（DDR i0097-01）のいずれも適さない。</p>
+  <div class="box ok">
+    <span class="label">結論</span>
+    バイトオフセットカーソル（前回処理した末尾バイト位置を記録し、以降を新規として集計）を推奨する。
+    各エントリは一度しか出力されないため二重計上は起きない。
+  </div>
+
+  <h3>5. 二重計上回避方針</h3>
+  <p>セッションログ由来（issue #97）とテレメトリ由来は入力データソースが完全に別物。</p>
+  <div class="box ok">
+    <span class="label">結論</span>
+    別の状態ファイルを持たせ、レポート上も既存の<code>tokensByModel</code>へ合算せず、
+    別セクション（参考値）として表示する方針を推奨する。既存の安定稼働（issue #97）への
+    影響を避けるため。
+  </div>
+
+  <h3>6. logPromptsの扱い</h3>
+  <p>既定値は<code>true</code>。プロンプト本文がログレコードへ含まれる設計と見られる。</p>
+  <div class="box warn">
+    <span class="label">結論</span>
+    <code>logPrompts: false</code>を明示指定する。
+  </div>
+
+  <h3>7. 既定有効化の可否</h3>
+  <p>issue #103はClaude Code側を配布先全体で既定ONにしている。</p>
+  <div class="box ok">
+    <span class="label">結論</span>
+    <code>logPrompts: false</code>前提であれば、<code>telemetry.enabled: true</code>を既定ONに
+    してissue #103の判断に揃える。
+  </div>
+
+  <h3>8. ローテーション方針</h3>
+  <p>Gemini CLI本体にローテーション機構は無く、実行中プロセスの追記先を安全に切り替える手段も
+    本機構側からは無い（同一inodeへの書き込み継続）。</p>
+  <div class="box warn">
+    <span class="label">結論</span>
+    当面ローテーションを実装しない。4.のバイトオフセットカーソルにより集計の正しさは保たれる。
+  </div>
+</section>
+
+<section id="unverified">
+  <h2>確かめられなかったこと</h2>
+  <div class="box warn">
+    <span class="label">この結果が言っていないこと</span>
+    <ul>
+      <li>Gemini CLI実機での動作確認（受け入れ条件1の生成確認、ファイル形式の実データ確認）。
+        この実行環境には<code>gemini</code>コマンドが無いため実施できなかった</li>
+      <li><code>session.id</code>属性がresource属性かlog属性かは未確認</li>
+      <li><code>TelemetrySettings</code>型の完全なフィールド定義（型・必須/任意の詳細）は
+        本調査の範囲では特定できなかった。判断に必要な範囲（キー名・ネスト位置・既定値）は
+        <code>docs/cli/telemetry.md</code>と<code>settingsSchema.ts</code>から確認済み</li>
+    </ul>
+  </div>
+</section>
+
+<section id="next">
+  <h2>設計への反映</h2>
+  <ol>
+    <li>フェーズ3の個別作業計画で、上記8項目の判断（サマリ表参照）を実装方針として採用する</li>
+    <li>受け入れ条件1（実機での生成確認）は、フェーズ3のレビュー往復（3-8/3-9）または
+      人間への依頼として個別作業計画に明記する</li>
+    <li>出力先配置・二重計上回避・logPrompts既定・既定有効化・ローテーション方針の各判断は、
+      フェーズ4でDDRとして記録する（issue #105受け入れ条件8）</li>
+    <li>仕様（設定項目・出力形式・集計方法・未検証の範囲）は<code>.claude/docs/spec/</code>へ
+      フェーズ4で記録する（issue #105受け入れ条件9）</li>
+  </ol>
+</section>
+
+<section id="todo">
+  <h2>残課題</h2>
+  <ul>
+    <li>Gemini CLI実機での出力確認（フェーズ3以降、人間のローカル環境での確認を依頼する）</li>
+    <li>テストフィクスチャは公式ソースコードからの推測に基づくため、実機出力が得られ次第
+      差し替える</li>
+  </ul>
+</section>
+
+<footer>issue #105 / PR #174 — 結果の正文は同名の <code>.md</code>。外部依存を持たない自己完結HTML。</footer>
+
+</div>
+</body>
+</html>

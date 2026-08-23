@@ -44,9 +44,30 @@ push回数: 3（予定）
   冒頭に説明コメントを追加。report11（outfile形式の推測依存）も方針3・8の記述から
   「可能性が高い」という決め打ちを外し、両方の場合分けを明記する形で対応した。
 
+## 追記（flow-id 2-6・調査実施）
+
+- 実機検証可否を`command -v gemini`で確認 → 存在せず（exit=1）。実機起動での検証は不可。
+- 代替として、`google-gemini/gemini-cli`のGitHub `main`ブランチ（2026-08-23時点）を
+  WebSearch/WebFetchで直接確認した。主な発見:
+  - `packages/core/src/telemetry/file-exporters.ts`: FileSpanExporter/FileLogExporter/
+    FileMetricExporterはコンストラクタで`filePath`を受け取り追記モード（`flags:'a'`）で開く。
+    シリアライズは`JSON.stringify(data,null,2)+'\n'`（pretty-print、**1行1JSONではない**）。
+  - `packages/core/src/telemetry/sdk.ts`: 3エクスポータはすべて同一の`telemetryOutfile`で
+    初期化される → **単一ファイルにspans/logs/metricsが混在**。
+  - `packages/core/src/telemetry/loggers.ts`: `gemini_cli.api_response`はLogRecord
+    （`logger.emit()`）として記録される（Spanイベントではない）。
+  - `packages/cli/src/config/settingsSchema.ts`: `telemetry`はトップレベルキー
+    （`general`配下ではない）。
+  - GitHub検索（`/search?q=`）はレート制限（429, Retry-After: 3600）に当たったため、
+    `TelemetrySettings`型の完全な定義ファイルへは到達できなかった。判断に必要な範囲
+    （キー名・ネスト位置・既定値）は`docs/cli/telemetry.md`から確認済み。
+- 8項目すべてに判断根拠を得られたため、`reports/20260823_squishy-painting-coral_
+  Gemini-CLIテレメトリ出力形式と統合方針の調査結果.md`（＋同名html）へ記録した。
+  検証コマンド（8項目それぞれの見出し件数）はすべて1以上を返すことを確認済み。
+
 ## 次の一歩
 
-- flow-id 2-2: 修正内容を`commit`スキル経由でcommitし、pushしてレビュー依頼を行う。
-- flow-id 2-6: 本計画に従い実際の調査を実施し、`reports/`へ結果を記録する。
+- flow-id 2-7: `commit`スキル経由でcommitし、pushしてレビュー依頼を行う。
+- push後、フェーズ2の敵対的レビューを1回実施する（2回目、ユーザー指示）。
 
 ---
