@@ -121,7 +121,7 @@
   <h2>前提（合意状況）</h2>
   <ul>
     <li>上位の計画: <code>plans/vivid-report-canvas.md</code>（flow-id 1-5 で包括指示を承認とみなし合意）</li>
-    <li>手順の正: <code>.claude/skills/issue-mr-flow/references/planning.md</code>「AIアセット反映の対象の洗い出し」（手順1: 起点の列挙 → 手順2: 4類型への分類 → 手順3: 痕跡の確認と打ち切り）</li>
+    <li>手順の正: <code>.claude/skills/issue-mr-flow/references/planning.md</code>「AIアセット反映の対象の洗い出し」（手順1: 起点の列挙 → 手順2: 4類型への分類 → 手順3: 痕跡の確認と打ち切り → <b>手順4: 反映先の形態の決定</b>〈いつ効いてほしいか × 守らせ方の強さ の2軸〉）</li>
   </ul>
 </section>
 
@@ -132,14 +132,16 @@
 
 <section id="target">
   <h2>変更対象</h2>
-  <p>手順1〜3の実施結果で確定するが、洗い出しの入力（worklog・reports・レビュー往復）から現時点で見えている候補は次の3件。<b>最終の分類と採否は 4-6 実施時に手順どおり判定し、結果を反映結果レポートの表に残す。</b></p>
+  <p>手順1〜4の実施結果で確定するが、洗い出しの入力から現時点で見えている候補は次の5件。<b>最終の列挙（全件）・分類・採否は 4-6 実施時に手順どおり判定し、候補に至らなかった項目と落とした理由も含めて反映結果レポートの表に残す</b>（絞り込みの基準は「方針」）。</p>
   <div class="tablewrap">
   <table>
     <thead><tr><th>#</th><th>候補</th><th>見込みの類型</th><th>見込みの反映先</th></tr></thead>
     <tbody>
       <tr><td>1</td><td>テンプレートへ新設した「重点レビュー依頼」節・結論カード・未確認一覧の<b>埋まり方</b>を見る観点が <code>reports/REVIEW-POINTS.md</code> に無い（調査結果「設計への反映」項目3で本フェーズへ送った判断）</td><td>(c) 罠が書かれていない</td><td><code>reports/REVIEW-POINTS.md</code> へ観点を追記（3段階が埋まっているか・結論カードの4要素・件数チップの一致・リンク破断/重複ID検査の実施）</td></tr>
-      <tr><td>2</td><td>「異常が無ければ何も出ない検査は、抽出パターンが拾う母集団まで疑う（変異コピーで検出できることを確かめる）」という教訓</td><td>(c)〜(d)（<code>.claude/rules/shell-script-style.md</code>「テスト」に類似記述あり。手順3の痕跡確認で判定）</td><td>痕跡が見つかれば (d)（導線）または反映不要。見つからなければ <code>reports/REVIEW-POINTS.md</code> の検査観点へ1行</td></tr>
-      <tr><td>3</td><td>数値（行数・件数）を書く直前に実測する規律を2回破った</td><td>反映対象ではない見込み（<code>reports/REVIEW-POINTS.md</code>「書いた数値と事実を、書く直前に実測したか」が既にあり、敵対的レビューはこの観点で検出に成功している＝アセットは機能した）</td><td>無し（判断根拠をレポートへ記録）</td></tr>
+      <tr><td>2</td><td>「異常が無ければ何も出ない検査は、抽出パターンが拾う母集団まで疑う（変異コピーで検出できることを確かめる）」という教訓</td><td><b>(d) または反映不要</b>の見込み（<b>既知の痕跡が2箇所</b>: ルート <code>REVIEW-POINTS.md</code>「意図的に異常を作って落ちることを確かめる」・<code>plans/REVIEW-POINTS.md</code>「検証手順」〈ルートを正として参照〉。ほかに <code>.claude/rules/shell-script-style.md</code>「テスト」にも同型の記述。判定はこの痕跡の存在から始める）</td><td>痕跡があるため追記はしない見込み（書き足すと issue #155 が踏んだ「既にある記述の隣へ同じことを書く」形になる）。導線の問題が確認できた場合のみ (d)</td></tr>
+      <tr><td>3</td><td>数値（行数・件数）を書く直前に実測する規律を破った（調査結果の内訳・作業結果の行数・本計画のworklog本数で<b>計3回</b>）</td><td>反映対象ではない見込み（<code>reports/REVIEW-POINTS.md</code>「書いた数値と事実を、書く直前に実測したか」が既にあり、敵対的レビューはこの観点で3回とも検出に成功している＝アセットは機能した）</td><td>無し（判断根拠をレポートへ記録）</td></tr>
+      <tr><td>4</td><td><b>アンカー破断・重複IDの観点が <code>plans/REVIEW-POINTS.md</code>「HTML版」に無い</b>（計画HTMLも目次から7本のアンカーを張っており、同じ罠が plans/ 側でも起こる。ディレクトリで機械的に切らず罠の再現性で判定する）</td><td>(c) 罠が書かれていない</td><td><code>plans/REVIEW-POINTS.md</code> へ追記（reports側と重複記載せず、検査の正を参照する導線の形も検討）</td></tr>
+      <tr><td>5</td><td><b>新設節「重点レビュー依頼」を <code>planning.md</code> 手順1の入力節リストへ加えるか</b>（手順1は reports/ の「想定と異なった点／確かめられなかったこと／残課題」の3節を固定しており、◆＝未決着の論点が集まる新設節が入力から外れ続ける）</td><td>(c)〜(d)（4-6で判定）</td><td><code>.claude/skills/issue-mr-flow/references/planning.md</code> の手順1の表へ節名を追加（または加えない判断理由をレポートへ）</td></tr>
     </tbody>
   </table>
   </div>
@@ -148,10 +150,12 @@
 <section id="approach">
   <h2>方針</h2>
   <ul>
-    <li>手順1の入力は worklog 2本・reports 2本（調査結果・作業結果）・PR #191 のレビュー往復（敵対的レビュー4回・計36件）に限る。<b>過去のMRは遡らない</b>（planning.mdの規定）。</li>
+    <li>手順1の入力は <b>worklog 3本</b>（【調査】push2・【AIアセット作成】push6・【設計反映】【AIアセット反映】push9。<b>4-6実施時点の worklog/ 全体</b>を対象にする）・reports 2本（調査結果・作業結果）・PR #191 のレビュー往復（敵対的レビュー・計36件＋本計画への指摘）。<b>過去のMRは遡らない</b>（planning.mdの規定）。</li>
+    <li><b>絞り込みの基準</b>: レビュー指摘・worklogの学びの大半は、このMRの成果物（テンプレート・レポート・計画）自体への修正として既に反映済みで完結している。アセット反映の候補になるのは<b>成果物の外へ残すべき教訓</b>（次のタスクでも効く観点・手順・導線）だけである。4-6では列挙の全件と、この基準で落とした項目・理由を反映結果レポートの表に出す（数の根拠を残す）。</li>
     <li>手順2の類型判定は<b>記述単位</b>で行う（ファイル単位で見ない。(a) を原理的に消さないため）。</li>
     <li>(c) 判定の前に手順3の痕跡確認（<code>doc-search</code> → <code>grep</code> の2段）を行い、既存記述があれば (d) へ倒す。</li>
-    <li><code>reports/REVIEW-POINTS.md</code> への追記は<b>観点の形（レビュー時に何を見るか）</b>で書き、テンプレートコメントの内容（書き方の指示）を重複記載しない（正の所在を分けたまま保つ）。</li>
+    <li><b>手順4（反映先の形態）の2軸での選択</b>: 候補1・4の反映先を <code>REVIEW-POINTS.md</code> 系にするのは、(いつ) <b>レビュー時にだけ効けばよく</b>、常時読込のルールにするほど毎ターンの判断に関わらない、(強さ) 機械的強制（hook）にするほど一意に判定できない（埋まり方の妥当性は人間・レビュアーの判断を要す）ため。<b>追記は既存の「HTML版」節の検査群と束ね、削除・統合も検討する</b>（単純追記で観点表を膨らませない。テンプレートコメントの内容〈書き方の指示〉は重複記載せず、正の所在を分けたまま保つ）。既存観点の削除が不要な場合も、その判断をレポートへ残す。</li>
+    <li><b>VERSIONとの順序</b>: 本計画の 4-6 の結果（<code>reports/REVIEW-POINTS.md</code> 等の変更範囲）が確定した後に、【設計反映】側が <code>.claude/VERSION</code> を適用する（フェーズ4の最後）。</li>
     <li>反映結果は <code>reports/20260823_vivid-report-canvas_反映結果.md</code>（＋.html。改修後テンプレートを適用）へ、洗い出しの全件・分類・採否理由の表として残す（【設計反映】分の結果も同じレポートへ併記し、フェーズ4のレポートは1組にまとめる）。</li>
   </ul>
 </section>
@@ -162,8 +166,8 @@
     <span class="label">この計画では決めない・触らない</span>
     <ul>
       <li>テンプレート本体の追加変更（フェーズ3で完了。レビューで新たな指摘があれば別途）</li>
-      <li><code>plans/REVIEW-POINTS.md</code>・ルート <code>REVIEW-POINTS.md</code> への追記（今回の副産物はレポートの視覚構成に関するもので、対象ディレクトリは <code>reports/</code> のみ。手順3で痕跡がそちらで見つかった場合の (d) 導線改善は除く）</li>
-      <li><code>.claude/VERSION</code>・spec・DDR（<code>plans/【設計反映】specチェンジログ・DDR・VERSION判断.md</code> が担当）</li>
+      <li>ルート <code>REVIEW-POINTS.md</code> への追記（候補2の痕跡が既にあり、書き足すと重複になる見込み。手順3で導線の問題が確認できた場合の (d) は除く。<code>plans/REVIEW-POINTS.md</code> は候補4で<b>検討対象に含める</b>——ディレクトリで機械的に切らず、罠が plans/ 側でも起こるかで判定する）</li>
+      <li><code>.claude/VERSION</code>・spec・DDR（<code>plans/【設計反映】specチェンジログ・DDR・VERSION判断.md</code> が担当。ただしVERSIONの適用は本計画の4-6の結果が確定した後＝フェーズ4の最後。「方針」参照）</li>
       <li><code>.gemini/</code> 配下の更新（flow-id 5-3 で追随）</li>
     </ul>
   </div>
@@ -171,16 +175,21 @@
 
 <section id="verify">
   <h2>検証</h2>
-  <pre><code># 1. 反映結果レポートに洗い出しの表（候補・類型・採否）があること
-grep -c '類型' "reports/20260823_vivid-report-canvas_反映結果.md"
+  <pre><code># 1. 反映結果レポートの洗い出し表が全件を持つこと
+#    （表の行数＝レポート自身が明記する列挙件数。行頭が「| 数字」の行を数えて突き合わせる）
+grep -c '^| [0-9]' "reports/20260823_vivid-report-canvas_反映結果.md"
 
-# 2. REVIEW-POINTS へ観点が追記されたこと（採用した場合。1件以上）
+# 2. REVIEW-POINTS への追記（候補の採否ごとに期待値が分岐する。下記）
 grep -c '重点レビュー依頼' reports/REVIEW-POINTS.md
+grep -c -- '重複ID' plans/REVIEW-POINTS.md
 
 # 3. 追記後も frontmatter が壊れていないこと（先頭行が --- のまま）
-head -1 reports/REVIEW-POINTS.md</code></pre>
+head -1 reports/REVIEW-POINTS.md
+head -1 plans/REVIEW-POINTS.md</code></pre>
   <ul>
-    <li>空振りの排除: 検証2の「重点レビュー依頼」は現在の <code>reports/REVIEW-POINTS.md</code> に0件（実測済み。追記で1件以上へ変わることが検出になる）。候補2が反映不要と判定された場合は、その判断根拠がレポートの表にあることを検証1で確かめる。</li>
+    <li>検証1は「表がある」ではなく<b>行数の一致</b>で見る: レポートに「N件を列挙した」と明記し、grepの値がそのNと一致すること（構造語の存在チェックにしない）。</li>
+    <li><b>検証2の期待値は採否で分岐する</b>: 候補1を採用（(c)）→ <code>reports/REVIEW-POINTS.md</code> の「重点レビュー依頼」が1件以上。(d)/反映不要と判定 → 0件のままが正で、代わりに判断理由の行が反映結果レポートの表にあること（検証1で確認）。候補4を採用 → <code>plans/REVIEW-POINTS.md</code> の「重複ID」が1件以上。不採用なら0件のままが正（同上）。</li>
+    <li>空振りの排除（2026-08-23実測）: 「重点レビュー依頼」は <code>reports/REVIEW-POINTS.md</code> に0件、「重複ID」は <code>plans/REVIEW-POINTS.md</code> に0件。採用時に1件以上へ変わることが検出になる。</li>
   </ul>
 </section>
 
