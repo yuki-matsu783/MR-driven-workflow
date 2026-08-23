@@ -150,10 +150,11 @@
       <tr><td>2</td><td><code>Github.sh</code> / <code>Gitlab.sh</code> にプロバイダ固有実装を追加</td><td><span class="tag ok">完了</span></td><td><b>実機で実行</b>（GitHubは成功経路、GitLabは失敗経路）</td></tr>
       <tr><td>3</td><td>GitHub Actions ワークフローを作成</td><td><span class="tag ok">完了・実機で成功</span></td><td>CIが11秒で成功し <code>gh-pages</code> が作られた</td></tr>
       <tr><td>4</td><td>GitLab CI の <code>pages</code> ジョブを作成</td><td><span class="tag warn">完了・改変版が実機で成功</span></td><td>GitLab CE + Runner を構築し、MRパイプラインで <code>pages</code> ジョブが成功した。<b>ただし動かしたのは <code>pages:</code> ブロック（<code>path_prefix</code> / <code>expire_in</code>）を削った CE 版</b>で、雛形そのものは未実行</td></tr>
-      <tr><td>5</td><td><code>sync-assets.sh</code> から <code>workflows/</code> と <code>index.jsonl</code> を除外</td><td><span class="tag ok">完了</span></td><td>実際に実行して配布物の中身を確認</td></tr>
+      <tr><td>5</td><td><code>sync-assets.sh</code> から <code>workflows/</code>・生成物・ローカル状態を除外</td><td><span class="tag ok">完了</span></td><td>実際に実行して配布物の中身を確認（<code>index.jsonl</code> 18件と <code>.claude/state/</code> が消えること）</td></tr>
       <tr><td>6</td><td><code>SKILL.md</code> への組み込み</td><td><span class="tag ok">完了</span></td><td>目視確認</td></tr>
-      <tr><td>7</td><td>単体テスト</td><td><span class="tag ok">passed=237 failures=0</span></td><td>実行結果</td></tr>
+      <tr><td>7</td><td>単体テスト</td><td><span class="tag ok">passed=244 failures=0</span></td><td>実行結果</td></tr>
       <tr><td>8</td><td>実機検証</td><td><span class="tag warn">GitHubは完了／GitLabは一部未</span></td><td>下記「作業8」</td></tr>
+      <tr><td>9</td><td>敵対的レビュー2回目（13件）の反映</td><td><span class="tag ok">完了</span></td><td>投稿7件・報告6件のすべてを反映。下記「作業9」</td></tr>
     </tbody>
   </table>
   </div>
@@ -297,6 +298,17 @@ publish-report-site.gitlab.yml</code></pre>
       含めていないため、追加の除外は要らなかった。
     </p>
   </div>
+  <p>
+    <b>生成物の除外は、作業9で「集め終えたあとに一括で消す」形へ変えた</b>（当初は
+    <code>.github/</code> の除外ループの中だけで弾いており、<code>.claude/</code> 配下の18件が
+    残っていた）。ついでに <code>.claude/state/</code>（<code>.gitignore</code> 対象のローカル
+    作業状態）も同じ性質なので落としている。
+  </p>
+<pre><code>$ bash .claude/skills/apply-mr-workflow-to-project/scripts/sync-assets.sh
+ -&gt; Removed 18 generated index.jsonl file(s)
+ -&gt; Removed local state directory (.claude/state)
+$ find .claude/skills/apply-mr-workflow-to-project/assets -name index.jsonl | wc -l
+0</code></pre>
 
   <h3>作業6: <code>SKILL.md</code> への組み込み</h3>
   <ul>
@@ -317,7 +329,7 @@ publish-report-site.gitlab.yml</code></pre>
   </p>
 
   <h3>作業7: 単体テスト</h3>
-  <p><code>test_vcs_provider.sh</code> へ <b>19件</b>を追加し、<code>passed=237 failures=0</code>。</p>
+  <p><code>test_vcs_provider.sh</code> へ <b>25件</b>を追加し、<code>passed=244 failures=0</code>。</p>
   <div class="tablewrap">
   <table>
     <thead><tr><th>対象</th><th>件数</th><th>内容</th></tr></thead>
@@ -327,7 +339,8 @@ publish-report-site.gitlab.yml</code></pre>
       <tr><td><code>github_pages_base_url_to_reply</code></td><td>2</td><td>project site / user・org site</td></tr>
       <tr><td><code>get_report_site_url</code> の経路</td><td>2</td><td>組み立て結果＋<b>差し替えがサブシェルの外へ漏れていないこと</b></td></tr>
       <tr><td><code>mcp_tool_hint</code></td><td>1</td><td>「代替なし」と案内すること</td></tr>
-      <tr><td>雛形の同一性</td><td>2</td><td>GitHub側・GitLab側</td></tr>
+      <tr><td><code>wait_for_report_site</code> の引数検査</td><td>7</td><td>空URL / 間隔0 / 間隔非数値 / 上限非数値 / 上限負 / 上限0は1回 / 上限2間隔1は3回</td></tr>
+      <tr><td>雛形の同一性</td><td>2</td><td>GitHub側・GitLab側（<b>比較先が無ければスキップし件数を出す</b>）</td></tr>
       <tr><td>（既存）</td><td>219</td><td>—</td></tr>
     </tbody>
   </table>
@@ -457,6 +470,36 @@ report_site_prefix_to_reply gitlab 1 → REPLY=mr-1</code></pre>
       なっていた。
     </p>
   </div>
+
+  <h3>作業9: 敵対的レビュー2回目の指摘への反映</h3>
+  <p>
+    投稿7件・報告のみ6件の<b>すべて</b>を反映した。GitLab関連4件は先行して直し（上記「作業8」の
+    取り直しがその結果）、残り9件をこの往復で直した。
+  </p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>指摘</th><th>直したもの</th></tr></thead>
+    <tbody>
+      <tr><td>バイト一致テストが<b>配布先では必ず失敗する</b>（配布先にCI設定が無い）</td><td><code>assert_template_identical</code> を新設し、比較先が無ければスキップ。<b>スキップ件数を出す</b>（無言のスキップにしない）</td></tr>
+      <tr><td><code>wait_for_report_site</code> は <code>require_vcs_cli</code> を通らないのに SKILL.md が「どちらも非0で終える」と書いていた／<code>mcp_tool_hint</code> の分岐が到達不能</td><td>SKILL.md を実装に合わせ、<code>mcp_tool_hint</code> の分岐を削除。<b>なぜ置かないか</b>をコメントで残した</td></tr>
+      <tr><td><code>curl</code> という新しい外部依存が「前提」に無い</td><td><code>Provider.sh</code> 冒頭へ追記。あわせて <b><code>AGENTS.md</code> の「curlへフォールバックしない」の対象外である理由</b>を関数コメントへ書いた</td></tr>
+      <tr><td><code>interval=0</code> で無限ループ／数値以外で <code>set -e</code> ごと落ちる／<code>curl</code> に <code>-L</code> が無い／実所要が上限より1周期長い</td><td>4点とも修正。<b>引数検査は <code>curl</code> を1度も呼ばずに弾く</b>ことを、呼び出し回数を数えるテスト7件で固定した</td></tr>
+      <tr><td><code>index.html</code> がファイル名をエスケープしていない</td><td>href は%エンコード、表示テキストはHTMLエスケープ。<b>GitHub版・GitLab版で同じ実装</b>にした</td></tr>
+      <tr><td>配布先向けの注意が SKILL.md と2本のYAMLヘッダに二重</td><td><b>正を SKILL.md の表に決め</b>、YAMLヘッダは「このファイルを置くときに手を入れる箇所」だけに絞った</td></tr>
+      <tr><td><code>index.jsonl</code> の除外が <code>.github/</code> にしか効いていない</td><td>集め終えたあとに<b>一括で消す</b>形へ変更（<code>.claude/</code> 配下の18件が残っていた）</td></tr>
+      <tr><td><code>index.md</code> / <code>directory-structure.md</code> に <code>.github/workflows/</code> と <code>.gitlab-ci.yml</code> が無い</td><td><b>フェーズ4の反映先</b>として <code>HANDOFF.md</code> へ記録済み（このフェーズでは直さない）</td></tr>
+      <tr><td>orphan <code>gh-pages</code> 直後の競合で <code>git pull --rebase</code> が <code>unrelated histories</code> で必ず失敗する</td><td><code>fetch</code> + <code>reset --hard FETCH_HEAD</code> してから <code>pr-&lt;n&gt;/</code> を置き直す形へ変更。同じ手順を2箇所へ書かないよう関数へ切り出した</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <div class="box ok">
+    <span class="label">ついでに見つけたもの</span>
+    <p>
+      <code>sync-assets.sh</code> は <code>.claude/state/</code>（<code>.gitignore</code> 対象の
+      ローカル作業状態）も配布物へコピーしていた。<code>index.jsonl</code> とまったく同じ性質なので、
+      同じ一括除去で落とすようにした（指摘には含まれていない）。
+    </p>
+  </div>
 </section>
 
 <section id="unverified">
@@ -478,6 +521,13 @@ report_site_prefix_to_reply gitlab 1 → REPLY=mr-1</code></pre>
       <li><b>fork からのPR</b>での挙動。</li>
       <li><b><code>gh-pages</code> が既にある状態での2回目以降のデプロイ</b>（<code>rm -rf</code> して
         置き換える経路）。今回は初回のorphan作成の経路しか通っていない。</li>
+      <li><b>作業9で書き換えたあとの GitHub ワークフロー。</b> 実機で成功したのは書き換え<b>前</b>の
+        版である。エスケープ処理・リトライ経路・ヘッダの整理を入れた版は、この変更をリモートへ
+        反映した時点のCI実行が初めての実行になる。<b>「以前成功したから今も動く」とは言えない</b>ので、
+        反映後に実行結果を確認する必要がある。</li>
+      <li><b><code>fetch</code> + <code>reset --hard FETCH_HEAD</code> によるリトライ経路。</b>
+        競合を意図的に作っていない。<code>unrelated histories</code> で必ず失敗する状態は解消したが、
+        <b>リトライが成功するところは見ていない</b>。</li>
     </ul>
   </div>
 </section>
@@ -526,6 +576,25 @@ report_site_prefix_to_reply gitlab 1 → REPLY=mr-1</code></pre>
     <b>実機でパイプラインが生成されないことを確認した</b>。
   </p>
 
+  <h3>bashの <code>${v//a/b}</code> は、置換文字列中の <code>&amp;</code> の意味がバージョンで違う</h3>
+  <p>
+    <code>index.html</code> のHTMLエスケープを <code>esc="${esc//&lt;/&amp;lt;}"</code> と書いたところ、
+    <b><code>&lt;lt;</code> になった</b>。bash 5.2 から置換文字列中の <code>&amp;</code> が
+    「マッチした文字列全体」へ展開されるようになっており（<code>patsub_replacement</code>、既定で有効）、
+    <code>&amp;lt;</code> の <code>&amp;</code> が <code>&lt;</code> へ化けていた。
+  </p>
+  <ul>
+    <li><code>\&amp;</code> で退避できるが、<b>5.1以前では <code>\&amp;</code> がそのまま残る可能性</b>があり互換でない。</li>
+    <li>GitLab の <code>script</code> は shell が bash とも限らない（<code>${v//a/b}</code> 自体が保証されない）。</li>
+    <li><b><code>sed</code> へ寄せた。</b> <code>&amp;</code> の意味も <code>\&amp;</code> での退避も、処理系をまたいで定まっている。</li>
+  </ul>
+  <div class="box stop">
+    <span class="label">気づけた理由</span>
+    <p>
+      <b>「置換文字列に <code>&amp;</code> を書く」というだけの話が、bashのバージョンとCIのshellの
+      2軸に依存していた。</b> 期待値を目視ではなく実際の変換結果で確かめたから見つかった。
+    </p>
+  </div>
   <h3><code>test_sync_gemini_assets.sh</code> が元から完走しない</h3>
   <p>
     計画の検証3は「<code>main</code> 由来の3件を除き緑」を合格条件にしていたが、<b>4本目として
@@ -572,12 +641,11 @@ report_site_prefix_to_reply gitlab 1 → REPLY=mr-1</code></pre>
         別ポートを公開して作り直せば確認できる。<b>稼働中のコンテナを作り直すことになるため、
         ユーザーの判断を仰ぐ。</b> これができると <code>expire_in: never</code> の効果も併せて
         確認できる。</li>
-      <li><b>敵対的レビュー（フェーズ3・2回目）の未対応6件。</b>
-        <code>wait_for_report_site</code> の <code>interval=0</code> で無限ループ／
-        <code>index.html</code> のHTMLエスケープ漏れ／雛形バイト一致テストが配布先で失敗する／
-        <code>SKILL.md</code> と YAML の二重管理／<code>index.jsonl</code> 除外が
-        <code>.github/</code> のみ／<code>index.md</code> と <code>directory-structure.md</code> への
-        追記漏れ。<b>GitLab以外の指摘は人間のレビュー（flow-id 3-8）を待って対応する。</b></li>
+      <li><b>敵対的レビュー（フェーズ3・2回目）の13件は全件反映済み</b>（上記「作業9」）。
+        <b>ただし1件はフェーズ4送り</b>である——<code>index.md</code> と
+        <code>.claude/rules/directory-structure.md</code> への <code>.github/workflows/</code>
+        <code>.gitlab-ci.yml</code> の追記は、AIアセット反映（フェーズ4）の担当なのでここでは
+        行っていない（<code>HANDOFF.md</code> の反映先候補へ記録済み）。</li>
       <li><b><code>gh-pages</code> の掃除は入れていない</b>（flow-id 2-9 の「恒久公開してよい」という
         判断による）。PR単位のディレクトリは溜まり続ける。<b>別issueの候補として記録する。</b></li>
       <li><b>検証用に作った資産の後始末。</b> GitLab側の <code>gitlab-runner</code> コンテナ・
