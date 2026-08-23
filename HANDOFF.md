@@ -14,35 +14,84 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 
 ## フロー進捗状況
 
-- issue: #103 Claude CodeのOpenTelemetry出力をローカルで受信し、ワークスペースのusage/配下へ振り分けて保存する機構を追加する
-- ブランチ: feature-103-collect-claude-code-otel-telemetry-into-usage
-- PR: #158 https://github.com/yuki-matsu783/MR-driven-workflow/pull/158（Draft解除済み）
-- push回数: 5
+- issue: #160 issue-mr-flow/SKILL.md を references/ へ分割し、参照ファイルを読むタイミングを全体フロー表とSessionStart hookで機械的に決める
+- ブランチ: claude/skill-split-references-z17fw4
+- PR: #161 https://github.com/yuki-matsu783/MR-driven-workflow/pull/161（Draft）
+- push回数: 0
 - 現在のループ: なし
-- 追従監視: なし
+- 追従監視: 購読あり（web。subscribe_pr_activity + 自己チェックイン）
 
 | 進捗 | flow-id | ステップ | 担当 |
 |---|---|---|---|
-| [x] | 5-4 | plans/worklog/reportsを削除しHANDOFF.mdをリセット | エージェント |
-| [x] | 5-5 | commitしpushしてDraftを解除 | エージェント |
+| [x] | 1-1 | issueを起票する | 人間 |
+| [x] | 1-2 | issueの内容を取得する | `start` |
+| [x] | 1-3 | featureブランチとDraft MRを作成する | `start`（エージェント） |
+| [x] | 1-4 | 全体作業計画を作成する | エージェント |
+| [] | 1-5 | 全体作業計画に合意する | 人間 |
+| [x] | 1-6 | 全体作業計画をもとにHANDOFF.mdを更新する | エージェント |
+| [] | 2-1 | 個別調査計画を作成する | エージェント |
+| [] | 2-2 | commitしpushしてレビュー依頼 | エージェント |
+| [] | 2-3 | 調査計画のレビュー | 人間 |
+| [] | 2-4 | レビュー内容を取得し調査計画を修正 | `comments` / `reply` |
+| [] | 2-5 | MR descriptionを更新 | `describe` |
+| [] | 2-6 | 調査を実施し結果をreports/へ記録 | エージェント |
+| [] | 2-7 | commitしpushしてレビュー依頼 | エージェント |
+| [] | 2-8 | 調査結果のレビュー | 人間 |
+| [] | 2-9 | レビュー内容を取得し調査結果を修正 | `comments` / `reply` |
+| [] | 2-10 | MR descriptionを更新 | `describe` |
+| [] | 3-1 | 個別作業計画を作成する | エージェント |
+| [] | 3-2 | commitしpushしてレビュー依頼 | エージェント |
+| [] | 3-3 | 作業計画のレビュー | 人間 |
+| [] | 3-4 | レビュー内容を取得し作業計画を修正 | `comments` / `reply` |
+| [] | 3-5 | MR descriptionを更新 | `describe` |
+| [] | 3-6 | 作業を進め結果をreports/へ記録 | エージェント |
+| [] | 3-7 | commitしpushしてレビュー依頼 | エージェント |
+| [] | 3-8 | 実装のレビュー | 人間 |
+| [] | 3-9 | レビュー内容を取得し実装・ドキュメントを修正 | `comments` / `reply` |
+| [] | 3-10 | MR descriptionを更新 | `describe` |
+| [] | 4-1 | 個別反映計画を作成する | エージェント |
+| [] | 4-2 | commitしpushしてレビュー依頼 | エージェント |
+| [] | 4-3 | 反映計画のレビュー | 人間 |
+| [] | 4-4 | レビュー内容を取得し反映計画を修正 | `comments` / `reply` |
+| [] | 4-5 | MR descriptionを更新 | `describe` |
+| [] | 4-6 | 反映を進め結果をreports/へ記録 | エージェント |
+| [] | 4-7 | commitしpushしてレビュー依頼 | エージェント |
+| [] | 4-8 | 反映のレビュー | 人間 |
+| [] | 4-9 | レビュー内容を取得し設計・AIアセットを修正 | `comments` / `reply` |
+| [] | 4-10 | MR descriptionを更新 | `describe` |
+| [] | 5-1 | defaultブランチとのコンフリクトを検知・解消 | エージェント |
+| [] | 5-2 | マージ前の関連issue通知 | エージェント |
+| [] | 5-3 | 最終統括レポートを作成しPR/MRへ反映 | エージェント |
+| [] | 5-4 | plans/worklog/reportsを削除しHANDOFF.mdをリセット | エージェント |
+| [] | 5-5 | commitしpushしてDraftを解除 | エージェント |
 | [] | 5-6 | マージする | 人間 |
 
 ## やったこと
 
-- flow-id 5-4: `bash .claude/scripts/src/cleanup-task.sh`で`plans/` `worklog/` `reports/`
-  （md・htmlとも）を削除し、`HANDOFF.md`をテンプレートへリセットした。
-  `worklog/TEMPLATE.md`・`REVIEW-POINTS.md`は対象外のまま残っている。
-- flow-id 5-5: 削除・リセット内容を`create-commit.sh`経由でコミット`bb2c439`し、リモートへ反映した。
-  `set_mr_ready 158`でPR #158のDraftを解除した（"ready for review"）。
+- flow-id 1-2: issue #160 の内容をMCP（`mcp__github__issue_read`）で取得した。
+- flow-id 1-3: `claude/skill-split-references-z17fw4` をリモートへ反映し、Draft PR #161 を作成した
+  （baseとの差分が無かったため `add_empty_commit_for_draft_mr` で空コミットを1つ積んでいる）。
+  `subscribe_pr_activity` でPRイベントの購読を開始した。
+- flow-id 1-4: 全体作業計画 `plans/split-issue-mr-flow-skill-into-references.md` と、同名の
+  `.html`（`assets/plans.template.html` を土台にした人間レビュー用ビュー）を作成した。
 
 ## 次にやること
 
-- flow-id 5-6（マージ）はユーザーからの明示的な指示があるまで実行しない。ユーザーが
-  「マージして」等と明示指示した場合のみ、squash mergeを実行しブランチを削除してよい。
+- flow-id 2-1: 個別調査計画 `plans/【調査】SKILL.mdの分割単位と参照追従の実測.md`（＋ `.html`）を
+  作成する。
+- flow-id 5-6（マージ）はユーザーからの明示的な指示があるまで実行しない。
 
 ## 判断を迷った内容
 
-（無し）
+- **ブランチ名がフローの命名規則（`feature-<issue番号>-<slug>`）に一致していない。**
+  ハーネスから `claude/skill-split-references-z17fw4` を使うよう指示されているため、そちらを
+  優先した。その結果 SessionStart hook はブランチ名からissue番号を抽出できず、
+  「issue: 特定できず」と注入する（issue-mr-flow対象かの判定は、このブランチ固有の作業ファイルの
+  存在で成立している）。
+- **人間のレビュー往復（2-3/2-4・2-8/2-9・3-3/3-4・3-8/3-9・4-3/4-4・4-8/4-9）を待てない。**
+  ユーザーの指示により、各フェーズの計画で1回・各フェーズの作業結果で1回、
+  `adversarial-review` スキルによる敵対的レビューを自動実施して代替する。ループ範囲の進捗記号は
+  `[]` のまま残し、実施内容は本節と「やったこと」へ文章で残す。
 
 ## 未解決の内容
 
@@ -50,4 +99,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 
 ## 守るべき条件・触ってはいけない範囲
 
-（無し）
+- **DDR本文と spec の過去changelogへは、パス・節名の一括置換をかけない**
+  （`.claude/rules/docs-workflow.md`）。旧節名→新パスの対応表を SKILL.md 側へ置いて辿れるようにする。
+- **フロー自体（flow-idの増減・ステップの並べ替え・手順の中身）は変更しない。** 本issueは
+  同じ内容をどこに置くかだけを変える。
