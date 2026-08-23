@@ -193,7 +193,7 @@
   <div class="focus skip">
     <span class="label">・細かいレビューは不要（ほぼ確実）</span>
     <ul>
-      <li><a href="#f5">5. 固定費の数字</a> — 実数43は <code>grep -cE</code> で実測済み。複製箇所も機械的に洗い出した。</li>
+      <li><a href="#f5">5. 固定費の数字</a> — 実数43は <code>grep -cE</code> で実測済み。複製箇所は<b>8箇所へ訂正済み</b>（当初6箇所。数える語を <code>5フェーズ</code> から <code>43ステップ</code> へ変えた結果）。</li>
       <li><a href="#f2">2. 差し替えの影響</a> — <code>【AIアセット反映】</code> 節に <code>別issue</code> が0件、<code>切り出し</code> が2件（いずれも文章を <code>.claude/rules/</code> へ移す意味）であることは全文確認済み。</li>
     </ul>
   </div>
@@ -224,7 +224,7 @@
     </li>
     <li class="verdict">
       <span class="chip good">◎良</span>
-      <a href="#f5">5. 固定費は43で一致済み。新節では再掲せず参照で寄せる（複製は現在6箇所）</a>
+      <a href="#f5">5. 固定費は43で一致済み。新節では再掲せず参照で寄せる（複製は現在8箇所）</a>
       <span class="v-basis">根拠: 実測（grep -cE で43）</span>
     </li>
     <li class="verdict">
@@ -427,10 +427,26 @@ i0054-01: 別issue=1 個別issue=1</code></pre>
   <pre><code>$ grep -cE '^\| [0-9]+-[0-9]+ \|' .claude/skills/issue-mr-flow/SKILL.md
 43</code></pre>
   <p><code>references/planning.md:224</code>「5フェーズ43ステップ」と一致している。<b>issue #176 の本文が書く「5フェーズ42ステップ」は現在の値ではない。</b></p>
-  <p>同じ数字の複製は現在<b>6箇所</b>: <code>SKILL.md:44</code>・<code>references/planning.md:224</code>・<code>.claude/rules/docs-workflow.md:24</code>・<code>.claude/docs/usecase/新しい機能開発を始める.md:28</code>・<code>.claude/docs/spec/issue-mr-workflow.md:280,658</code>。過去に 40→43 の繰り下げが起きており、<code>i0064-01:25</code> と <code>i0092-01:52</code> は当時の値「5フェーズ40ステップ」のままである（<b>point-in-time の記録なので書き換えない</b>）。</p>
+  <p>同じ数字の複製は現在<b>8箇所</b>。<b>数える語は <code>5フェーズ</code> ではなく <code>43ステップ</code> を使う</b>——当初は <code>grep -rn -- '5フェーズ' …</code> で数えて6箇所としていたが、<b>「5フェーズ」を伴わずにステップ数だけを書いている2箇所を取りこぼしていた</b>（フェーズ3の敵対的レビュー・指摘11）。</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>場所</th><th>記述</th><th><code>5フェーズ</code> を伴うか</th></tr></thead>
+    <tbody>
+      <tr><td><code>SKILL.md:44</code></td><td>全5フェーズ・43ステップ</td><td>○</td></tr>
+      <tr><td><code>references/planning.md:224</code></td><td>5フェーズ43ステップ</td><td>○</td></tr>
+      <tr><td><code>.claude/rules/docs-workflow.md:24</code></td><td>5フェーズ・43ステップ</td><td>○</td></tr>
+      <tr><td><code>.claude/docs/usecase/新しい機能開発を始める.md:28</code></td><td>5フェーズ43ステップ</td><td>○</td></tr>
+      <tr><td><code>.claude/docs/spec/issue-mr-workflow.md:280</code></td><td>5フェーズ・43ステップ</td><td>○</td></tr>
+      <tr><td><code>.claude/docs/spec/issue-mr-workflow.md:658</code></td><td>5フェーズ・43ステップ</td><td>○</td></tr>
+      <tr><td><b><code>references/start-resume.md:107</code></b></td><td>全体フローの<b>43ステップ</b>のうち</td><td><b>×</b></td></tr>
+      <tr><td><b><code>.claude/docs/usecase/途中の作業を再開・引き継ぐ.md:24</code></b></td><td>フロー進捗表（<b>43ステップ</b>の記号）</td><td><b>×</b></td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p>残る2ヒット（<code>spec/sync-gemini-assets.md:330</code>・<code>spec/issue-mr-workflow.md:3195</code>）は changelog の point-in-time 記録なので対象外。過去に 40→43 の繰り下げが起きており、<code>i0064-01:25</code> と <code>i0092-01:52</code> は当時の値「5フェーズ40ステップ」のままである（<b>point-in-time の記録なので書き換えない</b>）。</p>
   <div class="box ok">
     <span class="label">結論</span>
-    新節では固定費の数字を再掲せず、<code>references/planning.md</code>「issueが大きすぎる場合の分割提案」の「分割コストが本体を上回る」へ参照で寄せる。複製をもう1つ増やすと、次にステップが増えたときの追随箇所が7つになる。
+    新節では固定費の数字を再掲せず、<code>references/planning.md</code>「issueが大きすぎる場合の分割提案」の「分割コストが本体を上回る」へ参照で寄せる。複製をもう1つ増やすと、次にステップが増えたときの追随箇所が9つになる。
   </div>
 
   <h3 id="f6">6. 判断の記録先 — issue #64 の記録先はフェーズ4では使えない <span class="chip warn">△注意</span></h3>
@@ -481,7 +497,7 @@ i0054-01: 別issue=1 個別issue=1</code></pre>
       <tr><td>誤爆防止の条件は「規模」で足りる（issue本文の骨子）</td><td>No の理由は3種あり、<b>規模は2/6だけ</b>。そのまま実装すると「価値」の2件が行き先を失う。対案として規模基準を同じ母数へ当てると <b>3/7 しか当たらず</b>、誤り方に規則性があった</td><td>No のときの出口を3つ持つ形にすると決めた（章4）</td></tr>
       <tr><td>母数は grep で機械的に作れる</td><td><code>grep -- '別issue'</code> が <code>個別issue</code> にも一致し、<b>偽陽性2件が「時期尚早」という存在しない類型を作っていた</b></td><td>除外を3段階（E1〜E3）へ明示し、13件→7件へ絞り直した（章4）</td></tr>
       <tr><td>過去事例は「別issueの規模と判断して見送った」もの（issue本文が挙げる3件）</td><td>3件目 <code>i0014-01</code> は該当せず、逆に<b>「切り出さないと決めた」実例 <code>i0077-02</code></b> が母数に含まれていた</td><td>母数を機械的に洗い出す形へ変え、Yes 側の実例として判定の両側の検証に使った（章4）</td></tr>
-      <tr><td>Q5 は数字が揃っているかを確かめる問い</td><td>調べるまでもなく一致していた。本当のリスクは<b>複製をもう1つ増やすこと</b>だった</td><td>問いを「再掲するか参照で済ませるか」へ書き換え、複製6箇所を洗い出した（章5）</td></tr>
+      <tr><td>Q5 は数字が揃っているかを確かめる問い</td><td>調べるまでもなく一致していた。本当のリスクは<b>複製をもう1つ増やすこと</b>だった</td><td>問いを「再掲するか参照で済ませるか」へ書き換え、複製を洗い出した（当初6箇所→フェーズ3のレビューで<b>8箇所</b>へ訂正。章5）</td></tr>
     </tbody>
   </table>
   </div>
