@@ -105,7 +105,7 @@ bash .claude/scripts/src/update-handoff-progress.sh set-header [--issue <text>] 
 **返信が1件も付いていないレビュースレッドの件数**を持つ。ここでいうスレッドは、人間が書いた
 レビュー指摘と、敵対的レビュー（`.claude/skills/adversarial-review/SKILL.md`）が投稿した指摘の
 **両方**を含む。数え方は
-`.claude/skills/issue-mr-flow/SKILL.md`「レビュー完了合図の確認」の (2) が正で、
+`.claude/skills/issue-mr-flow/references/review-loop.md`「レビュー完了合図の確認」の (2) が正で、
 **スレッド内のコメントが1件だけ**のものを数える。
 
 - 書き換えは `set-header --unreplied <n>`。**行が無ければ挿入する**（`--loop` と同じ扱い）。
@@ -186,7 +186,7 @@ issue #58以前は、レビュー往復1回につき`[]`を1つ足して`[x][x][
 ### ループ範囲への`mark-done`と未返信スレッド（issue #70）
 
 **レビュー往復のループを閉じる条件は2つある。〈指摘を直した〉ことと、〈返信が1件も付いて
-いないスレッドが無い〉ことである**（`.claude/skills/issue-mr-flow/SKILL.md`「レビュー完了合図の
+いないスレッドが無い〉ことである**（`.claude/skills/issue-mr-flow/references/review-loop.md`「レビュー完了合図の
 確認」）。ところが進捗表は前者しか表せない。`mark-done`はループ範囲への操作のとき、
 ヘッダの`- 未返信スレッド:`が`0`であることを確かめてから記号を動かす。
 
@@ -291,6 +291,12 @@ hint: 同じループ範囲内のflow-idは常に同じ記号を持ちます（.
 - HANDOFF.mdを直接テキスト処理で書き換える方式を採用し、進捗状態を別のJSON/YAML等の構造化
   データへ移行する設計は採らなかった。既存の`HANDOFF.md`の構成（見出し・表の列）を人間にも読み
   やすいMarkdownのまま壊さない、という要件を素直に満たせるため。
+- **進捗表の行判定の正規表現 `ROW_RE` は、`.claude/hooks/session-start.sh` に同一リテラルで
+  複製されている**（issue #160。SessionStart hookが現在地flow-idの解決に同じ行形式を読むため）。
+  **変更するときは両方を同時に直す**こと。一致は `test_session_start.sh` が両ファイルから
+  リテラルを抽出して表明する（片方だけ変えるとテストが落ちる）。`source` による共有は、
+  本スクリプトの `set -euo pipefail` が `source` 先（hook）にも効いてhookのfail-open設計を
+  壊すため採らない（経緯・却下案: `.claude/docs/ddr/i0160-01-SKILL.mdの分割は読むタイミング単位で行い参照列とhookで機械的に注入する.md`）。
 
 ### テスト
 
@@ -403,6 +409,19 @@ hint: 同じループ範囲内のflow-idは常に同じ記号を持ちます（.
   （**足さないと、ループ範囲への `mark-done` を含む既存ケースが一斉に落ちる**——それ自体が
   検査が効いていることの表明でもある）。**検査を無効化すると5件落ちる**ことまで確認した。
   `.claude/scripts/test/test_cleanup_task.sh`: 62→64ケース。
+
+### issue #160（2026-08-23）ROW_REをSessionStart hookへ複製した
+
+SKILL.md分割（issue #160）で、SessionStart hookが `HANDOFF.md` の進捗表から現在地flow-idを
+解決するようになった。行判定の正規表現 `ROW_RE` は本スクリプトのものと**同一リテラルの複製**とし、
+一致を `test_session_start.sh` が表明する（上記「制約・設計判断」）。進捗更新ロジックの挙動は
+同値（下記のとおり `ROW_RE` の変数化と、hint文言の参照先変更のみ）。
+
+- `.claude/scripts/src/update-handoff-progress.sh`: 行判定の正規表現を `ROW_RE` という変数へ
+  切り出し（判定結果は同値）、`unreplied_hint` のstderr案内の参照先を
+  `references/review-loop.md`「レビュー完了合図の確認」へ変更（出力文字列が変わる）。
+- `.claude/hooks/session-start.sh`: `ROW_RE` を複製し、`current_flow_id_to_reply` が使う。
+- `.claude/scripts/test/test_session_start.sh`: 両ファイルのリテラル一致の表明を追加。
 
 ## 未決定事項・懸念点
 

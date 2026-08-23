@@ -15,7 +15,7 @@ keywords: [canvas, Code Canvas, ノード, エッジ, 依存関係, セマンテ
 （issue #141で全面刷新）で表現するためのスキル。
 
 **結果の正文は同名の`.md`側であり、このHTMLはその視覚化である**（issue #87。詳細:
-`.claude/skills/issue-mr-flow/SKILL.md`「計画と実施結果の分離」）。HTMLを書く前に、対応する
+`.claude/skills/issue-mr-flow/references/deliverables.md`「計画と実施結果の分離」）。HTMLを書く前に、対応する
 `reports/…md` に結果が記録されていることを確認する。
 
 ## いつcanvasを選ぶか
