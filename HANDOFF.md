@@ -17,9 +17,9 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - issue: #114 flow-id 5-4のマージ依頼時に報告HTMLをホストしURLをユーザへ通知する機能を追加する
 - ブランチ: feature-114-host-report-html-and-notify-url
 - PR: #180 https://github.com/yuki-matsu783/MR-driven-workflow/pull/180（Draft）
-- push回数: 3
+- push回数: 4
 - 現在のループ: 2-6〜2-9 の1周目（進行中）
-- 未返信スレッド: 0
+- 未返信スレッド: 10
 - 追従監視: あり（ローカル／git bash。各pushの直後と作業再開時に `/resolve-conflict` を手動実行する）
 
 | 進捗 | flow-id | ステップ | 担当 |
@@ -107,12 +107,40 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - flow-id 2-6: 調査を実施し、`reports/20260823_binary-soaring-eclipse_ホスティング手段の比較.md`
   と同名の `.html` へ結果を記録した。**重大な発見が2件ある**（下記「未解決の内容」）。
 
+- flow-id 2-7: 調査結果をコミット（`cc58ab1`）してリモートへ反映した。
+  **敵対的レビューをフェーズ2で2回目実施**（`adversarial-review-count.sh get 2` → 2。**上限3回**）。
+  16件の指摘のうち**10件をPR #180 へインライン投稿**（投稿上限10件）、6件は報告のみに留めた。
+  投稿したスレッド（**すべて返信ゼロ。返信は flow-id 2-9 で行う**）:
+  - https://github.com/yuki-matsu783/MR-driven-workflow/pull/180#discussion_r3838167958
+  - https://github.com/yuki-matsu783/MR-driven-workflow/pull/180#discussion_r3838167960
+  - https://github.com/yuki-matsu783/MR-driven-workflow/pull/180#discussion_r3838167961
+  - https://github.com/yuki-matsu783/MR-driven-workflow/pull/180#discussion_r3838167962
+  - https://github.com/yuki-matsu783/MR-driven-workflow/pull/180#discussion_r3838167963
+  - https://github.com/yuki-matsu783/MR-driven-workflow/pull/180#discussion_r3838167965
+  - https://github.com/yuki-matsu783/MR-driven-workflow/pull/180#discussion_r3838167969
+  - https://github.com/yuki-matsu783/MR-driven-workflow/pull/180#discussion_r3838167972
+  - https://github.com/yuki-matsu783/MR-driven-workflow/pull/180#discussion_r3838167973
+  - https://github.com/yuki-matsu783/MR-driven-workflow/pull/180#discussion_r3838167974
+
+  スレッドIDは `PRRT_kwDOT7UgWc6beXym / o / p / q / r / s / u / v / y / z` の10件で、いずれも
+  `reports/20260823_binary-soaring-eclipse_ホスティング手段の比較.md` へのインラインコメント。
+
+  **報告のみに留めた6件**（MRに残らないのでここへ書く。flow-id 2-9 でまとめて対応する）:
+  1. `gh-pages` への push が競合したときの同時実行制御（`concurrency`）が未検討（major/medium）
+  2. GitHub（無期限）と GitLab（既定24時間で失効）の**寿命差**をどう揃えるかが設計に無い（major/medium）
+  3. 一次情報の参照がページ名止まりで、**URL・参照日・対象バージョン**が無い（minor/high）
+  4. 到達性確認が通らなかったときの挙動・**待ち時間の上限**が未定（minor/medium）
+  5. 案(a)の却下理由「掃除の仕組みが無い」は**採用した案(b)にも当てはまる**（minor/high）
+  6. 「計画2本で計42KB」が実測と食い違う（**実測は 49,706 バイト**。内訳も無い）（minor/high）
+
 ## 次にやること
 
-- flow-id 2-7: commit・pushしてレビュー依頼を出し、**調査結果に対する敵対的レビューを1回**実行する。
-- flow-id 2-8: 人間のレビュー。とくに**GitLab側の検証方針（α 見送り / β トライアルライセンス /
-  γ GitLab.com）**の判断を仰ぐ。
-- flow-id 2-9: 指摘へ対応・返信する（修正先は `reports/` のmdとhtmlであり、個別調査計画ではない）。
+- flow-id 2-8: 人間のレビュー。とくに次の3点の判断を仰ぐ。
+  - **GitLab側の検証方針**（α 見送り / β トライアルライセンス / γ GitLab.com）
+  - **GitHub の private リポジトリでの扱い**（public限定でデプロイ／オプトイン／層3に留める）
+  - **「マージ前に消す」方針と恒久公開の衝突**（敵対的レビューの指摘。寿命の方針が反転する）
+- flow-id 2-9: 指摘へ対応・返信する（**修正先は `reports/` のmdとhtml**であり、個別調査計画ではない）。
+  **上記10スレッド＋報告のみの6件をすべて扱う。**
 
 ## 判断を迷った内容
 
