@@ -17,8 +17,8 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - issue: #151
 - ブランチ: `claude/user-recent-utterance-reinject-9ygbxd`
 - PR: #197（https://github.com/yuki-matsu783/MR-driven-workflow/pull/197 ）
-- push回数: 4
-- 現在のループ: なし
+- push回数: 5
+- 現在のループ: 2-3〜2-4 の1周目（進行中）
 - 未返信スレッド: 0
 - 追従監視: 購読あり（web。subscribe_pr_activity + send_laterによる自己チェックイン）
 
