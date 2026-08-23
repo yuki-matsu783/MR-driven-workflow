@@ -17,7 +17,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - issue: #165 (plans/worklog/reports を wip/ 配下へ集約し worklog を worklogs へ改名する)
 - ブランチ: claude/consolidate-wip-directories-ps6f9a（ハーネス指定。命名規則`feature-165-*`からの逸脱は環境制約による）
 - PR: https://github.com/yuki-matsu783/MR-driven-workflow/pull/178
-- push回数: 13
+- push回数: 14
 - 現在のループ: 4-6〜4-9 の1周目（完了）
 - 未返信スレッド: 0
 - 追従監視: 購読あり（web。subscribe_pr_activity。1時間ごとの自己チェックインを予約済み）
@@ -66,8 +66,8 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 | [x] | 4-9 | （人間レビュー省略予定） |
 | [] | 4-10 | 反映内容でMR description更新 |
 | [x] | 5-1 | defaultブランチとのコンフリクト検知・解消（main側PR #157で`.gemini/`が生成物化・フェーズ5が5-1〜5-7へ再編されており、15ファイルがコンフリクト。`git merge --no-ff --no-commit`で解消し、`wip/`パス表記とmain側の新構造（flow-id番号・`.gemini/`生成物・未返信スレッド項目）を両立させた） |
-| [] | 5-2 | マージ前の関連issue通知 |
-| [] | 5-3 | `.claude/`→`.gemini/`変換同期（main側PR #157で新設されたステップ。`sync-gemini-assets.sh`を実行する） |
+| [x] | 5-2 | マージ前の関連issue通知 |
+| [x] | 5-3 | `.claude/`→`.gemini/`変換同期（main側PR #157で新設されたステップ。`sync-gemini-assets.sh`を実行する） |
 | [] | 5-4 | 最終統括レポート作成・PR反映 |
 | [] | 5-5 | 片付け（wip/plans, wip/worklogs, wip/reports削除・HANDOFF.mdリセット） |
 | [] | 5-6 | commit・push・Draft解除 |
@@ -252,22 +252,45 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
   単体テスト20本`passed=N failures=0`・`.gemini/`再生成・`.claude/VERSION`が`0.3.0`のまま
   変更されていないことを確認済み。
 
+## やったこと（続き）
+
+- **フェーズ4（反映）が完了した。** flow-id 4-6の敵対的レビュー（2回目、10件）反映（`6e3909d`）に
+  続き、人間から「0.3.0で良い」との回答を得て`.claude/VERSION`据え置きを確定・反映した（`6a6e957`）。
+- **flow-id 5-1（defaultブランチとのコンフリクト再検知）を実施。** `bash
+  .claude/scripts/src/check-base-conflicts.sh`で`hasConflict: false`を確認（`origin/main`
+  との新たな競合なし）。
+- **flow-id 5-2（マージ前の関連issue通知）を実施。** 差分（`wip/plans` `wip/worklogs`
+  `wip/reports`を除外し`REVIEW-POINTS.md`は含める）からキーワードを抽出し
+  `mcp__github__search_issues`で候補を検索。issue #87・#54・#2はclosed、issue #27
+  （AIアセット逆輸入スキル）はレイヤー/manifestベース設計で本件のパス名変更と直接の
+  依存が薄いため対象外と判断。**issue #108**（HANDOFF.mdのタスク単位化）が「前提が変わる」に
+  該当すると判断——同issueは「#165より先に着手する」ことを前提にしていたが実際には#165が先行
+  完了し、また「HANDOFF.mdをwip/配下へ置くかは#165の判断に委ねる」としていた点について
+  #165はルート直下据え置き（wip/へは移動しない）と判断した。`AskUserQuestion`で承認を得て
+  コメント投稿済み（https://github.com/yuki-matsu783/MR-driven-workflow/issues/108#issuecomment-5386409840）。
+
 ## 次にやること
 
 - **対照実験（`./plans2`）は未完了のまま保留している**（サービス一時停止で5回連続失敗。
   `.claude/settings.json`は`"./plans"`に戻し済み）。フェーズ2〈調査〉2-9ループはこの保留を
-  理由に人間レビューを省略したまま進んでおり、今回のフェーズ4完了後も未解消の既知の限界として
-  残る（詳細: `wip/reports/20260823_transient-brewing-pelican_plansDirectoryネストパス検証.md`
-  「確かめられなかったこと」）。
-- **反映結果（flow-id 4-6）への敵対的レビュー（2回目）の指摘10件（major 2・minor 7・nit 1）の
-  反映が完了した。** これから`commit`スキル経由でcommit・push（flow-id 4-7）する。
-- **人間から「0.3.0で良い」との回答を得た。`.claude/VERSION`のMAJOR増分は据え置きで確定し、
-  未解決事項は無くなった。** DDR `i0165-02`・`distribution-assets.md`のissue #165エントリ・
-  `wip/reports/…フェーズ4反映結果.md`（md/html）へ人間の最終判断を反映済み。反映後、DDR一覧
-  再生成・`check-doc-references.sh`・単体テスト・`.gemini/`再生成を再確認し、
-  `commit`スキル経由でcommit・pushする。
-- commit・push後、フェーズ5（クローズ、flow-id 5-1〜5-7）へ進む。まずflow-id 5-1で
-  defaultブランチとのコンフリクトを再検知する。
+  理由に人間レビューを省略したまま進んでおり、既知の限界として残る（詳細:
+  `wip/reports/20260823_transient-brewing-pelican_plansDirectoryネストパス検証.md`
+  「確かめられなかったこと」）。マージ判断への影響は無い（受け入れ条件の主要部分＝ネストパス
+  自体が機能することは新規セッションでの実測で確認済み）。
+- flow-id 5-2の実施結果（issue #108への通知）を`HANDOFF.md`へ記録済み（本コミットに含める）。
+- **flow-id 5-3（`.claude/`→`.gemini/`変換同期）を実施済み。** `sync-gemini-assets.sh`実行済み、
+  `.gemini/`は最新。
+- **flow-id 5-4（最終統括レポート作成）を実施済み。**
+  `wip/reports/20260823_transient-brewing-pelican_統括.md`（+html）を作成した。単体テスト20本
+  `passed=N failures=0`・`index.jsonl`再生成・プレースホルダ残存無しを確認済み。**これから
+  layer1（`commit`スキル経由でcommit・push）を実施し、続けてlayer3（`upload_attachment`、
+  MCP経路では失敗が既知のため任意でスキップ）・layer2（`add_mr_comment`でPR #178へサマリ投稿）を
+  実施する。**
+- **flow-id 5-5（片付け）を実施する。** layer1〜2完了後、`bash .claude/scripts/src/cleanup-task.sh`で
+  `wip/plans/` `wip/worklogs/` `wip/reports/`（REVIEW-POINTS.md・TEMPLATE.mdは除く）を削除し
+  `HANDOFF.md`をリセットする。
+- **flow-id 5-6（commit・push・Draft解除）を実施する。** `set_mr_ready`でDraftを解除する。
+- **flow-id 5-7（マージ）はユーザーからの明示的な指示があるまで実施しない。**
 
 ## 判断を迷った内容
 
