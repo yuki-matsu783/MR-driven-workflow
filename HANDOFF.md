@@ -19,7 +19,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - PR: #189 https://github.com/yuki-matsu783/MR-driven-workflow/pull/189（Draft）
 - push回数: 7
 - 現在のループ: なし
-- 未返信スレッド: 0
+- 未返信スレッド: 13
 - 追従監視: なし
 
 | 進捗 | flow-id | ステップ | 担当 |
@@ -117,16 +117,25 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
   戻した（返信URLは各スレッド r3838762517〜r3838766374。修正コミット 142b664）。
 - flow-id 3-6 相当: 収穫スキル一式を実装した——`.claude/skills/harvest-from-projects/`
   （SKILL.md＋scripts/harvest-from-projects.sh）・`.claude/scripts/test/
-  test_harvest_from_projects.sh`（T1〜T15・アサーション66件・passed=66 failures=0）・
-  dist-layers の exclude エントリ・markdown-frontmatter.md の配布先DDR規約。検証4種
-  （bash -n・テスト・check-dist-coverage 4検査・frontmatter 実問い合わせ）すべて合格。
+  test_harvest_from_projects.sh`・dist-layers の exclude エントリ・
+  markdown-frontmatter.md の配布先DDR規約。検証4種（bash -n・テスト・
+  check-dist-coverage 4検査・frontmatter 実問い合わせ）すべて合格。
   結果は `reports/2026-08-23_quiet-orchard-harvest_作業結果.md`（＋.html）。
+- 敵対的レビュー4回目（フェーズ3・対象=実装一式。カウンタ 2/3）を実施。findings 15件の
+  うち13件をインライン投稿（PR diff 外の index.md と rev-list の nit はサマリで報告）、
+  修正は15件すべて反映した——`git log` 2本への `core.quotepath=false`・削除履歴の
+  `--no-renames`・エラー隔離を `set +e; ( set -e; f ); rc=$?; set -e` の形へ作り直し
+  （`( f ) || rc=$?` は errexit 停止がサブシェル内部へ伝播することを実測で確認）・
+  `git archive | tar` 失敗の error 化・`files: []` manifest の縮退・merge3 の層判定
+  フェイルクローズ（exit 3）と seed 対象外（exit 4）・strategy 明示分岐・縮退時の
+  判断材料充填・usage の awk 化・空配列ガード・index.md スキル一覧追記・SKILL.md の
+  非対話決め打ち。テストは T16〜T23 を追加し 66→89 アサーション（passed=89 failures=0）。
 
 ## 次にやること
 
-- 敵対的レビュー4回目（フェーズ3・対象=実装一式。カウンタ 2/3）→ 指摘の投稿・修正・返信 →
+- 敵対的レビュー4回目の13スレッドへ対応内容を返信 → unreplied 0 →
   フェーズ4（個別反映計画: spec `asset-harvest` 相当・DDR `i0027-01`・directory-structure.md
-  文言・VERSION 増分判断）へ。
+  文言・shell-script-style.md「エラー方針」の実測に基づく訂正・VERSION 増分判断）へ。
 
 ## 判断を迷った内容
 

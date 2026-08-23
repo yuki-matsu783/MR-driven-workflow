@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # harvest-from-projects.sh の単体・結合テスト（issue #27）。
 # 一時ディレクトリに合成本家（git リポジトリ）と複数の合成配布先を作り、--upstream で
-# 差し込んで T1〜T15 を固定する。出力規約: passed=N failures=N・失敗時終了コード1。
+# 差し込んで T1〜T23 を固定する。出力規約: passed=N failures=N・失敗時終了コード1。
 set -euo pipefail
 
 cd "$(dirname "${BASH_SOURCE[0]}")/../../.."
@@ -57,6 +57,7 @@ cat > "$UP/.claude/dist-layers.json" <<'JSON'
     { "layer": "merge", "path": ".claude/settings.json", "strategy": "json-keys", "keys": ["hooks"] },
     { "layer": "core", "path": "CLAUDE.md" },
     { "layer": "merge", "path": ".gitignore", "strategy": "lines-marker", "header": "# t" },
+    { "layer": "merge", "path": ".gitattributes", "strategy": "lines-marker", "header": "# t" },
     { "layer": "local", "path": "plans" },
     { "layer": "local", "gitignorePattern": "**/index.jsonl" },
     { "layer": "local", "gitignorePattern": "/usage/" },
@@ -69,17 +70,23 @@ printf 'C1\nC2\n' > "$UP/.claude/rules/c.md"
 printf 'G1\nG2\n' > "$UP/.claude/rules/gone.md"
 printf 'D1\nD2\n' > "$UP/.claude/rules/d.md"
 printf 'K1\nK2\n' > "$UP/.claude/rules/crlf.md"
+printf 'R1\nR2\n' > "$UP/.claude/rules/ren-old.md"
+printf 'J1\nJ2\n' > "$UP/.claude/rules/日本語.md"
 printf 'root\n' > "$UP/CLAUDE.md"
 printf '{ "hooks": { "a": 1 }, "own": "up" }\n' > "$UP/.claude/settings.json"
 printf 'ig1\nig2\n' > "$UP/.gitignore"
+printf 'at1\nat2\n' > "$UP/.gitattributes"
 git_c "$UP" init -q
 git_c "$UP" add -A
 git_c "$UP" commit -q -m 'chore: base'
 BASE_SHA="$(git -C "$UP" rev-parse HEAD)"
-# 本家HEADを進める: a.md の2行目・b.md の2行目を変更し、gone.md を削除する
+# 本家HEADを進める: a.md の2行目・b.md の2行目を変更し、gone.md・日本語.md を削除、
+# ren-old.md を改名する（改名は既定の改名検出で R になり D に出ないケースの再現）
 sed -i 's/^L2$/L2-up/' "$UP/.claude/rules/a.md"
 sed -i 's/^M2$/M2-up/' "$UP/.claude/rules/b.md"
 git_c "$UP" rm -q .claude/rules/gone.md
+git_c "$UP" rm -q .claude/rules/日本語.md
+git_c "$UP" mv .claude/rules/ren-old.md .claude/rules/ren-new.md
 git_c "$UP" add -A
 git_c "$UP" commit -q -m 'chore: head'
 
@@ -98,11 +105,13 @@ make_dest() { # $1=配布先パス $2=manifestへ書く source.commit（空=mani
   git -C "$UP" show "$BASE_SHA:CLAUDE.md" > "$dest/CLAUDE.md"
   git -C "$UP" show "$BASE_SHA:.claude/settings.json" > "$dest/.claude/settings.json"
   git -C "$UP" show "$BASE_SHA:.gitignore" > "$dest/.gitignore"
+  git -C "$UP" show "$BASE_SHA:.gitattributes" > "$dest/.gitattributes"
   jq 'del(.upstream)' "$UP/.claude/dist-layers.json" > "$dest/.claude/dist-layers.json"
   [ -n "$commit" ] || return 0
-  local hooks_hash lines_hash
+  local hooks_hash lines_hash attr_hash
   hooks_hash="$(jq -c 'getpath(["hooks"])' "$dest/.claude/settings.json" | sha256sum | cut -d' ' -f1)"
   lines_hash="$(sha_lf "$dest/.gitignore")"
+  attr_hash="$(sha_lf "$dest/.gitattributes")"
   jq -n --arg commit "$commit" \
     --arg a "$(sha_lf "$dest/.claude/rules/a.md")" \
     --arg b "$(sha_lf "$dest/.claude/rules/b.md")" \
@@ -112,7 +121,7 @@ make_dest() { # $1=配布先パス $2=manifestへ書く source.commit（空=mani
     --arg k "$(sha_lf "$dest/.claude/rules/crlf.md")" \
     --arg root "$(sha_lf "$dest/CLAUDE.md")" \
     --arg dl "$(sha_lf "$dest/.claude/dist-layers.json")" \
-    --arg hooks "$hooks_hash" --arg lines "$lines_hash" '
+    --arg hooks "$hooks_hash" --arg lines "$lines_hash" --arg attr "$attr_hash" '
     { schemaVersion: 1,
       source: { url: "", commit: $commit, version: "test" },
       appliedAt: "2026-08-23T00:00:00Z",
@@ -126,7 +135,8 @@ make_dest() { # $1=配布先パス $2=manifestへ書く source.commit（空=mani
         { path: "CLAUDE.md", layer: "core", sha256: $root },
         { path: ".claude/dist-layers.json", layer: "core", sha256: $dl },
         { path: ".claude/settings.json", layer: "merge", strategy: "json-keys", keys: { hooks: $hooks } },
-        { path: ".gitignore", layer: "merge", strategy: "lines-marker", lines: $lines }
+        { path: ".gitignore", layer: "merge", strategy: "lines-marker", lines: $lines },
+        { path: ".gitattributes", layer: "merge", strategy: "lines-marker", lines: $attr }
       ] }
   ' > "$dest/.claude/.asset-manifest.json"
 }
@@ -140,6 +150,8 @@ sed -i 's/^M10$/M10-dest/' "$A/.claude/rules/b.md"    # T2b: 本家（M2）か�
 rm "$A/.claude/rules/d.md"                             # T4: 本家HEADに残るファイルの削除
 rm "$A/.claude/rules/gone.md"                          # T4b: 本家でも削除済みファイルの削除
 printf 'N1\n' > "$A/.claude/rules/new-skill.md"        # T3: 新規追加
+printf 'J1\nJ2\n' > "$A/.claude/rules/日本語.md"       # T16: 本家で削除済みの日本語名（非ASCII）
+printf 'R1\nR2\n' > "$A/.claude/rules/ren-old.md"      # T17: 本家で改名された旧パス
 mkdir -p "$A/plans"
 printf 'p\n' > "$A/plans/x.md"                         # T7a: local（path）
 printf 'i\n' > "$A/.claude/index.jsonl"                # T7b: local（gitignorePattern）
@@ -150,6 +162,7 @@ git_c "$A" init -q
 git_c "$A" add -A
 git_c "$A" commit -q -m 'chore: init'
 printf 'L11\n' >> "$A/.claude/rules/a.md"
+printf 'J3\n' >> "$A/.claude/rules/日本語.md"          # T16: 非ASCIIパスの ai-asset 集計
 git_c "$A" add -A
 git_c "$A" commit -q -m 'ai-asset: a.mdを改善'
 
@@ -159,6 +172,7 @@ B="$WORK/destB"
 make_dest "$B" "${BASE_SHA}-dirty"
 sed -i 's/^L2$/L2-destB/' "$B/.claude/rules/a.md"
 printf 'ig3\n' >> "$B/.gitignore"                      # T12: lines-marker の変更
+printf 'at3\n' >> "$B/.gitattributes"                  # T18: 2件目の lines-marker の変更
 sed -i 's/"a": 1/"a": 2/' "$B/.claude/settings.json"   # T13: 対象キー（hooks）の変更
 git_c "$B" init -q
 git_c "$B" add -A
@@ -178,6 +192,10 @@ git_c "$C" commit -q -m 'chore: init'
 D="$WORK/destD"
 make_dest "$D" ''
 sed -i 's/^L3$/L3-destD/' "$D/.claude/rules/a.md"
+# T5: 縮退モードでも配布先が git なら判断材料（changeCount 等）が埋まることを見るため git 化する
+git_c "$D" init -q
+git_c "$D" add -A
+git_c "$D" commit -q -m 'chore: init'
 
 # ---- 配布先E: git リポジトリでない（T15） ----------------------------------
 
@@ -235,9 +253,32 @@ assert_eq 'T6: 壊れた配布先は degraded=true' 'true' "$(qa '.targets[2].de
 assert_eq 'T6: 正常な配布先Bの結果も返る' 'modified' \
   "$(qa '.targets[1].files[] | select(.path==".claude/rules/a.md") | .status')"
 
-# T7: local 相当・機構生成物は added に現れない
-assert_eq 'T7: added は new-skill.md の1件のみ' '.claude/rules/new-skill.md' \
+# T7: local 相当・機構生成物は added に現れない（added は意図した3件だけ）
+assert_eq 'T7: added は new-skill/ren-old/日本語 の3件のみ' \
+  '.claude/rules/new-skill.md,.claude/rules/ren-old.md,.claude/rules/日本語.md' \
   "$(qa '[.targets[0].files[] | select(.status=="added") | .path] | join(",")')"
+
+# T16: 非ASCII（日本語）ファイル名でも upstreamDeleted・判断材料が正しく突き合う
+# （core.quotepath=false が無いと8進エスケープでキーが化け、全件 false / 0 になる）
+assert_eq 'T16: 日本語.md の upstreamDeleted は true' 'true' \
+  "$(qa '.targets[0].files[] | select(.path==".claude/rules/日本語.md") | .upstreamDeleted')"
+assert_eq 'T16: 日本語.md の aiAssetCommits は1' '1' \
+  "$(qa '.targets[0].files[] | select(.path==".claude/rules/日本語.md") | .aiAssetCommits')"
+assert_eq 'T16: 日本語.md の changeCount は2' '2' \
+  "$(qa '.targets[0].files[] | select(.path==".claude/rules/日本語.md") | .changeCount')"
+
+# T17: 本家で改名（git mv）された旧パスも upstreamDeleted=true になる
+# （既定の改名検出では R に分類され --diff-filter=D に出ない。--no-renames で拾う）
+assert_eq 'T17: ren-old.md の upstreamDeleted は true' 'true' \
+  "$(qa '.targets[0].files[] | select(.path==".claude/rules/ren-old.md") | .upstreamDeleted')"
+assert_eq 'T17: ren-old.md の upstreamHasPath は false' 'false' \
+  "$(qa '.targets[0].files[] | select(.path==".claude/rules/ren-old.md") | .upstreamHasPath')"
+
+# T18: 2件目の lines-marker（.gitattributes）の指紋比較
+assert_eq 'T18: 変更なしの .gitattributes は listed されない' '' \
+  "$(qa '.targets[0].files[] | select(.path==".gitattributes") | .path')"
+assert_eq 'T18: 行を足した .gitattributes は modified' 'modified' \
+  "$(qa '.targets[1].files[] | select(.path==".gitattributes") | .status')"
 
 # T8: -dirty 付きでも 3-way が動き、近似フラグが立つ
 assert_eq 'T8: destB は baseResolvable=true' 'true' "$(qa '.targets[1].baseResolvable')"
@@ -287,6 +328,39 @@ assert_eq 'T5: a.md が differs で列挙される' 'differs' \
   "$(jq -r '.targets[0].files[] | select(.path==".claude/rules/a.md") | .status' "$scan_d")"
 assert_eq 'T5: 縮退時のレコードは conflict キーを持たない' 'false' \
   "$(jq -r '.targets[0].files[] | select(.path==".claude/rules/a.md") | has("conflict")' "$scan_d")"
+assert_eq 'T5: 縮退でも git 配布先なら changeCount が埋まる' '1' \
+  "$(jq -r '.targets[0].files[] | select(.path==".claude/rules/a.md") | .changeCount' "$scan_d")"
+assert_eq 'T5: 縮退でも git 配布先なら aiAssetCommits が埋まる' '0' \
+  "$(jq -r '.targets[0].files[] | select(.path==".claude/rules/a.md") | .aiAssetCommits' "$scan_d")"
+
+# ---- T19: エラーレコードと配布先単位の隔離 ---------------------------------
+
+scan_err="$WORK/scan_err.json"
+bash "$SCRIPT" --upstream "$UP" scan "$WORK/no-such-dest" "$B" > "$scan_err"
+assert_eq 'T19: 存在しない配布先は error レコードになる' 'true' \
+  "$(jq -r '.targets[0] | has("error")' "$scan_err")"
+assert_eq 'T19: 隣の配布先の結果は通常どおり返る' 'false' \
+  "$(jq -r '.targets[1] | has("error")' "$scan_err")"
+
+# T19b: 縮退モードの展開（git archive | tar）が失敗したら「差分なし」ではなく error になる
+STUB_BIN="$WORK/stub-bin"
+mkdir -p "$STUB_BIN"
+printf '#!/usr/bin/env bash\nexit 1\n' > "$STUB_BIN/tar"
+chmod +x "$STUB_BIN/tar"
+scan_tar="$WORK/scan_tar.json"
+PATH="$STUB_BIN:$PATH" bash "$SCRIPT" --upstream "$UP" scan "$D" > "$scan_tar"
+assert_eq 'T19b: tar 失敗の配布先は error レコードになる（偽の全クリアにしない）' 'true' \
+  "$(jq -r '.targets[0] | has("error")' "$scan_tar")"
+
+# ---- T20: manifest からレコードを1件も読めない場合は縮退へ倒す --------------
+
+G="$WORK/destG"
+make_dest "$G" ''
+printf '{ "schemaVersion": 1, "files": [] }\n' > "$G/.claude/.asset-manifest.json"
+scan_g="$WORK/scan_g.json"
+bash "$SCRIPT" --upstream "$UP" scan "$G" > "$scan_g"
+assert_eq 'T20: files が空の manifest は degraded=true（全件 added の誤報にしない）' 'true' \
+  "$(jq -r '.targets[0].degraded' "$scan_g")"
 
 # ---- T15: git リポジトリでない配布先 ---------------------------------------
 
@@ -318,6 +392,23 @@ assert_contains 'T14: 衝突マーカーが出る' '<<<<<<<' "$(cat "$m_out")"
 rc=0
 bash "$SCRIPT" --upstream "$UP" merge3 "$A" .gitignore > "$m_out" 2> "$m_err" || rc=$?
 assert_eq 'T14: merge 層の指定は exit 4' '4' "$rc"
+
+rc=0
+bash "$SCRIPT" --upstream "$UP" merge3 "$A" .claude/dist-layers.json > "$m_out" 2> "$m_err" || rc=$?
+assert_eq 'T14: dist-layers.json の指定は exit 4' '4' "$rc"
+
+rc=0
+bash "$SCRIPT" --upstream "$UP" merge3 "$A" .gitattributes > "$m_out" 2> "$m_err" || rc=$?
+assert_eq 'T14: manifest の layer=merge レコードでも exit 4（第一情報源）' '4' "$rc"
+
+# T21: 層を判定できない配布先（manifest も dist-layers.json も無い）はフェイルクローズで exit 3
+H="$WORK/destH"
+mkdir -p "$H/.claude/rules"
+git -C "$UP" show "$BASE_SHA:.claude/rules/a.md" > "$H/.claude/rules/a.md"
+rc=0
+bash "$SCRIPT" --upstream "$UP" merge3 "$H" .claude/rules/a.md > "$m_out" 2> "$m_err" || rc=$?
+assert_eq 'T21: 層を判定できないときは exit 3（無言で 3-way しない）' '3' "$rc"
+assert_contains 'T21: stderr に理由が出る' '層を判定できません' "$(cat "$m_err")"
 
 rc=0
 bash "$SCRIPT" --upstream "$UP" merge3 "$A" .claude/rules/nope.md > "$m_out" 2> "$m_err" || rc=$?
@@ -382,6 +473,20 @@ if is_harvest_infra_path '.claude/rules/x.md.bak'; then r=0; else r=1; fi
 assert_eq 'T10: .bak は機構パス' '0' "$r"
 if is_harvest_infra_path '.claude/rules/x.md'; then r=0; else r=1; fi
 assert_eq 'T10: 通常ファイルは機構パスではない' '1' "$r"
+
+# T22: merge の指紋比較は未知 strategy・keys 空を「変更あり」側へ倒す（フェイルオープン防止）
+if merge_fingerprint_unchanged "$UP/.gitignore" 'unknown-strategy' '' '{}'; then r=0; else r=1; fi
+assert_eq 'T22: 未知 strategy は変更あり側へ倒れる' '1' "$r"
+if merge_fingerprint_unchanged "$UP/.gitignore" '' '' '{}'; then r=0; else r=1; fi
+assert_eq 'T22: strategy 欠落は変更あり側へ倒れる' '1' "$r"
+if merge_fingerprint_unchanged "$UP/.claude/settings.json" 'json-keys' '' '{}'; then r=0; else r=1; fi
+assert_eq 'T22: keys 空の json-keys は変更あり側へ倒れる' '1' "$r"
+
+# T23: usage に3サブコマンドすべての書式が出る（行範囲固定のずれで欠けない）
+usage_out="$(bash "$SCRIPT" --help)"
+assert_contains 'T23: usage に scan が出る' ' scan ' "$usage_out"
+assert_contains 'T23: usage に diff が出る' ' diff ' "$usage_out"
+assert_contains 'T23: usage に merge3 が出る' ' merge3 ' "$usage_out"
 
 # ---- T11: 読み取り専用の表明（実行後の断面と比較） -------------------------
 

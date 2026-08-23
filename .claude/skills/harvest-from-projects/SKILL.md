@@ -45,9 +45,10 @@ bash .claude/skills/harvest-from-projects/scripts/harvest-from-projects.sh scan 
 - `sourceCommit` / `sourceCommitDirty` / `baseResolvable` / `baseApproximate`: 3-way の base
   （配布時点の内容）が解決できたか。`baseApproximate: true` は記録SHAが `-dirty` 付きで、
   base が配布された内容と一致しない可能性がある（結果は近似として読む）。
-- `files[]`: `status`（modified / added / deleted / removedUpstream）・`conflict`
-  （clean / conflict / unknown）・判断材料（`aiAssetCommits` / `changeCount`。配布先が
-  git リポジトリでないときは `null`）・`upstreamHasPath` / `upstreamDeleted`。
+- `files[]`: `status`（modified / added / deleted / removedUpstream。縮退モードでは
+  differs）・`conflict`（clean / conflict / unknown）・判断材料（`aiAssetCommits` /
+  `changeCount`。配布先が git リポジトリでないときは `null`。縮退モードでも配布先が
+  git なら埋まる）・`upstreamHasPath` / `upstreamDeleted`。
 - 読めなかった配布先は `{"path":..., "error":...}` になる（他の配布先の結果は返る）。
 
 ### Step 2: 結果を表で提示する
@@ -76,12 +77,19 @@ bash .claude/skills/harvest-from-projects/scripts/harvest-from-projects.sh scan 
 `AskUserQuestion` で、収穫候補のうちどれを本家へ取り込むかを選択してもらう
 （multiSelect。1件も選ばれなければここで終了する）。
 
+**非対話セッション（応答を待てない実行環境）では、選択を求めず Step 2 の表と候補一覧を
+提示して停止する**（以降の Step へ進まない。起票には明示指示が要ることを最終応答へ明示する。
+`.claude/rules/git-workflow.md`「ハーネスがPR作成を制限する環境での扱い」と同じ
+「振る舞いを決め打ちにする」方針）。
+
 ### Step 4: 出口レベルを確認する
 
 `AskUserQuestion` で出口レベルを確認する。
 
 - **a. issue起票のみ**（既定）
 - **b. issue起票＋個別作業計画の草案作成**
+
+（非対話セッションは Step 3 の決め打ちにより、そもそもここへ到達しない。）
 
 ### Step 5: 内容を確認して issue を起票する
 
@@ -93,7 +101,9 @@ MCP フォールバック規約に従う）。
 # 2-way 差分（本家HEAD vs 配布先現在。LF正規化後）
 bash .claude/skills/harvest-from-projects/scripts/harvest-from-projects.sh diff /path/to/projectA .claude/rules/x.md
 
-# 3-way マージ結果の事前確認（終了コード: 0=衝突なし/1=衝突あり/2=base取得不可で2-wayへ縮退/3=エラー/4=対象外）
+# 3-way マージ結果の事前確認
+# （終了コード: 0=衝突なし/1=衝突あり/2=base取得不可で2-wayへ縮退/
+#   3=エラー（層を判定できない場合のフェイルクローズを含む）/4=対象外（merge層・seed層・dist-layers.json））
 bash .claude/skills/harvest-from-projects/scripts/harvest-from-projects.sh merge3 /path/to/projectA .claude/rules/x.md
 ```
 
@@ -127,4 +137,8 @@ issue 本文は標準4見出し（目的・現状・期待する動作・受け�
   検知は manifest の strategy 別指紋との比較で行い、内容の確認は `diff` で行う。
 - **`.claude/dist-layers.json` も 3-way の対象外**（`del(.upstream)` を掛けた内容が配布される
   ため）。`diff` は本家側へ同じ変換を掛けてから比較する。
+- **seed 層（`AGENTS.md` / `HANDOFF.md` / `index.md` / `REVIEW-POINTS.local.md` 等）も 3-way の
+  対象外**（配布元は別パスの雛形で、base が本家の履歴に無い）。層を判定できない配布先
+  （manifest も dist-layers.json も読めない）では `merge3` は実行されず終了コード 3 で止まる
+  （フェイルクローズ）。
 - 仕様の詳細（分類規則・縮退条件・終了コード）はフェーズ4で `.claude/docs/spec/` へ記録する。

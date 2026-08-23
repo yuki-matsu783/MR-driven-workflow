@@ -82,7 +82,7 @@
   <div class="inner">
     <div class="kind">作業結果レポート / フェーズ3（flow-id 3-6）</div>
     <h1>作業結果: 収穫スキルの新設</h1>
-    <p class="lead">収穫（逆輸入）スキル一式——SKILL.md・読み取り専用の分析スクリプト（scan/diff/merge3）・テストT1〜T15（アサーション66件）・dist-layersのexcludeエントリ・配布先DDR規約——を実装し、計画の検証4種がすべて合格した。</p>
+    <p class="lead">収穫（逆輸入）スキル一式——SKILL.md・読み取り専用の分析スクリプト（scan/diff/merge3）・テストT1〜T23（アサーション89件。敵対的レビュー4回目の指摘反映を含む）・dist-layersのexcludeエントリ・配布先DDR規約——を実装し、計画の検証4種がすべて合格した。</p>
     <ul class="meta">
       <li><b>issue</b> #27</li>
       <li><b>ブランチ</b> claude/ai-asset-reverse-import-skill-g4qa9s</li>
@@ -103,9 +103,10 @@
     <tbody>
       <tr><td><code>.claude/skills/harvest-from-projects/SKILL.md</code></td><td>新規</td><td>収穫スキルの手順定義（Step 1〜6・してはいけないこと・制約）</td></tr>
       <tr><td><code>.claude/skills/harvest-from-projects/scripts/harvest-from-projects.sh</code></td><td>新規</td><td>読み取り専用の差分分析スクリプト（scan / diff / merge3。768行）</td></tr>
-      <tr><td><code>.claude/scripts/test/test_harvest_from_projects.sh</code></td><td>新規</td><td>単体・結合テスト（T1〜T15。アサーション66件・スキップガード付き）</td></tr>
+      <tr><td><code>.claude/scripts/test/test_harvest_from_projects.sh</code></td><td>新規</td><td>単体・結合テスト（T1〜T23。アサーション89件・スキップガード付き）</td></tr>
       <tr><td><code>.claude/dist-layers.json</code></td><td>変更</td><td><code>harvest-from-projects</code> の <code>exclude</code> エントリを追加</td></tr>
       <tr><td><code>.claude/rules/markdown-frontmatter.md</code></td><td>変更</td><td>「DDRの識別子」節配下へ「配布先プロジェクトでの機構DDRの扱い（issue #27）」を追記</td></tr>
+      <tr><td><code>index.md</code></td><td>変更</td><td>Repository Map のスキル一覧へ <code>/harvest-from-projects</code> を追記（敵対的レビュー4回目の指摘）</td></tr>
     </tbody>
   </table>
   </div>
@@ -114,12 +115,12 @@
 <section id="points">
   <h2>実装の要点</h2>
   <ul>
-    <li><b>scan の出力</b>: <code>{"schemaVersion":1,"targets":[...]}</code>。配布先単位のエラー隔離（読めない配布先は error レコード、壊れた manifest は <code>[ -s ]</code>→<code>jq -e .</code> の順で検証して縮退へフォールバック）。</li>
-    <li><b>分類</b>: modified は層・strategy 別（core=LF正規化sha256／merge/lines-marker=LF正規化後の全体sha256／merge/json-keys=キーごとの jq -c getpath 出力のsha256）。deleted は core/merge 限定で、<b>本家HEADにも無いものは removedUpstream（収穫対象外の別枠）</b>。added は配布先 dist-layers.json の自前 pathspec 照合＋gitignorePattern 照合（自前実装のみ・check-ignore 不使用）＋機構生成物（manifest 自身・*.bak）の明示除外。</li>
+    <li><b>scan の出力</b>: <code>{"schemaVersion":1,"targets":[...]}</code>。配布先単位のエラー隔離（読めない配布先は error レコード、manifest は <code>[ -s ]</code>→<code>jq -e '(.schemaVersion == 1) and ((.files | length) > 0)'</code> の順で検証し、妥当な JSON でも .files が空・レコードを1件も読めない場合は縮退へ倒す——通常経路へ進むと全ファイルを added と誤報するため）。エラー隔離は <code>set +e; ( set -e; scan_one_dest ); rc=$?; set -e</code> の形——<code>( f ) || rc=$?</code> は errexit の一時停止がサブシェル内部へ伝播し内部失敗が素通りする（bash 5.2.21 で実測）。</li>
+    <li><b>分類</b>: modified は層・strategy 別（core=LF正規化sha256／merge/lines-marker=LF正規化後の全体sha256／merge/json-keys=キーごとの jq -c getpath 出力のsha256）。deleted は core/merge 限定で、<b>本家HEADにも無いものは removedUpstream（収穫対象外の別枠）</b>。added は配布先 dist-layers.json の自前 pathspec 照合＋gitignorePattern 照合（自前実装のみ・check-ignore 不使用）＋機構生成物（manifest 自身・*.bak）の明示除外。merge の strategy は明示分岐し、未知・欠落・keys 空は「変更あり」側へ倒す。縮退モードのレコードも emit_record 経由で出し、git 配布先なら判断材料が埋まる。</li>
     <li><b>conflict</b>: core かつ base 解決可のときだけ git merge-file で事前判定（0=clean／1〜127=conflict／それ以外=unknown）。<b>-dirty 付き記録SHAは -dirty を落として 3-way を実行し baseApproximate=true を立てる</b>。merge 層と dist-layers.json は 3-way 対象外。</li>
-    <li><b>merge3 の終了コード</b>: 0=衝突なし／1=衝突あり／2=base取得不可で2-wayへ縮退／3=その他エラー／4=3-wayの対象外。</li>
-    <li><b>git 起動の一括化</b>: ls-tree 1回・log --diff-filter=D 1回・log --name-only 1回（awkで畳み込み）・縮退時の本家HEAD展開は git archive | tar 1回。ファイル数比例の起動は「core かつ modified」に限定した git show と merge-file のみ。</li>
-    <li><b>読み取り専用</b>: 書き込みは mktemp の一時領域のみ。git は読み取り専用サブコマンド（show / cat-file / ls-files / ls-tree / log / rev-list / rev-parse / archive / merge-file）に限定。</li>
+    <li><b>merge3 の終了コード</b>: 0=衝突なし／1=衝突あり／2=base取得不可で2-wayへ縮退／3=その他エラー（層を判定できない場合のフェイルクローズを含む）／4=3-wayの対象外（merge 層・seed 層・dist-layers.json）。層の判定は manifest の .files[].layer を第一情報源にする。</li>
+    <li><b>git 起動の一括化</b>: ls-tree 1回・log --diff-filter=D 1回・log --name-only 1回（awkで畳み込み）・縮退時の本家HEAD展開は git archive | tar 1回（終了コードと展開結果の非空を明示検査）。2本の git log には -c core.quotepath=false を付け（非ASCIIパスの突き合わせ空振り防止）、削除履歴は --no-renames で改名の旧パスも拾う。ファイル数比例の起動は「core かつ modified」に限定した git show と merge-file のみ。</li>
+    <li><b>読み取り専用</b>: 書き込みは mktemp の一時領域のみ。git は読み取り専用サブコマンド（show / cat-file / ls-files / ls-tree / log / rev-parse / archive / merge-file）に限定。</li>
   </ul>
 </section>
 
@@ -129,7 +130,7 @@
 （出力なし・終了コード0）
 
 $ bash .claude/scripts/test/test_harvest_from_projects.sh
-passed=66 failures=0
+passed=89 failures=0
 
 $ bash .claude/scripts/src/check-dist-coverage.sh   # git add 後に実行
 検査1 追跡ファイルの分類: 458 / 458 件
@@ -147,6 +148,7 @@ true</code></pre>
       <li>テスト初回は <code>passed=65 failures=1</code>——<code>/usage/</code>（アンカー付き・スラッシュ無し残り）がルート以外にも一致するバグを T10 が検出し、アンカー分岐を追加して解消。</li>
       <li>計画の frontmatter 検証コマンド（.path / endswith）は index.jsonl の実スキーマ（concept_id / frontmatter.type）と合わず失敗。実スキーマに合わせて修正して検証した。</li>
       <li>jq フィルタの US 区切りを初版で生バイトとして書いてしまい、バイト数比較で検出してエスケープ表記（&#92;u001f）へ置換した。</li>
+      <li>敵対的レビュー4回目（対象=実装一式）の指摘15件を反映——quotepath / --no-renames、エラー隔離の実測に基づく作り直し、tar 失敗の error 化、manifest 空の縮退、merge3 のフェイルクローズと seed 対象外、strategy 明示分岐、縮退時の判断材料、usage の awk 化、空配列ガード、T16〜T23 の追加（66→89件）。</li>
     </ul>
   </div>
 </section>
@@ -159,10 +161,10 @@ true</code></pre>
     <tbody>
       <tr><td>core 層変更が列挙される</td><td>scan の modified</td><td>T1</td></tr>
       <tr><td>本家側変更と衝突ありの区別</td><td>conflict=clean/conflict/unknown</td><td>T2a/T2b</td></tr>
-      <tr><td>新規追加が候補列挙</td><td>added（3段の除外付き）</td><td>T3（T7 で誤検出防止4種）</td></tr>
+      <tr><td>新規追加が候補列挙</td><td>added（3段の除外付き）</td><td>T3（T7 で誤検出防止4種、T16/T17 で非ASCII・改名旧パス）</td></tr>
       <tr><td>削除が列挙</td><td>deleted / removedUpstream</td><td>T4 / T4b</td></tr>
-      <tr><td>manifest 無しの縮退モード</td><td>degraded・status="differs"</td><td>T5</td></tr>
-      <tr><td>複数配布先パス</td><td>scan 可変長引数＋エラー隔離</td><td>T6</td></tr>
+      <tr><td>manifest 無しの縮退モード</td><td>degraded・status="differs"</td><td>T5（T19b/T20 で失敗時の縮退・error）</td></tr>
+      <tr><td>複数配布先パス</td><td>scan 可変長引数＋エラー隔離</td><td>T6 / T19</td></tr>
       <tr><td>出口レベル確認・停止・正史不変更</td><td>SKILL.md Step 3〜6＋読み取り専用設計</td><td>T11</td></tr>
       <tr><td>issue-create 経由の起票</td><td>SKILL.md Step 5</td><td>—（手順であり機械検証の対象外）</td></tr>
       <tr><td>DDR規約が配布物のルールに記載</td><td>markdown-frontmatter.md へ追記（core 層）</td><td>—（検査3の分類で core を確認）</td></tr>

@@ -4,7 +4,7 @@
 # 変更せずに分析して JSON で報告する。取り込みの判断・issue 起票は SKILL.md 側の手順が担う。
 #
 # 読み取り専用の保証: 本家・配布先のワークツリーを変更しない。書き込みは mktemp -d の
-# 一時領域のみ。git 操作は show / cat-file / ls-files / ls-tree / log / rev-list / rev-parse /
+# 一時領域のみ。git 操作は show / cat-file / ls-files / ls-tree / log / rev-parse /
 # archive / merge-file（-p で標準出力へ）に限る（いずれも読み取り専用。add / checkout /
 # clean / stash 等の書き込み系サブコマンドは使わない）。
 #
@@ -15,8 +15,9 @@
 #
 # merge3 の終了コード（git merge-file の 0／1〜127（衝突数）／≧128（エラー）をそのまま
 # 露出させず、意味ごとに正規化する）:
-#   0=衝突なし / 1=衝突あり / 2=base 取得不可のため 2-way へ縮退 / 3=その他エラー /
-#   4=3-way の対象外（merge 層・.claude/dist-layers.json）
+#   0=衝突なし / 1=衝突あり / 2=base 取得不可のため 2-way へ縮退 /
+#   3=その他エラー（層を判定できない場合のフェイルクローズを含む） /
+#   4=3-way の対象外（merge 層・seed 層・.claude/dist-layers.json）
 set -euo pipefail
 
 readonly MANIFEST_REL='.claude/.asset-manifest.json'
@@ -26,7 +27,9 @@ UPSTREAM_ROOT=''
 TMP_DIR=''
 
 usage() {
-  sed -n 's/^# \?//p' "${BASH_SOURCE[0]}" | sed -n '3,12p' >&2
+  # 冒頭コメントブロック（2行目〜コメントでない最初の行の手前）をそのまま出す。
+  # 行番号の固定値はコメント追記のたびにずれるため使わない（install-to-project.sh と同型）
+  awk 'NR >= 2 { if ($0 !~ /^#/) exit; sub(/^# ?/, ""); print }' "${BASH_SOURCE[0]}"
 }
 
 cleanup_tmp() {
@@ -216,12 +219,16 @@ load_upstream_path_sets() {
     [ -n "$p" ] || continue
     UP_HAS_PATH["$p"]=1
   done < <(git -C "$UPSTREAM_ROOT" ls-tree -r --name-only -z HEAD)
-  # 本家の履歴上で一度でも削除されたパス（--diff-filter=D）。1回の git 起動で全件取り、
-  # 「配布先の新規追加」と「本家の削除漏れ」の区別材料にする（調査結果 Q8）。
+  # 本家の履歴上で一度でも「無くなった」パス。改名（git mv）は既定の改名検出で R に
+  # 分類され D に現れないため、--no-renames で削除＋新規追加として数える（改名の旧パスも
+  # 拾う。実例: issue #133 のDDR一括改名）。core.quotepath=false を付けないと非ASCIIパスが
+  # 8進エスケープでクォートされ、実パスとの突き合わせが全件空振りする（DDR等の日本語
+  # ファイル名が主要な対象なので必須）。1回の git 起動で全件取り、「配布先の新規追加」と
+  # 「本家の削除漏れ」の区別材料にする（調査結果 Q8）。
   while IFS= read -r p; do
     [ -n "$p" ] || continue
     UP_DELETED_PATH["$p"]=1
-  done < <(git -C "$UPSTREAM_ROOT" log --diff-filter=D --name-only --format= 2>/dev/null | tr -d '\r' | sort -u)
+  done < <(git -C "$UPSTREAM_ROOT" -c core.quotepath=false log --no-renames --diff-filter=D --name-only --format= 2>/dev/null | tr -d '\r' | sort -u)
 }
 
 # ---- 判断材料（配布先の git 履歴。1回の git 起動で全ファイルぶん集計） -----
@@ -237,11 +244,13 @@ load_dest_history() { # $1=配布先ルート
   DEST_IS_GIT=1
   # コミットごとの件名とファイル一覧を1回で取り、awk 1回でファイル別に畳み込む
   # （ファイルごとに git log を起動しない。git bash では起動回数が所要時間を決めるため）。
+  # core.quotepath=false を付けないと非ASCIIパスが8進エスケープでクォートされ、
+  # 畳み込みキーが実パスと一致せず件数が全件0へ落ちる（load_upstream_path_sets と同根）。
   while IFS=$'\037' read -r p cnt ai; do
     [ -n "$p" ] || continue
     DEST_CHANGE_COUNT["$p"]="$cnt"
     DEST_AI_COUNT["$p"]="$ai"
-  done < <(git -C "$dest" log --format='%x01%s' --name-only 2>/dev/null | tr -d '\r' | awk '
+  done < <(git -C "$dest" -c core.quotepath=false log --format='%x01%s' --name-only 2>/dev/null | tr -d '\r' | awk '
     # 件名行の目印は %x01 の生バイト。awk 側は POSIX の8進文字列 "\001" で比較する
     # （正規表現の \x エスケープは処理系依存のため使わない）
     substr($0, 1, 1) == "\001" { ai = (substr($0, 2) ~ /^ai-asset:/) ? 1 : 0; next }
@@ -264,6 +273,12 @@ merge_fingerprint_unchanged() {
     [ "${h%% *}" = "$rec_lines" ]
     return
   fi
+  # strategy は明示的に分岐する。未知・欠落は「変更なし」ではなく「変更あり」側へ倒す
+  # （フェイルオープンにすると配布先の改変が無言で候補から落ち、出力からは異常が読めない。
+  # install-to-project.sh の apply_pass が未知 strategy で止めるのと同じ向き）
+  [ "$strategy" = 'json-keys' ] || return 1
+  # 記録された keys が空なら比較対象が無く判定不能＝「変更あり」側へ倒す
+  case "$rec_keys_json" in '' | '{}' | 'null') return 1 ;; esac
   # json-keys: キーごとの jq -c getpath 出力の sha256（この経路だけ正規化なし。記録側と同一）
   local key rec_h cur_h
   while IFS=$'\037' read -r key rec_h; do
@@ -336,7 +351,11 @@ scan_one_dest() { # $1=配布先パス
   dest="$(cd "$dest" && pwd)"
 
   local manifest="$dest/$MANIFEST_REL" manifest_ok=0
-  if [ -s "$manifest" ] && jq -e . "$manifest" > /dev/null 2>&1; then
+  # 妥当な JSON であるだけでは足りない: .files が空（または形式違いで1件も読めない）状態で
+  # 通常経路へ進むと、added 判定が全件素通りして配布先の全ファイルを added と誤報する。
+  # schemaVersion の不一致（install 側の将来の形式変更）も同じ形で壊れるため、ここで縮退へ倒す
+  if [ -s "$manifest" ] \
+    && jq -e '(.schemaVersion == 1) and ((.files | length) > 0)' "$manifest" > /dev/null 2>&1; then
     manifest_ok=1
   fi
   local layers_ok=0
@@ -374,6 +393,15 @@ scan_one_dest() { # $1=配布先パス
     | join("\u001f")
   ' "$manifest" | tr -d '\r')
 
+  # 防御の二重化: 上の jq 検査を通っても、path 欠落等の形式違いでレコードが1件も
+  # 読めなければ通常経路は成立しない（added の全件誤報になる）。縮退へ倒す
+  if [ "${#MAN_LAYER[@]}" -eq 0 ]; then
+    scan_degraded "$dest" "$records"
+    build_target_json "$dest" true true '' false false false "$records"
+    rm -f "$records"
+    return 0
+  fi
+
   local source_commit
   source_commit="$(jq -r '.source.commit // ""' "$manifest" | tr -d '\r')"
   local source_dirty=false
@@ -399,7 +427,9 @@ scan_one_dest() { # $1=配布先パス
   if [ "${#core_existing[@]}" -gt 0 ]; then
     sha256_lf_batch "${core_existing[@]}"
   fi
-  for p in "${core_paths[@]}"; do
+  # 空配列の "${a[@]}" は bash 4.4 未満の set -u で unbound variable になるためガードを付ける
+  # （install-to-project.sh の apply_pass と同じ回避。以降の配列展開も同型）
+  for p in ${core_paths[@]+"${core_paths[@]}"}; do
     if [ ! -f "$dest/$p" ]; then
       emit_missing_record "$records" "$p" core
       continue
@@ -426,7 +456,7 @@ scan_one_dest() { # $1=配布先パス
   done
 
   # --- core modified の衝突事前判定（merge-file の起動は modified な core に限定） ---
-  for p in "${modified_core[@]}"; do
+  for p in ${modified_core[@]+"${modified_core[@]}"}; do
     local conflict=unknown
     if [ "$base_resolvable" = true ] && [ "$p" != "$DIST_LAYERS_REL" ]; then
       materialize_upstream_to_reply "$base_sha" "$p"
@@ -457,7 +487,7 @@ scan_one_dest() { # $1=配布先パス
   done
   local root cand rel
   local -A seen_cand=()
-  for root in "${roots[@]}"; do
+  for root in ${roots[@]+"${roots[@]}"}; do
     if [ -f "$dest/$root" ]; then
       seen_cand["$root"]=1
     elif [ -d "$dest/$root" ]; then
@@ -532,7 +562,19 @@ scan_degraded() { # $1=配布先 $2=records
   ensure_tmp
   local up_snap="$TMP_DIR/degraded-upstream"
   mkdir -p "$up_snap"
-  git -C "$UPSTREAM_ROOT" archive HEAD | tar -x -C "$up_snap"
+  # 展開の失敗を「差分なし」と混同しない: パイプラインの終了コードを明示的に検査し、
+  # 空展開（tar が何も出さなかった）も失敗として扱う（set -e はこの関数が条件文脈から
+  # 呼ばれた場合に無効化されるため、暗黙の中断へ頼らない）
+  local archive_rc=0
+  git -C "$UPSTREAM_ROOT" archive HEAD | tar -x -C "$up_snap" || archive_rc=$?
+  if [ "$archive_rc" -ne 0 ]; then
+    printf 'エラー: 本家HEADの展開に失敗しました（git archive | tar rc=%s）\n' "$archive_rc" >&2
+    return 1
+  fi
+  if [ -z "$(find "$up_snap" -mindepth 1 -print -quit)" ]; then
+    printf 'エラー: 本家HEADの展開結果が空です（git archive | tar）\n' >&2
+    return 1
+  fi
 
   local -a compare_up=() compare_dest=() compare_rel=()
   for f in "${!file_layer[@]}"; do
@@ -556,8 +598,10 @@ scan_degraded() { # $1=配布先 $2=records
   local i
   for ((i = 0; i < ${#compare_rel[@]}; i++)); do
     if [ "${SHA_RESULT[${compare_up[$i]}]}" != "${SHA_RESULT[${compare_dest[$i]}]}" ]; then
-      printf '%s\037%s\037differs\037\037null\037null\037true\037false\n' \
-        "${compare_rel[$i]}" "${file_layer[${compare_rel[$i]}]}" >> "$records"
+      # emit_record 経由で出すことで、配布先が git リポジトリなら判断材料
+      # （aiAssetCommits / changeCount）も通常経路と同じに埋まる（null 決め打ちにすると
+      # 「配布先が git ではない」とSKILL.mdの説明どおりに誤読される）
+      emit_record "$records" "${compare_rel[$i]}" "${file_layer[${compare_rel[$i]}]}" differs ''
     fi
   done
 }
@@ -591,13 +635,22 @@ cmd_scan() {
   TARGETS_FILE="$(mktemp -p "$TMP_DIR")"
   local dest rc
   for dest in "$@"; do
-    rc=0
-    # 1件の失敗で全体を落とさない（配布先単位のエラー隔離）。サブシェルで呼ぶのは、
-    # 条件式の中では set -e が一時停止され関数内部の失敗が素通りするため
-    # （.claude/rules/shell-script-style.md「エラー方針」。出力は TARGETS_FILE への追記
-    # なのでサブシェルでも失われない。TMP_DIR は直前の ensure_tmp で確定済みのため、
-    # サブシェル内で新たな trap は仕掛からない）
-    ( scan_one_dest "$dest" ) || rc=$?
+    # 1件の失敗で全体を落とさない（配布先単位のエラー隔離）。
+    # `( f ) || rc=$?` の形は使わない: bash は `||` による errexit の一時停止を
+    # サブシェルの内部まで伝播させるため、関数内の途中失敗が素通りして最後まで走り、
+    # 「壊れた分析結果」が正常な target として出力される（実測: bash 5.2.21 で
+    # `set -e; f(){ false; echo X; }; ( f ) || rc=$?` は X を出力し rc=0）。
+    # 代わりに条件文脈の外でサブシェルを実行し、その内側で set -e を掛け直す
+    # （この形なら内部の失敗で即座にサブシェルごと終了し、rc に現れる。実測済み。
+    # 出力は TARGETS_FILE への追記なのでサブシェルでも失われない。TMP_DIR は直前の
+    # ensure_tmp で確定済みのため、サブシェル内で新たな trap は仕掛からない）
+    set +e
+    (
+      set -e
+      scan_one_dest "$dest"
+    )
+    rc=$?
+    set -e
     if [ "$rc" -ne 0 ]; then
       emit_error_target "$dest" "分析に失敗しました（内部エラー rc=${rc}）"
     fi
@@ -654,22 +707,45 @@ cmd_merge3() {
     return 3
   }
 
-  # 3-way の対象外: merge 層（base が本家のどのコミットにも無い）と dist-layers.json
-  # （del(.upstream) 済みの内容が配布される）。指紋比較・2-way の diff で確認する。
+  # 3-way の対象外: merge 層（base が本家のどのコミットにも無い）・seed 層（配布元は
+  # 別パスの雛形で base が本家の履歴に無い）・dist-layers.json（del(.upstream) 済みの
+  # 内容が配布される）。指紋比較・2-way の diff で確認する。
   if [ "$rel" = "$DIST_LAYERS_REL" ]; then
     printf '対象外: %s は del(.upstream) 済みの内容が配布されるため 3-way の base が成立しません（diff を使ってください）\n' "$rel" >&2
     return 4
   fi
-  if load_dest_layers "$dest"; then
-    resolve_layer_to_reply "$rel"
-    if [ "$REPLY" = 'merge' ]; then
-      printf '対象外: %s は merge 層（配布直後の内容が本家のどのコミットにも無い）のため 3-way できません（diff を使ってください）\n' "$rel" >&2
-      return 4
+
+  # 層の判定（フェイルクローズ）: 第一情報源は manifest の .files[].layer（merge/seed の
+  # レコードがそのまま入っている）。manifest に無いパスは dist-layers.json の照合で解決する。
+  # どちらの情報源も読めないときは、merge/seed を誤って 3-way してしまう恐れがあるため
+  # 実行せずエラーで止める（無言のスキップは「exit 0=そのまま取り込める」の誤読を招く）
+  local manifest="$dest/$MANIFEST_REL" rel_layer='' manifest_readable=0
+  if [ -s "$manifest" ] && jq -e . "$manifest" > /dev/null 2>&1; then
+    manifest_readable=1
+    rel_layer="$(jq -r --arg p "$rel" '[.files[]? | select(.path == $p) | .layer] | last // ""' "$manifest" | tr -d '\r')"
+  fi
+  if [ -z "$rel_layer" ]; then
+    if load_dest_layers "$dest"; then
+      resolve_layer_to_reply "$rel"
+      rel_layer="$REPLY"
+    elif [ "$manifest_readable" -ne 1 ]; then
+      printf 'エラー: 層を判定できません（manifest と dist-layers.json のどちらも読めません）。merge/seed 層を誤って 3-way しないため実行を中止します\n' >&2
+      return 3
     fi
   fi
+  case "$rel_layer" in
+    merge)
+      printf '対象外: %s は merge 層（配布直後の内容が本家のどのコミットにも無い）のため 3-way できません（diff を使ってください）\n' "$rel" >&2
+      return 4
+      ;;
+    seed)
+      printf '対象外: %s は seed 層（配布元は別パスの雛形で base が本家の履歴に無い）のため 3-way できません（diff を使ってください）\n' "$rel" >&2
+      return 4
+      ;;
+  esac
 
-  local manifest="$dest/$MANIFEST_REL" base_sha='' base_approx=0
-  if [ -s "$manifest" ] && jq -e . "$manifest" > /dev/null 2>&1; then
+  local base_sha='' base_approx=0
+  if [ "$manifest_readable" -eq 1 ]; then
     local source_commit
     source_commit="$(jq -r '.source.commit // ""' "$manifest" | tr -d '\r')"
     resolve_base_sha_to_reply "$source_commit"
@@ -742,7 +818,7 @@ main() {
     esac
   done
   [ "${#rest[@]}" -ge 1 ] || {
-    usage
+    usage >&2
     return 3
   }
   git -C "$UPSTREAM_ROOT" rev-parse --git-dir > /dev/null 2>&1 || {
@@ -757,7 +833,7 @@ main() {
     merge3) cmd_merge3 "${rest[@]:1}" ;;
     *)
       printf 'エラー: 不明なサブコマンド: %s\n' "$sub" >&2
-      usage
+      usage >&2
       return 3
       ;;
   esac
