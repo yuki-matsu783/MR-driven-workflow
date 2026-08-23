@@ -1,0 +1,170 @@
+<!--
+  個別調査計画「テンプレート参照箇所と視覚設計の判断材料」（issue #186 / フェーズ2）の
+  人間レビュー用HTMLビュー。正文は同名の .md。
+  土台: .claude/skills/issue-mr-flow/assets/plans.template.html（issue #54）
+-->
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>【調査】テンプレート参照箇所と視覚設計の判断材料 — issue #186</title>
+<style>
+  :root {
+    --bg: #f6f7f9;      --panel: #ffffff;   --ink: #1a1d21;     --muted: #5b636d;
+    --line: #dfe3e8;    --accent: #2563eb;  --accent-soft: #eaf0fe;
+    --ok: #1a7f4b;      --ok-soft: #e6f4ec; --warn: #a35a00;    --warn-soft: #fdf1e0;
+    --stop: #b3261e;    --stop-soft: #fdecea; --code-bg: #f0f2f5;
+    --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1216;    --panel: #161a20;   --ink: #e6e8eb;     --muted: #9aa3ad;
+      --line: #2a3038;  --accent: #7aa2f7;  --accent-soft: #1b2333;
+      --ok: #6ee7a8;    --ok-soft: #14261d; --warn: #f0b866;    --warn-soft: #2a2113;
+      --stop: #f2857c;  --stop-soft: #2b1614; --code-bg: #1d222a;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", system-ui, sans-serif;
+    line-height: 1.8; font-size: 15px;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 20px 80px; }
+  header.band {
+    background: linear-gradient(135deg, var(--accent-soft), var(--panel));
+    border-bottom: 1px solid var(--line); padding: 28px 20px 22px; margin-bottom: 28px;
+  }
+  header.band .inner { max-width: 1080px; margin: 0 auto; }
+  header.band .kind { font-size: 11px; letter-spacing: .18em; color: var(--accent); font-weight: 700; }
+  header.band h1 { margin: 6px 0 4px; font-size: 26px; line-height: 1.4; }
+  header.band .lead { margin: 0; color: var(--muted); }
+  .meta { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; padding: 0; list-style: none; }
+  .meta li {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 999px;
+    padding: 3px 12px; font-size: 12.5px; color: var(--muted); white-space: nowrap;
+  }
+  .meta li b { color: var(--ink); font-weight: 600; }
+  nav.toc {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 14px 20px; margin-bottom: 28px;
+  }
+  nav.toc h2 { margin: 0 0 8px; font-size: 13px; letter-spacing: .08em; color: var(--muted); border: 0; padding: 0; }
+  nav.toc ol { margin: 0; padding-left: 20px; }
+  nav.toc li { margin: 2px 0; }
+  a { color: var(--accent); }
+  section {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 8px 24px 22px; margin-bottom: 22px;
+  }
+  h2 { font-size: 20px; margin: 20px 0 10px; padding-bottom: 8px; border-bottom: 2px solid var(--line); }
+  h3 { font-size: 16px; margin: 22px 0 8px; color: var(--accent); }
+  p { margin: 10px 0; }
+  ul, ol { padding-left: 22px; }
+  li { margin: 4px 0; }
+  .tablewrap { overflow-x: auto; margin: 14px 0; }
+  table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 14px; }
+  th, td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: var(--accent-soft); font-weight: 600; white-space: nowrap; }
+  tbody tr:nth-child(even) td { background: color-mix(in srgb, var(--line) 22%, transparent); }
+  code {
+    background: var(--code-bg); border-radius: 5px; padding: 1px 5px; font-size: 13px;
+    font-family: "SFMono-Regular", Consolas, "Noto Sans Mono", monospace;
+  }
+  pre {
+    background: var(--code-bg); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 12px 14px; overflow-x: auto; font-size: 13px; line-height: 1.65;
+  }
+  pre code { background: none; padding: 0; }
+  .box { border-left: 4px solid var(--accent); background: var(--accent-soft);
+         border-radius: 0 var(--radius) var(--radius) 0; padding: 12px 16px; margin: 16px 0; }
+  .box > :first-child { margin-top: 0; } .box > :last-child { margin-bottom: 0; }
+  .box .label { font-size: 12px; font-weight: 700; letter-spacing: .06em; display: block; margin-bottom: 4px; }
+  .box.ok { border-color: var(--ok); background: var(--ok-soft); } .box.ok .label { color: var(--ok); }
+  .box.warn { border-color: var(--warn); background: var(--warn-soft); } .box.warn .label { color: var(--warn); }
+  .box.stop { border-color: var(--stop); background: var(--stop-soft); } .box.stop .label { color: var(--stop); }
+  .box.info .label { color: var(--accent); }
+  footer { color: var(--muted); font-size: 13px; text-align: center; padding-top: 10px; }
+</style>
+</head>
+<body>
+
+<header class="band">
+  <div class="inner">
+    <div class="kind">個別調査計画 / フェーズ2</div>
+    <h1>テンプレート参照箇所と視覚設計の判断材料</h1>
+    <p class="lead">reports.template.html改修に先立ち、テンプレート構造へ言及するドキュメントを全列挙し、色・節順・コメント方針を確定させるための調査を行う。</p>
+    <ul class="meta">
+      <li><b>issue</b> #186</li>
+      <li><b>ブランチ</b> claude/html-report-visual-improvement-chu89d</li>
+      <li><b>PR</b> #191（Draft）</li>
+      <li><b>フェーズ</b> 2〈調査〉 flow-id 2-1</li>
+      <li><b>作成日</b> 2026-08-23</li>
+      <li><b>正文</b> 同名の .md</li>
+    </ul>
+  </div>
+</header>
+
+<div class="wrap">
+
+<section id="premise">
+  <h2>前提（合意状況）</h2>
+  <ul>
+    <li>上位の計画: <code>plans/vivid-report-canvas.md</code>（flow-id 1-5 でユーザー指示を承認とみなし合意）</li>
+  </ul>
+</section>
+
+<section id="goal">
+  <h2>この計画で何をするか</h2>
+  <p>フェーズ3で作る新テンプレートの「節順・色トークン・コメント方針」が一意に決まる状態にするための調査を行う。調査項目は次の4つの問い。</p>
+  <h3>Q1. テンプレートの節構成・運用に言及するドキュメントはどこにあるか</h3>
+  <ul>
+    <li>対象: <code>.claude/</code> 配下のrules・skills（references含む）・docs（spec/ddr/usecase）・各<code>REVIEW-POINTS.md</code>・hooks、ルート直下のガイド類。</li>
+    <li>方法: <code>doc-search</code>（frontmatterインデックス）を第一手段とし、本文中の固有文字列（<code>reports.template.html</code>・節名「サマリ（結論の一覧）」「確かめられなかったこと」等）は <code>grep</code> で補完する。</li>
+    <li>判定: 各箇所を「節構成が変わると矛盾するか（＝フェーズ3で直す対象か）」で仕分けする。</li>
+  </ul>
+  <h3>Q2. 現テンプレートの構造のうち、何を残し何を変えるか</h3>
+  <ul>
+    <li>対象: 必須／任意節・スタイルトークン・「フェーズごとの読み替え」コメント・プレースホルダ検査手順。</li>
+    <li>判定: issue #186 の期待する動作と突き合わせ、節ごとに「維持／移動／改修／新設」を決める。</li>
+  </ul>
+  <h3>Q3. 色の設計をどうするか</h3>
+  <ul>
+    <li>「良かった＝青系統」の指定と、既存 <code>--ok</code>（緑系）・アクセント色（青）との衝突の整理。</li>
+    <li>ダークモード（<code>prefers-color-scheme</code>）対応を維持したまま色を増やす方法。</li>
+    <li>色だけに依存しない表現（記号・ラベル併用。色覚多様性への配慮）。</li>
+  </ul>
+  <h3>Q4. 「フェーズごとの読み替え」を新構成へどう引き継ぐか</h3>
+  <ul>
+    <li>「確かめられなかったこと」前半移動後の統括レポート（5-4）での扱い。</li>
+    <li>「設計への反映」節の位置と反映結果レポート（4-6）での読み替え。</li>
+    <li>新設「重点レビュー依頼」が全フェーズで意味が通るか。</li>
+  </ul>
+</section>
+
+<section id="out-of-scope">
+  <h2>やらないこと（スコープ外）</h2>
+  <div class="box stop">
+    <span class="label">この計画では決めない・触らない</span>
+    <ul>
+      <li>テンプレートの実改修（フェーズ3へ送る）</li>
+      <li><code>plans.template.html</code> / <code>canvas-report</code> の調査（全体作業計画のスコープ外）</li>
+    </ul>
+  </div>
+</section>
+
+<section id="verify">
+  <h2>検証（この調査が完了したと言える条件）</h2>
+  <ul>
+    <li>Q1の列挙が「検索方法×対象範囲」の明示付きで報告され、フェーズ3で直す対象が確定している。</li>
+    <li>Q2〜Q4の各判定が、フェーズ3の個別作業計画へそのまま書き写せる粒度で結論になっている。</li>
+    <li>結果は <code>reports/2026-08-23_vivid-report-canvas_調査結果.md</code>（＋同名.html）へ記録する（この計画ファイルには結果を書かない）。</li>
+  </ul>
+</section>
+
+<footer>issue #186 / PR #191 — 計画の正文は同名の <code>.md</code>。外部依存を持たない自己完結HTML。</footer>
+
+</div>
+</body>
+</html>
