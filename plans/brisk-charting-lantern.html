@@ -109,7 +109,6 @@
       <li><b>issue</b> #155</li>
       <li><b>ブランチ</b> claude/ai-asset-reflection-scope-njqn95</li>
       <li><b>フェーズ</b> 1〈起点〉 flow-id 1-4</li>
-      <li><b>push回数</b> 0</li>
       <li><b>作成日</b> 2026-08-23</li>
       <li><b>正文</b> 同名の .md</li>
     </ul>
@@ -142,7 +141,7 @@
     <li><b>4類型</b>（(a) アセットが無かった／(b) あったが誤っていた／(c) あったが罠が書かれていなかった／(d) あったのに辿り着けなかった）</li>
     <li><b>再現性の証拠を要求する範囲</b>（(a) のみ。(b)(c)(d) は1回でも反映する）</li>
     <li><b>証拠集めの段階と打ち切り条件</b>（同一MR内 → <code>doc-search</code> → 直近のPR・DDR一覧、で打ち切る）</li>
-    <li><b>反映先の形態の選び方</b>（「いつ効いてほしいか」×「守らせ方の強さ」の2軸）</li>
+    <li><b>反映先の形態の選び方</b>（「いつ効いてほしいか」×「守らせ方の強さ」の2軸）。<b>どの形態までを対象に含めるかは、既存の除外規定（<code>.claude/scripts/</code> 配下は <code>【AIアセット作成】</code> の対象外）と衝突するため、フェーズ2のQ7で決める</b></li>
     <li><b>削除・統合も対象</b>であること</li>
   </ol>
   <p>あわせて <code>plans/REVIEW-POINTS.md</code> へ <code>【AIアセット反映】</code> の計画に対するレビュー観点を足し、判断の理由と却下案をDDRへ残す。<code>.claude/docs/spec/issue-mr-workflow.md</code> は入口のみとし、手順そのものを二重に持たない。</p>
@@ -154,11 +153,12 @@
   <table>
     <thead><tr><th>領域</th><th>操作</th><th>何をするか</th></tr></thead>
     <tbody>
-      <tr><td><code>.claude/skills/issue-mr-flow/SKILL.md</code></td><td>変更</td><td>洗い出し手順の節を新設し、flow-id 4-1・4-6 の行から参照させる</td></tr>
+      <tr><td><code>.claude/skills/issue-mr-flow/SKILL.md</code></td><td>変更</td><td>洗い出し手順の節を新設し、flow-id 4-1・4-6 の行から参照させる。<b>Q7の結論しだいで、flow-id 4-6 の行（現87行目。反映先を4つに限定している）と <code>【AIアセット作成】</code> の除外規定（現162-166行目）の書き換えも伴う</b></td></tr>
       <tr><td><code>plans/REVIEW-POINTS.md</code></td><td>変更</td><td><code>【AIアセット反映】</code> の計画に対するレビュー観点を追加</td></tr>
       <tr><td><code>.claude/docs/ddr/</code></td><td>新規</td><td>4類型・証拠要求範囲・打ち切り・2軸の判断理由と却下案を記録</td></tr>
       <tr><td><code>.claude/docs/README.md</code></td><td>変更</td><td><code>generate-ddr-list.sh</code> によるDDR一覧の再生成差分</td></tr>
       <tr><td><code>.claude/docs/spec/issue-mr-workflow.md</code></td><td>変更</td><td>入口（1〜数行＋SKILL.mdへの参照）とchangelogの追記のみ</td></tr>
+      <tr><td><code>.claude/VERSION</code></td><td>変更（人間の判断）</td><td>配布対象アセット（SKILL.md・REVIEW-POINTS.md）を変更するため、flow-id 4-6 で<b>増分を提案</b>する。<b>上げるか据え置くかを決めるのは人間</b>であり、据え置く場合はspecのchangelogへその事実を残す（<code>.claude/docs/spec/distribution-assets.md</code>）</td></tr>
     </tbody>
   </table>
   </div>
@@ -168,9 +168,10 @@
   <h2>方針</h2>
   <ul>
     <li><b>手順の正はSKILL.mdの1箇所に置く。</b> issueの受け入れ条件が明示的に「spec側は入口のみ」と求めており、このリポジトリが繰り返し問題にしてきた二重管理を避ける。</li>
-    <li><b>4類型は「アセットの有無」と「不足の性質」で切る。</b> (a) だけ再現性の証拠を要求するのは、新設が継続コスト（読む量・(d) の温床）を伴うのに対し、(b)(c)(d) は既存アセットの精度を上げるだけで、書かないコストと書くコストが非対称なためである。</li>
-    <li><b>証拠集めは安い側から見て打ち切る</b>（全MR横断の網羅探索はしない）。flow-id 5-4 で <code>plans/</code> <code>worklog/</code> <code>reports/</code> を消して squash merge するため、過去MRの一次資料は main に残らない。網羅を求めると原理的に達成できない要求になる。</li>
-    <li><b>反映先の2軸は「いつ効いてほしいか」×「守らせ方の強さ（読ませる → 手順化 → 検証で落とす）」。</b> 形態（rules / skills / scripts / hooks / REVIEW-POINTS.md / agents）はこの2軸から決める。</li>
+    <li><b>4類型は「アセットの有無」と「不足の性質」で切る。</b> (a) だけ再現性の証拠を要求するのは、新設が継続コスト（読む量・(d) の温床）を伴うのに対し、(b)(c)(d) は既存アセットの精度を上げるだけで、書かないコスト（次のセッションが同じ罠を踏む）と書くコストが非対称なためである。</li>
+    <li><b>証拠集めは安い側から見て打ち切る</b>（全MR横断の網羅探索はしない）。flow-id 5-4 で <code>plans/</code> <code>worklog/</code> <code>reports/</code> を消して squash merge するため、<b>過去MRの一次資料は main には残らず、PR単位の履歴を1件ずつ辿るしかない</b>（PRのコミット一覧には削除前の断面が残るので、「原理的に辿れない」わけではない）。探索コストがMR件数に比例して増える一方、そこで得られる確度の上がり幅は小さいため、費用対効果で打ち切る。</li>
+    <li><b>反映先の2軸は「いつ効いてほしいか」×「守らせ方の強さ（読ませる → 手順化 → 検証で落とす）」。</b> issue #155 は形態として <code>rules</code> / <code>skills</code> / <code>scripts</code> / <code>hooks</code> / <code>REVIEW-POINTS.md</code> / <code>agents</code> の6つを挙げているが、<b>現行のSKILL.mdは <code>.claude/scripts/</code> 配下を <code>【AIアセット作成】</code> の対象から明示的に除外しており、flow-id 4-6 の反映先も4つに限定している</b>。この衝突を放置したまま6形態を書くと、同じSKILL.md内に矛盾する2つの定義が並ぶ。<b>どちらへ揃えるかはQ7で決め、決めた側に合わせて既存記述も書き換える</b>（片方だけ足さない）。</li>
+    <li><b>削除・統合を対象に含める場合、配布経路での実害を打ち消す記述を手順側に持たせる。</b> <code>install-to-project.sh</code> は上流で消えたファイルを配布先から削除しない（コピーのみ）ため、削除・統合したアセットが配布先には旧版のまま残り、新旧が両方読まれる。手順が問題視している (d)「あったのに辿り着けない」を配布先で自ら増やすことになる。<b>何を書けば打ち消せるかはQ8で決める。</b></li>
     <li><b>削除・統合を対象に含める。</b> 追加だけを見ているとアセットが単調増加し、(d)（辿り着けない）を自ら量産する。</li>
   </ul>
 </section>
@@ -184,9 +185,11 @@
     <li>反映先の形態（rules / skills / scripts / hooks / REVIEW-POINTS.md / agents）は、このリポジトリの既存ドキュメント上どう定義され、どこに置き場のルールがあるか（<code>.claude/rules/directory-structure.md</code> 等）。2軸の説明が既存定義と矛盾しないか。</li>
     <li>証拠集めの段階で使う <code>doc-search</code> は、何を入力に何を返すか。打ち切り条件として書ける形か。</li>
     <li><code>【AIアセット作成】</code>（フェーズ3）と <code>【AIアセット反映】</code>（フェーズ4）の既存の使い分け（issue #110）と、新設する洗い出し手順が矛盾しないか。</li>
-    <li><code>plans/REVIEW-POINTS.md</code> の既存の観点と、追加する <code>【AIアセット反映】</code> の観点が重複しないか。</li>
+    <li><code>plans/REVIEW-POINTS.md</code> の既存の観点と、追加する <code>【AIアセット反映】</code> の観点が重複しないか。<b>加えて、SKILL.mdの新節とレビュー観点の間で「正が2つ」にならない境界を引けるか</b>（観点表は「何を見るか」だけを持ち、定義・手順はSKILL.mdを指すリンクに留められるか）。</li>
+    <li>反映先の形態として、<code>.claude/scripts/</code> <code>.claude/hooks/</code> を<b>含めるか外すか</b>。含めるなら flow-id 4-6 の反映先の列挙（現87行目）と <code>【AIアセット作成】</code> の除外規定（現162-166行目）を<b>どう書き換えるか</b>（置換前・置換後の形を両方出す）。外すなら issue #155 が挙げる6形態との差をどう説明するか。</li>
+    <li>削除・統合を手順に含めたとき、配布経路（<code>install-to-project.sh</code> は上流の削除を配布先へ伝播しない）で何が起きるか。手順側に何を書けば実害を打ち消せるか（<code>.claude/VERSION</code> の扱い・配布先での手当ての明記など）。</li>
   </ol>
-  <p>分かれば次へ進める条件: 上記6問に対し、置換前後の形とファイル・行の見当が付くこと。</p>
+  <p>分かれば次へ進める条件: 上記8問に対し、置換前後の形とファイル・行の見当が付くこと。</p>
 </section>
 
 <section id="phase-apply">
@@ -196,6 +199,7 @@
     <li><code>.claude/docs/spec/issue-mr-workflow.md</code> への入口の追記とchangelog（設計反映）</li>
     <li>4類型・証拠要求範囲・打ち切り・2軸のDDR（設計反映）</li>
     <li>本作業自体で気づいたルール・スキルの不備（AIアセット反映）——<b>新設する洗い出し手順を自分自身へ適用して洗い出す</b></li>
+    <li><b><code>.claude/VERSION</code> の増分提案</b>（配布対象アセットを変更するため）。<b>上げるか据え置くかの決定は人間が行う</b>ため、このセッションでは提案までで止まる。据え置く場合は <code>.claude/docs/spec/issue-mr-workflow.md</code> のchangelogへ据え置いた事実を残す</li>
   </ul>
 </section>
 
@@ -214,30 +218,39 @@
 
 <section id="verify">
   <h2>検証</h2>
-  <pre><code># 受け入れ条件の対応箇所が存在するか（節・参照・表）
-grep -n 'AIアセット反映の対象の洗い出し' .claude/skills/issue-mr-flow/SKILL.md
-grep -n '【AIアセット反映】' plans/REVIEW-POINTS.md
+  <div class="box warn">
+    <span class="label">検証コマンドの選び方</span>
+    <b>「変更前に実行すると失敗する」ことを1回確かめてから採用する。</b> 現在のツリーで既に成功するコマンドは、受け入れ条件が満たされていなくても通るため検証にならない（ルート <code>REVIEW-POINTS.md</code>「変えないはずのものが変わっていないか」）。
+  </div>
+  <pre><code># 新設した節の見出しが存在するか（変更前は0件で失敗する）
+grep -n '^### AIアセット反映の対象の洗い出し' .claude/skills/issue-mr-flow/SKILL.md
 
-# DDR一覧が生成物として最新か（差分が出ないこと）
-bash .claude/scripts/src/generate-ddr-list.sh &amp;&amp; git diff --stat -- .claude/docs/README.md
+# 観点表へ【AIアセット反映】専用の見出しが増えたか
+#   （`grep '【AIアセット反映】'` は既存の「種別」節に3件ヒットするため使わない）
+grep -n '^## 【AIアセット反映】' plans/REVIEW-POINTS.md
 
-# frontmatterインデックスが通ること
-bash .claude/scripts/src/extract-frontmatter.sh .</code></pre>
-  <p>合格条件: issueの受け入れ条件9項目すべてに対応箇所があり、上記コマンドがいずれも成功すること。</p>
+# DDR一覧が再生成済みか（未再生成なら --exit-code が非0で落ちる）
+bash .claude/scripts/src/generate-ddr-list.sh
+git diff --exit-code HEAD -- .claude/docs/README.md
+
+# 新規DDRがfrontmatterインデックスへ載ったか（件数で確かめる。0件なら失敗）
+bash .claude/scripts/src/extract-frontmatter.sh .
+bash .claude/scripts/src/search-frontmatter.sh --type ddr --path i0155 --format count</code></pre>
+  <p>合格条件: issueの受け入れ条件9項目すべてに対応箇所があり、上記コマンドがいずれも成功し、最後の <code>--format count</code> が1件以上を返すこと。</p>
 </section>
 
 <section id="criteria">
   <h2>issueの受け入れ条件との対応</h2>
   <div class="tablewrap">
   <table>
-    <thead><tr><th>受け入れ条件</th><th>この計画での対応箇所</th></tr></thead>
+    <thead><tr><th>受け入れ条件</th><th>対応</th></tr></thead>
     <tbody>
       <tr><td>SKILL.mdに洗い出し手順の節が追加され、flow-id 4-1・4-6 の行から参照されている</td><td>フェーズ3</td></tr>
       <tr><td>4類型と、再現性の証拠を要求する範囲が表で示されている</td><td>フェーズ3</td></tr>
       <tr><td>証拠集めの段階と打ち切り条件が書かれている</td><td>フェーズ3</td></tr>
       <tr><td>反映先の形態の選び方（2軸）が書かれている</td><td>フェーズ3</td></tr>
       <tr><td>削除・統合も対象であることが書かれている</td><td>フェーズ3</td></tr>
-      <tr><td>フェーズ4をスキップしてよい条件が、この洗い出し手順と接続している</td><td>フェーズ2の問い2 → フェーズ3</td></tr>
+      <tr><td>フェーズ4をスキップしてよい条件が、この洗い出し手順と接続している</td><td>フェーズ2のQ2 → フェーズ3</td></tr>
       <tr><td><code>plans/REVIEW-POINTS.md</code> に <code>【AIアセット反映】</code> の観点が追加されている</td><td>フェーズ3</td></tr>
       <tr><td>判断の理由・却下案がDDRとして記録され、DDR一覧の差分が同じコミットに含まれている</td><td>フェーズ4</td></tr>
       <tr><td><code>.claude/docs/spec/issue-mr-workflow.md</code> 側は入口のみ</td><td>フェーズ4</td></tr>
@@ -259,7 +272,7 @@ bash .claude/scripts/src/extract-frontmatter.sh .</code></pre>
   <ul>
     <li>ハーネスの指定によりブランチ名は <code>claude/ai-asset-reflection-scope-njqn95</code> を使う（<code>.mrworkflow.json</code> の <code>feature-&lt;issue番号&gt;-&lt;slug&gt;</code> 規則の例外）。</li>
     <li>ユーザーの指示により、人間のレビュー往復（flow-id 2-3/2-8/3-3/3-8/4-3/4-8）の代わりに<b>各フェーズの計画時と作業実施時に敵対的レビューを1回ずつ</b>実施し、指摘へ対応しながら進める。</li>
-    <li>この全体作業計画はplanツールではなくWrite/Editで作成した（非対話進行のため。ファイル名はハーネス自動命名と同じ体裁を用いた）。</li>
+    <li><b>この全体作業計画はplanツールではなくWrite/Editで作成し、ファイル名もAIが命名した。</b> <code>.claude/rules/docs-workflow.md</code> は「planツール（Planモード）で作成し、ファイル名はハーネスが提示する自動命名のまま使う」と定めており、<b>これはその規約からの逸脱である</b>。理由は、Planモードの承認待ちが「敵対的レビューを自動で行いながら進める」という指示と両立しないためだが、<b>ユーザーがこの逸脱を承認した記録は無い</b>。承認の要否は <code>HANDOFF.md</code>「未解決の内容」へ上げ、flow-id 1-5（全体作業計画の合意）でまとめて可否を確認する。</li>
   </ul>
 </section>
 
