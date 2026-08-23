@@ -315,17 +315,28 @@ assert_eq "T10: エラーメッセージにインストール方法が含まれ�
 # shellcheck source=../../hooks/lib/CommandPosition.sh
 source "$repo_root/.claude/hooks/lib/CommandPosition.sh"
 
-readonly PREFILTER_LINE='  case "$raw" in *push*) ;; *) exit 0 ;; esac'
+readonly PREFILTER_LINE='  raw_hints_at_git_push "$raw" || exit 0'
 for h in post-push-usage-report post-push-compact-prompt; do
   assert_eq "T11: ${h}.sh が前置フィルタの行を持つ" "1" \
     "$(grep -cFx -- "$PREFILTER_LINE" "$repo_root/.claude/hooks/${h}.sh" || true)"
   assert_eq "T11: ${h}.sh は \$(cat) をやめている（forkする受け口が残っていない）" "0" \
     "$(grep -cF -- 'raw="$(cat)"' "$repo_root/.claude/hooks/${h}.sh" || true)"
+  # 判定は純粋関数へ切り出す（`.claude/rules/shell-script-style.md`「hookの前置フィルタ」）。
+  # source して直接呼べる形であることが、下の超集合テストの前提でもある。
+  assert_eq "T11: ${h}.sh が raw_hints_at_git_push を関数として定義している" "1" \
+    "$(grep -cFx -- 'raw_hints_at_git_push() {' "$repo_root/.claude/hooks/${h}.sh" || true)"
 done
 
-# 前置フィルタと同じ判定（上の grep で、実装がこの形であることを固定してある）
+# **実装そのもの**を source して呼ぶ（テスト側で写経すると、実装が変わっても気づけない）。
+# 2本は同じ関数を持つので、片方を読み込めば足りる（同一であることは次で表明する）。
+# shellcheck source=../../hooks/post-push-usage-report.sh
+source "$repo_root/.claude/hooks/post-push-usage-report.sh"
+assert_eq "T11: 2本の raw_hints_at_git_push が同一実装である" \
+  "$(sed -n '/^raw_hints_at_git_push() {/,/^}/p' "$repo_root/.claude/hooks/post-push-usage-report.sh")" \
+  "$(sed -n '/^raw_hints_at_git_push() {/,/^}/p' "$repo_root/.claude/hooks/post-push-compact-prompt.sh")"
+
 prefilter_passes() {
-  case "$1" in *push*) return 0 ;; *) return 1 ;; esac
+  raw_hints_at_git_push "$1"
 }
 
 # **超集合であること**を確かめる。取りこぼす（精密判定=真なのに前置フィルタ=偽）と、機能が
@@ -341,6 +352,15 @@ prefilter_cases=(
   'git --no-pager push origin HEAD'
   'cd /tmp/x && git push -u origin feature-70'
   'git push 2>&1 | tee /tmp/log'
+  # バックスラッシュ入り。**JSON化すると `pu\\sh` になり、生JSONへ `*push*` を当てると
+  # 取りこぼす**（精密判定はバックスラッシュを落として push と読む）。issue #159 と同型の罠。
+  'git pu\sh'
+  'git pus\h'
+  'git \push'
+  # バックスラッシュ＋改行（行継続）。JSON化すると `pu\\\nsh`（バックスラッシュ2つ＋n）に
+  # なるため、**バックスラッシュ1文字だけを除去すると `punsh` になって取りこぼす**。
+  # 2文字シーケンスをまとめて落とす実装であることを、このケースだけが確かめる。
+  $'git pu\\\nsh -u origin main'
   'echo pushkin'
   'git commit -m "x"'
   'ls -la'
@@ -396,6 +416,138 @@ for h in post-push-usage-report post-push-compact-prompt; do
   assert_eq "T12: ${h}.sh は非pushペイロードで jq を1回も呼ばない" "0" \
     "$( [ -f "$marker" ] && wc -l < "$marker" | tr -d ' ' || echo 0 )"
 done
+
+# =========================================================================
+# T14: CRLF で保存された agents/*.md を誤診しないこと（issue #70 フェーズ4）
+#
+# `mapfile` は改行だけを区切りにするため、CRLF のファイルでは1行目が `$'---\r'` になり、
+# CR を落とさないと「frontmatter がありません」で落ちる。`.gitattributes` の配布行は
+# `*.sh` しか eol=lf にしないので、`.md` は配布先の core.autocrlf 次第で CRLF になりうる。
+# =========================================================================
+
+crlf_src="$tmp_root/agent-crlf.md"
+sed 's/$/\r/' "$fixtures/agent-comma.md.fixture" > "$crlf_src"
+assert_eq "T14: フィクスチャが実際にCRLFである" "1" \
+  "$( [ "$(wc -c < "$crlf_src")" != "$(tr -d '\r' < "$crlf_src" | wc -c)" ] && echo 1 || echo 0 )"
+
+if convert_agent_to_reply "$crlf_src" >/dev/null 2>&1; then
+  crlf_status=0
+else
+  crlf_status=1
+fi
+assert_eq "T14: CRLF の agents/*.md でも変換が成功する" "0" "$crlf_status"
+
+convert_agent_to_reply "$crlf_src" >/dev/null 2>&1 || true
+# `$(cat …)` は末尾の改行を落とすので、比較する側も同じ形に揃える（`$REPLY` は末尾の改行を持つ）。
+assert_eq "T14: CRLF 入力でも出力はゴールデンと一致" \
+  "$(cat "$fixtures/agent-comma.md.expected")" "$(printf '%s' "$REPLY")"
+# 末尾の改行を落とす比較だけだと、最終行のCRを見逃しうる。バイト数でも表明する。
+crlf_reply_file="$tmp_root/agent-crlf.out"
+printf '%s' "$REPLY" > "$crlf_reply_file"
+assert_eq "T14: 出力にCRが1バイトも残らない" \
+  "$(wc -c < "$crlf_reply_file" | tr -d ' ')" \
+  "$(tr -d '\r' < "$crlf_reply_file" | wc -c | tr -d ' ')"
+
+# =========================================================================
+# T15: Windows ネイティブ jq の CR 付与を再現しても settings.json にCRが混入しないこと
+#
+# 実機（Windows）が無いので、`sed '$!s/$/\r/'` を通すスタブ jq を PATH 先頭へ置いて再現する
+# （.claude/rules/shell-script-style.md「テスト」の手法）。**最終行以外**へCRが付くのが、
+# native jq とMSYSのコマンド置換を合わせた実測に一致する形である。
+# =========================================================================
+
+crjq_bin="$tmp_root/crjq"
+mkdir -p "$crjq_bin"
+real_jq="$(command -v jq)"
+cat > "$crjq_bin/jq" <<CRJQ
+#!/usr/bin/env bash
+set -o pipefail
+"$real_jq" "\$@" | sed '\$!s/\$/\r/'
+CRJQ
+chmod +x "$crjq_bin/jq"
+
+rm -rf "$scratch/.gemini"
+( cd "$scratch" && PATH="$crjq_bin:$PATH" bash .claude/scripts/src/sync-gemini-assets.sh ) >/dev/null 2>&1
+crjq_settings="$scratch/.gemini/settings.json"
+assert_eq "T15: スタブ jq 下でも settings.json が生成される" "1" \
+  "$( [ -f "$crjq_settings" ] && echo 1 || echo 0 )"
+# CRの検査はバイト数の比較で行う（`grep -c $'\r'` は環境により全行にマッチする）。
+assert_eq "T15: 生成された settings.json にCRが混入しない" \
+  "$(wc -c < "$crjq_settings" | tr -d ' ')" \
+  "$(tr -d '\r' < "$crjq_settings" | wc -c | tr -d ' ')"
+# スタブが実際にCRを付ける（＝この検査に検出力がある）ことを、同じスタブで表明しておく。
+assert_eq "T15: スタブ jq は複数行出力へ実際にCRを付ける" "1" \
+  "$( [ "$(PATH="$crjq_bin:$PATH" jq -n '{a:1,b:2}' | wc -c)" \
+      != "$(PATH="$crjq_bin:$PATH" jq -n '{a:1,b:2}' | tr -d '\r' | wc -c)" ] && echo 1 || echo 0 )"
+run_sync >/dev/null 2>&1
+
+# =========================================================================
+# T16: .gitignore にあるローカル設定が .gemini/ へ焼き込まれないこと
+#
+# 列挙が `--others` を含むため、未追跡ファイルもコピー対象になる。除外は .gitignore に
+# 委ねている（COPY_EXCLUDED_PREFIXES へは足さない）ので、その委譲が効いていることを固定する。
+# =========================================================================
+
+printf '{"env":{"OTEL_EXPORTER_OTLP_ENDPOINT":"http://127.0.0.1:4318"}}\n' \
+  > "$scratch/.claude/settings.local.json"
+printf 'untracked\n' > "$scratch/.claude/rules/untracked.md"
+printf '/.claude/settings.local.json\n' >> "$scratch/.gitignore"
+run_sync >/dev/null 2>&1
+assert_eq "T16: .gitignore にある settings.local.json は .gemini/ へ出ない" "0" \
+  "$(find "$scratch/.gemini" -name 'settings.local.json' | wc -l | tr -d ' ')"
+# 「除外できている」だけでは、そもそも未追跡が全部落ちているのか区別できない。
+# 未追跡でも ignore されていないファイルは載ることを併せて表明する（--others の意図した挙動）。
+assert_eq "T16: ignore されていない未追跡ファイルは .gemini/ へ載る（--others の意図）" "1" \
+  "$(find "$scratch/.gemini" -name 'untracked.md' | wc -l | tr -d ' ')"
+# 後片付け。untracked.md を消すと .gemini/ 側が「生成物に含まれないファイル」になるため、
+# ここは --force で戻す（削除ファイル検出が意図どおり働いていることの裏返しでもある）。
+rm -f "$scratch/.claude/settings.local.json" "$scratch/.claude/rules/untracked.md"
+assert_eq "T16: 元ファイルを消すと .gemini/ 側が削除対象として検出される（--force なしは非0）" "1" \
+  "$(status_of run_sync)"
+run_sync --force >/dev/null 2>&1
+
+# =========================================================================
+# T17: 0件判定は「コピー対象0件」ではなく「列挙0件」であること
+#
+# agents/*.md と settings.json は変換で作るので、その2つしか無い .claude/ でも生成物として
+# 成立する。以前は「コピー対象0件」を失敗条件にしていたため、この構成が誤って落ちていた。
+# **契約の変更なので、テストの期待値もここで置き換えている。**
+# =========================================================================
+
+minimal="$tmp_root/minimal"
+mkdir -p "$minimal/.claude/agents"
+git -C "$minimal" init -q 2>/dev/null || git -C "$minimal" init >/dev/null 2>&1
+cp "$fixtures/settings-input.json" "$minimal/.claude/settings.json"
+cp "$fixtures/agent-comma.md.fixture" "$minimal/.claude/agents/comma-agent.md"
+run_minimal() { ( cd "$minimal" && bash "$target" "$@" ); }
+assert_eq "T17: agents と settings.json しか無くても生成は成功する" "0" "$(status_of run_minimal)"
+assert_eq "T17: その場合も agents は変換されて出力される" "1" \
+  "$(find "$minimal/.gemini/agents" -name 'comma-agent.md' | wc -l | tr -d ' ')"
+assert_eq "T17: その場合も settings.json は生成される" "1" \
+  "$(find "$minimal/.gemini" -maxdepth 1 -name 'settings.json' | wc -l | tr -d ' ')"
+
+# --- T17: .claude/ が無ければ原因を名指しして落ちること -----------------------
+noclaude="$tmp_root/noclaude"
+mkdir -p "$noclaude"
+git -C "$noclaude" init -q 2>/dev/null || git -C "$noclaude" init >/dev/null 2>&1
+printf 'x\n' > "$noclaude/README.md"
+run_noclaude() { ( cd "$noclaude" && bash "$target" "$@" ); }
+assert_eq "T17: .claude/ が無ければ非0で終わる" "1" "$(status_of run_noclaude)"
+noclaude_msg="$( run_noclaude 2>&1 || true )"
+assert_eq "T17: .claude/ が無いことをメッセージが名指しする" "1" \
+  "$(printf '%s' "$noclaude_msg" | grep -cF -- 'このリポジトリに .claude/ がありません' || true)"
+
+# --- T17: 全ファイルが ignore されていれば、その原因を案内すること -------------
+allignored="$tmp_root/allignored"
+mkdir -p "$allignored/.claude/rules"
+git -C "$allignored" init -q 2>/dev/null || git -C "$allignored" init >/dev/null 2>&1
+printf -- '---\ntitle: x\n---\n' > "$allignored/.claude/rules/a.md"
+printf '/.claude/\n' > "$allignored/.gitignore"
+run_allignored() { ( cd "$allignored" && bash "$target" "$@" ); }
+assert_eq "T17: 全ファイルが ignore されていれば非0で終わる" "1" "$(status_of run_allignored)"
+allignored_msg="$( run_allignored 2>&1 || true )"
+assert_eq "T17: ignore が原因であることを check-ignore で案内する" "1" \
+  "$(printf '%s' "$allignored_msg" | grep -cF -- 'git check-ignore -v' || true)"
 
 echo "passed=$passed failures=$failures"
 [ "$failures" -eq 0 ]

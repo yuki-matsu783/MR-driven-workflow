@@ -75,6 +75,12 @@ done
 assert_eq "配布先のVERSIONが本家と一致する" \
   "$(cat "${REPO_ROOT}/.claude/VERSION")" "$(cat "$dest_new/.claude/VERSION")"
 
+# `sync-gemini-assets.sh` の列挙（`git ls-files --cached --others --exclude-standard`）は、
+# ローカル設定の除外を配布先の .gitignore へ委ねている（issue #70）。この行が配られないと、
+# 各開発者の .claude/settings.local.json が .gemini/ へ焼き込まれてコミットされる。
+assert_eq "配布先の.gitignoreへローカル設定の除外が入る" \
+  "1" "$(grep -cFx -- '/.claude/settings.local.json' "$dest_new/.gitignore" || true)"
+
 # PR/MRテンプレートの見出しは、`describe` サブコマンドが生成するdescriptionと一致していること。
 # **2つのテンプレート同士を比べるだけでは足りない**（両方が同時にずれた場合に通ってしまう）。
 # 正である SKILL.md の `describe` 節から見出しを抜き出し、3者で突き合わせる。
