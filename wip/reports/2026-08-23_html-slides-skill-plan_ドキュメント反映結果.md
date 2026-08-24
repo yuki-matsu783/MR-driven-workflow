@@ -15,7 +15,7 @@ issue #168 フェーズ4（flow-id 4-6相当）。個別反映計画
 ## 重点レビュー依頼
 
 - ◆特に見てほしい（判断に困っている）
-  - **新規spec `.claude/docs/spec/html-slides.md` の新設**（→ [1](#1-設計反映spec-ddr)）。
+  - **新規spec `.claude/docs/spec/html-slides.md` の新設**（→ [1](#1-設計反映specddr)）。
     本来は人間承認が必須のところ、非対話セッションのためユーザーの当初指示を包括承認として
     作成した。内容の妥当性と新設可否を確認してほしい。
   - **`.claude/VERSION` のMINOR増分（0.4.0 → 0.5.0）**（→ [2](#2-version増分)）。
@@ -57,9 +57,10 @@ issue #168 フェーズ4（flow-id 4-6相当）。個別反映計画
 - DDR 2件を新設: `i0168-01`（出力先 `wip/reports/` 既定。却下案=恒久ディレクトリ新設・
   gitignore対象ローカル）・`i0168-02`（表紙型名 `cover`。却下案=素案の `title`・複合名）。
   いずれも調査レポートの比較表から、DDR単独で読める分量まで根拠を書き写した。
-- `.claude/docs/README.md`: DDR一覧を `generate-ddr-list.sh` で再生成（94件）。spec一覧
-  （手書き）へ `html-slides.md` の行を追記。既存の漏れ（`command-position.md`。spec実体19件・
-  掲載18件）は本タスクと無関係な変更のため修正せず、事実のみここへ記録する。
+- `.claude/docs/README.md`: DDR一覧を `generate-ddr-list.sh` で再生成（反映後94件。DDR実体
+  94件と一致）。spec一覧（手書き）へ `html-slides.md` の行を追記（反映前はspec実体19件・
+  掲載18件、追記後は実体20件・掲載19件）。既存の漏れ（`command-position.md` の未掲載1件）は
+  追記後も残るが、本タスクと無関係な変更のため修正せず、事実のみここへ記録する。
 
 ### 2. VERSION増分
 
@@ -85,9 +86,15 @@ spec `html-slides.md` の変更履歴と `HANDOFF.md`「判断を迷った内容
 
 ### 5. usecase影響確認
 
-8本すべてを `grep -rn -i 'スライド|slide|発表|プレゼン'` で走査し**該当0件**。
+8本すべてを `grep -rnE -i 'スライド|slide|発表|プレゼン'` で走査し**該当0件**
+（`-E` が無いとBREでは `|` がリテラル扱いになり常に0件を返す空振り検査になる。敵対的レビューの
+指摘を受けて `-E` 付きで再実測し、0件という結論自体は変わらないことを確認した。陽性対照:
+`grep -rnE 'wip/reports'` は2件ヒットする）。
 `wip/reports` へ言及する1本（新しい機能開発を始める.md）もフローの標準成果物の説明であり、
 オンデマンドのスライド生成には触れる必要が無いと判断した（**影響なし8/8**）。
+**新規usecase文書の要否も検討し、今回は作らないと判断した**（html-slidesはオンデマンドの
+スキルで、入口は `index.md` のスキル一覧・SKILL.md の description から辿れる。開発フローの
+標準場面ではないため逆引き層への追加は必須でなく、実利用で需要が確認できたら別issueで追加する）。
 
 ### 6. HTMLビュー機械検査
 
@@ -96,11 +103,13 @@ spec `html-slides.md` の変更履歴と `HANDOFF.md`「判断を迷った内容
 ### 7. 検証結果
 
 ```
-検証1: git status --porcelain の差分一覧 = 意図した14ファイルのみ（想定外なし）
+検証1: git status --porcelain の差分一覧 = 17ファイルで想定外なし
+       （内訳: 計画の変更対象由来13＋フロー副産物4（HANDOFF・worklog・本レポートmd/html）。
+        変更対象は14点だが、13「usecase影響確認」はファイル変更を生まないため13ファイル）
 検証2: check-doc-references.sh → 参照切れ数=0（反映前の基準値2件から減少。空振りでない）
 検証3: 新設3ファイルすべて EXISTS
 検証4: spec/index.jsonl 1件・ddr/index.jsonl 2件
-検証5: 追記grep = directory-structure 4 / docs-workflow 3 / deliverables 2 / index.md 3 /
+検証5: 追記grep = directory-structure 4 / docs-workflow 3 / deliverables 2 / index.md 2 /
        markdown-frontmatter 2 / reports/REVIEW-POINTS 3 / plans/REVIEW-POINTS 1 / VERSION 1
 検証6: プレースホルダ0・EXT_REF_NONE・EXT_CSS_NONE（計画html・本レポートhtml）
 ```
@@ -113,5 +122,9 @@ spec `html-slides.md` の変更履歴と `HANDOFF.md`「判断を迷った内容
 
 ## 残課題
 
-- 敵対的レビュー（フェーズ4の2回目・対象は本反映結果）と、その指摘対応
+- ~~敵対的レビュー（フェーズ4の2回目・対象は本反映結果）と、その指摘対応~~ → 実施済み。
+  13件（major 3・minor 9・nit 1）のうち8件をインライン投稿、5件は報告のみ。13件すべてを
+  反映した（spec検査列挙とagentの整合・SKILL.md手順5への `tr -d '\r'`・本レポートの根拠grep
+  `-E` 化と実測値3箇所の訂正・境界表「読み取り専用」の正確化・テンプレート説明行のパターン
+  回避・DDR2件の根拠敷衍・usecase新規要否の判断記録・mdアンカー修正。詳細はworklog）
 - 人間による確認: spec新設可否・VERSION増分判断・DDR却下案の妥当性（上記◆◇）

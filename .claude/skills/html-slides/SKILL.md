@@ -66,7 +66,7 @@ keywords: [スライド, 発表, プレゼン, テンプレート, 構成案, �
    grep -nE "(url\(|@import[[:space:]]+)['\"]?(https?:)?//" "$out" || echo EXT_CSS_NONE
    # 出力の data-type が全てスキーマの型8種のいずれか（出力なしが合格）
    grep -oE 'data-type="[^"]+"' "$out" | sed 's/.*="//; s/"$//' | sort -u |
-     comm -23 - <(jq -r '.properties.slides.items.oneOf[]."$ref" | sub(".*/";"")' "$SCHEMA" | sort)
+     comm -23 - <(jq -r '.properties.slides.items.oneOf[]."$ref" | sub(".*/";"")' "$SCHEMA" | tr -d '\r' | sort)
    # スライド枚数が構成案と一致（COUNT_OK が出るのが合格）
    test "$(grep -c '<section class="slide"' "$out")" = "$(jq '.slides | length' "$outline")" && echo COUNT_OK
    ```

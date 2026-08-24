@@ -27,7 +27,7 @@ keywords: [HTMLスライド, html-slides, テンプレート, slides.template, �
 | `.claude/skills/html-slides/SKILL.md` | 手順6段（コピー→構成案→スキーマ検査→穴埋め→機械検査→任意の動的検証）の定義 |
 | `.claude/skills/html-slides/assets/slides.template.html` | スライドテンプレート。**型8種の名前と見出し構成の正** |
 | `.claude/skills/html-slides/references/slide-outline.schema.json` | 構成案JSON（`.slides.json`）のスキーマ（JSON Schema draft-07） |
-| `.claude/agents/slide-outline-designer.md` | 構成設計サブエージェント（読み取り専用。構成案JSONだけを返す） |
+| `.claude/agents/slide-outline-designer.md` | 構成設計サブエージェント（書き込みを行わない約束。構成案JSONだけを返す） |
 | `.claude/agents/slide-html-generator.md` | HTML生成サブエージェント（構成案に忠実に穴埋め。再設計しない・食い違いは差し戻す） |
 
 ### 成果物と置き場所
@@ -84,9 +84,14 @@ keywords: [HTMLスライド, html-slides, テンプレート, slides.template, �
 
 | | slide-outline-designer | slide-html-generator |
 |---|---|---|
-| tools | Read, Grep, Glob, Bash（読み取り専用） | ＋Write（新規書き出しのみ。Editは持たない） |
+| tools | Read, Grep, Glob, Bash | ＋Write（Editは持たない） |
 | しないこと | HTMLの生成・元資料の変更 | 構成の再設計・スキーマの変更 |
 | 食い違い時 | — | 生成せず呼び出し元へ差し戻す |
+
+「書き込みを行わない」「新規書き出しのみ」は、いずれも**エージェント定義本文の指示による
+約束であり、ツール権限では強制されない**（両者ともBashを持つため、技術的には書き込み・削除が
+可能）。ツール権限で担保されているのは、generatorがEditを持たない（既存ファイルの部分編集は
+できない）ことまでである。
 
 ## 影響範囲
 
@@ -110,6 +115,14 @@ keywords: [HTMLスライド, html-slides, テンプレート, slides.template, �
   行った（定義の静的検査・変換制約・インデックス掲載は合格）。Agentツールでの実起動
   （構成案の品質・差し戻し動作・機械検査の自走）は初回の実利用で確認する。
 - 検査コマンド群はLinux（Claude Code on the web）での実測のみ。git bash実機は未計測。
+  Windows版jqのCR付与（`.claude/rules/shell-script-style.md`「文字コード」節）については、
+  手順5の `data-type` 照合の複数行 `jq -r` 出力へ `tr -d '\r'` を挟む対処を適用済み
+  （issue #168 フェーズ4の敵対的レビュー指摘）。
+- **型名3箇所（テンプレート・スキーマ・サブエージェント契約）の同期は人手で担保しており、
+  ずれを検出する機械検査・テストを持たない。** SKILL.md手順5の照合は「出力HTML対スキーマ」で
+  あり、テンプレート対スキーマの直接照合ではない。ずれを疑うときは
+  `grep -oE 'data-type="[^"]+"' <テンプレート> | sort -u` とスキーマの `$ref` 導出リストを
+  突き合わせて確認する。
 
 ## 変更履歴
 

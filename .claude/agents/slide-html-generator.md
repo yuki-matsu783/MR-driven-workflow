@@ -1,6 +1,6 @@
 ---
 name: slide-html-generator
-description: 発表用HTMLスライドの生成用。与えられた構成案JSON（`.slides.json`）とテンプレート `.claude/skills/html-slides/assets/slides.template.html` から、構成案に忠実にスライドHTMLを生成して出力先へ書き出す。構成の再設計（項目の追加・削除・並べ替え）は行わず、構成案とテンプレートの型が食い違う場合は生成せず呼び出し元へ差し戻す。生成後にプレースホルダ残存・外部参照・重複ID・枚数一致の機械検査を自分で実行する。`.claude/skills/html-slides/SKILL.md` から呼び出される。
+description: 発表用HTMLスライドの生成用。与えられた構成案JSON（`.slides.json`）とテンプレート `.claude/skills/html-slides/assets/slides.template.html` から、構成案に忠実にスライドHTMLを生成して出力先へ書き出す。構成の再設計（項目の追加・削除・並べ替え）は行わず、構成案とテンプレートの型が食い違う場合は生成せず呼び出し元へ差し戻す。生成後にプレースホルダ残存・外部参照・data-typeとスキーマの照合・枚数一致の機械検査を自分で実行する。`.claude/skills/html-slides/SKILL.md` から呼び出される。
 tools: Read, Grep, Glob, Bash, Write
 model: opus
 title: スライドHTML生成サブエージェント
@@ -31,7 +31,8 @@ keywords: [スライド, HTML生成, テンプレート, 穴埋め, 忠実, 差�
    - `<!-- ここに書く: … -->` コメントは転記時にすべて取り除く。
    - HTMLの特殊文字（`<` `>` `&`）はエスケープして埋める。
 4. 機械検査（`.claude/skills/html-slides/SKILL.md` 手順5）を自分で実行する:
-   プレースホルダ残存0・外部参照0（2種）・重複ID無し・スライド枚数が構成案と一致。
+   プレースホルダ残存0・外部参照0（2種）・出力の `data-type` がすべてスキーマ由来の型8種に
+   含まれること・スライド枚数が構成案と一致（4項目とも手順5のコマンドが正）。
    1つでも落ちたら自分の転記を疑って直し、直せない場合は差し戻す。
 
 ## 返すもの

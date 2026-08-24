@@ -12,8 +12,9 @@ keywords: [html-slides, cover, title, 型名, enum, data-type, スキーマ, 契
 
 html-slidesスキル（issue #168）のスライド型8種は、テンプレートの `data-type` 属性・
 スキーマの `type` enum・サブエージェント2本の受け渡し契約の**3箇所で同一の文字列**として
-使われる（1箇所でも食い違うと `slide-html-generator` が構成案を常に差し戻す）。フェーズ2調査の
-素案（Q5）は表紙の型名を `title` としていた。
+使われる（食い違うと、その型を使う構成案が来たときに `slide-html-generator` の差し戻し条件に
+当たる。同期を機械検査する仕組みは持たず人手で担保する——spec `html-slides.md`
+「未決定事項・懸念点」参照）。フェーズ2調査の素案（Q5）は表紙の型名を `title` としていた。
 
 ## 決定
 
