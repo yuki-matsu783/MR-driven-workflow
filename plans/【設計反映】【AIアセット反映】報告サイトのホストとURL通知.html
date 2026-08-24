@@ -249,7 +249,7 @@
       <tr><td>8</td><td><code>.claude/rules/shell-script-style.md</code></td><td>変更</td><td><b>bash 5.2 の <code>patsub_replacement</code></b> の罠</td></tr>
       <tr><td>9</td><td><code>.claude/rules/directory-structure.md</code></td><td>変更</td><td><code>.github/workflows/</code> と <code>.gitlab-ci.yml</code> をツリーへ／<b><code>issue-mr-flow/assets/</code> の「テンプレート2本」を直す</b></td></tr>
       <tr><td>10</td><td><code>index.md</code></td><td>変更</td><td>同上（Repository Map の行を追加）</td></tr>
-      <tr><td>11</td><td><code>.claude/VERSION</code></td><td>変更（<b>人間の判断</b>）</td><td>増分をAIが提案し人間が決める（下記）</td></tr>
+      <tr><td>11</td><td><code>.claude/VERSION</code></td><td>変更</td><td><b><code>0.2.0</code> → <code>0.3.0</code></b>（flow-id 4-3 でユーザーが判断。下記）</td></tr>
       <tr><td>12</td><td><code>.claude/skills/adversarial-review/SKILL.md</code></td><td><span class="tag stop">変更しない</span></td><td>下記「やらないこと」</td></tr>
     </tbody>
   </table>
@@ -432,12 +432,19 @@
     <li><code>.claude/skills/apply-mr-workflow-to-project/scripts/sync-assets.sh</code></li>
   </ul>
   <div class="box ok">
-    <span class="label">AIからの提案</span>
+    <span class="label">決まったこと（flow-id 4-3）</span>
     <p>
-      <b>MINOR（<code>0.2.0</code> → <code>0.3.0</code>）</b>。配布資産の追加であり、既存の
-      呼び出しを壊す変更が無いため。<b>決めるのは人間</b>で、<b>据え置きになった場合は
-      <code>distribution-assets.md</code> の changelog へ「据え置いた事実」を残す</b>（同specの要求）。
+      <b>増分は <code>0.2.0</code> → <code>0.3.0</code>（MINOR）。</b> AIからは配布資産の追加で
+      あり既存の呼び出しを壊す変更が無いことを根拠に MINOR を提案し、そのまま採用された。
+      <b>据え置きではないので、<code>distribution-assets.md</code> の changelog へ「据え置いた
+      事実」を残す必要は無い</b>（その代わり、下記の反映で版を上げた事実を記録する）。
     </p>
+    <p>flow-id 4-6 では次を行う。</p>
+    <ul>
+      <li><code>.claude/VERSION</code> を <code>0.3.0</code> にする。</li>
+      <li><code>distribution-assets.md</code> の <code>## 影響範囲</code> へ足す issue #114 の
+        エントリに、<b>版を上げたこととその根拠</b>（配布資産の追加）を含める。</li>
+    </ul>
   </div>
 </section>
 
@@ -519,7 +526,7 @@ for t in .claude/scripts/test/test_*.sh; do printf '%s: ' "$t"; bash "$t" 2>&1 |
       <li>変更対象表 3〜10 の反映が入っている</li>
       <li><b><code>## 影響範囲</code> の既存エントリと既存DDRの本文に差分が無い</b>（検証5が <code>0</code>）</li>
       <li>検証6が上表と一致する</li>
-      <li><b><code>.claude/VERSION</code> について人間の判断を得ている</b>（増分を入れた／据え置いた事実が記録されている）</li>
+      <li><b><code>.claude/VERSION</code> が <code>0.3.0</code> になっており</b>、<code>distribution-assets.md</code> の changelog に版を上げた根拠が記録されている</li>
       <li>敵対的レビュー（フェーズ4）の指摘へ対応・返信済みで、返信ゼロのスレッドが0件</li>
     </ol>
   </div>

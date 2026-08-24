@@ -77,7 +77,7 @@ issue #114 で決めたこと・作ったもの・踏んだ罠を、**タスク�
 | 8 | `.claude/rules/shell-script-style.md` | 変更 | **bash 5.2 の `patsub_replacement`** の罠 |
 | 9 | `.claude/rules/directory-structure.md` | 変更 | `.github/workflows/` と `.gitlab-ci.yml` をツリーへ／**`issue-mr-flow/assets/` の「テンプレート2本」を直す** |
 | 10 | `index.md` | 変更 | 同上（Repository Map の行を追加） |
-| 11 | `.claude/VERSION` | 変更（**人間の判断**） | 増分をAIが提案し人間が決める（下記） |
+| 11 | `.claude/VERSION` | 変更 | **`0.2.0` → `0.3.0`**（flow-id 4-3 でユーザーが判断。下記） |
 | 12 | `.claude/skills/adversarial-review/SKILL.md` | **変更しない**（下記「やらないこと」） | — |
 
 ### 1. DDR `i0114-01`（新規）
@@ -223,9 +223,16 @@ flow-id 4-6（AIアセット反映）**、**配布対象アセットに変更が
 - `.claude/skills/issue-mr-flow/assets/publish-report-site.{github,gitlab}.yml`（**新規**）
 - `.claude/skills/apply-mr-workflow-to-project/scripts/sync-assets.sh`
 
-**AIからの提案は MINOR（`0.2.0` → `0.3.0`）**である。配布資産の追加であり、既存の呼び出しを
-壊す変更が無いため。**決めるのは人間**で、**据え置きになった場合は
-`distribution-assets.md` の changelog へ「据え置いた事実」を残す**（同specの要求）。
+**増分は `0.2.0` → `0.3.0`（MINOR）に決まった**（flow-id 4-3 でユーザーが判断）。AIからは
+配布資産の追加であり既存の呼び出しを壊す変更が無いことを根拠に MINOR を提案し、そのまま
+採用された。**据え置きではないので、`distribution-assets.md` の changelog へ「据え置いた事実」を
+残す必要は無い**（その代わり、下記の反映で版を上げた事実を記録する）。
+
+flow-id 4-6 では次を行う。
+
+- `.claude/VERSION` を `0.3.0` にする。
+- `distribution-assets.md` の `## 影響範囲` へ足す issue #114 のエントリに、**版を上げたことと
+  その根拠**（配布資産の追加）を含める。
 
 ## 方針
 
@@ -290,7 +297,7 @@ for t in .claude/scripts/test/test_*.sh; do printf '%s: ' "$t"; bash "$t" 2>&1 |
 (3) 変更対象表 3〜10 の反映が入っている、
 (4) **`## 影響範囲` の既存エントリと既存DDRの本文に差分が無い**（検証5が `0`）、
 (5) 検証6が上表と一致する、
-(6) **`.claude/VERSION` について人間の判断を得ている**（増分を入れた／据え置いた事実が記録されている）、
+(6) **`.claude/VERSION` が `0.3.0` になっており**、`distribution-assets.md` の changelog に版を上げた根拠が記録されている、
 (7) 敵対的レビュー（フェーズ4）の指摘へ対応・返信済みで、返信ゼロのスレッドが0件。
 
 ## 比較検討した案
