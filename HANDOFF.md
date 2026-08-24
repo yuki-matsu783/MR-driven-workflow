@@ -17,8 +17,8 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - issue: #145
 - ブランチ: `claude/mr-pr-template-archive-0bo17a`
 - PR: #187（https://github.com/yuki-matsu783/MR-driven-workflow/pull/187 ）
-- push回数: 10
-- 現在のループ: 4-6〜4-9 の1周目（完了）
+- push回数: 11
+- 現在のループ: なし
 - 未返信スレッド: 0
 - 追従監視: あり（subscribe_pr_activity で購読中。Claude Code on the web）
 
@@ -59,17 +59,18 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 | [x] | 4-7 | スキル経由でcommitし、push してレビュー依頼を行う | エージェント |
 | [x] | 4-8 | MRでレビュー・コメントする | 人間 |
 | [x] | 4-9 | レビュー内容を取得し、設計・AIアセットの内容を修正する | `comments` / `reply` |
-| [] | 4-10 | 反映内容をもとにMR descriptionを更新する | `describe` |
-| [] | 5-1 | defaultブランチとのコンフリクトを検知し、あれば解消する | エージェント |
-| [] | 5-2 | 今回のMRが影響する関連issueを特定し、承認を得てから当該issueへ通知する | エージェント |
-| [] | 5-3 | `.claude/` の変更を `.gemini/` へ変換同期する（`sync-gemini-assets.sh` を実行。このステップ自身はcommitを持たない） | エージェント |
-| [] | 5-4 | 最終統括レポートを作成し、PR/MRへサマリコメントとして反映する（`wip/reports/日付_<全体計画名>_統括.md` を正文として作成） | エージェント |
+| [x] | 4-10 | 反映内容をもとにMR descriptionを更新する | `describe` |
+| [x] | 5-1 | defaultブランチとのコンフリクトを検知し、あれば解消する | エージェント |
+| [x] | 5-2 | 今回のMRが影響する関連issueを特定し、承認を得てから当該issueへ通知する | エージェント |
+| [x] | 5-3 | `.claude/` の変更を `.gemini/` へ変換同期する（`sync-gemini-assets.sh` を実行。このステップ自身はcommitを持たない） | エージェント |
+| [x] | 5-4 | 最終統括レポートを作成し、PR/MRへサマリコメントとして反映する（`wip/reports/日付_<全体計画名>_統括.md` を正文として作成） | エージェント |
 | [] | 5-5 | 次タスクのために、`wip/plans/` `wip/worklogs/` `wip/reports/`（md・htmlの両方）を削除し、`HANDOFF.md` をリセットする（`cleanup-task.sh` を実行） | エージェント |
 | [] | 5-6 | スキル経由でcommitし、push して Draftを解除する | エージェント |
 | [] | 5-7 | マージする | 人間 |
 
 ## やったこと
 
+- flow-id 5-4: 最終統括レポート `wip/reports/20260824_mellow-archiving-lantern_統括.md` と同名の `.html` を作成した。見出し5つは `references/phase5-close.md` を**開いて確かめてから**書いた（B の指摘が「記憶で見出し名を書いた」ことだったため）。HTMLはテンプレートの必須節「重点レビュー依頼」を持つので、**md側にも同じ節を足して同期させた**。md/htmlの4点チェック・リンク破断検査・重複ID検査はいずれも合格。層1（commit・push）→ 層3（添付を試す）→ 層2（サマリコメント1回投稿）の順で反映した。
 - **`main` を3回目の追従で取り込んだ**（PR作成後の追従監視。flow-id 4-10 の直前に `main` が
   `466d116` まで3コミット進み、`mergeable_state: dirty` を検知）。**コンフリクト2件**。
   - `.claude/docs/spec/distribution-assets.md` — **類型D**（過去changelogの並び）。両方の
@@ -141,26 +142,13 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 
 ## 次にやること
 
-- **flow-id 4-10（`describe`）でMR descriptionを更新する。** **現在の本文は「人間の承認をまだ
-  得ていない判断が2つある」と書いており、これは既に偽である**（VERSION 0.4.0 据え置き・案B承認の
-  どちらも回答済み）。あわせて敵対的レビュー2回目（16件）の結果も反映する。
-- **フェーズ5へ進む。**
-  1. **5-1**: `bash .claude/scripts/src/check-base-conflicts.sh` でコンフリクト検知。
-     直前の確認では `main` は `84d82e7`、behind=1・**コンフリクト無し**（再確認すること）。
-  2. **5-2**: issue #111 への通知。**投稿前に `AskUserQuestion` での承認が必須。**
-  3. **5-3**: `bash .claude/scripts/src/sync-gemini-assets.sh` で `.gemini/` を再生成。
-     **本ブランチは `.claude/rules/` `.claude/skills/` `.claude/docs/` `.claude/scripts/` を
-     変更しているため必須。**
-  4. **5-4**: 統括レポート `wip/reports/日付_mellow-archiving-lantern_統括.md`（＋`.html`）を
-     作成し、PRへサマリコメントとして投稿する。見出しは `references/phase5-close.md` が正
-     （`## 何を変えたか` / `## なぜそうしたか` / `## 検証結果` / `## spec・DDRへの反映先` /
-     `## 残課題`）。**この5つは今回 B の指摘で取り違えた箇所なので、必ずファイルを開いて確かめる。**
-  5. **5-5**: `bash .claude/scripts/src/cleanup-task.sh` で `wip/plans/` `wip/worklogs/`
-     `wip/reports/` を削除し `HANDOFF.md` をリセット（`REVIEW-POINTS.md` と
-     `wip/worklogs/TEMPLATE.md` は残る）。
-  6. **5-6**: commit・push して Draft を解除する。
+- **flow-id 5-5**: `bash .claude/scripts/src/cleanup-task.sh` で `wip/plans/` `wip/worklogs/`
+  `wip/reports/`（**統括レポートのmd・htmlを含む**）を削除し `HANDOFF.md` をリセットする
+  （`wip/plans/REVIEW-POINTS.md` `wip/reports/REVIEW-POINTS.md` `wip/worklogs/TEMPLATE.md` は残る）。
+- **flow-id 5-6**: `commit` スキル経由でcommitし、リモートへ反映して Draft を解除する
+  （`mcp__github__update_pull_request` の `draft: false`）。
 - **マージ（5-7）はユーザーの明示指示が無い限り行わない。** AIエージェントは 5-6 で止まる。
-- 敵対的レビューのカウンタは フェーズ2=2/3・フェーズ3=2/3・**フェーズ4=2/3**
+- 敵対的レビューのカウンタは フェーズ2=2/3・フェーズ3=2/3・フェーズ4=2/3
   （`bash .claude/scripts/src/adversarial-review-count.sh get 4`）。
 
 ## 判断を迷った内容
