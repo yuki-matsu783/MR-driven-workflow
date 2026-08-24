@@ -123,24 +123,25 @@
 <nav class="toc">
   <h2>目次</h2>
   <ol>
-    <li><a href="#premise">前提（合意状況）</a></li>
+    <li><a href="#premise">前提</a></li>
     <li><a href="#goal">この調査で決めること</a></li>
     <li><a href="#order">調査の進め方（段取り）</a></li>
     <li><a href="#questions">問いごとの調査方法</a></li>
     <li><a href="#data">実データを扱ううえでの制約</a></li>
-    <li><a href="#out-of-scope">やらないこと（スコープ外）</a></li>
-    <li><a href="#verify">完了条件</a></li>
+    <li><a href="#done">完了条件</a></li>
+    <li><a href="#verify">検証</a></li>
     <li><a href="#stop">停止条件・差し戻し条件</a></li>
+    <li><a href="#out-of-scope">やらないこと（スコープ外）</a></li>
   </ol>
 </nav>
 
 <section id="premise">
-  <h2>前提（合意状況）</h2>
-  <ul>
-    <li>上位の計画: <code>wip/plans/session-start-user-utterance-reinject.md</code> のフェーズ2〈調査〉節（<b>flow-id 1-5 で合意（2026-08-23）</b>）</li>
-    <li>合意した4論点: ①上乗せ提案3点（ブランチ絞り・頭＋末尾の切り出し・件数あたりの文字数配分） ②発言節を <code>CONTEXT_SIZE_WARN_BYTES</code> の分母へ入れない ③単一transcript前提の限界はフェーズ2で詰める ④<b>Gemini CLI 経路は本issueのスコープ外</b>とし issue #201 へ切り出す</li>
-    <li>依拠する調査結果: なし（本フェーズが最初の調査）</li>
-  </ul>
+  <h2>前提</h2>
+  <div class="box">
+    <span class="label">合意状態の正は上位計画にある</span>
+    <b>合意状態の正は、全体作業計画 <code>wip/plans/session-start-user-utterance-reinject.md</code> の「前提（合意状況）」節である。</b>本計画は合意状態を自分で書き直さず、そこを指すだけにする（正を1箇所に保つため。同節も「本節が正」と明記している）。<br>
+    要約すると: <b>flow-id 1-5 で合意済み（2026-08-23）。合意したのは方針であって数値ではない</b>——件数・文字数・除外規則の各しきい値は暫定のままで、それを確定させるのが本調査である。
+  </div>
   <div class="box">
     <span class="label">計画と実施結果の分離</span>
     この計画には<b>これから何をするかだけ</b>を書き、結果は一切書かない。結果は flow-id 2-6 で <code>wip/reports/20260823_session-start-user-utterance-reinject_transcript調査結果.md</code>（＋同名 <code>.html</code>）へ記録する。
@@ -149,7 +150,7 @@
 
 <section id="goal">
   <h2>この調査で決めること</h2>
-  <p>フェーズ3〈作業〉へ渡す8項目の値を確定させる。「出力位置」は flow-id 1-5 で合意済みのため<b>再検討しない</b>。</p>
+  <p>フェーズ3〈作業〉へ渡す10項目の値を確定させる。「出力位置」は flow-id 1-5 で合意済みのため<b>再検討しない</b>。</p>
   <div class="tablewrap">
   <table>
     <thead><tr><th>決めるもの</th><th>現在の暫定値</th><th>確定させる問い</th></tr></thead>
@@ -161,21 +162,52 @@
       <tr><td>除外規則（相槌・スラッシュコマンド・ツール出力）</td><td>3種</td><td>問い5</td></tr>
       <tr><td>節のバイト上限</td><td>6000</td><td>問い6</td></tr>
       <tr><td>実装手段（文字単位の切り出し・jqの呼び方）</td><td>未定</td><td>問い8・11</td></tr>
+      <tr><td><b>jqへのパスの渡し方</b>（引数で渡すか標準入力へ繋ぐか）</td><td>未定</td><td><b>問い7</b></td></tr>
+      <tr><td><b>単一transcript前提の扱い</b>（過去分も対象にするか等）</td><td>未定</td><td><b>問い9・10a・10b</b>（<b>事実の採取まで</b>が本調査の担当）</td></tr>
       <tr><td>出力位置</td><td><code>build_work_context</code> 内・SKILL.md 再読み込み指示の手前</td><td><span class="tag ok">確定済み</span> 再検証しない</td></tr>
     </tbody>
   </table>
+  </div>
+  <div class="box warn">
+    <span class="label">フェーズ2とフェーズ3で二重に決めない</span>
+    <b>「単一transcript前提の扱い」だけは、本調査で決めるのが事実だけである。</b>
+    <div class="tablewrap">
+    <table>
+      <thead><tr><th>フェーズ</th><th>担当</th></tr></thead>
+      <tbody>
+        <tr><td><b>フェーズ2（本調査）</b></td><td><b>事実を測るところまで。</b>compactで同一ファイルか（問い9）／過去transcriptが残るか・本数とバイト数（問い10a）／それを走査したときのコスト（問い10b）</td></tr>
+        <tr><td><b>フェーズ3（flow-id 3-1）</b></td><td><b>対処方針を決める。</b>先頭枠を諦める／同一ブランチの過去transcriptも対象にする／<code>HANDOFF.md</code> 側で代替する のどれを採るか</td></tr>
+      </tbody>
+    </table>
+    </div>
+    flow-id 1-5 の合意事項「単一transcript前提の限界はフェーズ2で詰める」は、<b>この表のフェーズ2の欄（事実を測る）を指す</b>。方針の決定はフェーズ3である。
   </div>
 </section>
 
 <section id="order">
   <h2>調査の進め方（段取り）</h2>
   <p><b>問いは番号順ではなく、依存関係の順に解く。</b>問い1が否なら以降がすべて無意味になるため。</p>
-  <pre><code>段取りA（前提の確認）      : 問い1 → 問い9 → 問い10
+  <pre><code>段取りA（前提の確認）      : 問い1 → 問い9 → 問い10a
    ↓ 問い1が否なら即座に停止（「停止条件」参照）
 段取りB（母集団の確定）    : 問い2 → 問い12 → 問い13 → 問い3
 段取りC（パラメータの実測）: 問い4 → 問い5 → 問い6
-段取りD（実装手段の確認）  : 問い8 → 問い11 → 問い7</code></pre>
+段取りD（実装手段の確認）  : 問い8 → 問い11 → 問い7
+   ↓ 問い11で「バイト数あたりの走査コスト」が出る
+段取りE（積み残しの判定）  : 問い10b</code></pre>
   <p>段取りB〜Dは前段の結果を入力にするため、<b>並行させない</b>。</p>
+  <div class="box">
+    <span class="label">問い10を 10a / 10b へ分ける</span>
+    当初は段取りAへ「走査コストが200msに収まるか見積もる」まで含めていたが、<b>バイト数あたりの走査コストは問い11で初めて測る値</b>であり、段取りAの時点では換算率が無い（持っているのは200msというしきい値だけ）。そのまま置くと、根拠のない見積もりを書くか答えを保留するかのどちらかになる。
+    <div class="tablewrap">
+    <table>
+      <thead><tr><th>分割後</th><th>内容</th><th>解く場所</th></tr></thead>
+      <tbody>
+        <tr><td><b>問い10a</b></td><td>過去transcriptの保存場所・<b>本数・合計バイト数を数える</b>（事実の採取のみ）</td><td>段取りA</td></tr>
+        <tr><td><b>問い10b</b></td><td>10a の量に問い11 の実測レートを掛け、<b>走査コストが200msに収まるかを判定する</b></td><td>段取りE（問い11 の後）</td></tr>
+      </tbody>
+    </table>
+    </div>
+  </div>
 </section>
 
 <section id="questions">
@@ -191,14 +223,28 @@
     <thead><tr><th>#</th><th>問い</th><th>調べ方</th><th>判定基準</th></tr></thead>
     <tbody>
       <tr><td>1</td><td>stdin JSON に <code>transcript_path</code> はあるか。実体はどこか・行数・バイト数は</td><td><code>session-start.sh</code> が受け取る生JSONを退避して <code>jq 'keys'</code>。パスが取れたら <code>wc -l</code> / <code>wc -c</code></td><td><b>キーが存在し、そのパスに実ファイルがある</b>こと。取れなければ <code>CLAUDE_PROJECT_DIR</code> から辿れるかを1度だけ試し、駄目なら停止</td></tr>
-      <tr><td>9</td><td>transcript はセッション／compact／resume をまたいで同一ファイルか</td><td>現セッションの transcript の inode と行数を記録し、<b>compact を挟んだ前後</b>で比較する。過去セッション分のファイル一覧も併せて採る</td><td>「同一ファイルへ追記」「新規ファイル」のどちらかを<b>断定して</b>記録する。断定できなければ「未確認」</td></tr>
-      <tr><td>10</td><td>セッションをまたいだ過去 transcript はどこに残るか。対象に含める案のコストは</td><td>保存ディレクトリを <code>ls</code> し、<b>このブランチに対応する</b>ファイルの本数・合計バイト数を数える</td><td>本数×バイト数から、走査コストが問い11のしきい値（200ms）に収まるかを机上で見積もる</td></tr>
+      <tr><td>9</td><td>transcript はセッション／compact／resume をまたいで同一ファイルか</td><td>現セッションの transcript の inode と行数を記録し、<b>compact を挟んだ前後</b>で比較する</td><td>「同一ファイルへ追記」「新規ファイル」のどちらかを<b>断定して</b>記録する。断定できなければ「未確認」</td></tr>
+      <tr><td>10a</td><td>セッションをまたいだ過去 transcript はどこに残るか。<b>何本・合計何バイトか</b></td><td>保存ディレクトリを <code>ls</code> し、<b>このブランチに対応する</b>ファイルの本数・合計バイト数を数える</td><td><b>数えるところまで。</b>コストの当否はここでは判定しない（換算率が無いため。問い10bへ回す）</td></tr>
     </tbody>
   </table>
   </div>
+  <div class="box stop">
+    <span class="label">問い1・9の観測手段を先に決めておく</span>
+    hookのstdinは通常の手段では見えず、compact も任意に起こせない。手段が未定のまま着手すると、その場の判断で <code>session-start.sh</code> を書き換える（「やらないこと」と矛盾する）方向へ倒れやすい。
+    <div class="tablewrap">
+    <table>
+      <thead><tr><th>何を観測するか</th><th>手段（これを採る）</th><th>後片付け</th></tr></thead>
+      <tbody>
+        <tr><td><b>問い1</b>: SessionStart hook が受け取る生JSON</td><td><b>退避専用のSessionStart hookを <code>.claude/settings.local.json</code> へ一時登録する</b>（<code>.gitignore</code> 対象・<code>commit</code> スキルの除外リスト対象なのでコミットに乗らない）。中身は <code>cat &gt; "$SP/session-start-payload.json"</code> の1行だけ。新しいセッションを開始して発火させる</td><td>調査後に登録を削除し、<code>.claude/settings.local.json</code> が調査前の状態に戻っていることを確認する</td></tr>
+        <tr><td><b>問い9</b>: compact 前後の transcript の同一性</td><td>上と同じ一時hookが、発火のたびに <code>stat -c '%i %s'</code>（inode・バイト数）と起動要因（<code>source</code>）を追記する。<b>compact は人間に打ってもらう</b>（AIから任意に起こせないため、レビュー依頼の中で依頼する）</td><td>同上</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <b>問い9で compact が観測できなかった場合</b>（人間が <code>/compact</code> を打たないままフェーズ2を終える等）は、<b>推測で埋めず「未確認」とし、その理由（compactを発火させられなかった）を明記する。</b>
+  </div>
   <div class="box">
-    <span class="label">未合意論点3への答え</span>
-    <b>問い9・10は、全体作業計画の「単一transcript前提の限界」に直接答える。</b>「1タスクが複数セッションにまたがると先頭3件が要件定義を指さない」が実際に起きるかどうかは、問い9の答え（compactで同一ファイルか）と問い10の答え（過去分が残るか）で決まる。
+    <span class="label">合意論点への答え</span>
+    <b>問い9・10a・10b は、全体作業計画の「単一transcript前提の限界」に直接答える。</b>「1タスクが複数セッションにまたがると先頭3件が要件定義を指さない」が実際に起きるかどうかは、問い9の答え（compactで同一ファイルか）と問い10aの答え（過去分が残るか）で決まる。<b>ただし本調査が出すのは事実までで、対処方針はフェーズ3が決める。</b>
   </div>
 
   <h3>段取りB: 母集団の確定</h3>
@@ -206,7 +252,7 @@
   <table>
     <thead><tr><th>#</th><th>問い</th><th>調べ方</th><th>判定基準</th></tr></thead>
     <tbody>
-      <tr><td>2</td><td>issue本文の抽出条件で何件取れるか。ツール由来が混ざらないか</td><td><code>jq -R -n 'inputs | fromjson? | select(...)'</code> を条件ごとに<b>段階的に</b>当て、各段の件数を出す</td><td>各段の件数を表にする。<b>最終段に機械生成ターンが1件も残らない</b>こと</td></tr>
+      <tr><td>2</td><td>issue本文の抽出条件で何件取れるか。ツール由来が混ざらないか</td><td><code>jq -R -n 'inputs | fromjson? | select(...)'</code> を条件ごとに<b>段階的に</b>当て、各段の件数を出す。最終段については、残った行の <code>origin.kind</code> / <code>type</code> / <code>userType</code> を<b>値ごとに集計する</b></td><td>各段の件数を表にする。加えて<b>最終段の <code>origin.kind</code> の値別集計で <code>human</code> 以外が0件</b>であること</td></tr>
       <tr><td>12</td><td><code>origin.kind</code> の分布は。<code>origin</code> を持たない行はあるか。<code>content</code> が配列の人間発言は何件か</td><td><code>group_by(.origin.kind)</code> で件数を出す。<code>origin</code> キーの有無・<code>content</code> の型も同様に数える</td><td><code>origin</code> 無しの行を<b>採るか捨てるか</b>を、件数と中身を見て決める。配列 content の取りこぼし割合を出す</td></tr>
       <tr><td>13</td><td><code>type=="last-prompt"</code> は何を持つか。<code>type=="user"</code> の代替・補完になるか</td><td>両者の発言テキスト集合を突き合わせ、<b>片方にしか無い件数</b>を数える</td><td>「重複のみ」「片方にしか無い発言がN件」のどちらかを数値で記録する</td></tr>
       <tr><td>3</td><td><code>gitBranch</code> はどの行にも入っているか。絞ったときの残存件数は</td><td><code>gitBranch</code> を持つ行の割合と、現ブランチで絞ったあとの件数を出す</td><td><b>絞った結果が0件になる条件</b>を特定する（全体作業計画の3分岐表の妥当性検証）</td></tr>
@@ -214,8 +260,9 @@
   </table>
   </div>
   <div class="box warn">
-    <span class="label">条件ごとに段階的に測る</span>
-    issue本文の4条件だけでは <code>origin.kind == "task-notification"</code> がすり抜けることは flow-id 1-5 の時点で実データ確認済みだが、<b>どの条件が何件落としているか</b>が分からないと、条件を1つ足したり外したりしたときの影響が読めない。
+    <span class="label">件数だけで「機械生成ターンが残らない」を確かめない</span>
+    <code>origin.kind == "human"</code> を条件へ入れた以上、<b>既知の</b>機械種別は定義上残らないので、件数で見ると常に合格に見える。将来ハーネスが増やす<b>未知の</b> <code>origin.kind</code> を持つ行が残っていても素通りする（<code>REVIEW-POINTS.md</code>「異常が無ければ何も出ない形の検証は、パターンが実データに合っていないと常に成功する」）。<b>判定対象の値を列挙する形</b>——最終段の <code>origin.kind</code> / <code>type</code> / <code>userType</code> を値ごとに数え、<code>human</code> 以外が0件であることを見る——にする。値と件数だけを見るので、下記の記録方針とも整合する。<br><br>
+    あわせて<b>「条件ごとに段階的」に測る</b>。issue本文の4条件だけでは <code>origin.kind == "task-notification"</code> がすり抜けることは flow-id 1-5 の時点で実データ確認済みだが、<b>どの条件が何件落としているか</b>が分からないと、条件を足し引きしたときの影響が読めない。
   </div>
 
   <h3>段取りC: パラメータの実測</h3>
@@ -224,7 +271,7 @@
     <thead><tr><th>#</th><th>問い</th><th>調べ方</th><th>判定基準</th></tr></thead>
     <tbody>
       <tr><td>4</td><td>発言の文字数分布は。頭120＋末尾40で何割が全文に収まるか</td><td>段取りBで確定した母集団の文字数を <code>length</code> で採り、分位点（最小・25%・中央・75%・最大）と「&le;160字の割合」を出す</td><td>全文に収まる割合が<b>極端</b>（9割超 or 1割未満）なら、件数・文字数の配分を見直す</td></tr>
-      <tr><td>5</td><td>相槌・スラッシュコマンドは何割か。除外規則で過剰除去・除去漏れは起きるか</td><td>除外規則を実装した jq を母集団へ当て、<b>除外された発言を全件目視する</b></td><td><b>過剰除去が1件でもあれば、その語を辞書から外す</b>（全体作業計画で確定済みの方針）。除去漏れは件数だけ記録</td></tr>
+      <tr><td>5</td><td>相槌・スラッシュコマンドは何割か。除外規則で過剰除去・除去漏れは起きるか</td><td>除外規則を実装した jq を母集団へ当て、<b>除外された発言を手元で全件目視する</b>（レポートへ残すのは語と件数だけ。下記の記録方針）</td><td><b>過剰除去が1件でもあれば、その語を辞書から外す</b>（全体作業計画で確定済みの方針）。除去漏れは件数だけ記録</td></tr>
       <tr><td>6</td><td>先頭3＋直近7の実測バイト数は。既存注入量との合計は</td><td>選定〜切り出しまでを通した出力を作り <code>wc -c</code>。<b>既存の注入量もこの環境で測り直す</b></td><td>合計が <code>CONTEXT_SIZE_WARN_BYTES</code>（8000）に対してどうかを数値で示す。発言節が<b>6000バイト上限に当たるか</b>も見る</td></tr>
     </tbody>
   </table>
@@ -239,64 +286,122 @@
   <table>
     <thead><tr><th>#</th><th>問い</th><th>調べ方</th><th>判定基準</th></tr></thead>
     <tbody>
-      <tr><td>8</td><td>マルチバイト文字を<b>文字単位で</b>切り出す、ロケール非依存の手段はどれか</td><td>候補（<code>jq</code> の <code>.[0:N]</code>／<code>awk</code> の <code>substr</code>／<code>${var:0:N}</code>）を、<code>LANG</code> を空にした環境と <code>C.UTF-8</code> の両方で日本語文字列へ当てる</td><td><b>両方の環境で同じ結果</b>になる手段だけを採る。<code>${var:0:N}</code> は既知の実績どおり落ちる想定</td></tr>
-      <tr><td>11</td><td><code>jq -R -n</code> ＋ <code>inputs</code> は実 transcript のサイズで許容範囲か</td><td>段取りAで測った実サイズのファイルへ、確定した抽出フィルタを当てて<b>空関数をベースラインに</b>時間を測る</td><td><b>追加コスト 200ms 以内</b>（先に置いたしきい値。超えたら実装方式を見直す）</td></tr>
+      <tr><td>8</td><td>マルチバイト文字を<b>文字単位で</b>切り出す、ロケール非依存の手段はどれか</td><td>候補（<code>jq</code> の <code>.[0:N]</code>／<code>awk</code> の <code>substr</code>／<code>${var:0:N}</code>）を、<code>LANG</code> を空にした環境と <code>C.UTF-8</code> の両方で日本語文字列へ当てる</td><td><b>両方の環境で同じ結果</b>になる手段だけを採る。<b>Windowsネイティブjq・MSYSは未確認</b>と明記する（下記）</td></tr>
+      <tr><td>11</td><td><code>jq -R -n</code> ＋ <code>inputs</code> は実 transcript のサイズで許容範囲か</td><td>段取りAで測った実サイズのファイルへ、確定した抽出フィルタを当てて<b>空関数をベースラインに</b>時間を測る。<b>測定はLinux</b></td><td><b>追加コスト 200ms 以内</b>（先に置いたしきい値）。<b>Linuxでの合否は暫定</b>とし、git bash実機の見積もりを併記する（下記）</td></tr>
       <tr><td>7</td><td>git bash 実機で <code>transcript_path</code> はどの表記で渡るか</td><td>本調査はリモート実行環境（Linux）で行うため<b>実機確認できない見込み</b></td><td><b>確認できなければ「未確認」と明記する</b>（確認できたことにしない）。jq へパス名を渡さず標準入力へ繋ぐ形で回避できるかを机上で確認する</td></tr>
     </tbody>
   </table>
   </div>
-  <div class="box">
-    <span class="label">計測の作法</span>
-    問い11の計測は <code>.claude/rules/shell-script-style.md</code>「起動回数がゼロであることを計測で確かめるとき」の手順に従う（空関数をベースラインに取る／試行回数を十分に取る／同一セッション内で連続して測る）。<b>絶対値だけを見て「速い・遅い」と判断しない。</b>
+  <div class="box stop">
+    <span class="label">段取りDの測定環境（問い8・11に共通する制約）</span>
+    <b>本調査はリモート実行環境（Linux）でしか行えない。</b>問い7だけでなく、<b>問い8・11も同じ制約を受ける</b>。これを断らずに数値を出すと、実運用環境で成り立たない結論が「実測済み」として固定される。
+    <div class="tablewrap">
+    <table>
+      <thead><tr><th>問い</th><th>Linuxで測ると何がずれるか</th><th>どう扱うか</th></tr></thead>
+      <tbody>
+        <tr><td><b>11</b>（性能）</td><td>git bash（MSYS）の外部プロセス起動は<b>約95ms/回</b>、<code>jq -nc '1'</code> 1回が<b>実測138ms</b>で、Linuxとは桁が違う（<code>.claude/rules/shell-script-style.md</code>「外部プロセス起動のコスト」は『Linuxで得た閾値をそのままgit bashへ持ち込まないこと』と明記している）。Linuxで150msと出て「200ms以内・合格」としても、git bashではjq起動だけで大半を消費して超過しうる</td><td><b>Linuxの実測値と、git bash実機の見積もり（jq起動回数 × 138ms ＋ 走査時間）を併記する。</b>合否は<b>暫定</b>とし、フェーズ3で実機再測を要する旨をレポートへ書く</td></tr>
+        <tr><td><b>8</b>（ロケール依存の文字切り出し）</td><td>検証するのは <code>LANG</code> 空／<code>C.UTF-8</code> の2条件だが、<b>Windowsネイティブjq・MSYSでは再現していない</b>。<code>.claude/rules/shell-script-style.md</code> は、Windows版jqが <code>strptime</code>/<code>mktime</code> を持たない等、同じjqでも実装差があることを実例で記録している</td><td><b>「Linux上の2条件で同結果だった」までを結論とし、Windowsネイティブjq・MSYSでの挙動は「未確認」と明記する</b></td></tr>
+      </tbody>
+    </table>
+    </div>
+    <b>この断りを、しきい値を緩める口実に使わない。</b>200ms を超えた場合は、下記「停止条件」のとおり<b>フェーズ3へ進む前に実装方式を見直す</b>（暫定なのは「合格」の側だけで、「不合格」は不合格である）。
   </div>
+  <p>問い11の計測は <code>.claude/rules/shell-script-style.md</code>「起動回数がゼロであることを計測で確かめるとき」の手順に従う（空関数をベースラインに取る／試行回数を十分に取る／同一セッション内で連続して測る）。<b>絶対値だけを見て「速い・遅い」と判断しない。</b></p>
 </section>
 
 <section id="data">
   <h2>実データを扱ううえでの制約</h2>
+  <div class="box stop">
+    <span class="label">記録方針の正は全体作業計画。本計画で緩めない</span>
+    <ul>
+      <li><b><code>wip/reports/</code>・worklog へ発言の本文を貼らない。</b>残してよいのは件数・文字数分布・バイト数といった<b>統計値</b>と、<b>自分（AI）が本セッションで打った発言に限った</b>抜粋だけ。「必要なら引用してよい」という読み替えをしない（本文が要ると感じたら、<b>値と件数で表現できる形へ問いを言い換える</b>）。</li>
+      <li><b>問い5（過剰除去の確認）が最も踏みやすい。</b>「除外された発言を全件目視する」のは<b>手元での確認</b>であり、レポートへ残すのは『<b>どの辞書語が何件落としたか</b>』という<b>語と件数だけ</b>にする。過剰除去が出た場合も、記録するのは「その語」と「件数」であって発言本文ではない。</li>
+    </ul>
+  </div>
   <ul>
-    <li><b>transcript には本セッションの全発言が入る。</b>調査結果へ引用する際は、問いに答えるのに必要な最小限に留める。<b>件数・分布・型のような集計値で答えられる問いは、発言本文を引用せずに答える。</b></li>
     <li>秘密情報（トークン等）が本文に含まれていた場合、<b>値そのものを置換する</b>（<code>.claude/rules/shell-script-style.md</code>「秘密情報の扱い」）。接頭辞決め打ちのマスクに頼らない。</li>
     <li>一時ファイル（退避した生JSON・抽出結果）は<b>scratchpad へ置き、リポジトリへコミットしない</b>。</li>
   </ul>
 </section>
 
-<section id="out-of-scope">
-  <h2>やらないこと（スコープ外）</h2>
-  <div class="box stop">
-    <span class="label">この計画では決めない・触らない</span>
-    <ul>
-      <li><b>Gemini CLI 経路の調査</b>（判断は <b>issue #201</b> へ送る。ブランチ絞りが不可能であることは issue #97 の DDR <code>i0097-04</code> で確定しており、追試しない）</li>
-      <li><b>実装</b>（判断は flow-id 3-1 へ送る）。本調査で書くのは使い捨ての確認用コマンドだけで、<code>session-start.sh</code> へは1行も手を入れない</li>
-      <li><b>合成フィクスチャの整備</b>（判断は flow-id 3-6 へ送る。単体テストを書くときに作る）</li>
-      <li><b>出力位置の再検討</b>（flow-id 1-5 で合意済み。issue #113 の末尾配置を壊さない）</li>
-    </ul>
+<section id="done">
+  <h2>完了条件</h2>
+  <ul>
+    <li><b>問い 1・2・3・4・5・6・7・8・9・10a・10b・11・12・13 のすべて</b>（13件）が、次のいずれかの形で埋まっていること。
+      <ul>
+        <li><b>数値</b>（件数・割合・バイト数・ミリ秒）</li>
+        <li><b>可否の断定</b>（「同一ファイルである」「この手段は使えない」）</li>
+        <li><b>「未確認」の明示</b>（なぜ確認できないかの理由付き。問い7が該当する見込み。問い8・11は「Linuxでは〜、Windows/git bashは未確認」という形の併記になる）</li>
+      </ul>
+    </li>
+    <li>「この調査で決めること」の10項目のうち、<b>出力位置を除く9項目</b>の値が確定していること（「単一transcript前提の扱い」は<b>事実の採取まで</b>が本調査の担当）。</li>
+    <li>結果が <code>wip/reports/20260823_session-start-user-utterance-reinject_transcript調査結果.md</code> と同名 <code>.html</code> に記録されていること（md が正文、HTML はその視覚化）。</li>
+    <li>worklog に、試した内容・うまくいかなかった内容が残っていること。</li>
+  </ul>
+  <div class="box">
+    <span class="label">レポートの形式（検証が成立するために先に決めておく）</span>
+    <code>wip/reports/…調査結果.md</code> は、<b>問いごとに <code>### 問い&lt;番号&gt;</code> という見出しを持つ</b>（番号は <code>1</code> <code>2</code> … <code>10a</code> <code>10b</code> … <code>13</code> の13個）。各見出しの直下には、上の3形式のいずれかで<b>結論を1行目に書く</b>。下記の検証コマンドはこの形式を前提にする。
   </div>
 </section>
 
 <section id="verify">
-  <h2>完了条件</h2>
-  <ul>
-    <li><b>問い1〜13 のすべて</b>が、次のいずれかの形で埋まっていること。
-      <ul>
-        <li><b>数値</b>（件数・割合・バイト数・ミリ秒）</li>
-        <li><b>可否の断定</b>（「同一ファイルである」「この手段は使えない」）</li>
-        <li><b>「未確認」の明示</b>（なぜ確認できないかの理由付き。問い7が該当する見込み）</li>
-      </ul>
-    </li>
-    <li>「この調査で決めること」の8項目のうち、<b>出力位置を除く7項目</b>の値が確定していること。</li>
-    <li>結果が <code>wip/reports/20260823_session-start-user-utterance-reinject_transcript調査結果.md</code> と同名 <code>.html</code> に記録されていること（md が正文、HTML はその視覚化）。</li>
-    <li>worklog に、試した内容・うまくいかなかった内容が残っていること。</li>
-  </ul>
-  <pre><code># 完了確認（flow-id 2-6 の実施後に流す）
-test -f wip/reports/20260823_session-start-user-utterance-reinject_transcript調査結果.md
-test -f wip/reports/20260823_session-start-user-utterance-reinject_transcript調査結果.html
+  <h2>検証</h2>
+  <p><b>実行できるコマンドで確かめる</b>（<code>wip/plans/REVIEW-POINTS.md</code>「検証手順」）。flow-id 2-6 の実施後に、リポジトリルートで次を流す。</p>
+  <pre><code>REPORT='wip/reports/20260823_session-start-user-utterance-reinject_transcript調査結果.md'
 
-# 13の問いすべてに見出しがあること（13 が返れば合格）
-grep -cE '^### 問い[0-9]+' wip/reports/20260823_session-start-user-utterance-reinject_transcript調査結果.md
+# 1. 成果物が md / html の両方そろっているか
+test -f "$REPORT" &amp;&amp; test -f "${REPORT%.md}.html" &amp;&amp; echo 'OK: 成果物2件'
 
-# session-start.sh を触っていないこと（空が返れば合格）
-git diff --name-only origin/main...HEAD -- .claude/hooks/session-start.sh</code></pre>
-  <p>合格条件: 上の3コマンドが順に「両ファイルが存在」「<code>13</code>」「空」を返すこと。</p>
+# 2. 13の問いの見出しが「過不足なく」あるか。
+#    見出しの個数を数えるだけでは、中身が空でも通ってしまう。実際に現れた番号を
+#    列挙して期待値と突き合わせ、差分が無いことを見る。
+diff &lt;(grep -oE '^### 問い[0-9]+[ab]?' "$REPORT" | sed 's/^### 問い//' | sort -u) \
+     &lt;(printf '%s\n' 1 10a 10b 11 12 13 2 3 4 5 6 7 8 9 | sort -u) \
+  &amp;&amp; echo 'OK: 問いの番号が過不足なく一致'
+
+# 3. 各見出しの直下に結論の実体があるか（空の見出しを弾く）。
+#    「見出しでない非空行が1行以上あるか」だけを見る。結論の"形"を正規表現で判定しない
+#    （後続の見出し行自身が数字を含むため、形での判定は空の見出しを取りこぼす。実測済み）。
+#    0 が返れば合格。1件以上なら、その見出し名が標準エラーへ出る。
+awk '
+  /^###[ 　]/ { if (h != "" &amp;&amp; n == 0) print h; h=$0; n=0; next }
+  /^#/        { if (h != "" &amp;&amp; n == 0) print h; h=""; n=0; next }
+  NF          { if (h != "") n++ }
+  END         { if (h != "" &amp;&amp; n == 0) print h }
+' "$REPORT" | tee /dev/stderr | wc -l
+
+# 4. 「やらないこと」を破っていないか。
+#    origin/main は fetch してから、分岐点を実行時に求める（SHAは書き写さない）。
+#    対象は1ファイルではなくディレクトリ単位で見る（テスト・他のhookへの混入も拾うため）。
+git fetch origin main
+base="$(git merge-base origin/main HEAD)"
+git diff --name-only "$base" -- .claude/</code></pre>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>#</th><th>何を確かめるか</th><th>合格</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td>成果物が md / html の2件そろっている</td><td><code>OK: 成果物2件</code> が出る</td></tr>
+      <tr><td>2</td><td>13の問いが<b>過不足なく</b>ある</td><td><code>diff</code> が差分を出さず <code>OK: 問いの番号が過不足なく一致</code> が出る（<b>多い場合も少ない場合も落ちる</b>）</td></tr>
+      <tr><td>3</td><td>各問いに<b>結論の実体</b>がある</td><td>標準出力が <code>0</code>（結論の無い見出しが0件。1件でもあれば、その見出し名が標準エラーへ出る）</td></tr>
+      <tr><td>4</td><td>実装へ手を入れていない</td><td><code>git diff</code> の出力が<b>空</b>（<code>.claude/</code> 配下に1件も変更が無い）</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <div class="box ok">
+    <span class="label">検証2・3は「本当に落ちること」を確認済み</span>
+    合成フィクスチャで実測した（<code>REVIEW-POINTS.md</code>「異常があるときに本当に検出できるか」）。
+    <div class="tablewrap">
+    <table>
+      <thead><tr><th>フィクスチャ</th><th>検証2</th><th>検証3</th></tr></thead>
+      <tbody>
+        <tr><td>13件そろい・各見出しに結論あり</td><td>OK</td><td>0件</td></tr>
+        <tr><td>見出しを1つ落とす</td><td><b>NG（検出）</b></td><td>0件</td></tr>
+        <tr><td>空の見出しを1つ足す</td><td>NG（番号が増えたため）</td><td><b>1件（検出）</b></td></tr>
+      </tbody>
+    </table>
+    </div>
+    <b>この確認の過程で、検証3の初版が空振りだった。</b>「見出しの直下の非空行が『数値／断定／未確認』の形をしているか」を正規表現で見る書き方にしていたところ、<b>後続の見出し行自身が数字を含む</b>ため空の見出しを取りこぼした（0件と出た）。形の判定をやめ、「見出しでない非空行が1行以上あるか」だけを見る形へ直してある。
+  </div>
 </section>
 
 <section id="stop">
@@ -305,12 +410,43 @@ git diff --name-only origin/main...HEAD -- .claude/hooks/session-start.sh</code>
   <table>
     <thead><tr><th>条件</th><th>対応</th></tr></thead>
     <tbody>
-      <tr><td><b>問い1が否</b>（<code>transcript_path</code> が取れず、<code>CLAUDE_PROJECT_DIR</code> からも辿れない）</td><td><span class="tag stop">即停止</span> 以降の問いを解かず停止する。実装不能である事実を <code>wip/reports/</code> へ記録し、issue #151 へ差し戻す。<b>代替経路を無理に作らない</b>（<code>PreCompact</code> は DDR <code>i0057-01</code> で却下済み）</td></tr>
+      <tr><td><b>問い1が否</b>（<code>transcript_path</code> が取れず、<code>CLAUDE_PROJECT_DIR</code> からも辿れない）</td><td><span class="tag stop">即停止</span> 以降の問いを解かず停止する。記録するのは「<b>この実行環境（Claude Code on the web / Linux）では取得できなかった</b>」という<b>事実</b>であって、「実装不能」ではない（下記）。<b>代替経路を無理に作らない</b>（<code>PreCompact</code> は DDR <code>i0057-01</code> で却下済み）。そのうえで<b>人間の判断を仰ぐ</b>ため issue #151 へ差し戻す</td></tr>
       <tr><td><b>問い11がしきい値超過</b>（追加コスト 200ms 超）</td><td>フェーズ3へ進む前に実装方式（jqの呼び方・走査量）を見直す案を出す。<b>しきい値を後から緩めない</b></td></tr>
       <tr><td><b>問い5で過剰除去が発生</b></td><td>該当語を辞書から外して測り直す。「まれだから許容」としない</td></tr>
       <tr><td><b>調査中に規模が本issueに収まらないと判明</b></td><td><code>references/planning.md</code>「issueが大きすぎる場合の分割提案」に従い、未着手範囲の別issue化を提案する</td></tr>
     </tbody>
   </table>
+  </div>
+  <div class="box stop">
+    <span class="label">「この環境で取れなかった」を「実装不能」と書かない</span>
+    <code>transcript_path</code> の有無・表記はハーネスの実装に依存し、本調査は問い7で認めるとおり<b>リモート実行環境（Linux）でしか行えない</b>。実運用環境（Windows / git bash 上の Claude Code）で取れるかどうかは、ここでは分からない。<code>.claude/rules/shell-script-style.md</code>「テスト」が言う『<b>測れないから現状維持</b>』と『<b>測ったうえで現状維持</b>』の区別と同じで、両者を混ぜると<b>実機なら動く機能を「実装不能」として葬る</b>ことになる。<br><br>
+    差し戻すときのレポートには、次の3つを必ず書く。
+    <ol>
+      <li><b>確認できた環境</b>と、そこで取れなかったという事実</li>
+      <li><b>確認できていない環境</b>（Windows / git bash 上の Claude Code、および Gemini CLI）</li>
+      <li>結論は「実装不能」ではなく「<b>実機での確認が済むまで判断保留（未確認）</b>」であること</li>
+    </ol>
+  </div>
+</section>
+
+<section id="out-of-scope">
+  <h2>やらないこと（スコープ外）</h2>
+  <div class="box stop">
+    <span class="label">この計画では決めない・触らない</span>
+    各項目に<b>判断の送り先</b>を書く（後から「誰も決めていない」が起きないようにするため）。
+    <div class="tablewrap">
+    <table>
+      <thead><tr><th>やらないこと</th><th>判断の送り先</th></tr></thead>
+      <tbody>
+        <tr><td><b>Gemini CLI 経路の調査</b>。ブランチ絞りが不可能であることは issue #97 の DDR <code>i0097-04</code> で確定しており、追試しない</td><td><b>issue #201</b>（切り出し済み。2026-08-23）</td></tr>
+        <tr><td><b>単一transcript前提の限界への対処方針</b>（先頭枠を諦める／過去transcriptも対象にする／<code>HANDOFF.md</code> で代替する）。本調査が出すのは<b>事実まで</b>（問い9・10a・10b）</td><td><b>flow-id 3-1</b>（個別作業計画）</td></tr>
+        <tr><td><b>実装</b>。本調査で書くのは<b>使い捨ての確認用コマンド</b>だけで、<code>session-start.sh</code> へは1行も手を入れない</td><td><b>flow-id 3-6</b></td></tr>
+        <tr><td><b>合成フィクスチャの整備</b>（単体テストを書くときに作る）</td><td><b>flow-id 3-6</b></td></tr>
+        <tr><td><b>出力位置の再検討</b>（flow-id 1-5 で合意済み。issue #113 の末尾配置を壊さない）</td><td>再検討しない（合意済み）</td></tr>
+        <tr><td><b>問い11のしきい値（200ms）のgit bash実機での再測</b></td><td><b>flow-id 3-6</b>（本調査のLinux実測は暫定）</td></tr>
+      </tbody>
+    </table>
+    </div>
   </div>
 </section>
 
