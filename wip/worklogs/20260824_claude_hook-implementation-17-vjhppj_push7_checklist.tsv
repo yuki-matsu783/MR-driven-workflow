@@ -1,0 +1,7 @@
+# generated-for: 54d5bbbe3301032b36fa89408807fafac494e611
+# id	項目	状態	実施ログ
+worklog	worklogを作成し、このpushまでの試行錯誤を追記した	done	…反映の実施_push14.md を新規作成し、4件の試行錯誤（罠の2度踏み・期待値の変更・状態依存の基準値・削除行の期待の曖昧さ）を記録した
+handoff	HANDOFF.md の進捗表・ヘッダを更新した（commitより前・同じcommitに含めた）	done	4-5をmark-done、ループを4-6〜4-9の1周目へ、push回数16、やったこと/次にやることを更新（commitより前）
+frontmatter-index	frontmatterを変更した場合、index.jsonl を最新化した	done	extract-frontmatter.sh . を実行（files=180 built=3 failed=0）
+plan-report-sync	wip/plans/ wip/reports/ の md と html を同期した	done	反映結果レポートのmd（正文）とhtml（プレースホルダ0・アンカー破断0・外部依存0）を対で作成。両計画の検証6/4/5もmd・html双方で同期
+commit-skill	commit スキル（create-commit.sh）経由でコミットした	done	create-commit.sh 経由でコミットする

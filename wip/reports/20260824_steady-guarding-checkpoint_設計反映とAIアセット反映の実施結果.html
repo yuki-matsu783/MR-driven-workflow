@@ -1,0 +1,442 @@
+<!--
+  push前チェックリスト機構（issue #17）フェーズ4 flow-id 4-6 の反映結果レポート（HTMLビュー）。
+  正文は同名の .md であり、このHTMLはその視覚化である（両者は必ず同期させる）。
+  土台: .claude/skills/issue-mr-flow/assets/reports.template.html
+  寿命: flow-id 5-5 で wip/plans/ wip/worklogs/ wip/reports/ とまとめて削除する。
+-->
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>設計反映・AIアセット反映の実施結果 — issue #17</title>
+<style>
+  :root {
+    --bg: #f6f7f9;      --panel: #ffffff;   --ink: #1a1d21;     --muted: #5b636d;
+    --line: #dfe3e8;    --accent: #2563eb;  --accent-soft: #eaf0fe;
+    --ok: #1a7f4b;      --ok-soft: #e6f4ec; --warn: #a35a00;    --warn-soft: #fdf1e0;
+    --stop: #b3261e;    --stop-soft: #fdecea; --good: #1d4ed8;  --good-soft: #e7edfd;
+    --code-bg: #f0f2f5;
+    --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1216;    --panel: #161a20;   --ink: #e6e8eb;     --muted: #9aa3ad;
+      --line: #2a3038;  --accent: #7aa2f7;  --accent-soft: #1b2333;
+      --ok: #6ee7a8;    --ok-soft: #14261d; --warn: #f0b866;    --warn-soft: #2a2113;
+      --stop: #f2857c;  --stop-soft: #2b1614; --good: #8ab4f8;  --good-soft: #17233a;
+      --code-bg: #1d222a;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", system-ui, sans-serif;
+    line-height: 1.8; font-size: 15px;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 20px 80px; }
+
+  /* 共通ヘッダ帯 */
+  header.band {
+    background: linear-gradient(135deg, var(--accent-soft), var(--panel));
+    border-bottom: 1px solid var(--line); padding: 28px 20px 22px; margin-bottom: 28px;
+  }
+  header.band .inner { max-width: 1080px; margin: 0 auto; }
+  header.band .kind { font-size: 11px; letter-spacing: .18em; color: var(--accent); font-weight: 700; }
+  header.band h1 { margin: 6px 0 4px; font-size: 26px; line-height: 1.4; }
+  header.band .lead { margin: 0; color: var(--muted); }
+  header.band .counts { margin: 12px 0 0; display: flex; gap: 6px; flex-wrap: wrap; }
+  .meta { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; padding: 0; list-style: none; }
+  .meta li {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 999px;
+    padding: 3px 12px; font-size: 12.5px; color: var(--muted); white-space: nowrap;
+  }
+  .meta li b { color: var(--ink); font-weight: 600; }
+
+  nav.toc {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 14px 20px; margin-bottom: 28px;
+  }
+  nav.toc h2 { margin: 0 0 8px; font-size: 13px; letter-spacing: .08em; color: var(--muted); border: 0; padding: 0; }
+  nav.toc ol { margin: 0; padding-left: 20px; }
+  nav.toc li { margin: 2px 0; }
+  a { color: var(--accent); }
+
+  section {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 8px 24px 22px; margin-bottom: 22px;
+  }
+  /* アンカーで飛んだとき見出しが上端に張り付かないようにする（issue #186） */
+  section[id], h3[id] { scroll-margin-top: 16px; }
+  h2 { font-size: 20px; margin: 20px 0 10px; padding-bottom: 8px; border-bottom: 2px solid var(--line); }
+  h3 { font-size: 16px; margin: 22px 0 8px; color: var(--accent); }
+  p { margin: 10px 0; }
+  ul, ol { padding-left: 22px; }
+  li { margin: 4px 0; }
+  blockquote { margin: 10px 0; padding: 6px 14px; border-left: 3px solid var(--line); color: var(--muted); }
+
+  /* 表は自身の中で横スクロールする（ページ本体は横スクロールさせない） */
+  .tablewrap { overflow-x: auto; margin: 14px 0; }
+  table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 14px; }
+  th, td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: var(--accent-soft); font-weight: 600; white-space: nowrap; }
+  tbody tr:nth-child(even) td { background: color-mix(in srgb, var(--line) 22%, transparent); }
+
+  code {
+    background: var(--code-bg); border-radius: 5px; padding: 1px 5px; font-size: 13px;
+    font-family: "SFMono-Regular", Consolas, "Noto Sans Mono", monospace;
+  }
+  pre {
+    background: var(--code-bg); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 12px 14px; overflow-x: auto; font-size: 13px; line-height: 1.65;
+  }
+  pre code { background: none; padding: 0; }
+
+  /* 注意ボックス: info（既定）/ ok（決めたこと・手順の成功。結論の性質には使わない）/
+     warn（注意）/ stop（やらないこと・危険） */
+  .box { border-left: 4px solid var(--accent); background: var(--accent-soft);
+         border-radius: 0 var(--radius) var(--radius) 0; padding: 12px 16px; margin: 16px 0; }
+  .box > :first-child { margin-top: 0; } .box > :last-child { margin-bottom: 0; }
+  .box .label { font-size: 12px; font-weight: 700; letter-spacing: .06em; display: block; margin-bottom: 4px; }
+  .box.ok { border-color: var(--ok); background: var(--ok-soft); } .box.ok .label { color: var(--ok); }
+  .box.warn { border-color: var(--warn); background: var(--warn-soft); } .box.warn .label { color: var(--warn); }
+  .box.stop { border-color: var(--stop); background: var(--stop-soft); } .box.stop .label { color: var(--stop); }
+  .box.info .label { color: var(--accent); }
+
+  /* 結論の性質チップ: 良=青 .good / 注意=黄 .warn / 問題=赤 .stop（記号＋文字を必ず併記） */
+  .chip { display: inline-block; border-radius: 999px; padding: 1px 9px; font-size: 12px; font-weight: 600; }
+  .chip.good { background: var(--good-soft); color: var(--good); }
+  .chip.warn { background: var(--warn-soft); color: var(--warn); }
+  .chip.stop { background: var(--stop-soft); color: var(--stop); }
+
+  /* サマリの結論カード: 1カード1結論（チップ＋結論1行＋根拠の性質＋章リンク） */
+  ol.verdicts { list-style: none; padding: 0; margin: 14px 0; display: grid; gap: 8px; }
+  .verdict {
+    border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel);
+    padding: 8px 12px; display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px;
+  }
+  .verdict .v-basis { color: var(--muted); font-size: 12.5px; margin-left: auto; }
+
+  /* 重点レビュー依頼の3段階: 重みは色相では表さない（色相は結論の性質専用）。
+     must/want はアクセント系1色相の濃度・枠の太さ、skip は中立色（--line枠＋--muted文字）。
+     記号（◆◇・）を必ず併記する */
+  .focus { border-radius: var(--radius); padding: 12px 16px; margin: 14px 0; }
+  .focus > :last-child { margin-bottom: 0; }
+  .focus .label { font-size: 13px; font-weight: 700; letter-spacing: .04em; display: block; margin-bottom: 4px; }
+  .focus.must { border: 2px solid var(--accent); background: var(--accent-soft); }
+  .focus.must .label { color: var(--accent); }
+  .focus.want { border: 1px solid var(--accent); background: var(--panel); }
+  .focus.want .label { color: var(--accent); }
+  .focus.skip { border: 1px solid var(--line); background: var(--panel); color: var(--muted); }
+  .focus.skip .label { color: var(--muted); }
+  .focus.skip a { color: var(--muted); }
+
+  footer { color: var(--muted); font-size: 13px; text-align: center; padding-top: 10px; }
+</style></head>
+<body>
+
+<header class="band">
+  <div class="inner">
+    <div class="kind">反映結果レポート / フェーズ4</div>
+    <h1>push前チェックリスト機構の設計反映・AIアセット反映の実施結果</h1>
+    <p class="lead">個別反映計画2本に沿って、spec本文化・DDR <code>i0017-01</code> の作成・一覧系の追随（設計反映11ファイル）と、作業の副産物6件のAIアセットへの反映（4ファイル）を実施した。検証は両計画とも全7項目が合格したが、<b>実施の途中で検証の期待値を2件変更し、新たな知見を1件見つけた</b>。</p>
+    <p class="counts">
+      <span class="chip good">◎良 5</span>
+      <span class="chip warn">△注意 4</span>
+      <span class="chip stop">✕問題 0</span>
+    </p>
+    <ul class="meta">
+      <li><b>issue</b> #17</li>
+      <li><b>ブランチ</b> claude/hook-implementation-17-vjhppj</li>
+      <li><b>PR</b> #195</li>
+      <li><b>フェーズ</b> 4〈反映〉 flow-id 4-6</li>
+      <li><b>push回数</b> 15</li>
+      <li><b>作成日</b> 2026-08-24</li>
+      <li><b>正文</b> 同名の .md</li>
+    </ul>
+  </div>
+</header>
+
+<div class="wrap">
+
+<nav class="toc">
+  <h2>目次</h2>
+  <ol>
+    <li><a href="#review-focus">重点レビュー依頼</a></li>
+    <li><a href="#summary">サマリ（結論の一覧）</a></li>
+    <li><a href="#unverified">確かめられなかったこと</a></li>
+    <li><a href="#conditions">実施条件（測った対象・環境）</a></li>
+    <li><a href="#findings">実施した内容と結果</a></li>
+    <li><a href="#next">設計への反映</a></li>
+    <li><a href="#surprises">想定と異なった点</a></li>
+    <li><a href="#todo">残課題</a></li>
+  </ol>
+</nav>
+
+<section id="review-focus">
+  <h2>重点レビュー依頼</h2>
+  <div class="box stop">
+    <span class="label">判断してほしい</span>
+    <ul>
+      <li><b><code>.claude/VERSION</code> を <code>0.4.0</code> → <code>0.5.0</code>（MINOR）へ上げた。</b> 非対話セッションの例外条件下での適用であり、<b>否認されたら <code>0.4.0</code> へ戻す</b>。増分の根拠は<b>両計画の合算</b>（本計画のスクリプト1・hook2・spec1・DDR1＋AIアセット反映が触る配布層 core の資産）で、<b>版を持つのは <code>【設計反映】</code> 1本に固定</b>した。</li>
+      <li><b>検証の期待値を実施の途中で2件変更した</b>（検証4・5）。goalpost の移動になりうるため、変更の理由を<a href="#f5">5章</a>に全部書いた。<b>この変更自体が妥当かを見てほしい。</b></li>
+      <li><b><code>--tags</code> / <code>--delete</code> を一律ブロックのままにした。</b> 逃げ道は新設せず、機構が既に持つ <code>skip</code> で解く。<b>配布先ではコストが繰り返し発生する</b>ため、第一手（<code>skip</code>）と次の手（hook登録の除外）をspecへ書いた。</li>
+    </ul>
+  </div>
+  <div class="box ok">
+    <span class="label">方針を決めた</span>
+    <ul>
+      <li><b><code>.claude/docs/usecase/</code> は「影響あり」と判断し、1本（<code>新しい機能開発を始める.md</code>）を更新した。</b> 他7本は commit・push の手順に触れておらず影響なし。</li>
+      <li><b>項目4の反映は「既存 bullet への一文追記」＋「新しい観点2件」に分けた。</b> (d) が禁じているのは「既にある記述の隣へ<b>同じことを</b>書き足す」ことであって、別の確認項目を足すことではない、という判断による。</li>
+    </ul>
+  </div>
+  <div class="box info">
+    <span class="label">機械的・検証済み</span>
+    <ul>
+      <li>spec骨組みのプレースホルダ3件と骨組み宣言1件が、いずれも0になったことを実測した。</li>
+      <li>DDR一覧の再生成（93件）・frontmatterインデックスの再生成（<code>failed=0</code>）・参照切れ0件・単体テスト23本／失敗0。</li>
+    </ul>
+  </div>
+</section>
+
+<section id="summary">
+  <h2>サマリ（結論の一覧）</h2>
+  <ul class="cards">
+    <li class="card good">
+      <b>設計反映は11ファイルすべて完了した</b>
+      <p>spec本文化（62行 → 305行）・DDR <code>i0017-01</code> の新規作成・一覧系4ファイル・SKILL.md 2本・usecase 1本・VERSION。検証7項目すべて合格。</p>
+    </li>
+    <li class="card good">
+      <b>AIアセット反映は6件・4ファイルすべて完了した</b>
+      <p><code>shell-script-style.md</code>（3件）／<code>wip/reports/REVIEW-POINTS.md</code>（1件）／<code>mcp-fallback.md</code>（1件・訂正）／<code>wip/plans/REVIEW-POINTS.md</code>（1件・新設）。</p>
+    </li>
+    <li class="card warn">
+      <b>単体テストのアサーション合計は固定値ではなかった</b>
+      <p><code>test_install_to_project.sh</code> の dirty ガードが<b>作業ツリーがクリーンだとスキップされる</b>ため、クリーンで1,630・未コミットの変更ありで1,631になる。<b>不変なのは <code>failures=0</code> のほう。</b></p>
+    </li>
+    <li class="card warn">
+      <b>検証の期待値を実施の途中で2件変更した</b>
+      <p>検証4（前後で同じ → +2）・検証5（入れ子込み +1 → トップレベル +1）。いずれも理由を計画とこのレポートへ明記した。</p>
+    </li>
+    <li class="card warn">
+      <b>同じ「絶対パス形式のDDR参照」の罠を、同じissue内で2度踏んだ</b>
+      <p>1度目は計画ファイル、2度目は<b>その修正を説明した <code>HANDOFF.md</code></b>。対処自体を説明する文章がまた検出に当たる、という再帰的な形をしている。</p>
+    </li>
+    <li class="card warn">
+      <b>検証7の削除行が期待（項目4・5の分のみ）より多く10行だった</b>
+      <p>同じパスに <code>【設計反映】</code> 側の変更が含まれていたため。全10行を突き合わせ、<b>節・bullet が丸ごと消えたものは0件</b>と確認した。</p>
+    </li>
+    <li class="card good">
+      <b>既存の push 系 hook 2本のロジックは1バイトも変更していない</b>
+      <p>issue #17 の受け入れ条件「責務を既存2本と分離する」を満たす。</p>
+    </li>
+    <li class="card good">
+      <b>spec の「未決定事項・懸念点」に、受け入れた性質を隠さず書いた</b>
+      <p>「作業ツリーが常にクリーン」と両立しないこと・誤ブロックの再現条件が未特定であることの2点。</p>
+    </li>
+    <li class="card good">
+      <b>DDR <code>i0017-01</code> は8つの決定と却下案を残した</b>
+      <p>うち3つ（前置フィルタの流用・<code>stale</code> の exit code・項目文言のディレクトリ決め打ち）は<b>敵対的レビューで指摘されて直したもの</b>で、誤った側の実装も記録した。</p>
+    </li>
+  </ul>
+</section>
+
+<section id="unverified">
+  <h2>確かめられなかったこと</h2>
+  <div class="box warn">
+    <span class="label">当てにしない側へ倒してある</span>
+    <ul>
+      <li><b>誤ブロックの再現条件</b>（<a href="#f7">7章</a>）。判定単体8ケース・hook実プロセス6ケース・ANSI-Cクォート仮説3ケースのいずれでも再現せず、<b>そもそも判定の誤りだったのか <code>stale</code> が真だったのかも切り分けられていない</b>。</li>
+      <li><b>PreToolUse の <code>exit 1</code> の stderr がユーザーへ届くか。</b> 未確認のため <code>stale</code> を exit 2 へ倒した。</li>
+      <li><b>git bash実機（Windows）での挙動・性能。</b> 本リポジトリのリモート実行環境（Linux）でのみ確認している。</li>
+      <li><b><code>.claude/settings.json</code> の <code>if</code> フィルタの照合規則</b>（issue #47 から未解明）。本機構の PreToolUse は <code>if</code> を持たないため影響しない。</li>
+    </ul>
+  </div>
+</section>
+
+<section id="conditions">
+  <h2>実施条件（測った対象・環境）</h2>
+  <ul>
+    <li><b>実行環境</b>: Claude Code on the web のリモート実行環境（Linux 6.18.44）。<b>非対話セッション</b>。</li>
+    <li><b>実施日</b>: 2026-08-24</li>
+    <li><b>分岐点</b>: <code>d31dfd8580d5ac8667b5ea519e83e1e4dcef3258</code>（<code>git fetch origin main</code> の直後に <code>git merge-base</code> で実行時に求めた値）</li>
+    <li><b>変更前の値</b>: 各検証を<b>着手前に変更前のツリーで実行</b>して実測し、計画の「変更前」欄へ書き込んである（敵対的レビュー1回目で空振り検証が見つかったため）。</li>
+    <li><b>作業ツリーの状態</b>: 検証6の測定時は<b>未コミットの変更あり</b>（この状態依存が3章の知見につながった）。</li>
+  </ul>
+</section>
+
+<section id="findings">
+  <h2>実施した内容と結果</h2>
+
+  <h3 id="f1">1. 設計反映（11ファイル） <span class="chip good">◎良</span></h3>
+  <p><code>.claude/docs/spec/push-checklist.md</code> を骨組み62行から305行へ本文化し、DDR <code>i0017-01</code> を新規作成した。一覧系・SKILL.md・usecase・VERSION が追随する。</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>ファイル</th><th>操作</th><th>内容</th></tr></thead>
+    <tbody>
+      <tr><td><code>.claude/docs/spec/push-checklist.md</code></td><td><b>本文化</b></td><td>背景・目的／仕様／影響範囲／設定項目／未決定事項・懸念点／変更履歴</td></tr>
+      <tr><td><code>.claude/docs/ddr/i0017-01-….md</code></td><td><b>新規</b></td><td>8つの決定と却下案</td></tr>
+      <tr><td><code>.claude/docs/README.md</code></td><td>変更</td><td>spec一覧へ1行＋DDR一覧の再生成（93件）</td></tr>
+      <tr><td><code>.claude/docs/spec/issue-mr-workflow.md</code></td><td>変更</td><td>コンポーネント構成へ新設3本＋<code>CommandPosition.sh</code>、changelog</td></tr>
+      <tr><td><code>.claude/rules/directory-structure.md</code></td><td>変更</td><td>ツリー、<code>hooks/</code> の説明を PreToolUse 込みへ</td></tr>
+      <tr><td><code>.claude/rules/docs-workflow.md</code></td><td>変更</td><td>ライフサイクル表へチェックリストの行（worklogと同じ寿命）</td></tr>
+      <tr><td><code>index.md</code></td><td>変更</td><td>Repository Map の <code>hooks/</code> と <code>wip/worklogs/</code></td></tr>
+      <tr><td><code>.claude/docs/usecase/新しい機能開発を始める.md</code></td><td>変更</td><td>概要へ1項目、詳細リンクへ1行</td></tr>
+      <tr><td><code>.claude/skills/commit/SKILL.md</code></td><td>変更</td><td><b>Step 3.5 を新設</b></td></tr>
+      <tr><td><code>.claude/skills/issue-mr-flow/SKILL.md</code></td><td>変更</td><td>commit/push の6ステップ＋参照節へ1行</td></tr>
+      <tr><td><code>.claude/VERSION</code></td><td>変更</td><td><code>0.4.0</code> → <code>0.5.0</code></td></tr>
+    </tbody>
+  </table>
+  </div>
+  <div class="box ok">
+    <span class="label">結論</span>
+    計画の変更対象11件をすべて実施し、検証7項目すべてが合格した。
+  </div>
+
+  <h3 id="f2">2. usecase への影響確認（flow-id 4-6 の定義が要求） <span class="chip good">◎良</span></h3>
+  <p>8本のうち<b>1本だけが影響を受ける</b>と判断し、更新した。</p>
+  <pre><code>$ grep -n 'commit' .claude/docs/usecase/*.md
+.claude/docs/usecase/新しい機能開発を始める.md:29:- フローの途中のコミットはすべて `commit` スキル経由で行われ、調査・作業の結果は
+.claude/docs/usecase/新しい機能開発を始める.md:45:- [commitスキル](../../skills/commit/SKILL.md) — フロー中のコミットの唯一の経路</code></pre>
+  <div class="box ok">
+    <span class="label">結論</span>
+    29行目の要約が本変更の射程に入るため更新した。他7本は commit・push の手順に触れておらず<b>影響なし</b>。影響なしの判断も、この節に残すことで「やったのか忘れたのか」を外形上区別できるようにしてある。
+  </div>
+
+  <h3 id="f3">3. アサーション合計が環境の状態に依存することが分かった <span class="chip warn">△注意</span></h3>
+  <p>検証6の実測が計画の基準値（1,630）と1件ずれたため原因を追った。<code>test_install_to_project.sh</code> の B-6（dirty ガード）が、<b>作業ツリーがクリーンだとスキップされる</b>アサーションだった。</p>
+  <pre><code>（クリーンなツリーでの出力）
+note: 本家がクリーンなため B-6（dirty ガード）はスキップしました（1件）</code></pre>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>作業ツリーの状態</th><th>本数</th><th>passed合計</th><th>failures</th></tr></thead>
+    <tbody>
+      <tr><td>クリーン（<code>git stash</code> 直後）</td><td>23</td><td><b>1,630</b></td><td>0</td></tr>
+      <tr><td>未コミットの変更あり</td><td>23</td><td><b>1,631</b></td><td>0</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <div class="box warn">
+    <span class="label">結論</span>
+    <b>不変なのは <code>failures=0</code> のほうであり、<code>passed</code> の合計ではない。</b> 回帰の判定に合計を使うなら測定時の状態も併記する。この知見を項目4の3つ目の候補として加え、<code>wip/reports/REVIEW-POINTS.md</code> へ「その数値は、測定時の環境の状態に依存しないか」として反映した。両計画の検証6の「変更前」欄も、状態別の2つの値を書く形へ直した。
+  </div>
+
+  <h3 id="f4">4. AIアセット反映（6件・4ファイル） <span class="chip good">◎良</span></h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>#</th><th>項目</th><th>類型</th><th>反映先</th><th>反映の形</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td><code>read -r -a</code> はTSVの分割に使えない</td><td>(d)</td><td><code>shell-script-style.md</code></td><td><b>新設「タブ区切り（TSV）の分割」節</b>。既存記述へリンクし写経しない</td></tr>
+      <tr><td>2</td><td>前置フィルタをブロック判定へ流用しない</td><td>(c)</td><td>同上</td><td>既存の「過剰検知は許容してよい」の<b>すぐ隣</b>へ追記</td></tr>
+      <tr><td>3</td><td>フィクスチャの既定値は <code>${N-既定}</code></td><td>(c)</td><td>同上（テスト節）</td><td>「意図的に壊したら落ちるか」の直後へ追記</td></tr>
+      <tr><td>4</td><td>訂正値の測り直し／数え方の単位／状態依存</td><td>(d)</td><td><code>wip/reports/REVIEW-POINTS.md</code></td><td>既存 bullet へ一文＋<b>観点を2件新設</b></td></tr>
+      <tr><td>5</td><td><code>get_review_comments</code> は <code>page</code> を無視する</td><td>(b)</td><td><code>mcp-fallback.md</code></td><td><b>訂正</b>。条件設定が誤っていた</td></tr>
+      <tr><td>6</td><td>「〜に合わせる」相手の実装値を読む</td><td>(a)</td><td><code>wip/plans/REVIEW-POINTS.md</code></td><td><b>観点を1件新設</b>（＋説明の入れ子3件）</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <div class="box ok">
+    <span class="label">結論</span>
+    類型ごとに反映の向き（(a)＝新設 / (b)＝訂正 / (c)＝追記 / (d)＝導線）を守った。項目1は罠の説明を写経せず既存記述（<code>generate-ddr-list.md</code> と DDR <code>i0135-01</code>）へリンクしている——<b>「.sh を書くときに必ず読まれる場所」に入口を置くのが (d) の反映である。</b>
+  </div>
+
+  <h3 id="f5">5. 検証の期待値を実施の途中で2件変更した <span class="chip warn">△注意</span></h3>
+  <p><b>期待値を後から変えるのは goalpost の移動になりうる</b>ため、変更の事実と理由を計画とここの両方へ残す。</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>検証</th><th>当初の期待</th><th>変更後</th><th>なぜ変えたか</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>4<br><code>wip/reports/<br>REVIEW-POINTS.md</code></td>
+        <td>bullet 数が<b>前後で同じ</b>（23 → 23）</td>
+        <td><b>23 → 25</b>（+2）</td>
+        <td>3つの候補のうち <b>(i) 訂正値の測り直しは既存 bullet の射程内</b>（一文の継ぎ足しで済む）だが、<b>(ii) 数え方の単位・(iii) 状態依存は既存文に無い別の確認</b>だった。「増やさない」を守るために既存 bullet へ押し込むのは目的と手段の入れ替えである。(d) が禁じているのは「既にある記述の隣へ<b>同じことを</b>書き足す」ことであって、別の確認項目を足すことではない</td>
+      </tr>
+      <tr>
+        <td>5<br><code>wip/plans/<br>REVIEW-POINTS.md</code></td>
+        <td>入れ子込みで 39 → <b>40</b>（+1）</td>
+        <td><b>トップレベル 39 → 40</b>（+1）／入れ子込み 39 → <b>43</b></td>
+        <td>5が見たいのは「<b>観点を何件新設したか</b>」なので、その観点の説明として付く入れ子は数えない。4は「既存の観点の隣へ同じことを書き足していないか」を見るので入れ子の新設も数える。<b>性質が違うため、コマンドを揃えるほうがむしろ誤りである</b></td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+  <div class="box warn">
+    <span class="label">結論</span>
+    どちらも<b>「実装が計画に合わないから期待を緩めた」のではなく、計画時点の期待が測ろうとしている性質を正しく表していなかった</b>ケースである。とはいえ<b>この区別は当事者が主張しているだけ</b>なので、レビューで見てほしい点として<a href="#review-focus">重点レビュー依頼</a>にも挙げた。
+  </div>
+
+  <h3 id="f6">6. 同じ罠を同じissue内で2度踏んだ（絶対パス形式のDDR参照） <span class="chip warn">△注意</span></h3>
+  <p>検証2は実施の途中で1度失敗した。<code>HANDOFF.md</code> に、<b>計画で直したはずのプレースホルダを過去の経緯として引用した行</b>が残っており、絶対パス形式だったため検出された。</p>
+  <pre><code>$ bash .claude/scripts/src/check-doc-references.sh
+参照切れ数=1
+HANDOFF.md:201:.claude/docs/ddr/i0017-01-&lt;タイトル&gt;.md
+
+（表記を変えたあと）
+参照切れ数=0</code></pre>
+  <div class="box warn">
+    <span class="label">結論</span>
+    1度目は計画ファイル、2度目は<b>その修正を説明した文章</b>である。<b>「絶対パス形式で書かない」という対処自体を説明する文章が、また絶対パス形式になる</b>という再帰的な形をしている。<code>HANDOFF.md</code> の該当行には、この注記自身が同じ検出に当たらないよう書いてある旨を明記した。
+  </div>
+
+  <h3 id="f7">7. 検証7の削除10行を全件突き合わせた <span class="chip good">◎良</span></h3>
+  <p>期待欄には「項目4・5の書き換え分のみ」と書いていたが、実測は10行だった。同じパスに <code>【設計反映】</code> 側の変更が含まれていたためである。</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>行数</th><th>削除された行</th><th>置き換え先</th><th>どちらの計画か</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td><code>hooks/</code> のツリーコメント</td><td><code>SessionStart/PreToolUse/PostToolUse等</code> へ拡張</td><td><code>【設計反映】</code></td></tr>
+      <tr><td>6</td><td>全体フロー表の commit/push 6行</td><td>チェックリストへの言及を加えた版</td><td><code>【設計反映】</code></td></tr>
+      <tr><td>2</td><td><code>誤ったパラメータ名を渡すと〜</code> の2行</td><td>条件設定を訂正した版（項目5は (b)＝<b>訂正</b>なので置き換えが正しい）</td><td><code>【AIアセット反映】</code></td></tr>
+      <tr><td>1</td><td><code>（issue #155 で3件とも実際に起きた）。</code></td><td>同じ文へ訂正値の測り直しを継ぎ足した版</td><td><code>【AIアセット反映】</code></td></tr>
+    </tbody>
+  </table>
+  </div>
+  <div class="box ok">
+    <span class="label">結論</span>
+    <b>節・bullet が丸ごと消えたものは0件である。</b> 「削除行が0であること」を期待にすると、正当な置き換えまで弾いてしまう——<b>この検証は「0であること」ではなく「全件が説明できること」で判定するのが正しい。</b>
+  </div>
+</section>
+
+<section id="next">
+  <h2>設計への反映</h2>
+  <ol>
+    <li><b>恒久の正史は <code>.claude/docs/spec/push-checklist.md</code> と DDR <code>i0017-01</code> に置いた。</b> このレポート・計画・worklog は flow-id 5-5 で削除されるため、後から辿れるのはこの2ファイルと issue #17 だけである。</li>
+    <li><b>spec の「未決定事項・懸念点」に、受け入れた性質を隠さず書いた。</b>（1）「作業ツリーが常にクリーンかつリモートと一致」と構造的に両立しないこと、（2）誤ブロックの再現条件が未特定であること。とくに（1）は<b>実施していない項目を <code>done</code> と書く動機になる</b>ため、自己申告に立つ機構として最も避けたい壊れ方として明記した。</li>
+    <li><b>配布先向けの逃げ道を2段で書いた。</b> 第一手は <code>skip</code>（理由がGit管理下のdiffに残る）、次の手は <code>.claude/settings.json</code> からの hook 登録の除外。<code>--tags</code> を日常的に使う配布先ではコストが繰り返し発生する旨も併記した。</li>
+    <li><b>フェーズ4・2回目の敵対的レビュー（flow-id 4-8）で、この反映結果を見る。</b> 2種別をまとめて1回で行い、1回を予備に残す。</li>
+  </ol>
+</section>
+
+<section id="surprises">
+  <h2>想定と異なった点</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>計画時の見込み</th><th>実際</th><th>どう扱ったか</th></tr></thead>
+    <tbody>
+      <tr><td>単体テストの合計は 1,630 で固定</td><td><b>作業ツリーの状態で 1,630 / 1,631 に変わる</b></td><td>原因（dirty ガードのスキップ）を特定し、両計画の「変更前」欄を状態別の2値へ。知見を項目4へ追加</td></tr>
+      <tr><td>項目4は bullet を1件も増やさない（(d) なので導線の改善）</td><td>3候補のうち<b>2つは既存文に無い別の確認</b>だった</td><td>検証4の期待を +2 へ変更し、理由を計画とレポートへ明記</td></tr>
+      <tr><td>項目6は bullet が1件増える</td><td>トップレベルは +1 だが<b>入れ子が3件付いた</b></td><td>検証5をトップレベルで数える形へ変更（検証4とは数える性質が違うため、あえて揃えない）</td></tr>
+      <tr><td>検証7の削除行は「項目4・5の分のみ」</td><td><b>10行</b>（同じパスに設計反映側の変更が入る）</td><td>全10行を突き合わせ、丸ごと消えた記述が0件であることを確認</td></tr>
+      <tr><td>検証2（参照切れ0件）は計画の修正で解決済み</td><td><b><code>HANDOFF.md</code> で再発した</b></td><td>表記を変えて0件へ。この注記自身が同じ検出に当たらない書き方にした</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="todo">
+  <h2>残課題</h2>
+  <ul>
+    <li><b>flow-id 4-7</b>: commit・push してレビュー依頼。</li>
+    <li><b>flow-id 4-8/4-9</b>: 反映結果への敵対的レビュー（フェーズ4・2回目／上限3回）。2種別まとめて1回。</li>
+    <li><b>フェーズ5</b>（5-1 コンフリクト確認 → 5-2 issue通知 → 5-3 <code>.gemini/</code> 変換同期 → 5-4 統括レポート → 5-5 片付け → 5-6 Draft解除）。<b>マージ（5-7）は行わない。</b></li>
+    <li><b>承認が得られていない判断が3件ある。</b> VERSION の増分・敵対的レビューの回数配分・<code>--tags</code> の一律ブロック。否認された場合の戻し方は正文（md）の4章に書いた。</li>
+    <li><b>誤ブロックの再現条件は未特定のまま残す。</b> 再現条件が不明なものを仕様として固定できないため、specには「未決定事項」として書き、詳細は worklog に残した。再発したら <code>stale</code> のメッセージが出す実際の値から追う。</li>
+  </ul>
+</section>
+
+<footer>issue #17 / PR #195 — 正文は同名の <code>.md</code>（このHTMLはその視覚化）</footer>
+
+</div>
+</body>
+</html>

@@ -109,7 +109,7 @@ issue #17 で作った機構の**正史**（`.claude/docs/spec/` と `.claude/do
 | 3 | 新規DDRのfrontmatterがインデックスへ載る | `bash .claude/scripts/src/extract-frontmatter.sh .` 後に `bash .claude/scripts/src/search-frontmatter.sh --text 'i0017-01' --type ddr --format count` | **matched=0** | **matched=1** |
 | 4 | spec骨組みのプレースホルダが残っていない | `grep -c 'flow-id 4-6 で記述する' .claude/docs/spec/push-checklist.md` | **3** | **0** |
 | 5 | spec冒頭の骨組み宣言が残っていない | `grep -c '骨組みである' .claude/docs/spec/push-checklist.md` | **1** | **0** |
-| 6 | 既存テストの回帰 | `.claude/scripts/test/test_*.sh` を全件実行し `passed=`/`failures=` を合計 | 23本・1,630・0 | **失敗0**（本数と合計も出す） |
+| 6 | 既存テストの回帰 | `.claude/scripts/test/test_*.sh` を全件実行し `passed=`/`failures=` を合計 | 23本・**1,630（クリーンな作業ツリー）/ 1,631（未コミットの変更あり）**・失敗0 | **失敗0**（本数と合計も出す） |
 | 7 | 過去の記録を書き換えていない | `git fetch origin main` 後に `git diff "$(git merge-base origin/main HEAD)" -- .claude/docs/ddr/ \| grep -c '^-[^-]'` | 0 | **0行** |
 
 **変更前の値は、着手時に実測して埋める**（上表の「変更前」列は2026-08-24 時点の実測値である）。
