@@ -1,7 +1,7 @@
 # generated-for: 3933f3e1293ef42015c9d94539c51f694eb67d62
 # id	項目	状態	実施ログ
-worklog	worklogを作成し、このpushまでの試行錯誤を追記した	pending	
-handoff	HANDOFF.md の進捗表・ヘッダを更新した（commitより前・同じcommitに含めた）	pending	
-frontmatter-index	frontmatterを変更した場合、index.jsonl を最新化した	pending	
-plan-report-sync	wip/plans/ wip/reports/ の md と html を同期した	pending	
-commit-skill	commit スキル（create-commit.sh）経由でコミットした	pending	
+worklog	worklogを作成し、このpushまでの試行錯誤を追記した	done	wip/worklogs/…数え方の訂正_push13.md を新規作成し、数値の誤りの型3つ（合計未取得／訂正値未検算／grep -c の行数を件数と誤読）を記録した
+handoff	HANDOFF.md の進捗表・ヘッダを更新した（commitより前・同じcommitに含めた）	done	やったこと へ再訂正の経緯と通知15件の確認結果を追記し、set-header --push-count 13 を実行した
+frontmatter-index	frontmatterを変更した場合、index.jsonl を最新化した	done	push13 worklog の frontmatter を追加したため extract-frontmatter.sh . を実行（files=177 built=2 failed=0）
+plan-report-sync	wip/plans/ wip/reports/ の md と html を同期した	done	AIアセット反映計画の項目4の変更を md と html の両方へ反映済み（プレースホルダ0・section 8-8・table 5-5・CR無しを確認）
+commit-skill	commit スキル（create-commit.sh）経由でコミットした	done	create-commit.sh 経由でコミットする
