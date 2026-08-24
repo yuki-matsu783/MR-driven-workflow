@@ -17,8 +17,8 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - issue: #17
 - ブランチ: `claude/hook-implementation-17-vjhppj`
 - PR: #195（Draft・https://github.com/yuki-matsu783/MR-driven-workflow/pull/195 ）
-- push回数: 8
-- 現在のループ: 3-6〜3-9 の1周目（進行中）
+- push回数: 11
+- 現在のループ: 3-6〜3-9 の1周目（完了）
 - 未返信スレッド: 0
 - 追従監視: あり（`subscribe_pr_activity` でPR #195 を購読。セッション終了で止まるため、次セッションは `resume` で取り直す）
 
@@ -45,10 +45,10 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 | [x] | 3-3 | 作業計画をレビューする（非対話のため敵対的レビューで代替） |
 | [x] | 3-4 | レビュー内容を取得し作業計画を修正・返信する |
 | [x] | 3-5 | 作業計画をもとにMR descriptionを更新する |
-| [] | 3-6 | 作業を実施し、結果をwip/reports/（md+html）へ記録する |
-| [] | 3-7 | commitし、pushしてレビュー依頼する |
-| [] | 3-8 | 作業結果をレビューする（非対話のため敵対的レビューで代替） |
-| [] | 3-9 | レビュー内容を取得し実装・ドキュメントを修正・返信する |
+| [x] | 3-6 | 作業を実施し、結果をwip/reports/（md+html）へ記録する |
+| [x] | 3-7 | commitし、pushしてレビュー依頼する |
+| [x] | 3-8 | 作業結果をレビューする（非対話のため敵対的レビューで代替） |
+| [x] | 3-9 | レビュー内容を取得し実装・ドキュメントを修正・返信する |
 | [] | 3-10 | 作業内容をもとにMR descriptionを更新する |
 | [] | 4-1 | 個別反映計画（md+html）を作成する（反映対象の洗い出しを含む） |
 | [] | 4-2 | commitし、pushしてレビュー依頼する |
@@ -111,8 +111,9 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 
 - flow-id 3-5: MR descriptionをフェーズ3の作業計画（敵対的レビュー1回目を反映した版）で更新した。
 - flow-id 3-6: 計画どおり9ファイル（新規6・改修2・spec骨組み1）を実装し、**単体テスト23本／
-  1,699アサーションが失敗0**で通った。結果は
-  `wip/reports/20260823_…push前チェックリスト機構の実装.md`（＋同名の `.html`）が正文。
+  合計1,631アサーションが失敗0**で通った（この数は23ファイルの `passed=` を実際に合計した値。
+  当初「1,699」と書いていたのは合計を取らずに書いた誤りで、敵対的レビュー2回目で指摘された）。
+  結果は `wip/reports/20260823_…push前チェックリスト機構の実装.md`（＋同名の `.html`）が正文。
   - **実装中に踏んだ最大の落とし穴**: `IFS=$'\t' read -r -a` は**行末タブを捨てる**
     （タブはIFS空白文字）。4フィールド固定という前提が壊れ、`verify` が自分の生成物を必ず
     落とす形になっていた。bash組み込みだけの `split_tsv_line` で解決した。
@@ -121,14 +122,44 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
     確認済み**（空振りしていないことの担保）。
   - **既存push系hook 2本は1バイトも変更していない**（`git diff --stat` に現れない）。
 
+- flow-id 3-7: commit・pushしてレビュー依頼した。**この時点で機構が自己適用に入り、本番の
+  リポジトリで「生成 → 未完了で exit 2 ブロック → 埋めて通過 → 次回分の生成」の一巡を
+  実地確認できた**（issue #17 の受け入れ条件のうち、ブロック動作とメッセージ内容が
+  フィクスチャではなく実運用で満たされた）。
+- flow-id 3-8/3-9: 作業結果に対する敵対的レビュー（フェーズ3・2回目／上限3回）で
+  **8件のfindingsを得て、すべて実物・実行コマンドで裏取りしたところすべて事実だった**。
+  7件を投稿し、修正のうえ返信した。**うち1件は blocker** である。
+  - **[blocker] 縮退時（bash 3.2・lib欠落）のブロック判定に前置フィルタを流用しており、
+    「push」を含む全コマンドが exit 2 になっていた。** ブロックを解くための
+    `push-checklist.sh check` 自身も止まるため**回復不能**。`lib/` を持たない一時ツリーで
+    再現したうえで、専用の `command_hints_at_git_push_degraded`（gitトークンとpushトークンの
+    AND）へ差し替え、**縮退経路のテスト層（層4）を新設**した。
+  - **[major] `stale`（チェックリストのコミット忘れ）を exit 1 の警告から exit 2 の
+    ブロックへ倒した。** specが挙げる本機構の動機（必要な更新をcommitへ含め忘れる）に
+    当たるのがこの経路で、**機構が防ぎたい失敗が唯一ブロックされない経路**になっていた。
+  - **[major] 「1,699アサーション」が実測と合わなかった**（レビュー時点で1,598）。
+    md・html・`HANDOFF.md` の6箇所へ伝播していたので全部直した。
+  - [minor] ブランチスラッグの照合が接尾辞一致だった／縮退経路のテストが無かった／
+    項目文言が `wip/plans/` を決め打ちしていた／specが flow-id 5-5 で消えるファイルを
+    「正」として参照していた。
+  - 報告のみ1件: `git push --tags` / `--delete` のような現在のブランチを送らないpushまで
+    一律にブロックする点。フェーズ4で方針を決める（レポートの残課題）。
+  - 返信した7スレッド（すべて返信済み・未返信0）:
+    [r3840013965](https://github.com/yuki-matsu783/MR-driven-workflow/pull/195#discussion_r3840013965)（blocker・縮退時の回復不能）/
+    [r3840014664](https://github.com/yuki-matsu783/MR-driven-workflow/pull/195#discussion_r3840014664)（stale をブロックへ）/
+    [r3840015213](https://github.com/yuki-matsu783/MR-driven-workflow/pull/195#discussion_r3840015213)（アサーション数）/
+    [r3840015732](https://github.com/yuki-matsu783/MR-driven-workflow/pull/195#discussion_r3840015732)（スラッグ厳密照合）/
+    [r3840016407](https://github.com/yuki-matsu783/MR-driven-workflow/pull/195#discussion_r3840016407)（縮退経路のテスト）/
+    [r3840016971](https://github.com/yuki-matsu783/MR-driven-workflow/pull/195#discussion_r3840016971)（項目文言のプレースホルダ化）/
+    [r3840017521](https://github.com/yuki-matsu783/MR-driven-workflow/pull/195#discussion_r3840017521)（specの参照先）
+
 ## 次にやること
 
-- flow-id 3-7: commitし、pushしてレビュー依頼する。
-- flow-id 3-8/3-9: 作業結果に対する敵対的レビュー（フェーズ3・2回目）を行い、指摘を修正・返信する。
 - flow-id 3-10: 作業内容をもとにMR descriptionを更新する。
-- **このpushの直後から、PostToolUse hookがチェックリストを生成する**（機構が自己適用に入る）。
-  次のcommitへ必ず含め、`push-checklist.sh check`/`skip` を埋めてからpushすること
-  （埋めずにpushすると exit 2 でブロックされる）。
+- flow-id 4-1: 個別反映計画（md+html）を作成する（フェーズ4の反映対象の洗い出しを含む）。
+- **チェックリストの運用**: pushのたびに次回分が生成される。`push-checklist.sh check`/`skip` で
+  埋めてから `create-commit.sh` でコミットへ含めること（埋めずに、あるいは含めずにpushすると
+  どちらも exit 2 でブロックされる）。
 - **ヘッダの `- push回数:` は、pushの後ではなくcommitより前に更新して同じcommitへ含める**
   （`.claude/rules/docs-workflow.md`）。push後に更新すると、その1行だけが未コミットで残る。
 

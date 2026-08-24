@@ -9,11 +9,11 @@ keywords: [push前チェックリスト, PreToolUse, PostToolUse, push-checklist
 # push前チェックリスト機構
 
 > **この仕様は flow-id 4-6（設計反映）で完成させる。現時点は実装・ブロックメッセージからの
-> 参照先を成立させるための骨組みである**（issue #17 フェーズ3）。
-> 内容の正は、フェーズ3の作業結果
-> `wip/reports/20260823_steady-guarding-checkpoint_push前チェックリスト機構の実装.md` と
-> 調査結果 `wip/reports/20260823_steady-guarding-checkpoint_push前チェックリスト機構の設計調査.md`
-> にある（どちらも flow-id 5-5 で削除されるため、フェーズ4でこのファイルへ移す）。
+> 参照先を成立させるための骨組みである**（issue #17）。
+> 完成までの経緯は issue #17 を辿ること。**このファイル以外に恒久の参照先は無い**——
+> フェーズ2・3の調査結果／作業結果は `wip/reports/` にあり flow-id 5-5 で削除されるため、
+> ここから参照しない（`.claude/rules/docs-workflow.md`「恒久的に参照してよいのは、issue番号と
+> `.claude/docs/spec/` `.claude/docs/ddr/` `.claude/docs/usecase/` 配下のファイル」）。
 
 ## 背景・目的
 
