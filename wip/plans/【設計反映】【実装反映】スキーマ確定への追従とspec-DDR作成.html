@@ -130,7 +130,7 @@
     <li>上位計画: <code>wip/plans/json-to-pptx-export-plan.md</code>。フェーズ3〈作業〉は完了（結果: <code>wip/reports/2026-08-24_json-to-pptx-export-plan_実装.md</code>。flow-id 3-10 まで実施済み。人間のレビュー往復は非対話セッションのため未実施で、進捗記号は空のまま）。</li>
     <li><strong>PR #194（issue #168）が 2026-08-24T00:33Z にマージされ、構成案JSONスキーマ <code>.claude/skills/html-slides/references/slide-outline.schema.json</code> が main で確定した</strong>（マージは人間の操作）。スキーマは <code>git show origin/main:&lt;path&gt;</code> で読める。</li>
     <li>当ブランチは main から4コミット behind（PR #199 の mergeable_state は clean でコンフリクトなし）。<strong>ベースブランチの取り込みは AskUserQuestion の承認が必要</strong>（git-workflow.md）だが非対話セッションで承認を得られないため、<strong>このフェーズでは取り込まない</strong>（flow-id 5-1 で扱う。スキーマの参照は取り込み不要で行える）。</li>
-    <li>種別を【設計反映】【実装反映】と併記したのは、スキーマ確定への実装追従（フェーズ3成果物の修正）と spec/DDR/rules への設計反映が同じ根から出ており、非対話セッションで合意を1回で取るため。</li>
+    <li>種別を【設計反映】【実装反映】と併記したのは、<strong>両者に一方向の依存があるため</strong>: spec の入力仕様節は【実装反映】でスキーマ追従を終えた実装の姿が定まらないと書けない。分割して4-6〜4-10を2周に分けると、1周目の spec は追従前の実装を正史として記述するか空欄で往復するかの二択になる。原則（併記せず分ける）の例外として妥当と判断した（敵対的レビューAR-4-03を受け、当初の理由「非対話セッションで合意を1回で取るため」を撤回して差し替え）。</li>
   </ul>
 </section>
 
@@ -138,7 +138,7 @@
   <h2>スキーマ突合の結果（この計画の起点）</h2>
   <div class="box warn">
     <span class="label">なぜ実装追従が必須か</span>
-    フェーズ2調査時点では方針レベル（8種type enum・meta・型別フィールドは未確定）であり、現実装の型別キーは当時の想定に基づいていた。確定スキーマは想定と大きく異なり、<strong>現実装はスキーマ適合入力を拒否する</strong>。
+    フェーズ2調査時点で確定していたのは type enum 8種と meta の構造・title 全型必須（上流準拠）で、型別フィールドは暫定だった（区分は前提調査レポートの記載どおり）。確定スキーマは暫定だった型別フィールドが想定と大きく異なり、<strong>現実装はスキーマ適合入力を拒否する</strong>。
   </div>
   <div class="tablewrap">
   <table>
@@ -148,7 +148,7 @@
       <tr><td>meta</td><td>issue は <strong>integer</strong></td><td>文字列想定</td><td>tostring で吸収済み（変更なし）</td></tr>
       <tr><td>cover</td><td><strong>title・subtitle は任意</strong>（省略時 meta.title／meta.subtitle）。required は type のみ</td><td>title 全型必須</td><td><strong>要修正</strong>: cover のみ title 任意＋metaフォールバック</td></tr>
       <tr><td>section</td><td><strong>chapter（任意。例: 第1章）</strong></td><td>未対応（無視され消える）</td><td><strong>要修正</strong>: 章番号段落として出力</td></tr>
-      <tr><td>bullets</td><td>items[] は文字列のみ（1〜6件）</td><td>文字列＋入れ子オブジェクト対応</td><td>現実装が超集合。維持</td></tr>
+      <tr><td>bullets</td><td>items[] は文字列のみ（1〜6件）</td><td>文字列＋入れ子オブジェクト対応</td><td><strong>要修正</strong>: スキーマへ揃え、入れ子分岐を削除（正当な入力に現れずテスト到達不能なデッドコードになるため。AR-4-11で「維持」から変更）</td></tr>
       <tr><td>two-column</td><td><strong>columns[2]（各要素 heading＋items[]）</strong></td><td>left／right</td><td><strong>要修正</strong>: columns 対応へ全面置換</td></tr>
       <tr><td>diagram</td><td><strong>nodes[]（label 必須＋note 任意、2件以上）。edges・caption は存在しない</strong></td><td>nodes＋edges＋caption</td><td><strong>要修正</strong>: フロー表現＋note行へ。edges/caption 処理は削除</td></tr>
       <tr><td>table</td><td><strong>columns[]（ヘッダ行）</strong>＋rows[][]</td><td>headers[]＋rows[][]</td><td><strong>要修正</strong>: キー名を columns へ</td></tr>
@@ -165,23 +165,25 @@
   <h3>1.【実装反映】スキーマ確定への追従</h3>
   <ul>
     <li><strong>入力検証（jq）</strong>: cover のみ title 任意／two-column は columns（長さ2・各要素は heading＋items 1件以上）／table は columns（1件以上）＋rows（各行は配列）／comparison は sides（2〜3件・各要素は name＋points 1件以上）／diagram は nodes（2件以上・各要素は label を持つオブジェクト）／bullets・summary は items（1件以上）。違反はキー名を挙げた明示エラー。</li>
-    <li><strong>写像</strong>: cover は title/subtitle のmetaフォールバック（SUB行構成は維持）。section は chapter を見出し上の小さめ段落（新レコード CHAP）。two-column は heading（太字段落。新レコード COLH）＋items。comparison は表（1行目=name（tone があれば「（採用寄り）（却下寄り）（中立）」後置）、データ行=points の転置・不足セル空埋め）。diagram は label の「 → 」連結1段落＋「label: note」行（edges/caption 処理は削除）。summary は items の後に takeaway を太字段落。</li>
+    <li><strong>写像</strong>（レコード形式と受け側 json-to-pptx.sh の対応を対で定める。jq冒頭のレコード種別コメントも更新）: cover は title/subtitle のmetaフォールバック（jq側で解決・SUB行構成は維持）。section は chapter を見出し上の小さめ段落（新レコード <code>CHAP</code>。受け側は CUR_CHAP バッファ新設＋reset_slide_buffers 追加＋flush_slide の section 分岐で描画）。two-column は heading（太字段落。新レコード <code>COLH&lt;US&gt;L|R&lt;US&gt;テキスト</code>。columns[0]→L・columns[1]→R 固定）＋items。comparison は表（1行目=name（tone があれば「（採用寄り）（却下寄り）（中立）」後置）、データ行=points の転置・不足セル空埋め。既存TROWを流用）。diagram は label の「 → 」連結1段落＋「label: note」行を箇条書き記号の付かない新レコード <code>PARA</code> で出す（BUL流用だと「•」が付き不自然なため。edges/caption 処理・.id フォールバック・文字列ノード対応は削除）。summary は items の後に takeaway を太字段落。comparison の別名（.label 等）は sides への全面置換で自然に消える。</li>
     <li><strong>条件7突合の対象外リストへ <code>slides[].sides[].tone</code> を追加</strong>（5つへ）。tone は見た目の色分け指示子で本文でなく、値そのもの（pro/con/neutral）は日本語注記へ写像され本文へ現れないため（slides[].type と同じ扱い）。</li>
     <li><strong>SKILL.md</strong>: 必須キー表・型別表現表を確定スキーマの語彙へ書き換え。</li>
-    <li><strong>単体テスト</strong>: サンプルJSONをスキーマ適合形へ書き換え（cover の title 省略・chapter・tone・takeaway・note を含む）。境界値テストを新語彙へ追従。検証スクリプトの条件7対象外へ tone を追加。サンプルのスキーマ適合を jsonschema があれば機械検証（不可なら目視。方法を結果レポートへ明記）。既存の不揃いな表・jq途中失敗・制御文字等のテストは維持。</li>
+    <li><strong>単体テスト</strong>: サンプルJSONをスキーマ適合形へ書き換え（8種type・chapter・tone・takeaway・note を含む）。<strong>cover は2枚置く</strong>: 1枚目は title/subtitle 省略でmetaフォールバック、2枚目は自前の title/subtitle で上書き側を検証（meta.title／meta.subtitle は1枚目に現れるため条件7の突合対象のままで通るサンプル設計）。meta.issue の integer 化に伴い verify_pptx.py の issue 参照を <code>norm(str(...))</code> 相当へ修正（文字列前提の .replace が AttributeError になるため）。個別アサーション追加: tone注記3種が生成物に現れること・cover省略側に meta.title/meta.subtitle が現れること。境界値テストを新語彙へ追従。既存テストの扱い——維持: jq途中失敗・制御文字・改行入りmeta.title／書き換え: 不揃いな表（headers→columns）・空headers・空options・options要素型（文言ごと columns/sides へ）／削除: edges要素型・入れ子bullets（スキーマが持たず検証・分岐ごと削除するため。理由を結果レポートへ残す）。<strong>スキーマ適合の機械検証は jq による決定的チェックをテストへ組み込む</strong>（jsonschema はこの環境に無いことを実測済み。required／余剰キー／型／minItems・maxItems／enum を検査。目視は完了条件に置かない）。</li>
   </ul>
 
   <h3>2.【設計反映】spec <code>.claude/docs/spec/pptx-slides.md</code>（新規）</h3>
-  <p>背景・目的／仕様／影響範囲／設定項目／未決定事項・懸念点の型。内容: 入力仕様（確定スキーマとの対応表）／type別写像／rId採番規則・連動5箇所／zip経路試行／自己検証の範囲／jq終了コードの検知／制御文字の空白化／表の列数決定／<strong>条件7突合の手順（対象外5つ）</strong>／PowerPoint製雛形への差し替え前処理条件／実機確認の依頼事項。<strong>新規spec作成の人間承認は得られないため◆としてPRレビューへ依頼し、HANDOFFの未解決事項へ含める。</strong></p>
+  <p>背景・目的／仕様／影響範囲／設定項目／未決定事項・懸念点の型。内容: 入力仕様（確定スキーマとの対応表）／type別写像／rId採番規則・連動5箇所／zip経路試行／自己検証の範囲／jq終了コードの検知／制御文字の空白化／表の列数決定／<strong>条件7突合の手順（対象外5つ。meta.issue は integer のため文字列の葉として現れず対象外指定が実質効かない点も明記）</strong>／PowerPoint製雛形への差し替え前処理条件／実機確認の依頼事項。<strong>新規spec作成の人間承認は得られないため◆としてPRレビューへ依頼し、HANDOFFの未解決事項へ含める。</strong></p>
 
   <h3>3.【設計反映】DDR <code>i0169-01</code>（新規）</h3>
   <p>タイトル案「pptx書き出しは雛形展開ディレクトリとzip再梱包で実装しpython-pptx等の外部依存を持たない」。却下案は調査レポート「設計への反映」の5件（クリップボード経由／python-pptx等ライブラリ／XMLゼロから生成／バイナリ雛形／Compress-Archive）。作成後に <code>generate-ddr-list.sh</code> を実行しREADME差分を同じコミットへ。</p>
 
   <h3>4.【設計反映】rules・既存ドキュメントの整合</h3>
   <ul>
-    <li><code>.claude/rules/directory-structure.md</code>: skills ツリーへ pptx-slides/ を追記。<strong>main側は同じ節へ html-slides を追記済みのため、flow-id 5-1 の取り込みで同箇所のコンフリクトが起きうる。解消時は両方の行を残す。</strong></li>
+    <li><code>.claude/rules/directory-structure.md</code>: skills ツリーへ pptx-slides/ を追記。</li>
+    <li><code>index.md</code>（Repository Map）: skills 列挙へ pptx-slides を追記（directory-structure.md 冒頭が「役割説明は index.md を正とする」と定めており、main 側の同型変更（html-slides）も index.md を更新している）。</li>
+    <li><strong>上記2ファイルは main 側でも同じ箇所が html-slides の追記で変更済みのため、flow-id 5-1 の取り込みで同箇所のコンフリクトが起きうる。解消時は両方の行を残す。</strong></li>
     <li><code>.claude/rules/shell-script-style.md</code>: bash 5.2 <code>patsub_replacement</code> の罠（パラメータ展開の置換文字列中の <code>&amp;</code> がマッチ全体へ展開される。<code>shopt -u patsub_replacement</code> で無効化）を追記。</li>
-    <li><code>.claude/VERSION</code>: layer=core アセット追加のため MINOR 増分が要るが、当ブランチは 0.4.0（分岐時点）で main は 0.5.0 のため今書き換えると必ずコンフリクトする。<strong>flow-id 5-1 の main 取り込み後に 0.5.0→0.6.0 へ増分する</strong>（このフェーズでは触らない）。</li>
+    <li><code>.claude/VERSION</code>: layer=core アセット追加のため MINOR 増分が要るが、当ブランチは 0.4.0（分岐時点）で main は 0.5.0 のため今書き換えると必ずコンフリクトする。<strong>flow-id 5-1 の main 取り込み直後に 0.5.0→0.6.0 へ増分する</strong>（VERSIONファイル自体はこのフェーズでは触らない）。据え置きの記録として、4-6 で <code>distribution-assets.md</code> のchangelogへ issue #169 エントリ（アセット追加の事実・据え置きの理由・5-1後の適用予定）を追加し、HANDOFF「判断を迷った内容」へも記載（済み）。5-1 で書けなかった場合は人間へ報告して据え置く。</li>
   </ul>
 </section>
 
@@ -207,7 +209,7 @@ bash .claude/scripts/src/check-dist-coverage.sh          # 4種通過
 bash .claude/scripts/src/extract-frontmatter.sh .        # エラーなし
 bash .claude/scripts/src/generate-ddr-list.sh            # README差分がDDR一覧1行追加のみ
 bash .claude/scripts/src/check-doc-references.sh         # 参照切れ0</code></pre>
-  <p>合格条件: 上記すべてが通り、サンプルJSONが確定スキーマに適合すること（jsonschema が使えれば機械検証、不可なら目視。方法を結果レポートへ明記）。結果は <code>wip/reports/2026-08-24_json-to-pptx-export-plan_反映.md</code>（+同名.html）へ記録する。</p>
+  <p>合格条件: 上記すべてが通り、サンプルJSONが確定スキーマに適合することを<strong>単体テストへ組み込む jq の決定的な適合チェック</strong>（required／余剰キー／型／minItems・maxItems／enum）で機械検証する（jsonschema はこの環境に無いことを計画時点で実測済み。目視は完了条件に置かない）。適合チェック自体は意図的に不適合なJSONを1件与えて失敗することで空振りを排除する。結果は <code>wip/reports/2026-08-24_json-to-pptx-export-plan_反映.md</code>（+同名.html）へ記録する。</p>
 </section>
 
 <footer>issue #169 / PR #199 — 計画の正文は同名の <code>.md</code>。外部依存を持たない自己完結HTML。</footer>

@@ -19,7 +19,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - PR: #199（Draft。https://github.com/yuki-matsu783/MR-driven-workflow/pull/199 ）
 - push回数: 8
 - 現在のループ: なし
-- 未返信スレッド: 0
+- 未返信スレッド: 9
 - 追従監視: PR #199 を subscribe_pr_activity で購読（このセッション）
 
 | 進捗 | flow-id | ステップ | 担当 |
@@ -158,6 +158,19 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
   （two-column: columns[2]／table: columns／comparison: sides／cover title任意／section.chapter／
   diagram nodes{label,note}のみ／summary takeaway）。【実装反映】としてスキーマ追従＋
   【設計反映】として spec/DDR/rules を同計画で扱う。
+- 2026-08-24: push8（commit 29b5d52）ののち、敵対的レビュー（フェーズ4の1回目・対象は
+  反映計画）を実施。指摘11件（major6・minor5）のうち9件をPR #199へインライン投稿、
+  2件は報告のみ（CHAP/COLHの受け側仕様の欠落・tone対象外化の代替アサーション。
+  worklog push8参照）。投稿スレッド（未返信9）:
+  - https://github.com/yuki-matsu783/MR-driven-workflow/pull/199#discussion_r3840145300 （major: 種別併記の理由が不成立）
+  - https://github.com/yuki-matsu783/MR-driven-workflow/pull/199#discussion_r3840145897 （major: meta.issue integer化でverify_pptx.pyがAttributeError）
+  - https://github.com/yuki-matsu783/MR-driven-workflow/pull/199#discussion_r3840146525 （major: スキーマ適合検証がjsonschema不在で目視へ縮退）
+  - https://github.com/yuki-matsu783/MR-driven-workflow/pull/199#discussion_r3840146958 （major: index.mdへの波及が計画に無い）
+  - https://github.com/yuki-matsu783/MR-driven-workflow/pull/199#discussion_r3840147512 （major: VERSION扱いがdistribution-assets.mdの規定と食い違う）
+  - https://github.com/yuki-matsu783/MR-driven-workflow/pull/199#discussion_r3840148068 （major: cover.subtitle上書き時に条件7が落ちるサンプル設計欠落）
+  - https://github.com/yuki-matsu783/MR-driven-workflow/pull/199#discussion_r3840148536 （minor: フェーズ2時点の確定範囲の記述が調査レポートと食い違う）
+  - https://github.com/yuki-matsu783/MR-driven-workflow/pull/199#discussion_r3840148996 （minor: 入れ子bullets経路がテスト到達不能になる）
+  - https://github.com/yuki-matsu783/MR-driven-workflow/pull/199#discussion_r3840149479 （minor: 「既存テスト維持」が旧語彙のため文字どおりには不成立）
 
 ## 次にやること
 
@@ -187,6 +200,12 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
   (3) OOXMLフルパーサ開封の完了条件未達はPowerPoint実機確認を代替とする。
   詳細は `wip/plans/【実装】【テスト】pptx-slidesスキルの作成.md` の前提節と調査レポートの
   重点レビュー依頼◆。
+- **`.claude/VERSION` はフェーズ4（flow-id 4-6）では据え置く**: layer=core の配布対象アセット
+  追加（`.claude/skills/pptx-slides/` 一式・新規spec・新規DDR）のためMINOR増分が要るが、
+  当ブランチの値は分岐時点の 0.4.0 で main は 0.5.0 のため、今書き換えると必ずコンフリクトする。
+  flow-id 5-1 で main を取り込んだ直後に 0.5.0→0.6.0 を適用する（書けなかった場合は人間へ報告し
+  据え置く）。据え置きの事実は 4-6 で `.claude/docs/spec/distribution-assets.md` のchangelogへ
+  記録する（同specの規定 (c)）。
 
 ## 未解決の内容
 
