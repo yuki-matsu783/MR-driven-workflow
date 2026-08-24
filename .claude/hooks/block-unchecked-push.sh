@@ -54,6 +54,41 @@ raw_hints_at_git_push() {
   esac
 }
 
+# 縮退時（`lib/CommandPosition.sh` を使えない）のブロック判定に使う純粋関数。
+# $1 = `tool_input.command`（jqでデコード**済み**の実コマンド文字列）
+# 戻り: 0 = git の push とみなす（ブロック） / 1 = ブロックしない
+#
+# **前置フィルタ（raw_hints_at_git_push）をそのままブロック判定へ流用してはいけない**
+# （issue #17 フェーズ3の敵対的レビュー2回目で指摘。実際に再現した）。前置フィルタは
+# 「push という語がどこかに現れるか」しか見ない超集合であり、判定本体としては過剰検知が
+# そのまま exit 2 になる。**回復のために叩く `push-checklist.sh check` はパスに push を
+# 含むため必ずブロックされ、縮退環境では自力で回復できなくなる。**
+# 「縮退時はブロック側へ倒す」方針は妥当だが、倒した先が回復不能では方針として成立しない。
+#
+# そこで、生JSONではなく実コマンド文字列を空白で分割し、
+#   (1) basename が git のトークンがある
+#   (2) その後ろに push というトークンがある
+# の両方が揃ったときだけブロックする。**`git` トークンを AND 条件にしたことで、
+# `push-checklist.sh` を叩く回復コマンドは構造的にブロックされない。**
+# 精密判定の超集合ではなくなる（`eval "git push"` 等は取りこぼす）が、縮退時は元々
+# best-effort であり、取りこぼしの害（1回のpushが素通りする）より回復不能の害が大きい。
+command_hints_at_git_push_degraded() {
+  local cmd="$1"
+  # 精密判定と同じくバックスラッシュを落とす（`git pu\sh` を push と読むため）。
+  cmd="${cmd//\\/}"
+  local tok base seen_git=1
+  # `IFS` へCR・タブ・改行を含める（CommandPosition.sh のトークン走査と同じ扱い）。
+  local IFS=$' \t\n\r'
+  for tok in $cmd; do
+    base="${tok##*/}"
+    case "$base" in
+      [Gg][Ii][Tt]) seen_git=0 ;;
+      [Pp][Uu][Ss][Hh]) [ "$seen_git" = 0 ] && return 0 ;;
+    esac
+  done
+  return 1
+}
+
 main() {
   set -euo pipefail
 
@@ -103,12 +138,11 @@ main() {
     if command_invokes_git_subcommand "$command" push; then
       is_push=0
     fi
-  elif raw_hints_at_git_push "$raw"; then
-    # 縮退時のフォールバック。**`grep -qiE 'git[[:space:]]+push'` は使わない**——
-    # あれは精密判定の**部分集合**であり（`git -C /x push` を取りこぼす。実測）、
-    # 「縮退時はブロック側へ倒す」という方針と正反対に倒れる。前置フィルタは超集合である
-    # ことがT11で機械的に固定されているので、そのまま流用すれば保証を引き継げる
-    # （過剰検知はチェックを埋めれば通るだけで済む）。
+  elif command_hints_at_git_push_degraded "$command"; then
+    # 縮退時のフォールバック。**前置フィルタ（`raw_hints_at_git_push`）をそのまま使わない**
+    # ——過剰検知がそのまま exit 2 になり、回復用の `push-checklist.sh check` まで止まる
+    # （上記の関数コメント参照）。`grep -qiE 'git[[:space:]]+push'` も使わない
+    # （`git -C /x push` を取りこぼす）。
     is_push=0
   fi
   [ "$is_push" = 0 ] || exit 0
@@ -147,16 +181,25 @@ main() {
   # status が 0（通してよい）でも 3（HEADに対象が無い）でも、**コミット忘れは別に見る**。
   # チェックリストは flow-id 5-5 まで蓄積するため、新しく生成された分をコミットし忘れても
   # verify は HEAD に残る古い（全 done の）チェックリストを見て 0 を返してしまう。
+  #
+  # **ここは当初 exit 1（非ブロックの警告）だった**（issue #17 フェーズ3の敵対的レビュー
+  # 2回目で指摘）。しかし spec が挙げる本機構の動機そのもの——「必要な更新をcommitへ
+  # 含め忘れ、その分だけが未コミットで残る」——に当たるのがこの経路であり、**機構が防ぎたい
+  # 失敗が唯一ブロックされない経路になっていた**。加えて exit 1 の stderr が届くかは未確認で、
+  # 届かなければ無言で素通りする。ブロックへ倒しても回復手段は「チェックリストをcommitへ
+  # 含める」だけで、その `create-commit.sh` の呼び出しは push を含まないため止まらない。
   local stale_msg stale_status=0
   stale_msg="$(bash "$checklist" stale 2>/dev/null)" || stale_status=$?
   if [ "$stale_status" = 0 ]; then
     {
-      printf 'warning: %s\n' "$stale_msg"
-      printf 'このpushには最新のチェックリストが含まれていません（ブロックはしません）。\n'
-      printf 'ルール: .claude/docs/spec/push-checklist.md\n'
+      printf 'push前チェックリストがコミットされていません。pushはブロックされました。\n\n'
+      printf '%s\n\n' "$stale_msg"
+      printf 'チェックリストを埋めたうえで、commit スキル経由でコミットへ含めてください:\n'
+      printf '  bash .claude/scripts/src/push-checklist.sh check <id> "<実施ログ>"\n'
+      printf '  bash .claude/scripts/src/create-commit.sh --message "..." -- <チェックリストのパス>\n\n'
+      printf 'ルール: .claude/skills/commit/SKILL.md / .claude/docs/spec/push-checklist.md\n'
     } >&2
-    # 非ブロックのエラー（exit code 1）。ツールの実行は続行される。
-    exit 1
+    exit 2
   fi
 
   exit 0

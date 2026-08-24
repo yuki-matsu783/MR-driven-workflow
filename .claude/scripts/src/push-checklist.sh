@@ -41,13 +41,21 @@ CHECKLIST_IDS=(
   'plan-report-sync'
   'commit-skill'
 )
-CHECKLIST_ITEMS=(
+#
+# **ディレクトリ名を文言へ決め打ちしない**（issue #17 フェーズ3の敵対的レビュー2回目で指摘）。
+# 同じスクリプトが `plansDir` / `reportsDir` を `.mrworkflow.json` から読んでいるのに、項目の
+# 文言だけ本リポジトリ固有の `wip/plans/` を埋め込んでいると、配布先で存在しないパスを案内する。
+# テンプレート側にプレースホルダを置き、`init_context` が実際の設定値で埋める。
+CHECKLIST_ITEM_TEMPLATES=(
   'worklogを作成し、このpushまでの試行錯誤を追記した'
   'HANDOFF.md の進捗表・ヘッダを更新した（commitより前・同じcommitに含めた）'
   'frontmatterを変更した場合、index.jsonl を最新化した'
-  'wip/plans/ wip/reports/ の md と html を同期した'
+  '{plansDir}/ {reportsDir}/ の md と html を同期した'
   'commit スキル（create-commit.sh）経由でコミットした'
 )
+# `init_context` を通さずに source した場合（単体テストの純粋関数層）でも参照できるよう、
+# テンプレートのまま初期化しておく。
+CHECKLIST_ITEMS=("${CHECKLIST_ITEM_TEMPLATES[@]}")
 
 # ファイル名の末尾。ブランチ・日付部分は生成時に決まる。
 CHECKLIST_SUFFIX='_checklist.tsv'
@@ -126,10 +134,12 @@ checklist_number_to_reply() {
     '' | *[!0-9]*) return 1 ;;
   esac
   head="${rest%_push${num}}"
-  case "$head" in
-    *_"$slug") ;;
-    *) return 1 ;;
-  esac
+  # **接尾辞一致（`*_"$slug"`）にしてはいけない**（issue #17 フェーズ3の敵対的レビュー2回目で
+  # 指摘）。`<日付>` がちょうど1フィールドであることを確かめないと、スラッグが別のスラッグの
+  # `_` 区切りの接尾辞になっている場合（`claude/hook-impl-17` と `hook-impl-17` のような
+  # 接頭辞付き／素のブランチの組）に、別ブランチのチェックリストを自分のものとして採用する。
+  # `<日付>_<スラッグ>` として厳密に照合する。
+  [ "$head" = "${head%%_*}_${slug}" ] || return 1
   REPLY="$num"
   return 0
 }
@@ -183,6 +193,17 @@ init_context() {
   PLANS_DIR="${TSV_FIELDS[0]}"
   WORKLOG_DIR="${TSV_FIELDS[1]}"
   REPORTS_DIR="${TSV_FIELDS[2]}"
+
+  # 項目文言のプレースホルダを実際の設定値で埋める（上記「ディレクトリ名を決め打ちしない」）。
+  # テンプレート配列から作り直すので、複数回呼んでも同じ結果になる。
+  local i item
+  CHECKLIST_ITEMS=()
+  for ((i = 0; i < ${#CHECKLIST_ITEM_TEMPLATES[@]}; i++)); do
+    item="${CHECKLIST_ITEM_TEMPLATES[$i]}"
+    item="${item//\{plansDir\}/$PLANS_DIR}"
+    item="${item//\{reportsDir\}/$REPORTS_DIR}"
+    CHECKLIST_ITEMS+=("$item")
+  done
 
   BRANCH="$(git branch --show-current 2>/dev/null || true)"
   branch_slug_to_reply "$BRANCH"
