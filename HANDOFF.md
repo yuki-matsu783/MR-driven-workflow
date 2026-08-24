@@ -17,9 +17,9 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - issue: #176
 - ブランチ: `claude/reflection-plan-criteria-tnhfvs`
 - PR: #196（Draft・https://github.com/yuki-matsu783/MR-driven-workflow/pull/196 ）
-- push回数: 13
-- 現在のループ: 4-6〜4-9 の1周目（進行中）
-- 未返信スレッド: 8
+- push回数: 14
+- 現在のループ: 4-6〜4-9 の1周目（完了）
+- 未返信スレッド: 0
 - 追従監視: あり（PRイベント購読 + 定期チェックイン。Claude Code on the web セッション）
 
 | 進捗 | flow-id | ステップ | 担当 |
@@ -52,14 +52,14 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 | [x] | 3-10 | 作業内容をもとにMR descriptionを更新する | `describe` |
 | [x] | 4-1 | 個別反映計画を作成する | エージェント |
 | [x] | 4-2 | commitし、pushしてレビュー依頼を行う | エージェント |
-| [] | 4-3 | MRで反映計画についてレビュー・コメントする | 人間 |
-| [] | 4-4 | レビュー内容を取得し、反映計画を修正する | `comments` / `reply` |
-| [] | 4-5 | 反映計画をもとにMR descriptionを更新する | `describe` |
-| [] | 4-6 | 反映計画をもとに作業を進める | エージェント |
-| [] | 4-7 | commitし、pushしてレビュー依頼を行う | エージェント |
-| [] | 4-8 | MRでレビュー・コメントする | 人間 |
-| [] | 4-9 | レビュー内容を取得し、設計・AIアセットの内容を修正する | `comments` / `reply` |
-| [] | 4-10 | 反映内容をもとにMR descriptionを更新する | `describe` |
+| [x] | 4-3 | MRで反映計画についてレビュー・コメントする | 人間 |
+| [x] | 4-4 | レビュー内容を取得し、反映計画を修正する | `comments` / `reply` |
+| [x] | 4-5 | 反映計画をもとにMR descriptionを更新する | `describe` |
+| [x] | 4-6 | 反映計画をもとに作業を進める | エージェント |
+| [x] | 4-7 | commitし、pushしてレビュー依頼を行う | エージェント |
+| [x] | 4-8 | MRでレビュー・コメントする | 人間 |
+| [x] | 4-9 | レビュー内容を取得し、設計・AIアセットの内容を修正する | `comments` / `reply` |
+| [x] | 4-10 | 反映内容をもとにMR descriptionを更新する | `describe` |
 | [] | 5-1 | defaultブランチとのコンフリクトを検知し、あれば解消する | エージェント |
 | [] | 5-2 | 関連issueへマージ前通知を行う | エージェント |
 | [] | 5-3 | `.claude/` の変更を `.gemini/` へ変換同期する | エージェント |
@@ -123,9 +123,13 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - flow-id 4-6（修正後）: **14件すべてへ対応した。** 主な修正は (a) **必須節検査が偽陽性を出していた** — 完全一致（`diff`）では `<h2>変更対象（6箇所）</h2>` のような補足付き見出しを「落ちた」と判定し、実測で計画HTML 4本中2本が該当。`grep -qF` の**部分一致**へ変え、代わりに生じる取りこぼしも明記した、(b) **同じ22行を2つの観点表へ写経していた**ため `wip/reports/` 側を**正**にし、`wip/plans/` 側はテンプレートのパスと `【調査】` 計画での読み替え（`変更対象`→`調べる問い`、`方針`→`調べ方`）だけにした（実例の取り違えもこれで消えた）、(c) **手順3の穴を #12 として主判定へ通し、Yes と判定してこのMRで直した** — `references/planning.md` 手順3 段階2へ `REVIEW-POINTS.md` 群の探索を追加し、「判定の記録」の等式へ**手順3で対象外になった件数を引く項**を足した、(d) DDR・spec の数字を「判定済み9件（Yes 3 / No 6）」へ揃え、8件がどの断面の値かを明記、(e) 反11 の合格条件を「変更対象の6ファイルのみ」から**「フェーズ3の2ファイル＋今回の変更対象のみ」**へ（`git diff <分岐点>` では原理的に成立しないため。**期待の定義側**を直した）、(f) 却下案を4箇所とも6件へ、(g) 母数の表の2行目を事実（現行の `43ステップ` 表記）へ直し**取りこぼす方向は `grep -o` では気づけない**ことを追記。
 - **#12 は、新設した基準の初回適用で「基準を通っていない項目」だった。** 当初は「判定に使っている手順を同じMRで書き換えない」として見送っていたが、**このMRの判定自体を直した側の探索範囲でやり直してある**以上、直さないほうが「記録された判定を再現できない手順」を正として残すことになる。DDR「調査の限界」も同じ内容へ改めた。
 
+- flow-id 4-7: `commit` スキル経由でコミットし、リモートへ反映した（push14）。
+- flow-id 4-9: **投稿した8スレッドすべてへ返信した**（[#1](https://github.com/yuki-matsu783/MR-driven-workflow/pull/196#discussion_r3840234373) / [#2](https://github.com/yuki-matsu783/MR-driven-workflow/pull/196#discussion_r3840234933) / [#3](https://github.com/yuki-matsu783/MR-driven-workflow/pull/196#discussion_r3840235901) / [#4](https://github.com/yuki-matsu783/MR-driven-workflow/pull/196#discussion_r3840236596) / [#5](https://github.com/yuki-matsu783/MR-driven-workflow/pull/196#discussion_r3840237296) / [#6](https://github.com/yuki-matsu783/MR-driven-workflow/pull/196#discussion_r3840238022) / [#7](https://github.com/yuki-matsu783/MR-driven-workflow/pull/196#discussion_r3840238907) / [#8](https://github.com/yuki-matsu783/MR-driven-workflow/pull/196#discussion_r3840239933)）。**ループ範囲 4-6〜4-9 の1周目が完了。**
+
+- flow-id 4-10: MR description を全文更新した（新設した節の骨子・却下案6件の表・検証11本・敵対的レビュー6回分の記録・このMR自身への適用結果の等式・出口(1) の1件）。**フェーズ4完了。**
+
 ## 次にやること
 
-- flow-id 4-7〜4-9: コミット・リモートへの反映と、投稿したスレッドへの返信。
 - フェーズ5へ進む（5-1 コンフリクト確認 → 5-2 関連issue通知（`AskUserQuestion` 承認必須）→ 5-3 `sync-gemini-assets.sh` → 5-4 統括レポート → 5-5 `cleanup-task.sh` → 5-6 Draft解除）。**5-7（マージ）はユーザーの明示指示があるまで実行しない。**
 
 ## 判断を迷った内容
