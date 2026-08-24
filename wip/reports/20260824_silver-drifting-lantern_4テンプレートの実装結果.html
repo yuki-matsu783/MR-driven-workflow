@@ -1,0 +1,450 @@
+<!--
+  issue #203 フェーズ3の作業結果（flow-id 3-6）のHTMLビュー。
+  結果の正文は同名の .md（wip/reports/20260824_silver-drifting-lantern_4テンプレートの実装結果.md）で、
+  このHTMLはその視覚化である。
+
+  このファイル自身が、本作業で作った reports-clean.template.html から作られている
+  （テンプレートが雛形として実用に耐えるかを確かめるドッグフーディング。本文の f5 参照）。
+-->
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>作業結果: レポートHTMLビュー4テンプレートの実装 — issue #203</title>
+<style>
+
+  /* ---- ここから下は4テンプレート共通の骨格。デザイン差は上のCSS変数で表す ---- */
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  [id] { scroll-margin-top: 16px; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", system-ui, sans-serif;
+    line-height: 1.8; font-size: 15px;
+  }
+  a { color: var(--accent); }
+  code {
+    background: var(--code-bg); border-radius: 5px; padding: 1px 5px; font-size: 13px;
+    font-family: "SFMono-Regular", Consolas, "Noto Sans Mono", monospace;
+  }
+  pre {
+    background: var(--code-bg); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 12px 14px; overflow-x: auto; font-size: 13px; line-height: 1.65;
+  }
+  pre code { background: none; padding: 0; }
+  /* 本文中の強調。案10だけが背景色を与える（DOMを分岐させないための共通クラス） */
+  .hl { background: var(--hl-bg); }
+
+  /* ---- 全体レイアウト: サイドバー ＋ 本文 ---- */
+  .shell { max-width: 1180px; margin: 0 auto; }
+  @media (min-width: 900px) { .shell { display: flex; align-items: flex-start; } }
+
+  .sidebar {
+    background: var(--panel); border-bottom: var(--card-border) solid var(--line);
+    padding: 22px 20px;
+  }
+  @media (min-width: 900px) {
+    .sidebar {
+      width: 280px; flex: 0 0 280px; position: sticky; top: 0; max-height: 100vh;
+      overflow-y: auto; border-bottom: 0; border-right: var(--card-border) solid var(--line);
+    }
+  }
+  .sidebar .kind { margin: 0; font-size: 11px; letter-spacing: .18em; color: var(--accent); font-weight: 700; }
+  .sidebar h1 { margin: 6px 0 0; font-size: 19px; line-height: 1.45; }
+  .counts { display: flex; flex-wrap: wrap; gap: 6px; margin: 14px 0 0; padding: 0; }
+
+  .toc { margin-top: 22px; }
+  .toc-title { margin: 0 0 6px; font-size: 11px; letter-spacing: .12em; color: var(--muted); font-weight: 700; }
+  .toc ol { margin: 0; padding-left: 20px; font-size: 13.5px; }
+  .toc li { margin: 3px 0; }
+  .toc-sub { margin-top: 4px; padding-left: 16px; border-left: 1px solid var(--line); list-style: none; }
+  .toc-sub li { font-size: 13px; color: var(--muted); }
+  .mk { font-weight: 700; }
+  .mk.good { color: var(--good); } .mk.warn { color: var(--warn); } .mk.stop { color: var(--stop); }
+
+  .meta { margin: 22px 0 0; padding-top: 14px; border-top: 1px solid var(--line); font-size: 12.5px; color: var(--muted); }
+  .meta div { display: flex; gap: 8px; margin: 2px 0; }
+  .meta dt { flex: 0 0 68px; font-weight: 600; color: var(--ink); }
+  .meta dd { margin: 0; }
+
+  .main { flex: 1 1 auto; min-width: 0; padding: 26px 22px 80px; }
+  @media (min-width: 900px) { .main { padding: 32px 34px 90px; } }
+
+  /* ---- 見出し・本文 ---- */
+  h2 { font-size: 19px; margin: 34px 0 10px; padding-bottom: 8px; border-bottom: 2px solid var(--line); }
+  section:first-child h2 { margin-top: 0; }
+  h3 { font-size: 16px; margin: 0 0 6px; }
+  p { margin: 10px 0; }
+  ul, ol { padding-left: 22px; }
+  li { margin: 4px 0; }
+  .lead { font-size: 17px; line-height: 1.75; margin-top: 0; }
+  footer { margin-top: 46px; padding-top: 14px; border-top: 1px solid var(--line);
+           color: var(--muted); font-size: 13px; text-align: center; }
+
+  /* ---- 結論の性質チップ（◎良=青 / △注意=黄 / ✕問題=赤。記号＋文字を必ず併記する） ---- */
+  .chip {
+    display: inline-block; border-radius: 999px; padding: 1px 10px;
+    font-size: 12px; font-weight: 700; white-space: nowrap;
+    border: var(--card-border) solid transparent; box-shadow: var(--shadow);
+  }
+  .chip.good { background: var(--good-soft); color: var(--good); border-color: var(--good); }
+  .chip.warn { background: var(--warn-soft); color: var(--warn); border-color: var(--warn); }
+  .chip.stop { background: var(--stop-soft); color: var(--stop); border-color: var(--stop); }
+
+  /* ---- 結論件数タイル ---- */
+  .kpis { display: flex; gap: 12px; margin: 20px 0 0; padding: 0; list-style: none; flex-wrap: wrap; }
+  .kpi {
+    flex: 1 1 110px; max-width: 190px; text-align: center; padding: 12px 8px;
+    background: var(--panel); border: var(--card-border) solid var(--line);
+    border-radius: var(--radius); box-shadow: var(--shadow); margin: 0;
+  }
+  .kpi b { display: block; font-size: 26px; line-height: 1.2; }
+  .kpi span { font-size: 12px; font-weight: 700; }
+  .kpi.good { border-color: var(--good); } .kpi.good b, .kpi.good span { color: var(--good); }
+  .kpi.warn { border-color: var(--warn); } .kpi.warn b, .kpi.warn span { color: var(--warn); }
+  .kpi.stop { border-color: var(--stop); } .kpi.stop b, .kpi.stop span { color: var(--stop); }
+
+  /* ---- 重点レビュー依頼（3段階。色相を使わず濃度・枠の太さ・中立色で表す） ---- */
+  .focuses { display: grid; gap: 12px; margin-top: 22px; }
+  @media (min-width: 760px) { .focuses { grid-template-columns: repeat(3, 1fr); } }
+  .focus {
+    background: var(--panel); border: var(--card-border) solid var(--line);
+    border-radius: var(--radius); padding: 12px 14px; box-shadow: var(--shadow);
+  }
+  .focus .label { margin: 0; font-size: 13.5px; font-weight: 700; }
+  .focus .sub { margin: 0; font-size: 11.5px; color: var(--muted); }
+  .focus ul { margin: 8px 0 0; padding-left: 18px; font-size: 13.5px; }
+  .focus.must { border-width: 2px; border-color: var(--accent); background: var(--accent-soft); }
+  .focus.must .label { color: var(--accent); }
+  .focus.want { border-color: var(--accent); }
+  .focus.want .label { color: var(--accent); }
+  .focus.skip { color: var(--muted); }
+  .focus.skip .label { color: var(--muted); }
+
+  /* ---- 注意ボックス: info（既定）/ ok（決めたこと）/ warn（注意）/ stop（やらないこと・危険） ---- */
+  .box {
+    border-left: 4px solid var(--accent); background: var(--accent-soft);
+    border-radius: 0 var(--radius) var(--radius) 0; padding: 12px 16px; margin: 16px 0;
+  }
+  .box > :first-child { margin-top: 0; } .box > :last-child { margin-bottom: 0; }
+  .box .label { font-size: 12px; font-weight: 700; letter-spacing: .06em; margin: 0 0 4px; color: var(--accent); }
+  .box.ok { border-color: var(--ok); background: var(--ok-soft); } .box.ok .label { color: var(--ok); }
+  .box.warn { border-color: var(--warn); background: var(--warn-soft); } .box.warn .label { color: var(--warn); }
+  .box.stop { border-color: var(--stop); background: var(--stop-soft); } .box.stop .label { color: var(--stop); }
+
+  /* ---- タイムライン（実施した内容と結果） ---- */
+  .tl { list-style: none; margin: 22px 0 0; padding: 0 0 0 30px; border-left: 2px solid var(--line); }
+  .tl-item { position: relative; margin: 0 0 30px; padding: 0; }
+  .tl-item:last-child { margin-bottom: 0; }
+  .tl-dot {
+    position: absolute; left: -41px; top: 1px; width: 22px; height: 22px;
+    display: grid; place-items: center; border-radius: 999px;
+    font-size: 11px; font-weight: 700; color: #fff; background: var(--muted);
+    border: var(--card-border) solid transparent; box-shadow: var(--shadow);
+  }
+  .tl-dot.good { background: var(--good); } .tl-dot.warn { background: var(--warn); }
+  .tl-dot.stop { background: var(--stop); } .tl-dot.next { background: var(--ok); }
+  .tl-dot.neutral { background: var(--muted); }
+  .basis { font-size: 11.5px; font-weight: 400; color: var(--muted); }
+  details { margin: 8px 0; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel); }
+  details > summary { cursor: pointer; padding: 7px 12px; font-size: 12.5px; font-weight: 600; color: var(--muted); }
+  details pre { margin: 0; border: 0; border-top: 1px solid var(--line); border-radius: 0 0 var(--radius) var(--radius); }
+
+  /* ---- 表は自身の中で横スクロールする（ページ本体は横スクロールさせない） ---- */
+  .tablewrap { overflow-x: auto; margin: 14px 0; }
+  table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 14px; }
+  th, td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: var(--accent-soft); font-weight: 600; white-space: nowrap; }
+
+  /* 案06「クリーン・ライト」: 控えめな配色でライト／ダーク両対応。既定のテンプレート。 */
+  :root {
+    --bg: #f6f7f9;      --panel: #ffffff;   --ink: #1a1d21;     --muted: #5b636d;
+    --line: #dfe3e8;    --accent: #2563eb;  --accent-soft: #eaf0fe;
+    --ok: #1a7f4b;      --ok-soft: #e6f4ec; --warn: #a35a00;    --warn-soft: #fdf1e0;
+    --stop: #b3261e;    --stop-soft: #fdecea; --good: #1d4ed8;  --good-soft: #e7edfd;
+    --code-bg: #f0f2f5; --hl-bg: transparent;
+    --radius: 10px;     --shadow: none;     --card-border: 1px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1216;    --panel: #161a20;   --ink: #e6e8eb;     --muted: #9aa3ad;
+      --line: #2a3038;  --accent: #7aa2f7;  --accent-soft: #1b2333;
+      --ok: #6ee7a8;    --ok-soft: #14261d; --warn: #f0b866;    --warn-soft: #2a2113;
+      --stop: #f2857c;  --stop-soft: #2b1614; --good: #8ab4f8;  --good-soft: #17233a;
+      --code-bg: #1d222a;
+    }
+  }
+</style>
+</head>
+<body>
+
+<div class="shell">
+
+<aside class="sidebar">
+  <p class="kind">作業結果レポート / フェーズ3</p>
+  <h1>レポートHTMLビュー4テンプレートの実装</h1>
+
+  <p class="counts">
+    <span class="chip good">◎良 4</span>
+    <span class="chip warn">△注意 1</span>
+    <span class="chip stop">✕問題 1</span>
+  </p>
+
+  <nav class="toc">
+    <p class="toc-title">目次</p>
+    <ol>
+      <li><a href="#overview">サマリ・重点レビュー依頼</a></li>
+      <li><a href="#unverified">確かめられなかったこと</a></li>
+      <li><a href="#conditions">実施条件</a></li>
+      <li>
+        <a href="#findings">実施した内容と結果</a>
+        <ol class="toc-sub">
+          <li><a href="#f1"><span class="mk good">◎</span> 1. 共通パーツからの組み立て</a></li>
+          <li><a href="#f2"><span class="mk good">◎</span> 2. DOM共通性の検証</a></li>
+          <li><a href="#f3"><span class="mk good">◎</span> 3. 5種の検査</a></li>
+          <li><a href="#f4"><span class="mk warn">△</span> 4. 開閉バランスの検証</a></li>
+          <li><a href="#f5"><span class="mk good">◎</span> 5. ドッグフーディング</a></li>
+          <li><a href="#f6"><span class="mk stop">✕</span> 6. ブラウザ実表示</a></li>
+        </ol>
+      </li>
+      <li><a href="#next">設計への反映</a></li>
+      <li><a href="#surprises">想定と異なった点</a></li>
+      <li><a href="#todo">残課題</a></li>
+    </ol>
+  </nav>
+
+  <dl class="meta">
+    <div><dt>issue</dt><dd>#203</dd></div>
+    <div><dt>ブランチ</dt><dd>claude/report-html-view-template-wu5u20</dd></div>
+    <div><dt>PR</dt><dd>#204</dd></div>
+    <div><dt>push回数</dt><dd>5</dd></div>
+    <div><dt>作成日</dt><dd>2026-08-24</dd></div>
+    <div><dt>正文</dt><dd>同名の .md</dd></div>
+  </dl>
+</aside>
+
+<main class="main">
+
+<section id="overview">
+  <p class="lead">共通DOM＋4通りの <code>&lt;style&gt;</code> で4テンプレートを組み立て、<strong class="hl">本文282タグが4本で完全一致</strong>することと、5種の検査が全本で合格することを確認した。ただし<strong class="hl">ブラウザでの実表示は1つも確認していない</strong>。</p>
+
+  <ul class="kpis">
+    <li class="kpi good"><b>4</b><span>◎良</span></li>
+    <li class="kpi warn"><b>1</b><span>△注意</span></li>
+    <li class="kpi stop"><b>1</b><span>✕問題</span></li>
+  </ul>
+
+  <div class="focuses">
+    <div class="focus must">
+      <p class="label">◆特に見てほしい</p>
+      <p class="sub">判断に困っている</p>
+      <ul>
+        <li><a href="#f6">6. ブラウザ実表示</a> — 6項目が未確認のまま。<b>このissueの中では解消できない</b>。別issueへ切り出すか、お手元で確認いただくかを決めてほしい。</li>
+      </ul>
+    </div>
+    <div class="focus want">
+      <p class="label">◇承認が欲しい</p>
+      <p class="sub">方針は決めた</p>
+      <ul>
+        <li><a href="#f1">1. 組み立て方式</a> — コピーではなく共通パーツの連結にし、DOM同一性を構成上保証する形にした。</li>
+        <li><a href="#f4">4. コメント内の地の文</a> — <code>&lt;li&gt;</code> のような表記は現行から続く既存スタイルなので、<b>テンプレートではなく検査側を直した</b>。</li>
+      </ul>
+    </div>
+    <div class="focus skip">
+      <p class="label">・細かいレビューは不要</p>
+      <p class="sub">ほぼ確実</p>
+      <ul>
+        <li><a href="#f2">2. DOM共通性</a> / <a href="#f3">3. 5種の検査</a> — いずれも機械的に検証済み。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section id="unverified">
+  <div class="box warn">
+    <p class="label">確かめられなかったこと（この結果が言っていないこと）</p>
+    <ul>
+      <li><b>ブラウザでの実表示</b>。<code>position: sticky</code>・<code>prefers-color-scheme</code>・ハードシャドウ・<code>@media print</code>・<code>color-scheme: light</code> のいずれも未確認 — <a href="#f6">詳細: 6</a></li>
+      <li>印刷（PDF保存）時の見え方（案13）。<code>@media print</code> は書いたが、印刷プレビューを開いていない — <a href="#f6">詳細: 6</a></li>
+      <li>git bash（Windows）実機での挙動。組み立てはLinux上で行った — <a href="#conditions">詳細: 実施条件</a></li>
+    </ul>
+  </div>
+</section>
+
+<section id="conditions">
+  <h2>実施条件（測った対象・環境）</h2>
+  <ul>
+    <li>実行環境: Claude Code on the web（Linux）。<b>ブラウザでの実表示は未確認</b>。</li>
+    <li>成果物: <code>.claude/skills/issue-mr-flow/assets/reports-{clean,neobrutal,mono,paper}.template.html</code></li>
+    <li>実施日: 2026-08-24</li>
+    <li><b>このHTMLビュー自身が、新テンプレート <code>reports-clean.template.html</code> から作られている</b>（<a href="#f5">f5</a>）。</li>
+  </ul>
+</section>
+
+<section id="findings">
+  <h2>実施した内容と結果</h2>
+  <ol class="tl">
+
+    <li class="tl-item">
+      <span class="tl-dot good">1</span>
+      <h3 id="f1">4テンプレートを共通パーツから組み立てた <span class="chip good">◎良</span> <span class="basis">根拠: 実装</span></h3>
+      <p><b>「共通DOM＋4通りの <code>&lt;style&gt;</code>」を、コピーではなく組み立てで実現した。</b> scratchpad にパーツを置き、<code>build</code> 関数で連結している。</p>
+      <div class="tablewrap">
+      <table>
+        <thead><tr><th>パーツ</th><th>内容</th><th>共有</th></tr></thead>
+        <tbody>
+          <tr><td><code>head-common.txt</code></td><td>使い方コメント（124行）</td><td><b>4本で共通</b></td></tr>
+          <tr><td><code>body.html</code></td><td>DOM本体（216行）</td><td><b>4本で共通</b></td></tr>
+          <tr><td><code>style-common.part</code></td><td>スタイルの骨格（143行。CSS変数を参照するだけ）</td><td><b>4本で共通</b></td></tr>
+          <tr><td><code>style-&lt;design&gt;.part</code></td><td>CSS変数の定義＋デザイン固有の上書き（18〜43行）</td><td>デザインごと</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <div class="box ok">
+        <p class="label">結論</p>
+        <p>組み立ての順序が要点で、<b><code>&lt;style&gt;</code> の中は「共通の骨格 → デザイン固有」の順</b>にしている。逆にすると、同じ詳細度の規則で共通側が勝ち、デザイン固有の上書きが効かない。<b>CSS変数は共通骨格より後ろで定義されていても問題ない</b>（カスタムプロパティはスタイルシート全体を読んでから解決されるため）。</p>
+      </div>
+    </li>
+
+    <li class="tl-item">
+      <span class="tl-dot good">2</span>
+      <h3 id="f2">DOM共通性を機械的に検証した <span class="chip good">◎良</span> <span class="basis">根拠: 実測</span></h3>
+      <p>計画の中心的な主張なので、<b>主張したまま検証しないことはしない</b>。</p>
+      <details>
+        <summary>根拠を見る（実行コマンドと結果）</summary>
+        <pre><code>$ for F in reports-clean reports-neobrutal reports-mono reports-paper; do
+    sed -n '/^&lt;!DOCTYPE html&gt;/,$p' "$F.template.html" \
+      | sed '/^&lt;style&gt;$/,/^&lt;\/style&gt;$/d' \
+      | grep -oE '&lt;/?[a-z][a-z0-9]*' &gt; "dom2-$F.txt"
+  done
+$ diff dom2-reports-clean.txt dom2-&lt;各案&gt;.txt
+clean vs neobrutal : 0 行
+clean vs mono      : 0 行
+clean vs paper     : 0 行
+本文のタグ数: 282（4本とも）</code></pre>
+      </details>
+      <div class="box ok">
+        <p class="label">結論</p>
+        <p>本文282タグが4本で完全一致した。DOMを共有できているため、<b>使い方コメント・プレースホルダ・検査手順を1回書けば4本へ同じものが配れる</b>。</p>
+      </div>
+      <div class="box warn unverified-detail">
+        <p class="label">最初の検証コマンドは、比較対象を間違えていた</p>
+        <p><code>sed '/^&lt;style&gt;/,/^&lt;\/style&gt;/d'</code> は <code>&lt;style&gt;</code> ブロックしか落とさないため、使い方コメントの地の文にある <code>&lt;section&gt;</code> <code>&lt;li&gt;</code> <code>&lt;code&gt;</code> がタグとして数えられていた（289タグ ＝ 本文282＋コメント由来7）。<b>差分は同じく0行で結論は変わらなかったが、比較していたものが「本文のDOM」ではなかった。</b> <code>&lt;!DOCTYPE html&gt;</code> 以降だけを取るよう直した。</p>
+      </div>
+    </li>
+
+    <li class="tl-item">
+      <span class="tl-dot good">3</span>
+      <h3 id="f3">5種の検査を4本へ流した <span class="chip good">◎良</span> <span class="basis">根拠: 実測</span></h3>
+      <div class="tablewrap">
+      <table>
+        <thead><tr><th>検査</th><th>clean</th><th>neobrutal</th><th>mono</th><th>paper</th></tr></thead>
+        <tbody>
+          <tr><td>1. プレースホルダ（雛形なので&gt;0が期待）</td><td>24</td><td>24</td><td>24</td><td>24</td></tr>
+          <tr><td>2. リンク破断（0行が合格）</td><td>0</td><td>0</td><td>0</td><td>0</td></tr>
+          <tr><td>3. 重複ID（出力なしが合格）</td><td>なし</td><td>なし</td><td>なし</td><td>なし</td></tr>
+          <tr><td>4. 外部依存 src/href</td><td>0</td><td>0</td><td>0</td><td>0</td></tr>
+          <tr><td>5. 外部依存 url()/@import</td><td>0</td><td>0</td><td>0</td><td>0</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <div class="box ok">
+        <p class="label">結論</p>
+        <p><b>プレースホルダが4本とも同数（24）</b>であることが、使い方コメントとDOMを共有できている傍証になる。<br>
+        <b>プレースホルダ検査の合格条件は、テンプレート本体と成果物で逆になる。</b> テンプレートは雛形なのでプレースホルダが「ある」ことが正しく、成果物では「0件」が正しい。この読み替えを使い方コメントへ明記した（書かないと、テンプレート自身を検査して不合格と誤判定される）。</p>
+      </div>
+    </li>
+
+    <li class="tl-item">
+      <span class="tl-dot warn">4</span>
+      <h3 id="f4">タグの開閉バランスを検証した <span class="chip warn">△注意</span> <span class="basis">根拠: 実測</span></h3>
+      <p>開きタグと閉じタグの数を要素ごとに数えたところ、<b>4本すべてで <code>li</code> が 22対21、<code>details</code> が 2対1</b> という不一致が出た。</p>
+      <div class="box warn">
+        <p class="label">原因はテンプレートではなく検査側だった</p>
+        <p>本文中のHTMLコメントに、地の文として <code>&lt;li&gt;</code> <code>&lt;details&gt;</code> と書かれた箇所が1つずつある（「タイムラインの <code>&lt;li&gt;</code> には入れない」「長い出力は <code>&lt;details&gt;</code> で折りたたむ」）。HTMLコメントの中身はタグとして解釈されないので、<b>実際のDOMは正しく閉じている</b>。</p>
+      </div>
+      <div class="box ok">
+        <p class="label">結論</p>
+        <p>コメントを除去してから数え直すと、<code>section</code> <code>aside</code> <code>main</code> <code>div</code> <code>ol</code> <code>ul</code> <code>li</code> <code>details</code> <code>table</code> <code>thead</code> <code>tbody</code> <code>tr</code> のすべてで開閉が一致した。この書き方は<b>現行 <code>reports.template.html</code> から続く既存のスタイル</b>で人間が読むうえで自然なので変えず、<b>直したのは検査コマンドの側</b>である。<br>
+        <b>これは <a href="#f2">f2</a> と同じ種類の失敗が別の検査で再び出たもの</b>で、「HTMLを機械的に検査するときは、コメントと地の文を先に除く」がこのテンプレート群の一般則だと分かった。</p>
+      </div>
+    </li>
+
+    <li class="tl-item">
+      <span class="tl-dot good">5</span>
+      <h3 id="f5">新テンプレートでこのレポート自身を作った <span class="chip good">◎良</span> <span class="basis">根拠: 実装</span></h3>
+      <p><b>このレポートのHTMLビューは、<code>reports-clean.template.html</code> から作っている。</b> テンプレートを作っただけで使わずに終えると、雛形として実用に耐えるかが分からないため。</p>
+      <div class="box ok">
+        <p class="label">結論: 使ってみて見つかった不足を1件、テンプレートへ反映した</p>
+        <p>サイドバーの目次はネストした <code>&lt;ol class="toc-sub"&gt;</code> で章を並べるが、当初の使い方コメントには「章が増えたらここも増やす」ことが書かれていなかった。<b>目次の足し忘れはリンク破断検査に掛からない</b>（本文側のIDは存在するため）ので、プレースホルダのコメントへ明記した。</p>
+      </div>
+    </li>
+
+    <li class="tl-item">
+      <span class="tl-dot stop">6</span>
+      <h3 id="f6">ブラウザでの実表示 <span class="chip stop">✕問題</span> <span class="basis">根拠: 未実施</span></h3>
+      <p><b>未実施。</b> この作業で確かめたのは、HTML/CSSの<b>構造とテキスト</b>だけである。</p>
+      <div class="tablewrap">
+      <table>
+        <thead><tr><th>未確認の項目</th><th>どのテンプレート</th></tr></thead>
+        <tbody>
+          <tr><td><code>position: sticky</code> のサイドバーが実際に追従するか</td><td>4本すべて</td></tr>
+          <tr><td><code>prefers-color-scheme</code> の切り替えが破綻しないか</td><td>clean / mono</td></tr>
+          <tr><td><code>color-scheme: light</code> が強制ダーク化を防ぐか</td><td>neobrutal / paper</td></tr>
+          <tr><td>ハードシャドウ（<code>box-shadow: 3px 3px 0</code>）が意図どおり出るか</td><td>neobrutal</td></tr>
+          <tr><td><code>@media print</code> でサイドバーが本文の上へ畳まれるか</td><td>paper</td></tr>
+          <tr><td>二重罫線（<code>border-bottom: 3px double</code>）の見え方</td><td>paper</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <div class="box stop">
+        <p class="label">「静的検査に通った」と「見た目が正しい」は別である</p>
+        <p>調査（フェーズ2）の残課題として挙げていたものがそのまま残っており、この作業では解消していない。</p>
+      </div>
+    </li>
+
+  </ol>
+</section>
+
+<section id="next">
+  <h2>設計への反映</h2>
+  <ol>
+    <li><b><code>deliverables.md</code>「計画・レポートのHTMLビュー」のテンプレート表を書き換える</b>（フェーズ4）。現在2行だが、レポート側が5本（現行＋新4本）になるため、<b>選択基準の表ごと差し替える</b>。</li>
+    <li><b><code>.claude/rules/directory-structure.md</code> の「テンプレート2本」という記述を更新する</b>（フェーズ4）。</li>
+    <li><b><code>.claude/skills/issue-mr-flow/SKILL.md</code> の flow-id 2-6・3-6・4-6 が名指ししているテンプレートパスを見直す</b>（フェーズ4）。現在は <code>reports.template.html</code> を単独で指している。</li>
+    <li><b>DDRを1本書く</b>（フェーズ4）。「4デザインを共通DOM＋4スタイルで持ち、現行を残して既定を <code>reports-clean</code> にした」という判断と、却下案（4本独立／現行の置き換え）を残す。</li>
+    <li><b>ブラウザでの実表示確認は、このissueでは実施できない</b>（<a href="#f6">f6</a>）。<b>別issueへ切り出すか、ユーザーの手元での確認をお願いするかを決める必要がある。</b></li>
+  </ol>
+</section>
+
+<section id="surprises">
+  <h2>想定と異なった点</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>計画時の見込み</th><th>実際</th><th>どう扱ったか</th></tr></thead>
+    <tbody>
+      <tr><td>検証コマンドはそのまま使える</td><td>DOM共通性の検証が<b>冒頭コメントを除いていなかった</b>（289タグ中7つがコメント由来）</td><td><code>&lt;!DOCTYPE html&gt;</code> 以降だけを取る形へ修正。<b>差分は0行のままで結論は不変</b></td></tr>
+      <tr><td>タグの開閉バランスは素直に数えられる</td><td><code>li</code> と <code>details</code> で不一致が出た。<b>原因は検査側</b>（コメント内の地の文）</td><td>コメント除去を挟む形へ修正。テンプレート側は変えていない</td></tr>
+      <tr><td>テンプレートを作れば作業は終わる</td><td>実際に使ってみると、使い方コメントの不足が1件見つかった</td><td>このレポート自身を新テンプレートで作り（<a href="#f5">f5</a>）、見つかった不足を反映した</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="todo">
+  <h2>残課題</h2>
+  <ul>
+    <li><b>ブラウザでの実表示確認</b>（<a href="#f6">f6</a>）。6項目が未確認。<b>このissueの中で解消できないため、扱いを決める必要がある</b>（別issueへ切り出す／ユーザーの手元で確認してもらう）。</li>
+    <li>印刷（PDF保存）時の見え方（案13）。同上。</li>
+    <li><code>wip/design-samples/</code> を持つブランチの削除は、ユーザーの指示待ち（フェーズ2 Q5）。</li>
+  </ul>
+</section>
+
+<footer>issue #203 / PR #204 — 結果の正文は同名の <code>.md</code>。外部依存を持たない自己完結HTML。<br>このページは <code>reports-clean.template.html</code> から作られている。</footer>
+
+</main>
+</div>
+
+</body>
+</html>
