@@ -420,7 +420,7 @@
     <li><b>transcript はセッション／compact／resume をまたいで同一ファイルか。</b> compact 後も同じファイルへ追記されるか、新しいファイルになるかを実測する。</li>
     <li>リモート実行環境で<b>セッションをまたいだ</b>場合、同一ブランチの過去 transcript はどこに残るか。残るなら、それも対象にする案の実現可能性とコスト（走査量）はどうか。</li>
     <li><code>jq -R -n</code> ＋ <code>inputs</code> 方式で、実 transcript のサイズでも所要時間が許容範囲か。
-      <b>合否のしきい値を先に置く: 追加コスト 200ms 以内</b>（このhookは既に <code>extract-frontmatter.sh</code> の再生成で約2秒を抱えており、compact のたびに走るため）。</li>
+      <b>合否のしきい値を先に置く: 追加コスト 500ms 以内</b>（このhookは既に <code>extract-frontmatter.sh</code> の再生成で約2秒を抱えており、compact のたびに走るため）。<br><b>当初の値は 200ms だった。</b>フェーズ2の実測で git bash 見積もりが約208msとなり不合格に倒れたため、<b>flow-id 2-8 のレビューでユーザーが 500ms へ改定した</b>（「しきい値は500msにしよう」）。改定の経緯を消さずに残すため、旧値と改定の事実を併記する。</li>
     <li><b><code>origin.kind</code> の分布はどうか。</b> <code>origin</code> キー自体を持たない行はあるか。持たない行を採るか捨てるかを決める
       （採ると機械由来が混ざりうる／捨てると人間の発言を落としうる）。あわせて <code>.message.content</code> が<b>配列</b>の人間発言
       （<code>text</code> ブロックのみ）が何件あるかを数え、文字列限定で取りこぼす割合を出す。</li>

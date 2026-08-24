@@ -203,10 +203,22 @@
       <thead><tr><th>分割後</th><th>内容</th><th>解く場所</th></tr></thead>
       <tbody>
         <tr><td><b>問い10a</b></td><td>過去transcriptの保存場所・<b>本数・合計バイト数を数える</b>（事実の採取のみ）</td><td>段取りA</td></tr>
-        <tr><td><b>問い10b</b></td><td>10a の量に問い11 の実測レートを掛け、<b>走査コストが200msに収まるかを判定する</b></td><td>段取りE（問い11 の後）</td></tr>
+        <tr><td><b>問い10b</b></td><td>10a の量に問い11 の実測レートを掛け、<b>走査コストがしきい値に収まるかを判定する</b></td><td>段取りE（問い11 の後）</td></tr>
       </tbody>
     </table>
     </div>
+    <h3>しきい値の改定（flow-id 2-8。2026-08-24 追記）</h3>
+    <p><b>本計画は当初「追加コスト 200ms 以内」を合否のしきい値として置き、下記「停止条件」で
+    「しきい値を後から緩めない」と定めていた。</b>実測の結果 git bash 見積もりが約208msとなり
+    不合格に倒れたため、その結論をレビュー依頼で提示したところ、
+    <b>flow-id 2-8 のレビューでユーザーが「しきい値は500msにしよう」と判断した。</b></p>
+    <ul>
+      <li><b>以降、本計画中の「200ms」はすべて「500ms」と読み替える。</b>
+        <b>旧値の記述は消さずに残す</b>（何をどう改めたかが読めなくなるため）。</li>
+      <li><b>「しきい値を後から緩めない」という停止条件は、AIエージェントが自分の判断で緩めることを
+        禁じるものである。</b>今回はAIが不合格として人間へ上げ、人間が値そのものを改めた。
+        <b>この経路まで塞ぐ意図ではない。</b></li>
+    </ul>
   </div>
 </section>
 
@@ -287,7 +299,7 @@
     <thead><tr><th>#</th><th>問い</th><th>調べ方</th><th>判定基準</th></tr></thead>
     <tbody>
       <tr><td>8</td><td>マルチバイト文字を<b>文字単位で</b>切り出す、ロケール非依存の手段はどれか</td><td>候補（<code>jq</code> の <code>.[0:N]</code>／<code>awk</code> の <code>substr</code>／<code>${var:0:N}</code>）を、<code>LANG</code> を空にした環境と <code>C.UTF-8</code> の両方で日本語文字列へ当てる</td><td><b>両方の環境で同じ結果</b>になる手段だけを採る。<b>Windowsネイティブjq・MSYSは未確認</b>と明記する（下記）</td></tr>
-      <tr><td>11</td><td><code>jq -R -n</code> ＋ <code>inputs</code> は実 transcript のサイズで許容範囲か</td><td>段取りAで測った実サイズのファイルへ、確定した抽出フィルタを当てて<b>空関数をベースラインに</b>時間を測る。<b>測定はLinux</b></td><td><b>追加コスト 200ms 以内</b>（先に置いたしきい値）。<b>Linuxでの合否は暫定</b>とし、git bash実機の見積もりを併記する（下記）</td></tr>
+      <tr><td>11</td><td><code>jq -R -n</code> ＋ <code>inputs</code> は実 transcript のサイズで許容範囲か</td><td>段取りAで測った実サイズのファイルへ、確定した抽出フィルタを当てて<b>空関数をベースラインに</b>時間を測る。<b>測定はLinux</b></td><td><b>追加コスト 500ms 以内</b>（当初は200ms。flow-id 2-8 で改定。下記「しきい値の改定」）。<b>Linuxでの合否は暫定</b>とし、git bash実機の見積もりを併記する（下記）</td></tr>
       <tr><td>7</td><td>git bash 実機で <code>transcript_path</code> はどの表記で渡るか</td><td>本調査はリモート実行環境（Linux）で行うため<b>実機確認できない見込み</b></td><td><b>確認できなければ「未確認」と明記する</b>（確認できたことにしない）。jq へパス名を渡さず標準入力へ繋ぐ形で回避できるかを机上で確認する</td></tr>
     </tbody>
   </table>
@@ -299,12 +311,12 @@
     <table>
       <thead><tr><th>問い</th><th>Linuxで測ると何がずれるか</th><th>どう扱うか</th></tr></thead>
       <tbody>
-        <tr><td><b>11</b>（性能）</td><td>git bash（MSYS）の外部プロセス起動は<b>約95ms/回</b>、<code>jq -nc '1'</code> 1回が<b>実測138ms</b>で、Linuxとは桁が違う（<code>.claude/rules/shell-script-style.md</code>「外部プロセス起動のコスト」は『Linuxで得た閾値をそのままgit bashへ持ち込まないこと』と明記している）。Linuxで150msと出て「200ms以内・合格」としても、git bashではjq起動だけで大半を消費して超過しうる</td><td><b>Linuxの実測値と、git bash実機の見積もり（jq起動回数 × 138ms ＋ 走査時間）を併記する。</b>合否は<b>暫定</b>とし、フェーズ3で実機再測を要する旨をレポートへ書く</td></tr>
+        <tr><td><b>11</b>（性能）</td><td>git bash（MSYS）の外部プロセス起動は<b>約95ms/回</b>、<code>jq -nc '1'</code> 1回が<b>実測138ms</b>で、Linuxとは桁が違う（<code>.claude/rules/shell-script-style.md</code>「外部プロセス起動のコスト」は『Linuxで得た閾値をそのままgit bashへ持ち込まないこと』と明記している）。Linuxで150msと出て「しきい値以内・合格」としても、git bashではjq起動だけで大半を消費して超過しうる</td><td><b>Linuxの実測値と、git bash実機の見積もり（jq起動回数 × 138ms ＋ 走査時間）を併記する。</b>合否は<b>暫定</b>とし、フェーズ3で実機再測を要する旨をレポートへ書く</td></tr>
         <tr><td><b>8</b>（ロケール依存の文字切り出し）</td><td>検証するのは <code>LANG</code> 空／<code>C.UTF-8</code> の2条件だが、<b>Windowsネイティブjq・MSYSでは再現していない</b>。<code>.claude/rules/shell-script-style.md</code> は、Windows版jqが <code>strptime</code>/<code>mktime</code> を持たない等、同じjqでも実装差があることを実例で記録している</td><td><b>「Linux上の2条件で同結果だった」までを結論とし、Windowsネイティブjq・MSYSでの挙動は「未確認」と明記する</b></td></tr>
       </tbody>
     </table>
     </div>
-    <b>この断りを、しきい値を緩める口実に使わない。</b>200ms を超えた場合は、下記「停止条件」のとおり<b>フェーズ3へ進む前に実装方式を見直す</b>（暫定なのは「合格」の側だけで、「不合格」は不合格である）。
+    <b>この断りを、しきい値を緩める口実に使わない。</b>しきい値を超えた場合は、下記「停止条件」のとおり<b>フェーズ3へ進む前に実装方式を見直す</b>（暫定なのは「合格」の側だけで、「不合格」は不合格である）。
   </div>
   <p>問い11の計測は <code>.claude/rules/shell-script-style.md</code>「起動回数がゼロであることを計測で確かめるとき」の手順に従う（空関数をベースラインに取る／試行回数を十分に取る／同一セッション内で連続して測る）。<b>絶対値だけを見て「速い・遅い」と判断しない。</b></p>
 </section>
@@ -411,7 +423,7 @@ git diff --name-only "$base" -- .claude/</code></pre>
     <thead><tr><th>条件</th><th>対応</th></tr></thead>
     <tbody>
       <tr><td><b>問い1が否</b>（<code>transcript_path</code> が取れず、<code>CLAUDE_PROJECT_DIR</code> からも辿れない）</td><td><span class="tag stop">即停止</span> 以降の問いを解かず停止する。記録するのは「<b>この実行環境（Claude Code on the web / Linux）では取得できなかった</b>」という<b>事実</b>であって、「実装不能」ではない（下記）。<b>代替経路を無理に作らない</b>（<code>PreCompact</code> は DDR <code>i0057-01</code> で却下済み）。そのうえで<b>人間の判断を仰ぐ</b>ため issue #151 へ差し戻す</td></tr>
-      <tr><td><b>問い11がしきい値超過</b>（追加コスト 200ms 超）</td><td>フェーズ3へ進む前に実装方式（jqの呼び方・走査量）を見直す案を出す。<b>しきい値を後から緩めない</b></td></tr>
+      <tr><td><b>問い11がしきい値超過</b>（追加コスト 500ms 超。当初は200ms）</td><td>フェーズ3へ進む前に実装方式（jqの呼び方・走査量）を見直す案を出す。<b>AIエージェントは自分の判断でしきい値を緩めない</b>（人間がレビューで値そのものを改めるのはこの禁止の対象外）</td></tr>
       <tr><td><b>問い5で過剰除去が発生</b></td><td>該当語を辞書から外して測り直す。「まれだから許容」としない</td></tr>
       <tr><td><b>調査中に規模が本issueに収まらないと判明</b></td><td><code>references/planning.md</code>「issueが大きすぎる場合の分割提案」に従い、未着手範囲の別issue化を提案する</td></tr>
     </tbody>
@@ -443,7 +455,7 @@ git diff --name-only "$base" -- .claude/</code></pre>
         <tr><td><b>実装</b>。本調査で書くのは<b>使い捨ての確認用コマンド</b>だけで、<code>session-start.sh</code> へは1行も手を入れない</td><td><b>flow-id 3-6</b></td></tr>
         <tr><td><b>合成フィクスチャの整備</b>（単体テストを書くときに作る）</td><td><b>flow-id 3-6</b></td></tr>
         <tr><td><b>出力位置の再検討</b>（flow-id 1-5 で合意済み。issue #113 の末尾配置を壊さない）</td><td>再検討しない（合意済み）</td></tr>
-        <tr><td><b>問い11のしきい値（200ms）のgit bash実機での再測</b></td><td><b>flow-id 3-6</b>（本調査のLinux実測は暫定）</td></tr>
+        <tr><td><b>問い11のしきい値（500ms。当初200ms）のgit bash実機での再測</b></td><td><b>flow-id 3-6</b>（本調査のLinux実測は暫定）</td></tr>
       </tbody>
     </table>
     </div>

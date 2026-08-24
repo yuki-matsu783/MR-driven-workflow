@@ -132,7 +132,7 @@
 <header class="band">
   <div class="kind">調査結果レポート / フェーズ2</div>
   <h1>transcriptからのユーザー発言抽出と選定パラメータの実測</h1>
-  <p class="lead"><b>14項目のうち13に実測の結論を出し、残る1つ（問い7）は「未確認」と断定した。</b>母集団は <code>origin.kind=="human"</code> の1条件で確定し（7件）、transcript は compact でも resume でも同一ファイルだった。一方、<b>走査コストは git bash 見積もりで約208msとしきい値200msを超え、問い11は不合格</b>。<b>除外辞書は重要な承認発言を1件落とした</b>。</p>
+  <p class="lead"><b>14項目のうち13に実測の結論を出し、残る1つ（問い7）は「未確認」と断定した。</b>母集団は <code>origin.kind=="human"</code> の1条件で確定し（7件）、transcript は compact でも resume でも同一ファイルだった。一方、<b>除外辞書は重要な承認発言を1件落とし</b>、<b>走査コストは git bash 見積もりで約208msと当初のしきい値200msを超えた</b>。この2点を判断へ上げた結果、<b>flow-id 2-8 でしきい値が500msへ改定されて問い11は合格</b>となり、<b>辞書は「毎回のユーザの入力を見ながら育てる」運用で継続</b>と決まった。</p>
   <p class="counts">
     <span class="chip good">◎良 7</span>
     <span class="chip warn">△注意 5</span>
@@ -172,11 +172,11 @@
     <b>下の各章は「問い番号」で並べている</b>（章番号を別に振らない）。id も <code>f1</code>＝問い1、<code>f10a</code>＝問い10a のように問い番号と一致させてあるので、正文（md）の見出しとそのまま突き合わせられる。
   </div>
   <div class="focus must">
-    <span class="label">◆特に見てほしい（判断に困っている）</span>
+    <span class="label">◆判断を仰いだ3点 — <b>flow-id 2-8 でいずれも決着</b></span>
     <ul>
-      <li><a href="#f11">問い11: 走査コストが不合格</a> — git bash 見積もり <b>約208ms</b> がしきい値200msを超えた。<b>現在の断面が既に「200msに収まる総量」を約536KB超えている</b>。実装方式の見直し（案A/B/C）のどれを採るか決めてほしい。</li>
-      <li><a href="#f5">問い5: 除外辞書の是非</a> — <code>ok</code>（flow-id 1-5 の合意そのもの）を落とした。方針どおり <code>ok</code>/<code>OK</code> は外したが、<b>同じ理屈は <code>はい</code>・<code>了解</code>・<code>お願いします</code> にも及ぶ</b>。辞書を空にする案まで含めて、どこで線を引くか決めてほしい。</li>
-      <li><a href="#completion">完了条件を満たさないままフェーズ2を閉じてよいか</a> — 「決めること9項目」のうち<b>除外規則が未確定</b>、<b>走査方式が不合格</b>。どちらもフェーズ3で決めるのが妥当だが、完了条件は満たしていない。</li>
+      <li><a href="#f11">問い11: 走査コスト</a> — 当初のしきい値200msに対し git bash 見積もり <b>約208ms</b> で<b>不合格</b>とし、案A/B/Cを添えて判断を仰いだ。<b>→「しきい値は500msにしよう」（案C）。合格となり、全走査のまま採る。</b></li>
+      <li><a href="#f5">問い5: 除外辞書の是非</a> — <code>ok</code>（flow-id 1-5 の合意そのもの）を落としたため、辞書を空にする案まで含めて線引きを仰いだ。<b>→「辞書はオッケー」。さらに「毎回のユーザの入力を見ながら育てて行きたい」。</b>固定リストにせず育てる運用へ。</li>
+      <li><a href="#completion">完了条件を満たさないままフェーズ2を閉じてよいか</a> — 上2点の決着により<b>「決めること9項目」がすべて確定</b>し、<b>この問い自体が解消した</b>。</li>
     </ul>
   </div>
   <div class="focus want">
@@ -204,14 +204,14 @@
     <li class="verdict"><span class="chip good">◎良</span><a href="#f2">問い2: 母集団は <code>origin.kind=="human"</code> の1条件で7件に確定した</a><span class="v-basis">根拠: 実測（段階的な件数計測）</span></li>
     <li class="verdict"><span class="chip warn">△注意</span><a href="#f3">問い3: 絞る手段はあるが、この実データでは1件も落ちず効きは未検証</a><span class="v-basis">根拠: 実測</span></li>
     <li class="verdict"><span class="chip warn">△注意</span><a href="#f4">問い4: 文字数は中央62字・最大220字。ただし母数7件で分位点が脆い</a><span class="v-basis">根拠: 実測</span></li>
-    <li class="verdict"><span class="chip stop">✕問題</span><a href="#f5">問い5: 除外辞書が重要な承認発言を1件落とした（修正後の再測で除外0件を確認）</a><span class="v-basis">根拠: 実測（規則を母集団へ適用）</span></li>
+    <li class="verdict"><span class="chip warn">△注意</span><a href="#f5">問い5: 除外辞書が重要な承認発言を1件落とした。<code>ok</code>/<code>OK</code> を外し再測で除外0件。<b>辞書は継続し「育てる」運用へ（flow-id 2-8）</b></a><span class="v-basis">根拠: 実測（規則を母集団へ適用）</span></li>
     <li class="verdict"><span class="chip warn">△注意</span><a href="#f6">問い6: 合計4,491B。ただし既存注入量の79%が可変で、割合では断定できない</a><span class="v-basis">根拠: 実測（hookを実行して計測）</span></li>
     <li class="verdict"><span class="chip good">◎良</span><a href="#f7">問い7: パス表記は未確認だが、影響を受けない実装形が同値だと確認した</a><span class="v-basis">根拠: 実測（md5一致）</span></li>
     <li class="verdict"><span class="chip good">◎良</span><a href="#f8">問い8: ロケール非依存に文字単位で切れるのは <code>jq</code> の <code>.[0:N]</code></a><span class="v-basis">根拠: 実測（2ロケール×4手段）</span></li>
     <li class="verdict"><span class="chip good">◎良</span><a href="#f9">問い9: compact・resume とも同一ファイル。境界は機械可読</a><span class="v-basis">根拠: 実測（inode・compactMetadata）</span></li>
     <li class="verdict"><span class="chip warn">△注意</span><a href="#f10a">問い10a: 過去 transcript はこの環境に1本も残らない</a><span class="v-basis">根拠: 実測（全走査）</span></li>
     <li class="verdict"><span class="chip good">◎良</span><a href="#f10b">問い10b: 過去分の上乗せは0ms（対象が無いため自明）</a><span class="v-basis">根拠: 問い10a・11からの導出</span></li>
-    <li class="verdict"><span class="chip stop">✕問題</span><a href="#f11">問い11: 走査は git bash 見積もり約208msで<b>不合格</b>。余裕は残っていない</a><span class="v-basis">根拠: 実測（100回×3試行）＋既知値からの見積もり</span></li>
+    <li class="verdict"><span class="chip good">◎良</span><a href="#f11">問い11: 走査は git bash 見積もり約208ms。<b>しきい値500msへの改定（flow-id 2-8）により合格</b></a><span class="v-basis">根拠: 実測（100回×3試行）＋既知値からの見積もり</span></li>
     <li class="verdict"><span class="chip warn">△注意</span><a href="#f12">問い12: <code>origin</code> を持たない文字列が6件ある。肯定形の条件を崩すと混入する</a><span class="v-basis">根拠: 実測（値別集計・合計一致）</span></li>
     <li class="verdict"><span class="chip good">◎良</span><a href="#f13">問い13: <code>last-prompt</code> は原文ではない（正規化・切り詰めあり）</a><span class="v-basis">根拠: 実測（コードポイント差分）</span></li>
   </ol>
@@ -481,7 +481,38 @@ human        user  external  7        # human 以外は0件</code></pre>
   <p>落としたのは<b>辞書語 <code>ok</code> で、1件</b>。これは flow-id 1-5 の合意そのもので、<b>このタスクで最も重要な意思決定の1つ</b>である。</p>
   <div class="box stop">
     <span class="label">結論</span>
-    方針「<b>過剰除去が1件でもあれば、その語を辞書から外す</b>」に従い <code>ok</code>/<code>OK</code> を外した。<b>停止条件が求める「外した後の測り直し」も実施し、除外0件・残7件を確認した</b>（問い6 の 1,239B はこの修正後の母集団を通した値）。<b>同じ理屈が辞書の他の語にも及ぶ</b> — レビュー合意・着手承認・方針同意が <code>はい</code>・<code>了解</code>・<code>お願いします</code> のような短い肯定語で表明されるため、<b>辞書そのものがこのリポジトリの運用と噛み合っていない</b>。落としたい「意味の無い相槌」と落としてはいけない「短い承認」を<b>文字列だけで区別する手段が無い</b>。除去漏れは0件。
+    方針「<b>過剰除去が1件でもあれば、その語を辞書から外す</b>」に従い <code>ok</code>/<code>OK</code> を外した。<b>停止条件が求める「外した後の測り直し」も実施し、除外0件・残7件を確認した</b>（問い6 の 1,239B はこの修正後の母集団を通した値）。<b>同じ理屈が辞書の他の語にも及ぶ</b> — レビュー合意・着手承認・方針同意が <code>はい</code>・<code>了解</code>・<code>お願いします</code> のような短い肯定語で表明されるため、落としたい「意味の無い相槌」と落としてはいけない「短い承認」を<b>文字列だけで区別する手段が無い</b>。除去漏れは0件。
+  </div>
+  <div class="box ok">
+    <span class="label">flow-id 2-8 の判断: 辞書は継続し、<b>育てる</b></span>
+    上の論点を人間の判断へ上げ、<b>「辞書はオッケー」</b>との回答を得た（辞書方式を継続し、辞書を空にする案・別方式へ置き換える案は採らない）。
+    さらに<b>「辞書は毎回のユーザの入力を見ながら育てて行きたい」</b>との方針が示された —
+    <b>辞書を設計時に完成させる固定リストとして扱わず、実運用の入力を見ながら1語単位で足し引きしていく。</b>
+  </div>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>項目</th><th>確定内容</th></tr></thead>
+    <tbody>
+      <tr><td>方式</td><td><b>正規化後の完全一致による辞書除外を継続する</b>（全体作業計画の規則1のまま）</td></tr>
+      <tr><td><code>ok</code> / <code>OK</code></td><td><b>辞書から外す</b>（本調査で過剰除去を実測したため）</td></tr>
+      <tr><td><code>はい</code> <code>了解</code> <code>お願いします</code> 等</td><td><b>辞書に残す</b>。実データでは1件も過剰除去していない</td></tr>
+      <tr><td>過剰除去が再発したときの扱い</td><td>確定方針どおり、<b>その語を辞書から外す</b></td></tr>
+      <tr><td><b>辞書の育て方</b></td><td><b>固定の完成品として設計せず、実際のユーザー入力を見ながら継続的に育てる</b></td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p><b>実データはこの方針を支持している。</b>辞書12語のうち実際に何かを落としたのは <code>ok</code> の1語だけで、<b>残る11語はこの断面で一度も働かなかった</b>。落とすべきノイズは <code>origin.kind</code> の1条件で構造的に消えており、辞書が担う残余はごく小さい。<b>机上の網羅が実運用に当たる保証は無い。</b></p>
+  <p><b>flow-id 3-1 が決めること</b>（本調査からの申し送り）:</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>#</th><th>決めること</th><th>なぜ必要か</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td><b>初期辞書の中身</b></td><td>「育てる」の出発点。網羅から始めるか、観測実績から始めるか</td></tr>
+      <tr><td>2</td><td><b>辞書の置き場所</b>（定数か、編集しやすい外部ファイルか）</td><td>育てるには<b>人間が1語単位で足し引きできる</b>必要がある</td></tr>
+      <tr><td>3</td><td><b>除外実績の可視化</b></td><td><b>最も重要。</b>「毎回の入力を見ながら」を成り立たせるには<b>何がどの語で落ちたかが見える</b>必要がある。hookが黙って落とすままでは過剰除去に気づけず、辞書は育たない</td></tr>
+      <tr><td>4</td><td><b>育てる操作の記録先</b></td><td>足し引きの理由が残らないと、同じ語を足したり外したりを繰り返す</td></tr>
+    </tbody>
+  </table>
   </div>
   <div class="box warn unverified-detail">
     <span class="label">確かめられなかったこと（詳細）</span>
@@ -541,7 +572,21 @@ human        user  external  7        # human 以外は0件</code></pre>
     <b><code>${var:0:N}</code> がロケール依存で落ちることを再現した</b>（ルール記載どおり）。<code>awk</code> は mawk ではバイト単位、gawk では文字単位になる — <b>環境によって結果が変わる手段は採らない</b>。<code>perl</code> は当初 <code>-CSD</code> で試して壊れたが、これは<b>呼び方の誤り</b>（<code>@ARGV</code> のデコードには <code>-CA</code> が要る）で、<b>perl 自体の欠陥ではない</b>。<b>切り出しは既に jq の中で行うため、<code>.[0:N]</code> を使えば外部プロセスは増えない。</b>
   </div>
 
-  <h3 id="f11">問い11: 走査コストは<b>不合格</b> <span class="chip stop">✕問題</span></h3>
+  <h3 id="f11">問い11: 走査コストは<b>合格</b>（しきい値改定後） <span class="chip good">◎良</span></h3>
+  <div class="box ok">
+    <span class="label">しきい値の改定（flow-id 2-8）</span>
+    本調査は当初、計画が置いた「追加コスト <b>200ms</b> 以内」で判定し <b>不合格</b> と結論した。その結論をレビュー依頼で提示したところ、<b>flow-id 2-8 のレビューでユーザーが「しきい値は500msにしよう」と判断した</b>（案C の採用）。以下は改定後の判定である。<b>改定前の判定と、なぜ改定に至ったかを消さずに残す。</b>
+  </div>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th></th><th>改定前</th><th>改定後</th></tr></thead>
+    <tbody>
+      <tr><td>しきい値</td><td>200ms</td><td><b>500ms</b></td></tr>
+      <tr><td>git bash 見積もり 208ms の判定</td><td><b>不合格</b>（104%）</td><td><b>合格</b>（42%）</td></tr>
+      <tr><td>決めた場所</td><td>全体作業計画（flow-id 1-4）</td><td><b>flow-id 2-8 のレビュー</b></td></tr>
+    </tbody>
+  </table>
+  </div>
   <p>空関数（<code>jq -nc '1'</code>）をベースラインに取り、差で見た。<b>固定断面（4,814KB）に対し、100回×3試行</b>（初回の20回計測は値がぶれたため、試行回数を増やして測り直した）。</p>
   <div class="tablewrap">
   <table>
@@ -556,35 +601,39 @@ human        user  external  7        # human 以外は0件</code></pre>
   <p><b>走査コスト = 約70ms/回</b>（レート <b>約69KB/ms</b>）。</p>
   <div class="tablewrap">
   <table>
-    <thead><tr><th>環境</th><th>内訳</th><th>合計</th><th>しきい値200ms</th></tr></thead>
+    <thead><tr><th>環境</th><th>内訳</th><th>合計</th><th>しきい値500ms</th></tr></thead>
     <tbody>
-      <tr><td>Linux（実測）</td><td>走査 70ms</td><td>70ms</td><td>収まる</td></tr>
-      <tr><td><b>git bash（見積もり）</b></td><td><b>jq 起動 138ms ＋ 走査 70ms</b></td><td><b>約208ms</b></td><td><b>超過（104%）</b></td></tr>
+      <tr><td>Linux（実測）</td><td>走査 70ms</td><td>70ms</td><td>収まる（14%）</td></tr>
+      <tr><td><b>git bash（見積もり）</b></td><td><b>jq 起動 138ms ＋ 走査 70ms</b></td><td><b>約208ms</b></td><td><b>収まる（42%）</b></td></tr>
     </tbody>
   </table>
   </div>
   <div class="box stop">
     <span class="label">結論</span>
-    <b>不合格。</b> 計画の停止条件どおり、<b>フェーズ3の前に実装方式を見直す</b>。「200msに収まる走査サイズの総量」は <code>(200−138)ms × 69KB/ms ≒ 4,278KB</code> であり、<b>現在の断面 4,814KB は既にこれを超えている</b>（超過 約536KB）。<b>余裕は残っていない。</b>
+    <b>合格。</b> 全走査方式（<code>jq -R -n</code> ＋ <code>inputs</code>）をそのまま採る。「500msに収まる走査サイズの総量」は <code>(500−138)ms × 69KB/ms ≒ 24,978KB（約24.4MB）</code>で、現在の断面 4,814KB に対し<b>約20,164KB（約19.7MB）の増加まで耐える</b>。
+  </div>
+  <div class="box warn">
+    <span class="label">「余裕がある」を無条件の合格と読まない</span>
+    上の総量は3つの前提に依存する — (1) <b>jq 起動コスト 138ms</b> は git bash 実機の過去の実測値で、本調査で測り直したものではない。(2) <b>走査レート 69KB/ms は Linux での実測</b>で、git bash 実機のレートは未測定。(3) <b>断面 4,814KB</b> は約9時間・compact 2回のセッション1本の値で、セッションが長引けば伸びる。<b>git bash 実機での再測は引き続き必要</b>（残課題F）。レートが Linux の 1/4 まで落ちると総量は約6.1MB になり、現在値との差は 1.3MB まで縮む。
   </div>
   <div class="box warn">
     <span class="label">前版の誤りの訂正</span>
-    前版は走査を 50.7ms とし、「約+4.6MB で200msを超える」と書いていた。<b>4.6MB は「200msに収まる総量」であって増分ではなく、現在値を引いていなかった</b>。加えて 50.7ms は20回計測のぶれた値で、100回×3試行では約70msだった。<b>両方の誤りが同じ方向（楽観側）へ効いていた。</b>
+    前版は走査を 50.7ms とし、「約+4.6MB で200msを超える」と書いていた。<b>4.6MB は「しきい値に収まる総量」であって増分ではなく、現在値を引いていなかった</b>。加えて 50.7ms は20回計測のぶれた値で、100回×3試行では約70msだった。<b>両方の誤りが同じ方向（楽観側）へ効いていた。</b> <b>しきい値の改定はこの訂正の<u>後</u>に行われたものであり、誤った値を根拠に緩めたわけではない。</b>
   </div>
-  <p><b>見直しの方向（フェーズ3で判断する）</b>:</p>
+  <p><b>採らなかった案</b>（しきい値改定により不要になった。<b>フェーズ3で走査量が問題化したときの手札として残す</b>）:</p>
   <div class="tablewrap">
   <table>
-    <thead><tr><th>案</th><th>内容</th></tr></thead>
+    <thead><tr><th>案</th><th>内容</th><th>なぜ今回採らなかったか</th></tr></thead>
     <tbody>
-      <tr><td>A</td><td>全走査をやめ、<b>末尾からの逆走査</b>（直近枠）と<b>先頭固定行数の走査</b>（先頭枠）の2パスにする</td></tr>
-      <tr><td>B</td><td>抽出結果を<b>キャッシュ</b>し、前回位置からの差分だけを走査する</td></tr>
-      <tr><td>C</td><td>しきい値200ms自体を見直す（<b>ただし計画は「しきい値を後から緩めない」と定めている</b>）</td></tr>
+      <tr><td>A</td><td>全走査をやめ、<b>末尾からの逆走査</b>（直近枠）と<b>先頭固定行数の走査</b>（先頭枠）の2パスにする</td><td>実装が複雑になる。改定後のしきい値では全走査で収まるため、複雑さに見合わない</td></tr>
+      <tr><td>B</td><td>抽出結果を<b>キャッシュ</b>し、前回位置からの差分だけを走査する</td><td>状態ファイルが増え、破損時の自己回復ロジックまで要る。得る余裕に見合わない</td></tr>
+      <tr><td>C</td><td><b>しきい値自体を見直す</b></td><td><b>採用</b>（flow-id 2-8）</td></tr>
     </tbody>
   </table>
   </div>
   <div class="box warn unverified-detail">
     <span class="label">確かめられなかったこと（詳細）</span>
-    <b>約208msは既知値（fork 約95ms/回・<code>jq -nc '1'</code> 1回が実測138ms）からの見積もりであって、git bash 実機の実測ではない。</b> ただし計画で確定済みのとおり、<b>暫定なのは「合格」の側だけで、「不合格」は不合格</b>である。
+    <b>約208msは既知値（fork 約95ms/回・<code>jq -nc '1'</code> 1回が実測138ms）からの見積もりであって、git bash 実機の実測ではない。</b> 計画で確定済みのとおり<b>暫定なのは「合格」の側だけ</b>であり、<b>改定後のこの合格も暫定である</b>。git bash 実機での再測（残課題F）を免除しない。
   </div>
 
   <h3 id="f7">問い7: git bash 実機でのパス表記は<b>未確認</b> <span class="chip good">◎良（回避手段は確認済み）</span></h3>
@@ -605,7 +654,7 @@ $ jq -R -n -r -f filter.jq &lt; "$T" | md5sum
 上乗せコスト                     : 0ms</code></pre>
   <div class="box warn">
     <span class="label">結論</span>
-    しきい値200ms以内。<b>ただしこれは「対象が無い」ことによる自明な合格であり、案の妥当性を示すものではない。</b> <b>現時点で現セッション分だけで既に200msを超えている（問い11）ため、過去分を足す余地は無い。</b>
+    しきい値以内。<b>ただしこれは「対象が無い」ことによる自明な合格であり、案の妥当性を示すものではない。</b> <b>しきい値の改定（500ms）により、現セッション分 4,814KB に加えて約19.7MBの余地がある</b>（問い11）ため、改定前と違って「過去分を足す余地が無い」とは言えなくなった。<b>ただし余地があることは「過去分を対象にすべき」を意味しない</b> — この環境で過去分が残らない以上、案の成立自体が未確認である点は変わらない。
   </div>
 
 </section>
@@ -614,10 +663,10 @@ $ jq -R -n -r -f filter.jq &lt; "$T" | md5sum
   <h2>設計への反映</h2>
   <ol>
     <li><b>抽出条件を確定する</b> — <code>type=="user"</code> ＋ content が文字列 ＋ <code>userType=="external"</code> ＋ <code>isSidechain==false</code> ＋ <code>origin.kind=="human"</code>。<b>肯定形を崩さない</b>（問い12）。</li>
-    <li><b>除外辞書から <code>ok</code>/<code>OK</code> を外す</b>（問い5）。辞書そのものの是非は flow-id 3-1 で判断する。</li>
+    <li><b>除外辞書は継続し、<code>ok</code>/<code>OK</code> だけを外す</b>（問い5。<b>方式の是非は flow-id 2-8 で「継続」と決着</b>）。<b>辞書は固定リストではなく、実際のユーザー入力を見ながら育てる</b>（flow-id 2-8 の追加判断）。そのための4点（初期辞書・置き場所・<b>除外実績の可視化</b>・育てた記録）は flow-id 3-1 で決める。</li>
     <li><b>切り出しは jq の <code>.[0:N]</code> で行う</b>（問い8）。</li>
     <li><b>jq へパス名を渡さず標準入力へ繋ぐ</b>（問い7）。</li>
-    <li><b>走査方式を見直す</b>（問い11。<b>不合格のため必須</b>）。案A/B/Cから選ぶ。</li>
+    <li><b>走査方式は全走査（<code>jq -R -n</code> ＋ <code>inputs</code>）のまま採る</b>（問い11。<b>flow-id 2-8 でしきい値が200ms→500msへ改定され合格</b>）。案A・案Bは採らず、フェーズ3で走査量が問題化したときの手札として残す。</li>
     <li><b>件数・文字数の配分は現状維持</b>（問い4）。母数が小さいため、変える根拠が無い。</li>
     <li><b>サイズの判定は割合で断定しない</b>（問い6）。既存注入量の79%が可変で、悲観値では上限を超える。</li>
     <li>恒久的に残す知見は flow-id 4-6 で <code>.claude/docs/spec/</code> と <code>.claude/docs/ddr/</code>（<code>i0151-01</code>: 除外辞書の判断、<code>origin.kind</code> を肯定形で使う判断、走査方式の選択）へ反映する。</li>
@@ -635,7 +684,7 @@ $ jq -R -n -r -f filter.jq &lt; "$T" | md5sum
       <tr><td>既存の注入量は約1.2KB・固定値</td><td><b>3,252B</b>（約2.7倍）で、しかも<b>79%が可変</b></td><td>割合による断定をやめ、内訳と悲観値を出した</td></tr>
       <tr><td>件数上限10件が効く</td><td>約9時間・compact 2回のセッションで真の発言は<b>7件</b>。「先頭3＋直近7」が<b>全件採用と同義</b>だった</td><td>事実として記録。分割が効くのはより長いセッションのみ</td></tr>
       <tr><td><code>userType</code>/<code>isSidechain</code> が効く</td><td><b>1件も落とさなかった</b></td><td>コストが小さいので残す判断にした</td></tr>
-      <tr><td>Linux で測れば性能の当否が分かる</td><td>Linux 70ms は収まるが、<b>git bash 見積もりは約208ms</b>で<b>しきい値を超えた</b></td><td><b>不合格</b>とし、実装方式の見直しを flow-id 3-1 へ送った</td></tr>
+      <tr><td>Linux で測れば性能の当否が分かる</td><td>Linux 70ms は収まるが、<b>git bash 見積もりは約208ms</b>で<b>当初のしきい値200msを超えた</b></td><td><b>不合格</b>とし、実装方式の見直しを flow-id 3-1 へ送った</td></tr>
       <tr><td>20回の計測で足りる</td><td>20回では 50.7ms、100回×3試行では約70ms と<b>約4割ぶれた</b></td><td>試行回数を増やして測り直し、断面も固定した</td></tr>
       <tr><td><code>transcript_path</code> が取れるかは不透明</td><td><b><code>resume</code> で発火し、あっさり取れた</b>（POSIX絶対パス・実ファイル）</td><td>問い1・問い9のresumeを同時に埋めた</td></tr>
     </tbody>
@@ -655,7 +704,7 @@ $ jq -R -n -r -f filter.jq &lt; "$T" | md5sum
     </tbody>
   </table>
   </div>
-  <p>計画は完了条件を2つ定めている。<b>(1) 14項目は満たしたが、(2)「決めること9項目の確定」は1項目が未確定である。</b></p>
+  <p>計画は完了条件を2つ定めている。<b>flow-id 2-8 のレビューで残り2項目が決着し、(1)(2) とも満たした。</b></p>
   <div class="tablewrap">
   <table>
     <thead><tr><th>決めるもの</th><th>確定させる問い</th><th>状態</th></tr></thead>
@@ -663,18 +712,29 @@ $ jq -R -n -r -f filter.jq &lt; "$T" | md5sum
       <tr><td>抽出条件</td><td>2・12</td><td><b>確定</b></td></tr>
       <tr><td>ブランチ絞りの扱い</td><td>3</td><td><b>確定</b>（効きは未検証だがフォールバックを残す設計は変わらない）</td></tr>
       <tr><td>件数・文字数の配分</td><td>4</td><td><b>確定</b>（現状維持）</td></tr>
-      <tr><td><b>除外規則</b></td><td><b>5</b></td><td><b>未確定 → flow-id 3-1 へ差し戻し</b></td></tr>
+      <tr><td>除外規則</td><td>5</td><td><b>確定</b>（flow-id 2-8。<b>辞書方式を継続</b>し <code>ok</code>/<code>OK</code> のみ外す。<b>育て方の運用も確定</b>し、実装の4点は flow-id 3-1 へ）</td></tr>
       <tr><td>サイズ上限</td><td>6</td><td><b>確定</b>（発言節6,000B。ただし警告しきい値側の余裕は薄い）</td></tr>
       <tr><td>文字単位の切り出し手段</td><td>8</td><td><b>確定</b>（<code>jq</code> の <code>.[0:N]</code>）</td></tr>
       <tr><td>jqへのパスの渡し方</td><td>7</td><td><b>確定</b>（標準入力へ繋ぐ）</td></tr>
-      <tr><td>走査方式の可否</td><td>11</td><td><b>不合格 → flow-id 3-1 で方式を選び直す</b></td></tr>
+      <tr><td>走査方式の可否</td><td>11</td><td><b>確定</b>（flow-id 2-8。<b>しきい値500msへ改定して合格</b>。全走査のまま採る）</td></tr>
       <tr><td>単一transcript前提の扱い</td><td>9・10a・10b</td><td><b>事実の採取までが本調査の担当</b></td></tr>
     </tbody>
   </table>
   </div>
-  <div class="box warn">
-    <span class="label">判断を仰ぐ点</span>
-    <b>計画の完了条件(2)を完全には満たしていない。</b> 除外規則が未確定であること、走査方式が不合格であることは<b>いずれもフェーズ3で決めるのが妥当</b>だが、<b>「完了条件を満たしてフェーズ2を閉じた」とは書けない</b>。この状態でフェーズ2を閉じてよいかを判断してほしい。
+  <p><b>flow-id 2-8 で人間が下した判断</b>（本調査の外で決まったこと）:</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>#</th><th>上げた論点</th><th>判断</th><th>反映先</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td>走査方式（問い11が当初のしきい値200msで不合格）</td><td><b>「しきい値は500msにしよう」</b> → 案C を採用</td><td>問い11の節・全体作業計画・個別調査計画</td></tr>
+      <tr><td>2</td><td>除外辞書の是非</td><td><b>「辞書はオッケー」</b> → 辞書方式を継続</td><td>問い5の節</td></tr>
+      <tr><td>3</td><td>（2に続けて）辞書の扱い</td><td><b>「辞書は毎回のユーザの入力を見ながら育てて行きたい」</b> → 固定リストにせず育てる運用にする</td><td>問い5の節・残課題H</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <div class="box ok">
+    <span class="label">結論</span>
+    <b>計画の完了条件(1)(2)をいずれも満たした。</b> 未確定として flow-id 3-1 へ差し戻す項目は無い。ただし「確定」は<b>この断面での確定</b>であり、git bash 実機での再測（残課題F）と、単一transcript前提への対処方針（残課題E）は引き続きフェーズ3の担当である。
   </div>
 </section>
 
@@ -685,9 +745,10 @@ $ jq -R -n -r -f filter.jq &lt; "$T" | md5sum
     <thead><tr><th>#</th><th>内容</th><th>送り先</th></tr></thead>
     <tbody>
       <tr><td>A</td><td><b><code>AskUserQuestion</code> の回答が母集団から漏れる。</b> <code>tool_result</code> に <code>Your questions have been answered: "&lt;質問&gt;"="&lt;回答&gt;"</code> の形で入るため、<code>content</code> が文字列の母集団には現れない。承認・方針選択という<b>人間の意思決定</b>が拾えていない</td><td><b>flow-id 3-1</b></td></tr>
-      <tr><td>B</td><td>相槌辞書そのものの是非（問い5）</td><td><b>flow-id 3-1</b></td></tr>
+      <tr><td><s>B</s></td><td><s>相槌辞書そのものの是非（問い5）</s></td><td><b>解決済み</b>（flow-id 2-8 で「継続」と決着）</td></tr>
+      <tr><td><b>H</b></td><td><b>辞書を「育てる」ための実装4点</b>（初期辞書・置き場所・<b>除外実績の可視化</b>・育てた記録）。Bの解決に伴って新しく生まれた課題</td><td><b>flow-id 3-1</b></td></tr>
       <tr><td>C</td><td>母集団が0件になったことに気づける形（問い12の裏返しのリスク）</td><td><b>flow-id 3-1</b></td></tr>
-      <tr><td>D</td><td><b>走査方式の選択（問い11が不合格）</b></td><td><b>flow-id 3-1</b></td></tr>
+      <tr><td><s>D</s></td><td><s>走査方式の選択（問い11が不合格）</s></td><td><b>解決済み</b>（flow-id 2-8 でしきい値500msへ改定、全走査のまま採る）</td></tr>
       <tr><td>E</td><td>単一transcript前提への対処方針（3案のどれを採るか）</td><td><b>flow-id 3-1</b></td></tr>
       <tr><td>F</td><td>git bash 実機での再測（問い7・8・11）</td><td><b>flow-id 3-6</b></td></tr>
       <tr><td>G</td><td>Gemini CLI 経路</td><td><b>issue #201</b>（切り出し済み）</td></tr>
