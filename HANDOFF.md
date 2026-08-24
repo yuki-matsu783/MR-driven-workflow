@@ -17,7 +17,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - issue: #176
 - ブランチ: `claude/reflection-plan-criteria-tnhfvs`
 - PR: #196（Draft・https://github.com/yuki-matsu783/MR-driven-workflow/pull/196 ）
-- push回数: 9
+- push回数: 10
 - 現在のループ: なし
 - 未返信スレッド: 0
 - 追従監視: あり（PRイベント購読 + 定期チェックイン。Claude Code on the web セッション）
@@ -50,7 +50,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 | [x] | 3-8 | MRでレビュー・コメントする | 人間 |
 | [x] | 3-9 | レビュー内容を取得し、実装・ドキュメントを修正する | `comments` / `reply` |
 | [x] | 3-10 | 作業内容をもとにMR descriptionを更新する | `describe` |
-| [] | 4-1 | 個別反映計画を作成する | エージェント |
+| [x] | 4-1 | 個別反映計画を作成する | エージェント |
 | [] | 4-2 | commitし、pushしてレビュー依頼を行う | エージェント |
 | [] | 4-3 | MRで反映計画についてレビュー・コメントする | 人間 |
 | [] | 4-4 | レビュー内容を取得し、反映計画を修正する | `comments` / `reply` |
@@ -96,6 +96,9 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - flow-id 3-9: 投稿した13スレッドすべてへ返信し、報告のみ2件は[まとめコメント](https://github.com/yuki-matsu783/MR-driven-workflow/pull/196#issuecomment-5389288497)で返した（報告のみの2件も対応済み）。
 - flow-id 3-10: 作業内容をもとにMR description を全文更新した（変更6箇所・新節の構造と出口の判定順・検証11本の実測・敵対的レビュー4回分・同型不具合4回の内訳）。**フェーズ3完了。**
 
+- flow-id 4-1: 個別反映計画 `wip/plans/【設計反映】切り出し判断基準の記録.md`（＋`.html`）と worklog（push10）を作成した。**フェーズ3で作った新節の主判定を、このMR自身の反映対象10件へ初めて適用した**。結果は **Yes 2件（DDR・spec）/ No 8件**で、**No の8件は判定順により全件が出口(1)「別issueへ切り出す」**に当たった（スコープ外の条件が (3)「極小だからこのMRでやる」より先に当たるため）。8件は束A（検索・計数コマンドの罠、5件）と束B（markdown構造の機械検査、3件）にまとまる。
+- **新節の退避経路が初回適用でいきなり必要になった。** 非対話セッションで `AskUserQuestion` を使えないため起票できず、新節が定める「起票されなかった場合は (2) へ落とし `main` に残る形で書く」に従って **DDR `i0176-02`** へ退避する。経路が無ければ8件の判定結果はマージとともに失われていた。
+
 - flow-id 3-6: **変更対象6箇所すべてを適用した。** `references/planning.md` へ新節「反映対象をこのMRでやるか切り出すかの判断（issue #176）」（69行・5見出し）を追加し、`【実装反映】` 定義の参照差し替え・#64 節への相互参照・手順4 末尾への接続・`SKILL.md` の flow-id 4-1 / 4-6 の本文追記を行った。**主判定は「この反映を見送ってマージした場合、`main` は今回の変更と矛盾・不整合な状態になるか。」に確定**（却下案3件を作業結果へ記録）。**出口(1) だけは過去事例の裏付けが無い**ため、新節本文へ限界として明示した。結果は `wip/reports/2026-08-23_reflection-split-criteria_作業結果.md`（＋`.html`）。
 - flow-id 3-6（検証）: 計画の8本すべてが期待値どおり。**ただし追3が一度 0 を返した** — 検索語 `反映対象をこのMRでやるか切り出すかの判断` が段落内の改行で2行に割れており `grep` が一致しなかった。文書側の折り返しを直して解消（**このissueで3回目の「検索語と実データの形が食い違う」不具合**）。`check-doc-references.sh` 参照切れ0、`extract-frontmatter.sh` failed=0。
 - **敵対的レビュー（フェーズ3・2/3回目）**: flow-id 3-6 の成果物（`references/planning.md` の新節・`SKILL.md` 2箇所・作業結果 md/html・worklog・`HANDOFF.md`）を対象に実施。指摘15件。13件をPR #196 へインライン投稿し、2件（minor/medium）はレビュー本文へ。**15件すべてを自分のコマンドで裏取りし、全件が正しい指摘であることを確認した**（3回連続）。投稿スレッド: [#1](https://github.com/yuki-matsu783/MR-driven-workflow/pull/196#discussion_r3839946263) / [#2](https://github.com/yuki-matsu783/MR-driven-workflow/pull/196#discussion_r3839946655) / [#3](https://github.com/yuki-matsu783/MR-driven-workflow/pull/196#discussion_r3839947037) / [#4](https://github.com/yuki-matsu783/MR-driven-workflow/pull/196#discussion_r3839947487) / [#5](https://github.com/yuki-matsu783/MR-driven-workflow/pull/196#discussion_r3839947794) / [#6](https://github.com/yuki-matsu783/MR-driven-workflow/pull/196#discussion_r3839948266) / [#7](https://github.com/yuki-matsu783/MR-driven-workflow/pull/196#discussion_r3839948835) / [#8](https://github.com/yuki-matsu783/MR-driven-workflow/pull/196#discussion_r3839949488) / [#9](https://github.com/yuki-matsu783/MR-driven-workflow/pull/196#discussion_r3839949985) / [#10](https://github.com/yuki-matsu783/MR-driven-workflow/pull/196#discussion_r3839950461) / [#11](https://github.com/yuki-matsu783/MR-driven-workflow/pull/196#discussion_r3839950882) / [#12](https://github.com/yuki-matsu783/MR-driven-workflow/pull/196#discussion_r3839951308) / [#13](https://github.com/yuki-matsu783/MR-driven-workflow/pull/196#discussion_r3839951795)
@@ -104,11 +107,9 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 
 ## 次にやること
 
-- flow-id 4-1: 個別反映計画 `wip/plans/【設計反映】…md`（＋`.html`）を作成する。**反映対象を洗い出し、全件を新節の主判定へ通す**（この新節の最初の適用になる）。洗い出し済みの候補は次の3件。
-  - DDR `i0176-01` の作成（受け入れ条件3）
-  - `.claude/docs/spec/issue-mr-workflow.md` への反映（要約と所在のみ。受け入れ条件3）
-  - `.claude/rules/shell-script-style.md` への `grep` 部分一致の罠の追記（`【AIアセット反映】` 候補）
-- **フェーズ4の計画時に敵対的レビュー1回、作業実施時に1回**（フェーズ4は0/3回）。
+- flow-id 4-2: `commit` スキル経由でコミットし、リモートへ反映する。
+- **敵対的レビュー（フェーズ4・1/3回目）**: flow-id 4-1 の個別反映計画（md＋html）を対象に実施する。
+- flow-id 4-6: DDR `i0176-01`（判断の経緯・却下案）と `i0176-02`（束A・束Bの退避）を書き、`generate-ddr-list.sh` を実行して `.claude/docs/spec/issue-mr-workflow.md` へ反映する。
 
 ## 判断を迷った内容
 
@@ -120,6 +121,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 
 - **Q4 の母数に構造的な偏りがある。** 母数は「切り出し・見送りに言及したDDR」であり、**偽陰性（切り出すべきだったのに切り出されなかった事例）は原理的に見えない**。7/7 は上限の推定であって「基準が実証された」とは読めない。MRのレビュー往復まで遡っていない点も同じ。調査結果の「確かめられなかったこと」に明記済み。
 - **出口(1)「このMRでやる（極小）」は本調査では裏付けられていない。** 母数が見送り事例に偏っているため。issue #64 節からの引き継ぎとして扱う。
+- **束A・束Bの起票の可否は、次セッションで人間に確認する。** flow-id 4-1 で出口(1) と判定した8件（束A=検索・計数コマンドの罠5件／束B=markdown構造の機械検査3件）。**このセッションは非対話で `AskUserQuestion` を使えないため、AIの判断で起票しない。** 内容は DDR `i0176-02` へ `main` に残る形で書く（新節「決定は人間が行う」の退避経路）。
 - **`grep` の部分一致で母数を作る罠が `.claude/rules/shell-script-style.md` に無い。** `--` の付け忘れ（先頭ハイフン）は書かれているが、`別issue` ⊂ `個別issue` のような部分一致そのものは扱われていない。**フェーズ4の `【AIアセット反映】` 候補**として、新節の主判定へ通して可否を決める（規模が小さいことを理由に判定を飛ばさない）。
 - ~~**主判定の文言が未確定。**~~ **flow-id 3-6 で確定した**（「この反映を見送ってマージした場合、`main` は今回の変更と矛盾・不整合な状態になるか。」）。却下案3件とその理由は `wip/reports/…作業結果.md` に記録済み。**ただし当てた候補は計4案で、網羅的に比較したわけではない**点は残る。
 - ~~**出口(1) の裏付けの弱さを新節と DDR のどちらに書くか未定。**~~ **flow-id 3-6 で新節本文へ書くと決めた**（出口(1) を選ぼうとしている人の導線上に置くため）。DDR 側（フェーズ4）にも母数の偏りとして重ねて記録する。

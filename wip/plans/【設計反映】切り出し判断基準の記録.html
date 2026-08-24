@@ -1,0 +1,395 @@
+<!--
+  個別反映計画（issue #176・フェーズ4）の人間レビュー用HTMLビュー。
+  正文は同名の wip/plans/【設計反映】切り出し判断基準の記録.md であり、
+  このHTMLはその視覚化である。
+  土台: .claude/skills/issue-mr-flow/assets/plans.template.html
+-->
+  このHTMLはその視覚化である。
+  土台: .claude/skills/issue-mr-flow/assets/plans.template.html
+-->
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>設計反映 — 切り出し判断基準の記録（issue #176）</title>
+<style>
+  :root {
+    --bg: #f6f7f9;      --panel: #ffffff;   --ink: #1a1d21;     --muted: #5b636d;
+    --line: #dfe3e8;    --accent: #2563eb;  --accent-soft: #eaf0fe;
+    --ok: #1a7f4b;      --ok-soft: #e6f4ec; --warn: #a35a00;    --warn-soft: #fdf1e0;
+    --stop: #b3261e;    --stop-soft: #fdecea; --code-bg: #f0f2f5;
+    --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1216;    --panel: #161a20;   --ink: #e6e8eb;     --muted: #9aa3ad;
+      --line: #2a3038;  --accent: #7aa2f7;  --accent-soft: #1b2333;
+      --ok: #6ee7a8;    --ok-soft: #14261d; --warn: #f0b866;    --warn-soft: #2a2113;
+      --stop: #f2857c;  --stop-soft: #2b1614; --code-bg: #1d222a;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", system-ui, sans-serif;
+    line-height: 1.8; font-size: 15px;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 20px 80px; }
+
+  /* 共通ヘッダ帯 */
+  header.band {
+    background: linear-gradient(135deg, var(--accent-soft), var(--panel));
+    border-bottom: 1px solid var(--line); padding: 28px 20px 22px; margin-bottom: 28px;
+  }
+  header.band .inner { max-width: 1080px; margin: 0 auto; }
+  header.band .kind { font-size: 11px; letter-spacing: .18em; color: var(--accent); font-weight: 700; }
+  header.band h1 { margin: 6px 0 4px; font-size: 26px; line-height: 1.4; }
+  header.band .lead { margin: 0; color: var(--muted); }
+  .meta { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; padding: 0; list-style: none; }
+  .meta li {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 999px;
+    padding: 3px 12px; font-size: 12.5px; color: var(--muted); white-space: nowrap;
+  }
+  .meta li b { color: var(--ink); font-weight: 600; }
+
+  nav.toc {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 14px 20px; margin-bottom: 28px;
+  }
+  nav.toc h2 { margin: 0 0 8px; font-size: 13px; letter-spacing: .08em; color: var(--muted); border: 0; padding: 0; }
+  nav.toc ol { margin: 0; padding-left: 20px; }
+  nav.toc li { margin: 2px 0; }
+  a { color: var(--accent); }
+
+  section {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 8px 24px 22px; margin-bottom: 22px;
+  }
+  h2 { font-size: 20px; margin: 20px 0 10px; padding-bottom: 8px; border-bottom: 2px solid var(--line); }
+  h3 { font-size: 16px; margin: 22px 0 8px; color: var(--accent); }
+  p { margin: 10px 0; }
+  ul, ol { padding-left: 22px; }
+  li { margin: 4px 0; }
+  blockquote { margin: 10px 0; padding: 6px 14px; border-left: 3px solid var(--line); color: var(--muted); }
+
+  /* 表は自身の中で横スクロールする（ページ本体は横スクロールさせない） */
+  .tablewrap { overflow-x: auto; margin: 14px 0; }
+  table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 14px; }
+  th, td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: var(--accent-soft); font-weight: 600; white-space: nowrap; }
+  tbody tr:nth-child(even) td { background: color-mix(in srgb, var(--line) 22%, transparent); }
+
+  code {
+    background: var(--code-bg); border-radius: 5px; padding: 1px 5px; font-size: 13px;
+    font-family: "SFMono-Regular", Consolas, "Noto Sans Mono", monospace;
+  }
+  pre {
+    background: var(--code-bg); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 12px 14px; overflow-x: auto; font-size: 13px; line-height: 1.65;
+  }
+  pre code { background: none; padding: 0; }
+
+  /* 注意ボックス: info（既定）/ ok（決めたこと）/ warn（注意）/ stop（やらないこと・危険） */
+  .box { border-left: 4px solid var(--accent); background: var(--accent-soft);
+         border-radius: 0 var(--radius) var(--radius) 0; padding: 12px 16px; margin: 16px 0; }
+  .box > :first-child { margin-top: 0; } .box > :last-child { margin-bottom: 0; }
+  .box .label { font-size: 12px; font-weight: 700; letter-spacing: .06em; display: block; margin-bottom: 4px; }
+  .box.ok { border-color: var(--ok); background: var(--ok-soft); } .box.ok .label { color: var(--ok); }
+  .box.warn { border-color: var(--warn); background: var(--warn-soft); } .box.warn .label { color: var(--warn); }
+  .box.stop { border-color: var(--stop); background: var(--stop-soft); } .box.stop .label { color: var(--stop); }
+  .box.info .label { color: var(--accent); }
+
+  .tag { display: inline-block; border-radius: 999px; padding: 1px 9px; font-size: 12px; font-weight: 600; }
+  .tag.ok { background: var(--ok-soft); color: var(--ok); }
+  .tag.warn { background: var(--warn-soft); color: var(--warn); }
+  .tag.stop { background: var(--stop-soft); color: var(--stop); }
+
+  footer { color: var(--muted); font-size: 13px; text-align: center; padding-top: 10px; }
+</style></head>
+<body>
+
+<header class="band">
+  <div class="inner">
+    <div class="kind">個別反映計画 / フェーズ4（flow-id 4-1）</div>
+    <h1>設計反映 — 切り出し判断基準の記録</h1>
+    <p class="lead">受け入れ条件3（DDR・spec への反映）を達成する。あわせて<b>フェーズ3で作った新節を、このMR自身の反映対象10件へ最初に適用した</b>。主判定の結果は <b>Yes 2件 / No 8件</b>で、No の8件はすべて出口(1)「別issueへ切り出す」に当たった。<b>非対話セッションのため起票はせず、新節が定めた退避経路に従って DDR <code>i0176-02</code> へ落とす。</b></p>
+    <ul class="meta">
+      <li><b>issue</b> #176</li>
+      <li><b>ブランチ</b> claude/reflection-plan-criteria-tnhfvs</li>
+      <li><b>PR</b> #196（Draft）</li>
+      <li><b>フェーズ</b> 4〈反映〉 flow-id 4-1</li>
+      <li><b>種別</b> 【設計反映】</li>
+      <li><b>作成日</b> 2026-08-24</li>
+      <li><b>正文</b> 同名の .md</li>
+    </ul>
+  </div>
+</header>
+
+<div class="wrap">
+
+<nav class="toc">
+  <h2>目次</h2>
+  <ol>
+    <li><a href="#premise">前提（合意状況）</a></li>
+    <li><a href="#what">この計画で何をするか</a></li>
+    <li><a href="#policy">方針</a></li>
+    <li><a href="#targets">変更対象</a></li>
+    <li><a href="#nogo">やらないこと（スコープ外）</a></li>
+    <li><a href="#verify">検証</a></li>
+    <li><a href="#accept">受け入れ条件との対応</a></li>
+  </ol>
+</nav>
+
+<section id="premise">
+  <h2>前提（合意状況）</h2>
+  <ul>
+    <li>受け入れ条件3「判断の経緯・却下案がDDRとして記録され、関連spec（<code>issue-mr-workflow.md</code>）へ反映されている」がフェーズ4の担当。</li>
+    <li>新節（<code>references/planning.md</code>「反映対象をこのMRでやるか切り出すかの判断」）は「洗い出した項目は<b>全件</b>を主判定へ通す」と定める。<b>規模の大小で入口を絞らない。</b></li>
+  </ul>
+</section>
+
+<section id="what">
+  <h2>この計画で何をするか</h2>
+  <p><b>受け入れ条件3を達成する。</b> issue #176 の判断の経緯・却下案を DDR として記録し、
+  <code>.claude/docs/spec/issue-mr-workflow.md</code> へ新節の位置づけを反映する。</p>
+  <p>あわせて、<b>フェーズ3で作った新節をこのMR自身の反映対象へ最初に適用し</b>、その判定結果を
+  記録する（下記「方針」）。適用してみて初めて分かることがあれば flow-id 4-6 で拾う。</p>
+</section>
+
+<section id="policy">
+  <h2>方針</h2>
+
+  <h3>反映対象の洗い出し（手順1〜3）</h3>
+
+  <h4>手順1: 起点の列挙</h4>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>入力</th><th>件数</th><th>備考</th></tr></thead>
+    <tbody>
+      <tr><td><code>wip/worklogs/</code>（push2/5/6/7/8/9 の6本）</td><td>5件</td><td>「詰まった点」「このissueで4回目」から</td></tr>
+      <tr><td><code>wip/reports/</code>（調査結果・作業結果）</td><td>3件</td><td>「想定と異なった点」「確かめられなかったこと」「残課題」「重点レビュー依頼」から</td></tr>
+      <tr><td>MRのレビューコメント（敵対的レビュー4回・計51件）</td><td>2件</td><td>指摘そのものではなく、<b>指摘を検出できなかった仕組み</b>を拾う</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p><b>重複を除いて10件。</b> 受け入れ条件3に対応する2件（DDR・spec）を含む。</p>
+
+  <h4>手順2: 4類型への分類</h4>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>#</th><th>項目</th><th>類型</th><th>判定の根拠</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td>DDR <code>i0176-01</code>（主判定・出口の判定順を決めた経緯と却下案）</td><td>(a)</td><td>該当するDDRが無い</td></tr>
+      <tr><td>2</td><td><code>.claude/docs/spec/issue-mr-workflow.md</code> への新節の位置づけの記録</td><td>(a)</td><td>新節に触れた記述が無い</td></tr>
+      <tr><td>3</td><td><code>grep</code> の部分一致で母数を作る罠（<code>別issue</code> ⊂ <code>個別issue</code>）</td><td>(a)</td><td>下記「痕跡の確認」</td></tr>
+      <tr><td>4</td><td>検索語が段落内の改行で分断され <code>grep</code> が一致しない</td><td>(a)</td><td>同上</td></tr>
+      <tr><td>5</td><td>計画に書いた検査コマンドを実行時に別の語へ差し替えると空振りになる</td><td>(a)</td><td>同上</td></tr>
+      <tr><td>6</td><td>「異常が無ければ何も出ない」形の検査は異常の形を1種類しか想定していないことがある</td><td>(c)</td><td>ルート <code>REVIEW-POINTS.md</code> に観点はあるが、<code>.claude/rules/</code> に罠として書かれていない</td></tr>
+      <tr><td>7</td><td><code>sed -n '/A/,/B/p'</code> は終端行を含む</td><td>(c)</td><td>同上</td></tr>
+      <tr><td>8</td><td>md↔HTML の同期を確かめる機械検査が無い</td><td>(c)</td><td><code>deliverables.md:59</code> に「同期させる」規約はあるが、確かめる手段が書かれていない</td></tr>
+      <tr><td>9</td><td>HTMLの必須節を落としたことに気づけない</td><td>(c)</td><td>テンプレートに <code>[必須]</code> はあるが、落ちたことを検出する手段が無い</td></tr>
+      <tr><td>10</td><td>markdownへの差し込みで空行が2連続する／見出し直前の空行が消える</td><td><b>(d)</b></td><td><code>shell-script-style.md:713-717</code> に<b>記述がある</b>が辿り着けなかった</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h4>手順3: 痕跡の確認と打ち切り</h4>
+  <p><b>(a) に分類した #3〜#5 と、(c) に分類した #6〜#9 について実施した</b>（(b) は0件、#10 は
+  段階2で (d) と確定して打ち切り）。</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>段階</th><th>#3</th><th>#4</th><th>#5</th></tr></thead>
+    <tbody>
+      <tr><td>1 再現性（同一MR内）</td><td><b>あり</b>（#3〜#5＋#4 の変種で計4回）</td><td>同左</td><td>同左</td></tr>
+      <tr><td>2 <code>doc-search</code> + <code>grep</code></td><td><code>matched=5</code> / 本文92件だが、<b>すべてhookの判定文脈</b>で「母数を数えるときの部分一致」ではない → 痕跡なし</td><td><code>grep -rn '改行で分断\|改行で割\|行をまたぐ'</code> が<b>0件</b></td><td>同左（該当語なし）</td></tr>
+      <tr><td>3 直近10件のマージ済みPR</td><td>未実施（段階2で痕跡なしを確定したが、<b>#3〜#5 は下記の主判定で No になり反映しないため、段階3は不要</b>）</td><td>同左</td><td>同左</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <div class="box">
+    <span class="label">「該当するアセット」は記述単位で見る</span>
+    <p>#3 は (a) である。<code>shell-script-style.md</code> には <code>grep</code> の節があり
+    <code>--</code> の付け忘れ（先頭ハイフン）は書かれているが、<b>「数えたい対象そのものの語で
+    数えているか」という罠は書かれていない</b>。ファイル単位で見ると近いファイルが必ず見つかるため、
+    記述単位で判定した（手順2の注記に従う）。</p>
+  </div>
+
+  <h3>主判定（新節の初回適用）</h3>
+  <blockquote><b>この反映を見送ってマージした場合、<code>main</code> は今回の変更と矛盾・不整合な状態になるか。</b></blockquote>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>#</th><th>項目</th><th>主判定</th><th>理由</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td>DDR <code>i0176-01</code></td><td><b>Yes</b></td><td>新節が <code>main</code> に入るのに、その決定の経緯・却下案がどこにも無い状態になる。受け入れ条件3が未達のままマージされる</td></tr>
+      <tr><td>2</td><td>spec への位置づけの記録</td><td><b>Yes</b></td><td>specはこのフローの正史であり、#64・#92・#155 と同型の節を持つ。新節だけ載っていない状態は不整合</td></tr>
+      <tr><td>3</td><td><code>grep</code> 部分一致の罠</td><td>No</td><td>新節の内容と無関係。無くても <code>main</code> は矛盾しない</td></tr>
+      <tr><td>4</td><td>改行分断</td><td>No</td><td>同上</td></tr>
+      <tr><td>5</td><td>検査コマンドの差し替え</td><td>No</td><td>同上</td></tr>
+      <tr><td>6</td><td>否定形の検査</td><td>No</td><td>同上</td></tr>
+      <tr><td>7</td><td><code>sed</code> の終端行</td><td>No</td><td>同上</td></tr>
+      <tr><td>8</td><td>md↔HTML の機械検査</td><td>No</td><td>同上</td></tr>
+      <tr><td>9</td><td>HTML必須節の検出</td><td>No</td><td>同上</td></tr>
+      <tr><td>10</td><td>差し込み時の空行 (d)</td><td>No</td><td>同上</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p><b>Yes は2件、No は8件。</b> Yes 側は「出口の選択は無い」ので、そのままこのMRでやる。</p>
+
+  <h4>Yes 側の「今回の変更を縮められないか」</h4>
+  <p>新節が Yes かつ規模が大きい場合に求める問いを、自分にも適用する。</p>
+  <ul>
+    <li><b>#1・#2 とも規模は小さい</b>（DDR 1本＋spec の1節と changelog 1件）。縮める必要は無い。</li>
+    <li>縮めようとすると受け入れ条件3が未達になるため、そもそも縮められない。</li>
+  </ul>
+
+  <h3>No のときの出口（判定順に従う）</h3>
+  <p><b>上から順に見て、最初に当たった出口を採る。</b></p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>#</th><th>項目</th><th>出口</th><th>選んだ理由</th></tr></thead>
+    <tbody>
+      <tr><td>3</td><td><code>grep</code> 部分一致の罠</td><td><b>(1) 別issueへ切り出す</b></td><td><b>スコープが今回のissueの外</b>。issue #176 は「反映計画の切り出し判断基準」であり、<code>grep</code> の使い方の罠を名指ししていない</td></tr>
+      <tr><td>4</td><td>改行分断</td><td><b>(1)</b></td><td>同上</td></tr>
+      <tr><td>5</td><td>検査コマンドの差し替え</td><td><b>(1)</b></td><td>同上</td></tr>
+      <tr><td>6</td><td>否定形の検査</td><td><b>(1)</b></td><td>同上</td></tr>
+      <tr><td>7</td><td><code>sed</code> の終端行</td><td><b>(1)</b></td><td>同上</td></tr>
+      <tr><td>8</td><td>md↔HTML の機械検査</td><td><b>(1)</b></td><td>スコープ外（<code>deliverables.md</code> とHTMLビューの運用は issue #54 の領域）</td></tr>
+      <tr><td>9</td><td>HTML必須節の検出</td><td><b>(1)</b></td><td>同上</td></tr>
+      <tr><td>10</td><td>差し込み時の空行 (d)</td><td><b>(1)</b></td><td>同上（導線の改善であり、対象は <code>shell-script-style.md</code>／<code>docs-workflow.md</code>）</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <div class="box warn">
+    <span class="label">8件すべてが (1) になったのは、判定順の設計どおり</span>
+    <p>判定順を「(1) 別issue → (2) やらない → (3) このMRでやる」と固定した結果、<b>スコープ外という
+    条件が先に当たる</b>。規模が小さいことは (3) の条件だが、そこへ到達する前に (1) で止まる。</p>
+    <p>規模が小さいものをこのMRへ流し込むと、issue #176 のスコープが際限なく膨らむ（#64 節が
+    問題にした「MRがレビュー可能な粒度を超える」状態）。</p>
+  </div>
+
+  <h4>切り出し先の候補（2本）</h4>
+  <p><b>8件は独立ではなく、2つの束にまとまる。</b></p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>束</th><th>含む項目</th><th>主題</th></tr></thead>
+    <tbody>
+      <tr><td><b>A</b></td><td>#3・#4・#5・#6・#7</td><td><b>検索・計数コマンドが意図した対象を覆っているかを確かめる</b>（<code>.claude/rules/shell-script-style.md</code> へのまとまった追記）</td></tr>
+      <tr><td><b>B</b></td><td>#8・#9・#10</td><td><b>markdownドキュメントの構造を機械検査する</b>（md↔HTML の見出し一致・必須節の存在・空行の正規化）</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p>束Aの5件は<b>このissueで実際に4回踏んだ同型の不具合</b>であり、束Bの3件は<b>敵対的レビューで
+  3回指摘された</b>。いずれも1issueに収まる規模で、互いに独立している。</p>
+
+  <h4>起票の可否は人間が決める — 非対話セッションでの扱い</h4>
+  <blockquote><b>提示して起票されなかった場合は (2) へ落とす</b>（判定を宙に浮かせない）。<b><code>AskUserQuestion</code>
+  を使えない非対話セッションでも同じで、提示内容を <code>main</code> に残る形（spec または DDR）で書き、
+  「次セッションで起票の可否を確認する」ことを <code>HANDOFF.md</code> の「未解決の内容」へ残す。</b></blockquote>
+  <p><b>このセッションは非対話であり <code>AskUserQuestion</code> を使えない。</b> よって:</p>
+  <ol>
+    <li>束A・束Bの内容を <b>DDR <code>i0176-02</code></b> として <code>main</code> へ残す（(2) へ落とした形）。</li>
+    <li><code>HANDOFF.md</code>「未解決の内容」へ「束A・束Bの起票の可否は次セッションで人間に確認する」を書く。</li>
+    <li><b>AIの判断で子issueを起票しない。</b></li>
+  </ol>
+  <p><b>新節が定めた退避経路の初回適用でもある。</b> 経路が実際に機能するかを、この回で確かめる。</p>
+
+  <h3>判定の記録（検算）</h3>
+<pre><code>洗い出し（4-1）10件 + 作業中に追加（4-6）0件 = 判定済み 10件
+                                            = 別issueへ切り出す 8件（束A・束Bとして提案、DDR i0176-02 へ）
+                                            + やらないと決める 0件
+                                            + このMRでやる 2件</code></pre>
+  <p><b>4-6 で新たに気づいた反映対象があれば M を更新し、この等式を作業結果レポートで再掲する。</b></p>
+</section>
+
+<section id="targets">
+  <h2>変更対象</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>#</th><th>ファイル</th><th>変更内容</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td><code>.claude/docs/ddr/i0176-01-反映対象の切り出し判断は主判定一問と判定順を固定した3つの出口で行う.md</code></td><td><b>新規</b>。主判定の文言を決めた経緯・却下案3件・出口の判定順を固定した理由・調査の限界</td></tr>
+      <tr><td>2</td><td><code>.claude/docs/ddr/i0176-02-切り出し候補の束AとBは起票の可否を人間へ確認するまでDDRへ退避する.md</code></td><td><b>新規</b>。束A・束Bの内容と、非対話セッションのため (2) へ落とした経緯</td></tr>
+      <tr><td>3</td><td><code>.claude/docs/README.md</code></td><td><code>generate-ddr-list.sh</code> の再生成による差分（<b>手書きしない</b>）</td></tr>
+      <tr><td>4</td><td><code>.claude/docs/spec/issue-mr-workflow.md</code></td><td>「仕様」節へ <code>### 反映対象をこのMRでやるか切り出すかの判断（issue #176）</code>（#64 節の直後）＋「影響範囲」節へ変更エントリ</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p><b>#4 は要約と所在のみを書く。</b> 判定条件そのものは書かない（正は <code>references/planning.md</code> の
+  1箇所。#64 節が「本節はその位置づけの記録にとどめる」と書いているのと同じ形にする）。</p>
+</section>
+
+<section id="nogo">
+  <h2>やらないこと（スコープ外）</h2>
+  <ul>
+    <li><b><code>references/planning.md</code>・<code>SKILL.md</code> の再編集</b>（フェーズ3で完了済み。4-6 で新たな反映対象が見つかった場合のみ、主判定へ通したうえで触る）。</li>
+    <li><b>子issueの起票</b>（人間の判断。上記のとおり DDR <code>i0176-02</code> へ退避する）。</li>
+    <li><b><code>.gemini/</code> の同期</b>（flow-id 5-3 の担当。ここでは触らない）。</li>
+    <li><b>DDR本文の事後変更</b>（マージ後は frontmatter のみ変更可）。</li>
+  </ul>
+</section>
+
+<section id="verify">
+  <h2>検証</h2>
+  <p><b>着手前に、変更前のツリーで下記を実行して基準値を測る</b>（このissueで4回踏んだ「検査が計画の
+  定義とずれる」不具合への対策として、<b>計画に書いたコマンドを文字列としてそのまま流す</b>）。</p>
+<pre><code># 反1: 受け入れ条件3（DDR）— 変更前0 → 変更後2
+ls .claude/docs/ddr/i0176-*.md 2&gt;/dev/null | wc -l
+
+# 反2: 受け入れ条件3（spec）— 変更前0 → 変更後1以上
+grep -c -- 'issue #176' .claude/docs/spec/issue-mr-workflow.md
+
+# 反3: DDR一覧が生成物と一致している — 常に0
+bash .claude/scripts/src/generate-ddr-list.sh &gt;/dev/null &amp;&amp; git status --porcelain -- .claude/docs/README.md | wc -l
+
+# 反4: DDR識別子の書式（i + 4桁 + 2桁枝番）— 2件とも一致
+ls .claude/docs/ddr/ | grep -c -- '^i0176-0[0-9]-'
+
+# 反5: 参照切れ — 変更前後とも0
+bash .claude/scripts/src/check-doc-references.sh 2&gt;&amp;1 | tail -1
+
+# 反6: フェーズ3の成果物が変わっていない — 変更前後とも一致
+grep -rc -- '反映対象をこのMRでやるか切り出すかの判断' \
+  .claude/skills/issue-mr-flow/references/planning.md \
+  .claude/skills/issue-mr-flow/SKILL.md</code></pre>
+  <p><b>合格条件</b>: 反1=2、反2=1以上、反3=0、反4=2、反5=参照切れ0、反6=planning.md 4 / SKILL.md 2。</p>
+
+  <h3>変更前の基準値（実測）</h3>
+  <p>着手前に上記コマンドを<b>そのまま</b>流した結果。</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>検査</th><th>変更前</th><th>変更後の期待</th></tr></thead>
+    <tbody>
+      <tr><td>反1 DDRファイル数</td><td><b>0</b></td><td>2</td></tr>
+      <tr><td>反2 spec の <code>issue #176</code></td><td><b>0</b></td><td>1以上</td></tr>
+      <tr><td>反3 DDR一覧の差分</td><td><b>0</b>（「DDR一覧に変更はありません（92件）」）</td><td>0（不変）</td></tr>
+      <tr><td>反4 識別子の書式に一致するファイル数</td><td><b>0</b></td><td>2</td></tr>
+      <tr><td>反5 参照切れ</td><td><b>参照切れ数=0</b></td><td>0（不変）</td></tr>
+      <tr><td>反6 節名の出現数</td><td><b>planning.md 4 / SKILL.md 2</b></td><td>同じ（不変）</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p><b>反3・反5・反6 は「変えていないこと」を確かめる検査</b>で、変更前後で同じ値になるのが合格である。
+  反1・反2・反4 だけが値の変わる検査であり、<b>受け入れ条件3を担保するのはこの3本</b>。</p>
+</section>
+
+<section id="accept">
+  <h2>受け入れ条件との対応</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>受け入れ条件</th><th>状態</th></tr></thead>
+    <tbody>
+      <tr><td>SKILL.md にフェーズ4の反映対象に対する切り出し判断基準の節がある</td><td><b>フェーズ3で達成</b></td></tr>
+      <tr><td><code>【実装反映】</code> 定義からの参照が新節を指している</td><td><b>フェーズ3で達成</b></td></tr>
+      <tr><td>判断の経緯・却下案がDDRとして記録され、関連spec（<code>issue-mr-workflow.md</code>）へ反映されている</td><td><b>本計画で達成する</b>（変更対象 #1・#4）</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+</div>
+
+<footer>issue #176 / PR #196 — 正文は同名の <code>.md</code>（このHTMLはその視覚化）</footer>
+
+</body>
+</html>
