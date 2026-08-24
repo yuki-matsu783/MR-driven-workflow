@@ -52,10 +52,10 @@ keywords: [ディレクトリ構成, claude, gemini, 配置方針, wip, plans, w
 │   └── settings.json           # `.claude/settings.json`をGemini CLIの記法へ変換したもの
 ├── .github/
 │   ├── ISSUE_TEMPLATE/          # GitHub用issueテンプレート（目的・現状・期待する動作・受け入れ条件）
-│   └── pull_request_template.md # GitHub用PRテンプレート（`describe`が生成するdescriptionと同一構成）
+│   └── pull_request_template.md # GitHub用PRテンプレート。**見出し構成の正**（`describe`がこれを読む）
 ├── .gitlab/
 │   ├── issue_templates/         # GitLab用issueテンプレート（同上）
-│   └── merge_request_templates/ # GitLab用MRテンプレート（`Default.md`。PRテンプレートと同一内容）
+│   └── merge_request_templates/ # GitLab用MRテンプレート（`Default.md`。PRテンプレートと同一内容。先頭コメントのみ固有）
 ├── wip/                        # タスク単位の作業中ドキュメント（計画・ログ・報告）置き場（issue #165）。
 │                                #   `.gitignore`対象のローカル作業状態`state/`もここへ置く（issue #184）
 │   ├── plans/                  # 計画ファイル。全体作業計画（planツールが出力する`<自動命名>.md`、
