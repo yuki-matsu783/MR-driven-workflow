@@ -28,7 +28,8 @@ keywords: [directory, repository-map, リポジトリマップ, ディレクト�
     ・`/issue-create`・`/resolve-conflict`・`/canvas-report`・`/doc-search`
     ・`/apply-mr-workflow-to-project`（この機構を他プロジェクトへ配布する。issue #26）
     ・`/harvest-from-projects`（配布先の改善を本家へ収穫する。本家専用。issue #27）
-    ・`/adversarial-review`・`/review-points` のスキル定義。
+    ・`/adversarial-review`・`/review-points`
+    ・`/pptx-slides`（構成案JSONから編集可能な .pptx を生成する。issue #169）のスキル定義。
     - [./.claude/skills/issue-mr-flow/references/](./.claude/skills/issue-mr-flow/references/)
       SKILL.mdから切り出した参照資料7本（読むタイミングは全体フロー表の「参照」列が正。issue #160）。
   - [./.claude/agents/](./.claude/agents/) サブエージェント定義（issue-mr-flow途中引き継ぎ用）。

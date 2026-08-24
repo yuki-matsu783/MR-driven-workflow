@@ -104,6 +104,11 @@ flush_slide() {
       fi
       ;;
     section)
+      # chapter（章番号）は見出しの上に小さめの段落として置く
+      if [ -n "$CUR_CHAP" ]; then
+        sp_to_reply "$id" "Chapter" "$MARGIN_X" 2286000 "$FULL_W" 457200 "$CUR_CHAP"
+        shapes+="$REPLY"; id=$((id + 1))
+      fi
       if [ -n "$CUR_TITLE" ]; then
         sp_to_reply "$id" "Section Title" "$MARGIN_X" 2857500 "$FULL_W" 1143000 "$CUR_TITLE"
         shapes+="$REPLY"; id=$((id + 1))
@@ -168,7 +173,7 @@ flush_slide() {
 }
 
 reset_slide_buffers() {
-  CUR_N="" CUR_TYPE="" CUR_TITLE="" CUR_SUB="" CUR_BODY="" CUR_COL_L="" CUR_COL_R=""
+  CUR_N="" CUR_TYPE="" CUR_TITLE="" CUR_SUB="" CUR_CHAP="" CUR_BODY="" CUR_COL_L="" CUR_COL_R=""
   CUR_TBL_KINDS=() CUR_TBL_CELLS=() CUR_TBL_NCOLS=0
 }
 
@@ -359,9 +364,29 @@ main() {
         para_plain_to_reply "${F[1]-}" 2000
         CUR_SUB+="$REPLY"
         ;;
+      CHAP)
+        para_plain_to_reply "${F[1]-}" 2000
+        CUR_CHAP+="$REPLY"
+        ;;
       BUL)
         para_bullet_to_reply "${F[1]}" "${F[2]-}"
         CUR_BODY+="$REPLY"
+        ;;
+      PARA)
+        # 箇条書き記号の付かない本文段落。b は太字（summaryのtakeaway）、n は通常
+        # （diagramのフロー表現・note行）。jqの出力順のまま本文バッファへ追記する
+        if [ "${F[1]}" = "b" ]; then
+          para_title_to_reply "${F[2]-}" 2000
+        else
+          para_plain_to_reply "${F[2]-}" 2000
+        fi
+        CUR_BODY+="$REPLY"
+        ;;
+      COLH)
+        # カラム見出し（太字）。jqは heading → items の順で出すため、
+        # 専用バッファを介さず各カラムのバッファ先頭へそのまま積める
+        para_title_to_reply "${F[2]-}" 2000
+        if [ "${F[1]}" = "L" ]; then CUR_COL_L+="$REPLY"; else CUR_COL_R+="$REPLY"; fi
         ;;
       COL)
         para_plain_to_reply "${F[2]-}" 2000

@@ -29,13 +29,21 @@ bash .claude/skills/pptx-slides/scripts/json-to-pptx.sh <入力.json> [出力.pp
 
 ## 入力（構成案JSONの必須キー）
 
-- `meta.title`（文字列・必須）と `slides`（配列・1件以上・必須）。
+入力仕様の正は構成案JSONスキーマ
+`.claude/skills/html-slides/references/slide-outline.schema.json`（issue #168）。
+このスキルの検証はその必須キー・要素型に揃えている（スキーマファイル自体は読まない）。
+
+- `meta.title`（文字列・必須）と `slides`（配列・1件以上・必須）。`meta.issue` は integer。
 - 各スライドは `type`（8種enum: `cover` `section` `bullets` `two-column` `diagram`
-  `table` `comparison` `summary`）と `title`（全型必須）を持つ。
-- 型別の必須キー: `bullets`/`summary`→`items[]`、`two-column`→`left`/`right`、
-  `table`→`headers[]`（1件以上）/`rows[][]`（各行は配列）、`comparison`→`options[]`
-  （1件以上・各要素はオブジェクト）、`diagram`→`nodes[]`（`edges` は任意。書くなら
-  配列で各要素はオブジェクト）。**表に無いキーは無視する**（過剰なキーで失敗しない）。
+  `table` `comparison` `summary`）を持つ。`title` は **cover のみ任意**（省略時は
+  `meta.title` を採る）で、他の7型は必須。
+- 型別の必須キー: `bullets`/`summary`→`items[]`（1件以上・各要素は文字列）、
+  `two-column`→`columns[]`（ちょうど2件・各要素は `heading`（文字列）＋`items[]`
+  （1件以上））、`table`→`columns[]`（1件以上）/`rows[][]`（各行は配列）、
+  `comparison`→`sides[]`（2〜3件・各要素は `name`（文字列）＋`points[]`（1件以上）。
+  `tone`（pro/con/neutral）は任意）、`diagram`→`nodes[]`（2件以上・各要素は `label`
+  （文字列）を持つオブジェクト。`note` は任意）。**表に無いキーは無視する**
+  （過剰なキーで失敗しない。スキーマの `additionalProperties: false` より緩い）。
 - 違反はキー名を挙げた明示エラーになる。
 - 表の列数は**全行（ヘッダ含む）の最大セル数**で決まる。セル数が少ない行は空セルで
   埋められ、多い行のセルが切り捨てられることはない。
@@ -44,16 +52,19 @@ bash .claude/skills/pptx-slides/scripts/json-to-pptx.sh <入力.json> [出力.pp
 
 | type | 表現 |
 |---|---|
-| `cover` | タイトル大＋サブタイトル行（`meta.subtitle`・`meta.date`・`meta.author`） |
-| `section` | 章タイトル大（中央帯） |
-| `bullets` / `summary` | 見出し＋箇条書き（入れ子1段） |
-| `two-column` | 見出し＋左右2つの本文ボックス |
+| `cover` | タイトル大（`title // meta.title`）＋サブタイトル行（`subtitle // meta.subtitle`・`meta.date`・`meta.author`） |
+| `section` | 章番号（`chapter`。あれば小さめ段落）＋章タイトル大（中央帯） |
+| `bullets` | 見出し＋箇条書き |
+| `summary` | 見出し＋箇条書き＋`takeaway`（あれば太字段落） |
+| `two-column` | 見出し＋左右2つの本文ボックス（各カラムは `heading` の太字段落＋`items`） |
 | `table` | 見出し＋ネイティブ表（1行目強調） |
-| `comparison` | 見出し＋表（列=候補、行=利点/欠点/採否）による代替表現 |
-| `diagram` | 見出し＋ノード箇条書き＋「A → B（ラベル）」のエッジ列挙による代替表現 |
+| `comparison` | 見出し＋表（列=各 side の `name`（`tone` があれば「（採用寄り）（却下寄り）（中立）」を後置）、行=`points` の転置・不足セルは空埋め）による代替表現 |
+| `diagram` | 見出し＋`label` を「 → 」で連結したフロー1段落＋`note` を持つノードごとの「label: note」行による代替表現 |
 
 - `meta.title` はドキュメントプロパティ（`dc:title`）へ、`meta.issue` は `cp:keywords` へ
-  入り、スライド上には現れない。
+  入り、スライド上には現れない（cover が `title` を省略した場合は `meta.title` が
+  cover の見出しとしても現れる）。
+- `tone` の値そのもの（pro/con/neutral）は出力に現れず、上記の日本語注記に写像される。
 
 ## 制約・注意
 

@@ -5,11 +5,18 @@
 # - 純粋関数: xml_escape_to_reply（5種の特殊文字・日本語・&の一回置換）、
 #   resolve_out_path_to_reply（出力パスの既定値導出）。source して直接呼ぶ
 #   （main guard により副作用なく関数定義のみが読み込まれる）。
-# - 正常系: 8種type全部入りサンプルから .pptx を生成し、機械検証一式
+# - スキーマ適合: サンプルJSONが構成案JSONスキーマ（slide-outline.schema.json）に適合する
+#   ことを、jqによる決定的チェック（required・additionalProperties:false・型・minItems/
+#   maxItems・enum・const。oneOfはtypeのconstで枝を選ぶ）で機械検証する（pythonの
+#   jsonschema はこの環境に無いことを実測済み・issue #169）。チェック自体の空振りは、
+#   意図的に不適合なJSON（余剰キー）が検出されることで排除する。
+# - 正常系: スキーマ適合の8種type全部入りサンプル（coverは2枚: metaフォールバック側と
+#   自前title/subtitle側）から .pptx を生成し、機械検証一式
 #   （zip整合性・先頭エントリ・ディレクトリエントリ0・全XML well-formed・必須パーツ・
 #   Content_Types突合・rels整合・rId重複0・sldIdLst整合・table/comparisonのa:tbl存在・
 #   条件7の葉テキスト突合・core.xml/app.xmlのプロパティ）を verify_pptx.py（テスト内で
-#   生成するpython検証スクリプト）で検査する。
+#   生成するpython検証スクリプト）で検査する。tone注記・coverのmetaフォールバックの写像は
+#   個別アサーションで固定する（tone・cover省略側は条件7の突合から漏れるため）。
 # - 経路: zip経路とpython経路（`zip` をPATHから隠す）の両方で生成し、経路間突合
 #   （エントリ集合の一致＋先頭が [Content_Types].xml＋ディレクトリエントリ0件。
 #   順序全体は比較しない——`zip -r` の格納順はFS走査順に依存するため）を行う。
@@ -18,6 +25,9 @@
 #   明示エラー、失敗時に出力ファイル・一時ディレクトリを残さないこと（TMPDIR制御）を検査する。
 # - 異常系: 不正JSON／type不正／title・meta.title欠落／空slides／入力ファイル無し／
 #   出力先がディレクトリ／親ディレクトリ不在。speakerNotes入り入力の警告（rc=0のまま）。
+#   境界値は確定スキーマの語彙（columns/sides/nodes）で検査する。旧語彙（headers/options/
+#   left/right）・edges・入れ子bulletsのテストはスキーマ確定への追従（issue #169 フェーズ4）で
+#   削除した（スキーマが持たない形のため。検証・分岐ごと削除）。
 #
 # 前提: python3（zipfile・xml.etree）が使えること（この環境で実測済み。検証スクリプトが使う）。
 # PATH制限テストは jq/cp/mkdir/mv/date/rm/mktemp だけの合成binを作って行う。
@@ -84,9 +94,10 @@ resolve_out_path_to_reply "/abs/path/x.slides.json"
 assert_eq "resolve_out_path: 絶対パス" "/abs/path/x.pptx" "$REPLY"
 
 # ---------------------------------------------------------------------------
-# サンプル入力（8種type全部入り・特殊文字・値内改行・入れ子bullets）
-# 注意: diagramのnodesにはidとlabelを併記しない（labelが優先されidは<a:t>へ
-# 現れないため、葉テキスト突合の対象から外れる形になる。突合を素通りさせない）
+# サンプル入力（スキーマ適合・8種type全部入り・特殊文字・値内改行）
+# coverは2枚: 1枚目はtitle/subtitle省略でmetaフォールバックを、2枚目は自前の
+# title/subtitleで上書き側を検証する（meta.title/meta.subtitleは1枚目の<a:t>へ
+# 現れるため、条件7の突合対象のままで通るサンプル設計。issue #169 フェーズ4）
 # ---------------------------------------------------------------------------
 cat > "$T/sample.slides.json" <<'EOF'
 {
@@ -95,34 +106,116 @@ cat > "$T/sample.slides.json" <<'EOF'
     "subtitle": "サブタイトル 'テスト'",
     "date": "2026-08-24",
     "author": "山田 & 太郎",
-    "issue": "#169"
+    "issue": 169
   },
   "slides": [
-    {"type": "cover", "title": "pptx書き出し機能の紹介"},
-    {"type": "section", "title": "第1章 背景 & 目的"},
+    {"type": "cover"},
+    {"type": "cover", "title": "pptx書き出し機能の紹介", "subtitle": "表紙の自前サブタイトル"},
+    {"type": "section", "chapter": "第1章", "title": "背景 & 目的"},
     {"type": "bullets", "title": "要点一覧", "items": [
       "特殊文字 <&> \" ' を含む項目",
       "二行にわたる\n項目テキスト",
-      {"text": "入れ子の親", "items": ["入れ子の子1", "入れ子の子2"]}
+      "三つ目の項目"
     ]},
-    {"type": "two-column", "title": "比較の前提",
-     "left": ["左カラム1行目", "左カラム2行目"], "right": "右カラムは文字列"},
+    {"type": "two-column", "title": "比較の前提", "columns": [
+      {"heading": "現状", "items": ["左カラム1行目", "左カラム2行目"]},
+      {"heading": "あるべき姿", "items": ["右カラム1行目"]}
+    ]},
     {"type": "table", "title": "実測値の表",
-     "headers": ["項目", "値"],
+     "columns": ["項目", "値"],
      "rows": [["経路zip", "0.9秒"], ["経路python", "1.2秒"]]},
-    {"type": "comparison", "title": "代替案の比較", "options": [
-      {"name": "案A", "pros": ["速い", "単純"], "cons": "依存が増える", "verdict": "採用"},
-      {"name": "案B", "pros": "移植性が高い", "cons": ["遅い"], "verdict": "却下"}
+    {"type": "comparison", "title": "代替案の比較", "sides": [
+      {"name": "案A", "points": ["速い", "単純"], "tone": "pro"},
+      {"name": "案B", "points": ["移植性が高い"], "tone": "con"},
+      {"name": "案C", "points": ["中間の性質"], "tone": "neutral"}
     ]},
     {"type": "diagram", "title": "処理の流れ",
-     "nodes": [{"label": "入力JSON"}, {"label": "生成"}, "検証"],
-     "edges": [{"from": "入力JSON", "to": "生成", "label": "jq"},
-               {"from": "生成", "to": "検証"}],
-     "caption": "全体像の図"},
-    {"type": "summary", "title": "まとめ", "items": ["編集可能なpptxを生成できる"]}
+     "nodes": [{"label": "入力JSON"}, {"label": "生成", "note": "jq 1回"}, {"label": "検証"}]},
+    {"type": "summary", "title": "まとめ", "items": ["編集可能なpptxを生成できる"],
+     "takeaway": "構成案JSONがそのままPowerPointになる"}
   ]
 }
 EOF
+
+# ---------------------------------------------------------------------------
+# スキーマ適合の機械検証（jqによる決定的チェック）。
+# スキーマの正はワーキングツリー（flow-id 5-1 のmain取り込み後に存在する）。
+# 取り込み前のブランチでは origin/main から読む。どちらからも得られなければ失敗として数える
+# （目視へ縮退させない）
+# ---------------------------------------------------------------------------
+schema_path=".claude/skills/html-slides/references/slide-outline.schema.json"
+if [ -f "$repo_root/$schema_path" ]; then
+  cp "$repo_root/$schema_path" "$T/schema.json"
+else
+  git -C "$repo_root" show "origin/main:$schema_path" > "$T/schema.json" 2>/dev/null || true
+fi
+
+cat > "$T/schema_check.jq" <<'EOF'
+# 構成案JSONスキーマ（draft-07の基本語彙のみ使用）に対する決定的な適合チェック。
+# 検査: $ref解決（#/definitions/のみ）・type（integer含む）・enum・const・required・
+# additionalProperties:false の余剰キー・properties再帰・minItems/maxItems・items再帰・
+# oneOf（properties.type.const で枝を1つ選ぶ。この形はslides items専用）。
+# 出力: エラーメッセージの配列（空なら適合）
+def deref($s; $root):
+  if ($s | has("$ref")) then $root.definitions[($s["$ref"] | ltrimstr("#/definitions/"))]
+  else $s end;
+def errors($v; $s; $path; $root):
+  deref($s; $root) as $sc
+  | if ($sc | has("oneOf")) then
+      ([$sc.oneOf[] | deref(.; $root)]) as $branches
+      | ([$branches[] | select(.properties.type.const == ($v.type? // null))]) as $m
+      | if ($m | length) == 1 then errors($v; $m[0]; $path; $root)
+        else ["\($path): oneOfのどの枝にも一致しません（type=\($v.type? // "無し")）"] end
+    else
+      ( if ($sc.type? != null) then
+          ($v | type) as $vt
+          | if $sc.type == "integer"
+            then (if ($vt == "number") and ($v == ($v | floor)) then [] else ["\($path): integerが必要（実際: \($vt)）"] end)
+            else (if $vt == $sc.type then [] else ["\($path): \($sc.type)が必要（実際: \($vt)）"] end) end
+        else [] end )
+      + ( if ($sc.enum? != null) then
+            (if ($sc.enum | index($v)) != null then [] else ["\($path): enum \($sc.enum | join("/")) にありません"] end)
+          else [] end )
+      + ( if ($sc.const? != null) then
+            (if $v == $sc.const then [] else ["\($path): const \($sc.const) と一致しません"] end)
+          else [] end )
+      + ( if (($v | type) == "object") and ($sc.required? != null) then
+            # `.` はパイプで差し替わるため先に $k へ束縛する（shell-script-style.md「JSON操作」）
+            [ $sc.required[] | . as $k | select(($v | has($k)) | not)
+              | "\($path).\($k) がありません（required）" ]
+          else [] end )
+      + ( if (($v | type) == "object") and ($sc.additionalProperties? == false) then
+            [ ($v | keys[]) | . as $k | select((($sc.properties // {}) | has($k)) | not)
+              | "\($path).\($k) は余剰キーです（additionalProperties: false）" ]
+          else [] end )
+      + ( if (($v | type) == "object") and ($sc.properties? != null) then
+            ([ ($sc.properties | to_entries[]) | .key as $k
+               | select($v | has($k)) | errors($v[$k]; .value; "\($path).\($k)"; $root) ] | add // [])
+          else [] end )
+      + ( if (($v | type) == "array") then
+            ( if ($sc.minItems? != null) and (($v | length) < $sc.minItems)
+              then ["\($path): minItems \($sc.minItems) 未満（\($v | length)件）"] else [] end )
+            + ( if ($sc.maxItems? != null) and (($v | length) > $sc.maxItems)
+                then ["\($path): maxItems \($sc.maxItems) 超過（\($v | length)件）"] else [] end )
+            + ( if ($sc.items? != null) then
+                  ([ ($v | to_entries[]) | errors(.value; $sc.items; "\($path)[\(.key)]"; $root) ] | add // [])
+                else [] end )
+          else [] end )
+    end;
+$schema[0] as $root | errors($doc[0]; $root; ""; $root)
+EOF
+
+if [ -s "$T/schema.json" ]; then
+  verrs="$(jq -n -c --slurpfile schema "$T/schema.json" --slurpfile doc "$T/sample.slides.json" -f "$T/schema_check.jq")"
+  assert_eq "スキーマ適合: サンプルが確定スキーマに適合する" "[]" "$verrs"
+  # 空振り排除: 意図的に不適合（余剰キー・enum違反）を作ると検出されること
+  jq '.slides[0].bogus = "x" | .slides[6].sides[0].tone = "maybe"' "$T/sample.slides.json" > "$T/nonconform.json"
+  nerrs="$(jq -n -c --slurpfile schema "$T/schema.json" --slurpfile doc "$T/nonconform.json" -f "$T/schema_check.jq" | jq 'length')"
+  assert_eq "スキーマ適合: 不適合サンプルで2件検出（空振り排除）" "2" "$nerrs"
+else
+  failures=$((failures + 1))
+  echo "FAIL: スキーマ適合: スキーマ（$schema_path）をワーキングツリーからも origin/main からも取得できない"
+fi
 
 # ---------------------------------------------------------------------------
 # 機械検証スクリプト（python）。1つの .pptx に対する検証一式
@@ -222,8 +315,10 @@ for i, s in enumerate(data["slides"], 1):
 report("table/comparisonスライドにa:tblが存在", not bad_tbl, str(bad_tbl))
 
 # 条件7突合: 入力JSONの葉テキスト値ごとの部分一致（全<a:t>連結文字列へ）。
-# 対象外 = meta.title・meta.issue（docProps行き）・speakerNotes（出力しない）・
-# slides[].type（構造の判別子で<a:t>に現れない）
+# 対象外5つ = meta.title・meta.issue（docProps行き。issueはintegerのため文字列の葉と
+# しても現れない）・speakerNotes（出力しない）・slides[].type（構造の判別子で<a:t>に
+# 現れない）・slides[].sides[].tone（値そのものは日本語注記へ写像され<a:t>に現れない。
+# 注記の出力は個別アサーションで固定する）
 texts = []
 for i in range(1, nslides + 1):
     root = ET.fromstring(z.read("ppt/slides/slide%d.xml" % i))
@@ -242,7 +337,7 @@ def walk(v, path):
 walk(data, "")
 def excluded(path):
     return (path in (".meta.title", ".meta.issue")
-            or re.match(r"^\.slides\[\d+\]\.(type$|speakerNotes)", path) is not None)
+            or re.match(r"^\.slides\[\d+\]\.(type$|speakerNotes|sides\[\d+\]\.tone$)", path) is not None)
 not_found = []
 for path, v in leaves:
     if excluded(path):
@@ -258,9 +353,10 @@ def norm(s):
 core = ET.fromstring(z.read("docProps/core.xml"))
 DC = "{http://purl.org/dc/elements/1.1/}"
 CP = "{http://schemas.openxmlformats.org/package/2006/metadata/core-properties}"
+# meta.issue はスキーマ確定で integer になったため str() を通す（.replace は文字列専用）
 report("core.xml: dc:title=meta.title / cp:keywords=meta.issue",
        core.find(DC + "title").text == norm(data["meta"]["title"])
-       and (core.find(CP + "keywords").text or "") == norm(data["meta"].get("issue", "")),
+       and (core.find(CP + "keywords").text or "") == norm(str(data["meta"].get("issue", ""))),
        repr(core.find(DC + "title").text))
 
 app = ET.fromstring(z.read("docProps/app.xml"))
@@ -297,7 +393,7 @@ zip_pptx="$T/out-zip.pptx"
 rc=0
 out="$(bash "$target" "$T/sample.slides.json" "$zip_pptx" 2>&1)" || rc=$?
 assert_eq "正常系: 生成が成功する(rc=0)" "0" "$rc"
-assert_contains "正常系: 枚数と経路の表示" "$out" "スライド8枚"
+assert_contains "正常系: 枚数と経路の表示" "$out" "スライド9枚"
 if [ -f "$zip_pptx" ]; then exists=1; else exists=0; fi
 assert_eq "正常系: 出力ファイルが存在する" "1" "$exists"
 
@@ -310,6 +406,34 @@ vout="$(python3 "$T/verify_pptx.py" "$zip_pptx" "$T/sample.slides.json" 2>&1)" |
 assert_eq "正常系: 機械検証一式(verify_pptx.py)が全て通る" "0" "$rc"
 assert_contains "正常系: 機械検証が完走している" "$vout" "VERIFY_RESULT ok="
 if [ "$rc" -ne 0 ]; then printf '%s\n' "$vout"; fi
+
+# ---------------------------------------------------------------------------
+# 個別アサーション: 条件7の突合から漏れる写像を固定する
+# （tone は対象外リスト入り・cover 省略側の meta フォールバックは対象外の meta.title を使う）
+# ---------------------------------------------------------------------------
+mapped="$(python3 - "$zip_pptx" <<'EOF'
+import re, sys, zipfile
+z = zipfile.ZipFile(sys.argv[1])
+def texts(n):
+    return re.findall(r"<a:t>([^<]*)</a:t>", z.read("ppt/slides/slide%d.xml" % n).decode("utf-8"))
+all_texts = "\n".join(t for n in range(1, 10) for t in texts(n))
+print("TONE_PRO" if "案A（採用寄り）" in all_texts else "NO_TONE_PRO")
+print("TONE_CON" if "案B（却下寄り）" in all_texts else "NO_TONE_CON")
+print("TONE_NEU" if "案C（中立）" in all_texts else "NO_TONE_NEU")
+s1 = "\n".join(texts(1))
+print("COVER_META_TITLE" if "発表資料 <Q3>" in s1 else "NO_COVER_META_TITLE")
+print("COVER_META_SUB" if "サブタイトル 'テスト'" in s1 else "NO_COVER_META_SUB")
+s2 = "\n".join(texts(2))
+print("COVER_OWN" if ("pptx書き出し機能の紹介" in s2 and "表紙の自前サブタイトル" in s2
+                      and "サブタイトル 'テスト'" not in s2) else "NO_COVER_OWN")
+EOF
+)"
+assert_contains "tone注記: pro→（採用寄り）が現れる" "$mapped" "TONE_PRO"
+assert_contains "tone注記: con→（却下寄り）が現れる" "$mapped" "TONE_CON"
+assert_contains "tone注記: neutral→（中立）が現れる" "$mapped" "TONE_NEU"
+assert_contains "cover省略側: meta.titleが見出しへ現れる" "$mapped" "COVER_META_TITLE"
+assert_contains "cover省略側: meta.subtitleがサブタイトルへ現れる" "$mapped" "COVER_META_SUB"
+assert_contains "cover自前側: 自前title/subtitleが優先されmeta.subtitleは出ない" "$mapped" "COVER_OWN"
 
 # ---------------------------------------------------------------------------
 # PATH制限用の合成bin（テスト対象が必要とする外部コマンドだけを実体へリンクする）
@@ -448,25 +572,40 @@ if [ -e "$T/e.pptx" ]; then left=1; else left=0; fi
 assert_eq "異常系: 出力ファイルを残さない" "0" "$left"
 
 # ---------------------------------------------------------------------------
-# 異常系（要素の型・境界値。jq側の検証で明示エラーになること）
+# 異常系（要素の型・境界値。jq側の検証で明示エラーになること。語彙は確定スキーマ準拠）
 # ---------------------------------------------------------------------------
-printf '%s\n' '{"meta":{"title":"t"},"slides":[{"type":"table","title":"x","headers":[],"rows":[]}]}' > "$T/emptyhdr.json"
-expect_error "空headers" "$T/emptyhdr.json" "headers が空です"
+printf '%s\n' '{"meta":{"title":"t"},"slides":[{"type":"table","title":"x","columns":[],"rows":[["a"]]}]}' > "$T/emptycol.json"
+expect_error "空columns(table)" "$T/emptycol.json" "columns（配列・1件以上・必須）"
 
-printf '%s\n' '{"meta":{"title":"t"},"slides":[{"type":"comparison","title":"x","options":[]}]}' > "$T/emptyopt.json"
-expect_error "空options" "$T/emptyopt.json" "options が空です"
-
-printf '%s\n' '{"meta":{"title":"t"},"slides":[{"type":"table","title":"x","headers":["a"],"rows":["notarray"]}]}' > "$T/badrow.json"
+printf '%s\n' '{"meta":{"title":"t"},"slides":[{"type":"table","title":"x","columns":["a"],"rows":["notarray"]}]}' > "$T/badrow.json"
 expect_error "rows要素が配列でない" "$T/badrow.json" "rows[0] が配列ではありません"
 
-printf '%s\n' '{"meta":{"title":"t"},"slides":[{"type":"comparison","title":"x","options":["案A"]}]}' > "$T/badopt.json"
-expect_error "options要素がオブジェクトでない" "$T/badopt.json" "options[0] がオブジェクトではありません"
+printf '%s\n' '{"meta":{"title":"t"},"slides":[{"type":"comparison","title":"x","sides":[{"name":"a","points":["p"]}]}]}' > "$T/oneside.json"
+expect_error "sidesが1件" "$T/oneside.json" "sides（配列・2〜3件・必須）"
 
-printf '%s\n' '{"meta":{"title":"t"},"slides":[{"type":"diagram","title":"x","nodes":["a"],"edges":["notobj"]}]}' > "$T/badedge.json"
-expect_error "edges要素がオブジェクトでない" "$T/badedge.json" "edges[0] がオブジェクトではありません"
+printf '%s\n' '{"meta":{"title":"t"},"slides":[{"type":"comparison","title":"x","sides":[{"name":"a"},{"name":"b","points":["p"]}]}]}' > "$T/badside.json"
+expect_error "sides要素にpointsが無い" "$T/badside.json" "sides[0] は name（文字列）と points（配列・1件以上）"
+
+printf '%s\n' '{"meta":{"title":"t"},"slides":[{"type":"diagram","title":"x","nodes":[{"label":"a"}]}]}' > "$T/onenode.json"
+expect_error "nodesが1件" "$T/onenode.json" "nodes（配列・2件以上・必須）"
+
+printf '%s\n' '{"meta":{"title":"t"},"slides":[{"type":"diagram","title":"x","nodes":["a",{"label":"b"}]}]}' > "$T/badnode.json"
+expect_error "nodes要素がオブジェクトでない" "$T/badnode.json" "nodes[0] は label（文字列）を持つオブジェクト"
+
+printf '%s\n' '{"meta":{"title":"t"},"slides":[{"type":"two-column","title":"x","columns":[{"heading":"h","items":["i"]}]}]}' > "$T/onecol.json"
+expect_error "two-columnのcolumnsが1件" "$T/onecol.json" "columns（配列・ちょうど2件・必須）"
+
+printf '%s\n' '{"meta":{"title":"t"},"slides":[{"type":"two-column","title":"x","columns":[{"heading":"h"},{"heading":"h2","items":["i"]}]}]}' > "$T/badcol.json"
+expect_error "columns要素にitemsが無い" "$T/badcol.json" "columns[0] は heading（文字列）と items（配列・1件以上）"
+
+printf '%s\n' '{"meta":{"title":"t"},"slides":[{"type":"bullets","title":"x","items":["a",{"text":"入れ子"}]}]}' > "$T/nesteditem.json"
+expect_error "items要素が文字列でない（入れ子は受け付けない）" "$T/nesteditem.json" "items[1] が文字列ではありません"
+
+printf '%s\n' '{"meta":{"title":"t"},"slides":[{"type":"cover","title":123}]}' > "$T/covertitle.json"
+expect_error "coverのtitleが文字列でない" "$T/covertitle.json" "title が文字列ではありません"
 
 # 全セルが空の表は、素のbashエラー（ゼロ除算）ではなく明示エラーで止まる
-printf '%s\n' '{"meta":{"title":"t"},"slides":[{"type":"table","title":"x","headers":[""],"rows":[[""]]}]}' > "$T/allempty.json"
+printf '%s\n' '{"meta":{"title":"t"},"slides":[{"type":"table","title":"x","columns":[""],"rows":[[""]]}]}' > "$T/allempty.json"
 expect_error "全セル空の表" "$T/allempty.json" "表の列数を決定できません"
 
 # ---------------------------------------------------------------------------
@@ -515,7 +654,7 @@ assert_contains "制御文字入力: 0x01は空白へ置換されXMLはwell-form
 # ---------------------------------------------------------------------------
 # 不揃いな表: 列数は全行の最大・不足セルは空埋め・超過セルは捨てない
 # ---------------------------------------------------------------------------
-printf '%s\n' '{"meta":{"title":"t"},"slides":[{"type":"table","title":"x","headers":["h1"],"rows":[["c1","超過セル"],[]]}]}' > "$T/ragged.json"
+printf '%s\n' '{"meta":{"title":"t"},"slides":[{"type":"table","title":"x","columns":["h1"],"rows":[["c1","超過セル"],[]]}]}' > "$T/ragged.json"
 rc=0
 out="$(bash "$target" "$T/ragged.json" "$T/ragged.pptx" 2>&1)" || rc=$?
 assert_eq "不揃いな表: rc=0" "0" "$rc"

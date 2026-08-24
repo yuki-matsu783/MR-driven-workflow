@@ -26,7 +26,10 @@ keywords: [ディレクトリ構成, claude, gemini, 配置方針, wip, plans, w
 │   ├── skills/                 # `/issue-mr-flow`（唯一の実装フロー定義）等のスキル定義
 │   │   ├── issue-mr-flow/assets/  # 計画・レポートのHTMLビューのテンプレート2本（issue #54）
 │   │   ├── issue-mr-flow/references/  # SKILL.mdから切り出した参照資料7本（issue #160）
-│   │   └── canvas-report/assets/  # canvas形式レポートのテンプレート
+│   │   ├── canvas-report/assets/  # canvas形式レポートのテンプレート
+│   │   └── pptx-slides/        # 構成案JSONからの.pptx生成（issue #169）
+│   │       ├── assets/pptx-template/  # 展開ディレクトリ形式のOOXML雛形（静的パーツ）
+│   │       └── scripts/        # json-to-pptx.sh・slides-to-records.jq
 │   ├── agents/                 # サブエージェント定義（issue-mr-flow途中引き継ぎ等）
 │   ├── scripts/                # AIエージェントが`.claude/skills/*`経由で能動的に実行するスクリプト一式
 │   │   ├── src/

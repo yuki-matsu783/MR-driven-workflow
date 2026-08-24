@@ -17,9 +17,9 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - issue: #169
 - ブランチ: `claude/json-to-pptx-export-3g63ea`（ハーネス指定。feature-169-* ではない）
 - PR: #199（Draft。https://github.com/yuki-matsu783/MR-driven-workflow/pull/199 ）
-- push回数: 8
+- push回数: 10
 - 現在のループ: なし
-- 未返信スレッド: 9
+- 未返信スレッド: 0
 - 追従監視: PR #199 を subscribe_pr_activity で購読（このセッション）
 
 | 進捗 | flow-id | ステップ | 担当 |
@@ -51,10 +51,10 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 | [] | 3-9 | レビュー内容を取得し、実装・ドキュメントを修正する | サブコマンド |
 | [x] | 3-10 | 作業内容をもとにMR descriptionを更新する | サブコマンド |
 | [x] | 4-1 | 個別反映計画を作成する | エージェント |
-| [] | 4-2 | commitし、pushしてレビュー依頼を行う | エージェント |
+| [x] | 4-2 | commitし、pushしてレビュー依頼を行う | エージェント |
 | [] | 4-3 | MRで反映計画についてレビュー・コメントする | 人間 |
 | [] | 4-4 | レビュー内容を取得し、反映計画を修正する | サブコマンド |
-| [] | 4-5 | 反映計画をもとにMR descriptionを更新する | サブコマンド |
+| [x] | 4-5 | 反映計画をもとにMR descriptionを更新する | サブコマンド |
 | [] | 4-6 | 反映計画をもとに作業を進める | エージェント |
 | [] | 4-7 | commitし、pushしてレビュー依頼を行う | エージェント |
 | [] | 4-8 | MRでレビュー・コメントする | 人間 |
@@ -171,15 +171,28 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
   - https://github.com/yuki-matsu783/MR-driven-workflow/pull/199#discussion_r3840148536 （minor: フェーズ2時点の確定範囲の記述が調査レポートと食い違う）
   - https://github.com/yuki-matsu783/MR-driven-workflow/pull/199#discussion_r3840148996 （minor: 入れ子bullets経路がテスト到達不能になる）
   - https://github.com/yuki-matsu783/MR-driven-workflow/pull/199#discussion_r3840149479 （minor: 「既存テスト維持」が旧語彙のため文字どおりには不成立）
+- 2026-08-24: 敵対的レビュー（P4の1回目）の指摘11件を全件計画へ反映（push9・commit 3f5224d。
+  報告のみ2件も反映）→ 9スレッド全てへ対応返信（未返信0）。主要な変更: 併記理由を依存関係へ
+  差し替え／verify_pptx.py の issue integer対応・cover2枚サンプル・既存テスト3分類を明記／
+  スキーマ適合検証を jq 決定的チェックへ（jsonschema不在を実測）／index.md 追記と5-1注意の
+  拡大／VERSION据え置きのchangelog記録タスク追加（flow-id 4-2完了）。describe（4-5完了）。
+- 2026-08-24: 反映実施（flow-id 4-6）を完了（push10）。【実装反映】確定スキーマへ全面追従
+  （jq検証・写像・SKILL.md・テスト。旧語彙/edges/入れ子bulletsの受け付け削除・cover meta
+  フォールバック・CHAP/COLH/PARA・sides転置＋tone注記・takeaway）。テストはサンプルの
+  スキーマ適合化＋jqによる適合機械検証＋個別アサーション6件で `passed=88 failures=0`。
+  【設計反映】spec `pptx-slides.md` 新規（◆承認未取得）・DDR i0169-01（却下案5件）＋一覧
+  再生成・directory-structure.md／index.md の skills 追記・shell-script-style.md へ
+  patsub_replacement 追記・distribution-assets.md changelogへVERSION据え置き記録。
+  検証全件合格（既存22本・501/501・参照切れ0）。正文は
+  `wip/reports/2026-08-24_json-to-pptx-export-plan_反映.md`（+同名.html）。
 
 ## 次にやること
 
-- フェーズ4: commit/push（push8）→ 敵対的レビュー（フェーズ4の1回目・対象=反映計画）→
-  指摘反映・返信 → describe（4-5）→ 反映実施（4-6。【実装反映】スキーマ追従・
-  spec `.claude/docs/spec/pptx-slides.md` 新規・DDR i0169-01＋`generate-ddr-list.sh`・
-  `directory-structure.md` ツリー追記・`shell-script-style.md` へ `patsub_replacement` 追記）→
-  敵対的レビュー（2回目）→ describe（4-10）→ フェーズ5（5-1でmain取り込み承認確認・
-  VERSION 0.5.0→0.6.0）。
+- フェーズ4の締め: 敵対的レビュー（フェーズ4の2回目・対象=反映実施diff＝push10）→
+  指摘反映・返信（push11）→ describe（4-10）→ フェーズ5（5-1でmain取り込み承認確認・
+  取り込み直後に VERSION 0.5.0→0.6.0・`directory-structure.md`／`index.md` の skills 箇所
+  コンフリクトは両方の行を残す → 5-2関連issue通知（承認必須）→ 5-3 gemini同期 →
+  5-4統括レポート → 5-5片付け → 5-6はゲート（◆回答・実機確認）が揃うまで進まない）。
 
 ## 判断を迷った内容
 

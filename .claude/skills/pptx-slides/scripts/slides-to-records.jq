@@ -1,17 +1,23 @@
 # 構成案JSON → フラットなレコードストリーム（US区切り・1行1レコード）への変換。
 # json-to-pptx.sh から `jq -r -f` で1回だけ呼ばれる（ループ内でjqを起動しないための集約。
 # .claude/rules/shell-script-style.md「外部プロセス起動のコスト」）。
+# 入力仕様の正: .claude/skills/html-slides/references/slide-outline.schema.json（issue #168）。
 #
 # レコード種別（先頭フィールド）:
 #   ERR      <メッセージ>                 入力検証エラー（1件でもあれば他のレコードは出さない）
 #   HDR      <meta.title> <author> <issue> docProps用のヘッダ値（未エスケープの生値）
 #   NOTEWARN <件数>                        speakerNotes付きスライドの件数（0なら出さない）
 #   SLIDE    <n> <type>                    スライド開始（nは1始まり）
-#   TITLE    <行>                          スライド見出しの段落（改行は複数レコードに分割済み）
-#   SUB      <行>                          coverのサブタイトル行（subtitle・date・author）
-#   BUL      <lvl> <行>                    箇条書き段落（lvl=0/1）
+#   TITLE    <行>                          スライド見出しの段落（coverは title // meta.title）
+#   SUB      <行>                          coverのサブタイトル行（subtitle // meta.subtitle・date・author）
+#   CHAP     <行>                          sectionの章番号段落（chapter があるときだけ）
+#   BUL      <lvl> <行>                    箇条書き段落（items は文字列のみのため lvl は常に0）
+#   COLH     <L|R> <行>                    2カラムのカラム見出し（columns[0]→L, columns[1]→R）
 #   COL      <L|R> <行>                    2カラムの段落
-#   TROW     <H|D> <セル>...               表の行（セル内改行は空白へ潰す）
+#   PARA     <b|n> <行>                    箇条書き記号の付かない本文段落（b=太字。diagramのフロー
+#                                          表現・noteの行は n、summaryのtakeawayは b）
+#   TROW     <H|D> <セル>...               表の行（セル内改行は空白へ潰す。comparisonはヘッダ=
+#                                          name＋tone注記、データ行=各sideのpointsの転置）
 #
 # 値の正規化: CR除去・XML 1.0が許さないC0制御文字（TAB/LF/CR以外。US=0x1Fを含む）は
 # 空白へ・改行は段落分割（TROWのセルのみ空白化）。
@@ -21,16 +27,17 @@ def u: "\u001f";
 def clean: tostring | gsub("\r"; "") | gsub("[\u0000-\u0008\u000b\u000c\u000e-\u001f]"; " ");
 def plines: clean | split("\n") | map(select(. != ""));
 def cell: clean | gsub("\n"; " ");
-def joined: if type == "array" then map(cell) | join(" / ") elif . == null then "" else cell end;
-def node_text: if type == "object" then (.label // .id // "") else . end;
-def item_text: if type == "object" then (.text // .label // "") else . end;
+def tone_note: if . == "pro" then "（採用寄り）"
+  elif . == "con" then "（却下寄り）"
+  elif . == "neutral" then "（中立）"
+  else "" end;
 
 ["cover","section","bullets","two-column","diagram","table","comparison","summary"] as $types
 
 | . as $d
 | ($d.slides) as $slides
 
-# ---- 入力検証（必須キー表。上流/独自の別は調査レポートQ2の表が正） ----
+# ---- 入力検証（確定スキーマの必須キー・要素型に揃える。スキーマファイル自体は読まない） ----
 | (
     [ (if ($d.meta | type) != "object" or (($d.meta.title? | type) != "string") or ($d.meta.title == "")
        then "meta.title（文字列・必須）がありません" else empty end),
@@ -42,35 +49,55 @@ def item_text: if type == "object" then (.text // .label // "") else . end;
               else (
                 (if (($s.type? | type) != "string") or (($types | index($s.type)) == null)
                  then "slides[\($i)].type が8種enum（\($types | join("/"))）にありません" else empty end),
-                (if (($s.title? | type) != "string") or ($s.title == "")
-                 then "slides[\($i)].title（文字列・必須。全型必須）がありません" else empty end),
-                (if ($s.type == "bullets" or $s.type == "summary") and (($s.items? | type) != "array")
-                 then "slides[\($i)].items（配列・必須）がありません" else empty end),
-                (if $s.type == "two-column" and (($s.left? == null) or ($s.right? == null))
-                 then "slides[\($i)].left / .right（必須）がありません" else empty end),
-                (if $s.type == "table" and ((($s.headers? | type) != "array") or (($s.rows? | type) != "array"))
-                 then "slides[\($i)].headers / .rows（配列・必須）がありません" else empty end),
+                # title は cover のみ任意（省略時 meta.title を採る）。他の7型は必須
+                (if ($s.type != "cover") and ((($s.title? | type) != "string") or ($s.title == ""))
+                 then "slides[\($i)].title（文字列・必須。cover以外は必須）がありません" else empty end),
+                (if ($s.type == "cover") and ($s | has("title")) and (($s.title | type) != "string")
+                 then "slides[\($i)].title が文字列ではありません" else empty end),
+                (if ($s.type == "bullets" or $s.type == "summary")
+                    and ((($s.items? | type) != "array") or (($s.items | length) == 0))
+                 then "slides[\($i)].items（配列・1件以上・必須）がありません" else empty end),
+                (if ($s.type == "bullets" or $s.type == "summary") and (($s.items? | type) == "array")
+                 then ($s.items | to_entries[] | select(.value | type != "string")
+                       | "slides[\(($i | tostring))].items[\(.key)] が文字列ではありません") else empty end),
+                (if $s.type == "two-column"
+                    and ((($s.columns? | type) != "array") or (($s.columns | length) != 2))
+                 then "slides[\($i)].columns（配列・ちょうど2件・必須）がありません" else empty end),
+                (if $s.type == "two-column" and (($s.columns? | type) == "array")
+                 then ($s.columns | to_entries[] | .key as $ci | .value as $c |
+                       if ($c | type) != "object"
+                          or (($c.heading? | type) != "string")
+                          or (($c.items? | type) != "array") or (($c.items | length) == 0)
+                       then "slides[\(($i | tostring))].columns[\($ci)] は heading（文字列）と items（配列・1件以上）を持つオブジェクトが必要です"
+                       else empty end) else empty end),
+                (if $s.type == "table"
+                    and ((($s.columns? | type) != "array") or (($s.columns | length) == 0))
+                 then "slides[\($i)].columns（配列・1件以上・必須）がありません" else empty end),
+                (if $s.type == "table" and (($s.rows? | type) != "array")
+                 then "slides[\($i)].rows（配列・必須）がありません" else empty end),
                 # 要素の型まで検証する（配列であることしか見ないと、bash側の実行時に
                 # jqがエラー終了して内容の欠落・ゼロ除算として表面化する）
-                (if $s.type == "table" and (($s.headers? | type) == "array") and (($s.headers | length) == 0)
-                 then "slides[\($i)].headers が空です（1件以上必要）" else empty end),
                 (if $s.type == "table" and (($s.rows? | type) == "array")
                  then ($s.rows | to_entries[] | select(.value | type != "array")
                        | "slides[\(($i | tostring))].rows[\(.key)] が配列ではありません") else empty end),
-                (if $s.type == "comparison" and (($s.options? | type) != "array")
-                 then "slides[\($i)].options（配列・必須）がありません" else empty end),
-                (if $s.type == "comparison" and (($s.options? | type) == "array") and (($s.options | length) == 0)
-                 then "slides[\($i)].options が空です（1件以上必要）" else empty end),
-                (if $s.type == "comparison" and (($s.options? | type) == "array")
-                 then ($s.options | to_entries[] | select(.value | type != "object")
-                       | "slides[\(($i | tostring))].options[\(.key)] がオブジェクトではありません") else empty end),
-                (if $s.type == "diagram" and (($s.nodes? | type) != "array")
-                 then "slides[\($i)].nodes（配列・必須。edgesは任意）がありません" else empty end),
-                (if $s.type == "diagram" and ($s.edges? != null) and (($s.edges | type) != "array")
-                 then "slides[\($i)].edges が配列ではありません" else empty end),
-                (if $s.type == "diagram" and (($s.edges? | type) == "array")
-                 then ($s.edges | to_entries[] | select(.value | type != "object")
-                       | "slides[\(($i | tostring))].edges[\(.key)] がオブジェクトではありません") else empty end)
+                (if $s.type == "comparison"
+                    and ((($s.sides? | type) != "array") or (($s.sides | length) < 2) or (($s.sides | length) > 3))
+                 then "slides[\($i)].sides（配列・2〜3件・必須）がありません" else empty end),
+                (if $s.type == "comparison" and (($s.sides? | type) == "array")
+                 then ($s.sides | to_entries[] | .key as $si | .value as $o |
+                       if ($o | type) != "object"
+                          or (($o.name? | type) != "string")
+                          or (($o.points? | type) != "array") or (($o.points | length) == 0)
+                       then "slides[\(($i | tostring))].sides[\($si)] は name（文字列）と points（配列・1件以上）を持つオブジェクトが必要です"
+                       else empty end) else empty end),
+                (if $s.type == "diagram"
+                    and ((($s.nodes? | type) != "array") or (($s.nodes | length) < 2))
+                 then "slides[\($i)].nodes（配列・2件以上・必須）がありません" else empty end),
+                (if $s.type == "diagram" and (($s.nodes? | type) == "array")
+                 then ($s.nodes | to_entries[] | .key as $ni | .value as $nd |
+                       if ($nd | type) != "object" or (($nd.label? | type) != "string")
+                       then "slides[\(($i | tostring))].nodes[\($ni)] は label（文字列）を持つオブジェクトが必要です"
+                       else empty end) else empty end)
               ) end )
           ]
         else [] end )
@@ -87,35 +114,41 @@ def item_text: if type == "object" then (.text // .label // "") else . end;
       | if . > 0 then "NOTEWARN" + u + tostring else empty end ),
     ( $slides | to_entries[] | (.key + 1) as $n | .value as $s | $s.type as $t |
       ( "SLIDE" + u + ($n | tostring) + u + $t ),
-      ( $s.title | plines[] | "TITLE" + u + . ),
+      # cover の見出しは title // meta.title（スキーマ: 省略時は meta の値を表示する）
+      ( (if $t == "cover" then ($s.title // $d.meta.title) else $s.title end)
+        | plines[] | "TITLE" + u + . ),
       ( if $t == "cover" then
-          ( ($d.meta.subtitle // "") | plines[] | "SUB" + u + . ),
+          ( (($s.subtitle // $d.meta.subtitle) // "") | plines[] | "SUB" + u + . ),
           ( ($d.meta.date // "") | plines[] | "SUB" + u + . ),
           ( ($d.meta.author // "") | plines[] | "SUB" + u + . )
-        elif $t == "bullets" or $t == "summary" then
-          ( $s.items[] |
-            if type == "object" then
-              ( item_text | plines[] | "BUL" + u + "0" + u + . ),
-              ( ((.items // .children // [])[]) | item_text | plines[] | "BUL" + u + "1" + u + . )
-            else plines[] | "BUL" + u + "0" + u + . end )
+        elif $t == "section" then
+          ( ($s.chapter // "") | plines[] | "CHAP" + u + . )
+        elif $t == "bullets" then
+          ( $s.items[] | plines[] | "BUL" + u + "0" + u + . )
+        elif $t == "summary" then
+          ( $s.items[] | plines[] | "BUL" + u + "0" + u + . ),
+          ( ($s.takeaway // "") | plines[] | "PARA" + u + "b" + u + . )
         elif $t == "two-column" then
-          ( $s.left  | (if type == "array" then .[] else . end) | plines[] | "COL" + u + "L" + u + . ),
-          ( $s.right | (if type == "array" then .[] else . end) | plines[] | "COL" + u + "R" + u + . )
+          ( $s.columns[0] | ( (.heading | plines[] | "COLH" + u + "L" + u + . ),
+                             ( .items[] | plines[] | "COL" + u + "L" + u + . ) ) ),
+          ( $s.columns[1] | ( (.heading | plines[] | "COLH" + u + "R" + u + . ),
+                             ( .items[] | plines[] | "COL" + u + "R" + u + . ) ) )
         elif $t == "table" then
-          ( "TROW" + u + "H" + u + ([$s.headers[] | cell] | join(u)) ),
+          ( "TROW" + u + "H" + u + ([$s.columns[] | cell] | join(u)) ),
           ( $s.rows[] | "TROW" + u + "D" + u + ([.[] | cell] | join(u)) )
         elif $t == "comparison" then
-          ( "TROW" + u + "H" + u + (([""] + [$s.options[] | (.name // .label // "") | cell]) | join(u)) ),
-          ( "TROW" + u + "D" + u + ((["利点"] + [$s.options[] | (.pros // .advantages) | joined]) | join(u)) ),
-          ( "TROW" + u + "D" + u + ((["欠点"] + [$s.options[] | (.cons // .disadvantages) | joined]) | join(u)) ),
-          ( "TROW" + u + "D" + u + ((["採否"] + [$s.options[] | (.verdict // .decision) | joined]) | join(u)) )
+          # 列 = 各side（ヘッダ=name＋tone注記）、行 = points の転置（不足セルは空埋め）
+          ( "TROW" + u + "H" + u
+            + ([$s.sides[] | ((.name | cell) + (.tone | tone_note))] | join(u)) ),
+          ( ($s.sides | map(.points)) as $cols
+            | ($cols | map(length) | max) as $nr
+            | range(0; $nr) as $ri
+            | "TROW" + u + "D" + u + ([$cols[] | ((.[$ri] // "") | cell)] | join(u)) )
         elif $t == "diagram" then
-          ( $s.nodes[] | node_text | plines[] | "BUL" + u + "0" + u + . ),
-          ( ($s.edges // [])[] |
-            ( ((.from // "") | clean) + " → " + ((.to // "") | clean)
-              + (if (.label // "") != "" then "（" + (.label | clean) + "）" else "" end) )
-            | "BUL" + u + "0" + u + . ),
-          ( ($s.caption // "") | plines[] | "BUL" + u + "0" + u + . )
+          # フロー表現: label を「 → 」で連結した1段落＋noteを持つノードごとに「label: note」
+          ( "PARA" + u + "n" + u + ([$s.nodes[].label | cell] | join(" → ")) ),
+          ( $s.nodes[] | select((.note // "") != "")
+            | "PARA" + u + "n" + u + ((.label | cell) + ": " + (.note | cell)) )
         else empty end )
     )
   ) end
