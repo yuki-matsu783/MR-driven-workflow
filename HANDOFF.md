@@ -17,8 +17,8 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - issue: #205（https://github.com/yuki-matsu783/MR-driven-workflow/issues/205 ）
 - ブランチ: claude/pr-mr-diffview-link-yxim1l
 - PR: #206（https://github.com/yuki-matsu783/MR-driven-workflow/pull/206 ）
-- push回数: 1
-- 現在のループ: なし
+- push回数: 2
+- 現在のループ: 2-3〜2-4 を敵対的レビュー1回で代替（進捗記号は[]のまま。非対話セッションのため人間のレビュー往復は成立しない）
 - 未返信スレッド: 0
 - 追従監視: あり（subscribe_pr_activity で PR #206 を購読中。セッション終了で止まるため次セッションは resume で取り直す）
 
@@ -79,11 +79,28 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
   （+ `.html`）と worklog を作成した。調査項目は Q1〜Q6。
 - **push直後のhookが本issueの問題をそのまま再現した**（「defaultブランチとの差分」が
   Compareページ、MRリンクは「CLI不在のため未取得」）。問題の実在を実測で確認できた。
+- flow-id 2-2: 個別調査計画をpushし、**敵対的レビュー（フェーズ2・1回目）を実行**した。
+  12件検出（major 9 / minor 3）。うち11件をPR #206 へインライン投稿し、1件は報告のみ。
+  **11件すべてに対応し、11スレッドすべてへ返信済み**（未返信スレッド 0）。
+  投稿スレッド: https://github.com/yuki-matsu783/MR-driven-workflow/pull/206/files
+  （`#discussion_r3840039773` 〜 `r3840043845` の11件）
+- 敵対的レビューで判明した重要な点3つ:
+  1. 完了条件が「全問『不明』でも合格」する空振りの形だった → **停止条件**を新設。
+  2. 上位計画の懸念（refの伝播遅延・fork元PR・GitLabの `?start_sha=`）が個別計画へ
+     引き継がれていなかった → Q3表A行を9項目へ、Q4をプロバイダ別へ拡張。
+  3. **`gitlab_get_diff_anchor_base_url` は3分岐で、しかも純粋関数ではなく `glab api` を呼ぶ。**
+     本issueがMCP経路で `mr_url` を解決すると、これまで分岐(a)で早期returnしていた経路が
+     新たに `glab api` を呼ぶ側へ入る（本issueが持ち込む副作用。当初の計画では見えていなかった）。
+- **Q3-A（`git ls-remote`）の実測**: `refs/pull/206/head` が push直後のHEADと一致した
+  （伝播遅延は観測されず）。コストは約400〜600ms、ベースライン（`git rev-parse`）は4ms。
+  **Linux環境の値であり、git bash実機の値ではない。**
 
 ## 次にやること
 
-- flow-id 2-2 の直後に、個別調査計画に対する敵対的レビュー（フェーズ2の1回目）を実行する。
-- flow-id 2-6: Q1〜Q6の調査を実施し、`wip/reports/` へ結果を記録する。
+- flow-id 2-6: Q1〜Q6の調査を実施し、`wip/reports/20260824_diffview-link-switchover_調査結果.md`
+  （+ `.html`）へ結果を記録する。**停止条件（Q1が不明 / Q2で却下理由が当てはまる /
+  Q5でアンカーが機能しない）に該当しないかを必ず確認する。**
+- flow-id 2-7 の直後に、調査結果に対する敵対的レビュー（フェーズ2の2回目）を実行する。
 
 ## 判断を迷った内容
 
