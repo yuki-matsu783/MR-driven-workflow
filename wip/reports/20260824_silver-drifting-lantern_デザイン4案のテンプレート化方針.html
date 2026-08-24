@@ -1,0 +1,599 @@
+<!--
+  issue #203 フェーズ2の調査結果（flow-id 2-6）のHTMLビュー。
+  結果の正文は同名の .md（wip/reports/20260824_silver-drifting-lantern_デザイン4案のテンプレート化方針.md）で、
+  このHTMLはその視覚化である。
+  土台: .claude/skills/issue-mr-flow/assets/reports.template.html
+-->
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>調査結果: デザイン4案のテンプレート化方針 — issue #203</title>
+<style>
+  :root {
+    --bg: #f6f7f9;      --panel: #ffffff;   --ink: #1a1d21;     --muted: #5b636d;
+    --line: #dfe3e8;    --accent: #2563eb;  --accent-soft: #eaf0fe;
+    --ok: #1a7f4b;      --ok-soft: #e6f4ec; --warn: #a35a00;    --warn-soft: #fdf1e0;
+    --stop: #b3261e;    --stop-soft: #fdecea; --good: #1d4ed8;  --good-soft: #e7edfd;
+    --code-bg: #f0f2f5;
+    --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1216;    --panel: #161a20;   --ink: #e6e8eb;     --muted: #9aa3ad;
+      --line: #2a3038;  --accent: #7aa2f7;  --accent-soft: #1b2333;
+      --ok: #6ee7a8;    --ok-soft: #14261d; --warn: #f0b866;    --warn-soft: #2a2113;
+      --stop: #f2857c;  --stop-soft: #2b1614; --good: #8ab4f8;  --good-soft: #17233a;
+      --code-bg: #1d222a;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", system-ui, sans-serif;
+    line-height: 1.8; font-size: 15px;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 20px 80px; }
+
+  /* 共通ヘッダ帯 */
+  header.band {
+    background: linear-gradient(135deg, var(--accent-soft), var(--panel));
+    border-bottom: 1px solid var(--line); padding: 28px 20px 22px; margin-bottom: 28px;
+  }
+  header.band .inner { max-width: 1080px; margin: 0 auto; }
+  header.band .kind { font-size: 11px; letter-spacing: .18em; color: var(--accent); font-weight: 700; }
+  header.band h1 { margin: 6px 0 4px; font-size: 26px; line-height: 1.4; }
+  header.band .lead { margin: 0; color: var(--muted); }
+  header.band .counts { margin: 12px 0 0; display: flex; gap: 6px; flex-wrap: wrap; }
+  .meta { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; padding: 0; list-style: none; }
+  .meta li {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 999px;
+    padding: 3px 12px; font-size: 12.5px; color: var(--muted); white-space: nowrap;
+  }
+  .meta li b { color: var(--ink); font-weight: 600; }
+
+  nav.toc {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 14px 20px; margin-bottom: 28px;
+  }
+  nav.toc h2 { margin: 0 0 8px; font-size: 13px; letter-spacing: .08em; color: var(--muted); border: 0; padding: 0; }
+  nav.toc ol { margin: 0; padding-left: 20px; }
+  nav.toc li { margin: 2px 0; }
+  a { color: var(--accent); }
+
+  section {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 8px 24px 22px; margin-bottom: 22px;
+  }
+  /* アンカーで飛んだとき見出しが上端に張り付かないようにする（issue #186） */
+  section[id], h3[id] { scroll-margin-top: 16px; }
+  h2 { font-size: 20px; margin: 20px 0 10px; padding-bottom: 8px; border-bottom: 2px solid var(--line); }
+  h3 { font-size: 16px; margin: 22px 0 8px; color: var(--accent); }
+  p { margin: 10px 0; }
+  ul, ol { padding-left: 22px; }
+  li { margin: 4px 0; }
+  blockquote { margin: 10px 0; padding: 6px 14px; border-left: 3px solid var(--line); color: var(--muted); }
+
+  /* 表は自身の中で横スクロールする（ページ本体は横スクロールさせない） */
+  .tablewrap { overflow-x: auto; margin: 14px 0; }
+  table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 14px; }
+  th, td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: var(--accent-soft); font-weight: 600; white-space: nowrap; }
+  tbody tr:nth-child(even) td { background: color-mix(in srgb, var(--line) 22%, transparent); }
+
+  code {
+    background: var(--code-bg); border-radius: 5px; padding: 1px 5px; font-size: 13px;
+    font-family: "SFMono-Regular", Consolas, "Noto Sans Mono", monospace;
+  }
+  pre {
+    background: var(--code-bg); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 12px 14px; overflow-x: auto; font-size: 13px; line-height: 1.65;
+  }
+  pre code { background: none; padding: 0; }
+
+  /* 注意ボックス: info（既定）/ ok（決めたこと・手順の成功。結論の性質には使わない）/
+     warn（注意）/ stop（やらないこと・危険） */
+  .box { border-left: 4px solid var(--accent); background: var(--accent-soft);
+         border-radius: 0 var(--radius) var(--radius) 0; padding: 12px 16px; margin: 16px 0; }
+  .box > :first-child { margin-top: 0; } .box > :last-child { margin-bottom: 0; }
+  .box .label { font-size: 12px; font-weight: 700; letter-spacing: .06em; display: block; margin-bottom: 4px; }
+  .box.ok { border-color: var(--ok); background: var(--ok-soft); } .box.ok .label { color: var(--ok); }
+  .box.warn { border-color: var(--warn); background: var(--warn-soft); } .box.warn .label { color: var(--warn); }
+  .box.stop { border-color: var(--stop); background: var(--stop-soft); } .box.stop .label { color: var(--stop); }
+  .box.info .label { color: var(--accent); }
+
+  /* 結論の性質チップ: 良=青 .good / 注意=黄 .warn / 問題=赤 .stop（記号＋文字を必ず併記） */
+  .chip { display: inline-block; border-radius: 999px; padding: 1px 9px; font-size: 12px; font-weight: 600; }
+  .chip.good { background: var(--good-soft); color: var(--good); }
+  .chip.warn { background: var(--warn-soft); color: var(--warn); }
+  .chip.stop { background: var(--stop-soft); color: var(--stop); }
+
+  /* サマリの結論カード: 1カード1結論（チップ＋結論1行＋根拠の性質＋章リンク） */
+  ol.verdicts { list-style: none; padding: 0; margin: 14px 0; display: grid; gap: 8px; }
+  .verdict {
+    border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel);
+    padding: 8px 12px; display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px;
+  }
+  .verdict .v-basis { color: var(--muted); font-size: 12.5px; margin-left: auto; }
+
+  /* 重点レビュー依頼の3段階: 重みは色相では表さない（色相は結論の性質専用）。
+     must/want はアクセント系1色相の濃度・枠の太さ、skip は中立色（--line枠＋--muted文字）。
+     記号（◆◇・）を必ず併記する */
+  .focus { border-radius: var(--radius); padding: 12px 16px; margin: 14px 0; }
+  .focus > :last-child { margin-bottom: 0; }
+  .focus .label { font-size: 13px; font-weight: 700; letter-spacing: .04em; display: block; margin-bottom: 4px; }
+  .focus.must { border: 2px solid var(--accent); background: var(--accent-soft); }
+  .focus.must .label { color: var(--accent); }
+  .focus.want { border: 1px solid var(--accent); background: var(--panel); }
+  .focus.want .label { color: var(--accent); }
+  .focus.skip { border: 1px solid var(--line); background: var(--panel); color: var(--muted); }
+  .focus.skip .label { color: var(--muted); }
+  .focus.skip a { color: var(--muted); }
+
+  footer { color: var(--muted); font-size: 13px; text-align: center; padding-top: 10px; }
+</style></head>
+</head>
+<body>
+
+<header class="band">
+  <div class="inner">
+    <div class="kind">調査結果レポート / フェーズ2</div>
+    <h1>デザイン4案のテンプレート化方針</h1>
+    <p class="lead">選定済みデザイン4案をテンプレート化するための8つの問いを調べた。<b>4案はDOMを共有できる</b>が、当初の「DOM構造が同一」という見立ては誤りで実際は28〜40箇所の差分があり、<b>現行テンプレートの2節が新構成に対応先を持たない</b>こと、<b>案12は緑を持たず「決めたこと」を色で表せない</b>ことが分かった。Q6〜Q8は敵対的レビュー1回目の指摘で追加した問いである。</p>
+    <p class="counts">
+      <span class="chip good">◎良 3</span>
+      <span class="chip warn">△注意 3</span>
+      <span class="chip stop">✕問題 2</span>
+    </p>
+    <ul class="meta">
+      <li><b>issue</b> #203</li>
+      <li><b>ブランチ</b> claude/report-html-view-template-wu5u20</li>
+      <li><b>PR</b> #204</li>
+      <li><b>フェーズ</b> 2〈調査〉 flow-id 2-6</li>
+      <li><b>push回数</b> 3</li>
+      <li><b>作成日</b> 2026-08-24</li>
+      <li><b>正文</b> 同名の .md</li>
+    </ul>
+  </div>
+</header>
+
+<div class="wrap">
+
+<nav class="toc">
+  <h2>目次</h2>
+  <ol>
+    <li><a href="#review-focus">重点レビュー依頼</a></li>
+    <li><a href="#summary">サマリ（結論の一覧）</a></li>
+    <li><a href="#unverified">確かめられなかったこと</a></li>
+    <li><a href="#conditions">実施条件（測った対象・環境）</a></li>
+    <li><a href="#findings">実施した内容と結果</a></li>
+    <li><a href="#next">設計への反映</a></li>
+    <li><a href="#surprises">想定と異なった点</a></li>
+    <li><a href="#todo">残課題</a></li>
+  </ol>
+</nav>
+
+<section id="review-focus">
+  <h2>重点レビュー依頼</h2>
+  <div class="focus must">
+    <span class="label">◆特に見てほしい（判断に困っている）</span>
+    <ul>
+      <li><a href="#f5">Q5. サンプルブランチの後始末</a> — 受け入れ条件は「後始末を決めて<b>実施している</b>」ことを求めているが、リモートブランチの削除は取り消しが難しいため、AIの判断では実行しないことにした。<b>「決めるところまでで本PRの範囲」としてよいか</b>を判断してほしい。</li>
+    </ul>
+  </div>
+  <div class="focus want">
+    <span class="label">◇承認が欲しい（方針は決めたので確認してほしい）</span>
+    <ul>
+      <li><a href="#f3">Q3. 現行テンプレートは残し、既定を新06にする</a> — 併存させると決めた（消すと過去レポートの参照先が消え、受け入れ条件の「選択基準」も意味を失うため）。</li>
+      <li><a href="#f3">Q3. <code>next</code>・<code>conditions</code> をタイムラインの外へ出す</a> — サンプルは <code>&lt;li&gt;</code> の中に入れているが、「任意セクションは <code>&lt;section&gt;</code> ごと削除する」規約が働かなくなるため、独立した <code>&lt;section&gt;</code> へ戻すと決めた。</li>
+    </ul>
+  </div>
+  <div class="focus skip">
+    <span class="label">・細かいレビューは不要（ほぼ確実）</span>
+    <ul>
+      <li><a href="#f4">Q4. 検査コマンドの成立性</a> — 4案すべてで実際に流し、0件を確認済み。</li>
+      <li><a href="#f1">Q1. Tailwind 312種の内訳</a> — 機械的な集計であり、解釈の余地が無い。</li>
+    </ul>
+  </div>
+</section>
+
+<section id="summary">
+  <h2>サマリ（結論の一覧）</h2>
+  <ol class="verdicts">
+    <li class="verdict">
+      <span class="chip good">◎良</span>
+      <a href="#f1">Q1. 現行のセマンティック語彙を再利用し、新構造ぶんだけ足す（ユーティリティ1:1変換は採らない）</a>
+      <span class="v-basis">根拠: 実測（クラス集計）</span>
+    </li>
+    <li class="verdict">
+      <span class="chip warn">△注意</span>
+      <a href="#f2">Q2. 4案はDOMを共有できる。ただし「DOM構造が同一」という当初の見立ては誤りだった</a>
+      <span class="v-basis">根拠: 実測（構造diff）</span>
+    </li>
+    <li class="verdict">
+      <span class="chip stop">✕問題</span>
+      <a href="#f3">Q3. 現行の2節「想定と異なった点」「残課題」が新構成に対応先を持たない。必須節がタイムラインの li に埋もれてもいる</a>
+      <span class="v-basis">根拠: 実装の確認（節の突き合わせ）</span>
+    </li>
+    <li class="verdict">
+      <span class="chip good">◎良</span>
+      <a href="#f4">Q4. 3種の検査コマンドは新構造でもそのまま成立する（修正不要）</a>
+      <span class="v-basis">根拠: 実測（4案へ実行）</span>
+    </li>
+    <li class="verdict">
+      <span class="chip warn">△注意</span>
+      <a href="#f5">Q5. サンプルブランチにPRは無い。このPRへは取り込まず、削除は指示待ちとする</a>
+      <span class="v-basis">根拠: 実測（git・GitHub API）</span>
+    </li>
+    <li class="verdict">
+      <span class="chip good">◎良</span>
+      <a href="#f6">Q6. 併存。既定は06（<code>reports-clean.template.html</code>）。4案の使い分け表とファイル名4本を確定</a>
+      <span class="v-basis">根拠: 実装の確認（既存の使い分け記述を型に）</span>
+    </li>
+    <li class="verdict">
+      <span class="chip stop">✕問題</span>
+      <a href="#f7">Q7. 案12だけ緑を持たず、<code>.box.ok</code>（決めたこと）を色で表せない</a>
+      <span class="v-basis">根拠: 実測（色系統の集計）</span>
+    </li>
+    <li class="verdict">
+      <span class="chip warn">△注意</span>
+      <a href="#f8">Q8. 10・13へダークは足さない（設計意図）。既定の06は必ずダーク対応させる</a>
+      <span class="v-basis">根拠: 実測（<code>dark:</code> の計数）</span>
+    </li>
+  </ol>
+  <div class="box info">
+    <span class="label">Q6〜Q8は敵対的レビュー1回目の指摘で追加した</span>
+    当初の5項目には、受け入れ条件(4)（選択基準）・issue #186 の意味論・ダーク対応を確かめる問いが1つも無かった。
+  </div>
+</section>
+
+<section id="unverified">
+  <h2>確かめられなかったこと</h2>
+  <div class="box warn">
+    <span class="label">この結果が言っていないこと</span>
+    <ul>
+      <li>git bash（Windows）実機・実ブラウザでの表示。<code>prefers-color-scheme</code>・<code>position: sticky</code>・<code>color-mix()</code> の効き方は未確認 — <a href="#f2">詳細: Q2</a></li>
+      <li>印刷（PDF保存）時の見え方。案13が狙う「印刷しても違和感が出にくい」は検証していない — <a href="#f8">詳細: Q8</a></li>
+      <li>色の区別が「見え方」として十分かどうか。確かめたのは<i>クラスの有無</i>であって、実際のコントラスト比・色覚特性のある読み手にとっての区別しやすさは測っていない — <a href="#f7">詳細: Q7</a></li>
+    </ul>
+  </div>
+</section>
+
+<section id="conditions">
+  <h2>実施条件（測った対象・環境）</h2>
+  <ul>
+    <li>実行環境: Claude Code on the web（Linux）。<b>git bash実機では未確認</b>。</li>
+    <li>対象: <code>origin/claude/report-template-design-0bpul1</code> の <code>wip/design-samples/</code> から 06・10・12・13・16 を取り出したもの（作業ブランチには持ち込んでいない）。</li>
+    <li>比較対象: <code>.claude/skills/issue-mr-flow/assets/reports.template.html</code>（425行）。</li>
+    <li>実施日: 2026-08-24</li>
+  </ul>
+</section>
+
+<section id="findings">
+  <h2>実施した内容と結果</h2>
+
+  <h3 id="f1">Q1. Tailwindのクラスは、どの単位のCSSへ畳むか <span class="chip good">◎良</span></h3>
+  <p>4案が使っているTailwindクラスを機械的に数えたところ、<b>ユニークで312種</b>あった。</p>
+<pre><code>$ for f in 06-combined-clean 10-neobrutal 12-mono-semantic 13-warm-paper; do
+    grep -oE 'class="[^"]*"' $f.html | sed 's/^class="//;s/"$//' | tr ' ' '\n'
+  done | grep -v '^$' | sort | uniq -c | sort -rn
+ユニーク312種
+    100 font-bold
+     82 text-xs
+     54 text-sm
+     42 flex
+     41 mt-2
+（dark: 接頭辞付きが39種）</code></pre>
+  <p>上位を占めるのは <code>font-bold</code> <code>text-xs</code> <code>mt-2</code> のような<b>見た目の指定そのもの</b>で、意味を持たない。312種を1:1でCSSクラスへ写すと、クラス名がHTMLに残ったまま外部依存だけが消え、「HTMLを読めば構造と意味が分かる」という現行テンプレートの性質を失う。</p>
+  <p>一方、<b>現行テンプレートは既に必要な語彙をほぼ持っている</b>（<code>.chip.good/.warn/.stop</code>、<code>.focus.must/.want/.skip</code>、<code>.box.info/.ok/.warn/.stop</code>、<code>.verdict</code>、<code>.meta</code>、<code>.tablewrap</code>）。新デザインが追加で必要とするのは構造が増えたぶんだけである。</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>新しく要る</th><th>役割</th><th>修飾子</th></tr></thead>
+    <tbody>
+      <tr><td><code>.sidebar</code></td><td>左固定サイドバー（目次・件数・メタ）</td><td>—</td></tr>
+      <tr><td><code>.tl</code> / <code>.tl-item</code></td><td>タイムラインとその1項目</td><td>—</td></tr>
+      <tr><td><code>.tl-dot</code></td><td>項目のドット（<b>色＝結論の性質</b>）</td><td><code>.good .warn .stop .neutral .next</code></td></tr>
+      <tr><td><code>.kpi</code></td><td>結論件数のタイル</td><td><code>.good .warn .stop</code></td></tr>
+      <tr><td><code>.hl</code></td><td>本文中の強調（案10の <code>&lt;mark&gt;</code> 相当）</td><td>—</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <div class="box ok">
+    <span class="label">結論</span>
+    現行のセマンティック語彙を再利用し、<code>.sidebar</code> <code>.tl</code> <code>.tl-dot</code> <code>.kpi</code> <code>.hl</code> を足す。<b><code>.hl</code> を設けるのが要点</b>で、案10だけが使う <code>&lt;mark&gt;</code> をタグの差ではなくCSSの差として扱えるようになる（Q2の結論を成り立たせる具体策でもある）。issue #186 の意味論（3色＋記号＋文字、◆◇・は色相を使わない）は変えない。
+  </div>
+
+  <h3 id="f2">Q2. 4案はDOMを共有できるか <span class="chip warn">△注意</span></h3>
+  <p>タグの並びを取り出し、案06と突き合わせた。</p>
+  <div class="box warn">
+    <span class="label">当初の抽出は構造を比較できていなかった</span>
+    <code>grep -oE '&lt;[a-z][a-z0-9]*'</code> は <code>&lt;/div&gt;</code> の <code>/</code> を文字クラスに含まないため<b>閉じタグを1つも拾わない</b>。得られていたのは「開始タグ名の並び」で、入れ子構造ではなかった。前段の <code>sed</code> によるclass除去も、後段がタグ名しか取らないため<b>出力に一切影響していなかった</b>（class を落とせているという誤った安心だけが残る形）。敵対的レビューの指摘を受けて取り直した。
+  </div>
+<pre><code>$ for f in 06-combined-clean 10-neobrutal 12-mono-semantic 13-warm-paper; do
+    grep -oE '&lt;/?[a-z][a-z0-9]*' $f.html &gt; full-$f.txt
+  done
+$ diff full-06-combined-clean.txt full-&lt;各案&gt;.txt</code></pre>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>比較</th><th>差分行数（開きタグのみ・当初）</th><th>差分行数（<b>開閉タグ込み・修正後</b>）</th></tr></thead>
+    <tbody>
+      <tr><td>06 vs 10（ネオブルータリズム）</td><td>21</td><td><b>40</b></td></tr>
+      <tr><td>06 vs 12（ミニマル・モノクロ）</td><td>14</td><td><b>28</b></td></tr>
+      <tr><td>06 vs 13（ウォームペーパー）</td><td>19</td><td><b>36</b></td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p>差分はおよそ倍になったが、<b>内訳の種類は変わらなかった</b>（開きタグの差1つに対して閉じタグの差が1つ対応するため）。したがって下記の結論は変わらない。</p>
+  <p><b>一方で、アンカーの骨格は4案で完全に一致していた。</b></p>
+<pre><code>$ grep -oE '&lt;[a-z][^&gt;]*[[:space:]]id="[A-Za-z0-9_-]+"' $f.html | sed 's/.*id="//;s/"$//'
+4案とも: overview unverified timeline conditions f1 f2 f3 f4 next</code></pre>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>差分</th><th>現れ方</th><th>解消方法</th></tr></thead>
+    <tbody>
+      <tr><td>目次項目が1つ多い</td><td>06 だけ <code>&lt;li&gt;&lt;a&gt;</code> が1組多い</td><td>サンプル作成時のばらつき。テンプレートでは揃える</td></tr>
+      <tr><td>強調タグの違い</td><td>10 は <code>&lt;mark&gt;</code>、他は <code>&lt;strong&gt;</code></td><td><code>&lt;strong class="hl"&gt;</code> へ統一し、10の <code>&lt;style&gt;</code> だけが背景色を与える</td></tr>
+      <tr><td>KPIタイルの内側</td><td>06 は <code>&lt;p&gt;</code>、12・13 は <code>&lt;span&gt;</code></td><td>意味の差ではない。<code>&lt;p&gt;</code> に統一する</td></tr>
+      <tr><td>箇条書きか段落か</td><td>06 は <code>&lt;ul&gt;&lt;li&gt;</code>、他は <code>&lt;p&gt;</code></td><td>テンプレートでは <code>&lt;ul&gt;&lt;li&gt;</code> を既定にする</td></tr>
+      <tr><td>ラッパー <code>&lt;div&gt;</code> の増減</td><td>10 に2つ多い（ハードシャドウ用）</td><td>CSSの <code>box-shadow</code> で表現できるため削る</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <div class="box ok">
+    <span class="label">結論</span>
+    <b>共有できる。</b>「サンプルが偶然そう書かれていただけ」の差分と「そのデザインの表現に必要な差分」を分けた結果、後者は案10の <code>&lt;mark&gt;</code> と装飾用 <code>&lt;div&gt;</code> だけで、どちらもCSSへ寄せられた。共有できることが重要なのは、<b>使い方コメント・プレースホルダ・検査手順を1回書けば4案へ同じものを配れる</b>ためである（書き分けると仕組みが4箇所で二重管理になる）。
+  </div>
+  <div class="box warn unverified-detail">
+    <span class="label">確かめられなかったこと（詳細）</span>
+    差分の解消可否は<b>マークアップとCSSの対応関係からの判断</b>であり、実ブラウザで描き比べてはいない。とくに案10のハードシャドウを <code>box-shadow</code> だけで再現できるかは、フェーズ3で実際に描画して確認する。
+  </div>
+
+  <h3 id="f3">Q3. 現行テンプレートの節は、新構成のどこへ行くか <span class="chip stop">✕問題</span></h3>
+  <p>現行8節と案06の構成を突き合わせた。<b>6節は対応先があるが、2節が対応先を持たない。</b></p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>現行の節（id）</th><th>必須／任意</th><th>新構成での置き場</th></tr></thead>
+    <tbody>
+      <tr><td>目次（<code>nav.toc</code>）</td><td>任意</td><td>サイドバーへ移動（常時表示のため実質必須化）</td></tr>
+      <tr><td>重点レビュー依頼（<code>review-focus</code>）</td><td>必須</td><td><code>overview</code> 内のカード3枚</td></tr>
+      <tr><td>サマリ（<code>summary</code>）</td><td>必須</td><td><code>overview</code> の総括1文＋KPIタイル</td></tr>
+      <tr><td>確かめられなかったこと（<code>unverified</code>）</td><td>必須</td><td><code>unverified</code>（そのまま）</td></tr>
+      <tr><td>実施条件（<code>conditions</code>）</td><td>任意（実測なら必須）</td><td><code>timeline</code> の先頭項目 — <b>問題あり</b></td></tr>
+      <tr><td>実施した内容と結果（<code>findings</code>）</td><td>必須</td><td><code>timeline</code> の <code>f1</code>…<code>fN</code></td></tr>
+      <tr><td>設計への反映（<code>next</code>）</td><td>必須</td><td><code>timeline</code> の最終項目 — <b>問題あり</b></td></tr>
+      <tr><td>想定と異なった点（<code>surprises</code>）</td><td>任意</td><td><b>対応先なし</b></td></tr>
+      <tr><td>残課題（<code>todo</code>）</td><td>任意</td><td><b>対応先なし</b>（06では <code>next</code> 内の <code>&lt;p&gt;</code> 1行）</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <div class="box stop">
+    <span class="label">見つかった問題（3件）</span>
+    <ol>
+      <li><b>「想定と異なった点」「残課題」が落ちている。</b> サンプルは架空のダミー内容で作られており、この2節を必要としなかったために表現されていない。落としてよい理由が無いため、<b>任意セクションとしてタイムラインの後ろへ置く</b>（現行の並び順を保つ）。</li>
+      <li><b>必須節「設計への反映」がタイムラインの <code>&lt;li&gt;</code> の中にある。</b> 必須節が任意節（実施条件）と同じ入れ物に混ざり、「任意セクションは <code>&lt;section&gt;</code> ごと削除する」規約が働かない（<code>&lt;li&gt;</code> は <code>&lt;section&gt;</code> ではない）。<b>タイムラインの外へ出して独立した <code>&lt;section&gt;</code> にする。</b></li>
+      <li><b><code>conditions</code> も同じ理由で <code>&lt;li&gt;</code> になっている。</b> こちらは元々任意節なので、削除の規約を成立させるため<b>同様に <code>&lt;section&gt;</code> へ戻す</b>（規約を場所ごとに書き分けないため）。</li>
+    </ol>
+  </div>
+  <div class="box ok">
+    <span class="label">結論: 現行テンプレートは残す（併存）。既定は新06</span>
+    <ul>
+      <li>現行テンプレートは<b>単一カラムで短いレポートに向く</b>。新構成はサイドバーとタイムラインを持ち、章が3つ以上ないと余白が目立つ。</li>
+      <li>受け入れ条件が「<b>選択基準（既定はどれか）がドキュメント化されている</b>」ことを求めており、これは<b>選択肢が複数あることを前提にした条件</b>である。</li>
+      <li>消すと、過去のブランチのレポートを読み直すときの参照先が消える。</li>
+    </ul>
+    <b>既定は新デザインの06（クリーン・ライト）。</b> 統合構成のベース案で、ライト／ダーク両対応、配色が最も控えめで内容の邪魔をしないため。
+  </div>
+
+  <h3 id="f4">Q4. 3種の検査コマンドは新構造でも成立するか <span class="chip good">◎良</span></h3>
+  <p>現行テンプレートが定める2つの検査を、4案へそのまま流した（プレースホルダ検査はテンプレート化後でないと流せないため対象外）。</p>
+<pre><code>$ comm -23 &lt;(grep -oE 'href="&#35;[A-Za-z0-9_-]+"' $f | sed 's/^href="&#35;//;s/"$//' | sort -u) \
+           &lt;(grep -oE '&lt;[a-z][^&gt;]*[[:space:]]id="[A-Za-z0-9_-]+"' $f | sed 's/.*id="//;s/"$//' | sort -u)
+$ grep -oE '&lt;[a-z][^&gt;]*[[:space:]]id="[A-Za-z0-9_-]+"' $f | sed 's/.*id="//;s/"$//' | sort | uniq -d</code></pre>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>案</th><th>リンク破断</th><th>重複ID</th><th><code>href="&#35;…"</code> の総数</th></tr></thead>
+    <tbody>
+      <tr><td>06</td><td>0件</td><td>0件</td><td>13</td></tr>
+      <tr><td>10</td><td>0件</td><td>0件</td><td>12</td></tr>
+      <tr><td>12</td><td>0件</td><td>0件</td><td>12</td></tr>
+      <tr><td>13</td><td>0件</td><td>0件</td><td>12</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <div class="box ok">
+    <span class="label">結論</span>
+    <b>成立する。コマンドの修正は不要。</b> 新構成ではサイドバー目次・KPI・重点レビュー依頼の3箇所から本文IDを参照するため参照数が増えるが、検査は「参照先が定義されているか」を見ており参照の<b>数</b>には依存しない。ID定義側の抽出が開きタグ内に限定されている点も、新構成で変わらず有効だった。<br>
+    プレースホルダ検査（<code>grep -c '&lt;!-- ここに書く'</code>）もそのまま使える。ただし新構成は<b>サイドバーという「本文の外」にも埋める箇所</b>（件数チップ・メタ情報・目次）を持つため、使い方コメントで埋め忘れへの注意を促す必要がある。
+  </div>
+  <div class="box stop">
+    <span class="label">上の表が0件であること自体は、検査が働いた証拠にならない</span>
+    「異常が無ければ何も出ない」形の検査は、<b>パターンが実データに合っていないときも同じく0件になる</b>。そこで2つの確認を足した。
+  </div>
+  <p><b>確認1: 対象が取れていること。</b> 案06で <code>href="&#35;…"</code> が13件、開きタグ内の <code>id</code> が9件。どちらも0ではないので、検査は「何も無いファイル」を見ているわけではない。</p>
+  <p><b>確認2: 意図的な異常を検出すること。</b> 案06のコピーを2つ作り、それぞれに1箇所だけ異常を入れた。</p>
+<pre><code>$ sed -i 's|href="&#35;f3"|href="&#35;f99"|' negctl/broken-href.html   # 存在しないIDへのリンク
+$ sed -i 's|id="f2"|id="f1"|'        negctl/dup-id.html        # IDの重複</code></pre>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>壊した内容</th><th>リンク破断検査</th><th>重複ID検査</th></tr></thead>
+    <tbody>
+      <tr><td><code>href</code> を存在しないIDへ</td><td><b><code>f99</code> を検出</b></td><td>0件（正しい）</td></tr>
+      <tr><td><code>id="f2"</code> → <code>id="f1"</code></td><td><b><code>f2</code> を検出</b></td><td><b><code>f1</code> を検出</b></td></tr>
+    </tbody>
+  </table>
+  </div>
+  <div class="box ok">
+    <span class="label">2つ目のケースが、両方の検査を持つ理由をそのまま示している</span>
+    h3をコピーしてIDを振り直し忘れると、「重複が生まれる」と同時に「元のIDへの参照が宙に浮く」。<b>片方の検査だけでは、どちらか一方の症状しか捕まえられない。</b>
+  </div>
+
+  <h4>外部依存の検査（受け入れ条件(2)）</h4>
+  <p><b>当初この検査は調査項目に入っていなかった</b>（敵対的レビューの指摘で追加した）。このissueの作業の主要部分はTailwind CDNの除去であり、3種の検査はどれも外部依存を見ていない。<code>wip/reports/REVIEW-POINTS.md</code> が定める2本を使う。</p>
+<pre><code>$ grep -nE "(src|href)=['\"]?(https?:)?//" &lt;F&gt;
+$ grep -nE "(url\(|@import[[:space:]]+)['\"]?(https?:)?//" &lt;F&gt;</code></pre>
+  <div class="box ok">
+    <span class="label">空振りではないことの確認</span>
+    <b>変換前のサンプルへ流すと1件（Tailwind CDNの <code>&lt;script src&gt;</code>）を検出した。</b> つまりこの検査は変換漏れがあれば実際に当たる。フェーズ3で作る各テンプレートへ流し、0件であることを確認する。
+  </div>
+  <div class="box warn">
+    <span class="label">ただし0件を機械的な合格条件にしない</span>
+    この検査は<b>地の文でURLに触れただけの記述にも当たる</b>。本調査の作業中、全体作業計画のHTMLビューで1件ヒットしたが、中身は <code>&amp;lt;script src="…"&amp;gt;</code> という<b>エスケープ済みの引用</b>で、実際の依存ではなかった。これは現行テンプレートがプレースホルダ検査について定めている注意（「地の文で『ここに書く』という語に触れる成果物を誤検知しないため <code>&lt;!--</code> まで含めて数える」）と同じ性質の問題である。<b>ヒットしたら中身を見て判断する</b>——テンプレートの使い方コメントにもこの注意を書く（フェーズ3）。
+  </div>
+
+  <h3 id="f5">Q5. <code>wip/design-samples/</code> の後始末 <span class="chip warn">△注意</span></h3>
+<pre><code>$ git log --oneline origin/main..FETCH_HEAD     # → 3コミット
+$ git diff --stat origin/main...FETCH_HEAD      # → wip/design-samples/ の16ファイルのみ、3055行
+$ mcp__github__list_pull_requests (head 指定)   # → [] （PRは無い）</code></pre>
+  <ul>
+    <li>ブランチが触っているのは <code>wip/design-samples/</code> <b>だけ</b>で、他のファイルには一切影響しない。</li>
+    <li><code>wip/</code> 配下はタスク単位の作業用ディレクトリで、flow-id 5-5 で削除され squash merge により <code>main</code> へは残らない。<b>このPRへ取り込んでも 5-5 で消すだけになる。</b></li>
+  </ul>
+  <div class="box ok">
+    <span class="label">決めたこと</span>
+    <div class="tablewrap">
+    <table>
+      <thead><tr><th>項目</th><th>決定</th></tr></thead>
+      <tbody>
+        <tr><td>このPRでの取り込み</td><td><b>しない</b>（取り込んでも 5-5 で消える）</td></tr>
+        <tr><td>サンプルの参照方法</td><td>issue #203 本文と本レポートが<b>ブランチ名とファイル名で参照する</b>（サンプル自体はブランチ履歴に残る）</td></tr>
+        <tr><td>ブランチの削除</td><td><b>AIエージェントは実行しない。</b> リモートブランチの削除は取り消しが難しく、ユーザーの明示指示が要る</td></tr>
+      </tbody>
+    </table>
+    </div>
+    受け入れ条件「後始末を決めて実施している」に対しては、<b>「決めた（＝取り込まない／削除は指示待ち）」までが本PRの範囲</b>である。
+  </div>
+
+  <h3 id="f6">Q6. 現行テンプレートの扱い・既定・選択基準・ファイル名 <span class="chip good">◎良</span></h3>
+  <p><b>併存させる。既定は06（クリーン・ライト）。</b> 置き換えではなく併存を選ぶ理由は Q3 に書いたとおり（現行は単一カラムで短いレポートに向く／受け入れ条件(4)が選択肢の存在を前提にしている／過去レポートの参照先が消える）。</p>
+  <h4>ファイル名</h4>
+  <p><b>接頭辞 <code>reports-</code> で揃える。</b> <code>ls</code> の並びで4本が隣り合い、既存の <code>reports.template.html</code> のすぐ後ろに来る。</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>ファイル名</th><th>案</th><th>位置づけ</th></tr></thead>
+    <tbody>
+      <tr><td><code>reports.template.html</code></td><td>（現行）</td><td><b>据え置き</b>。単一カラム・短いレポート向け</td></tr>
+      <tr><td><code>reports-clean.template.html</code></td><td>06 クリーン・ライト</td><td><b>既定</b></td></tr>
+      <tr><td><code>reports-neobrutal.template.html</code></td><td>10 ネオブルータリズム</td><td></td></tr>
+      <tr><td><code>reports-mono.template.html</code></td><td>12 ミニマル・モノクロ</td><td></td></tr>
+      <tr><td><code>reports-paper.template.html</code></td><td>13 ウォームペーパー</td><td></td></tr>
+    </tbody>
+  </table>
+  </div>
+  <h4>選択基準（<code>deliverables.md</code> へ載せる形）</h4>
+  <p><code>.claude/skills/canvas-report/SKILL.md</code>「いつcanvasを選ぶか」を型として使う（このリポジトリに既にある使い分け記述の形に合わせる）。</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>テンプレート</th><th>選ぶ場面</th><th>ダーク対応</th></tr></thead>
+    <tbody>
+      <tr><td><code>reports-clean</code>（<b>既定</b>）</td><td><b>迷ったらこれ。</b> 章が3つ以上あり、結論の性質が混在するレポート</td><td>あり</td></tr>
+      <tr><td><code>reports.template.html</code>（現行）</td><td>章が1〜2個で短い。サイドバーとタイムラインが余白になる場合</td><td>あり</td></tr>
+      <tr><td><code>reports-mono</code></td><td>結論の色分けを最優先したい。<b>色が見えたら結論の性質</b>という1対1対応で読ませたい</td><td>あり</td></tr>
+      <tr><td><code>reports-paper</code></td><td>印刷・PDF配布を前提とするレポート</td><td><b>なし</b>（ライト単一）</td></tr>
+      <tr><td><code>reports-neobrutal</code></td><td>結論の分布を遠目でも判別させたい。長時間のレビューで単調さを避けたい</td><td><b>なし</b>（ライト単一）</td></tr>
+      <tr><td>canvas形式（<code>canvas-report</code>）</td><td>要素同士の<b>つながり</b>が主題（別スキル）</td><td>—</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3 id="f7">Q7. issue #186 の色と記号の意味論は、4案それぞれの配色で成立するか <span class="chip stop">✕問題</span></h3>
+  <p><b>案12（ミニマル・モノクロ）だけが成立しない。</b> 4案の色系統を数えたところ、<b>12は緑系を1件も持たない</b>。</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>案</th><th>青（◎良）</th><th>黄（△注意）</th><th>赤（✕問題）</th><th>緑（<code>.box.ok</code> 決めたこと）</th></tr></thead>
+    <tbody>
+      <tr><td>06</td><td>48</td><td>27</td><td>17</td><td>3</td></tr>
+      <tr><td>10</td><td>13</td><td>8</td><td>6</td><td>4</td></tr>
+      <tr><td>12</td><td>9</td><td>8</td><td>6</td><td><b>0</b></td></tr>
+      <tr><td>13</td><td>17</td><td>12</td><td>10</td><td>2</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p>現行テンプレートは「<b>緑は決めたこと・手順の成功専用。結論の性質には使わない</b>」と定めている。12をそのまま変換すると、<code>.box.ok</code> が他のボックスと区別できないテンプレートになり、<b>規約が無言で失われる</b>。</p>
+  <div class="box ok">
+    <span class="label">どう扱うか</span>
+    <b>12では <code>.box.ok</code> に色を与えず、太い左罫＋「決定」ラベルで表す。</b><br>
+    これは12の設計方針と矛盾しない。むしろ整合する——12は「<b>色を持つのは意味論を担う要素だけ</b>」（＝色が見えたら結論の性質）を狙った案であり、<code>.box.ok</code> が表すのは<b>結論の性質ではなく「決めたこと」</b>である。12においては、<code>.box.ok</code> が色を持たないほうが1対1対応が保たれる。<br>
+    他の3案は4系統すべてを色で区別でき、変更は要らない。<b>いずれの案でも、色だけに意味を持たせない原則（記号＋文字の併記）は維持する。</b>
+  </div>
+
+  <h3 id="f8">Q8. ライト単一テーマの案（10・13）にダークモードを足すか <span class="chip warn">△注意</span></h3>
+  <p><b>足さない。</b> ただし<b>既定テンプレート（06）は必ずダーク対応させ</b>、選択基準の表へ「ダーク対応の有無」を明示する（Q6の表）。</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>案</th><th><code>dark:</code> バリアントの出現数</th></tr></thead>
+    <tbody>
+      <tr><td>06</td><td>99</td></tr>
+      <tr><td>10</td><td><b>0</b></td></tr>
+      <tr><td>12</td><td>39</td></tr>
+      <tr><td>13</td><td><b>0</b></td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p>10・13が単一テーマなのは実装漏れではなく、<b>サンプル冒頭コメントが明示している設計意図</b>である（10:「このスタイルはダーク変換で意味が崩れるため単一テーマ」／13:「紙メタファはダーク変換で意味が崩れるため」）。ネオブルータリズムの「黒枠＋高彩度」も、ウォームペーパーの「クリーム色の紙」も、反転すると成立しない。</p>
+  <div class="box ok">
+    <span class="label">機能後退にならない理由</span>
+    <ul>
+      <li><b>現行テンプレートは残る</b>（Q6）。置き換えではないので、既存の選択肢は減らない。</li>
+      <li><b>既定は06</b>で、ダーク対応がある。何も考えずに選んだ場合にダークで読めなくなることはない。</li>
+      <li>10・13は「そのデザインを意図して選んだ場合」にだけ使われる。</li>
+    </ul>
+  </div>
+  <div class="box warn">
+    <span class="label">ただし1点だけ手当てする</span>
+    <b>10・13には <code>color-scheme: light</code> を明示する。</b> これを書かないと、ブラウザやOSの設定によってはフォーム要素・スクロールバーが強制的にダーク化され、ライト前提の配色と混ざる。「ダークにしない」ことを宣言として書いておく。
+  </div>
+</section>
+
+<section id="next">
+  <h2>設計への反映</h2>
+  <p>フェーズ3（実装）へ渡す確定事項:</p>
+  <ol>
+    <li><b>4テンプレートは共通DOM＋4通りの <code>&lt;style&gt;</code></b> で作る（Q2）。使い方コメント・プレースホルダ・検査手順は4本に同じものを持たせる。</li>
+    <li><b>セマンティック語彙は現行テンプレートを再利用</b>し、<code>.sidebar</code> <code>.tl</code> <code>.tl-dot</code> <code>.kpi</code> <code>.hl</code> を追加する（Q1）。</li>
+    <li><b><code>next</code>（設計への反映）と <code>conditions</code>（実施条件）はタイムラインの外へ出し、独立した <code>&lt;section&gt;</code> にする</b>（Q3の問題2・3）。</li>
+    <li><b>「想定と異なった点」「残課題」を任意セクションとして新設する</b>（Q3の問題1）。</li>
+    <li><b>章IDの接頭辞は <code>f</code> に固定</b>する（サンプル16は <code>w</code> を使っていたが、場面ごとに書き分けない）。</li>
+    <li><b>現行 <code>reports.template.html</code> は残し、既定は <code>reports-clean.template.html</code>（06）とする</b>（Q3・Q6）。ファイル名は <code>reports-clean</code> / <code>reports-neobrutal</code> / <code>reports-mono</code> / <code>reports-paper</code> の4本。</li>
+    <li><b>案12の <code>.box.ok</code> は色ではなく太い左罫＋「決定」ラベルで表す</b>（Q7。12は緑系を持たないため）。</li>
+    <li><b>10・13はライト単一のままとし、<code>color-scheme: light</code> を明示する</b>（Q8）。</li>
+    <li><b>各テンプレートに5種の検査を流す</b>: プレースホルダ／リンク破断／重複ID／<b>外部依存2本</b>（Q4）。リンク破断・重複IDは<b>意図的に壊したコピーで検出できることまで</b>確認する。</li>
+  </ol>
+  <p><b>フェーズ4（反映）へ渡すもの:</b></p>
+  <ul>
+    <li><b>選択基準の表（Q6）を <code>deliverables.md</code>「計画・レポートのHTMLビュー」のテンプレート表へ載せる</b>（受け入れ条件(4)。行を増やすだけでなく、選び方まで書く）。</li>
+    <li><code>.claude/rules/directory-structure.md</code> の「テンプレート2本」という記述の更新。</li>
+  </ul>
+</section>
+
+<section id="surprises">
+  <h2>想定と異なった点</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>計画時の見込み</th><th>実際</th><th>どう扱ったか</th></tr></thead>
+    <tbody>
+      <tr><td>4案はDOM構造が<b>同一</b>（全体作業計画の「前提として確認済みのこと」に記載）</td><td>案06を基準に<b>14〜21箇所のタグ差分</b>があった。一致していたのはアンカーの骨格（9つのID）だけ</td><td>差分を「サンプル作成時のばらつき」と「デザイン表現に必要なもの」に分け、後者はCSSへ寄せることで<b>共有可能</b>という結論は維持した（Q2）。目視の見立てを機械的に検証した価値がそのまま出た</td></tr>
+      <tr><td>新デザインは現行の節構成を包含している</td><td>「想定と異なった点」「残課題」の2節が<b>どこにも無い</b>。必須節がタイムラインの <code>&lt;li&gt;</code> に埋もれてもいた</td><td>2節を新設し、<code>next</code>・<code>conditions</code> を <code>&lt;section&gt;</code> へ戻す方針にした（Q3）。<b>サンプルをそのままテンプレート化していたら、必須節が静かに落ちていた</b></td></tr>
+      <tr><td>調査計画のQ1〜Q5で、受け入れ条件を満たす情報が揃う</td><td>受け入れ条件(4)（選択基準）・issue #186 の意味論・ダーク対応を確かめる問いが<b>1つも無かった</b>。ファイル名を決める問いも無いのに、検証条件はファイル名が出揃うことを要求していた</td><td>敵対的レビュー1回目の指摘を受け、<b>Q6・Q7・Q8を追加</b>して調査し直した</td></tr>
+      <tr><td>Q2の抽出コマンドで構造を比較できる</td><td><code>grep -oE '&lt;[a-z][a-z0-9]*'</code> は<b>閉じタグを1つも拾わない</b>（<code>/</code> が文字クラスに無い）。前段の <code>sed</code> によるclass除去も<b>出力に影響していなかった</b></td><td>閉じタグを含む形へ直して取り直した（差分は倍増したが<b>種類は変わらず</b>、結論は不変）。計画側のコマンドも修正した</td></tr>
+      <tr><td>Q1のクラス集計コマンドは正しい</td><td>計画に書いたコマンドは <code>class="</code> と閉じ <code>"</code> をトークンに残すため、<b>同じクラスが分裂して数えられる</b>（実測: <code>text-xs</code> が 15 と 12 に割れた）</td><td>実行時には <code>sed</code> で剥がした正しい形を使っていたため<b>集計結果（312種）は正しい</b>。計画側のコマンドを修正した</td></tr>
+      <tr><td>Q4は「実際に流す」ことで検査の成立を示せる</td><td>4案とも<b>既に0件で合格</b>するため、流しても「検査が働いた」証拠にならない（空振り）</td><td>意図的に壊したコピーで<b>検出できることまで</b>確認する手順を足した。外部依存検査も、変換前サンプルで非0件になることを示した</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="todo">
+  <h2>残課題</h2>
+  <ul>
+    <li>ブラウザでの実表示確認（<code>position: sticky</code>・<code>prefers-color-scheme</code>・<code>color-mix()</code>・案10のハードシャドウ）は<b>フェーズ3の検証項目</b>とする。本調査はコマンドラインでの静的検査に留まる。</li>
+    <li>印刷（PDF保存）時の見え方（案13の狙い）は未検証。フェーズ3で確認するか、別issueへ送るかを判断する。</li>
+    <li><code>wip/design-samples/</code> を持つブランチの削除は、<b>ユーザーの指示待ち</b>。</li>
+  </ul>
+</section>
+
+<footer>issue #203 / PR #204 — 結果の正文は同名の <code>.md</code>。外部依存を持たない自己完結HTML。</footer>
+
+</div>
+</body>
+</html>
