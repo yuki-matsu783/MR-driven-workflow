@@ -11,7 +11,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>【設計反映】【AIアセット反映】4テンプレートの参照側更新とDDR — issue #203</title>
 <style>
-<style>
   :root {
     --bg: #f6f7f9;      --panel: #ffffff;   --ink: #1a1d21;     --muted: #5b636d;
     --line: #dfe3e8;    --accent: #2563eb;  --accent-soft: #eaf0fe;
@@ -105,7 +104,6 @@
 
   footer { color: var(--muted); font-size: 13px; text-align: center; padding-top: 10px; }
 </style>
-</style>
 </head>
 <body>
 
@@ -113,13 +111,13 @@
   <div class="inner">
     <div class="kind">個別反映計画 / フェーズ4</div>
     <h1>【設計反映】【AIアセット反映】4テンプレートの参照側更新とDDR</h1>
-    <p class="lead">フェーズ3で作ったのは<b>テンプレート本体だけ</b>である。参照側を直さない限り、4本は<b>置いてあるだけでフローから使われない</b>。ここで (a) 選択基準の文書化、(b) 参照側8ファイルの更新、(c) 判断のDDR化 を行う。</p>
+    <p class="lead">フェーズ3で作ったのは<b>テンプレート本体だけ</b>である。参照側を直さない限り、4本は<b>置いてあるだけでフローから使われない</b>。</p>
     <ul class="meta">
       <li><b>issue</b> #203</li>
       <li><b>ブランチ</b> claude/report-html-view-template-wu5u20</li>
       <li><b>PR</b> #204</li>
       <li><b>フェーズ</b> 4〈反映〉 flow-id 4-1</li>
-      <li><b>push回数</b> 7</li>
+      <li><b>push回数</b> 8</li>
       <li><b>作成日</b> 2026-08-24</li>
       <li><b>正文</b> 同名の .md</li>
     </ul>
@@ -132,6 +130,8 @@
   <h2>目次</h2>
   <ol>
     <li><a href="#premise">前提（合意状況）</a></li>
+    <li><a href="#purpose">この計画で何をするか</a></li>
+    <li><a href="#asset-survey">AIアセット反映の洗い出し（手順1〜2）</a></li>
     <li><a href="#target">変更対象 — 直すもの／触らないもの</a></li>
     <li><a href="#approach">方針</a></li>
     <li><a href="#out-of-scope">やらないこと（スコープ外）</a></li>
@@ -152,28 +152,98 @@
   </div>
   <div class="box warn">
     <span class="label">人間のレビューは未実施</span>
-    非対話セッションのため、合意の代わりに敵対的レビューを通す（フェーズ3までで2回、計29件へ対応済み）。
+    非対話セッションのため、合意の代わりに敵対的レビューを通す（フェーズ3までで2回、計29件へ対応済み。<b>本計画に対する3回目で19件</b>）。
+  </div>
+</section>
+
+<section id="purpose">
+  <h2>この計画で何をするか</h2>
+  <p><b>「置いてあるだけ」の4本を、フロー定義から選んで使える状態にする。</b> 具体的には (a) 選択基準の文書化（受け入れ条件(4)）、(b) 参照側の記述更新、(c) 判断のDDR化、(d) 作業の副産物として得た検査の一般則のアセット化、の4つ。</p>
+  <div class="box info">
+    <span class="label">種別を併記する理由</span>
+    <code>references/planning.md</code> は <code>【設計反映】</code> <code>【AIアセット反映】</code> を<b>基本的に併記せず分ける</b>と定めている。<b>今回あえて併記するのは、両者の入力が同一の作業結果1本で、合意を1回で取れば足りるため</b>である（分けると同じ作業結果を2つの計画から参照し、レビューも2往復になる）。<b>併記する以上、<code>【AIアセット反映】</code> 側の手順1〜2は省略しない。</b>
+  </div>
+</section>
+
+<section id="asset-survey">
+  <h2>AIアセット反映の洗い出し（<code>references/planning.md</code> 手順1〜2）</h2>
+
+  <h3>手順1: 起点の列挙（5件）</h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>入力</th><th>起点</th></tr></thead>
+    <tbody>
+      <tr><td><code>worklogs/</code></td><td><code>dark:</code> の計数で自作の正規表現を誤り、レビューの指摘値と食い違って初めて気づいた</td></tr>
+      <tr><td><code>reports/</code>（f2・f4）</td><td>HTMLコメント中の地の文をタグとして数え、<b>同じ失敗を2つの検査で繰り返した</b></td></tr>
+      <tr><td><code>reports/</code>（f3）</td><td>「出力なし＝合格」の検査が空振りしていた（調査Q4）</td></tr>
+      <tr><td>レビューコメント（2回目の指摘2）</td><td><b>タグ名の並びの比較</b>では、成立していない主張を「合格」と報告してしまう</td></tr>
+      <tr><td>レビューコメント（3回目の指摘）</td><td>HTMLビュー生成時に <code>&lt;style&gt;</code> が二重に出力されたが、<b>既存の5種の検査はどれも捕まえなかった</b></td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>手順2: 4類型への分類</h3>
+  <p><b>「該当するアセット」はファイル単位ではなく記述単位で見る</b>（近いファイルは必ず見つかるため）。</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>起点</th><th>類型</th><th>判定の根拠</th><th>反映先</th></tr></thead>
+    <tbody>
+      <tr><td>コメントの地の文をタグとして数える</td><td><b>(a) 該当する記述が無い</b></td><td><code>wip/reports/REVIEW-POINTS.md</code> にHTML検査の観点はあるが、<b>「検査対象からコメントを除く」を扱った記述は無い</b>。<b>同一issue内で2回踏んだ</b>ので再現性の条件も満たす（手順3）</td><td><code>wip/reports/REVIEW-POINTS.md</code></td></tr>
+      <tr><td>「出力なし＝合格」の空振り</td><td><b>(d) あったのに辿り着けなかった</b></td><td>ルート <code>REVIEW-POINTS.md</code> に「異常が無ければ何も出ない形の検証は…常に成功する」が<b>既にある</b>。読んでいながら調査Q4で踏んだ</td><td>導線の改善（HTML検査の観点から明示的に参照させる）</td></tr>
+      <tr><td>タグ名比較で同一性を主張</td><td><b>(a)</b></td><td>上と同じ観点表に、<b>構造の同一性をどう比べるか</b>を扱った記述は無い</td><td><code>wip/reports/REVIEW-POINTS.md</code></td></tr>
+      <tr><td><code>&lt;style&gt;</code> の二重出力を検査が捕まえない</td><td><b>(c) あったが、その罠が書かれていなかった</b></td><td>5種の検査は既存アセットにあるが、<b>構造の妥当性（タグの重複・閉じ忘れ）を見る検査が無い</b>。既存の3種＋2種はいずれもアンカー・IDと外部依存しか見ない</td><td>テンプレートの冒頭コメントと <code>wip/plans/REVIEW-POINTS.md</code></td></tr>
+      <tr><td>自作の正規表現の誤り</td><td>どれにも当たらない</td><td>「レビューの指摘と自分の実測が食い違ったら、まず自分の計測を疑う」は<b>ルート <code>REVIEW-POINTS.md</code> の趣旨に既に含まれ</b>、個別の正規表現の誤りは一般化できない</td><td>反映しない</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <div class="box ok">
+    <span class="label">分類結果</span>
+    (a) 2件・(c) 1件・(d) 1件・対象外 1件。<b>0件ではないので、フェーズ4は省略しない。</b>
   </div>
 </section>
 
 <section id="target">
   <h2>変更対象 — 直すもの／触らないもの</h2>
-  <p><code>reports.template.html</code> を名指ししている <code>.claude/</code> 配下のファイルは<b>9つ</b>ある（<code>.gemini/</code> は変換生成物なので直接編集しない）。<b>そのすべてを直すのではない。</b></p>
 
-  <h3>更新する（8ファイル ＋ 新規1）</h3>
+  <h3>母集団の定義（何を数えたか）</h3>
+  <p><code>reports.template.html</code> を名指ししているファイルを、次の条件で数えると <b>19件</b>ある。</p>
+<pre><code>grep -rl -e 'reports\.template\.html' --include='*.md' --include='*.html' --include='*.sh' --include='*.json' . \
+  | grep -v '^\./\.gemini/' | grep -v 'index\.jsonl'</code></pre>
+  <p>このうち本計画の対象は、<b>寿命が永続する追跡ファイル 15件</b>である（内訳: 更新11・触らない4）。残る4件は次の理由で母集団から外れる。</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>外すもの</th><th>理由</th></tr></thead>
+    <tbody>
+      <tr><td><code>wip/plans/silver-drifting-lantern.{md,html}</code>・このissueの <code>wip/plans/【…】</code> <code>wip/reports/2026…</code></td><td><b>このタスクの作業中ドキュメント。</b> flow-id 5-5 で削除される</td></tr>
+      <tr><td><code>HANDOFF.md</code></td><td>同上（5-5でリセットされる）</td></tr>
+      <tr><td><code>usage/state/*.json</code></td><td><code>.gitignore</code> 対象のローカル作業状態</td></tr>
+      <tr><td><code>.gemini/</code> 配下 <b>13件</b>・<code>index.jsonl</code></td><td>生成物。前者は flow-id 5-3 の <code>sync-gemini-assets.sh</code>、後者は SessionStart hook が追随する</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <div class="box stop">
+    <span class="label"><code>.claude/</code> 配下だけを見ない</span>
+    <code>wip/plans/REVIEW-POINTS.md</code> <code>wip/reports/REVIEW-POINTS.md</code> は <code>wip/</code> 配下にありながら<b>寿命が永続</b>で（<code>.claude/rules/docs-workflow.md</code>「唯一の例外」）、<code>cleanup-task.sh</code> の削除対象からも外れている。<b>除外はディレクトリ単位ではなくファイル単位で判断する</b>（同ルールが issue #70 の実例として警告している取りこぼし方そのもの）。
+  </div>
+
+  <h3>更新する（11ファイル ＋ 新規1）</h3>
   <div class="tablewrap">
   <table>
     <thead><tr><th>#</th><th>ファイル</th><th>何をするか</th></tr></thead>
     <tbody>
-      <tr><td><b>A</b></td><td><code>references/deliverables.md</code></td><td><b>本命。</b>テンプレート表を6本へ広げ、<b>選択基準の表を新設</b>する（受け入れ条件(4)の実体）</td></tr>
+      <tr><td><b>A</b></td><td><code>references/deliverables.md</code></td><td><b>本命。</b>テンプレート表を広げ、<b>選択基準の表を新設</b>する（受け入れ条件(4)の実体）。あわせて<b>検査手順の正の所在</b>を決める</td></tr>
       <tr><td>B</td><td><code>.claude/rules/directory-structure.md</code></td><td>「テンプレート2本」→ 6本。<code>assets/</code> の実例・<code>wip/reports/</code> の土台の記述</td></tr>
-      <tr><td>C</td><td><code>.claude/skills/issue-mr-flow/SKILL.md</code></td><td>flow-id 2-6・3-6・4-6 が名指しする土台を、<b>選択基準への参照</b>へ改める</td></tr>
+      <tr><td>C</td><td><code>.claude/skills/issue-mr-flow/SKILL.md</code></td><td>flow-id 2-6・3-6・4-6 が名指しする土台を、<b>既定＋選択基準への参照</b>へ改める</td></tr>
       <tr><td>D</td><td><code>.claude/rules/docs-workflow.md</code></td><td>ライフサイクル表の「土台は…」の記述</td></tr>
-      <tr><td>E</td><td><code>.claude/docs/spec/issue-mr-workflow.md</code> <b>348行の表のみ</b></td><td>現状を説明する節。テンプレート一覧へ4本を足す</td></tr>
+      <tr><td>E</td><td><code>spec/issue-mr-workflow.md</code> の <b><code>## 仕様</code> 配下2箇所</b>（348・758行）＋ <b><code>## 影響範囲</code> へ新規追記</b></td><td>下記「Eの範囲」</td></tr>
       <tr><td>F</td><td><code>references/phase5-close.md</code></td><td>統括レポート（5-4）の土台の記述</td></tr>
       <tr><td>G</td><td><code>references/start-resume.md</code></td><td>再開時に読むテンプレートの記述</td></tr>
       <tr><td>H</td><td><code>.claude/skills/canvas-report/SKILL.md</code></td><td>canvas形式との使い分け。<code>description</code>・31行・170行</td></tr>
+      <tr><td><b>J</b></td><td><code>assets/plans.template.html</code> <b>20行</b></td><td>「検査コマンドの正は <code>reports.template.html</code> 冒頭コメント」を、Aで決めた正の所在へ向け直す。<b>あわせて <code>&lt;style&gt;</code> の重複を捕まえる検査を足す</b>（方針4）</td></tr>
+      <tr><td><b>K</b></td><td><code>wip/plans/REVIEW-POINTS.md</code> <b>108行</b></td><td>同上（検査コマンドの正の参照先）。<b>HTML構造の妥当性を見る観点を追加</b></td></tr>
+      <tr><td><b>L</b></td><td><code>wip/reports/REVIEW-POINTS.md</code> <b>47・77行 ＋ <code>keywords</code></b></td><td>同上。<b>「コメントを先に除く」「同一性はバイト単位で比べる」の観点を追加</b>（AIアセット反映 (a) 2件の反映先）</td></tr>
       <tr><td><b>I</b></td><td><code>.claude/docs/ddr/i0203-01-….md</code>（新規）</td><td>判断と却下案を残す</td></tr>
+      <tr><td><b>M</b></td><td><code>.claude/VERSION</code></td><td>方針5（<b>据え置き、記録を残す</b>）</td></tr>
     </tbody>
   </table>
   </div>
@@ -183,10 +253,9 @@
   <table>
     <thead><tr><th>対象</th><th>理由</th></tr></thead>
     <tbody>
-      <tr><td><code>spec/issue-mr-workflow.md</code> の <b>3132・3216・3275・3651行</b></td><td><b>過去issueごとのchangelog（point-in-timeの記録）</b>。当時の状態を書いた文であり、書き換えると歴史が壊れる（<code>.claude/rules/docs-workflow.md</code>）</td></tr>
-      <tr><td>同 <b>758行</b>（<code>### 最終統括レポートとPR/MRへの反映（issue #111）</code> の表）</td><td>同じ節に「旧5-3→5-4へ繰り下げ」のような<b>当時の記録</b>が混在する設計記録の表。運用上の経路は <b>F</b> が担うので、そちらを直せば読み手は困らない</td></tr>
-      <tr><td>既存DDR4本（<code>i0054-01</code> <code>i0111-01</code> <code>i0186-01</code> <code>i0186-02</code>）</td><td><b>DDRの本文は一度マージしたら変更しない</b>（frontmatterのみ更新可）。今回はいずれも <code>superseded</code> にならない（現行テンプレートは残るため）</td></tr>
-      <tr><td><code>.gemini/</code> 配下9ファイル</td><td><b>変換生成物。</b>直接編集しない。flow-id 5-3 で <code>sync-gemini-assets.sh</code> が追随する</td></tr>
+      <tr><td><code>spec/issue-mr-workflow.md</code> の <b>3132・3216・3275行</b>（<code>## 影響範囲</code> 配下）・<b>3651行</b>（<code>## 決定済み事項</code> 配下）</td><td><b>過去issueごとのpoint-in-timeの記録。</b> 当時の状態を書いた文であり、書き換えると歴史が壊れる</td></tr>
+      <tr><td>既存DDR4本（<code>i0054-01</code> <code>i0111-01</code> <code>i0186-01</code> <code>i0186-02</code>）</td><td><b>DDRの本文は一度マージしたら変更しない</b>（frontmatterのみ更新可）。今回はいずれも <code>superseded</code> にならない</td></tr>
+      <tr><td><code>.gemini/</code> 配下13ファイル</td><td><b>変換生成物。</b>直接編集しない。flow-id 5-3 で <code>sync-gemini-assets.sh</code> が追随する</td></tr>
     </tbody>
   </table>
   </div>
@@ -194,29 +263,48 @@
     <span class="label"><code>sed</code> による一括置換は行わない</span>
     上表のとおり「同じ文字列でも直す／直さない」が混在しており、機械的な置換は<b>必ず触らない側まで書き換える</b>。1ファイルずつ、前後を読んで直す。
   </div>
+
+  <h3>Eの範囲（<code>## 仕様</code> は直し、<code>## 影響範囲</code> は追記のみ）</h3>
+  <div class="box warn">
+    <span class="label">当初この計画は「348行の表のみ」としていたが、誤りだった</span>
+    敵対的レビュー3回目の指摘。実測すると <code>spec/issue-mr-workflow.md</code> のH2は <code>背景・目的</code>(11) / <code>仕様</code>(32) / <code>影響範囲</code>(1911) / <code>設定項目</code>(3311) / <code>決定済み事項</code>(3331) / <code>未決定事項・懸念点</code>(3868) であり、<b>758行は <code>## 仕様</code> の中にある</b>。
+  </div>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>行</th><th>所属</th><th>扱い</th></tr></thead>
+    <tbody>
+      <tr><td>348</td><td><code>## 仕様</code></td><td><b>直す。</b>現状記述</td></tr>
+      <tr><td>758</td><td><code>## 仕様</code></td><td><b>直す。</b>同じ節の中で「テンプレート一覧は6本」と「統括レポートの土台は現行1本」が併存すると、specが自分自身と食い違う</td></tr>
+      <tr><td>3132・3216・3275</td><td><code>## 影響範囲</code></td><td><b>触らない。</b>past changelog</td></tr>
+      <tr><td>3651</td><td><code>## 決定済み事項</code></td><td><b>触らない。</b>当時の判断の記録</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p><b><code>## 影響範囲</code> へ <code>### issue #203（…）</code> を新規追記する。</b> 既存の行を<b>書き換えない</b>ことと、<b>新規エントリを追記する</b>ことは両立する（<code>.claude/rules/docs-workflow.md</code>）。<b>方針5のVERSION据え置きの記録先もここである。</b>あわせて <code>## 未決定事項・懸念点</code> へ「ブラウザでの実表示が未確認である」を追記する（方針6）。</p>
 </section>
 
 <section id="approach">
   <h2>方針</h2>
 
   <h3>1. 選択基準（受け入れ条件(4)の実体）</h3>
-  <p><b><code>deliverables.md</code> の1箇所に置き、他所からはそこを参照させる。</b> 5本ぶんの説明が複数のファイルへ散ると、次に増やしたとき全部が古くなる。</p>
+  <p><b><code>deliverables.md</code> の1箇所に置き、他所からはそこを参照させる。</b> 5本ぶんの説明が複数のファイルへ散ると、次に増やしたとき全部が古くなる。<b>全行に同じ軸を揃える</b>（テーマ／印刷／向く内容）。軸が抜けた行があると、その行と他の行のどちらを選ぶかが決まらない。</p>
   <div class="tablewrap">
   <table>
-    <thead><tr><th>テンプレート</th><th>向く場面</th></tr></thead>
+    <thead><tr><th>テンプレート</th><th>テーマ</th><th><code>@media print</code></th><th>向く場面</th></tr></thead>
     <tbody>
-      <tr><td><code>reports-clean</code></td><td><b>既定。迷ったらこれ。</b> サイドバー常時表示で章数が多くても迷子にならない。ライト／ダーク両対応</td></tr>
-      <tr><td><code>reports-neobrutal</code></td><td>結論を強く押し出したいとき（太い黒枠＋ハードシャドウ）。ライト単一</td></tr>
-      <tr><td><code>reports-mono</code></td><td><b>色が付いている＝意味がある</b>を徹底したいとき。印刷・スクリーンショットでの誤読を避けたい場合</td></tr>
-      <tr><td><code>reports-paper</code></td><td><b>印刷・PDF化して配る</b>とき（<code>@media print</code> を持つ）。ライト単一</td></tr>
-      <tr><td><code>reports.template.html</code>（現行）</td><td><b>既存の成果物を更新するとき。</b> 新規作成で選ぶ理由は無い</td></tr>
+      <tr><td><code>reports-clean</code></td><td>ライト／ダーク</td><td>無し</td><td><b>既定。迷ったらこれ。</b> サイドバー常時表示で章数が多くても迷子にならない</td></tr>
+      <tr><td><code>reports-neobrutal</code></td><td><b>ライト単一</b></td><td>無し</td><td>結論を強く押し出したいとき（太い黒枠＋ハードシャドウ）</td></tr>
+      <tr><td><code>reports-mono</code></td><td>ライト／ダーク</td><td>無し</td><td><b>色が付いている＝意味がある</b>を徹底したいとき。白黒での閲覧・スクリーンショットでの色の誤読を避けたい場合</td></tr>
+      <tr><td><code>reports-paper</code></td><td><b>ライト単一</b></td><td><b>有り</b></td><td><b>印刷・PDF化して配る</b>とき</td></tr>
+      <tr><td><code>reports.template.html</code>（現行）</td><td>ライト／ダーク</td><td>無し</td><td><b>移行期のみ。</b> このブランチ以前に作られ、まだ片付いていないレポートを更新する場合に限る</td></tr>
     </tbody>
   </table>
   </div>
-  <div class="box info">
-    <span class="label">既定を1つ決めるのが要点</span>
-    5本並べて「好みで選ぶ」と書くと、レポートごとに見た目が変わり、<b>読み手が毎回レイアウトを学び直す</b>ことになる。選ぶのは、上表の右列に当てはまる理由があるときだけとする。
-  </div>
+  <ul>
+    <li><b>既定を1つ決めるのが要点である。</b> 5本並べて「好みで選ぶ」と書くと、レポートごとに見た目が変わり、読み手が毎回レイアウトを学び直すことになる。<b>選ぶのは、右列に当てはまる理由があるときだけ</b>とする。</li>
+    <li><b>競合したら <code>paper</code> を優先する。</b>「白黒で読む」は <code>mono</code> と <code>paper</code> の両方に当てはまるが、実際に印刷するなら <code>@media print</code> を持つのは <code>paper</code> だけである（実測: 4本中 <code>paper</code> のみ）。</li>
+    <li><b>現行を選ぶ場面は、移行が終われば消える。</b> <code>wip/reports/</code> の成果物は flow-id 5-5 で削除されmainに残らないため、「既存の成果物を更新する」に該当するのは同一ブランチ内だけである。<b>いつ現行を廃止するかはDDRの未確認事項へ入れる</b>（<code>install-to-project.sh</code> は上流で消えたファイルを配布先から削除しないため、廃止時に配布先へ旧テンプレートが残る）。</li>
+  </ul>
 
   <h3>2. 「土台は <code>reports.template.html</code>」という記述の直し方</h3>
   <p><b>パスを5つ並べる形にしない。</b> flow-id 2-6・3-6・4-6・5-4 の4箇所すべてに5本の一覧を書くと、テンプレートが増減するたび4箇所を直すことになる（今回まさにそれをやっている）。</p>
@@ -224,8 +312,78 @@
 変更後: 土台は `.claude/skills/issue-mr-flow/assets/reports-clean.template.html`（既定）。
         他の3案・現行との使い分けは `references/deliverables.md`「計画・レポートのHTMLビュー」</code></pre>
   <p><b>既定のパスは書く。</b>「<code>deliverables.md</code> を見よ」だけにすると、フロー定義だけを読んで作業する場面で1回余分に開くことになる。<b>既定＋参照</b>の形にして、迷ったときだけ開けば済むようにする。</p>
+  <div class="box info">
+    <span class="label">Eの348行だけは、この形にしない</span>
+    あの表は「テンプレート → どのflow-idの成果物か」の対応表なので、4本を足すと<b>同じ対象を持つ5行</b>が並び、区別する情報を持たない一覧がもう1つできる（方針1が避けようとしている二重管理そのもの）。<b>reports系を1行へ畳み、直後にある「何の正か → どこ」の表へ「どれを選ぶか → <code>deliverables.md</code>」の行を足す。</b>
+  </div>
 
-  <h3>3. DDR（<code>i0203-01</code>）</h3>
+  <h3>3. 検査手順の「正」をどこに置くか（新規の論点）</h3>
+  <p><b>フェーズ3で、検査手順の実体が1つから5つに増えた。</b> 新4本は使い方コメントごとバイト単位で同一なので、プレースホルダ検査・リンク破断検査・重複ID検査の説明が<b>4本すべてに複製されている</b>。一方、「検査コマンドの正は <code>reports.template.html</code> 冒頭コメント」と名指しする箇所が3つある。</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>名指ししている場所</th><th>扱い</th></tr></thead>
+    <tbody>
+      <tr><td><code>plans.template.html</code> 20行</td><td><b>J</b> で向け直す</td></tr>
+      <tr><td><code>wip/plans/REVIEW-POINTS.md</code> 108行</td><td><b>K</b> で向け直す</td></tr>
+      <tr><td>DDR <code>i0186-02</code> 25行</td><td><b>触らない</b>（DDR本文は変更しない）。向け先の変更は spec の changelog（E）へ記録する</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <div class="box stop">
+    <span class="label">正が5つある状態は、観点表が明示的に禁じている</span>
+    ルート <code>REVIEW-POINTS.md</code> は「正は1箇所に決め、他はそこを指すリンクだけにする」を観点として持つ。<b>正を <code>deliverables.md</code>（A）へ移す。</b>
+  </div>
+  <ul>
+    <li>テンプレート側のコメントは<b>使い方の説明</b>として残す（読む場所にあることに価値がある）。</li>
+    <li><b><code>deliverables.md</code> を「検査手順の正」と決め、テンプレートのコメントには「正は <code>deliverables.md</code>」と1行だけ書く。</b></li>
+    <li><b>4本のバイト一致という不変条件と両立する。</b> 同じ1行を4本へ同じように書くだけなので、一致は保たれる。</li>
+  </ul>
+
+  <h3>4. 検査を5種から6種へ増やす（AIアセット反映 (c)）</h3>
+  <div class="box stop">
+    <span class="label">この計画のHTMLビュー自身が、<code>&lt;style&gt;</code> の二重出力という壊れ方をした</span>
+    敵対的レビュー3回目で検出。既存の5種は<b>どれも捕まえなかった</b>——アンカー・ID・外部依存しか見ないためである。
+  </div>
+<pre><code># 6. 構造の妥当性（1でなければ不合格）
+grep -c '^&lt;style&gt;' "$f"; grep -c '^&lt;/style&gt;' "$f"</code></pre>
+  <p><b>この壊れ方は、ライト環境でだけ表示が崩れる。</b> <code>&lt;style&gt;</code> の直後にもう1つ <code>&lt;style&gt;</code> があると、2つ目はCSSのテキストとして扱われ、続く <code>:root { … }</code> ブロックごと破棄される。ダーク環境ではメディアクエリ内で <code>:root</code> を再定義しているため正常に見え、<b>確認する環境によって結果が変わる</b>。</p>
+  <p>反映先は J（<code>plans.template.html</code>）・K（<code>wip/plans/REVIEW-POINTS.md</code>）と、<b>新4本＋現行テンプレートの冒頭コメント</b>である。</p>
+
+  <h3>5. <code>.claude/VERSION</code>（0.4.0）の扱い — <b>据え置き、記録を残す</b></h3>
+  <p><code>.claude/docs/spec/distribution-assets.md</code> は、<b>flow-id 4-6 で配布対象アセットに変更があった回に判断する</b>と定めている。フェーズ3で配布対象アセットを<b>4本追加</b>したので、判断が必要である。</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>選択肢</th><th>採否</th></tr></thead>
+    <tbody>
+      <tr><td><code>MINOR</code> を上げる（0.5.0）</td><td><b>採らない。</b> 目安表では「資産の追加」＝MINORに当たるが、<b>非対話セッションの例外を <code>.claude/VERSION</code> へ適用してよいかは未決定</b>であり（issue #185）、issue #165 の changelog に「今後 <code>.claude/VERSION</code> を上げる場合は、改めて人間の指示を起点に増分を検討する」という人間の判断が入っている</td></tr>
+      <tr><td><b>据え置く（0.4.0 のまま）</b></td><td><b>採る。</b> 上記の未決定を、AIの独断で埋めない</td></tr>
+      <tr><td>何もしない</td><td><b>採らない。</b> specが「据え置く場合は、そのissueのspecのchangelogへ据え置いた事実を残す」と義務づけている</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <div class="box warn">
+    <span class="label">据え置きには実害がある</span>
+    配布先は同じ 0.4.0 のまま中身の違う <code>.claude/</code> を受け取り、<b>版から資産の差を判別できない</b>。承知のうえで選ぶ。<b>人間の指示があれば 0.5.0 へ上げる。</b>据え置いた事実と根拠は、E の <code>### issue #203</code> changelog と <code>HANDOFF.md</code>「判断を迷った内容」の<b>両方</b>へ残す。
+  </div>
+
+  <h3>6. ブラウザでの実表示（未確認6項目）の扱い</h3>
+  <p><b>この計画では解消しない。</b> 実行環境に表示確認手段が無いため、確認できるのは構造とテキストまで。</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>選択肢</th><th>扱い</th></tr></thead>
+    <tbody>
+      <tr><td>別issueへ切り出す</td><td><b>PR #204 のコメントでユーザーへ問い合わせ済み。回答があればそれに従う</b></td></tr>
+      <tr><td>ユーザーの手元で確認してもらう</td><td>同上</td></tr>
+      <tr><td>黙って閉じる</td><td><b>採らない。</b> DDRと<b>specの <code>## 未決定事項・懸念点</code></b>（E）へ明記して残す</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <div class="box info">
+    <span class="label">回答が無いまま進む場合の既定</span>
+    上記2箇所と統括レポート（5-4）へ残し、<b>issueの新規作成は行わない</b>（issueを起票してよいかの判断は人間が握る。<code>AGENTS.md</code>）。
+  </div>
+
+  <h3>7. DDR（<code>i0203-01</code>）</h3>
   <div class="tablewrap">
   <table>
     <thead><tr><th>項目</th><th>内容</th></tr></thead>
@@ -234,35 +392,22 @@
       <tr><td>決めたこと</td><td>4デザインを<b>共通DOM＋4通りの <code>&lt;style&gt;</code></b> で持ち、<b>現行を残して</b>既定を <code>reports-clean</code> にした</td></tr>
       <tr><td>却下案1</td><td><b>4本を独立したHTMLとして持つ</b> — 使い方コメント・検査手順・節構成が4重管理になる</td></tr>
       <tr><td>却下案2</td><td><b>現行を置き換える（1本に絞る）</b> — 既存の成果物が現行の節構成に依存しており、更新時に節ごと作り直すことになる</td></tr>
-      <tr><td>却下案3</td><td><b>1本にテーマ切り替えを持たせる</b>（<code>data-theme</code> 等） — 未使用のCSSが常に載り「自己完結」の利点が薄れる。切り替えUIはレビュー時に触られない</td></tr>
+      <tr><td>未確認事項</td><td>ブラウザでの実表示6項目（方針6）。<b>現行テンプレートをいつ廃止するか</b>（方針1）</td></tr>
       <tr><td>あわせて残す</td><td><b>機械的に検査するときの一般則3つ</b>（下記）</td></tr>
     </tbody>
   </table>
   </div>
   <div class="box warn">
+    <span class="label">却下案は実際に検討したものだけを書く</span>
+    当初この計画は却下案3として「1本のテンプレートにテーマ切り替えを持たせる」を挙げていたが、<b>フェーズ2・3のどこにもその検討の痕跡が無かった</b>（敵対的レビュー3回目の指摘）。<b>検討していない案を却下案として書くと、後から読む人は「比較検討済み」と受け取る。</b> DDRは本文を変更できない永続文書なので、落とす。
+  </div>
+  <div class="box info">
     <span class="label">DDRへ「一般則」を残すのは、同じ失敗を2回踏んだため</span>
     <ol>
       <li><b>コメントと地の文を先に除く</b> — HTMLコメント中の <code>&lt;li&gt;</code> <code>&lt;details&gt;</code> をタグとして数えてMISMATCHが出た（f4）。同じ失敗がDOM比較でも出た（f2）。</li>
       <li><b>「出力なし＝合格」の検査は、負のコントロールを取る</b> — 検査が壊れていても同じく無出力になる。</li>
       <li><b>構造の同一性は、タグ名ではなくバイト単位で比べる</b> — タグ名比較は属性もテキストも見ないため、<b>実際に成立していなかった主張を「合格」と報告してしまった</b>（敵対的レビュー2回目の指摘2）。</li>
     </ol>
-  </div>
-
-  <h3>4. ブラウザでの実表示（未確認6項目）の扱い</h3>
-  <p><b>この計画では解消しない。</b> 実行環境に表示確認手段が無いため、確認できるのは構造とテキストまで。</p>
-  <div class="tablewrap">
-  <table>
-    <thead><tr><th>選択肢</th><th>扱い</th></tr></thead>
-    <tbody>
-      <tr><td>別issueへ切り出す</td><td><b>PR #204 のコメントでユーザーへ問い合わせ済み。回答があればそれに従う</b></td></tr>
-      <tr><td>ユーザーの手元で確認してもらう</td><td>同上</td></tr>
-      <tr><td>黙って閉じる</td><td><b>採らない。</b> DDRとspecへ「未確認である」ことを明記して残す</td></tr>
-    </tbody>
-  </table>
-  </div>
-  <div class="box info">
-    <span class="label">回答が無いまま進む場合の既定</span>
-    DDRの「未確認事項」節と統括レポート（5-4）へ残し、<b>issueの新規作成は行わない</b>（issueを起票してよいかの判断は人間が握る。<code>AGENTS.md</code>）。
   </div>
 </section>
 
@@ -271,12 +416,13 @@
   <div class="box stop">
     <span class="label">この計画では触らない</span>
     <ul>
-      <li>テンプレート本体（<code>reports-*.template.html</code>）の再変更（フェーズ3で完了）</li>
-      <li><code>plans.template.html</code> の再デザイン（issue #203 の対象外）</li>
+      <li>テンプレート本体の<b>デザイン</b>の再変更（フェーズ3で完了。方針4の検査追加は冒頭コメントのみ）</li>
+      <li><code>plans.template.html</code> の再デザイン（issue #203 の対象外。Jで直すのは20行の参照先と検査手順）</li>
       <li><b><code>wip/design-samples/</code> を持つブランチの削除</b>（ユーザーの明示指示待ち。Q5）</li>
-      <li><b>ブラウザでの実表示確認</b>（方針4）</li>
+      <li><b>ブラウザでの実表示確認</b>（方針6）</li>
+      <li><code>.claude/VERSION</code> の増分（方針5。据え置きの記録は行う）</li>
       <li><code>.gemini/</code> の手編集（flow-id 5-3 の変換同期に任せる）</li>
-      <li>新規issueの起票（方針4の既定）</li>
+      <li>新規issueの起票（方針6の既定）</li>
     </ul>
   </div>
 </section>
@@ -298,33 +444,75 @@ git diff --stat .claude/docs/README.md   # 差分が出たら同じコミット�
     <span class="label">これが今回いちばん壊しやすい</span>
     過去issueのchangelogを書き換えると、当時の記録が失われる。
   </div>
-<pre><code># 分岐点は実行時に求める（文書へ書き写した固定SHAは、main取り込み後に誤検出へ変わる）
+  <p><b>当初この計画は、次の2つを検証手順として書いていた。どちらも機能しない</b>（敵対的レビュー3回目）。</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>書いていたもの</th><th>なぜ機能しないか</th></tr></thead>
+    <tbody>
+      <tr><td><code>git diff … | grep -nE '^[-+].*(3132|3216|3275|3651)'</code></td><td>diff本文に<b>文字列「3132」が現れる行</b>を探しており、行番号を見ていない。<b>何をしても「該当なし」を返す空振り</b>である</td></tr>
+      <tr><td><code>grep -c -e 'reports.template.html' &lt;spec&gt;</code> の件数突き合わせ</td><td>実測は<b>6</b>（348・758・3132・3216・3275・3651行）で、計画が書いた「4件」と合わない。しかも<b>更新対象の348・758行を母数に含む</b>ため、増減が「触らない側が無傷か」を示さない</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p><b>正しくは、触らないと決めた4行の原文そのものを固定文字列で1件ずつ確かめる。</b></p>
+<pre><code>cd /home/user/MR-driven-workflow
 git fetch origin main
-base=$(git merge-base origin/main HEAD)
+base=$(git merge-base origin/main HEAD)   # 分岐点は実行時に求める（固定SHAを書き写さない）
 
-git diff "$base" --stat -- .claude/docs/ddr/   # 新規1本以外の変更が無いこと
+# 触らないと決めた4行の原文を、分岐点の版から取り出しておく
+git show "$base:.claude/docs/spec/issue-mr-workflow.md" \
+  | sed -n '3132p;3216p;3275p;3651p' &gt; /tmp/frozen.txt
 
-# 過去changelogの記述が原文のまま残っていること（変更前後で件数を突き合わせる）
-grep -c -e 'reports.template.html' .claude/docs/spec/issue-mr-workflow.md
-git show "$base:.claude/docs/spec/issue-mr-workflow.md" | grep -c -e 'reports.template.html'</code></pre>
-  <p><b>行番号で検査しない。</b> 編集で行番号は動くため当たらなくなる。<b>変更前の文字列そのもの</b>で確かめる。</p>
+# 4行とも、現在のファイルに1件ずつ残っていること
+while IFS= read -r line; do
+  printf '%s -&gt; %s\n' "$(grep -c -F -e "$line" .claude/docs/spec/issue-mr-workflow.md)" "${line:0:40}"
+done &lt; /tmp/frozen.txt</code></pre>
+  <ul>
+    <li><b>合格条件は「4行すべてが 1」である。</b> 0 なら書き換えてしまっている。</li>
+    <li><b><code>grep -F</code> で固定文字列として渡す</b>（原文には正規表現のメタ文字が含まれうる）。</li>
+    <li><b><code>-e</code> を使う</b>（原文がハイフンで始まる場合に <code>grep: unknown option</code> で落ちるため。<code>.claude/rules/shell-script-style.md</code>）。</li>
+  </ul>
+  <p><b>負のコントロールを取る。</b>「4行とも1」は、検査が壊れていても同じく出る。</p>
+<pre><code>cp .claude/docs/spec/issue-mr-workflow.md /tmp/broken.md
+sed -i '3132s/.*/意図的に壊した行/' /tmp/broken.md
+# 上のループを /tmp/broken.md に対して流し、1行目だけが 0 になることを確かめる
+
+git diff "$base" --stat -- .claude/docs/ddr/   # 新規1本以外の変更が無いこと</code></pre>
 
   <h3>(4) usecase文書への影響</h3>
 <pre><code>grep -rln -e 'HTMLビュー' -e 'reports' .claude/docs/usecase/</code></pre>
   <p>ヒットしたファイルを開き、<b>記述・リンクが古くならないか</b>を確認する（issue #170）。影響があれば更新し、<code>.claude/docs/README.md</code> のusecase節も同じコミットで直す。</p>
 
-  <h3>(5) 4テンプレート自身の再検査</h3>
-  <p>参照側だけを直す計画だが、<b>テンプレートに触れていないことを確かめる</b>ために、フェーズ3と同じ5種の検査とバイト比較を流し直す（<b>359行/22346バイト</b>の一致が保たれていること）。</p>
+  <h3>(5) 4テンプレート自身が回帰していないこと</h3>
+  <p>参照側と冒頭コメントを直す計画なので、<b>バイト一致が保たれているか</b>を必ず確かめる（方針3・4で4本の冒頭コメントへ同じ1行を足すため、書き漏らすと一致が壊れる）。</p>
+<pre><code>cd .claude/skills/issue-mr-flow/assets
+tmp=$(mktemp -d)
+for F in reports-clean reports-neobrutal reports-mono reports-paper; do
+  sed '/^&lt;style&gt;$/,/^&lt;\/style&gt;$/d' "$F.template.html" &gt; "$tmp/$F.nostyle"
+  n=$(wc -l &lt; "$tmp/$F.nostyle")
+  [ "$n" -lt 100 ] &amp;&amp; { echo "FAIL $F: 抽出が $n 行"; exit 1; }   # 空振りガード
+done
+md5sum "$tmp"/*.nostyle | awk '{print $1}' | sort -u | wc -l   # 1 なら4本一致</code></pre>
+  <p><b>ハッシュの種類数が 1 であることを合格条件にする</b>（行数・バイト数を目で見比べるより確実で、出力も1行で済む）。</p>
+
+  <h3>(6) 6種の検査を全成果物へ流す</h3>
+<pre><code>for f in .claude/skills/issue-mr-flow/assets/*.template.html wip/plans/*.html wip/reports/*.html; do
+  o=$(grep -c '^&lt;style&gt;' "$f"); c=$(grep -c '^&lt;/style&gt;' "$f")
+  [ "$o" = 1 ] &amp;&amp; [ "$c" = 1 ] || printf 'FAIL %s: open=%s close=%s\n' "$f" "$o" "$c"
+done</code></pre>
 
   <h3>合格条件</h3>
   <ul>
     <li><b>選択基準の表が <code>deliverables.md</code> に1つだけある</b>（他所は参照のみ。二重管理していない）</li>
-    <li>上表A〜Hの8ファイルすべてで、<code>reports.template.html</code> の単独名指しが解消している</li>
-    <li><b>「触らない」と決めた箇所が1文字も変わっていない</b>（上記(3)）</li>
+    <li><b>検査手順の「正」がどこかを、<code>deliverables.md</code> が1箇所で宣言している</b>（方針3）</li>
+    <li>上表A〜Lの11ファイルすべてで、<code>reports.template.html</code> の単独名指しが解消している</li>
+    <li><b>「触らない」と決めた4行が、原文のまま1件ずつ残っている</b>（上記(3)。負のコントロール込み）</li>
+    <li><b><code>## 影響範囲</code> に <code>### issue #203</code> が新規追記され、VERSION据え置きの根拠が書かれている</b></li>
     <li><code>check-doc-references.sh</code> が参照切れを報告しない</li>
     <li><code>generate-ddr-list.sh</code> の差分が同じコミットに入っている</li>
-    <li>DDR <code>i0203-01</code> に<b>却下案が3つ</b>と<b>未確認事項</b>が書かれている</li>
-    <li>4テンプレートの5種の検査・バイト比較が、フェーズ3と同じ結果になる</li>
+    <li>DDR <code>i0203-01</code> に<b>却下した案それぞれの理由</b>と<b>未確認事項</b>が書かれている（<b>件数では条件にしない</b>。数を満たすための水増しを招くため）</li>
+    <li>4テンプレートの <code>&lt;style&gt;</code> 除去後のハッシュが1種類（上記(5)）</li>
+    <li><code>&lt;style&gt;</code> の重複が全HTMLで0件（上記(6)）</li>
   </ul>
 </section>
 
@@ -335,10 +523,10 @@ git show "$base:.claude/docs/spec/issue-mr-workflow.md" | grep -c -e 'reports.te
     <thead><tr><th>受け入れ条件</th><th>この計画での対応</th></tr></thead>
     <tbody>
       <tr><td>(1) 4デザインが <code>assets/</code> に存在し flow-id 2-6/3-6/4-6/5-4 から参照できる</td><td><b>後半をここで満たす</b>（C・F が flow-id 側の記述）</td></tr>
-      <tr><td>(2) 外部依存ゼロ</td><td>フェーズ3で達成済み。検証(5)で回帰していないことだけ確かめる</td></tr>
-      <tr><td>(3) プレースホルダ・検査手順・フェーズ読み替えが引き継がれている</td><td>フェーズ3で達成済み</td></tr>
+      <tr><td>(2) 外部依存ゼロ</td><td>フェーズ3で達成済み。検証(5)(6)で回帰していないことだけ確かめる</td></tr>
+      <tr><td>(3) プレースホルダ・検査手順・フェーズ読み替えが引き継がれている</td><td>フェーズ3で達成済み。<b>検査は方針4で6種へ増える</b></td></tr>
       <tr><td>(4) 選択基準（既定はどれか）がドキュメント化されている</td><td><b>ここで満たす</b>（方針1・A）</td></tr>
-      <tr><td>(5) 現行の扱いと <code>wip/design-samples/</code> の後始末</td><td>現行の併存はA・Iで文書化。<b>ブランチ削除は指示待ちのまま未達</b></td></tr>
+      <tr><td>(5) 現行の扱いと <code>wip/design-samples/</code> の後始末</td><td>現行の併存はA・Iで文書化（<b>廃止時期は未確認事項</b>）。<b>ブランチ削除は指示待ちのまま未達</b></td></tr>
     </tbody>
   </table>
   </div>
