@@ -139,10 +139,10 @@
   <div class="inner">
     <div class="kind">反映結果レポート / フェーズ4（flow-id 4-6）</div>
     <h1>切り出し判断基準の記録 — DDR・spec・rules・観点表への反映</h1>
-    <p class="lead">issue #176 の判断の経緯を DDR <code>i0176-01</code> として記録し、<code>.claude/docs/spec/issue-mr-workflow.md</code> へ新節の位置づけを反映した。<b>受け入れ条件3つすべてが満たされ、検証11本すべてが期待値どおり</b>になった。あわせて反映対象7件（洗い出し10件のうち手順3で3件が対象外）を7ファイルへ入れ、<code>.claude/VERSION</code> を 0.4.0 → 0.5.0 へ増分した。<b>4-1 で洗い出した10件では出口(1)「別issueへ切り出す」は0件だったが、4-6 で追加された1件（VERSION の無言の衝突検知）が AND 条件を初めて満たし、出口(1) となった——起票せず提示して止まる。</b></p>
+    <p class="lead">issue #176 の判断の経緯を DDR <code>i0176-01</code> として記録し、<code>.claude/docs/spec/issue-mr-workflow.md</code> へ新節の位置づけを反映した。<b>受け入れ条件3つすべてが満たされ、検証11本すべてが期待値どおり</b>になった。判定済み9件（洗い出し10件＋4-6 の追加2件−手順3で対象外3件）のうち<b>このMRでやると判定した8件を10ファイルへ反映</b>し、<code>.claude/VERSION</code> を 0.6.0 へ増分した。<b>4-1 で洗い出した10件からは出口(1)「別issueへ切り出す」が1件も出ず、4-6 で見つかった1件（VERSION の無言の衝突検知）だけが AND 条件を満たして出口(1) となった——起票せず提示して止まる。</b>敵対的レビュー2回目の14件へも対応済み。</p>
     <p class="counts">
       <span class="chip good">◎良 4</span>
-      <span class="chip warn">△注意 2</span>
+      <span class="chip warn">△注意 5</span>
       <span class="chip stop">✕問題 0</span>
     </p>
     <ul class="meta">
@@ -150,7 +150,7 @@
       <li><b>ブランチ</b> claude/reflection-plan-criteria-tnhfvs</li>
       <li><b>PR</b> #196（Draft）</li>
       <li><b>フェーズ</b> 4〈反映〉 flow-id 4-6</li>
-      <li><b>push回数</b> 12</li>
+      <li><b>push回数</b> 14</li>
       <li><b>作成日</b> 2026-08-24</li>
       <li><b>正文</b> 同名の .md</li>
     </ul>

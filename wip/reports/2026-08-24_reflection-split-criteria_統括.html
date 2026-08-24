@@ -1,0 +1,325 @@
+<!--
+  最終統括レポート（issue #176・フェーズ5 flow-id 5-4）の人間レビュー用HTMLビュー。
+  正文は同名の wip/reports/2026-08-24_reflection-split-criteria_統括.md であり、
+  このHTMLはその視覚化である。
+  土台: .claude/skills/issue-mr-flow/assets/reports.template.html
+-->
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>統括 — 反映対象の切り出し判断基準（issue #176）</title>
+<style>
+  :root {
+    --bg: #f6f7f9;      --panel: #ffffff;   --ink: #1a1d21;     --muted: #5b636d;
+    --line: #dfe3e8;    --accent: #2563eb;  --accent-soft: #eaf0fe;
+    --ok: #1a7f4b;      --ok-soft: #e6f4ec; --warn: #a35a00;    --warn-soft: #fdf1e0;
+    --stop: #b3261e;    --stop-soft: #fdecea; --good: #1d4ed8;  --good-soft: #e7edfd;
+    --code-bg: #f0f2f5;
+    --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1216;    --panel: #161a20;   --ink: #e6e8eb;     --muted: #9aa3ad;
+      --line: #2a3038;  --accent: #7aa2f7;  --accent-soft: #1b2333;
+      --ok: #6ee7a8;    --ok-soft: #14261d; --warn: #f0b866;    --warn-soft: #2a2113;
+      --stop: #f2857c;  --stop-soft: #2b1614; --good: #8ab4f8;  --good-soft: #17233a;
+      --code-bg: #1d222a;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", system-ui, sans-serif;
+    line-height: 1.8; font-size: 15px;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 20px 80px; }
+
+  /* 共通ヘッダ帯 */
+  header.band {
+    background: linear-gradient(135deg, var(--accent-soft), var(--panel));
+    border-bottom: 1px solid var(--line); padding: 28px 20px 22px; margin-bottom: 28px;
+  }
+  header.band .inner { max-width: 1080px; margin: 0 auto; }
+  header.band .kind { font-size: 11px; letter-spacing: .18em; color: var(--accent); font-weight: 700; }
+  header.band h1 { margin: 6px 0 4px; font-size: 26px; line-height: 1.4; }
+  header.band .lead { margin: 0; color: var(--muted); }
+  header.band .counts { margin: 12px 0 0; display: flex; gap: 6px; flex-wrap: wrap; }
+  .meta { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; padding: 0; list-style: none; }
+  .meta li {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 999px;
+    padding: 3px 12px; font-size: 12.5px; color: var(--muted); white-space: nowrap;
+  }
+  .meta li b { color: var(--ink); font-weight: 600; }
+
+  nav.toc {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 14px 20px; margin-bottom: 28px;
+  }
+  nav.toc h2 { margin: 0 0 8px; font-size: 13px; letter-spacing: .08em; color: var(--muted); border: 0; padding: 0; }
+  nav.toc ol { margin: 0; padding-left: 20px; }
+  nav.toc li { margin: 2px 0; }
+  a { color: var(--accent); }
+
+  section {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 8px 24px 22px; margin-bottom: 22px;
+  }
+  /* アンカーで飛んだとき見出しが上端に張り付かないようにする（issue #186） */
+  section[id], h3[id] { scroll-margin-top: 16px; }
+  h2 { font-size: 20px; margin: 20px 0 10px; padding-bottom: 8px; border-bottom: 2px solid var(--line); }
+  h3 { font-size: 16px; margin: 22px 0 8px; color: var(--accent); }
+  p { margin: 10px 0; }
+  ul, ol { padding-left: 22px; }
+  li { margin: 4px 0; }
+  blockquote { margin: 10px 0; padding: 6px 14px; border-left: 3px solid var(--line); color: var(--muted); }
+
+  /* 表は自身の中で横スクロールする（ページ本体は横スクロールさせない） */
+  .tablewrap { overflow-x: auto; margin: 14px 0; }
+  table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 14px; }
+  th, td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: var(--accent-soft); font-weight: 600; white-space: nowrap; }
+  tbody tr:nth-child(even) td { background: color-mix(in srgb, var(--line) 22%, transparent); }
+
+  code {
+    background: var(--code-bg); border-radius: 5px; padding: 1px 5px; font-size: 13px;
+    font-family: "SFMono-Regular", Consolas, "Noto Sans Mono", monospace;
+  }
+  pre {
+    background: var(--code-bg); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 12px 14px; overflow-x: auto; font-size: 13px; line-height: 1.65;
+  }
+  pre code { background: none; padding: 0; }
+
+  /* 注意ボックス: info（既定）/ ok（決めたこと・手順の成功。結論の性質には使わない）/
+     warn（注意）/ stop（やらないこと・危険） */
+  .box { border-left: 4px solid var(--accent); background: var(--accent-soft);
+         border-radius: 0 var(--radius) var(--radius) 0; padding: 12px 16px; margin: 16px 0; }
+  .box > :first-child { margin-top: 0; } .box > :last-child { margin-bottom: 0; }
+  .box .label { font-size: 12px; font-weight: 700; letter-spacing: .06em; display: block; margin-bottom: 4px; }
+  .box.ok { border-color: var(--ok); background: var(--ok-soft); } .box.ok .label { color: var(--ok); }
+  .box.warn { border-color: var(--warn); background: var(--warn-soft); } .box.warn .label { color: var(--warn); }
+  .box.stop { border-color: var(--stop); background: var(--stop-soft); } .box.stop .label { color: var(--stop); }
+  .box.info .label { color: var(--accent); }
+
+  /* 結論の性質チップ: 良=青 .good / 注意=黄 .warn / 問題=赤 .stop（記号＋文字を必ず併記） */
+  .chip { display: inline-block; border-radius: 999px; padding: 1px 9px; font-size: 12px; font-weight: 600; }
+  .chip.good { background: var(--good-soft); color: var(--good); }
+  .chip.warn { background: var(--warn-soft); color: var(--warn); }
+  .chip.stop { background: var(--stop-soft); color: var(--stop); }
+
+  /* サマリの結論カード: 1カード1結論（チップ＋結論1行＋根拠の性質＋章リンク） */
+  ol.verdicts { list-style: none; padding: 0; margin: 14px 0; display: grid; gap: 8px; }
+  .verdict {
+    border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel);
+    padding: 8px 12px; display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px;
+  }
+  .verdict .v-basis { color: var(--muted); font-size: 12.5px; margin-left: auto; }
+
+  /* 重点レビュー依頼の3段階: 重みは色相では表さない（色相は結論の性質専用）。
+     must/want はアクセント系1色相の濃度・枠の太さ、skip は中立色（--line枠＋--muted文字）。
+     記号（◆◇・）を必ず併記する */
+  .focus { border-radius: var(--radius); padding: 12px 16px; margin: 14px 0; }
+  .focus > :last-child { margin-bottom: 0; }
+  .focus .label { font-size: 13px; font-weight: 700; letter-spacing: .04em; display: block; margin-bottom: 4px; }
+  .focus.must { border: 2px solid var(--accent); background: var(--accent-soft); }
+  .focus.must .label { color: var(--accent); }
+  .focus.want { border: 1px solid var(--accent); background: var(--panel); }
+  .focus.want .label { color: var(--accent); }
+  .focus.skip { border: 1px solid var(--line); background: var(--panel); color: var(--muted); }
+  .focus.skip .label { color: var(--muted); }
+  .focus.skip a { color: var(--muted); }
+
+  footer { color: var(--muted); font-size: 13px; text-align: center; padding-top: 10px; }
+</style></head>
+<body>
+
+
+<header class="band">
+  <div class="inner">
+    <div class="kind">最終統括レポート / フェーズ5（flow-id 5-4）</div>
+    <h1>反映対象の切り出し判断基準（issue #176）— ブランチ全体の統括</h1>
+    <p class="lead"><code>references/planning.md</code> へ<b>フェーズ4の反映対象1件ごとの切り出し判断基準</b>を新設し、経緯・却下案6件をDDR <code>i0176-01</code> へ、位置づけを spec へ記録した。<b>主判定は「この反映を見送ってマージした場合、<code>main</code> は今回の変更と矛盾・不整合な状態になるか」の一問</b>で、母数7件のうち 7/7 を説明する（対案の規模基準は 3/7）。ユーザー指示により<b>出口(1) を AND へ絞り、非対話セッションでも止まる</b>形にした結果、この基準をこのMR自身へ適用した9件のうち<b>停止したのは1件だけ</b>である。</p>
+    <p class="counts">
+      <span class="chip good">◎良 3</span>
+      <span class="chip warn">△注意 5</span>
+      <span class="chip stop">✕問題 0</span>
+    </p>
+    <ul class="meta">
+      <li><b>issue</b> #176</li>
+      <li><b>ブランチ</b> claude/reflection-plan-criteria-tnhfvs</li>
+      <li><b>PR</b> #196</li>
+      <li><b>フェーズ</b> 5〈クローズ〉 flow-id 5-4</li>
+      <li><b>push回数</b> 15</li>
+      <li><b>作成日</b> 2026-08-24</li>
+      <li><b>正文</b> 同名の .md</li>
+    </ul>
+  </div>
+</header>
+
+<div class="wrap">
+
+<nav class="toc">
+  <h2>目次</h2>
+  <ol>
+    <li><a href="#review-focus">重点レビュー依頼</a></li>
+    <li><a href="#summary">サマリ（結論の一覧）</a></li>
+    <li><a href="#unverified">確かめられなかったこと</a></li>
+    <li><a href="#findings">実施した内容と結果</a></li>
+    <li><a href="#next">設計への反映</a></li>
+  </ol>
+</nav>
+
+<section id="review-focus">
+  <h2>重点レビュー依頼</h2>
+  <div class="box warn">
+    <span class="label">◆ 出口(1) を AND にしたことで、切り出すべきものを切り出さなくなっていないか</span>
+    <p>ユーザー指示に沿って「大きくて今回のissueとは関連しないものだけ」へ絞った。実データでは 4-1 の10件がすべて規模小で AND 不成立となり、<b>停止回数は0</b>になった。狙いどおりだが、<b>「規模が小さければスコープ違いでもこのMRでやる」を許す</b>ということでもある。</p>
+  </div>
+  <div class="box warn">
+    <span class="label">◆ <code>.claude/VERSION</code> の版（<code>0.6.0</code>）をAIが決めたこと</span>
+    <p>非対話セッションのため <code>distribution-assets.md</code> の目安表に沿って MINOR を適用した。<b>否とされたら戻す。</b></p>
+  </div>
+  <div class="box info">
+    <span class="label">◇ DDR <code>i0176-01</code> の数字が、断面（手順3のやり直し前後）を跨いでいないか</span>
+    <p>本文不変の運用のためマージ後は直せない。敵対的レビューで1度指摘を受けて直した箇所である。</p>
+  </div>
+  <div class="box info">
+    <span class="label">◇ 観点表へ入れた検査コマンドが、配布先（git bash / Windows）でも動くか</span>
+    <p>Linux でのみ実測している。</p>
+  </div>
+</section>
+
+<section id="summary">
+  <h2>サマリ（結論の一覧）</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>結論</th><th>根拠の性質</th></tr></thead>
+    <tbody>
+      <tr><td><span class="chip good">◎</span> 受け入れ条件3件すべてを達成した</td><td>実測（反1・反2・反4）</td></tr>
+      <tr><td><span class="chip good">◎</span> 主判定は母数7件のうち <b>7/7</b> を説明する（対案の規模基準は 3/7）</td><td>実測（フェーズ2の調査）</td></tr>
+      <tr><td><span class="chip good">◎</span> 出口(1) を OR から AND へ変えたことで、4-1 の10件からの停止が <b>0回</b>になった</td><td>実測（判定済み9件の内訳）</td></tr>
+      <tr><td><span class="chip warn">△</span> 出口(1) の実データは <b>1件だけ</b>（<code>.claude/VERSION</code> の無言の衝突）</td><td>実測（1件）</td></tr>
+      <tr><td><span class="chip warn">△</span> 調査の母数は偽陰性が原理的に見えない（7/7 は上限の推定）</td><td>母数の構造</td></tr>
+      <tr><td><span class="chip warn">△</span> 敵対的レビュー6回・<b>指摘75件すべてが正しい指摘</b>だった（人間のレビューは0回）</td><td>実測（毎回自分のコマンドで裏取り）</td></tr>
+      <tr><td><span class="chip warn">△</span> 同型の不具合（検索語と実データの形の食い違い）を <b>5回</b>踏んだ</td><td>実測</td></tr>
+      <tr><td><span class="chip warn">△</span> <code>.claude/VERSION</code> の版はAIが目安表から適用した（人間の決裁は未取得）</td><td>規定に沿った判断</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="unverified">
+  <h2>確かめられなかったこと</h2>
+  <ul>
+    <li><b>出口(1) の AND の下側（規模が大きい）</b>は1件でしか通っていない。</li>
+    <li><b>#11 を実際に起票したあとの流れ</b>（提示 → 人間が決める → 起票）を通しで確かめていない。</li>
+    <li><b>観点表の検査コマンドの git bash（Windows）実機での動作。</b></li>
+    <li><b>調査の母数の偽陰性</b>（切り出すべきだったのに切り出されなかった事例）。記録が残らないため原理的に見えない。</li>
+    <li><b>出口(3)「このMRでやる」（極小の反映）</b>は、見送り事例に偏った母数では裏付けられていない。</li>
+  </ul>
+</section>
+
+<section id="findings">
+  <h2>実施した内容と結果</h2>
+
+  <h3>何を変えたか</h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>反映先</th><th>内容</th></tr></thead>
+    <tbody>
+      <tr><td><code>references/planning.md</code></td><td><b>新節「反映対象をこのMRでやるか切り出すかの判断」</b>。加えて手順3 段階2 へ <code>REVIEW-POINTS.md</code> 群の探索、「判定の記録」の等式へ手順3の控除項</td></tr>
+      <tr><td><code>SKILL.md</code></td><td>flow-id 4-1 / 4-6 から新節への導線</td></tr>
+      <tr><td><code>.claude/docs/ddr/i0176-01-…md</code></td><td>決定・却下案6件・調査の限界4点</td></tr>
+      <tr><td><code>.claude/docs/spec/issue-mr-workflow.md</code></td><td>新節の位置づけ＋影響範囲エントリ</td></tr>
+      <tr><td><code>.claude/rules/shell-script-style.md</code></td><td><code>grep</code> の母数の作り方／計画の検査コマンドをそのまま流す</td></tr>
+      <tr><td><code>.claude/rules/docs-workflow.md</code></td><td>見出し差し込み時の空行確認への導線</td></tr>
+      <tr><td><code>REVIEW-POINTS.md</code>（ルート・<code>wip/plans/</code>・<code>wip/reports/</code>）</td><td>検査語の差し替え／必須節検査／md↔HTML 見出し一致</td></tr>
+      <tr><td><code>.claude/VERSION</code></td><td><code>0.4.0</code> → <code>0.6.0</code></td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p><b>いずれも <code>main</code> に残る。</b> <code>wip/</code> 配下（計画・worklog・レポート）は flow-id 5-5 で削除され、squash merge により <code>main</code> には残らない。</p>
+
+  <h3>なぜそうしたか</h3>
+  <p><b>主判定を一問に絞ったのは、判定者依存を消すため。</b> 「規模」「スコープ」「価値」を並列に見ると重み付けが人によって変わり、「基準が無い」という現状の問題がそのまま残る。<b>出口の選択にも判定順を固定した</b>のは、出口の条件が排他ではないため、主判定で排した判定者依存が出口選択で戻ってくるからである。</p>
+  <div class="box ok">
+    <span class="label">AND 条件と「止まって待つ」は対になっている</span>
+    <p><b>出口(1)（別issueへ切り出す）だけがフローを止める</b>ため、その条件を AND に絞り、代わりに<b>非対話セッションでも止まる</b>ことにした。片方だけを入れると「毎回止まる」か「誰も決めていない項目が残る」のどちらかになる。</p>
+  </div>
+
+  <h3>検証結果</h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>フェーズ</th><th>検証</th><th>結果</th></tr></thead>
+    <tbody>
+      <tr><td>2〈調査〉</td><td>母数7件への主判定の当てはめ／対案との比較</td><td><b>7/7 一致</b>（対案 3/7）</td></tr>
+      <tr><td>3〈実装〉</td><td>計画した8本</td><td>全件が期待値どおり（追3 が一度 0 を返し、原因は検索語の改行分断）</td></tr>
+      <tr><td>4〈反映〉</td><td>計画した11本</td><td>全件が期待値どおり（反5・反10・反11 は<b>計画側の定義の誤り</b>を実行して発見し、定義を直した）</td></tr>
+      <tr><td>横断</td><td>単体テスト21本／参照切れ／配布網羅</td><td><code>failures=0</code> ／ 参照切れ0 ／ 4種すべて通過（522/522件・10/10行）</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>この基準を、このMR自身へ適用した結果</h3>
+<pre><code>洗い出し（4-1）10件 + 作業中に追加（4-6）2件 − 手順3で対象外になった 3件 = 判定済み 9件
+  = 別issueへ切り出す 1件 + やらないと決める 0件 + このMRでやる 8件（主判定 Yes 3件 + No 5件）</code></pre>
+  <div class="box warn">
+    <span class="label">出口(1) に当たったのは1件だけで、それは 4-6 の作業中に見つかった</span>
+    <p><code>.claude/VERSION</code> の「両側が同じ値へ上げた」衝突に検知が無い件である（規模＝検知スクリプトへの機能追加＋単体テスト＋spec、スコープ＝本issueの外）。<b>新節の定めに従い、AIは起票せず提示して止まっている。</b></p>
+  </div>
+
+  <h3>レビュー（敵対的レビュー6回・75件）</h3>
+  <p>人間のレビュー往復が成立しない非対話セッションのため、<code>adversarial-review</code> スキルで代替した。<b>毎回すべての指摘を自分のコマンドで裏取りし、6回とも全件が正しい指摘だった。</b></p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>回</th><th>件数</th><th>最も重い指摘</th></tr></thead>
+    <tbody>
+      <tr><td>2-1</td><td>12</td><td>「切り出しに触れているのは1文だけ」が事実と違う（実測10行・基準を指すのは3箇所）</td></tr>
+      <tr><td>2-2</td><td>11</td><td><b>Q4 の母数の作り方が誤り</b>（<code>別issue</code> ⊂ <code>個別issue</code>）。13件→7件へ作り直し</td></tr>
+      <tr><td>3-1</td><td>13</td><td><b>計画した4本の検証のうち機能していたのは1本だけ</b></td></tr>
+      <tr><td>3-2</td><td>15</td><td><b>全1 が空振り検査</b>（計画の定義を実行時に別の語へ差し替えていた）</td></tr>
+      <tr><td>4-1</td><td>10</td><td><b>痕跡確認の探索範囲に <code>REVIEW-POINTS.md</code> 群が無く、10件中4件の類型判定がひっくり返った</b></td></tr>
+      <tr><td>4-2</td><td>14</td><td><b>同じ数字がDDR・spec・レポートで3通りに分かれていた</b>／<b>必須節検査が偽陽性</b></td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>このissueで5回踏んだ同型の不具合</h3>
+  <p><b>「検索語と実データの形が食い違う」型。</b> いずれも件数がそのまま結論になる場面で起きた。</p>
+  <ol>
+    <li><code>別issue</code> が <code>個別issue</code> にも一致（過検知）</li>
+    <li><code>5フェーズ</code> を伴わない <code>43ステップ</code> を取りこぼし（取りこぼし）</li>
+    <li>検索語が段落内の改行で2行に割れて不一致</li>
+    <li><b>計画に書いた検査語を実行時に別の語へ差し替え</b>（空振り）</li>
+    <li><b>必須節検査の完全一致</b>（補足付き見出しを「落ちた」と誤判定）</li>
+  </ol>
+  <div class="box stop">
+    <span class="label">4 だけは自己検証をすり抜ける</span>
+    <p>「計画に検証コマンドを書き基準値を実測する」という規律が守るのは「検査を流したか」であって「流した検査が計画のものと同じか」ではない。これが <code>.claude/rules/shell-script-style.md</code> への追記2本の由来である。</p>
+  </div>
+</section>
+
+<section id="next">
+  <h2>設計への反映</h2>
+  <ul>
+    <li><b>DDR <code>i0176-01</code></b>（新規）— 主判定・出口・判定順・AND条件と「止まって待つ」の対、却下案6件、調査の限界4点。</li>
+    <li><b><code>.claude/docs/spec/issue-mr-workflow.md</code></b> — 「反映対象をこのMRでやるか切り出すかの判断（issue #176）」節（#64 節の直後）＋影響範囲エントリ。</li>
+    <li><b><code>.claude/rules/</code> 2本・<code>REVIEW-POINTS.md</code> 4本</b> — 上表のとおり。</li>
+  </ul>
+
+  <h3>残課題</h3>
+  <ul>
+    <li><b><code>check-base-conflicts.sh</code> へ <code>.claude/VERSION</code> の無言の衝突検知を足すか</b>（出口(1)。<b>人間の判断待ちで、AIは起票していない</b>）。</li>
+    <li><b>flow-id 1-5（人間による全体作業計画の合意）が成立していない</b>（非対話セッション）。</li>
+    <li><b>観点表の検査コマンドの Windows 実機検証。</b></li>
+  </ul>
+</section>
+
+</div>
+
+<footer>issue #176 / PR #196 — 正文は同名の <code>.md</code>（このHTMLはその視覚化）</footer>
+
+</body>
+</html>

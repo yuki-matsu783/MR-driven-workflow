@@ -17,7 +17,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - issue: #176
 - ブランチ: `claude/reflection-plan-criteria-tnhfvs`
 - PR: #196（Draft・https://github.com/yuki-matsu783/MR-driven-workflow/pull/196 ）
-- push回数: 14
+- push回数: 15
 - 現在のループ: 4-6〜4-9 の1周目（完了）
 - 未返信スレッド: 0
 - 追従監視: あり（PRイベント購読 + 定期チェックイン。Claude Code on the web セッション）
@@ -60,10 +60,10 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 | [x] | 4-8 | MRでレビュー・コメントする | 人間 |
 | [x] | 4-9 | レビュー内容を取得し、設計・AIアセットの内容を修正する | `comments` / `reply` |
 | [x] | 4-10 | 反映内容をもとにMR descriptionを更新する | `describe` |
-| [] | 5-1 | defaultブランチとのコンフリクトを検知し、あれば解消する | エージェント |
-| [] | 5-2 | 関連issueへマージ前通知を行う | エージェント |
-| [] | 5-3 | `.claude/` の変更を `.gemini/` へ変換同期する | エージェント |
-| [] | 5-4 | 最終統括レポートを作成しPR/MRへ反映する | エージェント |
+| [x] | 5-1 | defaultブランチとのコンフリクトを検知し、あれば解消する | エージェント |
+| [-] | 5-2 | 関連issueへマージ前通知を行う | エージェント |
+| [x] | 5-3 | `.claude/` の変更を `.gemini/` へ変換同期する | エージェント |
+| [x] | 5-4 | 最終統括レポートを作成しPR/MRへ反映する | エージェント |
 | [] | 5-5 | 次タスクのための片付けとHANDOFF.mdリセット | エージェント |
 | [] | 5-6 | commitし、pushしてDraftを解除する | エージェント |
 | [] | 5-7 | マージする | 人間 |
@@ -128,9 +128,14 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 
 - flow-id 4-10: MR description を全文更新した（新設した節の骨子・却下案6件の表・検証11本・敵対的レビュー6回分の記録・このMR自身への適用結果の等式・出口(1) の1件）。**フェーズ4完了。**
 
+- flow-id 5-1: `check-base-sync.sh`（`isBehind: false`）・`check-base-conflicts.sh`（`hasConflict: false`・DDR識別子の重複0）で、defaultブランチとのコンフリクトが無いことを確認した。
+- flow-id 5-2: **影響先なし**と判断した。`search_issues`（キーワード: 切り出し判断・別issue・規模・スコープ・AIアセット反映・レビュー観点・必須節・母数）は本issue #176 とクローズ済みの #155 しか返さず、open 19件を通しで見ても**前提が変わる・一部が解決される・記述が矛盾する issue は無かった**（#129・#108・#163・#153 はいずれも本MRの変更で前提が動かない）。よって通知は行っていない。
+- flow-id 5-3: `sync-gemini-assets.sh` を実行し、`.gemini/` を再生成した（変更7ファイル＋新規DDR 1ファイル）。
+- flow-id 5-4: 最終統括レポート `wip/reports/2026-08-24_reflection-split-criteria_統括.md`（＋`.html`）を作成した。**層3（HTML添付）は、この実行環境（`gh`/`glab` CLI不在・MCPに添付相当のツールが無い）では必ず失敗するためスキップした**（`references/phase5-close.md` の規定どおり警告のみ）。層1（commit・push）と層2（PRへのサマリコメント）は実施済み。
+
 ## 次にやること
 
-- フェーズ5へ進む（5-1 コンフリクト確認 → 5-2 関連issue通知（`AskUserQuestion` 承認必須）→ 5-3 `sync-gemini-assets.sh` → 5-4 統括レポート → 5-5 `cleanup-task.sh` → 5-6 Draft解除）。**5-7（マージ）はユーザーの明示指示があるまで実行しない。**
+- フェーズ5の残り（5-1 コンフリクト確認 → 5-2 関連issue通知（`AskUserQuestion` 承認必須）→ 5-3 `sync-gemini-assets.sh` → 5-4 統括レポート → 5-5 `cleanup-task.sh` → 5-6 Draft解除）。**5-7（マージ）はユーザーの明示指示があるまで実行しない。**
 
 ## 判断を迷った内容
 
