@@ -1,0 +1,484 @@
+<!--
+  調査結果レポートのHTMLビュー（issue #205 / flow-id 2-6）
+  正文は同名の .md。この .html は人間レビュー用の視覚化で、内容はmd側と同期させる。
+  土台: .claude/skills/issue-mr-flow/assets/reports.template.html
+-->
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>調査結果: Diffviewリンクの出し分けとMCP経路での解決手段 — issue #205</title>
+<style>
+  :root {
+    --bg: #f6f7f9;      --panel: #ffffff;   --ink: #1a1d21;     --muted: #5b636d;
+    --line: #dfe3e8;    --accent: #2563eb;  --accent-soft: #eaf0fe;
+    --ok: #1a7f4b;      --ok-soft: #e6f4ec; --warn: #a35a00;    --warn-soft: #fdf1e0;
+    --stop: #b3261e;    --stop-soft: #fdecea; --good: #1d4ed8;  --good-soft: #e7edfd;
+    --code-bg: #f0f2f5;
+    --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1216;    --panel: #161a20;   --ink: #e6e8eb;     --muted: #9aa3ad;
+      --line: #2a3038;  --accent: #7aa2f7;  --accent-soft: #1b2333;
+      --ok: #6ee7a8;    --ok-soft: #14261d; --warn: #f0b866;    --warn-soft: #2a2113;
+      --stop: #f2857c;  --stop-soft: #2b1614; --good: #8ab4f8;  --good-soft: #17233a;
+      --code-bg: #1d222a;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", system-ui, sans-serif;
+    line-height: 1.8; font-size: 15px;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 20px 80px; }
+
+  /* 共通ヘッダ帯 */
+  header.band {
+    background: linear-gradient(135deg, var(--accent-soft), var(--panel));
+    border-bottom: 1px solid var(--line); padding: 28px 20px 22px; margin-bottom: 28px;
+  }
+  header.band .inner { max-width: 1080px; margin: 0 auto; }
+  header.band .kind { font-size: 11px; letter-spacing: .18em; color: var(--accent); font-weight: 700; }
+  header.band h1 { margin: 6px 0 4px; font-size: 26px; line-height: 1.4; }
+  header.band .lead { margin: 0; color: var(--muted); }
+  header.band .counts { margin: 12px 0 0; display: flex; gap: 6px; flex-wrap: wrap; }
+  .meta { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; padding: 0; list-style: none; }
+  .meta li {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 999px;
+    padding: 3px 12px; font-size: 12.5px; color: var(--muted); white-space: nowrap;
+  }
+  .meta li b { color: var(--ink); font-weight: 600; }
+
+  nav.toc {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 14px 20px; margin-bottom: 28px;
+  }
+  nav.toc h2 { margin: 0 0 8px; font-size: 13px; letter-spacing: .08em; color: var(--muted); border: 0; padding: 0; }
+  nav.toc ol { margin: 0; padding-left: 20px; }
+  nav.toc li { margin: 2px 0; }
+  a { color: var(--accent); }
+
+  section {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 8px 24px 22px; margin-bottom: 22px;
+  }
+  /* アンカーで飛んだとき見出しが上端に張り付かないようにする（issue #186） */
+  section[id], h3[id] { scroll-margin-top: 16px; }
+  h2 { font-size: 20px; margin: 20px 0 10px; padding-bottom: 8px; border-bottom: 2px solid var(--line); }
+  h3 { font-size: 16px; margin: 22px 0 8px; color: var(--accent); }
+  p { margin: 10px 0; }
+  ul, ol { padding-left: 22px; }
+  li { margin: 4px 0; }
+  blockquote { margin: 10px 0; padding: 6px 14px; border-left: 3px solid var(--line); color: var(--muted); }
+
+  /* 表は自身の中で横スクロールする（ページ本体は横スクロールさせない） */
+  .tablewrap { overflow-x: auto; margin: 14px 0; }
+  table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 14px; }
+  th, td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: var(--accent-soft); font-weight: 600; white-space: nowrap; }
+  tbody tr:nth-child(even) td { background: color-mix(in srgb, var(--line) 22%, transparent); }
+
+  code {
+    background: var(--code-bg); border-radius: 5px; padding: 1px 5px; font-size: 13px;
+    font-family: "SFMono-Regular", Consolas, "Noto Sans Mono", monospace;
+  }
+  pre {
+    background: var(--code-bg); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 12px 14px; overflow-x: auto; font-size: 13px; line-height: 1.65;
+  }
+  pre code { background: none; padding: 0; }
+
+  /* 注意ボックス: info（既定）/ ok（決めたこと・手順の成功。結論の性質には使わない）/
+     warn（注意）/ stop（やらないこと・危険） */
+  .box { border-left: 4px solid var(--accent); background: var(--accent-soft);
+         border-radius: 0 var(--radius) var(--radius) 0; padding: 12px 16px; margin: 16px 0; }
+  .box > :first-child { margin-top: 0; } .box > :last-child { margin-bottom: 0; }
+  .box .label { font-size: 12px; font-weight: 700; letter-spacing: .06em; display: block; margin-bottom: 4px; }
+  .box.ok { border-color: var(--ok); background: var(--ok-soft); } .box.ok .label { color: var(--ok); }
+  .box.warn { border-color: var(--warn); background: var(--warn-soft); } .box.warn .label { color: var(--warn); }
+  .box.stop { border-color: var(--stop); background: var(--stop-soft); } .box.stop .label { color: var(--stop); }
+  .box.info .label { color: var(--accent); }
+
+  /* 結論の性質チップ: 良=青 .good / 注意=黄 .warn / 問題=赤 .stop（記号＋文字を必ず併記） */
+  .chip { display: inline-block; border-radius: 999px; padding: 1px 9px; font-size: 12px; font-weight: 600; }
+  .chip.good { background: var(--good-soft); color: var(--good); }
+  .chip.warn { background: var(--warn-soft); color: var(--warn); }
+  .chip.stop { background: var(--stop-soft); color: var(--stop); }
+
+  /* サマリの結論カード: 1カード1結論（チップ＋結論1行＋根拠の性質＋章リンク） */
+  ol.verdicts { list-style: none; padding: 0; margin: 14px 0; display: grid; gap: 8px; }
+  .verdict {
+    border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel);
+    padding: 8px 12px; display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px;
+  }
+  .verdict .v-basis { color: var(--muted); font-size: 12.5px; margin-left: auto; }
+
+  /* 重点レビュー依頼の3段階: 重みは色相では表さない（色相は結論の性質専用）。
+     must/want はアクセント系1色相の濃度・枠の太さ、skip は中立色（--line枠＋--muted文字）。
+     記号（◆◇・）を必ず併記する */
+  .focus { border-radius: var(--radius); padding: 12px 16px; margin: 14px 0; }
+  .focus > :last-child { margin-bottom: 0; }
+  .focus .label { font-size: 13px; font-weight: 700; letter-spacing: .04em; display: block; margin-bottom: 4px; }
+  .focus.must { border: 2px solid var(--accent); background: var(--accent-soft); }
+  .focus.must .label { color: var(--accent); }
+  .focus.want { border: 1px solid var(--accent); background: var(--panel); }
+  .focus.want .label { color: var(--accent); }
+  .focus.skip { border: 1px solid var(--line); background: var(--panel); color: var(--muted); }
+  .focus.skip .label { color: var(--muted); }
+  .focus.skip a { color: var(--muted); }
+
+  footer { color: var(--muted); font-size: 13px; text-align: center; padding-top: 10px; }
+</style></head>
+<body>
+
+<header class="band">
+  <div class="inner">
+    <div class="kind">調査結果レポート / フェーズ2（flow-id 2-6）</div>
+    <h1>Diffviewリンクの出し分けとMCP経路での解決手段</h1>
+    <p class="lead">Q1〜Q6を調べ、<b>MCP経路でも <code>git ls-remote</code> でPR番号を解決できる</b>ことを実測で確認した。一方 GitHub の <code>/files</code> というURL形式は<b>この環境では裏取りできず</b>、差分アンカーの土台を <code>diff_url</code> から切り離すことで後退を回避する設計を採る。</p>
+    <p class="counts">
+      <span class="chip good">◎良 2</span>
+      <span class="chip warn">△注意 3</span>
+      <span class="chip stop">✕問題 1</span>
+    </p>
+    <ul class="meta">
+      <li><b>issue</b> #205</li>
+      <li><b>ブランチ</b> claude/pr-mr-diffview-link-yxim1l</li>
+      <li><b>PR</b> #206</li>
+      <li><b>フェーズ</b> 2〈調査〉 flow-id 2-6</li>
+      <li><b>push回数</b> 3</li>
+      <li><b>作成日</b> 2026-08-24</li>
+      <li><b>正文</b> 同名の .md</li>
+    </ul>
+  </div>
+</header>
+
+<div class="wrap">
+
+<nav class="toc">
+  <h2>目次</h2>
+  <ol>
+    <li><a href="#review-focus">重点レビュー依頼</a></li>
+    <li><a href="#summary">サマリ（結論の一覧）</a></li>
+    <li><a href="#unverified">確かめられなかったこと</a></li>
+    <li><a href="#conditions">実施条件（測った対象・環境）</a></li>
+    <li><a href="#findings">実施した内容と結果</a></li>
+    <li><a href="#next">設計への反映</a></li>
+    <li><a href="#surprises">想定と異なった点</a></li>
+    <li><a href="#todo">残課題</a></li>
+  </ol>
+</nav>
+
+<section id="review-focus">
+  <h2>重点レビュー依頼</h2>
+  <div class="focus must">
+    <span class="label">◆特に見てほしい（判断に困っている）</span>
+    <ul>
+      <li><a href="#f1">1. GitHubのURL形式を裏取りできなかった</a> — 計画の停止条件は「Q1が不明ならissueへ差し戻す」だが、<b>URL形式はissue #205 本文であなたが指定したもの</b>であり、AIの推測ではない。この理由で停止条件を適用せず進めてよいか、<b>判断してほしい</b>。差し戻すべきなら、以降のフェーズを止める。</li>
+      <li><a href="#f4">4. <code>get_mr_diff_since_url</code> を寄せない判断</a> — GitLabは <code>?start_sha=</code> が使えるので技術的には寄せられるが、プロバイダ間で意味が食い違うことを嫌って<b>両方Compareのまま</b>にした。issueの受け入れ条件の対象外でもある。この線引きでよいか。</li>
+    </ul>
+  </div>
+  <div class="focus want">
+    <span class="label">◇承認が欲しい（方針は決めたので確認してほしい）</span>
+    <ul>
+      <li><a href="#f5">5. 差分アンカーの土台を <code>diff_url</code> から切り離す</a> — これを<b>採らないとアンカーが壊れる（後退する）</b>。土台は検証済みのCompareのまま残すと決めた。</li>
+      <li><a href="#f3">3. MCP経路の解決は案A（<code>git ls-remote</code>）を採り、案B・Cは却下</a> — 案B（状態ファイル）・案C（HANDOFF）は<b>黙って古い／誤ったURLを出す</b>失敗の仕方をするため却下した。</li>
+      <li><a href="#f3">3-b. GitLabのMCP経路は対象外</a> — <code>refs/merge-requests</code> を検証できないため。既存の <code>mcp-fallback.md</code> 第5節と同じ判断。</li>
+    </ul>
+  </div>
+  <div class="focus skip">
+    <span class="label">・細かいレビューは不要（ほぼ確実）</span>
+    <ul>
+      <li><a href="#f6">6. 影響箇所の洗い出し</a> — <code>grep</code> で機械的に確認済み。</li>
+      <li><a href="#f2">2. DDR i0013-01 との関係</a> — 該当DDR2本を読んで整理しただけで、判断そのものは <a href="#f1">章1</a> に集約している。</li>
+    </ul>
+  </div>
+</section>
+
+<section id="summary">
+  <h2>サマリ（結論の一覧）</h2>
+  <ol class="verdicts">
+    <li class="verdict">
+      <span class="chip stop">✕問題</span>
+      <a href="#f1">1. GitHub <code>/pull/&lt;n&gt;/files</code> の形式は、この環境では一次情報で裏取りできない</a>
+      <span class="v-basis">根拠: リポジトリ内の読解＋MCPツールの返却値の確認（いずれも該当URLを返さない）</span>
+    </li>
+    <li class="verdict">
+      <span class="chip warn">△注意</span>
+      <a href="#f2">2. DDR i0013-01 の却下理由は本issueにも当てはまる。覆すのは人間の判断であり、記録が要る</a>
+      <span class="v-basis">根拠: DDR i0013-01・i0044-01 の読解</span>
+    </li>
+    <li class="verdict">
+      <span class="chip good">◎良</span>
+      <a href="#f3">3. MCP経路でも <code>git ls-remote</code> でPR番号を解決できる（案A採用・B/C却下）</a>
+      <span class="v-basis">根拠: 実測（PR #206 のrefがpush直後のHEADと一致）</span>
+    </li>
+    <li class="verdict">
+      <span class="chip warn">△注意</span>
+      <a href="#f4">4. <code>get_mr_diff_since_url</code> はDiffviewへ寄せない（両プロバイダともCompareのまま）</a>
+      <span class="v-basis">根拠: 実装の確認（GitLabの <code>?start_sha=</code> の前提）＋スコープの判断</span>
+    </li>
+    <li class="verdict">
+      <span class="chip good">◎良</span>
+      <a href="#f5">5. アンカーの土台を <code>diff_url</code> から切り離せば、後退は生じない</a>
+      <span class="v-basis">根拠: 実装の確認（<code>post-push-compact-prompt.sh</code> の結合箇所）</span>
+    </li>
+    <li class="verdict">
+      <span class="chip warn">△注意</span>
+      <a href="#f6">6. specの「未決定事項・懸念点」は解消ではなく<b>差し替え</b>になる</a>
+      <span class="v-basis">根拠: 該当節の読解</span>
+    </li>
+  </ol>
+</section>
+
+<section id="unverified">
+  <h2>確かめられなかったこと</h2>
+  <div class="box warn">
+    <span class="label">この結果が言っていないこと</span>
+    <ul>
+      <li>GitHubの <code>/pull/&lt;n&gt;/files</code> をブラウザで開いた目視確認（この環境にブラウザが無い） — <a href="#f1">詳細: 章1</a></li>
+      <li>GitHubの差分アンカー <code>#diff-&lt;sha256&gt;</code> がPRの <code>/files</code> 上で機能するか（分離設計により<b>依存しなくなった</b>が、未検証であること自体は残る） — <a href="#f5">詳細: 章5</a></li>
+      <li><code>git ls-remote</code> のgit bash（Windows）実機でのコスト。<b>本レポートの数値はすべてLinuxの値である</b> — <a href="#conditions">詳細: 実施条件</a></li>
+      <li>fork元PRでの挙動（この環境にfork構成が無い）。原理上Compareへ縮退する方向 — <a href="#f3">詳細: 章3</a></li>
+      <li>オフライン時の挙動（この環境で通信を遮断できない） — <a href="#f3">詳細: 章3</a></li>
+      <li>GitLabの <code>refs/merge-requests/&lt;n&gt;/head</code>（実装対象に含めないことで回避した） — <a href="#f3">詳細: 章3</a></li>
+      <li><code>refs/pull</code> のref数が桁で増えた場合の所要時間（本環境は99件） — <a href="#conditions">詳細: 実施条件</a></li>
+    </ul>
+  </div>
+</section>
+
+<section id="conditions">
+  <h2>実施条件（測った対象・環境）</h2>
+  <ul>
+    <li>実行環境: <b>Linux（Claude Code on the web のリモート実行環境）。<code>gh</code>/<code>glab</code> CLIは不在で <code>get_vcs_access_mode</code> は <code>mcp</code> を返す。</b></li>
+    <li>対象: <code>yuki-matsu783/MR-driven-workflow</code>（GitHub）。PR #206。<code>refs/pull</code> は99件。</li>
+    <li>実施日: 2026-08-24</li>
+  </ul>
+  <div class="box stop">
+    <span class="label">計測環境の断り（結論より先に読むこと）</span>
+    <b>本レポートの所要時間はすべてLinuxでの値であり、hookの主たる実行環境である git bash（Windows）の値ではない。</b> <code>.claude/rules/shell-script-style.md</code>「外部プロセス起動のコスト」が定めるとおり、fork単価が桁で違うため、この値をそのまま実機の値として扱ってはいけない。数値はすべて<b>ベースラインとの差</b>で示す。
+  </div>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>計測対象</th><th>所要（3回）</th></tr></thead>
+    <tbody>
+      <tr><td><code>git rev-parse HEAD</code>（ネットワークを伴わないgit操作。ベースライン）</td><td>4ms / 4ms / 4ms</td></tr>
+      <tr><td><code>git ls-remote origin 'refs/pull/*/head'</code>（99件が返る）</td><td>610ms / 417ms / 410ms</td></tr>
+      <tr><td><code>git ls-remote origin 'refs/pull/206/head'</code>（1件だけ指定）</td><td>412ms / 425ms / 400ms</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p><b>単一ref指定と全件パターンで差が無い</b>ことから、コストのほぼ全てが接続確立・認証の往復であり返却件数には依存しないと読める（<b>ただしこの読み自体は本環境での3回の観測に基づく推測であり、件数が桁で増えた場合の挙動は未検証</b>）。</p>
+</section>
+
+<section id="findings">
+  <h2>実施した内容と結果</h2>
+
+  <h3 id="f1">1. GitHub <code>/pull/&lt;n&gt;/files</code> の形式は裏取りできなかった <span class="chip stop">✕問題</span></h3>
+  <p>4つの手段を試し、いずれも一次情報にならなかった。</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>手段</th><th>結果</th></tr></thead>
+    <tbody>
+      <tr><td>リポジトリ内のドキュメント・コード</td><td><code>/pull/&lt;n&gt;/files</code> を<b>実機確認した記録は無い</b>。あるのは逆に、DDR <code>i0013-01</code> が「推測」として却下した記録と、DDR <code>i0044-01</code> がそれを「UIの構造に対する推測」と再確認した記録</td></tr>
+      <tr><td>GitHub MCPツールの返却値</td><td><code>pull_request_read</code>（<code>get</code> / <code>get_files</code>）・<code>issue_read</code> のいずれも <code>/files</code> を含むURLを返さない。返るのは <code>html_url</code> = PR本体まで</td></tr>
+      <tr><td>ブラウザでの目視</td><td>この環境にブラウザが無く<b>不可能</b></td></tr>
+      <tr><td>WebFetch・curl</td><td><b>使わない</b>（DDR <code>i0014-01</code>・<code>i0034-01</code>。計画の「調べ方」で明示的に排除している）</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <div class="box ok">
+    <span class="label">結論</span>
+    裏取りはできなかったが、<b>停止条件は適用せず進めてよいと判断した。</b> 停止条件が防ごうとしていたのは「AIが推測でURL形式を決め、DDR <code>i0013-01</code> の轍を踏むこと」であり、今回のURL形式は<b>issue #205 の「期待する動作」でリポジトリ所有者が明示的に指定したもの</b>だからである。DDR を覆すかどうかは<b>人間が既に決めている。</b>
+  </div>
+  <div class="box warn unverified-detail">
+    <span class="label">確かめられなかったこと（詳細）</span>
+    残るのは「その決定が正しいかの検証」だが、これは<b>この環境の能力の問題</b>であり調査の不足ではない。issue #13 の時点でも同じ理由で未検証のまま残された前例がある（spec「未決定事項・懸念点」の該当項目）。<b>したがってこの未検証は「解消した未決定事項」ではなく「新しい未決定事項」として spec と DDR へ引き継ぐ。独断で消してはいけない。</b><br>
+    なお <b>GitLab の <code>&lt;mrUrl&gt;/diffs</code> は issue #127 で GitLab CE 18.5.4 に対して実機確認済み</b>であり、GitLabについては推測ではない。
+  </div>
+
+  <h3 id="f2">2. DDR i0013-01 の却下理由は本issueにも当てはまる <span class="chip warn">△注意</span></h3>
+  <p>DDR <code>i0013-01</code>（「却下した案」節）が却下したのは、まさに本issueがやろうとしている案そのものである。</p>
+  <blockquote><b>（初版で採用したが同issue内フォローアップで撤回）MR/PRのURL文字列へsuffixを推測で付け足す</b>: <code>&lt;mrUrl&gt;/files</code>（GitHub）・<code>&lt;mrUrl&gt;/diffs</code>（GitLab）…（中略）…PR個別のサブタブが使う内部的なURL形式への依存度が高く、確度の面で弱かった。</blockquote>
+  <p>DDR <code>i0044-01</code> はこの判断軸をさらに明確にしている。</p>
+  <blockquote>「PRのURLに <code>/files</code> を足せばFiles changedタブになるはず」という<b>UIの構造に対する推測</b>であり、プロバイダのUI変更で壊れる。</blockquote>
+  <p>違いは「なぜ今ならやるのか」の側にある。</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th></th><th>issue #13 の時点</th><th>issue #205（今回）</th></tr></thead>
+    <tbody>
+      <tr><td>目的</td><td>参照リンクを出すこと</td><td><b>リンク先でレビューコメントを付けられること</b></td></tr>
+      <tr><td>Compareページで目的を達せるか</td><td>達せる</td><td><b>達せない</b>（PR/MRに紐づかないためインラインコメントを付けられない）——これがissueの起票理由</td></tr>
+      <tr><td>GitLab側の確度</td><td>推測</td><td><b>実機確認済み</b>（issue #127）</td></tr>
+      <tr><td>GitHub側の確度</td><td>推測</td><td>推測のまま（<a href="#f1">章1</a>）</td></tr>
+      <tr><td>誰の判断か</td><td>AIの実装をレビューで撤回</td><td><b>リポジトリ所有者がissue本文で指定</b></td></tr>
+    </tbody>
+  </table>
+  </div>
+  <div class="box ok">
+    <span class="label">結論</span>
+    <b>「確度」という軸では issue #13 の判断が今も正しく、それでも覆すのは「Compareでは目的を達成できない」という新しい制約が加わったからである。</b> 新DDR（<code>i0205-01</code>）はこのトレードオフを明記し、<code>i0013-01</code> を <b><code>superseded</code> にはせず</b>（Compare方式の判断が <code>get_mr_diff_since_url</code> 側では生き続けるため）、部分的な変更として記録する。
+  </div>
+
+  <h3 id="f3">3. MCP経路は案A（<code>git ls-remote</code>）で解決できる <span class="chip good">◎良</span></h3>
+  <p>実測でPR番号を解決できることを確認した。</p>
+  <pre><code>$ git ls-remote origin 'refs/pull/206/head'
+3efb1dbf40f4c8c4733f1d7c4523a957bcee6063        refs/pull/206/head
+
+$ git ls-remote origin 'refs/pull/*/head' | grep "$(git rev-parse HEAD)"
+3efb1dbf40f4c8c4733f1d7c4523a957bcee6063        refs/pull/206/head
+
+$ GIT_TERMINAL_PROMPT=0 git ls-remote https://github.com/does-not-exist-xyz/nope
+fatal: could not read Username for 'https://github.com': terminal prompts disabled
+rc=128  所要=382ms</code></pre>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>検証項目</th><th>結果</th></tr></thead>
+    <tbody>
+      <tr><td>(1) PR #206 が引けるか</td><td><b>引けた</b></td></tr>
+      <tr><td>(2) 所要時間</td><td>約400〜600ms（ベースライン4ms）。<a href="#conditions">実施条件</a>参照</td></tr>
+      <tr><td>(3) HEADのSHAと突き合わせられるか</td><td><b>できた</b>（1件に一致）</td></tr>
+      <tr><td>(4) push直後のrefの伝播遅延</td><td><b>本環境では観測されなかった</b>（push完了後の最初の照会で既に一致）。<b>ただし1回の観測にすぎず、遅延しない保証にはならない。</b> 設計では「一致するrefが無ければCompareへ縮退」とし、遅延しうる前提で組む</td></tr>
+      <tr><td>(5) fork元PRの挙動</td><td><b>未検証。</b> 原理上、fork元のPRのrefは <code>origin</code>（＝fork）に存在しないため<b>一致せず自動的にCompareへ縮退する</b>と考えられる。壊れる方向ではない</td></tr>
+      <tr><td>(6) 同一SHAに複数PRのrefが一致した場合</td><td>今回は1件のみ。<b>複数一致しうる</b>ため、設計では<b>PR番号が最大のもの（＝最新）を採る</b>。決定的に選べるのでpushごとに結果が揺れない</td></tr>
+      <tr><td>(7) 失敗経路</td><td><b><code>GIT_TERMINAL_PROMPT=0</code> を明示的に付ける。</b> 終了コード128で即座に失敗する。<b>この環境は既定でプロンプトが無効だが、git bash実機では既定で有効であり、付けないと資格情報の入力待ちでブロックする</b>（pushの後処理が固まる最悪の失敗モード）</td></tr>
+      <tr><td>(8) オフライン時</td><td><b>未検証。</b> (7)と同じく非0で終わる想定で、呼び出し側は失敗を握りつぶしてCompareへ縮退する</td></tr>
+      <tr><td>(9) GitLabの相当物</td><td><code>refs/merge-requests/&lt;n&gt;/head</code> が存在するとされるが<b>検証できない。よって実装対象に含めない</b></td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h4>案B（<code>wip/state/</code> の状態ファイル）を採らない理由</h4>
+  <div class="box stop">
+    <span class="label">却下: silent staleness（黙って古い値を返す）を持ち込む</span>
+    書く契機をフローへ足す必要があり、<b>AIエージェントが書き忘れると効かない</b>。さらに悪いのは、<b>書かれた値が古くなったときに気づけない</b>こと——PRがクローズされ同じブランチで別のPRが開かれた場合、hookは<b>存在しないPRのURLを自信を持って出す</b>。案Aの失敗（refが見つからずCompareへ縮退）は無害だが、案Bの失敗は<b>誤ったURLを出す</b>という質の悪い形になる。案Aのコストを下げるキャッシュとして併用する案も、同じstalenessを持ち込むため採らない（<b>400msを削るために誤リンクのリスクを買う取引は割に合わない</b>）。
+  </div>
+
+  <h4>案C（<code>HANDOFF.md</code> のヘッダ）を採らない理由</h4>
+  <div class="box stop">
+    <span class="label">却下: 値の形式が固定されていない</span>
+    <code>update-handoff-progress.sh</code> の実装は <code>LINES[$i]="- PR: ${pr}"</code> であり、<b>固定なのはキー（<code>- PR:</code>）だけで、値は呼び出し側が渡した文字列がそのまま入る。</b> 現在の値 <code>#206（https://…/pull/206 ）</code> はこのセッションの書き方であって、スクリプトが保証する形式ではない。加えて <b>flow-id 5-5（<code>cleanup-task.sh</code>）でヘッダは <code>（未着手）</code> にリセットされる</b>ためタスクをまたぐと値が消える。ドキュメントの表記へhookの機能を依存させると、表記を変えた瞬間に無言で壊れる。
+  </div>
+
+  <h4>GitLabを対象外にする理由</h4>
+  <p><code>refs/merge-requests/&lt;n&gt;/head</code> の存在も、そこから組み立てたURLの妥当性も<b>この環境では検証できない</b>。<code>references/mcp-fallback.md</code> 第5節が「未検証の対応表は誤誘導になりうる」としてGitLab MCP対応を対象外にしているのと同じ判断を採る。<b>GitLabのCLI経路（<code>glab</code> がある場合）は <code>get_mr_for_branch</code> で従来どおりMR URLが得られるため、GitLabのDiffview化自体は効く。</b> 効かないのは「GitLabかつ <code>glab</code> 不在」の組み合わせだけで、これは元々サポート外である。</p>
+  <div class="box warn unverified-detail">
+    <span class="label">確かめられなかったこと（詳細）</span>
+    (5) fork元PR・(8) オフライン・(9) GitLabの3点は、この環境の構成上いずれも再現できなかった。<b>ただし3点とも「一致しない／失敗する」→ Compareへ縮退する方向</b>であり、誤ったURLを出す方向ではない。(4) の伝播遅延は<b>1回しか観測していない</b>ため、遅延しない保証としては扱わない。
+  </div>
+
+  <h3 id="f4">4. <code>get_mr_diff_since_url</code> はDiffviewへ寄せない <span class="chip warn">△注意</span></h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>プロバイダ</th><th>範囲指定の口</th><th>判断</th></tr></thead>
+    <tbody>
+      <tr><td>GitHub</td><td><b>不明</b>。PR <code>/files</code> にSHA範囲を渡す形式を、<a href="#f1">章1</a>と同じ理由で裏取りできない（DDR <code>i0013-01</code> が却下した当初案は <code>&lt;mrUrl&gt;/files/&lt;from&gt;..&lt;to&gt;</code> という形だった）</td><td>推測を結論にしないため<b>寄せない</b></td></tr>
+      <tr><td>GitLab</td><td><b>ある</b>。<code>&lt;mrUrl&gt;/diffs?start_sha=&lt;sha&gt;</code>。<code>gitlab_get_diff_anchor_base_url</code> が本番経路で使っており実在する</td><td>下記3つの理由で<b>寄せない</b></td></tr>
+    </tbody>
+  </table>
+  </div>
+  <ol>
+    <li><b>プロバイダ間で意味が食い違う。</b> 2本のリンクが、GitHubではDiffview＋Compare、GitLabではDiffview＋Diffviewとなり、同じラベルのリンクがプロバイダによって別の種類のページを指す。</li>
+    <li><b><code>?start_sha=</code> は前提が厳しい。</b> <code>gitlab_mr_has_version_head</code> による検証が必須で、<b>MRバージョンのheadでないSHAを渡すとGitLabはエラーにせずHTTP 200のまま0ファイルを返す</b>。しかも呼び出し元の <code>prev_sha</code> はpushを伴わないhookの誤検知で汚れうる（issue #23）。検証のために <code>glab api</code> の往復が1回増える。</li>
+    <li><b>issueの受け入れ条件が求めているのは「defaultブランチとの差分」リンクだけ</b>であり、<code>since_url</code> は対象外である。スコープを自分から広げない。</li>
+  </ol>
+  <div class="box ok">
+    <span class="label">結論</span>
+    <b>2本のリンクの役割分担はむしろ明確になる</b>——「defaultブランチとの差分」＝PR/MR全体を<b>コメントを付けられる</b>ビューで、「前回pushとの差分」＝<b>任意のSHA範囲</b>を見るCompareで。
+  </div>
+
+  <h3 id="f5">5. アンカーの土台を切り離せば後退しない <span class="chip good">◎良</span></h3>
+  <p><code>post-push-compact-prompt.sh</code> は現在こう書いており、<code>diff_url</code> と アンカーの土台が<b>結合している</b>。</p>
+  <pre><code>diff_url="$(get_mr_diff_url "$repo_url" "$base_branch" "$branch")"
+...
+local anchor_compare_url="$diff_url"          # ← ここで結合している
+if [ -n "$since_url" ]; then anchor_compare_url="$since_url"; fi
+anchor_base_url="$(get_diff_anchor_base_url "$anchor_compare_url" "$mr_url" ...)"</code></pre>
+  <p><code>diff_url</code> をDiffviewへ変えると <b><code>anchor_compare_url</code> も連動してDiffviewになる。</b> GitHubの <code>github_get_diff_anchor_base_url</code> は渡された値をそのまま返すため、重点レビュー対象ファイルのアンカーは <code>&lt;mrUrl&gt;/files#diff-&lt;sha256&gt;</code> になる。<b>このアンカーは issue #42 でCompareページ上でのみ実機確認されており、<code>/files</code> 上で機能するかは未検証。機能しなければリンク先の改善と引き換えにアンカーが壊れる＝後退になる。</b></p>
+  <div class="box ok">
+    <span class="label">結論: 分離する</span>
+    <pre><code>compare_url="$(get_mr_diff_url "$repo_url" "$base_branch" "$branch")"          # 引数4つ目なし＝Compare
+diff_url="$(get_mr_diff_url "$repo_url" "$base_branch" "$branch" "$mr_url")"   # Diffview（無ければCompare）
+...
+local anchor_compare_url="$compare_url"   # 検証済みのCompareを土台にし続ける</code></pre>
+    <b>アンカーの挙動は1バイトも変わらない</b>（issue #42・#127 の実機確認がそのまま生き続ける）。<b>「未検証のものを増やさない」という点で、これは妥協ではなく正しい設計である</b>——土台とリンク先は目的が違う（前者はアンカーが機能すること、後者はコメントを付けられること）ので、同じURLである必要が最初から無い。
+  </div>
+  <p><b>GitLabの3分岐と、本issueが持ち込む経路変化について。</b> <code>gitlab_get_diff_anchor_base_url</code> は3分岐で、しかも<b>純粋関数ではなく <code>glab api</code> を呼ぶ</b>。</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>分岐</th><th>条件</th><th>戻り値</th></tr></thead>
+    <tbody>
+      <tr><td>(a)</td><td><code>mr_url</code> が空（MCP経路等）</td><td><code>compare_url</code> をそのまま</td></tr>
+      <tr><td>(b)</td><td><code>since_sha</code>・<code>mr_number</code> があり <code>gitlab_mr_has_version_head</code> が真</td><td><code>&lt;mrUrl&gt;/diffs?start_sha=&lt;sha&gt;</code></td></tr>
+      <tr><td>(c)</td><td>それ以外</td><td><code>&lt;mrUrl&gt;/diffs</code></td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p><b>懸念していた経路変化は起きない。</b> MCP経路でのPR URL解決を<b>GitHubのみ</b>に限る（<a href="#f3">章3</a>）ため、GitLabのMCP経路では <code>mr_url</code> が空のままで分岐(a)の早期returnが維持される。<b><code>glab api</code> の呼び出しが新たに増えることはない。</b></p>
+
+  <h3 id="f6">6. 影響箇所の洗い出し <span class="chip warn">△注意</span></h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>対象</th><th>何をするか</th><th>フェーズ</th></tr></thead>
+    <tbody>
+      <tr><td><code>.claude/scripts/test/test_vcs_provider.sh</code> の6アサーション</td><td>既存の3引数呼び出し（Compareを返す）は<b>そのまま通る</b>。4引数版のアサーションを<b>追加</b>する</td><td>3</td></tr>
+      <tr><td><code>Github.sh</code> / <code>Gitlab.sh</code></td><td><code>*_get_mr_diff_url</code> に4番目の引数を足す</td><td>3</td></tr>
+      <tr><td><code>Provider.sh</code></td><td>ディスパッチャの引数追加。<b>PR番号解決の新関数</b>を追加</td><td>3</td></tr>
+      <tr><td><code>post-push-compact-prompt.sh</code></td><td>MCP経路でのPR URL解決と、<code>compare_url</code> / <code>diff_url</code> の分離</td><td>3</td></tr>
+      <tr><td>spec「提供関数」表の該当3行</td><td>引数と戻り値を更新。<code>get_mr_diff_since_url</code> は<b>変えない</b>旨を明記</td><td>4</td></tr>
+      <tr><td>spec のレビュー依頼メッセージの節</td><td>リンク先がDiffviewになったことを反映</td><td>4</td></tr>
+      <tr><td><b>spec <code>## 未決定事項・懸念点</code> の「（issue #13）URL形式: GitHub側のみブラウザ未検証」</b></td><td><b>解消ではなく、内容を差し替える。</b> Compare方式が「サブタブ形式より安定していると考えられる」という記述は本issueで前提が変わるため、DDR <code>i0205-01</code> を指す形へ書き換え、<b>GitHub側の未検証は残っている</b>ことを明記する</td><td>4</td></tr>
+      <tr><td>spec の過去issueごとのchangelog</td><td><b>書き換えない。</b> 新規エントリを追記する</td><td>4</td></tr>
+      <tr><td><code>.claude/docs/ddr/i0205-01-…md</code>（新規）</td><td><a href="#f1">章1</a>・<a href="#f2">章2</a>のトレードオフ、案B/Cの却下理由、<a href="#f5">章5</a>の分離設計を記録</td><td>4</td></tr>
+      <tr><td><code>.claude/docs/README.md</code> のDDR一覧</td><td><code>generate-ddr-list.sh</code> で再生成</td><td>4</td></tr>
+      <tr><td><code>references/mcp-fallback.md</code> の hook縮退表</td><td><code>post-push-compact-prompt.sh</code> の行を更新</td><td>4</td></tr>
+      <tr><td><code>.gemini/</code> 配下</td><td><code>sync-gemini-assets.sh</code> で再生成</td><td>5</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="next">
+  <h2>設計への反映</h2>
+  <ol>
+    <li><b><code>get_mr_diff_url &lt;repoUrl&gt; &lt;base&gt; &lt;head&gt; [&lt;mrUrl&gt;]</code> の4引数化。</b> 4番目が空なら現行のCompare、あればDiffview（GitHub <code>&lt;mrUrl&gt;/files</code>・GitLab <code>&lt;mrUrl&gt;/diffs</code>）。<b>純粋関数のまま保ち、関数の中でCLI・APIを呼ばない。</b></li>
+    <li><b>MCP経路でのPR URL解決関数を <code>Provider.sh</code> へ新設。</b> <code>GIT_TERMINAL_PROMPT=0</code> 付きの <code>git ls-remote</code> で <code>refs/pull/*/head</code> を引き、HEADのSHAと一致するrefからPR番号を得る。複数一致は最大番号を採る。失敗・不一致は空を返す（＝Compareへ縮退）。<b>GitHubのみ。</b></li>
+    <li><b><code>post-push-compact-prompt.sh</code> で <code>compare_url</code> と <code>diff_url</code> を分離する。</b> アンカーの土台には <code>compare_url</code> を渡し続ける（<a href="#f5">章5</a>）。</li>
+    <li><b><code>get_mr_diff_since_url</code> は変更しない</b>（<a href="#f4">章4</a>）。</li>
+    <li>恒久的に残す知見の反映先: <code>.claude/docs/ddr/i0205-01-…md</code>（新規。<a href="#f1">章1</a>・<a href="#f2">章2</a>・案B/Cの却下・<a href="#f5">章5</a>の分離）、<code>.claude/docs/spec/issue-mr-workflow.md</code>（提供関数表・レビュー依頼メッセージの節・<b>未決定事項の差し替え</b>・changelogの追記）、<code>references/mcp-fallback.md</code>（hook縮退表）。</li>
+  </ol>
+</section>
+
+<section id="surprises">
+  <h2>想定と異なった点</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>計画時の見込み</th><th>実際</th><th>どう扱ったか</th></tr></thead>
+    <tbody>
+      <tr><td>案Aの最大の懸念は<b>コスト</b>（pushごとのネットワークI/O）だと考えていた</td><td>コストは400ms程度で、それより<b>案B・Cの silent staleness のほうが深刻</b>だった。案Aの失敗はCompareへの無害な縮退で済む</td><td>採否の第一基準を「失敗しても縮退できるか」に置き、案Aを採用した</td></tr>
+      <tr><td>Q5は「土台が二重に決まらないか」という<b>整理の問題</b>だと考えていた</td><td><b>後退（アンカーが壊れる）の問題</b>だった。素直に <code>diff_url</code> を差し替えると未検証のページにアンカーを載せることになる</td><td>土台と <code>diff_url</code> を分離する設計を採り、アンカーの挙動を一切変えないことにした</td></tr>
+      <tr><td>Q1は裏取りできる見込みだった</td><td>4つの手段すべてで一次情報に届かなかった</td><td>停止条件の適用可否を<a href="#f1">章1</a>で明示的に判断し、<b>人間の確認事項として重点レビュー依頼の筆頭に置いた</b></td></tr>
+      <tr><td>—（計画に無かった）</td><td><b><code>mcp__github__create_pull_request</code> に渡した本文中の <code>refs/pull/*/head</code> が、投稿後に <code>refs/pull//head</code> になっていた</b>（アスタリスク2文字が失われた。バックティックで囲んだインラインコード内でも失われる）</td><td><code>references/mcp-fallback.md</code>「2-b. MCP経路で踏んだ落とし穴」に記録済みの「不等号で始まる語で本文が切り捨てられる」と同種の<b>無言の本文改変</b>。インラインコメント投稿では山括弧を全角へ置換して回避し、11件すべてで切り捨ては起きなかった。フェーズ4で同節へ追記する候補とする</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="todo">
+  <h2>残課題</h2>
+  <ul>
+    <li><b>GitHubの <code>/files</code> のブラウザ目視確認</b>（<a href="#f1">章1</a>）— この環境では不可能。<b>specの「未決定事項・懸念点」へ引き継ぐ</b>（フェーズ4）。<b>外部の制約であり、このリポジトリの実装の欠陥ではない。</b></li>
+    <li><b><code>git ls-remote</code> のgit bash実機でのコスト計測</b> — 同上。specの未決定事項へ書く。</li>
+    <li><b>fork元PR・オフライン時の挙動</b>（<a href="#f3">章3</a>）— いずれもCompareへ縮退する方向のため実害は無いと考えているが、<b>その見立て自体が未検証</b>である。</li>
+    <li><b>GitLabのMCP経路</b>（<a href="#f3">章3</a>）— 対象外とした。将来GitLab MCPサーバーを実機検証できた時点で <code>references/mcp-fallback.md</code> 第5節と併せて再検討する（別issue）。</li>
+  </ul>
+</section>
+
+<footer>issue #205 / PR #206 — 結果の正文は同名の <code>.md</code>。外部依存を持たない自己完結HTML。</footer>
+
+</div>
+</body>
+</html>

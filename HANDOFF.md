@@ -17,7 +17,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - issue: #205（https://github.com/yuki-matsu783/MR-driven-workflow/issues/205 ）
 - ブランチ: claude/pr-mr-diffview-link-yxim1l
 - PR: #206（https://github.com/yuki-matsu783/MR-driven-workflow/pull/206 ）
-- push回数: 2
+- push回数: 3
 - 現在のループ: 2-3〜2-4 を敵対的レビュー1回で代替（進捗記号は[]のまま。非対話セッションのため人間のレビュー往復は成立しない）
 - 未返信スレッド: 0
 - 追従監視: あり（subscribe_pr_activity で PR #206 を購読中。セッション終了で止まるため次セッションは resume で取り直す）
@@ -31,7 +31,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 | [] | 1-5 | 全体作業計画に合意する | 人間 |
 | [x] | 1-6 | 全体作業計画をもとにHANDOFF.mdを更新する | エージェント |
 | [x] | 2-1 | 個別調査計画を作成する | エージェント |
-| [] | 2-2 | commitし、pushしてレビュー依頼を行う | エージェント |
+| [x] | 2-2 | commitし、pushしてレビュー依頼を行う | エージェント |
 | [] | 2-3 | MRで調査計画についてレビュー・コメントする | 人間 |
 | [] | 2-4 | レビュー内容を取得し、調査計画を修正する | `comments` / `reply` |
 | [] | 2-5 | 調査計画をもとにMR descriptionを更新する | `describe` |
@@ -94,13 +94,20 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - **Q3-A（`git ls-remote`）の実測**: `refs/pull/206/head` が push直後のHEADと一致した
   （伝播遅延は観測されず）。コストは約400〜600ms、ベースライン（`git rev-parse`）は4ms。
   **Linux環境の値であり、git bash実機の値ではない。**
+- flow-id 2-6: **調査を実施**し、`wip/reports/20260824_diffview-link-switchover_調査結果.md`
+  （+ `.html`）へ記録した。決めたことは次の4点。
+  1. `get_mr_diff_url` を4引数化（4番目が空ならCompare、あればDiffview）。純粋関数のまま。
+  2. MCP経路のPR URL解決は**案A（`git ls-remote` ＋ `GIT_TERMINAL_PROMPT=0`）**を採用。
+     案B（`wip/state/`）・案C（`HANDOFF.md`）は**silent staleness／表記依存**を理由に却下。
+     **GitHubのみ**（GitLabの `refs/merge-requests` は検証不能のため対象外）。
+  3. **差分アンカーの土台を `diff_url` から切り離す**（`compare_url` を別途保持）。
+     これを採らないと、未検証のページにアンカーを載せることになり**後退する**。
+  4. `get_mr_diff_since_url` は**変更しない**（両プロバイダともCompareのまま）。
 
 ## 次にやること
 
-- flow-id 2-6: Q1〜Q6の調査を実施し、`wip/reports/20260824_diffview-link-switchover_調査結果.md`
-  （+ `.html`）へ結果を記録する。**停止条件（Q1が不明 / Q2で却下理由が当てはまる /
-  Q5でアンカーが機能しない）に該当しないかを必ず確認する。**
 - flow-id 2-7 の直後に、調査結果に対する敵対的レビュー（フェーズ2の2回目）を実行する。
+- flow-id 3-1: 調査結果をもとに `【実装】【テスト】` の個別作業計画を作成する。
 
 ## 判断を迷った内容
 
@@ -114,7 +121,14 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 
 ## 未解決の内容
 
-- MCP経路（CLI不在）でMR/PR URLをhookからどう解決するか（フェーズ2の調査対象）。
+- **【要人間判断】GitHubの `/pull/<n>/files` というURL形式を、この環境では一次情報で裏取り
+  できなかった。** 計画の停止条件（Q1が不明ならissueへ差し戻す）に字面上は該当するが、
+  URL形式は**issue #205 本文でリポジトリ所有者が指定したもの**でありAIの推測ではないため、
+  停止条件を適用せず進めている。**差し戻すべきならフェーズ3以降を止める必要がある。**
+  調査結果レポートの「重点レビュー依頼」筆頭に置いた。
+- GitHubの差分アンカーが `/files` 上で機能するかは未検証（**分離設計により依存しなくなった**）。
+- `git ls-remote` のgit bash実機でのコスト、fork元PR・オフライン時の挙動（いずれもCompareへ
+  縮退する方向のため実害は無いと見ているが、その見立て自体が未検証）。
 
 ## 守るべき条件・触ってはいけない範囲
 
