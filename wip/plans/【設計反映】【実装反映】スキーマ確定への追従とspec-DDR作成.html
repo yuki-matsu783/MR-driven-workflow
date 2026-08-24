@@ -1,0 +1,217 @@
+<!--
+  個別反映計画（issue #169 フェーズ4）の人間レビュー用HTMLビュー。
+  正文は同名の .md（wip/plans/【設計反映】【実装反映】スキーマ確定への追従とspec-DDR作成.md）で、
+  本HTMLはその視覚化である（両者は同期させる）。
+  土台: .claude/skills/issue-mr-flow/assets/plans.template.html（issue #54）
+-->
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>【設計反映】【実装反映】スキーマ確定への追従とspec・DDR作成 — issue #169</title>
+<style>
+  :root {
+    --bg: #f6f7f9;      --panel: #ffffff;   --ink: #1a1d21;     --muted: #5b636d;
+    --line: #dfe3e8;    --accent: #2563eb;  --accent-soft: #eaf0fe;
+    --ok: #1a7f4b;      --ok-soft: #e6f4ec; --warn: #a35a00;    --warn-soft: #fdf1e0;
+    --stop: #b3261e;    --stop-soft: #fdecea; --code-bg: #f0f2f5;
+    --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1216;    --panel: #161a20;   --ink: #e6e8eb;     --muted: #9aa3ad;
+      --line: #2a3038;  --accent: #7aa2f7;  --accent-soft: #1b2333;
+      --ok: #6ee7a8;    --ok-soft: #14261d; --warn: #f0b866;    --warn-soft: #2a2113;
+      --stop: #f2857c;  --stop-soft: #2b1614; --code-bg: #1d222a;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", system-ui, sans-serif;
+    line-height: 1.8; font-size: 15px;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 20px 80px; }
+  header.band {
+    background: linear-gradient(135deg, var(--accent-soft), var(--panel));
+    border-bottom: 1px solid var(--line); padding: 28px 20px 22px; margin-bottom: 28px;
+  }
+  header.band .inner { max-width: 1080px; margin: 0 auto; }
+  header.band .kind { font-size: 11px; letter-spacing: .18em; color: var(--accent); font-weight: 700; }
+  header.band h1 { margin: 6px 0 4px; font-size: 26px; line-height: 1.4; }
+  header.band .lead { margin: 0; color: var(--muted); }
+  .meta { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; padding: 0; list-style: none; }
+  .meta li {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 999px;
+    padding: 3px 12px; font-size: 12.5px; color: var(--muted); white-space: nowrap;
+  }
+  .meta li b { color: var(--ink); font-weight: 600; }
+  nav.toc {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 14px 20px; margin-bottom: 28px;
+  }
+  nav.toc h2 { margin: 0 0 8px; font-size: 13px; letter-spacing: .08em; color: var(--muted); border: 0; padding: 0; }
+  nav.toc ol { margin: 0; padding-left: 20px; }
+  nav.toc li { margin: 2px 0; }
+  a { color: var(--accent); }
+  section {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 8px 24px 22px; margin-bottom: 22px;
+  }
+  h2 { font-size: 20px; margin: 20px 0 10px; padding-bottom: 8px; border-bottom: 2px solid var(--line); }
+  h3 { font-size: 16px; margin: 22px 0 8px; color: var(--accent); }
+  p { margin: 10px 0; }
+  ul, ol { padding-left: 22px; }
+  li { margin: 4px 0; }
+  .tablewrap { overflow-x: auto; margin: 14px 0; }
+  table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 14px; }
+  th, td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: var(--accent-soft); font-weight: 600; white-space: nowrap; }
+  tbody tr:nth-child(even) td { background: color-mix(in srgb, var(--line) 22%, transparent); }
+  code {
+    background: var(--code-bg); border-radius: 5px; padding: 1px 5px; font-size: 13px;
+    font-family: "SFMono-Regular", Consolas, "Noto Sans Mono", monospace;
+  }
+  pre {
+    background: var(--code-bg); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 12px 14px; overflow-x: auto; font-size: 13px; line-height: 1.65;
+  }
+  pre code { background: none; padding: 0; }
+  .box { border-left: 4px solid var(--accent); background: var(--accent-soft);
+         border-radius: 0 var(--radius) var(--radius) 0; padding: 12px 16px; margin: 16px 0; }
+  .box > :first-child { margin-top: 0; } .box > :last-child { margin-bottom: 0; }
+  .box .label { font-size: 12px; font-weight: 700; letter-spacing: .06em; display: block; margin-bottom: 4px; }
+  .box.ok { border-color: var(--ok); background: var(--ok-soft); } .box.ok .label { color: var(--ok); }
+  .box.warn { border-color: var(--warn); background: var(--warn-soft); } .box.warn .label { color: var(--warn); }
+  .box.stop { border-color: var(--stop); background: var(--stop-soft); } .box.stop .label { color: var(--stop); }
+  .box.info .label { color: var(--accent); }
+  .tag { display: inline-block; border-radius: 999px; padding: 1px 9px; font-size: 12px; font-weight: 600; }
+  .tag.ok { background: var(--ok-soft); color: var(--ok); }
+  .tag.warn { background: var(--warn-soft); color: var(--warn); }
+  .tag.stop { background: var(--stop-soft); color: var(--stop); }
+  footer { color: var(--muted); font-size: 13px; text-align: center; padding-top: 10px; }
+</style>
+</head>
+<body>
+
+<header class="band">
+  <div class="inner">
+    <div class="kind">個別反映計画 / フェーズ4</div>
+    <h1>【設計反映】【実装反映】スキーマ確定への追従とspec・DDR作成</h1>
+    <p class="lead">PR #194 のマージで確定した構成案JSONスキーマへ pptx-slides の入力検証・写像を追従させ（現実装はスキーマ適合入力を拒否するため必須）、spec・DDR・rules への設計反映を行う。</p>
+    <ul class="meta">
+      <li><b>issue</b> #169</li>
+      <li><b>ブランチ</b> claude/json-to-pptx-export-3g63ea</li>
+      <li><b>PR</b> #199</li>
+      <li><b>フェーズ</b> 4〈反映〉 flow-id 4-1</li>
+      <li><b>作成日</b> 2026-08-24</li>
+      <li><b>正文</b> 同名の .md</li>
+    </ul>
+  </div>
+</header>
+
+<div class="wrap">
+
+<nav class="toc">
+  <h2>目次</h2>
+  <ol>
+    <li><a href="#premise">前提（合意状況）</a></li>
+    <li><a href="#diff">スキーマ突合の結果（この計画の起点）</a></li>
+    <li><a href="#target">変更対象と作業項目</a></li>
+    <li><a href="#out-of-scope">やらないこと（スコープ外）</a></li>
+    <li><a href="#verify">検証</a></li>
+  </ol>
+</nav>
+
+<section id="premise">
+  <h2>前提（合意状況）</h2>
+  <ul>
+    <li>上位計画: <code>wip/plans/json-to-pptx-export-plan.md</code>。フェーズ3〈作業〉は完了（結果: <code>wip/reports/2026-08-24_json-to-pptx-export-plan_実装.md</code>。flow-id 3-10 まで実施済み。人間のレビュー往復は非対話セッションのため未実施で、進捗記号は空のまま）。</li>
+    <li><strong>PR #194（issue #168）が 2026-08-24T00:33Z にマージされ、構成案JSONスキーマ <code>.claude/skills/html-slides/references/slide-outline.schema.json</code> が main で確定した</strong>（マージは人間の操作）。スキーマは <code>git show origin/main:&lt;path&gt;</code> で読める。</li>
+    <li>当ブランチは main から4コミット behind（PR #199 の mergeable_state は clean でコンフリクトなし）。<strong>ベースブランチの取り込みは AskUserQuestion の承認が必要</strong>（git-workflow.md）だが非対話セッションで承認を得られないため、<strong>このフェーズでは取り込まない</strong>（flow-id 5-1 で扱う。スキーマの参照は取り込み不要で行える）。</li>
+    <li>種別を【設計反映】【実装反映】と併記したのは、スキーマ確定への実装追従（フェーズ3成果物の修正）と spec/DDR/rules への設計反映が同じ根から出ており、非対話セッションで合意を1回で取るため。</li>
+  </ul>
+</section>
+
+<section id="diff">
+  <h2>スキーマ突合の結果（この計画の起点）</h2>
+  <div class="box warn">
+    <span class="label">なぜ実装追従が必須か</span>
+    フェーズ2調査時点では方針レベル（8種type enum・meta・型別フィールドは未確定）であり、現実装の型別キーは当時の想定に基づいていた。確定スキーマは想定と大きく異なり、<strong>現実装はスキーマ適合入力を拒否する</strong>。
+  </div>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>type</th><th>確定スキーマ（main）</th><th>現実装の想定</th><th>差分の扱い</th></tr></thead>
+    <tbody>
+      <tr><td>（共通）</td><td>additionalProperties: false。speakerNotes は全型任意</td><td>表に無いキーは無視</td><td>変更なし（無視方針は維持）</td></tr>
+      <tr><td>meta</td><td>issue は <strong>integer</strong></td><td>文字列想定</td><td>tostring で吸収済み（変更なし）</td></tr>
+      <tr><td>cover</td><td><strong>title・subtitle は任意</strong>（省略時 meta.title／meta.subtitle）。required は type のみ</td><td>title 全型必須</td><td><strong>要修正</strong>: cover のみ title 任意＋metaフォールバック</td></tr>
+      <tr><td>section</td><td><strong>chapter（任意。例: 第1章）</strong></td><td>未対応（無視され消える）</td><td><strong>要修正</strong>: 章番号段落として出力</td></tr>
+      <tr><td>bullets</td><td>items[] は文字列のみ（1〜6件）</td><td>文字列＋入れ子オブジェクト対応</td><td>現実装が超集合。維持</td></tr>
+      <tr><td>two-column</td><td><strong>columns[2]（各要素 heading＋items[]）</strong></td><td>left／right</td><td><strong>要修正</strong>: columns 対応へ全面置換</td></tr>
+      <tr><td>diagram</td><td><strong>nodes[]（label 必須＋note 任意、2件以上）。edges・caption は存在しない</strong></td><td>nodes＋edges＋caption</td><td><strong>要修正</strong>: フロー表現＋note行へ。edges/caption 処理は削除</td></tr>
+      <tr><td>table</td><td><strong>columns[]（ヘッダ行）</strong>＋rows[][]</td><td>headers[]＋rows[][]</td><td><strong>要修正</strong>: キー名を columns へ</td></tr>
+      <tr><td>comparison</td><td><strong>sides[2..3]（name＋points[]＋tone（pro/con/neutral・任意））</strong></td><td>options[]（name/pros/cons/verdict）</td><td><strong>要修正</strong>: sides 対応へ全面置換（表: 列=name、行=points の転置）</td></tr>
+      <tr><td>summary</td><td>items[]＋<strong>takeaway（任意）</strong></td><td>items のみ</td><td><strong>要修正</strong>: takeaway を強調段落として出力</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="target">
+  <h2>変更対象と作業項目</h2>
+
+  <h3>1.【実装反映】スキーマ確定への追従</h3>
+  <ul>
+    <li><strong>入力検証（jq）</strong>: cover のみ title 任意／two-column は columns（長さ2・各要素は heading＋items 1件以上）／table は columns（1件以上）＋rows（各行は配列）／comparison は sides（2〜3件・各要素は name＋points 1件以上）／diagram は nodes（2件以上・各要素は label を持つオブジェクト）／bullets・summary は items（1件以上）。違反はキー名を挙げた明示エラー。</li>
+    <li><strong>写像</strong>: cover は title/subtitle のmetaフォールバック（SUB行構成は維持）。section は chapter を見出し上の小さめ段落（新レコード CHAP）。two-column は heading（太字段落。新レコード COLH）＋items。comparison は表（1行目=name（tone があれば「（採用寄り）（却下寄り）（中立）」後置）、データ行=points の転置・不足セル空埋め）。diagram は label の「 → 」連結1段落＋「label: note」行（edges/caption 処理は削除）。summary は items の後に takeaway を太字段落。</li>
+    <li><strong>条件7突合の対象外リストへ <code>slides[].sides[].tone</code> を追加</strong>（5つへ）。tone は見た目の色分け指示子で本文でなく、値そのもの（pro/con/neutral）は日本語注記へ写像され本文へ現れないため（slides[].type と同じ扱い）。</li>
+    <li><strong>SKILL.md</strong>: 必須キー表・型別表現表を確定スキーマの語彙へ書き換え。</li>
+    <li><strong>単体テスト</strong>: サンプルJSONをスキーマ適合形へ書き換え（cover の title 省略・chapter・tone・takeaway・note を含む）。境界値テストを新語彙へ追従。検証スクリプトの条件7対象外へ tone を追加。サンプルのスキーマ適合を jsonschema があれば機械検証（不可なら目視。方法を結果レポートへ明記）。既存の不揃いな表・jq途中失敗・制御文字等のテストは維持。</li>
+  </ul>
+
+  <h3>2.【設計反映】spec <code>.claude/docs/spec/pptx-slides.md</code>（新規）</h3>
+  <p>背景・目的／仕様／影響範囲／設定項目／未決定事項・懸念点の型。内容: 入力仕様（確定スキーマとの対応表）／type別写像／rId採番規則・連動5箇所／zip経路試行／自己検証の範囲／jq終了コードの検知／制御文字の空白化／表の列数決定／<strong>条件7突合の手順（対象外5つ）</strong>／PowerPoint製雛形への差し替え前処理条件／実機確認の依頼事項。<strong>新規spec作成の人間承認は得られないため◆としてPRレビューへ依頼し、HANDOFFの未解決事項へ含める。</strong></p>
+
+  <h3>3.【設計反映】DDR <code>i0169-01</code>（新規）</h3>
+  <p>タイトル案「pptx書き出しは雛形展開ディレクトリとzip再梱包で実装しpython-pptx等の外部依存を持たない」。却下案は調査レポート「設計への反映」の5件（クリップボード経由／python-pptx等ライブラリ／XMLゼロから生成／バイナリ雛形／Compress-Archive）。作成後に <code>generate-ddr-list.sh</code> を実行しREADME差分を同じコミットへ。</p>
+
+  <h3>4.【設計反映】rules・既存ドキュメントの整合</h3>
+  <ul>
+    <li><code>.claude/rules/directory-structure.md</code>: skills ツリーへ pptx-slides/ を追記。<strong>main側は同じ節へ html-slides を追記済みのため、flow-id 5-1 の取り込みで同箇所のコンフリクトが起きうる。解消時は両方の行を残す。</strong></li>
+    <li><code>.claude/rules/shell-script-style.md</code>: bash 5.2 <code>patsub_replacement</code> の罠（パラメータ展開の置換文字列中の <code>&amp;</code> がマッチ全体へ展開される。<code>shopt -u patsub_replacement</code> で無効化）を追記。</li>
+    <li><code>.claude/VERSION</code>: layer=core アセット追加のため MINOR 増分が要るが、当ブランチは 0.4.0（分岐時点）で main は 0.5.0 のため今書き換えると必ずコンフリクトする。<strong>flow-id 5-1 の main 取り込み後に 0.5.0→0.6.0 へ増分する</strong>（このフェーズでは触らない）。</li>
+  </ul>
+</section>
+
+<section id="out-of-scope">
+  <h2>やらないこと（スコープ外）</h2>
+  <div class="box stop">
+    <span class="label">この計画では決めない・触らない</span>
+    <ul>
+      <li>main の取り込み（flow-id 5-1。承認が必要なため）と <code>.claude/VERSION</code> の増分（同上）。</li>
+      <li><code>.gemini/</code> への変換同期（flow-id 5-3）。</li>
+      <li>speakerNotes（notesSlide）出力・tableStyles.xml 同梱（実機確認の結果待ち。結果レポートの残課題）。</li>
+      <li>html-slides スキル側（PR #194 成果物）の変更。</li>
+    </ul>
+  </div>
+</section>
+
+<section id="verify">
+  <h2>検証</h2>
+  <pre><code>bash -n .claude/skills/pptx-slides/scripts/json-to-pptx.sh
+bash .claude/scripts/test/test_json_to_pptx.sh          # failures=0（機械検証12項目・両zip経路）
+for t in .claude/scripts/test/test_*.sh; do bash "$t"; done   # 全件 failures=0
+bash .claude/scripts/src/check-dist-coverage.sh          # 4種通過
+bash .claude/scripts/src/extract-frontmatter.sh .        # エラーなし
+bash .claude/scripts/src/generate-ddr-list.sh            # README差分がDDR一覧1行追加のみ
+bash .claude/scripts/src/check-doc-references.sh         # 参照切れ0</code></pre>
+  <p>合格条件: 上記すべてが通り、サンプルJSONが確定スキーマに適合すること（jsonschema が使えれば機械検証、不可なら目視。方法を結果レポートへ明記）。結果は <code>wip/reports/2026-08-24_json-to-pptx-export-plan_反映.md</code>（+同名.html）へ記録する。</p>
+</section>
+
+<footer>issue #169 / PR #199 — 計画の正文は同名の <code>.md</code>。外部依存を持たない自己完結HTML。</footer>
+
+</div>
+</body>
+</html>

@@ -17,9 +17,9 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - issue: #169
 - ブランチ: `claude/json-to-pptx-export-3g63ea`（ハーネス指定。feature-169-* ではない）
 - PR: #199（Draft。https://github.com/yuki-matsu783/MR-driven-workflow/pull/199 ）
-- push回数: 6
-- 現在のループ: 3-6〜3-9 の1周目（進行中）
-- 未返信スレッド: 7
+- push回数: 8
+- 現在のループ: なし
+- 未返信スレッド: 0
 - 追従監視: PR #199 を subscribe_pr_activity で購読（このセッション）
 
 | 進捗 | flow-id | ステップ | 担当 |
@@ -49,8 +49,8 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 | [] | 3-7 | commitし、pushしてレビュー依頼を行う | エージェント |
 | [] | 3-8 | MRでレビュー・コメントする | 人間 |
 | [] | 3-9 | レビュー内容を取得し、実装・ドキュメントを修正する | サブコマンド |
-| [] | 3-10 | 作業内容をもとにMR descriptionを更新する | サブコマンド |
-| [] | 4-1 | 個別反映計画を作成する | エージェント |
+| [x] | 3-10 | 作業内容をもとにMR descriptionを更新する | サブコマンド |
+| [x] | 4-1 | 個別反映計画を作成する | エージェント |
 | [] | 4-2 | commitし、pushしてレビュー依頼を行う | エージェント |
 | [] | 4-3 | MRで反映計画についてレビュー・コメントする | 人間 |
 | [] | 4-4 | レビュー内容を取得し、反映計画を修正する | サブコマンド |
@@ -145,12 +145,28 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
   検査を追加／SKILL.md・レポート・worklog・HANDOFFの記述と数値を実測へ同期。
   単体テストへ21件追加（`passed=70 failures=0`）。全テスト22本・`check-dist-coverage.sh`
   （498/498）・`extract-frontmatter.sh .` を再実行し全て通過。修正一覧はレポート章6が正。
+- 2026-08-24: フェーズ3を締めた: 指摘修正をpush（commit 606d875、push7）→ 7スレッド全てへ
+  対応返信（未返信0）→ describe（flow-id 3-10完了。実装状況・実機確認依頼◆・敵対的レビュー
+  実績を全文更新）。
+- 2026-08-24: **PR #194（issue #168）が 2026-08-24T00:33Z にマージされたことを検出**（人間の
+  操作）。構成案JSONスキーマ `.claude/skills/html-slides/references/slide-outline.schema.json`
+  が main で確定。当ブランチは main から4コミット behind（PR #199 は mergeable clean）。
+  取り込みは承認必須のため flow-id 5-1 で扱い、スキーマは `git show origin/main:<path>` で参照。
+- 2026-08-24: 確定スキーマと現実装（push7）を突合し、フェーズ4の個別反映計画
+  `wip/plans/【設計反映】【実装反映】スキーマ確定への追従とspec-DDR作成.md`（+同名.html）と
+  worklog（push8）を作成（flow-id 4-1完了）。**現実装はスキーマ適合入力を拒否する重大差分あり**
+  （two-column: columns[2]／table: columns／comparison: sides／cover title任意／section.chapter／
+  diagram nodes{label,note}のみ／summary takeaway）。【実装反映】としてスキーマ追従＋
+  【設計反映】として spec/DDR/rules を同計画で扱う。
 
 ## 次にやること
 
-- 敵対的レビュー（P3の2回目）の指摘7件＋報告のみ3件を修正 → commit/push（push7）→
-  7スレッドへ対応返信（unreplied 0へ）→ describe（3-10）→ フェーズ4（個別反映計画:
-  spec `pptx-slides.md`・DDR・directory-structure.mdツリー追記・generate-ddr-list.sh）。
+- フェーズ4: commit/push（push8）→ 敵対的レビュー（フェーズ4の1回目・対象=反映計画）→
+  指摘反映・返信 → describe（4-5）→ 反映実施（4-6。【実装反映】スキーマ追従・
+  spec `.claude/docs/spec/pptx-slides.md` 新規・DDR i0169-01＋`generate-ddr-list.sh`・
+  `directory-structure.md` ツリー追記・`shell-script-style.md` へ `patsub_replacement` 追記）→
+  敵対的レビュー（2回目）→ describe（4-10）→ フェーズ5（5-1でmain取り込み承認確認・
+  VERSION 0.5.0→0.6.0）。
 
 ## 判断を迷った内容
 
