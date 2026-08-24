@@ -166,7 +166,7 @@
       <tr><td>1</td><td><code>IFS=$'\t' read -r -a</code> はタブ区切りの分割に使えない（タブはIFS空白文字。連続タブを畳み、行末タブを捨てる）</td><td><b>(d)</b></td><td><code>.claude/docs/spec/generate-ddr-list.md</code> と DDR <code>i0135-01</code> に<b>既にある</b>。<code>.claude/rules/shell-script-style.md</code> には<b>無い</b>（該当語の <code>grep -c</code> = 0）</td></tr>
       <tr><td>2</td><td>hookの前置フィルタを、<b>ブロック判定の縮退時フォールバックへ流用してはいけない</b></td><td><b>(c)</b></td><td><code>shell-script-style.md</code>「hookの前置フィルタ」に「過剰検知は許容してよい」はあるが、<b>ブロック判定では逆になる</b>という記述が無い</td></tr>
       <tr><td>3</td><td>テストのフィクスチャで <code>${N:-既定}</code> を使うと、空文字列を渡した検証が空振りする</td><td><b>(c)</b></td><td>「パラメータ展開の既定値」節はバックスラッシュの話だけ。「テスト」節に「フィクスチャを意図的に壊して落ちるか」はあるが、<code>:-</code> そのものの罠は無い</td></tr>
-      <tr><td>4</td><td><b>訂正した数値</b>を、訂正の直前に測り直していない</td><td><b>(d)</b></td><td><code>wip/reports/REVIEW-POINTS.md</code> に「書いた数値と事実を、書く直前に実測したか」が<b>既にある</b>のに、issue #17 で<b>2回続けて踏んだ</b>（1,699 → 1,631 → 1,630）</td></tr>
+      <tr><td>4</td><td><b>訂正した数値</b>を訂正の直前に測り直していない／<b>数え方（行数か出現数か）が書こうとしている単位と一致していない</b></td><td><b>(d)</b></td><td><code>wip/reports/REVIEW-POINTS.md</code> に「書いた数値と事実を、書く直前に実測したか」が<b>既にある</b>のに、issue #17 で<b>3回続けて踏んだ</b>（(1) 合計を取らずに 1,699 と書く → (2) 訂正値 1,631 を測り直さない → (3) <code>grep -c</code> の行数を出現数として「8箇所」と書く。実測は 1,630 / 9箇所）</td></tr>
       <tr><td>5</td><td><code>get_review_comments</code> に <code>page</code> を渡すと黙って1ページ目が返る</td><td><b>(c)</b></td><td><code>mcp-fallback.md</code> に「<b>誤ったパラメータ名</b>を渡すと無視されて1ページ目が返る」がある。ただし <code>page</code> は<b>ツール定義に実在する正当なパラメータ</b>なので、「誤った名前」として読み取れない</td></tr>
     </tbody>
   </table>
@@ -190,7 +190,7 @@
       <tr><td><code>.claude/rules/shell-script-style.md</code></td><td>追記</td><td>1</td><td>「コマンド置換とNULバイト」の近傍へ、タブ区切りの分割に <code>read -a</code> を使わない項を置く。<b>既にある記述へリンクし、罠の説明を写経しない</b></td></tr>
       <tr><td><code>.claude/rules/shell-script-style.md</code></td><td>追記</td><td>2</td><td>「hookの前置フィルタ」節へ、<b>前置フィルタをブロック判定へ流用しない</b>ことと、その理由（過剰検知の許容は足切りでのみ成り立つ）</td></tr>
       <tr><td><code>.claude/rules/shell-script-style.md</code></td><td>追記</td><td>3</td><td>「テスト」節へ、フィクスチャの既定値展開は <code>${N-既定}</code> を使う項</td></tr>
-      <tr><td><code>wip/reports/REVIEW-POINTS.md</code></td><td>強化</td><td>4</td><td>既存の「書いた数値と事実を、書く直前に実測したか」の bullet へ、<b>訂正値も訂正の直前に測り直す</b>という一文を足す。<b>新しい bullet を作らない</b></td></tr>
+      <tr><td><code>wip/reports/REVIEW-POINTS.md</code></td><td>強化</td><td>4</td><td>既存の「書いた数値と事実を、書く直前に実測したか」の bullet へ、(i) <b>訂正値も訂正の直前に測り直す</b>、(ii) <b>数え方が単位と一致しているか</b>（<code>grep -c</code> は行数を返すので、件数を書くなら <code>grep -o … | wc -l</code>）の2点を足す。<b>新しい bullet を作らない</b></td></tr>
       <tr><td><code>.claude/skills/issue-mr-flow/references/mcp-fallback.md</code></td><td>追記</td><td>5</td><td>既存のページネーションの bullet へ、<code>page</code> を名指しで1文</td></tr>
     </tbody>
   </table>
@@ -267,7 +267,7 @@ git diff -- .claude/rules/ .claude/skills/ wip/reports/REVIEW-POINTS.md | grep -
   <table>
     <thead><tr><th>案</th><th>内容</th><th>採否と理由</th></tr></thead>
     <tbody>
-      <tr><td>A</td><td>既存 bullet へ一文足す</td><td><span class="tag ok">採用</span> 同じ観点の分裂を避けられる。レビュー時に読む量も増えない</td></tr>
+      <tr><td>A</td><td>既存 bullet へ足す（2点）</td><td><span class="tag ok">採用</span> 同じ観点の分裂を避けられる。レビュー時に読む量も増えない</td></tr>
       <tr><td>B</td><td>「訂正値の検算」という観点を新設する</td><td><span class="tag stop">却下</span> 既存 bullet と適用場面がほぼ重なり、観点表が2箇所で同じことを言う状態になる</td></tr>
     </tbody>
   </table>
