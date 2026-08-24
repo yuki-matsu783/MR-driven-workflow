@@ -30,6 +30,11 @@ keywords: [wip, plans, handoff, worklogs, 正史仕様, 意思決定ログ, ラ�
 | `.claude/docs/usecase/場面を表す日本語名.md` | 人間＋AI | 永続（最新状態） | 「やりたいこと」起点でどの機能を使うかを逆引きするユースケース文書（issue #170）。どんな場面か／使う機能と流れの概要／何が得られるか／詳細へのリンク、の4見出しで統一し、手順詳細（コマンド列・手順番号）は書かずspec/SKILL.mdへのリンクで参照する | 一覧の正は `.claude/docs/README.md` のusecase節1箇所。**usecase文書を追加・改名・削除したら、READMEのusecase節を同じコミットで更新する**。機能の追加・変更時はflow-id 4-6（設計反映）で既存usecase文書への影響（記述・リンクが古くならないか）を確認し、影響があれば更新する |
 | `<ディレクトリ>/REVIEW-POINTS.md` | 人間＋AI | 永続（最新状態） | そのディレクトリ配下すべて（孫以下を含む）に適用するレビュー観点（`type: review-points`） | 各ディレクトリ直下に置く。敵対的レビュー（`.claude/skills/adversarial-review/SKILL.md`）と `review-points` スキルが祖先方向へ遡って集めて使い、人間のレビューでも参照する。**`wip/plans/` `wip/reports/` 配下に置かれていてもflow-id 5-5の削除対象に含めない**（下記）。仕様: `.claude/docs/spec/adversarial-review.md`「レビュー観点（REVIEW-POINTS.md）」 |
 
+**`wip/reports/` には上表の2種（md・html）のほかに、`html-slides` スキルの成果物
+`日付_<全体計画名>_<内容を簡潔に>.slides.html`＋同ベース名の `.slides.json` が置かれることがある**
+（issue #168）。スライドは対応するmdを持たず（機械可読の対は構成案JSON）、寿命は他のreports成果物と
+同じ（flow-id 5-5でまとめて削除）。詳細は `.claude/docs/spec/html-slides.md` を参照。
+
 **`wip/reports/` の `.html` は flow-id 2-6・3-6・4-6 のいずれでも作成する**（issue #54。issue #33 時点では
 2-6 のみ必須で 3-6・4-6 は任意だったが、記述の型がテンプレートへ切り出され生成コストが下がったため、
 `.claude/rules/docs-workflow.md` が元々定めていた「調査結果に限らず設計・実装・AIアセット反映等の報告」
@@ -75,6 +80,32 @@ keywords: [wip, plans, handoff, worklogs, 正史仕様, 意思決定ログ, ラ�
 # 良い例
 # 設計: issue #15 → .claude/docs/spec/issue-mr-workflow.md
 ```
+
+**同じ理由で、MR/PRのdescription・コメントからも `wip/plans/` `wip/worklogs/` `wip/reports/` のファイルを
+参照しない**（issue #145）。これらはflow-id 5-5で削除されるため、**レビュー中は踏める参照が
+マージ後に必ず切れる**。「レビュー時点ではまだ存在するので有効に見える」という状況こそが罠で、
+MR/PR本文はコード内コメントと違ってレビュー中に読まれる比重が大きいぶん、この錯覚が起きやすい。
+代わりに次のようにする。
+
+| 書きたかったもの | 代わりに書くもの |
+|---|---|
+| `wip/reports/…md` の調査結果・作業結果 | **結論をdescriptionへ転記する**（リンクしない）。転記先はテンプレートの `## 検証` `## 設計判断・採らなかった案` |
+| `wip/plans/…md` の判断・却下案 | 恒久化するものは `.claude/docs/ddr/` へ昇格させ、そのパスで指す |
+| `wip/worklogs/…md` の試行錯誤 | 結論だけをdescriptionへ書く。経緯が要るならissue番号・PR番号で指す |
+| レビューでの個別のやりとり | レビューコメントの**permalink**（GitHub/GitLab上に恒久的に残る） |
+
+**禁じているのは「参照」——読み手にそのファイルを開かせる意図での言及**である。**レビュー対象
+そのものの位置を指し示すアンカーは、この禁止の対象外**とする（issue #145。敵対的レビューが
+`wip/plans/…md` `wip/reports/…md` を対象にした回では、インラインコメントの位置指定と
+`format_findings_summary` が出す `.path` が、必ずこれらのパスをMRのコメントへ書く。
+`.claude/scripts/src/vcs/Provider.sh`）。区別は**マージ後に読み手が困るか**で付く——アンカーは
+「その時点で何を見て指摘したか」の記録なので、対象ファイルが消えても指摘本文だけで読める。
+一方の参照は、リンク先が消えた時点で本文の意味が欠ける。**アンカーであっても、指摘の内容を
+「詳細はそのファイル参照」で済ませない**（済ませた時点で参照になる）。
+
+この禁止はテンプレート側（`.github/pull_request_template.md` の `## 反映先・関連` の記入ガイド）
+にも書いてある。**両方に書くのは二重管理ではない**——こちらはルール、あちらは書く直前に読む
+記入ガイドであり、読まれる場面が違う。
 
 **ファイル移動に伴うパス参照の一括置換は、`docs/ddr/*.md`の本文および`docs/spec/*.md`内の
 過去issueごとのchangelog（「影響範囲」節等、point-in-timeの記録として書かれた節）を対象に含めない**
