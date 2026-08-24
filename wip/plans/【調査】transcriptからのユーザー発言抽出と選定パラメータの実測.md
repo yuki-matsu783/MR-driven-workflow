@@ -22,7 +22,7 @@ keywords: [transcript_path, SessionStart, compact, gitBranch, origin.kind, last-
 - 本計画は**これから何をするか**だけを書く。**結果は一切書かない**
   （`.claude/skills/issue-mr-flow/references/deliverables.md`「計画と実施結果の分離」）。
   結果は flow-id 2-6 で
-  `wip/reports/20260823_session-start-user-utterance-reinject_transcript調査結果.md`
+  `wip/reports/20260824_session-start-user-utterance-reinject_transcript実測の調査結果.md`
   （＋同名 `.html`）へ書く。
 
 ## この調査で決めること（＝フェーズ3へ渡す値）
@@ -194,7 +194,7 @@ issue #57 時点の値で、その後の追加分（issue #113 の SKILL.md 再�
     「Linuxでは〜、Windows/git bashは未確認」という形の併記になる）
 - 上表「この調査で決めること」の10項目のうち、**出力位置を除く9項目**の値が確定していること
   （「単一transcript前提の扱い」は**事実の採取まで**が本調査の担当）。
-- 結果が `wip/reports/20260823_session-start-user-utterance-reinject_transcript調査結果.md`
+- 結果が `wip/reports/20260824_session-start-user-utterance-reinject_transcript実測の調査結果.md`
   と同名 `.html` に記録されていること（md が正文、HTML はその視覚化）。
 - worklog
   `wip/worklogs/20260823_session-start-user-utterance-reinject_【調査】transcriptからのユーザー発言抽出と選定パラメータの実測_push5.md`
@@ -212,7 +212,7 @@ issue #57 時点の値で、その後の追加分（issue #113 の SKILL.md 再�
 実施後に、リポジトリルートで次を流す。
 
 ```bash
-REPORT='wip/reports/20260823_session-start-user-utterance-reinject_transcript調査結果.md'
+REPORT='wip/reports/20260824_session-start-user-utterance-reinject_transcript実測の調査結果.md'
 
 # 1. 成果物が md / html の両方そろっているか
 test -f "$REPORT" && test -f "${REPORT%.md}.html" && echo 'OK: 成果物2件'
