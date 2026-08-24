@@ -17,9 +17,9 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - issue: #169
 - ブランチ: `claude/json-to-pptx-export-3g63ea`（ハーネス指定。feature-169-* ではない）
 - PR: #199（Draft。https://github.com/yuki-matsu783/MR-driven-workflow/pull/199 ）
-- push回数: 4
-- 現在のループ: なし
-- 未返信スレッド: 11
+- push回数: 6
+- 現在のループ: 3-6〜3-9 の1周目（進行中）
+- 未返信スレッド: 0
 - 追従監視: PR #199 を subscribe_pr_activity で購読（このセッション）
 
 | 進捗 | flow-id | ステップ | 担当 |
@@ -44,7 +44,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 | [] | 3-2 | commitし、pushしてレビュー依頼を行う | エージェント |
 | [] | 3-3 | MRで作業計画についてレビュー・コメントする | 人間 |
 | [] | 3-4 | レビュー内容を取得し、作業計画を修正する | サブコマンド |
-| [] | 3-5 | 作業計画をもとにMR descriptionを更新する | サブコマンド |
+| [x] | 3-5 | 作業計画をもとにMR descriptionを更新する | サブコマンド |
 | [] | 3-6 | 作業計画をもとに作業を進める | エージェント |
 | [] | 3-7 | commitし、pushしてレビュー依頼を行う | エージェント |
 | [] | 3-8 | MRでレビュー・コメントする | 人間 |
@@ -116,11 +116,23 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
   一時ディレクトリでの雛形加工と後始末／「包括承認」の表現撤回と◆3件のHANDOFF転記／
   実機確認が返るまでDraft解除しないゲートの明記。
 
+- 2026-08-23〜24: 実装（flow-id 3-6）を完了。成果物: `.claude/skills/pptx-slides/` 一式
+  （SKILL.md・`scripts/json-to-pptx.sh`・`scripts/slides-to-records.jq`・
+  `assets/pptx-template/` 静的7パーツ）と単体テスト
+  `.claude/scripts/test/test_json_to_pptx.sh`（`passed=49 failures=0`）。
+  既存機構への影響確認（既存テスト22本全件・`check-dist-coverage.sh`・
+  `extract-frontmatter.sh .`）も全て通過。実装中に実バグ3件
+  （bash 5.2の`patsub_replacement`によるXMLエスケープ破壊／HDRレコードの値内改行での
+  行分割／テストのPATH制限で`bash`自体が要る）を検出・修正し、テストで再発を固定。
+  結果レポート `wip/reports/2026-08-24_json-to-pptx-export-plan_実装.md`（+同名.html）と
+  worklog（push6）を作成。条件7突合の対象外リストへ `slides[].type` を追加（計画との差分。
+  レポートの「想定と異なった点」参照）。
+
 ## 次にやること
 
-- 指摘反映のcommit/push（push5）→ 11スレッドへ対応返信（unreplied 0へ）→ describe（3-5）→
-  実装（3-6: 雛形→生成スクリプト→SKILL.md→単体テスト→結果レポート）→ commit/push（3-7）→
-  敵対的レビュー（フェーズ3の2回目・対象は実装）。
+- commit/push（3-7、push6）→ 敵対的レビュー（フェーズ3の2回目・対象は実装diff）→
+  指摘対応・返信 → describe（3-10）→ フェーズ4（個別反映計画: spec `pptx-slides.md`・DDR・
+  directory-structure.mdツリー追記・generate-ddr-list.sh）。
 
 ## 判断を迷った内容
 
