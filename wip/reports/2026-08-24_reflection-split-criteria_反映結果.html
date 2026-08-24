@@ -200,6 +200,7 @@
       <tr><td><span class="chip good">◎</span> 受け入れ条件3を達成した（DDR 1本＋spec の新節と changelog）</td><td>実測（反1=1・反2=3・反4=1）</td></tr>
       <tr><td><span class="chip good">◎</span> 反映対象7件すべてを反映した（Yes 2件・No 5件）</td><td>実測（変更7ファイル・反7〜反9）</td></tr>
       <tr><td><span class="chip good">◎</span> 検証11本すべてが期待値どおり</td><td>実測</td></tr>
+      <tr><td><span class="chip warn">△</span> <code>main</code> の取り込みで <code>.claude/VERSION</code> の増分が無言で消えた（0.6.0 へ上げ直した）</td><td>実測（分岐点0.4.0・両側0.5.0）</td></tr>
       <tr><td><span class="chip good">◎</span> 出口(1) は0件で、このフェーズでは一度も止まらなかった</td><td>実測（判定10件）</td></tr>
       <tr><td><span class="chip warn">△</span> 必須節検査のコマンドは Linux でのみ検証済み</td><td>実測（git bash 実機は未検証）</td></tr>
       <tr><td><span class="chip warn">△</span> <code>.claude/VERSION</code> の版はAIが目安表から適用した</td><td>規定に沿った判断（人間の決裁は未取得）</td></tr>
@@ -233,7 +234,7 @@
       <tr><td>8</td><td><code>wip/reports/REVIEW-POINTS.md</code></td><td><b>md↔HTML の見出し一致検査</b>を <code>wip/plans/</code> 側から複製</td></tr>
       <tr><td>9</td><td><code>wip/plans/</code> <code>wip/reports/</code> の <code>REVIEW-POINTS.md</code></td><td><b>必須節が丸ごと落ちたことの検出</b></td></tr>
       <tr><td>10</td><td><code>.claude/rules/docs-workflow.md</code></td><td>差し込み時の空行確認への相互参照</td></tr>
-      <tr><td>—</td><td><code>.claude/VERSION</code></td><td><code>0.4.0</code> → <code>0.5.0</code>（MINOR）</td></tr>
+      <tr><td>—</td><td><code>.claude/VERSION</code></td><td><code>0.5.0</code> → <code>0.6.0</code>（MINOR。下記「想定と異なった点」）</td></tr>
     </tbody>
   </table>
   </div>

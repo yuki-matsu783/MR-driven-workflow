@@ -50,9 +50,9 @@ issue駆動MRワークフロー機構側のディレクトリ説明は、その�
 - `./wip/plans/` 計画ファイル。全体作業計画（planツールが出力する`<自動命名>.md`、issueにつき1つ）と個別作業計画（`【種別】タスク内容.md`、planツールを使わずWrite/Editで作成）の2階層。タスクごとに新規生成しそのままコミットして履歴として残す。**flow-id 5-5で削除するためディレクトリが存在しない期間があり、リンクにしていない**。
 - [./wip/worklogs/](./wip/worklogs/) 実装中の詳細な試行錯誤ログ（`日付_<全体計画名>_<個別計画名>_push<N>.md`）。内容は設計反映（flow-id 4-6）でspec/ddrへ反映し、ファイル自体はflow-id 5-5で`wip/plans/` `wip/reports/`とまとめて削除する。
 - [./.github/ISSUE_TEMPLATE/](./.github/ISSUE_TEMPLATE/) GitHub用issueテンプレート（目的・現状・期待する動作・受け入れ条件）。
-- [./.github/pull_request_template.md](./.github/pull_request_template.md) GitHub用PRテンプレート。見出しは`describe`サブコマンドが生成するdescriptionと同一（`Closes #N`／`## Plan`／`## 実装状況`）。
+- [./.github/pull_request_template.md](./.github/pull_request_template.md) GitHub用PRテンプレート。**見出し構成の正はこのファイル自身**であり、`describe`サブコマンドがこれを読んで従う（issue #145。見出しをここへ列挙しない）。
 - [./.gitlab/issue_templates/](./.gitlab/issue_templates/) GitLab用issueテンプレート（同上）。
-- [./.gitlab/merge_request_templates/](./.gitlab/merge_request_templates/) GitLab用MRテンプレート（`Default.md`。内容はGitHub用PRテンプレートと同一）。
+- [./.gitlab/merge_request_templates/](./.gitlab/merge_request_templates/) GitLab用MRテンプレート（`Default.md`。内容はGitHub用PRテンプレートと同一。先頭のHTMLコメントのみプロバイダ固有）。
 - [./.gitattributes](./.gitattributes) 改行コードの正規化。`*.sh text eol=lf`が`.sh`のLFを保証する（`# --- dist:begin ---`〜`# --- dist:end ---`の行だけが配布元から追記される）。
 - [./.claude/VERSION](./.claude/VERSION) 配布元から配られた機構の版（SemVer 1行）。
 - [./.claude/dist-layers.json](./.claude/dist-layers.json) 配布アセットの層分け定義（`core`/`seed`/`merge`/`local`/`exclude`）。**配布元が何をどう配るかの単一の正**。このリポジトリでは参照用で、`check-dist-coverage.sh` を流しても「配布先なので対象外」として何も検査しない。
