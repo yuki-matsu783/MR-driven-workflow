@@ -130,25 +130,23 @@
 <body>
 
 <header class="band">
-  <div class="inner">
-    <div class="kind">調査結果レポート / フェーズ2</div>
-    <h1>transcriptからのユーザー発言抽出と選定パラメータの実測</h1>
-    <p class="lead">13の問いのうち<b>12問に結論を出した</b>。母集団は <code>origin.kind=="human"</code> の1条件で確定し（7件）、transcript は compact をまたいでも同一ファイルだった。一方、<b>除外規則の初期辞書が重要な承認発言を1件落とし</b>、<b>過去 transcript はこの環境に1本も残らない</b>ことが分かった。残る問い1は観測手段を仕掛けて発火待ちである。</p>
-    <p class="counts">
-      <span class="chip good">◎良 6</span>
-      <span class="chip warn">△注意 5</span>
-      <span class="chip stop">✕問題 2</span>
-    </p>
-    <ul class="meta">
-      <li><b>issue</b> #151</li>
-      <li><b>ブランチ</b> claude/user-recent-utterance-reinject-9ygbxd</li>
-      <li><b>PR</b> #197</li>
-      <li><b>フェーズ</b> 2〈調査〉 flow-id 2-6</li>
-      <li><b>push回数</b> 6</li>
-      <li><b>作成日</b> 2026-08-24</li>
-      <li><b>正文</b> 同名の .md</li>
-    </ul>
-  </div>
+  <div class="kind">調査結果レポート / フェーズ2</div>
+  <h1>transcriptからのユーザー発言抽出と選定パラメータの実測</h1>
+  <p class="lead"><b>14項目のうち13に実測の結論を出し、残る1つ（問い7）は「未確認」と断定した。</b>母集団は <code>origin.kind=="human"</code> の1条件で確定し（7件）、transcript は compact でも resume でも同一ファイルだった。一方、<b>走査コストは git bash 見積もりで約208msとしきい値200msを超え、問い11は不合格</b>。<b>除外辞書は重要な承認発言を1件落とした</b>。</p>
+  <p class="counts">
+    <span class="chip good">◎良 7</span>
+    <span class="chip warn">△注意 5</span>
+    <span class="chip stop">✕問題 2</span>
+  </p>
+  <ul class="meta">
+    <li><b>issue</b> #151</li>
+    <li><b>ブランチ</b> claude/user-recent-utterance-reinject-9ygbxd</li>
+    <li><b>PR</b> #197</li>
+    <li><b>フェーズ</b> 2〈調査〉 flow-id 2-6</li>
+    <li><b>push回数</b> 7</li>
+    <li><b>作成日</b> 2026-08-24</li>
+    <li><b>正文</b> 同名の .md</li>
+  </ul>
 </header>
 
 <div class="wrap">
@@ -169,26 +167,32 @@
 
 <section id="review-focus">
   <h2>重点レビュー依頼</h2>
+  <div class="box info">
+    <span class="label">章番号について</span>
+    <b>下の各章は「問い番号」で並べている</b>（章番号を別に振らない）。id も <code>f1</code>＝問い1、<code>f10a</code>＝問い10a のように問い番号と一致させてあるので、正文（md）の見出しとそのまま突き合わせられる。
+  </div>
   <div class="focus must">
     <span class="label">◆特に見てほしい（判断に困っている）</span>
     <ul>
-      <li><a href="#f6">6. 除外規則の過剰除去</a> — 初期辞書が <code>ok</code>（flow-id 1-5 の合意そのもの）を落とした。確定済み方針に従い <code>ok</code>/<code>OK</code> を外すが、<b>同じ理屈は <code>はい</code>・<code>了解</code>・<code>お願いします</code> にも及ぶ</b>。辞書を空にする（相槌除外をやめる）案まで含めて、どこで線を引くか決めてほしい。</li>
-      <li><a href="#f11">11. 走査コスト</a> — Linux では 50.7ms で合格だが、<b>git bash 実機の見積もりは約194msでしきい値200msに肉薄する</b>。この暫定合格のまま実装へ進んでよいか、フェーズ3で実機再測を必須にするかを判断してほしい。</li>
+      <li><a href="#f11">問い11: 走査コストが不合格</a> — git bash 見積もり <b>約208ms</b> がしきい値200msを超えた。<b>現在の断面が既に「200msに収まる総量」を約536KB超えている</b>。実装方式の見直し（案A/B/C）のどれを採るか決めてほしい。</li>
+      <li><a href="#f5">問い5: 除外辞書の是非</a> — <code>ok</code>（flow-id 1-5 の合意そのもの）を落とした。方針どおり <code>ok</code>/<code>OK</code> は外したが、<b>同じ理屈は <code>はい</code>・<code>了解</code>・<code>お願いします</code> にも及ぶ</b>。辞書を空にする案まで含めて、どこで線を引くか決めてほしい。</li>
+      <li><a href="#completion">完了条件を満たさないままフェーズ2を閉じてよいか</a> — 「決めること9項目」のうち<b>除外規則が未確定</b>、<b>走査方式が不合格</b>。どちらもフェーズ3で決めるのが妥当だが、完了条件は満たしていない。</li>
     </ul>
   </div>
   <div class="focus want">
     <span class="label">◇承認が欲しい（方針は決めたので確認してほしい）</span>
     <ul>
-      <li><a href="#f2">2. 抽出条件</a> — <code>userType</code>/<code>isSidechain</code> は1件も落とさなかったが、<b>残す</b>と決めた（この transcript に該当ケースが無かっただけで、条件2つ分のコストは無視できる）。</li>
-      <li><a href="#f7">7. パス表記の回避</a> — git bash 実機は未確認のまま、<b>jq へパス名を渡さず標準入力へ繋ぐ形を採る</b>と決めた（出力がバイト単位で一致することを確認済み）。</li>
-      <li><a href="#f10">10. 単一transcript前提</a> — <b>過去分を読む案はこの環境では実装できない</b>という事実まで出した。対処方針の決定は flow-id 3-1 へ送る。</li>
+      <li><a href="#f2">問い2: 抽出条件</a> — <code>userType</code>/<code>isSidechain</code> は1件も落とさなかったが、<b>残す</b>と決めた（この transcript に該当ケースが無かっただけで、条件2つ分のコストは無視できる）。</li>
+      <li><a href="#f7">問い7: パス表記の回避</a> — git bash 実機は未確認のまま、<b>jq へパス名を渡さず標準入力へ繋ぐ形を採る</b>と決めた（出力がバイト単位で一致することを確認済み）。</li>
+      <li><a href="#f6">問い6: サイズ判定</a> — 既存注入量の<b>79%が可変</b>と分かったため、<b>「8,000Bに対して56%」という割合での断定をやめた</b>。悲観値では約9,700Bで上限を超える。</li>
     </ul>
   </div>
   <div class="focus skip">
     <span class="label">・細かいレビューは不要（ほぼ確実）</span>
     <ul>
-      <li><a href="#f8">8. 文字単位の切り出し</a> — 4手段をロケール2条件で実測し、<code>jq</code> の <code>.[0:N]</code> だけが両方で正しかった。既知のルール記載とも一致する。</li>
-      <li><a href="#f13">13. <code>last-prompt</code></a> — 差分をコードポイント単位まで特定済み（改行の潰しと約200字での切り詰め）。代替にならないことは確定。</li>
+      <li><a href="#f1">問い1: <code>transcript_path</code></a> — 一時hookが <code>source=resume</code> で2回発火し、キー5つとパスの実在を直接確認した。</li>
+      <li><a href="#f8">問い8: 文字単位の切り出し</a> — 4手段をロケール2条件で実測。既知のルール記載とも一致する。</li>
+      <li><a href="#f13">問い13: <code>last-prompt</code></a> — 差分をコードポイント単位まで特定済み（改行の潰しと約200字での切り詰め）。</li>
     </ul>
   </div>
 </section>
@@ -196,19 +200,20 @@
 <section id="summary">
   <h2>サマリ（結論の一覧）</h2>
   <ol class="verdicts">
-    <li class="verdict"><span class="chip stop">✕問題</span><a href="#f1">1. 問い1（<code>transcript_path</code> の実在）は未測定のまま</a><span class="v-basis">根拠: 観測手段の仕掛けのみ</span></li>
-    <li class="verdict"><span class="chip good">◎良</span><a href="#f2">2. 母集団は <code>origin.kind=="human"</code> の1条件で7件に確定した</a><span class="v-basis">根拠: 実測（段階的な件数計測）</span></li>
-    <li class="verdict"><span class="chip good">◎良</span><a href="#f3">3. <code>gitBranch</code> で絞れる。母集団7件すべてが現ブランチ</a><span class="v-basis">根拠: 実測</span></li>
-    <li class="verdict"><span class="chip warn">△注意</span><a href="#f4">4. 文字数は中央62字・最大220字。ただし母数7件で分位点が脆い</a><span class="v-basis">根拠: 実測</span></li>
-    <li class="verdict"><span class="chip stop">✕問題</span><a href="#f6">6. 除外規則の初期辞書が、重要な承認発言を1件落とした</a><span class="v-basis">根拠: 実測（規則を母集団へ適用）</span></li>
-    <li class="verdict"><span class="chip warn">△注意</span><a href="#f5">5. 合計4,491B で上限内。ただし既存注入量は古い値の2.7倍だった</a><span class="v-basis">根拠: 実測（hookを実行して計測）</span></li>
-    <li class="verdict"><span class="chip good">◎良</span><a href="#f7">7. パス表記は未確認だが、影響を受けない実装形が同値だと確認した</a><span class="v-basis">根拠: 実測（md5一致）</span></li>
-    <li class="verdict"><span class="chip good">◎良</span><a href="#f8">8. ロケール非依存に文字単位で切れるのは <code>jq</code> の <code>.[0:N]</code></a><span class="v-basis">根拠: 実測（2ロケール×4手段）</span></li>
-    <li class="verdict"><span class="chip good">◎良</span><a href="#f9">9. transcript は compact をまたいで同一ファイル。境界は機械可読</a><span class="v-basis">根拠: 実測（inode・compactMetadata）</span></li>
-    <li class="verdict"><span class="chip warn">△注意</span><a href="#f10">10. 過去 transcript はこの環境に1本も残らない</a><span class="v-basis">根拠: 実測（全走査）</span></li>
-    <li class="verdict"><span class="chip warn">△注意</span><a href="#f11">11. 走査は Linux 50.7ms で合格。git bash 見積もりは約194msで肉薄</a><span class="v-basis">根拠: 実測＋既知値からの見積もり</span></li>
-    <li class="verdict"><span class="chip warn">△注意</span><a href="#f12">12. <code>origin</code> を持たない文字列が6件ある。肯定形の条件を崩すと混入する</a><span class="v-basis">根拠: 実測（値別集計）</span></li>
-    <li class="verdict"><span class="chip good">◎良</span><a href="#f13">13. <code>last-prompt</code> は原文ではない（正規化・切り詰めあり）</a><span class="v-basis">根拠: 実測（コードポイント差分）</span></li>
+    <li class="verdict"><span class="chip good">◎良</span><a href="#f1">問い1: <code>transcript_path</code> はある。POSIX絶対パスで実ファイルとして開けた</a><span class="v-basis">根拠: 実測（hookのstdinを退避）</span></li>
+    <li class="verdict"><span class="chip good">◎良</span><a href="#f2">問い2: 母集団は <code>origin.kind=="human"</code> の1条件で7件に確定した</a><span class="v-basis">根拠: 実測（段階的な件数計測）</span></li>
+    <li class="verdict"><span class="chip warn">△注意</span><a href="#f3">問い3: 絞る手段はあるが、この実データでは1件も落ちず効きは未検証</a><span class="v-basis">根拠: 実測</span></li>
+    <li class="verdict"><span class="chip warn">△注意</span><a href="#f4">問い4: 文字数は中央62字・最大220字。ただし母数7件で分位点が脆い</a><span class="v-basis">根拠: 実測</span></li>
+    <li class="verdict"><span class="chip stop">✕問題</span><a href="#f5">問い5: 除外辞書が重要な承認発言を1件落とした（修正後の再測で除外0件を確認）</a><span class="v-basis">根拠: 実測（規則を母集団へ適用）</span></li>
+    <li class="verdict"><span class="chip warn">△注意</span><a href="#f6">問い6: 合計4,491B。ただし既存注入量の79%が可変で、割合では断定できない</a><span class="v-basis">根拠: 実測（hookを実行して計測）</span></li>
+    <li class="verdict"><span class="chip good">◎良</span><a href="#f7">問い7: パス表記は未確認だが、影響を受けない実装形が同値だと確認した</a><span class="v-basis">根拠: 実測（md5一致）</span></li>
+    <li class="verdict"><span class="chip good">◎良</span><a href="#f8">問い8: ロケール非依存に文字単位で切れるのは <code>jq</code> の <code>.[0:N]</code></a><span class="v-basis">根拠: 実測（2ロケール×4手段）</span></li>
+    <li class="verdict"><span class="chip good">◎良</span><a href="#f9">問い9: compact・resume とも同一ファイル。境界は機械可読</a><span class="v-basis">根拠: 実測（inode・compactMetadata）</span></li>
+    <li class="verdict"><span class="chip warn">△注意</span><a href="#f10a">問い10a: 過去 transcript はこの環境に1本も残らない</a><span class="v-basis">根拠: 実測（全走査）</span></li>
+    <li class="verdict"><span class="chip good">◎良</span><a href="#f10b">問い10b: 過去分の上乗せは0ms（対象が無いため自明）</a><span class="v-basis">根拠: 問い10a・11からの導出</span></li>
+    <li class="verdict"><span class="chip stop">✕問題</span><a href="#f11">問い11: 走査は git bash 見積もり約208msで<b>不合格</b>。余裕は残っていない</a><span class="v-basis">根拠: 実測（100回×3試行）＋既知値からの見積もり</span></li>
+    <li class="verdict"><span class="chip warn">△注意</span><a href="#f12">問い12: <code>origin</code> を持たない文字列が6件ある。肯定形の条件を崩すと混入する</a><span class="v-basis">根拠: 実測（値別集計・合計一致）</span></li>
+    <li class="verdict"><span class="chip good">◎良</span><a href="#f13">問い13: <code>last-prompt</code> は原文ではない（正規化・切り詰めあり）</a><span class="v-basis">根拠: 実測（コードポイント差分）</span></li>
   </ol>
 </section>
 
@@ -217,13 +222,14 @@
   <div class="box warn">
     <span class="label">この結果が言っていないこと</span>
     <ul>
-      <li><b>ハーネスが <code>transcript_path</code> を渡すかどうか</b>。hook の stdin を1度も観測していない — <a href="#f1">詳細: 章1</a></li>
-      <li><b>git bash（Windows）でのパス表記</b>。Windows形式か MSYS形式かは不明 — <a href="#f7">詳細: 章7</a></li>
-      <li><b>git bash 実機での走査時間</b>。約194msは既知値からの見積もりで、実測ではない — <a href="#f11">詳細: 章11</a></li>
-      <li><b>ローカル環境で過去 transcript が残るか</b>。「この環境では残らない」であって「どの環境でも残らない」ではない — <a href="#f10">詳細: 章10</a></li>
-      <li><b>ブランチで絞ると0件になる分岐</b>。このセッションはブランチを切り替えていないため再現できていない — <a href="#f3">詳細: 章3</a></li>
-      <li><b>スラッシュコマンド正規表現が要るかどうか</b>。1件も当たらなかったが、観測は <code>/compact</code> の1事例のみ — <a href="#f6">詳細: 章6</a></li>
-      <li><b>母数7件の分布の代表性</b>。分位点は1件で大きく動く — <a href="#f4">詳細: 章4</a></li>
+      <li><b>git bash（Windows）でのパス表記</b>。Windows形式か MSYS形式かは不明 — <a href="#f7">詳細: 問い7</a></li>
+      <li><b>git bash 実機での走査時間</b>。約208msは既知値（jq起動138ms）からの見積もりで、実測ではない — <a href="#f11">詳細: 問い11</a></li>
+      <li><b>新セッション（<code>startup</code>）でローカル設定が保持されるか</b>。発火したのは <code>resume</code> のみ — <a href="#f1">詳細: 問い1</a></li>
+      <li><b>ローカル環境で過去 transcript が残るか</b>。「この環境では残らない」であって「どの環境でも残らない」ではない — <a href="#f10a">詳細: 問い10a</a></li>
+      <li><b>ブランチで絞ったときに実際に何かが落ちるか</b>。このセッションはブランチを切り替えていないため、3分岐表の2つ目・3つ目が未検証 — <a href="#f3">詳細: 問い3</a></li>
+      <li><b>スラッシュコマンド正規表現が要るかどうか</b>。1件も当たらなかったが、観測は <code>/compact</code> の1事例のみ — <a href="#f5">詳細: 問い5</a></li>
+      <li><b>母数7件の分布の代表性</b>。分位点は1件で大きく動く — <a href="#f4">詳細: 問い4</a></li>
+      <li><b>既存注入量の増加が issue #113 由来か今回のタスク状態由来か</b>。可変部分が79%を占めるため分離できていない — <a href="#f6">詳細: 問い6</a></li>
     </ul>
   </div>
 </section>
@@ -232,180 +238,88 @@
   <h2>実施条件（測った対象・環境）</h2>
   <ul>
     <li>実行環境: <b>Claude Code on the web のリモート実行環境（Linux）</b>。git bash（Windows）実機では未計測</li>
-    <li>対象: 本ブランチの実 transcript 1本（測定中に 3.74MB / 1,234行 → 4.36MB / 1,429行 へ増加。各測定の値は測定時点のもの）</li>
     <li>ツール: <code>jq</code>、<code>awk</code>（実体は <b>mawk 1.3.4 20240123</b>）、<code>perl</code></li>
     <li>実施日: 2026-08-24</li>
-    <li>ロケール: 既定は <code>LANG</code>/<code>LC_ALL</code> ともに未設定。章8のみ <code>LC_ALL=C.UTF-8</code> と対比</li>
+    <li>ロケール: 既定は <code>LANG</code>/<code>LC_ALL</code> ともに未設定。問い8のみ <code>LC_ALL=C.UTF-8</code> と対比</li>
   </ul>
+  <div class="box info">
+    <span class="label">測定断面（すべての件数・バイト数・性能の基準）</span>
+    transcript は<b>走査中も追記され続ける</b>ため、実行のたびに値が変わる。<b>そこで断面を1つ固定し、件数・バイト数・性能はすべてその断面で測り直した。</b>
+    <ul>
+      <li>断面: 現セッションの transcript を <b>2026-08-24T00:53Z</b> にコピーしたもの</li>
+      <li><b>1,668行 / 4,929,555バイト（= 4,814KB）</b></li>
+      <li><b>本文書の KB は 1KB = 1,024バイト、MB = 1,024KB</b></li>
+      <li><b>問い1 だけは別断面</b>（hook が発火した 01:31Z / 01:45Z 時点。その時点は 1,831行 / 5,257,586バイト）。パスが解決するかの検証なので断面が違っても結論に影響しない</li>
+    </ul>
+  </div>
   <div class="box warn">
     <span class="label">記録方針</span>
-    正は全体作業計画の該当節。<b>発言の本文を貼らない。</b> 残すのは件数・文字数分布・バイト数といった統計値と、AI自身が本セッションで打った発言に限った抜粋だけ。章6の過剰除去も「どの辞書語が何件落としたか」だけを記録する。
+    正は全体作業計画の該当節。<b>発言の本文を貼らない。</b> 残すのは件数・文字数分布・バイト数といった統計値と、AI自身が本セッションで打った発言に限った抜粋だけ。問い5の過剰除去も「どの辞書語が何件落としたか」だけを記録する。
+  </div>
+  <div class="box info">
+    <span class="label">数え方の定義</span>
+    <b>問いは13件だが、問い10を 10a / 10b へ分割したため項目数は14である。</b>以後「<b>14項目</b>」と数え、「13問」という数え方は使わない。内訳は <b>実測して結論13 ／「未確認」と断定1（問い7）／ 未測定0</b>。
   </div>
 </section>
 
 <section id="findings">
   <h2>実施した内容と結果</h2>
 
-  <h3 id="f1">1. 問い1: <code>transcript_path</code> の実在 <span class="chip stop">✕問題（未測定）</span></h3>
-  <p>計画で決めた手段(b)のとおり、退避専用の SessionStart hook を <code>.claude/settings.local.json</code> へ一時登録した。<b>次の SessionStart（compact または新セッション）で発火する。</b></p>
-  <pre><code>$ git status --porcelain -- .claude/settings.local.json | wc -l
-0        # .gitignore 対象。コミットに乗らない</code></pre>
-  <div class="box warn unverified-detail">
-    <span class="label">確かめられなかったこと（詳細）</span>
-    <b>「hook がこのパスを使える」ことだけは確認できている</b>（章5で、<code>transcript_path</code> を持つペイロードを <code>session-start.sh</code> へ流して正常終了させた）。しかしこれは<b>こちらが渡した値</b>であり、<b>ハーネスが渡すかどうかの答えにはならない</b>。発火しないまま終える場合は、停止条件どおり「この実行環境では取得できなかった」という事実と「判断保留（未確認）」を記録する（<b>「実装不能」とは書かない</b>）。
-  </div>
-
-  <h3 id="f2">2. 問い2: 抽出条件を段階的に当てた <span class="chip good">◎良</span></h3>
-  <p>全1,403行に対し、条件を1つずつ足したときの残存件数を測った。</p>
+  <h3 id="f1">問い1: <code>transcript_path</code> は<b>ある</b> <span class="chip good">◎良</span></h3>
+  <p>計画で決めた手段(b)のとおり、退避専用の SessionStart hook を <code>.claude/settings.local.json</code> へ一時登録したところ、<b><code>source=resume</code> で2回発火し、ペイロードを捕捉できた</b>。</p>
+  <p><b>stdin JSON のキーは5つ</b>（値は <code>session_id</code> と <code>source</code> のみ掲載。パスは環境固有のため省略）。</p>
   <div class="tablewrap">
   <table>
-    <thead><tr><th>段</th><th>条件</th><th>残存</th><th>この段が落とした件数</th></tr></thead>
+    <thead><tr><th>キー</th><th>型</th><th>値</th></tr></thead>
     <tbody>
-      <tr><td>0</td><td>全行</td><td>1,403</td><td>—</td></tr>
-      <tr><td>1</td><td><code>type=="user"</code></td><td>281</td><td>1,122</td></tr>
-      <tr><td>2</td><td>+ content が文字列</td><td>22</td><td>259</td></tr>
-      <tr><td>3</td><td>+ <code>userType=="external"</code></td><td>22</td><td><b>0</b></td></tr>
-      <tr><td>4</td><td>+ <code>isSidechain==false</code></td><td>22</td><td><b>0</b></td></tr>
-      <tr><td>5</td><td>+ <code>origin.kind=="human"</code></td><td><b>7</b></td><td><b>15</b></td></tr>
+      <tr><td><code>session_id</code></td><td>string</td><td>セッションのUUID</td></tr>
+      <tr><td><code>transcript_path</code></td><td>string</td><td><b>POSIX絶対パス</b></td></tr>
+      <tr><td><code>cwd</code></td><td>string</td><td>作業ディレクトリの絶対パス</td></tr>
+      <tr><td><code>hook_event_name</code></td><td>string</td><td><code>SessionStart</code></td></tr>
+      <tr><td><code>source</code></td><td>string</td><td><code>resume</code>（2回とも）</td></tr>
     </tbody>
   </table>
   </div>
-  <p><b>件数だけで「機械生成ターンが残っていない」と判定しない</b>ため、最終段の値を列挙した。</p>
-  <pre><code>origin.kind  type  userType  件数
-human        user  external  7        # human 以外は0件</code></pre>
+  <pre><code>キーが存在するか        : する
+そのパスに実ファイルがあるか : ある（[ -f ] が真）
+行数 / バイト数         : 1,831行 / 5,257,586バイト（発火時点）</code></pre>
   <div class="box ok">
     <span class="label">結論</span>
-    issue 本文の4条件のうち <code>userType</code> と <code>isSidechain</code> は1件も落としていない。実際に効いているのは <code>type=="user"</code>・<code>content が文字列</code>・<code>origin.kind=="human"</code> の3つ。<b>ただし2条件は残す</b> — この transcript にサイドチェーンや <code>external</code> 以外のユーザーターンが現れなかっただけで、サブエージェントを多用する回では効く可能性があり、コストは条件2つ分に過ぎない。
-  </div>
-
-  <h3 id="f3">3. 問い3: <code>gitBranch</code> による絞り込み <span class="chip good">◎良</span></h3>
-  <pre><code>gitBranch あり : 1,099 / 1,429行（77%）
-母集団7件      : 全7件が claude/user-recent-utterance-reinject-9ygbxd
-uuid 異なり数  : 7 / 7（重複なし）</code></pre>
-  <div class="box ok">
-    <span class="label">結論</span>
-    絞っても0件にならなかった。uuid の重複除去はこの実データでは1件も効かなかった（害も無いので残す）。
+    <b>計画の判定基準「キーが存在し、そのパスに実ファイルがある」を満たした。</b> <code>CLAUDE_PROJECT_DIR</code> から辿るフォールバックは不要だった。<b>後片付け</b>: <code>.claude/settings.local.json</code> を削除し、調査前の状態へ戻す。
   </div>
   <div class="box warn unverified-detail">
     <span class="label">確かめられなかったこと（詳細）</span>
-    <b>このセッションはブランチを切り替えていない</b>ため、「絞ると0件になる条件」を実データで再現できていない。理論上は「そのブランチでの発言が1件も無い場合」であり、全体作業計画の3分岐表（絞れる／絞れない／絞ると0件）の<b>3つ目の分岐は未検証</b>である。フォールバック（母集団全体から採る）は残す必要がある。
+    実際に発火したのは <b><code>resume</code></b> であり、<b><code>resume</code> ではローカル設定もワークスペースも保持されていた</b>。<b>新セッション（<code>startup</code>）で保持されるかは依然として未検証</b>である。ただし問い1 は <code>resume</code> の発火で答えが出たため、この未検証は問い1 の結論に影響しない。
   </div>
 
-  <h3 id="f4">4. 問い4: 文字数分布 <span class="chip warn">△注意</span></h3>
+  <h3 id="f9">問い9: compact・resume とも<b>同一ファイル</b> <span class="chip good">◎良</span></h3>
+  <p><b>compact</b>（ユーザーが <code>/compact</code> を実行）と <b>resume</b>（一時hookが2回捕捉）の両方で観測できた。</p>
   <div class="tablewrap">
   <table>
-    <thead><tr><th>分位</th><th>最小</th><th>25%</th><th>中央</th><th>75%</th><th>最大</th><th>合計</th></tr></thead>
-    <tbody><tr><td>文字数</td><td>2</td><td>9</td><td><b>62</b></td><td>143</td><td><b>220</b></td><td>522</td></tr></tbody>
+    <thead><tr><th>経路</th><th>観測</th><th>結果</th></tr></thead>
+    <tbody>
+      <tr><td><b>compact</b></td><td>inode・compact境界・過去発言の残存</td><td><b>同一ファイルへ追記</b></td></tr>
+      <tr><td><b>resume</b></td><td>hook が報告した <code>transcript_path</code> の inode</td><td><b>同一</b>（<code>475799</code>。compact 時と同じ値）</td></tr>
+      <tr><td>セッションまたぎ</td><td>問い10a を参照</td><td><b>別ファイル</b>（かつ過去分は残らない）</td></tr>
+    </tbody>
   </table>
   </div>
+  <p><b>副産物: compact 境界が機械可読だった。</b> <code>type=="system"</code> の行が <code>compactMetadata</code> を持つ。<b>実データには compact が2回あり、値はレコードごとに異なる</b>（混同しないこと）。</p>
   <div class="tablewrap">
   <table>
-    <thead><tr><th>切り出し設定</th><th>全文に収まる割合</th></tr></thead>
+    <thead><tr><th>レコード</th><th><code>trigger</code></th><th><code>preTokens</code></th><th><code>postTokens</code></th><th><code>cumulativeDroppedTokens</code></th></tr></thead>
     <tbody>
-      <tr><td>先頭枠 120+40 = 160字</td><td>6/7（86%）</td></tr>
-      <tr><td>直近枠 80+30 = 110字</td><td>5/7（71%）</td></tr>
-      <tr><td>250字</td><td><b>7/7（100%）</b></td></tr>
+      <tr><td>1回目</td><td><code>auto</code></td><td>468,701</td><td>10,027</td><td><b>458,674</b></td></tr>
+      <tr><td>2回目</td><td><code>manual</code></td><td>391,043</td><td>11,237</td><td><b>838,480</b></td></tr>
     </tbody>
   </table>
   </div>
   <div class="box ok">
     <span class="label">結論</span>
-    判定基準「全文に収まる割合が極端（9割超 or 1割未満）なら配分を見直す」に照らすと、86% / 71% はいずれも極端ではない。<b>現在の配分でよい。</b>
-  </div>
-  <div class="box warn unverified-detail">
-    <span class="label">確かめられなかったこと（詳細）</span>
-    <b>母数が7件しかないため、この分布は弱い根拠である。</b> 分位点を1件が大きく動かす。配分を大きく変える根拠には使わず、「現状維持を否定する材料が無い」までに留める。
+    <b>単一transcript前提は、同一セッション内では compact でも resume でも崩れない。</b> 要約そのものは <code>type=="user"</code> かつ <code>isCompactSummary == true</code> の行として入る。<b>「どこで compact が起きたか」を推測せず特定できる。</b>
   </div>
 
-  <h3 id="f5">5. 問い6: バイト数の実測 <span class="chip warn">△注意</span></h3>
-  <p><b>既存の注入量をこの環境で測り直した</b>（全体作業計画の 1.2KB は issue #57 時点の古い値）。</p>
-  <pre><code>$ CLAUDE_PROJECT_DIR=... bash .claude/hooks/session-start.sh &lt; payload.json \
-    | jq -r '.hookSpecificOutput.additionalContext' | wc -c
-3252</code></pre>
-  <div class="tablewrap">
-  <table>
-    <thead><tr><th>内訳</th><th>バイト数</th><th>期待値</th><th>結果</th></tr></thead>
-    <tbody>
-      <tr><td>既存の注入テキスト</td><td>3,252</td><td>—</td><td>—</td></tr>
-      <tr><td>新設する発言節（7件・先頭3＋直近4）</td><td>1,239</td><td>≤ 6,000</td><td><b>合格</b>（21%）</td></tr>
-      <tr><td><b>合計</b></td><td><b>4,491</b></td><td>≤ 8,000</td><td><b>合格</b>（56%）</td></tr>
-    </tbody>
-  </table>
-  </div>
-  <div class="box warn">
-    <span class="label">結論（注意付き）</span>
-    <b>古い値との差は約2.7倍</b>（1.2KB → 3,252B）。測り直さずに結論していたら余裕を過大に見積もっていた。<b>理論最大での余裕は薄い</b> — 発言節の理論最大 約3,900B を足すと <code>3,252 + 3,900 = 7,152B</code> で、<b>上限8,000Bまでの余裕は約10%しかない</b>。既存の注入量が今後さらに増えると超える。
-  </div>
-
-  <h3 id="f6">6. 問い5: 除外規則で<b>過剰除去が1件発生した</b> <span class="chip stop">✕問題</span></h3>
-  <p>確定済みの除外規則（正規化後の完全一致＋スラッシュコマンド正規表現）を母集団7件へ当てた。</p>
-  <pre><code>残る            : 6
-辞書で除外      : 1     ← 辞書語 ok
-スラコマで除外  : 0</code></pre>
-  <p>落としたのは<b>辞書語 <code>ok</code> で、1件</b>。これは flow-id 1-5 の合意（全体作業計画の4論点すべてへの承認）そのもので、<b>このタスクで最も重要な意思決定の1つ</b>である。</p>
-  <div class="box stop">
-    <span class="label">結論</span>
-    全体作業計画で確定済みの方針「<b>過剰除去が1件でもあれば、その語を辞書から外す</b>」に従い、<code>ok</code> と <code>OK</code> を辞書から外す。<b>同じ理屈が辞書の他の語にも及ぶ</b> — このワークフローでは、レビュー合意・着手承認・方針同意が <code>はい</code>・<code>了解</code>・<code>お願いします</code> のような短い肯定語で表明される。<b>辞書そのものが、このリポジトリの運用と噛み合っていない。</b> 落としたい「意味の無い相槌」と、落としてはいけない「短い承認」を<b>文字列だけで区別する手段が無い</b>というのが実データの示すところである。除去漏れは0件。
-  </div>
-  <div class="box warn unverified-detail">
-    <span class="label">確かめられなかったこと（詳細）</span>
-    <b>スラッシュコマンド正規表現は1件も当たらなかった</b>が、これは <code>/compact</code> が <code>&lt;command-name&gt;</code> 形式で記録され <code>origin</code> を持たないため<b>母集団に到達する前に落ちている</b>（章12）ことによる。<b>1事例のみを根拠に「不要」と断じない。</b> 安全網として残すか外すかはフェーズ3の判断とする。
-  </div>
-
-  <h3 id="f7">7. 問い7: git bash 実機でのパス表記は<b>未確認</b> <span class="chip good">◎良（回避手段は確認済み）</span></h3>
-  <p>本調査はリモート実行環境（Linux）で行ったため、Windows / git bash で <code>transcript_path</code> がどの表記で渡るかは<b>確認できていない</b>。<b>「確認できた」ことにしない。</b></p>
-  <p>ただし、<b>回避手段が同値であることは確認した</b>。</p>
-  <pre><code>$ jq -R -n -r -f filter.jq "$T"   | md5sum
-32c0f4359b4e678514ccaae9552939e0  -
-$ jq -R -n -r -f filter.jq &lt; "$T" | md5sum
-32c0f4359b4e678514ccaae9552939e0  -   # バイト単位で一致</code></pre>
-  <div class="box ok">
-    <span class="label">結論</span>
-    <code>.claude/rules/shell-script-style.md</code> は「標準入力へ繋ぐのはパス名を渡していないので問題なく動く」としている。<b>フェーズ3では標準入力へ繋ぐ形を採る</b>ことで、パス表記の不確実性を実装から切り離せる（リダイレクトは fork を伴わないので章11のコストも増えない）。
-  </div>
-
-  <h3 id="f8">8. 問い8: ロケール非依存に文字単位で切れるのは <code>jq</code> だけ <span class="chip good">◎良</span></h3>
-  <p>日本語10文字の先頭5文字を切り出し、<code>LANG</code>/<code>LC_ALL</code> を<b>空にした環境</b>と <code>LC_ALL=C.UTF-8</code> の両方で比較した（期待値は5文字ぶんが正しく出ること）。</p>
-  <div class="tablewrap">
-  <table>
-    <thead><tr><th>手段</th><th><code>LANG</code> 空</th><th><code>LC_ALL=C.UTF-8</code></th><th>判定</th></tr></thead>
-    <tbody>
-      <tr><td><b><code>jq</code> の <code>.[0:5]</code></b></td><td><b>正しい</b></td><td><b>正しい</b></td><td><b>両方で正しい → 採用</b></td></tr>
-      <tr><td><code>awk</code> の <code>substr</code>（mawk）</td><td>壊れる（バイト単位）</td><td>壊れる（バイト単位）</td><td>不可</td></tr>
-      <tr><td><code>${s:0:5}</code></td><td>壊れる（バイト単位）</td><td>正しい</td><td><b>ロケール依存 → 不可</b></td></tr>
-      <tr><td><code>perl -CSDA</code></td><td>正しい</td><td>正しい</td><td>可（外部プロセスが増える）</td></tr>
-    </tbody>
-  </table>
-  </div>
-  <div class="box ok">
-    <span class="label">結論</span>
-    <b><code>${var:0:N}</code> がロケール依存で落ちることを再現した</b>（<code>.claude/rules/shell-script-style.md</code> の記載どおり）。<code>awk</code> は同ルールのとおり mawk ではバイト単位で、gawk では文字単位になる — <b>環境によって結果が変わる手段は採らない</b>。<code>perl</code> は当初 <code>-CSD</code> で試して壊れたが、これは<b>呼び方の誤り</b>（<code>@ARGV</code> のデコードには <code>-CA</code> が要る）で、<b>perl 自体の欠陥ではない</b>。<b>切り出しは既に jq の中で行うため、<code>.[0:N]</code> を使えば外部プロセスは増えない。</b>
-  </div>
-
-  <h3 id="f9">9. 問い9: transcript は compact をまたいで<b>同一ファイル</b> <span class="chip good">◎良</span></h3>
-  <p>ユーザーが <code>/compact</code> を実行したため観測できた（「発火しなかった場合は未確認」という落とし所は使わずに済んだ）。</p>
-  <div class="tablewrap">
-  <table>
-    <thead><tr><th>観測</th><th>値</th></tr></thead>
-    <tbody>
-      <tr><td>セッションの transcript</td><td>セッションIDの <code>.jsonl</code> <b>1本のみ</b></td></tr>
-      <tr><td>inode</td><td><code>475799</code>（compact 前後で不変）</td></tr>
-      <tr><td>compact 境界</td><td><b>2回分</b>（<code>trigger: "auto"</code> と <code>"manual"</code>）が同居</td></tr>
-      <tr><td>compact 前の発言</td><td><b>残存</b>（最初の依頼を含む）</td></tr>
-    </tbody>
-  </table>
-  </div>
-  <p><b>副産物: compact 境界が機械可読だった。</b> <code>type=="system"</code> の行が <code>compactMetadata</code> を持つ。</p>
-  <pre><code>{"trigger":"auto","preTokens":468701,"postTokens":10027,
- "durationMs":122652,"cumulativeDroppedTokens":458674,
- "preservedSegment":{...},"preservedMessages":{...}}</code></pre>
-  <div class="box ok">
-    <span class="label">結論</span>
-    <b>単一transcript前提は、同一セッション内では崩れない。</b> 要約そのものは <code>type=="user"</code> かつ <code>isCompactSummary == true</code> の行として入る。<b>「どこで compact が起きたか」を推測せず特定できる。</b>
-  </div>
-
-  <h3 id="f10">10. 問い10a・10b: 過去 transcript は<b>1本も残らない</b> <span class="chip warn">△注意</span></h3>
-  <p><code>~/.claude/projects/</code> 配下を全走査した。</p>
+  <h3 id="f10a">問い10a: 過去 transcript は<b>1本も残らない</b> <span class="chip warn">△注意</span></h3>
   <div class="tablewrap">
   <table>
     <thead><tr><th>場所</th><th>本数</th><th>合計</th><th>中身</th></tr></thead>
@@ -416,65 +330,49 @@ $ jq -R -n -r -f filter.jq &lt; "$T" | md5sum
     </tbody>
   </table>
   </div>
-  <p><b>問い10b</b>: 走査対象が0バイトなので上乗せコストは <b>0ms</b>。しきい値200ms以内だが、<b>これは「対象が無い」ことによる自明な合格であり、案の妥当性を示すものではない</b>。</p>
   <div class="box warn">
     <span class="label">結論</span>
     この環境ではコンテナが揮発するため過去セッションの transcript は残らない。したがって全体作業計画の「<b>過去 transcript も対象にする</b>」案は、<b>この環境では成立しない</b>。
   </div>
   <div class="box warn unverified-detail">
     <span class="label">確かめられなかったこと（詳細）</span>
-    <b>これは環境依存の事実であり、「どの環境でも残らない」という結論ではない。</b> ローカル（Windows / git bash）では <code>~/.claude/projects/</code> が永続する可能性があり、<b>そちらは未確認</b>である。残る環境では、本数×サイズに章11のレート（76KB/ms）で見積もり直す必要がある。
+    <b>これは環境依存の事実であり、「どの環境でも残らない」という結論ではない。</b> ローカル（Windows / git bash）では <code>~/.claude/projects/</code> が永続する可能性があり、<b>そちらは未確認</b>である。
   </div>
 
-  <h3 id="f11">11. 問い11: 走査コスト <span class="chip warn">△注意</span></h3>
-  <p>空関数（<code>jq -nc '1'</code>）をベースラインに取り、差で見た（20回ずつ、同一セッション内で連続測定）。</p>
+  <h3 id="f2">問い2: 抽出条件を段階的に当てた <span class="chip good">◎良</span></h3>
+  <p><b>固定断面（1,668行）</b>に対し、条件を1つずつ足したときの残存件数。</p>
   <div class="tablewrap">
   <table>
-    <thead><tr><th>測定対象</th><th>20回の所要</th><th>1回あたり</th><th>ベースラインとの差</th></tr></thead>
+    <thead><tr><th>段</th><th>条件</th><th>残存</th><th>この段が落とした件数</th></tr></thead>
     <tbody>
-      <tr><td>ベースライン <code>jq -nc '1'</code></td><td>54ms</td><td>2.7ms</td><td>—</td></tr>
-      <tr><td>本番フィルタ（4.26MB 全走査）</td><td>1,068ms</td><td>53.4ms</td><td><b>+50.7ms</b></td></tr>
+      <tr><td>0</td><td>全行</td><td>1,668</td><td>—</td></tr>
+      <tr><td>1</td><td><code>type=="user"</code></td><td>338</td><td>1,330</td></tr>
+      <tr><td>2</td><td>+ content が文字列</td><td>24</td><td>314</td></tr>
+      <tr><td>3</td><td>+ <code>userType=="external"</code></td><td>24</td><td><b>0</b></td></tr>
+      <tr><td>4</td><td>+ <code>isSidechain==false</code></td><td>24</td><td><b>0</b></td></tr>
+      <tr><td>5</td><td>+ <code>origin.kind=="human"</code></td><td><b>7</b></td><td><b>17</b></td></tr>
     </tbody>
   </table>
   </div>
-  <p><b>サイズ別の走査レート</b>（線形であることの確認）:</p>
-  <div class="tablewrap">
-  <table>
-    <thead><tr><th>transcript サイズ</th><th>差分/回</th><th>レート</th></tr></thead>
-    <tbody>
-      <tr><td>1,064KB</td><td>14ms</td><td>76KB/ms</td></tr>
-      <tr><td>2,129KB</td><td>26ms</td><td>81KB/ms</td></tr>
-      <tr><td>4,258KB</td><td>56ms</td><td>76KB/ms</td></tr>
-    </tbody>
-  </table>
-  </div>
-  <div class="tablewrap">
-  <table>
-    <thead><tr><th>環境</th><th>内訳</th><th>合計</th><th>しきい値200ms</th></tr></thead>
-    <tbody>
-      <tr><td><b>Linux（実測）</b></td><td>走査 50.7ms</td><td><b>50.7ms</b></td><td><b>合格</b>（1/4）</td></tr>
-      <tr><td><b>git bash（見積もり）</b></td><td>jq 起動 138ms ＋ 走査 56ms</td><td><b>約194ms</b></td><td><b>肉薄</b>（97%）</td></tr>
-    </tbody>
-  </table>
-  </div>
-  <div class="box warn">
+  <p><b>件数だけで「機械生成ターンが残っていない」と判定しない</b>ため、最終段の値を列挙した。</p>
+  <pre><code>origin.kind  type  userType  件数
+human        user  external  7        # human 以外は0件</code></pre>
+  <div class="box ok">
     <span class="label">結論</span>
-    <b>「Linux で50ms、余裕十分」で片付けてはいけない。</b> git bash では <b>jq の起動だけで138ms</b> を消費し、合計で200msに肉薄する。しかもこの4.26MBは約9時間のセッションの値であり、<b>より長いセッションでは走査時間が伸びて超える</b>（レート76KB/ms なら、<b>約+4.6MB で200msを超える</b>）。<b>Linux 上では合格。ただし合格は暫定。</b>
-  </div>
-  <div class="box warn unverified-detail">
-    <span class="label">確かめられなかったこと（詳細）</span>
-    <b>約194msは既知値（fork 約95ms/回・<code>jq -nc '1'</code> 1回が実測138ms）からの見積もりであって、git bash 実機の実測ではない。</b> 計画で確定済みのとおり、<b>暫定なのは「合格」の側だけで、「不合格」は不合格</b>である。フェーズ3で実機再測を行い、超過するなら実装方式（例: 全走査をやめ、末尾からの逆走査と先頭固定件数の2パスにする）を見直す。
+    issue 本文の4条件のうち <code>userType</code> と <code>isSidechain</code> は1件も落としていない。実際に効いているのは <code>type=="user"</code>・<code>content が文字列</code>・<code>origin.kind=="human"</code> の3つ。<b>ただし2条件は残す</b> — この transcript に該当ケースが現れなかっただけで、サブエージェントを多用する回では効く可能性があり、コストは条件2つ分に過ぎない。
   </div>
 
-  <h3 id="f12">12. 問い12: <code>origin.kind</code> の分布 <span class="chip warn">△注意</span></h3>
+  <h3 id="f12">問い12: <code>origin.kind</code> の分布 <span class="chip warn">△注意</span></h3>
+  <p><b>固定断面（1,668行）における <code>type=="user"</code> の338件の内訳。合計が338に一致する。</b></p>
   <div class="tablewrap">
   <table>
     <thead><tr><th><code>origin.kind</code></th><th>content の型</th><th>件数</th><th>正体</th></tr></thead>
     <tbody>
-      <tr><td>（キー無し）</td><td><code>array</code></td><td>260</td><td><code>tool_result</code>（ツール実行結果）</td></tr>
-      <tr><td><code>task-notification</code></td><td><code>string</code></td><td>9</td><td>サブエージェント完了通知（<b>最大21,164文字</b>）</td></tr>
+      <tr><td>（キー無し）</td><td><code>array</code></td><td>314</td><td><code>tool_result</code>（ツール実行結果）</td></tr>
+      <tr><td><code>task-notification</code></td><td><code>string</code></td><td>11</td><td>サブエージェント完了通知（<b>最大21,164文字</b>）</td></tr>
       <tr><td><b><code>human</code></b></td><td><b><code>string</code></b></td><td><b>7</b></td><td><b>母集団</b></td></tr>
       <tr><td>（キー無し）</td><td><code>string</code></td><td>6</td><td>下表</td></tr>
+      <tr><td><b>合計</b></td><td></td><td><b>338</b></td><td>✓ <code>type=="user"</code> と一致</td></tr>
     </tbody>
   </table>
   </div>
@@ -498,10 +396,10 @@ $ jq -R -n -r -f filter.jq &lt; "$T" | md5sum
   </div>
   <div class="box warn unverified-detail">
     <span class="label">確かめられなかったこと（詳細）</span>
-    <b>裏返しのリスク</b>: ハーネスが将来、人間の発言に <code>origin</code> を付けなくなると<b>母集団が丸ごと0件になる</b>。N=0 のとき節ごと出さない設計なので<b>無言で消える</b>（壊れ方が静かで、機能が死んだことに気づけない）。将来の挙動は確かめようがないため、フェーズ3で「気づける形」を検討する。
+    <b>裏返しのリスク</b>: ハーネスが将来、人間の発言に <code>origin</code> を付けなくなると<b>母集団が丸ごと0件になる</b>。N=0 のとき節ごと出さない設計なので<b>無言で消える</b>。将来の挙動は確かめようがないため、フェーズ3で「気づける形」を検討する。
   </div>
 
-  <h3 id="f13">13. 問い13: <code>last-prompt</code> は代替にならない <span class="chip good">◎良</span></h3>
+  <h3 id="f13">問い13: <code>last-prompt</code> は代替にならない <span class="chip good">◎良</span></h3>
   <div class="tablewrap">
   <table>
     <thead><tr><th>観測</th><th>値</th></tr></thead>
@@ -529,18 +427,200 @@ $ jq -R -n -r -f filter.jq &lt; "$T" | md5sum
     <b><code>last-prompt</code> は表示用に正規化・切り詰められた値であり、原文ではない。</b> 補完としても不要である（異なり数が同じ7で、<b>片方にしか無い「別の発言」は0件</b>）。
   </div>
 
+  <h3 id="f3">問い3: <code>gitBranch</code> による絞り込み <span class="chip warn">△注意</span></h3>
+  <pre><code>固定断面1,668行のうち gitBranch を持つ行 : 1,295（78%）
+母集団7件の gitBranch                    : 全7件が現ブランチ
+絞った結果                               : 7件 → 7件（1件も落ちなかった）
+母集団7件の uuid 異なり数                : 7（重複なし）</code></pre>
+  <div class="box warn">
+    <span class="label">結論</span>
+    <b>この実データでは、絞り込みが何かを落とす様子を一度も観測していない。</b>「絞れる」ことを確認したのではなく、「<b>絞る手段はあるが、効きは未検証</b>」が正確な結論である。uuid の重複除去も1件も効かなかった（害も無いので残す）。
+  </div>
+  <div class="box warn unverified-detail">
+    <span class="label">確かめられなかったこと（詳細）</span>
+    <b>このセッションはブランチを切り替えていない</b>ため、全体作業計画の3分岐表（絞れる／絞れない／絞ると0件）の<b>2つ目・3つ目の分岐は未検証</b>である。フォールバック（母集団全体から採る）は残す必要がある。
+  </div>
+
+  <h3 id="f4">問い4: 文字数分布 <span class="chip warn">△注意</span></h3>
+  <p>母集団7件。<b>固定断面でも、それ以前の断面でも同じ値だった。</b></p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>分位</th><th>最小</th><th>25%</th><th>中央</th><th>75%</th><th>最大</th><th>合計</th></tr></thead>
+    <tbody><tr><td>文字数</td><td>2</td><td>9</td><td><b>62</b></td><td>143</td><td><b>220</b></td><td>522</td></tr></tbody>
+  </table>
+  </div>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>切り出し設定</th><th>全文に収まる割合</th></tr></thead>
+    <tbody>
+      <tr><td>先頭枠 120+40 = 160字</td><td>6/7（86%）</td></tr>
+      <tr><td>直近枠 80+30 = 110字</td><td>5/7（71%）</td></tr>
+      <tr><td>250字</td><td><b>7/7（100%）</b></td></tr>
+    </tbody>
+  </table>
+  </div>
+  <div class="box ok">
+    <span class="label">結論</span>
+    判定基準「全文に収まる割合が極端（9割超 or 1割未満）なら配分を見直す」に照らすと、86% / 71% はいずれも極端ではない。<b>現在の配分でよい。</b>
+  </div>
+  <div class="box warn unverified-detail">
+    <span class="label">確かめられなかったこと（詳細）</span>
+    <b>母数が7件しかないため、この分布は弱い根拠である。</b> 分位点を1件が大きく動かす。配分を大きく変える根拠には使わず、「現状維持を否定する材料が無い」までに留める。
+  </div>
+
+  <h3 id="f5">問い5: 除外規則で<b>過剰除去が1件発生した</b>（修正後の再測まで実施） <span class="chip stop">✕問題</span></h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>辞書</th><th>辞書で除外</th><th>スラッシュコマンドで除外</th><th>残る</th></tr></thead>
+    <tbody>
+      <tr><td><b>修正前</b>（<code>ok</code>/<code>OK</code> を含む）</td><td><b>1</b></td><td>0</td><td>6</td></tr>
+      <tr><td><b>修正後</b>（<code>ok</code>/<code>OK</code> を外した）</td><td><b>0</b></td><td>0</td><td><b>7</b></td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p>落としたのは<b>辞書語 <code>ok</code> で、1件</b>。これは flow-id 1-5 の合意そのもので、<b>このタスクで最も重要な意思決定の1つ</b>である。</p>
+  <div class="box stop">
+    <span class="label">結論</span>
+    方針「<b>過剰除去が1件でもあれば、その語を辞書から外す</b>」に従い <code>ok</code>/<code>OK</code> を外した。<b>停止条件が求める「外した後の測り直し」も実施し、除外0件・残7件を確認した</b>（問い6 の 1,239B はこの修正後の母集団を通した値）。<b>同じ理屈が辞書の他の語にも及ぶ</b> — レビュー合意・着手承認・方針同意が <code>はい</code>・<code>了解</code>・<code>お願いします</code> のような短い肯定語で表明されるため、<b>辞書そのものがこのリポジトリの運用と噛み合っていない</b>。落としたい「意味の無い相槌」と落としてはいけない「短い承認」を<b>文字列だけで区別する手段が無い</b>。除去漏れは0件。
+  </div>
+  <div class="box warn unverified-detail">
+    <span class="label">確かめられなかったこと（詳細）</span>
+    <b>スラッシュコマンド正規表現は1件も当たらなかった</b>が、これは <code>/compact</code> が <code>&lt;command-name&gt;</code> 形式で記録され <code>origin</code> を持たないため<b>母集団に到達する前に落ちている</b>（問い12）ことによる。<b>1事例のみを根拠に「不要」と断じない。</b>
+  </div>
+
+  <h3 id="f6">問い6: バイト数の実測（既存注入量は<b>79%が可変</b>） <span class="chip warn">△注意</span></h3>
+  <p><b>既存の注入量をこの環境で測り直した</b>（全体作業計画の 1.2KB は issue #57 時点の古い値）。</p>
+  <pre><code>$ CLAUDE_PROJECT_DIR=... bash .claude/hooks/session-start.sh &lt; payload.json \
+    | jq -r '.hookSpecificOutput.additionalContext' | wc -c
+3252</code></pre>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>内訳</th><th>バイト数</th><th>期待値</th><th>結果</th></tr></thead>
+    <tbody>
+      <tr><td>既存の注入テキスト</td><td>3,252</td><td>—</td><td>—</td></tr>
+      <tr><td>新設する発言節（7件・先頭3＋直近4）</td><td><b>1,239</b></td><td>≤ 6,000</td><td><b>合格</b>（21%）</td></tr>
+      <tr><td><b>合計</b></td><td><b>4,491</b></td><td>≤ 8,000</td><td>下記のとおり<b>断定しない</b></td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p><b>既存の3,252Bは、この断面での1点観測である。</b> 内訳を切り分けると、<b>79%がタスクの進行度に比例して増減する可変部分</b>だった。</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>部分</th><th>バイト数</th><th>可変か</th></tr></thead>
+    <tbody>
+      <tr><td><code>HANDOFF.md</code>「次にやること」の抜粋</td><td><b>2,056</b>（63%）</td><td><b>可変</b>（節の長さそのまま）</td></tr>
+      <tr><td><code>wip/</code> 配下の作業ファイル一覧</td><td><b>513</b>（16%）</td><td><b>可変</b>（ファイル数に比例）</td></tr>
+      <tr><td>それ以外（ブランチ名・経路・手順の定型文）</td><td>約683（21%）</td><td>ほぼ固定</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <div class="box warn">
+    <span class="label">結論</span>
+    <b>「8,000Bに対して56%」という割合は断定できない。</b>「次にやること」節が長いタスク・<code>wip/</code> 配下のファイルが多いタスクでは、<b>同じ設計のまま基数だけが増える</b>。<b>悲観値</b>: 発言節の理論最大 約3,900B ＋ 既存の可変部分が2倍（3,252＋2,569＝5,821B）で <b>約9,700B</b> となり、<b>上限8,000Bを超える</b>。
+  </div>
+  <div class="box warn unverified-detail">
+    <span class="label">確かめられなかったこと（詳細）</span>
+    <b>「古い値との差は約2.7倍」が issue #113 の追加分によるものか今回のタスク状態によるものかを分離できていない</b>（可変部分が79%を占めるため、断面が違えば比も変わる）。
+  </div>
+
+  <h3 id="f8">問い8: ロケール非依存に文字単位で切れるのは <code>jq</code> <span class="chip good">◎良</span></h3>
+  <p>日本語10文字の先頭5文字を切り出し、<code>LANG</code>/<code>LC_ALL</code> を<b>空にした環境</b>と <code>LC_ALL=C.UTF-8</code> の両方で比較した。</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>手段</th><th><code>LANG</code> 空</th><th><code>LC_ALL=C.UTF-8</code></th><th>判定</th></tr></thead>
+    <tbody>
+      <tr><td><b><code>jq</code> の <code>.[0:5]</code></b></td><td><b>正しい</b></td><td><b>正しい</b></td><td><b>両方で正しい → 採用</b></td></tr>
+      <tr><td><code>awk</code> の <code>substr</code>（mawk）</td><td>壊れる（バイト単位）</td><td>壊れる（バイト単位）</td><td>不可</td></tr>
+      <tr><td><code>${s:0:5}</code></td><td>壊れる（バイト単位）</td><td>正しい</td><td><b>ロケール依存 → 不可</b></td></tr>
+      <tr><td><code>perl -CSDA</code></td><td>正しい</td><td>正しい</td><td>可（外部プロセスが増える）</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <div class="box ok">
+    <span class="label">結論</span>
+    <b><code>${var:0:N}</code> がロケール依存で落ちることを再現した</b>（ルール記載どおり）。<code>awk</code> は mawk ではバイト単位、gawk では文字単位になる — <b>環境によって結果が変わる手段は採らない</b>。<code>perl</code> は当初 <code>-CSD</code> で試して壊れたが、これは<b>呼び方の誤り</b>（<code>@ARGV</code> のデコードには <code>-CA</code> が要る）で、<b>perl 自体の欠陥ではない</b>。<b>切り出しは既に jq の中で行うため、<code>.[0:N]</code> を使えば外部プロセスは増えない。</b>
+  </div>
+
+  <h3 id="f11">問い11: 走査コストは<b>不合格</b> <span class="chip stop">✕問題</span></h3>
+  <p>空関数（<code>jq -nc '1'</code>）をベースラインに取り、差で見た。<b>固定断面（4,814KB）に対し、100回×3試行</b>（初回の20回計測は値がぶれたため、試行回数を増やして測り直した）。</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>試行</th><th>ベースライン100回</th><th>本番フィルタ100回</th><th>差分/回</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td>329ms</td><td>7,364ms</td><td><b>70.35ms</b></td></tr>
+      <tr><td>2</td><td>321ms</td><td>7,381ms</td><td><b>70.60ms</b></td></tr>
+      <tr><td>3</td><td>326ms</td><td>7,211ms</td><td><b>68.85ms</b></td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p><b>走査コスト = 約70ms/回</b>（レート <b>約69KB/ms</b>）。</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>環境</th><th>内訳</th><th>合計</th><th>しきい値200ms</th></tr></thead>
+    <tbody>
+      <tr><td>Linux（実測）</td><td>走査 70ms</td><td>70ms</td><td>収まる</td></tr>
+      <tr><td><b>git bash（見積もり）</b></td><td><b>jq 起動 138ms ＋ 走査 70ms</b></td><td><b>約208ms</b></td><td><b>超過（104%）</b></td></tr>
+    </tbody>
+  </table>
+  </div>
+  <div class="box stop">
+    <span class="label">結論</span>
+    <b>不合格。</b> 計画の停止条件どおり、<b>フェーズ3の前に実装方式を見直す</b>。「200msに収まる走査サイズの総量」は <code>(200−138)ms × 69KB/ms ≒ 4,278KB</code> であり、<b>現在の断面 4,814KB は既にこれを超えている</b>（超過 約536KB）。<b>余裕は残っていない。</b>
+  </div>
+  <div class="box warn">
+    <span class="label">前版の誤りの訂正</span>
+    前版は走査を 50.7ms とし、「約+4.6MB で200msを超える」と書いていた。<b>4.6MB は「200msに収まる総量」であって増分ではなく、現在値を引いていなかった</b>。加えて 50.7ms は20回計測のぶれた値で、100回×3試行では約70msだった。<b>両方の誤りが同じ方向（楽観側）へ効いていた。</b>
+  </div>
+  <p><b>見直しの方向（フェーズ3で判断する）</b>:</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>案</th><th>内容</th></tr></thead>
+    <tbody>
+      <tr><td>A</td><td>全走査をやめ、<b>末尾からの逆走査</b>（直近枠）と<b>先頭固定行数の走査</b>（先頭枠）の2パスにする</td></tr>
+      <tr><td>B</td><td>抽出結果を<b>キャッシュ</b>し、前回位置からの差分だけを走査する</td></tr>
+      <tr><td>C</td><td>しきい値200ms自体を見直す（<b>ただし計画は「しきい値を後から緩めない」と定めている</b>）</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <div class="box warn unverified-detail">
+    <span class="label">確かめられなかったこと（詳細）</span>
+    <b>約208msは既知値（fork 約95ms/回・<code>jq -nc '1'</code> 1回が実測138ms）からの見積もりであって、git bash 実機の実測ではない。</b> ただし計画で確定済みのとおり、<b>暫定なのは「合格」の側だけで、「不合格」は不合格</b>である。
+  </div>
+
+  <h3 id="f7">問い7: git bash 実機でのパス表記は<b>未確認</b> <span class="chip good">◎良（回避手段は確認済み）</span></h3>
+  <p>本調査はリモート実行環境（Linux）で行ったため、Windows / git bash でどの表記で渡るかは<b>確認できていない</b>。<b>「確認できた」ことにしない。</b> この環境では POSIX 絶対パスで渡ったが（問い1）、それは Linux の観測である。</p>
+  <pre><code>$ jq -R -n -r -f filter.jq "$T"   | md5sum
+32c0f4359b4e678514ccaae9552939e0  -
+$ jq -R -n -r -f filter.jq &lt; "$T" | md5sum
+32c0f4359b4e678514ccaae9552939e0  -   # バイト単位で一致</code></pre>
+  <div class="box ok">
+    <span class="label">結論</span>
+    ルールは「標準入力へ繋ぐのはパス名を渡していないので問題なく動く」としている。<b>フェーズ3では標準入力へ繋ぐ形を採る</b>ことで、パス表記の不確実性を実装から切り離せる（リダイレクトは fork を伴わないので問い11のコストも増えない）。
+  </div>
+
+  <h3 id="f10b">問い10b: 過去分の走査コスト <span class="chip good">◎良</span></h3>
+  <pre><code>過去 transcript の本数（問い10a） : 0本
+合計バイト数                     : 0バイト
+走査レート（問い11）             : 約69KB/ms
+上乗せコスト                     : 0ms</code></pre>
+  <div class="box warn">
+    <span class="label">結論</span>
+    しきい値200ms以内。<b>ただしこれは「対象が無い」ことによる自明な合格であり、案の妥当性を示すものではない。</b> <b>現時点で現セッション分だけで既に200msを超えている（問い11）ため、過去分を足す余地は無い。</b>
+  </div>
+
 </section>
 
 <section id="next">
   <h2>設計への反映</h2>
   <ol>
-    <li><b>抽出条件を確定する</b> — <code>type=="user"</code> ＋ content が文字列 ＋ <code>userType=="external"</code> ＋ <code>isSidechain==false</code> ＋ <code>origin.kind=="human"</code>。<b>肯定形を崩さない</b>（章12）。</li>
-    <li><b>除外辞書から <code>ok</code>/<code>OK</code> を外す</b>（章6）。辞書そのものの是非は flow-id 3-1 で判断する。</li>
-    <li><b>切り出しは jq の <code>.[0:N]</code> で行う</b>（章8）。<code>${var:0:N}</code>・<code>awk substr</code> は使わない。</li>
-    <li><b>jq へパス名を渡さず標準入力へ繋ぐ</b>（章7）。git bash のパス表記の不確実性を実装から切り離す。</li>
-    <li><b>件数・文字数の配分は現状維持</b>（章4）。母数が小さいため、変える根拠が無い。</li>
-    <li><b>サイズの余裕が薄いことを明記する</b>（章5）。理論最大で上限の90%に達する。</li>
-    <li>恒久的に残す知見は flow-id 4-6 で <code>.claude/docs/spec/</code>（transcript の構造・抽出条件）と <code>.claude/docs/ddr/</code>（<code>i0151-01</code>: 除外辞書の判断、<code>origin.kind</code> を肯定形で使う判断）へ反映する。</li>
+    <li><b>抽出条件を確定する</b> — <code>type=="user"</code> ＋ content が文字列 ＋ <code>userType=="external"</code> ＋ <code>isSidechain==false</code> ＋ <code>origin.kind=="human"</code>。<b>肯定形を崩さない</b>（問い12）。</li>
+    <li><b>除外辞書から <code>ok</code>/<code>OK</code> を外す</b>（問い5）。辞書そのものの是非は flow-id 3-1 で判断する。</li>
+    <li><b>切り出しは jq の <code>.[0:N]</code> で行う</b>（問い8）。</li>
+    <li><b>jq へパス名を渡さず標準入力へ繋ぐ</b>（問い7）。</li>
+    <li><b>走査方式を見直す</b>（問い11。<b>不合格のため必須</b>）。案A/B/Cから選ぶ。</li>
+    <li><b>件数・文字数の配分は現状維持</b>（問い4）。母数が小さいため、変える根拠が無い。</li>
+    <li><b>サイズの判定は割合で断定しない</b>（問い6）。既存注入量の79%が可変で、悲観値では上限を超える。</li>
+    <li>恒久的に残す知見は flow-id 4-6 で <code>.claude/docs/spec/</code> と <code>.claude/docs/ddr/</code>（<code>i0151-01</code>: 除外辞書の判断、<code>origin.kind</code> を肯定形で使う判断、走査方式の選択）へ反映する。</li>
   </ol>
 </section>
 
@@ -550,28 +630,70 @@ $ jq -R -n -r -f filter.jq &lt; "$T" | md5sum
   <table>
     <thead><tr><th>計画時の見込み</th><th>実際</th><th>どう扱ったか</th></tr></thead>
     <tbody>
-      <tr><td>ノイズの正体は<b>相槌</b>で、辞書で落とす</td><td>ノイズは<b>ハーネスの封筒</b>（<code>&lt;task-notification&gt;</code> 等）で、<code>origin.kind</code> の1条件で構造的に落ちた。<b>辞書で落とすべきものは1件も無かった</b></td><td>辞書の是非そのものを問い直す論点として flow-id 3-1 へ送った（章6）</td></tr>
-      <tr><td>辞書は安全側の仕掛け</td><td><b>辞書が重要な承認発言を落とした</b>（<code>ok</code> = flow-id 1-5 の合意）</td><td>確定済み方針に従い <code>ok</code>/<code>OK</code> を外した（章6）</td></tr>
-      <tr><td>既存の注入量は約1.2KB</td><td><b>3,252B</b>（約2.7倍）</td><td>測り直した値で合計を再計算し、理論最大での余裕の薄さを明記した（章5）</td></tr>
-      <tr><td>件数上限10件が効く</td><td>約9時間・compact 2回のセッションで真の発言は<b>7件</b>。上限に届かず「先頭3＋直近7」が<b>全件採用と同義</b>だった</td><td>事実として記録。分割が効くのはより長いセッションのみ（章4）</td></tr>
-      <tr><td><code>userType</code>/<code>isSidechain</code> が効く</td><td><b>1件も落とさなかった</b></td><td>コストが小さいので残す判断にした（章2）</td></tr>
-      <tr><td>Linux で測れば性能の当否が分かる</td><td>Linux 50.7ms は合格だが、<b>git bash 見積もりは約194ms</b>で結論が反転しかねない</td><td>合格を暫定とし、実機再測を flow-id 3-6 へ送った（章11）</td></tr>
+      <tr><td>ノイズの正体は<b>相槌</b>で、辞書で落とす</td><td>ノイズは<b>ハーネスの封筒</b>で、<code>origin.kind</code> の1条件で構造的に落ちた。<b>辞書で落とすべきものは1件も無かった</b></td><td>辞書の是非そのものを問い直す論点として flow-id 3-1 へ送った</td></tr>
+      <tr><td>辞書は安全側の仕掛け</td><td><b>辞書が重要な承認発言を落とした</b></td><td><code>ok</code>/<code>OK</code> を外し、再測で除外0件を確認した</td></tr>
+      <tr><td>既存の注入量は約1.2KB・固定値</td><td><b>3,252B</b>（約2.7倍）で、しかも<b>79%が可変</b></td><td>割合による断定をやめ、内訳と悲観値を出した</td></tr>
+      <tr><td>件数上限10件が効く</td><td>約9時間・compact 2回のセッションで真の発言は<b>7件</b>。「先頭3＋直近7」が<b>全件採用と同義</b>だった</td><td>事実として記録。分割が効くのはより長いセッションのみ</td></tr>
+      <tr><td><code>userType</code>/<code>isSidechain</code> が効く</td><td><b>1件も落とさなかった</b></td><td>コストが小さいので残す判断にした</td></tr>
+      <tr><td>Linux で測れば性能の当否が分かる</td><td>Linux 70ms は収まるが、<b>git bash 見積もりは約208ms</b>で<b>しきい値を超えた</b></td><td><b>不合格</b>とし、実装方式の見直しを flow-id 3-1 へ送った</td></tr>
+      <tr><td>20回の計測で足りる</td><td>20回では 50.7ms、100回×3試行では約70ms と<b>約4割ぶれた</b></td><td>試行回数を増やして測り直し、断面も固定した</td></tr>
+      <tr><td><code>transcript_path</code> が取れるかは不透明</td><td><b><code>resume</code> で発火し、あっさり取れた</b>（POSIX絶対パス・実ファイル）</td><td>問い1・問い9のresumeを同時に埋めた</td></tr>
     </tbody>
   </table>
   </div>
 </section>
 
+<section id="completion">
+  <h2>完了状況</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>状態</th><th>件数</th><th>内訳</th></tr></thead>
+    <tbody>
+      <tr><td>実測して結論を出した</td><td><b>13</b></td><td>1・2・3・4・5・6・8・9・10a・10b・11・12・13</td></tr>
+      <tr><td>「未確認」と断定した</td><td><b>1</b></td><td>7</td></tr>
+      <tr><td>未測定</td><td><b>0</b></td><td>—</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p>計画は完了条件を2つ定めている。<b>(1) 14項目は満たしたが、(2)「決めること9項目の確定」は1項目が未確定である。</b></p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>決めるもの</th><th>確定させる問い</th><th>状態</th></tr></thead>
+    <tbody>
+      <tr><td>抽出条件</td><td>2・12</td><td><b>確定</b></td></tr>
+      <tr><td>ブランチ絞りの扱い</td><td>3</td><td><b>確定</b>（効きは未検証だがフォールバックを残す設計は変わらない）</td></tr>
+      <tr><td>件数・文字数の配分</td><td>4</td><td><b>確定</b>（現状維持）</td></tr>
+      <tr><td><b>除外規則</b></td><td><b>5</b></td><td><b>未確定 → flow-id 3-1 へ差し戻し</b></td></tr>
+      <tr><td>サイズ上限</td><td>6</td><td><b>確定</b>（発言節6,000B。ただし警告しきい値側の余裕は薄い）</td></tr>
+      <tr><td>文字単位の切り出し手段</td><td>8</td><td><b>確定</b>（<code>jq</code> の <code>.[0:N]</code>）</td></tr>
+      <tr><td>jqへのパスの渡し方</td><td>7</td><td><b>確定</b>（標準入力へ繋ぐ）</td></tr>
+      <tr><td>走査方式の可否</td><td>11</td><td><b>不合格 → flow-id 3-1 で方式を選び直す</b></td></tr>
+      <tr><td>単一transcript前提の扱い</td><td>9・10a・10b</td><td><b>事実の採取までが本調査の担当</b></td></tr>
+    </tbody>
+  </table>
+  </div>
+  <div class="box warn">
+    <span class="label">判断を仰ぐ点</span>
+    <b>計画の完了条件(2)を完全には満たしていない。</b> 除外規則が未確定であること、走査方式が不合格であることは<b>いずれもフェーズ3で決めるのが妥当</b>だが、<b>「完了条件を満たしてフェーズ2を閉じた」とは書けない</b>。この状態でフェーズ2を閉じてよいかを判断してほしい。
+  </div>
+</section>
+
 <section id="todo">
   <h2>残課題</h2>
-  <ul>
-    <li><b>問い1（未測定）</b> — 一時 hook の発火待ち。埋まるまでこの調査は完了していない。発火しないまま終える場合は「判断保留（未確認）」で issue #151 へ差し戻す。<b>後片付け</b>: <code>.claude/settings.local.json</code> を削除し、調査前の状態へ戻す。</li>
-    <li><b>A. <code>AskUserQuestion</code> の回答が母集団から漏れる</b> — <code>tool_result</code> に <code>Your questions have been answered: "&lt;質問&gt;"="&lt;回答&gt;"</code> の形で入るため、<code>content</code> が文字列の母集団には現れない。承認・方針選択という<b>人間の意思決定</b>が拾えていない → <b>flow-id 3-1</b></li>
-    <li><b>B. 相槌辞書そのものの是非</b>（章6）— 短い承認と意味の無い相槌を文字列だけで区別できない → <b>flow-id 3-1</b></li>
-    <li><b>C. 母集団が0件になったことに気づける形</b>（章12の裏返しのリスク）→ <b>flow-id 3-1</b></li>
-    <li><b>D. 走査方式の見直し</b>（章11が git bash で超過した場合）→ <b>flow-id 3-6</b></li>
-    <li><b>単一transcript前提への対処方針</b> — 本調査が出したのは事実まで（章9・10）。3案（先頭枠を諦める／過去分も対象にする／<code>HANDOFF.md</code> で代替する）のどれを採るかは <b>flow-id 3-1</b></li>
-    <li><b>Gemini CLI 経路</b> — 本issueのスコープ外。<b>issue #201</b> として切り出し済み</li>
-  </ul>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>#</th><th>内容</th><th>送り先</th></tr></thead>
+    <tbody>
+      <tr><td>A</td><td><b><code>AskUserQuestion</code> の回答が母集団から漏れる。</b> <code>tool_result</code> に <code>Your questions have been answered: "&lt;質問&gt;"="&lt;回答&gt;"</code> の形で入るため、<code>content</code> が文字列の母集団には現れない。承認・方針選択という<b>人間の意思決定</b>が拾えていない</td><td><b>flow-id 3-1</b></td></tr>
+      <tr><td>B</td><td>相槌辞書そのものの是非（問い5）</td><td><b>flow-id 3-1</b></td></tr>
+      <tr><td>C</td><td>母集団が0件になったことに気づける形（問い12の裏返しのリスク）</td><td><b>flow-id 3-1</b></td></tr>
+      <tr><td>D</td><td><b>走査方式の選択（問い11が不合格）</b></td><td><b>flow-id 3-1</b></td></tr>
+      <tr><td>E</td><td>単一transcript前提への対処方針（3案のどれを採るか）</td><td><b>flow-id 3-1</b></td></tr>
+      <tr><td>F</td><td>git bash 実機での再測（問い7・8・11）</td><td><b>flow-id 3-6</b></td></tr>
+      <tr><td>G</td><td>Gemini CLI 経路</td><td><b>issue #201</b>（切り出し済み）</td></tr>
+    </tbody>
+  </table>
+  </div>
 </section>
 
 <footer>issue #151 / PR #197 — 結果の正文は同名の <code>.md</code>。外部依存を持たない自己完結HTML。</footer>

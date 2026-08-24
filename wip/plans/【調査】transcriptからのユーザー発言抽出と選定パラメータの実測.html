@@ -327,7 +327,7 @@
 <section id="done">
   <h2>完了条件</h2>
   <ul>
-    <li><b>問い 1・2・3・4・5・6・7・8・9・10a・10b・11・12・13 のすべて</b>（13件）が、次のいずれかの形で埋まっていること。
+    <li><b>問い 1・2・3・4・5・6・7・8・9・10a・10b・11・12・13 のすべて</b>（<b>14項目</b>。問い13件のうち問い10を10a/10bへ分割したため）が、次のいずれかの形で埋まっていること。
       <ul>
         <li><b>数値</b>（件数・割合・バイト数・ミリ秒）</li>
         <li><b>可否の断定</b>（「同一ファイルである」「この手段は使えない」）</li>
@@ -352,7 +352,7 @@
 # 1. 成果物が md / html の両方そろっているか
 test -f "$REPORT" &amp;&amp; test -f "${REPORT%.md}.html" &amp;&amp; echo 'OK: 成果物2件'
 
-# 2. 13の問いの見出しが「過不足なく」あるか。
+# 2. 14項目の見出しが「過不足なく」あるか。
 #    見出しの個数を数えるだけでは、中身が空でも通ってしまう。実際に現れた番号を
 #    列挙して期待値と突き合わせ、差分が無いことを見る。
 diff &lt;(grep -oE '^### 問い[0-9]+[ab]?' "$REPORT" | sed 's/^### 問い//' | sort -u) \
@@ -381,7 +381,7 @@ git diff --name-only "$base" -- .claude/</code></pre>
     <thead><tr><th>#</th><th>何を確かめるか</th><th>合格</th></tr></thead>
     <tbody>
       <tr><td>1</td><td>成果物が md / html の2件そろっている</td><td><code>OK: 成果物2件</code> が出る</td></tr>
-      <tr><td>2</td><td>13の問いが<b>過不足なく</b>ある</td><td><code>diff</code> が差分を出さず <code>OK: 問いの番号が過不足なく一致</code> が出る（<b>多い場合も少ない場合も落ちる</b>）</td></tr>
+      <tr><td>2</td><td>14項目が<b>過不足なく</b>ある</td><td><code>diff</code> が差分を出さず <code>OK: 問いの番号が過不足なく一致</code> が出る（<b>多い場合も少ない場合も落ちる</b>）</td></tr>
       <tr><td>3</td><td>各問いに<b>結論の実体</b>がある</td><td>標準出力が <code>0</code>（結論の無い見出しが0件。1件でもあれば、その見出し名が標準エラーへ出る）</td></tr>
       <tr><td>4</td><td>実装へ手を入れていない</td><td><code>git diff</code> の出力が<b>空</b>（<code>.claude/</code> 配下に1件も変更が無い）</td></tr>
     </tbody>
@@ -394,7 +394,7 @@ git diff --name-only "$base" -- .claude/</code></pre>
     <table>
       <thead><tr><th>フィクスチャ</th><th>検証2</th><th>検証3</th></tr></thead>
       <tbody>
-        <tr><td>13件そろい・各見出しに結論あり</td><td>OK</td><td>0件</td></tr>
+        <tr><td>14項目そろい・各見出しに結論あり</td><td>OK</td><td>0件</td></tr>
         <tr><td>見出しを1つ落とす</td><td><b>NG（検出）</b></td><td>0件</td></tr>
         <tr><td>空の見出しを1つ足す</td><td>NG（番号が増えたため）</td><td><b>1件（検出）</b></td></tr>
       </tbody>
