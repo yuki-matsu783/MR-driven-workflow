@@ -1,0 +1,7 @@
+# generated-for: e1792b683380c7bc3f1910c5470fdb4c69545a3f
+# id	項目	状態	実施ログ
+worklog	worklogを作成し、このpushまでの試行錯誤を追記した	done	…数え方の訂正_push13.md へ、hook誤ブロックの調査結果（3種のプローブで再現せず）を追記した
+handoff	HANDOFF.md の進捗表・ヘッダを更新した（commitより前・同じcommitに含めた）	done	4-3をmark-done、未返信0、push回数15、やったこと/次にやること/判断を迷った内容/未解決の内容を更新（commitより前）
+frontmatter-index	frontmatterを変更した場合、index.jsonl を最新化した	done	extract-frontmatter.sh . を実行（files=177 built=3 failed=0）
+plan-report-sync	wip/plans/ wip/reports/ の md と html を同期した	done	【AIアセット反映】のmd・html双方へ段階3のスコープ外記述を追加し同期した
+commit-skill	commit スキル（create-commit.sh）経由でコミットした	done	create-commit.sh 経由でコミットする

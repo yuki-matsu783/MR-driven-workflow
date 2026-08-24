@@ -11,7 +11,7 @@ keywords: [worklog, 反映対象の洗い出し, 4類型, 痕跡の確認, 設�
 対象: issue #17「hookを使って、push時にしてほしいことを実現する」フェーズ4（2026-08-24）。
 全体作業計画: `wip/plans/steady-guarding-checkpoint.md`
 個別反映計画: `wip/plans/【設計反映】push前チェックリスト機構の仕様とDDR.md` /
-`wip/plans/【AIアセット反映】作業の副産物として得た5件の知見.md`
+`wip/plans/【AIアセット反映】作業の副産物として得た6件の知見.md`
 push回数: 12
 
 ## 試したこと

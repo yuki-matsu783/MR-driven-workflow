@@ -32,14 +32,16 @@ issue #17 で作った機構の**正史**（`.claude/docs/spec/` と `.claude/do
 | ファイル | 操作 | 何を書くか |
 |---|---|---|
 | `.claude/docs/spec/push-checklist.md` | **本文化** | 骨組みを本文で置き換える。背景・目的／仕様（構成要素・TSV書式・サブコマンド・生成条件・ブロック条件・縮退時の挙動）／影響範囲／設定項目／未決定事項・懸念点 |
-| `.claude/docs/ddr/i0017-01-<タイトル>.md` | 新規 | 採用した方式と**却下案**（下記「DDRに残す却下案」） |
+| `i0017-01-…`（`.claude/docs/ddr/` 配下） | 新規 | 採用した方式と**却下案**（下記「DDRに残す却下案」） |
 | `.claude/docs/README.md` | 変更 | **手書きのspec一覧**へ1行追加（DDR一覧と違い生成物ではない）。DDR一覧は `generate-ddr-list.sh` の実行で追随させる |
+| `.claude/docs/spec/issue-mr-workflow.md` | 変更 | 「コンポーネント構成」のhook・scripts一覧へ**新設3本**（`block-unchecked-push.sh` / `post-push-next-checklist.sh` / `push-checklist.sh`）を追加する。**現在この一覧に1本も載っていない**（`grep -c push-checklist` = 0） |
+| `.claude/docs/usecase/` | 確認（必要なら変更） | 既存のユースケース文書への影響。**`新しい機能開発を始める.md` が「フローの途中のコミットはすべて `commit` スキル経由で行われ」と手順を要約しており、commit前にチェックリストを埋める手順が入る本変更の射程に入る**。影響が無いと判断した場合もその旨を反映結果へ書く（flow-id 4-6 の定義が確認を求めている。issue #170） |
 | `.claude/rules/docs-workflow.md` | 変更 | ライフサイクル運用表へ、チェックリスト（`wip/worklogs/*_checklist.tsv`）の行を追加 |
 | `.claude/rules/directory-structure.md` | 変更 | `wip/worklogs/` の説明。**`.md` 以外（`.tsv`）が置かれるようになる**ためツリーの注記が古くなる |
 | `index.md` | 変更 | Repository Map の該当行 |
 | `.claude/skills/commit/SKILL.md` | 変更 | commitの**前に** `check`/`skip` を実行し、チェックリストを同じcommitへ含める手順 |
 | `.claude/skills/issue-mr-flow/SKILL.md`（または `references/` 配下） | 変更 | 同上をフロー側からも辿れるようにする。**節を増やすか参照1行に留めるかは、SKILL.md の分量方針に従う** |
-| `.claude/VERSION` | 変更 | 配布資産（スクリプト1・hook2・spec1・DDR1）の追加に伴い MINOR を増分 |
+| `.claude/VERSION` | 変更 | MINOR を増分する。**増分の根拠に数えるのは、`【AIアセット反映】` 側で書き換える配布層 core の資産（`shell-script-style.md` / `mcp-fallback.md`）も含めた両計画の合算**である（`distribution-assets.md` は更新タイミングを flow-id 4-6 と規定しており、2つの計画が同じフェーズにあるため）。**版を持つのは本計画1つに固定する**（両方が触ると二重に上がる）。**非対話セッションの例外条件を満たすこと**——(1) 適用した事実と根拠を **spec のchangelog と `HANDOFF.md`「判断を迷った内容」の両方**へ残す、(2) レビューで人間が否認したら元の値へ戻す（`.claude/docs/spec/distribution-assets.md`） |
 
 ## 方針
 
@@ -97,28 +99,45 @@ issue #17 で作った機構の**正史**（`.claude/docs/spec/` と `.claude/do
 
 ## 検証
 
-| # | 何を確かめるか | コマンド | 期待 |
-|---|---|---|---|
-| 1 | DDR一覧が生成物として整合している | `bash .claude/scripts/src/generate-ddr-list.sh` の実行後に `git diff --stat -- .claude/docs/README.md` | i0017-01 の行が増える差分だけが出る |
-| 2 | DDRの参照切れが無い | `bash .claude/scripts/src/check-doc-references.sh` | 参照切れ0件 |
-| 3 | frontmatterがインデックスへ載る | `bash .claude/scripts/src/extract-frontmatter.sh .` の後 `bash .claude/scripts/src/search-frontmatter.sh --text 'push前チェックリスト' --format count` | `matched` が1以上 |
-| 4 | 配布層の網羅性が壊れていない | `bash .claude/scripts/src/check-dist-coverage.sh` | `結果: OK` |
-| 5 | 既存テストの回帰 | `.claude/scripts/test/test_*.sh` を全件実行 | 全件 `failures=0` |
-| 6 | 過去の記録を書き換えていない | `git diff $(git merge-base origin/main HEAD) -- .claude/docs/ddr/` の削除行 | **0行**（DDR本文は追記のみ。分岐点SHAは実行時に求める） |
+**着手前に、変更前のツリーで全件を実行し、期待どおり非0（または期待と違う値）になることを確かめる。**
+敵対的レビュー1回目で、変更前から通る空振りが2件見つかったため（旧3・旧4）。
 
-**5・6は「異常が無ければ何も出ない」形なので、件数を必ず出す。**
-6の分岐点SHAは、`git fetch origin main` の直後に `git merge-base` で**その場で求める**
-（値を書き写すと、defaultブランチを取り込んだあとに誤検出へ変わる）。
+| # | 何を確かめるか | コマンド | 変更前 | 期待 |
+|---|---|---|---|---|
+| 1 | DDR一覧へ `i0017-01` の行が入った | `bash .claude/scripts/src/generate-ddr-list.sh` 後に `git diff -- .claude/docs/README.md \| grep -c '^+.*i0017-01'` | 0 | **1以上** |
+| 2 | DDRの参照切れが無い | `bash .claude/scripts/src/check-doc-references.sh` の `参照切れ数=` | 0 | **0** |
+| 3 | 新規DDRのfrontmatterがインデックスへ載る | `bash .claude/scripts/src/extract-frontmatter.sh .` 後に `bash .claude/scripts/src/search-frontmatter.sh --text 'i0017-01' --type ddr --format count` | **matched=0** | **matched=1** |
+| 4 | spec骨組みのプレースホルダが残っていない | `grep -c 'flow-id 4-6 で記述する' .claude/docs/spec/push-checklist.md` | **3** | **0** |
+| 5 | spec冒頭の骨組み宣言が残っていない | `grep -c '骨組みである' .claude/docs/spec/push-checklist.md` | **1** | **0** |
+| 6 | 既存テストの回帰 | `.claude/scripts/test/test_*.sh` を全件実行し `passed=`/`failures=` を合計 | 23本・1,630・0 | **失敗0**（本数と合計も出す） |
+| 7 | 過去の記録を書き換えていない | `git fetch origin main` 後に `git diff "$(git merge-base origin/main HEAD)" -- .claude/docs/ddr/ \| grep -c '^-[^-]'` | 0 | **0行** |
+
+**変更前の値は、着手時に実測して埋める**（上表の「変更前」列は2026-08-24 時点の実測値である）。
+
+- **6・7は「異常が無ければ何も出ない」形なので、件数を必ず出す。**
+- 7の分岐点SHAは `git fetch origin main` の直後に `git merge-base` で**その場で求める**
+  （値を書き写すと、defaultブランチを取り込んだあとに誤検出へ変わる）。
+- **`check-dist-coverage.sh` は検証に入れない。** `.claude/dist-layers.json` が
+  `{"layer":"core","path":".claude"}` というディレクトリ単位のエントリを持つため、
+  `.claude/` 配下へ何を足しても検査1は必ず被覆され、**成功以外を返しえない**
+  （変更前のツリーで実行して `結果: OK（4種すべて通過）` を確認済み）。
+  **この結論はフェーズ3の worklog「検証コマンドが検証になっていなかった3件」で既に得ていたのに、
+  反映計画で同じ空振りを作り直していた**（敵対的レビュー1回目の指摘）。`.gitignore` へ行を
+  足す場合は検査2が意味を持つので、そのときだけ入れる。
+
 
 ## issueの受け入れ条件との対応
 
 | 受け入れ条件 | 本計画で満たすもの |
 |---|---|
-| 「仕様が `.claude/docs/spec/` に記載されている」 | 変更対象1行目（spec本体） |
-| 「DDRが作成されている」 | 変更対象2行目（`i0017-01`） |
-| 「ライフサイクルが `.claude/rules/docs-workflow.md` に記録されている」 | 変更対象4行目 |
-| 「更新手順が `issue-mr-flow` / `commit` スキルに記載されている」 | 変更対象8・9行目 |
+| 「仕様が `.claude/docs/spec/` に記載されている」 | 変更対象の `.claude/docs/spec/push-checklist.md`（本文化） |
+| 「DDRが作成されている」 | 変更対象の `i0017-01-…` |
+| 「ライフサイクルが `.claude/rules/docs-workflow.md` に記録されている」 | 変更対象の `.claude/rules/docs-workflow.md` |
+| 「更新手順が `issue-mr-flow` / `commit` スキルに記載されている」 | 変更対象の `.claude/skills/commit/SKILL.md` と `.claude/skills/issue-mr-flow/SKILL.md` |
 | 「誤ブロックしない条件が定められている」 | 方針の「守れない範囲」と「縮退時の非対称」 |
+
+**対応はファイル名で指す**（行番号で書くと、変更対象表へ行を足すたびにずれる。実際に
+敵対的レビュー1回目で1行ずれていた）。
 
 ## 比較検討した案
 
@@ -127,13 +146,31 @@ issue #17 で作った機構の**正史**（`.claude/docs/spec/` と `.claude/do
 現在の実装は、**現在のブランチを送らないpushもチェックリスト未完了なら一律でブロックする**
 （フェーズ3の敵対的レビュー2回目・報告のみ1件）。
 
+**前提として、逃げ道は既に1つ存在する。** `push-checklist.sh` は全項目に `skip <id> <理由>` を
+提供しており、`verify` の合格条件は「全行が done **または skip**」である。つまり
+**項目単位の文書化された迂回路は最初からある**（フェーズ3の作業結果レポートにも
+「緊急時の抜け道は現状『全項目を `skip` する』しかなく、それはspecにもブロックメッセージにも
+書かれていない」と書いてあった）。案の比較はこの事実の上に立つ。
+
 | 案 | 内容 | 評価 |
 |---|---|---|
-| **A（採用）** | 一律ブロックのままにし、**そういう仕様であることと、必要になったときの対処**をspecへ明記する | pushの**引数**を解釈する必要が無い |
-| B | `--tags` / `--delete` / 明示的なrefspecを判定して通す | **却下**。refspec・`--all` / `--mirror`・`push.default` の設定まで解釈しないと正しく判定できず、判定の面積がpush検知本体より大きくなる。issue #17 のコメントが「push検知を自前で書くな」と指示した理由と同種のリスクである |
-| C | 環境変数等による一時的な無効化スイッチを用意する | **却下**。文書化された迂回路は迂回路であり、`block-direct-git-commit.sh` が同じ判断（悪意ある回避への対策は行わない＝既定を確実な方向へ倒すだけの仕組み）で無効化スイッチを持っていないのと揃える |
+| **A（採用）** | 一律ブロックのままにし、**詰まったときは `skip` で解く**ことをspecとブロックメッセージへ明記する | pushの**引数**を解釈する必要が無い。逃げ道を新設せず、既にあるものを使う |
+| B | `--tags` / `--delete` / 明示的なrefspecを判定して通す | **却下**。refspec・`--all` / `--mirror`・`push.default` の設定まで解釈しないと正しく判定できず、判定の面積がpush検知本体より大きくなる。issue #17 のコメントが「push検知を自前で書くな」と指示した理由と同種のリスク |
+| C | 環境変数等による**新しい**無効化スイッチを用意する | **却下**。`skip` で足りるものを二重に作ることになる。`block-direct-git-commit.sh` が無効化スイッチを持っていないのとも揃わない |
+
+**AとCの違いは「新設するか、既にあるものを使うか」だけである。** Cを却下しながらAを採るのは、
+`skip` が**項目ごとに理由を書かせ、その理由がGit管理下のdiffに残る**——つまり迂回した事実が
+レビュアーに見える——のに対し、環境変数のスイッチは何も残さないためである。
 
 **Aを採る決め手は、誤りの向きの非対称である。** Bが誤ると**通してはいけないpushを通す**
-（ガードが黙って効かなくなる）。Aの誤りは**通すべきpushを止める**だけで、その場で見えるうえ、
-チェックリストを埋めれば必ず解ける（縮退時に解けなくなる経路は、敵対的レビュー2回目で塞いだ）。
-本フローは `git push --tags` も `--delete` も行わないため、Aのコストは現時点で0である。
+（ガードが黙って効かなくなる）。Aの誤りは**通すべきpushを止める**だけで、その場で見えるうえ
+必ず解ける（縮退時に解けなくなる経路は敵対的レビュー2回目で塞いだ）。
+
+**Aのコストは0ではない。** 正確には次のとおりで、specへもこの形で書く。
+
+- **本リポジトリの現時点のフローでは0**（`--tags` も `--delete` も行わない）。
+- 詰まった場合の実コストは「全項目を `skip` で埋めて**1コミット積む**」ことである
+  （`verify` はHEAD断面を読むので、作業ツリーだけ埋めても解けない）。
+- **この機構は配布層 `core` として他プロジェクトへ配られる。** タグpushを日常的に行う配布先では
+  このコストが繰り返し発生する。**配布先が困った場合の第一手は `skip`、次の手は
+  `.claude/settings.json` から本hookの登録を外すこと**である旨をspecへ書く。

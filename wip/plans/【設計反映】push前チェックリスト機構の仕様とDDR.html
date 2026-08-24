@@ -2,6 +2,7 @@
   個別反映計画【設計反映】のHTMLビュー（issue #17 / PR #195）。
   正文は同名の .md であり、このHTMLはその視覚化（人間レビュー用ビュー）である。
   土台: .claude/skills/issue-mr-flow/assets/plans.template.html
+  敵対的レビュー1回目（フェーズ4）の指摘9件を反映した版。
 -->
 <!DOCTYPE html>
 <html lang="ja">
@@ -115,8 +116,7 @@
       <li><b>issue</b> #17</li>
       <li><b>ブランチ</b> claude/hook-implementation-17-vjhppj</li>
       <li><b>PR</b> #195</li>
-      <li><b>フェーズ</b> 4〈反映〉 flow-id 4-1</li>
-      <li><b>push回数</b> 12</li>
+      <li><b>フェーズ</b> 4〈反映〉 flow-id 4-1（敵対的レビュー1回目を反映）</li>
       <li><b>作成日</b> 2026-08-24</li>
       <li><b>正文</b> 同名の .md</li>
     </ul>
@@ -149,8 +149,8 @@
     <li><code>.claude/docs/spec/push-checklist.md</code> は<b>骨組みだけが既に存在する</b>（flow-id 3-6 で、ブロックメッセージからの参照先を成立させるために置いた）。本計画はこれを本文で埋める</li>
   </ul>
   <div class="box warn">
-    <span class="label">非対話セッション</span>
-    人間のレビュー（flow-id 4-3・4-8）は <code>adversarial-review</code> スキルで代替する。フェーズ4の敵対的レビューは<b>上限3回</b>である。
+    <span class="label">非対話セッション／レビューの取り方</span>
+    人間のレビュー（flow-id 4-3・4-8）は <code>adversarial-review</code> スキルで代替する。フェーズ4の敵対的レビューは<b>上限3回</b>で、<b>1回目を flow-id 4-3 で消費済み（残り2回）</b>。種別を2本に分けたが、2種別×2回では上限を超えるため<b>計画レビュー1回・反映結果レビュー1回を2種別まとめて行い、1回を予備に残す</b>配分にしている。
   </div>
 </section>
 
@@ -170,14 +170,16 @@
     <thead><tr><th>ファイル</th><th>操作</th><th>何を書くか</th></tr></thead>
     <tbody>
       <tr><td><code>.claude/docs/spec/push-checklist.md</code></td><td><b>本文化</b></td><td>骨組みを本文で置き換える。背景・目的／仕様（構成要素・TSV書式・サブコマンド・生成条件・ブロック条件・縮退時の挙動）／影響範囲／設定項目／未決定事項・懸念点</td></tr>
-      <tr><td><code>.claude/docs/ddr/i0017-01-…md</code></td><td>新規</td><td>採用した方式と却下案（下記）</td></tr>
+      <tr><td><code>i0017-01-…</code>（<code>.claude/docs/ddr/</code> 配下）</td><td>新規</td><td>採用した方式と却下案（下記）</td></tr>
       <tr><td><code>.claude/docs/README.md</code></td><td>変更</td><td><b>手書きのspec一覧</b>へ1行追加。DDR一覧は <code>generate-ddr-list.sh</code> の実行で追随させる</td></tr>
+      <tr><td><b><code>.claude/docs/spec/issue-mr-workflow.md</code></b></td><td>変更</td><td><b>（レビュー1回目で追加）</b>「コンポーネント構成」のhook・scripts一覧へ<b>新設3本</b>を追加する。<b>現在この一覧に1本も載っていない</b>（<code>grep -c push-checklist</code> = 0）</td></tr>
+      <tr><td><b><code>.claude/docs/usecase/</code></b></td><td>確認（必要なら変更）</td><td><b>（レビュー1回目で追加）</b>既存のユースケース文書への影響。<b><code>新しい機能開発を始める.md</code> が「フローの途中のコミットはすべて <code>commit</code> スキル経由で行われ」と要約しており、本変更の射程に入る</b>。影響が無いと判断した場合もその旨を反映結果へ書く（issue #170）</td></tr>
       <tr><td><code>.claude/rules/docs-workflow.md</code></td><td>変更</td><td>ライフサイクル運用表へ、チェックリスト（<code>wip/worklogs/*_checklist.tsv</code>）の行を追加</td></tr>
-      <tr><td><code>.claude/rules/directory-structure.md</code></td><td>変更</td><td><code>wip/worklogs/</code> に <b><code>.md</code> 以外（<code>.tsv</code>）が置かれる</b>ようになるためツリーの注記が古くなる</td></tr>
+      <tr><td><code>.claude/rules/directory-structure.md</code></td><td>変更</td><td><code>wip/worklogs/</code> に <b><code>.md</code> 以外（<code>.tsv</code>）が置かれる</b>ためツリーの注記が古くなる</td></tr>
       <tr><td><code>index.md</code></td><td>変更</td><td>Repository Map の該当行</td></tr>
       <tr><td><code>.claude/skills/commit/SKILL.md</code></td><td>変更</td><td>commitの<b>前に</b> <code>check</code>/<code>skip</code> を実行し、チェックリストを同じcommitへ含める手順</td></tr>
-      <tr><td><code>.claude/skills/issue-mr-flow/SKILL.md</code>（または <code>references/</code>）</td><td>変更</td><td>同上をフロー側からも辿れるようにする。節を増やすか参照1行に留めるかは SKILL.md の分量方針に従う</td></tr>
-      <tr><td><code>.claude/VERSION</code></td><td>変更</td><td>配布資産（スクリプト1・hook2・spec1・DDR1）の追加に伴い MINOR を増分</td></tr>
+      <tr><td><code>.claude/skills/issue-mr-flow/SKILL.md</code>（または <code>references/</code>）</td><td>変更</td><td>同上をフロー側からも辿れるようにする</td></tr>
+      <tr><td><code>.claude/VERSION</code></td><td>変更</td><td>MINOR を増分。<b>根拠に数えるのは <code>【AIアセット反映】</code> 側の core 資産も含めた両計画の合算</b>で、<b>版を持つのは本計画1つに固定する</b>。<b>非対話セッションの例外条件</b>——(1) 事実と根拠を <b>specのchangelog と <code>HANDOFF.md</code>「判断を迷った内容」の両方</b>へ残す、(2) 人間が否認したら元の値へ戻す</td></tr>
     </tbody>
   </table>
   </div>
@@ -186,8 +188,8 @@
 <section id="approach">
   <h2>方針</h2>
   <ul>
-    <li><b>specは「今どうなっているか」だけを書く。</b> 経緯・却下案はDDRが持つ。両者へ同じことを書かない</li>
-    <li><b><code>wip/reports/</code> を参照先にしない。</b> flow-id 5-5 で削除されるため恒久の参照先になれない。specから辿れるのは issue番号と <code>.claude/docs/</code> 配下だけ</li>
+    <li><b>specは「今どうなっているか」だけを書く。</b> 経緯・却下案はDDRが持つ</li>
+    <li><b><code>wip/reports/</code> を参照先にしない。</b> flow-id 5-5 で削除されるため恒久の参照先になれない</li>
   </ul>
 
   <div class="box warn">
@@ -196,18 +198,25 @@
       <li><code>git push</code> 以外のリモート反映手段（IDEのGUI等、Bashツールを通らない経路）は守れない</li>
       <li><code>.claude/settings.json</code> の <code>if</code> フィルタの照合規則は未解明である</li>
       <li><code>tool_response</code> を当てにしていない</li>
-      <li><b>チェック状態はAIエージェントの自己申告である。</b> <code>check</code> は状態を <code>done</code> にするだけで、その項目が実際に行われたかは検証しない。防ぐのは「やるべきことの存在を忘れる」ことであって、「やったと偽る」ことではない</li>
+      <li><b>チェック状態はAIエージェントの自己申告である。</b> 防ぐのは「やるべきことの存在を忘れる」ことであって、「やったと偽る」ことではない</li>
     </ol>
   </div>
 
   <div class="box warn">
     <span class="label">specに必ず書く「縮退時の非対称」</span>
-    PreToolUse は専用の絞り込み（<code>command_hints_at_git_push_degraded</code>）を使い、PostToolUse は前置フィルタを流用する。<b>この非対称は意図的</b>で、生成は冪等だがブロックは1度でも誤ると作業が止まるためである（フェーズ3の敵対的レビュー2回目の blocker）。
+    PreToolUse は専用の絞り込み（<code>command_hints_at_git_push_degraded</code>）を使い、PostToolUse は前置フィルタを流用する。<b>この非対称は意図的</b>で、生成は冪等だがブロックは1度でも誤ると作業が止まるためである。
+  </div>
+
+  <div class="box warn">
+    <span class="label">specに必ず書く「既知の性質」2つ</span>
+    <ol>
+      <li>生成条件3（HEADにタスク成果物が残っているか）が<b>チェックリスト自身を成果物に数えている</b>（<code>cleanup-task.sh</code> が同じディレクトリごと消すため実害は無い）</li>
+      <li><b>pushの直後には必ず未コミットのチェックリストが1本存在する。</b> さらにその1本をpendingのままコミットすると <code>verify</code> の対象がそれになるため<b>埋めるまでpushできない</b>。「作業ツリーがクリーンかつリモートと一致」は<b>pushの直後の一瞬しか成立しない</b>——「未コミット・未pushを常にゼロに保つ」種の別の仕組みとは<b>構造的に両立しない</b></li>
+    </ol>
   </div>
 
   <ul>
-    <li><b><code>--tags</code> / <code>--delete</code> は一律ブロックのままとし、逃げ道を実装しない</b>（下記「比較検討した案」）。この判断と理由をspecの「未決定事項・懸念点」ではなく<b>「仕様」として</b>書く（未決定ではなく決めた結果であるため）</li>
-    <li><b>既知の性質を隠さない。</b> specへ書く既知の性質は2つ。<b>(1)</b> 生成条件3（HEADにタスク成果物が残っているか）が<b>チェックリスト自身を成果物に数えている</b>（<code>cleanup-task.sh</code> が同じディレクトリごと消すため実害は無い）。<b>(2)</b> <b>pushの直後には必ず未コミットのチェックリストが1本存在する</b>——PostToolUse が新しいHEADのSHAに対して次回分を生成するため、「作業ツリーがクリーンかつリモートと一致」は<b>pushの直後の一瞬しか成立しない</b>。さらにその1本をpendingのままコミットすると <code>verify</code> の対象がそれになるため<b>埋めるまでpushできない</b>。運用どおりの姿だが、「未コミット・未pushを常にゼロに保つ」種の別の仕組みとは<b>構造的に両立しない</b>ので仕様として明記する</li>
+    <li><b><code>--tags</code> / <code>--delete</code> は一律ブロックのままとする</b>（下記「比較検討した案」）。この判断と理由をspecの「未決定事項・懸念点」ではなく<b>「仕様」として</b>書く</li>
   </ul>
 </section>
 
@@ -222,7 +231,7 @@
       <tr><td><code>.gitignore</code> 対象の <code>wip/state/</code> へ置く</td><td>受け入れ条件が「レビュアーがPRのdiffで見られること」を求めている。Git管理外では満たせない</td></tr>
       <tr><td>縮退時のブロック判定に前置フィルタを流用する</td><td><b>実際に実装して踏んだ blocker。</b>「push」を含む全コマンドが <code>exit 2</code> になり、ブロックを解くための <code>push-checklist.sh check</code> 自身が止まって回復不能になる</td></tr>
       <tr><td>push成否を <code>HEAD == @{upstream}</code> で判定する</td><td>一時リポジトリでの実測により両方向へ誤ることを確認した。<code>git branch --remotes --contains HEAD</code> を採用</td></tr>
-      <tr><td><code>--tags</code> / <code>--delete</code> に逃げ道を実装する</td><td>下記「比較検討した案」</td></tr>
+      <tr><td><code>--tags</code> / <code>--delete</code> に<b>新しい</b>逃げ道を実装する</td><td>下記「比較検討した案」。<code>skip</code> という逃げ道が既にある</td></tr>
     </tbody>
   </table>
   </div>
@@ -234,7 +243,7 @@
     <span class="label">この計画では決めない・触らない</span>
     <ul>
       <li><b>実装コード・テストコードの変更</b>（<code>.claude/scripts/src/</code> <code>.claude/hooks/</code> <code>.claude/scripts/test/</code>）</li>
-      <li><b>AIアセットへの副産物の反映</b>——別の個別計画 <code>【AIアセット反映】作業の副産物として得た5件の知見.md</code> が扱う。<b>ただし <code>commit</code> / <code>issue-mr-flow</code> の SKILL.md は本計画に含める</b>（これらは「この機構をどう使うか」という主たる成果物の手順であって、作業の副産物ではない）</li>
+      <li><b>AIアセットへの副産物の反映</b>——別の個別計画 <code>【AIアセット反映】作業の副産物として得た6件の知見.md</code> が扱う。<b>ただし <code>commit</code> / <code>issue-mr-flow</code> の SKILL.md は本計画に含める</b>（主たる成果物の手順であって、作業の副産物ではない）</li>
       <li><code>.gemini/</code> の変換同期（flow-id 5-3 へ送る）</li>
       <li>統括レポート・片付け（フェーズ5へ送る）</li>
     </ul>
@@ -243,30 +252,28 @@
 
 <section id="verify">
   <h2>検証</h2>
+  <p><b>着手前に、変更前のツリーで全件を実行し、期待どおり非0（または期待と違う値）になることを確かめる。</b> 敵対的レビュー1回目で、変更前から通る空振りが2件見つかったため。</p>
   <div class="tablewrap">
   <table>
-    <thead><tr><th>#</th><th>何を確かめるか</th><th>期待</th></tr></thead>
+    <thead><tr><th>#</th><th>何を確かめるか</th><th>変更前</th><th>期待</th></tr></thead>
     <tbody>
-      <tr><td>1</td><td>DDR一覧が生成物として整合している</td><td>i0017-01 の行が増える差分だけが出る</td></tr>
-      <tr><td>2</td><td>DDRの参照切れが無い</td><td>参照切れ0件</td></tr>
-      <tr><td>3</td><td>frontmatterがインデックスへ載る</td><td><code>matched</code> が1以上</td></tr>
-      <tr><td>4</td><td>配布層の網羅性が壊れていない</td><td><code>結果: OK</code></td></tr>
-      <tr><td>5</td><td>既存テストの回帰</td><td>全件 <code>failures=0</code></td></tr>
-      <tr><td>6</td><td>過去の記録を書き換えていない</td><td>DDR本文の削除行が<b>0行</b></td></tr>
+      <tr><td>1</td><td>DDR一覧へ <code>i0017-01</code> の行が入った（<code>--stat</code> ではなく内容で数える）</td><td>0</td><td><b>1以上</b></td></tr>
+      <tr><td>2</td><td>DDRの参照切れが無い</td><td>0</td><td><b>0</b></td></tr>
+      <tr><td>3</td><td>新規DDRのfrontmatterがインデックスへ載る（<code>--text 'i0017-01' --type ddr</code>）</td><td><b>matched=0</b></td><td><b>matched=1</b></td></tr>
+      <tr><td>4</td><td>spec骨組みのプレースホルダが残っていない</td><td><b>3</b></td><td><b>0</b></td></tr>
+      <tr><td>5</td><td>spec冒頭の骨組み宣言が残っていない</td><td><b>1</b></td><td><b>0</b></td></tr>
+      <tr><td>6</td><td>既存テストの回帰</td><td>23本・1,630・0</td><td><b>失敗0</b></td></tr>
+      <tr><td>7</td><td>過去の記録を書き換えていない（分岐点との差分）</td><td>0</td><td><b>0行</b></td></tr>
     </tbody>
   </table>
   </div>
-  <pre><code>bash .claude/scripts/src/generate-ddr-list.sh &amp;&amp; git diff --stat -- .claude/docs/README.md
-bash .claude/scripts/src/check-doc-references.sh
-bash .claude/scripts/src/extract-frontmatter.sh .
-bash .claude/scripts/src/search-frontmatter.sh --text 'push前チェックリスト' --format count
-bash .claude/scripts/src/check-dist-coverage.sh
-for t in .claude/scripts/test/test_*.sh; do bash "$t" | tail -1; done
-git fetch origin main
-git diff "$(git merge-base origin/main HEAD)" -- .claude/docs/ddr/ | grep -c '^-[^-]'</code></pre>
+  <div class="box stop">
+    <span class="label"><code>check-dist-coverage.sh</code> は検証に入れない</span>
+    <code>.claude/dist-layers.json</code> が <code>.claude</code> をディレクトリ単位で core 登録しているため、<code>.claude/</code> 配下へ何を足しても検査1は必ず被覆され、<b>成功以外を返しえない</b>（変更前のツリーで <code>結果: OK（4種すべて通過）</code> を確認済み）。<b>この結論はフェーズ3の worklog で既に得ていたのに、反映計画で同じ空振りを作り直していた。</b>
+  </div>
   <div class="box warn">
-    <span class="label">5・6は「異常が無ければ何も出ない」形</span>
-    <b>件数を必ず出す。</b> 6の分岐点SHAは <code>git fetch origin main</code> の直後に <code>git merge-base</code> で<b>その場で求める</b>（値を書き写すと、defaultブランチを取り込んだあとに誤検出へ変わる）。
+    <span class="label">6・7は「異常が無ければ何も出ない」形</span>
+    <b>件数を必ず出す。</b> 7の分岐点SHAは <code>git merge-base</code> で<b>その場で求める</b>（値を書き写すと、defaultブランチを取り込んだあとに誤検出へ変わる）。
   </div>
 </section>
 
@@ -276,32 +283,46 @@ git diff "$(git merge-base origin/main HEAD)" -- .claude/docs/ddr/ | grep -c '^-
   <table>
     <thead><tr><th>受け入れ条件</th><th>この計画での対応箇所</th></tr></thead>
     <tbody>
-      <tr><td>仕様が <code>.claude/docs/spec/</code> に記載されている</td><td>変更対象1行目（spec本体）</td></tr>
-      <tr><td>DDRが作成されている</td><td>変更対象2行目（<code>i0017-01</code>）</td></tr>
-      <tr><td>ライフサイクルが <code>.claude/rules/docs-workflow.md</code> に記録されている</td><td>変更対象4行目</td></tr>
-      <tr><td>更新手順が <code>issue-mr-flow</code> / <code>commit</code> スキルに記載されている</td><td>変更対象8・9行目</td></tr>
+      <tr><td>仕様が <code>.claude/docs/spec/</code> に記載されている</td><td>変更対象の <code>.claude/docs/spec/push-checklist.md</code>（本文化）</td></tr>
+      <tr><td>DDRが作成されている</td><td>変更対象の <code>i0017-01-…</code></td></tr>
+      <tr><td>ライフサイクルが <code>.claude/rules/docs-workflow.md</code> に記録されている</td><td>変更対象の <code>.claude/rules/docs-workflow.md</code></td></tr>
+      <tr><td>更新手順が <code>issue-mr-flow</code> / <code>commit</code> スキルに記載されている</td><td>変更対象の <code>.claude/skills/commit/SKILL.md</code> と <code>.claude/skills/issue-mr-flow/SKILL.md</code></td></tr>
       <tr><td>誤ブロックしない条件が定められている</td><td>方針の「守れない範囲」と「縮退時の非対称」</td></tr>
     </tbody>
   </table>
   </div>
+  <p class="muted"><b>対応はファイル名で指す</b>（行番号で書くと、変更対象表へ行を足すたびにずれる。実際に敵対的レビュー1回目で1行ずれていた）。</p>
 </section>
 
 <section id="options">
   <h2>比較検討した案</h2>
-  <p><code>git push --tags</code> / <code>git push origin --delete &lt;branch&gt;</code> の扱い。現在の実装は<b>現在のブランチを送らないpushもチェックリスト未完了なら一律でブロックする</b>（フェーズ3の敵対的レビュー2回目・報告のみ1件）。</p>
+  <p><code>git push --tags</code> / <code>git push origin --delete &lt;branch&gt;</code> の扱い。現在の実装は<b>現在のブランチを送らないpushもチェックリスト未完了なら一律でブロックする</b>。</p>
+  <div class="box warn">
+    <span class="label">前提: 逃げ道は既に1つ存在する</span>
+    <code>push-checklist.sh</code> は全項目に <code>skip &lt;id&gt; &lt;理由&gt;</code> を提供しており、<code>verify</code> の合格条件は「全行が done <b>または skip</b>」である。つまり<b>項目単位の文書化された迂回路は最初からある</b>（フェーズ3の作業結果レポートにもそう書いてあった）。案の比較はこの事実の上に立つ。
+  </div>
   <div class="tablewrap">
   <table>
     <thead><tr><th>案</th><th>内容</th><th>採否と理由</th></tr></thead>
     <tbody>
-      <tr><td>A</td><td>一律ブロックのままにし、そういう仕様であることと必要になったときの対処をspecへ明記する</td><td><span class="tag ok">採用</span> pushの<b>引数</b>を解釈する必要が無い</td></tr>
-      <tr><td>B</td><td><code>--tags</code> / <code>--delete</code> / 明示的なrefspecを判定して通す</td><td><span class="tag stop">却下</span> refspec・<code>--all</code> / <code>--mirror</code>・<code>push.default</code> の設定まで解釈しないと正しく判定できず、判定の面積がpush検知本体より大きくなる。issue #17 のコメントが「push検知を自前で書くな」と指示した理由と同種のリスク</td></tr>
-      <tr><td>C</td><td>環境変数等による一時的な無効化スイッチを用意する</td><td><span class="tag stop">却下</span> 文書化された迂回路は迂回路である。<code>block-direct-git-commit.sh</code> が同じ判断で無効化スイッチを持っていないのと揃える</td></tr>
+      <tr><td>A</td><td>一律ブロックのままにし、<b>詰まったときは <code>skip</code> で解く</b>ことをspecとブロックメッセージへ明記する</td><td><span class="tag ok">採用</span> pushの<b>引数</b>を解釈する必要が無い。逃げ道を新設せず、既にあるものを使う</td></tr>
+      <tr><td>B</td><td><code>--tags</code> / <code>--delete</code> / 明示的なrefspecを判定して通す</td><td><span class="tag stop">却下</span> refspec・<code>--all</code> / <code>--mirror</code>・<code>push.default</code> まで解釈しないと正しく判定できず、判定の面積がpush検知本体より大きくなる</td></tr>
+      <tr><td>C</td><td>環境変数等による<b>新しい</b>無効化スイッチを用意する</td><td><span class="tag stop">却下</span> <code>skip</code> で足りるものを二重に作ることになる</td></tr>
     </tbody>
   </table>
   </div>
+  <p><b>AとCの違いは「新設するか、既にあるものを使うか」だけである。</b> Cを却下しながらAを採るのは、<code>skip</code> が<b>項目ごとに理由を書かせ、その理由がGit管理下のdiffに残る</b>——迂回した事実がレビュアーに見える——のに対し、環境変数のスイッチは何も残さないためである。</p>
   <div class="box warn">
     <span class="label">Aを採る決め手は、誤りの向きの非対称である</span>
-    Bが誤ると<b>通してはいけないpushを通す</b>（ガードが黙って効かなくなる）。Aの誤りは<b>通すべきpushを止める</b>だけで、その場で見えるうえ、チェックリストを埋めれば必ず解ける（縮退時に解けなくなる経路は敵対的レビュー2回目で塞いだ）。本フローは <code>--tags</code> も <code>--delete</code> も行わないため、Aのコストは現時点で0である。
+    Bが誤ると<b>通してはいけないpushを通す</b>（ガードが黙って効かなくなる）。Aの誤りは<b>通すべきpushを止める</b>だけで、その場で見えるうえ必ず解ける。
+  </div>
+  <div class="box stop">
+    <span class="label">Aのコストは0ではない</span>
+    <ul>
+      <li><b>本リポジトリの現時点のフローでは0</b>（<code>--tags</code> も <code>--delete</code> も行わない）</li>
+      <li>詰まった場合の実コストは「全項目を <code>skip</code> で埋めて<b>1コミット積む</b>」こと（<code>verify</code> はHEAD断面を読む）</li>
+      <li><b>この機構は配布層 <code>core</code> として他プロジェクトへ配られる。</b> タグpushを日常的に行う配布先ではこのコストが繰り返し発生する。<b>第一手は <code>skip</code>、次の手は <code>.claude/settings.json</code> から本hookの登録を外すこと</b>である旨をspecへ書く</li>
+    </ul>
   </div>
 </section>
 
