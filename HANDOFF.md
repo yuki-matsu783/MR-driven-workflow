@@ -17,7 +17,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - issue: #205（https://github.com/yuki-matsu783/MR-driven-workflow/issues/205 ）
 - ブランチ: claude/pr-mr-diffview-link-yxim1l
 - PR: #206（https://github.com/yuki-matsu783/MR-driven-workflow/pull/206 ）
-- push回数: 5
+- push回数: 6
 - 現在のループ: 3-3〜3-4 を敵対的レビューで代替予定（進捗記号は[]のまま）
 - 未返信スレッド: 0
 - 追従監視: あり（subscribe_pr_activity で PR #206 を購読中。セッション終了で止まるため次セッションは resume で取り直す）
@@ -129,9 +129,24 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
   （フェーズ2の指摘の再発防止）。計画HTMLの規約検査（自己完結・埋め忘れ・重複ID・リンク切れ・
   表の列数・md/HTMLの見出し突き合わせ）は**全件パス**。
 
+- flow-id 3-2: 個別作業計画をpushし、**敵対的レビュー（フェーズ3・1回目）を実行**した。
+  10件検出（major 7 / minor 3）。**全10件を投稿し、全件へ対応・返信済み**（未返信スレッド 0）。
+  投稿スレッド: `#discussion_r3840211250` 〜 `r3840218784` の10件。
+- **うち3件は、計画のまま実装すると壊れるものだった。**
+  1. 「置き換え前」の `local anchor_compare_url="$diff_url"` が**実在しない行**だった
+     （実物は `... file_links_text=""` を兼ねる）。→ 作業3を 3-a/3-b/3-c へ分割し、
+     各節に巻き添えの確認を必ず置く形にした。
+  2. `http.lowSpeedLimit` / `http.lowSpeedTime` は**HTTPにしか効かない**。SSH remoteでは
+     ハング対策が丸ごと無効。→ **remoteが `http(s)://` のときだけ解決を試みる**形にした
+     （SSH対応は別issueへ送る）。
+  3. `wc -l` の出力を**文字列比較**しており、BSD系 `wc` の先頭空白で**常に空を返す＝機能が
+     入らないのにテストは緑**になりうる。→ 件数判定を `awk` へ寄せ、`wc`・`sed` を消した。
+- **レビューでは挙がっていない制約を自分で1つ見つけた。** `test_vcs_provider.sh` は220行目付近で
+  `get_provider` を全域上書きしており、「依存するテストをこれより後ろへ追加しないこと」と警告して
+  いる。今回のディスパッチャ経路テストは該当するため、**上書きより前へ挿入する**と計画へ明記した。
+
 ## 次にやること
 
-- flow-id 3-2 の直後に、個別作業計画に対する敵対的レビュー（フェーズ3・1回目）を実行する。
 - flow-id 3-6 の実装対象（計画で確定済み）:
   1. `get_mr_diff_url` の4引数化（`Provider.sh` / `Github.sh` / `Gitlab.sh`）。純粋関数のまま。
   2. `Provider.sh` へPR URL解決関数を新設（`git ls-remote` ＋ **一致1件のときだけ採用**）。GitHubのみ。
