@@ -1,0 +1,246 @@
+<!--
+  issue #203 フェーズ2の個別調査計画（flow-id 2-1）のHTMLビュー。
+  計画の正文は同名の .md（wip/plans/【調査】デザイン4案のテンプレート化方針.md）で、
+  このHTMLはその視覚化である。
+  土台: .claude/skills/issue-mr-flow/assets/plans.template.html
+-->
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>【調査】デザイン4案のテンプレート化方針 — issue #203</title>
+<style>
+  :root {
+    --bg: #f6f7f9;      --panel: #ffffff;   --ink: #1a1d21;     --muted: #5b636d;
+    --line: #dfe3e8;    --accent: #2563eb;  --accent-soft: #eaf0fe;
+    --ok: #1a7f4b;      --ok-soft: #e6f4ec; --warn: #a35a00;    --warn-soft: #fdf1e0;
+    --stop: #b3261e;    --stop-soft: #fdecea; --code-bg: #f0f2f5;
+    --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1216;    --panel: #161a20;   --ink: #e6e8eb;     --muted: #9aa3ad;
+      --line: #2a3038;  --accent: #7aa2f7;  --accent-soft: #1b2333;
+      --ok: #6ee7a8;    --ok-soft: #14261d; --warn: #f0b866;    --warn-soft: #2a2113;
+      --stop: #f2857c;  --stop-soft: #2b1614; --code-bg: #1d222a;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", system-ui, sans-serif;
+    line-height: 1.8; font-size: 15px;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 20px 80px; }
+
+  /* 共通ヘッダ帯 */
+  header.band {
+    background: linear-gradient(135deg, var(--accent-soft), var(--panel));
+    border-bottom: 1px solid var(--line); padding: 28px 20px 22px; margin-bottom: 28px;
+  }
+  header.band .inner { max-width: 1080px; margin: 0 auto; }
+  header.band .kind { font-size: 11px; letter-spacing: .18em; color: var(--accent); font-weight: 700; }
+  header.band h1 { margin: 6px 0 4px; font-size: 26px; line-height: 1.4; }
+  header.band .lead { margin: 0; color: var(--muted); }
+  .meta { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; padding: 0; list-style: none; }
+  .meta li {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 999px;
+    padding: 3px 12px; font-size: 12.5px; color: var(--muted); white-space: nowrap;
+  }
+  .meta li b { color: var(--ink); font-weight: 600; }
+
+  nav.toc {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 14px 20px; margin-bottom: 28px;
+  }
+  nav.toc h2 { margin: 0 0 8px; font-size: 13px; letter-spacing: .08em; color: var(--muted); border: 0; padding: 0; }
+  nav.toc ol { margin: 0; padding-left: 20px; }
+  nav.toc li { margin: 2px 0; }
+  a { color: var(--accent); }
+
+  section {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 8px 24px 22px; margin-bottom: 22px;
+  }
+  h2 { font-size: 20px; margin: 20px 0 10px; padding-bottom: 8px; border-bottom: 2px solid var(--line); }
+  h3 { font-size: 16px; margin: 22px 0 8px; color: var(--accent); }
+  p { margin: 10px 0; }
+  ul, ol { padding-left: 22px; }
+  li { margin: 4px 0; }
+  blockquote { margin: 10px 0; padding: 6px 14px; border-left: 3px solid var(--line); color: var(--muted); }
+
+  /* 表は自身の中で横スクロールする（ページ本体は横スクロールさせない） */
+  .tablewrap { overflow-x: auto; margin: 14px 0; }
+  table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 14px; }
+  th, td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: var(--accent-soft); font-weight: 600; white-space: nowrap; }
+  tbody tr:nth-child(even) td { background: color-mix(in srgb, var(--line) 22%, transparent); }
+
+  code {
+    background: var(--code-bg); border-radius: 5px; padding: 1px 5px; font-size: 13px;
+    font-family: "SFMono-Regular", Consolas, "Noto Sans Mono", monospace;
+  }
+  pre {
+    background: var(--code-bg); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 12px 14px; overflow-x: auto; font-size: 13px; line-height: 1.65;
+  }
+  pre code { background: none; padding: 0; }
+
+  /* 注意ボックス: info（既定）/ ok（決めたこと）/ warn（注意）/ stop（やらないこと・危険） */
+  .box { border-left: 4px solid var(--accent); background: var(--accent-soft);
+         border-radius: 0 var(--radius) var(--radius) 0; padding: 12px 16px; margin: 16px 0; }
+  .box > :first-child { margin-top: 0; } .box > :last-child { margin-bottom: 0; }
+  .box .label { font-size: 12px; font-weight: 700; letter-spacing: .06em; display: block; margin-bottom: 4px; }
+  .box.ok { border-color: var(--ok); background: var(--ok-soft); } .box.ok .label { color: var(--ok); }
+  .box.warn { border-color: var(--warn); background: var(--warn-soft); } .box.warn .label { color: var(--warn); }
+  .box.stop { border-color: var(--stop); background: var(--stop-soft); } .box.stop .label { color: var(--stop); }
+  .box.info .label { color: var(--accent); }
+
+  .tag { display: inline-block; border-radius: 999px; padding: 1px 9px; font-size: 12px; font-weight: 600; }
+  .tag.ok { background: var(--ok-soft); color: var(--ok); }
+  .tag.warn { background: var(--warn-soft); color: var(--warn); }
+  .tag.stop { background: var(--stop-soft); color: var(--stop); }
+
+  footer { color: var(--muted); font-size: 13px; text-align: center; padding-top: 10px; }
+</style>
+</head>
+<body>
+
+<header class="band">
+  <div class="inner">
+    <div class="kind">個別調査計画 / フェーズ2</div>
+    <h1>【調査】デザイン4案のテンプレート化方針</h1>
+    <p class="lead">フェーズ3（実装）の作業計画を書けるようにするため、Tailwind脱却の変換方針・4案のDOM共有可否・現行テンプレートとの節の対応・検査コマンドの成立性・サンプルの後始末の5つを確定させる。</p>
+    <ul class="meta">
+      <li><b>issue</b> #203</li>
+      <li><b>ブランチ</b> claude/report-html-view-template-wu5u20</li>
+      <li><b>PR</b> #204</li>
+      <li><b>フェーズ</b> 2〈調査〉 flow-id 2-1</li>
+      <li><b>push回数</b> 1</li>
+      <li><b>作成日</b> 2026-08-24</li>
+      <li><b>正文</b> 同名の .md</li>
+    </ul>
+  </div>
+</header>
+
+<div class="wrap">
+
+<nav class="toc">
+  <h2>目次</h2>
+  <ol>
+    <li><a href="#premise">前提（合意状況）</a></li>
+    <li><a href="#goal">この調査で何を決めるか</a></li>
+    <li><a href="#questions">調べること（問いと、答えの出し方）</a></li>
+    <li><a href="#out-of-scope">やらないこと（スコープ外）</a></li>
+    <li><a href="#verify">検証（この調査が終わったと言える条件）</a></li>
+    <li><a href="#steps">想定している作業手順</a></li>
+  </ol>
+</nav>
+
+<section id="premise">
+  <h2>前提（合意状況）</h2>
+  <ul>
+    <li>上位の計画: <code>wip/plans/silver-drifting-lantern.md</code>（全体作業計画。flow-id 1-4 で作成）</li>
+    <li>この調査計画は、全体作業計画の「フェーズ2〈調査〉」節に挙げた5項目を、<b>答えを出せる問いの形</b>へ分解したものである。</li>
+  </ul>
+</section>
+
+<section id="goal">
+  <h2>この調査で何を決めるか</h2>
+  <p>フェーズ3（実装）の個別作業計画を書けるようにする。具体的には、<b>次の5つが決まれば調査は完了</b>とする。</p>
+  <ol>
+    <li>Tailwindのクラスを、素のCSSのどの単位へ畳むか（変換の方針）</li>
+    <li>4案を「1つの構造 ＋ 4つのスタイル」で表せるか、それとも4本を独立させるか</li>
+    <li>現行 <code>reports.template.html</code> を置き換えるのか併存させるのか、と、既定はどれか</li>
+    <li>現行の3種の検査コマンドが、新しい構造でもそのまま使えるか</li>
+    <li><code>wip/design-samples/</code> をどう後始末するか</li>
+  </ol>
+</section>
+
+<section id="questions">
+  <h2>調べること（問いと、答えの出し方）</h2>
+
+  <h3>Q1. Tailwindのクラスは、どの単位のCSSへ畳めばよいか</h3>
+  <ul>
+    <li><b>やること</b>: 4案が使っているTailwindクラスを機械的に抽出し、頻度順に並べる。そのうえで「意味を持つ単位」（チップ・タイムラインのドット・カード・サイドバー等）へ分類する。</li>
+    <li><b>答えの形</b>: クラス名 → セマンティッククラス（<code>.chip.good</code> 等）の対応表。</li>
+  </ul>
+  <div class="box warn">
+    <span class="label">判断基準</span>
+    現行テンプレートは CSS変数（<code>--accent</code> 等）＋セマンティッククラスで書かれており、HTMLを読んだときに<b>構造と意味だけが見える</b>状態を保っている。変換後もこれを崩さないこと。ユーティリティクラスがHTMLに残る形（<code>class="mt-5 grid grid-cols-3 gap-3"</code>）は採らない。
+  </div>
+
+  <h3>Q2. 4案はDOMを共有できるか</h3>
+  <ul>
+    <li><b>やること</b>: 4案のHTMLから<b>タグ構造だけ</b>を抽出して（class属性を落として）差分を取る。</li>
+    <li><b>答えの形</b>: 「完全一致」か「差分あり（どこが違うか）」。</li>
+    <li><b>なぜ効くか</b>: 全体作業計画では目視で「DOM同一」と見立てているが、目視は当てにならない。機械的な突き合わせで確かめる。<b>一致するなら</b>、プレースホルダ・使い方コメントを1回書けば4案へ同じものを配れる（記述の二重管理を避けられる）。<b>一致しないなら</b>、差分の量に応じて実装方針が変わる。</li>
+  </ul>
+
+  <h3>Q3. 現行テンプレートの9節は、新構成のどこへ行くか</h3>
+  <ul>
+    <li><b>やること</b>: 現行 <code>reports.template.html</code> の節（目次／重点レビュー依頼／サマリ／確かめられなかったこと／実施条件／実施した内容と結果／設計への反映／想定と異なった点／残課題）と、サンプル06の節（サイドバー／サマリ統合／確かめられなかったこと／タイムライン／設計への反映）を突き合わせる。</li>
+    <li><b>答えの形</b>: 対応表（現行の節 → 新構成での置き場、必須／任意の別）。<b>対応先が無い節があれば、それをどう扱うか</b>（新構成へ節を足す／落とす）まで決める。</li>
+    <li><b>判断基準</b>: 現行の必須節を落とさない。落とすなら、なぜ落としてよいかを言えること。</li>
+  </ul>
+
+  <h3>Q4. 3種の検査コマンドは新構造でも成立するか</h3>
+  <ul>
+    <li><b>やること</b>: サンプル06に対して、現行テンプレートが定めるリンク破断検査・重複ID検査を<b>実際に流す</b>。プレースホルダ検査は、テンプレート化した後でないと流せないため、「新構成でプレースホルダをどこへ置くか」の見通しだけを立てる。</li>
+    <li><b>答えの形</b>: 各コマンドの実行結果と、修正が要るなら修正後のコマンド。</li>
+  </ul>
+  <div class="box warn">
+    <span class="label">注意</span>
+    新構成はサイドバー目次からも本文IDを参照するため、<b>参照の数が現行より増える</b>。検査コマンドは正規表現でID定義側をタグ内に限定しているが、それが新構成でも守られるかを見る。
+  </div>
+
+  <h3>Q5. <code>wip/design-samples/</code> をどう後始末するか</h3>
+  <ul>
+    <li><b>やること</b>: 別ブランチ <code>claude/report-template-design-0bpul1</code> の状態と、そのブランチに対応するPRの有無を確認する。</li>
+    <li><b>答えの形</b>: 「このPRで取り込む」「別ブランチ側で処理する」「何もしない」のいずれかと、その理由。</li>
+    <li><b>判断基準</b>: issue #203 の受け入れ条件が「後始末を決めて実施している」ことを求めている。<b>決めた内容が、このPRの範囲で実施できるか</b>が分かれ目。</li>
+  </ul>
+</section>
+
+<section id="out-of-scope">
+  <h2>やらないこと（スコープ外）</h2>
+  <div class="box stop">
+    <span class="label">この調査では決めない・触らない</span>
+    <ul>
+      <li>テンプレートそのものの実装（フェーズ3で行う）</li>
+      <li>選定外のサンプル（01〜05・07〜09・11・14〜16）の分析。ただし16は「統合構成が作業結果レポートでも成立する」ことの根拠としてissue本文が挙げているため、Q3の突き合わせでのみ参照する。</li>
+      <li><code>plans.template.html</code> の調査（issue #203 の対象外）</li>
+    </ul>
+  </div>
+</section>
+
+<section id="verify">
+  <h2>検証（この調査が終わったと言える条件）</h2>
+  <ul>
+    <li>Q1〜Q5のすべてに、<b>根拠を添えた答え</b>が <code>wip/reports/</code> のレポートへ書かれていること。</li>
+    <li>Q2・Q4は<b>実際にコマンドを流した結果</b>が根拠として残っていること（目視・推測で済ませない）。</li>
+    <li>フェーズ3の個別作業計画に必要な情報（作るファイルの数・名前・各ファイルの中身の方針）が出揃っていること。</li>
+  </ul>
+</section>
+
+<section id="steps">
+  <h2>想定している作業手順</h2>
+<pre><code># Q1: Tailwindクラスの抽出（4案ぶん、頻度順）
+grep -oE 'class="[^"]*"' &lt;サンプル&gt; | tr ' ' '\n' | sort | uniq -c | sort -rn
+
+# Q2: class属性を落としたタグ構造の突き合わせ
+sed -E 's/ class="[^"]*"//g' &lt;サンプルA&gt; | grep -oE '&lt;[a-z][a-z0-9]*' &gt; a.txt
+# 同様にB〜Dを作り diff で比較
+
+# Q4: 現行テンプレートの検査コマンドをサンプルへ流す
+comm -23 &lt;(grep -oE 'href="&#35;[A-Za-z0-9_-]+"' &lt;F&gt; | sed 's/^href="&#35;//;s/"$//' | sort -u) \
+         &lt;(grep -oE '&lt;[a-z][^&gt;]*[[:space:]]id="[A-Za-z0-9_-]+"' &lt;F&gt; | sed 's/.*id="//;s/"$//' | sort -u)
+grep -oE '&lt;[a-z][^&gt;]*[[:space:]]id="[A-Za-z0-9_-]+"' &lt;F&gt; | sed 's/.*id="//;s/"$//' | sort | uniq -d</code></pre>
+</section>
+
+<footer>issue #203 / PR #204 — 計画の正文は同名の <code>.md</code>。外部依存を持たない自己完結HTML。</footer>
+
+</div>
+</body>
+</html>
