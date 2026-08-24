@@ -106,6 +106,18 @@ assert_eq "checklist_number: ブランチ名がpushで終わっても正しく�
 checklist_number_to_reply 'wip/worklogs/20260823_claude_br_push7_checklist.tsv' 'claude_br'
 assert_eq "checklist_number: パス付きでも番号を取り出す" "7" "$REPLY"
 
+# **接尾辞一致にしないこと**（issue #17 フェーズ3の敵対的レビュー2回目で指摘した反例）。
+# `claude/hook-impl-17` と `hook-impl-17` のように、片方のスラッグがもう片方の `_` 区切りの
+# 接尾辞になっている組では、別ブランチのチェックリストを自分のものとして採用してしまう。
+assert_eq "checklist_number: スラッグが別スラッグの接尾辞でも弾く（接頭辞付きブランチの反例）" "1" \
+  "$(status_of checklist_number_to_reply '20260823_claude_hook-impl-17_push3_checklist.tsv' 'hook-impl-17')"
+assert_eq "checklist_number: 逆向き（自分のほうが長い）も弾く" "1" \
+  "$(status_of checklist_number_to_reply '20260823_hook-impl-17_push3_checklist.tsv' 'claude_hook-impl-17')"
+assert_eq "checklist_number: 完全一致は通す" "0" \
+  "$(status_of checklist_number_to_reply '20260823_claude_hook-impl-17_push3_checklist.tsv' 'claude_hook-impl-17')"
+assert_eq "checklist_number: 日付が2フィールドに割れていたら弾く" "1" \
+  "$(status_of checklist_number_to_reply '2026_0823_br_push3_checklist.tsv' 'br')"
+
 # max_checklist_to_reply
 max_checklist_to_reply "$(printf '%s\n' \
   'w/20260823_br_push2_checklist.tsv' \
@@ -127,6 +139,20 @@ assert_eq "item_text_for: handoffの文言" \
 assert_eq "item_text_for: 未知のidは空" '' "$(item_text_for nosuch)"
 assert_eq "item_text_for: 定数の件数は5件" "5" "${#CHECKLIST_IDS[@]}"
 assert_eq "item_text_for: idと項目の件数が一致する" "${#CHECKLIST_IDS[@]}" "${#CHECKLIST_ITEMS[@]}"
+assert_eq "item_text_for: テンプレートと項目の件数が一致する" \
+  "${#CHECKLIST_ITEM_TEMPLATES[@]}" "${#CHECKLIST_ITEMS[@]}"
+
+# **本リポジトリ固有のディレクトリ名を決め打ちしない**（issue #17 フェーズ3の敵対的レビュー
+# 2回目で指摘）。テンプレート側はプレースホルダを持ち、init_context が設定値で埋める。
+pc_hardcoded=0
+for pc_item in "${CHECKLIST_ITEM_TEMPLATES[@]}"; do
+  case "$pc_item" in *wip/*) pc_hardcoded=$((pc_hardcoded + 1)) ;; esac
+done
+assert_eq "項目テンプレートにリポジトリ固有のディレクトリ名を含まない" "0" "$pc_hardcoded"
+assert_eq "項目テンプレートは plansDir のプレースホルダを持つ" "1" \
+  "$(printf '%s\n' "${CHECKLIST_ITEM_TEMPLATES[@]}" | grep -cF -- '{plansDir}')"
+assert_eq "項目テンプレートは reportsDir のプレースホルダを持つ" "1" \
+  "$(printf '%s\n' "${CHECKLIST_ITEM_TEMPLATES[@]}" | grep -cF -- '{reportsDir}')"
 
 # --- verify_stream（否定形の4条件それぞれを、意図的に壊して確かめる）---------
 

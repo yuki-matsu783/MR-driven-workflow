@@ -1,15 +1,20 @@
 #!/usr/bin/env bash
 # .claude/hooks/block-unchecked-push.sh の単体テスト（issue #17）。
 #
-# 3層構成（test_block_direct_git_commit.sh の2層構成を踏襲し、hook固有の終了コード契約を
-# 確かめる層を足したもの）。
+# 4層構成（test_block_direct_git_commit.sh の2層構成を踏襲し、hook固有の終了コード契約と
+# 縮退経路を確かめる層を足したもの）。
 #   1. 前置フィルタ（raw_hints_at_git_push・純粋関数）を source して直接呼ぶ。
 #      **超集合であること**の反例（`pu\sh`・`PUSH`・JSONエスケープをまたぐ `pu\<改行>sh`）を持つ。
 #   2. サブプロセス起動＋PATH先頭のスタブjq。対象外ペイロードで**jqが1度も呼ばれない**ことを
 #      確認する（時間計測ではなく呼び出し有無そのもので見る）。
 #   3. 使い捨てgitリポジトリを CLAUDE_PROJECT_DIR に据えて実際に起動し、
-#      **未完了なら exit 2 / 完了なら exit 0 / コミット忘れなら exit 1** を確かめる。
+#      **未完了なら exit 2 / 完了なら exit 0 / コミット忘れなら exit 2** を確かめる。
 #      `set -e` 配下で verify の非0を素で受けると exit 1 へ落ちる罠を機械的に塞ぐのが目的。
+#   4. 縮退経路（`lib/CommandPosition.sh` を読めない）。hookを lib の無い一時ディレクトリへ
+#      コピーして起動し、**回復用のコマンドがブロックされないこと**を確かめる。
+#      当初この層が無く、「push という語を含む全コマンドが exit 2 になり、ブロックを解くための
+#      `push-checklist.sh check` 自身も止まる」という欠陥がテスト全緑のまま素通りしていた
+#      （issue #17 フェーズ3の敵対的レビュー2回目で指摘）。
 #
 # 規約: passed=N failures=N を標準出力へ出し、失敗があれば終了コード1
 #       （.claude/rules/shell-script-style.md「テスト」）。
@@ -86,6 +91,41 @@ line_cont_cmd=$'git pu\\\nsh origin HEAD'
 line_cont_payload="$(jq -nc --arg tn Bash --arg c "$line_cont_cmd" '{tool_name:$tn,tool_input:{command:$c}}')"
 assert_eq "層1: バックスラッシュ+改行で分割されたpushも通過する（JSONエスケープをまたぐ反例）" "0" \
   "$(hints "$line_cont_payload")"
+
+# --- 層1b: 縮退時のブロック判定（command_hints_at_git_push_degraded）------------
+#
+# 前置フィルタと違い、**これはブロックそのものを決める**ので超集合であってはならない。
+# 「git トークンがあり、その後ろに push トークンがある」だけを見る。
+degraded() {
+  if command_hints_at_git_push_degraded "$1"; then
+    printf '0'
+  else
+    printf '1'
+  fi
+}
+
+assert_eq "層1b: git push はブロック側" "0" "$(degraded 'git push')"
+assert_eq "層1b: git -C /x push（語が非連続）もブロック側" "0" "$(degraded 'git -C /x push')"
+assert_eq "層1b: git --no-pager push origin HEAD もブロック側" "0" \
+  "$(degraded 'git --no-pager push origin HEAD')"
+assert_eq "層1b: cd と && を挟んでもブロック側" "0" "$(degraded 'cd /tmp/x && git push -u origin f')"
+assert_eq "層1b: 大文字のPUSHもブロック側" "0" "$(degraded 'git PUSH')"
+assert_eq "層1b: バックスラッシュで分割された pu\\sh もブロック側" "0" "$(degraded 'git pu\sh')"
+assert_eq "層1b: /usr/bin/git のようなフルパスでもブロック側" "0" "$(degraded '/usr/bin/git push')"
+
+# **回復用のコマンドを止めないこと**が、この関数を足した理由そのものである。
+assert_eq "層1b: push-checklist.sh check は通す（回復用コマンド）" "1" \
+  "$(degraded 'bash .claude/scripts/src/push-checklist.sh check worklog "追記した"')"
+assert_eq "層1b: push-checklist.sh skip も通す" "1" \
+  "$(degraded 'bash .claude/scripts/src/push-checklist.sh skip handoff "理由"')"
+assert_eq "層1b: create-commit.sh は通す" "1" \
+  "$(degraded 'bash .claude/scripts/src/create-commit.sh --message "chore: x" -- a.tsv')"
+assert_eq "層1b: pushという語を含むだけの文字列は通す" "1" "$(degraded 'echo "pushed already"')"
+assert_eq "層1b: pushを含むパスのcatは通す" "1" "$(degraded 'cat docs/push-notes.md')"
+assert_eq "層1b: gitトークンが無ければ通す" "1" "$(degraded 'hg push')"
+assert_eq "層1b: pushがgitより前にしか無ければ通す" "1" "$(degraded 'push git')"
+assert_eq "層1b: git status は通す" "1" "$(degraded 'git status')"
+assert_eq "層1b: 空文字列は通す" "1" "$(degraded '')"
 
 # --- 層2: スタブjq（空振りでforkしないこと）--------------------------------
 
@@ -236,12 +276,52 @@ bp_commit_all 'checklist（全件完了）'
 run_hook_real 'Bash' 'git push -u origin HEAD'
 assert_eq "層3: 全件完了ならブロックしない" "0" "$REPLY_EXIT"
 
-# (d) コミット忘れは非ブロックの警告（exit 1）。**exit 2 ではない**。
+# (d) コミット忘れもブロックする（exit 2）。
+# **当初これは exit 1（非ブロックの警告）だった**が、spec が挙げる本機構の動機
+# 「必要な更新をcommitへ含め忘れる」に当たるのがこの経路であり、機構が防ぎたい失敗が
+# 唯一ブロックされない経路になっていた（issue #17 フェーズ3の敵対的レビュー2回目で指摘）。
 bp_publish
 bp_pc new >/dev/null
 run_hook_real 'Bash' 'git push -u origin HEAD'
-assert_eq "層3: コミット忘れは非ブロックの警告（exit 1）" "1" "$REPLY_EXIT"
-assert_contains "層3: 警告にコミット忘れの旨が入る" "$REPLY_STDERR" 'コミットされていないチェックリスト'
+assert_eq "層3: チェックリストのコミット忘れもブロックする（exit 2）" "2" "$REPLY_EXIT"
+assert_contains "層3: メッセージにコミット忘れの旨が入る" "$REPLY_STDERR" 'コミットされていないチェックリスト'
+assert_contains "層3: メッセージに回復手段（create-commit.sh）が入る" "$REPLY_STDERR" 'create-commit.sh'
+
+# --- 層4: 縮退経路（lib/CommandPosition.sh を読めない）------------------------
+#
+# hookを lib の無い一時ディレクトリへコピーして起動する。実パスから起動する層3では
+# lib が常に読めるため、`elif` の分岐が一度も実行されていなかった。
+degraded_dir="$fixture_dir/degraded-hooks"
+mkdir -p "$degraded_dir"
+cp "$hook" "$degraded_dir/"
+
+run_hook_degraded() {
+  # $1=command 。戻り値 REPLY_EXIT
+  set +e
+  payload 'Bash' "$1" | env -u GEMINI_PROJECT_DIR CLAUDE_PROJECT_DIR="$bp_repo" \
+    bash "$degraded_dir/block-unchecked-push.sh" >/dev/null 2>&1
+  REPLY_EXIT=$?
+  set -e
+}
+
+# この時点の $bp_repo は「未完了のチェックリストがHEADにある」状態なので、
+# push と判定されればブロックされる。
+run_hook_degraded 'git push -u origin HEAD'
+assert_eq "層4: 縮退時も git push はブロックされる" "2" "$REPLY_EXIT"
+run_hook_degraded 'git -C /x push'
+assert_eq "層4: 縮退時も語が非連続な git push はブロックされる" "2" "$REPLY_EXIT"
+
+# **ここが本題**: 回復用のコマンドと無関係なコマンドが止まらないこと。
+run_hook_degraded 'bash .claude/scripts/src/push-checklist.sh check worklog "追記した"'
+assert_eq "層4: 縮退時に push-checklist.sh check はブロックされない（回復可能であること）" "0" "$REPLY_EXIT"
+run_hook_degraded 'bash .claude/scripts/src/push-checklist.sh path'
+assert_eq "層4: 縮退時に push-checklist.sh path はブロックされない" "0" "$REPLY_EXIT"
+run_hook_degraded 'cat docs/push-notes.md'
+assert_eq "層4: 縮退時に無関係なコマンドはブロックされない" "0" "$REPLY_EXIT"
+run_hook_degraded 'echo "pushed already"'
+assert_eq "層4: 縮退時に push という語を含むだけのコマンドはブロックされない" "0" "$REPLY_EXIT"
+run_hook_degraded 'ls -la'
+assert_eq "層4: 縮退時に前置フィルタで足切りされるコマンドはブロックされない" "0" "$REPLY_EXIT"
 
 echo "passed=$passed failures=$failures"
 [[ "$failures" -eq 0 ]]
