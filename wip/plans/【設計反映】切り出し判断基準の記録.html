@@ -355,7 +355,7 @@ grep -c -- '^--&gt;' "wip/plans/【設計反映】切り出し判断基準の記
 
 # 反11: .claude/ 配下の変更が意図した範囲だけか（分岐点との差分。SHAは実行時に求める）
 git fetch origin main &amp;&amp; git diff --stat "$(git merge-base origin/main HEAD)" -- .claude/</code></pre>
-  <p><b>合格条件</b>: 反1=1、反2=1以上、反3=2つのハッシュが一致、反4=1、反5=参照切れ0、反6=planning.md 4 / SKILL.md 2（不変）、反7=1以上、反8=両方1以上、反9=1以上、反10=1、反11=変更対象に挙げたファイルだけが並ぶ（<code>.claude/docs/README.md</code> はDDR1件分の追加のみ）。</p>
+  <p><b>合格条件</b>: 反1=1、反2=1以上、反3=2つのハッシュが一致、反4=1、反5=参照切れ0、反6=planning.md 4 / SKILL.md 2（不変）、反7=1以上、反8=両方1以上、反9=1以上、反10=1、反11=<b>フェーズ3で変更した2ファイル（<code>SKILL.md</code>・<code>planning.md</code>）＋今回の変更対象</b>だけが並ぶ（<code>.claude/docs/README.md</code> はDDR1件分の追加のみ）。<b><code>git diff &lt;分岐点&gt;</code> はブランチ全体の差分なので、フェーズ3の2ファイルは必ず並ぶ</b>——「変更対象のファイルだけ」と書いた初版の合格条件は成立しない（敵対的レビュー2回目の指摘で修正）。また <code>git diff --stat</code> は<b>未追跡ファイルを見ない</b>ため、新規DDRの出現を確かめるのは反1・反4 の役割である。</p>
   <p><b>さらに、md と HTML の見出しが一致することを <code>diff</code> で確認する</b>（#8 で追加する観点を、この計画自身にも適用する）。</p>
 <pre><code>M='wip/plans/【設計反映】切り出し判断基準の記録.md'
 F='wip/plans/【設計反映】切り出し判断基準の記録.html'
@@ -377,7 +377,7 @@ diff &lt;(grep -o -- '^## .*' "$M" | sed 's/^## //; s/`//g') \
       <tr><td>反7 #3 の追記</td><td><b>0</b></td><td>1以上</td></tr>
       <tr><td>反8 #9 の必須節検査</td><td><b>両方 0</b></td><td>両方1以上</td></tr>
       <tr><td>反9 #8 の見出し一致検査</td><td><b>0</b></td><td>1以上</td></tr>
-      <tr><td>反11 <code>.claude/</code> の差分（分岐点比較）</td><td><b>フェーズ3で変更した2ファイルのみ</b>（<code>SKILL.md</code> +4-2 / <code>planning.md</code> +152）</td><td>変更対象の6ファイルのみ</td></tr>
+      <tr><td>反11 <code>.claude/</code> の差分（分岐点比較）</td><td><b>フェーズ3で変更した2ファイルのみ</b>（<code>SKILL.md</code> +4-2 / <code>planning.md</code> +152）</td><td>フェーズ3の2ファイル＋今回の変更対象のみ</td></tr>
       <tr><td>反10 HTML冒頭コメントの閉じ数</td><td><b>2</b>（コメント断片が残っていた。この計画で修正済み）</td><td>1</td></tr>
     </tbody>
   </table>

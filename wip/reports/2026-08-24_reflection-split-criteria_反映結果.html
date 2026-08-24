@@ -186,8 +186,12 @@
     <p>当初は差し込み位置の段落の直後へ入れたが、<b>その段落に続く箇条書き（実例2件）の係り先を切ってしまう</b>ため、箇条書きの後ろへ移した。この判断自体が、同じ段落が警告している内容である。</p>
   </div>
   <div class="box info">
-    <span class="label">◇ DDR の「調査の限界」4点のうち1点を、このMRでは直していない</span>
-    <p><code>references/planning.md</code> 手順3 のコマンド例の穴。判定に使っている手順を同じMRで書き換えると、どちらの版で判定したのかが読めなくなるためだが、この線引きが妥当か。</p>
+    <span class="label">◇ 必須節検査を完全一致から部分一致へ変えた判断</span>
+    <p>敵対的レビュー2回目の指摘。完全一致（<code>diff</code>）では <code>&lt;h2&gt;変更対象（6箇所）&lt;/h2&gt;</code> のような<b>正当な補足付き見出し</b>を「落ちた」と判定する（実測で計画HTML 4本中2本が偽陽性）。部分一致にすると、代わりに<b>節名を含む別の見出しがあると通ってしまう</b>取りこぼしが生まれる。この交換が妥当か。</p>
+  </div>
+  <div class="box info">
+    <span class="label">◇ <code>references/planning.md</code> 手順3 の穴を、このMRで直したこと</span>
+    <p>当初は「判定に使っている手順を同じMRで書き換えない」として見送っていたが、指摘を受けて #12 として主判定へ通し、<b>Yes（直さないと <code>main</code> に「記録された判定を再現できない手順」が残る）</b>と判定して直した。<b>このMRの判定自体は既に直した側の探索範囲でやり直してある</b>ことが根拠である。</p>
   </div>
 </section>
 
@@ -198,11 +202,12 @@
     <thead><tr><th>結論</th><th>根拠の性質</th></tr></thead>
     <tbody>
       <tr><td><span class="chip good">◎</span> 受け入れ条件3を達成した（DDR 1本＋spec の新節と changelog）</td><td>実測（反1=1・反2=3・反4=1）</td></tr>
-      <tr><td><span class="chip good">◎</span> 反映対象7件すべてを反映した（Yes 2件・No 5件）</td><td>実測（変更7ファイル・反7〜反9）</td></tr>
+      <tr><td><span class="chip good">◎</span> このMRでやると判定した8件すべてを反映した（主判定 Yes 3件・No 5件）</td><td>実測（<b>件数は8件・変更ファイルは10</b>。反7〜反9）</td></tr>
       <tr><td><span class="chip good">◎</span> 検証11本すべてが期待値どおり</td><td>実測</td></tr>
       <tr><td><span class="chip warn">△</span> <code>main</code> の取り込みで <code>.claude/VERSION</code> の増分が無言で消えた（0.6.0 へ上げ直した）</td><td>実測（分岐点0.4.0・両側0.5.0）</td></tr>
-      <tr><td><span class="chip good">◎</span> 出口(1) は 4-1 の10件では0件だった</td><td>実測（判定10件）</td></tr>
-      <tr><td><span class="chip warn">△</span> <b>4-6 で追加された1件が出口(1) に当たり、AND 条件が初めて成立した</b></td><td>実測（<code>main</code> 取り込み時に発見）</td></tr>
+      <tr><td><span class="chip good">◎</span> 出口(1) は 4-1 で洗い出した10件からは0件だった</td><td>実測（判定済み9件の内訳）</td></tr>
+      <tr><td><span class="chip warn">△</span> <b>4-6 で追加された2件のうち1件が出口(1) に当たり、AND 条件が初めて成立した</b></td><td>実測（<code>main</code> 取り込み時に発見）</td></tr>
+      <tr><td><span class="chip warn">△</span> 敵対的レビュー2回目の14件へ対応した（数字の食い違い・検査の偽陽性が主）</td><td>実測（投稿8件＋報告6件）</td></tr>
       <tr><td><span class="chip warn">△</span> 必須節検査のコマンドは Linux でのみ検証済み</td><td>実測（git bash 実機は未検証）</td></tr>
       <tr><td><span class="chip warn">△</span> <code>.claude/VERSION</code> の版はAIが目安表から適用した</td><td>規定に沿った判断（人間の決裁は未取得）</td></tr>
     </tbody>
@@ -214,40 +219,42 @@
   <h2>確かめられなかったこと</h2>
   <ul>
     <li><b>観点表へ入れた検査コマンドの git bash（Windows）実機での動作。</b> awk の <code>match</code>/<code>substr</code>・プロセス置換・<code>sort</code> はいずれもMSYSで動くはずだが、実行していない。多バイト文字をブラケット式へ入れない形にしたのは、まさにロケール依存の失敗を避けるためである。</li>
-    <li><b>出口(1)（規模が大きい側）の実データ。</b> このissueでは1件も発生しなかったため、AND の「規模が大きい」の判定は実運用で一度も通っていない。DDR <code>i0176-01</code> の「調査の限界」に記録した。</li>
-    <li><b><code>references/planning.md</code> 手順3 の段階2のコマンド例の穴を直した場合の影響。</b> 直していないため未検証。</li>
+    <li><b>出口(1)（規模が大きい側）の実データが1件しかない。</b> 4-1 で洗い出した10件はすべて規模が小さく、AND が成立したのは 4-6 で見つかった #11 の1件だけである。<b>1件で AND の下側が実証されたとは言えない。</b> DDR <code>i0176-01</code> の「調査の限界」に記録した。</li>
+    <li><b>#11 を実際に別issueとして起票したあとの流れ。</b> 新節の定めどおりAIは起票せず止まっているため、「提示 → 人間が決める → 起票」までを通しで確かめられていない。</li>
+    <li><b>手順3 段階2へ足した <code>REVIEW-POINTS.md</code> 探索が、他のissueでも判定を変えるか。</b> このissueの10件では4件がひっくり返ったが、n=1 である。</li>
   </ul>
 </section>
 
 <section id="findings">
   <h2>実施した内容と結果</h2>
 
-  <h3>反映した7件</h3>
+  <h3>このMRで反映した8件</h3>
   <div class="tablewrap">
   <table>
     <thead><tr><th>#</th><th>反映先</th><th>内容</th></tr></thead>
     <tbody>
-      <tr><td>1</td><td><code>.claude/docs/ddr/i0176-01-…md</code>（新規）</td><td>主判定・出口・判定順・AND条件と「止まって待つ」の対の決定、却下案5件、調査の限界4点</td></tr>
+      <tr><td>1</td><td><code>.claude/docs/ddr/i0176-01-…md</code>（新規）</td><td>主判定・出口・判定順・AND条件と「止まって待つ」の対の決定、却下案<b>6件</b>、調査の限界4点</td></tr>
       <tr><td>2</td><td><code>.claude/docs/spec/issue-mr-workflow.md</code></td><td>「仕様」節へ新節の位置づけ（#64 節の直後）＋「影響範囲」節へ変更エントリ</td></tr>
       <tr><td>—</td><td><code>.claude/docs/README.md</code></td><td><code>generate-ddr-list.sh</code> の再生成（<code>main</code> 取り込み後 101件）</td></tr>
       <tr><td>3</td><td><code>.claude/rules/shell-script-style.md</code></td><td>「テスト」節へ<b>母数を数える語</b>の罠と<b>計画の検査コマンドをそのまま流す</b>を追記</td></tr>
       <tr><td>5</td><td><code>REVIEW-POINTS.md</code>（ルート）</td><td>既存の検証コマンド観点へ、実行時の語の差し替えに関する1文</td></tr>
       <tr><td>8</td><td><code>wip/reports/REVIEW-POINTS.md</code></td><td><b>md↔HTML の見出し一致検査</b>を <code>wip/plans/</code> 側から複製</td></tr>
-      <tr><td>9</td><td><code>wip/plans/</code> <code>wip/reports/</code> の <code>REVIEW-POINTS.md</code></td><td><b>必須節が丸ごと落ちたことの検出</b></td></tr>
+      <tr><td>9</td><td><code>wip/plans/</code> <code>wip/reports/</code> の <code>REVIEW-POINTS.md</code></td><td><b>必須節が丸ごと落ちたことの検出</b>（正は <code>wip/reports/</code> 側1箇所。<code>wip/plans/</code> 側はテンプレートのパスと <code>【調査】</code> 計画での読み替えだけ）</td></tr>
       <tr><td>10</td><td><code>.claude/rules/docs-workflow.md</code></td><td>差し込み時の空行確認への相互参照</td></tr>
+      <tr><td>12</td><td><code>.claude/skills/issue-mr-flow/references/planning.md</code></td><td>手順3 段階2へ <b><code>REVIEW-POINTS.md</code> 群の探索</b>を追加、「判定の記録」の等式へ<b>手順3 で対象外になった件数を引く項</b>を追加（主判定 <b>Yes</b>）</td></tr>
       <tr><td>—</td><td><code>.claude/VERSION</code></td><td><code>0.5.0</code> → <code>0.6.0</code>（MINOR。下記「想定と異なった点」）</td></tr>
     </tbody>
   </table>
   </div>
+  <p><b>件数（8件）とファイル数（10ファイル）は別の数である。</b> 上表の <code>—</code> 行（<code>README.md</code>・<code>VERSION</code>）は反映対象の項目ではなく波及であり、#9 は2ファイルにまたがる。</p>
 
   <h3>判定の記録（検算）</h3>
-<pre><code>洗い出し（4-1）10件 + 作業中に追加（4-6）1件 = 11件
-  − 手順3で反映対象から外れた 3件（#4・#7 は再現性なし ／ #6 は既に記述あり）
-  = 主判定へ通した 8件
+<pre><code>洗い出し（4-1）10件 + 作業中に追加（4-6）2件 − 手順3で対象外になった 3件 = 判定済み 9件
       = 別issueへ切り出す 1件（#11。起票せず提示して止まる）
       + やらないと決める 0件
-      + このMRでやる 7件（Yes 2件 + No 5件）</code></pre>
-  <p><b>追加の1件（#11）は、<code>main</code> の取り込み中に見つかった。</b></p>
+      + このMRでやる 8件（主判定 Yes 3件 + No 5件）</code></pre>
+  <p>手順3で外れた3件は #4・#7（再現性なし）と #6（既に記述あり）。<b>引く項を等式へ明示しているのは、黙って母数から落とすと「判定を飛ばした」のか「対象外だった」のかが区別できないためである</b>（この形は <code>references/planning.md</code>「判定の記録」の等式にも追加した。#12）。</p>
+  <p><b>追加の2件（#11・#12）は、いずれも 4-1 の洗い出しには無かった。</b></p>
   <div class="tablewrap">
   <table>
     <thead><tr><th></th><th>#11</th></tr></thead>
@@ -266,6 +273,19 @@
     <span class="label">新節の AND 条件が成立した初めての例</span>
     <p>4-1 の10件はすべて規模が小さく AND が成立しなかったため、出口(1) は0件だった。#11 は規模の側も満たす。<b>新節の定めに従い、AIは起票していない。</b>起票の可否は人間が決める。</p>
   </div>
+  <p><b>もう1件の追加（#12）は、敵対的レビュー2回目で見つかった。</b></p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th></th><th>#12</th></tr></thead>
+    <tbody>
+      <tr><td>内容</td><td><code>references/planning.md</code> 手順3 段階2 のコマンド例が <code>REVIEW-POINTS.md</code> 群を探索範囲に含めていない</td></tr>
+      <tr><td>類型</td><td>(a)（該当する記述が無い）</td></tr>
+      <tr><td>再現性</td><td>1回。ただし<b>このissueの判定10件のうち4件</b>の類型がこれで (a)/(c) から (d) へ変わった</td></tr>
+      <tr><td>主判定</td><td><b>Yes</b>（このMRの判定は既に直した側の探索範囲でやり直してあるため、直さないと <code>main</code> に「記録された判定を再現できない手順」が残る）</td></tr>
+      <tr><td>出口</td><td><b>主判定 Yes のため出口の選択は無い</b>（このMRでやる）</td></tr>
+    </tbody>
+  </table>
+  </div>
 
   <h3>検証11本の実測</h3>
   <div class="tablewrap">
@@ -282,19 +302,23 @@
       <tr><td>反8 #9 の必須節検査</td><td>両方1以上</td><td><b>plans 1 / reports 1</b></td></tr>
       <tr><td>反9 #8 の見出し一致検査</td><td>1以上</td><td><b>1</b></td></tr>
       <tr><td>反10 HTML冒頭コメントの閉じ数</td><td>1</td><td><b>1</b></td></tr>
-      <tr><td>反11 <code>.claude/</code> の差分</td><td>変更対象のみ</td><td><b>8ファイル</b>（下記）</td></tr>
+      <tr><td>反11 <code>.claude/</code> の差分</td><td><b>フェーズ3の2ファイル＋今回の変更対象のみ</b></td><td><b>8ファイル</b>（下記）</td></tr>
     </tbody>
   </table>
   </div>
-  <p>反11 の内訳（<code>main</code> 取り込み後）。フェーズ3の2ファイル（<code>SKILL.md</code> <code>planning.md</code>）と、今回の6ファイルだけが並ぶ。</p>
+  <div class="box warn">
+    <span class="label">反11 の合格条件は、計画に書いた「変更対象の6ファイルのみ」では成立しない</span>
+    <p><code>git diff &lt;分岐点&gt;</code> はブランチ全体の差分なので、<b>フェーズ3で変更した2ファイル（<code>SKILL.md</code>・<code>planning.md</code>）が必ず並ぶ</b>。期待の定義側が誤っていたので、計画・レポートの両方を「フェーズ3の2ファイル＋今回の変更対象のみ」へ直した。<b>期待に合わせて実測を読み替えたのではなく、期待の定義を直した</b>——今回追記した「書き換えるなら計画側の定義も同時に直す」に従う。加えて <code>git diff --stat</code> は<b>未追跡ファイルを見ない</b>ため、新規DDRの出現を確かめるのは反1・反4 の役割である。</p>
+  </div>
+  <p>内訳（<code>main</code> 取り込み後）。</p>
 <pre><code> .claude/VERSION                                    |   2 +-
  .claude/docs/README.md                             |   1 +
- ...i0176-01-…（新規DDR）                            | 127 +++++++++++++++
- .claude/docs/spec/issue-mr-workflow.md             |  81 +++++++++++
+ ...i0176-01-…（新規DDR）                            | 137 +++++++++++++++
+ .claude/docs/spec/issue-mr-workflow.md             | 102 ++++++++++++
  .claude/rules/docs-workflow.md                     |   8 ++
- .claude/rules/shell-script-style.md                |  33 +++++
+ .claude/rules/shell-script-style.md                |  41 +++++
  .claude/skills/issue-mr-flow/SKILL.md              |   4 +-
- .../skills/issue-mr-flow/references/planning.md    | 152 ++++++++++++++++++++-</code></pre>
+ .../skills/issue-mr-flow/references/planning.md    | 162 ++++++++++++++++++++-</code></pre>
   <p><code>.claude/docs/README.md</code> の <code>+1</code> はDDR一覧への1行追加のみで、意図した波及だけである。</p>
   <div class="box warn">
     <span class="label">反11 は「マージをコミットしたあと」でなければ意味を持たない</span>
@@ -303,6 +327,29 @@
   <div class="box ok">
     <span class="label">今回追加した検査を自分の成果物へ適用した</span>
     <p>計画HTML・作業結果HTMLのどちらも <code>&lt;</code> の行が0で、必須節の欠落なし。</p>
+  </div>
+
+  <h3>敵対的レビュー2回目（14件）への対応</h3>
+  <p>投稿8件＋報告6件。<b>主要な型は「同じMR内で数字が3通りに分かれた」ことである。</b></p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>指摘</th><th>何が起きていたか</th><th>対応</th></tr></thead>
+    <tbody>
+      <tr><td>DDR の「No 8件／8回止まる」</td><td>8件は<b>手順3をやり直す前の断面</b>で、最終結果（No 5件）と食い違っていた。DDR本文はマージ後に直せない</td><td>どちらの断面かを明記し、<b>OR では No の件数がそのまま停止回数になる</b>という不変の構造で書き直した</td></tr>
+      <tr><td>spec の「5件が8回止まる」</td><td>上と同じ数字が別の形で混ざり、母数も「反映対象10件」（正しくは洗い出し10件・反映対象7件）だった</td><td>判定済み9件の内訳へ揃えた</td></tr>
+      <tr><td>必須節検査が偽陽性</td><td>完全一致（<code>diff</code>）で突き合わせており、<code>&lt;h2&gt;変更対象（6箇所）&lt;/h2&gt;</code> のような<b>正当な補足付き見出し</b>を「落ちた」と判定。実測で計画HTML 4本中2本</td><td><code>grep -qF</code> の<b>部分一致</b>へ変更。代わりに生じる取りこぼし（節名を含む別見出し）も明記</td></tr>
+      <tr><td>同じ22行が2つの観点表へ写経</td><td>正が無く、<b>実例だけが取り違えられたまま</b>残っていた（plans側にreports固有の節名）</td><td><b><code>wip/reports/</code> 側を正</b>にし、<code>wip/plans/</code> 側はテンプレートのパスと <code>【調査】</code> 計画での読み替えだけにした</td></tr>
+      <tr><td>手順3の穴が主判定を通っていない</td><td>新設した基準の初回適用で、基準を通っていない項目があった</td><td><b>#12 として主判定へ通し、Yes と判定してこのMRで直した</b></td></tr>
+      <tr><td>反11 が計画の合格条件を満たさない</td><td>「変更対象の6ファイルのみ」は <code>git diff &lt;分岐点&gt;</code> では原理的に成立しない</td><td><b>期待の定義側</b>を計画・レポートの両方で直した</td></tr>
+      <tr><td>「7ファイルへ反映」</td><td><b>件数（7件）とファイル数</b>を混同していた</td><td>件数8件・ファイル数10と分けて書いた</td></tr>
+      <tr><td>「却下案5件」で6件を列挙</td><td>spec 側の列挙からは「あったほうがよいか」案が抜けていた</td><td>4箇所を6件へ揃えた</td></tr>
+      <tr><td>母数の表の2行目</td><td>数えたのは現行の <code>43ステップ</code> 表記で、「40ステップという古い表記」ではない</td><td>事実へ直し、<b>取りこぼす方向は <code>grep -o</code> では気づけない</b>ことと、point-in-time の記録を先に除くことを追記</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <div class="box warn">
+    <span class="label">ほぼすべてが「自分が書いた数字を、別の場所へ書き写すときにずれた」型</span>
+    <p>今回追記した「母数を作るときの語」「計画の検査コマンドをそのまま流す」と同じ根で、<b>書いた値の出どころ（どの断面か・何を数えた値か）を書き添えていない</b>ことが原因だった。等式へ「手順3で対象外になった件数を引く項」を足したのは、この対処である。</p>
   </div>
 </section>
 
@@ -345,8 +392,8 @@
 <section id="next">
   <h2>設計への反映</h2>
   <ul>
-    <li><b>DDR <code>i0176-01</code></b> に、主判定・出口・判定順・AND条件と「止まって待つ」の対を記録した。却下案は5件（規模を主判定にする案／3軸並列の案／「あったほうがよいか」で判定する案／判定順を持たない案／出口(1) を OR にする案／非対話セッションの退避経路を持つ案）。</li>
-    <li><b>調査の限界を4点書いた。</b> うち <code>references/planning.md</code> 手順3 の段階2のコマンド例が <code>REVIEW-POINTS.md</code> 群を探索範囲に含めていないという穴は、<b>このMRでは直していない</b>。手順3は本MRの反映対象の判定そのものが依存している手順であり、判定に使いながら同じMRで書き換えると、どちらの版で判定したのかが後から読めなくなるためである。DDRの「調査の限界」へ記録した。</li>
+    <li><b>DDR <code>i0176-01</code></b> に、主判定・出口・判定順・AND条件と「止まって待つ」の対を記録した。却下案は<b>6件</b>（規模を主判定にする案／3軸並列の案／「あったほうがよいか」で判定する案／判定順を持たない案／出口(1) を OR にする案／非対話セッションの退避経路を持つ案）。</li>
+    <li><b>調査の限界を4点書いた。</b> うち <code>references/planning.md</code> 手順3 の段階2のコマンド例が <code>REVIEW-POINTS.md</code> 群を探索範囲に含めていなかったという穴は、敵対的レビュー2回目の指摘を受けて <b>#12 として主判定へ通し、このMRで直した</b>（主判定 Yes）。当初は「判定に使っている手順を同じMRで書き換えない」として見送っていたが、<b>このMRの判定自体を直した側の探索範囲でやり直してある</b>以上、直さないほうが「記録された判定を再現できない手順」を正として残すことになる。DDRの「調査の限界」も同じ内容へ改めた。</li>
     <li><b><code>.claude/VERSION</code> の例外規定に従った適用</b>を、spec の changelog と <code>HANDOFF.md</code>「判断を迷った内容」の両方へ記録した。</li>
     <li><b>#11（VERSION の無言の衝突検知）は出口(1) と判定し、起票せずに提示して止める。</b> <code>HANDOFF.md</code>「未解決の内容」へ記録したが、<b>依頼の本体は最終応答である</b>（<code>HANDOFF.md</code> は flow-id 5-5 でリセットされるため）。新節「決定は人間が行う — (1) を選んだら止まって待つ」の<b>初回適用</b>にあたる。</li>
   </ul>
