@@ -448,6 +448,94 @@ if [ -e "$T/e.pptx" ]; then left=1; else left=0; fi
 assert_eq "異常系: 出力ファイルを残さない" "0" "$left"
 
 # ---------------------------------------------------------------------------
+# 異常系（要素の型・境界値。jq側の検証で明示エラーになること）
+# ---------------------------------------------------------------------------
+printf '%s\n' '{"meta":{"title":"t"},"slides":[{"type":"table","title":"x","headers":[],"rows":[]}]}' > "$T/emptyhdr.json"
+expect_error "空headers" "$T/emptyhdr.json" "headers が空です"
+
+printf '%s\n' '{"meta":{"title":"t"},"slides":[{"type":"comparison","title":"x","options":[]}]}' > "$T/emptyopt.json"
+expect_error "空options" "$T/emptyopt.json" "options が空です"
+
+printf '%s\n' '{"meta":{"title":"t"},"slides":[{"type":"table","title":"x","headers":["a"],"rows":["notarray"]}]}' > "$T/badrow.json"
+expect_error "rows要素が配列でない" "$T/badrow.json" "rows[0] が配列ではありません"
+
+printf '%s\n' '{"meta":{"title":"t"},"slides":[{"type":"comparison","title":"x","options":["案A"]}]}' > "$T/badopt.json"
+expect_error "options要素がオブジェクトでない" "$T/badopt.json" "options[0] がオブジェクトではありません"
+
+printf '%s\n' '{"meta":{"title":"t"},"slides":[{"type":"diagram","title":"x","nodes":["a"],"edges":["notobj"]}]}' > "$T/badedge.json"
+expect_error "edges要素がオブジェクトでない" "$T/badedge.json" "edges[0] がオブジェクトではありません"
+
+# 全セルが空の表は、素のbashエラー（ゼロ除算）ではなく明示エラーで止まる
+printf '%s\n' '{"meta":{"title":"t"},"slides":[{"type":"table","title":"x","headers":[""],"rows":[[""]]}]}' > "$T/allempty.json"
+expect_error "全セル空の表" "$T/allempty.json" "表の列数を決定できません"
+
+# ---------------------------------------------------------------------------
+# jqが途中で失敗した場合: 非0終了・明示エラー・出力を残さない
+# （構文検査(empty)だけ実jqへ委譲し、変換ではレコードを途中まで吐いて失敗するstub jq）
+# ---------------------------------------------------------------------------
+jqfail_bin="$T/bin-jqfail"
+mkdir -p "$jqfail_bin"
+real_jq="$(command -v jq)"
+printf '#!/bin/sh\nif [ "$1" = "empty" ]; then exec %s "$@"; fi\nprintf "SLIDE\\0371\\037section\\nTITLE\\037x\\n"\nexit 1\n' "$real_jq" > "$jqfail_bin/jq"
+chmod +x "$jqfail_bin/jq"
+rc=0
+out="$(PATH="$jqfail_bin:$base_bin" bash "$target" "$T/mini.json" "$T/never3.pptx" 2>&1)" || rc=$?
+if [ "$rc" -ne 0 ]; then nz=1; else nz=0; fi
+assert_eq "jq途中失敗: 非0終了（内容の欠けた成功にしない）" "1" "$nz"
+assert_contains "jq途中失敗: 明示エラー" "$out" "入力の変換に失敗しました"
+if [ -e "$T/never3.pptx" ]; then left=1; else left=0; fi
+assert_eq "jq途中失敗: 出力ファイルを残さない" "0" "$left"
+
+# ---------------------------------------------------------------------------
+# 制御文字入りの入力: 空白へ置換して生成を継続し、全XMLパーツはwell-formedのまま
+# ---------------------------------------------------------------------------
+python3 - "$T/ctrl.json" <<'EOF'
+import json, sys
+open(sys.argv[1], "w", encoding="utf-8").write(json.dumps(
+    {"meta": {"title": "t"}, "slides": [
+        {"type": "bullets", "title": "x", "items": ["a" + chr(1) + "b"]}]}))
+EOF
+rc=0
+out="$(bash "$target" "$T/ctrl.json" "$T/ctrl.pptx" 2>&1)" || rc=$?
+assert_eq "制御文字入力: rc=0（空白へ置換して生成継続）" "0" "$rc"
+ctrl_text="$(python3 - "$T/ctrl.pptx" <<'EOF'
+import sys, zipfile
+import xml.etree.ElementTree as ET
+z = zipfile.ZipFile(sys.argv[1])
+for n in z.namelist():
+    if n.endswith(".xml") or n.endswith(".rels"):
+        ET.fromstring(z.read(n))
+root = ET.fromstring(z.read("ppt/slides/slide1.xml"))
+ns = "{http://schemas.openxmlformats.org/drawingml/2006/main}"
+print("|".join(t.text or "" for t in root.iter(ns + "t")))
+EOF
+)"
+assert_contains "制御文字入力: 0x01は空白へ置換されXMLはwell-formed" "$ctrl_text" "a b"
+
+# ---------------------------------------------------------------------------
+# 不揃いな表: 列数は全行の最大・不足セルは空埋め・超過セルは捨てない
+# ---------------------------------------------------------------------------
+printf '%s\n' '{"meta":{"title":"t"},"slides":[{"type":"table","title":"x","headers":["h1"],"rows":[["c1","超過セル"],[]]}]}' > "$T/ragged.json"
+rc=0
+out="$(bash "$target" "$T/ragged.json" "$T/ragged.pptx" 2>&1)" || rc=$?
+assert_eq "不揃いな表: rc=0" "0" "$rc"
+ragged_info="$(python3 - "$T/ragged.pptx" <<'EOF'
+import sys, zipfile
+import xml.etree.ElementTree as ET
+z = zipfile.ZipFile(sys.argv[1])
+root = ET.fromstring(z.read("ppt/slides/slide1.xml"))
+ns = "{http://schemas.openxmlformats.org/drawingml/2006/main}"
+grid = root.findall(".//" + ns + "tblGrid/" + ns + "gridCol")
+rows = root.findall(".//" + ns + "tr")
+texts = "|".join(t.text or "" for t in root.iter(ns + "t"))
+print("cols=%d rows=%s texts=%s" % (len(grid), [len(r.findall(ns + "tc")) for r in rows], texts))
+EOF
+)"
+assert_contains "不揃いな表: 列数は全行の最大（2列）" "$ragged_info" "cols=2"
+assert_contains "不揃いな表: 全行が同じセル数へパディングされる" "$ragged_info" "rows=[2, 2, 2]"
+assert_contains "不揃いな表: 超過セルが捨てられない" "$ragged_info" "超過セル"
+
+# ---------------------------------------------------------------------------
 # speakerNotes入り入力: 標準エラーへ件数付き警告を出し、処理は成功する（rc=0）
 # ---------------------------------------------------------------------------
 printf '%s\n' '{"meta":{"title":"t"},"slides":[{"type":"section","title":"x","speakerNotes":"メモ"},{"type":"summary","title":"y","items":["a"],"speakerNotes":"メモ2"}]}' > "$T/notes.json"

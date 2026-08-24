@@ -19,7 +19,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - PR: #199（Draft。https://github.com/yuki-matsu783/MR-driven-workflow/pull/199 ）
 - push回数: 6
 - 現在のループ: 3-6〜3-9 の1周目（進行中）
-- 未返信スレッド: 0
+- 未返信スレッド: 7
 - 追従監視: PR #199 を subscribe_pr_activity で購読（このセッション）
 
 | 進捗 | flow-id | ステップ | 担当 |
@@ -31,7 +31,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 | [] | 1-5 | 全体作業計画に合意する | 人間 |
 | [x] | 1-6 | 全体作業計画をもとにHANDOFF.mdを更新する | エージェント |
 | [x] | 2-1 | 個別調査計画を作成する | エージェント |
-| [] | 2-2 | commitし、pushしてレビュー依頼を行う | エージェント |
+| [x] | 2-2 | commitし、pushしてレビュー依頼を行う | エージェント |
 | [] | 2-3 | MRで調査計画についてレビュー・コメントする | 人間 |
 | [] | 2-4 | レビュー内容を取得し、調査計画を修正する | サブコマンド |
 | [x] | 2-5 | 調査計画をもとにMR descriptionを更新する | サブコマンド |
@@ -41,7 +41,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 | [] | 2-9 | レビュー内容を取得し、調査結果を修正する | サブコマンド |
 | [x] | 2-10 | 調査結果をもとにMR descriptionを更新する | サブコマンド |
 | [x] | 3-1 | 個別作業計画を作成する | エージェント |
-| [] | 3-2 | commitし、pushしてレビュー依頼を行う | エージェント |
+| [x] | 3-2 | commitし、pushしてレビュー依頼を行う | エージェント |
 | [] | 3-3 | MRで作業計画についてレビュー・コメントする | 人間 |
 | [] | 3-4 | レビュー内容を取得し、作業計画を修正する | サブコマンド |
 | [x] | 3-5 | 作業計画をもとにMR descriptionを更新する | サブコマンド |
@@ -119,8 +119,8 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - 2026-08-23〜24: 実装（flow-id 3-6）を完了。成果物: `.claude/skills/pptx-slides/` 一式
   （SKILL.md・`scripts/json-to-pptx.sh`・`scripts/slides-to-records.jq`・
   `assets/pptx-template/` 静的7パーツ）と単体テスト
-  `.claude/scripts/test/test_json_to_pptx.sh`（`passed=49 failures=0`）。
-  既存機構への影響確認（既存テスト22本全件・`check-dist-coverage.sh`・
+  `.claude/scripts/test/test_json_to_pptx.sh`（push6時点 `passed=49 failures=0`）。
+  既存機構への影響確認（分岐点時点の既存テスト21本を含む22本全件・`check-dist-coverage.sh`・
   `extract-frontmatter.sh .`）も全て通過。実装中に実バグ3件
   （bash 5.2の`patsub_replacement`によるXMLエスケープ破壊／HDRレコードの値内改行での
   行分割／テストのPATH制限で`bash`自体が要る）を検出・修正し、テストで再発を固定。
@@ -128,17 +128,40 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
   worklog（push6）を作成。条件7突合の対象外リストへ `slides[].type` を追加（計画との差分。
   レポートの「想定と異なった点」参照）。
 
+- 2026-08-24: push6（commit ce72d32）ののち、敵対的レビュー（フェーズ3の2回目・対象は
+  実装diff）を実施。指摘10件（blocker1・major3・minor6）のうち7件をPR #199へインライン投稿、
+  3件は報告のみ（worklog push6参照）。投稿スレッド（未返信7）:
+  - https://github.com/yuki-matsu783/MR-driven-workflow/pull/199#discussion_r3840043858 （blocker: jq終了コード不検知で内容欠落でもrc=0）
+  - https://github.com/yuki-matsu783/MR-driven-workflow/pull/199#discussion_r3840044196 （major: 自己検証がwell-formed非対応・制御文字で壊れたpptxがrc=0）
+  - https://github.com/yuki-matsu783/MR-driven-workflow/pull/199#discussion_r3840044845 （major: 表の列数が先頭行依存でゼロ除算/列数不整合）
+  - https://github.com/yuki-matsu783/MR-driven-workflow/pull/199#discussion_r3840045155 （major: 超過セルの無言切り捨て）
+  - https://github.com/yuki-matsu783/MR-driven-workflow/pull/199#discussion_r3840045757 （minor: SKILL.mdの検証範囲の記述が実装と食い違う）
+  - https://github.com/yuki-matsu783/MR-driven-workflow/pull/199#discussion_r3840046105 （minor: レポートのテスト本数が実測と不一致）
+  - https://github.com/yuki-matsu783/MR-driven-workflow/pull/199#discussion_r3840046725 （minor: worklogに生の0x1F混入）
+- 2026-08-24: 敵対的レビュー（P3の2回目）の指摘10件を全件修正（push7）。主要な修正:
+  jqのレコードを一時ファイル経由へ変更し途中失敗を検知（blocker）／jqの`clean`でC0制御文字を
+  空白化＋自己検証へXML well-formed検査を追加（python検出時）／表の列数を全行の最大セル数で
+  決定する形へ再構成（ゼロ除算・超過セルの無言切り捨てを解消）／jq検証へ要素の型・1件以上の
+  検査を追加／SKILL.md・レポート・worklog・HANDOFFの記述と数値を実測へ同期。
+  単体テストへ21件追加（`passed=70 failures=0`）。全テスト22本・`check-dist-coverage.sh`
+  （498/498）・`extract-frontmatter.sh .` を再実行し全て通過。修正一覧はレポート章6が正。
+
 ## 次にやること
 
-- commit/push（3-7、push6）→ 敵対的レビュー（フェーズ3の2回目・対象は実装diff）→
-  指摘対応・返信 → describe（3-10）→ フェーズ4（個別反映計画: spec `pptx-slides.md`・DDR・
-  directory-structure.mdツリー追記・generate-ddr-list.sh）。
+- 敵対的レビュー（P3の2回目）の指摘7件＋報告のみ3件を修正 → commit/push（push7）→
+  7スレッドへ対応返信（unreplied 0へ）→ describe（3-10）→ フェーズ4（個別反映計画:
+  spec `pptx-slides.md`・DDR・directory-structure.mdツリー追記・generate-ddr-list.sh）。
 
 ## 判断を迷った内容
 
 - ブランチ名がリポジトリ命名規則（`feature-169-<slug>`）と異なるが、ハーネス（実行基盤）が
   `claude/json-to-pptx-export-3g63ea` での開発を指定しているため、ハーネス側を優先した
   （PR #194 と同じ優先順位の考え方）。
+- 進捗表で人間担当のレビュー往復を含むループ範囲（2-3〜2-4・2-6〜2-9・3-3〜3-4・3-6〜3-9）は
+  **意図的に `[]` のまま残している**（`.claude/rules/docs-workflow.md`「非対話的実行環境で
+  人間担当のレビュー待ちステップを省略する場合」の指定どおり。`[x]` は「1周完了」、`[-]` は
+  「実施しない」と矛盾するため）。実施した内容は「やったこと」の文章が正。単独ステップ
+  （2-2・3-2等）は実施済みなら `[x]` にする。
 - issue #169 は「#168 のマージが前提」だが、ユーザーが並行して進めることを指示した。構成案JSON
   スキーマの未確定リスクは「入力検証をjqの必須キー検査で行い、スキーマファイル本体へ依存しない」
   設計で吸収する（全体作業計画参照）。Draft解除（flow-id 5-6）の前に PR #194 の状態を再確認する。

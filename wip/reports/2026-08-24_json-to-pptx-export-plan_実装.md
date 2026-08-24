@@ -21,9 +21,12 @@ keywords: [実装結果, pptx-slides, json-to-pptx, OOXML, zip, 単体テスト,
 - ◆ **PowerPoint実機確認（受け入れ条件3・4・5の代替検証）**: この環境ではOOXMLフルパーサでの
   開封検証ができない（フェーズ2調査で実測済み）。生成した .pptx を実機のPowerPointで開き、
   (1) 修復ダイアログ・警告なしに開けること、(2) テキストボックス・表がクリックして編集できる
-  こと、(3) 8種type全てのスライドが表示されることの確認を依頼する。確認手順:
-  `bash .claude/skills/pptx-slides/scripts/json-to-pptx.sh <構成案JSON>` で生成した .pptx を
-  Windowsへコピーして開く。**この結果が返るまで flow-id 5-6（Draft解除）へ進まない**。
+  こと、(3) 8種type全てのスライドが表示されること、(4) **表に罫線・1行目の強調が付いている
+  こと**（表スタイルは組み込みGUIDの `tableStyleId` 参照のみで `tableStyles.xml` を同梱して
+  いないため、解決されない環境では無装飾の表になりうる。敵対的レビュー2回目の指摘）の確認を
+  依頼する。確認手順: `bash .claude/skills/pptx-slides/scripts/json-to-pptx.sh <構成案JSON>` で
+  生成した .pptx をWindowsへコピーして開く。**この結果が返るまで flow-id 5-6（Draft解除）へ
+  進まない**。
 - ◆ **Windows git bash実機での実行確認**: zip不在環境でのpython経路フォールバック
   （`py -3` への候補送りを含む）はスタブでのみ検証した。実機での1回の実行確認を依頼する。
 - ◇ **条件7突合の対象外リストへ `slides[].type` を追加**: 計画の対象外3つ（`meta.title`・
@@ -36,13 +39,18 @@ keywords: [実装結果, pptx-slides, json-to-pptx, OOXML, zip, 単体テスト,
 ## サマリ（結論の一覧）
 
 1. **◎ スキル一式を作成し、8種type全部入りサンプルからの生成が両zip経路で機械検証に全合格**。
-   単体テスト `passed=49 failures=0`。
-2. **◎ 既存機構への影響なし**: 既存テスト22本全件 `failures=0`・`check-dist-coverage.sh` 4種
-   通過・`extract-frontmatter.sh .` エラーなし（新規SKILL.mdはインデックスへ載る）。
+   単体テスト `passed=70 failures=0`（敵対的レビュー2回目の指摘反映後の値。反映前は49件）。
+2. **◎ 既存機構への影響なし**: 分岐点時点の既存テスト21本を含む22本全件 `failures=0`・
+   `check-dist-coverage.sh` 4種通過（498/498件）・`extract-frontmatter.sh .` エラーなし
+   （新規SKILL.mdはインデックスへ載る）。
 3. **✕→◎ 実装中に実バグ3件を検出し修正**: bash 5.2の `patsub_replacement` によるXML
    エスケープ破壊／HDRレコードの値内改行での行分割／（テスト側）PATH制限時の `bash` 探索。
    いずれも単体テストで再発を固定した。
-4. **△ 受け入れ条件3・4・5（PowerPointでの編集可能性）は実機未検証**のまま（計画どおり
+4. **✕→◎ 敵対的レビュー（フェーズ3の2回目・対象=実装diff）の指摘10件を修正**: 最重要は
+   blocker「jqの途中失敗を検知せず、内容の欠けた .pptx を成功として出力する」。ほかに
+   制御文字入力での不正XML・表の列数の先頭行依存（ゼロ除算）・超過セルの無言切り捨て等
+   （詳細は章6）。
+5. **△ 受け入れ条件3・4・5（PowerPointでの編集可能性）は実機未検証**のまま（計画どおり
    実機確認をレビュー依頼へ切り出し。上記◆）。
 
 ## 確かめられなかったこと
@@ -62,7 +70,7 @@ keywords: [実装結果, pptx-slides, json-to-pptx, OOXML, zip, 単体テスト,
 | `.claude/skills/pptx-slides/scripts/json-to-pptx.sh` | 生成スクリプト本体（約450行。入力検証→雛形コピー→slideN.xml生成→連動5箇所→zip梱包経路試行→自己検証） |
 | `.claude/skills/pptx-slides/scripts/slides-to-records.jq` | 構成案JSON→レコードストリーム変換（入力検証を含む、実行あたり1回だけのjq呼び出し） |
 | `.claude/skills/pptx-slides/assets/pptx-template/` | 静的OOXMLパーツ7ファイル（`_rels/.rels`・`docProps/core.xml`（プレースホルダ）・slideMaster+rels・slideLayout+rels・theme） |
-| `.claude/scripts/test/test_json_to_pptx.sh` | 単体テスト（アサーション49件） |
+| `.claude/scripts/test/test_json_to_pptx.sh` | 単体テスト（アサーション70件） |
 
 設計は計画どおり: `[Content_Types].xml`・`presentation.xml`・`presentation.xml.rels`・
 `app.xml`・`ppt/slides/**` はスクリプトが丸ごと所有し、rIdはrId1=slideMaster/rId2=theme予約・
@@ -71,11 +79,11 @@ keywords: [実装結果, pptx-slides, json-to-pptx, OOXML, zip, 単体テスト,
 プレースホルダ置換はパラメータ展開（sed/awk不使用）。一時ディレクトリは
 `mktemp -d`＋`trap EXIT` で正常・異常とも残さない。
 
-### 2. 単体テストの結果（生の出力）
+### 2. 単体テストの結果（生の出力。2026-08-24、敵対的レビュー2回目の指摘反映後に再実行）
 
 ```
 $ bash .claude/scripts/test/test_json_to_pptx.sh
-passed=49 failures=0
+passed=70 failures=0
 ```
 
 内訳（要点）:
@@ -95,6 +103,11 @@ passed=49 failures=0
   こと（TMPDIR制御）を確認。
 - 異常系: 不正JSON（パス入り明示エラー）・type不正（8種enum）・スライドtitle欠落・
   meta.title欠落・空slides・入力ファイル無し・出力先がディレクトリ・親ディレクトリ不在。
+- 異常系（要素の型・境界値。敵対的レビュー2回目で追加）: 空 `headers`・空 `options`・
+  `rows[0]` が配列でない・`options[0]`／`edges[0]` がオブジェクトでない・全セル空の表
+  （いずれもキー名を挙げた明示エラー）。jqが途中で失敗する経路（stub jq）で非0終了し
+  出力を残さないこと。制御文字（0x01）入り入力が空白へ置換されwell-formedのまま生成される
+  こと。不揃いな表（超過セル・不足セル）で列数が全行の最大になり超過セルが捨てられないこと。
 - 警告: speakerNotes入り入力で標準エラーへ件数付き警告（`2 件`）・終了コードは0のまま・
   生成自体は行われる。
 - docProps: 改行・特殊文字入り `meta.title` が `dc:title` へ1行に潰れてエスケープ経由で
@@ -102,9 +115,13 @@ passed=49 failures=0
 
 ### 3. 既存機構への影響確認（計画で名指しのコマンド3種・生の要約）
 
+本数の根拠: 分岐点（origin/main）時点の既存テストは
+`git ls-tree origin/main --name-only .claude/scripts/test/ | grep -c 'test_.*\.sh$'` = **21本**、
+現在は新規1本を含め `ls .claude/scripts/test/test_*.sh | wc -l` = **22本**。
+以下は敵対的レビュー2回目の指摘反映後（2026-08-24）に再実行した生の出力。
+
 ```
-$ for t in .claude/scripts/test/test_*.sh; do bash "$t"; done   # 全22本
-（全件 rc=0。新規分を含む23本の最終行）
+$ for t in .claude/scripts/test/test_*.sh; do bash "$t"; done   # 22本全件（rc=0）
 test_adversarial_review_count.sh: passed=22 failures=0
 test_block_direct_git_commit.sh: passed=27 failures=0
 test_check_base_conflicts.sh: passed=31 failures=0
@@ -118,7 +135,7 @@ test_extract_frontmatter.sh: passed=32 failures=0
 test_generate_ddr_list.sh: passed=52 failures=0
 test_harvest_from_projects.sh: passed=91 failures=0
 test_install_to_project.sh: passed=100 failures=0
-test_json_to_pptx.sh: passed=49 failures=0   ← 新規
+test_json_to_pptx.sh: passed=70 failures=0   ← 新規
 test_post_issue_create_notice.sh: passed=38 failures=0
 test_search_frontmatter.sh: passed=114 failures=0
 test_select_adversarial_findings.sh: passed=34 failures=0
@@ -129,24 +146,50 @@ test_usage_tracking.sh: passed=120 failures=0
 test_vcs_provider.sh: passed=225 failures=0
 
 $ bash .claude/scripts/src/check-dist-coverage.sh
-検査1 追跡ファイルの分類: 484 / 484 件
+検査1 追跡ファイルの分類: 498 / 498 件   # 今回追加の .claude/skills/pptx-slides/** を含めて被覆
 検査2 .gitignore の行の被覆: 10 / 10 行
 検査3 空振りエントリ: 0 件（うち pathspec として不正 0 件）
 検査4 layer / strategy の妥当性: 不正 0 件
 結果: OK（4種すべて通過）
 
 $ bash .claude/scripts/src/extract-frontmatter.sh .
-files=176 built=0 reused=176 failed=0 skipped=0   # エラーなし。pptx-slides/SKILL.md は
+files=178 built=4 reused=174 failed=0 skipped=0   # エラーなし。pptx-slides/SKILL.md は
                                                   # .claude/skills/pptx-slides/index.jsonl に載る
 ```
 
+### 6. 敵対的レビュー（フェーズ3の2回目・対象=実装diff）の指摘と修正
+
+指摘10件（blocker1・major3・minor6）。7件をPR #199へインライン投稿し、3件は報告のみ
+（worklog push6参照）。全件を以下のとおり修正した。
+
+| 指摘 | 修正 |
+|---|---|
+| **blocker**: プロセス置換のためjqの途中失敗が伝わらず、内容の欠けた .pptx を「成功」として出力 | レコードを一時ファイルへ落としてから読む形へ変更し、jqの終了コードを検知して明示エラー・非0終了。stub jqで再発を固定 |
+| **major**: 制御文字（0x01等）が `<a:t>` へ入り、不正XMLの .pptx が rc=0 で出る | jqの `clean` でXML 1.0が許さないC0制御文字（TAB/LF/CR以外）を空白へ置換。自己検証にもwell-formed検査を追加（python検出時。不在時は省略を警告） |
+| **major**: 表の列数が先頭行依存で、空ヘッダだとゼロ除算・comparisonで行と列数の不整合 | 列数を全行の最大セル数で決定する形へ再構成。全セル空は明示エラー。jq側検証へ `headers`/`options` 1件以上を追加 |
+| **major**: ヘッダより多いセルの無言切り捨て | 同上の再構成で切り捨て自体を廃止（不足セルは空埋め、超過セルは列を広げて保持）。SKILL.mdへ挙動を明記 |
+| minor: SKILL.mdの検証範囲の記述が実装と食い違う | 自己検証へwell-formed検査を実装で追加したうえで、記述を「zip整合性＋必須パーツ＋（python検出時）well-formed」へ統一 |
+| minor: レポートのテスト本数（22/23本）が実測（21/22本）と不一致 | 本レポート・HTML・HANDOFF・worklogの数値を実測コマンド付きで修正 |
+| minor: worklogに生の0x1F混入 | 読める表記（バックスラッシュ＋u001f）へ書き換え、バイト数比較で0件を確認 |
+| 報告のみ: 貼付出力（`files=176`・`484/484`）が現在のツリーで再現しない | コミット後のツリーで再実行した値へ差し替え、実行日を明記 |
+| 報告のみ: HANDOFF進捗表で 3-2 が `[]` のまま 3-5 が `[x]` | 実施済みの 2-2・3-2 を `[x]` へ。人間レビュー待ちのループ範囲（2-3〜2-4等）を `[]` のまま残す理由を「判断を迷った内容」へ明記 |
+| 報告のみ: `tableStyleId` のGUID参照だが `tableStyles.xml` が無い（確度low・実機でしか検証不能） | 実機確認依頼へ「(4) 表に罫線・1行目強調が付くこと」を追加（上記◆）。無装飾だった場合は `tableStyles.xml` の同梱を後続で行う |
+
+- **jq検証の強化に伴う入力仕様の明確化**: `rows[]` の各要素は配列・`options[]`／`edges[]` の
+  各要素はオブジェクト・`headers`／`options` は1件以上、をjq側で検査し明示エラーにする
+  （SKILL.mdの必須キー節にも追記済み）。
+- 修正後の再実行結果が本レポートの章2・章3の値（`passed=70 failures=0` 等）である。
+
 ## 設計への反映（フェーズ4への引き継ぎ）
 
-- spec `.claude/docs/spec/pptx-slides.md`（新規）: 入力仕様（必須キー表）・type別写像・
-  rId採番規則・連動5箇所・zip経路試行・**条件7突合の手順（対象外= `meta.title`・`meta.issue`・
-  `speakerNotes`・`slides[].type` の4つ）**・PowerPoint製雛形への差し替え前処理条件・
-  **bash 5.2 `patsub_replacement` の罠と `shopt -u` の根拠**。SKILL.md はこのspecを参照済み
-  （フェーズ4で実体を作るまでリンク先が無い状態。フェーズ4の個別反映計画へ明記済み）。
+- spec `.claude/docs/spec/pptx-slides.md`（新規）: 入力仕様（必須キー表。要素の型・1件以上の
+  検証を含む）・type別写像・表の列数決定（全行の最大・不足は空埋め）・rId採番規則・連動5箇所・
+  zip経路試行・**jq終了コードの検知（一時ファイル経由）と制御文字の空白化**・自己検証の範囲
+  （zip整合性＋必須パーツ＋python検出時のwell-formed）・**条件7突合の手順（対象外=
+  `meta.title`・`meta.issue`・`speakerNotes`・`slides[].type` の4つ）**・PowerPoint製雛形への
+  差し替え前処理条件・**bash 5.2 `patsub_replacement` の罠と `shopt -u` の根拠**。
+  SKILL.md はこのspecを参照済み（フェーズ4で実体を作るまでリンク先が無い状態。
+  フェーズ4の個別反映計画へ明記済み）。
 - DDR: 却下案（クリップボード経由・python-pptx・XMLゼロから生成・バイナリ雛形・
   Compress-Archive）の記録（原文は調査レポート「設計への反映」）。
 - `.claude/rules/directory-structure.md` のツリーへ `pptx-slides` を追記、
@@ -182,6 +225,9 @@ files=176 built=0 reused=176 failed=0 skipped=0   # エラーなし。pptx-slide
 
 - ◆2件（PowerPoint実機確認・Windows git bash実機確認）: PRレビューで依頼済み事項。
   結果が返るまで flow-id 5-6（Draft解除）へ進まない（`HANDOFF.md` の「守るべき条件」）。
+- 実機確認で表が無装飾（罫線・1行目強調なし）だった場合は、`ppt/tableStyles.xml` の同梱と
+  presentation.xml.rels への追加（rId採番規則の拡張を含む）を行う（敵対的レビュー2回目の
+  指摘。確度lowのため実機確認の結果待ち）。
 - PR #194（issue #168）のスキーマ具体化に伴う突合: Draft解除前に再確認する
   （必須キー検査はスキーマファイル本体へ依存しない設計のため、フィールド名変更時のみ追従）。
 - speakerNotes（notesSlide）対応は後続issue（入力にあれば警告で観測可能）。

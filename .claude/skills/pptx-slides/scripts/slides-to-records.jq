@@ -13,11 +13,12 @@
 #   COL      <L|R> <行>                    2カラムの段落
 #   TROW     <H|D> <セル>...               表の行（セル内改行は空白へ潰す）
 #
-# 値の正規化: CR除去・区切り文字USは空白へ・改行は段落分割（TROWのセルのみ空白化）。
+# 値の正規化: CR除去・XML 1.0が許さないC0制御文字（TAB/LF/CR以外。US=0x1Fを含む）は
+# 空白へ・改行は段落分割（TROWのセルのみ空白化）。
 # XMLエスケープはここでは行わない（bash側の xml_escape_to_reply が唯一の実装）。
 
 def u: "\u001f";
-def clean: tostring | gsub("\r"; "") | gsub("\u001f"; " ");
+def clean: tostring | gsub("\r"; "") | gsub("[\u0000-\u0008\u000b\u000c\u000e-\u001f]"; " ");
 def plines: clean | split("\n") | map(select(. != ""));
 def cell: clean | gsub("\n"; " ");
 def joined: if type == "array" then map(cell) | join(" / ") elif . == null then "" else cell end;
@@ -49,10 +50,27 @@ def item_text: if type == "object" then (.text // .label // "") else . end;
                  then "slides[\($i)].left / .right（必須）がありません" else empty end),
                 (if $s.type == "table" and ((($s.headers? | type) != "array") or (($s.rows? | type) != "array"))
                  then "slides[\($i)].headers / .rows（配列・必須）がありません" else empty end),
+                # 要素の型まで検証する（配列であることしか見ないと、bash側の実行時に
+                # jqがエラー終了して内容の欠落・ゼロ除算として表面化する）
+                (if $s.type == "table" and (($s.headers? | type) == "array") and (($s.headers | length) == 0)
+                 then "slides[\($i)].headers が空です（1件以上必要）" else empty end),
+                (if $s.type == "table" and (($s.rows? | type) == "array")
+                 then ($s.rows | to_entries[] | select(.value | type != "array")
+                       | "slides[\(($i | tostring))].rows[\(.key)] が配列ではありません") else empty end),
                 (if $s.type == "comparison" and (($s.options? | type) != "array")
                  then "slides[\($i)].options（配列・必須）がありません" else empty end),
+                (if $s.type == "comparison" and (($s.options? | type) == "array") and (($s.options | length) == 0)
+                 then "slides[\($i)].options が空です（1件以上必要）" else empty end),
+                (if $s.type == "comparison" and (($s.options? | type) == "array")
+                 then ($s.options | to_entries[] | select(.value | type != "object")
+                       | "slides[\(($i | tostring))].options[\(.key)] がオブジェクトではありません") else empty end),
                 (if $s.type == "diagram" and (($s.nodes? | type) != "array")
-                 then "slides[\($i)].nodes（配列・必須。edgesは任意）がありません" else empty end)
+                 then "slides[\($i)].nodes（配列・必須。edgesは任意）がありません" else empty end),
+                (if $s.type == "diagram" and ($s.edges? != null) and (($s.edges | type) != "array")
+                 then "slides[\($i)].edges が配列ではありません" else empty end),
+                (if $s.type == "diagram" and (($s.edges? | type) == "array")
+                 then ($s.edges | to_entries[] | select(.value | type != "object")
+                       | "slides[\(($i | tostring))].edges[\(.key)] がオブジェクトではありません") else empty end)
               ) end )
           ]
         else [] end )

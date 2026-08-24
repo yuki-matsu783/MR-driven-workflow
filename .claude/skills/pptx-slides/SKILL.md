@@ -22,8 +22,10 @@ bash .claude/skills/pptx-slides/scripts/json-to-pptx.sh <入力.json> [出力.pp
 - 出力を省略すると、入力と同じディレクトリの `<ベース名>.pptx` になる
   （`deck.slides.json` → `deck.pptx`。既存の同名ファイルは上書きする）。
 - 生成に成功すると `生成しました（スライドN枚・経路=...）` を表示して終了コード0。
-  失敗時は**明示エラーを出して非0で終了し、壊れた .pptx を残さない**（生成後に
-  zip整合性＋必須パーツ存在の自己検証を行い、失敗したら出力を削除する）。
+  失敗時は**明示エラーを出して非0で終了し、壊れた .pptx を残さない**（変換を担うjqの
+  途中失敗も検知して非0で終える。生成後には zip整合性＋必須パーツ存在＋（pythonが
+  使える環境では）全XMLパーツのwell-formedの自己検証を行い、失敗したら出力を削除する。
+  python不在の環境ではwell-formed検査だけ省略され、その旨を警告する）。
 
 ## 入力（構成案JSONの必須キー）
 
@@ -31,9 +33,12 @@ bash .claude/skills/pptx-slides/scripts/json-to-pptx.sh <入力.json> [出力.pp
 - 各スライドは `type`（8種enum: `cover` `section` `bullets` `two-column` `diagram`
   `table` `comparison` `summary`）と `title`（全型必須）を持つ。
 - 型別の必須キー: `bullets`/`summary`→`items[]`、`two-column`→`left`/`right`、
-  `table`→`headers[]`/`rows[][]`、`comparison`→`options[]`、`diagram`→`nodes[]`
-  （`edges` は任意）。**表に無いキーは無視する**（過剰なキーで失敗しない）。
+  `table`→`headers[]`（1件以上）/`rows[][]`（各行は配列）、`comparison`→`options[]`
+  （1件以上・各要素はオブジェクト）、`diagram`→`nodes[]`（`edges` は任意。書くなら
+  配列で各要素はオブジェクト）。**表に無いキーは無視する**（過剰なキーで失敗しない）。
 - 違反はキー名を挙げた明示エラーになる。
+- 表の列数は**全行（ヘッダ含む）の最大セル数**で決まる。セル数が少ない行は空セルで
+  埋められ、多い行のセルが切り捨てられることはない。
 
 ## スライド型の表現
 
@@ -58,9 +63,13 @@ bash .claude/skills/pptx-slides/scripts/json-to-pptx.sh <入力.json> [出力.pp
 - zip梱包は `zip -X -D -r` → `python3`/`python`/`py -3` の `zipfile` の順に**能力ベース**
   （実際に生成→検証が通るか）で試し、どの経路も使えなければ明示エラーで止まる。
   Windows git bash で `zip` が無い環境でも、python が入っていれば動く。
-- **生成した .pptx をPRに含めるときは、PowerPoint実機での確認（警告なく開く・テキストと
-  表が編集できる）をレビューで依頼すること**（この環境ではOOXMLフルパーサでの検証が
-  できないため。機械検証はzip整合性・XML well-formed・パーツ突合まで）。
+- **生成した .pptx をPRに含めるときは、PowerPoint実機での確認をレビューで依頼すること**。
+  見る点は (1) 警告・修復ダイアログなく開くこと、(2) テキストと表が編集できること、
+  (3) **表に罫線・1行目の強調が付いていること**（表スタイルは組み込みGUIDの
+  `tableStyleId` 参照のみで `tableStyles.xml` を同梱しないため、環境によっては
+  無装飾の表になる可能性がある）。開発環境ではOOXMLフルパーサでの検証ができず、
+  機械検証（zip整合性・XML well-formed・パーツ突合・入力テキストとの突合）までしか
+  行えていないため、この3点は実機でしか確かめられない。
 - 構成案JSONのスキーマ確定（issue #168 / PR #194）後の突合手順は
   `.claude/docs/spec/pptx-slides.md` を参照する（issue #169 のフェーズ4で作成）。
 

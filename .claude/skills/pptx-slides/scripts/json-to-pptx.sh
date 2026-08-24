@@ -126,12 +126,31 @@ flush_slide() {
         sp_to_reply "$id" "Right Column" "$COL_R_X" 1717040 "$COL_W" 4700000 "$CUR_COL_R"
         shapes+="$REPLY"; id=$((id + 1))
       fi
-      if [ "$CUR_TBL_NROWS" -gt 0 ]; then
-        local ncols="$CUR_TBL_NCOLS" grid="" i colw frame_h
+      if [ "${#CUR_TBL_KINDS[@]}" -gt 0 ]; then
+        # 列数は全行の最大セル数（TROW受信時に確定済み）。不足セルは空で埋め、
+        # 超過セルを切り捨てない（無言のデータ欠落を作らないため）
+        if [ "$CUR_TBL_NCOLS" -le 0 ]; then
+          err "表の列数を決定できません（全行のセルが空です）: スライド$CUR_N"
+          exit 1
+        fi
+        local ncols="$CUR_TBL_NCOLS" grid="" i colw frame_h rows_xml="" ri kind bold cells
+        local -a RC
         colw=$((FULL_W / ncols))
         for ((i = 0; i < ncols; i++)); do grid+="<a:gridCol w=\"$colw\"/>"; done
-        frame_h=$((ROW_H * CUR_TBL_NROWS))
-        shapes+="<p:graphicFrame><p:nvGraphicFramePr><p:cNvPr id=\"$id\" name=\"Table\"/><p:cNvGraphicFramePr><a:graphicFrameLocks noGrp=\"1\"/></p:cNvGraphicFramePr><p:nvPr/></p:nvGraphicFramePr><p:xfrm><a:off x=\"$MARGIN_X\" y=\"1717040\"/><a:ext cx=\"$FULL_W\" cy=\"$frame_h\"/></p:xfrm><a:graphic><a:graphicData uri=\"http://schemas.openxmlformats.org/drawingml/2006/table\"><a:tbl><a:tblPr firstRow=\"1\"><a:tableStyleId>{5C22544A-7EE6-4342-B048-85BDC9FD1C3A}</a:tableStyleId></a:tblPr><a:tblGrid>$grid</a:tblGrid>$CUR_TBL_ROWS</a:tbl></a:graphicData></a:graphic></p:graphicFrame>"
+        for ((ri = 0; ri < ${#CUR_TBL_KINDS[@]}; ri++)); do
+          kind="${CUR_TBL_KINDS[$ri]}"
+          bold=0
+          if [ "$kind" = "H" ]; then bold=1; fi
+          IFS="$US" read -r -a RC <<<"${CUR_TBL_CELLS[$ri]}"
+          cells=""
+          for ((i = 0; i < ncols; i++)); do
+            table_cell_to_reply "${RC[$i]-}" "$bold"
+            cells+="$REPLY"
+          done
+          rows_xml+="<a:tr h=\"$ROW_H\">$cells</a:tr>"
+        done
+        frame_h=$((ROW_H * ${#CUR_TBL_KINDS[@]}))
+        shapes+="<p:graphicFrame><p:nvGraphicFramePr><p:cNvPr id=\"$id\" name=\"Table\"/><p:cNvGraphicFramePr><a:graphicFrameLocks noGrp=\"1\"/></p:cNvGraphicFramePr><p:nvPr/></p:nvGraphicFramePr><p:xfrm><a:off x=\"$MARGIN_X\" y=\"1717040\"/><a:ext cx=\"$FULL_W\" cy=\"$frame_h\"/></p:xfrm><a:graphic><a:graphicData uri=\"http://schemas.openxmlformats.org/drawingml/2006/table\"><a:tbl><a:tblPr firstRow=\"1\"><a:tableStyleId>{5C22544A-7EE6-4342-B048-85BDC9FD1C3A}</a:tableStyleId></a:tblPr><a:tblGrid>$grid</a:tblGrid>$rows_xml</a:tbl></a:graphicData></a:graphic></p:graphicFrame>"
         id=$((id + 1))
       fi
       ;;
@@ -150,7 +169,7 @@ flush_slide() {
 
 reset_slide_buffers() {
   CUR_N="" CUR_TYPE="" CUR_TITLE="" CUR_SUB="" CUR_BODY="" CUR_COL_L="" CUR_COL_R=""
-  CUR_TBL_ROWS="" CUR_TBL_NROWS=0 CUR_TBL_NCOLS=0
+  CUR_TBL_KINDS=() CUR_TBL_CELLS=() CUR_TBL_NCOLS=0
 }
 
 # ---- zip経路 ----
@@ -194,8 +213,10 @@ with zipfile.ZipFile(dst, "w", zipfile.ZIP_DEFLATED) as z:
 PYEOF
 }
 
-# 生成物の自己検証: zip整合性＋必須パーツの存在。
-# 検証手段はpython（能力検出済みなら）→ unzip の順で、可能な最良を使う。
+# 生成物の自己検証: zip整合性＋必須パーツの存在。python（能力検出済みなら）では
+# 全XMLパーツのwell-formed検査まで行う（入力へ紛れた不正バイト等で壊れたXMLを
+# 「成功」として出さないため）。
+# 検証手段はpython → unzip の順で、可能な最良を使う。
 # どちらも無い場合は検証できない旨を警告し、必須パーツ検査だけ zip -sf で行う。
 verify_pptx() { # $1=pptxパス $2=スライド枚数
   local pptx="$1" n="$2" listing="" i part
@@ -210,16 +231,24 @@ verify_pptx() { # $1=pptxパス $2=スライド枚数
     # shellcheck disable=SC2086
     if ! listing="$($PY_CMD - "$pptx" <<'PYEOF'
 import sys, zipfile
+import xml.etree.ElementTree as ET
 z = zipfile.ZipFile(sys.argv[1])
 bad = z.testzip()
 if bad is not None:
     sys.exit("broken entry: " + bad)
+for n in z.namelist():
+    if n.endswith(".xml") or n.endswith(".rels"):
+        try:
+            ET.fromstring(z.read(n))
+        except ET.ParseError as e:
+            sys.exit("not well-formed: %s: %s" % (n, e))
 print("\n".join(z.namelist()))
 PYEOF
     )"; then
       return 1
     fi
   elif command -v unzip >/dev/null 2>&1; then
+    warn "pythonが無いため、XMLパーツのwell-formed検査は省略した（zip整合性と必須パーツのみ確認する）"
     if ! unzip -t -qq "$pptx" >/dev/null 2>&1; then
       return 1
     fi
@@ -284,6 +313,14 @@ main() {
   cp -R "$TEMPLATE_DIR/." "$WORK/"
 
   # ---- レコードストリームを1回のjqで得て、スライドXMLを組み立てる ----
+  # レコードは一時ファイルへ落としてから読む。プロセス置換 < <(jq ...) だと jq の終了コードが
+  # 呼び出し元へ伝わらず、途中失敗が「内容の欠けた .pptx を成功として出力する」形になるため
+  # （敵対的レビューで実測）。コマンド置換で受けないのはレコードが入力サイズに比例するため
+  if ! jq -r -f "$RECORDS_JQ" "$in" > "$tmp/records"; then
+    err "入力の変換に失敗しました: $in（上のjqエラーを参照。$RECORDS_JQ の検証を通過したのに変換で失敗した場合は、このスキルの不具合として報告してください）"
+    exit 1
+  fi
+
   local meta_title="" meta_author="" meta_issue=""
   local overrides="" sldids="" slide_rels="" nslides=0
   local -a errors=()
@@ -331,19 +368,16 @@ main() {
         if [ "${F[1]}" = "L" ]; then CUR_COL_L+="$REPLY"; else CUR_COL_R+="$REPLY"; fi
         ;;
       TROW)
-        local kind="${F[1]}" bold=0 cells="" ncells=$(( ${#F[@]} - 2 )) ci
-        [ "$kind" = "H" ] && bold=1
-        # 列数はヘッダ行（最初のTROW）で確定。以降の行は不足セルを空で埋める
-        if [ "$CUR_TBL_NCOLS" -eq 0 ]; then CUR_TBL_NCOLS="$ncells"; fi
-        for ((ci = 0; ci < CUR_TBL_NCOLS; ci++)); do
-          table_cell_to_reply "${F[$((ci + 2))]-}" "$bold"
-          cells+="$REPLY"
-        done
-        CUR_TBL_ROWS+="<a:tr h=\"$ROW_H\">$cells</a:tr>"
-        CUR_TBL_NROWS=$((CUR_TBL_NROWS + 1))
+        # ここではバッファへ溜めるだけ。列数は全行の最大セル数で確定するため、
+        # 行のXML化は flush_slide で行う（先頭行基準だとゼロ除算・超過セルの切り捨てが起きる）
+        local ncells=$(( ${#F[@]} - 2 )) joined="" ci
+        for ((ci = 2; ci < ${#F[@]}; ci++)); do joined+="${F[$ci]}$US"; done
+        CUR_TBL_KINDS+=("${F[1]}")
+        CUR_TBL_CELLS+=("$joined")
+        if [ "$ncells" -gt "$CUR_TBL_NCOLS" ]; then CUR_TBL_NCOLS="$ncells"; fi
         ;;
     esac
-  done < <(jq -r -f "$RECORDS_JQ" "$in")
+  done < "$tmp/records"
 
   if [ "${#errors[@]}" -gt 0 ]; then
     err "入力の検証に失敗しました（$in）:"

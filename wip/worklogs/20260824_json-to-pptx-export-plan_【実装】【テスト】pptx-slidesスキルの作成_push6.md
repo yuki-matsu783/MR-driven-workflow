@@ -43,14 +43,34 @@ push回数: 6
 - **`PATH=... bash "$target"` は一時代入のPATHで `bash` 自体を探す**ため、合成binに
   `bash` を含めないと 127 で落ちる（テスト側の話）。→ 合成binへ `bash` のリンクを追加。
 - （push6以前・実装初期）jqフィルタへ生の 0x1F 制御バイトを書いてしまいBashツールの
-  コマンド検査で弾かれた → `""` エスケープ表記へ（shell-script-style.md の
+  コマンド検査で弾かれた → jqのUnicodeエスケープ表記 `\u001f`（バックスラッシュ＋u001fの6文字）へ（shell-script-style.md の
   既存ルールどおり）。`else (` の閉じ括弧不足によるjq構文エラーは、python の括弧深さ
   追跡（文字列リテラル除外）で特定。EXIT trap が参照する `tmp` を `local` にしていて
   `set -u` で落ちる罠も踏んだ（trapはmainを抜けた後に走る）→ localを外し理由コメント。
 
 ## 結果
 
-- `bash .claude/scripts/test/test_json_to_pptx.sh` → `passed=49 failures=0`
-- 既存テスト22本全件 rc=0・failures=0／`check-dist-coverage.sh` OK（484/484）／
-  `extract-frontmatter.sh .` エラーなし
+- `bash .claude/scripts/test/test_json_to_pptx.sh` → `passed=70 failures=0`
+  （push6時点は49件。敵対的レビュー2回目の指摘反映で21件追加）
+- 分岐点時点の既存テスト21本を含む22本全件 rc=0・failures=0／`check-dist-coverage.sh` OK
+  （498/498）／`extract-frontmatter.sh .` エラーなし
 - 詳細と生の出力は結果レポート（md+html）を参照。
+
+## 敵対的レビュー（フェーズ3の2回目・対象=実装diff＝push6）
+
+- 指摘10件（blocker1・major3・minor6）。確度×重大度の1次振り分けで7件を投稿候補とし、
+  `select-adversarial-findings.sh` の選別で7件全件をPR #199へインライン投稿（unreplied=7を
+  記録）。修正内容の一覧は結果レポートの章6が正。主要な修正:
+  - **blocker: jq途中失敗の不検知** → レコードを一時ファイル経由へ変更し終了コードを検知。
+  - **制御文字で不正XML** → jqの `clean` でC0制御文字を空白化＋自己検証へwell-formed追加。
+  - **表の列数の先頭行依存** → 全行の最大セル数で決定する形へ再構成（ゼロ除算・無言の
+    セル切り捨てを同時に解消）。
+- **報告のみ（1次振り分けで minor×medium / minor×low）3件**:
+  1. レポートへ貼った実測出力（`files=176`・`484/484`）が現在のツリーで再現しない
+     （minor/medium）→ コミット後のツリーで再実行した値へ差し替え、実行日を明記した。
+  2. HANDOFF進捗表で 3-2 が `[]` のまま 3-5 が `[x]`（minor/medium）→ 実施済みの 2-2・3-2 を
+     `[x]` へ揃え、人間レビュー待ちのループ範囲を `[]` のまま残す理由を「判断を迷った内容」へ
+     明記した。
+  3. `tableStyleId` のGUID参照だが `tableStyles.xml` を同梱していない（minor/low。この環境では
+     検証不能）→ 実機確認依頼へ「表に罫線・1行目強調が付くこと」を追加。無装飾だった場合は
+     後続で `tableStyles.xml` を同梱する（レポートの残課題）。
