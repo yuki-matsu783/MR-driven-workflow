@@ -1,0 +1,7 @@
+# generated-for: 85e273d547899c2dbc65e136c20913eaea664f57
+# id	項目	状態	実施ログ
+worklog	worklogを作成し、このpushまでの試行錯誤を追記した	pending	
+handoff	HANDOFF.md の進捗表・ヘッダを更新した（commitより前・同じcommitに含めた）	pending	
+frontmatter-index	frontmatterを変更した場合、index.jsonl を最新化した	pending	
+plan-report-sync	wip/plans/ wip/reports/ の md と html を同期した	pending	
+commit-skill	commit スキル（create-commit.sh）経由でコミットした	pending	
