@@ -17,9 +17,9 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - issue: #114 flow-id 5-4のマージ依頼時に報告HTMLをホストしURLをユーザへ通知する機能を追加する
 - ブランチ: feature-114-host-report-html-and-notify-url
 - PR: #180 https://github.com/yuki-matsu783/MR-driven-workflow/pull/180（Draft）
-- push回数: 14
+- push回数: 15
 - 現在のループ: なし
-- 未返信スレッド: 0
+- 未返信スレッド: 6
 - 追従監視: あり（ローカル／git bash。各pushの直後と作業再開時に `/resolve-conflict` を手動実行する）
 
 | 進捗 | flow-id | ステップ | 担当 |
@@ -364,12 +364,52 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
   **反映先を9つ**（DDR新規1・README生成1・spec4・rules2・index.md1）に確定した。
   `adversarial-review/SKILL.md` の恒久化は**スコープ外**とし、別issue候補として下記へ残す。
 
+- flow-id 4-2: 計画一式をコミット（`317cd33`）してリモートへ反映した。
+  **敵対的レビューをフェーズ4で1回目実施**（`adversarial-review-count.sh get 4` → 1。**上限3回**）。
+  10件の指摘のうち**6件をPR #180 へインライン投稿**、4件は報告のみに留めた。
+  投稿したスレッド（**すべて返信ゼロ。返信は flow-id 4-4 で行う**）:
+  - https://github.com/yuki-matsu783/MR-driven-workflow/pull/180#discussion_r3839984827
+  - https://github.com/yuki-matsu783/MR-driven-workflow/pull/180#discussion_r3839984829
+  - https://github.com/yuki-matsu783/MR-driven-workflow/pull/180#discussion_r3839984832
+  - https://github.com/yuki-matsu783/MR-driven-workflow/pull/180#discussion_r3839984835
+  - https://github.com/yuki-matsu783/MR-driven-workflow/pull/180#discussion_r3839984837
+  - https://github.com/yuki-matsu783/MR-driven-workflow/pull/180#discussion_r3839984839
+
+  スレッドIDは `PRRT_kwDOT7UgWc6bjJk_ / lB / lD / lF / lH / lJ` の6件。
+
+  **投稿した6件（major 5・minor 1）**:
+  1. **spec新節へ書くと宣言した内容が、既に `SKILL.md` に丸ごとある**（major/high）。
+     このまま実装すると「正が2つ」か「薄い節」のどちらかにしかならない。
+  2. **`.claude/VERSION` が変更対象に無い**（major/high）。`distribution-assets.md` は更新
+     タイミングを**flow-id 4-6**と定めており、配布対象アセットに変更がある回である。
+  3. **DDR識別子の重複検証に単体テストを充てているが、このテストはリポジトリを見ない**
+     （major/high）。ハードコードした文字列を関数へ渡すだけなので**常に緑**になる。
+  4. **合格条件(4)のコマンドが `.claude/docs/ddr/` しか見ておらず、`## 影響範囲` を検証していない**
+     （major/high）。`<分岐点>` がプレースホルダのままで実行もできない。
+  5. **`directory-structure.md` の「テンプレート2本」が今回の変更で嘘になる**（major/high）。
+     CI雛形2本が増えて実際は4本。**このissue自身が古くした記述**が恒久ドキュメントに残る。
+  6. **md（正文）とHTMLで「前提」が食い違い、合意のflow-idはHTML側にしか無い**（minor/high）。
+
+  **報告のみに留めた4件**（MRに残らないのでここへ書く。flow-id 4-4 でまとめて対応する）:
+  1. **新節の挿入位置（issue #111節の直後）が、直前の節を締める地の文の係り先を壊しうる**
+     （minor/medium）。`docs-workflow.md` がまさにこのケースを注意している。
+  2. **「CI設定は配布しない」を2ファイル同列に書くと、除外の機構差が消える**（minor/medium）。
+     `.github/workflows/` は `case` で明示除外だが、**`.gitlab-ci.yml` は列挙漏れによる不配布**で
+     ガードが無い。`sync-assets.sh` の除外を固定するテストも無い。
+  3. **Runner認証トークンの扱いが計画に無い**（minor/medium）。反映先の
+     `gitlab-verification-environment.md`「PATの扱い」は「値をファイルへ書かない」と定めており、
+     Runnerトークンはこの節が扱っていない新種の秘密情報である。
+  4. **合格条件(5)「他のテストが着手時点と同じ結果」を判定する手段が計画内に無い**
+     （minor/medium）。失敗3件のテスト名・件数も、全テストを流すコマンドも書かれていない。
+
 ## 次にやること
 
-- **flow-id 4-2: 計画一式をコミットしてリモートへ反映し、敵対的レビュー（フェーズ4・1回目）を
-  実施する**（上限3回。`adversarial-review-count.sh get 4` で確認してから）。
-- flow-id 4-3/4-4: 人間のレビューを待ち、指摘を計画へ反映して返信する。
-- 合意後、flow-id 4-6 で反映を実施する。**反映先の詳細は個別反映計画が正**。要点だけ再掲:
+- flow-id 4-3（**進行中**）: 人間のレビューを待つ。**敵対的レビューの6スレッドは全件返信ゼロ**で、
+  4-4 で人間の指摘と同列に対応・返信する。上記「報告のみに留めた4件」も同じ往復で反映する。
+  - **`.claude/VERSION` の増分は人間が決める**（`distribution-assets.md` の定め）。
+    AIからはMINOR（0.2.0 → 0.3.0。配布資産の追加のため）を提案する。
+- 合意後、flow-id 4-5（`describe`）→ 4-6 で反映を実施する。**反映先の詳細は個別反映計画が正**。
+  要点だけ再掲:
   - DDR `i0114-01` を新規作成し、**`bash .claude/scripts/src/generate-ddr-list.sh` の差分を
     同じコミットへ含める**
   - `## 影響範囲` の既存エントリと既存DDRの本文は**1行も書き換えない**（追記のみ）
