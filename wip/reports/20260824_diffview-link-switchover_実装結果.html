@@ -1,0 +1,304 @@
+<!--
+  実装結果レポートのHTMLビュー（issue #205 / flow-id 3-6）
+  正文は同名の .md。この .html は人間レビュー用の視覚化で、内容はmd側と同期させる。
+  土台: .claude/skills/issue-mr-flow/assets/reports.template.html
+-->
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>実装結果: Diffviewリンクの出し分けとMCP経路でのPR URL解決 — issue #205</title>
+<style>
+  :root {
+    --bg: #f6f7f9;      --panel: #ffffff;   --ink: #1a1d21;     --muted: #5b636d;
+    --line: #dfe3e8;    --accent: #2563eb;  --accent-soft: #eaf0fe;
+    --ok: #1a7f4b;      --ok-soft: #e6f4ec; --warn: #a35a00;    --warn-soft: #fdf1e0;
+    --stop: #b3261e;    --stop-soft: #fdecea; --good: #1d4ed8;  --good-soft: #e7edfd;
+    --code-bg: #f0f2f5;
+    --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1216;    --panel: #161a20;   --ink: #e6e8eb;     --muted: #9aa3ad;
+      --line: #2a3038;  --accent: #7aa2f7;  --accent-soft: #1b2333;
+      --ok: #6ee7a8;    --ok-soft: #14261d; --warn: #f0b866;    --warn-soft: #2a2113;
+      --stop: #f2857c;  --stop-soft: #2b1614; --good: #8ab4f8;  --good-soft: #17233a;
+      --code-bg: #1d222a;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", system-ui, sans-serif;
+    line-height: 1.8; font-size: 15px;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 20px 80px; }
+
+  /* 共通ヘッダ帯 */
+  header.band {
+    background: linear-gradient(135deg, var(--accent-soft), var(--panel));
+    border-bottom: 1px solid var(--line); padding: 28px 20px 22px; margin-bottom: 28px;
+  }
+  header.band .inner { max-width: 1080px; margin: 0 auto; }
+  header.band .kind { font-size: 11px; letter-spacing: .18em; color: var(--accent); font-weight: 700; }
+  header.band h1 { margin: 6px 0 4px; font-size: 26px; line-height: 1.4; }
+  header.band .lead { margin: 0; color: var(--muted); }
+  header.band .counts { margin: 12px 0 0; display: flex; gap: 6px; flex-wrap: wrap; }
+  .meta { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; padding: 0; list-style: none; }
+  .meta li {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 999px;
+    padding: 3px 12px; font-size: 12.5px; color: var(--muted); white-space: nowrap;
+  }
+  .meta li b { color: var(--ink); font-weight: 600; }
+
+  nav.toc {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 14px 20px; margin-bottom: 28px;
+  }
+  nav.toc h2 { margin: 0 0 8px; font-size: 13px; letter-spacing: .08em; color: var(--muted); border: 0; padding: 0; }
+  nav.toc ol { margin: 0; padding-left: 20px; }
+  nav.toc li { margin: 2px 0; }
+  a { color: var(--accent); }
+
+  section {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 8px 24px 22px; margin-bottom: 22px;
+  }
+  /* アンカーで飛んだとき見出しが上端に張り付かないようにする（issue #186） */
+  section[id], h3[id] { scroll-margin-top: 16px; }
+  h2 { font-size: 20px; margin: 20px 0 10px; padding-bottom: 8px; border-bottom: 2px solid var(--line); }
+  h3 { font-size: 16px; margin: 22px 0 8px; color: var(--accent); }
+  p { margin: 10px 0; }
+  ul, ol { padding-left: 22px; }
+  li { margin: 4px 0; }
+  blockquote { margin: 10px 0; padding: 6px 14px; border-left: 3px solid var(--line); color: var(--muted); }
+
+  /* 表は自身の中で横スクロールする（ページ本体は横スクロールさせない） */
+  .tablewrap { overflow-x: auto; margin: 14px 0; }
+  table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 14px; }
+  th, td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: var(--accent-soft); font-weight: 600; white-space: nowrap; }
+  tbody tr:nth-child(even) td { background: color-mix(in srgb, var(--line) 22%, transparent); }
+
+  code {
+    background: var(--code-bg); border-radius: 5px; padding: 1px 5px; font-size: 13px;
+    font-family: "SFMono-Regular", Consolas, "Noto Sans Mono", monospace;
+  }
+  pre {
+    background: var(--code-bg); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 12px 14px; overflow-x: auto; font-size: 13px; line-height: 1.65;
+  }
+  pre code { background: none; padding: 0; }
+
+  /* 注意ボックス: info（既定）/ ok（決めたこと・手順の成功。結論の性質には使わない）/
+     warn（注意）/ stop（やらないこと・危険） */
+  .box { border-left: 4px solid var(--accent); background: var(--accent-soft);
+         border-radius: 0 var(--radius) var(--radius) 0; padding: 12px 16px; margin: 16px 0; }
+  .box > :first-child { margin-top: 0; } .box > :last-child { margin-bottom: 0; }
+  .box .label { font-size: 12px; font-weight: 700; letter-spacing: .06em; display: block; margin-bottom: 4px; }
+  .box.ok { border-color: var(--ok); background: var(--ok-soft); } .box.ok .label { color: var(--ok); }
+  .box.warn { border-color: var(--warn); background: var(--warn-soft); } .box.warn .label { color: var(--warn); }
+  .box.stop { border-color: var(--stop); background: var(--stop-soft); } .box.stop .label { color: var(--stop); }
+  .box.info .label { color: var(--accent); }
+
+  /* 結論の性質チップ: 良=青 .good / 注意=黄 .warn / 問題=赤 .stop（記号＋文字を必ず併記） */
+  .chip { display: inline-block; border-radius: 999px; padding: 1px 9px; font-size: 12px; font-weight: 600; }
+  .chip.good { background: var(--good-soft); color: var(--good); }
+  .chip.warn { background: var(--warn-soft); color: var(--warn); }
+  .chip.stop { background: var(--stop-soft); color: var(--stop); }
+
+  /* サマリの結論カード: 1カード1結論（チップ＋結論1行＋根拠の性質＋章リンク） */
+  ol.verdicts { list-style: none; padding: 0; margin: 14px 0; display: grid; gap: 8px; }
+  .verdict {
+    border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel);
+    padding: 8px 12px; display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px;
+  }
+  .verdict .v-basis { color: var(--muted); font-size: 12.5px; margin-left: auto; }
+
+  /* 重点レビュー依頼の3段階: 重みは色相では表さない（色相は結論の性質専用）。
+     must/want はアクセント系1色相の濃度・枠の太さ、skip は中立色（--line枠＋--muted文字）。
+     記号（◆◇・）を必ず併記する */
+  .focus { border-radius: var(--radius); padding: 12px 16px; margin: 14px 0; }
+  .focus > :last-child { margin-bottom: 0; }
+  .focus .label { font-size: 13px; font-weight: 700; letter-spacing: .04em; display: block; margin-bottom: 4px; }
+  .focus.must { border: 2px solid var(--accent); background: var(--accent-soft); }
+  .focus.must .label { color: var(--accent); }
+  .focus.want { border: 1px solid var(--accent); background: var(--panel); }
+  .focus.want .label { color: var(--accent); }
+  .focus.skip { border: 1px solid var(--line); background: var(--panel); color: var(--muted); }
+  .focus.skip .label { color: var(--muted); }
+  .focus.skip a { color: var(--muted); }
+
+  footer { color: var(--muted); font-size: 13px; text-align: center; padding-top: 10px; }
+</style></head>
+<body>
+
+<header class="band">
+  <div class="inner">
+    <div class="kind">実装結果レポート / フェーズ3（flow-id 3-6）</div>
+    <h1>Diffviewリンクの出し分けとMCP経路でのPR URL解決</h1>
+    <p class="lead"><b>動いた。</b>この環境（CLI不在のMCP経路）で「defaultブランチとの差分」が <code>/pull/206/files</code> になり、差分アンカー付きリンク10本はすべてCompareのまま（10/10）で<b>後退していない</b>。第4引数の受け渡しを意図的に落とすとテストが実際に落ちることも確認した。</p>
+    <p class="counts">
+      <span class="chip good">◎達成 6</span>
+      <span class="chip warn">△未確認 1</span>
+      <span class="chip stop">✕未達 0</span>
+    </p>
+    <ul class="meta">
+      <li><b>issue</b> #205</li>
+      <li><b>ブランチ</b> claude/pr-mr-diffview-link-yxim1l</li>
+      <li><b>PR</b> #206</li>
+      <li><b>フェーズ</b> 3〈実装〉 flow-id 3-6</li>
+      <li><b>push回数</b> 7</li>
+      <li><b>作成日</b> 2026-08-24</li>
+      <li><b>正文</b> 同名の .md</li>
+    </ul>
+  </div>
+</header>
+
+<div class="wrap">
+
+<nav class="toc">
+  <h2>目次</h2>
+  <ol>
+    <li><a href="#summary">結論（先に3行）</a></li>
+    <li><a href="#done">完了条件の判定</a></li>
+    <li><a href="#stopcheck">停止条件の判定</a></li>
+    <li><a href="#impl">実装した内容</a></li>
+    <li><a href="#output">実際のhook出力（この環境で取得したもの）</a></li>
+    <li><a href="#unverified">測っていないこと・確認できなかったこと</a></li>
+    <li><a href="#surprises">想定と異なった点</a></li>
+  </ol>
+</nav>
+
+<section id="summary">
+  <h2>結論（先に3行）</h2>
+  <ol>
+    <li><b>動いた。</b> この環境（<code>gh</code>/<code>glab</code> CLI不在のMCP経路）で、hook出力の「defaultブランチとの差分」が <code>https://github.com/yuki-matsu783/MR-driven-workflow/pull/206/files</code> になった。</li>
+    <li><b>後退していない。</b> 差分アンカー付きリンク10本すべてがCompareページ上のまま（10/10で一致）。</li>
+    <li><b>空振りでないことを確認した。</b> 第4引数の受け渡しを意図的に落とすと、追加したテストが実際に落ちる。</li>
+  </ol>
+</section>
+
+<section id="done">
+  <h2>完了条件の判定</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>#</th><th>条件</th><th>判定</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td>作業1〜4が実装され、検証1・2が通る</td><td><b>達成</b>（構文チェック4ファイルOK、単体テスト21ファイル全件 <code>failures=0</code>）</td></tr>
+      <tr><td>2</td><td>検証3で <code>sed</code> が1件当たったうえで、テストが実際に落ちる</td><td><b>達成</b>（<code>before=6 after=5</code> で1件、壊した側は <code>/files</code> を返さなくなった）</td></tr>
+      <tr><td>3</td><td>検証4-a が 1（差分リンクが <code>/pull/206/files</code>）</td><td><b>達成</b>（<code>grep -c</code> = 1）</td></tr>
+      <tr><td>4</td><td>検証4-b の2つの件数が一致（アンカーの土台が不変）</td><td><b>達成</b>（アンカー付き10 / うちCompare上10）</td></tr>
+      <tr><td>5</td><td>検証4-c が 1（MR行が実リンク）</td><td><b>達成</b>（<code>grep -c</code> = 1）</td></tr>
+      <tr><td>6</td><td>2回目以降のpushで <code>- コメント一覧(MR画面):</code> 行が出る</td><td><b>未確認</b>。この検証時点では状態ファイルのSHAとHEADが一致しており <code>since_url</code> が空になるため出ない。<b>次の実push（flow-id 3-7）が最初の確認機会</b>である</td></tr>
+      <tr><td>7</td><td>GitLab経路が変わっていない（<code>gitlab_get_diff_anchor_base_url</code> の7アサーションが変更なしで通る）</td><td><b>達成</b>（<code>git diff</code> の削除行は冒頭コメント2行のみ。既存アサーションは1行も変更していない）</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="stopcheck">
+  <h2>停止条件の判定</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>条件</th><th>該当したか</th></tr></thead>
+    <tbody>
+      <tr><td>検証3で <code>sed</code> は当たったのにテストが落ちない</td><td><b>該当しない</b>（落ちた）</td></tr>
+      <tr><td>検証3で <code>sed</code> が当たっていない</td><td><b>該当しない</b>（<code>before - after == 1</code>）</td></tr>
+      <tr><td>検証4-a が 0 になる</td><td><b>該当しない</b>（1だった。配線バグと縮退の切り分けは不要）</td></tr>
+      <tr><td>検証4-b の2つの件数が一致しない</td><td><b>該当しない</b>（10 = 10）</td></tr>
+      <tr><td>既存の単体テストが1件でも落ちる</td><td><b>該当しない</b>（0件）</td></tr>
+      <tr><td>hookがハング・遅延する</td><td><b>該当しない</b>（体感で分かる遅延は無かった。ただし下記「測っていないこと」参照）</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="impl">
+  <h2>実装した内容</h2>
+  <h3>作業1: <code>get_mr_diff_url</code> の4引数化</h3>
+  <p><code>Github.sh</code> / <code>Gitlab.sh</code> / <code>Provider.sh</code> の3ファイル。第4引数 <code>mr_url</code> が非空ならDiffview（GitHubは <code>&lt;mrUrl&gt;/files</code>、GitLabは <code>&lt;mrUrl&gt;/diffs</code>）、空なら従来どおりCompareを返す。<code>${4:-}</code> を使い、既存の3引数呼び出しが <code>set -u</code> 配下で壊れないようにした。<b>純粋関数のまま</b>である。</p>
+  <h3>作業2: <code>github_resolve_mr_number_for_head</code> の新設</h3>
+  <p><code>git ls-remote</code> で <code>refs/pull/*/head</code> を引き、HEADのSHAと突き合わせてPR番号を得る。<code>Provider.sh</code> には同名のディスパッチャ <code>resolve_mr_number_for_head</code> を置いた（GitLabは空を返す）。</p>
+  <p>計画どおり、次の3つの制約を実装に落とした。</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>制約</th><th>実装</th></tr></thead>
+    <tbody>
+      <tr><td>一致がちょうど1件のときだけ返す</td><td><code>awk &#x27;$1 == sha { n++; r = $2 } END { if (n == 1) print r }&#x27;</code> の1行に収めた</td></tr>
+      <tr><td>remoteが <code>http(s)://</code> のときだけ試みる</td><td><code>git remote get-url origin</code> を <code>case</code> で判定し、それ以外は即 <code>return 0</code></td></tr>
+      <tr><td>失敗しても非0で返さない</td><td>各失敗点を `</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p><code>wc -l</code> と <code>sed</code> は起動していない（件数判定を <code>awk</code> へ寄せ、末尾除去をパラメータ展開にした）。<code>git</code> の起動は1回の呼び出しにつき2回（<code>remote get-url</code> と <code>ls-remote</code>）である。</p>
+  <h3>作業3: hookの配線</h3>
+  <p><code>post-push-compact-prompt.sh</code> を3箇所。</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>箇所</th><th>内容</th></tr></thead>
+    <tbody>
+      <tr><td>324行目付近</td><td><code>compare_url</code> を分離し、<code>diff_url=&quot;$compare_url&quot;</code> で初期化</td></tr>
+      <tr><td>332行目（<code>current_sha</code> 算出）の直後</td><td>PR URLの解決と <code>diff_url</code> の再計算を<b>両方</b>置いた</td></tr>
+      <tr><td>358行目</td><td>アンカーの土台を <code>compare_url</code> へ（<code>file_links_text=&quot;&quot;</code> の宣言はそのまま残した）</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p><b>3箇所とも、置き換え対象の行が兼ねていた役割を保っている。</b> 324行目は <code>repo_url</code> の <code>local</code> 宣言、358行目は <code>file_links_text</code> の <code>local</code> 宣言と初期化を兼ねており、どちらも落としていない。</p>
+  <h3>作業4: テスト17件の追加</h3>
+  <p><code>test_vcs_provider.sh</code> が <code>passed=225</code> から <b><code>passed=242</code></b> になった（+17）。</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>追加したもの</th><th>件数</th></tr></thead>
+    <tbody>
+      <tr><td><code>github_get_mr_diff_url</code> / <code>gitlab_get_mr_diff_url</code> の4引数版（Diffview／空文字でCompare）</td><td>4</td></tr>
+      <tr><td>ディスパッチャ経路（github/gitlab × 4引数あり/なし）</td><td>4</td></tr>
+      <tr><td>差し替えがサブシェルに閉じていることの表明（<code>get_provider</code> / <code>git</code>）</td><td>2</td></tr>
+      <tr><td><code>github_resolve_mr_number_for_head</code> の分岐（1件／0件／2件以上／scp形式／<code>ssh://</code>／失敗／失敗時の終了コード）</td><td>7</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p><b>挿入位置は <code>get_provider</code> の全域上書き（220行目付近）より前</b>にした。同ファイルのコメントが「<code>get_provider</code> に依存するテストをこれより後ろへ追加しないこと」と警告しているためである。</p>
+  <p>冒頭コメント（6-7行目）の「Provider.sh経由のディスパッチは対象外」も書き換えた（ディスパッチャ経路テストを足したことで、そのままでは偽になるため）。</p>
+</section>
+
+<section id="output">
+  <h2>実際のhook出力（この環境で取得したもの）</h2>
+<pre><code>参照リンク:
+- MR: https://github.com/yuki-matsu783/MR-driven-workflow/pull/206
+- defaultブランチとの差分: https://github.com/yuki-matsu783/MR-driven-workflow/pull/206/files</code></pre>
+  <p><b>変更前は次の2行だった</b>（同じ環境・同じブランチ）。</p>
+<pre><code>- MR: (gh/glab CLI不在のため未取得。mcp__github__list_pull_requests で head=&quot;&lt;owner&gt;:&lt;branch&gt;&quot; を指定して取得すること)
+- defaultブランチとの差分: https://github.com/yuki-matsu783/MR-driven-workflow/compare/main...claude/pr-mr-diffview-link-yxim1l</code></pre>
+  <p>重点ファイルリンクは10本すべて <code>.../compare/main...&lt;branch&gt;#diff-&lt;sha256&gt;</code> のままである（意図した残存制約であり、後退ではない。調査結果「分離の残存制約」参照）。</p>
+</section>
+
+<section id="unverified">
+  <h2>測っていないこと・確認できなかったこと</h2>
+  <ul>
+    <li><b>git bash（Windows）実機での挙動とコスト。</b> <code>git ls-remote</code> の往復がpushのたびに乗るが、 Linuxでの実測（約400〜600ms）をそのまま持ち込めない。</li>
+    <li><b>認証プロンプト・ハング対策の実効性。</b> <code>credential.helper=</code> <code>core.askPass=</code> <code>http.lowSpeedLimit/lowSpeedTime</code> を付けたが、この環境では発動条件を作れない。</li>
+    <li><b>CLI経路（<code>get_vcs_access_mode</code> が <code>cli</code>）の挙動。</b> <code>gh</code>/<code>glab</code> が無いため実行できない。 CLI経路では <code>mr_url</code> が最初から非空で、追加した解決ブロックは <code>[ -z &quot;$mr_url&quot; ]</code> により 素通りする——これは<b>コードを読んだ上での判断であり、実機確認ではない</b>。</li>
+    <li><b>SSH remoteでの挙動。</b> 単体テストでは <code>case</code> の判定を固定したが、実際のSSH remoteで <code>ls-remote</code> が起動しないことは実環境で確認していない（<code>git</code> をスタブして確認した）。</li>
+    <li><b>完了条件6</b>（コメント一覧行）。次の実pushが最初の確認機会である。</li>
+  </ul>
+</section>
+
+<section id="surprises">
+  <h2>想定と異なった点</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>見込み</th><th>実際</th></tr></thead>
+    <tbody>
+      <tr><td>検証4は「pushしてから目視」しかできないと思っていた</td><td><b>hookはstdinからJSONを受ける単一プロセスなので、その場で何度でも実行できた。</b> 状態ファイルの退避だけ気をつければよい。切り分けが1pushにつき1回という制約は最初から存在しなかった</td></tr>
+      <tr><td><code>refs/pull</code> の解決が失敗してCompareへ縮退する可能性を見込んでいた</td><td><b>1発で解決した</b>（<code>refs/pull/206/head</code> がHEADと一致）。ただしこれは伝播が速かった場合の1例にすぎない</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+<footer>issue #205 / PR #206 — 結果の正文は同名の <code>.md</code>。外部依存を持たない自己完結HTML。</footer>
+
+</div>
+</body>
+</html>

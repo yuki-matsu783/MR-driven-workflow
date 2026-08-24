@@ -11,7 +11,7 @@ keywords: [get_mr_diff_url, git ls-remote, compare_url, diff_url, ディスパ�
 対象: issue #205「defaultブランチとの差分リンクをPR/MRのDiffviewへ変更する」（2026-08-24）。
 全体作業計画: `wip/plans/diffview-link-switchover.md`
 個別作業計画: `wip/plans/【実装】【テスト】Diffviewリンクの出し分けとMCP経路でのPR URL解決.md`
-push回数: 5〜6
+push回数: 5〜7
 
 ## 試したこと
 
@@ -65,9 +65,19 @@ push回数: 5〜6
   `vcs_undefined_names "$dir"` という引数でディレクトリを取る関数を使っているから成立していた**ことに
   気づいた。**手本の形だけを真似て、成立している理由を確かめていなかった。**
 
+- flow-id 3-6: **作業1〜4を実装し、7つの完了条件のうち6つを達成した**（残り1つは次の実pushで確認）。
+  結果は `wip/reports/20260824_diffview-link-switchover_実装結果.md`（+ `.html`）。
+  - `test_vcs_provider.sh` が `passed=225` → **`passed=242`**（+17件）。単体テスト21ファイル全件 `failures=0`。
+  - hookをダミーペイロードで直接実行し、`- defaultブランチとの差分:` が
+    `https://github.com/yuki-matsu783/MR-driven-workflow/pull/206/files` になることを確認した。
+  - **差分アンカー付きリンク10本がすべてCompareのまま**（10/10で一致）＝後退なし。
+- **計画で「pushしてから目視」と書いた検証4が、その場で何度でも実行できると分かった。**
+  hookはstdinからJSONを受ける単一プロセスなので、状態ファイルを退避すれば繰り返し流せる。
+  「切り分けが1pushにつき1回」という制約は**最初から存在しなかった**（思い込みだった）。
+
 ## 次の一歩
 
-- flow-id 3-2 の直後に敵対的レビュー（フェーズ3・1回目）を実行する。
-- flow-id 3-6: 作業1〜4を実装し、**検証3（意図的に壊してテストが落ちることの確認）**まで行う。
+- flow-id 3-7 の直後に敵対的レビュー（フェーズ3・2回目）を実行する。
+- flow-id 4-1: 個別反映計画（spec/DDR/AIアセットへの反映）を作成する。
 
 ---

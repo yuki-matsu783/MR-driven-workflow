@@ -17,8 +17,8 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - issue: #205（https://github.com/yuki-matsu783/MR-driven-workflow/issues/205 ）
 - ブランチ: claude/pr-mr-diffview-link-yxim1l
 - PR: #206（https://github.com/yuki-matsu783/MR-driven-workflow/pull/206 ）
-- push回数: 6
-- 現在のループ: 3-3〜3-4 を敵対的レビューで代替予定（進捗記号は[]のまま）
+- push回数: 7
+- 現在のループ: 3-6〜3-9 を敵対的レビュー2回目で代替予定（進捗記号は[]のまま）
 - 未返信スレッド: 0
 - 追従監視: あり（subscribe_pr_activity で PR #206 を購読中。セッション終了で止まるため次セッションは resume で取り直す）
 
@@ -145,9 +145,22 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
   `get_provider` を全域上書きしており、「依存するテストをこれより後ろへ追加しないこと」と警告して
   いる。今回のディスパッチャ経路テストは該当するため、**上書きより前へ挿入する**と計画へ明記した。
 
+- flow-id 3-6: **実装を完了した**（`Github.sh` / `Gitlab.sh` / `Provider.sh` / `post-push-compact-prompt.sh`
+  / `test_vcs_provider.sh` の5ファイル）。結果は
+  `wip/reports/20260824_diffview-link-switchover_実装結果.md`（+ `.html`）。
+  - **7つの完了条件のうち6つを達成**（残る1つ「2回目以降のpushでコメント一覧行が出る」は
+    次の実pushが最初の確認機会）。停止条件はいずれも該当しなかった。
+  - `test_vcs_provider.sh` が `passed=225` → **`passed=242`**（+17件）。全21テストファイルで `failures=0`。
+  - **この環境でDiffviewリンクが実際に出た**:
+    `- defaultブランチとの差分: https://github.com/yuki-matsu783/MR-driven-workflow/pull/206/files`
+  - **後退なし**: 差分アンカー付きリンク10本すべてがCompareのまま（10/10で件数一致）。
+  - **空振りでない**: 第4引数の受け渡しを一時ツリーで落とすと、`/files` が返らなくなることを確認。
+
 ## 次にやること
 
-- flow-id 3-6 の実装対象（計画で確定済み）:
+- flow-id 4-1: 個別反映計画を作成する（spec「提供関数」表・未決定事項の差し替え、DDR `i0205-01`、
+  `references/mcp-fallback.md` への追記）。
+- （完了済み）flow-id 3-6 の実装対象:
   1. `get_mr_diff_url` の4引数化（`Provider.sh` / `Github.sh` / `Gitlab.sh`）。純粋関数のまま。
   2. `Provider.sh` へPR URL解決関数を新設（`git ls-remote` ＋ **一致1件のときだけ採用**）。GitHubのみ。
   3. `post-push-compact-prompt.sh` で `compare_url` と `diff_url` を分離する。
