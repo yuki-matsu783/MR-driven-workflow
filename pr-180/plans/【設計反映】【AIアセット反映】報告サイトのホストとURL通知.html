@@ -1,0 +1,398 @@
+<!--
+  個別反映計画（フェーズ4）の人間レビュー用HTMLビュー。
+  正文は同名の .md（plans/【設計反映】【AIアセット反映】報告サイトのホストとURL通知.md）。
+  土台: .claude/skills/issue-mr-flow/assets/plans.template.html（issue #54）
+  外部依存を持たない自己完結HTML。flow-id 5-5 で .md ごと削除される。
+-->
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>【設計反映】【AIアセット反映】報告サイトのホストとURL通知 — issue #114</title>
+<style>
+  :root {
+    --bg: #f6f7f9;      --panel: #ffffff;   --ink: #1a1d21;     --muted: #5b636d;
+    --line: #dfe3e8;    --accent: #2563eb;  --accent-soft: #eaf0fe;
+    --ok: #1a7f4b;      --ok-soft: #e6f4ec; --warn: #a35a00;    --warn-soft: #fdf1e0;
+    --stop: #b3261e;    --stop-soft: #fdecea; --code-bg: #f0f2f5;
+    --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1216;    --panel: #161a20;   --ink: #e6e8eb;     --muted: #9aa3ad;
+      --line: #2a3038;  --accent: #7aa2f7;  --accent-soft: #1b2333;
+      --ok: #6ee7a8;    --ok-soft: #14261d; --warn: #f0b866;    --warn-soft: #2a2113;
+      --stop: #f2857c;  --stop-soft: #2b1614; --code-bg: #1d222a;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", system-ui, sans-serif;
+    line-height: 1.8; font-size: 15px;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 20px 80px; }
+
+  /* 共通ヘッダ帯 */
+  header.band {
+    background: linear-gradient(135deg, var(--accent-soft), var(--panel));
+    border-bottom: 1px solid var(--line); padding: 28px 20px 22px; margin-bottom: 28px;
+  }
+  header.band .inner { max-width: 1080px; margin: 0 auto; }
+  header.band .kind { font-size: 11px; letter-spacing: .18em; color: var(--accent); font-weight: 700; }
+  header.band h1 { margin: 6px 0 4px; font-size: 26px; line-height: 1.4; }
+  header.band .lead { margin: 0; color: var(--muted); }
+  .meta { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; padding: 0; list-style: none; }
+  .meta li {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 999px;
+    padding: 3px 12px; font-size: 12.5px; color: var(--muted); white-space: nowrap;
+  }
+  .meta li b { color: var(--ink); font-weight: 600; }
+
+  nav.toc {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 14px 20px; margin-bottom: 28px;
+  }
+  nav.toc h2 { margin: 0 0 8px; font-size: 13px; letter-spacing: .08em; color: var(--muted); border: 0; padding: 0; }
+  nav.toc ol { margin: 0; padding-left: 20px; }
+  nav.toc li { margin: 2px 0; }
+  a { color: var(--accent); }
+
+  section {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 8px 24px 22px; margin-bottom: 22px;
+  }
+  h2 { font-size: 20px; margin: 20px 0 10px; padding-bottom: 8px; border-bottom: 2px solid var(--line); }
+  h3 { font-size: 16px; margin: 22px 0 8px; color: var(--accent); }
+  p { margin: 10px 0; }
+  ul, ol { padding-left: 22px; }
+  li { margin: 4px 0; }
+  blockquote { margin: 10px 0; padding: 6px 14px; border-left: 3px solid var(--line); color: var(--muted); }
+
+  /* 表は自身の中で横スクロールする（ページ本体は横スクロールさせない） */
+  .tablewrap { overflow-x: auto; margin: 14px 0; }
+  table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 14px; }
+  th, td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: var(--accent-soft); font-weight: 600; white-space: nowrap; }
+  tbody tr:nth-child(even) td { background: color-mix(in srgb, var(--line) 22%, transparent); }
+
+  code {
+    background: var(--code-bg); border-radius: 5px; padding: 1px 5px; font-size: 13px;
+    font-family: "SFMono-Regular", Consolas, "Noto Sans Mono", monospace;
+  }
+  pre {
+    background: var(--code-bg); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 12px 14px; overflow-x: auto; font-size: 13px; line-height: 1.65;
+  }
+  pre code { background: none; padding: 0; }
+
+  /* 注意ボックス: info（既定）/ ok（決めたこと）/ warn（注意）/ stop（やらないこと・危険） */
+  .box { border-left: 4px solid var(--accent); background: var(--accent-soft);
+         border-radius: 0 var(--radius) var(--radius) 0; padding: 12px 16px; margin: 16px 0; }
+  .box > :first-child { margin-top: 0; } .box > :last-child { margin-bottom: 0; }
+  .box .label { font-size: 12px; font-weight: 700; letter-spacing: .06em; display: block; margin-bottom: 4px; }
+  .box.ok { border-color: var(--ok); background: var(--ok-soft); } .box.ok .label { color: var(--ok); }
+  .box.warn { border-color: var(--warn); background: var(--warn-soft); } .box.warn .label { color: var(--warn); }
+  .box.stop { border-color: var(--stop); background: var(--stop-soft); } .box.stop .label { color: var(--stop); }
+  .box.info .label { color: var(--accent); }
+
+  .tag { display: inline-block; border-radius: 999px; padding: 1px 9px; font-size: 12px; font-weight: 600; }
+  .tag.ok { background: var(--ok-soft); color: var(--ok); }
+  .tag.warn { background: var(--warn-soft); color: var(--warn); }
+  .tag.stop { background: var(--stop-soft); color: var(--stop); }
+
+  footer { color: var(--muted); font-size: 13px; text-align: center; padding-top: 10px; }
+</style>
+</head>
+<body>
+
+<header class="band">
+  <div class="inner">
+    <div class="kind">個別反映計画 / フェーズ4</div>
+    <h1>【設計反映】【AIアセット反映】報告サイトのホストとURL通知</h1>
+    <p class="lead">
+      issue #114 で決めたこと・作ったもの・踏んだ罠を、タスク単位で消える成果物から
+      永続するドキュメント（spec・DDR・rules・index.md）へ移す。
+    </p>
+    <ul class="meta">
+      <li><b>issue</b> #114</li>
+      <li><b>ブランチ</b> feature-114-host-report-html-and-notify-url</li>
+      <li><b>PR</b> #180</li>
+      <li><b>フェーズ</b> 4〈反映〉 flow-id 4-1</li>
+      <li><b>push回数</b> 13</li>
+      <li><b>作成日</b> 2026-08-24</li>
+      <li><b>正文</b> 同名の .md</li>
+    </ul>
+  </div>
+</header>
+
+<div class="wrap">
+
+<nav class="toc">
+  <h2>目次</h2>
+  <ol>
+    <li><a href="#premise">前提（合意状況）</a></li>
+    <li><a href="#goal">この計画で何をするか</a></li>
+    <li><a href="#target">変更対象</a></li>
+    <li><a href="#approach">方針</a></li>
+    <li><a href="#out-of-scope">やらないこと（スコープ外）</a></li>
+    <li><a href="#verify">検証</a></li>
+    <li><a href="#options">比較検討した案</a></li>
+  </ol>
+</nav>
+
+<section id="premise">
+  <h2>前提（合意状況）</h2>
+  <ul>
+    <li>上位の計画: <code>plans/binary-soaring-eclipse.md</code>（全体作業計画。flow-id 1-5 で合意）</li>
+    <li>依拠する調査結果: <code>reports/20260823_binary-soaring-eclipse_ホスティング手段の比較.md</code>（flow-id 2-9 で合意）</li>
+    <li>依拠する作業結果: <code>reports/20260823_binary-soaring-eclipse_ホスト機構の実装.md</code>（flow-id 3-9 で合意）</li>
+  </ul>
+  <p>
+    <b>フェーズ3〈作業〉は完了済み</b>（3-6〜3-9 の1周目を完了、3-10 で MR description を更新）。
+    敵対的レビューはフェーズ3で2回実施し（上限3回）、13件すべてを反映済みである。
+    <b>フェーズ4でも計画時1回・作業実施ごと1回、自動実行してMRへ投稿する</b>
+    （全体作業計画 flow-id 1-4 の合意）。
+  </p>
+  <div class="box info">
+    <span class="label">フェーズ3から送られている反映が1件ある</span>
+    <p>
+      <code>index.md</code> と <code>.claude/rules/directory-structure.md</code> への
+      <code>.github/workflows/</code> <code>.gitlab-ci.yml</code> の追加は、フェーズ3の敵対的
+      レビューで指摘され、<b>AIアセット反映はフェーズ4の担当</b>という理由で明示的に送られたもの。
+    </p>
+  </div>
+  <div class="box ok">
+    <span class="label">なぜ種別を2つ併記したか</span>
+    <p>
+      spec/DDRへの反映（設計反映）と <code>rules/</code> <code>index.md</code> への反映
+      （AIアセット反映）は、どちらも「issue #114 で決めたことを恒久ドキュメントへ移す」という
+      1つの作業であり、<b>合意の単位が分かれない</b>。
+      <b><code>【実装反映】</code> は付けない</b>（実装はフェーズ3で完了しており、この反映で
+      変わるコードは無い）。
+    </p>
+  </div>
+</section>
+
+<section id="goal">
+  <h2>この計画で何をするか</h2>
+  <p>
+    issue #114 で決めたこと・作ったもの・踏んだ罠を、<b>タスク単位で消える成果物</b>
+    （<code>plans/</code> <code>worklog/</code> <code>reports/</code>）から、<b>永続する
+    ドキュメント</b>（<code>.claude/docs/spec/</code> <code>.claude/docs/ddr/</code>
+    <code>.claude/rules/</code> <code>index.md</code>）へ移す。
+  </p>
+  <blockquote>
+    <b>なぜ必要か</b>: <code>reports/</code> は flow-id 5-5 で削除され、squash merge により
+    <code>main</code> にも残らない。「なぜ <code>projects/:id</code> なのか」「なぜ
+    <code>exit 0</code> がガードにならないのか」「なぜ <code>${v//a/b}</code> を使わないのか」は、
+    <b>次に同じ場所へ触る人が最も知りたい情報</b>でありながら、何もしなければこのMRのマージと
+    同時に消える。
+  </blockquote>
+</section>
+
+<section id="target">
+  <h2>変更対象</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>#</th><th>反映先</th><th>操作</th><th>何を書くか</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td><code>.claude/docs/ddr/i0114-01-….md</code></td><td><span class="tag ok">新規</span></td><td>ホスティング手段とタイミングの選定、および却下案</td></tr>
+      <tr><td>2</td><td><code>.claude/docs/README.md</code></td><td>変更（<b>生成</b>）</td><td><code>generate-ddr-list.sh</code> の再実行結果</td></tr>
+      <tr><td>3</td><td><code>.claude/docs/spec/issue-mr-workflow.md</code></td><td>変更</td><td>提供関数の表に2行／新節「報告サイトのホストとURL通知」／<code>影響範囲</code> へ issue #114 のエントリ</td></tr>
+      <tr><td>4</td><td><code>.claude/docs/spec/gitlab-verification-environment.md</code></td><td>変更</td><td><b>GitLab Runner の構築手順</b>と、そこで踏んだ落とし穴</td></tr>
+      <tr><td>5</td><td><code>.claude/docs/spec/distribution-assets.md</code></td><td>変更</td><td>CI設定を配布しない判断／生成物・ローカル状態の一括除去</td></tr>
+      <tr><td>6</td><td><code>.claude/docs/spec/shell-scripts.md</code></td><td>変更</td><td><code>curl</code> 依存の追記</td></tr>
+      <tr><td>7</td><td><code>.claude/rules/shell-script-style.md</code></td><td>変更</td><td><b>bash 5.2 の <code>patsub_replacement</code></b> の罠</td></tr>
+      <tr><td>8</td><td><code>.claude/rules/directory-structure.md</code></td><td>変更</td><td><code>.github/workflows/</code> と <code>.gitlab-ci.yml</code> をツリーへ</td></tr>
+      <tr><td>9</td><td><code>index.md</code></td><td>変更</td><td>同上（Repository Map の行を追加）</td></tr>
+      <tr><td>10</td><td><code>.claude/skills/adversarial-review/SKILL.md</code></td><td><span class="tag stop">変更しない</span></td><td>下記「やらないこと」</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>1. DDR <code>i0114-01</code>（新規）</h3>
+  <p><b>識別子</b>: <code>i0114-01</code>（issue番号4桁ゼロ埋め＋枝番2桁。このissueで作るDDRは1件）。</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>節</th><th>書く内容</th></tr></thead>
+    <tbody>
+      <tr><td>決定</td><td>報告HTMLは<b>CIでPR/MR単位のサブパスへデプロイし、flow-id 5-4 でホスト・5-6 で通知する</b>。GitHubは <code>gh-pages</code> の <code>pr-&lt;n&gt;/</code>、GitLabは Pages parallel deployments の <code>mr-&lt;iid&gt;/</code></td></tr>
+      <tr><td>なぜタイミングが 5-4 なのか</td><td>5-5 で <code>reports/</code> が消えるため、5-6 の時点では対象ファイルが無い。<b>案(a) 不変パス・案(c) SHA指定</b>を却下した理由も書く</td></tr>
+      <tr><td>なぜその手段なのか</td><td>却下案4つ（raw.githubusercontent.com／Actions artifact／<code>upload_attachment</code>／外部ホスティング）と、それぞれの却下理由</td></tr>
+      <tr><td>受け入れた代償</td><td>(1) private リポジトリでも GitHub Pages は<b>公開される</b>（Enterprise Cloud 以外にアクセス制御が無い）、(2) fork からのPRでは動かない、(3) <code>gh-pages</code> の掃除を持たない、(4) GitLab の並列デプロイは Premium/Ultimate 限定</td></tr>
+      <tr><td>失敗を正常系として扱う設計</td><td><code>upload_attachment</code> と同じ扱いにした理由</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <div class="box warn">
+    <span class="label">DDRに書かないこと</span>
+    <p>
+      <b>本文には「実装がどうなっているか」を書かない</b>（それは spec の担当）。書くのは
+      <b>なぜそれを選び、何を捨てたか</b>である。
+    </p>
+  </div>
+
+  <h3>2. <code>.claude/docs/README.md</code>（生成）</h3>
+<pre><code>bash .claude/scripts/src/generate-ddr-list.sh</code></pre>
+  <p><b>手書きしない。</b> 出た差分を同じコミットへ含める。</p>
+
+  <h3>3. <code>.claude/docs/spec/issue-mr-workflow.md</code></h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>箇所</th><th>変更</th></tr></thead>
+    <tbody>
+      <tr><td><code>### 提供関数</code> の表</td><td><code>get_report_site_url [&lt;n&gt;]</code> と <code>wait_for_report_site &lt;url&gt; [&lt;上限秒&gt;] [&lt;間隔秒&gt;]</code> の2行。GitHub実装／GitLab実装の列も埋める。<b><code>wait_for_report_site</code> はプロバイダ非依存（<code>—</code>）であり、<code>require_vcs_cli</code> を通らない</b>ことを明記する</td></tr>
+      <tr><td>新節 <code>### 報告サイトのホストとURL通知（issue #114）</code></td><td>「最終統括レポートとPR/MRへの反映（issue #111）」の<b>直後</b>へ置く（flow-id 5-4 の話が続くため）。CI設定の置き場・デプロイ先のパス規約・0件ガード・失敗を正常系とする扱い・配布先での設定・<b>実機検証で確かめた範囲と確かめていない範囲</b></td></tr>
+      <tr><td><code>## 影響範囲</code></td><td><code>### issue #114（報告サイトのホストとURL通知）</code> を<b>新規エントリとして追記</b>する。<b>既存のエントリは1行も書き換えない</b>（point-in-time の記録であるため）</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p>
+    <b><code>SKILL.md</code> との重複に注意する。</b> 手順の正は <code>SKILL.md</code>、
+    仕組みと判断の正は spec、という現行の切り分けを崩さない（<code>SKILL.md</code> の記述を
+    コピーしない）。
+  </p>
+
+  <h3>4. <code>.claude/docs/spec/gitlab-verification-environment.md</code></h3>
+  <p>
+    <b><code>## 手順</code> のコードブロックへ、Runner の登録を追記する</b>
+    （現在は 1〜5 のみで Runner が無い）。
+  </p>
+  <ul>
+    <li><code>gitlab-net</code> ネットワークの作成と、GitLab コンテナの接続</li>
+    <li><code>gitlab/gitlab-runner</code> コンテナの起動（<code>-v //var/run/docker.sock:/var/run/docker.sock</code>。<b><code>MSYS_NO_PATHCONV=1</code> をサブシェルへ閉じ込める</b>）</li>
+    <li><code>POST /user/runners</code>（<code>runner_type=project_type</code>）による認証トークンの取得</li>
+    <li><code>config.toml</code> への <code>clone_url</code> 追記（コンテナ間はホスト名 <code>gitlab</code> で解決するため）</li>
+  </ul>
+  <p><code>## 実際に踏んだ落とし穴</code> へは次を足す。</p>
+  <ul>
+    <li><b><code>docker run -v /var/run/docker.sock:…</code> が <code>mkdir C:\Program Files\Git\var: Access is denied</code> になる</b>（MSYSのパス変換）。<code>//var/run/…</code> と <code>MSYS_NO_PATHCONV=1</code> の使い分け。</li>
+    <li><b><code>glab api</code> が <code>wsarecv: An existing connection was forcibly closed</code> で断続的に落ちる</b>（<code>localhost</code> → <code>[::1]</code>）。<code>127.0.0.1</code> を明示する回避。</li>
+    <li><b><code>projects/&lt;group&gt;/&lt;repo&gt;</code> は存在しないルートである</b>（<code>%2F</code> が要る）。<b>404のレスポンスの形が2種類ある</b>（<code>{"message":…}</code> はリソースが無い／<code>{"error":…}</code> はルートが無い）ことを、切り分けの道具として書く。</li>
+  </ul>
+
+  <h3>5. <code>.claude/docs/spec/distribution-assets.md</code></h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>箇所</th><th>変更</th></tr></thead>
+    <tbody>
+      <tr><td><code>### 配布経路での扱い</code></td><td><b>CI設定（<code>.github/workflows/</code> <code>.gitlab-ci.yml</code>）は配布しない</b>という判断と理由。雛形を <code>.claude/skills/issue-mr-flow/assets/</code> へ置き、<code>.claude/</code> ごと配ることで代替している点</td></tr>
+      <tr><td>同上</td><td><b>生成物・ローカル作業状態は、集め終えたあとに一括で除去する</b>（<code>index.jsonl</code> ／ <code>.claude/state/</code>）。<b>コピーの各所で個別に弾く形は取りこぼす</b>という教訓</td></tr>
+      <tr><td><code>## 影響範囲</code></td><td><code>### issue #114</code> を新規エントリとして追記</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>6. <code>.claude/docs/spec/shell-scripts.md</code></h3>
+  <p>
+    <code>### 前提（新規追加）</code> へ <b><code>curl</code></b> を足す。「<code>wait_for_report_site</code>
+    のみ。無い場合は到達性確認をスキップする」という限定と、<b><code>AGENTS.md</code> の
+    「curlへフォールバックしない」の対象外である理由</b>（API情報取得ではないため）を併記する。
+  </p>
+
+  <h3>7. <code>.claude/rules/shell-script-style.md</code></h3>
+  <p>
+    <b><code>## 文字コード</code> の近く</b>（<code>sed</code>/<code>awk</code> のエスケープの罠が
+    既にある場所）へ、次を足す。
+  </p>
+  <blockquote>
+    <b>bash の <code>${v//a/b}</code> の置換文字列に <code>&amp;</code> を書かない。</b>
+    bash 5.2 から <code>&amp;</code> が「マッチした文字列全体」へ展開される
+    （<code>patsub_replacement</code>、既定で有効）。<code>\&amp;</code> での退避は 5.1 以前と
+    互換でない。<b><code>sed</code> を使う</b>（<code>&amp;</code> の意味も <code>\&amp;</code> での
+    退避も処理系をまたいで定まっている）。
+  </blockquote>
+  <p>
+    実例（<code>esc="${esc//&lt;/&amp;lt;}"</code> が <code>&lt;lt;</code> になる）と、
+    CI の shell が bash とも限らない点を添える。
+  </p>
+
+  <h3>8・9. <code>.claude/rules/directory-structure.md</code> と <code>index.md</code></h3>
+  <p>
+    <code>.github/workflows/</code>（GitHub Actions ワークフロー）と <code>.gitlab-ci.yml</code>
+    （GitLab CI 設定）を、それぞれのツリー／Repository Map へ追加する。<b>どちらも「雛形は
+    <code>.claude/skills/issue-mr-flow/assets/</code> 側にあり、実ファイルとバイト一致する」</b>ことに
+    触れる（片方だけ直すと、次に読んだ人がどちらが正か分からない）。
+  </p>
+</section>
+
+<section id="approach">
+  <h2>方針</h2>
+  <ul>
+    <li><b>反映先ごとに「正はどこか」を先に決めてから書く。</b> 同じことを2箇所へ書かない。
+      手順は <code>SKILL.md</code>、仕組みと判断は <code>spec</code>、選定の経緯と却下案は
+      <code>DDR</code>、コーディング上の罠は <code>rules</code>、という現行の切り分けに従う。</li>
+    <li><b><code>## 影響範囲</code> の既存エントリと DDR の本文は1行も書き換えない。</b>
+      どちらも point-in-time の記録であり、<code>.claude/rules/docs-workflow.md</code> が
+      書き換えを禁じている。追記のみ行う。</li>
+    <li><b><code>reports/</code> の文章をそのまま貼らない。</b> レポートは「このタスクで何が
+      起きたか」の記録、spec は「いま何がどうなっているか」の記述で、時制も主語も違う。</li>
+  </ul>
+</section>
+
+<section id="out-of-scope">
+  <h2>やらないこと（スコープ外）</h2>
+  <div class="box stop">
+    <span class="label">この計画では触らない</span>
+    <ul>
+      <li><b><code>.claude/skills/adversarial-review/SKILL.md</code> の起動ポリシーの恒久化。</b>
+        全体作業計画は反映候補に挙げているが、<b>本ブランチでの上書きはユーザーの明示指示による
+        1回限りの判断</b>であり、恒久ルールにしてよいかは別途合意が要る。<b>この判断自体を
+        <code>HANDOFF.md</code> の「判断を迷った内容」へ残し、別issueの候補とする。</b></li>
+      <li><b><code>gh-pages</code> の掃除の仕組み</b>（残課題として記録済み。別issue候補）。</li>
+      <li><b>GitLab の Pages 配信・<code>path_prefix</code>・<code>expire_in: never</code> の実機検証。</b>
+        前者はコンテナの作り直しが要り、後の2つは Premium/Ultimate 限定である。
+        <b>spec には「確かめていない」と書く</b>（確かめたかのように書かない）。</li>
+      <li><b><code>main</code> 由来の既存テスト失敗3件の修正</b>（全体作業計画でスコープ外と合意済み）。</li>
+    </ul>
+  </div>
+</section>
+
+<section id="verify">
+  <h2>検証</h2>
+<pre><code># DDRを足したら一覧を再生成し、差分を同じコミットへ含める
+bash .claude/scripts/src/generate-ddr-list.sh
+
+# frontmatterインデックスの再生成（新規DDRが載ることの確認）
+bash .claude/scripts/src/extract-frontmatter.sh .
+
+# DDR識別子の重複が無いこと
+bash .claude/scripts/test/test_check_base_conflicts.sh
+
+# 反映で壊していないこと（フェーズ3と同じ基準）
+bash .claude/scripts/test/test_vcs_provider.sh</code></pre>
+  <div class="box ok">
+    <span class="label">合格条件</span>
+    <ol>
+      <li>DDR <code>i0114-01</code> が存在し、frontmatter の <code>title</code> / 本文冒頭の見出し / ファイル名の識別子が揃っている</li>
+      <li><code>.claude/docs/README.md</code> の DDR 一覧が<b>生成物として</b>更新されている（手書きの行が無い）</li>
+      <li>上表 3〜9 の反映が入っている</li>
+      <li><b><code>## 影響範囲</code> の既存エントリと既存DDRの本文に差分が無い</b>
+        （<code>git diff &lt;分岐点&gt; -- .claude/docs/ddr/</code> の削除行がゼロ）</li>
+      <li><code>test_vcs_provider.sh</code> が <code>failures=0</code>、他のテストが着手時点と同じ結果</li>
+      <li>敵対的レビュー（フェーズ4）の指摘へ対応・返信済みで、返信ゼロのスレッドが0件</li>
+    </ol>
+  </div>
+</section>
+
+<section id="options">
+  <h2>比較検討した案</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>論点</th><th>採用</th><th>却下した案と理由</th></tr></thead>
+    <tbody>
+      <tr><td>DDRの粒度</td><td><b>1件（<code>i0114-01</code>）にまとめる</b></td><td>「手段の選定」と「タイミングの選定」で2件に分ける案。<b>この2つは独立して決められない</b>（5-5 で消えるという制約が手段の選択肢を絞り、手段の性質がタイミングの可否を決める）ため、分けると片方だけ読んでも判断が再現できない</td></tr>
+      <tr><td><code>index.md</code> / <code>directory-structure.md</code> の扱い</td><td><b>フェーズ4で反映する</b></td><td>フェーズ3で直す案。<b>ディレクトリ構成の記述はAIアセットであり、反映はフェーズ4の担当</b>という現行の切り分けに従った（フェーズ3で直すと、反映の一覧がどこにも残らない）</td></tr>
+      <tr><td>敵対的レビューの起動ポリシー</td><td><b>恒久化しない</b></td><td><code>adversarial-review/SKILL.md</code> へ例外を書く案。<b>1ブランチでの運用実績しかない</b>段階で既定を変えると、次のissueが暗黙にこの運用を引き継ぐ。判断は <code>HANDOFF.md</code> へ残して別issueにする</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<footer>issue #114 / PR #180 — 計画の正文は同名の <code>.md</code>。外部依存を持たない自己完結HTML。</footer>
+
+</div>
+</body>
+</html>
