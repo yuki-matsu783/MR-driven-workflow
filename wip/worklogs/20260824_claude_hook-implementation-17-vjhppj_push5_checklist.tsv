@@ -1,0 +1,7 @@
+# generated-for: 9d9ee46718bd176d16977d0b3d1d42aa87055821
+# id	項目	状態	実施ログ
+worklog	worklogを作成し、このpushまでの試行錯誤を追記した	done	push13 の worklog へ「追記（push14）」節を足し、機構が「常にクリーン」と構造的に両立しないことと、その最悪の壊れ方（未確定のまま done と書く動機になる）を記録した
+handoff	HANDOFF.md の進捗表・ヘッダを更新した（commitより前・同じcommitに含めた）	done	set-header --push-count 14 を実行（進捗表の記号は 4-3 のレビュー待ちのため据え置き）
+frontmatter-index	frontmatterを変更した場合、index.jsonl を最新化した	done	worklog へ追記したため extract-frontmatter.sh . を実行（files=177 built=3 failed=0）
+plan-report-sync	wip/plans/ wip/reports/ の md と html を同期した	done	【設計反映】計画の「既知の性質」の追記を md と html の両方へ反映（プレースホルダ0・section 9-9・CR無しを確認）
+commit-skill	commit スキル（create-commit.sh）経由でコミットした	done	create-commit.sh 経由でコミットする

@@ -17,7 +17,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - issue: #17
 - ブランチ: `claude/hook-implementation-17-vjhppj`
 - PR: #195（Draft・https://github.com/yuki-matsu783/MR-driven-workflow/pull/195 ）
-- push回数: 13
+- push回数: 14
 - 現在のループ: 3-6〜3-9 の1周目（完了）
 - 未返信スレッド: 0
 - 追従監視: あり（`subscribe_pr_activity` でPR #195 を購読。セッション終了で止まるため、次セッションは `resume` で取り直す）
