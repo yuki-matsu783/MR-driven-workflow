@@ -29,6 +29,9 @@ keywords: [計画と実施結果の分離, HTMLビュー, テンプレート, re
 **`wip/plans/` `wip/reports/` のいずれにも、mdとHTMLを併存させる。md が正文であり、HTMLはその視覚化
 （人間レビュー用ビュー）である。** 両者の寿命は同じで、flow-id 5-5 でまとめて削除する
 （`.claude/rules/docs-workflow.md` の「ドキュメント運用」表）。
+**例外は `html-slides` スキルの成果物 `*.slides.html`＋`*.slides.json`（issue #168）**。スライドは
+対応するmdを持たず、機械可読の対は構成案JSON側である（md同期の検査対象にしない。詳細:
+`.claude/docs/spec/html-slides.md`）。
 
 **本節が決めるのは「どこへ書くか」だけである。** HTMLビューの見出し構成は下記
 「計画・レポートのHTMLビュー」のテンプレートが持つ（issue #54）。

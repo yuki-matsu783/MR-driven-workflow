@@ -28,10 +28,12 @@ keywords: [directory, repository-map, リポジトリマップ, ディレクト�
     ・`/issue-create`・`/resolve-conflict`・`/canvas-report`・`/doc-search`
     ・`/apply-mr-workflow-to-project`（この機構を他プロジェクトへ配布する。issue #26）
     ・`/harvest-from-projects`（配布先の改善を本家へ収穫する。本家専用。issue #27）
-    ・`/adversarial-review`・`/review-points` のスキル定義。
+    ・`/adversarial-review`・`/review-points`
+    ・`/html-slides`（発表用HTMLスライドの生成。issue #168）のスキル定義。
     - [./.claude/skills/issue-mr-flow/references/](./.claude/skills/issue-mr-flow/references/)
       SKILL.mdから切り出した参照資料7本（読むタイミングは全体フロー表の「参照」列が正。issue #160）。
-  - [./.claude/agents/](./.claude/agents/) サブエージェント定義（issue-mr-flow途中引き継ぎ用）。
+  - [./.claude/agents/](./.claude/agents/) サブエージェント定義（issue-mr-flow途中引き継ぎ用の
+    ほか、スライドの構成設計 `slide-outline-designer`・HTML生成 `slide-html-generator`。issue #168）。
   - [./.claude/scripts/](./.claude/scripts/) AIエージェントが`.claude/skills/*`経由で能動的に実行するスクリプト一式。
     - [./.claude/scripts/src/](./.claude/scripts/src/) issue駆動MRワークフロー支援スクリプト等（bash）。
       - [./.claude/scripts/src/vcs/](./.claude/scripts/src/vcs/) GitHub/GitLabの差異を吸収するVCS抽象化層（`Provider.sh`）。
@@ -59,7 +61,9 @@ keywords: [directory, repository-map, リポジトリマップ, ディレクト�
 - `.claude/.asset-manifest.json` **配布先にだけ生成される**ため、このリポジトリには実体が無い（上記のリンクと違い、リンクにしていないのはこのため）。配布した版・ファイルごとのsha256を記録し、再適用時に上流の更新と配布先の改変を区別する材料になる（仕様: `.claude/docs/spec/asset-distribution.md`）。
 
 `wip/reports/`（`日付_<全体計画名>_<内容を簡潔に>.md` が調査結果・作業結果・反映結果の正文で、個別計画へ
-結果を書かないための分離先。同名の `.html` はその内容を視覚的にまとめた報告用の自己完結HTML）・
+結果を書かないための分離先。同名の `.html` はその内容を視覚的にまとめた報告用の自己完結HTML。
+例外として `html-slides` スキルの成果物 `*.slides.html`＋`*.slides.json` も置かれる——スライドは
+対応mdを持たず、機械可読の対は構成案JSON。issue #168）・
 `usage/`（対応工数レポートのローカル作業状態）は、いずれもワークフロー実行中に動的に作成される
 ディレクトリのため上記には含まれない（詳細: `.claude/rules/docs-workflow.md`）。
 

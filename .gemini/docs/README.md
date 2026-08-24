@@ -67,6 +67,7 @@ keywords: [正史仕様, 意思決定ログ, ユースケース, 逆引き, issu
 - [sync-gemini-assets.md](spec/sync-gemini-assets.md) ── .claude/ から .gemini/ を生成する変換スクリプト
 - [check-doc-references.md](spec/check-doc-references.md) ── DDR参照切れ検出スクリプト（絶対パス形式のDDR参照が実在するファイルを指しているかを検証）
 - [harvest-from-projects.md](spec/harvest-from-projects.md) ── 収穫（逆輸入）スキルの分析スクリプト（scan/diff/merge3の入出力・分類規則・終了コード）
+- [html-slides.md](spec/html-slides.md) ── html-slidesスキル（発表用HTMLスライドを構成案JSONとテンプレート穴埋めの2段で生成）
 
 ## ddr（意思決定ログ）
 
@@ -191,6 +192,8 @@ frontmatter（`status` / `superseded_by` / `note`）だけから決まる。
 - [i0160-01-SKILL.mdの分割は読むタイミング単位で行い参照列とhookで機械的に注入する.md](ddr/i0160-01-SKILL.mdの分割は読むタイミング単位で行い参照列とhookで機械的に注入する.md)
 - [i0165-01-wip集約時のコード側フォールバック既定値は変更せず後方互換を優先する.md](ddr/i0165-01-wip集約時のコード側フォールバック既定値は変更せず後方互換を優先する.md)（「未決定事項」が委譲していた移行手順・VERSION増分（0.3.0で据え置きと人間が判断）はいずれも i0165-02 が引き取り解消した）
 - [i0165-02-タスク単位ディレクトリの集約名はwip-を採用しflow-tasks-work-scratchを採らない.md](ddr/i0165-02-タスク単位ディレクトリの集約名はwip-を採用しflow-tasks-work-scratchを採らない.md)
+- [i0168-01-スライドの出力先はwip-reports既定とし恒久ディレクトリを新設しない.md](ddr/i0168-01-スライドの出力先はwip-reports既定とし恒久ディレクトリを新設しない.md)
+- [i0168-02-表紙スライドの型名はtitleでなくcoverにする.md](ddr/i0168-02-表紙スライドの型名はtitleでなくcoverにする.md)
 - [i0170-01-ユースケース逆引き層はREADME一本化・日本語ファイル名・手動一覧で運用する.md](ddr/i0170-01-ユースケース逆引き層はREADME一本化・日本語ファイル名・手動一覧で運用する.md)
 - [i0171-01-DDR参照切れ検出は絶対パス形式に限定しgrep一括抽出で実装する.md](ddr/i0171-01-DDR参照切れ検出は絶対パス形式に限定しgrep一括抽出で実装する.md)
 - [i0182-01-敵対的レビューの投稿件数選別を層単位ルールでスクリプト化する.md](ddr/i0182-01-敵対的レビューの投稿件数選別を層単位ルールでスクリプト化する.md)

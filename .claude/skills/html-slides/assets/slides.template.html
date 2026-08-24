@@ -1,0 +1,339 @@
+<!--
+  発表用HTMLスライド（PowerPoint風）テンプレート（issue #168）
+
+  使い方:
+    1. このファイルを出力先へコピーする（既定: wip/reports/日付_<全体計画名>_<内容>.slides.html。
+       同じベース名の .slides.json（構成案）と対で置く）。
+    2. 下の8種のスライド型（section要素の data-type 属性で型を示す）から使う型を選び、
+       必要な枚数だけ複製して順に並べる。使わない見本は section ごと削除する。
+    3. 各スライドの「ここに書く: …」で始まるHTMLコメントを、実際の内容へ置き換える。
+    4. **HTMLコメントのプレースホルダを1つも残さない。**
+       確認: grep -c '<!-''- ここに書く' <出力ファイル>  が 0 であること
+       （パターンを2つのクォートへ分けて書いているのは、この説明行自身が検査に
+       当たらないようにするため。bashでは隣接クォートが連結され同じパターンになる）。
+    5. 冒頭のこのコメント（使い方）も削除し、このスライドが何かの説明へ置き換える。
+    6. 手順・検査の詳細は .claude/skills/html-slides/SKILL.md を参照する
+       （スライド型ごとの見出し構成の正は本テンプレートであり、SKILL.md には再掲しない）。
+
+  スライド型8種（data-type の値。構成案JSONスキーマ
+  .claude/skills/html-slides/references/slide-outline.schema.json の type のenumと同一）:
+    cover（表紙）/ section（章扉）/ bullets（箇条書き）/ two-column（2カラム）/
+    diagram（図解）/ table（表）/ comparison（比較）/ summary（まとめ）
+
+  操作:
+    ページ送り: ← → キー・Space/PageDown（次へ）・PageUp（前へ）・Home/End（先頭/末尾）・
+    画面の左右クリック（プレゼン用リモコンの多くは PageUp/PageDown を送出する）。
+    進行表示: 右下に「現在/総数」を常設（.progress）。.progress / .nav-hint は不要なら
+    削除してよい（JSは要素の有無を確認してから触るため、消してもページ送りは止まらない）。
+    印刷: ブラウザの印刷（またはPDF保存）で1スライド=1ページになる（@media print。
+    ダークモードの画面設定でも印刷はライト配色に固定される）。
+
+  話者ノート:
+    各スライドの <aside class="notes"> は画面にも印刷にも出ない（構成案JSONの speakerNotes の
+    転記先。将来の .pptx 書き出しでノートになる）。不要なら aside ごと削除してよい。
+
+  外部依存:
+    無し。スタイル・スクリプトは自己完結で、CDN・外部フォント・画像を1つも参照しない
+    （オフラインでも、外部通信が遮断された環境でも同じ見た目で開ける）。
+-->
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<!-- ここに書く: ページタイトル（例: ○○の設計方針 — issue #NN） -->
+<title>スライド</title>
+<style>
+  :root {
+    --bg: #f6f7f9;      --panel: #ffffff;   --ink: #1a1d21;     --muted: #5b636d;
+    --line: #dfe3e8;    --accent: #2563eb;  --accent-soft: #eaf0fe;
+    --ok: #1a7f4b;      --ok-soft: #e6f4ec; --warn: #a35a00;    --warn-soft: #fdf1e0;
+    --stop: #b3261e;    --stop-soft: #fdecea; --code-bg: #f0f2f5;
+    --radius: 12px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1216;    --panel: #161a20;   --ink: #e6e8eb;     --muted: #9aa3ad;
+      --line: #2a3038;  --accent: #7aa2f7;  --accent-soft: #1b2333;
+      --ok: #6ee7a8;    --ok-soft: #14261d; --warn: #f0b866;    --warn-soft: #2a2113;
+      --stop: #f2857c;  --stop-soft: #2b1614; --code-bg: #1d222a;
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    background: var(--bg); color: var(--ink);
+    font-family: "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", system-ui, sans-serif;
+    line-height: 1.6;
+  }
+
+  /* ===== スライド共通 ===== */
+  .slide {
+    display: none;
+    width: 100vw; height: 100vh;
+    padding: 6vh 7vw;
+    flex-direction: column; justify-content: center;
+    /* 内容がスライド高を超えたとき、中央寄せのまま上端まで切り落とさないための safe 指定
+       （非対応エンジンでは上の center が効く）。あふれ自体は許さず、構成側で枚数を分ける */
+    justify-content: safe center;
+    background: var(--bg);
+    overflow: hidden;
+  }
+  .slide.current { display: flex; }
+  .slide h1 { font-size: clamp(32px, 5.5vw, 64px); line-height: 1.3; margin: 0 0 12px; }
+  .slide h2 {
+    font-size: clamp(24px, 3.6vw, 44px); line-height: 1.35; margin: 0 0 4vh;
+    padding-bottom: 12px; border-bottom: 3px solid var(--accent);
+  }
+  .slide p, .slide li, .slide td, .slide th { font-size: clamp(16px, 2vw, 26px); }
+  .slide ul, .slide ol { margin: 0; padding-left: 1.3em; }
+  .slide li { margin: 0.55em 0; }
+  .slide code {
+    background: var(--code-bg); border-radius: 6px; padding: 2px 8px;
+    font-family: "SFMono-Regular", Consolas, "Noto Sans Mono", monospace;
+    font-size: 0.92em;
+  }
+  .muted { color: var(--muted); }
+  .notes { display: none; }
+
+  /* ===== 型ごとのスタイル ===== */
+  .slide[data-type="cover"] { text-align: center; align-items: center; }
+  .slide[data-type="cover"] .subtitle { font-size: clamp(18px, 2.6vw, 32px); color: var(--muted); margin: 0 0 8vh; }
+  .slide[data-type="cover"] .credit { font-size: clamp(14px, 1.8vw, 22px); color: var(--muted); }
+
+  .slide[data-type="section"] { background: linear-gradient(135deg, var(--accent-soft), var(--bg)); }
+  .slide[data-type="section"] .chapter {
+    font-size: clamp(14px, 1.8vw, 22px); font-weight: 700; letter-spacing: .2em; color: var(--accent);
+  }
+
+  .columns { display: flex; gap: 4vw; align-items: flex-start; }
+  .columns .col { flex: 1; min-width: 0; }
+  .columns .col h3 {
+    font-size: clamp(18px, 2.4vw, 30px); margin: 0 0 0.6em;
+    color: var(--accent);
+  }
+
+  /* 図解（CSSのみのフロー図。外部画像・描画ライブラリは使わない） */
+  .flow { display: flex; align-items: center; gap: 1.6vw; flex-wrap: wrap; }
+  .flow .node {
+    background: var(--panel); border: 2px solid var(--accent); border-radius: var(--radius);
+    padding: 2vh 2vw; font-size: clamp(15px, 1.9vw, 24px); text-align: center;
+  }
+  .flow .node small { display: block; color: var(--muted); font-size: 0.75em; }
+  .flow .arrow { font-size: clamp(20px, 2.6vw, 34px); color: var(--muted); }
+
+  .slide table { border-collapse: collapse; width: 100%; }
+  .slide th, .slide td { border: 1px solid var(--line); padding: 1.2vh 1.2vw; text-align: left; vertical-align: top; }
+  .slide th { background: var(--accent-soft); }
+  .slide tbody tr:nth-child(even) td { background: color-mix(in srgb, var(--line) 22%, transparent); }
+
+  .compare { display: flex; gap: 3vw; }
+  .compare .side {
+    flex: 1; background: var(--panel); border: 1px solid var(--line);
+    border-radius: var(--radius); padding: 3vh 2vw;
+    border-top: 6px solid var(--line);  /* tone: neutral（クラス無し）の既定 */
+  }
+  .compare .side h3 { margin: 0 0 0.6em; font-size: clamp(18px, 2.4vw, 30px); }
+  .compare .side.pro { border-top-color: var(--ok); }
+  .compare .side.con { border-top-color: var(--stop); }
+
+  .slide[data-type="summary"] .takeaway {
+    background: var(--ok-soft); border-left: 6px solid var(--ok);
+    border-radius: 0 var(--radius) var(--radius) 0;
+    padding: 2.5vh 2vw; margin-top: 4vh; font-size: clamp(17px, 2.2vw, 28px);
+  }
+
+  /* ===== 操作UI ===== */
+  .progress {
+    position: fixed; right: 18px; bottom: 14px;
+    font-size: 14px; color: var(--muted);
+    background: var(--panel); border: 1px solid var(--line); border-radius: 999px;
+    padding: 4px 14px; z-index: 10;
+  }
+  .nav-hint {
+    position: fixed; left: 18px; bottom: 14px;
+    font-size: 12px; color: var(--muted); z-index: 10;
+  }
+
+  /* ===== 印刷: 1スライド=1ページ、操作UIは出さない、配色はライトへ固定 =====
+     （画面がダークモードでも、印刷は白い紙が前提。戻さないと本文が淡色になり読めない） */
+  @media print {
+    :root {
+      --bg: #ffffff;    --panel: #ffffff;   --ink: #1a1d21;     --muted: #5b636d;
+      --line: #dfe3e8;  --accent: #2563eb;  --accent-soft: #eaf0fe;
+      --ok: #1a7f4b;    --ok-soft: #e6f4ec; --warn: #a35a00;    --warn-soft: #fdf1e0;
+      --stop: #b3261e;  --stop-soft: #fdecea; --code-bg: #f0f2f5;
+    }
+    .slide { display: flex; width: 100%; height: 100vh; page-break-after: always; break-after: page; }
+    .slide:last-of-type { page-break-after: auto; break-after: auto; }
+    .progress, .nav-hint { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ここに書く: 以下は8種の見本。使う型を必要な枚数だけ複製し、使わない見本は削除する -->
+
+<section class="slide" data-type="cover">
+  <!-- ここに書く: 発表タイトル -->
+  <h1>発表タイトル</h1>
+  <!-- ここに書く: サブタイトル（無ければ p ごと削除） -->
+  <p class="subtitle">サブタイトル</p>
+  <!-- ここに書く: 作成者・日付・関連issue番号 -->
+  <p class="credit">作成者 ／ YYYY-MM-DD ／ issue #NN</p>
+  <!-- ここに書く: 話者ノート（構成案JSONの speakerNotes。無ければ aside ごと削除） -->
+  <aside class="notes">話者ノート</aside>
+</section>
+
+<section class="slide" data-type="section">
+  <!-- ここに書く: 章番号（例: 第1章 / Part 1） -->
+  <div class="chapter">第1章</div>
+  <!-- ここに書く: 章タイトル -->
+  <h1>章タイトル</h1>
+  <aside class="notes">話者ノート</aside>
+</section>
+
+<section class="slide" data-type="bullets">
+  <!-- ここに書く: スライド見出し -->
+  <h2>スライド見出し</h2>
+  <ul>
+    <!-- ここに書く: 箇条書き（1スライド3〜6項目が目安。入りきらなければスライドを分ける） -->
+    <li>要点1</li>
+    <li>要点2</li>
+    <li>要点3</li>
+  </ul>
+  <aside class="notes">話者ノート</aside>
+</section>
+
+<section class="slide" data-type="two-column">
+  <!-- ここに書く: スライド見出し -->
+  <h2>スライド見出し</h2>
+  <div class="columns">
+    <div class="col">
+      <!-- ここに書く: 左カラムの見出しと内容 -->
+      <h3>左カラム</h3>
+      <ul><li>内容</li></ul>
+    </div>
+    <div class="col">
+      <!-- ここに書く: 右カラムの見出しと内容 -->
+      <h3>右カラム</h3>
+      <ul><li>内容</li></ul>
+    </div>
+  </div>
+  <aside class="notes">話者ノート</aside>
+</section>
+
+<section class="slide" data-type="diagram">
+  <!-- ここに書く: スライド見出し -->
+  <h2>スライド見出し</h2>
+  <div class="flow">
+    <!-- ここに書く: フロー図のノードと矢印（node と arrow を交互に必要数並べる。
+         CSSのみで表現し、外部画像・描画ライブラリは使わない） -->
+    <div class="node">工程A<small>補足</small></div>
+    <div class="arrow">→</div>
+    <div class="node">工程B<small>補足</small></div>
+    <div class="arrow">→</div>
+    <div class="node">工程C<small>補足</small></div>
+  </div>
+  <aside class="notes">話者ノート</aside>
+</section>
+
+<section class="slide" data-type="table">
+  <!-- ここに書く: スライド見出し -->
+  <h2>スライド見出し</h2>
+  <table>
+    <thead>
+      <!-- ここに書く: ヘッダ行（投影で読める行数・列数に絞る。目安は5行×4列まで） -->
+      <tr><th>項目</th><th>列A</th><th>列B</th></tr>
+    </thead>
+    <tbody>
+      <!-- ここに書く: データ行 -->
+      <tr><td>行1</td><td>値</td><td>値</td></tr>
+      <tr><td>行2</td><td>値</td><td>値</td></tr>
+    </tbody>
+  </table>
+  <aside class="notes">話者ノート</aside>
+</section>
+
+<section class="slide" data-type="comparison">
+  <!-- ここに書く: スライド見出し -->
+  <h2>スライド見出し</h2>
+  <div class="compare">
+    <div class="side pro">
+      <!-- ここに書く: 案1の名前と特徴。構成案JSONの tone との対応は
+           pro → class="side pro" / con → class="side con" / neutral（または省略）→ class="side" -->
+      <h3>案1</h3>
+      <ul><li>特徴</li></ul>
+    </div>
+    <div class="side con">
+      <!-- ここに書く: 案2の名前と特徴 -->
+      <h3>案2</h3>
+      <ul><li>特徴</li></ul>
+    </div>
+  </div>
+  <aside class="notes">話者ノート</aside>
+</section>
+
+<section class="slide" data-type="summary">
+  <!-- ここに書く: まとめの見出し -->
+  <h2>まとめ</h2>
+  <ul>
+    <!-- ここに書く: 要点の再掲（3項目前後） -->
+    <li>要点1</li>
+    <li>要点2</li>
+  </ul>
+  <div class="takeaway">
+    <!-- ここに書く: 最も伝えたい1文（持ち帰りメッセージ） -->
+    持ち帰りメッセージ
+  </div>
+  <aside class="notes">話者ノート</aside>
+</section>
+
+<div class="progress">1/1</div>
+<div class="nav-hint">←→ / Space / Home / End / 左右クリック</div>
+
+<script>
+  (function () {
+    'use strict';
+    var slides = Array.prototype.slice.call(document.querySelectorAll('.slide'));
+    var progress = document.querySelector('.progress');
+    var current = 0;
+
+    // スライド0枚（編集の中間状態等）や .progress 削除済みでも例外で止めない
+    if (!slides.length) { return; }
+
+    function show(i) {
+      if (i < 0) { i = 0; }
+      if (i > slides.length - 1) { i = slides.length - 1; }
+      slides[current].classList.remove('current');
+      current = i;
+      slides[current].classList.add('current');
+      if (progress) { progress.textContent = (current + 1) + '/' + slides.length; }
+    }
+
+    slides[0].classList.add('current');
+    show(0);
+
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') {
+        e.preventDefault(); show(current + 1);
+      } else if (e.key === 'ArrowLeft' || e.key === 'PageUp') {
+        e.preventDefault(); show(current - 1);
+      } else if (e.key === 'Home') {
+        e.preventDefault(); show(0);
+      } else if (e.key === 'End') {
+        e.preventDefault(); show(slides.length - 1);
+      }
+    });
+
+    document.addEventListener('click', function (e) {
+      // 進行表示・リンク・テキスト選択を妨げないよう、画面の左右30%領域のみ反応させる
+      if (e.target.closest('a, .progress, .nav-hint')) { return; }
+      var x = e.clientX / window.innerWidth;
+      if (x < 0.3) { show(current - 1); }
+      else if (x > 0.7) { show(current + 1); }
+    });
+  })();
+</script>
+</body>
+</html>
