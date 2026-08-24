@@ -166,6 +166,7 @@
     <li><a href="#unverified">確かめられなかったこと</a></li>
     <li><a href="#conditions">実施条件（測った対象・環境）</a></li>
     <li><a href="#findings">実施した内容と結果</a></li>
+    <li><a href="#stopcheck">停止条件の判定</a></li>
     <li><a href="#next">設計への反映</a></li>
     <li><a href="#surprises">想定と異なった点</a></li>
     <li><a href="#todo">残課題</a></li>
@@ -246,6 +247,7 @@
       <li>オフライン時の挙動（この環境で通信を遮断できない） — <a href="#f3">詳細: 章3</a></li>
       <li>GitLabの <code>refs/merge-requests/&lt;n&gt;/head</code>（実装対象に含めないことで回避した） — <a href="#f3">詳細: 章3</a></li>
       <li><code>refs/pull</code> のref数が桁で増えた場合の所要時間（本環境は99件） — <a href="#conditions">詳細: 実施条件</a></li>
+      <li><code>GIT_TERMINAL_PROMPT=0</code> ・ <code>credential.helper</code> 無効化・低速タイムアウトの実効性（この環境は既に同変数が <code>0</code> で、有無の差を測れない） — <a href="#f3">詳細: 章3</a></li>
     </ul>
   </div>
 </section>
@@ -441,11 +443,40 @@ local anchor_compare_url="$compare_url"   # 検証済みのCompareを土台に�
   </div>
 </section>
 
+<section id="stopcheck">
+  <h2>停止条件の判定</h2>
+  <p>個別調査計画が定めた4つの停止条件それぞれについて、該当したかと、該当した場合にどう扱ったかを示す。
+  <b>「全問に答えた」ことではなく、この表が埋まっていることが調査の完了条件である。</b></p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>条件</th><th>判定</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>Q1が「不明」で終わった</td>
+        <td><b>字面上は該当するが、進む。</b> URL形式はAIの推測ではなく<b>issue #205 本文でリポジトリ所有者が指定したもの</b>であり、停止条件が防ごうとしていた事象（AIの推測でDDRを覆す）ではないため。<b>この判断自体を記録し、未検証であることをspec/DDRへ引き継ぐ。</b><a href="#f1">章1</a>／<a href="#review-focus">重点レビュー依頼の筆頭</a></td>
+      </tr>
+      <tr>
+        <td>Q2で却下理由が当てはまる</td>
+        <td><b>該当する（当てはまる）。進む。</b> 覆す判断は人間（issue #205）が済ませており、AIが行うのはトレードオフの記録である。<a href="#f2">章2</a></td>
+      </tr>
+      <tr>
+        <td>Q5でアンカーが機能しない／確認できない</td>
+        <td><b>該当する（確認できない）。</b> 計画が用意した対処「土台と <code>diff_url</code> を分離する」を採用したため、<b>後退は生じない</b>。<a href="#f5">章5</a></td>
+      </tr>
+      <tr>
+        <td>Q3でどの案も成立しない</td>
+        <td>該当しない（案Aが成立した）。<a href="#f3">章3</a></td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
 <section id="next">
   <h2>設計への反映</h2>
   <ol>
     <li><b><code>get_mr_diff_url &lt;repoUrl&gt; &lt;base&gt; &lt;head&gt; [&lt;mrUrl&gt;]</code> の4引数化。</b> 4番目が空なら現行のCompare、あればDiffview（GitHub <code>&lt;mrUrl&gt;/files</code>・GitLab <code>&lt;mrUrl&gt;/diffs</code>）。<b>純粋関数のまま保ち、関数の中でCLI・APIを呼ばない。</b></li>
-    <li><b>MCP経路でのPR URL解決関数を <code>Provider.sh</code> へ新設。</b> <code>GIT_TERMINAL_PROMPT=0</code> 付きの <code>git ls-remote</code> で <code>refs/pull/*/head</code> を引き、HEADのSHAと一致するrefからPR番号を得る。複数一致は最大番号を採る。失敗・不一致は空を返す（＝Compareへ縮退）。<b>GitHubのみ。</b></li>
+    <li><b>MCP経路でのPR URL解決関数を <code>Provider.sh</code> へ新設。</b> <code>git ls-remote</code> で <code>refs/pull/*/head</code> を引き、HEADのSHAと一致するrefからPR番号を得る。<b>一致がちょうど1件のときだけ採用し、0件・2件以上・失敗はいずれも空を返す（＝Compareへ縮退）</b>——<code>refs/pull</code> には閉じたPRのrefも残るため、番号の大小では正しいPRを選べない。<b>GitHubのみ。</b> 認証プロンプト対策として <code>GIT_TERMINAL_PROMPT=0</code> に加え <code>-c credential.helper=</code> <code>-c core.askPass=</code> を、無応答対策として <code>-c http.lowSpeedLimit</code> / <code>-c http.lowSpeedTime</code> を付ける（<b>いずれもこの環境では効果を測れていない</b>）。</li>
     <li><b><code>post-push-compact-prompt.sh</code> で <code>compare_url</code> と <code>diff_url</code> を分離する。</b> アンカーの土台には <code>compare_url</code> を渡し続ける（<a href="#f5">章5</a>）。</li>
     <li><b><code>get_mr_diff_since_url</code> は変更しない</b>（<a href="#f4">章4</a>）。</li>
     <li>恒久的に残す知見の反映先: <code>.claude/docs/ddr/i0205-01-…md</code>（新規。<a href="#f1">章1</a>・<a href="#f2">章2</a>・案B/Cの却下・<a href="#f5">章5</a>の分離）、<code>.claude/docs/spec/issue-mr-workflow.md</code>（提供関数表・レビュー依頼メッセージの節・<b>未決定事項の差し替え</b>・changelogの追記）、<code>references/mcp-fallback.md</code>（hook縮退表）。</li>
@@ -459,6 +490,8 @@ local anchor_compare_url="$compare_url"   # 検証済みのCompareを土台に�
     <thead><tr><th>計画時の見込み</th><th>実際</th><th>どう扱ったか</th></tr></thead>
     <tbody>
       <tr><td>案Aの最大の懸念は<b>コスト</b>（pushごとのネットワークI/O）だと考えていた</td><td>コストは400ms程度で、それより<b>案B・Cの silent staleness のほうが深刻</b>だった。案Aの失敗はCompareへの無害な縮退で済む</td><td>採否の第一基準を「失敗しても縮退できるか」に置き、案Aを採用した</td></tr>
+      <tr><td>案Aは「複数一致なら最大の番号を採る」で足りると考えていた</td><td><code>refs/pull/*</code> には<b>閉じた（マージ済みの）PRのrefも残る</b>（実測: <code>refs/pull/4/head</code> <code>refs/pull/85/head</code> が現存）。<code>git ls-remote</code> はPRの状態もbaseも返さないため、番号の大小では正しいPRを選べない</td><td><b>一致が1件でないときは解決を諦めCompareへ縮退する</b>設計へ変更した</td></tr>
+      <tr><td><code>GIT_TERMINAL_PROMPT=0</code> の効果を実測できると考えていた</td><td>この環境では<b>同変数が既に <code>0</code> で設定済み</b>（<code>GIT_ASKPASS=</code> も同様）であり、有無の差を測っていない。またこの変数は <code>credential.helper</code>（git bashのGCM）を止めない</td><td>「実測した」という記述を撤回し、対策を <code>-c credential.helper=</code> 等へ広げたうえで<b>未検証</b>として記録した</td></tr>
       <tr><td>Q5は「土台が二重に決まらないか」という<b>整理の問題</b>だと考えていた</td><td><b>後退（アンカーが壊れる）の問題</b>だった。素直に <code>diff_url</code> を差し替えると未検証のページにアンカーを載せることになる</td><td>土台と <code>diff_url</code> を分離する設計を採り、アンカーの挙動を一切変えないことにした</td></tr>
       <tr><td>Q1は裏取りできる見込みだった</td><td>4つの手段すべてで一次情報に届かなかった</td><td>停止条件の適用可否を<a href="#f1">章1</a>で明示的に判断し、<b>人間の確認事項として重点レビュー依頼の筆頭に置いた</b></td></tr>
       <tr><td>—（計画に無かった）</td><td><b><code>mcp__github__create_pull_request</code> に渡した本文中の <code>refs/pull/*/head</code> が、投稿後に <code>refs/pull//head</code> になっていた</b>（アスタリスク2文字が失われた。バックティックで囲んだインラインコード内でも失われる）</td><td><code>references/mcp-fallback.md</code>「2-b. MCP経路で踏んだ落とし穴」に記録済みの「不等号で始まる語で本文が切り捨てられる」と同種の<b>無言の本文改変</b>。インラインコメント投稿では山括弧を全角へ置換して回避し、11件すべてで切り捨ては起きなかった。フェーズ4で同節へ追記する候補とする</td></tr>
@@ -472,6 +505,7 @@ local anchor_compare_url="$compare_url"   # 検証済みのCompareを土台に�
   <ul>
     <li><b>GitHubの <code>/files</code> のブラウザ目視確認</b>（<a href="#f1">章1</a>）— この環境では不可能。<b>specの「未決定事項・懸念点」へ引き継ぐ</b>（フェーズ4）。<b>外部の制約であり、このリポジトリの実装の欠陥ではない。</b></li>
     <li><b><code>git ls-remote</code> のgit bash実機でのコスト計測</b> — 同上。specの未決定事項へ書く。</li>
+    <li><b>認証プロンプト・無応答への対策の実効性</b> — <code>GIT_TERMINAL_PROMPT=0</code> はこの環境で既に設定済みのため有無の差を測れておらず、<code>credential.helper</code> を止める効果も未検証（<a href="#f3">章3</a>）。</li>
     <li><b>fork元PR・オフライン時の挙動</b>（<a href="#f3">章3</a>）— いずれもCompareへ縮退する方向のため実害は無いと考えているが、<b>その見立て自体が未検証</b>である。</li>
     <li><b>GitLabのMCP経路</b>（<a href="#f3">章3</a>）— 対象外とした。将来GitLab MCPサーバーを実機検証できた時点で <code>references/mcp-fallback.md</code> 第5節と併せて再検討する（別issue）。</li>
   </ul>
