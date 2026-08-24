@@ -1,7 +1,7 @@
 # generated-for: 85e273d547899c2dbc65e136c20913eaea664f57
 # id	項目	状態	実施ログ
-worklog	worklogを作成し、このpushまでの試行錯誤を追記した	pending	
-handoff	HANDOFF.md の進捗表・ヘッダを更新した（commitより前・同じcommitに含めた）	pending	
-frontmatter-index	frontmatterを変更した場合、index.jsonl を最新化した	pending	
-plan-report-sync	wip/plans/ wip/reports/ の md と html を同期した	pending	
-commit-skill	commit スキル（create-commit.sh）経由でコミットした	pending	
+worklog	worklogを作成し、このpushまでの試行錯誤を追記した	done	wip/worklogs/…_push11.md を新規作成し、敵対的レビュー2回目の反映（縮退フォールバック・stale・アサーション数・スラッグ照合）を記録した
+handoff	HANDOFF.md の進捗表・ヘッダを更新した（commitより前・同じcommitに含めた）	done	やったこと へ 3-8/3-9 の内訳と返信7スレッドのURLを追記し、set-header --push-count 11 / --unreplied 0 と mark-done 3-6 を実行した
+frontmatter-index	frontmatterを変更した場合、index.jsonl を最新化した	done	push11 worklog の frontmatter を追加したため extract-frontmatter.sh . を実行（files=173 built=2 failed=0）
+plan-report-sync	wip/plans/ wip/reports/ の md と html を同期した	done	wip/reports/…実装.md と同名 .html を敵対的レビュー2回目の反映で同時に全面更新済み。プレースホルダ0・アンカー切れ0・重複id0を確認
+commit-skill	commit スキル（create-commit.sh）経由でコミットした	done	create-commit.sh 経由で prefix ごとに分割してコミットする
