@@ -17,8 +17,8 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - issue: #114 flow-id 5-4のマージ依頼時に報告HTMLをホストしURLをユーザへ通知する機能を追加する
 - ブランチ: feature-114-host-report-html-and-notify-url
 - PR: #180 https://github.com/yuki-matsu783/MR-driven-workflow/pull/180（Draft）
-- push回数: 13
-- 現在のループ: 3-6〜3-9 の1周目（進行中）
+- push回数: 14
+- 現在のループ: なし
 - 未返信スレッド: 0
 - 追従監視: あり（ローカル／git bash。各pushの直後と作業再開時に `/resolve-conflict` を手動実行する）
 
@@ -45,12 +45,12 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 | [x] | 3-3 | MRで作業計画についてレビュー・コメントする | 人間 |
 | [x] | 3-4 | レビュー内容を取得し作業計画を修正・返信する | サブコマンド |
 | [x] | 3-5 | 作業計画をもとにMR descriptionを更新する | サブコマンド |
-| [] | 3-6 | 作業を進めreports/へ結果を記録する（md・html） | エージェント |
-| [] | 3-7 | commitしpushしてレビュー依頼を行う | エージェント |
-| [] | 3-8 | MRでレビュー・コメントする | 人間 |
-| [] | 3-9 | レビュー内容を取得し実装・ドキュメントを修正・返信する | サブコマンド |
-| [] | 3-10 | 作業内容をもとにMR descriptionを更新する | サブコマンド |
-| [] | 4-1 | 個別反映計画を作成する（反映対象の洗い出しを含む） | エージェント |
+| [x] | 3-6 | 作業を進めreports/へ結果を記録する（md・html） | エージェント |
+| [x] | 3-7 | commitしpushしてレビュー依頼を行う | エージェント |
+| [x] | 3-8 | MRでレビュー・コメントする | 人間 |
+| [x] | 3-9 | レビュー内容を取得し実装・ドキュメントを修正・返信する | サブコマンド |
+| [x] | 3-10 | 作業内容をもとにMR descriptionを更新する | サブコマンド |
+| [x] | 4-1 | 個別反映計画を作成する（反映対象の洗い出しを含む） | エージェント |
 | [] | 4-2 | commitしpushしてレビュー依頼を行う | エージェント |
 | [] | 4-3 | MRで反映計画についてレビュー・コメントする | 人間 |
 | [] | 4-4 | レビュー内容を取得し反映計画を修正・返信する | サブコマンド |
@@ -347,29 +347,39 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
   エスケープの追加で**出力は1バイトも変わっていない**（現在のファイル名に該当文字が無いため。
   変わったら既存のリンクが壊れている）。レポートの「確かめられなかったこと」から2項目を外した。
 
+- flow-id 3-8/3-9（レビューループのクローズ）: ユーザーから「レビューOK」を受け、
+  **3-6〜3-9 の1周目を完了**とした。`comments` 相当の確認では総36スレッド中27件が `unresolved`
+  だが、**返信ゼロは0件**であり、これらを残したまま進めてよいことは
+  **フェーズ2のクローズ時にユーザーが判断済み**（「10件も含めてOK」）である。
+- flow-id 3-10: `set_mr_description` でMR descriptionを更新した（変更内容の表・設計判断の表・
+  実機検証の範囲・GitLabに残る3点・ホストされた報告サイトのURLを含む内容）。
+
+- flow-id 4-1: 個別反映計画
+  `plans/【設計反映】【AIアセット反映】報告サイトのホストとURL通知.md`（＋HTMLビュー）と、
+  `worklog/20260824_binary-soaring-eclipse_【設計反映】【AIアセット反映】報告サイトのホストとURL通知_push14.md`
+  を作成した。**種別を2つ併記した**のは、spec/DDRへの反映とrules/index.mdへの反映が
+  「issue #114 で決めたことを恒久ドキュメントへ移す」1つの作業で、合意の単位が分かれないため。
+  **`【実装反映】` は付けない**（この反映で変わるコードは無い）。
+  md と HTML の見出しは `</nav>` 以降で完全一致を確認済み。
+  **反映先を9つ**（DDR新規1・README生成1・spec4・rules2・index.md1）に確定した。
+  `adversarial-review/SKILL.md` の恒久化は**スコープ外**とし、別issue候補として下記へ残す。
+
 ## 次にやること
 
-- flow-id 3-8（**進行中**）: 人間のレビューを待つ。**敵対的レビュー2回目の13件は全件反映済みで、
-  未返信スレッドは0件**。
-  - 書き換え後の GitHub Actions は**実機で確認済み**（`success` / URL 200）。
-  - レビューで合意が取れたら、ループ範囲 3-6〜3-9 を `mark-done` する。
-- 合意後、flow-id 3-10（`describe`）→ **フェーズ4（4-1: 個別反映計画）**。反映先の候補:
-  - `.claude/docs/ddr/i0114-01-….md`（ホスティング手段とタイミングの選定・却下案）
-  - `.claude/docs/spec/issue-mr-workflow.md`（提供関数の表・flow-id 5-4／5-6・配布物の扱い）
-  - `.claude/docs/spec/gitlab-verification-environment.md`（**Runner の構築手順**）
-  - `.claude/docs/spec/distribution-assets.md`（`.github/workflows/`・生成物・ローカル状態の除外）
-  - `.claude/docs/spec/shell-scripts.md`（**`curl` 依存の追記**と、**bash 5.2 の
-    `patsub_replacement` で `${v//a/b}` の置換文字列中の `&` の意味が変わる**という罠）
-  - **`index.md` と `.claude/rules/directory-structure.md`**（`.github/workflows/` と
-    `.gitlab-ci.yml` の追加。敵対的レビューの指摘のうち唯一フェーズ4送りにしたもの）
+- **flow-id 4-2: 計画一式をコミットしてリモートへ反映し、敵対的レビュー（フェーズ4・1回目）を
+  実施する**（上限3回。`adversarial-review-count.sh get 4` で確認してから）。
+- flow-id 4-3/4-4: 人間のレビューを待ち、指摘を計画へ反映して返信する。
+- 合意後、flow-id 4-6 で反映を実施する。**反映先の詳細は個別反映計画が正**。要点だけ再掲:
+  - DDR `i0114-01` を新規作成し、**`bash .claude/scripts/src/generate-ddr-list.sh` の差分を
+    同じコミットへ含める**
+  - `## 影響範囲` の既存エントリと既存DDRの本文は**1行も書き換えない**（追記のみ）
 - **検証用に作った資産の後始末**（`gitlab-runner` コンテナ・`gitlab-net`・プロジェクト id=8）。
-- **別issueの候補**: `gh-pages` の掃除（PR単位のディレクトリが溜まり続ける）。
-  `main` 由来の既存テスト失敗3件（`test_block_direct_git_commit` 1件・`test_command_position` 2件）。
-
-  - `.claude/docs/spec/shell-scripts.md`（`curl` 依存の追記）
-  - **`index.md` と `.claude/rules/directory-structure.md`**（`.github/workflows/` と
-    `.gitlab-ci.yml` の追加。上記「報告のみ」5）
-- **検証用に作った資産の後始末**（`gitlab-runner` コンテナ・`gitlab-net`・プロジェクト id=8）。
+  `gitlab-verification-environment.md` へ Runner の構築手順を残してから消す。
+- **別issueの候補**:
+  - `gh-pages` の掃除（PR単位のディレクトリが溜まり続ける）
+  - **敵対的レビューの自動起動・投稿確認の省略を恒久化するか**（本ブランチはユーザーの明示指示で
+    上書きしている。1ブランチの運用実績で既定を変えない判断をした）
+  - `main` 由来の既存テスト失敗3件（`test_block_direct_git_commit` 1件・`test_command_position` 2件）
 
 ## 判断を迷った内容
 
