@@ -117,6 +117,33 @@ hookの対象にならず正規に実行できる。
 - node_modules/...
 ```
 
+### Step 3.5: push前チェックリストを埋める（issue #17）
+
+**コミットの前に、このpushで済ませた項目をチェックリストへ記録し、そのコミットへ含める。**
+記録しないまま、あるいは含めないままpushしようとすると、`block-unchecked-push.sh`
+（PreToolUse hook）が **exit code 2** でブロックする。
+
+```bash
+# 最新のチェックリストのパスを確認する
+bash .claude/scripts/src/push-checklist.sh path
+
+# 項目ごとに、実施したことを記録する
+bash .claude/scripts/src/push-checklist.sh check <id> "<実施ログ>"
+
+# 今回やらない項目は、理由を添えてスキップする
+bash .claude/scripts/src/push-checklist.sh skip  <id> "<スキップの理由>"
+```
+
+- 項目は5つ（`worklog` / `handoff` / `frontmatter-index` / `plan-report-sync` / `commit-skill`）。
+- **`check` / `skip` は作業ツリーを書き換えるだけで、判定はHEADにコミット済みの断面を読む。**
+  埋めたチェックリストのパスを、Step 4 の `create-commit.sh` へ**必ず渡す**こと。
+- **実施していない項目を `done` と書かない。** 本機構は自己申告に立っており、やっていないことを
+  `done` と書けば機構そのものが無意味になる。やらなかったなら理由を添えて `skip` する
+  （理由はGit管理下のdiffに残り、レビュアーが見る）。
+- チェックリストが無い場合（flow-id 5-5 の片付け直後など）は、この手順を飛ばしてよい。
+  `path` が終了コード1を返す。
+- 仕様: `.claude/docs/spec/push-checklist.md`
+
 ### Step 4: コミット実行
 
 **確認は挟まず、そのままコミットを作成する。** ユーザへの承認待ち（AskUserQuestion等）は行わない。

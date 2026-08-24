@@ -74,9 +74,17 @@ CLI経路には無い、MCPツール固有の挙動。**いずれも失敗では
 - **`mcp__github__pull_request_read`（`method="get_review_comments"`）のページネーション
   パラメータ名は `after`（前ページの `pageInfo.endCursor` の値。`perPage` は最大100、
   ツール定義で確認済みの値）であり `cursor` ではない**（issue #105フェーズ3で実際に2回踏んだ）。
-  **誤ったパラメータ名を渡すと、ツールがそれを無視して常に1ページ目を返す**ため、
-  `hasNextPage: true` のまま同一ページが返り続ける（無限ループ状のハングに見えるため
+  **`after` 以外のページ送りパラメータを渡すと、ツールがそれを無視して常に1ページ目を返す**
+  ため、`hasNextPage: true` のまま同一ページが返り続ける（無限ループ状のハングに見えるため
   気づきにくい）。
+  - **「誤ったパラメータ名だから無視される」のではない**（issue #17 で実際に誤読した）。
+    このツールは **`page` という正当なパラメータをツール定義に持っており**、
+    `perPage` と組み合わせて渡しても**やはり1ページ目が返る**。`page` は
+    `get_review_comments` **以外**のメソッド（`get_files` / `get_commits` / `get_reviews` /
+    `get_comments`）のためのもので、`get_review_comments` だけがカーソル方式である。
+    **ツール定義に載っているパラメータが、そのメソッドで効くとは限らない。**
+  - つまり判定材料は「名前が正しいか」ではなく「**そのメソッドがカーソル方式か**」である。
+    `get_review_comments` のときだけ `after` を使う。
   - 対処: `after` に前ページの `pageInfo.endCursor` を渡し、`pageInfo.hasNextPage` が偽に
     なるまで繰り返す。
   - 予防: 未返信スレッドの判定（`references/review-loop.md`「レビュー完了合図の確認」
