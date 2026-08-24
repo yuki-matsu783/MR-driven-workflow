@@ -1,0 +1,326 @@
+<!--
+  issue #203 フェーズ3の個別作業計画（flow-id 3-1）のHTMLビュー。
+  計画の正文は同名の .md（wip/plans/【実装】レポートHTMLビュー4テンプレートの作成.md）で、
+  このHTMLはその視覚化である。
+  土台: .claude/skills/issue-mr-flow/assets/plans.template.html
+-->
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>【実装】レポートHTMLビュー4テンプレートの作成 — issue #203</title>
+<style>
+  :root {
+    --bg: #f6f7f9;      --panel: #ffffff;   --ink: #1a1d21;     --muted: #5b636d;
+    --line: #dfe3e8;    --accent: #2563eb;  --accent-soft: #eaf0fe;
+    --ok: #1a7f4b;      --ok-soft: #e6f4ec; --warn: #a35a00;    --warn-soft: #fdf1e0;
+    --stop: #b3261e;    --stop-soft: #fdecea; --code-bg: #f0f2f5;
+    --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1216;    --panel: #161a20;   --ink: #e6e8eb;     --muted: #9aa3ad;
+      --line: #2a3038;  --accent: #7aa2f7;  --accent-soft: #1b2333;
+      --ok: #6ee7a8;    --ok-soft: #14261d; --warn: #f0b866;    --warn-soft: #2a2113;
+      --stop: #f2857c;  --stop-soft: #2b1614; --code-bg: #1d222a;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", system-ui, sans-serif;
+    line-height: 1.8; font-size: 15px;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 20px 80px; }
+
+  /* 共通ヘッダ帯 */
+  header.band {
+    background: linear-gradient(135deg, var(--accent-soft), var(--panel));
+    border-bottom: 1px solid var(--line); padding: 28px 20px 22px; margin-bottom: 28px;
+  }
+  header.band .inner { max-width: 1080px; margin: 0 auto; }
+  header.band .kind { font-size: 11px; letter-spacing: .18em; color: var(--accent); font-weight: 700; }
+  header.band h1 { margin: 6px 0 4px; font-size: 26px; line-height: 1.4; }
+  header.band .lead { margin: 0; color: var(--muted); }
+  .meta { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; padding: 0; list-style: none; }
+  .meta li {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 999px;
+    padding: 3px 12px; font-size: 12.5px; color: var(--muted); white-space: nowrap;
+  }
+  .meta li b { color: var(--ink); font-weight: 600; }
+
+  nav.toc {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 14px 20px; margin-bottom: 28px;
+  }
+  nav.toc h2 { margin: 0 0 8px; font-size: 13px; letter-spacing: .08em; color: var(--muted); border: 0; padding: 0; }
+  nav.toc ol { margin: 0; padding-left: 20px; }
+  nav.toc li { margin: 2px 0; }
+  a { color: var(--accent); }
+
+  section {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 8px 24px 22px; margin-bottom: 22px;
+  }
+  h2 { font-size: 20px; margin: 20px 0 10px; padding-bottom: 8px; border-bottom: 2px solid var(--line); }
+  h3 { font-size: 16px; margin: 22px 0 8px; color: var(--accent); }
+  p { margin: 10px 0; }
+  ul, ol { padding-left: 22px; }
+  li { margin: 4px 0; }
+  blockquote { margin: 10px 0; padding: 6px 14px; border-left: 3px solid var(--line); color: var(--muted); }
+
+  /* 表は自身の中で横スクロールする（ページ本体は横スクロールさせない） */
+  .tablewrap { overflow-x: auto; margin: 14px 0; }
+  table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 14px; }
+  th, td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: var(--accent-soft); font-weight: 600; white-space: nowrap; }
+  tbody tr:nth-child(even) td { background: color-mix(in srgb, var(--line) 22%, transparent); }
+
+  code {
+    background: var(--code-bg); border-radius: 5px; padding: 1px 5px; font-size: 13px;
+    font-family: "SFMono-Regular", Consolas, "Noto Sans Mono", monospace;
+  }
+  pre {
+    background: var(--code-bg); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 12px 14px; overflow-x: auto; font-size: 13px; line-height: 1.65;
+  }
+  pre code { background: none; padding: 0; }
+
+  /* 注意ボックス: info（既定）/ ok（決めたこと）/ warn（注意）/ stop（やらないこと・危険） */
+  .box { border-left: 4px solid var(--accent); background: var(--accent-soft);
+         border-radius: 0 var(--radius) var(--radius) 0; padding: 12px 16px; margin: 16px 0; }
+  .box > :first-child { margin-top: 0; } .box > :last-child { margin-bottom: 0; }
+  .box .label { font-size: 12px; font-weight: 700; letter-spacing: .06em; display: block; margin-bottom: 4px; }
+  .box.ok { border-color: var(--ok); background: var(--ok-soft); } .box.ok .label { color: var(--ok); }
+  .box.warn { border-color: var(--warn); background: var(--warn-soft); } .box.warn .label { color: var(--warn); }
+  .box.stop { border-color: var(--stop); background: var(--stop-soft); } .box.stop .label { color: var(--stop); }
+  .box.info .label { color: var(--accent); }
+
+  .tag { display: inline-block; border-radius: 999px; padding: 1px 9px; font-size: 12px; font-weight: 600; }
+  .tag.ok { background: var(--ok-soft); color: var(--ok); }
+  .tag.warn { background: var(--warn-soft); color: var(--warn); }
+  .tag.stop { background: var(--stop-soft); color: var(--stop); }
+
+  footer { color: var(--muted); font-size: 13px; text-align: center; padding-top: 10px; }
+</style>
+</head>
+<body>
+
+<header class="band">
+  <div class="inner">
+    <div class="kind">個別作業計画 / フェーズ3</div>
+    <h1>【実装】レポートHTMLビュー4テンプレートの作成</h1>
+    <p class="lead">調査結果の「設計への反映」9項目を実際のファイルにする。<b>共通DOMを1つ設計し、<code>&lt;style&gt;</code> だけを4通り差し替えた4本のテンプレート</b>を <code>.claude/skills/issue-mr-flow/assets/</code> へ置く。</p>
+    <ul class="meta">
+      <li><b>issue</b> #203</li>
+      <li><b>ブランチ</b> claude/report-html-view-template-wu5u20</li>
+      <li><b>PR</b> #204</li>
+      <li><b>フェーズ</b> 3〈作業〉 flow-id 3-1</li>
+      <li><b>push回数</b> 4</li>
+      <li><b>作成日</b> 2026-08-24</li>
+      <li><b>正文</b> 同名の .md</li>
+    </ul>
+  </div>
+</header>
+
+<div class="wrap">
+
+<nav class="toc">
+  <h2>目次</h2>
+  <ol>
+    <li><a href="#premise">前提（合意状況）</a></li>
+    <li><a href="#goal">この計画で何をするか</a></li>
+    <li><a href="#target">変更対象</a></li>
+    <li><a href="#approach">方針</a></li>
+    <li><a href="#out-of-scope">やらないこと（スコープ外）</a></li>
+    <li><a href="#verify">検証</a></li>
+    <li><a href="#criteria">issueの受け入れ条件との対応</a></li>
+  </ol>
+</nav>
+
+<section id="premise">
+  <h2>前提（合意状況）</h2>
+  <ul>
+    <li>上位の計画: <code>wip/plans/silver-drifting-lantern.md</code>（全体作業計画。flow-id 1-4）</li>
+    <li>依拠する調査結果: <code>wip/reports/20260824_silver-drifting-lantern_デザイン4案のテンプレート化方針.md</code>（flow-id 2-6。Q1〜Q8のすべてに結論と根拠がある）</li>
+  </ul>
+  <div class="box warn">
+    <span class="label">人間のレビューは未実施</span>
+    非対話セッションのため、合意の代わりに<b>敵対的レビュー1回目（12件、全件対応済み）</b>を通している。<b>Q5（サンプルブランチの後始末）とQ6（ファイル名・既定）は PR #204 のコメントでユーザーへ判断・承認を依頼中</b>であり、この計画はその回答を待たずに進められる範囲を対象とする。
+  </div>
+</section>
+
+<section id="goal">
+  <h2>この計画で何をするか</h2>
+  <p>調査結果の「設計への反映」9項目を、実際のファイルとして作る。<b>共通DOMを1つ設計し、<code>&lt;style&gt;</code> だけを4通り差し替えた4本のテンプレート</b>を <code>.claude/skills/issue-mr-flow/assets/</code> へ置く。</p>
+</section>
+
+<section id="target">
+  <h2>変更対象</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>ファイル</th><th>操作</th><th>何をするか</th></tr></thead>
+    <tbody>
+      <tr><td><code>assets/reports-clean.template.html</code></td><td>新規</td><td>案06。<b>既定</b>。ライト／ダーク両対応</td></tr>
+      <tr><td><code>assets/reports-neobrutal.template.html</code></td><td>新規</td><td>案10。太い黒枠＋ハードシャドウ。ライト単一</td></tr>
+      <tr><td><code>assets/reports-mono.template.html</code></td><td>新規</td><td>案12。色を持つのは意味論を担う要素だけ。ライト／ダーク両対応</td></tr>
+      <tr><td><code>assets/reports-paper.template.html</code></td><td>新規</td><td>案13。書類風。印刷向け。ライト単一</td></tr>
+      <tr><td><code>assets/reports.template.html</code></td><td><b>変更しない</b></td><td>現行を据え置く（Q3・Q6で併存と決めた）</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p><b><code>plans.template.html</code> は触らない</b>（issue #203 の対象外）。</p>
+</section>
+
+<section id="approach">
+  <h2>方針</h2>
+
+  <h3>1. 節構成（現行8節を落とさない）</h3>
+  <p>調査Q3の対応表に従う。<b>サンプル06をそのまま写さない。</b></p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>節（id）</th><th>必須／任意</th><th>新構成での形</th></tr></thead>
+    <tbody>
+      <tr><td>サイドバー</td><td>必須</td><td>目次・結論件数チップ・メタ情報。常時表示</td></tr>
+      <tr><td><code>overview</code></td><td>必須</td><td>総括1文＋KPIタイル3つ＋重点レビュー依頼カード3枚</td></tr>
+      <tr><td><code>unverified</code></td><td>必須</td><td>確かめられなかったこと（前半に置く）</td></tr>
+      <tr><td><code>conditions</code></td><td>任意（実測なら必須）</td><td><b>独立した <code>&lt;section&gt;</code></b>（サンプルの <code>&lt;li&gt;</code> から戻す）</td></tr>
+      <tr><td><code>findings</code></td><td>必須</td><td>タイムライン。章は <code>f1</code>…<code>fN</code></td></tr>
+      <tr><td><code>next</code></td><td>必須</td><td><b>独立した <code>&lt;section&gt;</code></b>（サンプルの <code>&lt;li&gt;</code> から戻す）</td></tr>
+      <tr><td><code>surprises</code></td><td>任意</td><td><b>新設</b>（サンプルに対応先が無かった）</td></tr>
+      <tr><td><code>todo</code></td><td>任意</td><td><b>新設</b>（同上）</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <div class="box warn">
+    <span class="label"><code>next</code> と <code>conditions</code> をタイムラインの外へ出すのが要点</span>
+    <code>&lt;li&gt;</code> のままだと「任意セクションは <code>&lt;section&gt;</code> ごと削除する」という規約が働かない（<code>&lt;li&gt;</code> は <code>&lt;section&gt;</code> ではない）。見た目のつながりはCSSで作る。
+  </div>
+
+  <h3>2. セマンティッククラス</h3>
+  <p><b>現行から引き継ぐ</b>: <code>.chip.good/.warn/.stop</code> / <code>.focus.must/.want/.skip</code> / <code>.box.info/.ok/.warn/.stop</code> / <code>.verdict</code> / <code>.meta</code> / <code>.tablewrap</code> / <code>.wrap</code></p>
+  <p><b>新しく足す</b>: <code>.sidebar</code> / <code>.tl</code> / <code>.tl-item</code> / <code>.tl-dot</code>（<code>.good .warn .stop .neutral .next</code>）/ <code>.kpi</code>（<code>.good .warn .stop</code>）/ <code>.hl</code></p>
+  <div class="box info">
+    <span class="label"><code>.hl</code> はDOM共有のために要る</span>
+    案10だけが <code>&lt;mark&gt;</code> で強調しているが、タグの違いとして持つと4案でDOMが分岐する。<code>&lt;strong class="hl"&gt;</code> に統一し、案10の <code>&lt;style&gt;</code> だけが背景色を与える。
+  </div>
+
+  <h3>3. 色と記号の意味論（issue #186。変えない）</h3>
+  <ul>
+    <li>結論の性質は<b>3色＋記号＋文字</b>（◎良=青／△注意=黄／✕問題=赤）。色だけに意味を持たせない。</li>
+    <li>緑（<code>--ok</code> / <code>.box.ok</code>）は<b>決めたこと・手順の成功専用</b>。結論の性質には使わない。</li>
+    <li>重点レビュー依頼の3段階（◆◇・）は<b>色相を使わない</b>。</li>
+    <li><b>案12だけは <code>.box.ok</code> に色を与えず、太い左罫＋「決定」ラベルで表す</b>（Q7。12は緑系を持たない。12の「色が見えたら結論の性質」という方針とはむしろ整合する）。</li>
+  </ul>
+
+  <h3>4. テーマ</h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>テンプレート</th><th>テーマ</th><th>実装</th></tr></thead>
+    <tbody>
+      <tr><td><code>reports-clean</code>（既定）</td><td>ライト／ダーク</td><td><code>@media (prefers-color-scheme: dark)</code> でCSS変数を再定義</td></tr>
+      <tr><td><code>reports-mono</code></td><td>ライト／ダーク</td><td>同上</td></tr>
+      <tr><td><code>reports-neobrutal</code></td><td><b>ライト単一</b></td><td><code>color-scheme: light</code> を明示（ブラウザの強制ダーク化を防ぐ）</td></tr>
+      <tr><td><code>reports-paper</code></td><td><b>ライト単一</b></td><td>同上</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>5. 冒頭コメント（テンプレートの「仕組み」の実体）</h3>
+  <p>現行の冒頭コメント（約120行）が持つ次の内容を、<b>4本すべてに同じものを持たせる</b>（DOMを共有できるので書き分けない）。デザイン固有の説明だけを1〜2行足す。</p>
+  <ul>
+    <li>使い方（コピー → 埋める → 任意節を削る → プレースホルダを残さない → 冒頭コメントを置き換える）</li>
+    <li>節の並び順と、変えない理由</li>
+    <li>色・記号の使い分け（issue #186 の意味論）</li>
+    <li>重点レビュー依頼の書き方（3段階。書くことが無い枠も削除しない）</li>
+    <li>アンカーと<b>検査手順</b></li>
+    <li>必須／任意の区別</li>
+    <li>フェーズごとの読み替え（2-6 / 3-6 / 4-6 / 5-4）</li>
+    <li>計画を書かないこと／正文はmd側であること／canvas形式との使い分け／外部依存なし</li>
+  </ul>
+
+  <h3>6. 検査（3種 → 5種へ増やす）</h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>検査</th><th>合格条件</th></tr></thead>
+    <tbody>
+      <tr><td>プレースホルダ</td><td><code>grep -c '&lt;!-- ここに書く'</code> が 0</td></tr>
+      <tr><td>リンク破断</td><td><code>comm -23</code>（href集合 − id集合）が0行</td></tr>
+      <tr><td>重複ID</td><td><code>sort | uniq -d</code> が出力なし</td></tr>
+      <tr><td><b>外部依存1</b></td><td><code>grep -nE "(src|href)=['\"]?(https?:)?//"</code></td></tr>
+      <tr><td><b>外部依存2</b></td><td><code>grep -nE "(url\(|@import[[:space:]]+)['\"]?(https?:)?//"</code></td></tr>
+    </tbody>
+  </table>
+  </div>
+  <div class="box warn">
+    <span class="label">外部依存検査は0件を機械的な合格条件にしない</span>
+    エスケープ済みの地の文（<code>&lt;code&gt;</code> 内の引用等）にも当たるため、<b>ヒットしたら中身を見て判断する</b>——この注意を使い方コメントへ書く（現行がプレースホルダ検査について書いている注意と同じ性質）。
+  </div>
+</section>
+
+<section id="out-of-scope">
+  <h2>やらないこと（スコープ外）</h2>
+  <div class="box stop">
+    <span class="label">この計画では決めない・触らない</span>
+    <ul>
+      <li>現行 <code>reports.template.html</code> の変更・削除（併存と決めた。Q3・Q6）</li>
+      <li><code>plans.template.html</code> の再デザイン（issue #203 の対象外）</li>
+      <li><code>deliverables.md</code> 等の参照ドキュメントの更新（<b>フェーズ4で行う</b>。ここではテンプレート本体だけを作る）</li>
+      <li><code>wip/design-samples/</code> の取り込み・ブランチ削除（Q5。取り込まないと決定済み／削除は指示待ち）</li>
+    </ul>
+  </div>
+</section>
+
+<section id="verify">
+  <h2>検証</h2>
+  <p>各テンプレートは<b>プレースホルダを持ったままの雛形</b>なので、プレースホルダ検査だけは「0件」ではなく「<b>意図した数だけ存在する</b>」ことを確認する（テンプレート本体は埋める前の状態）。</p>
+<pre><code>cd .claude/skills/issue-mr-flow/assets
+for F in reports-clean reports-neobrutal reports-mono reports-paper; do
+  f="$F.template.html"
+  echo "--- $f ---"
+  grep -c '&lt;!-- ここに書く' "$f"
+  comm -23 &lt;(grep -oE 'href="&#35;[A-Za-z0-9_-]+"' "$f" | sed 's/^href="&#35;//;s/"$//' | sort -u) \
+           &lt;(grep -oE '&lt;[a-z][^&gt;]*[[:space:]]id="[A-Za-z0-9_-]+"' "$f" | sed 's/.*id="//;s/"$//' | sort -u)
+  grep -oE '&lt;[a-z][^&gt;]*[[:space:]]id="[A-Za-z0-9_-]+"' "$f" | sed 's/.*id="//;s/"$//' | sort | uniq -d
+  grep -nE "(src|href)=['\"]?(https?:)?//" "$f"
+  grep -nE "(url\(|@import[[:space:]]+)['\"]?(https?:)?//" "$f"
+done</code></pre>
+  <div class="box info">
+    <span class="label">DOM共通性も機械的に確かめる</span>
+    「共通DOM＋4通りのstyle」はこの計画の中心的な主張なので、<b>主張したまま検証しないことはしない</b>。
+  </div>
+<pre><code>for F in reports-clean reports-neobrutal reports-mono reports-paper; do
+  sed '/^&lt;style&gt;/,/^&lt;\/style&gt;/d' "$F.template.html" | grep -oE '&lt;/?[a-z][a-z0-9]*' &gt; "/tmp/dom-$F.txt"
+done
+diff /tmp/dom-reports-clean.txt /tmp/dom-reports-neobrutal.txt   # 差分0行が合格</code></pre>
+  <p><b>合格条件:</b></p>
+  <ul>
+    <li>5種の検査が上記の基準を満たす（外部依存はヒット0件、またはヒットの中身が地の文の引用だと確認済み）</li>
+    <li><b>4本のDOM（<code>&lt;style&gt;</code> を除く）が完全に一致する</b></li>
+    <li>4本すべてに、現行と同等の冒頭コメント（使い方・節順・意味論・検査手順・フェーズ読み替え）がある</li>
+    <li>必須8節がすべて存在し、任意節に <code>[任意]</code> の印がある</li>
+  </ul>
+</section>
+
+<section id="criteria">
+  <h2>issueの受け入れ条件との対応</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>受け入れ条件</th><th>この計画での対応</th></tr></thead>
+    <tbody>
+      <tr><td>(1) 4デザインが <code>assets/</code> に存在し flow-id 2-6/3-6/4-6/5-4 から参照できる</td><td>「変更対象」の4ファイル。<b>参照側の更新はフェーズ4</b></td></tr>
+      <tr><td>(2) 外部依存ゼロ</td><td>「検証」の外部依存検査2本</td></tr>
+      <tr><td>(3) プレースホルダ・3種の検査手順・フェーズ読み替えが引き継がれている</td><td>「方針5」の冒頭コメント＋「方針6」（3種→5種へ拡張）</td></tr>
+      <tr><td>(4) 選択基準（既定はどれか）がドキュメント化されている</td><td>調査Q6で確定済み。<b>文書への反映はフェーズ4</b></td></tr>
+      <tr><td>(5) 現行の扱いと <code>wip/design-samples/</code> の後始末</td><td>現行は据え置き（この計画の「やらないこと」）。後始末は調査Q5で決定済み</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<footer>issue #203 / PR #204 — 計画の正文は同名の <code>.md</code>。外部依存を持たない自己完結HTML。</footer>
+
+</div>
+</body>
+</html>
