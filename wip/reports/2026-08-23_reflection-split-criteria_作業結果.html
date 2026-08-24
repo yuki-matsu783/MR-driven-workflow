@@ -139,7 +139,7 @@
   <div class="inner">
     <div class="kind">作業結果レポート / フェーズ3（flow-id 3-6）</div>
     <h1>反映対象の切り出し判断基準 — 新節とその導線の実装</h1>
-    <p class="lead"><code>references/planning.md</code> へ新節「反映対象をこのMRでやるか切り出すかの判断」を追加し、<code>SKILL.md</code> の flow-id 4-1 / 4-6 ほか計6箇所から導線を張った。<b>受け入れ条件3つのうち2つ（新節の存在・<code>【実装反映】</code> からの参照）が満たされ、検証8本すべてが期待値どおり</b>になった。残る1つ（DDR・spec への反映）はフェーズ4の担当である。</p>
+    <p class="lead"><code>references/planning.md</code> へ新節「反映対象をこのMRでやるか切り出すかの判断」を追加し、<code>SKILL.md</code> の flow-id 4-1 / 4-6 ほか計5箇所から導線を張った。<b>受け入れ条件3つのうち2つ（新節の存在・<code>【実装反映】</code> からの参照）が満たされ、計画の検査11本すべてが期待値どおり</b>になった。残る1つ（DDR・spec への反映）はフェーズ4の担当である。</p>
     <p class="counts">
       <span class="chip good">◎良 4</span>
       <span class="chip warn">△注意 2</span>
@@ -150,7 +150,7 @@
       <li><b>ブランチ</b> claude/reflection-plan-criteria-tnhfvs</li>
       <li><b>PR</b> #196（Draft）</li>
       <li><b>フェーズ</b> 3〈作業〉 flow-id 3-6</li>
-      <li><b>push回数</b> 8</li>
+      <li><b>push回数</b> 9</li>
       <li><b>作成日</b> 2026-08-23</li>
       <li><b>正文</b> 同名の .md</li>
     </ul>
@@ -164,10 +164,12 @@
   <ol>
     <li><a href="#review-focus">重点レビュー依頼</a></li>
     <li><a href="#summary">サマリ（結論の一覧）</a></li>
+    <li><a href="#unverified">確かめられなかったこと</a></li>
     <li><a href="#conditions">実施条件</a></li>
     <li><a href="#findings">実施した内容と結果</a></li>
     <li><a href="#verify">検証</a></li>
     <li><a href="#surprises">想定と異なった点</a></li>
+    <li><a href="#next">設計への反映</a></li>
     <li><a href="#todo">残課題</a></li>
   </ol>
 </nav>
@@ -177,12 +179,20 @@
 
   <div class="focus must">
     <span class="label">◆ 見てほしい（判断に困っている）</span>
-    <p><b>出口(1)「このMRでやる」の裏付けが無いまま残っている。</b> フェーズ2調査の母数7件は
+    <p><b>出口「このMRでやる（極小）」の裏付けが無いまま残っている。</b> フェーズ2調査の母数7件は
     「切り出し・見送りに言及したDDR」であり、<b>「極小だからこのMRでやった」事例は原理的に
-    含まれない</b>。この出口だけが #64 節からの引き継ぎで、実例で確かめていない。
-    (a) 但し書き付きで残す（現在の選択）／(b) 出口から外して主判定の Yes 側へ吸収する／
-    (c) 別issueで実例を集めてから確定する、のどれが妥当か。
+    含まれない</b>。この出口だけが #64 節からの引き継ぎで、実例で確かめていない。次のどれが妥当か。
     （<a href="#f-exit1">実施内容 3</a>）</p>
+    <div class="tablewrap">
+    <table>
+      <thead><tr><th>案</th><th>内容</th></tr></thead>
+      <tbody>
+        <tr><td><b>(a)</b>（現在の選択）</td><td>但し書き付きで残す</td></tr>
+        <tr><td>(b)</td><td>出口から外して主判定の Yes 側へ吸収する</td></tr>
+        <tr><td>(c)</td><td>別issueで実例を集めてから確定する</td></tr>
+      </tbody>
+    </table>
+    </div>
   </div>
 
   <div class="focus want">
@@ -198,7 +208,7 @@
   <div class="focus skip">
     <span class="label">・ 流し読みでよい（機械的・検証済み）</span>
     <p>対象3（#64 節への相互参照1文）・対象4（手順4 末尾への1段落）は、いずれも既存の記述を
-    変えずに接続を足しただけである。検証4・検証3 で機械的に確認済み。</p>
+    変えずに接続を足しただけである。追4・追3 で機械的に確認済み。</p>
   </div>
 </section>
 
@@ -207,13 +217,13 @@
   <ol class="verdicts">
     <li class="verdict">
       <span class="chip good">◎良</span>
-      <span>新節（69行・5見出し）を <code>planning.md</code> の #64 節と #155 節の間へ追加した。<b>受け入れ条件1を満たす。</b></span>
-      <span class="v-basis">根拠: 検証1（<a href="#f-section">実施内容 1</a>）</span>
+      <span>新節（105行・6見出し）を <code>planning.md</code> の #64 節と #155 節の間へ追加した。<b>受け入れ条件1を満たす。</b></span>
+      <span class="v-basis">根拠: 全1（変更前0→変更後1）（<a href="#f-section">実施内容 1</a>）</span>
     </li>
     <li class="verdict">
       <span class="chip good">◎良</span>
       <span><code>【実装反映】</code> 定義の参照先を新節へ差し替えた。<b>受け入れ条件2を満たす。</b></span>
-      <span class="v-basis">根拠: 検証2（<a href="#f-jissou">実施内容 4</a>）</span>
+      <span class="v-basis">根拠: 全2（0）（<a href="#f-jissou">実施内容 4</a>）</span>
     </li>
     <li class="verdict">
       <span class="chip good">◎良</span>
@@ -222,20 +232,35 @@
     </li>
     <li class="verdict">
       <span class="chip good">◎良</span>
-      <span>検証8本すべてが期待値どおり。<code>check-doc-references.sh</code> 参照切れ0、<code>extract-frontmatter.sh</code> failed=0。</span>
+      <span>計画の検査11本すべてが期待値どおり。</span>
       <span class="v-basis">根拠: 実測（<a href="#verify">検証</a>）</span>
     </li>
     <li class="verdict">
       <span class="chip warn">△注意</span>
-      <span>出口(1) は過去事例の裏付けを持たない。新節本文に限界として明示した。</span>
+      <span>出口「このMRでやる（極小）」は過去事例の裏付けを持たない。新節本文に限界として明示した。</span>
       <span class="v-basis">根拠: 母数の性質（<a href="#f-exit1">実施内容 3</a>）</span>
     </li>
     <li class="verdict">
       <span class="chip warn">△注意</span>
-      <span>検証3が一度 0 を返した。<b>このissueで3回目</b>の「行単位マッチが意図した範囲を覆っていない」不具合。</span>
+      <span>検証で2件つまずいた（改行分断・空振り検査）。<b>このissueで3回目・4回目</b>の同型の不具合。</span>
       <span class="v-basis">根拠: 実測（<a href="#surprises">想定と異なった点</a>）</span>
     </li>
   </ol>
+</section>
+
+<section id="unverified">
+  <h2>確かめられなかったこと</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>対象</th><th>なぜ確かめられないか</th></tr></thead>
+    <tbody>
+      <tr><td><b>出口「このMRでやる（極小）」の妥当性</b></td><td>フェーズ2調査の母数は「切り出し・見送りに言及したDDR」で構成されており、<b>「極小だからこのMRでやった」事例は原理的に含まれない</b>。母数の性質上、このissueでは取れない</td></tr>
+      <tr><td><b>主判定が最良の文言かどうか</b></td><td>当てた候補は計4案で、網羅的に比較したわけではない。7/7 で一致したのは<b>上限の推定</b>であって、より良い文言が無いことの証明ではない</td></tr>
+      <tr><td><b>新節が実際の運用で機能するか</b></td><td>本節を使う最初の機会は<b>このissue自身のフェーズ4</b>である。適用結果はフェーズ4の反映結果レポートで初めて分かる</td></tr>
+      <tr><td><b><code>.gemini/</code> への反映</b></td><td>flow-id 5-3（変換同期）の担当。現時点では <code>sync-gemini-assets.sh --check</code> が非0で、<b>未同期であることが期待どおり</b>（下記「検証」の健全3）</td></tr>
+    </tbody>
+  </table>
+  </div>
 </section>
 
 <section id="conditions">
@@ -259,17 +284,18 @@
 
   <h3 id="f-section">1. 対象1: 新節の追加（<code>references/planning.md</code>） <span class="chip good">◎良</span></h3>
   <p><code>## issueが大きすぎる場合の分割提案（issue #64）</code> の直後、
-  <code>## AIアセット反映の対象の洗い出し（issue #155）</code> の直前（266行目〜）へ、69行の新節を
+  <code>## AIアセット反映の対象の洗い出し（issue #155）</code> の直前（266行目〜）へ、105行の新節を
   追加した。</p>
   <div class="tablewrap">
   <table>
     <thead><tr><th>見出し</th><th>内容</th></tr></thead>
     <tbody>
-      <tr><td>（冒頭）</td><td>何を判定する節か。#64 節との<b>割る対象の対比表</b>。「規模の大小で入口を絞らない」</td></tr>
-      <tr><td><code>### 主判定（一問）</code></td><td>Yes/No の一問と、Yes/No それぞれの行き先。「あったほうがよい」ではなく「無いと壊れるか」</td></tr>
-      <tr><td><code>### No のときの3つの出口</code></td><td>(1) このMRでやる / (2) やらないと決める / (3) 別issueへ切り出す の条件と記録先</td></tr>
-      <tr><td><code>### 決定は人間が行う</code></td><td>(3) は <code>AskUserQuestion</code> での提示まで。(2) の記録もレビューを通す</td></tr>
-      <tr><td><code>### 判定の記録</code></td><td>洗い出し件数と判定後の内訳が合うことを確認する。記録例1行</td></tr>
+      <tr><td>（冒頭）</td><td>何を判定する節か。#64 節との<b>割る対象の対比表</b>。「規模の大小で入口を絞らない」。<b>フェーズ4のスキップ条件との関係</b>（判定より前に評価されるので、このMRでやる項目が0件でも残りはスキップしない）</td></tr>
+      <tr><td><code>### 主判定（一問）</code></td><td>Yes/No の一問と、それぞれの行き先。「あったほうがよい」ではなく「無いと壊れるか」。<b>Yes かつ規模が大きい場合は「今回の変更の側を縮められないか」を一度問う</b></td></tr>
+      <tr><td><code>### No のときの3つの出口</code></td><td><b>上から順に見て最初に当たった出口を採る</b>（(1) 別issueへ切り出す → (2) やらないと決める → (3) このMRでやる）。条件は排他ではないため判定順を固定する</td></tr>
+      <tr><td><code>### (2)「やらないと決める」の記録先</code></td><td><code>wip/reports/</code> だけでは足りない理由と、spec がある／DDR がある／どちらも無い の3通りの書き先</td></tr>
+      <tr><td><code>### 決定は人間が行う</code></td><td>(1) は <code>AskUserQuestion</code> での提示まで。<b>起票されなかった場合は (2) へ落とす</b>（非対話セッションでの退避経路も定める）</td></tr>
+      <tr><td><code>### 判定の記録</code></td><td>洗い出し件数 + 4-6 で追加した件数 = 判定済み件数 の等式で検算する。記録例1行</td></tr>
     </tbody>
   </table>
   </div>
@@ -286,7 +312,7 @@
     <tbody>
       <tr><td>「この反映は今回のissueの受け入れ条件に必要か」</td><td>却下</td><td>受け入れ条件に書かれていない<b>整合性の破れ</b>（例: 変更した仕様の記述が別ファイルに古いまま残る）を拾えない</td></tr>
       <tr><td>「この反映を後回しにして困る人がいるか」</td><td>却下</td><td>主観的で、判定者によって答えが変わる。「困る」の程度が定義できない</td></tr>
-      <tr><td>「規模はどれくらいか」を最初に問う</td><td>却下</td><td>issue #176 が問題視した「規模で入口を絞る」そのもの。規模は出口(3)の<b>選択条件</b>であって主判定ではない</td></tr>
+      <tr><td>「規模はどれくらいか」を最初に問う</td><td>却下</td><td>issue #176 が問題視した「規模で入口を絞る」そのもの。規模は出口の<b>選択条件</b>であって主判定ではない</td></tr>
       <tr><td><b><code>main</code> が矛盾・不整合になるか</b></td><td><b>採用</b></td><td>判定対象が <code>main</code> という<b>外部の状態</b>なので判定者に依存しない。フェーズ4が「反映」フェーズである以上、<code>main</code> の整合性が本来の関心事に一致する</td></tr>
     </tbody>
   </table>
@@ -298,13 +324,13 @@
     判定の視点を第三者へ移す言い換えである。</p>
   </div>
 
-  <h3 id="f-exit1">3. 出口(1) の裏付けの弱さをどこに書くか <span class="chip warn">△注意</span></h3>
+  <h3 id="f-exit1">3. 出口「このMRでやる（極小）」の裏付けの弱さをどこに書くか <span class="chip warn">△注意</span></h3>
   <p><b>新節の本文へ明示した</b>（DDR へ回さなかった）。</p>
   <ul>
     <li>フェーズ2調査の母数7件は「切り出し・見送りに言及したDDR」であり、<b>「極小だからこのMRで
-    やった」事例が原理的に含まれない</b>。出口(1) だけが実例の裏付けを持たない。</li>
+    やった」事例が原理的に含まれない</b>。この出口だけが実例の裏付けを持たない。</li>
     <li>DDR は「なぜこの設計を選んだか」を残す場所で、<b>読むのは設計を見直すとき</b>である。一方
-    この但し書きは、<b>出口(1) を選ぼうとしている人がその場で知るべき</b>注意であり、新節を読む
+    この但し書きは、<b>この出口を選ぼうとしている人がその場で知るべき</b>注意であり、新節を読む
     導線の上にないと届かない。</li>
     <li>新節に「この出口は #64 節からの引き継ぎであり、実例で確かめたものではない」と1段落で書き、
     DDR 側（フェーズ4）では母数の偏りという<b>調査の限界</b>として重ねて記録する。</li>
@@ -325,7 +351,9 @@
 
   <h3 id="f-skill">6. 対象5・6: <code>SKILL.md</code> の flow-id 4-1 / 4-6 <span class="chip good">◎良</span></h3>
   <ul>
-    <li><b>4-1</b>: 洗い出しの直後に全件を主判定へ通す旨と、AIは候補提示までであることを追加。</li>
+    <li><b>4-1</b>: 洗い出しの直後に全件を主判定へ通す旨を追加した。<b>判定条件・出口・起票主体は
+    列挙せず、正が <code>references/planning.md</code> の1箇所にあることだけを書く</b>（セルは直前で
+    「判定条件の正はあちらで、ここには書かない」と宣言しているため、出口名を並べると自家撞着になる）。</li>
     <li><b>4-6</b>: 作業中に新たに気づいた反映対象も同じ判定へ通す旨を追加（規模が小さいことを
     理由に判定を飛ばさない）。</li>
   </ul>
@@ -339,24 +367,57 @@
 
 <section id="verify">
   <h2>検証</h2>
-  <p>計画に記した8本すべてが期待値どおりになった。</p>
+  <p><b>計画が定める検査は11本</b>（全体作業計画の全1〜全3・健全1〜健全3、個別作業計画の追1〜追5）。
+  <b>全11本が期待値どおりになった。</b> 加えて、この作業で新たに必要と分かった2本（表の行数・
+  節名の総出現数）を足している。</p>
+
+  <h3>全体作業計画の6本</h3>
   <div class="tablewrap">
   <table>
-    <thead><tr><th>検証</th><th>期待</th><th>実測</th></tr></thead>
+    <thead><tr><th>検査</th><th>内容</th><th>期待</th><th>実測</th></tr></thead>
     <tbody>
-      <tr><td>全1: <code>判断基準</code> の出現</td><td>1以上</td><td><b>2</b></td></tr>
-      <tr><td>全2: <code>spec/</code>・<code>ddr/</code> の差分</td><td>0</td><td><b>0</b>（フェーズ4の担当のため）</td></tr>
-      <tr><td>追1: 新節の <code>##</code> 見出し</td><td>1</td><td><b>1</b></td></tr>
-      <tr><td>追2: <code>【実装反映】</code> 定義に旧参照が残っていない</td><td>0</td><td><b>0</b></td></tr>
-      <tr><td>追3: <code>手順4</code> 範囲に新節への参照</td><td>1以上</td><td><b>1</b></td></tr>
-      <tr><td>追4: #64 節の範囲に新節への参照</td><td>1以上</td><td><b>1</b></td></tr>
-      <tr><td>追5: <code>SKILL.md</code> 4-1 / 4-6 の参照列</td><td>不変</td><td><b>不変</b></td></tr>
-      <tr><td>表の行数</td><td>43</td><td><b>43</b></td></tr>
+      <tr><td><b>全1</b></td><td><code>grep -rl -- '見送ってマージ' .claude/skills/issue-mr-flow/ | wc -l</code>（受け入れ条件1）</td><td>変更前0 → 変更後1以上</td><td><b>変更前 0 / 変更後 1</b></td></tr>
+      <tr><td><b>全2</b></td><td><code>【実装反映】</code> 定義の範囲に旧参照が残っていないか（受け入れ条件2）</td><td>0</td><td><b>0</b></td></tr>
+      <tr><td><b>全3</b></td><td><code>ls .claude/docs/ddr/i0176-*.md</code> と spec の <code>issue #176</code>（受け入れ条件3）</td><td>フェーズ4のため未達</td><td><b>ls失敗 / grep 0</b>（期待どおり）</td></tr>
+      <tr><td><b>健全1</b></td><td><code>check-doc-references.sh</code></td><td>参照切れ0</td><td><b>参照切れ数=0</b></td></tr>
+      <tr><td><b>健全2</b></td><td><code>generate-ddr-list.sh</code> 実行後に <code>.claude/docs/README.md</code> の差分なし</td><td>0</td><td><b>0</b></td></tr>
+      <tr><td><b>健全3</b></td><td><code>sync-gemini-assets.sh --check</code></td><td><b>非0</b>（<code>.claude/</code> を変えたので未同期になるのが正常）</td><td><b>exit 1</b>。<code>.gemini/…/planning.md</code> に新節は0件で、<b>変更が <code>.claude/</code> 側に届いていることの裏返し</b>。同期は flow-id 5-3 の担当</td></tr>
     </tbody>
   </table>
   </div>
-  <p>加えて <code>check-doc-references.sh</code>（参照切れ0）と <code>extract-frontmatter.sh .</code>
-  （failed=0）を実行した。</p>
+  <div class="box warn">
+    <span class="label">健全3 は「変更の到達確認」である</span>
+    <p>変更前は exit 0 だったので、<b>非0にならないほうがおかしい</b>（<code>.claude/</code> を
+    変更したのに <code>.gemini/</code> との差が出ていないなら、変更が届いていないことを意味する）。</p>
+  </div>
+
+  <h3>個別作業計画の5本</h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>検査</th><th>内容</th><th>期待</th><th>実測</th></tr></thead>
+    <tbody>
+      <tr><td><b>追1</b></td><td>新節の <code>##</code> 見出しがある</td><td>1</td><td><b>1</b></td></tr>
+      <tr><td><b>追2</b></td><td><code>【実装反映】</code> 定義に旧参照が残っていない（全2と同じ検査を個別計画側でも持つ）</td><td>0</td><td><b>0</b></td></tr>
+      <tr><td><b>追3</b></td><td><code>手順4</code> の範囲に新節への参照がある</td><td>1以上</td><td><b>1</b></td></tr>
+      <tr><td><b>追4</b></td><td>#64 節の範囲に新節への参照がある（<code>head -n -1</code> で終端行を落とす）</td><td>1以上</td><td><b>1</b></td></tr>
+      <tr><td><b>追5</b></td><td><code>SKILL.md</code> 4-1 / 4-6 の<b>参照列</b>が不変</td><td>不変</td><td><b>不変</b></td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>この作業で足した2本</h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>検査</th><th>内容</th><th>期待</th><th>実測</th></tr></thead>
+    <tbody>
+      <tr><td>追6</td><td><code>SKILL.md</code> の表の行数（<code>|</code> の混入で表が壊れていないこと）</td><td>43</td><td><b>43</b></td></tr>
+      <tr><td>追7</td><td>節名 <code>反映対象をこのMRでやるか切り出すかの判断</code> の<b>総出現数</b>（改行分断の検出）</td><td>6（planning 4 / SKILL 2）</td><td><b>6</b></td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p><b>追7 は否定形（<code>grep 'このMRでやるか$'</code> が0件）ではなく件数で数える。</b>
+  否定形だと、『反映対象をこの／MRでやるか…』のように<b>別の位置で折り返した場合を検出できない</b>
+  （異常の形を1種類しか想定していない検査になる）。</p>
 </section>
 
 <section id="surprises">
@@ -372,28 +433,70 @@
   <p><code>grep</code> は行単位で照合するため一致しない。段落を折り返し直し、節名が1行に収まる
   ようにして解消した。</p>
 
+  <h3 id="s-zen1">全1 を別の語で測っており、変更前後で値が変わらない空振り検査だった <span class="chip warn">△注意</span></h3>
+  <p><b>敵対的レビュー（フェーズ3・2回目）で指摘され、修正した。</b> 全体作業計画は全1を
+  <code>grep -rl -- '見送ってマージ'</code>（変更前0→変更後1）と定めていたのに、<code>判断基準</code>
+  で測って「実測2」と記録していた。実測すると:</p>
+  <pre><code>'判断基準' を含むファイル数   変更前 4 / 変更後 4
+'見送ってマージ'              変更前 0 / 変更後 1</code></pre>
+  <p>つまり<b>新節を1行も書かなくても合格する</b>検査だった。しかも全体作業計画は「数える語は、
+  見出し・目次に既出の構造語（『切り出し』『<b>判断基準</b>』）を避け」と、<b>この語を名指しで
+  禁じていた</b>。受け入れ条件1を担保する唯一の機械検査だったため、「受け入れ条件2つが
+  満たされた」という結論の根拠が1つ欠けていたことになる。</p>
+
   <div class="box warn">
-    <span class="label">このissueで3回目の同型の不具合</span>
+    <span class="label">同型の不具合を、このissueで4回踏んだ</span>
     <div class="tablewrap">
     <table>
-      <thead><tr><th>回</th><th>内容</th></tr></thead>
+      <thead><tr><th>回</th><th>内容</th><th>見つけた経路</th></tr></thead>
       <tbody>
-        <tr><td>1</td><td><code>grep -rln -- '別issue'</code> が <code>個別issue</code> にも一致し、母数に2件の偽陽性が混ざった</td></tr>
-        <tr><td>2</td><td><code>5フェーズ</code> で数えた複製箇所が6件だったが、<code>43ステップ</code> で数え直すと8件だった</td></tr>
-        <tr><td>3</td><td>検索語が改行で分断され、存在するのに一致しなかった（本件）</td></tr>
+        <tr><td>1</td><td><code>grep -rln -- '別issue'</code> が <code>個別issue</code> にも一致し、母数に2件の偽陽性が混ざった</td><td>フェーズ2の敵対的レビュー</td></tr>
+        <tr><td>2</td><td><code>5フェーズ</code> で数えた複製箇所が6件だったが、<code>43ステップ</code> で数え直すと8件だった</td><td>フェーズ2の自己検証</td></tr>
+        <tr><td>3</td><td>検索語が改行で分断され、存在するのに一致しなかった</td><td>計画の検証コマンド</td></tr>
+        <tr><td>4</td><td>検査の語を計画の定義から差し替え、変更前後で値が変わらなくなった</td><td>フェーズ3の敵対的レビュー</td></tr>
       </tbody>
     </table>
     </div>
-    <p>いずれも<b>検索語と実データの形が食い違う</b>という同じ型で、いずれも「コマンドを書いた
-    直後に実際に流して基準値を測る」という計画側の規律で検出できた。<b>節名のような固有名詞を
-    文書内で参照するときは、改行で割らずに1行へ収める</b>ことを運用上の注意として残す。</p>
+    <p>いずれも<b>検索語と実データの形が食い違う</b>という同じ型である。回1・2は語の選び方、回3は
+    改行位置、回4は<b>計画で決めた語を実行時に別の語へ差し替えたこと</b>が原因で、原因の層は違う。</p>
+    <p><b>回4 だけは、自己検証では原理的に見つからない。</b> 検査そのものが「期待どおりの値」を
+    返しているためである。<b>計画に書いた検査コマンドは、文字列としてそのまま流す</b>（読みやすさや
+    語感で書き換えない）。書き換えるなら、計画側の定義も同時に直し、変更前のツリーで基準値を測り直す。</p>
+    <p>運用上の注意として次の2つを残す。</p>
+    <ul>
+      <li><b>節名のような固有名詞を文書内で参照するときは、改行で割らずに1行へ収める</b>（回3）。
+      <code>grep</code> だけでなく、人間の目視検索・エディタの検索でも引っかからなくなるため。</li>
+      <li><b>「異常が無ければ何も出ない」形の検査は、異常の形を1種類しか想定していないことがある。</b>
+      否定形（0件であること）より、件数を数える形のほうが壊れ方に気づきやすい（追7）。</li>
+    </ul>
   </div>
 
   <h3 id="s-sed"><code>sed</code> の範囲は終端行を含む（前回の指摘の再確認）</h3>
   <p>追4 の <code>sed -n '/^## issueが大きすぎる…/,/^## /p'</code> は<b>終端の <code>## </code> 行を
   含む</b>ため、新節の見出しそのものに一致してしまい、対象3 を忘れていても合格していた。
-  <code>head -n -1</code> で終端行を落としている（フェーズ3の敵対的レビュー指摘1件目への対応。
+  <code>head -n -1</code> で終端行を落としている（フェーズ3の敵対的レビュー1回目の指摘への対応。
   この作業でも同じ形を維持した）。</p>
+</section>
+
+<section id="next">
+  <h2>設計への反映</h2>
+  <p>フェーズ4（<code>【設計反映】</code>）で <code>main</code> へ残すもの。<b>この節は「何を残すか」を
+  決めるところまでで、実際の反映はフェーズ4が行う</b>（下記「残課題」との違いは、こちらが
+  <code>main</code> に残す内容の一覧、あちらが未着手の作業の一覧という点である）。</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>反映先</th><th>内容</th></tr></thead>
+    <tbody>
+      <tr><td><b>DDR <code>i0176-01</code></b></td><td>主判定を一問に絞った理由と却下案3件。出口の判定順を固定した理由。<b>調査の限界</b>（母数が「切り出し・見送りに言及したDDR」に偏っており、「極小だからこのMRでやった」事例が原理的に含まれないこと）</td></tr>
+      <tr><td><b><code>.claude/docs/spec/issue-mr-workflow.md</code></b></td><td>新節の存在と所在の<b>要約と参照のみ</b>。判定条件そのものは書かない（正は <code>references/planning.md</code> の1箇所）</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p><b><code>.claude/rules/</code> への反映候補が1件ある。</b> 上記「同型の不具合を、このissueで
+  4回踏んだ」のうち、<code>grep</code> の部分一致で母数を作る罠（<code>別issue</code> ⊂
+  <code>個別issue</code>）は <code>.claude/rules/shell-script-style.md</code> に記載が無い
+  （<code>--</code> の付け忘れは書かれているが、部分一致そのものは扱われていない）。<b>フェーズ4の
+  <code>【AIアセット反映】</code> 候補として、新節の主判定へ通す。</b></p>
 </section>
 
 <section id="todo">
@@ -404,7 +507,9 @@
     <tbody>
       <tr><td>DDR <code>i0176-01</code> の作成と <code>generate-ddr-list.sh</code> の実行</td><td><b>フェーズ4</b>（<code>【設計反映】</code>）。受け入れ条件3に対応</td></tr>
       <tr><td><code>.claude/docs/spec/issue-mr-workflow.md</code> への反映（要約と所在のみ）</td><td>同上</td></tr>
-      <tr><td>出口(1) の実例による裏付け</td><td>母数の性質上、今回は取れない。新節本文と DDR に限界として記録する</td></tr>
+      <tr><td><code>.gemini/</code> への変換同期（<code>sync-gemini-assets.sh</code>）</td><td><b>flow-id 5-3</b>。現時点で <code>--check</code> が非0なのは期待どおり（上記「検証」の健全3）</td></tr>
+      <tr><td><code>.claude/rules/shell-script-style.md</code> への <code>grep</code> 部分一致の罠の追記</td><td><b>フェーズ4の <code>【AIアセット反映】</code> 候補</b>。新節の主判定へ通して可否を決める</td></tr>
+      <tr><td>出口「このMRでやる（極小）」の実例による裏付け</td><td>母数の性質上、今回は取れない。新節本文と DDR に限界として記録する</td></tr>
     </tbody>
   </table>
   </div>
