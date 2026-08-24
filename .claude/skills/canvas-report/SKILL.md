@@ -168,7 +168,7 @@ mermaid.jsは唯一の外部CDN依存で、読み込めないオフライン環�
 
 | 形式 | 外部を読みに行く記述 |
 |---|---|
-| 一覧・表形式（`reports-*.template.html` / `plans.template.html`） | **無い**（`<script src>` も `<link href>` も持たない） |
+| 一覧・表形式（`reports-{clean,neobrutal,mono,paper}.template.html` / `reports.template.html` / `plans.template.html`） | **無い**（`<script src>` も `<link href>` も持たない） |
 | canvas形式（本スキル） | **mermaidを使う場合に限り、CDNの `<script src>` を1本読む**。使わない場合はその `<script>` ごと削除すれば外部依存ゼロになる |
 
 **「URLを1文字も含まない」という意味での自己完結ではない点に注意する。** canvas形式は

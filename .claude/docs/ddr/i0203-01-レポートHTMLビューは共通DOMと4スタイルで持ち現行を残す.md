@@ -1,6 +1,7 @@
 ---
 title: i0203-01. レポートHTMLビューは共通DOMと4スタイルで持ち現行を残す
 type: ddr
+note: '本文が書く「<style>二重出力の描画結果」（ダークでは正常・ライトでだけ配色が落ちる）はCSSのエラー回復規則からの推論で、ブラウザでは未確認。検査6を足す根拠は「構造として不正」だけで成立する。共有パーツと生成スクリプトは作業用の一時物でリポジトリには置いていない（同一性の担保は .claude/scripts/test/test_report_templates.sh）'
 description: レポートのHTMLビューを4デザインへ拡張するにあたり、共通DOM＋4通りのstyleという構成を採り、現行テンプレートを併存させて既定をreports-cleanにした
 tags: [ddr, issue-mr-flow, reports, template]
 keywords: [reports-clean, reports-neobrutal, reports-mono, reports-paper, 共通DOM, 選択基準, 検査, 負のコントロール, バイト比較, issue203]

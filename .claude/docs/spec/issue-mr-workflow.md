@@ -345,7 +345,7 @@ Claude Code / Gemini CLI は**セッションごとに1つのplanファイルし
 | テンプレート | 対象 |
 |---|---|
 | `.claude/skills/issue-mr-flow/assets/plans.template.html` | 全体作業計画（flow-id 1-4）と個別計画（2-1・3-1・4-1） |
-| `.claude/skills/issue-mr-flow/assets/reports-*.template.html`（**5本**。既定は `reports-clean`） | 調査結果（2-6）・作業結果（3-6）・反映結果（4-6）・最終統括レポート（5-4） |
+| `.claude/skills/issue-mr-flow/assets/reports-{clean,neobrutal,mono,paper}.template.html`（既定は `reports-clean`）と `reports.template.html`（移行期） | 調査結果（2-6）・作業結果（3-6）・反映結果（4-6）・最終統括レポート（5-4） |
 
 **この節が扱うのは、なぜこの形にしたかと、どこに何の正があるかだけである。** 運用の詳細
 （見出し構成・必須／任意の区別・作成タイミング・埋め忘れの検査）はここへ再掲しない。
