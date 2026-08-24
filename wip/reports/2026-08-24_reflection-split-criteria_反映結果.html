@@ -139,7 +139,7 @@
   <div class="inner">
     <div class="kind">反映結果レポート / フェーズ4（flow-id 4-6）</div>
     <h1>切り出し判断基準の記録 — DDR・spec・rules・観点表への反映</h1>
-    <p class="lead">issue #176 の判断の経緯を DDR <code>i0176-01</code> として記録し、<code>.claude/docs/spec/issue-mr-workflow.md</code> へ新節の位置づけを反映した。<b>受け入れ条件3つすべてが満たされ、検証11本すべてが期待値どおり</b>になった。あわせて反映対象7件（洗い出し10件のうち手順3で3件が対象外）を7ファイルへ入れ、<code>.claude/VERSION</code> を 0.4.0 → 0.5.0 へ増分した。<b>出口(1)「別issueへ切り出す」は0件で、このフェーズでは一度も止まらなかった。</b></p>
+    <p class="lead">issue #176 の判断の経緯を DDR <code>i0176-01</code> として記録し、<code>.claude/docs/spec/issue-mr-workflow.md</code> へ新節の位置づけを反映した。<b>受け入れ条件3つすべてが満たされ、検証11本すべてが期待値どおり</b>になった。あわせて反映対象7件（洗い出し10件のうち手順3で3件が対象外）を7ファイルへ入れ、<code>.claude/VERSION</code> を 0.4.0 → 0.5.0 へ増分した。<b>4-1 で洗い出した10件では出口(1)「別issueへ切り出す」は0件だったが、4-6 で追加された1件（VERSION の無言の衝突検知）が AND 条件を初めて満たし、出口(1) となった——起票せず提示して止まる。</b></p>
     <p class="counts">
       <span class="chip good">◎良 4</span>
       <span class="chip warn">△注意 2</span>
@@ -174,8 +174,8 @@
 <section id="review-focus">
   <h2>重点レビュー依頼</h2>
   <div class="box warn">
-    <span class="label">◆ `.claude/VERSION` を 0.4.0 → 0.5.0（MINOR）へ上げた判断</span>
-    <p>版の決定は本来人間が行うもので、非対話セッションのため <code>distribution-assets.md</code> の例外規定に沿ってAIが適用した。<b>否とされたら戻す。</b></p>
+    <span class="label">◆ .claude/VERSION を 0.5.0 → 0.6.0（MINOR）へ上げた判断</span>
+    <p>版の決定は本来人間が行うもので、非対話セッションのため <code>distribution-assets.md</code> の例外規定に沿ってAIが適用した。<b>否とされたら戻す。</b>当初は <code>0.4.0</code> → <code>0.5.0</code> としていたが、<b><code>main</code> の取り込みで issue #185 の同じ増分と衝突し無言で消えた</b>ため上げ直している（下記「想定と異なった点」）。</p>
   </div>
   <div class="box warn">
     <span class="label">◆ 観点表へ入れた必須節検査のコマンドが、配布先でも動くか</span>
@@ -201,7 +201,8 @@
       <tr><td><span class="chip good">◎</span> 反映対象7件すべてを反映した（Yes 2件・No 5件）</td><td>実測（変更7ファイル・反7〜反9）</td></tr>
       <tr><td><span class="chip good">◎</span> 検証11本すべてが期待値どおり</td><td>実測</td></tr>
       <tr><td><span class="chip warn">△</span> <code>main</code> の取り込みで <code>.claude/VERSION</code> の増分が無言で消えた（0.6.0 へ上げ直した）</td><td>実測（分岐点0.4.0・両側0.5.0）</td></tr>
-      <tr><td><span class="chip good">◎</span> 出口(1) は0件で、このフェーズでは一度も止まらなかった</td><td>実測（判定10件）</td></tr>
+      <tr><td><span class="chip good">◎</span> 出口(1) は 4-1 の10件では0件だった</td><td>実測（判定10件）</td></tr>
+      <tr><td><span class="chip warn">△</span> <b>4-6 で追加された1件が出口(1) に当たり、AND 条件が初めて成立した</b></td><td>実測（<code>main</code> 取り込み時に発見）</td></tr>
       <tr><td><span class="chip warn">△</span> 必須節検査のコマンドは Linux でのみ検証済み</td><td>実測（git bash 実機は未検証）</td></tr>
       <tr><td><span class="chip warn">△</span> <code>.claude/VERSION</code> の版はAIが目安表から適用した</td><td>規定に沿った判断（人間の決裁は未取得）</td></tr>
     </tbody>
@@ -228,7 +229,7 @@
     <tbody>
       <tr><td>1</td><td><code>.claude/docs/ddr/i0176-01-…md</code>（新規）</td><td>主判定・出口・判定順・AND条件と「止まって待つ」の対の決定、却下案5件、調査の限界4点</td></tr>
       <tr><td>2</td><td><code>.claude/docs/spec/issue-mr-workflow.md</code></td><td>「仕様」節へ新節の位置づけ（#64 節の直後）＋「影響範囲」節へ変更エントリ</td></tr>
-      <tr><td>—</td><td><code>.claude/docs/README.md</code></td><td><code>generate-ddr-list.sh</code> の再生成（92件 → 93件）</td></tr>
+      <tr><td>—</td><td><code>.claude/docs/README.md</code></td><td><code>generate-ddr-list.sh</code> の再生成（<code>main</code> 取り込み後 101件）</td></tr>
       <tr><td>3</td><td><code>.claude/rules/shell-script-style.md</code></td><td>「テスト」節へ<b>母数を数える語</b>の罠と<b>計画の検査コマンドをそのまま流す</b>を追記</td></tr>
       <tr><td>5</td><td><code>REVIEW-POINTS.md</code>（ルート）</td><td>既存の検証コマンド観点へ、実行時の語の差し替えに関する1文</td></tr>
       <tr><td>8</td><td><code>wip/reports/REVIEW-POINTS.md</code></td><td><b>md↔HTML の見出し一致検査</b>を <code>wip/plans/</code> 側から複製</td></tr>
@@ -240,11 +241,31 @@
   </div>
 
   <h3>判定の記録（検算）</h3>
-<pre><code>洗い出し（4-1）10件 + 作業中に追加（4-6）0件 = 10件
+<pre><code>洗い出し（4-1）10件 + 作業中に追加（4-6）1件 = 11件
   − 手順3で反映対象から外れた 3件（#4・#7 は再現性なし ／ #6 は既に記述あり）
-  = 主判定へ通した 7件
-      = 別issueへ切り出す 0件 + やらないと決める 0件 + このMRでやる 7件（Yes 2件 + No 5件）</code></pre>
-  <p><b>4-6 で新たに気づいた反映対象は0件だった</b>ため、4-1 の等式がそのまま成り立つ。</p>
+  = 主判定へ通した 8件
+      = 別issueへ切り出す 1件（#11。起票せず提示して止まる）
+      + やらないと決める 0件
+      + このMRでやる 7件（Yes 2件 + No 5件）</code></pre>
+  <p><b>追加の1件（#11）は、<code>main</code> の取り込み中に見つかった。</b></p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th></th><th>#11</th></tr></thead>
+    <tbody>
+      <tr><td>内容</td><td><code>check-base-conflicts.sh</code> に <code>.claude/VERSION</code> の「両側が同じ値へ上げた」衝突検知が無い</td></tr>
+      <tr><td>類型</td><td>(a)（該当する記述・検知が無い）</td></tr>
+      <tr><td>再現性</td><td>1回。ただし<b>同型の類型A（DDR識別子）は過去4回</b>（PR #29 / #37 / #49 / #52）起きており、専用の検知が既にある</td></tr>
+      <tr><td>主判定</td><td><b>No</b>（この検知が無くても <code>main</code> は今回の変更と矛盾しない）</td></tr>
+      <tr><td>規模</td><td><b>大</b>（検知スクリプトへの機能追加＋単体テスト＋spec更新。1issueに収まらない）</td></tr>
+      <tr><td>スコープ</td><td><b>外</b>（issue #176 は反映対象の切り出し判断基準であり、衝突検知を名指ししていない）</td></tr>
+      <tr><td>出口</td><td><b>(1) 別issueへ切り出す</b>（規模とスコープの AND が成立）</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <div class="box warn">
+    <span class="label">新節の AND 条件が成立した初めての例</span>
+    <p>4-1 の10件はすべて規模が小さく AND が成立しなかったため、出口(1) は0件だった。#11 は規模の側も満たす。<b>新節の定めに従い、AIは起票していない。</b>起票の可否は人間が決める。</p>
+  </div>
 
   <h3>検証11本の実測</h3>
   <div class="tablewrap">
@@ -253,7 +274,7 @@
     <tbody>
       <tr><td>反1 DDRファイル数</td><td>1</td><td><b>1</b></td></tr>
       <tr><td>反2 spec の <code>issue #176</code></td><td>1以上</td><td><b>3</b></td></tr>
-      <tr><td>反3 DDR一覧の冪等性</td><td>ハッシュ一致</td><td><b>一致</b>（<code>7d5cc25b…</code> ×2・93件）</td></tr>
+      <tr><td>反3 DDR一覧の冪等性</td><td>ハッシュ一致</td><td><b>一致</b>（<code>75970e80…</code> ×2・101件）</td></tr>
       <tr><td>反4 識別子の書式</td><td>1</td><td><b>1</b></td></tr>
       <tr><td>反5 参照切れ</td><td>0</td><td><b>参照切れ数=0</b></td></tr>
       <tr><td>反6 節名の出現数</td><td>planning.md 4 / SKILL.md 2</td><td><b>4 / 2</b>（不変）</td></tr>
@@ -261,19 +282,24 @@
       <tr><td>反8 #9 の必須節検査</td><td>両方1以上</td><td><b>plans 1 / reports 1</b></td></tr>
       <tr><td>反9 #8 の見出し一致検査</td><td>1以上</td><td><b>1</b></td></tr>
       <tr><td>反10 HTML冒頭コメントの閉じ数</td><td>1</td><td><b>1</b></td></tr>
-      <tr><td>反11 <code>.claude/</code> の差分</td><td>変更対象のみ</td><td><b>7ファイル</b>（下記）</td></tr>
+      <tr><td>反11 <code>.claude/</code> の差分</td><td>変更対象のみ</td><td><b>8ファイル</b>（下記）</td></tr>
     </tbody>
   </table>
   </div>
-  <p>反11 の内訳。フェーズ3の2ファイル（<code>SKILL.md</code> <code>planning.md</code>）と、今回の5ファイルだけが並ぶ。</p>
+  <p>反11 の内訳（<code>main</code> 取り込み後）。フェーズ3の2ファイル（<code>SKILL.md</code> <code>planning.md</code>）と、今回の6ファイルだけが並ぶ。</p>
 <pre><code> .claude/VERSION                                    |   2 +-
  .claude/docs/README.md                             |   1 +
- .claude/docs/spec/issue-mr-workflow.md             |  77 +++++++++++
+ ...i0176-01-…（新規DDR）                            | 127 +++++++++++++++
+ .claude/docs/spec/issue-mr-workflow.md             |  81 +++++++++++
  .claude/rules/docs-workflow.md                     |   8 ++
  .claude/rules/shell-script-style.md                |  33 +++++
  .claude/skills/issue-mr-flow/SKILL.md              |   4 +-
  .../skills/issue-mr-flow/references/planning.md    | 152 ++++++++++++++++++++-</code></pre>
   <p><code>.claude/docs/README.md</code> の <code>+1</code> はDDR一覧への1行追加のみで、意図した波及だけである。</p>
+  <div class="box warn">
+    <span class="label">反11 は「マージをコミットしたあと」でなければ意味を持たない</span>
+    <p><code>git merge-base origin/main HEAD</code> は HEAD が指すコミットから計算されるため、マージが未コミットのうちは分岐点が古いままで、<b><code>main</code> 側の変更（今回は42ファイル）が自分の変更として並ぶ</b>。実際に一度そう表示された。</p>
+  </div>
   <div class="box ok">
     <span class="label">今回追加した検査を自分の成果物へ適用した</span>
     <p>計画HTML・作業結果HTMLのどちらも <code>&lt;</code> の行が0で、必須節の欠落なし。</p>
@@ -295,6 +321,25 @@
 
   <h3>相互参照の置き場所が、その段落自身の警告に当たった</h3>
   <p>#10 の相互参照を <code>docs-workflow.md</code> の差し込み位置の段落の直後へ入れたところ、<b>その段落に続く箇条書き（実例2件）の係り先を切っていた</b>。まさにその段落が「挿入位置の直前の節が『その節全体にかかる地の文』で終わっていないか確認する」と警告している構造である。箇条書きの後ろへ移した。</p>
+
+  <h3><code>.claude/VERSION</code> が競合しないまま黙って消えた</h3>
+  <p>反映の途中で <code>main</code> が5コミット進み、PR が <code>dirty</code> になった。取り込んだところ、テキスト競合は <code>REVIEW-POINTS.md</code> 1件だけだった——が、<b>競合しなかった側で本issueの変更が1つ失われていた。</b></p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th></th><th><code>.claude/VERSION</code></th></tr></thead>
+    <tbody>
+      <tr><td>分岐点</td><td><code>0.4.0</code></td></tr>
+      <tr><td><code>main</code>（issue #185）</td><td><code>0.5.0</code></td></tr>
+      <tr><td>本ブランチ</td><td><code>0.5.0</code></td></tr>
+      <tr><td>マージ結果</td><td><code>0.5.0</code>（<b>本issueの増分が消えた</b>）</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <div class="box stop">
+    <span class="label">gitは「両側が同じ値にした」と見て競合を出さない</span>
+    <p><code>git status</code> にも現れないので、<b>気づく手がかりがマージの出力に一切無い</b>。DDR識別子の連番衝突（<code>resolve-conflict</code> 類型A）と同型で、あちらが <code>check-base-conflicts.sh</code> という専用の検知を持つのと同じ理由がここにもある。</p>
+  </div>
+  <p>取り込み後の <code>0.5.0</code> を起点に <code>0.6.0</code> へ上げ直した。<b>気づけたのは、マージ後に分岐点・main・自分の3点を並べて確認したからである</b>（片側だけ見ると <code>0.5.0</code> は正しい値に見える）。</p>
 </section>
 
 <section id="next">
@@ -303,6 +348,7 @@
     <li><b>DDR <code>i0176-01</code></b> に、主判定・出口・判定順・AND条件と「止まって待つ」の対を記録した。却下案は5件（規模を主判定にする案／3軸並列の案／「あったほうがよいか」で判定する案／判定順を持たない案／出口(1) を OR にする案／非対話セッションの退避経路を持つ案）。</li>
     <li><b>調査の限界を4点書いた。</b> うち <code>references/planning.md</code> 手順3 の段階2のコマンド例が <code>REVIEW-POINTS.md</code> 群を探索範囲に含めていないという穴は、<b>このMRでは直していない</b>。手順3は本MRの反映対象の判定そのものが依存している手順であり、判定に使いながら同じMRで書き換えると、どちらの版で判定したのかが後から読めなくなるためである。DDRの「調査の限界」へ記録した。</li>
     <li><b><code>.claude/VERSION</code> の例外規定に従った適用</b>を、spec の changelog と <code>HANDOFF.md</code>「判断を迷った内容」の両方へ記録した。</li>
+    <li><b>#11（VERSION の無言の衝突検知）は出口(1) と判定し、起票せずに提示して止める。</b> <code>HANDOFF.md</code>「未解決の内容」へ記録したが、<b>依頼の本体は最終応答である</b>（<code>HANDOFF.md</code> は flow-id 5-5 でリセットされるため）。新節「決定は人間が行う — (1) を選んだら止まって待つ」の<b>初回適用</b>にあたる。</li>
   </ul>
 </section>
 
