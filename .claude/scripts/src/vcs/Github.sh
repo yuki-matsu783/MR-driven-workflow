@@ -249,10 +249,66 @@ github_get_compare_url() {
   printf '%s/compare/%s...%s\n' "$repo_url" "$from" "$to"
 }
 
-# PRの「defaultブランチとの差分」を見れるURLを組み立てる（純粋関数）。issue #13。
+# PRの「defaultブランチとの差分」を見れるURLを組み立てる（純粋関数）。issue #13, #205。
+#
+# 第4引数 `mr_url` を渡すと、PRの「Files changed」タブ（`<mrUrl>/files`）を返す。ここは
+# レビューコメントを行単位で付けられるビューで、Compareページ（コメント不可）との違いはそこにある
+# （issue #205）。URL形式はissue #205本文でリポジトリ所有者が指定したもの。
+# `mr_url` が空（`gh` CLI不在でPR URLを解決できなかった等）なら従来どおりCompareページを返す
+# ——**解決できないときに後退させないための縮退先**である。
 github_get_mr_diff_url() {
-  local repo_url="$1" base_branch="$2" head_branch="$3"
+  local repo_url="$1" base_branch="$2" head_branch="$3" mr_url="${4:-}"
+  if [ -n "$mr_url" ]; then
+    printf '%s/files\n' "$mr_url"
+    return 0
+  fi
   github_get_compare_url "$repo_url" "$base_branch" "$head_branch"
+}
+
+# 現在のHEAD（`head_sha`）に対応するPR番号を、`git ls-remote` だけで解決する（issue #205）。
+# 解決できない場合は**空を出力して終了コード0で返す**（呼び出し側はCompareへ縮退する）。
+# `gh` CLIが無い環境（MCPフォールバック経路）でDiffviewリンクを出せるようにするためのもの。
+#
+# **純粋関数ではない**（`git` を2回起動する）。`get_mr_diff_url` の中では呼ばず、呼び出し側が
+# 解決してから引数で渡す設計にしている（URL組み立て関数を純粋に保つため）。
+#
+# 制約が3つあり、いずれも「誤ったURLを出すくらいならCompareのままにする」方針から来ている。
+#
+#   1. **一致がちょうど1件のときだけ返す。** `refs/pull/*/head` にはマージ済み・クローズ済みの
+#      PRのrefも永続的に残る（本リポジトリで実測: `refs/pull/4/head` `refs/pull/85/head` が現存）。
+#      `git ls-remote` はPRのstateもbaseも返さないため、複数一致したときに「番号が大きい方」で
+#      決め打つと、閉じたPRやbase違いのPRのURLを出しうる。
+#   2. **remoteが `http://` / `https://` のときだけ試みる。** 下の `http.*` 設定はHTTP
+#      トランスポートにしか効かず、SSH remote（scp形式・`ssh://`）ではタイムアウトが一切効かない。
+#      `GIT_TERMINAL_PROMPT=0` も ssh 自身が `/dev/tty` へ出すパスフレーズ入力・ホスト鍵確認を
+#      止めない。pushのたびに走るhookから呼ばれるため、**無応答になる可能性のある経路には入らない**。
+#   3. **失敗しても非0で返さない。** 呼び出し側は `set -euo pipefail` 配下でコマンド置換の代入を
+#      するため、非0が漏れるとhook全体が途中終了し、レビュー依頼メッセージが1行も出なくなる。
+github_resolve_mr_number_for_head() {
+  local head_sha="$1" remote_url out matched
+
+  remote_url="$(git remote get-url origin 2>/dev/null)" || return 0
+  case "$remote_url" in
+    http://*|https://*) ;;
+    *) return 0 ;;
+  esac
+
+  # 認証プロンプトの抑止（`credential.helper` はgit bashのGit Credential Managerが
+  # GUIダイアログを出すため、`GIT_TERMINAL_PROMPT=0` だけでは足りない）と、無応答の打ち切り。
+  out="$(GIT_TERMINAL_PROMPT=0 git \
+    -c credential.helper= -c core.askPass= \
+    -c http.lowSpeedLimit=1000 -c http.lowSpeedTime=5 \
+    ls-remote origin 'refs/pull/*/head' 2>/dev/null)" || return 0
+
+  # 件数判定までawk側で完結させる（`wc -l` を起動しない。実装によっては先頭に空白が入り、
+  # 文字列比較が常に不一致になる＝常に空を返す＝機能が入らない、という壊れ方をするため）。
+  matched="$(printf '%s\n' "$out" \
+    | awk -v sha="$head_sha" '$1 == sha { n++; r = $2 } END { if (n == 1) print r }')"
+  [ -n "$matched" ] || return 0
+
+  # basename相当はパラメータ展開で行う（`sed` を起動しない）
+  matched="${matched#refs/pull/}"
+  printf '%s\n' "${matched%/head}"
 }
 
 # PRの「前回push時点(from_sha)から今回push時点(to_sha)までの差分」を見れるURLを組み立てる

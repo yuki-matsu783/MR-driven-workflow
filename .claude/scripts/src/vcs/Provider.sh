@@ -878,10 +878,21 @@ get_repo_url() {
 # MR/PRの「defaultブランチとの差分」を見れるURLを組み立てる（issue #13:
 # レビュー依頼メッセージに含める参照リンク用）。`repo_url`は`get_repo_url`で取得したものを渡す。
 get_mr_diff_url() {
-  local repo_url="$1" base_branch="$2" head_branch="$3"
+  local repo_url="$1" base_branch="$2" head_branch="$3" mr_url="${4:-}"
   case "$(get_provider)" in
-    github) github_get_mr_diff_url "$repo_url" "$base_branch" "$head_branch" ;;
-    gitlab) gitlab_get_mr_diff_url "$repo_url" "$base_branch" "$head_branch" ;;
+    github) github_get_mr_diff_url "$repo_url" "$base_branch" "$head_branch" "$mr_url" ;;
+    gitlab) gitlab_get_mr_diff_url "$repo_url" "$base_branch" "$head_branch" "$mr_url" ;;
+  esac
+}
+
+# 現在のHEADに対応するMR/PR番号を、CLIを使わず `git` だけで解決する（issue #205）。
+# 解決できない場合は空を出力して終了コード0で返す（呼び出し側はCompareへ縮退する）。
+# GitLabは未対応（`refs/merge-requests` を実機検証できていないため。空を返す）。
+resolve_mr_number_for_head() {
+  local head_sha="$1"
+  case "$(get_provider)" in
+    github) github_resolve_mr_number_for_head "$head_sha" ;;
+    gitlab) ;;
   esac
 }
 

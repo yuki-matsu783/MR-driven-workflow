@@ -321,15 +321,32 @@ main() {
     mr_number="$(printf '%s' "$mr" | jq -r '.number')"
   fi
 
-  local repo_url diff_url
+  local repo_url compare_url diff_url
   repo_url="$(get_repo_url)"
-  diff_url="$(get_mr_diff_url "$repo_url" "$base_branch" "$branch")"
+  compare_url="$(get_mr_diff_url "$repo_url" "$base_branch" "$branch")"
+  diff_url="$compare_url"
 
   local repo_root safe_branch state_file current_sha prev_sha=""
   repo_root="$(get_repo_root)"
   safe_branch="$(printf '%s' "$branch" | sed -E 's/[^a-zA-Z0-9_-]/_/g')"
   state_file="${repo_root}/wip/state/review-links/${safe_branch}.txt"
   current_sha="$(git rev-parse HEAD)"
+
+  # `gh`/`glab` CLI不在でMR/PR URLを取得できなかった場合でも、`git ls-remote` だけで
+  # PR番号を解決できるなら「defaultブランチとの差分」をDiffview（コメントを付けられるビュー）
+  # へ寄せる（issue #205）。解決できなければ `compare_url` のまま＝後退しない。
+  # **解決と `diff_url` の再計算は、必ず両方ともここ（`current_sha` の算出後）へ置く。**
+  # 再計算だけを上の `compare_url` の行の側へ残すと、`diff_url` が `mr_url` の解決前に
+  # 確定するため、解決に成功しても差分リンクがCompareのままになる（機能が無言で入らない）。
+  if [ -z "$mr_url" ]; then
+    mr_number="$(resolve_mr_number_for_head "$current_sha")"
+    if [ -n "$mr_number" ]; then
+      mr_url="$(get_mr_url "$repo_url" "$mr_number")"
+    fi
+  fi
+  if [ -n "$mr_url" ]; then
+    diff_url="$(get_mr_diff_url "$repo_url" "$base_branch" "$branch" "$mr_url")"
+  fi
   if [ -f "$state_file" ]; then
     prev_sha="$(cat "$state_file")"
   fi
@@ -355,7 +372,10 @@ main() {
   # （build_file_links_text の性能上の前提。同関数のコメント参照）。
   get_provider >/dev/null
 
-  local anchor_compare_url="$diff_url" file_links_text=""
+  # 差分アンカーの土台は `diff_url` ではなく `compare_url` を使う（issue #205）。
+  # GitHubの差分アンカー `#diff-<sha256>` はCompareページ上でしか実機確認しておらず、
+  # 土台をPRの `/files` へ移すと「壊れるかもしれないリンク」になるため、ここは変えない。
+  local anchor_compare_url="$compare_url" file_links_text=""
   local anchor_base_url="" anchor_since_sha=""
   if [ -n "$since_url" ]; then
     anchor_compare_url="$since_url"
