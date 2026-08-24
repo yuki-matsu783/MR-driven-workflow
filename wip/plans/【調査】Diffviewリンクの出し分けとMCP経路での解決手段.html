@@ -1,0 +1,222 @@
+<!--
+  個別調査計画のHTMLビュー（issue #205 / flow-id 2-1）
+  正文は同名の .md。この .html は人間レビュー用の視覚化で、内容はmd側と同期させる。
+  土台: .claude/skills/issue-mr-flow/assets/plans.template.html
+-->
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>【調査】Diffviewリンクの出し分けとMCP経路での解決手段 — issue #205</title>
+<style>
+  :root {
+    --bg: #f6f7f9;      --panel: #ffffff;   --ink: #1a1d21;     --muted: #5b636d;
+    --line: #dfe3e8;    --accent: #2563eb;  --accent-soft: #eaf0fe;
+    --ok: #1a7f4b;      --ok-soft: #e6f4ec; --warn: #a35a00;    --warn-soft: #fdf1e0;
+    --stop: #b3261e;    --stop-soft: #fdecea; --code-bg: #f0f2f5;
+    --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1216;    --panel: #161a20;   --ink: #e6e8eb;     --muted: #9aa3ad;
+      --line: #2a3038;  --accent: #7aa2f7;  --accent-soft: #1b2333;
+      --ok: #6ee7a8;    --ok-soft: #14261d; --warn: #f0b866;    --warn-soft: #2a2113;
+      --stop: #f2857c;  --stop-soft: #2b1614; --code-bg: #1d222a;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", system-ui, sans-serif;
+    line-height: 1.8; font-size: 15px;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 20px 80px; }
+
+  /* 共通ヘッダ帯 */
+  header.band {
+    background: linear-gradient(135deg, var(--accent-soft), var(--panel));
+    border-bottom: 1px solid var(--line); padding: 28px 20px 22px; margin-bottom: 28px;
+  }
+  header.band .inner { max-width: 1080px; margin: 0 auto; }
+  header.band .kind { font-size: 11px; letter-spacing: .18em; color: var(--accent); font-weight: 700; }
+  header.band h1 { margin: 6px 0 4px; font-size: 26px; line-height: 1.4; }
+  header.band .lead { margin: 0; color: var(--muted); }
+  .meta { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; padding: 0; list-style: none; }
+  .meta li {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 999px;
+    padding: 3px 12px; font-size: 12.5px; color: var(--muted); white-space: nowrap;
+  }
+  .meta li b { color: var(--ink); font-weight: 600; }
+
+  nav.toc {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 14px 20px; margin-bottom: 28px;
+  }
+  nav.toc h2 { margin: 0 0 8px; font-size: 13px; letter-spacing: .08em; color: var(--muted); border: 0; padding: 0; }
+  nav.toc ol { margin: 0; padding-left: 20px; }
+  nav.toc li { margin: 2px 0; }
+  a { color: var(--accent); }
+
+  section {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 8px 24px 22px; margin-bottom: 22px;
+  }
+  h2 { font-size: 20px; margin: 20px 0 10px; padding-bottom: 8px; border-bottom: 2px solid var(--line); }
+  h3 { font-size: 16px; margin: 22px 0 8px; color: var(--accent); }
+  p { margin: 10px 0; }
+  ul, ol { padding-left: 22px; }
+  li { margin: 4px 0; }
+  blockquote { margin: 10px 0; padding: 6px 14px; border-left: 3px solid var(--line); color: var(--muted); }
+
+  /* 表は自身の中で横スクロールする（ページ本体は横スクロールさせない） */
+  .tablewrap { overflow-x: auto; margin: 14px 0; }
+  table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 14px; }
+  th, td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: var(--accent-soft); font-weight: 600; white-space: nowrap; }
+  tbody tr:nth-child(even) td { background: color-mix(in srgb, var(--line) 22%, transparent); }
+
+  code {
+    background: var(--code-bg); border-radius: 5px; padding: 1px 5px; font-size: 13px;
+    font-family: "SFMono-Regular", Consolas, "Noto Sans Mono", monospace;
+  }
+  pre {
+    background: var(--code-bg); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 12px 14px; overflow-x: auto; font-size: 13px; line-height: 1.65;
+  }
+  pre code { background: none; padding: 0; }
+
+  /* 注意ボックス: info（既定）/ ok（決めたこと）/ warn（注意）/ stop（やらないこと・危険） */
+  .box { border-left: 4px solid var(--accent); background: var(--accent-soft);
+         border-radius: 0 var(--radius) var(--radius) 0; padding: 12px 16px; margin: 16px 0; }
+  .box > :first-child { margin-top: 0; } .box > :last-child { margin-bottom: 0; }
+  .box .label { font-size: 12px; font-weight: 700; letter-spacing: .06em; display: block; margin-bottom: 4px; }
+  .box.ok { border-color: var(--ok); background: var(--ok-soft); } .box.ok .label { color: var(--ok); }
+  .box.warn { border-color: var(--warn); background: var(--warn-soft); } .box.warn .label { color: var(--warn); }
+  .box.stop { border-color: var(--stop); background: var(--stop-soft); } .box.stop .label { color: var(--stop); }
+  .box.info .label { color: var(--accent); }
+
+  .tag { display: inline-block; border-radius: 999px; padding: 1px 9px; font-size: 12px; font-weight: 600; }
+  .tag.ok { background: var(--ok-soft); color: var(--ok); }
+  .tag.warn { background: var(--warn-soft); color: var(--warn); }
+  .tag.stop { background: var(--stop-soft); color: var(--stop); }
+
+  footer { color: var(--muted); font-size: 13px; text-align: center; padding-top: 10px; }
+</style>
+</head>
+<body>
+
+<header class="band">
+  <div class="inner">
+    <div class="kind">個別調査計画 / フェーズ2（flow-id 2-1）</div>
+    <h1>Diffviewリンクの出し分けとMCP経路での解決手段</h1>
+    <p class="lead">実装に入る前に決めなければならない2つの未決事項——Diffview URL形式の裏取りと、MCP経路（CLI不在）でhookがMR/PR URLをどう解決するか——に、根拠付きの答えを出す。</p>
+    <ul class="meta">
+      <li><b>issue</b> #205</li>
+      <li><b>PR</b> #206</li>
+      <li><b>ブランチ</b> claude/pr-mr-diffview-link-yxim1l</li>
+      <li><b>フェーズ</b> 2〈調査〉 flow-id 2-1</li>
+      <li><b>push回数</b> 1</li>
+      <li><b>作成日</b> 2026-08-24</li>
+      <li><b>正文</b> 同名の .md</li>
+    </ul>
+  </div>
+</header>
+
+<div class="wrap">
+
+<nav class="toc">
+  <h2>目次</h2>
+  <ol>
+    <li><a href="#premise">前提（合意状況）</a></li>
+    <li><a href="#goal">この計画で何を調べるか</a></li>
+    <li><a href="#target">調査項目</a></li>
+    <li><a href="#approach">調べ方</a></li>
+    <li><a href="#out-of-scope">やらないこと（スコープ外）</a></li>
+    <li><a href="#verify">検証</a></li>
+  </ol>
+</nav>
+
+<section id="premise">
+  <h2>前提（合意状況）</h2>
+  <ul>
+    <li>上位の計画: <code>wip/plans/diffview-link-switchover.md</code>（flow-id 1-4 で作成）。</li>
+    <li><b>この計画は人間の合意（flow-id 2-3〜2-4）を経ていない。</b> 非対話セッション（Claude Code on the web・<code>gh</code>/<code>glab</code> CLI不在のMCP経路）のため人間のレビュー往復が成立せず、代わりに<b>敵対的レビュー</b>（<code>.claude/skills/adversarial-review/SKILL.md</code>）を計画時に1回実行して指摘へ対応する。</li>
+  </ul>
+</section>
+
+<section id="goal">
+  <h2>この計画で何を調べるか</h2>
+  <p>フェーズ3（実装）に入る前に決めなければならない<b>未決事項</b>は次の2つである。</p>
+  <ol>
+    <li><b>Diffview URLの形式が推測でなく裏取りできるか。</b> DDR <code>i0013-01</code> は「MR/PRのURL文字列へsuffixを推測で付け足す」案を一度却下している。同じ轍を踏まないための根拠が要る。</li>
+    <li><b>MCP経路（<code>gh</code>/<code>glab</code> CLI不在）で、hookがMR/PR URLをどう解決するか。</b> hookはシェルプロセスでありMCPツールを呼べないため、ローカルで参照できる情報から導く必要がある。</li>
+  </ol>
+  <p>付随して、既存機構との整合（差分アンカー・<code>get_mr_diff_since_url</code>）も確認する。</p>
+</section>
+
+<section id="target">
+  <h2>調査項目</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>ID</th><th>問い</th><th>これが決まらないと困ること</th></tr></thead>
+    <tbody>
+      <tr><td><b>Q1</b></td><td>GitHub <code>/pull/&lt;n&gt;/files</code> は「レビューコメントを付けられるビュー」か。URL形式の根拠は何か</td><td>推測でURLを組み立てることになる</td></tr>
+      <tr><td><b>Q2</b></td><td>DDR <code>i0013-01</code> が却下した案と、本issueがやろうとしていることの違いは何か</td><td><b>却下理由が本issueにも当てはまるなら、前提そのものが崩れる</b>。最初に確認する</td></tr>
+      <tr><td><b>Q3</b></td><td>MCP経路でMR/PR URLを解決する3案（A: <code>git ls-remote</code> / B: <code>wip/state/</code> の状態ファイル / C: <code>HANDOFF.md</code> のヘッダ）のうち、どれが成立するか</td><td>ユーザー要望（MCP環境でも成立させる）に応えられない</td></tr>
+      <tr><td><b>Q4</b></td><td><code>get_mr_diff_since_url</code>（前回push〜今回pushの差分）もDiffviewへ寄せるべきか</td><td>2つの差分リンクの意味が食い違う</td></tr>
+      <tr><td><b>Q5</b></td><td>差分アンカーの土台（<code>get_diff_anchor_base_url</code>）と二重にならないか。GitHubの <code>#diff-&lt;sha256&gt;</code> はPRの <code>/files</code> でも機能するか</td><td><b>機能しないならアンカーが壊れる＝後退になる</b></td></tr>
+      <tr><td><b>Q6</b></td><td>影響を受ける既存のテスト・spec記述はどれか</td><td>更新漏れが出る</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="box">
+    <span class="label">Q3の各案で検証すること</span>
+    <ul>
+      <li><b>A.</b> <code>git ls-remote origin 'refs/pull/*/head'</code> — <b>この実行環境で実際に実行し</b>、PR #206 が引けるか。所要時間。HEADのSHAと突き合わせられるか。GitLabに相当物（<code>refs/merge-requests/*/head</code>）があるか。</li>
+      <li><b>B.</b> <code>wip/state/</code> の状態ファイル — 書く契機をフローのどこへ置けるか。<code>wip/state/review-links/</code> と同じ形にできるか。書き忘れたときの縮退先。</li>
+      <li><b>C.</b> <code>HANDOFF.md</code> のヘッダ <code>- PR:</code> 行 — 表記の安定性（<code>update-handoff-progress.sh</code> の <code>set-header</code> が生成する形は決まっているか）。パースの堅牢性。</li>
+    </ul>
+    単独ではなく<b>チェーン（安い順に試す）</b>にする価値があるかも判断する。<b>hookはpushのたびに走る</b>ため、各案のコスト（外部プロセス起動・ネットワークI/O）を測る。
+  </div>
+</section>
+
+<section id="approach">
+  <h2>調べ方</h2>
+  <ul>
+    <li><b>Q1・Q2・Q5・Q6</b>は、リポジトリ内のドキュメントとコードを読んで答える。ドキュメント探索は <code>doc-search</code>（frontmatterインデックス）を第一手段にする。</li>
+    <li><b>Q3の案Aは、この実行環境で実際にコマンドを実行して測る。</b> 机上で「できるはず」と書かない。</li>
+    <li><b>Q4のうちGitHubのURL仕様は、確定的な根拠が得られなければ「不明」と記録する。</b> 推測を結論として書かない。</li>
+  </ul>
+</section>
+
+<section id="out-of-scope">
+  <h2>やらないこと（スコープ外）</h2>
+  <div class="box stop">
+    <span class="label">この計画では決めない・触らない</span>
+    <ul>
+      <li>実装そのもの（判断は flow-id 3-1 へ送る）。この計画では方針の材料を集めるだけで、コードは変更しない。</li>
+      <li>GitLabの実機確認。この環境にGitLabが無いため issue #127 の記録を参照するに留める（新たな実機確認が必要と分かった場合は、その事実を結果へ書く）。</li>
+      <li>ブラウザでの目視確認。この環境にブラウザが無いため、<b>「実際にコメントが付けられるか」は目視では確認できない</b>。この制約自体を結果へ明記する。</li>
+    </ul>
+  </div>
+</section>
+
+<section id="verify">
+  <h2>検証（この調査が完了したと言える条件）</h2>
+  <pre><code># Q3-A の実測（この環境で実行する）
+time git ls-remote origin 'refs/pull/*/head' | head</code></pre>
+  <p>合格条件:</p>
+  <ul>
+    <li>Q1〜Q6のすべてに、<b>根拠付きの答えか「不明」のいずれか</b>が書かれていること。</li>
+    <li>Q3について、採用する案（またはチェーン）が1つに決まっていること。</li>
+    <li>結果が <code>wip/reports/20260824_diffview-link-switchover_調査結果.md</code> と同名の <code>.html</code> に記録されていること。</li>
+  </ul>
+</section>
+
+<footer>issue #205 / PR #206 — 計画の正文は同名の <code>.md</code>。外部依存を持たない自己完結HTML。</footer>
+
+</div>
+</body>
+</html>

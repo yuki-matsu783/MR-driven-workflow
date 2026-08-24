@@ -16,21 +16,21 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 
 - issue: #205（https://github.com/yuki-matsu783/MR-driven-workflow/issues/205 ）
 - ブランチ: claude/pr-mr-diffview-link-yxim1l
-- PR: （未作成）
-- push回数: 0
+- PR: #206（https://github.com/yuki-matsu783/MR-driven-workflow/pull/206 ）
+- push回数: 1
 - 現在のループ: なし
 - 未返信スレッド: 0
-- 追従監視: なし
+- 追従監視: あり（subscribe_pr_activity で PR #206 を購読中。セッション終了で止まるため次セッションは resume で取り直す）
 
 | 進捗 | flow-id | ステップ | 担当 |
 |---|---|---|---|
 | [x] | 1-1 | issueを起票する | 人間 |
 | [x] | 1-2 | issueの内容を取得する | `start` |
-| [] | 1-3 | featureブランチとDraft MRを作成する | `start`（エージェント） |
+| [x] | 1-3 | featureブランチとDraft MRを作成する | `start`（エージェント） |
 | [x] | 1-4 | 全体作業計画を作成する | エージェント |
 | [] | 1-5 | 全体作業計画に合意する | 人間 |
 | [x] | 1-6 | 全体作業計画をもとにHANDOFF.mdを更新する | エージェント |
-| [] | 2-1 | 個別調査計画を作成する | エージェント |
+| [x] | 2-1 | 個別調査計画を作成する | エージェント |
 | [] | 2-2 | commitし、pushしてレビュー依頼を行う | エージェント |
 | [] | 2-3 | MRで調査計画についてレビュー・コメントする | 人間 |
 | [] | 2-4 | レビュー内容を取得し、調査計画を修正する | `comments` / `reply` |
@@ -73,11 +73,17 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - flow-id 1-1/1-2: issue #205 の内容を MCP（`mcp__github__issue_read`）で取得した。
   この実行環境には `gh`/`glab` CLI が無く、`get_vcs_access_mode` は `mcp` を返す。
 - flow-id 1-4: 全体作業計画 `wip/plans/diffview-link-switchover.md` と同名の `.html` を作成した。
+- flow-id 1-3: Draft PR #206 を `mcp__github__create_pull_request` で作成し、
+  `subscribe_pr_activity` で追従監視を開始した。
+- flow-id 2-1: 個別調査計画 `wip/plans/【調査】Diffviewリンクの出し分けとMCP経路での解決手段.md`
+  （+ `.html`）と worklog を作成した。調査項目は Q1〜Q6。
+- **push直後のhookが本issueの問題をそのまま再現した**（「defaultブランチとの差分」が
+  Compareページ、MRリンクは「CLI不在のため未取得」）。問題の実在を実測で確認できた。
 
 ## 次にやること
 
-- flow-id 1-3: Draft PR を作成する（ユーザーから「PR作って進めて」と明示指示あり）。
-- flow-id 2-1: 個別調査計画を作成し、敵対的レビューにかける。
+- flow-id 2-2 の直後に、個別調査計画に対する敵対的レビュー（フェーズ2の1回目）を実行する。
+- flow-id 2-6: Q1〜Q6の調査を実施し、`wip/reports/` へ結果を記録する。
 
 ## 判断を迷った内容
 
