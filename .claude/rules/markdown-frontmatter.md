@@ -266,7 +266,10 @@ bash .claude/scripts/src/extract-frontmatter.sh .
   `plans/` へ `.html` を置いて `extract-frontmatter.sh` を実行し、`index.jsonl` に載らないことを
   確認済み（issue #54 のフェーズ2調査 Q7）。
 - 同じ理由で、**テンプレート本体**（`.claude/skills/issue-mr-flow/assets/*.template.html`、
-  `.claude/skills/canvas-report/assets/canvas-report.html`）も対象外である。
+  `.claude/skills/canvas-report/assets/canvas-report.html`、
+  `.claude/skills/html-slides/assets/slides.template.html`）も対象外である。スライドの成果物
+  （`wip/reports/*.slides.html`）とその構成案JSON（`.slides.json`。mdではないため走査対象外）も
+  同様に対象外（issue #168）。
 
 **HTMLビューの説明・使い方は、frontmatterではなくファイル冒頭のHTMLコメントに置く**
 （テンプレートがその形を持っている。詳細:

@@ -39,6 +39,20 @@ push回数: 11〜
   追加し「やらないこと」と整合・README spec一覧は手書きと断定形へ（既存漏れ
   command-position.md は対象外と明示）・検証1をpathspec無しへ・検証6（旧5）へ実コマンドを明記。
 - 洗い出しの痕跡確認は doc-search（matched=0）＋ grep（0件）の2段判定で実施した。
+- 反映実施（flow-id 4-6）。改訂後の計画どおり変更対象14点をすべて実施:
+  spec `html-slides.md` 新設・DDR `i0168-01`/`i0168-02` 新設・README（DDR一覧再生成94件＋
+  spec一覧手書き行追記）・`.claude/VERSION` 0.4.0→0.5.0（記録はspec変更履歴とHANDOFF「判断を
+  迷った内容」の2箇所）・md/html併存記述5ファイル（directory-structure / docs-workflow /
+  deliverables / index.md / spec issue-mr-workflow.md 現在状態節）への `.slides.*` 例外追記・
+  markdown-frontmatter.md テンプレート列挙・レビュー観点2ファイル（reports=適用範囲節新設／
+  plans=転記忠実性の観点）。usecase 8本はgrep走査で該当0件（影響なし）。
+- 計画「検証」節の1〜6すべて合格（porcelain=意図した14ファイルのみ・参照切れ2→0・新設3ファイル
+  EXISTS・インデックスspec1/ddr2・追記grep全行1以上・HTML機械検査0件）。
+  反映結果レポート `wip/reports/2026-08-23_html-slides-skill-plan_ドキュメント反映結果.md`（+同名
+  .html）を作成し、htmlはアンカー破断0・重複ID0まで確認。
+- 検証5の `grep -c 'slides' wip/plans/REVIEW-POINTS.md` が初回0件だった（追記文がissue番号
+  だけでスキル名の語を含んでいなかった）。追記文へ `html-slides` を自然な形で含めて1件を確認。
+  検査文字列と追記文言の対応まで計画時に固定すべきという学び（レポート「想定と異なった点」参照）。
 
 ## ダメだったこと
 
@@ -49,5 +63,5 @@ push回数: 11〜
 
 ## 次の一歩
 
-- 修正commit/push → 6スレッドへ返信 → 反映実施（4-6）→ commit/push →
-  敵対的レビュー（フェーズ4の2回目）。
+- 反映実施のcommit/push（push13）→ 敵対的レビュー（フェーズ4の2回目・対象は反映実施の成果物）→
+  指摘対応・返信 → describe（4-10）→ フェーズ5。

@@ -338,7 +338,9 @@ Claude Code / Gemini CLI は**セッションごとに1つのplanファイルし
 ### 計画・レポートのHTMLビュー（issue #54）
 
 `wip/plans/` の計画と `wip/reports/` のレポートには、mdと同じベース名の `.html`（人間レビュー用ビュー）を
-併存させる。**mdが正文で、HTMLはその視覚化**である。このHTMLの「記述の型」は、issue #54 以前は
+併存させる。**mdが正文で、HTMLはその視覚化**である（例外は `html-slides` スキルの成果物
+`*.slides.html`＋`*.slides.json`。スライドは対応mdを持たず、機械可読の対は構成案JSON。issue #168。
+詳細: `.claude/docs/spec/html-slides.md`）。このHTMLの「記述の型」は、issue #54 以前は
 `.claude/skills/issue-mr-flow/SKILL.md` の散文として各flow-idの説明に散っていた。issue #54 で、
 それを**バンドルリソースのテンプレートファイル2本**へ移した。
 

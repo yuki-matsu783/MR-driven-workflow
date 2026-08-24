@@ -30,6 +30,11 @@ keywords: [wip, plans, handoff, worklogs, 正史仕様, 意思決定ログ, ラ�
 | `.claude/docs/usecase/場面を表す日本語名.md` | 人間＋AI | 永続（最新状態） | 「やりたいこと」起点でどの機能を使うかを逆引きするユースケース文書（issue #170）。どんな場面か／使う機能と流れの概要／何が得られるか／詳細へのリンク、の4見出しで統一し、手順詳細（コマンド列・手順番号）は書かずspec/SKILL.mdへのリンクで参照する | 一覧の正は `.claude/docs/README.md` のusecase節1箇所。**usecase文書を追加・改名・削除したら、READMEのusecase節を同じコミットで更新する**。機能の追加・変更時はflow-id 4-6（設計反映）で既存usecase文書への影響（記述・リンクが古くならないか）を確認し、影響があれば更新する |
 | `<ディレクトリ>/REVIEW-POINTS.md` | 人間＋AI | 永続（最新状態） | そのディレクトリ配下すべて（孫以下を含む）に適用するレビュー観点（`type: review-points`） | 各ディレクトリ直下に置く。敵対的レビュー（`.claude/skills/adversarial-review/SKILL.md`）と `review-points` スキルが祖先方向へ遡って集めて使い、人間のレビューでも参照する。**`wip/plans/` `wip/reports/` 配下に置かれていてもflow-id 5-5の削除対象に含めない**（下記）。仕様: `.claude/docs/spec/adversarial-review.md`「レビュー観点（REVIEW-POINTS.md）」 |
 
+**`wip/reports/` には上表の2種（md・html）のほかに、`html-slides` スキルの成果物
+`日付_<全体計画名>_<内容を簡潔に>.slides.html`＋同ベース名の `.slides.json` が置かれることがある**
+（issue #168）。スライドは対応するmdを持たず（機械可読の対は構成案JSON）、寿命は他のreports成果物と
+同じ（flow-id 5-5でまとめて削除）。詳細は `.claude/docs/spec/html-slides.md` を参照。
+
 **`wip/reports/` の `.html` は flow-id 2-6・3-6・4-6 のいずれでも作成する**（issue #54。issue #33 時点では
 2-6 のみ必須で 3-6・4-6 は任意だったが、記述の型がテンプレートへ切り出され生成コストが下がったため、
 `.claude/rules/docs-workflow.md` が元々定めていた「調査結果に限らず設計・実装・AIアセット反映等の報告」

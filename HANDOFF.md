@@ -17,9 +17,9 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - issue: #168
 - ブランチ: `claude/html-slide-skill-template-ymue7k`（ハーネス指定。feature-168-* ではない）
 - PR: #194（Draft。https://github.com/yuki-matsu783/MR-driven-workflow/pull/194 ）
-- push回数: 12
-- 現在のループ: なし
-- 未返信スレッド: 6
+- push回数: 13
+- 現在のループ: 4-6〜4-9 の1周目（進行中）
+- 未返信スレッド: 0
 - 追従監視: PR #194 を subscribe_pr_activity で購読（このセッション）
 
 | 進捗 | flow-id | ステップ | 担当 |
@@ -54,7 +54,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 | [] | 4-2 | commitし、pushしてレビュー依頼を行う | エージェント |
 | [] | 4-3 | MRで反映計画についてレビュー・コメントする | 人間 |
 | [] | 4-4 | レビュー内容を取得し、反映計画を修正する | サブコマンド |
-| [] | 4-5 | 反映計画をもとにMR descriptionを更新する | サブコマンド |
+| [x] | 4-5 | 反映計画をもとにMR descriptionを更新する | サブコマンド |
 | [] | 4-6 | 反映計画をもとに作業を進める | エージェント |
 | [] | 4-7 | commitし、pushしてレビュー依頼を行う | エージェント |
 | [] | 4-8 | MRでレビュー・コメントする | 人間 |
@@ -124,17 +124,32 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
   反映（VERSION増分の追加・洗い出し手順1〜3の実施と変更対象14の新設・md/html併存記述3ファイルの
   追加・README断定形・検証の全面補強。変更対象は9点→14点へ）。6スレッドへの返信は
   反映commitのpush後に実施。
+- 2026-08-23: 計画修正をcommitしpush（push12）、6スレッド全てへ返信済み（未返信スレッド0）。
+  describe（flow-id 4-5）でPR #194のdescriptionへ反映計画の要点を反映。
+- 2026-08-23: 反映実施（flow-id 4-6相当）。変更対象14点をすべて実施
+  （spec `html-slides.md` 新設・DDR `i0168-01`/`i0168-02` 新設・README一覧更新・
+  `.claude/VERSION` 0.4.0→0.5.0・md/html併存記述5ファイルへの `.slides.*` 例外追記・
+  markdown-frontmatter.md テンプレート列挙・レビュー観点2ファイル追記。usecase 8本は影響なし）。
+  計画の検証1〜6すべて合格（参照切れ2→0・インデックスspec1/ddr2・追記grep全行1以上）。
+  反映結果レポート `wip/reports/2026-08-23_html-slides-skill-plan_ドキュメント反映結果.md`
+  （+同名.html）を作成（push13）。
 
 ## 次にやること
 
-- 修正commit/push → 6スレッドへ返信 → 反映実施（4-6）→ commit/push →
-  敵対的レビュー（フェーズ4の2回目）→ 指摘対応・返信 → describe（4-10）→ フェーズ5。
+- 敵対的レビュー（フェーズ4の2回目・対象は反映実施の成果物）→ 指摘対応・返信 →
+  describe（4-10）→ フェーズ5（5-1コンフリクト確認 → 5-2関連issue通知は承認必須のため
+  候補提示のみ → 5-3変換同期 → 5-4統括レポート → 5-5片付け → 5-6 Draft解除）。
 
 ## 判断を迷った内容
 
 - ブランチ名がリポジトリ命名規則（`feature-168-<slug>`）と異なるが、ハーネス（実行基盤）が
   `claude/html-slide-skill-template-ymue7k` での開発を指定しているため、ハーネス側を優先した
   （`.claude/rules/git-workflow.md`「ハーネスがPR作成を制限する環境での扱い」と同じ優先順位の考え方）。
+- `.claude/VERSION` を 0.4.0→0.5.0 へMINOR増分した（flow-id 4-6）。`.claude/skills/html-slides/`
+  一式と `.claude/agents/slide-*.md` は layer=core の配布対象アセットの追加で、
+  `distribution-assets.md` の目安表ではMINOR。非対話セッションのためAIが判断・適用した。
+  記録は spec `html-slides.md` の変更履歴と本節の2箇所（同spec規定どおり）。人間による
+  版数判断（MINORでよいか）の確認を反映結果レポートの◆重点レビュー依頼に挙げている。
 
 ## 未解決の内容
 

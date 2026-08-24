@@ -8,6 +8,14 @@ keywords: [レポート, 自己完結HTML, テンプレート, reports.template.
 
 # レビュー観点（reports配下）
 
+## 適用範囲（issue #168）
+
+本ファイルの観点は、レポートの**md（正文）とそのHTMLビュー**（reports.template.html を土台に
+mdと内容同期させる `.html`）を対象とする。**`html-slides` スキルの成果物
+`*.slides.html`・`*.slides.json` には適用しない**——スライドは対応mdを持たず（機械可読の対は
+構成案JSON）、結論カード・md同期といった前提が構造的に成り立たないためである。スライドへ
+適用する検査は `.claude/skills/html-slides/SKILL.md` の手順5（機械検査）・手順6（動的検証）が正。
+
 ## 内容の妥当性
 
 - 結論の一つひとつに**実機で確かめた根拠**（実行したコマンド・返ってきたレスポンス・
