@@ -147,7 +147,15 @@
   </ul>
   <div class="box warn">
     <span class="label">人間のレビューは未実施</span>
-    非対話セッションのため、合意の代わりに<b>敵対的レビュー1回目（12件、全件対応済み）</b>を通している。<b>Q5（サンプルブランチの後始末）とQ6（ファイル名・既定）は PR #204 のコメントでユーザーへ判断・承認を依頼中</b>であり、この計画はその回答を待たずに進められる範囲を対象とする。
+    非対話セッションのため、合意の代わりに<b>敵対的レビュー1回目（12件、全件対応済み）</b>を通している。
+  </div>
+  <div class="box ok">
+    <span class="label">Q6（ファイル名・既定）はAIが決めて進める</span>
+    当初「承認を依頼中」と書きつつ成果物のファイル名をQ6の結論で固定しており、同じ文書の中で「承認待ち」と「確定済み」が両立していなかった（敵対的レビュー2回目の指摘）。<b>ファイル名の変更は <code>git mv</code> で済み取り消しが容易</b>なので、AIが決めて進め、異論があればレビューで戻す扱いにする。PR #204 のコメントでは<b>承認を求めるのではなく「こう決めた」と報告する</b>形へ改めた。
+  </div>
+  <div class="box stop">
+    <span class="label">Q5（サンプルブランチの削除）だけは指示待ち</span>
+    リモートブランチの削除は取り消しが難しく、<code>git mv</code> とは非対称なため、引き続きユーザーの明示指示を待つ。
   </div>
 </section>
 
@@ -176,7 +184,7 @@
 <section id="approach">
   <h2>方針</h2>
 
-  <h3>1. 節構成（現行8節を落とさない）</h3>
+  <h3>1. 節構成（現行9節を落とさない）</h3>
   <p>調査Q3の対応表に従う。<b>サンプル06をそのまま写さない。</b></p>
   <div class="tablewrap">
   <table>
@@ -228,7 +236,28 @@
   </div>
 
   <h3>5. 冒頭コメント（テンプレートの「仕組み」の実体）</h3>
-  <p>現行の冒頭コメント（約120行）が持つ次の内容を、<b>4本すべてに同じものを持たせる</b>（DOMを共有できるので書き分けない）。デザイン固有の説明だけを1〜2行足す。</p>
+  <p>現行 <code>reports.template.html</code> の冒頭コメント（<b>1〜96行</b>）が持つ<b>項目立てを引き継ぎ、新構成に合わせて本文を書き換える</b>。</p>
+  <div class="box warn">
+    <span class="label">「同じものを持たせる」だけでは足りない</span>
+    現行コメントは<b>9節構成</b>を前提に書かれており、そのまま写すと<b>存在しない節を案内するテンプレート</b>になる（敵対的レビュー2回目の指摘）。書き換えが要るのは次の5箇所。
+  </div>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>現行コメントの記述</th><th>新構成での書き換え</th></tr></thead>
+    <tbody>
+      <tr><td>使い方2「<code>&lt;title&gt;</code> と<b>ヘッダ帯（.band）</b>の…を埋める」</td><td><code>.band</code> は無くなり<b>サイドバー</b>が担う。「サイドバーは本文の外にあるため埋め忘れやすい」注意も添える</td></tr>
+      <tr><td>節の並び順（9つ。先頭が「目次」）</td><td>8つへ。目次は<b>サイドバーへ統合</b>、重点レビュー依頼とサマリは <code>overview</code> へ統合</td></tr>
+      <tr><td>「任意節（<b>目次</b>・実施条件・想定と異なった点・残課題）は…削ってよく」</td><td>目次はサイドバーとなり<b>常時表示＝実質必須</b>。任意節は実施条件・想定と異なった点・残課題の3つ</td></tr>
+      <tr><td>アンカー「<b>結論カード・未確認一覧・重点レビュー依頼の3箇所</b>から参照する」</td><td>参照元は<b>サイドバー目次・KPIタイル・未確認一覧・重点レビュー依頼の4箇所</b></td></tr>
+      <tr><td>検査の記述（3種）</td><td><b>5種</b>へ。プレースホルダ検査の対象が <code>&lt;出力ファイル&gt;</code> であることの明示は<b>そのまま保つ</b></td></tr>
+    </tbody>
+  </table>
+  </div>
+  <div class="box info">
+    <span class="label">4本の間では書き分けない</span>
+    デザイン固有の説明は冒頭コメントではなく <b><code>&lt;style&gt;</code> ブロックの先頭コメント</b>へ置く。そうすることで <code>&lt;style&gt;</code> を除いた部分が4本で<b>バイト単位で完全一致</b>する（下記「検証」）。冒頭コメントには「デザインの説明は <code>&lt;style&gt;</code> 冒頭にある」という<b>4本共通の1行</b>だけを置く。
+  </div>
+  <p><b>引き継ぐ項目立て:</b></p>
   <ul>
     <li>使い方（コピー → 埋める → 任意節を削る → プレースホルダを残さない → 冒頭コメントを置き換える）</li>
     <li>節の並び順と、変えない理由</li>
@@ -274,33 +303,110 @@
 
 <section id="verify">
   <h2>検証</h2>
-  <p>各テンプレートは<b>プレースホルダを持ったままの雛形</b>なので、プレースホルダ検査だけは「0件」ではなく「<b>意図した数だけ存在する</b>」ことを確認する（テンプレート本体は埋める前の状態）。</p>
+  <div class="box warn">
+    <span class="label">「出力が無ければ合格」は、そのままでは何も証明しない</span>
+    検査コマンド自体が壊れていても同じく無出力になるためである（フェーズ2 Q4で実際に空振りしていた）。以下では <b>(a) 空振りガード</b>（拾えている件数を先に出す）と <b>(b) 負のコントロール</b>（意図的に壊して検出できることを確かめる）を、検査そのものと同じ手順の中に置く。
+  </div>
+
+  <h3>(1) 5種の検査</h3>
+  <p><b>プレースホルダ検査の合格条件は、テンプレート本体と成果物で逆になる。</b> テンプレートは埋める前の雛形なので「意図した数だけ存在する」ことを見る（0件なら、むしろプレースホルダを書き忘れている）。</p>
 <pre><code>cd .claude/skills/issue-mr-flow/assets
 for F in reports-clean reports-neobrutal reports-mono reports-paper; do
   f="$F.template.html"
   echo "--- $f ---"
+
+  # 1. プレースホルダ: テンプレートなので0ではなく「存在する」ことを見る（4本で同数が期待）
   grep -c '&lt;!-- ここに書く' "$f"
-  comm -23 &lt;(grep -oE 'href="&#35;[A-Za-z0-9_-]+"' "$f" | sed 's/^href="&#35;//;s/"$//' | sort -u) \
-           &lt;(grep -oE '&lt;[a-z][^&gt;]*[[:space:]]id="[A-Za-z0-9_-]+"' "$f" | sed 's/.*id="//;s/"$//' | sort -u)
-  grep -oE '&lt;[a-z][^&gt;]*[[:space:]]id="[A-Za-z0-9_-]+"' "$f" | sed 's/.*id="//;s/"$//' | sort | uniq -d
+
+  # 2〜3. 空振りガード: href/id を1件も拾えていないなら検査が壊れている
+  hrefs=$(grep -oE 'href="&#35;[A-Za-z0-9_-]+"' "$f" | sed 's/^href="&#35;//;s/"$//' | sort -u)
+  ids=$(grep -oE '&lt;[a-z][^&gt;]*[[:space:]]id="[A-Za-z0-9_-]+"' "$f" | sed 's/.*id="//;s/"$//' | sort)
+  printf '拾えたhref=%s id=%s\n' "$(printf '%s\n' "$hrefs" | grep -c .)" "$(printf '%s\n' "$ids" | grep -c .)"
+
+  # 2. リンク破断（0行が合格）
+  comm -23 &lt;(printf '%s\n' "$hrefs") &lt;(printf '%s\n' "$ids" | sort -u)
+  # 3. 重複ID（出力なしが合格）
+  printf '%s\n' "$ids" | uniq -d
+
+  # 4〜5. 外部依存（ヒットしたら中身を見る。0を機械的な合格条件にしない）
   grep -nE "(src|href)=['\"]?(https?:)?//" "$f"
   grep -nE "(url\(|@import[[:space:]]+)['\"]?(https?:)?//" "$f"
 done</code></pre>
-  <div class="box info">
-    <span class="label">DOM共通性も機械的に確かめる</span>
-    「共通DOM＋4通りのstyle」はこの計画の中心的な主張なので、<b>主張したまま検証しないことはしない</b>。
+  <div class="box warn">
+    <span class="label">外部依存検査の「0件」を合格条件に固定しない</span>
+    冒頭コメントの地の文がCDNの例（<code>&amp;lt;script src="https://…"&amp;gt;</code>）に言及するとヒットする。<b>ヒットしたら中身を見て、実際の読み込みか地の文かを判断する</b>（フェーズ2で実際にこの誤検知を踏んだ）。
   </div>
-<pre><code>for F in reports-clean reports-neobrutal reports-mono reports-paper; do
-  sed '/^&lt;style&gt;/,/^&lt;\/style&gt;/d' "$F.template.html" | grep -oE '&lt;/?[a-z][a-z0-9]*' &gt; "/tmp/dom-$F.txt"
+
+  <h3>(2) 負のコントロール（検査が本当に働くことの確認）</h3>
+  <p><b>1本（clean）のコピーを意図的に壊し、検査が反応することを確かめる。</b> 反応しなければ、上の「出力なし」は検査が壊れている可能性がある。</p>
+<pre><code>tmp=$(mktemp -d)
+cp reports-clean.template.html "$tmp/broken.html"
+
+# 存在しないIDへのリンクを作る → リンク破断検査が f99 を出すはず
+sed -i 's|href="&#35;f1"|href="&#35;f99"|' "$tmp/broken.html"
+
+# 既存IDと重複させる → 重複ID検査が overview を出し、同時に f1 のリンクが破断するはず
+sed -i 's|&lt;h3 id="f1"&gt;|&lt;h3 id="overview"&gt;|' "$tmp/broken.html"</code></pre>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>壊し方</th><th>リンク破断</th><th>重複ID</th></tr></thead>
+    <tbody>
+      <tr><td><code>href="&#35;f1"</code> → <code>#f99</code></td><td><code>f99</code> を出す</td><td>反応しない</td></tr>
+      <tr><td><code>&lt;h3 id="f1"&gt;</code> → <code>id="overview"</code></td><td><code>f1</code> を出す</td><td><code>overview</code> を出す</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p>後者の1操作で<b>両方が反応する</b>ことが、2つの検査を持つ理由をそのまま示す。</p>
+
+  <h3>(3) 4本のDOM共通性（この計画の中心的な主張）</h3>
+  <div class="box stop">
+    <span class="label">タグ名の並びの比較では弱い</span>
+    属性・テキストの違いを一切見ないため、「タグ構成は同じだが中身が違う」状態を見逃す。<b><code>&lt;style&gt;</code> ブロックを除いた残り全体をバイト単位で比較する。</b>
+  </div>
+<pre><code>cd .claude/skills/issue-mr-flow/assets
+tmp=$(mktemp -d)
+for F in reports-clean reports-neobrutal reports-mono reports-paper; do
+  sed '/^&lt;style&gt;$/,/^&lt;\/style&gt;$/d' "$F.template.html" &gt; "$tmp/$F.nostyle"
+  n=$(wc -l &lt; "$tmp/$F.nostyle")
+  # 空振りガード: &lt;style&gt; の除去が効きすぎて中身が消えていないか
+  [ "$n" -lt 100 ] &amp;&amp; { echo "FAIL $F: 抽出が $n 行"; exit 1; }
 done
-diff /tmp/dom-reports-clean.txt /tmp/dom-reports-neobrutal.txt   # 差分0行が合格</code></pre>
-  <p><b>合格条件:</b></p>
+
+# 基準を clean に固定し、残り3本と総当たりで比較する（3組すべて0行が合格）
+for v in reports-neobrutal reports-mono reports-paper; do
+  echo "--- clean vs $v ---"
+  diff "$tmp/reports-clean.nostyle" "$tmp/$v.nostyle"
+done</code></pre>
+  <p><b>この形にするために、デザイン固有の説明文は冒頭コメントではなく <code>&lt;style&gt;</code> の先頭のCSSコメントへ置く</b>（方針5）。冒頭コメントに置くと、そこだけが4本で異なりバイト比較が使えない。</p>
+
+  <h3>合格条件</h3>
   <ul>
-    <li>5種の検査が上記の基準を満たす（外部依存はヒット0件、またはヒットの中身が地の文の引用だと確認済み）</li>
-    <li><b>4本のDOM（<code>&lt;style&gt;</code> を除く）が完全に一致する</b></li>
+    <li>5種の検査が上の基準を満たす（外部依存はヒット0件、またはヒットの中身が地の文の引用だと確認済み）</li>
+    <li><b>負のコントロールで、リンク破断・重複IDの両検査が期待どおり反応する</b></li>
+    <li><b><code>&lt;style&gt;</code> を除いた残り全体が、clean と残り3本の3組すべてでバイト単位で一致する</b>（差分0行）</li>
     <li>4本すべてに、現行と同等の冒頭コメント（使い方・節順・意味論・検査手順・フェーズ読み替え）がある</li>
-    <li>必須8節がすべて存在し、任意節に <code>[任意]</code> の印がある</li>
+    <li><b>表の8節がすべて存在し、任意の3節には <code>[任意]</code> の印がある</b>（必須5節・任意3節。方針1の表）</li>
+    <li>プレースホルダ件数が4本で同数である（DOMと使い方コメントを共有できている傍証）</li>
   </ul>
+
+  <h3>ブラウザでの実表示は、この計画では確認しない</h3>
+  <div class="box stop">
+    <span class="label">明示してスコープ外にする（無言で落とさない）</span>
+    <b>この実行環境にブラウザでの表示確認手段が無い</b>ため、確認できるのはHTML/CSSの構造とテキストまでである。<b>「静的検査に通った」と「見た目が正しい」は別</b>であり、作業結果レポートには <code>✕問題</code> として残す。扱い（別issueへ切り出す／ユーザーの手元で確認してもらう）はフェーズ4で決める。
+  </div>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>未確認になる項目</th><th>対象</th></tr></thead>
+    <tbody>
+      <tr><td><code>position: sticky</code> のサイドバーが実際に追従するか</td><td>4本すべて</td></tr>
+      <tr><td><code>prefers-color-scheme</code> の切り替えが破綻しないか</td><td>clean / mono</td></tr>
+      <tr><td><code>color-scheme: light</code> が強制ダーク化を防ぐか</td><td>neobrutal / paper</td></tr>
+      <tr><td>ハードシャドウ（<code>box-shadow: 3px 3px 0</code>）の見え方</td><td>neobrutal</td></tr>
+      <tr><td><code>@media print</code> でサイドバーが本文の上へ畳まれるか</td><td>paper</td></tr>
+      <tr><td>二重罫線（<code>border-bottom: 3px double</code>）の見え方</td><td>paper</td></tr>
+    </tbody>
+  </table>
+  </div>
 </section>
 
 <section id="criteria">
@@ -311,9 +417,9 @@ diff /tmp/dom-reports-clean.txt /tmp/dom-reports-neobrutal.txt   # 差分0行が
     <tbody>
       <tr><td>(1) 4デザインが <code>assets/</code> に存在し flow-id 2-6/3-6/4-6/5-4 から参照できる</td><td>「変更対象」の4ファイル。<b>参照側の更新はフェーズ4</b></td></tr>
       <tr><td>(2) 外部依存ゼロ</td><td>「検証」の外部依存検査2本</td></tr>
-      <tr><td>(3) プレースホルダ・3種の検査手順・フェーズ読み替えが引き継がれている</td><td>「方針5」の冒頭コメント＋「方針6」（3種→5種へ拡張）</td></tr>
-      <tr><td>(4) 選択基準（既定はどれか）がドキュメント化されている</td><td>調査Q6で確定済み。<b>文書への反映はフェーズ4</b></td></tr>
-      <tr><td>(5) 現行の扱いと <code>wip/design-samples/</code> の後始末</td><td>現行は据え置き（この計画の「やらないこと」）。後始末は調査Q5で決定済み</td></tr>
+      <tr><td>(3) プレースホルダ・3種の検査手順・フェーズ読み替えが引き継がれている</td><td>「方針5」の冒頭コメント（<b>新構成に合わせて5箇所を書き換える</b>）＋「方針6」（3種→5種へ拡張）</td></tr>
+      <tr><td>(4) 選択基準（既定はどれか）がドキュメント化されている</td><td>調査Q6の結論（既定は <code>reports-clean</code>）をこの計画で採用。<b>文書化そのものはフェーズ4</b>であり、この計画では未達</td></tr>
+      <tr><td>(5) 現行の扱いと <code>wip/design-samples/</code> の後始末</td><td>現行は併存（据え置き）と決めた。取り込まない判断は調査Q5で確定。<b>ブランチ削除だけはユーザーの指示待ちで未達</b></td></tr>
     </tbody>
   </table>
   </div>

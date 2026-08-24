@@ -186,8 +186,8 @@
   <h1>レポートHTMLビュー4テンプレートの実装</h1>
 
   <p class="counts">
-    <span class="chip good">◎良 4</span>
-    <span class="chip warn">△注意 1</span>
+    <span class="chip good">◎良 3</span>
+    <span class="chip warn">△注意 3</span>
     <span class="chip stop">✕問題 1</span>
   </p>
 
@@ -200,12 +200,13 @@
       <li>
         <a href="#findings">実施した内容と結果</a>
         <ol class="toc-sub">
-          <li><a href="#f1"><span class="mk good">◎</span> 1. 共通パーツからの組み立て</a></li>
-          <li><a href="#f2"><span class="mk good">◎</span> 2. DOM共通性の検証</a></li>
+          <li><a href="#f1"><span class="mk warn">△</span> 1. 共通パーツからの組み立て</a></li>
+          <li><a href="#f2"><span class="mk warn">△</span> 2. DOM共通性の検証（バイト単位）</a></li>
           <li><a href="#f3"><span class="mk good">◎</span> 3. 5種の検査</a></li>
           <li><a href="#f4"><span class="mk warn">△</span> 4. 開閉バランスの検証</a></li>
           <li><a href="#f5"><span class="mk good">◎</span> 5. ドッグフーディング</a></li>
           <li><a href="#f6"><span class="mk stop">✕</span> 6. ブラウザ実表示</a></li>
+          <li><a href="#f7"><span class="mk good">◎</span> 7. 敵対的レビュー2回目への対応</a></li>
         </ol>
       </li>
       <li><a href="#next">設計への反映</a></li>
@@ -218,7 +219,7 @@
     <div><dt>issue</dt><dd>#203</dd></div>
     <div><dt>ブランチ</dt><dd>claude/report-html-view-template-wu5u20</dd></div>
     <div><dt>PR</dt><dd>#204</dd></div>
-    <div><dt>push回数</dt><dd>5</dd></div>
+    <div><dt>push回数</dt><dd>6</dd></div>
     <div><dt>作成日</dt><dd>2026-08-24</dd></div>
     <div><dt>正文</dt><dd>同名の .md</dd></div>
   </dl>
@@ -227,11 +228,11 @@
 <main class="main">
 
 <section id="overview">
-  <p class="lead">共通DOM＋4通りの <code>&lt;style&gt;</code> で4テンプレートを組み立て、<strong class="hl">本文282タグが4本で完全一致</strong>することと、5種の検査が全本で合格することを確認した。ただし<strong class="hl">ブラウザでの実表示は1つも確認していない</strong>。</p>
+  <p class="lead">共通DOM＋4通りの <code>&lt;style&gt;</code> で4テンプレートを組み立て、<strong class="hl"><code>&lt;style&gt;</code> を除いた359行がバイト単位で完全一致</strong>することと、5種の検査が全本で合格することを確認した。<strong class="hl">当初の検証はこれを確かめられておらず、敵対的レビューの指摘で成果物側の欠陥が2件見つかった</strong>。ただし<strong class="hl">ブラウザでの実表示は1つも確認していない</strong>。</p>
 
   <ul class="kpis">
-    <li class="kpi good"><b>4</b><span>◎良</span></li>
-    <li class="kpi warn"><b>1</b><span>△注意</span></li>
+    <li class="kpi good"><b>3</b><span>◎良</span></li>
+    <li class="kpi warn"><b>3</b><span>△注意</span></li>
     <li class="kpi stop"><b>1</b><span>✕問題</span></li>
   </ul>
 
@@ -247,7 +248,7 @@
       <p class="label">◇承認が欲しい</p>
       <p class="sub">方針は決めた</p>
       <ul>
-        <li><a href="#f1">1. 組み立て方式</a> — コピーではなく共通パーツの連結にし、DOM同一性を構成上保証する形にした。</li>
+        <li><a href="#f1">1. 組み立て方式</a> — コピーではなく共通パーツの連結にした。ただし<b>組み立てただけでは同一性は保証されず</b>（<a href="#f2">f2</a>）、デザイン説明を <code>&lt;style&gt;</code> 冒頭へ置く約束とセットで初めて成立する。</li>
         <li><a href="#f4">4. コメント内の地の文</a> — <code>&lt;li&gt;</code> のような表記は現行から続く既存スタイルなので、<b>テンプレートではなく検査側を直した</b>。</li>
       </ul>
     </div>
@@ -255,7 +256,8 @@
       <p class="label">・細かいレビューは不要</p>
       <p class="sub">ほぼ確実</p>
       <ul>
-        <li><a href="#f2">2. DOM共通性</a> / <a href="#f3">3. 5種の検査</a> — いずれも機械的に検証済み。</li>
+        <li><a href="#f3">3. 5種の検査</a> — 負のコントロールまで取って機械的に検証済み。</li>
+        <li><a href="#f7">7. 敵対的レビュー2回目</a> — 17件すべて対応済み。</li>
       </ul>
     </div>
   </div>
@@ -287,8 +289,8 @@
   <ol class="tl">
 
     <li class="tl-item">
-      <span class="tl-dot good">1</span>
-      <h3 id="f1">4テンプレートを共通パーツから組み立てた <span class="chip good">◎良</span> <span class="basis">根拠: 実装</span></h3>
+      <span class="tl-dot warn">1</span>
+      <h3 id="f1">4テンプレートを共通パーツから組み立てた <span class="chip warn">△注意</span> <span class="basis">根拠: 実装</span></h3>
       <p><b>「共通DOM＋4通りの <code>&lt;style&gt;</code>」を、コピーではなく組み立てで実現した。</b> scratchpad にパーツを置き、<code>build</code> 関数で連結している。</p>
       <div class="tablewrap">
       <table>
@@ -305,32 +307,50 @@
         <p class="label">結論</p>
         <p>組み立ての順序が要点で、<b><code>&lt;style&gt;</code> の中は「共通の骨格 → デザイン固有」の順</b>にしている。逆にすると、同じ詳細度の規則で共通側が勝ち、デザイン固有の上書きが効かない。<b>CSS変数は共通骨格より後ろで定義されていても問題ない</b>（カスタムプロパティはスタイルシート全体を読んでから解決されるため）。</p>
       </div>
+      <div class="box warn unverified-detail">
+        <p class="label">「組み立てたから同一である」とは言えなかった</p>
+        <p>冒頭コメントの中にデザイン固有の説明を書いていたため、共有パーツから組んでいても4本のうちその部分だけが異なっていた（<a href="#f2">f2</a>）。<b>組み立ては同一性を作りやすくするが、保証はしない。検証が要る。</b></p>
+      </div>
     </li>
 
     <li class="tl-item">
-      <span class="tl-dot good">2</span>
-      <h3 id="f2">DOM共通性を機械的に検証した <span class="chip good">◎良</span> <span class="basis">根拠: 実測</span></h3>
+      <span class="tl-dot warn">2</span>
+      <h3 id="f2">DOM共通性を「バイト単位」で検証した <span class="chip warn">△注意</span> <span class="basis">根拠: 実測</span></h3>
       <p>計画の中心的な主張なので、<b>主張したまま検証しないことはしない</b>。</p>
+      <div class="box stop">
+        <p class="label">最初に書いた検証は、タグ名の並びしか比べていなかった</p>
+        <p><code>grep -oE '&lt;/?[a-z][a-z0-9]*'</code> は属性もテキストも見ないため、<b>「タグ構成は同じだが中身が違う」状態を素通りする</b>（敵対的レビュー2回目の指摘）。<code>&lt;style&gt;</code> を除いた残り全体をバイト単位で比較する形へ改めた。</p>
+      </div>
       <details>
         <summary>根拠を見る（実行コマンドと結果）</summary>
-        <pre><code>$ for F in reports-clean reports-neobrutal reports-mono reports-paper; do
-    sed -n '/^&lt;!DOCTYPE html&gt;/,$p' "$F.template.html" \
-      | sed '/^&lt;style&gt;$/,/^&lt;\/style&gt;$/d' \
-      | grep -oE '&lt;/?[a-z][a-z0-9]*' &gt; "dom2-$F.txt"
+        <pre><code>$ tmp=$(mktemp -d)
+$ for F in reports-clean reports-neobrutal reports-mono reports-paper; do
+    sed '/^&lt;style&gt;$/,/^&lt;\/style&gt;$/d' "$F.template.html" &gt; "$tmp/$F.nostyle"
+    n=$(wc -l &lt; "$tmp/$F.nostyle")
+    [ "$n" -lt 100 ] &amp;&amp; { echo "FAIL $F: 抽出が $n 行"; exit 1; }   # 空振りガード
   done
-$ diff dom2-reports-clean.txt dom2-&lt;各案&gt;.txt
-clean vs neobrutal : 0 行
-clean vs mono      : 0 行
-clean vs paper     : 0 行
-本文のタグ数: 282（4本とも）</code></pre>
+reports-clean     : 359行 22346バイト
+reports-neobrutal : 359行 22346バイト
+reports-mono      : 359行 22346バイト
+reports-paper     : 359行 22346バイト
+
+$ for v in reports-neobrutal reports-mono reports-paper; do
+    diff "$tmp/reports-clean.nostyle" "$tmp/$v.nostyle"
+  done
+比較した組数=3 不一致の組数=0</code></pre>
       </details>
+      <div class="box warn unverified-detail">
+        <p class="label">改めた結果、実際に差分が出た</p>
+        <p>冒頭コメントの中にデザイン固有の説明文を置いていたため、4本のうち<b>その8〜9行だけが異なっていた</b>。タグ名の比較では<b>この差が一切見えていなかった</b>。<br>
+        <b>修正:</b> デザイン固有の説明を冒頭コメントから <b><code>&lt;style&gt;</code> ブロック先頭のCSSコメント</b>へ移した。冒頭コメントには「デザインの説明は <code>&lt;style&gt;</code> 冒頭にある」という4本共通の1行だけを残した。</p>
+      </div>
       <div class="box ok">
         <p class="label">結論</p>
-        <p>本文282タグが4本で完全一致した。DOMを共有できているため、<b>使い方コメント・プレースホルダ・検査手順を1回書けば4本へ同じものが配れる</b>。</p>
+        <p><code>&lt;style&gt;</code> を除いた部分は4本とも <b>359行 / 22346バイト</b> で完全に一致する（テンプレート全体は clean 529行 / neobrutal 543行 / mono 558行 / paper 547行。差は <code>&lt;style&gt;</code> だけ）。DOMを共有できているため、<b>使い方コメント・プレースホルダ・検査手順を1回書けば4本へ同じものが配れる</b>。</p>
       </div>
       <div class="box warn unverified-detail">
-        <p class="label">最初の検証コマンドは、比較対象を間違えていた</p>
-        <p><code>sed '/^&lt;style&gt;/,/^&lt;\/style&gt;/d'</code> は <code>&lt;style&gt;</code> ブロックしか落とさないため、使い方コメントの地の文にある <code>&lt;section&gt;</code> <code>&lt;li&gt;</code> <code>&lt;code&gt;</code> がタグとして数えられていた（289タグ ＝ 本文282＋コメント由来7）。<b>差分は同じく0行で結論は変わらなかったが、比較していたものが「本文のDOM」ではなかった。</b> <code>&lt;!DOCTYPE html&gt;</code> 以降だけを取るよう直した。</p>
+        <p class="label">最初の検証コマンドには、もう1つ誤りがあった</p>
+        <p><code>sed '/^&lt;style&gt;/,/^&lt;\/style&gt;/d'</code> は <code>&lt;style&gt;</code> ブロックしか落とさないため、使い方コメントの地の文にある <code>&lt;section&gt;</code> <code>&lt;li&gt;</code> <code>&lt;code&gt;</code> がタグとして数えられていた（289タグ ＝ 本文282＋コメント由来7）。<b>バイト比較へ移行したことで、この問題も同時に解消した</b>（コメントも含めて比較対象になり、かつ4本で一致するため）。</p>
       </div>
     </li>
 
@@ -349,6 +369,20 @@ clean vs paper     : 0 行
         </tbody>
       </table>
       </div>
+      <div class="box warn">
+        <p class="label">「出力なし＝合格」は、負のコントロールを取って初めて意味を持つ</p>
+        <p>cleanのコピーを意図的に壊し、検査が反応することを確かめた。空振りガード（拾えた件数）は <b>href=12 / id=8</b> で、0でないので検査は働いている。</p>
+      </div>
+      <div class="tablewrap">
+      <table>
+        <thead><tr><th>壊し方</th><th>リンク破断</th><th>重複ID</th></tr></thead>
+        <tbody>
+          <tr><td><code>href="&#35;f1"</code> → <code>&#35;f99</code></td><td><b><code>f99</code> を検出</b></td><td>反応せず（正しい）</td></tr>
+          <tr><td><code>&lt;h3 id="f1"&gt;</code> → <code>id="overview"</code></td><td><b><code>f1</code> を検出</b></td><td><b><code>overview</code> を検出</b></td></tr>
+        </tbody>
+      </table>
+      </div>
+      <p>後者の1操作で<b>両方が反応する</b>ことが、2つの検査を持つ理由をそのまま示している。</p>
       <div class="box ok">
         <p class="label">結論</p>
         <p><b>プレースホルダが4本とも同数（24）</b>であることが、使い方コメントとDOMを共有できている傍証になる。<br>
@@ -404,6 +438,31 @@ clean vs paper     : 0 行
       </div>
     </li>
 
+    <li class="tl-item">
+      <span class="tl-dot good">7</span>
+      <h3 id="f7">敵対的レビュー2回目（17件）へ対応した <span class="chip good">◎良</span> <span class="basis">根拠: 実施</span></h3>
+      <p>個別作業計画に対して敵対的レビューを1回実施し、<b>17件の指摘</b>を受けた。<b>すべて妥当</b>だったため、計画・テンプレート本体・このレポートの3つを直した。<b>成果物そのものを直させた指摘が2件ある。</b></p>
+      <div class="tablewrap">
+      <table>
+        <thead><tr><th>指摘</th><th>内容</th><th>対応</th></tr></thead>
+        <tbody>
+          <tr><td><b>2（成果物）</b></td><td>DOM共通性の主張が<b>実際には成立していなかった</b>（冒頭コメントのデザイン説明が4本で異なる）</td><td>説明を <code>&lt;style&gt;</code> 冒頭へ移し、<b>バイト単位で一致</b>させた（<a href="#f2">f2</a>）</td></tr>
+          <tr><td><b>13（成果物）</b></td><td>案12の <code>.box.ok</code> を「ラベルで表す」と書いたが、ラベルをHTMLへ足すとDOMが分岐する</td><td>CSS <code>::after</code> でラベルを与え、<b>HTML本体は4本で同一</b>に保った</td></tr>
+          <tr><td>1・4・17</td><td>検証が「タグ名の並び」で弱く、1組しか比べておらず、空振りガードも無い</td><td>バイト比較・3組総当たり・空振りガード・<code>mktemp</code> へ全面的に書き換えた</td></tr>
+          <tr><td>5</td><td>調査で得た<b>負のコントロール</b>の手順が、作業計画へ引き継がれていなかった</td><td>検証節へ独立した項として復帰させ、実際に流した（<a href="#f3">f3</a>）</td></tr>
+          <tr><td>6</td><td>ブラウザ確認が<b>無言で落ちていた</b>（検証にも「やらないこと」にも無い）</td><td>「この計画では確認しない」と明示し、未確認6項目を表で残した（<a href="#f6">f6</a>）</td></tr>
+          <tr><td>9</td><td>同じ文書で「Q6は承認待ち」と「ファイル名はQ6で確定」が両立していた</td><td><b>ファイル名の変更は <code>git mv</code> で取り消せる</b>のでAIが決めて進める扱いへ統一。Q5（ブランチ削除）だけ指示待ちのまま残した</td></tr>
+          <tr><td>11</td><td>冒頭コメントを「同じものを持たせる」だけでは、<b>存在しない節を案内する</b>テンプレートになる</td><td>書き換えが要る5箇所を表にして明示した</td></tr>
+          <tr><td>7・8・16</td><td>プレースホルダ検査の合格条件・冒頭コメントの行数（「約120行」）が不正確</td><td>対象別の2表へ分割、<code>1〜96行</code> へ訂正</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <div class="box warn">
+        <p class="label">指摘2は、この作業の中心的な主張が崩れていたことを示している</p>
+        <p>「共通DOM＋4通りのstyle」と書きながら、実際には冒頭コメントの8〜9行が4本で違っていた。<b>当初の検証コマンド（タグ名の並びの比較）はこの差を構造的に見られないもので、通ったこと自体が主張の根拠になっていなかった。</b></p>
+      </div>
+    </li>
+
   </ol>
 </section>
 
@@ -415,6 +474,7 @@ clean vs paper     : 0 行
     <li><b><code>.claude/skills/issue-mr-flow/SKILL.md</code> の flow-id 2-6・3-6・4-6 が名指ししているテンプレートパスを見直す</b>（フェーズ4）。現在は <code>reports.template.html</code> を単独で指している。</li>
     <li><b>DDRを1本書く</b>（フェーズ4）。「4デザインを共通DOM＋4スタイルで持ち、現行を残して既定を <code>reports-clean</code> にした」という判断と、却下案（4本独立／現行の置き換え）を残す。</li>
     <li><b>ブラウザでの実表示確認は、このissueでは実施できない</b>（<a href="#f6">f6</a>）。<b>別issueへ切り出すか、ユーザーの手元での確認をお願いするかを決める必要がある。</b></li>
+    <li><b>「テンプレート群を機械的に検査するときの一般則」をDDRへ残す</b>（フェーズ4）。(a) コメントと地の文を先に除く（<a href="#f2">f2</a>・<a href="#f4">f4</a>）、(b) 出力なしを合格条件にする検査は負のコントロールを取る（<a href="#f3">f3</a>）、(c) 構造の同一性はタグ名ではなくバイト単位で比べる（<a href="#f2">f2</a>）——いずれもこの作業で実際に踏んだうえで得た。</li>
   </ol>
 </section>
 
@@ -424,7 +484,8 @@ clean vs paper     : 0 行
   <table>
     <thead><tr><th>計画時の見込み</th><th>実際</th><th>どう扱ったか</th></tr></thead>
     <tbody>
-      <tr><td>検証コマンドはそのまま使える</td><td>DOM共通性の検証が<b>冒頭コメントを除いていなかった</b>（289タグ中7つがコメント由来）</td><td><code>&lt;!DOCTYPE html&gt;</code> 以降だけを取る形へ修正。<b>差分は0行のままで結論は不変</b></td></tr>
+      <tr><td>検証コマンドはそのまま使える</td><td>DOM共通性の検証が <b>(a) 冒頭コメントを除いていない</b>（289タグ中7つがコメント由来）<b>(b) タグ名しか比べていない</b>の二重に不十分だった</td><td><b>バイト単位の比較へ全面的に置き換えた</b>。その結果、実際に差分（冒頭コメントのデザイン説明8〜9行）が出て、<b>成果物の側を直すことになった</b></td></tr>
+      <tr><td>「共通DOM＋4通りのstyle」は組み立てで自動的に成立する</td><td>冒頭コメントにデザイン固有の説明を書いていたため、<b>組み立てていても4本が同一にならなかった</b></td><td>デザイン説明を <code>&lt;style&gt;</code> 冒頭へ移し、バイト一致まで持っていった（<a href="#f2">f2</a>・<a href="#f7">f7</a>）</td></tr>
       <tr><td>タグの開閉バランスは素直に数えられる</td><td><code>li</code> と <code>details</code> で不一致が出た。<b>原因は検査側</b>（コメント内の地の文）</td><td>コメント除去を挟む形へ修正。テンプレート側は変えていない</td></tr>
       <tr><td>テンプレートを作れば作業は終わる</td><td>実際に使ってみると、使い方コメントの不足が1件見つかった</td><td>このレポート自身を新テンプレートで作り（<a href="#f5">f5</a>）、見つかった不足を反映した</td></tr>
     </tbody>
