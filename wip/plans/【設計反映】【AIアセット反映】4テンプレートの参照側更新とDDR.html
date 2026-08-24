@@ -1,0 +1,351 @@
+<!--
+  issue #203 フェーズ4の個別反映計画（flow-id 4-1）のHTMLビュー。
+  計画の正文は同名の .md（wip/plans/【設計反映】【AIアセット反映】4テンプレートの参照側更新とDDR.md）で、
+  このHTMLはその視覚化である。
+  土台: .claude/skills/issue-mr-flow/assets/plans.template.html
+-->
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>【設計反映】【AIアセット反映】4テンプレートの参照側更新とDDR — issue #203</title>
+<style>
+<style>
+  :root {
+    --bg: #f6f7f9;      --panel: #ffffff;   --ink: #1a1d21;     --muted: #5b636d;
+    --line: #dfe3e8;    --accent: #2563eb;  --accent-soft: #eaf0fe;
+    --ok: #1a7f4b;      --ok-soft: #e6f4ec; --warn: #a35a00;    --warn-soft: #fdf1e0;
+    --stop: #b3261e;    --stop-soft: #fdecea; --code-bg: #f0f2f5;
+    --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1216;    --panel: #161a20;   --ink: #e6e8eb;     --muted: #9aa3ad;
+      --line: #2a3038;  --accent: #7aa2f7;  --accent-soft: #1b2333;
+      --ok: #6ee7a8;    --ok-soft: #14261d; --warn: #f0b866;    --warn-soft: #2a2113;
+      --stop: #f2857c;  --stop-soft: #2b1614; --code-bg: #1d222a;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", system-ui, sans-serif;
+    line-height: 1.8; font-size: 15px;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 20px 80px; }
+
+  /* 共通ヘッダ帯 */
+  header.band {
+    background: linear-gradient(135deg, var(--accent-soft), var(--panel));
+    border-bottom: 1px solid var(--line); padding: 28px 20px 22px; margin-bottom: 28px;
+  }
+  header.band .inner { max-width: 1080px; margin: 0 auto; }
+  header.band .kind { font-size: 11px; letter-spacing: .18em; color: var(--accent); font-weight: 700; }
+  header.band h1 { margin: 6px 0 4px; font-size: 26px; line-height: 1.4; }
+  header.band .lead { margin: 0; color: var(--muted); }
+  .meta { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; padding: 0; list-style: none; }
+  .meta li {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 999px;
+    padding: 3px 12px; font-size: 12.5px; color: var(--muted); white-space: nowrap;
+  }
+  .meta li b { color: var(--ink); font-weight: 600; }
+
+  nav.toc {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 14px 20px; margin-bottom: 28px;
+  }
+  nav.toc h2 { margin: 0 0 8px; font-size: 13px; letter-spacing: .08em; color: var(--muted); border: 0; padding: 0; }
+  nav.toc ol { margin: 0; padding-left: 20px; }
+  nav.toc li { margin: 2px 0; }
+  a { color: var(--accent); }
+
+  section {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 8px 24px 22px; margin-bottom: 22px;
+  }
+  h2 { font-size: 20px; margin: 20px 0 10px; padding-bottom: 8px; border-bottom: 2px solid var(--line); }
+  h3 { font-size: 16px; margin: 22px 0 8px; color: var(--accent); }
+  p { margin: 10px 0; }
+  ul, ol { padding-left: 22px; }
+  li { margin: 4px 0; }
+  blockquote { margin: 10px 0; padding: 6px 14px; border-left: 3px solid var(--line); color: var(--muted); }
+
+  /* 表は自身の中で横スクロールする（ページ本体は横スクロールさせない） */
+  .tablewrap { overflow-x: auto; margin: 14px 0; }
+  table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 14px; }
+  th, td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: var(--accent-soft); font-weight: 600; white-space: nowrap; }
+  tbody tr:nth-child(even) td { background: color-mix(in srgb, var(--line) 22%, transparent); }
+
+  code {
+    background: var(--code-bg); border-radius: 5px; padding: 1px 5px; font-size: 13px;
+    font-family: "SFMono-Regular", Consolas, "Noto Sans Mono", monospace;
+  }
+  pre {
+    background: var(--code-bg); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 12px 14px; overflow-x: auto; font-size: 13px; line-height: 1.65;
+  }
+  pre code { background: none; padding: 0; }
+
+  /* 注意ボックス: info（既定）/ ok（決めたこと）/ warn（注意）/ stop（やらないこと・危険） */
+  .box { border-left: 4px solid var(--accent); background: var(--accent-soft);
+         border-radius: 0 var(--radius) var(--radius) 0; padding: 12px 16px; margin: 16px 0; }
+  .box > :first-child { margin-top: 0; } .box > :last-child { margin-bottom: 0; }
+  .box .label { font-size: 12px; font-weight: 700; letter-spacing: .06em; display: block; margin-bottom: 4px; }
+  .box.ok { border-color: var(--ok); background: var(--ok-soft); } .box.ok .label { color: var(--ok); }
+  .box.warn { border-color: var(--warn); background: var(--warn-soft); } .box.warn .label { color: var(--warn); }
+  .box.stop { border-color: var(--stop); background: var(--stop-soft); } .box.stop .label { color: var(--stop); }
+  .box.info .label { color: var(--accent); }
+
+  .tag { display: inline-block; border-radius: 999px; padding: 1px 9px; font-size: 12px; font-weight: 600; }
+  .tag.ok { background: var(--ok-soft); color: var(--ok); }
+  .tag.warn { background: var(--warn-soft); color: var(--warn); }
+  .tag.stop { background: var(--stop-soft); color: var(--stop); }
+
+  footer { color: var(--muted); font-size: 13px; text-align: center; padding-top: 10px; }
+</style>
+</style>
+</head>
+<body>
+
+<header class="band">
+  <div class="inner">
+    <div class="kind">個別反映計画 / フェーズ4</div>
+    <h1>【設計反映】【AIアセット反映】4テンプレートの参照側更新とDDR</h1>
+    <p class="lead">フェーズ3で作ったのは<b>テンプレート本体だけ</b>である。参照側を直さない限り、4本は<b>置いてあるだけでフローから使われない</b>。ここで (a) 選択基準の文書化、(b) 参照側8ファイルの更新、(c) 判断のDDR化 を行う。</p>
+    <ul class="meta">
+      <li><b>issue</b> #203</li>
+      <li><b>ブランチ</b> claude/report-html-view-template-wu5u20</li>
+      <li><b>PR</b> #204</li>
+      <li><b>フェーズ</b> 4〈反映〉 flow-id 4-1</li>
+      <li><b>push回数</b> 7</li>
+      <li><b>作成日</b> 2026-08-24</li>
+      <li><b>正文</b> 同名の .md</li>
+    </ul>
+  </div>
+</header>
+
+<div class="wrap">
+
+<nav class="toc">
+  <h2>目次</h2>
+  <ol>
+    <li><a href="#premise">前提（合意状況）</a></li>
+    <li><a href="#target">変更対象 — 直すもの／触らないもの</a></li>
+    <li><a href="#approach">方針</a></li>
+    <li><a href="#out-of-scope">やらないこと（スコープ外）</a></li>
+    <li><a href="#verify">検証</a></li>
+    <li><a href="#criteria">issueの受け入れ条件との対応</a></li>
+  </ol>
+</nav>
+
+<section id="premise">
+  <h2>前提（合意状況）</h2>
+  <ul>
+    <li>上位の計画: <code>wip/plans/silver-drifting-lantern.md</code>（全体作業計画。flow-id 1-4）</li>
+    <li>依拠する作業結果: <code>wip/reports/20260824_silver-drifting-lantern_4テンプレートの実装結果.md</code>（flow-id 3-6。「設計への反映」6項目が本計画の入力）</li>
+  </ul>
+  <div class="box stop">
+    <span class="label">フェーズ3までで作ったのはテンプレート本体だけである</span>
+    参照側を直さない限り、<b>4本は置いてあるだけでフローから使われない</b>（受け入れ条件(1)(4)が未達のまま）。
+  </div>
+  <div class="box warn">
+    <span class="label">人間のレビューは未実施</span>
+    非対話セッションのため、合意の代わりに敵対的レビューを通す（フェーズ3までで2回、計29件へ対応済み）。
+  </div>
+</section>
+
+<section id="target">
+  <h2>変更対象 — 直すもの／触らないもの</h2>
+  <p><code>reports.template.html</code> を名指ししている <code>.claude/</code> 配下のファイルは<b>9つ</b>ある（<code>.gemini/</code> は変換生成物なので直接編集しない）。<b>そのすべてを直すのではない。</b></p>
+
+  <h3>更新する（8ファイル ＋ 新規1）</h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>#</th><th>ファイル</th><th>何をするか</th></tr></thead>
+    <tbody>
+      <tr><td><b>A</b></td><td><code>references/deliverables.md</code></td><td><b>本命。</b>テンプレート表を6本へ広げ、<b>選択基準の表を新設</b>する（受け入れ条件(4)の実体）</td></tr>
+      <tr><td>B</td><td><code>.claude/rules/directory-structure.md</code></td><td>「テンプレート2本」→ 6本。<code>assets/</code> の実例・<code>wip/reports/</code> の土台の記述</td></tr>
+      <tr><td>C</td><td><code>.claude/skills/issue-mr-flow/SKILL.md</code></td><td>flow-id 2-6・3-6・4-6 が名指しする土台を、<b>選択基準への参照</b>へ改める</td></tr>
+      <tr><td>D</td><td><code>.claude/rules/docs-workflow.md</code></td><td>ライフサイクル表の「土台は…」の記述</td></tr>
+      <tr><td>E</td><td><code>.claude/docs/spec/issue-mr-workflow.md</code> <b>348行の表のみ</b></td><td>現状を説明する節。テンプレート一覧へ4本を足す</td></tr>
+      <tr><td>F</td><td><code>references/phase5-close.md</code></td><td>統括レポート（5-4）の土台の記述</td></tr>
+      <tr><td>G</td><td><code>references/start-resume.md</code></td><td>再開時に読むテンプレートの記述</td></tr>
+      <tr><td>H</td><td><code>.claude/skills/canvas-report/SKILL.md</code></td><td>canvas形式との使い分け。<code>description</code>・31行・170行</td></tr>
+      <tr><td><b>I</b></td><td><code>.claude/docs/ddr/i0203-01-….md</code>（新規）</td><td>判断と却下案を残す</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>触らない（意図的に残す）</h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>対象</th><th>理由</th></tr></thead>
+    <tbody>
+      <tr><td><code>spec/issue-mr-workflow.md</code> の <b>3132・3216・3275・3651行</b></td><td><b>過去issueごとのchangelog（point-in-timeの記録）</b>。当時の状態を書いた文であり、書き換えると歴史が壊れる（<code>.claude/rules/docs-workflow.md</code>）</td></tr>
+      <tr><td>同 <b>758行</b>（<code>### 最終統括レポートとPR/MRへの反映（issue #111）</code> の表）</td><td>同じ節に「旧5-3→5-4へ繰り下げ」のような<b>当時の記録</b>が混在する設計記録の表。運用上の経路は <b>F</b> が担うので、そちらを直せば読み手は困らない</td></tr>
+      <tr><td>既存DDR4本（<code>i0054-01</code> <code>i0111-01</code> <code>i0186-01</code> <code>i0186-02</code>）</td><td><b>DDRの本文は一度マージしたら変更しない</b>（frontmatterのみ更新可）。今回はいずれも <code>superseded</code> にならない（現行テンプレートは残るため）</td></tr>
+      <tr><td><code>.gemini/</code> 配下9ファイル</td><td><b>変換生成物。</b>直接編集しない。flow-id 5-3 で <code>sync-gemini-assets.sh</code> が追随する</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <div class="box stop">
+    <span class="label"><code>sed</code> による一括置換は行わない</span>
+    上表のとおり「同じ文字列でも直す／直さない」が混在しており、機械的な置換は<b>必ず触らない側まで書き換える</b>。1ファイルずつ、前後を読んで直す。
+  </div>
+</section>
+
+<section id="approach">
+  <h2>方針</h2>
+
+  <h3>1. 選択基準（受け入れ条件(4)の実体）</h3>
+  <p><b><code>deliverables.md</code> の1箇所に置き、他所からはそこを参照させる。</b> 5本ぶんの説明が複数のファイルへ散ると、次に増やしたとき全部が古くなる。</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>テンプレート</th><th>向く場面</th></tr></thead>
+    <tbody>
+      <tr><td><code>reports-clean</code></td><td><b>既定。迷ったらこれ。</b> サイドバー常時表示で章数が多くても迷子にならない。ライト／ダーク両対応</td></tr>
+      <tr><td><code>reports-neobrutal</code></td><td>結論を強く押し出したいとき（太い黒枠＋ハードシャドウ）。ライト単一</td></tr>
+      <tr><td><code>reports-mono</code></td><td><b>色が付いている＝意味がある</b>を徹底したいとき。印刷・スクリーンショットでの誤読を避けたい場合</td></tr>
+      <tr><td><code>reports-paper</code></td><td><b>印刷・PDF化して配る</b>とき（<code>@media print</code> を持つ）。ライト単一</td></tr>
+      <tr><td><code>reports.template.html</code>（現行）</td><td><b>既存の成果物を更新するとき。</b> 新規作成で選ぶ理由は無い</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <div class="box info">
+    <span class="label">既定を1つ決めるのが要点</span>
+    5本並べて「好みで選ぶ」と書くと、レポートごとに見た目が変わり、<b>読み手が毎回レイアウトを学び直す</b>ことになる。選ぶのは、上表の右列に当てはまる理由があるときだけとする。
+  </div>
+
+  <h3>2. 「土台は <code>reports.template.html</code>」という記述の直し方</h3>
+  <p><b>パスを5つ並べる形にしない。</b> flow-id 2-6・3-6・4-6・5-4 の4箇所すべてに5本の一覧を書くと、テンプレートが増減するたび4箇所を直すことになる（今回まさにそれをやっている）。</p>
+<pre><code>変更前: 土台は `.claude/skills/issue-mr-flow/assets/reports.template.html`
+変更後: 土台は `.claude/skills/issue-mr-flow/assets/reports-clean.template.html`（既定）。
+        他の3案・現行との使い分けは `references/deliverables.md`「計画・レポートのHTMLビュー」</code></pre>
+  <p><b>既定のパスは書く。</b>「<code>deliverables.md</code> を見よ」だけにすると、フロー定義だけを読んで作業する場面で1回余分に開くことになる。<b>既定＋参照</b>の形にして、迷ったときだけ開けば済むようにする。</p>
+
+  <h3>3. DDR（<code>i0203-01</code>）</h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>項目</th><th>内容</th></tr></thead>
+    <tbody>
+      <tr><td>ファイル名</td><td><code>i0203-01-レポートHTMLビューは共通DOMと4スタイルで持ち現行を残す.md</code></td></tr>
+      <tr><td>決めたこと</td><td>4デザインを<b>共通DOM＋4通りの <code>&lt;style&gt;</code></b> で持ち、<b>現行を残して</b>既定を <code>reports-clean</code> にした</td></tr>
+      <tr><td>却下案1</td><td><b>4本を独立したHTMLとして持つ</b> — 使い方コメント・検査手順・節構成が4重管理になる</td></tr>
+      <tr><td>却下案2</td><td><b>現行を置き換える（1本に絞る）</b> — 既存の成果物が現行の節構成に依存しており、更新時に節ごと作り直すことになる</td></tr>
+      <tr><td>却下案3</td><td><b>1本にテーマ切り替えを持たせる</b>（<code>data-theme</code> 等） — 未使用のCSSが常に載り「自己完結」の利点が薄れる。切り替えUIはレビュー時に触られない</td></tr>
+      <tr><td>あわせて残す</td><td><b>機械的に検査するときの一般則3つ</b>（下記）</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <div class="box warn">
+    <span class="label">DDRへ「一般則」を残すのは、同じ失敗を2回踏んだため</span>
+    <ol>
+      <li><b>コメントと地の文を先に除く</b> — HTMLコメント中の <code>&lt;li&gt;</code> <code>&lt;details&gt;</code> をタグとして数えてMISMATCHが出た（f4）。同じ失敗がDOM比較でも出た（f2）。</li>
+      <li><b>「出力なし＝合格」の検査は、負のコントロールを取る</b> — 検査が壊れていても同じく無出力になる。</li>
+      <li><b>構造の同一性は、タグ名ではなくバイト単位で比べる</b> — タグ名比較は属性もテキストも見ないため、<b>実際に成立していなかった主張を「合格」と報告してしまった</b>（敵対的レビュー2回目の指摘2）。</li>
+    </ol>
+  </div>
+
+  <h3>4. ブラウザでの実表示（未確認6項目）の扱い</h3>
+  <p><b>この計画では解消しない。</b> 実行環境に表示確認手段が無いため、確認できるのは構造とテキストまで。</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>選択肢</th><th>扱い</th></tr></thead>
+    <tbody>
+      <tr><td>別issueへ切り出す</td><td><b>PR #204 のコメントでユーザーへ問い合わせ済み。回答があればそれに従う</b></td></tr>
+      <tr><td>ユーザーの手元で確認してもらう</td><td>同上</td></tr>
+      <tr><td>黙って閉じる</td><td><b>採らない。</b> DDRとspecへ「未確認である」ことを明記して残す</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <div class="box info">
+    <span class="label">回答が無いまま進む場合の既定</span>
+    DDRの「未確認事項」節と統括レポート（5-4）へ残し、<b>issueの新規作成は行わない</b>（issueを起票してよいかの判断は人間が握る。<code>AGENTS.md</code>）。
+  </div>
+</section>
+
+<section id="out-of-scope">
+  <h2>やらないこと（スコープ外）</h2>
+  <div class="box stop">
+    <span class="label">この計画では触らない</span>
+    <ul>
+      <li>テンプレート本体（<code>reports-*.template.html</code>）の再変更（フェーズ3で完了）</li>
+      <li><code>plans.template.html</code> の再デザイン（issue #203 の対象外）</li>
+      <li><b><code>wip/design-samples/</code> を持つブランチの削除</b>（ユーザーの明示指示待ち。Q5）</li>
+      <li><b>ブラウザでの実表示確認</b>（方針4）</li>
+      <li><code>.gemini/</code> の手編集（flow-id 5-3 の変換同期に任せる）</li>
+      <li>新規issueの起票（方針4の既定）</li>
+    </ul>
+  </div>
+</section>
+
+<section id="verify">
+  <h2>検証</h2>
+
+  <h3>(1) 参照が切れていないか</h3>
+<pre><code>bash .claude/scripts/src/check-doc-references.sh</code></pre>
+  <p><b>DDRを新規追加するので必須。</b> <code>.md</code>/<code>.sh</code>/<code>.gitignore</code> 内の絶対パス参照が対象。</p>
+
+  <h3>(2) DDR一覧が生成物として最新か</h3>
+<pre><code>bash .claude/scripts/src/generate-ddr-list.sh
+git diff --stat .claude/docs/README.md   # 差分が出たら同じコミットへ含める</code></pre>
+  <p><b>手書きで行を足さない</b>（一覧は生成物。issue #135）。</p>
+
+  <h3>(3) 「触らない」と決めたものが本当に触られていないか</h3>
+  <div class="box stop">
+    <span class="label">これが今回いちばん壊しやすい</span>
+    過去issueのchangelogを書き換えると、当時の記録が失われる。
+  </div>
+<pre><code># 分岐点は実行時に求める（文書へ書き写した固定SHAは、main取り込み後に誤検出へ変わる）
+git fetch origin main
+base=$(git merge-base origin/main HEAD)
+
+git diff "$base" --stat -- .claude/docs/ddr/   # 新規1本以外の変更が無いこと
+
+# 過去changelogの記述が原文のまま残っていること（変更前後で件数を突き合わせる）
+grep -c -e 'reports.template.html' .claude/docs/spec/issue-mr-workflow.md
+git show "$base:.claude/docs/spec/issue-mr-workflow.md" | grep -c -e 'reports.template.html'</code></pre>
+  <p><b>行番号で検査しない。</b> 編集で行番号は動くため当たらなくなる。<b>変更前の文字列そのもの</b>で確かめる。</p>
+
+  <h3>(4) usecase文書への影響</h3>
+<pre><code>grep -rln -e 'HTMLビュー' -e 'reports' .claude/docs/usecase/</code></pre>
+  <p>ヒットしたファイルを開き、<b>記述・リンクが古くならないか</b>を確認する（issue #170）。影響があれば更新し、<code>.claude/docs/README.md</code> のusecase節も同じコミットで直す。</p>
+
+  <h3>(5) 4テンプレート自身の再検査</h3>
+  <p>参照側だけを直す計画だが、<b>テンプレートに触れていないことを確かめる</b>ために、フェーズ3と同じ5種の検査とバイト比較を流し直す（<b>359行/22346バイト</b>の一致が保たれていること）。</p>
+
+  <h3>合格条件</h3>
+  <ul>
+    <li><b>選択基準の表が <code>deliverables.md</code> に1つだけある</b>（他所は参照のみ。二重管理していない）</li>
+    <li>上表A〜Hの8ファイルすべてで、<code>reports.template.html</code> の単独名指しが解消している</li>
+    <li><b>「触らない」と決めた箇所が1文字も変わっていない</b>（上記(3)）</li>
+    <li><code>check-doc-references.sh</code> が参照切れを報告しない</li>
+    <li><code>generate-ddr-list.sh</code> の差分が同じコミットに入っている</li>
+    <li>DDR <code>i0203-01</code> に<b>却下案が3つ</b>と<b>未確認事項</b>が書かれている</li>
+    <li>4テンプレートの5種の検査・バイト比較が、フェーズ3と同じ結果になる</li>
+  </ul>
+</section>
+
+<section id="criteria">
+  <h2>issueの受け入れ条件との対応</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>受け入れ条件</th><th>この計画での対応</th></tr></thead>
+    <tbody>
+      <tr><td>(1) 4デザインが <code>assets/</code> に存在し flow-id 2-6/3-6/4-6/5-4 から参照できる</td><td><b>後半をここで満たす</b>（C・F が flow-id 側の記述）</td></tr>
+      <tr><td>(2) 外部依存ゼロ</td><td>フェーズ3で達成済み。検証(5)で回帰していないことだけ確かめる</td></tr>
+      <tr><td>(3) プレースホルダ・検査手順・フェーズ読み替えが引き継がれている</td><td>フェーズ3で達成済み</td></tr>
+      <tr><td>(4) 選択基準（既定はどれか）がドキュメント化されている</td><td><b>ここで満たす</b>（方針1・A）</td></tr>
+      <tr><td>(5) 現行の扱いと <code>wip/design-samples/</code> の後始末</td><td>現行の併存はA・Iで文書化。<b>ブランチ削除は指示待ちのまま未達</b></td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<footer>issue #203 / PR #204 — 計画の正文は同名の <code>.md</code>。外部依存を持たない自己完結HTML。</footer>
+
+</div>
+</body>
+</html>
