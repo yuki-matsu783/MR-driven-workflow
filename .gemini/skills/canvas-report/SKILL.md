@@ -1,6 +1,6 @@
 ---
 name: canvas-report
-description: 報告用HTML wip/reports/日付_<全体計画名>_<内容>.html（外部依存を持たない自己完結HTML）を執筆する際、内容が複数要素間の関連・依存関係を主題とする場合に、一覧・表形式に代えてノード・エッジで構成されるcanvas形式（パン・ズーム・連続セマンティックズーム・ホバーでの関連ハイライト・ミニマップ・詳細パネル対応）で表現するために使う。ファイル間の依存関係、機能同士の呼び出し関係、ドキュメント間の参照関係、モジュール構成など「複数の要素がどうつながっているか」が主題の調査結果では、必ずこのスキルの利用を検討すること。issue-mr-flowのflow-id 2-6（調査を実施）で結果をHTML化する際に、内容の性質に応じてこのスキルと一覧・表形式のテンプレート（.claude/skills/issue-mr-flow/assets/reports.template.html）のどちらを使うか判断する。
+description: 報告用HTML wip/reports/日付_<全体計画名>_<内容>.html（外部依存を持たない自己完結HTML）を執筆する際、内容が複数要素間の関連・依存関係を主題とする場合に、一覧・表形式に代えてノード・エッジで構成されるcanvas形式（パン・ズーム・連続セマンティックズーム・ホバーでの関連ハイライト・ミニマップ・詳細パネル対応）で表現するために使う。ファイル間の依存関係、機能同士の呼び出し関係、ドキュメント間の参照関係、モジュール構成など「複数の要素がどうつながっているか」が主題の調査結果では、必ずこのスキルの利用を検討すること。issue-mr-flowのflow-id 2-6（調査を実施）で結果をHTML化する際に、内容の性質に応じてこのスキルと一覧・表形式のテンプレート（既定は.claude/skills/issue-mr-flow/assets/reports-clean.template.html）のどちらを使うか判断する。
 title: 調査結果canvas表示
 type: skill
 tags: [issue-mr-flow, docs-workflow, reports, html, canvas]
@@ -27,8 +27,9 @@ keywords: [canvas, Code Canvas, ノード, エッジ, 依存関係, セマンテ
 - **コードの依存関係と変更点を1枚で俯瞰し、気になった箇所をズームして該当コードまで辿りたい**
 - 一覧・表で並べると関連性が読み取りにくい（矢印や補足説明を大量に書かないと伝わらない）
 
-逆に、以下のような調査結果には向かない（一覧・表形式のテンプレート
-`.claude/skills/issue-mr-flow/assets/reports.template.html` で十分）。
+逆に、以下のような調査結果には向かない（一覧・表形式のテンプレート——既定は
+`.claude/skills/issue-mr-flow/assets/reports-clean.template.html`。5本からの選び方は
+`.claude/skills/issue-mr-flow/references/deliverables.md`「レポートテンプレートの選び方」——で十分）。
 
 - 単純な比較（候補A/B/Cのメリット・デメリット比較等）
 - 時系列の手順・チェックリスト
@@ -167,7 +168,7 @@ mermaid.jsは唯一の外部CDN依存で、読み込めないオフライン環�
 
 | 形式 | 外部を読みに行く記述 |
 |---|---|
-| 一覧・表形式（`reports.template.html` / `plans.template.html`） | **無い**（`<script src>` も `<link href>` も持たない） |
+| 一覧・表形式（`reports-{clean,neobrutal,mono,paper}.template.html` / `reports.template.html` / `plans.template.html`） | **無い**（`<script src>` も `<link href>` も持たない） |
 | canvas形式（本スキル） | **mermaidを使う場合に限り、CDNの `<script src>` を1本読む**。使わない場合はその `<script>` ごと削除すれば外部依存ゼロになる |
 
 **「URLを1文字も含まない」という意味での自己完結ではない点に注意する。** canvas形式は

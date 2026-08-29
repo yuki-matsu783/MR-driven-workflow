@@ -347,14 +347,16 @@ Claude Code / Gemini CLI は**セッションごとに1つのplanファイルし
 | テンプレート | 対象 |
 |---|---|
 | `.claude/skills/issue-mr-flow/assets/plans.template.html` | 全体作業計画（flow-id 1-4）と個別計画（2-1・3-1・4-1） |
-| `.claude/skills/issue-mr-flow/assets/reports.template.html` | 調査結果（2-6）・作業結果（3-6）・反映結果（4-6）・最終統括レポート（5-4） |
+| `.claude/skills/issue-mr-flow/assets/reports-{clean,neobrutal,mono,paper}.template.html`（既定は `reports-clean`）と `reports.template.html`（移行期） | 調査結果（2-6）・作業結果（3-6）・反映結果（4-6）・最終統括レポート（5-4） |
 
 **この節が扱うのは、なぜこの形にしたかと、どこに何の正があるかだけである。** 運用の詳細
 （見出し構成・必須／任意の区別・作成タイミング・埋め忘れの検査）はここへ再掲しない。
 
 | 何の正か | どこ |
 |---|---|
-| 記述の型（見出し構成・必須／任意の区別・埋め忘れの検査） | **テンプレート本体**の冒頭のHTMLコメント |
+| 記述の型（見出し構成・必須／任意の区別） | **テンプレート本体**の冒頭のHTMLコメント |
+| **どのレポートテンプレートを選ぶか（既定はどれか）** | **`.claude/skills/issue-mr-flow/references/deliverables.md`**「レポートテンプレートの選び方」（issue #203） |
+| **埋め忘れ・リンク破断・重複ID・外部依存・構造の妥当性の検査（6種）** | **`.claude/skills/issue-mr-flow/references/deliverables.md`**「検査手順の正はこの節にある」（issue #203。**テンプレートが5本になり、同じ検査が5箇所へ複製されたため正を1箇所へ移した**） |
 | いつ作るか・作った後どう扱うか（flow-idごとの手順） | **`.claude/skills/issue-mr-flow/references/deliverables.md`**「計画・レポートのHTMLビュー」 |
 | レビュー時に何を見るか | **`wip/plans/REVIEW-POINTS.md` / `wip/reports/REVIEW-POINTS.md`** |
 | ライフサイクル（flow-id 5-5 でまとめて削除・frontmatterの対象外） | **`.claude/rules/docs-workflow.md`** のライフサイクル表 |
@@ -366,10 +368,11 @@ Claude Code / Gemini CLI は**セッションごとに1つのplanファイルし
 様式だけを差し替え可能なファイルとして独立させた。SKILL.md側は見出し構成を列挙せず、
 「テンプレートを読んでから書く」と参照するだけにしている。
 
-#### なぜ2本なのか（そしてmd側のテンプレートは持たない）
+#### なぜ計画用とレポート用に分かれるのか（そしてmd側のテンプレートは持たない）
 
 `wip/plans/`（これから何をするか）と `wip/reports/`（何をして何が分かったか）では必須セクションが
-異なるため、1本に統合できない。**共通のCSSは2本へ重複して持たせる**——共有CSSファイルへ
+異なるため、1本に統合できない（issue #203 でレポート側が5本になったが、この分け方は変わらない）。
+**共通のCSSは各テンプレートへ重複して持たせる**——共有CSSファイルへ
 切り出すと「自己完結」でなくなり、**HTMLファイル単体をリポジトリ外へ持ち出して共有・保管した
 場合に開けなくなる**ため（`wip/reports/` はflow-id 5-5でmdとhtmlをまとめて削除するので、
 「片方だけが残る」状況は起きない。壊れるのは持ち出したときである）。
@@ -812,7 +815,7 @@ flow-id 2-5 / 2-10 / 3-5 / 3-10 / 4-5 / 4-10 の6箇所で、**フェーズ5に�
 | 挿入位置 | **flow-id 5-2（関連issue通知）と旧5-3（片付け）の間**。旧5-3→5-4、旧5-4→5-5、旧5-5→5-6 へ繰り下げ、全41→42ステップ |
 | ステップの粒度 | **作成 → commit・push → サマリ投稿 →（任意）添付**を1ステップに含む複合ステップ。作るだけで片付けへ進むと、作成と削除が同じ作業ツリー上で相殺され**ブランチのコミット履歴にすら残らない** |
 | 成果物 | `wip/reports/日付_<全体計画名>_統括.md`（正文・必須）と同名の `.html`（人間レビュー用ビュー） |
-| HTMLの土台 | `.claude/skills/issue-mr-flow/assets/reports.template.html`（必須セクションの統括レポート向けの読み替えは、同テンプレートの冒頭コメント「フェーズごとの読み替え」を参照） |
+| HTMLの土台 | `.claude/skills/issue-mr-flow/assets/reports-clean.template.html`（既定。issue #203 で5本になった。必須セクションの統括レポート向けの読み替えは、同テンプレートの冒頭コメント「フェーズごとの読み替え」を参照） |
 | 反映の構造 | **3層のフォールバック**（下表）。層3が壊れても層1・層2でレビューは成立する |
 | サマリの1行目 | **`Claude Codeより（最終統括レポート）:`**。既存の通常コメント3種の書式は変更しない |
 | ライフサイクル | 統括レポート自体も **flow-id 5-5 の削除対象**。`main` に残るのはPR/MR上のコメントと `spec/` `ddr/` |
@@ -3400,6 +3403,57 @@ point-in-time の記録と DDR 本文は**書き換えていない**）:
 - [i0186-01-レポートの視覚語彙は結論の性質とレビューの重みで軸を分ける.md](../ddr/i0186-01-レポートの視覚語彙は結論の性質とレビューの重みで軸を分ける.md)
 - [i0186-02-リンク破断検査はID抽出をタグ内に限定し重複ID検査を併設する.md](../ddr/i0186-02-リンク破断検査はID抽出をタグ内に限定し重複ID検査を併設する.md)
 
+### issue #203（レポートHTMLビューのデザイン4案のテンプレート化）
+
+新規:
+- `.claude/skills/issue-mr-flow/assets/reports-clean.template.html`（**レポート側の既定**）
+- `.claude/skills/issue-mr-flow/assets/reports-neobrutal.template.html`
+- `.claude/skills/issue-mr-flow/assets/reports-mono.template.html`
+- `.claude/skills/issue-mr-flow/assets/reports-paper.template.html`
+- `.claude/docs/ddr/i0203-01-レポートHTMLビューは共通DOMと4スタイルで持ち現行を残す.md`
+
+変更:
+- `.claude/skills/issue-mr-flow/references/deliverables.md`（**選択基準の表と、検査手順の正を新設**）
+- `.claude/skills/issue-mr-flow/SKILL.md`（flow-id 2-6・3-6・4-6 の土台を既定＋参照の形へ）
+- `.claude/skills/issue-mr-flow/references/phase5-close.md`・`references/start-resume.md`
+- `.claude/skills/issue-mr-flow/assets/plans.template.html`（検査の正の参照先・**検査6の追加**）
+- `.claude/skills/canvas-report/SKILL.md`
+- `.claude/rules/directory-structure.md`・`.claude/rules/docs-workflow.md`
+- `wip/plans/REVIEW-POINTS.md`・`wip/reports/REVIEW-POINTS.md`（**HTML検査の一般則を追加**）
+- 本ドキュメントの `## 仕様`「計画・レポートのHTMLビュー」節（テンプレート一覧・正の所在表）
+
+**レポート用テンプレートは1本から5本になった。** 4本はいずれも**共通のDOMを持ち `<style>` だけが
+違う**（`<style>` を除いた部分は新4本でバイト単位に完全一致する）。現行 `reports.template.html` は
+**併存させ、据え置いた**。既定は `reports-clean` である。選択基準の正は
+`references/deliverables.md`「レポートテンプレートの選び方」1箇所に置いた。
+
+**検査を3種から6種へ増やした。** 外部依存2種（src/href・url()/@import）と、**構造の妥当性**
+（`<style>` がちょうど1つであること）である。最後のものは issue #203 の作業中に実際に踏んだ
+不具合から足した——`<style>` が二重に出力されると2つ目はCSSのテキストとして扱われ、続く
+`:root { … }` ブロックごと破棄される。**ダーク環境では正常に見え、ライト環境でだけ配色が
+初期値へ落ちる**ため、既存の5種はどれも捕まえなかった。
+
+**検査手順の正を、テンプレート冒頭コメントから `references/deliverables.md` へ移した。**
+テンプレートが5本になった結果、同じ検査手順の実体が5箇所へ複製された。正を1箇所に決めないと、
+検査を改訂したときに一部だけが古くなる。テンプレート側のコメントは**使い方の説明**として残す。
+
+**`.claude/VERSION` は `0.4.0` のまま据え置いた。** 配布対象アセット（`assets/` 配下）を4本
+追加したため、`.claude/docs/spec/distribution-assets.md` の目安表では `MINOR` に当たる。しかし
+**非対話セッションでの増分適用の例外を `.claude/VERSION` へ適用してよいかは未決定**であり
+（issue #185）、issue #165 の changelog に「今後 `.claude/VERSION` を上げる場合は、改めて人間の
+指示を起点に増分を検討する」という人間の判断が入っている。**この未決定をAIの独断で埋めない**
+ため据え置いた。据え置きには実害（配布先が版から資産の差を判別できない）があることは承知の
+うえで選んでいる。**人間の指示があれば `0.5.0` へ上げる。**
+
+**ブラウザでの実表示は1件も確認していない**（下記「未決定事項・懸念点」）。
+
+**追記（main取り込み後）**: `.claude/VERSION` は上記のとおり据え置いていたが、`main` 側は
+issue #187（`0.4.0`→`0.5.0`）とissue #176（同増分の衝突を検知し`0.5.0`→`0.6.0`）を経て
+`0.6.0` になっていた。本issueは `.claude/VERSION` を一度も変更していないため、`git merge origin/main`
+はここを衝突させずmain側の値をそのまま取り込んだ。issue #203ぶんの追加増分は付けていない
+（詳細: `HANDOFF.md`「判断を迷った内容」）。ブラウザでの実表示確認6項目は、ユーザーへ確認し
+「記録に残すだけ」との回答を得たため、別issueは起票していない。
+
 ### issue #176（反映対象をこのMRでやるか切り出すかの判断基準の新設）
 
 `references/planning.md` の `【実装反映】` 定義にあった「影響が大きい場合は別issueへの切り出しを
@@ -4032,6 +4086,27 @@ flow-id 4-1 の「反映対象を洗い出す」を4手順（起点の列挙／4
   同じファイルの中で食い違う）。
 
 ## 未決定事項・懸念点
+
+- **（issue #203）レポートテンプレート4本のブラウザでの実表示が未確認**: 新規追加した
+  `reports-{clean,neobrutal,mono,paper}.template.html` は、**実ブラウザでの表示を1件も
+  確認していない**。作業した実行環境（Claude Code on the web のリモート実行環境）に表示確認の
+  手段が無く、確かめられたのはHTML/CSSの**構造とテキスト**だけである。
+
+  | 未確認の項目 | 対象 |
+  |---|---|
+  | `position: sticky` のサイドバーが実際に追従するか | 4本すべて |
+  | `prefers-color-scheme` の切り替えが破綻しないか | clean / mono |
+  | `color-scheme: light` が強制ダーク化を防ぐか | neobrutal / paper |
+  | ハードシャドウ（`box-shadow: 3px 3px 0`）の見え方 | neobrutal |
+  | `@media print` でサイドバーが本文の上へ畳まれるか | paper |
+  | 二重罫線（`border-bottom: 3px double`）の見え方 | paper |
+
+  **「静的検査に通った」と「見た目が正しい」は別である。** issue #203 では実際に、静的検査を
+  すべて通ったHTMLが**ライト環境でだけ配色を失っていた**（`<style>` の二重出力）。この件は
+  検査6を新設して機械的に捕まえられるようにしたが、上の6項目は**目で見る以外に確かめる方法が無い**。
+
+  **別issueへの切り出しは行っていない**（issueを起票してよいかの判断は人間が握るため。
+  `AGENTS.md`）。PR #204 のコメントでユーザーへ扱いを問い合わせている。
 
 - **（issue #61）`set_mr_ready`: GitHub側のみ実機未検証**: issue #61 の対応時の実行環境
   （Claude Code on the web のリモート実行環境）には `gh`・`glab` のいずれも存在せず、
