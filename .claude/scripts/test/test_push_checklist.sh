@@ -159,9 +159,11 @@ assert_eq "項目テンプレートは reportsDir のプレースホルダを持
 # 正常系（全行 done、実施ログあり）を組み立てるヘルパ
 make_tsv() {
   # $1 = 状態（省略時 done） $2 = 実施ログ（**省略時**のみ 'やった'）
-  # `${2-...}` であって `${2:-...}` ではない。後者は空文字列も「未指定」として既定値へ
-  # 倒すため、「実施ログが空のとき 1 になる」ケースが空振りする（実際に空振りした）。
-  local state="${1:-done}" log="${2-やった}" i
+  # `${1-...}` `${2-...}` であって `${1:-...}` `${2:-...}` ではない。後者は空文字列も
+  # 「未指定」として既定値へ倒すため、「状態・実施ログが空のとき 1 になる」ケースが
+  # 空振りする（$2 側は実際に空振りした。$1 側も同じ罠を踏みうるため揃える。
+  # issue #17フェーズ4の敵対的レビュー2回目で指摘）。
+  local state="${1-done}" log="${2-やった}" i
   printf '# generated-for: %s\n' 'deadbeef'
   printf '# id\t項目\t状態\t実施ログ\n'
   for ((i = 0; i < ${#CHECKLIST_IDS[@]}; i++)); do
@@ -182,6 +184,11 @@ assert_eq "verify_stream: pendingがあれば1" "1" "$(status_of eval 'make_tsv 
 vs_out="$(make_tsv Done やった | verify_stream || true)"
 assert_contains "verify_stream: 状態のタイプミスを形式異常として報告する" "$vs_out" '形式異常'
 assert_eq "verify_stream: 状態のタイプミスは1" "1" "$(status_of eval 'make_tsv Done やった | verify_stream >/dev/null')"
+
+# 条件3-b: 状態が空文字列（${1-done} でmake_tsv自身の既定値化を回避できているかも兼ねて確認）
+vs_out="$(make_tsv '' やった | verify_stream || true)"
+assert_contains "verify_stream: 空の状態を形式異常として報告する" "$vs_out" '形式異常'
+assert_eq "verify_stream: 空の状態は1" "1" "$(status_of eval "make_tsv '' やった | verify_stream >/dev/null")"
 
 # 条件4: 実施ログが空
 vs_out="$(make_tsv done '' | verify_stream || true)"

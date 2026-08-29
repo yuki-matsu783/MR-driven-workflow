@@ -169,6 +169,7 @@
     <li><a href="#findings">実施した内容と結果</a></li>
     <li><a href="#next">設計への反映</a></li>
     <li><a href="#surprises">想定と異なった点</a></li>
+    <li><a href="#review-round2">敵対的レビュー2回目（flow-id 4-8）の結果と対応</a></li>
     <li><a href="#todo">残課題</a></li>
   </ol>
 </nav>
@@ -424,12 +425,33 @@ HANDOFF.md:201:.claude/docs/ddr/i0017-01-&lt;タイトル&gt;.md
   </div>
 </section>
 
+<section id="review-round2">
+  <h2>敵対的レビュー2回目（flow-id 4-8）の結果と対応</h2>
+  <p>反映結果（<code>main</code>マージ後、<code>d31dfd8..HEAD</code> の <code>.claude/</code> <code>index.md</code>）に対する敵対的レビュー2回目を実施した（実施回数カウンタ 2/3。1回目はセッションAPI上限で失敗しカウンタ未加算）。<b>2種別をまとめて1回で行う</b>（回数配分の逸脱と理由は <code>HANDOFF.md</code>「判断を迷った内容」）。</p>
+  <p>findings 8件のうち確度×重大度の1次振り分けで6件が投稿候補（<code>major/high</code>1件・<code>minor/high</code>5件）、1件（<code>minor/medium</code>）は報告のみ。6件すべて選別スクリプトを通過し、実物で裏取りのうえPR #195へインラインコメントとして投稿、同じセッションで全件を修正した。</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>#</th><th>指摘</th><th>対応</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td><code>commit-skill</code>項目はStep 3.5時点で原理的に<code>done</code>にできない（<code>major/high</code>）</td><td><code>commit</code>スキルSKILL.mdへ「単一コミットで完結するpushでは<code>skip</code>する」旨の分岐を明記</td></tr>
+      <tr><td>2</td><td>TSVサンプルに行末タブが無く「4フィールド固定」の説明と矛盾</td><td>サンプル5行の末尾へタブを追加、注記を追加</td></tr>
+      <tr><td>3</td><td>「前置フィルタを縮退時フォールバックへ流用しない」規約が無条件に見えるが<code>post-push-next-checklist.sh</code>は意図的に流用</td><td>規約へ適用条件（ブロックにつながる場合のみ）を明記</td></tr>
+      <tr><td>4</td><td>縮退時フォールバックの説明がspec・rules・DDR・hookコメントの4箇所へ複製</td><td>DDR i0017-01を正とし他は参照のみへ縮小</td></tr>
+      <tr><td>5</td><td>ブロックを無言で素通りする経路が「ブロックの条件」表に無い</td><td>表に行を追加、hookへstderr warningを追加</td></tr>
+      <tr><td>6</td><td>テストフィクスチャの<code>${1:-done}</code>が同じissueが規約化した<code>${N-既定}</code>に従っていない</td><td><code>${1-done}</code>へ修正、回帰テストを1件追加</td></tr>
+      <tr><td>7（報告のみ）</td><td>mcp-fallback.mdが未実測の4メソッドまで結論を広げていた</td><td>主語を実測済み範囲へ絞る記述へ修正</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p>修正後、単体テスト<b>24ファイル・1,741アサーション・失敗0</b>、<code>check-doc-references.sh</code>（参照切れ0件）を再確認した。詳細は <code>wip/worklogs/20260824_steady-guarding-checkpoint_【設計反映】【AIアセット反映】反映の実施_push14.md</code> の追記（push19）が正。</p>
+</section>
+
 <section id="todo">
   <h2>残課題</h2>
   <ul>
-    <li><b>flow-id 4-7</b>: commit・push してレビュー依頼。</li>
-    <li><b>flow-id 4-8/4-9</b>: 反映結果への敵対的レビュー（フェーズ4・2回目／上限3回）。2種別まとめて1回。</li>
-    <li><b>フェーズ5</b>（5-1 コンフリクト確認 → 5-2 issue通知 → 5-3 <code>.gemini/</code> 変換同期 → 5-4 統括レポート → 5-5 片付け → 5-6 Draft解除）。<b>マージ（5-7）は行わない。</b></li>
+    <li><b>flow-id 4-9</b>: 投稿した6スレッドへPR上で返信する。</li>
+    <li><b>flow-id 4-10</b>: MR descriptionを反映内容で更新する。</li>
+    <li><b>フェーズ5</b>（<b>5-1 コンフリクト確認は完了・<code>mark-done</code>済み</b> → 5-2 issue通知 → 5-3 <code>.gemini/</code> 変換同期 → 5-4 統括レポート → 5-5 片付け → 5-6 Draft解除）。<b>マージ（5-7）は行わない。</b></li>
     <li><b>承認が得られていない判断が2件ある。</b> 敵対的レビューの回数配分・<code>--tags</code> の一律ブロック。否認された場合の戻し方は正文（md）の4章に書いた。<b>VERSION の増分は争点が消えた</b>（<code>main</code> 側が先に <code>0.5.0</code> へ上げていたため、本issueは版を動かさない）。</li>
     <li><b>誤ブロックの再現条件は未特定のまま残す。</b> 再現条件が不明なものを仕様として固定できないため、specには「未決定事項」として書き、詳細は worklog に残した。再発したら <code>stale</code> のメッセージが出す実際の値から追う。</li>
   </ul>

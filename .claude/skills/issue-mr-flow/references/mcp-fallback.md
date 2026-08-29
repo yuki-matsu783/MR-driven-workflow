@@ -79,10 +79,12 @@ CLI経路には無い、MCPツール固有の挙動。**いずれも失敗では
   気づきにくい）。
   - **「誤ったパラメータ名だから無視される」のではない**（issue #17 で実際に誤読した）。
     このツールは **`page` という正当なパラメータをツール定義に持っており**、
-    `perPage` と組み合わせて渡しても**やはり1ページ目が返る**。`page` は
-    `get_review_comments` **以外**のメソッド（`get_files` / `get_commits` / `get_reviews` /
-    `get_comments`）のためのもので、`get_review_comments` だけがカーソル方式である。
+    `perPage` と組み合わせて渡しても**やはり1ページ目が返る**（`get_review_comments` での実測）。
     **ツール定義に載っているパラメータが、そのメソッドで効くとは限らない。**
+    **`get_files` / `get_commits` / `get_reviews` / `get_comments` で `page` が実際に効くかは
+    未確認**（issue #17フェーズ4の敵対的レビュー2回目で、確かめていない4メソッドまで
+    結論を広げていたと指摘された）。これらを使う前は、ツール定義の記載を鵜呑みにせず、
+    1回目・2回目の呼び出しの戻り値を突き合わせて確かめること。
   - つまり判定材料は「名前が正しいか」ではなく「**そのメソッドがカーソル方式か**」である。
     `get_review_comments` のときだけ `after` を使う。
   - 対処: `after` に前ページの `pageInfo.endCursor` を渡し、`pageInfo.hasNextPage` が偽に

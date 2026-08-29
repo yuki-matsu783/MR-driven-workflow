@@ -59,19 +59,15 @@ raw_hints_at_git_push() {
 # 戻り: 0 = git の push とみなす（ブロック） / 1 = ブロックしない
 #
 # **前置フィルタ（raw_hints_at_git_push）をそのままブロック判定へ流用してはいけない**
-# （issue #17 フェーズ3の敵対的レビュー2回目で指摘。実際に再現した）。前置フィルタは
-# 「push という語がどこかに現れるか」しか見ない超集合であり、判定本体としては過剰検知が
-# そのまま exit 2 になる。**回復のために叩く `push-checklist.sh check` はパスに push を
-# 含むため必ずブロックされ、縮退環境では自力で回復できなくなる。**
-# 「縮退時はブロック側へ倒す」方針は妥当だが、倒した先が回復不能では方針として成立しない。
+# （issue #17 フェーズ3の敵対的レビュー2回目で指摘。実際に再現した）。理由・実装の詳細は
+# DDR `i0017-01`「4. 縮退時のフォールバックに、前置フィルタを流用しない」が正
+# （重複を避けるため、ここでは再掲しない）。
 #
-# そこで、生JSONではなく実コマンド文字列を空白で分割し、
+# 要点だけ: 生JSONではなく実コマンド文字列を空白で分割し、
 #   (1) basename が git のトークンがある
 #   (2) その後ろに push というトークンがある
-# の両方が揃ったときだけブロックする。**`git` トークンを AND 条件にしたことで、
-# `push-checklist.sh` を叩く回復コマンドは構造的にブロックされない。**
-# 精密判定の超集合ではなくなる（`eval "git push"` 等は取りこぼす）が、縮退時は元々
-# best-effort であり、取りこぼしの害（1回のpushが素通りする）より回復不能の害が大きい。
+# の両方が揃ったときだけブロックする。`git` トークンを AND 条件にしたことで、
+# `push-checklist.sh` を叩く回復コマンドは構造的にブロックされない。
 command_hints_at_git_push_degraded() {
   local cmd="$1"
   # 精密判定と同じくバックスラッシュを落とす（`git pu\sh` を push と読むため）。
@@ -159,7 +155,12 @@ main() {
   # 変わってしまう。project_dir からの絶対パスで解決する
   # （post-push-compact-prompt.sh が Provider.sh を読む形と同じ）。
   local checklist="${project_dir}/.claude/scripts/src/push-checklist.sh"
-  [ -r "$checklist" ] || exit 0
+  if [ ! -r "$checklist" ]; then
+    # 本体スクリプトが無いと押さえる材料自体が無く、ブロック側へは倒せない
+    # （DDR i0017-01 決定4とは逆方向の縮退経路）。無言にはせず、縮退していることだけ知らせる。
+    printf 'warning: push-checklist.sh が読めないため、push前チェックリストのブロックは無効です（.claude/docs/spec/push-checklist.md）\n' >&2
+    exit 0
+  fi
 
   # `set -e` 配下なので、非0を素の単純コマンドで受けない（受けるとhook自身が exit 1 で
   # 終わり、ブロックしたい場面でブロックされなくなる）。

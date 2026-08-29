@@ -60,15 +60,16 @@ frontmatterインデックス（`index.jsonl`）の最新化、`wip/plans/` `wip
 ```
 # generated-for: <生成時のHEADのSHA>
 # id	項目	状態	実施ログ
-worklog	worklogを作成し、このpushまでの試行錯誤を追記した	pending
-handoff	HANDOFF.md の進捗表・ヘッダを更新した（commitより前・同じcommitに含めた）	pending
-frontmatter-index	frontmatterを変更した場合、index.jsonl を最新化した	pending
-plan-report-sync	wip/plans/ wip/reports/ の md と html を同期した	pending
-commit-skill	commit スキル（create-commit.sh）経由でコミットした	pending
+worklog	worklogを作成し、このpushまでの試行錯誤を追記した	pending	
+handoff	HANDOFF.md の進捗表・ヘッダを更新した（commitより前・同じcommitに含めた）	pending	
+frontmatter-index	frontmatterを変更した場合、index.jsonl を最新化した	pending	
+plan-report-sync	wip/plans/ wip/reports/ の md と html を同期した	pending	
+commit-skill	commit スキル（create-commit.sh）経由でコミットした	pending	
 ```
 
 **全行が4フィールド固定である。** `pending` 行も4列目（空文字列）を持つため、行末はタブで
-終わる。この不変条件は `verify` の検査対象でもある。
+終わる。この不変条件は `verify` の検査対象でもある。**上のサンプルも、各データ行の末尾に
+タブが1つある（空の4列目。表示上は見えない）。**
 
 > **`IFS=$'\t' read -r -a` でこのTSVを分割してはいけない。** タブはIFS空白文字として扱われる
 > ため、連続タブが畳まれ**行末タブが捨てられる**。4フィールド固定という前提が壊れ、`verify` が
@@ -125,10 +126,18 @@ hook は「pushかどうか」を判定し、そうであれば `verify` と `st
 | `verify` = 1（未完了の項目がある） | **exit 2**。未完了の項目名と、`check` / `skip` の使い方、ルールファイルのパスを stderr へ出す |
 | `verify` = 0 または 3 で、`stale` = 0（作業ツリーの最大N > HEADの最大N） | **exit 2**。チェックリストがコミットされていないことと、回復手順を出す |
 | それ以外 | exit 0（通す） |
+| **上記以外に、`jq` でのパースに失敗した／`CLAUDE_PROJECT_DIR`（`GEMINI_PROJECT_DIR`）が未設定／`push-checklist.sh` が読めない場合** | **exit 0（ガードが無効になる）**。stderrへの出力は無い（issue #17フェーズ4の敵対的レビュー2回目で指摘。詳細は下記） |
 
 **`stale` を別に見るのは、`verify` だけでは「新しく生成された分をコミットし忘れた」場合を
 拾えないため**である。チェックリストは flow-id 5-5 まで蓄積するため、`verify` は HEAD に残る
 古い（全 done の）チェックリストを見て 0 を返してしまう。
+
+**上表の「上記以外」の経路は、DDR `i0017-01` の決定4（縮退時はブロック側へ倒す）とは逆方向の
+挙動である。** `push-checklist.sh` 本体が配布漏れ等で読めない場合、hookは登録されているのに
+ガードは一度も効かず、ログも警告も出ない。「押さえるべき本体そのものが無いときはブロックできない
+（ブロック対象を判定する材料が無い）」という構造的な制約によるものだが、無言で通すのではなく
+少なくとも `[ -r "$checklist" ]` が偽のときはstderrへ `warning:` を出し、縮退していることが
+分かるようにする（`post-push-next-checklist.sh` の同種の縮退経路と同じ扱いへ揃える）。
 
 > **`stale` は当初 exit 1（非ブロックの警告）だった。** しかし本機構の動機そのもの——「必要な
 > 更新をcommitへ含め忘れ、その分だけが未コミットで残る」——に当たるのがこの経路であり、
@@ -156,23 +165,10 @@ T11 が機械的に固定している。
 #### 縮退時のフォールバックに前置フィルタを流用しない
 
 `CommandPosition.sh` を使えない場合（bash 4.3未満・配布漏れ・構文エラー）のフォールバックには、
-**前置フィルタではなく専用の `command_hints_at_git_push_degraded` を使う。**
-
-前置フィルタは「`push` という語がどこかに現れるか」しか見ない超集合であり、判定本体として
-使うと過剰検知がそのまま `exit 2` になる。**回復のために叩く `push-checklist.sh check` は
-パスに `push` を含むため必ずブロックされ、縮退環境では自力で回復できなくなる。**
-「縮退時はブロック側へ倒す」方針は妥当だが、倒した先が回復不能では方針として成立しない。
-
-`command_hints_at_git_push_degraded` は実コマンド文字列を空白で分割し、
-(1) basename が `git` のトークンがあり、(2) その後ろに `push` トークンがある、の両方が
-揃ったときだけブロックする。`git` トークンをAND条件にしたことで、回復コマンドは構造的に
-ブロックされない。精密判定の超集合ではなくなる（`eval "git push"` 等を取りこぼす）が、
-縮退時は元々 best-effort であり、**取りこぼしの害（1回のpushが素通りする）より回復不能の害が
-大きい**。
-
-> **前置フィルタとブロック判定は、超集合であるべき向きが逆である。** 前置フィルタでは過剰検知が
-> 「jq起動1回の無駄」で済むため緩める側へ倒すが、ブロック判定では過剰検知が「実行の停止」に
-> なる。同じ関数を両方へ使い回さないこと。
+**前置フィルタではなく専用の `command_hints_at_git_push_degraded` を使う**（`post-push-next-checklist.sh`
+のように過剰検知が冪等に吸収される生成系のhookとは異なり、本hookの過剰検知は `exit 2` という
+実行の停止に直結するため）。理由・実装・却下案は DDR `i0017-01`「4. 縮退時のフォールバックに、
+前置フィルタを流用しない」が正（重複を避けるため、ここでは再掲しない）。
 
 ### 逃げ道（`skip`）
 
@@ -269,6 +265,12 @@ pushのたびに PostToolUse hook が次回分を生成するため、**pushの�
 **実害は無いが、知らずに両方を満たそうとすると「中身が確定していないチェックリストを埋めたく
 なる」——すなわち実施していないことを `done` と書く動機になる。** 本機構は自己申告に立って
 いるため、これが最も避けたい壊れ方である。**両立させようとせず、次のpushで埋めること。**
+
+**実際にこの壊れ方が1件発生した（issue #17フェーズ4の敵対的レビュー2回目で発覚）。**
+`commit-skill` 項目は文言が「commitスキル（create-commit.sh）経由でコミットした」（完了形）だが、
+このpushが単一コミットで完結する場合（最も一般的なケース）、そのコミット自体がStep 3.5の時点では
+まだ存在しないため、文字どおりには満たせない。対応は `.claude/skills/commit/SKILL.md`
+「Step 3.5」の該当箇条書きを参照（単一コミットで完結する場合は `skip` する）。
 
 ### 誤ブロックの再現条件が1件、特定できていない
 
