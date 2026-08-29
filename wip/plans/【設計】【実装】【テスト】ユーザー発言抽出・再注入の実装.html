@@ -178,7 +178,7 @@
   <p><b>提案: プレーンテキストファイル <code>.claude/hooks/session-start-ack-words.txt</code> に切り出す。</b></p>
   <ul>
     <li>1行1語（正規化後の形で書く）。<code>#</code> で始まる行はコメント（削除・追加の理由を書ける）。空行は無視。</li>
-    <li>UTF-8・BOM無し・LF改行で保存し、<code>.gitattributes</code> へ1行を追加する（<code>.sh</code>規約と同じ理由。改行がCRLFに化けると<code>case</code>パターンマッチが壊れる）。</li>
+    <li>UTF-8・BOM無し・LF改行で保存し、<code>.gitattributes</code> の<code>dist:begin</code>〜<code>dist:end</code>マーカーの<b>内側</b>へ1行を追加する（<code>.sh</code>規約と同じ理由。マーカーの内側にしないと配布先ではLFが保証されない）。改行がCRLFに化けると、辞書照合は<code>jq</code>の完全一致比較のため一致しなくなる（<code>case</code>パターンマッチではない）。</li>
   </ul>
   <div class="box ok">
     <span class="label">理由</span>
@@ -193,17 +193,28 @@
   <p><b>提案: 2段構えにする。</b></p>
   <ol>
     <li><b>注入テキストへの当該セッション分の内訳</b>: そのセッションで1件でも除外があれば、ユーザー発言節の末尾へ1行足す。
-      <pre><code>- 相槌等として除外: ok×1, はい×1</code></pre>
-      辞書語と件数だけで、<b>除外された発言の本文は出さない</b>。
+      <pre><code>- 相槌等として除外: はい×1, ありがとう×1</code></pre>
+      辞書語と件数だけで、<b>除外された発言の本文は出さない</b>。<b>選定結果（<code>selected</code>）が0件になった場合でも、除外が1件以上あればこの行だけは出す</b>（下記「全件除外時の扱い」）。
     </li>
-    <li><b>累積カウントのローカル状態ファイル</b>: <code>wip/state/session-start-ack-exclusion-counts.json</code>（<code>.gitignore</code>の<code>/wip/state/</code>で既に除外対象。issue #184で導入済みのディレクトリを流用するため新規の除外パターンは不要）。辞書語をキーに、除外した累積件数を持つ。
-      <pre><code>{"ok": 3, "はい": 1}</code></pre>
-      セッションごとに読み込み、今回分を加算して書き戻す。
+    <li><b>累積カウントのローカル状態ファイル</b>: <code>wip/state/session-start-ack-exclusion-counts.json</code>（<code>.gitignore</code>の<code>/wip/state/</code>で既に除外対象。issue #184で導入済みのディレクトリを流用するため新規の除外パターンは不要）。辞書語をキーに、除外した累積件数と、重複計上を防ぐための<code>uuid</code>集合を持つ。
+      <pre><code>{
+  "counts": {"はい": 3, "ありがとう": 1},
+  "countedUuids": ["c1a2...", "9f3e..."]
+}</code></pre>
+      セッションごとに読み込み、<b>まだ<code>countedUuids</code>に無い<code>uuid</code>の除外イベントだけ</b>を加算して書き戻す。このファイルにも発言の本文は書かない（語と件数、および重複除去用の<code>uuid</code>のみ）。
     </li>
   </ol>
+  <div class="box warn">
+    <span class="label">重複計上対策（フェーズ3敵対的レビュー指摘）</span>
+    SessionStart hookはstartup/resume/clear/compactのたびに発火し、同一セッションで同じtranscriptを何度も読み直す（実測済み）。素朴に「今回加算して書き戻す」だけだと、同じ除外イベントを再発火のたびに数え直してしまう。除外イベントごとに元行の<code>uuid</code>を<code>countedUuids</code>集合と突き合わせ、未計上のものだけ加算する。集合は短い文字列（<code>uuid</code>）のみでファイルサイズへの影響は軽微で、このファイル自体がローカル状態（gitignore対象）のため肥大化しても実害は無い。
+  </div>
+  <div class="box warn">
+    <span class="label">状態ファイルの破損・空・並行書き込みへの備え（同上）</span>
+    issue #37と同型の恒久回復不能を避けるため、読み込み前に<b>空文字チェック→<code>jq -e .</code>の順で検証</b>し、いずれかに失敗したら「状態なし」（<code>counts={}</code>・<code>countedUuids=[]</code>）へフォールバックする。書き込みは一時ファイルへ書いてから<code>mv</code>する（原子的な置き換え）。
+  </div>
   <div class="box ok">
     <span class="label">理由</span>
-    「毎回のユーザの入力を見ながら育てる」を成り立たせるには、まず<b>何かが落ちたことに気づける</b>必要がある。当該セッションの内訳（1）は即座に気づける経路、累積カウント（2）は「<code>ok</code>が何度も引っかかる」のような<b>傾向</b>に気づける経路で、役割が異なるため両方持つ。
+    「毎回のユーザの入力を見ながら育てる」を成り立たせるには、まず<b>何かが落ちたことに気づける</b>必要がある。当該セッションの内訳（1）は即座に気づける経路、累積カウント（2）は「<code>はい</code>が何度も引っかかる」のような<b>傾向</b>に気づける経路で、役割が異なるため両方持つ。
   </div>
   <div class="box warn">
     <span class="label">秘密情報の扱い</span>
@@ -213,6 +224,9 @@
     <span class="label">却下した案</span>
     除外した発言の本文をログへ残す。過剰除去の判断がしやすくなる一方、秘密情報を平文でローカルに蓄積することになる。上記の代替で足りると判断した。
   </div>
+
+  <h3>全件除外時の扱い（H-3と関連。フェーズ3敵対的レビュー指摘）</h3>
+  <p><b>除外内訳行は、<code>selected</code>が0件になった場合でも独立に出す。</b> 現在の「N=0なら節ごと出さない」という既存方針（DDR i0057-01）は保つが、それは「発言そのものが1件も選ばれなかった場合にユーザー発言節の見出し・本文を出さない」という意味であり、<b>除外内訳行はこの判定に含めない</b>。辞書との一致・バイト上限超過などで<code>selected</code>が全滅しても<code>excludedCounts</code>が1件以上あれば、除外内訳行だけを（見出しなしで）出す。気づきたい度合いが最大の状況でこそ、この行が唯一の手がかりになる。</p>
 
   <h3>H-4. 育てた操作の記録先</h3>
   <p><b>提案: 新しい記録先を作らない。辞書ファイル（H-2）自体のgit履歴を記録先にする。</b></p>
@@ -259,9 +273,11 @@
     <tbody>
       <tr><td>新規</td><td><code>.claude/hooks/session-start-ack-words.txt</code></td><td>除外辞書（H-2）</td></tr>
       <tr><td>新規</td><td><code>.claude/hooks/lib/UserUtteranceSelect.jq</code></td><td>抽出・選定・整形の中核。単一のjqフィルタ</td></tr>
-      <tr><td>変更</td><td><code>.claude/hooks/session-start.sh</code></td><td><code>build_user_utterance_context</code>関数を新設し<code>build_work_context</code>から呼ぶ。<code>append_size_warning</code>を除外バイト数を受け取れる形へ変更</td></tr>
+      <tr><td>変更</td><td><code>.claude/hooks/session-start.sh</code></td><td><code>build_user_utterance_context</code>関数を新設し<code>build_work_context</code>から呼ぶ。<code>transcript_path</code>を<code>main</code>から関数引数で下方向へ渡し、再注入バイト数はセンチネル行で上方向へ返す。<code>append_size_warning</code>の<b>末尾</b>へ<code>excluded_bytes</code>（省略可・既定0）を追加。新しい環境変数3つの既定値を宣言</td></tr>
       <tr><td>変更</td><td><code>.claude/scripts/test/test_session_start.sh</code></td><td>新規関数・<code>UserUtteranceSelect.jq</code>の単体テストを追加</td></tr>
-      <tr><td>変更</td><td><code>.gitattributes</code></td><td><code>session-start-ack-words.txt</code>のLF改行を保証する1行を追加</td></tr>
+      <tr><td>変更</td><td><code>.gitattributes</code></td><td><code>session-start-ack-words.txt</code>のLF改行を保証する1行を<code>dist:begin</code>〜<code>dist:end</code>の内側へ追加</td></tr>
+      <tr><td>変更</td><td><code>.gitignore</code></td><td><code>/wip/state/</code>コメントの内訳列挙へ<code>session-start-ack-exclusion-counts.json</code>を追記</td></tr>
+      <tr><td>変更</td><td><code>.claude/rules/directory-structure.md</code></td><td><code>wip/state/</code>配下の内訳列挙へ同ファイルを追記</td></tr>
     </tbody>
   </table>
   </div>
@@ -269,6 +285,12 @@
 
 <section id="approach">
   <h2>方針</h2>
+
+  <h3>新しい環境変数の既定値</h3>
+  <p><code>session-start.sh</code>冒頭、既存の<code>CONTEXT_SIZE_WARN_BYTES</code>と同じ位置・同じ形（<code>VAR="${VAR:-既定}"</code>）で次を宣言する（<code>set -u</code>配下のため宣言漏れは注入全体を落とす）。</p>
+  <pre><code>USER_UTTERANCE_HEAD_COUNT="${USER_UTTERANCE_HEAD_COUNT:-3}"
+USER_UTTERANCE_TAIL_COUNT="${USER_UTTERANCE_TAIL_COUNT:-7}"
+USER_UTTERANCE_MAX_BYTES="${USER_UTTERANCE_MAX_BYTES:-6000}"</code></pre>
 
   <h3>抽出パイプライン（1回のjq呼び出しに集約する）</h3>
   <p>「外部プロセス起動のコスト」規約に従い、抽出・母集団確定・除外規則適用・ブランチ絞り・<code>uuid</code>重複除去・先頭/直近の採り方・切り出し・バイト数計算までを<b><code>UserUtteranceSelect.jq</code> 1本のjq呼び出しでまとめて行う</b>。</p>
@@ -280,17 +302,22 @@
   ... \
   &lt; "$transcript_path"</code></pre>
   <ul>
-    <li>パス名を引数で渡さず<b>標準入力へ繋ぐ</b>（フェーズ2問い7の結論）。</li>
-    <li>辞書は<code>--rawfile</code>でテキストごと渡し、jq側で改行分割・コメント行/空行除去を行う。</li>
+    <li><code>transcript_path</code>だけを引数で渡さず<b>標準入力へ繋ぐ</b>（フェーズ2問い7の結論。動的で任意の位置になりうる外部パスのため）。<code>-f</code>のフィルタパスと<code>--rawfile</code>の辞書パスは、いずれもリポジトリ内の固定相対パスであり標準入力へ逃がす対象ではない（既存<code>session-start.sh</code>が<code>jq</code>を<code>-f</code>引数で呼んでいる箇所と同じ扱い）。</li>
+    <li>辞書は<code>--rawfile</code>でテキストごと渡し、jq側で改行分割・<b>各行のtrim（前後空白・CR除去）</b>・コメント行/空行除去を行う。発言側と同じ正規化を辞書語にも適用してから比較する（末尾空白・CRLF・字下げされたコメント行で辞書語が無言で無効化されるのを防ぐ）。</li>
+    <li>辞書ファイルが存在しない・読めない場合、bash側は<code>--rawfile</code>を使わず空文字列を<code>--arg</code>で渡す（存在しないパスを<code>--rawfile</code>へ渡すとjq起動自体が失敗するため）。</li>
     <li>出力は1つのJSONオブジェクト（<code>selected</code> / <code>excludedCounts</code> / <code>populationCount</code>）にまとめ、bash側は<code>jq -r</code>で崩す（bash・jq間の受け渡しも1回で済ませる）。</li>
   </ul>
+  <div class="box warn">
+    <span class="label">CR除去（フェーズ3敵対的レビュー指摘）</span>
+    Windows native jqはコマンド置換・パイプでも行末へCRを付与する。<code>excludedCounts</code>のキーを複数件ループで取り出す場合、<code>selected[].text</code>のように複数行になりうる値をコマンド置換で受ける場合のいずれも最後の要素・最終行以外にCRが残る。この2箇所は<code>| tr -d '\r'</code>を挟む（単一行・単一要素で完結する取り出しには不要）。
+  </div>
 
   <h3>抽出条件（フェーズ2確定分。実装で崩さない）</h3>
   <p><code>type=="user"</code> ＋ <code>.message.content</code>が文字列 ＋ <code>userType=="external"</code> ＋ <code>isSidechain==false</code> ＋ <code>origin.kind=="human"</code>。<b>肯定形を崩さない</b>。</p>
 
   <h3>除外規則</h3>
   <ol>
-    <li>辞書との<b>正規化後の完全一致</b>（前後の空白・句読点・感嘆符・記号の除去）</li>
+    <li>辞書との<b>正規化後の完全一致</b>（前後の空白・句読点・感嘆符・記号の除去）。<b>辞書ファイルが存在しない・空・読めない場合は、この規則を無効化して続行する</b>（辞書0語＝この規則では何も除外しない）。</li>
     <li>引数の無いスラッシュコマンド単体（<code>^/[A-Za-z][A-Za-z0-9:_-]*$</code>）</li>
     <li><code>&lt;command-name&gt;</code> 等のタグで始まる行</li>
   </ol>
@@ -306,15 +333,52 @@
     <li>節全体のバイト上限<code>USER_UTTERANCE_MAX_BYTES</code>（既定6000）。超えた場合は直近枠の古い側から1件ずつ落とす。先頭枠は落とさない。</li>
   </ul>
 
-  <h3>出力位置と<code>append_size_warning</code>の変更</h3>
-  <p><code>build_work_context</code>内、「<code>HANDOFF.md</code>次にやること」ブロックの直後・SKILL.md再読み込み指示の<b>手前</b>へ挿入する（issue #113の末尾配置を維持）。</p>
-  <div class="box warn">
-    <span class="label">既存の記述を置き換える場合</span>
-    <code>append_size_warning</code>は現在<code>(text, limit)</code>の2引数。<b><code>(text, excluded_bytes, limit)</code>の3引数へ変更</b>し、<code>effective_bytes = context_text_bytes(text) - excluded_bytes</code>で判定する。警告文には「全体Nバイト（うち再注入分Mバイトを除外して判定）」の両方を出す。既存呼び出し元（<code>main</code>）も新しい引数を渡すよう変更する。
+  <h3>transcript_pathの受け渡し（フェーズ3敵対的レビュー指摘）</h3>
+  <p><b>下方向は関数引数でそのまま渡す。</b> <code>transcript_path</code>は<code>main</code>が<code>raw="$(cat)"</code>で読んだstdin JSONの中にしかない。下方向の値渡しはコマンド置換のサブシェル境界に影響されない——issue #43が問題にしているのは「サブシェル内で設定したグローバル変数が呼び出し元へ伝わらない」という<b>上方向</b>の話であり、引数を下へ渡す分には無関係である。</p>
+  <pre><code>main() {
+  raw="$(cat)"
+  transcript_path="$(printf '%s' "$raw" | jq -r '.transcript_path // empty')"
+  if context_text="$(build_context "$transcript_path")"; then ...
+}
+build_context() {
+  local transcript_path="${1:-}"
+  work_context="$(build_work_context "$branch" "$transcript_path")"
+}
+build_work_context() {
+  local branch="${1:-}" transcript_path="${2:-}"
+}
+build_user_utterance_context() {
+  local branch="${1:-}" transcript_path="${2:-}"
+}</code></pre>
+
+  <h3>再注入バイト数の返し方（同上の指摘）</h3>
+  <p><b>上方向はグローバル変数では伝わらない。</b> <code>work_context="$(build_work_context ...)"</code> も <code>context_text="$(build_context ...)"</code> もコマンド置換でありサブシェルへforkするため、内側で設定したグローバル変数は<code>main</code>まで伝わらない。<b>標準出力の中身自体はコマンド置換が何段ネストしてもそのまま親へ伝わる</b>ため、<code>build_user_utterance_context</code>は本文の<b>末尾へセンチネル行を1行追加</b>して返す。</p>
+  <pre><code>__USER_UTTERANCE_BYTES__:1234</code></pre>
+  <p>各関数はこの行を含めて<code>lines</code>配列へそのまま積む。<code>main</code>は<code>context_text</code>からこの行を<code>grep</code>で抜き出して数値を取り出し、本体からは取り除いてから<code>write_additional_context</code>へ渡す。ユーザー発言節を1行も出さない場合、センチネル行も出さない（<code>excluded_bytes</code>は既定の0）。</p>
+
+  <h3>出力位置</h3>
+  <p><code>build_work_context</code>内、「<code>HANDOFF.md</code>次にやること」ブロックの直後・SKILL.md再読み込み指示の<b>手前</b>へ挿入する（issue #113の末尾配置を維持）。センチネル行は<code>main</code>が取り除くため、実際にユーザーへ見える注入内容には現れない。</p>
+
+  <h3><code>append_size_warning</code>の変更</h3>
+  <p>現在<code>(text, limit)</code>の2引数。<b>末尾へ<code>excluded_bytes</code>を追加し<code>(text, limit, excluded_bytes)</code>の3引数（第3引数は省略可・既定0）へ変更</b>する（間へ差し込まない）。<code>effective_bytes = context_text_bytes(text) - excluded_bytes</code>で判定し、警告文には「全体Nバイト（うち再注入分Mバイトを除外して判定）」の両方を出す。</p>
+  <div class="box ok">
+    <span class="label">既存テストへの影響（フェーズ3敵対的レビュー指摘）</span>
+    第3引数を末尾へ追加し既定値0にしたことで、<code>test_session_start.sh</code>の既存2引数呼び出し6箇所は<b>変更不要</b>になる（<code>excluded_bytes</code>省略時は<code>effective_bytes = total_bytes</code>となり従来と完全に同じ判定になる。当初案「第2引数へ差し込む」は既存呼び出しの意味を無言で変えるため採らない）。<code>main</code>は新しい第3引数を渡すよう変更する。
   </div>
 
   <h3>fail-open</h3>
-  <p><code>transcript_path</code>が空・不正・壊れたJSONの場合、<code>UserUtteranceSelect.jq</code>の呼び出しが失敗しても<code>build_user_utterance_context</code>は空文字列を返し（<code>build_context</code>全体は失敗させない）、他の注入項目は通常どおり出す。</p>
+  <p><code>transcript_path</code>が空・不正・壊れたJSONの場合、<code>UserUtteranceSelect.jq</code>の呼び出しが失敗しても<code>build_context</code>全体を失敗させず、他の注入項目は通常どおり出す。</p>
+  <div class="box warn">
+    <span class="label">具体的な実装（フェーズ3敵対的レビュー指摘）</span>
+    <code>build_work_context</code>自体は<code>build_context</code>の中で<code>set -e</code>配下にあるため、素朴に<code>user_utterance_context="$(build_user_utterance_context ...)"</code>と書くと失敗時に既存6項目が丸ごと消える。「bashでのtry/catch相当の書き方」の出力を受け取る形を適用する。
+    <pre><code>set +e
+user_utterance_context="$(set -e; build_user_utterance_context "$branch" "$transcript_path")"
+rc=$?
+set -e
+[ "$rc" -eq 0 ] || user_utterance_context=""
+[ -z "$user_utterance_context" ] || lines+=("$user_utterance_context")</code></pre>
+    この形にすることで、ユーザー発言節の生成が失敗しても<code>build_work_context</code>・<code>build_context</code>は正常終了し、既存の注入項目は影響を受けない。この性質はテスト計画#23で確認する。
+  </div>
 </section>
 
 <section id="out-of-scope">
@@ -359,6 +423,12 @@
       <tr><td>18</td><td>累積カウントファイルが存在しない初回実行</td><td>エラーにならず新規作成される</td></tr>
       <tr><td>19</td><td>累積カウントファイルに既存値がある</td><td>加算した値で書き戻される</td></tr>
       <tr><td>20</td><td><code>append_size_warning</code>（3引数版）</td><td><code>excluded_bytes</code>を差し引いた値で判定し、警告文に両方の数値が出る</td></tr>
+      <tr><td>21</td><td><code>append_size_warning</code>を従来どおり2引数で呼ぶ</td><td><code>excluded_bytes</code>省略時は<code>effective_bytes = total_bytes</code>となり従来の判定と一致する（既存6箇所が無変更で通ることの確認）</td></tr>
+      <tr><td>22</td><td>累積カウント状態ファイルが空・壊れたJSON</td><td>検証エラーを検知し「状態なし」へフォールバックして自己回復する（エラーで落ちない）</td></tr>
+      <tr><td>23</td><td><code>UserUtteranceSelect.jq</code>の呼び出し自体が失敗する状況を模す</td><td><code>build_context</code>は失敗せず、既存6項目は通常どおり出る（fail-open）</td></tr>
+      <tr><td>24</td><td>辞書ファイルが存在しない・空</td><td>規則1が無効化され例外を投げない。規則2・3は通常どおり動く</td></tr>
+      <tr><td>25</td><td>辞書一致で<code>selected</code>が全滅（除外件数&gt;0）だが選定結果が0件</td><td>除外内訳行だけが出る</td></tr>
+      <tr><td>26</td><td>同一セッションでhookが2回発火（resume相当）、同じ除外イベントを含むtranscriptを2回処理</td><td>累積カウントが2重加算されない（<code>countedUuids</code>で重複除去）</td></tr>
     </tbody>
   </table>
   </div>
@@ -369,11 +439,17 @@
   <pre><code>bash .claude/scripts/test/test_session_start.sh
 git fetch origin main && base="$(git merge-base origin/main HEAD)" && \
   git diff --name-only "$base" -- .claude/hooks/ .claude/scripts/test/ .gitattributes</code></pre>
+  <div class="box warn">
+    <span class="label">期待するファイル集合（フェーズ3敵対的レビュー指摘）</span>
+    上記<code>git diff --name-only</code>が出すべきファイルは次の5つのみ（1件でも他のパスが出たら不合格）: <code>.claude/hooks/session-start.sh</code> / <code>.claude/hooks/session-start-ack-words.txt</code> / <code>.claude/hooks/lib/UserUtteranceSelect.jq</code> / <code>.claude/scripts/test/test_session_start.sh</code> / <code>.gitattributes</code>。
+  </div>
   <ul>
-    <li><code>test_session_start.sh</code>が<code>passed=N failures=0</code>で通る（テスト計画の20ケースすべてを含む）。</li>
+    <li><code>test_session_start.sh</code>が<code>passed=N failures=0</code>で通る（テスト計画の26ケースすべてを含む）。</li>
+    <li><code>-f</code>のフィルタパス・<code>--rawfile</code>の辞書パスがリポジトリルートからの相対パスで正しく解決されること（個別調査計画・問い7で保留していた確認）。</li>
     <li>実transcript（本ブランチのもの）に対して<code>UserUtteranceSelect.jq</code>を直接実行し、出力が目視で妥当なこと（統計値のみ<code>wip/reports/</code>へ記録。本文は貼らない）。</li>
     <li><b>git bash実機での再測（残課題F）</b>: flow-id 3-6で、<code>jq</code>起動込みの実測をユーザーのローカル環境で行えるか確認する。行えない場合は「未確認」のまま記録し、Linux見積もり（約208ms、しきい値500msの42%）を暫定の合否として扱う。</li>
-    <li><code>main</code>ブランチ上で hook を実行したとき、既存6項目のみが注入され、ユーザー発言節・除外内訳行のいずれも出ないこと。</li>
+    <li><b><code>main</code>ブランチ上で hook を実行したとき、従来どおり何も注入されないこと</b>（<code>build_context</code>は現在ブランチがベースブランチのとき<code>exit 2</code>し、<code>main</code>では既存6項目を含め一切注入しない経路である。「既存6項目のみが注入される」は誤り）。</li>
+    <li>作業ブランチ上で hook を実行したとき、既存6項目に加えてユーザー発言節（除外内訳行を含む）が漏れなく出ること。</li>
   </ul>
 </section>
 
@@ -390,6 +466,9 @@ git fetch origin main && base="$(git merge-base origin/main HEAD)" && \
       <tr><td>先頭枠を諦める（E）</td><td>実装が単純になる</td><td><span class="tag stop">却下</span> 本機能の主目的（最初の依頼を保つ）そのものを手放す。他の2案より損失が大きい</td></tr>
       <tr><td><code>AskUserQuestion</code>回答を今回のスコープに含める（A）</td><td>人間の意思決定を取りこぼさない</td><td><span class="tag stop">却下</span> 抽出条件の再設計に近い規模で、本issueのスコープを超える</td></tr>
       <tr><td>母集団0件を実行時に検知して警告する（C）</td><td>異常への気づきが早くなる</td><td><span class="tag stop">却下</span> fail-open設計（DDR i0057-01）に例外を作る。回帰は単体テストで防ぐべき性質</td></tr>
+      <tr><td><code>excluded_bytes</code>を<code>append_size_warning</code>の第2引数へ差し込む</td><td>引数の並びが直感的</td><td><span class="tag stop">却下</span> 既存呼び出し（<code>test_session_start.sh</code>の6箇所）が無言で意味を変える</td></tr>
+      <tr><td>再注入バイト数を専用の状態ファイル経由で<code>main</code>へ渡す</td><td>サブシェル境界を気にしなくてよい</td><td><span class="tag stop">却下</span> 1回の実行内で完結する値をファイルI/Oで往復させる必要が無い。センチネル行のほうが単純</td></tr>
+      <tr><td>累積カウントを<code>session_id</code>単位のカーソルで重複除去する</td><td>集合ではなく1値で済む</td><td><span class="tag stop">却下</span> <code>usage/state/session-cursors/</code>と役割が重複するうえ、compact後の行番号再採番が未確認。<code>uuid</code>集合のほうが確実</td></tr>
     </tbody>
   </table>
   </div>

@@ -17,7 +17,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - issue: #151
 - ブランチ: `claude/user-recent-utterance-reinject-9ygbxd`
 - PR: #197（https://github.com/yuki-matsu783/MR-driven-workflow/pull/197 ）
-- push回数: 9
+- push回数: 10
 - 現在のループ: なし
 - 未返信スレッド: 0
 - 追従監視: 購読あり（web。subscribe_pr_activity + send_laterによる自己チェックイン）
@@ -308,13 +308,33 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
   - 変更対象・抽出パイプライン設計（`UserUtteranceSelect.jq`への1回集約）・
     `append_size_warning`の3引数化・テスト計画20ケースまで書き、実装（3-6）で迷わない粒度にした。
 
+- **flow-id 3-2**: `commit`スキル経由でコミットしpushした（push回数9）。
+
+- **計画段階の敵対的レビュー（フェーズ3・1回目）**: 16件の指摘（major/high 3件・major/medium
+  6件・minor/high 2件・minor/medium 5件）を得た。うち10件（major/high 3件・major/medium 5件・
+  minor/high 2件）をインラインコメントとして投稿し、残り6件（すべてminor/medium）は
+  レビュー本文で報告のみとした。実施回数カウンタは **1/3**。
+  - 投稿した10スレッド（すべて返信済み。`- 未返信スレッド: 0`）:
+    https://github.com/yuki-matsu783/MR-driven-workflow/pull/197#discussion_r3887932011 ,
+    r3887932252, r3887932535, r3887932757, r3887932934, r3887933141, r3887933372,
+    r3887933587, r3887933826, r3887934064
+    （2件目以降は同PRの `#discussion_r<番号>` 部分のみ記載）
+  - **全16件を計画へ反映した**: transcript_pathの受け渡し・再注入バイト数の返し方（センチネル行）、
+    `append_size_warning`の末尾第3引数化（既存6箇所のテスト無変更）、累積カウントの
+    `countedUuids`による重複計上対策、状態ファイルの破損対策（空チェック→`jq -e .`→
+    一時ファイル+mv）、CR除去の明記、fail-openの具体的なtry/catch形、全件除外時も除外内訳行を
+    出す設計、パス渡しの矛盾記述の是正、H-3例の`ok`置き換え、`main`ブランチ検証項目の是正、
+    辞書行のtrim・辞書ファイル欠落時のフォールバック・環境変数既定値宣言位置・
+    `.gitattributes`マーカー位置と理由の是正・`git diff`期待値の明記・`wip/state/`列挙箇所の
+    追随（`.gitignore`/`directory-structure.md`）。テスト計画は20→26ケースへ増補。
+  - 詳細: `wip/worklogs/20260829_..._【設計】【実装】【テスト】ユーザー発言抽出・再注入の実装_push10.md`
+
 ## 次にやること
 
-- **flow-id 3-2**: `commit`スキル経由でcommitし、push してレビュー依頼を行う。
+- **flow-id 3-2（続き）**: 上記の指摘反映分をコミットしpushする（push回数10）。
 - **flow-id 3-3**: 個別作業計画（とくに残る設計判断4点 H・E・A・C）のレビュー・承認を待つ。
   **承認を得るまで3-6（実装）へ進まない。**
-- **敵対的レビューの残り実施回数**: フェーズ2は **2/3 消費**。フェーズ3は未使用（0/3）。
-  flow-id 3-2 のpush後、計画段階の敵対的レビュー（1回目）を実施する。
+- **敵対的レビューの残り実施回数**: フェーズ2は 2/3 消費。フェーズ3は **1/3 消費**（残り2回）。
 
 ## 判断を迷った内容
 
