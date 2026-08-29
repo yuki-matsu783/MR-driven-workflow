@@ -18,7 +18,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - ブランチ: claude/pr-mr-diffview-link-yxim1l
 - PR: #206（https://github.com/yuki-matsu783/MR-driven-workflow/pull/206 ）
 - push回数: 10
-- 現在のループ: なし
+- 現在のループ: 4-6〜4-9 の1周目（進行中）
 - 未返信スレッド: 0
 - 追従監視: あり（subscribe_pr_activity で PR #206 を購読中。セッション終了で止まるため次セッションは resume で取り直す）
 
@@ -279,22 +279,45 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
   - **フェーズ4・計画時の敵対的レビューはこれで完了**（1回目=計画時）。次は反映対象7箇所を
     実際に実装し、実施後の敵対的レビュー（2回目）へ進む。
 
-## 次にやること
-
-- **修正後の計画（`wip/plans/【設計反映】Diffviewリンク出し分けのspec_DDR反映.md`。反映対象7箇所）
-  に沿って、実際にspec/DDR/mcp-fallbackへの反映を実施する（flow-id 4-6相当）。**
+- flow-id 4-6: **反映対象7箇所すべてを実施した。**
   1. spec「提供関数」表: `get_mr_diff_url`行を4引数化、`resolve_mr_number_for_head`行を新設、
      `get_diff_anchor_base_url`行へ`compare_url`を渡す旨を追記。
-  2. spec「未決定事項・懸念点」: issue #13項目の更新＋新規6項目の追加。
-  3. spec「参照リンクの付与（issue #13）」節（1613〜1632行）の更新。
-  4. spec 979〜980行・`references/mcp-fallback.md` 108行の既存記述更新。
-  5. spec「影響範囲」への`### issue #205（…）`changelogエントリ追記。
-  6. 新規DDR `i0205-01`を作成し、`bash .claude/scripts/src/generate-ddr-list.sh`を実行。
-  7. `references/mcp-fallback.md`へ2点（挙動差の表・`*`喪失の落とし穴）を追記。
-  - 着手前に計画の「検証」節7本のgrepを実行し、全件0件であることを確認してから作業する
-    （既に1回確認済みだが、着手直前に再確認する）。反映後は同じgrepが1件以上になることを確認する。
-  - `bash .claude/scripts/src/check-doc-references.sh`と単体テスト21ファイルを実行して確認する。
-- 反映実施後、**敵対的レビュー（フェーズ4・2回目、作業実施後）を実行**し、指摘へ対応・返信する。
+  2. spec「未決定事項・懸念点」: issue #13項目を更新し、issue #205関連の新規6項目を追加
+     （末尾へ追記。既存項目は書き換えず追記のみ）。
+  3. spec「参照リンクの付与（issue #13）」節: MRリンク行への解決結果の反映、「URL組み立ての
+     方針」節への部分的上書きの追記、新設「MCPフォールバック時のMR/PR URL解決（issue #205）」
+     小節を追加。
+  4. spec 979〜980行・`mcp-fallback.md` 108行の既存記述を、MCP経路での解決成功／失敗の両方を
+     反映する内容へ書き換え。
+  5. spec「影響範囲」へ`### issue #205（…）`エントリを追記（既存エントリは書き換えず）。
+  6. 新規DDR `i0205-01`を作成し、`bash .claude/scripts/src/generate-ddr-list.sh`実行で
+     DDR一覧を97件へ更新。DDR `i0013-01`のfrontmatterは変更していない
+     （`git diff --stat`で変更0を確認）。
+  7. `references/mcp-fallback.md`へ2点（挙動差の表・`*`喪失の落とし穴の観測ツール訂正）を追記。
+  - 「巻き添えの確認」の横断grepで、`post-push-compact-prompt.sh` 87〜91行のコードコメントが
+    実装後の挙動と食い違っていることを発見し、あわせて修正した（spec/DDR反映とは別コミットとして
+    扱う予定）。
+  - **検証**: 計画の「検証」節7本のgrepを反映前（コミット`6c18df6`時点、全件0件）・反映後
+    （全件1件以上）の両方で実行し、反映漏れが無いことを確認した。
+  - `bash .claude/scripts/src/check-doc-references.sh`（参照切れ数=0）・単体テスト21ファイル
+    （`passed=1550 failures=0`）をいずれも実行し確認した。
+  - `wip/reports/20260826_diffview-link-switchover_反映結果.md`（+ `.html`）を作成し、9つの
+    完了条件すべてを「達成」と判定した。md/htmlの見出し構成が一致することを確認済み。
+
+## 次にやること
+
+- flow-id 4-7: 反映結果一式をcommit・pushしてレビュー依頼を行う（`commit`スキル経由。
+  仕様変更系（spec/DDR/mcp-fallback追記）とコードコメント修正で2コミットに分けることを検討）。
+- flow-id 4-8〜4-9相当: **敵対的レビュー（フェーズ4・2回目、作業実施後）を実行**し、指摘へ対応・
+  返信する（`adversarial-review-count.sh get 4`は現在1/3。1回使えば2/3）。
+- 2回目のレビューが完了したら（投稿分すべて返信・未返信0）、`update-handoff-progress.sh`で
+  `4-6〜4-9`ループの状態を確認する（非対話セッションのため進捗記号は`[]`のまま残す方針。
+  `.claude/rules/docs-workflow.md`末尾の規定。フェーズ3の`3-6〜3-9`と同じ扱い）。
+- その後、flow-id 4-10（`describe`でMR descriptionを更新）へ進み、フェーズ5（クローズ）へ移る:
+  資産同期（`sync-gemini-assets.sh`。flow-id 5-3）、コンフリクトチェック（`resolve-conflict`）、
+  関連issueへのマージ前通知（`AskUserQuestion`での承認必須）、最終統括レポート、
+  `cleanup-task.sh`によるwip配下の片付け、Draft解除（`set_mr_ready`）。**マージ（flow-id 5-7）は
+  ユーザーの明示指示があるまで行わない。**
 - （完了済み）flow-id 3-6 の実装対象:
   1. `get_mr_diff_url` の4引数化（`Provider.sh` / `Github.sh` / `Gitlab.sh`）。純粋関数のまま。
   2. `Provider.sh` へPR URL解決関数を新設（`git ls-remote` ＋ **複数候補SHAで一致したPR番号が
