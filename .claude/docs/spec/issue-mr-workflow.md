@@ -119,10 +119,11 @@ MRとのやり取りだけを自動化する薄い層」として設計したが
 | `get_issue_number_from_branch [<branch>]` | ブランチ名を `branchPrefixTemplate` に照らしてissue番号を抽出する（省略時は現在のブランチ）。マッチすればstdoutへ出力し終了コード0、マッチしなければ終了コード1（プロバイダ非依存） | — | — |
 | `get_mr_for_branch <branch>` | 指定ブランチに紐づくPR/MRの番号・URL・タイトル・Draft状態を取得する（JSON。無ければ何も出力せず終了コード0） | `gh pr view <branch>` | `glab mr view <branch>` |
 | `get_repo_url` | リポジトリの正規URL（フルパス）を取得する。MR/PRのURL文字列からの推測ではなく、`git remote get-url origin` の値を `repo_url_from_remote_url` で正規化して導出する（**プロバイダ非依存**。issue #44。issue #13フォローアップ時点では`gh`/`glab`へディスパッチしていた） | — | — |
-| `get_mr_diff_url <repoUrl> <baseBranch> <headBranch>` | MR/PRの「defaultブランチとの差分」を見れるURLを組み立てる（純粋関数。`repoUrl`は`get_repo_url`の戻り値を渡す。issue #13） | `<repoUrl>/compare/<baseBranch>...<headBranch>` | `<repoUrl>/-/compare/<baseBranch>...<headBranch>` |
+| `get_mr_diff_url <repoUrl> <baseBranch> <headBranch> [<mrUrl>]` | MR/PRの「defaultブランチとの差分」を見れるURLを組み立てる（純粋関数。`repoUrl`は`get_repo_url`の戻り値を渡す。issue #13）。**第4引数`mrUrl`が非空ならDiffview（PR/MR本体のレビューコメントを付けられるビュー）を返し、空ならCompareを返す**（issue #205。`mrUrl`は`get_mr_for_branch`の`url`、またはCLI不在時は`resolve_mr_number_for_head`＋`get_mr_url`で解決したもの） | `<mrUrl>/files`（`mrUrl`が非空）／`<repoUrl>/compare/<baseBranch>...<headBranch>`（空） | `<mrUrl>/diffs`（`mrUrl`が非空）／`<repoUrl>/-/compare/<baseBranch>...<headBranch>`（空） |
+| `resolve_mr_number_for_head <sha>...` | 候補SHA（可変長。今回push・前回pushのSHAを渡す想定）のいずれかに対応するMR/PR番号を、`gh`/`glab` CLIを使わず`git`だけで解決する（issue #205。CLI不在のMCPフォールバック経路で`get_mr_diff_url`にDiffviewリンクを出せるようにするための関数）。**純粋関数ではない**（`git`を起動する）。解決できなければ空を出力し終了コード0で返す（呼び出し側はCompareへ縮退する）。複数候補を渡せるのは、GitHubのref更新がpushに対して遅れることがあるため | `git ls-remote origin 'refs/pull/*/head'`。一致した候補のうち、対応するPR番号の種類数がちょうど1のときだけ採用（マージ済み・クローズ済みPRのrefも永続的に残るため） | 未対応（常に空を返す。`refs/merge-requests/*/head`の実機検証ができていないため対象外） |
 | `get_mr_diff_since_url <repoUrl> <fromSha> <toSha>` | MR/PRの「前回push時点(`fromSha`)から今回push時点(`toSha`)までの差分」を見れるURLを組み立てる（純粋関数。issue #13） | `<repoUrl>/compare/<fromSha>...<toSha>` | `<repoUrl>/-/compare/<fromSha>...<toSha>` |
 | `get_blob_url <repoUrl> <ref> <path>` | 特定ファイルの「その`ref`時点の本体」を開くblobページのURLを組み立てる（純粋関数。`path`は`url_encode_path_to_reply`でencode済みのものを渡す。issue #42） | `<repoUrl>/blob/<ref>/<path>` | `<repoUrl>/-/blob/<ref>/<path>` |
-| `get_diff_anchor_base_url <compareUrl> <mrUrl> <n> <sinceSha>` | 差分アンカーの**土台にするページ**のURLを返す（issue #127）。**同じハッシュでも土台にするページによってアンカーが効くかが変わる**ため、プロバイダごとに分ける。土台が覆う範囲は、呼び出し側が作るファイル一覧の供給元（`diff_range`）と一致させる。詳細・却下案は [DDR i0127-01](../ddr/i0127-01-差分アンカーの土台はプロバイダごとに分けGitLabはMR差分ページを使う.md) | `<compareUrl>`（Compareページのまま。issue #42 で実機確認済み） | `<mrUrl>/diffs`（初回push）／`<mrUrl>/diffs?start_sha=<sinceSha>`（2回目以降）。**Compareページではアンカーが機能しない**。`sinceSha` がMRバージョンのheadでなければ前者へ縮退する（GitLabは不正なSHAをエラーにせず0ファイルを返すため） |
+| `get_diff_anchor_base_url <compareUrl> <mrUrl> <n> <sinceSha>` | 差分アンカーの**土台にするページ**のURLを返す（issue #127）。**同じハッシュでも土台にするページによってアンカーが効くかが変わる**ため、プロバイダごとに分ける。土台が覆う範囲は、呼び出し側が作るファイル一覧の供給元（`diff_range`）と一致させる。**関数の実装・シグネチャはissue #205でも変更していないが、呼び出し側（`post-push-compact-prompt.sh`）は第1引数へ`diff_url`（issue #205でDiffviewを指すようになった値）ではなく従来どおり`compare_url`を渡し続ける**（GitHubの差分アンカーがPRの`/files`上で機能するかが未検証のため。「未決定事項・懸念点」参照）。詳細・却下案は [DDR i0127-01](../ddr/i0127-01-差分アンカーの土台はプロバイダごとに分けGitLabはMR差分ページを使う.md) | `<compareUrl>`（Compareページのまま。issue #42 で実機確認済み） | `<mrUrl>/diffs`（初回push）／`<mrUrl>/diffs?start_sha=<sinceSha>`（2回目以降）。**Compareページではアンカーが機能しない**。`sinceSha` がMRバージョンのheadでなければ前者へ縮退する（GitLabは不正なSHAをエラーにせず0ファイルを返すため） |
 | `get_diff_anchor_url <baseUrl> <pathHash>` | 差分ページ内の特定ファイルの差分位置を指すアンカー付きURLを組み立てる（純粋関数。issue #42）。`baseUrl` には `get_diff_anchor_base_url` の戻り値を渡す | `<baseUrl>#diff-<pathHash>` | `<baseUrl>#<pathHash>` |
 | `get_diff_anchor_algo` | 差分アンカーのハッシュ算出に使うアルゴリズム名を返す（純粋関数。issue #42）。**ハッシュの入力はpercent-encode前の生パス**（encodeが必要な `get_blob_url` とは逆） | `sha256` | `sha1`（issue #127 で実機確認済み。`diff-` 接頭辞は付かない） |
 | `get_mr_url <repoUrl> <n>` | MR/PR本体のページURLを組み立てる（純粋関数。**GitLab実装は issue #42**、**GitHub実装とディスパッチャは issue #127**） | `<repoUrl>/pull/<n>` | `<repoUrl>/-/merge_requests/<n>` |
@@ -976,8 +977,11 @@ Claude Code on the webのリモート実行環境のように、`gh`/`glab` CLI�
   - `post-push-usage-report.sh`: 集計状態の更新までは行い、MRコメントの自動投稿はスキップして
     その旨をstderrへ1行出す。`sinceLastPush`はリセットしないため、CLIのある環境で次にpushした
     ときにまとめて投稿される。
-  - `post-push-compact-prompt.sh`: MR/PRのURLだけを「MCPツールで取得すること」という指示に
-    差し替え、Compare系リンク・レビュー依頼メッセージ・`/compact`の呼びかけは従来どおり行う。
+  - `post-push-compact-prompt.sh`: **`resolve_mr_number_for_head`（`git ls-remote`。GitHubのみ）
+    で解決を試みる（issue #205。「MCPフォールバック時のMR/PR URL解決」節参照）。解決できれば
+    MR/PRのURLが実リンクになりdefaultブランチとの差分もDiffviewになる。解決できなければ従来
+    どおりMR/PRのURLだけを「MCPツールで取得すること」という指示に差し替える。**その他の
+    Compare系リンク・レビュー依頼メッセージ・`/compact`の呼びかけは従来どおり行う。
 - **GitLabは対象外**: `glab` 不在時のGitLab向けMCP代替は対象外とする（利用実績が無く、ツール名・
   引数を実機検証できないため）。判定・失敗メッセージの枠組みのみ共通で、`mcp_tool_hint` は
   GitLabに対して「対象外」である旨を返す。詳細・却下案は
@@ -1614,8 +1618,10 @@ issue #11「git pushイベントを検知してcompactする」への対応と�
   見に行くまでに1段階ハードルがあるという指摘への対応として、`additionalContext`に固定文だけでなく
   `get_mr_for_branch`/`get_repo_url`/`get_mr_diff_url`/`get_mr_diff_since_url`（「提供関数」表参照）
   で組み立てた具体的なURLを含める。
-  - 常に含める: MRへのリンク（`get_mr_for_branch`の`url`）、defaultブランチとの差分
-    （`get_mr_diff_url`）へのリンク。
+  - 常に含める: MRへのリンク（`get_mr_for_branch`の`url`。**CLI不在でこれが取得できない場合は、
+    `resolve_mr_number_for_head`＋`get_mr_url`で解決できたURLを同じ`mr_url`変数へ入れて使う。
+    issue #205。下記「MCPフォールバック時のMR/PR URL解決（issue #205）」参照**）、defaultブランチ
+    との差分（`get_mr_diff_url`）へのリンク。
   - このブランチで2回目以降のpush（＝レビュー指摘対応のpush）の場合のみ追加: 前回push時点から
     今回push時点までの差分（`get_mr_diff_since_url`）へのリンク、コメント一覧（MR画面。MRへの
     リンクと同一URL）へのリンク。
@@ -1629,6 +1635,15 @@ issue #11「git pushイベントを検知してcompactする」への対応と�
     （SHA同士）のいずれも同じ`get_compare_url`系ヘルパー（`github_get_compare_url` /
     `gitlab_get_compare_url`）で組み立てられる。詳細な却下案は
     [i0013-01-レビュー依頼メッセージの参照リンクは前回pushSHAをローカル状態で保持して組み立てる.md](../ddr/i0013-01-レビュー依頼メッセージの参照リンクは前回pushSHAをローカル状態で保持して組み立てる.md)
+    参照。
+    **issue #205 で、この方針を「defaultブランチとの差分」1リンクに限り部分的に上書きした。**
+    `mr_url`（MR/PR URL）が非空で解決できた場合、`get_mr_diff_url`はCompareではなくDiffview
+    （`<mrUrl>/files`・`<mrUrl>/diffs`）を返す。`mr_url`が空（CLI不在かつ`resolve_mr_number_for_head`
+    でも解決できなかった場合）は、従来どおりCompareへ縮退する。**前回pushとの差分
+    （`get_mr_diff_since_url`）・MRへのリンク自体・重点ファイルの差分アンカーの3リンクは、
+    今回も変更しておらずCompare方式のまま。** i0013-01のCompare方式の判断はこの3リンクについて
+    生き続けており、`superseded`にはしていない。詳細・却下案は
+    [DDR i0205-01](../ddr/i0205-01-defaultブランチとの差分リンクをPR_MRのDiffviewへ出し分ける.md)
     参照。
   - 「前回push時点」の判定は、`post-push-compact-prompt.sh`自身が`wip/state/review-links/
     <safeBranch>.txt`へ直前pushのHEAD SHA（`git rev-parse HEAD`）を保存し、次回push時に読み出す
@@ -1685,6 +1700,17 @@ issue #11「git pushイベントを検知してcompactする」への対応と�
     載るのに土台ページには存在しないファイルが生じ、アンカーが着地先を失う）。
     経緯・却下案は
     [DDR i0127-01](../ddr/i0127-01-差分アンカーの土台はプロバイダごとに分けGitLabはMR差分ページを使う.md)。
+- **MCPフォールバック時のMR/PR URL解決（issue #205）**: `get_mr_for_branch`が`gh`/`glab` CLI不在で
+  MR/PR URLを取得できず`mr_url`が空のとき、`resolve_mr_number_for_head`（「提供関数」表参照。
+  GitHubのみ。今回push・前回pushのSHAを候補として渡す）で解決を試みる。**解決できた場合**は、
+  その`get_mr_url`の戻り値を`mr_url`へ格納する（新しい変数を別に持たせず、既存の`mr_url`をそのまま
+  使う。同じ値を2箇所で別々に持つと食い違いうるため）。この結果、(a) MRへのリンクの行が「MCP
+  ツールで取得すること」という指示文から実際のMRリンクへ置き換わり、(b) 2回目以降のpushでは
+  「コメント一覧(MR画面)」行が新たに出る。**解決できなかった場合**は`mr_url`は空のまま、上記の
+  「hookの縮退」節のとおり従来どおりの指示文へ縮退する。この分岐は`post-push-compact-prompt.sh`
+  内で完結し、`Provider.sh`の`get_mr_diff_url`自体は`mr_url`の由来（CLI経由かresolve経由か）を
+  区別しない（純粋関数のまま）。詳細・却下案は
+  [DDR i0205-01](../ddr/i0205-01-defaultブランチとの差分リンクをPR_MRのDiffviewへ出し分ける.md)。
 - **返信コメントへのリンク（issue #42）**: 2回目以降のpush（＝レビュー指摘対応のpush）では、
   「このpushでレビュー指摘へ返信した場合はその返信コメントのURLも含める」旨の指示文を追加で渡す。
   URLの入手元は`reply`サブコマンドの出力（`add_mr_thread_reply`の戻り値）または`comments`の
@@ -3865,6 +3891,40 @@ flow-id 4-1 の「反映対象を洗い出す」を4手順（起点の列挙／4
   `### issue #155`——を併せて書き換える**（同じ文面の段落が2つあるため、片方だけを直すと
   同じファイルの中で食い違う）。
 
+### issue #205（defaultブランチとの差分リンクをPR/MRのDiffviewへ変更する）
+
+レビュー依頼メッセージの「defaultブランチとの差分」リンクを、PR/MR URLが解決できた場合に限り
+Compareページ（DDR `i0013-01`が採用した形式）からDiffview（GitHubの`/files`タブ、GitLabの
+`/diffs`タブ。レビューコメントを付けられるビュー）へ出し分けるようにした。あわせて、
+`gh`/`glab` CLI不在の環境（MCPフォールバック経路）でもPR番号を解決できるよう、
+`git ls-remote origin 'refs/pull/*/head'`だけで完結する解決関数を新設した。
+
+**変更したファイル**
+
+| ファイル | 変更 |
+|---|---|
+| `.claude/scripts/src/vcs/Provider.sh` | `get_mr_diff_url`ディスパッチャへ第4引数`mrUrl`を追加。`resolve_mr_number_for_head`ディスパッチャを新設（GitHubのみ、GitLabは空を返す） |
+| `.claude/scripts/src/vcs/Github.sh` | `github_get_mr_diff_url`が`mrUrl`非空時に`<mrUrl>/files`を返すよう変更。`github_resolve_mr_number_for_head`（複数候補SHA対応、一致したPR番号の種類数がちょうど1のときだけ採用）を新設 |
+| `.claude/scripts/src/vcs/Gitlab.sh` | `gitlab_get_mr_diff_url`が`mrUrl`非空時に`<mrUrl>/diffs`を返すよう変更 |
+| `.claude/hooks/post-push-compact-prompt.sh` | `mr_url`が空のとき`resolve_mr_number_for_head`（今回・前回pushのSHAを候補として渡す）で解決を試み、解決できれば`mr_url`へ格納。`compare_url`と`diff_url`を分離し、差分アンカーの土台（`get_diff_anchor_base_url`）へは従来どおり`compare_url`のみを渡す |
+| `.claude/scripts/test/test_vcs_provider.sh` | 4引数版のアサーション、複数候補SHAでの解決・同一PR番号への複数一致・ディスパッチャ経由の経路テスト・awk失敗時の縮退テスト等を追加（`passed=225`→`249`） |
+| 本ドキュメント | 「提供関数」表・「未決定事項・懸念点」・「参照リンクの付与（issue #13）」節・「hookの縮退」節・本エントリ |
+| `.claude/skills/issue-mr-flow/references/mcp-fallback.md` | §2-bへ`mcp__github__create_pull_request`の`*`喪失の落とし穴を追加、§4の`post-push-compact-prompt.sh`行を更新 |
+| `.claude/docs/ddr/i0205-01-…md` | 新規 |
+
+**却下した代替案**（詳細: [DDR i0205-01](../ddr/i0205-01-defaultブランチとの差分リンクをPR_MRのDiffviewへ出し分ける.md)）
+
+- **`get_mr_diff_url`の内部でMR URL解決まで行う設計**（純粋関数でなくなるため却下）。
+- **案B: `wip/state/`の状態ファイルにPR番号を保存**（silent stalenessのため却下）。
+- **案C: `HANDOFF.md`のヘッダから読む**（表記依存で壊れやすいため却下）。
+- **一致判定を「番号が最大のものを採る」にする案**（当初案。マージ済み・クローズ済みPRのrefも
+  永続的に残るため、番号の大小では正しいPRを選べないと判明し却下）。
+
+**issueの目的が達成される範囲は「defaultブランチとの差分」1リンクについてのみである。**
+重点レビュー対象ファイルの差分アンカーリンク（issue #42）は、GitHubのアンカーがPR本体の
+`/files`上で機能するかが未検証のため、今回も対象外（Compareページ上に残る）。詳細は
+「未決定事項・懸念点」の該当項目を参照。
+
 ## 未決定事項・懸念点
 
 - **（issue #61）`set_mr_ready`: GitHub側のみ実機未検証**: issue #61 の対応時の実行環境
@@ -3904,13 +3964,21 @@ flow-id 4-1 の「反映対象を洗い出す」を4手順（起点の列挙／4
   整合することも確認）。**`gh issue list --search ... --state all --json ...` は未検証のまま**
   であり、`gh` が使える環境での最初の利用時に確認すること。
 
-- **（issue #13）`get_mr_diff_url`/`get_mr_diff_since_url`のURL形式: GitHub側のみブラウザ未検証**:
+- **（issue #13、issue #205で一部更新）`get_mr_diff_url`/`get_mr_diff_since_url`のURL形式:
+  GitHub側のみブラウザ未検証**:
   GitHub実装（`<repoUrl>/compare/<from>...<to>`）はPR作成前から存在する汎用の「Compare changes」
   ページの標準URL形式に基づいており、PR個別のサブタブ形式（当初案の`/files/<from>..<to>`）より
   安定していると考えられるが、issue #13 の対応時点ではブラウザでの表示確認までできていない。
   **GitLab実装（`<repoUrl>/-/compare/<from>...<to>`）は issue #127 で解消した。** 生成したURLを
   ブラウザで開き、Compareページが意図した2ref間の差分を表示することを目視確認している
   （**ただしこのページを土台にした差分アンカーは機能しない**。上記の差分アンカーの項目を参照）。
+  **issue #205 で、`get_mr_diff_url`のうち「defaultブランチとの差分」1リンクに限り、MR/PR URLが
+  解決できた場合はCompareではなくDiffview（`<mrUrl>/files`・`<mrUrl>/diffs`）を返すようになった。**
+  このURL形式（当初issue #13で「PR個別のサブタブ形式」として却下したのと同種の形）は、issue #13
+  当時とは異なりissue #205の起票者（リポジトリ所有者）がissue本文で明示的に指定したものだが、
+  ブラウザでの表示確認は依然として未検証のまま残る（この実行環境ではブラウザ目視ができないため）。
+  `get_mr_diff_since_url`（前回pushとの差分）はCompare方式のまま変更していない。詳細・却下案は
+  [DDR i0205-01](../ddr/i0205-01-defaultブランチとの差分リンクをPR_MRのDiffviewへ出し分ける.md) 参照。
 - **（issue #48・#45で部分解消）GitLab側の動作未検証**: かつては「このリポジトリの実remoteはGitHubのみ」を
   理由に`Gitlab.sh`全体が未検証だったが、issue #48でローカルにGitLab CE 18.5.4（Docker）を立て、
   `glab` 1.114.0から**全13関数を実機実行して動作を確認した**（`gitlab_get_mr_unresolved_comments`の
@@ -4113,3 +4181,44 @@ flow-id 4-1 の「反映対象を洗い出す」を4手順（起点の列挙／4
 - **（issue #48で解消）（issue #25で追加した`gitlab_new_issue`にも従来からの制約が引き継がれる）GitLab側の動作未検証**:
   `gitlab_new_issue`はissue #48でローカルGitLab CE 18.5.4に対し実機確認済み（issueが実際に作成され、
   `get_issue`と同じ形のJSON（number/title/body/url/slug）が返ることを確認した）。
+- **（issue #205）`resolve_mr_number_for_head`（`git ls-remote`）のgit bash実機コスト・認証プロンプト
+  対策の実効性が未検証**: この実行環境（Claude Code on the web、Linux）ではls-remote呼び出しが
+  約400〜600msだったが、`.claude/rules/shell-script-style.md`「外部プロセス起動のコスト」の
+  とおりLinuxとgit bash（Windows）のfork単価は桁で異なり、この値をそのままgit bash実機の値
+  として扱えない。認証プロンプト対策（`GIT_TERMINAL_PROMPT=0` / `-c credential.helper=` /
+  `-c core.askPass=`）とハング対策（`-c http.lowSpeedLimit` / `-c http.lowSpeedTime`）も、
+  この環境では`GIT_TERMINAL_PROMPT=0`が既に設定済みで「付けた場合／付けない場合」の差を
+  原理的に測れず、ブラックホール状態（接続確立前の無応答）も作れないため、対策の効果が
+  実測できていない。git bash実機での再計測をもって本項目を削除する。
+- **（issue #205）CLI経路での`resolve_mr_number_for_head`呼び出しブロックの素通りは実機未確認**:
+  `post-push-compact-prompt.sh`は`mr_url`が空のとき（＝`get_mr_for_branch`がCLI経由で取得できな
+  かったとき、あるいはMCP経路で`get_mr_for_branch`自体を呼んでいないとき）にのみ
+  `resolve_mr_number_for_head`を追加で試みる設計だが、CLI経路（`get_vcs_access_mode`が`cli`）で
+  この分岐を実際にpushして通ることを確認したのはコードを読んだ上での判断であり、実機での確認
+  ではない。
+- **（issue #205）`wip/state/review-links/<branch>.txt`のブランチ名重複衝突による`prev_sha`混入
+  リスクは緩和のみで解消していない**: ブランチ名のファイル名サニタイズ（`safe_branch`の記号
+  潰し）により、記号だけが異なる2つのブランチ（例: `feature/a`と`feature-a`）が同じ状態ファイル
+  を共有しうる。`resolve_mr_number_for_head`へ渡す前に`git cat-file -e "${prev_sha}^{commit}"`で
+  存在検証することで「存在しないSHAを渡して誤爆する」リスクは緩和したが、**別ブランチの実在する
+  SHAが状態ファイルへ混入すること自体は解消していない**（敵対的レビュー2回目 指摘2への対応で
+  判明）。
+- **（issue #205）GitHubの差分アンカー（`#diff-<sha256>`）がPR本体の`/files`上で機能するかは
+  未検証**: issue #42・#127で実機確認済みなのはCompareページ上でアンカーが機能することのみで、
+  PR本体の`/files`（issue #205でDiffviewとして`get_mr_diff_url`が返すようになったページ）上での
+  動作は確認していない。`get_diff_anchor_base_url`は今回もCompareページ（`compare_url`）を
+  土台として使い続けており、`/files`上での動作に依存しない設計を採ったため実害は無いが、確認が
+  取れれば土台を`/files`へ寄せて下記の残存制約を解消できる余地がある。確認が取れるまでは寄せない。
+- **（issue #205）GitHubでは重点レビュー対象ファイルの差分アンカーリンクがCompareページ上に
+  残る**: 上記の未検証項目の帰結として、issue #205が問題にした「差分アンカーリンクが古い形式の
+  ページを指す」という事象は、重点レビュー対象ファイルのリンク（issue #42）には引き続き残る。
+  issue #205の目的が達成されるのは「defaultブランチとの差分」1リンクについてのみであり、
+  重点ファイルリンクは対象外である。
+- **（issue #205）`git ls-remote`の残る未検証項目（引き継ぎ）**: 次の4点はいずれもこの実行環境
+  では確認できず、実機・実環境での検証が必要である。(1) `refs/pull/*/head`のref数が桁で増えた
+  場合（このリポジトリでの実測は約99件まで）の`git ls-remote`所要時間、(2) fork元PRからの
+  push・オフライン時の`resolve_mr_number_for_head`の挙動（いずれもCompareへ縮退する見立てだが
+  未検証）、(3) GitLabの`refs/merge-requests/<n>/head`相当の実機検証（`glab`を使わない検証環境が
+  無いため対象外とした。上記GitLab側の動作未検証の項目とも関連）、(4) SSH remoteで
+  `resolve_mr_number_for_head`が実際に`git ls-remote`を起動しない（HTTP(S)判定で早期returnする）
+  ことの実環境未確認。
