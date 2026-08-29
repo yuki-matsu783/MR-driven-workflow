@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>【設計】【実装】【テスト】ユーザー発言抽出・再注入の実装 — issue #151</title>
+<style>
+  :root {
+    --bg: #f6f7f9;      --panel: #ffffff;   --ink: #1a1d21;     --muted: #5b636d;
+    --line: #dfe3e8;    --accent: #2563eb;  --accent-soft: #eaf0fe;
+    --ok: #1a7f4b;      --ok-soft: #e6f4ec; --warn: #a35a00;    --warn-soft: #fdf1e0;
+    --stop: #b3261e;    --stop-soft: #fdecea; --code-bg: #f0f2f5;
+    --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1216;    --panel: #161a20;   --ink: #e6e8eb;     --muted: #9aa3ad;
+      --line: #2a3038;  --accent: #7aa2f7;  --accent-soft: #1b2333;
+      --ok: #6ee7a8;    --ok-soft: #14261d; --warn: #f0b866;    --warn-soft: #2a2113;
+      --stop: #f2857c;  --stop-soft: #2b1614; --code-bg: #1d222a;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", system-ui, sans-serif;
+    line-height: 1.8; font-size: 15px;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 20px 80px; }
+
+  /* 共通ヘッダ帯 */
+  header.band {
+    background: linear-gradient(135deg, var(--accent-soft), var(--panel));
+    border-bottom: 1px solid var(--line); padding: 28px 20px 22px; margin-bottom: 28px;
+  }
+  header.band .inner { max-width: 1080px; margin: 0 auto; }
+  header.band .kind { font-size: 11px; letter-spacing: .18em; color: var(--accent); font-weight: 700; }
+  header.band h1 { margin: 6px 0 4px; font-size: 26px; line-height: 1.4; }
+  header.band .lead { margin: 0; color: var(--muted); }
+  .meta { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; padding: 0; list-style: none; }
+  .meta li {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 999px;
+    padding: 3px 12px; font-size: 12.5px; color: var(--muted); white-space: nowrap;
+  }
+  .meta li b { color: var(--ink); font-weight: 600; }
+
+  nav.toc {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 14px 20px; margin-bottom: 28px;
+  }
+  nav.toc h2 { margin: 0 0 8px; font-size: 13px; letter-spacing: .08em; color: var(--muted); border: 0; padding: 0; }
+  nav.toc ol { margin: 0; padding-left: 20px; }
+  nav.toc li { margin: 2px 0; }
+  a { color: var(--accent); }
+
+  section {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 8px 24px 22px; margin-bottom: 22px;
+  }
+  h2 { font-size: 20px; margin: 20px 0 10px; padding-bottom: 8px; border-bottom: 2px solid var(--line); }
+  h3 { font-size: 16px; margin: 22px 0 8px; color: var(--accent); }
+  p { margin: 10px 0; }
+  ul, ol { padding-left: 22px; }
+  li { margin: 4px 0; }
+  blockquote { margin: 10px 0; padding: 6px 14px; border-left: 3px solid var(--line); color: var(--muted); }
+
+  /* 表は自身の中で横スクロールする（ページ本体は横スクロールさせない） */
+  .tablewrap { overflow-x: auto; margin: 14px 0; }
+  table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 14px; }
+  th, td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: var(--accent-soft); font-weight: 600; white-space: nowrap; }
+  tbody tr:nth-child(even) td { background: color-mix(in srgb, var(--line) 22%, transparent); }
+
+  code {
+    background: var(--code-bg); border-radius: 5px; padding: 1px 5px; font-size: 13px;
+    font-family: "SFMono-Regular", Consolas, "Noto Sans Mono", monospace;
+  }
+  pre {
+    background: var(--code-bg); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 12px 14px; overflow-x: auto; font-size: 13px; line-height: 1.65;
+  }
+  pre code { background: none; padding: 0; }
+
+  /* 注意ボックス: info（既定）/ ok（決めたこと）/ warn（注意）/ stop（やらないこと・危険） */
+  .box { border-left: 4px solid var(--accent); background: var(--accent-soft);
+         border-radius: 0 var(--radius) var(--radius) 0; padding: 12px 16px; margin: 16px 0; }
+  .box > :first-child { margin-top: 0; } .box > :last-child { margin-bottom: 0; }
+  .box .label { font-size: 12px; font-weight: 700; letter-spacing: .06em; display: block; margin-bottom: 4px; }
+  .box.ok { border-color: var(--ok); background: var(--ok-soft); } .box.ok .label { color: var(--ok); }
+  .box.warn { border-color: var(--warn); background: var(--warn-soft); } .box.warn .label { color: var(--warn); }
+  .box.stop { border-color: var(--stop); background: var(--stop-soft); } .box.stop .label { color: var(--stop); }
+  .box.info .label { color: var(--accent); }
+
+  .tag { display: inline-block; border-radius: 999px; padding: 1px 9px; font-size: 12px; font-weight: 600; }
+  .tag.ok { background: var(--ok-soft); color: var(--ok); }
+  .tag.warn { background: var(--warn-soft); color: var(--warn); }
+  .tag.stop { background: var(--stop-soft); color: var(--stop); }
+
+  footer { color: var(--muted); font-size: 13px; text-align: center; padding-top: 10px; }
+</style>
+</head>
+<body>
+<header class="band">
+  <div class="inner">
+    <div class="kind">個別作業計画 / フェーズ3〈作業〉</div>
+    <h1>ユーザー発言抽出・再注入の実装</h1>
+    <p class="lead">フェーズ2で確定した選定ロジックを <code>session-start.sh</code> へ実装し、除外辞書を「育てる」ための残り4点（初期辞書・置き場所・除外実績の可視化・育てた記録）を含めて設計する。</p>
+    <ul class="meta">
+      <li><b>issue</b> #151</li>
+      <li><b>ブランチ</b> claude/user-recent-utterance-reinject-9ygbxd</li>
+      <li><b>PR</b> #197</li>
+      <li><b>フェーズ</b> 3〈作業〉 flow-id 3-1</li>
+      <li><b>作成日</b> 2026-08-29</li>
+      <li><b>正文</b> 同名の .md</li>
+    </ul>
+  </div>
+</header>
+
+<div class="wrap">
+
+<nav class="toc">
+  <h2>目次</h2>
+  <ol>
+    <li><a href="#premise">前提</a></li>
+    <li><a href="#goal">この計画で何をするか</a></li>
+    <li><a href="#decisions">残る設計判断（flow-id 3-3 で承認を得る）</a></li>
+    <li><a href="#target">変更対象</a></li>
+    <li><a href="#approach">方針</a></li>
+    <li><a href="#out-of-scope">やらないこと（スコープ外）</a></li>
+    <li><a href="#tests">テスト計画</a></li>
+    <li><a href="#verify">検証</a></li>
+    <li><a href="#options">比較検討した案</a></li>
+  </ol>
+</nav>
+
+<section id="premise">
+  <h2>前提</h2>
+  <p>数値パラメータ・選定ロジックは<b>フェーズ2で確定済み</b>で、本計画では再検討しない。確定値は個別調査計画「この調査で決めること」表と、調査結果レポート「設計への反映」節が正。</p>
+  <p>残っているのは、フェーズ2の残課題（調査結果レポート「残課題」節）のうち実装が要るものである。</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>残課題</th><th>内容</th><th>本計画での扱い</th></tr></thead>
+    <tbody>
+      <tr><td>H</td><td>辞書を「育てる」ための実装4点（初期辞書・置き場所・除外実績の可視化・育てた記録）</td><td><a href="#decisions">「残る設計判断」で決める</a></td></tr>
+      <tr><td>E</td><td>単一transcript前提への対処方針（3案のどれを採るか）</td><td><a href="#decisions">「残る設計判断」で決める</a></td></tr>
+      <tr><td>A</td><td><code>AskUserQuestion</code> の回答が母集団から漏れる</td><td><a href="#decisions">「残る設計判断」でスコープを決める</a></td></tr>
+      <tr><td>C</td><td>母集団が0件になったことに気づける形</td><td><a href="#decisions">「残る設計判断」で決める</a></td></tr>
+      <tr><td>F</td><td>git bash 実機での再測（問い7・8・11）</td><td>flow-id 3-6（実施段）で行う。<a href="#verify">「検証」</a></td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="goal">
+  <h2>この計画で何をするか</h2>
+  <ol>
+    <li><b>残る設計判断4点</b>（H・E・A・C）に決着を付ける（flow-id 3-3 のレビューで承認を得る）。</li>
+    <li><code>.claude/hooks/session-start.sh</code> へ、ユーザー発言の抽出・選定・整形・注入を実装する。</li>
+    <li>除外辞書を<b>データファイルとして切り出し</b>、辞書語ごとの除外件数を<b>可視化</b>する仕組みを作る。</li>
+    <li><code>.claude/scripts/test/test_session_start.sh</code> へ単体テストを追加する（合成フィクスチャのみ）。</li>
+    <li>実 transcript（本ブランチのもの）に対して抽出関数を手動で実行し、出力が妥当なことを確認する（結果は統計値のみ <code>wip/reports/</code> へ記録。本文は貼らない）。</li>
+  </ol>
+</section>
+
+<section id="decisions">
+  <h2>残る設計判断（flow-id 3-3 で承認を得る）</h2>
+  <div class="box warn">
+    <span class="label">この4点は承認を得るまで実装へ進まない</span>
+    以下 H-1〜H-4・E・C・A の提案は、いずれもフェーズ2の実測結果を踏まえた提案であって、まだ人間の承認を得ていない。
+  </div>
+
+  <h3>H-1. 初期辞書の中身</h3>
+  <p><b>提案: 現行12語から <code>ok</code>/<code>OK</code> を除いた10語をそのまま初期値にする。</b></p>
+  <pre><code>はい / うん / お願い / お願いします / よろしく / 続けて / 続けてください / ありがとう / ありがとうございます / 了解</code></pre>
+  <p>フェーズ2の実測（真の発言7件）ではこの10語のうち1語も働かなかったが、これは「不要と確認された」ことを意味しない——単に<b>この断面に登場しなかった</b>だけである。机上の判断で先回りして削ると、後から本当に必要だった語を消したことになりかねない。<b>「育てる」の出発点は観測実績ではなく現行の網羅にし、以後は下記H-3の可視化を見ながら削っていく</b>（削るほうが安全——辞書は完全一致なので、削っても後から戻せる）。</p>
+
+  <h3>H-2. 辞書の置き場所</h3>
+  <p><b>提案: プレーンテキストファイル <code>.claude/hooks/session-start-ack-words.txt</code> に切り出す。</b></p>
+  <ul>
+    <li>1行1語（正規化後の形で書く）。<code>#</code> で始まる行はコメント（削除・追加の理由を書ける）。空行は無視。</li>
+    <li>UTF-8・BOM無し・LF改行で保存し、<code>.gitattributes</code> へ1行を追加する（<code>.sh</code>規約と同じ理由。改行がCRLFに化けると<code>case</code>パターンマッチが壊れる）。</li>
+  </ul>
+  <div class="box ok">
+    <span class="label">理由</span>
+    辞書を<code>session-start.sh</code>内のbash配列に直書きすると、1語増減するだけでもスクリプト本体を編集することになり、「育てる」操作のハードルが上がる。独立ファイルなら、Write/Editツール（または人間のエディタ）で1行足し引きするだけで済み、差分も1行になる。
+  </div>
+  <div class="box stop">
+    <span class="label">却下した案</span>
+    JSON形式（語ごとに理由・追加日等のメタデータを持たせる）。今回はメタデータの必要性が実測で確認できておらず（H-4のとおり理由はコミットメッセージに残る）、構造を持たせるコストに見合わない。
+  </div>
+
+  <h3>H-3. 除外実績の可視化（最重要）</h3>
+  <p><b>提案: 2段構えにする。</b></p>
+  <ol>
+    <li><b>注入テキストへの当該セッション分の内訳</b>: そのセッションで1件でも除外があれば、ユーザー発言節の末尾へ1行足す。
+      <pre><code>- 相槌等として除外: ok×1, はい×1</code></pre>
+      辞書語と件数だけで、<b>除外された発言の本文は出さない</b>。
+    </li>
+    <li><b>累積カウントのローカル状態ファイル</b>: <code>wip/state/session-start-ack-exclusion-counts.json</code>（<code>.gitignore</code>の<code>/wip/state/</code>で既に除外対象。issue #184で導入済みのディレクトリを流用するため新規の除外パターンは不要）。辞書語をキーに、除外した累積件数を持つ。
+      <pre><code>{"ok": 3, "はい": 1}</code></pre>
+      セッションごとに読み込み、今回分を加算して書き戻す。
+    </li>
+  </ol>
+  <div class="box ok">
+    <span class="label">理由</span>
+    「毎回のユーザの入力を見ながら育てる」を成り立たせるには、まず<b>何かが落ちたことに気づける</b>必要がある。当該セッションの内訳（1）は即座に気づける経路、累積カウント（2）は「<code>ok</code>が何度も引っかかる」のような<b>傾向</b>に気づける経路で、役割が異なるため両方持つ。
+  </div>
+  <div class="box warn">
+    <span class="label">秘密情報の扱い</span>
+    除外された発言の本文は、注入テキストにも状態ファイルにも一切書かない。「そもそも値を出さない形にできないかを先に考える」に従う。本文が要る判断（「本当にこれは相槌か」）は、人間が該当セッションのtranscriptを自分で開けば足りる——hookが本文を持ち歩く必要は無い。
+  </div>
+  <div class="box stop">
+    <span class="label">却下した案</span>
+    除外した発言の本文をログへ残す。過剰除去の判断がしやすくなる一方、秘密情報を平文でローカルに蓄積することになる。上記の代替で足りると判断した。
+  </div>
+
+  <h3>H-4. 育てた操作の記録先</h3>
+  <p><b>提案: 新しい記録先を作らない。辞書ファイル（H-2）自体のgit履歴を記録先にする。</b></p>
+  <p>辞書語の追加・削除は、<code>session-start-ack-words.txt</code> の1行編集として行い、<code>commit</code>スキル経由のコミットメッセージへ理由を書く。恒久的な設計判断（辞書という方式そのものの採否等）は従来どおり<code>.claude/docs/ddr/</code>へ書く。</p>
+  <div class="box ok">
+    <span class="label">理由</span>
+    専用の記録先を新設すると、育てる操作のたびに2箇所（辞書ファイルと記録先）を更新することになり、更新漏れが起きる。git履歴は編集のたびに必ず残るため、これ以上のインフラは不要。
+  </div>
+
+  <h3>E. 単一transcript前提への対処方針</h3>
+  <p><b>提案: 過去transcriptの走査は実装せず、<code>HANDOFF.md</code>「次にやること」節の既存の注入で代替する。</b></p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>理由</th><th>内容</th></tr></thead>
+    <tbody>
+      <tr><td>1. 既に半分実装済み</td><td><code>build_work_context</code>は既に<code>HANDOFF.md</code>「次にやること」節を毎セッション注入している（既存機能）。継続性は一定量カバーされている</td></tr>
+      <tr><td>2. コストに見合わない</td><td>過去transcriptを対象にすると走査コストが本数倍に増える。問い10aでこの実行環境では0本だったため、効果が実測できない</td></tr>
+      <tr><td>3. フェーズ2の停止条件に沿う</td><td>ローカル（Windows）環境で過去transcriptが残るかは未確認のまま。未確認の前提の上に複雑な実装を積まない</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p>今回やらないことは、<code>.claude/docs/spec/</code>（flow-id 4-6）へ「単一transcript前提の限界」として明記し、恒久的な記録として残す。</p>
+
+  <h3>C. 母集団が0件になったことに気づける形</h3>
+  <p><b>提案: 追加の実装は行わない。既存の「N=0なら節ごと出さない」方針のままにする。</b></p>
+  <div class="box ok">
+    <span class="label">理由</span>
+    「母集団が0件になったこと」への気づきは、上記H-3の可視化（除外件数）と、下記の単体テスト（抽出条件の回帰防止）の<b>2つで別の角度からカバーできる</b>。実行時の自己診断を足すと、「取れた分だけ出す・fail-openを崩さない」という既存設計（DDR i0057-01）に例外を作ることになる。リスクは実装のバグによる回帰であり、それはテストの役割。
+  </div>
+
+  <h3>A. <code>AskUserQuestion</code> の回答が母集団から漏れる</h3>
+  <p><b>提案: 本issueのスコープ外とし、flow-id 4-1で<code>.claude/docs/spec/</code>「未決定事項」へ記録する。</b>別issueは今は起票しない。</p>
+  <div class="box ok">
+    <span class="label">理由</span>
+    <code>tool_result</code>の構造をどう母集団へ混ぜるかは、抽出条件の設計をやり直すのに近い規模の変更になりうる。現時点でこれを埋める緊急性の実測が無く、本issueのスコープを超える。
+  </div>
+</section>
+
+<section id="target">
+  <h2>変更対象</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>区分</th><th>対象</th><th>内容</th></tr></thead>
+    <tbody>
+      <tr><td>新規</td><td><code>.claude/hooks/session-start-ack-words.txt</code></td><td>除外辞書（H-2）</td></tr>
+      <tr><td>新規</td><td><code>.claude/hooks/lib/UserUtteranceSelect.jq</code></td><td>抽出・選定・整形の中核。単一のjqフィルタ</td></tr>
+      <tr><td>変更</td><td><code>.claude/hooks/session-start.sh</code></td><td><code>build_user_utterance_context</code>関数を新設し<code>build_work_context</code>から呼ぶ。<code>append_size_warning</code>を除外バイト数を受け取れる形へ変更</td></tr>
+      <tr><td>変更</td><td><code>.claude/scripts/test/test_session_start.sh</code></td><td>新規関数・<code>UserUtteranceSelect.jq</code>の単体テストを追加</td></tr>
+      <tr><td>変更</td><td><code>.gitattributes</code></td><td><code>session-start-ack-words.txt</code>のLF改行を保証する1行を追加</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="approach">
+  <h2>方針</h2>
+
+  <h3>抽出パイプライン（1回のjq呼び出しに集約する）</h3>
+  <p>「外部プロセス起動のコスト」規約に従い、抽出・母集団確定・除外規則適用・ブランチ絞り・<code>uuid</code>重複除去・先頭/直近の採り方・切り出し・バイト数計算までを<b><code>UserUtteranceSelect.jq</code> 1本のjq呼び出しでまとめて行う</b>。</p>
+  <pre><code>jq -R -n -f "$lib_dir/UserUtteranceSelect.jq" \
+  --arg branch "$branch" \
+  --rawfile ack_words_raw "$ack_words_path" \
+  --argjson head_count "$USER_UTTERANCE_HEAD_COUNT" \
+  --argjson tail_count "$USER_UTTERANCE_TAIL_COUNT" \
+  ... \
+  &lt; "$transcript_path"</code></pre>
+  <ul>
+    <li>パス名を引数で渡さず<b>標準入力へ繋ぐ</b>（フェーズ2問い7の結論）。</li>
+    <li>辞書は<code>--rawfile</code>でテキストごと渡し、jq側で改行分割・コメント行/空行除去を行う。</li>
+    <li>出力は1つのJSONオブジェクト（<code>selected</code> / <code>excludedCounts</code> / <code>populationCount</code>）にまとめ、bash側は<code>jq -r</code>で崩す（bash・jq間の受け渡しも1回で済ませる）。</li>
+  </ul>
+
+  <h3>抽出条件（フェーズ2確定分。実装で崩さない）</h3>
+  <p><code>type=="user"</code> ＋ <code>.message.content</code>が文字列 ＋ <code>userType=="external"</code> ＋ <code>isSidechain==false</code> ＋ <code>origin.kind=="human"</code>。<b>肯定形を崩さない</b>。</p>
+
+  <h3>除外規則</h3>
+  <ol>
+    <li>辞書との<b>正規化後の完全一致</b>（前後の空白・句読点・感嘆符・記号の除去）</li>
+    <li>引数の無いスラッシュコマンド単体（<code>^/[A-Za-z][A-Za-z0-9:_-]*$</code>）</li>
+    <li><code>&lt;command-name&gt;</code> 等のタグで始まる行</li>
+  </ol>
+  <p>除外が発生するたびに<code>excludedCounts</code>へ辞書語（規則1のみ）をキーとして加算する。</p>
+
+  <h3>ブランチ絞り・重複除去・採り方・切り出し・サイズ</h3>
+  <p>いずれもフェーズ2確定のロジックをそのまま実装する（個別調査計画・調査結果レポートが正。ここでの再掲はしない）。</p>
+  <ul>
+    <li>ブランチ絞り: 行が<code>gitBranch</code>を持ち、かつ現在のブランチと一致するものが1件以上あるときだけ絞る。</li>
+    <li><code>uuid</code>による重複除去。</li>
+    <li>先頭<code>min(3,N)</code>件 ＋ 残りの末尾<code>min(7, N-min(3,N))</code>件（重複なし）。</li>
+    <li>切り出しは<code>jq</code>の<code>.[0:N]</code>。先頭枠は頭120字＋末尾40字、直近枠は頭80字＋末尾30字。</li>
+    <li>節全体のバイト上限<code>USER_UTTERANCE_MAX_BYTES</code>（既定6000）。超えた場合は直近枠の古い側から1件ずつ落とす。先頭枠は落とさない。</li>
+  </ul>
+
+  <h3>出力位置と<code>append_size_warning</code>の変更</h3>
+  <p><code>build_work_context</code>内、「<code>HANDOFF.md</code>次にやること」ブロックの直後・SKILL.md再読み込み指示の<b>手前</b>へ挿入する（issue #113の末尾配置を維持）。</p>
+  <div class="box warn">
+    <span class="label">既存の記述を置き換える場合</span>
+    <code>append_size_warning</code>は現在<code>(text, limit)</code>の2引数。<b><code>(text, excluded_bytes, limit)</code>の3引数へ変更</b>し、<code>effective_bytes = context_text_bytes(text) - excluded_bytes</code>で判定する。警告文には「全体Nバイト（うち再注入分Mバイトを除外して判定）」の両方を出す。既存呼び出し元（<code>main</code>）も新しい引数を渡すよう変更する。
+  </div>
+
+  <h3>fail-open</h3>
+  <p><code>transcript_path</code>が空・不正・壊れたJSONの場合、<code>UserUtteranceSelect.jq</code>の呼び出しが失敗しても<code>build_user_utterance_context</code>は空文字列を返し（<code>build_context</code>全体は失敗させない）、他の注入項目は通常どおり出す。</p>
+</section>
+
+<section id="out-of-scope">
+  <h2>やらないこと（スコープ外）</h2>
+  <div class="box stop">
+    <span class="label">この計画では決めない・触らない</span>
+    <ul>
+      <li>過去transcriptの走査（「残る設計判断・E」。<code>HANDOFF.md</code>側での代替を採用）</li>
+      <li><code>AskUserQuestion</code>回答の母集団への混入（「残る設計判断・A」。flow-id 4-1で spec の未決定事項へ記録）</li>
+      <li>母集団0件の実行時診断（「残る設計判断・C」。単体テストでカバー）</li>
+      <li>Gemini CLI 経路の対応（全体作業計画のとおり。issue #201へ切り出し済み）</li>
+      <li>除外した発言本文のログ保存（H-3「却下した案」）</li>
+      <li>git bash 実機での実行そのもの（flow-id 3-6の検証段で行う）</li>
+    </ul>
+  </div>
+</section>
+
+<section id="tests">
+  <h2>テスト計画</h2>
+  <p><code>test_session_start.sh</code>へ、次のケースを合成フィクスチャで追加する（すべて<code>.claude/</code>は配布対象であるため実transcriptに依存しない）。</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>#</th><th>ケース</th><th>確認内容</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td>母集団件数 N = 0/1/2/3/5/10/30</td><td>個別調査計画の表どおり、先頭枠・直近枠・出力件数が一致する</td></tr>
+      <tr><td>2</td><td><code>origin.kind</code>が<code>"human"</code>以外の行</td><td>母集団に含まれない</td></tr>
+      <tr><td>3</td><td><code>origin</code>キーを持たない文字列の行</td><td>母集団に含まれない（肯定形の確認）</td></tr>
+      <tr><td>4</td><td>同じ<code>uuid</code>が異なる<code>gitBranch</code>で複数回出現</td><td>1回しか採らない</td></tr>
+      <tr><td>5</td><td><code>gitBranch</code>を持つ行があり現在ブランチと一致するものが1件以上</td><td>一致行だけに絞る</td></tr>
+      <tr><td>6</td><td><code>gitBranch</code>を持つ行はあるが一致0件</td><td>絞らず全体から採る</td></tr>
+      <tr><td>7</td><td><code>gitBranch</code>を持つ行が1件も無い（Gemini CLI形式を模す）</td><td>絞らず全体から採る</td></tr>
+      <tr><td>8</td><td>辞書語と正規化後に完全一致する発言</td><td>除外され、<code>excludedCounts</code>に反映される</td></tr>
+      <tr><td>9</td><td>辞書語に前後の空白・句読点・感嘆符が付いた発言</td><td>正規化後に一致し除外される</td></tr>
+      <tr><td>10</td><td>引数付きスラッシュコマンド</td><td>除外されず残る</td></tr>
+      <tr><td>11</td><td>引数無しスラッシュコマンド単体</td><td>除外される</td></tr>
+      <tr><td>12</td><td><code>&lt;command-name&gt;</code>等で始まる行</td><td>除外される</td></tr>
+      <tr><td>13</td><td>意図的に長い発言を並べる</td><td>節全体のバイト上限で直近枠の古い側から切り落とされ、先頭枠3件は残る</td></tr>
+      <tr><td>14</td><td>全長が頭M+末尾M′以下の短い発言</td><td>全文がそのまま出る（頭と末尾が重複しない）</td></tr>
+      <tr><td>15</td><td><code>transcript_path</code>が空・不正なパス・壊れたJSON</td><td>例外を投げず空文字列を返す（fail-open）</td></tr>
+      <tr><td>16</td><td>除外が1件も無いセッション</td><td>除外内訳の行が出ない</td></tr>
+      <tr><td>17</td><td>除外が1件あるセッション</td><td><code>- 相槌等として除外: &lt;辞書語&gt;×1</code>が出る</td></tr>
+      <tr><td>18</td><td>累積カウントファイルが存在しない初回実行</td><td>エラーにならず新規作成される</td></tr>
+      <tr><td>19</td><td>累積カウントファイルに既存値がある</td><td>加算した値で書き戻される</td></tr>
+      <tr><td>20</td><td><code>append_size_warning</code>（3引数版）</td><td><code>excluded_bytes</code>を差し引いた値で判定し、警告文に両方の数値が出る</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="verify">
+  <h2>検証</h2>
+  <pre><code>bash .claude/scripts/test/test_session_start.sh
+git fetch origin main && base="$(git merge-base origin/main HEAD)" && \
+  git diff --name-only "$base" -- .claude/hooks/ .claude/scripts/test/ .gitattributes</code></pre>
+  <ul>
+    <li><code>test_session_start.sh</code>が<code>passed=N failures=0</code>で通る（テスト計画の20ケースすべてを含む）。</li>
+    <li>実transcript（本ブランチのもの）に対して<code>UserUtteranceSelect.jq</code>を直接実行し、出力が目視で妥当なこと（統計値のみ<code>wip/reports/</code>へ記録。本文は貼らない）。</li>
+    <li><b>git bash実機での再測（残課題F）</b>: flow-id 3-6で、<code>jq</code>起動込みの実測をユーザーのローカル環境で行えるか確認する。行えない場合は「未確認」のまま記録し、Linux見積もり（約208ms、しきい値500msの42%）を暫定の合否として扱う。</li>
+    <li><code>main</code>ブランチ上で hook を実行したとき、既存6項目のみが注入され、ユーザー発言節・除外内訳行のいずれも出ないこと。</li>
+  </ul>
+</section>
+
+<section id="options">
+  <h2>比較検討した案</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>案</th><th>利点</th><th>採否と理由</th></tr></thead>
+    <tbody>
+      <tr><td>辞書をJSON形式にし語ごとにメタデータを持たせる（H-2）</td><td>削除・追加の理由を辞書ファイル自体に残せる</td><td><span class="tag stop">却下</span> 必要性が未実証。git履歴（H-4）で理由は残る</td></tr>
+      <tr><td>除外した発言本文をログへ残す（H-3）</td><td>過剰除去の判断がしやすい</td><td><span class="tag stop">却下</span> 秘密情報の平文蓄積になる。語＋件数で「見ながら育てる」は成り立つ</td></tr>
+      <tr><td>除外実績の記録専用ファイルを新設する（H-4）</td><td>育てた理由を専用の場所へ集約できる</td><td><span class="tag stop">却下</span> 辞書ファイル自体のgit履歴で足り、更新箇所を増やすと更新漏れの元になる</td></tr>
+      <tr><td>過去transcriptも対象にする（E）</td><td>複数セッションにまたがるタスクでも先頭枠が保てる</td><td><span class="tag stop">却下</span> この環境で0本、コストが本数倍。<code>HANDOFF.md</code>側の既存機能が一定量カバーする</td></tr>
+      <tr><td>先頭枠を諦める（E）</td><td>実装が単純になる</td><td><span class="tag stop">却下</span> 本機能の主目的（最初の依頼を保つ）そのものを手放す。他の2案より損失が大きい</td></tr>
+      <tr><td><code>AskUserQuestion</code>回答を今回のスコープに含める（A）</td><td>人間の意思決定を取りこぼさない</td><td><span class="tag stop">却下</span> 抽出条件の再設計に近い規模で、本issueのスコープを超える</td></tr>
+      <tr><td>母集団0件を実行時に検知して警告する（C）</td><td>異常への気づきが早くなる</td><td><span class="tag stop">却下</span> fail-open設計（DDR i0057-01）に例外を作る。回帰は単体テストで防ぐべき性質</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<footer>issue #151 / PR #197 — 計画の正文は同名の <code>.md</code>。外部依存を持たない自己完結HTML。</footer>
+
+</div>
+</body>
+</html>
