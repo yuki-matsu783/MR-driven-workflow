@@ -24,7 +24,8 @@ keywords: [ディレクトリ構成, claude, gemini, 配置方針, wip, plans, w
 │   │   └── agent-common.md    # AIエージェント共通ルール。`AGENTS.md`/`CLAUDE.md`/`GEMINI.md`が
 │   │                            #   `@import`する実体（issue #26。配布層はcore）
 │   ├── skills/                 # `/issue-mr-flow`（唯一の実装フロー定義）等のスキル定義
-│   │   ├── issue-mr-flow/assets/  # 計画・レポートのHTMLビューのテンプレート2本（issue #54）
+│   │   ├── issue-mr-flow/assets/  # 計画・レポートのHTMLビューのテンプレート6本（計画1本・
+│   │                            #   レポート5本。既定は`reports-clean`。issue #54, #203）
 │   │   ├── issue-mr-flow/references/  # SKILL.mdから切り出した参照資料7本（issue #160）
 │   │   ├── canvas-report/assets/  # canvas形式レポートのテンプレート
 │   │   ├── html-slides/assets/    # 発表用HTMLスライドのテンプレート（issue #168）
@@ -98,7 +99,8 @@ keywords: [ディレクトリ構成, claude, gemini, 配置方針, wip, plans, w
 作業結果・反映結果の**正文**で（個別計画へ結果を書かないための分離先。issue #87。詳細:
 `.claude/skills/issue-mr-flow/references/deliverables.md`「計画と実施結果の分離」）、
 `wip/reports/日付_<全体計画名>_<内容を簡潔に>.html` はその内容を視覚的にまとめた自己完結HTMLである
-（土台は`.claude/skills/issue-mr-flow/assets/reports.template.html`。関連・依存関係が主題の場合は
+（土台は`.claude/skills/issue-mr-flow/assets/reports-clean.template.html`（既定。5本からの選び方は
+`.claude/skills/issue-mr-flow/references/deliverables.md`「レポートテンプレートの選び方」）。関連・依存関係が主題の場合は
 `.claude/skills/canvas-report/SKILL.md` のcanvas形式）。両者は併存させ、flow-id 5-5でまとめて削除する。
 **例外として、`html-slides` スキルの成果物 `*.slides.html`＋`*.slides.json` も `wip/reports/` へ置かれる**
 （issue #168）。スライドは対応するmdを持たず、機械可読の対は構成案JSON（`.slides.json`）である。
@@ -183,7 +185,7 @@ issue #97。ブランチ別に持つと、同じセッションのままブラ�
 
   | ディレクトリ | 用途 | 実例 |
   |---|---|---|
-  | `assets/` | **出力に使うもの**（テンプレート等） | `issue-mr-flow/assets/reports.template.html`, `canvas-report/assets/canvas-report.html` |
+  | `assets/` | **出力に使うもの**（テンプレート等） | `issue-mr-flow/assets/reports-clean.template.html`, `canvas-report/assets/canvas-report.html` |
   | `scripts/` | **実行するもの**（補助スクリプト） | `apply-mr-workflow-to-project/scripts/install-to-project.sh` |
   | `references/` | **AIが読むもの**（参照資料） | `issue-mr-flow/references/planning.md` 等7本（SKILL.mdから切り出した詳細節。issue #160） |
 
