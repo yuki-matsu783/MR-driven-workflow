@@ -1,0 +1,477 @@
+<!-- issue #169 統括レポートの人間レビュー用HTMLビュー。正文は同名の .md -->
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>統括レポート — issue #169</title>
+<style>
+  /* ============================================================
+     デザイン案06「クリーン・ライト」 — 既定のテンプレート
+
+     控えめな配色で、内容の邪魔をしない。ライト／ダークの両方に対応する。
+     4本の中で最も汎用的で、迷ったらこれを選ぶ。
+     ============================================================ */
+
+  /* ---- ここから下は4テンプレート共通の骨格。デザイン差は上のCSS変数で表す ---- */
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  [id] { scroll-margin-top: 16px; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", system-ui, sans-serif;
+    line-height: 1.8; font-size: 15px;
+  }
+  a { color: var(--accent); }
+  code {
+    background: var(--code-bg); border-radius: 5px; padding: 1px 5px; font-size: 13px;
+    font-family: "SFMono-Regular", Consolas, "Noto Sans Mono", monospace;
+  }
+  pre {
+    background: var(--code-bg); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 12px 14px; overflow-x: auto; font-size: 13px; line-height: 1.65;
+  }
+  pre code { background: none; padding: 0; }
+  /* 本文中の強調。案10だけが背景色を与える（DOMを分岐させないための共通クラス） */
+  .hl { background: var(--hl-bg); }
+
+  /* ---- 全体レイアウト: サイドバー ＋ 本文 ---- */
+  .shell { max-width: 1180px; margin: 0 auto; }
+  @media (min-width: 900px) { .shell { display: flex; align-items: flex-start; } }
+
+  .sidebar {
+    background: var(--panel); border-bottom: var(--card-border) solid var(--line);
+    padding: 22px 20px;
+  }
+  @media (min-width: 900px) {
+    .sidebar {
+      width: 280px; flex: 0 0 280px; position: sticky; top: 0; max-height: 100vh;
+      overflow-y: auto; border-bottom: 0; border-right: var(--card-border) solid var(--line);
+    }
+  }
+  .sidebar .kind { margin: 0; font-size: 11px; letter-spacing: .18em; color: var(--accent); font-weight: 700; }
+  .sidebar h1 { margin: 6px 0 0; font-size: 19px; line-height: 1.45; }
+  .counts { display: flex; flex-wrap: wrap; gap: 6px; margin: 14px 0 0; padding: 0; }
+
+  .toc { margin-top: 22px; }
+  .toc-title { margin: 0 0 6px; font-size: 11px; letter-spacing: .12em; color: var(--muted); font-weight: 700; }
+  .toc ol { margin: 0; padding-left: 20px; font-size: 13.5px; }
+  .toc li { margin: 3px 0; }
+  .toc-sub { margin-top: 4px; padding-left: 16px; border-left: 1px solid var(--line); list-style: none; }
+  .toc-sub li { font-size: 13px; color: var(--muted); }
+  .mk { font-weight: 700; }
+  .mk.good { color: var(--good); } .mk.warn { color: var(--warn); } .mk.stop { color: var(--stop); }
+
+  .meta { margin: 22px 0 0; padding-top: 14px; border-top: 1px solid var(--line); font-size: 12.5px; color: var(--muted); }
+  .meta div { display: flex; gap: 8px; margin: 2px 0; }
+  .meta dt { flex: 0 0 68px; font-weight: 600; color: var(--ink); }
+  .meta dd { margin: 0; }
+
+  .main { flex: 1 1 auto; min-width: 0; padding: 26px 22px 80px; }
+  @media (min-width: 900px) { .main { padding: 32px 34px 90px; } }
+
+  /* ---- 見出し・本文 ---- */
+  h2 { font-size: 19px; margin: 34px 0 10px; padding-bottom: 8px; border-bottom: 2px solid var(--line); }
+  section:first-child h2 { margin-top: 0; }
+  h3 { font-size: 16px; margin: 0 0 6px; }
+  p { margin: 10px 0; }
+  ul, ol { padding-left: 22px; }
+  li { margin: 4px 0; }
+  .lead { font-size: 17px; line-height: 1.75; margin-top: 0; }
+  footer { margin-top: 46px; padding-top: 14px; border-top: 1px solid var(--line);
+           color: var(--muted); font-size: 13px; text-align: center; }
+
+  /* ---- 結論の性質チップ（◎良=青 / △注意=黄 / ✕問題=赤。記号＋文字を必ず併記する） ---- */
+  .chip {
+    display: inline-block; border-radius: 999px; padding: 1px 10px;
+    font-size: 12px; font-weight: 700; white-space: nowrap;
+    border: var(--card-border) solid transparent; box-shadow: var(--shadow);
+  }
+  .chip.good { background: var(--good-soft); color: var(--good); border-color: var(--good); }
+  .chip.warn { background: var(--warn-soft); color: var(--warn); border-color: var(--warn); }
+  .chip.stop { background: var(--stop-soft); color: var(--stop); border-color: var(--stop); }
+
+  /* ---- 結論件数タイル ---- */
+  .kpis { display: flex; gap: 12px; margin: 20px 0 0; padding: 0; list-style: none; flex-wrap: wrap; }
+  .kpi {
+    flex: 1 1 110px; max-width: 190px; text-align: center; padding: 12px 8px;
+    background: var(--panel); border: var(--card-border) solid var(--line);
+    border-radius: var(--radius); box-shadow: var(--shadow); margin: 0;
+  }
+  .kpi b { display: block; font-size: 26px; line-height: 1.2; }
+  .kpi span { font-size: 12px; font-weight: 700; }
+  .kpi.good { border-color: var(--good); } .kpi.good b, .kpi.good span { color: var(--good); }
+  .kpi.warn { border-color: var(--warn); } .kpi.warn b, .kpi.warn span { color: var(--warn); }
+  .kpi.stop { border-color: var(--stop); } .kpi.stop b, .kpi.stop span { color: var(--stop); }
+
+  /* ---- 重点レビュー依頼（3段階。色相を使わず濃度・枠の太さ・中立色で表す） ---- */
+  .focuses { display: grid; gap: 12px; margin-top: 22px; }
+  @media (min-width: 760px) { .focuses { grid-template-columns: repeat(3, 1fr); } }
+  .focus {
+    background: var(--panel); border: var(--card-border) solid var(--line);
+    border-radius: var(--radius); padding: 12px 14px; box-shadow: var(--shadow);
+  }
+  .focus .label { margin: 0; font-size: 13.5px; font-weight: 700; }
+  .focus .sub { margin: 0; font-size: 11.5px; color: var(--muted); }
+  .focus ul { margin: 8px 0 0; padding-left: 18px; font-size: 13.5px; }
+  .focus.must { border-width: 2px; border-color: var(--accent); background: var(--accent-soft); }
+  .focus.must .label { color: var(--accent); }
+  .focus.want { border-color: var(--accent); }
+  .focus.want .label { color: var(--accent); }
+  .focus.skip { color: var(--muted); }
+  .focus.skip .label { color: var(--muted); }
+
+  /* ---- 注意ボックス: info（既定）/ ok（決めたこと）/ warn（注意）/ stop（やらないこと・危険） ---- */
+  .box {
+    border-left: 4px solid var(--accent); background: var(--accent-soft);
+    border-radius: 0 var(--radius) var(--radius) 0; padding: 12px 16px; margin: 16px 0;
+  }
+  .box > :first-child { margin-top: 0; } .box > :last-child { margin-bottom: 0; }
+  .box .label { font-size: 12px; font-weight: 700; letter-spacing: .06em; margin: 0 0 4px; color: var(--accent); }
+  .box.ok { border-color: var(--ok); background: var(--ok-soft); } .box.ok .label { color: var(--ok); }
+  .box.warn { border-color: var(--warn); background: var(--warn-soft); } .box.warn .label { color: var(--warn); }
+  .box.stop { border-color: var(--stop); background: var(--stop-soft); } .box.stop .label { color: var(--stop); }
+
+  /* ---- タイムライン（実施した内容と結果） ---- */
+  .tl { list-style: none; margin: 22px 0 0; padding: 0 0 0 30px; border-left: 2px solid var(--line); }
+  .tl-item { position: relative; margin: 0 0 30px; padding: 0; }
+  .tl-item:last-child { margin-bottom: 0; }
+  .tl-dot {
+    position: absolute; left: -41px; top: 1px; width: 22px; height: 22px;
+    display: grid; place-items: center; border-radius: 999px;
+    font-size: 11px; font-weight: 700; color: #fff; background: var(--muted);
+    border: var(--card-border) solid transparent; box-shadow: var(--shadow);
+  }
+  .tl-dot.good { background: var(--good); } .tl-dot.warn { background: var(--warn); }
+  .tl-dot.stop { background: var(--stop); } .tl-dot.next { background: var(--ok); }
+  .tl-dot.neutral { background: var(--muted); }
+  .basis { font-size: 11.5px; font-weight: 400; color: var(--muted); }
+  details { margin: 8px 0; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel); }
+  details > summary { cursor: pointer; padding: 7px 12px; font-size: 12.5px; font-weight: 600; color: var(--muted); }
+  details pre { margin: 0; border: 0; border-top: 1px solid var(--line); border-radius: 0 0 var(--radius) var(--radius); }
+
+  /* ---- 表は自身の中で横スクロールする（ページ本体は横スクロールさせない） ---- */
+  .tablewrap { overflow-x: auto; margin: 14px 0; }
+  table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 14px; }
+  th, td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: var(--accent-soft); font-weight: 600; white-space: nowrap; }
+
+  /* 案06「クリーン・ライト」: 控えめな配色でライト／ダーク両対応。既定のテンプレート。 */
+  :root {
+    --bg: #f6f7f9;      --panel: #ffffff;   --ink: #1a1d21;     --muted: #5b636d;
+    --line: #dfe3e8;    --accent: #2563eb;  --accent-soft: #eaf0fe;
+    --ok: #1a7f4b;      --ok-soft: #e6f4ec; --warn: #a35a00;    --warn-soft: #fdf1e0;
+    --stop: #b3261e;    --stop-soft: #fdecea; --good: #1d4ed8;  --good-soft: #e7edfd;
+    --code-bg: #f0f2f5; --hl-bg: transparent;
+    --radius: 10px;     --shadow: none;     --card-border: 1px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1216;    --panel: #161a20;   --ink: #e6e8eb;     --muted: #9aa3ad;
+      --line: #2a3038;  --accent: #7aa2f7;  --accent-soft: #1b2333;
+      --ok: #6ee7a8;    --ok-soft: #14261d; --warn: #f0b866;    --warn-soft: #2a2113;
+      --stop: #f2857c;  --stop-soft: #2b1614; --good: #8ab4f8;  --good-soft: #17233a;
+      --code-bg: #1d222a;
+    }
+  }
+</style>
+</head>
+<body>
+
+<div class="shell">
+
+<aside class="sidebar">
+  <p class="kind">統括レポート / フェーズ5</p>
+  <h1>統括レポート: スライド構成案JSONから編集可能な .pptx を書き出す機能を追加する</h1>
+
+  <p class="counts">
+    <span class="chip good">◎良 5</span>
+    <span class="chip warn">△注意 1</span>
+    <span class="chip stop">✕問題 0</span>
+  </p>
+
+  <nav class="toc">
+    <p class="toc-title">目次</p>
+    <ol>
+      <li><a href="#overview">サマリ・重点レビュー依頼</a></li>
+      <li><a href="#unverified">確かめられなかったこと</a></li>
+      <li><a href="#conditions">実施条件</a></li>
+      <li>
+        <a href="#findings">実施した内容と結果</a>
+        <ol class="toc-sub">
+          <li><a href="#f1"><span class="mk good">◎</span> 1. pptx-slidesスキルの新設</a></li>
+          <li><a href="#f2"><span class="mk good">◎</span> 2. 雛形展開ディレクトリ+zip再梱包の採用</a></li>
+          <li><a href="#f3"><span class="mk good">◎</span> 3. 敵対的レビュー6ラウンドの完遂</a></li>
+          <li><a href="#f4"><span class="mk good">◎</span> 4. mainマージ・コンフリクト解消</a></li>
+          <li><a href="#f5"><span class="mk good">◎</span> 5. gemini変換同期</a></li>
+          <li><a href="#f6"><span class="mk warn">△</span> 6. PowerPoint実機確認の未了</a></li>
+        </ol>
+      </li>
+      <li><a href="#verified">検証の結果</a></li>
+      <li><a href="#next">設計への反映</a></li>
+      <li><a href="#surprises">想定と異なった点</a></li>
+      <li><a href="#todo">残課題</a></li>
+    </ol>
+  </nav>
+
+  <dl class="meta">
+    <div><dt>issue</dt><dd>#169</dd></div>
+    <div><dt>ブランチ</dt><dd>claude/json-to-pptx-export-3g63ea</dd></div>
+    <div><dt>PR</dt><dd>#199（Draft）</dd></div>
+    <div><dt>push回数</dt><dd>12</dd></div>
+    <div><dt>作成日</dt><dd>2026-08-29</dd></div>
+    <div><dt>正文</dt><dd>同名の .md</dd></div>
+  </dl>
+</aside>
+
+<main class="main">
+
+<section id="overview">
+  <p class="lead">issue #169 に対応し、構成案JSONから編集可能な .pptx を生成するスキル
+  <code>pptx-slides</code> を新設した。issue-mr-flowの5フェーズを通し、各フェーズで敵対的
+  レビューを6ラウンド実施して指摘を反映済み。単体テストは <code>test_json_to_pptx.sh</code>
+  <code>passed=111 failures=0</code>、既存機構テスト23本も全て通過。PowerPoint実機確認の
+  結果と調査レポート◆3件の人間の回答だけが未取得で、Draft解除（flow-id 5-6）の前提として
+  残っている。</p>
+
+  <ul class="kpis">
+    <li class="kpi good"><b>5</b><span>◎良</span></li>
+    <li class="kpi warn"><b>1</b><span>△注意</span></li>
+    <li class="kpi stop"><b>0</b><span>✕問題</span></li>
+  </ul>
+
+  <div class="focuses">
+    <div class="focus must">
+      <p class="label">◆特に見てほしい</p>
+      <p class="sub">判断に困っている</p>
+      <ul>
+        <li><a href="#f6">6. PowerPoint実機確認の未了</a> — 生成した .pptx がPowerPointで
+        正しく開けるかの確認と、調査レポート◆3件（雛形手組み／speakerNotes非出力／完了条件の
+        代替検証）への回答がまだ無い。Draft解除前にこの結果を判断してほしい。</li>
+      </ul>
+    </div>
+    <div class="focus want">
+      <p class="label">◇承認が欲しい</p>
+      <p class="sub">方針は決めた</p>
+      <ul>
+        <li><a href="#f2">2. 雛形展開ディレクトリ+zip再梱包</a> — 外部ライブラリに依存しない
+        方式で実装済み（DDR i0169-01）。</li>
+      </ul>
+    </div>
+    <div class="focus skip">
+      <p class="label">・細かいレビューは不要</p>
+      <p class="sub">ほぼ確実</p>
+      <ul>
+        <li><a href="#f1">1. pptx-slidesスキルの新設</a> — 単体テスト111件全通過で実測済み。</li>
+        <li><a href="#f3">3. 敵対的レビュー6ラウンド</a> — 全指摘対応・全スレッド返信済み。</li>
+        <li><a href="#f4">4. mainマージ・コンフリクト解消</a> / <a href="#f5">5. gemini変換同期</a>
+        — いずれも既定手順どおりの機械的な作業で検証済み。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section id="unverified">
+  <div class="box warn">
+    <p class="label">確かめられなかったこと（この結果が言っていないこと）</p>
+    <ul>
+      <li>生成された .pptx を実機のPowerPointで開いて正しく表示されるかの確認 —
+      <a href="#f6">詳細: 章6</a></li>
+    </ul>
+  </div>
+</section>
+
+<section id="conditions">
+  <h2>実施条件（測った対象・環境）</h2>
+  <ul>
+    <li>実行環境: Claude Code on the web（Linux）</li>
+    <li>対象: ブランチ <code>claude/json-to-pptx-export-3g63ea</code>（push12時点のHEAD。
+    コミット <code>8dbbef9</code>）</li>
+    <li>実施日: 2026-08-23〜2026-08-29</li>
+  </ul>
+</section>
+
+<section id="findings">
+  <h2>実施した内容と結果</h2>
+  <ol class="tl">
+
+    <li class="tl-item">
+      <span class="tl-dot good">1</span>
+      <h3 id="f1">pptx-slidesスキルの新設 <span class="chip good">◎良</span> <span class="basis">根拠: 実測</span></h3>
+      <p>構成案JSONを入力に編集可能な .pptx を書き出すスキル一式
+      （<code>SKILL.md</code>・<code>scripts/slides-to-records.jq</code>・
+      <code>scripts/json-to-pptx.sh</code>・<code>assets/pptx-template/</code>）を
+      <code>.claude/skills/pptx-slides/</code> へ新設した。</p>
+      <details>
+        <summary>根拠を見る（実行コマンドと出力）</summary>
+        <pre><code>$ bash .claude/scripts/test/test_json_to_pptx.sh
+passed=111 failures=0</code></pre>
+      </details>
+      <div class="box ok">
+        <p class="label">結論</p>
+        <p>単体テスト111件全通過。既存機構の単体テスト23本にも回帰なし。</p>
+      </div>
+    </li>
+
+    <li class="tl-item">
+      <span class="tl-dot good">2</span>
+      <h3 id="f2">雛形展開ディレクトリ+zip再梱包の採用 <span class="chip good">◎良</span> <span class="basis">根拠: 設計判断</span></h3>
+      <p>python-pptx・LibreOffice headless・専用OOXMLライブラリ・PowerPoint COM操作・単一巨大
+      テンプレートの直接バイト編集の5案を検討し、いずれも実行環境への外部依存や実装コストの
+      面で採用しなかった。静的な展開済みOOXML雛形をbashで加工しzip再梱包する方式を採用した。</p>
+      <div class="box ok">
+        <p class="label">結論</p>
+        <p>外部ライブラリに依存しない実装が完成し、単体テストで検証済み。採用理由・却下案の
+        詳細はDDR <code>i0169-01</code> に固定した。</p>
+      </div>
+    </li>
+
+    <li class="tl-item">
+      <span class="tl-dot good">3</span>
+      <h3 id="f3">敵対的レビュー6ラウンドの完遂 <span class="chip good">◎良</span> <span class="basis">根拠: 実測</span></h3>
+      <p>フェーズ2〜4の計画・実施のたびに敵対的レビューを実施（P2R1/P2R2/P3R1/P3R2/P4R1/P4R2）。
+      findings76件のうち58件をPR #199へインライン投稿し、全スレッドへ対応内容を返信した。</p>
+      <div class="box ok">
+        <p class="label">結論</p>
+        <p>未返信スレッド0件。指摘の主要な修正内容は各フェーズの個別レポート
+        （<code>wip/reports/2026-08-2[3-4]_..._*.md</code>）とHANDOFF.mdの「やったこと」に記録済み。</p>
+      </div>
+    </li>
+
+    <li class="tl-item">
+      <span class="tl-dot good">4</span>
+      <h3 id="f4">mainマージ・コンフリクト解消（flow-id 5-1） <span class="chip good">◎良</span> <span class="basis">根拠: 実測</span></h3>
+      <p><code>/resolve-conflict</code> スキルに従い main（issue #168のマージ等を含む）を
+      取り込んだ。テキストコンフリクト4件（spec一覧・DDR一覧・skills一覧×2・changelog）を
+      類型別（B: 生成物再生成／C: 近接行両方残す／D: changelog時系列）に解消した。</p>
+      <details>
+        <summary>根拠を見る（実行コマンドと出力）</summary>
+        <pre><code>$ git diff --check; echo $?
+0
+$ git diff --name-only --diff-filter=U
+(出力なし)
+$ bash .claude/scripts/src/check-base-conflicts.sh --no-fetch | jq '.hasDuplicateDdrNumber'
+false</code></pre>
+      </details>
+      <div class="box ok">
+        <p class="label">結論</p>
+        <p>コンフリクトマーカー・unmergedパスともに0件。既存単体テスト23本・
+        <code>check-doc-references.sh</code>（参照切れ0）・<code>check-dist-coverage.sh</code>
+        （545/545）を全通過したうえで commit（e6165f3）・push した。</p>
+      </div>
+    </li>
+
+    <li class="tl-item">
+      <span class="tl-dot good">5</span>
+      <h3 id="f5">gemini変換同期（flow-id 5-3） <span class="chip good">◎良</span> <span class="basis">根拠: 実測</span></h3>
+      <p><code>sync-gemini-assets.sh</code> を実行し、<code>.claude/skills/pptx-slides/</code>
+      一式・新設spec/DDR等を <code>.gemini/</code> へ変換同期した。</p>
+      <details>
+        <summary>根拠を見る（実行コマンドと出力）</summary>
+        <pre><code>$ bash .claude/scripts/src/sync-gemini-assets.sh --check
+.gemini/ は .claude/ と同期しています。</code></pre>
+      </details>
+      <div class="box ok">
+        <p class="label">結論</p>
+        <p>再実行した <code>--check</code> が一致を報告。関連issue通知（flow-id 5-2）は
+        <code>search_issues</code> で候補を検索した結果、通知対象なしと判断した。</p>
+      </div>
+    </li>
+
+    <li class="tl-item">
+      <span class="tl-dot warn">6</span>
+      <h3 id="f6">PowerPoint実機確認の未了 <span class="chip warn">△注意</span> <span class="basis">根拠: 未実施</span></h3>
+      <p>受け入れ条件の一部（OOXMLフルパーサでの開封）はこの実行環境で検証できず、
+      PowerPoint実機での確認を代替手段としてフェーズ3計画時点で仮決めした。あわせて
+      調査レポートの◆3件（雛形は手組み展開ディレクトリ／speakerNotesはフェーズ3では出力しない／
+      完了条件未達の代替）も人間の回答を得ないまま仮決めで進めている。</p>
+      <div class="box warn unverified-detail">
+        <p class="label">確かめられなかったこと（詳細）</p>
+        <p>生成された .pptx を実際にPowerPointで開いてテキスト・表が編集可能な状態で
+        表示されるかどうかは、この実行環境では確認できていない。</p>
+      </div>
+    </li>
+
+  </ol>
+</section>
+
+<section id="verified">
+  <h2>検証の結果</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>検証</th><th>結果</th></tr></thead>
+    <tbody>
+      <tr><td><code>test_json_to_pptx.sh</code></td><td><code>passed=111 failures=0</code></td></tr>
+      <tr><td>既存単体テスト全23本</td><td>全て <code>failures=0</code></td></tr>
+      <tr><td><code>check-dist-coverage.sh</code></td><td>545/545件（4種すべて通過）</td></tr>
+      <tr><td><code>check-doc-references.sh</code></td><td>走査421ファイル・参照切れ0</td></tr>
+      <tr><td><code>extract-frontmatter.sh .</code></td><td>差分なし</td></tr>
+      <tr><td><code>generate-ddr-list.sh</code></td><td>変更なし（103件）</td></tr>
+      <tr><td><code>check-base-conflicts.sh --no-fetch</code> の <code>hasDuplicateDdrNumber</code></td><td><code>false</code></td></tr>
+      <tr><td>コンフリクトマーカー残存（<code>git diff --check</code>）</td><td>0件</td></tr>
+      <tr><td><code>sync-gemini-assets.sh --check</code></td><td>同期済み</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="next">
+  <h2>設計への反映</h2>
+  <ol>
+    <li>入力検証・写像・雛形組み立ての詳細仕様は <code>.claude/docs/spec/pptx-slides.md</code> に
+    集約した。スキーマ（<code>slide-outline.schema.json</code>）が今後変わった場合は、同specの
+    「検証内容」表と <code>slides-to-records.jq</code> の対応関係を見て追従範囲を判断する。</li>
+    <li>雛形展開ディレクトリ方式・zip再梱包という設計判断は
+    <code>DDR i0169-01</code> に固定した。外部ライブラリが安定して使える環境になった場合の
+    再検討条件も同DDRに記録している。</li>
+    <li><code>.claude/rules/shell-script-style.md</code> へ追記した <code>patsub_replacement</code>
+    の罠（bash 5.2以降で置換文字列中の <code>&amp;</code> がマッチ全体へ展開される）は、
+    今後同種のエスケープ処理を書く際の一般的な注意として機構全体で共有される。</li>
+  </ol>
+</section>
+
+<section id="surprises">
+  <h2>想定と異なった点</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>計画時の見込み</th><th>実際</th><th>どう扱ったか</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><code>.claude/VERSION</code> はmain取り込み直後（flow-id 5-1）に
+        <code>0.5.0</code>→<code>0.6.0</code> を適用する想定だった</td>
+        <td>main取り込み時点で main は他issue（#185・#145等）の増分により既に
+        <code>0.6.0</code> まで進んでいた</td>
+        <td>マージでVERSION自体はコンフリクトせず <code>main</code> 側 <code>0.6.0</code> が
+        自動採用されたため、そこから <code>0.6.0</code>→<code>0.7.0</code> を適用した。
+        distribution-assets.mdのchangelogにこの経緯を記録した</td>
+      </tr>
+      <tr>
+        <td>フェーズ4完了時点でDraft解除まで到達する想定はなかった</td>
+        <td>本セッション終了時点でもPowerPoint実機確認・◆3件への回答は未取得</td>
+        <td>Draft解除（flow-id 5-6）は引き続きゲート対象として保留する</td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="todo">
+  <h2>残課題</h2>
+  <ul>
+    <li>PowerPoint実機確認の結果、および調査レポートの◆3件（雛形は手組み展開ディレクトリで
+    進める／speakerNotesはフェーズ3では出力しない／OOXMLフルパーサでの開封という完了条件未達は
+    PowerPoint実機確認で代替する）への人間の回答が未取得。Draft解除（flow-id 5-6）前に
+    必須の前提として残っている。実機確認の結果が仮決めと異なれば、フェーズ3・4の成果物へ
+    遡って修正する。</li>
+    <li>issue #168 側で今後スキーマにフィールドが追加された場合、
+    <code>slides-to-records.jq</code> の追従が改めて必要になる。</li>
+  </ul>
+</section>
+
+<footer>issue #169 / PR #199 — 結果の正文は同名の <code>.md</code>。外部依存を持たない自己完結HTML。</footer>
+
+</main>
+</div>
+
+</body>
+</html>
