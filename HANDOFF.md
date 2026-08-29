@@ -17,7 +17,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - issue: #169
 - ブランチ: `claude/json-to-pptx-export-3g63ea`（ハーネス指定。feature-169-* ではない）
 - PR: #199（Draft。https://github.com/yuki-matsu783/MR-driven-workflow/pull/199 ）
-- push回数: 11
+- push回数: 12
 - 現在のループ: なし
 - 未返信スレッド: 0
 - 追従監視: PR #199 を subscribe_pr_activity で購読（このセッション）
@@ -60,7 +60,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 | [] | 4-8 | MRでレビュー・コメントする | 人間 |
 | [] | 4-9 | レビュー内容を取得し、設計・AIアセットの内容を修正する | サブコマンド |
 | [x] | 4-10 | 反映内容をもとにMR descriptionを更新する | サブコマンド |
-| [] | 5-1 | defaultブランチとのコンフリクトを検知し、あれば解消する | エージェント |
+| [x] | 5-1 | defaultブランチとのコンフリクトを検知し、あれば解消する | エージェント |
 | [] | 5-2 | 関連issueへの通知（承認必須） | エージェント |
 | [] | 5-3 | .claude/ の変更を .gemini/ へ変換同期する | エージェント |
 | [] | 5-4 | 最終統括レポートを作成し、PR/MRへ反映する | エージェント |
@@ -212,14 +212,31 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
   `check-doc-references.sh`（参照切れ0）を再実行し全て通過。修正一覧はレポート章6が正。
 - 2026-08-24: フェーズ4を締めた: 指摘修正をpush（commit e6430eb、push11）→ 11スレッド全てへ
   対応返信（未返信0）→ describe（flow-id 4-10完了）。
+- 2026-08-29: フェーズ5-1（`/resolve-conflict`）を実施。`main`（c3383f6）を
+  `AskUserQuestion` で承認を得たうえで取り込んだ（`check-base-conflicts.sh` 検知:
+  テキストコンフリクト4件・重複DDR識別子0件）。テキストコンフリクトの解消:
+  - `.claude/docs/README.md`: spec一覧（`html-slides.md`・`pptx-slides.md` 両方の行を残す。
+    類型C）とDDR一覧（マーカー区間。`git checkout --ours` 後 `generate-ddr-list.sh` で
+    103件へ再生成。類型B）。
+  - `.claude/rules/directory-structure.md`／`index.md`: skills一覧への追記が両ブランチで
+    競合（main側 `html-slides`、当ブランチ側 `pptx-slides`）。両方の項目を残す形で統合
+    （類型C）。
+  - `.claude/docs/spec/distribution-assets.md`: changelogのissue #169エントリ（当ブランチ）と
+    issue #185エントリ（main）が近接し競合。時系列順（169を185より後、末尾）に両方残す
+    （類型D）。
+  - `.claude/VERSION`: マージ自体は無競合で `main` 側 `0.6.0` が自動採用された。そこから
+    本issue分として `0.6.0`→`0.7.0` へ更新（flow-id 4-6時点の想定 `0.5.0`→`0.6.0` からずれた。
+    詳細は下記「判断を迷った内容」）。
+  - Step 5検証: コンフリクトマーカー0件・unmergedパス0件・DDR重複0件・
+    `extract-frontmatter.sh .`／`generate-ddr-list.sh`（差分なし・103件）・既存単体テスト
+    23本全通過（`test_json_to_pptx.sh` 含む `passed=111 failures=0`）・
+    `check-doc-references.sh`（参照切れ0）・`check-dist-coverage.sh`（545/545, OK）を全通過。
+  - `commit`スキル経由でマージコミット（e6165f3）を作成しpush（push12）。
 
 ## 次にやること
 
-- describe（flow-id 4-10。MR descriptionをフェーズ4の実施状況・P4R1/P4R2の敵対的
-  レビュー実績で更新する）を実行する。
-- フェーズ5へ進む: 5-1でmain取り込み承認確認・取り込み直後に VERSION 0.5.0→0.6.0・
-  `directory-structure.md`／`index.md` の skills 箇所コンフリクトは両方の行を残す →
-  5-2関連issue通知（承認必須）→ 5-3 gemini同期 → 5-4統括レポート → 5-5片付け →
+- フェーズ5の残りを進める: 5-2関連issue通知（承認必須）→ 5-3 gemini同期
+  （`sync-gemini-assets.sh`）→ 5-4統括レポート作成 → 5-5片付け（`cleanup-task.sh`）→
   5-6はゲート（◆回答・実機確認）が揃うまで進まない。
 
 ## 判断を迷った内容
@@ -247,6 +264,19 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
   flow-id 5-1 で main を取り込んだ直後に 0.5.0→0.6.0 を適用する（書けなかった場合は人間へ報告し
   据え置く）。据え置きの事実は 4-6 で `.claude/docs/spec/distribution-assets.md` のchangelogへ
   記録する（同specの規定 (c)）。
+- **flow-id 5-1 でVERSIONの想定値が外れた**: 上記の想定は「main取り込み時点で main は
+  0.5.0」だったが、実際に取り込んだ時点（2026-08-29）で main は issue #185・#145 等
+  他issueの増分により既に `0.6.0` まで進んでいた。マージでVERSIONファイル自体は
+  コンフリクトせず（他ファイルの競合とは独立に）自動的に `main` 側の `0.6.0` が採用された
+  ため、そこから本issueの分として `0.6.0`→`0.7.0` へ更新した（書き込み自体はissue #165で
+  観測された技術的ブロックは再現せず成功）。`distribution-assets.md` のissue #169エントリの
+  「flow-id 5-1 での適用結果」を実際の遷移（0.6.0→0.7.0）へ訂正した。
+- **distribution-assets.mdのchangelogでissue #169エントリをissue #185エントリより後（末尾）に
+  再配置した**: 元のブランチ内容では169エントリが185エントリより前にあったが、mainの185
+  エントリ本文が「直前の『issue #165』エントリが」と特定の直前エントリを名指しで参照して
+  おり、間に169を挟むとその参照が崩れる。時系列（185は2026-08-23、169は2026-08-24）にも
+  合うため、169を末尾へ動かして参照の整合を保った（類型D「時系列順に両方残す」の適用として
+  この並びを採用）。
 
 ## 未解決の内容
 
