@@ -17,7 +17,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - issue: #17
 - ブランチ: `claude/hook-implementation-17-vjhppj`
 - PR: #195（Draft・https://github.com/yuki-matsu783/MR-driven-workflow/pull/195 ）
-- push回数: 20
+- push回数: 21
 - 現在のループ: なし
 - 未返信スレッド: 0
 - 追従監視: あり（`subscribe_pr_activity` でPR #195 を購読。セッション終了で止まるため、次セッションは `resume` で取り直す）
@@ -59,10 +59,10 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 | [x] | 4-7 | commitし、pushしてレビュー依頼する |
 | [x] | 4-8 | 反映結果をレビューする（非対話のため敵対的レビューで代替） |
 | [x] | 4-9 | レビュー内容を取得し設計・AIアセットを修正・返信する |
-| [] | 4-10 | 反映内容をもとにMR descriptionを更新する |
+| [x] | 4-10 | 反映内容をもとにMR descriptionを更新する |
 | [x] | 5-1 | defaultブランチとのコンフリクトを検知・解消する |
-| [] | 5-2 | 関連issueへ承認を得てマージ前通知する |
-| [] | 5-3 | .claude/ の変更を .gemini/ へ変換同期する |
+| [x] | 5-2 | 関連issueへ承認を得てマージ前通知する |
+| [x] | 5-3 | .claude/ の変更を .gemini/ へ変換同期する |
 | [] | 5-4 | 最終統括レポートを作成しPRへサマリコメントする |
 | [] | 5-5 | wip/plans/ wip/worklogs/ wip/reports/ を片付けHANDOFF.mdをリセットする |
 | [] | 5-6 | commitし、pushしてDraftを解除する |
@@ -274,17 +274,29 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
   `…【設計反映】【AIアセット反映】反映の実施_push14.md` の追記（push19）が正。
   **未返信スレッド6件を`set-header --unreplied 6`で記録済み。次にPR上の6スレッドへ
   返信すること。**
+- flow-id 4-9: 投稿した6スレッドすべてへPR上で返信し（修正コミット`4431a96`を明記）、
+  `set-header --unreplied 0`・ループ範囲`4-6`〜`4-9`を`mark-done`した。
+- flow-id 4-10: MR descriptionをフェーズ4の反映内容（設計判断・検証・レビュー結果・受け入れ
+  条件との対応・未解決事項2件）で全文置換した。
+- flow-id 5-2: `git diff --stat origin/main...HEAD`（`wip/plans/` `wip/worklogs/` `wip/reports/`
+  除外・`REVIEW-POINTS.md`は含める）から抽出したキーワードで`search_issues`を2回実施
+  （計13件がヒット）。候補（#108・#159・#200・#53等）を「前提が変わる／一部が解決される／
+  記述が矛盾する」の3類型で判定したが、**いずれにも該当しなかった**（#108はHANDOFF.mdの
+  churn問題を扱うがヘッダ項目・進捗表行数は本PRで増えていないため前提は変わらない、
+  #200はcommit/SKILL.md末尾の孤立ブロック問題で本PRの変更箇所（Step 3.5）とは無関係、
+  #159・#53は前置フィルタ／コマンド位置判定の元issueで既にclosed・本PRは消費するだけで
+  前提を変えない）。**通知先なし。承認なしで投稿していない。**
+- flow-id 5-3: `sync-gemini-assets.sh --check` が差分ありを報告（`main`マージで`.gemini/`が
+  git mergeにより直接持ち込まれ、変換スクリプトの生成結果とずれていた——想定どおり）。
+  `sync-gemini-assets.sh`（`--check`無し）を実行して再生成し、再度`--check`で差分なしを確認。
+  単体テスト24ファイル・失敗0を再確認。
 
 ## 次にやること
 
-- **flow-id 4-9: 上記6スレッドへPR上で返信する**（修正内容を各スレッドへ書く）。返信後
-  `set-header --unreplied 0` し、ループ範囲 `4-6〜4-9` を `mark-done` する。
-- flow-id 4-10: MR descriptionを反映内容で更新する。
-- フェーズ5: **5-1（コンフリクト確認）は完了・`mark-done`済み**（`main` を取り込み済み。
-  `aee879d`）→ 5-2（issue通知。**投稿前に承認が要る**）→
-  5-3（`sync-gemini-assets.sh` で `.gemini/` を再生成。**mainマージで `.gemini/` が
-  丸ごと入ってきたので、再生成後に差分が出ないか確認すること**）→ 5-4（統括レポート）→
-  5-5（`cleanup-task.sh`）→ 5-6（Draft解除）。**マージ（5-7）へは進まない。**
+- フェーズ4は完了（4-1〜4-10すべて`[x]`）。フェーズ5: **5-1〜5-3は完了・`mark-done`済み**
+  （5-1: `main`取り込み`aee879d`。5-2: 関連issue通知は「通知先なし」と判定。5-3: `.gemini/`を
+  `sync-gemini-assets.sh`で再生成し差分なしを確認）→ 次は **5-4（統括レポートを作成しPRへ
+  サマリコメント）** → 5-5（`cleanup-task.sh`）→ 5-6（Draft解除）。**マージ（5-7）へは進まない。**
 - **チェックリストの運用**: プッシュのたびに次回分が生成される。`push-checklist.sh check`/`skip`
   で埋めてから `create-commit.sh` でコミットへ含めること（埋めずに、あるいは含めずにプッシュ
   するとどちらも exit 2 でブロックされる）。

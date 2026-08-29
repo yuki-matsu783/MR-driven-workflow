@@ -1,0 +1,7 @@
+# generated-for: dc43b264b43274fefd392ff2ba0926f2246421ae
+# id	項目	状態	実施ログ
+worklog	worklogを作成し、このpushまでの試行錯誤を追記した	skip	このpushでworklogファイルへの変更は無い（HANDOFF.mdへ直接記録したため）
+handoff	HANDOFF.md の進捗表・ヘッダを更新した（commitより前・同じcommitに含めた）	done	HANDOFF.mdのpush回数を21へ・flow-id5-2/5-3をmark-done・やったこと/次にやることを更新（commitより前）
+frontmatter-index	frontmatterを変更した場合、index.jsonl を最新化した	done	extract-frontmatter.sh . を実行（files=196 built=1 failed=0）
+plan-report-sync	wip/plans/ wip/reports/ の md と html を同期した	skip	このpushでwip/plans/ wip/reports/への変更は無い
+commit-skill	commit スキル（create-commit.sh）経由でコミットした	skip	単一コミットで完結するため、コミット自体はStep3.5時点ではまだ存在しない（block-direct-git-commit.shが直接コミットを構造的に防ぐ）

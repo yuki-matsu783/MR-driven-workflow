@@ -33,12 +33,15 @@ keywords: [ディレクトリ構成, claude, gemini, 配置方針, wip, plans, w
 │   ├── scripts/                # AIエージェントが`.claude/skills/*`経由で能動的に実行するスクリプト一式
 │   │   ├── src/
 │   │   │   ├── check-dist-coverage.sh  # 層分け定義の網羅性検査（追跡ファイル全件が分母。issue #26）
+│   │   │   ├── push-checklist.sh  # push前チェックリストの生成・記録・検証（issue #17）
 │   │   │   └── vcs/            # GitHub/GitLabの差異を吸収するVCS抽象化層（Provider.sh）
 │   │   └── test/               # 副作用の無い純粋ロジックの単体テスト（`test_<対象>.sh`）。
 │   │                            #   `.claude/scripts/src/` と `.claude/skills/*/scripts/` 配下の
 │   │                            #   スクリプトが対象。`passed=N failures=N`を出力し失敗時は終了コード1
 │   │                            #   （詳細: `.claude/rules/shell-script-style.md`「テスト」）
-│   ├── hooks/                  # SessionStart/PostToolUse等のClaude Code hookスクリプト
+│   ├── hooks/                  # SessionStart/PreToolUse/PostToolUse等のClaude Code hookスクリプト
+│   │   ├── block-unchecked-push.sh  # push前チェックリスト未完了ならexit 2でブロック（PreToolUse。issue #17）
+│   │   ├── post-push-next-checklist.sh  # push成功後に次回分のチェックリストを生成（PostToolUse。issue #17）
 │   │   ├── lib/                # 複数hookスクリプトで使い回す共通ロジック
 │   │   └── otel/                # OTelリスナー機構（常駐プロセス。詳細: `.claude/docs/spec/otel-listener.md`）
 │   │       ├── lib/            # リスナー・フックで使い回す共通ロジック（perlモジュール）
