@@ -67,6 +67,7 @@ keywords: [正史仕様, 意思決定ログ, ユースケース, 逆引き, issu
 - [sync-gemini-assets.md](spec/sync-gemini-assets.md) ── .claude/ から .gemini/ を生成する変換スクリプト
 - [check-doc-references.md](spec/check-doc-references.md) ── DDR参照切れ検出スクリプト（絶対パス形式のDDR参照が実在するファイルを指しているかを検証）
 - [harvest-from-projects.md](spec/harvest-from-projects.md) ── 収穫（逆輸入）スキルの分析スクリプト（scan/diff/merge3の入出力・分類規則・終了コード）
+- [pptx-slides.md](spec/pptx-slides.md) ── 構成案JSONから編集可能な.pptxを生成するpptx-slidesスキル（雛形展開ディレクトリ＋zip再梱包）
 
 ## ddr（意思決定ログ）
 

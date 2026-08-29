@@ -119,7 +119,7 @@
   <div class="inner">
     <div class="kind">反映結果レポート / フェーズ4</div>
     <h1>反映結果: スキーマ確定への追従とspec・DDR作成</h1>
-    <p class="lead">PR #194 マージで確定した構成案JSONスキーマへ pptx-slides の入力検証・写像・テストを全面追従させ（旧語彙は受け付けを削除）、spec・DDR・rules・index.md への設計反映を完了した。検証は全件合格（<code>passed=88 failures=0</code>・既存テスト22本・配布網羅501/501・参照切れ0）。</p>
+    <p class="lead">PR #194 マージで確定した構成案JSONスキーマへ pptx-slides の入力検証・写像・テストを全面追従させ（旧語彙は受け付けを削除）、spec・DDR・rules・index.md への設計反映を完了した。検証は全件合格（<code>passed=88 failures=0</code>・既存テスト22本・配布網羅506/506（コミット後の値。分類対象は追跡ファイルのみ）・参照切れ0）。</p>
     <div class="counts">
       <span class="chip good">◎良 5</span>
       <span class="chip warn">△注意 2</span>
@@ -147,6 +147,7 @@
     <li><a href="#findings">実施内容と根拠</a></li>
     <li><a href="#next">設計への反映（反映しきれなかったもの）</a></li>
     <li><a href="#surprises">想定と異なった点</a></li>
+    <li><a href="#p4r2">敵対的レビュー2回目（P4R2）の反映</a></li>
   </ol>
 </nav>
 
@@ -178,10 +179,10 @@
 <section id="summary">
   <h2>サマリ（結論カード）</h2>
   <ol class="verdicts">
-    <li class="verdict"><span class="chip good">◎良</span> 実装がスキーマ適合入力を受け付ける形へ追従した（8種全型・cover metaフォールバック・sides転置＋tone注記）<span class="v-basis">実測（テスト88件） → <a href="#f1">章1</a></span></li>
+    <li class="verdict"><span class="chip good">◎良</span> 実装がスキーマ適合入力を受け付ける形へ追従した（8種全型・cover metaフォールバック・sides転置＋tone注記）<span class="v-basis">実測（テスト111件・P4R2反映後） → <a href="#f1">章1</a>・<a href="#p4r2">P4R2反映</a></span></li>
     <li class="verdict"><span class="chip good">◎良</span> サンプルのスキーマ適合を jq の決定的チェックで機械検証（目視へ縮退させない・空振り排除付き）<span class="v-basis">実測 → <a href="#f1">章1</a></span></li>
     <li class="verdict"><span class="chip good">◎良</span> spec・DDR・rules・index.md への設計反映が完了（DDR一覧1行追加・参照切れ0）<span class="v-basis">実測 → <a href="#f2">章2</a>・<a href="#f3">章3</a></span></li>
-    <li class="verdict"><span class="chip good">◎良</span> 既存機構への影響なし（既存テスト22本・check-dist-coverage 501/501・extract-frontmatter 全件成功）<span class="v-basis">実測 → <a href="#f5">章5</a></span></li>
+    <li class="verdict"><span class="chip good">◎良</span> 既存機構への影響なし（既存テスト22本・check-dist-coverage 506/506（コミット後）・extract-frontmatter 全件成功）<span class="v-basis">実測 → <a href="#f5">章5</a></span></li>
     <li class="verdict"><span class="chip good">◎良</span> VERSION据え置きの判断と根拠を distribution-assets.md changelog・HANDOFF へ記録<span class="v-basis">記録 → <a href="#f4">章4</a></span></li>
     <li class="verdict"><span class="chip warn">△注意</span> 旧語彙・edges・入れ子bulletsのテスト2系統を削除（スキーマが持たない形のため。後退の記録）<span class="v-basis">判断 → <a href="#f1">章1</a></span></li>
     <li class="verdict"><span class="chip warn">△注意</span> spec の人間承認・実機確認は未取得のまま（Draft解除前の必須ゲート）<span class="v-basis">未実施 → <a href="#unverified">確かめられなかったこと</a></span></li>
@@ -247,7 +248,7 @@
     <tbody>
       <tr><td><code>test_json_to_pptx.sh</code></td><td><code>passed=88 failures=0</code>（70→88。境界値入れ替え＋10・スキーマ適合2・個別アサーション6）</td></tr>
       <tr><td>既存テスト全件（22本。<code>ls test_*.sh | wc -l</code> で実測）</td><td>全件 rc=0・failures=0</td></tr>
-      <tr><td><code>check-dist-coverage.sh</code></td><td>OK（4種通過・分類 501/501）</td></tr>
+      <tr><td><code>check-dist-coverage.sh</code></td><td>OK（4種通過・分類 506/506——コミット前は501/501。P4R2で訂正）</td></tr>
       <tr><td><code>extract-frontmatter.sh .</code></td><td>files=182 built=11 reused=171 failed=0 skipped=0</td></tr>
       <tr><td><code>check-doc-references.sh</code></td><td>参照切れ0（候補255・走査392ファイル）</td></tr>
     </tbody>
@@ -269,6 +270,26 @@
     <li>jqの「パイプ右辺で <code>.</code> が差し替わる」既知の罠を <code>schema_check.jq</code> の <code>has(.)</code> で踏んだ（<code>. as $k</code> の束縛で解消。既存ルールどおりの現象）。</li>
     <li>受け側の実装は計画より簡素になった: 新設バッファは CUR_CHAP のみで、COLH/PARA は jq の出力順が順序を保証するため既存バッファへの追記で足りた。takeaway は PARA の太字フラグで表現（計画が実装時判断とした点）。</li>
   </ul>
+</section>
+
+<section id="p4r2">
+  <h2>敵対的レビュー2回目（P4R2）の反映（push11）</h2>
+  <p>対象diff: push10（3f5224d..df6f1f6）。指摘12件（major1・minor11）のうち11件をPR #199へインライン投稿、1件は報告のみ（HANDOFFの「現在のループ」欄の食い違い。<code>set-header --loop</code>で即時対応）。11件全件を反映した。</p>
+  <div class="tablewrap"><table>
+    <tr><th>#</th><th>severity</th><th>概要</th><th>対応</th></tr>
+    <tr><td>AR-4-12</td><td>major</td><td><code>clean</code>がC0制御文字のみ正規化しU+FFFE/FFFFでXML生成が失敗、しかも誤診断メッセージ</td><td><code>clean</code>正規表現へufffe/uffff追加。生成失敗と検証失敗を区別</td></tr>
+    <tr><td>AR-4-13</td><td>minor</td><td>トップレベル非オブジェクトでjqがエラー終了しバグ報告へ誤誘導</td><td>検証全体をif-elseでラップし型チェックを先頭へ</td></tr>
+    <tr><td>AR-4-14</td><td>minor</td><td>スキーマ上正当な空文字列titleを拒否</td><td>空文字列チェックを削除（型チェックのみ）</td></tr>
+    <tr><td>AR-4-15</td><td>minor</td><td>two-column/table/comparison/diagramの要素型検証漏れ</td><td>4箇所へ型検査を追加</td></tr>
+    <tr><td>AR-4-16</td><td>minor</td><td>specの検証内容表に未検証3項目が記載</td><td>「検証内容」「検証しない」の2列表へ再構成</td></tr>
+    <tr><td>AR-4-17</td><td>minor</td><td>「jq適合チェックが同期を固定する」は過剰主張</td><td>spec・DDRの文言を実態に合わせて弱める</td></tr>
+    <tr><td>AR-4-18</td><td>minor</td><td><code>read -a</code>が末尾空セルを落とし列数が過小評価される</td><td>TROWレコードへセル数を明示フィールド化</td></tr>
+    <tr><td>AR-4-19</td><td>minor</td><td>計画で削除予定だった<code>BUL lvl=1</code>分岐が残存</td><td>lvl引数を削除し常時lvl=0へ統一</td></tr>
+    <tr><td>AR-4-20</td><td>minor</td><td>新設4写像に個別アサーションが無い</td><td>個別アサーション4件を追加</td></tr>
+    <tr><td>AR-4-21</td><td>minor</td><td>レポートの「501/501」が事実誤り</td><td>506/506＋説明へ訂正</td></tr>
+    <tr><td>AR-4-23</td><td>minor</td><td>新規specがREADMEのspec一覧に未掲載</td><td>一覧末尾へ追記</td></tr>
+  </table></div>
+  <div class="box warn"><span class="label">踏んだ罠</span>AR-4-18修正で既存の境界値テスト「全セル空の表」が失敗した。<code>read -a</code>バグ（AR-4-18そのもの）が引き起こしていた誤った挙動をテストが固定してしまっていたため、「1列1行が正しく生成される」検証へ書き換えた。詳細は <code>wip/worklogs/..._push11.md</code> 参照。</div>
 </section>
 
 <footer>issue #169 / PR #199 — 正文は同名の <code>.md</code>。外部依存を持たない自己完結HTML。</footer>

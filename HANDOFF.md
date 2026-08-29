@@ -18,8 +18,8 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - ブランチ: `claude/json-to-pptx-export-3g63ea`（ハーネス指定。feature-169-* ではない）
 - PR: #199（Draft。https://github.com/yuki-matsu783/MR-driven-workflow/pull/199 ）
 - push回数: 10
-- 現在のループ: なし
-- 未返信スレッド: 0
+- 現在のループ: 4-6〜4-9 の1周目（進行中）
+- 未返信スレッド: 11
 - 追従監視: PR #199 を subscribe_pr_activity で購読（このセッション）
 
 | 進捗 | flow-id | ステップ | 担当 |
@@ -185,11 +185,26 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
   patsub_replacement 追記・distribution-assets.md changelogへVERSION据え置き記録。
   検証全件合格（既存22本・501/501・参照切れ0）。正文は
   `wip/reports/2026-08-24_json-to-pptx-export-plan_反映.md`（+同名.html）。
+- 2026-08-24: push10（commit df6f1f6）ののち、敵対的レビュー（フェーズ4の2回目・対象は
+  反映実施diff）を実施。指摘12件（major1・minor11）のうち11件をPR #199へインライン投稿、
+  1件は報告のみ（HANDOFFの「現在のループ」欄が`なし`のまま食い違っていた件。本項目の
+  直前で `set-header --loop` により先に修正済み）。投稿スレッド（未返信11）:
+  - https://github.com/yuki-matsu783/MR-driven-workflow/pull/199#discussion_r3840280915 （major: cleanがC0制御文字しか正規化せずU+FFFE等でXML生成失敗、しかも「zip/pythonをインストールしてください」と誤誘導）
+  - https://github.com/yuki-matsu783/MR-driven-workflow/pull/199#discussion_r3840281408 （minor: トップレベルが非オブジェクトのJSONで検証前にjqがエラー終了しバグ報告へ誤誘導）
+  - https://github.com/yuki-matsu783/MR-driven-workflow/pull/199#discussion_r3840281892 （minor: スキーマ上正当な空文字列titleを拒否し「がありません」の文言が実態と不一致）
+  - https://github.com/yuki-matsu783/MR-driven-workflow/pull/199#discussion_r3840282485 （minor: two-column/comparison/table/diagramの要素型検証が漏れJSON文字列がそのまま出力される）
+  - https://github.com/yuki-matsu783/MR-driven-workflow/pull/199#discussion_r3840283169 （minor: specの検証内容表に未検証の3項目（meta.issue integer・rows 1件以上・items上限6件）が記載）
+  - https://github.com/yuki-matsu783/MR-driven-workflow/pull/199#discussion_r3840283915 （minor: 「jq適合チェックがスキーマとの同期を固定する」は過剰主張）
+  - https://github.com/yuki-matsu783/MR-driven-workflow/pull/199#discussion_r3840284452 （minor: 表セル数カウントで行末の空セルが read -a により1個落ちる境界値バグ）
+  - https://github.com/yuki-matsu783/MR-driven-workflow/pull/199#discussion_r3840285030 （minor: 計画で削除予定だったBUL lvl=1受け側分岐が残存し無記録）
+  - https://github.com/yuki-matsu783/MR-driven-workflow/pull/199#discussion_r3840285735 （minor: 新設4写像（chapter位置・COLH太字・PARA太字/通常・diagram連結）の個別アサーション欠落）
+  - https://github.com/yuki-matsu783/MR-driven-workflow/pull/199#discussion_r3840949388 （minor: 反映レポートの分類件数「501/501」が事実誤り。追加後は506/506）
+  - https://github.com/yuki-matsu783/MR-driven-workflow/pull/199#discussion_r3887876673 （minor: 新規spec pptx-slides.mdがREADMEのspec一覧に未掲載）
 
 ## 次にやること
 
-- フェーズ4の締め: 敵対的レビュー（フェーズ4の2回目・対象=反映実施diff＝push10）→
-  指摘反映・返信（push11）→ describe（4-10）→ フェーズ5（5-1でmain取り込み承認確認・
+- フェーズ4の締め: 上記11件の指摘反映・修正push（push11）→ 全スレッドへ対応返信
+  （未返信0へ）→ describe（4-10）→ フェーズ5（5-1でmain取り込み承認確認・
   取り込み直後に VERSION 0.5.0→0.6.0・`directory-structure.md`／`index.md` の skills 箇所
   コンフリクトは両方の行を残す → 5-2関連issue通知（承認必須）→ 5-3 gemini同期 →
   5-4統括レポート → 5-5片付け → 5-6はゲート（◆回答・実機確認）が揃うまで進まない）。

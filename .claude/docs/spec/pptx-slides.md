@@ -35,26 +35,36 @@ keywords: [pptx, PowerPoint, OOXML, json-to-pptx, slide-outline, スキーマ, z
 入力の正は構成案JSONスキーマ
 `.claude/skills/html-slides/references/slide-outline.schema.json`（issue #168。PR #194で確定）。
 本スキルの検証はjq（`slides-to-records.jq`）の必須キー・要素型検査で行い、**スキーマファイル
-自体は実行時に読まない**（依存を検査ロジックへ閉じる。スキーマとの同期は単体テストの
-jq適合チェックが固定する）。
+自体は実行時に読まない**（依存を検査ロジックへ閉じる）。**単体テストのjq適合チェック
+（`schema_check.jq`）が固定するのは「サンプルJSONがスキーマに適合し続けること」であり、
+`slides-to-records.jq` が持つ検証規則そのものとスキーマの一致は検査しない**（両者を
+ハードコードで二重管理しているため、`type` enumの追加やminItems/maxItemsの変更は
+サンプルが境界へ触れない限り検出されない。AR-4-17）。
 
-| 対象 | 検証内容 |
-|---|---|
-| meta | `title`（文字列・必須）。`issue` は integer（docPropsへは文字列化して入る） |
-| slides | 配列・1件以上 |
-| type | 8種enum（cover/section/bullets/two-column/diagram/table/comparison/summary） |
-| title | **coverのみ任意**（省略時 `meta.title`）。他の7型は必須。coverで書く場合も文字列 |
-| bullets/summary | `items[]` 1件以上・各要素は文字列 |
-| two-column | `columns[]` ちょうど2件・各要素は `heading`（文字列）＋`items[]`（1件以上）を持つオブジェクト |
-| table | `columns[]` 1件以上＋`rows[][]`（各行は配列） |
-| comparison | `sides[]` 2〜3件・各要素は `name`（文字列）＋`points[]`（1件以上）を持つオブジェクト。`tone`（pro/con/neutral）は任意 |
-| diagram | `nodes[]` 2件以上・各要素は `label`（文字列）を持つオブジェクト。`note` は任意 |
+下表「検証内容」は**このスキルが実際にチェックする項目のみ**を記す。スキーマにはあるが
+このスキルが検査しない項目は「検証しない」列に別記する（AR-4-16。緩い方向のズレは
+下記「表に無いキーは無視する」の方針と整合するため許容している）。
+
+| 対象 | 検証内容 | 検証しない（スキーマより緩い） |
+|---|---|---|
+| meta | `title`（文字列・必須） | `issue` の型（integerでなくてもdocPropsへは`tostring`で通る） |
+| slides | 配列・1件以上 | — |
+| type | 8種enum（cover/section/bullets/two-column/diagram/table/comparison/summary） | — |
+| title | **coverのみ任意**（省略時 `meta.title`）。他の7型は必須。coverで書く場合も文字列（空文字列も可） | — |
+| bullets/summary | `items[]` 1件以上・各要素は文字列 | 上限6件（スキーマは`maxItems:6`） |
+| two-column | `columns[]` ちょうど2件・各要素は `heading`（文字列）＋`items[]`（1件以上・各要素は文字列）を持つオブジェクト | — |
+| table | `columns[]` 1件以上＋`rows[][]`（各行は配列・各セルは文字列） | rowsの1件以上（スキーマは`minItems:1`。`rows:[]`はヘッダ行だけの表になる） |
+| comparison | `sides[]` 2〜3件・各要素は `name`（文字列）＋`points[]`（1件以上・各要素は文字列）を持つオブジェクト。`tone`（pro/con/neutral）は任意 | — |
+| diagram | `nodes[]` 2件以上・各要素は `label`（文字列）を持つオブジェクト。`note`（任意）は指定時は文字列 | — |
 
 - 違反は**キー名を挙げた明示エラー**（複数件をまとめて表示）・非0終了。
 - 表に無いキーは無視する（スキーマの `additionalProperties: false` より緩い超集合。
   過剰キーで失敗しない）。逆にスキーマが持たない形（bulletsの入れ子オブジェクト・
   diagramのedges/caption・旧語彙 headers/options/left/right）は**受け付けない**
   （issue #169 フェーズ4でスキーマ確定に追従し、検証・分岐ごと削除した）。
+- トップレベルが非オブジェクト（配列・文字列・数値）のJSONは、検証の前に型を確認し
+  「入力のトップレベルがオブジェクトではありません」の明示エラーで弾く（P4R2で追加。
+  それ以前はjq自体がエラー終了し、原因不明のバグ報告のような扱いになっていた）。
 
 ### type別写像（8種）
 

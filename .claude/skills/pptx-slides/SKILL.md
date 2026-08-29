@@ -33,18 +33,23 @@ bash .claude/skills/pptx-slides/scripts/json-to-pptx.sh <入力.json> [出力.pp
 `.claude/skills/html-slides/references/slide-outline.schema.json`（issue #168）。
 このスキルの検証はその必須キー・要素型に揃えている（スキーマファイル自体は読まない）。
 
-- `meta.title`（文字列・必須）と `slides`（配列・1件以上・必須）。`meta.issue` は integer。
+- `meta.title`（文字列・必須）と `slides`（配列・1件以上・必須）。**`meta.issue` の型は
+  検証しない**（スキーマは integer だが、このスキルはdocProps行きの値として`tostring`で
+  通すだけで型検査はしない。詳細: `.claude/docs/spec/pptx-slides.md`「入力仕様」）。
 - 各スライドは `type`（8種enum: `cover` `section` `bullets` `two-column` `diagram`
   `table` `comparison` `summary`）を持つ。`title` は **cover のみ任意**（省略時は
-  `meta.title` を採る）で、他の7型は必須。
-- 型別の必須キー: `bullets`/`summary`→`items[]`（1件以上・各要素は文字列）、
-  `two-column`→`columns[]`（ちょうど2件・各要素は `heading`（文字列）＋`items[]`
-  （1件以上））、`table`→`columns[]`（1件以上）/`rows[][]`（各行は配列）、
-  `comparison`→`sides[]`（2〜3件・各要素は `name`（文字列）＋`points[]`（1件以上）。
-  `tone`（pro/con/neutral）は任意）、`diagram`→`nodes[]`（2件以上・各要素は `label`
-  （文字列）を持つオブジェクト。`note` は任意）。**表に無いキーは無視する**
-  （過剰なキーで失敗しない。スキーマの `additionalProperties: false` より緩い）。
-- 違反はキー名を挙げた明示エラーになる。
+  `meta.title` を採る）で、他の7型は必須（空文字列でもよい）。
+- 型別の必須キー: `bullets`/`summary`→`items[]`（1件以上・各要素は文字列。**上限6件は
+  検証しない**）、`two-column`→`columns[]`（ちょうど2件・各要素は `heading`（文字列）＋
+  `items[]`（1件以上・各要素は文字列））、`table`→`columns[]`（1件以上）/`rows[][]`
+  （各行は配列・各セルは文字列。**rowsの1件以上は検証しない**）、
+  `comparison`→`sides[]`（2〜3件・各要素は `name`（文字列）＋`points[]`（1件以上・
+  各要素は文字列）。`tone`（pro/con/neutral）は任意）、`diagram`→`nodes[]`（2件以上・
+  各要素は `label`（文字列）を持つオブジェクト。`note`（任意）は指定時は文字列）。
+  **表に無いキーは無視する**（過剰なキーで失敗しない。スキーマの
+  `additionalProperties: false` より緩い）。
+- トップレベルが非オブジェクトのJSONは「入力のトップレベルがオブジェクトではありません」
+  の明示エラーになる。違反はいずれもキー名を挙げた明示エラー。
 - 表の列数は**全行（ヘッダ含む）の最大セル数**で決まる。セル数が少ない行は空セルで
   埋められ、多い行のセルが切り捨てられることはない。
 

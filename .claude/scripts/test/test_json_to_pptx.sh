@@ -435,6 +435,49 @@ assert_contains "cover省略側: meta.titleが見出しへ現れる" "$mapped" "
 assert_contains "cover省略側: meta.subtitleがサブタイトルへ現れる" "$mapped" "COVER_META_SUB"
 assert_contains "cover自前側: 自前title/subtitleが優先されmeta.subtitleは出ない" "$mapped" "COVER_OWN"
 
+# 個別アサーション: 条件7突合をすり抜ける4つの写像（連結・位置・太字）を固定する
+# （AR-4-20。条件7は<a:t>連結文字列への部分一致しか見ないため、diagramのlabelが
+# 別々の段落に出ても・chapterが見出しの下に出ても・COLH/takeawayが太字でなくても
+# 検出できない）
+mapped2="$(python3 - "$zip_pptx" <<'EOF'
+import re, sys, zipfile
+z = zipfile.ZipFile(sys.argv[1])
+def raw(n):
+    return z.read("ppt/slides/slide%d.xml" % n).decode("utf-8")
+# slide8=diagram: labelを「 → 」で連結した1つの段落として出ているか（別々の段落へ
+# 分割されていると、各labelは条件7を通るがこの1文字列としては現れない）
+print("DIAGRAM_CHAIN" if "入力JSON &#8594; 生成 &#8594; 検証" in raw(8)
+      or "入力JSON → 生成 → 検証" in raw(8) else "NO_DIAGRAM_CHAIN")
+# slide3=section: Chapter図形（第1章）がSection Title図形（背景 & 目的）より前に出るか
+s3 = raw(3)
+chap_pos = s3.find('name="Chapter"')
+title_pos = s3.find('name="Section Title"')
+print("CHAP_BEFORE_TITLE" if -1 < chap_pos < title_pos else "NO_CHAP_BEFORE_TITLE")
+# slide5=two-column: heading（現状/あるべき姿）を含む段落が太字（b="1"）か
+s5 = raw(5)
+paras = re.findall(r"<a:p>.*?</a:p>", s5)
+def bold_para_for(text):
+    for p in paras:
+        if ("<a:t>%s</a:t>" % text) in p:
+            return 'b="1"' in p
+    return False
+print("COLH_BOLD" if bold_para_for("現状") and bold_para_for("あるべき姿") else "NO_COLH_BOLD")
+# slide9=summary: takeawayを含む段落が太字（b="1"）か
+s9 = raw(9)
+paras9 = re.findall(r"<a:p>.*?</a:p>", s9)
+def bold9(text):
+    for p in paras9:
+        if ("<a:t>%s</a:t>" % text) in p:
+            return 'b="1"' in p
+    return False
+print("TAKEAWAY_BOLD" if bold9("構成案JSONがそのままPowerPointになる") else "NO_TAKEAWAY_BOLD")
+EOF
+)"
+assert_contains "diagram: labelが「 → 」連結の1段落として現れる" "$mapped2" "DIAGRAM_CHAIN"
+assert_contains "section: Chapter段落がSection Title図形より前に出る" "$mapped2" "CHAP_BEFORE_TITLE"
+assert_contains "two-column: heading段落が太字(b=1)である" "$mapped2" "COLH_BOLD"
+assert_contains "summary: takeaway段落が太字(b=1)である" "$mapped2" "TAKEAWAY_BOLD"
+
 # ---------------------------------------------------------------------------
 # PATH制限用の合成bin（テスト対象が必要とする外部コマンドだけを実体へリンクする）
 # ---------------------------------------------------------------------------
@@ -604,9 +647,74 @@ expect_error "items要素が文字列でない（入れ子は受け付けない�
 printf '%s\n' '{"meta":{"title":"t"},"slides":[{"type":"cover","title":123}]}' > "$T/covertitle.json"
 expect_error "coverのtitleが文字列でない" "$T/covertitle.json" "title が文字列ではありません"
 
-# 全セルが空の表は、素のbashエラー（ゼロ除算）ではなく明示エラーで止まる
+# トップレベルが非オブジェクトのJSONは、jqがエラー終了する前に明示エラーで弾く（AR-4-13）
+printf '[1,2]' > "$T/toparray.json"
+expect_error "トップレベルが配列" "$T/toparray.json" "入力のトップレベルがオブジェクトではありません"
+printf '"str"' > "$T/topstring.json"
+expect_error "トップレベルが文字列" "$T/topstring.json" "入力のトップレベルがオブジェクトではありません"
+printf '123' > "$T/topnumber.json"
+expect_error "トップレベルが数値" "$T/topnumber.json" "入力のトップレベルがオブジェクトではありません"
+
+# 要素型の検証漏れ（AR-4-15）: two-column/table/comparison/diagramでも
+# 非文字列の要素をJSON表現のまま出力せず、bullets/summaryと同じ明示エラーで弾く
+printf '%s\n' '{"meta":{"title":"t"},"slides":[{"type":"two-column","title":"x","columns":[{"heading":"h","items":[{"k":1}]},{"heading":"h2","items":["i"]}]}]}' > "$T/colitemtype.json"
+expect_error "two-columnのitems要素が文字列でない" "$T/colitemtype.json" "columns[0].items[0] が文字列ではありません"
+printf '%s\n' '{"meta":{"title":"t"},"slides":[{"type":"table","title":"x","columns":["h1"],"rows":[[{"k":1}]]}]}' > "$T/cellnonstring.json"
+expect_error "tableのセルが文字列でない" "$T/cellnonstring.json" "rows[0][0] が文字列ではありません"
+printf '%s\n' '{"meta":{"title":"t"},"slides":[{"type":"comparison","title":"x","sides":[{"name":"A","points":[1]},{"name":"B","points":["b"]}]}]}' > "$T/pointtype.json"
+expect_error "comparisonのpoints要素が文字列でない" "$T/pointtype.json" "sides[0].points[0] が文字列ではありません"
+printf '%s\n' '{"meta":{"title":"t"},"slides":[{"type":"diagram","title":"x","nodes":[{"label":"a","note":1},{"label":"b"}]}]}' > "$T/notetype.json"
+expect_error "diagramのnoteが文字列でない" "$T/notetype.json" "nodes[0].note が文字列ではありません"
+
+# titleの空文字列はスキーマ上 {"type":"string"} に適合するため拒否しない（AR-4-14）
+printf '%s\n' '{"meta":{"title":"t"},"slides":[{"type":"bullets","title":"","items":["a"]}]}' > "$T/emptytitle.json"
+rc=0
+out="$(bash "$target" "$T/emptytitle.json" "$T/emptytitle.pptx" 2>&1)" || rc=$?
+assert_eq "空文字列titleは拒否されない: rc=0" "0" "$rc"
+
+# 全セルが空文字列の表は、1列1行として正しく生成される（columnsが1件以上あれば
+# 列数は1以上であり「列数を決定できない」異常系ではない。AR-4-18修正前は末尾セルが
+# 空だと read -a が区切り1つ分を落として列数を1つ少なく数え、このケースが偶然
+# セル数0と誤判定されエラーになっていた。「表の列数を決定できません」ガード自体は
+# 防御的に残すが、columns（配列・1件以上・必須）検証を通過した入力からは
+# 到達しなくなった）
 printf '%s\n' '{"meta":{"title":"t"},"slides":[{"type":"table","title":"x","columns":[""],"rows":[[""]]}]}' > "$T/allempty.json"
-expect_error "全セル空の表" "$T/allempty.json" "表の列数を決定できません"
+rc=0
+out="$(bash "$target" "$T/allempty.json" "$T/allempty.pptx" 2>&1)" || rc=$?
+assert_eq "全セル空文字列の表: rc=0" "0" "$rc"
+allempty_info="$(python3 - "$T/allempty.pptx" <<'EOF'
+import sys, zipfile
+import xml.etree.ElementTree as ET
+z = zipfile.ZipFile(sys.argv[1])
+root = ET.fromstring(z.read("ppt/slides/slide1.xml"))
+ns = "{http://schemas.openxmlformats.org/drawingml/2006/main}"
+grid = root.findall(".//" + ns + "tblGrid/" + ns + "gridCol")
+rows = root.findall(".//" + ns + "tr")
+print("cols=%d rows=%s" % (len(grid), [len(r.findall(ns + "tc")) for r in rows]))
+EOF
+)"
+assert_contains "全セル空文字列の表: 列数は1" "$allempty_info" "cols=1"
+assert_contains "全セル空文字列の表: 2行（ヘッダ+データ）とも1セル" "$allempty_info" "rows=[1, 1]"
+
+# 末尾セルが空文字列の行は、他行より多いセル数（末尾の空セルを含む）で正しく数えられる
+# （AR-4-18の再現ケース。columns=1件だがrowsの末尾セルが空なので列数は3のはず）
+printf '%s\n' '{"meta":{"title":"t"},"slides":[{"type":"table","title":"x","columns":["h1"],"rows":[["a","b",""]]}]}' > "$T/trailingempty.json"
+rc=0
+out="$(bash "$target" "$T/trailingempty.json" "$T/trailingempty.pptx" 2>&1)" || rc=$?
+assert_eq "末尾セルが空文字列の表: rc=0" "0" "$rc"
+trailing_info="$(python3 - "$T/trailingempty.pptx" <<'EOF'
+import sys, zipfile
+import xml.etree.ElementTree as ET
+z = zipfile.ZipFile(sys.argv[1])
+root = ET.fromstring(z.read("ppt/slides/slide1.xml"))
+ns = "{http://schemas.openxmlformats.org/drawingml/2006/main}"
+grid = root.findall(".//" + ns + "tblGrid/" + ns + "gridCol")
+rows = root.findall(".//" + ns + "tr")
+print("cols=%d rows=%s" % (len(grid), [len(r.findall(ns + "tc")) for r in rows]))
+EOF
+)"
+assert_contains "末尾セルが空文字列の表: 列数は3（末尾の空セルを含む）" "$trailing_info" "cols=3"
+assert_contains "末尾セルが空文字列の表: 全行が3セルへパディングされる" "$trailing_info" "rows=[3, 3]"
 
 # ---------------------------------------------------------------------------
 # jqが途中で失敗した場合: 非0終了・明示エラー・出力を残さない

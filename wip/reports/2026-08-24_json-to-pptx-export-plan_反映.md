@@ -97,17 +97,21 @@ keywords: [反映結果, pptx-slides, スキーマ追従, slide-outline, spec, D
   「入れ子は明示エラーで拒否される」テストへ置き換え）。維持したのは jq途中失敗・制御文字・
   改行入りmeta.title・不揃いな表（`columns` へ改名）・経路系・speakerNotes警告の各テスト。
 
-## 3. 検証結果（実測。実行日 2026-08-24・コミット前のワーキングツリー）
+## 3. 検証結果（実測。実行日 2026-08-24）
 
-| 検証 | 結果 |
-|---|---|
-| `bash -n`（json-to-pptx.sh・test_json_to_pptx.sh） | エラーなし |
-| `bash .claude/scripts/test/test_json_to_pptx.sh` | `passed=88 failures=0`（push7時点70件 → 境界値の入れ替え＋10・スキーマ適合2・個別アサーション6で88件） |
-| 既存テスト全件（`test_*.sh` 22本。本数は `ls .claude/scripts/test/test_*.sh \| wc -l` で実測） | 全件 rc=0・`failures=0` |
-| `bash .claude/scripts/src/check-dist-coverage.sh` | OK（4種通過。分類 501/501——新規 spec・DDR・レポートの追加で分母が498から増加） |
-| `bash .claude/scripts/src/extract-frontmatter.sh .` | `files=182 built=11 reused=171 failed=0 skipped=0` |
-| `bash .claude/scripts/src/generate-ddr-list.sh` | README差分はDDR一覧の1行追加のみ（95件） |
-| `bash .claude/scripts/src/check-doc-references.sh` | 参照切れ0（候補255件・走査392ファイル） |
+初回実施（push10。コミット前のワーキングツリー）とP4R2反映後（push11。コミット前の
+ワーキングツリー）の両方を残す。数値の分母（`check-dist-coverage.sh`等）は追跡ファイルの
+みを数えるため、コミット前後で変わる（詳細は章6参照）。
+
+| 検証 | push10時点 | push11（P4R2反映後）時点 |
+|---|---|---|
+| `bash -n`（json-to-pptx.sh・test_json_to_pptx.sh） | エラーなし | エラーなし |
+| `bash .claude/scripts/test/test_json_to_pptx.sh` | `passed=88 failures=0` | `passed=111 failures=0`（境界値11件・個別アサーション4件・全セル空の表テスト書き換え4件で+23） |
+| 既存テスト全件（`test_*.sh` 22本） | 全件 rc=0 | 全件 rc=0 |
+| `bash .claude/scripts/src/check-dist-coverage.sh` | 501/501（4-1の計画ファイル追加分をコミット済みの状態） | 506/506（push10の新規5ファイルをコミット済みの状態） |
+| `bash .claude/scripts/src/extract-frontmatter.sh .` | `files=182 built=11 reused=171 failed=0` | `files=184 built=6 reused=178 failed=0` |
+| `bash .claude/scripts/src/generate-ddr-list.sh` | README差分はDDR一覧の1行追加のみ（95件） | 差分なし（95件。DDR本文の文言修正のみでfrontmatterは変更していないため） |
+| `bash .claude/scripts/src/check-doc-references.sh` | 参照切れ0（候補255件・走査392ファイル） | 参照切れ0（候補255件・走査396ファイル） |
 
 スキーマ適合チェックは上記テスト内で実施（`スキーマ適合: サンプルが確定スキーマに適合する` と
 `不適合サンプルで2件検出` の2アサーション）。
@@ -135,3 +139,26 @@ keywords: [反映結果, pptx-slides, スキーマ追従, slide-outline, spec, D
 - ◆ spec `pptx-slides.md` の新規作成承認・実機確認4点（表の罫線含む）・調査レポート◆3件への
   回答は、引き続きDraft解除（5-6）前の必須ゲート。
 - speakerNotes（notesSlide）出力・`tableStyles.xml` 同梱は実機確認の結果待ちの後続課題。
+
+## 6. 敵対的レビュー2回目（P4R2）の反映（push11）
+
+対象diff: push10（3f5224d..df6f1f6）。指摘12件（major1・minor11）のうち11件をPR #199へ
+インライン投稿、1件は報告のみ（HANDOFFの「現在のループ」欄が`なし`のまま食い違っていた件。
+`set-header --loop`で即時対応）。11件全件を反映した。
+
+| # | severity | 概要 | 対応 |
+|---|---|---|---|
+| AR-4-12 | major | `clean`がC0制御文字のみ正規化しU+FFFE/FFFFでXML生成が失敗、しかも誤診断メッセージ | `clean`正規表現へufffe/uffff追加。生成失敗と検証失敗を区別し全経路が後者なら入力起因メッセージへ分岐 |
+| AR-4-13 | minor | トップレベル非オブジェクトでjqがエラー終了しバグ報告へ誤誘導 | 検証全体をif-elseでラップし型チェックを先頭へ |
+| AR-4-14 | minor | スキーマ上正当な空文字列titleを拒否 | 空文字列チェックを削除（型チェックのみ） |
+| AR-4-15 | minor | two-column/table/comparison/diagramの要素型検証漏れ | 4箇所へ`type != "string"`検査を追加 |
+| AR-4-16 | minor | specの検証内容表に未検証3項目が記載 | 「検証内容」「検証しない」の2列表へ再構成（SKILL.mdも同期） |
+| AR-4-17 | minor | 「jq適合チェックが同期を固定する」は過剰主張 | spec・DDR i0169-01の文言を実態に合わせて弱める |
+| AR-4-18 | minor | `read -a`が末尾空セルを落とし表の列数が過小評価される | TROWレコードへセル数を明示フィールド化（jq・bash両側） |
+| AR-4-19 | minor | 計画で削除予定だった`BUL lvl=1`分岐が残存・無記録 | lvl引数を削除し常時lvl=0の描画へ統一 |
+| AR-4-20 | minor | 新設4写像に個別アサーションが無い | slide3/5/8/9を直接パースする個別アサーション4件を追加 |
+| AR-4-21 | minor | レポートの「501/501」がコミット前の値で事実誤り | md・html3箇所を506/506＋説明へ訂正 |
+| AR-4-23 | minor | 新規specがREADMEのspec一覧に未掲載 | 一覧末尾へ追記 |
+
+修正の詳細・踏んだ罠（AR-4-18修正で既存テストが1件、AR-4-18バグに依存していたことが
+判明し書き換えた経緯）は `wip/worklogs/..._push11.md` を参照。

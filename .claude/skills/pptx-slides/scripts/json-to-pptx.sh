@@ -68,11 +68,12 @@ para_plain_to_reply() { # $1=text $2=sz
   REPLY="<a:p><a:r><a:rPr lang=\"ja-JP\" sz=\"$2\"/><a:t>$REPLY</a:t></a:r></a:p>"
 }
 
-para_bullet_to_reply() { # $1=lvl(0/1) $2=text
-  local lvl="$1" sz ch
-  if [ "$lvl" = "1" ]; then sz=1800 ch="–"; else sz=2000 ch="•"; fi
-  xml_escape_to_reply "$2"
-  REPLY="<a:p><a:pPr lvl=\"$lvl\"><a:buFont typeface=\"Arial\"/><a:buChar char=\"$ch\"/></a:pPr><a:r><a:rPr lang=\"ja-JP\" sz=\"$sz\"/><a:t>$REPLY</a:t></a:r></a:p>"
+# 入れ子bullets（lvl=1相当）は additionalProperties:false のスキーマでは正当な入力に
+# 現れず、jq側もBULレコードのlvlを常に0で出す（items は文字列のみ）。lvl引数を持たせると
+# どの入力からも到達しない分岐になるため、lvl自体を持たない設計にする（AR-4-19）。
+para_bullet_to_reply() { # $1=text
+  xml_escape_to_reply "$1"
+  REPLY="<a:p><a:pPr lvl=\"0\"><a:buFont typeface=\"Arial\"/><a:buChar char=\"•\"/></a:pPr><a:r><a:rPr lang=\"ja-JP\" sz=\"2000\"/><a:t>$REPLY</a:t></a:r></a:p>"
 }
 
 table_cell_to_reply() { # $1=text $2=bold(0/1)
@@ -369,7 +370,8 @@ main() {
         CUR_CHAP+="$REPLY"
         ;;
       BUL)
-        para_bullet_to_reply "${F[1]}" "${F[2]-}"
+        # F[1]（lvl）は常に0（jq側コメント参照）で、受け側は使わない
+        para_bullet_to_reply "${F[2]-}"
         CUR_BODY+="$REPLY"
         ;;
       PARA)
@@ -394,9 +396,12 @@ main() {
         ;;
       TROW)
         # ここではバッファへ溜めるだけ。列数は全行の最大セル数で確定するため、
-        # 行のXML化は flush_slide で行う（先頭行基準だとゼロ除算・超過セルの切り捨てが起きる）
-        local ncells=$(( ${#F[@]} - 2 )) joined="" ci
-        for ((ci = 2; ci < ${#F[@]}; ci++)); do joined+="${F[$ci]}$US"; done
+        # 行のXML化は flush_slide で行う（先頭行基準だとゼロ除算・超過セルの切り捨てが起きる）。
+        # F[2] はjqが渡すセル数（AR-4-18）。read -a は区切り1つ分の末尾空フィールドを
+        # 落とすため、${#F[@]} から逆算すると行末セルが空の行でセル数を1つ少なく数える。
+        # F[2] を正として ncells 個分だけ組み立て、足りない分（読み落ち）は空文字列で補う。
+        local ncells="${F[2]-0}" joined="" ci
+        for ((ci = 0; ci < ncells; ci++)); do joined+="${F[$((ci + 3))]-}$US"; done
         CUR_TBL_KINDS+=("${F[1]}")
         CUR_TBL_CELLS+=("$joined")
         if [ "$ncells" -gt "$CUR_TBL_NCOLS" ]; then CUR_TBL_NCOLS="$ncells"; fi
@@ -464,6 +469,8 @@ main() {
   PY_CMD=""
   if detect_python_to_reply; then PY_CMD="$REPLY"; fi
 
+  # tried の各要素は「生成に失敗」か「検証に失敗」かを区別する（AR-4-12）。
+  # 全経路が後者だった場合、環境不備ではなく入力起因の可能性を示す別メッセージにするため。
   local tmp_pptx="$tmp/out.pptx" packed="" route
   local -a tried=()
   for route in zip python; do
@@ -471,30 +478,54 @@ main() {
       zip)
         command -v zip >/dev/null 2>&1 || { tried+=("zip(コマンドなし)"); continue; }
         rm -f "$tmp_pptx"
-        if pack_with_zip "$WORK" "$tmp_pptx" && verify_pptx "$tmp_pptx" "$nslides"; then
-          packed="zip"
-          break
+        if pack_with_zip "$WORK" "$tmp_pptx"; then
+          if verify_pptx "$tmp_pptx" "$nslides"; then
+            packed="zip"
+            break
+          fi
+          rm -f "$tmp_pptx"
+          tried+=("zip(検証に失敗)")
+        else
+          rm -f "$tmp_pptx"
+          tried+=("zip(生成に失敗)")
         fi
-        # 途中経路の失敗はフォールバック（出力を削除して次の経路へ）
-        rm -f "$tmp_pptx"
-        tried+=("zip(生成または検証に失敗)")
         ;;
       python)
         [ -n "$PY_CMD" ] || { tried+=("python3/python/py -3(import zipfile が通る候補なし)"); continue; }
         rm -f "$tmp_pptx"
-        if pack_with_python "$PY_CMD" "$WORK" "$tmp_pptx" && verify_pptx "$tmp_pptx" "$nslides"; then
-          packed="python($PY_CMD)"
-          break
+        if pack_with_python "$PY_CMD" "$WORK" "$tmp_pptx"; then
+          if verify_pptx "$tmp_pptx" "$nslides"; then
+            packed="python($PY_CMD)"
+            break
+          fi
+          rm -f "$tmp_pptx"
+          tried+=("python($PY_CMD)(検証に失敗)")
+        else
+          rm -f "$tmp_pptx"
+          tried+=("python($PY_CMD)(生成に失敗)")
         fi
-        rm -f "$tmp_pptx"
-        tried+=("python($PY_CMD)(生成または検証に失敗)")
         ;;
     esac
   done
 
   if [ -z "$packed" ]; then
     rm -f "$tmp_pptx"
-    err "zip梱包に使える経路がありません（試行: ${tried[*]:-なし}）。zip コマンドか、zipfile モジュールを持つ python3 / python / py -3 のいずれかをインストールしてください"
+    # 試行した経路のうち1つでも「検証に失敗」以外（コマンドなし・生成に失敗等）が
+    # 混ざっていれば環境不備の案内を出す。全件「検証に失敗」なら環境は使えているので、
+    # 入力起因（不正なXML文字の混入等）の可能性を示す。
+    local only_verify_failed=1 t
+    if [ "${#tried[@]}" -eq 0 ]; then only_verify_failed=0; fi
+    for t in "${tried[@]-}"; do
+      case "$t" in
+        *"(検証に失敗)") ;;
+        *) only_verify_failed=0 ;;
+      esac
+    done
+    if [ "$only_verify_failed" -eq 1 ]; then
+      err "生成された.pptxがXMLとして不正です（試行した全経路で検証に失敗: ${tried[*]}）。入力JSONにXMLとして扱えない文字が含まれていないか確認してください"
+    else
+      err "zip梱包に使える経路がありません（試行: ${tried[*]:-なし}）。zip コマンドか、zipfile モジュールを持つ python3 / python / py -3 のいずれかをインストールしてください"
+    fi
     exit 1
   fi
 
