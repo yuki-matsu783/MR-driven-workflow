@@ -192,7 +192,7 @@
       <tr><td>3</td><td>検証4-a が 1（差分リンクが <code>/pull/206/files</code>）</td><td><b>達成</b>（<code>grep -c</code> = 1）</td></tr>
       <tr><td>4</td><td>検証4-b の2つの件数が一致（アンカーの土台が不変）</td><td><b>達成</b>（アンカー付き10 / うちCompare上10）</td></tr>
       <tr><td>5</td><td>検証4-c が 1（MR行が実リンク）</td><td><b>達成</b>（<code>grep -c</code> = 1）</td></tr>
-      <tr><td>6</td><td>2回目以降のpushで <code>- コメント一覧(MR画面):</code> 行が出る</td><td><b>未確認</b>。この検証時点では状態ファイルのSHAとHEADが一致しており <code>since_url</code> が空になるため出ない。<b>次の実push（flow-id 3-7）が最初の確認機会</b>である</td></tr>
+      <tr><td>6</td><td>2回目以降のpushで <code>- コメント一覧(MR画面):</code> 行が出る</td><td><b>達成</b>。コミット <code>27786bd</code>（伝播遅延対策）のpush直後のhook出力で確認した: <code>- コメント一覧(MR画面): https://github.com/yuki-matsu783/MR-driven-workflow/pull/206</code>。同じpushで「defaultブランチとの差分」も即座に <code>/pull/206/files</code> になっており、伝播遅延対策（複数候補SHA）が実際のpushでも機能することを確認した</td></tr>
       <tr><td>7</td><td>GitLab経路が変わっていない（<code>gitlab_get_diff_anchor_base_url</code> の7アサーションが変更なしで通る）</td><td><b>達成</b>（<code>git diff</code> の削除行は冒頭コメント2行のみ。既存アサーションは1行も変更していない）</td></tr>
     </tbody>
   </table>
@@ -284,7 +284,6 @@
     <li><b>認証プロンプト・ハング対策の実効性。</b> <code>credential.helper=</code> <code>core.askPass=</code> <code>http.lowSpeedLimit/lowSpeedTime</code> を付けたが、この環境では発動条件を作れない。</li>
     <li><b>CLI経路（<code>get_vcs_access_mode</code> が <code>cli</code>）の挙動。</b> <code>gh</code>/<code>glab</code> が無いため実行できない。 CLI経路では <code>mr_url</code> が最初から非空で、追加した解決ブロックは <code>[ -z &quot;$mr_url&quot; ]</code> により 素通りする——これは<b>コードを読んだ上での判断であり、実機確認ではない</b>。</li>
     <li><b>SSH remoteでの挙動。</b> 単体テストでは <code>case</code> の判定を固定したが、実際のSSH remoteで <code>ls-remote</code> が起動しないことは実環境で確認していない（<code>git</code> をスタブして確認した）。</li>
-    <li><b>完了条件6</b>（コメント一覧行）。次の実pushが最初の確認機会である。</li>
   </ul>
 </section>
 

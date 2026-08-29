@@ -28,7 +28,7 @@ keywords: [get_mr_diff_url, git ls-remote, refs/pull, compare_url, diff_url, 空
 | 3 | 検証4-a が 1（差分リンクが `/pull/206/files`） | **達成**（`grep -c` = 1） |
 | 4 | 検証4-b の2つの件数が一致（アンカーの土台が不変） | **達成**（アンカー付き10 / うちCompare上10） |
 | 5 | 検証4-c が 1（MR行が実リンク） | **達成**（`grep -c` = 1） |
-| 6 | 2回目以降のpushで `- コメント一覧(MR画面):` 行が出る | **未確認**。この検証時点では状態ファイルのSHAとHEADが一致しており `since_url` が空になるため出ない。**次の実push（flow-id 3-7）が最初の確認機会**である |
+| 6 | 2回目以降のpushで `- コメント一覧(MR画面):` 行が出る | **達成**。コミット `27786bd`（伝播遅延対策）のpush直後のhook出力で確認した:`- コメント一覧(MR画面): https://github.com/yuki-matsu783/MR-driven-workflow/pull/206`。同じpushで「defaultブランチとの差分」も即座に `/pull/206/files` になっており、伝播遅延対策（複数候補SHA）が実際のpushでも機能することを確認した |
 | 7 | GitLab経路が変わっていない（`gitlab_get_diff_anchor_base_url` の7アサーションが変更なしで通る） | **達成**（`git diff` の削除行は冒頭コメント2行のみ。既存アサーションは1行も変更していない） |
 
 ## 停止条件の判定
@@ -127,7 +127,6 @@ Diffview（GitHubは `<mrUrl>/files`、GitLabは `<mrUrl>/diffs`）、空なら�
   素通りする——これは**コードを読んだ上での判断であり、実機確認ではない**。
 - **SSH remoteでの挙動。** 単体テストでは `case` の判定を固定したが、実際のSSH remoteで
   `ls-remote` が起動しないことは実環境で確認していない（`git` をスタブして確認した）。
-- **完了条件6**（コメント一覧行）。次の実pushが最初の確認機会である。
 
 ## 追記: pushの伝播遅延と対策
 

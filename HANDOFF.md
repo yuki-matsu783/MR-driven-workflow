@@ -17,7 +17,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - issue: #205（https://github.com/yuki-matsu783/MR-driven-workflow/issues/205 ）
 - ブランチ: claude/pr-mr-diffview-link-yxim1l
 - PR: #206（https://github.com/yuki-matsu783/MR-driven-workflow/pull/206 ）
-- push回数: 7
+- push回数: 8
 - 現在のループ: 3-6〜3-9 を敵対的レビュー2回目で代替予定（進捗記号は[]のまま）
 - 未返信スレッド: 0
 - 追従監視: あり（subscribe_pr_activity で PR #206 を購読中。セッション終了で止まるため次セッションは resume で取り直す）
@@ -168,12 +168,18 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
   - `test_vcs_provider.sh` へ5件追加（`passed=242` → **`passed=247`**）。単体テスト21ファイル
     全件 `failures=0`。空振りでないことも同じ手順（`"$@"` 渡しを1引数へ落として3件が実際に落ちる
     ことを確認）で確かめた。
+- **対策のコミット（`61fdf91`）＋ドキュメント訂正コミット（`27786bd`）をpushした直後のhook出力で、
+  対策が実際に機能することを確認した。** 「defaultブランチとの差分」が即座に `/pull/206/files` に
+  なり、**完了条件6（2回目以降のpushで `- コメント一覧(MR画面):` 行が出る）も確認できた**
+  （`- コメント一覧(MR画面): https://github.com/yuki-matsu783/MR-driven-workflow/pull/206`）。
+  実装結果レポート（mdとhtml）の完了条件6を「未確認」から「達成」へ更新した。
 
 ## 次にやること
 
-- 伝播遅延対策（複数候補SHA化）を `commit` スキル経由でコミットし、push する
-  （flow-id 3-7 の追加分。既にpush済みの3-6実装へ、実push後に判明した修正を積み増す形）。
-- push後、**敵対的レビュー（フェーズ3・2回目）を実行**し、指摘へ対応・返信する。
+- （完了済み）伝播遅延対策（複数候補SHA化）を `commit` スキル経由でコミット・push した
+  （flow-id 3-7 の追加分。コミット `61fdf91`・`27786bd`）。push直後のhook出力で対策が
+  実際に機能することと、完了条件6（コメント一覧行）を確認済み。
+- **敵対的レビュー（フェーズ3・2回目）を実行**し、指摘へ対応・返信する。
 - flow-id 4-1: 個別反映計画を作成する（spec「提供関数」表・未決定事項の差し替え、DDR `i0205-01`、
   `references/mcp-fallback.md` への追記。**フェーズ3で追加した「複数候補SHA」設計もspec/DDRへ
   反映対象に含める**）。
