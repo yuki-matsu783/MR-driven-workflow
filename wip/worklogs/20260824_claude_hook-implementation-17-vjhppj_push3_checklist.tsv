@@ -1,7 +1,0 @@
-# generated-for: 644211232e757d614f4931a1154722996dfcad4e
-# id	項目	状態	実施ログ
-worklog	worklogを作成し、このpushまでの試行錯誤を追記した	done	wip/worklogs/…反映計画の作成_push12.md を新規作成し、洗い出しの手順・件数の食い違い・実装反映を立てなかった判断を記録した
-handoff	HANDOFF.md の進捗表・ヘッダを更新した（commitより前・同じcommitに含めた）	done	やったこと へ flow-id 4-1 の結果（計画2本・(a)0件・実装反映を立てない判断）を追記し、mark-done 4-1 / set-header --push-count 12 を実行した
-frontmatter-index	frontmatterを変更した場合、index.jsonl を最新化した	done	計画2本とworklog1本の frontmatter を追加したため extract-frontmatter.sh . を実行
-plan-report-sync	wip/plans/ wip/reports/ の md と html を同期した	done	wip/plans/ の個別反映計画2本を md と html で対にして作成。プレースホルダ0・アンカー破断0・重複id0・タグ対応・CR無しを両ファイルで確認
-commit-skill	commit スキル（create-commit.sh）経由でコミットした	done	create-commit.sh 経由で docs / chore に分けてコミットする

@@ -1,7 +1,0 @@
-# generated-for: c39a36f00f55aed56ba83919485bd75414563518
-# id	項目	状態	実施ログ
-worklog	worklogを作成し、このpushまでの試行錯誤を追記した	done	worklogは今回変更なし（統括レポートはwip/reports/へ、進捗はHANDOFF.mdへ直接記録）
-handoff	HANDOFF.md の進捗表・ヘッダを更新した（commitより前・同じcommitに含めた）	done	HANDOFF.mdのpush回数を22へ・flow-id5-4のやったことを追記（commitより前）
-frontmatter-index	frontmatterを変更した場合、index.jsonl を最新化した	done	extract-frontmatter.sh . を実行（files=197 built=1 failed=0）
-plan-report-sync	wip/plans/ wip/reports/ の md と html を同期した	done	wip/reports/20260829_..._統括.md/.htmlを新規作成し同期（外部依存0・CR0・リンク破断0・重複ID0・プレースホルダ残存0を確認）
-commit-skill	commit スキル（create-commit.sh）経由でコミットした	skip	単一コミットで完結するため、コミット自体はStep3.5時点ではまだ存在しない（block-direct-git-commit.shが直接コミットを構造的に防ぐ）
