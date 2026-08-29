@@ -63,12 +63,17 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 | [x] | 5-1 | defaultブランチとのコンフリクト検知・解消 |
 | [x] | 5-2 | 関連issueへのマージ前通知 |
 | [x] | 5-3 | .claude/ を .gemini/ へ変換同期 |
-| [] | 5-4 | 最終統括レポート作成・PRへ反映 |
+| [x] | 5-4 | 最終統括レポート作成・PRへ反映 |
 | [] | 5-5 | wip/ 配下の片付けとHANDOFF.mdのリセット |
 | [] | 5-6 | commit・pushしてDraft解除 |
 | [] | 5-7 | マージ（人間） |
 
 ## やったこと
+
+- flow-id 5-4: 最終統括レポート `wip/reports/20260829_silver-drifting-lantern_統括.md`/`.html`
+  （`reports-clean.template.html` から作成、6種の検査すべて合格）を作成し、層1（commit・push）
+  → 層2（PR #204 へサマリコメント投稿）で反映した。層3（HTML添付）はMCP経路に対応ツールが
+  無いためスキップした（`phase5-close.md`「`gh`/`glab` CLI不在時」どおり、異常ではない）。
 
 - flow-id 5-3: `bash .claude/scripts/src/sync-gemini-assets.sh` で `.gemini/` を再生成した。
   新規4テンプレート・`test_report_templates.sh`・新規DDR（`i0203-01`）を含む18件が反映された。
