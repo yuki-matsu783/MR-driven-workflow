@@ -60,15 +60,29 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 | [x] | 4-8 | 反映内容のレビュー（人間） |
 | [x] | 4-9 | レビュー反映・返信（4-6〜4-9を繰り返す） |
 | [x] | 4-10 | 反映内容をもとにMR descriptionを更新 |
-| [] | 5-1 | defaultブランチとのコンフリクト検知・解消 |
-| [] | 5-2 | 関連issueへのマージ前通知 |
-| [] | 5-3 | .claude/ を .gemini/ へ変換同期 |
+| [x] | 5-1 | defaultブランチとのコンフリクト検知・解消 |
+| [x] | 5-2 | 関連issueへのマージ前通知 |
+| [x] | 5-3 | .claude/ を .gemini/ へ変換同期 |
 | [] | 5-4 | 最終統括レポート作成・PRへ反映 |
 | [] | 5-5 | wip/ 配下の片付けとHANDOFF.mdのリセット |
 | [] | 5-6 | commit・pushしてDraft解除 |
 | [] | 5-7 | マージ（人間） |
 
 ## やったこと
+
+- flow-id 5-3: `bash .claude/scripts/src/sync-gemini-assets.sh` で `.gemini/` を再生成した。
+  新規4テンプレート・`test_report_templates.sh`・新規DDR（`i0203-01`）を含む18件が反映された。
+  `--check` は同期前に「食い違いあり」、実行後に「同期しています」を返した。
+  `check-dist-coverage.sh` OK・`check-doc-references.sh` 参照切れ0を確認済み。
+
+- flow-id 5-1: `main`（`81df4f2`）を取り込み済みのため `check-base-conflicts.sh` を再実行し、
+  `hasConflict: false` を確認した（追加のマージ作業なし）。
+- flow-id 5-2: `git diff --stat origin/main...HEAD`（`wip/plans/` `wip/worklogs/` `wip/reports/`
+  を除外、`REVIEW-POINTS.md` 2件は含める）からキーワードを抽出し `search_issues`
+  （MCP `mcp__github__search_issues`）で候補を検索した。ヒットしたのは本issue自身（#203）と
+  closedの3件（#186・#145・#54）のみで、いずれも「前提が変わる／一部が解決される／記述が矛盾する」
+  のどれにも当てはまらなかった（#186 の視覚語彙は変更していない、#54 の1テンプレート構成は
+  拡張であって覆っていない、#145 は無関係）。**通知先なしと判断し、投稿は行っていない。**
 
 - flow-id 1-2: issue #203 の内容をMCP（`mcp__github__issue_read`）で取得した。
 - flow-id 1-4: 全体作業計画 `wip/plans/silver-drifting-lantern.md` と、同名のHTMLビューを作成した。
