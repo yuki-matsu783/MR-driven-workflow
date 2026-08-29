@@ -19,7 +19,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - PR: #193（Draft）（https://github.com/yuki-matsu783/MR-driven-workflow/pull/193 ）
 - push回数: 8
 - 現在のループ: なし（フェーズ2の2回目へ戻った）
-- 未返信スレッド: 0
+- 未返信スレッド: 11
 - 追従監視: PRイベント購読中（`subscribe_pr_activity` で PR #193 を購読。セッション終了とともに止まるため、次セッションは `resume` で取り直す）
 
 | 進捗 | flow-id | ステップ | 担当 |

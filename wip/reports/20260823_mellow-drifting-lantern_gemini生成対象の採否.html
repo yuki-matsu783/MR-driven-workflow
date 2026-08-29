@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>.gemini/ の hooks/ scripts/ docs/ の採否 — issue #172</title>
+<title>.gemini/ の hooks/ scripts/ docs/ rules/ の採否と .agents/skills/ の判断 — issue #172</title>
 <style>
   :root {
     --bg: #f6f7f9;      --panel: #ffffff;   --ink: #1a1d21;     --muted: #5b636d;
@@ -102,8 +102,8 @@
 <header class="band">
   <div class="inner">
     <div class="kind">作業結果レポート / フェーズ3</div>
-    <h1>作業結果 — <code>.gemini/</code> の hooks/ scripts/ docs/ の採否</h1>
-    <p class="lead">判定基準の4軸を3ディレクトリへ独立に当てた結果、<b>3つとも生成対象に残す（案1）</b>を採用した。3つとも軸1（実行時に読む経路が0件）は満たすが、3つとも軸2（残るファイルから切れる相対リンク）で落ちる。外しても配布物は1バイトも減らず、部分的に外すと壊れたリンクを抱えた中間状態になり、外す根拠は未観測の推論で対象も選べない。</p>
+    <h1>作業結果 — <code>.gemini/</code> の hooks/ scripts/ docs/ rules/ の採否と <code>.agents/skills/</code> の判断</h1>
+    <p class="lead">判定基準の4軸を3ディレクトリへ独立に当てた結果、<b>3つとも生成対象に残す（案1）</b>を採用した（フェーズ3・1回目）。外しても配布物は1バイトも減らず、部分的に外すと壊れたリンクを抱えた中間状態になり、外す根拠は未観測の推論で対象も選べない。スコープ拡大後の2回目（<code>rules/</code>を加えた4ディレクトリ・<code>.agents/skills/</code>エイリアス）も、決定は同じく現状維持・不成立で、実機・ソース検証は別環境へ委ねている。</p>
     <ul class="meta">
       <li><b>issue</b> #172</li>
       <li><b>ブランチ</b> claude/gemini-exclude-decision-yp5p70</li>
@@ -145,15 +145,15 @@
       <tr><td>7</td><td><b>生成物に含まれないファイルが配布先の <code>.gemini/</code> にあると、再適用が片肺になる</b>（除外の実装はその一例で、自前の <code>.gemini/commands/*.toml</code> でも起きる）。警告は2系統出るので「無言」ではない。実際の弱点は<b>installer の終了コードが0のまま</b>であることと、<b>案内される復旧コマンドに <code>--force</code> が無い</b>ことの2点</td><td>実装の確認（実測）</td></tr>
       <tr><td>8</td><td><b>現在のコピー対象に「集合」は無い。</b> <code>.claude/</code> 配下の追跡ファイル<b>全件</b>から、変換生成する2つ（<code>agents/*.md</code>・<code>settings.json</code>）を除いたものがそのまま <code>.gemini/</code> になる。issue #70 は旧 TARGETS の欠落（<code>agents/</code>）を是正して全件列挙へ変えており、<b>集合を据え置いたのではない</b>。ただし「<code>.claude/</code> 配下を全部コピーしてよいか」という問いは立てられていない</td><td>実装・仕様・DDRの確認</td></tr>
       <tr><td>9</td><td><b>この判断はすべて Gemini CLI 未観測のまま行った。</b> どの結論も生成物と設定からの推論であり、実行時の挙動を観測していない</td><td>制約（CLI がこの実行環境に無い）</td></tr>
-      <tr><td>10</td><td><b>論点2（<code>rules/</code> <code>docs/</code> <code>hooks/</code> <code>scripts/</code>）は現状維持を継続する。</b> 4つ外すと壊れたリンクは18件→<b>1件</b>に減るが、配布物は減らず、実機未観測のままである。<b>判断は保留し、ソース確認できる環境へ委ねる</b>（下記「再検討の条件」条件1）</td><td>フェーズ3・2回目（2026-08-23）</td></tr>
-      <tr><td>11</td><td><b>論点3（<code>.agents/skills/</code>）は不成立。</b> Claude Code 公式ドキュメントに <code>.agents</code> の言及が0件</td><td>フェーズ3・2回目</td></tr>
+      <tr><td>10</td><td><b>論点2（<code>rules/</code>を加えた4ディレクトリ）は現状維持と決定する。</b> 決め手1・3前半は変わらず有効。18件→1件という<b>件数</b>の減少は、残る1件が「Gemini CLIが読むファイルの中」にあるため単純な改善ではなく、決め手2（落ちる割合）は3ディレクトリ81.9%より4ディレクトリ85.6%のほうが<b>大きい</b>。<b>未確定なのは「外す根拠の有無」（実機検証）で、これはソース確認できる環境へ委ねる</b>（下記「再検討の条件」条件1）。決定そのものは保留していない</td><td>4軸・決め手の再評価（材料は2回目調査Q10の実測）</td></tr>
+      <tr><td>11</td><td><b>論点3（<code>.agents/skills/</code>）は不成立。</b> Claude Code 公式ドキュメントに <code>.agents</code> の言及が0件。<b>公式ドキュメントの読解のみで、ソース・実機は未確認</b></td><td>公式ドキュメントの読解（2回目調査Q7）。ソース未確認</td></tr>
     </tbody>
   </table>
   </div>
   <div class="box ok">
     <span class="label">「現状維持」は「検討しなかった」ではない</span>
-    <p>4軸を3ディレクトリへ独立に当てた結果として、3つとも残すことを選んでいる。<b>再検討の条件は下記「再検討の条件」節に置く。</b></p>
-    <p><b>2026-08-23、スコープ拡大後のフェーズ3・2回目で結論10・11を追加した。</b> <code>rules/</code> を含む4ディレクトリの扱い（結論10）と <code>.agents/skills/</code>（結論11）である。いずれも判断そのものは変わっていないが、根拠が更新・確定した。</p>
+    <p>結論1〜3は上の4軸を3ディレクトリへ独立に当てた結果（フェーズ3・1回目）、結論10はスコープ拡大後に <code>rules/</code> を加えた4ディレクトリへ決め手を再適用した結果（フェーズ3・2回目）。いずれも3つ・4つとも残すことを選んでいる。<b>再検討の条件は下記「再検討の条件」節に置く。</b></p>
+    <p><b>2026-08-29、スコープ拡大後のフェーズ3・2回目で結論10・11を追加した。</b> <code>rules/</code> を含む4ディレクトリの扱い（結論10）と <code>.agents/skills/</code>（結論11）である。いずれも判断そのものは変わっていないが、根拠が更新・確定した。</p>
   </div>
 </section>
 
@@ -164,6 +164,7 @@
     <li>対象リビジョン: ブランチ <code>claude/gemini-exclude-decision-yp5p70</code> の <b>a305fae</b>（ベース <code>origin/main</code> = <b>0a9169c</b>。<code>git merge-base origin/main HEAD</code> も 0a9169c）。</li>
     <li><b>件数はこのフェーズで測り直していない。</b> フェーズ2の調査結果（同じベース <code>0a9169c</code>、ブランチ側 25e1c37）の実測値をそのまま使う。<code>.gemini/</code> はこのブランチで変更していないため、25e1c37 と a305fae の間で <code>.gemini/</code> の内容は同一である（<code>git diff --name-only 25e1c37 HEAD -- .gemini</code> が<b>0件</b>。<code>git diff --stat 25e1c37 a305fae</code> の差分は <code>wip/</code> と <code>HANDOFF.md</code> のみ）。</li>
     <li>新規に実測したのは <b>結論7（<code>install-to-project.sh</code> と <code>sync-gemini-assets.sh</code> の挙動）と結論8（同2スクリプトの実装・spec・DDR）</b> の2つで、いずれもソースを読んで確認した（下記に該当箇所を引く）。</li>
+    <li><b>2回目の追記（結論10・11、「論点2・論点3の判断」節）は 2026-08-29 に行った。</b> 根拠とした値（18→1件・184ファイル・2,676,979B・<code>.agents</code>の言及0件）は、いずれも自分で新規に実測したものではなく、2回目調査レポート（<code>wip/reports/20260823_mellow-drifting-lantern_geminiの読み込み経路と自立性.md</code>。実施日2026-08-23）の実測値をそのまま引用している。</li>
   </ul>
 </section>
 
@@ -219,7 +220,7 @@
   <p>軸2は0件にならず18件で、これを許容するかどうかの判断になる。<b>許容してよいと言い切れる根拠が無い</b>と判断した。</p>
   <ul>
     <li>18件が「誰も読まないファイルの中の壊れたリンク」だと言うには、<code>.gemini/rules/</code> <code>.gemini/skills/</code> が読まれないことが要る。それは<b>未観測の推論</b>である（調査 Q3-b・結論9）。</li>
-    <li>仮にその推論が正しいなら、<b><code>.gemini/rules/</code> <code>.gemini/skills/</code> も同時に外すのが筋</b>であり、それは issue #172 のスコープ外である。「18件の壊れたリンクを抱えた <code>.gemini/rules/</code> を残す」という中間状態は、どちらの前提から見ても正当化できない。</li>
+    <li>仮にその推論が正しいなら、<b><code>.gemini/rules/</code> <code>.gemini/skills/</code> も同時に外すのが筋</b>であり、それは issue #172 のスコープ外である。「18件の壊れたリンクを抱えた <code>.gemini/rules/</code> を残す」という中間状態は、どちらの前提から見ても正当化できない。（<b>この2点はフェーズ3・1回目時点の記述。スコープ拡大により <code>rules/</code> はスコープ内になり、「論点2・論点3の判断」節で判断済み——現状維持。<code>skills/</code> は判断対象外のまま。</b>）</li>
     <li>加えて次の結論7がある。</li>
   </ul>
 
@@ -311,28 +312,43 @@ passed=91 failures=0</code></pre>
   </table>
   </div>
 
-  <h3>論点2・論点3の判断（フェーズ3・2回目、2026-08-23）</h3>
-  <p><b>フェーズ2の2回目調査</b>（<code>wip/reports/20260823_mellow-drifting-lantern_geminiの読み込み経路と自立性.md</code>）を踏まえて、スコープ拡大後に残った2論点を判断する。<b>論点1（<code>.gemini/</code> を自立させるか）は別途決着済み</b>（ユーザー判断。<code>.claude/</code> への依存を明示する）。</p>
+  <h3>論点2・論点3の判断（フェーズ3・2回目、2026-08-29）</h3>
+  <p><b>フェーズ2の2回目調査</b>（<code>wip/reports/20260823_mellow-drifting-lantern_geminiの読み込み経路と自立性.md</code>。実施日2026-08-23）を踏まえて、スコープ拡大後に残った2論点を判断する。<b>論点1（<code>.gemini/</code> を自立させるか）は別途決着済み</b>（ユーザー判断。<code>.claude/</code> への依存を明示する。flow-id 1-4のスコープ拡大時・2026-08-23。記録: <code>wip/plans/mellow-drifting-lantern.md</code> 「スコープ拡大」節）。</p>
 
   <h4>論点2: 読まれない4ディレクトリ（rules/ docs/ hooks/ scripts/）の扱い</h4>
   <div class="box ok">
-    <span class="label">現状維持（4つとも残す）</span>
-    <p>決め手は3点のうち2点が生きている。</p>
+    <span class="label">決定: 4つとも残す（確定）</span>
+    <p>未確定なのは「外す根拠の有無」（実機・ソースでの検証）で、それは条件1（下記「再検討の条件」）で再検討する。判断そのものは保留していない。</p>
   </div>
+  <p><code>rules/</code> を加えた4ディレクトリへ4軸を当てた結果は次のとおり（軸1・軸2・軸4は2回目調査の実測値、軸3は未評価）。</p>
   <div class="tablewrap">
   <table>
-    <thead><tr><th>決め手</th><th>フェーズ3・1回目</th><th>2回目調査後</th></tr></thead>
+    <thead><tr><th></th><th><code>.gemini/rules/</code>（新規）</th><th><code>.gemini/hooks/</code> <code>.gemini/scripts/</code> <code>.gemini/docs/</code>（1回目と同じ）</th></tr></thead>
     <tbody>
-      <tr><td>1. 配布物は1バイトも減らない</td><td>有効</td><td><b>変わらず有効</b>（<code>dist-layers.json</code> の <code>exclude</code> は不変）</td></tr>
-      <tr><td>2. 部分的に外すと中間状態になる</td><td>3ディレクトリで18件が根拠</td><td><b>弱まった。</b> <code>rules/</code> を含む4ディレクトリなら壊れたリンクは <b>1件</b>まで減る（<code>wip/reports/…geminiの読み込み経路と自立性.md</code> Q10-2）</td></tr>
-      <tr><td>3. 外す根拠は未観測の推論で対象を選べない</td><td>有効</td><td><b>前半は変わらず有効。後半は一部解消。</b> <code>.gemini/skills/</code> <code>.gemini/agents/</code> が読まれることは公式ドキュメントで確定した。<b>「読まれる2つ」と「記載の無い4つ」という線引きは、今回できるようになった</b></td></tr>
+      <tr><td><b>軸1</b>（実行時に読む／実行する経路）</td><td><b>0件</b>（公式ドキュメントに <code>rules/</code> への言及なし。他3つと同じ消極的根拠）</td><td>上記「判定基準の4軸」表のとおり0件</td></tr>
+      <tr><td><b>軸2</b>（残るファイルから切れる相対リンク）</td><td><b>17件</b>（1回目調査Q4で確認、2回目調査で再現）</td><td>hooks/scripts/各1件・docs/18件（<code>rules/</code>宛ての17件を含む）</td></tr>
+      <tr><td><b>軸3</b>（外すコスト）</td><td><b>未評価</b>（この計画では算定していない）</td><td>上記「判定基準の4軸」表のとおり</td></tr>
+      <tr><td><b>軸4</b>（利得）</td><td><b>8ファイル・189,256 B</b>（2回目調査Q10-1実測）</td><td>上記「判定基準の4軸」表のとおり</td></tr>
     </tbody>
   </table>
   </div>
-  <p><b>それでも外さない。</b> 決め手2が弱まっても、決め手1（配布物は減らない）と決め手3前半（<code>rules/</code> <code>docs/</code> <code>hooks/</code> <code>scripts/</code> が読まれないという結論は、依然「記載が無い」という消極的根拠に留まる）は変わっていない。<b>Gemini CLI 実機は一度も動かしていない</b>——公式ドキュメントの読解と生成物の実測だけで、実装の裏取りをしていない。</p>
+  <p>フェーズ3・1回目の3つの決め手を、この新しい実測値で再評価する。</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>決め手</th><th>フェーズ3・1回目（3ディレクトリ）</th><th>2回目調査後（<code>rules/</code>を加えた4ディレクトリ）</th></tr></thead>
+    <tbody>
+      <tr><td>1. 配布物は1バイトも減らない</td><td>有効</td><td><b>変わらず有効</b>（<code>dist-layers.json</code> の <code>exclude</code> は不変）</td></tr>
+      <tr><td>2. 部分的に外すと中間状態になる（<b>落ちる割合</b>が根拠。案3で81.9%／78.7%）</td><td>有効</td><td><b>変わらず有効、むしろ落ちる割合は大きい。</b> 4ディレクトリでは184/215ファイル＝<b>85.6%</b>、2,676,979/3,159,948 B＝<b>84.7%</b>（2回目調査Q10-1）。3ディレクトリの81.9%／78.7%より高く、決め手2の根拠は弱まらない</td></tr>
+      <tr><td>3. 外す根拠は未観測の推論で対象を選べない</td><td>有効</td><td><b>前半は変わらず有効。後半は一部解消。</b> <code>.gemini/skills/</code> <code>.gemini/agents/</code> が読まれることは公式ドキュメントで確定した。<b>「読まれる2つ」と「記載の無い4つ（<code>rules/</code>含む）」という線引きは、今回できるようになった</b></td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p>（<b>軸2の壊れたリンクの「件数」は18件→1件へ減る</b>が、これは決め手2〈落ちる割合〉とは別の指標であり、決め手2の評価には使わない。件数の減少が持つ意味は次の段落で扱う。）</p>
+  <p><b>それでも外さない。</b> 決め手1・決め手2は変わらず有効、決め手3前半（<code>rules/</code> <code>docs/</code> <code>hooks/</code> <code>scripts/</code> が読まれないという結論は、依然「記載が無い」という消極的根拠に留まる）も変わっていない。<b>Gemini CLI 実機は一度も動かしていない</b>——公式ドキュメントの読解と生成物の実測だけで、実装の裏取りをしていない。</p>
+  <p><b>軸2の壊れたリンク件数が18件→1件へ減ることには、もう1つ触れておくべき限定がある。</b> 残る1件（<code>.gemini/skills/apply-mr-workflow-to-project/SKILL.md</code> → <code>../../docs/spec/sync-gemini-assets.md</code>）は、<b>リンク元の <code>.gemini/skills/</code> が Gemini CLI 実際に読むファイルである</b>（<code>wip/reports/…geminiの読み込み経路と自立性.md</code> 結論6・Q10-2）。消える17件（<code>rules/</code> 宛て）は「誰も読まないファイルの中の壊れたリンク」だったのに対し、残る1件は「<b>読まれるファイルの中の</b>壊れたリンク」であり、性質が異なる。1回目・フェーズ3が18件全体を「読まれないファイルの中」と扱っていた前提は、この1件には当てはまらない（「確かめられなかったこと」の<code>rules/</code>に関する記述もこの限定と合わせて読むこと）。</p>
   <div class="box warn">
     <span class="label">確認は別環境へ委ねる</span>
-    <p><b>この確認は、ユーザーの判断で保留した。</b> 「残りは Gemini CLI のソースコードを参照できる環境で確認する」という指示により、実機・ソースでの検証は<b>別環境へ委ねる</b>（下記「再検討の条件」の条件1がこれに当たる）。<b>それまでは現状維持のまま、判断を確定させない理由（未検証）を明示して進める。</b></p>
+    <p><b>この確認は、ユーザーの判断で保留した。</b> 「残りは Gemini CLI のソースコードを参照できる環境で確認する」という指示により、実機・ソースでの検証は<b>別環境へ委ねる</b>（下記「再検討の条件」の条件1がこれに当たる）。<b>「決定（4つとも残す）」自体は確定しており、未確定なのは「決定を将来動かしうる条件」の側である。</b></p>
   </div>
 
   <h4>論点3: .agents/skills/ エイリアス</h4>
@@ -351,14 +367,14 @@ passed=91 failures=0</code></pre>
   <table>
     <thead><tr><th>#</th><th>条件</th><th>何を確かめるか</th><th>判断がどちら向きに動くか</th></tr></thead>
     <tbody>
-      <tr><td>1</td><td><b>Gemini CLI を実行できる環境が用意された</b></td><td><code>.gemini/rules/</code> <code>.gemini/skills/</code> <code>.gemini/docs/</code> が実際に読まれるか。とくに <code>.gemini/rules/</code> が読まれるなら、docs/ の18件は「読まれるファイルの中の壊れたリンク」になる</td><td>読まれる → <b>残す根拠が強まる</b>。読まれない → <b><code>.gemini/</code> 全体の再設計（別issue）へ進む</b></td></tr>
+      <tr><td>1</td><td><b>Gemini CLI のソースコードを参照できる環境が用意された</b>（2026-08-23、ユーザーの判断で別環境へ委ねた。このセッションでは未着手）</td><td><code>.gemini/rules/</code> <code>.gemini/docs/</code> <code>.gemini/hooks/</code> <code>.gemini/scripts/</code> が実際に読まれるか（<code>.gemini/skills/</code> <code>.gemini/agents/</code> は公式ドキュメントで読まれることを確認済み）。あわせて <code>.agents/skills/</code> を Claude Code が読むかも確認する（論点3）</td><td><b>4つとも読まれないと確認できた</b> → 決め手3後半の「未観測の推論」が解消し、外す判断の根拠が明確になる（外すかどうか自体は改めて判断する。範囲がissue #172を越える場合は別issueへ）。<b>いずれか読まれると確認できた</b> → <b>その対象は除去候補から外れ、残す根拠が確定する</b></td></tr>
       <tr><td>2</td><td><b>Gemini CLI 側に <code>.gemini/rules/</code> 等を読み込ませる設定キーが追加された</b></td><td><code>settings.json</code> のトップレベルキー（現在は <code>general</code> と <code>hooks</code> だけ）</td><td><b>残す根拠が強まる</b>（複製が死蔵でなくなる）</td></tr>
       <tr><td>3</td><td><b>複製が実害を出した</b></td><td>grepの二重計上・検索ノイズ・リポジトリサイズが、繰り返し作業を誤らせた事例が複数出たか（今回の根拠はフェーズ2で踏んだ1件だけ）</td><td><b>外す側へ動く</b></td></tr>
       <tr><td>4</td><td><b><code>.gemini/</code> の生成方式そのものが変わった</b>（配布物へ含める・差分更新にする等）</td><td><code>dist-layers.json</code> の <code>.gemini</code> が <code>exclude</code> でなくなれば、「配布物は1バイトも減らない」という決め手（判断1）が崩れる</td><td><b>外す側へ動く</b></td></tr>
     </tbody>
   </table>
   </div>
-  <p><b>1が本命であり、着手済みである。</b> 今回の判断を支える決め手のうち、「未観測の推論であること」は CLI の挙動が観測できれば解消する。</p>
+  <p><b>1が本命だが、まだ着手していない（ユーザーの判断で別環境へ委ねた）。</b> 今回の判断を支える決め手のうち、「未観測の推論であること」（決め手3後半）は CLI のソースが読めれば解消する。決め手1・決め手2は、条件1が解消しても変わらない（軸2の件数とは独立に有効）。</p>
   <p><b>条件2〜4は、このリポジトリの中で観測できる。</b> 1だけが外部（実行環境の用意）に依存する。</p>
 </section>
 
@@ -366,7 +382,7 @@ passed=91 failures=0</code></pre>
   <h2>確かめられなかったこと</h2>
   <ul>
     <li><b>Gemini CLI 実機の挙動は一切観測していない</b>（<code>command -v gemini</code> が空）。軸1の「0件」も結論5-2の「rules にも当たる」も、生成物と設定から導いた推論である。<b>この判断は未観測のまま行った。</b></li>
-    <li><b><code>.gemini/rules/</code> <code>.gemini/skills/</code> <code>.gemini/agents/</code> を外すべきかは判断していない</b>（本issueのスコープ外）。結論5-2で使ったのは「同じ根拠が当たる」という整合性の指摘までで、それらを外すべきだとは言っていない。</li>
+    <li><b>（フェーズ3・1回目時点の記述）<code>.gemini/rules/</code> <code>.gemini/skills/</code> <code>.gemini/agents/</code> を外すべきかは判断していない（本issueのスコープ外）。</b> 結論5-2で使ったのは「同じ根拠が当たる」という整合性の指摘までで、それらを外すべきだとは言っていなかった。<b>この限定はスコープ拡大により変わった</b>: <code>.gemini/rules/</code> は「論点2・論点3の判断」節で判断済み（結論10。現状維持）。<code>.gemini/skills/</code> <code>.gemini/agents/</code> は2回目調査でGemini CLIが実際に読むことが確定したため、除去候補から外れており、引き続き判断の対象外。</li>
     <li><b>複製が実際にどれだけの害を出しているかは測っていない。</b> 案1の難点として挙げた「grep の二重計上」は、フェーズ2の調査で実際に踏んだ1件だけが根拠である。</li>
     <li><b>配布先での再適用は実行していない。</b> 結論7は <code>install-to-project.sh</code> と <code>sync-gemini-assets.sh</code> を読んで導いたもので、実際に古い <code>.gemini/</code> を持つ配布先へ再適用して観測したわけではない（案1を採るため、この検証は不要になった）。</li>
     <li><b>git bash（Windows）実機での確認はしていない。</b> <code>--check</code> の所要時間・テストの結果は Linux 1環境のものである。</li>
