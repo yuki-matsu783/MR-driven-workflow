@@ -61,8 +61,8 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 | [] | 4-9 | レビュー内容を取得し、設計・AIアセットの内容を修正する | サブコマンド |
 | [x] | 4-10 | 反映内容をもとにMR descriptionを更新する | サブコマンド |
 | [x] | 5-1 | defaultブランチとのコンフリクトを検知し、あれば解消する | エージェント |
-| [] | 5-2 | 関連issueへの通知（承認必須） | エージェント |
-| [] | 5-3 | .claude/ の変更を .gemini/ へ変換同期する | エージェント |
+| [x] | 5-2 | 関連issueへの通知（承認必須） | エージェント |
+| [x] | 5-3 | .claude/ の変更を .gemini/ へ変換同期する | エージェント |
 | [] | 5-4 | 最終統括レポートを作成し、PR/MRへ反映する | エージェント |
 | [] | 5-5 | wip配下を削除し、HANDOFF.mdをリセットする | エージェント |
 | [] | 5-6 | commit・push・Draft解除 | エージェント |
@@ -233,10 +233,24 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
     `check-doc-references.sh`（参照切れ0）・`check-dist-coverage.sh`（545/545, OK）を全通過。
   - `commit`スキル経由でマージコミット（e6165f3）を作成しpush（push12）。
 
+- 2026-08-29: フェーズ5-2（関連issue通知）を実施。差分（`wip/plans` `wip/worklogs`
+  `wip/reports` 除外・`REVIEW-POINTS.md` 2件は除外せず確認）に基づき
+  `search_issues` でキーワード（pptx/PowerPoint/スライド/構成案JSON/
+  slides-to-records/json-to-pptx/export、発表資料/プレゼン資料出力）検索。
+  ヒットしたのは本issue #169自身と、依存元でクローズ済みの #168 のみ。#168は
+  スキーマ確定済みで本PRの変更と矛盾せず「前提が変わる／一部が解決される／記述が矛盾する」の
+  いずれにも該当しないため、**通知対象なし**と判断した。
+
+- 2026-08-29: フェーズ5-3（`.claude/` → `.gemini/` の変換同期）を実施。
+  `sync-gemini-assets.sh --check` で不一致を確認後 `sync-gemini-assets.sh` を実行し、
+  `.gemini/skills/pptx-slides/` 一式・`.gemini/docs/ddr/i0169-01-*.md`・
+  `.gemini/docs/spec/pptx-slides.md`・`.gemini/scripts/test/test_json_to_pptx.sh` 等を
+  新規生成、`.gemini/VERSION`・README/rules配下の既存ファイルを更新。再実行した
+  `--check` は「同期しています」で通過。
+
 ## 次にやること
 
-- フェーズ5の残りを進める: 5-2関連issue通知（承認必須）→ 5-3 gemini同期
-  （`sync-gemini-assets.sh`）→ 5-4統括レポート作成 → 5-5片付け（`cleanup-task.sh`）→
+- フェーズ5の残りを進める: 5-4統括レポート作成 → 5-5片付け（`cleanup-task.sh`）→
   5-6はゲート（◆回答・実機確認）が揃うまで進まない。
 
 ## 判断を迷った内容

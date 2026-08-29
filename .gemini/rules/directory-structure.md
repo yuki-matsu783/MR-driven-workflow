@@ -29,7 +29,10 @@ keywords: [ディレクトリ構成, claude, gemini, 配置方針, wip, plans, w
 │   │   ├── issue-mr-flow/references/  # SKILL.mdから切り出した参照資料7本（issue #160）
 │   │   ├── canvas-report/assets/  # canvas形式レポートのテンプレート
 │   │   ├── html-slides/assets/    # 発表用HTMLスライドのテンプレート（issue #168）
-│   │   └── html-slides/references/  # スライド構成案JSONのスキーマ（slide-outline.schema.json）
+│   │   ├── html-slides/references/  # スライド構成案JSONのスキーマ（slide-outline.schema.json）
+│   │   └── pptx-slides/        # 構成案JSONからの.pptx生成（issue #169）
+│   │       ├── assets/pptx-template/  # 展開ディレクトリ形式のOOXML雛形（静的パーツ）
+│   │       └── scripts/        # json-to-pptx.sh・slides-to-records.jq
 │   ├── agents/                 # サブエージェント定義（issue-mr-flow途中引き継ぎ・スライド構成設計/HTML生成等）
 │   ├── scripts/                # AIエージェントが`.claude/skills/*`経由で能動的に実行するスクリプト一式
 │   │   ├── src/
