@@ -409,6 +409,35 @@ else
 fi
 assert_eq "resolve: ls-remoteが失敗しても終了コードは0" "0" "$resolve_fail_status"
 
+# awkが失敗しても空＋終了コード0を返す（issue #205フェーズ3・敵対的レビュー2回目の指摘。
+# パイプライン全体を `|| return 0` で受けていないと、awkの非0がそのまま関数の戻り値になり、
+# 呼び出し元（set -euo pipefail配下のhook）が途中終了してレビュー依頼メッセージが1行も
+# 出なくなる）
+assert_eq "resolve: awkが失敗しても空を返す" \
+  "" \
+  "$( git() {
+        case "$1" in
+          remote) printf 'https://github.com/o/r.git\n' ;;
+          *) printf 'aaa111\trefs/pull/206/head\n' ;;
+        esac
+      }
+      awk() { return 3; }
+      github_resolve_mr_number_for_head 'aaa111' )"
+
+if ( git() {
+       case "$1" in
+         remote) printf 'https://github.com/o/r.git\n' ;;
+         *) printf 'aaa111\trefs/pull/206/head\n' ;;
+       esac
+     }
+     awk() { return 3; }
+     github_resolve_mr_number_for_head 'aaa111' >/dev/null ); then
+  resolve_awk_fail_status=0
+else
+  resolve_awk_fail_status=1
+fi
+assert_eq "resolve: awkが失敗しても終了コードは0" "0" "$resolve_awk_fail_status"
+
 # `git` の実定義（外部コマンド）がシェル関数として残っていないことを表明する
 assert_eq "gitがシェル関数として残っていない" "" \
   "$(declare -F git >/dev/null && echo git)"

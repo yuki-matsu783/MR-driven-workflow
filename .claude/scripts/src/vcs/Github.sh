@@ -309,7 +309,10 @@ github_resolve_mr_number_for_head() {
   esac
 
   # 認証プロンプトの抑止（`credential.helper` はgit bashのGit Credential Managerが
-  # GUIダイアログを出すため、`GIT_TERMINAL_PROMPT=0` だけでは足りない）と、無応答の打ち切り。
+  # GUIダイアログを出すため、`GIT_TERMINAL_PROMPT=0` だけでは足りない）と、転送開始後の
+  # 低速の打ち切り。**接続確立前（DNS解決・TCP接続）の無応答はこれでは打ち切れない**
+  # （`http.lowSpeedLimit`/`lowSpeedTime` はcurlのLOW_SPEED_LIMIT/TIMEに対応し、転送が
+  # 始まってからの低速にしか効かない）。塞ぎきれていない残存リスクとして許容する。
   out="$(GIT_TERMINAL_PROMPT=0 git \
     -c credential.helper= -c core.askPass= \
     -c http.lowSpeedLimit=1000 -c http.lowSpeedTime=5 \
@@ -318,7 +321,10 @@ github_resolve_mr_number_for_head() {
   # 判定までawk側で完結させる（`wc -l` を起動しない。実装によっては先頭に空白が入り、
   # 文字列比較が常に不一致になる＝常に空を返す＝機能が入らない、という壊れ方をするため）。
   # 候補SHAのいずれかに一致したrefからPR番号を集め、**種類が1つのときだけ**出力する。
-  printf '%s\n' "$out" | awk -v shalist="$shas" '
+  # パイプライン全体を `|| return 0` で受ける（制約3。awkの起動失敗・非0終了もCompareへ
+  # 縮退させるため、いったん変数へ受けてから出力する）。
+  local matched
+  matched="$(printf '%s\n' "$out" | awk -v shalist="$shas" '
     BEGIN { split(shalist, a, " "); for (i in a) want[a[i]] = 1 }
     $1 in want {
       n = $2
@@ -330,7 +336,9 @@ github_resolve_mr_number_for_head() {
       k = 0
       for (n in seen) { k++; last = n }
       if (k == 1) print last
-    }'
+    }')" || return 0
+  [ -n "$matched" ] || return 0
+  printf '%s\n' "$matched"
 }
 
 # PRの「前回push時点(from_sha)から今回push時点(to_sha)までの差分」を見れるURLを組み立てる

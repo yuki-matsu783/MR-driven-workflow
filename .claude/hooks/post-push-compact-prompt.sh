@@ -335,6 +335,20 @@ main() {
     prev_sha="$(cat "$state_file")"
   fi
 
+  # `prev_sha` はこのローカルリポジトリの祖先であることを検証してからでないと使わない
+  # （issue #205フェーズ3・敵対的レビュー2回目で指摘）。`safe_branch` は記号を `_` へ潰す
+  # ためブランチ名の衝突がありえ（`claude/x` と `claude_x` は同じ状態ファイルを共有する）、
+  # 状態ファイル自体もタスク終了時に消えない（`.gitignore`対象で `cleanup-task.sh` の対象外）
+  # ため、`prev_sha` が今のブランチ・今のPRのものである保証はコード上どこにも無い。
+  # 検証しないまま候補へ渡すと、別PR・閉じたPR時代のSHAが解決に使われ、誤ったURLを
+  # 出しうる（「誤ったURLを出すくらいならCompareのままにする」方針に反する）。
+  # この判定は下の重点ファイル差分範囲の判定とも共有する（二重計算を避ける）。
+  local prev_sha_valid=0
+  if [ -n "$prev_sha" ] && [ "$prev_sha" != "$current_sha" ] \
+    && git cat-file -e "${prev_sha}^{commit}" 2>/dev/null; then
+    prev_sha_valid=1
+  fi
+
   # `gh`/`glab` CLI不在でMR/PR URLを取得できなかった場合でも、`git ls-remote` だけで
   # PR番号を解決できるなら「defaultブランチとの差分」をDiffview（コメントを付けられるビュー）
   # へ寄せる（issue #205）。解決できなければ `compare_url` のまま＝後退しない。
@@ -343,12 +357,16 @@ main() {
   # 再計算だけを上の `compare_url` の行の側へ残すと、`diff_url` が `mr_url` の解決前に
   # 確定するため、解決に成功しても差分リンクがCompareのままになる（機能が無言で入らない）。
   #
-  # **候補として前回pushのSHAも渡す。** GitHubの `refs/pull/<n>/head` の更新はpushに対して
-  # 遅れることがあり（本リポジトリで実測）、hookはpushの直後に走るため、今回pushのSHAだけを
-  # 候補にすると狙っている経路でこそ解決に失敗する。前回pushのSHAは同じPRを指すので、
-  # 遅延の窓を越えて同じPR番号を特定できる。
+  # **候補として前回pushのSHAも渡す（検証済みの場合のみ）。** GitHubの `refs/pull/<n>/head`
+  # の更新はpushに対して遅れることがあり（本リポジトリで実測）、hookはpushの直後に走るため、
+  # 今回pushのSHAだけを候補にすると狙っている経路でこそ解決に失敗する。前回pushのSHAは
+  # （検証が通れば）同じPRを指すので、遅延の窓を越えて同じPR番号を特定できる。
   if [ -z "$mr_url" ]; then
-    mr_number="$(resolve_mr_number_for_head "$current_sha" "$prev_sha")"
+    if [ "$prev_sha_valid" -eq 1 ]; then
+      mr_number="$(resolve_mr_number_for_head "$current_sha" "$prev_sha")"
+    else
+      mr_number="$(resolve_mr_number_for_head "$current_sha")"
+    fi
     if [ -n "$mr_number" ]; then
       mr_url="$(get_mr_url "$repo_url" "$mr_number")"
     fi
@@ -358,15 +376,14 @@ main() {
   fi
 
   # 重点レビュー対象ファイルの差分範囲は、既存の差分リンクの意味論に合わせる（issue #42）。
-  # 前回push SHAが記録されており、かつそのコミットがローカルに存在する場合のみ
-  # 「前回push...HEAD」を使い、それ以外は「defaultブランチ...HEAD」にフォールバックする
-  # （rebase・履歴書き換えで前回SHAが失われていると `git diff` が失敗するため）。
+  # 前回push SHAが検証済み（上で算出した `prev_sha_valid`）の場合のみ「前回push...HEAD」を
+  # 使い、それ以外は「defaultブランチ...HEAD」にフォールバックする（rebase・履歴書き換えで
+  # 前回SHAが失われていると `git diff` が失敗するため）。
   # `...`（3点）はGitHub/GitLabのCompareページと同じmerge-base起点の比較で、URL側と意味が揃う。
   local base_ref="origin/${base_branch}" since_url="" diff_range
   git rev-parse --verify --quiet "${base_ref}^{commit}" >/dev/null 2>&1 || base_ref="$base_branch"
   diff_range="${base_ref}...HEAD"
-  if [ -n "$prev_sha" ] && [ "$prev_sha" != "$current_sha" ] \
-    && git cat-file -e "${prev_sha}^{commit}" 2>/dev/null; then
+  if [ "$prev_sha_valid" -eq 1 ]; then
     since_url="$(get_mr_diff_since_url "$repo_url" "$prev_sha" "$current_sha")"
     diff_range="${prev_sha}...HEAD"
   fi
