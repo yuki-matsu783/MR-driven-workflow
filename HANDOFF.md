@@ -18,8 +18,8 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - ブランチ: claude/pr-mr-diffview-link-yxim1l
 - PR: #206（https://github.com/yuki-matsu783/MR-driven-workflow/pull/206 ）
 - push回数: 9
-- 現在のループ: 3-6〜3-9 を敵対的レビュー2回目で代替予定（進捗記号は[]のまま）
-- 未返信スレッド: 0
+- 現在のループ: 3-6〜3-9 の1周目（進行中）
+- 未返信スレッド: 5
 - 追従監視: あり（subscribe_pr_activity で PR #206 を購読中。セッション終了で止まるため次セッションは resume で取り直す）
 
 | 進捗 | flow-id | ステップ | 担当 |
@@ -41,7 +41,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 | [] | 2-9 | レビュー内容を取得し、調査結果を修正する | `comments` / `reply` |
 | [x] | 2-10 | 調査結果をもとにMR descriptionを更新する | `describe` |
 | [x] | 3-1 | 個別作業計画を作成する | エージェント |
-| [] | 3-2 | commitし、pushしてレビュー依頼を行う | エージェント |
+| [x] | 3-2 | commitし、pushしてレビュー依頼を行う | エージェント |
 | [] | 3-3 | MRで作業計画についてレビュー・コメントする | 人間 |
 | [] | 3-4 | レビュー内容を取得し、作業計画を修正する | `comments` / `reply` |
 | [] | 3-5 | 作業計画をもとにMR descriptionを更新する | `describe` |
@@ -174,12 +174,49 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
   （`- コメント一覧(MR画面): https://github.com/yuki-matsu783/MR-driven-workflow/pull/206`）。
   実装結果レポート（mdとhtml）の完了条件6を「未確認」から「達成」へ更新した。
 
+- **敵対的レビュー（フェーズ3・2回目、作業実施後）を実行した。** 対象はコミット `17de5d6`
+  （個別作業計画レビュー1回目への対応完了時点）から現在のHEADまでの差分（複数候補SHA対応の
+  実装本体・テスト・関連ドキュメント）。8件検出（major 6 / minor 2）。うち5件（major 4 /
+  minor 1）をPR #206 へインライン投稿し、3件は報告のみ（medium確度×minor重大度2件、
+  high確度だが指摘の一部を検証できずconfidence引き下げた1件は無し——実際は確度medium/minor
+  相当の2件と、進捗表の記号ずれ1件）。
+  投稿スレッド:
+  - https://github.com/yuki-matsu783/MR-driven-workflow/pull/206#discussion_r3887918105
+    （`Github.sh:321` awkパイプラインの終了コードがそのまま返る）
+  - https://github.com/yuki-matsu783/MR-driven-workflow/pull/206#discussion_r3887918368
+    （`post-push-compact-prompt.sh:351` `prev_sha` 未検証のまま候補に渡している）
+  - https://github.com/yuki-matsu783/MR-driven-workflow/pull/206#discussion_r3887918590
+    （実装結果.md:62 「実装した内容」が旧awk実装のまま）
+  - https://github.com/yuki-matsu783/MR-driven-workflow/pull/206#discussion_r3887918792
+    （調査結果.html:348 (6)(7)行が撤回済みの記述のまま）
+  - https://github.com/yuki-matsu783/MR-driven-workflow/pull/206#discussion_r3887918961
+    （実装結果.html:144 ヘッダのサマリチップが古い件数のまま）
+  報告のみに留めた3件: (a) `Github.sh` の `http.lowSpeedLimit`/`lowSpeedTime` の説明が
+  「無応答の打ち切り」と断定しているが接続確立前の停止は打ち切れない（minor/medium）、
+  (b) `HANDOFF.md` の「現在のループ」行が規定書式を満たさずスクリプトの解析に掛からない
+  （minor/medium）、(c) 進捗表のflow-id 3-2が`[]`のまま「やったこと」の記述と食い違う
+  （minor/medium）。**未返信スレッド5**。
+
+- **投稿した5件をすべて修正し、報告のみの3件のうち2件も併せて修正した。**
+  1. `Github.sh`: awkパイプライン全体を `|| return 0` で受けるよう修正（変数へ受けてから出力）。
+     単体テストへ「awkが失敗しても空＋終了コード0」のケースを2件追加（`passed=247`→`249`）。
+  2. `post-push-compact-prompt.sh`: `prev_sha` を `git cat-file -e` で検証してから候補へ渡す
+     よう修正（検証は既存の重点ファイル差分範囲判定と共有し二重計算を避けた）。
+  3. 実装結果.md/.html: 「実装した内容」節を最終実装（複数候補SHA・PR番号の種類数判定）へ
+     書き換え。HTML側の壊れていたセル内容（`|| return 0`が欠落表示）も修正。
+  4. 調査結果.html: (6)(7)行をmd版の撤回済み記述に揃えて修正。
+  5. 実装結果.html: ヘッダのサマリチップを「達成7／未確認0」へ、push回数の表記を
+     「7（作成時点）〜9（追記時点）」へ更新。
+  6. （報告のみだが修正）`Github.sh` の `http.lowSpeedLimit`/`lowSpeedTime` のコメントを、
+     接続確立前の停止は打ち切れない旨を明記する形へ弱めた。
+  7. （報告のみだが修正）HANDOFF.mdの「現在のループ」行を規定書式へ、進捗表のflow-id 3-2を
+     `mark-done` で揃えた。
+  報告のみに留めた3件も、6・7で2件、進捗表の食い違いを7でまとめて解消し、**全8件へ対応した**。
+
 ## 次にやること
 
-- （完了済み）伝播遅延対策（複数候補SHA化）を `commit` スキル経由でコミット・push した
-  （flow-id 3-7 の追加分。コミット `61fdf91`・`27786bd`）。push直後のhook出力で対策が
-  実際に機能することと、完了条件6（コメント一覧行）を確認済み。
-- **敵対的レビュー（フェーズ3・2回目）を実行**し、指摘へ対応・返信する。
+- 上記の修正・訂正一式を `commit` スキル経由でコミット・pushする。
+- push後、投稿した5スレッドへ返信する（`comments`/`reply`）。
 - flow-id 4-1: 個別反映計画を作成する（spec「提供関数」表・未決定事項の差し替え、DDR `i0205-01`、
   `references/mcp-fallback.md` への追記。**フェーズ3で追加した「複数候補SHA」設計もspec/DDRへ
   反映対象に含める**）。

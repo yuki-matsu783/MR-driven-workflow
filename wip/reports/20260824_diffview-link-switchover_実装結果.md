@@ -52,16 +52,18 @@ Diffview（GitHubは `<mrUrl>/files`、GitLabは `<mrUrl>/diffs`）、空なら�
 
 ### 作業2: `github_resolve_mr_number_for_head` の新設
 
-`git ls-remote` で `refs/pull/*/head` を引き、HEADのSHAと突き合わせてPR番号を得る。
+`git ls-remote` で `refs/pull/*/head` を引き、**複数の候補SHA**（今回push・前回push）と
+突き合わせてPR番号を得る（当初は単一SHAだったが、下記「追記: pushの伝播遅延と対策」の
+とおり複数候補SHA対応へ変更した。この節は**最終的な実装**を記す）。
 `Provider.sh` には同名のディスパッチャ `resolve_mr_number_for_head` を置いた（GitLabは空を返す）。
 
 計画どおり、次の3つの制約を実装に落とした。
 
 | 制約 | 実装 |
 |---|---|
-| 一致がちょうど1件のときだけ返す | `awk '$1 == sha { n++; r = $2 } END { if (n == 1) print r }'` の1行に収めた |
+| 一致したPR番号がちょうど1種類のときだけ返す | `awk` で候補SHAの集合 `want[]` を作り、一致したPR番号を `seen[]` へ集めて種類数が1のときだけ出力する |
 | remoteが `http(s)://` のときだけ試みる | `git remote get-url origin` を `case` で判定し、それ以外は即 `return 0` |
-| 失敗しても非0で返さない | 各失敗点を `|| return 0` で受ける |
+| 失敗しても非0で返さない | 各失敗点を `|| return 0` で受ける（awkパイプライン自体も含む） |
 
 `wc -l` と `sed` は起動していない（件数判定を `awk` へ寄せ、末尾除去をパラメータ展開にした）。
 `git` の起動は1回の呼び出しにつき2回（`remote get-url` と `ls-remote`）である。

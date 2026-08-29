@@ -345,8 +345,8 @@ rc=128  所要=382ms</code></pre>
       <tr><td>(3) HEADのSHAと突き合わせられるか</td><td><b>できた</b>（1件に一致）</td></tr>
       <tr><td>(4) push直後のrefの伝播遅延</td><td><b>フェーズ2時点の計測では観測されなかった</b>（push完了後の最初の照会で既に一致）。ただし<b>この計測はpushからしばらく経ってから行ったもので、hookが実際に走るタイミング（push完了の直後）を計測していなかった</b>。<b>フェーズ3の実装検証（実push）で実際に観測した</b>&mdash;&mdash;pushしたコミット（<code>22a23b7</code>）に対しhookが即座に走った1回目は <code>refs/pull/206/head</code> が前回pushのSHAのままで解決に失敗しCompareへ縮退したが、数十秒後に同じコミットへhookを再実行すると解決に成功した（同一コミット・同一環境で経過時間だけが異なる）。<b>フェーズ2の「観測されなかった」という記述は計測のタイミングが違っていたための誤りであり、実際には遅延が起きる。</b> 対策として、今回push・前回pushの2つのSHAを解決関数へ候補として渡す実装へ変更した（詳細: 実装結果レポート「追記: pushの伝播遅延と対策」）。</td></tr>
       <tr><td>(5) fork元PRの挙動</td><td><b>未検証。</b> 原理上、fork元のPRのrefは <code>origin</code>（＝fork）に存在しないため<b>一致せず自動的にCompareへ縮退する</b>と考えられる。壊れる方向ではない</td></tr>
-      <tr><td>(6) 同一SHAに複数PRのrefが一致した場合</td><td>今回は1件のみ。<b>複数一致しうる</b>ため、設計では<b>PR番号が最大のもの（＝最新）を採る</b>。決定的に選べるのでpushごとに結果が揺れない</td></tr>
-      <tr><td>(7) 失敗経路</td><td><b><code>GIT_TERMINAL_PROMPT=0</code> を明示的に付ける。</b> 終了コード128で即座に失敗する。<b>この環境は既定でプロンプトが無効だが、git bash実機では既定で有効であり、付けないと資格情報の入力待ちでブロックする</b>（pushの後処理が固まる最悪の失敗モード）</td></tr>
+      <tr><td>(6) 同一SHAに複数PRのrefが一致した場合</td><td>今回は1件のみ一致。<b>しかし「最大の番号を採る」という当初案は誤りだった</b>（refs/pull/*にはマージ済み・クローズ済みのPRのrefも永続的に残るため）。<b>一致が1件でなければ解決を諦めてCompareへ縮退する。</b></td></tr>
+      <tr><td>(7) 失敗経路（資格情報）</td><td><b><code>GIT_TERMINAL_PROMPT=0</code> に加えて <code>-c credential.helper=</code> <code>-c core.askPass=</code> を付ける。</b> ただし<b>この対策の効果はこの環境では測れていない</b>（この環境は既に <code>GIT_TERMINAL_PROMPT=0</code> がexport済みで有無の差を測れないため。詳細はmd版「(7) の実測は成立していない」節参照——HTML版には未転記）</td></tr>
       <tr><td>(8) オフライン時</td><td><b>未検証。</b> (7)と同じく非0で終わる想定で、呼び出し側は失敗を握りつぶしてCompareへ縮退する</td></tr>
       <tr><td>(9) GitLabの相当物</td><td><code>refs/merge-requests/&lt;n&gt;/head</code> が存在するとされるが<b>検証できない。よって実装対象に含めない</b></td></tr>
     </tbody>

@@ -140,8 +140,8 @@
     <h1>Diffviewリンクの出し分けとMCP経路でのPR URL解決</h1>
     <p class="lead"><b>動いた。</b>この環境（CLI不在のMCP経路）で「defaultブランチとの差分」が <code>/pull/206/files</code> になり、差分アンカー付きリンク10本はすべてCompareのまま（10/10）で<b>後退していない</b>。第4引数の受け渡しを意図的に落とすとテストが実際に落ちることも確認した。</p>
     <p class="counts">
-      <span class="chip good">◎達成 6</span>
-      <span class="chip warn">△未確認 1</span>
+      <span class="chip good">◎達成 7</span>
+      <span class="chip warn">△未確認 0</span>
       <span class="chip stop">✕未達 0</span>
     </p>
     <ul class="meta">
@@ -149,7 +149,7 @@
       <li><b>ブランチ</b> claude/pr-mr-diffview-link-yxim1l</li>
       <li><b>PR</b> #206</li>
       <li><b>フェーズ</b> 3〈実装〉 flow-id 3-6</li>
-      <li><b>push回数</b> 7</li>
+      <li><b>push回数</b> 7（作成時点）〜9（伝播遅延対策の追記時点。HANDOFF.mdの現在値と対応）</li>
       <li><b>作成日</b> 2026-08-24</li>
       <li><b>正文</b> 同名の .md</li>
     </ul>
@@ -221,15 +221,15 @@
   <h3>作業1: <code>get_mr_diff_url</code> の4引数化</h3>
   <p><code>Github.sh</code> / <code>Gitlab.sh</code> / <code>Provider.sh</code> の3ファイル。第4引数 <code>mr_url</code> が非空ならDiffview（GitHubは <code>&lt;mrUrl&gt;/files</code>、GitLabは <code>&lt;mrUrl&gt;/diffs</code>）、空なら従来どおりCompareを返す。<code>${4:-}</code> を使い、既存の3引数呼び出しが <code>set -u</code> 配下で壊れないようにした。<b>純粋関数のまま</b>である。</p>
   <h3>作業2: <code>github_resolve_mr_number_for_head</code> の新設</h3>
-  <p><code>git ls-remote</code> で <code>refs/pull/*/head</code> を引き、HEADのSHAと突き合わせてPR番号を得る。<code>Provider.sh</code> には同名のディスパッチャ <code>resolve_mr_number_for_head</code> を置いた（GitLabは空を返す）。</p>
+  <p><code>git ls-remote</code> で <code>refs/pull/*/head</code> を引き、<b>複数の候補SHA</b>（今回push・前回push）と突き合わせてPR番号を得る（当初は単一SHAだったが、下記「追記: pushの伝播遅延と対策」のとおり複数候補SHA対応へ変更した。この節は<b>最終的な実装</b>を記す）。<code>Provider.sh</code> には同名のディスパッチャ <code>resolve_mr_number_for_head</code> を置いた（GitLabは空を返す）。</p>
   <p>計画どおり、次の3つの制約を実装に落とした。</p>
   <div class="tablewrap">
   <table>
     <thead><tr><th>制約</th><th>実装</th></tr></thead>
     <tbody>
-      <tr><td>一致がちょうど1件のときだけ返す</td><td><code>awk &#x27;$1 == sha { n++; r = $2 } END { if (n == 1) print r }&#x27;</code> の1行に収めた</td></tr>
+      <tr><td>一致したPR番号がちょうど1種類のときだけ返す</td><td><code>awk</code> で候補SHAの集合 <code>want[]</code> を作り、一致したPR番号を <code>seen[]</code> へ集めて種類数が1のときだけ出力する</td></tr>
       <tr><td>remoteが <code>http(s)://</code> のときだけ試みる</td><td><code>git remote get-url origin</code> を <code>case</code> で判定し、それ以外は即 <code>return 0</code></td></tr>
-      <tr><td>失敗しても非0で返さない</td><td>各失敗点を `</td></tr>
+      <tr><td>失敗しても非0で返さない</td><td>各失敗点を <code>|| return 0</code> で受ける（awkパイプライン自体も含む）</td></tr>
     </tbody>
   </table>
   </div>
