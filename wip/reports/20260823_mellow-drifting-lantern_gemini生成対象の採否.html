@@ -145,12 +145,15 @@
       <tr><td>7</td><td><b>生成物に含まれないファイルが配布先の <code>.gemini/</code> にあると、再適用が片肺になる</b>（除外の実装はその一例で、自前の <code>.gemini/commands/*.toml</code> でも起きる）。警告は2系統出るので「無言」ではない。実際の弱点は<b>installer の終了コードが0のまま</b>であることと、<b>案内される復旧コマンドに <code>--force</code> が無い</b>ことの2点</td><td>実装の確認（実測）</td></tr>
       <tr><td>8</td><td><b>現在のコピー対象に「集合」は無い。</b> <code>.claude/</code> 配下の追跡ファイル<b>全件</b>から、変換生成する2つ（<code>agents/*.md</code>・<code>settings.json</code>）を除いたものがそのまま <code>.gemini/</code> になる。issue #70 は旧 TARGETS の欠落（<code>agents/</code>）を是正して全件列挙へ変えており、<b>集合を据え置いたのではない</b>。ただし「<code>.claude/</code> 配下を全部コピーしてよいか」という問いは立てられていない</td><td>実装・仕様・DDRの確認</td></tr>
       <tr><td>9</td><td><b>この判断はすべて Gemini CLI 未観測のまま行った。</b> どの結論も生成物と設定からの推論であり、実行時の挙動を観測していない</td><td>制約（CLI がこの実行環境に無い）</td></tr>
+      <tr><td>10</td><td><b>論点2（<code>rules/</code> <code>docs/</code> <code>hooks/</code> <code>scripts/</code>）は現状維持を継続する。</b> 4つ外すと壊れたリンクは18件→<b>1件</b>に減るが、配布物は減らず、実機未観測のままである。<b>判断は保留し、ソース確認できる環境へ委ねる</b>（下記「再検討の条件」条件1）</td><td>フェーズ3・2回目（2026-08-23）</td></tr>
+      <tr><td>11</td><td><b>論点3（<code>.agents/skills/</code>）は不成立。</b> Claude Code 公式ドキュメントに <code>.agents</code> の言及が0件</td><td>フェーズ3・2回目</td></tr>
     </tbody>
   </table>
   </div>
   <div class="box ok">
     <span class="label">「現状維持」は「検討しなかった」ではない</span>
     <p>4軸を3ディレクトリへ独立に当てた結果として、3つとも残すことを選んでいる。<b>再検討の条件は下記「再検討の条件」節に置く。</b></p>
+    <p><b>2026-08-23、スコープ拡大後のフェーズ3・2回目で結論10・11を追加した。</b> <code>rules/</code> を含む4ディレクトリの扱い（結論10）と <code>.agents/skills/</code>（結論11）である。いずれも判断そのものは変わっていないが、根拠が更新・確定した。</p>
   </div>
 </section>
 
@@ -308,6 +311,37 @@ passed=91 failures=0</code></pre>
   </table>
   </div>
 
+  <h3>論点2・論点3の判断（フェーズ3・2回目、2026-08-23）</h3>
+  <p><b>フェーズ2の2回目調査</b>（<code>wip/reports/20260823_mellow-drifting-lantern_geminiの読み込み経路と自立性.md</code>）を踏まえて、スコープ拡大後に残った2論点を判断する。<b>論点1（<code>.gemini/</code> を自立させるか）は別途決着済み</b>（ユーザー判断。<code>.claude/</code> への依存を明示する）。</p>
+
+  <h4>論点2: 読まれない4ディレクトリ（rules/ docs/ hooks/ scripts/）の扱い</h4>
+  <div class="box ok">
+    <span class="label">現状維持（4つとも残す）</span>
+    <p>決め手は3点のうち2点が生きている。</p>
+  </div>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>決め手</th><th>フェーズ3・1回目</th><th>2回目調査後</th></tr></thead>
+    <tbody>
+      <tr><td>1. 配布物は1バイトも減らない</td><td>有効</td><td><b>変わらず有効</b>（<code>dist-layers.json</code> の <code>exclude</code> は不変）</td></tr>
+      <tr><td>2. 部分的に外すと中間状態になる</td><td>3ディレクトリで18件が根拠</td><td><b>弱まった。</b> <code>rules/</code> を含む4ディレクトリなら壊れたリンクは <b>1件</b>まで減る（<code>wip/reports/…geminiの読み込み経路と自立性.md</code> Q10-2）</td></tr>
+      <tr><td>3. 外す根拠は未観測の推論で対象を選べない</td><td>有効</td><td><b>前半は変わらず有効。後半は一部解消。</b> <code>.gemini/skills/</code> <code>.gemini/agents/</code> が読まれることは公式ドキュメントで確定した。<b>「読まれる2つ」と「記載の無い4つ」という線引きは、今回できるようになった</b></td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p><b>それでも外さない。</b> 決め手2が弱まっても、決め手1（配布物は減らない）と決め手3前半（<code>rules/</code> <code>docs/</code> <code>hooks/</code> <code>scripts/</code> が読まれないという結論は、依然「記載が無い」という消極的根拠に留まる）は変わっていない。<b>Gemini CLI 実機は一度も動かしていない</b>——公式ドキュメントの読解と生成物の実測だけで、実装の裏取りをしていない。</p>
+  <div class="box warn">
+    <span class="label">確認は別環境へ委ねる</span>
+    <p><b>この確認は、ユーザーの判断で保留した。</b> 「残りは Gemini CLI のソースコードを参照できる環境で確認する」という指示により、実機・ソースでの検証は<b>別環境へ委ねる</b>（下記「再検討の条件」の条件1がこれに当たる）。<b>それまでは現状維持のまま、判断を確定させない理由（未検証）を明示して進める。</b></p>
+  </div>
+
+  <h4>論点3: .agents/skills/ エイリアス</h4>
+  <div class="box stop">
+    <span class="label">不成立（記録して閉じる）</span>
+    <p>2回目調査 Q7 により、Gemini CLI は <code>.agents/skills/</code> を見るが<b>Claude Code 側は公式ドキュメントに <code>.agents</code> の言及が0件</b>であることが分かった。共用パスへ一本化すると Claude Code からスキルが見えなくなるため、<b>二重管理の解消という狙いは成立しない</b>。</p>
+  </div>
+  <p><b>この判定も未検証の残る点がある。</b> 「記載が無い＝未対応」は論理的には言い切れない。ソースコードで確認できる環境では、この点もあわせて確認する余地がある（下記「再検討の条件」の条件1に含める）。</p>
+
   <h3>再検討の条件</h3>
   <div class="box warn">
     <span class="label">「永久に外さない」ではない</span>
@@ -324,6 +358,8 @@ passed=91 failures=0</code></pre>
     </tbody>
   </table>
   </div>
+  <p><b>1が本命であり、着手済みである。</b> 今回の判断を支える決め手のうち、「未観測の推論であること」は CLI の挙動が観測できれば解消する。</p>
+  <p><b>条件2〜4は、このリポジトリの中で観測できる。</b> 1だけが外部（実行環境の用意）に依存する。</p>
 </section>
 
 <section id="unverified">
