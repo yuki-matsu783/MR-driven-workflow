@@ -85,10 +85,13 @@ write_additional_context() {
 # 参照リンクのテキストブロックを組み立てる。prev_shaが空（このブランチでの初回push）の場合は
 # 「前回pushとの差分」「コメント一覧」の2行を省略する（issue #13受け入れ条件）。
 # diff_url/repo_urlは、いずれもURL文字列からの推測ではない情報（PR/MRのURLは`gh`/`glab`由来、
-# リポジトリの正規URLはremote URLの正規化由来）から組み立てたものを渡す。
-# `gh`/`glab` CLI不在時（issue #34）は、MR/PRのURLをhookから取得できないため mr_url に空文字列を
-# 渡す。その場合はMRリンクの行を「MCPツールで取得すること」という指示に差し替える
-# （defaultブランチとの差分リンクは `get_repo_url` のローカル導出で得られるためそのまま出す）。
+# または `resolve_mr_number_for_head` によるgit ls-remote由来。リポジトリの正規URLはremote URLの
+# 正規化由来）から組み立てたものを渡す。
+# `gh`/`glab` CLI不在時（issue #34）は、mr_url が空のまま main へ渡ってくることがある。この
+# 場合 main 側が `resolve_mr_number_for_head`（issue #205。GitHubのみ）で解決を試み、成功すれば
+# mr_url へ格納し直す。ここまでで mr_url が空のままなら、MRリンクの行を「MCPツールで取得する
+# こと」という指示に差し替える（defaultブランチとの差分リンクは `get_repo_url` のローカル導出で
+# 得られるためそのまま出す）。
 # since_urlが空（このブランチでの初回push）の場合は「前回pushとの差分」「コメント一覧」の
 # 2行を省略する（issue #13受け入れ条件）。since_urlの算出（＝前回push SHAの有効性判定）は
 # 重点ファイルの差分範囲と揃える必要があるため、呼び出し元のmainで行い結果だけを受け取る
