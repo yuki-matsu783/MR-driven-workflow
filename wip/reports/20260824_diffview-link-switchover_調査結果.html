@@ -343,7 +343,7 @@ rc=128  所要=382ms</code></pre>
       <tr><td>(1) PR #206 が引けるか</td><td><b>引けた</b></td></tr>
       <tr><td>(2) 所要時間</td><td>約400〜600ms（ベースライン4ms）。<a href="#conditions">実施条件</a>参照</td></tr>
       <tr><td>(3) HEADのSHAと突き合わせられるか</td><td><b>できた</b>（1件に一致）</td></tr>
-      <tr><td>(4) push直後のrefの伝播遅延</td><td><b>本環境では観測されなかった</b>（push完了後の最初の照会で既に一致）。<b>ただし1回の観測にすぎず、遅延しない保証にはならない。</b> 設計では「一致するrefが無ければCompareへ縮退」とし、遅延しうる前提で組む</td></tr>
+      <tr><td>(4) push直後のrefの伝播遅延</td><td><b>フェーズ2時点の計測では観測されなかった</b>（push完了後の最初の照会で既に一致）。ただし<b>この計測はpushからしばらく経ってから行ったもので、hookが実際に走るタイミング（push完了の直後）を計測していなかった</b>。<b>フェーズ3の実装検証（実push）で実際に観測した</b>&mdash;&mdash;pushしたコミット（<code>22a23b7</code>）に対しhookが即座に走った1回目は <code>refs/pull/206/head</code> が前回pushのSHAのままで解決に失敗しCompareへ縮退したが、数十秒後に同じコミットへhookを再実行すると解決に成功した（同一コミット・同一環境で経過時間だけが異なる）。<b>フェーズ2の「観測されなかった」という記述は計測のタイミングが違っていたための誤りであり、実際には遅延が起きる。</b> 対策として、今回push・前回pushの2つのSHAを解決関数へ候補として渡す実装へ変更した（詳細: 実装結果レポート「追記: pushの伝播遅延と対策」）。</td></tr>
       <tr><td>(5) fork元PRの挙動</td><td><b>未検証。</b> 原理上、fork元のPRのrefは <code>origin</code>（＝fork）に存在しないため<b>一致せず自動的にCompareへ縮退する</b>と考えられる。壊れる方向ではない</td></tr>
       <tr><td>(6) 同一SHAに複数PRのrefが一致した場合</td><td>今回は1件のみ。<b>複数一致しうる</b>ため、設計では<b>PR番号が最大のもの（＝最新）を採る</b>。決定的に選べるのでpushごとに結果が揺れない</td></tr>
       <tr><td>(7) 失敗経路</td><td><b><code>GIT_TERMINAL_PROMPT=0</code> を明示的に付ける。</b> 終了コード128で即座に失敗する。<b>この環境は既定でプロンプトが無効だが、git bash実機では既定で有効であり、付けないと資格情報の入力待ちでブロックする</b>（pushの後処理が固まる最悪の失敗モード）</td></tr>
@@ -369,7 +369,7 @@ rc=128  所要=382ms</code></pre>
   <p><code>refs/merge-requests/&lt;n&gt;/head</code> の存在も、そこから組み立てたURLの妥当性も<b>この環境では検証できない</b>。<code>references/mcp-fallback.md</code> 第5節が「未検証の対応表は誤誘導になりうる」としてGitLab MCP対応を対象外にしているのと同じ判断を採る。<b>GitLabのCLI経路（<code>glab</code> がある場合）は <code>get_mr_for_branch</code> で従来どおりMR URLが得られるため、GitLabのDiffview化自体は効く。</b> 効かないのは「GitLabかつ <code>glab</code> 不在」の組み合わせだけで、これは元々サポート外である。</p>
   <div class="box warn unverified-detail">
     <span class="label">確かめられなかったこと（詳細）</span>
-    (5) fork元PR・(8) オフライン・(9) GitLabの3点は、この環境の構成上いずれも再現できなかった。<b>ただし3点とも「一致しない／失敗する」→ Compareへ縮退する方向</b>であり、誤ったURLを出す方向ではない。(4) の伝播遅延は<b>1回しか観測していない</b>ため、遅延しない保証としては扱わない。
+    (5) fork元PR・(8) オフライン・(9) GitLabの3点は、この環境の構成上いずれも再現できなかった。<b>ただし3点とも「一致しない／失敗する」→ Compareへ縮退する方向</b>であり、誤ったURLを出す方向ではない。(4) の伝播遅延は、フェーズ3の実装検証で<b>実際に発生することを確認した</b>（フェーズ2時点の「観測されなかった」は計測タイミングの誤りだった）。対策として複数SHA候補での解決を実装している。
   </div>
 
   <h3 id="f4">4. <code>get_mr_diff_since_url</code> はDiffviewへ寄せない <span class="chip warn">△注意</span></h3>

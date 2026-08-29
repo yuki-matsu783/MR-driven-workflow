@@ -1,7 +1,7 @@
 ---
 title: 実装結果: Diffviewリンクの出し分けとMCP経路でのPR URL解決
 type: report
-description: issue #205 フェーズ3の実装結果。4引数化・PR URL解決関数・hookの分離配線・テスト17件追加と、7つの完了条件の判定
+description: issue #205 フェーズ3の実装結果。4引数化・PR URL解決関数（複数候補SHA対応）・hookの分離配線・テスト22件追加と、7つの完了条件の判定
 tags: [report, implementation, issue-mr-flow]
 keywords: [get_mr_diff_url, git ls-remote, refs/pull, compare_url, diff_url, 空振り, 経路テスト, 後退なし]
 ---
@@ -79,9 +79,9 @@ Diffview（GitHubは `<mrUrl>/files`、GitLabは `<mrUrl>/diffs`）、空なら�
 **3箇所とも、置き換え対象の行が兼ねていた役割を保っている。** 324行目は `repo_url` の `local` 宣言、
 358行目は `file_links_text` の `local` 宣言と初期化を兼ねており、どちらも落としていない。
 
-### 作業4: テスト17件の追加
+### 作業4: テスト22件の追加
 
-`test_vcs_provider.sh` が `passed=225` から **`passed=242`** になった（+17）。
+`test_vcs_provider.sh` が `passed=225` から **`passed=247`** になった（+22。うち17件は当初の実装分、5件はpushの伝播遅延対策（複数候補SHA）を追加した際に増分）。
 
 | 追加したもの | 件数 |
 |---|---|
@@ -89,6 +89,8 @@ Diffview（GitHubは `<mrUrl>/files`、GitLabは `<mrUrl>/diffs`）、空なら�
 | ディスパッチャ経路（github/gitlab × 4引数あり/なし） | 4 |
 | 差し替えがサブシェルに閉じていることの表明（`get_provider` / `git`） | 2 |
 | `github_resolve_mr_number_for_head` の分岐（1件／0件／2件以上／scp形式／`ssh://`／失敗／失敗時の終了コード） | 7 |
+| 複数候補SHAでの解決（前回SHAのみ一致／同一PR番号への複数一致／前回SHAが空でも解決） | 3 |
+| ディスパッチャ経由の複数候補受け渡し・GitLab経路が変わらないこと | 2 |
 
 **挿入位置は `get_provider` の全域上書き（220行目付近）より前**にした。同ファイルのコメントが
 「`get_provider` に依存するテストをこれより後ろへ追加しないこと」と警告しているためである。
@@ -127,9 +129,46 @@ Diffview（GitHubは `<mrUrl>/files`、GitLabは `<mrUrl>/diffs`）、空なら�
   `ls-remote` が起動しないことは実環境で確認していない（`git` をスタブして確認した）。
 - **完了条件6**（コメント一覧行）。次の実pushが最初の確認機会である。
 
+## 追記: pushの伝播遅延と対策
+
+flow-id 3-7 の実push（コミット `22a23b7`）で、**調査結果（フェーズ2）が「観測されなかった」と
+した伝播遅延が実際に発生した。**
+
+- pushした直後、PostToolUse hookが自動発火した1回目は、`refs/pull/206/head` がまだ**前回push
+  時点のSHA**を指しており、`git ls-remote` の突き合わせが不一致になって解決に失敗し、
+  「defaultブランチとの差分」がCompareへ縮退した。
+- 数十秒後、**同じコミット**（`22a23b7`）に対して解決関数を単体で直接呼び出すと、今度は成功した
+  （`refs/pull/206/head` が新しいSHAへ更新されていた）。
+- 同一コミット・同一環境で経過時間だけが異なる2回の呼び出しなので、**フェーズ2の計測条件が
+  hookの実際の発火タイミング（push完了の直後）とずれていたことが原因**と判断した
+  （フェーズ2の計測はpushからしばらく経ってから行っていた）。
+
+**対策**: `github_resolve_mr_number_for_head`（および `Provider.sh` のディスパッチャ
+`resolve_mr_number_for_head`）を、単一SHAではなく**複数の候補SHA**を受け取る形へ変更した。
+`post-push-compact-prompt.sh` は、今回pushのSHA（`current_sha`）に加えて**前回pushのSHA**
+（状態ファイル `wip/state/review-links/<branch>.txt` に記録済みの `prev_sha`）も候補として渡す。
+
+判定基準も「一致したref数」から「**一致したPR番号の種類数**」へ変更した。複数の候補SHAが
+同じPR番号のrefに一致するのは正常なケースだからである（例: `refs/pull/206/head` が前回SHA・
+今回SHAのどちらを指していても、pushの直後というタイミングでは両方とも同じPR #206を指す）。
+1種類のときだけ採用し、0種類（伝播遅延の窓の外・前回pushも無い等）・2種類以上（異なるPRに
+またがる不自然な一致）は従来どおりCompareへ縮退する——**「誤ったURLを出すくらいなら
+Compareのままにする」という当初方針は変えていない。**
+
+この変更により、pushの直後というhookが実際に走るタイミングでも、`refs/pull/<n>/head` が
+前回SHA・今回SHAのどちらを指していても解決できるようになった（どちらのSHAで引いても
+同じPR番号が出るため）。`test_vcs_provider.sh` に検証を5件追加した（複数候補での解決・
+候補が同じPR番号に一致するケース・前回SHAが空でも今回SHAだけで解決すること・ディスパッチャ
+経由の複数候補受け渡し・GitLab経路が変わらないこと）。
+
+**空振りでないことも検証3と同じ手順で確認した。** `mr_url` の受け渡しに加え、
+`resolve_mr_number_for_head` の `"$@"` 渡しを1引数だけへ落とす改変を一時ツリーで加えたところ、
+`test_vcs_provider.sh` は3件（`get_mr_diff_url` 系2件・ディスパッチャの複数候補受け渡し1件）が
+実際に失敗した（`passed=244 failures=3`）。
+
 ## 想定と異なった点
 
 | 見込み | 実際 |
 |---|---|
 | 検証4は「pushしてから目視」しかできないと思っていた | **hookはstdinからJSONを受ける単一プロセスなので、その場で何度でも実行できた。** 状態ファイルの退避だけ気をつければよい。切り分けが1pushにつき1回という制約は最初から存在しなかった |
-| `refs/pull` の解決が失敗してCompareへ縮退する可能性を見込んでいた | **1発で解決した**（`refs/pull/206/head` がHEADと一致）。ただしこれは伝播が速かった場合の1例にすぎない |
+| `refs/pull` の解決が失敗してCompareへ縮退する可能性を見込んでいた | **フェーズ2の計測時点では1発で解決した**（`refs/pull/206/head` がHEADと一致）。しかし**実際のpush直後（flow-id 3-7）には解決に失敗しCompareへ縮退した**（上記「追記: pushの伝播遅延と対策」）。フェーズ2の「1発で解決した」という記録は、計測をpushの直後ではなくしばらく経ってから行っていたための見かけ上の結果であり、伝播遅延は実在した |

@@ -167,6 +167,7 @@
     <li><a href="#impl">実装した内容</a></li>
     <li><a href="#output">実際のhook出力（この環境で取得したもの）</a></li>
     <li><a href="#unverified">測っていないこと・確認できなかったこと</a></li>
+    <li><a href="#propagation-delay">追記: pushの伝播遅延と対策</a></li>
     <li><a href="#surprises">想定と異なった点</a></li>
   </ol>
 </nav>
@@ -246,8 +247,8 @@
   </table>
   </div>
   <p><b>3箇所とも、置き換え対象の行が兼ねていた役割を保っている。</b> 324行目は <code>repo_url</code> の <code>local</code> 宣言、358行目は <code>file_links_text</code> の <code>local</code> 宣言と初期化を兼ねており、どちらも落としていない。</p>
-  <h3>作業4: テスト17件の追加</h3>
-  <p><code>test_vcs_provider.sh</code> が <code>passed=225</code> から <b><code>passed=242</code></b> になった（+17）。</p>
+  <h3>作業4: テスト22件の追加</h3>
+  <p><code>test_vcs_provider.sh</code> が <code>passed=225</code> から <b><code>passed=247</code></b> になった（+22。うち17件は当初の実装分、5件はpushの伝播遅延対策（複数候補SHA）を追加した際に増分）。</p>
   <div class="tablewrap">
   <table>
     <thead><tr><th>追加したもの</th><th>件数</th></tr></thead>
@@ -256,6 +257,8 @@
       <tr><td>ディスパッチャ経路（github/gitlab × 4引数あり/なし）</td><td>4</td></tr>
       <tr><td>差し替えがサブシェルに閉じていることの表明（<code>get_provider</code> / <code>git</code>）</td><td>2</td></tr>
       <tr><td><code>github_resolve_mr_number_for_head</code> の分岐（1件／0件／2件以上／scp形式／<code>ssh://</code>／失敗／失敗時の終了コード）</td><td>7</td></tr>
+      <tr><td>複数候補SHAでの解決（前回SHAのみ一致／同一PR番号への複数一致／前回SHAが空でも解決）</td><td>3</td></tr>
+      <tr><td>ディスパッチャ経由の複数候補受け渡し・GitLab経路が変わらないこと</td><td>2</td></tr>
     </tbody>
   </table>
   </div>
@@ -285,6 +288,19 @@
   </ul>
 </section>
 
+<section id="propagation-delay">
+  <h2>追記: pushの伝播遅延と対策</h2>
+  <p>flow-id 3-7 の実push（コミット <code>22a23b7</code>）で、<b>調査結果（フェーズ2）が「観測されなかった」とした伝播遅延が実際に発生した。</b></p>
+  <ul>
+    <li>pushした直後、PostToolUse hookが自動発火した1回目は、<code>refs/pull/206/head</code> がまだ<b>前回push時点のSHA</b>を指しており、<code>git ls-remote</code> の突き合わせが不一致になって解決に失敗し、「defaultブランチとの差分」がCompareへ縮退した。</li>
+    <li>数十秒後、<b>同じコミット</b>（<code>22a23b7</code>）に対して解決関数を単体で直接呼び出すと、今度は成功した（<code>refs/pull/206/head</code> が新しいSHAへ更新されていた）。</li>
+    <li>同一コミット・同一環境で経過時間だけが異なる2回の呼び出しなので、<b>フェーズ2の計測条件がhookの実際の発火タイミング（push完了の直後）とずれていたことが原因</b>と判断した（フェーズ2の計測はpushからしばらく経ってから行っていた）。</li>
+  </ul>
+  <p><b>対策</b>: <code>github_resolve_mr_number_for_head</code>（および <code>Provider.sh</code> のディスパッチャ <code>resolve_mr_number_for_head</code>）を、単一SHAではなく<b>複数の候補SHA</b>を受け取る形へ変更した。<code>post-push-compact-prompt.sh</code> は、今回pushのSHA（<code>current_sha</code>）に加えて<b>前回pushのSHA</b>（状態ファイル <code>wip/state/review-links/&lt;branch&gt;.txt</code> に記録済みの <code>prev_sha</code>）も候補として渡す。</p>
+  <p>判定基準も「一致したref数」から「<b>一致したPR番号の種類数</b>」へ変更した。複数の候補SHAが同じPR番号のrefに一致するのは正常なケースだからである（<code>refs/pull/206/head</code> が前回SHA・今回SHAのどちらを指していても、pushの直後というタイミングでは両方とも同じPR #206を指す）。1種類のときだけ採用し、0種類・2種類以上は従来どおりCompareへ縮退する——<b>「誤ったURLを出すくらいならCompareのままにする」という当初方針は変えていない。</b></p>
+  <p>空振りでないことも検証3と同じ手順で確認した。<code>resolve_mr_number_for_head</code> の <code>"$@"</code> 渡しを1引数だけへ落とす改変を一時ツリーで加えたところ、<code>test_vcs_provider.sh</code> は3件が実際に失敗した（<code>passed=244 failures=3</code>）。</p>
+</section>
+
 <section id="surprises">
   <h2>想定と異なった点</h2>
   <div class="tablewrap">
@@ -292,7 +308,7 @@
     <thead><tr><th>見込み</th><th>実際</th></tr></thead>
     <tbody>
       <tr><td>検証4は「pushしてから目視」しかできないと思っていた</td><td><b>hookはstdinからJSONを受ける単一プロセスなので、その場で何度でも実行できた。</b> 状態ファイルの退避だけ気をつければよい。切り分けが1pushにつき1回という制約は最初から存在しなかった</td></tr>
-      <tr><td><code>refs/pull</code> の解決が失敗してCompareへ縮退する可能性を見込んでいた</td><td><b>1発で解決した</b>（<code>refs/pull/206/head</code> がHEADと一致）。ただしこれは伝播が速かった場合の1例にすぎない</td></tr>
+      <tr><td><code>refs/pull</code> の解決が失敗してCompareへ縮退する可能性を見込んでいた</td><td><b>フェーズ2の計測時点では1発で解決した</b>（<code>refs/pull/206/head</code> がHEADと一致）。しかし<b>実際のpush直後（flow-id 3-7）には解決に失敗しCompareへ縮退した</b>（下記「追記: pushの伝播遅延と対策」）。フェーズ2の「1発で解決した」という記録は計測をpushの直後ではなくしばらく経ってから行っていたための見かけ上の結果であり、伝播遅延は実在した</td></tr>
     </tbody>
   </table>
   </div>
