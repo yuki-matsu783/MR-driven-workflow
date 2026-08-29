@@ -265,7 +265,7 @@ github_get_mr_diff_url() {
   github_get_compare_url "$repo_url" "$base_branch" "$head_branch"
 }
 
-# 現在のHEAD（`head_sha`）に対応するPR番号を、`git ls-remote` だけで解決する（issue #205）。
+# 候補SHAのいずれかに対応するPR番号を、`git ls-remote` だけで解決する（issue #205）。
 # 解決できない場合は**空を出力して終了コード0で返す**（呼び出し側はCompareへ縮退する）。
 # `gh` CLIが無い環境（MCPフォールバック経路）でDiffviewリンクを出せるようにするためのもの。
 #
@@ -274,10 +274,19 @@ github_get_mr_diff_url() {
 #
 # 制約が3つあり、いずれも「誤ったURLを出すくらいならCompareのままにする」方針から来ている。
 #
-#   1. **一致がちょうど1件のときだけ返す。** `refs/pull/*/head` にはマージ済み・クローズ済みの
-#      PRのrefも永続的に残る（本リポジトリで実測: `refs/pull/4/head` `refs/pull/85/head` が現存）。
-#      `git ls-remote` はPRのstateもbaseも返さないため、複数一致したときに「番号が大きい方」で
-#      決め打つと、閉じたPRやbase違いのPRのURLを出しうる。
+#   1. **一致したPR番号がちょうど1種類のときだけ返す。** `refs/pull/*/head` にはマージ済み・
+#      クローズ済みのPRのrefも永続的に残る（本リポジトリで実測: `refs/pull/4/head`
+#      `refs/pull/85/head` が現存）。`git ls-remote` はPRのstateもbaseも返さないため、
+#      複数のPRに一致したときに「番号が大きい方」で決め打つと、閉じたPRやbase違いのPRのURLを
+#      出しうる。**複数の候補SHAが同じPR番号に一致するのは正常**なので、判定は
+#      「一致したref数」ではなく「一致したPR番号の種類数」で行う。
+#
+#   1-b. **候補SHAを複数受け取るのは、GitHubのrefの更新がpushに対して遅れるためである。**
+#      本リポジトリで実測: pushの直後に走ったhookでは `refs/pull/206/head` がまだ前回pushの
+#      SHAを指しており解決に失敗したが、数十秒後に同じコミットで再実行すると解決した。
+#      hookはpushの直後に走るので、**現在のHEADだけを候補にすると、狙っている経路でこそ
+#      失敗しやすい**。前回push時のSHAも候補に含めることで、この遅延の窓を越えて同じPRを
+#      特定できる（PR番号はどちらのSHAから引いても同じもののため）。
 #   2. **remoteが `http://` / `https://` のときだけ試みる。** 下の `http.*` 設定はHTTP
 #      トランスポートにしか効かず、SSH remote（scp形式・`ssh://`）ではタイムアウトが一切効かない。
 #      `GIT_TERMINAL_PROMPT=0` も ssh 自身が `/dev/tty` へ出すパスフレーズ入力・ホスト鍵確認を
@@ -285,7 +294,13 @@ github_get_mr_diff_url() {
 #   3. **失敗しても非0で返さない。** 呼び出し側は `set -euo pipefail` 配下でコマンド置換の代入を
 #      するため、非0が漏れるとhook全体が途中終了し、レビュー依頼メッセージが1行も出なくなる。
 github_resolve_mr_number_for_head() {
-  local head_sha="$1" remote_url out matched
+  local remote_url out shas=""
+  # 候補SHAを空白区切りの1文字列へ畳む（空の引数は無視する）
+  while [ "$#" -gt 0 ]; do
+    [ -n "$1" ] && shas="${shas}${shas:+ }$1"
+    shift
+  done
+  [ -n "$shas" ] || return 0
 
   remote_url="$(git remote get-url origin 2>/dev/null)" || return 0
   case "$remote_url" in
@@ -300,15 +315,22 @@ github_resolve_mr_number_for_head() {
     -c http.lowSpeedLimit=1000 -c http.lowSpeedTime=5 \
     ls-remote origin 'refs/pull/*/head' 2>/dev/null)" || return 0
 
-  # 件数判定までawk側で完結させる（`wc -l` を起動しない。実装によっては先頭に空白が入り、
+  # 判定までawk側で完結させる（`wc -l` を起動しない。実装によっては先頭に空白が入り、
   # 文字列比較が常に不一致になる＝常に空を返す＝機能が入らない、という壊れ方をするため）。
-  matched="$(printf '%s\n' "$out" \
-    | awk -v sha="$head_sha" '$1 == sha { n++; r = $2 } END { if (n == 1) print r }')"
-  [ -n "$matched" ] || return 0
-
-  # basename相当はパラメータ展開で行う（`sed` を起動しない）
-  matched="${matched#refs/pull/}"
-  printf '%s\n' "${matched%/head}"
+  # 候補SHAのいずれかに一致したrefからPR番号を集め、**種類が1つのときだけ**出力する。
+  printf '%s\n' "$out" | awk -v shalist="$shas" '
+    BEGIN { split(shalist, a, " "); for (i in a) want[a[i]] = 1 }
+    $1 in want {
+      n = $2
+      sub(/^refs\/pull\//, "", n)
+      sub(/\/head$/, "", n)
+      seen[n] = 1
+    }
+    END {
+      k = 0
+      for (n in seen) { k++; last = n }
+      if (k == 1) print last
+    }'
 }
 
 # PRの「前回push時点(from_sha)から今回push時点(to_sha)までの差分」を見れるURLを組み立てる

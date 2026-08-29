@@ -263,6 +263,24 @@ assert_eq "get_mr_diff_url: 第4引数を省略するとgitlabのCompareペー�
   "$( get_provider() { printf 'gitlab\n'; }; \
       get_mr_diff_url 'https://gitlab.example.com/o/r' 'main' 'feat' )"
 
+# `resolve_mr_number_for_head` が複数の候補SHAをgithub実装へそのまま渡していることを確かめる
+# （`"$@"` の受け渡しが崩れて1つ目しか渡らなくなっても、単一候補だけを渡すテストでは検出できない。
+# ここでは1つ目のSHAは一致せず2つ目だけが一致する組み合わせにして、渡し漏れを検出できる形にする）
+assert_eq "resolve_mr_number_for_head: 複数候補をgithub実装へ渡す" \
+  "206" \
+  "$( get_provider() { printf 'github\n'; }; \
+      github_resolve_mr_number_for_head() {
+        case "$1,$2" in
+          zzz999,aaa111) printf '206\n' ;;
+        esac
+      }
+      resolve_mr_number_for_head 'zzz999' 'aaa111' )"
+
+assert_eq "resolve_mr_number_for_head: gitlabでは常に空（refs/merge-requestsは未対応）" \
+  "" \
+  "$( get_provider() { printf 'gitlab\n'; }; \
+      resolve_mr_number_for_head 'aaa111' )"
+
 # 差し替えがサブシェルに閉じており、実定義が残っていることを表明する
 # （`declare -F` は名前だけを出力する。代入の形にすると未定義時に `set -e` でスクリプトごと落ちる）
 assert_eq "get_providerの実定義が残っている" "get_provider" \
@@ -307,6 +325,43 @@ assert_eq "resolve: 2件以上一致したら諦めて空を返す" \
         esac
       }
       github_resolve_mr_number_for_head 'aaa111' )"
+
+# 複数候補SHA（今回push・前回pushの2つ）を渡し、今回のSHAは一致しないが前回のSHAが一致する場合
+# → その番号を返す（issue #205: `refs/pull/<n>/head` の更新はpushに対して遅れることがあるため、
+# hookが直後に走ると今回SHAでは解決できない。前回pushのSHAが救済経路になる）
+assert_eq "resolve: 今回SHAが未一致でも前回SHAが一致すればPR番号を返す" \
+  "206" \
+  "$( git() {
+        case "$1" in
+          remote) printf 'https://github.com/o/r.git\n' ;;
+          *) printf 'aaa111\trefs/pull/206/head\n' ;;
+        esac
+      }
+      github_resolve_mr_number_for_head 'zzz999' 'aaa111' )"
+
+# 複数候補SHAが、いずれも同じPR番号のrefに一致する → 種類は1つなのでその番号を返す
+# （「一致したref数」ではなく「一致したPR番号の種類数」で判定していることの確認）
+assert_eq "resolve: 複数候補が同じPR番号に一致すれば1件扱いで返す" \
+  "206" \
+  "$( git() {
+        case "$1" in
+          remote) printf 'https://github.com/o/r.git\n' ;;
+          *) printf 'aaa111\trefs/pull/206/head\nzzz999\trefs/pull/206/head\n' ;;
+        esac
+      }
+      github_resolve_mr_number_for_head 'zzz999' 'aaa111' )"
+
+# 前回pushのSHAが空（state_fileが無い＝初回push）でも、今回SHAだけで解決できる
+# （空の候補は無視され、候補が1つも無くなる壊れ方をしないことの確認）
+assert_eq "resolve: 前回SHAが空でも今回SHAだけで解決する" \
+  "206" \
+  "$( git() {
+        case "$1" in
+          remote) printf 'https://github.com/o/r.git\n' ;;
+          *) printf 'aaa111\trefs/pull/206/head\n' ;;
+        esac
+      }
+      github_resolve_mr_number_for_head 'aaa111' '' )"
 
 # SSH remote → ls-remote を起動せずに空を返す
 # （`http.*` のタイムアウトもプロンプト抑止もsshには効かず、hookが無応答になりうるため）

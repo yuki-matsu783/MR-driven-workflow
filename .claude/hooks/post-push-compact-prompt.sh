@@ -331,24 +331,30 @@ main() {
   safe_branch="$(printf '%s' "$branch" | sed -E 's/[^a-zA-Z0-9_-]/_/g')"
   state_file="${repo_root}/wip/state/review-links/${safe_branch}.txt"
   current_sha="$(git rev-parse HEAD)"
+  if [ -f "$state_file" ]; then
+    prev_sha="$(cat "$state_file")"
+  fi
 
   # `gh`/`glab` CLI不在でMR/PR URLを取得できなかった場合でも、`git ls-remote` だけで
   # PR番号を解決できるなら「defaultブランチとの差分」をDiffview（コメントを付けられるビュー）
   # へ寄せる（issue #205）。解決できなければ `compare_url` のまま＝後退しない。
+  #
   # **解決と `diff_url` の再計算は、必ず両方ともここ（`current_sha` の算出後）へ置く。**
   # 再計算だけを上の `compare_url` の行の側へ残すと、`diff_url` が `mr_url` の解決前に
   # 確定するため、解決に成功しても差分リンクがCompareのままになる（機能が無言で入らない）。
+  #
+  # **候補として前回pushのSHAも渡す。** GitHubの `refs/pull/<n>/head` の更新はpushに対して
+  # 遅れることがあり（本リポジトリで実測）、hookはpushの直後に走るため、今回pushのSHAだけを
+  # 候補にすると狙っている経路でこそ解決に失敗する。前回pushのSHAは同じPRを指すので、
+  # 遅延の窓を越えて同じPR番号を特定できる。
   if [ -z "$mr_url" ]; then
-    mr_number="$(resolve_mr_number_for_head "$current_sha")"
+    mr_number="$(resolve_mr_number_for_head "$current_sha" "$prev_sha")"
     if [ -n "$mr_number" ]; then
       mr_url="$(get_mr_url "$repo_url" "$mr_number")"
     fi
   fi
   if [ -n "$mr_url" ]; then
     diff_url="$(get_mr_diff_url "$repo_url" "$base_branch" "$branch" "$mr_url")"
-  fi
-  if [ -f "$state_file" ]; then
-    prev_sha="$(cat "$state_file")"
   fi
 
   # 重点レビュー対象ファイルの差分範囲は、既存の差分リンクの意味論に合わせる（issue #42）。

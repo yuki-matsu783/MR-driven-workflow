@@ -885,13 +885,15 @@ get_mr_diff_url() {
   esac
 }
 
-# 現在のHEADに対応するMR/PR番号を、CLIを使わず `git` だけで解決する（issue #205）。
+# 候補SHAのいずれかに対応するMR/PR番号を、CLIを使わず `git` だけで解決する（issue #205）。
 # 解決できない場合は空を出力して終了コード0で返す（呼び出し側はCompareへ縮退する）。
 # GitLabは未対応（`refs/merge-requests` を実機検証できていないため。空を返す）。
+#
+# 候補を複数渡せるのは、GitHubのrefの更新がpushに対して遅れるためである（実装側のコメント参照）。
+# 呼び出し側は「今回pushのSHA」と「前回pushのSHA」を渡すことを想定している。
 resolve_mr_number_for_head() {
-  local head_sha="$1"
   case "$(get_provider)" in
-    github) github_resolve_mr_number_for_head "$head_sha" ;;
+    github) github_resolve_mr_number_for_head "$@" ;;
     gitlab) ;;
   esac
 }
