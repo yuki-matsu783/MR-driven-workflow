@@ -17,7 +17,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - issue: #17
 - ブランチ: `claude/hook-implementation-17-vjhppj`
 - PR: #195（Draft・https://github.com/yuki-matsu783/MR-driven-workflow/pull/195 ）
-- push回数: 21
+- push回数: 22
 - 現在のループ: なし
 - 未返信スレッド: 0
 - 追従監視: あり（`subscribe_pr_activity` でPR #195 を購読。セッション終了で止まるため、次セッションは `resume` で取り直す）
@@ -290,6 +290,10 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
   git mergeにより直接持ち込まれ、変換スクリプトの生成結果とずれていた——想定どおり）。
   `sync-gemini-assets.sh`（`--check`無し）を実行して再生成し、再度`--check`で差分なしを確認。
   単体テスト24ファイル・失敗0を再確認。
+- flow-id 5-4: 最終統括レポート `wip/reports/20260829_steady-guarding-checkpoint_統括.md`
+  （＋同名の`.html`）を作成した（層1）。リンク破断検査・重複ID検査・プレースホルダ残存検査は
+  いずれも0件。層3（HTML添付）はMCP経路のため対応ツールが無く**意図的にスキップ**（仕様どおり）。
+  層2（PR #195へのサマリコメント）はこのあと投稿する。
 
 ## 次にやること
 

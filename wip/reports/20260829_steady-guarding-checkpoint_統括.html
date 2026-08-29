@@ -1,0 +1,198 @@
+<!--
+  push前チェックリスト機構（issue #17）の最終統括レポート（HTMLビュー）。
+  正文は同名の .md であり、このHTMLはその視覚化である（両者は必ず同期させる）。
+  土台: .claude/skills/issue-mr-flow/assets/reports.template.html
+  寿命: flow-id 5-5 で wip/plans/ wip/worklogs/ wip/reports/ とまとめて削除する。
+-->
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>最終統括レポート — issue #17</title>
+<style>
+  :root {
+    --bg: #f6f7f9;      --panel: #ffffff;   --ink: #1a1d21;     --muted: #5b636d;
+    --line: #dfe3e8;    --accent: #2563eb;  --accent-soft: #eaf0fe;
+    --ok: #1a7f4b;      --ok-soft: #e6f4ec; --warn: #a35a00;    --warn-soft: #fdf1e0;
+    --stop: #b3261e;    --stop-soft: #fdecea; --good: #1d4ed8;  --good-soft: #e7edfd;
+    --code-bg: #f0f2f5;
+    --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1216;    --panel: #161a20;   --ink: #e6e8eb;     --muted: #9aa3ad;
+      --line: #2a3038;  --accent: #7aa2f7;  --accent-soft: #1b2333;
+      --ok: #6ee7a8;    --ok-soft: #14261d; --warn: #f0b866;    --warn-soft: #2a2113;
+      --stop: #f2857c;  --stop-soft: #2b1614; --good: #8ab4f8;  --good-soft: #17233a;
+      --code-bg: #1d222a;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", system-ui, sans-serif;
+    line-height: 1.8; font-size: 15px;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 20px 80px; }
+
+  header.band {
+    background: linear-gradient(135deg, var(--accent-soft), var(--panel));
+    border-bottom: 1px solid var(--line); padding: 28px 20px 22px; margin-bottom: 28px;
+  }
+  header.band .inner { max-width: 1080px; margin: 0 auto; }
+  header.band .kind { font-size: 11px; letter-spacing: .18em; color: var(--accent); font-weight: 700; }
+  header.band h1 { margin: 6px 0 4px; font-size: 26px; line-height: 1.4; }
+  header.band .lead { margin: 0; color: var(--muted); }
+  .meta { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; padding: 0; list-style: none; }
+  .meta li {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 999px;
+    padding: 3px 12px; font-size: 12.5px; color: var(--muted); white-space: nowrap;
+  }
+  .meta li b { color: var(--ink); font-weight: 600; }
+
+  nav.toc {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 14px 20px; margin-bottom: 28px;
+  }
+  nav.toc h2 { margin: 0 0 8px; font-size: 13px; letter-spacing: .08em; color: var(--muted); border: 0; padding: 0; }
+  nav.toc ol { margin: 0; padding-left: 20px; }
+  nav.toc li { margin: 2px 0; }
+  a { color: var(--accent); }
+
+  section {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 8px 24px 22px; margin-bottom: 22px;
+  }
+  section[id] { scroll-margin-top: 16px; }
+  h2 { font-size: 20px; margin: 20px 0 10px; padding-bottom: 8px; border-bottom: 2px solid var(--line); }
+  h3 { font-size: 16px; margin: 22px 0 8px; color: var(--accent); }
+  p { margin: 10px 0; }
+  ul, ol { padding-left: 22px; }
+  li { margin: 4px 0; }
+
+  .tablewrap { overflow-x: auto; margin: 14px 0; }
+  table { border-collapse: collapse; width: 100%; min-width: 480px; font-size: 14px; }
+  th, td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: var(--accent-soft); font-weight: 600; white-space: nowrap; }
+  tbody tr:nth-child(even) td { background: color-mix(in srgb, var(--line) 22%, transparent); }
+
+  code {
+    background: var(--code-bg); border-radius: 5px; padding: 1px 5px; font-size: 13px;
+    font-family: "SFMono-Regular", Consolas, "Noto Sans Mono", monospace;
+  }
+
+  .box { border-left: 4px solid var(--accent); background: var(--accent-soft);
+         border-radius: 0 var(--radius) var(--radius) 0; padding: 12px 16px; margin: 16px 0; }
+  .box > :first-child { margin-top: 0; } .box > :last-child { margin-bottom: 0; }
+  .box .label { font-size: 12px; font-weight: 700; letter-spacing: .06em; display: block; margin-bottom: 4px; }
+  .box.ok { border-color: var(--ok); background: var(--ok-soft); } .box.ok .label { color: var(--ok); }
+  .box.warn { border-color: var(--warn); background: var(--warn-soft); } .box.warn .label { color: var(--warn); }
+
+  footer { color: var(--muted); font-size: 13px; text-align: center; padding-top: 10px; }
+</style></head>
+<body>
+
+<header class="band">
+  <div class="inner">
+    <div class="kind">最終統括レポート / issue #17</div>
+    <h1>push前チェックリスト機構（issue #17）最終統括レポート</h1>
+    <p class="lead">Git管理下のTSVを用いたpush前チェックリストを新設し、PreToolUse hookによるブロック・PostToolUse hookによる次回分生成の2本柱で機構化した。全フェーズ（調査・実装・反映・クローズ）を通した最終まとめ。</p>
+    <ul class="meta">
+      <li><b>issue</b> #17</li>
+      <li><b>ブランチ</b> claude/hook-implementation-17-vjhppj</li>
+      <li><b>PR</b> #195</li>
+      <li><b>flow-id</b> 5-4</li>
+      <li><b>push回数</b> 21</li>
+      <li><b>作成日</b> 2026-08-29</li>
+      <li><b>正文</b> 同名の .md</li>
+    </ul>
+  </div>
+</header>
+
+<div class="wrap">
+
+<nav class="toc">
+  <h2>目次</h2>
+  <ol>
+    <li><a href="#changes">何を変えたか</a></li>
+    <li><a href="#reasons">なぜそうしたか</a></li>
+    <li><a href="#verification">検証結果</a></li>
+    <li><a href="#reflected">spec・DDRへの反映先</a></li>
+    <li><a href="#remaining">残課題</a></li>
+  </ol>
+</nav>
+
+<section id="changes">
+  <h2>何を変えたか</h2>
+  <ul>
+    <li><b>push前チェックリスト機構</b>を新設した。<code>worklogDir</code>配下へpush単位でユニークなTSVファイルをGit管理下に作り、AIエージェントがcommit前に5項目（<code>worklog</code>/<code>handoff</code>/<code>frontmatter-index</code>/<code>plan-report-sync</code>/<code>commit-skill</code>）を<code>check</code>（実施ログ付き）または<code>skip</code>（理由付き）で記録する。</li>
+    <li><b>PreToolUse hook（<code>block-unchecked-push.sh</code>）</b>が、未完了項目が残っている状態でのpushとチェックリストのコミット忘れ（<code>stale</code>）の両方を<b>exit code 2</b>でブロックする。未完了項目名・<code>check</code>/<code>skip</code>の使い方・参照すべきルールファイルのパスをメッセージへ含める。</li>
+    <li><b>PostToolUse hook（<code>post-push-next-checklist.sh</code>）</b>が、push成功後に次回push用のチェックリストを自動生成する。</li>
+    <li><b>push検知は自前で書かず</b>、<code>CommandPosition.sh</code>の<code>command_invokes_git_subcommand</code>へ委譲した。縮退時のフォールバックは専用関数<code>command_hints_at_git_push_degraded</code>を用意した。</li>
+    <li><b>既存のpush系hook2本のロジックは1バイトも変更していない。</b></li>
+    <li>関連ドキュメント（spec・DDR・SKILL.md・一覧系ドキュメント）を追随させ、<code>.claude/</code> → <code>.gemini/</code>の変換同期も実施した。</li>
+  </ul>
+</section>
+
+<section id="reasons">
+  <h2>なぜそうしたか</h2>
+  <ul>
+    <li>push成否の判定は<code>HEAD == @{upstream}</code>ではなく<code>git branch --remotes --contains HEAD</code>。当初案は両方向へ誤ることを実測で確認した。</li>
+    <li>ブロック条件は否定形（「通してよい」と確認できたときだけ通す）にした。</li>
+    <li>コミット忘れ（<code>stale</code>）も exit 2 でブロックする。当初 exit 1（警告）だったが、機構の動機そのものに当たる経路が唯一ブロックされないままだった（フェーズ3の敵対的レビューで blocker として指摘）。</li>
+    <li><code>--tags</code> / <code>--delete</code> のようなpushも一律ブロックし、機構が既に持つ<code>skip</code>で解く方針を採った（環境変数等の無効化スイッチは作らない）。</li>
+    <li>縮退時のフォールバックに前置フィルタをそのまま流用しない。<b>ただしこの禁止はブロック判定に限る</b>——生成するだけで過剰検知が冪等に吸収される<code>post-push-next-checklist.sh</code>は前置フィルタをそのまま流用しており、この非対称をDDR <code>i0017-01</code>へ明記した（フェーズ4の敵対的レビュー2回目で発覚）。</li>
+    <li><code>commit-skill</code>項目は「単一コミットで完結するpushでは<code>skip</code>する」と明記した。文言が完了形のため、Step 3.5時点ではそのコミット自体が存在せず原理的に<code>done</code>にできない構造だった（フェーズ4の敵対的レビュー2回目で発覚）。</li>
+    <li><code>.claude/VERSION</code>は本issueでは動かさなかった。<code>main</code>（PR #194）が既に同じ値まで上げていたため（issue #155に同型の前例あり）。</li>
+  </ul>
+</section>
+
+<section id="verification">
+  <h2>検証結果</h2>
+  <div class="box ok">
+    <span class="label">検証まとめ</span>
+    単体テスト <b>24ファイル・1,739アサーション・失敗0</b>（<code>test_install_to_project.sh</code>のdirtyガードにより作業ツリー状態で±1変動する既知の性質。不変なのは<code>failures=0</code>）。<code>check-doc-references.sh</code>参照切れ0件。<code>generate-ddr-list.sh --check</code>差分なし。<code>sync-gemini-assets.sh --check</code>同期済み。
+  </div>
+  <p>実運用での自己適用確認: <b>このPR自身が、push1〜21回すべてで本機構のチェックリストを埋めて進んだ</b>（生成→未完了でexit 2ブロック→埋めて通過→次回分の生成、の一巡を実地確認済み）。</p>
+  <p><code>main</code>取り込み後の統合検証（flow-id 5-1）: 4ファイルのテキストコンフリクトを解消し、単体テストが失敗0であることを確認してコミット（<code>aee879d</code>）。</p>
+</section>
+
+<section id="reflected">
+  <h2>spec・DDRへの反映先</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>ファイル</th><th>内容</th></tr></thead>
+    <tbody>
+      <tr><td><code>.claude/docs/spec/push-checklist.md</code>（新規）</td><td>背景・目的、構成要素、ファイル形式、サブコマンドと終了コード、ブロック・生成の条件、push検知の委譲先、縮退時フォールバックの扱い、<code>skip</code>による逃げ道、未決定事項・懸念点</td></tr>
+      <tr><td><code>.claude/docs/ddr/i0017-01-....md</code>（新規）</td><td>8つの決定と却下案</td></tr>
+      <tr><td><code>.claude/rules/docs-workflow.md</code></td><td>push前チェックリストのライフサイクルを運用表へ追記</td></tr>
+      <tr><td><code>.claude/skills/commit/SKILL.md</code>（Step 3.5）・<code>issue-mr-flow/SKILL.md</code></td><td>チェックリスト記入手順の明記</td></tr>
+      <tr><td><code>.claude/rules/shell-script-style.md</code></td><td>実装中に得た3件の知見（<code>${N-既定}</code>と<code>${N:-既定}</code>の違い・縮退時フォールバック流用の適用条件）</td></tr>
+      <tr><td><code>wip/reports/REVIEW-POINTS.md</code>・<code>wip/plans/REVIEW-POINTS.md</code></td><td>レビュー観点の追加</td></tr>
+      <tr><td><code>.claude/skills/issue-mr-flow/references/mcp-fallback.md</code></td><td>MCPページネーションの罠（実測範囲の明確化）</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="remaining">
+  <h2>残課題</h2>
+  <ul>
+    <li><b>hookの誤ブロックの再現条件が未特定。</b> 実装中に長いコマンドが2回<code>stale</code>でexit 2された事象を、17ケースで再現を試みたが特定できず、実装は変更せず仕様の「未決定事項」として明記した。</li>
+    <li><b>人間の承認をまだ得ていない判断が2件ある</b>（非対話セッションのため独断で決めている）。
+      <ol>
+        <li>敵対的レビューの回数配分（フェーズ4を2種別まとめて1回・予備1回で実施）。</li>
+        <li><code>--tags</code> / <code>--delete</code> を一律ブロックのままにしたこと。</li>
+      </ol>
+    </li>
+    <li><b><code>--tags</code> / <code>--delete</code>の引数解釈による選択的ブロックは実装していない。</b> 一律ブロック＋<code>skip</code>で解く方針のため。</li>
+    <li><b>マージ（flow-id 5-7）は、ユーザーの明示的な指示があるまで行わない。</b></li>
+  </ul>
+</section>
+
+<footer>issue #17 / PR #195 — 正文は同名の <code>.md</code>（このHTMLはその視覚化）</footer>
+
+</div>
+</body>
+</html>
