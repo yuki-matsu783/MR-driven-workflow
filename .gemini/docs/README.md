@@ -66,6 +66,7 @@ keywords: [正史仕様, 意思決定ログ, ユースケース, 逆引き, issu
 - [gemini-cli-telemetry.md](spec/gemini-cli-telemetry.md) ── Gemini CLI公式テレメトリ機構（outfileへの直接書き出し・バイトオフセットカーソル集計）
 - [sync-gemini-assets.md](spec/sync-gemini-assets.md) ── .claude/ から .gemini/ を生成する変換スクリプト
 - [check-doc-references.md](spec/check-doc-references.md) ── DDR参照切れ検出スクリプト（絶対パス形式のDDR参照が実在するファイルを指しているかを検証）
+- [push-checklist.md](spec/push-checklist.md) ── push前チェックリスト機構（Git管理下のTSVをPreToolUse hookで検証しexit code 2でブロック）
 - [harvest-from-projects.md](spec/harvest-from-projects.md) ── 収穫（逆輸入）スキルの分析スクリプト（scan/diff/merge3の入出力・分類規則・終了コード）
 - [html-slides.md](spec/html-slides.md) ── html-slidesスキル（発表用HTMLスライドを構成案JSONとテンプレート穴埋めの2段で生成）
 
@@ -119,6 +120,7 @@ frontmatter（`status` / `superseded_by` / `note`）だけから決まる。
 - [i0011-01-frontmatter抽出は1ファイル1回のjq呼び出しとmtimeキャッシュで高速化する.md](ddr/i0011-01-frontmatter抽出は1ファイル1回のjq呼び出しとmtimeキャッシュで高速化する.md)
 - [i0013-01-レビュー依頼メッセージの参照リンクは前回pushSHAをローカル状態で保持して組み立てる.md](ddr/i0013-01-レビュー依頼メッセージの参照リンクは前回pushSHAをローカル状態で保持して組み立てる.md)
 - [i0014-01-GitHub_GitLab情報取得はgh_glab-CLIを使いWebFetchは使わない.md](ddr/i0014-01-GitHub_GitLab情報取得はgh_glab-CLIを使いWebFetchは使わない.md)
+- [i0017-01-push前チェックリストはGit管理下のTSVで持ちPreToolUseで一律ブロックする.md](ddr/i0017-01-push前チェックリストはGit管理下のTSVで持ちPreToolUseで一律ブロックする.md)
 - [i0020-01-HANDOFF進捗更新はMarkdownテーブル直接書き換えでループ範囲を一括操作する.md](ddr/i0020-01-HANDOFF進捗更新はMarkdownテーブル直接書き換えでループ範囲を一括操作する.md)（うち「mark-skipで作った不整合は後段のmark-done/add-roundで表面化する」は、issue #140でmark-skip自身がその場で拒否する形へ変更された。詳細はi0140-01）
 - [i0023-01-push断面の全文コピーをやめ行番号インデックスで表現する.md](ddr/i0023-01-push断面の全文コピーをやめ行番号インデックスで表現する.md)（うち「Gemini CLI対応の扱い」は、issue #97でメインセッションのみ集計対象へ変更された。サブエージェントを集計しない部分は引き続き有効。詳細は i0097-05）
 - [i0026-01-AIアセットの配布はmanifest付きの直接コピーとし層はexcludeを含む5つにする.md](ddr/i0026-01-AIアセットの配布はmanifest付きの直接コピーとし層はexcludeを含む5つにする.md)

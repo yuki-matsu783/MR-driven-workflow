@@ -46,10 +46,12 @@ MRとのやり取りだけを自動化する薄い層」として設計したが
 .gitlab/issue_templates/
 └── Default.md                      # GitLab用issueテンプレート（同上。GitLabが新規issueの説明へ
                                     #   自動適用する予約名）
-.claude/scripts/src/vcs/
-├── Provider.sh                     # git remote からGitHub/GitLabを判定し、共通関数をディスパッチ
-├── Github.sh                       # gh CLIラッパー
-└── Gitlab.sh                       # glab CLIラッパー
+.claude/scripts/src/
+├── push-checklist.sh               # push前チェックリストの生成・記録・検証（issue #17）
+└── vcs/
+    ├── Provider.sh                 # git remote からGitHub/GitLabを判定し、共通関数をディスパッチ
+    ├── Github.sh                   # gh CLIラッパー
+    └── Gitlab.sh                   # glab CLIラッパー
 .claude/skills/issue-mr-flow/
 ├── SKILL.md                        # 入口: 全体フロー表（「参照」列を含む）・PR/MR担当・
 │                                   #   旧節名→新しい場所の対応表（issue #160で詳細節を分割）
@@ -64,8 +66,11 @@ MRとのやり取りだけを自動化する薄い層」として設計したが
 ├── post-push-usage-report.sh        # git push検知時のトークン使用量集計＋MR自動コメント投稿（PostToolUse hook）
 ├── post-push-compact-prompt.sh      # git push検知時に/compact実施を促すメッセージ注入（PostToolUse hook）
 ├── post-issue-create-notice.sh      # issue起票検知時に同一セッションでの着手を戒めるメッセージ注入（PostToolUse hook）
+├── block-unchecked-push.sh          # push前チェックリストが未完了なら exit 2 でブロック（PreToolUse hook。issue #17）
+├── post-push-next-checklist.sh      # git push成功後に次回分のチェックリストを生成（PostToolUse hook。issue #17）
 └── lib/
-    └── UsageTracking.sh              # 集計ロジック（sync_usage_state）
+    ├── UsageTracking.sh              # 集計ロジック（sync_usage_state）
+    └── CommandPosition.sh            # コマンド位置でのサブコマンド判定（issue #53。push検知の委譲先）
 ```
 
 上記は全てbash製（`.sh`）。issue #6でPowerShell版（`.ps1`）から移行し、issue #24で
@@ -4354,3 +4359,72 @@ flow-id 4-1 の「反映対象を洗い出す」を4手順（起点の列挙／4
 - **（issue #48で解消）（issue #25で追加した`gitlab_new_issue`にも従来からの制約が引き継がれる）GitLab側の動作未検証**:
   `gitlab_new_issue`はissue #48でローカルGitLab CE 18.5.4に対し実機確認済み（issueが実際に作成され、
   `get_issue`と同じ形のJSON（number/title/body/url/slug）が返ることを確認した）。
+
+### issue #17（push前チェックリスト機構の新設）
+
+push前に済ませるべき作業を、pushごとに一意な**Git管理下のTSVチェックリスト**として持たせ、
+未完了のままpushしようとした場合に PreToolUse hook が **exit code 2** でブロックする機構を
+新設した。次回分の生成は PostToolUse hook が行う。仕様は
+[push-checklist.md](push-checklist.md)、設計判断は
+[DDR i0017-01](../ddr/i0017-01-push前チェックリストはGit管理下のTSVで持ちPreToolUseで一律ブロックする.md)
+が正である。
+
+**変更したファイル**
+
+| ファイル | 変更 |
+|---|---|
+| `.claude/scripts/src/push-checklist.sh` | 新規（生成・記録・検証の本体） |
+| `.claude/hooks/block-unchecked-push.sh` | 新規（PreToolUse。`verify` 失敗と `stale` の両方で exit 2） |
+| `.claude/hooks/post-push-next-checklist.sh` | 新規（PostToolUse。次回分を生成） |
+| `.claude/scripts/test/test_push_checklist.sh` | 新規 |
+| `.claude/scripts/test/test_block_unchecked_push.sh` | 新規 |
+| `.claude/scripts/test/test_post_push_next_checklist.sh` | 新規 |
+| `.claude/settings.json` | PreToolUse へ1本、PostToolUse へ2本（Bash / PowerShell）を登録 |
+| `.claude/scripts/test/test_sync_gemini_assets.sh` | T11（前置フィルタの同一性）の対象へ新規hookを追加、T12 を追随 |
+| `.claude/docs/spec/push-checklist.md` | 新規 |
+| `.claude/docs/ddr/i0017-01-….md` | 新規 |
+| `.claude/rules/docs-workflow.md` | チェックリストのライフサイクル（worklogと同じ寿命）を追記 |
+| `.claude/rules/directory-structure.md` | `.claude/hooks/` の説明へ新規hook2本を追記 |
+| `index.md` | Repository Map へ追記 |
+| `.claude/skills/commit/SKILL.md` | コミット前にチェックリストを埋める手順を追記 |
+| `.claude/skills/issue-mr-flow/SKILL.md` | commitのflow-idの行へチェックリストの言及を追記 |
+| `.claude/docs/spec/issue-mr-workflow.md` | 本エントリと「コンポーネント構成」ツリー |
+| `.claude/docs/README.md` | spec一覧へ1行追加、`generate-ddr-list.sh` による再生成 |
+| `.claude/VERSION` | `0.4.0` → `0.5.0`。**ただし本issueが上げた版ではない**（下記） |
+
+**既存のpush系hook 2本（`post-push-usage-report.sh` / `post-push-compact-prompt.sh`）の
+ロジックは1バイトも変更していない**（issue #17 の受け入れ条件「責務を既存2本と分離する」）。
+
+**`.claude/VERSION` は `0.4.0` → `0.5.0`（MINOR）になったが、`0.5.0` は本issueが上げた値では
+ない。** 本issueの変更は、同じ未リリースの `0.5.0` へ**相乗りする**。
+
+- **経緯**: 本issueの作業中、AIエージェントは `0.4.0` → MINOR を提案し、非対話セッションの
+  例外条件下で適用した。その後 defaultブランチが **PR #194**（HTMLスライド作成スキルの追加）で
+  `0.4.0` → `0.5.0` へ進んでいることが分かった。**値が一致したため差分は消えるが、
+  「本issueが上げた」という記述はそのままでは事実と食い違う。**
+- **増分の根拠として数えていたもの**は、本issueが追加したスクリプト1本・hook2本・spec1本・
+  DDR1本に加え、同じフェーズ4で書き換えた配布層 `core` の資産
+  （`.claude/rules/shell-script-style.md`・
+  `.claude/skills/issue-mr-flow/references/mcp-fallback.md`・`wip/plans/REVIEW-POINTS.md`）の
+  **合算**である。いずれも資産の追加であり、`0.5.0` という MINOR の値そのものは本issueの
+  変更内容とも整合する。
+- **したがって本issueは版を動かさない。** `.claude/docs/spec/distribution-assets.md` の
+  「人間の判断で据え置くことがある」の規定に従い、判断の経緯をここへ残す。**同じ形は
+  issue #155 でも起きている**（当時は `0.2.0` → `0.3.0` が issue #160 によるもので、
+  同じ未リリース版へ相乗りした）。
+
+> **非対話セッションの例外条件について。** 適用した時点では
+> `.claude/docs/spec/distribution-assets.md` の「例外（非対話的セッション）」の条件下にあり、
+> 記録先2箇所（本エントリと `HANDOFF.md`「判断を迷った内容」）へ根拠を残していた。
+> **上記のとおり結果として版を動かさないため、否認による巻き戻しの対象は残っていない。**
+
+**受け入れた既知の性質**（詳細は [push-checklist.md](push-checklist.md)「未決定事項・懸念点」）
+
+- 本機構は**「作業ツリーが常にクリーンかつリモートと一致」と構造的に両立しない**。pushの直後には
+  必ず未コミットのチェックリストが1本あり、それを `pending` のままコミットすると `verify` の
+  対象になって埋めるまでpushできない。両立させようとすると、**実施していない項目を `done` と
+  書く動機**になる（自己申告に立つ機構として最も避けたい壊れ方のため、specへも明記した）。
+- **誤ブロックの再現条件が1件、特定できていない。** 長いコマンドが2回 `stale` で exit 2 された。
+  判定単体（8ケース）・hookの実プロセス起動（6ケース）・ANSI-Cクォート仮説（3ケース）のいずれでも
+  再現せず、**判定の誤りだったのか `stale` が真だったのかも切り分けられていない**。再現条件が
+  不明なため実装は変更していない。
