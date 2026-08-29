@@ -1,0 +1,181 @@
+<!--
+  個別反映計画（【設計反映】）のHTMLビュー（issue #205 / flow-id 4-1）
+  正文は同名の .md。この .html は人間レビュー用の視覚化で、内容はmd側と同期させる。
+  土台: .claude/skills/issue-mr-flow/assets/plans.template.html
+-->
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>【設計反映】Diffviewリンク出し分けのspec/DDR反映 — issue #205</title>
+<style>
+  :root {
+    --bg: #f6f7f9;      --panel: #ffffff;   --ink: #1a1d21;     --muted: #5b636d;
+    --line: #dfe3e8;    --accent: #2563eb;  --accent-soft: #eaf0fe;
+    --ok: #1a7f4b;      --ok-soft: #e6f4ec; --warn: #a35a00;    --warn-soft: #fdf1e0;
+    --stop: #b3261e;    --stop-soft: #fdecea; --code-bg: #f0f2f5;
+    --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1216;    --panel: #161a20;   --ink: #e6e8eb;     --muted: #9aa3ad;
+      --line: #2a3038;  --accent: #7aa2f7;  --accent-soft: #1b2333;
+      --ok: #6ee7a8;    --ok-soft: #14261d; --warn: #f0b866;    --warn-soft: #2a2113;
+      --stop: #f2857c;  --stop-soft: #2b1614; --code-bg: #1d222a;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", system-ui, sans-serif;
+    line-height: 1.8; font-size: 15px;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 20px 80px; }
+  header.band {
+    background: linear-gradient(135deg, var(--accent-soft), var(--panel));
+    border-bottom: 1px solid var(--line); padding: 28px 20px 22px; margin-bottom: 28px;
+  }
+  header.band .inner { max-width: 1080px; margin: 0 auto; }
+  header.band .kind { font-size: 11px; letter-spacing: .18em; color: var(--accent); font-weight: 700; }
+  header.band h1 { margin: 6px 0 4px; font-size: 26px; line-height: 1.4; }
+  header.band .lead { margin: 0; color: var(--muted); }
+  .meta { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; padding: 0; list-style: none; }
+  .meta li {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 999px;
+    padding: 3px 12px; font-size: 12.5px; color: var(--muted); white-space: nowrap;
+  }
+  .meta li b { color: var(--ink); font-weight: 600; }
+  nav.toc {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 14px 20px; margin-bottom: 28px;
+  }
+  nav.toc h2 { margin: 0 0 8px; font-size: 13px; letter-spacing: .08em; color: var(--muted); border: 0; padding: 0; }
+  nav.toc ol { margin: 0; padding-left: 20px; }
+  nav.toc li { margin: 2px 0; }
+  a { color: var(--accent); }
+  section {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 8px 24px 22px; margin-bottom: 22px;
+  }
+  section[id], h3[id] { scroll-margin-top: 16px; }
+  h2 { font-size: 20px; margin: 20px 0 10px; padding-bottom: 8px; border-bottom: 2px solid var(--line); }
+  h3 { font-size: 16px; margin: 22px 0 8px; color: var(--accent); }
+  p { margin: 10px 0; }
+  ul, ol { padding-left: 22px; }
+  li { margin: 4px 0; }
+  .tablewrap { overflow-x: auto; margin: 14px 0; }
+  table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 14px; }
+  th, td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: var(--accent-soft); font-weight: 600; white-space: nowrap; }
+  tbody tr:nth-child(even) td { background: color-mix(in srgb, var(--line) 22%, transparent); }
+  code {
+    background: var(--code-bg); border-radius: 5px; padding: 1px 5px; font-size: 13px;
+    font-family: "SFMono-Regular", Consolas, "Noto Sans Mono", monospace;
+  }
+  .box { border-left: 4px solid var(--accent); background: var(--accent-soft);
+         border-radius: 0 var(--radius) var(--radius) 0; padding: 12px 16px; margin: 16px 0; }
+  .box > :first-child { margin-top: 0; } .box > :last-child { margin-bottom: 0; }
+  .box .label { font-size: 12px; font-weight: 700; letter-spacing: .06em; display: block; margin-bottom: 4px; }
+  .box.ok { border-color: var(--ok); background: var(--ok-soft); } .box.ok .label { color: var(--ok); }
+  footer { color: var(--muted); font-size: 13px; text-align: center; padding-top: 10px; }
+</style></head>
+<body>
+
+<header class="band">
+  <div class="inner">
+    <div class="kind">個別反映計画 / フェーズ4（flow-id 4-1）</div>
+    <h1>Diffviewリンク出し分けのspec/DDR反映</h1>
+    <p class="lead">実装結果・調査結果の内容を、spec「提供関数」表・未決定事項・新規DDR・mcp-fallback参照資料へ反映する計画。</p>
+    <ul class="meta">
+      <li><b>issue</b> #205</li>
+      <li><b>ブランチ</b> claude/pr-mr-diffview-link-yxim1l</li>
+      <li><b>PR</b> #206</li>
+      <li><b>フェーズ</b> 4〈反映〉 flow-id 4-1</li>
+      <li><b>正文</b> 同名の .md</li>
+    </ul>
+  </div>
+</header>
+
+<div class="wrap">
+
+<nav class="toc">
+  <h2>目次</h2>
+  <ol>
+    <li><a href="#premise">前提（合意状況）</a></li>
+    <li><a href="#targets">反映対象（洗い出し）</a></li>
+    <li><a href="#sidecheck">巻き添えの確認</a></li>
+    <li><a href="#done">完了条件</a></li>
+  </ol>
+</nav>
+
+<section id="premise">
+  <h2>前提（合意状況）</h2>
+  <p>上位計画（全体作業計画）はflow-id 1-4でこのセッションが作成し、人間の合意（flow-id 1-5）は未取得（非対話的実行環境のため）。フェーズ2・3はいずれも人間レビューの代わりに敵対的レビュー（各フェーズ2回ずつ）を実行し、指摘へ対応・返信済み。本計画（フェーズ4）も同じ扱いとし、作成直後に敵対的レビューを1回実行する（計画時レビュー）。</p>
+</section>
+
+<section id="targets">
+  <h2>反映対象（洗い出し）</h2>
+  <h3>1. <code>.claude/docs/spec/issue-mr-workflow.md</code>「提供関数」表</h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>行</th><th>現状</th><th>変更内容</th></tr></thead>
+    <tbody>
+      <tr><td><code>get_mr_diff_url &lt;repoUrl&gt; &lt;baseBranch&gt; &lt;headBranch&gt;</code></td><td>3引数、常にCompareを返すと読める記述</td><td>シグネチャを4引数（<code>[&lt;mrUrl&gt;]</code>）へ。説明へ「<code>mrUrl</code>が非空ならDiffview（GitHubは<code>/files</code>、GitLabは<code>/diffs</code>）、空ならCompare」を追記。issue #205を追記</td></tr>
+      <tr><td>（新規行）<code>resolve_mr_number_for_head &lt;sha&gt;...</code></td><td>存在しない</td><td>新設。候補SHAのいずれかに対応するMR/PR番号を、CLIを使わず<code>git ls-remote</code>だけで解決する（GitHubのみ。GitLabは空を返す）。解決できなければ空＋終了コード0（呼び出し側はCompareへ縮退）</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p><code>get_mr_diff_since_url</code> / <code>get_diff_anchor_base_url</code> / <code>get_diff_anchor_url</code> は変更しない（調査結果の決定4のとおり）。</p>
+
+  <h3>2. 「未決定事項・懸念点」</h3>
+  <ul>
+    <li>（issue #13）<code>get_mr_diff_url</code>/<code>get_mr_diff_since_url</code>のURL形式の項目を、Diffview経路の追加とissue #205を追記する形で更新する（削除はしない。「ブラウザ未検証」自体は本issueでも解消していない）。</li>
+    <li>新規の未決定事項を3点追加する: (1) <code>git ls-remote</code>のgit bash実機コスト・認証プロンプト対策の実効性が未検証、(2) CLI経路での解決ブロック素通りは実機未確認、(3) <code>wip/state/review-links/&lt;branch&gt;.txt</code>のブランチ名重複衝突リスクは<code>git cat-file -e</code>検証で緩和したのみで解消はしていない。</li>
+  </ul>
+
+  <h3>3. 新規DDR <code>i0205-01</code></h3>
+  <ol>
+    <li><code>get_mr_diff_url</code>を4引数の純粋関数に保つ設計。却下案: 内部でMR URL解決まで行う設計（純粋関数でなくなるため却下）。</li>
+    <li>MCP経路でのPR番号解決に<code>git ls-remote origin 'refs/pull/*/head'</code>を採用。却下案: 案B（状態ファイル。silent stalenessのため却下）・案C（HANDOFF.mdヘッダ。表記依存で却下）。GitLabは実機検証不能のため対象外。</li>
+    <li>一致判定は「一致したPR番号の種類数がちょうど1のときだけ採用」（フェーズ2レビュー2回目で設計変更）。</li>
+    <li>複数候補SHA（今回push・前回push）を解決関数へ渡す設計（フェーズ3の実push検証で伝播遅延を実際に観測したため追加）。</li>
+    <li>差分アンカーの土台（<code>compare_url</code>）とDiffviewリンク（<code>diff_url</code>）を分離。</li>
+  </ol>
+
+  <h3>4. <code>references/mcp-fallback.md</code>への追記</h3>
+  <ul>
+    <li>hookのCLI/MCP経路ごとの挙動差（レビュー依頼メッセージのMR URL取得方法）を表で追記する。</li>
+    <li>MCPツールのbody引数における<code>*</code>喪失の既知の落とし穴（フェーズ2で観測）を記録する。ただしGit管理下のファイルへは影響しないことを明記する。</li>
+  </ul>
+</section>
+
+<section id="sidecheck">
+  <h2>巻き添えの確認</h2>
+  <ul>
+    <li>spec本文の「提供関数」表は、<code>get_mr_diff_url</code>の行<b>1行だけ</b>を書き換える（前後の行の書式・列幅崩れが起きないよう、既存の行を1行単位でコピーしてから編集する）。</li>
+    <li>「未決定事項・懸念点」の該当項目は、issue #13の項目として<b>既存の箇条書き構造を保ったまま</b>文言を差し替える（削除・新規追加ではなく更新であることを、diffで確認する）。</li>
+    <li>DDR <code>i0205-01</code>のファイル名・frontmatterの<code>title</code>・本文冒頭の見出しの3箇所は<code>.claude/rules/markdown-frontmatter.md</code>の書式（<code>i0205-01. &lt;タイトル&gt;</code>）に揃える。</li>
+  </ul>
+</section>
+
+<section id="done">
+  <h2>完了条件</h2>
+  <div class="box ok">
+    <span class="label">合格条件</span>
+    <ol>
+      <li>spec「提供関数」表の<code>get_mr_diff_url</code>行が4引数版に、<code>resolve_mr_number_for_head</code>の新規行が追加されている。</li>
+      <li>「未決定事項・懸念点」のissue #13項目が更新され、新規3項目が追加されている。</li>
+      <li>DDR <code>i0205-01</code>が作成され、<code>generate-ddr-list.sh</code>実行後に<code>.claude/docs/README.md</code>のDDR一覧へ反映されている。</li>
+      <li><code>references/mcp-fallback.md</code>へ上記2点が追記されている。</li>
+      <li><code>check-doc-references.sh</code>実行で参照切れが無い。</li>
+      <li>既存の単体テスト21ファイルが全件 <code>failures=0</code> のまま。</li>
+    </ol>
+  </div>
+</section>
+
+<footer>issue #205 / PR #206 — 計画の正文は同名の <code>.md</code>。外部依存を持たない自己完結HTML。</footer>
+
+</div>
+</body>
+</html>
