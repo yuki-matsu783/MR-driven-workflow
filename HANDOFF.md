@@ -17,9 +17,9 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - issue: #169
 - ブランチ: `claude/json-to-pptx-export-3g63ea`（ハーネス指定。feature-169-* ではない）
 - PR: #199（Draft。https://github.com/yuki-matsu783/MR-driven-workflow/pull/199 ）
-- push回数: 10
-- 現在のループ: 4-6〜4-9 の1周目（進行中）
-- 未返信スレッド: 11
+- push回数: 11
+- 現在のループ: なし
+- 未返信スレッド: 0
 - 追従監視: PR #199 を subscribe_pr_activity で購読（このセッション）
 
 | 進捗 | flow-id | ステップ | 担当 |
@@ -59,7 +59,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 | [] | 4-7 | commitし、pushしてレビュー依頼を行う | エージェント |
 | [] | 4-8 | MRでレビュー・コメントする | 人間 |
 | [] | 4-9 | レビュー内容を取得し、設計・AIアセットの内容を修正する | サブコマンド |
-| [] | 4-10 | 反映内容をもとにMR descriptionを更新する | サブコマンド |
+| [x] | 4-10 | 反映内容をもとにMR descriptionを更新する | サブコマンド |
 | [] | 5-1 | defaultブランチとのコンフリクトを検知し、あれば解消する | エージェント |
 | [] | 5-2 | 関連issueへの通知（承認必須） | エージェント |
 | [] | 5-3 | .claude/ の変更を .gemini/ へ変換同期する | エージェント |
@@ -200,14 +200,27 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
   - https://github.com/yuki-matsu783/MR-driven-workflow/pull/199#discussion_r3840285735 （minor: 新設4写像（chapter位置・COLH太字・PARA太字/通常・diagram連結）の個別アサーション欠落）
   - https://github.com/yuki-matsu783/MR-driven-workflow/pull/199#discussion_r3840949388 （minor: 反映レポートの分類件数「501/501」が事実誤り。追加後は506/506）
   - https://github.com/yuki-matsu783/MR-driven-workflow/pull/199#discussion_r3887876673 （minor: 新規spec pptx-slides.mdがREADMEのspec一覧に未掲載）
+- 2026-08-24: 敵対的レビュー（P4の2回目）の指摘11件を全件修正（push11・commit e6430eb）。
+  主要な修正: `clean`へXML1.0禁止文字（U+FFFE/FFFF）の正規化を追加し生成/検証失敗を区別／
+  トップレベル非オブジェクト入力を明示エラー化／空文字列titleを許容／two-column・table・
+  comparison・diagramへ要素型検証4件を追加／表セル数をjq側で明示フィールド化し`read -a`の
+  末尾空フィールド欠落を解消（既存テスト「全セル空の表」がこのバグ依存の誤った期待値だった
+  ため書き換え）／`BUL lvl=1`デッドコード分岐を削除／新設4写像の個別アサーション追加／
+  spec・SKILL.mdの検証内容表を実態へ同期・DDR過剰主張を訂正／レポート数値誤りを訂正／
+  README spec一覧へ追記。単体テストへ23件追加（`passed=111 failures=0`）。全テスト22本・
+  `check-dist-coverage.sh`（506/506）・`extract-frontmatter.sh .`・
+  `check-doc-references.sh`（参照切れ0）を再実行し全て通過。修正一覧はレポート章6が正。
+- 2026-08-24: フェーズ4を締めた: 指摘修正をpush（commit e6430eb、push11）→ 11スレッド全てへ
+  対応返信（未返信0）→ describe（flow-id 4-10完了）。
 
 ## 次にやること
 
-- フェーズ4の締め: 上記11件の指摘反映・修正push（push11）→ 全スレッドへ対応返信
-  （未返信0へ）→ describe（4-10）→ フェーズ5（5-1でmain取り込み承認確認・
-  取り込み直後に VERSION 0.5.0→0.6.0・`directory-structure.md`／`index.md` の skills 箇所
-  コンフリクトは両方の行を残す → 5-2関連issue通知（承認必須）→ 5-3 gemini同期 →
-  5-4統括レポート → 5-5片付け → 5-6はゲート（◆回答・実機確認）が揃うまで進まない）。
+- describe（flow-id 4-10。MR descriptionをフェーズ4の実施状況・P4R1/P4R2の敵対的
+  レビュー実績で更新する）を実行する。
+- フェーズ5へ進む: 5-1でmain取り込み承認確認・取り込み直後に VERSION 0.5.0→0.6.0・
+  `directory-structure.md`／`index.md` の skills 箇所コンフリクトは両方の行を残す →
+  5-2関連issue通知（承認必須）→ 5-3 gemini同期 → 5-4統括レポート → 5-5片付け →
+  5-6はゲート（◆回答・実機確認）が揃うまで進まない。
 
 ## 判断を迷った内容
 
