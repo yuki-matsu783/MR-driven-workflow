@@ -26,8 +26,10 @@ keywords: [ディレクトリ構成, claude, gemini, 配置方針, wip, plans, w
 │   ├── skills/                 # `/issue-mr-flow`（唯一の実装フロー定義）等のスキル定義
 │   │   ├── issue-mr-flow/assets/  # 計画・レポートのHTMLビューのテンプレート2本（issue #54）
 │   │   ├── issue-mr-flow/references/  # SKILL.mdから切り出した参照資料7本（issue #160）
-│   │   └── canvas-report/assets/  # canvas形式レポートのテンプレート
-│   ├── agents/                 # サブエージェント定義（issue-mr-flow途中引き継ぎ等）
+│   │   ├── canvas-report/assets/  # canvas形式レポートのテンプレート
+│   │   ├── html-slides/assets/    # 発表用HTMLスライドのテンプレート（issue #168）
+│   │   └── html-slides/references/  # スライド構成案JSONのスキーマ（slide-outline.schema.json）
+│   ├── agents/                 # サブエージェント定義（issue-mr-flow途中引き継ぎ・スライド構成設計/HTML生成等）
 │   ├── scripts/                # AIエージェントが`.claude/skills/*`経由で能動的に実行するスクリプト一式
 │   │   ├── src/
 │   │   │   ├── check-dist-coverage.sh  # 層分け定義の網羅性検査（追跡ファイル全件が分母。issue #26）
@@ -52,10 +54,10 @@ keywords: [ディレクトリ構成, claude, gemini, 配置方針, wip, plans, w
 │   └── settings.json           # `.claude/settings.json`をGemini CLIの記法へ変換したもの
 ├── .github/
 │   ├── ISSUE_TEMPLATE/          # GitHub用issueテンプレート（目的・現状・期待する動作・受け入れ条件）
-│   └── pull_request_template.md # GitHub用PRテンプレート（`describe`が生成するdescriptionと同一構成）
+│   └── pull_request_template.md # GitHub用PRテンプレート。**見出し構成の正**（`describe`がこれを読む）
 ├── .gitlab/
 │   ├── issue_templates/         # GitLab用issueテンプレート（同上）
-│   └── merge_request_templates/ # GitLab用MRテンプレート（`Default.md`。PRテンプレートと同一内容）
+│   └── merge_request_templates/ # GitLab用MRテンプレート（`Default.md`。PRテンプレートと同一内容。先頭コメントのみ固有）
 ├── wip/                        # タスク単位の作業中ドキュメント（計画・ログ・報告）置き場（issue #165）。
 │                                #   `.gitignore`対象のローカル作業状態`state/`もここへ置く（issue #184）
 │   ├── plans/                  # 計画ファイル。全体作業計画（planツールが出力する`<自動命名>.md`、
@@ -95,6 +97,9 @@ keywords: [ディレクトリ構成, claude, gemini, 配置方針, wip, plans, w
 `wip/reports/日付_<全体計画名>_<内容を簡潔に>.html` はその内容を視覚的にまとめた自己完結HTMLである
 （土台は`.claude/skills/issue-mr-flow/assets/reports.template.html`。関連・依存関係が主題の場合は
 `.claude/skills/canvas-report/SKILL.md` のcanvas形式）。両者は併存させ、flow-id 5-5でまとめて削除する。
+**例外として、`html-slides` スキルの成果物 `*.slides.html`＋`*.slides.json` も `wip/reports/` へ置かれる**
+（issue #168）。スライドは対応するmdを持たず、機械可読の対は構成案JSON（`.slides.json`）である。
+寿命は他のreports成果物と同じ（flow-id 5-5で削除。詳細: `.claude/docs/spec/html-slides.md`）。
 
 **`wip/plans/` も同じくmdとhtmlの2種類を置く**（issue #54）。`wip/plans/` の各計画（全体作業計画・個別計画）に
 対応するHTMLビューを、**mdと同じベース名で拡張子だけ`.html`**にして併存させる（土台は
