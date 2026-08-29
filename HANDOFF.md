@@ -17,7 +17,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - issue: #205（https://github.com/yuki-matsu783/MR-driven-workflow/issues/205 ）
 - ブランチ: claude/pr-mr-diffview-link-yxim1l
 - PR: #206（https://github.com/yuki-matsu783/MR-driven-workflow/pull/206 ）
-- push回数: 10
+- push回数: 14
 - 現在のループ: 4-6〜4-9 の1周目（進行中）
 - 未返信スレッド: 0
 - 追従監視: あり（subscribe_pr_activity で PR #206 を購読中。セッション終了で止まるため次セッションは resume で取り直す）
