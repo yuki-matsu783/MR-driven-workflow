@@ -178,7 +178,7 @@
   <div class="box stop">
     <span class="label">判断してほしい</span>
     <ul>
-      <li><b><code>.claude/VERSION</code> を <code>0.4.0</code> → <code>0.5.0</code>（MINOR）へ上げた。</b> 非対話セッションの例外条件下での適用であり、<b>否認されたら <code>0.4.0</code> へ戻す</b>。増分の根拠は<b>両計画の合算</b>（本計画のスクリプト1・hook2・spec1・DDR1＋AIアセット反映が触る配布層 core の資産）で、<b>版を持つのは <code>【設計反映】</code> 1本に固定</b>した。</li>
+      <li><b><code>.claude/VERSION</code> は <code>0.4.0</code> → <code>0.5.0</code> になったが、<code>0.5.0</code> は本issueが上げた値ではない。</b> 実施後のフェーズ5先行確認で、<code>main</code> が <b>PR #194</b>（HTMLスライド作成スキルの追加）で既に <code>0.5.0</code> へ進んでいることが分かった。値が一致するため差分は消えるが「本issueが上げた」という記述は事実と食い違うため、<b>本issueは版を動かさない</b>（同じ未リリースの <code>0.5.0</code> へ相乗りする）扱いへ改めた。<b>同じ形は issue #155 でも起きている</b>（当時は <code>0.3.0</code> が issue #160 によるもの）。増分の根拠として数えていたのは<b>両計画の合算</b>（本計画のスクリプト1・hook2・spec1・DDR1＋AIアセット反映が触る配布層 core の資産）で、<b>版を持つのは <code>【設計反映】</code> 1本に固定</b>していた。</li>
       <li><b>検証の期待値を実施の途中で2件変更した</b>（検証4・5）。goalpost の移動になりうるため、変更の理由を<a href="#f5">5章</a>に全部書いた。<b>この変更自体が妥当かを見てほしい。</b></li>
       <li><b><code>--tags</code> / <code>--delete</code> を一律ブロックのままにした。</b> 逃げ道は新設せず、機構が既に持つ <code>skip</code> で解く。<b>配布先ではコストが繰り返し発生する</b>ため、第一手（<code>skip</code>）と次の手（hook登録の除外）をspecへ書いた。</li>
     </ul>
@@ -284,7 +284,7 @@
       <tr><td><code>.claude/docs/usecase/新しい機能開発を始める.md</code></td><td>変更</td><td>概要へ1項目、詳細リンクへ1行</td></tr>
       <tr><td><code>.claude/skills/commit/SKILL.md</code></td><td>変更</td><td><b>Step 3.5 を新設</b></td></tr>
       <tr><td><code>.claude/skills/issue-mr-flow/SKILL.md</code></td><td>変更</td><td>commit/push の6ステップ＋参照節へ1行</td></tr>
-      <tr><td><code>.claude/VERSION</code></td><td>変更</td><td><code>0.4.0</code> → <code>0.5.0</code></td></tr>
+      <tr><td><code>.claude/VERSION</code></td><td>変更</td><td><code>0.4.0</code> → <code>0.5.0</code>。<b>ただし本issueが上げた版ではない</b></td></tr>
     </tbody>
   </table>
   </div>
@@ -430,7 +430,7 @@ HANDOFF.md:201:.claude/docs/ddr/i0017-01-&lt;タイトル&gt;.md
     <li><b>flow-id 4-7</b>: commit・push してレビュー依頼。</li>
     <li><b>flow-id 4-8/4-9</b>: 反映結果への敵対的レビュー（フェーズ4・2回目／上限3回）。2種別まとめて1回。</li>
     <li><b>フェーズ5</b>（5-1 コンフリクト確認 → 5-2 issue通知 → 5-3 <code>.gemini/</code> 変換同期 → 5-4 統括レポート → 5-5 片付け → 5-6 Draft解除）。<b>マージ（5-7）は行わない。</b></li>
-    <li><b>承認が得られていない判断が3件ある。</b> VERSION の増分・敵対的レビューの回数配分・<code>--tags</code> の一律ブロック。否認された場合の戻し方は正文（md）の4章に書いた。</li>
+    <li><b>承認が得られていない判断が2件ある。</b> 敵対的レビューの回数配分・<code>--tags</code> の一律ブロック。否認された場合の戻し方は正文（md）の4章に書いた。<b>VERSION の増分は争点が消えた</b>（<code>main</code> 側が先に <code>0.5.0</code> へ上げていたため、本issueは版を動かさない）。</li>
     <li><b>誤ブロックの再現条件は未特定のまま残す。</b> 再現条件が不明なものを仕様として固定できないため、specには「未決定事項」として書き、詳細は worklog に残した。再発したら <code>stale</code> のメッセージが出す実際の値から追う。</li>
   </ul>
 </section>

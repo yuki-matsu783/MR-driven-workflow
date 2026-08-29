@@ -4075,21 +4075,33 @@ push前に済ませるべき作業を、pushごとに一意な**Git管理下のT
 | `.claude/skills/issue-mr-flow/SKILL.md` | commitのflow-idの行へチェックリストの言及を追記 |
 | `.claude/docs/spec/issue-mr-workflow.md` | 本エントリと「コンポーネント構成」ツリー |
 | `.claude/docs/README.md` | spec一覧へ1行追加、`generate-ddr-list.sh` による再生成 |
-| `.claude/VERSION` | `0.4.0` → `0.5.0`（下記） |
+| `.claude/VERSION` | `0.4.0` → `0.5.0`。**ただし本issueが上げた版ではない**（下記） |
 
 **既存のpush系hook 2本（`post-push-usage-report.sh` / `post-push-compact-prompt.sh`）の
 ロジックは1バイトも変更していない**（issue #17 の受け入れ条件「責務を既存2本と分離する」）。
 
-**`.claude/VERSION` は `0.4.0` → `0.5.0`（MINOR）へ上げた。** 資産の追加であり、破壊的変更では
-ないため。増分の根拠に数えるのは、本issueが追加したスクリプト1本・hook2本・spec1本・DDR1本に
-加え、同じフェーズ4で書き換えた配布層 `core` の資産（`.claude/rules/shell-script-style.md`・
-`.claude/skills/issue-mr-flow/references/mcp-fallback.md`・`wip/plans/REVIEW-POINTS.md`）も
-含めた**合算**である。
+**`.claude/VERSION` は `0.4.0` → `0.5.0`（MINOR）になったが、`0.5.0` は本issueが上げた値では
+ない。** 本issueの変更は、同じ未リリースの `0.5.0` へ**相乗りする**。
 
-> **本セッションは非対話（Claude Code on the web）であり、`.claude/docs/spec/distribution-assets.md`
-> の「例外（非対話的セッション）」の条件下で適用している。** 同規定が求める記録先2箇所のうち、
-> 一方が本エントリであり、もう一方は `HANDOFF.md`「判断を迷った内容」である。
-> **レビューで人間が否認した場合は元の値（`0.4.0`）へ戻す。**
+- **経緯**: 本issueの作業中、AIエージェントは `0.4.0` → MINOR を提案し、非対話セッションの
+  例外条件下で適用した。その後 defaultブランチが **PR #194**（HTMLスライド作成スキルの追加）で
+  `0.4.0` → `0.5.0` へ進んでいることが分かった。**値が一致したため差分は消えるが、
+  「本issueが上げた」という記述はそのままでは事実と食い違う。**
+- **増分の根拠として数えていたもの**は、本issueが追加したスクリプト1本・hook2本・spec1本・
+  DDR1本に加え、同じフェーズ4で書き換えた配布層 `core` の資産
+  （`.claude/rules/shell-script-style.md`・
+  `.claude/skills/issue-mr-flow/references/mcp-fallback.md`・`wip/plans/REVIEW-POINTS.md`）の
+  **合算**である。いずれも資産の追加であり、`0.5.0` という MINOR の値そのものは本issueの
+  変更内容とも整合する。
+- **したがって本issueは版を動かさない。** `.claude/docs/spec/distribution-assets.md` の
+  「人間の判断で据え置くことがある」の規定に従い、判断の経緯をここへ残す。**同じ形は
+  issue #155 でも起きている**（当時は `0.2.0` → `0.3.0` が issue #160 によるもので、
+  同じ未リリース版へ相乗りした）。
+
+> **非対話セッションの例外条件について。** 適用した時点では
+> `.claude/docs/spec/distribution-assets.md` の「例外（非対話的セッション）」の条件下にあり、
+> 記録先2箇所（本エントリと `HANDOFF.md`「判断を迷った内容」）へ根拠を残していた。
+> **上記のとおり結果として版を動かさないため、否認による巻き戻しの対象は残っていない。**
 
 **受け入れた既知の性質**（詳細は [push-checklist.md](push-checklist.md)「未決定事項・懸念点」）
 

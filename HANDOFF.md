@@ -17,7 +17,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - issue: #17
 - ブランチ: `claude/hook-implementation-17-vjhppj`
 - PR: #195（Draft・https://github.com/yuki-matsu783/MR-driven-workflow/pull/195 ）
-- push回数: 16
+- push回数: 17
 - 現在のループ: 4-6〜4-9 の1周目（進行中）
 - 未返信スレッド: 0
 - 追従監視: あり（`subscribe_pr_activity` でPR #195 を購読。セッション終了で止まるため、次セッションは `resume` で取り直す）
@@ -221,7 +221,8 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
     `.claude/docs/README.md`（spec一覧＋DDR一覧の再生成93件）・`issue-mr-workflow.md`
     （コンポーネント構成＋changelog）・`directory-structure.md`・`docs-workflow.md`・
     `index.md`・`usecase/新しい機能開発を始める.md`・`commit/SKILL.md`（**Step 3.5 を新設**）・
-    `issue-mr-flow/SKILL.md`（commit/pushの6ステップ）・`.claude/VERSION`（`0.4.0`→`0.5.0`）。
+    `issue-mr-flow/SKILL.md`（commit/pushの6ステップ）・`.claude/VERSION`（`0.4.0`→`0.5.0`。
+    **後に `main` 側が先に上げていたと判明し、本issueは版を動かさない扱いへ改めた**。下記）。
   - **`【AIアセット反映】`（6件・4ファイル）**: `shell-script-style.md`（TSV分割の新設節・
     前置フィルタの流用禁止・フィクスチャの `${N-既定}`）／`wip/reports/REVIEW-POINTS.md`
     （既存bulletへ一文＋観点2件新設）／`mcp-fallback.md`（`page` の扱いを**訂正**）／
@@ -271,12 +272,12 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
   2セット回すことになるが、フェーズ4の上限は3回である。**計画レビュー1回・反映結果レビュー
   1回を2種別まとめて行い、1回を予備に残す**配分にした。分けると1種別あたり1.5回にしかならず、
   予備が残らないため。**ユーザーの承認は得ていない**（非対話セッションのため）。
-- **`.claude/VERSION` の増分を、非対話セッションの例外条件のもとで適用する。** MINOR を上げる
-  根拠は「スクリプト1・hook2・spec1・DDR1」に加え、`【AIアセット反映】` 側が書き換える
-  配布層 core の資産（`shell-script-style.md` / `mcp-fallback.md`）も含めた**両計画の合算**
-  である。**版を持つのは `【設計反映】` 1つに固定**した（両方が触ると二重に上がる）。
-  `.claude/docs/spec/distribution-assets.md` の例外条件に従い、flow-id 4-6 で spec の
-  changelog へも同じ根拠を書き、**レビューで人間が否認したら元の値へ戻す**。
+- **`.claude/VERSION` の増分は、争点が消えた。** 実施後のフェーズ5先行確認で、`main` が
+  **PR #194**（HTMLスライド作成スキルの追加）で既に `0.4.0` → `0.5.0` へ上げていることが
+  分かった。値は一致するので差分は消えるが、「本issueが上げた」というchangelogの記述だけが
+  事実と食い違うため、**本issueは版を動かさない**（同じ未リリースの `0.5.0` へ相乗りする）
+  扱いへ改めた。**issue #155 が同型の前例を持つ**（当時は `0.3.0` が issue #160 によるもの）。
+  巻き戻しの対象は残っていない。
 - **`--tags` / `--delete` を一律ブロックのままにした。** 逃げ道は新設せず、機構が既に持つ
   `skip`（全項目に提供・理由がGit管理下のdiffへ残る）で解く。**ユーザーの承認は得ていない**。
   コストは本リポジトリの現時点のフローでは0だが、**配布層 core として配られるため、タグpushを
