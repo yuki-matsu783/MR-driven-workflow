@@ -1,0 +1,7 @@
+# generated-for: 6cfae5581229c2299d45141e3d23f9b328b866d2
+# id	項目	状態	実施ログ
+worklog	worklogを作成し、このpushまでの試行錯誤を追記した	done	…反映の実施_push14.md へ、resolve-conflictスキルによるmain取り込みの経緯（検知・類型別解消・検証・教訓）を追記
+handoff	HANDOFF.md の進捗表・ヘッダを更新した（commitより前・同じcommitに含めた）	done	push回数18、やったこと・次にやることへmainマージ完了とVERSION発見・レビュー再実行中の記録を追加（commitより前）
+frontmatter-index	frontmatterを変更した場合、index.jsonl を最新化した	done	extract-frontmatter.sh . を実行（files=196 built=2 failed=0）
+plan-report-sync	wip/plans/ wip/reports/ の md と html を同期した	done	今回pushはplans/reportsのmd・html編集なし（コンフリクト解消はSKILL.md/README.md/REVIEW-POINTS.md/VERSIONのみ）
+commit-skill	commit スキル（create-commit.sh）経由でコミットした	done	create-commit.sh 経由でコミットする

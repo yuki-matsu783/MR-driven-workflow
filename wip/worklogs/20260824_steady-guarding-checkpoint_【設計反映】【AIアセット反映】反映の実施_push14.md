@@ -146,3 +146,49 @@ duplicateDdrNumbers: []   ← i0017-01 は無衝突
   カウンタは手順5（レビュー実行の直後）で加算する規約なので、**加算していない**。再実行する。
 - `main` の取り込みは**承認待ち**（`.claude/rules/git-workflow.md`「遅れがある場合は
   `AskUserQuestion` でユーザーの承認を得るまで取り込まない」）。
+
+---
+
+## 追記（push15〜18）: `resolve-conflict` スキルでmainを取り込む
+
+flow-id 5-1 の先行確認で見つけた `main` との乖離を、ユーザーの承認（「mainの取り込みをして
+よい」）を得て `/resolve-conflict` スキルの手順どおりに解消した。
+
+### 検知
+
+```
+behind=6 / ahead=28（承認時点で更に1コミット進んでいた: PR #196 issue #176）
+textualConflictFiles: .claude/VERSION, .claude/docs/README.md,
+                       .claude/skills/issue-mr-flow/SKILL.md, wip/reports/REVIEW-POINTS.md
+duplicateDdrNumbers: []（i0017-01 は無衝突）
+```
+
+### 類型別の解消
+
+| ファイル | 類型 | 解消 |
+|---|---|---|
+| `.claude/VERSION` | — | `main` 側の `0.6.0`（PR #196 が `0.5.0`→`0.6.0`）を採用。こちらは「版を動かさない」と決めた立場なので当然の帰結 |
+| `.claude/docs/README.md` | C（マーカー外の手書きspec一覧） | 両側の追加行（`push-checklist.md` と `harvest-from-projects.md`/`html-slides.md`）を両方残す。マーカー内のDDR一覧は無変更（102件で一致） |
+| `.claude/skills/issue-mr-flow/SKILL.md` | E→統合 | flow-id 4-1/4-2/4-6/4-7 の4行を両ブランチが別々に拡張していた。4-3/4-4/4-5 は同一と確認済み。4-1・4-6 は `main` 側が上位互換（issue #176 の判定への言及を追加）、4-2・4-7 は自ブランチ側が上位互換（push前チェックリストの言及）なので、行ごとに上位互換側を採用して統合した |
+| `wip/reports/REVIEW-POINTS.md` | C | 同じ節への両側の新規bulletを両方残す（自分の3件＋issue #185由来の2件） |
+
+### 検証
+
+- `git diff --check`: OK（マーカー残存なし）
+- `git grep -e '^<<<<<<< ' ...`: マーカー無し
+- DDR識別子重複: `ls .claude/docs/ddr/ | grep -oE ... | sort | uniq -d` → 0件
+- `generate-ddr-list.sh`: 変更なし（102件）
+- 単体テスト: **24ファイル・1,738アサーション・失敗0**（マージにより
+  `test_harvest_from_projects.sh` が新規に加わり23→24本になった）
+- `HANDOFF.md` への意図しない巻き込み: `git diff HEAD -- HANDOFF.md` が空で確認済み
+- issue #17由来ファイル（`push-checklist.sh`・2 hook・settings.jsonの登録）の健全性: 実体・登録とも確認済み
+- issue #176由来の新節「反映対象をこのMRでやるか切り出すかの判断」も `references/planning.md` に存在確認
+
+### 教訓
+
+- **`main` は承認を待っている間にも進む。** 最初の検知（承認依頼時）は5コミット遅れだったが、
+  実際にマージを開始した時点では6コミットに増えていた（PR #196 が割り込んだ）。承認を得たら
+  即座に `git fetch` し直してから着手する。
+- **SKILL.mdのような手順表（flow-idごとの1行）は、両ブランチが同じ行を別方向へ拡張しやすい。**
+  今回は幸い両方とも「元の行の上位互換」だったため、行ごとに新しい方を選ぶだけで統合できたが、
+  一般には両側の追加内容をマージした新しい1行を書く必要がある。
