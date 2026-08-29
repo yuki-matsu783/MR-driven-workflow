@@ -69,6 +69,7 @@ keywords: [正史仕様, 意思決定ログ, ユースケース, 逆引き, issu
 - [push-checklist.md](spec/push-checklist.md) ── push前チェックリスト機構（Git管理下のTSVをPreToolUse hookで検証しexit code 2でブロック）
 - [harvest-from-projects.md](spec/harvest-from-projects.md) ── 収穫（逆輸入）スキルの分析スクリプト（scan/diff/merge3の入出力・分類規則・終了コード）
 - [html-slides.md](spec/html-slides.md) ── html-slidesスキル（発表用HTMLスライドを構成案JSONとテンプレート穴埋めの2段で生成）
+- [pptx-slides.md](spec/pptx-slides.md) ── 構成案JSONから編集可能な.pptxを生成するpptx-slidesスキル（雛形展開ディレクトリ＋zip再梱包）
 
 ## ddr（意思決定ログ）
 
@@ -196,6 +197,7 @@ frontmatter（`status` / `superseded_by` / `note`）だけから決まる。
 - [i0165-02-タスク単位ディレクトリの集約名はwip-を採用しflow-tasks-work-scratchを採らない.md](ddr/i0165-02-タスク単位ディレクトリの集約名はwip-を採用しflow-tasks-work-scratchを採らない.md)
 - [i0168-01-スライドの出力先はwip-reports既定とし恒久ディレクトリを新設しない.md](ddr/i0168-01-スライドの出力先はwip-reports既定とし恒久ディレクトリを新設しない.md)
 - [i0168-02-表紙スライドの型名はtitleでなくcoverにする.md](ddr/i0168-02-表紙スライドの型名はtitleでなくcoverにする.md)
+- [i0169-01-pptx書き出しは雛形展開ディレクトリとzip再梱包で実装し外部依存を持たない.md](ddr/i0169-01-pptx書き出しは雛形展開ディレクトリとzip再梱包で実装し外部依存を持たない.md)
 - [i0170-01-ユースケース逆引き層はREADME一本化・日本語ファイル名・手動一覧で運用する.md](ddr/i0170-01-ユースケース逆引き層はREADME一本化・日本語ファイル名・手動一覧で運用する.md)
 - [i0171-01-DDR参照切れ検出は絶対パス形式に限定しgrep一括抽出で実装する.md](ddr/i0171-01-DDR参照切れ検出は絶対パス形式に限定しgrep一括抽出で実装する.md)
 - [i0176-01-反映対象の切り出し判断は主判定一問と判定順を固定した3つの出口で行う.md](ddr/i0176-01-反映対象の切り出し判断は主判定一問と判定順を固定した3つの出口で行う.md)
