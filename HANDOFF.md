@@ -17,7 +17,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - issue: #172
 - ブランチ: `claude/gemini-exclude-decision-yp5p70`
 - PR: #193（Draft）（https://github.com/yuki-matsu783/MR-driven-workflow/pull/193 ）
-- push回数: 13
+- push回数: 14
 - 現在のループ: 4-6〜4-9 の1周目（進行中、非対話セッションのため人間レビューは成立しない）
 - 未返信スレッド: 0
 - 追従監視: PRイベント購読中（`subscribe_pr_activity` で PR #193 を購読。セッション終了とともに止まるため、次セッションは `resume` で取り直す）

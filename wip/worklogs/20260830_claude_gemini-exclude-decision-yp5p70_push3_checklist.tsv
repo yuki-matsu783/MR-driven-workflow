@@ -1,0 +1,7 @@
+# generated-for: 8fe476c50939e024242013d8be9266f38c233e26
+# id	項目	状態	実施ログ
+worklog	worklogを作成し、このpushまでの試行錯誤を追記した	skip	push回数ヘッダの更新のみで試行錯誤が無いため対象外
+handoff	HANDOFF.md の進捗表・ヘッダを更新した（commitより前・同じcommitに含めた）	done	前回pushのpush回数14への更新のみ。commitより前に済ませ同じコミットへ含める
+frontmatter-index	frontmatterを変更した場合、index.jsonl を最新化した	skip	frontmatterを変更していない
+plan-report-sync	wip/plans/ wip/reports/ の md と html を同期した	skip	plans/reportsのmd/htmlに影響しない
+commit-skill	commit スキル（create-commit.sh）経由でコミットした	skip	単一コミットで完結するためStep 3.5時点では確認できない。block-direct-git-commit.shが直接コミットを構造的に防ぐ
