@@ -39,11 +39,19 @@
 # 「前回push時点」の判定は、このスクリプト自身が `wip/state/review-links/<branch>.txt` へ
 # 直前pushのHEAD SHAを保存し、次回push時に読み出す形で行う（`usage/`と同様、ブランチ横断・
 # 非コミット対象のローカル作業状態。責務分離のため対応工数レポート側の状態とは別ファイルにする）。
-# 差分系のURLは、MR/PRのURL文字列から`/files`等のsuffixを推測する方式ではなく、
-# `get_repo_url` で取得したリポジトリの正規URLを土台に、GitHub/GitLabいずれも持つ汎用の
-# 「Compare」ページ（`/compare/<from>...<to>`）を組み立てる方式にした（issue #13フォローアップ:
-# 「gh/glabでURLの正確性を担保したい」という指摘への対応。詳細は
-# `.claude/docs/ddr/i0013-01-...md`参照）。`get_repo_url` 自体は当初 `gh repo view` / `glab repo view`
+# 差分系のURLは、当初（issue #13フォローアップ）は「gh/glabでURLの正確性を担保したい」という
+# 指摘への対応として、`get_repo_url` で取得したリポジトリの正規URLを土台に、GitHub/GitLabいずれも
+# 持つ汎用の「Compare」ページ（`/compare/<from>...<to>`）だけを組み立てる方式にしていた（詳細は
+# `.claude/docs/ddr/i0013-01-...md`参照）。**issue #205 以降、「defaultブランチとの差分」1リンク
+# （`diff_url`）だけは、MR/PR URLが解決できた場合に限りDiffview（`<mrUrl>/files`等）を返す
+# よう出し分けるようになった**（`get_mr_diff_url`の第4引数`mrUrl`。詳細は
+# `.claude/docs/ddr/i0205-01-...md`）。**これはMR/PR URL文字列からの推測ではない**——
+# `get_mr_diff_url`はDDR `i0013-01`が却下した「URL文字列へsuffixを推測で付け足す」設計とは違い、
+# `mrUrl`引数が非空であることを確認したうえで、issueの起票者が明示した既知のURL形式
+# （`/files`・`/diffs`）を組み立てるだけであり、URL文字列を書き換えて存在確認せず使う設計では
+# ない。差分アンカーの土台（`get_diff_anchor_base_url`）へ渡す`compare_url`は今回も従来どおり
+# Compareページのみを渡し続ける（`get_diff_anchor_base_url`のコメント参照）。
+# `get_repo_url` 自体は当初 `gh repo view` / `glab repo view`
 # を呼んでいたが、issue #44で `git remote get-url origin` の正規化（プロバイダ非依存）へ置き換えた。
 # これにより、pushのたびに走る本hookから外部CLIの起動とAPI往復が1回ずつ無くなっている
 # （詳細: `.claude/docs/ddr/i0044-01-...md`）。
