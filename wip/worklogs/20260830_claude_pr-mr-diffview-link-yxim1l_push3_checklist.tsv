@@ -1,7 +1,0 @@
-# generated-for: e06055b95bb689a64b7c1fc05be0b8eda298cb5f
-# id	項目	状態	実施ログ
-worklog	worklogを作成し、このpushまでの試行錯誤を追記した	done	追記7でflow-id 5-4の統括レポート作成を記録した
-handoff	HANDOFF.md の進捗表・ヘッダを更新した（commitより前・同じcommitに含めた）	done	HANDOFF.mdへflow-id 5-2〜5-4（層1）の完了とpush回数20を記録した
-frontmatter-index	frontmatterを変更した場合、index.jsonl を最新化した	skip	extract-frontmatter.sh実行済み。index.jsonlはGit管理外の生成物のためコミット対象なし
-plan-report-sync	wip/plans/ wip/reports/ の md と html を同期した	done	統括レポートmd/htmlを対で作成し6種の検査すべて合格を確認した
-commit-skill	commit スキル（create-commit.sh）経由でコミットした	done	create-commit.sh経由でコミットする
