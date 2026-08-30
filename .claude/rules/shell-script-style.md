@@ -74,6 +74,23 @@ issue #6でリポジトリ内の開発補助スクリプトを全てPowerShell�
   - 実例: `.claude/skills/harvest-from-projects/scripts/harvest-from-projects.sh` の `cmd_scan`
     （配布先単位のエラー隔離。**本家専用スキルのため配布先にはこのファイルは存在しない**——
     配布先では上記のコード例2形を直接参照すること）。
+- **`grep`はマッチ0件で終了コード1を返す。パイプの途中に置くと、`set -e`単体では検知できず
+  `pipefail`が立っているときだけ呼び出し元を中断させる**（issue #151で実際に踏んだ）。
+  `sentinel="$(printf '%s\n' "$text" | grep -o 'PATTERN' | tail -1)"`という形は、`grep -o`が
+  パイプの最後ではないため、**`set -e`単体（`pipefail`無し）では`tail -1`の終了コード
+  （マッチ0件でも0）だけが見られ、中断しない。一方`set -eo pipefail`配下では、パイプ中の
+  どれか1つでも失敗すればパイプ全体が失敗として扱われ、`grep -o`のマッチ0件がそのまま
+  関数呼び出し元を無言で中断させる**（実測: `set -e`単体では生存しrc=0、`set -eo pipefail`では
+  中断しrc=1）。呼び出し元が`set -e`のみか`pipefail`も併用するかは、その関数が将来どこから
+  呼ばれるかに依存し予測できない。**`grep`をパイプの途中に含む処理は、呼び出し元の
+  `pipefail`設定に依存せず安全にするため、常に`|| true`を添える。**
+
+  ```bash
+  # 悪い例（set -eo pipefail配下でマッチ0件のとき無言で中断する）
+  sentinel="$(printf '%s\n' "$text" | grep -o 'PATTERN' | tail -1)"
+  # 良い例
+  sentinel="$(printf '%s\n' "$text" | grep -o 'PATTERN' | tail -1 || true)"
+  ```
 
 ## JSON操作
 
@@ -227,6 +244,25 @@ issue #6でリポジトリ内の開発補助スクリプトを全てPowerShell�
   jq -n '{isSidechain: false} | if (.isSidechain // null) != false then "除外" else "通す" end'
   # 良い例（// を使わず直接比較する。キー不在は null なので null != false で正しく除外される）
   jq -n '{isSidechain: false} | if .isSidechain != false then "除外" else "通す" end'
+  ```
+
+- **jqの`|`（パイプ）は、`or`/`and`や`,`（カンマ）を含む他のほぼ全ての演算子より優先順位が
+  低い。** `A or B | C`は`A or (B | C)`ではなく`(A or B) | C`と、`X | Y, Z`は
+  `(X | Y), Z`ではなく`X | (Y, Z)`と解釈される（issue #151で2回実際に踏んだ。jq 1.7で実測）。
+  - **実例1（`,`との組み合わせ）**: `map([.[0].message.content|type, length])`と書いたところ、
+    `[.[0].message.content | (type, length)]`と解釈され、2要素目が「グループの件数」ではなく
+    「content自体の文字数」になっていた。気づけたのは合計が既知の値と一致しなかったから。
+  - **実例2（`or`との組み合わせ）**: `type == "object" or has("counts") | not`を
+    「`(type=="object") or (has("counts")|not)`」の意図で書いたところ、実際には
+    `(type=="object" or has("counts")) | not`と解釈され、`has("counts")`が真のとき常に偽を
+    返す（意図と逆）。
+  - **`or`/`and`・`,`と`|`を1行に混ぜるときは、常に括弧で優先順位を明示する。**
+
+  ```bash
+  # 悪い例（意図: countsがobjectでない、またはcountsキーが無ければ真にしたい）
+  jq -n '{counts:[]} | type == "object" or has("counts") | not'
+  # 良い例（括弧で優先順位を固定する）
+  jq -n '{counts:[]} | (type == "object") or (has("counts") | not)'
   ```
 
 ## 外部プロセス起動のコスト
