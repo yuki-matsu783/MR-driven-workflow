@@ -4,4 +4,4 @@ worklog	worklogを作成し、このpushまでの試行錯誤を追記した	ski
 handoff	HANDOFF.md の進捗表・ヘッダを更新した（commitより前・同じcommitに含めた）	done	flow-id5-2(通知2件投稿)・5-3(.gemini同期)完了を記録し次にやることをflow-id5-4へ更新した
 frontmatter-index	frontmatterを変更した場合、index.jsonl を最新化した	skip	このpushでfrontmatterを変更していない
 plan-report-sync	wip/plans/ wip/reports/ の md と html を同期した	skip	このpushでplans/reportsの変更なし
-commit-skill	commit スキル（create-commit.sh）経由でコミットした	pending	
+commit-skill	commit スキル（create-commit.sh）経由でコミットした	done	本pushのコミット(4d5002e)をcreate-commit.sh経由で作成した
