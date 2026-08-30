@@ -17,7 +17,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - issue: #151
 - ブランチ: `claude/user-recent-utterance-reinject-9ygbxd`
 - PR: #197（https://github.com/yuki-matsu783/MR-driven-workflow/pull/197 ）
-- push回数: 11
+- push回数: 12
 - 現在のループ: 3-6〜3-9 の1周目（進行中）
 - 未返信スレッド: 0
 - 追従監視: 購読あり（web。subscribe_pr_activity + send_laterによる自己チェックイン）
@@ -398,6 +398,15 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - **訂正**: `update-handoff-progress.sh mark-done 3-6` がループ範囲`3-6 3-7 3-8 3-9`の仕様どおり
   4件まとめて`[x]`にしたが、実際に完了していたのは3-6のみだったため、3-7〜3-9を`[]`へ戻し
   `- 現在のループ:`を`なし`へ訂正した（呼び出し側のミス。ツール自体の不具合ではない）。
+- **flow-id 3-7（push11・push12）**: push11でflow-id 3-6の実装・テスト・ドキュメントをコミットし
+  リモートへ反映、PR #197へレビュー依頼した。直後のPR状態確認で`mergeable_state: dirty`
+  （defaultチェックイン、`main`が5コミット先行）が判明したため取り込んだ。テキストコンフリクトは
+  `.claude/rules/directory-structure.md`の`hooks/`ツリーエントリ1箇所のみ（本ブランチの`lib/`
+  jqフィルタ対応の説明と、`main`が追加したpush前チェックリスト機構#17の`block-unchecked-push.sh`/
+  `post-push-next-checklist.sh`列挙を両方保持する形で解消）。`check-base-conflicts.sh`でDDR識別子
+  重複なし、`test_session_start.sh`はマージ後も`passed=159 failures=0`を確認してpush12。
+  - **`main`に新設された「push前チェックリスト機構」（issue #17）が本ブランチへ初めて適用される**。
+    push12直後のPostToolUse hookが`wip/worklogs/..._push1_checklist.tsv`を生成した。
 
 ## 次にやること
 
