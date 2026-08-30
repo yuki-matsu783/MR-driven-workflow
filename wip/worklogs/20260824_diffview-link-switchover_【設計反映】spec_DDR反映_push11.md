@@ -221,3 +221,13 @@ push回数: 11〜
 - push回数を`push回数: 20`へ更新（f6710b6の14以降、33716c8/69d07e9+0764af2/d26740a/
   539627f/ea364d1+c3d59a1/e06055bの各pushを数え直した）。
 - 次は3層フォールバック（層1: このコミット・層3: 添付試行・層2: サマリコメント投稿）を実行する。
+
+## 追記8（flow-id 5-4層3→層2・HANDOFF記録）
+
+- 層3（`upload_attachment`相当）は、MCP環境に対応するツールが存在しないため
+  `phase5-close.md`の対応表どおりスキップした（非ブロッキング）。
+- 層2は`mcp__github__add_issue_comment`でサマリコメントを投稿した
+  （https://github.com/yuki-matsu783/MR-driven-workflow/pull/206#issuecomment-5465785532 ）。
+  本文1行目は規定どおり`Claude Codeより（最終統括レポート）: issue #205 / PR #206`。
+- `HANDOFF.md`へ投稿URLを記録し、`update-handoff-progress.sh mark-done 5-4`でflow-id 5-4を
+  完了とした。次はflow-id 5-5（`cleanup-task.sh`によるwip/配下の片付け）へ進む。

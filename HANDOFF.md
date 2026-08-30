@@ -63,7 +63,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 | [x] | 5-1 | defaultブランチとのコンフリクトを検知・解消する | エージェント |
 | [x] | 5-2 | 関連issueへマージ前通知を行う | エージェント |
 | [x] | 5-3 | `.claude/` の変更を `.gemini/` へ変換同期する | エージェント |
-| [] | 5-4 | 最終統括レポートを作成しPR/MRへ反映する | エージェント |
+| [x] | 5-4 | 最終統括レポートを作成しPR/MRへ反映する | エージェント |
 | [] | 5-5 | wip/配下を片付け、HANDOFF.mdをリセットする | エージェント |
 | [] | 5-6 | commitし、pushしてDraftを解除する | エージェント |
 | [] | 5-7 | マージする | 人間 |
@@ -355,12 +355,14 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - flow-id 5-4（層1）: 最終統括レポート`wip/reports/20260830_diffview-link-switchover_統括.md`
   （+`.html`、`reports-clean.template.html`土台。6種の検査すべて合格）を新規作成した。
   push回数を実際のpush履歴を数え直して`20`へ更新。
+- flow-id 5-4（層3→層2）: 層3（`upload_attachment`相当）は**MCP環境に対応するツールが無いため
+  スキップした**（`phase5-close.md`の対応表どおりの非ブロッキングなスキップ）。層2は
+  `mcp__github__add_issue_comment`でサマリコメントを投稿した:
+  https://github.com/yuki-matsu783/MR-driven-workflow/pull/206#issuecomment-5465785532
+  （1行目は規定どおり`Claude Codeより（最終統括レポート）: issue #205 / PR #206`）。
 
 ## 次にやること
 
-- flow-id 5-4（層3→層2）: `upload_attachment`でHTML添付を試行（失敗しても続行）、
-  `add_mr_comment`でサマリコメントを投稿する（本文1行目は
-  `Claude Codeより（最終統括レポート）:`）。
 - flow-id 5-5: `cleanup-task.sh`で`wip/plans/` `wip/worklogs/` `wip/reports/`を片付け、
   `HANDOFF.md`をリセットする。
 - flow-id 5-6: commitし、pushしてDraftを解除する（`set_mr_ready`）。
