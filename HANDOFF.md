@@ -17,7 +17,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - issue: #172
 - ブランチ: `claude/gemini-exclude-decision-yp5p70`
 - PR: #193（Draft）（https://github.com/yuki-matsu783/MR-driven-workflow/pull/193 ）
-- push回数: 14
+- push回数: 15
 - 現在のループ: 4-6〜4-9 の1周目（進行中、非対話セッションのため人間レビューは成立しない）
 - 未返信スレッド: 0
 - 追従監視: PRイベント購読中（`subscribe_pr_activity` で PR #193 を購読。セッション終了とともに止まるため、次セッションは `resume` で取り直す）
@@ -60,8 +60,8 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 | [] | 4-8 | 反映結果をレビュー・コメントする | 人間 |
 | [] | 4-9 | レビュー内容を取得し設計・AIアセットを修正・返信する | サブコマンド |
 | [x] | 4-10 | 反映内容をもとにMR descriptionを更新する | サブコマンド |
-| [] | 5-1 | defaultブランチとのコンフリクトを検知し、あれば解消する | エージェント |
-| [] | 5-2 | 関連issueへマージ前通知を行う（承認必須） | エージェント |
+| [x] | 5-1 | defaultブランチとのコンフリクトを検知し、あれば解消する | エージェント |
+| [x] | 5-2 | 関連issueへマージ前通知を行う（承認必須） | エージェント |
 | [x] | 5-3 | `.claude/` の変更を `.gemini/` へ変換同期する | エージェント |
 | [] | 5-4 | 最終統括レポートを作成しPRへ反映する | エージェント |
 | [] | 5-5 | wip/ を片付けHANDOFF.mdをリセットする | エージェント |
@@ -304,18 +304,39 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
     （参照切れ0件）・`extract-frontmatter.sh`（正常終了）を確認。`check-base-sync.sh`で
     `main`からの遅れが無いことも確認した（isBehind=false）。
 
+- **flow-id 5-1（defaultブランチとのコンフリクト検知）**: `check-base-sync.sh`で
+  `main`からの遅れが無いことを確認した（`isBehind: false`, `ahead: 25`,
+  `mergeBase == baseSha`）。実体的な解消作業はフェーズ4完了時点（commit `bd7e2b8`）で
+  前倒しで実施済みのため、この時点では追加対応なし。
+- **flow-id 5-2（関連issueへのマージ前通知）**: 影響先issueを調査した。差分
+  （`wip/plans` `wip/worklogs` `wip/reports` を除く。`REVIEW-POINTS.md`は対象に含めたが
+  該当変更なし）は `.claude/docs/spec/sync-gemini-assets.md`・新規DDR `i0172-01`・
+  `GEMINI.md`（依存の明記）・`.claude/docs/README.md`（DDR一覧）・`i0127-01`のリンク修正の
+  5ファイル系統。`search_issues`でキーワード5件（gemini/.gemini/sync-gemini-assets/
+  GEMINI.md/依存）を検索したが、issue #172自身（除外対象）以外ヒット0件だった。
+  関連度の高いクローズ済みissue5件（#70・#97・#105・#127・#133。いずれも`.gemini/`同期機構・
+  DDR識別子・GitLab実機検証の起点）も個別に状態確認したが、いずれも`completed`でクローズ済みで、
+  今回の変更（既存機構への追記・ドキュメント化であり、既存の決定を覆すものではない）が
+  その前提・受け入れ条件と矛盾するものは無かった。**影響先なしと判断し、通知はスキップする。**
+- **flow-id 5-4（最終統括レポート）**: `wip/reports/20260830_mellow-drifting-lantern_統括.md`
+  （＋`.html`）を作成した。issue #172の3論点の決着（自立化取り下げ／4ディレクトリ現状維持／
+  `.agents/skills/`不成立）・変更ファイル一覧・検証結果8種・受け入れ条件8件との対応表・
+  敵対的レビュー累計93件（全反映・未返信0）・想定と異なった点2件・残課題2件をまとめた。
+  HTMLビューは6種の機械検査（プレースホルダ0・リンク破断0行・重複ID無し・外部依存0件×2・
+  `<style>`構造open=1/close=1）をすべて通過した。層3（`upload_attachment`）はMCP経路のため
+  代替なしでスキップし（`references/mcp-fallback.md`の対応表どおり）、層1（このcommit・push）
+  ＋層2（PR #193への`add_mr_comment`相当のサマリ投稿）で完結させる。
+
 ## 次にやること
 
-**フェーズ4・1回目、defaultブランチとのマージ、無関係な既存欠陥1件の修正、および
-受け入れ条件のギャップ解消・flow-id 5-3（前倒し実行）が完了した。**
-次はこの分をcommit・pushしたうえで、flow-id 5-2（関連issueへのマージ前通知）へ進む。
-- 直近の変更（spec/DDR編集・`.gemini/`再生成）をpush-checklistを埋めたうえで
-  `commit`スキル経由でコミット・pushする。
-- flow-id 5-2: 関連issueへマージ前通知を行う（**投稿前に`AskUserQuestion`での承認が必須**）。
-  受け入れ条件8件はすべて現時点で満たしていることを確認済み（5・6は「現状維持」決定のため
-  該当なし）。
-- flow-id 5-3: 上記のとおり前倒しで完了済み。念のためpush後に`--check`を再確認する。
-- flow-id 5-4: 最終統括レポートを作成する。
+**フェーズ4・1回目、defaultブランチとのマージ、無関係な既存欠陥1件の修正、
+受け入れ条件のギャップ解消・flow-id 5-1〜5-4が完了した。**
+次はこの分をcommit・pushし、PR #193へ統括レポートのサマリコメント（層2）を投稿したうえで、
+flow-id 5-5（片付け）へ進む。
+- 直近の変更（spec/DDR編集・`.gemini/`再生成・統括レポート・HANDOFF更新）をpush-checklistを
+  埋めたうえで`commit`スキル経由でコミット・pushする。
+- push後、PR #193へ`Claude Codeより（最終統括レポート）:`で始まるサマリコメントを投稿する
+  （層2、必須）。
 - flow-id 5-5: `wip/plans/` `wip/worklogs/` `wip/reports/` を片付け、HANDOFF.mdをリセットする
   （`REVIEW-POINTS.md`・`TEMPLATE.md`は除く）。
 - flow-id 5-6: commit・push してDraftを解除する。

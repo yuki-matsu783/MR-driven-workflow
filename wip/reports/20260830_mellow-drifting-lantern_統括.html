@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>issue #172 最終統括レポート — .gemini/に何を残すか</title>
+<style>
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  [id] { scroll-margin-top: 16px; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", system-ui, sans-serif;
+    line-height: 1.8; font-size: 15px;
+  }
+  a { color: var(--accent); }
+  code {
+    background: var(--code-bg); border-radius: 5px; padding: 1px 5px; font-size: 13px;
+    font-family: "SFMono-Regular", Consolas, "Noto Sans Mono", monospace;
+  }
+  pre {
+    background: var(--code-bg); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 12px 14px; overflow-x: auto; font-size: 13px; line-height: 1.65;
+  }
+  pre code { background: none; padding: 0; }
+  .hl { background: var(--hl-bg); }
+
+  .shell { max-width: 1180px; margin: 0 auto; }
+  @media (min-width: 900px) { .shell { display: flex; align-items: flex-start; } }
+
+  .sidebar {
+    background: var(--panel); border-bottom: var(--card-border) solid var(--line);
+    padding: 22px 20px;
+  }
+  @media (min-width: 900px) {
+    .sidebar {
+      width: 280px; flex: 0 0 280px; position: sticky; top: 0; max-height: 100vh;
+      overflow-y: auto; border-bottom: 0; border-right: var(--card-border) solid var(--line);
+    }
+  }
+  .sidebar .kind { margin: 0; font-size: 11px; letter-spacing: .18em; color: var(--accent); font-weight: 700; }
+  .sidebar h1 { margin: 6px 0 0; font-size: 19px; line-height: 1.45; }
+  .counts { display: flex; flex-wrap: wrap; gap: 6px; margin: 14px 0 0; padding: 0; }
+
+  .toc { margin-top: 22px; }
+  .toc-title { margin: 0 0 6px; font-size: 11px; letter-spacing: .12em; color: var(--muted); font-weight: 700; }
+  .toc ol { margin: 0; padding-left: 20px; font-size: 13.5px; }
+  .toc li { margin: 3px 0; }
+  .toc-sub { margin-top: 4px; padding-left: 16px; border-left: 1px solid var(--line); list-style: none; }
+  .toc-sub li { font-size: 13px; color: var(--muted); }
+  .mk { font-weight: 700; }
+  .mk.good { color: var(--good); } .mk.warn { color: var(--warn); } .mk.stop { color: var(--stop); }
+
+  .meta { margin: 22px 0 0; padding-top: 14px; border-top: 1px solid var(--line); font-size: 12.5px; color: var(--muted); }
+  .meta div { display: flex; gap: 8px; margin: 2px 0; }
+  .meta dt { flex: 0 0 68px; font-weight: 600; color: var(--ink); }
+  .meta dd { margin: 0; }
+
+  .main { flex: 1 1 auto; min-width: 0; padding: 26px 22px 80px; }
+  @media (min-width: 900px) { .main { padding: 32px 34px 90px; } }
+
+  h2 { font-size: 19px; margin: 34px 0 10px; padding-bottom: 8px; border-bottom: 2px solid var(--line); }
+  section:first-child h2 { margin-top: 0; }
+  h3 { font-size: 16px; margin: 0 0 6px; }
+  p { margin: 10px 0; }
+  ul, ol { padding-left: 22px; }
+  li { margin: 4px 0; }
+  .lead { font-size: 17px; line-height: 1.75; margin-top: 0; }
+  footer { margin-top: 46px; padding-top: 14px; border-top: 1px solid var(--line);
+           color: var(--muted); font-size: 13px; text-align: center; }
+
+  .chip {
+    display: inline-block; border-radius: 999px; padding: 1px 10px;
+    font-size: 12px; font-weight: 700; white-space: nowrap;
+    border: var(--card-border) solid transparent; box-shadow: var(--shadow);
+  }
+  .chip.good { background: var(--good-soft); color: var(--good); border-color: var(--good); }
+  .chip.warn { background: var(--warn-soft); color: var(--warn); border-color: var(--warn); }
+  .chip.stop { background: var(--stop-soft); color: var(--stop); border-color: var(--stop); }
+
+  .kpis { display: flex; gap: 12px; margin: 20px 0 0; padding: 0; list-style: none; flex-wrap: wrap; }
+  .kpi {
+    flex: 1 1 110px; max-width: 190px; text-align: center; padding: 12px 8px;
+    background: var(--panel); border: var(--card-border) solid var(--line);
+    border-radius: var(--radius); box-shadow: var(--shadow); margin: 0;
+  }
+  .kpi b { display: block; font-size: 26px; line-height: 1.2; }
+  .kpi span { font-size: 12px; font-weight: 700; }
+  .kpi.good { border-color: var(--good); } .kpi.good b, .kpi.good span { color: var(--good); }
+  .kpi.warn { border-color: var(--warn); } .kpi.warn b, .kpi.warn span { color: var(--warn); }
+  .kpi.stop { border-color: var(--stop); } .kpi.stop b, .kpi.stop span { color: var(--stop); }
+
+  .focuses { display: grid; gap: 12px; margin-top: 22px; }
+  @media (min-width: 760px) { .focuses { grid-template-columns: repeat(3, 1fr); } }
+  .focus {
+    background: var(--panel); border: var(--card-border) solid var(--line);
+    border-radius: var(--radius); padding: 12px 14px; box-shadow: var(--shadow);
+  }
+  .focus .label { margin: 0; font-size: 13.5px; font-weight: 700; }
+  .focus .sub { margin: 0; font-size: 11.5px; color: var(--muted); }
+  .focus ul { margin: 8px 0 0; padding-left: 18px; font-size: 13.5px; }
+  .focus.must { border-width: 2px; border-color: var(--accent); background: var(--accent-soft); }
+  .focus.must .label { color: var(--accent); }
+  .focus.want { border-color: var(--accent); }
+  .focus.want .label { color: var(--accent); }
+  .focus.skip { color: var(--muted); }
+  .focus.skip .label { color: var(--muted); }
+
+  .box {
+    border-left: 4px solid var(--accent); background: var(--accent-soft);
+    border-radius: 0 var(--radius) var(--radius) 0; padding: 12px 16px; margin: 16px 0;
+  }
+  .box > :first-child { margin-top: 0; } .box > :last-child { margin-bottom: 0; }
+  .box .label { font-size: 12px; font-weight: 700; letter-spacing: .06em; margin: 0 0 4px; color: var(--accent); }
+  .box.ok { border-color: var(--ok); background: var(--ok-soft); } .box.ok .label { color: var(--ok); }
+  .box.warn { border-color: var(--warn); background: var(--warn-soft); } .box.warn .label { color: var(--warn); }
+  .box.stop { border-color: var(--stop); background: var(--stop-soft); } .box.stop .label { color: var(--stop); }
+
+  .tl { list-style: none; margin: 22px 0 0; padding: 0 0 0 30px; border-left: 2px solid var(--line); }
+  .tl-item { position: relative; margin: 0 0 30px; padding: 0; }
+  .tl-item:last-child { margin-bottom: 0; }
+  .tl-dot {
+    position: absolute; left: -41px; top: 1px; width: 22px; height: 22px;
+    display: grid; place-items: center; border-radius: 999px;
+    font-size: 11px; font-weight: 700; color: #fff; background: var(--muted);
+    border: var(--card-border) solid transparent; box-shadow: var(--shadow);
+  }
+  .tl-dot.good { background: var(--good); } .tl-dot.warn { background: var(--warn); }
+  .tl-dot.stop { background: var(--stop); } .tl-dot.next { background: var(--ok); }
+  .tl-dot.neutral { background: var(--muted); }
+  .basis { font-size: 11.5px; font-weight: 400; color: var(--muted); }
+  details { margin: 8px 0; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel); }
+  details > summary { cursor: pointer; padding: 7px 12px; font-size: 12.5px; font-weight: 600; color: var(--muted); }
+  details pre { margin: 0; border: 0; border-top: 1px solid var(--line); border-radius: 0 0 var(--radius) var(--radius); }
+
+  .tablewrap { overflow-x: auto; margin: 14px 0; }
+  table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 14px; }
+  th, td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: var(--accent-soft); font-weight: 600; white-space: nowrap; }
+
+  :root {
+    --bg: #f6f7f9;      --panel: #ffffff;   --ink: #1a1d21;     --muted: #5b636d;
+    --line: #dfe3e8;    --accent: #2563eb;  --accent-soft: #eaf0fe;
+    --ok: #1a7f4b;      --ok-soft: #e6f4ec; --warn: #a35a00;    --warn-soft: #fdf1e0;
+    --stop: #b3261e;    --stop-soft: #fdecea; --good: #1d4ed8;  --good-soft: #e7edfd;
+    --code-bg: #f0f2f5; --hl-bg: transparent;
+    --radius: 10px;     --shadow: none;     --card-border: 1px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1216;    --panel: #161a20;   --ink: #e6e8eb;     --muted: #9aa3ad;
+      --line: #2a3038;  --accent: #7aa2f7;  --accent-soft: #1b2333;
+      --ok: #6ee7a8;    --ok-soft: #14261d; --warn: #f0b866;    --warn-soft: #2a2113;
+      --stop: #f2857c;  --stop-soft: #2b1614; --good: #8ab4f8;  --good-soft: #17233a;
+      --code-bg: #1d222a;
+    }
+  }
+</style>
+</head>
+<body>
+
+<div class="shell">
+
+<aside class="sidebar">
+  <p class="kind">最終統括レポート / フェーズ5</p>
+  <h1>issue #172 — .gemini/に何を残すか 最終統括レポート</h1>
+
+  <p class="counts">
+    <span class="chip good">◎良 4</span>
+    <span class="chip warn">△注意 2</span>
+    <span class="chip stop">✕問題 0</span>
+  </p>
+
+  <nav class="toc">
+    <p class="toc-title">目次</p>
+    <ol>
+      <li><a href="#overview">サマリ・重点レビュー依頼</a></li>
+      <li><a href="#unverified">確かめられなかったこと</a></li>
+      <li>
+        <a href="#findings">実施した内容と結果</a>
+        <ol class="toc-sub">
+          <li><a href="#f1"><span class="mk good">◎</span> 1. 論点1: 自立化は取り下げ</a></li>
+          <li><a href="#f2"><span class="mk good">◎</span> 2. 論点2: 4ディレクトリは現状維持</a></li>
+          <li><a href="#f3"><span class="mk good">◎</span> 3. 論点3: agents/skills/エイリアス化は不成立</a></li>
+          <li><a href="#f4"><span class="mk good">◎</span> 4. 受け入れ条件8件・検証</a></li>
+        </ol>
+      </li>
+      <li><a href="#next">設計への反映</a></li>
+      <li><a href="#surprises">想定と異なった点</a></li>
+      <li><a href="#todo">残課題</a></li>
+    </ol>
+  </nav>
+
+  <dl class="meta">
+    <div><dt>issue</dt><dd>#172</dd></div>
+    <div><dt>ブランチ</dt><dd>claude/gemini-exclude-decision-yp5p70</dd></div>
+    <div><dt>PR</dt><dd>#193</dd></div>
+    <div><dt>push回数</dt><dd>15</dd></div>
+    <div><dt>作成日</dt><dd>2026-08-30</dd></div>
+    <div><dt>正文</dt><dd>同名の .md</dd></div>
+  </dl>
+</aside>
+
+<main class="main">
+
+<section id="overview">
+  <p class="lead">issue #172「<code>.gemini/</code>に何を残すか」の3論点（自立化・読まれない4ディレクトリの除去・
+  <code>.agents/skills/</code>エイリアス化）をすべて決着させ、spec・DDR・GEMINI.mdへ反映した。
+  3論点とも<strong>現状維持／不成立</strong>という結論で、コードの挙動は変わらない。
+  受け入れ条件8件はすべて満たしている（条件5・6は「外す」場合限定のため該当なし）。</p>
+
+  <ul class="kpis">
+    <li class="kpi good"><b>4</b><span>◎良</span></li>
+    <li class="kpi warn"><b>2</b><span>△注意</span></li>
+    <li class="kpi stop"><b>0</b><span>✕問題</span></li>
+  </ul>
+
+  <div class="focuses">
+    <div class="focus must">
+      <p class="label">◆特に見てほしい</p>
+      <p class="sub">判断に困っている</p>
+      <ul>
+        <li>無し</li>
+      </ul>
+    </div>
+    <div class="focus want">
+      <p class="label">◇承認が欲しい</p>
+      <p class="sub">方針は決めた</p>
+      <ul>
+        <li><a href="#f1">1. 論点1</a> — 自立化は取り下げ、依存を明示する方針で決着済み（ユーザー判断）。</li>
+        <li><a href="#f2">2. 論点2</a> — 4ディレクトリは現状維持と決めた。</li>
+      </ul>
+    </div>
+    <div class="focus skip">
+      <p class="label">・細かいレビューは不要</p>
+      <p class="sub">ほぼ確実</p>
+      <ul>
+        <li><a href="#f3">3. 論点3</a> — 公式ドキュメントに<code>.agents</code>の言及0件で不成立。</li>
+        <li><a href="#f4">4. 受け入れ条件・検証</a> — 機械的な検証コマンドで確認済み。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section id="unverified">
+  <div class="box warn">
+    <p class="label">確かめられなかったこと（この結果が言っていないこと）</p>
+    <ul>
+      <li>Gemini CLI実機での読み込み経路の確認（ソースコードレベルの検証） — <a href="#todo">詳細: 残課題</a></li>
+    </ul>
+  </div>
+</section>
+
+<section id="findings">
+  <h2>実施した内容と結果</h2>
+  <ol class="tl">
+
+    <li class="tl-item">
+      <span class="tl-dot good">1</span>
+      <h3 id="f1">論点1: 自立化は取り下げ、依存を明示する方針 <span class="chip good">◎良</span> <span class="basis">根拠: ユーザー判断</span></h3>
+      <p><code>.gemini/</code>を<code>.claude/</code>から自立させる（<code>.gemini/</code>配下の資産だけで
+      動くようにする）ことの可否を検討した。<code>AGENTS.md</code>は<code>layer: seed</code>でどのCLI向け
+      配布先にも常に配られる一方、<code>@./.claude/rules/agent-common.md</code>を import しているため、
+      <code>.gemini/</code>側だけを書き換えても依存はルート側に残る。</p>
+      <div class="box ok">
+        <p class="label">結論</p>
+        <p>自立化の要件は取り下げ、代わりに<code>GEMINI.md</code>へ<code>.claude/</code>への依存を
+        明示する一文を追記した。DDR <code>i0172-01</code>論点1へ、片方のCLIしか使わない場合の
+        非対称性（<code>.claude/</code>のみ残す→動く／<code>.gemini/</code>のみ残す→動かない）も
+        表として記録した（受け入れ条件4）。</p>
+      </div>
+    </li>
+
+    <li class="tl-item">
+      <span class="tl-dot good">2</span>
+      <h3 id="f2">論点2: 読まれない4ディレクトリは現状維持 <span class="chip good">◎良</span> <span class="basis">根拠: 4軸判定基準</span></h3>
+      <p><code>.gemini/rules/</code> <code>.gemini/hooks/</code> <code>.gemini/scripts/</code>
+      <code>.gemini/docs/</code>（実行時に読まれる経路が確認できない4ディレクトリ）を外すかどうかを、
+      4軸の判定基準（実行時に読む経路の有無・残るファイルから切れるリンク・外すコスト・外す根拠の
+      確からしさ）で検討した。</p>
+      <details>
+        <summary>根拠を見る（検証コマンドと出力）</summary>
+        <pre><code>$ bash .claude/scripts/src/sync-gemini-assets.sh --check
+（再生成後）exit 0
+
+$ bash .claude/scripts/test/test_sync_gemini_assets.sh
+passed=106 failures=0</code></pre>
+      </details>
+      <div class="box ok">
+        <p class="label">結論</p>
+        <p>現状維持（4つとも残す）。決め手は (1) 外しても配布物は1バイトも減らない
+        (2) 部分的に外すと壊れたリンクを抱えた中間状態になる (3) 「読まれない」の根拠は未観測の
+        推論であり、同じ根拠が残す予定の<code>rules/</code>にも当たるため対象を選べない。</p>
+      </div>
+    </li>
+
+    <li class="tl-item">
+      <span class="tl-dot good">3</span>
+      <h3 id="f3">論点3: .agents/skills/エイリアス化は不成立 <span class="chip good">◎良</span> <span class="basis">根拠: 公式ドキュメント</span></h3>
+      <p>Gemini CLIが<code>.agents/skills/</code>のようなエイリアスパスを読む仕組みがあるかを、
+      公式ドキュメントで確認した。</p>
+      <div class="box ok">
+        <p class="label">結論</p>
+        <p>不成立。Claude Codeの公式ドキュメントに<code>.agents</code>への言及が0件だった。</p>
+      </div>
+    </li>
+
+    <li class="tl-item">
+      <span class="tl-dot good">4</span>
+      <h3 id="f4">受け入れ条件8件・検証結果 <span class="chip good">◎良</span> <span class="basis">根拠: 実測</span></h3>
+      <p>issue #172 の受け入れ条件8件を、spec・DDRの現状と突き合わせて確認した。</p>
+      <details>
+        <summary>根拠を見る（検証コマンドと出力）</summary>
+        <pre><code>$ bash .claude/scripts/src/check-doc-references.sh
+参照切れ0件
+
+$ bash .claude/scripts/src/check-dist-coverage.sh
+全項目OK
+
+$ bash .claude/scripts/src/check-base-sync.sh
+isBehind: false, ahead: 25
+
+$ bash .claude/scripts/src/generate-ddr-list.sh
+（README.mdのDDR一覧と一致、105件）
+
+$ bash .claude/scripts/src/check-base-conflicts.sh
+DDR識別子の重複なし</code></pre>
+      </details>
+      <div class="box ok">
+        <p class="label">結論</p>
+        <p>8件中6件が該当し全て満たす、2件（条件5・6）は「外す」場合限定のため該当なし。
+        条件4（非対称性の両方向記録）・条件7（現状維持の理由がspecに記録）は、当初ギャップが
+        あったため今回の反映で解消した。</p>
+      </div>
+    </li>
+
+  </ol>
+</section>
+
+<section id="next">
+  <h2>設計への反映</h2>
+  <ol>
+    <li><code>.claude/docs/spec/sync-gemini-assets.md</code>「影響範囲」節へ issue #172 セクション（論点1〜3の結論・理由）を追記した。</li>
+    <li>新規DDR <code>.claude/docs/ddr/i0172-01-読まれないgemini複製とagents-skillsエイリアス化と自立化はいずれも見送る.md</code>を作成した（決定・理由・4軸適用結果・却下5案・受け入れた制約・再検討の条件）。</li>
+    <li><code>GEMINI.md</code>へ<code>.claude/</code>への依存を明示する一文を追記した。</li>
+  </ol>
+</section>
+
+<section id="surprises">
+  <h2>想定と異なった点</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>計画時の見込み</th><th>実際</th><th>どう扱ったか</th></tr></thead>
+    <tbody>
+      <tr><td>issue #172は当初「3ディレクトリの採否」という単一論点の小さな変更だった</td><td>フェーズ3途中で非対称性（片方のCLIしか使わない場合の挙動差）が判明し、issue本文・受け入れ条件を3論点へ拡大した</td><td>issueを更新し、分割せず3論点として1ブランチで進めた</td></tr>
+      <tr><td>除外候補3ディレクトリでは壊れるリンクは18件の見積もりだった</td><td>4ディレクトリすべてを外すと壊れるリンクは18件→1件に減ることが判明した</td><td>件数だけでなく割合（3ディレクトリ81.9%より4ディレクトリ85.6%の方が大きい）で決め手2を再評価し、判断を変えないことにした</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="todo">
+  <h2>残課題</h2>
+  <ul>
+    <li><code>install-to-project.sh</code>が<code>.gemini/</code>生成失敗時に終了コード0のまま完了する弱点（<code>spawn_task</code>による切り出しを2回試みたがタイムアウトし断念。specへ弱点として記録するに留めた。別issueで対応する）。</li>
+    <li>Gemini CLI実機での読み込み経路確認は未実施のまま（ユーザー判断によりソースコードを参照できる別環境へ明示的に委ねられている）。</li>
+  </ul>
+</section>
+
+<footer>issue #172 / PR #193 — 結果の正文は同名の <code>.md</code>。外部依存を持たない自己完結HTML。</footer>
+
+</main>
+</div>
+
+</body>
+</html>
