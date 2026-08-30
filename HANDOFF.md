@@ -17,9 +17,9 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - issue: #205（https://github.com/yuki-matsu783/MR-driven-workflow/issues/205 ）
 - ブランチ: claude/pr-mr-diffview-link-yxim1l
 - PR: #206（https://github.com/yuki-matsu783/MR-driven-workflow/pull/206 ）
-- push回数: 14
+- push回数: 16
 - 現在のループ: 4-6〜4-9 の1周目（進行中）
-- 未返信スレッド: 8
+- 未返信スレッド: 0
 - 追従監視: あり（subscribe_pr_activity で PR #206 を購読中。セッション終了で止まるため次セッションは resume で取り直す）
 
 | 進捗 | flow-id | ステップ | 担当 |
@@ -327,17 +327,20 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
       https://github.com/yuki-matsu783/MR-driven-workflow/pull/206#discussion_r3888038978
     - 未返信スレッド8（`set-header --unreplied 8`済み）。報告のみの2件（確度low、影響が限定的な
       表現ゆれ2箇所）は次のworklog追記へ記載する。
+  - **8件全件へ対応し、8スレッドすべてへ返信済み**（未返信スレッド 0）。コミット
+    `69d07e9`（spec/DDR/mcp-fallback.mdの内容修正6件）・`0764af2`
+    （`Provider.sh`・`post-push-compact-prompt.sh`のコード側コメント修正2件）。
+    `check-doc-references.sh`（参照切れ0）・単体テスト21ファイル（`failures=0`）を再確認。
+    `set-header --unreplied 0`・`--push-count 16`済み。**フェーズ4の敵対的レビューは
+    計画時1回・作業実施後1回の計2回で完了**（`adversarial-review-count.sh get 4`は2/3のまま
+    据え置き。ユーザー指示「各フェーズでの計画時に一度、作業実施毎に一度ずつ」を満たした）。
+  - **非対話セッションのため`4-6〜4-9`ループの進捗記号は`[]`のまま残す**
+    （`.claude/rules/docs-workflow.md`末尾の規定。フェーズ3の`3-6〜3-9`と同じ扱い。
+    人間レビュー往復ステップ4-3/4-4・4-8/4-9も同様に`[]`のまま）。
 
 ## 次にやること
 
-- 上記8件の投稿指摘へ対応し、修正・返信を行う（DDR/spec/mcp-fallback.mdの内容修正、
-  `Provider.sh`・`post-push-compact-prompt.sh`のコード側コメント修正、DDR `i0013-01`への
-  `note`追加＋`generate-ddr-list.sh`再実行）。対応後、8スレッドすべてへ返信し
-  `set-header --unreplied 0`とする。
-- 未返信0を確認したら、`update-handoff-progress.sh`で`4-6〜4-9`ループの状態を確認する
-  （非対話セッションのため進捗記号は`[]`のまま残す方針。`.claude/rules/docs-workflow.md`末尾の
-  規定。フェーズ3の`3-6〜3-9`と同じ扱い）。
-- その後、flow-id 4-10（`describe`でMR descriptionを更新）へ進み、フェーズ5（クローズ）へ移る:
+- flow-id 4-10（`describe`でMR descriptionを更新）へ進み、フェーズ5（クローズ）へ移る:
   資産同期（`sync-gemini-assets.sh`。flow-id 5-3）、コンフリクトチェック（`resolve-conflict`）、
   関連issueへのマージ前通知（`AskUserQuestion`での承認必須）、最終統括レポート、
   `cleanup-task.sh`によるwip配下の片付け、Draft解除（`set_mr_ready`）。**マージ（flow-id 5-7）は

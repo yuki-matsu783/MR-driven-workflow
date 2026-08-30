@@ -169,3 +169,27 @@ push回数: 11〜
   `post-push-compact-prompt.sh`のコード側コメント修正、`i0013-01`への`note`追加＋
   `generate-ddr-list.sh`再実行）し、各スレッドへ返信する。
 - 未返信0を確認後、flow-id 4-10（`describe`）→フェーズ5（クローズ）へ進む。
+
+## 追記5（8件の修正・返信完了）
+
+- **8件全件へ対応した。** コミット2本に分けてpush。
+  1. `69d07e9`: DDR `i0205-01`「未検証事項・残る制約」への残存リスク追記、DDR `i0013-01`
+     frontmatterへの`note`追加（`generate-ddr-list.sh`再実行込み）、spec「提供関数」表の
+     HTTP(S)限定制約追記、spec「影響範囲」changelog・DDR「影響」表への`.claude/docs/README.md`
+     行追加、spec「未決定事項・懸念点」の到達しない経路の記述訂正、mcp-fallback.mdへの
+     根拠文追加・評価文言の訂正・`resolve_mr_number_for_head`行の追加。
+  2. `0764af2`: `Provider.sh` `get_diff_anchor_base_url`の`mr_url`/`compare_url`引数コメント
+     修正、`post-push-compact-prompt.sh`ヘッダコメント（旧42〜47行）の書き直し。
+- 修正後、`check-doc-references.sh`（参照切れ0）・単体テスト21ファイル（`passed`全件・
+  `failures=0`）を再実行し、後退が無いことを確認した。
+- 8スレッドすべてへ「Claude Codeより: 対応しました」形式で返信し、対応内容とコミットSHAを
+  記載した。`set-header --unreplied 0`・`--push-count 16`を実行済み。
+- **フェーズ4の敵対的レビューは計画時1回・作業実施後1回の計2回で完了**（ユーザー指示
+  「各フェーズでの計画時に一度、作業実施毎に一度ずつ」を満たした。カウンタは2/3のまま
+  据え置き、3回目は使わない）。
+- 非対話セッションのため`4-6〜4-9`ループの進捗記号は`[]`のまま残す方針を確認した
+  （`.claude/rules/docs-workflow.md`末尾の規定。フェーズ3の`3-6〜3-9`と同じ扱い）。
+
+## 次の一歩（更新5）
+
+- flow-id 4-10（`describe`でMR descriptionを更新）へ進み、フェーズ5（クローズ）へ移る。
