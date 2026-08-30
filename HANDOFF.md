@@ -17,7 +17,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - issue: #205（https://github.com/yuki-matsu783/MR-driven-workflow/issues/205 ）
 - ブランチ: claude/pr-mr-diffview-link-yxim1l
 - PR: #206（https://github.com/yuki-matsu783/MR-driven-workflow/pull/206 ）
-- push回数: 16
+- push回数: 20
 - 現在のループ: 4-6〜4-9 の1周目（進行中）
 - 未返信スレッド: 0
 - 追従監視: あり（subscribe_pr_activity で PR #206 を購読中。セッション終了で止まるため次セッションは resume で取り直す）
@@ -350,11 +350,17 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
   既存機能（いずれもclosed、決定は覆っていない）、#202は成果物HTMLのpermalink機能で無関係の
   スコープ。**前提が変わる／一部解決される／記述が矛盾する、のいずれにも該当する候補が
   無かったため、通知はスキップした**（判断した結果「影響先なし」）。
+- flow-id 5-3: `sync-gemini-assets.sh`を実行し`.claude/`→`.gemini/`を再生成した
+  （`--check`で同期確認、`test_sync_gemini_assets.sh`は`passed=106 failures=0`）。
+- flow-id 5-4（層1）: 最終統括レポート`wip/reports/20260830_diffview-link-switchover_統括.md`
+  （+`.html`、`reports-clean.template.html`土台。6種の検査すべて合格）を新規作成した。
+  push回数を実際のpush履歴を数え直して`20`へ更新。
 
 ## 次にやること
 
-- flow-id 5-3: `.claude/`の変更を`.gemini/`へ変換同期する（`sync-gemini-assets.sh`）。
-- flow-id 5-4: 最終統括レポートを作成しPR/MRへ反映する。
+- flow-id 5-4（層3→層2）: `upload_attachment`でHTML添付を試行（失敗しても続行）、
+  `add_mr_comment`でサマリコメントを投稿する（本文1行目は
+  `Claude Codeより（最終統括レポート）:`）。
 - flow-id 5-5: `cleanup-task.sh`で`wip/plans/` `wip/worklogs/` `wip/reports/`を片付け、
   `HANDOFF.md`をリセットする。
 - flow-id 5-6: commitし、pushしてDraftを解除する（`set_mr_ready`）。
