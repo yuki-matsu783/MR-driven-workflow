@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>【設計反映】spec・DDR反映 — issue #151</title>
+<style>
+  :root {
+    --bg: #f6f7f9;      --panel: #ffffff;   --ink: #1a1d21;     --muted: #5b636d;
+    --line: #dfe3e8;    --accent: #2563eb;  --accent-soft: #eaf0fe;
+    --ok: #1a7f4b;      --ok-soft: #e6f4ec; --warn: #a35a00;    --warn-soft: #fdf1e0;
+    --stop: #b3261e;    --stop-soft: #fdecea; --code-bg: #f0f2f5;
+    --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1216;    --panel: #161a20;   --ink: #e6e8eb;     --muted: #9aa3ad;
+      --line: #2a3038;  --accent: #7aa2f7;  --accent-soft: #1b2333;
+      --ok: #6ee7a8;    --ok-soft: #14261d; --warn: #f0b866;    --warn-soft: #2a2113;
+      --stop: #f2857c;  --stop-soft: #2b1614; --code-bg: #1d222a;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", system-ui, sans-serif;
+    line-height: 1.8; font-size: 15px;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 20px 80px; }
+  header.band {
+    background: linear-gradient(135deg, var(--accent-soft), var(--panel));
+    border-bottom: 1px solid var(--line); padding: 28px 20px 22px; margin-bottom: 28px;
+  }
+  header.band .inner { max-width: 1080px; margin: 0 auto; }
+  header.band .kind { font-size: 11px; letter-spacing: .18em; color: var(--accent); font-weight: 700; }
+  header.band h1 { margin: 6px 0 4px; font-size: 26px; line-height: 1.4; }
+  header.band .lead { margin: 0; color: var(--muted); }
+  .meta { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; padding: 0; list-style: none; }
+  .meta li {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 999px;
+    padding: 3px 12px; font-size: 12.5px; color: var(--muted); white-space: nowrap;
+  }
+  .meta li b { color: var(--ink); font-weight: 600; }
+  nav.toc {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 14px 20px; margin-bottom: 28px;
+  }
+  nav.toc h2 { margin: 0 0 8px; font-size: 13px; letter-spacing: .08em; color: var(--muted); border: 0; padding: 0; }
+  nav.toc ol { margin: 0; padding-left: 20px; }
+  nav.toc li { margin: 2px 0; }
+  a { color: var(--accent); }
+  section {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 8px 24px 22px; margin-bottom: 22px;
+  }
+  h2 { font-size: 20px; margin: 20px 0 10px; padding-bottom: 8px; border-bottom: 2px solid var(--line); }
+  h3 { font-size: 16px; margin: 22px 0 8px; color: var(--accent); }
+  p { margin: 10px 0; }
+  ul, ol { padding-left: 22px; }
+  li { margin: 4px 0; }
+  blockquote { margin: 10px 0; padding: 6px 14px; border-left: 3px solid var(--line); color: var(--muted); }
+  .tablewrap { overflow-x: auto; margin: 14px 0; }
+  table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 14px; }
+  th, td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: var(--accent-soft); font-weight: 600; white-space: nowrap; }
+  tbody tr:nth-child(even) td { background: color-mix(in srgb, var(--line) 22%, transparent); }
+  code {
+    background: var(--code-bg); border-radius: 5px; padding: 1px 5px; font-size: 13px;
+    font-family: "SFMono-Regular", Consolas, "Noto Sans Mono", monospace;
+  }
+  pre {
+    background: var(--code-bg); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 12px 14px; overflow-x: auto; font-size: 13px; line-height: 1.65;
+  }
+  pre code { background: none; padding: 0; }
+  .box { border-left: 4px solid var(--accent); background: var(--accent-soft);
+         border-radius: 0 var(--radius) var(--radius) 0; padding: 12px 16px; margin: 16px 0; }
+  .box > :first-child { margin-top: 0; } .box > :last-child { margin-bottom: 0; }
+  .box .label { font-size: 12px; font-weight: 700; letter-spacing: .06em; display: block; margin-bottom: 4px; }
+  .box.ok { border-color: var(--ok); background: var(--ok-soft); } .box.ok .label { color: var(--ok); }
+  .box.warn { border-color: var(--warn); background: var(--warn-soft); } .box.warn .label { color: var(--warn); }
+  .box.stop { border-color: var(--stop); background: var(--stop-soft); } .box.stop .label { color: var(--stop); }
+  .box.info .label { color: var(--accent); }
+  .tag { display: inline-block; border-radius: 999px; padding: 1px 9px; font-size: 12px; font-weight: 600; }
+  .tag.ok { background: var(--ok-soft); color: var(--ok); }
+  .tag.warn { background: var(--warn-soft); color: var(--warn); }
+  .tag.stop { background: var(--stop-soft); color: var(--stop); }
+  footer { color: var(--muted); font-size: 13px; text-align: center; padding-top: 10px; }
+</style>
+</head>
+<body>
+
+<header class="band">
+  <div class="inner">
+    <div class="kind">個別反映計画 / フェーズ4</div>
+    <h1>【設計反映】ユーザー発言抽出・再注入のspec・DDR反映</h1>
+    <p class="lead">フェーズ2・3で確定した設計判断を、既存spec（<code>issue-mr-workflow.md</code>）への追記とDDR i0151-01新設として正史へ書き戻す。</p>
+    <ul class="meta">
+      <li><b>issue</b> #151</li>
+      <li><b>ブランチ</b> claude/user-recent-utterance-reinject-9ygbxd</li>
+      <li><b>PR</b> #197</li>
+      <li><b>フェーズ</b> 4〈反映〉 flow-id 4-1</li>
+      <li><b>作成日</b> 2026-08-30</li>
+      <li><b>正文</b> 同名の .md</li>
+    </ul>
+  </div>
+</header>
+
+<div class="wrap">
+
+<nav class="toc">
+  <h2>目次</h2>
+  <ol>
+    <li><a href="#premise">前提（合意状況）</a></li>
+    <li><a href="#goal">この計画で何をするか</a></li>
+    <li><a href="#target">変更対象</a></li>
+    <li><a href="#approach">方針</a></li>
+    <li><a href="#out-of-scope">やらないこと（スコープ外）</a></li>
+    <li><a href="#verify">検証</a></li>
+  </ol>
+</nav>
+
+<section id="premise">
+  <h2>前提（合意状況）</h2>
+  <ul>
+    <li>依拠する作業結果: <code>wip/reports/20260830_session-start-user-utterance-reinject_作業結果.md</code>（flow-id 3-8〜3-9で人間レビュー承認済み）</li>
+    <li>依拠する設計判断・却下案: PR #197 description「設計判断・採らなかった案」（flow-id 3-10で確定）</li>
+    <li>敵対的レビュー（フェーズ4計画段階・1回目）で全面的に書き直した（既存spec節の見落とし／実装値未読／コード内参照の付け替え漏れ／未決定事項への誤配置／4類型語彙の誤用／md・html非同期）</li>
+  </ul>
+</section>
+
+<section id="goal">
+  <h2>この計画で何をするか</h2>
+  <p>フェーズ2・3で確定した設計判断は、まだ正史ドキュメント（<code>.claude/docs/spec/</code> <code>.claude/docs/ddr/</code>）に1件も反映されていない。
+  <b>新規specファイルは作らず</b>、既存の <code>.claude/docs/spec/issue-mr-workflow.md</code>「セッション開始時の自動コンテキスト注入（SessionStart hook）」節へ
+  issue #113・#160と同形式の新項目として追記し、DDR <code>i0151-01</code> を新設する。</p>
+  <div class="box info">
+    <span class="label">既存specの確認結果</span>
+    <code>doc-search</code>はfrontmatterしか見ないため見落としていたが、本文grepで
+    <code>issue-mr-workflow.md</code> L922 に該当節が既に存在し、issue #57・#113・#160が
+    同じ節へ箇条書き項目として追記される形で正史になっていることを確認した。
+    この節を割らないよう、issue #151も同じ節へ追記する。
+  </div>
+</section>
+
+<section id="target">
+  <h2>変更対象</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>ファイル</th><th>操作</th><th>何をするか</th></tr></thead>
+    <tbody>
+      <tr><td><code>.claude/docs/spec/issue-mr-workflow.md</code></td><td>変更</td><td>「セッション開始時の自動コンテキスト注入」節へ新項目「ユーザー発言の抽出・再注入（issue #151）」を追記</td></tr>
+      <tr><td><code>.claude/docs/ddr/i0151-01-…md</code></td><td>新規</td><td>採用案12項目・却下案11項目・しきい値改定・スキーマ変更の経緯</td></tr>
+      <tr><td><code>.claude/docs/README.md</code></td><td>変更</td><td>DDR一覧の再生成</td></tr>
+      <tr><td><code>session-start.sh</code>（L53,89,281,507）・<code>UserUtteranceSelect.jq</code>（L21）・<code>test_session_start.sh</code>（L521）</td><td>変更</td><td><code>wip/plans/</code>参照6箇所を新設spec項目のアンカーへ差し替え</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="approach">
+  <h2>方針</h2>
+  <p>spec追記の内容は実装（<code>session-start.sh</code>・<code>UserUtteranceSelect.jq</code>）を読んで確定した値で書く。
+  母集団条件は6条件（<code>type=="user"</code> / content文字列 / <code>userType=="external"</code> /
+  <code>isSidechain==false</code> / <code>origin.kind=="human"</code> / uuid重複除去）＋スラッシュコマンド・タグ行の除外。
+  選定の文字数は先頭群<code>clip(120,40)</code>・直近群<code>clip(80,30)</code>で群ごとに異なる。
+  出力位置は「HANDOFF.md 次にやること」ブロックの<b>直後</b>（実装コードで確認済み）。</p>
+
+  <div class="box warn">
+    <span class="label">DDRの構成</span>
+    採用12項目・却下11項目を1本のDDRへまとめる。既存DDR（<code>i0057-01</code>）も複数facetを
+    1本へまとめている前例に倣う。タイトルは「何を決めたか」が読み取れる決定文にする
+    （例: <code>i0151-01. compact後のユーザー発言再注入はorigin.kind条件・育てる辞書・全走査（しきい値500ms）で実装する</code>）。
+  </div>
+</section>
+
+<section id="out-of-scope">
+  <h2>やらないこと（スコープ外）</h2>
+  <div class="box stop">
+    <span class="label">この計画では決めない・触らない（決定済み）</span>
+    <ul>
+      <li>Gemini CLI経路の対応（issue #201へ切り出し済み）</li>
+      <li>除外辞書の配布層判断（issue #207へ切り出し済み）</li>
+    </ul>
+  </div>
+  <div class="box warn">
+    <span class="label">未確認のまま（決定済みのスコープ外とは区別する）</span>
+    <ul>
+      <li>git bash実機での再測</li>
+      <li>ブランチ絞りの効きの実データ検証</li>
+    </ul>
+  </div>
+</section>
+
+<section id="verify">
+  <h2>検証</h2>
+  <pre><code>git fetch origin main
+BASE_SHA="$(git merge-base origin/main HEAD)"
+git diff "$BASE_SHA" -- .claude/docs/README.md | grep -c '^+.*i0151-01'   # 期待値1
+grep -rn 'wip/plans/' .claude/hooks/session-start.sh .claude/hooks/lib/UserUtteranceSelect.jq \
+  .claude/scripts/test/test_session_start.sh   # 期待値0件
+git diff "$BASE_SHA" -- .claude/ | grep -c '^diff --git'
+bash .claude/scripts/src/generate-ddr-list.sh
+bash .claude/scripts/src/check-doc-references.sh</code></pre>
+  <p>合格条件: DDR一覧に<code>i0151-01</code>を含む行が1つだけ追加される。<code>wip/plans/</code>への
+  特定パス参照がコード側から0件になる。参照切れが0件。frontmatterが規約を満たす。</p>
+</section>
+
+<footer>issue #151 / PR #197 — 計画の正文は同名の <code>.md</code>。外部依存を持たない自己完結HTML。</footer>
+
+</div>
+</body>
+</html>

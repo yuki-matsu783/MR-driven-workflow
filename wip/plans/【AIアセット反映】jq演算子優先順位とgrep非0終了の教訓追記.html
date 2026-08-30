@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>【AIアセット反映】jq/grepの教訓追記 — issue #151</title>
+<style>
+  :root {
+    --bg: #f6f7f9;      --panel: #ffffff;   --ink: #1a1d21;     --muted: #5b636d;
+    --line: #dfe3e8;    --accent: #2563eb;  --accent-soft: #eaf0fe;
+    --ok: #1a7f4b;      --ok-soft: #e6f4ec; --warn: #a35a00;    --warn-soft: #fdf1e0;
+    --stop: #b3261e;    --stop-soft: #fdecea; --code-bg: #f0f2f5;
+    --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1216;    --panel: #161a20;   --ink: #e6e8eb;     --muted: #9aa3ad;
+      --line: #2a3038;  --accent: #7aa2f7;  --accent-soft: #1b2333;
+      --ok: #6ee7a8;    --ok-soft: #14261d; --warn: #f0b866;    --warn-soft: #2a2113;
+      --stop: #f2857c;  --stop-soft: #2b1614; --code-bg: #1d222a;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", system-ui, sans-serif;
+    line-height: 1.8; font-size: 15px;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 20px 80px; }
+  header.band {
+    background: linear-gradient(135deg, var(--accent-soft), var(--panel));
+    border-bottom: 1px solid var(--line); padding: 28px 20px 22px; margin-bottom: 28px;
+  }
+  header.band .inner { max-width: 1080px; margin: 0 auto; }
+  header.band .kind { font-size: 11px; letter-spacing: .18em; color: var(--accent); font-weight: 700; }
+  header.band h1 { margin: 6px 0 4px; font-size: 26px; line-height: 1.4; }
+  header.band .lead { margin: 0; color: var(--muted); }
+  .meta { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; padding: 0; list-style: none; }
+  .meta li {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 999px;
+    padding: 3px 12px; font-size: 12.5px; color: var(--muted); white-space: nowrap;
+  }
+  .meta li b { color: var(--ink); font-weight: 600; }
+  nav.toc {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 14px 20px; margin-bottom: 28px;
+  }
+  nav.toc h2 { margin: 0 0 8px; font-size: 13px; letter-spacing: .08em; color: var(--muted); border: 0; padding: 0; }
+  nav.toc ol { margin: 0; padding-left: 20px; }
+  nav.toc li { margin: 2px 0; }
+  a { color: var(--accent); }
+  section {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 8px 24px 22px; margin-bottom: 22px;
+  }
+  h2 { font-size: 20px; margin: 20px 0 10px; padding-bottom: 8px; border-bottom: 2px solid var(--line); }
+  h3 { font-size: 16px; margin: 22px 0 8px; color: var(--accent); }
+  p { margin: 10px 0; }
+  ul, ol { padding-left: 22px; }
+  li { margin: 4px 0; }
+  blockquote { margin: 10px 0; padding: 6px 14px; border-left: 3px solid var(--line); color: var(--muted); }
+  .tablewrap { overflow-x: auto; margin: 14px 0; }
+  table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 14px; }
+  th, td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: var(--accent-soft); font-weight: 600; white-space: nowrap; }
+  tbody tr:nth-child(even) td { background: color-mix(in srgb, var(--line) 22%, transparent); }
+  code {
+    background: var(--code-bg); border-radius: 5px; padding: 1px 5px; font-size: 13px;
+    font-family: "SFMono-Regular", Consolas, "Noto Sans Mono", monospace;
+  }
+  pre {
+    background: var(--code-bg); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 12px 14px; overflow-x: auto; font-size: 13px; line-height: 1.65;
+  }
+  pre code { background: none; padding: 0; }
+  .box { border-left: 4px solid var(--accent); background: var(--accent-soft);
+         border-radius: 0 var(--radius) var(--radius) 0; padding: 12px 16px; margin: 16px 0; }
+  .box > :first-child { margin-top: 0; } .box > :last-child { margin-bottom: 0; }
+  .box .label { font-size: 12px; font-weight: 700; letter-spacing: .06em; display: block; margin-bottom: 4px; }
+  .box.ok { border-color: var(--ok); background: var(--ok-soft); } .box.ok .label { color: var(--ok); }
+  .box.warn { border-color: var(--warn); background: var(--warn-soft); } .box.warn .label { color: var(--warn); }
+  .box.stop { border-color: var(--stop); background: var(--stop-soft); } .box.stop .label { color: var(--stop); }
+  .box.info .label { color: var(--accent); }
+  .tag { display: inline-block; border-radius: 999px; padding: 1px 9px; font-size: 12px; font-weight: 600; }
+  .tag.ok { background: var(--ok-soft); color: var(--ok); }
+  .tag.warn { background: var(--warn-soft); color: var(--warn); }
+  .tag.stop { background: var(--stop-soft); color: var(--stop); }
+  footer { color: var(--muted); font-size: 13px; text-align: center; padding-top: 10px; }
+</style>
+</head>
+<body>
+
+<header class="band">
+  <div class="inner">
+    <div class="kind">個別反映計画 / フェーズ4</div>
+    <h1>【AIアセット反映】jq演算子優先順位とgrep非0終了の教訓追記</h1>
+    <p class="lead">実装作業の副産物として踏んだ2件の罠（jqの<code>|</code>の優先順位、<code>grep -o</code>のpipefail依存中断）を<code>shell-script-style.md</code>へ追記する。</p>
+    <ul class="meta">
+      <li><b>issue</b> #151</li>
+      <li><b>ブランチ</b> claude/user-recent-utterance-reinject-9ygbxd</li>
+      <li><b>PR</b> #197</li>
+      <li><b>フェーズ</b> 4〈反映〉 flow-id 4-1</li>
+      <li><b>作成日</b> 2026-08-30</li>
+      <li><b>正文</b> 同名の .md</li>
+    </ul>
+  </div>
+</header>
+
+<div class="wrap">
+
+<nav class="toc">
+  <h2>目次</h2>
+  <ol>
+    <li><a href="#premise">前提（合意状況）</a></li>
+    <li><a href="#goal">この計画で何をするか</a></li>
+    <li><a href="#target">反映対象の洗い出し</a></li>
+    <li><a href="#approach">反映内容</a></li>
+    <li><a href="#out-of-scope">やらないこと（スコープ外）</a></li>
+    <li><a href="#verify">検証</a></li>
+  </ol>
+</nav>
+
+<section id="premise">
+  <h2>前提（合意状況）</h2>
+  <ul>
+    <li>依拠する作業結果: <code>wip/reports/20260830_session-start-user-utterance-reinject_作業結果.md</code>「想定と異なった点」節（flow-id 3-8〜3-9で人間レビュー承認済み）</li>
+    <li>敵対的レビュー（フェーズ4計画段階・1回目）で全面的に書き直した（jq優先順位の説明が事実と逆だった／worklogの未走査／grep -oの罠の条件誤り／手順4欠落／検証の空振り）</li>
+  </ul>
+</section>
+
+<section id="goal">
+  <h2>この計画で何をするか</h2>
+  <p>フェーズ3の実装作業中、敵対的レビュー指摘の修正作業そのものが新しい欠陥2件を作り込み、
+  単体テストで即座に検出・再修正した。この2件はいずれも既存アセットに記述の無い罠と判定できたため、
+  <code>.claude/rules/shell-script-style.md</code> へ追記する。</p>
+</section>
+
+<section id="target">
+  <h2>反映対象の洗い出し</h2>
+  <p><b>手順1（起点の列挙）</b>: worklog全6本・reports・MRレビューコメントの3入力を走査し、3件を列挙した。
+  push7（フェーズ2）の <code>|</code> と <code>,</code> の優先順位誤り、flow-id 3-6後の敵対的レビュー
+  修正中に踏んだ <code>|</code> と <code>or</code> の優先順位誤り、同じ修正作業中の <code>grep -o</code>
+  パイプ中間位置での中断。前2件は同一の一般則（jqの<code>|</code>は他のほぼ全ての演算子より優先順位が
+  低い）の異なる現れのため1項目へ統合する。</p>
+  <p><b>手順2（4類型分類）</b>: いずれも (a) 該当するアセットが無かった、と判定
+  （<code>shell-script-style.md</code>に「優先順位」の語自体が無い。「エラー方針」節はpipefail自体は
+  扱うがgrepの終了コードとの組み合わせは扱っていない）。</p>
+  <p><b>手順3（痕跡の確認）</b>: jq優先順位は本MR内で2回発生（再現性あり確定）。3件とも
+  <code>doc-search</code>（単語検索）＋本文grep＋直近10件のマージ済みPRで痕跡なしを確認した。</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>項目</th><th>反映先</th><th>理由</th></tr></thead>
+    <tbody>
+      <tr><td>jqの<code>|</code>優先順位</td><td><code>shell-script-style.md</code>「JSON操作」節</td><td>既存のjqの罠と並ぶ性質。専用の新節は不要な分量</td></tr>
+      <tr><td><code>grep -o</code>のpipefail依存中断</td><td><code>shell-script-style.md</code>「エラー方針」節</td><td>同節が既にpipefailの仕組みを説明しており自然な置き場所。JSON操作節はjq専用のため不適切</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="approach">
+  <h2>反映内容</h2>
+  <p>「JSON操作」節（既存の<code>//</code>falsy化の項の直後、節の末尾）へjq優先順位の項目を追記する。
+  「エラー方針」節（pipefailの説明の後）へgrep -oの項目を追記する。いずれも追記のみで、既存記述の
+  置き換えは無い。</p>
+
+  <div class="box warn">
+    <span class="label">追記する主張は実行して検証済み</span>
+    「悪い例」<code>jq -n '{counts:[]} | type == "object" or has("counts") | not'</code> → <code>false</code>、
+    「良い例」<code>jq -n '{counts:[]} | (type == "object") or (has("counts") | not)'</code> → <code>true</code>
+    をjq 1.7で実測し、説明と一致することを確認済み。
+  </div>
+</section>
+
+<section id="out-of-scope">
+  <h2>やらないこと（スコープ外）</h2>
+  <div class="box stop">
+    <span class="label">この計画では決めない・触らない</span>
+    <ul>
+      <li>isSidechain false-as-falsy回帰の教訓は、既にflow-id 3-6実装時に反映済み（本計画の対象外）</li>
+      <li>過去MRの遡及調査（今回の3つの入力で知見が出揃っているため）</li>
+      <li>hookによる機械的検出（シンタックスの罠のため見送り。既存の同種の罠も記述のみで対応）</li>
+    </ul>
+  </div>
+</section>
+
+<section id="verify">
+  <h2>検証</h2>
+  <pre><code># 追記する主張そのものが正しいことを実行して確かめる
+jq -n '{counts:[]} | type == "object" or has("counts") | not'          # =&gt; false（悪い例）
+jq -n '{counts:[]} | (type == "object") or (has("counts") | not)'      # =&gt; true（良い例）
+
+# grep -oのpipefail依存中断を実行して確かめる
+bash -c 'set -e;        f(){ local s; s="$(printf "no match\n" | grep -o "XYZ" | tail -1)"; echo "reached rc=$?"; }; f'
+bash -c 'set -eo pipefail; f(){ local s; s="$(printf "no match\n" | grep -o "XYZ" | tail -1)"; echo "reached rc=$?"; }; f'; echo "outer=$?"
+
+# 追記が入ったことを、変更前に0件だった語で確認する
+grep -c '優先順位' .claude/rules/shell-script-style.md
+grep -c 'pipefail.*grep\|grep.*pipefail' .claude/rules/shell-script-style.md</code></pre>
+  <p>合格条件: 実行結果が説明と一致すること。3・4本目のgrepが反映前0件→反映後1件以上に変化すること。
+  frontmatterのキー構成が変化しないこと。</p>
+</section>
+
+<footer>issue #151 / PR #197 — 計画の正文は同名の <code>.md</code>。外部依存を持たない自己完結HTML。</footer>
+
+</div>
+</body>
+</html>
