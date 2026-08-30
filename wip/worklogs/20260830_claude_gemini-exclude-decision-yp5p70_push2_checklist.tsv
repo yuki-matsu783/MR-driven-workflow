@@ -1,0 +1,7 @@
+# generated-for: d1cb8bc623853e36e90a989e97c096ab38013d35
+# id	項目	状態	実施ログ
+worklog	worklogを作成し、このpushまでの試行錯誤を追記した	done	受け入れ条件ギャップ2件の修正と5-3前倒し実行。個別の新規計画を伴わない小規模な追記のためworklogは新規作成せずHANDOFF.mdのやったことへ記録した
+handoff	HANDOFF.md の進捗表・ヘッダを更新した（commitより前・同じcommitに含めた）	done	HANDOFF.mdの「やったこと」「次にやること」を更新し、進捗表の5-3を[x]にした（commitより前）
+frontmatter-index	frontmatterを変更した場合、index.jsonl を最新化した	done	spec/DDRのfrontmatterは変更していない（description/keywordsは前回pushで反映済み）。extract-frontmatter.shの正常終了も確認した
+plan-report-sync	wip/plans/ wip/reports/ の md と html を同期した	done	今回の変更はplans/reportsのmd/htmlに影響しない（spec/DDR/.gemini/の変更のみ）
+commit-skill	commit スキル（create-commit.sh）経由でコミットした	skip	単一コミットで完結するためStep 3.5時点では確認できない。block-direct-git-commit.shが直接コミットを構造的に防ぐ
