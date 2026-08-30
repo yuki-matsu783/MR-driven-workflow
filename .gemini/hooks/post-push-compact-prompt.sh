@@ -39,11 +39,19 @@
 # 「前回push時点」の判定は、このスクリプト自身が `wip/state/review-links/<branch>.txt` へ
 # 直前pushのHEAD SHAを保存し、次回push時に読み出す形で行う（`usage/`と同様、ブランチ横断・
 # 非コミット対象のローカル作業状態。責務分離のため対応工数レポート側の状態とは別ファイルにする）。
-# 差分系のURLは、MR/PRのURL文字列から`/files`等のsuffixを推測する方式ではなく、
-# `get_repo_url` で取得したリポジトリの正規URLを土台に、GitHub/GitLabいずれも持つ汎用の
-# 「Compare」ページ（`/compare/<from>...<to>`）を組み立てる方式にした（issue #13フォローアップ:
-# 「gh/glabでURLの正確性を担保したい」という指摘への対応。詳細は
-# `.claude/docs/ddr/i0013-01-...md`参照）。`get_repo_url` 自体は当初 `gh repo view` / `glab repo view`
+# 差分系のURLは、当初（issue #13フォローアップ）は「gh/glabでURLの正確性を担保したい」という
+# 指摘への対応として、`get_repo_url` で取得したリポジトリの正規URLを土台に、GitHub/GitLabいずれも
+# 持つ汎用の「Compare」ページ（`/compare/<from>...<to>`）だけを組み立てる方式にしていた（詳細は
+# `.claude/docs/ddr/i0013-01-...md`参照）。**issue #205 以降、「defaultブランチとの差分」1リンク
+# （`diff_url`）だけは、MR/PR URLが解決できた場合に限りDiffview（`<mrUrl>/files`等）を返す
+# よう出し分けるようになった**（`get_mr_diff_url`の第4引数`mrUrl`。詳細は
+# `.claude/docs/ddr/i0205-01-...md`）。**これはMR/PR URL文字列からの推測ではない**——
+# `get_mr_diff_url`はDDR `i0013-01`が却下した「URL文字列へsuffixを推測で付け足す」設計とは違い、
+# `mrUrl`引数が非空であることを確認したうえで、issueの起票者が明示した既知のURL形式
+# （`/files`・`/diffs`）を組み立てるだけであり、URL文字列を書き換えて存在確認せず使う設計では
+# ない。差分アンカーの土台（`get_diff_anchor_base_url`）へ渡す`compare_url`は今回も従来どおり
+# Compareページのみを渡し続ける（`get_diff_anchor_base_url`のコメント参照）。
+# `get_repo_url` 自体は当初 `gh repo view` / `glab repo view`
 # を呼んでいたが、issue #44で `git remote get-url origin` の正規化（プロバイダ非依存）へ置き換えた。
 # これにより、pushのたびに走る本hookから外部CLIの起動とAPI往復が1回ずつ無くなっている
 # （詳細: `.claude/docs/ddr/i0044-01-...md`）。
@@ -85,10 +93,13 @@ write_additional_context() {
 # 参照リンクのテキストブロックを組み立てる。prev_shaが空（このブランチでの初回push）の場合は
 # 「前回pushとの差分」「コメント一覧」の2行を省略する（issue #13受け入れ条件）。
 # diff_url/repo_urlは、いずれもURL文字列からの推測ではない情報（PR/MRのURLは`gh`/`glab`由来、
-# リポジトリの正規URLはremote URLの正規化由来）から組み立てたものを渡す。
-# `gh`/`glab` CLI不在時（issue #34）は、MR/PRのURLをhookから取得できないため mr_url に空文字列を
-# 渡す。その場合はMRリンクの行を「MCPツールで取得すること」という指示に差し替える
-# （defaultブランチとの差分リンクは `get_repo_url` のローカル導出で得られるためそのまま出す）。
+# または `resolve_mr_number_for_head` によるgit ls-remote由来。リポジトリの正規URLはremote URLの
+# 正規化由来）から組み立てたものを渡す。
+# `gh`/`glab` CLI不在時（issue #34）は、mr_url が空のまま main へ渡ってくることがある。この
+# 場合 main 側が `resolve_mr_number_for_head`（issue #205。GitHubのみ）で解決を試み、成功すれば
+# mr_url へ格納し直す。ここまでで mr_url が空のままなら、MRリンクの行を「MCPツールで取得する
+# こと」という指示に差し替える（defaultブランチとの差分リンクは `get_repo_url` のローカル導出で
+# 得られるためそのまま出す）。
 # since_urlが空（このブランチでの初回push）の場合は「前回pushとの差分」「コメント一覧」の
 # 2行を省略する（issue #13受け入れ条件）。since_urlの算出（＝前回push SHAの有効性判定）は
 # 重点ファイルの差分範囲と揃える必要があるため、呼び出し元のmainで行い結果だけを受け取る
@@ -321,9 +332,10 @@ main() {
     mr_number="$(printf '%s' "$mr" | jq -r '.number')"
   fi
 
-  local repo_url diff_url
+  local repo_url compare_url diff_url
   repo_url="$(get_repo_url)"
-  diff_url="$(get_mr_diff_url "$repo_url" "$base_branch" "$branch")"
+  compare_url="$(get_mr_diff_url "$repo_url" "$base_branch" "$branch")"
+  diff_url="$compare_url"
 
   local repo_root safe_branch state_file current_sha prev_sha=""
   repo_root="$(get_repo_root)"
@@ -334,16 +346,55 @@ main() {
     prev_sha="$(cat "$state_file")"
   fi
 
+  # `prev_sha` はこのローカルリポジトリの祖先であることを検証してからでないと使わない
+  # （issue #205フェーズ3・敵対的レビュー2回目で指摘）。`safe_branch` は記号を `_` へ潰す
+  # ためブランチ名の衝突がありえ（`claude/x` と `claude_x` は同じ状態ファイルを共有する）、
+  # 状態ファイル自体もタスク終了時に消えない（`.gitignore`対象で `cleanup-task.sh` の対象外）
+  # ため、`prev_sha` が今のブランチ・今のPRのものである保証はコード上どこにも無い。
+  # 検証しないまま候補へ渡すと、別PR・閉じたPR時代のSHAが解決に使われ、誤ったURLを
+  # 出しうる（「誤ったURLを出すくらいならCompareのままにする」方針に反する）。
+  # この判定は下の重点ファイル差分範囲の判定とも共有する（二重計算を避ける）。
+  local prev_sha_valid=0
+  if [ -n "$prev_sha" ] && [ "$prev_sha" != "$current_sha" ] \
+    && git cat-file -e "${prev_sha}^{commit}" 2>/dev/null; then
+    prev_sha_valid=1
+  fi
+
+  # `gh`/`glab` CLI不在でMR/PR URLを取得できなかった場合でも、`git ls-remote` だけで
+  # PR番号を解決できるなら「defaultブランチとの差分」をDiffview（コメントを付けられるビュー）
+  # へ寄せる（issue #205）。解決できなければ `compare_url` のまま＝後退しない。
+  #
+  # **解決と `diff_url` の再計算は、必ず両方ともここ（`current_sha` の算出後）へ置く。**
+  # 再計算だけを上の `compare_url` の行の側へ残すと、`diff_url` が `mr_url` の解決前に
+  # 確定するため、解決に成功しても差分リンクがCompareのままになる（機能が無言で入らない）。
+  #
+  # **候補として前回pushのSHAも渡す（検証済みの場合のみ）。** GitHubの `refs/pull/<n>/head`
+  # の更新はpushに対して遅れることがあり（本リポジトリで実測）、hookはpushの直後に走るため、
+  # 今回pushのSHAだけを候補にすると狙っている経路でこそ解決に失敗する。前回pushのSHAは
+  # （検証が通れば）同じPRを指すので、遅延の窓を越えて同じPR番号を特定できる。
+  if [ -z "$mr_url" ]; then
+    if [ "$prev_sha_valid" -eq 1 ]; then
+      mr_number="$(resolve_mr_number_for_head "$current_sha" "$prev_sha")"
+    else
+      mr_number="$(resolve_mr_number_for_head "$current_sha")"
+    fi
+    if [ -n "$mr_number" ]; then
+      mr_url="$(get_mr_url "$repo_url" "$mr_number")"
+    fi
+  fi
+  if [ -n "$mr_url" ]; then
+    diff_url="$(get_mr_diff_url "$repo_url" "$base_branch" "$branch" "$mr_url")"
+  fi
+
   # 重点レビュー対象ファイルの差分範囲は、既存の差分リンクの意味論に合わせる（issue #42）。
-  # 前回push SHAが記録されており、かつそのコミットがローカルに存在する場合のみ
-  # 「前回push...HEAD」を使い、それ以外は「defaultブランチ...HEAD」にフォールバックする
-  # （rebase・履歴書き換えで前回SHAが失われていると `git diff` が失敗するため）。
+  # 前回push SHAが検証済み（上で算出した `prev_sha_valid`）の場合のみ「前回push...HEAD」を
+  # 使い、それ以外は「defaultブランチ...HEAD」にフォールバックする（rebase・履歴書き換えで
+  # 前回SHAが失われていると `git diff` が失敗するため）。
   # `...`（3点）はGitHub/GitLabのCompareページと同じmerge-base起点の比較で、URL側と意味が揃う。
   local base_ref="origin/${base_branch}" since_url="" diff_range
   git rev-parse --verify --quiet "${base_ref}^{commit}" >/dev/null 2>&1 || base_ref="$base_branch"
   diff_range="${base_ref}...HEAD"
-  if [ -n "$prev_sha" ] && [ "$prev_sha" != "$current_sha" ] \
-    && git cat-file -e "${prev_sha}^{commit}" 2>/dev/null; then
+  if [ "$prev_sha_valid" -eq 1 ]; then
     since_url="$(get_mr_diff_since_url "$repo_url" "$prev_sha" "$current_sha")"
     diff_range="${prev_sha}...HEAD"
   fi
@@ -355,7 +406,10 @@ main() {
   # （build_file_links_text の性能上の前提。同関数のコメント参照）。
   get_provider >/dev/null
 
-  local anchor_compare_url="$diff_url" file_links_text=""
+  # 差分アンカーの土台は `diff_url` ではなく `compare_url` を使う（issue #205）。
+  # GitHubの差分アンカー `#diff-<sha256>` はCompareページ上でしか実機確認しておらず、
+  # 土台をPRの `/files` へ移すと「壊れるかもしれないリンク」になるため、ここは変えない。
+  local anchor_compare_url="$compare_url" file_links_text=""
   local anchor_base_url="" anchor_since_sha=""
   if [ -n "$since_url" ]; then
     anchor_compare_url="$since_url"

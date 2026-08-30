@@ -878,10 +878,23 @@ get_repo_url() {
 # MR/PRの「defaultブランチとの差分」を見れるURLを組み立てる（issue #13:
 # レビュー依頼メッセージに含める参照リンク用）。`repo_url`は`get_repo_url`で取得したものを渡す。
 get_mr_diff_url() {
-  local repo_url="$1" base_branch="$2" head_branch="$3"
+  local repo_url="$1" base_branch="$2" head_branch="$3" mr_url="${4:-}"
   case "$(get_provider)" in
-    github) github_get_mr_diff_url "$repo_url" "$base_branch" "$head_branch" ;;
-    gitlab) gitlab_get_mr_diff_url "$repo_url" "$base_branch" "$head_branch" ;;
+    github) github_get_mr_diff_url "$repo_url" "$base_branch" "$head_branch" "$mr_url" ;;
+    gitlab) gitlab_get_mr_diff_url "$repo_url" "$base_branch" "$head_branch" "$mr_url" ;;
+  esac
+}
+
+# 候補SHAのいずれかに対応するMR/PR番号を、CLIを使わず `git` だけで解決する（issue #205）。
+# 解決できない場合は空を出力して終了コード0で返す（呼び出し側はCompareへ縮退する）。
+# GitLabは未対応（`refs/merge-requests` を実機検証できていないため。空を返す）。
+#
+# 候補を複数渡せるのは、GitHubのrefの更新がpushに対して遅れるためである（実装側のコメント参照）。
+# 呼び出し側は「今回pushのSHA」と「前回pushのSHA」を渡すことを想定している。
+resolve_mr_number_for_head() {
+  case "$(get_provider)" in
+    github) github_resolve_mr_number_for_head "$@" ;;
+    gitlab) ;;
   esac
 }
 
@@ -943,8 +956,14 @@ get_blob_url() {
 # 着地先を失う（実例: 前のpushで追加し今回のpushで削除したファイル。ファイルの改名も
 # 差分上は削除＋追加なので同じ形になる）。
 #
-# - `compare_url`: `get_mr_diff_url` / `get_mr_diff_since_url` の戻り値（GitHubはこれをそのまま使う）
-# - `mr_url`: `get_mr_url` の戻り値。CLI経路でのみ得られ、MCP経路（issue #34）では空になる
+# - `compare_url`: 呼び出し側（`post-push-compact-prompt.sh`）が渡す値。`get_mr_diff_url` /
+#   `get_mr_diff_since_url` の戻り値ではあるが、issue #205 以降 `get_mr_diff_url` はDiffviewを
+#   返しうる（`mrUrl`引数が非空のとき）ため、**呼び出し側は必ずCompareページを指す値
+#   （`get_mr_diff_url`を`mrUrl`省略で呼んだ結果）を選んで渡す**。Diffviewを指す`diff_url`と
+#   取り違えないこと（GitHubの差分アンカーがPRの`/files`上で機能するかは未検証のため）
+# - `mr_url`: `get_mr_url` の戻り値。CLI経路では`get_mr_for_branch`の`url`から得られる。MCP経路
+#   （issue #34）でも、issue #205 で追加した `resolve_mr_number_for_head` がPR番号の解決に
+#   成功すれば非空になりうる（解決に失敗すれば従来どおり空のまま）
 # - `mr_number`: MR/PR番号
 # - `since_sha`: 「前回pushとの差分」を出す場合の前回push SHA。初回pushでは空
 get_diff_anchor_base_url() {

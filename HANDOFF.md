@@ -59,10 +59,10 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 | [] | 4-7 | commitし、pushしてレビュー依頼を行う | エージェント |
 | [] | 4-8 | MRでレビュー・コメントする | 人間 |
 | [] | 4-9 | レビュー内容を取得し、設計・AIアセットを修正する | `comments` / `reply` |
-| [] | 4-10 | 反映内容をもとにMR descriptionを更新する | `describe` |
+| [x] | 4-10 | 反映内容をもとにMR descriptionを更新する | `describe` |
 | [x] | 5-1 | defaultブランチとのコンフリクトを検知・解消する | エージェント |
-| [] | 5-2 | 関連issueへマージ前通知を行う | エージェント |
-| [] | 5-3 | `.claude/` の変更を `.gemini/` へ変換同期する | エージェント |
+| [x] | 5-2 | 関連issueへマージ前通知を行う | エージェント |
+| [x] | 5-3 | `.claude/` の変更を `.gemini/` へ変換同期する | エージェント |
 | [] | 5-4 | 最終統括レポートを作成しPR/MRへ反映する | エージェント |
 | [] | 5-5 | wip/配下を片付け、HANDOFF.mdをリセットする | エージェント |
 | [] | 5-6 | commitし、pushしてDraftを解除する | エージェント |
@@ -337,14 +337,28 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
   - **非対話セッションのため`4-6〜4-9`ループの進捗記号は`[]`のまま残す**
     （`.claude/rules/docs-workflow.md`末尾の規定。フェーズ3の`3-6〜3-9`と同じ扱い。
     人間レビュー往復ステップ4-3/4-4・4-8/4-9も同様に`[]`のまま）。
+- flow-id 4-10: `mcp__github__update_pull_request`でPR descriptionを更新した。実装状況
+  （フェーズ2〜4の完了・全6回のレビュー結果表・この環境で確認できたこと・flow-id 5-1の
+  マージ経緯）を反映。
+- flow-id 5-1: `resolve-conflict`スキルでmainを取り込んだ（main側6コミット進行、コンフリクト
+  2件を解消。コミット`539627f`。詳細は「判断を迷った内容」参照）。main側で新設された
+  push前チェックリスト機構（issue #17）へ初めて対応し、`push-checklist.sh`でチェックリストを
+  埋めてコミット（`c3d59a1`）。
+- flow-id 5-2: `search_issues`でキーワード5件（Diffview/get_mr_diff_url/
+  resolve_mr_number_for_head/post-push-compact-prompt/MCPフォールバック）を検索。
+  候補5件（#205自身除く: #202・#42・#86・#44）のうち、#42・#86・#44は本issueが土台にした
+  既存機能（いずれもclosed、決定は覆っていない）、#202は成果物HTMLのpermalink機能で無関係の
+  スコープ。**前提が変わる／一部解決される／記述が矛盾する、のいずれにも該当する候補が
+  無かったため、通知はスキップした**（判断した結果「影響先なし」）。
 
 ## 次にやること
 
-- flow-id 4-10（`describe`でMR descriptionを更新）へ進み、フェーズ5（クローズ）へ移る:
-  資産同期（`sync-gemini-assets.sh`。flow-id 5-3）、コンフリクトチェック（`resolve-conflict`）、
-  関連issueへのマージ前通知（`AskUserQuestion`での承認必須）、最終統括レポート、
-  `cleanup-task.sh`によるwip配下の片付け、Draft解除（`set_mr_ready`）。**マージ（flow-id 5-7）は
-  ユーザーの明示指示があるまで行わない。**
+- flow-id 5-3: `.claude/`の変更を`.gemini/`へ変換同期する（`sync-gemini-assets.sh`）。
+- flow-id 5-4: 最終統括レポートを作成しPR/MRへ反映する。
+- flow-id 5-5: `cleanup-task.sh`で`wip/plans/` `wip/worklogs/` `wip/reports/`を片付け、
+  `HANDOFF.md`をリセットする。
+- flow-id 5-6: commitし、pushしてDraftを解除する（`set_mr_ready`）。
+  **マージ（flow-id 5-7）はユーザーの明示指示があるまで行わない。**
 - （完了済み）flow-id 3-6 の実装対象:
   1. `get_mr_diff_url` の4引数化（`Provider.sh` / `Github.sh` / `Gitlab.sh`）。純粋関数のまま。
   2. `Provider.sh` へPR URL解決関数を新設（`git ls-remote` ＋ **複数候補SHAで一致したPR番号が

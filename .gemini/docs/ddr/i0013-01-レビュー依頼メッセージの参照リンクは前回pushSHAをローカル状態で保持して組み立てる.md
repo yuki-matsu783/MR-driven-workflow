@@ -4,6 +4,7 @@ type: ddr
 description: post-push-compact-prompt.shがレビュー依頼メッセージへ付与する参照リンク（差分・コメント一覧）の設計判断を記録したDDR
 tags: [review-links, github, hooks, ddr]
 keywords: [参照リンク, レビュー依頼, 前回push, 差分, コメント一覧, 状態ファイル, issue13]
+note: 'うち「defaultブランチとの差分」1リンクのURL形式（Compare方式）は、issue #205でPR/MR URLが解決できた場合のDiffview方式へ部分的に変更された。他の判断（前回pushSHAの状態保持等）は生き続けている。詳細はi0205-01'
 ---
 
 # i0013-01. レビュー依頼メッセージの参照リンクは前回pushSHAをローカル状態で保持して組み立てる
