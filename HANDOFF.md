@@ -19,7 +19,7 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 - PR: #206（https://github.com/yuki-matsu783/MR-driven-workflow/pull/206 ）
 - push回数: 14
 - 現在のループ: 4-6〜4-9 の1周目（進行中）
-- 未返信スレッド: 0
+- 未返信スレッド: 8
 - 追従監視: あり（subscribe_pr_activity で PR #206 を購読中。セッション終了で止まるため次セッションは resume で取り直す）
 
 | 進捗 | flow-id | ステップ | 担当 |
@@ -303,16 +303,40 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
     （`passed=1550 failures=0`）をいずれも実行し確認した。
   - `wip/reports/20260826_diffview-link-switchover_反映結果.md`（+ `.html`）を作成し、9つの
     完了条件すべてを「達成」と判定した。md/htmlの見出し構成が一致することを確認済み。
+  - flow-id 4-7相当: コミット`d495354`（spec/DDR/mcp-fallback反映本体）・`405b5cd`（同上続き）・
+    `1fa1134`（`post-push-compact-prompt.sh`のコードコメント修正）・`59e3680`（反映結果レポート）・
+    `f6710b6`（HANDOFF push回数訂正）を`claude/pr-mr-diffview-link-yxim1l`へpush済み。
+  - **敵対的レビュー（フェーズ4・2回目、作業実施後）を実行し、8件を投稿した**
+    （`adversarial-review-count.sh increment 4`で2/3に到達。10件検出のうちmajor 1・minor 7を
+    投稿、minor 2件は確度・重大度が低く報告のみ）。投稿スレッド:
+    - DDR `i0205-01` 108行（major/medium、複数候補一致の残存リスク未記載）:
+      https://github.com/yuki-matsu783/MR-driven-workflow/pull/206#discussion_r3888030702
+    - DDR `i0205-01` 84行（minor/high、`i0013-01`の`note`欠落）:
+      https://github.com/yuki-matsu783/MR-driven-workflow/pull/206#discussion_r3888030987
+    - spec 123行（minor/high、HTTP(S)限定という制約の記載漏れ）:
+      https://github.com/yuki-matsu783/MR-driven-workflow/pull/206#discussion_r3888031203
+    - spec 3913行（minor/high、changelog表に`.claude/docs/README.md`行が無い）:
+      https://github.com/yuki-matsu783/MR-driven-workflow/pull/206#discussion_r3888031394
+    - spec 4193行（minor/high、到達しない経路の説明が不正確）:
+      https://github.com/yuki-matsu783/MR-driven-workflow/pull/206#discussion_r3888031679
+    - `post-push-compact-prompt.sh` 85行FILE（minor/high、42〜47行のヘッダコメントが古いまま）:
+      https://github.com/yuki-matsu783/MR-driven-workflow/pull/206#discussion_r3888031984
+    - `Provider.sh` 878行FILE（minor/high、959〜960行の`mr_url`ドキュメントコメントが古いまま）:
+      https://github.com/yuki-matsu783/MR-driven-workflow/pull/206#discussion_r3888038754
+    - `mcp-fallback.md` 87行（minor/high、計画が要求した根拠文言の欠落）:
+      https://github.com/yuki-matsu783/MR-driven-workflow/pull/206#discussion_r3888038978
+    - 未返信スレッド8（`set-header --unreplied 8`済み）。報告のみの2件（確度low、影響が限定的な
+      表現ゆれ2箇所）は次のworklog追記へ記載する。
 
 ## 次にやること
 
-- flow-id 4-7: 反映結果一式をcommit・pushしてレビュー依頼を行う（`commit`スキル経由。
-  仕様変更系（spec/DDR/mcp-fallback追記）とコードコメント修正で2コミットに分けることを検討）。
-- flow-id 4-8〜4-9相当: **敵対的レビュー（フェーズ4・2回目、作業実施後）を実行**し、指摘へ対応・
-  返信する（`adversarial-review-count.sh get 4`は現在1/3。1回使えば2/3）。
-- 2回目のレビューが完了したら（投稿分すべて返信・未返信0）、`update-handoff-progress.sh`で
-  `4-6〜4-9`ループの状態を確認する（非対話セッションのため進捗記号は`[]`のまま残す方針。
-  `.claude/rules/docs-workflow.md`末尾の規定。フェーズ3の`3-6〜3-9`と同じ扱い）。
+- 上記8件の投稿指摘へ対応し、修正・返信を行う（DDR/spec/mcp-fallback.mdの内容修正、
+  `Provider.sh`・`post-push-compact-prompt.sh`のコード側コメント修正、DDR `i0013-01`への
+  `note`追加＋`generate-ddr-list.sh`再実行）。対応後、8スレッドすべてへ返信し
+  `set-header --unreplied 0`とする。
+- 未返信0を確認したら、`update-handoff-progress.sh`で`4-6〜4-9`ループの状態を確認する
+  （非対話セッションのため進捗記号は`[]`のまま残す方針。`.claude/rules/docs-workflow.md`末尾の
+  規定。フェーズ3の`3-6〜3-9`と同じ扱い）。
 - その後、flow-id 4-10（`describe`でMR descriptionを更新）へ進み、フェーズ5（クローズ）へ移る:
   資産同期（`sync-gemini-assets.sh`。flow-id 5-3）、コンフリクトチェック（`resolve-conflict`）、
   関連issueへのマージ前通知（`AskUserQuestion`での承認必須）、最終統括レポート、

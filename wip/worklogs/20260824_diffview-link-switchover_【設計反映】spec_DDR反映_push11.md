@@ -125,3 +125,47 @@ push回数: 11〜
 - 反映結果一式をcommit・push（flow-id 4-7）。
 - 敵対的レビュー（フェーズ4・2回目、作業実施後）を実行し、指摘へ対応・返信する。
 - 完了後、フェーズ5（クローズ）へ進む。
+
+## 追記4（敵対的レビュー・フェーズ4・2回目の投稿）
+
+- flow-id 4-7として、反映結果一式を5コミット（`d495354` `405b5cd` `1fa1134` `59e3680`
+  `f6710b6`）に分けてpushした（仕様変更系・コードコメント修正・レポート・HANDOFF訂正で分離）。
+- **敵対的レビュー（フェーズ4・2回目、作業実施後）を実行した。** 対象はflow-id 4-6の反映差分
+  （コミット`d495354`〜`f6710b6`）。`adversarial-review-count.sh`は2/3。
+- **10件検出**（1次振り分け後の投稿候補8件・報告のみ2件）。投稿した8件の概要:
+  1. DDR `i0205-01` 108行（major/medium）: 複数候補SHAが一致してもクローズ済み・別ベースの
+     PRを誤って採用しうる残存リスクが「未検証事項・残る制約」に書かれていない。
+  2. DDR `i0205-01` 84行（minor/high）: DDR `i0013-01`のfrontmatterに、i0205-01との関係を
+     示す`note`が無い。
+  3. spec 123行（minor/high）: `resolve_mr_number_for_head`がHTTP(S)リモートに限定され、
+     SSH/scp形式では常に空を返すという制約が「提供関数」表に書かれていない。
+  4. spec 3913行（minor/high）: 「影響範囲」changelogの変更ファイル表に
+     `.claude/docs/README.md`（DDR一覧再生成分）の行が無い。DDR `i0205-01`の「影響」表にも
+     同じ欠落。
+  5. spec 4193行（minor/high）: 「未決定事項・懸念点」の一項目が、実際には到達しない経路を
+     未検証であるかのように記述している。
+  6. `post-push-compact-prompt.sh` 85行FILE型（minor/high）: ヘッダコメント42〜47行が
+     「`/files`等のsuffixを推測しない」という、Diffview出し分け実装後は偽になった記述の
+     ままだった（87〜91行は今回修正済みだが、42〜47行は「巻き添えの確認」のgrep範囲外だった
+     ため見落としていた）。
+  7. `Provider.sh` 878行FILE型（minor/high）: `get_diff_anchor_base_url`の引数コメント
+     959〜960行が、`mr_url`は「CLI経路でのみ得られ、MCP経路では空になる」と書いたままで、
+     `resolve_mr_number_for_head`追加後は偽になっている。反映結果の「巻き添えの確認」grepが
+     `.claude/scripts/src/vcs/`を対象に含めていなかったため見落としていた。
+  8. `mcp-fallback.md` 87行（minor/high）: 個別反映計画「反映対象4」が明記していた
+     「Git管理下のファイルへは影響しない」という根拠文が、実際の追記（87〜98行）に無い。
+     反映結果は完了条件4を「達成」としていたが、計画が要求した3点目が判定から漏れていた。
+  報告のみ2件（確度low、表現ゆれレベルの指摘）は投稿せず、この追記に記録するに留める。
+- 全8件をGitHub MCP（`pull_request_review_write` method=create →
+  `add_comment_to_pending_review` ×8 → method=submit_pending）で1件のレビューとして投稿した。
+  うち2件（`post-push-compact-prompt.sh`・`Provider.sh`）は指摘対象行がレビュー対象の
+  サブdiff範囲（`d495354..HEAD`）にもPR全体diffのハンク内にも入らなかったため、
+  `subjectType: "FILE"`＋当該ファイル内の有効なハンク行への`line`フォールバックで投稿した。
+- `set-header --unreplied 8`済み。HANDOFF.mdの「やったこと」へ8スレッドのURLを記録済み。
+
+## 次の一歩（更新4）
+
+- 投稿した8件へ対応（DDR/spec/mcp-fallback.mdの内容修正、`Provider.sh`・
+  `post-push-compact-prompt.sh`のコード側コメント修正、`i0013-01`への`note`追加＋
+  `generate-ddr-list.sh`再実行）し、各スレッドへ返信する。
+- 未返信0を確認後、flow-id 4-10（`describe`）→フェーズ5（クローズ）へ進む。
