@@ -249,10 +249,96 @@ github_get_compare_url() {
   printf '%s/compare/%s...%s\n' "$repo_url" "$from" "$to"
 }
 
-# PRの「defaultブランチとの差分」を見れるURLを組み立てる（純粋関数）。issue #13。
+# PRの「defaultブランチとの差分」を見れるURLを組み立てる（純粋関数）。issue #13, #205。
+#
+# 第4引数 `mr_url` を渡すと、PRの「Files changed」タブ（`<mrUrl>/files`）を返す。ここは
+# レビューコメントを行単位で付けられるビューで、Compareページ（コメント不可）との違いはそこにある
+# （issue #205）。URL形式はissue #205本文でリポジトリ所有者が指定したもの。
+# `mr_url` が空（`gh` CLI不在でPR URLを解決できなかった等）なら従来どおりCompareページを返す
+# ——**解決できないときに後退させないための縮退先**である。
 github_get_mr_diff_url() {
-  local repo_url="$1" base_branch="$2" head_branch="$3"
+  local repo_url="$1" base_branch="$2" head_branch="$3" mr_url="${4:-}"
+  if [ -n "$mr_url" ]; then
+    printf '%s/files\n' "$mr_url"
+    return 0
+  fi
   github_get_compare_url "$repo_url" "$base_branch" "$head_branch"
+}
+
+# 候補SHAのいずれかに対応するPR番号を、`git ls-remote` だけで解決する（issue #205）。
+# 解決できない場合は**空を出力して終了コード0で返す**（呼び出し側はCompareへ縮退する）。
+# `gh` CLIが無い環境（MCPフォールバック経路）でDiffviewリンクを出せるようにするためのもの。
+#
+# **純粋関数ではない**（`git` を2回起動する）。`get_mr_diff_url` の中では呼ばず、呼び出し側が
+# 解決してから引数で渡す設計にしている（URL組み立て関数を純粋に保つため）。
+#
+# 制約が3つあり、いずれも「誤ったURLを出すくらいならCompareのままにする」方針から来ている。
+#
+#   1. **一致したPR番号がちょうど1種類のときだけ返す。** `refs/pull/*/head` にはマージ済み・
+#      クローズ済みのPRのrefも永続的に残る（本リポジトリで実測: `refs/pull/4/head`
+#      `refs/pull/85/head` が現存）。`git ls-remote` はPRのstateもbaseも返さないため、
+#      複数のPRに一致したときに「番号が大きい方」で決め打つと、閉じたPRやbase違いのPRのURLを
+#      出しうる。**複数の候補SHAが同じPR番号に一致するのは正常**なので、判定は
+#      「一致したref数」ではなく「一致したPR番号の種類数」で行う。
+#
+#   1-b. **候補SHAを複数受け取るのは、GitHubのrefの更新がpushに対して遅れるためである。**
+#      本リポジトリで実測: pushの直後に走ったhookでは `refs/pull/206/head` がまだ前回pushの
+#      SHAを指しており解決に失敗したが、数十秒後に同じコミットで再実行すると解決した。
+#      hookはpushの直後に走るので、**現在のHEADだけを候補にすると、狙っている経路でこそ
+#      失敗しやすい**。前回push時のSHAも候補に含めることで、この遅延の窓を越えて同じPRを
+#      特定できる（PR番号はどちらのSHAから引いても同じもののため）。
+#   2. **remoteが `http://` / `https://` のときだけ試みる。** 下の `http.*` 設定はHTTP
+#      トランスポートにしか効かず、SSH remote（scp形式・`ssh://`）ではタイムアウトが一切効かない。
+#      `GIT_TERMINAL_PROMPT=0` も ssh 自身が `/dev/tty` へ出すパスフレーズ入力・ホスト鍵確認を
+#      止めない。pushのたびに走るhookから呼ばれるため、**無応答になる可能性のある経路には入らない**。
+#   3. **失敗しても非0で返さない。** 呼び出し側は `set -euo pipefail` 配下でコマンド置換の代入を
+#      するため、非0が漏れるとhook全体が途中終了し、レビュー依頼メッセージが1行も出なくなる。
+github_resolve_mr_number_for_head() {
+  local remote_url out shas=""
+  # 候補SHAを空白区切りの1文字列へ畳む（空の引数は無視する）
+  while [ "$#" -gt 0 ]; do
+    [ -n "$1" ] && shas="${shas}${shas:+ }$1"
+    shift
+  done
+  [ -n "$shas" ] || return 0
+
+  remote_url="$(git remote get-url origin 2>/dev/null)" || return 0
+  case "$remote_url" in
+    http://*|https://*) ;;
+    *) return 0 ;;
+  esac
+
+  # 認証プロンプトの抑止（`credential.helper` はgit bashのGit Credential Managerが
+  # GUIダイアログを出すため、`GIT_TERMINAL_PROMPT=0` だけでは足りない）と、転送開始後の
+  # 低速の打ち切り。**接続確立前（DNS解決・TCP接続）の無応答はこれでは打ち切れない**
+  # （`http.lowSpeedLimit`/`lowSpeedTime` はcurlのLOW_SPEED_LIMIT/TIMEに対応し、転送が
+  # 始まってからの低速にしか効かない）。塞ぎきれていない残存リスクとして許容する。
+  out="$(GIT_TERMINAL_PROMPT=0 git \
+    -c credential.helper= -c core.askPass= \
+    -c http.lowSpeedLimit=1000 -c http.lowSpeedTime=5 \
+    ls-remote origin 'refs/pull/*/head' 2>/dev/null)" || return 0
+
+  # 判定までawk側で完結させる（`wc -l` を起動しない。実装によっては先頭に空白が入り、
+  # 文字列比較が常に不一致になる＝常に空を返す＝機能が入らない、という壊れ方をするため）。
+  # 候補SHAのいずれかに一致したrefからPR番号を集め、**種類が1つのときだけ**出力する。
+  # パイプライン全体を `|| return 0` で受ける（制約3。awkの起動失敗・非0終了もCompareへ
+  # 縮退させるため、いったん変数へ受けてから出力する）。
+  local matched
+  matched="$(printf '%s\n' "$out" | awk -v shalist="$shas" '
+    BEGIN { split(shalist, a, " "); for (i in a) want[a[i]] = 1 }
+    $1 in want {
+      n = $2
+      sub(/^refs\/pull\//, "", n)
+      sub(/\/head$/, "", n)
+      seen[n] = 1
+    }
+    END {
+      k = 0
+      for (n in seen) { k++; last = n }
+      if (k == 1) print last
+    }')" || return 0
+  [ -n "$matched" ] || return 0
+  printf '%s\n' "$matched"
 }
 
 # PRの「前回push時点(from_sha)から今回push時点(to_sha)までの差分」を見れるURLを組み立てる

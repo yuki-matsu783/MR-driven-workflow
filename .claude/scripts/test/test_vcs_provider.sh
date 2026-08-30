@@ -3,8 +3,11 @@
 # 伴わないURL組み立て・JSON整形・文字列判定関数）の単体テスト。issue #13対応で追加した
 # `github_get_compare_url` / `github_get_mr_diff_url` / `github_get_mr_diff_since_url` /
 # `gitlab_get_compare_url` / `gitlab_get_mr_diff_url` / `gitlab_get_mr_diff_since_url` が対象。
-# Provider.sh経由のディスパッチ（`get_mr_diff_url`等）は外部コマンド・`git remote get-url origin`
-# に依存し純粋ではないため対象外（Github.sh/Gitlab.sh の関数を直接呼ぶ）。
+# Provider.sh経由のディスパッチは、既定ではGithub.sh/Gitlab.sh の関数を直接呼ぶ形でテストする
+# （`get_provider` が `git remote get-url origin` を呼ぶため）。ただし **`get_provider` をサブシェル
+# 内でスタブすれば外部コマンドなしでディスパッチそのものを覆える**ため、issue #205 で
+# `get_mr_diff_url` の引数の受け渡しについては経路テストを追加した（純粋関数のテストは、その関数へ
+# 至る呼び出し経路を何も保証しないため。`.claude/rules/shell-script-style.md`「テスト」・issue #127）。
 # issue #44で `get_repo_url` をプロバイダ非依存化した際に切り出した `repo_url_from_remote_url`
 # （remote URLからリポジトリの正規URLを導出）も対象。`get_repo_url` 本体は
 # `git remote get-url origin` を呼ぶため対象外で、URL文字列を受け取る純粋関数側をテストしている。
@@ -99,6 +102,16 @@ assert_eq "github_get_mr_diff_url: defaultブランチとの比較URL（ブラ�
   "https://github.com/o/r/compare/main...feature-13-x" \
   "$(github_get_mr_diff_url "https://github.com/o/r" "main" "feature-13-x")"
 
+# issue #205: 第4引数（MR/PR URL）を渡すとDiffview（Files changedタブ）を返す。
+# 渡さない／空を渡した場合は従来どおりCompareページ（＝CLI不在環境で後退しない）。
+assert_eq "github_get_mr_diff_url: MR/PR URLを渡すとFiles changedタブのURLを返す" \
+  "https://github.com/o/r/pull/206/files" \
+  "$(github_get_mr_diff_url "https://github.com/o/r" "main" "feature-13-x" "https://github.com/o/r/pull/206")"
+
+assert_eq "github_get_mr_diff_url: 第4引数が空文字ならCompareページのまま" \
+  "https://github.com/o/r/compare/main...feature-13-x" \
+  "$(github_get_mr_diff_url "https://github.com/o/r" "main" "feature-13-x" "")"
+
 assert_eq "github_get_mr_diff_since_url: 前回push〜今回pushのSHA範囲の比較URL" \
   "https://github.com/o/r/compare/aaa111...bbb222" \
   "$(github_get_mr_diff_since_url "https://github.com/o/r" "aaa111" "bbb222")"
@@ -112,6 +125,15 @@ assert_eq "gitlab_get_compare_url: リポジトリURLに/-/compare/<from>...<to>
 assert_eq "gitlab_get_mr_diff_url: defaultブランチとの比較URL（ブランチ名指定）" \
   "https://gitlab.example.com/o/r/-/compare/main...feature-13-x" \
   "$(gitlab_get_mr_diff_url "https://gitlab.example.com/o/r" "main" "feature-13-x")"
+
+# issue #205: GitHubと同型。GitLabはDiffsタブ（`/diffs`）。
+assert_eq "gitlab_get_mr_diff_url: MR URLを渡すとDiffsタブのURLを返す" \
+  "https://gitlab.example.com/o/r/-/merge_requests/206/diffs" \
+  "$(gitlab_get_mr_diff_url "https://gitlab.example.com/o/r" "main" "feature-13-x" "https://gitlab.example.com/o/r/-/merge_requests/206")"
+
+assert_eq "gitlab_get_mr_diff_url: 第4引数が空文字ならCompareページのまま" \
+  "https://gitlab.example.com/o/r/-/compare/main...feature-13-x" \
+  "$(gitlab_get_mr_diff_url "https://gitlab.example.com/o/r" "main" "feature-13-x" "")"
 
 assert_eq "gitlab_get_mr_diff_since_url: 前回push〜今回pushのSHA範囲の比較URL" \
   "https://gitlab.example.com/o/r/-/compare/aaa111...bbb222" \
@@ -206,6 +228,219 @@ gitlab_normalized_output="$(gitlab_normalize_discussions "$gitlab_discussions_fi
 assert_eq "gitlab_normalize_discussions: 正規化JSONにCRが混入しない" \
   "$(printf '%s' "$gitlab_normalized_output" | wc -c)" \
   "$(printf '%s' "$gitlab_normalized_output" | tr -d '\r' | wc -c)"
+
+# --- Provider.sh のディスパッチ経路（issue #205） ----------------------------------------
+#
+# `get_mr_diff_url` が第4引数（MR/PR URL）を下位のプロバイダ関数へ渡していることを確かめる。
+# **純粋関数側（`github_get_mr_diff_url` 等）のテストだけでは、ここが漏れても全部緑のまま**で、
+# hookは黙って従来のCompareを返し続ける（issue #127 と同型の失敗）。
+#
+# `get_provider` の差し替えは**サブシェルへ閉じ込める**。`unset -f` で戻す形にすると、bashの関数
+# 定義はスタックしないため実定義そのものが消える。またサブシェルの中で `assert_eq` を呼ぶと
+# `failures` の加算が呼び出し元へ伝わらず、失敗しても緑になるので、値だけを持ち出して外で判定する。
+#
+# **この位置（下の `get_provider` 全域上書きより前）へ置くこと。** 下のブロックは
+# 「この上書きは以降のテスト全体に効く」と宣言しており、そこより後ろへ置くと、何を固定している
+# テストなのかが変わってしまう。
+
+assert_eq "get_mr_diff_url: 第4引数をgithub実装へ渡す" \
+  "https://github.com/o/r/pull/206/files" \
+  "$( get_provider() { printf 'github\n'; }; \
+      get_mr_diff_url 'https://github.com/o/r' 'main' 'feat' 'https://github.com/o/r/pull/206' )"
+
+assert_eq "get_mr_diff_url: 第4引数を省略するとgithubのCompareページ" \
+  "https://github.com/o/r/compare/main...feat" \
+  "$( get_provider() { printf 'github\n'; }; \
+      get_mr_diff_url 'https://github.com/o/r' 'main' 'feat' )"
+
+assert_eq "get_mr_diff_url: 第4引数をgitlab実装へ渡す" \
+  "https://gitlab.example.com/o/r/-/merge_requests/206/diffs" \
+  "$( get_provider() { printf 'gitlab\n'; }; \
+      get_mr_diff_url 'https://gitlab.example.com/o/r' 'main' 'feat' 'https://gitlab.example.com/o/r/-/merge_requests/206' )"
+
+assert_eq "get_mr_diff_url: 第4引数を省略するとgitlabのCompareページ" \
+  "https://gitlab.example.com/o/r/-/compare/main...feat" \
+  "$( get_provider() { printf 'gitlab\n'; }; \
+      get_mr_diff_url 'https://gitlab.example.com/o/r' 'main' 'feat' )"
+
+# `resolve_mr_number_for_head` が複数の候補SHAをgithub実装へそのまま渡していることを確かめる
+# （`"$@"` の受け渡しが崩れて1つ目しか渡らなくなっても、単一候補だけを渡すテストでは検出できない。
+# ここでは1つ目のSHAは一致せず2つ目だけが一致する組み合わせにして、渡し漏れを検出できる形にする）
+assert_eq "resolve_mr_number_for_head: 複数候補をgithub実装へ渡す" \
+  "206" \
+  "$( get_provider() { printf 'github\n'; }; \
+      github_resolve_mr_number_for_head() {
+        case "$1,$2" in
+          zzz999,aaa111) printf '206\n' ;;
+        esac
+      }
+      resolve_mr_number_for_head 'zzz999' 'aaa111' )"
+
+assert_eq "resolve_mr_number_for_head: gitlabでは常に空（refs/merge-requestsは未対応）" \
+  "" \
+  "$( get_provider() { printf 'gitlab\n'; }; \
+      resolve_mr_number_for_head 'aaa111' )"
+
+# 差し替えがサブシェルに閉じており、実定義が残っていることを表明する
+# （`declare -F` は名前だけを出力する。代入の形にすると未定義時に `set -e` でスクリプトごと落ちる）
+assert_eq "get_providerの実定義が残っている" "get_provider" \
+  "$(declare -F get_provider >/dev/null && echo get_provider)"
+
+# --- github_resolve_mr_number_for_head（issue #205） --------------------------------------
+#
+# `git` をシェル関数で差し替えて、`ls-remote` の出力ごとの戻り値を確かめる。
+# **最も重要なのは「一致がちょうど1件のときだけ返す」ことと、「失敗しても空＋終了コード0」**である。
+# 後者は、非0が漏れると呼び出し元（`set -euo pipefail` 配下のhook）が途中終了し、レビュー依頼
+# メッセージが1行も出なくなるため（現行より明確な後退になる）。
+
+# 1件だけ一致 → その番号を返す
+assert_eq "resolve: HEADに一致するrefが1件ならPR番号を返す" \
+  "206" \
+  "$( git() {
+        case "$1" in
+          remote) printf 'https://github.com/o/r.git\n' ;;
+          *) printf 'aaa111\trefs/pull/206/head\nbbb222\trefs/pull/85/head\n' ;;
+        esac
+      }
+      github_resolve_mr_number_for_head 'aaa111' )"
+
+# 0件 → 空（Compareへ縮退する）
+assert_eq "resolve: 一致するrefが無ければ空を返す" \
+  "" \
+  "$( git() {
+        case "$1" in
+          remote) printf 'https://github.com/o/r.git\n' ;;
+          *) printf 'bbb222\trefs/pull/85/head\n' ;;
+        esac
+      }
+      github_resolve_mr_number_for_head 'aaa111' )"
+
+# 2件以上一致 → 空（番号の大小では正しいPRを選べないため、諦めてCompareへ縮退する）
+assert_eq "resolve: 2件以上一致したら諦めて空を返す" \
+  "" \
+  "$( git() {
+        case "$1" in
+          remote) printf 'https://github.com/o/r.git\n' ;;
+          *) printf 'aaa111\trefs/pull/206/head\naaa111\trefs/pull/207/head\n' ;;
+        esac
+      }
+      github_resolve_mr_number_for_head 'aaa111' )"
+
+# 複数候補SHA（今回push・前回pushの2つ）を渡し、今回のSHAは一致しないが前回のSHAが一致する場合
+# → その番号を返す（issue #205: `refs/pull/<n>/head` の更新はpushに対して遅れることがあるため、
+# hookが直後に走ると今回SHAでは解決できない。前回pushのSHAが救済経路になる）
+assert_eq "resolve: 今回SHAが未一致でも前回SHAが一致すればPR番号を返す" \
+  "206" \
+  "$( git() {
+        case "$1" in
+          remote) printf 'https://github.com/o/r.git\n' ;;
+          *) printf 'aaa111\trefs/pull/206/head\n' ;;
+        esac
+      }
+      github_resolve_mr_number_for_head 'zzz999' 'aaa111' )"
+
+# 複数候補SHAが、いずれも同じPR番号のrefに一致する → 種類は1つなのでその番号を返す
+# （「一致したref数」ではなく「一致したPR番号の種類数」で判定していることの確認）
+assert_eq "resolve: 複数候補が同じPR番号に一致すれば1件扱いで返す" \
+  "206" \
+  "$( git() {
+        case "$1" in
+          remote) printf 'https://github.com/o/r.git\n' ;;
+          *) printf 'aaa111\trefs/pull/206/head\nzzz999\trefs/pull/206/head\n' ;;
+        esac
+      }
+      github_resolve_mr_number_for_head 'zzz999' 'aaa111' )"
+
+# 前回pushのSHAが空（state_fileが無い＝初回push）でも、今回SHAだけで解決できる
+# （空の候補は無視され、候補が1つも無くなる壊れ方をしないことの確認）
+assert_eq "resolve: 前回SHAが空でも今回SHAだけで解決する" \
+  "206" \
+  "$( git() {
+        case "$1" in
+          remote) printf 'https://github.com/o/r.git\n' ;;
+          *) printf 'aaa111\trefs/pull/206/head\n' ;;
+        esac
+      }
+      github_resolve_mr_number_for_head 'aaa111' '' )"
+
+# SSH remote → ls-remote を起動せずに空を返す
+# （`http.*` のタイムアウトもプロンプト抑止もsshには効かず、hookが無応答になりうるため）
+assert_eq "resolve: scp形式のremoteでは解決を試みない" \
+  "" \
+  "$( git() {
+        case "$1" in
+          remote) printf 'git@github.com:o/r.git\n' ;;
+          *) printf 'aaa111\trefs/pull/206/head\n' ;;
+        esac
+      }
+      github_resolve_mr_number_for_head 'aaa111' )"
+
+assert_eq "resolve: ssh://形式のremoteでは解決を試みない" \
+  "" \
+  "$( git() {
+        case "$1" in
+          remote) printf 'ssh://git@github.com/o/r.git\n' ;;
+          *) printf 'aaa111\trefs/pull/206/head\n' ;;
+        esac
+      }
+      github_resolve_mr_number_for_head 'aaa111' )"
+
+# ls-remote が失敗 → 空。**かつ終了コードは0**（最も起きやすい経路）
+assert_eq "resolve: ls-remoteが失敗したら空を返す" \
+  "" \
+  "$( git() {
+        case "$1" in
+          remote) printf 'https://github.com/o/r.git\n' ;;
+          *) return 128 ;;
+        esac
+      }
+      github_resolve_mr_number_for_head 'aaa111' )"
+
+if ( git() {
+       case "$1" in
+         remote) printf 'https://github.com/o/r.git\n' ;;
+         *) return 128 ;;
+       esac
+     }
+     github_resolve_mr_number_for_head 'aaa111' >/dev/null ); then
+  resolve_fail_status=0
+else
+  resolve_fail_status=1
+fi
+assert_eq "resolve: ls-remoteが失敗しても終了コードは0" "0" "$resolve_fail_status"
+
+# awkが失敗しても空＋終了コード0を返す（issue #205フェーズ3・敵対的レビュー2回目の指摘。
+# パイプライン全体を `|| return 0` で受けていないと、awkの非0がそのまま関数の戻り値になり、
+# 呼び出し元（set -euo pipefail配下のhook）が途中終了してレビュー依頼メッセージが1行も
+# 出なくなる）
+assert_eq "resolve: awkが失敗しても空を返す" \
+  "" \
+  "$( git() {
+        case "$1" in
+          remote) printf 'https://github.com/o/r.git\n' ;;
+          *) printf 'aaa111\trefs/pull/206/head\n' ;;
+        esac
+      }
+      awk() { return 3; }
+      github_resolve_mr_number_for_head 'aaa111' )"
+
+if ( git() {
+       case "$1" in
+         remote) printf 'https://github.com/o/r.git\n' ;;
+         *) printf 'aaa111\trefs/pull/206/head\n' ;;
+       esac
+     }
+     awk() { return 3; }
+     github_resolve_mr_number_for_head 'aaa111' >/dev/null ); then
+  resolve_awk_fail_status=0
+else
+  resolve_awk_fail_status=1
+fi
+assert_eq "resolve: awkが失敗しても終了コードは0" "0" "$resolve_awk_fail_status"
+
+# `git` の実定義（外部コマンド）がシェル関数として残っていないことを表明する
+assert_eq "gitがシェル関数として残っていない" "" \
+  "$(declare -F git >/dev/null && echo git)"
 
 # --- parse_repo_slug / mcp_tool_hint（issue #34: gh/glab CLI不在時のMCPフォールバック） -------
 #

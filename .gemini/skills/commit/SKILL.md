@@ -117,6 +117,40 @@ hookの対象にならず正規に実行できる。
 - node_modules/...
 ```
 
+### Step 3.5: push前チェックリストを埋める（issue #17）
+
+**コミットの前に、このpushで済ませた項目をチェックリストへ記録し、そのコミットへ含める。**
+記録しないまま、あるいは含めないままpushしようとすると、`block-unchecked-push.sh`
+（PreToolUse hook）が **exit code 2** でブロックする。
+
+```bash
+# 最新のチェックリストのパスを確認する
+bash .claude/scripts/src/push-checklist.sh path
+
+# 項目ごとに、実施したことを記録する
+bash .claude/scripts/src/push-checklist.sh check <id> "<実施ログ>"
+
+# 今回やらない項目は、理由を添えてスキップする
+bash .claude/scripts/src/push-checklist.sh skip  <id> "<スキップの理由>"
+```
+
+- 項目は5つ（`worklog` / `handoff` / `frontmatter-index` / `plan-report-sync` / `commit-skill`）。
+- **`check` / `skip` は作業ツリーを書き換えるだけで、判定はHEADにコミット済みの断面を読む。**
+  埋めたチェックリストのパスを、Step 4 の `create-commit.sh` へ**必ず渡す**こと。
+- **実施していない項目を `done` と書かない。** 本機構は自己申告に立っており、やっていないことを
+  `done` と書けば機構そのものが無意味になる。やらなかったなら理由を添えて `skip` する
+  （理由はGit管理下のdiffに残り、レビュアーが見る）。
+- **`commit-skill` 項目は、このpushが単一コミットで完結する場合（最も一般的なケース）は
+  Step 3.5 の時点では `check` できない**（issue #17フェーズ4の敵対的レビュー2回目で指摘）。
+  この項目が指す「commitスキル経由でコミットした」は、そのコミット自体がまだ存在しないため
+  文字どおりには満たせない。**このケースでは `skip` し、理由に「単一コミットで完結するため
+  Step 3.5時点では確認できない。`block-direct-git-commit.sh` が直接コミットを構造的に防ぐ」等と
+  書く。** `check` してよいのは、このpushに複数コミットがあり、直前までのコミットが実際に
+  `create-commit.sh` 経由で作られたことを確認できる場合に限る。
+- チェックリストが無い場合（flow-id 5-5 の片付け直後など）は、この手順を飛ばしてよい。
+  `path` が終了コード1を返す。
+- 仕様: `.claude/docs/spec/push-checklist.md`
+
 ### Step 4: コミット実行
 
 **確認は挟まず、そのままコミットを作成する。** ユーザへの承認待ち（AskUserQuestion等）は行わない。

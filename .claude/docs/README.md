@@ -67,7 +67,6 @@ keywords: [正史仕様, 意思決定ログ, ユースケース, 逆引き, issu
 - [sync-gemini-assets.md](spec/sync-gemini-assets.md) ── .claude/ から .gemini/ を生成する変換スクリプト
 - [check-doc-references.md](spec/check-doc-references.md) ── DDR参照切れ検出スクリプト（絶対パス形式のDDR参照が実在するファイルを指しているかを検証）
 - [harvest-from-projects.md](spec/harvest-from-projects.md) ── 収穫（逆輸入）スキルの分析スクリプト（scan/diff/merge3の入出力・分類規則・終了コード）
-- [html-slides.md](spec/html-slides.md) ── html-slidesスキル（発表用HTMLスライドを構成案JSONとテンプレート穴埋めの2段で生成）
 
 ## ddr（意思決定ログ）
 
@@ -117,8 +116,9 @@ frontmatter（`status` / `superseded_by` / `note`）だけから決まる。
 - [i0003-01-gemini-settings.jsonのhooksはレビュー提示スニペットのhooksセクションのみ採用する.md](ddr/i0003-01-gemini-settings.jsonのhooksはレビュー提示スニペットのhooksセクションのみ採用する.md)
 - [i0009-01-planツール利用を全体作業計画に限定し個別計画をファイル分離する.md](ddr/i0009-01-planツール利用を全体作業計画に限定し個別計画をファイル分離する.md)
 - [i0011-01-frontmatter抽出は1ファイル1回のjq呼び出しとmtimeキャッシュで高速化する.md](ddr/i0011-01-frontmatter抽出は1ファイル1回のjq呼び出しとmtimeキャッシュで高速化する.md)
-- [i0013-01-レビュー依頼メッセージの参照リンクは前回pushSHAをローカル状態で保持して組み立てる.md](ddr/i0013-01-レビュー依頼メッセージの参照リンクは前回pushSHAをローカル状態で保持して組み立てる.md)
+- [i0013-01-レビュー依頼メッセージの参照リンクは前回pushSHAをローカル状態で保持して組み立てる.md](ddr/i0013-01-レビュー依頼メッセージの参照リンクは前回pushSHAをローカル状態で保持して組み立てる.md)（うち「defaultブランチとの差分」1リンクのURL形式（Compare方式）は、issue #205でPR/MR URLが解決できた場合のDiffview方式へ部分的に変更された。他の判断（前回pushSHAの状態保持等）は生き続けている。詳細はi0205-01）
 - [i0014-01-GitHub_GitLab情報取得はgh_glab-CLIを使いWebFetchは使わない.md](ddr/i0014-01-GitHub_GitLab情報取得はgh_glab-CLIを使いWebFetchは使わない.md)
+- [i0017-01-push前チェックリストはGit管理下のTSVで持ちPreToolUseで一律ブロックする.md](ddr/i0017-01-push前チェックリストはGit管理下のTSVで持ちPreToolUseで一律ブロックする.md)
 - [i0020-01-HANDOFF進捗更新はMarkdownテーブル直接書き換えでループ範囲を一括操作する.md](ddr/i0020-01-HANDOFF進捗更新はMarkdownテーブル直接書き換えでループ範囲を一括操作する.md)（うち「mark-skipで作った不整合は後段のmark-done/add-roundで表面化する」は、issue #140でmark-skip自身がその場で拒否する形へ変更された。詳細はi0140-01）
 - [i0023-01-push断面の全文コピーをやめ行番号インデックスで表現する.md](ddr/i0023-01-push断面の全文コピーをやめ行番号インデックスで表現する.md)（うち「Gemini CLI対応の扱い」は、issue #97でメインセッションのみ集計対象へ変更された。サブエージェントを集計しない部分は引き続き有効。詳細は i0097-05）
 - [i0026-01-AIアセットの配布はmanifest付きの直接コピーとし層はexcludeを含む5つにする.md](ddr/i0026-01-AIアセットの配布はmanifest付きの直接コピーとし層はexcludeを含む5つにする.md)
@@ -194,11 +194,15 @@ frontmatter（`status` / `superseded_by` / `note`）だけから決まる。
 - [i0165-02-タスク単位ディレクトリの集約名はwip-を採用しflow-tasks-work-scratchを採らない.md](ddr/i0165-02-タスク単位ディレクトリの集約名はwip-を採用しflow-tasks-work-scratchを採らない.md)
 - [i0168-01-スライドの出力先はwip-reports既定とし恒久ディレクトリを新設しない.md](ddr/i0168-01-スライドの出力先はwip-reports既定とし恒久ディレクトリを新設しない.md)
 - [i0168-02-表紙スライドの型名はtitleでなくcoverにする.md](ddr/i0168-02-表紙スライドの型名はtitleでなくcoverにする.md)
+- [i0169-01-pptx書き出しは雛形展開ディレクトリとzip再梱包で実装し外部依存を持たない.md](ddr/i0169-01-pptx書き出しは雛形展開ディレクトリとzip再梱包で実装し外部依存を持たない.md)
 - [i0170-01-ユースケース逆引き層はREADME一本化・日本語ファイル名・手動一覧で運用する.md](ddr/i0170-01-ユースケース逆引き層はREADME一本化・日本語ファイル名・手動一覧で運用する.md)
 - [i0171-01-DDR参照切れ検出は絶対パス形式に限定しgrep一括抽出で実装する.md](ddr/i0171-01-DDR参照切れ検出は絶対パス形式に限定しgrep一括抽出で実装する.md)
+- [i0176-01-反映対象の切り出し判断は主判定一問と判定順を固定した3つの出口で行う.md](ddr/i0176-01-反映対象の切り出し判断は主判定一問と判定順を固定した3つの出口で行う.md)
 - [i0182-01-敵対的レビューの投稿件数選別を層単位ルールでスクリプト化する.md](ddr/i0182-01-敵対的レビューの投稿件数選別を層単位ルールでスクリプト化する.md)
 - [i0184-01-ワークフローのローカル作業状態はwip配下へ移し旧パスのignoreを移行用に残す.md](ddr/i0184-01-ワークフローのローカル作業状態はwip配下へ移し旧パスのignoreを移行用に残す.md)
 - [i0185-01-コミットメッセージは件名1行必須で本文を任意許容にし件名の判定を2段階にする.md](ddr/i0185-01-コミットメッセージは件名1行必須で本文を任意許容にし件名の判定を2段階にする.md)
 - [i0186-01-レポートの視覚語彙は結論の性質とレビューの重みで軸を分ける.md](ddr/i0186-01-レポートの視覚語彙は結論の性質とレビューの重みで軸を分ける.md)
-- [i0186-02-リンク破断検査はID抽出をタグ内に限定し重複ID検査を併設する.md](ddr/i0186-02-リンク破断検査はID抽出をタグ内に限定し重複ID検査を併設する.md)
+- [i0186-02-リンク破断検査はID抽出をタグ内に限定し重複ID検査を併設する.md](ddr/i0186-02-リンク破断検査はID抽出をタグ内に限定し重複ID検査を併設する.md)（うち「検査コマンドそのものの正はreports.template.html冒頭コメント」は、issue #203 で references/deliverables.md「検査手順の正はこの節にある」へ移された（テンプレートが5本になり同じ説明が5箇所へ複製されたため））
+- [i0203-01-レポートHTMLビューは共通DOMと4スタイルで持ち現行を残す.md](ddr/i0203-01-レポートHTMLビューは共通DOMと4スタイルで持ち現行を残す.md)（本文が書く「<style>二重出力の描画結果」（ダークでは正常・ライトでだけ配色が落ちる）はCSSのエラー回復規則からの推論で、ブラウザでは未確認。検査6を足す根拠は「構造として不正」だけで成立する。共有パーツと生成スクリプトは作業用の一時物でリポジトリには置いていない（同一性の担保は .claude/scripts/test/test_report_templates.sh））
+- [i0205-01-defaultブランチとの差分リンクをPR_MRのDiffviewへ出し分ける.md](ddr/i0205-01-defaultブランチとの差分リンクをPR_MRのDiffviewへ出し分ける.md)
 <!-- END GENERATED: ddr-list -->

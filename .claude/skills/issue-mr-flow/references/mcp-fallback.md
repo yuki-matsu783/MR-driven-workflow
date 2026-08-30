@@ -54,6 +54,7 @@ get_repo_slug | jq -r '.owner, .repo'
 | `add_issue_comment <n> <file>` | `mcp__github__add_issue_comment` | `owner`, `repo`, `issue_number=<通知先のissue番号>`, `body=<ファイルの内容>` | **`add_mr_comment` と同じツールだが、`issue_number` へ渡すのがPR番号ではなく通知先のissue番号である**（flow-id 5-2の関連issue通知。issue #86）。CLI版はファイルパスを渡すが、MCPは文字列で渡すため本文はReadツール等で読んでから渡す |
 | `upload_attachment <file> [<content_type>]` | **代替なし** | — | flow-id 5-4 の**層3（統括レポートHTMLの添付）**（issue #111）。**MCPにPR/issueへの添付に相当するツールは無い**（実測で確認）。この関数は `require_vcs_cli` により非0で終え、stderrへ「層3はスキップしてよい」旨を出す。**層1（`wip/reports/` をリモートへ反映）と層2（`add_mr_comment` でのサマリ投稿）だけでレビューは成立するため、スキップして次へ進む** |
 | `get_repo_url` | （MCP不要） | — | `git remote get-url origin` の正規化だけでリポジトリの正規URLを導出するプロバイダ非依存の関数のため、MCP経路でもそのまま呼べる（`get_mr_diff_url` / `get_mr_diff_since_url` も同様。issue #44） |
+| `resolve_mr_number_for_head <sha>...` | （MCP不要） | — | `git ls-remote origin 'refs/pull/*/head'` だけで完結する純Git実装（issue #205）。MCP経路（`get_mr_for_branch`相当の`mcp__github__list_pull_requests`を呼ばず`mr_url`が空のとき）でPR番号を解決し、`get_mr_diff_url`にDiffviewリンクを出させるために`post-push-compact-prompt.sh`が呼ぶ。リモートURLが`http://`/`https://`のときのみ動作し、SSH/scp形式では常に空を返す |
 | `new_issue_branch` / `sync_branch` / `get_branch_work_files` / `get_issue_number_from_branch` / `to_slug` / `test_issue_sections` | （MCP不要） | — | git操作・純粋ロジックのみでCLIに依存しないため、MCP経路でもそのまま呼べる |
 
 ### 2-b. MCP経路で踏んだ落とし穴
@@ -74,15 +75,44 @@ CLI経路には無い、MCPツール固有の挙動。**いずれも失敗では
 - **`mcp__github__pull_request_read`（`method="get_review_comments"`）のページネーション
   パラメータ名は `after`（前ページの `pageInfo.endCursor` の値。`perPage` は最大100、
   ツール定義で確認済みの値）であり `cursor` ではない**（issue #105フェーズ3で実際に2回踏んだ）。
-  **誤ったパラメータ名を渡すと、ツールがそれを無視して常に1ページ目を返す**ため、
-  `hasNextPage: true` のまま同一ページが返り続ける（無限ループ状のハングに見えるため
+  **`after` 以外のページ送りパラメータを渡すと、ツールがそれを無視して常に1ページ目を返す**
+  ため、`hasNextPage: true` のまま同一ページが返り続ける（無限ループ状のハングに見えるため
   気づきにくい）。
+  - **「誤ったパラメータ名だから無視される」のではない**（issue #17 で実際に誤読した）。
+    このツールは **`page` という正当なパラメータをツール定義に持っており**、
+    `perPage` と組み合わせて渡しても**やはり1ページ目が返る**（`get_review_comments` での実測）。
+    **ツール定義に載っているパラメータが、そのメソッドで効くとは限らない。**
+    **`get_files` / `get_commits` / `get_reviews` / `get_comments` で `page` が実際に効くかは
+    未確認**（issue #17フェーズ4の敵対的レビュー2回目で、確かめていない4メソッドまで
+    結論を広げていたと指摘された）。これらを使う前は、ツール定義の記載を鵜呑みにせず、
+    1回目・2回目の呼び出しの戻り値を突き合わせて確かめること。
+  - つまり判定材料は「名前が正しいか」ではなく「**そのメソッドがカーソル方式か**」である。
+    `get_review_comments` のときだけ `after` を使う。
   - 対処: `after` に前ページの `pageInfo.endCursor` を渡し、`pageInfo.hasNextPage` が偽に
     なるまで繰り返す。
   - 予防: 未返信スレッドの判定（`references/review-loop.md`「レビュー完了合図の確認」
     (1)(2)）は、**全ページを走査できていることが前提**。1ページ目だけで判定を打ち切ると、
     未解決・未返信スレッドを取りこぼしたままループ範囲へ `mark-done` してしまいうる
     （issue #70・#109が防ごうとした状態そのもの）。
+
+- **`mcp__github__create_pull_request` に渡した`body`内の `refs/pull/*/head` が、投稿後に
+  `refs/pull//head` になっていた**（issue #205対応時に実測。アスタリスク2文字が失われる。
+  バックティックで囲んだインラインコード内でも失われる。エラーは返らず正常な結果が返る）。
+  上記「不等号で始まる語で本文が切り捨てられる」と同種の、**無言の本文改変**である。
+  **この改変はPR/MR本文というMCPツールの`body`引数の中だけで起き、`.claude/docs/spec/`
+  `.claude/docs/ddr/`等のGit管理下のファイルには影響しない**（本節の反映先はいずれも
+  Writeツール等によるファイル書き込みであり、`create_pull_request`の`body`引数を経由しない
+  ため）。
+  - 対処: 投稿後に本文を読み直して確認する（上記の落とし穴と同様）。
+  - 予防: 本文中でアスタリスクを使ったパス表現・強調記号・箇条書きを書く場合、山括弧
+    （`<` `>`）を全角（`〈` `〉`）へ置換したのと同じ要領で、アスタリスクも別の記号（例:
+    「配下すべて」のように語で言い換える、または全角`＊`を使う）で回避できないか検討する。
+  - **`mcp__github__add_comment_to_pending_review`ではこの喪失を観測していないが、これは
+    別の入力で試した結果であり「同じ入力を投稿しても切り捨てられなかった」ことの確認ではない**
+    （issue #205対応時、インラインコメント11件でアスタリスクを含む強調記号・箇条書きを使ったが
+    切り捨ては起きなかった。ただし`create_pull_request`側で実際に喪失した`refs/pull/*/head`と
+    同じ文字列をこちらのツールへ投稿して比較したわけではない）。**MCPツールのbody引数一般に
+    共通する挙動ではなく、ツールごとに確認が必要**という点で、上記の落とし穴と同じ教訓を補強する。
 
 ### 3. サブコマンドごとの読み替え
 
@@ -105,7 +135,7 @@ hookはMCPツールを呼べないため、以下のように非侵襲的に縮�
 |---|---|
 | `session-start.sh` | issue/PR情報の代わりに「経路はMCP」「ブランチ名から抽出したissue番号」「owner/repo」「本節への参照」を注入する |
 | `post-push-usage-report.sh` | 集計状態の更新のみ行い、対応工数レポートの自動投稿はスキップする（stderrへ1行） |
-| `post-push-compact-prompt.sh` | MRリンクだけを「MCPで取得すること」に差し替え、レビュー依頼メッセージと `/compact` の呼びかけは従来どおり行う。重点レビュー対象ファイルのリンク（issue #42）は `get_repo_url` のローカル組み立てとgit操作だけで作れるため、CLI不在時もそのまま供給される |
+| `post-push-compact-prompt.sh` | **`resolve_mr_number_for_head`（`git ls-remote`。GitHubのみ）で解決を試みる（issue #205）。解決できればMRリンク・defaultブランチとの差分リンクの両方が実URLになる。解決できなければ従来どおりMRリンクを「MCPで取得すること」に差し替える。**レビュー依頼メッセージと `/compact` の呼びかけは従来どおり行う。重点レビュー対象ファイルのリンク（issue #42）は `get_repo_url` のローカル組み立てとgit操作だけで作れるため、CLI不在時もそのまま供給される |
 | `post-issue-create-notice.sh` | 縮退しない。CLI経路（`create-issue.sh` の実行）に加えMCP経路（`mcp__github__issue_write` の `method="create"`）も検知するため、CLI不在時も同じ注意喚起が出る（issue #39） |
 
 ### 5. GitLabは対象外

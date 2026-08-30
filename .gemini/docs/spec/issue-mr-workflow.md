@@ -46,10 +46,12 @@ MRとのやり取りだけを自動化する薄い層」として設計したが
 .gitlab/issue_templates/
 └── Default.md                      # GitLab用issueテンプレート（同上。GitLabが新規issueの説明へ
                                     #   自動適用する予約名）
-.claude/scripts/src/vcs/
-├── Provider.sh                     # git remote からGitHub/GitLabを判定し、共通関数をディスパッチ
-├── Github.sh                       # gh CLIラッパー
-└── Gitlab.sh                       # glab CLIラッパー
+.claude/scripts/src/
+├── push-checklist.sh               # push前チェックリストの生成・記録・検証（issue #17）
+└── vcs/
+    ├── Provider.sh                 # git remote からGitHub/GitLabを判定し、共通関数をディスパッチ
+    ├── Github.sh                   # gh CLIラッパー
+    └── Gitlab.sh                   # glab CLIラッパー
 .claude/skills/issue-mr-flow/
 ├── SKILL.md                        # 入口: 全体フロー表（「参照」列を含む）・PR/MR担当・
 │                                   #   旧節名→新しい場所の対応表（issue #160で詳細節を分割）
@@ -64,8 +66,11 @@ MRとのやり取りだけを自動化する薄い層」として設計したが
 ├── post-push-usage-report.sh        # git push検知時のトークン使用量集計＋MR自動コメント投稿（PostToolUse hook）
 ├── post-push-compact-prompt.sh      # git push検知時に/compact実施を促すメッセージ注入（PostToolUse hook）
 ├── post-issue-create-notice.sh      # issue起票検知時に同一セッションでの着手を戒めるメッセージ注入（PostToolUse hook）
+├── block-unchecked-push.sh          # push前チェックリストが未完了なら exit 2 でブロック（PreToolUse hook。issue #17）
+├── post-push-next-checklist.sh      # git push成功後に次回分のチェックリストを生成（PostToolUse hook。issue #17）
 └── lib/
-    └── UsageTracking.sh              # 集計ロジック（sync_usage_state）
+    ├── UsageTracking.sh              # 集計ロジック（sync_usage_state）
+    └── CommandPosition.sh            # コマンド位置でのサブコマンド判定（issue #53。push検知の委譲先）
 ```
 
 上記は全てbash製（`.sh`）。issue #6でPowerShell版（`.ps1`）から移行し、issue #24で
@@ -119,10 +124,11 @@ MRとのやり取りだけを自動化する薄い層」として設計したが
 | `get_issue_number_from_branch [<branch>]` | ブランチ名を `branchPrefixTemplate` に照らしてissue番号を抽出する（省略時は現在のブランチ）。マッチすればstdoutへ出力し終了コード0、マッチしなければ終了コード1（プロバイダ非依存） | — | — |
 | `get_mr_for_branch <branch>` | 指定ブランチに紐づくPR/MRの番号・URL・タイトル・Draft状態を取得する（JSON。無ければ何も出力せず終了コード0） | `gh pr view <branch>` | `glab mr view <branch>` |
 | `get_repo_url` | リポジトリの正規URL（フルパス）を取得する。MR/PRのURL文字列からの推測ではなく、`git remote get-url origin` の値を `repo_url_from_remote_url` で正規化して導出する（**プロバイダ非依存**。issue #44。issue #13フォローアップ時点では`gh`/`glab`へディスパッチしていた） | — | — |
-| `get_mr_diff_url <repoUrl> <baseBranch> <headBranch>` | MR/PRの「defaultブランチとの差分」を見れるURLを組み立てる（純粋関数。`repoUrl`は`get_repo_url`の戻り値を渡す。issue #13） | `<repoUrl>/compare/<baseBranch>...<headBranch>` | `<repoUrl>/-/compare/<baseBranch>...<headBranch>` |
+| `get_mr_diff_url <repoUrl> <baseBranch> <headBranch> [<mrUrl>]` | MR/PRの「defaultブランチとの差分」を見れるURLを組み立てる（純粋関数。`repoUrl`は`get_repo_url`の戻り値を渡す。issue #13）。**第4引数`mrUrl`が非空ならDiffview（PR/MR本体のレビューコメントを付けられるビュー）を返し、空ならCompareを返す**（issue #205。`mrUrl`は`get_mr_for_branch`の`url`、またはCLI不在時は`resolve_mr_number_for_head`＋`get_mr_url`で解決したもの） | `<mrUrl>/files`（`mrUrl`が非空）／`<repoUrl>/compare/<baseBranch>...<headBranch>`（空） | `<mrUrl>/diffs`（`mrUrl`が非空）／`<repoUrl>/-/compare/<baseBranch>...<headBranch>`（空） |
+| `resolve_mr_number_for_head <sha>...` | 候補SHA（可変長。今回push・前回pushのSHAを渡す想定）のいずれかに対応するMR/PR番号を、`gh`/`glab` CLIを使わず`git`だけで解決する（issue #205。CLI不在のMCPフォールバック経路で`get_mr_diff_url`にDiffviewリンクを出せるようにするための関数）。**純粋関数ではない**（`git`を起動する）。**リモートURLが`http://`/`https://`のときのみ動作し、SSH/scp形式のリモートでは`git ls-remote`を一切呼ばず常に空を返す**（GitHubのみ対応）。解決できなければ空を出力し終了コード0で返す（呼び出し側はCompareへ縮退する）。複数候補を渡せるのは、GitHubのref更新がpushに対して遅れることがあるため | `git ls-remote origin 'refs/pull/*/head'`。一致した候補のうち、対応するPR番号の種類数がちょうど1のときだけ採用（マージ済み・クローズ済みPRのrefも永続的に残るため） | 未対応（常に空を返す。`refs/merge-requests/*/head`の実機検証ができていないため対象外） |
 | `get_mr_diff_since_url <repoUrl> <fromSha> <toSha>` | MR/PRの「前回push時点(`fromSha`)から今回push時点(`toSha`)までの差分」を見れるURLを組み立てる（純粋関数。issue #13） | `<repoUrl>/compare/<fromSha>...<toSha>` | `<repoUrl>/-/compare/<fromSha>...<toSha>` |
 | `get_blob_url <repoUrl> <ref> <path>` | 特定ファイルの「その`ref`時点の本体」を開くblobページのURLを組み立てる（純粋関数。`path`は`url_encode_path_to_reply`でencode済みのものを渡す。issue #42） | `<repoUrl>/blob/<ref>/<path>` | `<repoUrl>/-/blob/<ref>/<path>` |
-| `get_diff_anchor_base_url <compareUrl> <mrUrl> <n> <sinceSha>` | 差分アンカーの**土台にするページ**のURLを返す（issue #127）。**同じハッシュでも土台にするページによってアンカーが効くかが変わる**ため、プロバイダごとに分ける。土台が覆う範囲は、呼び出し側が作るファイル一覧の供給元（`diff_range`）と一致させる。詳細・却下案は [DDR i0127-01](../ddr/i0127-01-差分アンカーの土台はプロバイダごとに分けGitLabはMR差分ページを使う.md) | `<compareUrl>`（Compareページのまま。issue #42 で実機確認済み） | `<mrUrl>/diffs`（初回push）／`<mrUrl>/diffs?start_sha=<sinceSha>`（2回目以降）。**Compareページではアンカーが機能しない**。`sinceSha` がMRバージョンのheadでなければ前者へ縮退する（GitLabは不正なSHAをエラーにせず0ファイルを返すため） |
+| `get_diff_anchor_base_url <compareUrl> <mrUrl> <n> <sinceSha>` | 差分アンカーの**土台にするページ**のURLを返す（issue #127）。**同じハッシュでも土台にするページによってアンカーが効くかが変わる**ため、プロバイダごとに分ける。土台が覆う範囲は、呼び出し側が作るファイル一覧の供給元（`diff_range`）と一致させる。**関数の実装・シグネチャはissue #205でも変更していないが、呼び出し側（`post-push-compact-prompt.sh`）は第1引数へ`diff_url`（issue #205でDiffviewを指すようになった値）ではなく従来どおり`compare_url`を渡し続ける**（GitHubの差分アンカーがPRの`/files`上で機能するかが未検証のため。「未決定事項・懸念点」参照）。詳細・却下案は [DDR i0127-01](../ddr/i0127-01-差分アンカーの土台はプロバイダごとに分けGitLabはMR差分ページを使う.md) | `<compareUrl>`（Compareページのまま。issue #42 で実機確認済み） | `<mrUrl>/diffs`（初回push）／`<mrUrl>/diffs?start_sha=<sinceSha>`（2回目以降）。**Compareページではアンカーが機能しない**。`sinceSha` がMRバージョンのheadでなければ前者へ縮退する（GitLabは不正なSHAをエラーにせず0ファイルを返すため） |
 | `get_diff_anchor_url <baseUrl> <pathHash>` | 差分ページ内の特定ファイルの差分位置を指すアンカー付きURLを組み立てる（純粋関数。issue #42）。`baseUrl` には `get_diff_anchor_base_url` の戻り値を渡す | `<baseUrl>#diff-<pathHash>` | `<baseUrl>#<pathHash>` |
 | `get_diff_anchor_algo` | 差分アンカーのハッシュ算出に使うアルゴリズム名を返す（純粋関数。issue #42）。**ハッシュの入力はpercent-encode前の生パス**（encodeが必要な `get_blob_url` とは逆） | `sha256` | `sha1`（issue #127 で実機確認済み。`diff-` 接頭辞は付かない） |
 | `get_mr_url <repoUrl> <n>` | MR/PR本体のページURLを組み立てる（純粋関数。**GitLab実装は issue #42**、**GitHub実装とディスパッチャは issue #127**） | `<repoUrl>/pull/<n>` | `<repoUrl>/-/merge_requests/<n>` |
@@ -347,14 +353,16 @@ Claude Code / Gemini CLI は**セッションごとに1つのplanファイルし
 | テンプレート | 対象 |
 |---|---|
 | `.claude/skills/issue-mr-flow/assets/plans.template.html` | 全体作業計画（flow-id 1-4）と個別計画（2-1・3-1・4-1） |
-| `.claude/skills/issue-mr-flow/assets/reports.template.html` | 調査結果（2-6）・作業結果（3-6）・反映結果（4-6）・最終統括レポート（5-4） |
+| `.claude/skills/issue-mr-flow/assets/reports-{clean,neobrutal,mono,paper}.template.html`（既定は `reports-clean`）と `reports.template.html`（移行期） | 調査結果（2-6）・作業結果（3-6）・反映結果（4-6）・最終統括レポート（5-4） |
 
 **この節が扱うのは、なぜこの形にしたかと、どこに何の正があるかだけである。** 運用の詳細
 （見出し構成・必須／任意の区別・作成タイミング・埋め忘れの検査）はここへ再掲しない。
 
 | 何の正か | どこ |
 |---|---|
-| 記述の型（見出し構成・必須／任意の区別・埋め忘れの検査） | **テンプレート本体**の冒頭のHTMLコメント |
+| 記述の型（見出し構成・必須／任意の区別） | **テンプレート本体**の冒頭のHTMLコメント |
+| **どのレポートテンプレートを選ぶか（既定はどれか）** | **`.claude/skills/issue-mr-flow/references/deliverables.md`**「レポートテンプレートの選び方」（issue #203） |
+| **埋め忘れ・リンク破断・重複ID・外部依存・構造の妥当性の検査（6種）** | **`.claude/skills/issue-mr-flow/references/deliverables.md`**「検査手順の正はこの節にある」（issue #203。**テンプレートが5本になり、同じ検査が5箇所へ複製されたため正を1箇所へ移した**） |
 | いつ作るか・作った後どう扱うか（flow-idごとの手順） | **`.claude/skills/issue-mr-flow/references/deliverables.md`**「計画・レポートのHTMLビュー」 |
 | レビュー時に何を見るか | **`wip/plans/REVIEW-POINTS.md` / `wip/reports/REVIEW-POINTS.md`** |
 | ライフサイクル（flow-id 5-5 でまとめて削除・frontmatterの対象外） | **`.claude/rules/docs-workflow.md`** のライフサイクル表 |
@@ -366,10 +374,11 @@ Claude Code / Gemini CLI は**セッションごとに1つのplanファイルし
 様式だけを差し替え可能なファイルとして独立させた。SKILL.md側は見出し構成を列挙せず、
 「テンプレートを読んでから書く」と参照するだけにしている。
 
-#### なぜ2本なのか（そしてmd側のテンプレートは持たない）
+#### なぜ計画用とレポート用に分かれるのか（そしてmd側のテンプレートは持たない）
 
 `wip/plans/`（これから何をするか）と `wip/reports/`（何をして何が分かったか）では必須セクションが
-異なるため、1本に統合できない。**共通のCSSは2本へ重複して持たせる**——共有CSSファイルへ
+異なるため、1本に統合できない（issue #203 でレポート側が5本になったが、この分け方は変わらない）。
+**共通のCSSは各テンプレートへ重複して持たせる**——共有CSSファイルへ
 切り出すと「自己完結」でなくなり、**HTMLファイル単体をリポジトリ外へ持ち出して共有・保管した
 場合に開けなくなる**ため（`wip/reports/` はflow-id 5-5でmdとhtmlをまとめて削除するので、
 「片方だけが残る」状況は起きない。壊れるのは持ち出したときである）。
@@ -428,6 +437,34 @@ issue #24 対応では、スコープ外としていた範囲を作業の途中�
 避けるため、基準の詳細をここへ再掲しない）。`issue-create` スキル側も同節を参照するだけで、
 判定基準を持たない。定量閾値・自動検知・強制起票を採らなかった理由は
 [i0064-01-issueの分割は並列列挙構造を主トリガーにAIが提案し人間が決定する.md](../ddr/i0064-01-issueの分割は並列列挙構造を主トリガーにAIが提案し人間が決定する.md)
+を参照。
+
+### 反映対象をこのMRでやるか切り出すかの判断（issue #176）
+
+上の #64 節が**issue そのもの**の粒度を扱うのに対し、本節は**フェーズ4で洗い出した反映対象
+1件ごと**を扱う。issue #176 以前は `references/planning.md` の `【実装反映】` 定義にある
+「影響が大きい場合は別issueへの切り出しを検討する」という一文だけが根拠で、「影響が大きい」の
+判定基準が無く、同じ項目でもセッションごとに結論が変わりうる状態だった。
+
+- **主判定は「この反映を見送ってマージした場合、`main` は今回の変更と矛盾・不整合な状態に
+  なるか」という一問**に集約する。Yes ならこのMRでやる（出口の選択は無い）。
+- **No のときの出口は3つで、判定順を固定する**（(1) 別issueへ切り出す → (2) やらないと決める
+  → (3) このMRでやる）。上から順に見て最初に当たった出口を採る。
+- **規模の大小で入口を絞らない。** 洗い出した項目は全件を主判定へ通す。
+- **出口(1) は「規模が1issueに収まらない」と「スコープが今回のissueの外」の AND**であり、
+  選んだ場合はAIエージェントが候補を提示して**止まる**（非対話セッションでも同じ）。
+  この2つは対であり、片方だけを緩めない。
+- 判定結果は出口に関わらず `wip/reports/` の反映結果へ1件1行で残し、件数の等式で検算する。
+  **出口(2)「やらないと決める」だけは記録先が1つ足りない**——`wip/reports/` は flow-id 5-5 で
+  削除されるため、`main` に残る記録（specの未決定事項・DDR等）も併せて残す。
+
+**判断基準そのものの正は `.claude/skills/issue-mr-flow/references/planning.md`
+「反映対象をこのMRでやるか切り出すかの判断」**であり、本節はその位置づけの記録にとどめる
+（#64 節と同じ扱い。基準の詳細をここへ再掲しない）。主判定を一問に絞った経緯・却下案
+（規模を主判定にする案／3軸並列の案／「あったほうがよいか」で判定する案／判定順を持たない案／
+出口(1) を OR にする案／非対話セッションで `main` へ書いて先へ進む退避経路を持つ案の6件）と
+調査の限界は
+[i0176-01-反映対象の切り出し判断は主判定一問と判定順を固定した3つの出口で行う.md](../ddr/i0176-01-反映対象の切り出し判断は主判定一問と判定順を固定した3つの出口で行う.md)
 を参照。
 
 ### レビューコメントへの返信
@@ -784,7 +821,7 @@ flow-id 2-5 / 2-10 / 3-5 / 3-10 / 4-5 / 4-10 の6箇所で、**フェーズ5に�
 | 挿入位置 | **flow-id 5-2（関連issue通知）と旧5-3（片付け）の間**。旧5-3→5-4、旧5-4→5-5、旧5-5→5-6 へ繰り下げ、全41→42ステップ |
 | ステップの粒度 | **作成 → commit・push → サマリ投稿 →（任意）添付**を1ステップに含む複合ステップ。作るだけで片付けへ進むと、作成と削除が同じ作業ツリー上で相殺され**ブランチのコミット履歴にすら残らない** |
 | 成果物 | `wip/reports/日付_<全体計画名>_統括.md`（正文・必須）と同名の `.html`（人間レビュー用ビュー） |
-| HTMLの土台 | `.claude/skills/issue-mr-flow/assets/reports.template.html`（必須セクションの統括レポート向けの読み替えは、同テンプレートの冒頭コメント「フェーズごとの読み替え」を参照） |
+| HTMLの土台 | `.claude/skills/issue-mr-flow/assets/reports-clean.template.html`（既定。issue #203 で5本になった。必須セクションの統括レポート向けの読み替えは、同テンプレートの冒頭コメント「フェーズごとの読み替え」を参照） |
 | 反映の構造 | **3層のフォールバック**（下表）。層3が壊れても層1・層2でレビューは成立する |
 | サマリの1行目 | **`Claude Codeより（最終統括レポート）:`**。既存の通常コメント3種の書式は変更しない |
 | ライフサイクル | 統括レポート自体も **flow-id 5-5 の削除対象**。`main` に残るのはPR/MR上のコメントと `spec/` `ddr/` |
@@ -1040,8 +1077,11 @@ Claude Code on the webのリモート実行環境のように、`gh`/`glab` CLI�
   - `post-push-usage-report.sh`: 集計状態の更新までは行い、MRコメントの自動投稿はスキップして
     その旨をstderrへ1行出す。`sinceLastPush`はリセットしないため、CLIのある環境で次にpushした
     ときにまとめて投稿される。
-  - `post-push-compact-prompt.sh`: MR/PRのURLだけを「MCPツールで取得すること」という指示に
-    差し替え、Compare系リンク・レビュー依頼メッセージ・`/compact`の呼びかけは従来どおり行う。
+  - `post-push-compact-prompt.sh`: **`resolve_mr_number_for_head`（`git ls-remote`。GitHubのみ）
+    で解決を試みる（issue #205。「MCPフォールバック時のMR/PR URL解決」節参照）。解決できれば
+    MR/PRのURLが実リンクになりdefaultブランチとの差分もDiffviewになる。解決できなければ従来
+    どおりMR/PRのURLだけを「MCPツールで取得すること」という指示に差し替える。**その他の
+    Compare系リンク・レビュー依頼メッセージ・`/compact`の呼びかけは従来どおり行う。
 - **GitLabは対象外**: `glab` 不在時のGitLab向けMCP代替は対象外とする（利用実績が無く、ツール名・
   引数を実機検証できないため）。判定・失敗メッセージの枠組みのみ共通で、`mcp_tool_hint` は
   GitLabに対して「対象外」である旨を返す。詳細・却下案は
@@ -1678,8 +1718,10 @@ issue #11「git pushイベントを検知してcompactする」への対応と�
   見に行くまでに1段階ハードルがあるという指摘への対応として、`additionalContext`に固定文だけでなく
   `get_mr_for_branch`/`get_repo_url`/`get_mr_diff_url`/`get_mr_diff_since_url`（「提供関数」表参照）
   で組み立てた具体的なURLを含める。
-  - 常に含める: MRへのリンク（`get_mr_for_branch`の`url`）、defaultブランチとの差分
-    （`get_mr_diff_url`）へのリンク。
+  - 常に含める: MRへのリンク（`get_mr_for_branch`の`url`。**CLI不在でこれが取得できない場合は、
+    `resolve_mr_number_for_head`＋`get_mr_url`で解決できたURLを同じ`mr_url`変数へ入れて使う。
+    issue #205。下記「MCPフォールバック時のMR/PR URL解決（issue #205）」参照**）、defaultブランチ
+    との差分（`get_mr_diff_url`）へのリンク。
   - このブランチで2回目以降のpush（＝レビュー指摘対応のpush）の場合のみ追加: 前回push時点から
     今回push時点までの差分（`get_mr_diff_since_url`）へのリンク、コメント一覧（MR画面。MRへの
     リンクと同一URL）へのリンク。
@@ -1693,6 +1735,15 @@ issue #11「git pushイベントを検知してcompactする」への対応と�
     （SHA同士）のいずれも同じ`get_compare_url`系ヘルパー（`github_get_compare_url` /
     `gitlab_get_compare_url`）で組み立てられる。詳細な却下案は
     [i0013-01-レビュー依頼メッセージの参照リンクは前回pushSHAをローカル状態で保持して組み立てる.md](../ddr/i0013-01-レビュー依頼メッセージの参照リンクは前回pushSHAをローカル状態で保持して組み立てる.md)
+    参照。
+    **issue #205 で、この方針を「defaultブランチとの差分」1リンクに限り部分的に上書きした。**
+    `mr_url`（MR/PR URL）が非空で解決できた場合、`get_mr_diff_url`はCompareではなくDiffview
+    （`<mrUrl>/files`・`<mrUrl>/diffs`）を返す。`mr_url`が空（CLI不在かつ`resolve_mr_number_for_head`
+    でも解決できなかった場合）は、従来どおりCompareへ縮退する。**前回pushとの差分
+    （`get_mr_diff_since_url`）・MRへのリンク自体・重点ファイルの差分アンカーの3リンクは、
+    今回も変更しておらずCompare方式のまま。** i0013-01のCompare方式の判断はこの3リンクについて
+    生き続けており、`superseded`にはしていない。詳細・却下案は
+    [DDR i0205-01](../ddr/i0205-01-defaultブランチとの差分リンクをPR_MRのDiffviewへ出し分ける.md)
     参照。
   - 「前回push時点」の判定は、`post-push-compact-prompt.sh`自身が`wip/state/review-links/
     <safeBranch>.txt`へ直前pushのHEAD SHA（`git rev-parse HEAD`）を保存し、次回push時に読み出す
@@ -1749,6 +1800,17 @@ issue #11「git pushイベントを検知してcompactする」への対応と�
     載るのに土台ページには存在しないファイルが生じ、アンカーが着地先を失う）。
     経緯・却下案は
     [DDR i0127-01](../ddr/i0127-01-差分アンカーの土台はプロバイダごとに分けGitLabはMR差分ページを使う.md)。
+- **MCPフォールバック時のMR/PR URL解決（issue #205）**: `get_mr_for_branch`が`gh`/`glab` CLI不在で
+  MR/PR URLを取得できず`mr_url`が空のとき、`resolve_mr_number_for_head`（「提供関数」表参照。
+  GitHubのみ。今回push・前回pushのSHAを候補として渡す）で解決を試みる。**解決できた場合**は、
+  その`get_mr_url`の戻り値を`mr_url`へ格納する（新しい変数を別に持たせず、既存の`mr_url`をそのまま
+  使う。同じ値を2箇所で別々に持つと食い違いうるため）。この結果、(a) MRへのリンクの行が「MCP
+  ツールで取得すること」という指示文から実際のMRリンクへ置き換わり、(b) 2回目以降のpushでは
+  「コメント一覧(MR画面)」行が新たに出る。**解決できなかった場合**は`mr_url`は空のまま、上記の
+  「hookの縮退」節のとおり従来どおりの指示文へ縮退する。この分岐は`post-push-compact-prompt.sh`
+  内で完結し、`Provider.sh`の`get_mr_diff_url`自体は`mr_url`の由来（CLI経由かresolve経由か）を
+  区別しない（純粋関数のまま）。詳細・却下案は
+  [DDR i0205-01](../ddr/i0205-01-defaultブランチとの差分リンクをPR_MRのDiffviewへ出し分ける.md)。
 - **返信コメントへのリンク（issue #42）**: 2回目以降のpush（＝レビュー指摘対応のpush）では、
   「このpushでレビュー指摘へ返信した場合はその返信コメントのURLも含める」旨の指示文を追加で渡す。
   URLの入手元は`reply`サブコマンドの出力（`add_mr_thread_reply`の戻り値）または`comments`の
@@ -3372,6 +3434,131 @@ point-in-time の記録と DDR 本文は**書き換えていない**）:
 - [i0186-01-レポートの視覚語彙は結論の性質とレビューの重みで軸を分ける.md](../ddr/i0186-01-レポートの視覚語彙は結論の性質とレビューの重みで軸を分ける.md)
 - [i0186-02-リンク破断検査はID抽出をタグ内に限定し重複ID検査を併設する.md](../ddr/i0186-02-リンク破断検査はID抽出をタグ内に限定し重複ID検査を併設する.md)
 
+### issue #203（レポートHTMLビューのデザイン4案のテンプレート化）
+
+新規:
+- `.claude/skills/issue-mr-flow/assets/reports-clean.template.html`（**レポート側の既定**）
+- `.claude/skills/issue-mr-flow/assets/reports-neobrutal.template.html`
+- `.claude/skills/issue-mr-flow/assets/reports-mono.template.html`
+- `.claude/skills/issue-mr-flow/assets/reports-paper.template.html`
+- `.claude/docs/ddr/i0203-01-レポートHTMLビューは共通DOMと4スタイルで持ち現行を残す.md`
+
+変更:
+- `.claude/skills/issue-mr-flow/references/deliverables.md`（**選択基準の表と、検査手順の正を新設**）
+- `.claude/skills/issue-mr-flow/SKILL.md`（flow-id 2-6・3-6・4-6 の土台を既定＋参照の形へ）
+- `.claude/skills/issue-mr-flow/references/phase5-close.md`・`references/start-resume.md`
+- `.claude/skills/issue-mr-flow/assets/plans.template.html`（検査の正の参照先・**検査6の追加**）
+- `.claude/skills/canvas-report/SKILL.md`
+- `.claude/rules/directory-structure.md`・`.claude/rules/docs-workflow.md`
+- `wip/plans/REVIEW-POINTS.md`・`wip/reports/REVIEW-POINTS.md`（**HTML検査の一般則を追加**）
+- 本ドキュメントの `## 仕様`「計画・レポートのHTMLビュー」節（テンプレート一覧・正の所在表）
+
+**レポート用テンプレートは1本から5本になった。** 4本はいずれも**共通のDOMを持ち `<style>` だけが
+違う**（`<style>` を除いた部分は新4本でバイト単位に完全一致する）。現行 `reports.template.html` は
+**併存させ、据え置いた**。既定は `reports-clean` である。選択基準の正は
+`references/deliverables.md`「レポートテンプレートの選び方」1箇所に置いた。
+
+**検査を3種から6種へ増やした。** 外部依存2種（src/href・url()/@import）と、**構造の妥当性**
+（`<style>` がちょうど1つであること）である。最後のものは issue #203 の作業中に実際に踏んだ
+不具合から足した——`<style>` が二重に出力されると2つ目はCSSのテキストとして扱われ、続く
+`:root { … }` ブロックごと破棄される。**ダーク環境では正常に見え、ライト環境でだけ配色が
+初期値へ落ちる**ため、既存の5種はどれも捕まえなかった。
+
+**検査手順の正を、テンプレート冒頭コメントから `references/deliverables.md` へ移した。**
+テンプレートが5本になった結果、同じ検査手順の実体が5箇所へ複製された。正を1箇所に決めないと、
+検査を改訂したときに一部だけが古くなる。テンプレート側のコメントは**使い方の説明**として残す。
+
+**`.claude/VERSION` は `0.4.0` のまま据え置いた。** 配布対象アセット（`assets/` 配下）を4本
+追加したため、`.claude/docs/spec/distribution-assets.md` の目安表では `MINOR` に当たる。しかし
+**非対話セッションでの増分適用の例外を `.claude/VERSION` へ適用してよいかは未決定**であり
+（issue #185）、issue #165 の changelog に「今後 `.claude/VERSION` を上げる場合は、改めて人間の
+指示を起点に増分を検討する」という人間の判断が入っている。**この未決定をAIの独断で埋めない**
+ため据え置いた。据え置きには実害（配布先が版から資産の差を判別できない）があることは承知の
+うえで選んでいる。**人間の指示があれば `0.5.0` へ上げる。**
+
+**ブラウザでの実表示は1件も確認していない**（下記「未決定事項・懸念点」）。
+
+**追記（main取り込み後）**: `.claude/VERSION` は上記のとおり据え置いていたが、`main` 側は
+issue #187（`0.4.0`→`0.5.0`）とissue #176（同増分の衝突を検知し`0.5.0`→`0.6.0`）を経て
+`0.6.0` になっていた。本issueは `.claude/VERSION` を一度も変更していないため、`git merge origin/main`
+はここを衝突させずmain側の値をそのまま取り込んだ。issue #203ぶんの追加増分は付けていない
+（詳細: `HANDOFF.md`「判断を迷った内容」）。ブラウザでの実表示確認6項目は、ユーザーへ確認し
+「記録に残すだけ」との回答を得たため、別issueは起票していない。
+
+### issue #176（反映対象をこのMRでやるか切り出すかの判断基準の新設）
+
+`references/planning.md` の `【実装反映】` 定義にあった「影響が大きい場合は別issueへの切り出しを
+検討する」という一文に判定基準が無かったため、**フェーズ4の反映対象1件ごと**を判定する節を新設した
+（issue そのものを割る #64 節とは割る対象が違う）。
+
+- **主判定は一問**（「この反映を見送ってマージした場合、`main` は今回の変更と矛盾・不整合な状態に
+  なるか」）。フェーズ2の調査で、母数7件すべてがこの一問で説明できた（対案の規模基準は 3/7）。
+- **No のときの出口は3つで判定順を固定**（(1) 別issueへ切り出す → (2) やらないと決める →
+  (3) このMRでやる）。上から順に見て最初に当たった出口を採る。
+- **出口(1) は「規模」と「スコープ」の AND**であり、選んだ場合は候補を提示して**止まる**
+  （非対話セッションでも同じ）。**AND と「止まって待つ」は対**で、片方だけを緩めない。
+- **規模の大小で入口を絞らない**（洗い出した項目は全件を主判定へ通す）。
+- 判定結果は出口に関わらず `wip/reports/` の反映結果へ1件1行で残し、件数の等式で検算する。
+  **出口(2)「やらないと決める」だけは記録先が1つ足りない**——`wip/reports/` は flow-id 5-5 で
+  削除されるため、`main` に残る記録（specの未決定事項・DDR等）も併せて残す。
+
+**この節をこのMR自身へ適用した結果は次のとおり。** flow-id 4-1 で洗い出した候補10件に、
+flow-id 4-6 の作業中に見つかった2件が加わり、うち3件が手順3（痕跡の確認）で反映対象から外れた
+（**判定済み9件**）。主判定は Yes 3件 / No 6件。**No の6件のうち5件は出口(3)「このMRでやる」で、
+残る1件だけが出口(1)「別issueへ切り出す」に当たって停止した**（`.claude/VERSION` の無言の衝突に
+検知が無い件。規模とスコープの両方を満たした。下記）。**4-1 で洗い出した10件からは、出口(1) が
+1件も出ていない。**
+
+出口(1) が OR だった時点の判定では、**No 8件**（手順3をやり直す前の断面。やり直し後は5件）が
+全件 (1) へ落ちていた。**OR の下では No の件数がそのまま停止回数になる**という構造で、AND への
+変更により、4-1 の10件からの停止は0回になっている。
+
+- `.claude/VERSION` を 0.5.0 → 0.6.0 へ増分した（MINOR。フローの拡張であり、後方互換を壊す変更は
+  無い。非対話セッションでの適用は `distribution-assets.md`「`.claude/VERSION`」の例外規定に従い、
+  `HANDOFF.md`「判断を迷った内容」へも記録した）。
+  **当初は 0.4.0 → 0.5.0 としていたが、`main` の取り込みで衝突した。** issue #185 側も同じ
+  0.4.0 → 0.5.0 を行っていたため、**gitは「両側が同じ値にした」と見て競合を出さずにマージし、
+  本issueの増分が無言で消えた**（DDR識別子の衝突と同型の、`git status` に現れない衝突である）。
+  取り込み後の 0.5.0 を起点に 0.6.0 へ上げ直した。
+- **AIアセット反映（flow-id 4-6 の洗い出し）での変更ファイル**（いずれもcore層の配布対象）:
+  - `.claude/rules/shell-script-style.md` — 「テスト」節へ**`grep` で母数を作るときに数えたい対象
+    そのものの語で数えているか**の罠と、**計画に書いた検査コマンドは文字列としてそのまま流す**を
+    追記した。このissueで同型の失敗を4回踏んでおり、4回目（検査語の差し替え）だけは
+    「計画に検証コマンドを書き基準値を実測する」という規律をすり抜ける（検査が期待どおりの値を
+    返すため）。
+  - `REVIEW-POINTS.md`（ルート）— 既存の検証コマンド観点へ、実行時の語の差し替えに関する1文を
+    追加した（この観点自体をすり抜ける形なので、同じ場所に置く）。
+  - `wip/plans/REVIEW-POINTS.md` / `wip/reports/REVIEW-POINTS.md` — **必須節が丸ごと落ちたことの
+    検出**を追加した（既存の埋め忘れ検査 `<!-- ここに書く` はプレースホルダしか見ないため、
+    `<section>` ごと削除された節は0を返して合格する）。テンプレートの `[必須]` コメント直後の
+    `<h2>` を基準に、**部分一致で**突き合わせる（完全一致にすると、節名へ補足を足した見出し
+    `<h2>変更対象（6箇所）</h2>` を「落ちた」と誤判定する。実測で計画HTML 4本中2本が偽陽性に
+    なった）。**検査コマンドの正は `wip/reports/REVIEW-POINTS.md` の1箇所**で、`wip/plans/` 側は
+    テンプレートのパスと `【調査】` 計画での節名の読み替え（`変更対象`→`調べる問い`、
+    `方針`→`調べ方`）だけを持つ。
+  - `.claude/skills/issue-mr-flow/references/planning.md`（フェーズ4での追加分）— 手順3 段階2の
+    コマンド例へ **`REVIEW-POINTS.md` 群の探索**を追加し（この不足で10件中4件の類型判定が
+    ひっくり返った）、「判定の記録」の等式へ **手順3 で対象外になった件数を引く項**を足した
+    （黙って母数から落とすと「判定を飛ばした」のか「対象外だった」のかが区別できず、実際に
+    母数が10件と7件の2通りに分かれた）。
+  - `wip/reports/REVIEW-POINTS.md` — **md↔HTML の見出し一致検査**を `wip/plans/` 側から複製した。
+    `collect-review-points.sh` は祖先ディレクトリだけを遡るため、`wip/reports/` のレビューでは
+    `wip/plans/REVIEW-POINTS.md` が集まらない（同ファイルは逆向きの複製を既に行っており、
+    片側だけが欠けていた）。
+  - `.claude/rules/docs-workflow.md` — 差し込み位置の確認の直後へ、`shell-script-style.md`
+    「差し込むファイルは、先頭に空行を置かず、末尾に空行をちょうど1つ持たせる」への相互参照を
+    追加した（記述はあるのに辿り着けなかったため、導線の追加）。
+
+**判定基準そのものは `references/planning.md` の1箇所が正**で、specの新節は位置づけの記録に
+とどめる（#64 節と同じ形）。
+
+新規DDR:
+
+- [i0176-01-反映対象の切り出し判断は主判定一問と判定順を固定した3つの出口で行う.md](../ddr/i0176-01-反映対象の切り出し判断は主判定一問と判定順を固定した3つの出口で行う.md)
+  （主判定・出口・判定順・AND条件と「止まって待つ」の対の決定と、規模を主判定にする案／3軸並列の案／
+  「あったほうがよいか」で判定する案／判定順を持たない案／出口(1) を OR にする案／非対話セッションの
+  退避経路を持つ案、の却下理由6件。および調査の限界4点）。
+
 ## 設定項目
 
 `.mrworkflow.json`
@@ -3929,7 +4116,63 @@ flow-id 4-1 の「反映対象を洗い出す」を4手順（起点の列挙／4
   `### issue #155`——を併せて書き換える**（同じ文面の段落が2つあるため、片方だけを直すと
   同じファイルの中で食い違う）。
 
+### issue #205（defaultブランチとの差分リンクをPR/MRのDiffviewへ変更する）
+
+レビュー依頼メッセージの「defaultブランチとの差分」リンクを、PR/MR URLが解決できた場合に限り
+Compareページ（DDR `i0013-01`が採用した形式）からDiffview（GitHubの`/files`タブ、GitLabの
+`/diffs`タブ。レビューコメントを付けられるビュー）へ出し分けるようにした。あわせて、
+`gh`/`glab` CLI不在の環境（MCPフォールバック経路）でもPR番号を解決できるよう、
+`git ls-remote origin 'refs/pull/*/head'`だけで完結する解決関数を新設した。
+
+**変更したファイル**
+
+| ファイル | 変更 |
+|---|---|
+| `.claude/scripts/src/vcs/Provider.sh` | `get_mr_diff_url`ディスパッチャへ第4引数`mrUrl`を追加。`resolve_mr_number_for_head`ディスパッチャを新設（GitHubのみ、GitLabは空を返す） |
+| `.claude/scripts/src/vcs/Github.sh` | `github_get_mr_diff_url`が`mrUrl`非空時に`<mrUrl>/files`を返すよう変更。`github_resolve_mr_number_for_head`（複数候補SHA対応、一致したPR番号の種類数がちょうど1のときだけ採用）を新設 |
+| `.claude/scripts/src/vcs/Gitlab.sh` | `gitlab_get_mr_diff_url`が`mrUrl`非空時に`<mrUrl>/diffs`を返すよう変更 |
+| `.claude/hooks/post-push-compact-prompt.sh` | `mr_url`が空のとき`resolve_mr_number_for_head`（今回・前回pushのSHAを候補として渡す）で解決を試み、解決できれば`mr_url`へ格納。`compare_url`と`diff_url`を分離し、差分アンカーの土台（`get_diff_anchor_base_url`）へは従来どおり`compare_url`のみを渡す |
+| `.claude/scripts/test/test_vcs_provider.sh` | 4引数版のアサーション、複数候補SHAでの解決・同一PR番号への複数一致・ディスパッチャ経由の経路テスト・awk失敗時の縮退テスト等を追加（`passed=225`→`249`） |
+| 本ドキュメント | 「提供関数」表・「未決定事項・懸念点」・「参照リンクの付与（issue #13）」節・「hookの縮退」節・本エントリ |
+| `.claude/skills/issue-mr-flow/references/mcp-fallback.md` | §2-bへ`mcp__github__create_pull_request`の`*`喪失の落とし穴を追加、§4の`post-push-compact-prompt.sh`行を更新 |
+| `.claude/docs/ddr/i0205-01-…md` | 新規 |
+| `.claude/docs/README.md` | DDR `i0205-01`新規作成・`i0013-01`への`note`追加に伴い`generate-ddr-list.sh`実行でDDR一覧を再生成（97件） |
+
+**却下した代替案**（詳細: [DDR i0205-01](../ddr/i0205-01-defaultブランチとの差分リンクをPR_MRのDiffviewへ出し分ける.md)）
+
+- **`get_mr_diff_url`の内部でMR URL解決まで行う設計**（純粋関数でなくなるため却下）。
+- **案B: `wip/state/`の状態ファイルにPR番号を保存**（silent stalenessのため却下）。
+- **案C: `HANDOFF.md`のヘッダから読む**（表記依存で壊れやすいため却下）。
+- **一致判定を「番号が最大のものを採る」にする案**（当初案。マージ済み・クローズ済みPRのrefも
+  永続的に残るため、番号の大小では正しいPRを選べないと判明し却下）。
+
+**issueの目的が達成される範囲は「defaultブランチとの差分」1リンクについてのみである。**
+重点レビュー対象ファイルの差分アンカーリンク（issue #42）は、GitHubのアンカーがPR本体の
+`/files`上で機能するかが未検証のため、今回も対象外（Compareページ上に残る）。詳細は
+「未決定事項・懸念点」の該当項目を参照。
+
 ## 未決定事項・懸念点
+
+- **（issue #203）レポートテンプレート4本のブラウザでの実表示が未確認**: 新規追加した
+  `reports-{clean,neobrutal,mono,paper}.template.html` は、**実ブラウザでの表示を1件も
+  確認していない**。作業した実行環境（Claude Code on the web のリモート実行環境）に表示確認の
+  手段が無く、確かめられたのはHTML/CSSの**構造とテキスト**だけである。
+
+  | 未確認の項目 | 対象 |
+  |---|---|
+  | `position: sticky` のサイドバーが実際に追従するか | 4本すべて |
+  | `prefers-color-scheme` の切り替えが破綻しないか | clean / mono |
+  | `color-scheme: light` が強制ダーク化を防ぐか | neobrutal / paper |
+  | ハードシャドウ（`box-shadow: 3px 3px 0`）の見え方 | neobrutal |
+  | `@media print` でサイドバーが本文の上へ畳まれるか | paper |
+  | 二重罫線（`border-bottom: 3px double`）の見え方 | paper |
+
+  **「静的検査に通った」と「見た目が正しい」は別である。** issue #203 では実際に、静的検査を
+  すべて通ったHTMLが**ライト環境でだけ配色を失っていた**（`<style>` の二重出力）。この件は
+  検査6を新設して機械的に捕まえられるようにしたが、上の6項目は**目で見る以外に確かめる方法が無い**。
+
+  **別issueへの切り出しは行っていない**（issueを起票してよいかの判断は人間が握るため。
+  `AGENTS.md`）。PR #204 のコメントでユーザーへ扱いを問い合わせている。
 
 - **（issue #61）`set_mr_ready`: GitHub側のみ実機未検証**: issue #61 の対応時の実行環境
   （Claude Code on the web のリモート実行環境）には `gh`・`glab` のいずれも存在せず、
@@ -3968,13 +4211,21 @@ flow-id 4-1 の「反映対象を洗い出す」を4手順（起点の列挙／4
   整合することも確認）。**`gh issue list --search ... --state all --json ...` は未検証のまま**
   であり、`gh` が使える環境での最初の利用時に確認すること。
 
-- **（issue #13）`get_mr_diff_url`/`get_mr_diff_since_url`のURL形式: GitHub側のみブラウザ未検証**:
+- **（issue #13、issue #205で一部更新）`get_mr_diff_url`/`get_mr_diff_since_url`のURL形式:
+  GitHub側のみブラウザ未検証**:
   GitHub実装（`<repoUrl>/compare/<from>...<to>`）はPR作成前から存在する汎用の「Compare changes」
   ページの標準URL形式に基づいており、PR個別のサブタブ形式（当初案の`/files/<from>..<to>`）より
   安定していると考えられるが、issue #13 の対応時点ではブラウザでの表示確認までできていない。
   **GitLab実装（`<repoUrl>/-/compare/<from>...<to>`）は issue #127 で解消した。** 生成したURLを
   ブラウザで開き、Compareページが意図した2ref間の差分を表示することを目視確認している
   （**ただしこのページを土台にした差分アンカーは機能しない**。上記の差分アンカーの項目を参照）。
+  **issue #205 で、`get_mr_diff_url`のうち「defaultブランチとの差分」1リンクに限り、MR/PR URLが
+  解決できた場合はCompareではなくDiffview（`<mrUrl>/files`・`<mrUrl>/diffs`）を返すようになった。**
+  このURL形式（当初issue #13で「PR個別のサブタブ形式」として却下したのと同種の形）は、issue #13
+  当時とは異なりissue #205の起票者（リポジトリ所有者）がissue本文で明示的に指定したものだが、
+  ブラウザでの表示確認は依然として未検証のまま残る（この実行環境ではブラウザ目視ができないため）。
+  `get_mr_diff_since_url`（前回pushとの差分）はCompare方式のまま変更していない。詳細・却下案は
+  [DDR i0205-01](../ddr/i0205-01-defaultブランチとの差分リンクをPR_MRのDiffviewへ出し分ける.md) 参照。
 - **（issue #48・#45で部分解消）GitLab側の動作未検証**: かつては「このリポジトリの実remoteはGitHubのみ」を
   理由に`Gitlab.sh`全体が未検証だったが、issue #48でローカルにGitLab CE 18.5.4（Docker）を立て、
   `glab` 1.114.0から**全13関数を実機実行して動作を確認した**（`gitlab_get_mr_unresolved_comments`の
@@ -4177,3 +4428,115 @@ flow-id 4-1 の「反映対象を洗い出す」を4手順（起点の列挙／4
 - **（issue #48で解消）（issue #25で追加した`gitlab_new_issue`にも従来からの制約が引き継がれる）GitLab側の動作未検証**:
   `gitlab_new_issue`はissue #48でローカルGitLab CE 18.5.4に対し実機確認済み（issueが実際に作成され、
   `get_issue`と同じ形のJSON（number/title/body/url/slug）が返ることを確認した）。
+- **（issue #205）`resolve_mr_number_for_head`（`git ls-remote`）のgit bash実機コスト・認証プロンプト
+  対策の実効性が未検証**: この実行環境（Claude Code on the web、Linux）ではls-remote呼び出しが
+  約400〜600msだったが、`.claude/rules/shell-script-style.md`「外部プロセス起動のコスト」の
+  とおりLinuxとgit bash（Windows）のfork単価は桁で異なり、この値をそのままgit bash実機の値
+  として扱えない。認証プロンプト対策（`GIT_TERMINAL_PROMPT=0` / `-c credential.helper=` /
+  `-c core.askPass=`）とハング対策（`-c http.lowSpeedLimit` / `-c http.lowSpeedTime`）も、
+  この環境では`GIT_TERMINAL_PROMPT=0`が既に設定済みで「付けた場合／付けない場合」の差を
+  原理的に測れず、ブラックホール状態（接続確立前の無応答）も作れないため、対策の効果が
+  実測できていない。git bash実機での再計測をもって本項目を削除する。
+- **（issue #205）CLI経路では`resolve_mr_number_for_head`呼び出しブロックへ到達しない（実機検証の
+  対象ではなく、コードの構造上の事実）**: `post-push-compact-prompt.sh`はCLI経路
+  （`get_vcs_access_mode`が`cli`）では、`get_mr_for_branch`が空を返した時点で`exit 0`しており、
+  以降の`if [ -z "$mr_url" ]; then resolve_mr_number_for_head ...`ブロックへは到達しない。
+  したがってこのブロックが実際に実行されるのはMCP経路（CLI不在）のときだけであり、「CLI経路で
+  この分岐を通ることを確認する」という検証課題自体が成立しない（当初この項目は実機未検証の
+  懸念として書いていたが、コードを読み直した結果、到達しない経路を検証課題として誤って記載
+  していたと判明したため、事実に合わせて書き直した）。
+- **（issue #205）`wip/state/review-links/<branch>.txt`のブランチ名重複衝突による`prev_sha`混入
+  リスクは緩和のみで解消していない**: ブランチ名のファイル名サニタイズ（`safe_branch`の記号
+  潰し）により、記号だけが異なる2つのブランチ（例: `feature/a`と`feature-a`）が同じ状態ファイル
+  を共有しうる。`resolve_mr_number_for_head`へ渡す前に`git cat-file -e "${prev_sha}^{commit}"`で
+  存在検証することで「存在しないSHAを渡して誤爆する」リスクは緩和したが、**別ブランチの実在する
+  SHAが状態ファイルへ混入すること自体は解消していない**（敵対的レビュー2回目 指摘2への対応で
+  判明）。
+- **（issue #205）GitHubの差分アンカー（`#diff-<sha256>`）がPR本体の`/files`上で機能するかは
+  未検証**: issue #42・#127で実機確認済みなのはCompareページ上でアンカーが機能することのみで、
+  PR本体の`/files`（issue #205でDiffviewとして`get_mr_diff_url`が返すようになったページ）上での
+  動作は確認していない。`get_diff_anchor_base_url`は今回もCompareページ（`compare_url`）を
+  土台として使い続けており、`/files`上での動作に依存しない設計を採ったため実害は無いが、確認が
+  取れれば土台を`/files`へ寄せて下記の残存制約を解消できる余地がある。確認が取れるまでは寄せない。
+- **（issue #205）GitHubでは重点レビュー対象ファイルの差分アンカーリンクがCompareページ上に
+  残る**: 上記の未検証項目の帰結として、issue #205が問題にした「差分アンカーリンクが古い形式の
+  ページを指す」という事象は、重点レビュー対象ファイルのリンク（issue #42）には引き続き残る。
+  issue #205の目的が達成されるのは「defaultブランチとの差分」1リンクについてのみであり、
+  重点ファイルリンクは対象外である。
+- **（issue #205）`git ls-remote`の残る未検証項目（引き継ぎ）**: 次の4点はいずれもこの実行環境
+  では確認できず、実機・実環境での検証が必要である。(1) `refs/pull/*/head`のref数が桁で増えた
+  場合（このリポジトリでの実測は約99件まで）の`git ls-remote`所要時間、(2) fork元PRからの
+  push・オフライン時の`resolve_mr_number_for_head`の挙動（いずれもCompareへ縮退する見立てだが
+  未検証）、(3) GitLabの`refs/merge-requests/<n>/head`相当の実機検証（`glab`を使わない検証環境が
+  無いため対象外とした。上記GitLab側の動作未検証の項目とも関連）、(4) SSH remoteで
+  `resolve_mr_number_for_head`が実際に`git ls-remote`を起動しない（HTTP(S)判定で早期returnする）
+  ことの実環境未確認。
+
+### issue #17（push前チェックリスト機構の新設）
+
+push前に済ませるべき作業を、pushごとに一意な**Git管理下のTSVチェックリスト**として持たせ、
+未完了のままpushしようとした場合に PreToolUse hook が **exit code 2** でブロックする機構を
+新設した。次回分の生成は PostToolUse hook が行う。仕様は
+[push-checklist.md](push-checklist.md)、設計判断は
+[DDR i0017-01](../ddr/i0017-01-push前チェックリストはGit管理下のTSVで持ちPreToolUseで一律ブロックする.md)
+が正である。
+
+**変更したファイル**
+
+| ファイル | 変更 |
+|---|---|
+| `.claude/scripts/src/push-checklist.sh` | 新規（生成・記録・検証の本体） |
+| `.claude/hooks/block-unchecked-push.sh` | 新規（PreToolUse。`verify` 失敗と `stale` の両方で exit 2） |
+| `.claude/hooks/post-push-next-checklist.sh` | 新規（PostToolUse。次回分を生成） |
+| `.claude/scripts/test/test_push_checklist.sh` | 新規 |
+| `.claude/scripts/test/test_block_unchecked_push.sh` | 新規 |
+| `.claude/scripts/test/test_post_push_next_checklist.sh` | 新規 |
+| `.claude/settings.json` | PreToolUse へ1本、PostToolUse へ2本（Bash / PowerShell）を登録 |
+| `.claude/scripts/test/test_sync_gemini_assets.sh` | T11（前置フィルタの同一性）の対象へ新規hookを追加、T12 を追随 |
+| `.claude/docs/spec/push-checklist.md` | 新規 |
+| `.claude/docs/ddr/i0017-01-….md` | 新規 |
+| `.claude/rules/docs-workflow.md` | チェックリストのライフサイクル（worklogと同じ寿命）を追記 |
+| `.claude/rules/directory-structure.md` | `.claude/hooks/` の説明へ新規hook2本を追記 |
+| `index.md` | Repository Map へ追記 |
+| `.claude/skills/commit/SKILL.md` | コミット前にチェックリストを埋める手順を追記 |
+| `.claude/skills/issue-mr-flow/SKILL.md` | commitのflow-idの行へチェックリストの言及を追記 |
+| `.claude/docs/spec/issue-mr-workflow.md` | 本エントリと「コンポーネント構成」ツリー |
+| `.claude/docs/README.md` | spec一覧へ1行追加、`generate-ddr-list.sh` による再生成 |
+| `.claude/VERSION` | `0.4.0` → `0.5.0`。**ただし本issueが上げた版ではない**（下記） |
+
+**既存のpush系hook 2本（`post-push-usage-report.sh` / `post-push-compact-prompt.sh`）の
+ロジックは1バイトも変更していない**（issue #17 の受け入れ条件「責務を既存2本と分離する」）。
+
+**`.claude/VERSION` は `0.4.0` → `0.5.0`（MINOR）になったが、`0.5.0` は本issueが上げた値では
+ない。** 本issueの変更は、同じ未リリースの `0.5.0` へ**相乗りする**。
+
+- **経緯**: 本issueの作業中、AIエージェントは `0.4.0` → MINOR を提案し、非対話セッションの
+  例外条件下で適用した。その後 defaultブランチが **PR #194**（HTMLスライド作成スキルの追加）で
+  `0.4.0` → `0.5.0` へ進んでいることが分かった。**値が一致したため差分は消えるが、
+  「本issueが上げた」という記述はそのままでは事実と食い違う。**
+- **増分の根拠として数えていたもの**は、本issueが追加したスクリプト1本・hook2本・spec1本・
+  DDR1本に加え、同じフェーズ4で書き換えた配布層 `core` の資産
+  （`.claude/rules/shell-script-style.md`・
+  `.claude/skills/issue-mr-flow/references/mcp-fallback.md`・`wip/plans/REVIEW-POINTS.md`）の
+  **合算**である。いずれも資産の追加であり、`0.5.0` という MINOR の値そのものは本issueの
+  変更内容とも整合する。
+- **したがって本issueは版を動かさない。** `.claude/docs/spec/distribution-assets.md` の
+  「人間の判断で据え置くことがある」の規定に従い、判断の経緯をここへ残す。**同じ形は
+  issue #155 でも起きている**（当時は `0.2.0` → `0.3.0` が issue #160 によるもので、
+  同じ未リリース版へ相乗りした）。
+
+> **非対話セッションの例外条件について。** 適用した時点では
+> `.claude/docs/spec/distribution-assets.md` の「例外（非対話的セッション）」の条件下にあり、
+> 記録先2箇所（本エントリと `HANDOFF.md`「判断を迷った内容」）へ根拠を残していた。
+> **上記のとおり結果として版を動かさないため、否認による巻き戻しの対象は残っていない。**
+
+**受け入れた既知の性質**（詳細は [push-checklist.md](push-checklist.md)「未決定事項・懸念点」）
+
+- 本機構は**「作業ツリーが常にクリーンかつリモートと一致」と構造的に両立しない**。pushの直後には
+  必ず未コミットのチェックリストが1本あり、それを `pending` のままコミットすると `verify` の
+  対象になって埋めるまでpushできない。両立させようとすると、**実施していない項目を `done` と
+  書く動機**になる（自己申告に立つ機構として最も避けたい壊れ方のため、specへも明記した）。
+- **誤ブロックの再現条件が1件、特定できていない。** 長いコマンドが2回 `stale` で exit 2 された。
+  判定単体（8ケース）・hookの実プロセス起動（6ケース）・ANSI-Cクォート仮説（3ケース）のいずれでも
+  再現せず、**判定の誤りだったのか `stale` が真だったのかも切り分けられていない**。再現条件が
+  不明なため実装は変更していない。

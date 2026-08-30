@@ -79,9 +79,9 @@ hookは多重防御であり、注入が無かったことは着手してよい�
         `commit`スキル呼び出しは不要。番号が返らずエラーで終了した場合のみ実際の失敗として対処する。
 3. 取得したissue内容をもとに、全体フロー 1-4（Planモードでの全体作業計画作成）に進む旨をユーザーに案内する。
    **あわせて `.claude/skills/issue-mr-flow/assets/plans.template.html` と
-   `.claude/skills/issue-mr-flow/assets/reports.template.html` を読む**（このブランチで作る
-   計画・レポートのHTMLビューは、すべてこの2つを土台にする。
-   `references/deliverables.md`「計画・レポートのHTMLビュー」節）。
+   `.claude/skills/issue-mr-flow/assets/reports-clean.template.html`（レポート側の既定）を読む**
+   （このブランチで作る計画・レポートのHTMLビューは、すべてこれらを土台にする。**レポート側は
+   5本あり、既定以外を選ぶ場合は** `references/deliverables.md`「レポートテンプレートの選び方」を見る）。
 
 ### `sync` — セッション再開（全体フロー 1-3の再開版）
 
