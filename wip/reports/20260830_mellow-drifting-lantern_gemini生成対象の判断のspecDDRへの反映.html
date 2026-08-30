@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>gemini生成対象の判断をspec・DDRへ反映 — issue #172</title>
+<style>
+  :root {
+    --bg: #f6f7f9;      --panel: #ffffff;   --ink: #1a1d21;     --muted: #5b636d;
+    --line: #dfe3e8;    --accent: #2563eb;  --accent-soft: #eaf0fe;
+    --ok: #1a7f4b;      --ok-soft: #e6f4ec; --warn: #a35a00;    --warn-soft: #fdf1e0;
+    --stop: #b3261e;    --stop-soft: #fdecea; --code-bg: #f0f2f5;
+    --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1216;    --panel: #161a20;   --ink: #e6e8eb;     --muted: #9aa3ad;
+      --line: #2a3038;  --accent: #7aa2f7;  --accent-soft: #1b2333;
+      --ok: #6ee7a8;    --ok-soft: #14261d; --warn: #f0b866;    --warn-soft: #2a2113;
+      --stop: #f2857c;  --stop-soft: #2b1614; --code-bg: #1d222a;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", system-ui, sans-serif;
+    line-height: 1.8; font-size: 15px;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 20px 80px; }
+  header.band {
+    background: linear-gradient(135deg, var(--accent-soft), var(--panel));
+    border-bottom: 1px solid var(--line); padding: 28px 20px 22px; margin-bottom: 28px;
+  }
+  header.band .inner { max-width: 1080px; margin: 0 auto; }
+  header.band .kind { font-size: 11px; letter-spacing: .18em; color: var(--accent); font-weight: 700; }
+  header.band h1 { margin: 6px 0 4px; font-size: 26px; line-height: 1.4; }
+  header.band .lead { margin: 0; color: var(--muted); }
+  .meta { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; padding: 0; list-style: none; }
+  .meta li {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 999px;
+    padding: 3px 12px; font-size: 12.5px; color: var(--muted); white-space: nowrap;
+  }
+  .meta li b { color: var(--ink); font-weight: 600; }
+  nav.toc {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 14px 20px; margin-bottom: 28px;
+  }
+  nav.toc h2 { margin: 0 0 8px; font-size: 13px; letter-spacing: .08em; color: var(--muted); border: 0; padding: 0; }
+  nav.toc ol { margin: 0; padding-left: 20px; }
+  nav.toc li { margin: 2px 0; }
+  a { color: var(--accent); }
+  section {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 8px 24px 22px; margin-bottom: 22px;
+  }
+  h2 { font-size: 20px; margin: 20px 0 10px; padding-bottom: 8px; border-bottom: 2px solid var(--line); }
+  h3 { font-size: 16px; margin: 22px 0 8px; color: var(--accent); }
+  p { margin: 10px 0; }
+  ul, ol { padding-left: 22px; }
+  li { margin: 4px 0; }
+  .tablewrap { overflow-x: auto; margin: 14px 0; }
+  table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 14px; }
+  th, td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: var(--accent-soft); font-weight: 600; white-space: nowrap; }
+  tbody tr:nth-child(even) td { background: color-mix(in srgb, var(--line) 22%, transparent); }
+  code {
+    background: var(--code-bg); border-radius: 5px; padding: 1px 5px; font-size: 13px;
+    font-family: "SFMono-Regular", Consolas, "Noto Sans Mono", monospace;
+  }
+  pre {
+    background: var(--code-bg); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 12px 14px; overflow-x: auto; font-size: 13px; line-height: 1.65;
+  }
+  pre code { background: none; padding: 0; }
+  .box { border-left: 4px solid var(--accent); background: var(--accent-soft);
+         border-radius: 0 var(--radius) var(--radius) 0; padding: 12px 16px; margin: 16px 0; }
+  .box > :first-child { margin-top: 0; } .box > :last-child { margin-bottom: 0; }
+  .box .label { font-size: 12px; font-weight: 700; letter-spacing: .06em; display: block; margin-bottom: 4px; }
+  .box.ok { border-color: var(--ok); background: var(--ok-soft); } .box.ok .label { color: var(--ok); }
+  .box.warn { border-color: var(--warn); background: var(--warn-soft); } .box.warn .label { color: var(--warn); }
+  .box.stop { border-color: var(--stop); background: var(--stop-soft); } .box.stop .label { color: var(--stop); }
+  .box.info .label { color: var(--accent); }
+  footer { color: var(--muted); font-size: 13px; text-align: center; padding-top: 10px; }
+</style>
+</head>
+<body>
+
+<header class="band">
+  <div class="inner">
+    <div class="kind">作業結果レポート / フェーズ4・1回目</div>
+    <h1>作業結果 — gemini生成対象の判断を spec・DDR へ反映</h1>
+    <p class="lead">フェーズ3で決着した論点1〜3（自立化の却下・読まれない4ディレクトリの現状維持・
+    <code>.agents/skills/</code>エイリアスの不成立）を <code>.claude/docs/spec/sync-gemini-assets.md</code>・
+    新規DDR <code>i0172-01</code>・<code>GEMINI.md</code> へ反映した。敵対的レビュー16件の指摘を
+    すべて反映した。</p>
+    <ul class="meta">
+      <li><b>issue</b> #172</li>
+      <li><b>ブランチ</b> claude/gemini-exclude-decision-yp5p70</li>
+      <li><b>PR</b> #193</li>
+      <li><b>フェーズ</b> 4〈反映〉 flow-id 4-6（1回目）</li>
+      <li><b>作成日</b> 2026-08-30</li>
+      <li><b>正文</b> 同名の .md</li>
+    </ul>
+  </div>
+</header>
+
+<div class="wrap">
+
+<nav class="toc">
+  <h2>目次</h2>
+  <ol>
+    <li><a href="#done">実施した内容</a></li>
+    <li><a href="#review">敵対的レビューでの指摘と対応</a></li>
+    <li><a href="#verify">検証</a></li>
+    <li><a href="#diff">想定と異なった点</a></li>
+  </ol>
+</nav>
+
+<section id="done">
+  <h2>実施した内容</h2>
+
+  <h3>1. <code>.claude/docs/spec/sync-gemini-assets.md</code></h3>
+  <p>「影響範囲」節へ <code>### issue #172（新規追加・2026-08-29）</code> を追加し、論点1〜3の
+  結論のみを簡潔に示した（詳細な理由・4軸の適用結果・却下した案はDDRを正とし、specでの重複を
+  避けた。経緯は下記「敵対的レビューでの指摘と対応」参照）。「未決定事項・懸念点」節へ、
+  論点2・論点3の再検討条件と、フェーズ3から持ち越された4項目（installerの終了コード・
+  生成スキップ手段の欠如・<code>.claude/…</code>表記の書き換え可否）を追記した。</p>
+
+  <h3>2. 新規DDR <code>i0172-01</code></h3>
+  <p><code>.claude/docs/ddr/i0172-01-読まれないgemini複製とagents-skillsエイリアス化と自立化はいずれも見送る.md</code>
+  を新規作成した。決定（3論点）・理由（論点ごとの4軸適用結果・決め手の再評価・「正しい問いは
+  『.gemini/に何を置くべきか』」という指摘）・却下した案（5案）・受け入れた制約（ソースコード
+  確認の範囲）・再検討の条件を記録した。</p>
+
+  <h3>3. <code>GEMINI.md</code></h3>
+  <p>論点1のユーザー決定「自立化しない、かつ <code>.claude/</code> への依存を明示する」のうち、
+  後半（明示）を実施した。「geminiCLI固有ルール」節へ、<code>.claude/</code> への依存が
+  切れないことと、その根拠（<code>.gemini/</code> は変換生成物であり、hook・エージェント定義の
+  実体は <code>.claude/</code> を指す）を追記した。配布先の Gemini CLI セッションへ実際に届く
+  記録先が <code>GEMINI.md</code> だけであるという2回目調査の実測（Q10-3）に基づく。</p>
+
+  <h3>4. 機械的な整合性チェック</h3>
+<pre><code>$ bash .claude/scripts/src/generate-ddr-list.sh
+DDR一覧を更新しました（89件）: .claude/docs/README.md
+
+$ bash .claude/scripts/src/check-doc-references.sh
+走査ファイル数=375（除外ディレクトリ配下=40、削除済み未ステージのためスキップ=0）
+候補数=252（フェンス内除外=7、省略記法による除外=18）
+参照切れ数=0
+
+$ bash .claude/scripts/test/test_sync_gemini_assets.sh
+passed=91 failures=0</code></pre>
+
+  <h3>5. 無関係な既存欠陥の切り出し</h3>
+  <p><code>.claude/docs/ddr/i0127-01-….md:132</code> に、issue #133 の改番で追随漏れとなった
+  相対リンク切れ（旧ファイル名 <code>0037-….md</code> を参照。実在は
+  <code>i0044-01-….md</code>）を発見した。<code>check-doc-references.sh</code> は絶対パス形式
+  しか見ないため検出されない（DDR <code>i0171-01</code> の設計判断どおり）。本issueのスコープ外
+  かつDDR本文不変の原則（<code>.claude/rules/docs-workflow.md</code>）により、この場では修正せず
+  <code>spawn_task</code> で別タスクとして切り出した。</p>
+</section>
+
+<section id="review">
+  <h2>敵対的レビューでの指摘と対応</h2>
+  <p>フェーズ4の敵対的レビュー実施上限3回のうち1回目を、spec・DDR・DDR一覧・個別反映計画に
+  対して実施した。<b>major 9件・minor 4件・nit 1件、計16件</b>の指摘を得て、すべて妥当と
+  判断し修正した。</p>
+
+  <div class="box warn">
+    <span class="label">この回はPR投稿・返信の往復を行っていない</span>
+    <p>レビュー時点でまだ何もcommit・pushしておらず、指摘された欠陥はPR上の誰の目にも
+    触れていない。そのため、フェーズ2・3のように「PRへ投稿→修正→返信」という往復は行わず、
+    指摘を直接ワーキングツリーへ反映してから最初のcommitを作った。指摘内容はこのレポートと
+    worklog（<code>wip/worklogs/20260830_…_push12.md</code>）に記録する。</p>
+  </div>
+
+  <p>主な指摘（詳細はworklog参照）:</p>
+  <ol>
+    <li><b>DDRの案C（3つ外す案）の却下理由が同一DDR内の他の記述と矛盾</b>していた
+      （<code>.gemini/skills/</code>が読まれることは確定済みなのに「未観測の推論」の
+      対象に含めていた）。</li>
+    <li><b>「Gemini CLI 実機・ソースコードを一度も観測せずに行った」が既存DDR
+      <code>i0070-01</code></b>（変換規則の根拠はソースコードを読んだもの）<b>と矛盾</b>
+      していた。読み込み経路についてのソース確認はしていない、という限定表現へ改めた。</li>
+    <li><b>specがDDRへ「4軸の適用結果を参照」と案内していたが、DDRに4軸の実測値が
+      無かった。</b> 4ディレクトリ分の4軸表をDDRへ追加した。</li>
+    <li><b>軸2の壊れたリンクの向き「rules/宛て17」が逆だった</b>（正しくは<code>rules/</code>
+      が発、<code>docs/</code>が宛）。</li>
+    <li><b>論点1のユーザー決定「依存を明示する」の実施先が、どこにも反映されていなかった。</b>
+      <code>GEMINI.md</code> への追記で解消した（上記「実施した内容」3）。</li>
+    <li><b>DDRが <code>wip/reports/</code> を判断材料として参照していたが、flow-id 5-5で
+      削除される。</b> issue/PR番号での参照に改めた。</li>
+    <li><b>転記元が「DDRへ残す」と指定した結論8（全件列挙である・正しい問いは何か）が
+      DDRに反映されていなかった。</b> DDRへ節を追加した。</li>
+    <li><b>フェーズ3が次工程へ送った4項目が、反映計画自身に現れていなかった。</b>
+      計画へ書き起こし、spec側にも記録した。</li>
+    <li>DDRの表2箇所が物理行をまたいでおり、GFM上で表が崩れる状態だった（1行1物理行へ修正）。</li>
+    <li>spec/DDRの正の二重化（決め手の記述がほぼ同じ粒度で重複）を、specをDDR参照へ簡素化する
+      形で解消した。</li>
+  </ol>
+</section>
+
+<section id="verify">
+  <h2>検証</h2>
+  <p>計画の検証項目をすべて満たしていることを確認した（上記「機械的な整合性チェック」）。
+  あわせて目視で次を確認した。</p>
+  <ul>
+    <li>論点1〜3すべての判断と理由が、spec（結論のみ）とDDR（理由・4軸・却下案）に反映されている</li>
+    <li>「Gemini CLI実機・ソースコード未検証」という制約が、既存DDR <code>i0070-01</code> と
+      矛盾しない形で明記されている</li>
+    <li>却下した案（5案）がDDRに記録されている</li>
+    <li>再検討の条件がDDRに記録されている</li>
+  </ul>
+</section>
+
+<section id="diff">
+  <h2>想定と異なった点</h2>
+  <div class="tablewrap">
+  <table>
+    <tr><th>計画時の見込み</th><th>実際</th></tr>
+    <tr><td>specとDDRへそれぞれ詳細を書く</td><td>敵対的レビューで「正が2つになる」と指摘され、specは結論＋DDRへのリンクへ簡素化した</td></tr>
+    <tr><td>敵対的レビューはPRへ投稿し返信往復する</td><td>この回はcommit・push前にレビューしたため、投稿・返信の往復は発生せず、指摘は直接反映してこのレポート・worklogへ記録した</td></tr>
+    <tr><td>論点1の「依存を明示する」は既に完了している認識だった</td><td>実施先（<code>GEMINI.md</code>）が未着手だったことをレビューで指摘され、この回で実施した</td></tr>
+  </table>
+  </div>
+</section>
+
+<footer>issue #172 / PR #193 — 正文は同名の <code>.md</code>。外部依存を持たない自己完結HTML。</footer>
+
+</div>
+</body>
+</html>
