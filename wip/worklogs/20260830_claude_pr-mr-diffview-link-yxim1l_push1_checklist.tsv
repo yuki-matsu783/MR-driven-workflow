@@ -1,0 +1,7 @@
+# generated-for: 539627f8827ed7078a614bbfbf5a7d93ecefd294
+# id	項目	状態	実施ログ
+worklog	worklogを作成し、このpushまでの試行錯誤を追記した	done	追記6でflow-id 5-1のmainマージ・コンフリクト解消経緯を記録した
+handoff	HANDOFF.md の進捗表・ヘッダを更新した（commitより前・同じcommitに含めた）	done	HANDOFF.mdの判断を迷った内容へmainマージ解消の経緯を記録し進捗表5-1をmark-doneした（コミットea364d1）
+frontmatter-index	frontmatterを変更した場合、index.jsonl を最新化した	skip	この差分でfrontmatterを変更するmdは無い（HANDOFF.md本文とworklog本文のみ）
+plan-report-sync	wip/plans/ wip/reports/ の md と html を同期した	skip	この差分でwip/plans/ wip/reports/の変更は無い（HANDOFF.mdとworklogのみ）
+commit-skill	commit スキル（create-commit.sh）経由でコミットした	done	create-commit.sh経由でコミットした（ea364d1）

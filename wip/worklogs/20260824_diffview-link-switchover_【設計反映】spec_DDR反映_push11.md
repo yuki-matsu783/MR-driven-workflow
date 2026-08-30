@@ -193,3 +193,20 @@ push回数: 11〜
 ## 次の一歩（更新5）
 
 - flow-id 4-10（`describe`でMR descriptionを更新）へ進み、フェーズ5（クローズ）へ移る。
+
+## 追記6（flow-id 5-1: mainマージによるコンフリクト解消）
+
+- `describe`へ進む前に、`resolve-conflict`スキル（flow-id 5-1）でdefaultブランチ（main）が
+  6コミット進んでいることを検知した（`check-base-conflicts.sh`の`hasConflict: true`）。
+  `AskUserQuestion`でユーザーの承認を得てからマージした。
+- コンフリクトは2ファイル。`.claude/docs/README.md`（DDR一覧マーカー内。類型B。マーカー外に
+  差分が無いことを確認してから片側採用→`generate-ddr-list.sh`再実行で105件へ）、
+  `.claude/docs/spec/issue-mr-workflow.md`「未決定事項・懸念点」（同じブレット直後への
+  issue #205側6項目とmain側issue #17エントリの並行追記。類型D。時系列順に両方残した）。
+  コミット`539627f`。
+- main側で新設された**push前チェックリスト機構（issue #17）**が今回のpushから初めて効いた
+  （`block-unchecked-push.sh`が`push前チェックリストがコミットされていません`でブロック）。
+  `push-checklist.sh check <id> "<ログ>"` / `skip <id> "<理由>"`で埋めてから
+  `commit`スキル経由でコミットする運用に従った。
+- 検証: マーカー残存なし・unmergedパス無し・単体テスト21ファイル全件`failures=0`・
+  `check-doc-references.sh`参照切れ0・DDR識別子重複0・マージ後`mergeable_state`が`clean`。
