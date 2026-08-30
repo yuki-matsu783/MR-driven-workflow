@@ -385,6 +385,10 @@ bash .claude/scripts/src/create-commit.sh --message "chore: <base>をマージ�
 あり、コミットは `commit` スキル経由、メッセージは「何を」「どう」解消したかを書く、という規約は
 同じである（例: `chore: mainをマージしDDR番号を0039へ繰り下げてissue #88の変更と統合`）。
 
+本 Step のメッセージ規約は、**コンフリクト解消コミットに限った具体化**である。件名の要素・本文・
+フッターの一般規則は `.claude/skills/commit/SKILL.md`「コミットメッセージの内容規約」が正
+（issue #185）。
+
 ### Step 7: 報告
 
 解消した内容を、類型ごとに箇条書きでユーザーへ報告する。以下は必ず含める。

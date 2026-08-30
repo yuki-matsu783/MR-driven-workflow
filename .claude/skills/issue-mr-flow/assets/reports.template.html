@@ -1,34 +1,95 @@
 <!--
   レポート（wip/reports/）の人間レビュー用HTMLビュー テンプレート
-  （.claude/skills/issue-mr-flow/SKILL.md / .claude/rules/docs-workflow.md 参照。issue #54）
+  （.claude/skills/issue-mr-flow/SKILL.md / .claude/rules/docs-workflow.md 参照。issue #54。
+   視覚構成（節順・結論カード・重点レビュー依頼・色の使い分け）は issue #186）
+
+  **このテンプレートは issue #203 以降、移行期のみのものである。**
+  新規に作るレポートは reports-clean.template.html（既定）を使う。ここに残っているのは、
+  issue #203 以前に作られ、まだ片付いていないレポートを更新するためである
+  （選び方: .claude/skills/issue-mr-flow/references/deliverables.md
+   「レポートテンプレートの選び方」。廃止時期は DDR i0203-01 の未確認事項）。
+  **節構成が新4本とは異なるため、<style> だけを差し替えても乗り換えられない**
+  （このテンプレートは nav.toc ＋ #review-focus ＋ #summary、新4本は aside.sidebar ＋
+   統合した #overview を持つ）。
+
+  **検査コマンド・合格条件・一般則の正は
+   .claude/skills/issue-mr-flow/references/deliverables.md「検査手順の正はこの節にある」
+   （6種）である**（issue #203）。下の「アンカーとリンク破断検査」は3種しか書いておらず、
+  外部依存検査2種と構造の妥当性検査（<style> がちょうど1つ）が欠けている。
 
   使い方:
     1. このファイルを、対応するレポートmdと同じベース名でコピーする（拡張子だけ .html にする）。
          wip/reports/日付_<全体計画名>_<内容を簡潔に>.md → 同名の .html
        flow-id 5-4 の最終統括レポート（wip/reports/日付_<全体計画名>_統括.html）もこれを土台にする。
-    2. <title> とヘッダ帯（.band）の見出し・メタ情報を埋める。
+    2. <title> とヘッダ帯（.band）の見出し・メタ情報・結論件数チップを埋める。
     3. 各 section に置いてある「ここに書く: …」で始まるHTMLコメントを、実際の内容へ置き換える。
     4. 使わない任意セクションは <section> ごと削除する。必須セクションは削除しない。
+       各節の直前にある [必須]/[任意] の節コメントは、残す節・削る節にかかわらず出力からは
+       すべて削除する（プレースホルダ検査には数えられないが、コメント中の id 文字列等が
+       検査のノイズになる）。
     5. **HTMLコメントのプレースホルダを1つも残さない。** 残っていると成果物に雛形の痕跡が残る。
        確認: grep -c '<!-- ここに書く' <出力ファイル>  が 0 であること。
        （`<!--` まで含めて数える。地の文で「ここに書く」という語に触れる成果物——たとえば
         このテンプレート自身を説明する計画——を誤検知しないため。）
     6. 冒頭のこのコメント（使い方）も削除し、このレポートが何かの説明へ置き換える。
 
+  節の並び順（変えない。理由とセット）:
+    目次 → 重点レビュー依頼 → サマリ（結論の一覧） → 確かめられなかったこと →
+    実施条件（測った対象・環境） → 実施した内容と結果 → 設計への反映 →
+    想定と異なった点 → 残課題
+    並び順は変えない。ただし任意節（目次・実施条件・想定と異なった点・残課題）は書くことが
+    無ければ削ってよく、削っても残りの相対順序は変えない（存否は各節の [必須]/[任意] が正）。
+    「どこを見てほしいか」（重点レビュー依頼）と「結論と、その確からしさの限界」（サマリ＋
+    確かめられなかったこと）を前半に集め、レビュアーが詳細へ入る前に全体像と確度をつかめる
+    ようにする。「確かめられなかったこと」の一覧が前半にあるのはこのためで、個々の詳細は
+    各章の callout に書く（後述）。
+
+  色・記号の使い分け（「結論の性質」と「レビューの重み」で軸を分ける）:
+    - 結論の性質（サマリの結論カード・章見出し・ヘッダ帯の件数チップ）は3色＋記号＋文字:
+        良かった = 青 .chip.good「◎良」 / 気になる = 黄 .chip.warn「△注意」 /
+        悪かった = 赤 .chip.stop「✕問題」
+      色だけに意味を持たせない（記号＋文字を必ず併記する）。
+    - 緑（--ok / .box.ok）は「決めたこと・手順の成功」専用。結論の性質には使わない
+      （「良かった」は青 .chip.good。緑にすると .box.ok の意味と衝突する）。
+    - レビューの重み（重点レビュー依頼の3段階）には色相を使わない。◆◇の2段階はアクセント系
+      1色相の濃度・枠の太さで、第3段階（・）は中立色（--line枠＋--muted文字）で表し、
+      記号（◆◇・）を必ず併記する（「重点依頼の赤」を「問題の赤」と読み違えさせない）。
+
+  重点レビュー依頼の書き方:
+    3段階 = ◆特に見てほしい（判断に困っている）／◇承認が欲しい（方針は決めたので確認して
+    ほしい）／・細かいレビューは不要（ほぼ確実）。各項目から該当章へリンクする。
+    書くことが無い枠は中を「無し」と1行にしてよいが、節と3つの枠は削除しない
+    （「無い」と「書き忘れた」を区別するため）。
+
+  アンカーとリンク破断検査:
+    - 章IDは「実施した内容と結果」の h3 に f1, f2, … の連番で振る。結論カード・未確認一覧・
+      重点レビュー依頼の3箇所から同じIDを参照する。
+    - 出力後に必ずリンク破断検査を行う（出力0行が合格）。ID定義側の抽出は**開きタグ内の
+      id 属性に限定する**（コメント・地の文・code内に現れる id="…" という文字列を定義として
+      数えると、破断していても合格になるため）:
+        comm -23 <(grep -oE 'href="#[A-Za-z0-9_-]+"' <出力ファイル> | sed 's/^href="#//;s/"$//' | sort -u) \
+                 <(grep -oE '<[a-z][^>]*[[:space:]]id="[A-Za-z0-9_-]+"' <出力ファイル> | sed 's/.*id="//;s/"$//' | sort -u)
+    - 重複ID検査も併せて行う（h3をコピーしてIDを振り直し忘れると、参照が全て解決するため
+      破断検査は素通りする。出力なしが合格）:
+        grep -oE '<[a-z][^>]*[[:space:]]id="[A-Za-z0-9_-]+"' <出力ファイル> | sed 's/.*id="//;s/"$//' | sort | uniq -d
+    - コメント・コード例の中で具体的なIDを持つ href を引用するときは、# を &#35; と書いて
+      検査に当てない（例: href="&#35;f1"）。検査コマンド自身の正規表現はエスケープしない。
+      id 側は抽出がタグ内限定なので、地の文で id="f1" のように引用してもエスケープは不要。
+
   必須／任意:
     各 section の直前に、[必須] または [任意] を記したHTMLコメントを置いてある。
     **任意セクションは、そのissueで書くことが無ければ削る。** 埋めるために内容を水増ししない。
 
   フェーズごとの読み替え:
-    [必須] の4節は **調査結果（flow-id 2-6）** を既定にしている。同じテンプレートを作業結果
-    （3-6）・反映結果（4-6）・最終統括レポート（5-4）にも使うが、次の2節は場面によって
-    意味が薄くなるので、そのときは節を残したまま1行で済ませる（水増ししない）。
+    [必須] の各節は **調査結果（flow-id 2-6）** を既定にしている。同じテンプレートを作業結果
+    （3-6）・反映結果（4-6）・最終統括レポート（5-4）にも使うが、次の3節は場面によって
+    意味が変わる・薄くなるので読み替える（節ごと削除はしない）。
+      - 「重点レビュー依頼」… 統括レポート（5-4）では**マージ判断で最後に見てほしい点**を書く。
       - 「確かめられなかったこと」… 統括レポート（5-4）では、フェーズごとのレポートで既に
         書いた内容の再掲になりやすい。**残っている未確認事項だけ**を書き、無ければ「無い」と
         1行書く。
       - 「設計への反映」… 設計反映（4-6）の結果レポートでは同語反復になる。そこでは
         **「反映しきれず次のissueへ回したもの」**を書く場所として使い、無ければ「無い」と書く。
-    どちらも節ごと削除はしない（「書くことが無かった」と「書き忘れた」を区別できなくなるため）。
 
   計画を書かないこと:
     レポートには「実施した結果」と、その結論・根拠・確認結果だけを書く。「これから何をするか」は
@@ -59,7 +120,8 @@
     --bg: #f6f7f9;      --panel: #ffffff;   --ink: #1a1d21;     --muted: #5b636d;
     --line: #dfe3e8;    --accent: #2563eb;  --accent-soft: #eaf0fe;
     --ok: #1a7f4b;      --ok-soft: #e6f4ec; --warn: #a35a00;    --warn-soft: #fdf1e0;
-    --stop: #b3261e;    --stop-soft: #fdecea; --code-bg: #f0f2f5;
+    --stop: #b3261e;    --stop-soft: #fdecea; --good: #1d4ed8;  --good-soft: #e7edfd;
+    --code-bg: #f0f2f5;
     --radius: 10px;
   }
   @media (prefers-color-scheme: dark) {
@@ -67,7 +129,8 @@
       --bg: #0f1216;    --panel: #161a20;   --ink: #e6e8eb;     --muted: #9aa3ad;
       --line: #2a3038;  --accent: #7aa2f7;  --accent-soft: #1b2333;
       --ok: #6ee7a8;    --ok-soft: #14261d; --warn: #f0b866;    --warn-soft: #2a2113;
-      --stop: #f2857c;  --stop-soft: #2b1614; --code-bg: #1d222a;
+      --stop: #f2857c;  --stop-soft: #2b1614; --good: #8ab4f8;  --good-soft: #17233a;
+      --code-bg: #1d222a;
     }
   }
   * { box-sizing: border-box; }
@@ -87,7 +150,8 @@
   header.band .kind { font-size: 11px; letter-spacing: .18em; color: var(--accent); font-weight: 700; }
   header.band h1 { margin: 6px 0 4px; font-size: 26px; line-height: 1.4; }
   header.band .lead { margin: 0; color: var(--muted); }
-  .meta { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; padding: 0; list-style: none; }
+  header.band .counts { margin: 12px 0 0; display: flex; gap: 6px; flex-wrap: wrap; }
+  .meta { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; padding: 0; list-style: none; }
   .meta li {
     background: var(--panel); border: 1px solid var(--line); border-radius: 999px;
     padding: 3px 12px; font-size: 12.5px; color: var(--muted); white-space: nowrap;
@@ -107,6 +171,8 @@
     background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
     padding: 8px 24px 22px; margin-bottom: 22px;
   }
+  /* アンカーで飛んだとき見出しが上端に張り付かないようにする（issue #186） */
+  section[id], h3[id] { scroll-margin-top: 16px; }
   h2 { font-size: 20px; margin: 20px 0 10px; padding-bottom: 8px; border-bottom: 2px solid var(--line); }
   h3 { font-size: 16px; margin: 22px 0 8px; color: var(--accent); }
   p { margin: 10px 0; }
@@ -131,7 +197,8 @@
   }
   pre code { background: none; padding: 0; }
 
-  /* 注意ボックス: info（既定）/ ok（決めたこと）/ warn（注意）/ stop（やらないこと・危険） */
+  /* 注意ボックス: info（既定）/ ok（決めたこと・手順の成功。結論の性質には使わない）/
+     warn（注意）/ stop（やらないこと・危険） */
   .box { border-left: 4px solid var(--accent); background: var(--accent-soft);
          border-radius: 0 var(--radius) var(--radius) 0; padding: 12px 16px; margin: 16px 0; }
   .box > :first-child { margin-top: 0; } .box > :last-child { margin-bottom: 0; }
@@ -141,10 +208,33 @@
   .box.stop { border-color: var(--stop); background: var(--stop-soft); } .box.stop .label { color: var(--stop); }
   .box.info .label { color: var(--accent); }
 
-  .tag { display: inline-block; border-radius: 999px; padding: 1px 9px; font-size: 12px; font-weight: 600; }
-  .tag.ok { background: var(--ok-soft); color: var(--ok); }
-  .tag.warn { background: var(--warn-soft); color: var(--warn); }
-  .tag.stop { background: var(--stop-soft); color: var(--stop); }
+  /* 結論の性質チップ: 良=青 .good / 注意=黄 .warn / 問題=赤 .stop（記号＋文字を必ず併記） */
+  .chip { display: inline-block; border-radius: 999px; padding: 1px 9px; font-size: 12px; font-weight: 600; }
+  .chip.good { background: var(--good-soft); color: var(--good); }
+  .chip.warn { background: var(--warn-soft); color: var(--warn); }
+  .chip.stop { background: var(--stop-soft); color: var(--stop); }
+
+  /* サマリの結論カード: 1カード1結論（チップ＋結論1行＋根拠の性質＋章リンク） */
+  ol.verdicts { list-style: none; padding: 0; margin: 14px 0; display: grid; gap: 8px; }
+  .verdict {
+    border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel);
+    padding: 8px 12px; display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px;
+  }
+  .verdict .v-basis { color: var(--muted); font-size: 12.5px; margin-left: auto; }
+
+  /* 重点レビュー依頼の3段階: 重みは色相では表さない（色相は結論の性質専用）。
+     must/want はアクセント系1色相の濃度・枠の太さ、skip は中立色（--line枠＋--muted文字）。
+     記号（◆◇・）を必ず併記する */
+  .focus { border-radius: var(--radius); padding: 12px 16px; margin: 14px 0; }
+  .focus > :last-child { margin-bottom: 0; }
+  .focus .label { font-size: 13px; font-weight: 700; letter-spacing: .04em; display: block; margin-bottom: 4px; }
+  .focus.must { border: 2px solid var(--accent); background: var(--accent-soft); }
+  .focus.must .label { color: var(--accent); }
+  .focus.want { border: 1px solid var(--accent); background: var(--panel); }
+  .focus.want .label { color: var(--accent); }
+  .focus.skip { border: 1px solid var(--line); background: var(--panel); color: var(--muted); }
+  .focus.skip .label { color: var(--muted); }
+  .focus.skip a { color: var(--muted); }
 
   footer { color: var(--muted); font-size: 13px; text-align: center; padding-top: 10px; }
 </style></head>
@@ -159,6 +249,13 @@
     <h1>レポートの題名</h1>
     <!-- ここに書く: 1〜2文で「何をして、何が分かったか」。結論を先に置く -->
     <p class="lead">何をして、何が分かったかを1〜2文で。</p>
+    <!-- ここに書く: 結論件数チップ。サマリの結論カードの件数と一致させる。0件の性質も
+         「✕問題 0」のように0を明示して残す（チップを消すと「0件」と「書き忘れ」を区別できない） -->
+    <p class="counts">
+      <span class="chip good">◎良 N</span>
+      <span class="chip warn">△注意 N</span>
+      <span class="chip stop">✕問題 N</span>
+    </p>
     <ul class="meta">
       <!-- ここに書く: 以下のメタ情報。値の無い項目は li ごと削除する -->
       <li><b>issue</b> #NN</li>
@@ -174,34 +271,85 @@
 
 <div class="wrap">
 
-<!-- [任意] 目次。節が5つ未満なら nav ごと削除してよい -->
+<!-- [任意] 目次。任意節を1つも使わず必須5節のみで構成する場合は、nav ごと削除してよい -->
 <nav class="toc">
   <h2>目次</h2>
   <ol>
     <!-- ここに書く: 各 section の id へのリンク。使わない section の行は削除する -->
+    <li><a href="#review-focus">重点レビュー依頼</a></li>
     <li><a href="#summary">サマリ（結論の一覧）</a></li>
+    <li><a href="#unverified">確かめられなかったこと</a></li>
     <li><a href="#conditions">実施条件（測った対象・環境）</a></li>
     <li><a href="#findings">実施した内容と結果</a></li>
-    <li><a href="#unverified">確かめられなかったこと</a></li>
     <li><a href="#next">設計への反映</a></li>
     <li><a href="#surprises">想定と異なった点</a></li>
     <li><a href="#todo">残課題</a></li>
   </ol>
 </nav>
 
+<!-- [必須] 重点レビュー依頼。削除しない（issue #186）。
+     レビュアーの注意をどこへ割いてほしいかを書き手が明示する場所。3段階の枠も削除しない
+     （書くことが無い枠は中を「無し」と1行にする。「無い」と「書き忘れた」を区別するため）。
+     各項目は該当章（id="f1" 等）へリンクし、何を判断・確認してほしいかまで書く。
+     統括レポート（5-4）では「マージ判断で最後に見てほしい点」を書く -->
+<section id="review-focus">
+  <h2>重点レビュー依頼</h2>
+  <div class="focus must">
+    <span class="label">◆特に見てほしい（判断に困っている）</span>
+    <ul>
+      <!-- ここに書く: 判断に困っている点。何と何で迷い、何を決めてほしいかまで書く -->
+      <li><a href="#f1">1. …</a> — …で迷っている。…を決めてほしい。</li>
+    </ul>
+  </div>
+  <div class="focus want">
+    <span class="label">◇承認が欲しい（方針は決めたので確認してほしい）</span>
+    <ul>
+      <!-- ここに書く: 方針を決めた点。決めた内容を1行で添える -->
+      <li><a href="#f1">1. …</a> — …と決めた。</li>
+    </ul>
+  </div>
+  <div class="focus skip">
+    <span class="label">・細かいレビューは不要（ほぼ確実）</span>
+    <ul>
+      <!-- ここに書く: 機械的な変更・検証済みで自信のある点 -->
+      <li><a href="#f1">1. …</a> — …で確認済み。</li>
+    </ul>
+  </div>
+</section>
+
 <!-- [必須] サマリ（結論の一覧）。削除しない。
-     レビュアーがここだけで全体をつかめるようにする。各行から本文の該当節へリンクする -->
+     レビュアーがここだけで全体をつかめるようにする。1カード1結論で、結論は1行に収める
+     （詳細は「実施した内容と結果」の章に書く）。チップは ◎良（.chip.good）/△注意（.chip.warn）/
+     ✕問題（.chip.stop）。「根拠:」には 実測 / 実装の確認 / ドキュメントの読解 など、
+     その結論を何で支えているかを書く（公式ドキュメントの記述だけを根拠にしていないか） -->
 <section id="summary">
   <h2>サマリ（結論の一覧）</h2>
-  <div class="tablewrap">
-  <table>
-    <thead><tr><th>#</th><th>問い／やったこと</th><th>結論</th><th>根拠の性質</th></tr></thead>
-    <tbody>
-      <!-- ここに書く: 1行1結論。「根拠の性質」には 実測 / 実装の確認 / ドキュメントの読解 など、
-           その結論を何で支えているかを書く（公式ドキュメントの記述だけを根拠にしていないか） -->
-      <tr><td>1</td><td>…</td><td><b>…</b></td><td>…</td></tr>
-    </tbody>
-  </table>
+  <ol class="verdicts">
+    <!-- ここに書く: 1カード1結論。カードの数だけ li を繰り返す -->
+    <li class="verdict">
+      <span class="chip good">◎良</span>
+      <a href="#f1">1. …（結論を1行で）</a>
+      <span class="v-basis">根拠: 実測</span>
+    </li>
+  </ol>
+</section>
+
+<!-- [必須] 確かめられなかったこと。削除しない。
+     結論の確からしさの限界を、詳細より先に読ませるための一覧（issue #186 で前半へ移動）。
+     1行1件で全項目を挙げ、各行から関連章へリンクする。個々の詳細（なぜ確かめられなかったか・
+     何を試したか）は各章内の callout（.box.warn.unverified-detail）に書く。
+     **一覧側を空にして詳細だけを章へ書かない**（「書くことが無かった」と「書き忘れた」を
+     区別できなくなる）。無い場合も「無い」と明記する。
+     統括レポート（5-4）では残っている未確認事項だけを書き、無ければ「無い」と1行書く -->
+<section id="unverified">
+  <h2>確かめられなかったこと</h2>
+  <div class="box warn">
+    <span class="label">この結果が言っていないこと</span>
+    <!-- ここに書く: 測れなかった対象・環境、区別できなかった原因、範囲の限界。
+         「見えない」と「存在しない」を区別する -->
+    <ul>
+      <li>…（1行1件） — <a href="#f1">詳細: 章1</a></li>
+    </ul>
   </div>
 </section>
 
@@ -220,11 +368,13 @@
 </section>
 
 <!-- [必須] 実施した内容と結果。削除しない。
-     結論ひとつごとに h3 を立て、根拠（実行したコマンド・返ってきた出力・参照した実装）を添える -->
+     結論ひとつごとに h3 を立て、根拠（実行したコマンド・返ってきた出力・参照した実装）を添える。
+     h3 には id="f1" から連番でIDを振り、見出しの隣へ結論の性質チップを置く
+     （サマリの結論カード・未確認一覧・重点レビュー依頼の3箇所がこのIDへリンクする） -->
 <section id="findings">
   <h2>実施した内容と結果</h2>
 
-  <h3>1. …（結論の見出し）</h3>
+  <h3 id="f1">1. …（結論の見出し） <span class="chip good">◎良</span></h3>
   <!-- ここに書く: 何をしたか -->
   <p>…</p>
   <!-- ここに書く: 根拠。実行したコマンドと、返ってきた出力をそのまま貼る -->
@@ -235,22 +385,14 @@
     <!-- ここに書く: この項目の結論を1〜2文で -->
     …
   </div>
-
-  <!-- ここに書く: 項目の数だけ h3 を繰り返す。不要な見出しは削除する -->
-</section>
-
-<!-- [必須] 確かめられなかったこと。削除しない。
-     「確かめたこと」と区別して書くための専用の場所。無い場合も「無い」と明記する -->
-<section id="unverified">
-  <h2>確かめられなかったこと</h2>
-  <div class="box warn">
-    <span class="label">この結果が言っていないこと</span>
-    <!-- ここに書く: 測れなかった対象・環境、区別できなかった原因、範囲の限界。
-         「見えない」と「存在しない」を区別する -->
-    <ul>
-      <li>…</li>
-    </ul>
+  <!-- ここに書く: この章に未確認事項があれば、その詳細を前半の一覧と対で書く（無ければ div ごと削除） -->
+  <div class="box warn unverified-detail">
+    <span class="label">確かめられなかったこと（詳細）</span>
+    …
   </div>
+
+  <!-- ここに書く: 項目の数だけ h3 を繰り返す（id は f2, f3, … と連番。チップも章ごとに付ける）。
+       不要な見出し・callout は削除する -->
 </section>
 
 <!-- [必須] 設計への反映。削除しない。

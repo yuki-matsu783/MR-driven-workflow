@@ -44,6 +44,7 @@ keywords: [正史仕様, 意思決定ログ, ユースケース, 逆引き, issu
 - [リポジトリ内のドキュメントを探す](usecase/リポジトリ内のドキュメントを探す.md) ── 目的のspec・DDR・ルールを素早く見つけたい
 - [対応工数を把握する](usecase/対応工数を把握する.md) ── issue対応にかかった工数を集計したい
 - [この機構を他プロジェクトへ導入する](usecase/この機構を他プロジェクトへ導入する.md) ── 別リポジトリへこのワークフロー一式を入れたい
+- [配布先の改善を本家へ収穫する](usecase/配布先の改善を本家へ収穫する.md) ── 他プロジェクトで改善されたAIアセットを本家へ逆輸入したい
 
 ## spec（機能仕様）
 
@@ -62,8 +63,13 @@ keywords: [正史仕様, 意思決定ログ, ユースケース, 逆引き, issu
 - [generate-ddr-list.md](spec/generate-ddr-list.md) ── DDR一覧生成スクリプト（README.mdのDDR一覧をfrontmatterから生成）
 - [gitlab-verification-environment.md](spec/gitlab-verification-environment.md) ── GitLab検証環境（Docker + glab）の再現手順
 - [otel-listener.md](spec/otel-listener.md) ── OTelリスナー機構（OpenTelemetryをusage/へ振り分け保存するperl製リスナー）
+- [gemini-cli-telemetry.md](spec/gemini-cli-telemetry.md) ── Gemini CLI公式テレメトリ機構（outfileへの直接書き出し・バイトオフセットカーソル集計）
 - [sync-gemini-assets.md](spec/sync-gemini-assets.md) ── .claude/ から .gemini/ を生成する変換スクリプト
 - [check-doc-references.md](spec/check-doc-references.md) ── DDR参照切れ検出スクリプト（絶対パス形式のDDR参照が実在するファイルを指しているかを検証）
+- [push-checklist.md](spec/push-checklist.md) ── push前チェックリスト機構（Git管理下のTSVをPreToolUse hookで検証しexit code 2でブロック）
+- [harvest-from-projects.md](spec/harvest-from-projects.md) ── 収穫（逆輸入）スキルの分析スクリプト（scan/diff/merge3の入出力・分類規則・終了コード）
+- [html-slides.md](spec/html-slides.md) ── html-slidesスキル（発表用HTMLスライドを構成案JSONとテンプレート穴埋めの2段で生成）
+- [pptx-slides.md](spec/pptx-slides.md) ── 構成案JSONから編集可能な.pptxを生成するpptx-slidesスキル（雛形展開ディレクトリ＋zip再梱包）
 
 ## ddr（意思決定ログ）
 
@@ -115,9 +121,12 @@ frontmatter（`status` / `superseded_by` / `note`）だけから決まる。
 - [i0011-01-frontmatter抽出は1ファイル1回のjq呼び出しとmtimeキャッシュで高速化する.md](ddr/i0011-01-frontmatter抽出は1ファイル1回のjq呼び出しとmtimeキャッシュで高速化する.md)
 - [i0013-01-レビュー依頼メッセージの参照リンクは前回pushSHAをローカル状態で保持して組み立てる.md](ddr/i0013-01-レビュー依頼メッセージの参照リンクは前回pushSHAをローカル状態で保持して組み立てる.md)
 - [i0014-01-GitHub_GitLab情報取得はgh_glab-CLIを使いWebFetchは使わない.md](ddr/i0014-01-GitHub_GitLab情報取得はgh_glab-CLIを使いWebFetchは使わない.md)
+- [i0017-01-push前チェックリストはGit管理下のTSVで持ちPreToolUseで一律ブロックする.md](ddr/i0017-01-push前チェックリストはGit管理下のTSVで持ちPreToolUseで一律ブロックする.md)
 - [i0020-01-HANDOFF進捗更新はMarkdownテーブル直接書き換えでループ範囲を一括操作する.md](ddr/i0020-01-HANDOFF進捗更新はMarkdownテーブル直接書き換えでループ範囲を一括操作する.md)（うち「mark-skipで作った不整合は後段のmark-done/add-roundで表面化する」は、issue #140でmark-skip自身がその場で拒否する形へ変更された。詳細はi0140-01）
 - [i0023-01-push断面の全文コピーをやめ行番号インデックスで表現する.md](ddr/i0023-01-push断面の全文コピーをやめ行番号インデックスで表現する.md)（うち「Gemini CLI対応の扱い」は、issue #97でメインセッションのみ集計対象へ変更された。サブエージェントを集計しない部分は引き続き有効。詳細は i0097-05）
 - [i0026-01-AIアセットの配布はmanifest付きの直接コピーとし層はexcludeを含む5つにする.md](ddr/i0026-01-AIアセットの配布はmanifest付きの直接コピーとし層はexcludeを含む5つにする.md)
+- [i0027-01-収穫スキルは読み取り専用分析とissue起票までを出口にする.md](ddr/i0027-01-収穫スキルは読み取り専用分析とissue起票までを出口にする.md)
+- [i0027-02-エラー隔離は条件文脈の外のサブシェルでset-eを掛け直して行う.md](ddr/i0027-02-エラー隔離は条件文脈の外のサブシェルでset-eを掛け直して行う.md)
 - [i0028-01-flow-id5-1の後片付けはスクリプト化しコミットは含めない.md](ddr/i0028-01-flow-id5-1の後片付けはスクリプト化しコミットは含めない.md)（ファイル名の `flow-id5-1` は当時の番号。片付けは issue #112 の並べ替えで 5-3 になり、issue #111 の統括レポート追加で 5-4、issue #70 の変換同期の新設でさらに繰り下がって現在 flow-id 5-5。DDR i0112-01・i0111-01 参照）
 - [i0032-01-GitLab-issueテンプレートは予約名Default.mdを正とし文書側を合わせる.md](ddr/i0032-01-GitLab-issueテンプレートは予約名Default.mdを正とし文書側を合わせる.md)
 - [i0033-01-配布物の版はVERSIONファイル1つで表しCHANGELOGを持たない.md](ddr/i0033-01-配布物の版はVERSIONファイル1つで表しCHANGELOGを持たない.md)
@@ -161,6 +170,8 @@ frontmatter（`status` / `superseded_by` / `note`）だけから決まる。
 - [i0097-05-Gemini-CLIのサブエージェントは保存のみとし集計しない.md](ddr/i0097-05-Gemini-CLIのサブエージェントは保存のみとし集計しない.md)
 - [i0103-01-perlを常駐プロセス実装の選択肢に加える理由.md](ddr/i0103-01-perlを常駐プロセス実装の選択肢に加える理由.md)
 - [i0103-02-OTelエンドポイント設定をsettings.local.jsonへ分離する理由.md](ddr/i0103-02-OTelエンドポイント設定をsettings.local.jsonへ分離する理由.md)
+- [i0105-01-二重計上回避方式はsemantic-conventions形式のみ採用しレガシー形式とmetricsを除外する.md](ddr/i0105-01-二重計上回避方式はsemantic-conventions形式のみ採用しレガシー形式とmetricsを除外する.md)
+- [i0105-02-既定有効化は機微情報未確認のため保留する.md](ddr/i0105-02-既定有効化は機微情報未確認のため保留する.md)
 - [i0106-01-敵対的レビューの非対話判定は環境変数ではなくAIエージェントの判断に委ねる.md](ddr/i0106-01-敵対的レビューの非対話判定は環境変数ではなくAIエージェントの判断に委ねる.md)
 - [i0109-01-敵対的レビュー由来のスレッドも人間の指摘と同列に返信を必須とする.md](ddr/i0109-01-敵対的レビュー由来のスレッドも人間の指摘と同列に返信を必須とする.md)
 - [i0110-01-個別計画のタスク種別を6種から8種へ拡張する.md](ddr/i0110-01-個別計画のタスク種別を6種から8種へ拡張する.md)（うち「`.claude/scripts/`をAIアセットから除外する」は、issue #155でフェーズ4に限って置き換えられた（フェーズ3の`【AIアセット作成】`からの除外は現役）。詳細はi0155-01。また【AIアセット作成】の対象は、issue #170で設計ドキュメント（usecase文書等）の新規作成・改訂まで拡張された。現行の定義はissue-mr-flow SKILL.md「計画の2階層構造」が正）
@@ -174,16 +185,27 @@ frontmatter（`status` / `superseded_by` / `note`）だけから決まる。
 - [i0140-01-mark-skipはループ範囲の一部指定を書き換え後の状態で拒否する.md](ddr/i0140-01-mark-skipはループ範囲の一部指定を書き換え後の状態で拒否する.md)
 - [i0141-01-canvasテンプレートはTailwind非依存の自己完結CSSにする.md](ddr/i0141-01-canvasテンプレートはTailwind非依存の自己完結CSSにする.md)（canvas形式をTailwind非依存にした決定は有効。ただし issue #54 で一覧・表形式のテンプレートも自己完結CSSになったため、「canvas形式だけが例外」という本文の前提は成り立たない。本文中の `templates/canvas-report.html` も当時のパスで、issue #54 で `assets/canvas-report.html` へ改名した。詳細は i0054-01）
 - [i0141-02-canvasデータモデルはフラットなparent参照にする.md](ddr/i0141-02-canvasデータモデルはフラットなparent参照にする.md)
+- [i0142-01-係り先確認の発動条件は残置テキストの側から書き上限を付ける.md](ddr/i0142-01-係り先確認の発動条件は残置テキストの側から書き上限を付ける.md)
 - [i0143-01-flow-id並べ替え時の確認手順をSKILL.mdへ明記しDDRで記録する.md](ddr/i0143-01-flow-id並べ替え時の確認手順をSKILL.mdへ明記しDDRで記録する.md)
+- [i0145-01-MR_PRテンプレートを見出し構成の唯一の正としdescribeが読む.md](ddr/i0145-01-MR_PRテンプレートを見出し構成の唯一の正としdescribeが読む.md)
+- [i0145-02-MR_descriptionと統括レポートのサマリコメントは併存させる.md](ddr/i0145-02-MR_descriptionと統括レポートのサマリコメントは併存させる.md)
 - [i0149-01-post-issue-create-notice.shの検知をコマンド位置判定へ移行する.md](ddr/i0149-01-post-issue-create-notice.shの検知をコマンド位置判定へ移行する.md)
 - [i0155-01-AIアセット反映の対象は4類型への分類と痕跡の確認で洗い出す.md](ddr/i0155-01-AIアセット反映の対象は4類型への分類と痕跡の確認で洗い出す.md)
 - [i0159-01-hookの前置フィルタは純粋関数によるバックスラッシュ除去と大文字小文字非依存比較で超集合を保つ.md](ddr/i0159-01-hookの前置フィルタは純粋関数によるバックスラッシュ除去と大文字小文字非依存比較で超集合を保つ.md)
 - [i0160-01-SKILL.mdの分割は読むタイミング単位で行い参照列とhookで機械的に注入する.md](ddr/i0160-01-SKILL.mdの分割は読むタイミング単位で行い参照列とhookで機械的に注入する.md)
 - [i0165-01-wip集約時のコード側フォールバック既定値は変更せず後方互換を優先する.md](ddr/i0165-01-wip集約時のコード側フォールバック既定値は変更せず後方互換を優先する.md)（「未決定事項」が委譲していた移行手順・VERSION増分（0.3.0で据え置きと人間が判断）はいずれも i0165-02 が引き取り解消した）
 - [i0165-02-タスク単位ディレクトリの集約名はwip-を採用しflow-tasks-work-scratchを採らない.md](ddr/i0165-02-タスク単位ディレクトリの集約名はwip-を採用しflow-tasks-work-scratchを採らない.md)
+- [i0168-01-スライドの出力先はwip-reports既定とし恒久ディレクトリを新設しない.md](ddr/i0168-01-スライドの出力先はwip-reports既定とし恒久ディレクトリを新設しない.md)
+- [i0168-02-表紙スライドの型名はtitleでなくcoverにする.md](ddr/i0168-02-表紙スライドの型名はtitleでなくcoverにする.md)
+- [i0169-01-pptx書き出しは雛形展開ディレクトリとzip再梱包で実装し外部依存を持たない.md](ddr/i0169-01-pptx書き出しは雛形展開ディレクトリとzip再梱包で実装し外部依存を持たない.md)
 - [i0170-01-ユースケース逆引き層はREADME一本化・日本語ファイル名・手動一覧で運用する.md](ddr/i0170-01-ユースケース逆引き層はREADME一本化・日本語ファイル名・手動一覧で運用する.md)
 - [i0171-01-DDR参照切れ検出は絶対パス形式に限定しgrep一括抽出で実装する.md](ddr/i0171-01-DDR参照切れ検出は絶対パス形式に限定しgrep一括抽出で実装する.md)
 - [i0172-01-読まれないgemini複製とagents-skillsエイリアス化と自立化はいずれも見送る.md](ddr/i0172-01-読まれないgemini複製とagents-skillsエイリアス化と自立化はいずれも見送る.md)
+- [i0176-01-反映対象の切り出し判断は主判定一問と判定順を固定した3つの出口で行う.md](ddr/i0176-01-反映対象の切り出し判断は主判定一問と判定順を固定した3つの出口で行う.md)
 - [i0182-01-敵対的レビューの投稿件数選別を層単位ルールでスクリプト化する.md](ddr/i0182-01-敵対的レビューの投稿件数選別を層単位ルールでスクリプト化する.md)
 - [i0184-01-ワークフローのローカル作業状態はwip配下へ移し旧パスのignoreを移行用に残す.md](ddr/i0184-01-ワークフローのローカル作業状態はwip配下へ移し旧パスのignoreを移行用に残す.md)
+- [i0185-01-コミットメッセージは件名1行必須で本文を任意許容にし件名の判定を2段階にする.md](ddr/i0185-01-コミットメッセージは件名1行必須で本文を任意許容にし件名の判定を2段階にする.md)
+- [i0186-01-レポートの視覚語彙は結論の性質とレビューの重みで軸を分ける.md](ddr/i0186-01-レポートの視覚語彙は結論の性質とレビューの重みで軸を分ける.md)
+- [i0186-02-リンク破断検査はID抽出をタグ内に限定し重複ID検査を併設する.md](ddr/i0186-02-リンク破断検査はID抽出をタグ内に限定し重複ID検査を併設する.md)（うち「検査コマンドそのものの正はreports.template.html冒頭コメント」は、issue #203 で references/deliverables.md「検査手順の正はこの節にある」へ移された（テンプレートが5本になり同じ説明が5箇所へ複製されたため））
+- [i0203-01-レポートHTMLビューは共通DOMと4スタイルで持ち現行を残す.md](ddr/i0203-01-レポートHTMLビューは共通DOMと4スタイルで持ち現行を残す.md)（本文が書く「<style>二重出力の描画結果」（ダークでは正常・ライトでだけ配色が落ちる）はCSSのエラー回復規則からの推論で、ブラウザでは未確認。検査6を足す根拠は「構造として不正」だけで成立する。共有パーツと生成スクリプトは作業用の一時物でリポジトリには置いていない（同一性の担保は .claude/scripts/test/test_report_templates.sh））
 <!-- END GENERATED: ddr-list -->

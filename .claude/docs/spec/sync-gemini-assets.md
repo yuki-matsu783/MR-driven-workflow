@@ -197,7 +197,42 @@ hook 1件（`CommandHookConfig`）の変換規則は次のとおり。
 |---|---|---|
 | `permissions` | Gemini の相当機能は policy engine（`.gemini/policies/*.toml`）だが、**プロジェクト単位の Workspace 層が現在無効**で、リポジトリへ置いても効果がゼロである（`docs/reference/policy-engine.md` の "(Currently disabled)"、upstream issue #18186） | コミット強制の多重防御が、**Gemini 経路では hook 1枚**になる。Workspace 層が有効化されたら見直す |
 | `autoCompactWindow` | Gemini の `model.compressionThreshold` は「コンテキスト使用率の**分数**」（既定 0.5）であり、絶対値である Claude 側の値とは換算できない | 自動compactの閾値は Gemini 側の既定に従う |
-| `env` | Gemini CLI の `settings.json` に「プロセス環境変数を注入する」ブロックが**構造として存在しない**（環境変数は `.env` から読み、settings 側にあるのは `advanced.excludedEnvVars` という除外リストだけ）。中身も `CLAUDE_CODE_ENABLE_TELEMETRY` を筆頭に Claude Code 固有で、受け口の `.claude/hooks/otel/listener.pl` が Claude Code の OTel スキーマを前提に振り分けるため、Gemini 側の `telemetry` ブロックへ流すと壊れる | **Gemini CLI 経路では対応工数の OTel 計測が行われない**（issue #70 / #103） |
+| `env` | Gemini CLI の `settings.json` に「プロセス環境変数を注入する」ブロックが**構造として存在しない**（環境変数は `.env` から読み、settings 側にあるのは `advanced.excludedEnvVars` という除外リストだけ）。中身も `CLAUDE_CODE_ENABLE_TELEMETRY` を筆頭に Claude Code 固有で、受け口の `.claude/hooks/otel/listener.pl` が Claude Code の OTel スキーマを前提に振り分けるため、Gemini 側の `telemetry` ブロックへ流すと壊れる | Gemini CLI 経路では、Claude Code由来の `env` ブロックとしてのOTel計測は行われない（issue #70 / #103）。**ただしissue #105により、`env` 変換とは独立した経路（下記「固定値で注入するブロック」節）で `telemetry` ブロックが別途追加されており、`enabled: false` 固定のため現状は無効** |
+
+### 固定値で注入するブロック（issue #105）
+
+上記「変換しないトップレベルキー」は`.claude/settings.json`側のキーを**変換しない**判断だが、
+`telemetry`ブロックは`.claude/settings.json`側に対応するキーを持たず、`SETTINGS_JQ_FILTER`が
+**常に固定値を注入する**（変換ではなく注入）。
+
+```jq
++ {
+  telemetry: {
+    enabled: false,
+    target: "local",
+    outfile: $otelOutfile,
+    logPrompts: false
+  }
+}
+```
+
+- `$otelOutfile`は`GEMINI_OTEL_OUTFILE_REL`定数（既定`"usage/gemini-otel.log"`）から`--arg`で
+  渡す。**出力先パスの単一の正**であり、読み取り側（`.claude/hooks/lib/UsageTracking.sh`の
+  `_usage_otel_resolve_outfile_to_reply`）は`.gemini/settings.json`の`telemetry.outfile`を
+  動的に読むため、この定数を変えると読み取り側も自動的に追随する（書き込み側・読み取り側の
+  2箇所にハードコードして食い違う事故を防ぐ設計。issue #105フェーズ3敵対的レビュー指摘）。
+- `enabled`は`false`固定。**現時点でこれをtrueへ切り替える手段は存在しない**
+  （`.claude/settings.json`側に対応するスイッチが無く変換元を持たないため、
+  `.gemini/settings.json`を手で書き換えても次回の`sync-gemini-assets.sh`実行で**無言で**
+  falseへ戻る。**`--check`はこのフロー上どのhookにも自動では挿さっていない**
+  （`issue-mr-flow/SKILL.md`「`.claude/` → `.gemini/` の変換同期（flow-id 5-3）」参照）ため、
+  手編集は警告なく失われる。差分の有無を知りたい場合は手動で`--check`を実行する）。
+  有効化手段の確立は本issueのスコープ外の未決定事項（DDR
+  [i0105-02](../ddr/i0105-02-既定有効化は機微情報未確認のため保留する.md)）。
+- `target`は`"local"`固定。outfileへ直接ファイル書き込みするため、`.claude/hooks/otel/`の
+  常駐リスナー（OTLPネットワーク受信）は経由しない。
+- 機構全体の仕様（バイトオフセットカーソル集計・対応工数レポートへの統合等）は
+  [gemini-cli-telemetry.md](gemini-cli-telemetry.md)を参照（本specでは重複記載しない）。
 
 ### 未知の入力はエラーにする
 

@@ -320,7 +320,30 @@ assert_eq "T10: エラーメッセージにインストール方法が含まれ�
 source "$repo_root/.claude/hooks/lib/CommandPosition.sh"
 
 readonly PREFILTER_LINE='  raw_hints_at_git_push "$raw" || exit 0'
-for h in post-push-usage-report post-push-compact-prompt; do
+
+# 対象は「`raw_hints_at_git_push` を持つhook」の全件である（issue #17 で2本→4本になった）。
+# **一覧を手で書くだけにすると、5本目を足したときにテストが緑のまま素通りする。**
+# 実ファイルから同じ集合を導き、両者が一致することを先に表明しておく（片方を直し忘れたら
+# ここで落ちる）。
+PREFILTER_HOOKS=(
+  post-push-usage-report
+  post-push-compact-prompt
+  block-unchecked-push
+  post-push-next-checklist
+)
+prefilter_discovered=()
+while IFS= read -r _f; do
+  [ -n "$_f" ] || continue
+  _b="${_f##*/}"
+  prefilter_discovered+=("${_b%.sh}")
+done < <(grep -lFx -- 'raw_hints_at_git_push() {' "$repo_root"/.claude/hooks/*.sh | sort)
+assert_eq "T11: 前置フィルタを持つhookの一覧が実ファイルと一致する" \
+  "$(printf '%s\n' "${PREFILTER_HOOKS[@]}" | sort | tr '\n' ' ')" \
+  "$(printf '%s\n' ${prefilter_discovered[@]+"${prefilter_discovered[@]}"} | sort | tr '\n' ' ')"
+assert_eq "T11: 対象hookは2本以上ある（同一性の比較が空振りしない）" "1" \
+  "$((${#PREFILTER_HOOKS[@]} >= 2 ? 1 : 0))"
+
+for h in "${PREFILTER_HOOKS[@]}"; do
   assert_eq "T11: ${h}.sh が前置フィルタの行を持つ" "1" \
     "$(grep -cFx -- "$PREFILTER_LINE" "$repo_root/.claude/hooks/${h}.sh" || true)"
   assert_eq "T11: ${h}.sh は \$(cat) をやめている（forkする受け口が残っていない）" "0" \
@@ -332,12 +355,23 @@ for h in post-push-usage-report post-push-compact-prompt; do
 done
 
 # **実装そのもの**を source して呼ぶ（テスト側で写経すると、実装が変わっても気づけない）。
-# 2本は同じ関数を持つので、片方を読み込めば足りる（同一であることは次で表明する）。
+# 対象hookはいずれも同じ関数を持つので、1本を読み込めば足りる（同一であることは次で表明する）。
 # shellcheck source=../../hooks/post-push-usage-report.sh
 source "$repo_root/.claude/hooks/post-push-usage-report.sh"
-assert_eq "T11: 2本の raw_hints_at_git_push が同一実装である" \
-  "$(sed -n '/^raw_hints_at_git_push() {/,/^}/p' "$repo_root/.claude/hooks/post-push-usage-report.sh")" \
-  "$(sed -n '/^raw_hints_at_git_push() {/,/^}/p' "$repo_root/.claude/hooks/post-push-compact-prompt.sh")"
+
+# **ドリフトを実際に禁じているのはここである**（上のループは「行が存在する」ことしか見ない）。
+# 基準1本と残り全本を1対1で比べる。**当初これは2本固定の `assert_eq` 1つで、
+# 新規hookを足してもループ側しか広がらず、関数本文がドリフトしても緑のままだった**
+# （issue #17 フェーズ3の敵対的レビュー1回目で指摘）。
+prefilter_baseline="$(sed -n '/^raw_hints_at_git_push() {/,/^}/p' \
+  "$repo_root/.claude/hooks/${PREFILTER_HOOKS[0]}.sh")"
+assert_eq "T11: 基準hookの raw_hints_at_git_push を抽出できる" "1" \
+  "$( [ -n "$prefilter_baseline" ] && echo 1 || echo 0 )"
+for h in "${PREFILTER_HOOKS[@]:1}"; do
+  assert_eq "T11: ${h}.sh の raw_hints_at_git_push が基準（${PREFILTER_HOOKS[0]}.sh）と同一実装である" \
+    "$prefilter_baseline" \
+    "$(sed -n '/^raw_hints_at_git_push() {/,/^}/p' "$repo_root/.claude/hooks/${h}.sh")"
+done
 
 prefilter_passes() {
   raw_hints_at_git_push "$1"
@@ -408,7 +442,7 @@ STUB
 chmod +x "$stub_bin/jq"
 
 non_push_payload='{"tool_name":"Bash","tool_input":{"command":"ls -la"}}'
-for h in post-push-usage-report post-push-compact-prompt; do
+for h in "${PREFILTER_HOOKS[@]}"; do
   rm -f "$marker"
   if printf '%s' "$non_push_payload" \
       | PATH="$stub_bin:$PATH" bash "$repo_root/.claude/hooks/${h}.sh" >/dev/null 2>&1; then

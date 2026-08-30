@@ -24,18 +24,28 @@ keywords: [ディレクトリ構成, claude, gemini, 配置方針, wip, plans, w
 │   │   └── agent-common.md    # AIエージェント共通ルール。`AGENTS.md`/`CLAUDE.md`/`GEMINI.md`が
 │   │                            #   `@import`する実体（issue #26。配布層はcore）
 │   ├── skills/                 # `/issue-mr-flow`（唯一の実装フロー定義）等のスキル定義
-│   │   ├── issue-mr-flow/assets/  # 計画・レポートのHTMLビューのテンプレート2本（issue #54）
+│   │   ├── issue-mr-flow/assets/  # 計画・レポートのHTMLビューのテンプレート6本（計画1本・
+│   │                            #   レポート5本。既定は`reports-clean`。issue #54, #203）
 │   │   ├── issue-mr-flow/references/  # SKILL.mdから切り出した参照資料7本（issue #160）
-│   │   └── canvas-report/assets/  # canvas形式レポートのテンプレート
-│   ├── agents/                 # サブエージェント定義（issue-mr-flow途中引き継ぎ等）
+│   │   ├── canvas-report/assets/  # canvas形式レポートのテンプレート
+│   │   ├── html-slides/assets/    # 発表用HTMLスライドのテンプレート（issue #168）
+│   │   ├── html-slides/references/  # スライド構成案JSONのスキーマ（slide-outline.schema.json）
+│   │   └── pptx-slides/        # 構成案JSONからの.pptx生成（issue #169）
+│   │       ├── assets/pptx-template/  # 展開ディレクトリ形式のOOXML雛形（静的パーツ）
+│   │       └── scripts/        # json-to-pptx.sh・slides-to-records.jq
+│   ├── agents/                 # サブエージェント定義（issue-mr-flow途中引き継ぎ・スライド構成設計/HTML生成等）
 │   ├── scripts/                # AIエージェントが`.claude/skills/*`経由で能動的に実行するスクリプト一式
 │   │   ├── src/
 │   │   │   ├── check-dist-coverage.sh  # 層分け定義の網羅性検査（追跡ファイル全件が分母。issue #26）
+│   │   │   ├── push-checklist.sh  # push前チェックリストの生成・記録・検証（issue #17）
 │   │   │   └── vcs/            # GitHub/GitLabの差異を吸収するVCS抽象化層（Provider.sh）
 │   │   └── test/               # 副作用の無い純粋ロジックの単体テスト（`test_<対象>.sh`）。
-│   │                            #   `passed=N failures=N`を出力し失敗時は終了コード1
+│   │                            #   `.claude/scripts/src/` と `.claude/skills/*/scripts/` 配下の
+│   │                            #   スクリプトが対象。`passed=N failures=N`を出力し失敗時は終了コード1
 │   │                            #   （詳細: `.claude/rules/shell-script-style.md`「テスト」）
-│   ├── hooks/                  # SessionStart/PostToolUse等のClaude Code hookスクリプト
+│   ├── hooks/                  # SessionStart/PreToolUse/PostToolUse等のClaude Code hookスクリプト
+│   │   ├── block-unchecked-push.sh  # push前チェックリスト未完了ならexit 2でブロック（PreToolUse。issue #17）
+│   │   ├── post-push-next-checklist.sh  # push成功後に次回分のチェックリストを生成（PostToolUse。issue #17）
 │   │   ├── lib/                # 複数hookスクリプトで使い回す共通ロジック
 │   │   └── otel/                # OTelリスナー機構（常駐プロセス。詳細: `.claude/docs/spec/otel-listener.md`）
 │   │       ├── lib/            # リスナー・フックで使い回す共通ロジック（perlモジュール）
@@ -51,10 +61,10 @@ keywords: [ディレクトリ構成, claude, gemini, 配置方針, wip, plans, w
 │   └── settings.json           # `.claude/settings.json`をGemini CLIの記法へ変換したもの
 ├── .github/
 │   ├── ISSUE_TEMPLATE/          # GitHub用issueテンプレート（目的・現状・期待する動作・受け入れ条件）
-│   └── pull_request_template.md # GitHub用PRテンプレート（`describe`が生成するdescriptionと同一構成）
+│   └── pull_request_template.md # GitHub用PRテンプレート。**見出し構成の正**（`describe`がこれを読む）
 ├── .gitlab/
 │   ├── issue_templates/         # GitLab用issueテンプレート（同上）
-│   └── merge_request_templates/ # GitLab用MRテンプレート（`Default.md`。PRテンプレートと同一内容）
+│   └── merge_request_templates/ # GitLab用MRテンプレート（`Default.md`。PRテンプレートと同一内容。先頭コメントのみ固有）
 ├── wip/                        # タスク単位の作業中ドキュメント（計画・ログ・報告）置き場（issue #165）。
 │                                #   `.gitignore`対象のローカル作業状態`state/`もここへ置く（issue #184）
 │   ├── plans/                  # 計画ファイル。全体作業計画（planツールが出力する`<自動命名>.md`、
@@ -92,8 +102,12 @@ keywords: [ディレクトリ構成, claude, gemini, 配置方針, wip, plans, w
 作業結果・反映結果の**正文**で（個別計画へ結果を書かないための分離先。issue #87。詳細:
 `.claude/skills/issue-mr-flow/references/deliverables.md`「計画と実施結果の分離」）、
 `wip/reports/日付_<全体計画名>_<内容を簡潔に>.html` はその内容を視覚的にまとめた自己完結HTMLである
-（土台は`.claude/skills/issue-mr-flow/assets/reports.template.html`。関連・依存関係が主題の場合は
+（土台は`.claude/skills/issue-mr-flow/assets/reports-clean.template.html`（既定。5本からの選び方は
+`.claude/skills/issue-mr-flow/references/deliverables.md`「レポートテンプレートの選び方」）。関連・依存関係が主題の場合は
 `.claude/skills/canvas-report/SKILL.md` のcanvas形式）。両者は併存させ、flow-id 5-5でまとめて削除する。
+**例外として、`html-slides` スキルの成果物 `*.slides.html`＋`*.slides.json` も `wip/reports/` へ置かれる**
+（issue #168）。スライドは対応するmdを持たず、機械可読の対は構成案JSON（`.slides.json`）である。
+寿命は他のreports成果物と同じ（flow-id 5-5で削除。詳細: `.claude/docs/spec/html-slides.md`）。
 
 **`wip/plans/` も同じくmdとhtmlの2種類を置く**（issue #54）。`wip/plans/` の各計画（全体作業計画・個別計画）に
 対応するHTMLビューを、**mdと同じベース名で拡張子だけ`.html`**にして併存させる（土台は
@@ -117,6 +131,13 @@ issue #97。ブランチ別に持つと、同じセッションのままブラ�
 （Claude Code公式のOpenTelemetryエクスポートをローカル受信したテレメトリの生データ。詳細:
 `.claude/docs/spec/otel-listener.md`）。こちらもワークフロー実行中に動的に作成されるファイルで、
 `/usage/`の`.gitignore`対象に含まれる。
+
+同様に、Gemini CLI公式テレメトリ機構（issue #105）が`usage/gemini-otel.log`（Gemini CLIが
+`outfile`設定に従い直接追記するテレメトリの生データ）・
+`usage/state/gemini-otel/cursor.json`（バイトオフセットカーソル状態）を生成する。**後者は
+上記の`usage/state/gemini-totals/<sessionId>.json`等と異なり、ブランチにもセッションにも
+紐づかないグローバルな単一ファイル**である（詳細:
+`.claude/docs/spec/gemini-cli-telemetry.md`）。いずれも`/usage/`の`.gitignore`対象に含まれる。
 
 `wip/state/`はワークフローのローカル作業状態で、`.gitignore`対象（`/wip/state/`）。内訳は
 `wip/state/review-links/<branch>.txt`（`post-push-compact-prompt.sh`がレビュー依頼メッセージの
@@ -146,7 +167,8 @@ issue #97。ブランチ別に持つと、同じセッションのままブラ�
   （唯一の実装フロー定義）に従う。詳細は `AGENTS.md` を参照。
 - **AIエージェントが`.claude/skills/*`経由で能動的に実行するスクリプト**は `.claude/scripts/`
   配下に置く。`.claude/scripts/src/` にスクリプト本体、`.claude/scripts/test/` に
-  その単体テスト、`.claude/scripts/docs/` ではなく
+  その単体テスト（スキルのバンドルスクリプト `.claude/skills/*/scripts/` 配下の単体テストも
+  ここへ置く）、`.claude/scripts/docs/` ではなく
   `.claude/docs/` に関連ドキュメント（`spec/`・`ddr/`）を置く（このリポジトリは移植元と異なり
   アプリ本体を持たないため、`dev-tools/` 等の人間専用ツール置き場との分離は行っていない。将来
   アプリ本体を追加する場合は、そのアプリ専用の `docs/spec/` `docs/ddr/`（または人間専用ツール用の
@@ -155,7 +177,7 @@ issue #97。ブランチ別に持つと、同じセッションのままブラ�
   スクリプト・設計書は`.claude/`の外に置かない。
 - **`.claude/hooks/`配下の常駐プロセス（`otel/`等）の単体テストは、`.claude/scripts/test/`ではなく
   そのプロセス自身の配下（例: `.claude/hooks/otel/test/`）に置く**。`.claude/scripts/test/`は
-  上記のとおり「`.claude/scripts/src/`配下スクリプトの単体テスト」専用であり、Claude Codeの
+  上記のとおり「`.claude/scripts/src/` および `.claude/skills/*/scripts/` 配下スクリプトの単体テスト」専用であり、Claude Codeの
   hookから自動起動される常駐プロセスはこれに当たらない。テスト形式（TAP出力か
   `passed=N failures=N`出力か等）は実装言語の慣習に合わせてよく、`.claude/scripts/test/`の
   規約（`passed=N failures=N`）へ揃える必要はない。
@@ -166,7 +188,7 @@ issue #97。ブランチ別に持つと、同じセッションのままブラ�
 
   | ディレクトリ | 用途 | 実例 |
   |---|---|---|
-  | `assets/` | **出力に使うもの**（テンプレート等） | `issue-mr-flow/assets/reports.template.html`, `canvas-report/assets/canvas-report.html` |
+  | `assets/` | **出力に使うもの**（テンプレート等） | `issue-mr-flow/assets/reports-clean.template.html`, `canvas-report/assets/canvas-report.html` |
   | `scripts/` | **実行するもの**（補助スクリプト） | `apply-mr-workflow-to-project/scripts/install-to-project.sh` |
   | `references/` | **AIが読むもの**（参照資料） | `issue-mr-flow/references/planning.md` 等7本（SKILL.mdから切り出した詳細節。issue #160） |
 

@@ -51,6 +51,14 @@
               "${CLAUDE_PROJECT_DIR}/.claude/hooks/block-direct-git-commit.sh"
             ],
             "timeout": 10
+          },
+          {
+            "type": "command",
+            "command": "bash",
+            "args": [
+              "${CLAUDE_PROJECT_DIR}/.claude/hooks/block-unchecked-push.sh"
+            ],
+            "timeout": 10
           }
         ]
       }
@@ -92,6 +100,24 @@
             "command": "bash",
             "args": [
               "${CLAUDE_PROJECT_DIR}/.claude/hooks/post-push-compact-prompt.sh"
+            ],
+            "timeout": 20
+          },
+          {
+            "type": "command",
+            "if": "Bash(git push*)",
+            "command": "bash",
+            "args": [
+              "${CLAUDE_PROJECT_DIR}/.claude/hooks/post-push-next-checklist.sh"
+            ],
+            "timeout": 20
+          },
+          {
+            "type": "command",
+            "if": "PowerShell(git push*)",
+            "command": "bash",
+            "args": [
+              "${CLAUDE_PROJECT_DIR}/.claude/hooks/post-push-next-checklist.sh"
             ],
             "timeout": 20
           }

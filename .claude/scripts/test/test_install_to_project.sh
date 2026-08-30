@@ -4,7 +4,7 @@
 # 2つの系統を持つ。
 #   A. issue #33 から**引き継いだ表明**（受け入れ条件には現れないが落としてはいけない挙動）
 #      - PR/MRテンプレート・.claude/VERSION が配布先へ配置される
-#      - PR/MRテンプレートの見出しが `describe` サブコマンドの生成物と一致する
+#      - PR/MRテンプレートの見出しが期待どおりである（issue #145 で7種類の検査へ差し替え）
 #      - .gitattributes は丸ごと置き換えず「行追記」で反映される（.bak を作らない）
 #      - 末尾に改行が無くても連結しない
 #      - 何度適用しても追記行が増えない（**配布先がCRLFの場合も含む**）
@@ -98,29 +98,193 @@ assert_eq "配布先のVERSIONが本家と一致する" \
 assert_eq "配布先の.gitignoreへローカル設定の除外が入る" \
   "1" "$(grep -cFx -- '/.claude/settings.local.json' "$dest_new/.gitignore" || true)"
 
-# PR/MRテンプレートの見出しは、`describe` サブコマンドが生成するdescriptionと一致していること。
-# **2つのテンプレート同士を比べるだけでは足りない**（両方が同時にずれた場合に通ってしまう）。
-# 正である SKILL.md の `describe` 節から見出しを抜き出し、3者で突き合わせる。
-describe_headings() {
+# usage/配下（対応工数レポートのローカル作業状態・Gemini CLI公式テレメトリのoutfile）は
+# 配布先でもGit管理対象外にする必要がある（issue #105）。
+assert_eq "配布先の.gitignoreへusage/の除外が入る" \
+  "1" "$(grep -cFx -- '/usage/' "$dest_new/.gitignore" || true)"
+
+# PR/MRテンプレートの見出しは、issue #145 の10節構成であること。
+#
+# **正はテンプレートファイル（`.github/pull_request_template.md`）側にある**（issue #145、案B）。
+# `review-loop.md` の `describe` 節はテンプレートを読む手順だけを持ち、見出しを列挙しない。
+# したがって、かつてのように `describe` 節から見出しを抜き出して3者一致を見ることはできない。
+#
+# 代わりに7種類を検査する。**それぞれ別の壊れ方を捕まえる。**
+#   (a)  見出し    : 期待値の10節と、テンプレート2本の見出し行が順序込みで一致する
+#   (a2) 記入ガイド: 記入ガイドが10個・書き分け定義が1組・`**計画段階では**` が10個ある
+#   (b)  全文      : 先頭のHTMLコメントブロックだけを除いた2本の全文差分が空である
+#   (b2) 除外範囲  : 先頭コメントを除外した後の最初の非空行が `Closes` 行である
+#   (c)  参照      : `describe` 節がテンプレート2本のパスを両方とも参照している
+#   (c2) 再列挙禁止: `describe` 節の中に見出し行が1件も無い
+#   (c3) 節の終端  : `describe` 節の次に来る `## ` 見出しが期待どおりである
+#
+# **(a) の期待値をここへ書き下すことは「二重管理」ではない。** これは正ではなく**検査**であり、
+# これが無いと「2本を比べるだけでは足りない（両方が同時にずれると通ってしまう）」という
+# 従来からの趣旨が守れなくなる。テンプレートの見出しを変えるときは、ここも同じコミットで直す。
+#
+# **(a2) が要る理由**: (a) と (b) は**テンプレート2本を突き合わせる**検査なので、
+# **両方が同じ向きに壊れたときに無力である**。実測: 両テンプレートから記入ガイドを
+# すべて削除すると (a)(b) は通過したままで、(a2) だけが8件落ちた。
+# テンプレートの先頭コメント自身が「GitHub版を直して本文をGitLab版へ複製する」という
+# **両側を同時に変える運用**を規定している以上、これは机上の想定ではない。
+#
+# **(b) が要る理由**: (a) は見出し行しか見ないため、各節のHTMLコメント（＝記入ガイド。
+# 10節構成の実質的な中身で、「特になし」と「未実施」の書き分け定義もここにある）が
+# 片方だけずれても検出できない。
+#
+# **(b2) が要る理由**: (a)(a2)(b) はいずれも `strip_lead_comment` の出力を見ている。
+# 除外範囲が伸びすぎる（本文まで食う）／効かなすぎる（先頭コメントが残る）と、
+# 検査全体が別のものを見ていることになる。除外後の最初の非空行が `Closes` 行であることを
+# 直接表明して、除外そのものを固定する。実測: 先頭コメントの終端を両方から落とすと8件落ちる。
+#
+# **(c) が要る理由**: (a)(a2)(b)(b2) はテンプレート側しか見ない。案Bの成立条件である
+# 「`describe` 節がテンプレートファイルを読むと書いてあること」が誰かの編集で無言で
+# 失われても、それらだけでは落ちない。
+#
+# **(c2) が要る理由**: (c) はパス参照の有無しか見ない。`describe` 節がテンプレートを
+# 参照したまま**見出しを再列挙し始める**と、正が2つに戻るのに (c) は通過する。
+#
+# **(c3) が要る理由**: (c) と (c2) だけでは塞げない穴があった（issue #145 の敵対的レビューで
+# 実測）。`describe_section` は `^## ` を打ち切りに使うため、**どの検査が落ちるかは
+# 再列挙の位置で変わる**。
+#   - パス参照より**前**へ `## ` で再列挙する → 節が空になり (c) が「パス参照0件」で落ちる。
+#   - `Closes` 行のように節を打ち切らない見出しを足す → (c2) が落ちる。
+#   - パス参照より**後ろ**（節の末尾）へ `## ` で再列挙する → **どちらも落ちない。**
+#     パス参照は打ち切りより前にあるので (c) は通り、打ち切り後の行は (c2) から見えない。
+#     実測: 手順3の直後へ `## 概要` `## 変更内容` を差し込んで `passed=115 failures=0`。
+#   この3つ目を捕まえるのが (c3) である。`(b2)` が `strip_lead_comment` の除外範囲を直接
+#   表明したのと同じ形で、**節の終端そのもの**を固定する。
+#   **「(c2) を足したから (c) は不要」「(c3) を足したから塞ぎ切った」のどちらも採らないこと。**
+#   3つで1組の検査であり、`describe` 節の中身を人が読む代わりにはならない。
+expected_headings="$(sed 's/^| //' <<'EXPECTED'
+| Closes #<issue番号>
+| ## 概要
+| ## 変更内容
+| ## 設計判断・採らなかった案
+| ## 検証
+| ## レビューの結果
+| ## 意図的にやらなかったこと・スコープ外
+| ## 未解決・限界・確かめられなかったこと
+| ## 受け入れ条件との対応
+| ## 反映先・関連
+| ## 備考
+EXPECTED
+)"
+
+# 先頭のHTMLコメントブロックだけを除く。
+# **`sed` の範囲指定（`1,/-->/d`）では書けない**（issue #145 で実測）。範囲は1行目で開始して
+# しまうと終端が現れるまで伸び続けるため、(1) 終端が行末に付く形（`<!-- 説明 -->`）では
+# 最初の節の記入ガイドまで削り、(2) 先頭にコメントが無い場合はEOFまで削る。どちらも
+# 「本文が食い違っているのに差分なし」になる。状態を持つ awk で書く。
+strip_lead_comment() {
+  awk 'NR==1 && /^[[:space:]]*<!--/ { lead = 1 }
+       lead { if (/-->/) lead = 0; next }
+       { print }' "$1"
+}
+
+for rel in .github/pull_request_template.md .gitlab/merge_request_templates/Default.md; do
+  # (a) 見出しが期待値と順序込みで一致する
+  assert_eq "テンプレートの見出しが10節構成と一致する: $rel" \
+    "$expected_headings" "$(grep -E '^(Closes|## )' "$dest_new/$rel")"
+
+  # 実データ側が空でないこと。期待値はここに書いたリテラルなので「期待値が非空」を表明しても
+  # 恒真になり、落ちる入力が存在しない。空振りを検出できるのは実データ側の表明だけである。
+  if [ -n "$(grep -E '^(Closes|## )' "$dest_new/$rel")" ]; then found=1; else found=0; fi
+  assert_eq "テンプレートから見出しを抽出できている（空振りでない）: $rel" "1" "$found"
+
+  # (b2) 除外範囲の表明。(a)(a2)(b) はいずれも `strip_lead_comment` の出力を見るため、
+  # これは3つすべての前提でもある。**行数の下限では足りない**（テンプレートは100行超あるので、10行以上余計に
+  # 削られても「2行以上」を満たして通ってしまう。実例: 先頭コメントの終端 `-->` を落とすと
+  # `Closes` 行と `## 概要` まで削られるが、行数だけを見ると気づけない）。**内容で表明する。**
+  # 除外直後は空行が1つ入るので、**最初の非空行**を見る。
+  first_line="$(strip_lead_comment "$dest_new/$rel" | grep -m1 -e '.' || true)"
+  assert_eq "先頭コメント除外後の最初の非空行がCloses行である（除外が伸びすぎ・効かなすぎでない）: $rel" \
+    'Closes #<issue番号>' "$first_line"
+done
+
+# (a2) 記入ガイド（各節直下のHTMLコメント）が存在すること。
+#
+# **(b) は「2本が食い違っていないこと」しか見ないため、両側から同時に消えると通ってしまう。**
+# テンプレートの先頭コメント自身が「内容を変えるときは GitHub 版を直し、その本文をここへ複製する」
+# という**両側を同時に変える運用**を規定しているので、複製時に落とした記入ガイドは必ず両側で落ちる
+# （issue #145 で実測: 10節すべての記入ガイドを両テンプレートから削っても failures=0 だった）。
+# 記入ガイドは10節構成の実質的な中身であり、「特になし」と「未実施」の書き分け定義もここにしか
+# 無いので、消えたことに誰も気づかない状態にはできない。
+#
+# 全文を期待値として写す必要は無い。**個数と、書き分け定義の存在**を表明すれば足りる。
+for rel in .github/pull_request_template.md .gitlab/merge_request_templates/Default.md; do
+  # 先頭コメントを除いた本文に、HTMLコメントの開始が10個（＝10節ぶんの記入ガイド）ある。
+  guides="$(strip_lead_comment "$dest_new/$rel" | grep -c '^<!--$' || true)"
+  assert_eq "各節の記入ガイドが10個ある: $rel" "10" "$guides"
+
+  # 書き分け規約の定義が本文に存在する（`## 概要` の記入ガイドへ1回だけ置いている）。
+  rules="$(strip_lead_comment "$dest_new/$rel" | grep -c -F -e '検討した結果、書くことが無かった' || true)"
+  assert_eq "「特になし」の定義が記入ガイドにある: $rel" "1" "$rules"
+  rules="$(strip_lead_comment "$dest_new/$rel" | grep -c -F -e 'まだその段階に達していない' || true)"
+  if [ "$rules" -ge 1 ]; then found=1; else found=0; fi
+  assert_eq "「未実施」の定義が記入ガイドにある: $rel ($rules件)" "1" "$found"
+
+  # 各節に「計画段階では何を書くか」がある（10節すべて。issue #145 のレビューで4節の欠落が判明した）。
+  planning="$(strip_lead_comment "$dest_new/$rel" | grep -c -F -e '**計画段階では**' || true)"
+  assert_eq "各節に計画段階の指示が10個ある: $rel" "10" "$planning"
+done
+
+# (b) 先頭のHTMLコメントブロックだけを除いた全文が2本で一致する。
+# 先頭コメントはプロバイダ固有（GitLab版だけが `Default.md` 予約名の説明を持つ）なので除外する。
+if diff \
+    <(strip_lead_comment "$dest_new/.github/pull_request_template.md") \
+    <(strip_lead_comment "$dest_new/.gitlab/merge_request_templates/Default.md") \
+    >/dev/null 2>&1; then
+  found=1
+else
+  found=0
+fi
+assert_eq "テンプレート2本が先頭コメント以外で完全に一致する" "1" "$found"
+
+# (c) `describe` 節がテンプレート2本のパスを両方とも参照している。
+describe_section() {
   awk '
     /^### `describe`/ { in_section = 1; next }
     /^### /           { in_section = 0 }
     /^## /            { in_section = 0 }
-    in_section && /^[[:space:]]*(Closes|## )/ {
-      sub(/^[[:space:]]+/, "", $0); print
-    }
-  ' "${REPO_ROOT}/.claude/skills/issue-mr-flow/references/review-loop.md"
+    in_section
+  ' "$dest_new/.claude/skills/issue-mr-flow/references/review-loop.md"
 }
-expected_headings="$(describe_headings)"
-
-# 期待値そのものが空になっていないか（SKILL.mdの節名が変わると抽出が空振りし、
-# 「空同士の一致」で常に通るテストになる）。
-assert_eq "describeの見出しを3行抽出できている" "3" "$(printf '%s\n' "$expected_headings" | grep -c .)"
-
 for rel in .github/pull_request_template.md .gitlab/merge_request_templates/Default.md; do
-  assert_eq "describeの生成物と見出しが一致する: $rel" \
-    "$expected_headings" "$(grep -E '^(Closes|## )' "$dest_new/$rel")"
+  refs="$(describe_section | grep -cF -e "$rel" || true)"
+  if [ "$refs" -ge 1 ]; then found=1; else found=0; fi
+  assert_eq "describe節がテンプレートを参照している: $rel ($refs件)" "1" "$found"
 done
+
+# (c2) `describe` 節が見出しを再列挙していないこと。
+#
+# **パスの言及だけを見ても足りない。** 案Bが守りたいのは「この節に見出し構成を列挙しない」ことで
+# あり、パスを残したまま「参考（見出し構成の再掲）」を書き足すことは可能である（issue #145 で
+# 実測: 実際のテンプレートと食い違う見出しを節へ足しても failures=0 だった）。それでは二重管理が
+# 復活する。**節の中に見出し行が1つも無いこと**を表明する。
+#
+# **どの検査が落ちるかは、再列挙の位置で変わる**（issue #145 で実測）。`describe_section` は
+# `^## ` でも節を打ち切るため、`## ` 始まりの見出しを**パス参照より前**へ足すと節自体が空になり、
+# (c2) ではなく (c) が「パス参照0件」で落ちる。`Closes` 行のように節を打ち切らない見出しなら
+# (c2) が落ちる。**節の末尾（パス参照より後ろ）へ `## ` で再列挙した場合はどちらも落ちない**ため、
+# 下の (c3) で節の終端を別に固定する。3つで1組の検査であり、どれも単独にしない。
+headings_in_section="$(describe_section | grep -cE '^[[:space:]]*(Closes #|## )' || true)"
+assert_eq "describe節が見出しを再列挙していない（0件）" "0" "$headings_in_section"
+
+# (c3) `describe` 節の終端が期待どおりであること。
+#
+# (c2) は `describe_section` の**出力**しか見ないため、`^## ` による打ち切りより後ろへ
+# 再列挙されると素通りする（上記）。`describe` 節の次に来る `## ` 見出しを直接表明して、
+# **節がどこで終わるか**を固定する。ここへ見出しを差し込めば、この1件が落ちる。
+#
+# 期待値として他ファイルの見出し名を書き下すことになるが、(a) の10節と同じく**これは正ではなく
+# 検査である**。`review-loop.md` の節構成を変えるときは、ここも同じコミットで直す。
+next_h2="$(awk '
+    /^### `describe`/ { seen = 1; next }
+    seen && /^## /     { print; exit }
+  ' "$dest_new/.claude/skills/issue-mr-flow/references/review-loop.md")"
+assert_eq "describe節の次に来る##見出しが期待どおり" \
+  "## チャットで受けたレビュー判断の記録（全体フロー 2-4・2-9・3-4・3-9・4-4・4-9）" "$next_h2"
 
 assert_eq "配布先の.gitattributesへ*.shの指定が入る" \
   "1" "$(grep -cFx -- '*.sh text eol=lf' "$dest_new/.gitattributes")"
