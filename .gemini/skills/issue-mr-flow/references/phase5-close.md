@@ -195,7 +195,8 @@ bash .claude/scripts/src/sync-gemini-assets.sh --dry-run  # 何が変わるか�
 個別の `wip/reports/…md`（flow-id 2-6・3-6・4-6 の結果）を並べ直すのではなく、**ブランチ全体を
 1枚に統括する**。
 
-HTMLは `.claude/skills/issue-mr-flow/assets/reports.template.html` を土台にする
+HTMLは `.claude/skills/issue-mr-flow/assets/reports-clean.template.html`（既定。他4本との使い分けは
+`references/deliverables.md`「レポートテンプレートの選び方」）を土台にする
 （`.claude/skills/canvas-report/SKILL.md` の判断基準は統括レポートにも当てはまる）。
 使い方は `references/deliverables.md`「計画・レポートのHTMLビュー」が正である。
 

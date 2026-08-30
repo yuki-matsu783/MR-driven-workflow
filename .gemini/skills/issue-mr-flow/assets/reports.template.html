@@ -3,6 +3,20 @@
   （.claude/skills/issue-mr-flow/SKILL.md / .claude/rules/docs-workflow.md 参照。issue #54。
    視覚構成（節順・結論カード・重点レビュー依頼・色の使い分け）は issue #186）
 
+  **このテンプレートは issue #203 以降、移行期のみのものである。**
+  新規に作るレポートは reports-clean.template.html（既定）を使う。ここに残っているのは、
+  issue #203 以前に作られ、まだ片付いていないレポートを更新するためである
+  （選び方: .claude/skills/issue-mr-flow/references/deliverables.md
+   「レポートテンプレートの選び方」。廃止時期は DDR i0203-01 の未確認事項）。
+  **節構成が新4本とは異なるため、<style> だけを差し替えても乗り換えられない**
+  （このテンプレートは nav.toc ＋ #review-focus ＋ #summary、新4本は aside.sidebar ＋
+   統合した #overview を持つ）。
+
+  **検査コマンド・合格条件・一般則の正は
+   .claude/skills/issue-mr-flow/references/deliverables.md「検査手順の正はこの節にある」
+   （6種）である**（issue #203）。下の「アンカーとリンク破断検査」は3種しか書いておらず、
+  外部依存検査2種と構造の妥当性検査（<style> がちょうど1つ）が欠けている。
+
   使い方:
     1. このファイルを、対応するレポートmdと同じベース名でコピーする（拡張子だけ .html にする）。
          wip/reports/日付_<全体計画名>_<内容を簡潔に>.md → 同名の .html

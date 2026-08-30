@@ -23,12 +23,18 @@ keywords: [wip, plans, handoff, worklogs, 正史仕様, 意思決定ログ, ラ�
 | `wip/plans/<全体作業計画・個別計画と同名>.html`（**計画のHTMLビュー**） | 人間＋AI | 同上 | 上記mdの内容を視覚的にまとめた自己完結HTML（人間レビュー用ビュー）。**計画の正文はmd側であり、HTMLはその視覚化**（両者は併存させる） | flow-id 1-4（全体作業計画）・2-1・3-1・4-1（個別計画）で、**対応するmdを作る場合に**作成し、md側の内容と同期して更新する（フェーズごと省略した回はmd自体が無いのでHTMLも無い。**作成の要否の正は`.claude/skills/issue-mr-flow/SKILL.md`の各flow-idの記述であり、ここでは条件を再掲しない**）。土台は`.claude/skills/issue-mr-flow/assets/plans.template.html`（見出し構成の正はテンプレート側。詳細: `.claude/skills/issue-mr-flow/references/deliverables.md`「計画・レポートのHTMLビュー」。issue #54）。**ファイルの削除はflow-id 5-5**で`wip/worklogs/` `wip/reports/`とまとめて行う。`.gitignore`には加えない。squash mergeにより、mainには残さない。 |
 | `HANDOFF.md` | 人間＋AI | 短期（常に最新状態のみ） | `.claude/skills/issue-mr-flow/SKILL.md`の全体フロー（5フェーズ・43ステップ）に対応する進捗チェック表／現在地／次にやること／判断を迷った内容／未解決の内容／守るべき条件・触ってはいけない範囲 | Git管理下に置く。**flow-idが1つ進むごとに、完了したflow-idの行を`[x]`にし「やったこと」「次にやること」を書き換える**（更新はcommit（flow-id 2-2/2-7/3-2/3-7/4-2/4-7/5-4/5-6）より前に行い、同じcommitに含める）。進捗表の記号・ヘッダ情報（issue/ブランチ/PR/push回数/現在のループ/未返信スレッド）の更新は`.claude/scripts/src/update-handoff-progress.sh`（`mark-done`/`mark-skip`/`add-round`/`set-header`）で機械的に行う（**ヘッダ行の正しい表記は`.claude/docs/spec/update-handoff-progress.md`「HANDOFF.mdのヘッダ行」が正**。issue #66。ここには再掲しない）（PR作成後は`- 追従監視:`行もヘッダへ持たせ、こちらは手で書き換える。`set-header`の対象外。詳細: `.claude/skills/issue-mr-flow/references/base-branch-followup.md`「PR作成後のdefaultブランチ追従（監視）」）（手作業でのテーブル編集を禁止するものではないが、記号の書き間違いを避けるため推奨する。詳細: `.claude/docs/spec/update-handoff-progress.md`）。詳細な試行錯誤は書かず `wip/worklogs/` に逃がす。flow-id 5-5で次のタスクへ向けてリセットする。 |
 | `wip/worklogs/日付_<全体計画名>_<個別計画名>_push<N>.md` | AI専用（人間も参照可） | タスク（issue／ブランチ）単位（flow-id 5-5でまとめて削除。ファイル自体はpushごとに`_push<N>`で分ける） | 「何を試した／うまくいった／ダメだったか」の詳細ログ | 個別作業計画の作成時に作り、同じセッションで作業する間に作業の節目ごとに頻繁に書き足す。内容はflow-id 4-6（設計反映）でspec/ddrへ反映し、**ファイルの削除はflow-id 5-5**で`wip/plans/` `wip/reports/`とまとめて行う（削除自体もコミットに含める）。`.gitignore`には加えない（ブランチ上のコミット履歴として残すため）。squash mergeにより、mainには残さない。 |
+| `wip/worklogs/日付_<ブランチのスラッグ>_push<N>_checklist.tsv`（**push前チェックリスト**） | AI専用（人間もPRのdiffで参照） | worklogと同じ（タスク単位。flow-id 5-5でまとめて削除） | そのpushの前に済ませるべき5項目と、その実施ログ（`done` / `skip` と理由） | **pushのたびにPostToolUse hookが次回分を自動生成する**（`.claude/hooks/post-push-next-checklist.sh`）。AIエージェントはcommitの前に `bash .claude/scripts/src/push-checklist.sh check <id> "<実施ログ>"` （またはやらない理由を添えた `skip`）で埋め、**同じcommitへ含める**。未完了のまま、あるいはコミットせずにpushしようとすると `.claude/hooks/block-unchecked-push.sh`（PreToolUse hook）が **exit code 2** でブロックする。`.gitignore`には加えない（**レビュアーがPRのdiffで自己申告の内容を確認できるようにするため**）。squash mergeにより、mainには残さない。仕様: `.claude/docs/spec/push-checklist.md`（issue #17） |
 | `wip/reports/日付_<全体計画名>_<内容を簡潔に>.md` | 人間＋AI | タスク（issue／ブランチ）単位（worklogと同様、flow-id 5-5でまとめて削除） | **実施結果の正文**。調査結果・作業結果・反映結果と、その結論・根拠・確認結果（計画ファイルへは書かない） | flow-id 2-6/3-6/4-6で作成し、レビュー往復（2-9/3-9/4-9）のたびに更新する。**個別計画（`wip/plans/【*】〜.md`）へ結果を書かないための分離先**（詳細: `.claude/skills/issue-mr-flow/SKILL.md`「計画と実施結果の分離」）。見出し構成は規定しない（記述の型のテンプレート化はissue #54の担当）。内容はflow-id 4-6（設計反映）でspec/ddrへ反映し、**ファイルの削除はflow-id 5-5**で`wip/plans/` `wip/worklogs/`とまとめて行う（削除自体もコミットに含める）。`.gitignore`には加えない。squash mergeにより、mainには残さない。 |
-| `wip/reports/日付_<全体計画名>_<内容を簡潔に>.html` | AI専用（人間も参照可） | 同上 | 上記mdの内容を視覚的に分かりやすくまとめた自己完結HTML（人間レビュー用ビュー）。**結果の正文はmd側であり、HTMLはその視覚化**（両者は併存させる） | flow-id 2-6・3-6・4-6（および5-4の統括レポート）で作成し、md側の内容と同期して更新する。土台は`.claude/skills/issue-mr-flow/assets/reports.template.html`（見出し構成の正はテンプレート側。詳細: `.claude/skills/issue-mr-flow/references/deliverables.md`「計画・レポートのHTMLビュー」。issue #54）。**ファイルの削除はflow-id 5-5**で`wip/plans/` `wip/worklogs/`とまとめて行う（削除自体もコミットに含める）。`.gitignore`には加えない（ブランチ上のコミット履歴として残すため）。squash mergeにより、mainには残さない。 |
+| `wip/reports/日付_<全体計画名>_<内容を簡潔に>.html` | AI専用（人間も参照可） | 同上 | 上記mdの内容を視覚的に分かりやすくまとめた自己完結HTML（人間レビュー用ビュー）。**結果の正文はmd側であり、HTMLはその視覚化**（両者は併存させる） | flow-id 2-6・3-6・4-6（および5-4の統括レポート）で作成し、md側の内容と同期して更新する。土台は`.claude/skills/issue-mr-flow/assets/reports-clean.template.html`（既定。**5本から選ぶ**。見出し構成の正はテンプレート側、選び方と検査手順の正は`.claude/skills/issue-mr-flow/references/deliverables.md`「計画・レポートのHTMLビュー」。issue #54, #203）。**ファイルの削除はflow-id 5-5**で`wip/plans/` `wip/worklogs/`とまとめて行う（削除自体もコミットに含める）。`.gitignore`には加えない（ブランチ上のコミット履歴として残すため）。squash mergeにより、mainには残さない。 |
 | `.claude/docs/spec/機能名.md` | 人間＋AI | 永続（最新状態） | 背景・目的／仕様／影響範囲／設定項目／未決定事項・懸念点 | 「現在の正史」。実装完了のたびに最新仕様へ上書きする。新規作成時の人間承認は必須。plans／worklogの内容はflow-id 4-6（設計反映）で反映する。 |
 | `.claude/docs/ddr/i<issue番号>-<枝番2桁>-タイトル.md` | 人間＋AI | 永続（本文は不変） | 「〇〇を検討したが✕✕を採用した」という意思決定の背景・却下案（DDR: Design Decision Record。architectureに限らない意思決定を対象とする） | **issue番号ベースの識別子**で管理する（issue #133。旧方式の4桁連番は全件改番済みで、本リポジトリには残っていない。命名・枝番・`i00`（対応issueが無いDDR）の詳細は `.claude/rules/markdown-frontmatter.md`「DDRの識別子」が正）。一度マージしたら**本文**は追記のみ（変更不可）。ただし**YAML frontmatterのみは後から更新してよい**（後続のDDRで無効になった場合に`status: superseded` / `superseded_by`を付ける。詳細: `.claude/rules/markdown-frontmatter.md`「DDRのstatus」）。`spec` の未決定事項が解消したら記録し、spec側の該当項目は削除してよい。plans／worklogの内容はflow-id 4-6（設計反映）で反映する。**DDRを追加・変更したら、`.claude/docs/README.md` のDDR一覧を手書きせず `bash .claude/scripts/src/generate-ddr-list.sh` を実行し、出た差分を同じコミットに含める**（一覧は生成物。行の内容はfrontmatterの`status`/`superseded_by`/`note`だけから決まる。issue #135。仕様: `.claude/docs/spec/generate-ddr-list.md`、経緯: `.claude/docs/ddr/i0135-01-DDR一覧は生成物にしつつGit管理下へ残す.md`）。**DDRファイルの改名・移動・削除を行った場合は、`bash .claude/scripts/src/check-doc-references.sh` を実行し、他ドキュメントからの参照が切れていないか確認する**（`.md`/`.sh`/`.gitignore`内の絶対パス参照のみが対象。手動実行のみでhook等には組み込まれていない。仕様: `.claude/docs/spec/check-doc-references.md`、経緯: `.claude/docs/ddr/i0171-01-DDR参照切れ検出は絶対パス形式に限定しgrep一括抽出で実装する.md`）。 |
 | `.claude/docs/usecase/場面を表す日本語名.md` | 人間＋AI | 永続（最新状態） | 「やりたいこと」起点でどの機能を使うかを逆引きするユースケース文書（issue #170）。どんな場面か／使う機能と流れの概要／何が得られるか／詳細へのリンク、の4見出しで統一し、手順詳細（コマンド列・手順番号）は書かずspec/SKILL.mdへのリンクで参照する | 一覧の正は `.claude/docs/README.md` のusecase節1箇所。**usecase文書を追加・改名・削除したら、READMEのusecase節を同じコミットで更新する**。機能の追加・変更時はflow-id 4-6（設計反映）で既存usecase文書への影響（記述・リンクが古くならないか）を確認し、影響があれば更新する |
 | `<ディレクトリ>/REVIEW-POINTS.md` | 人間＋AI | 永続（最新状態） | そのディレクトリ配下すべて（孫以下を含む）に適用するレビュー観点（`type: review-points`） | 各ディレクトリ直下に置く。敵対的レビュー（`.claude/skills/adversarial-review/SKILL.md`）と `review-points` スキルが祖先方向へ遡って集めて使い、人間のレビューでも参照する。**`wip/plans/` `wip/reports/` 配下に置かれていてもflow-id 5-5の削除対象に含めない**（下記）。仕様: `.claude/docs/spec/adversarial-review.md`「レビュー観点（REVIEW-POINTS.md）」 |
+
+**`wip/reports/` には上表の2種（md・html）のほかに、`html-slides` スキルの成果物
+`日付_<全体計画名>_<内容を簡潔に>.slides.html`＋同ベース名の `.slides.json` が置かれることがある**
+（issue #168）。スライドは対応するmdを持たず（機械可読の対は構成案JSON）、寿命は他のreports成果物と
+同じ（flow-id 5-5でまとめて削除）。詳細は `.claude/docs/spec/html-slides.md` を参照。
 
 **`wip/reports/` の `.html` は flow-id 2-6・3-6・4-6 のいずれでも作成する**（issue #54。issue #33 時点では
 2-6 のみ必須で 3-6・4-6 は任意だったが、記述の型がテンプレートへ切り出され生成コストが下がったため、
@@ -75,6 +81,32 @@ keywords: [wip, plans, handoff, worklogs, 正史仕様, 意思決定ログ, ラ�
 # 良い例
 # 設計: issue #15 → .claude/docs/spec/issue-mr-workflow.md
 ```
+
+**同じ理由で、MR/PRのdescription・コメントからも `wip/plans/` `wip/worklogs/` `wip/reports/` のファイルを
+参照しない**（issue #145）。これらはflow-id 5-5で削除されるため、**レビュー中は踏める参照が
+マージ後に必ず切れる**。「レビュー時点ではまだ存在するので有効に見える」という状況こそが罠で、
+MR/PR本文はコード内コメントと違ってレビュー中に読まれる比重が大きいぶん、この錯覚が起きやすい。
+代わりに次のようにする。
+
+| 書きたかったもの | 代わりに書くもの |
+|---|---|
+| `wip/reports/…md` の調査結果・作業結果 | **結論をdescriptionへ転記する**（リンクしない）。転記先はテンプレートの `## 検証` `## 設計判断・採らなかった案` |
+| `wip/plans/…md` の判断・却下案 | 恒久化するものは `.claude/docs/ddr/` へ昇格させ、そのパスで指す |
+| `wip/worklogs/…md` の試行錯誤 | 結論だけをdescriptionへ書く。経緯が要るならissue番号・PR番号で指す |
+| レビューでの個別のやりとり | レビューコメントの**permalink**（GitHub/GitLab上に恒久的に残る） |
+
+**禁じているのは「参照」——読み手にそのファイルを開かせる意図での言及**である。**レビュー対象
+そのものの位置を指し示すアンカーは、この禁止の対象外**とする（issue #145。敵対的レビューが
+`wip/plans/…md` `wip/reports/…md` を対象にした回では、インラインコメントの位置指定と
+`format_findings_summary` が出す `.path` が、必ずこれらのパスをMRのコメントへ書く。
+`.claude/scripts/src/vcs/Provider.sh`）。区別は**マージ後に読み手が困るか**で付く——アンカーは
+「その時点で何を見て指摘したか」の記録なので、対象ファイルが消えても指摘本文だけで読める。
+一方の参照は、リンク先が消えた時点で本文の意味が欠ける。**アンカーであっても、指摘の内容を
+「詳細はそのファイル参照」で済ませない**（済ませた時点で参照になる）。
+
+この禁止はテンプレート側（`.github/pull_request_template.md` の `## 反映先・関連` の記入ガイド）
+にも書いてある。**両方に書くのは二重管理ではない**——こちらはルール、あちらは書く直前に読む
+記入ガイドであり、読まれる場面が違う。
 
 **ファイル移動に伴うパス参照の一括置換は、`docs/ddr/*.md`の本文および`docs/spec/*.md`内の
 過去issueごとのchangelog（「影響範囲」節等、point-in-timeの記録として書かれた節）を対象に含めない**
@@ -140,6 +172,14 @@ DDR一覧そのものは生成物なので、`generate-ddr-list.sh` の再実行
 - **同じ節名でもファイルごとに結論が変わる。** 同じ作業で `.claude/docs/spec/issue-mr-workflow.md` の
   同名節を見たところ、直後に地の文が無く、当初の位置のままで問題なかった。「別のファイルで同じ位置へ
   入れられたから安全」とは判断せず、ファイルごとに確認する。
+
+**あわせて、差し込んだ前後の空行を確認する**（`.claude/rules/shell-script-style.md`
+「差し込むファイルは、先頭に空行を置かず、末尾に空行をちょうど1つ持たせる」が正）。
+断片を連結する形で差し込むと、空行が2つ連続する／次の見出しの直前の空行が消える、という崩れが
+**diffでは目立たないのに読みづらさとして残る**。見るのは「空行が2つ連続していないか」
+「次の見出しの直前に空行が1つあるか」の2点で足りる。あちらはbashスクリプトの規約として
+書かれているが、**崩れ方も直し方もmarkdownドキュメントの編集そのものに当てはまる**
+（issue #176 で、あちらに記述があるのに辿り着けないまま同じ崩れを踏んだ）。
 
 `HANDOFF.md`の「フロー進捗状況」表（`.claude/skills/issue-mr-flow/SKILL.md`の全体フローに対応）は、
 **どの行も進捗記号を1つだけ持つ**。「〜を合意まで繰り返す」と書かれたループ扱いのステップ

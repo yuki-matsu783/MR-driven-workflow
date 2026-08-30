@@ -32,6 +32,12 @@
             "type": "command",
             "command": "bash $GEMINI_PROJECT_DIR/.claude/hooks/block-direct-git-commit.sh",
             "timeout": 10000
+          },
+          {
+            "name": "block-unchecked-push",
+            "type": "command",
+            "command": "bash $GEMINI_PROJECT_DIR/.claude/hooks/block-unchecked-push.sh",
+            "timeout": 10000
           }
         ]
       }
@@ -50,6 +56,12 @@
             "name": "post-push-compact-prompt",
             "type": "command",
             "command": "bash $GEMINI_PROJECT_DIR/.claude/hooks/post-push-compact-prompt.sh",
+            "timeout": 20000
+          },
+          {
+            "name": "post-push-next-checklist",
+            "type": "command",
+            "command": "bash $GEMINI_PROJECT_DIR/.claude/hooks/post-push-next-checklist.sh",
             "timeout": 20000
           }
         ]
