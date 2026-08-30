@@ -1,7 +1,0 @@
-# generated-for: bd7e2b8e9284cfcabb073503c45ab82e39ba484e
-# id	項目	状態	実施ログ
-worklog	worklogを作成し、このpushまでの試行錯誤を追記した	skip	軽微な1行リンク修正（ユーザー直接依頼）。専用worklogは作成せず本ログで代える
-handoff	HANDOFF.md の進捗表・ヘッダを更新した（commitより前・同じcommitに含めた）	done	HANDOFF.mdのやったこと・未解決の内容を更新しこの修正を反映した
-frontmatter-index	frontmatterを変更した場合、index.jsonl を最新化した	skip	frontmatterは変更していない（本文中のリンク1行のみ修正）
-plan-report-sync	wip/plans/ wip/reports/ の md と html を同期した	skip	wip/plans/ wip/reports/ に変更なし（対象はDDR本文のみ）
-commit-skill	commit スキル（create-commit.sh）経由でコミットした	done	create-commit.sh経由でcommit 77548d6を作成済み

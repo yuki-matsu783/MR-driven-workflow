@@ -1,7 +1,0 @@
-# generated-for: 25b3be2eae306eb9567ecbfa8e9139239308dde2
-# id	項目	状態	実施ログ
-worklog	worklogを作成し、このpushまでの試行錯誤を追記した	skip	個別の新規計画・作業を伴わない統括レポート作成のみのため、worklogは新規作成せず試行錯誤の要点は統括レポート自体（wip/reports/20260830_..._統括.md）へ記録した
-handoff	HANDOFF.md の進捗表・ヘッダを更新した（commitより前・同じcommitに含めた）	done	flow-id 5-1〜5-4のやったこと・次にやることを更新し、進捗表の5-1/5-2/5-3を[x]にした（commitより前）
-frontmatter-index	frontmatterを変更した場合、index.jsonl を最新化した	done	統括レポートmdのfrontmatterを追加したためextract-frontmatter.shを実行した（wip/reports/index.jsonlのみ更新）
-plan-report-sync	wip/plans/ wip/reports/ の md と html を同期した	done	新規作成した統括レポートのmdとhtmlの内容を同期し、htmlは6種の機械検査をすべて通過させた
-commit-skill	commit スキル（create-commit.sh）経由でコミットした	skip	単一コミットで完結するためStep 3.5時点では確認できない。block-direct-git-commit.shが直接コミットを構造的に防ぐ
