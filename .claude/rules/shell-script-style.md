@@ -214,6 +214,21 @@ issue #6でリポジトリ内の開発補助スクリプトを全てPowerShell�
   jq -n '["blocker","major"] as $known | [{severity:"nit"}] | map(select(.severity as $sv | ($known | index($sv)) == null))'
   ```
 
+- **`//`演算子は`false`も`null`と同じくfalsyとして扱うため、bool値のフィールドへ
+  `.field // 既定値`という書き方をすると、`.field`が実在の`false`であっても既定値へ
+  書き換わってしまう**（issue #151フェーズ3実装時に実際に踏んだ）。
+  `($row.isSidechain // null) != false`と書くと、`isSidechain`が本物の`false`を持つ行まで
+  `null`扱いになり`null != false`が真になるため、**「falseの行だけを通したい」という意図と
+  正反対の結果**（該当行が漏れなく除外される）になる。bool値の判定は`//`を使わず、
+  「キーが無ければnull」という素の挙動のまま直接比較する。
+
+  ```bash
+  # 悪い例（isSidechain: false の行まで除外されてしまう）
+  jq -n '{isSidechain: false} | if (.isSidechain // null) != false then "除外" else "通す" end'
+  # 良い例（// を使わず直接比較する。キー不在は null なので null != false で正しく除外される）
+  jq -n '{isSidechain: false} | if .isSidechain != false then "除外" else "通す" end'
+  ```
+
 ## 外部プロセス起動のコスト
 
 **git bash（MSYS）の外部プロセス起動は約95ms/回**（実機計測: `jq -nc '1'` を50回実行して4.73秒 =
