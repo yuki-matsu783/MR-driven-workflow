@@ -1,7 +1,0 @@
-# generated-for: 41fd9b5930b0b51f93c4665d137b8c33b4b88111
-# id	項目	状態	実施ログ
-worklog	worklogを作成し、このpushまでの試行錯誤を追記した	skip	flow-id 3-10のMR description更新とHANDOFF更新のみで新たな試行錯誤は無い
-handoff	HANDOFF.md の進捗表・ヘッダを更新した（commitより前・同じcommitに含めた）	done	flow-id 3-10完了・フェーズ3完了を記録し、次にやることを4-1へ差し替えた
-frontmatter-index	frontmatterを変更した場合、index.jsonl を最新化した	skip	このpushでfrontmatterを変更していない
-plan-report-sync	wip/plans/ wip/reports/ の md と html を同期した	skip	このpushでwip/plans/ wip/reports/ を変更していない
-commit-skill	commit スキル（create-commit.sh）経由でコミットした	done	本pushのコミットをcreate-commit.sh経由で作成した

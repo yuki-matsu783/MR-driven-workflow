@@ -1,7 +1,0 @@
-# generated-for: b95d4c93bd7a6e3f339421b9ba6fc0fb02f6a765
-# id	項目	状態	実施ログ
-worklog	worklogを作成し、このpushまでの試行錯誤を追記した	done	push6のworklog（敵対的レビュー12件と修正内容）に本pushの内容も含めて記録済み
-handoff	HANDOFF.md の進捗表・ヘッダを更新した（commitより前・同じcommitに含めた）	done	flow-id4-6完了・4-7〜4-9の訂正・PR description更新済みの旨をやったことへ記録した
-frontmatter-index	frontmatterを変更した場合、index.jsonl を最新化した	skip	このpushでfrontmatterを変更していない
-plan-report-sync	wip/plans/ wip/reports/ の md と html を同期した	skip	このpushでplans/reportsの変更なし（worklogのみ）
-commit-skill	commit スキル（create-commit.sh）経由でコミットした	done	本pushの2コミット(f47c290, b95d4c9)をcreate-commit.sh経由で作成した

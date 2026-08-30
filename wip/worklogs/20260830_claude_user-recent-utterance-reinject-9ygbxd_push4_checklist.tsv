@@ -1,7 +1,0 @@
-# generated-for: bf38a03bb8a3e6b8cb95bd36e586bd74c9414df5
-# id	項目	状態	実施ログ
-worklog	worklogを作成し、このpushまでの試行錯誤を追記した	done	flow-id 4-1の個別反映計画作成と敵対的レビュー1回目の反映をpush4のworklogへ記録した
-handoff	HANDOFF.md の進捗表・ヘッダを更新した（commitより前・同じcommitに含めた）	done	flow-id 4-1完了・敵対的レビュー19件の反映内容をやったことへ追記し、次にやることを4-2へ差し替えた
-frontmatter-index	frontmatterを変更した場合、index.jsonl を最新化した	skip	このpushでfrontmatterを変更していない（新規plan/worklogファイルのfrontmatterはSessionStart hookが自動再生成する）
-plan-report-sync	wip/plans/ wip/reports/ の md と html を同期した	done	新規個別反映計画2件のmd/htmlを作成時点で同期させ、6種の機械検査（外部参照0・プレースホルダ0・style1個・アンカー一致）を通した
-commit-skill	commit スキル（create-commit.sh）経由でコミットした	done	本pushのコミットをcreate-commit.sh経由で作成する

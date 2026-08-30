@@ -1,7 +1,0 @@
-# generated-for: 6673ebe920e8809944ce683fde00247b0e7b9125
-# id	項目	状態	実施ログ
-worklog	worklogを作成し、このpushまでの試行錯誤を追記した	skip	レビュー確認・HANDOFF更新・issue起票のみで新たな試行錯誤は無く、内容はHANDOFFのやったこと欄に記録済み
-handoff	HANDOFF.md の進捗表・ヘッダを更新した（commitより前・同じcommitに含めた）	done	flow-id 3-8〜3-9完了・フェーズ3完了・現在のループを1周目（完了）へ更新し、次にやることを3-10/4-1へ差し替えた
-frontmatter-index	frontmatterを変更した場合、index.jsonl を最新化した	skip	このpushでfrontmatterを変更していない
-plan-report-sync	wip/plans/ wip/reports/ の md と html を同期した	skip	このpushでwip/plans/ wip/reports/ を変更していない
-commit-skill	commit スキル（create-commit.sh）経由でコミットした	done	本pushのコミット(41a5062)をcreate-commit.sh経由で作成した
