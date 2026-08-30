@@ -116,7 +116,7 @@ frontmatter（`status` / `superseded_by` / `note`）だけから決まる。
 - [i0003-01-gemini-settings.jsonのhooksはレビュー提示スニペットのhooksセクションのみ採用する.md](ddr/i0003-01-gemini-settings.jsonのhooksはレビュー提示スニペットのhooksセクションのみ採用する.md)
 - [i0009-01-planツール利用を全体作業計画に限定し個別計画をファイル分離する.md](ddr/i0009-01-planツール利用を全体作業計画に限定し個別計画をファイル分離する.md)
 - [i0011-01-frontmatter抽出は1ファイル1回のjq呼び出しとmtimeキャッシュで高速化する.md](ddr/i0011-01-frontmatter抽出は1ファイル1回のjq呼び出しとmtimeキャッシュで高速化する.md)
-- [i0013-01-レビュー依頼メッセージの参照リンクは前回pushSHAをローカル状態で保持して組み立てる.md](ddr/i0013-01-レビュー依頼メッセージの参照リンクは前回pushSHAをローカル状態で保持して組み立てる.md)
+- [i0013-01-レビュー依頼メッセージの参照リンクは前回pushSHAをローカル状態で保持して組み立てる.md](ddr/i0013-01-レビュー依頼メッセージの参照リンクは前回pushSHAをローカル状態で保持して組み立てる.md)（うち「defaultブランチとの差分」1リンクのURL形式（Compare方式）は、issue #205でPR/MR URLが解決できた場合のDiffview方式へ部分的に変更された。他の判断（前回pushSHAの状態保持等）は生き続けている。詳細はi0205-01）
 - [i0014-01-GitHub_GitLab情報取得はgh_glab-CLIを使いWebFetchは使わない.md](ddr/i0014-01-GitHub_GitLab情報取得はgh_glab-CLIを使いWebFetchは使わない.md)
 - [i0020-01-HANDOFF進捗更新はMarkdownテーブル直接書き換えでループ範囲を一括操作する.md](ddr/i0020-01-HANDOFF進捗更新はMarkdownテーブル直接書き換えでループ範囲を一括操作する.md)（うち「mark-skipで作った不整合は後段のmark-done/add-roundで表面化する」は、issue #140でmark-skip自身がその場で拒否する形へ変更された。詳細はi0140-01）
 - [i0023-01-push断面の全文コピーをやめ行番号インデックスで表現する.md](ddr/i0023-01-push断面の全文コピーをやめ行番号インデックスで表現する.md)（うち「Gemini CLI対応の扱い」は、issue #97でメインセッションのみ集計対象へ変更された。サブエージェントを集計しない部分は引き続き有効。詳細は i0097-05）

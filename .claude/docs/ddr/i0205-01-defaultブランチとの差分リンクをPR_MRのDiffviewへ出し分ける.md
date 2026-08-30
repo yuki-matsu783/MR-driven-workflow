@@ -107,6 +107,14 @@ GitHubでは実機確認済みのCompareページ上でのみアンカーが機�
 
 ## 未検証事項・残る制約
 
+- **一致したPR番号の種類数がちょうど1であっても、そのPRが正しいとは限らない残存リスクがある。**
+  「決定」3の判定は`git ls-remote`の出力（refとSHAの対応）だけから決めており、そのPRの
+  state（クローズ済みか）やbase branch（現在のdefaultブランチと一致するか）は一切見ていない。
+  マージ済み・クローズ済みPRのrefも永続的に残ることは実測済み（「決定」3参照）であり、対象の
+  SHAへ一致するrefが偶然1件だけクローズ済みPRのものだった場合、`get_mr_diff_url`は誤って
+  そのクローズ済みPRのDiffviewへリンクする。却下案4（番号最大採用）が問題にした「黙って誤った
+  URLを出す」失敗モード自体は、種類数1本化では完全には防げていない。state/base検証を
+  `git ls-remote`だけで行う手段が無いため、対策は未実装のまま残す。
 - GitHubの差分アンカー（`#diff-<sha256>`）がPR本体の`/files`上で機能するかは未検証。
   Compareページ上でのみ実機確認済み（issue #42・#127）。
 - 上記の帰結として、GitHubでは重点レビュー対象ファイルの差分アンカーリンクがCompareページ上に
@@ -133,3 +141,4 @@ GitHubでは実機確認済みのCompareページ上でのみアンカーが機�
 | `.claude/scripts/test/test_vcs_provider.sh` | 4引数版のアサーション、複数候補SHAでの解決、同一PR番号への複数一致、ディスパッチャ経由の経路テスト、awk失敗時の縮退テスト等を追加（`passed=225`→`249`） |
 | `.claude/docs/spec/issue-mr-workflow.md` | 「提供関数」表・「未決定事項・懸念点」・「参照リンクの付与（issue #13）」節・「hookの縮退」節・「影響範囲」changelogを更新 |
 | `.claude/skills/issue-mr-flow/references/mcp-fallback.md` | §2-bへ`create_pull_request`の`*`喪失の落とし穴を追加、§4の`post-push-compact-prompt.sh`行を更新 |
+| `.claude/docs/README.md` | 本DDR新規作成に伴い`generate-ddr-list.sh`実行でDDR一覧を再生成（97件） |

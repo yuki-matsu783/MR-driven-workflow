@@ -120,7 +120,7 @@ MRとのやり取りだけを自動化する薄い層」として設計したが
 | `get_mr_for_branch <branch>` | 指定ブランチに紐づくPR/MRの番号・URL・タイトル・Draft状態を取得する（JSON。無ければ何も出力せず終了コード0） | `gh pr view <branch>` | `glab mr view <branch>` |
 | `get_repo_url` | リポジトリの正規URL（フルパス）を取得する。MR/PRのURL文字列からの推測ではなく、`git remote get-url origin` の値を `repo_url_from_remote_url` で正規化して導出する（**プロバイダ非依存**。issue #44。issue #13フォローアップ時点では`gh`/`glab`へディスパッチしていた） | — | — |
 | `get_mr_diff_url <repoUrl> <baseBranch> <headBranch> [<mrUrl>]` | MR/PRの「defaultブランチとの差分」を見れるURLを組み立てる（純粋関数。`repoUrl`は`get_repo_url`の戻り値を渡す。issue #13）。**第4引数`mrUrl`が非空ならDiffview（PR/MR本体のレビューコメントを付けられるビュー）を返し、空ならCompareを返す**（issue #205。`mrUrl`は`get_mr_for_branch`の`url`、またはCLI不在時は`resolve_mr_number_for_head`＋`get_mr_url`で解決したもの） | `<mrUrl>/files`（`mrUrl`が非空）／`<repoUrl>/compare/<baseBranch>...<headBranch>`（空） | `<mrUrl>/diffs`（`mrUrl`が非空）／`<repoUrl>/-/compare/<baseBranch>...<headBranch>`（空） |
-| `resolve_mr_number_for_head <sha>...` | 候補SHA（可変長。今回push・前回pushのSHAを渡す想定）のいずれかに対応するMR/PR番号を、`gh`/`glab` CLIを使わず`git`だけで解決する（issue #205。CLI不在のMCPフォールバック経路で`get_mr_diff_url`にDiffviewリンクを出せるようにするための関数）。**純粋関数ではない**（`git`を起動する）。解決できなければ空を出力し終了コード0で返す（呼び出し側はCompareへ縮退する）。複数候補を渡せるのは、GitHubのref更新がpushに対して遅れることがあるため | `git ls-remote origin 'refs/pull/*/head'`。一致した候補のうち、対応するPR番号の種類数がちょうど1のときだけ採用（マージ済み・クローズ済みPRのrefも永続的に残るため） | 未対応（常に空を返す。`refs/merge-requests/*/head`の実機検証ができていないため対象外） |
+| `resolve_mr_number_for_head <sha>...` | 候補SHA（可変長。今回push・前回pushのSHAを渡す想定）のいずれかに対応するMR/PR番号を、`gh`/`glab` CLIを使わず`git`だけで解決する（issue #205。CLI不在のMCPフォールバック経路で`get_mr_diff_url`にDiffviewリンクを出せるようにするための関数）。**純粋関数ではない**（`git`を起動する）。**リモートURLが`http://`/`https://`のときのみ動作し、SSH/scp形式のリモートでは`git ls-remote`を一切呼ばず常に空を返す**（GitHubのみ対応）。解決できなければ空を出力し終了コード0で返す（呼び出し側はCompareへ縮退する）。複数候補を渡せるのは、GitHubのref更新がpushに対して遅れることがあるため | `git ls-remote origin 'refs/pull/*/head'`。一致した候補のうち、対応するPR番号の種類数がちょうど1のときだけ採用（マージ済み・クローズ済みPRのrefも永続的に残るため） | 未対応（常に空を返す。`refs/merge-requests/*/head`の実機検証ができていないため対象外） |
 | `get_mr_diff_since_url <repoUrl> <fromSha> <toSha>` | MR/PRの「前回push時点(`fromSha`)から今回push時点(`toSha`)までの差分」を見れるURLを組み立てる（純粋関数。issue #13） | `<repoUrl>/compare/<fromSha>...<toSha>` | `<repoUrl>/-/compare/<fromSha>...<toSha>` |
 | `get_blob_url <repoUrl> <ref> <path>` | 特定ファイルの「その`ref`時点の本体」を開くblobページのURLを組み立てる（純粋関数。`path`は`url_encode_path_to_reply`でencode済みのものを渡す。issue #42） | `<repoUrl>/blob/<ref>/<path>` | `<repoUrl>/-/blob/<ref>/<path>` |
 | `get_diff_anchor_base_url <compareUrl> <mrUrl> <n> <sinceSha>` | 差分アンカーの**土台にするページ**のURLを返す（issue #127）。**同じハッシュでも土台にするページによってアンカーが効くかが変わる**ため、プロバイダごとに分ける。土台が覆う範囲は、呼び出し側が作るファイル一覧の供給元（`diff_range`）と一致させる。**関数の実装・シグネチャはissue #205でも変更していないが、呼び出し側（`post-push-compact-prompt.sh`）は第1引数へ`diff_url`（issue #205でDiffviewを指すようになった値）ではなく従来どおり`compare_url`を渡し続ける**（GitHubの差分アンカーがPRの`/files`上で機能するかが未検証のため。「未決定事項・懸念点」参照）。詳細・却下案は [DDR i0127-01](../ddr/i0127-01-差分アンカーの土台はプロバイダごとに分けGitLabはMR差分ページを使う.md) | `<compareUrl>`（Compareページのまま。issue #42 で実機確認済み） | `<mrUrl>/diffs`（初回push）／`<mrUrl>/diffs?start_sha=<sinceSha>`（2回目以降）。**Compareページではアンカーが機能しない**。`sinceSha` がMRバージョンのheadでなければ前者へ縮退する（GitLabは不正なSHAをエラーにせず0ファイルを返すため） |
@@ -3911,6 +3911,7 @@ Compareページ（DDR `i0013-01`が採用した形式）からDiffview（GitHub
 | 本ドキュメント | 「提供関数」表・「未決定事項・懸念点」・「参照リンクの付与（issue #13）」節・「hookの縮退」節・本エントリ |
 | `.claude/skills/issue-mr-flow/references/mcp-fallback.md` | §2-bへ`mcp__github__create_pull_request`の`*`喪失の落とし穴を追加、§4の`post-push-compact-prompt.sh`行を更新 |
 | `.claude/docs/ddr/i0205-01-…md` | 新規 |
+| `.claude/docs/README.md` | DDR `i0205-01`新規作成・`i0013-01`への`note`追加に伴い`generate-ddr-list.sh`実行でDDR一覧を再生成（97件） |
 
 **却下した代替案**（詳細: [DDR i0205-01](../ddr/i0205-01-defaultブランチとの差分リンクをPR_MRのDiffviewへ出し分ける.md)）
 
@@ -4190,12 +4191,14 @@ Compareページ（DDR `i0013-01`が採用した形式）からDiffview（GitHub
   この環境では`GIT_TERMINAL_PROMPT=0`が既に設定済みで「付けた場合／付けない場合」の差を
   原理的に測れず、ブラックホール状態（接続確立前の無応答）も作れないため、対策の効果が
   実測できていない。git bash実機での再計測をもって本項目を削除する。
-- **（issue #205）CLI経路での`resolve_mr_number_for_head`呼び出しブロックの素通りは実機未確認**:
-  `post-push-compact-prompt.sh`は`mr_url`が空のとき（＝`get_mr_for_branch`がCLI経由で取得できな
-  かったとき、あるいはMCP経路で`get_mr_for_branch`自体を呼んでいないとき）にのみ
-  `resolve_mr_number_for_head`を追加で試みる設計だが、CLI経路（`get_vcs_access_mode`が`cli`）で
-  この分岐を実際にpushして通ることを確認したのはコードを読んだ上での判断であり、実機での確認
-  ではない。
+- **（issue #205）CLI経路では`resolve_mr_number_for_head`呼び出しブロックへ到達しない（実機検証の
+  対象ではなく、コードの構造上の事実）**: `post-push-compact-prompt.sh`はCLI経路
+  （`get_vcs_access_mode`が`cli`）では、`get_mr_for_branch`が空を返した時点で`exit 0`しており、
+  以降の`if [ -z "$mr_url" ]; then resolve_mr_number_for_head ...`ブロックへは到達しない。
+  したがってこのブロックが実際に実行されるのはMCP経路（CLI不在）のときだけであり、「CLI経路で
+  この分岐を通ることを確認する」という検証課題自体が成立しない（当初この項目は実機未検証の
+  懸念として書いていたが、コードを読み直した結果、到達しない経路を検証課題として誤って記載
+  していたと判明したため、事実に合わせて書き直した）。
 - **（issue #205）`wip/state/review-links/<branch>.txt`のブランチ名重複衝突による`prev_sha`混入
   リスクは緩和のみで解消していない**: ブランチ名のファイル名サニタイズ（`safe_branch`の記号
   潰し）により、記号だけが異なる2つのブランチ（例: `feature/a`と`feature-a`）が同じ状態ファイル
