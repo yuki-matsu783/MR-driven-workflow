@@ -1,0 +1,7 @@
+# generated-for: 4abe3cd98ca82a22666390e22ea302ed7ba291f7
+# id	項目	状態	実施ログ
+worklog	worklogを作成し、このpushまでの試行錯誤を追記した	skip	flow-id5-4層2(PRコメント投稿)のみで、wip/worklogs/への追記対象の試行錯誤は無い
+handoff	HANDOFF.md の進捗表・ヘッダを更新した（commitより前・同じcommitに含めた）	done	flow-id5-4完了(層2コメントID記録)・次にやることをflow-id5-5へ更新した
+frontmatter-index	frontmatterを変更した場合、index.jsonl を最新化した	skip	このpushでfrontmatterを変更していない
+plan-report-sync	wip/plans/ wip/reports/ の md と html を同期した	skip	このpushでplans/reportsのファイル変更なし(HANDOFFのみ)
+commit-skill	commit スキル（create-commit.sh）経由でコミットした	pending	
