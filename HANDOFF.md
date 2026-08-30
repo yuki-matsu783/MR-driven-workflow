@@ -535,11 +535,17 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
   `hooks/session-start-ack-words.txt`（新規）・`rules/directory-structure.md`・
   `rules/shell-script-style.md`・`scripts/test/test_session_start.sh`の9件。
 
+- **flow-id 5-4（層1）**: 最終統括レポート
+  `wip/reports/20260830_session-start-user-utterance-reinject_統括.md`を作成し、`commit`スキル
+  経由でコミット・リモートへ反映した（層1）。層3（HTML添付）は`gh`/`glab` CLI不在の実行環境
+  ではMCPに添付相当のツールが無いためスキップし（`phase5-close.md`が明示する既知の縮退）、
+  層2（PR #197への通常コメント。1行目`Claude Codeより（最終統括レポート）:`）で
+  サマリを投稿した（後続コミットでコメントIDを記録する）。
+
 ## 次にやること
 
-- flow-id 5-4: 最終統括レポートを作成しPR #197へ反映する（3層のフォールバック構造。
-  `.claude/skills/issue-mr-flow/references/phase5-close.md`「最終統括レポートとPR/MRへの
-  反映」参照）。
+- flow-id 5-5: `wip/plans/` `wip/worklogs/` `wip/reports/`を片付け（`REVIEW-POINTS.md`は残す）、
+  `HANDOFF.md`を次タスク向けの空テンプレートへリセットする（`cleanup-task.sh`）。
 
 ## 判断を迷った内容
 
