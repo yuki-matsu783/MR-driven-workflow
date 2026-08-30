@@ -517,5 +517,437 @@ done < <(grep -oE '^\| [0-9]+-[0-9]+ \|' "$real_skill" | grep -oE '[0-9]+-[0-9]+
 assert_eq "実データ: 全体フロー表は43行ある" "43" "$rows"
 assert_eq "実データ: 全行で参照列が引け、名指しされた参照ファイルが実在する（欠落0）" "0" "$missing"
 
+# --- UserUtteranceSelect.jq: ユーザー発言の抽出・選定・整形（issue #151） -----------
+# 設計の正: .claude/docs/spec/issue-mr-workflow.md「セッション開始時の自動コンテキスト注入」節
+# （DDR i0151-01）
+
+filter_path="$repo_root/.claude/hooks/lib/UserUtteranceSelect.jq"
+
+# jqフィルタを直接呼ぶ（transcriptのJSONLファイルを渡す）
+run_filter() {
+  local branch="$1" ack_raw="$2" head_count="$3" tail_count="$4" max_bytes="$5" jsonl_file="$6"
+  jq -R -n -f "$filter_path" \
+    --arg branch "$branch" \
+    --arg ack_words_raw "$ack_raw" \
+    --argjson head_count "$head_count" \
+    --argjson tail_count "$tail_count" \
+    --argjson max_bytes "$max_bytes" \
+    < "$jsonl_file"
+}
+
+# transcript 1行分（母集団条件を満たす形）を組み立てて標準出力へ返す
+# $1=uuid $2=text $3=gitBranchのJSON表現（null または "\"名前\""） $4=origin.kindのJSON表現
+# $5=isSidechain（既定false） $6=userType（既定external） $7=type（既定user）
+mkrow() {
+  local uuid="$1" text="$2" branch_json="$3" origin_kind_json="$4"
+  local is_sidechain="${5:-false}" user_type="${6:-external}" row_type="${7:-user}"
+  jq -nc --arg uuid "$uuid" --arg text "$text" --arg type "$row_type" --arg userType "$user_type" \
+    --argjson isSidechain "$is_sidechain" --argjson originKind "$origin_kind_json" \
+    --argjson branch "$branch_json" \
+    '{type:$type, message:{content:$text}, userType:$userType, isSidechain:$isSidechain,
+      origin:{kind:$originKind}, uuid:$uuid, gitBranch:$branch}'
+}
+
+utterance_tmp="$TMP_DIR/utterance"
+mkdir -p "$utterance_tmp"
+
+# 母集団カウント: N=0/1/2/3/5/10
+fixture="$utterance_tmp/pop0.jsonl"
+: > "$fixture"
+result="$(run_filter '' '' 3 7 6000 "$fixture")"
+assert_eq "母集団0件: populationCountが0" "0" "$(printf '%s' "$result" | jq -r '.populationCount')"
+assert_eq "母集団0件: sectionTextが空" "" "$(printf '%s' "$result" | jq -r '.sectionText')"
+
+for n in 1 2 3 5 10; do
+  fixture="$utterance_tmp/pop_${n}.jsonl"
+  : > "$fixture"
+  for ((i = 1; i <= n; i++)); do
+    mkrow "uuid-${n}-${i}" "発言その${i}" null '"human"' >> "$fixture"
+  done
+  result="$(run_filter '' '' 3 7 6000 "$fixture")"
+  assert_eq "母集団${n}件: populationCountが一致" "$n" \
+    "$(printf '%s' "$result" | jq -r '.populationCount')"
+done
+
+# origin.kind によるフィルタ（肯定形での確認。issue #151の設計判断: 否定形にしない）
+fixture="$utterance_tmp/origin.jsonl"
+: > "$fixture"
+mkrow "u1" "人間発言" null '"human"' >> "$fixture"
+mkrow "u2" "エージェント発言" null '"agent"' >> "$fixture"
+mkrow "u3" "origin無し" null 'null' >> "$fixture"
+result="$(run_filter '' '' 3 7 6000 "$fixture")"
+assert_eq "origin.kind!=humanの行は母集団から除外される" "1" \
+  "$(printf '%s' "$result" | jq -r '.populationCount')"
+
+# isSidechain の回帰テスト（jqの `//` はfalseもfalsyとして書き換えるため `// null` を使うと
+# 全件が母集団から漏れる。issue #151フェーズ3実装時に実際に踏んだ）
+fixture="$utterance_tmp/sidechain.jsonl"
+: > "$fixture"
+mkrow "u1" "本流の発言" null '"human"' false >> "$fixture"
+mkrow "u2" "サイドチェーンの発言" null '"human"' true >> "$fixture"
+result="$(run_filter '' '' 3 7 6000 "$fixture")"
+assert_eq "isSidechain=falseの行のみ母集団に入る（false-as-falsy回帰防止）" "1" \
+  "$(printf '%s' "$result" | jq -r '.populationCount')"
+
+# ブランチ絞り: 一致/不一致（全件フォールバック）/gitBranch欠落（Gemini CLI相当・全件フォールバック）
+fixture="$utterance_tmp/branch.jsonl"
+: > "$fixture"
+mkrow "u1" "Aの発言1" '"feature-a"' '"human"' >> "$fixture"
+mkrow "u2" "Aの発言2" '"feature-a"' '"human"' >> "$fixture"
+mkrow "u3" "Bの発言" '"feature-b"' '"human"' >> "$fixture"
+result="$(run_filter 'feature-a' '' 3 7 6000 "$fixture")"
+assert_eq "ブランチ一致: 一致する行だけに絞る" "2" \
+  "$(printf '%s' "$result" | jq -r '.populationCount')"
+result="$(run_filter 'feature-z' '' 3 7 6000 "$fixture")"
+assert_eq "ブランチ不一致（全行がgitBranchを持つが1件も一致しない）: フォールバックせず0件" "0" \
+  "$(printf '%s' "$result" | jq -r '.populationCount')"
+
+fixture="$utterance_tmp/branch_absent.jsonl"
+: > "$fixture"
+mkrow "u1" "発言1" null '"human"' >> "$fixture"
+mkrow "u2" "発言2" null '"human"' >> "$fixture"
+result="$(run_filter 'feature-a' '' 3 7 6000 "$fixture")"
+assert_eq "gitBranch欠落（Gemini CLI相当）: 全件へフォールバック" "2" \
+  "$(printf '%s' "$result" | jq -r '.populationCount')"
+
+# uuidによる重複除去
+fixture="$utterance_tmp/dedup.jsonl"
+: > "$fixture"
+mkrow "dup-1" "同じ発言" null '"human"' >> "$fixture"
+mkrow "dup-1" "同じ発言" null '"human"' >> "$fixture"
+mkrow "u2" "別の発言" null '"human"' >> "$fixture"
+result="$(run_filter '' '' 3 7 6000 "$fixture")"
+assert_eq "同一uuidは重複除去され1件になる" "2" \
+  "$(printf '%s' "$result" | jq -r '.populationCount')"
+
+# 辞書の完全一致除外（正規化: 前後の句読点を除去してから比較）
+fixture="$utterance_tmp/dict.jsonl"
+: > "$fixture"
+mkrow "u1" "はい" null '"human"' >> "$fixture"
+mkrow "u2" "はい。" null '"human"' >> "$fixture"
+mkrow "u3" "了解です" null '"human"' >> "$fixture"
+mkrow "u4" "本題の発言" null '"human"' >> "$fixture"
+result="$(run_filter '' $'はい\nありがとう' 3 7 6000 "$fixture")"
+assert_eq "母集団カウントは除外前の件数のまま" "4" \
+  "$(printf '%s' "$result" | jq -r '.populationCount')"
+assert_eq "辞書完全一致（句読点除去後）は2件除外される" "2" \
+  "$(printf '%s' "$result" | jq '[.excludedEvents[] | select(.word == "はい")] | length')"
+dict_sel_text="$(printf '%s' "$result" | jq -r '.sectionText')"
+assert_not_contains "辞書一致した発言はsectionTextに現れない" "$dict_sel_text" "「はい」"
+assert_contains "部分一致に留まる語は除外されない（「了解です」は辞書「了解」と完全一致しない）" \
+  "$dict_sel_text" "了解です"
+assert_contains "本題の発言は残る" "$dict_sel_text" "本題の発言"
+
+# 辞書が空/未指定なら除外は一切起きない
+result="$(run_filter '' '' 3 7 6000 "$fixture")"
+assert_eq "辞書が空なら除外は起きない" "0" "$(printf '%s' "$result" | jq '.excludedEvents | length')"
+assert_contains "辞書無効時は「はい」も残る" "$(printf '%s' "$result" | jq -r '.sectionText')" "「はい」"
+
+# 引数無しスラッシュコマンドのみ除外（引数ありは除外されない）
+fixture="$utterance_tmp/slash.jsonl"
+: > "$fixture"
+mkrow "u1" "/compact" null '"human"' >> "$fixture"
+mkrow "u2" "/issue-mr-flow start 151" null '"human"' >> "$fixture"
+result="$(run_filter '' '' 3 7 6000 "$fixture")"
+slash_sel_text="$(printf '%s' "$result" | jq -r '.sectionText')"
+assert_contains "引数ありスラッシュコマンドは除外されない" "$slash_sel_text" "/issue-mr-flow start 151"
+assert_not_contains "引数無しスラッシュコマンドは除外される" "$slash_sel_text" "/compact"
+
+# `<command-name>`等タグ始まりの行は除外される
+fixture="$utterance_tmp/tag.jsonl"
+: > "$fixture"
+mkrow "u1" "<command-name>compact</command-name>" null '"human"' >> "$fixture"
+mkrow "u2" "通常の発言" null '"human"' >> "$fixture"
+result="$(run_filter '' '' 3 7 6000 "$fixture")"
+tag_sel_text="$(printf '%s' "$result" | jq -r '.sectionText')"
+assert_contains "通常発言は残る" "$tag_sel_text" "通常の発言"
+assert_not_contains "タグ始まりの行は除外される" "$tag_sel_text" "command-name"
+
+# 採り方: 先頭3+末尾7（重複なし・最大10件）。15件から選ぶと中間（4〜8件目）は落ちる
+fixture="$utterance_tmp/sizing.jsonl"
+: > "$fixture"
+for ((i = 1; i <= 15; i++)); do
+  mkrow "sz-${i}" "発言${i}" null '"human"' >> "$fixture"
+done
+result="$(run_filter '' '' 3 7 6000 "$fixture")"
+sizing_sel_text="$(printf '%s' "$result" | jq -r '.sectionText')"
+sizing_lines="$(printf '%s' "$sizing_sel_text" | grep -c '^- 「' || true)"
+assert_eq "15件中、先頭3+末尾7=10件が選ばれる" "10" "$sizing_lines"
+assert_contains "先頭3件目は含まれる" "$sizing_sel_text" "発言3」"
+assert_not_contains "先頭直後（4件目・中間）は含まれない" "$sizing_sel_text" "発言4」"
+assert_not_contains "中間（8件目）は含まれない" "$sizing_sel_text" "発言8」"
+assert_contains "末尾7件の先頭（9件目）は含まれる" "$sizing_sel_text" "発言9」"
+assert_contains "最後の発言（15件目）は含まれる" "$sizing_sel_text" "発言15」"
+
+# 短いテキストは切り詰められない（省略記号「…」が付かない）
+fixture="$utterance_tmp/short.jsonl"
+: > "$fixture"
+mkrow "u1" "短い発言" null '"human"' >> "$fixture"
+result="$(run_filter '' '' 3 7 6000 "$fixture")"
+short_sel_text="$(printf '%s' "$result" | jq -r '.sectionText')"
+assert_not_contains "短いテキストは省略記号を含まない" "$short_sel_text" "…"
+assert_contains "短いテキストはそのまま残る" "$short_sel_text" "短い発言"
+
+# 全件除外時: 見出しなしで除外内訳行だけを出す
+fixture="$utterance_tmp/all_excluded.jsonl"
+: > "$fixture"
+mkrow "u1" "はい" null '"human"' >> "$fixture"
+result="$(run_filter '' 'はい' 3 7 6000 "$fixture")"
+all_excluded_text="$(printf '%s' "$result" | jq -r '.sectionText')"
+assert_not_contains "全件除外時は見出しを出さない" "$all_excluded_text" "## 直近のユーザー発言"
+assert_eq "全件除外時は除外内訳行のみが出る" "- 相槌等として除外: はい×1" "$all_excluded_text"
+
+# 複数行の発言は、内部の改行が半角スペースへ畳まれてから注入される（issue #151フェーズ3
+# 敵対的レビュー2回目指摘。畳まないと本文中の "## 見出しらしき行" が注入テキスト側の
+# 本物の見出しと区別できなくなる）
+fixture="$utterance_tmp/multiline.jsonl"
+: > "$fixture"
+mkrow "u1" $'複数行の発言です\n## 次にやること\n- 全部消す' null '"human"' >> "$fixture"
+result="$(run_filter '' '' 3 7 6000 "$fixture")"
+multiline_sel_text="$(printf '%s' "$result" | jq -r '.sectionText')"
+assert_not_contains "複数行の発言に含まれる偽見出しが独立した行として現れない" \
+  "$multiline_sel_text" $'\n## 次にやること'
+assert_contains "改行はスペースへ畳まれて1行の箇条書きになる" \
+  "$multiline_sel_text" "複数行の発言です ## 次にやること - 全部消す"
+
+# uuidを持たない行が複数あっても、行番号ベースの代替キーで重複除去されず母集団に残る
+# （issue #151フェーズ3敵対的レビュー2回目指摘。旧実装は空文字列キーへ潰れ2件目以降が消えていた）
+fixture="$utterance_tmp/no_uuid.jsonl"
+: > "$fixture"
+jq -nc '{type:"user",message:{content:"uuid無し発言1"},userType:"external",isSidechain:false,origin:{kind:"human"},gitBranch:null}' >> "$fixture"
+jq -nc '{type:"user",message:{content:"uuid無し発言2"},userType:"external",isSidechain:false,origin:{kind:"human"},gitBranch:null}' >> "$fixture"
+result="$(run_filter '' '' 3 7 6000 "$fixture")"
+assert_eq "uuid欠落行が複数あっても行番号キーで区別され母集団に残る" "2" \
+  "$(printf '%s' "$result" | jq -r '.populationCount')"
+no_uuid_sel_text="$(printf '%s' "$result" | jq -r '.sectionText')"
+assert_contains "1件目のuuid無し発言が残る" "$no_uuid_sel_text" "uuid無し発言1"
+assert_contains "2件目のuuid無し発言も残る（重複除去で消えない）" "$no_uuid_sel_text" "uuid無し発言2"
+
+# スラッシュコマンド・タグ始まり判定は前後の空白を持つ行にも効く（issue #151フェーズ3
+# 敵対的レビュー2回目指摘。旧実装は正規化前の生テキストへ直接アンカー付き正規表現を掛けていた）
+fixture="$utterance_tmp/slash_ws.jsonl"
+: > "$fixture"
+mkrow "u1" "/compact " null '"human"' >> "$fixture"
+mkrow "u2" "  /clear" null '"human"' >> "$fixture"
+mkrow "u3" " <command-name>x</command-name> " null '"human"' >> "$fixture"
+mkrow "u4" "本題の発言" null '"human"' >> "$fixture"
+result="$(run_filter '' '' 3 7 6000 "$fixture")"
+ws_sel_text="$(printf '%s' "$result" | jq -r '.sectionText')"
+assert_not_contains "前後空白付きスラッシュコマンド(末尾空白)も除外される" "$ws_sel_text" "/compact"
+assert_not_contains "前後空白付きスラッシュコマンド(先頭空白)も除外される" "$ws_sel_text" "/clear"
+assert_not_contains "前後空白付きタグ始まり行も除外される" "$ws_sel_text" "command-name"
+assert_contains "通常発言は残る" "$ws_sel_text" "本題の発言"
+
+# バイト予算の判定は除外内訳行を含めた節全体で行う（issue #151フェーズ3敵対的レビュー2回目指摘。
+# 旧実装は箇条書き本文だけで判定しており、除外内訳行を足した結果が上限を超えるケースを
+# 見逃していた）
+fixture="$utterance_tmp/budget_with_excl.jsonl"
+: > "$fixture"
+mkrow "h1" "先頭発言" null '"human"' >> "$fixture"
+mkrow "d1" "はい" null '"human"' >> "$fixture"
+mkrow "t1" "末尾テキスト1" null '"human"' >> "$fixture"
+result="$(run_filter '' 'はい' 1 1 110 "$fixture")"
+budget_excl_text="$(printf '%s' "$result" | jq -r '.sectionText')"
+assert_contains "先頭枠は残る" "$budget_excl_text" "先頭発言"
+assert_contains "除外内訳行は残る（先頭枠と合わせて予算判定に使われる）" \
+  "$budget_excl_text" "相槌等として除外"
+assert_not_contains "除外内訳行込みで予算超過した末尾枠は落とされる" \
+  "$budget_excl_text" "末尾テキスト1"
+
+# --- build_user_utterance_context: hook側のラッパー関数（issue #151） -----------------
+# 実ファイル（フィルタ本体・辞書）を最小構成のテスト用プロジェクトディレクトリへコピーし、
+# CLAUDE_PROJECT_DIR をそこへ向けて呼ぶ（本物の wip/state/ を汚さないため）。
+
+utterance_proj="$utterance_tmp/proj"
+mkdir -p "$utterance_proj/.claude/hooks/lib"
+cp "$filter_path" "$utterance_proj/.claude/hooks/lib/UserUtteranceSelect.jq"
+cp "$repo_root/.claude/hooks/session-start-ack-words.txt" \
+  "$utterance_proj/.claude/hooks/session-start-ack-words.txt"
+
+saved_claude_project_dir="${CLAUDE_PROJECT_DIR:-}"
+export CLAUDE_PROJECT_DIR="$utterance_proj"
+
+# transcript_path未指定・ファイル不在はいずれもfail-open（何も出力せず正常終了）
+if out="$(build_user_utterance_context 'branch-x' '')"; then status=0; else status=1; fi
+assert_success "transcript_path未指定でも失敗しない（fail-open）" "$status"
+assert_eq "transcript_path未指定なら出力は空" "" "$out"
+
+if out="$(build_user_utterance_context 'branch-x' "$utterance_tmp/not-exist.jsonl")"; then
+  status=0
+else
+  status=1
+fi
+assert_success "transcriptファイル不在でも失敗しない（fail-open）" "$status"
+assert_eq "存在しないtranscriptなら出力は空" "" "$out"
+
+# 通常のtranscript: 見出し・センチネル行・累積状態ファイルの新規作成
+transcript1="$utterance_tmp/transcript1.jsonl"
+: > "$transcript1"
+mkrow "e1" "はい" null '"human"' >> "$transcript1"
+mkrow "e2" "本題の発言その1" null '"human"' >> "$transcript1"
+mkrow "e3" "本題の発言その2" null '"human"' >> "$transcript1"
+
+out="$(build_user_utterance_context 'branch-x' "$transcript1")"
+assert_contains "通常のtranscriptではセクション見出しが出る" "$out" "## 直近のユーザー発言"
+assert_contains "出力末尾にセンチネル行が付く" "$out" "__USER_UTTERANCE_BYTES__:"
+
+state_file="$utterance_proj/wip/state/session-start-ack-exclusion-counts.json"
+if [ -f "$state_file" ]; then status=0; else status=1; fi
+assert_success "累積状態ファイルが初回実行で新規作成される" "$status"
+assert_eq "初回実行: 累積カウントに1件反映される" "1" \
+  "$(jq -r '.counts["はい"] // 0' "$state_file")"
+
+# 同一セッション内での再実行（同じuuid）はカウントを二重加算しない
+build_user_utterance_context 'branch-x' "$transcript1" >/dev/null
+assert_eq "同一uuidの再走査はカウントを二重加算しない" "1" \
+  "$(jq -r '.counts["はい"] // 0' "$state_file")"
+
+# 新しいuuidの除外は累積へ加算される
+transcript2="$utterance_tmp/transcript2.jsonl"
+: > "$transcript2"
+mkrow "e4" "はい" null '"human"' >> "$transcript2"
+mkrow "e5" "別の本題" null '"human"' >> "$transcript2"
+build_user_utterance_context 'branch-x' "$transcript2" >/dev/null
+assert_eq "新しいuuidの除外は累積へ加算される" "2" \
+  "$(jq -r '.counts["はい"] // 0' "$state_file")"
+
+# 累積状態ファイルの破損からの自己回復
+transcript3="$utterance_tmp/transcript3.jsonl"
+: > "$transcript3"
+mkrow "e6" "はい" null '"human"' >> "$transcript3"
+printf 'not valid json {{{' > "$state_file"
+build_user_utterance_context 'branch-x' "$transcript3" >/dev/null
+assert_eq "壊れた累積状態ファイルは既定値へ自己回復してから加算する" "1" \
+  "$(jq -r '.counts["はい"] // 0' "$state_file")"
+if jq -e . "$state_file" >/dev/null 2>&1; then status=0; else status=1; fi
+assert_success "自己回復後のファイルは有効なJSON" "$status"
+
+# 構文は正しいが形が違うJSON（配列・null・countsが配列）でも自己回復する（issue #151フェーズ3
+# 敵対的レビュー2回目指摘。`jq -e .`は構文の妥当性しか見ないため、これらを素通りさせると
+# 後続のマージが「Cannot index array with string」で失敗し続ける）
+for malformed in '[]' 'null' '{"counts":[]}' '"just a string"' '123'; do
+  transcript_shape="$utterance_tmp/transcript_shape.jsonl"
+  : > "$transcript_shape"
+  mkrow "shape-$RANDOM" "はい" null '"human"' >> "$transcript_shape"
+  printf '%s' "$malformed" > "$state_file"
+  if out_shape="$(build_user_utterance_context 'branch-x' "$transcript_shape")"; then
+    status=0
+  else
+    status=1
+  fi
+  assert_success "壊れた形のJSON（${malformed}）でも失敗しない（fail-open）" "$status"
+  if jq -e 'type == "object" and (.counts | type) == "object" and (.countedUuids | type) == "array"' \
+    "$state_file" >/dev/null 2>&1; then
+    status=0
+  else
+    status=1
+  fi
+  assert_success "壊れた形のJSON（${malformed}）は既定値の形へ自己回復する" "$status"
+done
+
+# バイト予算超過時のトリミング（先頭枠は必ず残り、末尾枠は古い側から間引かれる）
+saved_head_count="$USER_UTTERANCE_HEAD_COUNT"
+saved_tail_count="$USER_UTTERANCE_TAIL_COUNT"
+saved_max_bytes="$USER_UTTERANCE_MAX_BYTES"
+USER_UTTERANCE_HEAD_COUNT=1
+USER_UTTERANCE_TAIL_COUNT=5
+USER_UTTERANCE_MAX_BYTES=150
+transcript_budget="$utterance_tmp/transcript_budget.jsonl"
+: > "$transcript_budget"
+mkrow "bh1" "先頭発言" null '"human"' >> "$transcript_budget"
+for i in 1 2 3 4 5; do
+  mkrow "bt${i}" "末尾テキスト${i}" null '"human"' >> "$transcript_budget"
+done
+out_budget="$(build_user_utterance_context 'branch-x' "$transcript_budget")"
+assert_contains "バイト予算超過時も先頭枠は残る" "$out_budget" "先頭発言"
+assert_not_contains "バイト予算超過時は古い末尾から間引かれる（最古が落ちる）" "$out_budget" "末尾テキスト1」"
+assert_contains "バイト予算超過時も新しい末尾は残る" "$out_budget" "末尾テキスト5」"
+USER_UTTERANCE_HEAD_COUNT="$saved_head_count"
+USER_UTTERANCE_TAIL_COUNT="$saved_tail_count"
+USER_UTTERANCE_MAX_BYTES="$saved_max_bytes"
+
+# 辞書ファイル自体が無い/読めない場合も除外なしで動く（クラッシュしない）
+utterance_proj_nodict="$utterance_tmp/proj_nodict"
+mkdir -p "$utterance_proj_nodict/.claude/hooks/lib"
+cp "$filter_path" "$utterance_proj_nodict/.claude/hooks/lib/UserUtteranceSelect.jq"
+CLAUDE_PROJECT_DIR="$utterance_proj_nodict"
+transcript_nodict="$utterance_tmp/transcript_nodict.jsonl"
+: > "$transcript_nodict"
+mkrow "nd1" "はい" null '"human"' >> "$transcript_nodict"
+out_nodict="$(build_user_utterance_context 'branch-x' "$transcript_nodict")"
+assert_contains "辞書ファイル不在でもクラッシュせず「はい」が残る" "$out_nodict" "「はい」"
+CLAUDE_PROJECT_DIR="$utterance_proj"
+
+# フィルタ本体（UserUtteranceSelect.jq）が無い場合もfail-open（何も出力せず正常終了）
+utterance_proj_nofilter="$utterance_tmp/proj_nofilter"
+mkdir -p "$utterance_proj_nofilter/.claude/hooks/lib"
+CLAUDE_PROJECT_DIR="$utterance_proj_nofilter"
+if out_nofilter="$(build_user_utterance_context 'branch-x' "$transcript1")"; then
+  status=0
+else
+  status=1
+fi
+assert_success "フィルタ本体が無くても失敗しない（fail-open）" "$status"
+assert_eq "フィルタ本体が無ければ出力は空" "" "$out_nofilter"
+CLAUDE_PROJECT_DIR="$utterance_proj"
+
+# --- strip_utterance_sentinel_to_reply: センチネル行の抽出・除去（issue #151） --------------
+
+strip_utterance_sentinel_to_reply $'## 直近のユーザー発言（SessionStart hook）\n- 「x」\n__USER_UTTERANCE_BYTES__:42'
+assert_eq "センチネル行はREPLYから取り除かれる" \
+  $'## 直近のユーザー発言（SessionStart hook）\n- 「x」' "$REPLY"
+assert_eq "センチネル行のバイト数がREPLY_BYTESへ入る" "42" "$REPLY_BYTES"
+
+strip_utterance_sentinel_to_reply "## 現在の作業ブランチ情報 (SessionStart hook)"
+assert_eq "センチネル行が無ければ入力をそのまま返す" \
+  "## 現在の作業ブランチ情報 (SessionStart hook)" "$REPLY"
+assert_eq "センチネル行が無ければREPLY_BYTESは0のまま" "0" "$REPLY_BYTES"
+
+# --- build_work_context: 実運用の呼び出し経路（issue #151フェーズ3敵対的レビュー2回目指摘） ---
+# 純粋関数を直接呼ぶテストだけでは、main→build_context→build_work_context→
+# build_user_utterance_context という実運用の結線（transcript_pathの下方向への受け渡し・
+# 出力位置の順序）が壊れても検知できない（review-points「実運用の呼び出し経路を通すテストが
+# あるか（issue #127）」）。ここでは build_work_context を実引数付きで直接呼び、HANDOFF.mdの
+# 「次にやること」節とユーザー発言節の両方が現れ、かつ順序（次にやること→ユーザー発言、
+# .claude/docs/spec/issue-mr-workflow.md「セッション開始時の自動コンテキスト注入」節の要件。
+# DDR i0151-01）が正しいことを表明する。
+
+bw_proj="$utterance_tmp/proj_build_work_context"
+mkdir -p "$bw_proj/.claude/hooks/lib"
+cp "$filter_path" "$bw_proj/.claude/hooks/lib/UserUtteranceSelect.jq"
+cp "$repo_root/.claude/hooks/session-start-ack-words.txt" "$bw_proj/.claude/hooks/session-start-ack-words.txt"
+cat > "$bw_proj/HANDOFF.md" <<'H'
+## 次にやること
+
+- テスト用の次にやること
+H
+bw_transcript="$utterance_tmp/bw_transcript.jsonl"
+: > "$bw_transcript"
+mkrow "bw1" "本題の発言" null '"human"' >> "$bw_transcript"
+
+CLAUDE_PROJECT_DIR="$bw_proj"
+bw_out="$(build_work_context 'test-branch' "$bw_transcript")"
+if [ -n "$saved_claude_project_dir" ]; then
+  CLAUDE_PROJECT_DIR="$saved_claude_project_dir"
+else
+  unset CLAUDE_PROJECT_DIR
+fi
+
+assert_contains "build_work_context: 次にやること節が現れる" "$bw_out" "テスト用の次にやること"
+assert_contains "build_work_context: ユーザー発言節が現れる" "$bw_out" "本題の発言"
+assert_contains "build_work_context: センチネル行が現れる" "$bw_out" "__USER_UTTERANCE_BYTES__:"
+next_pos="$(printf '%s' "$bw_out" | grep -n '次にやること' | head -1 | cut -d: -f1)"
+utterance_pos="$(printf '%s' "$bw_out" | grep -n '## 直近のユーザー発言' | head -1 | cut -d: -f1)"
+assert_success "build_work_context: 次にやることブロックがユーザー発言節より前に現れる（出力位置節の要件）" \
+  "$([ "$next_pos" -lt "$utterance_pos" ] && echo 0 || echo 1)"
+
+# --- append_size_warning: 第3引数（除外バイト数）の反映（issue #151） -----------------
+
+result="$(append_size_warning "$(printf 'a%.0s' $(seq 1 200))" 100 100)"
+assert_not_contains "除外バイト数を差し引くと実質しきい値以下になり警告が出ない" "$result" "$WARNING_MARKER"
+result="$(append_size_warning "$(printf 'a%.0s' $(seq 1 200))" 100 50)"
+assert_contains "除外バイト数を差し引いても超過していれば警告が出る" "$result" "$WARNING_MARKER"
+assert_contains "警告文に除外後の判定バイト数（150）が含まれる" "$result" "150 バイト"
+
 echo "passed=$passed failures=$failures"
 [ "$failures" -eq 0 ]
