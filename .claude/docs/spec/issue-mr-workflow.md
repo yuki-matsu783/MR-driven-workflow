@@ -1012,37 +1012,46 @@ resume・clear時に毎回、現在ブランチのissue/MR状態をコンテキ�
   - **`references/mcp-fallback.md` だけは参照列で指さない**（設計）。`gh`/`glab` CLIの有無は
     flow-idではなく実行環境で決まるため、MCP経路と判定されたときに限り、参照列とは別の行で
     同ファイルを名指しで注入する（下記「`gh`/`glab` CLI自体が無い環境での挙動」の4点に含まれる）。
-- **出力形式**: `{"hookSpecificOutput":{"hookEventName":"SessionStart","additionalContext":"<text>"}}`
-  形式のJSONをstdoutへ返す。
-- **ユーザー発言の抽出・再注入（issue #151）**: 上記の現在地flow-idと参照ファイルの注入に続けて、
-  transcriptから抽出したユーザーの生発言を再注入する。挿入位置は「`HANDOFF.md` 次にやること」
-  ブロックの**直後**（SKILL.md再読み込み指示より前）。
+- **ユーザー発言の抽出・再注入（issue #151）**: 本節の他項目（現在地flow-idと参照ファイルの
+  注入等）に加えて、transcriptから抽出したユーザーの生発言を再注入する。**挿入位置**は
+  「`HANDOFF.md` 次にやること」ブロックの**直後**（SKILL.md再読み込み指示・現在地flow-id
+  参照行より**前**。`build_work_context`が積む順序: 作業ファイル一覧→次にやること→
+  **ユーザー発言**→SKILL.md再読み込み指示・現在地flow-id参照行）。
   - **コンポーネント**: `.claude/hooks/lib/UserUtteranceSelect.jq`（抽出・選定・整形の中核。
     `jq -R -n -f` + `inputs` で全走査）＋ `.claude/hooks/session-start-ack-words.txt`
     （除外辞書。プレーンテキスト、1行1語）＋ `session-start.sh` の
     `build_user_utterance_context` / `read_ack_exclusion_state_to_reply` /
     `update_ack_exclusion_counts` / `strip_utterance_sentinel_to_reply`。
-  - **母集団の抽出条件**（6条件すべてを満たす行）: `type=="user"` かつ `message.content` が
+  - **母集団の抽出条件**（5条件すべてを満たす行）: `type=="user"` かつ `message.content` が
     文字列型 かつ `userType=="external"` かつ `isSidechain==false`（`//`演算子はfalseも
-    falsyにするため直接比較で書く。上記「JSON操作」節参照） かつ `origin.kind=="human"`
-    （肯定形。否定形だと`origin`キー自体を持たない行が混入する） かつ `uuid`（無ければ行番号を
-    代替キー）による重複除去。さらにスラッシュコマンド単独行・タグ始まりの行を除外理由付きで弾く。
+    falsyにするため直接比較で書く。`.claude/rules/shell-script-style.md`「JSON操作」節参照）
+    かつ `origin.kind=="human"`（肯定形。否定形だと`origin`キー自体を持たない行が混入する）。
+    さらにスラッシュコマンド単独行・タグ始まりの行を除外理由付きで弾く。
+    **後処理として2段**: (1) **ブランチ絞り**——母集団の**いずれかの行**が`gitBranch`を持つ
+    場合だけ現在ブランチと一致する行へ絞る（一致0件でも全件へフォールバックしない。別ブランチの
+    発言を無断で注入しないため）。`gitBranch`を1件も持たない環境（Gemini CLI相当）では
+    絞りようが無いため全件を対象にする。(2) `uuid`（無ければ行番号を代替キー）による重複除去。
   - **選定**: 先頭3件＋直近7件（最大10件）。1件あたりの文字数は先頭群が頭120字+末尾40字、
     直近群が頭80字+末尾30字（中間を`…`で省略。文字単位の切り出しには`jq`の`.[0:N]`を使う。
-    `${var:0:N}`は環境によりバイト単位で日本語が壊れるため使わない）。改行・連続空白は半角
-    スペース1つへ畳んでから切り出す。
+    `${var:0:N}`は環境によりバイト単位で日本語が壊れるため使わない）。**改行（とその前後の
+    空白）**を半角スペース1つへ畳んでから切り出す（改行を挟まない連続空白・タブは畳まない）。
   - **除外規則（「育てる」辞書）**: `.claude/hooks/session-start-ack-words.txt`（正規化後の
     完全一致）。除外実績を注入テキストへの内訳行（`- 相槌等として除外: <語>×<件数>`）と
     `wip/state/session-start-ack-exclusion-counts.json`（gitignore対象。`uuid`集合
     `countedUuids`で重複計上を防ぐ）で可視化する。**発言本文は一切保存しない**（辞書語と件数の
     みを記録する）。
   - **サイズ管理**: 発言節のバイト上限6,000B（`append_size_warning`の第3引数
-    `excluded_bytes`。末尾・省略可・既定0のため既存6箇所の呼び出しは無変更）。再注入バイト数は
-    センチネル行`__USER_UTTERANCE_BYTES__:<N>`で`build_user_utterance_context`から`main`へ
-    返し、`strip_utterance_sentinel_to_reply`が本文から取り除く。
-  - **性能**: しきい値500ms（全走査方式のまま採用。git bash見積もり約208msで42%）。しきい値は
-    当初200msだったが、フェーズ2の実測（jq起動138ms＋走査約70msでgit bash見積もりが超過）を
-    受けて人間判断で500msへ改定した（AIの自己判断による緩和ではない）。
+    `excluded_bytes`。末尾・省略可・既定0のため既存6箇所の呼び出しは無変更）。超過時は
+    **直近群（末尾群）の古い側から1件ずつ落として収まるまで再判定する**（先頭群は落とさない。
+    直近の現在地を最も表す発言が消えるのを避けるため。判定は除外内訳行を含めた節全体で行う）。
+    再注入バイト数はセンチネル行`__USER_UTTERANCE_BYTES__:<N>`で`build_user_utterance_context`
+    から`main`へ返し、`strip_utterance_sentinel_to_reply`が本文から取り除く。
+  - **性能**: しきい値500ms（全走査方式のまま採用）。しきい値は当初200msだったが、フェーズ2の
+    実測（Linux実測: jq起動138ms＋走査約70ms＝208ms）を受けて人間判断で500msへ改定した
+    （AIの自己判断による緩和ではない）。**「git bash見積もり約208msで42%」は、この208msを
+    そのままgit bashへ流用した暫定値であり、git bash実機での換算・実測ではない**（fork/実行
+    レートがLinuxより遅ければ余裕は比例して縮む。未確認事項は[i0151-01](../ddr/i0151-01-compact後のユーザー発言再注入はorigin.kind条件・育てる辞書・全走査（しきい値500ms）で実装する.md)
+    「未確認事項」参照）。
   - **fail-open**: 読み取り・抽出に失敗しても他項目の注入を止めない（サブシェル内で`set -e`を
     掛け直し、失敗時は空文字列を返す。上記issue #57のfail-open方針を踏襲）。
   - **スコープ外**: Gemini CLI経路（issue #201へ切り出し。SessionStartに`compact`起動要因が無い等、
@@ -1052,6 +1061,8 @@ resume・clear時に毎回、現在ブランチのissue/MR状態をコンテキ�
   - 詳細・却下案は
     [i0151-01-compact後のユーザー発言再注入はorigin.kind条件・育てる辞書・全走査（しきい値500ms）で実装する.md](../ddr/i0151-01-compact後のユーザー発言再注入はorigin.kind条件・育てる辞書・全走査（しきい値500ms）で実装する.md)
     参照。
+- **出力形式**: `{"hookSpecificOutput":{"hookEventName":"SessionStart","additionalContext":"<text>"}}`
+  形式のJSONをstdoutへ返す。
 - **フォールバック方針**: `main`ブランチ上（作業ブランチ未チェックアウト）では注入しない。
   `gh`未認証・API失敗等、情報収集に失敗した場合もセッション開始をブロックせず、短い失敗メッセージ
   のみを返す（best-effort。詳細な原因調査は人間が手動で行う）。作業ファイル一覧・`HANDOFF.md`
@@ -4578,3 +4589,30 @@ push前に済ませるべき作業を、pushごとに一意な**Git管理下のT
   判定単体（8ケース）・hookの実プロセス起動（6ケース）・ANSI-Cクォート仮説（3ケース）のいずれでも
   再現せず、**判定の誤りだったのか `stale` が真だったのかも切り分けられていない**。再現条件が
   不明なため実装は変更していない。
+
+### issue #151（ユーザー発言の抽出・再注入）
+
+SessionStart hookへ、transcriptから抽出したユーザーの生発言（先頭3件＋直近7件・最大10件）の
+再注入を追加した。上記「セッション開始時の自動コンテキスト注入（SessionStart hook）」節の
+「ユーザー発言の抽出・再注入（issue #151）」項目、設計判断と却下案は
+[DDR i0151-01](../ddr/i0151-01-compact後のユーザー発言再注入はorigin.kind条件・育てる辞書・全走査（しきい値500ms）で実装する.md)
+が正である。
+
+**変更したファイル**
+
+| ファイル | 変更 |
+|---|---|
+| `.claude/hooks/lib/UserUtteranceSelect.jq` | 新規（抽出・選定・整形の中核） |
+| `.claude/hooks/session-start-ack-words.txt` | 新規（除外辞書。「育てる」運用） |
+| `.claude/hooks/session-start.sh` | `build_user_utterance_context` / `read_ack_exclusion_state_to_reply` / `update_ack_exclusion_counts` / `strip_utterance_sentinel_to_reply` を新設、`append_size_warning` へ第3引数追加 |
+| `.claude/scripts/test/test_session_start.sh` | 56件追加（`passed=159 failures=0`） |
+| `.gitattributes` | 新規2ファイルのLF保証を追加 |
+| `.gitignore` | `wip/state/session-start-ack-exclusion-counts.json` を除外対象へ追加 |
+| `.claude/rules/directory-structure.md` | `.claude/hooks/` ツリーへ新規辞書ファイルと`wip/state/`列挙を追記 |
+| `.claude/rules/shell-script-style.md` | jqの`\|`優先順位・`grep`のpipefail依存中断の2項目を追記 |
+| `.claude/docs/spec/issue-mr-workflow.md` | 本エントリと「セッション開始時の自動コンテキスト注入」節への追記 |
+| `.claude/docs/ddr/i0151-01-….md` | 新規 |
+| `.claude/docs/README.md` | DDR一覧へ1行追加、`generate-ddr-list.sh` による再生成 |
+
+**関連**: issue #201（Gemini CLI経路。ブランチ絞りが原理的に不可能なため切り出し）、
+issue #207（除外辞書の配布層判断）。

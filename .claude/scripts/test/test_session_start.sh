@@ -909,7 +909,8 @@ assert_eq "センチネル行が無ければREPLY_BYTESは0のまま" "0" "$REPL
 # 出力位置の順序）が壊れても検知できない（review-points「実運用の呼び出し経路を通すテストが
 # あるか（issue #127）」）。ここでは build_work_context を実引数付きで直接呼び、HANDOFF.mdの
 # 「次にやること」節とユーザー発言節の両方が現れ、かつ順序（次にやること→ユーザー発言、
-# 個別作業計画「出力位置」節の要件）が正しいことを表明する。
+# .claude/docs/spec/issue-mr-workflow.md「セッション開始時の自動コンテキスト注入」節の要件。
+# DDR i0151-01）が正しいことを表明する。
 
 bw_proj="$utterance_tmp/proj_build_work_context"
 mkdir -p "$bw_proj/.claude/hooks/lib"

@@ -1,0 +1,7 @@
+# generated-for: 2669ca88ed38fa2dc79e2088d91643f1fd6af8c6
+# id	項目	状態	実施ログ
+worklog	worklogを作成し、このpushまでの試行錯誤を追記した	done	push5のworklogへflow-id4-6実施内容を記録済み（push5チェックリストは同commitで記録）
+handoff	HANDOFF.md の進捗表・ヘッダを更新した（commitより前・同じcommitに含めた）	done	flow-id4-2〜4-4完了・4-6実施内容をやったことへ追記済み
+frontmatter-index	frontmatterを変更した場合、index.jsonl を最新化した	skip	このpushでfrontmatterを変更していない
+plan-report-sync	wip/plans/ wip/reports/ の md と html を同期した	skip	このpushでplans/reportsの変更なし（worklogのみ追加）
+commit-skill	commit スキル（create-commit.sh）経由でコミットした	done	本pushの2コミット(5a72133, 2669ca8)をcreate-commit.sh経由で作成した

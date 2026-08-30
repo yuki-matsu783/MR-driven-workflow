@@ -138,7 +138,11 @@ issue #57（DDR `i0057-01`）でSessionStart hookはcompact後に「現在地」
 ## 未確認事項（やらないと決めたのではなく、確認できていないもの）
 
 上記「スコープ外」とは異なり、以下は**確認する意図はあるが本issueの実行環境では確認できな
-かった**もの。将来git bash実機で確認できた時点で本DDRのfrontmatterへ反映する。
+かった**もの。DDR本文は一度マージしたら変更しない運用のため、将来git bash実機で確認できた
+時点での反映先は`.claude/docs/spec/issue-mr-workflow.md`側とする（性能記述の更新、または
+「未決定事項・懸念点」への追記）。本DDRのfrontmatterを更新するのは、実測の結果この決定自体が
+置き換わったとき（`status: superseded`）に限る（`.claude/rules/markdown-frontmatter.md`
+「DDRのstatus」）。
 
 - **git bash実機での走査コスト。** 約208msという値はLinux実測（jq起動138ms実測＋走査約70ms
   実測）からの見積もりであり、実測ではない。レートがLinuxの1/4まで落ちると、しきい値500msに

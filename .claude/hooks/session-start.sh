@@ -507,7 +507,8 @@ build_work_context() {
   fi
 
   # ユーザー発言の再注入（issue #151）。「HANDOFF.md次にやること」ブロックの**直後**へ挿入する
-  # （個別作業計画「出力位置」節。SKILL.md再読み込み指示の手前）。build_user_utterance_context
+  # （.claude/docs/spec/issue-mr-workflow.md「セッション開始時の自動コンテキスト注入」節。
+  # DDR i0151-01。SKILL.md再読み込み指示の手前）。build_user_utterance_context
   # 自体が失敗してもブランチ・issue・PR情報の注入を妨げないよう、2-form（サブシェル内でset -eを
   # 掛け直す）で包む（shell-script-style.md「bashでのtry/catch相当の書き方」）。
   local user_utterance_context rc
