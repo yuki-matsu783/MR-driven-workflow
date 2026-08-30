@@ -19,8 +19,10 @@
 # ワークフローのローカル作業状態（ブランチ横断・非コミット対象）。内訳は
 # post-push-compact-prompt.shが保持する参照リンク組み立て用の前回push時点のHEAD SHA
 # （wip/state/review-links/）と、adversarial-review-count.shが持つ敵対的レビューの投稿件数
-# （wip/state/adversarial-review/）。issue #184で .claude/state/ から移した（.claude/ は
-# 配布単位であり、配布先のローカル状態をその中に置かないため）。
+# （wip/state/adversarial-review/）、session-start.shが持つユーザー発言除外実績の累積カウント
+# （wip/state/session-start-ack-exclusion-counts.json。issue #151）。issue #184で
+# .claude/state/ から移した（.claude/ は配布単位であり、配布先のローカル状態をその中に
+# 置かないため）。
 # **パターンを /wip/ へ広げないこと。** issue #165 が wip/ 配下へ置いた plans/worklogs/reports は
 # 追跡対象であり、丸ごと無視されてしまう。
 /wip/state/

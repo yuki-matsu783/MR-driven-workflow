@@ -20,4 +20,17 @@
 # `bash: $'\r': command not found` となり、スクリプトが動かない。
 # 規約: .claude/rules/shell-script-style.md「前提・保存形式」
 *.sh text eol=lf
+
+# session-start.shが読む除外辞書（issue #151）。jq側（UserUtteranceSelect.jq）が各行の末尾CRを
+# 落としてから比較するため、CRLFのままでも照合自体は成立する二重の防御だが、辞書は人間が編集する
+# データファイルなので、作業ツリー上の改行も他の配布アセットと揃えておく
+# （issue #151フェーズ3敵対的レビュー2回目指摘——当初の理由記述はjq側のCR除去を踏まえておらず
+# 「CRLFだと照合できない」と誤って断定していた）。
+.claude/hooks/session-start-ack-words.txt text eol=lf
+
+# session-start.shが読み込むjqフィルタ本体。`.sh`と同じ理由でLFを保証する必要があるが、`*.sh`の
+# パターンには一致しないため個別に指定する。CRLFで取り出されると `jq -f` がコンパイルエラーで
+# 落ち、build_user_utterance_context のfail-openにより**エラー表示なしでユーザー発言節だけが
+# 恒久的に出なくなる**（issue #151フェーズ3敵対的レビュー2回目指摘）。
+.claude/hooks/lib/UserUtteranceSelect.jq text eol=lf
 # --- dist:end ---

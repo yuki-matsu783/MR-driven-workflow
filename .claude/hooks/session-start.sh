@@ -49,6 +49,12 @@ set -uo pipefail
 # 検知する境界として設定した。環境変数で上書きできる。
 CONTEXT_SIZE_WARN_BYTES="${CONTEXT_SIZE_WARN_BYTES:-8000}"
 
+# ユーザー発言の再注入（issue #151）のパラメータ。フェーズ2の実測で確定した既定値。
+# 詳細: wip/plans/【設計】【実装】【テスト】ユーザー発言抽出・再注入の実装.md「方針」
+USER_UTTERANCE_HEAD_COUNT="${USER_UTTERANCE_HEAD_COUNT:-3}"
+USER_UTTERANCE_TAIL_COUNT="${USER_UTTERANCE_TAIL_COUNT:-7}"
+USER_UTTERANCE_MAX_BYTES="${USER_UTTERANCE_MAX_BYTES:-6000}"
+
 # HANDOFF.mdの進捗表の行を判定・分解する正規表現。
 # **`.claude/scripts/src/update-handoff-progress.sh` の ROW_RE と同一のリテラルの複製**
 # （issue #160）。source で共有すると、あちらの冒頭で宣言される set -euo pipefail がこの
@@ -75,16 +81,26 @@ context_text_bytes() {
 # 注入テキストのバイト数がしきい値を超える場合のみ、末尾へ警告用の指示文を追記して返す。
 # 超えない場合は入力をそのまま返す。**切り詰めは行わない**（切り詰めると、この機構が守ろうと
 # している「現在地」そのものを失う可能性があるため。詳細: DDR i0057-01）。
+#
+# 第3引数 excluded_bytes（省略可・既定0）は、ユーザー発言再注入（issue #151）が足したバイト数。
+# しきい値判定はこれを差し引いた「有効バイト数」で行う——再注入セクションは元々あった
+# コンテキストの肥大化とは別の理由で増減するため、これを含めて警告すると「HANDOFF.md・
+# 個別作業計画を整理せよ」という警告文の指示先が実情と合わなくなる（詳細:
+# wip/plans/【設計】【実装】【テスト】ユーザー発言抽出・再注入の実装.md「方針」）。
+# 省略時（既存呼び出し）は excluded_bytes=0 のため effective_bytes は従来どおり bytes と一致し、
+# 挙動は変わらない。
 append_size_warning() {
   local text="$1"
   local limit="${2:-$CONTEXT_SIZE_WARN_BYTES}"
-  local bytes
+  local excluded_bytes="${3:-0}"
+  local bytes effective_bytes
   bytes="$(context_text_bytes "$text")"
-  if [ "$bytes" -le "$limit" ]; then
+  effective_bytes=$((bytes - excluded_bytes))
+  if [ "$effective_bytes" -le "$limit" ]; then
     printf '%s' "$text"
     return 0
   fi
-  printf '%s\n\n%s' "$text" "$(printf '注意: この追加コンテキストは %s バイトで、しきい値 %s バイトを超えています。ユーザーへ「セッション開始時に自動注入されるコンテキストが肥大化している」ことを警告し、HANDOFF.md（特に「やったこと」「判断を迷った内容」）・wip/plans/配下の個別作業計画を整理するよう促してください。' "$bytes" "$limit")"
+  printf '%s\n\n%s' "$text" "$(printf '注意: この追加コンテキストは %s バイト（うち再注入分 %s バイトを除いた判定値は %s バイト）で、しきい値 %s バイトを超えています。ユーザーへ「セッション開始時に自動注入されるコンテキストが肥大化している」ことを警告し、HANDOFF.md（特に「やったこと」「判断を迷った内容」）・wip/plans/配下の個別作業計画を整理するよう促してください。' "$bytes" "$excluded_bytes" "$effective_bytes" "$limit")"
 }
 
 # HANDOFF.md から「## 次にやること」節（見出し行を含み、次の `## ` 見出しの手前まで）を抜き出す。
@@ -232,9 +248,147 @@ EOF
   fi
 }
 
+# 除外実績の累積状態ファイル（wip/state/session-start-ack-exclusion-counts.json）を読み、
+# 検証済みのJSON文字列をREPLYへ返す（issue #151「H-3」）。ファイルが無い・空・不正なJSON・
+# **構文は正しいが形が違う**（`[]`・`123`・`"x"`・`{"counts":[]}` 等）のいずれでも、既定値
+# {"counts":{},"countedUuids":[]} へ自己回復する（詳細: .claude/rules/shell-script-style.md
+# 「JSON操作」——空文字列チェックをjq -e .より先に行う）。
+#
+# `jq -e .` は構文の妥当性しか見ないため、`[]` のような「文法上は正しいが期待した形ではない」
+# JSONを素通りさせてしまい、後続の `update_ack_exclusion_counts` が
+# `Cannot index array with string "countedUuids"` で失敗し続ける（issue #151フェーズ3
+# 敵対的レビュー2回目指摘）。オブジェクトであること・`counts`/`countedUuids`（キーが無ければ
+# 検証をスキップし、既定値がマージ側で補う）の型まで検証する。
+read_ack_exclusion_state_to_reply() {
+  local file="$1"
+  REPLY='{"counts":{},"countedUuids":[]}'
+  [ -f "$file" ] || return 0
+  local content
+  content="$(cat "$file" 2>/dev/null || true)"
+  [ -n "$content" ] || return 0
+  if printf '%s' "$content" \
+    | jq -e 'type == "object"
+             and ((.counts | type) == "object" or (has("counts") | not))
+             and ((.countedUuids | type) == "array" or (has("countedUuids") | not))' \
+      >/dev/null 2>&1; then
+    REPLY="$content"
+  fi
+  return 0
+}
+
+# 除外イベント（{uuid, word}の配列JSON文字列）を累積状態へマージし、ファイルへ書き戻す。
+# 既にcountedUuidsに含まれるuuidは二重加算しない（resume/compact/clearでの同一発言の
+# 再走査に対する冪等性。詳細: wip/plans/【設計】【実装】【テスト】ユーザー発言抽出・再注入の実装.md）。
+# 書き込みは一時ファイル+mvで行う（JSON操作規約）。失敗しても呼び出し元をブロックしない
+# （呼び出し側がfail-openで包む）。
+#
+# `countedUuids` は仕様上無制限に増え続けるため（H-3）、その全体を`--argjson`でコマンドライン
+# 引数として渡すと、いずれWindowsのコマンドライン長上限（実測約32KB）に達し
+# `jq: Argument list too long` でjqの起動自体が失敗する
+# （.claude/rules/shell-script-style.md「JSON操作」。issue #151フェーズ3敵対的レビュー2回目指摘）。
+# サイズが無制限になりうる`prev`は一時ファイルへ書き出し`--slurpfile`でjqに読ませる
+# （`events`は1回のtranscript走査で見つかった除外件数分のみで小さく上限に達しないため、
+# 従来どおり`--argjson`のままでよい）。
+update_ack_exclusion_counts() {
+  local file="$1" events_json="$2"
+  [ -n "$events_json" ] || return 0
+  [ "$events_json" != "[]" ] || return 0
+  local prev
+  read_ack_exclusion_state_to_reply "$file"
+  prev="$REPLY"
+  local dir tmp_prev tmp_out
+  dir="${file%/*}"
+  [ "$dir" != "$file" ] || dir="."
+  mkdir -p "$dir" 2>/dev/null || return 0
+  tmp_prev="$(mktemp "${dir}/.ack-exclusion-prev.XXXXXX" 2>/dev/null)" || return 0
+  printf '%s' "$prev" >"$tmp_prev" || { rm -f "$tmp_prev"; return 0; }
+  local merged
+  merged="$(jq -nc --argjson events "$events_json" --slurpfile prev "$tmp_prev" '
+    ($prev[0]) as $p
+    | ($p.countedUuids // []) as $known
+    | reduce ($events[] | select(.uuid as $u | ($known | index($u)) == null)) as $e
+        ({counts: ($p.counts // {}), countedUuids: $known};
+         .counts[$e.word] = ((.counts[$e.word] // 0) + 1)
+         | .countedUuids += [$e.uuid])
+  ' 2>/dev/null)"
+  rm -f "$tmp_prev"
+  [ -n "$merged" ] || return 0
+  tmp_out="$(mktemp "${dir}/.ack-exclusion-counts.XXXXXX" 2>/dev/null)" || return 0
+  printf '%s' "$merged" >"$tmp_out" || { rm -f "$tmp_out"; return 0; }
+  mv "$tmp_out" "$file" || { rm -f "$tmp_out"; return 0; }
+  return 0
+}
+
+# transcriptから直近のユーザー発言を抽出・選定し、注入用のセクションテキストを組み立てて
+# 標準出力へ返す（issue #151）。抽出・選定・整形の中核ロジックは
+# .claude/hooks/lib/UserUtteranceSelect.jq（単一のjqフィルタ）に集約し、この関数はその
+# 呼び出しと、除外実績の累積状態更新（副作用）だけを担う。
+#
+# 何も注入すべきものが無い場合（transcript_path未取得・母集団0件・全件除外で除外内訳も無い等）は
+# 何も出力せず正常終了する。呼び出し元（build_work_context）はfail-open（2-form）で包むため、
+# この関数自体は `set -e` を掛け直して途中失敗を確実に検知する（shell-script-style.md
+# 「bashでのtry/catch相当の書き方」）。
+#
+# 出力の末尾に、注入したバイト数を表すセンチネル行を付ける（`__USER_UTTERANCE_BYTES__:<N>`）。
+# 戻り値が「本体（セクションテキスト）＋バイト数」の2つあるため、本来はREPLYで返すべきだが
+# （shell-script-style.md「戻り値が複数ある関数」）、この関数はコマンド置換
+# `$(set -e; build_user_utterance_context ...)` 経由で呼ばれるサブシェル内で完結しており、
+# グローバル変数はそもそも呼び出し元へ伝わらない。標準出力を経由するセンチネル行はサブシェル境界を
+# 越えて伝わるため、この形にした（詳細: 同節「戻り値が複数ある関数」の冒頭、
+# サブシェルforkで失われるのは"標準出力以外のグローバル変数"である旨）。
+build_user_utterance_context() {
+  set -euo pipefail
+  local branch="${1:-}" transcript_path="${2:-}"
+  [ -n "$transcript_path" ] || return 0
+  [ -f "$transcript_path" ] || return 0
+
+  local lib_dir="${CLAUDE_PROJECT_DIR}/.claude/hooks/lib"
+  local filter_path="${lib_dir}/UserUtteranceSelect.jq"
+  [ -f "$filter_path" ] || return 0
+
+  local ack_words_path="${CLAUDE_PROJECT_DIR}/.claude/hooks/session-start-ack-words.txt"
+  local jq_result
+  if [ -r "$ack_words_path" ]; then
+    jq_result="$(jq -c -R -n -f "$filter_path" \
+      --arg branch "$branch" \
+      --rawfile ack_words_raw "$ack_words_path" \
+      --argjson head_count "$USER_UTTERANCE_HEAD_COUNT" \
+      --argjson tail_count "$USER_UTTERANCE_TAIL_COUNT" \
+      --argjson max_bytes "$USER_UTTERANCE_MAX_BYTES" \
+      < "$transcript_path")"
+  else
+    jq_result="$(jq -c -R -n -f "$filter_path" \
+      --arg branch "$branch" \
+      --arg ack_words_raw "" \
+      --argjson head_count "$USER_UTTERANCE_HEAD_COUNT" \
+      --argjson tail_count "$USER_UTTERANCE_TAIL_COUNT" \
+      --argjson max_bytes "$USER_UTTERANCE_MAX_BYTES" \
+      < "$transcript_path")"
+  fi
+
+  # sectionTextは複数行になりうる値のため、Windows native jqのCR付与対策として
+  # tr -d '\r' を挟む（events_jsonは -c で単一行に潰しているため対象外。
+  # .claude/rules/shell-script-style.md「文字コード」の「複数行になりうる値」判定基準）。
+  local section_text events_json
+  section_text="$(printf '%s' "$jq_result" | jq -r '.sectionText // ""' | tr -d '\r')"
+  events_json="$(printf '%s' "$jq_result" | jq -c '.excludedEvents // []')"
+
+  # 累積状態の更新は注入内容に影響しない副作用のため、失敗しても本体の注入は止めない。
+  update_ack_exclusion_counts \
+    "${CLAUDE_PROJECT_DIR}/wip/state/session-start-ack-exclusion-counts.json" \
+    "$events_json" || true
+
+  [ -n "$section_text" ] || return 0
+  local bytes
+  bytes="$(context_text_bytes "$section_text")"
+  printf '%s\n' "$section_text"
+  printf '__USER_UTTERANCE_BYTES__:%s\n' "$bytes"
+}
+
 # リスクのある本体処理。失敗した場合はこの関数のexit codeが非ゼロになり呼び出し元へ伝わる。
 build_context() {
   set -euo pipefail
+  local transcript_path="${1:-}"
   cd "$CLAUDE_PROJECT_DIR"
   source "${CLAUDE_PROJECT_DIR}/.claude/scripts/src/vcs/Provider.sh"
 
@@ -272,7 +426,7 @@ build_context() {
     lines+=("- MCPツールに渡す owner=$(printf '%s' "$slug" | jq -r '.owner') / repo=$(printf '%s' "$slug" | jq -r '.repo')")
     lines+=("- 手順: .claude/skills/issue-mr-flow/references/mcp-fallback.md を参照し、WebFetch・curlへはフォールバックしないこと")
     local work_context
-    work_context="$(build_work_context "$branch")"
+    work_context="$(build_work_context "$branch" "$transcript_path")"
     [ -z "$work_context" ] || lines+=("$work_context")
     printf '%s\n' "${lines[@]}"
     return 0
@@ -311,7 +465,7 @@ build_context() {
   fi
 
   local work_context
-  work_context="$(build_work_context "$branch")"
+  work_context="$(build_work_context "$branch" "$transcript_path")"
   [ -z "$work_context" ] || lines+=("$work_context")
   printf '%s\n' "${lines[@]}"
 }
@@ -325,9 +479,10 @@ build_context() {
 # 取得できなかった項目は行自体を出さない（fail-open。ここでの失敗が
 # ブランチ・issue・PR情報の注入を妨げてはならない）。
 # 第1引数はブランチ名（issue-mr-flow対象かの判定に使う。省略時は判定材料が
-# 「作業ファイルの有無」だけになる）。
+# 「作業ファイルの有無」だけになる）。第2引数はtranscriptのパス（ユーザー発言再注入・
+# issue #151用。省略時は再注入を行わない）。
 build_work_context() {
-  local branch="${1:-}"
+  local branch="${1:-}" transcript_path="${2:-}"
   local lines=()
 
   local work_files=""
@@ -346,6 +501,21 @@ build_work_context() {
     lines+=("$next_steps")
     lines+=("")
     lines+=("（上記はHANDOFF.mdからの抜粋です。フロー進捗状況・やったこと等の全体は HANDOFF.md を読むこと）")
+  fi
+
+  # ユーザー発言の再注入（issue #151）。「HANDOFF.md次にやること」ブロックの**直後**へ挿入する
+  # （個別作業計画「出力位置」節。SKILL.md再読み込み指示の手前）。build_user_utterance_context
+  # 自体が失敗してもブランチ・issue・PR情報の注入を妨げないよう、2-form（サブシェル内でset -eを
+  # 掛け直す）で包む（shell-script-style.md「bashでのtry/catch相当の書き方」）。
+  local user_utterance_context rc
+  set +e
+  user_utterance_context="$(set -e; build_user_utterance_context "$branch" "$transcript_path")"
+  rc=$?
+  set -e
+  [ "$rc" -eq 0 ] || user_utterance_context=""
+  if [ -n "$user_utterance_context" ]; then
+    lines+=("")
+    lines+=("$user_utterance_context")
   fi
 
   # issue-mr-flow対象ブランチのときだけ、SKILL.mdの再読み込み指示を**末尾に**足す（issue #113）。
@@ -380,6 +550,26 @@ build_work_context() {
   printf '%s\n' "${lines[@]}"
 }
 
+# build_user_utterance_context が末尾に付けるセンチネル行（`__USER_UTTERANCE_BYTES__:<N>`）を
+# テキストから取り除き、本文をREPLYへ、バイト数をREPLY_BYTESへ返す純粋関数（issue #151フェーズ3
+# 敵対的レビュー2回目指摘）。`main`直書きだと単体テストから実運用の呼び出し経路
+# （main→build_context→build_work_context→build_user_utterance_context→センチネル除去）を
+# 通せないため切り出した。センチネル行が無ければ入力をそのまま返しREPLY_BYTESは0のまま。
+strip_utterance_sentinel_to_reply() {
+  local text="$1"
+  REPLY="$text"
+  REPLY_BYTES=0
+  local sentinel
+  # `grep -o` はマッチが無いと非0で終了する。呼び出し元（本関数）が独自の `set -e` を
+  # 持たない場合でも、呼び出し元スクリプト側の `set -e` の下で直接呼ばれることがあるため
+  # （テストからの直接呼び出しが実例）、`|| true` で必ず吸収する。
+  sentinel="$(printf '%s\n' "$text" | grep -o '__USER_UTTERANCE_BYTES__:[0-9]*' | tail -1 || true)"
+  [ -n "$sentinel" ] || return 0
+  REPLY_BYTES="${sentinel#__USER_UTTERANCE_BYTES__:}"
+  REPLY="$(printf '%s\n' "$text" | grep -v '^__USER_UTTERANCE_BYTES__:' || true)"
+  return 0
+}
+
 regenerate_frontmatter_index() {
   bash "${CLAUDE_PROJECT_DIR}/.claude/scripts/src/extract-frontmatter.sh" "$CLAUDE_PROJECT_DIR" \
     >/dev/null 2>&1
@@ -388,9 +578,10 @@ regenerate_frontmatter_index() {
 main() {
   local raw
   raw="$(cat)"
-  local agent_id=""
+  local agent_id="" transcript_path=""
   if [ -n "$raw" ]; then
     agent_id="$(printf '%s' "$raw" | jq -r '.agent_id // empty' 2>/dev/null || true)"
+    transcript_path="$(printf '%s' "$raw" | jq -r '.transcript_path // empty' 2>/dev/null || true)"
   fi
 
   # サブエージェント内実行では何もしない（agent_idはサブエージェント呼び出し時のみ付与される）
@@ -409,8 +600,14 @@ main() {
   regenerate_frontmatter_index || true
 
   local context_text rc
-  if context_text="$(build_context)"; then
-    write_additional_context "$(append_size_warning "$context_text")"
+  if context_text="$(build_context "$transcript_path")"; then
+    # ユーザー発言再注入（issue #151）が足したバイト数をセンチネル行から取り出し、
+    # append_size_warningのしきい値判定から除外する（本文からはセンチネル行自体を取り除く）。
+    local excluded_bytes=0
+    strip_utterance_sentinel_to_reply "$context_text"
+    context_text="$REPLY"
+    excluded_bytes="$REPLY_BYTES"
+    write_additional_context "$(append_size_warning "$context_text" "$CONTEXT_SIZE_WARN_BYTES" "$excluded_bytes")"
   else
     rc=$?
     if [ "$rc" -ne 2 ]; then
