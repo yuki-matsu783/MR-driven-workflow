@@ -46,6 +46,8 @@ keywords: [ディレクトリ構成, claude, gemini, 配置方針, wip, plans, w
 │   ├── hooks/                  # SessionStart/PreToolUse/PostToolUse等のClaude Code hookスクリプト
 │   │   ├── block-unchecked-push.sh  # push前チェックリスト未完了ならexit 2でブロック（PreToolUse。issue #17）
 │   │   ├── post-push-next-checklist.sh  # push成功後に次回分のチェックリストを生成（PostToolUse。issue #17）
+│   │   ├── session-start-ack-words.txt  # ユーザー発言再注入の除外辞書（1行1語・`#`コメント可。
+│   │   │                        #   「育てる」辞書として運用する。issue #151）
 │   │   ├── lib/                # 複数hookスクリプトで使い回す共通ロジックと、hookが読み込む
 │   │   │                        #   補助フィルタ（`.jq`等。実例: `UserUtteranceSelect.jq`は
 │   │   │                        #   `session-start.sh`専用だが、bashではなくjqのため同階層の
