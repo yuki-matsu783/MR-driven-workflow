@@ -1,9 +1,9 @@
 ---
 title: .claude/ から .gemini/ への変換同期（sync-gemini-assets.sh）
 type: spec
-description: .gemini/ を .claude/ からの変換生成物として再生成するスクリプトの仕様。ツール名の対応表・agents frontmatterのホワイトリスト・settings.jsonの用語変換規則・削除ファイル検出と--force・3モードの動作を定める
+description: .gemini/ を .claude/ からの変換生成物として再生成するスクリプトの仕様。ツール名の対応表・agents frontmatterのホワイトリスト・settings.jsonの用語変換規則・削除ファイル検出と--force・3モードの動作、および生成対象に何を含めるか（読まれない4ディレクトリ・自立化・.agents/skillsエイリアスの採否）を定める
 tags: [gemini, script, sync, spec]
-keywords: [sync-gemini-assets, gemini-cli, agents, settings.json, hooks, invoke_agent, GEMINI_PROJECT_DIR, 削除ファイル検出, force, flow-id-5-3]
+keywords: [sync-gemini-assets, gemini-cli, agents, settings.json, hooks, invoke_agent, GEMINI_PROJECT_DIR, 削除ファイル検出, force, flow-id-5-3, 生成対象, 採否, issue-172]
 ---
 
 # `.claude/` から `.gemini/` への変換同期（sync-gemini-assets.sh）
@@ -319,6 +319,35 @@ hook 1件（`CommandHookConfig`）の変換規則は次のとおり。
 
 ## 影響範囲
 
+### issue #172（新規追加・2026-08-29）
+
+issue #172は当初「`.gemini/hooks/` `.gemini/scripts/` `.gemini/docs/` の3ディレクトリを
+外すべきか」を問うていたが、調査の過程で2論点が加わり、最終的に3論点を判断した。
+**結論・理由・4軸の適用結果・却下した案は DDR `i0172-01` が正**であり、ここでは結論だけを示す。
+
+1. **論点1: `.gemini/` を自立させ、`.claude/` への依存を切るか。** → **却下**。
+   ルート直下の `AGENTS.md`（`layer: seed`、どのCLIを使う配布先へも常に配られる）が
+   `.claude/rules/agent-common.md` を `@import` しており、`.gemini/` 側をどれだけ
+   書き換えてもこの依存は切れない（構造的な理由の詳細はDDR参照）。**依存は非対称**で、
+   `.claude/` だけを残せば動くが `.gemini/` だけを残すと動かない。よって自立化ではなく
+   依存があることを明示する方針とし、`GEMINI.md` へ明記した（上記「背景・目的」の
+   「編集は必ず `.claude/` 側に対して行い、このスクリプトを流し直す」という方針は維持する）。
+2. **論点2: `.gemini/rules/` `.gemini/docs/` `.gemini/hooks/` `.gemini/scripts/` の
+   4ディレクトリ（実行時に読まれる経路が確認できないもの）を外すか。** → **現状維持
+   （4つとも残す。決定は確定、未確定なのは「外す根拠の有無」のみ）**。配布物は1バイトも
+   減らない・一部だけ外すと中間状態になる、という2つの決め手は4ディレクトリへ適用しても
+   崩れず、「読まれない」自体は公式ドキュメントに記載が無いという消極的根拠のままで
+   実機未検証（4軸の適用結果・数値の詳細はDDR参照）。
+3. **論点3: `.claude/skills/` と `.gemini/skills/` の二重管理を、共用パス
+   `.agents/skills/` への一本化で解消できるか。** → **不成立**。Gemini CLI は
+   `.agents/skills/` を読むが、Claude Code 公式ドキュメントには `.agents` への言及が
+   0件であり、一本化すると Claude Code からスキルが見えなくなる。
+
+**3論点すべてに共通する制約**: 判断はいずれも Gemini CLI 実機を動かさず、変換規則の根拠と
+なる gemini-cli のソースコード読解（issue #70 で実施済み）を超える追加のソース確認は
+行わずに、公式ドキュメントと生成物の実測だけで行った。再検討の条件は下記
+「未決定事項・懸念点」に記す（論点2・論点3のいずれも対象）。
+
 ### issue #70（新規追加・2026-08-23）
 
 - `.claude/scripts/src/sync-gemini-assets.sh` を新規作成し、`setup-gemini-links.sh` を削除した。
@@ -368,3 +397,29 @@ hook 1件（`CommandHookConfig`）の変換規則は次のとおり。
 - `mcp__github__issue_write` のように **Gemini CLI に相当ツールが無いもの**は、matcher に
   そのまま残るが一致しない。**外部の制約であって実装の欠陥ではない**が、Gemini 側で同等の
   制御が必要になった場合の代替手段は決めていない。
+- **`.gemini/rules/` `.gemini/docs/` `.gemini/hooks/` `.gemini/scripts/` を除去すべきかは、
+  「外す根拠の有無」の一点だけが未確定である**（issue #172。決定そのものは現状維持で
+  確定している。DDR `i0172-01`「再検討の条件」）。**同じ条件1で、`.agents/skills/` を
+  Claude Code が読むか（論点3の根拠）も未確認のまま残る。** 再検討するのは次のいずれかが
+  起きたとき。
+  - Gemini CLI のソースコードを参照できる環境が用意され、上記4ディレクトリが実際に
+    読まれるか・`.agents/skills/` を Claude Code が読むかを確認できたとき（**まだ着手して
+    いない**。ユーザーの判断で別環境へ委ねたまま）。
+  - Gemini CLI 側に、これらのディレクトリを読み込ませる設定キーが追加されたとき。
+  - 複製の存在が実害（grepの二重計上・検索ノイズ等）を繰り返し出したとき。
+  - `.gemini/` の生成方式そのものが変わり、`dist-layers.json` の `.gemini` が
+    `exclude` でなくなったとき（配布物が1バイトも減らないという決め手が崩れる）。
+- **`install-to-project.sh` が `sync-gemini-assets.sh` の失敗を警告のみで飲み込む
+  （終了コードが0のまま残る）**（issue #172。上記「削除ファイル検出と `--force`」で
+  触れた挙動の帰結）。自前の `.gemini/commands/*.toml` を持つ配布先では、除去の実施有無に
+  関わらず今日この状態が起きうる。案内される復旧コマンドにも `--force` が付いていない。
+  現行の弱点として記録するに留め、installer 側の改善（終了コードを非0にする／復旧案内へ
+  `--force` を足す）は本issueのスコープ外として別途判断する。
+- **`install-to-project.sh` に `.gemini/` 生成をスキップする手段が無い**（issue #172）。
+  `--dry-run` `--force` `--allow-dirty` `-h` の4オプションのみで、手順7は無条件に
+  `sync-gemini-assets.sh` を呼ぶ。Gemini CLI を使わない配布先でも `.gemini/` の生成を
+  避けられない。現行の制約として記録するに留める。
+- **`.gemini/**/*.md` に残る `.claude/…` という記述**（2,255件、issue #172時点の実測）を
+  `.gemini/…` へ書き換えるかは未決定。変換規則そのものの変更に当たり、本issueのスコープ外
+  として見送った。現状 `.claude/…` は同じリポジトリ内の実在パスとして解決できており、
+  参照は切れていない（一貫性の問題であって不具合ではない）。
