@@ -74,6 +74,28 @@ issue #6でリポジトリ内の開発補助スクリプトを全てPowerShell�
   - 実例: `.claude/skills/harvest-from-projects/scripts/harvest-from-projects.sh` の `cmd_scan`
     （配布先単位のエラー隔離。**本家専用スキルのため配布先にはこのファイルは存在しない**——
     配布先では上記のコード例2形を直接参照すること）。
+- **`grep`はマッチ0件で終了コード1を返す。パイプの途中に置くと、`set -e`単体では検知できず
+  `pipefail`が立っているときだけ呼び出し元を中断させる**（issue #151で実際に踏んだ）。
+  `sentinel="$(printf '%s\n' "$text" | grep -o 'PATTERN' | tail -1)"`という形は、`grep -o`が
+  パイプの最後ではないため、**`set -e`単体（`pipefail`無し）では`tail -1`の終了コード
+  （マッチ0件でも0）だけが見られ、中断しない。一方`set -eo pipefail`配下では、パイプ中の
+  どれか1つでも失敗すればパイプ全体が失敗として扱われ、`grep -o`のマッチ0件がそのまま
+  関数呼び出し元を無言で中断させる**（実測: `set -e`単体では生存しrc=0、`set -eo pipefail`では
+  中断しrc=1）。呼び出し元が`set -e`のみか`pipefail`も併用するかは、その関数が将来どこから
+  呼ばれるかに依存し予測できない。**`grep`をパイプの途中に含む処理は、呼び出し元の
+  `pipefail`設定に依存せず安全にするため、`|| true`を添える。**
+  **ただし`|| true`をパイプライン全体の末尾へ付けると、`grep`より後ろにある他コマンド
+  （`tail`等）の失敗まで一緒に飲み込む。** `|| true`は`grep`だけを囲んで局所化し、パイプの
+  他メンバの失敗は`pipefail`に検知させる（`{ grep ... || true; }`は`grep`のマッチ0件だけでなく
+  実行時エラー（終了コード2）も等しく許容する点は変わらない。両者を区別したい場合は
+  終了コードで分岐する）。
+
+  ```bash
+  # 悪い例（set -eo pipefail配下でマッチ0件のとき無言で中断する）
+  sentinel="$(printf '%s\n' "$text" | grep -o 'PATTERN' | tail -1)"
+  # 良い例（grepのマッチ0件だけを許容し、他コマンドの失敗はpipefailに検知させる）
+  sentinel="$(printf '%s\n' "$text" | { grep -o 'PATTERN' || true; } | tail -1)"
+  ```
 
 ## JSON操作
 
@@ -212,6 +234,41 @@ issue #6でリポジトリ内の開発補助スクリプトを全てPowerShell�
   jq -n '["blocker","major"] as $known | [{severity:"nit"}] | map(select(($known | index(.severity)) == null))'
   # 良い例（.severity を先に $sv へ束縛する）
   jq -n '["blocker","major"] as $known | [{severity:"nit"}] | map(select(.severity as $sv | ($known | index($sv)) == null))'
+  ```
+
+- **`//`演算子は`false`も`null`と同じくfalsyとして扱うため、bool値のフィールドへ
+  `.field // 既定値`という書き方をすると、`.field`が実在の`false`であっても既定値へ
+  書き換わってしまう**（issue #151フェーズ3実装時に実際に踏んだ）。
+  `($row.isSidechain // null) != false`と書くと、`isSidechain`が本物の`false`を持つ行まで
+  `null`扱いになり`null != false`が真になるため、**「falseの行だけを通したい」という意図と
+  正反対の結果**（該当行が漏れなく除外される）になる。bool値の判定は`//`を使わず、
+  「キーが無ければnull」という素の挙動のまま直接比較する。
+
+  ```bash
+  # 悪い例（isSidechain: false の行まで除外されてしまう）
+  jq -n '{isSidechain: false} | if (.isSidechain // null) != false then "除外" else "通す" end'
+  # 良い例（// を使わず直接比較する。キー不在は null なので null != false で正しく除外される）
+  jq -n '{isSidechain: false} | if .isSidechain != false then "除外" else "通す" end'
+  ```
+
+- **jqの`|`（パイプ）は、`or`/`and`や`,`（カンマ）を含む他のほぼ全ての演算子より優先順位が
+  低い。** `A or B | C`は`A or (B | C)`ではなく`(A or B) | C`と、`X | Y, Z`は
+  `(X | Y), Z`ではなく`X | (Y, Z)`と解釈される（issue #151で2回実際に踏んだ。jq 1.7で実測）。
+  - **実例1（`,`との組み合わせ）**: `map([.[0].message.content|type, length])`と書いたところ、
+    `[.[0].message.content | (type, length)]`と解釈され、2要素目が「グループの件数」ではなく
+    「content自体の文字数」になっていた。気づけたのは合計が既知の値と一致しなかったから。
+  - **実例2（`or`との組み合わせ）**: `(.counts | type) == "object" or has("counts") | not`を
+    「`((.counts|type)=="object") or (has("counts")|not)`」の意図（`counts`がobject型、
+    または`counts`キー自体が無ければ真＝妥当とみなす）で書いたところ、実際には
+    `((.counts|type)=="object" or has("counts")) | not`と解釈され、`counts`がobject型のとき
+    （`has("counts")`の値によらず）常に偽を返す（意図と逆）。
+  - **`or`/`and`・`,`と`|`を1行に混ぜるときは、常に括弧で優先順位を明示する。**
+
+  ```bash
+  # 悪い例（意図: countsがobject型、またはcountsキー自体が無ければ真にしたい＝妥当とみなす）
+  jq -n '{counts:{}} | (.counts | type) == "object" or has("counts") | not'
+  # 良い例（括弧で優先順位を固定する。counts:{} は妥当なのでtrueが正しい）
+  jq -n '{counts:{}} | ((.counts | type) == "object") or (has("counts") | not)'
   ```
 
 ## 外部プロセス起動のコスト

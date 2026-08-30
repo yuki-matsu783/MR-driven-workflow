@@ -61,8 +61,8 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 | [x] | 4-9 | レビュー内容を取得し設計・AIアセットを修正する | サブコマンド |
 | [x] | 4-10 | 反映内容をもとにMR descriptionを更新する | サブコマンド |
 | [x] | 5-1 | defaultブランチとのコンフリクトを検知・解消する | エージェント |
-| [] | 5-2 | 関連issueへマージ前通知する | エージェント |
-| [] | 5-3 | `.claude/` の変更を `.gemini/` へ変換同期する | エージェント |
+| [x] | 5-2 | 関連issueへマージ前通知する | エージェント |
+| [x] | 5-3 | `.claude/` の変更を `.gemini/` へ変換同期する | エージェント |
 | [] | 5-4 | 最終統括レポートを作成しPR/MRへ反映する | エージェント |
 | [] | 5-5 | wip/plans/ wip/worklogs/ wip/reports/ を片付けHANDOFF.mdをリセットする | エージェント |
 | [] | 5-6 | commitし、リモートへ反映してDraftを解除する | エージェント |
@@ -517,13 +517,29 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
   `mergeable_state: "clean"`を確認した。**コンフリクトが無いため取り込み不要と判断し、
   マージは行わなかった。**
 
+- **flow-id 5-2**: `phase5-close.md`の手順どおり、`wip/plans/` `wip/worklogs/` `wip/reports/`を
+  除いた差分から検索キーワード5件（ユーザー発言／session-start.sh／SessionStart／compact／
+  再注入）を選び`mcp__github__search_issues`で候補5件（#151自身除く: #198・#164・#201・#207・
+  closed #57）を検索した。うち**#201・#207は本issueから既に切り出し済みで内容が現行実装を
+  反映済みのため対象外**、closed #57は解決済みで無関係と判断し対象外。**#198（SessionStart注入の
+  git status追加）・#164（**強調**構文検知）の2件を「前提が変わる」類型として候補に選び、
+  投稿する本文そのものを`AskUserQuestion`へ提示してユーザーの承認を得た**（両方投稿を選択）。
+  `add_issue_comment`のCLI経路が無いため`mcp__github__add_issue_comment`で投稿した
+  （#198: issuecomment-5466378550 / #164: issuecomment-5466378904）。
+
+- **flow-id 5-3**: `sync-gemini-assets.sh --check`で食い違いを確認したうえで
+  `sync-gemini-assets.sh`（引数なし）を実行し、`.gemini/`を再生成した。再実行した`--check`は
+  「同期しています」で終了コード0。変更対象は`.gemini/docs/README.md`
+  （DDR一覧の反映）・`docs/ddr/i0151-01-...md`（新規）・`docs/spec/issue-mr-workflow.md`・
+  `hooks/session-start.sh`・`hooks/lib/UserUtteranceSelect.jq`（新規）・
+  `hooks/session-start-ack-words.txt`（新規）・`rules/directory-structure.md`・
+  `rules/shell-script-style.md`・`scripts/test/test_session_start.sh`の9件。
+
 ## 次にやること
 
-- flow-id 5-2: 関連issueへマージ前通知する。**投稿前に`AskUserQuestion`での承認が必須**
-  （`.claude/rules/git-workflow.md`）。候補は issue #201（Gemini CLI経路）・issue #207
-  （辞書の配布層）だが、いずれも本issueから既に切り出し済みで、PR #197 の本文にも
-  「flow-id 5-2 で改めて提案・起票しない」旨を明記済みのため、新規issue起票ではなく
-  軽い通知で足りるかを含めてユーザーに確認する。
+- flow-id 5-4: 最終統括レポートを作成しPR #197へ反映する（3層のフォールバック構造。
+  `.claude/skills/issue-mr-flow/references/phase5-close.md`「最終統括レポートとPR/MRへの
+  反映」参照）。
 
 ## 判断を迷った内容
 

@@ -46,7 +46,13 @@ keywords: [ディレクトリ構成, claude, gemini, 配置方針, wip, plans, w
 │   ├── hooks/                  # SessionStart/PreToolUse/PostToolUse等のClaude Code hookスクリプト
 │   │   ├── block-unchecked-push.sh  # push前チェックリスト未完了ならexit 2でブロック（PreToolUse。issue #17）
 │   │   ├── post-push-next-checklist.sh  # push成功後に次回分のチェックリストを生成（PostToolUse。issue #17）
-│   │   ├── lib/                # 複数hookスクリプトで使い回す共通ロジック
+│   │   ├── session-start-ack-words.txt  # ユーザー発言再注入の除外辞書（1行1語・`#`コメント可。
+│   │   │                        #   「育てる」辞書として運用する。issue #151）
+│   │   ├── lib/                # 複数hookスクリプトで使い回す共通ロジックと、hookが読み込む
+│   │   │                        #   補助フィルタ（`.jq`等。実例: `UserUtteranceSelect.jq`は
+│   │   │                        #   `session-start.sh`専用だが、bashではなくjqのため同階層の
+│   │   │                        #   `.sh`群とは別ファイルとして切り出す必要があり、専用ディレクトリを
+│   │   │                        #   新設するほどの規模でもないためここへ置く。issue #151）
 │   │   └── otel/                # OTelリスナー機構（常駐プロセス。詳細: `.claude/docs/spec/otel-listener.md`）
 │   │       ├── lib/            # リスナー・フックで使い回す共通ロジック（perlモジュール）
 │   │       └── test/           # 本機構専用の単体テスト（下記「配置の指針」参照）
@@ -143,8 +149,10 @@ issue #97。ブランチ別に持つと、同じセッションのままブラ�
 `wip/state/review-links/<branch>.txt`（`post-push-compact-prompt.sh`がレビュー依頼メッセージの
 参照リンク組み立てに使う、前回push時点のHEAD SHA）と
 `wip/state/adversarial-review/<branch>.json`（`adversarial-review-count.sh`が持つ敵対的レビューの
-実行回数）。責務分離のため`usage/`とは別ディレクトリにしている（詳細:
-`.claude/docs/spec/issue-mr-workflow.md`「/compact実施の呼びかけ」節、
+実行回数）、`wip/state/session-start-ack-exclusion-counts.json`（`session-start.sh`が持つ、
+ユーザー発言再注入時に相槌等として除外した語の累積件数と重複計上防止用の`uuid`集合。
+ブランチ非依存のグローバルな単一ファイル。issue #151）。責務分離のため`usage/`とは別ディレクトリに
+している（詳細: `.claude/docs/spec/issue-mr-workflow.md`「/compact実施の呼びかけ」節、
 `.claude/docs/spec/adversarial-review.md`、
 `.claude/docs/ddr/i0013-01-レビュー依頼メッセージの参照リンクは前回pushSHAをローカル状態で保持して組み立てる.md`）。
 
