@@ -194,7 +194,7 @@
   <ol>
     <li><b>注入テキストへの当該セッション分の内訳</b>: そのセッションで1件でも除外があれば、ユーザー発言節の末尾へ1行足す。
       <pre><code>- 相槌等として除外: はい×1, ありがとう×1</code></pre>
-      辞書語と件数だけで、<b>除外された発言の本文は出さない</b>。<b>選定結果（<code>selected</code>）が0件になった場合でも、除外が1件以上あればこの行だけは出す</b>（下記「全件除外時の扱い」）。
+      辞書語と件数だけで、<b>除外された発言の本文は出さない</b>。<b>選定結果（<code>sectionText</code>）が空になった場合でも、除外が1件以上あればこの行だけは出す</b>（下記「全件除外時の扱い」）。
     </li>
     <li><b>累積カウントのローカル状態ファイル</b>: <code>wip/state/session-start-ack-exclusion-counts.json</code>（<code>.gitignore</code>の<code>/wip/state/</code>で既に除外対象。issue #184で導入済みのディレクトリを流用するため新規の除外パターンは不要）。辞書語をキーに、除外した累積件数と、重複計上を防ぐための<code>uuid</code>集合を持つ。
       <pre><code>{
@@ -226,7 +226,7 @@
   </div>
 
   <h3>全件除外時の扱い（H-3と関連。フェーズ3敵対的レビュー指摘）</h3>
-  <p><b>除外内訳行は、<code>selected</code>が0件になった場合でも独立に出す。</b> 現在の「N=0なら節ごと出さない」という既存方針（DDR i0057-01）は保つが、それは「発言そのものが1件も選ばれなかった場合にユーザー発言節の見出し・本文を出さない」という意味であり、<b>除外内訳行はこの判定に含めない</b>。辞書との一致・バイト上限超過などで<code>selected</code>が全滅しても<code>excludedCounts</code>が1件以上あれば、除外内訳行だけを（見出しなしで）出す。気づきたい度合いが最大の状況でこそ、この行が唯一の手がかりになる。</p>
+  <p><b>除外内訳行は、<code>sectionText</code>が空になった場合でも独立に出す。</b> 現在の「N=0なら節ごと出さない」という既存方針（DDR i0057-01）は保つが、それは「発言そのものが1件も選ばれなかった場合にユーザー発言節の見出し・本文を出さない」という意味であり、<b>除外内訳行はこの判定に含めない</b>。辞書との一致・バイト上限超過などで選定結果が全滅しても除外イベント（<code>excludedEvents</code>）が1件以上あれば、除外内訳行だけを（見出しなしで）出す。気づきたい度合いが最大の状況でこそ、この行が唯一の手がかりになる。</p>
 
   <h3>H-4. 育てた操作の記録先</h3>
   <p><b>提案: 新しい記録先を作らない。辞書ファイル（H-2）自体のgit履歴を記録先にする。</b></p>
@@ -305,11 +305,15 @@ USER_UTTERANCE_MAX_BYTES="${USER_UTTERANCE_MAX_BYTES:-6000}"</code></pre>
     <li><code>transcript_path</code>だけを引数で渡さず<b>標準入力へ繋ぐ</b>（フェーズ2問い7の結論。動的で任意の位置になりうる外部パスのため）。<code>-f</code>のフィルタパスと<code>--rawfile</code>の辞書パスは、いずれもリポジトリ内の固定相対パスであり標準入力へ逃がす対象ではない（既存<code>session-start.sh</code>が<code>jq</code>を<code>-f</code>引数で呼んでいる箇所と同じ扱い）。</li>
     <li>辞書は<code>--rawfile</code>でテキストごと渡し、jq側で改行分割・<b>各行のtrim（前後空白・CR除去）</b>・コメント行/空行除去を行う。発言側と同じ正規化を辞書語にも適用してから比較する（末尾空白・CRLF・字下げされたコメント行で辞書語が無言で無効化されるのを防ぐ）。</li>
     <li>辞書ファイルが存在しない・読めない場合、bash側は<code>--rawfile</code>を使わず空文字列を<code>--arg</code>で渡す（存在しないパスを<code>--rawfile</code>へ渡すとjq起動自体が失敗するため）。</li>
-    <li>出力は1つのJSONオブジェクト（<code>selected</code> / <code>excludedCounts</code> / <code>populationCount</code>）にまとめ、bash側は<code>jq -r</code>で崩す（bash・jq間の受け渡しも1回で済ませる）。</li>
+    <li>出力は1つのJSONオブジェクト（<code>sectionText</code> / <code>excludedEvents</code> / <code>populationCount</code>）にまとめ、bash側は<code>jq -r</code>/<code>jq -c</code>で崩す（bash・jq間の受け渡しも1回で済ませる）。</li>
   </ul>
+  <div class="box ok">
+    <span class="label">実装時に変更（issue #151フェーズ3実装時）</span>
+    当初案は<code>selected</code>（未整形の配列）＋<code>excludedCounts</code>（辞書語→件数の集計済みオブジェクト）で、bash側が整形・集計を担う設計だった。実装では、バイト予算内でのテール間引き・見出し組み立て・除外内訳行の組み立てをすべてjq側へ集約し、<code>sectionText</code>として整形済みテキストをそのまま返す形にした。また累積カウントの重複計上対策（下記H-3）に<code>uuid</code>が必要なため、集計済みの<code>excludedCounts</code>ではなく除外イベントを<code>{uuid, word}</code>のペア配列（<code>excludedEvents</code>）として返す。詳細・経緯: <code>wip/reports/20260830_session-start-user-utterance-reinject_作業結果.md</code>「1.」。
+  </div>
   <div class="box warn">
     <span class="label">CR除去（フェーズ3敵対的レビュー指摘）</span>
-    Windows native jqはコマンド置換・パイプでも行末へCRを付与する。<code>excludedCounts</code>のキーを複数件ループで取り出す場合、<code>selected[].text</code>のように複数行になりうる値をコマンド置換で受ける場合のいずれも最後の要素・最終行以外にCRが残る。この2箇所は<code>| tr -d '\r'</code>を挟む（単一行・単一要素で完結する取り出しには不要）。
+    Windows native jqはコマンド置換・パイプでも行末へCRを付与する。<code>sectionText</code>は複数行になりうる値をコマンド置換で受けるため、最後の行以外にCRが残る。この取り出し（<code>jq -r '.sectionText // ""'</code>）は<code>| tr -d '\r'</code>を挟む（<code>excludedEvents</code>は<code>jq -c</code>で単一行へ潰しているため不要。単一行・単一要素で完結する取り出しにも不要）。
   </div>
 
   <h3>抽出条件（フェーズ2確定分。実装で崩さない）</h3>
@@ -321,7 +325,7 @@ USER_UTTERANCE_MAX_BYTES="${USER_UTTERANCE_MAX_BYTES:-6000}"</code></pre>
     <li>引数の無いスラッシュコマンド単体（<code>^/[A-Za-z][A-Za-z0-9:_-]*$</code>）</li>
     <li><code>&lt;command-name&gt;</code> 等のタグで始まる行</li>
   </ol>
-  <p>除外が発生するたびに<code>excludedCounts</code>へ辞書語（規則1のみ）をキーとして加算する。</p>
+  <p>除外が発生するたびに除外イベント（規則1のみ。辞書語＋<code>uuid</code>）を<code>excludedEvents</code>へ加算する。</p>
 
   <h3>ブランチ絞り・重複除去・採り方・切り出し・サイズ</h3>
   <p>いずれもフェーズ2確定のロジックをそのまま実装する（個別調査計画・調査結果レポートが正。ここでの再掲はしない）。</p>
@@ -410,7 +414,7 @@ set -e
       <tr><td>5</td><td><code>gitBranch</code>を持つ行があり現在ブランチと一致するものが1件以上</td><td>一致行だけに絞る</td></tr>
       <tr><td>6</td><td><code>gitBranch</code>を持つ行はあるが一致0件</td><td>絞らず全体から採る</td></tr>
       <tr><td>7</td><td><code>gitBranch</code>を持つ行が1件も無い（Gemini CLI形式を模す）</td><td>絞らず全体から採る</td></tr>
-      <tr><td>8</td><td>辞書語と正規化後に完全一致する発言</td><td>除外され、<code>excludedCounts</code>に反映される</td></tr>
+      <tr><td>8</td><td>辞書語と正規化後に完全一致する発言</td><td>除外され、<code>excludedEvents</code>に反映される</td></tr>
       <tr><td>9</td><td>辞書語に前後の空白・句読点・感嘆符が付いた発言</td><td>正規化後に一致し除外される</td></tr>
       <tr><td>10</td><td>引数付きスラッシュコマンド</td><td>除外されず残る</td></tr>
       <tr><td>11</td><td>引数無しスラッシュコマンド単体</td><td>除外される</td></tr>
@@ -427,7 +431,7 @@ set -e
       <tr><td>22</td><td>累積カウント状態ファイルが空・壊れたJSON</td><td>検証エラーを検知し「状態なし」へフォールバックして自己回復する（エラーで落ちない）</td></tr>
       <tr><td>23</td><td><code>UserUtteranceSelect.jq</code>の呼び出し自体が失敗する状況を模す</td><td><code>build_context</code>は失敗せず、既存6項目は通常どおり出る（fail-open）</td></tr>
       <tr><td>24</td><td>辞書ファイルが存在しない・空</td><td>規則1が無効化され例外を投げない。規則2・3は通常どおり動く</td></tr>
-      <tr><td>25</td><td>辞書一致で<code>selected</code>が全滅（除外件数&gt;0）だが選定結果が0件</td><td>除外内訳行だけが出る</td></tr>
+      <tr><td>25</td><td>辞書一致で選定結果（<code>sectionText</code>）が全滅（除外件数&gt;0）だが選定結果が0件</td><td>除外内訳行だけが出る</td></tr>
       <tr><td>26</td><td>同一セッションでhookが2回発火（resume相当）、同じ除外イベントを含むtranscriptを2回処理</td><td>累積カウントが2重加算されない（<code>countedUuids</code>で重複除去）</td></tr>
     </tbody>
   </table>

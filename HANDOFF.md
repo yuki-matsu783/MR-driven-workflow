@@ -41,11 +41,11 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
 | [x] | 2-9 | レビュー内容を取得し調査結果を修正する | サブコマンド |
 | [x] | 2-10 | 調査結果をもとにMR descriptionを更新する | サブコマンド |
 | [x] | 3-1 | 個別作業計画を作成する | エージェント |
-| [] | 3-2 | commitし、リモートへ反映してレビュー依頼 | エージェント |
-| [] | 3-3 | 作業計画をレビュー・コメントする | 人間 |
-| [] | 3-4 | レビュー内容を取得し作業計画を修正する | サブコマンド |
-| [] | 3-5 | 作業計画をもとにMR descriptionを更新する | サブコマンド |
-| [] | 3-6 | 作業を進め結果をwip/reports/へ記録する | エージェント |
+| [x] | 3-2 | commitし、リモートへ反映してレビュー依頼 | エージェント |
+| [x] | 3-3 | 作業計画をレビュー・コメントする | 人間 |
+| [x] | 3-4 | レビュー内容を取得し作業計画を修正する | サブコマンド |
+| [x] | 3-5 | 作業計画をもとにMR descriptionを更新する | サブコマンド |
+| [x] | 3-6 | 作業を進め結果をwip/reports/へ記録する | エージェント |
 | [] | 3-7 | commitし、リモートへ反映してレビュー依頼 | エージェント |
 | [] | 3-8 | 作業結果をレビュー・コメントする | 人間 |
 | [] | 3-9 | レビュー内容を取得し実装・ドキュメントを修正する | サブコマンド |
@@ -329,12 +329,81 @@ AI⇔AI/AI⇔人間の状況引継ぎメモ。常に「このブランチの現�
     追随（`.gitignore`/`directory-structure.md`）。テスト計画は20→26ケースへ増補。
   - 詳細: `wip/worklogs/20260829_..._【設計】【実装】【テスト】ユーザー発言抽出・再注入の実装_push10.md`
 
+- **flow-id 3-2（続き）**: 敵対的レビュー16件の反映分をコミットしpushした（push回数10）。
+
+- **flow-id 3-3〜3-4（1周目・完了）**: ユーザーから「レビューOK」を受領。**人間からの
+  インラインコメントは0件**で、このループで反映すべき新規の指摘は無かった。
+  - **「レビュー完了合図の確認」(1)(2)(3) を実施した**（`comments all` 相当、全40スレッドを
+    1ページで走査済み・`hasNextPage: false`）。スレッド総数40件、`is_resolved: false` が
+    **40件（全件、resolveはレビュアー側の操作のため従来どおり非ブロッキング）**、
+    **返信ゼロは0件**（全40スレッドが指摘＋返信の2件構成）。
+  - これにより、残る設計判断4点（H-1〜H-4・E・A・C）を含む個別作業計画への承認が確定した。
+    **承認を得たので、flow-id 3-6（実装）へ進んでよい。**
+
+- **flow-id 3-5**: 個別作業計画の承認内容（残る設計判断4点H-1〜H-4・E・A・Cの反映を含む）を
+  もとにMR descriptionを全面更新した（敵対的レビュー表にフェーズ3・1回目を追加、進捗チェック
+  リストを3-1〜3-4完了へ更新、設計判断表へ#9〜11(transcript_path受け渡し・
+  append_size_warning末尾化・累積カウントuuid重複除去)を追加）。
+
+- **flow-id 3-6（実施中）**: `.claude/hooks/session-start.sh` へ実装した
+  （`build_user_utterance_context`・`read_ack_exclusion_state_to_reply`・
+  `update_ack_exclusion_counts`の新設、`append_size_warning`の第3引数`excluded_bytes`追加、
+  `transcript_path`を`main`→`build_context`→`build_work_context`→`build_user_utterance_context`
+  と下方向へ渡し、再注入バイト数はセンチネル行`__USER_UTTERANCE_BYTES__:<N>`で上方向へ返す設計）。
+  除外辞書 `.claude/hooks/session-start-ack-words.txt`（H-1の10語）と、抽出・選定・整形の中核
+  `.claude/hooks/lib/UserUtteranceSelect.jq` を新規作成した。
+  - **計画からの設計変更（実装時）**: 出力スキーマを計画の`selected`/`excludedCounts`から
+    `sectionText`（jq側で整形済みテキストを組み立て）/`excludedEvents`（`{uuid,word}`配列。
+    累積カウントのuuid重複計上対策に必要）へ変更した。トレードオフとしてCR除去対象が
+    `sectionText`取り出し1箇所に変わった（`tr -d '\r'`を適用済み）。詳細:
+    `wip/reports/20260830_session-start-user-utterance-reinject_作業結果.md`「1.」。
+  - **isSidechain false-as-falsy回帰を実装中に発見・修正**（jqの`//`は`false`もfalsyとして
+    扱うため`(.isSidechain // null) != false`は`isSidechain: false`の行まで除外してしまう）。
+    `.claude/rules/shell-script-style.md`「JSON操作」へ教訓を追記した。
+  - `.gitattributes`（辞書ファイル・jqフィルタ両方のLF保証）・`.gitignore`・
+    `directory-structure.md`の`wip/state/`列挙・`lib/`定義を計画どおり更新した。
+  - 実transcript（本セッション自身、3695行）に対する手動実行: populationCount=11・
+    辞書一致除外0件・sectionText 558B・実行時間0.201秒（Linux、フィルタ単体。しきい値500msの
+    約40%だが実運用経路全体は未計測——下記レビュー指摘参照）。本文は記録せず統計値のみを
+    `wip/reports/20260830_session-start-user-utterance-reinject_作業結果.md`（同名html）へ
+    記録した。git bash実機再測は未実施（残課題として記録）。
+- **flow-id 3-6後・敵対的レビュー（フェーズ3・2回目、作業実施段）**: `adversarial-reviewer`が
+  findings **14件**を返した（blocker/high 1・major/high 5・major/medium 2・minor/high 2・
+  minor/medium 4）。**この時点ではまだpushしておらずGitHub上に対象diffが存在しなかったため、
+  インラインコメント投稿は行わず、14件すべてをpush前に修正した。** 実施回数カウンタは
+  `increment 3`済みで**2/3**。
+  - 主な修正: (1) `.gitattributes`に`UserUtteranceSelect.jq`のLF保証が漏れておりCRLFで
+    jqがコンパイルエラーになる欠陥（blocker）を追加、(2) 累積状態ファイルの型検証を強化
+    （`[]`等が`jq -e .`を素通りしていた）、(3) 無制限に増える`countedUuids`を`--argjson`から
+    一時ファイル+`--slurpfile`へ変更（`Argument list too long`対策）、(4) ユーザー発言節の
+    挿入位置を計画どおり「次にやること」直後へ修正、(5) `max_bytes`判定に除外内訳行を含める、
+    (6) 複数行発言の改行を`clip`前に畳み込み、(7) センチネル抽出を
+    `strip_utterance_sentinel_to_reply`へ切り出し実運用経路の統合テストを追加、
+    (8) ブランチ絞りフォールバック条件を厳格化（既存テスト1件の期待値を修正）、
+    (9) `directory-structure.md`の`lib/`定義を実態へ追随。低コストな残り2件（前後空白の
+    スラッシュ/タグ判定・uuid欠落行の重複除去）も併せて修正。残り2件（実測の限定条件の注記・
+    辞書ファイルの配布層判断）はコード変更ではなく記載是正／スコープ外記録で対応。
+  - **修正作業そのものが新しい欠陥2件を作り込み、単体テストで即座に検出・再修正した**
+    （jqの`or`/`|`演算子優先順位バグ、`strip_utterance_sentinel_to_reply`切り出し時の
+    `grep -o`非0終了による`set -e`下の意図しない中断）。詳細:
+    `wip/reports/20260830_session-start-user-utterance-reinject_作業結果.md`「想定と異なった点」。
+  - `.claude/scripts/test/test_session_start.sh`へ回帰テストを追加し
+    `passed=159 failures=0`（既存103件＋新規56件）を確認した。既存6箇所の`append_size_warning`
+    呼び出しは無変更で通過。
+  - 「育てる」辞書の配布層（`core`のままだと配布先が育てた内容が再適用で上書きされる）は、
+    本issueのスコープ外の配布アーキテクチャ判断として、フォローアップ課題を提案する
+    （`spawn_task`がタイムアウトしたため未登録。次回セッションで再試行するか、
+    手動でissue起票を検討）。
+
+- **訂正**: `update-handoff-progress.sh mark-done 3-6` がループ範囲`3-6 3-7 3-8 3-9`の仕様どおり
+  4件まとめて`[x]`にしたが、実際に完了していたのは3-6のみだったため、3-7〜3-9を`[]`へ戻し
+  `- 現在のループ:`を`なし`へ訂正した（呼び出し側のミス。ツール自体の不具合ではない）。
+
 ## 次にやること
 
-- **flow-id 3-2（続き）**: 上記の指摘反映分をコミットしpushする（push回数10）。
-- **flow-id 3-3**: 個別作業計画（とくに残る設計判断4点 H・E・A・C）のレビュー・承認を待つ。
-  **承認を得るまで3-6（実装）へ進まない。**
-- **敵対的レビューの残り実施回数**: フェーズ2は 2/3 消費。フェーズ3は **1/3 消費**（残り2回）。
+- `commit`スキル経由でコミットしpush（flow-id 3-7、push回数11）してレビュー依頼する。
+- push後、「育てる」辞書の配布層判断についてフォローアップissueの起票を検討する
+  （`spawn_task`未登録分）。
 
 ## 判断を迷った内容
 
