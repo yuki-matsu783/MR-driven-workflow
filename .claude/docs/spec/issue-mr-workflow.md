@@ -1014,6 +1014,44 @@ resume・clear時に毎回、現在ブランチのissue/MR状態をコンテキ�
     同ファイルを名指しで注入する（下記「`gh`/`glab` CLI自体が無い環境での挙動」の4点に含まれる）。
 - **出力形式**: `{"hookSpecificOutput":{"hookEventName":"SessionStart","additionalContext":"<text>"}}`
   形式のJSONをstdoutへ返す。
+- **ユーザー発言の抽出・再注入（issue #151）**: 上記の現在地flow-idと参照ファイルの注入に続けて、
+  transcriptから抽出したユーザーの生発言を再注入する。挿入位置は「`HANDOFF.md` 次にやること」
+  ブロックの**直後**（SKILL.md再読み込み指示より前）。
+  - **コンポーネント**: `.claude/hooks/lib/UserUtteranceSelect.jq`（抽出・選定・整形の中核。
+    `jq -R -n -f` + `inputs` で全走査）＋ `.claude/hooks/session-start-ack-words.txt`
+    （除外辞書。プレーンテキスト、1行1語）＋ `session-start.sh` の
+    `build_user_utterance_context` / `read_ack_exclusion_state_to_reply` /
+    `update_ack_exclusion_counts` / `strip_utterance_sentinel_to_reply`。
+  - **母集団の抽出条件**（6条件すべてを満たす行）: `type=="user"` かつ `message.content` が
+    文字列型 かつ `userType=="external"` かつ `isSidechain==false`（`//`演算子はfalseも
+    falsyにするため直接比較で書く。上記「JSON操作」節参照） かつ `origin.kind=="human"`
+    （肯定形。否定形だと`origin`キー自体を持たない行が混入する） かつ `uuid`（無ければ行番号を
+    代替キー）による重複除去。さらにスラッシュコマンド単独行・タグ始まりの行を除外理由付きで弾く。
+  - **選定**: 先頭3件＋直近7件（最大10件）。1件あたりの文字数は先頭群が頭120字+末尾40字、
+    直近群が頭80字+末尾30字（中間を`…`で省略。文字単位の切り出しには`jq`の`.[0:N]`を使う。
+    `${var:0:N}`は環境によりバイト単位で日本語が壊れるため使わない）。改行・連続空白は半角
+    スペース1つへ畳んでから切り出す。
+  - **除外規則（「育てる」辞書）**: `.claude/hooks/session-start-ack-words.txt`（正規化後の
+    完全一致）。除外実績を注入テキストへの内訳行（`- 相槌等として除外: <語>×<件数>`）と
+    `wip/state/session-start-ack-exclusion-counts.json`（gitignore対象。`uuid`集合
+    `countedUuids`で重複計上を防ぐ）で可視化する。**発言本文は一切保存しない**（辞書語と件数の
+    みを記録する）。
+  - **サイズ管理**: 発言節のバイト上限6,000B（`append_size_warning`の第3引数
+    `excluded_bytes`。末尾・省略可・既定0のため既存6箇所の呼び出しは無変更）。再注入バイト数は
+    センチネル行`__USER_UTTERANCE_BYTES__:<N>`で`build_user_utterance_context`から`main`へ
+    返し、`strip_utterance_sentinel_to_reply`が本文から取り除く。
+  - **性能**: しきい値500ms（全走査方式のまま採用。git bash見積もり約208msで42%）。しきい値は
+    当初200msだったが、フェーズ2の実測（jq起動138ms＋走査約70msでgit bash見積もりが超過）を
+    受けて人間判断で500msへ改定した（AIの自己判断による緩和ではない）。
+  - **fail-open**: 読み取り・抽出に失敗しても他項目の注入を止めない（サブシェル内で`set -e`を
+    掛け直し、失敗時は空文字列を返す。上記issue #57のfail-open方針を踏襲）。
+  - **スコープ外**: Gemini CLI経路（issue #201へ切り出し。SessionStartに`compact`起動要因が無い等、
+    3つの壁があり本issueでは対応しない）、過去transcriptの走査（この節の既存注入で代替）、
+    `AskUserQuestion`回答の母集団への混入対応（抽出条件の再設計に近い規模のため見送り）、
+    除外辞書の配布層判断（issue #207へ切り出し）。
+  - 詳細・却下案は
+    [i0151-01-compact後のユーザー発言再注入はorigin.kind条件・育てる辞書・全走査（しきい値500ms）で実装する.md](../ddr/i0151-01-compact後のユーザー発言再注入はorigin.kind条件・育てる辞書・全走査（しきい値500ms）で実装する.md)
+    参照。
 - **フォールバック方針**: `main`ブランチ上（作業ブランチ未チェックアウト）では注入しない。
   `gh`未認証・API失敗等、情報収集に失敗した場合もセッション開始をブロックせず、短い失敗メッセージ
   のみを返す（best-effort。詳細な原因調査は人間が手動で行う）。作業ファイル一覧・`HANDOFF.md`

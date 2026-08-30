@@ -518,7 +518,8 @@ assert_eq "実データ: 全体フロー表は43行ある" "43" "$rows"
 assert_eq "実データ: 全行で参照列が引け、名指しされた参照ファイルが実在する（欠落0）" "0" "$missing"
 
 # --- UserUtteranceSelect.jq: ユーザー発言の抽出・選定・整形（issue #151） -----------
-# 設計の正: wip/plans/【設計】【実装】【テスト】ユーザー発言抽出・再注入の実装.md
+# 設計の正: .claude/docs/spec/issue-mr-workflow.md「セッション開始時の自動コンテキスト注入」節
+# （DDR i0151-01）
 
 filter_path="$repo_root/.claude/hooks/lib/UserUtteranceSelect.jq"
 

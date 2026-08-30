@@ -18,7 +18,8 @@
 #     "populationCount": 7
 #   }
 #
-# 設計の正: wip/plans/【設計】【実装】【テスト】ユーザー発言抽出・再注入の実装.md
+# 設計の正: .claude/docs/spec/issue-mr-workflow.md「セッション開始時の自動コンテキスト注入」節
+# （DDR i0151-01）
 
 # UTF-8バイト数（jqのlengthはコードポイント数を返すため、コードポイントから算出する）
 def utf8_bytes:

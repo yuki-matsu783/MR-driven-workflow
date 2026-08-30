@@ -50,7 +50,8 @@ set -uo pipefail
 CONTEXT_SIZE_WARN_BYTES="${CONTEXT_SIZE_WARN_BYTES:-8000}"
 
 # ユーザー発言の再注入（issue #151）のパラメータ。フェーズ2の実測で確定した既定値。
-# 詳細: wip/plans/【設計】【実装】【テスト】ユーザー発言抽出・再注入の実装.md「方針」
+# 詳細: .claude/docs/spec/issue-mr-workflow.md「セッション開始時の自動コンテキスト注入」節
+# （DDR i0151-01）
 USER_UTTERANCE_HEAD_COUNT="${USER_UTTERANCE_HEAD_COUNT:-3}"
 USER_UTTERANCE_TAIL_COUNT="${USER_UTTERANCE_TAIL_COUNT:-7}"
 USER_UTTERANCE_MAX_BYTES="${USER_UTTERANCE_MAX_BYTES:-6000}"
@@ -86,7 +87,8 @@ context_text_bytes() {
 # しきい値判定はこれを差し引いた「有効バイト数」で行う——再注入セクションは元々あった
 # コンテキストの肥大化とは別の理由で増減するため、これを含めて警告すると「HANDOFF.md・
 # 個別作業計画を整理せよ」という警告文の指示先が実情と合わなくなる（詳細:
-# wip/plans/【設計】【実装】【テスト】ユーザー発言抽出・再注入の実装.md「方針」）。
+# .claude/docs/spec/issue-mr-workflow.md「セッション開始時の自動コンテキスト注入」節。
+# DDR i0151-01）。
 # 省略時（既存呼び出し）は excluded_bytes=0 のため effective_bytes は従来どおり bytes と一致し、
 # 挙動は変わらない。
 append_size_warning() {
@@ -278,7 +280,8 @@ read_ack_exclusion_state_to_reply() {
 
 # 除外イベント（{uuid, word}の配列JSON文字列）を累積状態へマージし、ファイルへ書き戻す。
 # 既にcountedUuidsに含まれるuuidは二重加算しない（resume/compact/clearでの同一発言の
-# 再走査に対する冪等性。詳細: wip/plans/【設計】【実装】【テスト】ユーザー発言抽出・再注入の実装.md）。
+# 再走査に対する冪等性。詳細: .claude/docs/spec/issue-mr-workflow.md
+# 「セッション開始時の自動コンテキスト注入」節。DDR i0151-01）。
 # 書き込みは一時ファイル+mvで行う（JSON操作規約）。失敗しても呼び出し元をブロックしない
 # （呼び出し側がfail-openで包む）。
 #
