@@ -295,9 +295,23 @@ gitlab_get_compare_url() {
   printf '%s/-/compare/%s...%s\n' "$repo_url" "$from" "$to"
 }
 
-# MRの「defaultブランチとの差分」を見れるURLを組み立てる（純粋関数）。issue #13。
+# MRの「defaultブランチとの差分」を見れるURLを組み立てる（純粋関数）。issue #13, #205。
+#
+# 第4引数 `mr_url` を渡すと、MRの「Diffs」タブ（`<mrUrl>/diffs`）を返す。ここはレビューコメントを
+# 行単位で付けられるビューで、Compareページ（コメント不可）との違いはそこにある（issue #205）。
+# URL形式はissue #205本文でリポジトリ所有者が指定したもの。`mr_url` が空（`glab` CLI不在で
+# MR URLを解決できなかった等）なら従来どおりCompareページを返す。
+#
+# **GitLabにはGitHubの `github_resolve_mr_number_for_head` に相当する解決手段を用意していない**
+# （`refs/merge-requests/<n>/head` をこの環境で実機検証できないため。`references/mcp-fallback.md`
+# 第5節と同じ判断）。したがってGitLab＋`glab`不在では `mr_url` が空のままで、従来どおり
+# Compareページが返る（＝後退しない）。
 gitlab_get_mr_diff_url() {
-  local repo_url="$1" base_branch="$2" head_branch="$3"
+  local repo_url="$1" base_branch="$2" head_branch="$3" mr_url="${4:-}"
+  if [ -n "$mr_url" ]; then
+    printf '%s/diffs\n' "$mr_url"
+    return 0
+  fi
   gitlab_get_compare_url "$repo_url" "$base_branch" "$head_branch"
 }
 
